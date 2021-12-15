@@ -9,7 +9,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions:
-		- 20211130@Kathy: New cashout model [Redmine:#164838]	
+		- 20211130@Kathy: New cashout model [Redmine:#164838]			
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
 	Param's Explanation:  
 		   
@@ -73,6 +74,7 @@ BEGIN
 
 	UPDATE b
 		SET @StatusId = CASE	
+							WHEN b.statusID = 102 THEN 102
 							WHEN t.statuswinlost = 6 THEN 103
 							WHEN b.actual_stake < t.Winlost THEN 112
 							WHEN b.actual_stake = t.Winlost THEN 111

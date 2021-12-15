@@ -17,6 +17,7 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
     Param's Explanation:
 */
@@ -33,13 +34,15 @@ BEGIN
 		,betMarkedCount		INT 
     )
 
-    DECLARE @tmpTicketStatusParlay TABLE(
-         ResourceID			VARCHAR(20)
-        ,BetCount			INT
-        ,InRunning			INT
-        ,InWaiting			INT
-        ,GroupId			SMALLINT
-    )
+  --  DECLARE @tmpTicketStatusParlay TABLE(
+  --       ResourceID			VARCHAR(20)
+  --      ,BetCount			INT
+  --      ,InRunning			INT
+  --      ,InWaiting			INT
+  --      ,GroupId			SMALLINT
+		--,betSettledCount	INT
+		--,betMarkedCount		INT 
+  --  )
 
 	DECLARE @tmpAutoBettypes TABLE (
 		bettype		SMALLINT
@@ -89,41 +92,50 @@ BEGIN
 					END
 	END
 
-	INSERT INTO @tmpTicketStatusParlay( ResourceID, BetCount, InRunning, InWaiting)
+	INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
     SELECT  f.ResourceID
 			,SUM(CASE WHEN bm.StatusID BETWEEN 101 AND 102 THEN 0 ELSE 1 END)
-            ,SUM(CASE WHEN bm.StatusID = 0 THEN 1 ELSE 0 END) AS InRunning  
-            ,SUM(CASE WHEN bm.StatusID = 1 THEN 1 ELSE 0 END) AS InWaiting 						             
+            ,SUM(CASE WHEN bm.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS InRunning  
+            ,SUM(CASE WHEN bm.StatusID = 1 THEN 1 ELSE 0 END) AS InWaiting 				
+			,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount
+			,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
     FROM    dbo.Bettransm bm WITH (NOLOCK)
         INNER JOIN @tmpAutoBettypes f
             ON	bm.bettype = f.BetType
 				AND (f.BetID = 0 OR f.BetID = bm.betcheck)
-    WHERE   matchID = @MatchID 
+		LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+			ON	b.matchid = 29		
+				AND b.bettype = 29
+				AND b.refno = bm.refno
+		LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+			ON	b.transid = mt.TransId
+				AND mt.matchid = bm.matchid
+    WHERE   bm.matchID = @MatchID 
 			AND bm.statusID NOT IN (101,102)
     GROUP BY f.ResourceID
 		
 	-- Detail 
 	SELECT	tp.ResourceID
-			,tp.TicketStatus
+			,CASE 
+				WHEN tp.InRunning > 0 THEN 'Running'
+				WHEN tp.InWaiting > 0 AND tp.InWaiting = tp.BetCount THEN 'Waiting'
+				WHEN tp.betMarkedCount > 0 THEN 'Marked'
+				WHEN tp.BetCount = 0 AND tp.ResourceID LIKE '38[12]%' THEN 'No Ticket'
+				ELSE 'Calculated'
+			END AS TicketStatus
 			,r.HomeValue
 			,r.AwayValue
 			,r.ResultStatusID
 			,r.SettlementStatusID
 			, ISNULL( r.ResultSetting, 0) AS ResultSetting
 	FROM (
-		SELECT  COALESCE(t.ResourceID,p.ResourceID) AS ResourceID
-				,CASE 
-					WHEN t.InRunning > 0 THEN 'Running'
-					WHEN t.InWaiting > 0 AND t.InWaiting = t.BetCount THEN 'Waiting'
-					WHEN t.betMarkedCount > 0 THEN 'Marked'
-					WHEN ISNULL(t.BetCount,0) = 0 AND p.InRunning > 0 THEN 'Parlay Running'
-					WHEN ISNULL(t.BetCount,0) = 0 AND p.InWaiting > 0 AND p.BetCount = p.InWaiting THEN 'Parlay Waiting'
-					WHEN t.BetCount IS NULL AND t.ResourceID LIKE '38[12]%' THEN 'No Ticket'
-					ELSE 'Calculated'
-				END AS TicketStatus
+		SELECT  t.ResourceID
+				,ISNULL(SUM(t.InRunning),0) AS InRunning
+				,ISNULL(SUM(t.InWaiting),0) AS InWaiting
+				,ISNULL(SUM(t.betMarkedCount),0) AS betMarkedCount
+				,ISNULL(SUM(t.BetCount),0) AS BetCount
 		FROM    @tmpTicketStatus t
-			FULL JOIN @tmpTicketStatusParlay p	
-				ON	t.resourceId = p.ResourceID
+		GROUP BY t.ResourceID
 	) tp
         OUTER APPLY( 
 			SELECT  r.ResourceId

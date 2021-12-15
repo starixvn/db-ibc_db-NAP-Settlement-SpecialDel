@@ -51,6 +51,7 @@ AS
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 		- 20220128@Kathy: Cricket AIO Phase 2 [Redmine:#166335]
+		- 20220309@Kathy: Remove code savebet, old Cashout model [Redmine:#169643]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -102,7 +103,6 @@ BEGIN
 			,@sqlCommand VARCHAR(MAX) = ''
 			-- for cashout
 			,@Action_tmp	VARCHAR(10)
-			,@CashoutVersion	TINYINT = 0
 			,@TotalSubParlay	INT = 0
 			,@ThreadHold		INT = 0
 			,@LockedByRefno		BIT = 0
@@ -626,11 +626,6 @@ BEGIN
 			FROM	@tmpSelectedRID
 			GROUP BY bettype
 			
-			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK)	
-						WHERE	b.matchid = @matchid AND b.betdaqid = 0
-								AND EXISTS (SELECT TOP (1) 1 FROM @tmpSelectedRID t WHERE t.BetType = b.bettype )
-						)
-				SET @CashoutVersion = 1
 		END
 		-------------------------------------------------------------
 		---		CAPTURE value BALANCE before settlement		---
@@ -643,8 +638,7 @@ BEGIN
 						,@Action 				  = @Action
 						,@Mode 					  = 2
 						,@SelectedRID			  = @SelectedRID
-						,@CashoutVersion		  = @CashoutVersion
-		
+						
 		SELECT @TotalAccount = @@ROWCOUNT
 						
 		------START UPDATE BETTRANS---------------------------------------------------------------------------
@@ -689,23 +683,6 @@ BEGIN
 				SELECT @Action_tmp = 'CAL', @mode = 'UNDO'
 			ELSE
 				SELECT @Action_tmp =  @Action, @mode = @Action
-					
-			IF @CashoutVersion = 1
-			BEGIN
-				-- process for 911 first: NAP_Admin_Calculate_911
-				EXEC dbo.NAP_Admin_Calculate_Main
-					@matchid	  		 = @matchid
-				   ,@action				 = @Action_tmp
-				   ,@mode				 = @mode
-				   ,@IsSettingByProfile  = 1
-				   ,@strBettypes		 = @strBettypes
-				   ,@sportType			 = @sportType
-				   ,@CashoutVersion		 = @CashoutVersion
-			   
-				EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
-					@MatchId = @matchid
-					,@Action = @Action
-			END
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
 			BEGIN
@@ -761,8 +738,6 @@ BEGIN
 					,@Action 			= @Action
 					,@Mode 			  	= 2 --Used for Manual settle process
 					,@SelectedRID		= @SelectedRID
-					,@CashoutVersion	= @CashoutVersion
-		
 		
 		-- Compare and update pending balance with error case
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -825,13 +800,6 @@ BEGIN
 							,@IsHTRound			= @existsHTRound
 							,@BetStatus			= @BetStatus
 														
-			IF @existsFinalRound = 1
-			BEGIN
-				EXEC DBACC.bodb02.dbo.NAP_Admin_Match_UpdateSaveBet
-							@action				= 'UNDO'
-							,@matchid			= @matchid
-							,@IsFinalRound		= @existsFinalRound
-			END
 		END-------------------end UNDO
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
@@ -887,8 +855,7 @@ BEGIN
 			  , @Action 			= @Action
 			  , @Mode 				= 2 --Used for Manual settle process
 			  , @SelectedRID		= @SelectedRID
-			  , @CashoutVersion		= @CashoutVersion
-
+			  
 		-- Compare and update pending balance with error case
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 			  @BalanceWalletBefore	= @BalanceWalletBefore

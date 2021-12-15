@@ -30,6 +30,7 @@ AS
 	   - 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 	   - 20211210@Kathy: Improve performance [Redmine:#165996]
 	   - 20211130@Kathy: New cashout model [Redmine:#164838]
+	   - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
 */
 BEGIN
@@ -62,8 +63,7 @@ BEGIN
 			,@IsExistCashout BIT
 			,@xmlResourceResult		XML
 			,@ChildMatchType		TINYINT
-			,@strSpecialBettype VARCHAR(MAX) 
-			,@strCashoutBettypeXML VARCHAR(MAX)
+			,@strSpecialBettype VARCHAR(MAX)
 			,@strCashoutBettype VARCHAR(MAX)
 			,@TotalCommands INT
 			,@MessageBody VARCHAR(MAX)
@@ -74,6 +74,11 @@ BEGIN
 			,@RunPrepareDataBySSB BIT
 			,@openquery NVARCHAR(MAX)
 			,@strTransIds	VARCHAR(MAX)
+			,@TotalSubParlay INT
+			,@SelectedResourceParlay VARCHAR(MAX) 
+			,@ThreadHoldRefno	INT 
+			,@LockedByRefno		BIT
+			,@sqlCommand		VARCHAR(MAX)
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -87,9 +92,10 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
 	
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)
+	DECLARE @tmpParlayAffectedBettypes TABLE (bettype SMALLINT, totalticket INT)	
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY
-		, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY,livehomescore SMALLINT, liveawayscore SMALLINT)
+		, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY,livehomescore SMALLINT, liveawayscore SMALLINT, isFinished BIT DEFAULT(0))
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -102,6 +108,7 @@ BEGIN
 		,BetID			BIGINT
 		,pfID			SMALLINT
 		,OddsType		SMALLINT
+		,RefResourceId	VARCHAR(20)
 		,PRIMARY KEY (BetType,BetID)
 	)	
 	
@@ -127,7 +134,6 @@ BEGIN
 			,@TotalTicket = 0
 			,@xmlResourceResult = CAST(@ResourceResult AS XML)
 			,@strSpecialBettype = ''
-			,@strCashoutBettypeXML = ''
 			,@strCashoutBettype = ''
 			,@TotalCommands = 0
 			
@@ -135,6 +141,10 @@ BEGIN
 			,@SettlementProcessingId = 0
 			,@SPName = OBJECT_NAME(@@PROCID)
 			,@Sporttype = 1
+			,@TotalSubParlay = 0
+			,@ThreadHoldRefno = 0
+			,@LockedByRefno = 0
+			,@sqlCommand = ''
 
 	IF @SessionId IS NULL
 	BEGIN
@@ -325,27 +335,27 @@ BEGIN
 		,BetID
 		,pfID
 		,OddsType	
+		,RefResourceId
 	)
 	SELECT DISTINCT tbl.ResourceID
 			,tbl.HomeValue
 			,tbl.AwayValue
 			,sp.BetType, sp.BetID, sp.pfID
-			,ISNULL(sp.OddsType,0)				
+			,ISNULL(sp.OddsType,0)	
+			,sp.RefResourceId
 	FROM	@tmpResources tbl
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 			ON	sp.ResourceID = tbl.ResourceID
-		INNER JOIN dbo.f_Set_GetGroupBettypes() AS f
-			ON	sp.bettype = f.BetType
 		INNER JOIN @tmpAffectedBettypes ab
-			ON	sp.BetType = ab.Bettype
+			ON ab.Bettype = sp.BetType
 	WHERE	sp.SportType = @SportType
 			AND 1 = CASE	
-						WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND f.Is3x30 = 1 AND f.GroupId = 2 THEN 0 
+						WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND sp.Is3x30 = 1 AND sp.GroupType = 'FT' THEN 0 
 						ELSE 1
 					END
 			AND sp.SettleType = 'MNL'
 			AND sp.pfID > 0
-	
+
 	INSERT INTO dbo.SettlementBettypeResult (MatchId, Bettype, pfId, HomeValue, AwayValue, OddsType, SessionId)
 	SELECT	@MatchId AS MatchId
 			,BetType
@@ -513,26 +523,13 @@ BEGIN
 	END
 	
 	IF @action = 'CAL'
-	BEGIN
-		SELECT @strCashoutBettypeXML = CAST(
-								(SELECT  Bettype AS '@t' 
-								FROM	dbo.f_Set_GetCashOutBettypes() f
-								FOR XML PATH ('r'),ROOT ('root'), TYPE
-							) AS VARCHAR(MAX))
-		
+	BEGIN		
 		SELECT @strCashoutBettype = STUFF((SELECT ',' + CAST(f.bettype AS VARCHAR(50)) 
 											FROM	dbo.f_Set_GetCashOutBettypes() f 
 											FOR XML PATH('')),1,1,'')
 	END
 	ELSE IF @action = 'CAL-FT'
 	BEGIN
-		SELECT @strCashoutBettypeXML = CAST(
-								(SELECT  Bettype AS '@t' 
-								FROM	dbo.f_Set_GetCashOutBettypes() f
-								WHERE	f.GroupName = 'FT'
-								FOR XML PATH ('r'),ROOT ('root'), TYPE
-							) AS VARCHAR(MAX))
-		
 		SELECT @strCashoutBettype = STUFF((SELECT ',' + CAST(f.bettype AS VARCHAR(50)) 
 											FROM	dbo.f_Set_GetCashOutBettypes() f 
 											WHERE	f.GroupName = 'FT'
@@ -540,13 +537,6 @@ BEGIN
 	END
 	ELSE IF @action = 'CAL-HT'
 	BEGIN
-		SELECT @strCashoutBettypeXML = CAST(
-								(SELECT  Bettype AS '@t' 
-								FROM	dbo.f_Set_GetCashOutBettypes() f
-								WHERE	f.GroupName = 'HT'
-								FOR XML PATH ('r'),ROOT ('root'), TYPE
-							) AS VARCHAR(MAX))
-		
 		SELECT @strCashoutBettype = STUFF((SELECT ',' + CAST(f.bettype AS VARCHAR(50)) 
 											FROM	dbo.f_Set_GetCashOutBettypes() f 
 											WHERE	f.GroupName = 'HT'
@@ -670,21 +660,16 @@ BEGIN
 		END
 	END
 
-	IF @strCashoutBettypeXML <> ''
+	IF @strCashoutBettype <> ''
 	BEGIN
-		EXEC dbo.NAP_Admin_Calculate_Main -- 911
-			@matchid        = @matchid
-			,@action        = 'CAL'
-			,@mode          = @action
-			,@strBettypes   = @strCashoutBettypeXML
-			,@sporttype		= @sporttype
-		
 		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, bettype, betteam, hdp1, hdp2, WalletType, BonusID, balance, livehomescore, liveawayscore)
-		SELECT	b.transid, NULL, b.custid, b.bettype, b.betteam, b.hdp1, b.hdp2, ISNULL(b.WalletType,2), ISNULL(b.BonusID,0), (b.winlost - b.actual_stake + b.playercomm) AS balance
+		SELECT	b.transid, NULL, b.custid, b.bettype, b.betteam, b.hdp1, b.hdp2, ISNULL(b.WalletType,2)
+				,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
+				,(b.winlost - b.actual_stake + b.playercomm) AS balance
 				,b.livehomescore, b.liveawayscore
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	matchid = @matchid
-				AND b.statusID NOT IN (101, 102)
+				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strCashoutBettype + ',') > 0
 
@@ -721,9 +706,11 @@ BEGIN
 				DELETE @tmpTransIDBatch
 				SET @strTransIds = ''
 
-				DELETE	TOP (2000)
-				FROM	@tmpCashoutTransId
-					OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+				UPDATE	TOP (2000) t
+					SET isFinished = 1
+				OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+				FROM	@tmpCashoutTransId t
+				WHERE	isFinished = 0					
 
 				IF @@ROWCOUNT = 0
 					BREAK
@@ -769,4 +756,125 @@ BEGIN
             @matchid    = @matchid
             ,@command    = 'H'
     END
+
+	-- parlay
+	INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket)
+	SELECT 	bm.bettype, COUNT(1) AS totalticket
+	FROM	dbo.bettransm bm WITH(NOLOCK)
+	WHERE	bm.matchid = @MatchID
+			AND bm.statusID NOT IN (101)
+			AND 1 = CASE 
+						WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
+						WHEN @IsReSettledTickets = 1 THEN 1
+						ELSE 0
+					END
+			AND EXISTS (SELECT	TOP 1 1
+						FROM	@tmpAllBettypes t
+						WHERE	t.BetType = bm.bettype
+					)
+	GROUP BY bm.bettype
+
+	SELECT	@TotalSubParlay = SUM(totalticket)
+	FROM	@tmpParlayAffectedBettypes
+
+	IF @TotalSubParlay > 0
+	BEGIN	
+		-- insert dummy resouceid
+		-----------------------------------------add more info-----------------------------------------
+		SET @DummyResourceIds = ''
+		SET @DummyResourceResults = ''
+
+		SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
+		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+			INNER JOIN @tmpParlayAffectedBettypes t
+				ON s.BetType = t.BetType
+			LEFT JOIN @tmpAffectedBettypes st
+				ON s.BetType = st.Bettype
+		WHERE	s.SportType = @sportType
+				AND s.SettleType = 'MNL'
+				AND s.RefResourceId IS NOT NULL
+				AND st.Bettype IS NULL
+
+		IF @DummyResourceIds <> ''
+		BEGIN
+			EXEC dbo.NAP_Set_DummyResourceResult
+				@MatchID = @MatchID
+				,@sportType = @sportType
+				,@DummyResourceIds = @DummyResourceIds
+				,@DummyResourceResults = @DummyResourceResults OUTPUT
+
+			EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
+			INSERT INTO @tmpResources(ResourceID, HomeValue, AwayValue)
+			SELECT Id, Home, Away
+			FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
+													,Home VARCHAR(2000)
+													,Away VARCHAR(2000)
+												) AS tbl
+			EXEC sp_xml_removedocument @handle
+		END
+
+		;WITH cteSelectedRID
+		AS (
+			SELECT DISTINCT tbl.ResourceID
+					,tbl.HomeValue
+					,tbl.AwayValue
+					,sp.BetType
+					,sp.pfID
+					,sp.RefResourceId
+			FROM	@tmpResources tbl
+				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
+					ON	sp.ResourceID = tbl.ResourceID
+				INNER JOIN @tmpParlayAffectedBettypes ab
+					ON	sp.BetType = ab.Bettype
+			WHERE	sp.SportType = @SportType
+					AND 1 = CASE	
+								WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND sp.Is3x30 = 1 AND sp.GroupType = 'FT' THEN 0 
+								ELSE 1
+							END
+					AND sp.SettleType = 'MNL'
+					AND sp.pfID > 0
+		)
+		SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
+											,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
+											,bettype AS '@Bettype'
+											,pfid	AS '@pfId'
+											,HomeValue AS '@Home'
+											,AwayValue AS '@Away'
+									FROM	cteSelectedRID
+									FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+			
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+			@LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHoldRefno OUTPUT
+
+		IF @TotalSubParlay <= @ThreadHold
+			SET @LockedByRefno = 1
+
+		SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
+								+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
+								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''														
+								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 														
+								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+								+ ', @ErrCode = @ErrCode OUTPUT' 
+								+ ', @ErrMsg = @ErrMsg OUTPUT'
+
+		IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT[1-9]'
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
+				@creator			= @creator
+				,@MatchID			= @MatchId
+				,@Action		  	= @Action
+				,@SelectedResources = @SelectedResourceParlay
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@LockedByRefno		= 1 -- always lock refno for testing
+
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg 			= @ErrMsg OUTPUT
+		END
+		ELSE
+		BEGIN
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
+			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
+		END
+	END
 END

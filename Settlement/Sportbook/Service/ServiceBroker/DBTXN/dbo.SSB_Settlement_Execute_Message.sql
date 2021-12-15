@@ -10,6 +10,7 @@ as
 	DB: DBTXN-bodb02
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 */
 begin
 	set nocount on
@@ -23,12 +24,14 @@ begin
 			,@__sessionid bigint
 			,@__actionid int
 			,@__settlementprocessingid bigint
+			,@__params varchar(max)
 			,@__errcode int
-			,@__paramxml xml
+			,@__messageBody xml
 			,@__Log varchar(max)
+			,@__paramsXML XML
 
 	select @__startTime = sysdatetime()
-			,@__paramxml = cast(@MessageBody as xml)
+			,@__messageBody = cast(@MessageBody as xml)
 
 	select	@__matchid = T.C.value('@MatchId', 'int') 
 			,@__action = T.C.value('@Action','varchar(20)')
@@ -39,7 +42,10 @@ begin
 			,@__sessionid = T.C.value('@SessionId','bigint') 
 			,@__actionid = T.C.value('@ActionID','int')
 			,@__settlementprocessingid = T.C.value('@SettlementProcessingId','bigint')
-	from	@__paramxml.nodes('/root/r') AS T(C)	
+			,@__params = T.C.value('@Params','VARCHAR(MAX)')
+	from	@__messageBody.nodes('/root/r') AS T(C)	
+
+	set @__paramsXML = CAST('<root><r ' + REPLACE(@__params,'''','"') + ' /></root>' AS XML)
 
 	set deadlock_priority high
 	begin try
@@ -52,6 +58,7 @@ begin
 			,@SessionId  = @__SessionId
 			,@ActionId  = @__ActionID
 			,@SettlementProcessingId  = @__SettlementProcessingId
+			,@Params = @__paramsXML
 			,@ErrCode = @__errcode output
 			,@ErrMsg = @__errmsg output
 	end try
@@ -72,6 +79,7 @@ begin
 			+ ',@SessionId  =' + cast(@__SessionId as varchar(30))
 			+ ',@ActionId  =' + cast(@__ActionID as varchar(20))
 			+ ',@SettlementProcessingId  =' + cast(@__SettlementProcessingId as varchar(30))
+			+ CASE WHEN @__paramsXML IS NOT NULL THEN ',@Params = ''' + cast(@__paramsXML as varchar(max)) + '''' ELSE '' END
 
 	exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
 		, @MessageType = @MessageType

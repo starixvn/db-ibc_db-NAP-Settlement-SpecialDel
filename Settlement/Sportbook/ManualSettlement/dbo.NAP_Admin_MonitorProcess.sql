@@ -16,6 +16,7 @@ AS
 	
 	Revisions:
 		  - 20210809@Kathy: Settle by custid [Redmine:159486]
+		  - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		
 	Param's Explanation:  
 	
@@ -40,6 +41,8 @@ BEGIN
 			,@SourceId TINYINT
 			,@Remark VARCHAR(500)
 			,@TicketCount INT
+			,@SDTRecord TINYINT
+			,@IsAutoRefund BIT
 			,@Starttime DATETIME
 			,@Endtime DATETIME
 
@@ -95,20 +98,6 @@ BEGIN
 	WHERE	matchid = @MatchId
 			AND SessionId = @SessionId
 
-	-- cal 914	
-	BEGIN TRY
-		EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
-			@MatchId = @matchid
-			,@Action = 'CAL'
-			,@Sporttype = 1
-	END TRY
-	BEGIN CATCH
-		SELECT	@SSBStatus = 3
-				,@ErrCode = 1001017
-				,@ErrMsg = ERROR_MESSAGE()  
-				,@HasError = 1
-	END CATCH
-
 	EXEC dbo.NAP_Admin_Calculate_Main @mode = 'ReleaseMatch'
 		,@IsSettingByProfile = 1
 		,@SessionId = @SessionId
@@ -139,19 +128,28 @@ BEGIN
 				,@SourceId = T.C.value('@SourceId','TINYINT')
 				,@AdminId = T.C.value('@AdminId','INT')
 				,@TicketCount = T.C.value('@TicketCount','INT')
+				,@SDTRecord = T.C.value('@SDTRecord','TINYINT')
+				,@IsAutoRefund = T.C.value('@IsAutoRefund','BIT')
 				,@Starttime = T.C.value('@Starttime','DATETIME')
-				,@ErrCode = @HasError
+				,@ErrMsg = T.C.value('@ErrMsg','VARCHAR(300)')
+				,@ErrCode = T.C.value('@ErrCode','INT')
 		FROM	@LogData.nodes('/root/r') AS T(C)	
 
 		SET @Endtime = GETDATE()
-		SELECT @Remark = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-                                                        + ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) 
-                                                        + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
-                                                        + ' HT:' + CAST(ISNULL(@hth,0) AS NVARCHAR(10)) 
-                                                        + '-' + CAST(ISNULL(@hta,0) AS NVARCHAR(10)) 
-                                                        + ' GoalRecord:' + ISNULL(@goalrecord, '') 
-                                                        + '(Old:' + @oldgoalrecord + ') Remark(' + @betstatus + ')' 
-														+' (' + CAST(DATEDIFF(millisecond, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms)'
+		SELECT @Remark = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 						
+																+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) 
+																+ '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
+																+ ' HT:' + CAST(ISNULL(@hth,0) AS NVARCHAR(10)) 
+																+ '-' + CAST(ISNULL(@hta,0) AS NVARCHAR(10)) 
+																+ ' GoalRecord:' + ISNULL(@goalrecord, '') 
+																+ CASE 
+																	WHEN @Action LIKE 'REFUND%' THEN 	
+																	' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
+																ELSE ''
+																END
+																+ '(Old:' + @oldgoalrecord + ') Remark(' + @betstatus + ')' 
+																+' (' + CAST(DATEDIFF(millisecond, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms)'
+																
 
 		EXEC dbo.WriteLog_UserLog 
 			@UserID = @AdminId
@@ -159,21 +157,31 @@ BEGIN
 
 		SELECT @Remark ='NAP: ' 
 						+ CASE 
-							WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-							WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
+							WHEN @Action LIKE 'CAL%' THEN 
+								CASE 
+									WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
+									WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
+									ELSE ''
+								END 
+								+ CASE    WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
+											ELSE 'Old GoalRecord:' + @oldgoalrecord + '<br/> '
+											END
+								+ ' TC:' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) + ';'
+								+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';'
+							   + CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
+										WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
+										ELSE ' RefChild:(' + @ChildMatchIds +')' 
+										END
+							WHEN @Action LIKE 'REFUND%' THEN
+								CASE WHEN @IsAutoRefund IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAutoRefund AS CHAR(1)) ELSE '' END
+								+ ' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
 							ELSE ''
 						END
-						+ CASE    WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
-                                    ELSE 'Old GoalRecord:' + @oldgoalrecord + '<br/> '
-                                    END
-						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 
-                        + ' TC:' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) + ';'
-						+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';'
-                       + CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
-								WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
-								ELSE ' RefChild:(' + @ChildMatchIds +')' 
-								END
+						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 
 		
+		SELECT @betstatus = CASE WHEN @SDTRecord & 4 > 0 THEN 'Abandoned 1H' ELSE 'Refund' END
+		WHERE	@Action = 'REFUND'
+
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 				@UserID                = @AdminId

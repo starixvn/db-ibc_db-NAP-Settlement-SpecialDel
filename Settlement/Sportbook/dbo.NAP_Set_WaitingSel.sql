@@ -46,6 +46,7 @@ AS
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
 	Param's explanation:  
 		
@@ -92,11 +93,11 @@ BEGIN
 		,IsRunningFastMarket			BIT DEFAULT (0)
 		,IsExistFastMarketResult		BIT DEFAULT (0)
 		,IsExistEarlyBettypes 			BIT DEFAULT (0)
-		,IsExistEarlyBettypesParlay 	BIT DEFAULT (0)
+		--,IsExistEarlyBettypesParlay 	BIT DEFAULT (0)
 		,IsRunningEarlyBettypes			BIT DEFAULT (0)
-		,IsRunningEarlyBettypesParlay	BIT DEFAULT (0)
+		--,IsRunningEarlyBettypesParlay	BIT DEFAULT (0)
 		,IsWaitingEarlyBettypes			BIT DEFAULT (0)
-		,IsWaitingEarlyBettypesParlay	BIT DEFAULT (0)
+		--,IsWaitingEarlyBettypesParlay	BIT DEFAULT (0)
 		,IsExistMarkedTicket			BIT DEFAULT (0)
 		,IsExistRunningTicket			BIT DEFAULT (0)
 		,IsExistRunningTicketParlay		BIT DEFAULT (0)
@@ -335,12 +336,9 @@ BEGIN
 			,IsExistHTFGLG = CASE WHEN tt.IsExistHTFGLG > 0 THEN 1 ELSE 0 END
 			,IsExistFastMarket = CASE WHEN tt.IsExistFastMarket > 0 THEN 1 ELSE 0 END
 			,IsRunningFastMarket = CASE WHEN tt.IsRunningFastMarket > 0 THEN 1 ELSE 0 END
-			,IsExistEarlyBettypes = CASE WHEN tt.IsExistEarlyBettypes > 0 THEN 1 ELSE 0 END
-			,IsExistEarlyBettypesParlay = CASE WHEN tt.IsExistEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
-			,IsRunningEarlyBettypes = CASE WHEN tt.IsRunningEarlyBettypes > 0 THEN 1 ELSE 0 END
-			,IsRunningEarlyBettypesParlay = CASE WHEN tt.IsRunningEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
-			,IsWaitingEarlyBettypes = CASE WHEN tt.IsWaitingEarlyBettypes > 0 THEN 1 ELSE 0 END
-			,IsWaitingEarlyBettypesParlay = CASE WHEN tt.IsWaitingEarlyBettypesParlay >  0 THEN 1 ELSE 0 END
+			,IsExistEarlyBettypes = CASE WHEN tt.IsExistEarlyBettypes > 0 OR tt.IsExistEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
+			,IsRunningEarlyBettypes = CASE WHEN tt.IsRunningEarlyBettypes > 0 OR tt.IsRunningEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
+			,IsWaitingEarlyBettypes = CASE WHEN tt.IsWaitingEarlyBettypes > 0 OR tt.IsWaitingEarlyBettypesParlay > 0 THEN 1 ELSE 0 END
 			,IsExistRunningTicket = tt.IsExistRunningTicket
 		FROM @TempMatch t
 		INNER JOIN cteBetStatus tt ON t.MatchId = tt.ParentId	
@@ -535,12 +533,10 @@ BEGIN
 			ELSE 'Completed'
 		END AS AutoSettleFastMarket
 		, CASE
-			WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 AND (m.ChildMatchType IN (202) OR te.matchid IS NOT NULL)THEN 'No Ticket'
-			WHEN m.IsExistEarlyBettypes = 0 AND m.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
-			WHEN m.IsRunningEarlyBettypes + (CASE WHEN m.IsMergedParlay = 1 THEN m.IsRunningEarlyBettypesParlay ELSE 0 END) > 0 THEN 'Running'
-			WHEN m.IsWaitingEarlyBettypes + (CASE WHEN m.IsMergedParlay = 1 THEN m.IsWaitingEarlyBettypes ELSE 0 END) > 0 THEN 'Waiting'
-			WHEN m.IsExistEarlyBettypes = 0 AND m.IsRunningEarlyBettypesParlay > 0 THEN 'Parlay Running'
-			WHEN m.IsExistEarlyBettypes = 0 AND m.IsWaitingEarlyBettypesParlay > 0 THEN 'Parlay Waiting'
+			WHEN m.IsExistEarlyBettypes = 0 AND (m.ChildMatchType IN (202) OR te.matchid IS NOT NULL)THEN 'No Ticket'
+			WHEN m.IsExistEarlyBettypes = 0 THEN 'N/A'
+			WHEN m.IsRunningEarlyBettypes > 0 THEN 'Running'
+			WHEN m.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
 			ELSE 'Completed'
 		END AS EarlySettleStatus
 		,m.IsExistMarkedTicket

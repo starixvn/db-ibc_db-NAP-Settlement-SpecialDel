@@ -17,6 +17,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
     Param's Explanation:
 		@Action: single ticket: REFUND, REFUND-HT, REFUND-FT
@@ -26,13 +27,18 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @IsMergedParlay	BIT = 0
 	DECLARE @tmpBettype TABLE (bettype SMALLINT)	
+
+	SELECT	@IsMergedParlay = IsMergedParlay
+	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
+	WHERE	Sporttype IN (SELECT Sporttype FROM dbo.match WITH(NOLOCK) WHERE matchid = @MatchID)
 
 	INSERT INTO @tmpBettype(bettype)
 	SELECT	BetType
 	FROM	dbo.f_Set_GetGroupBettypes()
 	WHERE	1 = CASE 
-					WHEN GroupId IN(1,3) AND @Action = 'REFUND-HT' THEN 1
+					WHEN Is3x30 = 1  AND @Action = 'REFUND-HT' THEN 1
 					WHEN GroupId IN(2,4) AND @Action = 'REFUND-FT' THEN 1
 					WHEN @Action = 'REFUND' THEN 1
 				END
@@ -51,6 +57,30 @@ BEGIN
 			)
 		BEGIN
 			SET @IsExistMarkedTicket = 1
+		END
+		ELSE IF @IsMergedParlay = 1
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						CROSS APPLY (
+							SELECT TOP 1 b.refno
+									,b.statusID
+									,b.matchid
+							FROM	dbo.bettrans b WITH(NOLOCK)
+							WHERE	b.transid = mt.TransId
+									AND b.matchid = 29
+						) b							
+						CROSS APPLY (
+							SELECT TOP 1 bm.transid
+							FROM	dbo.bettransm bm WITH(NOLOCK)
+							WHERE	bm.matchid = mt.matchid
+									AND bm.refno = b.refno
+									AND bm.statusID = 0
+									AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = bm.bettype)
+						)bm
+					WHERE	mt.MatchId = @MatchID
+		)
+			SET @isExistMarkedTicket = 1
 		END
 	END
 	ELSE IF @Action LIKE 'MP%'

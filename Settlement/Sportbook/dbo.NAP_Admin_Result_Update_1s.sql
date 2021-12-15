@@ -35,6 +35,7 @@ AS
         - 20191213@Helen: Support Instant Calculation for Corner Bet Types - Update result for manual process [Redmine:115377]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200522@Kathy: update settlementstatusid = 2 if refund HT [Redmine:#134192]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -334,7 +335,7 @@ BEGIN
 
         SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)) 
 
-        IF @Action IN ('CAL-HT', 'CAL')
+        IF @Action IN ('CAL-HT', 'CAL', 'REFUND', 'REFUND-HT')
 	    BEGIN
 		    INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
 		    
@@ -342,7 +343,7 @@ BEGIN
         END
         
         UPDATE @tmpResultDetail
-            SET SettlementStatusID = CASE WHEN ResourceID = '01' AND @Action = 'CAL-HT' THEN 2 ELSE 1 END -- Refund
+            SET SettlementStatusID = CASE WHEN ResourceID = '01' AND @Action IN('CAL-HT', 'REFUND-HT') THEN 2 ELSE 1 END -- Refund
                 ,ResultStatusID = 5 -- Manual Settlement
         WHERE   SourceType = 0
         
@@ -387,7 +388,7 @@ BEGIN
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund-All' */
     
-    ELSE IF @Command ='NAP_Admin_Settlement_Refund_All-ABANDONED'
+    ELSE IF @Command ='NAP_Admin_Settlement_Refund-All-ABANDONED'
     BEGIN
         
         INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)

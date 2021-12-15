@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Set_DummyResourceResult]
 	@MatchId INT
 	,@Sporttype SMALLINT
+	,@IsDetermined BIT = 0
 	,@DummyResourceIds VARCHAR(MAX)
 	,@DummyResourceResults VARCHAR(MAX) = '' OUTPUT
 
@@ -18,6 +19,7 @@ AS
 		- 20210730@Kathy: Apply Settlement by Profile for minor bettype of soccer [Redmine:#158477]
 		- 20211129@Kathy: fix issue bettype 486, 487
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 */
 
 BEGIN
@@ -65,6 +67,16 @@ BEGIN
 			,@home_firstteam3goals INT
 			,@away_firstteam3goals INT
 
+			,@Position	TINYINT
+			,@HomeRaceTo TINYINT
+			,@AwayRaceTo TINYINT
+			,@NeitherRaceTo	TINYINT
+			,@LenResultString TINYINT
+			,@Char			VARCHAR(1)
+			,@result NVARCHAR(200)
+			,@string VARCHAR(50)
+			,@ResourceId VARCHAR(20) 
+			
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 
@@ -382,847 +394,1069 @@ BEGIN
 		FROM	@tmpResultDetail
 		WHERE	ResourceId IN ('14F', '14L')
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '14')
+		IF @IsDetermined = 0
 		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'14'
-					,CASE @FTFG
-						WHEN 'N' THEN '0:0'
-						WHEN 'H' THEN '1:1'
-						WHEN 'A' THEN '2:1'
-						ELSE NULL END
-					,CASE @FTLG
-						WHEN 'N' THEN '0:0'
-						WHEN 'H' THEN '1:2'
-						WHEN 'A' THEN '2:2'
-						ELSE NULL END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '08'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '127')
-		BEGIN
-			SELECT	@HTFG = MAX(CASE WHEN ResourceId = '127F' THEN HomeValue ELSE '' END)
-					,@HTLG = MAX(CASE WHEN ResourceId = '127L' THEN HomeValue ELSE '' END)
-					,@ssId = MIN(ssId)
-			FROM	@tmpResultDetail
-			WHERE	ResourceId IN ('127F', '127L')
-
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'127'
-					,CASE @HTFG
-						WHEN 'N' THEN '0:0'
-						WHEN 'H' THEN '1:1'
-						WHEN 'A' THEN '2:1'
-						ELSE NULL END
-
-					,CASE @HTLG
-						WHEN 'N' THEN '0:0'
-						WHEN 'H' THEN '1:2'
-						WHEN 'A' THEN '2:2'
-						ELSE NULL END
-					,@ssId
-		END
-		
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '128')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'128'
-					,CASE 
-						WHEN @HTOddEven = 1 AND @FTOddEven = 1 THEN 'oo' 
-						WHEN @HTOddEven = 1 AND @FTOddEven = 0 THEN 'oe' 
-						WHEN @HTOddEven = 0 AND @FTOddEven = 1 THEN 'eo' 
-						WHEN @HTOddEven = 0 AND @FTOddEven = 0 THEN 'ee' 
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '133')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'133'
-					,CASE 
-						WHEN @HTScoreDiff > 0 AND @2HScoreDiff > 0 THEN 'y'
-						WHEN @HTScoreDiff <=0 OR @2HScoreDiff <= 0 THEN 'n'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '134')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'134'
-					,CASE
-						WHEN @HTScoreDiff < 0 AND @2HScoreDiff < 0 THEN 'y'
-						WHEN @HTScoreDiff >=0 OR @2HScoreDiff >= 0 THEN 'n'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '140')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'140'
-					,CASE
-						WHEN @HTTotalScore > @2HTotalScore THEN '1h'
-						WHEN @HTTotalScore = @2HTotalScore THEN 'tie'
-						WHEN @HTTotalScore < @2HTotalScore THEN '2h'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '141')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'141'
-					,CASE
-						WHEN @HTHome > @2HHome THEN '1h'
-						WHEN @HTHome = @2HHome THEN 'tie'
-						WHEN @HTHome < @2HHome THEN '2h'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '142')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'142'
-					,CASE
-						WHEN @HTAway > @2HAway THEN '1h'
-						WHEN @HTAway = @2HAway THEN 'tie'
-						WHEN @HTAway < @2HAway THEN '2h'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '143')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'143'
-					,@HTHome - @HTAway
-					,@HTHome + @HTAway
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '144')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'144'
-					,@FTHome - @FTAway
-					,@FTHome + @FTAway
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '147')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'147'
-					,CASE 
-						WHEN @HTHome > 0 AND @2HHome > 0 THEN 'y'
-						WHEN @HTHome = 0 OR @2HHome = 0 THEN 'n'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '148')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'148'
-					,CASE 
-						WHEN @HTAway > 0 AND @2HAway > 0 THEN 'y'
-						WHEN @HTAway = 0 OR @2HAway = 0 THEN 'n'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '149')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'149'
-					,CASE 
-						WHEN @HTHome > @HTAway OR @2HHome > @2HAway THEN 'y'
-						WHEN @HTHome <= @HTAway AND @2HHome <= @2HAway THEN 'n'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '150')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'150'
-					,CASE 
-						WHEN @HTAway > @HTHome OR @2HAway > @2HHome THEN 'y'
-						WHEN @HTAway <= @HTHome AND @2HAway <= @2HHome THEN 'n'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '152')
-		BEGIN
-			SELECT @HTCorrectScore = CASE 
-										WHEN @HTTotalScore >= 4 THEN '4+' 
-										ELSE CAST(@HTHome AS VARCHAR(50)) + ':' + CAST(@HTAway AS VARCHAR(50))
-									END
-				,@FTCorrectScore =  CASE 
-										WHEN @FTTotalScore >=4 THEN '4+'
-										ELSE CAST(@FTHome AS VARCHAR(50)) + ':' + CAST(@FTAway AS VARCHAR(50))
-									END
-			
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'152'
-					,@HTCorrectScore + '/' + @FTCorrectScore
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '172')
-		BEGIN
-			SELECT	@FTFG = HomeValue
-			FROM	@tmpResultDetail
-			WHERE	ResourceId ='14F'
-			
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'172'
-					,CASE 
-						WHEN @FTFG = 'H' AND @FTHome - @FTAway > 0 THEN 'HH' 
-						WHEN @FTFG = 'H' AND @FTHome - @FTAway = 0 THEN 'DH'
-						WHEN @FTFG = 'H' AND @FTHome - @FTAway < 0 THEN 'AH'
-						WHEN @FTFG = 'A' AND @FTHome - @FTAway > 0 THEN 'HA'
-						WHEN @FTFG = 'A' AND @FTHome - @FTAway = 0 THEN 'DA'
-						WHEN @FTFG = 'A' AND @FTHome - @FTAway < 0 THEN 'AA'
-						WHEN @FTHome + @FTAway = 0 THEN 'NO'
-						ELSE ''
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '189')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'189'
-					,CASE 
-						WHEN (@HTTotalScore - 1.5) > 0 AND (@2HTotalScore - 1.5) >0 THEN 'y' 
-						WHEN ((@HTTotalScore - 1.5) <=0 OR (@2HTotalScore - 1.5) <=0 ) THEN 'n'
-						ELSE NULL 
-					END 
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '190')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'190'
-					,CASE 
-						WHEN (@HTTotalScore - 1.5) < 0 AND (@2HTotalScore - 1.5) < 0 THEN 'y' 
-						WHEN ((@HTTotalScore - 1.5) >=0 OR (@2HTotalScore - 1.5) >=0 ) THEN 'n'
-						ELSE NULL 
-					END 
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '397')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'397'
-					,CASE 
-						WHEN @FTScoreDiff = 1 THEN 'H1'
-						WHEN @FTScoreDiff = 2 THEN 'H2'
-						WHEN @FTScoreDiff >=3 THEN 'H3+'
-						WHEN @FTScoreDiff = 0 AND @FTTotalScore <> 0 THEN 'D'
-						WHEN @FTScoreDiff = 0 THEN 'NG'
-						WHEN @FTScoreDiff = -1 THEN 'A1' 
-						WHEN @FTScoreDiff = -2 THEN 'A2' 
-						WHEN @FTScoreDiff <= -3 THEN 'A3+'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '426')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'426'
-					,CASE 
-						WHEN @HTScoreDiff = 1 THEN 'H1'
-						WHEN @HTScoreDiff >= 2 THEN 'H2+'
-						WHEN @HTScoreDiff = -1 THEN 'A1'
-						WHEN @HTScoreDiff <= -2 THEN 'A2+'
-						WHEN @HTTotalScore = 0 THEN 'NG'
-						WHEN @HTScoreDiff = 0 THEN 'D'
-						ELSE NULL
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '417')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'417'
-					,CASE 
-						WHEN @FTHome > 0 AND @FTAway > 0 
-							THEN CASE
-									WHEN @FTHome > @FTAway THEN 'YH'
-									WHEN @FTHome < @FTAway THEN 'YA'
-									ELSE 'YD'
-								END
-						ELSE CASE
-								WHEN @FTHome > @FTAway THEN 'NH'
-								WHEN @FTHome < @FTAway THEN 'NA'
-								ELSE 'ND'
-							END
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '419')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'419'
-					,CASE 
-						WHEN @HTTotalScore > 0 THEN '1H'
-						WHEN @2HTotalScore > 0 THEN '2H'
-						ELSE 'N'
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '420')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'420'
-					,CASE 
-						WHEN @HTHome > 0 THEN '1H'
-						WHEN @2HHome > 0 THEN '2H'
-						ELSE 'N'
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '421')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'421'
-					,CASE 
-						WHEN @HTAway > 0 THEN '1H'
-						WHEN @2HAway > 0 THEN '2H'
-						ELSE 'N'
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '422')
-		BEGIN
-			SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
-			SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
-
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'422'
-					,CASE 
-						WHEN (@home_firstteam2goals > 0 AND @away_firstteam2goals = 0) OR (@home_firstteam2goals <> 0 AND @home_firstteam2goals - @away_firstteam2goals < 0) THEN 'H'
-						WHEN (@away_firstteam2goals > 0 AND @home_firstteam2goals = 0) OR (@away_firstteam2goals <> 0 AND @away_firstteam2goals - @home_firstteam2goals < 0) THEN 'A'
-						ELSE 'N'
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '423')
-		BEGIN
-			SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
-			SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
-			
-			SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@FTGoalRecord, @home_firstteam2goals + 1) ELSE 0 END
-			SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@FTGoalRecord, @away_firstteam2goals + 1) ELSE 0 END
-
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'423'
-					,CASE 
-						WHEN (@home_firstteam3goals > 0 AND @away_firstteam3goals = 0) OR (@home_firstteam3goals <> 0 AND @home_firstteam3goals - @away_firstteam3goals < 0) THEN 'H'
-						WHEN (@away_firstteam3goals > 0 AND @home_firstteam3goals = 0) OR (@away_firstteam3goals <> 0 AND @away_firstteam3goals - @home_firstteam3goals < 0) THEN 'A'
-						ELSE 'N'
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '425')
-		BEGIN
-			DECLARE @curHome INT = 0
-					,@curAway INT = 0
-					,@index INT = 1
-					,@WinFromBehind VARCHAR(1) = ''
-
-			IF (@FTHome <> @FTAway) AND (@FTTotalScore) > 2
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '14')
 			BEGIN
-				WHILE (@index <= LEN(REPLACE(@FTGoalRecord,';','')))
-				BEGIN
-					IF SUBSTRING(REPLACE(@FTGoalRecord,';',''),@index, 1) = 'H'
-						SET @curHome = @curHome + 1
-				
-					IF SUBSTRING(REPLACE(@FTGoalRecord,';',''),@index, 1) = 'A' 
-						SET @curAway = @curAway + 1				
-			
-					IF @FTHome > @FTAway AND @curHome < @curAway 
-					BEGIN
-						SET @WinFromBehind = 'H' 
-						BREAK
-					END
-					IF @FTAway > @FTHome AND @curAway < @curHome
-					BEGIN
-						SET @WinFromBehind = 'A'
-						BREAK
-					END
-			
-					SET @index = @index + 1
-				END
-			END	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'14'
+						,CASE @FTFG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:1'
+							WHEN 'A' THEN '2:1'
+							ELSE NULL END
+						,CASE @FTLG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:2'
+							WHEN 'A' THEN '2:2'
+							ELSE NULL END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '08'
+			END
 
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'425'
-					,@WinFromBehind
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END		
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '445')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'445'
-					,CASE
-						WHEN @HTHome > 0 AND @HTAway > 0 THEN CASE
-																WHEN @2HHome > 0 AND @2HAway> 0 THEN 'YY'
-																ELSE 'YN'
-														END
-						ELSE CASE 
-									WHEN @2HHome > 0 AND @2HAway > 0 THEN 'NY'
-									ELSE 'NN'
-								END
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '446')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'446'
-					,CASE
-						WHEN @HTHome > 0 THEN CASE
-													WHEN @2HHome > 0 THEN 'YY'
-													ELSE 'YN'
-											END
-						ELSE CASE 
-									WHEN @2HHome > 0 THEN 'NY'
-									ELSE 'NN'
-								END
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '447')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'447'
-					,CASE
-						WHEN @HTAway > 0 THEN CASE
-													WHEN @2HAway > 0 THEN 'YY'
-													ELSE 'YN'
-											END
-						ELSE CASE 
-									WHEN @2HAway > 0 THEN 'NY'
-									ELSE 'NN'
-								END
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '448')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'448'
-					,CASE WHEN @FTLG = 'N' THEN 'NG' ELSE @FTLG END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '08'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '449')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'449'
-					,@FTTotalScore
-					,@FTScoreDiff
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '450')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'450'
-					,@FTTotalScore
-					,@FTTotalScore %2 
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '452')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'452'
-					 ,@HTTotalScore
-					 ,@2HTotalScore
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '454')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'454'
-					 ,@FTFG
-					 ,@FTScoreDiff
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '456')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'456'
-					,CASE 
-						WHEN @HTHome > 0 AND @HTAway > 0 
-							THEN CASE
-									WHEN @HTHome > @HTAway THEN 'YH'
-									WHEN @HTHome < @HTAway THEN 'YA'
-									ELSE 'YD'
-								END
-						ELSE CASE
-								WHEN @HTHome > @HTAway THEN 'NH'
-								WHEN @HTHome < @HTAway THEN 'NA'
-								ELSE 'ND'
-							END
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '467')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'467'
-					,CASE 
-						WHEN @HTTotalScore BETWEEN 0 AND 3 AND @FTTotalScore >= 7 THEN 'G' + CAST(@HTTotalScore AS VARCHAR(5)) + '/G7+'
-						WHEN @HTTotalScore = 4 AND @FTTotalScore >= 8 THEN 'G4/G8+'
-						WHEN @HTTotalScore = 5 AND @FTTotalScore >= 9 THEN 'G5/G9+'  
-						WHEN @HTTotalScore = 6 AND @FTTotalScore >= 10 THEN 'G6/G10+'
-						WHEN @HTTotalScore >= 7 AND @FTTotalScore >= 7 THEN 'G7+/G7+'
-						ELSE 'G' + CAST(@HTTotalScore AS VARCHAR(5)) + '/G' + CAST(@FTTotalScore AS VARCHAR(5))						
-				END          
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('486', '487'))
-		BEGIN
-			DECLARE	@Position	TINYINT
-					,@HomeRaceTo TINYINT
-					,@AwayRaceTo TINYINT
-					,@NeitherRaceTo	TINYINT
-					,@LenResultString TINYINT
-					,@Char			VARCHAR(1)
-					,@result NVARCHAR(200)
-					,@string VARCHAR(50)
-					,@ResourceId VARCHAR(20) 
-			
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '486')
-				SET @ResourceId = '486'
-			ELSE
-				SET @ResourceId = '487'
-
-			WHILE (@ResourceId <> '00')
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '127')
 			BEGIN
-				SELECT	@Position = 1
-						,@HomeRaceTo = 0
-						,@AwayRaceTo = 0
-						,@string = CASE WHEN @ResourceId = '486' THEN @FTGoalRecord ELSE @HTGoalRecord END
-						,@result = ''
-
-				SELECT @LenResultString = LEN(@string)
-			
-				WHILE (@Position <= @LenResultString)
-				BEGIN
-					SET @Char = SUBSTRING(@string, @Position, 1)
-			
-					IF @Char = 'H'	
-					BEGIN
-						SET @HomeRaceTo = @HomeRaceTo + 1
-
-						IF @HomeRaceTo > @AwayRaceTo
-							SET  @result = @result + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
-					
-					END
-					ELSE IF @Char = 'A' 
-					BEGIN
-						SET @AwayRaceTo = @AwayRaceTo + 1
-
-						IF @AwayRaceTo > @HomeRaceTo
-							SET  @result = @result + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
-					END
-			
-					SET @Position = @Position + 1	 	
-				END
-
-				SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+				SELECT	@HTFG = MAX(CASE WHEN ResourceId = '127F' THEN HomeValue ELSE '' END)
+						,@HTLG = MAX(CASE WHEN ResourceId = '127L' THEN HomeValue ELSE '' END)
+						,@ssId = MIN(ssId)
+				FROM	@tmpResultDetail
+				WHERE	ResourceId IN ('127F', '127L')
 
 				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-				SELECT	@ResourceId	
-						,case when right(@result,1) = ';' then SUBSTRING(@result,1,len(@result) - 1) else @result end
-						--,@result
-						,@NeitherRaceTo
+				SELECT	'127'
+						,CASE @HTFG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:1'
+							WHEN 'A' THEN '2:1'
+							ELSE NULL END
+
+						,CASE @HTLG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:2'
+							WHEN 'A' THEN '2:2'
+							ELSE NULL END
+						,@ssId
+			END
+		
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '128')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'128'
+						,CASE 
+							WHEN @HTOddEven = 1 AND @FTOddEven = 1 THEN 'oo' 
+							WHEN @HTOddEven = 1 AND @FTOddEven = 0 THEN 'oe' 
+							WHEN @HTOddEven = 0 AND @FTOddEven = 1 THEN 'eo' 
+							WHEN @HTOddEven = 0 AND @FTOddEven = 0 THEN 'ee' 
+							ELSE NULL
+						END
 						,ssId
 				FROM	@tmpResultDetail
 				WHERE	ResourceId = '00'
-
-				IF @ResourceId = '487'
-					BREAK
-
-				SET @ResourceId = '487'
 			END
-		END
-		
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '488')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-			SELECT	'488'
-					,LEFT(REPLACE(@FTGoalRecord,';',''),1) 
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '489')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-			SELECT	'489'
-					,LEFT(REPLACE(@HTGoalRecord,';',''),1) 
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '490')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-			SELECT	'490'
-					,CASE 
-						WHEN CHARINDEX(';', @FTGoalRecord) > 0 THEN SUBSTRING(@FTGoalRecord, CHARINDEX(';', @FTGoalRecord)+1,1) 
-						ELSE LEFT(@FTGoalRecord,1) 
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '491')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-			SELECT	'491'
-					,RIGHT(REPLACE(@FTGoalRecord,';',''),1)
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '492')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-			SELECT	'492'
-					,RIGHT(@HTGoalRecord,1) 
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '493')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-			SELECT	'493'
-					,CASE WHEN @HTTotalScore = 0 AND @FTTotalScore >= 8 THEN '0/8+'
-						WHEN @HTTotalScore = 1 AND @FTTotalScore >= 9 THEN '1/9+'  
-						WHEN @HTTotalScore = 2 AND @FTTotalScore >= 10 THEN '2/10+'
-						WHEN @HTTotalScore = 3 AND @FTTotalScore >= 11 THEN '3/11+'
-						WHEN @HTTotalScore = 4 AND @FTTotalScore >= 12 THEN '4/12+'
-						WHEN @HTTotalScore = 5 AND @FTTotalScore >= 13 THEN '5/13+'
-						WHEN @HTTotalScore = 6 AND @FTTotalScore >= 14 THEN '6/14+'
-						WHEN @HTTotalScore IN (7,8,9) AND @FTTotalScore >= 15 THEN CAST(@HTTotalScore AS VARCHAR(5)) + '/15+'
-						ELSE CAST(@HTTotalScore AS VARCHAR(5)) + '/' + CAST(@FTTotalScore AS VARCHAR(5))
-					END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-		
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '02')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'02'
-					,@FTHome - @HTHome
-					,@FTAway - @HTAway
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-		END
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '16')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'16'
-					,CASE
-						WHEN @HTHome > @HTAway 
-							THEN '1:' + CASE
-											WHEN @FTHome > @FTAway THEN '1'
-											WHEN @FTHome = @FTAway THEN '0'
-											WHEN @FTHome < @FTAway THEN '2'
-											ELSE NULL
-										END
-						WHEN @HTHome = @HTAway 
-							THEN '0:' + CASE
-											WHEN @FTHome > @FTAway THEN '1'
-											WHEN @FTHome = @FTAway THEN '0'
-											WHEN @FTHome < @FTAway THEN '2'
-											ELSE NULL
-										END
-						WHEN @HTHome < @HTAway 
-							THEN '2:' + CASE
-											WHEN @FTHome > @FTAway THEN '1'
-											WHEN @FTHome = @FTAway THEN '0'
-											WHEN @FTHome < @FTAway THEN '2'
-											ELSE NULL
-										END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '133')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'133'
+						,CASE 
+							WHEN @HTScoreDiff > 0 AND @2HScoreDiff > 0 THEN 'y'
+							WHEN @HTScoreDiff <=0 OR @2HScoreDiff <= 0 THEN 'n'
+							ELSE NULL
 						END
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-        END 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '22')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'22'
-					,REPLACE(ISNULL(HomeValue, ''),';','') 
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '08'
-        END 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '134')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'134'
+						,CASE
+							WHEN @HTScoreDiff < 0 AND @2HScoreDiff < 0 THEN 'y'
+							WHEN @HTScoreDiff >=0 OR @2HScoreDiff >= 0 THEN 'n'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '405')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'405'
-					,CAST((@FTHome -@HTHome) AS NVARCHAR(6)) + ':' + CAST((@FTAway - @HTAway) AS NVARCHAR(6))
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-        END 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '140')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'140'
+						,CASE
+							WHEN @HTTotalScore > @2HTotalScore THEN '1h'
+							WHEN @HTTotalScore = @2HTotalScore THEN 'tie'
+							WHEN @HTTotalScore < @2HTotalScore THEN '2h'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '141')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'141'
+						,CASE
+							WHEN @HTHome > @2HHome THEN '1h'
+							WHEN @HTHome = @2HHome THEN 'tie'
+							WHEN @HTHome < @2HHome THEN '2h'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '413')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'413'
-					,CAST(@FTHome AS NVARCHAR(6)) + ':' + CAST(@FTAway AS NVARCHAR(6))
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-        END 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '142')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'142'
+						,CASE
+							WHEN @HTAway > @2HAway THEN '1h'
+							WHEN @HTAway = @2HAway THEN 'tie'
+							WHEN @HTAway < @2HAway THEN '2h'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '414')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
-			SELECT	'414'
-					,CAST(@HTHome AS NVARCHAR(6)) + ':' + CAST(@HTAway AS NVARCHAR(6))
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '01'
-        END 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '143')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'143'
+						,@HTHome - @HTAway
+						,@HTHome + @HTAway
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '144')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'144'
+						,@FTHome - @FTAway
+						,@FTHome + @FTAway
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '147')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'147'
+						,CASE 
+							WHEN @HTHome > 0 AND @2HHome > 0 THEN 'y'
+							WHEN @HTHome = 0 OR @2HHome = 0 THEN 'n'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '148')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'148'
+						,CASE 
+							WHEN @HTAway > 0 AND @2HAway > 0 THEN 'y'
+							WHEN @HTAway = 0 OR @2HAway = 0 THEN 'n'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '149')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'149'
+						,CASE 
+							WHEN @HTHome > @HTAway OR @2HHome > @2HAway THEN 'y'
+							WHEN @HTHome <= @HTAway AND @2HHome <= @2HAway THEN 'n'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '150')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'150'
+						,CASE 
+							WHEN @HTAway > @HTHome OR @2HAway > @2HHome THEN 'y'
+							WHEN @HTAway <= @HTHome AND @2HAway <= @2HHome THEN 'n'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '152')
+			BEGIN
+				SELECT @HTCorrectScore = CASE 
+											WHEN @HTTotalScore >= 4 THEN '4+' 
+											ELSE CAST(@HTHome AS VARCHAR(50)) + ':' + CAST(@HTAway AS VARCHAR(50))
+										END
+					,@FTCorrectScore =  CASE 
+											WHEN @FTTotalScore >=4 THEN '4+'
+											ELSE CAST(@FTHome AS VARCHAR(50)) + ':' + CAST(@FTAway AS VARCHAR(50))
+										END
+			
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'152'
+						,@HTCorrectScore + '/' + @FTCorrectScore
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '172')
+			BEGIN
+				SELECT	@FTFG = HomeValue
+				FROM	@tmpResultDetail
+				WHERE	ResourceId ='14F'
+			
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'172'
+						,CASE 
+							WHEN @FTFG = 'H' AND @FTHome - @FTAway > 0 THEN 'HH' 
+							WHEN @FTFG = 'H' AND @FTHome - @FTAway = 0 THEN 'DH'
+							WHEN @FTFG = 'H' AND @FTHome - @FTAway < 0 THEN 'AH'
+							WHEN @FTFG = 'A' AND @FTHome - @FTAway > 0 THEN 'HA'
+							WHEN @FTFG = 'A' AND @FTHome - @FTAway = 0 THEN 'DA'
+							WHEN @FTFG = 'A' AND @FTHome - @FTAway < 0 THEN 'AA'
+							WHEN @FTHome + @FTAway = 0 THEN 'NO'
+							ELSE ''
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '189')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'189'
+						,CASE 
+							WHEN (@HTTotalScore - 1.5) > 0 AND (@2HTotalScore - 1.5) >0 THEN 'y' 
+							WHEN ((@HTTotalScore - 1.5) <=0 OR (@2HTotalScore - 1.5) <=0 ) THEN 'n'
+							ELSE NULL 
+						END 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '190')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'190'
+						,CASE 
+							WHEN (@HTTotalScore - 1.5) < 0 AND (@2HTotalScore - 1.5) < 0 THEN 'y' 
+							WHEN ((@HTTotalScore - 1.5) >=0 OR (@2HTotalScore - 1.5) >=0 ) THEN 'n'
+							ELSE NULL 
+						END 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '397')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'397'
+						,CASE 
+							WHEN @FTScoreDiff = 1 THEN 'H1'
+							WHEN @FTScoreDiff = 2 THEN 'H2'
+							WHEN @FTScoreDiff >=3 THEN 'H3+'
+							WHEN @FTScoreDiff = 0 AND @FTTotalScore <> 0 THEN 'D'
+							WHEN @FTScoreDiff = 0 THEN 'NG'
+							WHEN @FTScoreDiff = -1 THEN 'A1' 
+							WHEN @FTScoreDiff = -2 THEN 'A2' 
+							WHEN @FTScoreDiff <= -3 THEN 'A3+'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '426')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'426'
+						,CASE 
+							WHEN @HTScoreDiff = 1 THEN 'H1'
+							WHEN @HTScoreDiff >= 2 THEN 'H2+'
+							WHEN @HTScoreDiff = -1 THEN 'A1'
+							WHEN @HTScoreDiff <= -2 THEN 'A2+'
+							WHEN @HTTotalScore = 0 THEN 'NG'
+							WHEN @HTScoreDiff = 0 THEN 'D'
+							ELSE NULL
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '417')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'417'
+						,CASE 
+							WHEN @FTHome > 0 AND @FTAway > 0 
+								THEN CASE
+										WHEN @FTHome > @FTAway THEN 'YH'
+										WHEN @FTHome < @FTAway THEN 'YA'
+										ELSE 'YD'
+									END
+							ELSE CASE
+									WHEN @FTHome > @FTAway THEN 'NH'
+									WHEN @FTHome < @FTAway THEN 'NA'
+									ELSE 'ND'
+								END
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '419')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'419'
+						,CASE 
+							WHEN @HTTotalScore > 0 THEN '1H'
+							WHEN @2HTotalScore > 0 THEN '2H'
+							ELSE 'N'
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '420')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'420'
+						,CASE 
+							WHEN @HTHome > 0 THEN '1H'
+							WHEN @2HHome > 0 THEN '2H'
+							ELSE 'N'
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '421')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'421'
+						,CASE 
+							WHEN @HTAway > 0 THEN '1H'
+							WHEN @2HAway > 0 THEN '2H'
+							ELSE 'N'
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '422')
+			BEGIN
+				SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
+				SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
+
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'422'
+						,CASE 
+							WHEN (@home_firstteam2goals > 0 AND @away_firstteam2goals = 0) OR (@home_firstteam2goals <> 0 AND @home_firstteam2goals - @away_firstteam2goals < 0) THEN 'H'
+							WHEN (@away_firstteam2goals > 0 AND @home_firstteam2goals = 0) OR (@away_firstteam2goals <> 0 AND @away_firstteam2goals - @home_firstteam2goals < 0) THEN 'A'
+							ELSE 'N'
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '423')
+			BEGIN
+				SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
+				SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
+			
+				SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@FTGoalRecord, @home_firstteam2goals + 1) ELSE 0 END
+				SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@FTGoalRecord, @away_firstteam2goals + 1) ELSE 0 END
+
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'423'
+						,CASE 
+							WHEN (@home_firstteam3goals > 0 AND @away_firstteam3goals = 0) OR (@home_firstteam3goals <> 0 AND @home_firstteam3goals - @away_firstteam3goals < 0) THEN 'H'
+							WHEN (@away_firstteam3goals > 0 AND @home_firstteam3goals = 0) OR (@away_firstteam3goals <> 0 AND @away_firstteam3goals - @home_firstteam3goals < 0) THEN 'A'
+							ELSE 'N'
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '425')
+			BEGIN
+				DECLARE @curHome INT = 0
+						,@curAway INT = 0
+						,@index INT = 1
+						,@WinFromBehind VARCHAR(1) = ''
+
+				IF (@FTHome <> @FTAway) AND (@FTTotalScore) > 2
+				BEGIN
+					WHILE (@index <= LEN(REPLACE(@FTGoalRecord,';','')))
+					BEGIN
+						IF SUBSTRING(REPLACE(@FTGoalRecord,';',''),@index, 1) = 'H'
+							SET @curHome = @curHome + 1
+				
+						IF SUBSTRING(REPLACE(@FTGoalRecord,';',''),@index, 1) = 'A' 
+							SET @curAway = @curAway + 1				
+			
+						IF @FTHome > @FTAway AND @curHome < @curAway 
+						BEGIN
+							SET @WinFromBehind = 'H' 
+							BREAK
+						END
+						IF @FTAway > @FTHome AND @curAway < @curHome
+						BEGIN
+							SET @WinFromBehind = 'A'
+							BREAK
+						END
+			
+						SET @index = @index + 1
+					END
+				END	
+
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'425'
+						,@WinFromBehind
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END		
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '445')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'445'
+						,CASE
+							WHEN @HTHome > 0 AND @HTAway > 0 THEN CASE
+																	WHEN @2HHome > 0 AND @2HAway> 0 THEN 'YY'
+																	ELSE 'YN'
+															END
+							ELSE CASE 
+										WHEN @2HHome > 0 AND @2HAway > 0 THEN 'NY'
+										ELSE 'NN'
+									END
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '446')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'446'
+						,CASE
+							WHEN @HTHome > 0 THEN CASE
+														WHEN @2HHome > 0 THEN 'YY'
+														ELSE 'YN'
+												END
+							ELSE CASE 
+										WHEN @2HHome > 0 THEN 'NY'
+										ELSE 'NN'
+									END
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '447')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'447'
+						,CASE
+							WHEN @HTAway > 0 THEN CASE
+														WHEN @2HAway > 0 THEN 'YY'
+														ELSE 'YN'
+												END
+							ELSE CASE 
+										WHEN @2HAway > 0 THEN 'NY'
+										ELSE 'NN'
+									END
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '448')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'448'
+						,CASE WHEN @FTLG = 'N' THEN 'NG' ELSE @FTLG END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '08'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '449')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'449'
+						,@FTTotalScore
+						,@FTScoreDiff
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '450')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'450'
+						,@FTTotalScore
+						,@FTTotalScore %2 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '452')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'452'
+						 ,@HTTotalScore
+						 ,@2HTotalScore
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '454')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'454'
+						 ,@FTFG
+						 ,@FTScoreDiff
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '456')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'456'
+						,CASE 
+							WHEN @HTHome > 0 AND @HTAway > 0 
+								THEN CASE
+										WHEN @HTHome > @HTAway THEN 'YH'
+										WHEN @HTHome < @HTAway THEN 'YA'
+										ELSE 'YD'
+									END
+							ELSE CASE
+									WHEN @HTHome > @HTAway THEN 'NH'
+									WHEN @HTHome < @HTAway THEN 'NA'
+									ELSE 'ND'
+								END
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '467')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'467'
+						,CASE 
+							WHEN @HTTotalScore BETWEEN 0 AND 3 AND @FTTotalScore >= 7 THEN 'G' + CAST(@HTTotalScore AS VARCHAR(5)) + '/G7+'
+							WHEN @HTTotalScore = 4 AND @FTTotalScore >= 8 THEN 'G4/G8+'
+							WHEN @HTTotalScore = 5 AND @FTTotalScore >= 9 THEN 'G5/G9+'  
+							WHEN @HTTotalScore = 6 AND @FTTotalScore >= 10 THEN 'G6/G10+'
+							WHEN @HTTotalScore >= 7 AND @FTTotalScore >= 7 THEN 'G7+/G7+'
+							ELSE 'G' + CAST(@HTTotalScore AS VARCHAR(5)) + '/G' + CAST(@FTTotalScore AS VARCHAR(5))						
+					END          
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('486', '487'))
+			BEGIN
+				IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '486')
+					SET @ResourceId = '486'
+				ELSE
+					SET @ResourceId = '487'
+
+				WHILE (@ResourceId <> '00')
+				BEGIN
+					SELECT	@Position = 1
+							,@HomeRaceTo = 0
+							,@AwayRaceTo = 0
+							,@string = CASE WHEN @ResourceId = '486' THEN @FTGoalRecord ELSE @HTGoalRecord END
+							,@result = ''
+
+					SELECT @LenResultString = LEN(@string)
+			
+					WHILE (@Position <= @LenResultString)
+					BEGIN
+						SET @Char = SUBSTRING(@string, @Position, 1)
+			
+						IF @Char = 'H'	
+						BEGIN
+							SET @HomeRaceTo = @HomeRaceTo + 1
+
+							IF @HomeRaceTo > @AwayRaceTo
+								SET  @result = @result + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+					
+						END
+						ELSE IF @Char = 'A' 
+						BEGIN
+							SET @AwayRaceTo = @AwayRaceTo + 1
+
+							IF @AwayRaceTo > @HomeRaceTo
+								SET  @result = @result + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+						END
+			
+						SET @Position = @Position + 1	 	
+					END
+
+					SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+
+					INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+					SELECT	@ResourceId	
+							,case when right(@result,1) = ';' then SUBSTRING(@result,1,len(@result) - 1) else @result end
+							--,@result
+							,@NeitherRaceTo
+							,ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '00'
+
+					IF @ResourceId = '487'
+						BREAK
+
+					SET @ResourceId = '487'
+				END
+			END
 		
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '416')
-		BEGIN
-			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'416'
-					,CAST(@HTHome AS NVARCHAR(10)) + ':' + CAST(@HTAway AS NVARCHAR(10)) AS HomeValue
-					,CAST(@FTHome AS NVARCHAR(10)) + ':' + CAST(@FTAway AS NVARCHAR(10)) AS AwayValue
-					,ssId
-			FROM	@tmpResultDetail
-			WHERE	ResourceId = '00'
-        END 
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '488')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'488'
+						,LEFT(REPLACE(@FTGoalRecord,';',''),1) 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '489')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'489'
+						,LEFT(REPLACE(@HTGoalRecord,';',''),1) 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '490')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'490'
+						,CASE 
+							WHEN CHARINDEX(';', @FTGoalRecord) > 0 THEN SUBSTRING(@FTGoalRecord, CHARINDEX(';', @FTGoalRecord)+1,1) 
+							ELSE LEFT(@FTGoalRecord,1) 
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '491')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'491'
+						,RIGHT(REPLACE(@FTGoalRecord,';',''),1)
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '492')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'492'
+						,RIGHT(@HTGoalRecord,1) 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '493')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'493'
+						,CASE WHEN @HTTotalScore = 0 AND @FTTotalScore >= 8 THEN '0/8+'
+							WHEN @HTTotalScore = 1 AND @FTTotalScore >= 9 THEN '1/9+'  
+							WHEN @HTTotalScore = 2 AND @FTTotalScore >= 10 THEN '2/10+'
+							WHEN @HTTotalScore = 3 AND @FTTotalScore >= 11 THEN '3/11+'
+							WHEN @HTTotalScore = 4 AND @FTTotalScore >= 12 THEN '4/12+'
+							WHEN @HTTotalScore = 5 AND @FTTotalScore >= 13 THEN '5/13+'
+							WHEN @HTTotalScore = 6 AND @FTTotalScore >= 14 THEN '6/14+'
+							WHEN @HTTotalScore IN (7,8,9) AND @FTTotalScore >= 15 THEN CAST(@HTTotalScore AS VARCHAR(5)) + '/15+'
+							ELSE CAST(@HTTotalScore AS VARCHAR(5)) + '/' + CAST(@FTTotalScore AS VARCHAR(5))
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+		
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '02')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'02'
+						,@FTHome - @HTHome
+						,@FTAway - @HTAway
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '16')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'16'
+						,CASE
+							WHEN @HTHome > @HTAway 
+								THEN '1:' + CASE
+												WHEN @FTHome > @FTAway THEN '1'
+												WHEN @FTHome = @FTAway THEN '0'
+												WHEN @FTHome < @FTAway THEN '2'
+												ELSE NULL
+											END
+							WHEN @HTHome = @HTAway 
+								THEN '0:' + CASE
+												WHEN @FTHome > @FTAway THEN '1'
+												WHEN @FTHome = @FTAway THEN '0'
+												WHEN @FTHome < @FTAway THEN '2'
+												ELSE NULL
+											END
+							WHEN @HTHome < @HTAway 
+								THEN '2:' + CASE
+												WHEN @FTHome > @FTAway THEN '1'
+												WHEN @FTHome = @FTAway THEN '0'
+												WHEN @FTHome < @FTAway THEN '2'
+												ELSE NULL
+											END
+							END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END 
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '22')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'22'
+						,REPLACE(ISNULL(HomeValue, ''),';','') 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '08'
+			END 
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '405')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'405'
+						,CAST((@FTHome -@HTHome) AS NVARCHAR(6)) + ':' + CAST((@FTAway - @HTAway) AS NVARCHAR(6))
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END 
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '413')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'413'
+						,CAST(@FTHome AS NVARCHAR(6)) + ':' + CAST(@FTAway AS NVARCHAR(6))
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END 
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '414')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'414'
+						,CAST(@HTHome AS NVARCHAR(6)) + ':' + CAST(@HTAway AS NVARCHAR(6))
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END 
+		
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '416')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'416'
+						,CAST(@HTHome AS NVARCHAR(10)) + ':' + CAST(@HTAway AS NVARCHAR(10)) AS HomeValue
+						,CAST(@FTHome AS NVARCHAR(10)) + ':' + CAST(@FTAway AS NVARCHAR(10)) AS AwayValue
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END 
+		END
+		ELSE IF @IsDetermined = 1
+		BEGIN	
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '14')
+			BEGIN
+				SELECT	@FTFG = MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END)
+						,@FTLG = MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END)
+						,@ssId = MIN(ssId)
+				FROM	@tmpResultDetail
+				WHERE	ResourceId IN ('14F', '14L')
+
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'14'
+						,CASE @FTFG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:1'
+							WHEN 'A' THEN '2:1'
+							ELSE NULL END
+
+						,CASE @FTLG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:2'
+							WHEN 'A' THEN '2:2'
+							ELSE NULL END
+						,@ssId
+			END
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '127')
+			BEGIN
+				SELECT	@HTFG = MAX(CASE WHEN ResourceId = '127F' THEN HomeValue ELSE '' END)
+						,@HTLG = MAX(CASE WHEN ResourceId = '127L' THEN HomeValue ELSE '' END)
+						,@ssId = MIN(ssId)
+				FROM	@tmpResultDetail
+				WHERE	ResourceId IN ('127F', '127L')
+
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT	'127'
+						,CASE @HTFG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:1'
+							WHEN 'A' THEN '2:1'
+							ELSE NULL END
+
+						,CASE @HTLG
+							WHEN 'N' THEN '0:0'
+							WHEN 'H' THEN '1:2'
+							WHEN 'A' THEN '2:2'
+							ELSE NULL END
+						,@ssId
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '172')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'172'
+						,@FTFG
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '396')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'396'
+						,REPLACE(ISNULL(@FTGoalRecord, ''),';','')
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '08'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '422')
+			BEGIN
+				SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
+				SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
+
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'422'
+						,CASE 
+							WHEN (@home_firstteam2goals > 0 AND @away_firstteam2goals = 0) OR (@home_firstteam2goals <> 0 AND @home_firstteam2goals - @away_firstteam2goals < 0) THEN 'H'
+							WHEN (@away_firstteam2goals > 0 AND @home_firstteam2goals = 0) OR (@away_firstteam2goals <> 0 AND @away_firstteam2goals - @home_firstteam2goals < 0) THEN 'A'
+							ELSE 'N'
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '423')
+			BEGIN
+				SET @home_firstteam2goals = CHARINDEX('H',@FTGoalRecord,(CHARINDEX('H',@FTGoalRecord)+1))
+				SET @away_firstteam2goals = CHARINDEX('A',@FTGoalRecord,(CHARINDEX('A',@FTGoalRecord)+1))
+			
+				SET @home_firstteam3goals = CASE WHEN @home_firstteam2goals > 0 THEN CHARINDEX('H',@FTGoalRecord, @home_firstteam2goals + 1) ELSE 0 END
+				SET @away_firstteam3goals = CASE WHEN @away_firstteam2goals > 0 THEN CHARINDEX('A',@FTGoalRecord, @away_firstteam2goals + 1) ELSE 0 END
+
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'423'
+						,CASE 
+							WHEN (@home_firstteam3goals > 0 AND @away_firstteam3goals = 0) OR (@home_firstteam3goals <> 0 AND @home_firstteam3goals - @away_firstteam3goals < 0) THEN 'H'
+							WHEN (@away_firstteam3goals > 0 AND @home_firstteam3goals = 0) OR (@away_firstteam3goals <> 0 AND @away_firstteam3goals - @home_firstteam3goals < 0) THEN 'A'
+							ELSE 'N'
+						END
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '448')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'448'
+						,@FTFG
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '454')
+			BEGIN	
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'454'
+						,@FTFG
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('486', '487'))
+			BEGIN
+				IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '486')
+					SET @ResourceId = '486'
+				ELSE
+					SET @ResourceId = '487'
+
+				WHILE (@ResourceId <> '00')
+				BEGIN
+					SELECT	@Position = 1
+							,@HomeRaceTo = 0
+							,@AwayRaceTo = 0
+							,@string = CASE WHEN @ResourceId = '486' THEN @FTGoalRecord ELSE @HTGoalRecord END
+							,@result = ''
+
+					SELECT @LenResultString = LEN(@string)
+			
+					WHILE (@Position <= @LenResultString)
+					BEGIN
+						SET @Char = SUBSTRING(@string, @Position, 1)
+			
+						IF @Char = 'H'	
+						BEGIN
+							SET @HomeRaceTo = @HomeRaceTo + 1
+
+							IF @HomeRaceTo > @AwayRaceTo
+								SET  @result = @result + CAST(@HomeRaceTo AS VARCHAR) + @Char + ';'
+					
+						END
+						ELSE IF @Char = 'A' 
+						BEGIN
+							SET @AwayRaceTo = @AwayRaceTo + 1
+
+							IF @AwayRaceTo > @HomeRaceTo
+								SET  @result = @result + CAST(@AwayRaceTo AS VARCHAR) + @Char + ';'
+						END
+			
+						SET @Position = @Position + 1	 	
+					END
+
+					SET @NeitherRaceTo = CASE WHEN @HomeRaceTo > @AwayRaceTo THEN @HomeRaceTo ELSE @AwayRaceTo END + 1
+
+					INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+					SELECT	@ResourceId	
+							,case when right(@result,1) = ';' then SUBSTRING(@result,1,len(@result) - 1) else @result end
+							,@NeitherRaceTo
+							,ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '00'
+
+					IF @ResourceId = '487'
+						BREAK
+
+					SET @ResourceId = '487'
+				END
+			END
+		
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '488')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'488'
+						,LEFT(REPLACE(@FTGoalRecord,';',''),1) 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '489')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'489'
+						,LEFT(REPLACE(@HTGoalRecord,';',''),1) 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '01'
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '490')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+				SELECT	'490'
+						,CASE 
+							WHEN CHARINDEX(';', @FTGoalRecord) > 0 THEN SUBSTRING(@FTGoalRecord, CHARINDEX(';', @FTGoalRecord)+1,1) 
+							ELSE LEFT(@FTGoalRecord,1) 
+						END 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '00'
+			END
+
+			
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '22')
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
+				SELECT	'22'
+						,REPLACE(ISNULL(HomeValue, ''),';','') 
+						,ssId
+				FROM	@tmpResultDetail
+				WHERE	ResourceId = '08'
+			END 
+		END
 	END
 
 	ELSE IF @Sporttype IN ( 6, 45 )

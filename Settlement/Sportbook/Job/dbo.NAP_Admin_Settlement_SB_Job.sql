@@ -23,6 +23,7 @@ AS
 		- 20200406@Helen:[TVS] Auto Void winning bet  for Tennis[Redmine:#131516]
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -101,11 +102,11 @@ BEGIN
 			SET @ErrCode = ERROR_NUMBER()
 			SET @SSBStatus = 3
 		END CATCH
-
+		
 		IF @SSBStatus = 1
 			RETURN
-
-		IF @ErrCode <> 0
+			
+		IF @ErrCode <> 0 AND @ErrCode <> 1000006 -- Betfair & Betdaq - Warning message
 			SET @SSBStatus = 3
 		ELSE
 			SET @SSBStatus = 2
@@ -130,7 +131,7 @@ BEGIN
 		ORDER BY CASE WHEN SportType = @pre_Sporttype THEN 1 ELSE 0 END
 			,TryCount, starttime, keyid
 	
-		SET @IsRunBySSB = CASE WHEN @sporttype = 1 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT') THEN 1 ELSE 0 END
+		SET @IsRunBySSB = CASE WHEN @sporttype = 1 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT', 'REFUND', 'REFUND-HT', 'REFUND-FT') THEN 1 ELSE 0 END
 
 		IF @IsRunBySSB = 1
 			SET @SSBStatus = 1
@@ -158,14 +159,14 @@ BEGIN
 		BEGIN CATCH
 			SET @ErrMsg = @ErrMsg + ERROR_MESSAGE()
 		END CATCH
-
-		IF @IsRunBySSB = 1 AND @ErrCode <> 0
+		
+		IF @IsRunBySSB = 1 AND @ErrCode <> 0 AND @ErrCode <> 1000006 -- Betfair & Betdaq - Warning message
 			SET @SSBStatus = 3
 	END
 
 	IF @SSBStatus = 1
 		RETURN
-
+	
 	IF (ISNULL(@ErrCode, 0) <> 0 OR ISNULL(@ErrMsg, '') <> '' ) -- calculate failed set calculating = 0 and back
 		AND ISNULL(@ErrCode, 0) <> 1000006 --- 1000006: Betfair & Betdaq - Warning message
 	BEGIN

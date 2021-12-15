@@ -67,6 +67,7 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393] 
 		- 20220106@Louisa: Enhancement [Redmine:#164905]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
 */
 BEGIN
@@ -85,15 +86,6 @@ BEGIN
         ,@HTFGLGStatus				NVARCHAR(50)
         ,@LeagueID					INT
 		,@LeagueGroupID				SMALLINT
-        
-        -- Tennis Settlement 
-        ,@TennisStatusSet1			NVARCHAR(20)
-        ,@TennisStatusSet2			NVARCHAR(20)
-        ,@TennisStatusSet3			NVARCHAR(20)
-        ,@TennisStatusSet4			NVARCHAR(20)
-        ,@TennisStatusSet5			NVARCHAR(20)
-        ,@TennisStatusMatch			NVARCHAR(20)    -- Match Scope 
-
         ,@isExistResultandFirstTeamScore    BIT
 				
 		--Bettrade
@@ -103,13 +95,7 @@ BEGIN
 		,@IsEnabledGoalRecordFT		BIT
 		,@eventstatus				VARCHAR(20)
 		
-		-- Basketball
-		,@StatusQuarter1	NVARCHAR(20)
-		,@StatusQuarter2	NVARCHAR(20)
-		,@StatusQuarter3	NVARCHAR(20)
-		,@StatusQuarter4	NVARCHAR(20)
-		
-		,@isExistFTHighestQuarter BIT
+		,@IsMergedParlay			BIT 
 	
 	--- Get ET  match and PEN match for soccer
 	DECLARE @tmp_ChildMatch TABLE 
@@ -141,7 +127,7 @@ BEGIN
 		,@isExistBettrade		= 0
 		,@IsEnabledGoalRecordHT = 0
 		,@IsEnabledGoalRecordFT = 0
-		,@isExistFTHighestQuarter = 0
+		,@IsMergedParlay	 = 0
 
     SELECT @sporttype 	= m.sporttype
 		,@LeagueID    	= m.leagueid
@@ -151,6 +137,10 @@ BEGIN
 	INNER JOIN  DBPRO.bodb02.dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
     WHERE  m.matchid = @matchid
 	
+	SELECT	@IsMergedParlay = IsMergedParlay
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE	ss.Sporttype = @sportType
+
 	DECLARE @tmpMarkedTransaction TABLE (
 		bettype SMALLINT
 		,betMarkedCount INT
@@ -159,75 +149,35 @@ BEGIN
 	CREATE TABLE #Data (
 		bettype			SMALLINT 
 		,isParlay		BIT 
-		,InRunning		INT
-		,Waiting_cnt	INT
-		,betcount		INT
-		,betRunningCount INT
-		,betSettledCount INT
-		,betMarkedCount INT 
-		,InRunningParlay INT
-		,WaitingParlay_cnt INT
-		,betcountParlay	INT
+		,betRunningCount INT DEFAULT(0)
+		,betWaitingCount	INT DEFAULT(0)
+		,betSettledCount INT DEFAULT(0)
+		,betMarkedCount INT DEFAULT(0) 
+		,betCount	INT DEFAULT(0)		
+		
+		,betParlayRunningCount INT DEFAULT (0)
+		,betParlayWaitingCount INT DEFAULT(0)
+		,betParlaySettledCount INT DEFAULT(0)
+		,betParlayMarkedCount INT DEFAULT(0)
+		,betParlayCount	INT DEFAULT(0)
+
 		,ExistLG		BIT
 		,ExistHTLG		BIT
 		,IsLive			BIT
-		
-		-- Tennis, Basketball: Q1, Q2, Q3, Q4
-		,InRunningSet1 	INT
-		,InRunningSet2 	INT
-		,InRunningSet3 	INT
-		,InRunningSet4 	INT
-		,InRunningSet5 	INT
-		
-		,BetCountSet1 	INT
-		,BetCountSet2 	INT
-		,BetCountSet3 	INT
-		,BetCountSet4 	INT
-		,BetCountSet5 	INT
-
-		,BetMarkedCountSet1 INT
-		,BetMarkedCountSet2 INT
-		,BetMarkedCountSet3 INT
-		,BetMarkedCountSet4 INT
-		,BetMarkedCountSet5 INT
-
 		, PRIMARY KEY (bettype,isParlay)
 	)
 	
 	INSERT INTO #Data (bettype, isParlay
-		, InRunning,Waiting_cnt, betcount, betRunningCount, betSettledCount, betMarkedCount
-		, InRunningParlay,WaitingParlay_cnt, betcountParlay
-		, IsLive		
-		, InRunningSet1, InRunningSet2, InRunningSet3, InRunningSet4, InRunningSet5
-		, BetCountSet1, BetCountSet2, BetCountSet3, BetCountSet4, BetCountSet5
-		, BetMarkedCountSet1 ,BetMarkedCountSet2 ,BetMarkedCountSet3 ,BetMarkedCountSet4 ,BetMarkedCountSet5
+			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
+			, IsLive		
 		)
 	SELECT	b.bettype, 0 isParlay
-			,MAX(CASE WHEN b.statusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS InRunning
-			,SUM(CASE WHEN b.statusID = 1 THEN 1 ELSE 0 END) AS Waiting_cnt
-			,COUNT(1) AS betcount
 			,SUM(CASE WHEN b.statusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS betRunningCount
+			,SUM(CASE WHEN b.statusID = 1 THEN 1 ELSE 0 END) AS betWaitingCount
 			,SUM(CASE WHEN b.statusID BETWEEN 111 AND 113 OR b.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN b.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
-			,0 InRunningParlay,0 WaitingParlay_cnt, 0 betcountParlay
-			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
-			
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet1
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet2
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet3
-			,MAX(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616 AND mt.TransId IS NULL)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet4
-			,MAX(CASE WHEN @sporttype = 5 AND CAST(betid AS VARCHAR(20)) LIKE '805%' AND statusID = 0 THEN 1 ELSE 0 END) AS InRunningSet5		
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' THEN 1 ELSE 0 END) AS BetCountSet1
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' THEN 1 ELSE 0 END) AS BetCountSet2
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' THEN 1 ELSE 0 END) AS BetCountSet3
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' THEN 1 ELSE 0 END) AS BetCountSet4
-			,SUM(CASE WHEN CAST(betid AS VARCHAR(20)) LIKE '805%' THEN 1 ELSE 0 END) AS BetCountSet5
-
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '801%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet1
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '802%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet2
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '803%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet3
-			,SUM(CASE WHEN (@sporttype = 5 OR (@sporttype = 2 AND b.bettype BETWEEN 609 AND 616)) AND CAST(betid AS VARCHAR(20)) LIKE '804%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet4
-			,SUM(CASE WHEN @sporttype = 5 AND CAST(betid AS VARCHAR(20)) LIKE '805%' AND statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS BetMarkedCountSet5
+			,COUNT(1) AS betCount			
+			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive			
 	FROM	dbo.bettrans b WITH(NOLOCK)
 				OUTER APPLY (
 					SELECT TOP 1 mt.TransId
@@ -236,50 +186,50 @@ BEGIN
 				)mt
 	WHERE	b.matchid = @matchid
 			AND b.statusID NOT IN (101, 102)
-			--AND 1 = CASE 
-			--			WHEN @IsRefundPage = 1 AND b.statusID = 103 THEN 0
-			--			ELSE 1
-			--		END
-	GROUP BY b.bettype
+	GROUP BY b.bettype	
 	
-	UNION ALL
-	
-	SELECT	bm.bettype, 1 isParlay
-			,0 AS InRunning
-			,0 AS Waiting_cnt
-			,0 AS betcount
-			,0 AS betRunningCount
-			,0 AS betSettledCount
-			,0 AS betMarkedCount
-			,MAX(CASE WHEN statusID = 0 THEN 1 ELSE 0 END) InRunningParlay
-			,SUM(CASE WHEN statusID = 1 THEN 1 ELSE 0 END) WaitingParlay_cnt
-			,COUNT(1) betcountParlay
-			,MAX(CASE WHEN liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
-			,0 AS InRunningSet1
-			,0 AS InRunningSet2
-			,0 AS InRunningSet3
-			,0 AS InRunningSet4
-			,0 AS InRunningSet5		
-			,0 AS BetCountSet1
-			,0 AS BetCountSet2
-			,0 AS BetCountSet3
-			,0 AS BetCountSet4
-			,0 AS BetCountSet5
+	IF @IsMergedParlay = 0
+	BEGIN
+		INSERT INTO #Data (bettype, isParlay
+			,betParlayRunningCount, betParlayWaitingCount, betParlayCount
+			, IsLive		
+		)
+		SELECT	bm.bettype, 1 isParlay
+				,SUM(CASE WHEN statusID = 0 THEN 1 ELSE 0 END) betParlayRunningCount
+				,SUM(CASE WHEN statusID = 1 THEN 1 ELSE 0 END) betParlayWaitingCount
+				,COUNT(1) betParlayCount
+				,MAX(CASE WHEN liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
+		FROM	dbo.bettransm bm WITH(NOLOCK)
+		WHERE	matchid = @matchid
+				AND statusID NOT IN (101, 102)
+		GROUP BY bm.bettype
+	END
+	ELSE
+	BEGIN
+		INSERT INTO #Data (bettype, isParlay
+			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
+			, IsLive		
+		)
+		SELECT	bm.bettype, 1 isParlay			
+				,SUM(CASE WHEN bm.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) betRunningCount
+				,SUM(CASE WHEN bm.statusID = 1 THEN 1 ELSE 0 END) betWaitingCount
+				,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 OR bm.statusId = 103 THEN 1 ELSE 0 END) AS betSettledCount
+				,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
+				,COUNT(1) betCount
+				,MAX(CASE WHEN bm.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
+		FROM	dbo.bettransm bm WITH(NOLOCK)
+			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+				ON	b.matchid = 29		
+					AND b.bettype = 29
+					AND b.refno = bm.refno
+			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+				ON	b.transid = mt.TransId
+					AND mt.matchid = bm.matchid
+		WHERE	bm.matchid = @matchid
+				AND bm.statusID NOT IN (101, 102)
+		GROUP BY bm.bettype
+	END
 
-			,0 AS BetMarkedCountSet1
-			,0 AS BetMarkedCountSet2
-			,0 AS BetMarkedCountSet3
-			,0 AS BetMarkedCountSet4
-			,0 AS BetMarkedCountSet5
-	FROM	dbo.bettransm bm WITH(NOLOCK)
-	WHERE	matchid = @matchid
-			AND statusID NOT IN (101, 102)
-			--AND 1 = CASE 
-			--			WHEN @IsRefundPage = 1 AND statusID = 103 THEN 0
-			--			ELSE 1
-			--		END
-	GROUP BY bm.bettype
-	
 	SELECT	
 			 -- 14F, 14L; GroupID = 4: bettype 14; -- 127F, 127L; GroupID = 3: bettype 127
 			 @IsExistFGLG =  MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsFGLG = 1 THEN 1 ELSE 0 END)
@@ -293,43 +243,19 @@ BEGIN
 			,@isExistBettrade = MAX(CASE WHEN b.bettype BETWEEN 901 AND 910 THEN 1 ELSE 0 END) 
 			,@IsLive = MAX(CASE WHEN b.IsLive = 1 THEN 1 ELSE 0 END)
 			
-			,@isExistFTHighestQuarter = MAX(CASE WHEN f.BetType = 603 THEN 1 ELSE 0 END)
 	FROM	#Data b
 		LEFT JOIN @tmpBettypes f
 			ON b.bettype = f.BetType
 
-	SELECT	@IsExistFGLG = CASE WHEN @IsExistFGLG > 0 THEN @IsExistFGLG ELSE MAX(CASE WHEN f.GroupId = 4 THEN 1 ELSE 0 END) END
-			,@IsExistHTFGLG = CASE WHEN @IsExistHTFGLG > 0 THEN @IsExistHTFGLG ELSE MAX(CASE WHEN f.GroupId = 3 THEN 1 ELSE 0 END) END
-			,@isExistResultandFirstTeamScore = CASE WHEN @isExistResultandFirstTeamScore > 0 THEN @isExistResultandFirstTeamScore ELSE MAX(CASE WHEN f.BetType = 172 THEN 1 ELSE 0 END) END
-			
-			,@IsEnabledGoalRecordHT = CASE WHEN @IsEnabledGoalRecordHT > 0 THEN @IsEnabledGoalRecordHT ELSE MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) END
-			,@IsEnabledGoalRecordFT = CASE WHEN @IsEnabledGoalRecordFT > 0 THEN @IsEnabledGoalRecordFT ELSE MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsUsedGoalRecordValue = 1 THEN 1 ELSE 0 END) END		
-			,@isExistFTHighestQuarter = CASE WHEN @isExistFTHighestQuarter > 0 THEN @isExistFTHighestQuarter ELSE MAX(CASE WHEN f.BetType = 603 THEN 1 ELSE 0 END) END
-	FROM	dbo.bettransm bm WITH(NOLOCK)
-		INNER JOIN @tmpBettypes f
-			ON	bm.bettype = f.bettype
-	WHERE	matchid = @matchid
-			AND statusID NOT IN (101, 102)
-			--AND 1 = CASE 
-			--			WHEN @IsRefundPage = 1 AND statusID = 103 THEN 0
-			--			ELSE 1
-			--		END
-	
     IF @IsRefundPage = 0 -- Calculate page
     BEGIN	
-		DECLARE @status TABLE (GroupId TINYINT, BetCount INT, betRunningCount INT, betSettledCount INT, betMarkedCount INT
-			, InRunning INT, Waiting_cnt INT, BetCountParlay INT, InRunningParlay INT, WaitingParlay_cnt INT
-			, InRunningSet1 INT, InRunningSet2 	INT, InRunningSet3 	INT, InRunningSet4 	INT, InRunningSet5 	INT	
-			, BetCountSet1 	INT, BetCountSet2 	INT, BetCountSet3 	INT, BetCountSet4 	INT, BetCountSet5 	INT
-			, BetMarkedCountSet1 INT, BetMarkedCountSet2 INT, BetMarkedCountSet3 INT, BetMarkedCountSet4 INT, BetMarkedCountSet5 INT
+		DECLARE @status TABLE (GroupId TINYINT, betCount INT, betRunningCount INT, betSettledCount INT, betMarkedCount INT, betWaitingCount INT
+			, betParlayCount INT, betParlayRunningCount INT, betParlayWaitingCount INT
 		)
 		
         -- check match status
-		INSERT INTO @status (GroupId, BetCount, betRunningCount, betSettledCount, betMarkedCount
-			,InRunning, Waiting_cnt, BetCountParlay, InRunningParlay, WaitingParlay_cnt
-			,InRunningSet1, InRunningSet2, InRunningSet3, InRunningSet4, InRunningSet5
-			,BetCountSet1, BetCountSet2, BetCountSet3, BetCountSet4, BetCountSet5
-			,BetMarkedCountSet1, BetMarkedCountSet2, BetMarkedCountSet3, BetMarkedCountSet4, BetMarkedCountSet5
+		INSERT INTO @status (GroupId, betCount, betRunningCount, betSettledCount, betMarkedCount, betWaitingCount
+				, betParlayCount, betParlayRunningCount, betParlayWaitingCount
 		)
 		SELECT	CASE 
 					WHEN g.groupId = 1 THEN 1 -- HT
@@ -340,33 +266,15 @@ BEGIN
 					WHEN g.GroupId = 10 THEN 9 -- All quaters of Basketball
 					ELSE 0
 				END AS GroupId
-			,SUM(b.betcount) AS betcount
+			,SUM(b.betCount) AS betCount
 			,SUM(b.betRunningCount) AS betRunningCount
 			,SUM(b.betSettledCount) AS betSettledCount
 			,SUM(b.betMarkedCount) AS betMarkedCount
-			,MAX(b.InRunning) AS InRunning
-			,SUM(b.Waiting_cnt)	AS Waiting_cnt	
+			,SUM(b.betWaitingCount) AS betWaitingCount	
 			
-			,SUM(b.betcountParlay) AS betcountParlay
-			,MAX(b.InRunningParlay) AS InRunningParlay
-			,SUM(b.WaitingParlay_cnt)AS WaitingParlay_cnt	
-				
-			,MAX(b.InRunningSet1)
-			,MAX(b.InRunningSet2)
-			,MAX(b.InRunningSet3)
-			,MAX(b.InRunningSet4)
-			,MAX(b.InRunningSet5)
-			,SUM(b.BetCountSet1)
-			,SUM(b.BetCountSet2)
-			,SUM(b.BetCountSet3)
-			,SUM(b.BetCountSet4)
-			,SUM(b.BetCountSet5)
-
-			,SUM(b.BetMarkedCountSet1)
-			,SUM(b.BetMarkedCountSet2)
-			,SUM(b.BetMarkedCountSet3)
-			,SUM(b.BetMarkedCountSet4)
-			,SUM(b.BetMarkedCountSet5)
+			,SUM(b.betParlayCount) AS betParlayCount
+			,MAX(b.betParlayRunningCount) AS betParlayRunningCount
+			,SUM(b.betParlayWaitingCount) AS betParlayWaitingCount		
 		FROM	#Data b
 			INNER JOIN @tmpBettypes g
 				ON	b.bettype = g.BetType
@@ -379,23 +287,23 @@ BEGIN
 					ELSE 0
 				END
 
-		INSERT INTO @status (GroupId, BetCount, InRunning, Waiting_cnt, BetCountParlay, InRunningParlay, WaitingParlay_cnt)
+		INSERT INTO @status (GroupId, betCount, betRunningCount, betWaitingCount, betParlayCount, betParlayRunningCount, betParlayWaitingCount)
 		SELECT t.GroupId, 0, 0, 0, 0, 0, 0
 		FROM (VALUES (0),(1),(2),(3),(7),(9)) AS t (GroupId)
 		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @status s WHERE s.GroupId = t.GroupId)
 
         SELECT @FTStatus = CASE 
-								WHEN t.betcount = 0 AND t.betcountParlay = 0 THEN 'No Ticket'
-								WHEN t.InRunning > 0 THEN 'Running'
+								WHEN t.betCount = 0 AND t.betParlayCount = 0 THEN 'No Ticket'
+								WHEN t.betRunningCount > 0 THEN 'Running'
 								WHEN t.betMarkedCount > 0 THEN 'Marked'
-								WHEN t.Waiting_cnt > 0 AND t.Waiting_cnt = t.BetCount THEN 'Waiting'
-								WHEN ISNULL(t.BetCount,0) = 0 AND t.InRunningParlay > 0 THEN 'Parlay Running'
-								WHEN ISNULL(t.BetCount,0) = 0 AND t.WaitingParlay_cnt > 0 AND t.betcountParlay = t.WaitingParlay_cnt THEN 'Parlay Waiting'
+								WHEN t.betWaitingCount > 0 AND t.betWaitingCount = t.BetCount THEN 'Waiting'
+								WHEN ISNULL(t.BetCount,0) = 0 AND t.betParlayRunningCount > 0 THEN 'Parlay Running'
+								WHEN ISNULL(t.BetCount,0) = 0 AND t.betParlayWaitingCount > 0 AND t.betParlayCount = t.betParlayWaitingCount THEN 'Parlay Waiting'
                                 ELSE 'Calculated'
                             END
         FROM (
-			SELECT ISNULL(SUM(betcount),0) AS betcount, ISNULL(MAX(inRunning),0) AS inRunning, ISNULL(SUM(Waiting_cnt),0) AS Waiting_cnt
-					,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
+			SELECT ISNULL(SUM(betcount),0) AS betCount, ISNULL(SUM(betRunningCount),0) AS betRunningCount, ISNULL(SUM(betWaitingCount),0) AS betWaitingCount
+					,ISNULL(SUM(betParlayCount),0) AS betParlayCount, ISNULL(SUM(betParlayRunningCount),0) AS betParlayRunningCount, ISNULL(SUM(betParlayWaitingCount),0) AS betParlayWaitingCount
 					,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount
 			FROM @status
 			WHERE 1 = CASE WHEN GroupId IN (0,2) THEN 1 ELSE 0 END --include FT-FGLG
@@ -403,86 +311,21 @@ BEGIN
 		) AS t				
 
         SELECT @HTStatus = CASE 
-								WHEN t.betcount = 0 AND t.betcountParlay = 0 THEN 'No Ticket'
-								WHEN t.InRunning > 0 THEN 'Running'
+								WHEN t.betCount = 0 AND t.betParlayCount = 0 THEN 'No Ticket'
+								WHEN t.betRunningCount > 0 THEN 'Running'
 								WHEN t.betMarkedCount > 0 THEN 'Marked'
-								WHEN t.Waiting_cnt > 0 AND t.Waiting_cnt = t.BetCount THEN 'Waiting'
-								WHEN ISNULL(t.BetCount,0) = 0 AND t.InRunningParlay > 0 THEN 'Parlay Running'
-								WHEN ISNULL(t.BetCount,0) = 0 AND t.WaitingParlay_cnt > 0 AND t.betcountParlay = t.WaitingParlay_cnt THEN 'Parlay Waiting'
+								WHEN t.betWaitingCount > 0 AND t.betWaitingCount = t.BetCount THEN 'Waiting'
+								WHEN ISNULL(t.BetCount,0) = 0 AND t.betParlayRunningCount > 0 THEN 'Parlay Running'
+								WHEN ISNULL(t.BetCount,0) = 0 AND t.betParlayWaitingCount > 0 AND t.betParlayCount = t.betParlayWaitingCount THEN 'Parlay Waiting'
                                 ELSE 'Calculated'
                             END
         FROM (
-			SELECT ISNULL(MAX(betcount),0) AS betcount, ISNULL(MAX(inRunning),0) AS inRunning, ISNULL(SUM(Waiting_cnt),0) AS Waiting_cnt
-					,ISNULL(SUM(BetCountParlay),0) AS betcountParlay, ISNULL(MAX(InRunningParlay),0) AS InRunningParlay, ISNULL(SUM(WaitingParlay_cnt),0) AS WaitingParlay_cnt
+			SELECT ISNULL(SUM(betcount),0) AS betCount, ISNULL(SUM(betRunningCount),0) AS betRunningCount, ISNULL(SUM(betWaitingCount),0) AS betWaitingCount
+					,ISNULL(SUM(betParlayCount),0) AS betParlayCount, ISNULL(SUM(betParlayRunningCount),0) AS betParlayRunningCount, ISNULL(SUM(betParlayWaitingCount),0) AS betParlayWaitingCount
 					,ISNULL(SUM(betMarkedCount),0) AS betMarkedCount
 			FROM @status
 			WHERE 1 = CASE WHEN GroupId IN(1,3) THEN 1 ELSE 0 END --include HT-FGLG
 		) AS t
-	
-        --- Tennis Ticket Status 
-        SELECT    @TennisStatusSet1 = CASE    
-										WHEN ISNULL(BetCountSet1,0) = 0 THEN N'No Ticket'
-                                        WHEN ISNULL(InRunningSet1,0) = 0 THEN N'Calculated'
-                                        ELSE N'Running'
-                                    END
-				,@TennisStatusSet2 = CASE    
-										WHEN ISNULL(BetCountSet2,0) = 0 THEN N'No Ticket'
-                                        WHEN ISNULL(InRunningSet2,0) = 0 THEN N'Calculated'
-                                        ELSE N'Running'
-									END
-				,@TennisStatusSet3 = CASE   
-										WHEN ISNULL(BetCountSet3,0) = 0 THEN N'No Ticket'
-                                        WHEN ISNULL(InRunningSet3,0) = 0 THEN N'Calculated'
-                                        ELSE N'Running'
-                                    END	
-				,@TennisStatusSet4 = CASE   
-										WHEN ISNULL(BetCountSet4,0) = 0 THEN N'No Ticket'
-                                        WHEN ISNULL(InRunningSet4,0) = 0 THEN N'Calculated'
-                                        ELSE N'Running'
-                                    END   
-				,@TennisStatusSet5 = CASE    
-										WHEN ISNULL(BetCountSet5,0) = 0 THEN N'No Ticket'
-                                        WHEN ISNULL(InRunningSet5,0) = 0 THEN N'Calculated'
-                                        ELSE N'Running'
-                                    END                                                                  								
-        FROM    @Status 
-        WHERE    GroupId = 7 
-
-        SELECT    @TennisStatusMatch = CASE    
-										WHEN betcount = 0 THEN N'No Ticket'
-                                        WHEN inRunning = 0 THEN N'Calculated'
-                                        ELSE N'Running'
-                                       END
-        FROM    @Status 
-        WHERE    GroupId = 0
-                AND @Sporttype = 5    
-		
-		SELECT	@StatusQuarter1 = CASE
-									WHEN ISNULL(BetCountSet1,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet1,0) = 0 AND ISNULL(BetMarkedCountSet1,0) = 0 THEN N'Calculated'
-									WHEN ISNULL(InRunningSet1,0) = 0 AND ISNULL(BetMarkedCountSet1,0) > 0 THEN 'Marked'
-									ELSE N'Running'
-								END
-				,@StatusQuarter2 = CASE
-									WHEN ISNULL(BetCountSet2,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet2,0) = 0 AND ISNULL(BetMarkedCountSet2,0) = 0 THEN N'Calculated'
-									WHEN ISNULL(InRunningSet2,0) = 0 AND ISNULL(BetMarkedCountSet2,0) > 0 THEN 'Marked'
-									ELSE N'Running'
-								END
-				,@StatusQuarter3 = CASE
-									WHEN ISNULL(BetCountSet3,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet3,0) = 0 AND ISNULL(BetMarkedCountSet3,0) = 0 THEN N'Calculated'
-									WHEN ISNULL(InRunningSet3,0) = 0 AND ISNULL(BetMarkedCountSet3,0) > 0 THEN 'Marked'
-									ELSE N'Running'
-								END
-				,@StatusQuarter4 = CASE
-									WHEN ISNULL(BetCountSet4,0) = 0 THEN N'No Ticket'
-									WHEN ISNULL(InRunningSet4,0) = 0 AND ISNULL(BetMarkedCountSet4,0) = 0 THEN N'Calculated'
-									WHEN ISNULL(InRunningSet4,0) = 0 AND ISNULL(BetMarkedCountSet4,0) > 0 THEN 'Marked'
-									ELSE N'Running'
-								END
-		FROM	@status
-		WHERE	GroupId = 9
     END
 
     IF (
@@ -564,22 +407,11 @@ BEGIN
         ,ISNULL(@IsHTOnly,0) AS IsHTOnly
 		,ISNULL(@isExistBettrade,0)  AS IsExistBettrade
         ,ISNULL(@IsLive,0) AS IsLive
-        ,@TennisStatusSet1    AS TennisStatusSet1
-        ,@TennisStatusSet2    AS TennisStatusSet2
-        ,@TennisStatusSet3    AS TennisStatusSet3
-        ,@TennisStatusSet4    AS TennisStatusSet4
-        ,@TennisStatusSet5    AS TennisStatusSet5
-        ,@TennisStatusMatch    AS TennisStatusMatch
-        ,@StatusQuarter1 AS StatusQuarter1
-        ,@StatusQuarter2 AS StatusQuarter2
-        ,@StatusQuarter3 AS StatusQuarter3
-        ,@StatusQuarter4 AS StatusQuarter4
         ,ISNULL(@isExistResultandFirstTeamScore,0) AS isExistResultandFirstTeamScore
 		,ISNULL(match.AutoSetting, ISNULL(l.AutoSetting,0)) AS AutoSetting
 		,ISNULL(aps.HasInstantCompleted,0) AS HasInstantCompleted
 		, @SettleAbandonedMatchIBCParlay AS SettleAbandonedMatchIBCParlay
 		,l.LeagueGroupID 
-		,@isExistFTHighestQuarter AS isExistFTHighestQuarter
 		,SettlementStatus
 		,EventStatusReason
      FROM DBPRO.bodb02.dbo.match WITH (NOLOCK)
@@ -619,21 +451,6 @@ BEGIN
 		) t
 		GROUP BY t.GroupId
 		ORDER BY t.GroupId
-	END
-	ELSE IF @sporttype = 2
-	BEGIN
-		SELECT 0 AS groupid
-				,SUM(t.betRunningCount) AS betRunningCount
-				,SUM(t.betSettledCount) AS betSettledCount
-				,SUM(t.betMarkedCount) AS betMarkedCount
-		FROM(
-			SELECT	
-					betRunningCount
-					,betSettledCount
-					,betMarkedCount
-			FROM	@status
-			WHERE GroupId IN (0,1,9)
-		) t
 	END
 	ELSE IF EXISTS
 				(

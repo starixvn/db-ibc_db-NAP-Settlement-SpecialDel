@@ -42,6 +42,7 @@ AS
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		
 	Param's Explanation:
 		@Mode			@Action
