@@ -10,6 +10,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20211111@Tina: create
+		- 20211210@Tina: remove code check "No ticket found on Queue" [Redmine: #159626]
 
 	Param's explanation:		
 		
@@ -112,81 +113,6 @@ BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
 	END
 
-	--------------------------------------------------Transids on table Queue----------------------------------------------------------
-	CREATE TABLE #Queue_Reject (ID INT IDENTITY(1,1), QueueID BIGINT, MatchID INT, CustID INT, EventTypeID TINYINT, Transids XML, StatusID TINYINT, CreatedDate DATETIME)
-	CREATE TABLE #RejectInfo (ID INT, QueueID BIGINT, MatchID INT, CustID INT, EventTypeID TINYINT, MinTransID BIGINT, MaxTransID BIGINT, RejectTime DATETIME, IsFinished INT DEFAULT 0)
-	CREATE TABLE #RejectInfo_Batch (ID INT, QueueID BIGINT, MatchID INT, CustID INT, EventTypeID TINYINT, MinTransID BIGINT, MaxTransID BIGINT, RejectTime DATETIME)
-	CREATE TABLE #queue_issue (QueueID BIGINT)
-
-	INSERT INTO #Queue_Reject(QueueID, MatchID, CustID, EventTypeID, Transids, StatusID, CreatedDate)
-	SELECT Q.QueueID, Q.MatchID, Q.CustID, Q.EventTypeID, Q.Transids, Q.StatusID, Q.CreatedDate
-	FROM dbo.CustLimitBetQueue Q WITH (NOLOCK)
-	WHERE Q.ActionID = 2
-		AND Q.CreatedDate BETWEEN @StartTime AND @EndTime
-
-	TRUNCATE TABLE #RejectInfo
-	DECLARE @start INT = 1, @CountQueue INT 
-
-	SELECT @CountQueue = MAX(ID) FROM #Queue_Reject
-
-	WHILE (@start < @CountQueue)
-	BEGIN
-		;WITH RejectQ AS
-		(SELECT   R.c.value('@mintransid','bigint') MinTransID
-				,R.c.value('@maxtransid','bigint') MaxTransID
-				,R.c.value('@rejecttime','datetime') RejectTime
-				,Q.MatchID
-				,Q.QueueID
-				,Q.CustID
-				,Q.EventTypeID
-				,Q.ID
-		FROM #Queue_Reject Q
-			CROSS APPLY Transids.nodes('root/rejectTicket') AS R(c)
-		WHERE Q.ID between @start AND @start + 1000 
-		)
-		INSERT INTO #RejectInfo(ID, QueueID, MatchID, CustID, EventTypeID, MinTransID, MaxTransID, RejectTime)
-		SELECT r.ID, r.QueueID, r.MatchID, r.CustID, r.EventTypeID, r.MinTransID, r.MaxTransID, r.RejectTime
-		FROM RejectQ r
-		;
-
-		DECLARE @queueid_min BIGINT = 0, @queueid_max BIGINT = 0, @Index INT = 0
-		SELECT @queueid_min = MIN(ID), @queueid_max = MAX(ID) FROM #RejectInfo
-
-		WHILE(1=1)
-		BEGIN
-			TRUNCATE TABLE #RejectInfo_Batch
-			TRUNCATE TABLE #queue_issue
-
-			UPDATE TOP (100) #RejectInfo
-			SET IsFinished = 1
-			OUTPUT DELETED.ID, DELETED.QueueID, DELETED.MatchID, DELETED.CustID, DELETED.EventTypeID, DELETED.MinTransID, DELETED.MaxTransID, DELETED.RejectTime
-			INTO #RejectInfo_Batch (ID, QueueID, MatchID, CustID, EventTypeID, MinTransID, MaxTransID, RejectTime)
-			WHERE IsFinished = 0 AND ID >= @queueid_min AND ID < (@queueid_min + 100)
-
-			IF @@ROWCOUNT = 0 BREAK;
-
-			INSERT INTO #queue_issue (queueid)
-			SELECT r.QueueID
-			FROM #RejectInfo_Batch r
-				CROSS APPLY (SELECT TOP 1 matchid
-							FROM dbo.bettrans b WITH (NOLOCK) 
-							WHERE b.matchid = r.matchid
-								AND b.transid BETWEEN r.MinTransID AND r.MaxTransID AND b.statusID = 101 AND b.checktime = r.RejectTime
-							) AS T
-	
-			IF (@@ROWCOUNT < 100 ) AND (@@ROWCOUNT < @queueid_max - @queueid_min)
-			BEGIN
-				--SELECT @queueid_min MinID, @queueid_max MaxID, @Index [Index], @@ROWCOUNT [RowCount], 'No ticket found on Queue'
-				SELECT @ErrorMessage = @ErrorMessage +  'No ticket found on Queue ['+CAST(@queueid_min AS VARCHAR(128))+','+CAST(@queueid_max AS VARCHAR(128))+']. '  + CHAR(13) + CHAR(10)
-				BREAK
-			END	
-
-			SELECT @queueid_min = @queueid_min + 100
-				  , @Index = @Index + 1
-		END
-
-		SET @start = @start + 1000
-	END
 
 	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
 
@@ -233,9 +159,5 @@ BEGIN
 
 	DROP TABLE #TempReject
 	DROP TABLE #RunningMatch
-	DROP TABLE #Queue_Reject
-	DROP TABLE #RejectInfo
-	DROP TABLE #RejectInfo_Batch
-	DROP TABLE #queue_issue
 	DROP TABLE #NonSBRunningMatch
 END
