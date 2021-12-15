@@ -140,11 +140,11 @@ BEGIN
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
-			RefCode  BIGINT,
-			custid   INT,
-			bettype  SMALLINT,
-			transid  BIGINT,
-			MatchId	INT,
+			RefCode		BIGINT,
+			custid		INT,
+			bettype		SMALLINT,
+			transid		BIGINT,
+			MatchId		INT,
 			SubIssueTypeId SMALLINT,
 			ScoreId		INT
 	)
@@ -153,20 +153,20 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
 	CREATE TABLE #logInfo (
-		MatchId INT
-		,LiveScores NVARCHAR(300)
-		,VoidFromTime DATETIME
-		,VoidToTime DATETIME
-		,SingleCount INT
-		,CashOutCount INT
-		,InstantlySettleCount INT
-		,MainParlayCount INT
-		,MinSingleTransId BIGINT
-		,MaxSingleTransId BIGINT
-		,MinMainParlayTransId BIGINT
-		,MaxMainParlayTransId BIGINT
-		,HighLightTransId BIGINT
-		,HighlightAcceptType TINYINT
+		 MatchId				INT
+		,LiveScores				NVARCHAR(300)
+		,VoidFromTime			DATETIME
+		,VoidToTime				DATETIME
+		,SingleCount			INT
+		,CashOutCount			INT
+		,InstantlySettleCount	INT
+		,MainParlayCount		INT
+		,MinSingleTransId		BIGINT
+		,MaxSingleTransId		BIGINT
+		,MinMainParlayTransId	BIGINT
+		,MaxMainParlayTransId	BIGINT
+		,HighLightTransId		BIGINT
+		,HighlightAcceptType	TINYINT
 		,ScoreId				INT
 	)
 

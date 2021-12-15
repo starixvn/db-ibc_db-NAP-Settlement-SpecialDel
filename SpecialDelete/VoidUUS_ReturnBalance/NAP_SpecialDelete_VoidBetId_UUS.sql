@@ -226,8 +226,6 @@ BEGIN
 	WHERE b.bettype < 19001
 		AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND b.bettype NOT BETWEEN 801 AND 806-- MG
-		AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-		AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND b.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
 		AND b.statusID NOT IN (101, 102)
 		AND b.currency = 20
@@ -415,14 +413,6 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 	
-	-- delete cash-out member bet tickets
-	DELETE t
-	FROM #BetDelete t
-	WHERE EXISTS (SELECT TOP 1 1
-				  FROM bettrans sub911 (NOLOCK)
-				  WHERE sub911.bettype = 911
-				    AND sub911.transid = t.refno)
-
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #BetDelete bd
@@ -515,8 +505,6 @@ BEGIN
 		INNER JOIN #BetDelete AS tmpmain WITH (NOLOCK) 
 		ON	main.transid = tmpmain.transid 
 		AND main.matchid = tmpmain.matchid		
-	WHERE main.bettype NOT IN (901, 902, 903)
-	  AND main.bettype NOT IN (911, 912, 913)
 	
 	--Get data before update
 	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1)
@@ -649,8 +637,6 @@ BEGIN
 		FROM #BetDelete t
 			INNER JOIN #tblMatch tm ON t.matchid = tm.matchid
 		WHERE IsFinish IS NULL
-			AND t.Bettype NOT BETWEEN 901 AND 903
-			AND t.Bettype NOT BETWEEN 911 AND 913
 
 		IF @@ROWCOUNT = 0 BREAK
 		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@transid'

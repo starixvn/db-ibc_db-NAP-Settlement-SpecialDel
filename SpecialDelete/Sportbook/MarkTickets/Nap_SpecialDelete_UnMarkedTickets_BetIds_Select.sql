@@ -162,8 +162,6 @@ BEGIN
 		WHERE	b.bettype < 19001
 			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 			AND b.bettype NOT BETWEEN 801 AND 806		-- MG
-			AND b.bettype NOT IN (901, 902, 903, 904)	-- BT subticket
-			AND b.bettype NOT IN (911, 912, 913, 914)	-- Cash-out subticket
 			AND b.bettype NOT BETWEEN 1501 AND 1599		-- NOT IN Keno
 			AND b.bettype NOT IN (10, 9, 29, 2799, 38, 500)			-- Outright, Mix Parlay, BetBuilder
 			AND (b.statusID = 0 -- running

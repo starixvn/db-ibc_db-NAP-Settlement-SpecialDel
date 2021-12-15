@@ -30,6 +30,7 @@ AS
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211118@July: Change length datatatype [Redmine:#164819]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
+		- 20211214@July: Remove code CashOut [Redmine: #165097]
 
 	Param's explanation:	
 		@Status: 
@@ -52,7 +53,6 @@ BEGIN
 		,VoidingHistoryId	INT
 		,VoidedBy			INT
 		,TotalSingle		INT
-		,TotalCashOut		INT
 		,TotalParlay		INT
 		,MatchId			INT
 		,IssueTypeId		INT
@@ -79,7 +79,6 @@ BEGIN
 		,LastVoidedBy	INT
 		,TotalSingle	INT
 		,TotalParlay	INT
-		,TotalCashOut	INT
 		,VoidFromTime	DATETIME
 		,VoidToTime		DATETIME
 		,FromWinlostDate DATETIME
@@ -355,7 +354,6 @@ BEGIN
 	-- single + cash out ticket	
 	UPDATE vh 
 		SET TotalSingle = t.TotalVoidedSingle
-			,TotalCashOut = t.TotalVoidedCashOut
 			,MatchId = t.matchid
 			,TotalParlay = CASE WHEN vh.IssueTypeId = 17 THEN t.TotalVoidedParlay ELSE 0 END
 	FROM @tmpMatchVoidingHistory vh
@@ -364,11 +362,9 @@ BEGIN
 					,SUM( CASE 
 							WHEN vh.IssueTypeId <> 17 AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
 							WHEN vh.IssueTypeId = 17 AND z.bettype NOT IN(9,29,2799) AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
-							WHEN z.bettype = 911 THEN 1
-							ELSE 0 END
-						) AS TotalVoidedSingle
+						ELSE 0 END
+					) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId = 17 AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,0 AS TotalVoidedCashOut
 					,CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
@@ -395,12 +391,10 @@ BEGIN
 
 	UPDATE t 
 		SET TotalSingle = ISNULL(vh.TotalSingle,0)
-			,TotalCashOut = ISNULL(vh.TotalCashOut,0)
 			,TotalParlay = ISNULL(vh.TotalParlay,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	SUM(vh.TotalSingle) AS TotalSingle
-					,SUM(vh.TotalCashOut) AS TotalCashOut
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId IS NULL)

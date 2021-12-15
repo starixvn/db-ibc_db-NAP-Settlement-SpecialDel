@@ -120,9 +120,9 @@ BEGIN
 		SELECT @SettlementStatus = m.SettlementStatus
 			  ,@GlobalShowTime = m.GlobalShowTime
 			  ,@Eventdate = m.eventdate
-		  ,@sporttype = m.sporttype
-		  ,@ParentID = ISNULL(m.ParentID, 0)
-		  ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
+			  ,@sporttype = m.sporttype
+		      ,@ParentID = ISNULL(m.ParentID, 0)
+		      ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
 			  ,@HomeId = m.homeid
 			  ,@AwayId = m.awayid
 			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
@@ -162,9 +162,7 @@ BEGIN
 	DECLARE @LogData			NVARCHAR(500) = ''
 		  , @GeneralErrMsg		NVARCHAR(200) = 'Unable to void these tickets'
 		  , @CurrencyCodes		VARCHAR(MAX)
-		  , @SearchSingle		BIT = 0
 		  , @CountSingle		INT = 0
-		  , @SearchParlay		BIT = 0
 		  , @CountParlay		INT = 0
 		  
 	DECLARE @IsExistParlay		BIT = 0		  
@@ -509,8 +507,6 @@ BEGIN
 						 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
 			WHERE @Sporttype BETWEEN 1 AND 99 -- sportbook only				
 				AND b.bettype NOT BETWEEN 801 AND 806-- MG
-				AND b.bettype NOT BETWEEN 901 AND 910 -- BT subticket				
-				AND b.bettype NOT BETWEEN 911 AND 914 -- Cash-out subticket
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.betfrom <> 'P' -- exclude phone betting
 				AND b.matchid = @MatchID -- filer for @MatchID
@@ -974,9 +970,6 @@ BEGIN
 			INSERT INTO #NegativeBalance (transid)  
 			SELECT	b.transid
 			FROM  #SpecialDeleteBets_Single b WITH (NOLOCK)
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets_Single sub911 (NOLOCK)
-						WHERE sub911.bettype = 911 AND sub911.transid = b.refno) -- exclude Cash out
-				AND CASE WHEN b.betdaqid = 0 AND b.extrainfo IS NULL THEN 0 ELSE 1 END = 1 -- exclude BT member
 		END		
 		
 		IF @CountParlay > 0
@@ -1010,9 +1003,6 @@ BEGIN
 			FROM #SpecialDeleteBets_Single tmpmain
 				 INNER JOIN dbo.bettrans main WITH (nolock)
 						 ON tmpmain.transid = main.transid
-			WHERE tmpmain.BetType NOT BETWEEN 901 AND 910
-			  AND tmpmain.BetType NOT BETWEEN 911 AND 914
-			
 		END				
 		
 		--> backups for parlay	
@@ -1064,8 +1054,6 @@ BEGIN
 				FROM #SpecialDeleteBets_Single t	
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid
-				WHERE t.BetType NOT BETWEEN 901 AND 910
-				  AND t.BetType NOT BETWEEN 911 AND 914
 				UNION ALL
 				-- parlay				
 				SELECT b.custid
@@ -1116,8 +1104,6 @@ BEGIN
 				INNER JOIN #SpecialDeleteBets_Single tmpmain
 					ON	main.transid = tmpmain.transid					
 						AND main.matchid = @matchid	
-						AND tmpmain.Bettype NOT BETWEEN 901 AND 910
-						AND tmpmain.Bettype NOT BETWEEN 911 AND 914
 		END				
 		
 		-- Update CashOutSelling [#165097]
@@ -1228,8 +1214,6 @@ BEGIN
 				FROM #SpecialDeleteBets_Single t	
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid
-				WHERE t.BetType NOT BETWEEN 901 AND 910
-				  AND t.BetType NOT BETWEEN 911 AND 914				
 				UNION ALL
 				-- parlay				
 				SELECT b.custid

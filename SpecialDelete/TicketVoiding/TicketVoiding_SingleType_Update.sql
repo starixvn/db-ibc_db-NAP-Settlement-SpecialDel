@@ -66,16 +66,16 @@ BEGIN
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
-	DECLARE @avaiableProcess BIT
-			,@isExistMG BIT
-			,@isExistFM BIT
-			,@isExistFM2	BIT
-			,@IsExistBB	BIT
-			,@isExistMatch BIT
-			,@xmlTransId VARCHAR(MAX)
-			,@session NVARCHAR(50)
-			,@CustIds VARCHAR(MAX)
-			,@IssueTypeId	TINYINT
+	DECLARE @avaiableProcess			BIT = 0
+			,@isExistMG					BIT = 0
+			,@isExistFM					BIT = 0
+			,@isExistFM2				BIT = 0
+			,@IsExistBB					BIT = 0
+			,@isExistMatch				BIT = 0
+			,@xmlTransId				VARCHAR(MAX)
+			,@session					NVARCHAR(50)
+			,@CustIds					VARCHAR(MAX)
+			,@IssueTypeId				TINYINT
 			,@isExistParlay				BIT = 0
 			,@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
@@ -93,8 +93,7 @@ BEGIN
 			,@ErrCodeRefNo				BIT = 0
 			,@ErrMsgRefNo				VARCHAR(300) = '' 
 
-	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
-	SET @RetryCnt = 0
+	DECLARE @Retry INT, @Success BIT
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -1408,31 +1407,6 @@ BEGIN
 		WHERE	Increased = 1
 		
 		DROP TABLE #balanceGameChange
-	END
-
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE TicketType = 5)
-	BEGIN		
-		INSERT INTO dbo.BettradeAPI (
-					transid
-					,matchid
-					,[Session]
-					,[action]
-					,buybackNo
-					,Payout
-					,Remark
-			)
-		SELECT	b.TicketID
-				,b.MatchID
-				,@session
-				,'VOID'
-				,b.BuyBackNo
-				,b.PayOut
-				,'SB void ticket due to ' 
-		FROM	#tmpTransId t
-			INNER JOIN dbo.BetTradeSelling b WITH(NOLOCK)
-				ON t.TransId = b.TicketID
-		WHERE	t.TicketType = 5
-			AND b.[Status] IN ('Accept', 'Confirm')
 	END
 
 	IF @BypassCheckingProcess = 0

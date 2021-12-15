@@ -1259,7 +1259,7 @@ BEGIN
 		GROUP BY b.CustID
 		
 		-- Step 1: Backup into zzzbettrans
-		-- 1.1. Backup normal (include cash-out) ticket
+		-- 1.1. Backup normal tickets
 		INSERT INTO zzzbettrans (transid,custid,transdate,oddsid,hdp1,hdp2,odds,stake,status,
 					winlost,livehomescore,liveawayscore,liveindicator,betteam,creator, refno, 
 					winlostdate,betfrom,betcheck,checktime,matchid, bettype)
@@ -1315,7 +1315,7 @@ BEGIN
 			   , ISNULL(tmp.WalletType, 2) -- normal tickets are treated as cash tickets
 		
 		-- Step 2: Update bettrans
-		-- 2.1. Update normal (include cash-out) ticket
+		-- 2.1. Update normal tickets
 		SET @RepUpdateTime = SYSDATETIME()
 		UPDATE	main
 			SET winlost		= main.actual_stake

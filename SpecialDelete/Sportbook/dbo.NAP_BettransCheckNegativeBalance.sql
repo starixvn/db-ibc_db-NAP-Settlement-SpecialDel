@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransCheckNegativeBalance]
-	@TransIds VARCHAR(MAX) = '',
-	@Type BIT,
+	@TransIds		VARCHAR(MAX) = '',
+	@Type			BIT,
 	@ExcludeRunning BIT = 0
 AS
 	/*
@@ -25,11 +25,10 @@ AS
 		- 20190321@Alan: Do not check negative balance for CN88 [109858]
 		- 20210326@Kathy: Tuning SP for EC [Redmine:#151103]
 		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
-	
+		- 20211214@July: Remove code CashOut [Redmine: #165097]
+
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
-				   For bettrade : main + 901
-				   For cash-out : main
 				   For bonus	: cash or bonus tickets that are enabled and checked
 		@Type: 
 			- 0: Check negative bet credit for special delete funcion
@@ -116,11 +115,6 @@ BEGIN
 					ELSE 0 
 					END 
 			AND b.bettype NOT IN (801,803,804,805,806)
-			AND CASE					
-					WHEN b.betdaqid = 0 AND b.extrainfo IS NULL THEN 0					
-					ELSE 1
-				END = 1 -- exclude BT member
-			AND b.bettype NOT IN (911,912,913,914)			
 	
 	INSERT INTO #BetDelete(
 		transid
@@ -208,57 +202,6 @@ BEGIN
 					ELSE 0 
 			  END												
 
-	-- insert 911		
-	INSERT INTO #BetDelete(
-			transid
-			,custid
-			,winlost
-			,actual_stake
-			,playercomm
-			,bettype
-			,matchid
-			,refno
-			,betdaqid
-			,ExtraInfo
-			,WalletType
-			,RefCode
-			,BonusID
-	)
-	SELECT	b.transid
-			,b.custid
-			,b.winlost
-			,b.actual_stake
-			,b.playercomm
-			,b.bettype
-			,b.matchid
-			,b.refno
-			,b.betdaqid
-			,b.ExtraInfo
-			,b.WalletType
-			,b.RefCode
-			,b.BonusID
-	FROM #BetDelete AS tmpmain
-		 INNER JOIN bettrans b (NOLOCK)
-				 ON	b.refno = tmpmain.transid
-					AND b.custid = tmpmain.custid
-					AND b.matchid = tmpmain.matchid	
-					AND tmpmain.betdaqid = 0
-					AND charindex ('p25',tmpmain.extrainfo)> 0
-					AND b.bettype = 911
-	WHERE CASE 
-				WHEN @Type = 0 AND b.statusID IN (111,112,113) THEN 1
-				WHEN @Type = 1 AND b.statusID IN (102) THEN 1
-				ELSE 0
-		  END = 1
-		  
-	-- delete cash-out member bet tickets
-	DELETE t
-	FROM #BetDelete t
-	WHERE EXISTS (SELECT TOP 1 1
-				  FROM #BetDelete sub911 
-				  WHERE sub911.bettype = 911
-				    AND sub911.transid = t.refno)
-				    
 	-- delete bonus tickets belonging to canceled/expired campaign
 	DELETE t
 	FROM #BetDelete t
@@ -343,8 +286,6 @@ BEGIN
 		FROM (
 			SELECT b.custid, b.winlost, b.actual_stake, b.playercomm
 			FROM #BetDelete b
-			
-			
 			UNION ALL
 			SELECT b.custid, b.winlost, b.actual_stake, -b.playercomm
 			FROM @ChargeComm b
@@ -358,23 +299,6 @@ BEGIN
 		FROM (
 			SELECT	b.custid, b.actual_stake AS balance
 			FROM	#BetDelete b
-			WHERE	b.bettype NOT IN (901,911)					
-			UNION ALL
-			SELECT  b901.custid, -(b902.actual_stake - b901.actual_stake) AS balance
-			FROM	#BetDelete b901
-				INNER JOIN dbo.bettrans b902 WITH(NOLOCK)
-					ON	b902.refno = b901.refno
-						AND b901.bettype = 901
-						AND b902.bettype = 902
-						AND b902.matchid = b901.matchid
-			UNION ALL
-			SELECT  b911.custid, -(b912.actual_stake - b911.actual_stake) AS balance
-			FROM	#BetDelete b911
-				INNER JOIN dbo.bettrans b912 WITH(NOLOCK)
-					ON	b912.refno = b911.transid
-						AND b911.bettype = 911
-						AND b912.bettype = 912
-						AND b912.matchid = b911.matchid						
 		) tmp
 		GROUP BY tmp.custid
 	END		
