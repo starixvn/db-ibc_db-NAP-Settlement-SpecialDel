@@ -289,7 +289,7 @@ BEGIN
               SportType          SMALLINT,
               TransDesc          NVARCHAR(1000),
               refno              BIGINT,
-              mainstatusid       TINYINT, -- store statusid of normal ticket, or statusid of main ticket for bettrade 901		
+              mainstatusid       TINYINT, -- store statusid of normal ticket	
               ExtraInfo          VARCHAR(1000),
               IsCashOut			 BIT DEFAULT(0),
               matchid            INT,
@@ -1239,7 +1239,7 @@ BEGIN
 	)
 	, CTE_InstantSettlementSubgrouping AS (
 		/*
-			Cases for dividing for instant settlement subgroup (subgroup of sub bettrade 901 will get from main bettrade) :
+			Cases for dividing for instant settlement subgroup:
 				1. Before match is kicked off : No ticketes in group 'Instant Settlement'.
 				2. Before HT calculated : Ticketes that are settled ('WON', 'LOSE', 'DRAW')
 										  and their bettype in list of HT instant settlement bettypes are in group 'Instant Settlement'

@@ -126,7 +126,6 @@ BEGIN
 			IsMixParlay           BIT DEFAULT(0),
 			sporttype             SMALLINT,
 			ExtraInfo             VARCHAR(1000),
-			IsCashOut			  BIT DEFAULT(0),
 			matchid               INT,
 			WalletType            TINYINT,
 			RefCode               BIGINT,
@@ -317,7 +316,6 @@ BEGIN
 				,liveawayscore 			
 				,betdaqid	
 				,ExtraInfo
-				,IsCashOut
 				,WalletType
 				,RefCode
 				,BonusID
@@ -340,7 +338,6 @@ BEGIN
 				,b.liveawayscore
 				,b.betdaqid
 				,b.ExtraInfo
-				,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -464,7 +461,6 @@ BEGIN
 				,liveawayscore 		
 				,betdaqid	
 				,ExtraInfo
-				,IsCashOut
 				,WalletType
 				,RefCode
 				,BonusID
@@ -485,7 +481,6 @@ BEGIN
 				,b.liveawayscore
 				,b.betdaqid
 				,b.ExtraInfo
-				,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -671,7 +666,6 @@ BEGIN
 				,liveawayscore 			
 				,betdaqid	
 				,ExtraInfo
-				,IsCashOut
 				,WalletType
 				,RefCode
 				,BonusID
@@ -693,7 +687,6 @@ BEGIN
 				,b.liveawayscore
 				,b.betdaqid
 				,b.ExtraInfo
-				,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -829,7 +822,6 @@ BEGIN
 						,liveawayscore 			
 						,betdaqid
 						,ExtraInfo	
-						,IsCashOut
 						,WalletType
 						,RefCode
 						,BonusID
@@ -853,7 +845,6 @@ BEGIN
 						,b.liveawayscore
 						,b.betdaqid
 						,b.ExtraInfo
-						,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 						,b.WalletType
 						,b.RefCode
 						,b.BonusID

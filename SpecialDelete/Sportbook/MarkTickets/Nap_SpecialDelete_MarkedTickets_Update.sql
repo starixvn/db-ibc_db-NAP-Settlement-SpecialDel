@@ -34,6 +34,7 @@ AS
 		- 20210720@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210812@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+		- 20211210@July: Remove code CashOut [Redmine: #165097]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -94,17 +95,11 @@ BEGIN
 					MatchId   INT,
 					CustId    INT,
 					BetType   SMALLINT,
-					Betdaqid  BIGINT,
-					ExtraInfo VARCHAR(1000),
 					RefCode   BIGINT,
 					refno	 BIGINT,
 					IsParlay  BIT DEFAULT(0),
 					SubTransId BIGINT,
 					IsFinish	BIT
-					);
-		CREATE TABLE #Cashout911Tickets
-					(TransId BIGINT,
-					MatchId INT
 					);
 		CREATE TABLE #tmpRefCodeSummaryMarked
 					(RefCode BIGINT,
@@ -128,8 +123,6 @@ BEGIN
 		,MatchId
 		,BetType
 		,CustId
-		,Betdaqid
-		,ExtraInfo
 		,RefCode
 		,refno
 		,IsParlay
@@ -139,8 +132,6 @@ BEGIN
 		,b.MatchId
 		,b.BetType
 		,b.custid
-		,b.betdaqid
-		,b.ExtraInfo
 		,b.RefCode
 		,b.refno
 		,0
@@ -163,13 +154,6 @@ BEGIN
 		WHERE t.TransId = tmp.TransId
 	)
 	
-		-- delete cash-out member bet tickets
-	DELETE t
-	FROM #Tickets t
-	WHERE EXISTS (SELECT TOP (1) 1
-					FROM bettrans sub911 (NOLOCK)
-					WHERE sub911.bettype = 911 AND sub911.transid = t.refno)
-
 	-- Bonus
 	IF EXISTS
 		(
@@ -212,77 +196,6 @@ BEGIN
 					END;
 			END;	
 
-	-- get sub ticket of Cash-out (911) and cash-out member bet tickets
-	IF(EXISTS
-		(
-			SELECT TOP (1) 1
-			FROM #Tickets
-			WHERE betdaqid = 0
-				AND CHARINDEX('p25', extrainfo) > 0
-		))
-	BEGIN
-			-- get sub ticket of Cash-out (911)	
-				INSERT INTO #Cashout911Tickets
-					(TransId,
-						MatchId
-					)
-					SELECT sub911.transid,
-							sub911.matchid
-					FROM #Tickets main
-							INNER JOIN dbo.bettrans sub911 WITH (NOLOCK) ON main.transid = sub911.refno
-																			AND sub911.matchid = main.MatchId
-																			AND sub911.custid = main.custid
-																			AND main.betdaqid = 0
-																			AND CHARINDEX('p25', main.extrainfo) > 0
-																			AND sub911.bettype = 911;			 
-
-			-- get cash-out member bet tickets
-				INSERT INTO #Tickets(TransId, MatchId)
-					SELECT b.transid, b.matchid
-					FROM #Cashout911Tickets sub911
-							CROSS APPLY
-				(
-					SELECT b.bettype
-							,b.transid
-							,b.matchid
-							,b.BetID
-							,b.refno
-							,b.hdp1
-							,b.hdp2
-							,b.odds
-							,b.oddsspread
-							,b.OddsType
-							,b.status
-							,b.SecAcceptFlag
-							,b.checktime
-							,b.stake
-							,b.transdate
-							,b.betteam
-							,b.betcheck
-							,b.liveindicator
-							,b.custid
-							,b.livehomescore
-							,b.liveawayscore
-							,b.winlost
-							,b.actual_stake
-							,b.transdesc
-							,b.betdaqid
-							,b.username
-							,b.recommend
-							,b.ExtraInfo
-							,b.CurrencyName
-							,b.WalletType
-							,b.RefCode
-							,b.BonusID
-							,b.currency
-					FROM dbo.bettrans b WITH (NOLOCK)
-					WHERE b.refno = sub911.transid
-						AND b.matchid = sub911.MatchId
-						AND b.bettype NOT IN(911, 912, 913)
-						AND NOT EXISTS (SELECT TOP 1 1 FROM #Tickets r WHERE r.TransId = b.transid)
-					) AS b
-	END;
-
 	-- get parlay tickets
 	IF EXISTS (SELECT TOP 1 1
 				FROM #ParlayTransIds)
@@ -292,8 +205,6 @@ BEGIN
 			,MatchId
 			,BetType
 			,CustId
-			,Betdaqid
-			,ExtraInfo
 			,RefCode
 			,refno
 			,IsParlay
@@ -303,8 +214,6 @@ BEGIN
 			,bm.matchid
 			,bm.bettype
 			,bm.custid
-			,NULL
-			,NULL
 			,NULL
 			,bm.refno
 			,1
@@ -561,7 +470,6 @@ BEGIN
 	DROP TABLE #Match;
 	DROP TABLE #MarkedTransactionDeleted;
 	DROP TABLE #ParlayTransIds
-	DROP TABLE #Cashout911Tickets
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #Tickets
 	DROP TABLE #tmpRefCodeSummaryMarked

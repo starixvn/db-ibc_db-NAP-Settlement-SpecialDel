@@ -549,8 +549,6 @@ BEGIN
 	WHERE b.bettype < 19001
 		AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND b.bettype NOT BETWEEN 801 AND 806-- MG
-		AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-		AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND b.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
 		AND b.statusID NOT IN (101, 102)													
 	
@@ -1122,7 +1120,7 @@ BEGIN
 	END	
 
 	-- STEP 1 : BackUp bettrans
-	-- 1.1  backup for normal ticket, main bettrade, main cash-out, cash-out member bet tickets
+	-- 1.1  backup for normal ticket
 	INSERT INTO zzzbettrans (
 		transid
 		,custid
@@ -1175,8 +1173,6 @@ BEGIN
 		INNER JOIN #BetDelete AS tmpmain WITH (NOLOCK) 
 		ON	main.transid = tmpmain.transid 
 		AND main.matchid = tmpmain.matchid		
-	WHERE main.bettype NOT IN (901, 902, 903)
-	  AND main.bettype NOT IN (911, 912, 913)
 	
 	--Get data before update
 	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1 OR @isExistMatch3rd = 1)
@@ -1298,7 +1294,7 @@ BEGIN
 	SET @IssueTypeId = CASE WHEN @IsAbnormalBet = 1 THEN 11 ELSE 0 END
 
 	-- STEP 2 : Update bettrans/translog
-	-- 2.1. Update bettrans	for normal, main bettrade, main cash-out, cash-out member bet ticket
+	-- 2.1. Update bettrans	for normal ticket
 	WHILE (1=1)
 	BEGIN
 		DELETE @tmpTransIDBatch
@@ -1314,8 +1310,6 @@ BEGIN
 		FROM #BetDelete t
 			INNER JOIN #tblMatch tm ON t.matchid = tm.matchid
 		WHERE IsFinish IS NULL
-			AND t.Bettype NOT BETWEEN 901 AND 903
-			AND t.Bettype NOT BETWEEN 911 AND 913
 
 		IF @@ROWCOUNT = 0 BREAK
 		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@transid'

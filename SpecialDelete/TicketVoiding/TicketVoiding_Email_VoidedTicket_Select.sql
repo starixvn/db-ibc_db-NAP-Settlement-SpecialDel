@@ -22,7 +22,8 @@ AS
 		- 20210104@July: [TVS] - Abnormal Account [Redmine: #143666]
 		- 20210226@Max: TVS - SP Time Out [Redmine: #150723]
 		- 20210504@July: TVS - Show VIP status on void email (Abnormal bet + AB real member) [Redmine: #153157]
-	
+		- 20211207@July: Remove code CashOut [Redmine: #165097]
+
 	Param's explanation:	
 		
 */
@@ -52,7 +53,6 @@ BEGIN
 		,betfrom		NVARCHAR(1)
 		,Betteam		NVARCHAR(10)
 		,Bettype		SMALLINT
-		,OriginalBettype SMALLINT
 		,Currency		TINYINT
 		,CurrencyName	NVARCHAR(50)
 		,Hdp1			SMALLMONEY
@@ -68,7 +68,6 @@ BEGIN
 		,ExtraInfo		VARCHAR(1000)
 		,TransDesc		NVARCHAR(1000)
 		,Username		NVARCHAR(50)
-		
 		,IsMixParlay	BIT DEFAULT (0)
 		,subbetcheck	NVARCHAR(50)
 		,subOdds		SMALLMONEY
@@ -78,22 +77,17 @@ BEGIN
 		,subhdp2		SMALLMONEY
 		,subtransdesc	NVARCHAR(1000)
 		,SubStatus		NVARCHAR(10)
-		
 		,Refno			BIGINT
 		,subTransId		BIGINT	
 		,VoidedTime		DATETIME
 		,isITAdmin		BIT
-		
-		,TicketType		TINYINT -- 1: single, 2 - parlay, 3 - cash out
 		,MainTransId 	BIGINT
-		,IsCashOut		BIT
+		,IsCashOut		BIT DEFAULT(0)
 		,LiveIndicator  BIT
 		,ActualStake	MONEY
 		,oddsid         INT
 		,homeid         INT
         ,awayid         INT
-		,subhomeid		INT
-		,subawayid		INT
 		,leagueid       INT
 		,isNeutral      BIT
 		,matchcode      NVARCHAR(50)
@@ -101,7 +95,6 @@ BEGIN
 		,SettlementStatus TINYINT
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
-		,IsCashOutMemberTicket BIT DEFAULT 0, --include 911,member ticket CO
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -143,7 +136,6 @@ BEGIN
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
 					AND 1 = CASE
-								WHEN z.bettype = 911 THEN 1
 								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
 								ELSE 0
 							END
@@ -199,7 +191,6 @@ BEGIN
 			,betfrom = b.betfrom
 			,transdate = b.transdate
 			,refno = b.refno
-
 			,srecommend = b.srecommend
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
@@ -237,7 +228,6 @@ BEGIN
 			,CurrencyName = b.CurrencyName
 			,betfrom = b.betfrom
 			,transdate = b.transdate
-
 			,IsMixParlay = 1
 			,subbetcheck = bm.betcheck
 			,subOdds = bm.odds
@@ -246,7 +236,6 @@ BEGIN
 			,subhdp1 = bm.hdp1
 			,subhdp2 = bm.hdp2
 			,subtransdesc = bm.transdesc
-
 			,srecommend = b.srecommend
 			,mrecommend = b.mrecommend
 			,recommend = b.recommend
@@ -264,8 +253,6 @@ BEGIN
 		SET matchcode 	= m.matchcode
 			,homeid 	= m.homeid
 			,awayid 	= m.awayid
-			,subhomeid 	= m.homeid
-			,subawayid 	= m.awayid
 			,leagueid 	= m.leagueid
 			,sporttype 	= m.sporttype
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
@@ -286,8 +273,6 @@ BEGIN
 			SET matchcode 	= odds.matchcode
 				,homeid		= odds.teamid
 				,awayid 	= 0
-				,subhomeid 	= odds.teamid
-				,subawayid 	= 0
 				,leagueid 	= odds.leagueid
 				,sporttype 	= l.sporttype
 				,showtime	= ''
@@ -327,28 +312,6 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
-	BEGIN		
-		UPDATE sub911
-			SET OriginalBettype = main.bettype
-				,odds = main.odds
-				,MainTransId = main.TransId
-				,IsCashOutMemberTicket = 1
-		FROM	#tmpTicket sub911
-			INNER JOIN #tmpTicket main WITH(NOLOCK)
-				ON sub911.Refno = main.transid
-		WHERE	sub911.Bettype = 911
-		
-		UPDATE subCO 
-			SET MainTransId = sub911.MainTransId
-				,IsCashOutMemberTicket = 1
-		FROM	#tmpTicket subCO
-			INNER JOIN #tmpTicket sub911 WITH(NOLOCK)
-				ON subCO.Refno = sub911.transid
-		WHERE	subCO.IsCashOut = 1
-				AND sub911.bettype = 911
-	END
-
 	-- Update maintransid for bonus ticket
 	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
 	BEGIN
@@ -375,15 +338,12 @@ BEGIN
 
 	SELECT	t.homeid
 			,t.awayId
-			,t.subhomeid 
-			,t.subawayid
 			,t.leagueid
 			,t.sporttype
 			,t.matchcode
 			,t.showtime 
 			,t.isneutral
 			,t.matchid
-
 			,CASE WHEN t.Bettype BETWEEN 801 AND 806 THEN t.Refno ELSE t.TransId END AS TransId
 			,t.Refno
 			,t.TransDate
@@ -397,7 +357,6 @@ BEGIN
 			,t.betfrom
 			,t.Betteam
 			,t.Bettype AS BetTypeId
-			,t.OriginalBettype
 			,t.Currency
 			,t.CurrencyName	
 			,t.Hdp1 AS Handicap1
@@ -411,7 +370,6 @@ BEGIN
 			,t.RefCode
 			,t.ExtraInfo
 			,t.TransDesc
-
 			,t.IsMixParlay
 			,t.subTransId
 			,t.subbetcheck
@@ -422,7 +380,6 @@ BEGIN
 			,t.subhdp2
 			,t.subtransdesc
 			,t.SubStatus
-			
 			,t.custId
 			,t.recommend
 			,t.mrecommend
@@ -432,14 +389,12 @@ BEGIN
 			,ag.username AS AgUserName
 			,ma.username AS MagUserName
 			,su.username AS SagUserName
-			
 			,CASE 
 				WHEN ag.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'BetFair'
 				ELSE su.site
 			END AS EmailGroup
 			,su.site
-			,CASE WHEN t.betdaqid = 0 AND t.extrainfo IS NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isBetTrade
-			,CAST(CASE WHEN t.Bettype <> 911 AND t.IsCashOut = 1 THEN 1 ELSE 0 END AS BIT) AS isCashOut
+			,t.IsCashOut
 			,@isITAdmin AS IsITSupport
 			,@IsITSupportCreatedRequest AS IsITSupportCreatedRequest
 			,t.SettlementStatus
@@ -463,7 +418,6 @@ BEGIN
 							END
 				ELSE CAST(0 AS BIT)
 			END AS IsInstantSettlementTicket
-			,t.IsCashOutMemberTicket
 			,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid

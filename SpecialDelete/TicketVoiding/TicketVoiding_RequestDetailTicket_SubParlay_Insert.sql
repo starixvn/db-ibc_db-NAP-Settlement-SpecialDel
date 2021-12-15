@@ -6,15 +6,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_SubParlay_Insert]
 	,@KickOffTime			DATETIME = NULL
 	,@IssueTypeId			INT
 	,@SubIssueTypeId		INT
-	,@MinMainParlayTransId	BIGINT = NULL
-	,@MaxMainParlayTransId	BIGINT = NULL
 	,@IsEditRequest			BIT = 0
 	,@UserId				INT = NULL
 	,@IP					VARCHAR(50) = NULL
 	,@ActionId				TINYINT = 0
-	,@FilterFromTransTime	DATETIME = NULL
-	,@FilterToTransTime		DATETIME = NULL
-	,@FilterBy				TINYINT = 1 
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
@@ -44,6 +39,7 @@ AS
 		- 20210802@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20210827@Max: [TVS] Wrong Score Enhancement 2 - Do not exclude ticket in other request for Take Note action [Redmine: #157096]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211213@July: TVS - Remove code [Redmine: #165097]
 
 	Param's explanation:
 		@WrongScoreInfo: 
@@ -70,14 +66,12 @@ BEGIN
 			SubTransid            BIGINT,
 			refno                 BIGINT,
 			custid                INT,
-			username              VARCHAR(30),
 			odds                  MONEY,
 			SubOdds               MONEY,
 			oddsspread            MONEY,
 			OddsType              INT,
 			transdate             DATETIME,
 			bettype               SMALLINT,
-			OriginalBetType       SMALLINT,
 			betteam               NVARCHAR(10),
 			SubBetTeam            NVARCHAR(10),
 			betcheck              NVARCHAR(50),
@@ -89,32 +83,18 @@ BEGIN
 			livehomescore         SMALLINT,
 			liveawayscore         SMALLINT,
 			creator               INT,
-			creatorName           VARCHAR(30),
 			Stake                 MONEY,
 			currencyname          VARCHAR(20),
-			IsDeposit             BIT DEFAULT(0),
 			STATUS                NVARCHAR(10),
 			SubStatus             NVARCHAR(10),
 			srecommend            INT,
 			mrecommend            INT,
 			recommend             INT,
-			SubLeagueId           INT,
-			betid                 BIGINT DEFAULT(0),
 			Transdesc             NVARCHAR(1000),
-			betdaqid              BIGINT,
-			ParlayType            SMALLINT DEFAULT(0)
-			, -- sub bettype of parlay 
+			ParlayType            SMALLINT DEFAULT(0), 
 			IsMixParlay           BIT DEFAULT(0),
-			SoldId                BIGINT,
-			sporttype             SMALLINT,
 			modds                 MONEY,
-			ExtraInfo             VARCHAR(1000),
-			IsCashOutMemberTicket BIT DEFAULT 0,
-			MainCashoutId         BIGINT,
 			matchid               INT,
-			WalletType            TINYINT,
-			RefCode               BIGINT,
-			BonusID               INT,
 			MainTransId           BIGINT,
 			WinLost               MONEY,
 			IsMarked              BIT,
@@ -147,8 +127,6 @@ BEGIN
 			)
 
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, StatusId INT, MatchId INT, MainTransId BIGINT)
-
-	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 
 	CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT, MainTransId BIGINT)
 
