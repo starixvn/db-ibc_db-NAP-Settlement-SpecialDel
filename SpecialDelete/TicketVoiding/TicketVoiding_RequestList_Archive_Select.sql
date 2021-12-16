@@ -27,6 +27,7 @@ AS
 		- 20210608@July: Search request with Exclude Istest but can still display Request istest = 1 [Redmine: #154988]
 		- 20210625@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20211013@Max: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211118@July: Change length datatatype [Redmine:#164819]
 
 	Param's explanation:	
@@ -117,7 +118,7 @@ BEGIN
 
 							END
 	-----------------------------GET eventdate of match---------------------------------------------
-	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId = 13))
+	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13)))
 	BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 										LEFT JOIN @tmpRequest r 
@@ -194,11 +195,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
@@ -243,11 +244,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
@@ -293,11 +294,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId  = 13 THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END

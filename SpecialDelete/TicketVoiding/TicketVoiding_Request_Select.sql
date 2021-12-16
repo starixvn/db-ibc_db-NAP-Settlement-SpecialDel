@@ -34,6 +34,7 @@ AS
 		- 20210621@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 
 	Param's explanation:	
 	
@@ -102,7 +103,7 @@ BEGIN
 				,m.IsNeutral
 				,m.matchcode
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-			CROSS APPLY (
+			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 				FROM	dbo.match m WITH(NOLOCK)
 				WHERE	m.matchid = rd.matchid

@@ -33,7 +33,7 @@ AS
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210720@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210812@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
-
+		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -147,7 +147,9 @@ BEGIN
 		,NULL
 	FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-	WHERE b.matchid <> 29
+	WHERE 1 = CASE WHEN @IsLockMatch = 0 THEN 1
+				   WHEN @IsLockMatch = 1 AND b.matchid <> 29 THEN 1
+				   ELSE 0 END
 
 	-- get only parlay tickets from @input transid
 	INSERT INTO #ParlayTransIds (

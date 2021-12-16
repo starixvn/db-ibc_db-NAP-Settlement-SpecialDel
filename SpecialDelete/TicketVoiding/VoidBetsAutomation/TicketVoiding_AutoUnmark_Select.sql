@@ -26,6 +26,7 @@ AS
 		- 20200608@Charles: Auto Void for remaining sports [Redmine: #131865]
 		- 20200729@Zane: Basketball AIO Phase 2 - Fix error when show tickets [Redmine: #137189]
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
+		- 20211125@July: Change length match [Redmine: #161337]
 
 	Param's explanation:	
 	
@@ -35,7 +36,7 @@ BEGIN
 	
 	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid BIGINT)
 
-	IF LEN(@MatchId) < 10
+	IF LEN(@MatchId) <= 10
 	BEGIN
 		;WITH CTE_FilterData
 		AS (

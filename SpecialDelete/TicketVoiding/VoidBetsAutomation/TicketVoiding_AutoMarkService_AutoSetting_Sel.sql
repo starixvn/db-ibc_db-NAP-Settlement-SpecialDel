@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_AutoMarkService_AutoSetting_Sel]
+ALTER PROCEDURE [dbo].[TicketVoiding_AutoMarkService_AutoSetting_Sel]
 (
 	@MatchId		VARCHAR(50)		= ''
 	,@Sporttype		INT
@@ -13,7 +13,8 @@ AS
 	
 	Revisions: 
 		- 20200228@Max: Create new SP [Redmine: #129184]
-	
+		- 20211125@July: Change length match [Redmine: #161337]
+
 	Param's explanation:	
 	
 */
@@ -22,7 +23,7 @@ BEGIN
 	
 	CREATE TABLE #match_tmp(matchid INT, sporttype INT, kickofftime DATETIME, homeid INT, awayid INT, hthomescore INT, htawayscore INT, finalhomescore INT, finalawayscore INT)
 	
-	IF LEN(@MatchId) < 10
+	IF LEN(@MatchId) <= 10
 	BEGIN
 		INSERT INTO #match_tmp (matchid, sporttype, kickofftime, homeid, awayid, hthomescore, htawayscore, finalhomescore, finalawayscore)
 		SELECT m.matchid, m.sporttype, m.kickofftime, m.homeid, m.awayid, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore

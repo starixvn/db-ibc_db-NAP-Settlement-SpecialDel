@@ -35,7 +35,8 @@ AS
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20210427@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210504@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
-		 
+		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+
 	Param's explanation:	
 		
 */
@@ -167,6 +168,7 @@ BEGIN
 
 	DECLARE @SettledType VARCHAR(100) = 'All'
 		   ,@StatusIds	 VARCHAR(50) =''
+		   ,@FilterBy	 TINYINT = NULL
 
 	IF @IssueTypeId = 13
 	BEGIN
@@ -216,7 +218,14 @@ BEGIN
 		SELECT DISTINCT TransId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 		WHERE RequestId = @RequestId
-	
+		
+		IF @IssueTypeId = 11
+		BEGIN
+			SELECT @FilterBy = FilterBy
+			FROM dbo.TicketVoiding_RequestDetail WITH (NOLOCK)
+			WHERE RequestId = @RequestId
+		END
+
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
 				GroupID			
@@ -260,6 +269,8 @@ BEGIN
 				,mainstatusid
 				,ActualStake
 				,matchid
+				,IsMixParlay
+				,winlostdate
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -311,11 +322,12 @@ BEGIN
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
 				,b.matchid
+				,CASE WHEN @IssueTypeId = 11 AND @FilterBy = 1 THEN 1 ELSE 0 END AS IsMixParlay
+				,b.winlostdate
 		FROM	bettrans b WITH (NOLOCK)	
 			INNER JOIN @transIdTemp t ON t.transid = b.transid
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-			  	
 					
 	END
 	ELSE IF @IssueTypeId IN (1, 10, 3) -- Danger Accept, Red Card, WrongScore
@@ -978,6 +990,7 @@ BEGIN
 				,oddsspread
 				,OddsType
 				,STATUS
+				,SubStatus
 				,stake
 				,transdate
 				,betteam
@@ -1013,6 +1026,7 @@ BEGIN
 			,0 AS oddsspread
 			,b.custom1 OddsType
 			,b.STATUS
+			,b.STATUS AS SubStatus
 			,b.stake
 			,b.transdate
 			,NULL betteam
@@ -1058,7 +1072,8 @@ BEGIN
 			,odds
 			,oddsspread				
 			,OddsType		
-			,STATUS					
+			,STATUS	
+			,SubStatus				
 			,stake							
 			,transdate		
 			,betteam		
@@ -1104,6 +1119,11 @@ BEGIN
 					AND IsNull(b.SecAcceptFlag, 0) = 1
 					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 				ELSE b.STATUS END AS STATUS
+			,CASE 
+				WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS SubStatus
 			,b.stake
 			,b.transdate
 			,b.betteam
@@ -1167,6 +1187,11 @@ BEGIN
 					AND IsNull(b.SecAcceptFlag, 0) = 1
 					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
 				ELSE b.STATUS END AS STATUS
+			,CASE 
+				WHEN b.STATUS = 'running'
+					AND IsNull(b.SecAcceptFlag, 0) = 1
+					AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
+				ELSE b.STATUS END AS SubStatus
 			,b.stake				
 			,b.transdate
 			,b.betteam

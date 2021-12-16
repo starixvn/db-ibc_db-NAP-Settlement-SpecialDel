@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Admin_VoidingTransId]
 	,@IsUseServiceBroker		BIT = 0
 	,@ActionType				TINYINT = NULL
 	,@RunOnServer				VARCHAR(100) = NULL
+	,@IsAbnormalMixParlay		BIT = 0
 )
 AS
 /*	Created by: Kathy
@@ -26,6 +27,7 @@ AS
 		- 20210422@July: TVS - New Issue Type - AB (Real Member)- [Redmine: #147175]
 		- 20210508@Helen: TVS - Hotfix - Wrong ticket status displayed on bet list for voided Abnormal Bet tickets[Redmine: #154762]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
+		- 20211124@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 
 	Param's explanation:
 		Version 1: Only use for Void Ticket via TVS
@@ -170,7 +172,7 @@ BEGIN
 				,statusID = 102
 				,status = 'VOID'
 				,betid = t.BetId
-				,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
+				,ExtraInfo = CASE WHEN t.IsCashOutMember = 0 THEN dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalMixParlay = 0 THEN 1 ELSE 2 END,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
 									ELSE b.ExtraInfo 
 							END
 				,RepUpdateTime  = @RepUpdateTime

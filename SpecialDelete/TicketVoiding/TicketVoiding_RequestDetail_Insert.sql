@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@ActionId				TINYINT
 	,@FilterFromTransTime	DATETIME = NULL
 	,@FilterToTransTime		DATETIME = NULL
-	,@FilterBy				TINYINT = 1
+	,@FilterBy				TINYINT = NULL
 	,@SingleCount			INT = NULL
 	,@MainParlayCount		INT = NULL
 	,@MinSingleTransId		BIGINT = NULL
@@ -76,6 +76,7 @@ AS
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -99,10 +100,10 @@ BEGIN
 			,@LogActionId		 INT
 			,@LogData			 VARCHAR(MAX)
 			,@SB_Error			 BIT
-			,@LeagueId			 INT
-			,@HomeId			 INT
-			,@AwayId			 INT
-			,@Sporttype 		 SMALLINT
+			,@LeagueId			 INT = 0
+			,@HomeId			 INT = 0
+			,@AwayId			 INT = 0
+			,@Sporttype 		 SMALLINT = 0
 			,@MarkedTransIds	 VARCHAR(MAX)
 			,@Username			 NVARCHAR(200)
 			,@IsCalQueue		 BIT = 0
@@ -114,15 +115,15 @@ BEGIN
 			,@IsOutright		 BIT = 0
 			,@IsSaba			 BIT = 0
 			,@IsNonSport		 BIT = 0
-			,@movebetdate		SMALLDATETIME
-			,@maxdate 			DATETIME = '9999-01-01'
+			,@movebetdate		 SMALLDATETIME
+			,@maxdate 			 DATETIME = '9999-01-01'
 			,@FromWinlostDate    DATETIME
 			,@LogDataContent	 VARCHAR(MAX)
 			,@WrongScoreInfoXML	 XML = NULL
 			,@DangerAcceptedInfoXML	XML  = NULL
 			,@RedCardInfoXML	 XML = NULL
 
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT)
+	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
 	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
@@ -151,6 +152,7 @@ BEGIN
 			)
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
+	DECLARE @tblMatchId AS TABLE (MatchId INT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90001
@@ -175,11 +177,19 @@ BEGIN
 		WHERE val <> ''
 		OPTION (maxrecursion 0)
 
-		INSERT INTO #transid_tmp (transid, bettype,StatusId, statuswinlost)
-		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost
+		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno, matchid)
+		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno, b.matchid
 		FROM #transIdTemp t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
-	
+		
+		IF @FilterBy = 1
+		BEGIN
+			INSERT INTO @tblMatchId (MatchId)
+			SELECT DISTINCT m.matchid
+			FROM #transid_tmp tmp
+			INNER JOIN dbo.bettransm m WITH(NOLOCK) ON tmp.refno = m.refno
+		END
+
 		SET @IsCalQueue = ( SELECT TOP (1) 1
 								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 								WHERE StatusId IN (1,2,4) AND matchid = @MatchId  AND RequestId = 0
@@ -328,6 +338,7 @@ BEGIN
 			, KickOffTime
 			, RequestType
 			, SubIssueTypeId
+			, FilterBy
 		)
 		SELECT @RequestId
 			, @MatchId
@@ -340,6 +351,7 @@ BEGIN
 				   ELSE 0
 				END
 			, @SubIssueTypeId
+			, CASE WHEN @IssueTypeId = 11 THEN @FilterBy ELSE NULL END
 	END
 	ELSE IF @IssueTypeId IN (1,10,3) --DA,RC,WC
 	BEGIN
@@ -648,7 +660,7 @@ BEGIN
 			SELECT @MarkedTransIds = STUFF(
 				(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
 				FROM #transid_tmp tp
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid AND mt.matchid = tp.matchid)
 					AND  tp.StatusId IN (0, 1) 
 				GROUP BY TransId for XML PATH('')), 1, 1, ''
 				)
@@ -671,6 +683,13 @@ BEGIN
 											  WHEN @ActionId = 8 THEN 'VoidInstantNopolicy'
 											  ELSE '' END 
 			, 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype)
+		END
+		-- Abnormal Bet - Mixparlay ticket
+		IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
+		BEGIN
+		     INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			 SELECT @RequestId, MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', @Sporttype
+			 FROM @tblMatchId 
 		END
 	END
 	-- Get content of log data 
