@@ -39,13 +39,16 @@ BEGIN
 	IF @IssueTypeId = 17 --Void 14
 	BEGIN
 		EXEC dbo.TicketVoiding_VoidHistorical_Update
-			@TransIds				= @TransIds
+			@RequestId				= @RequestId
+			,@MatchId				= @MatchId
+			,@VoidingHistoryId		= @VoidingHistoryId
+			,@TransIds				= @TransIds
 			,@UserId				= @UserId
 			,@IP					= @IP
-			,@VoidingHistoryId		= @VoidingHistoryId
 			,@FailedTransIds		= @FailedTransIds OUTPUT
 			,@ErrCode				= @ErrCode	OUTPUT
 			,@ErrMsg				= @ErrMsg	OUTPUT
+			,@NegativeBalanceUsers  = @NegativeBalanceUsers	OUTPUT
 	END
 	ELSE IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId = 13))-- Single
 	BEGIN

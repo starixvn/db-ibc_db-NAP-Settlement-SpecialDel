@@ -5,7 +5,6 @@ CREATE PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 	,@MatchId			INT
 	,@VoidingHistoryId	INT
 	,@TransIds			VARCHAR(MAX) 
-	,@UserName			VARCHAR(30) = ''
 	,@UserId			INT = 0 
 	,@IP				VARCHAR(15) =''
 	,@ErrCode			INT				= 0		OUTPUT
