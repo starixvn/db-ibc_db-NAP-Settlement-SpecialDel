@@ -221,7 +221,7 @@ BEGIN
 		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype, srecommend)
 		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.matchid, main.sporttype, sub.srecommend
 		FROM	#tmpTransId main
-			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
+			INNER JOIN dbo.bettrans14 sub WITH(NOLOCK)
 				ON	sub.refno = main.TransId
 					AND sub.matchid = main.matchid
 					AND sub.custid = main.custid
@@ -233,7 +233,7 @@ BEGIN
 		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype, srecommend)
 		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub.matchid, sub911.sporttype, sub.srecommend
 		FROM	#tmpTransId sub911
-			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
+			INNER JOIN dbo.bettrans14 sub WITH(NOLOCK)
 				ON	sub.refno = sub911.TransId
 					AND sub.matchid = sub911.matchid
 		WHERE	sub.statusID NOT IN (101, 102)
@@ -311,7 +311,7 @@ BEGIN
 		,b.checktime, b.matchid, b.bettype  
 		,@VoidingHistoryId
 	FROM	#tmpTransId AS t WITH (NOLOCK)  
-		INNER JOIN dbo.bettrans b WITH (NOLOCK)  
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK)  
 			ON b.transid = t.TransId
 	
 	--capture balance before voiding
@@ -351,7 +351,7 @@ BEGIN
 					END 
 					+ b.playercomm AS balance
 		FROM	#tmpTransId t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON	t.TransId = b.transid
 		
 		UNION ALL
@@ -362,7 +362,7 @@ BEGIN
 				,2 AS WalletType
 				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
 		FROM	@tblCustCashOut912 c
-			INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
+			INNER JOIN dbo.bettrans14 b914 WITH(NOLOCK)
 				ON	b914.matchid = c.matchid
 					AND b914.custid = c.CustId
 					AND b914.bettype = 914
@@ -400,7 +400,7 @@ BEGIN
 
 	/**********************************************   *************************************************************/
 	SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
-	-- STEP 2 : Update bettrans
+	-- STEP 2 : Update bettrans14
 	WHILE (1=1)
 	BEGIN
 		DELETE @tmpTransIdBatch
@@ -503,7 +503,7 @@ BEGIN
 					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
 				,b.winlost - b.actual_stake + b.playercomm AS balance
 		FROM	#tmpTransId t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON	t.TransId = b.transid
 		
 		UNION ALL
@@ -514,7 +514,7 @@ BEGIN
 				,2 AS WalletType
 				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
 		FROM	@tblCustCashOut912 c
-			INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
+			INNER JOIN dbo.bettrans14 b914 WITH(NOLOCK)
 				ON	b914.matchid = c.matchid
 					AND b914.custid = c.CustId
 					AND b914.bettype = 914
