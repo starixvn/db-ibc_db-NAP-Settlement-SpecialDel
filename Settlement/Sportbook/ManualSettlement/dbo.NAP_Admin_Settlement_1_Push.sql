@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@IP                    VARCHAR(15)     = ''
 	,@IsReSettledTickets	BIT				= 1
     ,@ChildMatchIds			VARCHAR(500)	= NULL
+	,@RefResultStatus		TINYINT			= 0
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -50,6 +51,7 @@ AS
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
+		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -66,6 +68,10 @@ AS
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>
+
+		* @RefResultStatus ( detect by Web )
+				 1: no reference result exist (result not yet confirmed or not exists Provider score)
+				 2: values inconsistency
         
 */
 BEGIN
@@ -183,6 +189,7 @@ BEGIN
                                                           + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 														  + ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
 														  +    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
+														  +	   CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END
                                                           + ', @ErrCode = @ErrCode OUTPUT' 
                                                           + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           
