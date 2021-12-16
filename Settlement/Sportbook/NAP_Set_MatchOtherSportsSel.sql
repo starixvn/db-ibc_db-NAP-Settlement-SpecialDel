@@ -33,6 +33,7 @@ AS
 			- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 			- 20211005@Louisa: Enhancement [Redmine:#162624]
 			- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+			- 20211214@Louisa: Enhancemant Table Tennis [Redmine:#166070]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -474,7 +475,11 @@ BEGIN
 			WHERE 	ISNULL(m.IsCalculated,0) = 0 
 					AND ISNULL(m.IsCalRefund,0) = 0
 					AND m.eventstatus IN ( 'running', 'closed')
-					AND ( m.ConfirmFT > 0 OR DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 )
+					AND 1 = CASE WHEN m.ConfirmFT > 0 THEN 1
+								WHEN m.sporttype = 18 AND DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 20 THEN 1
+								WHEN DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 THEN 1
+								ELSE 0
+							END
 		END
 
 		--- Matches have ResourceIds were confirmed
