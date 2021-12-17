@@ -429,7 +429,9 @@ BEGIN
 				,scomm = 0
 				,statusID = 102
 				,status = 'VOID'
-				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(@IsAbnormalBet,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
+				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalBet = 1 AND @MatchId <> 29 THEN 1
+																	WHEN @IsAbnormalBet = 1 AND @MatchId = 29 THEN 2
+																	ELSE 0 END,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
 		FROM dbo.bettrans14 AS main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch AS tmpmain ON main.transid = tmpmain.transid
 

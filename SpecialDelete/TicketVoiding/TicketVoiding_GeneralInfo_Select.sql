@@ -154,12 +154,17 @@ BEGIN
 		,sv.NegativeBalanceUsers
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
-	OUTER APPLY( SELECT sv.NegativeBalanceUsers, m.Content_en, m.Content_cs
-				 FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
-					LEFT JOIN DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK) ON sv.MessageId = m.MessageId
-				  WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
-						AND sv.RequestID = @RequestId
-				)sv
+	OUTER APPLY( 
+				SELECT sv.NegativeBalanceUsers, msg.Content_en, msg.Content_cs
+				FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
+				OUTER APPLY (
+						SELECT  msg.Content_en, msg.Content_cs
+						FROM DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) 
+						WHERE sv.MessageId = msg.MessageId
+					)msg
+				WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
+					AND sv.RequestID = @RequestId
+			)sv
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
 
 	SELECT VoidingHistoryId

@@ -28,7 +28,8 @@ BEGIN
 
 	CREATE TABLE #tmpTicket
              (TransId         BIGINT,
-              matchid         INT,
+              subTransId      BIGINT,
+			  matchid         INT,
               custid          INT,
               TransDate       DATETIME,
               Stake           MONEY,
@@ -156,6 +157,7 @@ BEGIN
 			,BonusID = b.BonusId
 			,LiveIndicator = b.liveindicator
 			,ActualStake = b.actual_stake
+			,subTransId = b.transid
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
 
@@ -270,6 +272,7 @@ BEGIN
 		--1. For Credit	 
 		SELECT 
 			   s.transid
+			   ,s.subTransId
 			   ,s.refno		
 			   ,s.custid		
 			   ,s.username	
@@ -328,6 +331,7 @@ BEGIN
 		--2. For 8RM
 		SELECT  
 				s.transid
+			   ,s.subTransId
 			   ,s.refno		
 			   ,s.custid		
 			   ,s.username	
@@ -380,6 +384,7 @@ BEGIN
 		--3. For Deposit
 		SELECT  
 				s.transid
+			   ,s.subTransId
 			   ,s.refno		
 			   ,s.custid		
 			   ,s.username	
@@ -437,6 +442,7 @@ BEGIN
 		--4. For Betfair
 		SELECT  
 			s.transid
+		   ,s.subTransId
 		   ,s.refno		
 		   ,s.custid		
 		   ,s.username	
@@ -486,6 +492,7 @@ BEGIN
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
 	SELECT s.transid
+			,s.subTransId
 			,s.MainTransId
 			,s.BonusId
 		   ,s.refno		
