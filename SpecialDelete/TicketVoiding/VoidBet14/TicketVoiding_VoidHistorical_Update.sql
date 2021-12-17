@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
-CREATE PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
+ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 (
 	@RequestId			INT
 	,@MatchId			INT
@@ -531,26 +531,6 @@ BEGIN
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
 	
-	
-	-- get negative balance user list
-	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
-	FROM	(
-		SELECT DISTINCT b.custid
-		FROM @BeforeUpd b
-			INNER JOIN @AfterUpd a
-				ON b.custid = a.custid
-					AND b.matchid = a.matchid
-					AND b.balanceType = a.balanceType
-					AND b.bonusId = a.bonusId
-					AND b.walletType = a.walletType
-		WHERE	b.balance > a.balance
-	)t
-
-	EXEC dbo.NAP_CustNegativeBalance_Sel
-		@CustIds = @CustIds
-		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-	
 	-- update summary ticket
 	DECLARE @AffectedList		VARCHAR(MAX)
 	SET @AffectedList = CAST((
@@ -586,6 +566,25 @@ BEGIN
 				,@ErrMsg = ERROR_PROCEDURE () + ERROR_MESSAGE()
 	END CATCH
 			 
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
+	FROM	(
+		SELECT DISTINCT b.custid
+		FROM @BeforeUpd b
+			INNER JOIN @AfterUpd a
+				ON b.custid = a.custid
+					AND b.matchid = a.matchid
+					AND b.balanceType = a.balanceType
+					AND b.bonusId = a.bonusId
+					AND b.walletType = a.walletType
+		WHERE	b.balance > a.balance
+	)t
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+	
 	--WriteLog
 	SET @EndTime = GETDATE()
 	BEGIN
@@ -596,7 +595,7 @@ BEGIN
 								,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
 									+ ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
 									+ ' VoidingHistoryId: ' + CAST(@VoidingHistoryId AS VARCHAR(20))
-									+ ' Single ticket with TransId: ' + @TransIds
+									+ CASE WHEN @MatchId = 29 THEN ' Main Parlay ticket with TransId: ' ELSE ' Single ticket with TransId: '  END + @TransIds
 									AS '@LogData'
 						FOR XML PATH ('r'), ROOT ('root'), TYPE
 		) AS VARCHAR(MAX))

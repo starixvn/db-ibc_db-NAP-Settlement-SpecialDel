@@ -13,6 +13,7 @@ AS
 		- 20201207@July: Create new SP [Redmine:#145719]
 		- 20201224@Zane: Return KO time [Redmine:#143666]
 		- 20210305@July: TVS - Auto void before KO time - [Redmine: #150522] 
+		- 20211202@Max: [TVS] Implement function allow to void bettrans14 [Redmine:#140180]
 	
 	Param's explanation:
 		
@@ -155,7 +156,7 @@ BEGIN
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	OUTER APPLY( SELECT sv.NegativeBalanceUsers, m.Content_en, m.Content_cs
 				 FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
-					INNER JOIN DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK) ON sv.MessageId = m.MessageId
+					LEFT JOIN DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK) ON sv.MessageId = m.MessageId
 				  WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
 						AND sv.RequestID = @RequestId
 				)sv

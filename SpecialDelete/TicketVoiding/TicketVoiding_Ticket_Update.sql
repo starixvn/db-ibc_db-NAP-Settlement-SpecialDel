@@ -50,7 +50,7 @@ BEGIN
 			,@ErrMsg				= @ErrMsg	OUTPUT
 			,@NegativeBalanceUsers  = @NegativeBalanceUsers	OUTPUT
 	END
-	ELSE IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId = 13))-- Single
+	ELSE IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13)))-- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
 			@RequestId = @RequestId
