@@ -354,18 +354,21 @@ BEGIN
 		
 	-- single + cash out ticket	
 	UPDATE vh 
-		SET TotalSingle =	t.TotalVoidedSingle
+		SET TotalSingle = t.TotalVoidedSingle
 			,TotalCashOut = t.TotalVoidedCashOut
 			,MatchId = t.matchid
+			,TotalParlay = CASE WHEN vh.IssueTypeId = 17 THEN t.TotalVoidedParlay ELSE 0 END
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
-					,SUM(CASE 
-							WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
+					,SUM( CASE 
+							WHEN vh.IssueTypeId <> 17 AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
+							WHEN vh.IssueTypeId = 17 AND z.bettype NOT IN(9,29,2799) AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
 							WHEN z.bettype = 911 THEN 1
 							ELSE 0 END
 						) AS TotalVoidedSingle
-					,0 AS TotalVoidedCashOut 
+					,SUM(CASE WHEN vh.IssueTypeId = 17 AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
+					,0 AS TotalVoidedCashOut
 					,CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
