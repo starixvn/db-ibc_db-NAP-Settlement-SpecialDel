@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
+(
 	@Option				BIT				= 0
-	,@MatchId			INT
+	,@MatchId			INT				= 0
 	,@FromTransId		BIGINT			= 0
 	,@ToTransId			BIGINT			= 0
 	,@TransIds			VARCHAR(MAX)	= ''
@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
 	,@InvalidTransIds 	VARCHAR(MAX) 	= '' OUTPUT
 	,@MovedTransIds	  	VARCHAR(MAX)  	= '' OUTPUT
 	,@FilterBy			TINYINT 		= 0
+)
 AS
 /*
     Created by: Kent
@@ -24,6 +25,7 @@ AS
 		- 20190920@Charles: Add filter transdate when search by MatchId [120586]		
 		- 20200930@Zane: TVS - Allow filter by Accept Time on Void Cash Out [Redmine:#142482]
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 
 	Explanation's Param:
 		@Option: 0 - by MatchId
@@ -52,10 +54,8 @@ BEGIN
 		RefNo				BIGINT,				
 		BetCheck			NVARCHAR(50),
 		TransDesc			NVARCHAR(1000),
-		MainStatusId		TINYINT,
 		UserName			VARCHAR(30),		
 		TransDate			DATETIME,		
-		OriginalBetType		SMALLINT,
 		ExtraInfo			VARCHAR(1000),
 		BetdaqId			BIGINT,
 		custid				INT,
@@ -111,10 +111,8 @@ BEGIN
 						RefNo,						
 						BetCheck,
 						TransDesc,
-						MainStatusId,
 						UserName,						
 						TransDate,						
-						OriginalBetType,
 						ExtraInfo,
 						BetdaqId,
 						custid,
@@ -129,32 +127,30 @@ BEGIN
 						EventDate
 						)
 			SELECT 
-					main.BetId,
+					sub.BetId,
 					sub.TransId,
 					sub.BetType,
-					main.BetTeam,
+					sub.BetTeam,
 					sub.Stake,
-					main.Odds,
-					main.OddsType,
+					sub.Odds,
+					sub.OddsType,
 					sub.WinLost - sub.Actual_Stake AS WinLost,
-					main.Hdp1,
-					main.Hdp2,
+					sub.Hdp1,
+					sub.Hdp2,
 					sub.Status,
-					main.liveindicator AS IsLiveIndicator,
-					main.LiveHomeScore,
-					main.LiveAwayScore,				
+					sub.liveindicator AS IsLiveIndicator,
+					sub.LiveHomeScore,
+					sub.LiveAwayScore,				
 					sub.RefNo,				
-					main.BetCheck,
-					main.TransDesc,
-					main.statusID AS MainStatusId,
+					sub.BetCheck,
+					sub.TransDesc,
 					sub.UserName,				
 					sub.TransDate,				
-					main.bettype AS OriginalBetType,
 					sub.ExtraInfo,
 					sub.BetdaqId,
 					sub.custid,
-					main.recommend,
-					main.betfrom,				
+					sub.recommend,
+					sub.betfrom,				
 					m.HomeId,
 					m.AwayId,
 					m.LeagueId,
@@ -162,19 +158,12 @@ BEGIN
 					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 					m.MatchCode,
 					m.EventDate
-			FROM	dbo.bettrans sub WITH(NOLOCK)
-				INNER JOIN dbo.bettrans main WITH(NOLOCK)
-					ON	main.transid = sub.refno
-						AND main.matchid = sub.matchid
-						AND main.custid = sub.custid		
+			FROM	dbo.bettrans sub WITH(NOLOCK)	
 				INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
 			WHERE	sub.matchid = @MatchId 
 				AND sub.transid BETWEEN @FromTransId AND @ToTransId				
-				AND sub.bettype = 911 -- SOLD tickets
+				AND sub.betdaqid = -2
 				AND sub.statusID IN (103, 111, 112, 113)
-				AND main.statusID IN (0, 103, 111, 112, 113) -- unsettled or refunded, DRAW, WON, LOSE
-				AND main.betdaqid = 0
-				AND charindex ('p25',main.extrainfo)> 0
 		END
 		ELSE
 		BEGIN
@@ -196,10 +185,8 @@ BEGIN
 							RefNo,						
 							BetCheck,
 							TransDesc,
-							MainStatusId,
 							UserName,						
 							TransDate,						
-							OriginalBetType,
 							ExtraInfo,
 							BetdaqId,
 							custid,
@@ -214,32 +201,30 @@ BEGIN
 							EventDate
 						)
 			SELECT 
-					main.BetId,
+					sub.BetId,
 					sub.TransId,
 					sub.BetType,
-					main.BetTeam,
+					sub.BetTeam,
 					sub.Stake,
-					main.Odds,
-					main.OddsType,
+					sub.Odds,
+					sub.OddsType,
 					sub.WinLost - sub.Actual_Stake AS WinLost,
-					main.Hdp1,
-					main.Hdp2,
+					sub.Hdp1,
+					sub.Hdp2,
 					sub.Status,
-					main.liveindicator AS IsLiveIndicator,
-					main.LiveHomeScore,
-					main.LiveAwayScore,				
+					sub.liveindicator AS IsLiveIndicator,
+					sub.LiveHomeScore,
+					sub.LiveAwayScore,				
 					sub.RefNo,				
-					main.BetCheck,
-					main.TransDesc,
-					main.statusID AS MainStatusId,
+					sub.BetCheck,
+					sub.TransDesc,
 					sub.UserName,				
 					sub.TransDate,				
-					main.bettype AS OriginalBetType,
 					sub.ExtraInfo,
 					sub.BetdaqId,
 					sub.custid,
-					main.recommend,
-					main.betfrom,				
+					sub.recommend,
+					sub.betfrom,				
 					m.HomeId,
 					m.AwayId,
 					m.LeagueId,
@@ -247,18 +232,11 @@ BEGIN
 					ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 					m.MatchCode,
 					m.EventDate
-			FROM	dbo.bettrans sub WITH(NOLOCK)
-				INNER JOIN dbo.bettrans main WITH(NOLOCK)
-					ON	main.transid = sub.refno
-						AND main.matchid = sub.matchid
-						AND main.custid = sub.custid		
+			FROM	dbo.bettrans sub WITH(NOLOCK)	
 				INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
 			WHERE	sub.matchid = @MatchId 	
-					AND sub.bettype = 911 -- SOLD tickets
+					AND sub.betdaqid = -2
 					AND sub.statusID IN (103, 111, 112, 113)
-					AND main.statusID IN (0, 103, 111, 112, 113) -- unsettled or refunded, DRAW, WON, LOSE
-					AND main.betdaqid = 0
-					AND charindex ('p25',main.extrainfo)> 0
 					AND EXISTS (SELECT TOP (1) 1 FROM #Durations d
 						WHERE 1 = CASE WHEN @FilterBy = 1 AND sub.checktime IS NOT NULL AND sub.checktime BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
 									WHEN @FilterBy = 1 AND sub.checktime IS NULL AND sub.transdate BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
@@ -291,10 +269,8 @@ BEGIN
 						RefNo,						
 						BetCheck,
 						TransDesc,
-						MainStatusId,
 						UserName,						
 						TransDate,						
-						OriginalBetType,
 						ExtraInfo,
 						BetdaqId,
 						custid,
@@ -309,32 +285,30 @@ BEGIN
 						EventDate
 						)
 		SELECT 
-				main.BetId,
+				sub.BetId,
 				sub.TransId,
 				sub.BetType,
-				main.BetTeam,
+				sub.BetTeam,
 				sub.Stake,
-				main.Odds,
-				main.OddsType,
+				sub.Odds,
+				sub.OddsType,
 				sub.WinLost - sub.Actual_Stake AS WinLost,
-				main.Hdp1,
-				main.Hdp2,
+				sub.Hdp1,
+				sub.Hdp2,
 				sub.Status,
-				main.liveindicator AS IsLiveIndicator,
-				main.LiveHomeScore,
-				main.LiveAwayScore,				
+				sub.liveindicator AS IsLiveIndicator,
+				sub.LiveHomeScore,
+				sub.LiveAwayScore,				
 				sub.RefNo,				
-				main.BetCheck,
-                main.TransDesc,
-				main.statusID AS MainStatusId,
+				sub.BetCheck,
+                sub.TransDesc,
 				sub.UserName,				
 				sub.TransDate,				
-				main.bettype AS OriginalBetType,
 				sub.ExtraInfo,
 				sub.BetdaqId,
 				sub.custid,
-				main.recommend,
-				main.betfrom,				
+				sub.recommend,
+				sub.betfrom,				
 				m.HomeId,
 				m.AwayId,
 				m.LeagueId,
@@ -343,17 +317,10 @@ BEGIN
 				m.MatchCode,
 				m.EventDate
 		FROM	dbo.bettrans sub WITH(NOLOCK)
-			INNER JOIN dbo.bettrans main WITH(NOLOCK)
-				ON	main.transid = sub.refno
-					AND main.matchid = sub.matchid	
-					AND main.custid = sub.custid	
 			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
 		WHERE	sub.transid IN (SELECT transid FROM #tblTransIds)				
-				AND sub.bettype = 911 -- SOLD tickets
+				AND sub.bettype = -2
 				AND sub.statusID IN (103, 111, 112, 113)
-				AND main.statusID IN (0, 103, 111, 112, 113) -- unsettled or refunded, DRAW, WON, LOSE
-				AND main.betdaqid = 0
-				AND charindex ('p25',main.extrainfo)> 0
 
 		IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @MovebetDate)
 		BEGIN
@@ -382,11 +349,9 @@ BEGIN
 			d.RefNo,						
 			d.BetCheck,
 			d.TransDesc,
-			d.MainStatusId,
 			d.UserName,			
 			d.TransDate,
 			c.site AS GroupName,
-			d.OriginalBetType,
 			d.ExtraInfo,
 			d.BetdaqId,			
 			d.HomeId,
@@ -410,7 +375,7 @@ BEGIN
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
 									 WHERE b14.transid = t.transid
-									   AND b14.bettype = 911) 
+									   AND b14.betdaqid = -2) 
 								THEN 1 
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM @tmpTransIdMoveBet m
@@ -443,5 +408,4 @@ BEGIN
 
 	SET NOCOUNT OFF
 END
-
 GO

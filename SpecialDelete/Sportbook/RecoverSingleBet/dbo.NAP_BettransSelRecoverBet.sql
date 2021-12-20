@@ -80,7 +80,6 @@ BEGIN
 		,transdesc		NVARCHAR(1000)
 		,betdaqid		BIGINT -- indicate BTrade ticket (main) or not: 0: BT, -1: normal ticket
 		,sporttype		SMALLINT
-		,SoldId			BIGINT
 		,homeid			INT
 		,awayid			INT
 		,ExtraInfo		VARCHAR(1000)
@@ -808,7 +807,6 @@ BEGIN
 			,t.liveawayscore
 			,t.betid
 			,t.transdesc
-			,t.SoldID
 			,t.sporttype
 			,t.homeid
 			,t.awayid
