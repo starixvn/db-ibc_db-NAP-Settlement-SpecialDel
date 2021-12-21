@@ -12,6 +12,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@WrongScoreInfo	  VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo  VARCHAR(MAX) = NULL
 	,@RedCardInfo		  VARCHAR(MAX) = NULL
+	,@WrongHDPInfo		  VARCHAR(MAX) = NULL
+	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -47,21 +49,19 @@ AS
 		- 20210817@July: TVS - Red Card Enhancement - Phase 1 [Redmine: #157097]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211210@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
-		<root>
-			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" ScoreId='3966607' />
-		</root>
+			<root><r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" /></root>
 		+ @DangerAcceptedInfo:
-		<root>
-			<r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/>
-		</root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/></root>
 		+ @RedCardInfo:
-		<root>
-			<r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/>
-		</root>
-		(Filterby 1: By Transdate, 2: By Checktime)
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/></root>
+		+ @WrongHDPInfo, @Wrong1stHDPInfo:
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" SubIssueTypeId=""/></root>
+	
+
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -86,6 +86,8 @@ BEGIN
 					+ CASE WHEN @WrongScoreInfo IS NULL THEN '' ELSE ',@WrongScoreInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongScoreInfo) + '''' END
 					+ CASE WHEN @DangerAcceptedInfo IS NULL THEN '' ELSE ',@DangerAcceptedInfo = ''' + CONVERT(NVARCHAR(MAX), @DangerAcceptedInfo) + '''' END
 					+ CASE WHEN @RedCardInfo IS NULL THEN '' ELSE ',@RedCardInfo = ''' + CONVERT(NVARCHAR(MAX), @RedCardInfo) + '''' END	
+					+ CASE WHEN @WrongHDPInfo IS NULL THEN '' ELSE ',@WrongHDPInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongHDPInfo) + '''' END
+					+ CASE WHEN @Wrong1stHDPInfo IS NULL THEN '' ELSE ',@Wrong1stHDPInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stHDPInfo) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserID, @MatchId, GETDATE(),@SubmittedDate)
@@ -98,20 +100,26 @@ BEGIN
 			,@IsInValidTotalTickets   BIT = 0
 			,@IsExistedInOtherRequest BIT = 0
 			,@SingleCount			  INT = 0
+			,@totalRecord			  INT = 0
 			,@MainParlayCount		  INT = 0
 			,@IsExistSingle			  BIT = 0
 			,@IsExistParlay			  BIT = 0
 			,@IsExistFM				  BIT = 0
 			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
-			,@WrongScoreInfoXML		  XML = NULL
-			,@DangerAcceptedInfoXML	  XML = NULL
 			,@MatchParlayProcessXML	  XML = NULL
-			,@RedCardInfoXML		  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
 			,@ThreadHold			  INT = 0-- over threadhold, the parlay process will be locked in systemsetting
 			,@FilterBy				  TINYINT = 1
-
+	
+	DECLARE	 @WrongScoreInfoXML		  XML = NULL
+			,@DangerAcceptedInfoXML	  XML = NULL
+			,@RedCardInfoXML		  XML = NULL
+			,@WrongHDPInfoXML		  XML = NULL	
+			,@Wrong1stHDPInfoXML	  XML = NULL
+		
+	DECLARE @FilterFromBetId BIGINT, @FilterToBetId BIGINT
+		
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
 			transid               BIGINT,
@@ -160,6 +168,7 @@ BEGIN
 		,SingleCount			INT
 		,CashOutCount			INT
 		,InstantlySettleCount	INT
+		,SettleCount INT
 		,MainParlayCount		INT
 		,MinSingleTransId		BIGINT
 		,MaxSingleTransId		BIGINT
@@ -175,6 +184,7 @@ BEGIN
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, ScoreId INT)
 	CREATE TABLE #WrongScores (ScoreId INT, MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	CREATE TABLE #FilterInfo (MatchId INT, FilterFromTransTime DATETIME, FilterToTransTime DATETIME, FilterBy	TINYINT, SubIssueTypeId SMALLINT)
+	CREATE TABLE #WrongHDP (MatchId INT, FilterFromTransTime DATETIME, FilterToTransTime DATETIME, FilterFromBetId BIGINT, FilterToBetId BIGINT, FilterBy TINYINT, HomeFavorite SMALLMONEY, AwayFavorite SMALLMONEY, HDPValue SMALLMONEY, SubIssueTypeId SMALLINT)
 	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
@@ -196,7 +206,7 @@ BEGIN
 			,MatchId                 INT
 			,ScoreId                 INT
 		)
-	DECLARE @InstantlySettleCount_tmp AS TABLE (transidCount BIGINT, ScoreId INT, RequestId INT, MatchId INT)
+	DECLARE @InstantlySettleCount_tmp AS TABLE (InstantlySettleCount BIGINT, SettleCount BIGINT, ScoreId INT, RequestId INT, MatchId INT)
 
 	IF @IssueTypeId = 1 --Danger Accept
 	BEGIN
@@ -240,7 +250,7 @@ BEGIN
 		SET @FilterBy = (SELECT DISTINCT FilterBy FROM #FilterInfo)
 			
 	END
-	ELSE --WC
+	ELSE IF @IssueTypeId IN (3,8,9)--WC, EKO, WKO
 	BEGIN
 		INSERT INTO #FilterInfo( 
 				MatchID				
@@ -624,7 +634,7 @@ BEGIN
 					AND main.statusID NOT IN (101, 102, 103)
 		END 
 	END
-	IF @IssueTypeId = 3 AND @WrongScoreInfo <> '' --Wrong Score
+	IF @IssueTypeId = 3 --Wrong Score
 	BEGIN
 		SET @FilterBy = 2
 		SET @WrongScoreInfoXML = CONVERT(XML, @WrongScoreInfo)
@@ -784,6 +794,405 @@ BEGIN
 		END
 		
 	END
+	IF @IssueTypeId = 4 --Wrong HDP
+	BEGIN
+		SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
+		INSERT INTO #WrongHDP( 
+				MatchID				
+				,FilterFromTransTime	
+				,FilterToTransTime			
+				,FilterFromBetId
+				,FilterToBetId
+				,HomeFavorite
+				,AwayFavorite
+				,HDPValue
+				,FilterBy				
+				,SubIssueTypeId
+			)
+		SELECT t.c.value('@MatchId','INT') AS MatchID
+			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+			  ,t.c.value('@FilterFromBetId','BIGINT') AS FilterFromBetId
+			  ,t.c.value('@FilterToBetId','BIGINT') AS FilterToBetId
+			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
+			  ,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
+			  ,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
+			  ,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
+			  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+		FROM @WrongHDPInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
+
+		SET @FilterBy = (SELECT DISTINCT FilterBy FROM #WrongHDP)
+
+		--Init Validation
+		INSERT INTO @Validation (MatchId)
+		SELECT MatchId FROM #WrongHDP
+
+		/*Check valid transid*/
+		IF @FilterBy = 0
+		BEGIN
+			SELECT @FilterFromBetId = FilterFromBetId
+				  ,@FilterToBetId = FilterToBetId
+				  ,@MatchId = MatchId
+			FROM #WrongHDP
+			WHERE FilterFromBetId IS NOT NULL AND FilterToBetId IS NOT NULL
+
+			INSERT INTO #transIdTemp (transid, transdate)
+			SELECT transid, transdate
+			FROM dbo.bettrans WITH (NOLOCK)  
+			WHERE transid IN (@FilterFromBetId,@FilterToBetId) AND matchid = @MatchId
+
+			SELECT @totalRecord = COUNT(1)
+			FROM #transIdTemp
+    
+			IF (@FilterFromBetId = @FilterToBetId AND @totalRecord <> 1) OR (@FilterFromBetId <> @FilterToBetId AND @totalRecord <> 2)
+			BEGIN
+				SELECT @IsInvalidTransId = 1
+			
+				--Error Table
+				SELECT @IsInvalidTransId AS IsInvalidTransId
+					,@IsInValidTotalTickets AS IsInValidTotalTickets
+					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+
+				--TransId in request table
+				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+					,r.RequestId
+				FROM #TransidInRequest r
+			
+				--Loginfo Table
+				SELECT @MatchId AS MatchId, l.LiveScores, l.VoidFromTime, l.VoidToTime, l.SingleCount, l.MainParlayCount, l.SettleCount, l.MinSingleTransId, l.MaxSingleTransId, l.MinMainParlayTransId, l.MaxMainParlayTransId
+				FROM #logInfo l
+
+				RETURN;
+			END
+
+			SELECT @FilterFromTransTime = MIN(t.transdate)
+				,@FilterToTransTime = MAX(t.transdate)
+			FROM #transIdTemp t
+
+			UPDATE #WrongHDP
+			SET FilterFromTransTime = @FilterFromTransTime
+			   ,FilterToTransTime = @FilterToTransTime
+			WHERE FilterFromBetId IS NOT NULL AND FilterToBetId IS NOT NULL
+		END
+	
+		INSERT INTO #SpecialDeleteBets(
+				GroupID			
+				,transid		
+				,SubTransid		
+				,refno			
+				,custid				
+				,transdate		
+				,bettype 					
+				,livehomescore 	
+				,liveawayscore 			
+				,betdaqid	
+				,ExtraInfo
+				,WalletType
+				,RefCode
+				,BonusID
+				,LiveIndicator
+				,matchid
+				,StatusId
+				,checktime
+				,SubIssueTypeId
+			)
+		SELECT 
+				b.transid AS GroupID
+				,b.transid
+				,b.transid AS SubTransID
+				,b.refno
+				,b.custid
+				,b.transdate
+				,b.bettype
+				,b.livehomescore
+				,b.liveawayscore
+				,b.betdaqid
+				,b.ExtraInfo
+				,b.WalletType
+				,b.RefCode
+				,b.BonusID
+				,b.liveindicator
+				,b.matchid
+				,b.statusID
+				,b.checktime
+				,d.SubIssueTypeId
+		FROM	bettrans b WITH (NOLOCK)	
+			INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid AND m.sporttype = 1 --soccer
+			INNER JOIN #WrongHDP d ON d.MatchId = b.matchid
+		WHERE b.betfrom <> 'P'  
+			AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+						 ELSE 0 END
+			AND b.bettype = 1 --Handicap 
+			AND 1 = CASE WHEN d.SubIssueTypeId = 8 AND b.hdp1 = d.HomeFavorite AND d.AwayFavorite IS NULL THEN 1
+						 WHEN d.SubIssueTypeId = 8 AND b.hdp2 = d.AwayFavorite AND d.HomeFavorite IS NULL THEN 1
+						 WHEN d.SubIssueTypeId = 22 AND b.hdp2 = d.HDPValue THEN 1 --Away Virtual Head Reversed
+						 WHEN d.SubIssueTypeId = 23 AND b.hdp1 = d.HDPValue THEN 1 --Home Virtual Head Reversed
+						 ELSE 0 END
+
+		---get sub ticket of a mix parlay	
+		IF EXISTS ( SELECT 1
+					FROM dbo.bettransm AS bm WITH (NOLOCK)
+						INNER JOIN #WrongHDP d ON d.MatchId = bm.matchid
+					WHERE 1 = CASE WHEN @ActionId <> 2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+								WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+								ELSE 0 END
+						AND bm.betfrom <> 'P')
+		BEGIN		
+			INSERT INTO #SpecialDeleteBets(
+					GroupID			
+					,transid		
+					,SubTransid		
+					,refno			
+					,custid						
+					,transdate		
+					,bettype					
+					,livehomescore	
+					,liveawayscore			
+					,IsMixParlay
+					,LiveIndicator
+					,matchid
+					,StatusId
+					,checktime
+					,SubIssueTypeId
+				)
+			SELECT 
+					main.transid AS GroupID
+					,main.transid AS TransId
+					,sub.transid AS SubTransID
+					,sub.refno
+					,sub.custid				
+					,sub.transdate
+					,main.bettype
+					,sub.livehomescore
+					,sub.liveawayscore
+					,1 AS IsMixParlay
+					,sub.liveindicator
+					,sub.matchid
+					,main.statusID
+					,sub.checktime
+					,d.SubIssueTypeId
+			FROM	#WrongHDP d
+					INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 1 --soccer
+					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId
+					INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON	main.refno = sub.refno 
+			WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
+							ELSE 0 END
+					AND sub.betfrom <> 'P'
+					AND main.matchid = 29
+					AND main.bettype = 29
+					AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+					AND sub.bettype = 1 
+					AND 1 = CASE WHEN d.SubIssueTypeId = 8 AND sub.hdp1 = d.HomeFavorite AND d.AwayFavorite IS NULL THEN 1
+								 WHEN d.SubIssueTypeId = 8 AND sub.hdp2 = d.AwayFavorite AND d.HomeFavorite IS NULL THEN 1
+								 WHEN d.SubIssueTypeId = 22 AND sub.hdp2 = d.HDPValue THEN 1 --Away Virtual Head Reversed
+								 WHEN d.SubIssueTypeId = 23 AND sub.hdp1 = d.HDPValue THEN 1 --Home Virtual Head Reversed
+								 ELSE 0 END
+		END  
+	END
+	IF @IssueTypeId = 5 --Wrong 1st HDP
+	BEGIN
+		SET @Wrong1stHDPInfoXML = CONVERT(XML, @Wrong1stHDPInfo)
+		INSERT INTO #WrongHDP( 
+				MatchID				
+				,FilterFromTransTime	
+				,FilterToTransTime			
+				,FilterFromBetId
+				,FilterToBetId
+				,FilterBy				
+				,HomeFavorite
+				,AwayFavorite
+				,HDPValue
+				,SubIssueTypeId
+			)
+		SELECT t.c.value('@MatchId','INT') AS MatchID
+			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
+			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
+			  ,t.c.value('@FilterFromBetId','BIGINT') AS FilterFromBetId
+			  ,t.c.value('@FilterToBetId','BIGINT') AS FilterToBetId
+			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
+			  ,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
+			  ,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
+			  ,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
+			  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+		FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
+
+		SET @FilterBy = (SELECT DISTINCT FilterBy FROM #WrongHDP)
+				
+		--Init Validation
+		INSERT INTO @Validation (MatchId)
+		SELECT MatchId FROM #WrongHDP
+
+		/*Check valid transid*/
+		IF @FilterBy = 0
+		BEGIN
+			
+			SELECT @FilterFromBetId = FilterFromBetId
+				  ,@FilterToBetId = FilterToBetId
+				  ,@MatchId = MatchId
+			FROM #WrongHDP
+			WHERE FilterFromBetId IS NOT NULL AND FilterToBetId IS NOT NULL
+
+			INSERT INTO #transIdTemp (transid, transdate)
+			SELECT transid, transdate
+			FROM dbo.bettrans WITH (NOLOCK)  
+			WHERE transid IN (@FilterFromBetId,@FilterToBetId) AND matchid = @MatchId
+
+			SELECT @totalRecord = COUNT(1)
+			FROM #transIdTemp
+    
+			IF (@FilterFromBetId = @FilterToBetId AND @totalRecord <> 1) OR (@FilterFromBetId <> @FilterToBetId AND @totalRecord <> 2)
+			BEGIN
+				SELECT @IsInvalidTransId = 1
+			
+				--Error Table
+				SELECT @IsInvalidTransId AS IsInvalidTransId
+					,@IsInValidTotalTickets AS IsInValidTotalTickets
+					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
+
+				--TransId in request table
+				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
+					,r.RequestId
+				FROM #TransidInRequest r
+			
+				--Loginfo Table
+				SELECT @MatchId AS MatchId, l.LiveScores, l.VoidFromTime, l.VoidToTime, l.SingleCount, l.MainParlayCount, l.SettleCount, l.MinSingleTransId, l.MaxSingleTransId, l.MinMainParlayTransId, l.MaxMainParlayTransId
+				FROM #logInfo l
+
+				RETURN;
+			END
+
+			SELECT @FilterFromTransTime = MIN(t.transdate)
+				,@FilterToTransTime = MAX(t.transdate)
+			FROM #transIdTemp t
+
+			UPDATE #WrongHDP
+			SET FilterFromTransTime = @FilterFromTransTime
+			   ,FilterToTransTime = @FilterToTransTime
+			WHERE FilterFromBetId IS NOT NULL AND FilterToBetId IS NOT NULL
+		END
+
+		INSERT INTO #SpecialDeleteBets(
+				GroupID			
+				,transid		
+				,SubTransid		
+				,refno			
+				,custid				
+				,transdate		
+				,bettype 					
+				,livehomescore 	
+				,liveawayscore 			
+				,betdaqid	
+				,ExtraInfo
+				,WalletType
+				,RefCode
+				,BonusID
+				,LiveIndicator
+				,matchid
+				,StatusId
+				,checktime
+				,SubIssueTypeId
+			)
+		SELECT 
+				b.transid AS GroupID
+				,b.transid
+				,b.transid AS SubTransID
+				,b.refno
+				,b.custid
+				,b.transdate
+				,b.bettype
+				,b.livehomescore
+				,b.liveawayscore
+				,b.betdaqid
+				,b.ExtraInfo
+				,b.WalletType
+				,b.RefCode
+				,b.BonusID
+				,b.liveindicator
+				,b.matchid
+				,b.statusID
+				,b.checktime
+				,d.SubIssueTypeId
+		FROM	bettrans b WITH (NOLOCK)	
+			INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid AND m.sporttype = 1 --soccer
+			INNER JOIN #WrongHDP d ON d.MatchId = b.matchid
+		WHERE b.betfrom <> 'P'  
+			AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							ELSE 0 END
+			AND b.bettype = 7 --1H Handicap
+			AND 1 = CASE WHEN d.SubIssueTypeId = 9 AND b.hdp1 = d.HomeFavorite AND d.AwayFavorite IS NULL THEN 1
+						 WHEN d.SubIssueTypeId = 9 AND b.hdp2 = d.AwayFavorite AND d.HomeFavorite IS NULL THEN 1
+						 WHEN d.SubIssueTypeId = 24 AND b.hdp2 = d.HDPValue THEN 1 --Away Virtual Head Reversed
+						 WHEN d.SubIssueTypeId = 25 AND b.hdp1 = d.HDPValue THEN 1 --Home Virtual Head Reversed
+						 ELSE 0 END 
+
+		---get sub ticket of a mix parlay	
+		IF EXISTS ( SELECT 1
+					FROM dbo.bettransm AS bm WITH (NOLOCK)
+						INNER JOIN #WrongHDP d ON d.MatchId = bm.matchid
+					WHERE 1 = CASE WHEN @ActionId <> 2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+								   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
+								   ELSE 0 END
+						AND bm.betfrom <> 'P')
+		BEGIN		
+			INSERT INTO #SpecialDeleteBets(
+					GroupID			
+					,transid		
+					,SubTransid		
+					,refno			
+					,custid						
+					,transdate		
+					,bettype					
+					,livehomescore	
+					,liveawayscore			
+					,IsMixParlay
+					,LiveIndicator
+					,matchid
+					,StatusId
+					,checktime
+					,SubIssueTypeId
+				)
+			SELECT 
+					main.transid AS GroupID
+					,main.transid AS TransId
+					,sub.transid AS SubTransID
+					,sub.refno
+					,sub.custid				
+					,sub.transdate
+					,main.bettype
+					,sub.livehomescore
+					,sub.liveawayscore
+					,1 AS IsMixParlay
+					,sub.liveindicator
+					,sub.matchid
+					,main.statusID
+					,sub.checktime
+					,d.SubIssueTypeId
+			FROM	#WrongHDP d
+					INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 1 --soccer
+					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId
+					INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON	main.refno = sub.refno 
+			WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
+							ELSE 0 END
+					AND sub.betfrom <> 'P'
+					AND main.matchid = 29
+					AND main.bettype = 29
+					AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+					AND sub.bettype = 7 
+					AND 1 = CASE WHEN d.SubIssueTypeId = 9 AND sub.hdp1 = d.HomeFavorite AND d.AwayFavorite IS NULL THEN 1
+								 WHEN d.SubIssueTypeId = 9 AND sub.hdp2 = d.AwayFavorite AND d.HomeFavorite IS NULL THEN 1
+								 WHEN d.SubIssueTypeId = 24 AND sub.hdp2 = d.HDPValue THEN 1 --Away Virtual Head Reversed
+								 WHEN d.SubIssueTypeId = 25 AND sub.hdp1 = d.HDPValue THEN 1 --Home Virtual Head Reversed
+								 ELSE 0 END 
+		END  
+	END
 
 	-- update MainTransId
 	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE RefCode IS NOT NULL)
@@ -899,7 +1308,7 @@ BEGIN
 				AND r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2)
 		END
-		ELSE IF @IssueTypeId IN (1,10)
+		ELSE IF @IssueTypeId IN (1,10,4,5)
 		BEGIN
 			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId,Refno)
 			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid,tmp.Refno
@@ -963,7 +1372,7 @@ BEGIN
 
 			IF EXISTS (SELECT TOP (1) 1 FROM @Validation)
 			BEGIN
-				IF @IssueTypeId IN (1,10)
+				IF @IssueTypeId IN (1,10,4,5)
 				BEGIN
 					UPDATE v SET v.IsExistedInOtherRequest = 1
 					FROM @Validation v
@@ -980,7 +1389,7 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId, ScoreId)
+	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, SettleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId, ScoreId)
 	SELECT b.matchid AS MatchId
 		,CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END AS LiveScores
 		,MIN(act.VoidTime) AS VoidFromTime
@@ -993,6 +1402,7 @@ BEGIN
 		,COUNT(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MainParlayCount
 		,MIN(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MinSingleTransId
 		,MAX(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MaxSingleTransId
+		,COUNT(CASE WHEN b.StatusId IN (111, 112, 113) THEN  b.transid ELSE NULL END) AS SettleCount
 		,b.ScoreId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
@@ -1002,7 +1412,7 @@ BEGIN
 				WHERE t.TransId = b.SubTransid
 		)tmp
 		CROSS APPLY (SELECT CASE 
-								WHEN @FilterBy = 1 THEN b.transdate
+								WHEN @FilterBy IN(0,1) THEN b.transdate
 								WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 								WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 							 END AS VoidTime
@@ -1013,7 +1423,7 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
-		IF @IssueTypeId NOT IN (1,3,10)
+		IF @IssueTypeId IN (8,9)
 		BEGIN
 			SELECT @IsInvalidTransId AS IsInvalidTransId
 					,@IsInValidTotalTickets AS IsInValidTotalTickets
@@ -1040,7 +1450,7 @@ BEGIN
 				,ScoreId
 			FROM @Validation
 		END
-		ELSE IF @IssueTypeId IN (1,10)
+		ELSE IF @IssueTypeId IN (1,10,4,5)
 		BEGIN
 			SELECT MatchId
 				,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1092,15 +1502,15 @@ BEGIN
 		/*Get Instant settlement*/
 		IF @IssueTypeId <> 3
 		BEGIN
-			INSERT INTO @InstantlySettleCount_tmp (transidCount, RequestId, MatchId)
-			SELECT COUNT(s.TransId), @RequestId, b.matchid
+			INSERT INTO @InstantlySettleCount_tmp (InstantlySettleCount, SettleCount, RequestId, MatchId)
+			SELECT COUNT(CASE WHEN i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS InstantlySettleCount
+				   , COUNT(s.TransId) AS SettleCount
+				, @RequestId, b.matchid
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid AND s.MatchId =  b.matchid
+				LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 			WHERE s.RequestId = @RequestId
 				AND b.statusID IN (111,112,113) AND b.betdaqid <> -2
-				 AND EXISTS (SELECT TOP 1 1
-							 FROM #InstantSettlementBettypes
-							 WHERE bettype = b.bettype)
 			GROUP BY b.matchid
 
 			--Highlight Min TransId (based on the acceptance type of the ticket)
@@ -1166,7 +1576,8 @@ BEGIN
 				,rd.VoidToTime
 				,rd.SingleCount
 				,c.CashOutCount AS CashOutCount
-				,t.transidCount AS InstantlySettleCount
+				,t.InstantlySettleCount
+				,t.SettleCount
 				,rd.MainParlayCount
 				,rd.MinSingleTransId
 				,rd.MaxSingleTransId
@@ -1196,8 +1607,10 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO @InstantlySettleCount_tmp (transidCount, ScoreId, RequestId)
-			SELECT COUNT(s.TransId), tmp.ScoreId, @RequestId
+			INSERT INTO @InstantlySettleCount_tmp (InstantlySettleCount, SettleCount, ScoreId, RequestId)
+			SELECT COUNT(CASE WHEN i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS InstantlySettleCount
+				  ,COUNT(s.TransId) AS SettleCount
+				, tmp.ScoreId, @RequestId
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				CROSS APPLY (
 							SELECT CONVERT(XML, r.TransIds)
@@ -1210,12 +1623,10 @@ BEGIN
 						FROM t.xDATA.nodes('/r') t(c)
 					) tmp (ScoreId)
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
+				LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 			WHERE s.RequestId = @RequestId
 				AND s.MatchId = @MatchId
 				AND b.statusID IN (111,112,113) AND b.betdaqid <> -2
-				 AND EXISTS (SELECT TOP 1 1
-							 FROM #InstantSettlementBettypes
-							 WHERE bettype = b.bettype)
 			GROUP BY tmp.ScoreId
 
 			SELECT rd.MatchId
@@ -1225,7 +1636,8 @@ BEGIN
 				,rd.VoidToTime
 				,rd.SingleCount
 				,c.CashOutCount AS CashOutCount
-				,t.transidCount AS InstantlySettleCount
+				,t.InstantlySettleCount
+				,t.SettleCount
 				,rd.MainParlayCount
 				,rd.MinSingleTransId
 				,rd.MaxSingleTransId
@@ -1266,7 +1678,7 @@ BEGIN
 	END
 
 	--For case no ticket valid
-	IF @IssueTypeId IN (1, 10, 3)
+	IF @IssueTypeId IN (1,10,3,4,5)
 	BEGIN
 		SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
 			,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
@@ -1276,20 +1688,7 @@ BEGIN
 		BEGIN
 			SELECT @IsInValidTotalTickets = 1
 
-			IF @IssueTypeId NOT IN (1,3,10)
-			BEGIN
-				--Error Table
-				SELECT @IsInvalidTransId AS IsInvalidTransId
-					,@IsInValidTotalTickets AS IsInValidTotalTickets
-					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-					,@IsExistSingle AS IsExistSingle
-					,@IsExistParlay AS IsExistParlay
-					,@IsExistFM AS IsExistFM
-					,@IsExistFM2 AS IsExistFM2
-					,@MatchProcessXML AS MatchProcessXML
-					,@MatchParlayProcessXML AS MatchParlayProcessXML
-			END
-			ELSE IF @IssueTypeId = 3
+			IF @IssueTypeId = 3
 			BEGIN
 				SELECT CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores
 					,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1304,7 +1703,7 @@ BEGIN
 					,ScoreId
 				FROM @Validation
 			END
-			ELSE IF @IssueTypeId IN (1,10)
+			ELSE IF @IssueTypeId IN (1,10,4,5)
 			BEGIN
 				SELECT MatchId
 					,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1379,7 +1778,7 @@ BEGIN
 	
 	IF @IssueTypeId = 3
 	BEGIN
-		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN (l.SingleCount = 0 AND l.MainParlayCount = 0) OR (l.SingleCount IS NULL AND l.MainParlayCount IS NULL) THEN 1 ELSE 0 END
+		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 		FROM @Validation v
 			OUTER APPLY( 
 				SELECT SUM(SingleCount) AS SingleCount
@@ -1390,9 +1789,9 @@ BEGIN
 			)l
 	END
 
-	IF @IssueTypeId IN (1,10)
+	IF @IssueTypeId IN (1,10,4,5)
 	BEGIN
-		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN (l.SingleCount = 0 AND l.MainParlayCount = 0) OR (l.SingleCount IS NULL AND l.MainParlayCount IS NULL) THEN 1 ELSE 0 END
+		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 		FROM @Validation v
 			OUTER APPLY( 
 				SELECT SUM(SingleCount) AS SingleCount
@@ -1404,7 +1803,7 @@ BEGIN
 	END 
 
 	---Prepare for lock match---
-	IF @IssueTypeId NOT IN (1,3,10)
+	IF @IssueTypeId IN (8,9)
 	BEGIN
 		SELECT @IsExistSingle = MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 				,@IsExistParlay = MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END)
@@ -1442,7 +1841,7 @@ BEGIN
 				GROUP BY t.ScoreId
 			)tmp
 	END
-	ELSE IF @IssueTypeId IN (1,10)
+	ELSE IF @IssueTypeId IN (1,10,4,5)
 	BEGIN
 		UPDATE v SET 
 				v.IsExistSingle = tmp.IsExistSingle
@@ -1522,11 +1921,10 @@ BEGIN
 		SET @MatchParlayProcessXML = NULL
 	END
 
-	--WC
 	UPDATE @Validation SET MatchProcessXML = @MatchProcessXML, MatchParlayProcessXML = @MatchParlayProcessXML
 
 	--Error Table
-	IF @IssueTypeId NOT IN (1,3,10)
+	IF @IssueTypeId IN (8,9)
 	BEGIN
 		SELECT @IsInvalidTransId AS IsInvalidTransId
 				,@IsInValidTotalTickets AS IsInValidTotalTickets
@@ -1553,7 +1951,7 @@ BEGIN
 			,ScoreId
 		FROM @Validation
 	END
-	ELSE IF @IssueTypeId IN (1,10)
+	ELSE IF @IssueTypeId IN (1,10,4,5)
 	BEGIN
 		SELECT MatchId
 			,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1620,7 +2018,7 @@ BEGIN
 	END
 
 	--Loginfo table
-	IF @IssueTypeId NOT IN (1,3,10)
+	IF @IssueTypeId IN (8,9)
 	BEGIN
 		SELECT MatchId
 			,STUFF(w.scores,1,1,'') AS LiveScores
@@ -1629,13 +2027,12 @@ BEGIN
 			,SUM(SingleCount) AS SingleCount
 			,SUM(CashOutCount) AS CashOutCount
 			,SUM(InstantlySettleCount) AS InstantlySettleCount
+			,SUM(SettleCount) AS SettleCount
 			,SUM(MainParlayCount) AS MainParlayCount
 			,MIN(MinSingleTransId) AS MinSingleTransId
 			,MAX(MaxSingleTransId) AS MaxSingleTransId
 			,MIN(MinMainParlayTransId) AS MinMainParlayTransId
 			,MAX(MaxMainParlayTransId) AS MaxMainParlayTransId
-			,MIN(HighLightTransId) AS HighLightTransId
-			,MIN(HighlightAcceptType) AS HighlightAcceptType
 		FROM #logInfo l
 			CROSS APPLY(
 						SELECT '|' + LiveScores
@@ -1655,6 +2052,7 @@ BEGIN
 					,SUM(SingleCount) AS SingleCount
 					,SUM(CashOutCount) AS CashOutCount
 					,SUM(InstantlySettleCount) AS InstantlySettleCount
+					,SUM(SettleCount) AS SettleCount
 					,SUM(MainParlayCount) AS MainParlayCount
 					,MIN(MinSingleTransId) AS MinSingleTransId
 					,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -1676,6 +2074,7 @@ BEGIN
 			,SingleCount
 			,CashOutCount
 			,InstantlySettleCount
+			,SettleCount
 			,MainParlayCount
 			,MinSingleTransId
 			,MaxSingleTransId
@@ -1714,6 +2113,7 @@ BEGIN
 			,SUM(SingleCount) AS SingleCount
 			,SUM(CashOutCount) AS CashOutCount
 			,SUM(InstantlySettleCount) AS InstantlySettleCount
+			,SUM(SettleCount) AS SettleCount
 			,SUM(MainParlayCount) AS MainParlayCount
 			,MIN(MinSingleTransId) AS MinSingleTransId
 			,MAX(MaxSingleTransId) AS MaxSingleTransId
@@ -1743,6 +2143,6 @@ BEGIN
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #WrongScores
 	DROP TABLE #FilterInfo
-
+	DROP TABLE #WrongHDP
 END
 GO
