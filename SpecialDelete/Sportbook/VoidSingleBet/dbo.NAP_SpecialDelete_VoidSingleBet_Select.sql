@@ -1047,6 +1047,7 @@ BEGIN
 				AND (s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) 
 					AND ISNULL(sub.custid,0) NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
 				)  -- Betfair: BFOS, BF, ITibc102, BF3	
+				AND s.betdaqid <> -2 --NOT Cashout
 		UNION ALL
 		----2: For 8RM/BARM
 		SELECT  s.GroupID
@@ -1104,6 +1105,7 @@ BEGIN
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = @matchid
 		WHERE	s.recommend IN (52466, 5707545)
+			AND s.betdaqid <> -2 --NOT Cashout
 		UNION ALL
 		----3. For Deposit bets
 		SELECT  s.GroupID
@@ -1172,8 +1174,9 @@ BEGIN
 				AND ( s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) 
 					AND ISNULL(sub.custid,0) NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3	
 				) 
+				AND s.betdaqid <> -2 --NOT Cashout
 		UNION ALL
-		----8: For Betfair
+		----4: For Betfair
 		SELECT  s.GroupID
 			   ,s.transid		
 			   ,s.custid		
@@ -1231,6 +1234,63 @@ BEGIN
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 				OR sub.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
+			AND s.betdaqid <> -2 --NOT Cashout
+		UNION ALL
+		----5: For Cash Out
+		SELECT  s.GroupID
+			   ,s.transid		
+			   ,s.custid		
+			   ,s.username	
+			   ,s.odds
+			   ,s.oddsspread			   
+			   ,s.OddsType	
+			   ,s.transdate
+			   ,s.checktime	
+			   ,s.bettype
+			   ,s.betteam		
+			   ,s.betcheck
+			   ,s.hdp1		
+			   ,s.hdp2		
+			   ,s.IsLiveIndicator
+			   ,s.livehomescore
+			   ,s.liveawayscore	
+			   ,s.Stake		
+			   ,s.CurrencyName
+			   ,s.IsDeposit	
+			   ,s.status		
+			   ,s.mrecommend	
+			   ,s.recommend	
+			   ,s.SecAcceptFlag	
+			   ,s.betid	
+			   ,s.SportType	 
+			   ,NULL AS followedId
+			   ,NULL AS followedUsername
+			   ,s.TransDesc
+			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
+			   ,s.refno
+			   ,s.mainstatusid
+			   ,'Cash Out' AS OriginGroupName
+			   ,s.betdaqid
+			   ,s.ExtraInfo
+			   ,s.IsCashOut
+			   ,s.WalletType
+			   ,s.RefCode
+			   ,s.BonusID
+			   ,s.MainTransId
+			   ,s.WinLost
+			   ,s.IsMixParlay
+			   ,s.SubTransid
+			   ,s.SubStatus
+			   ,s.SubBetcheck
+			   ,s.SubBetteam
+			   ,s.SubBettype
+			   ,s.SubHdp1
+			   ,s.SubHdp2
+			   ,s.SubOdds
+			   ,s.IsMarked
+			   ,s.ActualStake
+		FROM #SpecialDeleteBets s
+		WHERE s.betdaqid = -2 -- Cashout
 	)
 	, CTE_CalculateMainBettype AS (
 		SELECT s.*
@@ -1341,6 +1401,7 @@ BEGIN
 				WHEN s.OriginGroupName = '8RM/BARM' THEN 2
 				WHEN s.OriginGroupName = 'Deposit' THEN 3
 				WHEN s.OriginGroupName = 'Betfair' THEN 4
+				WHEN s.OriginGroupName = 'Cash Out' THEN 5
 			 END
 		   , CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
 				ELSE 2

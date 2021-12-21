@@ -180,7 +180,6 @@ BEGIN
 		,transid		BIGINT PRIMARY KEY --bettrans.transid
 		,matchid		INT
 		,Bettype		SMALLINT
-		,OriginalBetType SMALLINT
 		,betid			BIGINT
 		,stake			MONEY
 		,odds			MONEY
@@ -1813,7 +1812,6 @@ BEGIN
 		,b.leagueid		
 		,b.IsNeutral
 		,b.showtime
-		,b.OriginalBetType
 		,b.odds
 		,b.oddsspread
 		,b.oddsType

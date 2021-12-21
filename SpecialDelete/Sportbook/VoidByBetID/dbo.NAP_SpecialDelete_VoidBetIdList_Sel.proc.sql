@@ -113,7 +113,6 @@ BEGIN
 	CREATE TABLE #Data
              (GroupID               BIGINT,
               bettype               INT,
-              OriginalBetType       SMALLINT,
               transid               BIGINT,
               betid                 BIGINT,
               refno                 BIGINT,
@@ -808,7 +807,6 @@ BEGIN
 	SELECT
 		CASE WHEN d.bettype BETWEEN 801 AND 899 THEN d.refno ELSE d.transid END AS transid
 		,d.bettype
-		,d.OriginalBetType
 		,d.betid
 		,d.refno
 		,d.matchcode
