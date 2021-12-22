@@ -42,6 +42,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
 	,@RedCardInfo			VARCHAR(MAX)  = NULL
+	,@WrongHDPInfo			VARCHAR(MAX)  = NULL
+	,@Wrong1stHDPInfo		VARCHAR(MAX)  = NULL
 	,@IsVoided				BIT			  = 0
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -74,6 +76,7 @@ AS
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
+		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -81,18 +84,14 @@ AS
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 		+ @MatchParlayProcessXML: : <root><r MatchId="1" RefNo="1"/></root>
-		+ @WrongScoreInfo:
-			<root>
-				<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
-			</root>
+		+ @WrongScoreInfo: 
+			<root><r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/></root>
 		+ @DangerAcceptInfo:
-			<root>
-				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
-			</root>
+			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/></root>
 		+ @RedCardInfo:
-			<root>
-				<r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
-			</root>
+			<root><r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/></root>
+		+ @WrongHDPInfo, @Wrong1stHDPInfo:
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" SubIssueTypeId=""/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -117,9 +116,8 @@ BEGIN
 			,@TotalParlay		INT = 0
 			,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting
 			,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
-			,@session			NVARCHAR(50)
+			,@Session			NVARCHAR(50) = CAST(NEWID() AS NVARCHAR(50))
 
-	SET @session = CAST(NEWID() AS NVARCHAR(50))
 	CREATE TABLE #OperatorInfo(
 		[RequestId] [int] NOT NULL,
 		[OperatorId] [int] NOT NULL,
@@ -290,6 +288,8 @@ BEGIN
 				,@WrongScoreInfo = @WrongScoreInfo	
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
+				,@WrongHDPInfo = @WrongHDPInfo
+				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
 				,@ErrMsg = @ErrMsg	OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
 				,@FailedTransIds = @FailedTransIds OUTPUT
@@ -315,8 +315,10 @@ BEGIN
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
+				,@WrongHDPInfo = @WrongHDPInfo
+				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
 
-		IF @IssueTypeId IN (1,8,9,10,3)
+		IF @IssueTypeId IN (1,8,9,10,3,4,5)
 		BEGIN
 		EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 				@RequestId = @RequestId		
@@ -331,6 +333,8 @@ BEGIN
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
+				,@WrongHDPInfo = @WrongHDPInfo
+				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
 		END
 
 		IF (@TotalParlay = 0 OR @TotalParlay <= @ThreadHold) AND @IssueTypeId <> 17 

@@ -38,6 +38,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
 	,@RedCardInfo			VARCHAR(MAX)  = NULL
+	,@WrongHDPInfo			VARCHAR(MAX)  = NULL
+	,@Wrong1stHDPInfo		VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -64,6 +66,7 @@ AS
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
+		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -73,17 +76,13 @@ AS
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
 		+ @MatchParlayProcessXML: : <root><r MatchId="1" RefNo="1"/></root>
 		+ @WrongScoreInfo: 
-			<root>
-				<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
-			</root>
+			<root><r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/></root>
 		+ @DangerAcceptInfo:
-			<root>
-				<r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
-			</root>
+			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/></root>
 		+ @RedCardInfo:
-			<root>
-				<r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/>
-			</root>
+			<root><r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/></root>
+		+ @WrongHDPInfo, @Wrong1stHDPInfo:
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" SubIssueTypeId=""/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -97,8 +96,13 @@ BEGIN
 			,@TotalParlay		INT = 0
 			,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
-			,@session			NVARCHAR(50)
-	SET @session = CAST(NEWID() AS NVARCHAR(50))
+			,@Session			NVARCHAR(50) = CAST(NEWID() AS NVARCHAR(50))
+	
+	DECLARE	 @WrongScoreInfoXML		  XML = NULL
+			,@DangerAcceptedInfoXML	  XML = NULL
+			,@RedCardInfoXML		  XML = NULL
+			,@WrongHDPInfoXML		  XML = NULL	
+			,@Wrong1stHDPInfoXML	  XML = NULL
 
 	DECLARE @SingleCount			INT
 		   ,@MainParlayCount		INT
@@ -246,7 +250,22 @@ BEGIN
 		FROM @RedCardInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))	
 	END
-
+	IF @IssueTypeId = 4 --Wrong HDP
+	BEGIN
+		SET @WrongHDPInfoXML = CONVERT(xml, @WrongHDPInfo)
+		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
+			  ,@MainParlayCount = SUM(t.c.value('@MainParlayCount','INT'))
+		FROM @WrongHDPInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
+	END
+	IF @IssueTypeId = 5 --Wrong 1st HDP
+	BEGIN
+		SET @Wrong1stHDPInfoXML = CONVERT(xml, @Wrong1stHDPInfo)
+		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
+			  ,@MainParlayCount = SUM(t.c.value('@MainParlayCount','INT'))
+		FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))	
+	END
 	INSERT INTO dbo.TicketVoiding_Request (Sporttype, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
 	SELECT @Sporttype, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
 
@@ -272,8 +291,10 @@ BEGIN
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
+				,@WrongHDPInfo = @WrongHDPInfo
+				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
 	
-	IF (@IssueTypeId IN(8,9,11,13,15,17) OR (@IssueTypeId IN (1,10,3) AND @SingleCount > 0))
+	IF (@IssueTypeId IN(8,9,11,13,15,17) OR (@IssueTypeId IN (1,10,3,4,5) AND @SingleCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 				@RequestId = @RequestId			
@@ -295,9 +316,11 @@ BEGIN
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
+				,@WrongHDPInfo = @WrongHDPInfo
+				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
 	END
 
-	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3) AND @MainParlayCount > 0))
+	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3,4,5) AND @MainParlayCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 				@RequestId = @RequestId		
@@ -312,6 +335,8 @@ BEGIN
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
+				,@WrongHDPInfo = @WrongHDPInfo
+				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
 	END
 
 
@@ -390,7 +415,7 @@ BEGIN
 								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
-								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15,4,5) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
 															   ELSE '' END
 								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
 								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL)
