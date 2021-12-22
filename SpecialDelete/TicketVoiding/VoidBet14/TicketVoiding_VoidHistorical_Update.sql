@@ -28,13 +28,11 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	DECLARE	@isExistCashOut		BIT = 0
-			,@StartTime			DATETIME
+	DECLARE	 @StartTime			DATETIME
 			,@EndTime			DATETIME
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
-			,@xmlTransId		VARCHAR(MAX)
 			,@IsAbnormalBet		TINYINT
 			,@CustIds			VARCHAR(MAX)
 
@@ -64,25 +62,16 @@ BEGIN
 		,balance		MONEY
 	)	
 	DECLARE @tblInputTransId AS TABLE (transid BIGINT PRIMARY KEY)		
-	DECLARE @tblCustCashOut912 TABLE (custid INT, matchid INT) --store Cash-Out's custid	
-	DECLARE @tmpTransIdBatch TABLE (
-		TransId				BIGINT
-		,sporttype			SMALLINT
-	)
+	DECLARE @tmpTransIdBatch TABLE (TransId	BIGINT,sporttype SMALLINT)
 
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
 		,custid				INT
 		,bettype			SMALLINT
-		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
-		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade (not support), 5: Metric gaming
-		,betid				BIGINT
-		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
 		,awinlost			MONEY
 		,actual_stake		MONEY
-		,isSubTransaction	BIT	DEFAULT(0)
 		,refcode			BIGINT
 		,sporttype			SMALLINT
 		,matchid			INT
@@ -124,12 +113,9 @@ BEGIN
 		RETURN
 	END CATCH						
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, extrainfo, refcode, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
 	SELECT	b.transid, b.custid, b.bettype
-			,CASE 
-				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3			
-				ELSE 1 END AS TicketType
-			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
+			,b.ExtraInfo, b.RefCode
 			,b.matchid, b.oddsid
 			,b.winlostdate, b.refno
 			,b.srecommend
@@ -137,9 +123,8 @@ BEGIN
 	FROM @tblInputTransId t 
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 			ON b.transid = t.transid
-	WHERE b.statusID NOT IN (101, 102)													
-		
-	
+	WHERE b.statusID NOT IN (101, 102)
+
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
@@ -212,40 +197,6 @@ BEGIN
 		
 		RETURN
 	END
-	
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
-	BEGIN
-		SET @isExistCashOut = 1
-
-		-- get 911
-		INSERT INTO #tmpTransId (TransId, custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype, srecommend)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.matchid, main.sporttype, sub.srecommend
-		FROM	#tmpTransId main
-			INNER JOIN dbo.bettrans14 sub WITH(NOLOCK)
-				ON	sub.refno = main.TransId
-					AND sub.matchid = main.matchid
-					AND sub.custid = main.custid
-					AND sub.bettype = 911
-		WHERE	main.TicketType = 3
-				AND sub.statusID NOT IN (101, 102)
-
-		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId(TransId,custid, Refno, bettype, TicketType, isSubTransaction, matchid, sporttype, srecommend)
-		SELECT	sub.TransId,sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub.matchid, sub911.sporttype, sub.srecommend
-		FROM	#tmpTransId sub911
-			INNER JOIN dbo.bettrans14 sub WITH(NOLOCK)
-				ON	sub.refno = sub911.TransId
-					AND sub.matchid = sub911.matchid
-		WHERE	sub.statusID NOT IN (101, 102)
-				AND sub911.bettype = 911
-
-		INSERT INTO @tblCustCashOut912(CustId, matchid)
-		SELECT DISTINCT	t.custid, t.matchid
-		FROM	#tmpTransId t
-		WHERE	t.TicketType = 3
-				AND t.bettype = 912
-		GROUP BY t.custid, t.matchid
-	END
 
 	-- Insert more bonus or cash ticket in case only one ticket appears in #BetDelete	
 	INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
@@ -257,8 +208,8 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId (TransId, custid, bettype, KeyId, TicketType, refcode, matchid)
-		SELECT b.TransId, b.custid, b.bettype, 1, 1, b.refcode, b.matchid
+		INSERT INTO #tmpTransId (TransId, custid, bettype, refcode, matchid)
+		SELECT b.TransId, b.custid, b.bettype, b.refcode, b.matchid
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans14 b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -304,10 +255,8 @@ BEGIN
 	SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
 		,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
 		,b.betteam, b.creator,b.refno, b.winlostdate, b.betfrom
-		,CASE 
-			WHEN t.TicketType = 3 THEN @session -- original ticket & cashout bet ticket
-			ELSE b.betcheck END AS betcheck 
-		,CASE WHEN t.TicketType = 3 AND t.isSubTransaction = 1 THEN 'CO' ELSE b.comstatus END
+		,b.betcheck
+		,b.comstatus
 		,b.checktime, b.matchid, b.bettype  
 		,@VoidingHistoryId
 	FROM	#tmpTransId AS t WITH (NOLOCK)  
@@ -338,34 +287,13 @@ BEGIN
 					ELSE 4  -- Others
 				   END AS balanceType
 				,CASE 
-					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 					ELSE 0 END AS BonusID
-				,CASE
-					WHEN t.isSubTransaction = 1 THEN 2
-					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
-				,b.winlost 
-					- CASE 
-						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
-						ELSE b.actual_stake 
-					END 
-					+ b.playercomm AS balance
+				,ISNULL(b.WalletType, 2) AS WalletType
+				,b.winlost - b.actual_stake + b.playercomm AS balance
 		FROM	#tmpTransId t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON	t.TransId = b.transid
-		
-		UNION ALL
-		SELECT	b914.matchid
-				,b914.custid
-				,1 AS balanceType
-				,0 AS BonusId
-				,2 AS WalletType
-				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-		FROM	@tblCustCashOut912 c
-			INNER JOIN dbo.bettrans14 b914 WITH(NOLOCK)
-				ON	b914.matchid = c.matchid
-					AND b914.custid = c.CustId
-					AND b914.bettype = 914
 	)b
 	GROUP BY b.matchid
 			,b.custid
@@ -437,42 +365,6 @@ BEGIN
 
 	END
 
-	-- PRE CAL 914
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId t WHERE t.TicketType = 3)
-	BEGIN
-		BEGIN TRY				
-			DECLARE @TempDataBT1 TABLE(RowId INT IDENTITY(1,1), MatchId INT, CustIds VARCHAR(MAX))
-			INSERT INTO @TempDataBT1(MatchId, CustIds)
-			SELECT MatchId, STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
-									FROM @tblCustCashOut912 tt 
-									where tt.MatchId = t.MatchId
-									FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
-			FROM @tblCustCashOut912 t
-			GROUP BY MatchId
-				
-			DECLARE @RowIdBT1 INT, @MatchIdTmpBT1 INT, @CustIdsBT1 VARCHAR(MAX)
-			SELECT @RowIdBT1 = 1
-			WHILE EXISTS (SELECT TOP 1 1 FROM @TempDataBT1 WHERE RowId = @RowIdBT1)
-			BEGIN
-				SELECT @MatchIdTmpBT1 = MatchId
-					, @CustIdsBT1 = CustIds
-				FROM @TempDataBT1 t 
-				WHERE RowId = @RowIdBT1
-					
-				EXEC dbo.TicketVoiding_HistoricalCalculate_914 
-					@MatchId 	= @MatchIdTmpBT1
-					, @Action 	= 'VOID'
-					, @CustIds 	= @CustIdsBT1
-						
-				SET @RowIdBT1 = @RowIdBT1 + 1
-			END				
-		END TRY 
-		BEGIN CATCH
-			SELECT @ErrCode = 914
-					, @ErrMsg = 'Called NAP_Admin_Calculate_914 with error.'
-		END CATCH
-	END
-
 	--capture balance after
 	INSERT INTO @AfterUpd(
 		matchid
@@ -497,29 +389,13 @@ BEGIN
 					ELSE 4  -- Others
 				   END AS balanceType
 				,CASE 
-					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 					ELSE 0 END AS BonusID
-				,CASE
-					WHEN t.isSubTransaction = 1 THEN 2
-					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+				,ISNULL(b.WalletType, 2) AS WalletType
 				,b.winlost - b.actual_stake + b.playercomm AS balance
 		FROM	#tmpTransId t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON	t.TransId = b.transid
-		
-		UNION ALL
-		SELECT b914.matchid
-				,b914.custid
-				,1 AS balanceType
-				,0 AS BonusId
-				,2 AS WalletType
-				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-		FROM	@tblCustCashOut912 c
-			INNER JOIN dbo.bettrans14 b914 WITH(NOLOCK)
-				ON	b914.matchid = c.matchid
-					AND b914.custid = c.CustId
-					AND b914.bettype = 914
 	)b
 	GROUP BY b.matchid
 			,b.custid
