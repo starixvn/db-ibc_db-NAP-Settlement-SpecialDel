@@ -55,8 +55,7 @@ BEGIN
 			,@strRefno VARCHAR(MAX)
 			,@CustIds VARCHAR(MAX)
 
-	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
-	SET @RetryCnt = 0
+	DECLARE @Retry INT, @Success BIT
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	DECLARE @tblDebitPending TVP_BalanceList  

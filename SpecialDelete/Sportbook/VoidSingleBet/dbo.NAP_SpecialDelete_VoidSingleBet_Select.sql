@@ -1311,7 +1311,7 @@ BEGIN
 			   ,CASE 
 					WHEN @eventstatus <> @eventstatus_completed -- cases 1, 2, 3 
 							THEN CASE
-									WHEN s.mainstatusid IN (111, 112, 113)
+									WHEN s.mainstatusid IN (111, 112, 113) AND s.betdaqid <> -2
 										 AND EXISTS (SELECT TOP 1 1
 													 FROM #InstantSettlementBettypes
 													 WHERE bettype = s.MainBettype)

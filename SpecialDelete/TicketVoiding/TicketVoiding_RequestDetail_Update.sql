@@ -166,19 +166,6 @@ BEGIN
 			,TypeAccept				VARCHAR(MAX)
 			,SubIssueTypeId			SMALLINT
 		)
-	CREATE TABLE #tblOldResulDetail (
-			  RequestId INT
-			, MatchId INT
-			, FilterFromTransTime DATETIME
-			, FilterToTransTime DATETIME
-			, FilterBy TINYINT
-			, LiveHomeScore INT
-			, LiveAwayScore INT
-			, IssueDetail VARCHAR(MAX)
-			, TypeAccept VARCHAR(50)
-			, ActualScore VARCHAR(50)
-			, SubIssueTypeId SMALLINT
-			)
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -308,20 +295,6 @@ BEGIN
 			FROM @RedCardInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))
 		END
-
-		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, SubIssueTypeId)
-		SELECT RequestId
-			 , MatchId
-			 , FilterFromTransTime
-			 , FilterToTransTime
-			 , FilterBy
-			 , LiveHomeScore
-			 , LiveAwayScore
-			 , IssueDetail
-			 , TransIds
-			 , SubIssueTypeId
-		FROM dbo.TicketVoiding_RequestDetail  WITH(NOLOCK)
-		WHERE RequestId = @RequestId
 
 		DELETE rd
 		FROM dbo.TicketVoiding_RequestDetail rd
@@ -1279,7 +1252,6 @@ BEGIN
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #transIdTemp
 	DROP TABLE #tblGetLogInfo
-	DROP TABLE #tblOldResulDetail
 	DROP TABLE #InputValidCustid_1
 	DROP TABLE #transidremove_tmp
 END

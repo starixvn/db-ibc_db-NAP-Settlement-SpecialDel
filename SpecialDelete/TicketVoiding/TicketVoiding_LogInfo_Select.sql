@@ -1091,7 +1091,7 @@ BEGIN
 			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid AND s.MatchId =  b.matchid
 			WHERE s.RequestId = @RequestId
-				AND b.statusID IN (111,112,113)
+				AND b.statusID IN (111,112,113) AND b.betdaqid <> -2
 				 AND EXISTS (SELECT TOP 1 1
 							 FROM #InstantSettlementBettypes
 							 WHERE bettype = b.bettype)
@@ -1206,7 +1206,7 @@ BEGIN
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid
 			WHERE s.RequestId = @RequestId
 				AND s.MatchId = @MatchId
-				AND b.statusID IN (111,112,113)
+				AND b.statusID IN (111,112,113) AND b.betdaqid <> -2
 				 AND EXISTS (SELECT TOP 1 1
 							 FROM #InstantSettlementBettypes
 							 WHERE bettype = b.bettype)
