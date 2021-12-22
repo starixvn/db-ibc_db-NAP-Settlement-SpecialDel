@@ -45,6 +45,7 @@ BEGIN
 		,betfrom		NVARCHAR(1)
 		,refno			BIGINT
 		,winlostdate	DATETIME
+		,betdaqid		BIGINT
 		)
 
 	IF (@TransIds IS NULL
@@ -66,6 +67,7 @@ BEGIN
 		,betfrom
 		,refno
 		,winlostdate
+		,betdaqid
 		)
 	SELECT b14.transid
 		,statusID
@@ -74,6 +76,7 @@ BEGIN
 		,betfrom
 		,refno
 		,winlostdate
+		,betdaqid
 	FROM dbo.bettrans14 AS b14 WITH (NOLOCK)
 		INNER JOIN #transIdTemp tmp ON b14.transid = tmp.transid
 	
@@ -84,6 +87,7 @@ BEGIN
 	WHERE StatusId IN (101, 102, 103)
 		OR bt.bettype IS NULL
 		OR t.betfrom ='p'
+		OR t.betdaqid = 0 --old main cashout
 		
 	-- invalid transId
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
