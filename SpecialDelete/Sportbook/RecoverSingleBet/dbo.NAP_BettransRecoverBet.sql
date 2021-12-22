@@ -1,13 +1,11 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 (
-	@TransIds			VARCHAR(MAX),
-	@TransIdSolds		VARCHAR(MAX)	= '', -- just for BetTrade's subticket (transid of bettype 901)  	
+	@TransIds			VARCHAR(MAX), 	
 	@UserId				INT,	
 	@IP					VARCHAR(50),
 	@ErrCode			INT				= 0		OUTPUT,
 	@ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
-	@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT,
 	@AutoReSettledTransIds   VARCHAR(MAX)	= '' OUTPUT
 )
 AS
@@ -89,7 +87,6 @@ BEGIN
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
-			,@InvalidTransIds = ''
 
 	CREATE TABLE #tblTransInfo (
 		grouptransid	BIGINT
@@ -593,14 +590,7 @@ BEGIN
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tblTransInfo)
 	BEGIN
-		IF @InvalidTransIds = ''
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'				
-		
-		------ releasing cash-out process
-		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-				@Mode = 'Original'
-			  , @Action = 'Recover'
-			  , @IsReleased = 1	
+		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'				
 		
 		RETURN
 	END
