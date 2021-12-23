@@ -201,7 +201,7 @@ BEGIN
 	
 	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
 											OR @IsExistsSettledParlayTickets = 1
-											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 1) THEN 1
+											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0) THEN 1
 										ELSE 0 END
 
 	IF (

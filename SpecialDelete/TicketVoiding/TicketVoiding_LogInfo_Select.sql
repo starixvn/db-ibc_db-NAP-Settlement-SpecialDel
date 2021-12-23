@@ -996,12 +996,18 @@ BEGIN
 		,b.ScoreId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
+		OUTER APPLY (
+				SELECT TOP 1 t.TransId
+				FROM #TransidInRequest t 
+				WHERE t.TransId = b.SubTransid
+		)tmp
 		CROSS APPLY (SELECT CASE 
 								WHEN @FilterBy = 1 THEN b.transdate
 								WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 								WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 							 END AS VoidTime
 					)act
+	WHERE tmp.TransId IS NULL
 	GROUP BY CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.matchid, b.ScoreId
 	ORDER BY b.ScoreId, CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END
 
