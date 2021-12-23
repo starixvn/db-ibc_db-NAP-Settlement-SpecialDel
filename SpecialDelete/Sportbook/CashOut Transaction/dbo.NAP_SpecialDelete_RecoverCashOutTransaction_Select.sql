@@ -233,8 +233,7 @@ BEGIN
 				   AND z.custid = sub.custid				
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON m.matchid = z.matchid
-		WHERE	sub.transid IN (SELECT transid FROM #tblTransIds)					
-				AND sub.bettype = 911			
+		WHERE	sub.transid IN (SELECT transid FROM #tblTransIds)							
 				AND sub.betdaqid = -1
 				AND z.comstatus = 'CO'
 

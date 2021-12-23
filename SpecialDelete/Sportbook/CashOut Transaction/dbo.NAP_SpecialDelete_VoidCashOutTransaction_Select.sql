@@ -319,7 +319,7 @@ BEGIN
 		FROM	dbo.bettrans sub WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
 		WHERE	sub.transid IN (SELECT transid FROM #tblTransIds)				
-				AND sub.bettype = -2
+				AND sub.betdaqid = -2
 				AND sub.statusID IN (103, 111, 112, 113)
 
 		IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @MovebetDate)

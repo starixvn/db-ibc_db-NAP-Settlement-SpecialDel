@@ -26,6 +26,7 @@ BEGIN
         - 20150922@Kathy: Add more Type value to support BetTrade transaction [Redmine:#43233]
         - 20170405@Kent: Integrate Cash-out [Redmine:#72059]
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
+		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
     
     Param's Explanation:    
         - @Type: sports type
@@ -77,11 +78,7 @@ BEGIN
         FROM dbo.bettrans WITH (NOLOCK)        
         WHERE transid IN (@FromRefno,@ToRefno)
             AND matchid = @MatchID    
-            AND bettype = CASE 
-							WHEN @Type = 4 THEN 901
-							WHEN @Type = 5 THEN 911 
-							ELSE bettype 
-						  END
+
         UNION ALL
         SELECT 1 Row
         FROM dbo.translog WITH (NOLOCK)        

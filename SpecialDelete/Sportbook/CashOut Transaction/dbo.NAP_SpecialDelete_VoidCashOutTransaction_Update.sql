@@ -130,8 +130,7 @@ BEGIN
 	SELECT	t.val
 	FROM dbo.f_SplitString(@TransIds, ',') t
 	OPTION (maxrecursion 0)
-	
-	--> get 911	
+		
 	INSERT INTO #SpecialDeleteBets(
 					TransId,
 					BetType,
