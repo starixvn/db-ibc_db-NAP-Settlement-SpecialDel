@@ -255,7 +255,7 @@ BEGIN
 										WHEN t.zzzstatus = 'DRAW' THEN '111' 
 									END
 	  , statuswinlost = t.statuswinlost						
-	  , ruben = t.ruben				
+	  , ruben = 1				
 	  , creator = t.zzzCreator
 	  , modds = t.modds	 
 	  , b.betdaqid = -2
