@@ -44,7 +44,7 @@ BEGIN
 		,@MatchId	= @MatchId
 		,@SourceId	= @SourceId
 		,@UserId	= @UserId
-
+		,@EnvFlag	= @EnvFlag
 
 	ELSE IF @ExternalResultTable = 3 ---- E-Sports
 	EXEC NAP_Set_ProviderExternalResultDetailESUnMapping
