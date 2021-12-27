@@ -17,20 +17,19 @@ AS
 		- 20210504@Louisa: Intergration Result for Cricket - Weverdat [Redmine:#154493]
 		- 20210730@Louisa: Intergration L-Sports [Redmine:#159307]
 		- 20210805@Louisa: Default for Other sports [Redmine:#159307]
-		
+		- 20211223@Louisa: mapping between in-house and external match [Redmine:#166449]
 */
 BEGIN
 	
 	SELECT @Sporttype  = ISNULL( @Sporttype, 0 )
 
-	IF @Sporttype = 43 ---- E-Sports
-	BEGIN
-		EXEC dbo.NAP_Set_ProviderExternalResultDetailESSel
-			@MatchId3rd	= @MatchId3rd
-			,@SourceId	= @SourceId
-	END
+	DECLARE @ExternalResultTable TINYINT
+	
+	SELECT  @ExternalResultTable = ss.ExternalResultTable 
+	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @Sporttype
 
-	ELSE IF @Sporttype IN ( 1,2,3,4,6,8,18,19,24,25 ) ----Soccer + ( 1,2,3,4,6,8,18,19,24,25 )
+	IF @ExternalResultTable = 1
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailSel
 			@MatchId3rd	= @MatchId3rd
@@ -39,14 +38,19 @@ BEGIN
 			,@IsInhouse	= @IsInhouse
 	END
 
-	ELSE
+	IF @ExternalResultTable = 3 ---- ESports
 	BEGIN
+		EXEC dbo.NAP_Set_ProviderExternalResultDetailESSel
+			@MatchId3rd	= @MatchId3rd
+			,@SourceId	= @SourceId
+	END
+
+	ELSE
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailOSSel
 			@MatchId3rd	= @MatchId3rd
 			,@SourceId	= @SourceId
 			,@MatchId	= @MatchId
 			,@IsInhouse	= @IsInhouse
-	END
 
 END
 GO
