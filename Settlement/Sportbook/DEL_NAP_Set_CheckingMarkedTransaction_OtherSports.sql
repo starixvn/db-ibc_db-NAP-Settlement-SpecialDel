@@ -14,6 +14,7 @@ AS
 		- 20200203@Sol: Settlement with Tickets Exclusion [Redmine:#126963]
 		- 20200330@Sol: Settlement with Ticket Exclusion for Other Sports - Tennis - [Redmine:#129316]
 		- 20200508@Kathy: wrong split string function if ResourceId exceed 100 values [Redmine:#133518]
+		- 20211227@Louisa: Louisa Test
 		
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
