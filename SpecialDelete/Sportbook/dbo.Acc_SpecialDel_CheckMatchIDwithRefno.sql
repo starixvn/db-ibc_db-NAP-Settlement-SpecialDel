@@ -77,7 +77,8 @@ BEGIN
     (    SELECT 1 Row
         FROM dbo.bettrans WITH (NOLOCK)        
         WHERE transid IN (@FromRefno,@ToRefno)
-            AND matchid = @MatchID    
+            AND matchid = @MatchID   
+			AND betdaqid = CASE WHEN @Type = 5 THEN -2 ELSE betdaqid END
 
         UNION ALL
         SELECT 1 Row

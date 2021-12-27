@@ -137,6 +137,8 @@ BEGIN
 		,winlostdate	DATETIME
 		,ParentID		INT
 		,ChildMatchType TINYINT
+		,zzzwinlost		MONEY
+		,modds			MONEY
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -199,6 +201,8 @@ BEGIN
 				,RefCode
 				,BonusID
 				,winlostdate
+				,zzzwinlost
+				,modds
 		)
 		SELECT	z.transid
 				,z.transid
@@ -235,6 +239,8 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,b.winlostdate
+				,z.winlost
+				,b.modds
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.refno
@@ -284,6 +290,8 @@ BEGIN
 				,RefCode
 				,BonusID
 				,winlostdate
+				,zzzwinlost
+				,modds
 		)
 		SELECT	z.transid
 				,z.transid
@@ -322,6 +330,8 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,m.eventdate
+				,z.winlost
+				,b.modds
 		FROM	#tbTransId t		
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
@@ -637,11 +647,6 @@ BEGIN
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN		
-		------ releasing cash-out process
-		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-				@Mode = 'Original'
-			  , @Action = 'Recover'
-			  , @IsReleased = 1	
 		
 		RETURN
 	END
@@ -687,11 +692,16 @@ BEGIN
 	---- recover : normal (NOT IN 468, 469), main bettrade, main cash-out, cash-out member bet ticket
 	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE main
-	SET winlost = 0
-	    ,ruben = 0
+	SET winlost = CASE WHEN t.IsCashOut = 0 THEN 0 ELSE t.zzzwinlost END 
+	    ,ruben = CASE WHEN t.IsCashOut = 0 THEN 0 ELSE main.ruben END
 	    ,statuswinlost = NULL
-	    ,STATUS = 'running'
-	    ,statusID = 0
+	    ,STATUS = CASE WHEN t.IsCashOut = 0 THEN 'running' ELSE t.status END 
+	    ,statusID = CASE WHEN t.IsCashOut = 0 THEN 0 
+						ELSE CASE WHEN t.status = 'WON' THEN '112' 
+									WHEN t.status = 'LOSE' THEN '113' 
+									WHEN t.status = 'DRAW' THEN '111' 
+								END
+						END
 	    ,creator = t.creator
 		,actual_stake = CASE WHEN main.bettype BETWEEN 801 AND 806 THEN 0 ELSE main.actual_stake END
 		,odds = CASE WHEN main.bettype = 376 THEN main.oddsspread ELSE main.odds END
@@ -708,6 +718,150 @@ BEGIN
 	--Update CashOutSelling for new CO Model
 	IF EXISTS (SELECT TOP(1) 1 FROM #tblTransInfo WHERE IsCashOut = 1)
 	BEGIN
+
+		--> re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
+		;WITH CTE_main_cashoutticket AS
+		(
+			SELECT transid
+				 , 1 AS TicketType	 
+				 , modds
+				 , Stake	
+				 , zzzwinlost
+			FROM #tblTransInfo
+			WHERE IsCashOut = 1
+		)
+		UPDATE	b WITH(ROWLOCK, UPDLOCK)
+		SET stake = TRef.stake
+		  , actual_stake = TRef.actual_stake
+	  
+		  , winlost = t.zzzwinlost
+		  , awinlost = TCal.awinlost
+		  , mWinLost = TCal.mWinLost
+		  , swinlost = TCal.swinlost
+	  
+		  , playercomm = TCal.playercomm
+		  , comm = TCal.comm
+		  , acomm = TCal.acomm
+		  , scomm = TCal.scomm
+		FROM dbo.bettrans b 
+			INNER JOIN CTE_main_cashoutticket AS t
+					ON b.transid = t.transId	    			
+			OUTER APPLY (
+							SELECT b.stake
+								 , CASE t.TicketType
+										WHEN 1 THEN CASE
+														WHEN b.odds < 0 THEN (b.stake) * abs(b.odds)
+														ELSE (b.stake)
+													END
+										WHEN 2 THEN b.actual_stake 
+								   END AS actual_stake
+							   
+								 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 0 ELSE 1 END AS CommWinRate
+								 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 2 ELSE 1 END AS CommLostRate
+							 
+								 , CASE 
+										WHEN b.odds<0 THEN 1 
+										ELSE (CASE 
+												WHEN b.bettype in (SELECT f.BetType 
+																   FROM [dbo].[f_Set_GetCashOutBettypes]() f
+																   WHERE f.IsDecimalOnly = 1) 
+														THEN b.odds-1 
+												ELSE b.odds 
+											  END) 
+									END AS odds
+						) AS TRef		
+			OUTER APPLY (SELECT CASE 
+									WHEN b.statusId = 0 THEN 0
+									WHEN b.statusId = 103 THEN TRef.actual_stake 								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25 THEN TRef.actual_stake + TRef.stake * TRef.odds
+																				WHEN t.modds =  0.25 THEN TRef.actual_stake + TRef.stake * TRef.odds * 0.5
+																				WHEN t.modds =  0	 THEN TRef.actual_stake	
+																				WHEN t.modds = -0.25 THEN TRef.actual_stake * 0.5
+																				WHEN t.modds < -0.25 THEN 0
+																		  END 								
+									ELSE b.winlost 
+								END AS winlost
+							  , CASE 
+									WHEN b.statusId IN (0, 103) THEN 0								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25 THEN TRef.stake * TRef.odds * -b.apositiontaking
+																				WHEN t.modds =  0.25 THEN TRef.stake * TRef.odds * -b.apositiontaking * 0.5
+																				WHEN t.modds =  0	 THEN 0	
+																				WHEN t.modds = -0.25 THEN TRef.actual_stake * b.apositiontaking * 0.5
+																				WHEN t.modds < -0.25 THEN TRef.actual_stake * b.apositiontaking
+																		  END								
+									ELSE b.awinlost 
+								END AS awinlost
+							  , CASE 
+									WHEN b.statusId IN (0, 103) THEN 0								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25  THEN TRef.stake * TRef.odds * -b.mpositiontaking
+																				WHEN t.modds =  0.25  THEN TRef.stake * TRef.odds * -b.mpositiontaking * 0.5
+																				WHEN t.modds =  0	  THEN 0	
+																				WHEN t.modds = -0.25  THEN TRef.actual_stake * b.mpositiontaking * 0.5
+																				WHEN t.modds < -0.25  THEN TRef.actual_stake * b.mpositiontaking
+																		  END								
+									ELSE b.mWinLost 
+								END AS mWinLost
+							  , CASE 
+									WHEN b.statusId IN (0, 103) THEN 0								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25  THEN TRef.stake * TRef.odds * -b.spositiontaking
+																				WHEN t.modds =  0.25  THEN TRef.stake * TRef.odds * -b.spositiontaking * 0.5
+																				WHEN t.modds =  0	  THEN 0	
+																				WHEN t.modds = -0.25  THEN TRef.actual_stake * b.spositiontaking * 0.5
+																				WHEN t.modds < -0.25  THEN TRef.actual_stake * b.spositiontaking
+																		  END								
+									ELSE b.swinlost 
+								END AS swinlost
+						  
+							  , CASE 
+									WHEN b.statusId IN (0, 103) THEN 0								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25  THEN TRef.commWinRate * b.playerdiscount * TRef.stake
+																				WHEN t.modds =  0.25  THEN TRef.commWinRate * b.playerdiscount * TRef.stake * 0.5
+																				WHEN t.modds =  0	  THEN 0	
+																				WHEN t.modds = -0.25  THEN TRef.commLostRate * b.playerdiscount * TRef.stake * 0.5
+																				WHEN t.modds < -0.25  THEN TRef.commLostRate * b.playerdiscount * TRef.stake
+																		  END								
+									ELSE b.playercomm 
+								END AS playercomm
+							  , CASE 
+									WHEN b.statusId IN (0, 103) THEN 0								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25  THEN TRef.commWinRate * b.discount * TRef.stake * (1-b.apositiontaking)
+																				WHEN t.modds =  0.25  THEN TRef.commWinRate * b.discount * TRef.stake * (1-b.apositiontaking) * 0.5
+																				WHEN t.modds =  0	  THEN 0	
+																				WHEN t.modds = -0.25  THEN TRef.commLostRate * b.discount * TRef.stake * (1-b.apositiontaking) * 0.5
+																				WHEN t.modds < -0.25  THEN TRef.commLostRate * b.discount * TRef.stake * (1-b.apositiontaking)
+																		  END								
+									ELSE b.comm 
+								END AS comm
+							  , CASE 
+									WHEN b.statusId IN (0, 103) THEN 0								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25  THEN TRef.commWinRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking))
+																				WHEN t.modds =  0.25  THEN TRef.commWinRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking)) * 0.5
+																				WHEN t.modds =  0	  THEN 0	
+																				WHEN t.modds = -0.25  THEN TRef.commLostRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking)) * 0.5
+																				WHEN t.modds < -0.25  THEN TRef.commLostRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking))
+																		  END								
+									ELSE b.acomm 
+								END AS acomm
+							  , CASE 
+									WHEN b.statusId IN (0, 103) THEN 0								
+									WHEN b.statusId IN (111,112,113) THEN CASE
+																				WHEN t.modds >  0.25  THEN TRef.commWinRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking))
+																				WHEN t.modds =  0.25  THEN TRef.commWinRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking)) * 0.5
+																				WHEN t.modds =  0	  THEN 0	
+																				WHEN t.modds = -0.25  THEN TRef.commLostRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking)) * 0.5
+																				WHEN t.modds < -0.25  THEN TRef.commLostRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking))
+																		  END								
+									ELSE b.scomm 
+								END AS scomm) AS TCal	
+		
+		--Update CO Selling
 		UPDATE co
 		SET co.CashOutStatus = 4
 		FROM dbo.CashOutSelling co WITH(ROWLOCK, UPDLOCK)
@@ -930,7 +1084,8 @@ BEGIN
 				AND main.custid = t.custid
 				AND main.matchid = t.matchid
 				AND main.bettype = t.bettype
-				AND main.transid = t.grouptransid			
+				AND main.transid = t.grouptransid
+				AND main.comstatus <> 'CO'
 	
 	------ release data of TempVariableNumBer table
 	EXEC dbo.NAP_Admin_CheckingProcess

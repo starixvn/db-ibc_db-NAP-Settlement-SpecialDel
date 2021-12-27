@@ -83,7 +83,9 @@ BEGIN
 		SportTypeId			SMALLINT,
 		IsNeutral			BIT,
 		MatchCode			NVARCHAR(50),
-		EventDate			DATETIME		
+		EventDate			DATETIME,
+		zzzstatus			NVARCHAR(10),
+		zzzwinlost			MONEY
 	)			
 	
 	DECLARE @BeforeUpd 	TVP_BalanceChange
@@ -118,8 +120,7 @@ BEGIN
 					StatusId,					
 					Status,
 					StatusWinlost,
-					Ruben,
-					TransId,					
+					Ruben,				
 					UserName,						
 					ExtraInfo,
 					BetdaqId,
@@ -132,7 +133,6 @@ BEGIN
 					CurrencyName,					
 					actual_stake,					
 					WinLost,
-					Status,
 					zzzCreator,					
 					HomeId,
 					AwayId,
@@ -140,7 +140,9 @@ BEGIN
 					SportTypeId,
 					IsNeutral,
 					MatchCode,
-					EventDate
+					EventDate,
+					zzzstatus,
+					zzzwinlost
 		)	
 	SELECT 	sub.TransId,
 			sub.BetType,
@@ -159,8 +161,7 @@ BEGIN
 			sub.statusID,			
 			sub.status,
 			sub.statuswinlost ,
-			sub.ruben ,
-			sub.transid,			
+			sub.ruben ,		
 			sub.UserName,				
 			sub.ExtraInfo,
 			sub.BetdaqId,
@@ -173,7 +174,6 @@ BEGIN
 			sub.CurrencyName,			
 			sub.actual_stake,			
 			z.winlost - sub.actual_stake as Winlost,
-			z.Status,
 			z.creator AS zzzCreator,			
 			m.HomeId,
 			m.AwayId,
@@ -181,7 +181,9 @@ BEGIN
 			m.sporttype AS SportTypeId,
 			ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 			m.MatchCode,
-			m.eventdate
+			m.eventdate,
+			z.status,
+			z.winlost
 	FROM dbo.zzzbettrans z WITH(NOLOCK)
 		 INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 			     ON	z.transid = sub.transid		
@@ -247,12 +249,16 @@ BEGIN
 	--> update cash-out bet ticket
 	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
-	SET statusID = t.statusID
-	  , status = t.status
+	SET status = t.zzzstatus
+		,statusID = CASE WHEN t.status = 'WON' THEN '112' 
+										WHEN t.status = 'LOSE' THEN '113' 
+										WHEN t.status = 'DRAW' THEN '111' 
+									END
 	  , statuswinlost = t.statuswinlost						
 	  , ruben = t.ruben				
 	  , creator = t.zzzCreator
-	  , modds = t.modds	  	  
+	  , modds = t.modds	 
+	  , b.betdaqid = -2
 	  , RepUpdateTime = @RepUpdateTime
 	FROM dbo.bettrans b 
 		INNER JOIN #SpecialDeleteBets AS t
@@ -265,15 +271,15 @@ BEGIN
 			 , 1 AS TicketType
 			 , statusID AS MainStatusId			 
 			 , modds
-			 , Stake							 
+			 , Stake	
+			 , zzzwinlost
 		FROM #SpecialDeleteBets
 	)
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET stake = TRef.stake
 	  , actual_stake = TRef.actual_stake
-	  , betdaqid = CASE t.TicketType WHEN 1 THEN 0 WHEN 2 THEN b.betdaqid END
 	  
-	  , winlost = TCal.winlost
+	  , winlost = t.zzzwinlost
 	  , awinlost = TCal.awinlost
 	  , mWinLost = TCal.mWinLost
 	  , swinlost = TCal.swinlost
