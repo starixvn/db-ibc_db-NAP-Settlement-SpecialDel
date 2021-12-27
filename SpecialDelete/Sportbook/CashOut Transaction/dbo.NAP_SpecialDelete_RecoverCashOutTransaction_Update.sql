@@ -190,7 +190,7 @@ BEGIN
 		 INNER JOIN dbo.match m WITH(NOLOCK)
 				 ON m.matchid = z.matchid			    
 	WHERE sub.transid IN (SELECT t.transid FROM #tblTransIds t)					
-	  AND sub.comstatus = 'CO'			
+	  AND z.comstatus = 'CO'			
 	  AND sub.statusID = 0
 	
 	/*Modify the way to get move bet date*/
@@ -250,9 +250,9 @@ BEGIN
 	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET status = t.zzzstatus
-		,statusID = CASE WHEN t.status = 'WON' THEN '112' 
-										WHEN t.status = 'LOSE' THEN '113' 
-										WHEN t.status = 'DRAW' THEN '111' 
+		,statusID = CASE WHEN t.zzzstatus = 'WON' THEN '112' 
+										WHEN t.zzzstatus = 'LOSE' THEN '113' 
+										WHEN t.zzzstatus = 'DRAW' THEN '111' 
 									END
 	  , statuswinlost = t.statuswinlost						
 	  , ruben = t.ruben				

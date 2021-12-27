@@ -108,7 +108,7 @@ BEGIN
 
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, IsCashOut, oddsid)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -118,7 +118,6 @@ BEGIN
 			,z.bettype
 			,z.refno
 			,z.odds
-			,z.IsCashOut
 			,z.oddsid
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		CROSS APPLY (
@@ -131,7 +130,6 @@ BEGIN
 					,z.bettype
 					,z.refno
 					,z.odds
-					,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCashOut
 					,z.oddsid
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
@@ -196,6 +194,7 @@ BEGIN
 			,recommend = b.recommend
 			,LiveIndicator = b.liveindicator
 			,ActualStake = b.actual_stake
+			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
