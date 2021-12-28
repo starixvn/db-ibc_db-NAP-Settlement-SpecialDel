@@ -1085,7 +1085,7 @@ BEGIN
 				AND main.matchid = t.matchid
 				AND main.bettype = t.bettype
 				AND main.transid = t.grouptransid
-				AND main.comstatus <> 'CO'
+				AND ISNULL(main.comstatus,'') <> 'CO'
 	
 	------ release data of TempVariableNumBer table
 	EXEC dbo.NAP_Admin_CheckingProcess
