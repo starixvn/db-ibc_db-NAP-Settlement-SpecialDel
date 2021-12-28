@@ -174,6 +174,7 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON m.matchid = z.matchid
 	WHERE	sub.matchid = CASE WHEN @Option = 0 THEN @MatchId ELSE sub.matchid END
+		AND sub.betdaqid = -1
 				
 	IF (@Option = 1)
 	BEGIN
