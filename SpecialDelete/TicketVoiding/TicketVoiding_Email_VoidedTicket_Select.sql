@@ -401,7 +401,7 @@ BEGIN
 			,t.ActualStake
 			,t.MainTransId
 			,CASE 
-			WHEN ISNULL(t.eventstatus, '') <> 'completed' AND LOWER(t.Status) IN ('won', 'lose', 'draw')
+			WHEN ISNULL(t.eventstatus, '') <> 'completed' AND LOWER(t.Status) IN ('won', 'lose', 'draw') AND t.betdaqid <> -2
 						THEN CASE
 								WHEN ISNULL(mr.IsHTCal, 0) = 0
 										AND EXISTS (SELECT TOP 1 1

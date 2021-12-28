@@ -1779,6 +1779,13 @@ BEGIN
 			END  
 		END  
 		
+		-- Update CashOutSelling [#165097]
+		UPDATE c
+		SET CashOutStatus = 6 --Void
+		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN #BetDelete b ON c.TransID = b.transid AND c.MatchID = @MatchId
+		WHERE b.betdaqid = -2 
+
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)

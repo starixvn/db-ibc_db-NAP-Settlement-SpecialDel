@@ -1106,13 +1106,6 @@ BEGIN
 						AND main.matchid = @matchid	
 		END				
 		
-		-- Update CashOutSelling [#165097]
-		UPDATE c
-		SET CashOutStatus = 6 --Void
-		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN #SpecialDeleteBets_Single b ON c.TransID = b.transid AND c.MatchID = b.matchid
-		WHERE b.betdaqid = -2 
-
 		--> update status for parlay
 		IF @CountParlay > 0
 		BEGIN
@@ -1263,6 +1256,13 @@ BEGIN
 			@CustIds = @NegativeBalanceCustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			 
+		-- Update CashOutSelling [#165097]
+		UPDATE c
+		SET CashOutStatus = 6 --Void
+		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN #SpecialDeleteBets_Single b ON c.TransID = b.transid AND c.MatchID = @MatchID
+		WHERE b.betdaqid = -2 
+
 		IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
@@ -1395,7 +1395,7 @@ BEGIN
 				CASE 
 					WHEN @eventstatus <> @eventstatus_completed
 							THEN CASE
-									WHEN LOWER(s.Status) IN ('won', 'lose', 'draw')
+									WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND s.betdaqid <> -2
 											AND EXISTS (SELECT TOP 1 1
 														FROM #InstantSettlementBettypes
 														WHERE bettype = s.bettype)

@@ -1368,13 +1368,6 @@ BEGIN
 			, @BalanceWalletAfter	= @afterUpd	
 			, @ActionId				= 0			
 		
-		-- Update CashOutSelling [#165097]
-		UPDATE c
-		SET CashOutStatus = 6 --Void
-		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN #BetDelete b ON c.TransID = b.transid AND c.MatchID = b.matchid
-		WHERE b.betdaqid = -2 
-
 		-- Update Parlay Tickets
 		IF EXISTS (SELECT 1 FROM #BetDeletem)
 		BEGIN
@@ -1520,6 +1513,13 @@ BEGIN
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+		-- Update CashOutSelling [#165097]
+		UPDATE c
+		SET CashOutStatus = 6 --Void
+		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN #BetDelete b ON c.TransID = b.transid AND c.MatchID = @MatchId
+		WHERE b.betdaqid = -2 
 
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
@@ -1691,7 +1691,7 @@ BEGIN
 			,CASE 
 				WHEN @eventstatus <> @eventstatus_completed
 						THEN CASE
-								WHEN al.statusID IN (111, 112, 113)
+								WHEN al.statusID IN (111, 112, 113) AND al.betdaqid <> -2
 										AND EXISTS (SELECT TOP 1 1
 													FROM #InstantSettlementBettypes
 													WHERE bettype = al.bettype)

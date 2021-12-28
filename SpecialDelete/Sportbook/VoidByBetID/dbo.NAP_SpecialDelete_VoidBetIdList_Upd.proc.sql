@@ -1867,7 +1867,7 @@ BEGIN
 		,b.matchid  -- send letstalk
 		,b.oddsid AS OddsId
 		,CASE 
-			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113)
+			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113) AND b.betdaqid <> -2
 					THEN CASE
 							WHEN ISNULL(mr.IsHTCal, 0) = 0
 									AND EXISTS (SELECT TOP 1 1
