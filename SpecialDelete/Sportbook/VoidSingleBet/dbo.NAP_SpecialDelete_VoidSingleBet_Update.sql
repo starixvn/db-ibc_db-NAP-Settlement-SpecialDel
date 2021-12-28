@@ -1256,6 +1256,7 @@ BEGIN
 		INSERT INTO #BeforeUpd(custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #BetDelete)
 		GROUP BY b.CustID
 		
 		-- Step 1: Backup into zzzbettrans
@@ -1510,6 +1511,7 @@ BEGIN
 		FROM #BeforeUpd b
 			 INNER JOIN	#AfterUpd a ON a.custid = b.custid
 		WHERE b.balance > a.balance
+		
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
