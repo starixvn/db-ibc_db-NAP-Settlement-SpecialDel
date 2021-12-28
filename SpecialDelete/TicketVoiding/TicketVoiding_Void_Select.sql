@@ -37,6 +37,7 @@ AS
 		- 20210504@Max: TVS - New Issue Type - Wrong Score - [Redmine: #140953]
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211207@July: Implement New Cash Out Model - Remove code CO [Redmine: #165097] 
+		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:	
 		
@@ -323,7 +324,7 @@ BEGIN
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					
 	END
-	ELSE IF @IssueTypeId IN (1, 10, 3) -- Danger Accept, Red Card, WrongScore
+	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5) -- Danger Accept, Red Card, WrongScore, WrongHDP
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN

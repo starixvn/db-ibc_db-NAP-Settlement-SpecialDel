@@ -14,6 +14,7 @@ AS
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20211223@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 	
 	Param's explanation:	
 		
@@ -127,7 +128,7 @@ BEGIN
 			SELECT TOP 1 RequestId, QueueId, MatchId, VoidingTypeId, TransIds, UserId, IP, IsFinished
 			FROM	@tmpQueue
 			WHERE	IsFinished = 0
-			ORDER BY CASE WHEN @IssueTypeId IN (1,10,3) THEN VoidingTypeId ELSE 1 END DESC
+			ORDER BY CASE WHEN @IssueTypeId IN (1,10,3,4,5) THEN VoidingTypeId ELSE 1 END DESC
 		)
 		UPDATE	TOP (1) q 
 			SET IsFinished = 1
@@ -165,7 +166,7 @@ BEGIN
 			SELECT @RequestId, @VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,0
 		END
 
-		IF @IssueTypeId IN (1,10,3) AND @BypassCheckingProcess = 0 -- if issuetype is danger accept or redcard, lock match for single ticket and lock parlay 
+		IF @IssueTypeId IN (1,10,3,4,5) AND @BypassCheckingProcess = 0 -- if issuetype is danger accept or redcard, lock match for single ticket and lock parlay 
 		BEGIN
 			EXEC dbo.TicketVoiding_Request_CheckingProcess
 				@VoidingHistoryId = @VoidingHistoryId
@@ -251,7 +252,7 @@ BEGIN
 			SELECT	@QueueId
 			FROM	@tmpQueue
 			WHERE	QueueId = CASE 
-								WHEN @IssueTypeId IN (1,10,3) AND @StatusId = 3 THEN QueueId
+								WHEN @IssueTypeId IN (1,10,3,4,5) AND @StatusId = 3 THEN QueueId
 								ELSE @QueueId
 							END
 		END
