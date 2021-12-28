@@ -44,6 +44,7 @@ BEGIN
 		  
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tmpKeyId (KeyId INT)
 	
 	CREATE TABLE #SpecialDeleteBets (		
 		TransId				BIGINT,
@@ -85,7 +86,8 @@ BEGIN
 		MatchCode			NVARCHAR(50),
 		EventDate			DATETIME,
 		zzzstatus			NVARCHAR(10),
-		zzzwinlost			MONEY
+		zzzwinlost			MONEY,
+		KeyId				INT
 	)			
 	
 	DECLARE @BeforeUpd 	TVP_BalanceChange
@@ -101,6 +103,13 @@ BEGIN
 	SELECT	t.val
 	FROM dbo.f_SplitString(@TransIds, ',') t					
 	OPTION (maxrecursion 0)			
+	
+	INSERT INTO #tmpKeyId (KeyId)
+	SELECT MAX(z.keyid)
+	FROM zzzbettrans z WITH (NOLOCK)
+	WHERE	z.transid IN (SELECT transid FROM #tblTransIds)							
+		AND z.comstatus = 'CO'
+	GROUP BY z.transid
 	
 	INSERT INTO #SpecialDeleteBets(					
 					TransId,
@@ -142,7 +151,8 @@ BEGIN
 					MatchCode,
 					EventDate,
 					zzzstatus,
-					zzzwinlost
+					zzzwinlost,
+					KeyId
 		)	
 	SELECT 	sub.TransId,
 			sub.BetType,
@@ -183,15 +193,15 @@ BEGIN
 			m.MatchCode,
 			m.eventdate,
 			z.status,
-			z.winlost
+			z.winlost,
+			z.keyid
 	FROM dbo.zzzbettrans z WITH(NOLOCK)
 		 INNER JOIN dbo.bettrans sub WITH(NOLOCK)
 			     ON	z.transid = sub.transid		
 		 INNER JOIN dbo.match m WITH(NOLOCK)
 				 ON m.matchid = z.matchid			    
-	WHERE sub.transid IN (SELECT t.transid FROM #tblTransIds t)					
-	  AND z.comstatus = 'CO'			
-	  AND sub.statusID = 0
+	WHERE z.keyid IN (SELECT t.KeyId FROM #tmpKeyId t)					
+	  AND z.comstatus = 'CO'
 	
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
@@ -431,9 +441,7 @@ BEGIN
 	FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 		 INNER JOIN #SpecialDeleteBets t
 				 ON z.transid = t.transid
-					AND z.custid = t.custid
-					AND z.matchid = t.matchid
-					AND z.bettype = t.bettype
+					AND z.keyid = t.KeyId
 	
 	--Update CashoutSelling
 	UPDATE s
