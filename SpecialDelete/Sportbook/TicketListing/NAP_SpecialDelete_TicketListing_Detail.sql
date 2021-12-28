@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] 
 	@MatchId					INT,
     @LicenseeName				VARCHAR(1000) = 'ALL',
@@ -219,6 +219,7 @@ BEGIN
 	CREATE TABLE #SpecialDeleteBets
              (username         VARCHAR(30),
               bettype          SMALLINT,
+              BetdaqId         BIGINT,
               ActualStake      MONEY,
               transid          BIGINT,
               homeid           INT,
@@ -423,11 +424,12 @@ BEGIN
 				-- Select Happy 5
 				IF(EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164))
 				BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,				
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,						
 							CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid,
 							m.homeID,
@@ -471,11 +473,12 @@ BEGIN
 				-- Select Number Game
 				ELSE
 				BEGIN
-					INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+					INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,				
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,						
 							CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid,
 							m.homeID,
@@ -523,12 +526,13 @@ BEGIN
 			END
 			ELSE 
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid
 											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption,IsMarked, FilterHdp1, FilterHdp2, FilterOddsSpread)
 				SELECT	b.username,
 						b.bettype,				
+						b.BetdaqId,
 						b.actual_stake AS ActualStake,
 						CASE WHEN b.Bettype IN (801,803,804,805,806,1004) THEN b.refno ELSE b.transid END transid,
 						m.homeID,
@@ -598,6 +602,7 @@ BEGIN
 				UNION ALL
 				SELECT	b.username,
 						b.gameID AS bettype,				
+						NULL AS BetdaqId,
 						b.actual_stake AS ActualStake,						
 						b.translogid transID,
 						m.homeID,
@@ -665,11 +670,12 @@ BEGIN
 				-- Select Happy 5
 				IF(EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164))
 				BEGIN
-					INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+					INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,
 							b.transid,
 							m.homeID,
@@ -716,11 +722,12 @@ BEGIN
 				-- Select Number Game
 				ELSE
 				BEGIN
-					INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+					INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,
 							b.transid,
 							m.homeID,
@@ -774,12 +781,13 @@ BEGIN
 			END
 			ELSE 
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid
 											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, IsMarked, FilterHdp1, FilterHdp2, FilterOddsSpread)
 				SELECT	b.username,
 						b.bettype,				
+						b.BetdaqId,
 						b.actual_stake AS ActualStake,						
 						b.transid,
 						m.homeID,
@@ -852,6 +860,7 @@ BEGIN
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,					
+						NULL AS BetdaqId,
 						b.actual_stake AS ActualStake,					
 						b.TranslogID transid,
 						m.homeID,
@@ -923,11 +932,12 @@ BEGIN
 				-- Select Happy 5
 				IF(EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164))
 				BEGIN
-					INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+					INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,
 							b.transid,
 							m.homeID,
@@ -970,11 +980,12 @@ BEGIN
 				-- Select Number Game
 				ELSE
 				BEGIN
-					INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+					INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,
 							b.transid,
 							m.homeID,
@@ -1024,12 +1035,13 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid
 											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, IsMarked, FilterHdp1, FilterHdp2, FilterOddsSpread)
 				SELECT	b.username,
 						b.bettype,				
+						b.BetdaqId,
 						b.actual_stake AS ActualStake,						
 						b.transid,
 						m.homeID,
@@ -1098,6 +1110,7 @@ BEGIN
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,					
+						NULL AS BetdaqId,
 						b.actual_stake AS ActualStake,					
 						b.TranslogID transid,
 						m.homeID,
@@ -1165,11 +1178,12 @@ BEGIN
 				-- Select Happy 5
 				IF(EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164))
 				BEGIN
-					INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+					INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,					
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,					
 							b.transid,
 							m.homeID,
@@ -1212,11 +1226,12 @@ BEGIN
 				-- Select Number Game
 				ELSE
 				BEGIN
-					INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+					INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 												,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 												,SecAcceptFlag,refno,TransDesc,SportType,MOdds,BallSequence)
 					SELECT	b.username,
 							b.bettype,					
+							b.BetdaqId,
 							b.actual_stake AS ActualStake,					
 							b.transid,
 							m.homeID,
@@ -1266,12 +1281,13 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,oddsspread,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid
 											,FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, IsMarked, FilterHdp1, FilterHdp2, FilterOddsSpread)
 				SELECT	b.username,
 						b.bettype,					
+						b.BetdaqId,
 						b.actual_stake AS ActualStake,					
 						b.transid,
 						m.homeID,
@@ -1339,6 +1355,7 @@ BEGIN
 				UNION ALL
 				SELECT	b.username,
 						b.GameID AS bettype,				
+						NULL AS BetdaqId,
 						b.actual_stake AS ActualStake,						
 						b.translogid AS transid,
 						m.homeID,
@@ -1486,11 +1503,12 @@ BEGIN
 			
 			IF @@ROWCOUNT <> 0
 			BEGIN
-				INSERT INTO #SpecialDeleteBets (username,bettype,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
+				INSERT INTO #SpecialDeleteBets (username,bettype,BetdaqId,ActualStake,transid,homeid,awayid,hdp1,hdp2,odds,status,stake,transdate
 											,betteam,betcheck,livehomescore,liveawayscore,IsLiveIndicator,ISNeutral,OddsType,CurrencyName,winlost,betid,IsParlay
 											,SecAcceptFlag,refno,TransDesc,SportType,MOdds,WalletType,RefCode,BonusID,MainTransId, custid, IsMarked)
 				SELECT	b.username,
 						b.bettype,
+						b.BetdaqId,
 						b.actual_stake AS ActualStake,		
 						b.transid,
 						m.homeID,
@@ -1550,7 +1568,7 @@ BEGIN
 		---Licensee
 		IF @LicenseeName <> 'Credit' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -1559,6 +1577,7 @@ BEGIN
 					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)	
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -1646,7 +1665,7 @@ BEGIN
 		---IBC
 		IF @LicenseeName= 'Credit'  
 		BEGIN	
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -1655,6 +1674,7 @@ BEGIN
 					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -1747,7 +1767,7 @@ BEGIN
 		---CN88
 		IF @LicenseeName= 'CN88'  
 		BEGIN	
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -1756,6 +1776,7 @@ BEGIN
 					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -1844,7 +1865,7 @@ BEGIN
 		---ALL
 		IF @LicenseeName= 'ALL'  
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -1853,6 +1874,7 @@ BEGIN
 					FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread)
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -1992,7 +2014,7 @@ BEGIN
 		---Licensee
 		IF @LicenseeName <> 'Credit' AND @LicenseeName <> 'CN88' AND @LicenseeName <> 'ALL' 
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -2000,6 +2022,7 @@ BEGIN
 					SubLiveAwayScore, SubLiveIndicator, SubLeagueId, SubSportType, SubTransDesc)	
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -2077,7 +2100,7 @@ BEGIN
 		---IBC
 		IF @LicenseeName= 'Credit'  
 		BEGIN	
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -2085,6 +2108,7 @@ BEGIN
 					SubLiveAwayScore, SubLiveIndicator, SubLeagueId, SubSportType, SubTransDesc)
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -2165,7 +2189,7 @@ BEGIN
 		---CN88
 		IF @LicenseeName= 'CN88'  
 		BEGIN	
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -2173,6 +2197,7 @@ BEGIN
 					SubLiveAwayScore, SubLiveIndicator, SubLeagueId, SubSportType, SubTransDesc)
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -2249,7 +2274,7 @@ BEGIN
 		---ALL
 		IF @LicenseeName= 'ALL'  
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (username, bettype, ActualStake, transid, homeid,
+			INSERT INTO #SpecialDeleteBets (username, bettype, BetdaqId, ActualStake, transid, homeid,
 					awayid, hdp1, hdp2, odds, oddsspread, status, stake, transdate,  betteam, betcheck, livehomescore, 
 					liveawayscore, IsLiveIndicator, ISNeutral, OddsType, CurrencyName, winlost, betid, IsParlay, SecAcceptFlag,
 					refno, TransDesc, SportType, MOdds, BallSequence, WalletType, RefCode, BonusID, MainTransId, custid,
@@ -2257,6 +2282,7 @@ BEGIN
 					SubLiveAwayScore, SubLiveIndicator, SubLeagueId, SubSportType, SubTransDesc)
 			SELECT	b.username,
 					b.bettype,				
+					b.BetdaqId,
 					b.actual_stake AS ActualStake,					
 					b.transid,	
 					m.homeID,
@@ -2332,6 +2358,7 @@ BEGIN
 
 	SELECT  username,
 			bettype,		
+			BetdaqId,
 			ActualStake,		
 			transid,
 			homeid,
