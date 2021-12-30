@@ -1,4 +1,4 @@
-﻿﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail] 
 	@MatchId					INT,
     @LicenseeName				VARCHAR(1000) = 'ALL',
