@@ -1683,7 +1683,6 @@ BEGIN
 			END AS EmailGroup
 			,su.site 
 			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
-			,al.IsCashOut
 			,@isITAdmin	AS IsITSupport
 			,CURRENT_TIMESTAMP AS [DateTime]		
 			,al.WalletType

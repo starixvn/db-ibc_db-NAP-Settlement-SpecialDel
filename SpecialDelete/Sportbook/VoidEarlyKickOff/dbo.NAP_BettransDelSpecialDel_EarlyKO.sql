@@ -232,6 +232,7 @@ BEGIN
 		,BonusID		INT
 		,MainTransId	BIGINT
 		,ActualStake	MONEY
+		,Winlost		MONEY
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -283,6 +284,7 @@ BEGIN
 		,ActualStake	MONEY
 		,main_ruben		TINYINT
 		,main_custId	INT
+		,Winlost		MONEY
 	)  
 
 	DECLARE @Status TABLE (statusID TINYINT)  
@@ -654,6 +656,7 @@ BEGIN
 		,RefCode
 		,BonusID
 		,ActualStake
+		,Winlost
 	)  
 	SELECT   
 		b.transid AS grouptransid  
@@ -688,6 +691,7 @@ BEGIN
 		,b.RefCode
 		,b.BonusID
 		,b.actual_stake AS ActualStake
+		,b.winlost - b.actual_stake AS Winlost
 	FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 		 INNER JOIN bettrans b WITH (NOLOCK)  
 				 ON t.transid = b.transid
@@ -942,6 +946,7 @@ BEGIN
 			,ActualStake
 			,main_ruben
 			,main_custId
+			,Winlost
 		)  
 		SELECT   
 			sub.transid  
@@ -982,6 +987,7 @@ BEGIN
 			,main.actual_stake AS ActualStake
 			,main.ruben
 			,main.custid
+			,main.winlost - main.actual_stake AS Winlost
 		FROM #tblTransIds t
 			INNER LOOP JOIN dbo.bettransm AS sub WITH (NOLOCK) ON t.transid = sub.transid  
 			INNER HASH JOIN dbo.bettrans main WITH (NOLOCK) ON sub.refno = main.refno AND main.matchid = 29
@@ -1045,6 +1051,7 @@ BEGIN
 			,BonusID 
 			,MainTransId
 			,ActualStake
+			,Winlost
 		)  
 		SELECT   
 			b.transid grouptransid  
@@ -1080,6 +1087,7 @@ BEGIN
 			,b.BonusID
 			,r.transid AS MainTransId
 			,b.actual_stake AS ActualStake
+			,b.winlost - b.actual_stake AS Winlost
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -1096,22 +1104,20 @@ BEGIN
 	IF EXISTS (  
 	SELECT 1  
 	FROM #BetDelete  
-	WHERE statusID IN (111, 112, 113) -- settled  
+	WHERE statusID IN (111, 112, 113) AND IsCashOut <> 1 -- settled  
 	UNION ALL  
 	SELECT 1  
 	FROM #BetmDelete  
-	WHERE statusID IN (111, 112, 113)  
+	WHERE statusID IN (111, 112, 113)
 	)  
 	BEGIN  
-
-	SELECT @ErrCode = 100  
-	,@ErrMsg = 'You can only void the unsettled or refunded tickets.'  
-	 
+		SELECT @ErrCode = 100
+			  ,@ErrMsg = 'You can only void the unsettled or refunded tickets.'  
 	END  
 
 	DELETE  
 	FROM #BetDelete  
-	WHERE statusID IN (SELECT statusID FROM @Status)  
+	WHERE statusID IN (SELECT statusID FROM @Status) AND IsCashOut <> 1
 
 	DELETE  
 	FROM #BetmDelete  
@@ -1779,12 +1785,12 @@ BEGIN
 			END  
 		END  
 		
-		-- Update CashOutSelling [#165097]
+		--Update CashOutSelling for new CO Model
 		UPDATE c
 		SET CashOutStatus = 6 --Void
 		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #BetDelete b ON c.TransID = b.transid AND c.MatchID = @MatchId
-		WHERE b.betdaqid = -2 
+		WHERE b.IsCashOut = 1
 
 		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
 		BEGIN
@@ -1994,6 +2000,7 @@ BEGIN
 			,al.BonusID
 			,al.MainTransId
 			,al.ActualStake
+			,al.Winlost
 			FROM #BetDelete al			
 			UNION ALL  
 			SELECT bm.odds  
@@ -2037,6 +2044,7 @@ BEGIN
 			,NULL AS BonusID 
 			,NULL AS MainTransId
 			,bm.ActualStake
+			,bm.Winlost
 			FROM #BetmDelete bm  
 		) AS al  
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK)  
