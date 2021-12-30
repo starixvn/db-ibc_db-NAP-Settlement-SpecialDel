@@ -732,7 +732,7 @@ BEGIN
 		)
 		UPDATE	b WITH(ROWLOCK, UPDLOCK)
 		SET stake = TRef.stake
-		  , actual_stake = TRef.actual_stake
+		 -- , actual_stake = TRef.actual_stake
 	  
 		  , winlost = t.zzzwinlost
 		  , awinlost = TCal.awinlost
