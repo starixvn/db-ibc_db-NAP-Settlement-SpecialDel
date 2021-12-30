@@ -89,6 +89,7 @@ BEGIN
 		,BonusID		INT
 		,MainTransId	BIGINT
 		,EventDate		DATETIME
+		,ActualStake	MONEY
 		,UNIQUE CLUSTERED(RefCode, custid, matchid, bettype, transid)				
 	)	
 	
@@ -145,6 +146,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -181,6 +183,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,o.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 				ON	b.transid = z.transid
@@ -232,6 +235,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -269,6 +273,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -320,6 +325,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -356,6 +362,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -413,6 +420,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -449,6 +457,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,o.EventDate
+				,b.actual_stake AS ActualStake
 		FROM zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 					ON b.transid = z.transid
@@ -502,6 +511,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -539,6 +549,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -589,6 +600,7 @@ BEGIN
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -625,6 +637,7 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -737,6 +750,7 @@ BEGIN
 					,RefCode
 					,BonusID
 					,MainTransId
+					,ActualStake
 			)
 			SELECT	 z.transid
 					,z.transid
@@ -774,6 +788,7 @@ BEGIN
 					,b.RefCode
 					,b.BonusID
 					,b.MainTransId
+					,b.actual_stake AS ActualStake
 		FROM #CTE_bettrans b
 			 INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -818,6 +833,7 @@ BEGIN
 			,t.RefCode
 			,m.SettlementStatus
 			,m.GlobalShowTime
+			,t.ActualStake
 	FROM	@tblRecoverBet t
 		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
