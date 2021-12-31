@@ -131,10 +131,8 @@ BEGIN
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
-		,awinlost			MONEY
 		,actual_stake		MONEY
 		,refcode			BIGINT
-		,Action				VARCHAR(100)
 		,RequestID			INT
 		,isFinish			BIT 
 		,sporttype			SMALLINT
@@ -156,10 +154,8 @@ BEGIN
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
-		,awinlost			MONEY
 		,actual_stake		MONEY
 		,refcode			BIGINT
-		,Action				VARCHAR(100)
 		,isFinish			BIT
 		,sporttype			SMALLINT
 		,matchid			INT
@@ -179,10 +175,7 @@ BEGIN
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
-		,awinlost			MONEY
 		,actual_stake		MONEY
-		,refcode			BIGINT
-		,Action				VARCHAR(100)
 		,RequestID			INT
 		,isFinish			BIT 
 	)
