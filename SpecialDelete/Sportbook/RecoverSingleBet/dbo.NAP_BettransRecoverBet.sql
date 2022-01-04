@@ -345,6 +345,7 @@ BEGIN
 		WHERE	z.bettype NOT BETWEEN 801 AND 806
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
 				AND b.betfrom <> 'p'
+				AND ISNULL(z.comstatus,'') <> 'CO'
 		
 		-- Outright
 		INSERT INTO #tblTransInfo(

@@ -286,7 +286,8 @@ BEGIN
 				AND z.matchid = @MatchId
 				AND z.Bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
-				AND b.betfrom <> 'p'				
+				AND b.betfrom <> 'p'
+				AND ISNULL(z.comstatus,'') <> 'CO'
 		
 		-- MG
 		INSERT INTO @tblRecoverBet(
@@ -561,7 +562,8 @@ BEGIN
 		WHERE b.transid IN (SELECT s.transid FROM @tblTransIds s)		
 			AND z.bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
 			AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)	
-			AND b.betfrom <> 'p'			
+			AND b.betfrom <> 'p'
+			AND ISNULL(z.comstatus,'') <> 'CO'
 			
 		-- MG
 		INSERT INTO @tblRecoverBet(
