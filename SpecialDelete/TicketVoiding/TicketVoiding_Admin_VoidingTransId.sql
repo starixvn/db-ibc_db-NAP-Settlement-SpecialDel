@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Admin_VoidingTransId]
 	,@ActionType				TINYINT = NULL
 	,@RunOnServer				VARCHAR(100) = NULL
 	,@IsAbnormalMixParlay		BIT = 0
+	,@strTransCashout			VARCHAR(MAX) = '' OUTPUT
 )
 AS
 /*	Created by: Kathy
@@ -61,6 +62,7 @@ BEGIN
 	
 	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 
@@ -174,10 +176,27 @@ BEGIN
 				,betid = t.BetId
 				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalMixParlay = 0 THEN 1 ELSE 2 END,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
 				,RepUpdateTime  = @RepUpdateTime
+					OUTPUT deleted.Transid,
+						deleted.custid,  
+						deleted.winlost,  
+						deleted.actual_stake, 
+						deleted.playercomm,
+						deleted.betdaqid  
+				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
 			WHERE b.statusID NOT IN (102)	
+
+			-- Process for cashout tickets make change Balance before
+			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
+														, b.custid AS c
+														, b.winlost-b.actual_stake + b.playercomm as b
+												FROM @tmpTrans_beforeUpd b
+													INNER JOIN @tmpTrans t ON b.transid = t.transid
+												WHERE 	b.betdaqid = -2
+												FOR XML AUTO) AS VARCHAR(MAX)
+										),'')
 			
 		END
 		ELSE
@@ -200,10 +219,27 @@ BEGIN
 				,status = 'VOID'
 				,betid = t.BetId
 				,RepUpdateTime  = @RepUpdateTime
+					OUTPUT deleted.Transid,
+						deleted.custid,  
+						deleted.winlost,  
+						deleted.actual_stake, 
+						deleted.playercomm,
+						deleted.betdaqid  
+				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
-			WHERE b.statusID NOT IN (102)		
+			WHERE b.statusID NOT IN (102)	
+			
+			-- Process for cashout tickets make change Balance before
+			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
+														, b.custid AS c
+														, b.winlost-b.actual_stake + b.playercomm as b
+												FROM @tmpTrans_beforeUpd b
+													INNER JOIN @tmpTrans t ON b.transid = t.transid
+												WHERE 	b.betdaqid = -2
+												FOR XML AUTO) AS VARCHAR(MAX)
+										),'')
 			
 		END
 				
