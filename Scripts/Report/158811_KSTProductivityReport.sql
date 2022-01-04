@@ -302,18 +302,24 @@ GO
 			, CASE WHEN r.MatchId IS NOT NULL THEN 1 ELSE 0 END		AS IsAuto
 			FROM #MatchId m
 		OUTER APPLY (	--Already Auto settle sucessfully at least 1 time )
-						SELECT TOP 1 r.MatchId FROM dbo.AutoPayoutResult r WITH(NOLOCK)
+
+					/*
+						-- Note: Currently, Not exists data in dbo.AutoPayoutResult, dbo.AutoPayoutResult14 on DB061
+						--		 If @ToDate > Max(eventdate) from match_bk, need to get more info from DB02
+
+						SELECT TOP 1 r.MatchId FROM DB02.bodb02.dbo.AutoPayoutResult r WITH(NOLOCK)
 						WHERE m.matchid = r.MatchId 
 							AND r.StatusId = 2
 							AND m.betstatus <> 'Refund;'
 						
 						UNION ALL
-						SELECT TOP 1 r.MatchId FROM dbo.AutoPayoutResult14 r WITH(NOLOCK)
+						SELECT TOP 1 r.MatchId FROM DB02.bodb02.dbo.AutoPayoutResult14 r WITH(NOLOCK)
 						WHERE m.matchid = r.MatchId 
 							AND r.StatusId = 2
 							AND m.betstatus <> 'Refund;'
 						
 						UNION ALL
+					*/
 						SELECT TOP 1 r.MatchId FROM bodb_archive.dbo.AutoPayoutResult_bk r WITH(NOLOCK)
 						WHERE m.matchid = r.MatchId 
 							AND r.StatusId = 2
@@ -350,8 +356,8 @@ GO
 	--Match vs Result	
 	SELECT  YEAR(m.eventdate) AS Y
 			,MONTH(m.eventdate) AS M	
-			,SUM( ManualCalculated + ManualRefunded + AutoSettle) AS Result 
-			,COUNT(DISTINCT r.matchid)	AS Match 
+			,SUM( ManualCalculated + ManualRefunded + AutoSettle) AS TotalSettledResourceId 
+			,COUNT(DISTINCT r.matchid)	AS [Match] 
 	FROM #TempResultDetail  r
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
 	GROUP BY YEAR(m.eventdate), MONTH(m.eventdate)
