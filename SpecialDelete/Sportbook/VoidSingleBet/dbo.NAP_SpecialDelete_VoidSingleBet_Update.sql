@@ -194,6 +194,7 @@ BEGIN
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME
 			,@RepUpdateTime		DATETIME2
+			,@strTransCashout			VARCHAR(MAX) = ''
 
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 	
@@ -325,6 +326,9 @@ BEGIN
 	
 	DECLARE @LogData NVARCHAR(500)
 			,@CountTransId	INT
+
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT, Bonusid INT, WalletType TINYINT	)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
 	
 	SELECT @ErrCode = 0
 		 , @ErrMsg = ''
@@ -1333,11 +1337,47 @@ BEGIN
 				,statusID		= 102       
 				,status			= 'VOID'
 				,RepUpdateTime  = @RepUpdateTime
+					OUTPUT deleted.Transid,
+						deleted.custid,  
+						deleted.winlost,  
+						deleted.actual_stake, 
+						deleted.playercomm,
+						deleted.betdaqid ,
+						deleted.BonusID,
+						deleted.WalletType
+				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid,Bonusid, WalletType)
 		FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #BetDelete tmpmain 
 				ON	main.transid = tmpmain.transid 
 				AND main.transid = tmpmain.grouptransid
 				AND main.matchid = @matchid
+		
+		-- Process for cashout tickets make change Balance before
+		INSERT INTO @CashoutTickets_tmp(transid,custid, balance, bonusId, WalletType)
+		SELECT b.transid
+				, b.custid
+				, b.winlost-b.actual_stake + b.playercomm
+				, CASE 
+						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
+						ELSE 0 END
+				, ISNULL(b.WalletType, 2)
+		FROM @tmpTrans_beforeUpd b
+			INNER JOIN #BetDelete t ON b.transid = t.transid
+		WHERE 	b.betdaqid = -2
+
+		-- Adjust BL before for affected cashout tickets
+		IF EXISTS (SELECT TOP(1) 1 FROM @CashoutTickets_tmp)
+		BEGIN				
+			UPDATE bf
+				SET balance = bl.balance_new
+			FROM @BeforeUpd bf
+				INNER JOIN  (
+						SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_new
+						FROM  @CashoutTickets_tmp c 
+						GROUP BY c.custid,c.BonusID,c.WalletType
+					) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+			WHERE bf.balance <> bl.balance_new
+		END
 		
 		-- Capture balance after updating Bettrans
 		INSERT INTO @AfterUpd(matchid, custid, balanceType, BonusID, WalletType, balance)

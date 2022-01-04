@@ -62,7 +62,7 @@ BEGIN
 	
 	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT, Bonusid INT, WalletType TINYINT	)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 
@@ -181,8 +181,10 @@ BEGIN
 						deleted.winlost,  
 						deleted.actual_stake, 
 						deleted.playercomm,
-						deleted.betdaqid  
-				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
+						deleted.betdaqid ,
+						deleted.BonusID,
+						deleted.WalletType
+				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid,Bonusid, WalletType)
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
@@ -192,6 +194,10 @@ BEGIN
 			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
 														, b.custid AS c
 														, b.winlost-b.actual_stake + b.playercomm as b
+														, CASE 
+																WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
+																ELSE 0 END AS bn
+														, ISNULL(b.WalletType, 2) AS w
 												FROM @tmpTrans_beforeUpd b
 													INNER JOIN @tmpTrans t ON b.transid = t.transid
 												WHERE 	b.betdaqid = -2
@@ -224,8 +230,10 @@ BEGIN
 						deleted.winlost,  
 						deleted.actual_stake, 
 						deleted.playercomm,
-						deleted.betdaqid  
-				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
+						deleted.betdaqid ,
+						deleted.BonusID,
+						deleted.WalletType
+				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid,Bonusid, WalletType)
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
@@ -235,6 +243,8 @@ BEGIN
 			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
 														, b.custid AS c
 														, b.winlost-b.actual_stake + b.playercomm as b
+														, b.Bonusid AS bn
+														, b.WalletType as w
 												FROM @tmpTrans_beforeUpd b
 													INNER JOIN @tmpTrans t ON b.transid = t.transid
 												WHERE 	b.betdaqid = -2
