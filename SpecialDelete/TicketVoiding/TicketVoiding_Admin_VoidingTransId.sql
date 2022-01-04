@@ -199,7 +199,6 @@ BEGIN
 																ELSE 0 END AS bn
 														, ISNULL(b.WalletType, 2) AS w
 												FROM @tmpTrans_beforeUpd b
-													INNER JOIN @tmpTrans t ON b.transid = t.transid
 												WHERE 	b.betdaqid = -2
 												FOR XML AUTO) AS VARCHAR(MAX)
 										),'')

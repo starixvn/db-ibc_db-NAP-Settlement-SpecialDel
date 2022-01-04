@@ -1362,7 +1362,6 @@ BEGIN
 						ELSE 0 END
 				, ISNULL(b.WalletType, 2)
 		FROM @tmpTrans_beforeUpd b
-			INNER JOIN #BetDelete t ON b.transid = t.transid
 		WHERE 	b.betdaqid = -2
 
 		-- Adjust BL before for affected cashout tickets

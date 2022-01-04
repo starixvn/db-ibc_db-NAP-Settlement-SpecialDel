@@ -81,6 +81,8 @@ BEGIN
 			,@MatchId_cnt		INT = 0
 			,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 			,@totalMainParlay	INT = 0
+			,@strTransCashout			VARCHAR(MAX) = ''
+			,@xmlCashoutTicket XML
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
@@ -109,6 +111,7 @@ BEGIN
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
 	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT, MinWinlostdate DATETIME, MaxWinlostdate DATETIME)
 	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT, IssueTypeId TINYINT)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -1303,9 +1306,37 @@ BEGIN
 				@TransIds = @xmlTransId
 				,@UserId = @UserId
 				,@IssueTypeId = 11
+				,@strTransCashout = @strTransCashout OUTPUT
+
+			-- Adjust BL before for affected cashout tickets
+			IF @strTransCashout <> ''
+			BEGIN
+				SET @xmlCashoutTicket = CONVERT(XML, @strTransCashout)
+					
+				INSERT INTO @CashoutTickets_tmp(transid,custid, balance, bonusId, WalletType)
+				SELECT T.C.value('./@t', 'BIGINT') 		AS transid
+						, T.C.value('./@c', 'INT') 	AS custid
+						,T.C.value('./@b', 'MONEY') 	AS balance
+						,T.C.value('./@bn', 'INT') 	AS bonusid
+						,T.C.value('./@w', 'TINYINT') 	AS WalletType
+				FROM @xmlCashoutTicket.nodes('/b') AS T(C)
+				OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
+					
+				UPDATE bf
+					SET balance = bl.balance_new
+				FROM @BeforeUpd bf
+					INNER JOIN  (
+							SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_new
+							FROM  @CashoutTickets_tmp c 
+							GROUP BY c.custid,c.BonusID,c.WalletType
+						) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+				WHERE bf.balance <> bl.balance_new
+			END
 				
-			SET @xmlTransId = ''	 
-			
+			SET @xmlTransId = ''
+			SET @strTransCashout =''
+			SET @xmlCashoutTicket = ''
+			DELETE @CashoutTickets_tmp		
 		END
 			
 		-- Recal for ticket Lose by statuswinlost

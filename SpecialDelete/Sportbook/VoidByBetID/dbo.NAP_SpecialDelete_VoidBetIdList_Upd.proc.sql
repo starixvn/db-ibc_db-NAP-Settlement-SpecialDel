@@ -157,6 +157,8 @@ BEGIN
 			,@ExecuteSQL				NVARCHAR(MAX) = ''
 			,@Movebetdate				DATETIME
 			,@isExistMatch3rd			BIT = 0
+			,@strTransCashout			VARCHAR(MAX) = ''
+			,@xmlCashoutTicket XML
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
@@ -264,6 +266,7 @@ BEGIN
 	)
 	
 	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
 
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @password AND custid = @userId AND roleid >=5)
 	BEGIN
@@ -1324,9 +1327,38 @@ BEGIN
 		EXEC dbo.TicketVoiding_Admin_VoidingTransId
 			@TransIds = @TransIds_tmp,
 			@UserId = @UserId,
-			@IssueTypeId = @IssueTypeId
+			@IssueTypeId = @IssueTypeId,
+			@strTransCashout = @strTransCashout OUTPUT
+
+		-- Adjust BL before for affected cashout tickets
+		IF @strTransCashout <> ''
+		BEGIN
+			SET @xmlCashoutTicket = CONVERT(XML, @strTransCashout)
+					
+			INSERT INTO @CashoutTickets_tmp(transid,custid, balance, bonusId, WalletType)
+			SELECT T.C.value('./@t', 'BIGINT') 		AS transid
+					, T.C.value('./@c', 'INT') 	AS custid
+					,T.C.value('./@b', 'MONEY') 	AS balance
+					,T.C.value('./@bn', 'INT') 	AS bonusid
+					,T.C.value('./@w', 'TINYINT') 	AS WalletType
+			FROM @xmlCashoutTicket.nodes('/b') AS T(C)
+			OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
+					
+			UPDATE bf
+				SET balance = bl.balance_new
+			FROM @BeforeUpd bf
+				INNER JOIN  (
+						SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_new
+						FROM  @CashoutTickets_tmp c 
+						GROUP BY c.custid,c.BonusID,c.WalletType
+					) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+			WHERE bf.balance <> bl.balance_new
+		END
 
 		SET @TransIds_tmp = ''
+		SET @strTransCashout = ''
+		SET @xmlCashoutTicket = ''
+		DELETE @CashoutTickets_tmp
 
 	END
 	-- 2.2 - void MetricGaming
