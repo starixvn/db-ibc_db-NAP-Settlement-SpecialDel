@@ -77,7 +77,7 @@ BEGIN
 							WHERE RequestId = @RequestId
 						  )
 
-	IF @IssueTypeId IN (1,8,9,10,11,15,3,17) -- DA,EKO,WKO,RC,AB,AB(Real Member),WC, Archived ticket
+	IF @IssueTypeId <> 13 -- Except for AC 
 	BEGIN
 		SELECT	rd.MatchId
 				,m.eventdate
@@ -96,7 +96,7 @@ BEGIN
 				,rd.FilterToTransTime
 				,rd.FilterBy
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
-				,CASE WHEN @IssueTypeId NOT IN (4,5) THEN rd.TransIds ELSE NULL END AS SettingTime
+				,rd.TransIds AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
 				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
@@ -104,7 +104,6 @@ BEGIN
 				,rd.SubIssueTypeId
 				,m.IsNeutral
 				,m.matchcode
-				,CASE WHEN @IssueTypeId IN (4,5) THEN rd.TransIds ELSE NULL END AS WrongHDP
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

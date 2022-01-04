@@ -172,10 +172,7 @@ BEGIN
 			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(MAX)
 			,SubIssueTypeId			SMALLINT
-			,HomeFavorite			SMALLMONEY
-			,AwayFavorite			SMALLMONEY
-			,ActualMarket			SMALLMONEY
-			,HDPValue				SMALLMONEY
+			,WrongHDP				VARCHAR(200)
 		)
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
@@ -842,7 +839,7 @@ BEGIN
 		WHERE	RequestId = @RequestId
 				AND MatchId = @MatchId
 	END
-ELSE IF @IssueTypeId = 17 --Archived Ticket
+    ELSE IF @IssueTypeId = 17 --Archived Ticket
 	BEGIN
 		SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (20))
 								  FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
@@ -952,19 +949,17 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 					,MinMainParlayTransId	
 					,MaxMainParlayTransId	
 					,VoidFromTime			
-					,VoidToTime				
+					,VoidToTime
+					,LiveScores				
 					,SubIssueTypeId
-					,HomeFavorite
-					,AwayFavorite
-					,ActualMarket
-					,HDPValue
+					,WrongHDP
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
-					,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
-					,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-					,t.c.value('@FilterFromBetId','BIGINT') AS FilterFromBetId
-					,t.c.value('@FilterToBetId','BIGINT') AS FilterToBetId
+					,CASE WHEN ISNULL(t.c.value('@FilterFromTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN ISNULL(t.c.value('@FilterToTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN ISNULL(t.c.value('@FilterFromBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN ISNULL(t.c.value('@FilterToBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 					,t.c.value('@FilterBy','TINYINT') AS FilterBy
 					,t.c.value('@SingleCount','INT') AS SingleCount
 					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
@@ -974,11 +969,12 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-					,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
-					,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
-					,t.c.value('@ActualMarket','SMALLMONEY') AS ActualMarket
-					,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
+					,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' THEN '<r HomeFavorite="' + t.c.value('@HomeFavorite','VARCHAR(50)') + '" ActualMarket="'+ t.c.value('@ActualMarket','VARCHAR(50)') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
+						  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' THEN '<r AwayFavorite="' + t.c.value('@AwayFavorite','VARCHAR(50)') + '" ActualMarket="'+ t.c.value('@ActualMarket','VARCHAR(50)') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
+						  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' THEN '<r HdpValue="' + t.c.value('@HdpValue','VARCHAR(50)') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(50)') + '" />'
+						  ELSE '' END AS WrongHDP
 			FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 		END
@@ -1000,19 +996,17 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 					,MinMainParlayTransId	
 					,MaxMainParlayTransId	
 					,VoidFromTime			
-					,VoidToTime				
+					,VoidToTime
+					,LiveScores				
 					,SubIssueTypeId
-					,HomeFavorite
-					,AwayFavorite
-					,ActualMarket
-					,HDPValue
+					,WrongHDP
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
-					,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
-					,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-					,t.c.value('@FilterFromBetId','BIGINT') AS FilterFromBetId
-					,t.c.value('@FilterToBetId','BIGINT') AS FilterToBetId
+					,CASE WHEN ISNULL(t.c.value('@FilterFromTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN ISNULL(t.c.value('@FilterToTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN ISNULL(t.c.value('@FilterFromBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN ISNULL(t.c.value('@FilterToBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 					,t.c.value('@FilterBy','TINYINT') AS FilterBy
 					,t.c.value('@SingleCount','INT') AS SingleCount
 					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
@@ -1022,11 +1016,12 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-					,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
-					,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
-					,t.c.value('@ActualMarket','SMALLMONEY') AS ActualMarket
-					,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
+					,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' THEN '<r HomeFavorite="' + t.c.value('@HomeFavorite','VARCHAR(50)') + '" ActualMarket="'+ t.c.value('@ActualMarket','VARCHAR(50)') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
+						  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (9) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' THEN '<r AwayFavorite="' + t.c.value('@AwayFavorite','VARCHAR(50)') + '" ActualMarket="'+ t.c.value('@ActualMarket','VARCHAR(50)') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
+						  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (24,25) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' THEN '<r HdpValue="' + t.c.value('@HdpValue','VARCHAR(50)') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(50)') + '" />'
+						  ELSE '' END AS WrongHDP
 			FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
 		END
@@ -1050,14 +1045,9 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 			, MaxMainParlayTransId = l.MaxMainParlayTransId
 			, VoidFromTime = l.VoidFromTime
 			, VoidToTime = l.VoidToTime
-			, LiveHomeScore = l.LiveHomeScore
-			, LiveAwayScore = l.LiveAwayScore
-			, IssueDetail = l.ActualMarket
+			, IssueDetail = l.LiveScores
 			, SubIssueTypeId = l.SubIssueTypeId
-			, TransIds = CASE WHEN l.SubIssueTypeId IN (8,9) AND l.HomeFavorite IS NOT NULL THEN '<r HomeFavorite="' + CAST(l.HomeFavorite AS VARCHAR(20)) + '" ActualMarket="'+ CAST(l.ActualMarket AS VARCHAR(20)) + '" />' 
-							  WHEN l.SubIssueTypeId IN (8,9) AND l.AwayFavorite IS NOT NULL THEN '<r AwayFavorite="' + CAST(l.AwayFavorite AS VARCHAR(20)) + '" ActualMarket="'+ CAST(l.ActualMarket AS VARCHAR(20)) + '" />' 
-							  WHEN l.SubIssueTypeId IN (22,23,24,25) AND l.HDPValue IS NOT NULL THEN '<r HDPValue="' + CAST(l.HDPValue AS VARCHAR(20)) + '" />' 
-							  ELSE '' END
+			, TransIds = l.WrongHDP
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
 
@@ -1082,10 +1072,9 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 			, MaxMainParlayTransId
 			, VoidFromTime
 			, VoidToTime
-			, LiveHomeScore
-			, LiveAwayScore
 			, SubIssueTypeId
 			, TransIds
+			, IssueDetail
 			)
 		SELECT @RequestId
 			, l.MatchID
@@ -1107,13 +1096,9 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 			, l.MaxMainParlayTransId
 			, l.VoidFromTime
 			, l.VoidToTime
-			, l.LiveHomeScore
-			, l.LiveAwayScore
 			, l.SubIssueTypeId
-			, CASE WHEN l.SubIssueTypeId IN (8,9) AND l.HomeFavorite IS NOT NULL THEN '<r HomeFavorite="' + CAST(l.HomeFavorite AS VARCHAR(20)) + '" ActualMarket="'+ CAST(l.ActualMarket AS VARCHAR(20)) + '" />' 
-				   WHEN l.SubIssueTypeId IN (8,9) AND l.AwayFavorite IS NOT NULL THEN '<r AwayFavorite="' + CAST(l.AwayFavorite AS VARCHAR(20)) + '" ActualMarket="'+ CAST(l.ActualMarket AS VARCHAR(20)) + '" />' 
-				   WHEN l.SubIssueTypeId IN (22,23,24,25) AND l.HDPValue IS NOT NULL THEN '<r HDPValue="' + CAST(l.HDPValue AS VARCHAR(20)) + '" />' 
-				   ELSE '' END
+			, l.WrongHDP
+			, l.LiveScores
 		FROM #tblGetLogInfo l
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 			LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
@@ -1445,10 +1430,8 @@ ELSE IF @IssueTypeId = 17 --Archived Ticket
 					           + ', MaxMainParlayTransId: ' + CAST(l.MaxMainParlayTransId AS VARCHAR(20))
 							   + ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							   + ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							   + CASE WHEN l.SubIssueTypeId IN (8,9) AND l.HomeFavorite IS NOT NULL THEN ', HomeFavorite: ' + CAST(l.HomeFavorite AS VARCHAR(20))
-									  WHEN l.SubIssueTypeId IN (8,9) AND l.AwayFavorite IS NOT NULL THEN ', AwayFavorite: ' + CAST(l.AwayFavorite AS VARCHAR(20)) ELSE '' END
-							   + CASE WHEN l.SubIssueTypeId IN (8,9) AND l.ActualMarket IS NOT NULL THEN ', ActualMarket: ' + CAST(l.ActualMarket AS VARCHAR(20)) ELSE '' END 
-							  + CASE WHEN l.SubIssueTypeId IN (22,23,24,25) AND l.HDPValue IS NOT NULL THEN ', HDPValue: ' + CAST(l.HDPValue AS VARCHAR(20)) ELSE '' END
+							   + CASE WHEN @IssueTypeId = 4 THEN ' ,WrongHDP: ' + l.WrongHDP
+									  WHEN @IssueTypeId = 5 THEN ' ,Wrong1stHDP: ' + l.WrongHDP ELSE '' END
 								FROM #tblGetLogInfo l
 	END
 	-- Write Log

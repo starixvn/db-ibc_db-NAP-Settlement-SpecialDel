@@ -87,11 +87,11 @@ AS
 		+ @WrongScoreInfo: 
 			<root><r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/></root>
 		+ @DangerAcceptInfo:
-			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/></root>
+			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMainMatch=''1''" LiveScores="" FilterBy="1"/></root>
 		+ @RedCardInfo:
-			<root><r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMain=''1''" LiveScores="" FilterBy="1"/></root>
+			<root><r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMainMatch=''1''" LiveScores="" FilterBy="1"/></root>
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" HDPValue ="" SubIssueTypeId=""/></root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" HDPValue ="" IsMainMatch= "" SubIssueTypeId=""/></root>
 */
 BEGIN
 	SET NOCOUNT ON
