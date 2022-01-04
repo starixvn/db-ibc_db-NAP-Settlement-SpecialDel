@@ -178,7 +178,8 @@ BEGIN
 			,SubIssueTypeId			SMALLINT
 			,HomeFavorite			SMALLMONEY
 			,AwayFavorite			SMALLMONEY
-			,ActualMarket			VARCHAR(50)
+			,ActualMarket			SMALLMONEY
+			,HDPValue				SMALLMONEY
 			)
 	CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT, bettype SMALLINT, betid BIGINT)
 
@@ -1484,6 +1485,7 @@ BEGIN
 					,HomeFavorite
 					,AwayFavorite
 					,ActualMarket
+					,HDPValue
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
@@ -1503,7 +1505,8 @@ BEGIN
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 					,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
 					,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
-					,t.c.value('@ActualMarket','VARCHAR(50)') AS ActualMarket
+					,t.c.value('@ActualMarket','SMALLMONEY') AS ActualMarket
+					,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
 			FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 
@@ -1559,6 +1562,7 @@ BEGIN
 					,HomeFavorite
 					,AwayFavorite
 					,ActualMarket
+					,HDPValue
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
@@ -1578,7 +1582,8 @@ BEGIN
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 					,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
 					,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
-					,t.c.value('@ActualMarket','VARCHAR(50)') AS ActualMarket
+					,t.c.value('@ActualMarket','SMALLMONEY') AS ActualMarket
+					,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
 			FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
 

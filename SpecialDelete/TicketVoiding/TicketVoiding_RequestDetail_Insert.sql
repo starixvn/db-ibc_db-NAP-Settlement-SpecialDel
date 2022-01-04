@@ -149,6 +149,7 @@ BEGIN
 			,HomeFavorite			SMALLMONEY
 			,AwayFavorite			SMALLMONEY
 			,ActualMarket			SMALLMONEY
+			,HDPValue				SMALLMONEY
 			)
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -348,6 +349,7 @@ BEGIN
 					,HomeFavorite
 					,AwayFavorite
 					,ActualMarket
+					,HDPValue
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
@@ -368,6 +370,7 @@ BEGIN
 					,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
 					,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
 					,t.c.value('@ActualMarket','SMALLMONEY') AS ActualMarket
+					,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
 			FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 	END
@@ -394,6 +397,7 @@ BEGIN
 					,HomeFavorite
 					,AwayFavorite
 					,ActualMarket
+					,HDPValue
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
@@ -414,6 +418,7 @@ BEGIN
 					,t.c.value('@HomeFavorite','SMALLMONEY') AS HomeFavorite
 					,t.c.value('@AwayFavorite','SMALLMONEY') AS AwayFavorite
 					,t.c.value('@ActualMarket','SMALLMONEY') AS ActualMarket
+					,t.c.value('@HDPValue','SMALLMONEY') AS HDPValue
 			FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
 	END
@@ -855,8 +860,7 @@ BEGIN
 			, l.SubIssueTypeId
 			, CASE WHEN l.SubIssueTypeId IN (8,9) AND l.HomeFavorite IS NOT NULL THEN '<r HomeFavorite="' + CAST(l.HomeFavorite AS VARCHAR(20)) + '" ActualMarket="'+ CAST(l.ActualMarket AS VARCHAR(20)) + '" />' 
 				   WHEN l.SubIssueTypeId IN (8,9) AND l.AwayFavorite IS NOT NULL THEN '<r AwayFavorite="' + CAST(l.AwayFavorite AS VARCHAR(20)) + '" ActualMarket="'+ CAST(l.ActualMarket AS VARCHAR(20)) + '" />' 
-				   WHEN l.SubIssueTypeId IN (23,25) AND l.HomeFavorite IS NOT NULL THEN '<r HDPValue="' + CAST(l.HomeFavorite AS VARCHAR(20)) + '" />' 
-				   WHEN l.SubIssueTypeId IN (22,24) AND l.AwayFavorite IS NOT NULL THEN '<r HDPValue="' + CAST(l.AwayFavorite AS VARCHAR(20)) + '" />' 
+				   WHEN l.SubIssueTypeId IN (22,23,24,25) AND l.HDPValue IS NOT NULL THEN '<r HDPValue="' + CAST(l.HDPValue AS VARCHAR(20)) + '" />' 
 				   ELSE '' END
 		FROM #tblGetLogInfo l
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
@@ -979,8 +983,7 @@ BEGIN
 							   + CASE WHEN l.SubIssueTypeId IN (8,9) AND l.HomeFavorite IS NOT NULL THEN ', HomeFavorite: ' + CAST(l.HomeFavorite AS VARCHAR(20))
 									  WHEN l.SubIssueTypeId IN (8,9) AND l.AwayFavorite IS NOT NULL THEN ', AwayFavorite: ' + CAST(l.AwayFavorite AS VARCHAR(20)) ELSE '' END
 							   + CASE WHEN l.SubIssueTypeId IN (8,9) AND l.ActualMarket IS NOT NULL THEN ', ActualMarket: ' + CAST(l.ActualMarket AS VARCHAR(20)) ELSE '' END 
-							   + CASE WHEN l.SubIssueTypeId IN (23,25) AND l.HomeFavorite IS NOT NULL THEN ', HDPValue: ' + CAST(l.HomeFavorite AS VARCHAR(20))
-									  WHEN l.SubIssueTypeId IN (22,24) AND l.AwayFavorite IS NOT NULL THEN ', HDPValue: ' + CAST(l.AwayFavorite AS VARCHAR(20)) ELSE '' END
+							   + CASE WHEN l.SubIssueTypeId IN (22,23,24,25) AND l.HDPValue IS NOT NULL THEN ', HDPValue: ' + CAST(l.HDPValue AS VARCHAR(20)) ELSE '' END
 								FROM #tblGetLogInfo l
 	END
 	-- Write Log
