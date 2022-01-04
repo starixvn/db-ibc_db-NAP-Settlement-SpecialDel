@@ -29,6 +29,7 @@ AS
 		- 20211013@Max: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211118@July: Change length datatatype [Redmine:#164819]
+		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 
 	Param's explanation:	
 		@Status: 
@@ -118,7 +119,7 @@ BEGIN
 
 							END
 	-----------------------------GET eventdate of match---------------------------------------------
-	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13)))
+	IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17)))
 	BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 										LEFT JOIN @tmpRequest r 
@@ -195,11 +196,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
@@ -244,11 +245,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
@@ -294,11 +295,11 @@ BEGIN
 				,r.MistakenBy
 				,r.DecidedBy
 				,r.CheckedBy
-				,CASE WHEN r.IssueTypeId = 13 THEN NULL ELSE rd.MatchId END
+				,CASE WHEN r.IssueTypeId IN (13,17) THEN NULL ELSE rd.MatchId END
 				,r.Sporttype
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
-				,CASE WHEN r.IssueTypeId = 13 OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
+				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
@@ -353,18 +354,21 @@ BEGIN
 		
 	-- single + cash out ticket	
 	UPDATE vh 
-		SET TotalSingle =	t.TotalVoidedSingle
+		SET TotalSingle = t.TotalVoidedSingle
 			,TotalCashOut = t.TotalVoidedCashOut
 			,MatchId = t.matchid
+			,TotalParlay = CASE WHEN vh.IssueTypeId = 17 THEN t.TotalVoidedParlay ELSE 0 END
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
-					,SUM(CASE 
-							WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
+					,SUM( CASE 
+							WHEN vh.IssueTypeId <> 17 AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
+							WHEN vh.IssueTypeId = 17 AND z.bettype NOT IN(9,29,2799) AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
 							WHEN z.bettype = 911 THEN 1
 							ELSE 0 END
 						) AS TotalVoidedSingle
-					,0 AS TotalVoidedCashOut 
+					,SUM(CASE WHEN vh.IssueTypeId = 17 AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
+					,0 AS TotalVoidedCashOut
 					,CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
@@ -421,7 +425,8 @@ BEGIN
 			,ch.Username AS CheckedBy
 			,t.TotalSingle AS TotalVoidedSingle
 			,t.TotalParlay AS TotalVoidedParlay
-			,CASE WHEN t.IssueTypeId IN (11,15) THEN LEN(ts.TransIds) - LEN(REPLACE(ts.TransIds, ',', '')) ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId IN (11,15,17) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId IN (17) THEN LEN(ISNULL(p.TransIds,'')) - LEN(REPLACE(ISNULL(p.TransIds,''), ',', ''))  ELSE 0 END AS TotalParlay
 			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f.statusID IS NULL AND l.statusID IS NULL THEN ''
@@ -445,9 +450,17 @@ BEGIN
 			ON t.CheckedBy = ch.CustId
 		OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (11,15)
+					WHERE s.RequestId = t.RequestId
+					AND 1 = CASE WHEN t.IssueTypeId IN (11,15) THEN 1
+								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799) THEN 1
+								 ELSE 0 END
 					FOR XML PATH('')
 				)ts	 (TransIds)
+		OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
+					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799)
+					FOR XML PATH('')
+				)p	 (TransIds)
 		OUTER APPLY ( -- Failed
 				SELECT DISTINCT RequestId, 3 AS statusID
 				FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 

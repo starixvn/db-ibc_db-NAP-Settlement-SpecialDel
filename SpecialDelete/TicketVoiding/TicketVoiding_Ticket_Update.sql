@@ -26,6 +26,7 @@ AS
 		- 20210401@Kathy:  Enhance Auto Void Retry process [Redmine:#152581]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20211115@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
+		- 20211202@Max: TVS - Void Archived Tickets [Redmine: #140180]
 	
 	Param's explanation:	
 		
@@ -35,7 +36,21 @@ BEGIN
 	DECLARE @IssueTypeId INT
 	SELECT @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
 
-	IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13)))-- Single
+	IF @IssueTypeId = 17 --Void 14
+	BEGIN
+		EXEC dbo.TicketVoiding_VoidHistorical_Update
+			@RequestId				= @RequestId
+			,@MatchId				= @MatchId
+			,@VoidingHistoryId		= @VoidingHistoryId
+			,@TransIds				= @TransIds
+			,@UserId				= @UserId
+			,@IP					= @IP
+			,@FailedTransIds		= @FailedTransIds OUTPUT
+			,@ErrCode				= @ErrCode	OUTPUT
+			,@ErrMsg				= @ErrMsg	OUTPUT
+			,@NegativeBalanceUsers  = @NegativeBalanceUsers	OUTPUT
+	END
+	ELSE IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13)))-- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
 			@RequestId = @RequestId

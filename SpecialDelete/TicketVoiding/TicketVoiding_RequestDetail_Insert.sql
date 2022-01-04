@@ -77,6 +77,7 @@ AS
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -158,7 +159,7 @@ BEGIN
 	SET @LogActionId = 90001
 	SET @SB_Error = 0	
 
-	IF @IssueTypeId NOT IN (1,10,3) --DA,RC,WC
+	IF @IssueTypeId NOT IN (1,10,3,17) --DA,RC,WC,AT
 	BEGIN
 		-- get match info
 		SELECT	@LeagueId = leagueid
@@ -650,6 +651,70 @@ BEGIN
 			FROM #TempMatch m
 		END
 	END
+	ELSE IF @IssueTypeId = 17 --Archived Ticket
+	BEGIN
+		INSERT INTO #transIdTemp  (transid, statusID, MatchId, bettype)
+		SELECT DISTINCT t.val, b14.statusId, b14.matchid, b14.bettype
+		FROM dbo.f_SplitString(@TransIds, ',') t
+			INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON CAST (t.val AS BIGINT) = b14.transid
+		WHERE val <> ''
+		OPTION (maxrecursion 0)
+
+		INSERT INTO #TempMatch(MatchId, IsOutright)
+		SELECT  DISTINCT matchid,
+				CASE WHEN bettype <> 10 THEN 0 
+					 WHEN bettype = 10 THEN 1 
+					 ELSE NULL END
+		FROM #transIdTemp
+
+	   IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0)
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail (
+				   RequestId
+				 , MatchId
+				 , LeagueId
+				 , HomeId
+				 , AwayId
+				 , SubIssueTypeId
+				 , FilterBy
+			)
+			SELECT @RequestId
+				 , t.MatchId 
+				 , ISNULL(m14.leagueid, 0) 
+				 , ISNULL(m14.homeid, 0) 
+				 , ISNULL(m14.awayid, 0) 
+				 , @SubIssueTypeId
+				 , @FilterBy
+			FROM #TempMatch t
+				LEFT JOIN dbo.match14 m14 WITH(NOLOCK) ON t.MatchId = m14.matchid
+			WHERE t.IsOutright = 0
+
+		END
+		IF EXISTS (SELECT TOP 1 1 FROM #TempMatch WHERE IsOutright = 1) -- outright
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail (
+				   RequestId
+				 , MatchId
+				 , LeagueId
+				 , HomeId
+				 , AwayId
+				 , SubIssueTypeId
+				 , FilterBy
+			)
+			SELECT @RequestId
+				 , t.MatchId 
+				 , ISNULL(o14.leagueid, 0) 
+				 , ISNULL(o14.teamid, 0) 
+				 , 0
+				 , @SubIssueTypeId
+				 , @FilterBy
+			FROM #TempMatch t
+				INNER JOIN dbo.outright14 o14 WITH(NOLOCK) ON t.MatchId = o14.orid
+			WHERE t.IsOutright = 1
+		END
+
+	END
+
 	-- Insert queue for auto void
 	IF @IssueTypeId IN (11,15) AND @Sporttype <= 99
 	BEGIN
@@ -744,6 +809,10 @@ BEGIN
 								+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
 								+ 'To Time: '+ CONVERT(VARCHAR(30),l.FilterToTransTime, 21) +'); '
 		FROM #tblGetLogInfo l
+	END
+	ELSE IF @IssueTypeId = 17 OR @TransIds IS NOT NULL
+	BEGIN
+		SET @LogDataContent += ' TransIds: ' + @TransIds
 	END
 	-- Write Log
 	SET @EndTime = GETDATE()
