@@ -310,111 +310,54 @@ BEGIN
 												END
 									WHEN 2 THEN b.actual_stake 
 							   END AS actual_stake
-							   
 							 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 0 ELSE 1 END AS CommWinRate
 							 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 2 ELSE 1 END AS CommLostRate
-							 
-							 , CASE 
-									WHEN b.odds<0 THEN 1 
-									ELSE (CASE 
-											WHEN b.bettype in (SELECT f.BetType 
-															   FROM [dbo].[f_Set_GetCashOutBettypes]() f
-															   WHERE f.IsDecimalOnly = 1) 
-													THEN b.odds-1 
-											ELSE b.odds 
-										  END) 
-								END AS odds
 					) AS TRef		
-		OUTER APPLY (SELECT CASE 
-								WHEN b.statusId = 0 THEN 0
-								WHEN b.statusId = 103 THEN TRef.actual_stake 								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25 THEN TRef.actual_stake + TRef.stake * TRef.odds
-																			WHEN t.modds =  0.25 THEN TRef.actual_stake + TRef.stake * TRef.odds * 0.5
-																			WHEN t.modds =  0	 THEN TRef.actual_stake	
-																			WHEN t.modds = -0.25 THEN TRef.actual_stake * 0.5
-																			WHEN t.modds < -0.25 THEN 0
-																	  END 								
-								ELSE b.winlost 
-							END AS winlost
-						  , CASE 
-								WHEN b.statusId IN (0, 103) THEN 0								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25 THEN TRef.stake * TRef.odds * -b.apositiontaking
-																			WHEN t.modds =  0.25 THEN TRef.stake * TRef.odds * -b.apositiontaking * 0.5
-																			WHEN t.modds =  0	 THEN 0	
-																			WHEN t.modds = -0.25 THEN TRef.actual_stake * b.apositiontaking * 0.5
-																			WHEN t.modds < -0.25 THEN TRef.actual_stake * b.apositiontaking
-																	  END								
-								ELSE b.awinlost 
-							END AS awinlost
-						  , CASE 
-								WHEN b.statusId IN (0, 103) THEN 0								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25  THEN TRef.stake * TRef.odds * -b.mpositiontaking
-																			WHEN t.modds =  0.25  THEN TRef.stake * TRef.odds * -b.mpositiontaking * 0.5
-																			WHEN t.modds =  0	  THEN 0	
-																			WHEN t.modds = -0.25  THEN TRef.actual_stake * b.mpositiontaking * 0.5
-																			WHEN t.modds < -0.25  THEN TRef.actual_stake * b.mpositiontaking
-																	  END								
-								ELSE b.mWinLost 
-							END AS mWinLost
-						  , CASE 
-								WHEN b.statusId IN (0, 103) THEN 0								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25  THEN TRef.stake * TRef.odds * -b.spositiontaking
-																			WHEN t.modds =  0.25  THEN TRef.stake * TRef.odds * -b.spositiontaking * 0.5
-																			WHEN t.modds =  0	  THEN 0	
-																			WHEN t.modds = -0.25  THEN TRef.actual_stake * b.spositiontaking * 0.5
-																			WHEN t.modds < -0.25  THEN TRef.actual_stake * b.spositiontaking
-																	  END								
-								ELSE b.swinlost 
-							END AS swinlost
-						  
-						  , CASE 
-								WHEN b.statusId IN (0, 103) THEN 0								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25  THEN TRef.commWinRate * b.playerdiscount * TRef.stake
-																			WHEN t.modds =  0.25  THEN TRef.commWinRate * b.playerdiscount * TRef.stake * 0.5
-																			WHEN t.modds =  0	  THEN 0	
-																			WHEN t.modds = -0.25  THEN TRef.commLostRate * b.playerdiscount * TRef.stake * 0.5
-																			WHEN t.modds < -0.25  THEN TRef.commLostRate * b.playerdiscount * TRef.stake
-																	  END								
-								ELSE b.playercomm 
-							END AS playercomm
-						  , CASE 
-								WHEN b.statusId IN (0, 103) THEN 0								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25  THEN TRef.commWinRate * b.discount * TRef.stake * (1-b.apositiontaking)
-																			WHEN t.modds =  0.25  THEN TRef.commWinRate * b.discount * TRef.stake * (1-b.apositiontaking) * 0.5
-																			WHEN t.modds =  0	  THEN 0	
-																			WHEN t.modds = -0.25  THEN TRef.commLostRate * b.discount * TRef.stake * (1-b.apositiontaking) * 0.5
-																			WHEN t.modds < -0.25  THEN TRef.commLostRate * b.discount * TRef.stake * (1-b.apositiontaking)
-																	  END								
-								ELSE b.comm 
-							END AS comm
-						  , CASE 
-								WHEN b.statusId IN (0, 103) THEN 0								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25  THEN TRef.commWinRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking))
-																			WHEN t.modds =  0.25  THEN TRef.commWinRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking)) * 0.5
-																			WHEN t.modds =  0	  THEN 0	
-																			WHEN t.modds = -0.25  THEN TRef.commLostRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking)) * 0.5
-																			WHEN t.modds < -0.25  THEN TRef.commLostRate * b.adiscount * TRef.stake * (1-(b.mpositiontaking+b.apositiontaking))
-																	  END								
-								ELSE b.acomm 
-							END AS acomm
-						  , CASE 
-								WHEN b.statusId IN (0, 103) THEN 0								
-								WHEN b.statusId IN (111,112,113) THEN CASE
-																			WHEN t.modds >  0.25  THEN TRef.commWinRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking))
-																			WHEN t.modds =  0.25  THEN TRef.commWinRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking)) * 0.5
-																			WHEN t.modds =  0	  THEN 0	
-																			WHEN t.modds = -0.25  THEN TRef.commLostRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking)) * 0.5
-																			WHEN t.modds < -0.25  THEN TRef.commLostRate * b.sdiscount * TRef.stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking))
-																	  END								
-								ELSE b.scomm 
-							END AS scomm) AS TCal														    														
+		OUTER APPLY (SELECT t.zzzwinlost AS winlost
+							 , CASE
+									
+									WHEN b.statusID = 103 THEN 0
+									WHEN b.statusID = 112 THEN ABS(t.zzzwinlost - b.actual_stake) * -b.apositiontaking
+									WHEN b.statusID = 111 THEN 0
+									ELSE ABS(t.zzzwinlost - b.actual_stake) * b.apositiontaking
+								END AS awinlost
+							, CASE
+									WHEN b.statusID = 103 THEN 0
+									WHEN b.statusID = 112 THEN ABS(t.zzzwinlost - b.actual_stake) * -b.mpositiontaking
+									WHEN b.statusID = 111 THEN 0
+									ELSE ABS(t.zzzwinlost - b.actual_stake) * b.mpositiontaking
+								END AS mWinLost
+							, CASE
+									WHEN b.statusID = 103 THEN 0
+									WHEN b.statusID = 112 THEN ABS(t.zzzwinlost - b.actual_stake) * -b.spositiontaking
+									WHEN b.statusID = 111 THEN 0
+									ELSE ABS(t.zzzwinlost - b.actual_stake) * b.spositiontaking
+								END AS swinlost
+							  , CASE
+									WHEN b.statusID = 103 THEN 0
+									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+									ELSE TRef.CommWinRate * b.stake * b.playerdiscount
+								END AS playercomm
+							, CASE
+									WHEN b.statusID = 103 THEN 0
+									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+									ELSE TRef.CommLostRate * b.stake * b.discount * (1-apositiontaking)
+								END AS comm
+							,CASE
+									WHEN b.statusID = 103 THEN 0
+									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+									ELSE TRef.CommLostRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+								END AS acomm
+							,CASE
+									WHEN b.statusID = 103 THEN 0
+									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+									ELSE TRef.CommLostRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+								END AS scomm
+						) AS TCal															    														
 	
 	--> capture after
 	INSERT INTO @AfterUpd(custid, balance, balanceType)

@@ -152,6 +152,32 @@ BEGIN
 				LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
 			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
+
+			UNION ALL -- Apply for ticket void14 
+			SELECT t.transid
+				,CASE 
+					WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
+						THEN CASE
+								WHEN ISNULL(mr.IsHTCal, 0) = 0
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
+										THEN 1
+								WHEN ISNULL(mr.IsHTCal, 0) = 1
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
+										THEN 1
+								ELSE 2
+							END
+					WHEN b.StatusId IN (111, 112, 113) THEN 2
+					ELSE 0
+				END
+			FROM @TransIdTemp AS t
+				INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON t.transid = b.transid
+				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = b.matchid
+				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
+			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
 			)
 		SELECT @IsExistsInstantlySettledTickets = CASE 
 				WHEN EXISTS (
@@ -185,6 +211,13 @@ BEGIN
 				INNER JOIN dbo.bettrans AS m WITH (NOLOCK) ON t.transid = m.transid
 				WHERE m.statusID IN (111, 112, 113) AND m.matchid IN (9, 29, 2799)
 			) THEN 1
+			-- Apply for ticket main parlay void14 
+			WHEN EXISTS (
+				SELECT TOP 1 1
+				FROM @TransIdTemp AS t
+				INNER JOIN dbo.bettrans14 AS m WITH (NOLOCK) ON t.transid = m.transid
+				WHERE m.statusID IN (111, 112, 113) AND m.matchid IN (9, 29, 2799)
+			) THEN 1
 			ELSE 0
 			END
 
@@ -194,6 +227,12 @@ BEGIN
 														SELECT TOP 1 1
 														FROM @TransIdTemp AS t
 															INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
+														WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2
+												) THEN 1
+												WHEN EXISTS (
+													SELECT TOP 1 1
+														FROM @TransIdTemp AS t
+															INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON t.transid = b.transid
 														WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2
 												) THEN 1
 												ELSE 0
