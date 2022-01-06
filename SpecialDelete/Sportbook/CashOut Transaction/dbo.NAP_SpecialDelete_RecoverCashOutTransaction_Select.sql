@@ -64,7 +64,8 @@ BEGIN
 		SportTypeId			SMALLINT,
 		IsNeutral			BIT,
 		MatchCode			NVARCHAR(50),
-		EventDate			DATETIME		
+		EventDate			DATETIME	,
+		ActualStake			MONEY
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
@@ -130,7 +131,8 @@ BEGIN
 					SportTypeId,
 					IsNeutral,
 					MatchCode,
-					EventDate
+					EventDate,
+					ActualStake
 				)
 	SELECT 
 			sub.BetId,
@@ -163,7 +165,8 @@ BEGIN
 			m.sporttype AS SportTypeId,
 			ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 			m.MatchCode,
-			m.EventDate
+			m.EventDate,
+			sub.actual_stake AS ActualStake
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 		INNER JOIN #tmpKeyId t ON t.KeyId = z.keyid
 		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
@@ -215,7 +218,8 @@ BEGIN
 			d.LeagueId,
 			d.SportTypeId,
 			d.IsNeutral,
-			d.MatchCode
+			d.MatchCode,
+			d.ActualStake
 	FROM #SpecialDeleteBets d
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 				 ON d.recommend = c.custid		 	

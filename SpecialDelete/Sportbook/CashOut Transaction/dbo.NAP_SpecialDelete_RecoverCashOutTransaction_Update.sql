@@ -435,7 +435,8 @@ BEGIN
 			d.LeagueId,
 			d.SportTypeId,
 			d.IsNeutral,
-			d.MatchCode
+			d.MatchCode,
+			d.actual_stake AS ActualStake
 	FROM #SpecialDeleteBets d
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 			     ON d.recommend = c.custid

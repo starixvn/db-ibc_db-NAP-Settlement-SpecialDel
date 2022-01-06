@@ -87,7 +87,8 @@ BEGIN
 		SportTypeId			SMALLINT,
 		IsNeutral			BIT,
 		MatchCode			NVARCHAR(50),
-		EventDate			DATETIME
+		EventDate			DATETIME,
+		ActualStake			MONEY
 	)
 	CREATE INDEX IDX_SpecialDeleteBets_RefNo_Bettype_matchid_custid	
 	ON #SpecialDeleteBets(RefNo, BetType, matchid, custid) INCLUDE(stake)
@@ -166,7 +167,8 @@ BEGIN
 					SportTypeId,
 					IsNeutral,
 					MatchCode,
-					EventDate
+					EventDate,
+					ActualStake
 			)
 	SELECT 	sub.TransId,
 			sub.BetType,
@@ -202,7 +204,8 @@ BEGIN
 			m.sporttype AS SportTypeId,
 			ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 			m.MatchCode,
-			m.eventdate
+			m.eventdate,
+			sub.actual_stake AS ActualStake
 	FROM dbo.bettrans sub WITH(NOLOCK)
 		 INNER JOIN dbo.match m WITH(NOLOCK) 
 				 ON m.matchid = sub.matchid
@@ -411,7 +414,8 @@ BEGIN
 			d.LeagueId,
 			d.SportTypeId,
 			d.IsNeutral,
-			d.MatchCode 
+			d.MatchCode ,
+			d.ActualStake
 	FROM #SpecialDeleteBets AS d
 	LEFT JOIN #tblCustInfo AS ci ON d.custid = ci.custid
 	LEFT JOIN #tblCustInfo AS ag ON d.recommend = ag.custid	

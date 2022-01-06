@@ -139,6 +139,7 @@ BEGIN
 		,ChildMatchType TINYINT
 		,zzzwinlost		MONEY
 		,modds			MONEY
+		,ActualStake	MONEY
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -203,6 +204,7 @@ BEGIN
 				,winlostdate
 				,zzzwinlost
 				,modds
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -241,6 +243,7 @@ BEGIN
 				,b.winlostdate
 				,z.winlost AS zzzwinlost
 				,b.modds
+				,b.actual_stake  AS ActualStake
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.refno
@@ -292,6 +295,7 @@ BEGIN
 				,winlostdate
 				,zzzwinlost
 				,modds
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -332,6 +336,7 @@ BEGIN
 				,m.eventdate
 				,z.winlost AS zzzwinlost
 				,b.modds
+				,b.actual_stake AS ActualStake
 		FROM	#tbTransId t		
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
@@ -388,6 +393,7 @@ BEGIN
 				,BonusID
 				,winlostdate
 				,SportType
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -428,6 +434,7 @@ BEGIN
 				,b.BonusID
 				,o.eventdate
 				,l.sporttype
+				,b.actual_stake AS ActualStake
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.transid = b.transid
@@ -534,6 +541,7 @@ BEGIN
 					,BonusID
 					,MainTransId
 					,winlostdate
+					,ActualStake
 			)
 			SELECT	 z.transid
 					,z.transid
@@ -573,6 +581,7 @@ BEGIN
 					,b.BonusID
 					,b.MainTransId
 					,b.winlostdate
+					,b.actual_stake AS ActualStake
 			FROM #CTE_bettrans b WITH (NOLOCK)
 				 INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
 						 ON	z.transid = b.transid
@@ -1152,6 +1161,7 @@ BEGIN
 				,t.BonusID
 				,t.MainTransId
 				,t.RefCode
+				,t.ActualStake
 		FROM #tblTransInfo t
 			 OUTER APPLY (SELECT TOP 1 1 AS isExists
 						  FROM CustDB.dbo.Customer c WITH(NOLOCK) 
@@ -1209,6 +1219,7 @@ BEGIN
 			,t.RefCode
 			,m.SettlementStatus
 			,m.GlobalShowTime
+			,t.ActualStake
 	FROM CTE t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 	ORDER BY site
