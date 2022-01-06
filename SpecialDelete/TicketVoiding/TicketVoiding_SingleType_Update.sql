@@ -163,6 +163,7 @@ BEGIN
 	)
 
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY,betdaqid BIGINT,betdaqid_new BIGINT, Bonusid INT, WalletType TINYINT	)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90100
@@ -1147,9 +1148,21 @@ BEGIN
 			,b.BonusID
 			,b.WalletType
 
+	--Insert tmp table for correct balance CO
+	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,betdaqid,Bonusid, WalletType)
+	SELECT transid,custid, winlost - actual_stake + playercomm as balance,betdaqid
+		,BonusID = CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
+		,WalletType = ISNULL(WalletType, 2) -- Cash Wallet as default
+	FROM	dbo.bettrans main WITH (NOLOCK)
+	WHERE transid IN (SELECT transid FROM #tmpTransId)
+	
 	WHILE (1=1)
 	BEGIN
 		DELETE @tmpTransIdBatch
+
+		SET @xmlTransId = ''
+		SET @strTransCashout = ''
+		DELETE @CashoutTickets_tmp
 
 		UPDATE TOP(2000) t
 			SET t.isFinish = 1
@@ -1196,19 +1209,15 @@ BEGIN
 			OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
 					
 			UPDATE bf
-				SET balance = bl.balance_new
+				SET balance = bf.balance - bl.balance_old + bl.balance_new
 			FROM @BeforeUpd bf
 				INNER JOIN  (
-						SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_new
-						FROM  @CashoutTickets_tmp c 
-						GROUP BY c.custid,c.BonusID,c.WalletType
-					) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
-			WHERE bf.balance <> bl.balance_new
+							SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
+							FROM  @CashoutTickets_tmp tmp 
+									INNER JOIN @tmpTrans_beforeUpd C ON c.TransID = tmp.transid AND tmp.custid = c.custid
+							GROUP BY c.custid,c.BonusID,c.WalletType							
+						) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
 		END
-
-		SET @xmlTransId = ''
-		SET @strTransCashout = ''
-		DELETE @CashoutTickets_tmp
 
 	END
 

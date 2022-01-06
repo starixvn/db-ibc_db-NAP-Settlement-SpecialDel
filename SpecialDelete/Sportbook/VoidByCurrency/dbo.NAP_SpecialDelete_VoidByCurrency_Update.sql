@@ -180,8 +180,7 @@ BEGIN
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange
 	
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT, Bonusid INT, WalletType TINYINT	)
-	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT)
 
 	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
@@ -982,13 +981,6 @@ BEGIN
 			SELECT	b.transid
 			FROM  #SpecialDeleteBets_Parlay b WITH (NOLOCK)
 		END
-		
-
-		INSERT INTO #BeforeUpd(custid, balance)
-		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-		FROM dbo.bettrans b WITH (NOLOCK)
-		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
-		GROUP BY b.CustID
 
 		-------> Insert backups	
 		--> backups for single
@@ -1036,6 +1028,42 @@ BEGIN
 					ON	r.SubTransId=b.transid						
 		END
 		
+		-------> update status for tickets to void		
+		--> update status for single
+		IF @CountSingle > 0
+		BEGIN
+			-- update status for normal ticket
+			SET @RepUpdateTime = SYSDATETIME()
+			UPDATE	main
+				SET winlost		= main.actual_stake
+					,ruben			= 1
+					--,statuswinlost	= 6
+					,creator		= @UserID
+					,awinlost		= 0
+					,mwinlost		= 0
+					,swinlost		= 0
+					,playercomm		= 0
+					,comm			= 0
+					,acomm			= 0
+					,scomm			= 0
+					,statusID		= 102       
+					,status			= 'VOID'
+					,RepUpdateTime = @RepUpdateTime
+						OUTPUT deleted.Transid,
+						deleted.custid,  
+						deleted.winlost,
+						deleted.actual_stake,
+						deleted.playercomm,
+						deleted.BonusID,
+						deleted.WalletType,
+						deleted.bettype
+				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype)
+			FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN #SpecialDeleteBets_Single tmpmain
+					ON	main.transid = tmpmain.transid					
+						AND main.matchid = @matchid	
+		END	
+		
 		-------> Capture before balance		
 		INSERT INTO @tblBeforeBalance (matchid
 									 , custid  			 
@@ -1055,9 +1083,8 @@ BEGIN
 					  , b.BonusID
 					  , b.WalletType
 					  , b.winlost, b.actual_stake, b.playercomm, b.bettype
-				FROM #SpecialDeleteBets_Single t	
-					INNER JOIN bettrans b WITH (NOLOCK) 
-							ON t.transid = b.transid
+				FROM @tmpTrans_beforeUpd b	
+
 				UNION ALL
 				-- parlay				
 				SELECT b.custid
@@ -1082,69 +1109,13 @@ BEGIN
 		GROUP BY T.custid			   
 			   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
 			   , ISNULL(T.WalletType, 2) -- normal tickets are treated as cash tickets
-		
-		-------> update status for tickets to void		
-		--> update status for single
-		IF @CountSingle > 0
-		BEGIN
-			-- update status for normal ticket
-			SET @RepUpdateTime = SYSDATETIME()
-			UPDATE	main
-				SET winlost		= main.actual_stake
-					,ruben			= 1
-					--,statuswinlost	= 6
-					,creator		= @UserID
-					,awinlost		= 0
-					,mwinlost		= 0
-					,swinlost		= 0
-					,playercomm		= 0
-					,comm			= 0
-					,acomm			= 0
-					,scomm			= 0
-					,statusID		= 102       
-					,status			= 'VOID'
-					,RepUpdateTime = @RepUpdateTime
-						OUTPUT deleted.Transid,
-						deleted.custid,  
-						deleted.winlost,  
-						deleted.actual_stake, 
-						deleted.playercomm,
-						deleted.betdaqid ,
-						deleted.BonusID,
-						deleted.WalletType
-					INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid,Bonusid, WalletType)
-			FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
-				INNER JOIN #SpecialDeleteBets_Single tmpmain
-					ON	main.transid = tmpmain.transid					
-						AND main.matchid = @matchid	
 
-			-- Process for cashout tickets make change Balance before
-			INSERT INTO @CashoutTickets_tmp(transid,custid, balance, bonusId, WalletType)
-			SELECT b.transid
-					, b.custid
-					, b.winlost-b.actual_stake + b.playercomm
-					, CASE 
-							WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
-							ELSE 0 END
-					, ISNULL(b.WalletType, 2)
-			FROM @tmpTrans_beforeUpd b
-			WHERE 	b.betdaqid = -2
+		INSERT INTO #BeforeUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM @tmpTrans_beforeUpd b
+		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
+		GROUP BY b.CustID
 
-			-- Adjust BL before for affected cashout tickets
-			IF EXISTS (SELECT TOP(1) 1 FROM @CashoutTickets_tmp)
-			BEGIN				
-				UPDATE bf
-					SET balance = bl.balance_new
-				FROM @tblBeforeBalance bf
-					INNER JOIN  (
-							SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_new
-							FROM  @CashoutTickets_tmp c 
-							GROUP BY c.custid,c.BonusID,c.WalletType
-						) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
-				WHERE bf.balance <> bl.balance_new
-			END
-		END				
-		
 		--> update status for parlay
 		IF @CountParlay > 0
 		BEGIN

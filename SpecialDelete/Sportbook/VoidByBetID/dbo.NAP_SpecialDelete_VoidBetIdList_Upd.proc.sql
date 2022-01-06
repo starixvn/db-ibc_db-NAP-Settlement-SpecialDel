@@ -267,6 +267,7 @@ BEGIN
 	
 	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY,betdaqid BIGINT,betdaqid_new BIGINT, Bonusid INT, WalletType TINYINT	)
 
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @password AND custid = @userId AND roleid >=5)
 	BEGIN
@@ -1286,7 +1287,14 @@ BEGIN
 		     END
 		   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
 		   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
-
+	
+	--Insert tmp table for correct balance CO
+	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,betdaqid,Bonusid, WalletType)
+	SELECT transid,custid, winlost - actual_stake + playercomm as balance,betdaqid
+		,BonusID = CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
+		,WalletType = ISNULL(WalletType, 2) -- Cash Wallet as default
+	FROM	dbo.bettrans main WITH (NOLOCK)
+	WHERE transid IN (SELECT transid FROM #BetDelete)
 
 	/**********************************************   *************************************************************/
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY)
@@ -1300,6 +1308,11 @@ BEGIN
 	WHILE (1=1)
 	BEGIN
 		DELETE @tmpTransIDBatch
+
+		SET @TransIds_tmp = ''
+		SET @strTransCashout = ''
+		SET @xmlCashoutTicket = ''
+		DELETE @CashoutTickets_tmp
 
 		UPDATE TOP(2000) t
 			SET IsFinish = 1
@@ -1345,20 +1358,15 @@ BEGIN
 			OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
 					
 			UPDATE bf
-				SET balance = bl.balance_new
+				SET balance = bf.balance - bl.balance_old + bl.balance_new
 			FROM @BeforeUpd bf
 				INNER JOIN  (
-						SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_new
-						FROM  @CashoutTickets_tmp c 
-						GROUP BY c.custid,c.BonusID,c.WalletType
-					) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
-			WHERE bf.balance <> bl.balance_new
+							SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
+							FROM  @CashoutTickets_tmp tmp 
+									INNER JOIN @tmpTrans_beforeUpd C ON c.TransID = tmp.transid AND tmp.custid = c.custid
+							GROUP BY c.custid,c.BonusID,c.WalletType							
+						) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
 		END
-
-		SET @TransIds_tmp = ''
-		SET @strTransCashout = ''
-		SET @xmlCashoutTicket = ''
-		DELETE @CashoutTickets_tmp
 
 	END
 	-- 2.2 - void MetricGaming
