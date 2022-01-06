@@ -1392,6 +1392,7 @@ BEGIN
 				@SettlementStatus AS SettlementStatus,
 				@GlobalShowTime AS GlobalShowTime,
 				s.ActualStake,
+				s.NetWinLost AS Winlost,
 				s.MainTransId,
 				s.custid,
 				s.UserName,

@@ -1968,6 +1968,7 @@ BEGIN
 			,su.site   
 			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit  
 			,@isITAdmin AS IsITSupport
+			,al.Winlost
 		FROM (  
 			SELECT al.odds  
 			,al.odds AS choiceOdds 
