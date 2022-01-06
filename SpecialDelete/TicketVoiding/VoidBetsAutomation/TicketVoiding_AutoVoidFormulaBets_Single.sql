@@ -22,6 +22,7 @@ AS
 		- 20200609@Max: [TVS] Auto Void for remaining sports - Exclude Saba from all sport - [Redmine: #135574]
 		- 20201001@Zane: Exclude Virtual Futsal from auto void bet [Redmine: #142512]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
+		- 20211214@July: Remove code [Redmine: #165097]
 
 	Param's explanation:	
 		
@@ -230,12 +231,13 @@ BEGIN
 			
 			SET @StartTime_tmp = GETDATE()
 			
-			EXEC dbo.TicketVoiding_AutoVoidFormulaBets_Single_Update @TransIds = @TransIds, @UserId = @UserId
-															, @IP = @IP
-															, @IsAbnormalBet = 1
-															, @InvalidTransIds = @InvalidTransIds OUTPUT
-															, @ErrMsg = @ErrMsg_tmp OUTPUT
-															, @ErrCode = @ErrCode OUTPUT;
+			EXEC dbo.TicketVoiding_AutoVoidFormulaBets_Single_Update 
+					@TransIds = @TransIds
+					, @UserId = @UserId
+					, @IP = @IP
+					, @IsAbnormalBet = 1
+					, @ErrMsg = @ErrMsg_tmp OUTPUT
+					, @ErrCode = @ErrCode OUTPUT;
 															
 			-- Write Log for trace issue later
 			SET @EndTime = GETDATE()
