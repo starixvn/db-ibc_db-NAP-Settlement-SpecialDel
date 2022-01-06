@@ -279,7 +279,7 @@ BEGIN
 	  , statusID = t.statusid
 	  , statuswinlost = t.StatusWinlost
 	  , stake = TRef.stake
-	  , actual_stake = TRef.actual_stake
+	  --, actual_stake = TRef.actual_stake
 	  
 	  , winlost = t.winlost
 	  , awinlost = TCal.awinlost

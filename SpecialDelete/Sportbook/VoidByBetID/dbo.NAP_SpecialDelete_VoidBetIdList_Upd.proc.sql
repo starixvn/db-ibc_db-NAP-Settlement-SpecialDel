@@ -267,7 +267,7 @@ BEGIN
 	
 	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY,betdaqid BIGINT,betdaqid_new BIGINT, Bonusid INT, WalletType TINYINT	)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT	)
 
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @password AND custid = @userId AND roleid >=5)
 	BEGIN
@@ -1212,6 +1212,15 @@ BEGIN
 				ELSE 1201
 			END
 	END
+
+	--Insert tmp table for correct balance CO
+	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,Bonusid, WalletType)
+	SELECT transid,custid, winlost - actual_stake + playercomm as balance
+		,BonusID = CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
+		,WalletType = ISNULL(WalletType, 2) -- Cash Wallet as default
+	FROM	dbo.bettrans main WITH (NOLOCK)
+	WHERE transid IN (SELECT transid FROM #BetDelete)
+
 	--capture balance before
 	INSERT INTO @BeforeUpd (
 		 matchid
@@ -1237,12 +1246,11 @@ BEGIN
 		SELECT tmpmain.custid
 			 , main.BonusID
 			 , main.WalletType
-			 , main.winlost, main.actual_stake ,main.playercomm, tmpmain.bettype, tmpmain.matchid,tmpmain.sporttype
-		FROM dbo.bettrans main WITH (NOLOCK)
+			 , main.Balance AS winlost, 0 AS actual_stake , 0 AS playercomm --because balance aleady sum into @tmpTrans_beforeUpd
+			 , tmpmain.bettype, tmpmain.matchid,tmpmain.sporttype
+		FROM @tmpTrans_beforeUpd main 
 			INNER JOIN #BetDelete tmpmain
 				ON	main.transid = tmpmain.transid
-					AND main.transid = tmpmain.grouptransid
-					AND main.matchid = tmpmain.matchid
 		WHERE	
 			1 = CASE 
 				WHEN tmpmain.bettype BETWEEN 801 AND 806 AND tmpmain.statusID = 0 THEN 0 
@@ -1287,14 +1295,6 @@ BEGIN
 		     END
 		   , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
 		   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
-	
-	--Insert tmp table for correct balance CO
-	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,betdaqid,Bonusid, WalletType)
-	SELECT transid,custid, winlost - actual_stake + playercomm as balance,betdaqid
-		,BonusID = CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
-		,WalletType = ISNULL(WalletType, 2) -- Cash Wallet as default
-	FROM	dbo.bettrans main WITH (NOLOCK)
-	WHERE transid IN (SELECT transid FROM #BetDelete)
 
 	/**********************************************   *************************************************************/
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY)

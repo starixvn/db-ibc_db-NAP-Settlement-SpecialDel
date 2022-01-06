@@ -750,14 +750,7 @@ BEGIN
 		  , scomm = TCal.scomm
 
 		  , ruben = b.ruben
-		  , statuswinlost = NULL
 		  , creator = t.creator
-		  , actual_stake = CASE WHEN b.bettype BETWEEN 801 AND 806 THEN 0 ELSE b.actual_stake END
-		  , odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
-		  , @newBettypeTime = (SELECT TOP 1 custom1 FROM DBPRO.bodb02.dbo.ResultDetail3rd WITH(NOLOCK) WHERE resultId = b.betid)
-		  , transdesc = CASE WHEN b.bettype = 801 AND @newBettypeTime <> ''
-							THEN STUFF(b.transdesc,CHARINDEX('bettypetime',b.transdesc)+12,CHARINDEX(';time',b.transdesc)-CHARINDEX('bettypetime',b.transdesc)-12,@newBettypeTime)       
-							ELSE b.transdesc END
 		  , ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,t.SportType, b.bettype)
 		  , RepUpdateTime  = @RepUpdateTime
 		FROM dbo.bettrans b 

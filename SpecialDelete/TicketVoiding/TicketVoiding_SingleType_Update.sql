@@ -163,7 +163,7 @@ BEGIN
 	)
 
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY,betdaqid BIGINT,betdaqid_new BIGINT, Bonusid INT, WalletType TINYINT	)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT	)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90100
@@ -1104,7 +1104,21 @@ BEGIN
 				ELSE 1201
 			END
 	END
-
+	
+	--Insert tmp table for correct balance CO
+	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,Bonusid, WalletType)
+	SELECT main.transid,main.custid
+		, main.winlost - 
+					CASE 
+						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
+						ELSE main.actual_stake 
+					END  
+				+ playercomm as balance
+		,BonusID = CASE WHEN main.BonusID > 0 AND main.WalletType = 1 THEN main.BonusID ELSE 0 END
+		,WalletType = ISNULL(main.WalletType, 2) -- Cash Wallet as default
+	FROM	dbo.bettrans main WITH (NOLOCK)
+		INNER JOIN #tmpTransId t ON t.TransId = main.transid
+	
 	--capture balance before voiding
 	INSERT INTO @BeforeUpd(
 		matchid
@@ -1132,14 +1146,9 @@ BEGIN
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 					ELSE 0 END AS BonusID
 				,ISNULL(b.WalletType, 2) AS WalletType -- sub tickets always bet from cash wallet
-				,b.winlost 
-					- CASE 
-						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
-						ELSE b.actual_stake 
-					END 
-					+ b.playercomm AS balance
+				,b.Balance AS balance
 		FROM	#tmpTransId t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN @tmpTrans_beforeUpd b
 				ON	t.TransId = b.transid
 	)b
 	GROUP BY b.matchid
@@ -1147,14 +1156,6 @@ BEGIN
 			,b.balanceType
 			,b.BonusID
 			,b.WalletType
-
-	--Insert tmp table for correct balance CO
-	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,betdaqid,Bonusid, WalletType)
-	SELECT transid,custid, winlost - actual_stake + playercomm as balance,betdaqid
-		,BonusID = CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
-		,WalletType = ISNULL(WalletType, 2) -- Cash Wallet as default
-	FROM	dbo.bettrans main WITH (NOLOCK)
-	WHERE transid IN (SELECT transid FROM #tmpTransId)
 	
 	WHILE (1=1)
 	BEGIN
