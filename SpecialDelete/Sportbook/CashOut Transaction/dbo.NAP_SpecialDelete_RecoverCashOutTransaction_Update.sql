@@ -255,7 +255,7 @@ BEGIN
 	) AS temp
 	GROUP BY temp.custid							
 	
-	DECLARE @statusid TINYINT
+	SET @RepUpdateTime = SYSDATETIME()
 	--> update cash-out bet ticket, re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
 	;WITH CTE_main_cashoutticket AS
 	(
