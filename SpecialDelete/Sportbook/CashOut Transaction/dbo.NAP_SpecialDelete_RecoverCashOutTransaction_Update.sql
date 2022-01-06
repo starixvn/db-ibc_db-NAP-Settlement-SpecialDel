@@ -256,25 +256,7 @@ BEGIN
 	GROUP BY temp.custid							
 	
 	DECLARE @statusid TINYINT
-	--> update cash-out bet ticket
-	SET @RepUpdateTime = SYSDATETIME()
-	UPDATE	b WITH(ROWLOCK, UPDLOCK)
-	SET status = t.zzzstatus
-		,statusID = CASE WHEN t.zzzstatus = 'WON' THEN '112' 
-										WHEN t.zzzstatus = 'LOSE' THEN '113' 
-										WHEN t.zzzstatus = 'DRAW' THEN '111' 
-									END
-	  , statuswinlost = t.statuswinlost						
-	  , ruben = 1				
-	  , creator = t.zzzCreator
-	  , modds = t.modds	 
-	  , b.betdaqid = -2
-	  , RepUpdateTime = @RepUpdateTime
-	FROM dbo.bettrans b 
-		INNER JOIN #SpecialDeleteBets AS t
-			    ON b.transid = t.transId
-				
-	--> re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
+	--> update cash-out bet ticket, re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
 	;WITH CTE_main_cashoutticket AS
 	(
 		SELECT transid
@@ -283,10 +265,20 @@ BEGIN
 			 , modds
 			 , Stake	
 			 , zzzwinlost AS winlost
+			 , zzzstatus AS status
+			 , CASE WHEN zzzstatus = 'WON' THEN '112' 
+										WHEN zzzstatus = 'LOSE' THEN '113' 
+										WHEN zzzstatus = 'DRAW' THEN '111' 
+									END AS statusid
+			 , StatusWinlost
+			 , zzzCreator AS creator
 		FROM #SpecialDeleteBets
 	)
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
-	SET stake = TRef.stake
+	SET status = t.status
+	  , statusID = t.statusid
+	  , statuswinlost = t.StatusWinlost
+	  , stake = TRef.stake
 	  , actual_stake = TRef.actual_stake
 	  
 	  , winlost = t.winlost
@@ -298,6 +290,12 @@ BEGIN
 	  , comm = TCal.comm
 	  , acomm = TCal.acomm
 	  , scomm = TCal.scomm
+
+	  , ruben = 1
+	  , creator = t.creator
+	  , modds = t.MOdds
+	  , betdaqid = -2
+	  , RepUpdateTime = @RepUpdateTime
 	FROM dbo.bettrans b 
 		INNER JOIN CTE_main_cashoutticket AS t
 			    ON b.transid = t.transId	    			

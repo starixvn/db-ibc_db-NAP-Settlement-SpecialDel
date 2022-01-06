@@ -693,16 +693,11 @@ BEGIN
 	---- recover : normal (NOT IN 468, 469), main bettrade, main cash-out, cash-out member bet ticket
 	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE main
-	SET winlost = CASE WHEN t.IsCashOut = 0 THEN 0 ELSE t.zzzwinlost END 
-	    ,ruben = CASE WHEN t.IsCashOut = 0 THEN 0 ELSE main.ruben END
+	SET winlost = 0
+	    ,ruben = 0
 	    ,statuswinlost = NULL
-	    ,STATUS = CASE WHEN t.IsCashOut = 0 THEN 'running' ELSE t.status END 
-	    ,statusID = CASE WHEN t.IsCashOut = 0 THEN 0 
-						ELSE CASE WHEN t.status = 'WON' THEN '112' 
-									WHEN t.status = 'LOSE' THEN '113' 
-									WHEN t.status = 'DRAW' THEN '111' 
-								END
-						END
+	    ,STATUS = 'running'
+	    ,statusID = 0
 	    ,creator = t.creator
 		,actual_stake = CASE WHEN main.bettype BETWEEN 801 AND 806 THEN 0 ELSE main.actual_stake END
 		,odds = CASE WHEN main.bettype = 376 THEN main.oddsspread ELSE main.odds END
@@ -715,6 +710,8 @@ BEGIN
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 	WHERE t.bettype NOT IN (468, 469)
+		AND ISNULL(main.betdaqid, 0) <> -2
+
 
 	--Update CashOutSelling for new CO Model
 	IF EXISTS (SELECT TOP(1) 1 FROM #tblTransInfo WHERE IsCashOut = 1)
@@ -728,11 +725,20 @@ BEGIN
 				 , modds
 				 , Stake	
 				 , zzzwinlost AS winlost
+				 , status
+				 , CASE WHEN status = 'WON' THEN '112' 
+									WHEN status = 'LOSE' THEN '113' 
+									WHEN status = 'DRAW' THEN '111' 
+								END AS StatusId
+				 , creator
+				 , SportType
 			FROM #tblTransInfo
 			WHERE IsCashOut = 1
 		)
 		UPDATE	b WITH(ROWLOCK, UPDLOCK)
-		SET stake = TRef.stake
+		SET status = t.status
+		  , statusID = t.StatusId
+		  , stake = TRef.stake
 		  , winlost = t.winlost
 		  , awinlost = TCal.awinlost
 		  , mWinLost = TCal.mWinLost
@@ -742,6 +748,18 @@ BEGIN
 		  , comm = TCal.comm
 		  , acomm = TCal.acomm
 		  , scomm = TCal.scomm
+
+		  , ruben = b.ruben
+		  , statuswinlost = NULL
+		  , creator = t.creator
+		  , actual_stake = CASE WHEN b.bettype BETWEEN 801 AND 806 THEN 0 ELSE b.actual_stake END
+		  , odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
+		  , @newBettypeTime = (SELECT TOP 1 custom1 FROM DBPRO.bodb02.dbo.ResultDetail3rd WITH(NOLOCK) WHERE resultId = b.betid)
+		  , transdesc = CASE WHEN b.bettype = 801 AND @newBettypeTime <> ''
+							THEN STUFF(b.transdesc,CHARINDEX('bettypetime',b.transdesc)+12,CHARINDEX(';time',b.transdesc)-CHARINDEX('bettypetime',b.transdesc)-12,@newBettypeTime)       
+							ELSE b.transdesc END
+		  , ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,t.SportType, b.bettype)
+		  , RepUpdateTime  = @RepUpdateTime
 		FROM dbo.bettrans b 
 			INNER JOIN CTE_main_cashoutticket AS t
 					ON b.transid = t.transId	    			
@@ -753,45 +771,45 @@ BEGIN
 			OUTER APPLY (SELECT t.winlost AS winlost
 							 , CASE
 									
-									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN ABS(t.winlost - b.actual_stake) * -b.apositiontaking
-									WHEN b.statusID = 111 THEN 0
+									WHEN t.StatusId = 103 THEN 0
+									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.apositiontaking
+									WHEN t.StatusId = 111 THEN 0
 									ELSE ABS(t.winlost - b.actual_stake) * b.apositiontaking
 								END AS awinlost
 							, CASE
-									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN ABS(t.winlost - b.actual_stake) * -b.mpositiontaking
-									WHEN b.statusID = 111 THEN 0
+									WHEN t.StatusId = 103 THEN 0
+									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.mpositiontaking
+									WHEN t.StatusId = 111 THEN 0
 									ELSE ABS(t.winlost - b.actual_stake) * b.mpositiontaking
 								END AS mWinLost
 							, CASE
-									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN ABS(t.winlost - b.actual_stake) * -b.spositiontaking
-									WHEN b.statusID = 111 THEN 0
+									WHEN t.StatusId = 103 THEN 0
+									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.spositiontaking
+									WHEN t.StatusId = 111 THEN 0
 									ELSE ABS(t.winlost - b.actual_stake) * b.spositiontaking
 								END AS swinlost
 							  , CASE
-									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.playerdiscount
-									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+									WHEN t.StatusId = 103 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.playerdiscount
 									ELSE TRef.CommWinRate * b.stake * b.playerdiscount
 								END AS playercomm
 							, CASE
-									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
-									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+									WHEN t.StatusId = 103 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
 									ELSE TRef.CommLostRate * b.stake * b.discount * (1-apositiontaking)
 								END AS comm
 							,CASE
-									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
-									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+									WHEN t.StatusId = 103 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
 									ELSE TRef.CommLostRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
 								END AS acomm
 							,CASE
-									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
-									WHEN b.statusID = 111 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+									WHEN t.StatusId = 103 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
 									ELSE TRef.CommLostRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
 								END AS scomm
 						) AS TCal	
