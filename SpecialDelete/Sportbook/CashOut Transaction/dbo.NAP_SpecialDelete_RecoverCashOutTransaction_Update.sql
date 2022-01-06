@@ -282,14 +282,14 @@ BEGIN
 			 , statusID AS MainStatusId			 
 			 , modds
 			 , Stake	
-			 , zzzwinlost
+			 , zzzwinlost AS winlost
 		FROM #SpecialDeleteBets
 	)
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET stake = TRef.stake
 	  , actual_stake = TRef.actual_stake
 	  
-	  , winlost = t.zzzwinlost
+	  , winlost = t.winlost
 	  , awinlost = TCal.awinlost
 	  , mWinLost = TCal.mWinLost
 	  , swinlost = TCal.swinlost
@@ -313,25 +313,25 @@ BEGIN
 							 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 0 ELSE 1 END AS CommWinRate
 							 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 2 ELSE 1 END AS CommLostRate
 					) AS TRef		
-		OUTER APPLY (SELECT t.zzzwinlost AS winlost
+		OUTER APPLY (SELECT t.winlost AS winlost
 							 , CASE
 									
 									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN ABS(t.zzzwinlost - b.actual_stake) * -b.apositiontaking
+									WHEN b.statusID = 112 THEN ABS(t.winlost - b.actual_stake) * -b.apositiontaking
 									WHEN b.statusID = 111 THEN 0
-									ELSE ABS(t.zzzwinlost - b.actual_stake) * b.apositiontaking
+									ELSE ABS(t.winlost - b.actual_stake) * b.apositiontaking
 								END AS awinlost
 							, CASE
 									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN ABS(t.zzzwinlost - b.actual_stake) * -b.mpositiontaking
+									WHEN b.statusID = 112 THEN ABS(t.winlost - b.actual_stake) * -b.mpositiontaking
 									WHEN b.statusID = 111 THEN 0
-									ELSE ABS(t.zzzwinlost - b.actual_stake) * b.mpositiontaking
+									ELSE ABS(t.winlost - b.actual_stake) * b.mpositiontaking
 								END AS mWinLost
 							, CASE
 									WHEN b.statusID = 103 THEN 0
-									WHEN b.statusID = 112 THEN ABS(t.zzzwinlost - b.actual_stake) * -b.spositiontaking
+									WHEN b.statusID = 112 THEN ABS(t.winlost - b.actual_stake) * -b.spositiontaking
 									WHEN b.statusID = 111 THEN 0
-									ELSE ABS(t.zzzwinlost - b.actual_stake) * b.spositiontaking
+									ELSE ABS(t.winlost - b.actual_stake) * b.spositiontaking
 								END AS swinlost
 							  , CASE
 									WHEN b.statusID = 103 THEN 0
