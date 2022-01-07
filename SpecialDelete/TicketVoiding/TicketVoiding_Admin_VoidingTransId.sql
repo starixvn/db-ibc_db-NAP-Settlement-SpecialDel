@@ -60,9 +60,9 @@ BEGIN
 			,@IsEnableServiceBroker BIT -- server is using service broker or not
 			,@RepUpdateTime DATETIME2
 	
-	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY) 
+	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, betdaqid BIGINT) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT, Bonusid INT, WalletType TINYINT	)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, betdaqid BIGINT, Bonusid INT, WalletType TINYINT, status VARCHAR(20))
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 
@@ -142,12 +142,13 @@ BEGIN
 	END
     ELSE
 	BEGIN
-		INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake)
+		INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake, betdaqid)
 		SELECT	T.C.value('./@transid', 'bigint')
 				,T.C.value('./@translogid', 'bigint')
 				,T.C.value('./@betid', 'bigint')
 				,T.C.value('./@isMG', 'bit')
 				,T.C.value('./@actual_stake', 'money')
+				,T.C.value('./@betdaqid', 'bigint')
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
 	
@@ -183,8 +184,9 @@ BEGIN
 						deleted.playercomm,
 						deleted.betdaqid ,
 						deleted.BonusID,
-						deleted.WalletType
-				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid,Bonusid, WalletType)
+						deleted.WalletType,
+						deleted.status
+				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake, playercomm, betdaqid, Bonusid, WalletType, status)
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
@@ -193,13 +195,18 @@ BEGIN
 			-- Process for cashout tickets make change Balance before
 			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
 														, b.custid AS c
-														, b.winlost-b.actual_stake + b.playercomm as b
+														, b.winlost AS wl
+														, b.actual_stake AS al
+														, b.playercomm as pl
 														, CASE 
 																WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 																ELSE 0 END AS bn
 														, ISNULL(b.WalletType, 2) AS w
+														, b.status AS st
 												FROM @tmpTrans_beforeUpd b
+													INNER JOIN @tmpTrans t ON t.TransID = b.transid
 												WHERE 	b.betdaqid = -2
+													AND ISNULL(t.betdaqid, 0) <> -2
 												FOR XML AUTO) AS VARCHAR(MAX)
 										),'')
 			
@@ -231,8 +238,9 @@ BEGIN
 						deleted.playercomm,
 						deleted.betdaqid ,
 						deleted.BonusID,
-						deleted.WalletType
-				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid,Bonusid, WalletType)
+						deleted.WalletType,
+						deleted.status
+				INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm, betdaqid, Bonusid, WalletType, status)
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
@@ -241,12 +249,18 @@ BEGIN
 			-- Process for cashout tickets make change Balance before
 			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
 														, b.custid AS c
-														, b.winlost-b.actual_stake + b.playercomm as b
-														, b.Bonusid AS bn
-														, b.WalletType as w
+														, b.winlost AS wl
+														, b.actual_stake AS al
+														, b.playercomm as pl
+														, CASE 
+																WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
+																ELSE 0 END AS bn
+														, ISNULL(b.WalletType, 2) AS w
+														, b.status AS st
 												FROM @tmpTrans_beforeUpd b
-													INNER JOIN @tmpTrans t ON b.transid = t.transid
+													INNER JOIN @tmpTrans t ON t.TransID = b.transid
 												WHERE 	b.betdaqid = -2
+													AND ISNULL(t.betdaqid, 0) <> -2
 												FOR XML AUTO) AS VARCHAR(MAX)
 										),'')
 			

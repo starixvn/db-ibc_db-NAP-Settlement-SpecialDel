@@ -289,7 +289,7 @@ BEGIN
 
 	DECLARE @Status TABLE (statusID TINYINT)  
 
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20))
 	
 	SELECT @ErrCode = 0  
 		 , @ErrMsg = ''
@@ -1509,8 +1509,10 @@ BEGIN
 						deleted.playercomm,
 						deleted.BonusID,
 						deleted.WalletType,
-						deleted.bettype
-				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype)
+						deleted.bettype,
+						deleted.betdaqid,
+						deleted.status
+				INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype, betdaqid, status)
 		FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)  
 			INNER JOIN #BetDelete AS tmpmain ON main.transid = tmpmain.transid  AND main.transid = tmpmain.grouptransid  
 			OUTER APPLY (SELECT TOP 1 rs.ResultID
@@ -1567,6 +1569,31 @@ BEGIN
 			   , CASE WHEN bettype IN (805, 806) THEN 4 ELSE 1 END
 			   , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END
 			   , ISNULL(tmp.WalletType, 2) -- normal tickets are treated as cash tickets
+		
+		--Correct data captured before because CO happen when voiding ticket
+		IF EXISTS (SELECT TOP(1) 1 FROM #BetDelete	b
+						INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+					WHERE b.IsCashOut = 0 AND t.betdaqid = -2 )
+		BEGIN
+			UPDATE b
+			SET b.status = t.status
+				, b.WinLost = t.winlost - t.actual_stake
+				, b.ActualStake = t.actual_stake
+				, b.betdaqid = -2
+				, b.IsCashOut = 1
+			FROM #BetDelete b 
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+			WHERE b.IsCashOut = 0 
+				AND t.betdaqid = -2
+
+			UPDATE z
+			SET z.status = t.status
+				, z.winlost = t.winlost
+			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
+			WHERE z.status <> t.status
+				AND t.betdaqid = -2
+		END
 		
 		-- recover actual_stake from translog  
 		UPDATE mainMG  

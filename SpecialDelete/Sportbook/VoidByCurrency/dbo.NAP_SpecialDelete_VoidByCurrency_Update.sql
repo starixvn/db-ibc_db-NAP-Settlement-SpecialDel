@@ -180,7 +180,7 @@ BEGIN
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange
 	
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20))
 
 	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
@@ -1056,8 +1056,10 @@ BEGIN
 						deleted.playercomm,
 						deleted.BonusID,
 						deleted.WalletType,
-						deleted.bettype
-				INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype)
+						deleted.bettype,
+						deleted.betdaqid,
+						deleted.status
+				INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype, status, betdaqid)
 			FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #SpecialDeleteBets_Single tmpmain
 					ON	main.transid = tmpmain.transid					
@@ -1115,6 +1117,31 @@ BEGIN
 		FROM @tmpTrans_beforeUpd b
 		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
 		GROUP BY b.CustID
+
+		--Correct data captured before because CO happen when voiding ticket
+		IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets_Single	b
+						INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+					WHERE b.IsCashOut = 0 AND t.betdaqid = -2 )
+		BEGIN
+			UPDATE b
+			SET b.status = t.status
+				, b.NetWinLost = t.winlost - t.actual_stake
+				, b.ActualStake = t.actual_stake
+				, b.betdaqid = -2
+				, b.IsCashOut = 1
+			FROM #SpecialDeleteBets_Single b 
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+			WHERE b.IsCashOut = 0 
+				AND t.betdaqid = -2
+
+			UPDATE z
+			SET z.status = t.status
+				, z.winlost = t.winlost
+			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
+			WHERE z.status <> t.status
+				AND t.betdaqid = -2
+		END
 
 		--> update status for parlay
 		IF @CountParlay > 0

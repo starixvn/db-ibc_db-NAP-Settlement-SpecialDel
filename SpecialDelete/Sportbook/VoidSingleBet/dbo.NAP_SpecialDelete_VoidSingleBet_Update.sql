@@ -326,7 +326,7 @@ BEGIN
 	DECLARE @LogData NVARCHAR(500)
 			,@CountTransId	INT
 
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, balance MONEY, Bonusid INT, WalletType TINYINT	)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, status VARCHAR(20), Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 	
 	SELECT @ErrCode = 0
 		 , @ErrMsg = ''
@@ -1307,10 +1307,14 @@ BEGIN
 				,RepUpdateTime  = @RepUpdateTime
 					OUTPUT deleted.Transid,
 						deleted.custid,  
-						deleted.winlost - deleted.actual_stake + deleted.playercomm,
+						deleted.winlost,
+						deleted.actual_stake,
+						deleted.playercomm,
 						deleted.BonusID,
-						deleted.WalletType
-				INTO @tmpTrans_beforeUpd (transid,custid, balance,Bonusid, WalletType)
+						deleted.WalletType,
+						deleted.betdaqid,
+						deleted.status
+				INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm, Bonusid, WalletType, betdaqid, status)
 		FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #BetDelete tmpmain 
 				ON	main.transid = tmpmain.transid 
@@ -1324,7 +1328,7 @@ BEGIN
 			  , 1 AS balanceType
 			  , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END AS BonusID
 			  , ISNULL(tmp.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
-			  , SUM (tmp.balance) AS balance
+			  , SUM (tmp.winlost - tmp.actual_stake + tmp.playercomm) AS balance
 		FROM @tmpTrans_beforeUpd tmp
 		GROUP BY custid
 			   , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END
@@ -1332,9 +1336,34 @@ BEGIN
 		
 		--> capture Before Balance Update		
 		INSERT INTO #BeforeUpd(custid, balance)
-		SELECT	b.custid , SUM (b.balance) AS balance
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM @tmpTrans_beforeUpd b
 		GROUP BY b.CustID
+
+		--Correct data captured before because CO happen when voiding ticket
+		IF EXISTS (SELECT TOP(1) 1 FROM #BetDelete	b
+						INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+					WHERE b.IsCashOut = 0 AND t.betdaqid = -2 )
+		BEGIN
+			UPDATE b
+			SET b.status = t.status
+				, b.WinLost = t.winlost - t.actual_stake
+				, b.ActualStake = t.actual_stake
+				, b.betdaqid = -2
+				, b.IsCashOut = 1
+			FROM #BetDelete b 
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+			WHERE b.IsCashOut = 0 
+				AND t.betdaqid = -2
+
+			UPDATE z
+			SET z.status = t.status
+				, z.winlost = t.winlost
+			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
+			WHERE z.status <> t.status
+				AND t.betdaqid = -2
+		END
 		
 		-- Capture balance after updating Bettrans
 		INSERT INTO @AfterUpd(matchid, custid, balanceType, BonusID, WalletType, balance)

@@ -266,8 +266,8 @@ BEGIN
 	)
 	
 	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
-	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT	)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, bonusId INT, WalletType TINYINT, status VARCHAR(20))
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @password AND custid = @userId AND roleid >=5)
 	BEGIN
@@ -1214,10 +1214,11 @@ BEGIN
 	END
 
 	--Insert tmp table for correct balance CO
-	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,Bonusid, WalletType)
+	INSERT INTO @tmpTrans_beforeUpd (transid, custid, Balance, Bonusid, WalletType, betdaqid)
 	SELECT transid,custid, winlost - actual_stake + playercomm as balance
 		,BonusID = CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END
 		,WalletType = ISNULL(WalletType, 2) -- Cash Wallet as default
+		,main.betdaqid
 	FROM	dbo.bettrans main WITH (NOLOCK)
 	WHERE transid IN (SELECT transid FROM #BetDelete)
 
@@ -1297,7 +1298,7 @@ BEGIN
 		   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
 
 	/**********************************************   *************************************************************/
-	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY)
+	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY, betdaqid BIGINT)
 	DECLARE @TransIds_tmp VARCHAR(MAX) = ''
 		, @IssueTypeId INT = 0
 
@@ -1321,9 +1322,11 @@ BEGIN
 			   ,DELETED.BetID
 			   ,DELETED.IsMetricGaming
 			   ,DELETED.actual_stake
-		INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake)
+			   ,tmp.betdaqid
+		INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake, betdaqid)
 		FROM #BetDelete t
 			INNER JOIN #tblMatch tm ON t.matchid = tm.matchid
+			INNER JOIN @tmpTrans_beforeUpd tmp ON tmp.transid = t.transid
 		WHERE IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
@@ -1332,6 +1335,7 @@ BEGIN
 											   ,m.BetId AS '@betid'
 											   ,m.IsMG AS '@isMG'
 											   ,CASE WHEN m.IsMG = 1 THEN ISNULL(m.Actual_stake,0) ELSE 0 END AS '@actual_stake'
+											   ,m.betdaqid AS '@betdaqid'
 									FROM @tmpTransIDBatch m
 									FOR XML PATH('r')
 										,ROOT('root')
@@ -1348,12 +1352,15 @@ BEGIN
 		BEGIN
 			SET @xmlCashoutTicket = CONVERT(XML, @strTransCashout)
 					
-			INSERT INTO @CashoutTickets_tmp(transid,custid, balance, bonusId, WalletType)
+			INSERT INTO @CashoutTickets_tmp(transid, custid, winlost, actual_stake, playercomm, bonusId, WalletType, status)
 			SELECT T.C.value('./@t', 'BIGINT') 		AS transid
 					, T.C.value('./@c', 'INT') 	AS custid
-					,T.C.value('./@b', 'MONEY') 	AS balance
+					,T.C.value('./@wl', 'MONEY') 	AS winlost
+					,T.C.value('./@al', 'MONEY') 	AS actual_stake
+					,T.C.value('./@pl', 'MONEY') 	AS playercomm
 					,T.C.value('./@bn', 'INT') 	AS bonusid
 					,T.C.value('./@w', 'TINYINT') 	AS WalletType
+					,T.C.value('./@st', 'MONEY') 	AS status
 			FROM @xmlCashoutTicket.nodes('/b') AS T(C)
 			OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
 					
@@ -1361,11 +1368,29 @@ BEGIN
 				SET balance = bf.balance - bl.balance_old + bl.balance_new
 			FROM @BeforeUpd bf
 				INNER JOIN  (
-							SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
+							SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.winlost- tmp.actual_stake + tmp.playercomm) AS balance_new
 							FROM  @CashoutTickets_tmp tmp 
 									INNER JOIN @tmpTrans_beforeUpd C ON c.TransID = tmp.transid AND tmp.custid = c.custid
 							GROUP BY c.custid,c.BonusID,c.WalletType							
 						) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+
+			--Correct data captured before because CO happen when voiding ticket
+			UPDATE b
+			SET b.status = t.status
+				, b.WinLost = t.winlost - t.actual_stake
+				, b.actual_stake = t.actual_stake
+				, b.betdaqid = -2
+				, b.IsCashOut = 1
+			FROM #BetDelete b 
+				INNER JOIN @CashoutTickets_tmp t ON t.transid = b.transid
+			WHERE b.IsCashOut = 0 
+
+			UPDATE z
+			SET z.status = t.status
+				, z.winlost = t.winlost
+			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @CashoutTickets_tmp t ON t.transid = z.transid
+			WHERE z.status <> t.status
 		END
 
 	END

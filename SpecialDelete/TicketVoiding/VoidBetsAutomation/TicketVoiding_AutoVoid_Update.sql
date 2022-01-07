@@ -111,8 +111,8 @@ BEGIN
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
 	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT, MinWinlostdate DATETIME, MaxWinlostdate DATETIME)
 	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT, IssueTypeId TINYINT)
-	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, balance MONEY,bonusId INT,WalletType TINYINT)
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT	)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, bonusId INT, WalletType TINYINT, status VARCHAR(20))
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -1081,7 +1081,7 @@ BEGIN
 	END
 	
 	--Insert tmp table for correct balance CO
-	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,Bonusid, WalletType)
+	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,Bonusid, WalletType, betdaqid)
 	SELECT main.transid,main.custid
 		, main.winlost - 
 					CASE 
@@ -1091,6 +1091,7 @@ BEGIN
 				+ playercomm as balance
 		,BonusID = CASE WHEN main.BonusID > 0 AND main.WalletType = 1 THEN main.BonusID ELSE 0 END
 		,WalletType = ISNULL(main.WalletType, 2) -- Cash Wallet as default
+		,main.betdaqid
 	FROM	dbo.bettrans main WITH (NOLOCK)
 		INNER JOIN #tmpTransId_VOID_RequestID t ON t.TransId = main.transid
 
@@ -1281,10 +1282,11 @@ BEGIN
 			
 			UPDATE TOP(3000) t
 				SET isFinish = 1
-			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType,DELETED.RequestID, DELETED.betid, DELETED.actual_stake
+			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType,DELETED.RequestID, DELETED.betid, DELETED.actual_stake, b.betdaqid
 					
-			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType,RequestID,betid,actual_stake)
+			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType,RequestID,betid,actual_stake, betdaqid)
 			FROM #tmpTransId_VOID_RequestID t 
+				INNER JOIN @tmpTrans_beforeUpd b ON b.transid = t.TransId
 			WHERE isFinish IS NULL
 			
 			IF @@ROWCOUNT = 0 BREAK
@@ -1314,6 +1316,7 @@ BEGIN
 									,t.betid AS '@betid'
 									,CASE WHEN t.TicketType = 5 THEN 1 ELSE NULL END AS '@isMG'
 									,CASE WHEN t.TicketType = 5 THEN t.actual_stake ELSE NULL END AS '@actual_stake'
+									,t.betdaqid AS '@betdaqid'
 									FROM	@tmpTransIDBatch t
 									FOR XML PATH('r'), ROOT('root')
 								)
@@ -1328,12 +1331,15 @@ BEGIN
 			BEGIN
 				SET @xmlCashoutTicket = CONVERT(XML, @strTransCashout)
 					
-				INSERT INTO @CashoutTickets_tmp(transid,custid, balance, bonusId, WalletType)
+				INSERT INTO @CashoutTickets_tmp(transid, custid, winlost, actual_stake, playercomm, bonusId, WalletType, status)
 				SELECT T.C.value('./@t', 'BIGINT') 		AS transid
 						, T.C.value('./@c', 'INT') 	AS custid
-						,T.C.value('./@b', 'MONEY') 	AS balance
+						,T.C.value('./@wl', 'MONEY') 	AS winlost
+						,T.C.value('./@al', 'MONEY') 	AS actual_stake
+						,T.C.value('./@pl', 'MONEY') 	AS playercomm
 						,T.C.value('./@bn', 'INT') 	AS bonusid
 						,T.C.value('./@w', 'TINYINT') 	AS WalletType
+						,T.C.value('./@st', 'MONEY') 	AS status
 				FROM @xmlCashoutTicket.nodes('/b') AS T(C)
 				OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
 					
@@ -1341,11 +1347,26 @@ BEGIN
 					SET balance = bf.balance - bl.balance_old + bl.balance_new
 				FROM @BeforeUpd bf
 					INNER JOIN  (
-								SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.balance) AS balance_new
+								SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.winlost - tmp.actual_stake + tmp.playercomm) AS balance_new
 								FROM  @CashoutTickets_tmp tmp 
 										INNER JOIN @tmpTrans_beforeUpd C ON c.TransID = tmp.transid AND tmp.custid = c.custid
 								GROUP BY c.custid,c.BonusID,c.WalletType							
 							) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+
+				--Correct data captured before because CO happen when voiding ticket
+			UPDATE b
+			SET b.actual_stake = t.actual_stake
+				, b.betdaqid = -2
+			FROM #tmpTransId_VOID_RequestID b 
+				INNER JOIN @CashoutTickets_tmp t ON t.transid = b.transid
+			WHERE ISNULL(b.betdaqid, 0) <> -2
+
+			UPDATE z
+			SET z.status = t.status
+				, z.winlost = t.winlost
+			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @CashoutTickets_tmp t ON t.transid = z.transid
+			WHERE z.status <> t.status
 			END	
 		END
 			
