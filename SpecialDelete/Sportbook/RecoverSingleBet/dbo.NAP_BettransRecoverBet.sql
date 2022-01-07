@@ -1156,7 +1156,7 @@ BEGIN
 					ELSE CAST(0 AS BIT)
 				 END AS IsItQa
 				,IsCashOut
-				,CASE WHEN t_m.inputtransid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isSettled
+				,CASE WHEN t.IsCashOut = 0 AND t_m.inputtransid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS isSettled
 				,t.WalletType
 				,t.BonusID
 				,t.MainTransId
