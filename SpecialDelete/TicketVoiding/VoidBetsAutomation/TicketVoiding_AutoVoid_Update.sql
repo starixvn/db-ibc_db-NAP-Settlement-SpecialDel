@@ -1339,7 +1339,7 @@ BEGIN
 						,T.C.value('./@pl', 'MONEY') 	AS playercomm
 						,T.C.value('./@bn', 'INT') 	AS bonusid
 						,T.C.value('./@w', 'TINYINT') 	AS WalletType
-						,T.C.value('./@st', 'MONEY') 	AS status
+						,T.C.value('./@st', 'VARCHAR(20)') 	AS status
 				FROM @xmlCashoutTicket.nodes('/b') AS T(C)
 				OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
 					
