@@ -239,7 +239,7 @@ BEGIN
 		
 		--Get sum ticket from new table Transfer
 		UNION ALL
-		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
+		SELECT	tl.custid, tl.Username, (tl.Winlost - tl.actual_stake + tl.PlayerComm) AS balance
 		FROM	dbo.Transfer tl WITH(NOLOCK)
 		WHERE	tl.custid IN (SELECT custid FROM @tmpAffectedCustId)
 				AND tl.Bettype = 19999
