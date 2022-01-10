@@ -1,12 +1,13 @@
-/*<info serverAlias="DBLIC_STANDBY-bodb_Licensee" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBLIC-bodb_licensee" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
     Created: 20211118@July
-	Task: Send data to OIC instead of file - Sync data from DB052 to DB053 - [Redmine: #159115]
-	DB: DBLIC_STANDBY-bodb_Licensee
+	Task: Send data to OIC instead of file - Sync data from DB053 to DB052 - [Redmine: #159115]
+	DB: DBLIC-bodb_licensee
 */
 
 
-DECLARE @SessionIDs VARCHAR(MAX) ='0a326dcd-bcb4-42aa-8799-2afae710188a'
+
+DECLARE @SessionIDs VARCHAR(MAX) =''
 
 CREATE TABLE #tmpSessionID (SessionID VARCHAR(50))
 CREATE TABLE #tmpResultID (ResultID BIGINT)
@@ -37,7 +38,7 @@ CREATE TABLE #LicenseeResultAmendmentDetailsSource
 
 INSERT INTO #LicenseeResultAmendmentSource(ResultID,SessionID,SiteName,MatchID,EventDate,CreatedDate,ModifiedDate) 
 SELECT	a.ResultID, a.SessionID, a.SiteName, a.MatchID, a.EventDate, a.CreatedDate, a.ModifiedDate
-FROM DBEXT.bodb_licensee.dbo.LicenseeResultAmendment a WITH(NOLOCK)
+FROM db053.bodb_licensee.dbo.LicenseeResultAmendment a WITH(NOLOCK)
 	INNER JOIN #tmpSessionID b ON a.SessionID = b.SessionID
 
 INSERT INTO #tmpResultID (ResultID)
@@ -52,7 +53,7 @@ SET IDENTITY_INSERT LicenseeResultAmendment OFF
 
 INSERT INTO #LicenseeResultAmendmentDetailsSource(ResultID,TransID,CustID,Recommend) 
 SELECT	a.ResultID, TransID, CustID, Recommend
-FROM DBEXT.bodb_licensee.dbo.LicenseeResultAmendmentDetails a WITH(NOLOCK)
+FROM db053.bodb_licensee.dbo.LicenseeResultAmendmentDetails a WITH(NOLOCK)
 	INNER JOIN #tmpResultID b ON a.ResultID = b.ResultID
 
 INSERT INTO dbo.LicenseeResultAmendmentDetails(ResultID,TransID,CustID,Recommend)
@@ -62,4 +63,4 @@ FROM #LicenseeResultAmendmentDetailsSource
 DROP TABLE #LicenseeResultAmendmentSource
 DROP TABLE #LicenseeResultAmendmentDetailsSource		
 DROP TABLE #tmpResultID
-DROP TABLE #tmpSessionID
+DROP TABLE #tmpSessionID	
