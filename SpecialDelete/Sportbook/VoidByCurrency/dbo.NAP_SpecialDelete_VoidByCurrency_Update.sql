@@ -1059,7 +1059,7 @@ BEGIN
 						deleted.bettype,
 						deleted.betdaqid,
 						deleted.status
-				INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype, status, betdaqid)
+				INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype, betdaqid, status)
 			FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #SpecialDeleteBets_Single tmpmain
 					ON	main.transid = tmpmain.transid					
