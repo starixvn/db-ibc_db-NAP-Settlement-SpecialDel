@@ -3,6 +3,7 @@ ALTER PROCEDURE dbo.ExecRep_NAP_Admin_02
 	@MatchId INT
 	,@Mode VARCHAR(15)
 	,@strTransIds VARCHAR(MAX)
+	,@EventDate DATETIME = NULL
 AS
 /*	Creator: Kathy
 	Date: 20210218
@@ -12,6 +13,7 @@ AS
 	Revisions:
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
+		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 
 	Param's Explanation:
 		@matchid: child matchid
@@ -42,6 +44,7 @@ BEGIN
 			-- bettrans
 			UPDATE	b WITH(ROWLOCK, UPDLOCK)
 				SET matchid = @MatchId
+					,winlostdate = CASE WHEN @EventDate IS NOT NULL AND winlostdate <> @EventDate THEN @EventDate ELSE winlostdate END
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b
 					ON	t.TransID = b.transid
@@ -63,6 +66,11 @@ BEGIN
 			-- bettransM
 			UPDATE	bm WITH(UPDLOCK, ROWLOCK)
 				SET matchid = @MatchId
+					,winlostdate = CASE 
+										WHEN winlostdate IS NULL THEN winlostdate
+										WHEN @EventDate IS NOT NULL AND winlostdate <> @EventDate THEN @EventDate 
+										ELSE winlostdate 
+									END
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettransm bm 
 					ON	bm.transid = t.transid
