@@ -348,10 +348,10 @@ BEGIN
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
-					,CASE WHEN ISNULL(t.c.value('@FilterFromTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
-					,CASE WHEN ISNULL(t.c.value('@FilterToTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-					,CASE WHEN ISNULL(t.c.value('@FilterFromBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
-					,CASE WHEN ISNULL(t.c.value('@FilterToBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
+					,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 					,t.c.value('@FilterBy','TINYINT') AS FilterBy
 					,t.c.value('@SingleCount','INT') AS SingleCount
 					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
@@ -395,10 +395,10 @@ BEGIN
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
-					,CASE WHEN ISNULL(t.c.value('@FilterFromTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
-					,CASE WHEN ISNULL(t.c.value('@FilterToTransTime','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-					,CASE WHEN ISNULL(t.c.value('@FilterFromBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
-					,CASE WHEN ISNULL(t.c.value('@FilterToBetId','VARCHAR(50)'),'') <> '' THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
+					,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 					,t.c.value('@FilterBy','TINYINT') AS FilterBy
 					,t.c.value('@SingleCount','INT') AS SingleCount
 					,t.c.value('@MainParlayCount','INT') AS MainParlayCount

@@ -94,6 +94,8 @@ BEGIN
 				,m.GlobalShowTime
 				,rd.FilterFromTransTime
 				,rd.FilterToTransTime
+				,rd.FilterFromBetId
+				,rd.FilterToBetId
 				,rd.FilterBy
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 				,rd.TransIds AS SettingTime
