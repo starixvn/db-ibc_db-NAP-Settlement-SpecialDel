@@ -6,11 +6,10 @@
 */
 
 
-
 DECLARE @SessionIDs VARCHAR(MAX) =''
-
+		,@ResultID  BIGINT, @SessionID UNIQUEIDENTIFIER, @SiteName NVARCHAR(50), @MatchID INT, @EventDate DATETIME, @CreatedDate DATETIME, @ModifiedDate DATETIME
+		,@ResultID_New BIGINT
 CREATE TABLE #tmpSessionID (SessionID VARCHAR(50))
-CREATE TABLE #tmpResultID (ResultID BIGINT)
 
 INSERT INTO #tmpSessionID (SessionID)
 SELECT DISTINCT val
@@ -25,42 +24,44 @@ CREATE TABLE #LicenseeResultAmendmentSource (
 	MatchID		 INT,
 	EventDate	 DATETIME,
 	CreatedDate  DATETIME,
-	ModifiedDate DATETIME
+	ModifiedDate DATETIME,
+	IsFinish     BIT
 )
 
-CREATE TABLE #LicenseeResultAmendmentDetailsSource
-(
-	ResultID	BIGINT,
-	TransID		BIGINT,
-	CustID		INT,
-	Recommend	INT
-)
-
-INSERT INTO #LicenseeResultAmendmentSource(ResultID,SessionID,SiteName,MatchID,EventDate,CreatedDate,ModifiedDate) 
+INSERT INTO #LicenseeResultAmendmentSource(ResultID, SessionID,SiteName,MatchID,EventDate,CreatedDate,ModifiedDate) 
 SELECT	a.ResultID, a.SessionID, a.SiteName, a.MatchID, a.EventDate, a.CreatedDate, a.ModifiedDate
 FROM db053.bodb_licensee.dbo.LicenseeResultAmendment a WITH(NOLOCK)
 	INNER JOIN #tmpSessionID b ON a.SessionID = b.SessionID
 
-INSERT INTO #tmpResultID (ResultID)
-SELECT DISTINCT ResultID
-FROM #LicenseeResultAmendmentSource
+WHILE (1 =1)
+BEGIN
+	SET @ResultID_New = 0
 
-SET IDENTITY_INSERT LicenseeResultAmendment ON
-INSERT INTO dbo.LicenseeResultAmendment(ResultID,SessionID,SiteName,MatchID,EventDate,CreatedDate,ModifiedDate)
-SELECT ResultID,SessionID,SiteName,MatchID,EventDate,CreatedDate,ModifiedDate
-FROM #LicenseeResultAmendmentSource a
-SET IDENTITY_INSERT LicenseeResultAmendment OFF
+	UPDATE TOP (1) m 
+	SET m.IsFinish = 1
+		,@ResultID = m.ResultID 
+		,@SessionID = m.SessionID
+		,@SiteName = m.SiteName
+		,@MatchID = m.MatchID
+		,@EventDate = m.EventDate
+		,@CreatedDate = m.CreatedDate
+		,@ModifiedDate = m.ModifiedDate
+	FROM #LicenseeResultAmendmentSource m 
+	WHERE m.IsFinish IS NULL 
 
-INSERT INTO #LicenseeResultAmendmentDetailsSource(ResultID,TransID,CustID,Recommend) 
-SELECT	a.ResultID, TransID, CustID, Recommend
-FROM db053.bodb_licensee.dbo.LicenseeResultAmendmentDetails a WITH(NOLOCK)
-	INNER JOIN #tmpResultID b ON a.ResultID = b.ResultID
+	IF @@ROWCOUNT = 0 BREAK;
 
-INSERT INTO dbo.LicenseeResultAmendmentDetails(ResultID,TransID,CustID,Recommend)
-SELECT ResultID, TransID, CustID, Recommend 
-FROM #LicenseeResultAmendmentDetailsSource 
+	INSERT INTO dbo.LicenseeResultAmendment(SessionID,SiteName,MatchID,EventDate,CreatedDate,ModifiedDate)
+	SELECT @SessionID,@SiteName,@MatchID,@EventDate,@CreatedDate,@ModifiedDate
+
+	SET @ResultID_New = SCOPE_IDENTITY()
+
+	INSERT INTO dbo.LicenseeResultAmendmentDetails(ResultID,TransID,CustID,Recommend)
+	SELECT @ResultID_New, TransID, CustID, Recommend 
+	FROM db053.bodb_licensee.dbo.LicenseeResultAmendmentDetails a WITH(NOLOCK)
+	WHERE a.ResultID = @ResultID
+
+END
 
 DROP TABLE #LicenseeResultAmendmentSource
-DROP TABLE #LicenseeResultAmendmentDetailsSource		
-DROP TABLE #tmpResultID
-DROP TABLE #tmpSessionID	
+DROP TABLE #tmpSessionID
