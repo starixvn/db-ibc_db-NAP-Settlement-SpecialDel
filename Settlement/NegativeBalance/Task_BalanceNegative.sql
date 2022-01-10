@@ -17,6 +17,7 @@ AS
 		- 20180326@Kathy: Enhancememnt for WC [Redmine:#89132]
 		- 20180927@Sophia: Migrate bodb_Licensee from DB052 to DBCUST [redmine: #99855]
 		- 20210702@Max: Expand Transfer Time Frame - Change The Rule Checking Move Bet Flag [Redmine: #154572]
+		- 20211229@Max: Split Transfer - Adjust Negative Balance Service & Adjustment Transfer of Bonus [Redmine: #165098]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -78,15 +79,22 @@ BEGIN
 		SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS Balance, c.Site
 		FROM	@tmpAffectedCustId c
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
-				ON b.custid = c.CustId	
+				ON b.custid = c.CustId	AND b.bettype < 19999
 		WHERE	1 = CASE 
 						WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
-						WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
 						WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
 						ELSE 1
 					END
 		GROUP BY b.CustId, c.Site
 
+		--Get sum ticket from new table Transfer
+		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
+		SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS Balance, c.Site
+		FROM	@tmpAffectedCustId c
+			INNER JOIN dbo.Transfer b WITH(NOLOCK)
+				ON b.custid = c.CustId	AND b.bettype = 19999 AND b.WinlostDate > @movebetdate
+		GROUP BY b.CustId, c.Site
+		
 		-- translog
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT tl.custid, SUM(0 - tl.actual_stake) AS Balance, c.Site
