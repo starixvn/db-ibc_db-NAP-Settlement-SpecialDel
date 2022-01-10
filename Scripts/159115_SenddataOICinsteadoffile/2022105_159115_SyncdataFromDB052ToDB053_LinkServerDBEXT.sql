@@ -6,7 +6,7 @@
 */
 
 
-DECLARE @SessionIDs VARCHAR(MAX) =''
+DECLARE @SessionIDs VARCHAR(MAX) ='0a326dcd-bcb4-42aa-8799-2afae710188a'
 
 CREATE TABLE #tmpSessionID (SessionID VARCHAR(50))
 CREATE TABLE #tmpResultID (ResultID BIGINT)
