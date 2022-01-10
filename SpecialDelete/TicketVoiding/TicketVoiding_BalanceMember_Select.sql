@@ -11,6 +11,7 @@ AS
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 	
 	Param's explanation:	
 */
@@ -35,14 +36,20 @@ BEGIN
 			SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS Balance				
 			FROM	@tmpCustId c
 				INNER JOIN dbo.bettrans b WITH(NOLOCK)
-					ON	c.CustId = b.custid
-			WHERE	1 = CASE
-							WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
-							WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
-							WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
-							ELSE 1
-						END
+					ON	c.CustId = b.custid AND b.bettype < 19999
+			WHERE	1 = CASE 
+						WHEN b.bettype BETWEEN 801 AND 806 AND b.statusID = 0 THEN 0
+						WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
+						ELSE 1
+					END
 			GROUP BY b.custid
+
+			UNION ALL
+			SELECT	tl.custid, SUM(0 - tl.actual_stake + 0) AS Balance				
+			FROM	@tmpCustId c
+				INNER JOIN dbo.Transfer tl WITH(NOLOCK)
+					ON tl.custid = c.CustId	AND tl.bettype = 19999 AND tl.WinlostDate > @movebetdate	
+			GROUP BY tl.custid
 		
 			UNION ALL 
 			SELECT	tl.custid, SUM(0 - tl.actual_stake + 0) AS Balance				

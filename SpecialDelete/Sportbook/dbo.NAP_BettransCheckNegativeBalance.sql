@@ -26,6 +26,7 @@ AS
 		- 20210326@Kathy: Tuning SP for EC [Redmine:#151103]
 		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -233,11 +234,17 @@ BEGIN
 					AND b.matchid = tl.eventID						
 		WHERE	b.custid IN (SELECT custid FROM #BetDelete)
 				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))	
-				AND 1 = CASE
-							WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
-							WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
-							ELSE 1
-						END
+				AND b.bettype < 19999
+				AND b.winlostdate > @movebetdate 
+		
+		--Get sum ticket from new table Transfer
+		UNION ALL
+		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
+		FROM	dbo.Transfer tl WITH(NOLOCK)
+		WHERE	tl.custid IN (SELECT custid FROM @tmpAffectedCustId)
+				AND tl.Bettype = 19999
+				AND tl.WinlostDate > @movebetdate
+		
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
 		FROM	dbo.translog tl WITH(NOLOCK)

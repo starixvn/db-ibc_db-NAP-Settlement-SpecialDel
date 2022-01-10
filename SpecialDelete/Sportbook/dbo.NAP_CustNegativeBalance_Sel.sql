@@ -13,6 +13,7 @@ AS
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20190321@Alan: Do not check negative balance for CN88 [109858]
 		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 */
 BEGIN
 	SET NOCOUNT ON		
@@ -46,11 +47,17 @@ BEGIN
 					AND b.matchid = tl.eventID
 		WHERE	b.custid IN (SELECT custid FROM @CustList)
 				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))
-				AND 1 = CASE
-							WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --new sum
-							WHEN b.bettype < 19999 AND b.winlostdate <= @movebetdate THEN 0 -- old bet
-							ELSE 1
-						END
+				AND b.bettype < 19999
+				AND b.winlostdate > @movebetdate 
+		
+		--Get sum ticket from new table Transfer
+		UNION ALL
+		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
+		FROM	dbo.Transfer tl WITH(NOLOCK)
+		WHERE	tl.custid IN (SELECT custid FROM @CustList)
+				AND tl.Bettype = 19999
+				AND tl.WinlostDate > @movebetdate
+
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, 0, tl.actual_stake, 0
 		FROM	dbo.translog tl WITH(NOLOCK)

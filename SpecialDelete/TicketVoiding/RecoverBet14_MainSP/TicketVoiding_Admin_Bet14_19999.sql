@@ -8,6 +8,7 @@ AS
 	
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
+		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 		
 	Param's Explanation:  
 	
@@ -88,25 +89,23 @@ BEGIN
 			, acomm = b.acomm + r.acomm_dif
 			, scomm = b.scomm + r.scomm_dif 
 	FROM #Result_19999 r
-		INNER LOOP JOIN dbo.bettrans b WITH (ROWLOCK) ON b.custid = r.custid AND b.winlostdate = r.winlostdate 
-	WHERE b.matchid = 0 AND b.bettype = 19999  
+		INNER LOOP JOIN dbo.Transfer b WITH (ROWLOCK) ON b.custid = r.custid AND b.winlostdate = r.winlostdate 
+	WHERE b.bettype = 19999  
 	
 	-- Insert if not exists
-	INSERT INTO bettrans
-			(ruben, [status], statusID, matchid, bettype, creator, transdate,
+	INSERT INTO dbo.Transfer
+			(statusID, bettype, creator, transdate,
 			custid, currency, recommend, mrecommend, srecommend,
 			winlostdate, stake, winlost, awinlost, mwinlost, swinlost,
 			actual_stake, playercomm, comm, acomm, scomm, 
-			apositiontaking, mpositiontaking, spositiontaking, tpositiontaking,
-			actualrate, virtualrate, Username, CurrencyName, comstatus, checktime
+			actualrate, Username, CurrencyName, checktime
 			,refno)
 	SELECT
-		1, 'SUM', 142, 0, 19999, 8, r.winlostdate, --99
+		142, 19999, 8, r.winlostdate, --99
 		r.custid, c.currency, c.recommend, c.mrecommend, c.srecommend,
 		r.winlostdate, r.stake, r.winlost_dif, awinlost_dif, mwinlost_dif, swinlost_dif,
 		r.actual_stake, r.playercomm_dif, r.comm_dif, r.acomm_dif, r.scomm_dif,
-		0, 0, 0, 0,
-		rate.actualrate, rate.actualrate, c.username, e.currency, '0', GETDATE()
+		rate.actualrate, c.username, e.currency, GETDATE()
 		,0 -- for recover Bet14
 	FROM #Result_19999 r with (nolock)
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON r.custid = c.custid AND c.roleid = 1
@@ -116,7 +115,7 @@ BEGIN
 					 WHERE b14.winlostdate = r.winlostdate AND b14.bettype < = 19000 AND b14.currency = c.currency
 					 ) AS rate
 					 
-		LEFT JOIN bettrans b WITH (NOLOCK) ON b.custid = r.custid AND  b.winlostdate = r.winlostdate AND b.bettype = 19999
+		LEFT JOIN dbo.Transfer b WITH (NOLOCK) ON b.custid = r.custid AND  b.winlostdate = r.winlostdate AND b.bettype = 19999
 	WHERE b.transid IS NULL
 			
 	DROP TABLE #Result_19999
