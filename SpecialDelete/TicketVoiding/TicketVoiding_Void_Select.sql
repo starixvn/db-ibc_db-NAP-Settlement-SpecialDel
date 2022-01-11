@@ -997,6 +997,7 @@ BEGIN
 				,mrecommend	
 				,winlostdate
 				,statusID
+				,ActualStake
 			)
 		SELECT	
 			b.translogID AS GroupID
@@ -1033,6 +1034,7 @@ BEGIN
 			,b.mrecommend
 			,b.winlostdate
 			,b.statusID
+			,b.actual_stake AS ActualStake
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.translogid AND b.eventID = s.MatchId AND s.RequestId = @RequestId
@@ -1086,6 +1088,7 @@ BEGIN
 			,mrecommend	
 			,winlostdate
 			,statusID
+			,ActualStake
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -1136,6 +1139,7 @@ BEGIN
 			,b.mrecommend
 			,b.winlostdate
 			,b.statusID
+			,b.actual_stake AS ActualStake
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -1202,6 +1206,7 @@ BEGIN
 			,b.mrecommend
 			,b.winlostdate
 			,b.statusID
+			,b.actual_stake AS ActualStake
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.transid AND s.RequestId = @RequestId
@@ -1258,7 +1263,7 @@ BEGIN
 				,IsMarked
 				,LiveIndicator
 				,mainstatusid
-			,ActualStake
+			    ,ActualStake
 				,matchid
 			)
 		SELECT 
@@ -1305,7 +1310,7 @@ BEGIN
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 				,b.liveindicator
 				,b.statusID AS mainstatusid
-			,b.actual_stake AS ActualStake
+			    ,b.actual_stake AS ActualStake
 				,b.matchid
 		FROM	bettrans b WITH (NOLOCK)	
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
@@ -1366,6 +1371,7 @@ BEGIN
 				,LiveIndicator
 				,mainstatusid
 				,matchid
+				,ActualStake
 			)	
 		SELECT 
 				b.TranslogID AS GroupID
@@ -1403,6 +1409,7 @@ BEGIN
 				,b.liveindicator
 				,b.statusID AS mainstatusid
 				,b.eventID 
+				,b.actual_stake AS ActualStake
 		FROM	Translog b WITH (NOLOCK)
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.translogid = m.TransId		
 		WHERE	b.EventID = @matchid
