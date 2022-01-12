@@ -81,6 +81,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]
     
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -162,6 +163,7 @@ BEGIN
 			,@Index_Round			TINYINT = 1
 			,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
 			,@CheckingAction VARCHAR(20)
+			,@strTransIds	VARCHAR(MAX)
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))		
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
@@ -171,6 +173,8 @@ BEGIN
 	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
 	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
 	DECLARE @ResultDetail_Corner_ticket AS TABLE (ResourceID VARCHAR(20))
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
+	DECLARE @tmpCashoutTransId TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY)
 	
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -451,6 +455,17 @@ BEGIN
 				INNER JOIN SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
 			WHERE g.Voided_cnt = g.ticket_cnt
 				AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)
+
+			INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, bettype, betteam, hdp1, hdp2)
+			SELECT	b.transid, 6, b.bettype, b.betteam, b.hdp1, b.hdp2
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.f_Set_GetCashoutBettypes () f
+					ON b.bettype = f.BetType
+			WHERE	matchid = @matchid
+					AND b.statusID NOT IN (101, 102)
+					AND ISNULL(b.betdaqid,0) = - 2
+					AND f.GroupName = CASE WHEN @Action = 'CAL-FT' THEN 'FT' ELSE f.GroupName END
+
 		END		
 		--using this way to avoid more param @betcount
 		;WITH cteBettypes
@@ -501,7 +516,6 @@ BEGIN
 		WHERE b.bettype IN (SELECT bettype	FROM cteBettypes )
 		GROUP BY b.bettype,hdp1
 
-
 		SELECT @strSettledBettypes = COALESCE(@strSettledBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 		FROM (SELECT DISTINCT bettype FROM @ListBettype_tmp) AS tmp
 		
@@ -542,7 +556,6 @@ BEGIN
 			AND @sporttype = 1
 		)
         BEGIN
-
 			IF @Sporttype = 1 AND @ChildMatchType = 204
 			BEGIN
 				IF EXISTS (SELECT TOP (1) 1 FROM @ListBettype_tmp WHERE bettype IN (486,487))
@@ -723,6 +736,17 @@ BEGIN
 					,@ft_lg 						= @ft_lg
 					,@goaldiff 						= @goaldiff
 					
+				UPDATE t 
+					SET statuswinlost = CASE 
+											WHEN m.modds > 0.25 THEN 2
+											WHEN m.modds = 0.25 THEN 1
+											WHEN m.modds = 0 THEN 0
+											WHEN m.modds = -0.25 THEN 3
+											WHEN m.modds < -0.25 THEN 4
+											ELSE 6
+										END
+				FROM	@tmpCashoutTransId t
+					CROSS APPLY [dbo].[f_Set_Parlay_SDT_CalModds](t.bettype,t.betteam,t.hdp1,t.hdp2,@hth,@hta,@fth - @hth,@fta - @hta,NULL,NULL) m
             END
             IF @action = 'CAL'
             BEGIN
@@ -757,6 +781,18 @@ BEGIN
 					,@ft_fg 						= @ft_fg
 					,@ft_lg 						= @ft_lg
 					,@goaldiff 						= @goaldiff
+
+				UPDATE t 
+					SET statuswinlost = CASE 
+											WHEN m.modds > 0.25 THEN 2
+											WHEN m.modds = 0.25 THEN 1
+											WHEN m.modds = 0 THEN 0
+											WHEN m.modds = -0.25 THEN 3
+											WHEN m.modds < -0.25 THEN 4
+											ELSE 6
+										END
+				FROM	@tmpCashoutTransId t
+					CROSS APPLY [dbo].[f_Set_Parlay_SDT_CalModds](t.bettype,t.betteam,t.hdp1,t.hdp2,@hth,@hta,@fth - @hth,@fta - @hta,NULL,NULL) m
             END
         END    
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
@@ -907,6 +943,41 @@ BEGIN
             EXEC dbo.NAP_Admin_Calculate_914
                 @MatchId = @matchid
                 ,@Action = 'REFUND'
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+		BEGIN
+			UPDATE t 
+				SET winlost = c.Winlost
+			FROM	@tmpCashoutTransId t
+				INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
+					ON t.TransId = c.TransID
+
+			WHILE (1=1)
+			BEGIN
+				DELETE @tmpTransIDBatch
+				SET @strTransIds = ''
+
+				DELETE 	TOP (2000)
+				FROM	@tmpCashoutTransId
+					OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+
+				IF @@ROWCOUNT = 0
+					BREAK
+
+				SET @strTransIds = (SELECT transid	AS '@t'
+											,winlost	AS '@w'	
+											,statuswinlost AS '@s'
+									FROM @tmpTransIDBatch
+									FOR XML PATH('r'), ROOT( 'root' ))
+
+				EXEC dbo.NAP_Admin_Calculate_Main
+					@matchid	  = @matchid
+					,@action	  = 'Cashout'
+					,@mode		  = 'REFUND'
+					,@strTransIds = @strTransIds
+
+			END
 		END
 
 		IF @IsAutoRefund = 1

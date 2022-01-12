@@ -64,6 +64,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -133,6 +134,7 @@ BEGIN
 			,@Index_Round_tmp		TINYINT = 0
 			,@Index_Round			TINYINT = 1
 			,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
+			,@strTransIds	VARCHAR(MAX)
 	
 	DECLARE @status TABLE (FTBet BIT, BetCount INT, InRunning INT)	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))		
@@ -143,6 +145,9 @@ BEGIN
 	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
 	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
 	DECLARE @ResultDetail_Corner_ticket AS TABLE (ResourceID VARCHAR(20))
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
+	DECLARE @tmpCashoutTransId TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY)
+	
 	
 	 --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -150,7 +155,7 @@ BEGIN
 	--END Balance tables             
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-
+	
 	SELECT	@start    = CURRENT_TIMESTAMP
 			,@ActionID  	= 111
 			,@Action		= 'CAL-FT'
@@ -420,7 +425,18 @@ BEGIN
 				INNER JOIN SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
 			WHERE g.Voided_cnt = g.ticket_cnt
 				AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)	
+
+			INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, bettype, betteam, hdp1, hdp2)
+			SELECT	b.transid, 6, b.bettype, b.betteam, b.hdp1, b.hdp2
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.f_Set_GetCashoutBettypes () f
+					ON b.bettype = f.BetType
+			WHERE	matchid = @matchid
+					AND b.statusID NOT IN (101, 102)
+					AND ISNULL(b.betdaqid,0) = - 2
+					AND f.GroupName = 'FT'
 		END
+
 		--using this way to avoid more param @betcount
 		;WITH cteBettypes
 		AS(
@@ -460,25 +476,6 @@ BEGIN
 
 		SELECT @strSettledBettypes = COALESCE(@strSettledBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
 		FROM (SELECT DISTINCT bettype FROM @ListBettype_tmp) AS tmp
-
-
-		--SELECT @strSettledBettypes = COALESCE(@strSettledBettypes + ',' + CAST(b.bettype AS VARCHAR(10)), CAST(b.bettype AS VARCHAR(10))) 
-		--FROM
-		--(
-		--	SELECT	b.bettype
-		--	FROM	dbo.bettrans b WITH(NOLOCK)
-		--	WHERE	matchid = @matchid
-		--			AND statusID NOT IN (101)
-		--			AND 1 = CASE WHEN @IsSettleAbandonedMatch = 1 AND (custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
-		--						 WHEN @IsSettleAbandonedMatchBetFair = 1 AND custid IN (2331, 1077687, 115770, 15523642) THEN 1
-		--						 WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
-		--						 ELSE 0
-		--					END
-		--	GROUP BY b.bettype
-			
-		--) AS b
-		--WHERE b.bettype IN (SELECT bettype FROM cteBettypes)
-		--GROUP BY b.bettype
 
 		IF (
 			(@IsSettleAbandonedMatch = 0 AND @IsSettleAbandonedMatchBetFair = 0 AND @IsSettleAbandonedMatchIBC = 0) 
@@ -691,6 +688,18 @@ BEGIN
 				-- including FGLG
 				,@ft_fg 						= @ft_fg
 				,@ft_lg 						= @ft_lg
+
+			UPDATE t 
+				SET statuswinlost = CASE 
+										WHEN m.modds > 0.25 THEN 2
+										WHEN m.modds = 0.25 THEN 1
+										WHEN m.modds = 0 THEN 0
+										WHEN m.modds = -0.25 THEN 3
+										WHEN m.modds < -0.25 THEN 4
+										ELSE 6
+									END
+			FROM	@tmpCashoutTransId t
+				CROSS APPLY [dbo].[f_Set_Parlay_SDT_CalModds](t.bettype,t.betteam,t.hdp1,t.hdp2,@hth,@hta,@fth - @hth,@fta - @hta,NULL,NULL) m
 		END
 
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
@@ -715,6 +724,7 @@ BEGIN
 				,@fta					= @fta
 				,@ResourceResult		= @ResourceResult
 		END
+
 	    IF @RowCount > 0
 		BEGIN		
 			-- SELECT for new formation
@@ -762,6 +772,41 @@ BEGIN
 				EXEC dbo.NAP_Admin_Calculate_914
 					@MatchId = @matchid
 					,@Action = 'REFUND'
+			END		
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+			BEGIN
+				UPDATE t 
+					SET winlost = c.Winlost
+				FROM	@tmpCashoutTransId t
+					INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
+						ON t.TransId = c.TransID
+
+				WHILE (1=1)
+				BEGIN
+					DELETE @tmpTransIDBatch
+					SET @strTransIds = ''
+
+					DELETE 	TOP (2000)
+					FROM	@tmpCashoutTransId
+						OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+
+					IF @@ROWCOUNT = 0
+						BREAK
+
+					SET @strTransIds = (SELECT transid	AS '@t'
+												,winlost	AS '@w'	
+												,statuswinlost AS '@s'
+										FROM @tmpTransIDBatch
+										FOR XML PATH('r'), ROOT( 'root' ))
+
+					EXEC dbo.NAP_Admin_Calculate_Main
+						@matchid	  = @matchid
+						,@action	  = 'Cashout'
+						,@mode		  = 'REFUND'
+						,@strTransIds = @strTransIds
+
+				END
 			END
 			
 			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 

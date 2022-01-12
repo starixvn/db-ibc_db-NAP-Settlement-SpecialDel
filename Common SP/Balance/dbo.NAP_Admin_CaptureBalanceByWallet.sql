@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	--, @ResourceIDs      VARCHAR(MAX)	= NULL 
 	, @SelectedRID      VARCHAR(MAX)    = NULL
 	, @TransIDs		    VARCHAR(MAX)    = NULL
-	, @IsCashout			BIT = 0
+	, @CashoutVersion	TINYINT = 0
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -29,6 +29,7 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]	
 		
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -147,7 +148,7 @@ BEGIN
                                 			) AS tbl
 	    EXEC sp_xml_removedocument @handle
 	    
-	    IF @sportType = 2 AND @IsCashout = 1
+	    IF @sportType = 2 AND @CashoutVersion = 1
 		BEGIN
 			-- get main transid of Bettrade & transid of bettype 911
 			;WITH cteMain
@@ -220,8 +221,7 @@ BEGIN
 						AND EXISTS( SELECT TOP 1 1
 									FROM @tmpSelectedRID t
 									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
-									) 	
-						
+									) 							
 					UNION ALL
 
 					SELECT	b.custid

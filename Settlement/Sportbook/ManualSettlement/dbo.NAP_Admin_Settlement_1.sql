@@ -81,6 +81,7 @@ AS
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
+		 - 20211130@Kathy: New cashout model [Redmine:#164838]
 
 
     Param's Explanation:
@@ -125,6 +126,7 @@ BEGIN
 		,@CommandMonitor				NVARCHAR(MAX)
 		,@SessionId						BIGINT
 		,@SSBStatus						TINYINT
+		,@strTransIds					VARCHAR(MAX)
 
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -132,8 +134,10 @@ BEGIN
 	--END Balance tables    
     
     DECLARE @status TABLE (FTBet BIT, BetCount INT, InRunning INT)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
     
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT)
     
     SELECT  @sporttype        = m.sporttype
             ,@goalrecord_old    = ISNULL(m.goalrecord, '')
@@ -386,6 +390,48 @@ BEGIN
                 ,@action        = 'CAL'        -- Default Action for UNDO Settlement 
                 ,@mode            = 'UNDO'
                 ,@strBettypes = @strBettypes
+
+			INSERT INTO @tmpCashoutTransId(TransId, statuswinlost)
+			SELECT	b.transid, NULL
+			FROM	dbo.bettrans b WITH(NOLOCK)
+			WHERE	matchid = @matchid
+					AND b.statusID NOT IN (101, 102)
+					AND ISNULL(b.betdaqid,0) = - 2
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+			BEGIN
+				UPDATE t 
+					SET winlost = c.Winlost
+				FROM	@tmpCashoutTransId t
+					INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
+						ON t.TransId = c.TransID
+
+				WHILE (1=1)
+				BEGIN
+					DELETE @tmpTransIDBatch
+					SET @strTransIds = ''
+
+					DELETE 	TOP (2000)
+					FROM	@tmpCashoutTransId
+						OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+
+					IF @@ROWCOUNT = 0
+						BREAK
+
+					SET @strTransIds 		= (SELECT transid	AS '@t'
+													   ,winlost	AS '@w'	
+													   ,statuswinlost AS '@s'
+											   FROM @tmpTransIDBatch
+											   FOR XML PATH('r'), ROOT( 'root' ))
+
+					EXEC dbo.NAP_Admin_Calculate_Main
+						@matchid	  		 = @matchid
+					   ,@action				 = 'Cashout'
+					   ,@mode				 = 'UNDO'
+					   ,@strTransIds		 = @strTransIds
+
+				END
+			END
             
             -- BetTrade Winlost Sharing
             IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 904)

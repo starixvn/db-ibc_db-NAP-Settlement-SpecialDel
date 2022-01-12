@@ -16,6 +16,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 202103186@Louisa: Cricket AIO [Redmine:#148870]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		
 	Param's Explanation:  
 		   
@@ -257,7 +258,7 @@ BEGIN
 				END
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
-
+	WHERE ISNULL(b.betdaqid,0) <> -2
 	RETURN
 	
 END

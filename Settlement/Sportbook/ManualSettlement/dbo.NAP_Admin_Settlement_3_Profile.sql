@@ -29,6 +29,7 @@ AS
 	   - 20210809@Kathy: Settle by custid [Redmine:159486]
 	   - 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 	   - 20211210@Kathy: Improve performance [Redmine:#165996]
+	   - 20211130@Kathy: New cashout model [Redmine:#164838]
 
 */
 BEGIN
@@ -62,6 +63,7 @@ BEGIN
 			,@xmlResourceResult		XML
 			,@ChildMatchType		TINYINT
 			,@strSpecialBettype VARCHAR(MAX) 
+			,@strCashoutBettypeXML VARCHAR(MAX)
 			,@strCashoutBettype VARCHAR(MAX)
 			,@TotalCommands INT
 			,@MessageBody VARCHAR(MAX)
@@ -71,6 +73,7 @@ BEGIN
 			,@SPName NVARCHAR(128)
 			,@RunPrepareDataBySSB BIT
 			,@openquery NVARCHAR(MAX)
+			,@strTransIds	VARCHAR(MAX)
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -81,8 +84,12 @@ BEGIN
 
 	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
 	
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)
+
+	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY
+		, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY,livehomescore SMALLINT, liveawayscore SMALLINT)
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -120,6 +127,7 @@ BEGIN
 			,@TotalTicket = 0
 			,@xmlResourceResult = CAST(@ResourceResult AS XML)
 			,@strSpecialBettype = ''
+			,@strCashoutBettypeXML = ''
 			,@strCashoutBettype = ''
 			,@TotalCommands = 0
 			
@@ -195,8 +203,12 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
-				AND b.statusID IN (0,102)
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
+				AND 1 = CASE 
+							WHEN ISNULL(b.betdaqid,0) = -2 THEN 1
+							WHEN b.statusID IN (0,102) THEN 1
+							ELSE 0
+						END
 		GROUP BY b.custid, b.bettype
 	END 
 	ELSE
@@ -500,22 +512,45 @@ BEGIN
 		END	
 	END
 	
-	IF @action IN ('CAL', 'CAL-FT')
+	IF @action = 'CAL'
 	BEGIN
-		SELECT @strCashoutBettype = CAST(
+		SELECT @strCashoutBettypeXML = CAST(
 								(SELECT  Bettype AS '@t' 
-								FROM	(VALUES (1), (3), (5), (7), (8), (15)) AS b(bettype)
-								WHERE	1 = CASE WHEN @Action = 'CAL-FT' AND bettype IN(7,8,15) THEN 0 ELSE 1 END
+								FROM	dbo.f_Set_GetCashOutBettypes() f
 								FOR XML PATH ('r'),ROOT ('root'), TYPE
 							) AS VARCHAR(MAX))
+		
+		SELECT @strCashoutBettype = STUFF((SELECT ',' + CAST(f.bettype AS VARCHAR(50)) 
+											FROM	dbo.f_Set_GetCashOutBettypes() f 
+											FOR XML PATH('')),1,1,'')
 	END
-	ELSE 
+	ELSE IF @action = 'CAL-FT'
 	BEGIN
-		SELECT @strCashoutBettype = CAST(
-							(SELECT  Bettype AS '@t' 
-							FROM	(VALUES (7), (8), (15)) AS b(bettype)
-							FOR XML PATH ('r'),ROOT ('ROOT'), TYPE
-						) AS VARCHAR(MAX))
+		SELECT @strCashoutBettypeXML = CAST(
+								(SELECT  Bettype AS '@t' 
+								FROM	dbo.f_Set_GetCashOutBettypes() f
+								WHERE	f.GroupName = 'FT'
+								FOR XML PATH ('r'),ROOT ('root'), TYPE
+							) AS VARCHAR(MAX))
+		
+		SELECT @strCashoutBettype = STUFF((SELECT ',' + CAST(f.bettype AS VARCHAR(50)) 
+											FROM	dbo.f_Set_GetCashOutBettypes() f 
+											WHERE	f.GroupName = 'FT'
+											FOR XML PATH('')),1,1,'')
+	END
+	ELSE IF @action = 'CAL-HT'
+	BEGIN
+		SELECT @strCashoutBettypeXML = CAST(
+								(SELECT  Bettype AS '@t' 
+								FROM	dbo.f_Set_GetCashOutBettypes() f
+								WHERE	f.GroupName = 'HT'
+								FOR XML PATH ('r'),ROOT ('root'), TYPE
+							) AS VARCHAR(MAX))
+		
+		SELECT @strCashoutBettype = STUFF((SELECT ',' + CAST(f.bettype AS VARCHAR(50)) 
+											FROM	dbo.f_Set_GetCashOutBettypes() f 
+											WHERE	f.GroupName = 'HT'
+											FOR XML PATH('')),1,1,'')
 	END
 
 	INSERT INTO #tmpCustIds (CustId, TotalTicket)
@@ -635,14 +670,91 @@ BEGIN
 		END
 	END
 
-	IF @strCashoutBettype <> ''
+	IF @strCashoutBettypeXML <> ''
 	BEGIN
 		EXEC dbo.NAP_Admin_Calculate_Main -- 911
 			@matchid        = @matchid
 			,@action        = 'CAL'
 			,@mode          = @action
-			,@strBettypes   = @strCashoutBettype
+			,@strBettypes   = @strCashoutBettypeXML
 			,@sporttype		= @sporttype
+		
+		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, bettype, betteam, hdp1, hdp2, WalletType, BonusID, balance, livehomescore, liveawayscore)
+		SELECT	b.transid, NULL, b.custid, b.bettype, b.betteam, b.hdp1, b.hdp2, ISNULL(b.WalletType,2), ISNULL(b.BonusID,0), (b.winlost - b.actual_stake + b.playercomm) AS balance
+				,b.livehomescore, b.liveawayscore
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	matchid = @matchid
+				AND b.statusID NOT IN (101, 102)
+				AND ISNULL(b.betdaqid,0) = - 2
+				AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strCashoutBettype + ',') > 0
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+		BEGIN
+			UPDATE t 
+				SET winlost = ISNULL(c.Winlost,0)
+			FROM	@tmpCashoutTransId t
+				INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
+					ON t.TransId = c.TransID
+
+			UPDATE t 
+				SET statuswinlost = CASE 
+										WHEN m.modds > 0.25 THEN 2
+										WHEN m.modds = 0.25 THEN 1
+										WHEN m.modds = 0 THEN 0
+										WHEN m.modds = -0.25 THEN 3
+										ELSE 4
+									END
+			FROM	@tmpCashoutTransId t
+				INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  				ON	sr.BetType = t.bettype
+						AND sr.matchid = @matchid
+				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, t.betteam, t.hdp1, t.hdp2, sr.HomeValue, sr.AwayValue, t.livehomescore, t.liveawayscore, NULL, NULL) m
+			WHERE	sr.SessionId = @SessionId
+			
+			INSERT INTO @BalanceWalletBefore (matchid, custid, balanceType, WalletType, BonusID, balance)
+			SELECT	@matchid, custid, balanceType, WalletType, BonusID, SUM(balance)
+			FROM	@tmpCashoutTransId
+			GROUP BY	custid, balanceType, WalletType, BonusID
+
+			WHILE (1=1)
+			BEGIN
+				DELETE @tmpTransIDBatch
+				SET @strTransIds = ''
+
+				DELETE	TOP (2000)
+				FROM	@tmpCashoutTransId
+					OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+
+				IF @@ROWCOUNT = 0
+					BREAK
+
+				SET @strTransIds = (SELECT transid	AS '@t'
+											,winlost	AS '@w'	
+											,statuswinlost AS '@s'
+									FROM @tmpTransIDBatch
+									FOR XML PATH('r'), ROOT( 'root' ))
+
+				EXEC dbo.NAP_Admin_Calculate_Main
+					@matchid	  = @matchid
+					,@action	  = 'Cashout'
+					,@mode		  = 'CAL'
+					,@strTransIds = @strTransIds
+
+			END
+
+			INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
+			SELECT	@matchid, t.custid, t.balanceType, t.WalletType, t.BonusID, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+			FROM	@tmpCashoutTransId t
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON t.TransId = b.transid
+			GROUP BY	t.custid, t.balanceType, t.WalletType, t.BonusID			
+		
+			-- Compare and update pending balance with error case
+			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+				@BalanceWalletBefore	= @BalanceWalletBefore
+				,@BalanceWalletAfter	= @BalanceWalletAfter
+				,@ActionId				= @ActionID		
+		END
 	END
 
 	IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'

@@ -19,7 +19,8 @@ AS
 	Revisions:
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
-		
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
+
 	Param's Explanation:  
 		   
 		@transIds = '<root>
@@ -329,6 +330,7 @@ BEGIN
 			FROM @tmpTransId t
 				INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 					ON  t.transid = b.transid 
+			WHERE	 ISNULL(b.betdaqid,0) <> -2 
 			OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 		
 			SET @StepDone = @StepDone + ' bettrans'
@@ -703,6 +705,7 @@ BEGIN
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 
+		WHERE	 ISNULL(b.betdaqid,0) <> -2 
 		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 
 		IF OBJECT_ID('SettlementProcessing', 'U') IS NOT NULL

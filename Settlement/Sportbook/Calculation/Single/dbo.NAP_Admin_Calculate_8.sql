@@ -46,6 +46,7 @@ AS
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -362,6 +363,7 @@ BEGIN
 						ELSE 0
 					END 
 				AND hdp1 <= @comparedValue
+				AND ISNULL(b.betdaqid,0) <> -2
 		END
     END -- END settle determined ticket
     ELSE

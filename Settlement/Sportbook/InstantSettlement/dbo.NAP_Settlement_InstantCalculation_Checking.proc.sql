@@ -23,6 +23,7 @@ AS
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 
 		
 	Param's Explanation:
@@ -313,6 +314,7 @@ BEGIN
 						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) --exclude betdaq/betfair
 						AND EXISTS (SELECT TOP 1 1 FROM #instantBettype ib WHERE ib.bettype = b.bettype)
 						AND b.statusId IN (112, 113)
+						AND ISNULL(b.betdaqid,0) <> -2
 				)
 				SELECT TOP(1) @instantCheck = 1
 				FROM instantTicketCheck

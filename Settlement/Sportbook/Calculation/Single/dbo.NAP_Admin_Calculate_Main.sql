@@ -67,6 +67,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@IsReSettledTickets			BIT			= 1
 	,@RunOnServer					VARCHAR(100)= NULL
 	,@isCashout						BIT			= 0
+	,@CashoutVersion				TINYINT		= 0
 	,@CustId						INT			= NULL
 	,@strCustIds					VARCHAR(MAX)= NULL
 	,@SettlementProcessingId		BIGINT		= NULL
@@ -150,6 +151,7 @@ AS
 						  - Remove unused param matchCode
 		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]				  
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]	
 
     Param's Explanation:
         @action             @mode
@@ -300,6 +302,7 @@ BEGIN
 			+ CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
 			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
 			+ CASE WHEN @isCashout IS NULL THEN '' ELSE ',@isCashout = ' + CONVERT(NVARCHAR(50),@isCashout,0) END
+			+ CASE WHEN @CashoutVersion IS NULL THEN '' ELSE ',@CashoutVersion = ' + CONVERT(NVARCHAR(50),@CashoutVersion,0) END
 			+ CASE WHEN @strCustIds IS NULL THEN '' ELSE ',@strCustIds = ' + '''' + @strCustIds + '''' END
 			+ CASE WHEN @TotalCommands IS NULL THEN '' ELSE ',@TotalCommands = ' + CONVERT(NVARCHAR(50), @TotalCommands) END
 			+ CASE WHEN @SessionId IS NULL THEN '' ELSE ',@SessionId = ' + CONVERT(NVARCHAR(50), @SessionId) END
@@ -360,15 +363,21 @@ BEGIN
 					EXEC dbo.NAP_Admin_Calculate_Undo_TransID
 						   @transIds   		= @strTransIds
 				
-				IF @sporttype = 2 AND @isCashout =  1 
+				IF @sporttype = 2
 				BEGIN
-					 EXEC dbo.NAP_Admin_Calculate_911
-						@matchid        = @matchid
-						,@action        = @action
-						,@mode          = @mode
-						,@strBettypes   = @strBettypes
-						,@ResourceIDs   = @strBettypes
-				END	
+					IF  @CashoutVersion = 1 OR @isCashout =  1 
+						EXEC dbo.NAP_Admin_Calculate_911
+							@matchid        = @matchid
+							,@action        = @action
+							,@mode          = @mode
+							,@strBettypes   = @strBettypes
+							,@ResourceIDs   = @strBettypes
+
+					IF  @CashoutVersion =  2
+						EXEC dbo.ExecRep_NAP_Admin_03
+							@transIds = @strTransIds
+							,@mode = @mode
+				END
 			END
 	        RETURN
         END 
@@ -2839,8 +2848,14 @@ BEGIN
                 ,@strBettypes   = @strBettypes
                 ,@ResourceIDs   = @ResourceIDs
 				,@sporttype		= @sporttype
-			
         END
+
+		IF @action = 'Cashout'
+		BEGIN
+			EXEC dbo.ExecRep_NAP_Admin_03
+				@transIds = @strTransIds
+				,@mode = @mode
+		END
     END
     
 END

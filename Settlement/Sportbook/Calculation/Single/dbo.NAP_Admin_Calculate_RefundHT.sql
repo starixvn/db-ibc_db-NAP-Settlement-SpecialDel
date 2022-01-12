@@ -31,6 +31,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		
     Param's Explanation:
         + @IsExcludeBetdaq: 
@@ -199,6 +200,7 @@ BEGIN
 							WHEN @IsExcludeBetfair = 1 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 0
 							ELSE 1
 						END
+				AND ISNULL(b.betdaqid,0) <> -2
 
 		SET @BatchNo = @BatchNo - 1
 

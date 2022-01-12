@@ -48,6 +48,7 @@ AS
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20211027@Kathy: Apply all bettype for pingoal [Redmine:#163762]
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -99,7 +100,7 @@ BEGIN
 			,@sqlCommand VARCHAR(MAX) = ''
 			-- for cashout
 			,@Action_tmp	VARCHAR(10)
-			,@IsCashout			BIT = 0
+			,@CashoutVersion	TINYINT = 0
 			,@TotalSubParlay	INT = 0
 			,@ThreadHold		INT = 0
 			,@LockedByRefno		BIT = 0
@@ -109,10 +110,13 @@ BEGIN
 		   , @BalanceWalletAfter		TVP_BalanceWalletChange
 	--END Balance tables
 
+	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT)
+
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	--DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT)
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT, BetdaqId BIGINT)
+
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20)
@@ -360,7 +364,6 @@ BEGIN
   		--get transid
   		IF @Action LIKE 'CAL%'
   		BEGIN
-
 			--Bettype 2,3: using match score or total point
 			UPDATE t
 				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
@@ -370,11 +373,12 @@ BEGIN
 
 			IF @sportType <> 1
 			BEGIN
-				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
+				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId)
 	  			SELECT 
 					b.transid, m.modds
 					, sr.OddsType
 					, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+					,ISNULL(b.betdaqid,0)
 	  			FROM bettrans b WITH (NOLOCK)
 					OUTER APPLY (
 									SELECT TOP (1) mt.TransId
@@ -389,18 +393,34 @@ BEGIN
 	  				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
 	  			WHERE b.matchid = @MatchId
 	  				AND b.statusID NOT IN (101)
-					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
-									 WHEN @IsReSettledTickets = 1 THEN 1
-									 ELSE 0
-								END
+					AND 1 = CASE 
+								WHEN ISNULL(b.betdaqid,0) = -2 THEN 1
+								WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+								WHEN @IsReSettledTickets = 1 THEN 1
+								ELSE 0
+							END
+
+				DELETE 
+				FROM	#tmpTransID
+					OUTPUT deleted.TransID
+						, CASE 
+							WHEN deleted.modds > 0.25 THEN 2
+							WHEN deleted.modds = 0.25 THEN 1
+							WHEN deleted.modds = 0 THEN 0
+							WHEN deleted.modds = -0.25 THEN 3
+							ELSE 4
+						END
+					INTO @tmpCashoutTransId(TransId, statuswinlost)
+				WHERE	BetdaqId = -2
 			END
 			ELSE
 			BEGIN
-				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked)
+				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId)
 	  			SELECT 
 					b.transid, m.modds
 					, sr.OddsType
 					, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+					,ISNULL(b.betdaqid,0)
 	  			FROM bettrans b WITH (NOLOCK)
 					OUTER APPLY (
 									SELECT TOP (1) mt.TransId
@@ -415,10 +435,25 @@ BEGIN
 	  				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
 	  			WHERE b.matchid = @MatchId
 	  				AND b.statusID NOT IN (101)
-					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
-									 WHEN @IsReSettledTickets = 1 THEN 1
-									 ELSE 0
-								END
+					AND 1 = CASE 
+								WHEN ISNULL(b.betdaqid,0) = -2 THEN 1
+								WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+								WHEN @IsReSettledTickets = 1 THEN 1
+								ELSE 0
+							END
+				
+				DELETE 
+				FROM	#tmpTransID
+					OUTPUT deleted.TransID
+						, CASE 
+							WHEN deleted.modds > 0.25 THEN 2
+							WHEN deleted.modds = 0.25 THEN 1
+							WHEN deleted.modds = 0 THEN 0
+							WHEN deleted.modds = -0.25 THEN 3
+							ELSE 4
+						END
+					INTO @tmpCashoutTransId(TransId, statuswinlost)
+				WHERE	BetdaqId = -2
 			END
 			
 			IF @IsMergedParlay = 1
@@ -439,8 +474,8 @@ BEGIN
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
 			--get transid
-			INSERT INTO #tmpTransID(TransID)
-	  		SELECT b.transid
+			INSERT INTO #tmpTransID(TransID, betdaqid)
+	  		SELECT b.transid, ISNULL(b.betdaqid,0)
 	  		FROM bettrans b WITH (NOLOCK)
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
 				OUTER APPLY (
@@ -454,40 +489,50 @@ BEGIN
 							 WHEN b.statusID NOT IN (0, 1) THEN 1
 							 ELSE 0 
 						END
+			
+			DELETE 
+			FROM	#tmpTransID
+				OUTPUT deleted.TransID, NULL INTO @tmpCashoutTransId(TransId, statuswinlost)
+			WHERE	BetdaqId = -2
 
-		IF @IsMergedParlay = 1					
-			SELECT @TotalSubParlay = COUNT(1)			
-			FROM	dbo.bettransm bm WITH(NOLOCK)
-				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
-					ON	b.matchid = 29
-						AND b.bettype = 29
-						AND b.refno = bm.refno
-				OUTER APPLY (
-					SELECT	TOP (1) mt.TransId
-					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-					WHERE	mt.TransId = b.transid
-							AND mt.MatchId = @MatchID
-				) mt
-			WHERE	bm.matchid = @MatchID
-					AND bm.statusID NOT IN (101)
-					AND 1 = CASE WHEN bm.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
-								 WHEN bm.statusID NOT IN (0, 1) THEN 1
-								 ELSE 0 
-							END
-					AND EXISTS (SELECT	TOP 1 1
-								FROM	@tmpSelectedRID t
-								WHERE	t.BetType = bm.bettype
-										AND (t.BetID = 0 OR t.BetID = bm.betcheck))
+			IF @IsMergedParlay = 1					
+				SELECT @TotalSubParlay = COUNT(1)			
+				FROM	dbo.bettransm bm WITH(NOLOCK)
+					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
+						ON	b.matchid = 29
+							AND b.bettype = 29
+							AND b.refno = bm.refno
+					OUTER APPLY (
+						SELECT	TOP (1) mt.TransId
+						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						WHERE	mt.TransId = b.transid
+								AND mt.MatchId = @MatchID
+					) mt
+				WHERE	bm.matchid = @MatchID
+						AND bm.statusID NOT IN (101)
+						AND 1 = CASE WHEN bm.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+									 WHEN bm.statusID NOT IN (0, 1) THEN 1
+									 ELSE 0 
+								END
+						AND EXISTS (SELECT	TOP 1 1
+									FROM	@tmpSelectedRID t
+									WHERE	t.BetType = bm.bettype
+											AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 		END 
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
 			--get transid
-			INSERT INTO #tmpTransID(TransID)
-	  		SELECT transid
+			INSERT INTO #tmpTransID(TransID, BetdaqId)
+	  		SELECT transid, ISNULL(b.betdaqid,0)
 	  		FROM bettrans b WITH (NOLOCK)
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  		WHERE b.matchid = @MatchId
 	  			AND	b.statusID NOT IN (103, 101)
+			
+			DELETE 
+			FROM	#tmpTransID
+				OUTPUT deleted.TransID, 6 INTO @tmpCashoutTransId(TransId, statuswinlost)
+			WHERE	BetdaqId = -2
 			
 			IF @IsMergedParlay = 1
 				SELECT @TotalSubParlay = COUNT(1)			
@@ -582,7 +627,7 @@ BEGIN
 						WHERE	b.matchid = @matchid AND b.betdaqid = 0
 								AND EXISTS (SELECT TOP (1) 1 FROM @tmpSelectedRID t WHERE t.BetType = b.bettype )
 						)
-				SET @IsCashout = 1
+				SET @CashoutVersion = 1
 		END
 		-------------------------------------------------------------
 		---		CAPTURE value BALANCE before settlement		---
@@ -595,7 +640,7 @@ BEGIN
 						,@Action 				  = @Action
 						,@Mode 					  = 2
 						,@SelectedRID			  = @SelectedRID
-						,@IsCashout				  = @IsCashout
+						,@CashoutVersion		  = @CashoutVersion
 		
 		SELECT @TotalAccount = @@ROWCOUNT
 						
@@ -631,32 +676,74 @@ BEGIN
 			   ,@action				 = @action
 			   ,@IsSettingByProfile  = 1
 			   ,@strTransIds		 = @strTransIds
-
 		END
 		
 		-- cashout for basketball
-		IF @sportType = 2 AND @IsCashout = 1 -- BASKETBALL
+		IF @sportType = 2 -- BASKETBALL
 		BEGIN
-			-- process for 911 first: NAP_Admin_Calculate_911
 			IF @Action = 'UNDO'
 				SELECT @Action_tmp = 'CAL', @mode = 'UNDO'
 			ELSE
 				SELECT @Action_tmp =  @Action, @mode = @Action
 					
-			EXEC dbo.NAP_Admin_Calculate_Main
-				@matchid	  		 = @matchid
-			   ,@action				 = @Action_tmp
-			   ,@mode				 = @mode
-			   ,@IsSettingByProfile  = 1
-			   ,@strBettypes		 = @strBettypes
-			   ,@sportType			 = @sportType
-			   ,@isCashout			 = @IsCashout
-						
-			EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
-				@MatchId = @matchid
-				,@Action = @Action
+			IF @CashoutVersion = 1
+			BEGIN
+				-- process for 911 first: NAP_Admin_Calculate_911
+				EXEC dbo.NAP_Admin_Calculate_Main
+					@matchid	  		 = @matchid
+				   ,@action				 = @Action_tmp
+				   ,@mode				 = @mode
+				   ,@IsSettingByProfile  = 1
+				   ,@strBettypes		 = @strBettypes
+				   ,@sportType			 = @sportType
+				   ,@CashoutVersion		 = @CashoutVersion
+			   
+				EXEC dbo.NAP_Admin_Calculate_914 -- CashOut Winlost Sharing
+					@MatchId = @matchid
+					,@Action = @Action
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+			BEGIN
+				UPDATE t 
+					SET winlost = c.Winlost
+				FROM	@tmpCashoutTransId t
+					INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
+						ON t.TransId = c.TransID
+
+				WHILE (1=1)
+				BEGIN
+					DELETE @tmpTransIDBatch
+					SET @strTransIds = ''
+
+					DELETE 	TOP (2000)
+					FROM	@tmpCashoutTransId
+						OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+
+					IF @@ROWCOUNT = 0
+						BREAK
+
+					SET @strTransIds 		= (SELECT transid	AS '@t'
+													   ,winlost	AS '@w'	
+													   ,statuswinlost AS '@s'
+											   FROM @tmpTransIDBatch
+											   FOR XML PATH('r'), ROOT( 'root' ))
+
+					EXEC dbo.NAP_Admin_Calculate_Main
+						@matchid	  		 = @matchid
+					   ,@action				 = @Action_tmp
+					   ,@mode				 = @mode
+					   ,@IsSettingByProfile  = 1
+					   ,@sportType			 = @sportType
+					   ,@CashoutVersion		 = 2 
+					   ,@strTransIds		 = @strTransIds
+
+				END
+			END
 			
 		END	
+
+
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 			
 		-------------------------------------------------------------
@@ -670,7 +757,7 @@ BEGIN
 					,@Action 			= @Action
 					,@Mode 			  	= 2 --Used for Manual settle process
 					,@SelectedRID		= @SelectedRID
-					,@isCashout			= @isCashout
+					,@CashoutVersion	= @CashoutVersion
 		
 		
 		-- Compare and update pending balance with error case
@@ -796,7 +883,7 @@ BEGIN
 			  , @Action 			= @Action
 			  , @Mode 				= 2 --Used for Manual settle process
 			  , @SelectedRID		= @SelectedRID
-			  , @isCashout			= @isCashout
+			  , @CashoutVersion		= @CashoutVersion
 
 		-- Compare and update pending balance with error case
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]

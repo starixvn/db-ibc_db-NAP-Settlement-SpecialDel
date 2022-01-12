@@ -11,6 +11,7 @@ AS
 	DB: DBTXN/bodb02
 	Revisions:
 		- 20201216@Louisa: Checking ET & PEN matches [Redmine:#145597]
+		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 
 	Param's explaination: 
 		- @TypeId:  1 - Auto refund single
@@ -81,7 +82,7 @@ BEGIN
 				RETURN
 			END
 
-			IF EXISTS (SELECT TOP 1 1  FROM  dbo.bettrans bt WITH(NOLOCK) WHERE bt.matchid = @MatchId AND bt.statusID IN (111,112,113,103)	)
+			IF EXISTS (SELECT TOP 1 1  FROM  dbo.bettrans bt WITH(NOLOCK) WHERE bt.matchid = @MatchId AND bt.statusID IN (111,112,113,103) AND ISNULL(bt.betdaqid,0) <> -2	)
 			BEGIN
 				SELECT @ErrCode = 	1001044   ,@ErrMsg  = 	'Auto refund child match failed: settled tickets exist.'
 				RETURN
