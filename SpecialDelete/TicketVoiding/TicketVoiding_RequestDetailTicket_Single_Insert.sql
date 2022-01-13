@@ -1481,16 +1481,17 @@ BEGIN
 					,VoidFromTime			
 					,VoidToTime				
 					,SubIssueTypeId
+					,LiveScores
 					,HomeFavorite
 					,AwayFavorite
 					,HDPValue
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
-					,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
-					,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-					,t.c.value('@FilterFromBetId','BIGINT') AS FilterFromBetId
-					,t.c.value('@FilterToBetId','BIGINT') AS FilterToBetId
+					,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 					,t.c.value('@FilterBy','TINYINT') AS FilterBy
 					,t.c.value('@SingleCount','INT') AS SingleCount
 					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
@@ -1501,9 +1502,10 @@ BEGIN
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-					,t.c.value('@HomeFavorite','VARCHAR(50)') AS HomeFavorite
-					,t.c.value('@AwayFavorite','VARCHAR(50)') AS AwayFavorite
-					,t.c.value('@HDPValue','VARCHAR(50)') AS HDPValue
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				    ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
 			FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 
@@ -1577,16 +1579,17 @@ BEGIN
 					,VoidFromTime			
 					,VoidToTime				
 					,SubIssueTypeId
+					,LiveScores
 					,HomeFavorite
 					,AwayFavorite
 					,HDPValue
 				)
 			SELECT @RequestId AS RequestId
 					,t.c.value('@MatchId','INT') AS MatchID
-					,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
-					,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-					,t.c.value('@FilterFromBetId','BIGINT') AS FilterFromBetId
-					,t.c.value('@FilterToBetId','BIGINT') AS FilterToBetId
+					,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 					,t.c.value('@FilterBy','TINYINT') AS FilterBy
 					,t.c.value('@SingleCount','INT') AS SingleCount
 					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
@@ -1597,9 +1600,10 @@ BEGIN
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-					,t.c.value('@HomeFavorite','VARCHAR(50)') AS HomeFavorite
-					,t.c.value('@AwayFavorite','VARCHAR(50)') AS AwayFavorite
-					,t.c.value('@HDPValue','VARCHAR(50)') AS HDPValue
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				    ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
 			FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
 

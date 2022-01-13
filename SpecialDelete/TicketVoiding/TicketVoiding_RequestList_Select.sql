@@ -47,6 +47,7 @@ AS
 		- 20211118@July: Change length datatatype [Redmine:#164819]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:	
 		@Status: 
@@ -535,11 +536,11 @@ BEGIN
 						ELSE 0 END
 						) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId = 17 AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END AS matchid
+					,CASE WHEN vh.IssueTypeId IN (1,4,5) THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId = 1 THEN z.matchid ELSE NULL END
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (1,4,5) THEN z.matchid ELSE NULL END
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 			
@@ -551,11 +552,11 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeId = 1 THEN zm.matchid ELSE NULL END AS matchid
+					,CASE WHEN vh.IssueTypeId IN (1,4,5) THEN zm.matchid ELSE NULL END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId = 1 THEN zm.matchid ELSE NULL END
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (1,4,5) THEN zm.matchid ELSE NULL END
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
@@ -645,12 +646,10 @@ BEGIN
 					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.matchid = t.MatchId
-						--AND t.IssueTypeId = 1
 					UNION
 					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
 					FROM	dbo.match14 m WITH(NOLOCK)
 					WHERE	m.matchid = t.matchid
-						--AND t.IssueTypeId = 1
 			)m
 		OUTER APPLY(
 					SELECT CASE WHEN mr.calculate = 1 THEN 'FT: ' + CAST(m.finalhomescore AS VARCHAR(10)) + '-' + CAST(finalawayscore AS VARCHAR(10))
@@ -667,7 +666,7 @@ BEGIN
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
-	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId = 1 THEN m.matchcode ELSE NULL END
+	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5) THEN m.matchcode ELSE NULL END
 	
 	DROP TABLE #tmpResult
 	

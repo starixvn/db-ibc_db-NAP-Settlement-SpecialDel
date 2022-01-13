@@ -61,7 +61,6 @@ AS
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/></root>
 	
-
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -110,7 +109,6 @@ BEGIN
 			,@MatchParlayProcessXML	  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
 			,@ThreadHold			  INT = 0-- over threadhold, the parlay process will be locked in systemsetting
-			,@FilterBy				  TINYINT = 1
 	
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
 			,@DangerAcceptedInfoXML	  XML = NULL
@@ -256,7 +254,7 @@ BEGIN
 				,FilterBy				
 				,SubIssueTypeId
 			)
-		SELECT @MatchId, NULL, NULL, 1, @SubIssueTypeId
+		SELECT @MatchId, NULL, NULL, NULL, @SubIssueTypeId
 	END
 
 	BEGIN -- Instant Settlement declaration
@@ -848,6 +846,8 @@ BEGIN
 			FROM #FilterBetId f  WITH (NOLOCK) 
 				INNER JOIN dbo.bettrans b ON b.matchid = f.MatchId
 			WHERE b.transid BETWEEN f.FilterFromBetId AND f.FilterToBetId
+				AND b.bettype = 1
+
 			IF  EXISTS ( SELECT TOP 1 1 FROM #FilterBetId f LEFT JOIN #transIdTemp t ON f.matchid = t.matchid WHERE t.MatchId IS NULL)
 			BEGIN
 				SELECT @IsInvalidTransId = 1
@@ -1078,6 +1078,8 @@ BEGIN
 			FROM #FilterBetId f  WITH (NOLOCK) 
 				INNER JOIN dbo.bettrans b ON b.matchid = f.MatchId
 			WHERE b.transid BETWEEN f.FilterFromBetId AND f.FilterToBetId
+				AND b.bettype = 7
+
 			IF  EXISTS ( SELECT TOP 1 1 FROM #FilterBetId f LEFT JOIN #transIdTemp t ON f.matchid = t.matchid WHERE t.MatchId IS NULL)
 			BEGIN
 				SELECT @IsInvalidTransId = 1
@@ -1487,9 +1489,9 @@ BEGIN
 				WHERE t.TransId = b.SubTransid
 		)tmp
 		CROSS APPLY (SELECT CASE 
-								WHEN @FilterBy IN(0,1) THEN b.transdate
-								WHEN @FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-								WHEN @FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
+								WHEN b.FilterBy IN(0,1) THEN b.transdate
+								WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
+								WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 							 END AS VoidTime
 					)act
 	WHERE tmp.TransId IS NULL

@@ -96,19 +96,15 @@ BEGIN
 			,@TotalParlay		INT = 0
 			,@ThreadHold		INT = 0-- over threadhold, the parlay process will be locked in systemsetting
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
-			,@Session			NVARCHAR(50) = CAST(NEWID() AS NVARCHAR(50))
-	
-	DECLARE	 @WrongScoreInfoXML		  XML = NULL
-			,@DangerAcceptedInfoXML	  XML = NULL
-			,@RedCardInfoXML		  XML = NULL
-			,@WrongHDPInfoXML		  XML = NULL	
-			,@Wrong1stHDPInfoXML	  XML = NULL
+			,@Session			NVARCHAR(50) = CAST(NEWID() AS NVARCHAR(50))		
 
 	DECLARE @SingleCount			INT
 		   ,@MainParlayCount		INT
 		   ,@WrongScoreInfoXML		XML = NULL
 		   ,@DangerAcceptedInfoXML	XML = NULL
 		   ,@RedCardInfoXML			XML = NULL
+		   ,@WrongHDPInfoXML		XML = NULL	
+		   ,@Wrong1stHDPInfoXML	    XML = NULL
 
 	CREATE TABLE #tblMatchProcess(
 		Matchid		  INT,
