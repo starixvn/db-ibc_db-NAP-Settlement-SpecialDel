@@ -1,10 +1,12 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverBet] 
+ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverBet]
+(
 	@Option BIT = 0
 	,@MatchId		BIGINT			= 0
 	,@FromTransId	BIGINT			= 0
 	,@ToTransId		BIGINT			= 0
 	,@TransIds		VARCHAR(MAX)	= ''
+)
 AS
 /*
 	Created: Kathy
@@ -39,6 +41,7 @@ AS
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 
 	Param's Explanation:
 			- @Opition: 
@@ -62,7 +65,6 @@ BEGIN
 		,winlost		MONEY
 		,STATUS			NVARCHAR(10)
 		,bettype		SMALLINT
-		,OriginalBetType SMALLINT
 		,matchid		INT
 		,OddsType		TINYINT
 		,betteam		NVARCHAR(10)
@@ -78,18 +80,16 @@ BEGIN
 		,transdesc		NVARCHAR(1000)
 		,betdaqid		BIGINT -- indicate BTrade ticket (main) or not: 0: BT, -1: normal ticket
 		,sporttype		SMALLINT
-		,SoldId			BIGINT
 		,homeid			INT
 		,awayid			INT
 		,ExtraInfo		VARCHAR(1000)
-		,IsCashOutMemberTicket BIT DEFAULT 0
-		,MainCashoutId	BIGINT
 		,zzzBetcheck	NVARCHAR(50)
 		,WalletType		TINYINT
 		,RefCode		BIGINT
 		,BonusID		INT
 		,MainTransId	BIGINT
 		,EventDate		DATETIME
+		,ActualStake	MONEY
 		,UNIQUE CLUSTERED(RefCode, custid, matchid, bettype, transid)				
 	)	
 	
@@ -141,12 +141,12 @@ BEGIN
 				,homeid
 				,awayid
 				,zzzBetcheck
-				,MainCashoutId
 				,custid
 				,WalletType
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -178,16 +178,12 @@ BEGIN
 				,o.teamid homeid
 				,0 AS awayid
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
 				,z.custid
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
 				,o.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 				ON	b.transid = z.transid
@@ -234,12 +230,12 @@ BEGIN
 				,awayid
 				,ExtraInfo
 				,zzzBetcheck
-				,MainCashoutId
 				,custid
 				,WalletType
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -272,16 +268,12 @@ BEGIN
 				,m.awayid
 				,b.ExtraInfo
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
 				,z.custid
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -294,7 +286,8 @@ BEGIN
 				AND z.matchid = @MatchId
 				AND z.Bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
 				AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
-				AND b.betfrom <> 'p'				
+				AND b.betfrom <> 'p'
+				AND ISNULL(z.comstatus,'') <> 'CO'
 		
 		-- MG
 		INSERT INTO @tblRecoverBet(
@@ -328,12 +321,12 @@ BEGIN
 				,homeid
 				,awayid
 				,zzzBetcheck
-				,MainCashoutId
 				,custid
 				,WalletType
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -365,16 +358,12 @@ BEGIN
 				,m.homeid
 				,m.awayid
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
 				,z.custid
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -427,12 +416,12 @@ BEGIN
 				,homeid
 				,awayid
 				,zzzBetcheck
-				,MainCashoutId
 				,custid
 				,WalletType
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -464,16 +453,12 @@ BEGIN
 				,o.teamid homeid
 				,0 AS awayid
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
 				,z.custid
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
 				,o.EventDate
+				,b.actual_stake AS ActualStake
 		FROM zzzbettrans z WITH (NOLOCK)
 			INNER JOIN bettrans b WITH (NOLOCK) 
 					ON b.transid = z.transid
@@ -522,12 +507,12 @@ BEGIN
 				,awayid
 				,ExtraInfo
 				,zzzBetcheck
-				,MainCashoutId
 				,custid
 				,WalletType
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -560,16 +545,12 @@ BEGIN
 				,m.awayid
 				,b.ExtraInfo
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
 				,z.custid
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -581,7 +562,8 @@ BEGIN
 		WHERE b.transid IN (SELECT s.transid FROM @tblTransIds s)		
 			AND z.bettype NOT IN (10, 901, 902, 903, 911, 912, 913, 801, 803, 804, 805, 806)
 			AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)	
-			AND b.betfrom <> 'p'			
+			AND b.betfrom <> 'p'
+			AND ISNULL(z.comstatus,'') <> 'CO'
 			
 		-- MG
 		INSERT INTO @tblRecoverBet(
@@ -615,12 +597,12 @@ BEGIN
 				,homeid
 				,awayid
 				,zzzBetcheck
-				,MainCashoutId
 				,custid
 				,WalletType
 				,RefCode
 				,BonusID
 				,EventDate
+				,ActualStake
 		)
 		SELECT	z.transid
 				,z.transid
@@ -652,16 +634,12 @@ BEGIN
 				,m.homeid
 				,m.awayid
 				,z.betcheck AS zzzBetcheck
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId
 				,z.custid
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
 				,m.EventDate
+				,b.actual_stake AS ActualStake
 		FROM	dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	z.transid = b.transid
@@ -674,15 +652,7 @@ BEGIN
 			AND z.bettype IN (801, 803, 804, 805, 806)	
 			AND (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)	
 	END				
-	
-	-- delete cash-out member bet tickets
-	DELETE t
-	FROM @tblRecoverBet t
-	WHERE EXISTS (SELECT TOP 1 1
-				  FROM bettrans sub911 (NOLOCK)
-				  WHERE sub911.bettype = 911
-				    AND sub911.transid = t.refno)				    					
-	
+	    					
 	-- update MainTransId
 	UPDATE sub
 	SET MainTransId = main.transid
@@ -731,12 +701,7 @@ BEGIN
 				,b.betid
 				,b.transdesc
 				,b.betdaqid							
-				,b.ExtraInfo			
-				,CASE
-					WHEN b.betdaqid = 0 AND charindex ('p25',b.extrainfo)> 0
-							THEN b.transid
-					ELSE NULL
-				 END AS MainCashoutId							
+				,b.ExtraInfo									
 				,b.WalletType
 				,b.RefCode
 				,b.BonusID
@@ -782,12 +747,12 @@ BEGIN
 					,awayid				
 					,ExtraInfo
 					,zzzBetcheck
-					,MainCashoutId
 					,custid				
 					,WalletType
 					,RefCode
 					,BonusID
 					,MainTransId
+					,ActualStake
 			)
 			SELECT	 z.transid
 					,z.transid
@@ -820,12 +785,12 @@ BEGIN
 					,m.awayid				
 					,b.ExtraInfo
 					,z.betcheck AS zzzBetcheck
-					,b.MainCashoutId
 					,z.custid				
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
 					,b.MainTransId
+					,b.actual_stake AS ActualStake
 		FROM #CTE_bettrans b
 			 INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
 					 ON	z.transid = b.transid
@@ -834,323 +799,7 @@ BEGIN
 						AND z.bettype = b.bettype		 					
 			 INNER JOIN dbo.match m WITH(NOLOCK)
 					 ON m.matchid = b.matchid		  			    				    						    
-	END
-	
-	-- update soldid for BT tickets
-	UPDATE t
-		SET SoldId = sub.transid
-	FROM	@tblRecoverBet t
-		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-			ON t.transid = sub.refno
-				AND sub.matchid = t.matchid
-				AND sub.bettype = 901
-				AND t.betdaqid = 0
-				AND t.extrainfo is null
-				
-	-- get BT sub ticket
-	INSERT INTO @tblRecoverBet(
-				GroupID			
-				,transid		
-				,refno		
-				,username					
-				,recommend
-				,transdate			
-				,odds
-				,oddsspread				
-				,stake			
-				,winlost		
-				,STATUS						
-				,bettype
-				,OriginalBetType		
-				,matchid
-				,OddsType					
-				,betteam		
-				,betcheck		
-				,hdp1			
-				,hdp2			
-				,isdeposit				
-				,IsLiveIndicator
-				,livehomescore	
-				,liveawayscore						
-				,betid
-				,transdesc
-				,betdaqid
-				,leagueid
-				,sporttype
-				,homeid
-				,awayid
-				,ExtraInfo				
-				,zzzBetcheck
-				,WalletType
-				,RefCode
-				,BonusID
-				,MainTransId
-		)
-	SELECT	main.transid
-			,sub.transid
-			,sub.refno	
-			,sub.Username		
-			,main.recommend
-			,sub.transdate
-			,main.odds
-			,main.oddsspread
-			,main.stake
-			,z.winlost - sub.actual_stake
-			,'SOLD'
-			,sub.bettype
-			,main.bettype AS OriginalBetType
-			,main.matchid
-			,main.oddstype
-			,main.betteam
-			,main.betcheck
-			,main.hdp1
-			,main.hdp2
-			,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = sub.srecommend) then 1 else 0 end as isdeposit
-			,main.liveindicator
-			,main.livehomescore
-			,main.liveawayscore
-			,main.bettype AS betid
-			,main.transdesc	
-			,sub.betdaqid	
-			,m.leagueid
-			,m.sporttype
-			,m.homeid
-			,m.awayid
-			,sub.ExtraInfo			
-			,z.betcheck AS zzzBetcheck
-			,sub.WalletType
-			,sub.RefCode
-			,sub.BonusID
-			,main.transid AS MainTransId
-	FROM	dbo.bettrans sub WITH(NOLOCK)
-		INNER JOIN @tblRecoverBet t
-			ON	sub.refno = t.transid
-				AND sub.matchid = t.matchid
-				AND sub.bettype = 901
-				AND t.SoldId IS NOT NULL
-				AND t.betdaqid = 0 -- main ticket is BTrade
-				AND t.extrainfo is null -- main ticket is BTrade 
-		INNER JOIN dbo.bettrans main WITH(NOLOCK)
-			ON	main.transid = t.transid
-		INNER JOIN zzzbettrans z WITH(NOLOCK)
-			ON	z.transid = sub.transid	
-				AND z.custid = sub.custid
-				AND z.matchid = sub.matchid					
-				AND z.bettype = sub.bettype	
-		INNER JOIN dbo.match m WITH(NOLOCK)
-			ON	m.matchid = main.matchid	
-	WHERE (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
-			
-	-- get sub ticket of Cash-out (911)
-	INSERT INTO @tblRecoverBet(
-				GroupID			
-				,transid		
-				,refno		
-				,username					
-				,recommend
-				,transdate			
-				,odds
-				,oddsspread
-				,stake			
-				,winlost		
-				,STATUS						
-				,bettype
-				,OriginalBetType		
-				,matchid
-				,OddsType					
-				,betteam		
-				,betcheck		
-				,hdp1			
-				,hdp2			
-				,isdeposit				
-				,IsLiveIndicator
-				,livehomescore	
-				,liveawayscore						
-				,betid
-				,transdesc
-				,betdaqid
-				,leagueid
-				,sporttype
-				,homeid
-				,awayid
-				,ExtraInfo
-				,MainCashoutId
-				,zzzBetcheck
-				,WalletType
-				,RefCode
-				,BonusID
-				,MainTransId
-		)
-	SELECT	sub.transid
-			,sub.transid
-			,sub.refno	
-			,sub.Username		
-			,main.recommend
-			,sub.transdate
-			,main.odds
-			,main.oddsspread
-			,z.stake
-			,z.winlost - sub.actual_stake
-			,'Cash out'
-			,sub.bettype
-			,main.bettype AS OriginalBetType
-			,main.matchid
-			,main.oddstype
-			,main.betteam
-			,main.betcheck
-			,main.hdp1
-			,main.hdp2
-			,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = sub.srecommend) then 1 else 0 end as isdeposit
-			,main.liveindicator
-			,main.livehomescore
-			,main.liveawayscore
-			,main.bettype AS betid
-			,main.transdesc	
-			,sub.betdaqid	
-			,m.leagueid
-			,m.sporttype
-			,m.homeid
-			,m.awayid
-			,sub.ExtraInfo
-			,main.transid AS MainCashoutId
-			,z.betcheck AS zzzBetcheck
-			,sub.WalletType
-			,sub.RefCode
-			,sub.BonusID
-			,main.transid AS MainTransId
-	FROM zzzbettrans z WITH(NOLOCK)			
-		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-			ON	z.transid = sub.transid	
-				AND z.custid = sub.custid
-				AND z.matchid = sub.matchid					
-				AND z.bettype = sub.bettype	
-		INNER JOIN @tblRecoverBet t
-			ON	sub.refno = t.transid
-				AND sub.matchid = t.matchid	
-				AND sub.custid = t.custid			
-				AND sub.bettype = 911				
-				AND t.betdaqid = 0 -- main ticket is Cash-out
-				AND charindex ('p25',t.extrainfo)> 0 -- main ticket is Cash-out 
-		INNER JOIN dbo.bettrans main WITH(NOLOCK)
-			ON	main.transid = t.transid		
-		INNER JOIN dbo.match m WITH(NOLOCK)
-			ON	m.matchid = main.matchid	
-	WHERE (m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
-	   AND z.betcheck = t.zzzBetcheck
-	
-	-- get cash-out member bet tickets	
-	INSERT INTO @tblRecoverBet(
-				GroupID			
-				,transid		
-				,refno	
-				,username						
-				,recommend
-				,transdate			
-				,odds
-				,oddsspread				
-				,stake			
-				,winlost		
-				,STATUS						
-				,bettype
-				,OriginalBetType		
-				,matchid
-				,OddsType					
-				,betteam		
-				,betcheck		
-				,hdp1			
-				,hdp2		
-				,isdeposit					
-				,IsLiveIndicator
-				,livehomescore	
-				,liveawayscore						
-				,betid
-				,transdesc
-				,betdaqid
-				,leagueid
-				,sporttype
-				,homeid
-				,awayid
-				,ExtraInfo
-				,MainCashoutId
-				,IsCashOutMemberTicket
-				,zzzBetcheck
-				,WalletType
-				,RefCode
-				,BonusID
-				,MainTransId
-		)
-		SELECT	sub911.transid
-				,z.transid
-				,z.refno	
-				,b.Username			
-				,b.recommend
-				,b.transdate
-				,z.odds
-				,b.oddsspread
-				,z.stake
-				,z.winlost - b.actual_stake
-				,z.STATUS				
-				,z.bettype
-				,sub911.OriginalBetType
-				,z.matchid
-				,b.oddstype				
-				,z.betteam
-				,z.betcheck
-				,z.hdp1
-				,z.hdp2
-				,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end as isdeposit						
-				,z.liveindicator
-				,z.livehomescore
-				,z.liveawayscore				
-				,b.betid
-				,b.transdesc
-				,b.betdaqid
-				,m.leagueid
-				,m.sporttype
-				,m.homeid
-				,m.awayid
-				,b.ExtraInfo
-				,sub911.MainCashoutId
-				,1 AS IsCashOutMemberTicket
-				,z.betcheck AS zzzBetcheck
-				,b.WalletType
-				,b.RefCode
-				,b.BonusID
-				,sub911.MainTransId
-		FROM @tblRecoverBet sub911	
-			CROSS APPLY (
-							 SELECT b.Username
-							 		,b.transid
-							 		,b.recommend
-									,b.transdate
-									,b.oddsspread
-									,b.oddstype
-									,b.betid
-									,b.transdesc
-									,b.actual_stake
-									,b.srecommend
-									,b.betdaqid
-									,b.ExtraInfo
-									,b.WalletType
-									,b.RefCode
-									,b.BonusID
-									,b.custid
-									,b.matchid
-									,b.bettype
-							 FROM dbo.bettrans b WITH (NOLOCK)
-							 WHERE b.refno = sub911.transid
-							   AND b.matchid = sub911.matchid
-							   AND b.bettype = sub911.OriginalBetType
-						) AS b
-			INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
-				ON	z.transid = b.transid
-					AND z.custid = b.custid
-					AND z.matchid = b.matchid	
-					AND z.bettype = b.bettype
-					AND z.betcheck = sub911.zzzBetcheck				
-			INNER JOIN dbo.match m WITH(NOLOCK)
-				ON m.matchid = b.matchid			
-		WHERE sub911.bettype = 911															
+	END														
 	
 	SELECT	ag.site
 			,t.transid
@@ -1163,7 +812,6 @@ BEGIN
 			,t.winlost
 			,t.STATUS
 			,t.bettype
-			,t.OriginalBetType
 			,t.matchid
 			,t.OddsType
 			,t.betteam
@@ -1176,19 +824,18 @@ BEGIN
 			,t.liveawayscore
 			,t.betid
 			,t.transdesc
-			,t.SoldID
 			,t.sporttype
 			,t.homeid
 			,t.awayid
 			,CASE WHEN t.isdeposit = 0 AND bettype = 501 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
 			,t.betdaqid
 			,t.ExtraInfo
-			,t.MainCashoutId
 			,t.WalletType
 			,t.MainTransId
 			,t.RefCode
 			,m.SettlementStatus
 			,m.GlobalShowTime
+			,t.ActualStake
 	FROM	@tblRecoverBet t
 		INNER JOIN custDB.dbo.Customer ag WITH (NOLOCK) ON	t.recommend = ag.custid
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid

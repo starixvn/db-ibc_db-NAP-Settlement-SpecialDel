@@ -48,6 +48,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20211110@Max: TVS - HotFix - Void Abnormal Acc - ErrMsg when void all multi match [Redmine: #164475]
 		- 20211122@Max: Hot fix - TVS insert CustLimitBetQueue when void CO ticket [Redmine: #164966]
+		- 20211213@July: Implement New Cash Out Model [Redmine: #165097]
 
 	Param's explanation:	
 		
@@ -66,13 +67,12 @@ BEGIN
 			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@VoidingHistoryIdList VARCHAR(MAX)= ''
 			,@IsTest			BIT = 0
-			,@LeagueGroupID		INT		
 			,@LeagueId			INT
 			,@HomeId			INT
 			,@AwayId			INT
-			,@KickOffTime	DATETIME	
-			,@query NVARCHAR(MAX) = ''
-			,@ExecuteSQL NVARCHAR(MAX) = ''
+			,@KickOffTime		DATETIME	
+			,@query				NVARCHAR(MAX) = ''
+			,@ExecuteSQL		NVARCHAR(MAX) = ''
 			,@IsActiveVoidWinning BIT = 0
 			,@VoidDataXML       XML = NULL
 			,@RequestDetailId	INT
@@ -81,33 +81,29 @@ BEGIN
 			,@MatchId_cnt		INT = 0
 			,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 			,@totalMainParlay	INT = 0
+			,@strTransCashout			VARCHAR(MAX) = ''
+			,@xmlCashoutTicket XML
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
-	DECLARE @avaiableProcess BIT
-			,@isExistMatch BIT
-			,@xmlTransId VARCHAR(MAX)
-			,@session NVARCHAR(50)
-			,@CustIds VARCHAR(MAX)
-			,@CustBalance XML
-			,@IssueTypeId	TINYINT
-			,@CustIdsCashOut VARCHAR(MAX)
+	DECLARE @avaiableProcess			BIT
+			,@isExistMatch				BIT
+			,@xmlTransId				VARCHAR(MAX)
+			,@session					NVARCHAR(50)
+			,@CustIds					VARCHAR(MAX)
+			,@IssueTypeId				TINYINT
 			,@isExistFM2				BIT = 0
-			,@isExistMG BIT
-			,@isExistFM BIT
-			,@IsExistBB	BIT
-			,@winlostdate				DATETIME
+			,@isExistMG					BIT = 0
+			,@isExistFM					BIT = 0
+			,@IsExistBB					BIT = 0
 			,@isExistParlay				BIT = 0
 			,@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
 			,@isExistOutright			BIT = 0
 			,@isExistNG					BIT = 0
-			,@isExistBT					BIT = 0
-			,@isExistCashOut			BIT = 0
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
-			,@Remark					VARCHAR (500) = ''
 			,@isExistLucky3				BIT = 0
 			,@Lucky3TransIDs			VARCHAR(MAX)
 			,@Lucky3Matches				VARCHAR(MAX) = ''
@@ -115,6 +111,8 @@ BEGIN
 	DECLARE @AutoVoid_InputRequest_tmp AS TABLE (RequestID INT)
 	DECLARE @AutoVoid_ValidRequest AS TABLE (RequestID INT, Transids VARCHAR(MAX), IssueTypeId TINYINT, MinWinlostdate DATETIME, MaxWinlostdate DATETIME)
 	DECLARE @VoidingHistory_tmp AS TABLE (RequestID INT, VoidingHistoryId INT, IssueTypeId TINYINT)
+	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, bonusId INT, WalletType TINYINT, status VARCHAR(20))
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -123,13 +121,8 @@ BEGIN
 	DECLARE @tmpInputTransId_VOID TABLE(TransId BIGINT, RequestID INT, IssueTypeId TINYINT, DecidedBy NVARCHAR(200), Winlostdate DATETIME, StatusId TINYINT)
 	DECLARE @tmpInputTransId_ReCalculate TABLE(TransId BIGINT, RequestID INT)
 	
-	DECLARE @tmpBalanceMember TABLE (CustId INT, Balance MONEY)
 	DECLARE @tmpMatch_Eventdate TABLE (MatchId INT, Eventdate DATETIME)
-	DECLARE @tmpCustCashOut TABLE (CustId INT)		
-	DECLARE @tmpCustCashOut_VOID TABLE (CustId INT)
-	DECLARE @tmpCustCashOut_Recalculate TABLE (CustId INT)
 						
-	CREATE TABLE #tblCashOutProcess (transid BIGINT, refno BIGINT, IsAvailable BIT DEFAULT 0)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #tmpTransId_VOID_RequestID (
@@ -138,15 +131,12 @@ BEGIN
 		,bettype			SMALLINT
 		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
-		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade (not support), 5: Metric gaming
+		,TicketType			TINYINT -- 1: Single, 5: Metric gaming
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
-		,awinlost			MONEY
 		,actual_stake		MONEY
-		,isSubTransaction	BIT	DEFAULT(0)
 		,refcode			BIGINT
-		,Action				VARCHAR(100)
 		,RequestID			INT
 		,isFinish			BIT 
 		,sporttype			SMALLINT
@@ -164,15 +154,12 @@ BEGIN
 		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
 		,balanceType		TINYINT
-		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade (not support), 5: Metric gaming
+		,TicketType			TINYINT -- 1: Single, 5: Metric gaming
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
-		,awinlost			MONEY
 		,actual_stake		MONEY
-		,isSubTransaction	BIT	DEFAULT(0)
 		,refcode			BIGINT
-		,Action				VARCHAR(100)
 		,isFinish			BIT
 		,sporttype			SMALLINT
 		,matchid			INT
@@ -188,15 +175,11 @@ BEGIN
 		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
 		,balanceType		TINYINT
-		,TicketType			TINYINT -- 1: Single, 3: Cash out, 4: Bettrade (not support), 5: Metric gaming
+		,TicketType			TINYINT -- 1: Single, 5: Metric gaming
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
-		,awinlost			MONEY
 		,actual_stake		MONEY
-		,isSubTransaction	BIT	DEFAULT(0)
-		,refcode			BIGINT
-		,Action				VARCHAR(100)
 		,RequestID			INT
 		,isFinish			BIT 
 	)
@@ -216,7 +199,6 @@ BEGIN
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
 		 ,RequestID	INT
-
 	)
 	
 	CREATE TABLE #tmpRefCodeSummary_Recalculate (
@@ -225,7 +207,6 @@ BEGIN
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
 		 ,RequestID	INT
-
 	)
 
 	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
@@ -247,7 +228,7 @@ BEGIN
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	SET @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestID)
 
-	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest, @LeagueGroupID = ISNULL(l.LeagueGroupID,0)
+	SELECT  @LeagueId = m.leagueid, @HomeId = homeid, @AwayId = awayid, @KickOffTime = kickofftime, @IsTest = l.isTest
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId		
@@ -452,10 +433,7 @@ BEGIN
 				WHEN f.GroupId IS NULL THEN 1
 				WHEN f.GroupID = 2 THEN 7 
 			END AS KeyId
-			,CASE 
-				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
-				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
-				ELSE 1 END AS TicketType
+			,1 AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
 			,b.matchid, b.oddsid, t.Winlostdate, b.refno, b.srecommend,b.ruben
@@ -475,10 +453,7 @@ BEGIN
 				WHEN f.GroupID = 2 THEN 7 
 			END AS KeyId
 			,1 AS balanceType
-			,CASE 
-				WHEN b.betdaqid = 0 AND CHARINDEX('p25', b.ExtraInfo) > 0 THEN 3
-				WHEN b.betdaqid = 1 AND b.bettype NOT IN (911, 912, 913) THEN 3
-				ELSE 1 END AS TicketType
+			,1 AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid, b.matchid, b.oddsid, b.winlostdate, b.refno, b.ruben
 	FROM @tmpInputTransId_ReCalculate AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
@@ -598,13 +573,11 @@ BEGIN
 			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
 			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
-			,@isExistBT 				= MAX (CASE WHEN betdaqid = 0 AND extrainfo is null THEN 1 ELSE 0 END)
-			,@isExistCashOut			= MAX (CASE WHEN betdaqid = 0 AND charindex ('p25',extrainfo)> 0 THEN 1 ELSE 0 END)
 			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
 			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-			,@isExistLucky3		= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
+			,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM	
 		(
@@ -775,43 +748,6 @@ BEGIN
 			RETURN
 		END
 	END	
-
-	IF EXISTS (SELECT TOP 1 1 
-				FROM #tmpTransId_VOID_RequestID t	
-				WHERE	t.TicketType = 3)
-	BEGIN			
-		-- checking cash-out process
-		INSERT INTO #tblCashOutProcess(transid)
-		SELECT	t.transid
-		FROM	#tmpTransId_VOID_RequestID t	
-		WHERE	t.TicketType = 3 
-
-		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-			@Mode = 'Original'
-			,@Action = 'Void'
-			,@IsReleased = 0
-
-		DELETE	t
-		FROM	#tmpTransId_VOID_RequestID t
-			 INNER JOIN #tblCashOutProcess co
-					 ON t.transid = co.transid					
-						AND co.IsAvailable = 0
-		DELETE	t
-		FROM	@tmpInputTransId_VOID t
-			 INNER JOIN #tblCashOutProcess co
-					 ON t.transid = co.transid					
-						AND co.IsAvailable = 0
-	END
-	
-	IF (NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID))  
-	BEGIN
-		-------> releasing cash-out process
-		EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-				@Mode = 'Original'
-			  , @Action = 'Void'
-			  , @IsReleased = 1 
-		
-	END
 	
 	IF (NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID) AND @Recalculate_cnt = 0)
 	BEGIN
@@ -878,104 +814,6 @@ BEGIN
 					WHERE v.RequestID = r.RequestID
 					FOR XML PATH ('')
 					) AS tmp (Transids)
-	
-	-- Checking Cashout for VOID
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID t WHERE t.TicketType = 3)
-	BEGIN
-		-- get 911
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, Refno, bettype, TicketType, isSubTransaction,RequestID, sporttype, matchid, srecommend)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, main.RequestID, main.sporttype, sub.srecommend, sub.matchid
-		FROM	#tmpTransId_VOID_RequestID main
-			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-				ON	sub.refno = main.TransId
-					AND sub.matchid = @MatchId
-					AND sub.custid = main.custid
-					AND sub.bettype = 911
-		WHERE	main.TicketType = 3
-				AND sub.statusID NOT IN (101, 102)
-
-		-- cashout bet ticket, 912, 913
-		INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, Refno, bettype, TicketType, isSubTransaction, RequestID, sporttype, srecommend, matchid)
-		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, 3 AS TicketType, 1 AS isSubTransaction, sub911.RequestID, sub911.sporttype, sub.srecommend, sub.matchid
-		FROM	#tmpTransId_VOID_RequestID sub911
-			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-				ON	sub.refno = sub911.TransId
-					AND sub.matchid = @MatchId
-		WHERE	sub.statusID NOT IN (101, 102)
-				AND sub911.bettype = 911
-				AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_VOID_RequestID r WHERE r.TransId = sub.transid)	
-
-		INSERT INTO @tmpCustCashOut_VOID(CustId)
-		SELECT	t.custid
-		FROM	#tmpTransId_VOID_RequestID t
-		WHERE	t.TicketType = 3
-				AND t.bettype = 912
-		GROUP BY t.custid
-		
-	END
-	-- Checking CASHOUT for resettle, used to recal 914 for affect customers
-	DECLARE @tmpCustCashOut_Recalculate_tmp AS TABLE(transid BIGINT, custid INT, refno BIGINT, bettype SMALLINT, sporttype SMALLINT)
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate t WHERE t.TicketType = 3)
-	BEGIN
-		-- get 911
-		INSERT INTO @tmpCustCashOut_Recalculate_tmp (transid, custid, refno, bettype, sporttype)
-		SELECT	sub.transid, sub.custid, sub.refno, sub.bettype, main.sporttype
-		FROM	#tmpTransId_Recalculate main
-			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-				ON	sub.refno = main.TransId
-					AND sub.matchid = @MatchId
-					AND sub.custid = main.custid
-					AND sub.bettype = 911
-		WHERE	main.TicketType = 3
-				AND sub.statusID NOT IN (101, 102)
-		-- cashout bet ticket, 912, 913
-		INSERT INTO @tmpCustCashOut_Recalculate_tmp (transid, custid, refno, bettype, sporttype)
-		SELECT	sub.TransId, sub.custid, sub.Refno, sub.bettype, sub911.sporttype
-		FROM	@tmpCustCashOut_Recalculate_tmp sub911
-			INNER JOIN dbo.bettrans sub WITH(NOLOCK)
-				ON	sub.refno = sub911.TransId
-					AND sub.matchid = @MatchId
-		WHERE	sub.statusID NOT IN (101, 102)
-				AND sub911.bettype = 911
-
-		INSERT INTO @tmpCustCashOut_Recalculate(CustId)
-		SELECT	t.custid
-		FROM	@tmpCustCashOut_Recalculate_tmp t
-		WHERE	t.bettype = 912
-		GROUP BY t.custid
-		
-		INSERT INTO #tmpTransId_Recalculate (TransId, custid, bettype, KeyId, balanceType, TicketType, betdaqid, extrainfo, refcode, betid, sporttype)
-		SELECT	DISTINCT cob.transid, cob.custid, cob.bettype
-			,CASE 
-				WHEN f.GroupId IS NULL THEN 1
-				WHEN f.GroupID = 2 THEN 7 
-			END AS KeyId
-			,1 AS balanceType
-			,3 AS TicketType
-			,cob.betdaqid, cob.ExtraInfo, cob.RefCode, cob.betid, b.sporttype
-		FROM @tmpCustCashOut_Recalculate_tmp b
-			INNER JOIN dbo.bettrans cob WITH(NOLOCK) 
-				ON cob.matchid = @MatchId
-				AND cob.custid = b.custid
-				AND cob.refno = b.refno 
-				AND cob.bettype NOT BETWEEN 912 AND 914 --normal bettype tickets
-			OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = b.bettype
-			)f
-		WHERE b.bettype = 912
-			AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId_Recalculate r WHERE r.TransId = cob.transid)	
-		
-	END
-	
-	-- Cashout for all void and resettle
-	INSERT INTO @tmpCustCashOut (CustId)
-	SELECT custid
-	FROM @tmpCustCashOut_VOID
-	UNION 
-	SELECT custid
-	FROM @tmpCustCashOut_Recalculate
 	
 	-- Insert more bonus or cash ticket in case only one ticket appears in #tmpTransId	
 	INSERT INTO #tmpRefCodeSummary_VOID (RefCode, custid, bettype, transid,requestID)
@@ -1242,6 +1080,21 @@ BEGIN
 			END
 	END
 	
+	--Insert tmp table for correct balance CO
+	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,Bonusid, WalletType, betdaqid)
+	SELECT main.transid,main.custid
+		, main.winlost - 
+					CASE 
+						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
+						ELSE main.actual_stake 
+					END  
+				+ playercomm as balance
+		,BonusID = CASE WHEN main.BonusID > 0 AND main.WalletType = 1 THEN main.BonusID ELSE 0 END
+		,WalletType = ISNULL(main.WalletType, 2) -- Cash Wallet as default
+		,main.betdaqid
+	FROM	dbo.bettrans main WITH (NOLOCK)
+		INNER JOIN #tmpTransId_VOID_RequestID t ON t.TransId = main.transid
+
 	--capture balance before voiding & recal
 	INSERT INTO @BeforeUpd(
 		matchid
@@ -1265,20 +1118,12 @@ BEGIN
 					ELSE 4  -- Others
 				   END AS balanceType
 				,CASE 
-					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 					ELSE 0 END AS BonusID
-				,CASE
-					WHEN t.isSubTransaction = 1 THEN 2
-					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
-				,b.winlost 
-					- CASE 
-						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
-						ELSE b.actual_stake 
-					END 
-					+ b.playercomm AS balance
+				,ISNULL(b.WalletType, 2) AS WalletType -- sub tickets always bet from cash wallet
+				,b.Balance AS balance
 		FROM #tmpTransId_VOID_RequestID t
-			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+			INNER JOIN @tmpTrans_beforeUpd b
 				ON	t.TransId = b.transid
 				
 		UNION ALL
@@ -1286,12 +1131,9 @@ BEGIN
 		SELECT	b.custid
 				,t.balanceType
 				,CASE 
-					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 					ELSE 0 END AS BonusID
-				,CASE
-					WHEN t.isSubTransaction = 1 THEN 2
-					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+				,ISNULL(b.WalletType, 2) AS WalletType -- sub tickets always bet from cash wallet
 				,b.winlost 
 					- CASE 
 						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
@@ -1301,20 +1143,6 @@ BEGIN
 		FROM #tmpTransId_Recalculate  t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.TransId = b.transid
-				
-		UNION ALL
-		
-		SELECT b914.custid
-				,1 AS balanceType
-				,0 AS BonusId
-				,2 AS WalletType
-				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-		FROM	@tmpCustCashOut c
-			INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
-				ON	b914.matchid = @MatchId
-					AND b914.custid = c.CustId
-					AND b914.bettype = 914
-		
 	)b
 	GROUP BY b.custid
 			,b.balanceType
@@ -1388,7 +1216,6 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatch_Eventdate WHERE Eventdate <= @Movebetdate)
 	BEGIN
 		DECLARE @tblMatchProcess_1 TABLE (matchid INT, KeyID TINYINT)
-		DECLARE @tblCashOutProcess_1 TABLE (transid BIGINT)
 
 		DELETE 
 		FROM #tblMatchProcess
@@ -1413,28 +1240,6 @@ BEGIN
 		DELETE #tblMatchProcess
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
 		SELECT matchid, KeyID FROM @tblMatchProcess_1
-
-		IF EXISTS (SELECT TOP 1 1 
-				FROM #tmpTransId_VOID_RequestID t	
-				WHERE	t.TicketType = 3 AND winlostdate <= @Movebetdate)
-		BEGIN		
-		  	DELETE 
-			FROM #tblCashOutProcess
-			OUTPUT	DELETED.transid
-			INTO  @tblCashOutProcess_1 (transid)
-			WHERE transid NOT IN (SELECT transid FROM #tmpTransId_VOID_RequestID WHERE TicketType = 3 AND winlostdate <= @Movebetdate)
-
-			------ releasing cash-out process
-			EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-				@Mode = 'Original'
-				,@Action = 'Void'
-				,@IsReleased = 1
-			
-			DELETE #tblCashOutProcess
-			INSERT INTO #tblCashOutProcess(transid)
-			SELECT transid FROM @tblCashOutProcess_1
-			
-		END
 
 		IF (@MatchId_cnt = 1) OR (NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchProcess_1))
 		BEGIN
@@ -1469,13 +1274,19 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE @tmpTransIDBatch
+
+			SET @xmlTransId = ''
+			SET @strTransCashout =''
+			SET @xmlCashoutTicket = ''
+			DELETE @CashoutTickets_tmp	
 			
 			UPDATE TOP(3000) t
 				SET isFinish = 1
-			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType, DELETED.isSubTransaction,DELETED.RequestID, DELETED.betid, DELETED.actual_stake
+			OUTPUT DELETED.TransId,DELETED.custid, DELETED.Refno, DELETED.bettype, DELETED.TicketType,DELETED.RequestID, DELETED.betid, DELETED.actual_stake, b.betdaqid
 					
-			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType, isSubTransaction,RequestID,betid,actual_stake)
+			INTO @tmpTransIDBatch(TransId,custid, Refno, bettype, TicketType,RequestID,betid,actual_stake, betdaqid)
 			FROM #tmpTransId_VOID_RequestID t 
+				INNER JOIN @tmpTrans_beforeUpd b ON b.transid = t.TransId
 			WHERE isFinish IS NULL
 			
 			IF @@ROWCOUNT = 0 BREAK
@@ -1491,10 +1302,8 @@ BEGIN
 			SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
 				,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
 				,b.betteam, b.creator,b.refno, b.winlostdate, b.betfrom
-				,CASE 
-					WHEN t.TicketType = 3 THEN @session -- original ticket & cashout bet ticket
-					ELSE b.betcheck END AS betcheck 
-				,CASE WHEN t.TicketType = 3 AND t.isSubTransaction = 1 THEN 'CO' ELSE b.comstatus END
+				,b.betcheck
+				,b.comstatus
 				,b.checktime, b.matchid, b.bettype  
 				,vd.VoidingHistoryId
 			FROM @tmpTransIDBatch AS t 
@@ -1507,7 +1316,7 @@ BEGIN
 									,t.betid AS '@betid'
 									,CASE WHEN t.TicketType = 5 THEN 1 ELSE NULL END AS '@isMG'
 									,CASE WHEN t.TicketType = 5 THEN t.actual_stake ELSE NULL END AS '@actual_stake'
-									,t.isSubTransaction AS '@IsCashOutMember'
+									,t.betdaqid AS '@betdaqid'
 									FROM	@tmpTransIDBatch t
 									FOR XML PATH('r'), ROOT('root')
 								)
@@ -1515,9 +1324,50 @@ BEGIN
 				@TransIds = @xmlTransId
 				,@UserId = @UserId
 				,@IssueTypeId = 11
-				
-			SET @xmlTransId = ''	 
-			
+				,@strTransCashout = @strTransCashout OUTPUT
+
+			-- Adjust BL before for affected cashout tickets
+			IF @strTransCashout <> ''
+			BEGIN
+				SET @xmlCashoutTicket = CONVERT(XML, @strTransCashout)
+					
+				INSERT INTO @CashoutTickets_tmp(transid, custid, winlost, actual_stake, playercomm, bonusId, WalletType, status)
+				SELECT T.C.value('./@t', 'BIGINT') 		AS transid
+						, T.C.value('./@c', 'INT') 	AS custid
+						,T.C.value('./@wl', 'MONEY') 	AS winlost
+						,T.C.value('./@al', 'MONEY') 	AS actual_stake
+						,T.C.value('./@pl', 'MONEY') 	AS playercomm
+						,T.C.value('./@bn', 'INT') 	AS bonusid
+						,T.C.value('./@w', 'TINYINT') 	AS WalletType
+						,T.C.value('./@st', 'VARCHAR(20)') 	AS status
+				FROM @xmlCashoutTicket.nodes('/b') AS T(C)
+				OPTION (OPTIMIZE FOR (@xmlCashoutTicket = NULL ))
+					
+				UPDATE bf
+					SET balance = bf.balance - bl.balance_old + bl.balance_new
+				FROM @BeforeUpd bf
+					INNER JOIN  (
+								SELECT	c.custid,c.BonusID,c.WalletType, SUM(c.balance) AS balance_old, SUM(tmp.winlost - tmp.actual_stake + tmp.playercomm) AS balance_new
+								FROM  @CashoutTickets_tmp tmp 
+										INNER JOIN @tmpTrans_beforeUpd C ON c.TransID = tmp.transid AND tmp.custid = c.custid
+								GROUP BY c.custid,c.BonusID,c.WalletType							
+							) AS bl ON bl.custid = bf.custid AND bf.bonusId =  bl.BonusID AND bf.walletType = bl.WalletType
+
+				--Correct data captured before because CO happen when voiding ticket
+			UPDATE b
+			SET b.actual_stake = t.actual_stake
+				, b.betdaqid = -2
+			FROM #tmpTransId_VOID_RequestID b 
+				INNER JOIN @CashoutTickets_tmp t ON t.transid = b.transid
+			WHERE ISNULL(b.betdaqid, 0) <> -2
+
+			UPDATE z
+			SET z.status = t.status
+				, z.winlost = t.winlost
+			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @CashoutTickets_tmp t ON t.transid = z.transid
+			WHERE z.status <> t.status
+			END	
 		END
 			
 		-- Recal for ticket Lose by statuswinlost
@@ -1562,24 +1412,6 @@ BEGIN
 			SET @xmlTransId = ''
 				 
 		END
-		-- Pre cal 914
-		IF EXISTS (SELECT TOP (1) 1 FROM @tmpCustCashOut)
-		BEGIN
-			BEGIN TRY				
-				SET @CustIdsCashOut = STUFF((SELECT ',' + CAST(c.CustId AS VARCHAR(50))
-												FROM (SELECT DISTINCT CustId FROM @tmpCustCashOut) c						    
-												FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')	
-																						    
-				EXEC dbo.NAP_Admin_Calculate_914 
-						@MatchId 	= @MatchID
-						,@Action 	= 'VOID' -- use this option to limit cust need to update 914 only
-						,@CustIds 	= @CustIdsCashOut				
-			END TRY 
-			BEGIN CATCH
-				SELECT @ErrCode = 914
-						, @ErrMsg = 'Called NAP_Admin_Calculate_914 with error.'
-			END CATCH
-		END
 	END TRY
 	BEGIN CATCH
 		-- Capture Balance incase of failure
@@ -1605,12 +1437,9 @@ BEGIN
 						ELSE 4  -- Others
 					   END AS balanceType
 					,CASE 
-						WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 						ELSE 0 END AS BonusID
-					,CASE
-						WHEN t.isSubTransaction = 1 THEN 2
-						ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+					,ISNULL(b.WalletType, 2) AS WalletType -- sub tickets always bet from cash wallet
 					,b.winlost - b.actual_stake + b.playercomm AS balance
 					
 			FROM #tmpTransId_VOID_RequestID t
@@ -1620,29 +1449,14 @@ BEGIN
 			SELECT	b.custid
 					,t.balanceType
 					,CASE 
-						WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 						WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 						ELSE 0 END AS BonusID
-					,CASE
-						WHEN t.isSubTransaction = 1 THEN 2
-						ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+					,ISNULL(b.WalletType, 2) AS WalletType -- sub tickets always bet from cash wallet
 					,b.winlost - b.actual_stake + b.playercomm AS balance
 			FROM	#tmpTransId_Recalculate t
 				INNER JOIN dbo.bettrans b WITH(NOLOCK)
 					ON	t.TransId = b.transid
 					
-			UNION ALL
-			
-			SELECT b914.custid
-					,1 AS balanceType
-					,0 AS BonusId
-					,2 AS WalletType
-					,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-			FROM	@tmpCustCashOut c
-				INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
-					ON	b914.matchid = @MatchId
-						AND b914.custid = c.CustId
-						AND b914.bettype = 914
 		)b
 		GROUP BY b.custid
 				,b.balanceType
@@ -1809,12 +1623,9 @@ BEGIN
 					ELSE 4  -- Others
 				   END AS balanceType
 				,CASE 
-					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 					ELSE 0 END AS BonusID
-				,CASE
-					WHEN t.isSubTransaction = 1 THEN 2
-					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+				,ISNULL(b.WalletType, 2) AS WalletType -- sub tickets always bet from cash wallet
 				,b.winlost - b.actual_stake + b.playercomm AS balance
 				
 		FROM #tmpTransId_VOID_RequestID t
@@ -1824,29 +1635,13 @@ BEGIN
 		SELECT	b.custid
 				,t.balanceType
 				,CASE 
-					WHEN t.isSubTransaction = 1 THEN 0 -- sub tickets always bet from cash wallet
 					WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID 
 					ELSE 0 END AS BonusID
-				,CASE
-					WHEN t.isSubTransaction = 1 THEN 2
-					ELSE ISNULL(b.WalletType, 2) END AS WalletType -- sub tickets always bet from cash wallet
+				,ISNULL(b.WalletType, 2) AS WalletType -- sub tickets always bet from cash wallet
 				,b.winlost - b.actual_stake + b.playercomm AS balance
 		FROM	#tmpTransId_Recalculate t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.TransId = b.transid
-				
-		UNION ALL
-		
-		SELECT b914.custid
-				,1 AS balanceType
-				,0 AS BonusId
-				,2 AS WalletType
-				,b914.winlost - b914.actual_stake + b914.playercomm AS balance
-		FROM	@tmpCustCashOut c
-			INNER JOIN dbo.bettrans b914 WITH(NOLOCK)
-				ON	b914.matchid = @MatchId
-					AND b914.custid = c.CustId
-					AND b914.bettype = 914
 	)b
 	GROUP BY b.custid
 			,b.balanceType
@@ -1858,6 +1653,13 @@ BEGIN
 			@BalanceWalletBefore	= @beforeUpd
 			, @BalanceWalletAfter	= @afterUpd
 			, @ActionId				= 0	
+
+	-- Update CashOutSelling [#165097]
+	UPDATE c
+	SET CashOutStatus = 6 --Void
+	FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
+		INNER JOIN #tmpTransId_VOID_RequestID b ON c.TransID = b.transid AND c.MatchID = b.matchid
+	WHERE b.betdaqid = -2 
 
 	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
 	BEGIN
@@ -1931,81 +1733,6 @@ BEGIN
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-	-- Update BetTradeSellingCancelled information
-	SET @CustIds = ''
-	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
-	FROM	#tmpTransId_VOID_RequestID t
-	WHERE	t.bettype = 911
-	GROUP BY t.custid
-
-	EXEC dbo.TicketVoiding_BalanceMember_Select 
-		@CustIds = @CustIds
-		,@CustBalance = @CustBalance OUTPUT
-
-	INSERT INTO @tmpBalanceMember (CustId, Balance)
-	SELECT	T.C.value('./@c', 'int')
-			,T.C.value('./@b', 'money')
-	FROM	@CustBalance.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@CustBalance = NULL ))
-
-	;WITH CTE_Source AS
-		(
-			SELECT	bts.TradeID AS TradeID
-					,bts.TicketID AS [TicketID]					
-					,'SB void ticket due to ' AS [Remark]
-					,sub.awinlost AS [BTBuyBack]
-					,0 AS [BTComission]
-					,c.Balance AS [AfterBalance]
-					,'SB' AS [Owner]
-					,1 AS [Cancelled]
-					,GETDATE() AS [ChangeDate]
-					,GETDATE() AS [CreateDate]
-			FROM	#tmpTransId_VOID_RequestID sub						 											 
-				 INNER JOIN [dbo].[BetTradeSelling] bts WITH(NOLOCK)			    
-						 ON bts.TicketID = sub.refno -- bettrade + cash-out
-							AND CASE																				 
-									WHEN sub.bettype = 911 -- cash-out													 
-											THEN CASE
-													WHEN bts.SoldTicketID = sub.transid THEN 1
-													ELSE 0
-												 END																							
-									ELSE 1
-								END = 1	
-				 INNER JOIN @tmpBalanceMember c
-						 ON sub.custid = c.custid						 							
-			WHERE sub.BetType = 911
-		)
-		MERGE INTO [dbo].[BetTradeSellingCancelled] AS [Target]
-		USING (SELECT * FROM CTE_Source) AS [Source]
-		ON [Target].TradeID = [Source].TradeID
-		WHEN MATCHED THEN UPDATE SET [Remark] = [Source].[Remark]
-									,[BTBuyBack] = [Source].[BTBuyBack]
-									,[BTComission] = [Source].[BTComission]
-									,[AfterBalance] = [Source].[AfterBalance]
-									,[Owner] = [Source].[Owner]
-									,[Cancelled] = [Source].[Cancelled]
-									,[ChangeDate] = [Source].[ChangeDate]										
-		WHEN NOT MATCHED THEN INSERT(TradeID
-									,[TicketID]										
-									,[Remark]
-									,[BTBuyBack]
-									,[BTComission]
-									,[AfterBalance]
-									,[Owner]
-									,[Cancelled]
-									,[ChangeDate]
-									,[CreateDate])
-							  VALUES([Source].TradeID
-									,[Source].[TicketID]										
-									,[Source].[Remark]
-									,[Source].[BTBuyBack]
-									,[Source].[BTComission]
-									,[Source].[AfterBalance]
-									,[Source].[Owner]
-									,[Source].[Cancelled]
-									,[Source].[ChangeDate]
-									,[Source].[CreateDate]); 
-
 	IF @totalMainParlay = 0 OR @totalMainParlay <= @ThreadHold
 	BEGIN
 		IF @isExistOutright = 1 OR @isExistMG = 1 OR @isExistFM = 1 OR @isExistMatch = 1 OR @isExistNG = 1
@@ -2051,12 +1778,6 @@ BEGIN
 					, @IsReleased				= 1
 	END
 
-	------ releasing cash-out process
-	EXEC dbo.NAP_Admin_CheckingCashOutProcess 
-			@Mode = 'Original'
-		  , @Action = 'Void'
-		  , @IsReleased = 1  	
-	
 	----------------Insert Max Payout Queue----------------
 	DECLARE @TransIds_MaxPO VARCHAR(MAX) = ''
 
@@ -2177,7 +1898,6 @@ BEGIN
 	
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
-	DROP TABLE #tblCashOutProcess
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #tmpTransId_Recalculate

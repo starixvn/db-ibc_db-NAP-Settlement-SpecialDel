@@ -21,6 +21,7 @@ AS;
 		- 20210201@July: TVS - Archive process for Abnormal Account [Redmine: #149776]
 		- 20210601@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+		- 20211210@July: Remove code CashOut [Redmine: #165097]
 
 	Param's explanation:	
 		
@@ -61,7 +62,6 @@ BEGIN
               betfrom         NVARCHAR(1),
               Betteam         NVARCHAR(10),
               Bettype         SMALLINT,
-              OriginalBettype SMALLINT,
               Currency        TINYINT,
               CurrencyName    NVARCHAR(50),
               Hdp1            SMALLMONEY,
@@ -95,7 +95,7 @@ BEGIN
               subTransId      BIGINT,
               VoidedTime      DATETIME,
               isITAdmin       BIT,
-              IsCashOut       BIT,
+              IsCashOut       BIT DEFAULT(0),
               MainTransId     BIGINT,
               BonusId         INT,
               IsMarked        BIT,
@@ -114,13 +114,12 @@ BEGIN
 	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3)
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, IsCashOut, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
 			,z.VoidedTime
 			,z.custid
-			,z.IsCashOut
 			,z.winlost
 			,z.refno
 			,z.bettype
@@ -135,7 +134,6 @@ BEGIN
 					,z.status
 					,z.transdate AS VoidedTime
 					,z.custid
-					,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCashOut
 					,z.winlost
 					,z.refno
 					,z.bettype
@@ -145,11 +143,7 @@ BEGIN
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
 					INNER JOIN #TmpMatch m ON z.matchid = m.Matchid
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-					AND 1 = CASE
-								WHEN z.bettype = 911 THEN 1
-								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
-								ELSE 0
-							END
+					AND 1 = CASE WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1 ELSE 0 END
 		) z
 		
 	-- parlay ticket
@@ -212,6 +206,7 @@ BEGIN
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
 				,subTransId = b.transid
+				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK) ON	t.TransId = b.transid
 
@@ -292,6 +287,7 @@ BEGIN
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
 				,subTransId = t.TransId
+				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
 		
@@ -401,29 +397,6 @@ BEGIN
 	FROM #tmpTicket  t
 	LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON t.transid = m.TransId		
 
-
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket WHERE Bettype = 911)
-	BEGIN		
-		UPDATE sub911
-			SET OriginalBettype = main.bettype
-				,odds = main.odds
-				,MainTransId = main.TransId
-				,IsMarked = main.IsMarked
-		FROM	#tmpTicket sub911
-			INNER JOIN #tmpTicket main WITH(NOLOCK)
-				ON sub911.Refno = main.transid
-		WHERE	sub911.Bettype = 911
-		
-		UPDATE subCO 
-			SET MainTransId = sub911.MainTransId,
-			IsMarked = sub911.IsMarked
-		FROM	#tmpTicket subCO
-			INNER JOIN #tmpTicket sub911 WITH(NOLOCK)
-				ON subCO.Refno = sub911.transid
-		WHERE	subCO.IsCashOut = 1
-				AND sub911.bettype = 911
-	END
-
 	-- Update maintransid for bonus ticket
 	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
 	BEGIN
@@ -461,7 +434,6 @@ BEGIN
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
-			   ,s.OriginalBettype
 			   ,s.STATUS
 			   ,s.currencyname
 			   ,s.betteam
@@ -525,7 +497,6 @@ BEGIN
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
-			   ,s.OriginalBettype
 			   ,s.STATUS
 			   ,s.currencyname
 			   ,s.betteam
@@ -583,7 +554,6 @@ BEGIN
 			   ,s.oddsspread
 			   ,s.OddsType
 			   ,s.bettype
-			   ,s.OriginalBettype
 			   ,s.STATUS
 			   ,s.currencyname
 			   ,s.betteam
@@ -645,7 +615,6 @@ BEGIN
 		   ,s.oddsspread
 		   ,s.OddsType
 		   ,s.bettype
-		   ,s.OriginalBettype
 		   ,s.STATUS
 		   ,s.currencyname
 		   ,s.betteam
@@ -701,7 +670,6 @@ BEGIN
 		   ,s.oddsspread
 		   ,s.OddsType
 		   ,s.bettype
-		   ,s.OriginalBettype
 		   ,s.STATUS
 		   ,s.currencyname
 		   ,s.betteam
@@ -728,7 +696,6 @@ BEGIN
 		   ,s.IsCashOut
 		   ,m.SettlementStatus AS SettlementStatus
 		   ,cr.username AS Creator
-		   ,s.IsCashOut
 		   ,s.winlost
 		   ,s.IsMarked
 		   ,c.site as LicenseeName

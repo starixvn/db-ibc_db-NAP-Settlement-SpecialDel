@@ -1,6 +1,7 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_CheckVoidBetPermission] @TransIds VARCHAR(MAX) = NULL
-	,@CashOutTransIds VARCHAR(MAX) = NULL
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_CheckVoidBetPermission] 
+	@TransIds VARCHAR(MAX) = NULL
+	,@IsCashOutAsUnSettledTicket BIT = 0
 	,@MatchId INT = NULL
 	,@IsHostVoidSettledTickets BIT = 0
 	,@IsHostVoidInstantlySettledTickets BIT = 0
@@ -19,10 +20,13 @@ AS
 		- 20190723@Raymond.Le: Create new SP [Redmine: #117343]
 		- 20201223@Charles: Optimize Voiding Workflow [Redmine: #145719]
 		- 20211111@Zane: Permission to void the settled tickets [Redmine: #162646]
+		- 20211210@July: Implement New Cash Out Model [Redmine: #165097]
 
 	Param's Explanation:
-		+ @CashOutTransIds: List id of cash out sub-ticket (911)
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
+		+ @IsCashOutAsUnSettledTicket : 0 - Consider Cash out as Settled ticket, need settled permission in order to void
+										1 - Consider Cash out as un-settled ticket, no need settled permission
+										
 
 */
 BEGIN
@@ -35,7 +39,6 @@ BEGIN
 			,@IsExistsSettledCashOutTickets BIT = 0
 
 	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY)
-	DECLARE @CashOutTransIdTemp TABLE (transid BIGINT PRIMARY KEY) 
 
 	CREATE TABLE #InstantSettlementBettypes (bettype SMALLINT)
 	CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes (bettype)
@@ -44,13 +47,6 @@ BEGIN
 	INSERT INTO @TransIdTemp (transid)
 	SELECT DISTINCT val
 	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
-
-	-- get list cash out sub-ticket (911)
-	INSERT INTO @CashOutTransIdTemp (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@CashOutTransIds, ',')
 	WHERE val <> ''
 	OPTION (MAXRECURSION 0)
 
@@ -104,7 +100,7 @@ BEGIN
 					END
 			FROM @TransIdTemp AS t
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
-			WHERE b.matchid NOT IN (9, 29, 2799)
+			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
 			)
 		SELECT @IsExistsInstantlySettledTickets = CASE 
 				WHEN EXISTS (
@@ -155,7 +151,33 @@ BEGIN
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
 				LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
-			WHERE b.matchid NOT IN (9, 29, 2799)
+			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
+
+			UNION ALL -- Apply for ticket void14 
+			SELECT t.transid
+				,CASE 
+					WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
+						THEN CASE
+								WHEN ISNULL(mr.IsHTCal, 0) = 0
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
+										THEN 1
+								WHEN ISNULL(mr.IsHTCal, 0) = 1
+										AND EXISTS (SELECT TOP 1 1
+													FROM dbo.f_Set_Instant_GetBettypes() ib
+													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
+										THEN 1
+								ELSE 2
+							END
+					WHEN b.StatusId IN (111, 112, 113) THEN 2
+					ELSE 0
+				END
+			FROM @TransIdTemp AS t
+				INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON t.transid = b.transid
+				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = b.matchid
+				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
+			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
 			)
 		SELECT @IsExistsInstantlySettledTickets = CASE 
 				WHEN EXISTS (
@@ -175,8 +197,6 @@ BEGIN
 				END
 	END
 
-	
-
 	-- check settled parlay
 	SELECT @IsExistsSettledParlayTickets = CASE
 			WHEN EXISTS (
@@ -191,28 +211,36 @@ BEGIN
 				INNER JOIN dbo.bettrans AS m WITH (NOLOCK) ON t.transid = m.transid
 				WHERE m.statusID IN (111, 112, 113) AND m.matchid IN (9, 29, 2799)
 			) THEN 1
+			-- Apply for ticket main parlay void14 
+			WHEN EXISTS (
+				SELECT TOP 1 1
+				FROM @TransIdTemp AS t
+				INNER JOIN dbo.bettrans14 AS m WITH (NOLOCK) ON t.transid = m.transid
+				WHERE m.statusID IN (111, 112, 113) AND m.matchid IN (9, 29, 2799)
+			) THEN 1
 			ELSE 0
 			END
 
-	-- check settled main cash out
-	IF (@CashOutTransIds IS NOT NULL)
-	BEGIN
-		SELECT @IsExistsSettledCashOutTickets = CASE
-				WHEN EXISTS (
-						SELECT TOP 1 1
-						FROM @CashOutTransIdTemp AS t
-						INNER JOIN dbo.bettrans AS sub WITH (NOLOCK) ON t.transid = sub.transid
-						INNER JOIN dbo.bettrans AS main WITH (NOLOCK) ON sub.refno = main.transid
-						WHERE sub.bettype = 911
-						AND main.statusID IN (111, 112, 113)
-				) THEN 1
-				ELSE 0
-				END
-	END
+	-- check settled ticket cash out
+	SELECT @IsExistsSettledCashOutTickets = CASE
+												WHEN EXISTS (
+														SELECT TOP 1 1
+														FROM @TransIdTemp AS t
+															INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
+														WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2
+												) THEN 1
+												WHEN EXISTS (
+													SELECT TOP 1 1
+														FROM @TransIdTemp AS t
+															INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON t.transid = b.transid
+														WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2
+												) THEN 1
+												ELSE 0
+											END
 	
 	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
 											OR @IsExistsSettledParlayTickets = 1
-											OR @IsExistsSettledCashOutTickets = 1 THEN 1
+											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0) THEN 1
 										ELSE 0 END
 
 	IF (

@@ -19,18 +19,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@MatchId				INT			  = 0
 	,@KickOffTime			DATETIME	  = NULL
 	,@TransIds				VARCHAR(MAX)  = NULL
-	,@FilterFromTransTime	DATETIME	  = NULL
-	,@FilterToTransTime		DATETIME	  = NULL
 	,@FilterBy				TINYINT		  = NULL
-	,@SingleCount			INT			  = NULL
-	,@MainParlayCount		INT			  = NULL
-	,@MinSingleTransId		BIGINT		  = NULL
-	,@MaxSingleTransId		BIGINT		  = NULL
-	,@MinMainParlayTransId	BIGINT		  = NULL
-	,@MaxMainParlayTransId	BIGINT		  = NULL
-	,@VoidFromTime			DATETIME	  = NULL
-	,@VoidToTime			DATETIME	  = NULL
-	,@LiveScores			NVARCHAR(300) = NULL
 	,@UserNames				NVARCHAR(MAX) = NULL
 	,@ProductIds			VARCHAR(50)	  = NULL
 	,@StatusIds				VARCHAR(50)	  = NULL
@@ -49,7 +38,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsExistVS				BIT           = 0
 	,@IsExistBB				BIT           = 0
 	,@IsVoidVIPMember		BIT			  = 0
-	,@TypeAccept			VARCHAR(MAX)  = NULL
 	,@IsConfirmCalculator   BIT			  = 0
 	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
@@ -85,14 +73,14 @@ AS
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
+		- 20211213@July: TVS - Remove code [Redmine: #165097]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
 						   2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 		+ @MatchProcessXML: <root><r MatchId="1" KeyID="1"/></root>
-		+ @MatchParlayProcessXML: : <root><r MatchId="1" Refno="1"/></root>
-		+ @TypeAccept: <r AA="3" PA="3" SA="9"/> with: AA: Auto accept, PA: Pending accept, SA: Second accept
+		+ @MatchParlayProcessXML: : <root><r MatchId="1" RefNo="1"/></root>
 		+ @WrongScoreInfo:
 			<root>
 				<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
@@ -290,18 +278,7 @@ BEGIN
 				,@TransIds = @TransIds 				
 				,@ActionId = @ActionId				
 				,@IssueTypeId = @IssueTypeId			
-				,@FilterFromTransTime = @FilterFromTransTime
-				,@FilterToTransTime	= @FilterToTransTime		
 				,@FilterBy = @FilterBy				
-				,@SingleCount = @SingleCount			
-				,@MainParlayCount = @MainParlayCount		
-				,@MinSingleTransId = @MinSingleTransId		
-				,@MaxSingleTransId = @MaxSingleTransId		
-				,@MinMainParlayTransId = @MinMainParlayTransId
-				,@MaxMainParlayTransId = @MaxMainParlayTransId
-				,@VoidFromTime = @VoidFromTime			
-				,@VoidToTime = @VoidToTime			
-				,@LiveScores = @LiveScores					
 				,@SubIssueTypeId = @SubIssueTypeId		
 				,@IsConfirmCalculator = @IsConfirmCalculator
 				,@UserNames	= @UserNames				
@@ -310,7 +287,6 @@ BEGIN
 				,@FromDate = @FromDate				
 				,@ToDate = @ToDate
 				,@IsVoidVIPMember = @IsVoidVIPMember
-				,@TypeAccept = @TypeAccept		
 				,@WrongScoreInfo = @WrongScoreInfo	
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
@@ -325,15 +301,11 @@ BEGIN
 				,@KickOffTime = @KickOffTime		
 				,@IssueTypeId = @IssueTypeId		
 				,@SubIssueTypeId = @SubIssueTypeId	
-				,@MinSingleTransId = @MinSingleTransId	
-				,@MaxSingleTransId = @MaxSingleTransId	
 				,@TransIds = @TransIds			
 				,@IsEditRequest	= 1		
 				,@UserId = @UserId			
 				,@IP = @IP				
 				,@ActionId = @ActionId			
-				,@FilterFromTransTime = @VoidFromTime
-				,@FilterToTransTime = @VoidToTime	
 				,@FilterBy = @FilterBy			
 				,@UserNames	= @UserNames			
 				,@ProductIds = @ProductIds		
@@ -352,15 +324,10 @@ BEGIN
 				,@KickOffTime = @KickOffTime			
 				,@IssueTypeId = @IssueTypeId			
 				,@SubIssueTypeId = @SubIssueTypeId		
-				,@MinMainParlayTransId = @MinMainParlayTransId	
-				,@MaxMainParlayTransId = @MaxMainParlayTransId	
 				,@IsEditRequest	= 1		
 				,@UserId = @UserId				
 				,@IP = @IP					
 				,@ActionId = @ActionId				
-				,@FilterFromTransTime = @VoidFromTime	
-				,@FilterToTransTime = @VoidToTime		
-				,@FilterBy = @FilterBy
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo

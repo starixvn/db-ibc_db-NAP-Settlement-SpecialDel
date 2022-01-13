@@ -9,18 +9,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@TransIds 				VARCHAR(MAX) = NULL
 	,@ActionId				TINYINT
 	,@IssueTypeId			TINYINT
-	,@FilterFromTransTime	DATETIME = NULL
-	,@FilterToTransTime		DATETIME = NULL
 	,@FilterBy				TINYINT = NULL
-	,@SingleCount			INT = NULL
-	,@MainParlayCount		INT = NULL
-	,@MinSingleTransId		BIGINT = NULL
-	,@MaxSingleTransId		BIGINT = NULL
-	,@MinMainParlayTransId	BIGINT = NULL
-	,@MaxMainParlayTransId	BIGINT = NULL
-	,@VoidFromTime			DATETIME = NULL
-	,@VoidToTime			DATETIME = NULL
-	,@LiveScores			NVARCHAR(300) = NULL
 	,@SubIssueTypeId		TINYINT = NULL
 	,@IsConfirmCalculator   BIT = 0
 	,@UserNames				VARCHAR(MAX) = NULL
@@ -29,7 +18,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@FromDate				DATETIME     = NULL
     ,@ToDate				DATETIME     = NULL
 	,@IsVoidVIPMember		BIT = 0
-	,@TypeAccept			VARCHAR(MAX) = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
@@ -83,6 +71,7 @@ AS
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
+		- 20211213@July: TVS - Remove code [Redmine: #165097]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -177,19 +166,6 @@ BEGIN
 			,TypeAccept				VARCHAR(MAX)
 			,SubIssueTypeId			SMALLINT
 		)
-	CREATE TABLE #tblOldResulDetail (
-			  RequestId INT
-			, MatchId INT
-			, FilterFromTransTime DATETIME
-			, FilterToTransTime DATETIME
-			, FilterBy TINYINT
-			, LiveHomeScore INT
-			, LiveAwayScore INT
-			, IssueDetail VARCHAR(MAX)
-			, TypeAccept VARCHAR(50)
-			, ActualScore VARCHAR(50)
-			, SubIssueTypeId SMALLINT
-			)
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -319,20 +295,6 @@ BEGIN
 			FROM @RedCardInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@RedCardInfoXML = NULL))
 		END
-
-		INSERT INTO #tblOldResulDetail (RequestId, MatchId , FilterFromTransTime, FilterToTransTime, FilterBy, LiveHomeScore, LiveAwayScore, IssueDetail, TypeAccept, SubIssueTypeId)
-		SELECT RequestId
-			 , MatchId
-			 , FilterFromTransTime
-			 , FilterToTransTime
-			 , FilterBy
-			 , LiveHomeScore
-			 , LiveAwayScore
-			 , IssueDetail
-			 , TransIds
-			 , SubIssueTypeId
-		FROM dbo.TicketVoiding_RequestDetail  WITH(NOLOCK)
-		WHERE RequestId = @RequestId
 
 		DELETE rd
 		FROM dbo.TicketVoiding_RequestDetail rd
@@ -1290,7 +1252,6 @@ BEGIN
 	DROP TABLE #InputValidCustid_2
 	DROP TABLE #transIdTemp
 	DROP TABLE #tblGetLogInfo
-	DROP TABLE #tblOldResulDetail
 	DROP TABLE #InputValidCustid_1
 	DROP TABLE #transidremove_tmp
 END
