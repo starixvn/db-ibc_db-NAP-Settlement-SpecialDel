@@ -65,6 +65,7 @@ AS
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20220106@Louisa: Enhancement [Redmine:#164905]
 
 */
 BEGIN
@@ -110,7 +111,18 @@ BEGIN
 		,@isExistFTHighestQuarter BIT
 	
 	--- Get ET  match and PEN match for soccer
-	DECLARE @tmp_ChildMatch TABLE (Matchid	INT, matchcode	NVARCHAR(100),	eventstatus	NVARCHAR(100),	SettlementStatus TINYINT, BetStatus NVARCHAR(100), IsExistMarkedTicket BIT, IsExistRunningTicket BIT)
+	DECLARE @tmp_ChildMatch TABLE 
+	(
+		Matchid	INT, 
+		matchcode	NVARCHAR(100),	
+		eventstatus	NVARCHAR(100),	
+		SettlementStatus TINYINT,
+		homeid	INT,
+		awayid	INT,
+		BetStatus NVARCHAR(100), 
+		IsExistMarkedTicket BIT, 
+		IsExistRunningTicket BIT
+	)
 		
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, GroupId TINYINT, IsUsedGoalRecordValue BIT, IsDetermined BIT, GroupName VARCHAR(50), IsFGLG BIT)
 	INSERT INTO @tmpBettypes (bettype, GroupId, IsUsedGoalRecordValue, IsDetermined, GroupName, IsFGLG)
@@ -653,11 +665,13 @@ BEGIN
 	
 	IF @sporttype = 1 AND @LeagueGroupID IN (42,74,108)
 	BEGIN
-		INSERT INTO @tmp_ChildMatch ( Matchid, matchcode, eventstatus, SettlementStatus, BetStatus, IsExistMarkedTicket, IsExistRunningTicket)
+		INSERT INTO @tmp_ChildMatch ( Matchid, matchcode, eventstatus, SettlementStatus, homeid, awayid, BetStatus, IsExistMarkedTicket, IsExistRunningTicket)
 		SELECT	m.matchid
 				, m.matchcode
 				, m.eventstatus		
 				, ISNULL(m.SettlementStatus,0)
+				, m.homeid
+				, m.awayid
 				, m.betstatus
 				, MAX(CASE WHEN btr.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS IsExistMarkedTicket
 				, MAX(CASE WHEN btr.statusID BETWEEN 0 AND 1 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS IsExistRunningTicket		
@@ -668,9 +682,9 @@ BEGIN
 								WHERE btr.transID = mt.TransId AND btr.statusID IN ( 0 , 1) ) mt
 			WHERE   m.ParentID =   @matchid  
 				AND m.ChildMatchType IN ( 201,202,203)
-			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, m.BetStatus
+			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, homeid, awayid ,m.BetStatus
 	END
 
-	SELECT Matchid, matchcode, eventstatus, SettlementStatus, BetStatus, IsExistMarkedTicket, IsExistRunningTicket FROM @tmp_ChildMatch
+	SELECT Matchid, matchcode, eventstatus, SettlementStatus, homeid, awayid, BetStatus, IsExistMarkedTicket, IsExistRunningTicket FROM @tmp_ChildMatch
 END
 GO
