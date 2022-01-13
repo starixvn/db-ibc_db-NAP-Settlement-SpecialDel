@@ -1,7 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_Update]
 (
-	@TransIds	VARCHAR(MAX)
+	@TransIds					VARCHAR(MAX)
+	,@CalledByBrokerService     BIT         = 0
+	,@RunOnServer				VARCHAR(100) = NULL
 )
 AS
 /*	Created by: Max
@@ -13,6 +15,7 @@ AS
 		- 20200212@Max: Create new SP [Redmine: #128359]
 		- 20200924@Louisa: Implement for Myanmar odds - bettype 1,3,7,8 [Redmine:#142220]
 		- 20201023@Louisa: Change commission formula of MMR odds [Redmine:#144046]
+		- 20220110@Kathy: Apply service broker when calculate ticket [Redmine:#167251]
 		
 	Param's explanation:	
 		
@@ -21,10 +24,12 @@ BEGIN
 	SET NOCOUNT ON
 
 	-----------------------CHECK SERVER-----------------------------------------
-	DECLARE @ServerName			SYSNAME 
-			,@AllowCalculation	BIT
-			,@xml XML
-			
+	DECLARE @ServerName				SYSNAME 
+			,@AllowCalculation		BIT
+			,@xml					XML
+			,@IsEnableServiceBroker BIT -- server is using service broker or not
+			,@sMessage				NVARCHAR(MAX)
+
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -38,6 +43,34 @@ BEGIN
 
 	END
 	-----------------------CHECK SERVER-----------------------------------------
+
+	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
+
+	IF @RunOnServer <> @@SERVERNAME
+	BEGIN
+		PRINT 'This command was skipped because run wrong server'
+		RETURN
+	END
+
+	EXEC dbo.NAP_Set_ServerInfo 
+		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+
+	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
+	BEGIN		
+		SET @sMessage = 'EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
+				@TransIds = ''' + @TransIds + ''''
+				+ ',@CalledByBrokerService = 1'
+				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
+
+		EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
+			,@toService = N'//Service/Calculation_receive'
+			,@onContract = N'//Contract/Calculation'
+			,@messageType = N'//Message/Calculation'
+			,@messageBody = @sMessage
+
+		RETURN
+	END
+
 	SET @xml = CONVERT(XML, @TransIds)
 	DECLARE @tbl_transIDs AS TABLE(transid BIGINT)
 	
