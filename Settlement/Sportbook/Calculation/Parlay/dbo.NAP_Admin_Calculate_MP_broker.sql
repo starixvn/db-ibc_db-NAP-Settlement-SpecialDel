@@ -59,6 +59,7 @@ AS
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 
     Param's Explanation:
         @action         @mode
@@ -228,6 +229,7 @@ BEGIN
 		EXEC dbo.ExecRep_NAP_Admin_02 @matchid = @matchid
 			,@Mode = @Mode 
 			,@strTransIds = @strTransIds
+			,@EventDate = @matchdate
 			
 		RETURN
 	END

@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 
 	Param's Explanation:
 */
@@ -197,6 +198,7 @@ BEGIN
 			EXEC dbo.NAP_Admin_Calculate_Main @matchid = @childMatchId
 				,@Action = @Action
 				,@Mode = @Mode
+				,@eventdate = @eventdate
 				,@strTransIds = @strTransIds
 
 			SET @startRowId = @startRowId + @batchNo
@@ -286,6 +288,7 @@ BEGIN
 				,@Action = @Action
 				,@Mode = @Mode
 				,@strTransIds = @strTransIds
+				,@matchdate = @eventdate
 
 			SET @startRowId = @startRowId + @batchNo
 		END

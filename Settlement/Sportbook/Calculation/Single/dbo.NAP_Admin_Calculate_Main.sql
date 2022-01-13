@@ -79,6 +79,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@ismarked						BIT = NULL
 	,@modds							MONEY = NULL
 	,@ErrMessage					VARCHAR(300) = '' OUTPUT
+	,@EventDate						DATETIME = NULL
 AS
 /*
     Created: Viet
@@ -152,6 +153,7 @@ AS
 		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]				  
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]	
+		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 
     Param's Explanation:
         @action             @mode
@@ -308,6 +310,7 @@ BEGIN
 			+ CASE WHEN @SessionId IS NULL THEN '' ELSE ',@SessionId = ' + CONVERT(NVARCHAR(50), @SessionId) END
 			+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
 			+ CASE WHEN @MessageType IS NULL THEN '' ELSE ',@MessageType = ' + '''' + @MessageType + '''' END
+			+ CASE WHEN @EventDate IS NULL THEN '' ELSE ',@EventDate = ' + '''' + CONVERT(VARCHAR(20),@EventDate) + '''' END
 			
             + ',@CalledByBrokerService = 1'
 			
@@ -387,7 +390,8 @@ BEGIN
 			EXEC dbo.ExecRep_NAP_Admin_02 @matchid = @matchid
 				,@Mode = @Mode 
 				,@strTransIds = @strTransIds
-				
+				,@EventDate = @EventDate
+
 			RETURN
 		END
 		
