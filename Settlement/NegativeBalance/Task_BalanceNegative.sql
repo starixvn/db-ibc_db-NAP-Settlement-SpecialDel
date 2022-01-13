@@ -92,7 +92,8 @@ BEGIN
 		SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS Balance, c.Site
 		FROM	@tmpAffectedCustId c
 			INNER JOIN dbo.Transfer b WITH(NOLOCK)
-				ON b.custid = c.CustId	AND b.bettype = 19999 AND b.WinlostDate > @movebetdate
+				ON b.custid = c.CustId	AND b.bettype >= 19999
+		WHERE 1 = CASE WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 ELSE 1 END
 		GROUP BY b.CustId, c.Site
 		
 		-- translog
