@@ -55,8 +55,8 @@ BEGIN
 		SELECT	tl.custid, tl.Username, tl.Winlost, tl.Actual_Stake, tl.PlayerComm
 		FROM	dbo.Transfer tl WITH(NOLOCK)
 		WHERE	tl.custid IN (SELECT custid FROM @CustList)
-				AND tl.Bettype = 19999
-				AND tl.WinlostDate > @movebetdate
+				AND tl.Bettype >= 19999
+				AND 1 = CASE WHEN tl.bettype = 19999 AND tl.winlostdate > @movebetdate THEN 0 ELSE 1 END
 
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, 0, tl.actual_stake, 0

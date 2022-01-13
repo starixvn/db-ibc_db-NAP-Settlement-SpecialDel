@@ -48,7 +48,8 @@ BEGIN
 			SELECT	tl.custid, SUM(tl.Winlost - tl.actual_stake + tl.PlayerComm) AS Balance				
 			FROM	@tmpCustId c
 				INNER JOIN dbo.Transfer tl WITH(NOLOCK)
-					ON tl.custid = c.CustId	AND tl.bettype = 19999 AND tl.WinlostDate > @movebetdate	
+					ON tl.custid = c.CustId	AND tl.bettype >= 19999
+			WHERE 1 = CASE WHEN tl.bettype = 19999 AND tl.winlostdate > @movebetdate THEN 0 ELSE 1 END
 			GROUP BY tl.custid
 		
 			UNION ALL 
