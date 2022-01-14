@@ -38,7 +38,6 @@ BEGIN
 			,@NegativeBalanceUsers VARCHAR(MAX)
 			,@IssueTypeId	TINYINT
 			,@QueueIds VARCHAR(MAX)
-			,@Status_Single TINYINT
 			,@IsNoTicketFound BIT = 1
 			,@IsExistError BIT = 0
 			,@BypassCheckingProcess TINYINT = 0
@@ -245,16 +244,6 @@ BEGIN
 			SELECT	val AS QueueId
 			FROM	dbo.f_SplitString(@QueueIds, ',')
 			OPTION (maxrecursion 0)
-		END
-		ELSE 
-		BEGIN
-			INSERT INTO @tmpQueue_update(QueueId)
-			SELECT	@QueueId
-			FROM	@tmpQueue
-			WHERE	QueueId = CASE 
-								WHEN @IssueTypeId IN (1,10,3,4,5) AND @StatusId = 3 THEN QueueId
-								ELSE @QueueId
-							END
 		END
 
 		IF @MoveBetMatchIds IS NOT NULL
