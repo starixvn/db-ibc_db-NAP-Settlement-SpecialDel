@@ -27,6 +27,7 @@ AS
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]	
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
+		- 20220118@July: HotFix - Recover Cash Out Transaction NOT CALC PlayerComm for tickets double Comm [Redmine: #167687]
 
 	Param's Explanation:
 	
@@ -334,7 +335,7 @@ BEGIN
 									WHEN t.statusID = 103 THEN 0
 									WHEN t.statusID = 112 THEN TRef.CommWinRate * b.stake * b.playerdiscount
 									WHEN t.statusID = 111 THEN TRef.CommWinRate * b.stake * b.playerdiscount
-									ELSE TRef.CommWinRate * b.stake * b.playerdiscount
+									ELSE TRef.CommLostRate * b.stake * b.playerdiscount
 								END AS playercomm
 							, CASE
 									WHEN t.statusID = 103 THEN 0
