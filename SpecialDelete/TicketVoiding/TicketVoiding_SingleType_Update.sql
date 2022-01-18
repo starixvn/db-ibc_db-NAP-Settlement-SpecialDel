@@ -69,7 +69,7 @@ BEGIN
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
-	DECLARE @avaiableProcess			BIT = 0
+	DECLARE @avaiableProcess			BIT
 			,@isExistMG					BIT = 0
 			,@isExistFM					BIT = 0
 			,@isExistFM2				BIT = 0

@@ -33,7 +33,7 @@ BEGIN
 	BEGIN
 		DECLARE @query NVARCHAR(MAX) = ''
 		DECLARE @ExecuteSQL NVARCHAR(MAX) = ''
-		DECLARE @fantasy_match INT = NULL
+		DECLARE @fantasymatch_tmp TABLE (fantasy_match INT)
 		CREATE TABLE #LinkedMatch_tmp (MainMatchID INT, LinkedMatchID INT)
 		
 		SET @query = '	SELECT MainMatchID, LinkedMatchID
@@ -43,14 +43,16 @@ BEGIN
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
 
-		SELECT @fantasy_match = m.MatchId
+		INSERT INTO @fantasymatch_tmp (fantasy_match)
+		SELECT m.MatchId
 		FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
 		WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(10)) +'%' AND m.[Key] = 'fantasy'
 
-		IF @fantasy_match IS NOT NULL
+		IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)
 		BEGIN
 			INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
-			SELECT @MatchId, @fantasy_match 
+			SELECT @MatchId, fantasy_match 
+			FROM @fantasymatch_tmp
 		END
 
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
