@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 	@MatchId		INT
 	,@EventDate		DATETIME = NULL
 	,@IsMainMatch	BIT = 1
+	,@IssueTypeId	TINYINT = NULL
 )
 AS
 /*	
@@ -43,16 +44,19 @@ BEGIN
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
 
-		INSERT INTO @fantasymatch_tmp (fantasy_match)
-		SELECT m.MatchId
-		FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
-		WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(20)) +'%' AND m.[Key] = 'fantasy'
-
-		IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)
+		IF @IssueTypeId IN (4,5)
 		BEGIN
-			INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
-			SELECT @MatchId, fantasy_match 
-			FROM @fantasymatch_tmp
+			INSERT INTO @fantasymatch_tmp (fantasy_match)
+			SELECT m.MatchId
+			FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
+			WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(20)) +'%' AND m.[Key] = 'fantasy'
+
+			IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)
+			BEGIN
+				INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
+				SELECT @MatchId, fantasy_match 
+				FROM @fantasymatch_tmp
+			END
 		END
 
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

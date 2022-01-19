@@ -1029,7 +1029,7 @@ BEGIN
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND 1 = CASE WHEN d.FilterBy = 0 AND sub.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
+					AND 1 = CASE WHEN d.FilterBy = 0 AND main.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
 								 WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 								 ELSE 0 END
 					AND sub.bettype = 1 
@@ -1271,7 +1271,7 @@ BEGIN
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND 1 = CASE WHEN d.FilterBy = 0 AND sub.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
+					AND 1 = CASE WHEN d.FilterBy = 0 AND main.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
 								 WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 								 ELSE 0 END
 					AND sub.bettype = 7 
