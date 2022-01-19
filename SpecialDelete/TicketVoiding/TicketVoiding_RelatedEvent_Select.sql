@@ -46,7 +46,7 @@ BEGIN
 		INSERT INTO @fantasymatch_tmp (fantasy_match)
 		SELECT m.MatchId
 		FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
-		WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(10)) +'%' AND m.[Key] = 'fantasy'
+		WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(20)) +'%' AND m.[Key] = 'fantasy'
 
 		IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)
 		BEGIN

@@ -99,7 +99,6 @@ BEGIN
 			,@IsInValidTotalTickets   BIT = 0
 			,@IsExistedInOtherRequest BIT = 0
 			,@SingleCount			  INT = 0
-			,@totalRecord			  INT = 0
 			,@MainParlayCount		  INT = 0
 			,@IsExistSingle			  BIT = 0
 			,@IsExistParlay			  BIT = 0
@@ -178,12 +177,11 @@ BEGIN
 	)
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT, Refno BIGINT)
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, transdate DATETIME, matchid INT)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, ScoreId INT)
 	CREATE TABLE #WrongScores (ScoreId INT, MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	CREATE TABLE #FilterInfo (MatchId INT, FilterFromTransTime DATETIME, FilterToTransTime DATETIME, FilterBy	TINYINT, SubIssueTypeId SMALLINT)
 	CREATE TABLE #WrongHDP (MatchId INT, FilterFromTransTime DATETIME, FilterToTransTime DATETIME, FilterFromBetId BIGINT, FilterToBetId BIGINT, FilterBy TINYINT, HomeFavorite VARCHAR(50), AwayFavorite VARCHAR(50), HdpValue VARCHAR(50), SubIssueTypeId SMALLINT)
-	CREATE TABLE #FilterBetId (MatchId INT, FilterFromBetId BIGINT, FilterToBetId BIGINT)
+	CREATE TABLE #FilterBetId (MatchId INT, totalBetId INT, totalRecord INT)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
@@ -837,18 +835,24 @@ BEGIN
 		/*Check valid transid*/
 		IF EXISTS ( SELECT TOP 1 1 FROM #WrongHDP WHERE FilterBy = 0)
 		BEGIN
-			INSERT INTO #FilterBetId (MatchId, FilterFromBetId, FilterToBetId)
-			SELECT MatchId,FilterFromBetId, FilterToBetId
-			FROM #WrongHDP WHERE FilterBy = 0
+			INSERT INTO #FilterBetId (MatchId, totalBetId, totalRecord)
+			SELECT f.matchid 
+				  ,CASE WHEN f.FilterFromBetId = f.FilterToBetId THEN 1 ELSE 2 END AS totalBetId
+				  ,b.totalRecord
+			FROM #WrongHDP f  
+			OUTER APPLY (
+						  SELECT COUNT (1) totalRecord
+						  FROM dbo.bettrans b WITH (NOLOCK) 
+						  WHERE b.matchid = f.MatchId
+							AND 1 = CASE WHEN b.transid IN ( f.FilterFromBetId, f.FilterToBetId) THEN 1 ELSE 0 END
+						)b
+			WHERE f.FilterBy = 0
 
-			INSERT INTO #transIdTemp (transid, transdate ,matchid)
-			SELECT b.transid, b.transdate, b.matchid
-			FROM #FilterBetId f  WITH (NOLOCK) 
-				INNER JOIN dbo.bettrans b ON b.matchid = f.MatchId
-			WHERE b.transid BETWEEN f.FilterFromBetId AND f.FilterToBetId
-				AND b.bettype = 1
-
-			IF  EXISTS ( SELECT TOP 1 1 FROM #FilterBetId f LEFT JOIN #transIdTemp t ON f.matchid = t.matchid WHERE t.MatchId IS NULL)
+			IF  EXISTS ( SELECT TOP 1 1 FROM #FilterBetId
+										WHERE 1 = CASE WHEN totalBetId = 2 AND totalRecord <> 2 THEN 1
+													   WHEN totalBetId = 1 AND totalRecord <> 1 THEN 1
+													   ELSE 0 END
+						)
 			BEGIN
 				SELECT @IsInvalidTransId = 1
 			
@@ -863,7 +867,10 @@ BEGIN
 					,@IsExistFM2 AS IsExistFM2
 					,@MatchProcessXML AS MatchProcessXML
 					,@MatchParlayProcessXML AS MatchParlayProcessXML
-				FROM #FilterBetId f LEFT JOIN #transIdTemp t ON f.matchid = t.matchid WHERE t.MatchId IS NULL
+				FROM #FilterBetId f 
+				WHERE 1 = CASE WHEN totalBetId = 2 AND totalRecord <> 2 THEN 1
+							   WHEN totalBetId = 1 AND totalRecord <> 1 THEN 1
+							   ELSE 0 END
 				
 				--TransId in request table
 				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
@@ -1069,18 +1076,24 @@ BEGIN
 		/*Check valid transid*/
 		IF EXISTS ( SELECT TOP 1 1 FROM #WrongHDP WHERE FilterBy = 0)
 		BEGIN
-			INSERT INTO #FilterBetId (MatchId, FilterFromBetId, FilterToBetId)
-			SELECT MatchId,FilterFromBetId, FilterToBetId
-			FROM #WrongHDP WHERE FilterBy = 0
+			INSERT INTO #FilterBetId (MatchId, totalBetId, totalRecord)
+			SELECT f.matchid 
+				  ,CASE WHEN f.FilterFromBetId = f.FilterToBetId THEN 1 ELSE 2 END AS totalBetId
+				  ,b.totalRecord
+			FROM #WrongHDP f  
+			OUTER APPLY (
+						  SELECT COUNT (1) totalRecord
+						  FROM dbo.bettrans b WITH (NOLOCK) 
+						  WHERE b.matchid = f.MatchId
+							AND 1 = CASE WHEN b.transid IN ( f.FilterFromBetId, f.FilterToBetId) THEN 1 ELSE 0 END
+						)b
+			WHERE f.FilterBy = 0
 
-			INSERT INTO #transIdTemp (transid, transdate ,matchid)
-			SELECT b.transid, b.transdate, b.matchid
-			FROM #FilterBetId f  WITH (NOLOCK) 
-				INNER JOIN dbo.bettrans b ON b.matchid = f.MatchId
-			WHERE b.transid BETWEEN f.FilterFromBetId AND f.FilterToBetId
-				AND b.bettype = 7
-
-			IF  EXISTS ( SELECT TOP 1 1 FROM #FilterBetId f LEFT JOIN #transIdTemp t ON f.matchid = t.matchid WHERE t.MatchId IS NULL)
+			IF  EXISTS ( SELECT TOP 1 1 FROM #FilterBetId
+										WHERE 1 = CASE WHEN totalBetId = 2 AND totalRecord <> 2 THEN 1
+													   WHEN totalBetId = 1 AND totalRecord <> 1 THEN 1
+													   ELSE 0 END
+						)
 			BEGIN
 				SELECT @IsInvalidTransId = 1
 			
@@ -1095,7 +1108,10 @@ BEGIN
 					,@IsExistFM2 AS IsExistFM2
 					,@MatchProcessXML AS MatchProcessXML
 					,@MatchParlayProcessXML AS MatchParlayProcessXML
-				FROM #FilterBetId f LEFT JOIN #transIdTemp t ON f.matchid = t.matchid WHERE t.MatchId IS NULL
+				FROM #FilterBetId f 
+				WHERE 1 = CASE WHEN totalBetId = 2 AND totalRecord <> 2 THEN 1
+							   WHEN totalBetId = 1 AND totalRecord <> 1 THEN 1
+							   ELSE 0 END
 				
 				--TransId in request table
 				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
@@ -1176,8 +1192,8 @@ BEGIN
 						 WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 						 ELSE 0 END
 			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							ELSE 0 END
+						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+						 ELSE 0 END
 			AND b.bettype = 7 --1H Handicap
 			AND 1 = CASE WHEN d.SubIssueTypeId = 9 AND b.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
 						 WHEN d.SubIssueTypeId = 9 AND b.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
@@ -2214,7 +2230,6 @@ BEGIN
 	DROP TABLE #TransidInRequest
 	DROP TABLE #logInfo
 	DROP TABLE #tmpRefCodeSummary
-	DROP TABLE #transIdTemp
 	DROP TABLE #CashOuts
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #WrongScores
