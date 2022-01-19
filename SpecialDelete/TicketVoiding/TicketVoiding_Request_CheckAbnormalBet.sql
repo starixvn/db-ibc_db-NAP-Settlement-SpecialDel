@@ -42,6 +42,7 @@ AS
 		- 20210930@July: TVS - No need to check Live Score of Rugby and Ice Hockey sport [Redmine: #161877]
 		- 20211005@Max: [TVS] Implement AB Whitelist - [Redmine:#161659]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
+		- 20220119@July: Fix issue - Mix Parlay Error Cannot insert duplicate key [Redmine: #167724]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -274,7 +275,7 @@ BEGIN
 	BEGIN
 		-- Unsupported mixparlay tickets have submatch cricket
 		INSERT #UnsupportedTransids (transid)
-		SELECT t.transid
+		SELECT DISTINCT t.transid
 		FROM #validTransId t
 			INNER JOIN dbo.bettransm b WITH(NOLOCK) ON t.refno = b.refno
 			INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid
