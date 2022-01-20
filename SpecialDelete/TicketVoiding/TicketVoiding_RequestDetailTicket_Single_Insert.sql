@@ -1508,56 +1508,6 @@ BEGIN
 			        ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
 			FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
-
-			INSERT INTO #TransidInRequest (TransId)
-			SELECT tmp.transid
-			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-				INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-				CROSS APPLY (
-							SELECT TransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-							WHERE RequestId = req.RequestId
-						) AS tmp
-				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
-			WHERE req.RequestId <> @RequestId AND req.ActionId <>2
-
-			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId, refno, bettype, betid)
-			SELECT b.transid
-				, b.statusID
-				, b.matchid
-				, t.SubIssueTypeId
-				, b.refno
-				, b.bettype
-				, b.betid
-			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid 
-				OUTER APPLY (
-					SELECT DISTINCT val 
-					FROM dbo.f_SplitString(t.HomeFavorite, '&')
-					WHERE val <> ''				
-				)xHDPHome
-				OUTER APPLY (
-					SELECT DISTINCT val 
-					FROM dbo.f_SplitString(t.AwayFavorite, '&')
-					WHERE val <> ''				
-				)xHDPAway
-				OUTER APPLY (
-					SELECT DISTINCT val 
-					FROM dbo.f_SplitString(t.HdpValue, '&')
-					WHERE val <> ''				
-				)xHDPvalue
-			WHERE b.betfrom <> 'P' AND b.bettype = 1
-				AND b.transdate BETWEEN t.VoidFromTime AND t.VoidToTime
-				AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId
-				AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
-							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							 ELSE 0 END
-				AND 1 = CASE WHEN t.SubIssueTypeId = 8 AND b.hdp1 = xHDPHome.val AND t.HomeFavorite IS NOT NULL THEN 1
-							 WHEN t.SubIssueTypeId = 8 AND b.hdp2 = xHDPAway.val AND t.AwayFavorite IS NOT NULL THEN 1
-							 WHEN t.SubIssueTypeId = 22 AND b.hdp2 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-							 WHEN t.SubIssueTypeId = 23 AND b.hdp1 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
-							 ELSE 0 END
-				OPTION (MAXRECURSION 0)
 		END
 		IF @IssueTypeId = 5
 		BEGIN
@@ -1606,58 +1556,61 @@ BEGIN
 			        ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
 			FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
-
-			INSERT INTO #TransidInRequest (TransId)
-			SELECT tmp.transid
-			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-				INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-				CROSS APPLY (
-							SELECT TransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-							WHERE RequestId = req.RequestId
-						) AS tmp
-				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
-			WHERE req.RequestId <> @RequestId AND req.ActionId <>2
-
-			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId, refno, bettype, betid)
-			SELECT b.transid
-				, b.statusID
-				, b.matchId
-				, t.SubIssueTypeId
-				, b.refno
-				, b.bettype
-				, b.betid
-			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid
-				OUTER APPLY (
-					SELECT DISTINCT val 
-					FROM dbo.f_SplitString(t.HomeFavorite, '&')
-					WHERE val <> ''				
-				)xHDPHome
-				OUTER APPLY (
-					SELECT DISTINCT val 
-					FROM dbo.f_SplitString(t.AwayFavorite, '&')
-					WHERE val <> ''				
-				)xHDPAway
-				OUTER APPLY (
-					SELECT DISTINCT val 
-					FROM dbo.f_SplitString(t.HdpValue, '&')
-					WHERE val <> ''				
-				)xHDPvalue
-			WHERE b.betfrom <> 'P' AND b.bettype = 7
-				AND b.transdate BETWEEN t.VoidFromTime AND t.VoidToTime 
-				AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId
-				AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
-							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							 ELSE 0 END
-				AND 1 = CASE WHEN t.SubIssueTypeId = 9 AND b.hdp1 = xHDPHome.val AND t.HomeFavorite IS NOT NULL THEN 1
-							 WHEN t.SubIssueTypeId = 9 AND b.hdp2 = xHDPAway.val AND t.AwayFavorite IS NOT NULL THEN 1
-							 WHEN t.SubIssueTypeId = 24 AND b.hdp2 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-							 WHEN t.SubIssueTypeId = 25 AND b.hdp1 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
-							 ELSE 0 END 
-				OPTION (MAXRECURSION 0)
 		END
-							  
+		
+		INSERT INTO #TransidInRequest (TransId)
+		SELECT tmp.transid
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+			CROSS APPLY (
+						SELECT TransId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+						WHERE RequestId = req.RequestId
+					) AS tmp
+			INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
+		WHERE req.RequestId <> @RequestId AND req.ActionId <>2
+
+		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId, refno, bettype, betid)
+		SELECT b.transid
+			, b.statusID
+			, b.matchId
+			, t.SubIssueTypeId
+			, b.refno
+			, b.bettype
+			, b.betid
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid
+			OUTER APPLY (
+				SELECT DISTINCT val 
+				FROM dbo.f_SplitString(t.HomeFavorite, '&')
+				WHERE val <> ''				
+			)xHDPHome
+			OUTER APPLY (
+				SELECT DISTINCT val 
+				FROM dbo.f_SplitString(t.AwayFavorite, '&')
+				WHERE val <> ''				
+			)xHDPAway
+			OUTER APPLY (
+				SELECT DISTINCT val 
+				FROM dbo.f_SplitString(t.HdpValue, '&')
+				WHERE val <> ''				
+			)xHDPvalue
+		WHERE b.betfrom <> 'P' 
+			AND 1 = CASE WHEN @IssueTypeId = 4 AND b.bettype = 1 THEN 1
+						 WHEN @IssueTypeId = 5 AND b.bettype = 7 THEN 1
+						 ELSE 0 END
+			AND b.transdate BETWEEN t.VoidFromTime AND t.VoidToTime 
+			AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId
+			AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							ELSE 0 END
+			AND 1 = CASE WHEN t.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.val AND t.HomeFavorite IS NOT NULL THEN 1
+						 WHEN t.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.val AND t.AwayFavorite IS NOT NULL THEN 1
+						 WHEN t.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+						 WHEN t.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+						 ELSE 0 END 
+			OPTION (MAXRECURSION 0)
+		
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------
 		--Edit from to time of Danger Accepted issue -> unmark ticket change void time

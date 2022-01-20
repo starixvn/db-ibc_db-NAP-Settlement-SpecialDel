@@ -165,7 +165,7 @@ BEGIN
 		,SingleCount			INT
 		,CashOutCount			INT
 		,InstantlySettleCount	INT
-		,SettleCount INT
+		,SettleCount            INT
 		,MainParlayCount		INT
 		,MinSingleTransId		BIGINT
 		,MaxSingleTransId		BIGINT
@@ -181,7 +181,8 @@ BEGIN
 	CREATE TABLE #WrongScores (ScoreId INT, MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME)
 	CREATE TABLE #FilterInfo (MatchId INT, FilterFromTransTime DATETIME, FilterToTransTime DATETIME, FilterBy	TINYINT, SubIssueTypeId SMALLINT)
 	CREATE TABLE #WrongHDP (MatchId INT, FilterFromTransTime DATETIME, FilterToTransTime DATETIME, FilterFromBetId BIGINT, FilterToBetId BIGINT, FilterBy TINYINT, HomeFavorite VARCHAR(50), AwayFavorite VARCHAR(50), HdpValue VARCHAR(50), SubIssueTypeId SMALLINT)
-	CREATE TABLE #FilterBetId (MatchId INT, totalBetId INT, totalRecord INT)
+	CREATE TABLE #FilterBetId (MatchId INT, totalBetId INT, totalRecord INT, MinTransdate DATETIME, MaxTransdate DATETIME)
+	CREATE TABLE #transIdTemp (matchid INT, transid BIGINT, transdate DATETIME)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
@@ -800,33 +801,64 @@ BEGIN
 		END
 		
 	END
-	IF @IssueTypeId = 4 --Wrong HDP
+	IF @IssueTypeId IN (4,5) --Wrong HDP, Wrong 1st HDP
 	BEGIN
-		SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
-		INSERT INTO #WrongHDP( 
-				MatchID				
-				,FilterFromTransTime	
-				,FilterToTransTime			
-				,FilterFromBetId
-				,FilterToBetId
-				,FilterBy
-				,HomeFavorite
-				,AwayFavorite
-				,HdpValue
-				,SubIssueTypeId
-			)
-		SELECT t.c.value('@MatchId','INT') AS MatchID
-			  ,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
-			  ,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-			  ,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
-			  ,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
-			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
-			  ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
-			  ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
-			  ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
-			  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-		FROM @WrongHDPInfoXML.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
+		IF @IssueTypeId = 4
+		BEGIN
+			SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
+			INSERT INTO #WrongHDP( 
+					MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime			
+					,FilterFromBetId
+					,FilterToBetId
+					,FilterBy
+					,HomeFavorite
+					,AwayFavorite
+					,HdpValue
+					,SubIssueTypeId
+				)
+			SELECT t.c.value('@MatchId','INT') AS MatchID
+				  ,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+				  ,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+				  ,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+				  ,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
+				  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
+				  ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
+				  ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
+				  ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
+				  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			FROM @WrongHDPInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
+		END
+		IF @IssueTypeId = 5
+		BEGIN
+			SET @Wrong1stHDPInfoXML = CONVERT(XML, @Wrong1stHDPInfo)
+			INSERT INTO #WrongHDP( 
+					MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime			
+					,FilterFromBetId
+					,FilterToBetId
+					,FilterBy				
+					,HomeFavorite
+					,AwayFavorite
+					,HdpValue
+					,SubIssueTypeId
+				)
+			SELECT t.c.value('@MatchId','INT') AS MatchID
+				  ,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+				  ,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+				  ,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+				  ,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
+				  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
+				  ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
+				  ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
+				  ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
+				  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
+		END
 
 		--Init Validation
 		INSERT INTO @Validation (MatchId)
@@ -835,16 +867,23 @@ BEGIN
 		/*Check valid transid*/
 		IF EXISTS ( SELECT TOP 1 1 FROM #WrongHDP WHERE FilterBy = 0)
 		BEGIN
-			INSERT INTO #FilterBetId (MatchId, totalBetId, totalRecord)
+			INSERT INTO #transIdTemp (matchid, transid, transdate)
+			SELECT b.matchid, b.transid, b.transdate
+			FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN #WrongHDP f ON b.matchid = f.MatchId        
+			WHERE f.FilterBy = 0 AND b.transid IN ( f.FilterFromBetId, f.FilterToBetId)
+
+			INSERT INTO #FilterBetId (MatchId, totalBetId, totalRecord, MinTransdate, MaxTransdate)
 			SELECT f.matchid 
 				  ,CASE WHEN f.FilterFromBetId = f.FilterToBetId THEN 1 ELSE 2 END AS totalBetId
 				  ,b.totalRecord
+				  ,MinTransdate
+				  ,MaxTransdate
 			FROM #WrongHDP f  
 			OUTER APPLY (
-						  SELECT COUNT (1) totalRecord
-						  FROM dbo.bettrans b WITH (NOLOCK) 
+						  SELECT COUNT (1) totalRecord, MIN (b.transdate) MinTransdate, MAX(transdate) MaxTransdate
+						  FROM #transIdTemp  b WITH (NOLOCK) 
 						  WHERE b.matchid = f.MatchId
-							AND 1 = CASE WHEN b.transid IN ( f.FilterFromBetId, f.FilterToBetId) THEN 1 ELSE 0 END
 						)b
 			WHERE f.FilterBy = 0
 
@@ -883,6 +922,13 @@ BEGIN
 
 				RETURN;
 			END
+
+			UPDATE w
+			SET FilterFromTransTime = t.MinTransdate
+			   ,FilterToTransTime = t.MaxTransdate
+			FROM #WrongHDP w
+				INNER JOIN #FilterBetId t ON w.MatchId = t.matchid
+
 		END
 	
 		INSERT INTO #SpecialDeleteBets(
@@ -947,19 +993,20 @@ BEGIN
 				WHERE val <> ''				
 			)xHDPvalue
 		WHERE b.betfrom <> 'P'  
-			AND 1 = CASE WHEN d.FilterBy = 0 AND b.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
-						 WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-						 ELSE 0 END
+			AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						 ELSE 0 END
-			AND b.bettype = 1 --Handicap 
-			AND 1 = CASE WHEN d.SubIssueTypeId = 8 AND b.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
-						 WHEN d.SubIssueTypeId = 8 AND b.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
-						 WHEN d.SubIssueTypeId = 22 AND b.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-						 WHEN d.SubIssueTypeId = 23 AND b.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+			AND 1 = CASE WHEN @IssueTypeId = 4 AND b.bettype = 1 THEN 1
+						 WHEN @IssueTypeId = 5 AND b.bettype = 7 THEN 1 
+						 ELSE 0 END
+			AND 1 = CASE WHEN d.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
+						 WHEN d.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
+						 WHEN d.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+						 WHEN d.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 						 ELSE 0 END
 			OPTION (MAXRECURSION 0)
+	
 		---get sub ticket of a mix parlay	
 		IF EXISTS ( SELECT 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
@@ -1005,7 +1052,6 @@ BEGIN
 					,d.SubIssueTypeId
 					,d.FilterBy
 			FROM	#WrongHDP d
-					INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 1 --soccer
 					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON	main.refno = sub.refno 
 					OUTER APPLY (
@@ -1029,261 +1075,18 @@ BEGIN
 					AND sub.betfrom <> 'P'
 					AND main.matchid = 29
 					AND main.bettype = 29
-					AND 1 = CASE WHEN d.FilterBy = 0 AND main.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
-								 WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+					AND 1 = CASE WHEN @IssueTypeId = 4 AND sub.bettype = 1 THEN 1
+								 WHEN @IssueTypeId = 5 AND sub.bettype = 7 THEN 1 
 								 ELSE 0 END
-					AND sub.bettype = 1 
-					AND 1 = CASE WHEN d.SubIssueTypeId = 8 AND sub.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
-								 WHEN d.SubIssueTypeId = 8 AND sub.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
-								 WHEN d.SubIssueTypeId = 22 AND sub.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-								 WHEN d.SubIssueTypeId = 23 AND sub.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+					AND 1 = CASE WHEN d.SubIssueTypeId IN (8,9) AND sub.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
+								 WHEN d.SubIssueTypeId IN (8,9) AND sub.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
+								 WHEN d.SubIssueTypeId IN (22,24) AND sub.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+								 WHEN d.SubIssueTypeId IN (23,25) AND sub.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 								 ELSE 0 END
 					OPTION (MAXRECURSION 0)
 		END  
 	END
-	IF @IssueTypeId = 5 --Wrong 1st HDP
-	BEGIN
-		SET @Wrong1stHDPInfoXML = CONVERT(XML, @Wrong1stHDPInfo)
-		INSERT INTO #WrongHDP( 
-				MatchID				
-				,FilterFromTransTime	
-				,FilterToTransTime			
-				,FilterFromBetId
-				,FilterToBetId
-				,FilterBy				
-				,HomeFavorite
-				,AwayFavorite
-				,HdpValue
-				,SubIssueTypeId
-			)
-		SELECT t.c.value('@MatchId','INT') AS MatchID
-			  ,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
-			  ,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-			  ,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
-			  ,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
-			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
-			  ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
-			  ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
-			  ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
-			  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-		FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
-				
-		--Init Validation
-		INSERT INTO @Validation (MatchId)
-		SELECT MatchId FROM #WrongHDP
-
-		/*Check valid transid*/
-		IF EXISTS ( SELECT TOP 1 1 FROM #WrongHDP WHERE FilterBy = 0)
-		BEGIN
-			INSERT INTO #FilterBetId (MatchId, totalBetId, totalRecord)
-			SELECT f.matchid 
-				  ,CASE WHEN f.FilterFromBetId = f.FilterToBetId THEN 1 ELSE 2 END AS totalBetId
-				  ,b.totalRecord
-			FROM #WrongHDP f  
-			OUTER APPLY (
-						  SELECT COUNT (1) totalRecord
-						  FROM dbo.bettrans b WITH (NOLOCK) 
-						  WHERE b.matchid = f.MatchId
-							AND 1 = CASE WHEN b.transid IN ( f.FilterFromBetId, f.FilterToBetId) THEN 1 ELSE 0 END
-						)b
-			WHERE f.FilterBy = 0
-
-			IF  EXISTS ( SELECT TOP 1 1 FROM #FilterBetId
-										WHERE 1 = CASE WHEN totalBetId = 2 AND totalRecord <> 2 THEN 1
-													   WHEN totalBetId = 1 AND totalRecord <> 1 THEN 1
-													   ELSE 0 END
-						)
-			BEGIN
-				SELECT @IsInvalidTransId = 1
-			
-				--Error Table
-				SELECT f.MatchId AS MatchId
-					,@IsInvalidTransId AS IsInvalidTransId
-					,@IsInValidTotalTickets AS IsInValidTotalTickets
-					,@IsExistedInOtherRequest AS IsExistedInOtherRequest
-					,@IsExistSingle AS IsExistSingle
-					,@IsExistParlay AS IsExistParlay
-					,@IsExistFM AS IsExistFM
-					,@IsExistFM2 AS IsExistFM2
-					,@MatchProcessXML AS MatchProcessXML
-					,@MatchParlayProcessXML AS MatchParlayProcessXML
-				FROM #FilterBetId f 
-				WHERE 1 = CASE WHEN totalBetId = 2 AND totalRecord <> 2 THEN 1
-							   WHEN totalBetId = 1 AND totalRecord <> 1 THEN 1
-							   ELSE 0 END
-				
-				--TransId in request table
-				SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-					,r.RequestId
-				FROM #TransidInRequest r
-			
-				--Loginfo Table
-				SELECT l.MatchId, l.LiveScores, l.VoidFromTime, l.VoidToTime, l.SingleCount, l.MainParlayCount, l.SettleCount, l.MinSingleTransId, l.MaxSingleTransId, l.MinMainParlayTransId, l.MaxMainParlayTransId
-				FROM #logInfo l
-
-				RETURN;
-			END
-		END
-
-		INSERT INTO #SpecialDeleteBets(
-				GroupID			
-				,transid		
-				,SubTransid		
-				,refno			
-				,custid				
-				,transdate		
-				,bettype 					
-				,livehomescore 	
-				,liveawayscore 			
-				,betdaqid	
-				,ExtraInfo
-				,WalletType
-				,RefCode
-				,BonusID
-				,LiveIndicator
-				,matchid
-				,StatusId
-				,checktime
-				,SubIssueTypeId
-				,FilterBy
-			)
-		SELECT 
-				b.transid AS GroupID
-				,b.transid
-				,b.transid AS SubTransID
-				,b.refno
-				,b.custid
-				,b.transdate
-				,b.bettype
-				,b.livehomescore
-				,b.liveawayscore
-				,b.betdaqid
-				,b.ExtraInfo
-				,b.WalletType
-				,b.RefCode
-				,b.BonusID
-				,b.liveindicator
-				,b.matchid
-				,b.statusID
-				,b.checktime
-				,d.SubIssueTypeId
-				,d.FilterBy
-		FROM	bettrans b WITH (NOLOCK)	
-			INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid AND m.sporttype = 1 --soccer
-			INNER JOIN #WrongHDP d ON d.MatchId = b.matchid
-			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(d.HomeFavorite, '&')
-				WHERE val <> ''				
-			)xHDPHome
-			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(d.AwayFavorite, '&')
-				WHERE val <> ''				
-			)xHDPAway
-			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(d.HdpValue, '&')
-				WHERE val <> ''				
-			)xHDPvalue
-		WHERE b.betfrom <> 'P'  
-			AND 1 = CASE WHEN d.FilterBy = 0 AND b.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
-						 WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-						 ELSE 0 END
-			AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-						 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-						 ELSE 0 END
-			AND b.bettype = 7 --1H Handicap
-			AND 1 = CASE WHEN d.SubIssueTypeId = 9 AND b.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
-						 WHEN d.SubIssueTypeId = 9 AND b.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
-						 WHEN d.SubIssueTypeId = 24 AND b.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-						 WHEN d.SubIssueTypeId = 25 AND b.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
-						 ELSE 0 END 
-			OPTION (MAXRECURSION 0)
-
-		---get sub ticket of a mix parlay	
-		IF EXISTS ( SELECT 1
-					FROM dbo.bettransm AS bm WITH (NOLOCK)
-						INNER JOIN #WrongHDP d ON d.MatchId = bm.matchid
-					WHERE 1 = CASE WHEN @ActionId <> 2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-								   WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
-								   ELSE 0 END
-						AND bm.betfrom <> 'P')
-		BEGIN		
-			INSERT INTO #SpecialDeleteBets(
-					GroupID			
-					,transid		
-					,SubTransid		
-					,refno			
-					,custid						
-					,transdate		
-					,bettype					
-					,livehomescore	
-					,liveawayscore			
-					,IsMixParlay
-					,LiveIndicator
-					,matchid
-					,StatusId
-					,checktime
-					,SubIssueTypeId
-					,FilterBy
-				)
-			SELECT 
-					main.transid AS GroupID
-					,main.transid AS TransId
-					,sub.transid AS SubTransID
-					,sub.refno
-					,sub.custid				
-					,sub.transdate
-					,main.bettype
-					,sub.livehomescore
-					,sub.liveawayscore
-					,1 AS IsMixParlay
-					,sub.liveindicator
-					,sub.matchid
-					,main.statusID
-					,sub.checktime
-					,d.SubIssueTypeId
-					,d.FilterBy
-			FROM	#WrongHDP d
-					INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 1 --soccer
-					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId
-					INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON	main.refno = sub.refno 
-					OUTER APPLY (
-						SELECT DISTINCT val 
-						FROM dbo.f_SplitString(d.HomeFavorite, '&')
-						WHERE val <> ''				
-					)xHDPHome
-					OUTER APPLY (
-						SELECT DISTINCT val 
-						FROM dbo.f_SplitString(d.AwayFavorite, '&')
-						WHERE val <> ''				
-					)xHDPAway
-					OUTER APPLY (
-						SELECT DISTINCT val 
-						FROM dbo.f_SplitString(d.HdpValue, '&')
-						WHERE val <> ''				
-					)xHDPvalue
-			WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
-							ELSE 0 END
-					AND sub.betfrom <> 'P'
-					AND main.matchid = 29
-					AND main.bettype = 29
-					AND 1 = CASE WHEN d.FilterBy = 0 AND main.transid BETWEEN d.FilterFromBetId AND d.FilterToBetId THEN 1
-								 WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-								 ELSE 0 END
-					AND sub.bettype = 7 
-					AND 1 = CASE WHEN d.SubIssueTypeId = 9 AND sub.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
-								 WHEN d.SubIssueTypeId = 9 AND sub.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
-								 WHEN d.SubIssueTypeId = 24 AND sub.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-								 WHEN d.SubIssueTypeId = 25 AND sub.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
-								 ELSE 0 END 
-					OPTION (MAXRECURSION 0)
-		END  
-	END
-
 	-- update MainTransId
 	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE RefCode IS NOT NULL)
 	BEGIN
@@ -1504,7 +1307,7 @@ BEGIN
 				WHERE t.TransId = b.SubTransid
 		)tmp
 		CROSS APPLY (SELECT CASE 
-								WHEN b.FilterBy IN(0,1) THEN b.transdate
+								WHEN b.FilterBy IN (0,1) THEN b.transdate
 								WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 								WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 							 END AS VoidTime
@@ -2236,5 +2039,7 @@ BEGIN
 	DROP TABLE #FilterInfo
 	DROP TABLE #WrongHDP
 	DROP TABLE #FilterBetId
+	DROP TABLE #transIdTemp
 END
 GO
+
