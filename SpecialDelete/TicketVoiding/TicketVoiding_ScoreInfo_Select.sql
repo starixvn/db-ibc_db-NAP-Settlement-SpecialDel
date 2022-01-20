@@ -16,6 +16,7 @@ AS
 		- 20210528@Max: Exclude some group bettypes [Redmine: #155598]
 		- 20210616@Max: [TVS] Wrong Score Enhancement 1 [Redmine: #156349]
 		- 20210811@Max: [TVS] Wrong Score Enhancement 2 [Redmine: #157096]
+		- 20220120@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 	
 	Param's explanation:
 		
@@ -26,23 +27,27 @@ BEGIN
 	CREATE TABLE #WrongScore (Id SMALLINT PRIMARY KEY IDENTITY(1,1), ScoreId INT, MatchId INT, Score VARCHAR(20), updatetime DATETIME, IsActive BIT, KickOffTime DATETIME)
 	
 	--init for first  score 0-0
-	INSERT INTO #WrongScore (ScoreId, MatchId, Score, updatetime, IsActive, KickOffTime)
-	SELECT 0, @MatchId, '0-0', NULL, 1, m.kickofftime
-	FROM dbo.match m WITH (NOLOCK)
-	WHERE m.matchid = @MatchId
+	IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.Dot_Admin_Suspender_Actionlog WITH (NOLOCK) WHERE MatchID = @MatchId AND EventID = 1 AND HomeVal = '0' AND AwayVal = '0')
+	BEGIN
+		INSERT INTO #WrongScore (ScoreId, MatchId, Score, updatetime, IsActive, KickOffTime)
+		SELECT 0, @MatchId, '0-0', NULL, 1, m.kickofftime
+		FROM dbo.match m WITH (NOLOCK)
+		WHERE m.matchid = @MatchId
+	END
 	
 	--getdate from table MatchReportDetail
 	INSERT INTO #WrongScore (ScoreId, MatchId, Score, updatetime, IsActive)
-	SELECT md.id 
+	SELECT md.LogID 
 		, md.matchid
-		, md.Score
-		, md.updatetime
-		, md.IsActive
-	FROM dbo.MatchReportDetail md WITH (NOLOCK)
+		, md.HomeVal + '-' + md.AwayVal
+		, md.InsertDateTime
+		, 1 --md.IsActive, TW is updating IsActive Column
+	FROM dbo.Dot_Admin_Suspender_Actionlog md WITH (NOLOCK)
 	WHERE md.matchid = @MatchId
-		AND md.ModeId IN (1,2,3,4)
-		AND md.Score IS NOT NULL
-	ORDER BY md.id
+		AND md.EventID = 1
+		AND md.HomeVal IS NOT NULL
+		AND md.AwayVal IS NOT NULL
+	ORDER BY md.LogID
 	
 	SELECT @MatchId AS MatchId 
 		, w1.ScoreId
