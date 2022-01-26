@@ -49,6 +49,7 @@ AS
 		- 20211027@Kathy: Apply all bettype for pingoal [Redmine:#163762]
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
+		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -198,7 +199,7 @@ BEGIN
 	    RETURN
 	END
 
-	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' )
+	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) AND @LeagueGroupID <> 122
 		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
 		@MatchId	= @MatchId
 		,@Action	= @Action
