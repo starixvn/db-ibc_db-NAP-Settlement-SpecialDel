@@ -31,6 +31,7 @@ AS
 		- 20210126@Louisa: Cricket AIO - Early bettype [Redmine:#148870]
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
+		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]
 		
 */
 RETURN
@@ -86,7 +87,7 @@ RETURN
 					WHEN @HomeValue IN ('n', 'd') THEN 0
 					ELSE -1 END
 					
-			WHEN @pfID IN ( 101, 9090 ) THEN --Duration Over/Under 
+			WHEN @pfID IN ( 101, 9090, 9448 ) THEN --Over/Under 
 			   CASE WHEN @betteam IN ('h', 'o') AND fm > 0 THEN 1
 					WHEN @betteam IN ('a', 'u') AND fm < 0 THEN 1
 					WHEN fm = 0 THEN 0
@@ -407,7 +408,7 @@ RETURN
 					WHEN fm < 0 AND @betteam IN ('AB', 'HL') THEN 1
 					ELSE -1
 				END
-			WHEN @pfID = 9541 THEN
+			WHEN @pfID IN ( 9541, 9606 ) THEN
 				CASE
 					WHEN fm < @hdp1 
 						THEN CASE
@@ -470,7 +471,7 @@ RETURN
 											 ELSE (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 										END
 					--Happy5
-					WHEN @pfID IN (8101, 619, 9490) THEN CAST(@HomeValue AS SMALLMONEY)
+					WHEN @pfID IN (8101, 619, 9490, 9541) THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8102 THEN CAST(@HomeValue AS SMALLMONEY) % 2
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID IN (8104, 601, 602, 501, 9538, 9539) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
@@ -484,7 +485,7 @@ RETURN
 					WHEN @pfID IN (402,9096) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1
 
 					--CricketAIO
-					WHEN @pfID = 9541 THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID = 9606 THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
 
 					ELSE -1 END)
 			AS fm
