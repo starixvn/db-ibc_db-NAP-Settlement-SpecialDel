@@ -233,8 +233,52 @@ WHERE p.type  = 'p' and p.number BETWEEN 1 AND 200
 ORDER BY p.number
 
 
---select * from #Number
+--INSERT INTO dbo.SettlementSpecialBettypeProfile
+--					(pfID
+--					,SportType
+--					,BetType
+--					,BetID
+--					,ResourceID
+--					,SettleType
+--					,GroupType
+--					,RoundID
+--					,OddsType
+--					,OrdNo
+--					)
+SELECT cr.pfID  ,50 AS SportType ,cr.BetType  
+		, 0 AS BetID
+		, cr.Prefix AS ResourceID
+		, SettleType
+		, CASE WHEN cr.Prefix = '00' THEN 'FT'
+				ELSE 'SP'
+			END AS GroupType
+		, CASE WHEN cr.Prefix IN ( 'A1','H1' ) THEN '1'
+			   WHEN cr.Prefix IN ( 'A2','H2' ) THEN '2'
+			   WHEN cr.Prefix = '00' THEN '0'
+			   ELSE NULL
+			 END AS RoundID
+		, 1 AS OddsType
+		, CASE cr.Prefix WHEN 'H1'  THEN 1
+						WHEN 'A1' THEN 2
+						WHEN 'H2' THEN 3
+						WHEN 'A2' THEN 4
+						WHEN '00' THEN 99
+						ELSE NULL
+			END AS OrdNo
+FROM #Cricket_2 cr
+WHERE cr.SettleType = 'MNL'
 
+--INSERT INTO dbo.SettlementSpecialBettypeProfile
+--					(pfID
+--					,SportType
+--					,BetType
+--					,BetID
+--					,ResourceID
+--					,SettleType
+--					,GroupType
+--					,RoundID
+--					,OddsType
+--					)
 SELECT cr.pfID  ,50 AS SportType ,cr.BetType  
 		, CASE WHEN cr.BetID <> '0' THEN + '8' + RIGHT(n.Suffix, 3)
 				ELSE cr.BetID
@@ -250,7 +294,6 @@ SELECT cr.pfID  ,50 AS SportType ,cr.BetType
 			   ELSE NULL
 			 END AS RoundID
 		, 1 AS OddsType
-		, cr.Num, cr.BetID, cr.Suffix, cr.RangeID, n.Suffix
 FROM #Cricket_2 cr
 	CROSS APPLY (
 				SELECT n.Suffix FROM #Number n 
@@ -258,17 +301,15 @@ FROM #Cricket_2 cr
 					AND n.Num <= cr.RangeID 
 				) n
 WHERE cr.Bettype NOT IN (9616, 9617, 9547, 9548, 9549, 9550, 9551, 9552)
-	AND bettype = 9484
+	AND cr.SettleType = 'EAR'
 ORDER BY cr.BetType
 		,  CASE WHEN cr.BetID <> '0' THEN + '8' + RIGHT(n.Suffix, 3)
 				ELSE cr.BetID
 			END
 
 
-			select * from #Cricket_2 
-			where RangeID = 0
 
-
+---7324 ResourceId
 
 
  
