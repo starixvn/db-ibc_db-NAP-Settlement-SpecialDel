@@ -86,6 +86,10 @@ RETURN
 			   CASE WHEN @betteam IN ('h', 'a', 'c', 'nc', 'm', 'nm', 't', 'b', 'nb', 'nt', 'o' ) AND @betteam = @HomeValue THEN 1
 					WHEN @HomeValue IN ('n', 'd') THEN 0
 					ELSE -1 END
+
+			WHEN @pfID = 9636 THEN
+				CASE WHEN @betteam IN ('c', 'b', 'lbw', 'ro', 's', 'ot') AND @betteam = @HomeValue THEN 1
+					 ELSE -1 END
 					
 			WHEN @pfID IN ( 101, 9090, 9448 ) THEN --Over/Under 
 			   CASE WHEN @betteam IN ('h', 'o') AND fm > 0 THEN 1
@@ -432,13 +436,25 @@ RETURN
 					WHEN @betteam = @HomeValue  THEN 1
 					ELSE -1					 
 				END
+
+			WHEN @pfID IN (9484, 9486) THEN
+				CASE WHEN @betteam = '0' THEN
+											CASE WHEN @pfid = 9484 AND @HomeValue < @hdp1 THEN 1
+												 WHEN @pfid = 9486 AND @HomeValue = @hdp1 THEN 1
+												 ELSE -1
+											END
+					 WHEN @betteam IN ( '1', '2', '3', '4', '5', '6') AND @HomeValue = @hdp1 THEN 1
+					 WHEN @betteam = '7' AND @HomeValue > @hdp1 THEN 1
+					 ELSE -1
+				END
+
 			WHEN @pfID = 9540 THEN 
 				CASE 
 					WHEN @betteam IN ( 'HB', 'AL' ) AND @HomeValue = 'H' THEN 1
 					WHEN @betteam IN ( 'AB', 'HL' ) AND @HomeValue = 'A' THEN 1
 					ELSE -1
 				END
-			WHEN @pfId = 7901 THEN
+			WHEN @pfId = 7901 THEN --Bitcoin and Cricket
 				CASE
 					WHEN fm = 0 THEN 0
 					WHEN @betteam = 'o' AND fm > 0 THEN 1
@@ -455,9 +471,9 @@ RETURN
 					WHEN @pfID = 10 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2) -- not use livescore
 					WHEN @pfID = 9116 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 * 1000)
 					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
-
+					
 					--Over/Under
-					WHEN @pfID = 3 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
+					WHEN @pfID IN (3, 9448) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
 					WHEN @pfID = 9117 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000)
 					WHEN @pfID = 9118 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000
 					WHEN @pfID = 9119 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000
@@ -471,7 +487,7 @@ RETURN
 											 ELSE (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
 										END
 					--Happy5
-					WHEN @pfID IN (8101, 619, 9490, 9541) THEN CAST(@HomeValue AS SMALLMONEY)
+					WHEN @pfID IN (8101, 619, 9490, 9541, 9484, 9486) THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8102 THEN CAST(@HomeValue AS SMALLMONEY) % 2
 					WHEN @pfID = 8103 THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID IN (8104, 601, 602, 501, 9538, 9539) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
