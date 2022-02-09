@@ -50,6 +50,7 @@ AS
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
+		- 20220128@Kathy: Cricket AIO Phase 2 [Redmine:#166335]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -115,9 +116,9 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	--DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT, BetdaqId BIGINT)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT, BetdaqId BIGINT, DeadHeat TINYINT)
 
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, DeadHeat TINYINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
 								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20)
@@ -374,12 +375,13 @@ BEGIN
 
 			IF @sportType <> 1
 			BEGIN
-				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId)
+				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, DeadHeat)
 	  			SELECT 
 					b.transid, m.modds
 					, sr.OddsType
 					, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 					,ISNULL(b.betdaqid,0)
+					,m.DeadHeat
 	  			FROM bettrans b WITH (NOLOCK)
 					OUTER APPLY (
 									SELECT TOP (1) mt.TransId
@@ -652,8 +654,8 @@ BEGIN
 			
 			UPDATE TOP(@batchNo) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds, deleted.OddsType, deleted.srecommend, deleted.bettype, deleted.IsMarked
-			INTO @tmpTransIDBatch(transid, modds, OddsType, srecommend, bettype, IsMarked)
+			OUTPUT deleted.transid, deleted.modds, deleted.OddsType, deleted.srecommend, deleted.bettype, deleted.IsMarked, deleted.DeadHeat
+			INTO @tmpTransIDBatch(transid, modds, OddsType, srecommend, bettype, IsMarked, DeadHeat)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -669,6 +671,7 @@ BEGIN
 											   ,srecommend AS '@sr'
 											   ,bettype AS '@bt'
 											   ,IsMarked AS '@im'
+											   ,DeadHeat AS '@dh'
 									   FROM @tmpTransIDBatch
 									   FOR XML PATH('r'), ROOT( 'root' ))
 

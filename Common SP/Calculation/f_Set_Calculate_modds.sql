@@ -461,9 +461,21 @@ RETURN
 					WHEN @betteam = 'u' AND fm < 0  THEN 1
 					ELSE - 1
 				END 			
-
+			WHEN @pfID = 9650 THEN
+				CASE 
+					WHEN CHARINDEX(@betteam, @HomeValue) > 0 THEN 1 
+					ELSE -1
+				END
+			WHEN @pfID = 9662 THEN --betteam = homevalue
+			   CASE WHEN @betteam = @HomeValue THEN 1
+					WHEN @HomeValue IN ('n', 'd') THEN 0
+					ELSE -1 END
 			ELSE -1 
 		END AS modds
+		,CASE 
+			WHEN @pfID = 9650 THEN LEN(@HomeValue ) - LEN(REPLACE(@HomeValue, ',','')) + 1
+			ELSE NULL
+		END AS DeadHeat
    FROM
 	(
 		SELECT (CASE 

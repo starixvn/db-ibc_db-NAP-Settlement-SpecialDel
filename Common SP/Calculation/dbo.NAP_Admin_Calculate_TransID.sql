@@ -17,6 +17,7 @@ AS
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 202103186@Louisa: Cricket AIO [Redmine:#148870]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
+		- 20220128@Kathy: Cricket AIO Phase 2 [Redmine:#166335]
 		
 	Param's Explanation:  
 		   
@@ -50,7 +51,7 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	
-	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT, finalodds SMALLMONEY)
+	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT, finalodds SMALLMONEY, DeadHeat TINYINT)
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
 			,@commWinRate		SMALLMONEY
@@ -66,14 +67,15 @@ BEGIN
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
-	INSERT INTO @tempTrans(TransID, modds, oddstype, srecommend, bettype, IsMarked)
-	SELECT t, m, ot, sr, bt,im
+	INSERT INTO @tempTrans(TransID, modds, oddstype, srecommend, bettype, IsMarked, DeadHeat)
+	SELECT t, m, ot, sr, bt,im, dh
 	FROM OPENXML(@handle,'root/r',1) WITH(t   BIGINT
 										 ,m   SMALLMONEY
 										 ,ot  TINYINT
 										 ,sr  INT
 										 ,bt  SMALLINT
 										 ,im  BIT	
+										 ,dh  TINYINT
 									) tbl
 	EXEC sp_xml_removedocument @handle
 
@@ -138,7 +140,7 @@ BEGIN
 								WHEN @modds IS NULL THEN 6
 							END 			   	
 		,@winlost = CASE
-				WHEN @modds >  0.25 THEN actual_stake + stake * @odds
+				WHEN @modds >  0.25 THEN CASE WHEN ISNULL(sr.DeadHeat,0) > 0 THEN (@odds/sr.DeadHeat + 1) * stake ELSE actual_stake + stake * @odds END
 				WHEN @modds =  0.25 THEN actual_stake + stake * @odds * 0.5
 				WHEN @modds =  0	THEN actual_stake
 				WHEN @modds = -0.25 THEN actual_stake * 0.5
@@ -166,7 +168,7 @@ BEGIN
 		,aWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN aWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking
+								WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking/ISNULL(sr.DeadHeat,1)
 								WHEN @modds =  0.25 THEN stake * @odds * -apositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * apositiontaking * 0.5
@@ -177,7 +179,7 @@ BEGIN
 		,mWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN mWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * @odds * -mpositiontaking
+								WHEN @modds >  0.25 THEN stake * @odds * -mpositiontaking/ISNULL(sr.DeadHeat,1)
 								WHEN @modds =  0.25 THEN stake * @odds * -mpositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * mpositiontaking * 0.5
@@ -188,7 +190,7 @@ BEGIN
 		,sWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN sWinLost 
 						ELSE CASE
-								WHEN @modds >  0.25 THEN stake * @odds * -spositiontaking
+								WHEN @modds >  0.25 THEN stake * @odds * -spositiontaking/ISNULL(sr.DeadHeat,1)
 								WHEN @modds =  0.25 THEN stake * @odds * -spositiontaking * 0.5
 								WHEN @modds =  0	THEN 0
 								WHEN @modds = -0.25 THEN actual_stake * spositiontaking * 0.5
