@@ -124,32 +124,32 @@ GO
 	UNION ALL SELECT 69	,9541	,9579	,'0'		,'9455[2]'	,''					 ,0		,'EAR'	--Away 2nd Inns Fours Fancy		 
 	------------------------------------------------------------------------------------------------------
 	----			No, pfID , BetType, BetID,		Prefix		, Suffix			,Range	, SettleType
-	UNION ALL SELECT 70	,100	,9650	,'0'		,'96501'	,''					,0		,'EAR'	--Home Top Batsman										 
-	UNION ALL SELECT 71	,100	,9651	,'0'		,'96511'	,''					,0		,'EAR'	--Away Top Batsman										 
-	UNION ALL SELECT 72	,100	,9652	,'0'		,'96501'	,''					,0		,'EAR'	--Home 1st Inns Top Batsman								 
-	UNION ALL SELECT 73	,100	,9653	,'0'		,'96511'	,''					,0		,'EAR'	--Away 1st Inns Top Batsman								 
-	UNION ALL SELECT 74	,100	,9654	,'0'		,'96501'	,''					,0		,'EAR'	--Home 2nd Inns Top Batsman								 
-	UNION ALL SELECT 75	,100	,9655	,'0'		,'96511'	,''					,0		,'EAR'	--Away 2nd Inns Top Batsman								 
-	UNION ALL SELECT 76	,100	,9656	,'0'		,'96561'	,''					,0		,'EAR'	--Home Top Bowler										 
-	UNION ALL SELECT 77	,100	,9657	,'0'		,'96571'	,''					,0		,'EAR'	--Away Top Bowler										 
-	UNION ALL SELECT 78	,100	,9658	,'0'		,'96561'	,''					,0		,'EAR'	--Home 1st Inns Top Bowler								 
-	UNION ALL SELECT 79	,100	,9659	,'0'		,'96571'	,''					,0		,'EAR'	--Away 1st Inns Top Bowler								 
-	UNION ALL SELECT 80	,100	,9660	,'0'		,'96562'	,''					,0		,'EAR'	--Home 2nd Inns Top Bowler								 
-	UNION ALL SELECT 81	,100	,9661	,'0'		,'96572'	,''					,0		,'EAR'	--Away 2nd Inns Top Bowler								 
-	UNION ALL SELECT 82	,100	,9662	,'0'		,'9662[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Home Next Man Out							 
-	UNION ALL SELECT 83	,100	,9663	,'0'		,'9663[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Away Next Man Out							 
-	UNION ALL SELECT 84	,100	,9664	,'0'		,'9662[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Home 1st Inns Next Man Out				 
-	UNION ALL SELECT 85	,100	,9665	,'0'		,'9663[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Away 1st Inns Next Man Out				 
-	UNION ALL SELECT 86	,100	,9666	,'0'		,'9662[2]'	,'0[0-1][0-9]'		,10		,'EAR'	---Home 2nd Inns Next Man Out				 
-	UNION ALL SELECT 87	,100	,9667	,'0'		,'9663[2]'	,'0[0-1][0-9]'		,10		,'EAR'	---Away 2nd Inns Next Man Out				 
-	UNION ALL SELECT 88	,100	,9668	,'0'		,'96681'	,''					,0		,'EAR'	--Home Prematch Top Batsman									 
-	UNION ALL SELECT 89	,100	,9669	,'0'		,'96711'	,''					,0		,'EAR'	--Away Prematch Top Batsman									 
-	UNION ALL SELECT 90	,100	,9670	,'0'		,'96681'	,''					,0		,'EAR'	--Home 1st Inns Prematch Top Batsman						 
-	UNION ALL SELECT 91	,100	,9671	,'0'		,'96711'	,''					,0		,'EAR'	--Away 1st Inns Prematch Top Batsman						 
-	UNION ALL SELECT 92	,100	,9672	,'0'		,'96721'	,''					,0		,'EAR'	--Home Prematch Top Bowler									 
-	UNION ALL SELECT 93	,100	,9673	,'0'		,'96751'	,''					,0		,'EAR'	--Away Prematch Top Bowler									 
-	UNION ALL SELECT 94	,100	,9674	,'0'		,'96721'	,''					,0		,'EAR'	--Home 1st Inns Prematch Top Bowler							 
-	UNION ALL SELECT 95	,100	,9675	,'0'		,'96751'	,''					,0		,'EAR'	--Away 1st Inns Prematch Top Bowler							 
+	UNION ALL SELECT 70	,9650	,9650	,'0'		,'96501'	,''					,0		,'EAR'	--Home Top Batsman										 
+	UNION ALL SELECT 71	,9650	,9651	,'0'		,'96511'	,''					,0		,'EAR'	--Away Top Batsman										 
+	UNION ALL SELECT 72	,9650	,9652	,'0'		,'96501'	,''					,0		,'EAR'	--Home 1st Inns Top Batsman								 
+	UNION ALL SELECT 73	,9650	,9653	,'0'		,'96511'	,''					,0		,'EAR'	--Away 1st Inns Top Batsman								 
+	UNION ALL SELECT 74	,9650	,9654	,'0'		,'96501'	,''					,0		,'EAR'	--Home 2nd Inns Top Batsman								 
+	UNION ALL SELECT 75	,9650	,9655	,'0'		,'96511'	,''					,0		,'EAR'	--Away 2nd Inns Top Batsman								 
+	UNION ALL SELECT 76	,9650	,9656	,'0'		,'96561'	,''					,0		,'EAR'	--Home Top Bowler										 
+	UNION ALL SELECT 77	,9650	,9657	,'0'		,'96571'	,''					,0		,'EAR'	--Away Top Bowler										 
+	UNION ALL SELECT 78	,9650	,9658	,'0'		,'96561'	,''					,0		,'EAR'	--Home 1st Inns Top Bowler								 
+	UNION ALL SELECT 79	,9650	,9659	,'0'		,'96571'	,''					,0		,'EAR'	--Away 1st Inns Top Bowler								 
+	UNION ALL SELECT 80	,9650	,9660	,'0'		,'96562'	,''					,0		,'EAR'	--Home 2nd Inns Top Bowler								 
+	UNION ALL SELECT 81	,9650	,9661	,'0'		,'96572'	,''					,0		,'EAR'	--Away 2nd Inns Top Bowler								 
+	UNION ALL SELECT 82	,9662	,9662	,'0'		,'9662[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Home Next Man Out							 
+	UNION ALL SELECT 83	,9662	,9663	,'0'		,'9663[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Away Next Man Out							 
+	UNION ALL SELECT 84	,9662	,9664	,'0'		,'9662[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Home 1st Inns Next Man Out				 
+	UNION ALL SELECT 85	,9662	,9665	,'0'		,'9663[1]'	,'0[0-1][0-9]'		,10		,'EAR'	---Away 1st Inns Next Man Out				 
+	UNION ALL SELECT 86	,9662	,9666	,'0'		,'9662[2]'	,'0[0-1][0-9]'		,10		,'EAR'	---Home 2nd Inns Next Man Out				 
+	UNION ALL SELECT 87	,9662	,9667	,'0'		,'9663[2]'	,'0[0-1][0-9]'		,10		,'EAR'	---Away 2nd Inns Next Man Out				 
+	UNION ALL SELECT 88	,9650	,9668	,'0'		,'96681'	,''					,0		,'EAR'	--Home Prematch Top Batsman									 
+	UNION ALL SELECT 89	,9650	,9669	,'0'		,'96711'	,''					,0		,'EAR'	--Away Prematch Top Batsman									 
+	UNION ALL SELECT 90	,9650	,9670	,'0'		,'96681'	,''					,0		,'EAR'	--Home 1st Inns Prematch Top Batsman						 
+	UNION ALL SELECT 91	,9650	,9671	,'0'		,'96711'	,''					,0		,'EAR'	--Away 1st Inns Prematch Top Batsman						 
+	UNION ALL SELECT 92	,9650	,9672	,'0'		,'96721'	,''					,0		,'EAR'	--Home Prematch Top Bowler									 
+	UNION ALL SELECT 93	,9650	,9673	,'0'		,'96751'	,''					,0		,'EAR'	--Away Prematch Top Bowler									 
+	UNION ALL SELECT 94	,9650	,9674	,'0'		,'96721'	,''					,0		,'EAR'	--Home 1st Inns Prematch Top Bowler							 
+	UNION ALL SELECT 95	,9650	,9675	,'0'		,'96751'	,''					,0		,'EAR'	--Away 1st Inns Prematch Top Bowler							 
 	UNION ALL SELECT 96	,9616	,9676	,'0'		,'9676[1]'	,'0[0-1][0-9]'		,11		,'EAR'	--Home Player Runs				
 	UNION ALL SELECT 97	,8102	,9677	,'0'		,'9676[1]'	,'0[0-1][0-9]'		,11		,'EAR'	--Home Player Runs OE				
 	UNION ALL SELECT 98	,9616	,9678	,'0'		,'9676[1]'	,'0[0-1][0-9]'		,11		,'EAR'	--Home 1st Inns Player Runs		
