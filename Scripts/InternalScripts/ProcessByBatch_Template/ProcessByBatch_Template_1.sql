@@ -7,7 +7,7 @@
 USE bodbxxx
 GO
 
-
+--should define primary key for the temporary tables
 CREATE TABLE #Result(
 	id [int] ,
 	Isfinished BIT
@@ -41,6 +41,8 @@ BEGIN
 	RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 	
 	-- YOUR CODE HERE to process each batch
+
+	WAITFOR DELAY '00:00:00.100' --optional
 	
 	TRUNCATE TABLE #Result_batch
 		
