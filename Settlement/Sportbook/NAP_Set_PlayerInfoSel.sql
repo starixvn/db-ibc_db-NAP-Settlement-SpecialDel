@@ -28,9 +28,10 @@ BEGIN
 			INNER JOIN DBTXN.bodb02.dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
 				ON t.bettype = s.BetType
 		WHERE	s.SportType = 50
-				AND s.BetID = 0
+				AND (s.betid = 0 OR s.ResourceID LIKE '%' + t.betChoice)
 
 	SELECT	ResourceId, bettype, betChoice, OddsInfo
 	FROM	#tmpPlayerInfo
 END
 GO
+
