@@ -17,7 +17,7 @@ BEGIN
 	INSERT INTO #tmpPlayerInfo (bettype, betChoice, OddsInfo)
 	SELECT	o.bettype, f.betChoice, f.OddsInfo
 	FROM	dbo.oddsOS o WITH(NOLOCK)
-		INNER JOIN dbo.odds_flex f WITH(NOLOCK)
+		INNER JOIN dbo.oddsOS_flex f WITH(NOLOCK)
 			ON o.oddsid = f.oddsid
 	WHERE	matchid = @matchId
 

@@ -838,13 +838,13 @@ RETURN (
 	UNION ALL SELECT 12, 9697,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9698,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9699,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9701,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9535,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9702,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9703,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9704,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9705,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9706,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9707,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9536,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9537,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9708,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9709,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9710,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
