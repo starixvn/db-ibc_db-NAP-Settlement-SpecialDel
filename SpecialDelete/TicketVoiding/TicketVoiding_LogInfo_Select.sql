@@ -64,6 +64,7 @@ AS
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/></root>
 	
+		(Filterby 1: By Transdate, 2: By Checktime, 3: Filter by Transdate & Checktime)
 */
 BEGIN
 	SET NOCOUNT ON 
