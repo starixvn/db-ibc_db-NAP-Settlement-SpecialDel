@@ -16,30 +16,40 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE  @ResultID		BIGINT
 			,@SettingTime	DATETIME
-			,@batch			INT = 1000
+	
+	DECLARE @start INT = 1, @end INT
 
-	CREATE TABLE #tmpResultID (ResultID BIGINT)
+	CREATE TABLE #tmpResultID (ID INT IDENTITY(1,1), ResultID BIGINT)
 
 	SET @SettingTime = DATEADD(MONTH, -6, CAST(GETDATE() AS DATETIME))
 
-	WHILE (1=1)
+	INSERT INTO #tmpResultID(ResultID)
+	SELECT ResultID
+	FROM dbo.LicenseeResultAmendment  WITH(NOLOCK)
+	WHERE CreatedDate < @SettingTime
+
+	SET @end = (SELECT MAX(ID) FROM #tmpResultID)
+
+	--Delete data
+	WHILE (@start <= @end)
 	BEGIN
-		DELETE TOP(@batch) l
-			OUTPUT deleted.ResultID
-			INTO #tmpResultID (ResultID)
-		FROM dbo.LicenseeResultAmendment l WITH(ROWLOCK)
-		WHERE l.CreatedDate < @SettingTime
+		SELECT @ResultID = ResultID
+		FROM #tmpResultID
+		WHERE ID = @start
 
-		IF @@ROWCOUNT = 0 BREAK;
-	END
+		DELETE FROM LicenseeResultAmendment WITH(ROWLOCK) WHERE ResultID = @ResultID
+		
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(1000) d
+			FROM dbo.LicenseeResultAmendmentDetails d WITH(ROWLOCK)
+			WHERE d.ResultID = @ResultID 
 
-	WHILE (1=1)
-	BEGIN
-		DELETE TOP(@batch) d
-		FROM dbo.LicenseeResultAmendmentDetails d WITH(ROWLOCK)
-			INNER JOIN #tmpResultID r ON d.ResultID = r.ResultID
+			IF @@ROWCOUNT = 0 BREAK
 
-		IF @@ROWCOUNT = 0 BREAK;
+			WAITFOR DELAY '00:00:00.020'
+		END
+		SET @start = @start + 1
 	END
 
 	DROP TABLE #tmpResultID
