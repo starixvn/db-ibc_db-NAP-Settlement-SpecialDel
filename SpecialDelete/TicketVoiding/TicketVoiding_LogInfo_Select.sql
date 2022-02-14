@@ -64,7 +64,7 @@ AS
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/></root>
 	
-		(Filterby 1: By Transdate, 2: By Checktime, 3: Filter by Transdate & Checktime)
+		(Filterby 1: By Transdate, 2: By Checktime, 4: Filter by Transdate & Checktime)
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -680,8 +680,8 @@ BEGIN
 			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 				
 		--Init Validation
-		INSERT INTO @Validation (livehomescore, liveawayscore, LiveScores, ScoreId)
-		SELECT DISTINCT livehomescore, liveawayscore, CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores, ScoreId
+		INSERT INTO @Validation (livehomescore, liveawayscore, LiveScores, ScoreId, MatchId)
+		SELECT DISTINCT livehomescore, liveawayscore, CAST(livehomescore AS VARCHAR(2)) + '-' + CAST(liveawayscore AS VARCHAR(2)) AS LiveScores, ScoreId, MatchId
 		FROM #FilterInfo
 		
 		-- search tickets : not metric gaming tickets, mix parlay tickets
@@ -741,7 +741,7 @@ BEGIN
 				AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 				AND 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 							WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-							WHEN d.FilterBy = 3 
+							WHEN d.FilterBy = 4 
 								AND ((b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
 							THEN 1
 						ELSE 0 END 
@@ -817,7 +817,7 @@ BEGIN
 					AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 					AND 1 = CASE WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 							WHEN d.FilterBy = 2 AND ISNULL(sub.checktime, sub.transdate) BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-							WHEN d.FilterBy = 3 
+							WHEN d.FilterBy = 4 
 								AND ((sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
 							THEN 1
 						ELSE 0 END 
@@ -1338,12 +1338,13 @@ BEGIN
 								WHEN b.FilterBy IN (0,1) THEN b.transdate
 								WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 								WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-								WHEN @FilterBy = 3 THEN b.transdate
+								WHEN @FilterBy = 4 THEN b.transdate
 							 END AS VoidTime
 					)act
 	WHERE tmp.TransId IS NULL
-	GROUP BY CASE WHEN @IssueTypeId <> 3 OR (@IssueTypeId = 3 AND @FilterBy = 2) THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END, b.matchid, b.ScoreId
-	ORDER BY b.ScoreId, CASE WHEN @IssueTypeId <> 3 THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END
+	GROUP BY CASE WHEN @IssueTypeId <> 3 OR (@IssueTypeId = 3 AND @FilterBy = 2) THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END
+		, b.matchid, b.ScoreId
+	ORDER BY b.ScoreId, CASE WHEN @IssueTypeId <> 3 OR (@IssueTypeId = 3 AND @FilterBy = 2) THEN CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ELSE NULL END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
@@ -1461,7 +1462,7 @@ BEGIN
 						CROSS APPLY (SELECT CASE WHEN rd.FilterBy = 1 THEN b.transdate
 												 WHEN rd.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 												 WHEN rd.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-												 WHEN rd.FilterBy = 3 THEN b.transdate
+												 WHEN rd.FilterBy = 4 THEN b.transdate
 												 END AS VoidTime
 									)act
 					WHERE rd.VoidFromTime = act.VoidTime AND rd.RequestId = @RequestId
