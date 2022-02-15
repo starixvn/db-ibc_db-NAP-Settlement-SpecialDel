@@ -223,7 +223,7 @@ BEGIN
 			)
 
 		SELECT @RequestId AS RequestId
-			  ,@MatchId AS MatchID
+			  ,t.c.value('@MatchId','INT') AS MatchID
 			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
 			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
 			  ,t.c.value('@SingleCount','INT') AS SingleCount
@@ -954,11 +954,10 @@ BEGIN
 		SELECT @actualscore = l.LiveScores
 		FROM #tblGetLogInfo l
 
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
+		SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
 								+', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
 								+', Actual Score: ' + @actualscore
 								+', Wrong Score: ' 
-		SELECT @LogDataContent = @LogDataContent
 								+ CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
 								+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
 								+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
