@@ -123,20 +123,20 @@ GO
 	UNION ALL SELECT 9650	,9651	,'96511'	,0	 --Away Top Batsman										 
 	UNION ALL SELECT 9650	,9652	,'96501'	,0	 --Home 1st Inns Top Batsman								 
 	UNION ALL SELECT 9650	,9653	,'96511'	,0	 --Away 1st Inns Top Batsman								 
-	UNION ALL SELECT 9650	,9654	,'96501'	,0	 --Home 2nd Inns Top Batsman								 
-	UNION ALL SELECT 9650	,9655	,'96511'	,0	 --Away 2nd Inns Top Batsman								 
+	UNION ALL SELECT 9650	,9654	,'96502'	,0	 --Home 2nd Inns Top Batsman								 
+	UNION ALL SELECT 9650	,9655	,'96512'	,0	 --Away 2nd Inns Top Batsman								 
 	UNION ALL SELECT 9650	,9656	,'96561'	,0	 --Home Top Bowler										 
 	UNION ALL SELECT 9650	,9657	,'96571'	,0	 --Away Top Bowler										 
 	UNION ALL SELECT 9650	,9658	,'96561'	,0	 --Home 1st Inns Top Bowler								 
 	UNION ALL SELECT 9650	,9659	,'96571'	,0	 --Away 1st Inns Top Bowler								 
 	UNION ALL SELECT 9650	,9660	,'96562'	,0	 --Home 2nd Inns Top Bowler								 
 	UNION ALL SELECT 9650	,9661	,'96572'	,0	 --Away 2nd Inns Top Bowler								 
-	UNION ALL SELECT 9662	,9662	,'96621'	,10	 ---Home Next Man Out							 
-	UNION ALL SELECT 9662	,9663	,'96631'	,10	 ---Away Next Man Out							 
-	UNION ALL SELECT 9662	,9664	,'96621'	,10	 ---Home 1st Inns Next Man Out				 
-	UNION ALL SELECT 9662	,9665	,'96631'	,10	 ---Away 1st Inns Next Man Out				 
-	UNION ALL SELECT 9662	,9666	,'96622'	,10	 ---Home 2nd Inns Next Man Out				 
-	UNION ALL SELECT 9662	,9667	,'96632'	,10	 ---Away 2nd Inns Next Man Out				 
+	UNION ALL SELECT 9662	,9662	,'96621'	,45	 ---Home Next Man Out							 
+	UNION ALL SELECT 9662	,9663	,'96631'	,45	 ---Away Next Man Out							 
+	UNION ALL SELECT 9662	,9664	,'96621'	,45	 ---Home 1st Inns Next Man Out				 
+	UNION ALL SELECT 9662	,9665	,'96631'	,45	 ---Away 1st Inns Next Man Out				 
+	UNION ALL SELECT 9662	,9666	,'96622'	,45	 ---Home 2nd Inns Next Man Out				 
+	UNION ALL SELECT 9662	,9667	,'96632'	,45	 ---Away 2nd Inns Next Man Out				 
 	UNION ALL SELECT 9650	,9668	,'96681'	,0	 --Home Prematch Top Batsman									 
 	UNION ALL SELECT 9650	,9669	,'96711'	,0	 --Away Prematch Top Batsman									 
 	UNION ALL SELECT 9650	,9670	,'96681'	,0	 --Home 1st Inns Prematch Top Batsman						 
@@ -145,26 +145,26 @@ GO
 	UNION ALL SELECT 9650	,9673	,'96751'	,0	 --Away Prematch Top Bowler									 
 	UNION ALL SELECT 9650	,9674	,'96721'	,0	 --Home 1st Inns Prematch Top Bowler							 
 	UNION ALL SELECT 9650	,9675	,'96751'	,0	 --Away 1st Inns Prematch Top Bowler							 
-	UNION ALL SELECT 7901	,9676	,'96761'	,11	 --Home Player Runs				
-	UNION ALL SELECT 8102	,9677	,'96761'	,11	 --Home Player Runs OE				
-	UNION ALL SELECT 7901	,9678	,'96761'	,11	 --Home 1st Inns Player Runs		
-	UNION ALL SELECT 8102	,9679	,'96761'	,11	 --Home 1st Inns Player Runs OE	
-	UNION ALL SELECT 7901	,9680	,'96801'	,11	 --Home Batsman Runs				
-	UNION ALL SELECT 8102	,9681	,'96801'	,11	 --Home Batsman Runs OE			
-	UNION ALL SELECT 7901	,9682	,'96801'	,11	 --Home 1st Inns Batsman Runs		
-	UNION ALL SELECT 8102	,9683	,'96801'	,11	 --Home 1st Inns Batsman Runs OE	
-	UNION ALL SELECT 7901	,9684	,'96802'	,11	 --Home 2nd Inns Batsman Runs		
-	UNION ALL SELECT 8102	,9685	,'96802'	,11	 --Home 2nd Inns Batsman Runs OE	
-	UNION ALL SELECT 7901	,9686	,'96861'	,11	 --Away Player Runs				
-	UNION ALL SELECT 8102	,9687	,'96861'	,11	 --Away Player Runs OE				
-	UNION ALL SELECT 7901	,9688	,'96861'	,11	 --Away 1st Inns Player Runs		
-	UNION ALL SELECT 8102	,9689	,'96861'	,11	 --Away 1st Inns Player Runs OE	
-	UNION ALL SELECT 7901	,9690	,'96901'	,11	 --Away Batsman Runs				
-	UNION ALL SELECT 8102	,9691	,'96901'	,11	 --Away Batsman Runs OE			
-	UNION ALL SELECT 7901	,9692	,'96901'	,11	 --Away 1st Inns Batsman Runs		
-	UNION ALL SELECT 8102	,9693	,'96901'	,11	 --Away 1st Inns Batsman Runs OE	
-	UNION ALL SELECT 7901	,9694	,'96902'	,11	 --Away 2nd Inns Batsman Runs		
-	UNION ALL SELECT 8102	,9695	,'96902'	,11	 --Away 2nd Inns Batsman Runs OE	
+	UNION ALL SELECT 7901	,9676	,'96761'	,5	 --Home Player Runs				
+	UNION ALL SELECT 8102	,9677	,'96761'	,5	 --Home Player Runs OE				
+	UNION ALL SELECT 7901	,9678	,'96761'	,5	 --Home 1st Inns Player Runs		
+	UNION ALL SELECT 8102	,9679	,'96761'	,5	 --Home 1st Inns Player Runs OE	
+	UNION ALL SELECT 7901	,9680	,'96801'	,10	 --Home Batsman Runs				
+	UNION ALL SELECT 8102	,9681	,'96801'	,10	 --Home Batsman Runs OE			
+	UNION ALL SELECT 7901	,9682	,'96801'	,10	 --Home 1st Inns Batsman Runs		
+	UNION ALL SELECT 8102	,9683	,'96801'	,10	 --Home 1st Inns Batsman Runs OE	
+	UNION ALL SELECT 7901	,9684	,'96802'	,10	 --Home 2nd Inns Batsman Runs		
+	UNION ALL SELECT 8102	,9685	,'96802'	,10	 --Home 2nd Inns Batsman Runs OE	
+	UNION ALL SELECT 7901	,9686	,'96861'	,5	 --Away Player Runs				
+	UNION ALL SELECT 8102	,9687	,'96861'	,5	 --Away Player Runs OE				
+	UNION ALL SELECT 7901	,9688	,'96861'	,5	 --Away 1st Inns Player Runs		
+	UNION ALL SELECT 8102	,9689	,'96861'	,5	 --Away 1st Inns Player Runs OE	
+	UNION ALL SELECT 7901	,9690	,'96901'	,10	 --Away Batsman Runs				
+	UNION ALL SELECT 8102	,9691	,'96901'	,10	 --Away Batsman Runs OE			
+	UNION ALL SELECT 7901	,9692	,'96901'	,10	 --Away 1st Inns Batsman Runs		
+	UNION ALL SELECT 8102	,9693	,'96901'	,10	 --Away 1st Inns Batsman Runs OE	
+	UNION ALL SELECT 7901	,9694	,'96902'	,10	 --Away 2nd Inns Batsman Runs		
+	UNION ALL SELECT 8102	,9695	,'96902'	,10	 --Away 2nd Inns Batsman Runs OE	
 	UNION ALL SELECT 7901	,9462	,'94601'	,0	 --Home 1st Inns Sixes															 	
 	UNION ALL SELECT 7901	,9463	,'94611'	,0	 --Away 1st Inns Sixes															 	
 	UNION ALL SELECT 7901	,9456	,'94541'	,0	 --Home 1st Inns Fours															 	
@@ -175,48 +175,48 @@ GO
 	UNION ALL SELECT 7901	,9465	,'94612'	,0	 --Away 2nd Inns Sixes															 	
 	UNION ALL SELECT 7901	,9458	,'94542'	,0	 --Home 2nd Inns Fours															 	
 	UNION ALL SELECT 7901	,9459	,'94552'	,0	 --Away 2nd Inns Fours															 	
-	UNION ALL SELECT 8102	,9536	,'94541'	,0	 --Home 2nd Inns Fours OE														 	
-	UNION ALL SELECT 8102	,9537	,'94551'	,0	 --Away 2nd Inns Fours OE														 	
+	UNION ALL SELECT 8102	,9536	,'94542'	,0	 --Home 2nd Inns Fours OE														 	
+	UNION ALL SELECT 8102	,9537	,'94552'	,0	 --Away 2nd Inns Fours OE														 	
 	UNION ALL SELECT 7901	,9708	,'97081'	,0	 --1st Inns Highest Individual Score									 
 	UNION ALL SELECT 7901	,9709	,'97091'	,0	 --1st Inns Highest Over Score										 
 	UNION ALL SELECT 100	,9710	,'9442'		,0	 --1st Inns Highest Opening Partnership								 
 	UNION ALL SELECT 100	,9711	,'9443'		,0	 --1st Inns Highest Score in Over 1									 
-	UNION ALL SELECT 9541	,9712	,'96761'	,11	 --Home Player Runs Fancy										 
-	UNION ALL SELECT 9541	,9713	,'96761'	,11	 --Home 1st Inns Player Runs Fancy								 
-	UNION ALL SELECT 9541	,9714	,'96801'	,11	 --Home Batsman Runs Fancy										 
-	UNION ALL SELECT 9541	,9715	,'96801'	,11	 --Home 1st Inns Batsman Runs Fancy							 
-	UNION ALL SELECT 9541	,9716	,'96801'	,11	 --Home 2nd Inns Batsman Runs Fancy							 
-	UNION ALL SELECT 9541	,9717	,'96861'	,11	 --Away Player Runs Fancy									 
-	UNION ALL SELECT 9541	,9718	,'96861'	,11	 --Away 1st Inns Player Runs Fancy							 
-	UNION ALL SELECT 9541	,9719	,'96901'	,11	 --Away Batsman Runs Fancy									 
-	UNION ALL SELECT 9541	,9720	,'96901'	,11	 --Away 1st Inns Batsman Runs Fancy							 
-	UNION ALL SELECT 9541	,9721	,'96901'	,11	 --Away 2nd Inns Batsman Runs Fancy							 
-	UNION ALL SELECT 9541	,9722	,'94841'	,200 --Home Over X Runs Fancy				 			 
-	UNION ALL SELECT 9541	,9723	,'94851'	,200 --Away Over X Runs Fancy				 			 
+	UNION ALL SELECT 9541	,9712	,'96761'	,5	 --Home Player Runs Fancy										 
+	UNION ALL SELECT 9541	,9713	,'96761'	,5	 --Home 1st Inns Player Runs Fancy								 
+	UNION ALL SELECT 9541	,9714	,'96801'	,10	 --Home Batsman Runs Fancy										 
+	UNION ALL SELECT 9541	,9715	,'96801'	,10	 --Home 1st Inns Batsman Runs Fancy							 
+	UNION ALL SELECT 9541	,9716	,'96802'	,10	 --Home 2nd Inns Batsman Runs Fancy							 
+	UNION ALL SELECT 9541	,9717	,'96861'	,5	 --Away Player Runs Fancy									 
+	UNION ALL SELECT 9541	,9718	,'96861'	,5	 --Away 1st Inns Player Runs Fancy							 
+	UNION ALL SELECT 9541	,9719	,'96901'	,10	 --Away Batsman Runs Fancy									 
+	UNION ALL SELECT 9541	,9720	,'96901'	,10	 --Away 1st Inns Batsman Runs Fancy							 
+	UNION ALL SELECT 9541	,9721	,'96902'	,10	 --Away 2nd Inns Batsman Runs Fancy							 
+	UNION ALL SELECT 9541	,9722	,'94841'	,50	 --Home Over X Runs Fancy				 			 
+	UNION ALL SELECT 9541	,9723	,'94851'	,50	 --Away Over X Runs Fancy				 			 
 	UNION ALL SELECT 9541	,9724	,'94841'	,200 --Home 1st Inns Over X Runs Fancy		 			 
 	UNION ALL SELECT 9541	,9725	,'94851'	,200 --Away 1st Inns Over X Runs Fancy		 			 
-	UNION ALL SELECT 9541	,9726	,'94841'	,200 --Home 2nd Inns Over X Runs Fancy		 			 
-	UNION ALL SELECT 9541	,9727	,'94851'	,200 --Away 2nd Inns Over X Runs Fancy		 			 
+	UNION ALL SELECT 9541	,9726	,'94842'	,200 --Home 2nd Inns Over X Runs Fancy		 			 
+	UNION ALL SELECT 9541	,9727	,'94852'	,200 --Away 2nd Inns Over X Runs Fancy		 			 
 	UNION ALL SELECT 9541	,9728	,'97091'	,0	 --1st Inns Highest Over Score Fancy							 
 	UNION ALL SELECT 9541	,9729	,'97081'	,0	 --1st Inns Highest Individual Score Fancy					 
-	UNION ALL SELECT 7901	,9730	,'97301'	,11	 --Home Batsman Sixes						  
-	UNION ALL SELECT 7901	,9731	,'97311'	,11	 --Away Batsman Sixes						  
-	UNION ALL SELECT 7901	,9732	,'97301'	,11	 --Home 1st Inns Batsman Sixes				  
-	UNION ALL SELECT 7901	,9733	,'97311'	,11	 --Away 1st Inns Batsman Sixes				  
-	UNION ALL SELECT 7901	,9734	,'97301'	,11	 --Home 2nd Inns Batsman Sixes				  
-	UNION ALL SELECT 7901	,9735	,'97311'	,11	 --Away 2nd Inns Batsman Sixes				  
-	UNION ALL SELECT 7901	,9736	,'97361'	,11	 --Home Batsman Fours						  
-	UNION ALL SELECT 7901	,9737	,'97371'	,11	 --Away Batsman Fours						  
-	UNION ALL SELECT 7901	,9738	,'97361'	,11	 --Home 1st Inns Batsman Fours				  
-	UNION ALL SELECT 7901	,9739	,'97371'	,11	 --Away 1st Inns Batsman Fours				  
-	UNION ALL SELECT 7901	,9696	,'97361'	,11	 --Home 2nd Inns Batsman Fours				  
-	UNION ALL SELECT 7901	,9697	,'97371'	,11	 --Away 2nd Inns Batsman Fours				  
-	UNION ALL SELECT 7901	,9698	,'96801'	,11	 --Home Batsman Milestones					  
-	UNION ALL SELECT 7901	,9699	,'96901'	,11	 --Away Batsman Milestones					  
-	UNION ALL SELECT 7901	,9702	,'96801'	,11	 --Home 1st Inns Batsman Milestones							 
-	UNION ALL SELECT 7901	,9703	,'96901'	,11	 --Away 1st Inns Batsman Milestones							 
-	UNION ALL SELECT 7901	,9704	,'96801'	,11	 --Home 2nd Inns Batsman Milestones							 
-	UNION ALL SELECT 7901	,9705	,'96901'	,11	 --Away 2nd Inns Batsman Milestones
+	UNION ALL SELECT 7901	,9730	,'97301'	,10	 --Home Batsman Sixes						  
+	UNION ALL SELECT 7901	,9731	,'97311'	,10	 --Away Batsman Sixes						  
+	UNION ALL SELECT 7901	,9732	,'97301'	,10	 --Home 1st Inns Batsman Sixes				  
+	UNION ALL SELECT 7901	,9733	,'97311'	,10	 --Away 1st Inns Batsman Sixes				  
+	UNION ALL SELECT 7901	,9734	,'97302'	,10	 --Home 2nd Inns Batsman Sixes				  
+	UNION ALL SELECT 7901	,9735	,'97312'	,10	 --Away 2nd Inns Batsman Sixes				  
+	UNION ALL SELECT 7901	,9736	,'97361'	,10	 --Home Batsman Fours						  
+	UNION ALL SELECT 7901	,9737	,'97371'	,10	 --Away Batsman Fours						  
+	UNION ALL SELECT 7901	,9738	,'97361'	,10	 --Home 1st Inns Batsman Fours				  
+	UNION ALL SELECT 7901	,9739	,'97371'	,10	 --Away 1st Inns Batsman Fours				  
+	UNION ALL SELECT 7901	,9696	,'97362'	,10	 --Home 2nd Inns Batsman Fours				  
+	UNION ALL SELECT 7901	,9697	,'97372'	,10	 --Away 2nd Inns Batsman Fours				  
+	UNION ALL SELECT 7901	,9698	,'96801'	,10	 --Home Batsman Milestones					  
+	UNION ALL SELECT 7901	,9699	,'96901'	,10	 --Away Batsman Milestones					  
+	UNION ALL SELECT 7901	,9702	,'96801'	,10	 --Home 1st Inns Batsman Milestones							 
+	UNION ALL SELECT 7901	,9703	,'96901'	,10	 --Away 1st Inns Batsman Milestones							 
+	UNION ALL SELECT 7901	,9704	,'96802'	,10	 --Home 2nd Inns Batsman Milestones							 
+	UNION ALL SELECT 7901	,9705	,'96902'	,10	 --Away 2nd Inns Batsman Milestones
 
 	--- STEP 2: Generate ResourceId - SettleType = 'MNL'
 	INSERT INTO #Temp_ResourceID (  pfID, BetType, BetID, ResourceID )

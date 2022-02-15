@@ -33,6 +33,7 @@ AS
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
+		- 20220128@Louisa: Update OtherInfo [Redmine:#166335]
 		
     Param's Explanation: 
     
@@ -62,7 +63,7 @@ BEGIN
 			RETURN
 	END
 
-    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
+    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OtherInfo VARCHAR(50) )
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
@@ -83,13 +84,14 @@ BEGIN
 
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID
-    INSERT INTO @tblSelectedRID(ResourceID, HomeValue, AwayValue)
-    SELECT DISTINCT  Id, Home, Away
+    INSERT INTO @tblSelectedRID(ResourceID, HomeValue, AwayValue, OtherInfo)
+    SELECT DISTINCT  Id, Home, Away, OtherInfo
     FROM OPENXML(@handle,'Resources/Resource',1)
     WITH(
             Id VARCHAR(20)
             ,Home varchar(50)
             ,Away varchar(50)
+			,OtherInfo VARCHAR(50)
         ) tbl
         
     EXEC sp_xml_removedocument @handle
@@ -170,7 +172,7 @@ BEGIN
     BEGIN
 	    MERGE dbo.ResultDetailOS TARGET
 	    USING (
-	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
+	        SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue, sr.OtherInfo
 	        FROM    @tblSelectedRID sr
 	        ) AS SOURCE ON  TARGET.ResourceId = SOURCE.ResourceId AND TARGET.MatchId = @matchid
 	    WHEN MATCHED THEN
@@ -182,9 +184,13 @@ BEGIN
 	            ,LastModifyBy        = @creator
 				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ISNULL(ResultSetting,0) & (~2) --- Turn off bit[2]
 											ELSE ResultSetting END
+				,OtherInfo			 = CASE WHEN @Sporttype = 50 THEN CASE WHEN ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ''
+																			ELSE ISNULL(SOURCE.OtherInfo, TARGET.OtherInfo)
+																			END
+											END
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
-	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
+	        INSERT (MatchId, ResourceId,        HomeValue,        AwayValue,        ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy, OtherInfo)               
+	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator, SOURCE.OtherInfo);
 
 		IF @IsDirectly = 1
 		UPDATE r
