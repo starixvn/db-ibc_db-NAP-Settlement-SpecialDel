@@ -23,6 +23,7 @@ AS
 		- 20201001@Zane: Exclude Virtual Futsal from auto void bet [Redmine: #142512]
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20211214@July: Remove code [Redmine: #165097]
+		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 
 	Param's explanation:	
 		
@@ -53,7 +54,6 @@ BEGIN
 	
 	DECLARE @invalidUserName VARCHAR(MAX) =''
 	DECLARE @TransIds VARCHAR(MAX) = ''
-			, @TransIds_tmp VARCHAR(MAX) = ''
 			, @ErrMsg_tmp VARCHAR (MAX) = ''
 			, @StartTime		DATETIME = GETDATE()
 			, @StartTime_tmp		DATETIME 
@@ -61,7 +61,6 @@ BEGIN
 			, @LogActionId		INT = 90506
 			, @LogData			VARCHAR(MAX)
 			, @InvalidTransIds	VARCHAR(MAX) = ''
-			, @InvalidTransIds_tmp	VARCHAR(MAX) = ''
 			, @SB_Error			BIT
 			, @autoMatchList	VARCHAR(MAX)  = ''
 			, @suspendMatchList VARCHAR(MAX)  = ''
@@ -155,7 +154,7 @@ BEGIN
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 	WHERE eventdate = @eventdate
-		AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108,113)
+		AND ISNULL(l.LeagueGroupID,0) NOT IN (42,74,108,113,122)
 		AND m.sporttype < 99
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)

@@ -75,6 +75,7 @@ AS
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -631,7 +632,7 @@ BEGIN
 					FROM dbo.match m WITH (NOLOCK)
 						INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 					WHERE m.matchid = b.matchid
-						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113)
+						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122)
 				)ml
 				INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 				OUTER APPLY (

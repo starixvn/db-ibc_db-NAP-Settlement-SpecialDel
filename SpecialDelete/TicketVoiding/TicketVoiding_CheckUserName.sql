@@ -24,6 +24,7 @@ AS
 		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20211007@July: Change datatype validation username [Redmine:#161659]
+		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 
 	Param's Explanation:
 */
@@ -217,7 +218,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122)
 			)ml
 			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 			OUTER APPLY (
@@ -270,7 +271,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122)
 			)ml
 			OUTER APPLY (
 				SELECT TOP 1 m.sporttype 

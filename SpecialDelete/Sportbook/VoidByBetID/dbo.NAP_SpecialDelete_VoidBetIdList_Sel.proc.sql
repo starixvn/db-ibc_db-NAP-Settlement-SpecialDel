@@ -63,6 +63,7 @@ AS;
 		- 20210526@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -246,7 +247,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122)
 			)ml
 			INNER JOIN #CustId c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
