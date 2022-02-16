@@ -12,26 +12,16 @@ AS
 		
 */
 BEGIN
-	CREATE TABLE #tmpPlayerInfo (ResourceId VARCHAR(20), bettype SMALLINT, betChoice VARCHAR(20), OddsInfo VARCHAR(200))
-
-	INSERT INTO #tmpPlayerInfo (bettype, betChoice, OddsInfo)
-	SELECT	o.bettype, f.betChoice, f.OddsInfo
+	SELECT	s.ResourceID, o.bettype, f.betChoice, f.OddsInfo
 	FROM	dbo.oddsOS o WITH(NOLOCK)
 		INNER JOIN dbo.oddsOS_flex f WITH(NOLOCK)
 			ON o.oddsid = f.oddsid
-	WHERE	matchid = @matchId
+		INNER JOIN DBTXN.bodb02.dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
+				ON o.bettype = s.BetType
+	WHERE	s.SportType = 50
+			AND (s.betid = 0 OR s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR))
+			AND	o.matchid = @matchId
 
-	IF @@ROWCOUNT <> 0
-		UPDATE t 
-			SET ResourceId = s.ResourceID
-		FROM	#tmpPlayerInfo t	
-			INNER JOIN DBTXN.bodb02.dbo.SettlementSpecialBettypeProfile s WITH(NOLOCk)
-				ON t.bettype = s.BetType
-		WHERE	s.SportType = 50
-				AND (s.betid = 0 OR s.ResourceID LIKE '%' + t.betChoice)
-
-	SELECT	ResourceId, bettype, betChoice, OddsInfo
-	FROM	#tmpPlayerInfo
 END
 GO
 
