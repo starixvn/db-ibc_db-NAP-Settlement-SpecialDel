@@ -112,6 +112,7 @@ BEGIN
 			,@MatchParlayProcessXML	  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
 			,@ThreadHold			  INT = 0-- over threadhold, the parlay process will be locked in systemsetting
+			,@FilterBy				  TINYINT = 0
 	
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
 			,@DangerAcceptedInfoXML	  XML = NULL
@@ -200,6 +201,7 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
+	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreTicket2H VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
 			livehomescore			 SMALLINT
@@ -705,7 +707,6 @@ BEGIN
 				,StatusId
 				,ScoreId
 				,checktime
-				,FilterBy
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -727,7 +728,6 @@ BEGIN
 				,b.statusID
 				,d.ScoreId
 				,b.checktime
-				,2 AS FilterBy
 		FROM	bettrans b WITH (NOLOCK)
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
@@ -781,7 +781,6 @@ BEGIN
 					,StatusId
 					,ScoreId
 					,checktime
-					,FilterBy
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -1435,7 +1434,7 @@ BEGIN
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid AND s.MatchId =  b.matchid
 				LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 			WHERE s.RequestId = @RequestId
-				AND b.statusID IN (111,112,113) AND b.betdaqid <> -2
+				AND b.statusID IN (111,112,113) AND ISNULL(b.betdaqid, -1) <> -2
 			GROUP BY b.matchid
 
 			--Highlight Min TransId (based on the acceptance type of the ticket)
@@ -1466,6 +1465,7 @@ BEGIN
 												 END AS VoidTime
 									)act
 					WHERE rd.VoidFromTime = act.VoidTime AND rd.RequestId = @RequestId
+
 				END
 			
 				IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinMainParlayTransId IS NOT NULL)
@@ -1496,6 +1496,46 @@ BEGIN
 			
 			END
 
+			--Check score for void message
+			IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
+			BEGIN
+					INSERT INTO @tblScoreMessage (MatchId, ScoreTicket2H)
+					SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
+						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.TransId
+					WHERE s.RequestId = @RequestId
+						AND f.GroupName = '2H'
+			END
+
+			IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
+			BEGIN
+					INSERT INTO @tblScoreMessage (MatchId, ScoreTicket2H)
+					SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
+						INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.transid = s.TransId
+					WHERE s.RequestId = @RequestId
+						AND f.GroupName = '2H'
+			END
+
+			IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) 
+												INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype			
+										WHERE s.RequestId = @RequestId 
+											AND f.GroupName <> '2H')
+
+				AND NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
+												INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.transid = s.TransId
+												INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype			
+										WHERE s.RequestId = @RequestId 
+											AND f.GroupName <> '2H')
+			BEGIN
+				UPDATE s 
+				SET s.ScoreOfMatch = CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
+				FROM @tblScoreMessage s
+					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = s.MatchId
+			END
+
 			SELECT rd.MatchId
 				,rd.IssueDetail AS LiveScores
 				,rd.VoidFromTime
@@ -1511,6 +1551,8 @@ BEGIN
 				,rd.MaxMainParlayTransId
 				,h.HighLightTransId
 				,h.HighlightAcceptType
+				,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreTicket2H
+				,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			  OUTER APPLY (
 						SELECT COUNT(transid) AS CashOutCount
@@ -1529,6 +1571,19 @@ BEGIN
 
 					)h
 				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
+				CROSS APPLy(
+					SELECT DISTINCT '|' + l.ScoreTicket2H
+					FROM @tblScoreMessage l
+						where l.MatchId = rd.MatchId
+					FOR XML PATH('')
+				)s2(ScoreTicket2H)
+
+				CROSS APPLy(
+					SELECT DISTINCT '|' + l.ScoreOfMatch
+					FROM @tblScoreMessage l
+						where l.MatchId = rd.MatchId
+					FOR XML PATH('')
+				)sm(ScoreOfMatch)
 			WHERE rd.RequestId = @RequestId
 		END
 		ELSE
@@ -1552,7 +1607,7 @@ BEGIN
 				LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 			WHERE s.RequestId = @RequestId
 				AND s.MatchId = @MatchId
-				AND b.statusID IN (111,112,113) AND b.betdaqid <> -2
+				AND b.statusID IN (111,112,113) AND ISNULL(b.betdaqid, -1) <> -2
 			GROUP BY tmp.ScoreId
 
 			SELECT rd.MatchId
