@@ -114,6 +114,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220216@July: Fix check ISNULL betdaqid [Redmine: #167055]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1718,7 +1719,7 @@ BEGIN
 			,CASE 
 				WHEN @eventstatus <> @eventstatus_completed
 						THEN CASE
-								WHEN al.statusID IN (111, 112, 113) AND al.betdaqid <> -2
+								WHEN al.statusID IN (111, 112, 113) AND ISNULL(al.betdaqid,0) <> -2
 										AND EXISTS (SELECT TOP 1 1
 													FROM #InstantSettlementBettypes
 													WHERE bettype = al.bettype)

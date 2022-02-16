@@ -85,6 +85,7 @@ AS
 		- 20210630@July: Saba Time Machine - Support multiple HDP/OU value search [Redmine: #157642]
 		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220216@July: Fix check ISNULL betdaqid [Redmine: #167055]
 
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -1047,7 +1048,7 @@ BEGIN
 				AND (s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) 
 					AND ISNULL(sub.custid,0) NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
 				)  -- Betfair: BFOS, BF, ITibc102, BF3	
-				AND s.betdaqid <> -2 --NOT Cashout
+				AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL
 		----2: For 8RM/BARM
 		SELECT  s.GroupID
@@ -1105,7 +1106,7 @@ BEGIN
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = @matchid
 		WHERE	s.recommend IN (52466, 5707545)
-			AND s.betdaqid <> -2 --NOT Cashout
+			AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL
 		----3. For Deposit bets
 		SELECT  s.GroupID
@@ -1174,7 +1175,7 @@ BEGIN
 				AND ( s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) 
 					AND ISNULL(sub.custid,0) NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3	
 				) 
-				AND s.betdaqid <> -2 --NOT Cashout
+				AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL
 		----4: For Betfair
 		SELECT  s.GroupID
@@ -1234,7 +1235,7 @@ BEGIN
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 				OR sub.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
-			AND s.betdaqid <> -2 --NOT Cashout
+			AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL
 		----5: For Cash Out
 		SELECT  s.GroupID
@@ -1290,7 +1291,7 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 		FROM #SpecialDeleteBets s
-		WHERE s.betdaqid = -2 -- Cashout
+		WHERE ISNULL(s.betdaqid,0) = -2 -- Cashout
 	)
 	, CTE_CalculateMainBettype AS (
 		SELECT s.*
@@ -1311,7 +1312,7 @@ BEGIN
 			   ,CASE 
 					WHEN @eventstatus <> @eventstatus_completed -- cases 1, 2, 3 
 							THEN CASE
-									WHEN s.mainstatusid IN (111, 112, 113) AND s.betdaqid <> -2
+									WHEN s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 										 AND EXISTS (SELECT TOP 1 1
 													 FROM #InstantSettlementBettypes
 													 WHERE bettype = s.MainBettype)
