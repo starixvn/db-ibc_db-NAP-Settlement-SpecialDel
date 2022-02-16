@@ -684,7 +684,7 @@ BEGIN
 			WHERE   m.ParentID =   @matchid  
 				AND m.ChildMatchType IN ( 201,202,203)
 				AND ISNULL(m.IsDeleted,0) = 0
-			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, m.BetStatus
+			GROUP BY m.Matchid, m.matchcode, m.eventstatus, m.SettlementStatus, homeid, awayid ,m.BetStatus
 	END
 
 	SELECT Matchid, matchcode, eventstatus, SettlementStatus, homeid, awayid, BetStatus, IsExistMarkedTicket, IsExistRunningTicket FROM @tmp_ChildMatch

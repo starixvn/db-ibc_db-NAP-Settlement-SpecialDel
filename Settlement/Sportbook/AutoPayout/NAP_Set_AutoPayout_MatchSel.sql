@@ -59,6 +59,7 @@ AS
 	- 20210326@Louisa: New filter for auto payput [Redmine:#148241]
 	- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192]
 	- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 	- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 	
  Param explanation:  
