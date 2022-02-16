@@ -707,6 +707,8 @@ BEGIN
 				,StatusId
 				,ScoreId
 				,checktime
+				,FilterBy
+				,accepttype
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -728,11 +730,20 @@ BEGIN
 				,b.statusID
 				,d.ScoreId
 				,b.checktime
+				,d.FilterBy
+				,CASE 
+							WHEN b.checktime IS NULL THEN 1 --Auto Accept
+							ELSE CASE 
+									  WHEN b.checktime = DATEADD(SECOND,ISNULL(bi.LiveBetAcceptTime,0) + ISNULL(bi.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
+									  ELSE 3 --Pending Accept
+								 END
+						END AS accepttype
 		FROM	bettrans b WITH (NOLOCK)
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 			INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+			LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		WHERE	b.matchid = @matchid
 				AND 1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -781,6 +792,8 @@ BEGIN
 					,StatusId
 					,ScoreId
 					,checktime
+					,FilterBy
+					,accepttype
 				)
 			SELECT 
 					main.transid AS GroupID
@@ -798,6 +811,14 @@ BEGIN
 					,main.statusID
 					,d.ScoreId
 					,sub.checktime
+					,d.FilterBy
+					,CASE 
+							WHEN sub.checktime IS NULL THEN 1 --Auto Accept
+							ELSE CASE 
+									  WHEN sub.checktime = DATEADD(SECOND,ISNULL(sub.LiveBetAcceptTime,0) + ISNULL(sub.SecAcceptTime,0), sub.transdate) THEN 2 --Second Accept
+									  ELSE 3 --Pending Accept
+								 END
+					 END AS accepttype
 			FROM	#FilterInfo d
 					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId			
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) 
