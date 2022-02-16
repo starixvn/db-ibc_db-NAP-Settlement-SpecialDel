@@ -13,6 +13,7 @@ AS
 	Revisions: 		
 		- 20201229@Zane: Create new SP [Redmine:#145719]
 		- 20210607@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
+		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:
 		
@@ -49,10 +50,10 @@ BEGIN
 							WHEN z.bettype = 911 THEN 1
 							ELSE 0 END
 						) AS TotalVoidedSingle
-					,CASE WHEN IssueTypeId = 1 THEN z.MatchId ELSE NULL END AS MatchId
+					,CASE WHEN IssueTypeId IN (1,4,5) THEN z.MatchId ELSE NULL END AS MatchId
 			FROM dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY CASE WHEN IssueTypeId = 1 THEN z.MatchId ELSE NULL END
+			GROUP BY CASE WHEN IssueTypeId IN (1,4,5) THEN z.MatchId ELSE NULL END
 	) t 
 		
 	--parlay
@@ -62,10 +63,10 @@ BEGIN
 	FROM	#tmpResult vh
 		CROSS APPLY (
 			SELECT COUNT(1) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeid = 1 THEN zm.matchid ELSE NULL END AS MatchId
+					,CASE WHEN vh.IssueTypeid IN (1,4,5) THEN zm.matchid ELSE NULL END AS MatchId
 			FROM dbo.zzzbettransm zm WITH(NOLOCK)
 			WHERE zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY CASE WHEN vh.IssueTypeid = 1 THEN zm.matchid ELSE NULL END
+			GROUP BY CASE WHEN vh.IssueTypeid IN (1,4,5) THEN zm.matchid ELSE NULL END
 	) t
 	
 	--Return Data

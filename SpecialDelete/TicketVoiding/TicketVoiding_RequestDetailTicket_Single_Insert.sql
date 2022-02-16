@@ -20,6 +20,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
+	,@WrongHDPInfo			VARCHAR(MAX) = NULL
+	,@Wrong1stHDPInfo		VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -55,6 +57,7 @@ AS
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211207@July: Remove code CashOut [Redmine: #165097]
+		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:
 		(+) @FilterBy:	
@@ -67,10 +70,6 @@ AS
 						5 - Saba
 						6 - NonSport
 		(+) @StatusIds : All, Running, Won, Lose, Draw
-		@WrongScoreInfo: 
-		<root>
-			<r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/>
-		</root>
 		
 */
 BEGIN
@@ -86,14 +85,16 @@ BEGIN
 			,@IsOutright		  BIT = 0
 			,@IsSaba			  BIT = 0
 			,@IsNonSport		  BIT = 0
-			,@IsLockMatch		  BIT = 0 -- 0: nolock, 1: lock match
 			,@FromWinlostDate     DATETIME
 			,@RequestDetailId_DA  INT
-			,@WrongScoreInfoXML	  XML = NULL
-			,@DangerAcceptedInfoXML	XML  = NULL
 			,@movebetdate SMALLDATETIME
-			,@RedCardInfoXML	  XML = NULL
 			,@maxdate 	DATETIME = '9999-01-01'
+
+	DECLARE	 @WrongScoreInfoXML		  XML = NULL
+			,@DangerAcceptedInfoXML	  XML = NULL
+			,@RedCardInfoXML		  XML = NULL
+			,@WrongHDPInfoXML		  XML = NULL	
+			,@Wrong1stHDPInfoXML	  XML = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			GroupID               BIGINT,
@@ -159,6 +160,8 @@ BEGIN
 			,MatchID				INT
 			,FilterFromTransTime	DATETIME 
 			,FilterToTransTime		DATETIME 
+			,FilterFromBetId		BIGINT
+			,FilterToBetId			BIGINT
 			,FilterBy				TINYINT 
 			,SingleCount			INT 
 			,MainParlayCount		INT 
@@ -173,6 +176,9 @@ BEGIN
 			,LiveScores				NVARCHAR(300)
 			,TypeAccept				VARCHAR(50)
 			,SubIssueTypeId			SMALLINT
+			,HomeFavorite			VARCHAR(50)
+			,AwayFavorite			VARCHAR(50)
+			,HDPValue				VARCHAR(50)
 			)
 	CREATE TABLE #TransId_tmp (RequestId INT, IssueTypeId INT, SubIssueTypeId SMALLINT, TransId BIGINT, MatchId INT, RequestDetailId INT, bettype SMALLINT, betid BIGINT)
 
@@ -322,7 +328,7 @@ BEGIN
 							WHERE RequestId = req.RequestId
 						) AS tmp
 				INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
-			WHERE rd.MatchId = @MatchId AND req.RequestId <> @RequestId AND req.ActionId <>2
+			WHERE req.RequestId <> @RequestId AND req.ActionId <>2
 
 			INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId, refno, bettype, betid)
 			SELECT b.transid
@@ -1250,7 +1256,7 @@ BEGIN
 		WHERE l.val <> ''
 		OPTION (MAXRECURSION 0)
 	END
-	ELSE --EKO,WKO
+	ELSE IF @IssueTypeId IN (8,9)--EKO,WKO
 	BEGIN
 		IF @IsEditRequest = 1
 		BEGIN
@@ -1452,6 +1458,288 @@ BEGIN
 		FROM #SpecialDeleteBets s
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
 					ON rd.RequestId = @RequestId AND rd.MatchId = s.matchid
+	END
+	ELSE IF @IssueTypeId IN (4,5) --Wrong HDP, Wrong 1stHDP
+	BEGIN
+		IF @IssueTypeId = 4
+		BEGIN
+			SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
+			INSERT INTO #tblGetLogInfo( 
+					RequestID				
+					,MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime			
+					,FilterFromBetId
+					,FilterToBetId
+					,FilterBy				
+					,SingleCount			
+					,MainParlayCount		
+					,MinSingleTransId		
+					,MaxSingleTransId		
+					,MinMainParlayTransId	
+					,MaxMainParlayTransId	
+					,VoidFromTime			
+					,VoidToTime				
+					,SubIssueTypeId
+					,LiveScores
+					,HomeFavorite
+					,AwayFavorite
+					,HDPValue
+				)
+			SELECT @RequestId AS RequestId
+					,t.c.value('@MatchId','INT') AS MatchID
+					,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
+					,t.c.value('@FilterBy','TINYINT') AS FilterBy
+					,t.c.value('@SingleCount','INT') AS SingleCount
+					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+					,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+					,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+					,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				    ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
+			FROM @WrongHDPInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
+		END
+		IF @IssueTypeId = 5
+		BEGIN
+			SET @Wrong1stHDPInfoXML = CONVERT(XML, @Wrong1stHDPInfo)
+			INSERT INTO #tblGetLogInfo( 
+					RequestID				
+					,MatchID				
+					,FilterFromTransTime	
+					,FilterToTransTime			
+					,FilterFromBetId
+					,FilterToBetId
+					,FilterBy				
+					,SingleCount			
+					,MainParlayCount		
+					,MinSingleTransId		
+					,MaxSingleTransId		
+					,MinMainParlayTransId	
+					,MaxMainParlayTransId	
+					,VoidFromTime			
+					,VoidToTime				
+					,SubIssueTypeId
+					,LiveScores
+					,HomeFavorite
+					,AwayFavorite
+					,HDPValue
+				)
+			SELECT @RequestId AS RequestId
+					,t.c.value('@MatchId','INT') AS MatchID
+					,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
+					,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
+					,CASE WHEN t.c.value('@FilterFromBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterFromBetId','BIGINT') END AS FilterFromBetId
+					,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
+					,t.c.value('@FilterBy','TINYINT') AS FilterBy
+					,t.c.value('@SingleCount','INT') AS SingleCount
+					,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+					,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
+					,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
+					,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
+					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
+					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
+					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				    ,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
+			        ,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
+			FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))
+		END
+		
+		INSERT INTO #TransidInRequest (TransId)
+		SELECT tmp.transid
+		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
+			CROSS APPLY (
+						SELECT TransId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+						WHERE RequestId = req.RequestId
+					) AS tmp
+			INNER JOIN #tblGetLogInfo l ON l.MatchID = rd.MatchId
+		WHERE req.RequestId <> @RequestId AND req.ActionId <>2
+
+		INSERT INTO #DangerAccept_SingleTickets (TransId, StatusId, MatchId, SubIssueTypeId, refno, bettype, betid)
+		SELECT b.transid
+			, b.statusID
+			, b.matchId
+			, t.SubIssueTypeId
+			, b.refno
+			, b.bettype
+			, b.betid
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid
+			OUTER APPLY (
+				SELECT DISTINCT val 
+				FROM dbo.f_SplitString(t.HomeFavorite, '&')
+				WHERE val <> ''				
+			)xHDPHome
+			OUTER APPLY (
+				SELECT DISTINCT val 
+				FROM dbo.f_SplitString(t.AwayFavorite, '&')
+				WHERE val <> ''				
+			)xHDPAway
+			OUTER APPLY (
+				SELECT DISTINCT val 
+				FROM dbo.f_SplitString(t.HdpValue, '&')
+				WHERE val <> ''				
+			)xHDPvalue
+		WHERE b.betfrom <> 'P' 
+			AND 1 = CASE WHEN @IssueTypeId = 4 AND b.bettype = 1 THEN 1
+						 WHEN @IssueTypeId = 5 AND b.bettype = 7 THEN 1
+						 ELSE 0 END
+			AND b.transdate BETWEEN t.VoidFromTime AND t.VoidToTime 
+			AND b.transid BETWEEN t.MinSingleTransId AND t.MaxSingleTransId
+			AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							ELSE 0 END
+			AND 1 = CASE WHEN t.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.val AND t.HomeFavorite IS NOT NULL THEN 1
+						 WHEN t.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.val AND t.AwayFavorite IS NOT NULL THEN 1
+						 WHEN t.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+						 WHEN t.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+						 ELSE 0 END 
+			OPTION (MAXRECURSION 0)
+		
+		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
+		------------------------------------------------------------------------------------------------------------
+		--Edit from to time of Danger Accepted issue -> unmark ticket change void time
+		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+												INNER JOIN MarkedTransaction mt WITH(NOLOCK) ON mt.TransId = rdt.transid AND mt.MatchId = rdt.MatchId
+												LEFT JOIN #DangerAccept_SingleTickets tp ON rdt.TransId=tp.transid
+												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+											WHERE tp.TransId IS NULL
+												  AND tr.TransId is NULL
+												  AND rdt.RequestId=@RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+		IF @RemoveTransIds IS NOT NULL
+		BEGIN
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @RemoveTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
+		END
+
+		IF @IsEditRequest = 1
+		BEGIN
+			WHILE (1=1)
+			BEGIN
+				DELETE TOP(4500) s 
+				FROM dbo.TicketVoiding_RequestDetailTicket_Single s
+				WHERE s.RequestId = @RequestId
+
+				IF @@ROWCOUNT < 4500 BREAK
+
+				WAITFOR DELAY '00:00:00.100'
+			END
+		END
+
+		INSERT INTO #TransId_tmp (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid)
+		SELECT @RequestId
+			, @IssueTypeId
+			, t.SubIssueTypeId
+			, t.TransId
+			, t.MatchId
+			, rd.Id AS RequestDetailId
+			, t.bettype
+			, t.betid
+		FROM #DangerAccept_SingleTickets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = @RequestId AND t.MatchId = rd.MatchId  
+			OUTER APPLY (
+								SELECT TOP 1 rs.TransId
+								FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+									INNER JOIN TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rs.RequestId 
+								WHERE rs.TransId = t.transid
+									AND rs.MatchId = t.MatchId
+									AND r.ActionId NOT IN (2)
+									AND @ActionId <> 2
+						)tmp
+		WHERE tmp.TransId IS NULL
+		
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(4500) d
+			OUTPUT DELETED.RequestId
+				, DELETED.IssueTypeId
+				, DELETED.SubIssueTypeId
+				, DELETED.TransId
+				, DELETED.MatchId
+				, DELETED.RequestDetailId
+				, DELETED.bettype
+				, DELETED.betid
+			INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid)
+			FROM #TransId_tmp d
+
+			IF @@ROWCOUNT < 4500 BREAK
+			
+			WAITFOR DELAY '00:00:00.180'
+		END
+
+		IF @ActionId <> 2
+		BEGIN
+			--Mark Ticket
+			WHILE (1=1)
+			BEGIN
+				DELETE @tmpTransIDBatch
+					
+				UPDATE TOP(2000) t
+					SET isFinish = 1
+				OUTPUT DELETED.TransId, DELETED.StatusId					
+				INTO @tmpTransIDBatch(TransId, StatusId)
+				FROM #DangerAccept_SingleTickets t 
+				WHERE isFinish IS NULL
+				
+				IF @@ROWCOUNT = 0 BREAK
+				
+				SELECT @UnMarkedTransIds = STUFF(
+					(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+					FROM @tmpTransIDBatch tp
+					WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+						AND  tp.StatusId IN (0, 1) 
+					GROUP BY TransId for XML PATH('')), 1, 1, ''
+					)
+		
+				IF @UnMarkedTransIds IS NOT NULL
+				BEGIN
+					EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update @TransIds = @UnMarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP, @RequestId = @RequestId
+																	, @MarkType = 1, @LogActionId = 90508, @IsLockMatch = 0
+				END	
+
+				SET @UnMarkedTransIds = ''
+			END
+		END
+		ELSE -- take note
+		BEGIN
+			IF @IsEditRequest = 1
+			BEGIN
+				SELECT @MarkedTransIds = STUFF(
+						(SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+						FROM #DangerAccept_SingleTickets tp
+						WHERE EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = tp.transid)
+							  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)
+							AND  tp.StatusId IN (0, 1) 
+						GROUP BY TransId for XML PATH('')), 1, 1, ''
+						)
+				--Unmark ticket
+				IF @MarkedTransIds IS NOT NULL
+					BEGIN
+						EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @MarkedTransIds, @UserId = @UserId, @Username = @Username, @IP = @IP
+																			, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
+					END												
+
+					SET @MarkedTransIds = ''
+			END
+		END
 	END
 
 	DROP TABLE #SpecialDeleteBets

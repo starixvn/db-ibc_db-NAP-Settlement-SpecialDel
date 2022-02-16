@@ -36,6 +36,7 @@ AS
 		- 20211012@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
+		- 20211225@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:	
 	
@@ -76,7 +77,7 @@ BEGIN
 							WHERE RequestId = @RequestId
 						  )
 
-	IF @IssueTypeId IN (1,8,9,10,11,15,3,17) -- DA,EKO,WKO,RC,AB,AB(Real Member),WC, Archived ticket
+	IF @IssueTypeId <> 13 -- Except for AC 
 	BEGIN
 		SELECT	rd.MatchId
 				,m.eventdate
@@ -93,6 +94,8 @@ BEGIN
 				,m.GlobalShowTime
 				,rd.FilterFromTransTime
 				,rd.FilterToTransTime
+				,rd.FilterFromBetId
+				,rd.FilterToBetId
 				,rd.FilterBy
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 				,rd.TransIds AS SettingTime

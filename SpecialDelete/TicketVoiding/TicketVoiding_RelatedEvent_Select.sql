@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 	@MatchId		INT
 	,@EventDate		DATETIME = NULL
 	,@IsMainMatch	BIT = 1
+	,@IssueTypeId	TINYINT = NULL
 )
 AS
 /*	
@@ -19,6 +20,7 @@ AS
 		- 20201113@Charles: Danger Accept/Red Card Enhancement - Phase 5 [Redmine: #145102]
 		- 20210608@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20211019@July: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
+		- 20220114@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -32,6 +34,7 @@ BEGIN
 	BEGIN
 		DECLARE @query NVARCHAR(MAX) = ''
 		DECLARE @ExecuteSQL NVARCHAR(MAX) = ''
+		DECLARE @fantasymatch_tmp TABLE (fantasy_match INT)
 		CREATE TABLE #LinkedMatch_tmp (MainMatchID INT, LinkedMatchID INT)
 		
 		SET @query = '	SELECT MainMatchID, LinkedMatchID
@@ -40,6 +43,21 @@ BEGIN
 		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@MatchId INT'' , @MatchId'
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
+
+		IF @IssueTypeId IN (4,5)
+		BEGIN
+			INSERT INTO @fantasymatch_tmp (fantasy_match)
+			SELECT m.MatchId
+			FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
+			WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(20)) +'%' AND m.[Key] = 'fantasy'
+
+			IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)
+			BEGIN
+				INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
+				SELECT @MatchId, fantasy_match 
+				FROM @fantasymatch_tmp
+			END
+		END
 
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM dbo.match m WITH (NOLOCK)

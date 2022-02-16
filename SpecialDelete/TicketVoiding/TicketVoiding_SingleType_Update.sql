@@ -44,6 +44,7 @@ AS
 		- 20211115@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 		- 20211122@Max: Hot fix - TVS insert CustLimitBetQueue when void CO ticket [Redmine: #164966]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -68,7 +69,7 @@ BEGIN
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
-	DECLARE @avaiableProcess			BIT = 0
+	DECLARE @avaiableProcess			BIT
 			,@isExistMG					BIT = 0
 			,@isExistFM					BIT = 0
 			,@isExistFM2				BIT = 0
@@ -368,7 +369,7 @@ BEGIN
 								) AS VARCHAR(MAX))
 	END
 
-	IF (@IssueTypeId NOT IN (1,10,3) AND @MatchDate <= @Movebetdate)
+	IF (@IssueTypeId NOT IN (1,10,3,4,5) AND @MatchDate <= @Movebetdate)
 		OR (@IssueTypeId IN (11,13) AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
 	BEGIN   
 		SELECT	@ErrCode = 99
