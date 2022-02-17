@@ -16,6 +16,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210930@Louisa: Move running ticket to new match for E-Sports [Redmine:#159271]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 
 */
 BEGIN
@@ -37,6 +38,7 @@ BEGIN
 		,ConfirmFT	INT
 		,SettlementStatus	TINYINT
 		,EventStatusReason	TINYINT
+		,LeagueGroupId	SMALLINT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -53,6 +55,7 @@ BEGIN
 			,eventstatus
 			,SettlementStatus
 			,EventStatusReason
+			,LeagueGroupId
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -65,7 +68,10 @@ BEGIN
 			,m.eventstatus
 			,m.SettlementStatus
 			,m.EventStatusReason
+			,l.LeagueGroupID
 		 FROM dbo.[match] m WITH (NOLOCK)
+			INNER JOIN dbo.League l WITH(NOLOCK)
+				ON m.leagueid = l.leagueid
 			CROSS APPLY ( SELECT TOP 1 val FROM dbo.f_SplitString(@matchIds, ',') f WHERE CAST(f.val AS INT) = m.matchid  ) f
 		OPTION (MAXRECURSION 0)
 
@@ -88,6 +94,7 @@ BEGIN
 		,ConfirmFT
 		,SettlementStatus
 		,EventStatusReason
+		,LeagueGroupId
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -104,7 +111,10 @@ BEGIN
 		,mr.ConfirmFT
 		,m.SettlementStatus
 		,m.EventStatusReason
+		,l.LeagueGroupID
      FROM dbo.[match] m WITH (NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK)
+				ON m.leagueid = l.leagueid
      	INNER JOIN dbo.[match_remark] mr WITH (NOLOCK) ON mr.matchid = m.matchid
      WHERE m.matchid = @matchid
 
@@ -124,6 +134,7 @@ BEGIN
 		,ConfirmFT
 		,SettlementStatus
 		,EventStatusReason
+		,LeagueGroupId
 	FROM @tmpMatchInfo
 
 END

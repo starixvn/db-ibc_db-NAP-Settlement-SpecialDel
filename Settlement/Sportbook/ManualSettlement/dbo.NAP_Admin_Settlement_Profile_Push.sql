@@ -36,6 +36,7 @@ AS
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20211120@Helen: Pingoal issue - get match from dbpro [Redmine:#164940]
+		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -102,9 +103,9 @@ BEGIN
 	IF @IsAuto = 1
 	BEGIN
 
-		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal
+		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
 			OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
-		
+			OR (@LeagueGroupId <> 122 AND @sporttype = 2) -- Auto settle pingoal basketball
 		BEGIN
 			SELECT	 @ErrCode	= 1001052
 					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
@@ -127,7 +128,7 @@ BEGIN
 	    RETURN
 	END
 
-	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' )
+	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) AND @LeagueGroupID <> 122
 		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
 		@MatchId	= @MatchId
 		,@Action	= @Action
