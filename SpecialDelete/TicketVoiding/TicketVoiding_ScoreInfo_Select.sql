@@ -41,7 +41,7 @@ BEGIN
 		, md.matchid
 		, md.HomeVal + '-' + md.AwayVal
 		, md.InsertDateTime
-		, 1 --md.IsActive, TW is updating IsActive Column
+		, md.IsActive
 	FROM dbo.Dot_Admin_Suspender_Actionlog md WITH (NOLOCK)
 	WHERE md.matchid = @MatchId
 		AND md.EventID = 1

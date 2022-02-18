@@ -257,7 +257,7 @@ BEGIN
 				  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 				  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 				  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-				  ,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				  ,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 				  ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
 						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' AS TypeAccept
 				  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
@@ -298,7 +298,7 @@ BEGIN
 				  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 				  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 				  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-				  ,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				  ,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 				  ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
 						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' 
 						AS TypeAccept
@@ -421,7 +421,7 @@ BEGIN
 				,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 				,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
 				,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
-				,t.c.value('@ActualScore','VARCHAR(50)') AS ActualScore
+				,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' + t.c.value('@ActualScore','VARCHAR(50)') AS ActualScore
 				 ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
 						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(10)') + '" />' AS TypeAccept
 				,t.c.value('@FilterBy','TINYINT') AS FilterBy

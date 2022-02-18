@@ -1558,7 +1558,7 @@ BEGIN
 			END
 
 			SELECT rd.MatchId
-				,rd.IssueDetail AS LiveScores
+				,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
 				,rd.VoidFromTime
 				,rd.VoidToTime
 				,rd.SingleCount
