@@ -44,7 +44,7 @@ BEGIN
 		, md.IsActive
 	FROM dbo.Dot_Admin_Suspender_Actionlog md WITH (NOLOCK)
 	WHERE md.matchid = @MatchId
-		AND md.EventID = 1
+		AND md.EventID IN (1,3)
 		AND md.HomeVal IS NOT NULL
 		AND md.AwayVal IS NOT NULL
 	ORDER BY md.LogID
