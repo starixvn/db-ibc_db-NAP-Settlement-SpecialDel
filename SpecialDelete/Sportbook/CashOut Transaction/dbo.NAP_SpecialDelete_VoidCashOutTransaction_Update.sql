@@ -302,7 +302,6 @@ BEGIN
 	FROM	dbo.bettrans b 
 		INNER JOIN #SpecialDeleteBets s
 			ON	b.transid = s.transId
-				AND s.statuswinlost IS NULL
 	
 	/*2. Void settled CO Transaction*/
 	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
