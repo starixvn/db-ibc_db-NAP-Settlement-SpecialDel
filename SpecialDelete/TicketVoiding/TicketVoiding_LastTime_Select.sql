@@ -28,7 +28,8 @@ BEGIN
 					SELECT MAX(LastTime)
 					FROM
 					(
-						SELECT MAX(ISNULL(b.checktime, b.transdate)) AS LastTime
+						SELECT MAX(CASE WHEN @FilterBy IN (1,4) THEN b.transdate 
+										WHEN @FilterBy = 2 THEN ISNULL(b.checktime, b.transdate) END) AS LastTime
 						FROM dbo.bettrans b WITH (NOLOCK)
 							INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
 						WHERE b.matchid = @MatchId
@@ -45,7 +46,8 @@ BEGIN
 							AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 
 						UNION ALL
-						SELECT MAX(ISNULL(bm.checktime, bm.transdate)) AS LastTime
+						SELECT MAX(CASE WHEN @FilterBy IN (1,4) THEN bm.transdate 
+										WHEN @FilterBy = 2 THEN ISNULL(bm.checktime, bm.transdate) END) AS LastTime
 						FROM dbo.bettransm bm WITH (NOLOCK)
 							INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29 AND b.bettype = 29
 							INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = bm.bettype
