@@ -33,6 +33,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
+		- 20220221@Max: TVS Auto Calculate When Cancel Cash Out Transaction [Redmine: #168774]
 
 	Explanation's Param:
 
@@ -45,6 +46,7 @@ BEGIN
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
 		  , @RepUpdateTime		DATETIME2
+		  , @xmlTransId			VARCHAR(MAX)
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 		  
@@ -88,7 +90,8 @@ BEGIN
 		IsNeutral			BIT,
 		MatchCode			NVARCHAR(50),
 		EventDate			DATETIME,
-		ActualStake			MONEY
+		ActualStake			MONEY,
+		statuswinlost		TINYINT
 	)
 	CREATE INDEX IDX_SpecialDeleteBets_RefNo_Bettype_matchid_custid	
 	ON #SpecialDeleteBets(RefNo, BetType, matchid, custid) INCLUDE(stake)
@@ -168,7 +171,8 @@ BEGIN
 					IsNeutral,
 					MatchCode,
 					EventDate,
-					ActualStake
+					ActualStake,
+					statuswinlost
 			)
 	SELECT 	sub.TransId,
 			sub.BetType,
@@ -205,7 +209,8 @@ BEGIN
 			ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 			m.MatchCode,
 			m.eventdate,
-			sub.actual_stake AS ActualStake
+			sub.actual_stake AS ActualStake,
+			sub.statuswinlost
 	FROM dbo.bettrans sub WITH(NOLOCK)
 		 INNER JOIN dbo.match m WITH(NOLOCK) 
 				 ON m.matchid = sub.matchid
@@ -277,6 +282,7 @@ BEGIN
 	GROUP BY temp.custid
 	
 	--> update bettrans
+	/*1. Void running CO Transaction*/
 	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET		b.winlost = 0
@@ -297,6 +303,15 @@ BEGIN
 		INNER JOIN #SpecialDeleteBets s
 			ON	b.transid = s.transId
 	
+	/*2. Void settled CO Transaction*/
+	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
+									FROM	#SpecialDeleteBets t
+									WHERE t.statuswinlost IS NOT NULL
+									FOR XML PATH('r'), ROOT('root')
+								)
+	EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
+		@TransIds = @xmlTransId
+
 	--> capture after
 	INSERT INTO @AfterUpd(custid, balance, balanceType)
 	SELECT temp.custid
