@@ -38,6 +38,7 @@ AS
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211207@July: Implement New Cash Out Model - Remove code CO [Redmine: #165097] 
 		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220221@Max: Remove SABA of league name for China View sites [Redmine: #168651]
 
 	Param's explanation:	
 		
@@ -1917,7 +1918,7 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,CASE WHEN c.site = 'CN88' THEN 'CN88' ELSE 'Credit' END AS OriginGroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' ELSE 'Credit (CO)' END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -2061,7 +2062,7 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,'Deposit' AS OriginGroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' ELSE 'Deposit (CO)' END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -2270,18 +2271,21 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.statusID
+		   ,ISNULL(si.IsChinaView,0) AS IsChinaView
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.matchid
+		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 	WHERE 1 = CASE WHEN @IssueTypeId <> 13 THEN 1
 				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
 				   ELSE 0 END
 	ORDER BY CASE
-				WHEN s.OriginGroupName = 'CN88' THEN 1
-				WHEN s.OriginGroupName = 'Credit' THEN 2
-				WHEN s.OriginGroupName = '8RM/BARM' THEN 3
-				WHEN s.OriginGroupName = 'Deposit' THEN 4
-				WHEN s.OriginGroupName = 'Betfair' THEN 5 
+				WHEN s.OriginGroupName = 'Credit' THEN 1
+				WHEN s.OriginGroupName = '8RM/BARM' THEN 2
+				WHEN s.OriginGroupName = 'Deposit' THEN 3
+				WHEN s.OriginGroupName = 'Betfair' THEN 4
+				WHEN s.OriginGroupName = 'Credit (CO)' THEN 5
+				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 6
 			 END
 			, CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
 				ELSE 2

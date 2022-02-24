@@ -1,5 +1,5 @@
 ﻿/*<info serverAlias="DBMSG-bodb_Message" executers="bodbAdminNet,Dot_Admin" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Message_Insert]
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Message_Insert_UAT1]
 	@MessageId int = NULL,
 	@Content_en	nvarchar(4000) = NULL,
 	@Content_ch	nvarchar(4000) = NULL,
@@ -23,7 +23,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Message_Insert]
 	@IsBatch bit = 0,
 	@MsgContentsType tinyint = 0,
 	@BetTransId varchar(2000) = NULL -- remove when admin launch batchmessage
-	,@LeagueGroupIds VARCHAR(300) = NULL
+	,@LeagueGroupId SMALLINT = 0
 	/*	
 	Created by: Alan
 	Task : insert/update special and normal message
@@ -91,7 +91,7 @@ BEGIN
 			MatchId = @MatchId,
 			IsBatch = @IsBatch,
 			MsgContentsType = @MsgContentsType ,
-			LeagueGroupID = @LeagueGroupIds
+			LeagueGroupID = @LeagueGroupId
 		WHERE MessageId = @MessageId;
 		SELECT @MessageID AS MessageId;
 	END
@@ -112,7 +112,7 @@ BEGIN
 			   @MsgType, @IsSticky, @Creator, @CreatorName, @MatchId,
 			   @Creator, @CreatorName, getdate(), getdate(), getdate(), @IsTest,
 			   @IsBatch,
-			   @MsgContentsType, @LeagueGroupIds
+			   @MsgContentsType, @LeagueGroupId
 				);
 		
 		SELECT SCOPE_IDENTITY() AS MessageId;

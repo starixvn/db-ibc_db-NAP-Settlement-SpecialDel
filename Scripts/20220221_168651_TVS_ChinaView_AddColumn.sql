@@ -9,5 +9,5 @@ USE [bodb_Message]
 GO
 
 ALTER TABLE [dbo].[Msg] 
-	ADD LeagueGroupID VARCHAR(300) NULL;
+	ADD LeagueGroupID SMALLINT NULL;
 GO
