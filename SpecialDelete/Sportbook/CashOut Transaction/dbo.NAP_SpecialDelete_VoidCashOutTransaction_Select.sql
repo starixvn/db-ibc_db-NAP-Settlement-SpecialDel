@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
 	,@Duration      	XML          	= NULL
 	,@InvalidTransIds 	VARCHAR(MAX) 	= '' OUTPUT
 	,@MovedTransIds	  	VARCHAR(MAX)  	= '' OUTPUT
-	,@IsDiffMatchId		BIT				= 0
+	,@IsDiffMatchId		BIT				= 0  OUTPUT
 	,@FilterBy			TINYINT 		= 0
 )
 AS
@@ -360,7 +360,7 @@ BEGIN
 		SET @MatchCount = (SELECT COUNT(DISTINCT s.MatchId) FROM #SpecialDeleteBets s)
 		IF @MatchCount > 1
 		BEGIN
-			SET @IsDiffMatchId = 1
+			SELECT @IsDiffMatchId = 1
 			RETURN
 		END
 	END				
