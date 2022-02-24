@@ -58,6 +58,7 @@ AS
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211207@July: Remove code CashOut [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220209@Max: Tuning performance [Redmine:#168303] 
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 
 	Param's explanation:
@@ -491,14 +492,16 @@ BEGIN
 			WHERE RequestId = @RequestId
 		END
 
+		DECLARE @RequestDetailId INT
+		SET @RequestDetailId = (SELECT rd.Id FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId)
+
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid)
-		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId, tmp.Id AS RequestDetailId, tmp.bettype, tmp.betid
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId, @RequestDetailId AS RequestDetailId, tmp.bettype, tmp.betid
 		FROM dbo.f_SplitString(@TransIds, ',') l
 			CROSS APPLY (
-						SELECT rd.Id, b.bettype, b.betid
+						SELECT b.bettype, b.betid
 						FROM dbo.bettrans b WITH(NOLOCK) 
-							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b.matchid = rd.MatchId
-						WHERE b.matchid = @MatchId AND rd.RequestId = @RequestId
+						WHERE b.matchid = @MatchId
 							AND l.val = b.transid
 							AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
 										 WHEN @FilterBy = 1 AND b.betteam = '1' THEN 1 ELSE 0 END
