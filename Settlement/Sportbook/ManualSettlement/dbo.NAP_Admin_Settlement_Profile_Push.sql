@@ -37,6 +37,7 @@ AS
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20211120@Helen: Pingoal issue - get match from dbpro [Redmine:#164940]
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
+		- 20220224@Kathy: Settle Saba Basketball PinGoal directly [Redmine:#169042]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -265,7 +266,7 @@ BEGIN
 	END
 	
 	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
-		OR ( @IsAuto = 1 AND @sporttype = 1 ) -- product PinGoal will be executed directly instead of pushing in queue
+		OR ( @IsAuto = 1 AND @sporttype IN (1,2) ) -- product PinGoal will be executed directly instead of pushing in queue
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand
