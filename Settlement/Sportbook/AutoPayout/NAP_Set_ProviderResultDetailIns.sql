@@ -25,6 +25,9 @@ AS
 				2 - FT
 		@SourceId
 				1 - SBO
+		@Action
+				'I' - Insert
+				'U' - Update
 */
 BEGIN
 	SET NOCOUNT ON
