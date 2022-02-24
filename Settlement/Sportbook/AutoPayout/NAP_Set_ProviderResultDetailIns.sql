@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="vnteam" isFunction="0" isNested="0"></info>*/
-CREATE PROCEDURE dbo.NAP_Set_ProviderResultDetailIns
+ALTER PROCEDURE dbo.NAP_Set_ProviderResultDetailIns
 	(
 		@MatchId		INT
 		, @SourceId		TINYINT
@@ -29,7 +29,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId )
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId AND ISNULL(m.ChildMatchType,0) =  204 ) --match corner
 	BEGIN
 		SELECT  @ErrCode = 1001001 ,@ErrMsg	= 'Match does not exist!'
 		RETURN
