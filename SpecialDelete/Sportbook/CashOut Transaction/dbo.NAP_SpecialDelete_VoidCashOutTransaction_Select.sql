@@ -357,11 +357,7 @@ BEGIN
 		END
 
 		--Check difference match
-		SELECT DISTINCT s.MatchId
-		FROM #SpecialDeleteBets s
-
-		SET @MatchCount = @@ROWCOUNT
-
+		SET @MatchCount = (SELECT COUNT(DISTINCT s.MatchId) FROM #SpecialDeleteBets s)
 		IF @MatchCount > 1
 		BEGIN
 			SET @IsDiffMatchId = 1
