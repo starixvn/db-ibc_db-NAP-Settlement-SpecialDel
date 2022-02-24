@@ -2280,12 +2280,13 @@ BEGIN
 				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
 				   ELSE 0 END
 	ORDER BY CASE
-				WHEN s.OriginGroupName = 'Credit' THEN 1
-				WHEN s.OriginGroupName = '8RM/BARM' THEN 2
-				WHEN s.OriginGroupName = 'Deposit' THEN 3
-				WHEN s.OriginGroupName = 'Betfair' THEN 4
-				WHEN s.OriginGroupName = 'Credit (CO)' THEN 5
-				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 6
+				WHEN s.OriginGroupName = 'CN88' THEN 1
+				WHEN s.OriginGroupName = 'Credit' THEN 2
+				WHEN s.OriginGroupName = '8RM/BARM' THEN 3
+				WHEN s.OriginGroupName = 'Deposit' THEN 4
+				WHEN s.OriginGroupName = 'Betfair' THEN 5
+				WHEN s.OriginGroupName = 'Credit (CO)' THEN 6
+				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 7
 			 END
 			, CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
 				ELSE 2
