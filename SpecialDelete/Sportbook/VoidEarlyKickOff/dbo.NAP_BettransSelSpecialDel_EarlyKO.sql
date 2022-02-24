@@ -62,6 +62,7 @@ AS;
 	- 20201126@Charles: God of fortune [Redmine: #146053]
 	- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 	- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+	- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
 
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
@@ -890,7 +891,7 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,'Credit' AS GroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' ELSE 'Credit (CO)' END AS GroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -1011,7 +1012,7 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,'Deposit' AS GroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' ELSE 'Deposit (CO)' END AS GroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -1143,6 +1144,8 @@ BEGIN
 				WHEN s.GroupName = '8RM/BARM' THEN 2
 				WHEN s.GroupName = 'Deposit' THEN 3
 				WHEN s.GroupName = 'Betfair' THEN 4
+				WHEN s.GroupName = 'Credit (CO)' THEN 5
+				WHEN s.GroupName = 'Deposit (CO)' THEN 6
 			 END
 		   , ISNULL(s.MainTransId, s.transid)
 		   , CASE 
