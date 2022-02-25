@@ -1392,18 +1392,34 @@ BEGIN
 	
 		DECLARE @actualscore varchar(5)
 
-		SELECT @actualscore = l.LiveScores
+		SELECT @actualscore = l.LiveScores, @MatchId = l.MatchID, @FilterBy = l.FilterBy
 		FROM #tblGetLogInfo l
 
-		SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
+		IF @FilterBy <> 2
+		BEGIN
+			SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
 								+', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
 								+', Actual Score: ' + @actualscore
 								+', Wrong Score: ' 
-								+ CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
-								+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
-								+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
-								+ 'To Time: '+ CONVERT(VARCHAR(30),l.FilterToTransTime, 21) +'); '
-		FROM #tblGetLogInfo l
+			SELECT @LogDataContent = @LogDataContent
+									+ CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
+									+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
+									+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
+									+ 'To Time: '+ CONVERT(VARCHAR(30),l.FilterToTransTime, 21) +'); '
+			FROM #tblGetLogInfo l
+		END
+		ELSE
+		BEGIN
+			SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20)) 
+							   + ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
+							   + ', FilterFrom: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) 
+							   + ', FilterTo: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
+							   + ', Actual Score: ' + @actualscore
+							   + ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
+							   + ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
+							   + ', TypeAccept: ' + l.TypeAccept
+			FROM #tblGetLogInfo l
+		END
 	END
 	ELSE IF @IssueTypeId = 17 OR @TransIds IS NOT NULL
 	BEGIN
