@@ -1339,6 +1339,7 @@ BEGIN
 			,s.IsMarked
 			,s.ActualStake
 			,ISNULL(si.IsChinaView,0) AS IsChinaView
+			,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

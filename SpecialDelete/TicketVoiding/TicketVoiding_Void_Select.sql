@@ -1937,6 +1937,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2014,6 +2015,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -2081,6 +2083,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2156,6 +2159,7 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.statusID
+		   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2271,7 +2275,9 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.statusID
+		   ,s.IsDeposit
 		   ,ISNULL(si.IsChinaView,0) AS IsChinaView
+		   ,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.matchid
