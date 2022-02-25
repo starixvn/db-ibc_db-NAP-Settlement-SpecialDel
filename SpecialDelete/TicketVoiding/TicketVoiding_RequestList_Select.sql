@@ -391,7 +391,7 @@ BEGIN
 						)m
 				ON r.RequestId = m.RequestID
 			OUTER APPLY(
-						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						SELECT '|' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
 						FOR XML PATH('')
@@ -448,7 +448,7 @@ BEGIN
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
-						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						SELECT '|' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
 						FOR XML PATH('')
@@ -498,7 +498,7 @@ BEGIN
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
-						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						SELECT '|' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
 						FOR XML PATH('')
