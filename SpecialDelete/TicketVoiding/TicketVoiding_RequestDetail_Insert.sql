@@ -949,9 +949,10 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 3
 	BEGIN
-		DECLARE @actualscore varchar(5)
+		DECLARE @actualscore VARCHAR(50)
 
-		SELECT @actualscore = l.LiveScores, @MatchId = l.MatchID, @FilterBy = l.FilterBy
+		SELECT @actualscore = SUBSTRING(l.LiveScores, CHARINDEX(';Act:',l.LiveScores) + 5, LEN(l.LiveScores))
+			, @MatchId = l.MatchID, @FilterBy = l.FilterBy
 		FROM #tblGetLogInfo l
 
 		IF @FilterBy <> 2
@@ -971,9 +972,9 @@ BEGIN
 		BEGIN
 			SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20)) 
 							   + ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
+							    + ', Actual Score: ' + @actualscore
 							   + ', FilterFrom: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) 
-							   + ', FilterTo: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
-							   + ', Actual Score: ' + @actualscore
+							   + ', FilterTo: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21) 
 							   + ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							   + ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
 							   + ', TypeAccept: ' + l.TypeAccept
