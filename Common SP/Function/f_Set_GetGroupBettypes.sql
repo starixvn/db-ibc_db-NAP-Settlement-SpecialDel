@@ -574,7 +574,6 @@ RETURN (
 		--Group 1: Cricket AIO Major round (ResourceID = '00')
 	UNION ALL SELECT 2, 9538, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
 	UNION ALL SELECT 2, 9539, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
-	UNION ALL SELECT 2, 9606, 0, 0, 0, 0, 'FT', 0, 0, 0, 0
 	UNION ALL SELECT 2 ,9604, 0, 0, 0, 0, 'FT' ,0 ,0 ,0 ,0 --Phase 1.2
 	UNION ALL SELECT 2 ,9605, 0, 0, 0, 0, 'FT' ,0 ,0 ,0 ,0 --Phase 1.2
 
@@ -702,7 +701,7 @@ RETURN (
 	UNION ALL SELECT 12, 9613, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9614, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 
-	--Cricket AIO Phase 2.0 (174 bettype)
+	--Cricket AIO Phase 2.0 (173 bettype)
 	UNION ALL SELECT 12, 9440,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9441,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9448,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -729,7 +728,7 @@ RETURN (
 	UNION ALL SELECT 12, 9543,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9544,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9545,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 2,  9546,  0, 0, 0, 0, 'FT'	 , 0, 0, 0, 0
+	UNION ALL SELECT 12, 9546,  0, 0, 0, 0, 'Special' , 0, 0, 0, 0
 	UNION ALL SELECT 12, 9547,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9548,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9549,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -760,7 +759,6 @@ RETURN (
 	UNION ALL SELECT 12, 9583,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9584,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9585,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9606,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9615,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9616,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9617,  0, 0, 0, 0, 'Special', 0, 0, 0, 0

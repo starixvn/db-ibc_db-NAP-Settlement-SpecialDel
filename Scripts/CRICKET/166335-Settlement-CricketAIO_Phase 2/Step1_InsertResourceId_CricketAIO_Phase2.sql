@@ -5,7 +5,7 @@
     DB: DBTXN/bodb02
 	
 	Revisions:
-		- 20220128@Louisa: Insert SettlementSpecialBettypeProfile for Cricket Phase 2.0 ( 174 bettypes) [Redmine:#166335]
+		- 20220128@Louisa: Insert SettlementSpecialBettypeProfile for Cricket Phase 2.0 ( 173 bettypes) [Redmine:#166335]
 */
 
 USE bodb02
@@ -48,8 +48,7 @@ GO
 	UNION ALL SELECT 9541	,9543	,'H1'		,0	 --Home 1st Inns Runs Fancy 													
 	UNION ALL SELECT 9541	,9544	,'A1'		,0	 --Away 1st Inns Runs Fancy 													
 	UNION ALL SELECT 9541	,9545	,'H2'		,0	 --Home 2nd Inns Runs Fancy 													
-	UNION ALL SELECT 9541	,9546	,'A2'		,0	 --Away 2nd Inns Runs Fancy 									  
-	UNION ALL SELECT 9606	,9606	,'00'		,0	 --Fancy --Child match													
+	UNION ALL SELECT 9541	,9546	,'A2'		,0	 --Away 2nd Inns Runs Fancy													
 	UNION ALL SELECT 5		,9440	,'9446'		,0	 --Most Fours 											
 	UNION ALL SELECT 5		,9441	,'9447'		,0	 --Most Sixes 											
 	UNION ALL SELECT 5		,9615	,'96151'	,0	 --Most Run Outs 											
