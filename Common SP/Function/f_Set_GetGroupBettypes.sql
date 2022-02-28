@@ -590,12 +590,12 @@ RETURN (
 	UNION ALL SELECT 12, 9499, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9500, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9501, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9541, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9542, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9543, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9544, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9545, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9546, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9541, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9542, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9543, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9544, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9545, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9546, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
 		--Group 3: Cricket AIO Early bettype
 	UNION ALL SELECT 12, 9400, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9401, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -661,34 +661,34 @@ RETURN (
 	UNION ALL SELECT 12, 9532, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
 	UNION ALL SELECT 12, 9533, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 --Phase 1.2
 	UNION ALL SELECT 12, 9540, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9547, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9548, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9549, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9550, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9551, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9552, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9547, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9548, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9549, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9550, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9551, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9552, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
 	UNION ALL SELECT 12, 9553, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9554, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9555, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9556, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9557, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9558, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9559, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9560, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9561, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9562, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9563, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9564, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9566, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9567, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9569, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9570, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9572, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9573, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9574, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9575, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9580, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9581, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 9559, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9560, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9561, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9562, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9563, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9564, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9566, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9567, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9569, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9570, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9572, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9573, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9574, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9575, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9580, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
+	UNION ALL SELECT 12, 9581, 0, 0, 0, 0, 'Special', 0, 0, 0, 0 ---Phase 2
 	--Cricket AIO Phase 1.2 (31 bettype)
 	UNION ALL SELECT 12, 9442, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9443, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -701,7 +701,7 @@ RETURN (
 	UNION ALL SELECT 12, 9613, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9614, 0, 0, 0, 0, 'Special', 0, 0, 0, 0
 
-	--Cricket AIO Phase 2.0 (173 bettype)
+	--Cricket AIO Phase 2.0
 	UNION ALL SELECT 12, 9440,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9441,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9448,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
@@ -723,38 +723,10 @@ RETURN (
 	UNION ALL SELECT 12, 9529,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9531,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9534,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9541,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9542,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9543,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9544,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9545,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9546,  0, 0, 0, 0, 'Special' , 0, 0, 0, 0
-	UNION ALL SELECT 12, 9547,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9548,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9549,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9550,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9551,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9552,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9559,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9560,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9561,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9562,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9563,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9564,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9566,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9567,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9569,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9570,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9572,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9573,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9574,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9575,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9576,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9577,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9578,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9579,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9580,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
-	UNION ALL SELECT 12, 9581,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9582,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9583,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 9584,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
