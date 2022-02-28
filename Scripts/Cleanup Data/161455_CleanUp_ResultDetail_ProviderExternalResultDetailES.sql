@@ -17,6 +17,9 @@ GO
 SET NOCOUNT ON
 
 BEGIN 
+	DECLARE @DayBefore VARCHAR(10)
+	SET @DayBefore =  CONVERT(VARCHAR(10),DATEADD (DAY, -7, GETDATE()), 120)
+
 	--ProviderExternalResultDetailES
 	CREATE TABLE #__resultESData(rowId INT IDENTITY(1,1) PRIMARY KEY, providerExternalId INT)
 
@@ -26,6 +29,7 @@ BEGIN
 	FROM dbo.ProviderExternalResultDetailES p WITH(NOLOCK) ----- table local test: Louisa_ProviderExternalResultDetailES
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON p.MatchId = m.matchid
 	WHERE m.matchid IS NULL
+		AND p.CreateDate <= @DayBefore
 
 	--backup data if can
 	IF OBJECT_ID('MonDB.dbo.__ProviderExternalResultDetailES_161455') IS NOT NULL
@@ -73,7 +77,10 @@ END
 GO
 
 BEGIN --ResultDetail
- 
+	
+	DECLARE @DayBefore VARCHAR(10)
+	SET @DayBefore =  CONVERT(VARCHAR(10),DATEADD (DAY, -7, GETDATE()), 120)
+
 	CREATE TABLE #__resultData(rowId INT IDENTITY(1,1) PRIMARY KEY, matchId INT, resourceId VARCHAR(20))
 
 	--collect redundant data
@@ -82,6 +89,7 @@ BEGIN --ResultDetail
 	FROM dbo.ResultDetail r WITH(NOLOCK) ----- table local test: Louisa_ResultDetail
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON r.MatchId = m.matchid
 	WHERE m.matchid IS NULL
+		AND r.CreateDate <= @DayBefore
 
 	--backup data if can
 	IF OBJECT_ID('MonDB.dbo.__ResultDetail_161455') IS NOT NULL
