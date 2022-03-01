@@ -1,17 +1,13 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_MixParlay]
 	  @MatchID			INT
-	
 	, @BetType			SMALLINT 		= 0
 	, @Type				SMALLINT 		= 0
 	, @LiveHomeScore	SMALLINT 		= NULL
 	, @LiveAwayScore	SMALLINT 		= NULL
-	
 	, @FromTransdate	DATETIME 		= NULL
 	, @ToTransdate		DATETIME 		= NULL
-	
 	, @BetTypes			XML				= NULL
-	
 	, @Language			NVARCHAR(2)		= 'E'
 AS  
 /*  
@@ -59,6 +55,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
+		- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -80,6 +77,7 @@ AS
 						 ValueHdp1="1,2,3"		-- Default : "All" ; Format : 1,2,3,4,... ; 
 						 ValueHdp2="1"			-- Default : "All" ; Format : Single Number
 						 Goal="2"				-- Default : "All" ; Format : Single Number
+						 OddsID ="10006450"		-- Default : "All" ; Format : Single Number
 				/>
 			 <BetTypes/>'
 
@@ -98,7 +96,8 @@ BEGIN
 		[Value]			SMALLMONEY,
 		ValueHdp1		SMALLMONEY,
 		ValueHdp2		SMALLMONEY,
-		Goal			BIGINT
+		Goal			BIGINT,
+		OddsID			INT
 	)
 	
 	CREATE TABLE #Bettypes_Parlay (BetType SMALLINT)
@@ -150,7 +149,8 @@ BEGIN
         ,transdesc				NVARCHAR(1000)
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
-       )
+        ,OddsID					INT
+	   )
                   
 	CREATE TABLE #Ref (--id INT identity(1,1) primary key clustered   
       refno				BIGINT   
@@ -168,7 +168,8 @@ BEGIN
 	  ,status			VARCHAR(10) 
 	  ,betcheck			NVARCHAR(50)
 	  ,transdesc		NVARCHAR(1000)
-     ) 
+	  ,OddsID			INT
+	 ) 
 
     -- Parse xml @BetTypes
 	;WITH CTE_ParsedBettypes_1 AS
@@ -179,9 +180,10 @@ BEGIN
 			 , t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
 			 , t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			 , t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1		-- check columns : hdp1			 ; single-choice + multi-choice
-			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2		-- check columns : hdp2	 		 ; single-choice
+			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
+			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 		 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(20)') AS Goal				-- check columns : betID		 ; single-choice
+			 , t.c.value('@OddsID','VARCHAR(20)') AS OddsID			-- check columns : OddsID		 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -208,12 +210,16 @@ BEGIN
 						WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal
 					END AS BIGINT) AS Goal
+			, CAST(CASE 
+						WHEN cte.OddsID = 'ALL' THEN @ValueDefault 
+						ELSE cte.OddsID
+					END AS INT) AS OddsID
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2, OddsID)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -227,6 +233,7 @@ BEGIN
 		 , cte.Goal
 		 , cte.ValueHdp1
 		 , cte.ValueHdp2
+		 , cte.OddsID
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -243,7 +250,7 @@ BEGIN
 		VALUES (@BetType) 
    
 	INSERT INTO #Ref (refno, transid, Bettype, hdp1, hdp2, odds, betteam, 
-				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc)  
+				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, OddsID)  
 	SELECT b.refno  
 	  ,b.transid  
 	  ,b.Bettype     
@@ -259,6 +266,7 @@ BEGIN
 	  ,b.status
 	  ,b.betcheck
 	  ,b.transdesc
+	  ,b.OddsID
 	 FROM dbo.bettransm AS b WITH(NOLOCK)		  
 	 WHERE	matchid=@MatchID    
 			AND CASE WHEN @Type = 2 THEN @Type ELSE b.liveindicator END = @Type
@@ -294,6 +302,8 @@ BEGIN
 		filter for ValueHdp1: for bettype 479, 481
 
 		filter for ValueHdp2
+
+		filter for OddsId (Cricket AIO P2)
 	*/			
 	BEGIN
 	DELETE s
@@ -368,6 +378,11 @@ BEGIN
 	FROM  #Ref s
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 		WHERE tp.Id = s.Bettype AND (tp.ValueHdp2 = 9999 OR s.hdp2 = tp.ValueHdp2 )) 
+
+	DELETE s
+	FROM  #Ref s
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE tp.Id = s.Bettype AND (tp.OddsID = 9999 OR s.OddsID = tp.OddsID )) 
 	END
 
 	INSERT INTO #ParlayDelete  
@@ -418,6 +433,7 @@ BEGIN
 	,r.transdesc
 	,b.ExtraInfo
 	,b.actual_stake AS ActualStake
+	,r.OddsID
 	FROM #Bettypes_Parlay t
 	INNER JOIN dbo.bettrans AS b with (NOLOCK) ON t.BetType = b.matchid
 	INNER JOIN #Ref AS r WITH(NOLOCK) ON b.refno=r.refno
@@ -460,6 +476,7 @@ BEGIN
 			,T.[Group]				AS GroupName
 			,T.ExtraInfo
 			,T.ActualStake
+			,T.OddsID				AS SubOddsID
 	FROM
 	(	
 		--0. For Credit bets  
