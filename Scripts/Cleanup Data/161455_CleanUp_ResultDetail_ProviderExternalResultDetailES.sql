@@ -70,7 +70,7 @@ BEGIN
 		SELECT @__rowId = @__rowId + @__batch
 			, @__message = '@__rowId: ' + CAST(@__rowId AS VARCHAR(20)) + '- dt: '+ CONVERT(VARCHAR(50), GETDATE(), 121)
 		
-		WAITFOR DELAY '00:00:00:010' --waifor replication release
+		WAITFOR DELAY '00:00:00:500' --waifor replication release
 		RAISERROR(@__message, 0, 1) WITH NOWAIT
 	END
 END
@@ -127,7 +127,7 @@ BEGIN --ResultDetail
 		SELECT @__rowId = @__rowId + @__batch
 			, @__message = '@__rowId: ' + CAST(@__rowId AS VARCHAR(20)) + '- dt: '+ CONVERT(VARCHAR(50), GETDATE(), 121)
 		
-		WAITFOR DELAY '00:00:00:010' --waifor replication release
+		WAITFOR DELAY '00:00:00:500' --waifor replication release
 		RAISERROR(@__message, 0, 1) WITH NOWAIT
 	END
 END
