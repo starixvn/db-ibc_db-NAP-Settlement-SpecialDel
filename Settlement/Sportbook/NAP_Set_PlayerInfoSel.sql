@@ -21,6 +21,8 @@ BEGIN
 	WHERE	s.SportType = 50
 			AND (s.betid = 0 OR s.ResourceID LIKE '%' + CAST(o.Resourceid AS VARCHAR))
 			AND	o.matchid = @matchId
+			AND ISNULL(o.IsDeleted,0) = 0
+			AND ISNULL(f.IsDeleted,0) = 0
 
 END
 GO
