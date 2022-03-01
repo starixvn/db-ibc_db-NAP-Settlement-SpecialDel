@@ -25,6 +25,7 @@ AS
 		- 20180123@Benjamin: Add @IsAutoInst and @SourceID parameter and @SourceINT variable for Determine Manual Instant/Auto Instant [Redmine:#86964]
 		- 20191213@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
+		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		
     Param's Explanation:
 		- @Action: ['CAL', 'UNDO']
@@ -114,11 +115,19 @@ BEGIN
     IF EXISTS (SELECT TOP 1 1
 			FROM dbo.Single_Calculate_Queue WITH (NOLOCK)
 			WHERE matchid = @matchid
-			  AND IsCalculating IN (0, 1))
+			  AND IsCalculating IN (0, 1)
+			  AND [Action] IN 
+					(
+						'CAL', 'CAL-HT', 'CAL-FT', 'INST-HT', 'INST-FT'
+						,'UNDO'				
+						,'REFUND', 'REFUND-HT', 'REFUND-FT'
+					) --Redmine:#168497
+			)
     OR EXISTS (SELECT TOP 1 1
 			 FROM dbo.Parlay_Calculate_Queue WITH (NOLOCK)
 			 WHERE matchid = @matchid
-				AND IsCalculating IN (0, 1))
+				AND IsCalculating IN (0, 1)
+			)
     BEGIN
         SELECT @ErrCode = 1001003
 			, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'

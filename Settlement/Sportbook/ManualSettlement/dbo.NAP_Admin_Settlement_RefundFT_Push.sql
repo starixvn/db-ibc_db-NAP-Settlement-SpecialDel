@@ -45,6 +45,7 @@ AS
 		- 20200427@Kathy: Check HT ticket before refund FT [Redmine:#131765]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -135,6 +136,12 @@ BEGIN
             FROM Single_Calculate_Queue WITH (NOLOCK)
             WHERE matchid = @matchid
                 AND IsCalculating IN (0, 1)
+				AND [Action] IN 
+					(
+						'CAL', 'CAL-HT', 'CAL-FT', 'INST-HT', 'INST-FT'
+						,'UNDO'				
+						,'REFUND', 'REFUND-HT', 'REFUND-FT'
+					) --Redmine:#168497
             )
         OR EXISTS (
             SELECT 1

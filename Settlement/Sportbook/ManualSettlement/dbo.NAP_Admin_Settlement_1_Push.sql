@@ -52,7 +52,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
-		- 20220228@Louisa: Allow insert command into SinleQueue by group Action [Redmine:#168497]
+		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -142,7 +142,12 @@ BEGIN
             FROM	Single_Calculate_Queue WITH (NOLOCK)
             WHERE	matchid = @matchid
 					AND IsCalculating IN (0, 1)
-					AND [Action] IN ('CAL', )
+					AND [Action] IN 
+					(
+						'CAL', 'CAL-HT', 'CAL-FT', 'INST-HT', 'INST-FT'
+						,'UNDO'				
+						,'REFUND', 'REFUND-HT', 'REFUND-FT'
+					) --Redmine:#168497
             )
         OR EXISTS (
             SELECT	1
