@@ -16,6 +16,7 @@ AS
 		- 20171226@Kathy: Clear data if match has been undo [Redmine:#86890]
 		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
+		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
 		
 	Param's Explanation:
 		- @StatusId: 0: New
@@ -42,6 +43,7 @@ BEGIN
 		--Auto Setting to OFF Instant for Get minium Risk Meeting #91094
 		UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
 		SET AutoSetting =  (CASE WHEN AutoSetting & 2 > 0 THEN AutoSetting ^ 2 ELSE AutoSetting END)
+			,changetime = GETDATE()
 		WHERE matchid = @MatchId
 		
 		--Update Confirmed =1 in ProviderResultDetail
@@ -97,6 +99,7 @@ BEGIN
 			BEGIN
 				UPDATE dbo.match WITH(UPDLOCK, ROWLOCK)
 				SET AutoSetting =  @AutoSettingLeague
+					,changetime = GETDATE()
 				WHERE matchid = @MatchId
 			END
 		END

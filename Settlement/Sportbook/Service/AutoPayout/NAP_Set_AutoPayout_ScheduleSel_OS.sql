@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20211206@Louisa: Enhancemant Table Tennis [Redmine:#165659]
+		- 20220216@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 
 	Param's Explanation:
  
@@ -35,6 +36,8 @@ BEGIN
 								FROM dbo.AutoPayoutResult rs WITH(NOLOCK) 
 								WHERE rs.MatchId = m.matchid 
 									AND rs.CalculationType = 2)
+		AND ISNULL(m.IsDeleted,0) = 0
+		AND ISNULL(l.IsDeleted,0) = 0
 	
 	
 	SELECT tmp.MatchId, tmp.SourceId, 2 AS TypeId, tmp.HomeValue, tmp.AwayValue, tmp.SettlementStatus

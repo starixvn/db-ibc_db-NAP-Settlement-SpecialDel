@@ -11,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20210906@Louisa: Get child match for Volleyball [Redmine:#160478]
+		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393] 
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -36,6 +37,7 @@ BEGIN
 		AND ParentID IS NOT NULL
 		AND m.ParentID = @MatchId
 		AND ISNULL(m.ChildMatchType, 0) IN (11, 12, 14, 15, 16, 17)
+		AND ISNULL(m.IsDeleted,0) = 0
 
 END
 GO

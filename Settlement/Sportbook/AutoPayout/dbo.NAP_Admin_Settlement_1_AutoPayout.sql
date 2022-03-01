@@ -40,6 +40,7 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		
 	Param's Explanation:
@@ -169,6 +170,7 @@ BEGIN
 				INNER JOIN dbo.League l WITH(NOLOCK)
 					ON m.leagueid = l.leagueid
 			WHERE m.MatchId = @matchid
+				AND ISNULL(l.IsDeleted,0) = 0
 
 			IF (@sporttype = 1 AND @LeagueGroupID IN (42,74,108) )
 			BEGIN
@@ -176,6 +178,8 @@ BEGIN
 				FROM dbo.match m WITH(NOLOCK)
 				WHERE ParentID = @matchid
 					AND m.ChildMatchType IN ( 201,202,203 )
+					AND ISNULL(m.IsDeleted,0) = 0
+
 				SELECT @ChildMatchIds = ISNULL( @ChildMatchIds, '0')
 			END
 		END

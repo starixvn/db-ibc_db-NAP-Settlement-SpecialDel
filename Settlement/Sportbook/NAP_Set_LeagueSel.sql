@@ -1,3 +1,4 @@
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROC [NAP_Set_LeagueSel]
 	@FromDate datetime,
 	@ToDate datetime,
@@ -11,6 +12,7 @@ AS
 	
 	Revision:	
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 
 	Param's Explanation:
 		
@@ -22,7 +24,10 @@ begin
 	select DISTINCT league.leagueid, leaguename, match.sporttype
 	from match with (nolock)
 		inner join league with (nolock) on match.leagueid = league.leagueid
-	where match.eventdate between @FromDate and @ToDate and match.sporttype <> 162
+	where match.eventdate between @FromDate and @ToDate 
+		and match.sporttype <> 162
+		and ISNULL(match.IsDeleted,0) = 0
+		and ISNULL(League.IsDeleted,0) = 0
 
 	UNION ALL
 	
@@ -30,8 +35,9 @@ begin
 	FROM outright o (nolock)
 		INNER JOIN league l (nolock) on o.leagueid = l.leagueid 
 	WHERE o.eventdate between @FromDate and @ToDate
-		and l.sporttype BETWEEN  151 AND 153 
-	
+		and l.sporttype BETWEEN  151 AND 153
+		and ISNULL(o.IsDeleted,0) = 0	
+		and ISNULL(l.IsDeleted,0) = 0
 	
 	UNION ALL
 	--- virtual horse racing
@@ -41,6 +47,7 @@ begin
 		INNER JOIN league l (nolock) on r.leagueid = l.leagueid 
 	WHERE o.eventdate between @FromDate and @ToDate
 		and l.sporttype in (181,182,184)
+		and ISNULL(l.IsDeleted,0) = 0
 	order by sporttype, leaguename
 	
 end 
@@ -50,7 +57,9 @@ begin
 	FROM outright o (nolock)
 		INNER JOIN league l (nolock) on o.leagueid = l.leagueid 
 	WHERE o.eventdate between @FromDate and @ToDate
-		and l.sporttype =  @sporttype 
+		and l.sporttype =  @sporttype
+		and ISNULL(o.IsDeleted,0) = 0	
+		and ISNULL(l.IsDeleted,0) = 0
 	order by sporttype, leaguename
 end 
 else if @sporttype in (181,182,184)
@@ -60,7 +69,8 @@ begin
 		INNER JOIN VSRaceinfo r WITH(NOLOCK) ON o.eventID = r.eventID
 		INNER JOIN league l (nolock) on r.leagueid = l.leagueid 
 	WHERE o.eventdate between @FromDate and @ToDate
-		and l.sporttype = @sporttype
+		and l.sporttype = @sporttype	
+		and ISNULL(l.IsDeleted,0) = 0
 	order by sporttype, leaguename
 end 
 else 
@@ -70,6 +80,8 @@ begin
 		inner join league with (nolock) on match.leagueid = league.leagueid
 	where match.eventdate between @FromDate and @ToDate
 		and match.sporttype = @sporttype
+		and ISNULL(match.IsDeleted,0) = 0
+		and ISNULL(League.IsDeleted,0) = 0
 	order by leaguename
 end
 

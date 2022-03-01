@@ -10,7 +10,7 @@ AS
 	
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
-		
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		
 	Param's Explanation:	
 		@matchidList: '27175708, 27175707'
@@ -30,6 +30,7 @@ BEGIN
 			,b.Number
 	FROM	dbo.[BingoBall] b WITH (NOLOCK)
 		INNER JOIN @tblMatch m ON m.matchid = b.matchid
+	WHERE ISNULL(b.IsDeleted,0) = 0
 	ORDER BY b.Seq
 	
 END

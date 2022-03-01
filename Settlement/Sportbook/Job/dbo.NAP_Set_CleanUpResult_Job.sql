@@ -12,6 +12,7 @@ AS
 		- 20200903@Louisa: Cleanup data OS [Redmine:#139627]
 		- 20201223@Louisa: Cleanup data for Other Sports [Redmine:#145651]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 
 	Param's Explanation: 
 
@@ -44,7 +45,7 @@ BEGIN
 	FROM dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
 		LEFT JOIN dbo.Match m WITH(NOLOCK)
 			ON ex.MatchId = m.MatchId
-	WHERE m.matchid IS NULL
+	WHERE ( m.matchid IS NULL OR ISNULL(m.IsDeleted,0) = 1 )
 		AND ex.CreateDate < @compareDate
 
 	WHILE (1=1)
@@ -67,7 +68,7 @@ BEGIN
 	FROM dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
 		LEFT JOIN dbo.Match m WITH(NOLOCK)
 			ON ex.MatchId = m.MatchId
-	WHERE m.matchid IS NULL
+	WHERE ( m.matchid IS NULL OR ISNULL(m.IsDeleted,0) = 1 )
 		AND ex.CreateDate < @compareDate
 
 	WHILE (1=1)

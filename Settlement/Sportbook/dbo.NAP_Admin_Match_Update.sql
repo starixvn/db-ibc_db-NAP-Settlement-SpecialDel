@@ -64,6 +64,7 @@ AS
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
+		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
 		
     Parameters Explanation:
 
@@ -449,6 +450,7 @@ BEGIN
         BEGIN
             UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
             SET betstatus   = @betstatus
+				,changetime = GETDATE()
             WHERE matchid   = @MatchID
         END
     END
@@ -569,6 +571,7 @@ BEGIN
 									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTAway, htawayscore) 
 									ELSE htawayscore 
 								END
+				,changetime = GETDATE()
             WHERE matchid = @matchid
         END
     END

@@ -47,6 +47,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 
 */
 BEGIN
@@ -113,7 +114,9 @@ BEGIN
 							WHEN (17 & ISNULL(m.AutoSetting, 0) IN (1,16)) THEN 0
 						ELSE 1 END
 				END
-		AND l.isTest = CASE WHEN ' + CONVERT(VARCHAR(50),@IsIncludeTest) + ' = 0 THEN 0 ELSE l.isTest END''
+		AND l.isTest = CASE WHEN ' + CONVERT(VARCHAR(50),@IsIncludeTest) + ' = 0 THEN 0 ELSE l.isTest END
+		AND ISNULL(m.IsDeleted,0) = 0
+		AND ISNULL(l.IsDeleted,0) = 0 ''
 		)'
 
 	INSERT INTO @DataTmp(MatchId, leagueid, hthomescore, htawayscore, IsCalculated

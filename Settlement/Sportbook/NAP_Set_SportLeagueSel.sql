@@ -14,6 +14,7 @@ AS
 	 Revisions:  
 			- 20200528@Kathy: Get league belong to sport [Redmine:#134843]
 			- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
       
 	 Param explanation:
 			@Page:
@@ -38,6 +39,8 @@ BEGIN
 	WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
 		AND 1 = CASE WHEN @Page = 1 AND m.sporttype = 50 AND l.LeagueGroupID = 42 THEN 0 --  Saba Virtual Cricket
 				ELSE 1 END
+		AND ISNULL(m.IsDeleted,0) = 0
+		AND ISNULL(l.IsDeleted,0) = 0
 	GROUP BY s.SportType, m.leagueid
 END
 GO
