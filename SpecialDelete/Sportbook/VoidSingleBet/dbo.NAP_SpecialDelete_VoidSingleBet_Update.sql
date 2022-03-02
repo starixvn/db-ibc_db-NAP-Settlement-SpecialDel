@@ -1127,8 +1127,8 @@ BEGIN
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread ))
 
 		DELETE b
-		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+		FROM  #BetDelete b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsId = 9999 OR b.OddsId = tp.OddsId))
 	END	
 	------------------***** End of insert all data into #BetDelete *****------------------
