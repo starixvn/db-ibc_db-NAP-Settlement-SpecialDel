@@ -406,6 +406,7 @@ BEGIN
 				,LiveScores --ActualScore for WC
 				,TypeAccept
 				,FilterBy
+				,SubIssueTypeId
 			)
 		SELECT @RequestId AS RequestId
 				,t.c.value('@MatchId','INT') AS MatchID
@@ -425,6 +426,7 @@ BEGIN
 				 ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
 						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(10)') + '" />' AS TypeAccept
 				,t.c.value('@FilterBy','TINYINT') AS FilterBy
+				,@SubIssueTypeId
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 		
