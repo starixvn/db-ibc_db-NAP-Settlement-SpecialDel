@@ -134,7 +134,7 @@ BEGIN
     IF @sporttype =  1
 	BEGIN
 		IF EXISTS (
-				SELECT 1
+				SELECT TOP 1 1
 				FROM Single_Calculate_Queue s WITH (NOLOCK)
 					INNER JOIN dbo.f_Set_GetAction() f
 					ON s.Action = f.Action
@@ -143,7 +143,7 @@ BEGIN
 				AND s.IsCalculating IN (0, 1)
 				) 
 		OR EXISTS (
-				SELECT 1
+				SELECT TOP 1 1
 				FROM Parlay_Calculate_Queue p WITH (NOLOCK)
 				WHERE p.matchid = @matchid 
 				AND p.IsCalculating IN (0, 1)

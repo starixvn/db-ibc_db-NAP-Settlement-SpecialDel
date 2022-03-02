@@ -188,7 +188,7 @@ BEGIN
 	IF EXISTS (SELECT	TOP 1 1 
 				FROM	dbo.Single_Calculate_Queue s WITH (NOLOCK)
 					INNER JOIN dbo.f_Set_GetAction() f
-					ON q.Action = f.Action
+					ON s.Action = f.Action
 					AND f.GroupAction = 'FM'
 				WHERE	s.matchid = @matchid 
 						AND s.IsCalculating IN (0, 1))
