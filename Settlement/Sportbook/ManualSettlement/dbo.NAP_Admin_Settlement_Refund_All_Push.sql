@@ -161,33 +161,52 @@ BEGIN
 
 		IF @ErrCode > 0
 		RETURN
+
+		IF EXISTS (
+            SELECT TOP 1 1
+            FROM Single_Calculate_Queue WITH (NOLOCK)		
+				INNER JOIN dbo.f_Set_GetAction() f
+					ON q.Action = f.Action
+					AND f.GroupAction = 'MNL'
+            WHERE matchid = @matchid
+                AND IsCalculating IN (0, 1)
+            )
+        OR EXISTS (
+            SELECT 1
+            FROM Parlay_Calculate_Queue WITH (NOLOCK)
+            WHERE matchid = @matchid
+                AND IsCalculating IN (0, 1)
+            )
+		BEGIN
+			SELECT @ErrCode = 1000000
+				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+
+			RETURN
+		END
 	END
 
-    IF EXISTS (
-            SELECT	1
-            FROM	Single_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
-					AND [Action] IN 
-					(
-						'CAL', 'CAL-HT', 'CAL-FT', 'INST-HT', 'INST-FT'
-						,'UNDO'				
-						,'REFUND', 'REFUND-HT', 'REFUND-FT'
-					) --Redmine:#168497
-            )
+	ELSE
+	BEGIN
+		IF EXISTS (
+				SELECT	1
+				FROM	Single_Calculate_Queue WITH (NOLOCK)
+				WHERE	matchid = @matchid
+						AND IsCalculating IN (0, 1)
+				)
 
-        OR EXISTS (
-            SELECT	1
-            FROM	Parlay_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
-            )
-    BEGIN
-        SELECT @ErrCode = 1001003
-            ,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+			OR EXISTS (
+				SELECT	1
+				FROM	Parlay_Calculate_Queue WITH (NOLOCK)
+				WHERE	matchid = @matchid
+						AND IsCalculating IN (0, 1)
+				)
+		BEGIN
+			SELECT @ErrCode = 1001003
+				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 
-        RETURN
-    END
+			RETURN
+		END
+	END
 
     -- check waiting ticket
 	EXEC NAP_Admin_Settlement_Checking

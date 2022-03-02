@@ -114,14 +114,11 @@ BEGIN
 	
     IF EXISTS (SELECT TOP 1 1
 			FROM dbo.Single_Calculate_Queue WITH (NOLOCK)
+				INNER JOIN dbo.f_Set_GetAction() f
+					ON q.Action = f.Action
+					AND f.GroupAction = 'MNL'
 			WHERE matchid = @matchid
 			  AND IsCalculating IN (0, 1)
-			  AND [Action] IN 
-					(
-						'CAL', 'CAL-HT', 'CAL-FT', 'INST-HT', 'INST-FT'
-						,'UNDO'				
-						,'REFUND', 'REFUND-HT', 'REFUND-FT'
-					) --Redmine:#168497
 			)
     OR EXISTS (SELECT TOP 1 1
 			 FROM dbo.Parlay_Calculate_Queue WITH (NOLOCK)
