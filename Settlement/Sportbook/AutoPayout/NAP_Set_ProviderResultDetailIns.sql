@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="vnteam" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_InfoSite" viewers="Dot_InfoSite,vnteam" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_ProviderResultDetailIns
 	(
 		@MatchId		INT
