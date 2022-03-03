@@ -129,9 +129,7 @@ BEGIN
               MainTransId           BIGINT,
 			  IsMarked			 	BIT,
 			  ActualStake			MONEY,
-			  Winlost				MONEY,	
-			  OddsID				INT,
-			  choiceOddsID			INT
+			  Winlost				MONEY	
 			 );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -283,8 +281,6 @@ BEGIN
 			,IsMarked
 			,ActualStake
 			,Winlost
-			,OddsID
-			,choiceOddsID
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -329,8 +325,6 @@ BEGIN
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			,b.actual_stake AS ActualStake
 			,b.winlost - b.actual_stake AS Winlost
-			,b.OddsID
-			,b.OddsID AS choiceOddsID
 	FROM	bettrans b WITH (NOLOCK)	
 		  LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
 	WHERE	b.matchid = @matchid
@@ -513,8 +507,6 @@ BEGIN
 				,Transdesc		
 				,betdaqid
 				,IsMarked					
-				,OddsID
-				,choiceOddsID
 			)	
 		SELECT 
 				b.TranslogID AS GroupID
@@ -548,8 +540,6 @@ BEGIN
 				,b.Transdesc
 				,-1 AS betdaqid -- normal ticket
 				,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked								
-				,0 AS OddsID
-				,0 AS choiceOddsID
 		FROM	Translog b WITH (NOLOCK)
 			INNER JOIN #tblBettype tp 
 				ON	tp.Id = b.gameID
@@ -584,7 +574,6 @@ BEGIN
 		,ExtraInfo		VARCHAR(1000)
 		,ActualStake	MONEY
 		,Winlost		MONEY
-		,OddsID			INT
 		)
 
 	IF EXISTS (
@@ -622,7 +611,6 @@ BEGIN
 				,ExtraInfo
 				,ActualStake	
 				,Winlost
-				,OddsID
 		)
 		SELECT	main.transid
 				,main.Refno
@@ -645,7 +633,6 @@ BEGIN
 				,main.ExtraInfo
 				,main.actual_stake	AS ActualStake
 				,main.winlost
-				,main.OddsID
 		FROM	dbo.bettrans AS main WITH (NOLOCK)
 			INNER JOIN #tblBettype tp
 				ON	main.bettype = tp.Id
@@ -693,8 +680,6 @@ BEGIN
 				,ExtraInfo
 				,ActualStake
 				,Winlost
-				,OddsID
-				,choiceOddsID
 			)
 		SELECT 
 				main.transid AS GroupID
@@ -733,8 +718,6 @@ BEGIN
 				,main.ExtraInfo
 				,main.ActualStake			
 				,main.Winlost - main.ActualStake AS Winlost
-				,main.OddsID
-				,sub.OddsID AS choiceOddsID
 		FROM	dbo.bettransm sub WITH (NOLOCK)				
 				INNER JOIN #MainParlay AS main WITH (NOLOCK) 
 					ON	main.refno = sub.refno				
@@ -809,8 +792,6 @@ BEGIN
 						,IsMarked
 						,ActualStake		
 						,Winlost
-						,OddsID
-						,choiceOddsID
 					)
 				SELECT 
 						b.transid AS GroupID
@@ -856,8 +837,6 @@ BEGIN
 						,IsMarked
 						,b.actual_stake AS ActualStake
 						,b.winlost - b.actual_stake AS Winlost
-						,b.oddsid AS OddsID
-						,b.oddsid AS choiceOddsID
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 						 ON b.RefCode = t.RefCode
@@ -939,8 +918,6 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 			   ,s.Winlost
-			   ,s.OddsID
-			   ,s.choiceOddsID
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1006,8 +983,6 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 			   ,s.Winlost
-			   ,s.OddsID
-			   ,s.choiceOddsID
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -1064,8 +1039,6 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 			   ,s.Winlost
-			   ,s.OddsID
-			   ,s.choiceOddsID
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1130,8 +1103,6 @@ BEGIN
 		   ,s.IsMarked
 		   ,s.ActualStake
 		   ,s.Winlost
-		   ,s.OddsID
-		   ,s.choiceOddsID
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1186,8 +1157,6 @@ BEGIN
 		   ,@GlobalShowTime AS GlobalShowTime
 		   ,s.ActualStake
 		   ,s.Winlost
-		   ,s.OddsID
-		   ,s.choiceOddsID
 	FROM CTE_OriginResult s
 	ORDER BY CASE
 				WHEN s.GroupName = 'Credit' THEN 1

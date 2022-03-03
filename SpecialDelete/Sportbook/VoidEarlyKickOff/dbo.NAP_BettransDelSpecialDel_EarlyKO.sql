@@ -289,8 +289,6 @@ BEGIN
 		,main_ruben		TINYINT
 		,main_custId	INT
 		,Winlost		MONEY
-		,OddsID			INT
-	    ,choiceOddsID	INT
 	)  
 
 	DECLARE @Status TABLE (statusID TINYINT)  
@@ -411,7 +409,7 @@ BEGIN
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsID)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -977,8 +975,6 @@ BEGIN
 			,main_ruben
 			,main_custId
 			,Winlost
-			,OddsID
-			,choiceOddsID
 		)  
 		SELECT   
 			sub.transid  
@@ -1020,8 +1016,6 @@ BEGIN
 			,main.ruben
 			,main.custid
 			,main.winlost - main.actual_stake AS Winlost
-			,main.oddsid AS OddsID
-			,sub.oddsid AS choiceOddsID
 		FROM #tblTransIds t
 			INNER LOOP JOIN dbo.bettransm AS sub WITH (NOLOCK) ON t.transid = sub.transid  
 			INNER HASH JOIN dbo.bettrans main WITH (NOLOCK) ON sub.refno = main.refno AND main.matchid = 29
@@ -2073,7 +2067,6 @@ BEGIN
 			,al.MainTransId
 			,al.ActualStake
 			,al.Winlost
-			,al.OddsID, al.choiceOddsID
 			FROM #BetDelete al			
 			UNION ALL  
 			SELECT bm.odds  
@@ -2118,7 +2111,6 @@ BEGIN
 			,NULL AS MainTransId
 			,bm.ActualStake
 			,bm.Winlost
-			,bm.OddsID, bm.choiceOddsID
 			FROM #BetmDelete bm  
 		) AS al  
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK)  
