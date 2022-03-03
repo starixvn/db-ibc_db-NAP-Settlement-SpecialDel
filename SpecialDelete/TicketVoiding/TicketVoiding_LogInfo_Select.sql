@@ -201,7 +201,7 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
-	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreTicket2H VARCHAR(100), ScoreOfMatch VARCHAR(100))
+	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
 			livehomescore			 SMALLINT
@@ -1520,36 +1520,27 @@ BEGIN
 			--Check score for void message
 			IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
 			BEGIN
-					INSERT INTO @tblScoreMessage (MatchId, ScoreTicket2H)
+					INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
 					SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.TransId
 					WHERE s.RequestId = @RequestId
-						AND f.GroupName = '2H'
+						AND f.GroupName <> '2H'
 			END
 
 			IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
 			BEGIN
-					INSERT INTO @tblScoreMessage (MatchId, ScoreTicket2H)
+					INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
 					SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
 						INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.transid = s.TransId
 					WHERE s.RequestId = @RequestId
-						AND f.GroupName = '2H'
+						AND f.GroupName <> '2H'
 			END
 
-			IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) 
-												INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype			
-										WHERE s.RequestId = @RequestId 
-											AND f.GroupName <> '2H')
-
-				AND NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) 
-												INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.transid = s.TransId
-												INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype			
-										WHERE s.RequestId = @RequestId 
-											AND f.GroupName <> '2H')
+			IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
 			BEGIN
 				UPDATE s 
 				SET s.ScoreOfMatch = CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
@@ -1572,7 +1563,7 @@ BEGIN
 				,rd.MaxMainParlayTransId
 				,h.HighLightTransId
 				,h.HighlightAcceptType
-				,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreTicket2H
+				,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 				,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			  OUTER APPLY (
@@ -1593,7 +1584,7 @@ BEGIN
 					)h
 				LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 				CROSS APPLy(
-					SELECT DISTINCT '|' + l.ScoreTicket2H
+					SELECT DISTINCT '|' + l.ScoreNormalTicket
 					FROM @tblScoreMessage l
 						where l.MatchId = rd.MatchId
 					FOR XML PATH('')
