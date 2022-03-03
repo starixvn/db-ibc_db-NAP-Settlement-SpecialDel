@@ -1,0 +1,41 @@
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_OddsOSInfo_Select]
+(	
+	@MatchId INT = 0
+	,@BetTypes VARCHAR(2000) = ''
+)
+AS 
+/*	
+	Created by: Max
+	Date 20220228
+	Task: [TVS] Integrate new bet types of Cricket
+	DB: DBPRO-bodb02
+	
+	Revisions:
+		- 20220228@Max: Create new SP [Redmine: #168080]
+
+	Param's explanation:		
+*/
+
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @tmpBettype AS TABLE (bettype SMALLINT)
+	
+	INSERT INTO @tmpBettype (bettype)
+	SELECT DISTINCT val 
+	FROM dbo.f_SplitString(@BetTypes, ',')
+	WHERE val <> ''
+	OPTION (MAXRECURSION 0)
+
+	SELECT DISTINCT CASE WHEN t.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN o.oddsid ELSE NULL END AS oddsid
+		, o.bettype AS BettypeId
+		, os.betChoice
+		, STUFF(os.OddsInfo,1, CHARINDEX(',', os.OddsInfo), '') AS PlayerName
+	FROM dbo.oddsOS o WITH (NOLOCK)
+		INNER JOIN dbo.oddsOS_flex os WITH (NOLOCK) ON os.oddsid = o.oddsid
+		INNER JOIN @tmpBettype t ON t.bettype = o.bettype
+	WHERE o.matchid = @MatchId
+
+END
+
