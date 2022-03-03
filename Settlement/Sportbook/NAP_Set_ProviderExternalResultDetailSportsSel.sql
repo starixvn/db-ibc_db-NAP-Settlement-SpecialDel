@@ -18,6 +18,7 @@ AS
 		- 20210730@Louisa: Intergration L-Sports [Redmine:#159307]
 		- 20210805@Louisa: Default for Other sports [Redmine:#159307]
 		- 20211223@Louisa: mapping between in-house and external match [Redmine:#166449]
+		- 20220222@Louisa : Task: Integrate result for Soccer Corner matches [Redmine:#168854]
 */
 BEGIN
 	
@@ -38,7 +39,7 @@ BEGIN
 			,@IsInhouse	= @IsInhouse
 	END
 
-	IF @ExternalResultTable = 3 ---- ESports
+	ELSE IF @ExternalResultTable = 3 ---- ESports
 	BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailESSel
 			@MatchId3rd	= @MatchId3rd
