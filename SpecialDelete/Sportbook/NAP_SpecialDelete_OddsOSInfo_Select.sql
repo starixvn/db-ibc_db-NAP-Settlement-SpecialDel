@@ -31,7 +31,8 @@ BEGIN
 	SELECT DISTINCT CASE WHEN t.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN o.oddsid ELSE NULL END AS oddsid
 		, o.bettype AS BettypeId
 		, os.betChoice
-		, STUFF(os.OddsInfo,1, CHARINDEX(',', os.OddsInfo), '') AS PlayerName
+		, STUFF(os.OddsInfo, 1, CHARINDEX(',', os.OddsInfo), '') AS PlayerName
+		, STUFF(os.OddsInfo, CHARINDEX(',', os.OddsInfo), LEN(os.OddsInfo), '') AS PlayerId
 	FROM dbo.oddsOS o WITH (NOLOCK)
 		INNER JOIN dbo.oddsOS_flex os WITH (NOLOCK) ON os.oddsid = o.oddsid
 		INNER JOIN @tmpBettype t ON t.bettype = o.bettype
