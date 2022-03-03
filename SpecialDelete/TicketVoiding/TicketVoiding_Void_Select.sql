@@ -1000,6 +1000,7 @@ BEGIN
 				,winlostdate
 				,statusID
 				,ActualStake
+				,mainstatusid
 			)
 		SELECT	
 			b.translogID AS GroupID
@@ -1037,6 +1038,7 @@ BEGIN
 			,b.winlostdate
 			,b.statusID
 			,b.actual_stake AS ActualStake
+			,b.statusID AS mainstatusid
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.translogid AND b.eventID = s.MatchId AND s.RequestId = @RequestId
@@ -1091,6 +1093,7 @@ BEGIN
 			,winlostdate
 			,statusID
 			,ActualStake
+			,mainstatusid
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -1142,6 +1145,7 @@ BEGIN
 			,b.winlostdate
 			,b.statusID
 			,b.actual_stake AS ActualStake
+			,b.statusID AS mainstatusid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -1209,6 +1213,7 @@ BEGIN
 			,b.winlostdate
 			,b.statusID
 			,b.actual_stake AS ActualStake
+			,b.statusID AS mainstatusid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.transid AND s.RequestId = @RequestId
@@ -2185,7 +2190,7 @@ BEGIN
 			   ,CASE 
 					WHEN @eventstatus <> @eventstatus_completed -- cases 1, 2, 3 
 							THEN CASE
-									WHEN s.mainstatusid IN (111, 112, 113)  AND s.betdaqid <> -2
+									WHEN s.mainstatusid IN (111, 112, 113)  AND ISNULL(s.betdaqid,0) <> -2
 										 AND EXISTS (SELECT TOP 1 1
 													 FROM #InstantSettlementBettypes
 													 WHERE bettype = s.MainBettype
