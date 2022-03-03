@@ -28,6 +28,7 @@ AS
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220118@July: HotFix - Recover Cash Out Transaction NOT CALC PlayerComm for tickets double Comm [Redmine: #167687]
+		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 
 	Param's Explanation:
 	
@@ -295,6 +296,7 @@ BEGIN
 	  , creator = t.creator
 	  , modds = t.MOdds
 	  , betdaqid = -2
+	  , virtualrate = actualrate
 	  , RepUpdateTime = @RepUpdateTime
 	FROM dbo.bettrans b 
 		INNER JOIN CTE_main_cashoutticket AS t

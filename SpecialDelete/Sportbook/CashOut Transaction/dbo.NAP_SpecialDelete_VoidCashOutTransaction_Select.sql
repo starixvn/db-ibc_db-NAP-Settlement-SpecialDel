@@ -26,6 +26,7 @@ AS
 		- 20200930@Zane: TVS - Allow filter by Accept Time on Void Cash Out [Redmine:#142482]
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
+		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 
 	Explanation's Param:
 		@Option: 0 - by MatchId
@@ -245,12 +246,12 @@ BEGIN
 					sub.actual_stake AS ActualStake
 			FROM	dbo.bettrans sub WITH(NOLOCK)	
 				INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
+				INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = sub.transid
 			WHERE	sub.matchid = @MatchId 	
 					AND sub.betdaqid = -2
 					AND sub.statusID IN (103, 111, 112, 113)
 					AND EXISTS (SELECT TOP (1) 1 FROM #Durations d
-						WHERE 1 = CASE WHEN @FilterBy = 1 AND sub.checktime IS NOT NULL AND sub.checktime BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
-									WHEN @FilterBy = 1 AND sub.checktime IS NULL AND sub.transdate BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
+						WHERE 1 = CASE WHEN @FilterBy = 1 AND c.checktime BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
 									WHEN @FilterBy = 0 AND sub.transdate BETWEEN d.FromTransDate AND d.ToTransDate THEN 1
 									ELSE 0 
 									END)					

@@ -34,6 +34,7 @@ AS
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220221@Max: TVS Auto Calculate When Cancel Cash Out Transaction [Redmine: #168774]
+		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 
 	Explanation's Param:
 
@@ -46,7 +47,7 @@ BEGIN
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
 		  , @RepUpdateTime		DATETIME2
-		  , @xmlTransId			VARCHAR(MAX)
+		  , @xmlTransId			VARCHAR(MAX) = ''
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 		  
@@ -282,7 +283,7 @@ BEGIN
 	GROUP BY temp.custid
 	
 	--> update bettrans
-	/*1. Void running CO Transaction*/
+	/*1. Update to running for CO Transaction*/
 	SET @RepUpdateTime = SYSDATETIME()
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET		b.winlost = 0
@@ -298,19 +299,23 @@ BEGIN
 			,b.ruben = 0
 			,b.creator = @UserId
 			,b.betdaqid = -1
+			,b.virtualrate = c.VirtualRate
 			,RepUpdateTime  = @RepUpdateTime
 	FROM	dbo.bettrans b 
-		INNER JOIN #SpecialDeleteBets s
-			ON	b.transid = s.transId
+		INNER JOIN #SpecialDeleteBets s ON	b.transid = s.transId
+		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID
 	
-	/*2. Void settled CO Transaction*/
+	/*2. Re-Cal for CO Transaction already has statuswinlost*/
 	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
 									FROM	#SpecialDeleteBets t
 									WHERE t.statuswinlost IS NOT NULL
 									FOR XML PATH('r'), ROOT('root')
 								)
-	EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
-		@TransIds = @xmlTransId
+	IF @xmlTransId <> ''
+	BEGIN
+		EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
+			@TransIds = @xmlTransId
+	END
 
 	--> capture after
 	INSERT INTO @AfterUpd(custid, balance, balanceType)
