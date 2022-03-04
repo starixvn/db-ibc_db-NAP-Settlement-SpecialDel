@@ -1537,6 +1537,7 @@ BEGIN
 						INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.transid = s.TransId
 						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype			
 					WHERE s.RequestId = @RequestId
+						AND f.GroupName <> '2H'
 			END
 
 			IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
