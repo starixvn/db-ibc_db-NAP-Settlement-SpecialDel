@@ -119,6 +119,7 @@ AS
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
 					 OddsId="8518"			-- Default : "All" ; Format : Single Number
+					 Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
 			/>
 		 <BetTypes/>'
 
@@ -149,7 +150,8 @@ BEGIN
 		ValueHdp2		VARCHAR(20),
 		Goal			VARCHAR(10),
 		OddsSpread		VARCHAR(500),
-		OddsId			VARCHAR(500)
+		OddsId			VARCHAR(20),
+		Transdesc		NVARCHAR(1000)
 	)
 
 	CREATE TABLE #tblBetType_Detail
@@ -164,11 +166,12 @@ BEGIN
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
 		OddsSpread		MONEY,
-		OddsId			INT
+		OddsId			INT,
+		Transdesc		NVARCHAR(1000)
 	)
 		
 	-- Parse xml @BetTypes
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
 			, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
@@ -179,11 +182,12 @@ BEGIN
 			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			, t.c.value('@OddsSpread','VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
-			, t.c.value('@OddsId','VARCHAR(500)') AS Goal			-- check columns : OddsId		 ; single-choice
+			, t.c.value('@OddsId','VARCHAR(20)') AS OddsId			-- check columns : OddsId		 ; single-choice
+			, t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 			 
-	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId)
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -200,6 +204,7 @@ BEGIN
 		 , cte.Goal
 		 , cte.OddsSpread
 		 , cte.OddsId
+		 , cte.Transdesc
 	FROM (
 		SELECT cte.Id
 			 , bt.val AS BetTeam 
@@ -218,6 +223,7 @@ BEGIN
 						ELSE os.val END AS MONEY) AS OddsSpread
 			 , CAST(CASE WHEN osi.val = 'ALL' THEN @ValueDefault
 						ELSE osi.val END AS INT) AS OddsId
+			 ,cte.Transdesc
 		FROM #tblBetType cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
@@ -873,6 +879,11 @@ BEGIN
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsId = 9999 OR b.OddsId = tp.OddsId))
+
+		DELETE b
+		FROM  #SpecialDeleteBets b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.transdesc = tp.Transdesc))
 	END	
 
 	-- update MainTransId	

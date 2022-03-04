@@ -77,7 +77,8 @@ AS
 						 ValueHdp1="1,2,3"		-- Default : "All" ; Format : 1,2,3,4,... ; 
 						 ValueHdp2="1"			-- Default : "All" ; Format : Single Number
 						 Goal="2"				-- Default : "All" ; Format : Single Number
-						 OddsID ="10006450"		-- Default : "All" ; Format : Single Number
+						 OddsId ="10006450"		-- Default : "All" ; Format : Single Number
+						 Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
 				/>
 			 <BetTypes/>'
 
@@ -97,7 +98,8 @@ BEGIN
 		ValueHdp1		SMALLMONEY,
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
-		OddsID			INT
+		OddsId			INT,
+		Transdesc		NVARCHAR(1000)
 	)
 	
 	CREATE TABLE #Bettypes_Parlay (BetType SMALLINT)
@@ -149,7 +151,7 @@ BEGIN
         ,transdesc				NVARCHAR(1000)
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
-        ,OddsID					INT
+        ,OddsId					INT
 	   )
                   
 	CREATE TABLE #Ref (--id INT identity(1,1) primary key clustered   
@@ -168,7 +170,7 @@ BEGIN
 	  ,status			VARCHAR(10) 
 	  ,betcheck			NVARCHAR(50)
 	  ,transdesc		NVARCHAR(1000)
-	  ,OddsID			INT
+	  ,OddsId			INT
 	 ) 
 
     -- Parse xml @BetTypes
@@ -183,7 +185,8 @@ BEGIN
 			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 		 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(20)') AS Goal				-- check columns : betID		 ; single-choice
-			 , t.c.value('@OddsID','VARCHAR(20)') AS OddsID			-- check columns : OddsID		 ; single-choice
+			 , t.c.value('@OddsId','VARCHAR(20)') AS OddsId			-- check columns : OddsId		 ; single-choice
+			 , t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -211,15 +214,16 @@ BEGIN
 						ELSE cte.Goal
 					END AS BIGINT) AS Goal
 			, CAST(CASE 
-						WHEN cte.OddsID = 'ALL' THEN @ValueDefault 
-						ELSE cte.OddsID
-					END AS INT) AS OddsID
+						WHEN cte.OddsId = 'ALL' THEN @ValueDefault 
+						ELSE cte.OddsId
+					END AS INT) AS OddsId
+			, cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2, OddsID)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2, OddsId, Transdesc)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -233,7 +237,8 @@ BEGIN
 		 , cte.Goal
 		 , cte.ValueHdp1
 		 , cte.ValueHdp2
-		 , cte.OddsID
+		 , cte.OddsId
+		 , cte.Transdesc
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -250,7 +255,7 @@ BEGIN
 		VALUES (@BetType) 
    
 	INSERT INTO #Ref (refno, transid, Bettype, hdp1, hdp2, odds, betteam, 
-				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, OddsID)  
+				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, OddsId)  
 	SELECT b.refno  
 	  ,b.transid  
 	  ,b.Bettype     
@@ -266,7 +271,7 @@ BEGIN
 	  ,b.status
 	  ,b.betcheck
 	  ,b.transdesc
-	  ,b.OddsID
+	  ,b.OddsId
 	 FROM dbo.bettransm AS b WITH(NOLOCK)		  
 	 WHERE	matchid=@MatchID    
 			AND CASE WHEN @Type = 2 THEN @Type ELSE b.liveindicator END = @Type
@@ -379,10 +384,17 @@ BEGIN
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 		WHERE tp.Id = s.Bettype AND (tp.ValueHdp2 = 9999 OR s.hdp2 = tp.ValueHdp2 )) 
 
+	/*Apply for bettypes Cricket 2.0 [168080]*/
 	DELETE s
 	FROM  #Ref s
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-		WHERE tp.Id = s.Bettype AND (tp.OddsID = 9999 OR s.OddsID = tp.OddsID )) 
+		WHERE tp.Id = s.Bettype AND (tp.OddsId = 9999 OR s.OddsId = tp.OddsId )) 
+	
+	DELETE s
+	FROM  #Ref s
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE tp.Id = s.Bettype AND  (tp.Transdesc = 'ALL' OR s.transdesc = tp.Transdesc))
+	
 	END
 
 	INSERT INTO #ParlayDelete  
@@ -433,7 +445,7 @@ BEGIN
 	,r.transdesc
 	,b.ExtraInfo
 	,b.actual_stake AS ActualStake
-	,r.OddsID
+	,r.OddsId
 	FROM #Bettypes_Parlay t
 	INNER JOIN dbo.bettrans AS b with (NOLOCK) ON t.BetType = b.matchid
 	INNER JOIN #Ref AS r WITH(NOLOCK) ON b.refno=r.refno
@@ -476,7 +488,7 @@ BEGIN
 			,T.[Group]				AS GroupName
 			,T.ExtraInfo
 			,T.ActualStake
-			,T.OddsID				AS SubOddsID
+			,T.OddsId				AS SubOddsId
 	FROM
 	(	
 		--0. For Credit bets  

@@ -144,7 +144,8 @@ AS
 					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
-					OddsId="8518"			-- Default : "All" ; Format : Single Number
+					 OddsId="8518"			-- Default : "All" ; Format : Single Number
+					 Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
 			/>
 		 <BetTypes/>'
 	*/
@@ -219,7 +220,8 @@ BEGIN
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
 		OddsSpread		MONEY,
-		OddsId			INT
+		OddsId			INT,
+		Transdesc		NVARCHAR(1000)
 	)					
 	
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
@@ -291,7 +293,7 @@ BEGIN
         FilterHdp2		 	SMALLMONEY,
 		FilterOddsSpread	MONEY,
 		ActualStake			MONEY,
-		main_ruben				TINYINT,
+		main_ruben			TINYINT,
 		main_custId			INT,
 		OddsId				INT
 	)
@@ -405,7 +407,8 @@ BEGIN
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 	 	 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			 , t.c.value('@OddsSpread', 'VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
-			 , t.c.value('@OddsId','VARCHAR(500)') AS OddsId				-- check columns : betID		 ; single-choice
+			 , t.c.value('@OddsId','VARCHAR(20)') AS OddsId				-- check columns : OddsId		 ; single-choice
+			 , t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -427,6 +430,7 @@ BEGIN
 						ELSE os.val END AS MONEY) AS OddsSpread
 			, CAST(CASE WHEN osi.val = 'ALL' THEN @ValueDefault
 		                ELSE osi.val END AS INT) AS OddsId
+			, cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
@@ -435,7 +439,7 @@ BEGIN
 			 CROSS APPLY dbo.strSplit(cte.OddsSpread, ',') os
 			 CROSS APPLY dbo.strSplit(cte.OddsId, ',') osi
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id
 		 , cte.BetTeam
 		 , cte.[Set]
@@ -447,6 +451,7 @@ BEGIN
 		 , cte.Goal
 		 , cte.OddsSpread
 		 , cte.OddsId
+		 , cte.Transdesc
 	FROM CTE_ParsedBettypes cte		 		
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
 
@@ -1130,6 +1135,11 @@ BEGIN
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsId = 9999 OR b.OddsId = tp.OddsId))
+
+		DELETE b
+		FROM  #BetDelete b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.transdesc = tp.Transdesc))
 	END	
 	------------------***** End of insert all data into #BetDelete *****------------------
 	--------------------------------------------------------------------------------------		
