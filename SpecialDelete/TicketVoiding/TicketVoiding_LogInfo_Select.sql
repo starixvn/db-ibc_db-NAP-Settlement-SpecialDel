@@ -1542,10 +1542,11 @@ BEGIN
 
 			IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
 			BEGIN
-				UPDATE s 
-				SET s.ScoreOfMatch = CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
-				FROM @tblScoreMessage s
-					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = s.MatchId
+				INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket) 
+				SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
+				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
+				WHERE rd.RequestId = @RequestId
 			END
 
 			SELECT rd.MatchId
