@@ -62,7 +62,7 @@ BEGIN
 
 		WHEN NOT MATCHED BY TARGET AND @Action = 'I' THEN
 			INSERT (MatchId, SourceId, TypeId, HomeValue, AwayValue)
-			VALUES (SOURCE.MatchId, SOURCE.SourceId, SOURCE.TypeId, SOURCE.HomeValue,SOURCE. AwayValue);
+			VALUES (SOURCE.MatchId, SOURCE.SourceId, SOURCE.TypeId, SOURCE.HomeValue,SOURCE.AwayValue);
 	
 	END TRY
 
