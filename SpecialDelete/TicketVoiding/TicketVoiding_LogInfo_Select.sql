@@ -1533,11 +1533,10 @@ BEGIN
 			BEGIN
 					INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
 					SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 						INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.transid = s.TransId
+						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype			
 					WHERE s.RequestId = @RequestId
-						AND f.GroupName <> '2H'
 			END
 
 			IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
