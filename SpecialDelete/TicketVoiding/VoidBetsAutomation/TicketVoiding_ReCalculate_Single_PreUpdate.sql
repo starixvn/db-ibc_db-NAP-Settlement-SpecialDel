@@ -19,6 +19,7 @@ AS
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]	
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20220307@Max: TVS - Miss update balance when update request abnormal mix parlay [Redmine: #169600]
 
 	Param's explanation:	
 		
@@ -32,6 +33,7 @@ BEGIN
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
 			,@xmlTransId		VARCHAR(MAX)
+			,@refnos_29				 VARCHAR(MAX) = '' 
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 
@@ -144,13 +146,30 @@ BEGIN
 			,b.WalletType
 
 	--ReCalculate
-	BEGIN TRY
-		SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
+	BEGIN TRY						
+		IF @MatchId = 29 
+		BEGIN
+			SET @refnos_29 =''
+						SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
+						FROM #tmpTransId  
+						WHERE bettype = 29 
+						GROUP BY refno, transid
+						SET @refnos_29 = STUFF(@refnos_29,1,1,'')
+
+			EXEC dbo.NAP_Admin_Calculate_MP_broker  
+					@matchdate = ''  
+					,@strXML = @refnos_29  
+					,@mode  = '29'  
+		END
+		ELSE
+		BEGIN
+			SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
 									FROM	@tmpInputTransId t
 									FOR XML PATH('r'), ROOT('root')
 								)
-								
-		EXEC TicketVoiding_ReCalculate_Single_Update @TransIds = @xmlTransId
+
+			EXEC TicketVoiding_ReCalculate_Single_Update @TransIds = @xmlTransId
+		END
 	END TRY
 	
 	BEGIN CATCH
