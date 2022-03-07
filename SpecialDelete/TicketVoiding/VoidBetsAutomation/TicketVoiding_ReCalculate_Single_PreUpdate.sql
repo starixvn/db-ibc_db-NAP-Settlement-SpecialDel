@@ -70,10 +70,10 @@ BEGIN
 	SET @FailedTransIds = @TransIds
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 
-	INSERT INTO #tmpTransId(TransId, custid, bettype, balanceType, refcode, betid)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, balanceType, refcode, betid, Refno)
 	SELECT	b.transid, b.custid, b.bettype
 			,1 AS balanceType
-			, b.RefCode, b.betid
+			, b.RefCode, b.betid, b.refno
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
