@@ -76,6 +76,7 @@ AS
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
+		- 20220307@Max: TVS - Miss update balance when update request abnormal mix parlay [Redmine: #169600]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -1200,23 +1201,15 @@ BEGIN
 				END
 				IF @FilterBy = 1 --mixparlay ticket
 				BEGIN
-					BEGIN TRY  
-						SET @refnos_29 =''
-						SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
-						FROM #transidremove_tmp  
-						WHERE bettype = 29 
-							AND (statusID IS NULL OR statusID <> 102) 
-						GROUP BY refno, transid
-						SET @refnos_29 = STUFF(@refnos_29,1,1,'')
-
-						EXEC dbo.NAP_Admin_Calculate_MP_broker  
-								@matchdate = ''  
-								,@strXML = @refnos_29  
-								,@mode  = '29'  
-					END TRY  
-					BEGIN CATCH   
-						SELECT @ErrCode = 100, @ErrMsg = ERROR_MESSAGE()  
-					END CATCH  
+					EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
+								@Matchid = 29	,
+								@TransIds = @ResettleTransids,
+								@UserId  = @UserId,
+								@IP = @IP,
+								@FailedTransIds = @FailedTransIds OUTPUT,
+								@ErrMsg = @ErrMsg OUTPUT,
+								@ErrCode = @ErrCode OUTPUT,
+								@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT 
 				END
 			END
 		END
@@ -1277,23 +1270,15 @@ BEGIN
 				END
 				IF @FilterBy = 1 --mixparlay ticket
 				BEGIN
-					BEGIN TRY  
-						SET @refnos_29 = '' 
-						SELECT  @refnos_29 = @refnos_29 + ',' + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid)
-						FROM #transid_tmp  
-						WHERE bettype = 29 
-							AND (statusID IS NULL OR statusID <> 102) 
-						GROUP BY refno, transid
-						SET @refnos_29 = STUFF(@refnos_29,1,1,'')
-
-						EXEC dbo.NAP_Admin_Calculate_MP_broker  
-								@matchdate = ''  
-								,@strXML = @refnos_29  
-								,@mode  = '29'  
-					END TRY  
-					BEGIN CATCH   
-						SELECT @ErrCode = 100, @ErrMsg = ERROR_MESSAGE()  
-					END CATCH  
+					EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
+								@Matchid = 29	,
+								@TransIds = @ResettleTransids,
+								@UserId  = @UserId,
+								@IP = @IP,
+								@FailedTransIds = @FailedTransIds OUTPUT,
+								@ErrMsg = @ErrMsg OUTPUT,
+								@ErrCode = @ErrCode OUTPUT,
+								@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT 
 				END
 			END
 		END
