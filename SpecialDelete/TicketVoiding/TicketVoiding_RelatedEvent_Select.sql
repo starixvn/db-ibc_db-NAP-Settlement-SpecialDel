@@ -21,6 +21,7 @@ AS
 		- 20210608@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20211019@July: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20220114@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220221@July: Modify code get fantasy match [Redmine: #164561] 
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -34,7 +35,7 @@ BEGIN
 	BEGIN
 		DECLARE @query NVARCHAR(MAX) = ''
 		DECLARE @ExecuteSQL NVARCHAR(MAX) = ''
-		DECLARE @fantasymatch_tmp TABLE (fantasy_match INT)
+		
 		CREATE TABLE #LinkedMatch_tmp (MainMatchID INT, LinkedMatchID INT)
 		
 		SET @query = '	SELECT MainMatchID, LinkedMatchID
@@ -46,16 +47,19 @@ BEGIN
 
 		IF @IssueTypeId IN (4,5)
 		BEGIN
-			INSERT INTO @fantasymatch_tmp (fantasy_match)
-			SELECT m.MatchId
+			DECLARE @fantasymatch_tmp TABLE (fantasy_match INT, value VARCHAR(200))
+
+			INSERT INTO @fantasymatch_tmp (fantasy_match, value)
+			SELECT  m.MatchId, ','+ m.Value +','
 			FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
 			WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(20)) +'%' AND m.[Key] = 'fantasy'
 
 			IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)
 			BEGIN
 				INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
-				SELECT @MatchId, fantasy_match 
-				FROM @fantasymatch_tmp
+				SELECT @MatchId, f.fantasy_match 
+				FROM @fantasymatch_tmp f
+				WHERE f.Value LIKE '%,' + CAST(@MatchId AS VARCHAR(20)) +',%' 
 			END
 		END
 

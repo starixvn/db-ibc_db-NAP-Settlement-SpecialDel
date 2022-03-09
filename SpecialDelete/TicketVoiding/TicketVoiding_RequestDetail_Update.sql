@@ -75,6 +75,7 @@ AS
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 		- 20220307@Max: TVS - Miss update balance when update request abnormal mix parlay [Redmine: #169600]
 
@@ -256,7 +257,7 @@ BEGIN
 				  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 				  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 				  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-				  ,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				  ,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 				  ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
 						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' AS TypeAccept
 				  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
@@ -297,7 +298,7 @@ BEGIN
 				  ,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 				  ,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 				  ,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-				  ,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+				  ,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 				  ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
 						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />' 
 						AS TypeAccept
@@ -404,9 +405,11 @@ BEGIN
 				,LiveAwayScore
 				,LiveScores --ActualScore for WC
 				,TypeAccept
+				,FilterBy
+				,SubIssueTypeId
 			)
 		SELECT @RequestId AS RequestId
-				,@MatchId AS MatchID
+				,t.c.value('@MatchId','INT') AS MatchID
 				,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
 				,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
 				,t.c.value('@SingleCount','INT') AS SingleCount
@@ -419,9 +422,11 @@ BEGIN
 				,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 				,t.c.value('@LiveHomeScore','INT') AS LiveHomeScore
 				,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
-				,t.c.value('@ActualScore','VARCHAR(50)') AS ActualScore
+				,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' + t.c.value('@ActualScore','VARCHAR(50)') AS ActualScore
 				 ,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
 						+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(10)') + '" />' AS TypeAccept
+				,t.c.value('@FilterBy','TINYINT') AS FilterBy
+				,@SubIssueTypeId
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 		
@@ -432,7 +437,8 @@ BEGIN
 				AND rd.LiveAwayScore = t.LiveAwayScore
 				AND rd.FilterFromTransTime = t.FilterFromTransTime
 				AND rd.FilterToTransTime = t.FilterToTransTime
-		WHERE rd.matchid = @MatchId AND rd.RequestId = @RequestId AND t.RequestID IS NULL
+				AND rd.MatchId = t.MatchID
+		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
 
 		UPDATE	r
 		SET	  @OldActualScore = r.IssueDetail
@@ -451,6 +457,7 @@ BEGIN
 			, IssueDetail = l.LiveScores
 			, SubIssueTypeId = @SubIssueTypeId
 			, TransIds = l.TypeAccept
+			, FilterBy = l.FilterBy
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId AND r.LiveHomeScore = l.LiveHomeScore AND r.LiveAwayScore = l.LiveAwayScore
 														AND r.FilterFromTransTime = l.FilterFromTransTime
@@ -971,7 +978,7 @@ BEGIN
 					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+					,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 					,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') 
 												+ '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
@@ -1022,7 +1029,7 @@ BEGIN
 					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-					,t.c.value('@LiveScores','VARCHAR(50)') AS LiveScores
+					,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 					,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 					,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') 
 												+ '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
@@ -1385,21 +1392,37 @@ BEGIN
 	ELSE IF @IssueTypeId = 3
 	BEGIN
 	
-		DECLARE @actualscore varchar(5)
+		DECLARE @actualscore VARCHAR(50)
 
-		SELECT @actualscore = l.LiveScores
+		SELECT @actualscore = SUBSTRING(l.LiveScores, CHARINDEX(';Act:',l.LiveScores) + 5, LEN(l.LiveScores))
+			, @MatchId = l.MatchID, @FilterBy = l.FilterBy
 		FROM #tblGetLogInfo l
 
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
+		IF @FilterBy <> 2
+		BEGIN
+			SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20))
 								+', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
 								+', Actual Score: ' + @actualscore
 								+', Wrong Score: ' 
-		SELECT @LogDataContent = @LogDataContent
-								+ CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
-								+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
-								+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
-								+ 'To Time: '+ CONVERT(VARCHAR(30),l.FilterToTransTime, 21) +'); '
-		FROM #tblGetLogInfo l
+			SELECT @LogDataContent = @LogDataContent
+									+ CAST(l.LiveHomeScore AS VARCHAR(5)) +'-'
+									+ CAST(l.LiveAwayScore AS VARCHAR(5))+' ('
+									+ 'From Time: '+ CONVERT(VARCHAR(30),l.FilterFromTransTime, 21)  +' - '
+									+ 'To Time: '+ CONVERT(VARCHAR(30),l.FilterToTransTime, 21) +'); '
+			FROM #tblGetLogInfo l
+		END
+		ELSE
+		BEGIN
+			SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20)) 
+							   + ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
+							    + ', Actual Score: ' + @actualscore
+							   + ', FilterFrom: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) 
+							   + ', FilterTo: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21) 
+							   + ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
+							   + ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
+							   + ', TypeAccept: ' + l.TypeAccept
+			FROM #tblGetLogInfo l
+		END
 	END
 	ELSE IF @IssueTypeId = 17 OR @TransIds IS NOT NULL
 	BEGIN

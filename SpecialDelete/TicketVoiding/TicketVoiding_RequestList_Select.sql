@@ -48,6 +48,7 @@ AS
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220225@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 
 	Param's explanation:	
 		@Status: 
@@ -378,7 +379,8 @@ BEGIN
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
-				,STUFF(w.scores,1,1,'') AS WrongScores
+				,CASE WHEN r.IssueTypeId = 3 AND rd.FilterBy = 2 THEN  SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6)
+					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -389,7 +391,7 @@ BEGIN
 						)m
 				ON r.RequestId = m.RequestID
 			OUTER APPLY(
-						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						SELECT '|' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
 						FOR XML PATH('')
@@ -428,7 +430,8 @@ BEGIN
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
-				,STUFF(w.scores,1,1,'') AS WrongScores
+				,CASE WHEN r.IssueTypeId = 3 AND rd.FilterBy = 2 THEN  SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6)
+					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 		FROM	@tmpRequest t
 			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
 				ON t.RequestId = r.RequestId
@@ -445,7 +448,7 @@ BEGIN
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
-						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						SELECT '|' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
 						FOR XML PATH('')
@@ -479,7 +482,8 @@ BEGIN
 				,rd.FromWinlostDate
 				,rd.ToWinlostDate
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
-				,STUFF(w.scores,1,1,'') AS WrongScores
+				,CASE WHEN r.IssueTypeId = 3 AND rd.FilterBy = 2 THEN  SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6)
+					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
 		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
@@ -494,7 +498,7 @@ BEGIN
 			INNER JOIN @SubIssueType_tmp sub
 				ON sub.SubIssueTypeId = rd.SubIssueTypeId
 			OUTER APPLY(
-						SELECT ',' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
+						SELECT '|' + CAST (rd.LiveHomeScore AS VARCHAR(10)) + '-' + CAST (rd.LiveAwayScore AS VARCHAR(10))
 						FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 						where r.Requestid = rd.RequestId AND r.IssueTypeId = 3
 						FOR XML PATH('')

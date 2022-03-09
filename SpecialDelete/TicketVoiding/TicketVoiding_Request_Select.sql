@@ -37,6 +37,7 @@ AS
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211225@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 
 	Param's explanation:	
 	
@@ -100,7 +101,7 @@ BEGIN
 				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 				,rd.TransIds AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
-				,CASE WHEN @IssueTypeId = 3 THEN rd.IssueDetail ELSE NULL END AS ActualScore
+				,CASE WHEN @IssueTypeId = 3 THEN SUBSTRING(rd.IssueDetail, CHARINDEX(';Act:',rd.IssueDetail) + 5, LEN(rd.IssueDetail)) ELSE NULL END AS ActualScore
 				,rd.VoidFromTime
 				,rd.VoidToTime
 				,rd.SubIssueTypeId
