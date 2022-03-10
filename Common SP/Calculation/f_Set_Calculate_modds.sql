@@ -30,12 +30,13 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210126@Louisa: Cricket AIO - Early bettype [Redmine:#148870]
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
+		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 		
 */
 RETURN
 (
    SELECT  CASE
-			WHEN @pfID IN (1, 10) THEN --Handicap
+			WHEN @pfID IN (1, 10, 9116) THEN --Handicap
 			   CASE  WHEN @betteam = 'h' THEN
 			   				CASE WHEN fm > 0.25 THEN 1
 					 			 WHEN fm = 0.25 THEN 0.25
@@ -57,7 +58,7 @@ RETURN
 					WHEN @betteam IN ('a', 'e') AND fm = 0 THEN 1
 					ELSE -1 END
 					
-			WHEN @pfID IN (3, 387, 386) THEN --Over/under
+			WHEN @pfID IN (3, 387, 386, 9117, 9118, 9119, 9128, 9096) THEN --Over/under
 			   CASE WHEN @betteam IN ('h', 'o') THEN
 			   				CASE WHEN fm > 0.25 THEN 1
 								 WHEN fm = 0.25 THEN 0.25
@@ -81,11 +82,11 @@ RETURN
 					ELSE -1 END
 						
 			WHEN @pfID = 100 THEN --betteam = homevalue (home/away/none/draw)
-			   CASE WHEN @betteam IN ('h', 'a', 'c', 'nc') AND @betteam = @HomeValue THEN 1
+			   CASE WHEN @betteam IN ('h', 'a', 'c', 'nc', 'm', 'nm', 't', 'b', 'nb', 'nt', 'o' ) AND @betteam = @HomeValue THEN 1
 					WHEN @HomeValue IN ('n', 'd') THEN 0
 					ELSE -1 END
 					
-			WHEN @pfID = 101 THEN --Duration Over/Under 
+			WHEN @pfID IN ( 101, 9090 ) THEN --Duration Over/Under 
 			   CASE WHEN @betteam IN ('h', 'o') AND fm > 0 THEN 1
 					WHEN @betteam IN ('a', 'u') AND fm < 0 THEN 1
 					WHEN fm = 0 THEN 0
@@ -175,7 +176,7 @@ RETURN
 					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
 					ELSE -1 
 				END
-			   		
+
 			WHEN @pfID = 391 THEN --Penalty Shootout Exact Total Goals (First 10)
 				CASE WHEN @betteam = 'G4' AND (1 <= fm AND fm <= 4) THEN 1
 					WHEN @betteam = 'G5' AND (fm = 5) THEN 1
@@ -185,6 +186,7 @@ RETURN
 					WHEN @betteam = 'G9+' AND (9 <= fm) THEN 1
 					ELSE -1 
 				END
+
 
 			WHEN @pfID = 383 THEN -- Penalty Shootout Woodwork - Round X
 				CASE WHEN @betteam = 'H' AND @HomeValue = 'H' THEN 1
@@ -310,8 +312,10 @@ RETURN
 					END
 			WHEN @pfID = 635 THEN
 				CASE
-					WHEN @betteam = 'h' AND (CAST(@HomeValue AS INT) > 0 AND CAST(@AwayValue AS INT) = 0) THEN 1
-					WHEN @betteam = 'a' AND (CAST(@HomeValue AS INT) = 0 AND CAST(@AwayValue AS INT) > 0) THEN 1 
+					WHEN @betteam = 'h' AND (CAST(@HomeValue AS INT) > 0 
+					AND CAST(@AwayValue AS INT) = 0) THEN 1
+					WHEN @betteam = 'a' AND (CAST(@HomeValue AS INT) = 0 
+					AND CAST(@AwayValue AS INT) > 0) THEN 1 
 					ELSE -1
 				END
 			WHEN @pfID = 640 THEN
@@ -387,7 +391,8 @@ RETURN
 					WHEN @betteam = 'ao' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) > 0 THEN 1
 					WHEN @betteam = 'au' AND (CAST(@HomeValue AS INT) + @hdp2 - CAST(@AwayValue AS INT)) < 0 AND (CAST(@HomeValue AS INT) + CAST(@AwayValue AS INT) - @hdp1) < 0 THEN 1
 					ELSE -1
-				END	
+				END
+
 			WHEN @pfID = 9538 THEN
 				CASE
 					WHEN fm > 0 AND @betteam IN ('1b', 'xl', '2l') THEN 1
@@ -438,7 +443,8 @@ RETURN
 					WHEN @betteam = 'o' AND fm > 0 THEN 1
 					WHEN @betteam = 'u' AND fm < 0  THEN 1
 					ELSE - 1
-				END
+				END 			
+
 			ELSE -1 
 		END AS modds
    FROM
@@ -446,11 +452,23 @@ RETURN
 		SELECT (CASE 
 					WHEN @pfID = 1 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @LiveHomeScore) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 - @LiveAwayScore)
 					WHEN @pfID = 10 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2) -- not use livescore
+					WHEN @pfID = 9116 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 * 1000)
 					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
+
+					--Over/Under
 					WHEN @pfID = 3 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
-					WHEN @pfID IN (20,711, 608, 614, 5, 24) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
-					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
+					WHEN @pfID = 9117 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000)
+					WHEN @pfID = 9118 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000
+					WHEN @pfID = 9119 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000
 					
+					WHEN @pfID IN (20,711, 608, 614, 5, 24) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+
+					WHEN @pfID = 101 THEN (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
+
+					WHEN @pfId = 9090 THEN 
+										CASE WHEN LEFT(@HomeValue,1) = '-' THEN -(ABS(CAST(@HomeValue AS SMALLMONEY)) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
+											 ELSE (CAST(@HomeValue AS SMALLMONEY) * 60 + CAST(@AwayValue AS SMALLMONEY)) - (@hdp1 * 60)
+										END
 					--Happy5
 					WHEN @pfID IN (8101, 619, 9490) THEN CAST(@HomeValue AS SMALLMONEY)
 					WHEN @pfID = 8102 THEN CAST(@HomeValue AS SMALLMONEY) % 2
@@ -460,10 +478,10 @@ RETURN
 
 					WHEN @pfID = 620 THEN CAST(@AwayValue AS SMALLMONEY)
 					--PHAIO 5
-					WHEN @pfID IN (391, 601, 602, 618) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (391, 618) THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)
 					WHEN @pfID IN (387, 386, 7901) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
-					WHEN @pfID = 401 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
-					WHEN @pfID = 402 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1
+					WHEN @pfID IN (401, 9128) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
+					WHEN @pfID IN (402,9096) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1
 
 					--CricketAIO
 					WHEN @pfID = 9541 THEN CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)

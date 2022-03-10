@@ -36,7 +36,7 @@ AS
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210521@Louisa: Cricket AIO - Phase 1.2 [Redmine:#154811]
-		
+		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 	
     Parameters Explanation:    
     
@@ -413,6 +413,62 @@ RETURN (
 	-- E-Sports 3.0
 	UNION ALL SELECT 11,   9087  ,  0, 0, 0, 0, 'Special', 0, 0,0,0
 	UNION ALL SELECT 2,   9088  ,  0, 0, 0, 0, 'FT', 0, 0,0,0
+
+		--ESports Phase 4
+	UNION ALL SELECT 11,   9089,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9090,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9091,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9092,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9093,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9094,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9095,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9096,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9097,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9098,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9099,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9100,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9101,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9102,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9103,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9104,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9105,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9106,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9107,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9108,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9109,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9110,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9111,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9112,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9113,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9114,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9115,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9116,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9117,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9118,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9119,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9120,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9121,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9122,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9123,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9124,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9125,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9126,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9127,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9128,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9129,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9130,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9131,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9132,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9133,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9134,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9135,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9136,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9137,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9138,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9139,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9140,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9141,  0, 0, 0, 0, 'Special', 0, 0,0,0
+	UNION ALL SELECT 11,   9142,  0, 0, 0, 0, 'Special', 0, 0,0,0
 
 	-- new bettypes of PHAIO Phase 3
 	UNION ALL SELECT 2,448,1,1,0,0,'FT',3, 1,0,0

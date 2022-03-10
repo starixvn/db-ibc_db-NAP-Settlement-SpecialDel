@@ -17,7 +17,7 @@ AS
 		- 20210930@Louisa: Move running ticket to new match for E-Sports [Redmine:#159271]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
-
+		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -39,6 +39,7 @@ BEGIN
 		,SettlementStatus	TINYINT
 		,EventStatusReason	TINYINT
 		,LeagueGroupId	SMALLINT
+		,GameType	TINYINT ---for E-sports
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -56,6 +57,7 @@ BEGIN
 			,SettlementStatus
 			,EventStatusReason
 			,LeagueGroupId
+			,GameType
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -69,6 +71,7 @@ BEGIN
 			,m.SettlementStatus
 			,m.EventStatusReason
 			,l.LeagueGroupID
+			,l.OverTimeSession
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -95,6 +98,7 @@ BEGIN
 		,SettlementStatus
 		,EventStatusReason
 		,LeagueGroupId
+		,GameType
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -112,6 +116,7 @@ BEGIN
 		,m.SettlementStatus
 		,m.EventStatusReason
 		,l.LeagueGroupID
+		,l.OverTimeSession
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -135,6 +140,7 @@ BEGIN
 		,SettlementStatus
 		,EventStatusReason
 		,LeagueGroupId
+		,GameType
 	FROM @tmpMatchInfo
 
 END
