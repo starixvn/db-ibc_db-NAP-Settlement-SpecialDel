@@ -342,7 +342,7 @@ BEGIN
 		, s.CashoutExtraInfo = REPLACE(s.CashoutExtraInfo, '</root>', c.CashOutExtraInfo) + '</root>'
 	FROM dbo.CashOutSelling s WITH (ROWLOCK, UPDLOCK)
 		CROSS APPLY (
-				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),@RepUpdateTime,21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo
+				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),CONVERT(DATETIME,@RepUpdateTime),21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo
 				FROM #SpecialDeleteBets t
 				WHERE t.TransId = s.TransID
 			)c
