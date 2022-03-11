@@ -51,6 +51,7 @@ AS
 		- 20211210@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
+		- 20220311@July: TVS - Wrong count settled tickets at log info [Redmine: #169763]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -1340,7 +1341,7 @@ BEGIN
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
 		,COUNT(CASE WHEN b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS InstantlySettleCount
-		,COUNT(CASE WHEN b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount
 		,MIN(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS MinSingleTransId
 		,MAX(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS MaxSingleTransId
 		,COUNT(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MainParlayCount
@@ -1556,7 +1557,7 @@ BEGIN
 				,rd.SingleCount
 				,c.CashOutCount AS CashOutCount
 				,t.InstantlySettleCount
-				,t.SettleCount
+				,CASE WHEN @IssueTypeId IN (1,10) THEN 0 ELSE t.SettleCount END AS SettleCount
 				,rd.MainParlayCount
 				,rd.MinSingleTransId
 				,rd.MaxSingleTransId
