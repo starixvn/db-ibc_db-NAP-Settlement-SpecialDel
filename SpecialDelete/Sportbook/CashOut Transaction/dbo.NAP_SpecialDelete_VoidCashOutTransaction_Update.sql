@@ -53,7 +53,6 @@ BEGIN
 		  
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #CashOutExtraInfo (TransId BIGINT, changetime DATETIME, winlost MONEY, actionid TINYINT)
 	
 	CREATE TABLE #SpecialDeleteBets (
 		TransId				BIGINT,
@@ -338,18 +337,13 @@ BEGIN
 		, @AfterUpd	 = @afterUpd
 
 	--Update CashoutSelling
-	INSERT INTO #CashOutExtraInfo (TransId, changetime, winlost, actionid)
-	SELECT s.TransId, @RepUpdateTime, b.winlost, 6
-	FROM #SpecialDeleteBets s
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.TransId
-
 	UPDATE s
 	SET s.CashOutStatus = 6
 		, s.CashoutExtraInfo = REPLACE(s.CashoutExtraInfo, '</root>', c.CashOutExtraInfo) + '</root>'
 	FROM dbo.CashOutSelling s WITH (ROWLOCK, UPDLOCK)
 		CROSS APPLY (
-				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),t.changetime,21) + ''' s=''' + CONVERT(varchar(20),t.actionid) + ''' w='''+ convert(varchar(20),t.winlost) +'''/>' AS CashOutExtraInfo
-				FROM #CashOutExtraInfo t
+				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),@RepUpdateTime,21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo
+				FROM #SpecialDeleteBets t
 				WHERE t.TransId = s.TransID
 			)c
 	
