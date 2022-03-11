@@ -455,7 +455,6 @@ BEGIN
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #tblCustInfo
-	DROP TABLE #CashOutExtraInfo
 
 	SET NOCOUNT OFF
 END
