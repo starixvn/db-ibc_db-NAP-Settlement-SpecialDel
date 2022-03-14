@@ -24,6 +24,7 @@ AS
 		- 20210415@Helen: Performance Tuning for EC 2021 [Redmine:#151143]
 		- 20210601@louisa: Performance Tuning for EC 2021 [Redmine:#151143]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220205@Kathy: performance tunning [Redmine:#169814]
 		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -149,20 +150,20 @@ BEGIN
 				SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
 					,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 					,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
-					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY bm.mainmatch) --RN			
+					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY m.mainmatch) --RN			
 				FROM #temp_bettrans b
+					INNER LOOP JOIN dbo.bettransm bm WITH(ROWLOCK)
+						ON b.refno = bm.refno
 					CROSS APPLY
 						(
-							SELECT	bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusID, bm.matchid
-								,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
-								,bm.liveawayscore, bm.liveindicator, bm.betcheck, bm.stake, bm.transdesc
-								,CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE bm.matchid END AS mainmatch
-							FROM	dbo.bettransm bm WITH(ROWLOCK)	
-								INNER JOIN dbo.match m WITH (NOLOCK)
-									ON	bm.matchid = m.matchid
-							WHERE	bm.refno = b.refno
+							SELECT	TOP 1 CASE 
+											WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID 
+											ELSE bm.matchid 
+										END AS mainmatch
+							FROM dbo.match m WITH (NOLOCK)									
+							WHERE	bm.matchid = m.matchid
 									AND m.sporttype BETWEEN 1 AND 99											
-						) bm
+						) m
 				WHERE	b.inserted = 0 
 			),
 			ParlayStake AS (SELECT refno, RN, SetStake FROM _source)
