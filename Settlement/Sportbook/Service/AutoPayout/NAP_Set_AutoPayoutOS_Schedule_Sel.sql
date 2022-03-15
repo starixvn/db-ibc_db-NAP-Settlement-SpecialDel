@@ -105,6 +105,7 @@ BEGIN
 	END
 
 	SELECT matchid
+		, @Sporttype AS sporttype
 		, leagueid
 		, SettlementStatus
 		, ResourceId

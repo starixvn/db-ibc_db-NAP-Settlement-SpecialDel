@@ -10,6 +10,7 @@ AS
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20211206@Louisa: Enhancemant Table Tennis [Redmine:#165659]
 		- 20220216@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220309@Louisa: Return more info [Redmine:#168346]
 
 	Param's Explanation:
  
@@ -17,10 +18,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tmpMatchAuto TABLE	(	MatchId INT, SourceId SMALLINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatus TINYINT, Ranking INT	)
+	DECLARE @tmpMatchAuto TABLE	(	MatchId INT, sporttype SMALLINT, SourceId SMALLINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatus TINYINT, Ranking INT	)
 
-	INSERT INTO @tmpMatchAuto(	MatchId, SourceId, HomeValue, AwayValue, SettlementStatus, Ranking)
-	SELECT r.MatchId, r.SourceId, r.HomeValue, r.AwayValue, m.SettlementStatus
+	INSERT INTO @tmpMatchAuto(	MatchId, sporttype, SourceId, HomeValue, AwayValue, SettlementStatus, Ranking)
+	SELECT r.MatchId, m.sporttype, r.SourceId, r.HomeValue, r.AwayValue, m.SettlementStatus
 		 , ROW_NUMBER() OVER (PARTITION BY r.MatchId ORDER BY r.CreateDate DESC) AS Ranking
 	FROM dbo.ProviderExternalResultDetail r WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK)
@@ -40,7 +41,7 @@ BEGIN
 		AND ISNULL(l.IsDeleted,0) = 0
 	
 	
-	SELECT tmp.MatchId, tmp.SourceId, 2 AS TypeId, tmp.HomeValue, tmp.AwayValue, tmp.SettlementStatus
+	SELECT tmp.MatchId, tmp.sporttype, tmp.SourceId, 2 AS TypeId, tmp.HomeValue, tmp.AwayValue, tmp.SettlementStatus
 	FROM @tmpMatchAuto tmp
 	WHERE tmp.Ranking = 1
 
