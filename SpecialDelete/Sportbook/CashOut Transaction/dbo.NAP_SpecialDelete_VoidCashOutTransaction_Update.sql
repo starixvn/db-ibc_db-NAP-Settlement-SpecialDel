@@ -299,7 +299,7 @@ BEGIN
 			,b.ruben = 0
 			,b.creator = @UserId
 			,b.betdaqid = -1
-			,b.virtualrate = c.VirtualRate
+			,b.virtualrate = CASE WHEN c.VirtualRate = 0 THEN b.virtualrate ELSE c.VirtualRate END
 			,RepUpdateTime  = @RepUpdateTime
 	FROM	dbo.bettrans b 
 		INNER JOIN #SpecialDeleteBets s ON	b.transid = s.transId
