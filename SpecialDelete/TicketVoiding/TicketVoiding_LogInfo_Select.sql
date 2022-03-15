@@ -1557,7 +1557,7 @@ BEGIN
 				,rd.SingleCount
 				,c.CashOutCount AS CashOutCount
 				,t.InstantlySettleCount
-				,CASE WHEN @IssueTypeId IN (1,10) THEN 0 ELSE t.SettleCount END AS SettleCount
+				,CASE WHEN @IssueTypeId IN (4,5) THEN t.SettleCount ELSE 0 END AS SettleCount
 				,rd.MainParlayCount
 				,rd.MinSingleTransId
 				,rd.MaxSingleTransId
@@ -1632,7 +1632,7 @@ BEGIN
 				,rd.SingleCount
 				,c.CashOutCount AS CashOutCount
 				,t.InstantlySettleCount
-				,t.SettleCount
+				,0 AS SettleCount
 				,rd.MainParlayCount
 				,rd.MinSingleTransId
 				,rd.MaxSingleTransId
