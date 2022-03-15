@@ -35,6 +35,7 @@ AS
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20220128@Louisa: Update OtherInfo [Redmine:#166335]
 		- 20220329@Louisa: Extend data length for dbo.ResultDetailOS.OtherInfo [Redmine:#170406]
+		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		
     Param's Explanation: 
     
@@ -108,7 +109,7 @@ BEGIN
     IF @action = 'CAL'
     BEGIN
        SET @SettlementStatusID 	=  4
-       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype = 50 THEN 2 
+       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype IN ( 6, 50 ) THEN 2 
 										ELSE 5
 										END
     END 

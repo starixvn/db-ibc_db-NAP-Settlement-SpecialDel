@@ -52,6 +52,7 @@ AS
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 		- 20220128@Kathy: Cricket AIO Phase 2 [Redmine:#166335]
 		- 20220309@Kathy: Remove code savebet, old Cashout model [Redmine:#169643]
+		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -834,7 +835,7 @@ BEGIN
 			END
 		END------------end REFUND
 		
-		IF (@IsAuto = 1 AND @sporttype = 50 ) --Auto Settle Cricket
+		IF (@IsAuto = 1 AND @sporttype IN ( 6, 50 )	 )
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 			  @MatchId 			 = @matchid
@@ -928,10 +929,10 @@ BEGIN
 	ORDER BY OrdNo
 
 
-	SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 THEN CASE  WHEN @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match Cricket 
-																	WHEN @IsAuto = 1 THEN 'NAP: Auto Payout: Weverdat'  -- Auto Settle Cricket
-																	ELSE '' 
-																	END
+	SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
+									WHEN @IsAuto = 1 THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
+															   WHEN @sportType = 6 THEN 'NAP: Auto Payout: SBO'				
+															   ELSE '' END
 									ELSE ''
 									END
 			 
@@ -943,7 +944,7 @@ BEGIN
 										ELSE '' 
 										END
 	
-	SELECT @logdata = CASE WHEN @sportType = 50 AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
+	SELECT @logdata = CASE WHEN @sportType IN ( 6, 50 ) AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
 							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))

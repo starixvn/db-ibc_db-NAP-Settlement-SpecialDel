@@ -36,6 +36,7 @@ AS
 			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 			- 20211214@Louisa: Enhancemant Table Tennis [Redmine:#166070]			
 			- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+			- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -316,7 +317,7 @@ BEGIN
 					SELECT TOP 1 r.matchid, r.StatusId
 					FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 					WHERE r.matchid = m.matchid
-						AND m.sporttype = 50
+						AND m.sporttype IN ( 6, 50 )
 					ORDER BY r.StatusId DESC
 				)os
 			OUTER APPLY(
@@ -418,7 +419,7 @@ BEGIN
 					SELECT TOP 1 r.matchid, r.StatusId
 					FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 					WHERE r.matchid = m.matchid
-						AND m.sporttype = 50
+						AND m.sporttype IN ( 6, 50 )
 					ORDER BY r.StatusId DESC
 				)os
 			OUTER APPLY(

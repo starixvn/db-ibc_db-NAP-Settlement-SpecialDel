@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20211206@Louisa: Enhancemant Table Tennis [Redmine:#165659]
+		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 
 	Param's Explanation:
  
@@ -18,12 +19,12 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tmpResultDetail TABLE (MatchId INT, TypeId TINYINT, finalhomescore INT, finalawayscore INT )
+	DECLARE @tmpResultDetail TABLE (MatchId INT, TypeId TINYINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 
 	IF @SportType = 18 --Table Tennis
 	BEGIN
-		INSERT INTO @tmpResultDetail (MatchId, TypeId, finalhomescore, finalawayscore)
-		SELECT m.MatchId, 2 AS TypeId, m.finalhomescore, m.finalawayscore
+		INSERT INTO @tmpResultDetail (MatchId, TypeId, ResourceId, HomeValue, AwayValue)
+		SELECT m.MatchId, 2 AS TypeId, '00' , CAST(m.finalhomescore AS VARCHAR(50) ), CAST(m.finalawayscore AS VARCHAR(50) )
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN match_remark mr WITH(NOLOCK)
 				ON m.matchid = mr.matchid
@@ -31,7 +32,16 @@ BEGIN
 			AND mr.ConfirmFT > 0
 	END
 
-	SELECT MatchId, TypeId, finalhomescore, finalawayscore
+	ELSE IF @SportType = 6 --Volleyball
+	BEGIN
+		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue)
+		SELECT r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue
+		FROM dbo.ResultDetailOS r WITH(NOLOCK)
+		WHERE r.matchid = @MatchId
+			AND r.ResultStatusID = 3
+	END
+
+	SELECT MatchId, TypeId, ResourceId, HomeValue, AwayValue
 	FROM @tmpResultDetail
 
 END
