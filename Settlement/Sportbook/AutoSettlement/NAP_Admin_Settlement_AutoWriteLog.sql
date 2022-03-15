@@ -25,6 +25,7 @@ AS
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210518@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		
 	Param's Explanation:
 		@Product: BetRadar
@@ -146,8 +147,7 @@ BEGIN
 		IF ISNULL(@Remark,'') <> ''
 		BEGIN
 			SELECT	@totalSettledMarketIDs = COUNT(*)
-			FROM	dbo.f_SplitString(@Remark,',')
-			OPTION (maxrecursion 0)
+			FROM	STRING_SPLIT(@Remark,',')
 		END
 		
 		-- Add new log action for BetBuilder

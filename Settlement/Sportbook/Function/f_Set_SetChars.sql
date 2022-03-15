@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02,DBTXN-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="vnteam" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_SetChars] (          
 	@data			VARCHAR(50)          
 	,@strPosChar	VARCHAR(1000) 
@@ -44,5 +44,6 @@ BEGIN
 	OPTION (maxrecursion 0)	
 
 	RETURN @result  
+
 END  
 GO

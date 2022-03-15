@@ -12,6 +12,7 @@ AS
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200803@July : Get list Sporttype and LeagueId [Redmine:#138475]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		
 	Param's Explanation: 
 		@SettleType = BBD: BetBuilder
@@ -41,14 +42,12 @@ BEGIN
 	)
 	------------------------------------------------------------------------------	
 	INSERT INTO @tmpSporttypes(Sporttype)
-	SELECT Val 
-	FROM dbo.f_SplitString(@SportTypes, ',')
-	option (maxrecursion 0)
+	SELECT [Value] 
+	FROM STRING_SPLIT(@SportTypes, ',')
 
 	INSERT INTO @tmpLeagueIds(LeagueId)
-	SELECT Val 
-	FROM dbo.f_SplitString(@LeagueIds, ',')
-	option (maxrecursion 0)
+	SELECT [value] 
+	FROM STRING_SPLIT(@LeagueIds, ',')
     	
 	----------------------------------------------------------------------------
 	--Get Bettype from PROFILE
@@ -58,7 +57,7 @@ BEGIN
 		SELECT DISTINCT ss.Bettype, ss.SettleType
 		FROM dbo.SettlementSpecialBettypeProfile ss WITH (NOLOCK)
 			INNER JOIN @tmpSporttypes st ON ss.Sporttype = st.Sporttype 
-		WHERE ss.SettleType IN (SELECT val FROM dbo.[f_SplitString](@SettleType, ','))
+		WHERE ss.SettleType IN (SELECT [value] FROM STRING_SPLIT(@SettleType, ','))
 		ORDER BY Bettype
 	END
 	

@@ -54,6 +54,7 @@ AS
 		- 20210303@Kathy: Exclude LiveScores When Calculate HDP Bet Types [Redmine:#150198]
 		- 20210922@Louisa: Exclude LiveScores HDP for Ice Hockey and Rugby [Redmine:#159903]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		
     Param's Explanation:
        
@@ -356,8 +357,8 @@ BEGIN
             DECLARE @transtbl TABLE (transid BIGINT)
 
             INSERT INTO @transtbl
-            SELECT CONVERT(BIGINT, val)
-            FROM dbo.strSplit(@VoidTransID, ',')
+            SELECT CONVERT(BIGINT, [value])
+            FROM STRING_SPLIT(@VoidTransID, ',')
 
             UPDATE dbo.bettransm WITH(ROWLOCK, UPDLOCK)
             SET winlost = CASE 
@@ -388,8 +389,8 @@ BEGIN
             DECLARE @tblTransIds TABLE (transid BIGINT)
         
             INSERT INTO @tblTransIds
-            SELECT CONVERT(BIGINT, val)
-            FROM dbo.strSplit(@VoidTransId, ',')
+            SELECT CONVERT(BIGINT, [value])
+            FROM STRING_SPLIT(@VoidTransId, ',')
         
             UPDATE dbo.bettransm WITH (ROWLOCK, UPDLOCK)
                 SET    

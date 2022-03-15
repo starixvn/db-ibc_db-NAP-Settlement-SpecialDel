@@ -47,6 +47,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 
 	Param's Explanation:		
 		
@@ -114,7 +115,7 @@ BEGIN
 						FROM BODB02.dbo.Match m WITH (NOLOCK)
 								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
 									ON m.matchid = tm.val
-						OPTION (MAXRECURSION 0)
+						OPTION (MAXRECURSION 0)			
 					'
 
 	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(4000)'' , @matchids'
@@ -133,8 +134,7 @@ BEGIN
 									FROM BODB02.dbo.ResultDetail r WITH (NOLOCK)
 											INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
 												ON r.matchid = tm.val
-									OPTION (MAXRECURSION 0)
-								'
+									OPTION (MAXRECURSION 0)'
 
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetail, N''@MatchIds VARCHAR(4000)'' , @matchids'
 		
@@ -428,13 +428,11 @@ BEGIN
 	
 	SELECT	@MovingMatchIds = COALESCE(@MovingMatchIds + ',' + m.matchcode, m.matchcode)
 	FROM	dbo.match m WITH(NOLOCK)
-				INNER JOIN (SELECT val FROM dbo.f_SplitString(@InvalidMatchIds, ',')) tm
-					ON m.matchid = tm.val
-	OPTION (maxrecursion 0) 
+				INNER JOIN (SELECT [value] FROM STRING_SPLIT(@InvalidMatchIds, ',')) tm
+					ON m.matchid = tm.value 
 	
 	DELETE FROM #Match
-	WHERE	matchid IN (SELECT val FROM dbo.f_SplitString(@InvalidMatchIds, ','))
-	OPTION (maxrecursion 0) 
+	WHERE	matchid IN (SELECT [value] FROM STRING_SPLIT(@InvalidMatchIds, ','))
 
 	-- check waiting ticket
 	EXEC [NAP_Admin_Settlement_Checking] 		@MatchIds = @MatchIds	OUTPUT
@@ -443,13 +441,11 @@ BEGIN
 	
 	SELECT @HaveWaitingTicket = COALESCE(@HaveWaitingTicket + ',' + m.matchcode, m.matchcode)
 	FROM dbo.match m WITH(NOLOCK)
-			INNER JOIN (SELECT val FROM dbo.f_SplitString(@MatchIds, ',')) tm
-				ON m.matchid = tm.val
-	OPTION (maxrecursion 0)
+			INNER JOIN (SELECT [value] FROM STRING_SPLIT(@MatchIds, ',')) tm
+				ON m.matchid = tm.value
 	
 	DELETE FROM #Match
-	WHERE matchid IN (SELECT val FROM dbo.f_SplitString(@MatchIds, ','))
-	OPTION (maxrecursion 0)
+	WHERE matchid IN (SELECT [value] FROM STRING_SPLIT(@MatchIds, ','))
 	
 	IF (ISNULL(@HoldSettingMatchIds,'') <> '' OR ISNULL(@NotKeyScoreList,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '') OR ISNULL(@NotExecutedFGLG,'') <> '' OR ISNULL(@MovingMatchIds,'') <> ''
 	BEGIN

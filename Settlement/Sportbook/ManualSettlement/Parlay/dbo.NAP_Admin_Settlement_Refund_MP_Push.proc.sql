@@ -33,6 +33,7 @@ AS
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -359,9 +360,8 @@ BEGIN
 		,@MovingMatchIds = @InvalidMatchIds OUTPUT
 
 	SELECT	@MovingMatchIds = COALESCE(@MovingMatchIds + ',' + @matchcode, @matchcode)
-	FROM	dbo.f_SplitString (@InvalidMatchIds, ',') f
-	WHERE	f.val = @MatchId
-	OPTION (maxrecursion 0) 
+	FROM	STRING_SPLIT (@InvalidMatchIds, ',') f
+	WHERE	f.[value] = @MatchId
 
 	-- check waiting ticket
 	SELECT @HaveWaitingTicket = @matchcode

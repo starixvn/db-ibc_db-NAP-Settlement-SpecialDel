@@ -16,7 +16,8 @@ AS
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200731@July : Edit SportType&LeagueID. Get Resultdetail for BBD   [Redmine:#138475]
-		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]					
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		
 	Param's Explanation:	
 		@Status: All, Running, Completed
@@ -61,19 +62,16 @@ BEGIN
 	)
 	-------------------------------------------------------------------------------------------------
 	INSERT INTO @tblEventStatus(EventStatus)
-	SELECT Val 
-	FROM dbo.f_SplitString(@Status, ',')
-	option (maxrecursion 0)
+	SELECT [Value] 
+	FROM STRING_SPLIT(@Status, ',')
 
 	INSERT INTO @tmpSporttypes(Sporttype)
-	SELECT Val 
-	FROM dbo.f_SplitString(@SportTypes, ',')
-	option (maxrecursion 0)
+	SELECT [Value] 
+	FROM STRING_SPLIT(@SportTypes, ',')
 
 	INSERT INTO @tmpLeagueIds(LeagueId)
-	SELECT Val 
-	FROM dbo.f_SplitString(@LeagueIds, ',')
-	option (maxrecursion 0)
+	SELECT [Value] 
+	FROM STRING_SPLIT(@LeagueIds, ',')
 
 
 	SET @CheckEventStatus =(SELECT COUNT(EventStatus) FROM @tblEventStatus)

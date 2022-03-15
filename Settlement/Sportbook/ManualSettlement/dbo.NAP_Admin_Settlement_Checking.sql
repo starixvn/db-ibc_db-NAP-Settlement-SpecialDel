@@ -43,6 +43,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -86,7 +87,7 @@ BEGIN
     FROM	dbo.[match] WITH (NOLOCK)
     WHERE	matchid = @matchid
     
-	SELECT	@isSettingByProfile = 1
+	SELECT	@isSettingByProfile = ss.IsSettleByProfile
 			,@IsMergedParlay = ss.IsMergedParlay
 	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @Sporttype
@@ -215,7 +216,7 @@ BEGIN
 		FROM bettransm b WITH(NOLOCK)
 			INNER JOIN dbo.f_Set_GetGroupBettypes() f
 				ON b.bettype = f.BetType
-		WHERE b.matchid IN (SELECT CONVERT(INT,val) FROM dbo.strSplit(@MatchIds, ','))
+		WHERE b.matchid IN (SELECT CONVERT(INT,[value]) FROM STRING_SPLIT(@MatchIds, ','))
 		AND 
 			(
 				b.statusID = 1 -- waiting status

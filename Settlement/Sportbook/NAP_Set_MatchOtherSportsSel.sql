@@ -34,7 +34,8 @@ AS
 			- 20211005@Louisa: Enhancement [Redmine:#162624]
 			- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
-			- 20211214@Louisa: Enhancemant Table Tennis [Redmine:#166070]
+			- 20211214@Louisa: Enhancemant Table Tennis [Redmine:#166070]			
+			- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -193,41 +194,35 @@ BEGIN
 	END
 	
 	INSERT INTO @tmpSporttypes(Sporttype)
-	SELECT	DISTINCT val
-	FROM	dbo.f_SplitString(@Sporttypes, ',')
-	OPTION (MAXRECURSION 0)
+	SELECT	DISTINCT [value]
+	FROM	STRING_SPLIT(@Sporttypes, ',')
 
 	INSERT INTO @tmpLeagueIds(LeagueId)
-	SELECT	DISTINCT val
-	FROM	dbo.f_SplitString(@LeagueIds, ',')
-	OPTION (MAXRECURSION 0)
+	SELECT	DISTINCT [value]
+	FROM	STRING_SPLIT(@LeagueIds, ',')
 
 	INSERT INTO @tmpTicketStatus(Id)
-	SELECT	val
-	FROM	dbo.f_SplitString(@TicketStatus, ',')
-	OPTION (MAXRECURSION 0)
+	SELECT	[value]
+	FROM	STRING_SPLIT(@TicketStatus, ',')
 
 	INSERT INTO @tmpMatchStatus(Id, EventStatus)
-	SELECT	val
+	SELECT	[value]
 			,CASE
-				WHEN val = 1 THEN 'Closed'
-				WHEN val IN (2,3) THEN 'running'
-				WHEN val = 4 THEN 'Postponed'
-				WHEN val = 5 THEN 'Completed'
-				WHEN val = 7 THEN 'internal'
+				WHEN [value] = 1 THEN 'Closed'
+				WHEN [value] IN (2,3) THEN 'running'
+				WHEN [value] = 4 THEN 'Postponed'
+				WHEN [value] = 5 THEN 'Completed'
+				WHEN [value] = 7 THEN 'internal'
 				ELSE ''
 			END	
-	FROM	dbo.f_SplitString(@MatchStatus, ',')
-	OPTION (MAXRECURSION 0)
+	FROM	STRING_SPLIT(@MatchStatus, ',')
 
 	INSERT INTO @tmpOverStatus (Id)
-	SELECT CAST (val  AS TINYINT)
-	FROM dbo.f_SplitString(@OverStatus, ',')
-	OPTION (MAXRECURSION 0)
+	SELECT CAST ([value]  AS TINYINT)
+	FROM STRING_SPLIT(@OverStatus, ',')
 	
 	INSERT INTO @tmpHoldStatus ( HoldStatus ) 
-	SELECT CAST(val AS TINYINT) FROM dbo.f_SplitString(@HoldStatus, ',')
-	OPTION (MAXRECURSION 0)
+	SELECT CAST([value] AS TINYINT) FROM STRING_SPLIT(@HoldStatus, ',')
 
 	SELECT	@IsOverEarly =  MAX(CASE WHEN s.Id = 1 THEN 1 ELSE 0 END)
 			,@IsOverOnly =  MAX(CASE WHEN s.Id = 2 THEN 1 ELSE 0 END)

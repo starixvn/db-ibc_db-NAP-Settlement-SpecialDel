@@ -17,6 +17,7 @@ AS
 		- 20190218@Kathy: Do not allow to settle match which has eventdate = movebet day [Redmine:#108768]
 		- 20210701@Max: Expand Transfer Time Frame - Change The Rule Checking Move Bet Flag [Redmine: #154572]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 
 	Param's Explanation:		
 		
@@ -29,10 +30,9 @@ BEGIN
 	DECLARE @tmpMatchId TABLE (MatchId INT, EventDate DATETIME)
 
 	INSERT INTO @tmpMatchId(MatchId)
-	SELECT DISTINCT CONVERT(INT,val) 
-	FROM dbo.f_SplitString(@MatchIds, ',')
-	OPTION (maxrecursion 0) 
-
+	SELECT DISTINCT CONVERT(INT,[value]) 
+	FROM STRING_SPLIT(@MatchIds, ',')
+	
 	UPDATE t
 		SET EventDate = m.eventdate
 	FROM	@tmpMatchId t

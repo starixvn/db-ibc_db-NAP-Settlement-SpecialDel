@@ -13,7 +13,7 @@ AS
 	
 	Revision: 
 		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
-		
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 	Param's Explanation:
 		+ @LogIDs : '1,2,3,xxx' with xxx: LogID already notified 
 	
@@ -22,8 +22,7 @@ BEGIN
 	SET NOCOUNT ON 
 	UPDATE	BalanceNegativeHistory WITH (UPDLOCK,ROWLOCK)
 	SET		StatusID = 1
-	WHERE	LogID IN (SELECT val FROM dbo.f_SplitString(@LogIDs,','))
-	OPTION (maxrecursion 0)
+	WHERE	LogID IN (SELECT [value] FROM STRING_SPLIT(@LogIDs,','))
 		
 	IF @@ERROR  <> 0
 	BEGIN
@@ -32,6 +31,3 @@ BEGIN
 		RETURN
 	END	
 END 
-GO 
-GRANT EXECUTE ON [dbo].[Acc_BalanceNegativeUpd_StatusID] TO [bodbAdminNet]
-GO 

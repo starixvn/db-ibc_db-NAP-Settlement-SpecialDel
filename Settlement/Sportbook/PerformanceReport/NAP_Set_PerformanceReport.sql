@@ -12,6 +12,7 @@ BEGIN
 		- 20200818@Kathy: Support for other sports [Redmine:#138281]
 		- 20200903@Kathy: Move SP from DBTXN to DBLOG [Redmine:#138281]
 		- 20210302@Kathy: Add more logaction [Redmine:#138281]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 */
 
 DECLARE @maxdate DATETIME
@@ -121,14 +122,14 @@ FROM	#tmpDATA d
 	INNER JOIN bodb02.dbo.League l WITH (NOLOCK)
 		ON m.leagueid = l.leagueid
 	OUTER APPLY(
-		SELECT fss.val
-		FROM dbo.f_StringSplit(sqlcommand,',') fss 
-		WHERE fss.val LIKE '%@fth %'
+		SELECT fss.[value]
+		FROM STRING_SPLIT(sqlcommand,',') fss 
+		WHERE fss.[value] LIKE '%@fth %'
 	) h
 	OUTER APPLY(
-		SELECT fss.val
-		FROM dbo.f_StringSplit(sqlcommand,',') fss 
-		WHERE fss.val LIKE '%@fta %'
+		SELECT fss.[value]
+		FROM STRING_SPLIT(sqlcommand,',') fss 
+		WHERE fss.[value] LIKE '%@fta %'
 	) a
 WHERE l.isTest = 0
 	AND 1 = CASE 
@@ -136,12 +137,11 @@ WHERE l.isTest = 0
 				WHEN action IN ('CAL-FT', 'CAL')
 					AND d.AdminId <> 0
 					AND (
-					( d.sqlCommand LIKE '%NAP_Admin_Settlement_1%' AND CHARINDEX('NULL',h.val) = 0 AND CHARINDEX('NULL',a.val) = 0)
+					( d.sqlCommand LIKE '%NAP_Admin_Settlement_1%' AND CHARINDEX('NULL',h.[value]) = 0 AND CHARINDEX('NULL',a.[value]) = 0)
 					OR (d.sqlCommand LIKE '%NAP_Admin_Settlement_Profile%' AND d.sqlCommand LIKE '%Resource Id="00"%')
 					) THEN 1
 				ELSE 0
 			END
-OPTION (maxrecursion 0)
 
 -- get auto setting 
 UPDATE	r
@@ -167,18 +167,16 @@ UPDATE	r
 		,awayscore = fa.awayscore
 FROM	#tmpRESULT r
 	OUTER APPLY (
-		SELECT	LEFT(SUBSTRING(f.val,charindex('''', f.val) + 1, LEN(f.val)),1) as homescore
-		FROM	dbo.f_StringSplit(sqlcommand, ',') f
-		WHERE	f.val LIKE '%@homescore%'
+		SELECT	LEFT(SUBSTRING(f.[value],charindex('''', f.[value]) + 1, LEN(f.[value])),1) as homescore
+		FROM	STRING_SPLIT(sqlcommand, ',') f
+		WHERE	f.[value] LIKE '%@homescore%'
 	)fh
 	OUTER APPLY (
-		SELECT	LEFT(SUBSTRING(f.val,charindex('''', f.val) + 1, LEN(f.val)),1) as awayscore
-		FROM	dbo.f_StringSplit(sqlcommand, ',') f
-		WHERE	f.val LIKE '%@awayscore%'
+		SELECT	LEFT(SUBSTRING(f.[value],charindex('''', f.[value]) + 1, LEN(f.[value])),1) as awayscore
+		FROM	STRING_SPLIT(sqlcommand, ',') f
+		WHERE	f.[value] LIKE '%@awayscore%'
 	)fa
 WHERE	Action LIKE 'INST%'
-OPTION (maxrecursion 0)
-
 
 INSERT INTO #tmpINST (matchid, action, homescore, awayscore, confirmdate)
 SELECT	p.matchid
