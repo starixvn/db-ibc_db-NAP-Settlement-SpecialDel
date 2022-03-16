@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Select]
 	,@Duration      	XML          	= NULL
 	,@InvalidTransIds 	VARCHAR(MAX) 	= '' OUTPUT
 	,@MovedTransIds	  	VARCHAR(MAX)  	= '' OUTPUT
+	,@IsDiffMatchId		BIT				= 0  OUTPUT
 	,@FilterBy			TINYINT 		= 0
 )
 AS
@@ -27,6 +28,7 @@ AS
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
+		- 20220315@Max: Remove SABA of league name for China View sites [Redmine: #168651]
 
 	Explanation's Param:
 		@Option: 0 - by MatchId
@@ -70,13 +72,14 @@ BEGIN
 		MatchCode			NVARCHAR(50),
 		EventDate			DATETIME,
 		statuswinlost		TINYINT,
-		ActualStake			MONEY
+		ActualStake			MONEY,
+		MatchId				INT
 				
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
-	DECLARE  @Movebetdate	  DATETIME
+	DECLARE  @Movebetdate	  DATETIME, @MatchCount INT
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -130,7 +133,8 @@ BEGIN
 						MatchCode,
 						EventDate,
 						statuswinlost,
-						ActualStake
+						ActualStake,
+						MatchId
 						)
 			SELECT 
 					sub.BetId,
@@ -165,7 +169,8 @@ BEGIN
 					m.MatchCode,
 					m.EventDate,
 					sub.statuswinlost,
-					sub.actual_stake AS ActualStake
+					sub.actual_stake AS ActualStake,
+					@MatchId
 			FROM	dbo.bettrans sub WITH(NOLOCK)	
 				INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
 			WHERE	sub.matchid = @MatchId 
@@ -208,7 +213,8 @@ BEGIN
 							MatchCode,
 							EventDate,
 							statuswinlost,
-							ActualStake
+							ActualStake,
+							MatchId
 						)
 			SELECT 
 					sub.BetId,
@@ -243,7 +249,8 @@ BEGIN
 					m.MatchCode,
 					m.EventDate,
 					sub.statuswinlost,
-					sub.actual_stake AS ActualStake
+					sub.actual_stake AS ActualStake,
+					@MatchId
 			FROM	dbo.bettrans sub WITH(NOLOCK)	
 				INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
 				INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON c.TransID = sub.transid
@@ -296,7 +303,8 @@ BEGIN
 						MatchCode,
 						EventDate,
 						statuswinlost,
-						ActualStake
+						ActualStake,
+						MatchId
 						)
 		SELECT 
 				sub.BetId,
@@ -331,7 +339,8 @@ BEGIN
 				m.MatchCode,
 				m.EventDate,
 				sub.statuswinlost,
-				sub.actual_stake AS ActualStake
+				sub.actual_stake AS ActualStake,
+				sub.matchid
 		FROM	dbo.bettrans sub WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = sub.matchid
 		WHERE	sub.transid IN (SELECT transid FROM #tblTransIds)				
@@ -346,8 +355,16 @@ BEGIN
 				INTO @tmpTransIdMoveBet (TransId)
 			WHERE EventDate <= @MovebetDate
 		END
-	END				
 
+		--Check difference match
+		SET @MatchCount = (SELECT COUNT(DISTINCT s.MatchId) FROM #SpecialDeleteBets s)
+		IF @MatchCount > 1
+		BEGIN
+			SELECT @IsDiffMatchId = 1
+			RETURN
+		END
+	END				
+	
 	SELECT	d.BetId,
 			d.TransId,
 			d.BetType,
@@ -377,7 +394,8 @@ BEGIN
 			d.IsNeutral,
 			d.MatchCode,
 			d.statuswinlost,
-			d.ActualStake
+			d.ActualStake,
+			d.MatchId
 	FROM #SpecialDeleteBets d		 
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 				 ON d.recommend = c.custid		 	

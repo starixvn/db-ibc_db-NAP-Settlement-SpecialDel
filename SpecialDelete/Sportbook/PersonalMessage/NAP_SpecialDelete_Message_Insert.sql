@@ -23,6 +23,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Message_Insert]
 	@IsBatch bit = 0,
 	@MsgContentsType tinyint = 0,
 	@BetTransId varchar(2000) = NULL -- remove when admin launch batchmessage
+	,@LeagueGroupId SMALLINT = 0
 	/*	
 	Created by: Alan
 	Task : insert/update special and normal message
@@ -31,6 +32,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Message_Insert]
 
 	Revisions:
 		- 20180925@Alan: Clone SP For SpecialDelete [101082]
+		- 20220221@Max: Remove SABA of league name for China View sites [Redmine: #168651]
 
 	Param's Explanation:
 		@MessageId: MessageId of a message
@@ -88,7 +90,8 @@ BEGIN
 			IsTest = @IsTest,
 			MatchId = @MatchId,
 			IsBatch = @IsBatch,
-			MsgContentsType = @MsgContentsType 
+			MsgContentsType = @MsgContentsType ,
+			LeagueGroupID = @LeagueGroupId
 		WHERE MessageId = @MessageId;
 		SELECT @MessageID AS MessageId;
 	END
@@ -101,7 +104,7 @@ BEGIN
 						MsgType, IsSticky, Creator, CreatorName, MatchId,
 						LastUpdator, LastUpdateName, CreateTime, LastUpdateTime, PostTime, IsTest,
 						IsBatch,
-						MsgContentsType
+						MsgContentsType, LeagueGroupID
 						) 
 		VALUES(@Content_ch, @Content_it, @Content_cs, @Content_jp, @Content_th, 
   			   @Content_en, @Content_ko, @Content_es, @Content_vn, @Content_id,
@@ -109,7 +112,7 @@ BEGIN
 			   @MsgType, @IsSticky, @Creator, @CreatorName, @MatchId,
 			   @Creator, @CreatorName, getdate(), getdate(), getdate(), @IsTest,
 			   @IsBatch,
-			   @MsgContentsType
+			   @MsgContentsType, @LeagueGroupId
 				);
 		
 		SELECT SCOPE_IDENTITY() AS MessageId;

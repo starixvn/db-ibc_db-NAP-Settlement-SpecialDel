@@ -86,6 +86,7 @@ AS
 		- 20210722@Max: [TVS HF] Exclude Cash-Out tickets from Void Time Calculation [Redmine: #158294]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220216@July: Fix check ISNULL betdaqid [Redmine: #167055]
+		- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
 
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -1017,7 +1018,7 @@ BEGIN
 			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
 			   ,s.refno
 			   ,s.mainstatusid
-			   ,'Credit' AS OriginGroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' ELSE 'Credit (CO)' END AS OriginGroupName
 			   ,s.betdaqid
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
@@ -1048,7 +1049,6 @@ BEGIN
 				AND (s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) 
 					AND ISNULL(sub.custid,0) NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
 				)  -- Betfair: BFOS, BF, ITibc102, BF3	
-				AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL
 		----2: For 8RM/BARM
 		SELECT  s.GroupID
@@ -1141,7 +1141,7 @@ BEGIN
 			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
 			   ,s.refno
 			   ,s.mainstatusid
-			   ,'Deposit' AS OriginGroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' ELSE 'Deposit (CO)' END AS OriginGroupName
 			   ,s.betdaqid
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
@@ -1175,7 +1175,6 @@ BEGIN
 				AND ( s.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) 
 					AND ISNULL(sub.custid,0) NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3	
 				) 
-				AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL
 		----4: For Betfair
 		SELECT  s.GroupID
@@ -1236,62 +1235,6 @@ BEGIN
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 				OR sub.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 			AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
-		UNION ALL
-		----5: For Cash Out
-		SELECT  s.GroupID
-			   ,s.transid		
-			   ,s.custid		
-			   ,s.username	
-			   ,s.odds
-			   ,s.oddsspread			   
-			   ,s.OddsType	
-			   ,s.transdate
-			   ,s.checktime	
-			   ,s.bettype
-			   ,s.betteam		
-			   ,s.betcheck
-			   ,s.hdp1		
-			   ,s.hdp2		
-			   ,s.IsLiveIndicator
-			   ,s.livehomescore
-			   ,s.liveawayscore	
-			   ,s.Stake		
-			   ,s.CurrencyName
-			   ,s.IsDeposit	
-			   ,s.status		
-			   ,s.mrecommend	
-			   ,s.recommend	
-			   ,s.SecAcceptFlag	
-			   ,s.betid	
-			   ,s.SportType	 
-			   ,NULL AS followedId
-			   ,NULL AS followedUsername
-			   ,s.TransDesc
-			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
-			   ,s.refno
-			   ,s.mainstatusid
-			   ,'Cash Out' AS OriginGroupName
-			   ,s.betdaqid
-			   ,s.ExtraInfo
-			   ,s.IsCashOut
-			   ,s.WalletType
-			   ,s.RefCode
-			   ,s.BonusID
-			   ,s.MainTransId
-			   ,s.WinLost
-			   ,s.IsMixParlay
-			   ,s.SubTransid
-			   ,s.SubStatus
-			   ,s.SubBetcheck
-			   ,s.SubBetteam
-			   ,s.SubBettype
-			   ,s.SubHdp1
-			   ,s.SubHdp2
-			   ,s.SubOdds
-			   ,s.IsMarked
-			   ,s.ActualStake
-		FROM #SpecialDeleteBets s
-		WHERE ISNULL(s.betdaqid,0) = -2 -- Cashout
 	)
 	, CTE_CalculateMainBettype AS (
 		SELECT s.*
@@ -1395,14 +1338,18 @@ BEGIN
 			,@SettlementStatus AS SettlementStatus
 			,s.IsMarked
 			,s.ActualStake
+			,ISNULL(si.IsChinaView,0) AS IsChinaView
+			,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
+		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'Credit' THEN 1
 				WHEN s.OriginGroupName = '8RM/BARM' THEN 2
 				WHEN s.OriginGroupName = 'Deposit' THEN 3
 				WHEN s.OriginGroupName = 'Betfair' THEN 4
-				WHEN s.OriginGroupName = 'Cash Out' THEN 5
+				WHEN s.OriginGroupName = 'Credit (CO)' THEN 5
+				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 6
 			 END
 		   , CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
 				ELSE 2

@@ -47,6 +47,7 @@ AS
 		- 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -729,8 +730,10 @@ BEGIN
 					MATCH.eventdate,  
 					MATCH.leagueid,  
 					MATCH.sporttype,
-					ISNULL(MATCH.isNeutral, CONVERT(BIT,0)) AS IsNeutral  
+					ISNULL(MATCH.isNeutral, CONVERT(BIT,0)) AS IsNeutral,
+					l.LeagueGroupID
 			FROM	MATCH WITH (NOLOCK)  
+					INNER JOIN dbo.league AS l WITH(NOLOCK) ON MATCH.leagueid = l.leagueid
 			WHERE	MATCH.matchid = @matchID  
 		END
 		

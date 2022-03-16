@@ -21,6 +21,7 @@ AS
 		- 20201223@Charles: Optimize Voiding Workflow [Redmine: #145719]
 		- 20211111@Zane: Permission to void the settled tickets [Redmine: #162646]
 		- 20211210@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220303@July: Check permission to void instant settled tickets [Redmine: #168651]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -100,7 +101,7 @@ BEGIN
 					END
 			FROM @TransIdTemp AS t
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
-			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
+			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2
 			)
 		SELECT @IsExistsInstantlySettledTickets = CASE 
 				WHEN EXISTS (
@@ -151,7 +152,7 @@ BEGIN
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON t.transid = b.transid
 				LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
-			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
+			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2
 
 			UNION ALL -- Apply for ticket void14 
 			SELECT t.transid
@@ -177,7 +178,7 @@ BEGIN
 				INNER JOIN dbo.bettrans14 AS b WITH (NOLOCK) ON t.transid = b.transid
 				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = b.matchid
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
-			WHERE b.matchid NOT IN (9, 29, 2799) AND b.betdaqid <> -2
+			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2
 			)
 		SELECT @IsExistsInstantlySettledTickets = CASE 
 				WHEN EXISTS (
@@ -249,7 +250,7 @@ BEGIN
 			)
 		OR (
 			@IsExistsInstantlySettledTickets = 1
-			AND @IsHostVoidInstantlySettledTickets = 0
+			AND @IsHostVoidInstantlySettledTickets = 0 AND @IsHostVoidSettledTickets = 0
 			)
 		OR (
 			@IsHostVoidUnsettledTickets = 0

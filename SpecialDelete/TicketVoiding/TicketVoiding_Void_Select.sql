@@ -38,6 +38,7 @@ AS
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211207@July: Implement New Cash Out Model - Remove code CO [Redmine: #165097] 
 		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220221@Max: Remove SABA of league name for China View sites [Redmine: #168651]
 
 	Param's explanation:	
 		
@@ -999,6 +1000,7 @@ BEGIN
 				,winlostdate
 				,statusID
 				,ActualStake
+				,mainstatusid
 			)
 		SELECT	
 			b.translogID AS GroupID
@@ -1036,6 +1038,7 @@ BEGIN
 			,b.winlostdate
 			,b.statusID
 			,b.actual_stake AS ActualStake
+			,b.statusID AS mainstatusid
 		FROM dbo.translog AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.translogid AND b.eventID = s.MatchId AND s.RequestId = @RequestId
@@ -1090,6 +1093,7 @@ BEGIN
 			,winlostdate
 			,statusID
 			,ActualStake
+			,mainstatusid
 		)
 		SELECT	
 			b.refno AS GroupId
@@ -1141,6 +1145,7 @@ BEGIN
 			,b.winlostdate
 			,b.statusID
 			,b.actual_stake AS ActualStake
+			,b.statusID AS mainstatusid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 		= tl.custid
@@ -1208,6 +1213,7 @@ BEGIN
 			,b.winlostdate
 			,b.statusID
 			,b.actual_stake AS ActualStake
+			,b.statusID AS mainstatusid
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 				ON  s.transid = b.transid AND s.RequestId = @RequestId
@@ -1917,7 +1923,7 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,CASE WHEN c.site = 'CN88' THEN 'CN88' ELSE 'Credit' END AS OriginGroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' ELSE 'Credit (CO)' END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -1936,6 +1942,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2013,6 +2020,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	s.betid = b.transid
@@ -2061,7 +2069,7 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,'Deposit' AS OriginGroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' ELSE 'Deposit (CO)' END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -2080,6 +2088,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 			   ,s.statusID
+			   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -2155,6 +2164,7 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.statusID
+		   ,s.IsDeposit
 		FROM	#SpecialDeleteBets s WITH (NOLOCK)
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2180,7 +2190,7 @@ BEGIN
 			   ,CASE 
 					WHEN @eventstatus <> @eventstatus_completed -- cases 1, 2, 3 
 							THEN CASE
-									WHEN s.mainstatusid IN (111, 112, 113)  AND s.betdaqid <> -2
+									WHEN s.mainstatusid IN (111, 112, 113)  AND ISNULL(s.betdaqid,0) <> -2
 										 AND EXISTS (SELECT TOP 1 1
 													 FROM #InstantSettlementBettypes
 													 WHERE bettype = s.MainBettype
@@ -2270,9 +2280,13 @@ BEGIN
 		   ,s.matchcode
 		   ,s.winlostdate
 		   ,s.statusID
+		   ,s.IsDeposit
+		   ,ISNULL(si.IsChinaView,0) AS IsChinaView
+		   ,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		INNER JOIN #TmpMatch m ON s.matchid = m.matchid
+		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 	WHERE 1 = CASE WHEN @IssueTypeId <> 13 THEN 1
 				   WHEN @IssueTypeId = 13 AND  s.statusId IN (SELECT statusID FROM @Status_tmp)	 THEN 1 
 				   ELSE 0 END
@@ -2281,7 +2295,9 @@ BEGIN
 				WHEN s.OriginGroupName = 'Credit' THEN 2
 				WHEN s.OriginGroupName = '8RM/BARM' THEN 3
 				WHEN s.OriginGroupName = 'Deposit' THEN 4
-				WHEN s.OriginGroupName = 'Betfair' THEN 5 
+				WHEN s.OriginGroupName = 'Betfair' THEN 5
+				WHEN s.OriginGroupName = 'Credit (CO)' THEN 6
+				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 7
 			 END
 			, CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
 				ELSE 2

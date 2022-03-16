@@ -16,6 +16,7 @@ AS
 		- 20190228@Kathy: Support get match info in table match14 [Redmine:#90155]
 		- 20210106@Charles: Support get match info for another product [Redmine:#143666]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
+		- 20220221@July: Add column LeagueGroupID detect China View Licensee [Redmine: #168651]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -77,7 +78,9 @@ BEGIN
 					,m.showtime
 					,m.kickofftime
 					,m.sporttype
+					,l.LeagueGroupID
 			FROM	dbo.match AS m WITH (NOLOCK) 
+				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			WHERE	m.matchid = @matchID
 			UNION ALL
 			SELECT	m14.matchid
@@ -90,7 +93,9 @@ BEGIN
 					,m14.showtime
 					,m14.kickofftime
 					,m14.sporttype
+					,l.LeagueGroupID
 			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
+				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m14.leagueid = l.leagueid
 			WHERE	m14.matchid = @matchID		
 		END
 		ELSE IF @Type = 1

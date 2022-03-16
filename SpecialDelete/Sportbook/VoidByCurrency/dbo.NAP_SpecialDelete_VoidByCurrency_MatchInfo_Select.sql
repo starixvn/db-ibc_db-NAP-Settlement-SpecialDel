@@ -11,6 +11,7 @@ AS
 	Original:
 	Revisions: 
 		- 20210827@Max: Create SP - [Redmine: #159540]
+		- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
 
 	Param's explanation:	
 	
@@ -31,9 +32,10 @@ BEGIN
 		, kickofftime DATETIME
 		, sporttype SMALLINT
 		, IsOutright BIT
+		, LeagueGroupID SMALLINT
 	)
 
-	INSERT INTO @tmpMatch_info(matchid, homeid, awayid, matchcode, eventdate, leagueid, IsNeutral, showtime, kickofftime, sporttype, IsOutright)
+	INSERT INTO @tmpMatch_info(matchid, homeid, awayid, matchcode, eventdate, leagueid, IsNeutral, showtime, kickofftime, sporttype, IsOutright, LeagueGroupID)
 	SELECT	m.matchid
 		,m.homeid
 		,m.awayid
@@ -45,12 +47,14 @@ BEGIN
 		,m.kickofftime
 		,m.sporttype
 		,0 AS IsOutright
+		,l.LeagueGroupID
 	FROM	dbo.match AS m WITH (NOLOCK) 
+		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 	WHERE	m.matchid = @matchID
 
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM @tmpMatch_info)
 	BEGIN
-		INSERT INTO @tmpMatch_info(matchid, homeid, awayid, matchcode, eventdate, leagueid, IsNeutral, showtime, kickofftime, sporttype, IsOutright)
+		INSERT INTO @tmpMatch_info(matchid, homeid, awayid, matchcode, eventdate, leagueid, IsNeutral, showtime, kickofftime, sporttype, IsOutright, LeagueGroupID)
 		SELECT o.orid as matchid,
 			o.teamid AS homeid,
 			0 AS awayid,
@@ -61,13 +65,14 @@ BEGIN
 			NULL AS showtime,
 			o.kickofftime as kickofftime,
 			l.sporttype,
-			1 AS IsOutright
+			1 AS IsOutright,
+			l.LeagueGroupID
 		FROM dbo.Outright AS o WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH (NOLOCK) ON o.leagueid = l.leagueid
 		WHERE o.orid = @matchID
 	END
 
-	SELECT matchid, homeid, awayid, matchcode, eventdate, leagueid, IsNeutral, showtime, kickofftime, sporttype, IsOutright
+	SELECT matchid, homeid, awayid, matchcode, eventdate, leagueid, IsNeutral, showtime, kickofftime, sporttype, IsOutright, LeagueGroupID
 	FROM @tmpMatch_info
 
 END
