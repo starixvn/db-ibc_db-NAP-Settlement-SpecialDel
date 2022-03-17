@@ -21,6 +21,7 @@ AS
 
 	Revisions: 
 		- 20211202@Max: Create new SP [Redmine:#140180]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		
@@ -101,9 +102,8 @@ BEGIN
 
 	BEGIN TRY
 		INSERT INTO @tblInputTransId (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds,',')	
-		OPTION (maxrecursion 0)	
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds,',')		
 		
 	END TRY
 	BEGIN CATCH

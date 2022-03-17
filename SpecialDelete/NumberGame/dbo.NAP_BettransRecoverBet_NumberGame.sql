@@ -25,7 +25,8 @@ AS
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-		
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's Explanation:
 */
 BEGIN
@@ -51,9 +52,8 @@ BEGIN
 	SELECT @today = convert(varchar(10), getdate(),120)
 	
 	INSERT INTO #tblTransId (transid) 
-	SELECT DISTINCT CONVERT(BIGINT, val) 
-	FROM dbo.f_SplitString(ISNULL(@TransIds, ''), ',') s
-	OPTION (maxrecursion 0)								 
+	SELECT DISTINCT CONVERT(BIGINT, value) 
+	FROM STRING_SPLIT(ISNULL(@TransIds, ''), ',') s
 
 	IF EXISTS(SELECT 1 FROM bettrans with(NOLOCK)
 			  WHERE transid IN ( select s.transid from #tblTransId s )

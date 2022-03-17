@@ -22,6 +22,7 @@ AS
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 	
@@ -198,9 +199,8 @@ BEGIN
 		END CATCH
 		
 		INSERT INTO @VoidingHistory_tmp(VoidingHistoryId)
-		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@VoidingHistoryIds, ',')
-		OPTION (maxrecursion 0)
+		SELECT	value AS TransId
+		FROM	STRING_SPLIT(@VoidingHistoryIds, ',')
 
 		IF (ISNULL(@ErrCode, 0) <> 0 )
 		BEGIN
@@ -247,9 +247,8 @@ BEGIN
 			SELECT	@StatusId= 3, @ErrMsg = 'Could not void some tickets due to Movebet process.'
 
 			INSERT INTO @tmpMatchMoveBet_update(MatchId)
-			SELECT	val AS MatchId
-			FROM	dbo.f_SplitString(@MoveBetMatchIds, ',')
-			OPTION (maxrecursion 0)
+			SELECT	value AS MatchId
+			FROM	STRING_SPLIT(@MoveBetMatchIds, ',')
 
 			UPDATE	q WITH(ROWLOCK, UPDLOCK)
 			SET	Duration = DATEDIFF(MILLISECOND, q.Exectime, GETDATE())				

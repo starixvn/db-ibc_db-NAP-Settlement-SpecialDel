@@ -1,14 +1,12 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd] 		
 	@SubTransIds			VARCHAR(MAX),
-	
 	@UserName 				NVARCHAR(50),
     @Password				NVARCHAR(50),
     @UserID					INT,
     @IP						VARCHAR(15)		= '',
     @Reason					NVARCHAR(500)	= '',
 	@ReasonSC				NVARCHAR(500)	= '',
-    
     @NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
     @ErrMsg					NVARCHAR(200)	= ''	OUTPUT,
     @ErrCode				INT				= 0		OUTPUT
@@ -26,6 +24,7 @@ AS
 		- 20181207@Alan: Support Chinese Email [105976]
 		- 20200929@Zane: Show Operator ID into void email notification - Fix bug cannot show bettype and deposit name [#141126]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -38,6 +37,7 @@ BEGIN
 		  , @isITAdmin					BIT	  
 		  , @CustIds					VARCHAR(MAX)
 		  , @Movebetdate				DATETIME
+		  , @spName						VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	DECLARE @_xml						XML		
 		  , @_sXML						VARCHAR(MAX)
@@ -159,9 +159,8 @@ BEGIN
 			
 		--> parse @SubTransIds
 		INSERT INTO #tblSubTransIds(SubTransId)
-		SELECT  DISTINCT val
-		FROM	dbo.f_SplitString(@SubTransIds, ',')
-		OPTION (maxrecursion 0)	
+		SELECT  DISTINCT value
+		FROM	STRING_SPLIT(@SubTransIds, ',')	
 			
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -330,6 +329,7 @@ BEGIN
 		--> Check Concurrency
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
 				@IsExistParlayVSBetradar = 1			
+				, @spName		= @spName
 				, @IsReleased	= 0
 				, @AvaiableProcess = @AvaiableProcess OUTPUT
 				, @ErrCode = @ErrCode OUTPUT

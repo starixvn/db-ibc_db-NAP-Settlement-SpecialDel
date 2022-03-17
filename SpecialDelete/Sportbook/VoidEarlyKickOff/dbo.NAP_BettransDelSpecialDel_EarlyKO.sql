@@ -105,6 +105,7 @@ Revisions:
 	- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 	- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 	- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
+	- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -350,9 +351,8 @@ BEGIN
 
 	BEGIN TRY  
 		INSERT INTO #tblTransIds (transid)  
-		SELECT DISTINCT val   
-		FROM dbo.f_SplitString(@TransIds,',') 
-		OPTION (maxrecursion 0)  
+		SELECT DISTINCT value   
+		FROM STRING_SPLIT(@TransIds,',')   
 		
 		SET @CountTransId = @@ROWCOUNT 
 
@@ -384,17 +384,17 @@ BEGIN
 	CTE_ParsedBettypes AS
 	(
 		SELECT cte.Id
-			 , bt.val AS BetTeam 
+			 , bt.value AS BetTeam 
 			 , cte.[Set]
 			 , cte.Game
-			 , bop.val AS BetOption
+			 , bop.value AS BetOption
 			 , CAST(CASE
-						WHEN v.val = 'ALL' THEN @ValueDefault
-						ELSE v.val
+						WHEN v.value = 'ALL' THEN @ValueDefault
+						ELSE v.value
 					END AS SMALLMONEY) AS [Value]
 			 , CAST(CASE
-						WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
-						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+						WHEN vhdp1.value = 'ALL' THEN @ValueDefault 
+						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
 			 , CAST(CASE 
 			 			WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2				 
@@ -408,10 +408,10 @@ BEGIN
 						ELSE cte.OddsId END AS INT) AS OddsId
 			, cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
-			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
+			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
 	)	 
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id

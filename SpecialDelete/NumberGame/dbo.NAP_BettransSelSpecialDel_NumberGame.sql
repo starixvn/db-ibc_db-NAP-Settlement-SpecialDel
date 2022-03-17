@@ -4,10 +4,8 @@ ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_NumberGame]
 	,@MatchID INT
 	,@FromTransId BIGINT = NULL
 	,@ToTransId BIGINT = NULL
-	
 	,@BetTypes VARCHAR(100) = ''
 	,@BallSequence VARCHAR(200)	= ''	
-	
 	,@TransIds VARCHAR(4000) = NULL
 	,@InvalidTransIds VARCHAR(MAX) = '' OUTPUT	
 AS
@@ -29,7 +27,8 @@ AS
 		- 20180201@Helen: Change way to get Ball Sequence [Redmine:#90434 ]
 		- 20181121@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
-		
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's Explanation:
 			- @Opition: 
 			0: By MatchID
@@ -84,9 +83,8 @@ BEGIN
 	)
 	
 	INSERT INTO #TmpBallSequence(Seq)
-	SELECT  val
-	FROM	dbo.f_SplitString(@BallSequence, ',')
-	OPTION (maxrecursion 0)	
+	SELECT  value
+	FROM	STRING_SPLIT(@BallSequence, ',')
 
 	IF @Option = 0
 	BEGIN 
@@ -142,7 +140,7 @@ BEGIN
 				AND ((@FromTransId IS NULL AND @ToTransId IS NULL) OR (b.transid BETWEEN @FromTransId AND @ToTransId)) 
 				AND statusID NOT IN (101, 102, 121) ---- Void, Reject, 121: dummy ticket
 				AND winlostdate = @today AND m.eventdate = @today 
-				AND b.bettype IN (SELECT CONVERT(INT,val) FROM	dbo.f_SplitString(@BetTypes, ','))
+				AND b.bettype IN (SELECT CONVERT(INT,value) FROM	STRING_SPLIT(@BetTypes, ','))
 		END
 
 		-- Select Number Game
@@ -201,9 +199,8 @@ BEGIN
 				AND ((@FromTransId IS NULL AND @ToTransId IS NULL) OR (b.transid BETWEEN @FromTransId AND @ToTransId)) 
 				AND statusID NOT IN (101, 102, 121) ---- Void, Reject, 121: dummy ticket
 				AND winlostdate = @today AND m.eventdate = @today 
-				AND b.bettype IN (SELECT CONVERT(INT,val) FROM	dbo.f_SplitString(@BetTypes, ','))			
+				AND b.bettype IN (SELECT CONVERT(INT,value) FROM STRING_SPLIT(@BetTypes, ','))			
 				AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)
-			OPTION (maxrecursion 0)	
 					-- Filter for BallSequence
 		END
 	END
@@ -211,9 +208,8 @@ BEGIN
 	ELSE -- @Option = 1
 	BEGIN
 		INSERT INTO @tblTransIds
-		SELECT DISTINCT (s.val)
-		FROM dbo.f_SplitString(isnull(@TransIds, 0), ',') s
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT (s.value)
+		FROM STRING_SPLIT(isnull(@TransIds, 0), ',') s
 		
 		INSERT INTO #SpecialDeleteBets
 		SELECT b.transid

@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverBet_NumberGame]
 	@MatchId BIGINT = 0,
 	@FromTransId BIGINT = 0,
 	@ToTransId BIGINT = 0,
-
 	@TransIds VARCHAR(4000) = '',
 	@InvalidTransIds VARCHAR(MAX) = '' OUTPUT
 AS
@@ -21,6 +20,7 @@ AS
 		- 20180528@Alan: Return MatchCode Column [Redmine:#95949 ]
 		- 20181122@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 			- @Opition: 
@@ -97,7 +97,7 @@ BEGIN
 	IF @Option = 1
 	BEGIN
 		INSERT INTO @tblTransIds
-		SELECT ss.val FROM dbo.strSplit(@TransIds, ',') ss
+		SELECT ss.value FROM STRING_SPLIT(@TransIds, ',') ss
 	   
 	    INSERT INTO @tblRecoverNG
 	    SELECT z.transid,

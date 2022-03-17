@@ -14,6 +14,7 @@ AS
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 				
 	Param's Explanation:		
 		- @SubTransIds : TransIds of sub parlay tickets
@@ -88,9 +89,8 @@ BEGIN
 	
 	--> parse @SubTransIds
 	INSERT INTO #tblSubTransIds(SubTransId)
-	SELECT  DISTINCT val
-	FROM	dbo.f_SplitString(@SubTransIds, ',')
-	OPTION (maxrecursion 0)			
+	SELECT  DISTINCT value
+	FROM	STRING_SPLIT(@SubTransIds, ',')		
 	
 	-- get sub tickets
 	INSERT INTO #tmpBettransm(

@@ -2,10 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverVSBetRadar_Sel] 
 	@TicketType			VARCHAR(100),
 	@Type				VARCHAR(100)	= NULL,
-		
 	@MatchId			INT				= 0,		
 	@TransIds			VARCHAR(MAX)	= '',
-	
 	@InvalidTransIds	VARCHAR(MAX)  = '' OUTPUT,
 	@MovedTransIds		VARCHAR(MAX)  = '' OUTPUT
 AS
@@ -20,6 +18,7 @@ AS
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
 		- 20180406@Helen: add filter by bettype for sport 181->185 to avoid the same value in table VSOutright (orid) and bettrans (oddsid) [Redmind:93183]
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 				
 	Param's Explanation:			
 		- @TicketType:		
@@ -88,9 +87,8 @@ BEGIN
 
 	--> parse @TransIds
 	INSERT INTO #tblTransIds (transid)
-	SELECT	t.val
-	FROM dbo.f_SplitString(@TransIds, ',') t					
-	OPTION (maxrecursion 0)				
+	SELECT	t.value
+	FROM STRING_SPLIT(@TransIds, ',') t								
 	
 	SELECT @before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)
 	

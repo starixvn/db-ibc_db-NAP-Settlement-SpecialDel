@@ -27,6 +27,7 @@ AS
 		- 20200729@Zane: Basketball AIO Phase 2 - Fix error when show tickets [Redmine: #137189]
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20211125@July: Change length match [Redmine: #161337]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 	
@@ -51,9 +52,9 @@ BEGIN
 				INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				CROSS APPLY (
-					SELECT DISTINCT val AS sporttype
-					FROM dbo.f_SplitString(@Sporttype, ',')
-					WHERE val = m.sporttype
+					SELECT DISTINCT value AS sporttype
+					FROM STRING_SPLIT(@Sporttype, ',')
+					WHERE value = m.sporttype
 				) AS tmp
 				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
 			WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)

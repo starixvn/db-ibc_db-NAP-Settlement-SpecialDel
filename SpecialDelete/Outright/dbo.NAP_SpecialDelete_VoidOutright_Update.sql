@@ -29,6 +29,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation: Special bet delete option		
 	*/
@@ -40,6 +41,7 @@ BEGIN
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME			
 			,@RepUpdateTime		DATETIME2
+			,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)		
 	
@@ -122,9 +124,8 @@ BEGIN
 		
 	BEGIN TRY
 		INSERT INTO #tblTransIds (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds,',')	
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds,',')	
 		
 		SET @CountTransId = @@ROWCOUNT				
 	END TRY
@@ -144,6 +145,7 @@ BEGIN
 	-- checking SD proccess
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistOutright 	= 1		
+		, @spName			= @spName
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT

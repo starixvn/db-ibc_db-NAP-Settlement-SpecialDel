@@ -23,6 +23,7 @@ AS
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20210812@July: Add metadata [Redmine: #157970] 
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Explanation's Param:
 		@Option: 0 - by MatchId
@@ -88,9 +89,8 @@ BEGIN
 	ELSE IF @Option = 1
 	BEGIN
 		INSERT INTO #tblTransIds (transid)
-		SELECT	t.val
-		FROM dbo.f_SplitString(@TransIds, ',') t			
-		OPTION (maxrecursion 0)
+		SELECT	t.value
+		FROM STRING_SPLIT(@TransIds, ',') t			
 
 		INSERT INTO #tmpKeyId (KeyId)
 		SELECT MAX(z.keyid)

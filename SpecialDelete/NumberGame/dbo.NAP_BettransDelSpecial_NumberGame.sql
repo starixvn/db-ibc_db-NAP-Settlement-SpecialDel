@@ -40,7 +40,7 @@ AS
 		- 20190718@Charles: Drop table #CTE_CustInfo [115870]
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-		
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		
 	Param's Explanation: 
 		- @Opition: 
@@ -54,6 +54,7 @@ BEGIN
 	DECLARE @LogData 		NVARCHAR(4000)
 		, @Remark 			VARCHAR(500)
 		, @avaiableProcess 	BIT = 0
+		, @spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	IF NOT EXISTS (
 			SELECT 1
@@ -89,9 +90,8 @@ BEGIN
 
 	BEGIN TRY
 		INSERT INTO #tblTransId (transid) 
-		SELECT DISTINCT CONVERT(BIGINT, val) 
-		FROM dbo.f_SplitString(ISNULL(@TransIds, ''), ',') s
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT CONVERT(BIGINT, value) 
+		FROM STRING_SPLIT(ISNULL(@TransIds, ''), ',') s
 	END TRY
 
 	BEGIN CATCH
@@ -101,9 +101,8 @@ BEGIN
 	END CATCH
 	
 	INSERT INTO #TmpBallSequence(Seq)
-	SELECT  val
-	FROM	dbo.f_SplitString(@BallSequence, ',')
-	OPTION (maxrecursion 0)
+	SELECT value
+	FROM STRING_SPLIT(@BallSequence, ',')
 
 	INSERT INTO @tblMatch
 	SELECT  b.matchid
@@ -167,6 +166,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
 		, @isExistNG		= 1
+		, @spName			= @spName
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT
@@ -174,7 +174,6 @@ BEGIN
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		RETURN
 		
-
 	----################ End of check concurrent running #####################----
 	CREATE TABLE #BetDelete (
 		transid BIGINT
@@ -268,7 +267,7 @@ BEGIN
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid			
 		WHERE	b.matchid = @MatchId 
 				AND ((b.transid BETWEEN @FromTransId AND @ToTransId) OR (@FromTransId IS NULL AND @ToTransId IS NULL)) 
-				AND b.bettype IN (SELECT CONVERT(INT, val) FROM dbo.strSplit(ISNULL(@BetTypes, ''), ','))
+				AND b.bettype IN (SELECT CONVERT(INT, value) FROM STRING_SPLIT(ISNULL(@BetTypes, ''), ','))
 				AND winlostdate = @today 
 				AND statusID NOT IN (101, 102, 121) 
 				AND b.transid IN ( SELECT t1.transid FROM #tblTransId t1 WITH (NOLOCK) )
@@ -342,8 +341,8 @@ BEGIN
 					@Option = 0 
 						AND b.matchid = @MatchId 
 						AND ((b.transid BETWEEN @FromTransId AND @ToTransId) OR (@FromTransId IS NULL AND @ToTransId IS NULL)) 
-						AND b.bettype IN (SELECT CONVERT(INT, val) 
-										  FROM dbo.strSplit(ISNULL(@BetTypes, ''), ','))
+						AND b.bettype IN (SELECT CONVERT(INT, value) 
+										  FROM STRING_SPLIT(ISNULL(@BetTypes, ''), ','))
 						AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)						
 					) OR (@Option = 1)
 				) 

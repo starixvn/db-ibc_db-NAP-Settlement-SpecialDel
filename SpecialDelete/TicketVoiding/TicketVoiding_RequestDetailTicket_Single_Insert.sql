@@ -61,6 +61,7 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220209@Max: Tuning performance [Redmine:#168303] 
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:
 		(+) @FilterBy:	
@@ -497,18 +498,17 @@ BEGIN
 		SET @RequestDetailId = (SELECT rd.Id FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) WHERE rd.RequestId = @RequestId AND rd.MatchId = @MatchId)
 
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid)
-		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, val, @MatchId, @RequestDetailId AS RequestDetailId, tmp.bettype, tmp.betid
-		FROM dbo.f_SplitString(@TransIds, ',') l
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, value, @MatchId, @RequestDetailId AS RequestDetailId, tmp.bettype, tmp.betid
+		FROM STRING_SPLIT(@TransIds, ',') l
 			CROSS APPLY (
 						SELECT b.bettype, b.betid
 						FROM dbo.bettrans b WITH(NOLOCK) 
 						WHERE b.matchid = @MatchId
-							AND l.val = b.transid
+							AND l.value = b.transid
 							AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
 										 WHEN @FilterBy = 1 AND b.betteam = '1' THEN 1 ELSE 0 END
 						)tmp
-		WHERE l.val <> ''
-		OPTION (MAXRECURSION 0)
+		WHERE l.value <> ''
 	END
 	ELSE IF @IssueTypeId = 13  AND @UserNames IS NOT NULL --Abnormal Account
 	BEGIN
@@ -526,10 +526,9 @@ BEGIN
 		END
 	
 		INSERT INTO @Status_tmp (StatusId)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@StatusIds, ',')
-		WHERE val <> ''
-		OPTION (MAXRECURSION 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@StatusIds, ',')
+		WHERE value <> ''
 
 		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -539,14 +538,12 @@ BEGIN
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 	
 		INSERT INTO #InputUsernameList (Username, custid, roleid)
-		SELECT l.val
+		SELECT l.value
 			  ,ci.custid
 			  ,ci.roleid
-		FROM dbo.f_SplitString(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.val = ci.username
-		WHERE ci.custid IS NOT NULL
-			AND val <> ''
-		OPTION (MAXRECURSION 0)
+		FROM STRING_SPLIT(@UserNames, ',') l
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.value = ci.username
+		WHERE ci.custid IS NOT NULL AND value <> ''
 
 		-- get SMA roleid = 2
 		INSERT INTO #InputValidCustid_2 (custid)		
@@ -601,7 +598,6 @@ BEGIN
 				END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 			AND pt.bettype NOT IN (31,32,33,71,72,73)  -- NOT IN [Racing, Casino]
-			AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 			AND pt.bettype NOT BETWEEN 1501 AND 1599   -- NOT IN Keno
 
 		INSERT INTO #transIdTemp (transid, statusID, MatchId, bettype)
@@ -1257,16 +1253,15 @@ BEGIN
 		END
 
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, Bettype, BetId)
-		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, l.val, tmp.matchid , tmp.Id AS RequestDetailId, tmp.bettype, tmp.betid
-		FROM dbo.f_SplitString(@TransIds, ',') l
+		SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, l.value, tmp.matchid , tmp.Id AS RequestDetailId, tmp.bettype, tmp.betid
+		FROM STRING_SPLIT(@TransIds, ',') l
 			CROSS APPLY (
 						SELECT rd.Id, b14.matchid, b14.bettype, b14.betid
 						FROM dbo.bettrans14 b14 WITH(NOLOCK) 
 							INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b14.matchid = rd.MatchId
-						WHERE  rd.RequestId = @RequestId AND CAST(l.val AS BIGINT) = b14.transid
+						WHERE  rd.RequestId = @RequestId AND CAST(l.value AS BIGINT) = b14.transid
 						)tmp
-		WHERE l.val <> ''
-		OPTION (MAXRECURSION 0)
+		WHERE l.value <> ''
 	END
 	ELSE IF @IssueTypeId IN (8,9)--EKO,WKO
 	BEGIN
@@ -1593,19 +1588,19 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblGetLogInfo t ON t.MatchID = b.matchid
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(t.HomeFavorite, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(t.HomeFavorite, '&')
+				WHERE value <> ''				
 			)xHDPHome
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(t.AwayFavorite, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(t.AwayFavorite, '&')
+				WHERE value <> ''				
 			)xHDPAway
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(t.HdpValue, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(t.HdpValue, '&')
+				WHERE value <> ''				
 			)xHDPvalue
 		WHERE b.betfrom <> 'P' 
 			AND 1 = CASE WHEN @IssueTypeId = 4 AND b.bettype = 1 THEN 1
@@ -1616,12 +1611,11 @@ BEGIN
 			AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
-			AND 1 = CASE WHEN t.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.val AND t.HomeFavorite IS NOT NULL THEN 1
-						 WHEN t.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.val AND t.AwayFavorite IS NOT NULL THEN 1
-						 WHEN t.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-						 WHEN t.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.val AND t.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+			AND 1 = CASE WHEN t.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.value AND t.HomeFavorite IS NOT NULL THEN 1
+						 WHEN t.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.value AND t.AwayFavorite IS NOT NULL THEN 1
+						 WHEN t.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.value AND t.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+						 WHEN t.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.value AND t.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 						 ELSE 0 END 
-			OPTION (MAXRECURSION 0)
 		
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------

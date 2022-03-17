@@ -49,6 +49,7 @@ AS
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220225@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		@Status: 
@@ -112,15 +113,12 @@ BEGIN
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
-	SELECT DISTINCT val AS IssueTypeId
-	FROM dbo.f_SplitString(@IssueTypeId, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value AS IssueTypeId
+	FROM STRING_SPLIT(@IssueTypeId, ',')
 
 	INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
-	SELECT	val AS SubIssueTypeId
-	FROM	dbo.f_SplitString(@SubIssueType, ',')
-	OPTION (MAXRECURSION 0) 
+	SELECT value AS SubIssueTypeId
+	FROM STRING_SPLIT(@SubIssueType, ',') 
 
 	IF @RequestIdXml IS NOT NULL
 	BEGIN

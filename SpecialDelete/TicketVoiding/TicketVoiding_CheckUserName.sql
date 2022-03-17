@@ -25,6 +25,7 @@ AS
 		- 20210803@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20211007@July: Change datatype validation username [Redmine:#161659]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 */
@@ -74,10 +75,9 @@ BEGIN
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 
 	INSERT INTO #TmpInValidUserName (Username)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@UserNames, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@UserNames, ',')
+	WHERE value <> ''
 
 	--1. Check valid
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
@@ -111,15 +111,13 @@ BEGIN
 			
 	IF @ToDate IS NULL
 	BEGIN
-		
 		SET @ToDate = @maxdate
 	END
 	
 	INSERT INTO @Status_tmp (StatusId)
-	SELECT DISTINCT val 
-	FROM dbo.f_SplitString(@StatusIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@StatusIds, ',')
+	WHERE value <> ''
 
 	SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -188,7 +186,6 @@ BEGIN
 			END
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-		AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)

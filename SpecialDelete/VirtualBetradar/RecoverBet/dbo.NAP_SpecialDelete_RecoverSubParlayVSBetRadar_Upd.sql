@@ -2,10 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd] 
 	@MatchId					INT,		
 	@TransIds					VARCHAR(MAX),
-		
     @UserID						INT,
     @IP							VARCHAR(15),    
-            
     @ReCalculatedMainTransIds   VARCHAR(MAX)	= '' OUTPUT,
     @NegativeBalanceUsers		VARCHAR(MAX)	= '' OUTPUT,
     @ErrMsg						NVARCHAR(200)	= '' OUTPUT,
@@ -22,6 +20,7 @@ AS
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 				
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -32,6 +31,7 @@ BEGIN
 	DECLARE @Action_Recal				VARCHAR(100)  = 'Re-Cal'
 		  , @Action_Refund				VARCHAR(100)  = 'Refund'		  
 		  , @Movebetdate				DATETIME
+		  , @spName						VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	DECLARE @IsExistParlayVSBetradar	BIT = 0		  
 		  , @avaiableProcess			BIT	= 0
@@ -133,9 +133,8 @@ BEGIN
 
 		--> parse @TransIds
 		INSERT INTO #tblTransIds (transid)
-		SELECT	t.val
-		FROM dbo.f_SplitString(@TransIds, ',') t					
-		OPTION (maxrecursion 0)	
+		SELECT	t.value
+		FROM STRING_SPLIT(@TransIds, ',') t					
 		
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -257,7 +256,8 @@ BEGIN
 		SET @IsExistParlayVSBetradar = 1
 				
 		EXEC dbo.NAP_Admin_CheckingProcess
-				@IsExistParlayVSBetradar	= @IsExistParlayVSBetradar				
+			  @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar				
+			, @spName					= @spName
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
 			, @ErrMsg					= @ErrMsg OUTPUT

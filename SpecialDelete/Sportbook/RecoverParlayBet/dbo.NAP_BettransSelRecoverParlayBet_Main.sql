@@ -15,6 +15,7 @@ AS
 		- 20190719@Raymond.Le: Extend days recover ticket unlimited [#115376]
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:			
 			- @BetType:
@@ -56,9 +57,8 @@ BEGIN
 	DECLARE @MovebetDate DATETIME
 
 	INSERT INTO @tblTransIds
-	SELECT ss.val
-	FROM dbo.f_SplitString(@TransIds, ',') ss	
-	OPTION (maxrecursion 0)				
+	SELECT ss.value
+	FROM STRING_SPLIT(@TransIds, ',') ss				
 			
 	INSERT INTO @tblRecoverBet(			 							
 			custid

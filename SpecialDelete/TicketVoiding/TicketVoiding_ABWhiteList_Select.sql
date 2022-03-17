@@ -14,6 +14,7 @@ AS
 
 	Revisions:
 		- 20211001@July: Create new SP - Search [Redmine:#161659]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 		+ @Level: All - 0, Super - 4, Master - 3, Agent - 2, Member - 1
@@ -30,10 +31,9 @@ BEGIN
 
 	INSERT INTO #tmpSite (SiteId, SiteName)
 	SELECT e.siteid, e.site
-	FROM dbo.f_SplitString(@Sites, ',') s
+	FROM STRING_SPLIT(@Sites, ',') s
 		INNER JOIN CustDB.dbo.Site e WITH(NOLOCK)	
-			ON CAST(s.val AS INT) = e.siteid	
-	OPTION (MAXRECURSION 0)
+			ON CAST(s.value AS INT) = e.siteid	
 	
 	IF @UserName IS NOT NULL
 	BEGIN

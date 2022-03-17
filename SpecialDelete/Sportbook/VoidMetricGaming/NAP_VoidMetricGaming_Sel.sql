@@ -21,7 +21,8 @@ BEGIN
 		- 20170525@Kent: Remove dummy tables and fix bit datatype columns [Redmine:#77040]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20181004@Alan: Add new column SettlementStatus [102423]
-		
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Explanation's Param:
 
 
@@ -57,19 +58,19 @@ BEGIN
 	)
 	DECLARE @Event801Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event801Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event801, '^')
+	SELECT value FROM STRING_SPLIT(@Event801, '^')
 	
 	DECLARE @Event803Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event803Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event803, '^')
+	SELECT value FROM STRING_SPLIT(@Event803, '^')
 	
 	DECLARE @Event804Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event804Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event804, '^')
+	SELECT value FROM STRING_SPLIT(@Event804, '^')
 	
 	DECLARE @Event805Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event805Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event805, '^')
+	SELECT value FROM STRING_SPLIT(@Event805, '^')
 
 	DECLARE @SettlementStatus TINYINT = NULL
 	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
@@ -106,7 +107,7 @@ BEGIN
 		translog b WITH (NOLOCK)
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON b.custid = c.custid
 		INNER JOIN custDB.dbo.customer cr WITH (NOLOCK) ON cr.custid = b.creator
-		INNER JOIN dbo.strSplit(@BetTypes,'^') s ON s.val = b.gameID
+		INNER JOIN STRING_SPLIT(@BetTypes,'^') s ON s.value = b.gameID
 		INNER JOIN dbo.match mat WITH(NOLOCK) ON mat.matchid = b.EventID		
 	WHERE
 		b.EventID=@MatchId 

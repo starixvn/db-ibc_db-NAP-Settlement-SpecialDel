@@ -22,6 +22,7 @@ AS
 		- 20210225@July: HotFix - Mark/unmark can not search CO by bet ID [Redmine: #150621]
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Explanation's Param:
 */
@@ -85,10 +86,9 @@ BEGIN
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 
 	INSERT INTO #transIdTemp (transid)
-	SELECT DISTINCT val 
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (maxrecursion 0)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
 
 	INSERT INTO #Tickets (
 			GroupID

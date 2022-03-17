@@ -43,6 +43,7 @@ AS
 		- 20211005@Max: [TVS] Implement AB Whitelist - [Redmine:#161659]
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20220119@July: Fix issue - Mix Parlay Error Cannot insert duplicate key [Redmine: #167724]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -162,10 +163,9 @@ BEGIN
 			) RETURN;
 
 	INSERT INTO #transIdTemp (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
 
 	-- Check auto calculator
     SELECT @OldAction = r.ActionId 

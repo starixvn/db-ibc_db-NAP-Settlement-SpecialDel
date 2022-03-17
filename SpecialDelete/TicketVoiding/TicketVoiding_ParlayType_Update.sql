@@ -27,6 +27,7 @@ AS
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		
@@ -86,9 +87,8 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
 	INSERT INTO @tmpInputTransId (TransId)
-	SELECT	val AS TransId
-	FROM	dbo.f_SplitString(@TransIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT	value AS TransId
+	FROM	STRING_SPLIT(@TransIds, ',')
 
 	SELECT @QueueIds = STUFF((SELECT ',' + CAST(QueueId AS VARCHAR(50)) 
 							FROM dbo. TicketVoiding_Queue q WITH (NOLOCK)	

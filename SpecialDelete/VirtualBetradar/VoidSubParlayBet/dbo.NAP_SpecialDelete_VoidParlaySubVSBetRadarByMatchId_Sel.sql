@@ -12,7 +12,8 @@ AS
 	Revisions:  				
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
-		
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's Explanation:		
 		
 */
@@ -22,9 +23,8 @@ BEGIN
 	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY) 
 	
 	INSERT INTO #tblBettype(bettype)
-	SELECT  val
-	FROM	dbo.f_SplitString(@BetTypes, ',')
-	OPTION (maxrecursion 0)
+	SELECT  value
+	FROM	STRING_SPLIT(@BetTypes, ',')
 		
 	SELECT  b.Stake
 		   ,m.AwayId

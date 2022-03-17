@@ -13,6 +13,7 @@ AS
 
 	Revisions:
 		- 20211004@July: Create new SP - Add New AB White List [Redmine:#161659]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 
@@ -35,10 +36,9 @@ BEGIN
 	SET @SB_Error = 0
 
 	INSERT INTO #tmpUserName (Username)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@UserNames, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@UserNames, ',')
+	WHERE value <> ''
 
 	INSERT INTO #tmpInputUsernameList (custid, roleid, [site])
 	SELECT ci.custid

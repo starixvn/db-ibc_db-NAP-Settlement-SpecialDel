@@ -10,7 +10,8 @@ AS
 	
 	Revisions: 
 		- 20181221@Kathy: Create new SP [Redmine:#106655]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's explanation:	
 		
 */
@@ -20,9 +21,8 @@ BEGIN
 	DECLARE @tmpTransId TABLE (TransId BIGINT)
 
 	INSERT INTO @tmpTransId(TransId)
-	SELECT	val
-	FROM	dbo.f_SplitString(@TransIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT	value
+	FROM	STRING_SPLIT(@TransIds, ',')
 
 	WHILE (1=1)
 	BEGIN

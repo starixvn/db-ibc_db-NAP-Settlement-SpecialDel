@@ -20,6 +20,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		
@@ -116,9 +117,8 @@ BEGIN
 
 	BEGIN TRY
 		INSERT INTO #tblTransIds (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds,',')	
-		OPTION (maxrecursion 0)	
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds,',')	
 		
 	END TRY
 	BEGIN CATCH

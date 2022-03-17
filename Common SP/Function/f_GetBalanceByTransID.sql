@@ -16,6 +16,7 @@ AS
 	Revisions:			
 		- 20170726@Paul: Create new [RedmineID: #77175]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:      
 		You need to use option: option (maxrecursion 0) at the statement if the lengh of string exceed 100 levels
@@ -25,8 +26,8 @@ AS
 RETURN 
 (
 	WITH cteTransId AS (
-		SELECT CAST(val AS BIGINT) transid
-		FROM dbo.f_SplitString(@TransID, ',')
+		SELECT CAST(value AS BIGINT) transid
+		FROM STRING_SPLIT(@TransID, ',')
 
 		UNION ALL
 

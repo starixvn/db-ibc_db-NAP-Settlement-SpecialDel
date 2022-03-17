@@ -22,6 +22,7 @@ AS
 		- 20211111@Zane: Permission to void the settled tickets [Redmine: #162646]
 		- 20211210@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220303@July: Check permission to void instant settled tickets [Redmine: #168651]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -46,10 +47,9 @@ BEGIN
 
 	-- get list transId (single + sub-parlay)
 	INSERT INTO @TransIdTemp (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
 
 	IF @MatchId IS NOT NULL
 	BEGIN

@@ -39,6 +39,7 @@ AS
 		- 20211207@July: Implement New Cash Out Model - Remove code CO [Redmine: #165097] 
 		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220221@Max: Remove SABA of league name for China View sites [Redmine: #168651]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		
@@ -174,10 +175,9 @@ BEGIN
 		SET @StatusIds = (SELECT TOP 1 TicketStatusIds FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId)
 		
 		INSERT INTO @Status_tmp (StatusId)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@StatusIds, ',')
-		WHERE val <> ''
-		OPTION (MAXRECURSION 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@StatusIds, ',')
+		WHERE value <> ''
 	END
 
 	CREATE TABLE #TmpMatch 
@@ -365,14 +365,14 @@ BEGIN
 				 , cte.OddsSpread
 			FROM (
 				SELECT cte.Id
-					 , bt.val AS BetTeam 
+					 , bt.value AS BetTeam 
 					 , cte.[Set]
 					 , cte.Game
-					 , bop.val AS BetOption
-					 , CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault 
-								ELSE v.val END AS SMALLMONEY) AS [Value]
-					 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
-							ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+					 , bop.value AS BetOption
+					 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault 
+								ELSE v.value END AS SMALLMONEY) AS [Value]
+					 , CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault 
+							ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
 					 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
 					 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
@@ -381,10 +381,10 @@ BEGIN
 								ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 					 ,f.GroupId
 				FROM #tblBetType cte
-					 CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
-					 CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
-					 CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
-					 CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
+					 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+					 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
+					 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+					 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
 					 OUTER APPLY (
 									SELECT GroupId
 									FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -394,7 +394,6 @@ BEGIN
 			WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 					WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 					ELSE 1 END = 1
-			OPTION (MAXRECURSION 0)
 
 			-- search tickets : not metric gaming tickets, mix parlay tickets
 			INSERT INTO #SpecialDeleteBets(
