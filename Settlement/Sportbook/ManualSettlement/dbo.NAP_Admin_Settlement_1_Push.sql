@@ -52,6 +52,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
+		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -134,26 +135,51 @@ BEGIN
 
 		IF @ErrCode > 0
 			RETURN
-	END
 
-    IF EXISTS (
-            SELECT	1
-            FROM	Single_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
+		IF EXISTS (
+            SELECT TOP 1 1
+            FROM Single_Calculate_Queue s WITH (NOLOCK)		
+				INNER JOIN dbo.f_Set_GetAction() f
+					ON s.Action = f.Action
+					AND f.GroupAction = 'MNL'
+            WHERE s.matchid = @matchid
+                AND s.IsCalculating IN (0, 1)
             )
         OR EXISTS (
-            SELECT	1
-            FROM	Parlay_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
+            SELECT TOP 1 1
+            FROM Parlay_Calculate_Queue WITH (NOLOCK)
+            WHERE matchid = @matchid
+                AND IsCalculating IN (0, 1)
             )
-    BEGIN
-        SELECT	@ErrCode = 1001003
+		BEGIN
+			SELECT @ErrCode = 1000000
 				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 
-        RETURN
-    END
+			RETURN
+		END
+
+	END
+	ELSE
+	BEGIN
+		IF EXISTS (
+				SELECT	1
+				FROM	Single_Calculate_Queue WITH (NOLOCK)
+				WHERE	matchid = @matchid
+						AND IsCalculating IN (0, 1)
+				)
+			OR EXISTS (
+				SELECT	1
+				FROM	Parlay_Calculate_Queue WITH (NOLOCK)
+				WHERE	matchid = @matchid
+						AND IsCalculating IN (0, 1)
+				)
+		BEGIN
+			SELECT	@ErrCode = 1001003
+					,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+
+			RETURN
+		END
+	END
     
     -- check waiting ticket		
 	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId	= @MatchId

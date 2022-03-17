@@ -54,6 +54,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
+		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -160,27 +161,52 @@ BEGIN
 
 		IF @ErrCode > 0
 		RETURN
+
+		IF EXISTS (
+            SELECT TOP 1 1
+            FROM Single_Calculate_Queue s WITH (NOLOCK)		
+				INNER JOIN dbo.f_Set_GetAction() f
+					ON s.Action = f.Action
+					AND f.GroupAction = 'MNL'
+            WHERE s.matchid = @matchid
+                AND s.IsCalculating IN (0, 1)
+            )
+        OR EXISTS (
+            SELECT TOP 1 1
+            FROM Parlay_Calculate_Queue WITH (NOLOCK)
+            WHERE matchid = @matchid
+                AND IsCalculating IN (0, 1)
+            )
+		BEGIN
+			SELECT @ErrCode = 1000000
+				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+
+			RETURN
+		END
 	END
 
-    IF EXISTS (
-            SELECT	1
-            FROM	Single_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
-            )
+	ELSE
+	BEGIN
+		IF EXISTS (
+				SELECT	1
+				FROM	Single_Calculate_Queue WITH (NOLOCK)
+				WHERE	matchid = @matchid
+						AND IsCalculating IN (0, 1)
+				)
 
-        OR EXISTS (
-            SELECT	1
-            FROM	Parlay_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
-            )
-    BEGIN
-        SELECT @ErrCode = 1001003
-            ,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+			OR EXISTS (
+				SELECT	1
+				FROM	Parlay_Calculate_Queue WITH (NOLOCK)
+				WHERE	matchid = @matchid
+						AND IsCalculating IN (0, 1)
+				)
+		BEGIN
+			SELECT @ErrCode = 1001003
+				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 
-        RETURN
-    END
+			RETURN
+		END
+	END
 
     -- check waiting ticket
 	EXEC NAP_Admin_Settlement_Checking

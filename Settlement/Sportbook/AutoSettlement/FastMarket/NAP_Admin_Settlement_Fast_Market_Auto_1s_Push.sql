@@ -34,6 +34,7 @@ AS
 			- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 			- 20210428@Kathy: - Allow to settle directly for bettype 228 [Redmine:#153155]
 							  - Check SP is in deployment 
+			- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 			
 	Param's Explanation:
 		- @Result: 
@@ -186,8 +187,11 @@ BEGIN
 
 	IF EXISTS (SELECT	TOP 1 1 
 				FROM	dbo.Single_Calculate_Queue s WITH (NOLOCK)
+					INNER JOIN dbo.f_Set_GetAction() f
+					ON s.Action = f.Action
+					AND f.GroupAction = 'FM'
 				WHERE	s.matchid = @matchid 
-						AND s.IsCalculating IN (0, 1)) 
+						AND s.IsCalculating IN (0, 1))
 		OR EXISTS (SELECT	TOP 1 1
 					FROM	dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
 					WHERE	p.matchid = @matchid 
