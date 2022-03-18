@@ -38,6 +38,7 @@ AS
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211225@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
+		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 
 	Param's explanation:	
 	
@@ -63,6 +64,7 @@ BEGIN
 			,ISNULL(isVoided,0) AS isVoided
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
+			,r.UserId
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
 		OUTER APPLY (SELECT TOP 1 1 AS isVoided, tv.UserId AS VoidBy

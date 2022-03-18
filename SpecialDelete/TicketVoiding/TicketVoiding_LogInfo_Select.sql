@@ -53,6 +53,7 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220311@July: TVS - Wrong count settled tickets at log info [Redmine: #169763]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -123,7 +124,6 @@ BEGIN
 			,@Wrong1stHDPInfoXML	  XML = NULL
 		
 	CREATE TABLE #SpecialDeleteBets (
-			GroupID               BIGINT,
 			transid               BIGINT,
 			SubTransid            BIGINT,
 			refno                 BIGINT,
@@ -135,11 +135,9 @@ BEGIN
 			betdaqid              BIGINT,
 			IsMixParlay           BIT DEFAULT(0),
 			sporttype             SMALLINT,
-			ExtraInfo             VARCHAR(1000),
 			matchid               INT,
 			WalletType            TINYINT,
 			RefCode               BIGINT,
-			BonusID               INT,
 			MainTransId           BIGINT,
 			LiveIndicator		  BIT,
 			StatusId			  TINYINT,
@@ -185,7 +183,6 @@ BEGIN
 
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT, Refno BIGINT)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, ScoreId INT)
-	--CREATE TABLE #WrongScores (ScoreId INT, MatchId INT, LiveHomeScore SMALLINT, LiveAwayScore SMALLINT, FilterFromTime DATETIME, FilterToTime DATETIME, FilterBy TINYINT)
 	CREATE TABLE #FilterInfo (
 		MatchId INT
 		, FilterFromTransTime DATETIME
@@ -226,13 +223,7 @@ BEGIN
 	IF @IssueTypeId = 1 --Danger Accept
 	BEGIN
 		SET @DangerAcceptedInfoXML = CONVERT(XML, @DangerAcceptedInfo)
-		INSERT INTO #FilterInfo( 
-				MatchID				
-				,FilterFromTransTime	
-				,FilterToTransTime			
-				,FilterBy				
-				,SubIssueTypeId
-			)
+		INSERT INTO #FilterInfo( MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId)
 		SELECT t.c.value('@MatchId','INT') AS MatchID
 				,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
 				,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
@@ -245,13 +236,7 @@ BEGIN
 	ELSE IF @IssueTypeId = 10 --Red Card
 	BEGIN
 		SET @RedCardInfoXML = CONVERT(XML, @RedCardInfo)
-		INSERT INTO #FilterInfo( 
-				MatchID				
-				,FilterFromTransTime	
-				,FilterToTransTime			
-				,FilterBy				
-				,SubIssueTypeId
-			)
+		INSERT INTO #FilterInfo( MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId)
 		SELECT t.c.value('@MatchId','INT') AS MatchID
 			  ,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
 			  ,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
@@ -281,13 +266,7 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId IN (8,9)--WC, E
 	BEGIN
-		INSERT INTO #FilterInfo( 
-				MatchID				
-				,FilterFromTransTime	
-				,FilterToTransTime			
-				,FilterBy				
-				,SubIssueTypeId
-			)
+		INSERT INTO #FilterInfo( MatchID, FilterFromTransTime, FilterToTransTime, FilterBy, SubIssueTypeId)
 		SELECT @MatchId, NULL, NULL, @FilterBy, @SubIssueTypeId
 	END
 
@@ -344,8 +323,7 @@ BEGIN
 		
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
-				GroupID			
-				,transid		
+				transid		
 				,SubTransid		
 				,refno			
 				,custid				
@@ -354,10 +332,8 @@ BEGIN
 				,livehomescore 	
 				,liveawayscore 			
 				,betdaqid	
-				,ExtraInfo
 				,WalletType
 				,RefCode
-				,BonusID
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -366,9 +342,7 @@ BEGIN
 				,SubIssueTypeId
 				,FilterBy
 			)
-		SELECT 
-				b.transid AS GroupID
-				,b.transid
+		SELECT   b.transid
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
@@ -377,10 +351,8 @@ BEGIN
 				,b.livehomescore
 				,b.liveawayscore
 				,b.betdaqid
-				,b.ExtraInfo
 				,b.WalletType
 				,b.RefCode
-				,b.BonusID
 				,b.liveindicator
 				,b.matchid
 				,b.statusID
@@ -425,8 +397,7 @@ BEGIN
 				)
 		BEGIN		
 			INSERT INTO #SpecialDeleteBets(
-					GroupID			
-					,transid		
+					transid		
 					,SubTransid		
 					,refno			
 					,custid						
@@ -443,9 +414,7 @@ BEGIN
 					,SubIssueTypeId
 					,FilterBy
 				)
-			SELECT 
-					main.transid AS GroupID
-					,main.transid AS TransId
+			SELECT   main.transid AS TransId
 					,sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
@@ -488,13 +457,37 @@ BEGIN
 										AND f.IssueTypeId = @IssueTypeId)
 		END 
 
+		IF @IssueTypeId = 10 --Red Card issue type 
+		BEGIN
+			--User selects the "Replacement of Sent-Off player" subtype -> When the system searches ticket, it will get from a ticket that has "Handicap/1H Handicap" bet type.
+			DECLARE @MinTimeHDP DATETIME
+			SELECT @MinTimeHDP = MIN (CASE WHEN b.FilterBy = 1 THEN b.transdate 
+										   WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
+										   WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+										END)
+			FROM #SpecialDeleteBets b
+			WHERE b.SubIssueTypeId = 21 AND b.bettype IN (1,7)
+			
+			IF @MinTimeHDP IS NULL
+			BEGIN
+				DELETE b FROM #SpecialDeleteBets b WHERE b.SubIssueTypeId = 21
+			END
+			ELSE 
+			BEGIN
+				DELETE b FROM #SpecialDeleteBets b 
+				WHERE b.SubIssueTypeId = 21
+				AND (CASE WHEN b.FilterBy = 1 THEN b.transdate 
+						  WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
+						  WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+						END) < @MinTimeHDP
+			END
+		END
 	END
 	IF @IssueTypeId IN (8,9)
 	BEGIN
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
-				GroupID			
-				,transid		
+				transid		
 				,SubTransid		
 				,refno			
 				,custid					
@@ -503,19 +496,15 @@ BEGIN
 				,livehomescore 	
 				,liveawayscore 		
 				,betdaqid	
-				,ExtraInfo
 				,WalletType
 				,RefCode
-				,BonusID
 				,LiveIndicator
 				,matchid
 				,StatusId
 				,checktime
 				,FilterBy
 			)
-		SELECT 
-				b.transid AS GroupID
-				,b.transid
+		SELECT   b.transid
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
@@ -524,10 +513,8 @@ BEGIN
 				,b.livehomescore
 				,b.liveawayscore
 				,b.betdaqid
-				,b.ExtraInfo
 				,b.WalletType
 				,b.RefCode
-				,b.BonusID
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
@@ -552,13 +539,11 @@ BEGIN
 							ELSE 0 END
 				AND b.liveindicator = 0
 				AND b.bettype NOT IN (805, 806, 9, 29)			
-				AND b.bettype NOT BETWEEN 901 AND 920
 				AND b.betfrom <> 'P'	
 		
 		-- Metric Gaming Super Live
 		INSERT INTO #SpecialDeleteBets(
-				GroupID			
-				,transid		
+				transid		
 				,SubTransid		
 				,refno			
 				,custid					
@@ -573,9 +558,7 @@ BEGIN
 				,checktime
 				,FilterBy
 			)	
-		SELECT 
-				b.TranslogID AS GroupID
-				,b.TranslogID AS TransId
+		SELECT   b.TranslogID AS TransId
 				,b.TranslogID AS SubTransID
 				,b.TranslogID refno
 				,b.custid
@@ -614,8 +597,7 @@ BEGIN
 				)
 		BEGIN		
 			INSERT INTO #SpecialDeleteBets(
-					GroupID			
-					,transid		
+					transid		
 					,SubTransid		
 					,refno			
 					,custid							
@@ -630,9 +612,7 @@ BEGIN
 					,checktime
 					,FilterBy
 				)
-			SELECT 
-					main.transid AS GroupID
-					,main.transid AS TransId
+			SELECT   main.transid AS TransId
 					,sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
@@ -690,8 +670,7 @@ BEGIN
 		
 		-- search tickets : not metric gaming tickets, mix parlay tickets
 		INSERT INTO #SpecialDeleteBets(
-				GroupID			
-				,transid		
+				transid		
 				,SubTransid		
 				,refno			
 				,custid				
@@ -700,10 +679,8 @@ BEGIN
 				,livehomescore 	
 				,liveawayscore 			
 				,betdaqid	
-				,ExtraInfo
 				,WalletType
 				,RefCode
-				,BonusID
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -712,9 +689,7 @@ BEGIN
 				,FilterBy
 				,accepttype
 			)
-		SELECT 
-				b.transid AS GroupID
-				,b.transid
+		SELECT   b.transid
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
@@ -723,10 +698,8 @@ BEGIN
 				,b.livehomescore
 				,b.liveawayscore
 				,b.betdaqid
-				,b.ExtraInfo
 				,b.WalletType
 				,b.RefCode
-				,b.BonusID
 				,b.liveindicator
 				,@MatchId
 				,b.statusID
@@ -779,8 +752,7 @@ BEGIN
 				)
 		BEGIN		
 			INSERT INTO #SpecialDeleteBets(
-					GroupID			
-					,transid		
+					 transid		
 					,SubTransid		
 					,refno			
 					,custid						
@@ -797,9 +769,7 @@ BEGIN
 					,FilterBy
 					,accepttype
 				)
-			SELECT 
-					main.transid AS GroupID
-					,main.transid AS TransId
+			SELECT main.transid AS TransId
 					,sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
@@ -982,8 +952,7 @@ BEGIN
 		END
 	
 		INSERT INTO #SpecialDeleteBets(
-				GroupID			
-				,transid		
+				transid		
 				,SubTransid		
 				,refno			
 				,custid				
@@ -992,10 +961,8 @@ BEGIN
 				,livehomescore 	
 				,liveawayscore 			
 				,betdaqid	
-				,ExtraInfo
 				,WalletType
 				,RefCode
-				,BonusID
 				,LiveIndicator
 				,matchid
 				,StatusId
@@ -1003,9 +970,7 @@ BEGIN
 				,SubIssueTypeId
 				,FilterBy
 			)
-		SELECT 
-				b.transid AS GroupID
-				,b.transid
+		SELECT  b.transid
 				,b.transid AS SubTransID
 				,b.refno
 				,b.custid
@@ -1014,10 +979,8 @@ BEGIN
 				,b.livehomescore
 				,b.liveawayscore
 				,b.betdaqid
-				,b.ExtraInfo
 				,b.WalletType
 				,b.RefCode
-				,b.BonusID
 				,b.liveindicator
 				,b.matchid
 				,b.statusID
@@ -1066,8 +1029,7 @@ BEGIN
 						AND bm.betfrom <> 'P')
 		BEGIN		
 			INSERT INTO #SpecialDeleteBets(
-					GroupID			
-					,transid		
+					transid		
 					,SubTransid		
 					,refno			
 					,custid						
@@ -1083,9 +1045,7 @@ BEGIN
 					,SubIssueTypeId
 					,FilterBy
 				)
-			SELECT 
-					main.transid AS GroupID
-					,main.transid AS TransId
+			SELECT  main.transid AS TransId
 					,sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
@@ -1161,8 +1121,7 @@ BEGIN
 		IF @@ROWCOUNT > 0
 		BEGIN	
 			INSERT INTO #SpecialDeleteBets(
-						GroupID			
-						,transid		
+						transid		
 						,SubTransid		
 						,refno			
 						,custid					
@@ -1171,10 +1130,8 @@ BEGIN
 						,livehomescore 	
 						,liveawayscore 			
 						,betdaqid
-						,ExtraInfo	
 						,WalletType
 						,RefCode
-						,BonusID
 						,MainTransId
 						,LiveIndicator
 						,matchid
@@ -1184,9 +1141,7 @@ BEGIN
 						,ScoreId
 						,FilterBy
 					)
-				SELECT 
-						b.transid AS GroupID
-						,b.transid
+				SELECT   b.transid
 						,b.transid AS SubTransID
 						,b.refno
 						,b.custid
@@ -1195,10 +1150,8 @@ BEGIN
 						,b.livehomescore
 						,b.liveawayscore
 						,b.betdaqid
-						,b.ExtraInfo
 						,b.WalletType
 						,b.RefCode
-						,b.BonusID
 						,t.transid AS MainTransId
 						,b.liveindicator
 						,b.matchid
@@ -1338,7 +1291,7 @@ BEGIN
 		,MIN(act.VoidTime) AS VoidFromTime
 		,MAX(act.VoidTime) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
-		,COUNT(CASE WHEN b.transid = b.SubTransid AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS InstantlySettleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
 		,MIN(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS MinSingleTransId
@@ -1442,7 +1395,7 @@ BEGIN
 				) tmp (ScoreId)
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.transid AND b.matchid = s.MatchId
 		WHERE s.RequestId = @RequestId
-			AND b.betdaqid = -2 
+			AND b.betdaqid = -2 AND b.StatusId IN (111, 112, 113)
 
 		/*Get Instant settlement*/
 		IF @IssueTypeId <> 3 OR (@IssueTypeId = 3 AND @FilterBy = 2)
@@ -1556,7 +1509,7 @@ BEGIN
 				,rd.SingleCount
 				,c.CashOutCount AS CashOutCount
 				,t.InstantlySettleCount
-				,CASE WHEN @IssueTypeId IN (4,5) THEN t.SettleCount ELSE 0 END AS SettleCount
+				,t.SettleCount
 				,rd.MainParlayCount
 				,rd.MinSingleTransId
 				,rd.MaxSingleTransId
@@ -1631,7 +1584,7 @@ BEGIN
 				,rd.SingleCount
 				,c.CashOutCount AS CashOutCount
 				,t.InstantlySettleCount
-				,0 AS SettleCount
+				,t.SettleCount
 				,rd.MainParlayCount
 				,rd.MinSingleTransId
 				,rd.MaxSingleTransId
@@ -2134,7 +2087,6 @@ BEGIN
 	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #CashOuts
 	DROP TABLE #InstantSettlementBettypes
-	--DROP TABLE #WrongScores
 	DROP TABLE #FilterInfo
 	DROP TABLE #WrongHDP
 	DROP TABLE #FilterBetId

@@ -12,6 +12,7 @@ AS
 		- 20211014@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211207@Kathy: Remove 'with schemabinding' [Redmine:#164819 ]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
+		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 
     Parameters Explanation:    
 		IssueTypeId = 1 Danger Accepted
@@ -122,32 +123,29 @@ RETURN (
 	UNION ALL SELECT 1,71,484
 
 	--HT/FT (Real Soccer) - Half Time
-	UNION ALL SELECT 1,86,481
 	UNION ALL SELECT 1,86,376
 	UNION ALL SELECT 1,86,381
 	UNION ALL SELECT 1,86,382
 	UNION ALL SELECT 1,86,383
 	UNION ALL SELECT 1,86,384
 	UNION ALL SELECT 1,86,385
-	UNION ALL SELECT 1,86,bettype  FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT'
+	UNION ALL SELECT 1,86,bettype  FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT' OR (GroupName ='2H' AND bettype IN (17,18,146,177,178,183,184,185,186,187,405,428,429,430,431,432,433,472,481,490,495))
 	--HT/FT (Futsal) - Half Time
-	UNION ALL SELECT 1,87,481
 	UNION ALL SELECT 1,87,376
 	UNION ALL SELECT 1,87,381
 	UNION ALL SELECT 1,87,382
 	UNION ALL SELECT 1,87,383
 	UNION ALL SELECT 1,87,384
 	UNION ALL SELECT 1,87,385
-	UNION ALL SELECT 1,87,bettype  FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT'
+	UNION ALL SELECT 1,87,bettype  FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT' OR (GroupName ='2H' AND bettype IN (17,18,146,177,178,183,184,185,186,187,405,428,429,430,431,432,433,472,481,490,495))
 	--HT/FT (Virtual) - Half Time
-	UNION ALL SELECT 1,88,481
 	UNION ALL SELECT 1,88,376
 	UNION ALL SELECT 1,88,381
 	UNION ALL SELECT 1,88,382
 	UNION ALL SELECT 1,88,383
 	UNION ALL SELECT 1,88,384
 	UNION ALL SELECT 1,88,385
-	UNION ALL SELECT 1,88,bettype  FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT'
+	UNION ALL SELECT 1,88,bettype  FROM dbo.f_SD_GetGroupBettypes() WHERE GroupName ='FT' OR (GroupName ='2H' AND bettype IN (17,18,146,177,178,183,184,185,186,187,405,428,429,430,431,432,433,472,481,490,495))
 	
 	--HT/FT (Real Soccer) - Full Time
 	UNION ALL SELECT 1,67,395
