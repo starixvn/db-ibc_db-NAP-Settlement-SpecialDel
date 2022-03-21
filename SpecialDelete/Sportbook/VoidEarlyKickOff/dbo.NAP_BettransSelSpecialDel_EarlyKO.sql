@@ -211,7 +211,7 @@ BEGIN
 					END AS BIGINT) AS Goal
 			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault 
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
-			, CAST(CASE WHEN cte.OddsId = 'ALL' THEN @ValueDefault 
+			, CAST(CASE WHEN cte.OddsId = 'ALL' THEN NULL 
 						ELSE cte.OddsId END AS INT) AS OddsId
 			,cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
@@ -470,7 +470,7 @@ BEGIN
 	DELETE s
 	FROM  #SpecialDeleteBets s
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-		WHERE tp.Id = s.Bettype AND (tp.OddsId = 9999 OR s.OddsId = tp.OddsId )) 
+		WHERE tp.Id = s.Bettype AND (tp.OddsId IS NULL OR s.OddsId = tp.OddsId )) 
 	
 	DELETE s
 	FROM  #SpecialDeleteBets s

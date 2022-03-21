@@ -203,7 +203,7 @@ BEGIN
 						ELSE cte.Goal
 					END AS BIGINT) AS Goal
 			, CAST(CASE 
-						WHEN cte.OddsId = 'ALL' THEN @ValueDefault 
+						WHEN cte.OddsId = 'ALL' THEN NULL 
 						ELSE cte.OddsId
 					END AS INT) AS OddsId
 			, cte.Transdesc
@@ -477,7 +477,7 @@ BEGIN
 	DELETE s
 	FROM  #BetDelete s
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-		WHERE tp.Id = s.Bettype AND (tp.OddsId = 9999 OR s.OddsId = tp.OddsId )) 
+		WHERE tp.Id = s.Bettype AND (tp.OddsId IS NULL OR s.OddsId = tp.OddsId )) 
 	
 	DELETE s
 	FROM  #BetDelete s
