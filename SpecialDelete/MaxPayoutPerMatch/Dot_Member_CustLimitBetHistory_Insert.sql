@@ -19,6 +19,7 @@ AS
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 	
 	Param's explanation:	
 		
@@ -36,7 +37,10 @@ BEGIN
 	BEGIN
 		RETURN
 	END
-	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) OR (@sporttype IN (43,44,164,180,186)) OR (@sporttype BETWEEN 190 AND 197)
+	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
+		OR (@sporttype IN (43,44) AND @sitetype <> 3) 
+		OR (@sporttype IN (164,180,186)) 
+		OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0
 	END
@@ -57,6 +61,17 @@ BEGIN
 	BEGIN
 		--CustLimitBetHisoty
 		INSERT INTO dbo.CustLimitBetHistory_789 (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
+		SELECT @custid AS CustId
+			, @MatchId AS MatchId
+			, @Transid AS TransId
+			, @turnover  AS TurnoverAdjust
+			, @payout AS PayoutAdjust
+			, @EventTypeID AS EventTypeID
+	END
+	ELSE IF @sitetype = 3  --licensee
+	BEGIN
+		--CustLimitBetHisoty
+		INSERT INTO dbo.CustLimitBetHistory_LIC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
 		SELECT @custid AS CustId
 			, @MatchId AS MatchId
 			, @Transid AS TransId

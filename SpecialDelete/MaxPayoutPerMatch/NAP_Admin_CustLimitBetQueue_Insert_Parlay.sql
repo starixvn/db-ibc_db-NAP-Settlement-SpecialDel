@@ -12,6 +12,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
+		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 	
 	Param's explanation:	
 		
@@ -65,7 +66,6 @@ BEGIN
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = tmp.custid
 		LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON c.srecommend = dp.custid
 	WHERE tmp.ruben <> b.ruben
-		AND dp.custid IS NULL --Not support deposit in this phase
 	OPTION (OPTIMIZE FOR (@xml = NULL ))
 
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp)
