@@ -11,6 +11,7 @@ AS
 		- 20211007@Tina: fixed locking issue - [Redmine: #158073]
 		- 20211012@Max: Delete bonus for CustLimitBetQueue - [Redmine: #158073]
 		- 20211112@Max: MPO Phase 2 - Clean up data for Parlay [Redmine: #159626]
+		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 	
 	Param's explanation:	
@@ -32,6 +33,8 @@ BEGIN
 	CREATE TABLE #tmp_TransId_pre_789 (Transid BIGINT PRIMARY KEY, custid INT)
 	CREATE TABLE #tmp_TransId_Parlay_789 (CustId INT, TransId BIGINT)
 	CREATE TABLE #tmp_TransId_Parlay_batch (CustId INT, TransId BIGINT)
+	CREATE TABLE #tmp_TransId_pre_LIC (Transid BIGINT PRIMARY KEY, custid INT)
+	CREATE TABLE #tmp_TransId_Parlay_LIC (CustId INT, TransId BIGINT)
 	
 	DECLARE @tmp_batch AS TABLE (QueueID BIGINT PRIMARY KEY)
 
@@ -72,6 +75,10 @@ BEGIN
 	SELECT DISTINCT mc.Matchid, mc.EventTypeID
 	FROM dbo.CustLimitBet_789 mc WITH (NOLOCK)
 		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND (m.EventTypeID = mc.EventTypeID OR mc.EventTypeID = 5)
+	UNION 
+	SELECT DISTINCT mc.Matchid, mc.EventTypeID
+	FROM dbo.CustLimitBet_LIC mc WITH (NOLOCK)
+		INNER JOIN #match_archive m ON m.MatchId = mc.Matchid AND (m.EventTypeID = mc.EventTypeID OR mc.EventTypeID = 5)
 
 	SET @end = (SELECT MAX(ID) FROM #match_tmp)
 	--Delete data
@@ -101,6 +108,16 @@ BEGIN
 			
 			IF @@ROWCOUNT = 0 BREAK
 		END
+
+		--CustLimitBet_LIC
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(1000) lic
+			FROM dbo.CustLimitBet_LIC lic
+			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
+			
+			IF @@ROWCOUNT = 0 BREAK
+		END	
 		
 		--CustLimitBetHistory_MBC
 		WHILE (1=1)
@@ -119,6 +136,18 @@ BEGIN
 		BEGIN
 			DELETE TOP(1000) m789
 			FROM dbo.CustLimitBetHistory_789 m789
+			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
+
+			IF @@ROWCOUNT = 0 BREAK
+
+			WAITFOR DELAY '00:00:00.020'
+		END
+
+		--CustLimitBetHistory_LIC
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(1000) lic
+			FROM dbo.CustLimitBetHistory_LIC lic
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 
 			IF @@ROWCOUNT = 0 BREAK
@@ -197,6 +226,19 @@ BEGIN
 		LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.Transid = b.transid
 	WHERE b.transid IS NULL
 
+	--LIC
+	INSERT INTO #tmp_TransId_pre_LIC (Transid,custid)
+	SELECT transid,custid
+	FROM dbo.CustLimitBetHistory_LIC  m2 WITH (NOLOCK)
+	WHERE m2.Matchid = 29
+	GROUP BY matchid,transid,custid
+
+	INSERT INTO #tmp_TransId_Parlay_LIC (CustId, TransId)
+	SELECT t.custid, t.transid
+	FROM #tmp_TransId_pre_LIC t
+		LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.Transid = b.transid
+	WHERE b.transid IS NULL
+
 	--Delete Data
 	---------mbc-----------
 	WHILE (1 = 1)
@@ -245,6 +287,29 @@ BEGIN
     
 	END
 
+	----------LIC-----------
+	TRUNCATE TABLE #tmp_TransId_Parlay_batch
+
+	WHILE (1 = 1)
+	BEGIN
+  
+		DELETE TOP (1000) r 
+		OUTPUT DELETED.custid,DELETED.TransId
+		INTO #tmp_TransId_Parlay_batch (custid, TransId)    
+		FROM #tmp_TransId_Parlay_LIC r 
+  
+		IF @@ROWCOUNT = 0
+		BREAK
+  
+		DELETE t
+		FROM dbo.CustLimitBetHistory_LIC t 
+			INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
+		WHERE t.matchid = 29 
+
+		TRUNCATE TABLE #tmp_TransId_Parlay_batch
+
+		WAITFOR DELAY '00:00:00.020'
+    
 	--CustLimitBet_QueueRetry
 	SET @end = (SELECT MAX(ID) FROM #tmp_QueueRetry)
 	SET @start = 1
@@ -268,6 +333,8 @@ BEGIN
 		SET @start = @start + 1
 	END
 
+	END
+
 	DROP TABLE #match_tmp 
 	DROP TABLE #match_archive 
 	DROP TABLE #tmp_QueueID
@@ -276,7 +343,9 @@ BEGIN
 	DROP TABLE #tmp_TransId_Parlay_mbc
 	DROP TABLE #tmp_TransId_pre_789
 	DROP TABLE #tmp_TransId_pre_mbc
+	DROP TABLE #tmp_TransId_Parlay_LIC
 	DROP TABLE #tmp_QueueRetry
+	DROP TABLE #tmp_TransId_pre_LIC
 END
 GO
 	
