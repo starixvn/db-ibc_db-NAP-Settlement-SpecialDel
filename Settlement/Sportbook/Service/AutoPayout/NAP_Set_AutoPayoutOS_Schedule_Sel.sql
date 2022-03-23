@@ -31,7 +31,6 @@ BEGIN
 		,AwayValue		VARCHAR(50)
 		,StatusId		TINYINT
 		,Ranking		INT
-		,IsFinal BIT
 	)
 
 
@@ -74,33 +73,36 @@ BEGIN
 
 	ELSE IF @Sporttype = 6
 	BEGIN
+		
+		;WITH cte_LatestResult (  matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue, Ranking, IsFinal ) AS
+		(
+			SELECT m.matchid, m.leagueid, m.SettlementStatus, r.ResourceId, r.HomeValue, r.AwayValue
+					,ROW_NUMBER() OVER(PARTITION BY r.MatchId, r.ResourceId ORDER BY r.CreateDate DESC) AS Ranking
+					,MAX(CASE WHEN r.ResourceId = '00' THEN 1 ELSE 0 END ) OVER(PARTITION BY r.MatchId ) AS IsFinal
+			FROM dbo.match m WITH(NOLOCK)
+				INNER JOIN dbo.League l WITH(NOLOCK)
+					ON m.leagueid = l.leagueid
+				INNER JOIN dbo.ProviderExternalResultDetail r WITH(NOLOCK)
+					ON m.matchid = r.MatchId				
+			WHERE m.sporttype = @Sporttype
+				AND ISNULL(m.AutoSetting,0) & 17 = 1 ----Turn on bit[1] and turn off bit[5]
+				AND ( ISNULL(m.ChildMatchType, 0 ) = 0 OR  ISNULL(m.ChildMatchType, 0 ) = 100 ) --exclude child match, allow hedge match
+				AND m.eventstatus = 'running'
+				AND ISNULL(l.IsDeleted,0) = 0
+				AND ISNULL(m.IsDeleted,0) = 0
+				AND r.SourceId = 1 --SBO
+		)
 
-		INSERT INTO #MatchInfo ( matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue, Ranking, IsFinal )
-		SELECT m.matchid, m.leagueid, m.SettlementStatus, r.ResourceId, r.HomeValue, r.AwayValue
-				,ROW_NUMBER() OVER(PARTITION BY r.MatchId, r.ResourceId ORDER BY r.CreateDate DESC) AS Ranking
-				,MAX(CASE WHEN r.ResourceId = '00' THEN 1 ELSE 0 END ) OVER(PARTITION BY r.MatchId ) AS IsFinal
-		FROM dbo.match m WITH(NOLOCK)
-			INNER JOIN dbo.League l WITH(NOLOCK)
-				ON m.leagueid = l.leagueid
-			INNER JOIN dbo.ProviderExternalResultDetail r WITH(NOLOCK)
-				ON m.matchid = r.MatchId
+		INSERT INTO #MatchInfo ( matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
+		SELECT r.matchid, r.leagueid, r.SettlementStatus, r.ResourceId, r.HomeValue, r.AwayValue				
+		FROM cte_LatestResult r
 			OUTER APPLY (	SELECT TOP 1 os.MatchId
 							FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
-							WHERE os.MatchId = m.matchid
-								
+							WHERE os.MatchId = r.matchid				
 						) os				
-		WHERE m.sporttype = @Sporttype
-			AND ISNULL(m.AutoSetting,0) & 17 = 1 ----Turn on bit[1] and turn off bit[5]
-			AND ( ISNULL(m.ChildMatchType, 0 ) = 0 OR  ISNULL(m.ChildMatchType, 0 ) = 100 ) --exclude child match, allow hedge match
-			AND m.eventstatus = 'running'
-			AND ISNULL(l.IsDeleted,0) = 0
-			AND ISNULL(m.IsDeleted,0) = 0
-			AND r.SourceId = 1 --SBO
-			AND os.MatchId IS NULL
-
-		DELETE FROM #MatchInfo
-		WHERE Ranking > 1
-			OR IsFinal = 0
+		WHERE Ranking = 1 --Latest
+			AND r.IsFinal = 1 --exist FT
+			AND os.MatchId IS NULL --not yet run Auto
 
 	END
 
