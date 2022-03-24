@@ -104,6 +104,7 @@ Revisions:
 	- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 	- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 	- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+	- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -118,6 +119,8 @@ Param's Explanation: Special bet delete option
 					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
+					 OddsId ="10006450"		-- Default : "All" ; Format : Single Number
+					 Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
 			/>
 		 <BetTypes/>'
 */  
@@ -187,7 +190,9 @@ BEGIN
 		ValueHdp1		SMALLMONEY,	
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
-		OddsSpread		MONEY
+		OddsSpread		MONEY,
+		OddsId			INT,
+		Transdesc		NVARCHAR(1000)
 	)   
 
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)  
@@ -233,6 +238,7 @@ BEGIN
 		,MainTransId	BIGINT
 		,ActualStake	MONEY
 		,Winlost		MONEY
+		,OddsId			INT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -371,6 +377,8 @@ BEGIN
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			 , t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
+			 , t.c.value('@OddsId','VARCHAR(20)') AS OddsId			-- check columns : OddsId		 ; single-choice
+			 , t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -396,13 +404,16 @@ BEGIN
 					END AS BIGINT) AS Goal
 			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault 
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
+			, CAST(CASE WHEN cte.OddsId = 'ALL' THEN NULL 
+						ELSE cte.OddsId END AS INT) AS OddsId
+			, cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -418,6 +429,8 @@ BEGIN
 		 , cte.ValueHdp2
 		 , cte.Goal
 		 , cte.OddsSpread
+		 , cte.OddsId
+		 , cte.Transdesc
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -659,6 +672,7 @@ BEGIN
 		,BonusID
 		,ActualStake
 		,Winlost
+		,OddsId
 	)  
 	SELECT   
 		b.transid AS grouptransid  
@@ -694,6 +708,7 @@ BEGIN
 		,b.BonusID
 		,b.actual_stake AS ActualStake
 		,b.winlost - b.actual_stake AS Winlost
+		,b.OddsId
 	FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 		 INNER JOIN bettrans b WITH (NOLOCK)  
 				 ON t.transid = b.transid
@@ -834,6 +849,18 @@ BEGIN
 										ELSE 0
 									 END
 							END = 1)
+	
+	/*Apply for bettypes Cricket 2.0 [168080]*/
+	DELETE s
+	FROM  #BetDelete s
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE tp.Id = s.Bettype AND (tp.OddsId IS NULL OR s.OddsId = tp.OddsId )) 
+	
+	DELETE s
+	FROM  #BetDelete s
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE tp.Id = s.Bettype AND  (tp.Transdesc = 'ALL' OR s.transdesc = tp.Transdesc))
+	
 	END	 		  
 
 	--Metric Gaming Super Live  
@@ -862,6 +889,7 @@ BEGIN
 			,Transdate                
 			,currencyName      
 			,Transdesc
+			,OddsId
 		)  
 		SELECT   
 			b.translogid grouptransid  
@@ -885,6 +913,7 @@ BEGIN
 			,b.transdate             
 			,b.CurrencyName      
 			,b.transdesc			
+			,0 AS OddsId
 		FROM dbo.translog b WITH (NOLOCK)  
 			INNER JOIN #tblTransIds t ON t.transid = b.translogid  
 			INNER JOIN #tblBettype tp ON tp.Id = b.GameID
@@ -1054,6 +1083,7 @@ BEGIN
 			,MainTransId
 			,ActualStake
 			,Winlost
+			,OddsId
 		)  
 		SELECT   
 			b.transid grouptransid  
@@ -1090,6 +1120,7 @@ BEGIN
 			,r.transid AS MainTransId
 			,b.actual_stake AS ActualStake
 			,b.winlost - b.actual_stake AS Winlost
+			,b.oddsid
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode

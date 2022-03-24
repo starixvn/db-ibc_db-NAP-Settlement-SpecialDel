@@ -63,6 +63,7 @@ AS;
 	- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 	- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 	- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
+	- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
@@ -128,7 +129,8 @@ BEGIN
               MainTransId           BIGINT,
 			  IsMarked			 	BIT,
 			  ActualStake			MONEY,
-			  Winlost				MONEY	
+			  Winlost				MONEY,
+			  OddsId				INT	
 			 );
     CREATE TABLE #tmpRefCodeSummary
              (RefCode  BIGINT,
@@ -164,7 +166,9 @@ BEGIN
 		ValueHdp1		SMALLMONEY,	
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
-		OddsSpread		MONEY
+		OddsSpread		MONEY,
+		OddsId			INT,
+		Transdesc		NVARCHAR(1000)
 	)
 	
 	-- Parse xml @BetTypes
@@ -180,6 +184,8 @@ BEGIN
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			 , t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
+			 , t.c.value('@OddsId','VARCHAR(20)') AS OddsId			-- check columns : OddsId		 ; single-choice
+			 , t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -205,13 +211,16 @@ BEGIN
 					END AS BIGINT) AS Goal
 			, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault 
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
+			, CAST(CASE WHEN cte.OddsId = 'ALL' THEN NULL 
+						ELSE cte.OddsId END AS INT) AS OddsId
+			,cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id
 		 , CASE
 				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
@@ -227,6 +236,8 @@ BEGIN
 		 , cte.ValueHdp2
 		 , cte.Goal
 		 , cte.OddsSpread
+		 , cte.OddsId
+		 , cte.Transdesc
 	FROM CTE_ParsedBettypes cte	
 	WHERE CASE
 				WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
@@ -275,6 +286,7 @@ BEGIN
 			,IsMarked
 			,ActualStake
 			,Winlost
+			,OddsId
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -319,6 +331,7 @@ BEGIN
 			,CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked
 			,b.actual_stake AS ActualStake
 			,b.winlost - b.actual_stake AS Winlost
+			,b.oddsid
 	FROM	bettrans b WITH (NOLOCK)	
 		  LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
 	WHERE	b.matchid = @matchid
@@ -452,6 +465,18 @@ BEGIN
 										ELSE 0
 									 END
 							END = 1)
+	
+	/*Apply for bettypes Cricket 2.0 [168080]*/
+	DELETE s
+	FROM  #SpecialDeleteBets s
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE tp.Id = s.Bettype AND (tp.OddsId IS NULL OR s.OddsId = tp.OddsId )) 
+	
+	DELETE s
+	FROM  #SpecialDeleteBets s
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE tp.Id = s.Bettype AND  (tp.Transdesc = 'ALL' OR s.transdesc = tp.Transdesc))
+
 	END					
 		
 	-- Metric Gaming Super Live

@@ -115,6 +115,7 @@ AS
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220216@July: Fix check ISNULL betdaqid [Redmine: #167055]
+		- 20220301@Max: [TVS] Integrate new bet types of Cricket [Redmine: #168080]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -143,6 +144,8 @@ AS
 					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
+					 OddsId="8518"			-- Default : "All" ; Format : Single Number
+					 Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
 			/>
 		 <BetTypes/>'
 	*/
@@ -216,7 +219,9 @@ BEGIN
 		ValueHdp1		SMALLMONEY,
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
-		OddsSpread		MONEY
+		OddsSpread		MONEY,
+		OddsId			INT,
+		Transdesc		NVARCHAR(1000)
 	)					
 	
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
@@ -288,8 +293,9 @@ BEGIN
         FilterHdp2		 	SMALLMONEY,
 		FilterOddsSpread	MONEY,
 		ActualStake			MONEY,
-		main_ruben				TINYINT,
-		main_custId			INT
+		main_ruben			TINYINT,
+		main_custId			INT,
+		OddsId				INT
 	)
 
 	CREATE TABLE #BetDeletem (
@@ -311,7 +317,8 @@ BEGIN
 		SubHdp1				SMALLMONEY,
 		SubHdp2				SMALLMONEY,
 		SubOdds				MONEY,
-		SubOddsSpread		MONEY
+		SubOddsSpread		MONEY,
+		SubOddsId			INT
 	)
 	
 	CREATE TABLE #tmpRefCodeSummary (
@@ -400,6 +407,8 @@ BEGIN
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 	 	 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			 , t.c.value('@OddsSpread', 'VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
+			 , t.c.value('@OddsId','VARCHAR(20)') AS OddsId				-- check columns : OddsId		 ; single-choice
+			 , t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -419,14 +428,18 @@ BEGIN
 						ELSE cte.Goal END AS BIGINT) AS Goal
 			 , CAST(CASE WHEN os.val = 'ALL' THEN @ValueDefault
 						ELSE os.val END AS MONEY) AS OddsSpread
+			, CAST(CASE WHEN osi.val = 'ALL' THEN NULL
+		                ELSE osi.val END AS INT) AS OddsId
+			, cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
 			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
 			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
 			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
 			 CROSS APPLY dbo.strSplit(cte.OddsSpread, ',') os
+			 CROSS APPLY dbo.strSplit(cte.OddsId, ',') osi
 	)	 
-	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread)
+	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id
 		 , cte.BetTeam
 		 , cte.[Set]
@@ -437,6 +450,8 @@ BEGIN
 		 , cte.ValueHdp2
 		 , cte.Goal
 		 , cte.OddsSpread
+		 , cte.OddsId
+		 , cte.Transdesc
 	FROM CTE_ParsedBettypes cte		 		
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
 
@@ -680,6 +695,7 @@ BEGIN
 			,FilterHdp2
 			,FilterOddsSpread
 			,ActualStake
+			,OddsId
 		)
 		SELECT	
 			b.transid
@@ -730,6 +746,7 @@ BEGIN
 			,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 			,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
 			,b.actual_stake AS ActualStake
+			,b.oddsid
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -795,6 +812,7 @@ BEGIN
 			,FilterHdp2
 			,FilterOddsSpread
 			,ActualStake
+			,OddsId
 		)
 		SELECT	
 			b.transid
@@ -845,6 +863,7 @@ BEGIN
 			,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 			,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
 			,b.actual_stake AS ActualStake
+			,b.oddsid
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -887,6 +906,7 @@ BEGIN
 				,SubHdp2
 				,SubOdds
 				,SubOddsSpread
+				,SubOddsId
 			)
 			SELECT
 				bm.custid, 
@@ -907,7 +927,8 @@ BEGIN
 				bm.hdp1 AS SubHdp1,
 				CASE WHEN bm.bettype = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS SubHdp2, --646: Match Handicap & Total
 				bm.odds As SubOdds,
-				CASE WHEN bm.bettype = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread -- 229:SABA HDP Time Machine
+				CASE WHEN bm.bettype = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread, -- 229:SABA HDP Time Machine
+				bm.oddsid
 			FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.transid = bm.transid
 			WHERE
@@ -976,6 +997,7 @@ BEGIN
 				,ActualStake
 				,main_ruben
 				,main_custId
+				,OddsId
 			)
 			SELECT
 				b.transid,
@@ -1027,7 +1049,8 @@ BEGIN
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake,
 				b.ruben,
-				b.custid
+				b.custid,
+				bm.SubOddsId
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 		END
@@ -1107,6 +1130,16 @@ BEGIN
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread ))
+
+		DELETE b
+		FROM  #BetDelete b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+			WHERE tp.Id = b.FilterBettype AND (tp.OddsId IS NULL OR b.OddsId = tp.OddsId))
+
+		DELETE b
+		FROM  #BetDelete b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.transdesc = tp.Transdesc))
 	END	
 	------------------***** End of insert all data into #BetDelete *****------------------
 	--------------------------------------------------------------------------------------		
