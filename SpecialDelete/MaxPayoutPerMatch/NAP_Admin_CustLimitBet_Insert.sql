@@ -60,7 +60,7 @@ BEGIN
 	DECLARE @HistoryMissingTransId AS TABLE (transid BIGINT, sitetype TINYINT)
 	
 
-
+	 
 	IF @ActionId IN (1,3,4,5) --VOID,RECOVER,SETTLE
 	BEGIN
 		
@@ -174,6 +174,7 @@ BEGIN
 		WHERE t.sitetype = 3
 
 		INSERT INTO @HistoryMissingTransId (transid, sitetype)
+		SELECT t.transid
 		FROM #CustLimitBet_LIC t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
@@ -188,7 +189,8 @@ BEGIN
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp) --MBC
 	BEGIN
-		SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
+		INSERT INTO @HistoryMissingTransId (transid)
+		SELECT t.transid
 		FROM #CustLimitBet_tmp t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
@@ -304,7 +306,7 @@ BEGIN
 					,@ErrMsg = SUBSTRING(ERROR_PROCEDURE() + ': ' + ERROR_MESSAGE(), 1, 300)
 		RETURN
 	END CATCH
-
+	
 	IF EXISTS (SELECT TOP(1) 1 FROM @HistoryMissingTransId)
 	BEGIN
 		--Insert into CustLimitBet_QueueRetry for Retry process
@@ -312,6 +314,15 @@ BEGIN
 		BEGIN
 			INSERT INTO dbo.CustLimitBet_QueueRetry (TransId, MainQueueId, StatusId, sitetype)
 			SELECT t.transid, @QueueId, 0, t.sitetype
+			FROM @HistoryMissingTransId t
+		END
+		ELSE
+		BEGIN
+			SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
+			FROM @HistoryMissingTransId t
+
+			INSERT INTO dbo.CustLimitBet_QueueRetry (TransId, MainQueueId, StatusId)
+			SELECT t.transid, @QueueId, 0
 			FROM @HistoryMissingTransId t
 		END
 		ELSE
