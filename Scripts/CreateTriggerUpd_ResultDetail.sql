@@ -14,15 +14,32 @@ AFTER UPDATE
 AS
 	SET NOCOUNT ON
 
-	INSERT INTO dbo.SettlementResultDetailHistory (	TableName ,Matchid , ResourceId ,OldHomeValue ,OldAwayValue ,NewHomeValue ,NewAwayValue ,ModifyDate )
+	INSERT INTO dbo.SettlementResultDetailHistory (	
+		TableName			
+		,MatchId				
+		,ResourceId			
+		,OldHomeValue		
+		,OldAwayValue		
+		,NewHomeValue		
+		,NewAwayValue		
+		,OldModifiedBy		
+		,NewModfiedBy		
+		,OldLastModifiedDate	
+		,NewLastModifiedDate	
+		,UpdateTime			
+	)
 	SELECT 'ResultDetail'
 			, i.MatchId
 			, i.ResourceId
-			, d.HomeValue
-			, d.AwayValue
-			, i.HomeValue
-			, i.AwayValue
-			, GETDATE()
+			, d.HomeValue AS OldHomeValue
+			, d.AwayValue AS OldAwayValue
+			, i.HomeValue AS NewHomeValue
+			, i.AwayValue AS NewAwayValue
+			, d.LastModifyBy AS OldModifiedBy
+			, i.LastModifyBy AS NewModfiedBy
+			, d.LastModifyDate OldLastModifiedDate
+			, i.LastModifyDate NewLastModifiedDate
+			, GETDATE() AS UpdateTime
 	FROM INSERTED i
 		INNER JOIN  DELETED d ON i.MatchId = d.MatchId
 			AND i.ResourceId = d.ResourceId
@@ -34,15 +51,32 @@ AFTER UPDATE
 AS
 	SET NOCOUNT ON
 
-	INSERT INTO dbo.SettlementResultDetailHistory (	TableName ,Matchid , ResourceId ,OldHomeValue ,OldAwayValue ,NewHomeValue ,NewAwayValue ,ModifyDate )
+		INSERT INTO dbo.SettlementResultDetailHistory (	
+		TableName			
+		,MatchId				
+		,ResourceId			
+		,OldHomeValue		
+		,OldAwayValue		
+		,NewHomeValue		
+		,NewAwayValue		
+		,OldModifiedBy		
+		,NewModfiedBy		
+		,OldLastModifiedDate	
+		,NewLastModifiedDate	
+		,UpdateTime			
+	)
 	SELECT 'ResultDetailOS'
 			, i.MatchId
 			, i.ResourceId
-			, d.HomeValue
-			, d.AwayValue
-			, i.HomeValue
-			, i.AwayValue
-			, GETDATE()
+			, d.HomeValue AS OldHomeValue
+			, d.AwayValue AS OldAwayValue
+			, i.HomeValue AS NewHomeValue
+			, i.AwayValue AS NewAwayValue
+			, d.LastModifyBy AS OldModifiedBy
+			, i.LastModifyBy AS NewModfiedBy
+			, d.LastModifyDate OldLastModifiedDate
+			, i.LastModifyDate NewLastModifiedDate
+			, GETDATE() AS UpdateTime
 	FROM INSERTED i
 		INNER JOIN  DELETED d ON i.MatchId = d.MatchId
 			AND i.ResourceId = d.ResourceId
@@ -55,15 +89,32 @@ AFTER UPDATE
 AS
 	SET NOCOUNT ON
 
-	INSERT INTO dbo.SettlementResultDetailHistory (	TableName ,Matchid , ResourceId ,OldHomeValue ,OldAwayValue ,NewHomeValue ,NewAwayValue ,ModifyDate )
+		INSERT INTO dbo.SettlementResultDetailHistory (	
+		TableName			
+		,MatchId				
+		,ResourceId			
+		,OldHomeValue		
+		,OldAwayValue		
+		,NewHomeValue		
+		,NewAwayValue		
+		,OldModifiedBy		
+		,NewModfiedBy		
+		,OldLastModifiedDate	
+		,NewLastModifiedDate	
+		,UpdateTime			
+	)
 	SELECT 'ResultDetailES'
 			, i.MatchId
 			, i.ResourceId
-			, d.HomeValue
-			, d.AwayValue
-			, i.HomeValue
-			, i.AwayValue
-			, GETDATE()
+			, d.HomeValue AS OldHomeValue
+			, d.AwayValue AS OldAwayValue
+			, i.HomeValue AS NewHomeValue
+			, i.AwayValue AS NewAwayValue
+			, d.LastModifyBy AS OldModifiedBy
+			, i.LastModifyBy AS NewModfiedBy
+			, d.LastModifyDate OldLastModifiedDate
+			, i.LastModifyDate NewLastModifiedDate
+			, GETDATE() AS UpdateTime
 	FROM INSERTED i
 		INNER JOIN  DELETED d ON i.MatchId = d.MatchId
 			AND i.ResourceId = d.ResourceId

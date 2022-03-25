@@ -11,24 +11,29 @@ GO
 
 CREATE TABLE dbo.SettlementResultDetailHistory
 (
-	[TableName]		VARCHAR(100)	NOT NULL,
-	[MatchId]		INT				NOT NULL,
-	[ResourceId]	VARCHAR(20)		NOT NULL,
-	[OldHomeValue]	VARCHAR(50),
-	[OldAwayValue]	VARCHAR(50),
-	[NewHomeValue]	VARCHAR(50),
-	[NewAwayValue]	VARCHAR(50),
-	[ModifyDate]	DATETIME
+	TableName			VARCHAR(100)	NOT NULL,
+	MatchId				INT				NOT NULL,
+	ResourceId			VARCHAR(20)		NOT NULL,
+	OldHomeValue		VARCHAR(50),
+	OldAwayValue		VARCHAR(50),
+	NewHomeValue		VARCHAR(50),
+	NewAwayValue		VARCHAR(50),
+	OldModifiedBy		INT,
+	NewModfiedBy		INT,
+	OldLastModifiedDate	DATETIME,
+	NewLastModifiedDate	DATETIME,
+	UpdateTime			DATETIME
 
 )
 GO
 
-CREATE NONCLUSTERED INDEX [IX_SettlementResultDetailHistory_MatchIdResourceId] ON [dbo].[SettlementResultDetailHistory]
+CREATE CLUSTERED INDEX [CIX_SettlementResultDetailHistory_MatchIdUpdateTime] ON [dbo].[SettlementResultDetailHistory]
 (
 	[MatchId]
-	,[ResourceId]
+	,[UpdateTime]
 )
 GO
+
 
 
 
