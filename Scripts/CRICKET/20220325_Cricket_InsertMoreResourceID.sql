@@ -1,11 +1,11 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/    
 /* 
 	Created by: 20220325@Louisa
-    Task: 20220325@Louisa: Add more ResourceID for exists bettype Cricket [Redmine:#166335]
+    Task: 20220325@Louisa: Add more ResourceID for exists bettype Cricket [Redmine:#170583]
     DB: DBTXN/bodb02
 	
 	Revisions:
-		- 20220325@Louisa: Add more ResourceID for exists bettype Cricket [Redmine:#166335]
+		- 20220325@Louisa: Add more ResourceID for exists bettype Cricket [Redmine:#170583]
 */
 
 	INSERT INTO dbo.SettlementSpecialBettypeProfile	(pfID ,SportType ,BetType ,BetID ,ResourceID ,SettleType ,GroupType ,RoundID ,OddsType ,OrdNo)
