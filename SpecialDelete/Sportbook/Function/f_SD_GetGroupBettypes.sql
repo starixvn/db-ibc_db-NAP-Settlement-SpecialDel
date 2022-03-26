@@ -22,6 +22,7 @@ AS
 		- 20210901@July: Integrate Cricket AIO Phase 1.2 [Redmine:#160660] 
 		- 20220124@July: Integrate E-Sports phase 4 [Redmine:#167055]
 		- 20220224@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
+		- 20220326@Max: Add bonus bettype for Cricket Phase 2 [Redmine: #170590]
 
     Parameters Explanation:    
     
@@ -773,6 +774,19 @@ RETURN (
 	UNION ALL SELECT 9737,'FT',0
 	UNION ALL SELECT 9738,'1H',0
 	UNION ALL SELECT 9739,'1H',0
+
+	UNION ALL SELECT 9676, 'Special',1 
+	UNION ALL SELECT 9677, 'Special',1
+	UNION ALL SELECT 9678, 'Special',1
+	UNION ALL SELECT 9679, 'Special',1
+	UNION ALL SELECT 9686, 'Special',1
+	UNION ALL SELECT 9687, 'Special',1
+	UNION ALL SELECT 9688, 'Special',1
+	UNION ALL SELECT 9689, 'Special',1
+	UNION ALL SELECT 9712, 'Special',1
+	UNION ALL SELECT 9713, 'Special',1
+	UNION ALL SELECT 9717, 'Special',1
+	UNION ALL SELECT 9718, 'Special',1
 
 	)
 
