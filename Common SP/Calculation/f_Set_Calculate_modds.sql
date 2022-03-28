@@ -32,6 +32,7 @@ AS
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]
+		- 20220328@Louisa: Add more result for bettype 9133 [Redmine:#170532]
 		
 */
 RETURN
@@ -99,6 +100,7 @@ RETURN
 					
 			WHEN @pfID = 102 THEN --betteam = homevalue (yes/no)
 			   CASE WHEN @betteam IN ('y', 'n') AND  @betteam = @HomeValue THEN 1
+					WHEN @HomeValue = 'NONE' THEN 0
 					ELSE -1 END
 					
 			WHEN @pfID IN (424, 385, 384) THEN --betteam = homevalue
