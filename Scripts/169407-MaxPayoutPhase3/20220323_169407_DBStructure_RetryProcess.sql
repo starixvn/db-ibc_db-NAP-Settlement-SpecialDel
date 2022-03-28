@@ -10,6 +10,7 @@ GO
 
 CREATE TABLE [dbo].[CustLimitBet_QueueRetry](
 	[TransId] [bigint] NOT NULL,
+	[Sitetype] [tinyint] NOT NULL,
 	[MainQueueId] [int] NOT NULL,
 	[StatusId] [tinyint] NOT NULL,
 	[Createddate] [datetime] NOT NULL,

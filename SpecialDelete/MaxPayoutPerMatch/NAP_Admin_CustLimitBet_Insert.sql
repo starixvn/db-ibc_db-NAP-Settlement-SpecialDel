@@ -174,7 +174,7 @@ BEGIN
 		WHERE t.sitetype = 3
 
 		INSERT INTO @HistoryMissingTransId (transid, sitetype)
-		SELECT t.transid
+		SELECT t.transid, 3
 		FROM #CustLimitBet_LIC t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
@@ -189,8 +189,8 @@ BEGIN
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp) --MBC
 	BEGIN
-		INSERT INTO @HistoryMissingTransId (transid)
-		SELECT t.transid
+		INSERT INTO @HistoryMissingTransId (transid, sitetype)
+		SELECT t.transid, 1
 		FROM #CustLimitBet_tmp t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
@@ -321,8 +321,6 @@ BEGIN
 			SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
 			FROM @HistoryMissingTransId t
 
-			INSERT INTO dbo.CustLimitBet_QueueRetry (TransId, MainQueueId, StatusId)
-			SELECT t.transid, @QueueId, 0
 			FROM @HistoryMissingTransId t
 		END
 		ELSE
