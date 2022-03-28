@@ -6,7 +6,6 @@
 	
 	Revisions:
 		- 20220128@Louisa: Update Cricket OrdNo for Cricket Phase 2.0 ( 173 bettypes) [Redmine:#166335]
-	
 
 */
 
