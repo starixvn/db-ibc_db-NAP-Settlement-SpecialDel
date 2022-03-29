@@ -45,6 +45,15 @@ GO
 ALTER TABLE [dbo].[CustLimitBetHistory_LIC] ADD  CONSTRAINT [DF_CustLimitBetHistory_LIC_CreatedDate]  DEFAULT (getdate()) FOR [CreatedDate]
 GO
 
+CREATE CLUSTERED INDEX [CIX_CustLimitBetHistory_LIC_MatchId_CustId_Transid] ON [dbo].[CustLimitBetHistory_LIC]
+(
+	[Matchid] ASC,
+	[CustID] ASC,
+	[Transid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [winlimit_table]
+GO
+
+
 
 
 
