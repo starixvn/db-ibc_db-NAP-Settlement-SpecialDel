@@ -33,8 +33,9 @@ AS
 			- 20210225@Kathy: Wrong Water break validation  [Readmine:#150682]
 			- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 			- 20210428@Kathy: - Allow to settle directly for bettype 228 [Redmine:#153155]
-							  - Check SP is in deployment 
+							  - Check SP is in deployment 			
 			- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
+			- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 			
 	Param's Explanation:
 		- @Result: 
@@ -192,11 +193,6 @@ BEGIN
 					AND f.GroupAction = 'FM'
 				WHERE	s.matchid = @matchid 
 						AND s.IsCalculating IN (0, 1))
-		OR EXISTS (SELECT	TOP 1 1
-					FROM	dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
-					WHERE	p.matchid = @matchid 
-							AND p.IsCalculating IN (0, 1)
-				)
 	BEGIN
 		SELECT	@ErrCode = 1001003
 				,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'

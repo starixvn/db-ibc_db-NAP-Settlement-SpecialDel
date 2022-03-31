@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Queue]
 	,@SessionId				BIGINT
 	,@QueueNo				INT
 	,@SettlementProcessingId BIGINT
+	,@Params				XML = ''
 	,@ErrCode				INT = 0 OUTPUT
 	,@ErrMsg				VARCHAR(300) = '' OUTPUT
 AS
@@ -21,12 +22,22 @@ AS
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]	
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		
 	Param's Explanation:  
+		@Params: <Params><Params/>
 		   
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @hth				INT = 0
+			,@hta				INT = 0
+			,@fth				INT = 0
+			,@fta				INT = 0
+			,@IsABANDONEDHT		BIT = 0
+			,@SDTRecord			TINYINT = 0
+			,@IsHedgeMatch		BIT = 0
 
 	DECLARE @MinRowId INT
 			,@MaxRowId INT
@@ -60,6 +71,7 @@ BEGIN
 	(
 		transid BIGINT
 		,custid INT
+		,recommend INT
 		,bettype SMALLINT
 		,betteam VARCHAR(50)
 		,hdp1 SMALLMONEY
@@ -79,6 +91,7 @@ BEGIN
 	(
 		transid BIGINT
 		,custid INT
+		,recommend INT
 		,bettype SMALLINT
 		,betteam VARCHAR(50)
 		,hdp1 SMALLMONEY
@@ -96,6 +109,8 @@ BEGIN
 
 	CREATE TABLE #tmpFinalResult (
 		transid BIGINT
+		,custId INT
+		,recommend INT
 		,modds MONEY
 		,oddstype SMALLINT
 		,IsMarked TINYINT 
@@ -124,6 +139,15 @@ BEGIN
 			,@ExecDataQueueSize = 0
 			,@RunExecDataBySSB = 0
 
+	SELECT	@fth = T.C.value('@fth', 'int') 
+			,@fta = T.C.value('@fta','int')
+			,@hth = T.C.value('@hth','int')
+			,@hta = T.C.value('@hta','int')
+			,@SDTRecord = T.C.value('@SDTRecord','tinyint')
+			,@IsHedgeMatch = T.C.value('@IsHedgeMatch','bit')
+			,@IsABANDONEDHT = T.C.value('@IsABANDONEDHT','bit') 
+	FROM	@params.nodes('/root/r') AS T(C)	
+	
 	BEGIN TRY
 		IF @IsReSettledTickets = 0
 		BEGIN
@@ -173,9 +197,10 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO #tmpBettrans (transid, custid, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
+			INSERT INTO #tmpBettrans (transid, custid, recommend, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
 			SELECT	 b.transid
 					,b.custid
+					,b.recommend
 					,b.bettype
 					,b.betteam 
 					,b.hdp1 
@@ -191,12 +216,13 @@ BEGIN
 				AND b.custid BETWEEN @MinCustId AND @MaxCusId
 			OPTION (MAXDOP 1)
 
-			INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
+			INSERT INTO #tmpAffectedTransId (transid, custid, recommend, bettype, betteam, hdp1, hdp2
 				,livehomescore, liveawayscore, transdesc, betcheck
 				,pfID, HomeValue, AwayValue, oddstype
 				)
 			SELECT	 b.transid
 					,b.custid
+					,b.recommend
 					,b.bettype
 					,b.betteam 
 					,b.hdp1 
@@ -216,34 +242,88 @@ BEGIN
 						AND sr.matchid = @matchid
 			WHERE	sr.SessionId = @SessionId
 			OPTION (MAXDOP 1)
+
 		END
 
-		INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype, ScoreBoxOdds, ScoreBoxScore)
-		SELECT	b.transid
-				,CASE 
-					WHEN m.modds > 0.25 THEN POWER(2,0)
-					WHEN m.modds = 0.25 THEN power (2,1)
-					WHEN m.modds = 0 THEN power(2,2)
-					WHEN m.modds = -0.25 THEN power (2,3)
-					ELSE power(2,4) END
-				+ CASE WHEN mt.IsMarked IS NOT NULL THEN POWER(2,5) ELSE 0 END
-				+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
-					AS filterBy
-				,m.modds
-				,ISNULL(mt.IsMarked, 0) AS IsMarked
-				,b.oddstype
-				,m.ScoreBoxOdds
-				,m.ScoreBoxScore
-		FROM	#tmpAffectedTransId b
-			OUTER APPLY (	
-				SELECT TOP 1 1 AS IsMarked
-				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-				WHERE	mt.TransId = b.transid
-			)mt
-			CROSS APPLY dbo.f_Set_Calculate_modds_major(b.pfID, b.betteam, b.hdp1, b.hdp2, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck) m
-		ORDER BY filterBy, b.custid, b.bettype 
-		OPTION (MAXDOP 1)
-
+		IF @Action LIKE 'CAL%'
+		BEGIN
+			INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype, ScoreBoxOdds, ScoreBoxScore)
+			SELECT	b.transid
+					,CASE 
+						WHEN m.modds > 0.25 THEN POWER(2,0)
+						WHEN m.modds = 0.25 THEN power (2,1)
+						WHEN m.modds = 0 THEN power(2,2)
+						WHEN m.modds = -0.25 THEN power (2,3)
+						ELSE power(2,4) END
+					+ CASE WHEN mt.IsMarked IS NOT NULL THEN POWER(2,5) ELSE 0 END
+					+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
+						AS filterBy
+					,m.modds
+					,ISNULL(mt.IsMarked, 0) AS IsMarked
+					,b.oddstype
+					,m.ScoreBoxOdds
+					,m.ScoreBoxScore
+			FROM	#tmpAffectedTransId b
+				OUTER APPLY (	
+					SELECT TOP 1 1 AS IsMarked
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+				)mt
+				CROSS APPLY dbo.f_Set_Calculate_modds_major(b.pfID, b.betteam, b.hdp1, b.hdp2, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck) m
+			ORDER BY filterBy, b.custid, b.bettype 
+			OPTION (MAXDOP 1)
+		END 
+		ELSE IF @Action LIKE 'REFUND%'
+		BEGIN
+			INSERT INTO #tmpFinalResult (transid, custId, recommend, filter, modds, oddstype, ScoreBoxOdds, ScoreBoxScore)
+			SELECT	b.transid
+					,b.custid
+					,b.recommend
+					,CASE 
+						WHEN @IsHedgeMatch = 1 AND b.bettype NOT IN (3,8) THEN 0					
+						WHEN sdt.IsSDT = 0 THEN 0
+						WHEN @Action = 'REFUND-HT' AND b.bettype <> 8 THEN 0
+						WHEN m.modds > 0.25 THEN POWER(2,0)
+						WHEN m.modds = 0.25 THEN power (2,1)
+						WHEN m.modds = 0 THEN power(2,2)
+						WHEN m.modds = -0.25 THEN power (2,3)
+						WHEN m.modds < -0.25 THEN power(2,4)
+						ELSE 0 END
+					+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
+						AS filterBy
+					,CASE 
+						WHEN @IsHedgeMatch = 1 AND b.bettype NOT IN (3,8) THEN NULL	
+						WHEN sdt.IsSDT = 0 THEN NULL
+						WHEN @Action = 'REFUND-HT' AND b.bettype <> 8 THEN NULL						
+						ELSE m.modds
+					END
+					,b.oddstype
+					,m.ScoreBoxOdds
+					,m.ScoreBoxScore
+			FROM	#tmpAffectedTransId b
+				OUTER APPLY dbo.f_Set_SDT_modds(b.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @fth, @fta, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, @IsABANDONEDHT) m
+				OUTER APPLY (
+					SELECT CASE 
+								WHEN @SDTRecord & 1 > 0 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
+								WHEN @SDTRecord & 2 > 0 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
+								WHEN @SDTRecord & 4 > 0 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
+								ELSE 0
+							END AS IsSDT
+							,CASE 
+								WHEN @SDTRecord & 8 > 0 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
+								WHEN @SDTRecord & 16 > 0 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
+								ELSE 0
+							END AS IsExclude
+				)sdt
+			WHERE	1 = CASE 
+							WHEN sdt.IsExclude = 1 AND sdt.IsSDT = 0 THEN 0
+							WHEN sdt.IsExclude = 1 AND m.modds IS NULL THEN 0
+							ELSE 1
+						END
+			ORDER BY filterBy, b.custid, b.bettype 
+			OPTION (MAXDOP 1)
+		END
+		
 		UPDATE #tmpFinalResult	
 			SET runningtotal = @RunningTotal
 				,@PreviousFilter = @CurrentFilter
@@ -254,7 +334,7 @@ BEGIN
 									ELSE @RunningTotal + 1 END
 				,@batchNo = CASE WHEN @runningtotal = 1 THEN @batchNo + 1 ELSE @batchNo END
 				,batchno = @batchNo
-
+				
 		INSERT INTO @tmpBatchNo(BatchNo,modds, oddstype, IsMarked)
 		SELECT	BatchNo
 				,MAX(modds)
@@ -267,7 +347,6 @@ BEGIN
 			@LockName = 'SettlementSSB'
 			,@ExecDataQueueSize =  @ExecDataQueueSize OUTPUT
 			,@RunExecDataBySSB = @RunExecDataBySSB OUTPUT
-
 
 		INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
 		SELECT	t.TransIds

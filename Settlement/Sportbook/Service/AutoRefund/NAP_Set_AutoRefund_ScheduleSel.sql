@@ -7,6 +7,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20201216@Louisa: Get ET & PEN match for Auto Refund Service [Redmine:#145597]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
 */
 BEGIN
@@ -21,6 +22,7 @@ BEGIN
 			ON m.matchid = ar.matchid
 	WHERE ar.SourceId = 105
 		AND ar.StatusId = 0
+		AND ar.TypeId = 1
 
 END
 GO

@@ -65,6 +65,7 @@ AS
 		- 20210517@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
 		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		
     Parameters Explanation:
 
@@ -194,7 +195,7 @@ BEGIN
             WHERE matchid=@MatchID
         END
     END
-    IF @Command = 'NAP_Admin_Settlement_Refund_All-Abandoned'
+    IF @Command = 'NAP_Admin_Settlement_Refund-All-Abandoned'
     BEGIN
         SET @betstatus = ISNULL(@betstatus, '')
 
@@ -255,11 +256,12 @@ BEGIN
             ,changetime  = GETDATE(), settleTime = GETDATE()
         WHERE matchid=@MatchID
               AND @HTDone = 1                  
-
+			  
         --- get rowcount
         SET @RowCount = @@ROWCOUNT
+		
     END
-    IF @Command = 'NAP_Admin_Settlement_RefundFT-Abandoned'
+    IF @Command = 'NAP_Admin_Settlement_Refund-FT-Abandoned'
     BEGIN
 
         SET @betstatus = ISNULL(@betstatus, '')

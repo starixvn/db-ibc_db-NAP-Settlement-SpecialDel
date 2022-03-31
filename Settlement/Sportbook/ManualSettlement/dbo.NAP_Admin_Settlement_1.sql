@@ -81,7 +81,8 @@ AS
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
-		 - 20211130@Kathy: New cashout model [Redmine:#164838]
+		- 20211130@Kathy: New cashout model [Redmine:#164838]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
 
     Param's Explanation:
@@ -127,6 +128,16 @@ BEGIN
 		,@SessionId						BIGINT
 		,@SSBStatus						TINYINT
 		,@strTransIds					VARCHAR(MAX)
+
+		-- parlay
+		,@SPName						NVARCHAR(128)
+		,@TotalSubParlay				INT
+		,@SelectedResourceParlay		VARCHAR(MAX) 
+		,@ThreadHoldRefno				INT 
+		,@LockedByRefno					BIT
+		,@sqlCommand					VARCHAR(MAX)
+	
+	DECLARE @tmpParlayAffectedBettypes TABLE (ResourceId VARCHAR(20), RefResourceId VARCHAR(20), bettype SMALLINT, totalticket INT)	
 
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -246,6 +257,7 @@ BEGIN
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@ResourceResult = @ResourceResult
 				,@SessionId = @SessionId
+				,@creator = @creator
 				,@TicketCount = @TicketCount OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg = @ErrMsg OUTPUT
@@ -395,7 +407,7 @@ BEGIN
 			SELECT	b.transid, NULL
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	matchid = @matchid
-					AND b.statusID NOT IN (101, 102)
+					AND b.statusID NOT IN (101)
 					AND ISNULL(b.betdaqid,0) = - 2
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
@@ -433,25 +445,76 @@ BEGIN
 				END
 			END
             
-            -- BetTrade Winlost Sharing
-            IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 904)
-                EXEC dbo.NAP_Admin_Calculate_904
-                    @MatchId = @matchid
-                    ,@Action = @Action
-					
-			-- CashOut Winlost Sharing
-            IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 914)
+			IF @sporttype <> 1
 			BEGIN
-                EXEC dbo.NAP_Admin_Calculate_914
-                    @MatchId = @matchid
-                    ,@Action = @Action
-			END	
+				EXEC dbo.NAP_Admin_Settlement_MP
+					@matchid        = @matchid
+					,@creator        = @creator
+					,@action        = 'UNDO'              
+					,@IP            = @IP
+			END 
+			ELSE
+			BEGIN
+				;WITH cteResource 
+				AS (
+					SELECT	sp.ResourceID, sp.RefResourceId, sp.BetType
+					FROM	dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+					WHERE	SportType = @sportType
+							AND sp.SettleType = 'MNL'
+					GROUP BY sp.ResourceID, sp.RefResourceId, sp.BetType
+				)
+				INSERT INTO @tmpParlayAffectedBettypes(ResourceId, RefResourceId, bettype, totalticket)
+				SELECT	c.ResourceID, c.RefResourceId, bm.bettype, COUNT(1)		
+				FROM	dbo.bettransm bm WITH(NOLOCK)
+					INNER JOIN cteResource c
+						ON bm.bettype = c.BetType
+				WHERE	bm.matchid = @MatchID
+						AND bm.statusID NOT IN (101,0)
+				GROUP BY c.ResourceID, c.RefResourceId, bm.bettype
 
-            EXEC dbo.NAP_Admin_Settlement_MP
-                @matchid        = @matchid
-                ,@creator        = @creator
-                ,@action        = 'UNDO'              
-                ,@IP            = @IP
+				IF @@ROWCOUNT > 0
+				BEGIN		
+					SELECT	@TotalSubParlay = SUM(totalticket)
+					FROM	@tmpParlayAffectedBettypes
+
+					SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
+														,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
+														,bettype AS '@Bettype'			
+												FROM	@tmpParlayAffectedBettypes
+												FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+			
+					EXEC dbo.NAP_Set_GlobalSettingSel 
+						@LockName = 'ParlayRefno'
+						,@ThreadHold = @ThreadHoldRefno OUTPUT
+
+					IF @TotalSubParlay <= @ThreadHoldRefno
+						SET @LockedByRefno = 1
+				
+					SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
+											+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
+											+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''
+											+ ', @Action = ''' + @Action + ''''	
+											+ ', @ErrCode = @ErrCode OUTPUT' 
+											+ ', @ErrMsg = @ErrMsg OUTPUT'
+
+					IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT[1-9]'
+					BEGIN
+						EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
+							@creator			= @creator
+							,@MatchID			= @MatchId
+							,@Action		  	= @Action
+							,@SelectedResources = @SelectedResourceParlay
+							,@LockedByRefno		= 1 -- always lock refno for testing
+							,@ErrCode			= @ErrCode OUTPUT
+							,@ErrMsg 			= @ErrMsg OUTPUT
+					END
+					ELSE
+					BEGIN
+						INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
+						SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno
+					END
+				END
+			END
 
             EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark 
                 @matchid        = @matchid
@@ -496,9 +559,9 @@ BEGIN
             INSERT INTO DB06.bodb02.dbo.SAve_Jobs (matchid, liveindicator, savetype, bettype, typename)
             SELECT @matchid, 1, 'DEL', 0, 0
             */
-            EXEC DBACC.bodb02.dbo.NAP_Admin_Match_UpdateSaveBet 
-                @action            = 'UNDO'
-                ,@matchid        = @matchid               
+            --EXEC DBACC.bodb02.dbo.NAP_Admin_Match_UpdateSaveBet 
+            --    @action            = 'UNDO'
+            --    ,@matchid        = @matchid               
         END
         ELSE
         BEGIN

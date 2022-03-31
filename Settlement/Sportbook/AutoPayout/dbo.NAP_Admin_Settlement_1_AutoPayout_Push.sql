@@ -38,6 +38,8 @@ AS
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+
 
     Param's Explanation:
         
@@ -143,12 +145,6 @@ BEGIN
 				WHERE s.matchid = @matchid 
 				AND s.IsCalculating IN (0, 1)
 				) 
-		OR EXISTS (
-				SELECT TOP 1 1
-				FROM Parlay_Calculate_Queue p WITH (NOLOCK)
-				WHERE p.matchid = @matchid 
-				AND p.IsCalculating IN (0, 1)
-				)
 		BEGIN
 			SELECT	 @ErrCode = 1001003
 					,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
@@ -187,6 +183,23 @@ BEGIN
         RETURN
     END
 
+	-- check movebet day
+	IF @sporttype = 1
+	BEGIN 
+		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
+			@MatchIds =  @MatchId 
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
+		IF @ErrCode <> 0
+		BEGIN
+			SELECT @ErrCode = @ErrCode
+					,@ErrMsg = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
+
+			RETURN
+		END
+	END 
+	
     SELECT @ErrCode = 0, @ErrMsg = '', @procName = OBJECT_NAME(@@PROCID)
 		, @sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_1_AutoPayout] @matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
                             + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 

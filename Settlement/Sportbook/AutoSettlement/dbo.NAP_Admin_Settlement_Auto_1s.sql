@@ -35,6 +35,7 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -68,7 +69,14 @@ BEGIN
 			,@homeRound			TINYINT
 			,@awayRound			TINYINT
 			,@IsExistDetermined BIT
-	
+			,@TotalSubParlay	INT 
+			,@SelectedResourceParlay VARCHAR(MAX) 
+			,@ThreadHold		INT 
+			,@LockedByRefno		BIT
+			,@sqlCommand		VARCHAR(MAX)
+			,@procName			SYSNAME
+			,@ActionParlay		VARCHAR(20)
+
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 			,@BalanceWalletAfter			TVP_BalanceWalletChange
 
@@ -125,6 +133,12 @@ BEGIN
 							ELSE ''
 						END
 			,@IsExistDetermined = 0
+			,@TotalSubParlay = 0
+			,@SelectedResourceParlay = ''
+			,@ThreadHold = 0
+			,@LockedByRefno = 0
+			,@sqlCommand = ''
+			,@procName = OBJECT_NAME(@@procid)
 
     --Write Log Settle
     SELECT   @fth            = finalhomescore
@@ -181,7 +195,7 @@ BEGIN
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, oddstype, IsDetermined)
-	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.OddsType, ISNULL(IsDetermined, 0)
+	SELECT DISTINCT Id, Home, Away, sp.BetType, sp.BetID, sp.pfID, sp.OddsType, ISNULL(tbl.IsDetermined, 0)
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)
@@ -260,6 +274,20 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END 
+
+		SELECT @TotalSubParlay = COUNT(1)			
+		FROM	dbo.bettransm bm WITH(NOLOCK)
+		WHERE	bm.matchid = @MatchID
+				AND bm.statusID NOT IN (101)
+				AND 1 = CASE 
+							WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
+							WHEN @IsReSettledTickets = 1 THEN 1
+							ELSE 0
+						END
+				AND EXISTS (SELECT	TOP 1 1
+							FROM	@tmpSelectedRID t
+							WHERE	t.BetType = bm.bettype
+									AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 	END
 	ELSE IF @action = 'UNDO'
 	BEGIN
@@ -280,6 +308,29 @@ BEGIN
 	  			AND 1 = CASE WHEN b.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
 							 WHEN b.statusID NOT IN (0, 1) THEN 1
 							ELSE 0 END
+
+		SELECT @TotalSubParlay = COUNT(1)			
+		FROM	dbo.bettransm bm WITH(NOLOCK)
+			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
+				ON	b.matchid = 29
+					AND b.bettype = 29
+					AND b.refno = bm.refno
+			OUTER APPLY (
+				SELECT	TOP (1) mt.TransId
+				FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+				WHERE	mt.TransId = b.transid
+						AND mt.MatchId = @MatchID
+			) mt
+		WHERE	bm.matchid = @MatchID
+				AND bm.statusID NOT IN (101)
+				AND 1 = CASE WHEN bm.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+								WHEN bm.statusID NOT IN (0, 1) THEN 1
+								ELSE 0 
+						END
+				AND EXISTS (SELECT	TOP 1 1
+							FROM	@tmpSelectedRID t
+							WHERE	t.BetType = bm.bettype
+									AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 	END
 	ELSE IF @action = 'REFUND' AND @IsExistDetermined = 0
 	BEGIN
@@ -292,10 +343,18 @@ BEGIN
 					AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  	WHERE	b.matchid = @MatchId
 	  			AND	b.statusID NOT IN (103, 101)
+
+		SELECT @TotalSubParlay = COUNT(1)			
+		FROM	dbo.bettransm bm WITH(NOLOCK)
+		WHERE	bm.matchid = @MatchID
+				AND bm.statusID NOT IN (101, 103)
+				AND EXISTS (SELECT	TOP 1 1
+							FROM	@tmpSelectedRID t
+							WHERE	t.BetType = bm.bettype
+									AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 	END 
 	ELSE IF @action = 'REFUND' AND @IsExistDetermined = 1
 	BEGIN
-
 		SELECT 
 			@homeRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1),0), 
 			@awayRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1),0) 
@@ -323,7 +382,7 @@ BEGIN
 	  		CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL, @homeRound, @awayRound) m
 	  	WHERE	b.matchid = @MatchId
 	  			AND b.statusID NOT IN (101)
-
+		
 		-- add tranid without determinded and refund
 		INSERT INTO #tmpTransID(TransID)
 	  	SELECT	transid
@@ -335,6 +394,14 @@ BEGIN
 	  			AND	b.statusID NOT IN (103, 101)
 				AND t.IsDetermined = 0
 
+		SELECT @TotalSubParlay = COUNT(1)			
+		FROM	dbo.bettransm bm WITH(NOLOCK)
+		WHERE	bm.matchid = @MatchID
+				AND bm.statusID NOT IN (101)
+				AND EXISTS (SELECT	TOP 1 1
+							FROM	@tmpSelectedRID t
+							WHERE	t.BetType = bm.bettype
+									AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 	END
 	
                  
@@ -491,17 +558,6 @@ BEGIN
 		@BalanceWalletBefore	= @BalanceWalletBefore
 		, @BalanceWalletAfter	= @BalanceWalletAfter
 		, @ActionId				= @ActionID
-	
-
-	IF @action = 'UNDO'
-    BEGIN						
-        EXEC dbo.NAP_Admin_Settlement_MP
-            @matchid			= @matchid
-            ,@creator			= @AdminID
-            ,@action			= 'UNDO'
-            ,@SelectedResources = @SelectedResources
-            ,@IP				= @IP
-    END
     
 	 ------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
@@ -580,5 +636,57 @@ BEGIN
             ,@Remark            = @Remark
             ,@IP                = @ip
     END CATCH	
+
+	IF @TotalSubParlay > 0
+	BEGIN	
+		SET @ActionParlay = @Action + '_EAR'
+
+		SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
+											,bettype AS '@Bettype'
+											,pfid	AS '@pfId'
+											,HomeValue AS '@Home'
+											,AwayValue AS '@Away'
+											,IsDetermined AS '@IsSDT'
+											,@homeRound AS '@HomeRound'
+											,@awayRound AS '@AwayRound'
+									FROM	@tmpSelectedRID
+									FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+			
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+			@LockName = 'ParlayRefno'
+			,@ThreadHold = @ThreadHold OUTPUT
+
+		IF @TotalSubParlay <= @ThreadHold
+			SET @LockedByRefno = 1
+
+		SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
+								+ ', @creator = ' + CONVERT(NVARCHAR(50), @AdminID) 												
+								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''														
+								+ ', @Action = ''' + @ActionParlay + '''' 														
+								+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
+								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+								+ ', @ErrCode = @ErrCode OUTPUT' 
+								+ ', @ErrMsg = @ErrMsg OUTPUT'
+
+		IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
+				@creator			= @AdminID
+				,@MatchID			= @MatchId
+				,@Action		  	= @ActionParlay
+				,@IP	 			= @Ip
+				,@SelectedResources = @SelectedResourceParlay
+				,@IsReSettledTickets = @IsReSettledTickets
+				,@LockedByRefno		= 1 -- always lock refno for testing
+
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg 			= @ErrMsg OUTPUT
+		END
+		ELSE
+		BEGIN
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
+			SELECT @MatchID, 0, @AdminID, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
+		END
+	END
 END
 GO

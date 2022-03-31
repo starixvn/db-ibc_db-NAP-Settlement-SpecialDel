@@ -11,7 +11,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	--, @ResourceIDs      VARCHAR(MAX)	= NULL 
 	, @SelectedRID      VARCHAR(MAX)    = NULL
 	, @TransIDs		    VARCHAR(MAX)    = NULL
-	, @CashoutVersion	TINYINT = 0
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -30,7 +29,8 @@ AS
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]	
-		
+		- 20220309@Kathy: Remove code old Cashout model [Redmine:#169643]
+
 	Param's Explanation:   
 		- @MatchId: Id of match event
 		- @Action : [CAL, CAL-HT, CAL-FT]
@@ -92,14 +92,7 @@ BEGIN
 	)
 
 	CREATE TABLE #tmpFMTransId (TransId BIGINT)
-	CREATE TABLE #tmpReferTransId (transid BIGINT PRIMARY KEY)
-	CREATE TABLE #tmpDummyTicket -- cashout: 901-> 903, 911; bettrade: 901 -> 903
-	(
-		transid BIGINT PRIMARY KEY
-		,custid INT
-		,bettype SMALLINT
-	)
-	----------------------------------------------------------------------------------------------------------------------------------------------------
+	---------------------------------------------------------------------------------------------------------------------------------------------------
 	
 	SELECT @xmlFMResults 	= CAST(ISNULL(@FMResults, '<r />') AS XML)
 		, @xmlBAResults 	= CAST(ISNULL(@BAResults, '<Results />') AS XML)
@@ -134,6 +127,7 @@ BEGIN
         FROM @tblTransID t 
         	INNER JOIN BetTrans b WITH (ROWLOCK) ON b.transID = t.transID 
         GROUP BY b.custid, b.WalletType, b.BonusId
+
 		RETURN 
 	END
 	
@@ -147,58 +141,6 @@ BEGIN
 	                                           ,b BIGINT
                                 			) AS tbl
 	    EXEC sp_xml_removedocument @handle
-	    
-	    IF @sportType = 2 AND @CashoutVersion = 1
-		BEGIN
-			-- get main transid of Bettrade & transid of bettype 911
-			;WITH cteMain
-			AS(
-				SELECT	b.transId, b.matchid, b.custid
-				FROM	dbo.bettrans b WITH(NOLOCK)
-				WHERE	b.matchid = @matchid
-						AND b.betdaqid = 0
-						AND EXISTS (SELECT TOP (1) 1 FROM @tmpSelectedRID t WHERE t.BetType = b.bettype) 
-				UNION ALL
-				SELECT NULL, NULL, NULL
-			)			
-			INSERT INTO #tmpReferTransId(transid)
-			SELECT	ISNULL(co.transid, main.transid) AS transid
-			FROM cteMain main
-				LEFT JOIN dbo.bettrans co WITH(NOLOCK)
-					ON	co.matchid = main.matchid
-						AND co.refno = main.transid
-						AND co.custid = main.custid
-						AND co.bettype = 911
-			WHERE main.transid IS NOT NULL
-						
-			INSERT INTO #tmpDummyTicket (transid, custid, bettype) -- 911
-			SELECT	transid, custid, bettype
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @matchid
-					AND b.bettype = 911 
-					AND EXISTS (SELECT TOP 1 1 FROM #tmpReferTransId t WHERE t.transid = b.transid)			
-			
-			UNION ALL
-			
-			SELECT	transid, custid, bettype -- 912, 913
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @matchId
-					AND b.bettype IN (912, 913)					
-					AND EXISTS (SELECT TOP 1 1 FROM #tmpReferTransId t WHERE t.transid = b.refno)
-				
-			INSERT INTO #tmpDummyTicket (transid, custid, bettype) -- 914
-			SELECT	transid, custid, bettype
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @matchId
-					AND b.bettype IN ( 914)
-					AND EXISTS (SELECT TOP 1 1 
-								FROM #tmpDummyTicket t 
-								WHERE	1 = CASE 
-												WHEN t.bettype = 912 AND b.bettype = 914 THEN 1
-												ELSE 0
-											END
-										AND t.custid = b.custid)
-		END
 		
         ----cal Balance
         SELECT @MatchId AS matchid
@@ -221,20 +163,7 @@ BEGIN
 						AND EXISTS( SELECT TOP 1 1
 									FROM @tmpSelectedRID t
 									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
-									) 							
-					UNION ALL
-
-					SELECT	b.custid
-							,2 AS WalletType -- Cash wallet
-							,0 AS BonusId -- not join bonus
-							,b.winlost
-							,b.actual_stake
-							,b.playercomm
-					FROM	#tmpDummyTicket st
-						INNER JOIN dbo.bettrans b WITH(ROWLOCK)
-							ON b.transid = st.transid
-					WHERE	b.matchid = @matchid
-			
+									) 		
 		) b
 		GROUP BY b.custid, b.WalletType, b.BonusId
 		
@@ -285,40 +214,6 @@ BEGIN
 				,@maxBettype = MAX(bettype)
 		FROM	@tmpBettypes
 	
-		-- get main transid of Bettrade & transid of bettype 911
-		BEGIN
-			;WITH cteMain
-			AS(
-				SELECT	b.transId, b.matchid, b.custid
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN @tmpBettypes t
-						ON t.bettype = b.bettype
-				WHERE	b.matchid = @matchid
-						AND b.betdaqid = 0 
-						AND b.bettype BETWEEN @minBettype AND @maxBettype
-				UNION ALL
-				SELECT NULL, NULL, NULL
-			)			
-			INSERT INTO #tmpReferTransId(transid)
-			SELECT	ISNULL(co.transid, main.transid) AS transid
-			FROM cteMain main
-				LEFT JOIN dbo.bettrans co WITH(NOLOCK)
-					ON	co.matchid = main.matchid
-						AND co.refno = main.transid
-						AND co.custid = main.custid
-						AND co.bettype = 911
-			WHERE main.transid IS NOT NULL
-			
-		END
-		
-		INSERT INTO @tmpBettypes (bettype)  -- summary of Bettrade (904) and CashOut (914)
-		SELECT	bettype
-		FROM	(VALUES (904), (914)) AS t(bettype)
-		WHERE 	1 = CASE
-						WHEN @Mode = 2 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT') AND @sportType = 1 THEN 0
-						ELSE 1
-					END
-		
 		SELECT @maxBettype = MAX(bettype)
 		FROM @tmpBettypes
 		
@@ -341,30 +236,6 @@ BEGIN
 					ON bt.bettype = b.bettype
 			WHERE	b.matchid = @matchid							
 					AND b.bettype BETWEEN @minBettype AND @maxBettype	
-						
-			UNION ALL
-			SELECT	b.custid
-					,2 AS WalletType -- Cash wallet
-					,0 AS BonusId -- not join bonus
-					,b.winlost
-					,b.actual_stake
-					,b.playercomm
-			FROM	dbo.bettrans b --WITH(ROWLOCK)
-			WHERE	b.matchid = @matchid
-					AND b.bettype = 911 
-					AND EXISTS (SELECT TOP 1 1 FROM #tmpReferTransId t WHERE t.transid = b.transid)
-			
-			UNION ALL
-			SELECT	b.custid
-					,2 AS WalletType  -- Cash wallet
-					,0 AS BonusId -- not join bonus
-					,b.winlost
-					,b.actual_stake
-					,b.playercomm
-			FROM	dbo.bettrans b --WITH(ROWLOCK)
-			WHERE	b.matchid = @matchId
-					AND b.bettype IN (901, 902, 903, 912, 913)					
-					AND EXISTS (SELECT TOP 1 1 FROM #tmpReferTransId t WHERE t.transid = b.refno)
 		) b
 		GROUP BY b.custid, b.WalletType, b.BonusId
 	END

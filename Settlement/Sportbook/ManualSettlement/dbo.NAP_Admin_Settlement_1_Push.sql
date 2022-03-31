@@ -53,6 +53,7 @@ AS
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -86,6 +87,11 @@ BEGIN
 			,@IsSystemSettlement	BIT
 			,@LeagueGroupID			SMALLINT
 			,@KeyId					INT
+			,@IsMergedParlay		BIT = 0
+			,@xmlResourceResult		XML
+			,@xmlData				VARCHAR(MAX)
+
+	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 
     SELECT	@matchcode = m.matchcode
 			,@sporttype   = m.sporttype
@@ -135,29 +141,25 @@ BEGIN
 
 		IF @ErrCode > 0
 			RETURN
-
+	END
+	
+	IF @sporttype = 1
+	BEGIN
 		IF EXISTS (
-            SELECT TOP 1 1
-            FROM Single_Calculate_Queue s WITH (NOLOCK)		
-				INNER JOIN dbo.f_Set_GetAction() f
-					ON s.Action = f.Action
-					AND f.GroupAction = 'MNL'
-            WHERE s.matchid = @matchid
-                AND s.IsCalculating IN (0, 1)
-            )
-        OR EXISTS (
-            SELECT TOP 1 1
-            FROM Parlay_Calculate_Queue WITH (NOLOCK)
-            WHERE matchid = @matchid
-                AND IsCalculating IN (0, 1)
-            )
+				SELECT TOP 1 1
+				FROM Single_Calculate_Queue s WITH (NOLOCK)		
+					INNER JOIN dbo.f_Set_GetAction() f
+						ON s.Action = f.Action
+						AND f.GroupAction = 'MNL'
+				WHERE s.matchid = @matchid
+					AND s.IsCalculating IN (0, 1)
+				)
 		BEGIN
 			SELECT @ErrCode = 1000000
 				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 
 			RETURN
 		END
-
 	END
 	ELSE
 	BEGIN
@@ -181,20 +183,68 @@ BEGIN
 		END
 	END
     
-    -- check waiting ticket		
+    -- check waiting ticket	
+	IF @sporttype = 1
+	BEGIN
+		;WITH cteGoalResource
+		AS
+		(
+			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+			FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
+		)
+		,cteResource
+		AS
+		(
+			SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
+			WHERE	@action IN ('CAL', 'CAL-HT', 'UNDO')
+			UNION ALL
+			SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
+			WHERE	@action IN ('CAL', 'CAL-FT', 'UNDO')
+			UNION ALL
+			SELECT  ResourceId
+			FROM	cteGoalResource
+			WHERE   ResourceID IS NOT NULL
+		)
+	
+		SELECT @xmlData = CAST((SELECT	ResourceID AS '@Id'
+		FROM	cteResource
+		FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+
+	END 
+
 	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId	= @MatchId
     , @Action = @Action
     , @Mode = 'CAL'
+	, @xmlData = @xmlData
     , @ErrCode = @ErrCode OUTPUT
     , @ErrMsg = @ErrMsg OUTPUT
         
     IF @ErrCode <> 0
-    BEGIN
-        SELECT	@ErrCode
-				,@ErrMsg
-        
         RETURN
-    END
+
+	IF @sporttype = 1
+	BEGIN
+		SELECT	@IsMergedParlay = IsMergedParlay
+		FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+		WHERE	ss.Sporttype = @sporttype
+
+		-- check movebet day
+		IF @IsMergedParlay = 1
+		BEGIN
+			EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
+				@MatchIds =  @MatchId 
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg = @ErrMsg OUTPUT
+
+			IF @ErrCode <> 0
+			BEGIN
+				SELECT @ErrCode = @ErrCode
+						,@ErrMsg = 'Cannot proceed due to this match is in during move-bet progress. Please contact admin for support.'
+
+				RETURN
+			END
+		END
+	END
 
     SELECT	@ErrCode        = 0
 			,@ErrMsg        = ''

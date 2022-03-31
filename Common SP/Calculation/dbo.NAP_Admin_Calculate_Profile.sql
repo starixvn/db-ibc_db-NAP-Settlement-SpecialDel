@@ -20,6 +20,8 @@ AS
 		- 20201123@Kathy: Apply Settlement by Profile for soccer [Redmine:#142425]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
+		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		
 
 	Param's Explanation:  
 		   
@@ -68,6 +70,7 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@CheckNegativeBalance INT = 0
 			,@StepDone			VARCHAR(300) = 'Done update'
+			,@RepUpdateTime		DATETIME2
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
 	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT)
@@ -93,7 +96,8 @@ BEGIN
 		SET @OddsType = 0
 	END
 
-	SET @settlementTime = GETDATE();
+	SET @settlementTime = GETDATE()	
+	SET @RepUpdateTime = SYSDATETIME()
 		
 	IF @ServerAlias = 'DBTXN'
 	BEGIN
@@ -148,6 +152,7 @@ BEGIN
 													WHEN b.bettype IN(468, 469) THEN b.actual_stake + b.stake * @odds
 													ELSE 0
 												END
+						WHEN @modds IS NULL THEN b.actual_Stake
 						END 	
 				,@stake = b.stake
 				-- check winlost or status change to update SettlementTime
@@ -161,6 +166,7 @@ BEGIN
 											ELSE 113
 										END
 								WHEN @modds < 0 THEN 113 --LOSE
+								WHEN @modds IS NULL THEN 103 -- REFUND
 							END
 				,SettlementTime = CASE 
 										WHEN @IsUpd_Void = 0 THEN b.SettlementTime 
@@ -188,6 +194,7 @@ BEGIN
 																	WHEN b.bettype IN (468, 469) THEN b.stake * @odds * (-b.apositiontaking) 
 																	ELSE b.actual_stake * b.apositiontaking
 																END
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 							
@@ -208,6 +215,7 @@ BEGIN
 																	WHEN b.bettype IN (468, 469) THEN b.stake * @odds * (-b.mpositiontaking) 
 																	ELSE b.actual_stake * b.mpositiontaking
 																END
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 					
@@ -228,6 +236,7 @@ BEGIN
 																	WHEN b.bettype IN (468, 469) THEN b.stake * @odds * (-b.spositiontaking) 
 																	ELSE b.actual_stake * b.spositiontaking
 																END
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 
@@ -245,6 +254,7 @@ BEGIN
 												END
 										WHEN @modds = -0.25 THEN @commLostRate * b.playerdiscount * @stake * @commHalfWLRate
 										WHEN @modds < -0.25 THEN @commLostRate * b.playerdiscount * @stake
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 					
@@ -262,6 +272,7 @@ BEGIN
 											END
 									WHEN @modds = -0.25 THEN @commLostRate * b.discount * @stake * (1-b.apositiontaking) * @commHalfWLRate
 									WHEN @modds < -0.25 THEN @commLostRate * b.discount * @stake * (1-b.apositiontaking)
+									WHEN @modds IS NULl THEN 0
 								END
 						END
 					
@@ -279,6 +290,7 @@ BEGIN
 											END
 									WHEN @modds = -0.25 THEN @commLostRate * b.adiscount * @stake * (1-(b.mpositiontaking+b.apositiontaking)) * @commHalfWLRate
 									WHEN @modds < -0.25 THEN @commLostRate * b.adiscount * @stake * (1-(b.mpositiontaking+b.apositiontaking))
+									WHEN @modds IS NULl THEN 0
 								END
 						END
 					
@@ -296,6 +308,7 @@ BEGIN
 											END
 									WHEN @modds = -0.25 THEN @commLostRate * b.sdiscount * @stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking)) * @commHalfWLRate
 									WHEN @modds < -0.25 THEN @commLostRate * b.sdiscount * @stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking))
+									WHEN @modds IS NULl THEN 0
 								END
 						END
 					
@@ -311,6 +324,7 @@ BEGIN
 												ELSE 'LOSE'
 											END
 									WHEN @modds < 0 THEN 'LOSE'
+									WHEN @modds IS NULl THEN 'Refund'
 								END
 						END
 				,StatusID = CASE 
@@ -321,6 +335,7 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN b.ruben 
 							ELSE 1
 						END
+				,RepUpdateTime = CASE WHEN @statusId = 103 THEN @RepUpdateTime ELSE b.RepUpdateTime END
 			OUTPUT	deleted.custid
 					,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 					,inserted.WalletType
@@ -529,6 +544,7 @@ BEGIN
 													WHEN b.bettype IN(468, 469) THEN b.actual_stake + b.stake * @odds
 													ELSE 0
 												END
+						WHEN @modds IS NULl THEN b.actual_stake
 						END 	
 				,@stake = b.stake
 				-- check winlost or status change to update SettlementTime
@@ -542,6 +558,7 @@ BEGIN
 											ELSE 113
 										END
 								WHEN @modds < 0 THEN 113 --LOSE
+								WHEN @modds IS NULl THEN 103 -- Refund
 							END
 				,SettlementTime = CASE 
 										WHEN @IsUpd_Void = 0 THEN b.SettlementTime 
@@ -569,6 +586,7 @@ BEGIN
 																	WHEN b.bettype IN (468, 469) THEN b.stake * @odds * (-b.apositiontaking) 
 																	ELSE b.actual_stake * b.apositiontaking
 																END
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 							
@@ -589,6 +607,7 @@ BEGIN
 																	WHEN b.bettype IN (468, 469) THEN b.stake * @odds * (-b.mpositiontaking) 
 																	ELSE b.actual_stake * b.mpositiontaking
 																END
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 					
@@ -609,6 +628,7 @@ BEGIN
 																	WHEN b.bettype IN (468, 469) THEN b.stake * @odds * (-b.spositiontaking) 
 																	ELSE b.actual_stake * b.spositiontaking
 																END
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 
@@ -626,6 +646,7 @@ BEGIN
 												END
 										WHEN @modds = -0.25 THEN @commLostRate * b.playerdiscount * @stake * @commHalfWLRate
 										WHEN @modds < -0.25 THEN @commLostRate * b.playerdiscount * @stake
+										WHEN @modds IS NULl THEN 0
 									END
 							END
 					
@@ -643,6 +664,7 @@ BEGIN
 											END
 									WHEN @modds = -0.25 THEN @commLostRate * b.discount * @stake * (1-b.apositiontaking) * @commHalfWLRate
 									WHEN @modds < -0.25 THEN @commLostRate * b.discount * @stake * (1-b.apositiontaking)
+									WHEN @modds IS NULl THEN 0
 								END
 						END
 					
@@ -660,6 +682,7 @@ BEGIN
 											END
 									WHEN @modds = -0.25 THEN @commLostRate * b.adiscount * @stake * (1-(b.mpositiontaking+b.apositiontaking)) * @commHalfWLRate
 									WHEN @modds < -0.25 THEN @commLostRate * b.adiscount * @stake * (1-(b.mpositiontaking+b.apositiontaking))
+									WHEN @modds IS NULl THEN 0
 								END
 						END
 					
@@ -677,6 +700,7 @@ BEGIN
 											END
 									WHEN @modds = -0.25 THEN @commLostRate * b.sdiscount * @stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking)) * @commHalfWLRate
 									WHEN @modds < -0.25 THEN @commLostRate * b.sdiscount * @stake * (1-(b.spositiontaking+b.mpositiontaking+b.apositiontaking))
+									WHEN @modds IS NULl THEN 0
 								END
 						END
 					
@@ -692,6 +716,7 @@ BEGIN
 												ELSE 'LOSE'
 											END
 									WHEN @modds < 0 THEN 'LOSE'
+									WHEN @modds IS NULl THEN 'Refund'
 								END
 						END
 				,StatusID = CASE 
@@ -702,6 +727,7 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN b.ruben 
 							ELSE 1
 						END
+				,RepUpdateTime = CASE WHEN @statusId = 103 THEN @RepUpdateTime ELSE b.RepUpdateTime END
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 

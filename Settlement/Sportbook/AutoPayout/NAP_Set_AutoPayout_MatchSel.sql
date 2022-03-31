@@ -61,6 +61,7 @@ AS
 	- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 	- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+	- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -196,9 +197,9 @@ BEGIN
 		, liveawayscore	INT
 
 		,IsExistRunningTicket BIT
-		,IsExistRunningTicketParlay BIT
+		--,IsExistRunningTicketParlay BIT
 		,IsExistMarkedTicket BIT
-		,IsExistMarkedTicketParlay BIT
+		--,IsExistMarkedTicketParlay BIT
 		,EventStatusReason TINYINT
 	)
 	--for instant match info
@@ -222,7 +223,7 @@ BEGIN
 		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
 		,AutoSetting, AutoSettingForLeague
 		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
-		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistRunningTicketParlay, IsExistMarkedTicket, IsExistMarkedTicketParlay,EventStatusReason
+		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket,EventStatusReason
 	)
 	SELECT m.hthomescore
 		, m.htawayscore
@@ -268,9 +269,7 @@ BEGIN
 		, m.livehomescore
 		, m.liveawayscore
 		,0 AS IsExistRunningTicket
-		,0 AS IsExistRunningTicketParlay
 		,0 AS IsExistMarkedTicket
-		,0 AS IsExistMarkedTicketParlay
 		,m.EventStatusReason
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
@@ -736,8 +735,7 @@ BEGIN
 				ON m.matchid = mk.MatchId
 
 		UPDATE m 
-			SET IsExistMarkedTicket = t.IsExistMarkedTicket
-				,IsExistMarkedTicketParlay = t.IsExistMarkedTicketParlay
+			SET IsExistMarkedTicket = CASE WHEN t.IsExistMarkedTicket = 1 OR t.IsExistMarkedTicketParlay = 1 THEN 1 ELSE 0 END
 		FROM	#matchList m
 			INNER JOIN @tmpMatchMarked t
 				ON m.matchid = t.MatchId
@@ -748,10 +746,10 @@ BEGIN
 	BEGIN
 		DELETE	m
 		FROM	#matchList m 
-		WHERE	IsExistMarkedTicket = 0 AND m.IsExistMarkedTicketParlay = 0
+		WHERE	IsExistMarkedTicket = 0 
 	END
 
-	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0), IsExistRunningTicketParlay BIT DEFAULT(0))
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0))
 	CREATE TABLE #temp_match_parlay (transid BIGINT, matchid INT, refno BIGINT)
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
@@ -786,6 +784,7 @@ BEGIN
 		FROM @tmpMatchCompleted m
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 		WHERE	bm.statusID = 0
+				AND m.IsExistRunningTicket = 0
 				
 		IF EXISTS (SELECT TOP 1 1 FROM #temp_match_parlay)
 		BEGIN
@@ -795,7 +794,7 @@ BEGIN
 				INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
 			
 			UPDATE	m 
-				SET IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
+				SET IsExistRunningTicket = t.IsExistRunningTicketParlay
 			FROM	@tmpMatchCompleted m
 					CROSS APPLY (
 								SELECT 1 AS IsExistRunningTicketParlay										
@@ -819,7 +818,6 @@ BEGIN
 
 		UPDATE m 
 			SET IsExistRunningTicket = t.IsExistRunningTicket
-				,IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
 		FROM	#matchList m
 			INNER JOIN @tmpMatchCompleted t
 				ON m.matchid = t.MatchId
@@ -872,9 +870,7 @@ BEGIN
 		, ISNULL(im.InstantScoreDiff, 0) AS InstantScoreDiff
 		, ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
 		, m.IsExistRunningTicket
-		, m.IsExistRunningTicketParlay
 		, m.IsExistMarkedTicket
-		, m.IsExistMarkedTicketParlay
 		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
 		, m.EventStatusReason
 	FROM #matchList m
