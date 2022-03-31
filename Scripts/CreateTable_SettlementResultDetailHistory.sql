@@ -34,6 +34,3 @@ CREATE CLUSTERED INDEX [CIX_SettlementResultDetailHistory_MatchIdUpdateTime] ON 
 )
 GO
 
-
-
-
