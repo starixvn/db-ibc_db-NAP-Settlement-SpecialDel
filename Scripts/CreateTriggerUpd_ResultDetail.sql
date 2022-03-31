@@ -1,9 +1,9 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBTP-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 
 /*
 	Created by: 20220324@Louisa
 	Task: Create new table to store ResultDetail/OS/ES update history  [Redmine:#]
-	DB: DBPRO/bodb02
+	DB: DBTP/bodb02
 */
 
 USE bodb02
