@@ -64,6 +64,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#163733]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220331@Kathy: Wrong display early match incase of no ticket [Redmine:#166072]
 
       
  Param explanation:  
@@ -580,7 +581,7 @@ BEGIN
 		IF (@sporttype IN (1,2) OR @existSettingEarly = 1)
 		BEGIN
 			DELETE FROM #matchList
-			WHERE IsExistEarlyBettypes > 0 AND IsRunningEarlyBettypes = 0
+			WHERE IsRunningEarlyBettypes = 0
 		END			
 		
 	END
