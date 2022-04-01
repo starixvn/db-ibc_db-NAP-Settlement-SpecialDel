@@ -13,8 +13,7 @@ AS
 		- 20201223@Louisa: Cleanup data for Other Sports [Redmine:#145651]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
-		- 20210913@Louisa: Cleanup data ES if matchid not exists in table dbo.match[Redmine:#161455]
-		- 20220324@Louisa: Cleanup SettlementResultDetailHistory [Redmine:#]
+		- 20210913@Louisa: Cleanup data ES if matchid not exists in table dbo.match[Redmine:##161455]
 
 	Param's Explanation: 
 
@@ -33,7 +32,7 @@ BEGIN
 	FROM dbo.ProviderExternalResultDetailES es WITH(NOLOCK)
 		LEFT JOIN dbo.match m WITH(NOLOCK)
 			ON es.MatchId = m.matchid
-	WHERE ( m.matchid IS NULL OR ISNULL(m.IsDeleted,0) = 1 )
+	WHERE m.matchid IS NULL
 		AND es.CreateDate < @compareDate
 
 	WHILE (1=1)
@@ -95,7 +94,6 @@ BEGIN
 		WAITFOR DELAY '00:00:00:280'
 	END
 
-	--AutoPayoutResultOS
 	WHILE (1=1)
 	BEGIN
 
@@ -107,19 +105,5 @@ BEGIN
 
 		WAITFOR DELAY '00:00:00:280'
 	END
-
-	--SettlementResultDetailHistory
-	WHILE (1=1)
-	BEGIN
-
-		DELETE TOP(@batch) FROM dbo.SettlementResultDetailHistory WITH(ROWLOCK, UPDLOCK)
-		WHERE	ModifyDate < DATEADD (DD, -14, GETDATE())
-	
-		IF @@ROWCOUNT = 0
-			BREAK			
-
-		WAITFOR DELAY '00:00:00:280'
-	END
-
 END
 GO
