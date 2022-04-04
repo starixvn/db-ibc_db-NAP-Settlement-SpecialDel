@@ -65,6 +65,7 @@ AS
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220331@Kathy: Wrong display early match incase of no ticket [Redmine:#166072]
+		- 20220404@Louisa: Wrong display early status [Redmine:#171037]
 
       
  Param explanation:  
@@ -523,7 +524,7 @@ BEGIN
 	SET IsExistFGLG 			= CASE WHEN m.IsExistFGLG = 1 OR ext.cntFGLG > 0 THEN 1 ELSE 0 END
 		,IsExistHTFGLG 			= CASE WHEN m.IsExistFGLG = 1 OR ext.cntHTFGLG > 0 THEN 1 ELSE 0 END
 		,IsExistEarlyBettypes	= CASE WHEN m.IsExistEarlyBettypes = 1 OR ext.cntEarlyBettypeParlay > 0 THEN 1 ELSE 0 END
-		,IsRunningEarlyBettypes = CASE WHEN m.IsExistRunningTicket = 1 OR ext.IsRunningEarlyBettypesParlay = 1 THEN 1 ELSE 0 END
+		,IsRunningEarlyBettypes = CASE WHEN m.IsRunningEarlyBettypes = 1 OR ext.IsRunningEarlyBettypesParlay = 1 THEN 1 ELSE 0 END
 		,IsWaitingEarlyBettypes = CASE WHEN m.IsWaitingEarlyBettypes = 1 OR ext.IsWaitingEarlyBettypesParlay = 1 THEN 1 ELSE 0 END
 	FROM #matchList m
 		INNER JOIN MatchExtraStatusParlay ext 
