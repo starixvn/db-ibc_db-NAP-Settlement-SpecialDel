@@ -67,7 +67,7 @@ BEGIN
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 		HomeRound TINYINT, AwayRound TINYINT,
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
-		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), IsDeterminedFT BIT DEFAULT(0)
+		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
 	)
 	DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
@@ -118,7 +118,7 @@ BEGIN
 				,ISNULL(IsSDT,0) AS IsSDT
 				,ISNULL(HomeRound,'') AS HomeRound
 				,ISNULL(AwayRound,'') AS AwayRound
-				,ISNULL(IsDeterminedFT,'') AS IsDeterminedFT
+				,ISNULL(DeterminedType,'') AS DeterminedType
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
 															,SDTResourceId VARCHAR(20)
@@ -129,10 +129,10 @@ BEGIN
 															,IsSDT BIT
 															,HomeRound TINYINT
 															,AwayRound TINYINT
-															,IsDeterminedFT BIT
+															,DeterminedType TINYINT
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, IsDeterminedFT)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -147,7 +147,7 @@ BEGIN
 			,c.IsSDT
 			,c.HomeRound
 			,c.AwayRound
-			,c.IsDeterminedFT
+			,c.DeterminedType
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 			ON	 sp.ResourceID = c.Id
@@ -171,7 +171,7 @@ BEGIN
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype
 							AND (t.BetID = 0 OR t.BetID = bm.betcheck)
-							AND t.IsDeterminedFT = 0
+							AND t.DeterminedType = 0
 				)sr
 				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck) m
 				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
@@ -194,7 +194,7 @@ BEGIN
 
 			SET @totalSubParlay = @@ROWCOUNT
 
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDeterminedFT = 1)
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType = 2)
 			BEGIN
 				INSERT INTO #tmpsubTransID (TransID, modds, refno)
 				SELECT	bm.transid, m.modds, bm.refno
@@ -204,7 +204,7 @@ BEGIN
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype
 								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
-								AND t.IsDeterminedFT = 1
+								AND t.DeterminedType = 1
 					)sr
 					OUTER APPLY dbo.f_Set_SDT_modds(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)

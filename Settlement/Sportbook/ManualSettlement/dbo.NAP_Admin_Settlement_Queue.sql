@@ -3,14 +3,14 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Queue]
 	@MatchId				INT
 	,@Action				VARCHAR(20)
 	,@ActionId				INT
-	,@MinCustId				INT
-	,@MaxCusId				INT
+	,@MinCustId				INT = 0
+	,@MaxCusId				INT = 0
 	,@IsReSettledTickets	BIT = 0
 	,@SessionId				BIGINT
 	,@QueueNo				INT
 	,@SettlementProcessingId BIGINT
 	,@Params				XML = ''
-	,@AffectedTicketFT		INT = 0 OUTPUT
+	,@AffectedTicket		INT = 0 OUTPUT
 	,@ErrCode				INT = 0 OUTPUT
 	,@ErrMsg				VARCHAR(300) = '' OUTPUT
 AS
@@ -40,7 +40,7 @@ BEGIN
 			,@IsABANDONEDHT		BIT = 0
 			,@SDTRecord			TINYINT = 0
 			,@IsHedgeMatch		BIT = 0
-			,@IsDeterminedFT	BIT = 0
+			,@DeterminedType	TINYINT = 0
 
 	DECLARE @MinRowId INT
 			,@MaxRowId INT
@@ -149,11 +149,11 @@ BEGIN
 			,@SDTRecord = T.C.value('@SDTRecord','tinyint')
 			,@IsHedgeMatch = T.C.value('@IsHedgeMatch','bit')
 			,@IsABANDONEDHT = T.C.value('@IsABANDONEDHT','bit') 
-			,@IsDeterminedFT = T.C.value('@IsDeterminedFT','bit') 
+			,@DeterminedType = T.C.value('@DeterminedType','tinyint') 
 	FROM	@params.nodes('/root/r') AS T(C)	
 	
 	BEGIN TRY
-		IF @IsDeterminedFT = 1
+		IF @DeterminedType = 2 -- determinable ft ticket when cal ht
 		BEGIN
 			INSERT INTO #tmpFinalResult (transid,filter, modds, oddstype)
 			SELECT	b.transid
@@ -180,7 +180,7 @@ BEGIN
 				OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid, 0) m
 			WHERE	b.matchid = @MatchId
 					AND mt.IsMarked IS NULL
-					AND EXISTS(SELECT TOP 1 1 FROM dbo.f_Set_Instant_GetBettypes() WHERE bettype = b.bettype AND InstantType = 3)
+					AND s.DeterminedType = 2 -- determinable FT ticket
 					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
 						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 						 OR b.statusID = 102
@@ -189,7 +189,7 @@ BEGIN
 			ORDER BY filterBy, b.custid, b.bettype 
 			OPTION (MAXDOP 1)
 
-			SET @AffectedTicketFT = @@ROWCOUNT
+			SET @AffectedTicket = @@ROWCOUNT
 
 		END
 		ELSE
