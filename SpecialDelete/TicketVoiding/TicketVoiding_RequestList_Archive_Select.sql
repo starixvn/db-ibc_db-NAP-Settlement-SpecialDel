@@ -33,6 +33,8 @@ AS
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220225@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
+		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
+
 
 	Param's explanation:	
 		@Status: 
@@ -374,11 +376,11 @@ BEGIN
 						ELSE 0 END
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId = 17 AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeId IN(1,4,5) THEN z.matchid ELSE NULL END AS matchid
+					,CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN(1,4,5) THEN z.matchid ELSE NULL END
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN z.matchid ELSE NULL END
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 		
@@ -390,11 +392,11 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeId IN(1,4,5) THEN zm.matchid ELSE NULL END AS matchid
+					,CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN zm.matchid ELSE NULL END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN(1,4,5) THEN zm.matchid ELSE NULL END
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN zm.matchid ELSE NULL END
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
@@ -498,7 +500,7 @@ BEGIN
 				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
-	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5) THEN m.matchcode ELSE NULL END
+	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
 	DROP TABLE #tmpResult
 	

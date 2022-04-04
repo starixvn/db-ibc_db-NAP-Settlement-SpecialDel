@@ -40,6 +40,7 @@ AS
 		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220221@Max: Remove SABA of league name for China View sites [Redmine: #168651]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 
 	Param's explanation:	
 		
@@ -325,7 +326,7 @@ BEGIN
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					
 	END
-	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5) -- Danger Accept, Red Card, WrongScore, WrongHDP
+	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN
