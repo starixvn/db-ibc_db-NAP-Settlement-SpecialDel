@@ -80,28 +80,12 @@ BEGIN
 			,@ThreadHoldRefno	INT 
 			,@LockedByRefno		BIT
 			,@sqlCommand		VARCHAR(MAX)
-			,@ParamsXML			XML
-			,@Params			VARCHAR(MAX)
-
-			,@IsDeterminedFT	BIT
-			,@AffectedTicketFT		INT
-			,@DummyDeterminedFTResourceIds		VARCHAR(MAX) 
-			,@DummyDeterminedFTResourceResults VARCHAR(MAX)
-			,@SSBDeterminedLog	VARCHAR(MAX)
-			,@StartFTDetermined DATETIME
-			,@EndFTDetermined DATETIME
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
 		,HomeValue VARCHAR(2000)
 		,AwayValue VARCHAR(2000)
 	)
-	DECLARE @tmpDeterminedFTResources TABLE(
-		ResourceID VARCHAR(20)
-		,HomeValue VARCHAR(2000)
-		,AwayValue VARCHAR(2000)
-	)
-
 	DECLARE @tmpMatchInfo TABLE (betstatus VARCHAR(50), childmatchtype TINYINT, eventstatus VARCHAR(50), HTResultStatusID TINYINT)
 
 	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
@@ -109,7 +93,7 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
 	
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)
-	DECLARE @tmpParlayAffectedBettypes TABLE (bettype SMALLINT, totalticket INT, DeterminedType TINYINT DEFAULT(0))	
+	DECLARE @tmpParlayAffectedBettypes TABLE (bettype SMALLINT, totalticket INT)	
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY
 		, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY,livehomescore SMALLINT, liveawayscore SMALLINT, isFinished BIT DEFAULT(0))
@@ -130,7 +114,6 @@ BEGIN
 	)	
 	
 	CREATE TABLE #tmpCustBettypes (CustId INT, Bettype SMALLINT, TotalTicket INT)
-	
 	CREATE TABLE #tmpCustIds (CustId INT PRIMARY KEY, BatchNo INT, TotalTicket INT, runningtotal int)
 	CREATE TABLE #tmpSettlementProcessing (CustIds VARCHAR(MAX), QueueNo SMALLINT)
 	
@@ -145,8 +128,6 @@ BEGIN
 	SELECT	@HTDone = 0
 			,@DummyResourceIds = ''
 			,@DummyResourceResults = ''
-			,@DummyDeterminedFTResourceIds = ''
-			,@DummyDeterminedFTResourceResults = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
 			,@MaxThreadHold = 0
 			,@MinThreadHold = 0
@@ -165,8 +146,6 @@ BEGIN
 			,@ThreadHoldRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
-			,@IsDeterminedFT = CASE WHEN @action = 'CAL-HT' AND @hth + @hta > 0 THEN 1 ELSE 0 END
-			,@AffectedTicketFT = 0
 
 	IF @SessionId IS NULL
 	BEGIN
@@ -347,6 +326,7 @@ BEGIN
 											) AS tbl
 		EXEC sp_xml_removedocument @handle
 	END
+
 	-- insert selectedRid
 	INSERT INTO #tmpSelectedRID(
 		ResourceID
@@ -637,6 +617,7 @@ BEGIN
 			,@SettlementProcessingId  = @SettlementProcessingId
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
+
 	END
 	ELSE
 	BEGIN
@@ -678,120 +659,9 @@ BEGIN
 			SET @BatchNo = @BatchNo + 1
 			SET @QueueNo = CASE WHEN @QueueNo >= @PrepareDataQueueSize THEN 1 ELSE @QueueNo + 1 END
 		END
-
 	END
 
-	IF @IsDeterminedFT = 1 -- settle determined FT bettypes
-	BEGIN
-		SELECT	@DummyDeterminedFTResourceIds = @DummyDeterminedFTResourceIds + CAST(s.SDTResourceId AS VARCHAR(20)) + ','
-		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK) 
-		WHERE	s.SportType = @sporttype
-				AND s.SDTResourceId IS NOT NULL
-				AND s.DeterminedType = 2 -- determinable FT ticket
-	
-		IF @DummyDeterminedFTResourceIds <> ''
-		BEGIN
-			EXEC dbo.NAP_Set_DummyResourceResult
-				@MatchID = @MatchID
-				,@sportType = @sportType
-				,@IsDetermined = 1
-				,@DummyResourceIds = @DummyDeterminedFTResourceIds
-				,@DummyResourceResults = @DummyDeterminedFTResourceResults OUTPUT
-
-			EXEC sp_xml_preparedocument @handle OUTPUT, @DummyDeterminedFTResourceResults
-			INSERT INTO @tmpDeterminedFTResources (ResourceID, HomeValue, AwayValue)
-			SELECT Id, Home, Away
-			FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
-													,Home VARCHAR(2000)
-													,Away VARCHAR(2000)
-												) AS tbl
-			EXEC sp_xml_removedocument @handle
-		END
-
-		INSERT INTO dbo.SettlementBettypeResult (MatchId, Bettype, pfId, HomeValue, AwayValue, OddsType, SessionId, DeterminedType)
-		SELECT t.MatchId, t.BetType, t.SDTpfId, t.HomeValue, t.AwayValue, t.OddsType, t.SessionId, t.DeterminedType
-		FROM (
-			SELECT	@MatchId AS MatchId
-					,s.BetType
-					,s.SDTpfId
-					,t.HomeValue
-					,t.AwayValue					
-					,s.OddsType
-					,@SessionId AS SessionId
-					,s.DeterminedType
-			FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-				INNER JOIN @tmpDeterminedFTResources t
-					ON s.SDTResourceId = t.ResourceID
-			WHERE	s.SportType = @sporttype
-					AND s.SDTResourceId IS NOT NULL
-					AND s.DeterminedType = 2 -- determinable FT ticket
-			UNION 
-			SELECT	@MatchId AS MatchId
-					,s.BetType
-					,s.SDTpfId
-					,CAST(@hth AS VARCHAR(2000)) AS HomeValue
-					,CAST(@hta AS VARCHAR(2000)) AS AwayValue
-					,s.OddsType
-					,@SessionId AS SessionId
-					,s.DeterminedType
-			FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-			WHERE	s.SportType = @sporttype
-					AND s.ResourceID = '00'
-					AND s.RefResourceId IS NULL
-					AND s.DeterminedType = 2 -- determinable FT ticket
-		) t
-		
-		SET @Params = CASE WHEN @hth IS NOT NULL THEN ' hth=''' + CAST (@hth AS VARCHAR(20)) + '''' ELSE '' END
-						+ CASE WHEN @hta IS NOT NULL THEN ' hta=''' + CAST (@hta AS VARCHAR(20)) + '''' ELSE '' END
-						+ ' DeterminedType=''2''' 
-
-		SET @ParamsXML =  CAST('<root><r ' + REPLACE(@Params,'''','"') + ' /></root>' AS XML)
-
-		INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
-		SELECT '', 0,0,0,'',@SessionId,0
-
-		SET @SettlementProcessingId = SCOPE_IDENTITY()
-
-		SET @StartFTDetermined = GETDATE()
-
-		EXEC dbo.NAP_Admin_Settlement_Queue @matchid = @matchid
-			,@action  = @action
-			,@MinCustId = 0
-			,@MaxCusId = 0
-			,@IsReSettledTickets = 0
-			,@QueueNo  = 1
-			,@SessionId  = @SessionId
-			,@ActionId  = @ActionID
-			,@SettlementProcessingId  = @SettlementProcessingId
-			,@Params = @ParamsXML
-			,@AffectedTicket = @AffectedTicket OUTPUT
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
-		
-		SET @EndFTDetermined =GETDATE()
-
-		SET @TicketCount = @TicketCount + @AffectedTicketFT		
-
-		SET @SSBDeterminedLog = 'EXEC dbo.NAP_Admin_Settlement_Queue @matchid = ' + cast(@matchid as varchar(20)) 
-						+ ',@action  = ''' + @action + ''''
-						+ ',@QueueNo  = 1'
-						+ ',@SessionId  =' + cast(@SessionId as varchar(30))
-						+ ',@ActionId  =' + cast(@ActionID as varchar(20))
-						+ ',@SettlementProcessingId  =' + cast(@SettlementProcessingId as varchar(30))
-						+ ',@Params = ''' + cast(@ParamsXML as varchar(max)) + '''' 
-		
-		EXEC dbo.SSB_Settlement_WriteLogs @MessageId = ''
-			, @MessageType = 'bet_settle_msg_type_prepare_00'
-			, @MessageBody = @SSBDeterminedLog
-			, @StartTime = @StartFTDetermined
-			, @EndTime = @EndFTDetermined
-			, @ErrorMessage = @ErrMsg
-			, @ConversationHandle = ''
-			, @QueueNo = 0
-			, @SessionId = @SessionId
-	END
-
-	-- CO
+	IF @strCashoutBettype <> ''
 	BEGIN
 		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, bettype, betteam, hdp1, hdp2, WalletType, BonusID, balance, livehomescore, liveawayscore)
 		SELECT	b.transid, NULL, b.custid, b.bettype, b.betteam, b.hdp1, b.hdp2, ISNULL(b.WalletType,2)
@@ -803,50 +673,6 @@ BEGIN
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strCashoutBettype + ',') > 0
-		
-		UPDATE t 
-			SET statuswinlost = CASE 
-									WHEN m.modds > 0.25 THEN 2
-									WHEN m.modds = 0.25 THEN 1
-									WHEN m.modds = 0 THEN 0
-									WHEN m.modds = -0.25 THEN 3
-									ELSE 4
-								END
-		FROM	@tmpCashoutTransId t
-			INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
-	  			ON	sr.BetType = t.bettype
-					AND sr.matchid = @matchid
-			CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, t.betteam, t.hdp1, t.hdp2, sr.HomeValue, sr.AwayValue, t.livehomescore, t.liveawayscore, NULL, NULL) m
-		WHERE	sr.SessionId = @SessionId
-
-		IF @IsDeterminedFT = 1
-		BEGIN
-			INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, balanceType, WalletType, BonusID, balance)
-			SELECT	b.transid
-					,CASE 
-						WHEN m.modds > 0.25 THEN 2
-						WHEN m.modds = 0.25 THEN 1
-						WHEN m.modds = 0 THEN 0
-						WHEN m.modds = -0.25 THEN 3
-						ELSE 4
-					END
-					,b.custid
-					,1
-					,ISNULL(b.WalletType,2)
-					,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
-					,(b.winlost - b.actual_stake + b.playercomm) AS balance
-			FROM	dbo.bettrans b WITH(NOLOCK)
-				INNER JOIN dbo.SettlementBettypeResult s
-					ON b.bettype = s.Bettype
-				OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hth, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, 0) m
-			WHERE	b.matchid = @matchid
-					AND b.statusID NOT IN (101)
-					AND ISNULL(b.betdaqid,0) = - 2
-					AND s.SessionId = @SessionId					
-					AND m.modds IS NOT NULL
-					AND b.statuswinlost IS NULL
-					AND s.DeterminedType = 2 -- determinable FT ticket
-		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
 		BEGIN
@@ -855,8 +681,21 @@ BEGIN
 			FROM	@tmpCashoutTransId t
 				INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
 					ON t.TransId = c.TransID
-			
-					ON t.TransId = c.TransID
+
+			UPDATE t 
+				SET statuswinlost = CASE 
+										WHEN m.modds > 0.25 THEN 2
+										WHEN m.modds = 0.25 THEN 1
+										WHEN m.modds = 0 THEN 0
+										WHEN m.modds = -0.25 THEN 3
+										ELSE 4
+									END
+			FROM	@tmpCashoutTransId t
+				INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  				ON	sr.BetType = t.bettype
+						AND sr.matchid = @matchid
+				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, t.betteam, t.hdp1, t.hdp2, sr.HomeValue, sr.AwayValue, t.livehomescore, t.liveawayscore, NULL, NULL) m
+			WHERE	sr.SessionId = @SessionId
 			
 			INSERT INTO @BalanceWalletBefore (matchid, custid, balanceType, WalletType, BonusID, balance)
 			SELECT	@matchid, custid, balanceType, WalletType, BonusID, SUM(balance)
@@ -939,26 +778,6 @@ BEGIN
 	SELECT	@TotalSubParlay = SUM(totalticket)
 	FROM	@tmpParlayAffectedBettypes
 
-	IF @TotalSubParlay = 0 AND @IsDeterminedFT = 1
-	BEGIN
-		INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket, DeterminedType)
-		SELECT 	bm.bettype, COUNT(1) AS totalticket, s.DeterminedType
-		FROM	dbo.bettransm bm WITH(NOLOCK)
-			INNER JOIN dbo.SettlementBettypeResult s WITH(NOLOCK)
-				ON	bm.bettype = s.BetType
-					AND bm.matchid = s.MatchId
-					AND s.SessionId = @SessionId
-			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, s.HomeValue, s.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
-		WHERE	bm.matchid = @MatchId			
-				AND m.modds IS NOT NULL
-				AND bm.statusID IN (0,102)
-				AND s.DeterminedType = 2 -- determinable FT ticket
-		GROUP BY bm.bettype
-
-		SELECT	@TotalSubParlay = SUM(totalticket)
-		FROM	@tmpParlayAffectedBettypes
-	END
-
 	IF @TotalSubParlay > 0
 	BEGIN	
 		-- insert dummy resouceid
@@ -976,7 +795,6 @@ BEGIN
 				AND s.SettleType = 'MNL'
 				AND s.RefResourceId IS NOT NULL
 				AND st.Bettype IS NULL
-				AND t.DeterminedType = 0
 
 		IF @DummyResourceIds <> ''
 		BEGIN
@@ -1002,9 +820,8 @@ BEGIN
 					,tbl.HomeValue
 					,tbl.AwayValue
 					,sp.BetType
-					,CASE WHEN ab.DeterminedType = 0 THEN sp.pfID ELSE sp.SDTpfId END AS pfID
+					,sp.pfID
 					,sp.RefResourceId
-					,ab.DeterminedType
 			FROM	@tmpResources tbl
 				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 					ON	sp.ResourceID = tbl.ResourceID
@@ -1024,7 +841,6 @@ BEGIN
 											,pfid	AS '@pfId'
 											,HomeValue AS '@Home'
 											,AwayValue AS '@Away'
-											,CASE WHEN DeterminedType IS NOT NULL THEN DeterminedType ELSE NULL END AS '@DeterminedType'
 									FROM	cteSelectedRID
 									FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
 			
@@ -1061,5 +877,13 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
 			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
 		END
+	END
+	ELSE IF @Action IN ('CAL', 'CAL-FT')
+	BEGIN
+		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
+			SET StatusId = 0, Starttime = GETDATE()
+		WHERE MatchId = @matchid
+			AND Action = 'MixParlay'
+			AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
 	END
 END

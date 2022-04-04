@@ -18,6 +18,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210904@Kathy: Data is Inserted into Table Settled_Message Continuously [Redmine:#161175]
 		- 20211122@Max: Support Settlement Exclusion for Parlay Sub Tickets [Redmine: #163172]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -186,11 +187,13 @@ BEGIN
 				AND IsCalculating = 1
 		
 		--Update for Auto Void Job
-		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
-			SET StatusId = 0, Starttime = GETDATE()
-		WHERE MatchId = @matchid
-			AND Action = 'MixParlay'
-			AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
+		IF @Action <> 'SDT-FT'
+			UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
+				SET StatusId = 0, Starttime = GETDATE()
+			WHERE MatchId = @matchid
+				AND Action = 'MixParlay'
+				AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
+			
 	END
 
 	---

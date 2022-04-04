@@ -155,42 +155,51 @@ BEGIN
 	BEGIN TRY
 		IF @DeterminedType = 2 -- determinable ft ticket when cal ht
 		BEGIN
-			INSERT INTO #tmpFinalResult (transid,filter, modds, oddstype)
-			SELECT	b.transid
-					,CASE 
+			INSERT INTO #tmpFinalResult (transid ,filter, modds, IsMarked, oddstype)
+			SELECT	b.transid	
+					,CASE 					
 						WHEN m.modds > 0.25 THEN POWER(2,0)
 						WHEN m.modds = 0.25 THEN power (2,1)
 						WHEN m.modds = 0 THEN power(2,2)
 						WHEN m.modds = -0.25 THEN power (2,3)
 						ELSE power(2,4) END
-					+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
-						AS filterBy
-					,m.modds					
-					,b.oddstype					
+					+ CASE WHEN mt.IsMarked IS NOT NULL THEN POWER(2,5) ELSE 0 END
+					+ CASE WHEN s.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
+						AS filterBy					
+					,m.modds	
+					,ISNULL(mt.IsMarked, 0) AS IsMarked
+					,s.oddstype						
 			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.SettlementBettypeResult s WITH(NOLOCK)
+					ON	b.bettype = s.BetType
+						AND b.matchid = s.MatchId
+						AND s.SessionId = @SessionId
 				OUTER APPLY (	
 					SELECT TOP 1 1 AS IsMarked
 					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 					WHERE	mt.TransId = b.transid
 				)mt
-				INNER JOIN dbo.SettlementBettypeResult s WITH(NOLOCK)
-					ON	b.bettype = s.BetType
-						AND b.matchid = s.MatchId
-						AND s.SessionId = @SessionId
-				OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid, 0) m
-			WHERE	b.matchid = @MatchId
-					AND mt.IsMarked IS NULL
-					AND s.DeterminedType = 2 -- determinable FT ticket
-					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
-						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
-						 OR b.statusID = 102
-						 )	
+				OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam
+						,b.hdp1
+						, b.hdp2, @hth, @hta, @hth, @hta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc
+						,CAST(b.betid AS VARCHAR(50)) -- betcheck/betid
+						, 0) m
+			WHERE	b.matchid = @matchid
 					AND m.modds IS NOT NULL
+					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
+							OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
+							OR b.statusID = 102
+							)
+					and b.custid BETWEEN @MinCustId and @MaxCusId
+					and 1 = case 
+								when s.pfID = 3 then case when (@hth + @hta) - 0.25 > b.hdp1 then 1 else 0 end
+								when s.pfID = 388 then case when @hta - 0.25 > b.hdp1 then 1 else 0 end
+								when s.pfID = 389 then case when @hth - 0.25 > b.hdp1 then 1 else 0 end
+								else 1
+							end
+							
 			ORDER BY filterBy, b.custid, b.bettype 
 			OPTION (MAXDOP 1)
-
-			SET @AffectedTicket = @@ROWCOUNT
-
 		END
 		ELSE
 		BEGIN
@@ -394,6 +403,9 @@ BEGIN
 			@LockName = 'SettlementSSB'
 			,@ExecDataQueueSize =  @ExecDataQueueSize OUTPUT
 			,@RunExecDataBySSB = @RunExecDataBySSB OUTPUT
+			
+		SELECT @AffectedTicket = COUNT(1)
+		FROM	#tmpFinalResult 
 
 		INSERT INTO dbo.SettlementProcessing (TransIds, modds, IsMarked, OddsType, MessageType, SessionId,ActionId)	
 		SELECT	t.TransIds

@@ -167,13 +167,12 @@ BEGIN
 		,ExistLG		BIT
 		,ExistHTLG		BIT
 		,IsLive			BIT
-		,IsFGNG			BIT
 		, PRIMARY KEY (bettype,isParlay)
 	)
 	
 	INSERT INTO #Data (bettype, isParlay
 			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
-			, IsLive, IsFGNG		
+			, IsLive		
 		)
 	SELECT	b.bettype, 0 isParlay
 			,SUM(CASE WHEN b.statusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS betRunningCount
@@ -182,7 +181,6 @@ BEGIN
 			,SUM(CASE WHEN b.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
 			,COUNT(1) AS betCount			
 			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive	
-			,MAX(CASE WHEN b.bettype IN (14,127) AND  b.Betteam IN ('1:1', '2:1', '0:0') THEN 1 ELSE 0 END ) AS IsFGNG
 	FROM	dbo.bettrans b WITH(NOLOCK)
 				OUTER APPLY (
 					SELECT TOP 1 mt.TransId
@@ -213,7 +211,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #Data (bettype, isParlay
 			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
-			, IsLive, IsFGNG			
+			, IsLive			
 		)
 		SELECT	bm.bettype, 1 isParlay			
 				,SUM(CASE WHEN bm.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) betRunningCount
@@ -222,7 +220,6 @@ BEGIN
 				,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
 				,COUNT(1) betCount
 				,MAX(CASE WHEN bm.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
-				,MAX(CASE WHEN bm.bettype IN (14,127) AND  bm.Betteam IN ('1:1', '2:1', '0:0') THEN 1 ELSE 0 END ) AS IsFGNG
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	b.matchid = 29		
@@ -240,7 +237,7 @@ BEGIN
 			 -- 14F, 14L; GroupID = 4: bettype 14; -- 127F, 127L; GroupID = 3: bettype 127
 			 @IsExistFGLG =  MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsFGLG = 1 THEN 1 ELSE 0 END)
 			,@IsExistHTFGLG = MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsFGLG = 1 THEN 1 ELSE 0 END)
-			,@IsExistFGNG =  MAX(CASE WHEN b.IsFGNG = 1 THEN 1 ELSE 0 END)
+			,@IsExistFGNG =  MAX(CASE WHEN f.IsFGLG = 1 THEN 1 ELSE 0 END)
 			
 			,@isExistResultandFirstTeamScore = MAX(CASE WHEN f.BetType = 172 THEN 1 ELSE 0 END)
 		

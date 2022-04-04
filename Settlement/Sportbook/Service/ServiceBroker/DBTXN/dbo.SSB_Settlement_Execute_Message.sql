@@ -11,6 +11,7 @@ as
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 */
 begin
 	set nocount on
@@ -29,6 +30,7 @@ begin
 			,@__messageBody xml
 			,@__Log varchar(max)
 			,@__paramsXML XML
+			,@__affectedticket int
 
 	select @__startTime = sysdatetime()
 			,@__messageBody = cast(@MessageBody as xml)
@@ -61,6 +63,7 @@ begin
 			,@Params = @__paramsXML
 			,@ErrCode = @__errcode output
 			,@ErrMsg = @__errmsg output
+			,@AffectedTicket = @__affectedticket OUTPUT
 	end try
 	begin catch
 		set @__errmsg = error_message()
@@ -90,5 +93,6 @@ begin
 		, @ConversationHandle = @ConversationHandle
 		, @QueueNo = @QueueNo
 		, @SessionId = @__sessionid
+		, @AffectedTicket = @__affectedticket
 end
 go

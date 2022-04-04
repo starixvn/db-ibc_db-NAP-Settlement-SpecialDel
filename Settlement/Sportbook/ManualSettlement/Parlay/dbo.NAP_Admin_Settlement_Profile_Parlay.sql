@@ -59,6 +59,7 @@ BEGIN
 			,@DummySDTResourceResults	VARCHAR(MAX) = ''
 			,@IsSDT				BIT = 0
 			,@subAction			VARCHAR(20) = ''
+			,@DeterminedType	TINYINT = 0
 			
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
@@ -194,19 +195,22 @@ BEGIN
 
 			SET @totalSubParlay = @@ROWCOUNT
 
+			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType = 2)
 			BEGIN
+				SET @DeterminedType = 2
+
 				INSERT INTO #tmpsubTransID (TransID, modds, refno)
 				SELECT	bm.transid, m.modds, bm.refno
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
-						SELECT	TOP 1 pfID, HomeValue, AwayValue
+						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype
 								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
-								AND t.DeterminedType = 1
+								AND t.DeterminedType = 2
 					)sr
-					OUTER APPLY dbo.f_Set_SDT_modds(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
+					OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 						ON	b.matchid = 29
 							AND b.bettype = 29
@@ -221,6 +225,10 @@ BEGIN
 						AND bm.statusID IN (0,102)
 						AND m.modds IS NOT NULL
 						AND mt.TransId IS NULL
+						AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
+							OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
+							OR bm.statusID = 102
+						)
 
 				SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
 			END
@@ -674,13 +682,15 @@ BEGIN
 		SET @stop = CURRENT_TIMESTAMP
 
 		SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
+								+ CASE WHEN @DeterminedType = 2 THEN ' SDT-FT:1' ELSE '' END
 								+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
 								+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 						   
 		EXEC dbo.WriteLog_UserLog @creator, @logdata
 
 		SELECT @Remark = CASE WHEN @sportType <> 1 THEN @ResultRemarkLog + '<br/> '  ELSE '' END
-							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
+							+ CASE WHEN @DeterminedType = 2 THEN 'SDT-FT:1' ELSE '' END
+							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
 						
