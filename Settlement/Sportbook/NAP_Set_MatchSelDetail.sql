@@ -68,6 +68,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393] 
 		- 20220106@Louisa: Enhancement [Redmine:#164905]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 
 */
 BEGIN
@@ -79,6 +80,7 @@ BEGIN
 		,@SettleAbandonedMatchIBCParlay TINYINT
         ,@sporttype					SMALLINT
         ,@IsExistHTFGLG				BIT
+		,@IsExistFGNG				BIT
         ,@FTStatus					NVARCHAR(50)
         ,@HTStatus					NVARCHAR(50)
         ,@2HStatus					NVARCHAR(50)
@@ -119,6 +121,7 @@ BEGIN
 
     SELECT 
          @IsExistFGLG = 0
+		 ,@IsExistFGNG = 0
         ,@IsHTOnly = 0
         ,@IsLive = 0
 		,@SettleAbandonedMatchIBCParlay = 0
@@ -164,12 +167,13 @@ BEGIN
 		,ExistLG		BIT
 		,ExistHTLG		BIT
 		,IsLive			BIT
+		,IsFGNG			BIT
 		, PRIMARY KEY (bettype,isParlay)
 	)
 	
 	INSERT INTO #Data (bettype, isParlay
 			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
-			, IsLive		
+			, IsLive, IsFGNG		
 		)
 	SELECT	b.bettype, 0 isParlay
 			,SUM(CASE WHEN b.statusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) AS betRunningCount
@@ -177,7 +181,8 @@ BEGIN
 			,SUM(CASE WHEN b.statusID BETWEEN 111 AND 113 OR b.statusID = 103 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN b.statusID BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
 			,COUNT(1) AS betCount			
-			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive			
+			,MAX(CASE WHEN b.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive	
+			,MAX(CASE WHEN b.bettype IN (14,127) AND  b.Betteam IN ('1:1', '2:1', '0:0') THEN 1 ELSE 0 END ) AS IsFGNG
 	FROM	dbo.bettrans b WITH(NOLOCK)
 				OUTER APPLY (
 					SELECT TOP 1 mt.TransId
@@ -192,7 +197,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #Data (bettype, isParlay
 			,betParlayRunningCount, betParlayWaitingCount, betParlayCount
-			, IsLive		
+			, IsLive				
 		)
 		SELECT	bm.bettype, 1 isParlay
 				,SUM(CASE WHEN statusID = 0 THEN 1 ELSE 0 END) betParlayRunningCount
@@ -208,7 +213,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #Data (bettype, isParlay
 			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
-			, IsLive		
+			, IsLive, IsFGNG			
 		)
 		SELECT	bm.bettype, 1 isParlay			
 				,SUM(CASE WHEN bm.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) betRunningCount
@@ -217,6 +222,7 @@ BEGIN
 				,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
 				,COUNT(1) betCount
 				,MAX(CASE WHEN bm.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
+				,MAX(CASE WHEN bm.bettype IN (14,127) AND  bm.Betteam IN ('1:1', '2:1', '0:0') THEN 1 ELSE 0 END ) AS IsFGNG
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	b.matchid = 29		
@@ -234,6 +240,7 @@ BEGIN
 			 -- 14F, 14L; GroupID = 4: bettype 14; -- 127F, 127L; GroupID = 3: bettype 127
 			 @IsExistFGLG =  MAX(CASE WHEN f.GroupId IN (2,4) AND f.IsFGLG = 1 THEN 1 ELSE 0 END)
 			,@IsExistHTFGLG = MAX(CASE WHEN f.GroupId IN (1,3) AND f.IsFGLG = 1 THEN 1 ELSE 0 END)
+			,@IsExistFGNG =  MAX(CASE WHEN b.IsFGNG = 1 THEN 1 ELSE 0 END)
 			
 			,@isExistResultandFirstTeamScore = MAX(CASE WHEN f.BetType = 172 THEN 1 ELSE 0 END)
 		
@@ -401,6 +408,7 @@ BEGIN
         ,@HTStatus HTStatus
         ,@FTStatus FTStatus
         ,ISNULL(@IsExistFGLG,0) AS IsExistFGLG
+		,ISNULL(@IsExistFGNG,0) AS IsExistFGNG
         ,ISNULL(@IsExistHTFGLG,0) AS IsExistHTFGLG
         ,ISNULL(@IsEnabledGoalRecordHT,0) AS IsEnabledGoalRecordHT
         ,ISNULL(@IsEnabledGoalRecordFT,0) AS IsEnabledGoalRecordFT

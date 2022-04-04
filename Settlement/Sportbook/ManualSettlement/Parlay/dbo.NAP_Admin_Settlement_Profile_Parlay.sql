@@ -24,6 +24,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -66,8 +67,8 @@ BEGIN
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 		HomeRound TINYINT, AwayRound TINYINT,
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
-		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20)
-						)
+		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), IsDeterminedFT BIT DEFAULT(0)
+	)
 	DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
@@ -117,6 +118,7 @@ BEGIN
 				,ISNULL(IsSDT,0) AS IsSDT
 				,ISNULL(HomeRound,'') AS HomeRound
 				,ISNULL(AwayRound,'') AS AwayRound
+				,ISNULL(IsDeterminedFT,'') AS IsDeterminedFT
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
 															,SDTResourceId VARCHAR(20)
@@ -127,9 +129,10 @@ BEGIN
 															,IsSDT BIT
 															,HomeRound TINYINT
 															,AwayRound TINYINT
+															,IsDeterminedFT BIT
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, IsDeterminedFT)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -144,6 +147,7 @@ BEGIN
 			,c.IsSDT
 			,c.HomeRound
 			,c.AwayRound
+			,c.IsDeterminedFT
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 			ON	 sp.ResourceID = c.Id
@@ -167,6 +171,7 @@ BEGIN
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype
 							AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+							AND t.IsDeterminedFT = 0
 				)sr
 				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck) m
 				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
@@ -188,6 +193,37 @@ BEGIN
 							END
 
 			SET @totalSubParlay = @@ROWCOUNT
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDeterminedFT = 1)
+			BEGIN
+				INSERT INTO #tmpsubTransID (TransID, modds, refno)
+				SELECT	bm.transid, m.modds, bm.refno
+				FROM	dbo.bettransm bm WITH(NOLOCK)
+					CROSS APPLY (
+						SELECT	TOP 1 pfID, HomeValue, AwayValue
+						FROM	@tmpSelectedRID t
+						WHERE	t.BetType = bm.bettype
+								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+								AND t.IsDeterminedFT = 1
+					)sr
+					OUTER APPLY dbo.f_Set_SDT_modds(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
+					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+						ON	b.matchid = 29
+							AND b.bettype = 29
+							AND b.refno = bm.refno
+					OUTER APPLY (
+							SELECT TOP (1) mt.TransId
+							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+							WHERE	mt.TransId = b.transId
+									AND mt.MatchId = @MatchID
+					) mt
+				WHERE	bm.matchid = @MatchID
+						AND bm.statusID IN (0,102)
+						AND m.modds IS NOT NULL
+						AND mt.TransId IS NULL
+
+				SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
+			END
 			
 		END
 		ELSE

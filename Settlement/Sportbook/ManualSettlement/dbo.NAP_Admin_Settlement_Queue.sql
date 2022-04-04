@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Queue]
 	,@QueueNo				INT
 	,@SettlementProcessingId BIGINT
 	,@Params				XML = ''
+	,@AffectedTicketFT		INT = 0 OUTPUT
 	,@ErrCode				INT = 0 OUTPUT
 	,@ErrMsg				VARCHAR(300) = '' OUTPUT
 AS
@@ -23,6 +24,7 @@ AS
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]	
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		
 	Param's Explanation:  
 		@Params: <Params><Params/>
@@ -38,6 +40,7 @@ BEGIN
 			,@IsABANDONEDHT		BIT = 0
 			,@SDTRecord			TINYINT = 0
 			,@IsHedgeMatch		BIT = 0
+			,@IsDeterminedFT	BIT = 0
 
 	DECLARE @MinRowId INT
 			,@MaxRowId INT
@@ -146,108 +149,13 @@ BEGIN
 			,@SDTRecord = T.C.value('@SDTRecord','tinyint')
 			,@IsHedgeMatch = T.C.value('@IsHedgeMatch','bit')
 			,@IsABANDONEDHT = T.C.value('@IsABANDONEDHT','bit') 
+			,@IsDeterminedFT = T.C.value('@IsDeterminedFT','bit') 
 	FROM	@params.nodes('/root/r') AS T(C)	
 	
 	BEGIN TRY
-		IF @IsReSettledTickets = 0
+		IF @IsDeterminedFT = 1
 		BEGIN
-			INSERT INTO #tmpBettrans (transid, custid, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
-			SELECT	 b.transid
-					,b.custid
-					,b.bettype
-					,b.betteam 
-					,b.hdp1 
-					,b.hdp2 
-					,b.livehomescore
-					,b.liveawayscore
-					,b.transdesc 
-					,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
-			FROM	dbo.bettrans b WITH (NOLOCK)		
-			  WHERE	b.matchid = @MatchId
-	  				AND b.statusID IN (0,102)	
-					AND ISNULL(b.betdaqid,0) <> -2
-					AND b.custid BETWEEN @MinCustId AND @MaxCusId			
-			OPTION (MAXDOP 1)
-
-			INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
-				,livehomescore, liveawayscore, transdesc, betcheck
-				,pfID, HomeValue, AwayValue, oddstype
-				)
-			SELECT	 b.transid
-					,b.custid
-					,b.bettype
-					,b.betteam 
-					,b.hdp1 
-					,b.hdp2 
-					,b.livehomescore
-					,b.liveawayscore
-					,b.transdesc 
-					,b.betcheck
-			
-					,sr.pfID
-					,sr.HomeValue 
-					,sr.AwayValue 
-					,sr.oddstype			
-			FROM	#tmpBettrans b		
-	  			INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
-	  				ON	sr.BetType = b.bettype
-						AND sr.matchid = @MatchId
-			WHERE	sr.SessionId = @SessionId
-			OPTION (MAXDOP 1)
-		END
-		ELSE
-		BEGIN
-			INSERT INTO #tmpBettrans (transid, custid, recommend, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
-			SELECT	 b.transid
-					,b.custid
-					,b.recommend
-					,b.bettype
-					,b.betteam 
-					,b.hdp1 
-					,b.hdp2 
-					,b.livehomescore
-					,b.liveawayscore
-					,b.transdesc 
-					,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
-			FROM	dbo.bettrans b WITH (NOLOCK)		
-			WHERE	b.matchid = @MatchId
-	  			AND b.statusID NOT IN (101)
-				AND ISNULL(b.betdaqid,0) <> -2
-				AND b.custid BETWEEN @MinCustId AND @MaxCusId
-			OPTION (MAXDOP 1)
-
-			INSERT INTO #tmpAffectedTransId (transid, custid, recommend, bettype, betteam, hdp1, hdp2
-				,livehomescore, liveawayscore, transdesc, betcheck
-				,pfID, HomeValue, AwayValue, oddstype
-				)
-			SELECT	 b.transid
-					,b.custid
-					,b.recommend
-					,b.bettype
-					,b.betteam 
-					,b.hdp1 
-					,b.hdp2 
-					,b.livehomescore
-					,b.liveawayscore
-					,b.transdesc		
-					,b.betcheck
-
-					,sr.pfID
-					,sr.HomeValue 
-					,sr.AwayValue 
-					,sr.oddstype			
-			FROM	#tmpBettrans b	
-	  			INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
-	  				ON	sr.BetType = b.bettype
-						AND sr.matchid = @matchid
-			WHERE	sr.SessionId = @SessionId
-			OPTION (MAXDOP 1)
-
-		END
-
-		IF @Action LIKE 'CAL%'
-		BEGIN
-			INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype, ScoreBoxOdds, ScoreBoxScore)
+			INSERT INTO #tmpFinalResult (transid,filter, modds, oddstype)
 			SELECT	b.transid
 					,CASE 
 						WHEN m.modds > 0.25 THEN POWER(2,0)
@@ -255,75 +163,214 @@ BEGIN
 						WHEN m.modds = 0 THEN power(2,2)
 						WHEN m.modds = -0.25 THEN power (2,3)
 						ELSE power(2,4) END
-					+ CASE WHEN mt.IsMarked IS NOT NULL THEN POWER(2,5) ELSE 0 END
 					+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
 						AS filterBy
-					,m.modds
-					,ISNULL(mt.IsMarked, 0) AS IsMarked
-					,b.oddstype
-					,m.ScoreBoxOdds
-					,m.ScoreBoxScore
-			FROM	#tmpAffectedTransId b
+					,m.modds					
+					,b.oddstype					
+			FROM	dbo.bettrans b WITH(NOLOCK)
 				OUTER APPLY (	
 					SELECT TOP 1 1 AS IsMarked
 					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 					WHERE	mt.TransId = b.transid
 				)mt
-				CROSS APPLY dbo.f_Set_Calculate_modds_major(b.pfID, b.betteam, b.hdp1, b.hdp2, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck) m
+				INNER JOIN dbo.SettlementBettypeResult s WITH(NOLOCK)
+					ON	b.bettype = s.BetType
+						AND b.matchid = s.MatchId
+						AND s.SessionId = @SessionId
+				OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betid, 0) m
+			WHERE	b.matchid = @MatchId
+					AND mt.IsMarked IS NULL
+					AND EXISTS(SELECT TOP 1 1 FROM dbo.f_Set_Instant_GetBettypes() WHERE bettype = b.bettype AND InstantType = 3)
+					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
+						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
+						 OR b.statusID = 102
+						 )	
+					AND m.modds IS NOT NULL
 			ORDER BY filterBy, b.custid, b.bettype 
 			OPTION (MAXDOP 1)
-		END 
-		ELSE IF @Action LIKE 'REFUND%'
-		BEGIN
-			INSERT INTO #tmpFinalResult (transid, custId, recommend, filter, modds, oddstype, ScoreBoxOdds, ScoreBoxScore)
-			SELECT	b.transid
-					,b.custid
-					,b.recommend
-					,CASE 
-						WHEN @IsHedgeMatch = 1 AND b.bettype NOT IN (3,8) THEN 0					
-						WHEN sdt.IsSDT = 0 THEN 0
-						WHEN @Action = 'REFUND-HT' AND b.bettype <> 8 THEN 0
-						WHEN m.modds > 0.25 THEN POWER(2,0)
-						WHEN m.modds = 0.25 THEN power (2,1)
-						WHEN m.modds = 0 THEN power(2,2)
-						WHEN m.modds = -0.25 THEN power (2,3)
-						WHEN m.modds < -0.25 THEN power(2,4)
-						ELSE 0 END
-					+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
-						AS filterBy
-					,CASE 
-						WHEN @IsHedgeMatch = 1 AND b.bettype NOT IN (3,8) THEN NULL	
-						WHEN sdt.IsSDT = 0 THEN NULL
-						WHEN @Action = 'REFUND-HT' AND b.bettype <> 8 THEN NULL						
-						ELSE m.modds
-					END
-					,b.oddstype
-					,m.ScoreBoxOdds
-					,m.ScoreBoxScore
-			FROM	#tmpAffectedTransId b
-				OUTER APPLY dbo.f_Set_SDT_modds(b.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @fth, @fta, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, @IsABANDONEDHT) m
-				OUTER APPLY (
-					SELECT CASE 
-								WHEN @SDTRecord & 1 > 0 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
-								WHEN @SDTRecord & 2 > 0 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
-								WHEN @SDTRecord & 4 > 0 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
-								ELSE 0
-							END AS IsSDT
-							,CASE 
-								WHEN @SDTRecord & 8 > 0 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
-								WHEN @SDTRecord & 16 > 0 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
-								ELSE 0
-							END AS IsExclude
-				)sdt
-			WHERE	1 = CASE 
-							WHEN sdt.IsExclude = 1 AND sdt.IsSDT = 0 THEN 0
-							WHEN sdt.IsExclude = 1 AND m.modds IS NULL THEN 0
-							ELSE 1
-						END
-			ORDER BY filterBy, b.custid, b.bettype 
-			OPTION (MAXDOP 1)
+
+			SET @AffectedTicketFT = @@ROWCOUNT
+
 		END
-		
+		ELSE
+		BEGIN
+			IF @IsReSettledTickets = 0
+			BEGIN
+				INSERT INTO #tmpBettrans (transid, custid, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
+				SELECT	 b.transid
+						,b.custid
+						,b.bettype
+						,b.betteam 
+						,b.hdp1 
+						,b.hdp2 
+						,b.livehomescore
+						,b.liveawayscore
+						,b.transdesc 
+						,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
+				FROM	dbo.bettrans b WITH (NOLOCK)		
+				  WHERE	b.matchid = @MatchId
+	  					AND b.statusID IN (0,102)	
+						AND ISNULL(b.betdaqid,0) <> -2
+						AND b.custid BETWEEN @MinCustId AND @MaxCusId			
+				OPTION (MAXDOP 1)
+
+				INSERT INTO #tmpAffectedTransId (transid, custid, bettype, betteam, hdp1, hdp2
+					,livehomescore, liveawayscore, transdesc, betcheck
+					,pfID, HomeValue, AwayValue, oddstype
+					)
+				SELECT	 b.transid
+						,b.custid
+						,b.bettype
+						,b.betteam 
+						,b.hdp1 
+						,b.hdp2 
+						,b.livehomescore
+						,b.liveawayscore
+						,b.transdesc 
+						,b.betcheck
+			
+						,sr.pfID
+						,sr.HomeValue 
+						,sr.AwayValue 
+						,sr.oddstype			
+				FROM	#tmpBettrans b		
+	  				INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  					ON	sr.BetType = b.bettype
+							AND sr.matchid = @MatchId
+				WHERE	sr.SessionId = @SessionId
+				OPTION (MAXDOP 1)
+
+			END
+			ELSE
+			BEGIN
+				INSERT INTO #tmpBettrans (transid, custid, recommend, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
+				SELECT	 b.transid
+						,b.custid
+						,b.recommend
+						,b.bettype
+						,b.betteam 
+						,b.hdp1 
+						,b.hdp2 
+						,b.livehomescore
+						,b.liveawayscore
+						,b.transdesc 
+						,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
+				FROM	dbo.bettrans b WITH (NOLOCK)		
+				WHERE	b.matchid = @MatchId
+	  				AND b.statusID NOT IN (101)
+					AND ISNULL(b.betdaqid,0) <> -2
+					AND b.custid BETWEEN @MinCustId AND @MaxCusId
+				OPTION (MAXDOP 1)
+
+				INSERT INTO #tmpAffectedTransId (transid, custid, recommend, bettype, betteam, hdp1, hdp2
+					,livehomescore, liveawayscore, transdesc, betcheck
+					,pfID, HomeValue, AwayValue, oddstype
+					)
+				SELECT	 b.transid
+						,b.custid
+						,b.recommend
+						,b.bettype
+						,b.betteam 
+						,b.hdp1 
+						,b.hdp2 
+						,b.livehomescore
+						,b.liveawayscore
+						,b.transdesc		
+						,b.betcheck
+
+						,sr.pfID
+						,sr.HomeValue 
+						,sr.AwayValue 
+						,sr.oddstype			
+				FROM	#tmpBettrans b	
+	  				INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  					ON	sr.BetType = b.bettype
+							AND sr.matchid = @matchid
+				WHERE	sr.SessionId = @SessionId
+				OPTION (MAXDOP 1)
+
+			END
+
+			IF @Action LIKE 'CAL%'
+			BEGIN
+				INSERT INTO #tmpFinalResult (transid,filter, modds, IsMarked, oddstype, ScoreBoxOdds, ScoreBoxScore)
+				SELECT	b.transid
+						,CASE 
+							WHEN m.modds > 0.25 THEN POWER(2,0)
+							WHEN m.modds = 0.25 THEN power (2,1)
+							WHEN m.modds = 0 THEN power(2,2)
+							WHEN m.modds = -0.25 THEN power (2,3)
+							ELSE power(2,4) END
+						+ CASE WHEN mt.IsMarked IS NOT NULL THEN POWER(2,5) ELSE 0 END
+						+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
+							AS filterBy
+						,m.modds
+						,ISNULL(mt.IsMarked, 0) AS IsMarked
+						,b.oddstype
+						,m.ScoreBoxOdds
+						,m.ScoreBoxScore
+				FROM	#tmpAffectedTransId b
+					OUTER APPLY (	
+						SELECT TOP 1 1 AS IsMarked
+						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						WHERE	mt.TransId = b.transid
+					)mt
+					CROSS APPLY dbo.f_Set_Calculate_modds_major(b.pfID, b.betteam, b.hdp1, b.hdp2, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck) m
+				ORDER BY filterBy, b.custid, b.bettype 
+				OPTION (MAXDOP 1)
+			END 
+			ELSE IF @Action LIKE 'REFUND%'
+			BEGIN
+				INSERT INTO #tmpFinalResult (transid, custId, recommend, filter, modds, oddstype, ScoreBoxOdds, ScoreBoxScore)
+				SELECT	b.transid
+						,b.custid
+						,b.recommend
+						,CASE 
+							WHEN @IsHedgeMatch = 1 AND b.bettype NOT IN (3,8) THEN 0					
+							WHEN sdt.IsSDT = 0 THEN 0
+							WHEN @Action = 'REFUND-HT' AND b.bettype <> 8 THEN 0
+							WHEN m.modds > 0.25 THEN POWER(2,0)
+							WHEN m.modds = 0.25 THEN power (2,1)
+							WHEN m.modds = 0 THEN power(2,2)
+							WHEN m.modds = -0.25 THEN power (2,3)
+							WHEN m.modds < -0.25 THEN power(2,4)
+							ELSE 0 END
+						+ CASE WHEN b.oddstype = 1 THEN POWER(2,6) ELSE 0 END 
+							AS filterBy
+						,CASE 
+							WHEN @IsHedgeMatch = 1 AND b.bettype NOT IN (3,8) THEN NULL	
+							WHEN sdt.IsSDT = 0 THEN NULL
+							WHEN @Action = 'REFUND-HT' AND b.bettype <> 8 THEN NULL						
+							ELSE m.modds
+						END
+						,b.oddstype
+						,m.ScoreBoxOdds
+						,m.ScoreBoxScore
+				FROM	#tmpAffectedTransId b
+					OUTER APPLY dbo.f_Set_SDT_modds(b.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @fth, @fta, b.HomeValue, b.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, @IsABANDONEDHT) m
+					OUTER APPLY (
+						SELECT CASE 
+									WHEN @SDTRecord & 1 > 0 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
+									WHEN @SDTRecord & 2 > 0 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
+									WHEN @SDTRecord & 4 > 0 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
+									ELSE 0
+								END AS IsSDT
+								,CASE 
+									WHEN @SDTRecord & 8 > 0 AND (b.custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
+									WHEN @SDTRecord & 16 > 0 AND b.custid IN (2331, 1077687, 115770, 15523642) THEN 1
+									ELSE 0
+								END AS IsExclude
+					)sdt
+				WHERE	1 = CASE 
+								WHEN sdt.IsExclude = 1 AND sdt.IsSDT = 0 THEN 0
+								WHEN sdt.IsExclude = 1 AND m.modds IS NULL THEN 0
+								ELSE 1
+							END
+				ORDER BY filterBy, b.custid, b.bettype 
+				OPTION (MAXDOP 1)
+			END
+		END
+
 		UPDATE #tmpFinalResult	
 			SET runningtotal = @RunningTotal
 				,@PreviousFilter = @CurrentFilter
@@ -370,7 +417,7 @@ BEGIN
 			) t
 
 		SELECT @TotalBatch = @@ROWCOUNT
-	
+		
 		IF @TotalBatch > 0
 		BEGIN
 			IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
