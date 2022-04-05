@@ -16,11 +16,12 @@ AS
 		- 20191023@Patrick: Reduce interval time for checking temp variable number to 5 mins [Redmine: #122590]
 		- 20201022@Patrick: Change email to starixvn [Redmine: #143607]
 		- 20210824@Kathy: Check refno of parlay long running [Redmine:#154737]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
 */
 BEGIN
 	SET NOCOUNT ON;
 
-	IF @@SERVERNAME IN ('DB206', 'DB230')
+	IF @@SERVERNAME IN ('DB206', 'TESTDBTRANS', 'DB230')
 		RETURN
 
 	declare @SubjectMessage varchar(300)='', @SendTo varchar(400), @TableHTML varchar(max)=''

@@ -11,6 +11,7 @@ AS
     Revisions:
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20211005@Kathy: Change email on Prod [Redmine:#159714]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
 		
 	Columns Explanation:    
     
@@ -42,6 +43,15 @@ RETURN (
 			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
 			, 'DB206'
 			, 'LOCAL'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'TESTDBTRANS'
+			, 'LOCAL'
+
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'qa@starixvn.com'
@@ -73,6 +83,12 @@ RETURN (
 		SELECT 'ERROR'
 			, 'kathy.nguyen@starixvn.com;qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
 			, 'DB206'
+			, 'LOCAL'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'TESTDBTRANS'
 			, 'LOCAL'
 
 		UNION ALL 

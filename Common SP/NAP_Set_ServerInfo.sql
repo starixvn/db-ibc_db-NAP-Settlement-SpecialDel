@@ -16,6 +16,7 @@ AS
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211208@Louisa: Add ServerAlias DBTP10C [Redmine:#164060]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -55,6 +56,15 @@ BEGIN
 	SELECT 'DB233\SQLSERVER2008R2', 'DBBOF', 1, 6, 'Local'
 	UNION ALL
 	SELECT 'DB206', 'DBTXN', 0, 6, 'Local'
+
+	UNION ALL -- new local test 2019
+	SELECT 'TESTDB053', 'DBEXT', 1, 6, 'Local'
+	UNION ALL
+	SELECT 'TESTDB061', 'DBACC', 1, 6, 'Local'
+	UNION ALL
+	SELECT 'TESTDB055', 'DBBOF', 1, 6, 'Local'
+	UNION ALL
+	SELECT 'TESTDBTRANS', 'DBTXN', 0, 6, 'Local'
 
 	UNION ALL -- SIT
 	SELECT 'SITDB052', 'DBEXT', 1, 6, 'SIT'

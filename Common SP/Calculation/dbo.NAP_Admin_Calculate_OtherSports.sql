@@ -17,6 +17,7 @@ AS
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20200825@Kathy: Check server is using service broker by new SP instead of servername [Redmine:#140045]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
 
 	Param's Explanation:
 
@@ -33,7 +34,7 @@ BEGIN
 				END
 	SET @IsEnableServiceBroker = 0
 
-	IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'DB055') AND @isUndo = 0
+	IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'TESTDB055', 'DB055') AND @isUndo = 0
 		RETURN
 		
 	EXEC dbo.NAP_Set_ServerInfo 
