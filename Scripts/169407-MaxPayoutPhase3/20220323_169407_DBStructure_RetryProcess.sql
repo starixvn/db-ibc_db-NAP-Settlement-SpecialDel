@@ -11,14 +11,14 @@ GO
 CREATE TABLE [dbo].[CustLimitBet_QueueRetry](
 	[TransId] [bigint] NOT NULL,
 	[Sitetype] [tinyint] NOT NULL,
-	[MainQueueId] [int] NOT NULL,
+	[MainQueueId] [bigint] NOT NULL,
 	[StatusId] [tinyint] NOT NULL,
 	[Createddate] [datetime] NOT NULL,
 	[Trycount] [tinyint] NOT NULL,
- CONSTRAINT [PK_CustLimitBet_LIC_Matchid_CustID] PRIMARY KEY CLUSTERED 
+ CONSTRAINT [PK_CustLimitBet_QueueRetry_MainQueueId_Sitetype] PRIMARY KEY CLUSTERED 
 (
-	[TransId] ASC,
-	[MainQueueId] ASC
+	[MainQueueId] ASC,
+	[Sitetype] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [winlimit_table]
 ) ON [winlimit_table]
 

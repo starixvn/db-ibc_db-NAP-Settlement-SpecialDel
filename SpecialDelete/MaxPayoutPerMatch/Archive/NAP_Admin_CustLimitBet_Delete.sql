@@ -165,7 +165,7 @@ BEGIN
 			
 			IF @@ROWCOUNT = 0 BREAK
 		END
-	
+
 		SET @start = @start + 1
 	END
 
@@ -335,6 +335,30 @@ BEGIN
 
 	END
 
+	--Phase 3: CustLimitBet_QueueRetry
+	SET @end = (SELECT MAX(ID) FROM #tmp_QueueRetry)
+	SET @start = 1
+
+	WHILE (@start <= @end)
+	BEGIN
+		
+		SELECT @QueueId = QueueId
+		FROM #tmp_QueueRetry
+		WHERE ID = @start
+
+		--CustLimitBet_MBC
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(1000) q
+			FROM dbo.CustLimitBet_QueueRetry q
+			WHERE q.MainQueueId = @QueueId
+			
+			IF @@ROWCOUNT = 0 BREAK
+		END	
+		
+		SET @start = @start + 1
+	END
+
 	DROP TABLE #match_tmp 
 	DROP TABLE #match_archive 
 	DROP TABLE #tmp_QueueID
@@ -346,6 +370,7 @@ BEGIN
 	DROP TABLE #tmp_TransId_Parlay_LIC
 	DROP TABLE #tmp_QueueRetry
 	DROP TABLE #tmp_TransId_pre_LIC
+	DROP TABLE #tmp_QueueRetry
 END
 GO
 	
