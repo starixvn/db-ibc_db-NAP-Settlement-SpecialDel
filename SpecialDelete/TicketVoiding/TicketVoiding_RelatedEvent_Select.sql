@@ -22,6 +22,7 @@ AS
 		- 20211019@July: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20220114@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220221@July: Modify code get fantasy match [Redmine: #164561] 
+		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -45,7 +46,7 @@ BEGIN
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
 
-		IF @IssueTypeId IN (4,5)
+		IF @IssueTypeId IN (4,5,6,7)
 		BEGIN
 			DECLARE @fantasymatch_tmp TABLE (fantasy_match INT, value VARCHAR(200))
 
