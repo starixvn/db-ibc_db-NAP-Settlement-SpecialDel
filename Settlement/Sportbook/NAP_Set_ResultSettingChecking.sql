@@ -18,6 +18,7 @@ AS
 		- 20210906@Louisa: SOP Refund for Volleyball, Beach Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20211127@Helen: Settlement - The Volleyball match cannot key refund. [Redmine:#165296]
+		- 20220406@Louisa: Cannno Refund child match Cricket ( childMatchType = 200) [Redmine:#171188]
 
 
 	Param's Explanation:
@@ -33,14 +34,21 @@ BEGIN
 	DECLARE @Sporttype		SMALLINT
 			,@handle		INT
 			,@ResultTable	TINYINT	= 0
+			,@ChildMatchType TINYINT
 
 
 	DECLARE @tmpResourceID	  TABLE ( ResourceID VARCHAR(20) )
 	DECLARE @tmpResultSetting TABLE ( ResultSetting VARCHAR(20) )
 
-	SELECT @Sporttype	= m.Sporttype FROM dbo.match m WITH(NOLOCK) where m.matchid = @MatchId
+	SELECT @Sporttype	= m.Sporttype
+		 , @ChildMatchType = ISNULL(m.ChildMatchType,0)
+	FROM dbo.match m WITH(NOLOCK) 
+	WHERE m.matchid = @MatchId
 	
-	IF @SelectedResources = '' OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50) RETURN
+	IF @SelectedResources = '' 
+		OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50)
+		OR ( @ChildMatchType = 200 AND @Sporttype = 50 )
+	RETURN
 
 	SELECT @ResultTable = r.ResultTable
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 
