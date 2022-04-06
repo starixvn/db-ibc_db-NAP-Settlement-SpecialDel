@@ -21,6 +21,7 @@ RETURNS VARCHAR(100)
 		- 20210130@Max: TVS Issue [Redmine: #149743]
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210301@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
+		- 20220406@Kathy: Change default value to 100ms [Redmine:#166457]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
@@ -30,6 +31,6 @@ RETURNS VARCHAR(100)
 */
 AS
 BEGIN
-    RETURN '00:00:03:100'
+    RETURN '00:00:00:100'
 END
 GO
