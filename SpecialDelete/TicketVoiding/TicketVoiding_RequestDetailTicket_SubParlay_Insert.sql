@@ -707,6 +707,7 @@ BEGIN
 					,MaxMainParlayTransId	
 					,VoidFromTime			
 					,VoidToTime				
+					,SubIssueTypeId
 					,WrongMarket
 				)
 			SELECT @RequestId AS RequestId
@@ -716,7 +717,8 @@ BEGIN
 					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-				    ,t.c.value('@WrongMarket','VARCHAR(50)') AS WrongMarket
+				    ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+					,t.c.value('@WrongMarket','VARCHAR(50)') AS WrongMarket
 			FROM @WrongOUInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL))
 		END
@@ -731,6 +733,7 @@ BEGIN
 					,MaxMainParlayTransId	
 					,VoidFromTime			
 					,VoidToTime				
+					,SubIssueTypeId
 					,WrongMarket
 				)
 			SELECT @RequestId AS RequestId
@@ -740,6 +743,7 @@ BEGIN
 					,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 					,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 					,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+				    ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 				    ,t.c.value('@WrongMarket','VARCHAR(50)') AS WrongMarket
 			FROM @Wrong1stOUInfoXML.nodes('root/r') t(c)
 			OPTION (OPTIMIZE FOR (@Wrong1stOUInfoXML = NULL))

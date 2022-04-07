@@ -9,8 +9,6 @@ GO
 
 INSERT INTO TicketVoiding_ReasonTemplate (Sporttype, SubIssueTypeId, ReasonEnglish, ReasonChineseSimplified)
 VALUES (1, 10, 'Wrong Over Under',N'大小盘显示错误' )
-	  ,(1, 50, 'Wrong Over Under',N'大小盘显示错误' )
-	  ,(1, 54, 'Wrong Over Under',N'大小盘显示错误' )
 	  ,(1, 11, 'Wrong 1H Over Under',N'上半场大小盘显示错误' )
 	   
 GO

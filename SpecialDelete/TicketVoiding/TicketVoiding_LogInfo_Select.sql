@@ -68,7 +68,7 @@ AS
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/></root>
 		+ @WrongOUInfo, @Wrong1stOUInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" WrongMarket ="" /></root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" WrongMarket ="" SubIssueTypeId=""/></root>
 
 		(Filterby 0: By BetID, 1: By Transdate, 2: By Checktime, 4: Filter by Transdate & Checktime)
 */
@@ -288,7 +288,7 @@ BEGIN
 			  ,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
 			  ,t.c.value('@WrongMarket','VARCHAR(50)') AS WrongMarket
-			  ,@SubIssueTypeId
+			  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 		FROM	@WrongOUInfoXML.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL ))
 	END
@@ -304,7 +304,7 @@ BEGIN
 			  ,CASE WHEN t.c.value('@FilterToBetId','BIGINT') = 0 THEN NULL ELSE t.c.value('@FilterToBetId','BIGINT') END AS FilterToBetId
 			  ,t.c.value('@FilterBy','TINYINT') AS FilterBy
 			  ,t.c.value('@WrongMarket','VARCHAR(50)') AS WrongMarket
-			  ,@SubIssueTypeId
+			  ,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 		FROM	@Wrong1stOUInfoXML.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@Wrong1stOUInfoXML = NULL ))
 	END
