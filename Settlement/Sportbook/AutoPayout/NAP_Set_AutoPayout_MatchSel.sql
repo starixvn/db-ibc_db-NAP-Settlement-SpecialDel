@@ -62,6 +62,7 @@ AS
 	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 	- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 	- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+	- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 	
  Param explanation:  
 	@MatchCode: match code
@@ -350,7 +351,7 @@ BEGIN
 		DECLARE @tmpAutoSetting TABLE (AutoSetting TINYINT)
 
 		INSERT INTO @tmpAutoSetting ( AutoSetting ) 
-		SELECT CAST(val AS TINYINT) FROM dbo.f_SplitString(@AutoSetting, ',')
+		SELECT CAST([value] AS TINYINT) FROM STRING_SPLIT(@AutoSetting, ',')
 
 		SELECT  @AutoValue = SUM(AutoSetting) 
 				,@minValue = MIN(AutoSetting)

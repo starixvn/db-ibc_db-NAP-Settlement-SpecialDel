@@ -18,6 +18,7 @@ AS
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20211005@Louisa: Enhancement [Redmine:#162624]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 
 	Param's explanation:  
 		
@@ -109,8 +110,7 @@ BEGIN
 	IF ISNULL(@MatchIds,'') <> ''
 	BEGIN
 		INSERT INTO #MatchIdList (MatchId)
-		SELECT f.val from dbo.f_SplitString(@MatchIds, ',') f
-		OPTION (MAXRECURSION 0)
+		SELECT f.[value] from STRING_SPLIT(@MatchIds, ',') f
 	END
 
 	

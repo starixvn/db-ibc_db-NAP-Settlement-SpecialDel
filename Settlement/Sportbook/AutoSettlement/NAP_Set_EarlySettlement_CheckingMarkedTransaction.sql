@@ -20,6 +20,7 @@ AS
 		- 20200515@Kathy: Settlement Exclusion [Redmine:#134103]
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -37,9 +38,8 @@ BEGIN
 	WHERE	matchid = @MatchID
 
 	INSERT INTO @tmpResourceIds(ResourceID)
-	SELECT	CAST(val AS VARCHAR(20)) AS ResourceID
-	FROM	dbo.f_SplitString(@ResourceIDs,',')
-	OPTION (MAXRECURSION 0)
+	SELECT	CAST([value] AS VARCHAR(20)) AS ResourceID
+	FROM	STRING_SPLIT(@ResourceIDs,',')
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpResourceIds WHERE ResourceID = '00') AND @SportType = 9
 	BEGIN

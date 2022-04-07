@@ -13,6 +13,7 @@ AS
 	Revisions:
 		20210205@Louisa: initial Function
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 
 	Param's Explanation:
 		@MatchId: Parent's Matchid
@@ -40,11 +41,10 @@ BEGIN
 	INSERT INTO @tmpChildMatch( MatchId)
 	SELECT m.MatchId
 	FROM dbo.match m WITH(NOLOCK)
-		INNER JOIN dbo.f_SplitString(@MatchIds, ',') tmp ON CAST (tmp.val AS INT ) = m.ParentID
+		INNER JOIN STRING_SPLIT(@MatchIds, ',') tmp ON CAST (tmp.[value] AS INT ) = m.ParentID
 	WHERE ISNULL( m.ChildMatchType, 0) = 200
 		AND m.sporttype = @Sporttype
 		AND m.eventstatus = 'completed'
-	OPTION (MAXRECURSION 0)
 
 	IF @@ROWCOUNT > 0 AND @SelectedResources <> ''
 	BEGIN

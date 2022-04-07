@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction=""></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_500] 
 	@MatchId	INT
 	,@Action	VARCHAR(20)
@@ -11,6 +12,7 @@ AS
 		DB: DBTXN/bodb02
 		
 		Revisions:
+			- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 			
 		Parameter's Explanation:
 			@Action: CAL, CAL-FT, REFUND-FT, REFUND, UNDO
@@ -27,8 +29,8 @@ BEGIN
 		BEGIN
 			DECLARE @CustIdList TABLE(CustId INT)
 			INSERT INTO @CustIdList(CustId)
-			SELECT CAST(val AS INT)
-			FROM dbo.strSplit(@CustIds, ',')
+			SELECT CAST([value] AS INT)
+			FROM STRING_SPLIT(@CustIds, ',')
 		END
 
 		CREATE TABLE #NetWinCust (FirstTransId		BIGINT PRIMARY KEY
@@ -58,7 +60,7 @@ BEGIN
 		WHERE	matchid = @matchid
 				AND bettype = 501
 				AND (ISNULL(@CustIds, '') = '' OR (ISNULL(@CustIds, '') <> '' AND EXISTS (SELECT 1 FROM @CustIdList s WHERE b.CustId = s.CustId)))
-				AND statusID NOT IN (101, 102) -- REJECT, VOID
+				 AND statusID NOT IN (0, 1, 101, 102) -- REJECT, VOID
 				AND playerdiscount < 0
 		GROUP BY custid
 		
@@ -271,4 +273,3 @@ BEGIN
 	END
 END
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Calculate_500] TO [vnteam] AS [dbo]

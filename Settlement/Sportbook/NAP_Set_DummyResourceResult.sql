@@ -20,6 +20,7 @@ AS
 		- 20211129@Kathy: fix issue bettype 486, 487
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 */
 
 BEGIN
@@ -85,10 +86,9 @@ BEGIN
 	SET @CorrectQuaterOddEven = ''
 	
 	INSERT INTO @tmpDummyResourceIds(ResourceId)
-	SELECT	val
-	FROM	dbo.f_SplitString(@DummyResourceIds, ',')
-	WHERE	val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT	[value]
+	FROM	STRING_SPLIT(@DummyResourceIds, ',')
+	WHERE	[value] <> ''
 
 	IF @Sporttype  IN ( 1, 2)
 	BEGIN

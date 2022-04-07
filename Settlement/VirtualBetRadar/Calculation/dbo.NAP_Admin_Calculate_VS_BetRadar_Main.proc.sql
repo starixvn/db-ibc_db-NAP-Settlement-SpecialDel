@@ -25,6 +25,7 @@ AS
 		- 20181212@Alan: Integrate Betradar VS phase 3 [106158]
 		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984] 
 		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		
 	Param's Explanation:
 		- ? @Mode:
@@ -141,8 +142,7 @@ BEGIN
 				FROM	DBPRO.bodb02.dbo.ResultDetail3rd WITH (NOLOCK)
 				WHERE	MatchID = @MatchID 
 					AND SettlementStatusID = 4
-					AND ResourceID IN (SELECT val FROM f_SplitString(@ResourceIDs,','))
-				OPTION (maxrecursion 0)
+					AND ResourceID IN (SELECT [value] FROM STRING_SPLIT(@ResourceIDs,','))
 			END
 		END
 		ELSE IF @mode = 'RECOVER' AND @TicketInfos IS NOT NULL

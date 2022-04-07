@@ -22,6 +22,7 @@ AS
 		- 20191129@Helen: Not settle on db054 [Redmine:#123963]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		
 	Param: 
 		+ @updatetype: 
@@ -41,7 +42,7 @@ BEGIN
 		SET @IgnoreList = 'DB054,DB054C2\DB054,DB04,DB042,DB043,DB044,DB055,SITDB055'
 	END
 	
-	IF EXISTS (SELECT TOP 1 1 from dbo.strSplit(ISNULL(@IgnoreList,''), ',') WHERE val = @@SERVERNAME) RETURN
+	IF EXISTS (SELECT TOP 1 1 from STRING_SPLIT(ISNULL(@IgnoreList,''), ',') WHERE value = @@SERVERNAME) RETURN
 	
 	
 	DECLARE @_xml XML

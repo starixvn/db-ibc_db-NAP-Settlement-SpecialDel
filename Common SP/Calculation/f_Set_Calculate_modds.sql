@@ -33,7 +33,8 @@ AS
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]
 		- 20220328@Louisa: Add more result for bettype 9133 [Redmine:#170532]
-		
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+
 */
 RETURN
 (
@@ -524,8 +525,8 @@ RETURN
 	OUTER APPLY -- bettype 376: input betcheck into @AwayValue
 	(
 		SELECT	ROW_NUMBER () OVER (ORDER BY(SELECT NULL)) AS rn
-				,CAST(CASE WHEN f.val = '' THEN CAST(1 AS SMALLMONEY) ELSE f.val END AS SMALLMONEY) AS odds
-		FROM	dbo.f_SplitString(@AwayValue, ',') f
+				,CAST(CASE WHEN f.[value] = '' THEN CAST(1 AS SMALLMONEY) ELSE f.[value] END AS SMALLMONEY) AS odds
+		FROM	STRING_SPLIT(@AwayValue, ',') f
 		WHERE	@pfID = 376
 				AND ISNULL(@AwayValue,'') <> ''
 	) ps

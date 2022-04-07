@@ -25,6 +25,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
      
     Param's Explanation:
 
@@ -120,10 +121,9 @@ BEGIN
 								, BetID
 						FROM	OPENQUERY(DBTXN, '' SELECT  sp.BetType , sp.BetID
 										FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-										INNER JOIN (SELECT val FROM bodb02.dbo.f_SplitString(''''' + @SelectedResource + ''''' , '''','''')) tm
-															ON sp.ResourceID = tm.val OR sp.RefResourceID = tm.val
-										WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '
-										OPTION (MAXRECURSION 0)
+										INNER JOIN (SELECT value FROM STRING_SPLIT(''''' + @SelectedResource + ''''' , '''','''')) tm
+															ON sp.ResourceID = tm.value OR sp.RefResourceID = tm.value
+										WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '									
 										'')'
 
 	EXECUTE	sys.sp_executesql @queryMatch
