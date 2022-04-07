@@ -34,6 +34,7 @@ AS
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20220128@Louisa: Update OtherInfo [Redmine:#166335]
+		- 20220329@Louisa: Extend data length for dbo.ResultDetailOS.OtherInfo [Redmine:#170406]
 		
     Param's Explanation: 
     
@@ -63,7 +64,7 @@ BEGIN
 			RETURN
 	END
 
-    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OtherInfo VARCHAR(50) )
+    DECLARE @tblSelectedRID TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OtherInfo VARCHAR(2000) )
     DECLARE @handle INT, @SettlementStatusID INT, @ResultStatusID INT
 	DECLARE @hthomescore INT
 			,@htawayscore INT
@@ -91,7 +92,7 @@ BEGIN
             Id VARCHAR(20)
             ,Home varchar(50)
             ,Away varchar(50)
-			,OtherInfo VARCHAR(50)
+			,OtherInfo VARCHAR(2000)
         ) tbl
         
     EXEC sp_xml_removedocument @handle
