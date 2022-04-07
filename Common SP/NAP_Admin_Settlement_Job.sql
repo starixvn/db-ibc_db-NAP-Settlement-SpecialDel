@@ -15,6 +15,7 @@ AS
 		- 20201005@Louisa: Create SP Job Step ( Job step will call to this SP)
 		- 20201019@Louisa: Implement for 11 Jobs
 		- 20210921@Max: Add new job CustLimitBet Max Payout [Redmine: #158846]
+		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
 
 */
 /*
@@ -39,6 +40,7 @@ AS
 	--10.BalanceUpdDebitSports:	'bodb02 : Task_BalanceUpdDebitSports'
 
 	--11.Ticket Voiding:		'bodb02: Ticket Voiding'
+	--12.VS BetRadar			'bodb02 : NAP Settlement VS BetRadar'
 */
 BEGIN
 
@@ -111,6 +113,18 @@ BEGIN
 		ELSE IF (@Jobname = 'bodb02 : Task Max Payout Per Match')
 			EXEC dbo.NAP_Admin_CustLimitBet_Queue_Job
 
+		ELSE IF (@Jobname = 'bodb02 : NAP Settlement VS BetRadar')
+		BEGIN
+			-- Single
+			EXEC [dbo].[NAP_Admin_Settlement_VS_Job]
+
+			-- Parlay
+			EXEC [dbo].[NAP_Admin_Settlement_VS_MP_Job]
+
+			-- Send notification
+			EXEC [dbo].[NAP_Admin_Settlement_VS_Notify_Job]
+
+		END
 		IF DATEDIFF(SECOND, @startDate, GETDATE() ) >= 600 -- loop within 10 minutes
 			BREAK
 	
