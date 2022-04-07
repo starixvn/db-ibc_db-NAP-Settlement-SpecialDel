@@ -61,6 +61,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 			
 	Param's Explanation:
 */
@@ -277,9 +278,8 @@ BEGIN
 
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
-	SELECT ss.val AS LicenseeName, ss.val AS GroupName
-	FROM dbo.f_SplitString(@LicenseeNames, ',') ss
-	OPTION (maxrecursion 0)
+	SELECT ss.value AS LicenseeName, ss.value AS GroupName
+	FROM STRING_SPLIT(@LicenseeNames, ',') ss
 	
 	-- Replace all UI representative groups (MBCGroup and 789y) by their real credit licensees
 	DELETE FROM #t_LicenseeNames 
@@ -314,16 +314,14 @@ BEGIN
 	-------> Parse @CurrencyIDs	  
 	INSERT INTO #t_exchanges(exchangeid, currency)
 	SELECT e.exchangeid, e.currency
-	FROM dbo.f_SplitString(@CurrencyIDs, ',') ss
+	FROM STRING_SPLIT(@CurrencyIDs, ',') ss
 		 INNER JOIN CustDB.dbo.exchange e WITH(NOLOCK)
-				 ON CAST(ss.val AS INT) = e.exchangeid
-	OPTION (maxrecursion 0)				 	
+				 ON CAST(ss.value AS INT) = e.exchangeid			 	
 				 
 	-------> Parse @MainTransIds
 	INSERT INTO @tblTransIds(transid)
-	SELECT ss.val AS transid
-	FROM dbo.f_SplitString(@TransIds, ',') ss
-	OPTION (maxrecursion 0)
+	SELECT ss.value AS transid
+	FROM STRING_SPLIT(@TransIds, ',') ss
 	
 	-------> Build string @CurrencyCodes
 	SET @CurrencyCodes = ''
@@ -1433,7 +1431,7 @@ BEGIN
 				CASE 
 					WHEN @eventstatus <> @eventstatus_completed
 							THEN CASE
-									WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND s.betdaqid <> -2
+									WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND ISNULL(s.betdaqid,0) <> -2
 											AND EXISTS (SELECT TOP 1 1
 														FROM #InstantSettlementBettypes
 														WHERE bettype = s.bettype)

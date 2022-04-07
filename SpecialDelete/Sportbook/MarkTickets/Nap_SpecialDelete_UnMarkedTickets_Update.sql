@@ -37,6 +37,7 @@ AS
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211210@July: Remove code CashOut [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 */
 BEGIN
@@ -80,10 +81,9 @@ BEGIN
 				PRIMARY KEY
 				);
 	INSERT INTO #transIds(TransId)
-		SELECT DISTINCT
-				val
-		FROM dbo.f_SplitString(@TransIds, ',')
-		WHERE val <> '' OPTION(MAXRECURSION 0);
+		SELECT DISTINCT value
+		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> '';
 
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)

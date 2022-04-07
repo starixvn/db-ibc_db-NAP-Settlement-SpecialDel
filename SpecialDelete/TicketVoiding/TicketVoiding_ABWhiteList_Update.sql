@@ -13,6 +13,7 @@ AS
 
 	Revisions:
 		- 20211005@Max: Create new SP - [Redmine:#161659]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 
@@ -35,10 +36,9 @@ BEGIN
 	SET @SB_Error = 0
 
 	INSERT INTO #tmpCustId (custid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@CustIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@CustIds, ',')
+	WHERE value <> ''
 
 	WHILE (1=1)
 	BEGIN

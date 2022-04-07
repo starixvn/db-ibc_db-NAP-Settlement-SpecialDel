@@ -15,7 +15,8 @@ AS
 		- 20170720@Paul: Create new [RedmineID: #77175]
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's Explanation:
 */
 
@@ -118,9 +119,8 @@ BEGIN
 
 	--Parse trans ID string
 	INSERT INTO #TempTransIds(transid, IsNum)
-	SELECT s.val, ISNUMERIC(s.val)
-	FROM dbo.f_SplitString(ISNULL(@TransIds, ''), ',') s
-	OPTION (maxrecursion 0);
+	SELECT s.value, ISNUMERIC(s.value)
+	FROM STRING_SPLIT(ISNULL(@TransIds, ''), ',') s
 
 	INSERT INTO #TransIds(transid)
 	SELECT DISTINCT transid

@@ -20,6 +20,7 @@ AS
 		- 20200212@Max: Create new SP [Redmine: #128359]	
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220307@Max: TVS - Miss update balance when update request abnormal mix parlay [Redmine: #169600]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		
@@ -60,9 +61,8 @@ BEGIN
 	)
 	
 	INSERT INTO @tmpInputTransId (TransId)
-	SELECT	val AS TransId
-	FROM	dbo.f_SplitString(@TransIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT	value AS TransId
+	FROM	STRING_SPLIT(@TransIds, ',')
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90503

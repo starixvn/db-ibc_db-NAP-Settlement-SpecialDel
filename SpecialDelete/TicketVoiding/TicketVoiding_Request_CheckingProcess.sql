@@ -14,7 +14,8 @@ AS
 		- 20210524@July: Lock TempVariableNumber due to duplicate voiding requestid inserted from web special delete [Redmine:#155575]
 		- 20210527@July: DB Enhancement for troubleshoot & Enhance SP for Lock Process [Redmine: #155678]
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
-	
+		- 20220315@July: SQL Server Upgrade 2019 STRING_SPLIT [Redmine: #167446]
+
 	Param's explanation:	
 		
 */
@@ -68,19 +69,17 @@ BEGIN
 	SELECT	t.MatchId, f.TransId AS TransId
 	FROM	@tmpMatchTransIds t 
 		CROSS APPLY (
-				SELECT	val AS TransId
-				FROM	dbo.f_SplitString(t.TransIds, ',')
+				SELECT	value AS TransId
+				FROM	STRING_SPLIT(t.TransIds, ',')
 			)f
-	OPTION (maxrecursion 0)
 
 	INSERT INTO @tmpInputTransIdParlay (MatchId, TransId)
 	SELECT	t.MatchId, f.TransId AS TransId
 	FROM	@tmpMatchTransIdsParlay t 
 		CROSS APPLY (
-				SELECT	val AS TransId
-				FROM	dbo.f_SplitString(t.TransIds, ',')
+				SELECT	value AS TransId
+				FROM	STRING_SPLIT(t.TransIds, ',')
 			)f
-	OPTION (maxrecursion 0)
 
 
 	INSERT INTO @tmpKeyId (MatchId, KeyID)

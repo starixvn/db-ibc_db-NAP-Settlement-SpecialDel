@@ -15,7 +15,8 @@ AS
 		- 20170417@Kent: Tune performance [Redmine:#72059]
 		- 20171127@Kent: Integrate BullFighting [Redmine:#86832]
 		- 20190321@Alan: Do not check negative balance for CN88 [109858]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
 		@Type: 
@@ -71,9 +72,8 @@ BEGIN
 	SET @yesterday = CONVERT(DATE,GETDATE() - 1)
 	
 	INSERT INTO @tblTransId(transid)
-	SELECT DISTINCT val 
-	FROM dbo.f_SplitString(@TransIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@TransIds, ',')
 	
 	INSERT INTO @BetDelete(
 			transid

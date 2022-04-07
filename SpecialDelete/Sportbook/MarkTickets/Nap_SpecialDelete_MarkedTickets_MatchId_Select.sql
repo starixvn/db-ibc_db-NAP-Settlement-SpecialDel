@@ -38,6 +38,7 @@ AS;
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20210823@Max: [TVS] Mark sub-parlay for from/to bet ID filter [Redmine: #160209]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -143,21 +144,21 @@ BEGIN
 		 , cte.OddsSpread
 	FROM (
 		SELECT cte.Id
-			 , bt.val AS BetTeam 
+			 , bt.value AS BetTeam 
 			 , cte.[Set]
 			 , cte.Game
-			 , bop.val AS BetOption
-			 , CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault ELSE v.val END AS SMALLMONEY) AS [Value]
-			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+			 , bop.value AS BetOption
+			 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault ELSE v.value END AS SMALLMONEY) AS [Value]
+			 , CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
 			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 ELSE cte.Goal END AS BIGINT) AS Goal
 			 , CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
 		FROM #tblBetType cte
-			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
+			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
 	) cte	
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
@@ -186,9 +187,8 @@ BEGIN
 
 	--> Parse @LicenseeNames
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
-	SELECT ss.val AS LicenseeName, ss.val AS GroupName
-	FROM dbo.f_SplitString(@LicenseeNames, ',') ss
-	OPTION (maxrecursion 0)		
+	SELECT ss.value AS LicenseeName, ss.value AS GroupName
+	FROM STRING_SPLIT(@LicenseeNames, ',') ss		
 
 	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
 		  , @789y_Name	   VARCHAR(50) = '789y'
@@ -226,9 +226,8 @@ BEGIN
 	--> Parse @CurrencyIDs
 	INSERT INTO #t_exchanges(exchangeid, currency)
 	SELECT e.exchangeid, e.currency
-	FROM dbo.f_SplitString(@CurrencyIDs, ',') ss
-		 INNER JOIN CustDB.dbo.exchange e WITH(NOLOCK) ON CAST(ss.val AS INT) = e.exchangeid
-	OPTION (maxrecursion 0)	
+	FROM STRING_SPLIT(@CurrencyIDs, ',') ss
+		 INNER JOIN CustDB.dbo.exchange e WITH(NOLOCK) ON CAST(ss.value AS INT) = e.exchangeid	
 
 	CREATE TABLE #Tickets (
 		GroupID				BIGINT,

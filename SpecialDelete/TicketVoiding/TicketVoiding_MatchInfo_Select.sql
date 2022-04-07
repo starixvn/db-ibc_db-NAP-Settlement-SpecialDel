@@ -21,7 +21,8 @@ AS
 		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
 		- 20200921@Charles: TVS - HotFix - Edit request [#142009]
 		- 20210201@Zane: TVS - Danger Accept/Red Card Enhancement [#146330]
-		
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's explanation:		
 */
 BEGIN
@@ -44,9 +45,8 @@ BEGIN
 			AND SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 			
 		INSERT INTO @transIdTemp (transid)
-		SELECT DISTINCT val
-		FROM dbo.f_SplitString(@TransIds, ',')
-		OPTION (MAXRECURSION 0)
+		SELECT DISTINCT value
+		FROM STRING_SPLIT(@TransIds, ',')
 		
 		SET @tmpMatchId = (SELECT TOP 1 b.matchid
 						FROM dbo.bettrans AS b WITH (NOLOCK)

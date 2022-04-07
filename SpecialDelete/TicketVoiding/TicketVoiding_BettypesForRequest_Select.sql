@@ -13,6 +13,7 @@ AS
 		- 20200602@Charles: Create new SP [Redmine:#135041]
 		- 20200812@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:
 	- @RequestInfo : 
@@ -40,13 +41,6 @@ BEGIN
 		BetId			BIGINT
 	)
 
-	--CREATE TABLE #tblResult
-	--(
-	--	RequestId		INT,
-	--	Bettype			SMALLINT,
-	--	BetId			BIGINT
-	--)
-
 	-- Parse xml @RequestInfo
 	INSERT INTO #tblRequestInfo(RequestId, TransIds)
 	SELECT t.c.value('@RequestId','INT') AS RequestId
@@ -55,10 +49,9 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@RequestInfo = NULL))
 
 	INSERT INTO #tblRequestInfo_Detail(RequestId, TransId)
-	SELECT req.RequestId, CAST(tr.val AS BIGINT)
+	SELECT req.RequestId, CAST(tr.value AS BIGINT)
 	FROM #tblRequestInfo req
-		CROSS APPLY dbo.f_SplitString(req.TransIds, ',') tr
-	OPTION (MAXRECURSION 0)
+		CROSS APPLY STRING_SPLIT(req.TransIds, ',') tr
 	
 	UPDATE t
 		SET Bettype = s.Bettype

@@ -49,6 +49,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
 		- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -182,16 +183,16 @@ BEGIN
 	CTE_ParsedBettypes AS
 	(
 		SELECT cte.Id
-			 , bt.val AS BetTeam 
+			 , bt.value AS BetTeam 
 			 , cte.[Set]
 			 , cte.Game
 			 , CAST(CASE
-						WHEN v.val = 'ALL' THEN @ValueDefault 
-						ELSE v.val
+						WHEN v.value = 'ALL' THEN @ValueDefault 
+						ELSE v.value
 					END AS SMALLMONEY) AS [Value]
 			 , CAST(CASE
-						WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
-						ELSE vhdp1.val
+						WHEN vhdp1.value = 'ALL' THEN @ValueDefault 
+						ELSE vhdp1.value
 					END AS SMALLMONEY) AS ValueHdp1
 
 			 , CAST(CASE
@@ -208,9 +209,9 @@ BEGIN
 					END AS INT) AS OddsId
 			, cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
-			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
 	)	 
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2, OddsId, Transdesc)
 	SELECT cte.Id
@@ -238,9 +239,10 @@ BEGIN
     
 	BEGIN TRY   
 		INSERT INTO #tblTransId ( transid )  
-		SELECT DISTINCT CONVERT(BIGINT, val)   
-		FROM dbo.strSplit(ISNULL(@TransIds,''), ',')  
-
+		SELECT DISTINCT CONVERT(BIGINT, value)   
+		FROM STRING_SPLIT(ISNULL(@TransIds,''), ',')  
+		WHERE value <> ''
+		
 		SET @CountSubTransId = @@ROWCOUNT
 	END TRY  
 	BEGIN CATCH  

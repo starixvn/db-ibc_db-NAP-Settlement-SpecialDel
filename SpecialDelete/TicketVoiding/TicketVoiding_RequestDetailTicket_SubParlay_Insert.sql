@@ -44,6 +44,7 @@ AS
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:
 		
@@ -863,19 +864,19 @@ BEGIN
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = l.MatchId
 			INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON main.refno = sub.refno 
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(l.HomeFavorite, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(l.HomeFavorite, '&')
+				WHERE value <> ''				
 			)xHDPHome
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(l.AwayFavorite, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(l.AwayFavorite, '&')
+				WHERE value <> ''				
 			)xHDPAway
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(l.HdpValue, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(l.HdpValue, '&')
+				WHERE value <> ''				
 			)xHDPvalue
 		WHERE sub.transdate BETWEEN l.VoidFromTime AND l.VoidToTime
 			AND main.transid BETWEEN l.MinMainParlayTransId AND l.MaxMainParlayTransId
@@ -886,12 +887,11 @@ BEGIN
 			AND 1 = CASE WHEN @IssueTypeId = 4 AND sub.bettype = 1 THEN 1
 						 WHEN @IssueTypeId = 5 AND sub.bettype = 7 THEN 1
 						 ELSE 0 END
-			AND 1 = CASE WHEN l.SubIssueTypeId IN (8,9) AND sub.hdp1 = xHDPHome.val AND l.HomeFavorite IS NOT NULL THEN 1
-						 WHEN l.SubIssueTypeId IN (8,9) AND sub.hdp2 = xHDPAway.val AND l.AwayFavorite IS NOT NULL THEN 1
-						 WHEN l.SubIssueTypeId IN (22,24) AND sub.hdp2 = xHDPvalue.val AND l.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-						 WHEN l.SubIssueTypeId IN (23,25) AND sub.hdp1 = xHDPvalue.val AND l.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+			AND 1 = CASE WHEN l.SubIssueTypeId IN (8,9) AND sub.hdp1 = xHDPHome.value AND l.HomeFavorite IS NOT NULL THEN 1
+						 WHEN l.SubIssueTypeId IN (8,9) AND sub.hdp2 = xHDPAway.value AND l.AwayFavorite IS NOT NULL THEN 1
+						 WHEN l.SubIssueTypeId IN (22,24) AND sub.hdp2 = xHDPvalue.value AND l.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+						 WHEN l.SubIssueTypeId IN (23,25) AND sub.hdp1 = xHDPvalue.value AND l.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 						 ELSE 0 END
-			OPTION (MAXRECURSION 0)
 
 		SELECT @Username = (SELECT c.username FROM CustDB.dbo.Customer c WITH (NOLOCK) WHERE c.custid = @UserId)
 		------------------------------------------------------------------------------------------------------------

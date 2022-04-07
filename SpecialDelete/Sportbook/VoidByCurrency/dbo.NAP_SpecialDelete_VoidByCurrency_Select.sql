@@ -32,6 +32,7 @@ AS;
 		- 20210326@Kathy: Tuning SP for EC [Redmine:#151103]
 		- 20210827@Max: [TVS] Support Outright on Void By Currency [Redmine: #159540]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -150,9 +151,8 @@ BEGIN
 	
 	--> Parse @LicenseeNames
 	INSERT INTO @t_LicenseeNames(LicenseeName, GroupName)
-	SELECT ss.val AS LicenseeName, ss.val AS GroupName
-	FROM dbo.f_SplitString(@LicenseeNames, ',') ss
-	OPTION (maxrecursion 0)	
+	SELECT ss.value AS LicenseeName, ss.value AS GroupName
+	FROM STRING_SPLIT(@LicenseeNames, ',') ss
 	
 	-- Replace all UI representative groups (MBCGroup and 789y) by their real credit licensees
 	DELETE FROM @t_LicenseeNames 
@@ -186,10 +186,9 @@ BEGIN
 	--> Parse @CurrencyIDs
 	INSERT INTO @t_exchanges(exchangeid, currency)
 	SELECT e.exchangeid, e.currency
-	FROM dbo.f_SplitString(@CurrencyIDs, ',') ss
+	FROM STRING_SPLIT(@CurrencyIDs, ',') ss
 		 INNER JOIN CustDB.dbo.exchange e WITH(NOLOCK)
-				 ON CAST(ss.val AS INT) = e.exchangeid	
-	OPTION (maxrecursion 0)				 			 				 
+				 ON CAST(ss.value AS INT) = e.exchangeid				 			 				 
 	
 	SELECT @SearchSingle = 0, @SearchParlay = 0, @SearchBetBuilder = 0
 	IF @TicketType = 'All'	

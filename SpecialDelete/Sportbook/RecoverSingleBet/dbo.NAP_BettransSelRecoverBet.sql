@@ -42,6 +42,7 @@ AS
 		- 20191101@Charles: Remove column IsMarked [122187]
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 			- @Opition: 
@@ -380,9 +381,8 @@ BEGIN
 	ELSE IF @Option = 1
 	BEGIN
 		INSERT INTO @tblTransIds
-		SELECT ss.val
-		FROM dbo.f_SplitString(@TransIds, ',') ss
-		OPTION (maxrecursion 0)
+		SELECT ss.value
+		FROM STRING_SPLIT(@TransIds, ',') ss
 
 		-- Outright
 		INSERT INTO @tblRecoverBet(

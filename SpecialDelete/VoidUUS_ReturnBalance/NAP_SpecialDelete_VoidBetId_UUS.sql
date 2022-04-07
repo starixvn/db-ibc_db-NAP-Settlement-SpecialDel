@@ -16,6 +16,7 @@ AS
 		- 20210519@Max: Create new SP [Redmine:#154974]
 		- 20210813@Max: Fix CO issue [Redmine: #149927]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -114,9 +115,8 @@ BEGIN
 	
 	BEGIN TRY
 		INSERT INTO #tblTransIds (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds,',')	
-		OPTION (maxrecursion 0)	
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds,',')		
 		
 	END TRY
 	BEGIN CATCH

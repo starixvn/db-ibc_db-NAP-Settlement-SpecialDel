@@ -64,6 +64,7 @@ AS;
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -204,31 +205,27 @@ BEGIN
 			END
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-		AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND pt.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
 
 	IF(LEN(@TransIds) > 0)
 	BEGIN
 		INSERT INTO #transIdTemp (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds, ',')
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> ''
 	END
 	
 	IF(@CustID <> '')
 	BEGIN
 		INSERT INTO #CustId (CustId)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@CustID, ',')
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@CustID, ',')
+		WHERE value <> ''
 
 		INSERT INTO @Status_tmp (StatusId)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@StatusIds, ',')
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@StatusIds, ',')
+		WHERE value <> ''
 		
 		INSERT INTO #transIdTemp (transid)
 		SELECT	b.translogid AS transid

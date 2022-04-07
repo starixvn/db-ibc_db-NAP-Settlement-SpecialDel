@@ -78,6 +78,7 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 		- 20220307@Max: TVS - Miss update balance when update request abnormal mix parlay [Redmine: #169600]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -537,10 +538,9 @@ BEGIN
 		END
 
 		INSERT INTO @Status_tmp (StatusId)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@StatusIds, ',')
-		WHERE val <> ''
-		OPTION (MAXRECURSION 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@StatusIds, ',')
+		WHERE value <> ''
 
 		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -550,14 +550,13 @@ BEGIN
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 
 		INSERT INTO #InputUsernameList (Username, custid, roleid, recommend)
-		SELECT l.val
+		SELECT l.value
 			  ,ci.custid
 			  ,ci.roleid
 			  ,ci.recommend
-		FROM  dbo.f_SplitString(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.val = ci.username
-		WHERE val <> '' AND ci.custid IS NOT NULL
-		OPTION (MAXRECURSION 0)
+		FROM  STRING_SPLIT(@UserNames, ',') l
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.value = ci.username
+		WHERE value <> '' AND ci.custid IS NOT NULL
 	
 		INSERT INTO #InputValidCustid_2 (custid)		
 		SELECT l.custid
@@ -612,7 +611,6 @@ BEGIN
 				END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 			AND pt.bettype NOT IN (31,32,33,71,72,73)  -- NOT IN [Racing, Casino]
-			AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 			AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 		IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
@@ -856,11 +854,10 @@ BEGIN
 								  FOR XML PATH ('')),1,1,'')
 
 		INSERT INTO #transIdTemp  (transid, statusID, MatchId, bettype)
-		SELECT DISTINCT t.val, b14.statusId, b14.matchid, b14.bettype
-		FROM dbo.f_SplitString(@TransIds, ',') t
-			INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON CAST (t.val AS BIGINT) = b14.transid
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT t.value, b14.statusId, b14.matchid, b14.bettype
+		FROM STRING_SPLIT(@TransIds, ',') t
+			INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON CAST (t.value AS BIGINT) = b14.transid
+		WHERE value <> ''
 
 		INSERT INTO #TempMatch(MatchId, IsOutright)
 		SELECT  DISTINCT matchid,
@@ -1139,10 +1136,9 @@ BEGIN
 			AND req.RequestId <> @RequestId AND req.ActionId <>2
 
 		INSERT INTO #inputTransid (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds, ',')
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> ''
 		
 		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno, matchid)
 		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno, b.matchid
@@ -1179,11 +1175,10 @@ BEGIN
 																, @RequestId = @RequestId, @LogActionId = 90501, @IsLockMatch = 0
 		
 			INSERT INTO #transidremove_tmp (transid, bettype, StatusId, statuswinlost, refno)
-			SELECT t.val, b.bettype, b.statusID, b.statuswinlost, b.refno
-			FROM dbo.f_SplitString(@RemoveTransIds, ',') t
-				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON CAST (t.val AS BIGINT) = b.transid
-			WHERE t.val <> '' AND b.statusID IN (0, 1) --if status of ticket is running
-			OPTION (maxrecursion 0)
+			SELECT t.value, b.bettype, b.statusID, b.statuswinlost, b.refno
+			FROM STRING_SPLIT(@RemoveTransIds, ',') t
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON CAST (t.value AS BIGINT) = b.transid
+			WHERE t.value <> '' AND b.statusID IN (0, 1) --if status of ticket is running
 			
 			SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM #transidremove_tmp

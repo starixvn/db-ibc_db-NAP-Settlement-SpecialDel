@@ -2,14 +2,12 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Upd] 		
 	@MatchId				INT,	
 	@TransIds				VARCHAR(MAX),		
-	
 	@UserName 				NVARCHAR(50),
     @Password				NVARCHAR(50),
     @UserID					INT,
     @IP						VARCHAR(15)		= '',
     @Reason					NVARCHAR(500)	= '',
 	@ReasonSC				NVARCHAR(500)	= '',
-    
     @NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
     @ErrMsg					NVARCHAR(200)	= ''	OUTPUT,
     @ErrCode				INT				= 0		OUTPUT
@@ -27,6 +25,7 @@ AS
 		- 20181207@Alan: Support Chinese Email [105976]
 		- 20200929@Zane: Show Operator ID into void email notification - Fix bug cannot show bettype and deposit name [#141126]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:				
 		- @TransIds : Main transids.				
@@ -39,6 +38,7 @@ BEGIN
 		  , @isITAdmin					BIT = 0		  
 		  , @CustIds					VARCHAR(MAX) = ''
 		  , @Movebetdate				DATETIME
+		  , @spName						VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	DECLARE @_xml						XML		
 		  , @_sXML						VARCHAR(MAX)
@@ -84,7 +84,6 @@ BEGIN
 		showtime		NVARCHAR(20),
 		LeagueId		INT,
 		modds			SMALLMONEY,
-		
 		SubStatus		NVARCHAR(10),
 		SubTransId		BIGINT,
 		SubBetCheck		NVARCHAR(50),
@@ -125,9 +124,8 @@ BEGIN
 			
 		--> parse @TransIds
 		INSERT INTO #tblTransIds (transid)
-		SELECT	t.val
-		FROM dbo.f_SplitString(@TransIds, ',') t					
-		OPTION (maxrecursion 0)	
+		SELECT	t.value
+		FROM STRING_SPLIT(@TransIds, ',') t					
 			
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -234,7 +232,6 @@ BEGIN
 				,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 				,m.leagueid
 				,b.modds
-		           
 				,bm.Status AS SubStatus
 				,bm.TransId AS SubTransId
 				,bm.BetCheck AS SubBetCheck
@@ -267,6 +264,7 @@ BEGIN
 		--> Check Concurrency
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
 				@IsExistParlayVSBetradar = 1			
+				, @spName = @spName
 				, @IsReleased	= 0
 				, @AvaiableProcess = @AvaiableProcess OUTPUT
 				, @ErrCode = @ErrCode OUTPUT

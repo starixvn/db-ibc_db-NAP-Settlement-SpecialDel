@@ -98,6 +98,7 @@ AS
 	  - 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 	  - 20210930@July: Change the source balance (balancetype = 4) of Bitcoin product [Redmine: #162474]
 	  - 20211207@July: Implement New Cash Out Model [Redmine: #165097]
+	  - 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	 Param's Explanation:   
 	*/
@@ -284,9 +285,8 @@ BEGIN
 	
 	BEGIN TRY
 		INSERT INTO #tblTransIds (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds,',')	
-		OPTION (maxrecursion 0)	
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds,',')	
 		
 	END TRY
 	BEGIN CATCH
@@ -1932,7 +1932,7 @@ BEGIN
 		,b.matchid  -- send letstalk
 		,b.oddsid AS OddsId
 		,CASE 
-			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113) AND b.betdaqid <> -2
+			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113) AND ISNULL(b.betdaqid,0) <> -2
 					THEN CASE
 							WHEN ISNULL(mr.IsHTCal, 0) = 0
 									AND EXISTS (SELECT TOP 1 1

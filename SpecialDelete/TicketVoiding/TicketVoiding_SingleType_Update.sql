@@ -46,6 +46,7 @@ AS
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220119@Max: Fix Issue - Include into feature split transfer [Redmine: #165093]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -182,9 +183,8 @@ BEGIN
 		SET @FailedTransIds = @TransIds
 
 		INSERT INTO @tmpInputTransId (TransId)
-		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@TransIds, ',')
-		OPTION (maxrecursion 0)
+		SELECT	value AS TransId
+		FROM	STRING_SPLIT(@TransIds, ',')
 
 		SELECT 	@MatchDate = eventdate
 		FROM dbo.match WITH(NOLOCK)
@@ -205,10 +205,9 @@ BEGIN
 		SELECT	f.TransId AS TransId
 		FROM #tblMatch_TransIds q WITH (NOLOCK)	
 			CROSS APPLY (
-					SELECT	val AS TransId
-					FROM	dbo.f_SplitString(q.TransIds, ',')
+					SELECT	value AS TransId
+					FROM	STRING_SPLIT(q.TransIds, ',')
 				)f
-		OPTION (maxrecursion 0)
 	END
 
 	SELECT @QueueIds = STUFF((SELECT ',' + CAST(QueueId AS VARCHAR(50)) 
@@ -683,10 +682,9 @@ BEGIN
 		SELECT	f.TransId AS TransId
 		FROM	@tmpRemainingBatchTransIds t 
 			CROSS APPLY (
-					SELECT	val AS TransId
-					FROM	dbo.f_SplitString(t.TransIds, ',')
+					SELECT	value AS TransId
+					FROM	STRING_SPLIT(t.TransIds, ',')
 				)f
-		OPTION (maxrecursion 0)
 
 		;WITH cteRemainingKeyIds
 		AS (

@@ -9,6 +9,7 @@ AS
 	
 	Revisions: 
 		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 */
@@ -124,9 +125,8 @@ BEGIN
 		END CATCH
 		
 		INSERT INTO @VoidingHistory_tmp(VoidingHistoryId)
-		SELECT	val AS TransId
-		FROM	dbo.f_SplitString(@VoidingHistoryIds, ',')
-		OPTION (maxrecursion 0)
+		SELECT	value AS TransId
+		FROM	STRING_SPLIT(@VoidingHistoryIds, ',')
 
 		IF (ISNULL(@ErrCode, 0) <> 0 )
 		BEGIN

@@ -13,6 +13,7 @@ AS
 		- 20190625@Raymond.Le: Create new SP [Redmine: #115583]
 		- 20190730@Raymond.Le: Incorporate BetBuilder [Redmine: #106898] 
 		- 20210705@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -72,10 +73,9 @@ BEGIN
 			) RETURN;
 
 	INSERT INTO #transIdTemp (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
@@ -95,8 +95,6 @@ BEGIN
 		AND b.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
 		AND b.bettype NOT IN (31, 32, 33, 71, 72, 73) -- NOT IN [Racing, Casino]
 		AND b.bettype NOT BETWEEN 801 AND 806 -- MG
-		AND b.bettype NOT IN (901, 902, 903, 904) -- BT subticket
-		AND b.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 		AND b.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 		AND b.bettype NOT IN (38) -- Bet Builder
 		AND b.statusID NOT IN (101, 102)

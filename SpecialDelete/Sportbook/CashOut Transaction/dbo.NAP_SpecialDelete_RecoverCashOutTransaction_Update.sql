@@ -29,6 +29,7 @@ AS
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220118@July: HotFix - Recover Cash Out Transaction NOT CALC PlayerComm for tickets double Comm [Redmine: #167687]
 		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 	
@@ -43,7 +44,8 @@ BEGIN
 		  , @RepUpdateTime		DATETIME2
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	  		  
-		  
+		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tmpKeyId (KeyId INT)
@@ -64,10 +66,10 @@ BEGIN
 		RefNo				BIGINT,		
 		BetCheck			NVARCHAR(50),
 		TransDesc			NVARCHAR(1000),
-		StatusId		TINYINT,		
-		Status			NVARCHAR(10),
-		StatusWinlost	TINYINT,
-		Ruben			TINYINT,	
+		StatusId		    TINYINT,		
+		Status			    NVARCHAR(10),
+		StatusWinlost	    TINYINT,
+		Ruben			    TINYINT,	
 		UserName			VARCHAR(30),		
 		ExtraInfo			VARCHAR(1000),
 		BetdaqId			BIGINT,
@@ -103,9 +105,8 @@ BEGIN
 	
 	--> parse @TransIds
 	INSERT INTO #tblTransIds (transid)
-	SELECT	t.val
-	FROM dbo.f_SplitString(@TransIds, ',') t					
-	OPTION (maxrecursion 0)			
+	SELECT	t.value
+	FROM STRING_SPLIT(@TransIds, ',') t							
 	
 	INSERT INTO #tmpKeyId (KeyId)
 	SELECT MAX(z.keyid)
@@ -234,6 +235,7 @@ BEGIN
 		
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch		= 1
+		, @spName			= @spName
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT

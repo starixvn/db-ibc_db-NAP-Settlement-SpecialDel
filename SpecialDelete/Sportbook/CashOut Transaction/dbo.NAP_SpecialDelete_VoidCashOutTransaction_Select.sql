@@ -29,6 +29,7 @@ AS
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 		- 20220315@Max: Remove SABA of league name for China View sites [Redmine: #168651]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Explanation's Param:
 		@Option: 0 - by MatchId
@@ -266,9 +267,8 @@ BEGIN
 	ELSE IF (@Option = 1)
 	BEGIN
 		INSERT INTO #tblTransIds (transid)
-		SELECT	t.val
-		FROM dbo.f_SplitString(@TransIds, ',') t			
-		OPTION (maxrecursion 0)
+		SELECT	t.value
+		FROM STRING_SPLIT(@TransIds, ',') t			
 		
 		INSERT INTO #SpecialDeleteBets(
 						BetId,

@@ -72,6 +72,7 @@ AS
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:
 		+ @WrongScoreInfo: 
@@ -172,10 +173,9 @@ BEGIN
 	IF @IssueTypeId IN (11,15) --AB,AB(RealMember)
 	BEGIN
 		INSERT INTO #transIdTemp (transid)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@TransIds, ',')
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> ''
 
 		INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno, matchid)
 		SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno, b.matchid
@@ -526,10 +526,9 @@ BEGIN
 		END
 	
 		INSERT INTO @Status_tmp (StatusId)
-		SELECT DISTINCT val 
-		FROM dbo.f_SplitString(@StatusIds, ',')
-		WHERE val <> ''
-		OPTION (MAXRECURSION 0)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@StatusIds, ',')
+		WHERE value <> ''
 
 		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -539,13 +538,12 @@ BEGIN
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 
 		INSERT INTO #InputUsernameList (Username, custid, roleid)
-		SELECT l.val
+		SELECT l.value
 			  ,ci.custid
 			  ,ci.roleid
-		FROM  dbo.f_SplitString(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.val = ci.username
-		WHERE val <> '' AND ci.custid IS NOT NULL
-		OPTION (MAXRECURSION 0)
+		FROM  STRING_SPLIT(@UserNames, ',') l
+			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.value = ci.username
+		WHERE value <> '' AND ci.custid IS NOT NULL
 	
 		INSERT INTO #InputValidCustid_2 (custid)		
 		SELECT l.custid
@@ -601,7 +599,6 @@ BEGIN
 				END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-			AND pt.bettype NOT IN (911, 912, 913, 914) -- Cash-out subticket
 			AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 		INSERT INTO #transIdTemp (transid, statusID, MatchId, bettype)
@@ -756,11 +753,10 @@ BEGIN
 	ELSE IF @IssueTypeId = 17 --Archived Ticket
 	BEGIN
 		INSERT INTO #transIdTemp  (transid, statusID, MatchId, bettype)
-		SELECT DISTINCT t.val, b14.statusId, b14.matchid, b14.bettype
-		FROM dbo.f_SplitString(@TransIds, ',') t
-			INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON CAST (t.val AS BIGINT) = b14.transid
-		WHERE val <> ''
-		OPTION (maxrecursion 0)
+		SELECT DISTINCT t.value, b14.statusId, b14.matchid, b14.bettype
+		FROM STRING_SPLIT(@TransIds, ',') t
+			INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON CAST (t.value AS BIGINT) = b14.transid
+		WHERE value <> ''
 
 		INSERT INTO #TempMatch(MatchId, IsOutright)
 		SELECT  DISTINCT matchid,

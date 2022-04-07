@@ -14,6 +14,7 @@ AS
 		- 20190321@Alan: Do not check negative balance for CN88 [109858]
 		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 */
 BEGIN
 	SET NOCOUNT ON		
@@ -32,7 +33,7 @@ BEGIN
 	DECLARE @movebetdate SMALLDATETIME
 	
 	INSERT INTO @CustList(custid)
-	SELECT val FROM dbo.strSplit(@CustIds, ',')
+	SELECT value FROM STRING_SPLIT(@CustIds, ',')
 	
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT

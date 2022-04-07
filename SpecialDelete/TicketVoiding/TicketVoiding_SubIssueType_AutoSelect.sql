@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_SubIssueType_AutoSelect]
+ALTER PROCEDURE [dbo].[TicketVoiding_SubIssueType_AutoSelect]
 (	
 	@MainSubIssueTypeId		TINYINT
 	,@LinkMatchIds			VARCHAR(MAX)
@@ -13,7 +13,8 @@ AS
 	
 	Revisions: 
 		- 20211013@Max: Create new SP [Redmine: #155792]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's explanation:
 		
 */
@@ -23,10 +24,9 @@ BEGIN
 	DECLARE @tmp_LinkMatch AS TABLE (MatchId INT)
 
 	INSERT INTO @tmp_LinkMatch (MatchId)
-	SELECT DISTINCT val AS MatchId
-	FROM dbo.f_SplitString(@LinkMatchIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value AS MatchId
+	FROM STRING_SPLIT(@LinkMatchIds, ',')
+	WHERE value <> ''
 
 	IF @MainSubIssueTypeId IN (2, 68, 69) --Main Corner Home/Away
 	BEGIN

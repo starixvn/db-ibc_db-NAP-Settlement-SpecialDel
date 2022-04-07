@@ -12,6 +12,7 @@ AS
 	Revisions:
 		- 20211004@July: Create new SP - Check validation username [Redmine:#161659]
 		- 20211021@Max: Tuning [Redmine: #161659]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 
@@ -25,10 +26,9 @@ BEGIN
 	CREATE TABLE #tmpUserName (Username NVARCHAR(30))
 
 	INSERT INTO #tmpUserName (Username)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@UserNames, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@UserNames, ',')
+	WHERE value <> ''
 
 	SET @InvalidUserNames = STUFF((SELECT  ',' + l.username
 								  FROM #tmpUserName l

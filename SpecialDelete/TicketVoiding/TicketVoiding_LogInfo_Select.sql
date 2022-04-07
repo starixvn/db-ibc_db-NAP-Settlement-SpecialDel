@@ -52,6 +52,7 @@ AS
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220311@July: TVS - Wrong count settled tickets at log info [Redmine: #169763]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -1027,19 +1028,19 @@ BEGIN
 			INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid AND m.sporttype = 1 --soccer
 			INNER JOIN #WrongHDP d ON d.MatchId = b.matchid
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(d.HomeFavorite, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(d.HomeFavorite, '&')
+				WHERE value <> ''				
 			)xHDPHome
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(d.AwayFavorite, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(d.AwayFavorite, '&')
+				WHERE value <> ''				
 			)xHDPAway
 			OUTER APPLY (
-				SELECT DISTINCT val 
-				FROM dbo.f_SplitString(d.HdpValue, '&')
-				WHERE val <> ''				
+				SELECT DISTINCT value 
+				FROM STRING_SPLIT(d.HdpValue, '&')
+				WHERE value <> ''				
 			)xHDPvalue
 		WHERE b.betfrom <> 'P'  
 			AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
@@ -1049,12 +1050,11 @@ BEGIN
 			AND 1 = CASE WHEN @IssueTypeId = 4 AND b.bettype = 1 THEN 1
 						 WHEN @IssueTypeId = 5 AND b.bettype = 7 THEN 1 
 						 ELSE 0 END
-			AND 1 = CASE WHEN d.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
-						 WHEN d.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
-						 WHEN d.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-						 WHEN d.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+			AND 1 = CASE WHEN d.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.value AND d.HomeFavorite IS NOT NULL THEN 1
+						 WHEN d.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.value AND d.AwayFavorite IS NOT NULL THEN 1
+						 WHEN d.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.value AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+						 WHEN d.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.value AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 						 ELSE 0 END
-			OPTION (MAXRECURSION 0)
 	
 		---get sub ticket of a mix parlay	
 		IF EXISTS ( SELECT 1
@@ -1104,19 +1104,19 @@ BEGIN
 					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId
 					INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON	main.refno = sub.refno 
 					OUTER APPLY (
-						SELECT DISTINCT val 
-						FROM dbo.f_SplitString(d.HomeFavorite, '&')
-						WHERE val <> ''				
+						SELECT DISTINCT value 
+						FROM STRING_SPLIT(d.HomeFavorite, '&')
+						WHERE value <> ''				
 					)xHDPHome
 					OUTER APPLY (
-						SELECT DISTINCT val 
-						FROM dbo.f_SplitString(d.AwayFavorite, '&')
-						WHERE val <> ''				
+						SELECT DISTINCT value 
+						FROM STRING_SPLIT(d.AwayFavorite, '&')
+						WHERE value <> ''				
 					)xHDPAway
 					OUTER APPLY (
-						SELECT DISTINCT val 
-						FROM dbo.f_SplitString(d.HdpValue, '&')
-						WHERE val <> ''				
+						SELECT DISTINCT value 
+						FROM STRING_SPLIT(d.HdpValue, '&')
+						WHERE value <> ''				
 					)xHDPvalue
 			WHERE 1 = CASE WHEN @ActionId <>2 AND sub.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
@@ -1128,12 +1128,11 @@ BEGIN
 					AND 1 = CASE WHEN @IssueTypeId = 4 AND sub.bettype = 1 THEN 1
 								 WHEN @IssueTypeId = 5 AND sub.bettype = 7 THEN 1 
 								 ELSE 0 END
-					AND 1 = CASE WHEN d.SubIssueTypeId IN (8,9) AND sub.hdp1 = xHDPHome.val AND d.HomeFavorite IS NOT NULL THEN 1
-								 WHEN d.SubIssueTypeId IN (8,9) AND sub.hdp2 = xHDPAway.val AND d.AwayFavorite IS NOT NULL THEN 1
-								 WHEN d.SubIssueTypeId IN (22,24) AND sub.hdp2 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-								 WHEN d.SubIssueTypeId IN (23,25) AND sub.hdp1 = xHDPvalue.val AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+					AND 1 = CASE WHEN d.SubIssueTypeId IN (8,9) AND sub.hdp1 = xHDPHome.value AND d.HomeFavorite IS NOT NULL THEN 1
+								 WHEN d.SubIssueTypeId IN (8,9) AND sub.hdp2 = xHDPAway.value AND d.AwayFavorite IS NOT NULL THEN 1
+								 WHEN d.SubIssueTypeId IN (22,24) AND sub.hdp2 = xHDPvalue.value AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+								 WHEN d.SubIssueTypeId IN (23,25) AND sub.hdp1 = xHDPvalue.value AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 								 ELSE 0 END
-					OPTION (MAXRECURSION 0)
 		END  
 	END
 	-- update MainTransId

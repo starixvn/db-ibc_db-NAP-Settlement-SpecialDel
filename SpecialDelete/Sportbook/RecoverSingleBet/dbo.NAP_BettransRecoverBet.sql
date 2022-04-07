@@ -66,6 +66,8 @@ AS
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220118@July: HotFix - Recover Cash Out Transaction NOT CALC PlayerComm for tickets double Comm [Redmine: #167687]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's Explanation:
 */
 BEGIN
@@ -161,9 +163,8 @@ BEGIN
 
 	BEGIN TRY
 		INSERT INTO #tbTransId (transid)
-		SELECT	s.val 
-		FROM	dbo.f_SplitString(isnull(@TransIds, ''), ',') s
-		OPTION (maxrecursion 0)
+		SELECT	s.value 
+		FROM	STRING_SPLIT(isnull(@TransIds, ''), ',') s
 		
 		-- MG tickets
 		INSERT INTO #tblTransInfo(
@@ -830,25 +831,25 @@ BEGIN
 	;WITH CTE_Betcheck_1
 	AS (
 		SELECT t.transid
-			,b.id
-			,b.val AS betop
+			,ROW_NUMBER() OVER (ORDER BY transid ASC) AS id
+			,b.value AS betop
 		FROM #tblTransInfo AS t
-			CROSS APPLY dbo.strSplit(t.betcheck, ',') AS b
+			CROSS APPLY STRING_SPLIT(t.betcheck, ',') AS b
 		WHERE t.bettype IN (468, 469)
 		)
 		,CTE_Betcheck_2
 	AS (
 		SELECT b.transid
 			,b.id
-			,op.rank -- ([1]:[2])
-			,CAST(op.val AS MONEY) AS val
+			,ROW_NUMBER() OVER (PARTITION BY b.id ORDER BY transid ASC) AS rank -- ([1]:[2])
+			,CAST(op.value AS MONEY) AS value
 		FROM CTE_Betcheck_1 AS b
-			CROSS APPLY dbo.strSplit(b.betop, ':') AS op
+			CROSS APPLY STRING_SPLIT(b.betop, ':') AS op
 		)
 		,CTE_Betcheck_Odds
 	AS (
 		SELECT t.transid AS transid
-			,MIN(odds.val) AS odds
+			,MIN(odds.value) AS odds
 		FROM CTE_Betcheck_2 AS t
 			LEFT JOIN CTE_Betcheck_2 AS odds ON t.transid = odds.transid
 			AND t.id = odds.id
@@ -858,12 +859,12 @@ BEGIN
 		,CTE_Betcheck_Final
 	AS (
 		SELECT o.transid
-			,score.val AS score
+			,score.value AS score
 			,o.odds
 		FROM CTE_Betcheck_Odds AS o
 			LEFT JOIN CTE_Betcheck_2 AS t ON t.transid = o.transid
 			AND t.rank = 2
-			AND t.val = o.odds
+			AND t.value = o.odds
 			LEFT JOIN CTE_Betcheck_2 AS score ON score.transid = o.transid
 			AND score.id = t.id
 			AND score.rank = 1

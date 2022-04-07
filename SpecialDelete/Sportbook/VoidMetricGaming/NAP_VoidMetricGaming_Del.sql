@@ -6,7 +6,6 @@ ALTER PROCEDURE [dbo].[NAP_VoidMetricGaming_Del]
 	@Event803			VARCHAR(2000) 	= '',--803 	
 	@Event804			VARCHAR(2000) 	= '',--804 
 	@Event805			VARCHAR(2000) 	= '',--805
-	
     @UserName 			NVARCHAR(50),
     @UserPassword		NVARCHAR(50),
     @UserID				INT,
@@ -14,9 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_VoidMetricGaming_Del]
     @Reason				NVARCHAR(500)	= '',
 	@ReasonSC			NVARCHAR(500)	= '',
 	@SecondAcceptFlag	TINYINT			= 0 ,
-    
 	@TransIds			VARCHAR(MAX) 	,
-
 	@ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
     @ErrCode			INT				= 0		OUTPUT
 
@@ -43,6 +40,7 @@ AS
 			  - 20200303@Charles: Copy 'epositiontaking' value from translog into bettrans [128921]
 			  - 20201022@Max: TVS - Enhance void by Bet ID to support void by customer - Do not update statuswinlost  [Redmine: #142010]
 			  - 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
+			  - 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 
@@ -55,6 +53,7 @@ BEGIN
 			,@Remark	VARCHAR(500)		
 			,@avaiableProcess BIT = 0
 			,@Movebetdate	  DATETIME
+			,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 				
@@ -117,23 +116,23 @@ BEGIN
 
 	DECLARE @Event801Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event801Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event801, '^')
+	SELECT value FROM STRING_SPLIT(@Event801, '^')
 	
 	DECLARE @Event803Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event803Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event803, '^')
+	SELECT value FROM STRING_SPLIT(@Event803, '^')
 	
 	DECLARE @Event804Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event804Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event804, '^')
+	SELECT value FROM STRING_SPLIT(@Event804, '^')
 	
 	DECLARE @Event805Tbl TABLE(Custom1 VARCHAR(50))
 	INSERT @Event805Tbl(Custom1)
-	SELECT val FROM dbo.strSplit(@Event805, '^')
+	SELECT value FROM STRING_SPLIT(@Event805, '^')
 
 	DECLARE @tblBettype TABLE (bettype SMALLINT)
 	INSERT INTO @tblBettype(bettype)
-	SELECT val FROM dbo.strSplit(@BetTypes, '^')
+	SELECT value FROM STRING_SPLIT(@BetTypes, '^')
 
 	DECLARE @SettlementStatus TINYINT = NULL, @Eventdate DATETIME
 	SELECT @SettlementStatus = m.SettlementStatus 
@@ -155,7 +154,7 @@ BEGIN
 
 	BEGIN TRY
 		INSERT INTO #tblTransIds
-		SELECT CONVERT(BIGINT, val) FROM dbo.strSplit(@TransIds, ',')
+		SELECT CONVERT(BIGINT, value) FROM STRING_SPLIT(@TransIds, ',')
 	END TRY
 	BEGIN CATCH
 		SELECT @ErrCode = 101, @ErrMsg = 'Invalid TransIds.'
@@ -170,6 +169,7 @@ BEGIN
 	-- check and not allow attempt to void tickets of this match while it's being calculated
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMG			= 1
+		, @spName			= @spName
 		, @avaiableProcess 	= @avaiableProcess OUTPUT
 		, @ErrCode			= @ErrCode OUTPUT
 		, @ErrMsg			= @ErrMsg OUTPUT

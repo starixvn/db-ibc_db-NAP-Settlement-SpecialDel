@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,dot_intg" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE dbo.NAP_SpecialDelete_RecoverByBetId_ReCal_s175
+ALTER PROCEDURE dbo.NAP_SpecialDelete_RecoverByBetId_ReCal_s175
 	@MatchId		INT
 	,@TransIds		VARCHAR(MAX)
 	,@Action		VARCHAR(20)		= 'CAL'
@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20210908@July: Integrate Bitcoin Re-cal match - [Redmine:#159714]
 		- 20210930@July: Change the source balance (balancetype = 4) of Bitcoin product [Redmine: #162474]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 		@TransIds: Maxbet 1000 tickets
@@ -45,10 +46,9 @@ BEGIN
 		WHERE	MatchID = @MatchId
 
 		INSERT INTO @tmpTransIDResettle (TransId)
-		SELECT val
-		FROM dbo.f_SplitString(@TransIds, ',')
-		WHERE val <> ''
-		OPTION (MAXRECURSION 0)
+		SELECT value
+		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> ''
 
 		INSERT INTO #tmpTransID (TransID, modds)
 		SELECT	b.transid, m.modds

@@ -27,6 +27,7 @@ AS
 		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -75,8 +76,7 @@ BEGIN
 	DECLARE @movebetdate SMALLDATETIME
 
 	INSERT INTO @tmpTransId(transid)
-	SELECT val FROM dbo.f_SplitString(@TransIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT value FROM STRING_SPLIT(@TransIds, ',')
 
 	INSERT INTO #BetDelete(
 			transid

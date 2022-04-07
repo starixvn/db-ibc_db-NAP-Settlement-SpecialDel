@@ -28,6 +28,7 @@ AS
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -90,9 +91,8 @@ BEGIN
 	BEGIN TRY
 		--Transid which user input
 		INSERT INTO @tblTransIds
-		SELECT val
-		FROM dbo.f_SplitString(@TransIds, ',') 
-		OPTION (maxrecursion 0)
+		SELECT value
+		FROM STRING_SPLIT(@TransIds, ',') 
 		
 		--Transid list is recovered
 		INSERT INTO #tblRecoverBet (

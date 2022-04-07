@@ -20,7 +20,8 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20210501@July: TVS - Abnormal Account [Redmine: #143666]
 		- 20210209@Kathy: insert queue slowly with abnormal account issue type [Redmine:#150199]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's explanation:	
 		
 */
@@ -58,9 +59,8 @@ BEGIN
 	BEGIN -- Apply for Abnormal account
 
 		INSERT INTO #TmpInputTransIds(TransId)
-		SELECT 	DISTINCT val
-		FROM 	dbo.f_SplitString(@TransIds, ',')
-		OPTION (MAXRECURSION 0)
+		SELECT 	DISTINCT value
+		FROM 	STRING_SPLIT(@TransIds, ',')
 		
 		INSERT INTO #TmpTransId (TransId, MatchId)
 		SELECT DISTINCT b.TransId, b.matchid

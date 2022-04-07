@@ -56,6 +56,7 @@ AS
 		- 20210303@July: Enhance data type advance mode [Redmine: #150075]
 		- 20210426@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -192,16 +193,16 @@ BEGIN
 	CTE_ParsedBettypes AS
 	(
 		SELECT cte.Id
-			 , bt.val AS BetTeam 
+			 , bt.value AS BetTeam 
 			 , cte.[Set]
 			 , cte.Game
 			 , CAST(CASE
-						WHEN v.val = 'ALL' THEN @ValueDefault
-						ELSE v.val
+						WHEN v.value = 'ALL' THEN @ValueDefault
+						ELSE v.value
 					END AS SMALLMONEY) AS [Value]	
 			, CAST(CASE
-						WHEN vhdp1.val = 'ALL' THEN @ValueDefault 
-						ELSE vhdp1.val
+						WHEN vhdp1.value = 'ALL' THEN @ValueDefault 
+						ELSE vhdp1.value
 					END AS SMALLMONEY) AS ValueHdp1
 
 			, CAST(CASE
@@ -219,9 +220,9 @@ BEGIN
 					END AS INT) AS OddsId
 			, cte.Transdesc
 		FROM CTE_ParsedBettypes_1 cte
-			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
 	)	 
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2, OddsId, Transdesc)
 	SELECT cte.Id

@@ -12,7 +12,8 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20210517@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's explanation:	
 */
 BEGIN
@@ -22,9 +23,8 @@ BEGIN
 	DECLARE @movebetdate SMALLDATETIME
 
 	INSERT INTO @tmpCustId (CustId)
-	SELECT	val AS CustId
-	FROM	dbo.f_SplitString(@CustIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT	value AS CustId
+	FROM	STRING_SPLIT(@CustIds, ',')
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT

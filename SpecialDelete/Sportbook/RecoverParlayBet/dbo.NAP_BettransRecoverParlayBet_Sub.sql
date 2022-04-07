@@ -26,6 +26,7 @@ AS
 		- 20210720@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's Explanation:			
 			- @BetType:
@@ -145,9 +146,8 @@ BEGIN
 	
 	--> parse @MainTransIds
 	INSERT INTO @tblMainTransIds(transid)
-	SELECT ss.val AS transid
-	FROM dbo.f_SplitString(@MainTransIds, ',') ss
-	OPTION (maxrecursion 0)
+	SELECT ss.value AS transid
+	FROM STRING_SPLIT(@MainTransIds, ',') ss
 	
 	IF @@ROWCOUNT = 0
 	BEGIN		

@@ -15,7 +15,8 @@ AS
 	Revisions: 
 		- 20181221@Kathy: Create new SP [Redmine:#106655]
 		- 20190802@Raymond.Le: Insert info for dectect problem account [Redmine: #116617]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's explanation:	
 		
 */
@@ -33,13 +34,10 @@ BEGIN
 	SELECT @IssueTypeId = NULLIF(@IssueTypeId, 0)
 		,@SubIssueTypeId = NULLIF(@SubIssueTypeId, 0)
 
-	--
 	INSERT INTO @tmpTransId (TransId)
-	SELECT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	OPTION (MAXRECURSION 0)
+	SELECT value
+	FROM STRING_SPLIT(@TransIds, ',')
 
-	--
 	INSERT INTO #tblCustInfo (
 		TransId
 		,CustId

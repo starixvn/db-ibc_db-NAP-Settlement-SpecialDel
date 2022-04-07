@@ -8,7 +8,8 @@ AS
 	Task: Rollback cricket list
 	DB: DBTXN/bodb02   
 	Revisions:  
-		
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's Explanation:
 
 	*/
@@ -20,8 +21,8 @@ BEGIN
 	CREATE TABLE #TmpCricketIds (TransId BIGINT, MatchId INT)
 
 	INSERT INTO #TmpCricketIds(TransId, MatchId)
-	SELECT CAST(val AS BIGINT), b.matchid
-	FROM dbo.strSplit(@CricketIds, ',') f
+	SELECT CAST(value AS BIGINT), b.matchid
+	FROM STRING_SPLIT(@CricketIds, ',') f
 		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON CAST(f.val AS BIGINT) = b.transid
 		--INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid
 	WHERE b.bettype = 501

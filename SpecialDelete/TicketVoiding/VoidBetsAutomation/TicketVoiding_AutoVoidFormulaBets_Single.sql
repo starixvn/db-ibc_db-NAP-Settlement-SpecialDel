@@ -24,6 +24,7 @@ AS
 		- 20210525@July: [TVS] Exclude PinGoal from Auto Void Winning process [Redmine: #155374]
 		- 20211214@July: Remove code [Redmine: #165097]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Param's explanation:	
 		
@@ -68,9 +69,8 @@ BEGIN
 			, @custid_cnt		INT = 0
 			
 	INSERT INTO @InputUsernameList (username)
-	SELECT DISTINCT f.val
-	FROM dbo.f_SplitString (@SMAList, ',') AS f
-	OPTION (maxrecursion 0)	
+	SELECT DISTINCT f.value
+	FROM STRING_SPLIT(@SMAList, ',') AS f
 	
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
 					FROM @InputUsernameList l
@@ -166,7 +166,6 @@ BEGIN
 			INNER JOIN #match_autovoidformula m ON m.matchid = b.matchid
 		WHERE b.winlostdate = @eventdate	 
 			AND b.bettype NOT IN (29,9,2799)
-			AND b.bettype NOT IN (911, 912, 913, 914)
 			AND b.statusid = 112
 			
 	END
@@ -179,7 +178,6 @@ BEGIN
 			INNER JOIN #match_autovoidformula m ON m.matchid = b.matchid
 		WHERE b.winlostdate = @eventdate	 
 			AND b.bettype NOT IN (29,9,2799)
-			AND b.bettype NOT IN (911, 912, 913, 914)
 			AND b.statusid = 112
 	END
 	

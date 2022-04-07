@@ -15,7 +15,8 @@ AS
 		- 20210511@Max: TVS - Wrong Score [Redmine: #140953]
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20211223@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
-	
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+
 	Param's explanation:	
 		
 */
@@ -241,9 +242,8 @@ BEGIN
 		IF @IssueTypeId = 13
 		BEGIN
 			INSERT INTO @tmpQueue_update(QueueId)
-			SELECT	val AS QueueId
-			FROM	dbo.f_SplitString(@QueueIds, ',')
-			OPTION (maxrecursion 0)
+			SELECT	value AS QueueId
+			FROM	STRING_SPLIT(@QueueIds, ',')
 		END
 
 		IF @MoveBetMatchIds IS NOT NULL

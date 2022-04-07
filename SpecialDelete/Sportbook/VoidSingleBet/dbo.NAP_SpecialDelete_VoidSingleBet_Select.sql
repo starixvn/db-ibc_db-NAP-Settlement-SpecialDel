@@ -88,6 +88,7 @@ AS
 		- 20220216@July: Fix check ISNULL betdaqid [Redmine: #167055]
 		- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
 		- 20220301@Max: [TVS] Integrate new bet types of Cricket [Redmine: #168080]
+		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -207,30 +208,29 @@ BEGIN
 		 , cte.Transdesc
 	FROM (
 		SELECT cte.Id
-			 , bt.val AS BetTeam 
+			 , bt.value AS BetTeam 
 			 , cte.[Set]
 			 , cte.Game
-			 , bop.val AS BetOption
-			 , CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault 
-						ELSE v.val END AS SMALLMONEY) AS [Value]
-			 , CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault
-						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+			 , bop.value AS BetOption
+			 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault 
+						ELSE v.value END AS SMALLMONEY) AS [Value]
+			 , CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
+						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
 			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2					 
 			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
-			 , CAST(CASE WHEN os.val = 'ALL' THEN @ValueDefault
-						ELSE os.val END AS MONEY) AS OddsSpread
-			 , CAST(CASE WHEN osi.val = 'ALL' THEN NULL
-						ELSE osi.val END AS INT) AS OddsId
-			 ,cte.Transdesc
+			 , CAST(CASE WHEN os.value = 'ALL' THEN @ValueDefault
+						ELSE os.value END AS MONEY) AS OddsSpread
+			 , CAST(CASE WHEN cte.OddsId = 'ALL' THEN NULL
+						ELSE cte.OddsId END AS INT) AS OddsId
+			 , cte.Transdesc
 		FROM #tblBetType cte
-			 CROSS APPLY dbo.strSplit(cte.betteam, ',') bt
-			 CROSS APPLY dbo.strSplit(cte.BetOption, ',') bop
-			 CROSS APPLY dbo.strSplit(cte.[Value], ',') v
-			 CROSS APPLY dbo.strSplit(cte.ValueHdp1, ',') vhdp1
-			 CROSS APPLY dbo.strSplit(cte.OddsSpread, ',') os
-			 CROSS APPLY dbo.strSplit(cte.OddsId, ',') osi
+			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
+			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
 	) cte	
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
