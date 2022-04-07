@@ -11,9 +11,9 @@ GO
 
 CREATE TABLE dbo.SettlementResultDetailHistory
 (
-	TableName			VARCHAR(100)	NOT NULL,
-	MatchId				INT				NOT NULL,
-	ResourceId			VARCHAR(20)		NOT NULL,
+	TableName			VARCHAR(100),
+	MatchId				INT			,
+	ResourceId			VARCHAR(20)	,
 	OldHomeValue		VARCHAR(50),
 	OldAwayValue		VARCHAR(50),
 	NewHomeValue		VARCHAR(50),
@@ -29,8 +29,8 @@ GO
 
 CREATE CLUSTERED INDEX [CIX_SettlementResultDetailHistory_MatchIdUpdateTime] ON [dbo].[SettlementResultDetailHistory]
 (
-	[MatchId]
-	,[UpdateTime]
+	[UpdateTime]
+	,[MatchId]
 )
 GO
 
