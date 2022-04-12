@@ -11,5 +11,12 @@ GO
 
 ALTER TABLE dbo.SettlementResultDetailHistory ADD OldResultStatusID TINYINT
 GO
+
 ALTER TABLE dbo.SettlementResultDetailHistory ADD NewResultStatusID TINYINT
+GO
+
+ALTER TABLE dbo.SettlementResultDetailHistory ADD  OldSettlementStatusID TINYINT
+GO
+
+ALTER TABLE dbo.SettlementResultDetailHistory ADD  NewSettlementStatusID TINYINT
 GO

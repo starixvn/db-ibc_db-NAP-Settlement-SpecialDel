@@ -2,7 +2,7 @@
 
 /*
 	Created by: 20220808@Louisa
-	Task: Capture more value  [Redmine:#]
+	Task: Capture more value  [Redmine:#170548]
 	DB: DBTP/bodb02
 */
 
@@ -24,6 +24,8 @@ AS
 		,NewAwayValue
 		,OldResultStatusID
 		,NewResultStatusID
+		,OldSettlementStatusID
+		,NewSettlementStatusID
 		,OldModifiedBy		
 		,NewModfiedBy		
 		,OldLastModifiedDate	
@@ -39,6 +41,8 @@ AS
 			, i.AwayValue		AS NewAwayValue
 			, d.ResultStatusID  AS OldResultStatusID
 			, i.ResultStatusID  AS NewResultStatusID
+			, d.SettlementStatusID AS OldSettlementStatusID
+			, i.SettlementStatusID AS NewSettlementStatusID
 			, d.LastModifyBy	AS OldModifiedBy
 			, i.LastModifyBy	AS NewModfiedBy
 			, d.LastModifyDate OldLastModifiedDate
@@ -50,7 +54,7 @@ AS
 
 GO
 
-CREATE TRIGGER [dbo].[ResultDetailOS_Upd] ON [dbo].[ResultDetailOS] 
+ALTER TRIGGER [dbo].[ResultDetailOS_Upd] ON [dbo].[ResultDetailOS] 
 AFTER UPDATE
 AS
 	SET NOCOUNT ON
@@ -65,6 +69,8 @@ AS
 		,NewAwayValue
 		,OldResultStatusID
 		,NewResultStatusID
+		,OldSettlementStatusID
+		,NewSettlementStatusID
 		,OldModifiedBy		
 		,NewModfiedBy		
 		,OldLastModifiedDate	
@@ -80,6 +86,8 @@ AS
 			, i.AwayValue		AS NewAwayValue
 			, d.ResultStatusID  AS OldResultStatusID
 			, i.ResultStatusID  AS NewResultStatusID
+			, d.SettlementStatusID AS OldSettlementStatusID
+			, i.SettlementStatusID AS NewSettlementStatusID
 			, d.LastModifyBy	AS OldModifiedBy
 			, i.LastModifyBy	AS NewModfiedBy
 			, d.LastModifyDate OldLastModifiedDate
@@ -92,7 +100,7 @@ AS
 GO
 
 
-CREATE TRIGGER [dbo].[ResultDetailES_Upd] ON [dbo].[ResultDetailES] 
+ALTER TRIGGER [dbo].[ResultDetailES_Upd] ON [dbo].[ResultDetailES] 
 AFTER UPDATE
 AS
 	SET NOCOUNT ON
@@ -107,6 +115,8 @@ AS
 		,NewAwayValue
 		,OldResultStatusID
 		,NewResultStatusID
+		,OldSettlementStatusID
+		,NewSettlementStatusID
 		,OldModifiedBy		
 		,NewModfiedBy		
 		,OldLastModifiedDate	
@@ -122,6 +132,8 @@ AS
 			, i.AwayValue		AS NewAwayValue
 			, d.ResultStatusID  AS OldResultStatusID
 			, i.ResultStatusID  AS NewResultStatusID
+			, d.SettlementStatusID AS OldSettlementStatusID
+			, i.SettlementStatusID AS NewSettlementStatusID
 			, d.LastModifyBy	AS OldModifiedBy
 			, i.LastModifyBy	AS NewModfiedBy
 			, d.LastModifyDate OldLastModifiedDate
