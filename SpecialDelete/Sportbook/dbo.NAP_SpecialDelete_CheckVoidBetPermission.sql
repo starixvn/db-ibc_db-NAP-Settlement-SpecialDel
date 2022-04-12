@@ -1,13 +1,14 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_CheckVoidBetPermission] 
-	@TransIds VARCHAR(MAX) = NULL
-	,@IsCashOutAsUnSettledTicket BIT = 0
-	,@MatchId INT = NULL
-	,@IsHostVoidSettledTickets BIT = 0
+	@TransIds							VARCHAR(MAX) = NULL
+	,@IsCashOutAsUnSettledTicket		BIT = 0
+	,@MatchId							INT = NULL
+	,@IsHostVoidSettledTickets			BIT = 0
 	,@IsHostVoidInstantlySettledTickets BIT = 0
-	,@IsHostVoidUnsettledTickets BIT = 0
-	,@ErrCode INT = 0 OUTPUT
-	,@ErrMsg NVARCHAR(200) = '' OUTPUT
+	,@IsHostVoidUnsettledTickets		BIT = 0
+	,@IsCheckForTVS						BIT = 0
+	,@ErrCode							INT = 0 OUTPUT
+	,@ErrMsg							NVARCHAR(200) = '' OUTPUT
 AS
 /*  
 	Created by: Raymond.Le  
@@ -23,13 +24,14 @@ AS
 		- 20211210@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220303@July: Check permission to void instant settled tickets [Redmine: #168651]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
 		+ @IsCashOutAsUnSettledTicket : 0 - Consider Cash out as Settled ticket, need settled permission in order to void
 										1 - Consider Cash out as un-settled ticket, no need settled permission
 										
-
+		+ @IsCheckForTVS: 0 - Special Delete, 1 - TVS ( show different message)
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -258,9 +260,14 @@ BEGIN
 			AND @IsHostVoidInstantlySettledTickets = 0
 			)
 	BEGIN
-		SELECT @ErrCode = 1
-			,@ErrMsg = 'WARNING! Insufficient permission to void! You are about to back the page and try a new search.'
-
+		IF @IsCheckForTVS = 0 --Special delete
+		BEGIN
+			SELECT @ErrCode = 1 ,@ErrMsg = 'WARNING! Insufficient permission to void! You are about to back the page and try a new search.'
+		END
+		ELSE --TVS
+		BEGIN
+			SELECT @ErrCode = 1 ,@ErrMsg = 'This request will not be voided because you do not have permission to void instantly settled or settled ticket.'
+		END
 		RETURN
 	END
 

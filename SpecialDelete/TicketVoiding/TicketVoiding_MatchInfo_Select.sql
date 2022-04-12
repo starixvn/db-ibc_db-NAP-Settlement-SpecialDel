@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 (
 	@EventDate		DATETIME		= NULL
 	,@Sporttype		SMALLINT		= NULL	
@@ -7,6 +7,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_MatchInfo_Select]
 	,@TransIds		VARCHAR(MAX)	= NULL
 	,@IsUpdRequest	BIT 			= 0
 	,@ActionId		TINYINT 		= 0
+	,@ErrorCode		INT				= 0		OUTPUT
+	,@ErrorMsg		NVARCHAR(200)	= ''	OUTPUT
 )
 AS
 /*	Created by: Kathy
@@ -22,6 +24,7 @@ AS
 		- 20200921@Charles: TVS - HotFix - Edit request [#142009]
 		- 20210201@Zane: TVS - Danger Accept/Red Card Enhancement [#146330]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 
 	Param's explanation:		
 */
@@ -67,14 +70,29 @@ BEGIN
 	END	
 	ELSE IF @MatchId IS NOT NULL
 	BEGIN
-		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
+		CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, eventdate DATETIME)
+		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate
 					FROM	dbo.match m WITH(NOLOCK)
-					WHERE	m.eventdate = @EventDate
-							AND m.sporttype = @Sporttype
+					WHERE	m.sporttype = @Sporttype
 							AND m.matchid = @MatchId
 									'
-		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT'' , @Sporttype, @EventDate, @MatchId '
-		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @EventDate DATETIME, @MatchId INT ', @query, @Sporttype, @EventDate, @MatchId	
+		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @MatchId INT'' , @Sporttype, @MatchId '
+
+		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate)
+		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @MatchId INT ', @query, @Sporttype, @MatchId	
+		
+		SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate
+		FROM #MatchInfo
+
+		IF NOT EXISTS (SELECT TOP 1 1 FROM #MatchInfo) AND @IsUpdRequest = 0
+		BEGIN
+			SELECT @ErrorCode = 1, @ErrorMsg = 'Invalid MatchID.'
+		END
+		ELSE IF EXISTS (SELECT TOP 1 1 FROM #MatchInfo WHERE eventdate <> @EventDate) AND @IsUpdRequest = 0
+		BEGIN
+			SELECT @ErrorCode = 1, @ErrorMsg = 'Wrong Event Date.'
+		END
+		DROP TABLE #MatchInfo
 	END
 END
 GO
