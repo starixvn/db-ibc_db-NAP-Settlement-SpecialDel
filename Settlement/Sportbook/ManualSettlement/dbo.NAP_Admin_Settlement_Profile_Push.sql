@@ -196,8 +196,9 @@ BEGIN
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
 			@MatchIds =  @MatchId 
-			,@ErrCode = @ErrCode
-			,@ErrMsg = @ErrMsg
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
 		IF @ErrCode <> 0
 		BEGIN
 			SELECT @ErrCode
