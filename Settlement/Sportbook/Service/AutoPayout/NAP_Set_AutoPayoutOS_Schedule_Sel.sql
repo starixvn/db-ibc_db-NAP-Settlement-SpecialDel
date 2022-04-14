@@ -86,7 +86,6 @@ BEGIN
 					ON m.matchid = r.MatchId				
 			WHERE m.sporttype = @Sporttype
 				AND ISNULL(m.AutoSetting,0) & 17 = 1 ----Turn on bit[1] and turn off bit[5]
-				AND ( ISNULL(m.ChildMatchType, 0 ) = 0 OR  ISNULL(m.ChildMatchType, 0 ) = 100 ) --exclude child match, allow hedge match
 				AND m.eventstatus = 'running'
 				AND ISNULL(l.IsDeleted,0) = 0
 				AND ISNULL(m.IsDeleted,0) = 0
