@@ -32,6 +32,7 @@ BEGIN
 
 	CREATE TABLE #tmpSite (SiteId INT, SiteName NVARCHAR(50))
 	CREATE TABLE #tmpABWhiteList (CustId INT, Username VARCHAR(30), [Level] TINYINT,  [Site] NVARCHAR(50), AddedDate DATETIME, AddedBy VARCHAR(30), SubType VARCHAR(100), VoidVIP SMALLINT)
+	CREATE TABLE #tmpABWhiteList_Result (CustId INT, Username VARCHAR(30), [Level] TINYINT,  [Site] NVARCHAR(50), AddedDate DATETIME, AddedBy VARCHAR(30), SubTypeName VARCHAR(1000), VoidVIP SMALLINT)
 
 	INSERT INTO #tmpSite (SiteId, SiteName)
 	SELECT e.siteid, e.site
@@ -84,25 +85,39 @@ BEGIN
 		AND (a.LevelId = @roleid OR @roleid = 0)
 	ORDER BY a.CreatedDate DESC, c.username ASC
 
+	INSERT INTO #tmpABWhiteList_Result (CustId, Username, [Level], [Site], AddedDate, AddedBy, SubTypeName, VoidVIP)
 	SELECT ab.CustId
 		  ,ab.Username
 		  ,ab.[Level]
 		  ,ab.[Site]
 		  ,ab.AddedDate
 		  ,ab.AddedBy
-		  ,f.SubTypeName
+		  ,CASE WHEN f.SubTypeName IS NULL THEN '(Blank)' ELSE f.SubTypeName END AS SubTypeName
 		  ,ab.VoidVIP
 	FROM #tmpABWhiteList ab
 		OUTER APPLY (
-				SELECT DISTINCT value AS SubType
+				SELECT value AS SubType
 				FROM STRING_SPLIT(ab.SubType, ',')
 			)xSub
-		INNER JOIN dbo.f_TVS_CheckingSubTypeAllowVoiding() f ON f.SubType = xSub.SubType
+		OUTER APPLY (
+				SELECT f.SubTypeName 
+				FROM dbo.f_TVS_CheckingSubTypeAllowVoiding() f
+				WHERE f.SubTypeId = xSub.SubType 
+			)f	 
 	WHERE ab.VoidVIP IN (SELECT isvip FROM @tmpVoidVIP)
 		AND xSub.SubType IN (SELECT SubtypeId FROM @tmpSubtype)
 
+	SELECT DISTINCT CustId, Username, [Level], [Site], AddedDate, AddedBy, STUFF(t2.SubTypeName,1,1,''), VoidVIP 
+	FROM #tmpABWhiteList_Result t1
+		CROSS APPLY (SELECT ', ' + CAST(SubTypeName AS VARCHAR(100))  
+					FROM #tmpABWhiteList_Result t2
+					WHERE t1.custid = t2.custid
+					FOR XML PATH('')
+				)t2(SubTypeName)	
+
 	DROP TABLE #tmpSite
 	DROP TABLE #tmpABWhiteList
+	DROP TABLE #tmpABWhiteList_Result
 
 	SET NOCOUNT OFF
 END
