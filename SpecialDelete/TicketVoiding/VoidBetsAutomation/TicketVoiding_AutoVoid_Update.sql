@@ -49,6 +49,7 @@ AS
 		- 20211110@Max: TVS - HotFix - Void Abnormal Acc - ErrMsg when void all multi match [Redmine: #164475]
 		- 20211122@Max: Hot fix - TVS insert CustLimitBetQueue when void CO ticket [Redmine: #164966]
 		- 20211213@July: Implement New Cash Out Model [Redmine: #165097]
+		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 
 	Param's explanation:	
 		
@@ -188,8 +189,6 @@ BEGIN
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
 	DECLARE @ProblemAccount_tmp AS TABLE (CustID INT)
 	
-	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
-	
 	CREATE TABLE #Transid_mark_void (transid BIGINT,isFinish BIT )
 	CREATE TABLE #Transid_mark_tmp (transid BIGINT, statuswinlost TINYINT)
 	
@@ -232,15 +231,6 @@ BEGIN
 	FROM dbo.match m WITH (NOLOCK)
 		INNER JOIN dbo.league l WITH (NOLOCK) ON m.leagueid = l.leagueid
 	WHERE matchid = @MatchId		
-	
-	--get list VIP Account
-	SELECT  @query = N''		
-	SELECT	@query = @query + N'SELECT Custid 
-								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
-								'
-	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-	INSERT INTO @VIPAccount_tmp(CustID)
-	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
 	IF @RequestID > 0
 	BEGIN
@@ -372,16 +362,12 @@ BEGIN
 	SELECT t.TransId, t.RequestID, t.IssueTypeId, t.DecidedBy, b.winlostdate, statusID
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-		OUTER APPLY (SELECT TOP (1) ac.CustID 
-					 FROM @VIPAccount_tmp ac 
-					 WHERE  ac.CustID = b.custid
-					 ) AS vip
 	WHERE 1 = CASE
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 1 -- Void Instant for Abnormal Account, void account VIP
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 1 --Auto void winning request, void VIP + normal member
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7,8) THEN 1 --Auto void Instant & 5m &10m & NoPolicy, void VIP + normal member
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId <> 13 AND t.RequestType = 1 AND vip.CustID IS NULL THEN 1 -- Void Instant Request
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND vip.CustID IS NULL THEN 1 -- Auto void winning request
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId <> 13 AND t.RequestType = 1 THEN 1 -- Void Instant Request
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.RequestType <> 1 AND b.statuswinlost IN (1,2) THEN 1 -- Auto void winning request
 			ELSE 0 END
 		
 	SET @Void_cnt = @Void_cnt + @@ROWCOUNT
@@ -398,16 +384,12 @@ BEGIN
 		
 		) AS t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-		OUTER APPLY  (SELECT TOP (1) ac.CustID 
-					 FROM @VIPAccount_tmp ac 
-					 WHERE  ac.CustID = b.custid
-					 ) AS vip
 	WHERE 1 = CASE 
 				WHEN t.IssueTypeId = 13 AND t.RequestType = 1 THEN 0
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 0
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7,8) THEN 0 
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
+				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 			  ELSE 0 END
 				
 	SET @Recalculate_cnt = @@ROWCOUNT

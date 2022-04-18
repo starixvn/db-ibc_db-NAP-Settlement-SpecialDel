@@ -6,6 +6,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@RequestId INT = 0
 	,@ActionId	TINYINT	= 0
 	,@FilterBy	TINYINT	= NULL
+	,@SubIssueTypeId TINYINT	= NULL
+	,@IssueTypeId	TINYINT	= NULL
 )
 AS
 /*  
@@ -44,6 +46,7 @@ AS
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20220119@July: Fix issue - Mix Parlay Error Cannot insert duplicate key [Redmine: #167724]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
