@@ -52,7 +52,7 @@ BEGIN
 		LEFT JOIN dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK) ON ci.custid = a.Custid
 	WHERE a.custid IS NULL
 
-	INSERT INTO dbo.TicketVoiding_ABWhiteList (Custid, LevelId, SiteId, CreateBy, LastModifiedBy, SubType, VoidVIP)
+	INSERT INTO dbo.TicketVoiding_ABWhiteList (Custid, LevelId, SiteId, CreateBy, LastModifiedBy, AllowVoidSubType, IsAllowVoidVip)
 	SELECT i.custid, i.roleid, s.siteid, @UserId, @UserId, @SubTypes, @VoidVIP
 	FROM #tmpInputUsernameList i
 		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON i.site = s.site
@@ -64,7 +64,7 @@ BEGIN
 							,@IP AS '@IP'						
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
 							+ ', @UserNames: ' + CAST(@UserNames AS NVARCHAR(MAX))
-							+ ', @SubType: ' + CAST(@SubTypes AS VARCHAR(100))
+							+ ', @SubTypes: ' + CAST(@SubTypes AS VARCHAR(100))
 							+ ', @VoidVIP: ' + CAST(@VoidVIP AS VARCHAR(10))
 							AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE

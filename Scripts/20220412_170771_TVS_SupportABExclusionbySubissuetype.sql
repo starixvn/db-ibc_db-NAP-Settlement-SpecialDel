@@ -11,5 +11,5 @@
 */
 
 ALTER TABLE dbo.TicketVoiding_ABWhiteList
-ADD SubType				VARCHAR(100),
-	VoidVIP				BIT DEFAULT(0)
+ADD AllowVoidSubType 	VARCHAR(100),
+	IsAllowVoidVip		BIT DEFAULT(0)

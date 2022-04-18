@@ -17,7 +17,7 @@ BEGIN
 	UNION ALL SELECT 2,'Group Betting'
 	UNION ALL SELECT 3,'Hedging'
 	UNION ALL SELECT 4,'Arbitrage'
-	UNION ALL SELECT 5,'Arbitrage'
+	UNION ALL SELECT 5,'Fixed Game'
 	UNION ALL SELECT 6,'AB Bet'
 	UNION ALL SELECT 7,'Robot Betting'
 	UNION ALL SELECT 8,'Irrigation Bet'
