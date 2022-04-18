@@ -201,8 +201,8 @@ BEGIN
 
 		IF @ErrCode <> 0
 		BEGIN
-			SELECT @ErrCode
-					,@ErrMsg
+			SELECT @ErrCode = @ErrCode
+				  ,@ErrMsg  = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
 
 			RETURN
 		END
