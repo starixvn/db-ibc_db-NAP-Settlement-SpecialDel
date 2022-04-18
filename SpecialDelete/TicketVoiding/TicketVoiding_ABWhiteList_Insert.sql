@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Insert]
+ALTER PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Insert]
 (
 	  @UserNames			NVARCHAR(MAX) = ''
-	 ,@SubTypes				VARCHAR(100)  = '0' --Blank
+	 ,@SubTypes				VARCHAR(100)  = NULL
 	 ,@VoidVIP				BIT			  = 0
 	 ,@UserId				INT
 	 ,@IP					VARCHAR(50) = NULL

@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Select]
 (
 	 @UserName			VARCHAR(30) = NULL
 	,@Level				VARCHAR(5)
@@ -22,7 +22,7 @@ AS
 	Param's Explanation:
 		+ @Level: All - 0, Super - 4, Master - 3, Agent - 2, Member - 1
 		+ @VoidVIP: 1 - Yes, 0 - No, -1 - N/A (apply for Credit sites)
-		+ @SubTypes: All - 0,1,2,3,..., 0 - (Blank), 1 - Abnormal, 2 - Group Betting, 3...
+		+ @SubTypes: All - 1,2,3,..., 1 - Abnormal, 2 - Group Betting, 3...: NULL - (Blank)
 */
 BEGIN
 	SET NOCOUNT ON
@@ -48,7 +48,7 @@ BEGIN
 	DECLARE @tmpSubtype TABLE (SubtypeId TINYINT)
 	INSERT INTO @tmpSubtype (SubtypeId)
 	SELECT value AS SubtypeId
-	FROM STRING_SPLIT(@SubTypes, ',') 
+	FROM STRING_SPLIT(ISNULL(@SubTypes,0), ',') 
 
 	IF @UserName IS NOT NULL
 	BEGIN
@@ -73,7 +73,7 @@ BEGIN
 		 , u.username AS AddedBy
 		 , a.SubType
 		 , CASE WHEN dep.custid IS NOT NULL AND a.VoidVIP = 1 THEN  1 --Yes
-				WHEN dep.custid IS NOT NULL AND a.VoidVIP = 0 THEN  0 --No
+				WHEN dep.custid IS NOT NULL AND ISNULL(a.VoidVIP,0) = 0 THEN  0 --No
 				ELSE -1 --N/A
 			END AS VoidVIP
 	FROM dbo.TicketVoiding_ABWhiteList a WITH(NOLOCK)
@@ -92,22 +92,22 @@ BEGIN
 		  ,ab.[Site]
 		  ,ab.AddedDate
 		  ,ab.AddedBy
-		  ,CASE WHEN f.SubTypeName IS NULL THEN '(Blank)' ELSE f.SubTypeName END AS SubTypeName
+		  ,CASE WHEN f.SubTypeName IS NULL THEN '' ELSE f.SubTypeName END AS SubTypeName
 		  ,ab.VoidVIP
 	FROM #tmpABWhiteList ab
+		INNER JOIN @tmpVoidVIP vip ON ab.VoidVIP = vip.isvip
 		OUTER APPLY (
 				SELECT value AS SubType
-				FROM STRING_SPLIT(ab.SubType, ',')
+				FROM STRING_SPLIT(ISNULL(ab.SubType,0), ',')
 			)xSub
+		INNER JOIN @tmpSubtype s ON xSub.SubType = s.SubtypeId
 		OUTER APPLY (
 				SELECT f.SubTypeName 
 				FROM dbo.f_TVS_CheckingSubTypeAllowVoiding() f
 				WHERE f.SubTypeId = xSub.SubType 
 			)f	 
-	WHERE ab.VoidVIP IN (SELECT isvip FROM @tmpVoidVIP)
-		AND xSub.SubType IN (SELECT SubtypeId FROM @tmpSubtype)
 
-	SELECT DISTINCT CustId, Username, [Level], [Site], AddedDate, AddedBy, STUFF(t2.SubTypeName,1,1,''), VoidVIP 
+	SELECT DISTINCT CustId, Username, [Level], [Site], AddedDate, AddedBy, STUFF(t2.SubTypeName,1,1,'') AS SubTypeName, VoidVIP 
 	FROM #tmpABWhiteList_Result t1
 		CROSS APPLY (SELECT ', ' + CAST(SubTypeName AS VARCHAR(100))  
 					FROM #tmpABWhiteList_Result t2
