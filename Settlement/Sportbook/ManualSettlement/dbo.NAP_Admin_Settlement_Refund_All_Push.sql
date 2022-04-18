@@ -55,6 +55,7 @@ AS
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
+		- 20220415@July: Sporttype = 1 return message [Redmine:#171579]
 
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -110,11 +111,19 @@ BEGIN
 			
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
-
+	
     IF @@ROWCOUNT = 0
     BEGIN
         SELECT	@ErrCode = 1001001
 				,@ErrMsg    = 'Match does not exist!'
+
+        RETURN
+    END
+
+	IF @sporttype = 1
+	BEGIN
+        SELECT	@ErrCode = 1001001
+				,@ErrMsg = 'This URL does not support to REFUND for Soccer. PLEASE DO NOT use this URL anymore.'
 
         RETURN
     END
