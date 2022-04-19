@@ -18,7 +18,7 @@ AS
 		- 20191129@Helen: Not settle on db054 [Redmine:#123963]
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
-		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		
 	Param's Explanation:
 

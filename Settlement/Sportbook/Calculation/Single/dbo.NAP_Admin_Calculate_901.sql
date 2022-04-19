@@ -22,7 +22,7 @@
 			- 20190315@Kathy: Add 2 new servers DB061, DB062 [Redmine:#110276]
 			- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 			- 20200825@Kathy: Migrate DB06 to cluster [Redmine:#140045]
-			- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
+			- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 			
 		Parameter's Explantion:
 	*/

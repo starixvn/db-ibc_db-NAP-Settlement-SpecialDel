@@ -16,7 +16,7 @@ AS
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211208@Louisa: Add ServerAlias DBTP10C [Redmine:#164060]
-		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 */
 BEGIN
 	SET NOCOUNT ON

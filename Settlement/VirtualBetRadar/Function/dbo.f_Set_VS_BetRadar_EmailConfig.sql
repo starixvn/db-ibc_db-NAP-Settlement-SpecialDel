@@ -16,7 +16,7 @@ AS
 		- 20200108@Max: Refund/resettle Betradar VS: Remove email address - [Redmine: #126807]
 		- 20200513@EricFu: remove jason.ni@onelab.tw,angela.chan@onelab.tw, add aaron.wang@onelab.tw,yikhun.chiu@onelab.tw,sobi.chen@onelab.tw
 		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
-		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		
 	Columns Explanation:    
     

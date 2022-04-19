@@ -11,7 +11,7 @@ AS
     Revisions:
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20211005@Kathy: Change email on Prod [Redmine:#159714]
-		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		
 	Columns Explanation:    
     

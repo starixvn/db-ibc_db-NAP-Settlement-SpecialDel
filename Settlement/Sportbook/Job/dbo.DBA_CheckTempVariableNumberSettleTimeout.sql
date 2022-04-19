@@ -16,7 +16,7 @@ AS
 		- 20191023@Patrick: Reduce interval time for checking temp variable number to 5 mins [Redmine: #122590]
 		- 20201022@Patrick: Change email to starixvn [Redmine: #143607]
 		- 20210824@Kathy: Check refno of parlay long running [Redmine:#154737]
-		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 */
 BEGIN
 	SET NOCOUNT ON;
