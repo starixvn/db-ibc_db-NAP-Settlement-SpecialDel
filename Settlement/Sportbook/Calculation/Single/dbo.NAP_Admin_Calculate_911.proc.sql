@@ -20,7 +20,6 @@ AS
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
-		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		
 	Parameter's Explanation:
 		- @Action: CAL, Refund
@@ -213,7 +212,6 @@ BEGIN
 		--RECOVER BetTradeSellingCancelled
 		IF @@SERVERNAME IN ('DB230' -- local dev
 			,'DB206' -- local test
-			,'TESTDBTRANS' --new local test 2019
 			,'SITDBTRANS', 'SITDBBAL','SITDBAWS' -- SIT
 			,'DBBAL' -- cloud
 			,'DBTRANS','DBTP','DB061', 'DB062' -- prod
@@ -257,7 +255,6 @@ BEGIN
 		--REFUND CashOut transaction
 		IF @@SERVERNAME IN ('DB230' -- local dev
 			,'DB206' -- local test
-			,'TESTDBTRANS' --new local test 2019
 			,'SITDBTRANS', 'SITDBBAL','SITDBAWS' -- SIT
 			,'DBBAL' -- cloud
 			,'DBTRANS','DBTP','DB061', 'DB062' -- prod
