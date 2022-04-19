@@ -89,6 +89,7 @@ BEGIN
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
 	DECLARE @tblRemoveTickets AS TABLE (TransId BIGINT)
+	DECLARE @CustId_tmp AS TABLE (CustID INT)
 				
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -160,6 +161,8 @@ BEGIN
 		,IsNonLive BIT
 		,IsDifferentScore BIT
 		)
+	CREATE TABLE #ABWhiteListCustIds (custid INT, AllowVoidSubType VARCHAR(200), IsAllowVoidVip BIT)
+	CREATE TABLE #ABWhiteListCustIds_AllowVoid (custid INT)
 	
 	IF (@TransIds IS NULL
 		OR LEN(@TransIds) = 0
@@ -291,19 +294,32 @@ BEGIN
 									FOR XML PATH('')
 							), 1, 1, ''), '')
 
+	
 	-- get ABWhiteList transid
-	INSERT #ABWhiteListTransIds (transid)
-	SELECT t.transid
+	INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
+	SELECT DISTINCT t.custId, fsub.SubIssueTypeId, ab.IsAllowVoidVip 
 	FROM #validTransId t
 		CROSS APPLY (
-				SELECT TOP(1) 1 CustId
-				FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)
+				SELECT CustId
+					, a.AllowVoidSubType
+					, ISNULL(a.IsAllowVoidVip, 0) AS IsAllowVoidVip
+				FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
 				WHERE t.custId = a.Custid
-					OR t.recommend = a.Custid
-					OR t.mrecommend = a.Custid
-					OR t.srecommend = a.Custid
+						OR t.recommend = a.Custid
+						OR t.mrecommend = a.Custid
+						OR t.srecommend = a.Custid
 		)ab
-
+		OUTER APPLY (
+					SELECT DISTINCT value
+					FROM STRING_SPLIT(ab.AllowVoidSubType, ',')
+					WHERE value <> ''
+			)f
+		OUTER APPLY (
+				SELECT CASE WHEN @IssueTypeId = 11 THEN fs.SubTypeId_AbnormalBet ELSE fs.SubTypeId_ABRealMember END AS SubIssueTypeId
+				FROM f_TVS_CheckingSubTypeAllowVoiding() fs
+				WHERE fs.SubTypeId = f.value							
+		)fsub
+	
 	--final valid transid
 	DELETE t
 	FROM #validTransId t
@@ -434,6 +450,46 @@ BEGIN
 					), 1, 1, ''), '')
 
 		--Check AB White List
+		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
+		SELECT t.custid
+		FROM 
+		(
+			SELECT f.custid
+			FROM #ABWhiteListCustIds f
+			WHERE f.AllowVoidSubType = @SubIssueTypeId
+		)t
+		OUTER APPLY (
+				SELECT TOP(1) s.IsAllowVoidVip
+				FROM #ABWhiteListCustIds s
+				WHERE s.custid = t.custid AND s.IsAllowVoidVip = 1
+			)s
+		LEFT JOIN @VIPAccount_tmp v ON v.CustID = t.custid
+		WHERE 1 = CASE WHEN v.CustID IS NULL THEN 1
+						WHEN v.CustID IS NOT NULL AND s.IsAllowVoidVip > 0 THEN 1
+					ELSE 0 END
+
+		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
+		BEGIN
+			DELETE t1
+			FROM #ABWhiteListCustIds t1
+				INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
+
+			INSERT INTO @CustId_tmp (CustID)
+			SELECT DISTINCT t1.custid
+			FROM #ABWhiteListCustIds t1
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @CustId_tmp (CustID)
+			SELECT DISTINCT t1.custid
+			FROM #ABWhiteListCustIds t1
+		END
+
+		INSERT INTO #ABWhiteListTransIds (transid)
+		SELECT t.transid
+		FROM #validTransId t
+			INNER JOIN @CustId_tmp c ON c.CustID = t.custId
+
 		SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #ABWhiteListTransIds t
 									FOR XML PATH('')
@@ -569,4 +625,6 @@ BEGIN
 	DROP TABLE #LiveTransIds
 	DROP TABLE #ABWhiteListTransIds
 	DROP TABLE #transidremove_tmp
+	DROP TABLE #ABWhiteListCustIds
+	DROP TABLE #ABWhiteListCustIds_AllowVoid
 END
