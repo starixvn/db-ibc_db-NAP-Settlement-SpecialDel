@@ -11,6 +11,7 @@ AS
 		- 20211007@Tina: fixed locking issue - [Redmine: #158073]
 		- 20211012@Max: Delete bonus for CustLimitBetQueue - [Redmine: #158073]
 		- 20211112@Max: MPO Phase 2 - Clean up data for Parlay [Redmine: #159626]
+		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 	
 	Param's explanation:	
 		
@@ -18,11 +19,12 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Matchid INT, @eventtypeID TINYINT
+	DECLARE @Matchid INT, @eventtypeID TINYINT, @QueueId BIGINT
 
 	CREATE TABLE #match_tmp (ID INT IDENTITY(1,1),MatchId INT, EventTypeID TINYINT)
 	CREATE TABLE #match_archive (MatchId INT,  EventTypeID TINYINT)
 	CREATE TABLE #tmp_QueueID (QueueID BIGINT PRIMARY KEY)
+	CREATE TABLE #tmp_QueueRetry (ID INT IDENTITY(1,1), QueueId BIGINT)
 
 	------------declare temporary table for phase 2 ---------------
 	CREATE TABLE #tmp_TransId_pre_mbc (Transid BIGINT PRIMARY KEY, custid INT)
@@ -128,6 +130,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(1000) q
+				OUTPUT DELETED.QueueID INTO #tmp_QueueRetry (QueueId)
 			FROM dbo.CustLimitBetQueue q
 			WHERE matchid = @Matchid and eventtypeid = @eventtypeID
 			
@@ -141,7 +144,7 @@ BEGIN
 	INSERT INTO #tmp_QueueID (QueueID)
 	SELECT q.QueueID
 	FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
-	WHERE 1= CASE WHEN q.Statusid = 1 AND q.ErrMsg <> '' AND q.ExecTime <= @Archive_Date THEN 1
+	WHERE 1= CASE WHEN q.Matchid <> 29 AND q.EventTypeID IS NULL AND q.ExecTime <= @Archive_Date THEN 1
 				WHEN q.Matchid = 29 AND DATEDIFF(DAY, q.CreatedDate, GETDATE()) >= 10 THEN 1 --Phase 2 delete for Parlay
 			ELSE 0 END
 
@@ -157,6 +160,9 @@ BEGIN
 
 			IF @@ROWCOUNT = 0 
 				BREAK
+
+			INSERT INTO #tmp_QueueRetry (QueueId)
+			SELECT QueueID FROM @tmp_batch
 
 			DELETE q
 			FROM dbo.CustLimitBetQueue q
@@ -239,6 +245,29 @@ BEGIN
     
 	END
 
+	--CustLimitBet_QueueRetry
+	SET @end = (SELECT MAX(ID) FROM #tmp_QueueRetry)
+	SET @start = 1
+
+	WHILE (@start <= @end)
+	BEGIN
+		
+		SELECT @QueueId = QueueId
+		FROM #tmp_QueueRetry
+		WHERE ID = @start
+
+		WHILE (1=1)
+		BEGIN
+			DELETE TOP(1000) q
+			FROM dbo.CustLimitBet_QueueRetry q
+			WHERE q.MainQueueId = @QueueId
+			
+			IF @@ROWCOUNT = 0 BREAK
+		END	
+		
+		SET @start = @start + 1
+	END
+
 	DROP TABLE #match_tmp 
 	DROP TABLE #match_archive 
 	DROP TABLE #tmp_QueueID
@@ -247,6 +276,7 @@ BEGIN
 	DROP TABLE #tmp_TransId_Parlay_mbc
 	DROP TABLE #tmp_TransId_pre_789
 	DROP TABLE #tmp_TransId_pre_mbc
+	DROP TABLE #tmp_QueueRetry
 END
 GO
 	
