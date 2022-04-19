@@ -65,7 +65,7 @@ BEGIN
 	END
 
 	INSERT INTO #tmpABWhiteList (CustId, Username, [Level], [Site], AddedDate, AddedBy, AllowVoidSubType, IsAllowVoidVip)
-	SELECT a.Custid
+	SELECT DISTINCT a.Custid
 		 , c.username AS Username
 		 , a.LevelId AS [Level]
 		 , s.SiteName AS [Site]
@@ -81,9 +81,13 @@ BEGIN
 		INNER JOIN #tmpSite s ON s.SiteId = a.SiteId
 		INNER JOIN CustDB.dbo.Customer u WITH(NOLOCK) ON u.custid = a.CreateBy
 		LEFT JOIN CustDB.dbo.Dep_CustSuper dep WITH(NOLOCK) ON c.srecommend = dep.custid
+		CROSS APPLY (
+				SELECT value AS SubType
+				FROM STRING_SPLIT(ISNULL(a.AllowVoidSubType,0), ',') 
+			)xSub
 	WHERE (c.UserName = @UserName OR ISNULL(@UserName,'') = '')
 		AND (a.LevelId = @roleid OR @roleid = 0)
-	ORDER BY a.CreatedDate DESC, c.username ASC
+		AND xSub.SubType IN (SELECT SubtypeId FROM @tmpSubtype)
 
 	INSERT INTO #tmpABWhiteList_Result (CustId, Username, [Level], [Site], AddedDate, AddedBy, SubTypeName, IsAllowVoidVip)
 	SELECT ab.CustId
@@ -96,11 +100,10 @@ BEGIN
 		  ,ab.IsAllowVoidVip
 	FROM #tmpABWhiteList ab
 		INNER JOIN @tmpVoidVIP vip ON ab.IsAllowVoidVip = vip.isvip
-		OUTER APPLY (
+		CROSS APPLY (
 				SELECT value AS SubType
 				FROM STRING_SPLIT(ISNULL(ab.AllowVoidSubType,0), ',')
 			)xSub
-		INNER JOIN @tmpSubtype s ON xSub.SubType = s.SubtypeId
 		OUTER APPLY (
 				SELECT f.SubTypeName 
 				FROM dbo.f_TVS_CheckingSubTypeAllowVoiding() f
@@ -114,6 +117,7 @@ BEGIN
 					WHERE t1.custid = t2.custid
 					FOR XML PATH('')
 				)t2(SubTypeName)	
+	ORDER BY t1.AddedDate DESC, t1.Username ASC
 
 	DROP TABLE #tmpSite
 	DROP TABLE #tmpABWhiteList
