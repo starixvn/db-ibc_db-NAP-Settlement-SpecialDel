@@ -89,7 +89,7 @@ BEGIN
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
 	DECLARE @tblRemoveTickets AS TABLE (TransId BIGINT)
-	DECLARE @CustId_tmp AS TABLE (CustID INT)
+	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 				
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -295,30 +295,20 @@ BEGIN
 							), 1, 1, ''), '')
 
 	
-	-- get ABWhiteList transid
+	-- get ABWhiteList Cust
+	INSERT INTO @CustId_tmp (CustID, recommend, mrecommend, srecommend)
+	SELECT DISTINCT v.custId, v.recommend, v.mrecommend, v.srecommend
+	FROM #validTransId v
+	
 	INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
-	SELECT DISTINCT t.custId, fsub.SubIssueTypeId, ab.IsAllowVoidVip 
-	FROM #validTransId t
+	SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
+	FROM @CustId_tmp t
 		CROSS APPLY (
-				SELECT CustId
-					, a.AllowVoidSubType
-					, ISNULL(a.IsAllowVoidVip, 0) AS IsAllowVoidVip
-				FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
-				WHERE t.custId = a.Custid
-						OR t.recommend = a.Custid
-						OR t.mrecommend = a.Custid
-						OR t.srecommend = a.Custid
-		)ab
-		OUTER APPLY (
-					SELECT DISTINCT value
-					FROM STRING_SPLIT(ab.AllowVoidSubType, ',')
-					WHERE value <> ''
-			)f
-		OUTER APPLY (
-				SELECT CASE WHEN @IssueTypeId = 11 THEN fs.SubTypeId_AbnormalBet ELSE fs.SubTypeId_ABRealMember END AS SubIssueTypeId
-				FROM f_TVS_CheckingSubTypeAllowVoiding() fs
-				WHERE fs.SubTypeId = f.value							
-		)fsub
+					SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
+					FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
+					WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
+					ORDER BY a.LevelId
+			)ab
 	
 	--final valid transid
 	DELETE t
@@ -449,51 +439,35 @@ BEGIN
 					FOR XML PATH('')
 					), 1, 1, ''), '')
 
-		--Check AB White List
+		--Check AB White List Invalid Transid
 		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
 		SELECT t.custid
-		FROM 
-		(
-			SELECT f.custid
-			FROM #ABWhiteListCustIds f
-			WHERE f.AllowVoidSubType = @SubIssueTypeId
-		)t
-		OUTER APPLY (
-				SELECT TOP(1) s.IsAllowVoidVip
-				FROM #ABWhiteListCustIds s
-				WHERE s.custid = t.custid AND s.IsAllowVoidVip = 1
-			)s
-		LEFT JOIN @VIPAccount_tmp v ON v.CustID = t.custid
-		WHERE 1 = CASE WHEN v.CustID IS NULL THEN 1
-						WHEN v.CustID IS NOT NULL AND s.IsAllowVoidVip > 0 THEN 1
+		FROM #ABWhiteListCustIds t
+			LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
+		WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
+			AND 1 = CASE WHEN v.CustID IS NULL then 1
+						WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
 					ELSE 0 END
-
+		
 		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
 		BEGIN
 			DELETE t1
 			FROM #ABWhiteListCustIds t1
 				INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
-
-			INSERT INTO @CustId_tmp (CustID)
-			SELECT DISTINCT t1.custid
-			FROM #ABWhiteListCustIds t1
 		END
-		ELSE
+
+		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
 		BEGIN
-			INSERT INTO @CustId_tmp (CustID)
-			SELECT DISTINCT t1.custid
-			FROM #ABWhiteListCustIds t1
+			INSERT INTO #ABWhiteListTransIds (transid)
+			SELECT t.transid
+			FROM #validTransId t
+				INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
+
+			SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #ABWhiteListTransIds t
+										FOR XML PATH('')
+								), 1, 1, ''), '')
 		END
-
-		INSERT INTO #ABWhiteListTransIds (transid)
-		SELECT t.transid
-		FROM #validTransId t
-			INNER JOIN @CustId_tmp c ON c.CustID = t.custId
-
-		SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #ABWhiteListTransIds t
-									FOR XML PATH('')
-							), 1, 1, ''), '')
 	END
 	
 	IF @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
