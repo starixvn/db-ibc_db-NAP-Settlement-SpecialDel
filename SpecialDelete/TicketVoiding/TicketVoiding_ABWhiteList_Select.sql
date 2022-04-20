@@ -31,8 +31,7 @@ BEGIN
 	SET @roleid = CAST( @Level AS TINYINT)
 
 	CREATE TABLE #tmpSite (SiteId INT, SiteName NVARCHAR(50))
-	CREATE TABLE #tmpABWhiteList (CustId INT, Username VARCHAR(30), [Level] TINYINT,  [Site] NVARCHAR(50), AddedDate DATETIME, AddedBy VARCHAR(30), AllowVoidSubType VARCHAR(100), IsAllowVoidVip SMALLINT)
-	CREATE TABLE #tmpABWhiteList_Result (CustId INT, Username VARCHAR(30), [Level] TINYINT,  [Site] NVARCHAR(50), AddedDate DATETIME, AddedBy VARCHAR(30), SubTypeName VARCHAR(1000), IsAllowVoidVip SMALLINT)
+	CREATE TABLE #tmpABWhiteList (CustId INT, Username VARCHAR(30), [Level] TINYINT,  [Site] NVARCHAR(50), AddedDate DATETIME, AddedBy VARCHAR(30), AllowVoidSubType VARCHAR(100), SubTypeName VARCHAR(1000), IsAllowVoidVip SMALLINT)
 
 	INSERT INTO #tmpSite (SiteId, SiteName)
 	SELECT e.siteid, e.site
@@ -40,9 +39,9 @@ BEGIN
 		INNER JOIN CustDB.dbo.Site e WITH(NOLOCK)	
 			ON CAST(s.value AS INT) = e.siteid	
 	
-	DECLARE @tmpVoidVIP TABLE (isvip SMALLINT)
-	INSERT INTO @tmpVoidVIP (isvip)
-	SELECT value AS isvip
+	DECLARE @tmpVoidVIP TABLE (VoidVip SMALLINT)
+	INSERT INTO @tmpVoidVIP (VoidVip)
+	SELECT value AS VoidVip
 	FROM STRING_SPLIT(@VoidVIP, ',') 
 
 	DECLARE @tmpSubtype TABLE (SubtypeId TINYINT)
@@ -64,7 +63,7 @@ BEGIN
 		END
 	END
 
-	INSERT INTO #tmpABWhiteList (CustId, Username, [Level], [Site], AddedDate, AddedBy, AllowVoidSubType, IsAllowVoidVip)
+	INSERT INTO #tmpABWhiteList (CustId, Username, [Level], [Site], AddedDate, AddedBy, AllowVoidSubType, SubTypeName, IsAllowVoidVip)
 	SELECT DISTINCT a.Custid
 		 , c.username AS Username
 		 , a.LevelId AS [Level]
@@ -72,48 +71,39 @@ BEGIN
 		 , a.CreatedDate AS AddedDate
 		 , u.username AS AddedBy
 		 , a.AllowVoidSubType
-		 , CASE WHEN dep.custid IS NOT NULL AND a.IsAllowVoidVip = 1 THEN  1 --Yes
-				WHEN dep.custid IS NOT NULL AND ISNULL(a.IsAllowVoidVip,0) = 0 THEN  0 --No
-				ELSE -1 --N/A
-			END AS IsAllowVoidVip
+		 , CASE WHEN su.SubIssueTypeName IS NULL THEN '' ELSE su.SubIssueTypeName END AS SubTypeName
+		 , depvip.IsAllowVoidVip AS IsAllowVoidVip
 	FROM dbo.TicketVoiding_ABWhiteList a WITH(NOLOCK)
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = a.Custid 
 		INNER JOIN #tmpSite s ON s.SiteId = a.SiteId
 		INNER JOIN CustDB.dbo.Customer u WITH(NOLOCK) ON u.custid = a.CreateBy
 		LEFT JOIN CustDB.dbo.Dep_CustSuper dep WITH(NOLOCK) ON c.srecommend = dep.custid
 		CROSS APPLY (
-				SELECT value AS SubType
-				FROM STRING_SPLIT(ISNULL(a.AllowVoidSubType,0), ',') 
-			)xSub
-	WHERE (c.UserName = @UserName OR ISNULL(@UserName,'') = '')
-		AND (a.LevelId = @roleid OR @roleid = 0)
-		AND xSub.SubType IN (SELECT SubtypeId FROM @tmpSubtype)
-
-	INSERT INTO #tmpABWhiteList_Result (CustId, Username, [Level], [Site], AddedDate, AddedBy, SubTypeName, IsAllowVoidVip)
-	SELECT DISTINCT ab.CustId
-		  ,ab.Username
-		  ,ab.[Level]
-		  ,ab.[Site]
-		  ,ab.AddedDate
-		  ,ab.AddedBy
-		  ,CASE WHEN s.SubIssueTypeName IS NULL THEN '' ELSE s.SubIssueTypeName END AS SubTypeName
-		  ,ab.IsAllowVoidVip
-	FROM #tmpABWhiteList ab
-		INNER JOIN @tmpVoidVIP vip ON ab.IsAllowVoidVip = vip.isvip
+			SELECT CASE WHEN dep.custid IS NOT NULL AND a.IsAllowVoidVip = 1 THEN  1
+				        WHEN dep.custid IS NOT NULL AND ISNULL(a.IsAllowVoidVip,0) = 0 THEN  0 
+				  ELSE -1 
+			 END AS IsAllowVoidVip
+		)depvip
 		CROSS APPLY (
-				SELECT value AS SubType
-				FROM STRING_SPLIT(ISNULL(ab.AllowVoidSubType,0), ',')
+				SELECT value AS SubtypeId FROM STRING_SPLIT(ISNULL(a.AllowVoidSubType,0), ',') 
 			)xSub
+		CROSS APPLY (
+				SELECT value AS SubtypeId FROM STRING_SPLIT(ISNULL(a.AllowVoidSubType,0), ',')
+			)xSub1
 		OUTER APPLY (
 				SELECT s.SubIssueTypeName 
 				FROM dbo.TicketVoiding_SubIssueType s WITH(NOLOCK)
-				WHERE s.SubIssueTypeId = xSub.SubType 
-			)s	 
+				WHERE s.SubIssueTypeId = xSub1.SubtypeId 
+			)su
+	WHERE (c.UserName = @UserName OR ISNULL(@UserName,'') = '')
+		AND (a.LevelId = @roleid OR @roleid = 0)
+		AND xSub.SubtypeId IN (SELECT SubtypeId FROM @tmpSubtype)
+		AND depvip.IsAllowVoidVip IN ( SELECT VoidVip FROM @tmpVoidVIP)
 
 	SELECT DISTINCT CustId, Username, [Level], [Site], AddedDate, AddedBy, STUFF(t2.SubTypeName,1,1,'') AS SubTypeName, IsAllowVoidVip 
-	FROM #tmpABWhiteList_Result t1
+	FROM #tmpABWhiteList t1
 		CROSS APPLY (SELECT ', ' + CAST(SubTypeName AS VARCHAR(100))  
-					FROM #tmpABWhiteList_Result t2
+					FROM #tmpABWhiteList t2
 					WHERE t1.custid = t2.custid
 					FOR XML PATH('')
 				)t2(SubTypeName)	
@@ -121,7 +111,6 @@ BEGIN
 
 	DROP TABLE #tmpSite
 	DROP TABLE #tmpABWhiteList
-	DROP TABLE #tmpABWhiteList_Result
 
 	SET NOCOUNT OFF
 END

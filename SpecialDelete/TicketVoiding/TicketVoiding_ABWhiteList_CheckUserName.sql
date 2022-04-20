@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_CheckUserName]
+ALTER PROCEDURE [dbo].[TicketVoiding_ABWhiteList_CheckUserName]
 (
 	  @UserNames	NVARCHAR(MAX) = ''
 )
@@ -52,7 +52,7 @@ BEGIN
 
 	SET @ExistedUserNames = STUFF((SELECT  ',' + Username
 								  FROM #tmpInvalidUserNames
-								  WHERE InValid = 0
+								  WHERE InValid = 2
 								  FOR XML PATH ('')),1,1,'')
 	
 	SELECT @InvalidUserNames AS InvalidUserNames
