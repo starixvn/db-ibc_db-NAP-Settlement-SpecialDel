@@ -22,7 +22,7 @@ AS
 	Param's Explanation:
 		+ @Level: All - 0, Super - 4, Master - 3, Agent - 2, Member - 1
 		+ @VoidVIP: 1 - Yes, 0 - No, -1 - N/A (apply for Credit sites)
-		+ @SubTypes: All - 1,2,3,..., 1 - Abnormal, 2 - Group Betting, 3...: NULL - (Blank)
+		+ @SubTypes: All - 0,27,41,28,42,.... | 0 - (Blank), 27,41 - Abnormal, 28,42 - Group Betting, ...
 */
 BEGIN
 	SET NOCOUNT ON
@@ -90,13 +90,13 @@ BEGIN
 		AND xSub.SubType IN (SELECT SubtypeId FROM @tmpSubtype)
 
 	INSERT INTO #tmpABWhiteList_Result (CustId, Username, [Level], [Site], AddedDate, AddedBy, SubTypeName, IsAllowVoidVip)
-	SELECT ab.CustId
+	SELECT DISTINCT ab.CustId
 		  ,ab.Username
 		  ,ab.[Level]
 		  ,ab.[Site]
 		  ,ab.AddedDate
 		  ,ab.AddedBy
-		  ,CASE WHEN f.SubTypeName IS NULL THEN '' ELSE f.SubTypeName END AS SubTypeName
+		  ,CASE WHEN s.SubIssueTypeName IS NULL THEN '' ELSE s.SubIssueTypeName END AS SubTypeName
 		  ,ab.IsAllowVoidVip
 	FROM #tmpABWhiteList ab
 		INNER JOIN @tmpVoidVIP vip ON ab.IsAllowVoidVip = vip.isvip
@@ -105,10 +105,10 @@ BEGIN
 				FROM STRING_SPLIT(ISNULL(ab.AllowVoidSubType,0), ',')
 			)xSub
 		OUTER APPLY (
-				SELECT f.SubTypeName 
-				FROM dbo.f_TVS_CheckingSubTypeAllowVoiding() f
-				WHERE f.SubTypeId = xSub.SubType 
-			)f	 
+				SELECT s.SubIssueTypeName 
+				FROM dbo.TicketVoiding_SubIssueType s WITH(NOLOCK)
+				WHERE s.SubIssueTypeId = xSub.SubType 
+			)s	 
 
 	SELECT DISTINCT CustId, Username, [Level], [Site], AddedDate, AddedBy, STUFF(t2.SubTypeName,1,1,'') AS SubTypeName, IsAllowVoidVip 
 	FROM #tmpABWhiteList_Result t1
