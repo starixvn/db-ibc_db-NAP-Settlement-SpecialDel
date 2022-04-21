@@ -77,6 +77,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
+		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
 
 	Param's explanation:
 */
@@ -594,7 +595,6 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 --AC
 	BEGIN 
-		-- Get info match belong to username
 		--Get Movebetdate
 		EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 
@@ -603,7 +603,6 @@ BEGIN
 		
 		IF @ToDate IS NULL
 		BEGIN
-	
 			SET @ToDate = @maxdate
 		END
 	
@@ -739,12 +738,15 @@ BEGIN
 				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							ON rs.RequestId = r.RequestId
 				CROSS APPLY (
-							SELECT TOP 1 t.MatchId, t.transid
+							SELECT TOP 1 t.MatchId, t.transid, t.StatusId
 							FROM #transIdTemp t
 							WHERE t.MatchId = rs.MatchId 
 								AND rs.TransId = t.transid
 					)t
 			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+			AND 1 = CASE WHEN r.IssueTypeId IN (11,15) AND t.StatusId NOT IN (111,112,113) THEN 1
+					     WHEN r.IssueTypeId NOT IN (11,15) THEN 1
+					     ELSE 0 END
 
 			DELETE 
 			FROM #transIdTemp
