@@ -85,20 +85,19 @@ BEGIN
 			 END AS IsAllowVoidVip
 		)depvip
 		CROSS APPLY (
-				SELECT value AS SubtypeId FROM STRING_SPLIT(ISNULL(a.AllowVoidSubType,0), ',') 
+				SELECT value AS SubtypeId_Filter
+					  ,value AS SubtypeId_GetName
+				FROM STRING_SPLIT(ISNULL(a.AllowVoidSubType,0), ',') 
 			)xSub
-		CROSS APPLY (
-				SELECT value AS SubtypeId FROM STRING_SPLIT(ISNULL(a.AllowVoidSubType,0), ',')
-			)xSub1
 		OUTER APPLY (
 				SELECT s.SubIssueTypeName 
 				FROM dbo.TicketVoiding_SubIssueType s WITH(NOLOCK)
-				WHERE s.SubIssueTypeId = xSub1.SubtypeId 
+				WHERE s.SubIssueTypeId = xSub.SubtypeId_GetName 
 			)su
 	WHERE (c.UserName = @UserName OR ISNULL(@UserName,'') = '')
 		AND (a.LevelId = @roleid OR @roleid = 0)
-		AND xSub.SubtypeId IN (SELECT SubtypeId FROM @tmpSubtype)
-		AND depvip.IsAllowVoidVip IN ( SELECT VoidVip FROM @tmpVoidVIP)
+		AND xSub.SubtypeId_Filter IN (SELECT SubtypeId FROM @tmpSubtype)
+		AND depvip.IsAllowVoidVip IN (SELECT VoidVip FROM @tmpVoidVIP)
 
 	SELECT DISTINCT CustId, Username, [Level], [Site], AddedDate, AddedBy, STUFF(t2.SubTypeName,1,1,'') AS SubTypeName, IsAllowVoidVip 
 	FROM #tmpABWhiteList t1
