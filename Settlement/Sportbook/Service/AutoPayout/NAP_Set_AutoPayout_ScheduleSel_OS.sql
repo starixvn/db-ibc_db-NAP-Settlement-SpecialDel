@@ -18,10 +18,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tmpMatchAuto TABLE	(	MatchId INT, sporttype SMALLINT, SourceId SMALLINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatus TINYINT, Ranking INT	)
+	DECLARE @tmpMatchAuto TABLE	(	MatchId INT, sporttype SMALLINT, SourceId SMALLINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatus TINYINT, leagueid INT, Ranking INT	)
 
-	INSERT INTO @tmpMatchAuto(	MatchId, sporttype, SourceId, HomeValue, AwayValue, SettlementStatus, Ranking)
-	SELECT r.MatchId, m.sporttype, r.SourceId, r.HomeValue, r.AwayValue, m.SettlementStatus
+	INSERT INTO @tmpMatchAuto(	MatchId, sporttype, SourceId, HomeValue, AwayValue, SettlementStatus, leagueid, Ranking)
+	SELECT r.MatchId, m.sporttype, r.SourceId, r.HomeValue, r.AwayValue, m.SettlementStatus, m.leagueid
 		 , ROW_NUMBER() OVER (PARTITION BY r.MatchId ORDER BY r.CreateDate DESC) AS Ranking
 	FROM dbo.ProviderExternalResultDetail r WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK)
@@ -41,7 +41,7 @@ BEGIN
 		AND ISNULL(l.IsDeleted,0) = 0
 	
 	
-	SELECT tmp.MatchId, tmp.sporttype, tmp.SourceId, 2 AS TypeId, tmp.HomeValue, tmp.AwayValue, tmp.SettlementStatus
+	SELECT tmp.MatchId, tmp.sporttype, tmp.SourceId, 2 AS TypeId, tmp.HomeValue, tmp.AwayValue, tmp.SettlementStatus, tmp.leagueid
 	FROM @tmpMatchAuto tmp
 	WHERE tmp.Ranking = 1
 
