@@ -37,6 +37,7 @@ AS
 			- 20211214@Louisa: Enhancemant Table Tennis [Redmine:#166070]			
 			- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 			- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
+			- 20220309@Louisa: Get latest status in AutoPayoutResult [Redmine:#168346]
       
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -309,9 +310,13 @@ BEGIN
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
 			OUTER APPLY (
-					SELECT TOP 1 matchid, StatusId
-					FROM DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
-					WHERE matchid = m.matchid
+					SELECT r.MatchId, r.StatusId
+						FROM (
+							SELECT ROW_NUMBER() OVER(PARTITION BY ap.matchid ORDER BY ap.CreatedDate DESC) AS rn, ap.MatchId, ap.StatusId
+							FROM DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
+							WHERE ap.matchid = m.matchid
+							) r
+						WHERE r.rn = 1
 				)ap
 			OUTER APPLY (
 					SELECT TOP 1 r.matchid, r.StatusId
@@ -411,9 +416,13 @@ BEGIN
 			LEFT JOIN dbo.match_remark mr WITH(NOLOCK)
 				ON	m.matchid = mr.matchid
 			OUTER APPLY (
-					SELECT TOP 1 matchid, StatusId
-					FROM DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
-					WHERE matchid = m.matchid
+					SELECT r.MatchId, r.StatusId
+					FROM (
+						SELECT ROW_NUMBER() OVER(PARTITION BY ap.matchid ORDER BY ap.CreatedDate DESC) AS rn, ap.MatchId, ap.StatusId
+						FROM DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
+						WHERE ap.matchid = m.matchid
+						) r
+					WHERE r.rn = 1
 				)ap
 			OUTER APPLY (
 					SELECT TOP 1 r.matchid, r.StatusId
