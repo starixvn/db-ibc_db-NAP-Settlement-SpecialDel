@@ -66,6 +66,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220331@Kathy: Wrong display early match incase of no ticket [Redmine:#166072]
 		- 20220404@Louisa: Wrong display early status [Redmine:#171037]
+		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 
       
  Param explanation:  
@@ -376,7 +377,6 @@ BEGIN
 			AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 			AND ISNULL(m.IsDeleted,0) = 0
-			AND ISNULL(l.IsDeleted,0) = 0
 	) tmp
 	LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON tmp.matchid = mr.matchid
 	OUTER APPLY (

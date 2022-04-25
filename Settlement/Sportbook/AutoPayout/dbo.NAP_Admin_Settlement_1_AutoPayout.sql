@@ -42,7 +42,8 @@ AS
 		- 20210326@Louisa: Negative balance [Redmine:#152345]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
-		
+		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+
 	Param's Explanation:
 		 
 */
@@ -170,7 +171,6 @@ BEGIN
 				INNER JOIN dbo.League l WITH(NOLOCK)
 					ON m.leagueid = l.leagueid
 			WHERE m.MatchId = @matchid
-				AND ISNULL(l.IsDeleted,0) = 0
 
 			IF (@sporttype = 1 AND @LeagueGroupID IN (42,74,108) )
 			BEGIN

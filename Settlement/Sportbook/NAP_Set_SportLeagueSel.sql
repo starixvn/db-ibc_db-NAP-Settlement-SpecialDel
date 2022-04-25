@@ -16,7 +16,8 @@ AS
 			- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 			- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
-      
+			- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+
 	 Param explanation:
 			@Page:
 					0 - Query for Multisports Page
@@ -40,7 +41,6 @@ BEGIN
 		AND 1 = CASE WHEN @Page = 1 AND m.sporttype = 50 AND l.LeagueGroupID = 42 THEN 0 --  Saba Virtual Cricket
 				ELSE 1 END
 		AND ISNULL(m.IsDeleted,0) = 0
-		AND ISNULL(l.IsDeleted,0) = 0
 	GROUP BY s.SportType, m.leagueid
 END
 GO

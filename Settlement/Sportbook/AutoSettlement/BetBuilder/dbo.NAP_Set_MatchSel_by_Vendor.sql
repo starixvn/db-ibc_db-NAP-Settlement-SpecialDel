@@ -18,7 +18,8 @@ AS
 		- 20200731@July : Edit SportType&LeagueID. Get Resultdetail for BBD   [Redmine:#138475]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]					
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
-		
+		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+
 	Param's Explanation:	
 		@Status: All, Running, Completed
 				
@@ -120,7 +121,6 @@ BEGIN
 				AND v.vendorId = @VendorID 
 				AND v.Opened = 1
 				AND ISNULL(m.IsDeleted,0) = 0
-				AND ISNULL(l.IsDeleted,0) = 0
 	END
 	ELSE
 	BEGIN
@@ -161,7 +161,6 @@ BEGIN
 				AND v.vendorId = @VendorID 
 				AND v.Opened = 1 
 				AND ISNULL(m.IsDeleted,0) = 0
-				AND ISNULL(l.IsDeleted,0) = 0
 	END
 	
 	--Get match info in queue

@@ -11,6 +11,7 @@ AS
 		- 20211206@Louisa: Enhancemant Table Tennis [Redmine:#165659]
 		- 20220216@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220309@Louisa: Return more info [Redmine:#168346]
+		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 
 	Param's Explanation:
  
@@ -38,7 +39,6 @@ BEGIN
 								WHERE rs.MatchId = m.matchid 
 									AND rs.CalculationType = 2)
 		AND ISNULL(m.IsDeleted,0) = 0
-		AND ISNULL(l.IsDeleted,0) = 0
 	
 	
 	SELECT tmp.MatchId, tmp.sporttype, tmp.SourceId, 2 AS TypeId, tmp.HomeValue, tmp.AwayValue, tmp.SettlementStatus, tmp.leagueid

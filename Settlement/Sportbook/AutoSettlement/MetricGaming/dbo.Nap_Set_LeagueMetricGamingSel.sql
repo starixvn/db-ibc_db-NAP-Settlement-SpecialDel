@@ -10,7 +10,9 @@
 		DB: DBPRO/bodb02
 
 		Revisions:
-		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393]  
+		- 20211108@Louisa: In-house Replicator: Delete Action [Redmine:#164393]
+		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+
 	*/
 BEGIN
 	SET NOCOUNT ON
@@ -25,7 +27,6 @@ BEGIN
 		AND vs.opened = 1-- this match is offered Metric Gaming		
 		AND vs.VendorID = 5
 		AND ISNULL(m.IsDeleted,0) = 0
-		AND ISNULL(l.IsDeleted,0) = 0
 	ORDER BY leaguename
 END
 
