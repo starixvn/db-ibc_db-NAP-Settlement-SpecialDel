@@ -19,6 +19,7 @@ AS
 		- 20211005@Louisa: Enhancement [Redmine:#162624]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220421@Louisa: Fix issue duplicate in MERGE statement [Redmine:#168346]
 
 	Param's explanation:  
 		
@@ -122,9 +123,13 @@ BEGIN
 						GROUP BY r.MatchId
 					
 						UNION ALL
-						SELECT ap.MatchId, ap.StatusId
-						FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
-						WHERE ap.CreatedDate  >= ''' + @CheckDate  +'''
+						SELECT r.MatchId, r.StatusId
+						FROM (
+							SELECT ROW_NUMBER() OVER(PARTITION BY ap.matchid ORDER BY ap.CreatedDate DESC) AS rn, ap.MatchId, ap.StatusId
+							FROM	DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
+							WHERE ap.CreatedDate  >= ''' + @CheckDate  +'''
+							) r
+						WHERE r.rn = 1
 						'
 									
 	INSERT INTO @tmpAutoPayOutResultOS (MatchId, StatusId)

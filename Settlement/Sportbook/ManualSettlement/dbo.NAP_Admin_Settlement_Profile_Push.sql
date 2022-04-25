@@ -38,6 +38,7 @@ AS
 		- 20211120@Helen: Pingoal issue - get match from dbpro [Redmine:#164940]
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 		- 20220224@Kathy: Settle Saba Basketball PinGoal directly [Redmine:#169042]
+		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]				
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -170,7 +171,7 @@ BEGIN
 		RETURN
 	END
 
-	IF (@IsAuto = 1 AND @sporttype = 50 )
+	IF (@IsAuto = 1 AND @sporttype IN ( 6, 50 )	 )
 	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 		  @MatchId 				= @matchid
 		, @SelectedResources 	= @SelectedResources
@@ -195,12 +196,13 @@ BEGIN
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
 			@MatchIds =  @MatchId 
-			,@ErrCode = @ErrCode
-			,@ErrMsg = @ErrMsg
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+
 		IF @ErrCode <> 0
 		BEGIN
-			SELECT @ErrCode
-					,@ErrMsg
+			SELECT @ErrCode = @ErrCode
+				  ,@ErrMsg  = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
 
 			RETURN
 		END

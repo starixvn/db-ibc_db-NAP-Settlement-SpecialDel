@@ -21,6 +21,7 @@ AS
 		- 20211129@Kathy: Extend datatype of table SettlementBettypeResult [Redmine:#165300]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 */
 
 BEGIN
@@ -1466,7 +1467,7 @@ BEGIN
 		FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
 		WHERE	MatchId = @MatchId
-			AND ResultStatusID = 5
+			AND ResultStatusID  IN ( 2, 5 )
 		
 		IF NOT EXISTS ( SELECT TOP 1 1 FROM @tmpResultDetail)
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
