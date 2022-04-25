@@ -64,7 +64,7 @@ BEGIN
 							,@IP AS '@IP'						
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
 							+ ', @UserNames: ' + CAST(@UserNames AS NVARCHAR(MAX))
-							+ ', @SubTypes: ' + CAST(@SubTypes AS VARCHAR(100))
+							+ ', @SubTypes: ' + CASE WHEN @SubTypes IS NULL THEN 'NULL' ELSE CAST(@SubTypes AS VARCHAR(100)) END 
 							+ ', @VoidVIP: ' + CAST(@VoidVIP AS VARCHAR(10))
 							AS '@LogData'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
