@@ -84,10 +84,11 @@ BEGIN
 				SET @rowcountMBC = @@ROWCOUNT
 				IF @rowcountMBC = 0
 				BEGIN
-					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_MBC)
+					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_MBC WHERE TryCount = @TryCount)
 					BEGIN
 						UPDATE t1 SET TryCount = TryCount + 1
 						FROM #CustLimitBet_RetryTransId_MBC t1
+						WHERE TryCount = @TryCount
 					END
 					ELSE
 					BEGIN
@@ -139,10 +140,11 @@ BEGIN
 				SET @rowcount789 = @@ROWCOUNT
 				IF @rowcount789 = 0
 				BEGIN
-					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_789)
+					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_789 WHERE TryCount = @TryCount)
 					BEGIN
 						UPDATE t1 SET TryCount = TryCount + 1
 						FROM #CustLimitBet_RetryTransId_789 t1
+						WHERE TryCount = @TryCount
 					END
 					ELSE
 					BEGIN
@@ -194,10 +196,11 @@ BEGIN
 				SET @rowcountLIC = @@ROWCOUNT
 				IF @rowcountLIC = 0
 				BEGIN
-					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_LIC)
+					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_LIC WHERE TryCount = @TryCount)
 					BEGIN
 						UPDATE t1 SET TryCount = TryCount + 1
 						FROM #CustLimitBet_RetryTransId_LIC t1
+						WHERE TryCount = @TryCount
 					END
 					ELSE
 					BEGIN
