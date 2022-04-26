@@ -20,7 +20,9 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE @TryCount TINYINT = 1
 		, @Success BIT = 0
-		, @rowcount INT = 0
+		, @rowcountMBC INT = 0
+		, @rowcount789 INT = 0
+		, @rowcountLIC INT = 0
 		, @IsExistsMBC BIT = 0
 		, @IsExists789	BIT = 0
 		, @IsExistsLIC BIT = 0
@@ -79,8 +81,8 @@ BEGIN
 					INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 				WHERE t1.TryCount = @TryCount
 
-				SET @rowcount = @@ROWCOUNT
-				IF @rowcount = 0
+				SET @rowcountMBC = @@ROWCOUNT
+				IF @rowcountMBC = 0
 				BEGIN
 					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_MBC)
 					BEGIN
@@ -91,35 +93,36 @@ BEGIN
 					BEGIN
 						SET @IsExistsMBC = 0
 					END
-
-					BREAK;
 				END
 
-				--UPDATE CustLimitBet_MBC
-				UPDATE t SET t.AccumTurnover = (t.AccumTurnover + tmp.AccumTurnover), t.AccumPayout = (t.AccumPayout + tmp.AccumPayout), t.LastQueueID = @QueueId, t.ModifiedDate = GETDATE()
-				FROM dbo.CustLimitBet_MBC t WITH (ROWLOCK)
-					CROSS APPLY (
-						SELECT -SUM(tmpsum.AccumTurnover)  AS AccumTurnover
-							, -SUM(tmpsum.AccumPayout) AS AccumPayout
-							,tmpsum.MatchId, tmpsum.CustId
-						FROM
-						(
-							SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
-							FROM @CustLimitBet_RetryTransId_Batch t1
-								INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
-							GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
-						)tmpsum
-						WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
-						GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
-					)tmp
+				IF @rowcountMBC > 0
+				BEGIN
+					--UPDATE CustLimitBet_MBC
+					UPDATE t SET t.AccumTurnover = (t.AccumTurnover + tmp.AccumTurnover), t.AccumPayout = (t.AccumPayout + tmp.AccumPayout), t.LastQueueID = @QueueId, t.ModifiedDate = GETDATE()
+					FROM dbo.CustLimitBet_MBC t WITH (ROWLOCK)
+						CROSS APPLY (
+							SELECT -SUM(tmpsum.AccumTurnover)  AS AccumTurnover
+								, -SUM(tmpsum.AccumPayout) AS AccumPayout
+								,tmpsum.MatchId, tmpsum.CustId
+							FROM
+							(
+								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
+								FROM @CustLimitBet_RetryTransId_Batch t1
+									INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
+								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
+							)tmpsum
+							WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
+							GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
+						)tmp
 
-				--Update Retry queue
-				UPDATE q SET
-					q.StatusId = 1
-					,q.Trycount = @TryCount
-				FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN @CustLimitBet_RetryTransId_Batch t1 ON t1.TransId = q.TransId
-				WHERE q.MainQueueId = @QueueId
+					--Update Retry queue
+					UPDATE q SET
+						q.StatusId = 1
+						,q.Trycount = @TryCount
+					FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
+						INNER JOIN @CustLimitBet_RetryTransId_Batch t1 ON t1.TransId = q.TransId
+					WHERE q.MainQueueId = @QueueId
+				END
 			END
 			
 			--789y
@@ -133,8 +136,8 @@ BEGIN
 					INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 				WHERE t1.TryCount = @TryCount
 
-				SET @rowcount = @@ROWCOUNT
-				IF @rowcount = 0
+				SET @rowcount789 = @@ROWCOUNT
+				IF @rowcount789 = 0
 				BEGIN
 					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_789)
 					BEGIN
@@ -145,35 +148,36 @@ BEGIN
 					BEGIN
 						SET @IsExists789 = 0
 					END
-
-					BREAK;
 				END
 
-				--UPDATE CustLimitBet_789
-				UPDATE t SET t.AccumTurnover = (t.AccumTurnover + tmp.AccumTurnover), t.AccumPayout = (t.AccumPayout + tmp.AccumPayout), t.LastQueueID = @QueueId, t.ModifiedDate = GETDATE()
-				FROM dbo.CustLimitBet_789 t WITH (ROWLOCK)
-					CROSS APPLY (
-						SELECT -SUM(tmpsum.AccumTurnover)  AS AccumTurnover
-							, -SUM(tmpsum.AccumPayout) AS AccumPayout
-							,tmpsum.MatchId, tmpsum.CustId
-						FROM
-						(
-							SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
-							FROM @CustLimitBet_RetryTransId_Batch t1
-								INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Transid = t1.transid
-							GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
-						)tmpsum
-						WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
-						GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
-					)tmp
+				IF @rowcount789 > 0
+				BEGIN
+					--UPDATE CustLimitBet_789
+					UPDATE t SET t.AccumTurnover = (t.AccumTurnover + tmp.AccumTurnover), t.AccumPayout = (t.AccumPayout + tmp.AccumPayout), t.LastQueueID = @QueueId, t.ModifiedDate = GETDATE()
+					FROM dbo.CustLimitBet_789 t WITH (ROWLOCK)
+						CROSS APPLY (
+							SELECT -SUM(tmpsum.AccumTurnover)  AS AccumTurnover
+								, -SUM(tmpsum.AccumPayout) AS AccumPayout
+								,tmpsum.MatchId, tmpsum.CustId
+							FROM
+							(
+								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
+								FROM @CustLimitBet_RetryTransId_Batch t1
+									INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Transid = t1.transid
+								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
+							)tmpsum
+							WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
+							GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
+						)tmp
 
-				--Update Retry queue
-				UPDATE q SET
-					q.StatusId = 1
-					,q.Trycount = @TryCount
-				FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN @CustLimitBet_RetryTransId_Batch t1 ON t1.TransId = q.TransId
-				WHERE q.MainQueueId = @QueueId
+					--Update Retry queue
+					UPDATE q SET
+						q.StatusId = 1
+						,q.Trycount = @TryCount
+					FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
+						INNER JOIN @CustLimitBet_RetryTransId_Batch t1 ON t1.TransId = q.TransId
+					WHERE q.MainQueueId = @QueueId
+				END
 			END
 
 			--LIC
@@ -187,8 +191,8 @@ BEGIN
 					INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
 				WHERE t1.TryCount = @TryCount
 
-				SET @rowcount = @@ROWCOUNT
-				IF @rowcount = 0
+				SET @rowcountLIC = @@ROWCOUNT
+				IF @rowcountLIC = 0
 				BEGIN
 					IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_RetryTransId_LIC)
 					BEGIN
@@ -199,36 +203,40 @@ BEGIN
 					BEGIN
 						SET @IsExistsLIC = 0
 					END
-
-					BREAK;
 				END
 
-				--UPDATE CustLimitBet_LIC
-				UPDATE t SET t.AccumTurnover = (t.AccumTurnover + tmp.AccumTurnover), t.AccumPayout = (t.AccumPayout + tmp.AccumPayout), t.LastQueueID = @QueueId, t.ModifiedDate = GETDATE()
-				FROM dbo.CustLimitBet_LIC t WITH (ROWLOCK)
-					CROSS APPLY (
-						SELECT -SUM(tmpsum.AccumTurnover)  AS AccumTurnover
-							, -SUM(tmpsum.AccumPayout) AS AccumPayout
-							,tmpsum.MatchId, tmpsum.CustId
-						FROM
-						(
-							SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
-							FROM @CustLimitBet_RetryTransId_Batch t1
-								INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
-							GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
-						)tmpsum
-						WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
-						GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
-					)tmp
+				IF @rowcountLIC > 0
+				BEGIN
+					--UPDATE CustLimitBet_LIC
+					UPDATE t SET t.AccumTurnover = (t.AccumTurnover + tmp.AccumTurnover), t.AccumPayout = (t.AccumPayout + tmp.AccumPayout), t.LastQueueID = @QueueId, t.ModifiedDate = GETDATE()
+					FROM dbo.CustLimitBet_LIC t WITH (ROWLOCK)
+						CROSS APPLY (
+							SELECT -SUM(tmpsum.AccumTurnover)  AS AccumTurnover
+								, -SUM(tmpsum.AccumPayout) AS AccumPayout
+								,tmpsum.MatchId, tmpsum.CustId
+							FROM
+							(
+								SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t2.MatchId, t2.CustId, t1.transid, t2.EventTypeID
+								FROM @CustLimitBet_RetryTransId_Batch t1
+									INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Transid = t1.transid
+								GROUP BY t2.Matchid, t2.CustId, t1.transid, t2.EventTypeID
+							)tmpsum
+							WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
+							GROUP BY tmpsum.MatchId, tmpsum.CustId, tmpsum.EventTypeID
+						)tmp
 
-				--Update Retry queue
-				UPDATE q SET
-					q.StatusId = 1
-					,q.Trycount = @TryCount
-				FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN @CustLimitBet_RetryTransId_Batch t1 ON t1.TransId = q.TransId
-				WHERE q.MainQueueId = @QueueId
+					--Update Retry queue
+					UPDATE q SET
+						q.StatusId = 1
+						,q.Trycount = @TryCount
+					FROM dbo.CustLimitBet_QueueRetry q WITH (ROWLOCK, UPDLOCK)
+						INNER JOIN @CustLimitBet_RetryTransId_Batch t1 ON t1.TransId = q.TransId
+					WHERE q.MainQueueId = @QueueId
+				END
 			END
+
+			IF @rowcountMBC = 0 AND @rowcount789 = 0 AND @rowcountLIC = 0 
+				BREAK;
 		END
 
 		IF @IsExistsMBC = 1 OR @IsExists789 = 1 OR @IsExistsLIC = 1
