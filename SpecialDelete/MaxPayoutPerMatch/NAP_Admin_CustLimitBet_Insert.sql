@@ -18,6 +18,7 @@ AS
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161658]
 		- 20211012@Max: Exclude deposit ticket for Reject case, remove code reject outright [Redmine: #158073]
+		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 	
 	Param's explanation:	
 		
@@ -48,6 +49,7 @@ BEGIN
 			, transid BIGINT
 	)
 
+	DECLARE @HistoryMissingTransId AS TABLE (transid BIGINT, sitetype TINYINT)
 
 	IF @ActionId IN (1,3,4,5) --VOID,RECOVER,SETTLE
 	BEGIN
@@ -137,7 +139,8 @@ BEGIN
 		FROM #CustLimitBet_tmp t
 		WHERE t.sitetype = 2
 
-		SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
+		INSERT INTO @HistoryMissingTransId (transid, sitetype )
+		SELECT t.transid, 2
 		FROM #CustLimitBet_789 t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
@@ -157,7 +160,8 @@ BEGIN
 		FROM #CustLimitBet_tmp t
 		WHERE t.sitetype = 3
 
-		SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
+		INSERT INTO @HistoryMissingTransId (transid, sitetype)
+		SELECT t.transid, 1
 		FROM #CustLimitBet_tmp t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
@@ -241,11 +245,24 @@ BEGIN
 		RETURN
 	END CATCH
 
-	IF @InvalidTransIds <> ''
+	IF EXISTS (SELECT TOP(1) 1 FROM @HistoryMissingTransId)
 	BEGIN
-		SELECT @ErrCode = 100
-		SELECT @InvalidTransIds = SUBSTRING(@InvalidTransIds, 2, LEN(@InvalidTransIds) - 1)
-		SELECT @ErrMsg = 'Some transids not found on CustLimitBetHistory. Here are top 5 example transids: ' + @InvalidTransIds
+		--Insert into CustLimitBet_QueueRetry for Retry process
+		IF @ActionId = 2 
+		BEGIN
+			INSERT INTO dbo.CustLimitBet_QueueRetry (TransId, MainQueueId, StatusId, sitetype)
+			SELECT t.transid, @QueueId, 0, t.sitetype
+			FROM @HistoryMissingTransId t
+		END
+		ELSE
+		BEGIN
+			SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
+			FROM @HistoryMissingTransId t
+
+			SELECT @ErrCode = 100
+			SELECT @InvalidTransIds = SUBSTRING(@InvalidTransIds, 2, LEN(@InvalidTransIds) - 1)
+			SELECT @ErrMsg = 'Some transids not found on CustLimitBetHistory. Here are top 5 example transids: ' + @InvalidTransIds
+		END
 	END
 
 	DROP TABLE #CustLimitBet_tmp
