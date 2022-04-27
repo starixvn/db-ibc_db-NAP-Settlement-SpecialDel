@@ -1,5 +1,5 @@
 SpecialDelete\TicketVoiding\TicketVoiding_Request_Insert.sql
 SpecialDelete\TicketVoiding\TicketVoiding_Request_Update.sql
-SpecialDelete\TicketVoiding\TicketVoiding_RequestDetailTicket_Single_Insert.sql
-SpecialDelete\TicketVoiding\TicketVoiding_RequestDetailTicket_SubParlay_Insert.sql
-SpecialDelete\TicketVoiding\TicketVoiding_VoidTime_Select.sql
+
+
+
