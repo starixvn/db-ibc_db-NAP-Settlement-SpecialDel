@@ -25,6 +25,7 @@ AS
 		- 20210201@Zane: TVS - Danger Accept/Red Card Enhancement [#146330]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
+		- 20220418@July: TVS - Get column matchcode [Redmine: #170220]
 
 	Param's explanation:		
 */
@@ -60,7 +61,7 @@ BEGIN
 								AND @IsUpdRequest = 0) OR @IsUpdRequest = 1)
 								AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
 		
-		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype AS SportType
+		SET @query = '	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.matchcode
 						FROM	dbo.match m WITH(NOLOCK) 
 						WHERE	m.matchid = @tmpMatchId
 									'
@@ -70,18 +71,18 @@ BEGIN
 	END	
 	ELSE IF @MatchId IS NOT NULL
 	BEGIN
-		CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, eventdate DATETIME)
-		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate
+		CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, eventdate DATETIME, matchcode NVARCHAR(100))
+		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.sporttype = @Sporttype
 							AND m.matchid = @MatchId
 									'
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @MatchId INT'' , @Sporttype, @MatchId '
 
-		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate)
+		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode)
 		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @MatchId INT ', @query, @Sporttype, @MatchId	
 		
-		SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate
+		SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode
 		FROM #MatchInfo
 
 		IF NOT EXISTS (SELECT TOP 1 1 FROM #MatchInfo) AND @IsUpdRequest = 0

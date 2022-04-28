@@ -14,6 +14,7 @@ AS
 		- 20201229@Zane: Create new SP [Redmine:#145719]
 		- 20210607@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
+		- 20220413@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 
 	Param's explanation:
 		
@@ -45,15 +46,11 @@ BEGIN
 			,MatchId = t.MatchId
 	FROM #tmpResult vh
 		CROSS APPLY (
-			SELECT	SUM(CASE 
-							WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
-							WHEN z.bettype = 911 THEN 1
-							ELSE 0 END
-						) AS TotalVoidedSingle
-					,CASE WHEN IssueTypeId IN (1,4,5) THEN z.MatchId ELSE NULL END AS MatchId
+			SELECT	SUM(CASE WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1 ELSE 0 END ) AS TotalVoidedSingle
+					,CASE WHEN IssueTypeId IN (1,4,5,6,7) THEN z.MatchId ELSE NULL END AS MatchId
 			FROM dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY CASE WHEN IssueTypeId IN (1,4,5) THEN z.MatchId ELSE NULL END
+			GROUP BY CASE WHEN IssueTypeId IN (1,4,5,6,7) THEN z.MatchId ELSE NULL END
 	) t 
 		
 	--parlay
@@ -63,10 +60,10 @@ BEGIN
 	FROM	#tmpResult vh
 		CROSS APPLY (
 			SELECT COUNT(1) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeid IN (1,4,5) THEN zm.matchid ELSE NULL END AS MatchId
+					,CASE WHEN vh.IssueTypeid IN (1,4,5,6,7) THEN zm.matchid ELSE NULL END AS MatchId
 			FROM dbo.zzzbettransm zm WITH(NOLOCK)
 			WHERE zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY CASE WHEN vh.IssueTypeid IN (1,4,5) THEN zm.matchid ELSE NULL END
+			GROUP BY CASE WHEN vh.IssueTypeid IN (1,4,5,6,7) THEN zm.matchid ELSE NULL END
 	) t
 	
 	--Return Data

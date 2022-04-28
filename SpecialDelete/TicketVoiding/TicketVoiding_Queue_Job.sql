@@ -16,6 +16,7 @@ AS
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20211223@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 
 	Param's explanation:	
 		
@@ -128,7 +129,7 @@ BEGIN
 			SELECT TOP 1 RequestId, QueueId, MatchId, VoidingTypeId, TransIds, UserId, IP, IsFinished
 			FROM	@tmpQueue
 			WHERE	IsFinished = 0
-			ORDER BY CASE WHEN @IssueTypeId IN (1,10,3,4,5) THEN VoidingTypeId ELSE 1 END DESC
+			ORDER BY CASE WHEN @IssueTypeId IN (1,10,3,4,5,6,7) THEN VoidingTypeId ELSE 1 END DESC
 		)
 		UPDATE	TOP (1) q 
 			SET IsFinished = 1
@@ -166,7 +167,7 @@ BEGIN
 			SELECT @RequestId, @VoidingHistoryId,1,CASE WHEN @IssueTypeId <> 13 THEN @MatchId ELSE NULL END,@sessionID,0
 		END
 
-		IF @IssueTypeId IN (1,10,3,4,5) AND @BypassCheckingProcess = 0 -- if issuetype is danger accept or redcard, lock match for single ticket and lock parlay 
+		IF @IssueTypeId IN (1,10,3,4,5,6,7) AND @BypassCheckingProcess = 0 -- if issuetype is danger accept or redcard, lock match for single ticket and lock parlay 
 		BEGIN
 			EXEC dbo.TicketVoiding_Request_CheckingProcess
 				@VoidingHistoryId = @VoidingHistoryId

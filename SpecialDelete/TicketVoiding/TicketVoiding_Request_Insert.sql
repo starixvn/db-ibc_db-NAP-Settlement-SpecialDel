@@ -40,6 +40,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@RedCardInfo			VARCHAR(MAX)  = NULL
 	,@WrongHDPInfo			VARCHAR(MAX)  = NULL
 	,@Wrong1stHDPInfo		VARCHAR(MAX)  = NULL
+	,@WrongOUInfo		    VARCHAR(MAX)  = NULL
+	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(200) = '' OUTPUT
     ,@ErrCode				INT           = 0 OUTPUT
@@ -67,7 +69,8 @@ AS
 		- 20211123@July: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
-
+		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
+	
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
 						 2 - Suspender
@@ -77,12 +80,12 @@ AS
 		+ @MatchParlayProcessXML: : <root><r MatchId="1" RefNo="1"/></root>
 		+ @WrongScoreInfo: 
 			<root><r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/></root>
-		+ @DangerAcceptInfo:
+		+ @DangerAcceptInfo, @RedCardInfo:
 			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMainMatch=''1''" LiveScores="" FilterBy="1"/></root>
-		+ @RedCardInfo:
-			<root><r MatchId="" SubIssueTypeId="15" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMainMatch=''1''" LiveScores="" FilterBy="1"/></root>
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" HDPValue = "" IsMainMatch ="" SubIssueTypeId=""/></root>
+		+ @WrongOUInfo, @Wrong1stOUInfo:
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" WrongMarket ="" IsMainMatch =""/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -105,6 +108,8 @@ BEGIN
 		   ,@RedCardInfoXML			XML = NULL
 		   ,@WrongHDPInfoXML		XML = NULL	
 		   ,@Wrong1stHDPInfoXML	    XML = NULL
+		   ,@WrongOUInfoXML			XML = NULL	
+		   ,@Wrong1stOUInfoXML		XML = NULL
 
 	CREATE TABLE #tblMatchProcess(
 		Matchid		  INT,
@@ -222,7 +227,7 @@ BEGIN
 			END
 		END
 	END
-	IF @IssueTypeId IN (3) --WC
+	IF @IssueTypeId = 3 --Wrong score
 	BEGIN
 		SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
 		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
@@ -230,7 +235,7 @@ BEGIN
 		FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 	END
-	IF @IssueTypeId = 1
+	IF @IssueTypeId = 1 --Danger Accept
 	BEGIN
 		SET @DangerAcceptedInfoXML = CONVERT(xml, @DangerAcceptedInfo)
 		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
@@ -262,6 +267,23 @@ BEGIN
 		FROM @Wrong1stHDPInfoXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@Wrong1stHDPInfoXML = NULL))	
 	END
+	IF @IssueTypeId = 6 --Wrong OU
+	BEGIN
+		SET @WrongOUInfoXML = CONVERT(xml, @WrongOUInfo)
+		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
+			  ,@MainParlayCount = SUM(t.c.value('@MainParlayCount','INT'))
+		FROM @WrongOUInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL))
+	END
+	IF @IssueTypeId = 7 --Wrong 1st OU
+	BEGIN
+		SET @Wrong1stOUInfoXML = CONVERT(xml, @Wrong1stOUInfo)
+		SELECT @SingleCount = SUM(t.c.value('@SingleCount','INT'))
+			  ,@MainParlayCount = SUM(t.c.value('@MainParlayCount','INT'))
+		FROM @Wrong1stOUInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@Wrong1stOUInfoXML = NULL))	
+	END
+	
 	INSERT INTO dbo.TicketVoiding_Request (Sporttype, ActionId, Provider, Source, DecidedBy, MistakenBy, Remark, UserId, LastModifiedBy, IsTest, IssueTypeId)
 	SELECT @Sporttype, @ActionId, @Provider, @Source, @DecidedBy, @MistakenBy, @Remark, @UserId, @UserId, @IsTest, @IssueTypeId
 
@@ -289,8 +311,10 @@ BEGIN
 				,@RedCardInfo = @RedCardInfo
 				,@WrongHDPInfo = @WrongHDPInfo
 				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
+				,@WrongOUInfo = @WrongOUInfo
+				,@Wrong1stOUInfo = @Wrong1stOUInfo
 	
-	IF (@IssueTypeId IN(8,9,11,13,15,17) OR (@IssueTypeId IN (1,10,3,4,5) AND @SingleCount > 0))
+	IF (@IssueTypeId IN(8,9,11,13,15,17) OR (@IssueTypeId IN (1,10,3,4,5,6,7) AND @SingleCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_Single_Insert
 				@RequestId = @RequestId			
@@ -314,9 +338,11 @@ BEGIN
 				,@RedCardInfo = @RedCardInfo
 				,@WrongHDPInfo = @WrongHDPInfo
 				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
+				,@WrongOUInfo = @WrongOUInfo
+				,@Wrong1stOUInfo = @Wrong1stOUInfo
 	END
 
-	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3,4,5) AND @MainParlayCount > 0))
+	IF (@IssueTypeId IN (8,9) OR (@IssueTypeId IN (1,10,3,4,5,6,7) AND @MainParlayCount > 0))
 	BEGIN
 	EXEC dbo.TicketVoiding_RequestDetailTicket_SubParlay_Insert
 				@RequestId = @RequestId		
@@ -333,6 +359,8 @@ BEGIN
 				,@RedCardInfo = @RedCardInfo
 				,@WrongHDPInfo = @WrongHDPInfo
 				,@Wrong1stHDPInfo = @Wrong1stHDPInfo
+				,@WrongOUInfo = @WrongOUInfo
+				,@Wrong1stOUInfo = @Wrong1stOUInfo
 	END
 
 
@@ -411,7 +439,7 @@ BEGIN
 								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
-								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15,4,5) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15,4,5,6,7) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
 															   ELSE '' END
 								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
 								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL)

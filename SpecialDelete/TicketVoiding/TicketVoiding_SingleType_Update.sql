@@ -47,6 +47,7 @@ AS
 		- 20220110@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220119@Max: Fix Issue - Include into feature split transfer [Redmine: #165093]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -369,7 +370,7 @@ BEGIN
 								) AS VARCHAR(MAX))
 	END
 
-	IF (@IssueTypeId NOT IN (1,10,3,4,5) AND @MatchDate <= @Movebetdate)
+	IF (@IssueTypeId NOT IN (1,10,3,4,5,6,7) AND @MatchDate <= @Movebetdate)
 		OR (@IssueTypeId IN (11,13) AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)) 
 	BEGIN   
 		SELECT	@ErrCode = 99
