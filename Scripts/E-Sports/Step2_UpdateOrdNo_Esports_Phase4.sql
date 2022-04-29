@@ -3,7 +3,7 @@
 	Created by: 20220111@Louisa
     Task: 20220111@Louisa: ESports Phase 4 [Redmine:#166330]
     DB: DBTXN/bodb02
-	
+	 
 	Revisions:
 		- 20220111@Louisa: Update SettlementSpecialBettypeProfile.OrdNo for ESports Phase 4 ( 54 early bettypes) [Redmine:#166330]
 */
