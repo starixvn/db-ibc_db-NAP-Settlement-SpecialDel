@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" selectors="" viewers="" isFunction="0" isNested="0"></info>*/
 /* 
-	Created by: 20220428@Louisa
+	Created by: 20220429@Louisa
     Task: 20220429@Louisa: Update OrdNo [Redmine:#172129]
     DB: DBTXN/bodb02
 */
