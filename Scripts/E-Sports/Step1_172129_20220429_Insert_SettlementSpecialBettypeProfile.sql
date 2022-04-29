@@ -34,7 +34,7 @@ GO
 		WHERE r.betid > c.betid
 				and c.bettype NOT IN ( 9101,9102,9103,9104,9105,9106,9107,9108,9109,9110,9111,9112,9089	)
 	
-		--Bettype Map X - Y kill
+		--Bettype Map XX - KK kill
 		UNION ALL
 		SELECT c.pfID,  c.BetType,  r.BetId AS BetID
 			, LEFT(ResourceID,4) + r.Suffix  + CASE WHEN bettype = 9111 THEN '15'
@@ -58,7 +58,7 @@ GO
 		WHERE   c.bettype = 9089
 	)
 
-	--INSERT INTO SettlementSpecialBettypeProfile ( pfID, BetType, SportType, BetID, ResourceID, SettleType, GroupType , RoundID, OddsType )
+	INSERT INTO SettlementSpecialBettypeProfile ( pfID, BetType, SportType, BetID, ResourceID, SettleType, GroupType , RoundID, OddsType )
 	SELECT cte.pfID, cte.BetType, 43 AS SportType, cte.BetID, cte.ResourceID, 'EAR' AS SettleType, '' AS GroupType, cte.RoundID , cte.OddsType
 	FROM cte_New cte
 		LEFT JOIN SettlementSpecialBettypeProfile sp (nolock) 
