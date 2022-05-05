@@ -47,8 +47,9 @@ BEGIN
 	SELECT ci.custid
 		  ,ci.roleid
 		  ,ci.site
-	FROM #tmpUserName l
-		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON l.Username = ci.username
+	FROM #tmpUserName l	
+		INNER JOIN CustDB.dbo.custInfo cf WITH (NOLOCK) ON l.Username = cf.username
+		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON cf.custid = ci.custid
 		LEFT JOIN dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK) ON ci.custid = a.Custid
 	WHERE a.custid IS NULL
 
