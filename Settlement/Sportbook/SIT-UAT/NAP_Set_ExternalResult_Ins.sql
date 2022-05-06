@@ -18,6 +18,7 @@ AS
     Revisions:   
 		- 20201206@Louisa: Support QC Insert data Test for SBO result [Redmine:#146239]
 		- 20210519@Louisa: Support QC Insert data Test for Weverdat result [Redmine:#153915]
+		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 
 	Param's Explanation:
 		@SourceId: 1 - SBO
@@ -34,7 +35,9 @@ AS
 */
 BEGIN
 	
-	DECLARE @Sporttype SMALLINT, @IsLeagueTest BIT
+	DECLARE @Sporttype SMALLINT
+			, @IsLeagueTest BIT 
+			, @ExternalResultTable INT
 
 	SELECT  @Sporttype = m.Sporttype 
 			,@IsLeagueTest = ISNULL(l.isTest,0)
@@ -43,22 +46,26 @@ BEGIN
 			ON m.leagueid = l.leagueid
 	WHERE m.matchid  = @MatchId
 
-	IF  ISNULL(@Sporttype,0) = 0 
+	IF  ISNULL(@Sporttype,100) > 99
 	BEGIN
 		SELECT @ErrCode = 1001053
 			,@ErrMsg = N'Invalid sport type or match'
 		RETURN
 	END
 
-	IF  @IsLeagueTest = 0 
+	IF  @IsLeagueTest = 0 AND @@serverName NOT IN ( 'DB206', 'DB-60\DEVDBTRANS', 'TESTDBTRANS' ) 
 	BEGIN
 		SELECT @ErrCode = 1001054
 			 ,@ErrMsg = N'The League does not belong league test'
 		RETURN
 	END
 
+	SELECT @ExternalResultTable = ss.ExternalResultTable 
+	FROM dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @Sporttype
+
 	BEGIN TRY
-		IF @Sporttype IN ( 5,9,50) ---- Tennis, Badminton, Cricket
+		IF @ExternalResultTable = 2
 		BEGIN
 			EXEC dbo.NAP_Set_ProviderExternalResultDetailOSIns
 			@MatchId3rd = @MatchId3rd
@@ -68,7 +75,7 @@ BEGIN
 			,@UserId	= @UserId
 		END
 
-		ELSE IF @Sporttype = 43 ---E-Sports
+		ELSE IF @ExternalResultTable = 3
 		BEGIN
 		EXEC dbo.NAP_Set_ProviderExternalResultDetailESIns
 			@MatchId3rd = @MatchId3rd
@@ -78,7 +85,7 @@ BEGIN
 			,@UserId	= @UserId
 		END
 
-		ELSE IF @Sporttype IN (1,2,3,4,6,8,18,19,24,25) 
+		ELSE
 		BEGIN
 			EXEC dbo.NAP_Set_ProviderExternalResultDetailIns
 			@MatchId3rd = @MatchId3rd
