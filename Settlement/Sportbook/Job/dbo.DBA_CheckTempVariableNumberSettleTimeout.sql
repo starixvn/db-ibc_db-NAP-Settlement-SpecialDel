@@ -21,7 +21,7 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 
-	IF @@SERVERNAME IN ('DB206', 'TESTDBTRANS', 'DB230')
+	IF @@SERVERNAME IN ('DB206', 'TESTDBTRANS', 'DB230', 'DB-60\DEVDBTRANS')
 		RETURN
 
 	declare @SubjectMessage varchar(300)='', @SendTo varchar(400), @TableHTML varchar(max)=''
