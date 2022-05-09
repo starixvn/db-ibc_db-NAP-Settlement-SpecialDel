@@ -1019,6 +1019,7 @@ BEGIN
 	BEGIN
 		SET @LogDataContent += ' Username: ' + CAST(@UserNames AS VARCHAR(30)) 
 							+ ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))
+							+ ', SubIssueTypeID: '+ CAST(@SubIssueTypeId AS VARCHAR(50))
 							+ ', StatusIds: '+ CAST(@StatusIds AS VARCHAR(50))
 							+ ', From Date: '+ CONVERT(VARCHAR(10), @FromDate, 23)
 							+ ', To Date: '+ CASE WHEN @ToDate IS NOT NULL THEN CONVERT(VARCHAR(10), @ToDate, 23) ELSE 'NULL' END

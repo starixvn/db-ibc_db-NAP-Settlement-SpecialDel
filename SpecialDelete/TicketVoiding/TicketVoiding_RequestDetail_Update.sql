@@ -1443,6 +1443,10 @@ BEGIN
 		BEGIN
 			SET @LogDataContent += ' Old ProductIds: ' + @OldProductIds + ' New ProductIds: ' + @ProductIds
 		END
+		IF @OldSubIssueTypeId <> @SubIssueTypeId
+		BEGIN
+			SET @LogDataContent += ' Old SubIssueTypeID: ' +  CAST(@OldSubIssueTypeId AS VARCHAR(50)) + ' New SubIssueTypeID: ' +  CAST(@SubIssueTypeId AS VARCHAR(50))
+		END
 		IF @OldStatusIds <> @StatusIds
 		BEGIN
 			SET @LogDataContent += ' Old StatusIds: ' + @OldStatusIds + ' New StatusIds: ' + @StatusIds
