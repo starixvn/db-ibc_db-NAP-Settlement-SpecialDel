@@ -37,6 +37,8 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
+		
 	Param's explanation: 
 		
 */
@@ -416,13 +418,13 @@ BEGIN
 								rd.matchid, SourceId, TypeId, HomeValue, AwayValue, CreatedDate
 								, RANK()OVER(PARTITION BY rd.matchid, SourceId, TypeId ORDER BY createddate DESC) maxDate
 							FROM bodb02.dbo.ProviderResultDetail rd WITH(NOLOCK)
-								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
-														ON rd.matchid = tm.val
+								INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , '','')) tm
+														ON rd.matchid = tm.value
 							WHERE TypeId IN (1,2) AND SourceId = 1
 						) t
 						WHERE maxDate = 1
 						GROUP BY t.MatchId, SourceId
-						OPTION (MAXRECURSION 0)
+						
 					'
 	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(MAX)'', @matchids'
 

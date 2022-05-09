@@ -15,6 +15,7 @@ AS
 			- 20200528@Kathy: Get league belong to sport [Redmine:#134843]
 			- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 			- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+			- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
       
 	 Param explanation:
 			@Page:
@@ -26,9 +27,8 @@ BEGIN
 	DECLARE @tmpSports TABLE (SportType SMALLINT)
 
 	INSERT INTO @tmpSports (SportType)
-	SELECT	f.val
-	FROM	dbo.f_SplitString(@SportTypes, ',') f
-	OPTION (MAXRECURSION 0)
+	SELECT	f.value
+	FROM	STRING_SPLIT(@SportTypes, ',') f
 
 	SELECT	s.SportType, m.leagueid
 	FROM	dbo.match m WITH(NOLOCK)

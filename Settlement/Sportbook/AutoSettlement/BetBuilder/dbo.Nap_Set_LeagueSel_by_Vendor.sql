@@ -14,6 +14,7 @@ AS
 		Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200730@July	:  Get league belong to sport for BetBuilder [Redmine:#138475] 
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 	*/
 BEGIN
 	SET NOCOUNT ON
@@ -21,9 +22,8 @@ BEGIN
 	DECLARE @tmpSports TABLE (SportType SMALLINT);
 	
 	INSERT INTO @tmpSports (SportType)
-	SELECT f.val
-	FROM dbo.f_SplitString(@SportTypes,',')f
-	OPTION (MAXRECURSION 0)
+	SELECT f.value
+	FROM STRING_SPLIT(@SportTypes,',')f
 
 	SELECT s.SportType,m.leagueid
 	FROM dbo.match m WITH (NOLOCK)

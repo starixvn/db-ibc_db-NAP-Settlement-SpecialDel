@@ -12,7 +12,8 @@ AS
 	Task: Insert result into Intg_OddsFeed_SettlementAction_Outright to log Outright Settlement Action [Redmine:#80704]
 	
 	Revisions:
-		-20170809@Kathy: Create new SP [Redmine:#80704]
+		- 20170809@Kathy: Create new SP [Redmine:#80704]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 
 	Param's Explanation:
 		
@@ -42,9 +43,8 @@ BEGIN
 				,o.teamid
 				,@ActionType
 		FROM	dbo.outright o WITH(ROWLOCK)
-			INNER JOIN dbo.f_SplitString(@Orids, ',') f
-				ON o.orid = f.val
-		OPTION (MAXRECURSION 0)
+			INNER JOIN STRING_SPLIT(@Orids, ',') f
+				ON o.orid = f.value
 		
 		;WITH cteMaxTStamp
 		AS(

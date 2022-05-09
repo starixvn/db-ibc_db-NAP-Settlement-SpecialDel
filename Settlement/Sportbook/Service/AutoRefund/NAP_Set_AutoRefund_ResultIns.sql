@@ -12,6 +12,7 @@ AS
 	Revisions:
 		- 20201216@Louisa: Insert ET & PEN match [Redmine:#145597]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
+		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 
 	Param's explaination:
 		@TypeIds: 1 - Refund Single
@@ -33,12 +34,11 @@ BEGIN
 		FROM dbo.match m WITH(NOLOCK)
 		WHERE m.ChildMatchType IN (201,202,203)
 			AND m.ParentID = @ParentId
-			AND ( ISNULL(@ChildMatchIds,'') = '' OR m.matchid IN (SELECT val FROM f_SplitString(@ChildMatchIds, ',') ))
+			AND ( ISNULL(@ChildMatchIds,'') = '' OR m.matchid IN (SELECT value FROM STRING_SPLIT(@ChildMatchIds, ',') ))
 			AND NOT EXISTS (	SELECT TOP 1 1 FROM dbo.AutoRefundResult ar WITH(NOLOCK)
 								WHERE ar.MatchId = m.matchid AND ar.SourceId = 105 AND ar.TypeId =  @TypeId
 							)
 			AND ISNULL(m.IsDeleted,0) = 0
-		OPTION (maxrecursion 0)
 	END
 
 	ELSE IF @TypeId = 10

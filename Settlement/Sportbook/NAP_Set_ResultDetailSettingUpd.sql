@@ -20,6 +20,7 @@ AS
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20210906@Louisa: SOP Refund for Volleyball, Beach Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
+		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -64,9 +65,8 @@ BEGIN
 	SELECT DISTINCT
 	sp.ResourceID
 	FROM DBTXN.bodb02.dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
-		INNER JOIN f_SplitString(@ResourceIds,',') fs ON sp.ResourceID = fs.val
+		INNER JOIN STRING_SPLIT(@ResourceIds,',') fs ON sp.ResourceID = fs.value
 		AND sp.SportType  = @SportType
-	OPTION (maxrecursion 0)
 
 	IF @@ROWCOUNT> 0 
 	BEGIN

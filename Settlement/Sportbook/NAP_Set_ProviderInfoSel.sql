@@ -16,6 +16,7 @@ AS
     Revisions:            
 		- 20200805@Louisa: get provider and OutsideSource info [Redmine:#138656]
 		- 20210305@Louisa: SOP for Tennis [Readmine:#150425]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 
 	Param's Explanation:
 		@GameTypes		: '1,2,3,4' (Esports)
@@ -50,7 +51,7 @@ BEGIN
 			ON p.SourceId = pgm.SourceId
 	WHERE pgm.Sporttype = @Sporttype
 		AND (p.isActive = @SourceStatus OR @SourceStatus = 99)
-		AND ( @GameTypes = '' OR ( pgm.GameType IN ( SELECT fs.val FROM dbo.f_SplitString(@GameTypes, ',') fs) AND pgm.isActive =1)	)
+		AND ( @GameTypes = '' OR ( pgm.GameType IN ( SELECT fs.value FROM STRING_SPLIT(@GameTypes, ',') fs) AND pgm.isActive =1)	)
 		AND ( p.SourceName LIKE '%'+ @Sourcename + '%' OR ISNULL(p.Remark,'') LIKE '%'+ @Sourcename + '%')
 		AND 1 =  CASE WHEN @SourceType = 0 AND p.SourceId < 1001 AND p.SourceId <> 100 AND pgm.isActive = 1 THEN 1
 					  WHEN @SourceType = 1 AND p.SourceId > 1001 THEN 1
