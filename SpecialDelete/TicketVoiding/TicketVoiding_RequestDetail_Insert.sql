@@ -76,6 +76,7 @@ AS
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
+		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 
 	Param's explanation:
 */
@@ -532,8 +533,7 @@ BEGIN
 			, @HomeId
 			, @AwayId
 			, @KickOffTime
-			, CASE WHEN @IssueTypeId IN (11,15) AND ISNULL(@IsVoidVIPMember,0) = 1 THEN 3 -- Void ticket VIP Member
-				   WHEN ISNULL(@IsVoidVIPMember,0) = 0 AND @ActionId IN (4,6,7,8) THEN 1
+			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1
 				   ELSE 0
 				END
 			, @SubIssueTypeId

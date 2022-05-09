@@ -6,6 +6,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@RequestId INT = 0
 	,@ActionId	TINYINT	= 0
 	,@FilterBy	TINYINT	= NULL
+	,@SubIssueTypeId TINYINT	= NULL
+	,@IssueTypeId	TINYINT	= NULL
 )
 AS
 /*  
@@ -44,6 +46,7 @@ AS
 		- 20211101@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20220119@July: Fix issue - Mix Parlay Error Cannot insert duplicate key [Redmine: #167724]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -86,6 +89,7 @@ BEGIN
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
 	DECLARE @tblRemoveTickets AS TABLE (TransId BIGINT)
+	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 				
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -157,6 +161,8 @@ BEGIN
 		,IsNonLive BIT
 		,IsDifferentScore BIT
 		)
+	CREATE TABLE #ABWhiteListCustIds (custid INT, AllowVoidSubType VARCHAR(200), IsAllowVoidVip BIT)
+	CREATE TABLE #ABWhiteListCustIds_AllowVoid (custid INT)
 	
 	IF (@TransIds IS NULL
 		OR LEN(@TransIds) = 0
@@ -288,19 +294,22 @@ BEGIN
 									FOR XML PATH('')
 							), 1, 1, ''), '')
 
-	-- get ABWhiteList transid
-	INSERT #ABWhiteListTransIds (transid)
-	SELECT t.transid
-	FROM #validTransId t
+	
+	-- get ABWhiteList Cust
+	INSERT INTO @CustId_tmp (CustID, recommend, mrecommend, srecommend)
+	SELECT DISTINCT v.custId, v.recommend, v.mrecommend, v.srecommend
+	FROM #validTransId v
+	
+	INSERT #ABWhiteListCustIds (custid, AllowVoidSubType, IsAllowVoidVip)
+	SELECT t.custId, ab.AllowVoidSubType, ab.IsAllowVoidVip 
+	FROM @CustId_tmp t
 		CROSS APPLY (
-				SELECT TOP(1) 1 CustId
-				FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)
-				WHERE t.custId = a.Custid
-					OR t.recommend = a.Custid
-					OR t.mrecommend = a.Custid
-					OR t.srecommend = a.Custid
-		)ab
-
+					SELECT TOP(1) a.AllowVoidSubType, a.IsAllowVoidVip					
+					FROM dbo.TicketVoiding_ABWhiteList a WITH (NOLOCK)	
+					WHERE a.CustID IN (t.CustID, t.recommend, t.mrecommend, t.srecommend)
+					ORDER BY a.LevelId
+			)ab
+	
 	--final valid transid
 	DELETE t
 	FROM #validTransId t
@@ -430,11 +439,35 @@ BEGIN
 					FOR XML PATH('')
 					), 1, 1, ''), '')
 
-		--Check AB White List
-		SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #ABWhiteListTransIds t
-									FOR XML PATH('')
-							), 1, 1, ''), '')
+		--Check AB White List Invalid Transid
+		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
+		SELECT t.custid
+		FROM #ABWhiteListCustIds t
+			LEFT JOIN @VIPAccount_tmp v ON v.CustID= t.CustID
+		WHERE CHARINDEX(',' + CONVERT(VARCHAR(5), @SubIssueTypeId) + ',', ',' + t.AllowVoidSubType + ',') > 0
+			AND 1 = CASE WHEN v.CustID IS NULL then 1
+						WHEN v.CustID IS NOT NULL AND ISNULL(t.IsAllowVoidVip,0) = 1 THEN 1
+					ELSE 0 END
+		
+		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds_AllowVoid)
+		BEGIN
+			DELETE t1
+			FROM #ABWhiteListCustIds t1
+				INNER JOIN #ABWhiteListCustIds_AllowVoid t2 ON t2.custid = t1.custid
+		END
+
+		IF EXISTS (SELECT TOP(1) 1 FROM #ABWhiteListCustIds)
+		BEGIN
+			INSERT INTO #ABWhiteListTransIds (transid)
+			SELECT t.transid
+			FROM #validTransId t
+				INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
+
+			SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+										FROM #ABWhiteListTransIds t
+										FOR XML PATH('')
+								), 1, 1, ''), '')
+		END
 	END
 	
 	IF @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
@@ -566,4 +599,6 @@ BEGIN
 	DROP TABLE #LiveTransIds
 	DROP TABLE #ABWhiteListTransIds
 	DROP TABLE #transidremove_tmp
+	DROP TABLE #ABWhiteListCustIds
+	DROP TABLE #ABWhiteListCustIds_AllowVoid
 END
