@@ -50,6 +50,7 @@ AS
 		- 20211122@Max: Hot fix - TVS insert CustLimitBetQueue when void CO ticket [Redmine: #164966]
 		- 20211213@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
+		- 20220509@Max: TVS- Hotfix Capture duplicate transid void and re-settle [Redmine: #00000]
 
 	Param's explanation:	
 		
@@ -389,8 +390,9 @@ BEGIN
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 0
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND t.IssueTypeId IN (11,15) AND t.RequestType = 3 AND t.ActionId IN (4,6,7,8) THEN 0 
 				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
-				WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
+				--WHEN b.matchid = @MatchId AND b.statusID = 0 AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 			  ELSE 0 END
+		AND NOT EXISTS (SELECT TOP(1) 1 FROM @tmpInputTransId_VOID v WHERE v.TransId = t.TransId)
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	

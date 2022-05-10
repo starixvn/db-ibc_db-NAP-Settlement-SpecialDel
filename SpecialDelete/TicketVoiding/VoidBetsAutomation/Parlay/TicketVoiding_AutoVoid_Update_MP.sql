@@ -21,6 +21,7 @@ AS
 	Revisions: 
 		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 		- 20211230@July: Remove code CashOut [Redmine: #165097]
+		- 20220509@Max: TVS- Hotfix Capture duplicate transid void and re-settle [Redmine: #00000]
 
 	Param's explanation:	
 		
@@ -118,8 +119,6 @@ BEGIN
 		,RequestID			INT
 	)
 	
-	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
-	
 	CREATE TABLE #tmpRefCodeSummary_VOID (
 		 RefCode	BIGINT
 		 ,custid	INT
@@ -144,16 +143,6 @@ BEGIN
 	SET @session = CAST(NEWID() AS NVARCHAR(50))	
 	SET @IssueTypeId = 11
 
-	
-	--get list VIP Account
-	SELECT  @query = N''		
-	SELECT	@query = @query + N'SELECT Custid 
-								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
-								'
-	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-	INSERT INTO @VIPAccount_tmp(CustID)
-	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-
 	--get list Transid in request
 	BEGIN
 		INSERT INTO #inputRequestTransId (TransId, RequestID, IssueTypeId, RequestType, DecidedBy, ActionId)
@@ -177,16 +166,12 @@ BEGIN
 	SELECT t.TransId, t.RequestID, t.IssueTypeId, t.DecidedBy, b.winlostdate, statusID
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-		OUTER APPLY (SELECT TOP (1) ac.CustID 
-					 FROM @VIPAccount_tmp ac 
-					 WHERE  ac.CustID = b.custid
-					 ) AS vip
 	WHERE b.matchid = 29 AND b.bettype = 29
 		AND 1 = CASE
 				WHEN b.statusID = 0 AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 1 --Auto void winning request, void VIP + normal member
 				WHEN b.statusID = 0 AND t.RequestType = 3 AND t.ActionId IN (4,8) THEN 1 --Auto void Instant & NoPolicy, void VIP + normal member
-				WHEN b.statusID = 0 AND t.RequestType = 1 AND vip.CustID IS NULL THEN 1 -- Void Instant Request
-				WHEN b.statusID = 0 AND t.RequestType <> 1 AND b.statuswinlost IN (1,2) AND vip.CustID IS NULL THEN 1 -- Auto void winning request
+				WHEN b.statusID = 0 AND t.RequestType = 1 THEN 1 -- Void Instant Request
+				WHEN b.statusID = 0 AND t.RequestType <> 1 AND b.statuswinlost IN (1,2) THEN 1 -- Auto void winning request
 			ELSE 0 END
 		
 	SET @Void_cnt = @Void_cnt + @@ROWCOUNT
@@ -196,17 +181,14 @@ BEGIN
 	SELECT DISTINCT t.TransId
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-		OUTER APPLY  (SELECT TOP (1) ac.CustID 
-					 FROM @VIPAccount_tmp ac 
-					 WHERE  ac.CustID = b.custid
-					 ) AS vip
 	WHERE b.matchid = 29 AND b.bettype = 29
 		AND 1 = CASE 
 				WHEN b.statusID = 0 AND t.RequestType = 3 AND t.ActionId = 1 AND b.statuswinlost IN (1,2) THEN 0
 				WHEN b.statusID = 0 AND t.RequestType = 3 AND t.ActionId IN (4,8) THEN 0 
 				WHEN b.statusID = 0 AND b.statuswinlost IN (0,3,4) THEN 1
-				WHEN b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
+				--WHEN b.statusID = 0 AND vip.CustID IS NOT NULL AND b.statuswinlost IN (1,2) AND t.RequestType <> 3 THEN 1
 			  ELSE 0 END
+		AND NOT EXISTS (SELECT TOP(1) 1 FROM @tmpInputTransId_VOID v WHERE v.TransId = t.TransId)
 				
 	SET @Recalculate_cnt = @@ROWCOUNT
 	
