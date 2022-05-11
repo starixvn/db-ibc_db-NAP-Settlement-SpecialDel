@@ -13,6 +13,7 @@ AS
 	Revisions:  
 		- 20170419@Bobby.nguyen: Initial
 		- 20171009@Kathy: Change column name of BonusAdjustmentTransfer [Redmine:#72789]
+		- 20220511@Kathy: Force hash join when check balance [Redmine:#172624]
 
 	Param's Explanation:   
 		- @ActionId		  : INT 
@@ -137,7 +138,7 @@ BEGIN
 			, (a.balance - b.balance) AS balance
 			, 1 AS walletType
 		FROM @BalanceWalletAfter a
-			INNER JOIN @BalanceWalletBefore b
+			INNER HASH JOIN @BalanceWalletBefore b
 			ON a.matchid 			= b.matchid
 				AND a.custid 		= b.custid
 				AND a.balanceType 	= b.balanceType
@@ -228,7 +229,7 @@ BEGIN
 			b.custid
 			,SUM(a.balance - b.balance) AS balance
 		FROM @GeneralBeforeUpd b
-			INNER JOIN @GeneralAfterUpd a 
+			INNER HASH JOIN @GeneralAfterUpd a 
 				ON b.custid 		= a.custid
 				AND b.balanceType	= a.balanceType 
 		GROUP BY b.custid				
