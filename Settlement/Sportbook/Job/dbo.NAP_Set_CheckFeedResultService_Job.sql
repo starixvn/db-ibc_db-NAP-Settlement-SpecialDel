@@ -15,12 +15,13 @@ AS
 		- 20201224@Louisa: Add Singz, Kid to recipients [Redmine:#111576]
 		- 20210701@Louisa: Add sean.lee@onelab.tw [Redmine:#100002]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220512@Louisa: Add recipient [Redmine:#172713]
 */
 BEGIN
 
 	DECLARE	  @BodyTemplate VARCHAR(MAX),	@Email_body VARCHAR(MAX)
 			, @SubjectTemplate VARCHAR(MAX), @Email_subject NVARCHAR(200)
-			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixvn.com;IT@starixvn.com;singz.hsieh@onelab.tw;kid.shih@onelab.tw;sean.lee@onelab.tw'
+			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixvn.com;IT@starixvn.com;singz.hsieh@onelab.tw;kid.shih@onelab.tw;sean.lee@onelab.tw;leo.teng@onelab.tw'
 			--LOCAL: N'dba_local@starixvn.com'
 			, @LastTime VARCHAR(200)
 			, @Check DATETIME
