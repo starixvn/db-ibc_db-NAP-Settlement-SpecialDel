@@ -26,6 +26,7 @@ AS
 		- 20211007@July: Change datatype validation username [Redmine:#161659]
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
 
 	Param's Explanation:
 */
@@ -56,8 +57,8 @@ BEGIN
 			,@IsExistVS				  BIT = 0
 			,@IsExistBB				  BIT = 0
 			,@MatchProcessXML		  XML = NULL
-			,@movebetdate SMALLDATETIME
-			,@maxdate 	DATETIME = '9999-01-01'
+			,@movebetdate			  SMALLDATETIME
+			,@maxdate 				  DATETIME = '9999-01-01'
 			,@MatchParlayProcessXML	  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
 			,@ThreadHold			  INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
@@ -96,12 +97,6 @@ BEGIN
 			,@NumberOfTickets AS NumberOfTickets
 		RETURN;
 	END
-
-	--2. Get info match belong to username
-	/*
-	SELECT @moveBetDay14 = MAX(winlostdate) 
-	FROM dbo.bettrans14 WITH(NOLOCK)
-	*/
 	
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
@@ -305,12 +300,15 @@ BEGIN
 			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 						ON rs.RequestId = r.RequestId
 			CROSS APPLY (
-						SELECT TOP 1 t.MatchId, t.transid
+						SELECT TOP 1 t.MatchId, t.transid, t.StatusId
 						FROM #transIdTemp t
 						WHERE t.MatchId = rs.MatchId 
 							AND rs.TransId = t.transid
 				)t
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+		AND 1 = CASE WHEN r.IssueTypeId IN (11,15) AND t.StatusId NOT IN (111,112,113) THEN 1
+					 WHEN r.IssueTypeId NOT IN (11,15) THEN 1
+					 ELSE 0 END
 					
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
