@@ -57,6 +57,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
+		- 20220510@Max: Issue Performance Add/Edit Request issue type Wrong OU & Wrong 1st OU [Redmine: #172281]
 		- 20220517@Max: TVS - Wrong Score: Add/Edit Request COUNT single ticket NOT RIGHT at log info [Redmine: #172851]
 
 	Param's explanation:
@@ -1082,8 +1083,8 @@ BEGIN
 						AND bm.betfrom <> 'P')
 		BEGIN		
 			INSERT INTO #SpecialDeleteBets(
-					transid		
-					,SubTransid		
+					--transid	,	
+					SubTransid		
 					,refno			
 					,custid						
 					,transdate		
@@ -1098,24 +1099,24 @@ BEGIN
 					,SubIssueTypeId
 					,FilterBy
 				)
-			SELECT  main.transid AS TransId
-					,sub.transid AS SubTransID
+			SELECT  --main.transid AS TransId,
+					sub.transid AS SubTransID
 					,sub.refno
 					,sub.custid				
 					,sub.transdate
-					,main.bettype
+					,29
 					,sub.livehomescore
 					,sub.liveawayscore
 					,1 AS IsMixParlay
 					,sub.liveindicator
 					,sub.matchid
-					,main.statusID
+					--,main.statusID
 					,sub.checktime
 					,d.SubIssueTypeId
 					,d.FilterBy
 			FROM	#FilterInfo d
 					INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON sub.matchid = d.MatchId
-					INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON	main.refno = sub.refno 
+					--INNER HASH JOIN bettrans AS main WITH (NOLOCK) ON	main.refno = sub.refno 
 					OUTER APPLY (
 						SELECT DISTINCT value AS HomeFavorite
 						FROM STRING_SPLIT(d.HomeFavorite, '&')
@@ -1140,8 +1141,8 @@ BEGIN
 							WHEN @ActionId = 2 AND sub.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
 					AND sub.betfrom <> 'P'
-					AND main.matchid = 29
-					AND main.bettype = 29
+					--AND main.matchid = 29
+					--AND main.bettype = 29
 					AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 					AND 1 = CASE WHEN @IssueTypeId = 4 AND sub.bettype = 1 THEN 1
 								 WHEN @IssueTypeId = 5 AND sub.bettype = 7 THEN 1 
@@ -1155,6 +1156,13 @@ BEGIN
 								 WHEN d.SubIssueTypeId IN (10,11) AND sub.hdp1 = xHDPou.WrongMarket THEN 1 --Wrong OU & 1H OU
 								 ELSE 0 END
 		END  
+
+		IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets WHERE IsMixParlay = 1)
+		BEGIN
+			UPDATE s SET s.MainTransId = b.transid, s.StatusId = b.statusID
+			FROM #SpecialDeleteBets s 
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = s.refno AND b.bettype = 29 AND b.matchid = 29
+		END
 	END
 	-- update MainTransId
 	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE RefCode IS NOT NULL)
