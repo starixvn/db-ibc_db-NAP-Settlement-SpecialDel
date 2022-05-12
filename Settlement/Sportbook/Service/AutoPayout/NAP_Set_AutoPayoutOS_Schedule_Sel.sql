@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_AutoPayoutOS_Schedule_Sel
 	@Sporttype SMALLINT = 0
 AS
@@ -12,12 +12,16 @@ AS
 		- 20211006@Louisa: Get results after 90 seconds - [Redmine:#162808]
 		- 20211206@Louisa: Enhancemant [Redmine:#165659]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
+		- 20220512@Kathy: Improve performance [Redmine:#172386]
 */
 BEGIN
 	
 	SET NOCOUNT ON
 
 	DECLARE @checkTime DATETIME =  CAST( DATEADD(SECOND, -30, GETDATE() ) AS DATETIME)
+			,@n INT
+
+	SET @n = 2147483647
 
 	IF OBJECT_ID('tempdb..#MatchInfo') IS NOT NULL
 	DROP TABLE #MatchInfo
@@ -36,39 +40,37 @@ BEGIN
 
 	IF @Sporttype =  50
 	BEGIN
-		INSERT INTO #MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue, StatusId, Ranking ) 
+		INSERT INTO #MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
 		SELECT m.matchid
 				, m.leagueid
 				, m.SettlementStatus
 				, r.ResourceId
 				, r.HomeValue
 				, r.AwayValue
-				, os.StatusId
-				, MIN( ISNULL(os.StatusId,99)) OVER(PARTITION BY m.MatchId)	 AS Ranking
-		FROM dbo.ResultDetailOS r WITH(NOLOCK)
-			INNER JOIN dbo.match m WITH(NOLOCK)
-				ON r.MatchID = m.matchid
+		FROM dbo.match m WITH(NOLOCK)
+			CROSS APPLY (
+				SELECT TOP (@n) r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
+				FROM	dbo.ResultDetailOS r WITH(NOLOCK)
+				WHERE	r.MatchID = m.matchid
+						AND r.ResultStatusID = 3
+						AND ISNULL(r.ResultSetting,0) & 1  = 0
+						AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0 ELSE 1 END
+						AND r.CreateDate <= @checkTime
+			) r
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
-			OUTER APPLY (	SELECT os.MatchId, os.ResourceId,  os.StatusId
+			OUTER APPLY (	SELECT os.MatchId, os.ResourceId,  MIN(os.StatusId) AS MinStatusId
 							FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 							WHERE os.MatchId = r.matchid
 								AND os.ResourceId = r.ResourceID 
+							GROUP BY os.MatchId, os.ResourceId
 						) os			
 		WHERE m.sporttype = @Sporttype
 			AND ISNULL(m.AutoSetting,0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
 			AND l.LeagueGroupID = 42				--Virtual Cricket
-	 		AND r.ResultStatusID = 3
-			AND ISNULL(r.ResultSetting,0) & 1  = 0
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
-			AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0
-					 ELSE 1 END
-			AND r.CreateDate <= @checkTime
-	
-		DELETE FROM #MatchInfo 
-		WHERE StatusId IS NOT NULL  -- ResourceId already Auto Payout
-			AND Ranking = 1			-- match is in progress
-
+			AND os.MinStatusId IS NULL -- ResourceId has never been run before
+			
 	END
 
 	ELSE IF @Sporttype = 6

@@ -15,6 +15,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210819@Louisa: Show Provider Results for remain sports [Redmine:#160192] 
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
+		- 20220512@Kathy: Improve performance [Redmine:#172386]
 
 	Param's explanation:
 		
@@ -34,76 +35,88 @@ BEGIN
 		,SettlementStatusID TINYINT
 	)
 
-	DECLARE @tmpExternalResult TABLE 
-	(
-		 rn			 INT
-		,TopSourceId SMALLINT
-		,Matchid	 INT
-		,SourceId	 SMALLINT
-		,ResourceId  VARCHAR(20)
-		,HomeValue	 VARCHAR(50)
-		,AwayValue   VARCHAR(50)
+    CREATE TABLE #tblMatchID (MatchId VARCHAR(20) PRIMARY KEY, SportType INT, ResultTable TINYINT, ExternalResultTable TINYINT)
+
+	;WITH cteMatchList
+	AS (
+		SELECT DISTINCT f.value AS matchid
+		FROM STRING_SPLIT(@matchidList, ',') f
 	)
-  
-    CREATE TABLE #tblMatchID (MatchId VARCHAR(20), SportType INT, ResultTable TINYINT, ExternalResultTable TINYINT)
-
 	INSERT INTO #tblMatchID (MatchId, SportType, ResultTable, ExternalResultTable)
-	SELECT f.Value
-		  ,m.sporttype
-		  ,r.ResultTable
-		  ,CASE WHEN m.sporttype =  1 OR ISNULL(r.IsAppliedSOP,0) = 1THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
-				ELSE r.ExternalResultTable
-				END
-	FROM STRING_SPLIT(@matchidList, ',') f
-		INNER JOIN Match m WITH(NOLOCK)
-			ON m.matchid = f.value
-		LEFT JOIN dbo.SettlementResultTableSetting r WITH(NOLOCK)
-			ON r.Sporttype = m.SportType
+	SELECT m.matchid
+          ,m.sporttype
+          ,r.ResultTable
+          ,CASE WHEN m.sporttype =  1 OR ISNULL(r.IsAppliedSOP,0) = 1THEN 0 -- not get data from ProviderExternalResultXX if sports applied S.O.P
+                ELSE r.ExternalResultTable
+                END
+	FROM	cteMatchList f
+        INNER JOIN Match m WITH(NOLOCK)
+			ON m.matchid = f.matchid
+        OUTER APPLY (SELECT TOP 1 r.IsAppliedSOP, r.ResultTable, r.ExternalResultTable
+                    FROM dbo.SettlementResultTableSetting r WITH(NOLOCK)
+                    WHERE r.Sporttype = m.SportType
+                    ) r
 
-
-	------  GET EXTERNAL Result
-	
+	------  GET EXTERNAL Result	
 	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 1 ) ---ProviderExternalResultDetail
-	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
-	SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
-			,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
-			,ex.matchid
-			,ex.SourceId
-			,ex.ResourceId
-			,ex.HomeValue
-			,ex.AwayValue
-	FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
-		INNER JOIN #tblMatchID m 
-			ON ex.MatchId = m.MatchId
-	WHERE ExternalResultTable = 1
+	BEGIN
+		;WITH cteProviderExternalResultDetail
+		AS (
+			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
+					,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
+					,ex.matchid
+					,ex.SourceId
+					,ex.ResourceId
+					,ex.HomeValue
+					,ex.AwayValue
+			FROM	dbo.ProviderExternalResultDetail ex WITH(NOLOCK)
+				INNER JOIN #tblMatchID m 
+					ON ex.MatchId = m.MatchId
+			WHERE ExternalResultTable = 1
+		)
+		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
+		SELECT	ex.matchid
+				,ex.SourceId
+				,p.SourceName
+				,ex.ResourceId
+				,ex.HomeValue
+				,ex.AwayValue
+		FROM	cteProviderExternalResultDetail ex
+			INNER JOIN dbo.ProviderInfo p WITH(NOLOCK)
+				ON ex.SourceId = p.SourceId
+		WHERE	ex.rn = 1
+				AND ex.TopSourceId = 1
+	END
 
 	IF EXISTS( SELECT TOP 1 1 FROM #tblMatchID m WHERE ExternalResultTable = 2  ) ---ProviderExternalResultDetailOS
-	INSERT INTO @tmpExternalResult ( rn, TopSourceId, Matchid, SourceId, ResourceId, HomeValue, AwayValue  )
-	SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
-			,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
-			,ex.matchid
-			,ex.SourceId
-			,ex.ResourceId
-			,ex.HomeValue
-			,ex.AwayValue
-	FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
-		INNER JOIN #tblMatchID m 
-			ON ex.MatchId = m.MatchId
-	WHERE ExternalResultTable = 2
-
-
-	INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
-	SELECT  ex.matchid		
-			,ex.SourceId
-			,p.SourceName
-			,ex.ResourceId 
-			,ex.HomeValue 
-			,ex.AwayValue 
-	FROM	@tmpExternalResult ex
-		INNER JOIN dbo.ProviderInfo p WITH(NOLOCK)
-			ON ex.SourceId = p.SourceId
-	WHERE	ex.rn = 1
-		AND ex.TopSourceId = 1
+	BEGIN
+		;WITH cteProviderExternalResultDetailOS
+		AS (
+			SELECT	ROW_NUMBER() OVER (PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.SourceId, ex.CreateDate DESC ) AS rn
+					,DENSE_RANK() OVER (PARTITION BY ex.MatchId ORDER BY ex.SourceId ) AS TopSourceId
+					,ex.matchid
+					,ex.SourceId
+					,ex.ResourceId
+					,ex.HomeValue
+					,ex.AwayValue
+			FROM	dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
+				INNER JOIN #tblMatchID m 
+					ON ex.MatchId = m.MatchId
+			WHERE ExternalResultTable = 2
+		)
+		INSERT INTO @tmpResultDetail ( Matchid, SourceId, SourceName, ResourceId, HomeValue, AwayValue )
+		SELECT	ex.matchid
+				,ex.SourceId
+				,p.SourceName
+				,ex.ResourceId
+				,ex.HomeValue
+				,ex.AwayValue
+		FROM	cteProviderExternalResultDetailOS ex
+			INNER JOIN dbo.ProviderInfo p WITH(NOLOCK)
+				ON ex.SourceId = p.SourceId
+		WHERE	ex.rn = 1
+				AND ex.TopSourceId = 1
+	END
 
 	---- (SBO): Soccer
 	IF EXISTS (SELECT TOP 1 1 FROM #tblMatchID m WHERE m.SportType = 1 )
