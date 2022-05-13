@@ -16,6 +16,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 
 	Param's Explanation:
 */
@@ -342,9 +343,10 @@ BEGIN
 				+' into child match: ' + CAST(@childMatchId AS VARCHAR)
 				+ ',Settled Results: (' + @ResourceIds + ')'
 						   
-	EXEC dbo.WriteLog_UserLog
-				@UserID = @AdminId
-				,@Doing = @logdata
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @logdata
+		,@extend = @MatchId
 									   
 
 	RETURN

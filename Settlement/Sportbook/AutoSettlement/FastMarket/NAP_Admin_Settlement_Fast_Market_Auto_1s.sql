@@ -33,6 +33,7 @@ AS
 		- 20210107@Kathy: Support settle determined [Readmine:#147141]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -575,7 +576,10 @@ BEGIN
 	SELECT @logdata = 'NAP: Fast Market (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
 		+ '(' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 
-	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @logdata
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @logdata
+		,@extend = @MatchId
 	
 	SET @LogResult = CONVERT(VARCHAR(MAX),(SELECT BetType '@Id'
 		,MIN(r.position) AS 'Item/@MinPosition'

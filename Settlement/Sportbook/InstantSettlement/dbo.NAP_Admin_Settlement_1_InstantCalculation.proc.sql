@@ -36,7 +36,7 @@ AS
 		- 20200727@Kathy: Prevent refund wrong match [Redmine:#136390]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
-
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		
     Param's Explanation:
         - @Mode: ['INST-HT', 'INST-FT']
@@ -749,8 +749,11 @@ BEGIN
 		+ ' Instant action:' + CAST(@Mode AS NVARCHAR(10)) 
 		+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 
-	EXEC dbo.WriteLog_UserLog @UserID = @creator, @Doing = @LogData
-	
+	EXEC dbo.Logfile_V2 
+		@UserID = @creator
+		,@Doing = @LogData
+		,@extend = @MatchId
+
 	IF @IsAutoInst = 0		
 	BEGIN
 	SELECT @Remark ='NAP: Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 

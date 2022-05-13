@@ -49,6 +49,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -508,8 +509,10 @@ BEGIN
 
         SELECT @LogData = 'NAP: Calculate (Refund HT) for matchid:' + CAST(@matchid AS NVARCHAR(10))
 
-        EXEC dbo.WriteLog_UserLog @UserID = @AdminID
-            ,@Doing = @LogData
+        EXEC dbo.Logfile_V2 
+			@UserID = @AdminId
+			,@Doing = @LogData
+			,@extend = @MatchId
 
         --Write Log Settle
         DECLARE @finalhomescore INT

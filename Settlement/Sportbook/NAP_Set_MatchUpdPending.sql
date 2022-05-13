@@ -9,6 +9,7 @@ WITH RECOMPILE
 	Original SP: [Admin_Match_Pending]
 	
 	Revisions:
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 	
 	Param's Explanation: 
 */
@@ -28,7 +29,10 @@ DECLARE @LogData NVARCHAR(200)
 SELECT @LogData = 'Update Pending Match : ' + cast(@matchid as varchar(30)) + ' with IsPending = ' + cast(@IsPending as varchar(2)) 
 				+ '. Old Value : IsPending = ' + cast(@dbisPending as varchar(2)) + ' - IsHTCal = ' + cast(@dbIsHTCal as varchar(2))+ ' - calculate = ' + cast(@dbcalculate as varchar(2))
 
-EXEC WriteLog_UserLog @UserID = @UserID, @Doing = @LogData
+EXEC dbo.Logfile_V2 
+	@UserID = @UserID
+	,@Doing = @LogData
+	,@extend = @MatchId
 
 GO
 

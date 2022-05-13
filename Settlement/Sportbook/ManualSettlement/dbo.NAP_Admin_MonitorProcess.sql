@@ -18,7 +18,8 @@ AS
 		  - 20210809@Kathy: Settle by custid [Redmine:159486]
 		  - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		  - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
-		
+		  - 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+
 	Param's Explanation:  
 	
 */
@@ -163,9 +164,10 @@ BEGIN
 										+ CASE WHEN @betstatus IS NOT NULL THEN ' Remark(' + @betstatus + ')' ELSE '' END 
 								+' Duration(' + CAST(DATEDIFF(millisecond, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms)'
 												
-		EXEC dbo.WriteLog_UserLog 
+		EXEC dbo.Logfile_V2 
 			@UserID = @AdminId
 			,@Doing = @Remark
+			,@extend = @MatchId
 
 		SELECT @Remark ='NAP: ' 
 						+ CASE 

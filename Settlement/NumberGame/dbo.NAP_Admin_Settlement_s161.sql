@@ -24,7 +24,8 @@ AS
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20171031@Patrick: Reduce balance correction [Redmine: #85841]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
-						   
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
 			 1 : is recalled  
@@ -369,7 +370,10 @@ BEGIN
 	-- LOG
 	SET @LogData = @LogData + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)' + ' MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
 
-	EXEC dbo.WriteLog_UserLog @UserID = @AdminID, @Doing = @LogData	
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @LogData
+		,@extend = @MatchId
 
 	SET @Remark = @Remark + 'Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
 

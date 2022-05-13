@@ -55,7 +55,8 @@ AS
 		- 20220309@Kathy: Remove code savebet, old Cashout model [Redmine:#169643]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
-
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
 									<Resource Id="M1" Home="1" Away="3" />
@@ -972,10 +973,11 @@ BEGIN
 												ELSE ''
 												END
 					
-	EXEC dbo.WriteLog_UserLog
-				@UserID = @creator
-				,@Doing = @logdata
-	
+	EXEC dbo.Logfile_V2 
+		@UserID = @creator
+		,@Doing = @logdata
+		,@extend = @MatchId
+		
 	SET @matchLog = @MatchID
 
 	

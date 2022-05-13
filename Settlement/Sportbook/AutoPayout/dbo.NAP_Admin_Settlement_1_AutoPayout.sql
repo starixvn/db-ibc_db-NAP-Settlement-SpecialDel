@@ -44,6 +44,7 @@ AS
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 
 	Param's Explanation:
 		 
@@ -410,8 +411,11 @@ BEGIN
 		+ ' GoalRecord:' + ISNULL(@goalrecord, '')
 		+ ' Remark(' + @betstatus + ')' 
 		+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
- 
-	EXEC dbo.WriteLog_UserLog @UserID = @creator, @Doing = @LogData
+
+	EXEC dbo.Logfile_V2 
+		@UserID = @creator
+		,@Doing = @LogData
+		,@extend = @MatchId
 		
 	SELECT @Remark ='NAP: ' 
 							+ CASE 

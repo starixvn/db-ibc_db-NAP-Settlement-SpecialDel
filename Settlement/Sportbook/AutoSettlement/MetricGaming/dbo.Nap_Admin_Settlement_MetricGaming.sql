@@ -23,7 +23,8 @@ AS
 		Revisions:
 			- 20151210@Johnson: allow update bettype time when settle bettype Goal within 60s of kick (801) [Redmine: #49016]
 			- 20180327@Helen:  Add deployment info in the first of SP [Redmine: #92810]
-			
+			- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+
 		Parameter's Explantion:
 			-@Result = <Result>
 							<Row GameResult="7" OtherInfo="6:10"/>
@@ -325,9 +326,10 @@ BEGIN
 							+ ' IsSettleDetermined:' + CAST (@IsSettleDetermined AS VARCHAR(1))
 							+ ' SuspendedTime' + CAST(@SuspendedTime AS VARCHAR(2))
 	
-	EXEC dbo.WriteLog_UserLog 
+	EXEC dbo.Logfile_V2
 		@UserID = @AdminId
 		,@Doing = @LogData
+		,@extend = @MatchId
 		
 	-- WRITE LOG	
 	/* Format

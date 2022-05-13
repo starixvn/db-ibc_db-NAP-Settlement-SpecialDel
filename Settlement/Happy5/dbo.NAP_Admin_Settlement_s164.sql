@@ -18,7 +18,8 @@ AS
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
-		
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+
 	Param's Explanation:	
 		@Action: CAL, REFUND
 		@Resources = '<Resources>
@@ -362,9 +363,10 @@ BEGIN
 	
 	
 	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
-	EXEC dbo.WriteLog_UserLog 
+	EXEC dbo.Logfile_V2 
 		@UserID = @AdminId
 		,@Doing = @doing
+		,@extend = @MatchId
 		
 	BEGIN TRY
 		
