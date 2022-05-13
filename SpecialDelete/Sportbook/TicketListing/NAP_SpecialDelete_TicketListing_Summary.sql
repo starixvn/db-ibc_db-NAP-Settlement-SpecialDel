@@ -67,6 +67,7 @@ AS
 		- 20210423@July: TVS - Enhance Ticket Listing for Cricket [Redmine: #153930]
 		- 20210517@July: Enhance performance of Ticket Listing function [Redmine: #154732]
 		- 20220303@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
+		- 20220425@July: Separate Send Data to China View & Remove support CN88 [Redmine:#171395]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -78,7 +79,9 @@ AS
 		5: Virtual sports betradar
 		6: Lucky 3
 		7: Bull fighting
-		
+		8: Bet Builder
+		9: Bitcoin
+
 	- @LicenseeID:
 	  + =0: No Site filter
 	  + >0: Filter by specific Licensee's ID
@@ -133,8 +136,7 @@ BEGIN
 	SELECT @SportType = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
-	IF @Type <> 0
-		SELECT @LiveType = 2
+	IF @Type <> 0 SELECT @LiveType = 2
 
 	DECLARE @TmpTotal TABLE (
 		OrderNo			INT
@@ -142,6 +144,7 @@ BEGIN
 		,bettype		SMALLINT
 		,LiveIndicator	BIT
 		,LicenseeName	VARCHAR(50)
+		,IsChinaView	BIT
 		)
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
@@ -196,7 +199,6 @@ BEGIN
 		,statusID			TINYINT
 		,matchid			INT	
 		,custid				INT
-		,WalletType			TINYINT
 		,RefCode			BIGINT	
 		,FilterBettype		SMALLINT
 		,FilterBetTeam		NVARCHAR(10)
@@ -230,9 +232,7 @@ BEGIN
 		,cnt			INT
 		)
 		
-	CREATE TABLE #TmpBallSequence (	
-		Seq			TINYINT
-	)
+	CREATE TABLE #TmpBallSequence (Seq TINYINT)
 
 	DECLARE @tmpConsolidatedBettypes TABLE (
 		parentid	INT
@@ -446,7 +446,7 @@ BEGIN
 	END
 	ELSE -- For Others
 	BEGIN
-		INSERT INTO @TmpBettransList (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, WalletType, RefCode,
+		INSERT INTO @TmpBettransList (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, RefCode,
 			FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
 		SELECT transid 
 			,srecommend
@@ -455,7 +455,6 @@ BEGIN
 			,statusID
 			,matchid
 			,custid
-			,WalletType
 			,RefCode
 			,b.bettype AS FilterBetType
 			,b.betteam AS FilterBetTeam
@@ -494,7 +493,6 @@ BEGIN
 			,bl.statusID
 			,bl.EventID matchid
 			,bl.custid
-			,b.WalletType
 			,b.RefCode	
 			,NULL AS FilterBetType
 			,NULL AS FilterBetTeam
@@ -606,7 +604,7 @@ BEGIN
 		
 		IF @@ROWCOUNT <> 0
 		BEGIN
-			INSERT INTO @tmpBettransList (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, WalletType, RefCode)
+			INSERT INTO @tmpBettransList (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, RefCode)
 			SELECT b.transid 
 				,b.srecommend
 				,b.bettype
@@ -614,7 +612,6 @@ BEGIN
 				,b.statusID
 				,b.matchid
 				,b.custid
-				,b.WalletType
 				,b.RefCode
 			FROM #tmpRefCodeSummary t
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
@@ -648,11 +645,9 @@ BEGIN
 	----## Direct Licensee
 	IF @LicenseeID > 0
 	BEGIN
-		DECLARE @LicenseeName VARCHAR(100)
+		DECLARE @LicenseeName VARCHAR(100) = '', @IsChinaView BIT
 
-		SET @LicenseeName = ''
-
-		SELECT @LicenseeName = site
+		SELECT @LicenseeName = site, @IsChinaView = ISNULL(IsChinaView,0)
 		FROM site WITH (NOLOCK)
 		WHERE isLicensee = 1
 			AND isActive = 1
@@ -667,16 +662,14 @@ BEGIN
 			 ,bettype
 			 ,LiveIndicator
 			 ,LicenseeName
+			 ,IsChinaView
 			 )
 		    SELECT 1 AS OrderNo
 				,sum(cnt) AS TotalTrans
 				,bettype
-				,CASE 
-					   WHEN @type = 1 THEN liveindicator
-					   ELSE 0
-					   END
-				,--- because liveindicator only use for indicate live or dead ball of number game. So the sportsbook don't care.
-				@LicenseeName AS LicenseeName
+				,CASE WHEN @type = 1 THEN liveindicator ELSE 0 END --- because liveindicator only use for indicate live or dead ball of number game. So the sportsbook don't care.
+				,@LicenseeName AS LicenseeName
+				,@IsChinaView AS IsChinaView
 		    FROM #TmpBettrans WITH (NOLOCK)
 		    WHERE srecommend IN (
 					   SELECT custid
@@ -755,12 +748,14 @@ BEGIN
 				,bettype
 				,LiveIndicator
 				,LicenseeName
+				,IsChinaView
 				)
 			SELECT 1 AS OrderNo
 				,Count(t.ParentTransId) AS TotalTrans
 				,t.ParentBettype
 				,0
 				,@LicenseeName AS LicenseeName
+				,@IsChinaView AS IsChinaView
 			FROM CTE_ParlayTickets AS t
 			WHERE @SportType NOT IN (43,50) 
 			OR (
@@ -802,12 +797,14 @@ BEGIN
 				,bettype
 				,LiveIndicator
 				,LicenseeName
+				,IsChinaView
 				)
 			SELECT 1 AS OrderNo
 				,Count(b.transid) AS TotalTrans
 				,b.bettype
 				,0
 				,@LicenseeName AS LicenseeName
+				,@IsChinaView AS IsChinaView
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
@@ -848,15 +845,14 @@ BEGIN
 				,bettype
 				,LiveIndicator
 				,LicenseeName
+				,IsChinaView
 				)
 			 SELECT 0 AS OrderNo
 				,sum(cnt) AS TotalTrans
 				,bettype
-				,CASE 
-					   WHEN @type = 1 THEN b.liveindicator
-					   ELSE 0
-					   END
+				,CASE WHEN @type = 1 THEN b.liveindicator ELSE 0 END
 				,'Credit' AS LicenseeName
+				,0 
 			FROM #TmpBettrans b 
 			WHERE b.srecommend NOT IN( SELECT custid
 					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
@@ -940,12 +936,14 @@ BEGIN
 				,bettype
 				,LiveIndicator
 				,LicenseeName
+				,IsChinaView
 				)
 			SELECT 0 AS OrderNo
 				,Count(DISTINCT t.ParentTransId) AS TotalTrans
 				,t.ParentBettype
 				,0
 				,'Credit' AS LicenseeName
+				,0
 			FROM CTE_ParlayTickets AS t
 			WHERE @SportType NOT IN (43,50) 
 			OR (
@@ -987,12 +985,14 @@ BEGIN
 				,bettype
 				,LiveIndicator
 				,LicenseeName
+				,IsChinaView
 				)
 			SELECT 0 AS OrderNo
 				,Count(DISTINCT b.transid) AS TotalTrans
 				,b.bettype
 				,0
 				,'Credit' AS LicenseeName
+				,0
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				WHERE b.srecommend NOT IN( SELECT custid
@@ -1026,183 +1026,6 @@ BEGIN
 		  END
 	END
 
-	----## CN88
-	IF @LicenseeID = - 2
-	BEGIN
-		IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
-		BEGIN
-			INSERT INTO @TmpTotal (
-				OrderNo
-				,TotalTrans
-				,bettype
-				,LiveIndicator
-				,LicenseeName
-				)
-			SELECT 0 AS OrderNo
-				,sum(cnt) AS TotalTrans
-				,bettype
-				,CASE 
-					WHEN @type = 1 THEN b.liveindicator
-					ELSE 0
-					END
-				,'CN88' AS LicenseeName
-			FROM #TmpBettrans b WITH (NOLOCK)
-			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
-			GROUP BY b.bettype
-				,b.liveindicator
-		END
-
-		-- System parlay - Sportsbook 29
-		IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
-		BEGIN
-		  	WITH CTE_ParlayTickets (
-				ParentTransId
-				,ParentBettype
-				,mLiveIndicator
-				,Refno
-				,FilterBettype
-				,FilterBetTeam
-				,FilterSet
-				,FilterGame
-				,FilterValue
-				,FilterGoal
-				,FilterBetOption
-				,FilterHdp1
-				,FilterHdp2
-				,FilterOddsSpread
-				,FilterOddsId
-				,FilterTransdesc
-			) AS (
-			SELECT 
-				b.transid
-				,b.bettype
-				,bm.liveindicator
-				,b.refno
-				,bm.bettype AS FilterBetType
-				,bm.betteam AS FilterBetTeam
-				,bm.betcheck AS FilterSet
-				,RIGHT(bm.betcheck, 2) AS FilterGame
-				,bm.hdp1 + bm.hdp2 AS FilterValue
-				,ISNULL(bm.betcheck, 0) AS FilterGoal
-				,CAST(CAST(bm.hdp2 AS INT) AS VARCHAR(50)) + '-' + bm.betteam AS FilterBetOption
-				,bm.hdp1 AS FilterHdp1
-				,bm.hdp2 AS FilterHdp2
-				,bm.oddsspread AS FilterOddsSpread
-				,bm.oddsid AS FilterOddsId
-				,bm.transdesc AS FilterTransdesc
-			FROM bettransm bm WITH (NOLOCK)
-				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				INNER JOIN @tmpBettypes t ON bm.bettype=t.bettype
-			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
-				AND bm.matchid = @MatchId
-				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
-				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype = 29
-				AND b.matchid = 29
-				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
-				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
-				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
-									AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
-					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
-					WHEN 1 THEN 0
-					WHEN 2 THEN 1
-					END
-				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																										WHERE bm.betcheck LIKE q.Id + '%')))			
-			)
-			INSERT INTO @TmpTotal (
-				OrderNo
-				,TotalTrans
-				,bettype
-				,LiveIndicator
-				,LicenseeName
-				)
-			SELECT 0 AS OrderNo
-				,Count(DISTINCT t.ParentTransId) AS TotalTrans
-				,t.ParentBettype
-				,0
-				,'CN88' AS LicenseeName
-			FROM CTE_ParlayTickets AS t
-			WHERE @SportType NOT IN (43,50) 
-			OR (
-				  @SportType IN (43,50) 
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.[Set] = 'All' OR t.FilterSet LIKE bd.[Set] + '%'  ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Game = 'All' OR (bd.Game LIKE '>%' AND t.FilterGame > RIGHT(bd.Game, 2)) OR (t.FilterGame = bd.Game)))	
-				AND	EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.[Value] = 9999 OR t.FilterValue = bd.[Value] ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Goal = 100 OR t.FilterGoal = bd.Goal ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.BetOption = 'All' OR t.FilterBetOption = bd.BetOption )) -- filter Map X Round Y
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp1 = 9999 OR t.FilterHdp1 = bd.ValueHdp1 ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.ValueHdp2 = 9999 OR t.FilterHdp2 = bd.ValueHdp2 ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.OddsSpread = 9999 OR t.FilterOddsSpread = bd.OddsSpread ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.OddsId IS NULL OR t.FilterOddsId = bd.OddsId ))
-				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc = 'All' OR t.FilterTransdesc = bd.Transdesc ))
-				)
-			GROUP BY t.ParentBettype
-				,t.mLiveIndicator
-			HAVING Count(t.Refno) > 0
-		  END
-
-		-- System parlay - Virtual Sports 2799
-	     IF CHARINDEX('2799', @BetTypes, 1) <> 0
-		BEGIN
-			INSERT INTO @TmpTotal (
-				OrderNo
-				,TotalTrans
-				,bettype
-				,LiveIndicator
-				,LicenseeName
-				)
-			SELECT 0 AS OrderNo
-				,Count(DISTINCT b.transid) AS TotalTrans
-				,b.bettype
-				,0
-				,'CN88' AS LicenseeName
-			FROM bettransm bm WITH (NOLOCK)
-				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-			WHERE b.srecommend IN (SELECT custId FROM dbo.CS_CustSuper c WITH (NOLOCK))
-				AND bm.matchid = @MatchId
-				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
-				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype = 2799
-				AND b.matchid = 2799
-				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
-				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
-				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
-				AND bm.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE bm.transdate END
-									AND CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
-				AND ISNULL(b.SecAcceptFlag, 0) = CASE @SecondAcceptFlag
-					WHEN 0 THEN ISNULL(b.SecAcceptFlag, 0)
-					WHEN 1 THEN 0
-					WHEN 2 THEN 1
-					END
-				AND ( b.betid = 0 OR b.betid IS NULL )
-				AND (@Quarter = 'All' 
-					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																										WHERE bm.betcheck LIKE q.Id + '%')))
-			GROUP BY b.bettype
-				,bm.liveIndicator
-			HAVING Count(b.Refno) > 0
-		  END
-	END
-
 	-----## All 
 	IF @LicenseeID = 0
 	BEGIN
@@ -1214,18 +1037,16 @@ BEGIN
 				,bettype
 				,LiveIndicator
 				,LicenseeName
+				,IsChinaView
 				)
-		  SELECT CASE 
-			 WHEN s.site IS NULL AND cs.CustId IS NOT NULL THEN 0
-			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 1
-			 ELSE 2 END
+		  SELECT CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 0
+					  WHEN s.site IS NOT NULL AND ISNULL(s.IsChinaView,0) = 1 THEN 2
+					  ELSE 1 END
 				,sum(cnt) AS TotalTrans
 				,bettype
 				,CASE WHEN @type = 1 THEN b.liveindicator ELSE 0 END
-			 ,CASE 
-			 WHEN s.site IS NULL AND cs.CustId IS NOT NULL THEN 'CN88'
-			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit'
-			 ELSE s.site END AS LicenseeName
+			 ,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
+			 ,ISNULL(s.IsChinaView,0) AS IsChinaView
 		  FROM #TmpBettrans b WITH (NOLOCK)
 				LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
@@ -1233,7 +1054,7 @@ BEGIN
 		  WHERE matchid = @MatchId
 		  GROUP BY b.bettype
 			 ,b.liveindicator
-			 ,s.site
+			 ,s.site, s.IsChinaView
 			 ,cs.CustId
 	   END
 	   
@@ -1258,6 +1079,7 @@ BEGIN
 			,FilterOddsSpread
 			,FilterOddsId
 			,FilterTransdesc
+			,IsChinaView
 		) AS (
 		  SELECT b.transid AS ParentTransId
 			 ,b.bettype AS ParentBettype
@@ -1276,6 +1098,7 @@ BEGIN
 			,bm.oddsspread AS FilterOddsSpread
 			,bm.oddsid AS FilterOddsId
 			,bm.transdesc AS FilterTransdesc
+			,ISNULL(s.IsChinaView,0) AS IsChinaView
 		  FROM bettransm bm WITH (NOLOCK)
 			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			 INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
@@ -1309,18 +1132,16 @@ BEGIN
 			 ,bettype
 			 ,LiveIndicator
 			 ,LicenseeName
+			 ,IsChinaView
 			 )
-		  SELECT  CASE 
-			 WHEN t.site IS NULL AND t.CustId IS NOT NULL THEN 0
-			 WHEN t.site IS NULL AND t.CustId IS NULL THEN 1
-			 ELSE 2 END
+		  SELECT  CASE WHEN t.site IS NULL AND t.CustId IS NULL THEN 0
+					   WHEN t.site IS NOT NULL AND IsChinaView = 1 THEN 2
+					   ELSE 1 END
 		  ,Count(DISTINCT t.ParentTransId) AS TotalTrans
 		  ,t.ParentBettype
 		  ,0
-		  ,CASE 
-			 WHEN t.site IS NULL AND t.CustId IS NOT NULL THEN 'CN88'
-			 WHEN t.site IS NULL AND t.CustId IS NULL THEN 'Credit'
-			 ELSE t.site END AS LicenseeName
+		  ,CASE WHEN t.site IS NULL AND t.CustId IS NULL THEN 'Credit' ELSE t.site END AS LicenseeName
+		  ,t.IsChinaView
 		  FROM CTE_ParlayTickets AS t
 		 WHERE @SportType NOT IN (43,50) 
 			OR (
@@ -1348,7 +1169,7 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc = 'All' OR t.FilterTransdesc = bd.Transdesc ))
 				)
-		  GROUP BY t.Site
+		  GROUP BY t.Site, t.IsChinaView
 			 ,t.mLiveIndicator
 			 ,t.ParentBettype
 			 ,t.CustId
@@ -1363,18 +1184,16 @@ BEGIN
 			 ,bettype
 			 ,LiveIndicator
 			 ,LicenseeName
+			 ,IsChinaView
 			 )
-		  SELECT CASE 
-			 WHEN s.site IS NULL AND cs.CustId IS NOT NULL THEN 0
-			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 1
-			 ELSE 2 END
+		  SELECT CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 0
+					  WHEN s.site IS NOT NULL AND ISNULL(s.IsChinaView,0) = 1 THEN 2
+					  ELSE 1 END
 			 ,Count(DISTINCT b.transid) AS TotalTrans
 			 ,b.bettype
 			 ,0
-			 ,CASE 
-			 WHEN s.site IS NULL AND cs.CustId IS NOT NULL THEN 'CN88'
-			 WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit'
-			 ELSE s.site END AS LicenseeName
+			 ,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
+			 ,ISNULL(s.IsChinaView,0)
 		  FROM bettransm bm WITH (NOLOCK)
 			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
@@ -1400,7 +1219,7 @@ BEGIN
 				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																									WHERE bm.betcheck LIKE q.Id + '%'))) 
-		  GROUP BY s.site
+		  GROUP BY s.site, s.IsChinaView
 			 ,bm.liveindicator
 			 ,b.bettype
 			 ,cs.CustId
@@ -1418,15 +1237,18 @@ BEGIN
 		,bettype AS 'bettypeId'
 		,LiveIndicator
 		,LicenseeName
+		,IsChinaView
 	FROM @TmpTotal
 	GROUP BY OrderNo
 		,LicenseeName
 		,bettype
 		,LiveIndicator
+		,IsChinaView
 	ORDER BY OrderNo
 		,LicenseeName
 		,bettype
 		,LiveIndicator
+		,IsChinaView
 
 	DROP TABLE #TmpBettrans
 	DROP TABLE #TmpBallSequence
