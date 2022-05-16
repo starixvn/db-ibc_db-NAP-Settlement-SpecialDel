@@ -343,7 +343,6 @@ BEGIN
 				,IsMixParlay
 				,LiveIndicator
 				,matchid
-				,StatusId
 				,checktime
 				,SubIssueTypeId
 				,FilterBy

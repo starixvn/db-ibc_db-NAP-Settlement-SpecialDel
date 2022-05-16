@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_HDP_Select]
+CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_HDP_Select]
 (	
 	@MatchId              INT = 0
 	,@RequestId			  INT = 0
@@ -333,7 +333,6 @@ BEGIN
 				,IsMixParlay
 				,LiveIndicator
 				,matchid
-				,StatusId
 				,checktime
 				,SubIssueTypeId
 				,FilterBy
