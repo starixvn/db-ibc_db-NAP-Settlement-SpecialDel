@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@IsLeader			BIT				= 0
 	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
 	,@ChildMatchIds		VARCHAR(500)	= NULL
+	,@RefResultStatus	TINYINT			= 0
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -53,12 +54,17 @@ AS
 		- 20220128@Kathy: Cricket AIO Phase 2 [Redmine:#166335]
 		- 20220309@Kathy: Remove code savebet, old Cashout model [Redmine:#169643]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
+		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
 									<Resource Id="M1" Home="1" Away="3" />
 									<Resource Id="M2" Home="2" Away="4" />
 							   </Resources>'
+
+		* @RefResultStatus ( detect by Web )
+				 1: no reference result exist (result not yet confirmed or not exists Provider score)
+				 2: values inconsistency
 */
 BEGIN
 	SET NOCOUNT ON
@@ -961,6 +967,10 @@ BEGIN
 						+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+						+ CASE @RefResultStatus WHEN 1 THEN ' confirmed/provider:no'
+												WHEN 2 THEN ' value consistency:no'
+												ELSE ''
+												END
 					
 	EXEC dbo.WriteLog_UserLog
 				@UserID = @creator

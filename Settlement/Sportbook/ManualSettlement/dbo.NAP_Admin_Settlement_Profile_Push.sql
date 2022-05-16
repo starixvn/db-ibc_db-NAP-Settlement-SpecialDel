@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsAuto			BIT				= 0
 	,@IsDirectly		BIT				= 0
 	,@ChildMatchIds		VARCHAR(200)	= NULL
+	,@RefResultStatus	TINYINT			= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
@@ -39,12 +40,16 @@ AS
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 		- 20220224@Kathy: Settle Saba Basketball PinGoal directly [Redmine:#169042]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]				
+		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
 						    	<Resource Id="M1" Home="1" Away="3" />
 						    	<Resource Id="M2" Home="2" Away="4" />
 						      </Resources>
+		 @RefResultStatus ( detect by Web )
+				 1: no reference result exist (result not yet confirmed or not exists Provider score)
+				 2: values inconsistency
 */		
 BEGIN
 	SET NOCOUNT ON 
@@ -231,6 +236,7 @@ BEGIN
 																	WHEN @ChildMatchIds IS NOT NULL THEN ', @ChildMatchIds = ''' + CONVERT(NVARCHAR(200),@ChildMatchIds ) + ''''
 																	ELSE ''
 															END
+															+ CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END    
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 
