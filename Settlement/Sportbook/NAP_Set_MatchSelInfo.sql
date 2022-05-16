@@ -18,6 +18,7 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -75,8 +76,7 @@ BEGIN
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
-			CROSS APPLY ( SELECT TOP 1 val FROM dbo.f_SplitString(@matchIds, ',') f WHERE CAST(f.val AS INT) = m.matchid  ) f
-		OPTION (MAXRECURSION 0)
+			CROSS APPLY ( SELECT TOP 1 value FROM STRING_SPLIT(@matchIds, ',') f WHERE CAST(f.value AS INT) = m.matchid  ) f
 
 	END
 

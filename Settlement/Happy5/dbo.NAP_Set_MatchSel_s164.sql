@@ -15,6 +15,7 @@ AS
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		
 		
 	Param's Explanation:	
@@ -46,8 +47,8 @@ BEGIN
 	
 	----------check status
 	INSERT INTO @tblEventStatus(EventStatus)
-	SELECT Val 
-	FROM dbo.f_SplitString(@Status, ',')
+	SELECT Value
+	FROM STRING_SPLIT(@Status, ',')
 	
 	IF EXISTS (SELECT TOP 1 1 FROM @tblEventStatus HAVING COUNT(*) > 1) --@Status = All
 	BEGIN

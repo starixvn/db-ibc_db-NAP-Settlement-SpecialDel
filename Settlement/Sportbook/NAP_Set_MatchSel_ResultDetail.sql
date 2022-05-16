@@ -13,6 +13,7 @@ AS
     Revisions:            
 		- 20180801@Vicky: Incorporate eSports 2.0 [Redmine #95874]
 		- 20190924@Tiara: BMAIO - Badminton All In One - Removed unused parameters @tblResource and @ResourceList [Redmine: #120324]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		
 */
 BEGIN
@@ -22,9 +23,8 @@ BEGIN
     ---------------------------------------------------------------------------------------------
     
 	INSERT INTO @tblMatchID(matchid)
-	SELECT Val 
-	FROM dbo.f_SplitString(@matchidList, ',')
-	OPTION (maxrecursion 0)
+	SELECT Value
+	FROM STRING_SPLIT(@matchidList, ',')
 	
 	/*SELECT @ResourceList = @ResourceList + ',' + ResourceID
 	FROM dbo.f_Set_MajorRound(@Sporttype)

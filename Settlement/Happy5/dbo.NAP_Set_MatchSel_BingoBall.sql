@@ -11,6 +11,7 @@ AS
 	Revisions:
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		
 	Param's Explanation:	
 		@matchidList: '27175708, 27175707'
@@ -21,9 +22,8 @@ BEGIN
 	DECLARE @tblMatch TABLE (matchid INT)
 	
 	INSERT INTO @tblMatch(matchid)
-	SELECT Val 
-	FROM dbo.f_SplitString(@matchIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT value 
+	FROM STRING_SPLIT(@matchIds, ',')
 			
 	SELECT	b.matchid
 			,b.Seq

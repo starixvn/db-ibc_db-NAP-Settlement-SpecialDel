@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20210920@Louisa:  Linked result for Fantasy match [Redmine:#161268]
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393]
+		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -54,8 +55,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN ( 16371,	65550, 89611 )) --- Fantasy League
 	BEGIN
 		INSERT INTO @tmpRelatedMatchIds ( MatchId )
-		SELECT f.val FROM dbo.f_SplitString ( @fantasy, ',' ) f
-		OPTION (MAXRECURSION 0)
+		SELECT f.value FROM STRING_SPLIT ( @fantasy, ',' ) f
 
 		INSERT INTO @tmpRelatedMatchInfo
 		(

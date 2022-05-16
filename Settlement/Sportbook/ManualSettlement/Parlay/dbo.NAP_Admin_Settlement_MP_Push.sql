@@ -48,7 +48,8 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
-
+		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
+		
 	Param's Explanation:		
 		
 */
@@ -113,9 +114,8 @@ BEGIN
 								,ISNULL(SettlementStatus,0) SettlementStatus
 								,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND m.ParentId IS NOT NULL AND m.sporttype = 50 THEN m.ParentId ELSE m.MatchId END ParentId
 						FROM BODB02.dbo.Match m WITH (NOLOCK)
-								INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
-									ON m.matchid = tm.val
-						OPTION (MAXRECURSION 0)			
+								INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , '','')) tm
+									ON m.matchid = tm.value		
 					'
 
 	SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryMatch, N''@MatchIds VARCHAR(4000)'' , @matchids'
@@ -132,9 +132,8 @@ BEGIN
 		-- get date from remote ResultDetail table 
 		SET @queryResultDetail = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 									FROM BODB02.dbo.ResultDetail r WITH (NOLOCK)
-											INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
-												ON r.matchid = tm.val
-									OPTION (MAXRECURSION 0)'
+											INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , '','')) tm
+												ON r.matchid = tm.value'
 
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetail, N''@MatchIds VARCHAR(4000)'' , @matchids'
 		
@@ -148,9 +147,8 @@ BEGIN
 		-- get date from remote ResultDetailES table 
 		SET @queryResultDetailES = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 										FROM BODB02.dbo.ResultDetailES r WITH (NOLOCK)
-												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@matchids , '','')) tm
-													ON r.matchid = tm.val
-										OPTION (MAXRECURSION 0)
+												INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , '','')) tm
+													ON r.matchid = tm.value
 									'
 
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailES, N''@MatchIds VARCHAR(4000)'' , @matchids'
@@ -165,9 +163,8 @@ BEGIN
 		-- get date from remote ResultDetailOS table 
 		SET @queryResultDetailOS = '	SELECT MatchId, ResourceId, ResultStatusId, SettlementStatusId
 										FROM BODB02.dbo.ResultDetailOS r WITH (NOLOCK)
-												INNER JOIN (SELECT val FROM BODB02.dbo.f_SplitString(@ParentIds , '','')) tm
-													ON r.matchid = tm.val
-										OPTION (MAXRECURSION 0)
+												INNER JOIN (SELECT value FROM STRING_SPLIT(@ParentIds , '','')) tm
+													ON r.matchid = tm.value
 									'
 
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @queryResultDetailOS, N''@ParentIds VARCHAR(4000)'' , @ParentIds'
