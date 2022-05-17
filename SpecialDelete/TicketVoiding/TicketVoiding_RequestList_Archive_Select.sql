@@ -34,6 +34,7 @@ AS
 		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220225@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
+		- 20220517@Max: TVS - Wrong Score: Add/Edit Request COUNT single ticket NOT RIGHT at log info [Redmine: #172851]
 
 
 	Param's explanation:	
@@ -205,7 +206,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
-				,rd.KickOffTime
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.KickOffTime END
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
@@ -256,7 +257,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
-				,rd.KickOffTime
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.KickOffTime END
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
@@ -308,7 +309,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.LeagueId END
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.HomeId END
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
-				,rd.KickOffTime
+				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.KickOffTime END
 				,m.eventdate
 				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
