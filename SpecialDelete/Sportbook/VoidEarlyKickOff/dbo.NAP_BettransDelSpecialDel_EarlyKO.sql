@@ -106,6 +106,7 @@ Revisions:
 	- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 	- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 	- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+	- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -1856,6 +1857,7 @@ BEGIN
 		--Update CashOutSelling for new CO Model
 		UPDATE c
 		SET CashOutStatus = 6 --Void
+		   ,ChangeDate = GETDATE()
 		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #BetDelete b ON c.TransID = b.transid AND c.MatchID = @MatchId
 		WHERE b.IsCashOut = 1
