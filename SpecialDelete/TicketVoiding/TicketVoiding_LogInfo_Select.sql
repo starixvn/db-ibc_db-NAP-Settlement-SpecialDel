@@ -57,6 +57,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
+		- 20220517@Max: TVS - Wrong Score: Add/Edit Request COUNT single ticket NOT RIGHT at log info [Redmine: #172851]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -326,7 +327,7 @@ BEGIN
 		--> Get status of match
 		;WITH cte_match AS
 		(
-			SELECT t.matchid
+			SELECT DISTINCT t.matchid
 			FROM #FilterInfo t
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
 		)
