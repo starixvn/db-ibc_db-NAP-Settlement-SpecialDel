@@ -13,6 +13,7 @@ AS
  * Revisions	:
 	-- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 
  * Parameters:
  *  @FromDate: From  date,
@@ -31,7 +32,6 @@ BEGIN
 		WHERE o.eventdate BETWEEN @FromDate AND @ToDate		
 			  AND l.sporttype <=99 
 			  AND ISNULL(o.IsDeleted,0) = 0
-			  AND ISNULL(l.IsDeleted,0) = 0
 		ORDER BY l.sporttype, l.leaguename
 	END 
 	ELSE 
@@ -42,7 +42,6 @@ BEGIN
 		WHERE o.eventdate BETWEEN @FromDate AND @ToDate		
 			AND l.sporttype = @sporttype
 			AND ISNULL(o.IsDeleted,0) = 0
-			AND ISNULL(l.IsDeleted,0) = 0
 		ORDER BY l.leaguename 
 	END 
 END

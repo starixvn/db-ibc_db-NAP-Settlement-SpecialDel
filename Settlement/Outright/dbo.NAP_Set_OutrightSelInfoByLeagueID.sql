@@ -11,6 +11,7 @@ AS
 
  * Revisions	:
 	- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
+	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 
  * Parameters: 
 	@StatusID: 0=ALL (N/A)| 1=Running | 2=Closed (N/A) | 3=Completed (Already settled: WON/LOSE/REFUND) 
@@ -38,7 +39,6 @@ BEGIN
 									WHEN @StatusID = 3 THEN 'Completed'		--	Settled already 
 									ELSE o.oddsstatus END 
 			AND ISNULL(o.IsDeleted,0) = 0
-			AND ISNULL(l.IsDeleted,0) = 0
 	ORDER BY o.[teamid] ASC 
 END
 GO

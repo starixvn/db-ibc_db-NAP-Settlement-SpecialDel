@@ -37,8 +37,9 @@ AS
 			- 20211214@Louisa: Enhancemant Table Tennis [Redmine:#166070]			
 			- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 			- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
+			- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 			- 20220309@Louisa: Get latest status in AutoPayoutResult [Redmine:#168346]
-      
+
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
 						Check all: '1,2,3,4'
@@ -337,7 +338,7 @@ BEGIN
 															ELSE 1 END
 									ELSE 1 END
 				AND ISNULL(m.IsDeleted,0) = 0
-				AND ISNULL(l.IsDeleted,0) = 0
+
 	END
 	ELSE
 	BEGIN
@@ -467,7 +468,7 @@ BEGIN
 									END > 0 
 							)
 				AND ISNULL(m.IsDeleted,0) = 0
-				AND ISNULL(l.IsDeleted,0) = 0
+
 	END	
 	
 	--- Filter by Over Status

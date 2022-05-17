@@ -63,7 +63,8 @@ AS
 	- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 	- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 	- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
-	
+	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+
  Param explanation:  
 	@MatchCode: match code
 	@LeagueID: = 0: show info of all leagues     
@@ -333,7 +334,6 @@ BEGIN
 				END
 		AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 		AND ISNULL(m.IsDeleted,0) = 0
-		AND ISNULL(l.IsDeleted,0) = 0
 
 	IF (@IsInstant = 1)
 	BEGIN
