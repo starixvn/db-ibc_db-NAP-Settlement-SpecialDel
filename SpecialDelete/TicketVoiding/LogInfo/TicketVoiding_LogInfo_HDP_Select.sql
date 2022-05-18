@@ -384,7 +384,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets WHERE IsMixParlay = 1)
 	BEGIN
-		UPDATE s SET s.MainTransId = b.transid, s.StatusId = b.statusID
+		UPDATE s SET s.transid = b.transid, s.StatusId = b.statusID
 		FROM #SpecialDeleteBets s 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = s.refno AND b.bettype = 29 AND b.matchid = 29
 	END
