@@ -36,8 +36,6 @@ BEGIN
 			,@MainParlayCount		  INT = 0
 			,@IsExistSingle			  BIT = 0
 			,@IsExistParlay			  BIT = 0
-			,@IsExistFM				  BIT = 0
-			,@IsExistFM2			  BIT = 0
 			,@MatchProcessXML		  XML = NULL
 			,@MatchParlayProcessXML	  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
@@ -136,8 +134,6 @@ BEGIN
 			,IsExistedInOtherRequest BIT 
 			,IsExistSingle			 BIT 
 			,IsExistParlay			 BIT 
-			,IsExistFM				 BIT 
-			,IsExistFM2				 BIT 
 			,MatchProcessXML		 XML 
 			,MatchParlayProcessXML	 XML
 			,LiveScores				 NVARCHAR(300)
@@ -214,8 +210,6 @@ BEGIN
 				,@IsExistedInOtherRequest AS IsExistedInOtherRequest
 				,@IsExistSingle AS IsExistSingle
 				,@IsExistParlay AS IsExistParlay
-				,@IsExistFM AS IsExistFM
-				,@IsExistFM2 AS IsExistFM2
 				,@MatchProcessXML AS MatchProcessXML
 				,@MatchParlayProcessXML AS MatchParlayProcessXML
 			FROM #FilterBetId f 
@@ -462,11 +456,6 @@ BEGIN
 			WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
-				AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
-								WHERE f.bettype = b.bettype 
-									AND f.SubIssueTypeId = ISNULL(t.SubIssueTypeId, @SubIssueTypeId)
-									AND f.IssueTypeId = @IssueTypeId)
 		END  			    				    					    				    					    	
 	END
 	
@@ -549,8 +538,6 @@ BEGIN
 			,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
 			,ISNULL(IsExistSingle,0) AS IsExistSingle
 			,ISNULL(IsExistParlay,0) AS IsExistParlay
-			,ISNULL(IsExistFM,0) AS IsExistFM
-			,ISNULL(@IsExistFM2,0) AS IsExistFM2
 			,MatchProcessXML AS MatchProcessXML
 			,MatchParlayProcessXML AS MatchParlayProcessXML
 		FROM @Validation
@@ -629,8 +616,6 @@ BEGIN
 			,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
 			,ISNULL(IsExistSingle,0) AS IsExistSingle
 			,ISNULL(IsExistParlay,0) AS IsExistParlay
-			,ISNULL(IsExistFM,0) AS IsExistFM
-			,ISNULL(@IsExistFM2,0) AS IsExistFM2
 			,MatchProcessXML AS MatchProcessXML
 			,MatchParlayProcessXML AS MatchParlayProcessXML
 		FROM @Validation
@@ -679,20 +664,11 @@ BEGIN
 	UPDATE v SET 
 			v.IsExistSingle = tmp.IsExistSingle
 		, v.IsExistParlay = tmp.IsExistParlay
-		, v.IsExistFM = tmp.IsExistFM
-		, v.IsExistFM2 = tmp.IsExistFM2
 	FROM @Validation v
 	CROSS APPLY (
-			SELECT   MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END) AS IsExistSingle
+			SELECT   MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) THEN 1 ELSE 0 END) AS IsExistSingle
 					, MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END) AS IsExistParlay
-					, MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END) AS  IsExistFM
-					, MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END) AS IsExistFM2
 			FROM #SpecialDeleteBets AS t
-				OUTER APPLY (
-						SELECT GroupId
-						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-						WHERE Bettype = t.Bettype
-				)f
 			WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 				AND t.matchid = v.MatchId
 			GROUP BY t.matchid
@@ -700,18 +676,8 @@ BEGIN
 
 	SET @MatchProcessXML = (
 		SELECT DISTINCT t.matchid "@MatchId"
-			,CASE 
-				WHEN f.GroupId IS NULL THEN 1 --SB
-				WHEN f.GroupId = 1 THEN 6 -- Fast Market
-				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-				ELSE 0
-				END AS "@KeyID"
+			,1 AS "@KeyID"
 		FROM #SpecialDeleteBets t
-			OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
 		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 		FOR XML PATH('r'), ROOT('root')
 		)
@@ -762,8 +728,6 @@ BEGIN
 		,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
 		,ISNULL(IsExistSingle,0) AS IsExistSingle
 		,ISNULL(IsExistParlay,0) AS IsExistParlay
-		,ISNULL(IsExistFM,0) AS IsExistFM
-		,ISNULL(@IsExistFM2,0) AS IsExistFM2
 		,MatchProcessXML AS MatchProcessXML
 		,MatchParlayProcessXML AS MatchParlayProcessXML
 	FROM @Validation
