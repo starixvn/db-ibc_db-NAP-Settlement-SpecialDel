@@ -126,9 +126,7 @@ BEGIN
 	CREATE TABLE #transIdTemp (matchid INT, transid BIGINT, transdate DATETIME)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
-	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
 			livehomescore			 SMALLINT
@@ -517,8 +515,8 @@ BEGIN
 	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, CashOutCount, InstantlySettleCount, SettleCount, MinSingleTransId, MaxSingleTransId, MainParlayCount, MinMainParlayTransId, MaxMainParlayTransId, ScoreId)
 	SELECT b.matchid AS MatchId
 		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
-		,MIN(act.VoidTime) AS VoidFromTime
-		,MAX(act.VoidTime) AS VoidToTime
+		,MIN(b.transdate) AS VoidFromTime
+		,MAX(b.transdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS InstantlySettleCount
@@ -536,13 +534,6 @@ BEGIN
 				FROM #TransidInRequest t 
 				WHERE t.TransId = b.SubTransid
 		)tmp
-		CROSS APPLY (SELECT CASE 
-								WHEN b.FilterBy IN (0,1) THEN b.transdate
-								WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-								WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-								WHEN @FilterBy = 4 THEN b.transdate
-							 END AS VoidTime
-					)act
 	WHERE tmp.TransId IS NULL
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 		, b.matchid, b.ScoreId
@@ -597,38 +588,6 @@ BEGIN
 			AND b.statusID IN (111,112,113) AND ISNULL(b.betdaqid, -1) <> -2
 		GROUP BY b.matchid
 
-		--Check score for void message
-		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
-		BEGIN
-				INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-				SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
-				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
-					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = s.TransId
-				WHERE s.RequestId = @RequestId
-					AND f.GroupName <> '2H'
-		END
-
-		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
-		BEGIN
-				INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-				SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
-				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-					INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.transid = s.TransId
-					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype			
-				WHERE s.RequestId = @RequestId
-					AND f.GroupName <> '2H'
-		END
-
-		IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
-		BEGIN
-			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket) 
-			SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
-			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
-			WHERE rd.RequestId = @RequestId
-		END
-
 		SELECT rd.MatchId
 			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
 			,rd.VoidFromTime
@@ -642,41 +601,13 @@ BEGIN
 			,rd.MaxSingleTransId
 			,rd.MinMainParlayTransId
 			,rd.MaxMainParlayTransId
-			,h.HighLightTransId
-			,h.HighlightAcceptType
-			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
-			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			OUTER APPLY (
 					SELECT COUNT(transid) AS CashOutCount
 					FROM #CashOuts
 					WHERE RequestId = rd.RequestId AND MatchId = rd.MatchId
 			) c
-			OUTER APPLY (
-						SELECT  MatchId, Transid AS HighLightTransId , AcceptType AS HighlightAcceptType
-						FROM @tblHighlightTransId
-						WHERE matchId = rd.MatchId
-						AND rd.VoidFromTime = VoidTime
-						AND 1 = (CASE WHEN rd.MinSingleTransId IS NOT NULL AND rd.MinSingleTransId = TransId THEN 1
-										WHEN rd.MinMainParlayTransId IS NOT NULL AND rd.MinMainParlayTransId = TransId THEN 1
-										END
-								)
-
-				)h
 			LEFT JOIN @InstantlySettleCount_tmp t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
-			CROSS APPLy(
-				SELECT DISTINCT '|' + l.ScoreNormalTicket
-				FROM @tblScoreMessage l
-					where l.MatchId = rd.MatchId
-				FOR XML PATH('')
-			)s2(ScoreTicket2H)
-
-			CROSS APPLy(
-				SELECT DISTINCT '|' + l.ScoreOfMatch
-				FROM @tblScoreMessage l
-					where l.MatchId = rd.MatchId
-				FOR XML PATH('')
-			)sm(ScoreOfMatch)
 		WHERE rd.RequestId = @RequestId
 
 		RETURN;
@@ -895,29 +826,7 @@ BEGIN
 		,MaxSingleTransId
 		,MinMainParlayTransId
 		,MaxMainParlayTransId
-		,tmpHighlight.HighLightTransId AS HighLightTransId
-		,tmpHighlight.HighlightAcceptType AS HighlightAcceptType
 	FROM _cte l
-		CROSS APPLY (SELECT MIN(VoidFromTime) AS VoidFromTime_min
-						FROM #logInfo lg 
-						WHERE l.matchid = lg.matchid
-						) AS Voidtime
-		OUTER APPLY (SELECT TOP 1 b.transid AS HighLightTransId
-							,b.accepttype HighlightAcceptType
-					FROM #SpecialDeleteBets b 
-							CROSS APPLY (SELECT CASE WHEN b.FilterBy = 1 THEN b.transdate
-														WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-														WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
-														END AS VoidTime
-							)act
-					WHERE l.MatchId = b.matchid AND Voidtime.VoidFromTime_min = act.VoidTime 
-						AND 1 = (CASE WHEN l.MinSingleTransId IS NOT NULL AND b.transid = l.MinSingleTransId  THEN 1
-										WHEN l.MinMainParlayTransId IS NOT NULL AND b.transid = l.MinMainParlayTransId THEN 1
-									END
-								)
-						ORDER BY CASE WHEN l.MinSingleTransId IS NOT NULL THEN 1 ELSE 0 END DESC
-							
-			) AS tmpHighlight
 
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #TransidInRequest
