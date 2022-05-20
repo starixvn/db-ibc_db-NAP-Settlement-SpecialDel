@@ -18,6 +18,7 @@ AS
 		- 20200915@Kathy: Exclude HT score of SABA Soccer match from the Auto Payout's Direct Settlement flow [Redmine:#141340]
 		- 20210116@Louisa: Exclude HT score of SABA Soccer LeagueGroupID 108 [Redmine:#145597]
 		- 20210912@Helen: fix score NULL [Redmine:#161472]
+		- 20220520@Louisa:	Auto payout for SABA soccer, leagroup 42, 74 [Redmine:#172907]
 
 	Param's Explanation:
  
@@ -68,11 +69,16 @@ BEGIN
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			CROSS APPLY @typeIds f
 		WHERE m.eventstatus = 'running' and m.sporttype = 1
-			AND ISNULL(m.ChildMatchType,0) NOT BETWEEN 201 AND 203
-			AND 1 = CASE
-						WHEN ISNULL(l.LeagueGroupID,0) IN (42, 74, 108) AND f.TypeId = 1 THEN 0
-						ELSE 1 
-					END
+			AND 1 = CASE WHEN ISNULL(l.LeagueGroupID,0) IN (42, 74, 108)
+							THEN CASE WHEN l.leagueid  IN (95730,95731,96666)  THEN 1
+									  ELSE CASE WHEN f.TypeId = 1 THEN 1
+												WHEN f.TypeId = 2 AND ISNULL(m.ChildMatchType,0) NOT BETWEEN 201 AND 203 THEN 1 
+												ELSE 0 END
+									  END
+						 WHEN ISNULL(m.ChildMatchType,0) NOT BETWEEN 201 AND 203  THEN 1
+						 ELSE 0
+					END				  
+
 			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
 			AND 1 = CASE WHEN mr.ConfirmHT > 0 AND (m.hthomescore IS NULL OR m.htawayscore IS NULL) THEN 0
 						 WHEN mr.ConfirmFT > 0 AND (m.finalhomescore IS NULL OR m.finalawayscore IS NULL) THEN 0
