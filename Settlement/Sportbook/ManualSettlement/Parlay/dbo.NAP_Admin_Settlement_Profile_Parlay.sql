@@ -27,6 +27,7 @@ AS
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220527@Kathy: Wrong settle SDT for over/under [Redmine:#173286]
+		- 20220512@Louisa: Auto refund Badminton [Redmine:#171676]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -62,7 +63,8 @@ BEGIN
 			,@IsSDT				BIT = 0
 			,@subAction			VARCHAR(20) = ''
 			,@DeterminedType	TINYINT = 0
-			
+			,@ResourceRefund	VARCHAR(100) = ''
+						
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
 	DECLARE @tmpMainTransIdBatch TABLE (TransId BIGINT, Refno BIGINT)
@@ -75,6 +77,8 @@ BEGIN
 	DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
+	DECLARE @tmpResourceAutoRefund TABLE ( ResourceID VARCHAR(20) )
+	DECLARE @tmpMarkedTicket TABLE ( MatchId INT , bettype SMALLINT ) ---use for Auto Refund
 
 	DECLARE @tmpParlayDebitPending		TVP_BalanceList
 			,@tmpParlayCreditPending	TVP_BalanceList
@@ -625,13 +629,6 @@ BEGIN
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'END running CAL-29')
 
-	IF @IsAutoRefund = 1
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-			@MatchId = @matchid 
-			, @TypeId  = 10
-			, @StatusId = 2
-	END
 	----------------------------------- releasing Settlement process--------------------------------------------
 	IF @LockedByRefno = 1
 	BEGIN
@@ -643,7 +640,40 @@ BEGIN
 
 	IF @ErrCode <> 0
 		RETURN
+	
+	
+	IF @IsAutoRefund = 1 AND @Action = 'REFUND'
+	BEGIN
+		IF  @sportType = 1
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
+				@MatchId = @matchid 
+				, @TypeId  = 10
+				, @StatusId = 2
+		
+		ELSE
+			SELECT @ResourceRefund = @ResourceRefund + ',' + r.ResourceID FROM @tmpSelectedRID r
+			
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
+					@MatchId = @matchid
+					, @StatusId = 2
+					, @ResourceIds  = @ResourceRefund
+	END
 
+	--Auto refund Badminton after calculate parlay by Auto Service
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAutoRefund = 1 AND @Action = 'CAL' AND ResourceID = '00' AND HomeValue <> AwayValue )
+	BEGIN
+		EXEC dbo.NAP_Set_GetRefundResult
+				@MatchId		= @MatchID
+				,@Sporttype		= @sportType
+				,@CalculateResources= @SelectedResources
+				,@ResourceRefund = @ResourceRefund OUTPUT
+
+		IF ISNULL(@ResourceRefund, '')  <> ''
+		EXEC dbo.NAP_Set_AutoRefundOS_ResultIns
+			@MatchId		 = @MatchID
+			,@ResourceIds	 = @ResourceRefund
+END
+	
 	-- Write log
 	BEGIN 
 		DECLARE @ResultRemarkLog VARCHAR(MAX) = ''

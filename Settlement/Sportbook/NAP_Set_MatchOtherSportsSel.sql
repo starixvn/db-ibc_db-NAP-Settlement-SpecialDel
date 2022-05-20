@@ -39,6 +39,7 @@ AS
 			- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 			- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 			- 20220309@Louisa: Get latest status in AutoPayoutResult [Redmine:#168346]
+			- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -323,7 +324,7 @@ BEGIN
 					SELECT TOP 1 r.matchid, r.StatusId
 					FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 					WHERE r.matchid = m.matchid
-						AND m.sporttype IN ( 6, 50 )
+						AND m.sporttype IN ( 6, 9, 50 )
 					ORDER BY r.StatusId DESC
 				)os
 			OUTER APPLY(
@@ -429,7 +430,7 @@ BEGIN
 					SELECT TOP 1 r.matchid, r.StatusId
 					FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 					WHERE r.matchid = m.matchid
-						AND m.sporttype IN ( 6, 50 )
+						AND m.sporttype IN ( 6, 9, 50 )
 					ORDER BY r.StatusId DESC
 				)os
 			OUTER APPLY(

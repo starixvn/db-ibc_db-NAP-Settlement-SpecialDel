@@ -39,8 +39,9 @@ AS
 		- 20211120@Helen: Pingoal issue - get match from dbpro [Redmine:#164940]
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 		- 20220224@Kathy: Settle Saba Basketball PinGoal directly [Redmine:#169042]
-		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]				
+		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
+		- 20220512@Louisa: Auto settle and Auto refund Badminton [Redmine:#171676]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -176,7 +177,7 @@ BEGIN
 		RETURN
 	END
 
-	IF (@IsAuto = 1 AND @sporttype IN ( 6, 50 )	 )
+	IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	 )
 	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 		  @MatchId 				= @matchid
 		, @SelectedResources 	= @SelectedResources

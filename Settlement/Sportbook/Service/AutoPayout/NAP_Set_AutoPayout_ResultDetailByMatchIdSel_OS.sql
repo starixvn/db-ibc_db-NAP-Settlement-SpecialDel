@@ -12,6 +12,7 @@ AS
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20211206@Louisa: Enhancemant Table Tennis [Redmine:#165659]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
+		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 
 	Param's Explanation:
  
@@ -32,7 +33,7 @@ BEGIN
 			AND mr.ConfirmFT > 0
 	END
 
-	ELSE IF @SportType = 6 --Volleyball
+	ELSE IF @SportType IN ( 6,9)
 	BEGIN
 		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue)
 		SELECT r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue
