@@ -39,6 +39,7 @@ AS
 		- 20211225@Max: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
+		- 20220525@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 
 	Param's explanation:	
 	
@@ -67,12 +68,13 @@ BEGIN
 			,r.UserId
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
-		OUTER APPLY (SELECT TOP 1 1 AS isVoided, tv.UserId AS VoidBy
+		OUTER APPLY (SELECT TOP 1 1 AS isVoided, tv.UserId AS VoidBy, tv.RequestId
 					 FROM TicketVoiding_VoidingHistory tv WITH (NOLOCK)
-					 WHERE tv.RequestId = r.RequestId AND tv.StatusId = 2
+					 WHERE tv.RequestId = r.RequestId --AND tv.StatusId = 2 --Update after service web done
 					 ORDER BY tv.CreatedDate DESC
 					)AS tblVoid
 		LEFT JOIN CustDB.dbo.Customer cv WITH (NOLOCK) ON cv.custid = tblVoid.VoidBy			
+		LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON tblVoid.RequestId = s.RequestID AND s.StatusId = 2 -- show lettalk
 	WHERE	r.RequestId = @RequestId
 
 	SELECT @IssueTypeId = ( SELECT TOP 1 IssueTypeId 
@@ -100,7 +102,6 @@ BEGIN
 				,rd.FilterFromBetId
 				,rd.FilterToBetId
 				,rd.FilterBy
-				,CASE WHEN rd.RequestType = 3 THEN 1 ELSE 0 END IsVoidVIPMember
 				,rd.TransIds AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
 				,CASE WHEN @IssueTypeId = 3 THEN SUBSTRING(rd.IssueDetail, CHARINDEX(';Act:',rd.IssueDetail) + 5, LEN(rd.IssueDetail)) ELSE NULL END AS ActualScore
