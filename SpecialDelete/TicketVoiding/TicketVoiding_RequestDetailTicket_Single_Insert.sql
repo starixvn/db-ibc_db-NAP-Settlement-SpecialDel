@@ -66,6 +66,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
+		- 20220525@Max: HotFix - TVS - Wrong score show difference between Log info and void page [Redmine: #173202]
 
 	Param's explanation:
 		(+) @FilterBy:	
@@ -994,10 +995,10 @@ BEGIN
 						 ELSE 0 END
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
-			AND 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-						WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+			AND 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
+						WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
 						WHEN d.FilterBy = 4 
-							AND ((b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
+							AND ((b.checktime BETWEEN d.VoidFromTime AND d.VoidToTime) OR (b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime))
 						THEN 1
 					ELSE 0 END 
 			AND NOT EXISTS (SELECT TOP 1 1 
