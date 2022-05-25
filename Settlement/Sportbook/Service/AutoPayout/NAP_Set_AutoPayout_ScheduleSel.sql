@@ -30,7 +30,7 @@ BEGIN
 	DECLARE @tmpMatchAuto TABLE(
 									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
 									IsHalfTimeConfirmed INT, IsFullTimeConfirmed INT, BetStatus NVARCHAR(50), GoalRecord VARCHAR(50), 
-									IsHalfTimeCalculated BIT, leagueid INT, SettlementStatus TINYINT, AutoSetting TINYINT
+									IsHalfTimeCalculated BIT, LeagueGroupID SMALLINT, leagueid INT, ChildMatchType TINYINT, SettlementStatus TINYINT, AutoSetting TINYINT
 								)
 
 	INSERT INTO @TypeIds(TypeId)
@@ -39,11 +39,11 @@ BEGIN
 
 	INSERT INTO @tmpMatchAuto (
 								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
-								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
+								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, LeagueGroupID, t.leagueid, ChildMatchType, t.SettlementStatus
 								, AutoSetting
 							)
 	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
-		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
+		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.LeagueGroupID, t.leagueid, t.ChildMatchType, t.SettlementStatus
 		, AutoSetting
 	FROM (
 		SELECT m.matchid AS MatchId
@@ -61,21 +61,27 @@ BEGIN
 			, m.GoalRecord
 			, mr.IsHTCal AS IsHalfTimeCalculated
 			, m.kickofftime
+			, l.LeagueGroupID
 			, l.leagueid
+			, ISNULL(ChildMatchType,0) AS ChildMatchType
 			, m.SettlementStatus
 			, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			CROSS APPLY @typeIds f
-		WHERE m.eventstatus = 'running' and m.sporttype = 1
-			AND 1 =  CASE WHEN  ISNULL(l.LeagueGroupID,0) NOT IN ( 42, 74 ) AND ISNULL(m.ChildMatchType,0) BETWEEN 201 AND 203 THEN 0
-						  ELSE CASE WHEN ISNULL(l.LeagueGroupID,0) = 108 AND f.TypeId = 1 THEN 0
-									WHEN ISNULL(l.LeagueGroupID,0) IN (42, 74) AND  l.leagueid NOT IN (95730,95731,96666)  AND f.TypeId = 1 THEN 0
-									ELSE 1
-									END
-						  END
-			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
+		WHERE m.eventstatus = 'running'
+			AND m.sporttype = 1
+			AND ISNULL(m.ChildMatchType,0) <> 201
+			AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND  l.leagueid IN (95730,95731,96666) AND f.TypeId = 2 THEN 1
+																				   ELSE 0
+																				   END
+						 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
+																					ELSE 0
+																					END
+						 ELSE 1
+						 END
+ 			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
 			AND 1 = CASE WHEN mr.ConfirmHT > 0 AND (m.hthomescore IS NULL OR m.htawayscore IS NULL) THEN 0
 						 WHEN mr.ConfirmFT > 0 AND (m.finalhomescore IS NULL OR m.finalawayscore IS NULL) THEN 0
 						 ELSE 1
@@ -116,7 +122,7 @@ BEGIN
 
 	-- Return data 
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
-			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
+			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.LeagueGroupID, t.leagueid, t.ChildMatchType, t.SettlementStatus
 			, AutoSetting
 	FROM @tmpMatchAuto t
 		LEFT JOIN ProviderResultDetail p 
