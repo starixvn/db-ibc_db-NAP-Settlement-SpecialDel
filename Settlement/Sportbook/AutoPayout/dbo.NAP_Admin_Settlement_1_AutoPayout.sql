@@ -43,6 +43,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 
 	Param's Explanation:
 		 
@@ -73,7 +74,8 @@ BEGIN
 		, @goalrecord_old               VARCHAR(50)
 		, @SSBStatus					TINYINT
 		, @TypeId						TINYINT
-
+		, @AutoSetting					TINYINT
+		
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -126,7 +128,10 @@ BEGIN
 		, @matchcode = m.matchcode
 		, @sporttype = m.sporttype
 		, @goalrecord_old = m.GoalRecord
+		, @AutoSetting = ISNULL(m.AutoSetting,l.AutoSetting)
 	FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK)
+			ON m.leagueid = l.leagueid
 	WHERE m.matchid = @matchid
  
 	IF @sporttype = 1
@@ -200,10 +205,11 @@ BEGIN
 							,@IP AS '@IP'
 							,@TicketCount AS '@TicketCount'
 							,@SourceId AS '@SourceId'
+							,CASE WHEN @AutoSetting & 2 > 0 AND @action = 'CAL-HT' THEN 1 ELSE NULL END AS '@DeterminedFTStatus'
 							,@start AS '@Starttime'
 							,@ErrMsg AS '@ErrMsg'
 					FOR XML PATH('r'), ROOT('root'), TYPE)
-
+		
 		SET @CommandMonitor = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
 							+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)		
 							+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)

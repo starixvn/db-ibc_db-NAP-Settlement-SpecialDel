@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_DummyResourceResult]
 	@MatchId INT
 	,@Sporttype SMALLINT
 	,@IsDetermined BIT = 0
+	,@Action VARCHAR(20) = 'CAL'
 	,@DummyResourceIds VARCHAR(MAX)
 	,@DummyResourceResults VARCHAR(MAX) = '' OUTPUT
 
@@ -22,6 +23,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 */
 
 BEGIN
@@ -78,7 +80,8 @@ BEGIN
 			,@result NVARCHAR(200)
 			,@string VARCHAR(50)
 			,@ResourceId VARCHAR(20) 
-			
+			,@DeterminedType TINYINT
+
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 
@@ -357,6 +360,8 @@ BEGIN
 	END
 	ELSE IF @Sporttype = 1
 	BEGIN
+		SET @DeterminedType = CASE WHEN @Action = 'CAL-HT' AND @IsDetermined = 1 THEN 2 ELSE 0 END
+
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
 		SELECT	t.ResourceId, '', '', 0
 		FROM	(
@@ -371,9 +376,18 @@ BEGIN
 		FROM	@tmpResultDetail
 		WHERE	ResourceId IN ('01', '00')
 
-		SELECT	@FTGoalRecord = HomeValue
-		FROM	@tmpResultDetail
-		WHERE	ResourceId = '08'
+		IF @DeterminedType = 2
+		BEGIN
+			SELECT	@FTGoalRecord = HomeValue
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '09'
+		END
+		ELSE
+		BEGIN
+			SELECT	@FTGoalRecord = HomeValue
+			FROM	@tmpResultDetail
+			WHERE	ResourceId = '08'
+		END
 
 		SELECT	@HTGoalRecord = HomeValue
 		FROM	@tmpResultDetail
@@ -1446,8 +1460,6 @@ BEGIN
 				WHERE	ResourceId = '00'
 			END
 
-			
-
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '22')
 			BEGIN
 				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, ssId)
@@ -1455,7 +1467,7 @@ BEGIN
 						,REPLACE(ISNULL(HomeValue, ''),';','') 
 						,ssId
 				FROM	@tmpResultDetail
-				WHERE	ResourceId = '08'
+				WHERE	ResourceId = CASE WHEN @DeterminedType = 2 THEN '09' ELSE '08' END
 			END 
 		END
 	END

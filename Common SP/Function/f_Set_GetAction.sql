@@ -7,9 +7,11 @@ AS
 	Created date: 20220301@Louia
 	DB: DBTXN/bodb02
 	TASK: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
+	
 
 	Revision
-	- 20220228@Louisa: Inittial
+		- 20220228@Louisa: Inittial
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 	
 */
 RETURN
@@ -23,6 +25,7 @@ RETURN
 	UNION ALL SELECT 'REFUND'		, 'MNL'
 	UNION ALL SELECT 'REFUND-HT'	, 'MNL'
 	UNION ALL SELECT 'REFUND-FT'	, 'MNL'
+	UNION ALL SELECT 'SDT-FT'		, 'MNL'
 
 	UNION ALL SELECT 'CAL-EARLY'	,'EAR' ---Early
 	UNION ALL SELECT 'UNDO-EARLY'	,'EAR'

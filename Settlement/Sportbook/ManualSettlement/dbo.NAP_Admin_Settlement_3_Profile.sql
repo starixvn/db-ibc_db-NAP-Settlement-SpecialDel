@@ -31,6 +31,7 @@ AS
 	   - 20211210@Kathy: Improve performance [Redmine:#165996]
 	   - 20211130@Kathy: New cashout model [Redmine:#164838]
 	   - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+	   - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 
 */
 BEGIN
@@ -876,5 +877,13 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
 			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
 		END
+	END
+	ELSE IF @Action IN ('CAL', 'CAL-FT')
+	BEGIN
+		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
+			SET StatusId = 0, Starttime = GETDATE()
+		WHERE MatchId = @matchid
+			AND Action = 'MixParlay'
+			AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
 	END
 END

@@ -83,6 +83,7 @@ AS
 		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 
 
     Param's Explanation:
@@ -121,6 +122,7 @@ BEGIN
         ,@strHTBettypes					VARCHAR(MAX)
         ,@strBettypes					VARCHAR(MAX)	
 		,@IsRefundHT					BIT	
+
 		-- Corner match
 		,@ChildMatchType				TINYINT
 		,@LogDataSoccer					XML
@@ -136,7 +138,8 @@ BEGIN
 		,@ThreadHoldRefno				INT 
 		,@LockedByRefno					BIT
 		,@sqlCommand					VARCHAR(MAX)
-	
+		,@AutoSetting					TINYINT
+		
 	DECLARE @tmpParlayAffectedBettypes TABLE (ResourceId VARCHAR(20), RefResourceId VARCHAR(20), bettype SMALLINT, totalticket INT)	
 
     --START Balance tables	
@@ -152,9 +155,12 @@ BEGIN
     
     SELECT  @sporttype        = m.sporttype
             ,@goalrecord_old    = ISNULL(m.goalrecord, '')
-			,@IsRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
-			,@ChildMatchType = ChildMatchType
+			,@IsRefundHT = CASE WHEN m.betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
+			,@ChildMatchType = m.ChildMatchType
+			,@AutoSetting = ISNULL(m.AutoSetting, l.AutoSetting)	
     FROM    dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK)
+			ON m.leagueid = l.leagueid
     WHERE    m.matchid = @matchid
 	
     IF @@ROWCOUNT = 0
@@ -182,7 +188,7 @@ BEGIN
 												WHEN @action = 'UNDO' THEN 0 ELSE 1 END
 									ELSE 0
 								END
-
+			
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 		@MatchId	= @Matchid
 		,@ErrCode	= @ErrCode OUTPUT
@@ -282,12 +288,13 @@ BEGIN
 						,@creator AS '@AdminId'
 						,@IP AS '@IP'
 						,@TicketCount AS '@TicketCount'
+						,CASE WHEN @AutoSetting & 2 > 0 AND @action = 'CAL-HT' THEN 1 ELSE NULL END AS '@DeterminedFTStatus'
 						,@starttime AS '@Starttime'
 						,@ErrMsg AS '@ErrMsg'
 				FOR XML PATH('r'), ROOT('root'), TYPE)
 
 		SET @CommandMonitor = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
-						+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)		
+						+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)				
 						+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 						+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
 						+ ', @ErrCode = @ErrCode OUTPUT' 

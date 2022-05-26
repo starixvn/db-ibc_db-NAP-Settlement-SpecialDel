@@ -24,6 +24,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -58,6 +59,7 @@ BEGIN
 			,@DummySDTResourceResults	VARCHAR(MAX) = ''
 			,@IsSDT				BIT = 0
 			,@subAction			VARCHAR(20) = ''
+			,@DeterminedType	TINYINT = 0
 			
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
@@ -66,8 +68,8 @@ BEGIN
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 		HomeRound TINYINT, AwayRound TINYINT,
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
-		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20)
-						)
+		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
+	)
 	DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
@@ -117,6 +119,7 @@ BEGIN
 				,ISNULL(IsSDT,0) AS IsSDT
 				,ISNULL(HomeRound,'') AS HomeRound
 				,ISNULL(AwayRound,'') AS AwayRound
+				,ISNULL(DeterminedType,'') AS DeterminedType
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
 															,SDTResourceId VARCHAR(20)
@@ -127,9 +130,10 @@ BEGIN
 															,IsSDT BIT
 															,HomeRound TINYINT
 															,AwayRound TINYINT
+															,DeterminedType TINYINT
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -144,6 +148,7 @@ BEGIN
 			,c.IsSDT
 			,c.HomeRound
 			,c.AwayRound
+			,c.DeterminedType
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 			ON	 sp.ResourceID = c.Id
@@ -167,6 +172,7 @@ BEGIN
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype
 							AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+							AND t.DeterminedType = 0
 				)sr
 				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, bm.betteam, bm.hdp1, bm.hdp2, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck) m
 				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
@@ -188,6 +194,44 @@ BEGIN
 							END
 
 			SET @totalSubParlay = @@ROWCOUNT
+
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType = 2)
+			BEGIN
+				SET @DeterminedType = 2
+
+				INSERT INTO #tmpsubTransID (TransID, modds, refno)
+				SELECT	bm.transid, m.modds, bm.refno
+				FROM	dbo.bettransm bm WITH(NOLOCK)
+					CROSS APPLY (
+						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
+						FROM	@tmpSelectedRID t
+						WHERE	t.BetType = bm.bettype
+								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+								AND t.DeterminedType = 2
+					)sr
+					OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
+					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+						ON	b.matchid = 29
+							AND b.bettype = 29
+							AND b.refno = bm.refno
+					OUTER APPLY (
+							SELECT TOP (1) mt.TransId
+							FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+							WHERE	mt.TransId = b.transId
+									AND mt.MatchId = @MatchID
+					) mt
+				WHERE	bm.matchid = @MatchID
+						AND bm.statusID IN (0,102)
+						AND m.modds IS NOT NULL
+						AND mt.TransId IS NULL
+						AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
+							OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
+							OR bm.statusID = 102
+						)
+
+				SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
+			END
 			
 		END
 		ELSE
@@ -638,13 +682,15 @@ BEGIN
 		SET @stop = CURRENT_TIMESTAMP
 
 		SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
+								+ CASE WHEN @DeterminedType = 2 THEN ' SDT-FT:1' ELSE '' END
 								+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
 								+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 						   
 		EXEC dbo.WriteLog_UserLog @creator, @logdata
 
 		SELECT @Remark = CASE WHEN @sportType <> 1 THEN @ResultRemarkLog + '<br/> '  ELSE '' END
-							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
+							+ CASE WHEN @DeterminedType = 2 THEN 'SDT-FT:1' ELSE '' END
+							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
 						

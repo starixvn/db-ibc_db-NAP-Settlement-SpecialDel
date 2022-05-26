@@ -24,6 +24,7 @@ AS
 		- 20200609@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -131,7 +132,7 @@ BEGIN
 		ORDER BY CASE WHEN SportType = @pre_Sporttype THEN 1 ELSE 0 END
 			,TryCount, starttime, keyid
 	
-		SET @IsRunBySSB = CASE WHEN @sporttype = 1 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT', 'REFUND', 'REFUND-HT', 'REFUND-FT') THEN 1 ELSE 0 END
+		SET @IsRunBySSB = CASE WHEN @sporttype = 1 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT', 'REFUND', 'REFUND-HT', 'REFUND-FT', 'SDT-FT') THEN 1 ELSE 0 END
 
 		IF @IsRunBySSB = 1
 			SET @SSBStatus = 1
