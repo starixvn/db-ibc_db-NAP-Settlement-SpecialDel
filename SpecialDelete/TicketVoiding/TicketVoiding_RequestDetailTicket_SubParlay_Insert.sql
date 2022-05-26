@@ -48,6 +48,7 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
+		- 20220525@Max: HotFix - TVS - Wrong score show difference between Log info and void page [Redmine: #173202]
 
 	Param's explanation:
 		
@@ -435,10 +436,10 @@ BEGIN
 						 ELSE 0 END
 			AND sub.betfrom <> 'P'
 			AND 1 = CASE WHEN sub.livehomescore = 0 AND sub.liveawayscore = 0 AND sub.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
-			AND 1 = CASE WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-						WHEN d.FilterBy = 2 AND ISNULL(sub.checktime, sub.transdate) BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+			AND 1 = CASE WHEN d.FilterBy = 1 AND sub.transdate BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
+						WHEN d.FilterBy = 2 AND ISNULL(sub.checktime, sub.transdate) BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
 						WHEN d.FilterBy = 4 
-							AND ((sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
+							AND ((sub.checktime BETWEEN d.VoidFromTime AND d.VoidToTime) OR (sub.transdate BETWEEN d.VoidFromTime AND d.VoidToTime))
 						THEN 1
 					ELSE 0 END 
 			AND NOT EXISTS (SELECT TOP 1 1 
