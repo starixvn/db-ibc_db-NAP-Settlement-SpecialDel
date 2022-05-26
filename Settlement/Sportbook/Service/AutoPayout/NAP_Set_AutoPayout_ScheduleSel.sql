@@ -104,12 +104,14 @@ BEGIN
 					AND ISNULL(m.ChildMatchType,0) <> 201
 					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND  l.leagueid IN (95730,95731,96666) AND f.TypeId = 2 THEN 1
 																						   ELSE 0
-																						   END
+																						   END								 
 								 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
+																							WHEN l.leagueid IN (95730,95731,96666) AND f.TypeId = 1 THEN 1 
 																							ELSE 0
-																							END
+								  															END
 								 ELSE 1
 								 END
+
 					AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
 					AND 1 = CASE WHEN mr.ConfirmHT > 0 AND (m.hthomescore IS NULL OR m.htawayscore IS NULL) THEN 0
 								 WHEN mr.ConfirmFT > 0 AND (m.finalhomescore IS NULL OR m.finalawayscore IS NULL) THEN 0
