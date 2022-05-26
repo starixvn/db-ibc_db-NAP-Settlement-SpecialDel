@@ -14,6 +14,7 @@ AS
 		- 20190624@Helen: Unable to run Auto Instant HT if Auto Payout HT has already completed [Redmine:#116073]
 		- 20191209@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
+		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		
 */
 
@@ -21,13 +22,18 @@ BEGIN
 
     SET NOCOUNT ON
 
-    SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId, m.ChildMatchType
-    
+	DECLARE	@yesterday DATETIME
+			,@today DATETIME
+			,@checktime DATETIME
+
+	SET @today = GETDATE()
+	SET @yesterday = DATEADD(DAY,-1,@today)
+	SET @checktime = DATEADD(HOUR, 3, GETDATE())
+
+    SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId, m.ChildMatchType    
     FROM dbo.ProviderResultDetail d WITH (NOLOCK)
 	    INNER JOIN dbo.Match m WITH (NOLOCK)
 		  ON d.MatchID  = m.MatchID
-	    --INNER JOIN dbo.Match_Remark mr WITH (NOLOCK)
-		--  ON m.MatchID  = mr.MatchID
 	    INNER JOIN dbo.League l WITH (NOLOCK)
 		  ON m.LeagueID = l.LeagueID      
 		OUTER APPLY(
@@ -36,9 +42,17 @@ BEGIN
 			WHERE	ss.LeagueId = l.leagueid
 					AND ss.AutoType = 2 -- Auto Instant
 		)ss
-
+		CROSS APPLY (
+			SELECT	MAX(ProviderResultDetailID) AS MaxProviderResultDetailID
+			FROM	dbo.ProviderResultDetail WITH (NOLOCK)
+			WHERE	MatchID  = m.MatchID 
+					AND TypeID   = d.TypeID 
+					AND SourceID = d.SourceID
+		)mx
     WHERE m.SportType	   = 1
 	 AND m.EventStatus	   = 'running' 
+	 AND m.eventdate BETWEEN @yesterday AND @today
+	 AND GlobalShowTime <= @checktime
 	 AND m.SettlementStatus & 87 = 0 --Bit: 1: Pending, 2: Undecided, 3: UnderSettlement, 5: MTDHold, 7: Hold Key
 	 AND 2 & ISNULL(m.AutoSetting, l.AutoSetting) = 2
 	 AND m.matchcode IS NOT NULL --exist match
@@ -48,22 +62,15 @@ BEGIN
 	 AND d.ISConfirmed	   = 0
 	 AND d.SourceID	   = 100					--Instant
 	 AND d.TypeID IN (101, 102)					--HT/FT	 
-	 AND d.CreatedDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,120), GETDATE())
-	 
-	 AND d.ProviderResultDetailID	 = (SELECT MAX(ProviderResultDetailID) 
-							    FROM dbo.ProviderResultDetail WITH (NOLOCK)
-							    WHERE MatchID  = m.MatchID 
-								 AND TypeID   = d.TypeID 
-								 AND SourceID = d.SourceID)
-
+	 AND d.CreatedDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,120), GETDATE())	 
+	 AND d.ProviderResultDetailID	 = mx.MaxProviderResultDetailID
 	 AND NOT EXISTS (SELECT 1
 				  FROM dbo.ResultDetail r WITH(NOLOCK)
 				  WHERE r.MatchId = m.MatchId
 				    AND d.TypeID = 102
 				    AND r.ResultStatusID IN (2,5)		--Auto settled/Manually settled
 				    AND r.ResourceID = '00'			--FT Calculated
-				    AND r.SettlementStatusID = 4)		--Completed							
-      
+				    AND r.SettlementStatusID = 4)		--Completed			
 	 --Failure/Running when compare/verify
     	 AND NOT EXISTS (SELECT 1
 				  FROM dbo.AutoPayoutResult a WITH(NOLOCK)
@@ -74,7 +81,6 @@ BEGIN
 				    AND a.SourceID IN (100, 5) -- sourceID: 100 manual instant, sourceID: 5 auto cal for soccerway result
 				    AND a.CalculationType BETWEEN 100 AND 199 -- Cal instant
 				    AND a.ModifiedDate > d.CreatedDate)
-
     ORDER BY d.CreatedDate
 
 END
