@@ -25,6 +25,7 @@ AS
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220527@Kathy: Wrong settle SDT for over/under [Redmine:#173286]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -222,13 +223,19 @@ BEGIN
 									AND mt.MatchId = @MatchID
 					) mt
 				WHERE	bm.matchid = @MatchID
-						AND bm.statusID IN (0,102)
+						--AND bm.statusID IN (0,102)
 						AND m.modds IS NOT NULL
 						AND mt.TransId IS NULL
 						AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
 							OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 							OR bm.statusID = 102
 						)
+						and 1 = case 
+								when sr.SDTpfId = 3 then case when (@hth + @hta) - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 388 then case when @hta - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 389 then case when @hth - 0.25 > bm.hdp1 then 1 else 0 end
+								else 1
+							end
 
 				SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
 			END
