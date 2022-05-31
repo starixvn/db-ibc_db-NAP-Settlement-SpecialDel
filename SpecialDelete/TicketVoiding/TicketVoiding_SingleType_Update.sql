@@ -48,6 +48,7 @@ AS
 		- 20220119@Max: Fix Issue - Include into feature split transfer [Redmine: #165093]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -1411,6 +1412,7 @@ BEGIN
 	-- Update CashOutSelling [#165097]
 	UPDATE c
 	SET CashOutStatus = 6 --Void
+	   ,ChangeDate = GETDATE()
 	FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN #tmpTransId b ON c.TransID = b.transid AND c.MatchID = b.matchid
 	WHERE b.betdaqid = -2 

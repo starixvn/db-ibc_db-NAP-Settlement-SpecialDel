@@ -36,6 +36,7 @@ AS
 		- 20220221@Max: TVS Auto Calculate When Cancel Cash Out Transaction [Redmine: #168774]
 		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 	Explanation's Param:
 
@@ -341,6 +342,7 @@ BEGIN
 	UPDATE s
 	SET s.CashOutStatus = 6
 		, s.CashoutExtraInfo = REPLACE(s.CashoutExtraInfo, '</root>', c.CashOutExtraInfo) + '</root>'
+		, s.ChangeDate = CONVERT(DATETIME,@RepUpdateTime)
 	FROM dbo.CashOutSelling s WITH (ROWLOCK, UPDLOCK)
 		CROSS APPLY (
 				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),CONVERT(DATETIME,@RepUpdateTime),21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo

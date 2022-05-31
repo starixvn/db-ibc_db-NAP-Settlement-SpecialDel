@@ -22,6 +22,7 @@ AS
 	Revisions: 
 		- 20211202@Max: Create new SP [Redmine:#140180]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 	Param's explanation:	
 		
@@ -82,6 +83,7 @@ BEGIN
 		,isFinish			BIT
 		,srecommend			INT
 		,ruben				TINYINT
+		,betdaqid			BIGINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -113,13 +115,13 @@ BEGIN
 		RETURN
 	END CATCH						
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, extrainfo, refcode, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, extrainfo, refcode, matchid, oddsid, winlostdate, Refno, srecommend, ruben, betdaqid)
 	SELECT	b.transid, b.custid, b.bettype
 			,b.ExtraInfo, b.RefCode
 			,b.matchid, b.oddsid
 			,b.winlostdate, b.refno
 			,b.srecommend
-			,b.ruben
+			,b.ruben, b.betdaqid
 	FROM @tblInputTransId t 
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 			ON b.transid = t.transid
@@ -208,8 +210,8 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId (TransId, custid, bettype, refcode, matchid)
-		SELECT b.TransId, b.custid, b.bettype, b.refcode, b.matchid
+		INSERT INTO #tmpTransId (TransId, custid, bettype, refcode, matchid, betdaqid)
+		SELECT b.TransId, b.custid, b.bettype, b.refcode, b.matchid, b.betdaqid
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans14 b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -409,6 +411,13 @@ BEGIN
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
 	
+	UPDATE c
+	SET CashOutStatus = 6 --Void
+	   ,ChangeDate = GETDATE()
+	FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
+		INNER JOIN #tmpTransId b ON c.TransID = b.transid AND c.MatchID = b.matchid
+	WHERE b.betdaqid = -2 
+
 	-- update summary ticket
 	DECLARE @AffectedList		VARCHAR(MAX)
 	SET @AffectedList = CAST((

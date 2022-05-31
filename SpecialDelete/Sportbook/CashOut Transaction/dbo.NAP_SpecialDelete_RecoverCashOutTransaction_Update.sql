@@ -30,6 +30,7 @@ AS
 		- 20220118@July: HotFix - Recover Cash Out Transaction NOT CALC PlayerComm for tickets double Comm [Redmine: #167687]
 		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 	Param's Explanation:
 	
@@ -398,6 +399,7 @@ BEGIN
 	UPDATE s
 	SET s.CashOutStatus = 4
 		, s.CashoutExtraInfo = REPLACE(s.CashoutExtraInfo, '</root>', c.CashOutExtraInfo) + '</root>'
+	    , s.ChangeDate = CONVERT(DATETIME,@RepUpdateTime)
 	FROM dbo.CashOutSelling s WITH (ROWLOCK, UPDLOCK)
 		CROSS APPLY (
 				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),t.changetime,21) + ''' s=''' + CONVERT(varchar(20),t.actionid) + ''' w='''+ convert(varchar(20),t.winlost) +'''/>' AS CashOutExtraInfo

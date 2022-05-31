@@ -51,6 +51,7 @@ AS
 		- 20211213@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 		- 20220509@Max: TVS- Hotfix Capture duplicate transid void and re-settle [Redmine: #00000]
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 	Param's explanation:	
 		
@@ -1641,6 +1642,7 @@ BEGIN
 	-- Update CashOutSelling [#165097]
 	UPDATE c
 	SET CashOutStatus = 6 --Void
+	   ,ChangeDate = GETDATE()
 	FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN #tmpTransId_VOID_RequestID b ON c.TransID = b.transid AND c.MatchID = b.matchid
 	WHERE b.betdaqid = -2 

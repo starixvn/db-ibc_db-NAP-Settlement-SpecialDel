@@ -62,7 +62,8 @@ AS
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-			
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		
 	Param's Explanation:
 */
 BEGIN
@@ -1294,6 +1295,7 @@ BEGIN
 		-- Update CashOutSelling [#165097]
 		UPDATE c
 		SET CashOutStatus = 6 --Void
+		   ,ChangeDate = GETDATE()
 		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #SpecialDeleteBets_Single b ON c.TransID = b.transid AND c.MatchID = @MatchID
 		WHERE b.betdaqid = -2 

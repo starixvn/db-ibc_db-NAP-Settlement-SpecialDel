@@ -67,6 +67,7 @@ AS
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220118@July: HotFix - Recover Cash Out Transaction NOT CALC PlayerComm for tickets double Comm [Redmine: #167687]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 	Param's Explanation:
 */
@@ -820,6 +821,7 @@ BEGIN
 		--Update CO Selling
 		UPDATE co
 		SET co.CashOutStatus = 4
+		   ,ChangeDate = GETDATE()
 		FROM dbo.CashOutSelling co WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblTransInfo t ON co.transid = t.grouptransid AND co.transid = t.transid
 		WHERE t.IsCashOut = 1

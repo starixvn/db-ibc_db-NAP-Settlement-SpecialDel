@@ -117,6 +117,7 @@ AS
 		- 20220216@July: Fix check ISNULL betdaqid [Redmine: #167055]
 		- 20220301@Max: [TVS] Integrate new bet types of Cricket [Redmine: #168080]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -1578,6 +1579,7 @@ BEGIN
 		-- Update CashOutSelling [#165097]
 		UPDATE c
 		SET CashOutStatus = 6 --Void
+		   ,ChangeDate = GETDATE()
 		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN #BetDelete b ON c.TransID = b.transid AND c.MatchID = @MatchId
 		WHERE b.betdaqid = -2 
