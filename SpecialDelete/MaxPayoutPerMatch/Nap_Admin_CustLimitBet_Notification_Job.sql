@@ -26,7 +26,7 @@ BEGIN
 	
 	--For PROD EVN
 	--SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
-	SET @Recipients = 'tina.vo@starixvn.com'
+	SET @Recipients = 'tina.vo@starixvn.com;liz.nguyen@starixvn.com'
 
 	--For local Testing, input email need to test
 	--SET @Recipients = 'max.tran@starixvn.com, xxx'

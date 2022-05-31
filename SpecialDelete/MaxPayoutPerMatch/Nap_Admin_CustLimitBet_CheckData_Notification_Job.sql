@@ -32,7 +32,7 @@ BEGIN
 	
 
 	--SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;tina.vo@starixvn.com'
-	SET @Recipients = 'tina.vo@starixvn.com'
+	SET @Recipients = 'tina.vo@starixvn.com;liz.nguyen@starixvn.com'
 
 
 	EXEC  [dbo].[Nap_Admin_CustLimitBet_CheckData_Job] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT, @ErrorMessage = @ErrorMessage OUTPUT
