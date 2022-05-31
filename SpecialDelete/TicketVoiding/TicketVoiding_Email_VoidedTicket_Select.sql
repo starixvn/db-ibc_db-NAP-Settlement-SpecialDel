@@ -23,6 +23,7 @@ AS
 		- 20210226@Max: TVS - SP Time Out [Redmine: #150723]
 		- 20210504@July: TVS - Show VIP status on void email (Abnormal bet + AB real member) [Redmine: #153157]
 		- 20211207@July: Remove code CashOut [Redmine: #165097]
+		- 20220523@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 
 	Param's explanation:	
 		
@@ -95,6 +96,7 @@ BEGIN
 		,SettlementStatus TINYINT
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
+		,IsDeposit      BIT DEFAULT(0)
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -325,6 +327,11 @@ BEGIN
 		WHERE	main.wallettype = 1
 	END	
 
+	-- update Isdeposit
+	UPDATE al SET IsDeposit = 1
+	FROM #tmpTicket al
+	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
+
 	--get list VIP Account
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	SELECT  @query = N''		
@@ -418,6 +425,12 @@ BEGIN
 				ELSE CAST(0 AS BIT)
 			END AS IsInstantSettlementTicket
 			,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
+			,CASE WHEN f.CustID IS NULL AND (t.username <> '12EU')  AND t.IsDeposit = 0
+				    AND t.mrecommend NOT IN (105181, 118473, 105183) -- MHC
+				    AND t.recommend NOT IN (11196380, 13423967, 52466, 5707545) -- Foobet, 1E, 8RM, BARM
+				    AND t.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)  -- Betfair: BFOS, BF, ITibc102, BF3
+					AND c.site <> 'CN88'
+			THEN 1 ELSE 0 END IsCredit
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
@@ -425,6 +438,7 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK) ON ma.custid = t.mrecommend
 		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend
 		LEFT JOIN @VIPAccount_tmp vip ON t.custid = vip.CustID 	
+		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
 	ORDER BY ISNULL(t.MainTransId, t.transid)
 		   , CASE 
 				WHEN t.BonusID IS NOT NULL
