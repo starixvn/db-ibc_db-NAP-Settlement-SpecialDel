@@ -25,6 +25,7 @@ AS
 		- 20210601@louisa: Performance Tuning for EC 2021 [Redmine:#151143]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220205@Kathy: performance tunning [Redmine:#169814]
+		- 20220531@Kathy: performance tunning [Redmine:#173456]
 		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -95,6 +96,13 @@ BEGIN
 			,actual_stake	money
 		)
 		
+	CREATE TABLE #tmpSource (refno BIGINT, transid BIGINT, winlostdate SMALLDATETIME, statuswinlost TINYINT, statusId TINYINT, matchid INT
+				, bettype SMALLINT, odds SMALLMONEY, betteam NVARCHAR(10)
+				,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
+				,liveindicator BIT, betcheck NVARCHAR(50), selection_cnt TINYINT , bitmapR INT, SetStake MONEY, transdesc NVARCHAR(1000)
+				,RN INT
+	)
+
 	BEGIN
 		INSERT INTO #temp_bettrans (
 			transid, refno, stake
@@ -145,41 +153,42 @@ BEGIN
 		FROM #temp_bettrans t
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayResult r WITH (NOLOCK) WHERE t.refno = r.refno)			
 		
-		;WITH 
-			_source AS (
-				SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
-					,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
-					,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
-					,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY m.mainmatch) --RN			
-				FROM #temp_bettrans b
-					INNER LOOP JOIN dbo.bettransm bm WITH(ROWLOCK)
-						ON b.refno = bm.refno
-					CROSS APPLY
-						(
-							SELECT	TOP 1 CASE 
-											WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID 
-											ELSE bm.matchid 
-										END AS mainmatch
-							FROM dbo.match m WITH (NOLOCK)									
-							WHERE	bm.matchid = m.matchid
-									AND m.sporttype BETWEEN 1 AND 99											
-						) m
-				WHERE	b.inserted = 0 
-			),
-			ParlayStake AS (SELECT refno, RN, SetStake FROM _source)
-		--	
+		INSERT INTO #tmpSource(refno, transid, winlostdate, statuswinlost, statusId, matchid
+			,bettype, odds, betteam, hdp1, hdp2, livehomescore
+			,liveawayscore, liveindicator, betcheck, selection_cnt, bitmapR, SetStake, transdesc
+			,RN
+		)
+		SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
+			,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
+			,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
+			,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY m.mainmatch) --RN			
+		FROM #temp_bettrans b
+			INNER LOOP JOIN dbo.bettransm bm WITH(ROWLOCK)
+				ON b.refno = bm.refno
+			CROSS APPLY
+				(
+					SELECT	TOP 1 CASE 
+									WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID 
+									ELSE bm.matchid 
+								END AS mainmatch
+					FROM dbo.match m WITH (NOLOCK)									
+					WHERE	bm.matchid = m.matchid
+							AND m.sporttype BETWEEN 1 AND 99											
+				) m
+		WHERE	b.inserted = 0 
+	
 		INSERT INTO dbo.BetParlayDetail (
 			RefNo, Serial, transid, winlostdate, statuswinlost, statusid
 			,matchid, bettype, stake, odds, betteam, hdp1
 			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
 		)
-		SELECT p.RefNo, rc.Serial, transid, winlostdate, statuswinlost, statusid
-			,matchid, bettype, ps.SetStake, odds, betteam, hdp1
-			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
-		FROM _source p
+		SELECT p.RefNo, rc.Serial, p.transid, p.winlostdate, p.statuswinlost, p.statusid
+			,p.matchid, p.bettype, ps.SetStake, p.odds, p.betteam, p.hdp1
+			,p.hdp2, p.livehomescore, p.liveawayscore, p.liveindicator, p.betcheck, p.transdesc
+		FROM	#tmpSource p
 			INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
 			INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
-			INNER JOIN ParlayStake ps ON ps.refno = p.refno AND ps.RN = rc.R
+			INNER JOIN #tmpSource ps ON ps.refno = p.refno AND ps.RN = rc.R
 				
 		INSERT INTO dbo.BetParlayResult (
 			RefNo, Serial, transid, winlostdate, statusid, Stake
@@ -212,34 +221,36 @@ BEGIN
 
 	DECLARE @statusID TINYINT, @modds MONEY
 	DECLARE @commWinRate MONEY, @commLostRate MONEY
-	
-	;WITH p AS (
-		SELECT pd.refno as refno
-			,pd.serial
-			,b.eventdate
-			,SUM(CASE WHEN pd.statusID IN (121, 103) THEN 0 ELSE 1 END) as NoRefund
-			,SUM(CASE WHEN pd.statuswinlost = 4	AND pd.statusID NOT IN (102, 0) THEN 1 ELSE 0 END) as loseCnt
-			,SUM(CASE WHEN pd.statusID IN (0, 1) THEN 1 ELSE 0 END) as runningCnt
-			,MAX(pd.winlostdate) as matchdate_max
-			,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
-			,CAST(dbo.PRODUCT(
-				CASE WHEN pd.statusid = 102 THEN 1
-					WHEN pd.statusid = 0 THEN 1
-					ELSE
-						CASE pd.statuswinlost
-							WHEN 0 THEN 1 -- draw
-							WHEN 1 THEN 1+((pd.odds-1)/2) -- half won
-							WHEN 2 THEN pd.odds -- won
-							WHEN 3 THEN 0.5 -- half lose
-							WHEN 4 THEN 0.000000000001 -- lose
-							ELSE 1 -- VOID/REJECT
-						END
-				END
-				) AS MONEY) AS modds
-		FROM dbo.BetParlayDetail pd WITH (NOLOCK)
-			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
-		GROUP BY pd.refno, pd.serial, b.eventdate
-	)
+
+	CREATE TABLE #tmpDetail (refno BIGINT, serial INT, eventdate SMALLDATETIME, NoRefund INT, LoseCnt INT, runningCnt INT, matchdate_max SMALLDATETIME, odds MONEY, modds MONEY)
+
+	INSERT INTO #tmpDetail (refno, serial, eventdate, NoRefund, LoseCnt, runningCnt, matchdate_max, odds, modds)
+	SELECT pd.refno as refno
+		,pd.serial
+		,b.eventdate
+		,SUM(CASE WHEN pd.statusID IN (121, 103) THEN 0 ELSE 1 END) as NoRefund
+		,SUM(CASE WHEN pd.statuswinlost = 4	AND pd.statusID NOT IN (102, 0) THEN 1 ELSE 0 END) as loseCnt
+		,SUM(CASE WHEN pd.statusID IN (0, 1) THEN 1 ELSE 0 END) as runningCnt
+		,MAX(pd.winlostdate) as matchdate_max
+		,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
+		,CAST(dbo.PRODUCT(
+			CASE WHEN pd.statusid = 102 THEN 1
+				WHEN pd.statusid = 0 THEN 1
+				ELSE
+					CASE pd.statuswinlost
+						WHEN 0 THEN 1 -- draw
+						WHEN 1 THEN 1+((pd.odds-1)/2) -- half won
+						WHEN 2 THEN pd.odds -- won
+						WHEN 3 THEN 0.5 -- half lose
+						WHEN 4 THEN 0.000000000001 -- lose
+						ELSE 1 -- VOID/REJECT
+					END
+			END
+			) AS MONEY) AS modds
+	FROM dbo.BetParlayDetail pd WITH (NOLOCK)
+		INNER JOIN #temp_bettrans b ON pd.refno = b.refno
+	GROUP BY pd.refno, pd.serial, b.eventdate
+
 	UPDATE pr			
 	SET @statusID = statusID = CASE
 					WHEN p.loseCnt > 0    THEN 113 -- Lose
@@ -345,7 +356,7 @@ BEGIN
 			END
 	FROM dbo.BetParlayResult pr
 		INNER JOIN #temp_bettrans b ON pr.refno = b.refno 
-		INNER JOIN p ON pr.refno = p.refno AND pr.serial = p.serial
+		INNER JOIN #tmpDetail p ON pr.refno = p.refno AND pr.serial = p.serial
 	WHERE
 		pr.statusID <>
 		CASE
