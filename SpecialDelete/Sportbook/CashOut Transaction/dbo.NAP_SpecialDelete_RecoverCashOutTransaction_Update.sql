@@ -31,6 +31,7 @@ AS
 		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 
 	Param's Explanation:
 	
@@ -453,7 +454,8 @@ BEGIN
 			d.SportTypeId,
 			d.IsNeutral,
 			d.MatchCode,
-			d.actual_stake AS ActualStake
+			d.actual_stake AS ActualStake,
+			d.custid
 	FROM #SpecialDeleteBets d
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 			     ON d.recommend = c.custid
