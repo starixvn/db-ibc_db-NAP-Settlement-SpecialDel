@@ -61,7 +61,7 @@ BEGIN
 									WHEN @IsEnabled = 1 THEN @SettlementStatus | POWER(2, @Type - 1)
 									ELSE @SettlementStatus & (~POWER(2, @Type - 1))
 								END
-			, AutoSetting = CASE WHEN @Type = 5 AND @IsEnabled = 1 THEN @AutoSetting & (~POWER(2, @Type - 1))
+			, AutoSetting = CASE WHEN @Type = 5 AND @IsEnabled = 1 AND @AutoSetting & 2 = 2 THEN  @AutoSetting ^ (POWER(2,1)) --Turn off Auto Instant if MTD Hold is on
 								 ELSE AutoSetting
 							END
 	FROM	dbo.match m WITH(ROWLOCK, UPDLOCK)
