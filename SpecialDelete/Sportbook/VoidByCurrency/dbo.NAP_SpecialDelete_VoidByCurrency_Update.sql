@@ -63,7 +63,8 @@ AS
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
-		
+		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
+
 	Param's Explanation:
 */
 BEGIN
@@ -128,7 +129,7 @@ BEGIN
 			  ,@HomeId = m.homeid
 			  ,@AwayId = m.awayid
 			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-		FROM dbo.match m WHERE m.matchid = @MatchId
+		FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 	END
 	ELSE
 	BEGIN
@@ -1453,6 +1454,7 @@ BEGIN
 					ELSE CAST(0 AS BIT)							
 				END AS IsItSupport,
 				CASE WHEN dc.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
+				,@sporttype AS SportTypeId
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL
