@@ -16,16 +16,42 @@ AS
 		- 20150807@Kathy: Using new balance table (BalCreditOthersPending,BalDebitOthersPending) [Redmine:#40125]
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20170829@Kathy: Change datatype of sporttype [Redmine:#73545]
+		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 
 */
 BEGIN
 SET NOCOUNT ON
 
 DECLARE @ActionID int, @Remark varchar(500) , @SportType SMALLINT
+		,@procName		SYSNAME
+		,@WaitingTime	VARCHAR(10)
+		,@IsWaiting		BIT 
+
 SELECT @ActionID = CASE @Action 
-		WHEN 'CAL' THEN 127 
-		WHEN 'Refund' THEN 128		
-	END
+			WHEN 'CAL' THEN 127 
+			WHEN 'Refund' THEN 128		
+			END
+		,@procName = OBJECT_NAME(@@procid)
+		,@IsWaiting = 0
+
+
+-- Check SP is in deployment
+EXEC dbo.NAP_Set_SPDeploymentInfo 
+	@SPName = @procName
+	,@WaitingTime = @WaitingTime OUTPUT
+	,@IsWaiting = @IsWaiting OUTPUT
+	,@ErrCode = @ErrCode OUTPUT
+	,@ErrMsg = @ErrMsg OUTPUT
+
+IF @IsWaiting = 1
+BEGIN
+	WAITFOR DELAY @WaitingTime
+			
+	SELECT	@ErrCode = @ErrCode
+			,@ErrMsg = @ErrMsg
+
+	RETURN
+END
 
 select @SportType = SportType from DBPRO.bodb02.dbo.VSRaceInfo nolock where EventID= @matchid 
 

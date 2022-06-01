@@ -19,6 +19,7 @@ AS
 		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -43,6 +44,9 @@ BEGIN
 			,@strTransIds			VARCHAR(MAX)
 			,@MaxTransID			BIGINT
 			,@delegateBettype		SMALLINT
+			,@procName				SYSNAME
+			,@WaitingTime			VARCHAR(10)
+			,@IsWaiting				BIT 
 			
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT)
@@ -63,6 +67,26 @@ BEGIN
 							WHEN 'REFUND' THEN 81001 
 						END
 			,@Remark = ''
+			,@procName = OBJECT_NAME(@@procid)
+			,@IsWaiting = 0
+
+	-- Check SP is in deployment
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+
+		RETURN
+	END
 	
 	--get info of match
 	SELECT @sportType	   = sportType
