@@ -56,15 +56,16 @@ BEGIN
 
 	UPDATE m 
 		SET @SettlementStatus = ISNULL(SettlementStatus, 0)
-			,@AutoSetting	  = ISNULL(AutoSetting, 2) -- update AutoSetting if it's null, ignore if it's = 0
+			,@AutoSetting	  = ISNULL(m.AutoSetting, l.AutoSetting)
 			,SettlementStatus = CASE 
 									WHEN @IsEnabled = 1 THEN @SettlementStatus | POWER(2, @Type - 1)
 									ELSE @SettlementStatus & (~POWER(2, @Type - 1))
 								END
-			, AutoSetting = CASE WHEN @Type = 5 AND @IsEnabled = 1 AND @AutoSetting & 2 = 2 THEN  @AutoSetting ^ (POWER(2,1)) --Turn off Auto Instant if MTD Hold is on
-								 ELSE AutoSetting
+			, AutoSetting = CASE WHEN @Type = 5 AND @IsEnabled = 1 AND ISNULL(@AutoSetting,0) & 2 = 2 THEN  @AutoSetting ^ (POWER(2,1)) --Turn off Auto Instant if MTD Hold is on
+								 ELSE m.AutoSetting
 							END
 	FROM	dbo.match m WITH(ROWLOCK, UPDLOCK)
+		INNER JOIN dbo.League l (NOLOCK) ON m.leagueId = l.leagueid
 	WHERE	m.matchid = @MatchId
 
 	IF @Type BETWEEN 1 AND 2
