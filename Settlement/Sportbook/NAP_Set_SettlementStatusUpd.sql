@@ -56,7 +56,7 @@ BEGIN
 
 	UPDATE m 
 		SET @SettlementStatus = ISNULL(SettlementStatus, 0)
-			,@AutoSetting	  = ISNULL(AutoSetting, 0)
+			,@AutoSetting	  = ISNULL(AutoSetting, 2) -- update AutoSetting if it's null, ignore if it's = 0
 			,SettlementStatus = CASE 
 									WHEN @IsEnabled = 1 THEN @SettlementStatus | POWER(2, @Type - 1)
 									ELSE @SettlementStatus & (~POWER(2, @Type - 1))
