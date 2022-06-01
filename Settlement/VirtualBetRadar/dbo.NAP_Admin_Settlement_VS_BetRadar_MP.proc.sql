@@ -14,6 +14,7 @@ AS
 	
 	Revisions:
 		- 20160606@Bobby: Initialize
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		
 	Param's Explanation:
  
@@ -160,8 +161,12 @@ BEGIN
 		SET @stop = CURRENT_TIMESTAMP
 
 		SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-		EXEC dbo.WriteLog_UserLog @AdminId, @Remark
-
+		
+		EXEC dbo.Logfile_V2 
+			@UserID = @AdminId
+			,@Doing = @Remark
+			,@extend = @MatchId
+			
 		SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 		
 		--RESET scores values

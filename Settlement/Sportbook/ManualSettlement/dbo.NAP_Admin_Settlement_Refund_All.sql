@@ -1176,10 +1176,11 @@ BEGIN
         
         -- Write log
         SET @log = 'NAP: Refund for matchid: ' + CONVERT(VARCHAR(10), @matchid)
-
-        EXEC dbo.WriteLog_UserLog 
-            @UserID = @creator
-            ,@Doing = @Log
+		
+		 EXEC dbo.Logfile_V2 
+			@UserID = @creator
+			,@Doing = @Log
+			,@extend = @MatchId
     END
 END
 GO

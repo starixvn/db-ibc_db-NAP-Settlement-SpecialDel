@@ -17,7 +17,8 @@ AS
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20170829@Kathy: Change datatype of sporttype [Redmine:#73545]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
-
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		
 */
 BEGIN
 SET NOCOUNT ON
@@ -252,8 +253,11 @@ END
 	SELECT @betstatus = CASE @Action WHEN 'Refund' THEN 'Refund' ELSE NULL END
 
 	SELECT @LogData = @LogData + '(' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms)'
-	EXEC dbo.WriteLog_UserLog @SportType, @LogData
 
+	EXEC dbo.Logfile_V2 
+			@UserID = @SportType
+			,@Doing = @LogData
+			,@extend = NULL
 
 	SELECT @Remark = ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms; '
 			+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate,0) as varchar(20)) + '/' + CAST(IsNull(@TotalAccount,0) as varchar(20))

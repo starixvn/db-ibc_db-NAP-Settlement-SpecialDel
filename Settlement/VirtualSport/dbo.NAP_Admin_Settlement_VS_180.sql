@@ -18,6 +18,7 @@ AS
 	Revisions:
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 	
 	Param's Explanation:
 		@Action - CAL
@@ -321,9 +322,10 @@ BEGIN
 					+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
 					+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 
-	EXEC dbo.WriteLog_UserLog 
-		@UserID	= @AdminId
-		,@Doing	= @LogData 
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @LogData
+		,@extend = @MatchId
 		
 	SELECT @Remark = 'Calculate (' + @Action + ')' 
 					+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
