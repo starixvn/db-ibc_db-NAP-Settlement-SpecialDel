@@ -68,7 +68,7 @@ BEGIN
 
 	IF @IsWaiting = 1
 	BEGIN
-		WAITFOR DELAY @WaitingTime
+		WAITFOR DELAY @WaitingTime -- Dot_Admin_SettleOutright_Trans
 			
 		SELECT	@ErrCode = @ErrCode
 				,@ErrMsg = @ErrMsg

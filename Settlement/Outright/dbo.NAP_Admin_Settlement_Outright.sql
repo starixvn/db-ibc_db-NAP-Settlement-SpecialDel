@@ -65,7 +65,7 @@ BEGIN
 
 	IF @IsWaiting = 1
 	BEGIN
-		WAITFOR DELAY @WaitingTime
+		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_Outright
 			
 		SELECT	@ErrCode = @ErrCode
 				,@ErrMsg = @ErrMsg

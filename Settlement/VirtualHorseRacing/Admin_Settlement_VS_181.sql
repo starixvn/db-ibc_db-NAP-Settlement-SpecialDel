@@ -16,46 +16,18 @@ AS
 		- 20150807@Kathy: Using new balance table (BalCreditOthersPending,BalDebitOthersPending) [Redmine:#40125]
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20170829@Kathy: Change datatype of sporttype [Redmine:#73545]
-		 - 20170905@joychen : modify to with(nolock) 
-		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
-		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
-		
+
 */
 BEGIN
 SET NOCOUNT ON
 
 DECLARE @ActionID int, @Remark varchar(500) , @SportType SMALLINT
-		,@procName		SYSNAME
-		,@WaitingTime	VARCHAR(10)
-		,@IsWaiting		BIT 
-
 SELECT @ActionID = CASE @Action 
-			WHEN 'CAL' THEN 127 
-			WHEN 'Refund' THEN 128		
-			END
-		,@procName = OBJECT_NAME(@@procid)
-		,@IsWaiting = 0
+		WHEN 'CAL' THEN 127 
+		WHEN 'Refund' THEN 128		
+	END
 
-
--- Check SP is in deployment
-EXEC dbo.NAP_Set_SPDeploymentInfo 
-	@SPName = @procName
-	,@WaitingTime = @WaitingTime OUTPUT
-	,@IsWaiting = @IsWaiting OUTPUT
-	,@ErrCode = @ErrCode OUTPUT
-	,@ErrMsg = @ErrMsg OUTPUT
-
-IF @IsWaiting = 1
-BEGIN
-	WAITFOR DELAY @WaitingTime
-			
-	SELECT	@ErrCode = @ErrCode
-			,@ErrMsg = @ErrMsg
-
-	RETURN
-END
-
-select @SportType = SportType from DBPRO.bodb02.dbo.VSRaceInfo with(nolock) where EventID= @matchid 
+select @SportType = SportType from DBPRO.bodb02.dbo.VSRaceInfo nolock where EventID= @matchid 
 
 
 -- check and not allow attempt to settlement same game while it's still not finish
@@ -254,11 +226,8 @@ END
 	SELECT @betstatus = CASE @Action WHEN 'Refund' THEN 'Refund' ELSE NULL END
 
 	SELECT @LogData = @LogData + '(' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms)'
+	EXEC dbo.WriteLog_UserLog @SportType, @LogData
 
-	EXEC dbo.Logfile_V2 
-			@UserID = @SportType
-			,@Doing = @LogData
-			,@extend = @matchid
 
 	SELECT @Remark = ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms; '
 			+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate,0) as varchar(20)) + '/' + CAST(IsNull(@TotalAccount,0) as varchar(20))

@@ -53,13 +53,12 @@ BEGIN
 	UNION ALL
 	SELECT 'NAP_Admin_Settlement_VS_180', @WaitingTime, 0	
 	
-	-- VS horse racing
-	UNION ALL
-	SELECT 'Admin_Settlement_VS_181', @WaitingTime, 0	
-	
 	-- outright
 	UNION ALL
 	SELECT 'NAP_Admin_Settlement_Outright', @WaitingTime, 0	
+	UNION ALL
+	SELECT 'Dot_Admin_SettleOutright_Trans', @WaitingTime, 0	
+	
 	
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
