@@ -63,8 +63,8 @@ BEGIN
 	--In queue too long
 	IF @List_Waiting_5minutes <> ''
 	BEGIN
-		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS')
+		-- Send via letstalk for production and SIT											
+		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
 		BEGIN
 			-- send letstalk
 			SET @msg = 'NAP: CustLimitBet Failed! Queue waiting in queue over 5 minutes: 
@@ -117,8 +117,8 @@ BEGIN
 	--Failed
 	IF @List_Failed <> ''
 	BEGIN
-		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS')
+		-- Send via letstalk for production	and SIT									
+		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
 		BEGIN
 			-- send letstalk
 			SET @msg = 'NAP: CustLimitbet Failed! 
