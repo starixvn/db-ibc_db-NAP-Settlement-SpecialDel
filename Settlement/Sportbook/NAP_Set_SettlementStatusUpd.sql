@@ -65,7 +65,7 @@ BEGIN
 								 ELSE m.AutoSetting
 							END
 	FROM	dbo.match m WITH(ROWLOCK, UPDLOCK)
-		INNER JOIN dbo.League l (NOLOCK) ON m.leagueId = l.leagueid
+		INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueId = l.leagueid
 	WHERE	m.matchid = @MatchId
 
 	IF @Type BETWEEN 1 AND 2
