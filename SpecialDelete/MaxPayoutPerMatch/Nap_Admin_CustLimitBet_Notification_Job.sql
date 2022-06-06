@@ -86,9 +86,9 @@ QueueId: ' + @List_Waiting_5minutes +'
 			-- Send email
 			SET @Subject = 'NAP: CustLimitBet Notification!'	
 			
-			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes+ '
-SP: Nap_Admin_CustLimitBet_Notification_Job
-Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, CreatedDate, GETDATE()) > 5 '
+			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, CreatedDate, GETDATE()) > 5. '
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -105,9 +105,9 @@ Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE Sta
 			-- Send via email 
 			SET @Subject = 'NAP: CustLimitBet Notification!'	
 			
-			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes+ '
-SP: Nap_Admin_CustLimitBet_Notification_Job
-Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, CreatedDate, GETDATE()) > 5'
+			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, CreatedDate, GETDATE()) > 5. '
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -143,9 +143,9 @@ Table: bodb02.dbo.CustLimitBetQueue
 			-- Send email
 			SET @Subject = 'NAP: CustLimitBet Failed!'	
 			
-			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '
-SP: Nap_Admin_CustLimitBet_Notification_Job
-Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'
+			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'. 
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -162,9 +162,9 @@ Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'
 			-- Send via email 
 			SET @Subject = 'NAP: CustLimitBet Failed!'	
 			
-			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '
-SP: Nap_Admin_CustLimitBet_Notification_Job
-Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'
+			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK).'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
