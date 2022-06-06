@@ -70,7 +70,7 @@ BEGIN
 		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
 		BEGIN
 			-- send letstalk
-			SET @msg = 'NAP: CustLimitBet Failed! Queue waiting in queue over 5 minutes: 
+			SET @msg = 'NAP: CustLimitBet Failed! Queue waiting in queue over 5 minutes. 
 -------------
 SP: Nap_Admin_CustLimitBet_Notification_Job
 QueueId: ' + @List_Waiting_5minutes +' 
@@ -127,7 +127,7 @@ Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE Sta
 		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
 		BEGIN
 			-- send letstalk
-			SET @msg = 'NAP: CustLimitbet Failed! 
+			SET @msg = 'NAP: CustLimitbet Failed! Queue execution failed.
 -----
 SP: Nap_Admin_CustLimitBet_Notification_Job				
 QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ ' 
@@ -143,7 +143,7 @@ Table: bodb02.dbo.CustLimitBetQueue
 			-- Send email
 			SET @Subject = 'NAP: CustLimitBet Failed!'	
 			
-			SET @Body = 'NAP: CustLimitBet failed: ''QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '
+			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '
 SP: Nap_Admin_CustLimitBet_Notification_Job
 Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'
 				
@@ -162,7 +162,7 @@ Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'
 			-- Send via email 
 			SET @Subject = 'NAP: CustLimitBet Failed!'	
 			
-			SET @Body = 'NAP: CustLimitBet failed: ''QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '
+			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '
 SP: Nap_Admin_CustLimitBet_Notification_Job
 Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'
 				
