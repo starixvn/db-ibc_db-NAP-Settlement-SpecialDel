@@ -145,7 +145,7 @@ Table: bodb02.dbo.CustLimitBetQueue
 			
 			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '. 
 SP: Nap_Admin_CustLimitBet_Notification_Job. 
-Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK)'. 
+Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK). '
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
