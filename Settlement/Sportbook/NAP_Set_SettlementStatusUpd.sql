@@ -18,6 +18,7 @@ AS
 		- 20181127@Vicky: Add MTD Hold status [Redmine: #104948]
 		- 20200821@Kathy: Add log for refund flag"  [Redmine:#140092]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
+		- 20220531@Louisa: Turn off Auto Instant Setting if MTD Hold bit[5] is on [Redmine:#173360]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -34,6 +35,7 @@ BEGIN
 	SET NOCOUNT ON 
 
 	DECLARE @SettlementStatus	TINYINT
+			,@AutoSetting		TINYINT
 
 			--write log
 			,@Starttime			DATETIME
@@ -54,11 +56,16 @@ BEGIN
 
 	UPDATE m 
 		SET @SettlementStatus = ISNULL(SettlementStatus, 0)
+			,@AutoSetting	  = ISNULL(m.AutoSetting, l.AutoSetting)
 			,SettlementStatus = CASE 
 									WHEN @IsEnabled = 1 THEN @SettlementStatus | POWER(2, @Type - 1)
 									ELSE @SettlementStatus & (~POWER(2, @Type - 1))
 								END
+			, AutoSetting = CASE WHEN @Type = 5 AND @IsEnabled = 1 AND ISNULL(@AutoSetting,0) & 2 = 2 THEN  @AutoSetting ^ (POWER(2,1)) --Turn off Auto Instant if MTD Hold is on
+								 ELSE m.AutoSetting
+							END
 	FROM	dbo.match m WITH(ROWLOCK, UPDLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueId = l.leagueid
 	WHERE	m.matchid = @MatchId
 
 	IF @Type BETWEEN 1 AND 2
