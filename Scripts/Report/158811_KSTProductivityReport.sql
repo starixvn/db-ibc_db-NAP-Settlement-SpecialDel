@@ -12,7 +12,7 @@ USE bodb02
 GO
 
 /*
-	Note: whenever sporttype transform settle result from dbo.match to dbo.resultDetailXX, need to update bolck code "Other sports..."
+	*** Note: Whenever Sporttype transforms settle result from dbo.match to dbo.resultDetailXX, need to update block code "Other sports..."
 
 	 2021-04-08: Move Cricket to ResultDetailOS
 	 2021-05-31: Release Soccer PinGoal
@@ -20,12 +20,14 @@ GO
 	 2021-08-18: Release Auto settle Virtual Cricket
 	 2021-10-07: Move Volleyball to ResultDetailOS
 
-
+	 *** Scope: SportBook
+	 *** Exclude: hedge match, child match of Cricket Test Match, test match
+	 *** Exclude : result of FastMarkets, Time Machine, Goal Record
 */
 
 
-	DECLARE @fromDate DATETIME = '2021-08-01'
-			,@toDate  DATETIME = '2021-08-31'
+	DECLARE @fromDate DATETIME = '2022-05-01'
+			,@toDate  DATETIME = '2022-05-31'
 			,@maxEventDate14 DATETIME
 			,@maxEventDateBK DATETIME
 
