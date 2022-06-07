@@ -117,6 +117,9 @@ BEGIN
 	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
 
 	--SELECT TOP 1 COUNT(1), q.ActionID, q.CustID, q.Matchid, q.EventTypeID, min(q.CreatedDate) MinDate , max (CreatedDate) MaxDate, q.Transids
+
+
+	/*---20220607@Tina: For this case, waiting for TW fix this issue.
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBetQueue Q with (nolock)
 				WHERE q.ActionID = 2
@@ -127,6 +130,7 @@ BEGIN
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'Duplicate data in Queue table. ' + CHAR(13) + CHAR(10)
 	END
+	*/
 
 	----------------------------------------------------------------------------------------------------------------------------------------------------
 
