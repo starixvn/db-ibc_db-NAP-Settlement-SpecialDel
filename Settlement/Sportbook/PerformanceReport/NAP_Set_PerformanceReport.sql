@@ -13,6 +13,7 @@ BEGIN
 		- 20200903@Kathy: Move SP from DBTXN to DBLOG [Redmine:#138281]
 		- 20210302@Kathy: Add more logaction [Redmine:#138281]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220607@Kathy: correct condition to get cricket match [Redmine:#158811]
 */
 
 DECLARE @maxdate DATETIME
@@ -139,6 +140,7 @@ WHERE l.isTest = 0
 					AND (
 					( d.sqlCommand LIKE '%NAP_Admin_Settlement_1%' AND CHARINDEX('NULL',h.[value]) = 0 AND CHARINDEX('NULL',a.[value]) = 0)
 					OR (d.sqlCommand LIKE '%NAP_Admin_Settlement_Profile%' AND d.sqlCommand LIKE '%Resource Id="00"%')
+					OR (m.sporttype = 50 AND d.sqlCommand ='')
 					) THEN 1
 				ELSE 0
 			END
