@@ -9,6 +9,7 @@ AS
 		- 20211111@Tina: create
 		- 20211119@Tina: run each 30 minutes (minute = 5 or 35)
 		- 20211210@Tina: send Letstalk [Redmine: #159626]
+		- 20220530@Tina: Cannot send notification via Letstalk [Redmine: #173376]
 
 	Param's explanation:		
 		
@@ -29,10 +30,15 @@ BEGIN
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
 	
-
-	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;tina.vo@starixvn.com'
-	--SET @Recipients = 'max.tran@starixvn.com;helen.do@starixvn.com;tina.vo@starixvn.com'
-
+	IF @@SERVERNAME IN ('DBTRANS')
+	BEGIN
+		SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;tina.vo@starixvn.com'
+	END
+	ELSE
+	BEGIN
+		SET @Recipients = 'tina.vo@starixvn.com;liz.nguyen@starixvn.com'
+	END
+	
 
 	EXEC  [dbo].[Nap_Admin_CustLimitBet_CheckData_Job] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT, @ErrorMessage = @ErrorMessage OUTPUT
 
@@ -54,7 +60,11 @@ BEGIN
 				,@profile_name =DEFAULT;
 
 		-- send letstalk
-		EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'DB.Job.Monitor', @Msg = @Body, @Title=@Subject;
+		EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+				  , @JobId = NULL
+				  , @JobName = N'vndba:Check slowly parlay settlement'
+				  , @Message = @Body
+				  , @CaseId = 1;
 	END
 	
 END		

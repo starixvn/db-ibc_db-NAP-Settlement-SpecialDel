@@ -8,6 +8,7 @@ AS
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20211011@Max: Change logic send Notification - [Redmine: #158073]
+		- 20220530@Tina: Cannot send notification via Letstalk [Redmine: #173376]
 
 	Param's explanation:		
 		
@@ -24,10 +25,14 @@ BEGIN
 		,@Recipients	VARCHAR(MAX) = ''	
 	
 	--For PROD EVN
-	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
-
-	--For local Testing, input email need to test
-	--SET @Recipients = 'max.tran@starixvn.com, xxx'
+	IF @@SERVERNAME IN ('DBTRANS')
+	BEGIN
+		SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
+	END
+	ELSE
+	BEGIN
+		SET @Recipients = 'tina.vo@starixvn.com;liz.nguyen@starixvn.com'
+	END
 		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
 	DECLARE @msg NVARCHAR(4000)	= ''
@@ -61,22 +66,29 @@ BEGIN
 	--In queue too long
 	IF @List_Waiting_5minutes <> ''
 	BEGIN
-		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS')
+		-- Send via letstalk for production and SIT											
+		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
 		BEGIN
 			-- send letstalk
-			SET @msg = 'Queue waiting in queue over 5 minutes: 
-			-------------
-			' 
-			+ @List_Waiting_5minutes
+			SET @msg = 'NAP: CustLimitBet Failed! Queue waiting in queue over 5 minutes. 
+-------------
+SP: Nap_Admin_CustLimitBet_Notification_Job
+QueueId: ' + @List_Waiting_5minutes +' 
+'
 			+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'DB.Job.Monitor', @Msg = @msg, @Title=@title;
+			
+			EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+				  , @JobId = NULL
+				  , @JobName = N'vndba:Check slowly parlay settlement'
+				  , @Message = @msg
+				  , @CaseId = 1;
 			
 			-- Send email
 			SET @Subject = 'NAP: CustLimitBet Notification!'	
 			
-			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 5 )'
+			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, CreatedDate, GETDATE()) > 5. '
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -93,8 +105,9 @@ BEGIN
 			-- Send via email 
 			SET @Subject = 'NAP: CustLimitBet Notification!'	
 			
-			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 5 )'
+			SET @Body = 'NAP: CustLimitBet Notification: QueueId still waiting in queue too long: ' + @List_Waiting_5minutes+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, CreatedDate, GETDATE()) > 5. '
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -110,23 +123,29 @@ BEGIN
 	--Failed
 	IF @List_Failed <> ''
 	BEGIN
-		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS')
+		-- Send via letstalk for production	and SIT									
+		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
 		BEGIN
 			-- send letstalk
-			SET @msg = 'NAP: CustLimitbet Failed !
-				-----
-				' 
-				+'QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)
-							+ ' ( Table: bodb02.dbo.CustLimitBetQueue)'
-				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
-			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'DB.Job.Monitor', @Msg = @msg, @Title=@title;
+			SET @msg = 'NAP: CustLimitbet Failed! Queue execution failed.
+-----
+SP: Nap_Admin_CustLimitBet_Notification_Job				
+QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ ' 
+Table: bodb02.dbo.CustLimitBetQueue
+'+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
+
+			EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+				  , @JobId = NULL
+				  , @JobName = N'vndba:Check slowly parlay settlement'
+				  , @Message = @msg
+				  , @CaseId = 1;
 			
 			-- Send email
-			SET @Subject = 'NAP: CustLimitBet Failed !'	
+			SET @Subject = 'NAP: CustLimitBet Failed!'	
 			
-			SET @Body = 'NAP: CustLimitBet failed: ''QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)
-							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK) )'
+			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK). '
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -141,10 +160,11 @@ BEGIN
 		ELSE
 		BEGIN
 			-- Send via email 
-			SET @Subject = 'NAP: CustLimitBet Failed !'	
+			SET @Subject = 'NAP: CustLimitBet Failed!'	
 			
-			SET @Body = 'NAP: CustLimitBet failed: ''QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)
-							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK) )'
+			SET @Body = 'NAP: Queue execution failed. QueueId: ' + CONVERT(VARCHAR(MAX),@List_Failed)+ '. 
+SP: Nap_Admin_CustLimitBet_Notification_Job. 
+Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK).'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
