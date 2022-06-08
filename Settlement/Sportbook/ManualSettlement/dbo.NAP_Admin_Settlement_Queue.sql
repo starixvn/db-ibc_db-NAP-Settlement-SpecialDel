@@ -127,7 +127,7 @@ BEGIN
 	
 	SELECT	@strTransIds = ''
 			,@QueueExecNo = 0
-			,@batchSize = 2 --000
+			,@batchSize = 2000  
 			,@messageBody = ''
 			,@IsMarked = 0
 			,@oddstype = 0
