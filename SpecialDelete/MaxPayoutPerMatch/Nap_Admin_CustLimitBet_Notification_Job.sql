@@ -9,6 +9,7 @@ AS
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20211011@Max: Change logic send Notification - [Redmine: #158073]
 		- 20220530@Tina: Cannot send notification via Letstalk [Redmine: #173376]
+		- 20220607@Tina: remove some email of @Recipients on production environment
 
 	Param's explanation:		
 		
@@ -27,7 +28,7 @@ BEGIN
 	--For PROD EVN
 	IF @@SERVERNAME IN ('DBTRANS')
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com'
+		SET @Recipients = 'dbaadmin@starixvn.com'
 	END
 	ELSE
 	BEGIN
@@ -45,10 +46,6 @@ BEGIN
 												WHERE q.StatusId = 0
 													AND q.ExecTime IS NULL
 													AND DATEDIFF(MINUTE, q.CreatedDate, @CurrentTime) BETWEEN 5 AND 6
-													--temp config for phase 2
-													AND 1 = CASE WHEN q.EventTypeID = 5 THEN 0
-																WHEN q.Matchid = 29 AND q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
-															ELSE 1 END
 												FOR XML PATH(''))
 												,1,1,''),'')
 	--Sending notification if failed
@@ -56,10 +53,6 @@ BEGIN
 												FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
 												WHERE q.Statusid = 2
 													AND DATEDIFF(MINUTE, q.ExecTime, @CurrentTime) < 2
-													--temp config for phase 2
-													AND 1 = CASE WHEN q.EventTypeID = 5 THEN 0
-																WHEN q.Matchid = 29 AND q.EventTypeID IS NULL AND q.ActionID IN (4,5) THEN 0
-															ELSE 1 END
 												FOR XML PATH(''))
 												,1,1,''),'')
 	
