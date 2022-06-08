@@ -65,8 +65,8 @@ BEGIN
 		IF @RunExecDataBySSB = 0
 			SELECT @ExecDataQueueSize = 1
 
-		SET @MaxThreadHold = 50000
-		SET @MinThreadHold = 10000
+		SET @MaxThreadHold = 30-- 50000
+		SET @MinThreadHold = 10 --10000
 	END
 	
 END
