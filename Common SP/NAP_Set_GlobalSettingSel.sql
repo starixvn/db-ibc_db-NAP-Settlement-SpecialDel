@@ -18,6 +18,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211210@Kathy: Improve performance 
+		- 20220606@Kathy: Adjust number of execution service from 6 to 8 [Redmine:#173205]
 
     Parameters Explanation:        
     
@@ -36,7 +37,7 @@ BEGIN
 	VALUES ('ParlayRefno', 10000)
 
 	INSERT INTO @tmpGlobalSetting(LockName, RunPrepareDataBySSB, RunExecDataBySSB, PrepareDataQueueSize, ExecDataQueueSize)
-	VALUES ('SettlementSSB', 1, 1, 6, 6)
+	VALUES ('SettlementSSB', 1, 1, 6, 8)
 
 	SET @ThreadHold = 0
 	SET @PrepareDataQueueSize = 0
@@ -64,8 +65,8 @@ BEGIN
 		IF @RunExecDataBySSB = 0
 			SELECT @ExecDataQueueSize = 1
 
-		SET @MaxThreadHold = 50000
-		SET @MinThreadHold = 10000
+		SET @MaxThreadHold = 50000   
+		SET @MinThreadHold = 10000   
 	END
 	
 END
