@@ -19,8 +19,8 @@ AS
 		- 20200821@Kathy: Add log for refund flag"  [Redmine:#140092]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20220531@Louisa: Turn off Auto Instant Setting if MTD Hold bit[5] is on [Redmine:#173360]
-		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
-		
+	
+
 	Parameters Explanation:    
 		@Type: TINYINT
 			+ 1: IsPending
@@ -80,10 +80,7 @@ BEGIN
 			
 	SELECT @LogData = 'Update settlement status of MatchID = ' + CAST(@MatchId AS VARCHAR(20)) + ' with Type = ' + CAST(@Type AS VARCHAR(2))
 
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @LogData
-		,@extend = @MatchId
+	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
 
 	IF @Type IN (1,2,3,5,6,7)
 	BEGIN
