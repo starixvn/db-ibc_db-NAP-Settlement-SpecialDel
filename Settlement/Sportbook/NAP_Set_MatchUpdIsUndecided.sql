@@ -8,7 +8,8 @@ WITH RECOMPILE
 	DB: DBPRO.bodb02
 	Original SP:[Acc_Set_MatchUpdIsUndecided] 
 	
-	Revisions:
+	Revisions:	
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 	
 	Param's Explanation: 
 */
@@ -29,7 +30,10 @@ BEGIN
 	DECLARE @LogData NVARCHAR(200)
 	SELECT @LogData = 'Update Undecided Match : MatchID = ' + cast(@matchid as varchar(30)) + ' with IsUndecided = ' + cast(@IsUndecided as varchar(2))
 
-	EXEC WriteLog_UserLog @UserID = @UserID, @Doing = @LogData
+	EXEC dbo.Logfile_V2 
+		@UserID = @UserID
+		,@Doing = @LogData
+		,@extend = @MatchId
 END
 
 GO

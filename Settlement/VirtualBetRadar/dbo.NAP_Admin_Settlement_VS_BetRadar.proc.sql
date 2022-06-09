@@ -24,6 +24,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20180214@Helen: Integrate VSBR 2 - Basketball - [Redmine:90154]
 		- 20220217@Kathy: Do not cal/refund if there is no ticket [Redmine:#168702]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		
 	Param's Explanation:
 		- @Hth: Total score which home team scored in Half Time(HT)
@@ -253,9 +254,10 @@ BEGIN
 					+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
 					+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 
-	EXEC dbo.WriteLog_UserLog 
-		@UserID	= @AdminId
-		,@Doing	= @LogData 
+	EXEC dbo.Logfile_V2 
+			@UserID = @AdminId
+			,@Doing = @LogData
+			,@extend = @MatchId
 	
 	--RESET scores values
 	SELECT @fth = NULL

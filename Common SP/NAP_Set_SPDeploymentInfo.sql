@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20210514@Kathy: Set waiting time for SP [Redmine:#153155]
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
+		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -36,8 +37,29 @@ BEGIN
 
 	-- Bitcoin
 	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s175', @WaitingTime, 0	
+	SELECT 'NAP_Admin_Settlement_s175', @WaitingTime, 0
 
+	-- NG
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_s161_Manual', @WaitingTime, 0	 --manual
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_s161', @WaitingTime, 0	 -- api
+	
+	-- HP5
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_s164', @WaitingTime, 0	
+
+	-- VS
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_VS_180', @WaitingTime, 0	
+	
+	-- outright
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_Outright', @WaitingTime, 0	
+	UNION ALL
+	SELECT 'Dot_Admin_SettleOutright_Trans', @WaitingTime, 0	
+	
+	
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
 	FROM	@tmpSPInfo

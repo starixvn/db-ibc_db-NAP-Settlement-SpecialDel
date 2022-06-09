@@ -18,7 +18,8 @@ AS
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
-		
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+
 	Param's Explanation:
 		@Action : CAL, UNDO, 
 				  CAL_MARKET: settle by marketIDs, ignore validation, @IsAuto should be = 0
@@ -638,10 +639,11 @@ BEGIN
 							+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
 							+ '<br/> '
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-	EXEC dbo.WriteLog_UserLog
-				@UserID = @AdminId
-				,@Doing = @logdata
-	
+
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @logdata
+		,@extend = @MatchId
 				
 	SELECT @Remark = CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END 
 						/*+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(10))

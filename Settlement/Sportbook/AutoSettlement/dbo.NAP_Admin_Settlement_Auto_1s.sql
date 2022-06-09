@@ -36,6 +36,7 @@ AS
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -597,9 +598,11 @@ BEGIN
 
     SELECT @logdata = 'NAP: Auto-Settlement (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
                                                            + ' Result:' + @SelectedResources + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-    EXEC dbo.WriteLog_UserLog 
-        @UserID = @AdminId
-        ,@Doing = @logdata
+
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @logdata
+		,@extend = @MatchId
 
     SELECT @Remark = 'NAP: Result:' + @SelectedResources +  ' <br/> ' 
 						+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 

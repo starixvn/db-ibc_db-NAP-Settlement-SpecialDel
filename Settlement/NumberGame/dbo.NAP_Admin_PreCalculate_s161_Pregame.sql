@@ -16,7 +16,7 @@ AS
 		- 20140513@Kathy: insert settled command into LAS queue [Redmine:#14286]
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
-
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -76,7 +76,10 @@ BEGIN
 	DECLARE	@LogData VARCHAR(1000)
 	SET @LogData = 'NAP_Admin_PreCalculate_s161_Pregame MatchID:' + CONVERT(VARCHAR(20),@MatchId) + ' Bettype:' + CONVERT(VARCHAR(20),@BetType) +' Betteam:' +@BetTeam
 	
-	EXEC dbo.WriteLog_UserLog @UserID = 161, @Doing = @LogData
+	EXEC dbo.Logfile_V2 
+		@UserID = 161
+		,@Doing = @LogData
+		,@extend = @MatchId
 	
 END
 GO

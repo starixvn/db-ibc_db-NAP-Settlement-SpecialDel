@@ -19,7 +19,8 @@ AS
 	Revision: 
 		- 20150807@Kathy: Using new balance table (BalCreditSportsPending,BalDebitSportsPending) [Redmine:#40125]
 		- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
-		
+		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+
 	Param's Explanation:
 		+ @Action	= CAL | UNDO | REFUND
 		+ @Status	= {WON | LOSE} | UNDO | REFUND 
@@ -45,9 +46,32 @@ BEGIN
 			,@LogData 	NVARCHAR(300)
 			,@LeagueID	INT
 			,@EventDate	DATETIME
+			,@procName		SYSNAME
+			,@WaitingTime	VARCHAR(10)
+			,@IsWaiting		BIT 
 
 	SELECT	@ActionID = CASE @Action WHEN 'UNDO' THEN 145 
 									 ELSE 0 END 
+			,@procName = OBJECT_NAME(@@PROCID)
+			,@IsWaiting = 0
+
+	-- Check SP is in deployment
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_Outright
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+
+		RETURN
+	END
 
 	INSERT INTO dbo.TempVariableNumber (
 		KeyID

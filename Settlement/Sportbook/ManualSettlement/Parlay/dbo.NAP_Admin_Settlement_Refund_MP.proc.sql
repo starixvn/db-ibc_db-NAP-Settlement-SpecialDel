@@ -29,6 +29,7 @@ AS
 		- 20210304@Louisa: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 
 	Param's Explanation:		
 		
@@ -527,7 +528,10 @@ BEGIN
 		SELECT @Remark = 'NAP: IsAuto: ' + CAST(@IsAutoRefund AS CHAR(1)) + '<br/> '
 				+ 'Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 
-		EXEC dbo.WriteLog_UserLog @creator, @Remark
+		EXEC dbo.Logfile_V2 
+			@UserID = @creator
+			,@Doing = @Remark
+			,@extend = @MatchId
 
 		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
 						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;TC:' + CAST(@ticketCountTotal AS NVARCHAR(10)) 

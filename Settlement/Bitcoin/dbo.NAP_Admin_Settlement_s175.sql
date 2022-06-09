@@ -18,6 +18,7 @@ AS
 	Revisions:
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20210930@Kathy: Change BalanceType  [Redmine:#159714]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -321,9 +322,10 @@ BEGIN
 	SET @EndTime = GETDATE()	
 	
 	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
-	EXEC dbo.WriteLog_UserLog 
+	EXEC dbo.Logfile_V2 
 		@UserID = @AdminId
 		,@Doing = @doing
+		,@extend = @MatchId
 		
 	BEGIN TRY		
 		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 

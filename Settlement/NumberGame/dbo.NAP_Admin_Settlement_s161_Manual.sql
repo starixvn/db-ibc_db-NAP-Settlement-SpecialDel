@@ -16,11 +16,36 @@ AS
 	
 	Revisions: 
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
+		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 	
 	Param's Explanation:
 		
 */
 BEGIN	
+	DECLARE @procName		SYSNAME
+			,@WaitingTime	VARCHAR(10)
+			,@IsWaiting		BIT 
+
+	SELECT @procName = OBJECT_NAME(@@procid)
+			,@IsWaiting = 0
+
+	-- Check SP is in deployment
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_s161_Manual
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+
+		RETURN
+	END
 
 	IF EXISTS(SELECT 1 FROM SystemSettings WITH (NOLOCK) WHERE VValue = 1 AND VName = 'isCalculatingNGManual')
 	BEGIN

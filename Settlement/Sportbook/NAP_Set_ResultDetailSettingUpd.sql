@@ -21,6 +21,7 @@ AS
 		- 20210906@Louisa: SOP Refund for Volleyball, Beach Volleyball [Redmine:#160478]
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -158,7 +159,10 @@ BEGIN
 										ELSE '' END
 							+ 'result setting of MatchID = ' + CAST(@MatchId AS VARCHAR(20)) + ' with ResourceIDs = ' + @ResourceIds
 
-		EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
+		EXEC dbo.Logfile_V2 
+			@UserID = @AdminId
+			,@Doing = @LogData
+			,@extend = @MatchId
 
 
 		SELECT @Remark = CASE @Type WHEN 1 THEN 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END + 'result hold: '

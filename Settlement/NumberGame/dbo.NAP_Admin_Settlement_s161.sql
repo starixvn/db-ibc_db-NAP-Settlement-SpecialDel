@@ -24,7 +24,9 @@ AS
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20171031@Patrick: Reduce balance correction [Redmine: #85841]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
-						   
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+		
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
 			 1 : is recalled  
@@ -39,6 +41,30 @@ BEGIN
 
 	DECLARE @start DATETIME, @stop DATETIME
 	DECLARE @LogData NVARCHAR(200), @Remark VARCHAR(500), @ActionID INT
+	DECLARE @procName		SYSNAME
+			,@WaitingTime	VARCHAR(10)
+			,@IsWaiting		BIT 
+
+	SELECT @procName = OBJECT_NAME(@@procid)
+			,@IsWaiting = 0
+
+	-- Check SP is in deployment
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_s161
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+
+		RETURN
+	END
 
 	IF @IsLive = 1					SET @ActionID = 116
 	ELSE IF @Action = 'CAL-HT'		SET @ActionID = 118
@@ -369,7 +395,10 @@ BEGIN
 	-- LOG
 	SET @LogData = @LogData + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)' + ' MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
 
-	EXEC dbo.WriteLog_UserLog @UserID = @AdminID, @Doing = @LogData	
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @LogData
+		,@extend = @MatchId
 
 	SET @Remark = @Remark + 'Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
 

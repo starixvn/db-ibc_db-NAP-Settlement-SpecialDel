@@ -82,7 +82,8 @@ AS
 		- 20201216@Louisa: Auto refund ET & PEN match [Redmine:#145597]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]
-    
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		
     Param's Explanation:
     • @matchid: matchid need to refund
     • @IsExcludeBetdaq: Is Exclude betdaq tickets or not
@@ -1083,10 +1084,11 @@ BEGIN
                                                                  + CASE WHEN (@IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair =1 OR @IsSettleAbandonedMatchIBC = 1) THEN @ScoreLog ELSE '' END 
                                                                 + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE 'SelectedQuarter:' + @SelectedQuarter + '<br/> ' END
 
-    EXEC dbo.WriteLog_UserLog 
-        @UserID = @creator
-        ,@Doing =  @LogData
-
+    EXEC dbo.Logfile_V2 
+		@UserID = @creator
+		,@Doing = @LogData
+		,@extend = @MatchId
+	
     --Write Log Settle
     SELECT @Remark = 'NAP: IsAuto: '  + CAST(@IsAutoRefund AS CHAR(1)	) + '<br/> '
 					+ 'ExcludeBetdaqTickets='            + convert(char(1),@IsExcludeBetdaq) 
@@ -1174,10 +1176,11 @@ BEGIN
         
         -- Write log
         SET @log = 'NAP: Refund for matchid: ' + CONVERT(VARCHAR(10), @matchid)
-
-        EXEC dbo.WriteLog_UserLog 
-            @UserID = @creator
-            ,@Doing = @Log
+		
+		 EXEC dbo.Logfile_V2 
+			@UserID = @creator
+			,@Doing = @Log
+			,@extend = @MatchId
     END
 END
 GO

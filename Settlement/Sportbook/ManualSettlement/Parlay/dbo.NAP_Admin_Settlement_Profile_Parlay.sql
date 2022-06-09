@@ -25,6 +25,7 @@ AS
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220527@Kathy: Wrong settle SDT for over/under [Redmine:#173286]
 
 	Param's Explanation:
@@ -693,7 +694,10 @@ BEGIN
 								+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
 								+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 						   
-		EXEC dbo.WriteLog_UserLog @creator, @logdata
+		EXEC dbo.Logfile_V2 
+			@UserID = @creator
+			,@Doing = @logdata
+			,@extend = @MatchId
 
 		SELECT @Remark = CASE WHEN @sportType <> 1 THEN @ResultRemarkLog + '<br/> '  ELSE '' END
 							+ CASE WHEN @DeterminedType = 2 THEN 'SDT-FT:1' ELSE '' END

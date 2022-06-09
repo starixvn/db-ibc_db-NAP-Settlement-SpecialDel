@@ -29,6 +29,7 @@ Revisions:
 	- 20150910@Zake(TransDB): Change balance rule
 	- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
 	- 20201211@Louisa: Show Calculate Outright Log, add param @AdminId [Redmine:#146738]
+	- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 
 Param's Explanation:
 	- @deadheat = fraction of deadheat to divide (1,2,3  etc)
@@ -45,11 +46,34 @@ BEGIN
 	END
 
 	DECLARE @Remark VARCHAR(500), @ActionID INT, @LeagueID	INT
+			,@procName		SYSNAME
+			,@WaitingTime	VARCHAR(10)
+			,@IsWaiting		BIT 
 
 	SELECT @ActionID = CASE @status 
-		WHEN 'Refund' THEN 139 
-		WHEN 'Won' THEN 137
-		WHEN 'Lose' THEN 137
+				WHEN 'Refund' THEN 139 
+				WHEN 'Won' THEN 137
+				WHEN 'Lose' THEN 137
+			END
+			,@procName = OBJECT_NAME(@@PROCID)
+			,@IsWaiting = 0
+
+	-- Check SP is in deployment
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime -- Dot_Admin_SettleOutright_Trans
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+
+		RETURN
 	END
 
 	SELECT	@LeagueID	= LeagueID

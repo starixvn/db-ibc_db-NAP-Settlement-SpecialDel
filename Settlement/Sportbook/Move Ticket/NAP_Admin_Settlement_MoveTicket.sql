@@ -16,7 +16,7 @@ AS
 
 	Revisions:
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
-				  
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]		  
 */
 BEGIN
 	SET NOCOUNT ON
@@ -281,9 +281,10 @@ BEGIN
 	SET @logdata = 'NAP: Move ticket from match: ' + CAST(@matchid AS VARCHAR(20) ) 
 				+' to match: ' + CAST(@DestinationMatchId AS VARCHAR(20) )
 						   
-	EXEC dbo.WriteLog_UserLog
-				@UserID = @AdminId
-				,@Doing = @logdata
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @logdata
+		,@extend = @MatchId
 									   
 	
 	DROP TABLE #tmpTransIds
