@@ -17,7 +17,7 @@ AS
 		- 20190109@Vicky: Set Default Value of IsTest on table BingoBall from League  [Redmine:#107748]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 		- 20211108@Louisa: In-house Replicator: Updated/Delete Action [Redmine:#164393]
-		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+
 */
 BEGIN	
 
@@ -46,11 +46,8 @@ BEGIN
 		END TRY
 		BEGIN CATCH
 			SELECT @LogData = 'ADD SUCCESS SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-			EXEC dbo.Logfile_V2 
-				@UserID = 5838421 --dbaAdmin
-				,@Doing = @LogData
-				,@extend = @MatchId
-			
+			EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
+								  @Doing = @LogData		
 		END CATCH
 	END
 	ELSE 
@@ -127,11 +124,8 @@ BEGIN
 		END TRY
 		BEGIN CATCH
 			SELECT @LogData = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-			EXEC dbo.Logfile_V2 
-				@UserID = 5838421 --dbaAdmin
-				,@Doing = @LogData	
-				,@extend = @MatchId
-
+			EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
+								  @Doing = @LogData	
 		END CATCH	
 	END				
 	ELSE
@@ -146,11 +140,8 @@ BEGIN
 		END TRY
 		BEGIN CATCH
 			SELECT @LogData = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-			EXEC dbo.Logfile_V2 
-				@UserID = 5838421 --dbaAdmin
-				,@Doing = @LogData	
-				,@extend = @MatchId
-
+			EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
+								  @Doing = @LogData	
 		END CATCH					
 	END
 
