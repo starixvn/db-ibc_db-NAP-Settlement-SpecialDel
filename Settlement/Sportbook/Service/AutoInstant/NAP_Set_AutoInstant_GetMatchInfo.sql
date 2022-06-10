@@ -14,7 +14,7 @@ AS
 		- 20180115@Benjamin: Implement for first verion [Redmine:#86964]
 		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
-		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
+		- 20220520@Louisa: If AutoSetting on Match IS NULL, get AutoSetting on Leagues [Redmine:#172907]
 		
 	Param's Explanation:
 			@MatchId:	   MatchID need to compare Score
