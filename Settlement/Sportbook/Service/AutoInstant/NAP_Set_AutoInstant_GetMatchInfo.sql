@@ -14,6 +14,7 @@ AS
 		- 20180115@Benjamin: Implement for first verion [Redmine:#86964]
 		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
+		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
 		
 	Param's Explanation:
 			@MatchId:	   MatchID need to compare Score
@@ -65,7 +66,7 @@ BEGIN
 	   --Match Info
 	   INSERT INTO #Match_Info (MatchID, AutoSetting, SettlementStatus, IsCalculatedHT, TypeID, CurrentHomeScore, CurrentAwayScore, HTHomescore, HTAwayscore, PreviousHomeScore, PreviousAwayScore, InstantKey, GoalRecord)
 	   SELECT  @MatchId
-			, m.AutoSetting 
+			, ISNULL(m.AutoSetting, l.AutoSetting)
 			, m.SettlementStatus
 			, mr.IsHTCal AS IsCalculatedHT
 			, d.TypeID
@@ -80,8 +81,9 @@ BEGIN
 	   
 	   FROM dbo.Match m WITH (NOLOCK)
 		   INNER JOIN dbo.Match_Remark mr WITH (NOLOCK)
-			 ON m.MatchID = mr.MatchID
-
+				ON m.MatchID = mr.MatchID
+		   INNER JOIN dbo.League l WITH(NOLOCK) 
+				ON m.leagueid = l.leagueid
 		   INNER JOIN (SELECT ProviderResultDetailID, MatchID, SourceID, TypeID, HomeValue, AwayValue, CreatedDate  
 					   FROM dbo.ProviderResultDetail  WITH (NOLOCK)
 					  WHERE ProviderResultDetailID = @InstantKey
