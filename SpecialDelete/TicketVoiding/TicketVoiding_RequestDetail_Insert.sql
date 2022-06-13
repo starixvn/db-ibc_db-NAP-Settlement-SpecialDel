@@ -11,12 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@ActionId				TINYINT
 	,@FilterBy				TINYINT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
-	,@UserNames				NVARCHAR(MAX) = NULL
-	,@ProductIds			VARCHAR(50) = NULL
-	,@StatusIds				VARCHAR(50) = NULL
-	,@FromDate				DATETIME = NULL
-	,@ToDate				DATETIME = NULL
-	,@IsVoidVIPMember		BIT = 0
+	,@AbnormalAccountInfo	VARCHAR(MAX)  = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
@@ -78,6 +73,7 @@ AS
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
+		- 20220610@July: TVS - Some minor enhancements  [Redmine: #173229]
 
 	Param's explanation:
 */
@@ -115,6 +111,7 @@ BEGIN
 			,@Wrong1stHDPInfoXML	  XML = NULL
 			,@WrongOUInfoXML		  XML = NULL	
 			,@Wrong1stOUInfoXML		  XML = NULL
+			,@AbnormalAccountInfoXML  XML = NULL
 
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
@@ -595,6 +592,21 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 --AC
 	BEGIN 
+		DECLARE @UserNames				VARCHAR(MAX) = NULL
+				,@ProductIds			VARCHAR(50) = NULL
+				,@StatusIds				VARCHAR(50) = NULL
+				,@FromDate				DATETIME = NULL
+				,@ToDate				DATETIME = NULL
+
+		SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
+		SELECT @UserNames = t.c.value('@Usernames','VARCHAR(MAX)') 
+			  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
+			  ,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
+			  ,@FromDate = t.c.value('@FromDate','DATETIME')
+			  ,@ToDate = t.c.value('@ToDate','DATETIME')
+		FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))
+
 		--Get Movebetdate
 		EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 
@@ -609,7 +621,6 @@ BEGIN
 		INSERT INTO @Status_tmp (StatusId)
 		SELECT DISTINCT value 
 		FROM STRING_SPLIT(@StatusIds, ',')
-		WHERE value <> ''
 
 		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -660,7 +671,6 @@ BEGIN
 			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK)
 			ON lt.custid = ci.recommend
 		WHERE ci.roleid = 1
-		;
 	
 		------------Prepare Data------------------------
 		INSERT INTO @bettype_tmp (bettype)
