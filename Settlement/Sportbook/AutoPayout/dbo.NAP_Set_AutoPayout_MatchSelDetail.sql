@@ -20,6 +20,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+	SET NOCOUNT ON
 
 	DECLARE @sporttype SMALLINT
 	DECLARE  @tmpMatch_Info TABLE ( sporttype SMALLINT,	eventstatus NVARCHAR(100), betstatus NVARCHAR(100), SettlementStatus TINYINT,EventStatusReason TINYINT)
@@ -29,27 +30,21 @@ BEGIN
 	INSERT INTO @tmpMatch_Info ( sporttype, eventstatus, betstatus, SettlementStatus, EventStatusReason)
 	SELECT 	m.sporttype	,m.eventstatus	,m.betstatus	,m.SettlementStatus	,m.EventStatusReason
 	FROM	dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK) 
+			ON m.leagueid = l.leagueid
 	WHERE	matchid = @matchid
 
 	--get main result info
 	SELECT @sporttype = sporttype FROM @tmpMatch_Info
 
-	IF @sporttype = 9
-	BEGIN
-		INSERT INTO @tmpResult_Info ( ResourceId, ResultStatusId )
-		SELECT 	r.ResourceId
-				,ResultStatusId
-		FROM dbo.ResultDetailOS r (NOLOCK)
-			CROSS APPLY ( SELECT f.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) f	
-    					  WHERE r.ResourceID = f.ResourceID) f		
-		WHERE	r.matchid = @matchid
-	END
+	IF @sporttype = 1
 	
-	SELECT  eventstatus, betstatus, SettlementStatus, EventStatusReason
+	SELECT  eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting
 	FROM @tmpMatch_Info
 
-	SELECT ResourceId, ResultStatusId
-	FROM @tmpResult_Info
+	--SELECT ResourceId, ResultStatusId
+	--FROM @tmpResult_Info
+
 
 END
 
