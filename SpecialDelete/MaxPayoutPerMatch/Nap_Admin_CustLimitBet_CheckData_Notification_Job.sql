@@ -10,6 +10,7 @@ AS
 		- 20211119@Tina: run each 30 minutes (minute = 5 or 35)
 		- 20211210@Tina: send Letstalk [Redmine: #159626]
 		- 20220530@Tina: Cannot send notification via Letstalk [Redmine: #173376]
+		- 20220607@Tina: remove some email of @Recipients on production environment
 
 	Param's explanation:		
 		
@@ -32,7 +33,7 @@ BEGIN
 	
 	IF @@SERVERNAME IN ('DBTRANS')
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;tina.vo@starixvn.com'
+		SET @Recipients = 'dbaadmin@starixvn.com'
 	END
 	ELSE
 	BEGIN

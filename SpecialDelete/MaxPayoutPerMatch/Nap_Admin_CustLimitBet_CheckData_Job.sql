@@ -11,6 +11,7 @@ AS
     Revisions:
 		- 20211111@Tina: create
 		- 20211210@Tina: remove code check "No ticket found on Queue" [Redmine: #159626]
+		- 20220607@Tina: include checking data of testing currency
 
 	Param's explanation:		
 		
@@ -68,7 +69,7 @@ BEGIN
 				WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
 					AND NOT EXISTS(SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
-					AND ci.currency NOT IN (20,72)
+					--AND ci.currency NOT IN (20,72)
 					AND b.statusID NOT IN (101, 0))
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data. '  + CHAR(13) + CHAR(10)
@@ -81,7 +82,7 @@ BEGIN
 			WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
 				AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 				AND b.transdate BETWEEN @StartTime AND @EndTime
-				AND ci.currency NOT IN (20,72)
+				--AND ci.currency NOT IN (20,72)
 				AND b.statusID NOT IN (101, 0)
 				AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend))
 	BEGIN
@@ -95,7 +96,8 @@ BEGIN
 				WHERE B.bettype = 10
 					AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
-					AND ci.currency NOT IN (20,72))
+					--AND ci.currency NOT IN (20,72)
+					)
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
 	END
@@ -108,7 +110,8 @@ BEGIN
 					AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 					AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
 					AND b.transdate BETWEEN @StartTime AND @EndTime
-					AND ci.currency NOT IN (20,72))
+					--AND ci.currency NOT IN (20,72)
+					)
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
 	END
