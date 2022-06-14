@@ -9,7 +9,8 @@ AS
 	
 	Revisions: 
 		- 20220606@July: Create new SP [Redmine:#172634]
-	
+		- 20220614@July: Remove '=' support CTS [Redmine:#172634]
+
 	Param's explanation:
 		
 */
@@ -27,7 +28,7 @@ BEGIN
 		 , r.LastModifiedDate AS CreatedDate
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)  
 		INNER JOIN dbo.TicketVoiding_Request_bk r WITH (NOLOCK) ON r.RequestId = s.RequestId
-	WHERE r.IssueTypeId = 11 AND r.LastModifiedDate >= @datetime
+	WHERE r.IssueTypeId = 11 AND r.LastModifiedDate > @Datetime
 		AND s.CustId IS NOT NULL
 
 	-- Get Function - Void by betid
@@ -43,7 +44,7 @@ BEGIN
 						FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH (NOLOCK) 
 						WHERE vh.MessageId = tv.MessageId
 					)r
-	WHERE tv.IssueTypeId = 11 AND tv.CreatedDate >= @datetime AND r.RequestId IS NULL 
+	WHERE tv.IssueTypeId = 11 AND tv.CreatedDate > @Datetime AND r.RequestId IS NULL 
 	GROUP BY tv.SubIssueTypeId, tv.CustID
 
 	SELECT CustID, ReasonID, CreatedBy, RequestID, 11 AS IssueTypeID
