@@ -102,11 +102,13 @@ BEGIN
 					AND m.eventdate BETWEEN @yesterday AND @today
 					AND GlobalShowTime <= @checktime
 					AND ISNULL(m.ChildMatchType,0) <> 201
-					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND  l.leagueid IN (95730,95731,96666) AND f.TypeId = 2 THEN 1
+					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND  --l.leagueid IN (95730,95731,96666) AND f.TypeId = 2 THEN 1
+																																			 l.leagueid = 81307  AND f.TypeId = 2 THEN 1 ----support QC test SIT
 																						   ELSE 0
 																						   END								 
 								 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
-																							WHEN l.leagueid IN (95730,95731,96666) AND f.TypeId = 1 THEN 1 
+																							--WHEN l.leagueid IN (95730,95731,96666) AND f.TypeId = 1 THEN 1 
+																							WHEN l.leagueid = 81307  AND f.TypeId = 1 THEN 1 ----support QC test SIT
 																							ELSE 0
 								  															END
 								 ELSE 1
