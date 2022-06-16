@@ -18,6 +18,8 @@ AS
 		- 20200915@Kathy: Exclude HT score of SABA Soccer match from the Auto Payout's Direct Settlement flow [Redmine:#141340]
 		- 20210116@Louisa: Exclude HT score of SABA Soccer LeagueGroupID 108 [Redmine:#145597]
 		- 20210912@Helen: fix score NULL [Redmine:#161472]
+		- 20220512@Kathy: Improve performance [Redmine:#172386]
+		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
 
 	Param's Explanation:
  
@@ -25,96 +27,111 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @TypeIds TABLE(TypeId TINYINT)
+	DECLARE	@currentdate	DATETIME
+			,@fromdate		DATETIME
+			,@todate		DATETIME
+			,@checktime		DATETIME
+
+	SET @currentdate = CAST(GETDATE() AS DATE)
+	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
+			,@todate = DATEADD(DAY,1,@currentdate)
+			,@checktime = DATEADD(HOUR, 3, GETDATE())
+
 	DECLARE @tmpMatchAuto TABLE(
 									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
 									IsHalfTimeConfirmed INT, IsFullTimeConfirmed INT, BetStatus NVARCHAR(50), GoalRecord VARCHAR(50), 
-									IsHalfTimeCalculated BIT, leagueid INT, SettlementStatus TINYINT, AutoSetting TINYINT
+									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, AutoSetting TINYINT
 								)
-
-	INSERT INTO @TypeIds(TypeId)
-	VALUES(1) --half time
-		, (2) --full time
 
 	INSERT INTO @tmpMatchAuto (
 								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
-								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
+								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
 								, AutoSetting
 							)
 	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
-		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
+		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
 		, AutoSetting
 	FROM (
-		SELECT m.matchid AS MatchId
-			, m.hthomescore
-			, m.finalhomescore
-			, m.htawayscore
-			, m.finalawayscore
-			, f.TypeId
-			, CASE WHEN f.TypeId = 1 THEN mr.ConfirmHT
-					WHEN f.TypeId = 2 THEN mr.ConfirmFT
-					ELSE 0 END AS IsConfirmed
-			, mr.ConfirmHT AS IsHalfTimeConfirmed
-			, mr.ConfirmFT AS IsFullTimeConfirmed
-			, m.betstatus AS BetStatus
-			, m.GoalRecord
-			, mr.IsHTCal AS IsHalfTimeCalculated
-			, m.kickofftime
-			, l.leagueid
-			, m.SettlementStatus
-			, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
-		FROM dbo.match m WITH(NOLOCK)
-			INNER JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
-			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
-			CROSS APPLY @typeIds f
-		WHERE m.eventstatus = 'running' and m.sporttype = 1
-			AND ISNULL(m.ChildMatchType,0) NOT BETWEEN 201 AND 203
-			AND 1 = CASE
-						WHEN ISNULL(l.LeagueGroupID,0) IN (42, 74, 108) AND f.TypeId = 1 THEN 0
-						ELSE 1 
-					END
-			AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
-			AND 1 = CASE WHEN mr.ConfirmHT > 0 AND (m.hthomescore IS NULL OR m.htawayscore IS NULL) THEN 0
-						 WHEN mr.ConfirmFT > 0 AND (m.finalhomescore IS NULL OR m.finalawayscore IS NULL) THEN 0
-						 ELSE 1
-					END
-			AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
-			AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.AutoPayoutResult rs WITH(NOLOCK) 
-								WHERE rs.MatchId = m.matchid 
-									AND f.TypeId = rs.CalculationType AND rs.StatusId IN (1, 2, 3))
-			AND NOT EXISTS (SELECT TOP 1 1
-								FROM dbo.ResultDetail r WITH(NOLOCK)
-								WHERE	r.MatchId = m.matchid
-										AND 1 = CASE 
-													WHEN r.ResourceId = '00' AND f.TypeId = 2 THEN 1
-													WHEN r.ResourceId = '01' AND f.TypeId = 1 THEN 1
-													ELSE 0
-												END
-										AND r.ResultStatusID = 5 -- completed (manual)
-							)
+			SELECT m.matchid AS MatchId
+				, m.hthomescore
+				, m.finalhomescore
+				, m.htawayscore
+				, m.finalawayscore
+				, f.TypeId
+				, CASE WHEN f.TypeId = 1 THEN mr.ConfirmHT
+						WHEN f.TypeId = 2 THEN mr.ConfirmFT
+						ELSE 0 END AS IsConfirmed
+				, mr.ConfirmHT AS IsHalfTimeConfirmed
+				, mr.ConfirmFT AS IsFullTimeConfirmed
+				, m.betstatus AS BetStatus
+				, m.GoalRecord
+				, mr.IsHTCal AS IsHalfTimeCalculated
+				, m.kickofftime
+				, l.leagueid
+				, l.LeagueGroupID
+				, ISNULL(m.ChildMatchType,0) AS ChildMatchType
+				, m.SettlementStatus
+				, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
+			FROM dbo.match m WITH(NOLOCK)
+				INNER JOIN dbo.match_remark mr WITH(NOLOCK)
+					ON	m.matchid = mr.matchid
+				INNER JOIN dbo.League l WITH(NOLOCK) 
+					ON	m.leagueid = l.leagueid
+				CROSS APPLY (
+					SELECT f.TypeId
+					FROM (VALUES (1),(2)) AS f(TypeId)
+				) f
+				OUTER APPLY (
+					SELECT TOP 1 1 AS IsExistAP 
+					FROM	dbo.AutoPayoutResult rs WITH(NOLOCK) 
+					WHERE	rs.MatchId = m.matchid 
+							AND f.TypeId = rs.CalculationType 
+							AND rs.StatusId IN (1, 2, 3)
+				)rs
+				OUTER APPLY (
+					SELECT	TOP 1 1 AS IsExistResultDetail
+					FROM	dbo.ResultDetail r WITH(NOLOCK)
+					WHERE	r.MatchId = m.matchid
+							AND 1 = CASE 
+										WHEN r.ResourceId = '00' AND f.TypeId = 2 THEN 1
+										WHEN r.ResourceId = '01' AND f.TypeId = 1 THEN 1
+										ELSE 0
+									END
+							AND r.ResultStatusID = 5 -- completed (manual)
+				)r
+			WHERE	m.eventstatus = 'running' 
+					AND m.sporttype = 1
+					AND m.eventdate BETWEEN @fromdate AND @todate 
+					AND GlobalShowTime <= @checktime
+					AND ISNULL(m.ChildMatchType,0) <> 201
+					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND l.leagueid IN (95730,95731,96666) AND f.TypeId = 2 THEN 1
+																						   ELSE 0
+																						   END								 
+								 WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74, 108) THEN CASE WHEN f.TypeId = 2 THEN 1
+																							WHEN l.leagueid IN (95730,95731,96666) AND f.TypeId = 1 THEN 1
+																							ELSE 0
+								  															END
+								 ELSE 1
+								 END
+
+					AND (mr.ConfirmHT > 0 OR mr.ConfirmFT > 0)
+					AND 1 = CASE WHEN mr.ConfirmHT > 0 AND (m.hthomescore IS NULL OR m.htawayscore IS NULL) THEN 0
+								 WHEN mr.ConfirmFT > 0 AND (m.finalhomescore IS NULL OR m.finalawayscore IS NULL) THEN 0
+								 ELSE 1
+							END
+					AND 17 & ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) IN (1, 16)
+					AND rs.IsExistAP IS NULL
+					AND r.IsExistResultDetail IS NULL
 	)t
-	WHERE IsConfirmed > 0
+	WHERE	IsConfirmed > 0
 	ORDER BY t.kickofftime, t.MatchId, t.TypeId
 
 	--TEMPORARY: Insert score into ProviderResultDetail for SourceId = 101 - Direct Autopayout
 	DECLARE @currTime DATETIME = GETDATE()
 
-	--INSERT INTO ProviderResultDetail(MatchId,SourceId,TypeId,HomeValue,AwayValue,CreatedDate,IsConfirmed)
-	--SELECT t.MatchId, 101, t.TypeId, 
-	--		CASE WHEN t.TypeId = 1 THEN HtHomescore ELSE FinalHomescore END, 
-	--		CASE WHEN t.TypeId = 1 THEN HtAwayscore ELSE FinalAwayscore END, 
-	--		@currTime, 0
-	--FROM @tmpMatchAuto t
-	--	OUTER APPLY (
-	--					SELECT MatchId FROM ProviderResultDetail p WITH(NOLOCK)
-	--					WHERE t.MatchId = p.MatchId AND t.TypeId = p.TypeId AND p.SourceId = 101
-	--				) p
-	--WHERE p.MatchId IS NULL AND 16 & ISNULL(t.AutoSetting, 0) = 16
-
 	-- Return data 
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
-			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.SettlementStatus
+			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
 			, AutoSetting
 	FROM @tmpMatchAuto t
 		LEFT JOIN ProviderResultDetail p 

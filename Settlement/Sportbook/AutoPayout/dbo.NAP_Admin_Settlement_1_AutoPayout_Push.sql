@@ -39,7 +39,7 @@ AS
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
-
+		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
 
     Param's Explanation:
         
@@ -114,7 +114,7 @@ BEGIN
 				FROM DBPRO.bodb02.dbo.ResultDetail with(NOLOCK)
 				WHERE matchid = @matchid
 					AND 1 = CASE 
-								WHEN resourceId = '00' AND @Action = 'CAL-FT' THEN 1
+								WHEN resourceId = '00' AND @CalType = 2 THEN 1
 								WHEN resourceId = '01' AND @Action  = 'CAL-HT' THEN 1
 								ELSE 0
 							END
