@@ -27,13 +27,15 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE	@yesterday DATETIME
-			,@today DATETIME
-			,@checktime DATETIME
+	DECLARE	@currentdate	DATETIME
+			,@fromdate		DATETIME
+			,@todate		DATETIME
+			,@checktime		DATETIME
 
-	SET @today = GETDATE()
-	SET @yesterday = DATEADD(DAY,-1,@today)
-	SET @checktime = DATEADD(HOUR, 3, GETDATE())
+	SET @currentdate = CAST(GETDATE() AS DATE)
+	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
+			,@todate = DATEADD(DAY,1,@currentdate)
+			,@checktime = DATEADD(HOUR, 3, GETDATE())
 
 	DECLARE @tmpMatchAuto TABLE(
 									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
@@ -99,7 +101,7 @@ BEGIN
 				)r
 			WHERE	m.eventstatus = 'running' 
 					AND m.sporttype = 1
-					AND m.eventdate BETWEEN @yesterday AND @today
+					AND m.eventdate BETWEEN @fromdate AND @todate 
 					AND GlobalShowTime <= @checktime
 					AND ISNULL(m.ChildMatchType,0) <> 201
 					AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) IN ( 202, 203 ) THEN CASE WHEN ISNULL(l.LeagueGroupID,0) IN ( 42, 74 ) AND l.leagueid IN (95730,95731,96666) AND f.TypeId = 2 THEN 1

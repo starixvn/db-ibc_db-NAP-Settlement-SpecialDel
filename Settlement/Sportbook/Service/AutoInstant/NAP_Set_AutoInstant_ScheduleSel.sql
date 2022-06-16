@@ -22,13 +22,15 @@ BEGIN
 
     SET NOCOUNT ON
 
-	DECLARE	@yesterday DATETIME
-			,@today DATETIME
-			,@checktime DATETIME
+	DECLARE	@currentdate	DATETIME
+			,@fromdate		DATETIME
+			,@todate		DATETIME
+			,@checktime		DATETIME
 
-	SET @today = GETDATE()
-	SET @yesterday = DATEADD(DAY,-1,@today)
-	SET @checktime = DATEADD(HOUR, 3, GETDATE())
+	SET @currentdate = CAST(GETDATE() AS DATE)
+	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
+			,@todate = DATEADD(DAY,1,@currentdate)
+			,@checktime = DATEADD(HOUR, 3, GETDATE())
 
     SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId, m.ChildMatchType    
     FROM dbo.ProviderResultDetail d WITH (NOLOCK)
@@ -51,7 +53,7 @@ BEGIN
 		)mx
     WHERE m.SportType	   = 1
 	 AND m.EventStatus	   = 'running' 
-	 AND m.eventdate BETWEEN @yesterday AND @today
+	 AND m.eventdate BETWEEN @fromdate AND @todate
 	 AND GlobalShowTime <= @checktime
 	 AND m.SettlementStatus & 87 = 0 --Bit: 1: Pending, 2: Undecided, 3: UnderSettlement, 5: MTDHold, 7: Hold Key
 	 AND 2 & ISNULL(m.AutoSetting, l.AutoSetting) = 2
