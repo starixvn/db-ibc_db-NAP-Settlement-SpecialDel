@@ -107,6 +107,7 @@ Revisions:
 	- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 	- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 	- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+	- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -2029,6 +2030,7 @@ BEGIN
 			,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit  
 			,@isITAdmin AS IsITSupport
 			,al.Winlost
+			,@sporttype AS SportTypeId
 		FROM (  
 			SELECT al.odds  
 			,al.odds AS choiceOdds 

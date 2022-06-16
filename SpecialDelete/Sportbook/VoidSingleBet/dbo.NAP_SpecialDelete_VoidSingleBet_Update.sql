@@ -118,6 +118,7 @@ AS
 		- 20220301@Max: [TVS] Integrate new bet types of Cricket [Redmine: #168080]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -348,7 +349,7 @@ BEGIN
 		   ,@sporttype = m.sporttype
 		   ,@ParentID = ISNULL(m.ParentID, 0)
 		   ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
-	FROM dbo.match m WHERE m.matchid = @MatchId
+	FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
@@ -1762,6 +1763,7 @@ BEGIN
 							END
 				ELSE CAST(0 AS BIT)
 			END AS IsInstantSettlementTicket
+			,@sporttype AS SportTypeId
 		FROM	#BetDelete al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	
