@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 
 /*
-	Created by: 20220518@Louisa
+	Created by: 20220512@Louisa
 	Task : New table for Auto Refund Other sports [Redmine:#171676]
 	DB: DBPRO/bodb02 
 
@@ -17,24 +17,23 @@ CREATE TABLE dbo.AutoRefundResultOS (
 	,TryCount			TINYINT	
 	,CreateDate			DATETIME	
 	,ModifiedDate		DATETIME	
-	,Remark				VARCHAR	
-) --ON [DATA]
+	,Remark				VARCHAR(1000)
+) ON [DATA]
 GO
 
 
 ALTER TABLE [dbo].[AutoRefundResultOS] ADD CONSTRAINT PK_AutoRefundResultOS
-PRIMARY KEY CLUSTERED
-(
-	AutoRefundResultOSId ASC
-) --ON [DATA]
+PRIMARY KEY CLUSTERED	(	AutoRefundResultOSId  ) ON [DATA]
 GO
 
 
-CREATE NONCLUSTERED INDEX [IX_AutoRefundResultOS_MatchIdResourceId] ON [dbo].[AutoRefundResultOS]
-(
-	MatchId ASC
-	,ResourceId ASC
-) --ON [DATA]
+CREATE NONCLUSTERED INDEX [IX_AutoRefundResultOS_MatchId] 
+ON [dbo].[AutoRefundResultOS] (MatchId ) ON [DATA]
+GO
+
+
+CREATE NONCLUSTERED INDEX [IX_AutoRefundResultOS_CreateDate] 
+ON [dbo].[AutoRefundResultOS] ( CreateDate ) ON [DATA]
 GO
 
 

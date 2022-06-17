@@ -26,6 +26,7 @@ AS
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220512@Louisa: Change message content [Redmine:#171676]
      
     Param's Explanation:
 
@@ -174,7 +175,7 @@ BEGIN
 		END
 
 		IF 	@ErrCode > 0
-			SELECT @ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
+			SELECT @ErrMsg = N'ERROR! Cannot proceed due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
 
 	END
 	
@@ -198,7 +199,7 @@ BEGIN
 
 				IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid = @Matchid)
 					SELECT  @ErrCode = 1001018
-							,@ErrMsg = N'ERROR! Cannot calculate due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
+							,@ErrMsg = N'ERROR! Cannot proceed due to unclosed odds. Please make sure you select correct match/interval/result to calculate.'
 
 				ELSE IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchRunningOdds WHERE Matchid <> @Matchid )
 				BEGIN

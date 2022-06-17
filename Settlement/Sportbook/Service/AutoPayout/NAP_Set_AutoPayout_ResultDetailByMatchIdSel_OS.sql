@@ -35,11 +35,11 @@ BEGIN
 
 	ELSE IF @SportType IN ( 6,9)
 	BEGIN
-		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue)
-		SELECT r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue
+		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue )
+		SELECT r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue 
 		FROM dbo.ResultDetailOS r WITH(NOLOCK)
 		WHERE r.matchid = @MatchId
-			AND r.ResultStatusID = 3
+			AND r.ResultStatusID = 3			
 	END
 
 	SELECT MatchId, TypeId, ResourceId, HomeValue, AwayValue

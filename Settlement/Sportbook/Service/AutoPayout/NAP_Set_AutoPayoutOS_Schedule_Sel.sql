@@ -19,9 +19,6 @@ BEGIN
 	
 	SET NOCOUNT ON
 
-	IF @Sporttype NOT IN ( 6, 9, 50 )
-	RETURN
-
 	DECLARE @checkTime DATETIME =  CAST( DATEADD(SECOND, -30, GETDATE() ) AS DATETIME)
 			,@n INT
 			,@ExternalResultTable TINYINT = 0
@@ -86,7 +83,7 @@ BEGIN
 
 	ELSE
 	BEGIN	
-		IF @ExternalResultTable  = 1
+		IF @ExternalResultTable  = 1 AND @Sporttype = 6
 		BEGIN
 			INSERT INTO @tmpLatestResult (  matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue, Ranking, IsFinal )
 			SELECT m.matchid, m.leagueid, m.SettlementStatus, r.ResourceId, r.HomeValue, r.AwayValue
@@ -99,27 +96,38 @@ BEGIN
 					ON m.matchid = r.MatchId				
 			WHERE m.sporttype = @Sporttype
 				AND ISNULL(m.AutoSetting,0) & 17 = 1 ---Turn on bit[1] and turn off bit[5]
+				AND ISNULL(m.SettlementStatus,0) & 87 = 0
 				AND m.eventstatus = 'running'
 				AND ISNULL(m.IsDeleted,0) = 0
 				AND r.SourceId = 1 --SBO
+
 		END
 
-		IF @ExternalResultTable = 2
+		IF @ExternalResultTable = 2 AND @Sporttype = 9
 		BEGIN
 			INSERT INTO @tmpLatestResult (  matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue, Ranking, IsFinal )
-			SELECT m.matchid, m.leagueid, m.SettlementStatus, r.ResourceId, r.HomeValue, r.AwayValue
-					,ROW_NUMBER() OVER(PARTITION BY r.MatchId, r.ResourceId ORDER BY r.CreateDate DESC) AS Ranking
-					,MAX(CASE WHEN r.ResourceId = '00' THEN 1 ELSE 0 END ) OVER(PARTITION BY r.MatchId ) AS IsFinal
+			SELECT m.matchid, m.leagueid, m.SettlementStatus, ex.ResourceId, ex.HomeValue, ex.AwayValue
+					,ROW_NUMBER() OVER(PARTITION BY ex.MatchId, ex.ResourceId ORDER BY ex.CreateDate DESC) AS Ranking
+					,MAX(CASE WHEN ex.ResourceId = '00' THEN 1 ELSE 0 END ) OVER(PARTITION BY ex.MatchId ) AS IsFinal
 			FROM dbo.match m WITH(NOLOCK)
 				INNER JOIN dbo.League l WITH(NOLOCK)
 					ON m.leagueid = l.leagueid
-				INNER JOIN dbo.ProviderExternalResultDetailOS r WITH(NOLOCK)
-					ON m.matchid = r.MatchId				
+				INNER JOIN dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
+					ON m.matchid = ex.MatchId
+				CROSS APPLY ( SELECT ResourceID FROM f_Set_MajorRound (@sporttype)  f WHERE ex.ResourceId = f.ResourceID) f
+				OUTER APPLY ( SELECT r.ResourceId FROM dbo.ResultDetailOS r (NOLOCK)
+								WHERE r.ResourceID = ex.ResourceId
+									AND r.MatchID = ex.MatchId
+									AND r.ResultStatusID IN ( 2, 4, 5 ) --settled result
+							) ro
 			WHERE m.sporttype = @Sporttype
 				AND ISNULL(m.AutoSetting,0) & 17 = 1 ---Turn on bit[1] and turn off bit[5]
+				AND ISNULL(m.SettlementStatus,0) & 87 = 0
 				AND m.eventstatus = 'running'
 				AND ISNULL(m.IsDeleted,0) = 0
-				AND r.SourceId = 1 --SBO
+				AND ex.SourceId = 1 --SBO
+				AND ro.ResourceID IS NULL
+
 		END
 
 		INSERT INTO #MatchInfo ( matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)

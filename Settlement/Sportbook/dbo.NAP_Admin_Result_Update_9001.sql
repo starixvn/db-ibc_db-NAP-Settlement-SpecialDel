@@ -51,7 +51,7 @@ BEGIN
 
 	DECLARE @IsApplyRefundSOP BIT
 
-	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 5, 43, 6, 45, 9, 2, 50) THEN 1
+	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 2, 5, 6, 9, 43, 45,50) THEN 1
 									 ELSE 0
 									 END
 
@@ -122,7 +122,9 @@ BEGIN
     ELSE IF @action = 'REFUND'
     BEGIN
 	   SET @SettlementStatusID 	= 1
-       SET @ResultStatusID 		= 5   
+       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype = 9 THEN 2 
+										ELSE 5   
+										END
        
        UPDATE sr 
        SET HomeValue = '0'

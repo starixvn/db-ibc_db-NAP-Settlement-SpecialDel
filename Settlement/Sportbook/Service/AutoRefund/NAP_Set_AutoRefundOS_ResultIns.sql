@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE NAP_Set_AutoRefundOS_ResultIns
   @MatchId		 INT	
- ,@TypeId		 TINYINT		= 1	  		
+ ,@TypeId		 TINYINT		= 1
  ,@ResourceIds	 VARCHAR(500)
 AS
 /*
@@ -27,9 +27,7 @@ BEGIN
 	DECLARE @tmpResourceId TABLE ( ResourceId VARCHAR(20)	)
 
 	INSERT INTO @tmpResourceId ( ResourceId )
-	SELECT f.val FROM f_SplitString(@ResourceIds, ',') f
-	OPTION (maxrecursion 0)
-
+	SELECT f.value FROM STRING_SPLIT(@ResourceIds, ',') f
 
 	MERGE dbo.AutoRefundResultOS WITH (UPDLOCK,ROWLOCK) TARGET
 	USING (	SELECT ResourceId FROM @tmpResourceId	) AS SOURCE 

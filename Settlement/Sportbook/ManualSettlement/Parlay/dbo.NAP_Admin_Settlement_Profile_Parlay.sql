@@ -669,7 +669,7 @@ BEGIN
 				,@ResourceRefund = @ResourceRefund OUTPUT
 
 		IF ISNULL(@ResourceRefund, '')  <> ''
-		EXEC dbo.NAP_Set_AutoRefundOS_ResultIns
+		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
 			@MatchId		 = @MatchID
 			,@ResourceIds	 = @ResourceRefund
 END

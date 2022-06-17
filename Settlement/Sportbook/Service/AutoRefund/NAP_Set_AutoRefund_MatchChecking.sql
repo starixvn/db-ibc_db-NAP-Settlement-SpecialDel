@@ -32,7 +32,6 @@ BEGIN
 			, @queryInfo			NVARCHAR(MAX) = ''
 			, @execSql				NVARCHAR(MAX) =''
 			, @sporttype			SMALLINT
-			, @MaxTicketStatusId	INT  
 		
 		SELECT  @ParentId = m.ParentId
 				,@sporttype = m.sporttype
@@ -108,7 +107,7 @@ BEGIN
 
 		END
 
-		ELSE 
+		ELSE IF @sporttype = 9
 		BEGIN
 			INSERT INTO #tmpResultDetail ( bettype, betid ) 
 			SELECT DISTINCT sp.Bettype, sp.betid
@@ -118,16 +117,27 @@ BEGIN
 				AND sp.SettleType ='MNL'
 
 
-			SELECT @MaxTicketStatusId = MAX(b.statusid)
-			FROM dbo.bettrans  b (nolock)
-				INNER JOIN #tmpResultDetail tmp ON b.Bettype = tmp.bettype AND (b.Betid = 0 OR b.betid = tmp.betid)
-			WHERE b.matchid = @matchid
-				AND statusid not in ( 101, 102 )
+			SELECT @ErrCode = 	1001070   
+				  ,@ErrMsg  = 	'Auto Refund failed: settled tickets exist.' 				  
+			FROM ( 
+					SELECT TOP 1 b.transid
+					FROM dbo.bettrans  b (nolock)
+						INNER JOIN #tmpResultDetail tmp ON b.Bettype = tmp.bettype AND (b.Betid = 0 OR b.betid = tmp.betid)
+					WHERE b.matchid = @matchid
+						AND statusid  IN ( 111, 112, 113, 103 )
+				) b
 
-			IF ISNULL( @MaxTicketStatusId , 99 ) <> 0
+			IF ISNULL(@ErrCode, 0) = 0
 			BEGIN
-				SELECT @ErrCode = 	1001070   ,@ErrMsg  = 	'All ticket are not running.'
-				RETURN
+				SELECT @ErrCode = 	1001070   
+					  ,@ErrMsg  = 	'Auto Refund failed: settled tickets exist.'		  
+				FROM (  
+						SELECT TOP 1 b.transid
+						FROM dbo.bettransm  b (nolock)
+							INNER JOIN #tmpResultDetail tmp ON b.Bettype = tmp.bettype AND (b.betcheck = 0 OR b.betcheck = tmp.betid)
+						WHERE b.matchid = @matchid
+							AND statusid  IN ( 111, 112, 113, 103 )
+						) b
 			END
 
 		END

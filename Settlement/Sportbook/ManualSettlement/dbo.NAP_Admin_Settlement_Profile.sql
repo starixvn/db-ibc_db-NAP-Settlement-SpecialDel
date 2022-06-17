@@ -215,6 +215,7 @@ BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
 		@MatchId	= @MatchId
 		,@Action	= @Action
+		,@IsAuto	= @IsAuto
 		,@SelectedResources = @SelectedResources
 		,@ErrCode	= @ErrCode OUTPUT
 		,@ErrMsg	= @ErrMsg  OUTPUT
@@ -833,6 +834,7 @@ BEGIN
 							,@creator			= @creator
 							,@Sporttype			= @Sporttype
 							,@SelectedRID   	= @SelectedResources
+							,@IsAuto			= @IsAuto
 							
 			IF  @existsFinalRound = 1 OR @existsHTRound = 1
 			BEGIN
@@ -845,7 +847,7 @@ BEGIN
 			END
 		END------------end REFUND
 		
-		IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	 )
+		IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action = 'CAL' )
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 			  @MatchId 			 = @matchid
@@ -938,9 +940,18 @@ BEGIN
   		) AS tbl1
 	ORDER BY OrdNo
 
+	--Log Auto Refund for Badminton
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00'	AND HomeValue <> AwayValue 	)
+	BEGIN
+		EXEC dbo.NAP_Set_GetRefundResult
+			@MatchId		= @MatchID
+			,@Sporttype		= @sportType
+			,@CalculateResources	= @SelectedResources
+			,@ResourceRefund = @ResourceRefund OUTPUT
+	END
 
 	SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
-									WHEN @IsAuto = 1 THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
+									WHEN @IsAuto = 1 AND @Action ='CAL' THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
 															   WHEN @sportType IN ( 6, 9 ) THEN 'NAP: Auto Payout: SBO'				
 															   ELSE '' END
 									ELSE ''
@@ -951,10 +962,11 @@ BEGIN
 									END 
 								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
+										WHEN @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CASE WHEN ISNULL(@ResourceRefund,'') <> '' THEN '1' ELSE '0' END  
 										ELSE '' 
 										END
 	
-	SELECT @logdata = CASE WHEN @sportType IN ( 6, 9, 50 ) AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
+	SELECT @logdata = CASE WHEN @sportType IN ( 6, 9, 50 ) AND @IsAuto = 1 AND @Action ='CAL' THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
 							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
@@ -1093,23 +1105,12 @@ BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
 					  @MatchId = @matchid
 					, @StatusId = 2
-					, @ResourceId  = @ResourceIds
+					, @ResourceIds  = @ResourceIds
 
-			ELSE IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00'	AND HomeValue <> AwayValue 	)
-			BEGIN
-				EXEC dbo.NAP_Set_GetRefundResult
-					@MatchId		= @MatchID
-					,@Sporttype		= @sportType
-					,@CalculateResources	= @SelectedResources
-					,@ResourceRefund = @ResourceRefund OUTPUT
-
-				IF ISNULL(@ResourceRefund, '')  <> ''
-				EXEC NAP_Set_AutoRefundOS_ResultIns
+			ELSE IF ISNULL(@ResourceRefund, '')  <> ''
+				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
 					@MatchId		 = @MatchID
-					,@StatusId		 = 0
-					,@ResourceID	 = @ResourceRefund
-			END
-				
+					,@ResourceIds	 = @ResourceRefund			
 	END
 END
 GO

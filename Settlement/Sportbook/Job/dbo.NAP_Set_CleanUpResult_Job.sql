@@ -14,6 +14,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20210913@Louisa: Cleanup data ES if matchid not exists in table dbo.match[Redmine:##161455]
+		- 20220512@Louisa: Cleanup data for AutoRefundResultOS [Redmine:#171676]
 
 	Param's Explanation: 
 
@@ -105,5 +106,17 @@ BEGIN
 
 		WAITFOR DELAY '00:00:00:280'
 	END
+
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP(@batch) FROM dbo.AutoRefundResultOS WITH(ROWLOCK, UPDLOCK)
+		WHERE	 CreateDate < DATEADD (DD, -14, GETDATE())
+	
+		IF @@ROWCOUNT = 0
+			BREAK			
+
+		WAITFOR DELAY '00:00:00:280'
+	END
+
 END
 GO

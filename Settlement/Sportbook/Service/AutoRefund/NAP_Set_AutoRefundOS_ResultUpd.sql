@@ -33,12 +33,12 @@ BEGIN
 				,ModifiedDate	= GETDATE()
 				,Remark			= COALESCE(@Remark, Remark)
 		FROM dbo.AutoRefundResultOS r WITH(ROWLOCK,UPDLOCK)
-			INNER JOIN dbo.f_SplitString(@ResourceIds, ',') f 
-				ON r.ResourceID  = f.val
+			INNER JOIN STRING_SPLIT(@ResourceIds, ',') f 
+				ON r.ResourceID  = f.value
 		WHERE SourceId = 105 --Auto Refund
 			AND TypeId = @TypeId
 			AND MatchId = @MatchId
-		OPTION (maxrecursion 0)
+
 	END
 
 END

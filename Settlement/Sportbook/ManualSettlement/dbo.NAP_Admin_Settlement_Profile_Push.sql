@@ -140,6 +140,7 @@ BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
 		@MatchId	= @MatchId
 		,@Action	= @Action
+		,@IsAuto	= @IsAuto
 		,@SelectedResources = @SelectedResources
 		,@ErrCode	= @ErrCode OUTPUT
 		,@ErrMsg	= @ErrMsg  OUTPUT
@@ -177,7 +178,7 @@ BEGIN
 		RETURN
 	END
 
-	IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	 )
+	IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action = 'CAL' )
 	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 		  @MatchId 				= @matchid
 		, @SelectedResources 	= @SelectedResources
