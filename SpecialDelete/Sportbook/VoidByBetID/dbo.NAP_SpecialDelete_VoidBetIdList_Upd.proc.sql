@@ -100,6 +100,7 @@ AS
 	  - 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 	  - 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 	  - 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+	  - 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 
 	 Param's Explanation:   
 	*/
@@ -1938,12 +1939,12 @@ BEGIN
 					THEN CASE
 							WHEN ISNULL(mr.IsHTCal, 0) = 0
 									AND EXISTS (SELECT TOP 1 1
-												FROM dbo.f_Set_Instant_GetBettypes() T
+												FROM dbo.f_TVS_GetInstantBettypes() T
 												WHERE T.InstantType IN (1, 3) AND T.bettype = b.bettype)
 									THEN CAST(1 AS BIT)
 							WHEN ISNULL(mr.IsHTCal, 0) = 1
 									AND EXISTS (SELECT TOP 1 1
-												FROM dbo.f_Set_Instant_GetBettypes() T
+												FROM dbo.f_TVS_GetInstantBettypes() T
 												WHERE T.InstantType IN (2, 3) AND T.bettype = b.bettype)
 									THEN CAST(1 AS BIT)
 							ELSE CAST(0 AS BIT)

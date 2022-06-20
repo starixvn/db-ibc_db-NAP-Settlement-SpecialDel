@@ -25,6 +25,7 @@ AS
 		- 20220303@July: Check permission to void instant settled tickets [Redmine: #168651]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
+		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -75,12 +76,12 @@ BEGIN
 			IF @IsHTCal = 0
 				INSERT INTO #InstantSettlementBettypes (bettype)
 				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
+				FROM dbo.f_TVS_GetInstantBettypes() T
 				WHERE T.InstantType IN (1, 3) -- 01, 11
 			ELSE
 				INSERT INTO #InstantSettlementBettypes (bettype)
 				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
+				FROM dbo.f_TVS_GetInstantBettypes() T
 				WHERE T.InstantType IN (2, 3) -- 10, 11			
 		END
 
@@ -137,12 +138,12 @@ BEGIN
 						THEN CASE
 								WHEN ISNULL(mr.IsHTCal, 0) = 0
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() ib
+													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
 										THEN 1
 								WHEN ISNULL(mr.IsHTCal, 0) = 1
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() ib
+													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
 										THEN 1
 								ELSE 2
@@ -163,12 +164,12 @@ BEGIN
 						THEN CASE
 								WHEN ISNULL(mr.IsHTCal, 0) = 0
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() ib
+													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
 										THEN 1
 								WHEN ISNULL(mr.IsHTCal, 0) = 1
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() ib
+													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
 										THEN 1
 								ELSE 2
