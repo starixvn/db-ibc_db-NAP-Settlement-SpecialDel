@@ -1102,15 +1102,19 @@ BEGIN
 	ELSE
 	BEGIN
 			IF @Action = 'REFUND'
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
-					  @MatchId = @matchid
-					, @StatusId = 2
-					, @ResourceIds  = @ResourceIds
+			BEGIN
+				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
+						  @MatchId = @matchid
+						, @StatusId = 2
+						, @ResourceIds  = @ResourceIds
+			END
 
 			ELSE IF ISNULL(@ResourceRefund, '')  <> ''
+			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
-					@MatchId		 = @MatchID
-					,@ResourceIds	 = @ResourceRefund			
+						@MatchId		 = @MatchID
+						,@ResourceIds	 = @ResourceRefund
+			END
 	END
 END
 GO

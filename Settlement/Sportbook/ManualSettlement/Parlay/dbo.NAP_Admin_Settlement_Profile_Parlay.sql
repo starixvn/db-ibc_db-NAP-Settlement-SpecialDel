@@ -645,18 +645,22 @@ BEGIN
 	IF @IsAutoRefund = 1 AND @Action = 'REFUND'
 	BEGIN
 		IF  @sportType = 1
+		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
 				@MatchId = @matchid 
 				, @TypeId  = 10
 				, @StatusId = 2
+		END
 		
 		ELSE
+		BEGIN
 			SELECT @ResourceRefund = @ResourceRefund + ',' + r.ResourceID FROM @tmpSelectedRID r
 			
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
 					@MatchId = @matchid
 					, @StatusId = 2
 					, @ResourceIds  = @ResourceRefund
+		END
 	END
 
 	--Auto refund Badminton after calculate parlay by Auto Service
@@ -669,9 +673,11 @@ BEGIN
 				,@ResourceRefund = @ResourceRefund OUTPUT
 
 		IF ISNULL(@ResourceRefund, '')  <> ''
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
-			@MatchId		 = @MatchID
-			,@ResourceIds	 = @ResourceRefund
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
+				@MatchId		 = @MatchID
+				,@ResourceIds	 = @ResourceRefund
+		END
 END
 	
 	-- Write log
