@@ -41,6 +41,7 @@ AS
 		- 20220221@Max: Remove SABA of league name for China View sites [Redmine: #168651]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
+		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 
 	Param's explanation:	
 		
@@ -1820,12 +1821,12 @@ BEGIN
 				IF @IsHTCal = 0
 					INSERT INTO #InstantSettlementBettypes(bettype)
 					SELECT T.bettype
-					FROM dbo.f_Set_Instant_GetBettypes() T
+					FROM dbo.f_TVS_GetInstantBettypes() T
 					WHERE T.InstantType IN (1, 3) -- 01, 11
 				ELSE
 					INSERT INTO #InstantSettlementBettypes(bettype)
 					SELECT T.bettype
-					FROM dbo.f_Set_Instant_GetBettypes() T
+					FROM dbo.f_TVS_GetInstantBettypes() T
 					WHERE T.InstantType IN (2, 3) -- 10, 11			
 			END	 
 		END
@@ -1863,13 +1864,13 @@ BEGIN
 					IF @IsHTCal = 0 AND @MatchId <> @OldMatchID
 						INSERT INTO #InstantSettlementBettypes(bettype)
 						SELECT T.bettype
-						FROM dbo.f_Set_Instant_GetBettypes() T
+						FROM dbo.f_TVS_GetInstantBettypes() T
 						WHERE T.InstantType IN (1, 3) -- 01, 11
 
 					IF @IsHTCal = 1 AND @MatchId <> @OldMatchID
 						INSERT INTO #InstantSettlementBettypes(bettype)
 						SELECT T.bettype
-						FROM dbo.f_Set_Instant_GetBettypes() T
+						FROM dbo.f_TVS_GetInstantBettypes() T
 						WHERE T.InstantType IN (2, 3) -- 10, 11				
 				END	
 

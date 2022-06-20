@@ -20,7 +20,7 @@ RETURN (
 		FROM dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)		
 		WHERE s.SportType = 1 and s.DeterminedType = 2  -- cal ht
 	)
-	SELECT COALESCE(s.BetType, f.bettype) bettype, COALESCE(f.InstantType,2) AS InstantType
+	SELECT ISNULL(s.BetType, f.bettype) AS bettype, ISNULL(f.InstantType,2) AS InstantType
 	FROM cte s
 		FULL JOIN f_Set_Instant_GetBettypes () f
 			ON s.BetType = f.bettype

@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_Void14_Select] 
+ALTER PROCEDURE [dbo].[TicketVoiding_Void14_Select] 
 (
     @RequestId			INT = NULL
 )
@@ -11,7 +11,8 @@ AS
 	
 	Revisions: 
 		- 20211123@July: Create new SP - view voided ticket [Redmine:#140180]
-		 
+		- 20220620@July: Remove code instant settlement for archive ticket [Redmine: #174122]
+		
 	Param's explanation:	
 		
 */
@@ -92,11 +93,6 @@ BEGIN
 	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 
-	DECLARE @tmpMatchIDBatch TABLE (MatchID INT, bettype  SMALLINT)
-
-	DECLARE @SettledType	VARCHAR(100) = 'All'
-			,@MatchId		INT
-
 	CREATE TABLE #TmpMatch( MatchId INT)
 
 	INSERT INTO #TmpMatch( MatchId)
@@ -107,11 +103,10 @@ BEGIN
 	DECLARE @transIdTemp TABLE (transid BIGINT NULL);
 				
 	INSERT INTO @transIdTemp (transid)
-	SELECT DISTINCT TransId
+	SELECT TransId
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 	WHERE RequestId = @RequestId
 	
-	-- search tickets : not metric gaming tickets, mix parlay tickets
 	INSERT INTO #SpecialDeleteBets(
 			GroupID			
 			,transid		
@@ -378,7 +373,6 @@ BEGIN
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
 			ON r.EventID = o.EventID
-			
 		WHERE d.bettype IN (1231,1232,1233,1237,1238)
 	END
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
@@ -426,67 +420,6 @@ BEGIN
 	FROM	#SpecialDeleteBets al
 	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
 	
-	BEGIN -- Instant Settlement declaration
-		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-	
-		DECLARE @IsHTCal BIT = 0
-			  , @eventstatus NVARCHAR(50) = ''
-		  
-		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT)	
-		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes(bettype)
-		
-		DECLARE @TempMatchID TABLE( MatchID INT, Bettype SMALLINT, IsFinish BIT)
-		INSERT INTO @TempMatchID (MatchID,Bettype)
-		SELECT m.MatchId, s.bettype
-		FROM #TmpMatch m
-		CROSS APPLY ( SELECT DISTINCT s.bettype
-						FROM #SpecialDeleteBets s where m.matchid = s.matchid
-					)s
-
-		DECLARE @OldMatchID INT = 0
-		WHILE (1=1) -- multiple match = 0
-		BEGIN
-			DELETE @tmpMatchIDBatch
-			UPDATE TOP (1) m
-				SET IsFinish = 1
-					,@MatchId = m.MatchID
-			OUTPUT DELETED.matchid
-					,DELETED.bettype
-			INTO @tmpMatchIDBatch (MatchID, bettype)
-			FROM @TempMatchID m
-				WHERE IsFinish IS NULL
-				
-			IF @@ROWCOUNT = 0 BREAK
-
-			--> Get status of match
-			SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
-			FROM dbo.match_remark (NOLOCK)
-			WHERE matchid = @MatchId
-	
-			SELECT @eventstatus = ISNULL(eventstatus, '')
-			FROM dbo.match14 (NOLOCK)
-			WHERE matchid = @MatchId
-	
-			--> Build bettype list supported for instant settlement based on settlement status of match
-			IF @eventstatus <> @eventstatus_completed
-			BEGIN
-				IF @IsHTCal = 0 AND @MatchId <> @OldMatchID
-					INSERT INTO #InstantSettlementBettypes(bettype)
-					SELECT T.bettype
-					FROM dbo.f_Set_Instant_GetBettypes() T
-					WHERE T.InstantType IN (1, 3) -- 01, 11
-
-				IF @IsHTCal = 1 AND @MatchId <> @OldMatchID
-					INSERT INTO #InstantSettlementBettypes(bettype)
-					SELECT T.bettype
-					FROM dbo.f_Set_Instant_GetBettypes() T
-					WHERE T.InstantType IN (2, 3) -- 10, 11				
-			END	
-
-			SET @OldMatchID = @MatchId
-		END
-	END	
-
 	-- TICKET SECTION
 	;WITH CTE_OriginResult AS (
 		--1. For Credit	 
@@ -771,58 +704,7 @@ BEGIN
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 				OR sub.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
 	)
-	, CTE_CalculateMainBettype AS (
-		SELECT s.*
-			 , s.bettype AS MainBettype
-		FROM CTE_OriginResult s
-	)
-	, CTE_InstantSettlementSubgrouping AS (
-		/*
-			Cases for dividing for instant settlement subgroup:
-				1. Before match is kicked off : No ticketes in group 'Instant Settlement'.
-				2. Before HT calculated : Ticketes that are settled ('WON', 'LOSE', 'DRAW')
-										  and their bettype in list of HT instant settlement bettypes are in group 'Instant Settlement'
-				3. After HT calculated : Ticketes that are settled  ('WON', 'LOSE', 'DRAW')
-										 and bettype in list of FT instant settlement bettypes are in group 'Instant Settlement'
-				4. After match is completed : No ticketes in group 'Instant Settlement'.
-		*/
-		SELECT  s.*
-			   ,CASE 
-					WHEN @eventstatus <> @eventstatus_completed -- cases 1, 2, 3 
-							THEN CASE
-									WHEN s.mainstatusid IN (111, 112, 113) AND s.betdaqid <> -2
-										 AND EXISTS (SELECT TOP 1 1
-													 FROM #InstantSettlementBettypes
-													 WHERE bettype = s.MainBettype
-													 )
-											THEN s.OriginGroupName + ' (Instant Settlement)'
-									ELSE s.OriginGroupName
-								 END
-					ELSE s.OriginGroupName -- case 4
-				END AS SubGroupName
-		FROM CTE_CalculateMainBettype s
-	)
-	, CTE_SettledTypeFiltering AS (
-		SELECT s.*
-		FROM CTE_InstantSettlementSubgrouping s
-		WHERE CASE
-					WHEN @SettledType = 'All' THEN 1
-					WHEN @SettledType = 'Unsettled' 
-							THEN CASE WHEN s.mainstatusid IN (0, 103) THEN 1
-									ELSE 0
-								 END
-					WHEN @SettledType = 'Instantly' 
-							THEN CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1
-									ELSE 0
-								 END
-					WHEN @SettledType = 'Settled' 
-							THEN CASE WHEN s.mainstatusid IN (111, 112, 113)
-										 AND s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
-									ELSE 0
-								 END
-					ELSE 1
-			  END = 1
-	)	
+	
 	SELECT CASE WHEN s.bettype BETWEEN 801 AND 806 THEN s.refno ELSE s.transid END transid
 		   ,s.SubTransid
 		   ,s.refno		
@@ -861,7 +743,7 @@ BEGIN
 		   ,s.IsCricket
 		   ,s.betdaqid
 		   ,s.ExtraInfo
-		   ,s.SubGroupName AS GroupName
+		   ,s.OriginGroupName AS GroupName
 		   ,s.WalletType		   
 		   ,s.MainTransId
 		   ,s.RefCode
@@ -879,7 +761,7 @@ BEGIN
 		   ,s.winlostdate
 		   ,s.statusID
 		   ,s.IsCashOut
-	FROM CTE_SettledTypeFiltering s
+	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE
 				WHEN s.OriginGroupName = 'CN88' THEN 1
@@ -888,22 +770,11 @@ BEGIN
 				WHEN s.OriginGroupName = 'Deposit' THEN 4
 				WHEN s.OriginGroupName = 'Betfair' THEN 5 
 			 END
-			, CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
-				ELSE 2
-			 END
 		   , ISNULL(s.MainTransId, s.transid)
-		   , CASE 
-				WHEN s.BonusID IS NOT NULL
-						THEN CASE 
-								WHEN s.MainTransId IS NULL THEN 1
-								ELSE 2 
-							 END
-				ELSE s.transid
-			 END			
+		  
 	
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #tmpRefCodeSummary
-	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #TmpMatch
 END
 
