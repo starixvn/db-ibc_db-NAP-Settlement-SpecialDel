@@ -47,6 +47,30 @@ RETURN
 	    UNION ALL SELECT 43, '807', 'M7', 'M7', 'FT', 0, 7,  0
 	    UNION ALL SELECT 43, '808', 'M8', 'M8', 'FT', 0, 8,  0
 	    UNION ALL SELECT 43, '809', 'M9', 'M9', 'FT', 0, 9,  0
+
+		UNION ALL SELECT 43, '810', 'M10', 'M10', 'FT', 0, 10,  0
+		UNION ALL SELECT 43, '811', 'M11', 'M11', 'FT', 0, 11,  0
+		UNION ALL SELECT 43, '812', 'M12', 'M12', 'FT', 0, 12,  0
+		UNION ALL SELECT 43, '813', 'M13', 'M13', 'FT', 0, 13,  0
+		UNION ALL SELECT 43, '814', 'M14', 'M14', 'FT', 0, 14,  0
+		UNION ALL SELECT 43, '815', 'M15', 'M15', 'FT', 0, 15,  0
+		UNION ALL SELECT 43, '816', 'M16', 'M16', 'FT', 0, 16,  0
+		UNION ALL SELECT 43, '817', 'M17', 'M17', 'FT', 0, 17,  0
+		UNION ALL SELECT 43, '818', 'M18', 'M18', 'FT', 0, 18,  0
+		UNION ALL SELECT 43, '819', 'M19', 'M19', 'FT', 0, 19,  0
+		UNION ALL SELECT 43, '820', 'M20', 'M20', 'FT', 0, 20,  0
+										   
+		UNION ALL SELECT 43, '821', 'M21', 'M21', 'FT', 0, 21,  0
+		UNION ALL SELECT 43, '822', 'M22', 'M22', 'FT', 0, 22,  0
+		UNION ALL SELECT 43, '823', 'M23', 'M23', 'FT', 0, 23,  0
+		UNION ALL SELECT 43, '824', 'M24', 'M24', 'FT', 0, 24,  0
+		UNION ALL SELECT 43, '825', 'M25', 'M25', 'FT', 0, 25,  0
+		UNION ALL SELECT 43, '826', 'M26', 'M26', 'FT', 0, 26,  0
+		UNION ALL SELECT 43, '827', 'M27', 'M27', 'FT', 0, 27,  0
+		UNION ALL SELECT 43, '828', 'M28', 'M28', 'FT', 0, 28,  0
+		UNION ALL SELECT 43, '829', 'M29', 'M29', 'FT', 0, 29,  0
+		UNION ALL SELECT 43, '830', 'M30', 'M30', 'FT', 0, 30,  0
+
 	    UNION ALL SELECT 43, '00' , 'FT', '00', 'FT', 1, 99, 1
 	    UNION ALL SELECT 9, '801', '1G', '0101', 'SP', 0, 1, 0 --Grouptype = Special
 	    UNION ALL SELECT 9, '802', '2G', '0102', 'SP', 0, 2, 0
