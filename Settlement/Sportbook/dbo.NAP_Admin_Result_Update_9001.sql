@@ -36,6 +36,7 @@ AS
 		- 20220128@Louisa: Update OtherInfo [Redmine:#166335]
 		- 20220329@Louisa: Extend data length for dbo.ResultDetailOS.OtherInfo [Redmine:#170406]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
+		- 20220512@Louisa: Auto settle Badminton [Redmine:#171676]
 		
     Param's Explanation: 
     
@@ -50,7 +51,7 @@ BEGIN
 
 	DECLARE @IsApplyRefundSOP BIT
 
-	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 5, 43, 6, 45, 9, 2, 50) THEN 1
+	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 2, 5, 6, 9, 43, 45,50) THEN 1
 									 ELSE 0
 									 END
 
@@ -109,19 +110,21 @@ BEGIN
     IF @action = 'CAL'
     BEGIN
        SET @SettlementStatusID 	=  4
-       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype IN ( 6, 50 ) THEN 2 
+       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype IN ( 6, 9, 50 ) THEN 2 
 										ELSE 5
 										END
     END 
     ELSE IF @action = 'UNDO'
     BEGIN
-	   SET @ResultStatusID      = 4  --@Sporttype IN (2,5,9,43,45,50)
+	   SET @ResultStatusID      = 4
        SET @SettlementStatusID  = 0  -- Initial
     END 
     ELSE IF @action = 'REFUND'
     BEGIN
 	   SET @SettlementStatusID 	= 1
-       SET @ResultStatusID 		= 5   
+       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype = 9 THEN 2 
+										ELSE 5   
+										END
        
        UPDATE sr 
        SET HomeValue = '0'

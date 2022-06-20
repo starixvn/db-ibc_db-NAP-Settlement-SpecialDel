@@ -56,6 +56,7 @@ AS
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220512@Louisa: Auto settle and Auto refund Badminton [Redmine:#171676]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -114,6 +115,8 @@ BEGIN
 			,@TotalSubParlay	INT = 0
 			,@ThreadHold		INT = 0
 			,@LockedByRefno		BIT = 0
+			,@ResourceRefund	VARCHAR(100) = ''
+			,@IsAutoRefund		BIT  = 0
 			
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -212,6 +215,7 @@ BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
 		@MatchId	= @MatchId
 		,@Action	= @Action
+		,@IsAuto	= @IsAuto
 		,@SelectedResources = @SelectedResources
 		,@ErrCode	= @ErrCode OUTPUT
 		,@ErrMsg	= @ErrMsg  OUTPUT
@@ -321,7 +325,7 @@ BEGIN
 							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
 							WHERE MatchID = @MatchID AND ResourceID IN ('0101','0102','0103','0104','0105')
 									AND SettlementStatusID = 4
-									AND ResultStatusID = 5
+									AND ResultStatusID IN ( 2, 5 )
 
 				--Get total home value/total away value of ResourceId = '70400' 
 				SELECT TOP 1 @TotalPointHomeValue = HomeValue, @TotalPointAwayValue = AwayValue
@@ -830,6 +834,7 @@ BEGIN
 							,@creator			= @creator
 							,@Sporttype			= @Sporttype
 							,@SelectedRID   	= @SelectedResources
+							,@IsAuto			= @IsAuto
 							
 			IF  @existsFinalRound = 1 OR @existsHTRound = 1
 			BEGIN
@@ -842,7 +847,7 @@ BEGIN
 			END
 		END------------end REFUND
 		
-		IF (@IsAuto = 1 AND @sporttype IN ( 6, 50 )	 )
+		IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action = 'CAL' )
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 			  @MatchId 			 = @matchid
@@ -935,10 +940,19 @@ BEGIN
   		) AS tbl1
 	ORDER BY OrdNo
 
+	--Log Auto Refund for Badminton
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00'	AND HomeValue <> AwayValue 	)
+	BEGIN
+		EXEC dbo.NAP_Set_GetRefundResult
+			@MatchId		= @MatchID
+			,@Sporttype		= @sportType
+			,@CalculateResources	= @SelectedResources
+			,@ResourceRefund = @ResourceRefund OUTPUT
+	END
 
 	SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
-									WHEN @IsAuto = 1 THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
-															   WHEN @sportType = 6 THEN 'NAP: Auto Payout: SBO'				
+									WHEN @IsAuto = 1 AND @Action ='CAL' THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
+															   WHEN @sportType IN ( 6, 9 ) THEN 'NAP: Auto Payout: SBO'				
 															   ELSE '' END
 									ELSE ''
 									END
@@ -948,10 +962,11 @@ BEGIN
 									END 
 								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
+										WHEN @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CASE WHEN ISNULL(@ResourceRefund,'') <> '' THEN '1' ELSE '0' END  
 										ELSE '' 
 										END
 	
-	SELECT @logdata = CASE WHEN @sportType IN ( 6, 50 ) AND @IsAuto = 1 THEN 'NAP: Auto Payout Calculate '
+	SELECT @logdata = CASE WHEN @sportType IN ( 6, 9, 50 ) AND @IsAuto = 1 AND @Action ='CAL' THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
 							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
@@ -959,9 +974,9 @@ BEGIN
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 							+ ' Betstatus(' + ISNULL(@betstatus,'') + ')' 
 						   
-	SELECT @Remark = @ResultRemarkLog + '<br/> ' 
+	SELECT @Remark = @ResultRemarkLog + '<br/> '
 						+ CASE
-							WHEN @sportType IN ( 2, 5, 9, 43 ) OR ( @sportType = 50 AND @IsAuto = 0) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							WHEN @sportType IN ( 2, 5, 43 ) OR ( @sportType IN ( 9, 50 ) AND @IsAuto = 0) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
 							ELSE ''
 						END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
@@ -1030,7 +1045,11 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
-	
+
+	SELECT @IsAutoRefund =  CASE  WHEN @IsAuto = 1 AND @sportType = 9 THEN 1
+								  ELSE @IsAutoRefund
+								  END 		
+
 	IF @TotalSubParlay > 0
 	BEGIN		
 		SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
@@ -1048,27 +1067,28 @@ BEGIN
 
 		IF @TotalSubParlay <= @ThreadHold
 			SET @LockedByRefno = 1
-
+		
 		SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 								+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
-								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''														
+								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 														
 								+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
-								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 								
+								+ ', @IsAutoRefund  = ''' + CONVERT(CHAR(1), @IsAutoRefund ) + ''''	
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
 
 		IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
-					@creator			= @creator
+				@creator			= @creator
 				,@MatchID			= @MatchId
 				,@Action		  	= @Action
 				,@IP	 			= @Ip
 				,@SelectedResources = @SelectedResourceParlay
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@LockedByRefno		= 1 -- always lock refno for testing
-
+				,@IsAutoRefund		= @IsAutoRefund
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
 		END
@@ -1077,6 +1097,24 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
 			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
 		END
+	END
+
+	ELSE
+	BEGIN
+			IF @Action = 'REFUND'
+			BEGIN
+				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
+						  @MatchId = @matchid
+						, @StatusId = 2
+						, @ResourceIds  = @ResourceIds
+			END
+
+			ELSE IF ISNULL(@ResourceRefund, '')  <> ''
+			BEGIN
+				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
+						@MatchId		 = @MatchID
+						,@ResourceIds	 = @ResourceRefund
+			END
 	END
 END
 GO

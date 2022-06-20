@@ -2,6 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Set_ResultSettingChecking
 	@MatchId	INT
 	,@Action	VARCHAR(20)
+	,@IsAuto	BIT = 0
 	,@SelectedResources VARCHAR(MAX) = ''
 	,@ErrCode	INT = 0 OUTPUT
 	,@ErrMsg	VARCHAR(200) = '' OUTPUT
@@ -19,6 +20,7 @@ AS
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20211127@Helen: Settlement - The Volleyball match cannot key refund. [Redmine:#165296]
 		- 20220406@Louisa: Cannnot Refund child match Cricket ( childMatchType = 200) [Redmine:#171188]
+		- 20220512@Louisa: Auto Refund for Badminton [Redmine:#171676]
 
 
 	Param's Explanation:
@@ -46,8 +48,9 @@ BEGIN
 	WHERE m.matchid = @MatchId
 	
 	IF @SelectedResources = '' 
-		OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50)
-		OR ( @ChildMatchType = 200 AND @Sporttype = 50 )
+		OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50) --- sports not apply S.O.P Refund
+		OR ( @ChildMatchType = 200 AND @Sporttype = 50 ) --child match of CRICKET TEST MATCH
+		OR (@Action = 'REFUND' AND @IsAuto = 1 AND @Sporttype = 9 ) --Auto Refund Badminton
 	RETURN
 
 	SELECT @ResultTable = r.ResultTable
