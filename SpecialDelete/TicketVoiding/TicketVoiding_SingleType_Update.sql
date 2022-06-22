@@ -49,6 +49,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220615@Max: [TVS] Some minor enhancements [Redmine: #173229]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)

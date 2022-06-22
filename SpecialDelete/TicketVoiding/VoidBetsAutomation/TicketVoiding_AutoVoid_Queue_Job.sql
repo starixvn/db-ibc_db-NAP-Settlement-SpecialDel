@@ -53,15 +53,11 @@ BEGIN
 			,@QueueId			INT
 			,@UserId			INT = 10278938
 			,@Action			VARCHAR(50)
-			,@Checktime			DATETIME
 			,@IP				VARCHAR(50) = '125.227.140.97'
 			,@StatusId			TINYINT = 1
-			,@RequestIDList		VARCHAR(MAX) = NULL
 			,@ErrCode			INT
 			,@ErrMsg			VARCHAR(300)
 			,@NegativeBalanceUsers VARCHAR(MAX)
-			,@MatchidList_Waiting_10minutes VARCHAR(MAX) = ''
-			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
 			,@Max_QueueId		INT = 0
 			,@Min_QueueId		INT = 0
@@ -71,16 +67,7 @@ BEGIN
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT)
 	DECLARE @tmpMatchMoveBet_update TABLE (MatchId	INT)
 			
-	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
-	DECLARE @Subject	NVARCHAR(500) = ''
-		,@Body			NVARCHAR(MAX) = ''
-		,@Recipients	VARCHAR(MAX) = ''	
-	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
-	DECLARE @msg NVARCHAR(4000)	= ''
-		,@title NVARCHAR(200)	= 'AutoVoid: Notification'
-	
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
-	
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
 	
 	-------------------STARTING OF Process invalid request -----------
