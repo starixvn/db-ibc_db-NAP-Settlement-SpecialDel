@@ -9,7 +9,7 @@ USE bodb02
 GO
 
 /*----------------------MBC--------------------------*/
-CREATE CLUSTERED INDEX [CIX_CustLimitBetHistory_MBC_MatchId_CustId_Transid_BRID] ON [dbo].[CustLimitBetHistory_MBC]
+CREATE CLUSTERED INDEX [CIX_CustLimitBetHistory_MBC] ON [dbo].[CustLimitBetHistory_MBC]
 (
 	[Matchid]	ASC,
 	[CustID]	ASC,
@@ -21,7 +21,7 @@ GO
 
 
 /*----------------------789y--------------------------*/
-CREATE CLUSTERED INDEX [CIX_CustLimitBetHistory_789_MatchId_CustId_Transid_BRID] ON [dbo].[CustLimitBetHistory_789]
+CREATE CLUSTERED INDEX [CIX_CustLimitBetHistory_789] ON [dbo].[CustLimitBetHistory_789]
 (
 	[Matchid]	ASC,
 	[CustID]	ASC,
@@ -33,7 +33,7 @@ GO
 
 
 /*----------------------LIC--------------------------*/
-CREATE CLUSTERED INDEX [CIX_CustLimitBetHistory_LIC_MatchId_CustId_Transid_BRID] ON [dbo].[CustLimitBetHistory_LIC]
+CREATE CLUSTERED INDEX [CIX_CustLimitBetHistory_LIC] ON [dbo].[CustLimitBetHistory_LIC]
 (
 	[Matchid]	ASC,
 	[CustID]	ASC,
