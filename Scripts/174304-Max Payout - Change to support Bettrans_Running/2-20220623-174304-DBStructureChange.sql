@@ -11,9 +11,11 @@ GO
 /*----------------------MBC--------------------------*/
 ALTER TABLE [CustLimitBetHistory_MBC]
 	ADD [BRID] BIGINT NULL;
+GO
 
 ALTER TABLE [CustLimitBetHistory_MBC]
 	ALTER COLUMN [TransId] BIGINT NULL;
+GO
 
 ALTER TABLE [dbo].[CustLimitBetHistory_MBC] ADD  CONSTRAINT [DF_CustLimitBetHistory_MBC_TransId]  DEFAULT (0) FOR [TransId]
 GO
@@ -26,9 +28,11 @@ GO
 /*----------------------789y--------------------------*/
 ALTER TABLE [CustLimitBetHistory_789]
 	ADD [BRID] BIGINT NULL;
+GO
 
 ALTER TABLE [CustLimitBetHistory_789]
 	ALTER COLUMN [TransId] BIGINT NULL;
+GO
 
 ALTER TABLE [dbo].[CustLimitBetHistory_789] ADD  CONSTRAINT [DF_CustLimitBetHistory_789_TransId]  DEFAULT (0) FOR [TransId]
 GO
@@ -41,9 +45,11 @@ GO
 /*----------------------LIC--------------------------*/
 ALTER TABLE [CustLimitBetHistory_LIC]
 	ADD [BRID] BIGINT NULL;
+GO
 
 ALTER TABLE [CustLimitBetHistory_LIC]
 	ALTER COLUMN [TransId] BIGINT NULL;
+GO
 
 ALTER TABLE [dbo].[CustLimitBetHistory_LIC] ADD  CONSTRAINT [DF_CustLimitBetHistory_LIC_TransId]  DEFAULT (0) FOR [TransId]
 GO

@@ -10,16 +10,19 @@ GO
 
 /*----------------------MBC--------------------------*/
 DROP INDEX [CIX_CustLimitBetHistory_MBC_MatchId_CustId_Transid] ON [dbo].[CustLimitBetHistory_MBC]
+GO
 /*----------------------MBC--------------------------*/
 
 
 /*----------------------789y--------------------------*/
 DROP INDEX [CIX_CustLimitBetHistory_789_MatchId_CustId_Transid] ON [dbo].[CustLimitBetHistory_789]
+GO
 /*----------------------789y--------------------------*/
 
 
 /*----------------------LIC--------------------------*/
 DROP INDEX [CIX_CustLimitBetHistory_LIC_MatchId_CustId_Transid] ON [dbo].[CustLimitBetHistory_LIC]
+GO
 /*----------------------LIC--------------------------*/
 
 
