@@ -18,6 +18,7 @@ AS
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
+		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
    
     Parameters Explanation:        
     

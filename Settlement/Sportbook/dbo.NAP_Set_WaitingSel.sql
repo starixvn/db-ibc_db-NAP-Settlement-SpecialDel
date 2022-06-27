@@ -47,6 +47,7 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 
 	Param's explanation:  
 		
@@ -546,6 +547,7 @@ BEGIN
 		,ISNULL(ciHT.username,'') AS suspenderHalfTime 
 		,ISNULL(ciFT.username,'') AS suspenderFullTime
 		,m.EventStatusReason
+		,mr.BestOfMap
 	FROM @TempMatch m
 		LEFT JOIN dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 		LEFT JOIN @tmp_ESportMatch te ON te.matchid = m.matchid
