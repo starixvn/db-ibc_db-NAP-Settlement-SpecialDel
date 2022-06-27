@@ -64,6 +64,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
+		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 
 	Param's Explanation:
 */
@@ -379,12 +380,12 @@ BEGIN
 			IF @IsHTCal = 0
 				INSERT INTO #InstantSettlementBettypes(bettype)
 				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
+				FROM dbo.f_TVS_GetInstantBettypes() T
 				WHERE T.InstantType IN (1, 3) -- 01, 11
 			ELSE
 				INSERT INTO #InstantSettlementBettypes(bettype)
 				SELECT T.bettype
-				FROM dbo.f_Set_Instant_GetBettypes() T
+				FROM dbo.f_TVS_GetInstantBettypes() T
 				WHERE T.InstantType IN (2, 3) -- 10, 11			
 		END	 	
 	END						 	  

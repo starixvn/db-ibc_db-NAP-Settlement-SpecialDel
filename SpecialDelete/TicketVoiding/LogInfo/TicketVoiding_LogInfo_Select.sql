@@ -59,7 +59,8 @@ AS
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 		- 20220510@Max: Issue Performance Add/Edit Request issue type Wrong OU & Wrong 1st OU [Redmine: #172281]
 		- 20220517@Max: TVS - Wrong Score: Add/Edit Request COUNT single ticket NOT RIGHT at log info [Redmine: #172851]
-
+		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		
 	Param's explanation:
 		+ @WrongScoreInfo:
 		<root>
@@ -127,10 +128,6 @@ BEGIN
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
 			,@DangerAcceptedInfoXML	  XML = NULL
 			,@RedCardInfoXML		  XML = NULL
-			,@WrongHDPInfoXML		  XML = NULL	
-			,@Wrong1stHDPInfoXML	  XML = NULL
-			,@WrongOUInfoXML		  XML = NULL	
-			,@Wrong1stOUInfoXML		  XML = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			transid               BIGINT,
@@ -143,7 +140,6 @@ BEGIN
 			liveawayscore         SMALLINT,
 			betdaqid              BIGINT,
 			IsMixParlay           BIT DEFAULT(0),
-			sporttype             SMALLINT,
 			matchid               INT,
 			WalletType            TINYINT,
 			RefCode               BIGINT,
@@ -190,7 +186,7 @@ BEGIN
 		,ScoreId				INT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT, Refno BIGINT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, ScoreId INT)
 	CREATE TABLE #FilterInfo (
 		 MatchId				INT
@@ -203,13 +199,7 @@ BEGIN
 		,ScoreId				INT
 		,LiveHomeScore			SMALLINT
 		,LiveAwayScore			SMALLINT
-		,HomeFavorite			VARCHAR(50)
-		,AwayFavorite			VARCHAR(50)
-		,HdpValue				VARCHAR(50)
-		,WrongMarket			VARCHAR(50) --Wrong OU & 1H OU
 	)
-	CREATE TABLE #FilterBetId (MatchId INT, totalBetId INT, totalRecord INT, MinTransdate DATETIME, MaxTransdate DATETIME)
-	CREATE TABLE #transIdTemp (matchid INT, transid BIGINT, transdate DATETIME)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
@@ -281,9 +271,7 @@ BEGIN
 	ELSE IF @IssueTypeId IN (6)--Wrong OU
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_OU_Select
-			@MatchId               = @MatchId
-			,@RequestId			   = @RequestId
-			,@UserID			   = @UserID 
+			 @RequestId			   = @RequestId
 			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
@@ -306,9 +294,7 @@ BEGIN
 	ELSE IF @IssueTypeId IN (7) --Wrong 1st OU
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_OU_Select
-			@MatchId               = @MatchId
-			,@RequestId			   = @RequestId
-			,@UserID			   = @UserID 
+			 @RequestId			   = @RequestId
 			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
@@ -391,7 +377,6 @@ BEGIN
 			  , @eventstatus NVARCHAR(50) = ''
 		  
 		CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
-		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype_matchid ON #InstantSettlementBettypes(bettype, matchid)
 
 		--> Get status of match
 		;WITH cte_match AS
@@ -412,7 +397,7 @@ BEGIN
 		FROM cte_isCalHT c
 			CROSS APPLY (
 					SELECT bettype
-					FROM dbo.f_Set_Instant_GetBettypes() 
+					FROM dbo.f_TVS_GetInstantBettypes() 
 					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
 								WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
 							ELSE 0 END
@@ -1025,56 +1010,38 @@ BEGIN
 		IF @IssueTypeId IN (8,9)
 		BEGIN
 			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-			SELECT tmp.transid, rd.RequestId, tmp.MainTransId, @MatchId
-			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
-				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rd.RequestId 
+			SELECT tmp.transid, r.RequestId, tmp.MainTransId, @MatchId
+			FROM dbo.TicketVoiding_Request r WITH (NOLOCK) 
 				CROSS APPLY (
 							SELECT rs.TransId, rs.TransId AS MainTransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
 							WHERE rs.RequestId = r.RequestId
 								AND rs.MatchId = @MatchId
 							UNION ALL
-							SELECT rp.TransId, b.transid AS MainTransId
+							SELECT rp.TransId, rp.MainTransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-								INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 							WHERE rp.RequestId = r.RequestId
 								AND rp.MatchId = @MatchId
 					)tmp
-			WHERE rd.MatchId = @MatchId
-				AND r.RequestId <> @RequestId
-				AND r.ActionId NOT IN (2)
+			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 		END
-		ELSE IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+		ELSE IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId,Refno)
-			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid,tmp.Refno
+			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
+			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
 			FROM #SpecialDeleteBets t
 				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId, RequestId, NULL AS Refno
+							SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							WHERE rs.TransId = t.transid
-								AND rs.MatchId = t.MatchId
+							WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
 							UNION ALL
-							SELECT rp.TransId, 0 AS MainTransId, RequestId, bm.refno
+							SELECT rp.TransId, rp.MainTransId, rp.RequestId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-								INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-							WHERE rp.TransId = t.SubTransid
-								AND rp.MatchId = t.matchid
+							WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 					)tmp
 				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
 			WHERE r.RequestId <> @RequestId
 				AND r.ActionId NOT IN (2)
-			
-			IF EXISTS (SELECT TOP 1 1 FROM #TransidInRequest t WHERE t.Refno IS NOT NULL)
-			BEGIN
-				UPDATE   t
-				  SET MainTransId = b.transid
-				FROM   #TransidInRequest  t
-				  INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
-				WHERE t.Refno IS NOT NULL
-			END
-			
 		END
 		ELSE -- 3: Wrong score
 		BEGIN
@@ -1089,10 +1056,8 @@ BEGIN
 								AND rs.MatchId = @MatchId
 								AND rs.RequestDetailId = rd.Id
 							UNION ALL
-							SELECT rp.TransId, b.transid AS MainTransId
+							SELECT rp.TransId, rp.MainTransId
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-								INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.transid = rp.TransId
-								INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno
 							WHERE rp.RequestId = r.RequestId
 								AND rp.MatchId = @MatchId
 								AND rp.RequestDetailId = rd.Id
@@ -1109,7 +1074,7 @@ BEGIN
 
 			IF EXISTS (SELECT TOP (1) 1 FROM @Validation)
 			BEGIN
-				IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+				IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 				BEGIN
 					UPDATE v SET v.IsExistedInOtherRequest = 1
 					FROM @Validation v
@@ -1189,7 +1154,7 @@ BEGIN
 				,ScoreId
 			FROM @Validation
 		END
-		ELSE IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+		ELSE IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 		BEGIN
 			SELECT MatchId
 				,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1336,7 +1301,7 @@ BEGIN
 
 			IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
 			BEGIN
-				INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket) 
+				INSERT INTO @tblScoreMessage (MatchId, ScoreOfMatch) 
 				SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
 				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
@@ -1466,7 +1431,7 @@ BEGIN
 	END
 
 	--For case no ticket valid
-	IF @IssueTypeId IN (1,10,3,4,5,6,7)
+	IF @IssueTypeId IN (1,10,3)
 	BEGIN
 		SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
 			,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
@@ -1491,7 +1456,7 @@ BEGIN
 					,ScoreId
 				FROM @Validation
 			END
-			ELSE IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+			ELSE IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 			BEGIN 
 				SELECT MatchId
 					,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1577,7 +1542,7 @@ BEGIN
 			)l
 	END
 
-	IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+	IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 	BEGIN
 		UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 		FROM @Validation v
@@ -1629,7 +1594,7 @@ BEGIN
 				GROUP BY t.ScoreId
 			)tmp
 	END
-	ELSE IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+	ELSE IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 	BEGIN 
 		UPDATE v SET 
 				v.IsExistSingle = tmp.IsExistSingle
@@ -1739,7 +1704,7 @@ BEGIN
 			,ScoreId
 		FROM @Validation
 	END
-	ELSE IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+	ELSE IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 	BEGIN
 		SELECT MatchId
 			,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
@@ -1830,7 +1795,7 @@ BEGIN
 						)w (scores)
 		GROUP BY MatchId, w.scores
 	END
-	ELSE IF @IssueTypeId IN (1,10,4,5,6,7) OR (@IssueTypeId = 3 AND @FilterBy = 2)
+	ELSE IF @IssueTypeId IN (1,10) OR (@IssueTypeId = 3 AND @FilterBy = 2)
 	BEGIN
 		;WITH _cte AS (
 				SELECT MatchId
@@ -1929,8 +1894,6 @@ BEGIN
 	DROP TABLE #CashOuts
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #FilterInfo
-	DROP TABLE #FilterBetId
-	DROP TABLE #transIdTemp
 END
 GO
 

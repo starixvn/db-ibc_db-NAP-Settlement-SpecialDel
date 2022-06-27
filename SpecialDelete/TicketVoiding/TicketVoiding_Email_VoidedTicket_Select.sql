@@ -24,6 +24,7 @@ AS
 		- 20210504@July: TVS - Show VIP status on void email (Abnormal bet + AB real member) [Redmine: #153157]
 		- 20211207@July: Remove code CashOut [Redmine: #165097]
 		- 20220523@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
+		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 
 	Param's explanation:	
 		
@@ -197,6 +198,7 @@ BEGIN
 			,LiveIndicator = b.liveindicator
 			,ActualStake = b.actual_stake
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
+			,IsMixParlay = CASE WHEN t.Bettype = 29 THEN 1 ELSE 0 END --case AB(void mix parlay)
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -408,16 +410,16 @@ BEGIN
 			,t.ActualStake
 			,t.MainTransId
 			,CASE 
-			WHEN ISNULL(t.eventstatus, '') <> 'completed' AND LOWER(t.Status) IN ('won', 'lose', 'draw') AND t.betdaqid <> -2
+			WHEN ISNULL(t.eventstatus, '') <> 'completed' AND LOWER(t.Status) IN ('won', 'lose', 'draw') AND ISNULL(t.betdaqid,0) <> -2
 						THEN CASE
 								WHEN ISNULL(mr.IsHTCal, 0) = 0
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() ib
+													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (1, 3) AND ib.bettype = t.bettype)
 										THEN CAST(1 AS BIT)
 								WHEN ISNULL(mr.IsHTCal, 0) = 1
 										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_Set_Instant_GetBettypes() ib
+													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (2, 3) AND ib.bettype = t.bettype)
 										THEN CAST(1 AS BIT)
 								ELSE CAST(0 AS BIT)
