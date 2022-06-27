@@ -60,6 +60,7 @@ AS
 		- 20220510@Max: Issue Performance Add/Edit Request issue type Wrong OU & Wrong 1st OU [Redmine: #172281]
 		- 20220517@Max: TVS - Wrong Score: Add/Edit Request COUNT single ticket NOT RIGHT at log info [Redmine: #172851]
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		- 20220627@July: TVS - Remove invalid column [Redmine: #174122]
 		
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -186,7 +187,7 @@ BEGIN
 		,ScoreId				INT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT, Refno BIGINT)
 	CREATE TABLE #CashOuts (RequestId INT, MatchId INT, transid BIGINT, bettype SMALLINT, ScoreId INT)
 	CREATE TABLE #FilterInfo (
 		 MatchId				INT
@@ -199,6 +200,9 @@ BEGIN
 		,ScoreId				INT
 		,LiveHomeScore			SMALLINT
 		,LiveAwayScore			SMALLINT
+		,HomeFavorite			VARCHAR(50)
+		,AwayFavorite			VARCHAR(50)
+		,HdpValue				VARCHAR(50)
 	)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
