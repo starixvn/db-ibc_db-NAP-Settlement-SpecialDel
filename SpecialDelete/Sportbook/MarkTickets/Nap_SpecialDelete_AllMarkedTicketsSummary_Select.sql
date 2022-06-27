@@ -36,7 +36,7 @@ BEGIN
 		,mt.MatchId
 		,mt.UserId
 		,mt.CreatedDate
-		,CASE WHEN b.matchid = 29 and mt.matchid <> 29 then b.refno ELSE NULL end as refno
+		,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL end as refno
 		,b.statusID
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid 
