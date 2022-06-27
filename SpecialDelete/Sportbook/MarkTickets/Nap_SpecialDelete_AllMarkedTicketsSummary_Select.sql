@@ -41,6 +41,7 @@ BEGIN
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid 
 	WHERE ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+		AND 1 = CASE WHEN (b.matchid <> 29 OR mt.matchid = 29) AND b.statusID NOT IN (0,1) THEN 0 ELSE 1 END
 	OPTION (MAXDOP 1)
      
     ;WITH CTE_FilterByTicketStatus
@@ -51,7 +52,6 @@ BEGIN
 			,t.CreatedDate
 		FROM #tmp_TransId AS t
 		WHERE t.refno IS NULL
-			AND t.statusID IN (0, 1)
 
 		UNION ALL
 			
