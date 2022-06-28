@@ -14,9 +14,10 @@ AS
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
 		- 20191129@Max: Count Parlay_Wrong Score_Score Info Unmark [Redmine: #124516]
 		- 20200207@Max: Mark & Unmark tickets for Othersports [Redmine: #127035]
-              - 20201504@Charles: Implement parlay tickets for Mark ticket [131670]
+		- 20201504@Charles: Implement parlay tickets for Mark ticket [131670]
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
-              - 20200831@Zane: TVS - Enhance for Danger Accept. [Redmine: #140339]
+		- 20200831@Zane: TVS - Enhance for Danger Accept. [Redmine: #140339]
+		- 20220627@Max: [TVS] Tuning perforamance of Unmark All function [Redmine: #174560]
 	Explanation's Param:
 */
 BEGIN
@@ -24,51 +25,66 @@ BEGIN
      CREATE TABLE #Tickets
               (MatchId     INT,
                UserId      INT,
-               Username    NVARCHAR(100),
                CreatedDate DATETIME,
                Total       INT
               );
+	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT)
+
+	 -- get all tickets 
+	INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, statusID)
+	SELECT mt.TransId
+		,mt.MatchId
+		,mt.UserId
+		,mt.CreatedDate
+		,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL end as refno
+		,b.statusID
+	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
+		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid 
+	WHERE ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+		AND 1 = CASE WHEN mt.MatchId = 29 THEN 0 --not support main parlay
+					WHEN b.matchid <> 29 AND b.statusID NOT IN (0,1) THEN 0 
+				ELSE 1 END
+	OPTION (MAXDOP 1)
      
-     -- get all tickets
-     INSERT INTO #Tickets
+    ;WITH CTE_FilterByTicketStatus
+	AS(
+		SELECT t.TransId
+			,t.MatchId
+			,t.UserId
+			,t.CreatedDate
+		FROM #tmp_TransId AS t
+		WHERE t.refno IS NULL
+
+		UNION ALL
+			
+		SELECT f.TransId
+			,f.MatchId
+			,f.UserId
+			,f.CreatedDate
+		FROM #tmp_TransId AS f
+			INNER JOIN bettransm AS m WITH (NOLOCK, INDEX = IX_refno) ON f.MatchId = m.matchid AND f.refno = m.refno
+		WHERE m.statusID IN (0, 1)													
+	)
+	INSERT INTO #Tickets
             (MatchId,
              UserId,
-             Username,
              CreatedDate,
              Total
             )
-    SELECT m.MatchId,
+	SELECT m.MatchId,
            m.UserId,
-           c.Username,
            m.CreatedDate,
            COUNT(m.TransId)
-    FROM dbo.MarkedTransaction m WITH (NOLOCK)
-         INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON m.UserId = c.CustId
-         INNER JOIN dbo.bettrans bt WITH (NOLOCK) ON bt.TransId = m.TransId
-         OUTER APPLY (
-                SELECT TOP 1 1 isParlay
-                FROM dbo.bettransm WITH (NOLOCK)
-                WHERE refno = bt.refno 
-					AND statusID IN (0,1) 
-					AND bt.matchid = 29
-					AND matchid = m.MatchId
-         ) bm
-         
-    WHERE 1 = CASE WHEN bt.matchid <> 29 and bt.statusID IN (0,1) THEN 1
-                   WHEN bt.matchid = 29 AND bm.isParlay = 1 THEN 1
-                   ELSE 0
-              END
-		AND ((m.UserId = @MarkedBy) OR @MarkedBy = 0)
-
+    FROM CTE_FilterByTicketStatus m        
     GROUP BY m.MatchId,
              m.UserId,
-             c.Username,
-             m.CreatedDate;
+             m.CreatedDate
+	OPTION (MAXDOP 1)
 
      -- return final results   
      SELECT t.MatchId,
             t.UserId,
-            t.Username,
+            c.Username,
             t.CreatedDate,
             t.Total,
             m.HomeId,
@@ -92,10 +108,13 @@ BEGIN
 						WHERE mr.calculate = 1 
 							AND mr.matchid = m.matchid			
 					)rdFT
+		 INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON t.UserId = c.CustId
      ORDER BY m.kickofftime
 		, t.CreatedDate
               
      DROP TABLE #Tickets;
+	 DROP TABLE #tmp_TransId
+
      SET NOCOUNT OFF;
 END
 GO
