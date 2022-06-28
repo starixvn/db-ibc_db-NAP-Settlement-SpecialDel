@@ -28,6 +28,7 @@ AS
 		- 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20211125@July: Change length match [Redmine: #161337]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
 
 	Param's explanation:	
 	
@@ -35,7 +36,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid BIGINT)
+	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid NVARCHAR(100))
 
 	IF LEN(@MatchId) <= 10
 	BEGIN
@@ -70,7 +71,7 @@ BEGIN
 				,f.UserId
 				,f.CreatedDate
 				,f.MarkType
-				,b.betid 
+				,CONVERT(NVARCHAR(100), b.betid) AS betid 
 			FROM CTE_FilterData AS f
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
 			WHERE b.matchid <> 29 AND b.statusID NOT IN (101, 102) 
@@ -151,7 +152,7 @@ BEGIN
 					WHERE t.Matchid = mt.MatchId
 						AND t.Bettype = mt.bettype
 						AND t.MarkedBy = mt.UserId
-						AND ISNULL(t.betid, 0) = ISNULL(mt.betid, 0)
+						AND CONVERT(NVARCHAR(100),ISNULL(t.betid, 0)) = ISNULL(mt.betid, 0)
 					ORDER BY t.CreatedDate DESC
 				)ta_tmp		
 			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
