@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Insert]
 	,@ActionId				TINYINT
 	,@FilterBy				TINYINT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
-	,@AbnormalAccountInfo	VARCHAR(MAX)  = NULL
+	,@AbnormalAccountInfo	NVARCHAR(MAX) = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
@@ -83,7 +83,7 @@ BEGIN
 	DECLARE @StartTime			 DATETIME
 			,@EndTime			 DATETIME
 			,@LogActionId		 INT
-			,@LogData			 VARCHAR(MAX)
+			,@LogData			 NVARCHAR(MAX)
 			,@SB_Error			 BIT
 			,@LeagueId			 INT = 0
 			,@HomeId			 INT = 0
@@ -102,7 +102,7 @@ BEGIN
 			,@movebetdate		 SMALLDATETIME
 			,@maxdate 			 DATETIME = '9999-01-01'
 			,@FromWinlostDate    DATETIME
-			,@LogDataContent	 VARCHAR(MAX)
+			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
 			,@DangerAcceptedInfoXML	  XML = NULL
@@ -116,7 +116,7 @@ BEGIN
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
-	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
+	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
 	CREATE TABLE #InputValidCustid_tmp (custid INT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
@@ -592,14 +592,14 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 --AC
 	BEGIN 
-		DECLARE @UserNames				VARCHAR(MAX) = NULL
+		DECLARE @UserNames				NVARCHAR(MAX) = NULL
 				,@ProductIds			VARCHAR(50) = NULL
 				,@StatusIds				VARCHAR(50) = NULL
 				,@FromDate				DATETIME = NULL
 				,@ToDate				DATETIME = NULL
 
 		SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
-		SELECT @UserNames = t.c.value('@Usernames','VARCHAR(MAX)') 
+		SELECT @UserNames = t.c.value('@Usernames','NVARCHAR(MAX)') 
 			  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
 			  ,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
 			  ,@FromDate = t.c.value('@FromDate','DATETIME')
@@ -630,12 +630,11 @@ BEGIN
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 
 		INSERT INTO #InputUsernameList (Username, custid, roleid)
-		SELECT l.value
+		SELECT CAST(l.value AS NVARCHAR(30))
 			  ,ci.custid
 			  ,ci.roleid
 		FROM  STRING_SPLIT(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.value = ci.username
-		WHERE value <> '' AND ci.custid IS NOT NULL
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
 	
 		INSERT INTO #InputValidCustid_2 (custid)		
 		SELECT l.custid
@@ -1027,7 +1026,7 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13
 	BEGIN
-		SET @LogDataContent += ' Username: ' + CAST(@UserNames AS VARCHAR(30)) 
+		SET @LogDataContent += ' Username: ' + CAST(@UserNames AS NVARCHAR(MAX)) 
 							+ ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))
 							+ ', SubIssueTypeID: '+ CAST(@SubIssueTypeId AS VARCHAR(50))
 							+ ', StatusIds: '+ CAST(@StatusIds AS VARCHAR(50))

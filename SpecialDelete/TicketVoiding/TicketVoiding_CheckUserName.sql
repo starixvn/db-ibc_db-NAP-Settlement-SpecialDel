@@ -131,11 +131,11 @@ BEGIN
 	FROM #TmpInValidUserName l
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
 	
-	SELECT @CountSMA = COUNT(CASE WHEN roleid IN (2,3,4) THEN 1 ELSE 0 END)
-	      ,@CountMember = COUNT(CASE WHEN roleid = 1 THEN 1 ELSE 0 END)
+	SELECT @CountSMA = SUM(CASE WHEN roleid IN (2,3,4) THEN 1 ELSE 0 END)
+	      ,@CountMember = SUM(CASE WHEN roleid = 1 THEN 1 ELSE 0 END)
 	FROM #InputUsernameList 
 	
-	IF @CountSMA > 50 OR @CountMember > 5000
+	IF @CountSMA > 50 OR @CountMember > 1000
 	BEGIN
 		SET @IsExceededTotalUsernames = 1
 		

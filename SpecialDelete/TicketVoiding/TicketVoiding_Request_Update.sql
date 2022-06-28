@@ -33,7 +33,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsExistVS				BIT           = 0
 	,@IsExistBB				BIT           = 0
 	,@IsConfirmCalculator   BIT			  = 0
-	,@AbnormalAccountInfo	VARCHAR(MAX)  = NULL
+	,@AbnormalAccountInfo	NVARCHAR(MAX)  = NULL
 	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
 	,@RedCardInfo			VARCHAR(MAX)  = NULL

@@ -12,7 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@IP					VARCHAR(50) = NULL
 	,@ActionId				TINYINT = 0
 	,@FilterBy				TINYINT = NULL
-	,@AbnormalAccountInfo	VARCHAR(MAX)  = NULL
+	,@AbnormalAccountInfo	NVARCHAR(MAX) = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
@@ -147,7 +147,7 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, isFinish BIT)
-	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
+	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
 	CREATE TABLE #InputValidCustid_tmp (custid INT)
 	CREATE TABLE #tblGetLogInfo (
@@ -476,14 +476,14 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 --Abnormal Account
 	BEGIN
-		DECLARE @UserNames			VARCHAR(MAX) = NULL
+		DECLARE @UserNames			NVARCHAR(MAX) = NULL
 			   ,@ProductIds			VARCHAR(50) = NULL
 			   ,@StatusIds			VARCHAR(50) = NULL
 			   ,@FromDate			DATETIME = NULL
 			   ,@ToDate				DATETIME = NULL
 
 		SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
-		SELECT @UserNames = t.c.value('@Usernames','VARCHAR(MAX)') 
+		SELECT @UserNames = t.c.value('@Usernames','NVARCHAR(MAX)') 
 			  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
 			  ,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
 			  ,@FromDate = t.c.value('@FromDate','DATETIME')
@@ -514,12 +514,11 @@ BEGIN
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 	
 		INSERT INTO #InputUsernameList (Username, custid, roleid)
-		SELECT l.value
+		SELECT CAST(l.value AS NVARCHAR(30))
 			  ,ci.custid
 			  ,ci.roleid
 		FROM STRING_SPLIT(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.value = ci.username
-		WHERE ci.custid IS NOT NULL AND value <> ''
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
 
 		-- get SMA roleid = 2
 		INSERT INTO #InputValidCustid_2 (custid)		
