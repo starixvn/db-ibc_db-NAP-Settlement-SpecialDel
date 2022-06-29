@@ -55,6 +55,7 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 
 	Param explanation: 
 		@isReLoad: 1: reload partial matches of a league, 0: not reload
@@ -69,7 +70,7 @@ BEGIN
 		, kickofftime DATETIME, finalhomescore INT, finalawayscore INT, betstatus NVARCHAR(50), eventstatus VARCHAR(50)
 		, sporttype SMALLINT, IsNeutral BIT, eventdate DATETIME, goalrecord VARCHAR(50), ConfirmHT INT, IsHTCal BIT
 		, SettlementStatus TINYINT, AutoSetting TINYINT, AutoSetting_League TINYINT, ConfirmFT INT, IsExistRunningTicket BIT, IsExistMarkedTicket BIT
-		, IsExistingSingle BIT DEFAULT(0), IsExistingParlay BIT DEFAULT(0), EventStatusReason TINYINT
+		, IsExistingSingle BIT DEFAULT(0), IsExistingParlay BIT DEFAULT(0), EventStatusReason TINYINT, BestOfMap TINYINT
 	)
 	
 	DECLARE @Matchid_tmp INT = 1, @n INT = 2147483647
@@ -93,7 +94,7 @@ BEGIN
 		, mr.multiple, refund, CalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, m.sporttype, m.IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, m.SettlementStatus, m.AutoSetting, l.AutoSetting AS AutoSetting_League, ConfirmFT, m.EventStatusReason
+		, m.SettlementStatus, m.AutoSetting, l.AutoSetting AS AutoSetting_League, ConfirmFT, m.EventStatusReason, mr.BestOfMap
 	FROM bodb02.dbo.match m WITH(NOLOCK)
 		INNER JOIN bodb02.dbo.match_remark mr WITH(NOLOCK) ON m.matchid = mr.matchid
 		INNER JOIN bodb02.dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -120,7 +121,7 @@ BEGIN
 		, IsMultiCaled, IsRefund, IsCalRefund, homeid, awayid, matchcode
 		, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
 		, sporttype, IsNeutral, eventdate, goalrecord, ConfirmHT, IsHTCal
-		, SettlementStatus, AutoSetting, AutoSetting_League, ConfirmFT, EventStatusReason )
+		, SettlementStatus, AutoSetting, AutoSetting_League, ConfirmFT, EventStatusReason, BestOfMap )
 	EXEC (@SqlQuery)
 
 	DECLARE @tblSingle TABLE (matchid INT, seqS INT)
@@ -301,6 +302,7 @@ BEGIN
 		, m.IsExistRunningTicket
 		, m.IsExistMarkedTicket
 		, m.EventStatusReason
+		, m.BestOfMap
 	FROM @DataTmp m
 		LEFT JOIN @BetStatus b ON m.matchid = b.matchid
 		LEFT JOIN CustDB.dbo.custinfo ht WITH (NOLOCK) ON m.ConfirmHT > 0 AND m.ConfirmHT = ht.custid

@@ -67,6 +67,7 @@ AS
 		- 20220331@Kathy: Wrong display early match incase of no ticket [Redmine:#166072]
 		- 20220404@Louisa: Wrong display early status [Redmine:#171037]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 
       
  Param explanation:  
@@ -236,6 +237,7 @@ BEGIN
 		,ChildMatchType TINYINT
 		,IsMergedParlay BIT DEFAULT(0)
 		,EventStatusReason TINYINT
+		,BestOfMap TINYINT
 		)
 
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT, IsMergedParlay BIT DEFAULT(0))
@@ -255,7 +257,7 @@ BEGIN
 		,IsExistFastMarketResult
 		,IsExistEarlyBettypes,IsRunningEarlyBettypes, IsWaitingEarlyBettypes
 		,IsExistRunningTicket, IsExistRunningTicketParlay, IsExistMarkedTicket, IsExistMarkedTicketParlay
-		,ChildMatchType, IsMergedParlay, EventStatusReason
+		,ChildMatchType, IsMergedParlay, EventStatusReason, BestOfMap
 	)
 	SELECT 
 		tmp.hthomescore
@@ -313,6 +315,7 @@ BEGIN
 		,tmp.ChildMatchType
 		,ISNULL(f.IsMergedParlay,0) AS IsMergedParlay
 		,tmp.EventStatusReason
+		,mr.BestOfMap
 	FROM (
 		SELECT hthomescore
 			,htawayscore			
@@ -808,6 +811,7 @@ BEGIN
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
 			,m.EventStatusReason
+			,m.BestOfMap
 	FROM	#matchList m
 			LEFT JOIN #tempmatch t 
 				ON	t.matchid = m.matchid

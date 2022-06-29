@@ -40,6 +40,7 @@ AS
 			- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 			- 20220309@Louisa: Get latest status in AutoPayoutResult [Redmine:#168346]
 			- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
+			- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -180,6 +181,7 @@ BEGIN
 		,IsExistsConfirmedEarly			BIT DEFAULT (0)
 		,IsPending						BIT DEFAULT (0)
 		,IsMergedParlay					BIT DEFAULT(0)
+		,BestOfMap						TINYINT
 	)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -269,6 +271,7 @@ BEGIN
 			,AutoPayoutStatus
 			,IsPending
 			,IsMergedParlay
+			,BestOfMap
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -304,6 +307,7 @@ BEGIN
 				,ISNULL(ap.StatusId, os.StatusId)
 				,mr.isPending
 				,ISNULL(f.IsMergedParlay,0) AS IsMergedParlay
+				,mr.BestOfMap
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -373,6 +377,7 @@ BEGIN
 			,AutoPayoutStatus
 			,IsPending
 			,IsMergedParlay
+			,BestOfMap
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -410,6 +415,7 @@ BEGIN
 				,ISNULL(ap.StatusId, os.StatusId)
 				,mr.isPending
 				,ISNULL(f.IsMergedParlay,0) AS IsMergedParlay
+				,mr.BestOfMap
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpLeagueIds tl
 				ON	m.leagueid = tl.LeagueId
@@ -986,6 +992,7 @@ BEGIN
 			,m.IsExistMarkedTicketParlay
 			,m.IsExistsConfirmedEarly
 			,m.AutoPayoutStatus
+			,m.BestOfMap
 	FROM	#tmpMatchIds m
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId

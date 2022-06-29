@@ -20,6 +20,7 @@ AS
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220421@Louisa: Fix issue duplicate in MERGE statement [Redmine:#168346]
+		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 
 	Param's explanation:  
 		
@@ -98,6 +99,7 @@ BEGIN
 
 		,AutoPayoutStatus				TINYINT
 		,IsMergedParlay					BIT DEFAULT(0)
+		,BestOfMap						TINYINT
 	)
 	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT)
 	DECLARE @tmpAutoPayOutResultOS TABLE ( Matchid INT, StatusId TINYINT )
@@ -201,6 +203,7 @@ BEGIN
 		,suspenderfulltime
 		,AutoPayoutStatus
 		,IsMergedParlay
+		,BestOfMap
 	)
 	SELECT DISTINCT	m.matchid
 			,m.sporttype
@@ -230,6 +233,7 @@ BEGIN
 			END
 			,q.AutoPayoutStatus
 			,f.IsMergedParlay
+			,mr.BestOfMap
 	FROM  dbo.match m WITH(NOLOCK)	
 		INNER JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
@@ -525,6 +529,7 @@ BEGIN
 			,tmp.IsExistMarkedTicket
 			,tmp.IsExistMarkedTicketParlay
 			,tmp.AutoPayoutStatus
+			,tmp.BestOfMap
 	FROM	@tmpMatchIds tmp
 		LEFT JOIN @tmpMatchEsport me
 			ON tmp.MatchId = me.MatchId

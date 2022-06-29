@@ -1,8 +1,9 @@
-Settlement\Sportbook\AutoPayout\NAP_Set_AutoPayout_MatchSel.sql
-Settlement\Sportbook\AutoPayout\NAP_Set_AutoPayout_WaitingSel.sql
-Settlement\Sportbook\dbo.NAP_Set_WaitingSel.sql
-Settlement\Sportbook\NAP_Set_MatchSel.sql
-Settlement\Sportbook\NAP_Set_MatchSelCompleted.sql
-Settlement\Sportbook\NAP_Set_MatchSelCompletedHT.sql
+Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources.sql
+Settlement\Sportbook\NAP_Set_MatchSel_ResultDetail.sql
+Settlement\Sportbook\NAP_Set_ResultDetailSel.sql
 Settlement\Sportbook\NAP_Set_MatchSelDetail.sql
-Settlement\Sportbook\NAP_Set_WaitingOtherSportSel.sql
+Settlement\Sportbook\NAP_Set_ProviderExternalResultDetailESLatestInfoSel.sql
+Settlement\Sportbook\dbo.NAP_Admin_Result_Update_9001.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Profile_Parlay.sql
