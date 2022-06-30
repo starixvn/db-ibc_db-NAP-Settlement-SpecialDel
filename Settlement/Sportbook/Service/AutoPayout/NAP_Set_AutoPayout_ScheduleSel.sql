@@ -42,17 +42,17 @@ BEGIN
 									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
 									IsHalfTimeConfirmed INT, IsFullTimeConfirmed INT, BetStatus NVARCHAR(50), GoalRecord VARCHAR(50), 
 									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, 
-									AutoSetting TINYINT, ChildLeagueType INT, MatchType INT
+									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT
 								)
 
 	INSERT INTO @tmpMatchAuto (
 								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
-								, AutoSetting, ChildLeagueType, MatchType
+								, AutoSetting, ChildLeagueType, MainType
 							)
 	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
-		, AutoSetting, ChildLeagueType, MatchType
+		, AutoSetting, ChildLeagueType, MainType
 	FROM (
 			SELECT m.matchid AS MatchId
 				, m.hthomescore
@@ -75,7 +75,7 @@ BEGIN
 				, m.SettlementStatus
 				, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
 				, ls.ChildLeagueType
-				, mr.MatchType
+				, mr.MainType
 			FROM dbo.match m WITH(NOLOCK)
 				INNER JOIN dbo.match_remark mr WITH(NOLOCK)
 					ON	m.matchid = mr.matchid
@@ -141,7 +141,7 @@ BEGIN
 	-- Return data 
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
-			, AutoSetting, ChildLeagueType, MatchType
+			, AutoSetting, ChildLeagueType, MainType
 	FROM @tmpMatchAuto t
 		LEFT JOIN ProviderResultDetail p 
 			ON t.MatchId = p.MatchId AND t.TypeId = p.TypeId 

@@ -23,19 +23,19 @@ BEGIN
 	SET NOCOUNT ON
 	SET NOCOUNT ON
 
-	DECLARE @sporttype SMALLINT, @ParentId INT, @matchType TINYINT
+	DECLARE @sporttype SMALLINT, @ParentId INT, @MainType TINYINT
 	
 	DECLARE  @tmpMatch_Info TABLE 
 	(  matchid INT, ParentId INT, sporttype SMALLINT
 		, eventstatus NVARCHAR(100), betstatus NVARCHAR(100), SettlementStatus TINYINT, EventStatusReason TINYINT
-		, AutoSetting TINYINT, MatchType TINYINT, ChildMatchType TINYINT 
+		, AutoSetting TINYINT, MainType TINYINT, ChildMatchType TINYINT 
 	)
 	
 	DECLARE  @tmpResult_Info TABLE (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(20), AwayValue VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT )
 
 	--get match info
-	INSERT INTO @tmpMatch_Info ( matchid, ParentId, sporttype, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, MatchType, ChildMatchType)
-	SELECT 	m.matchid, m.ParentId, m.sporttype	,m.eventstatus	,m.betstatus	,m.SettlementStatus	,m.EventStatusReason, ISNULL(m.AutoSetting, l.AutoSetting) AS AutoSetting, mr.MatchType, m.ChildMatchType
+	INSERT INTO @tmpMatch_Info ( matchid, ParentId, sporttype, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, MainType, ChildMatchType)
+	SELECT 	m.matchid, m.ParentId, m.sporttype	,m.eventstatus	,m.betstatus	,m.SettlementStatus	,m.EventStatusReason, ISNULL(m.AutoSetting, l.AutoSetting) AS AutoSetting, mr.MainType, m.ChildMatchType
 	FROM	dbo.match m WITH(NOLOCK)
 		INNER JOIN dbo.match_remark mr WITH(NOLOCK)
 			ON m.matchid = mr.matchid
@@ -45,7 +45,7 @@ BEGIN
 
 	SELECT @sporttype = sporttype 
 		, @ParentId = ParentId
-		,@matchType = MatchType
+		,@MainType = MainType
 	FROM @tmpMatch_Info
 
 	IF @sporttype = 9
@@ -59,7 +59,7 @@ BEGIN
 		WHERE	r.matchid = @matchid
 	END
 
-	IF @sporttype = 1 AND @ParentId  IS NOT NULL AND ISNULL(@matchType,0) = 33 ---Main match and corner match
+	IF @sporttype = 1 AND @ParentId  IS NOT NULL AND ISNULL(@MainType,0) = 33 ---Main match and corner match
 	BEGIN
 		INSERT INTO @tmpMatch_Info (matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, ChildMatchType)
 		SELECT matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, ChildMatchType
