@@ -17,6 +17,7 @@ AS
 		- 20210207@Helen: TVS - Increase Retry for void process [Redmine: #150176]
 		- 20210209@Helen: TVS - Performance Tuning for void abnormal account over 300 matches [Redmine: #150204]
 		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
+		- 20220630@July: TVS - Some minor enhancements  [Redmine: #173229]
 */
 BEGIN
 	SET NOCOUNT ON
