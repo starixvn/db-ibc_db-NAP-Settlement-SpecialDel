@@ -19,6 +19,7 @@ AS
 		  - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		  - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		  - 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		  - 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 
 	Param's Explanation:  
 	
@@ -41,6 +42,7 @@ BEGIN
 			,@AdminId INT
 			,@IP VARCHAR(50)
 			,@SourceId TINYINT
+			,@RefResult VARCHAR(500)
 			,@Remark VARCHAR(500)
 			,@TicketCount INT
 			,@SDTRecord TINYINT
@@ -137,6 +139,7 @@ BEGIN
 				,@Action = T.C.value('@Action','VARCHAR(20)')
 				,@IP = T.C.value('@IP','VARCHAR(50)')
 				,@SourceId = T.C.value('@SourceId','TINYINT')
+				,@RefResult = T.C.value('@RefResult','VARCHAR(500)')
 				,@AdminId = T.C.value('@AdminId','INT')
 				,@TicketCount = T.C.value('@TicketCount','INT')
 				,@SDTRecord = T.C.value('@SDTRecord','TINYINT')
@@ -174,7 +177,7 @@ BEGIN
 							WHEN @Action LIKE 'CAL%' THEN 
 								CASE 
 									WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-									WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
+									WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> '
 									ELSE ''
 								END 
 								+ CASE WHEN @DeterminedFTStatus = 2 THEN ' SDT-FT:1' ELSE '' END

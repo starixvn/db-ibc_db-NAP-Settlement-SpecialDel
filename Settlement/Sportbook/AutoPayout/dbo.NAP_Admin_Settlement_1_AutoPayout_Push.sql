@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
 	, @BetStatus	NVARCHAR(50)	= ''
 	, @ResourceResult VARCHAR(MAX)	= NULL
 	, @SourceId		TINYINT			= 5 -- default SoccerWay
+	, @RefResult	VARCHAR(500)	= NULL
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -40,6 +41,7 @@ AS
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
+		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 
     Param's Explanation:
         
@@ -58,7 +60,11 @@ BEGIN
 			,@AwayValue				VARCHAR(50)
 			,@LeagueGroupID			SMALLINT
 			,@KeyId					INT
-			
+			,@xmlResourceResult		XML
+			,@xmlData				VARCHAR(MAX)
+	
+	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
+
 	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
 								WHEN @Action = 'CAL-FT' THEN 2
 								WHEN @Action = 'CAL' THEN 2
@@ -171,9 +177,39 @@ BEGIN
 	END
     
     -- check waiting ticket
-	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId = @MatchId
+	IF @sporttype = 1
+	BEGIN
+		;WITH cteGoalResource
+		AS
+		(
+			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+			FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
+		)
+		,cteResource
+		AS
+		(
+			SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
+			WHERE	@action IN ('CAL', 'CAL-HT', 'UNDO')
+			UNION ALL
+			SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
+			WHERE	@action IN ('CAL', 'CAL-FT', 'UNDO')
+			UNION ALL
+			SELECT  ResourceId
+			FROM	cteGoalResource
+			WHERE   ResourceID IS NOT NULL
+		)
+	
+		SELECT @xmlData = CAST((SELECT	ResourceID AS '@Id'
+		FROM	cteResource
+		FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+
+	END 
+
+	EXEC dbo.NAP_Admin_Settlement_Checking 
+		@MatchId = @MatchId
         , @Action = @Action
         , @Mode	= 'CAL'
+		, @xmlData = @xmlData
         , @ErrCode = @ErrCode OUTPUT
         , @ErrMsg = @ErrMsg OUTPUT
         
@@ -215,6 +251,8 @@ BEGIN
 							+ ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
 											ELSE '''' + @ResourceResult + '''' END 
 							+ ', @SourceId = ' + CONVERT(NVARCHAR(3), @SourceId)
+							+ CASE WHEN @RefResult IS NOT NULL THEN ',@RefResult = ''' + CONVERT(NVARCHAR(500),@RefResult) +  ''''
+											ELSE '' END
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 		,@IsSystemSettlement = CASE

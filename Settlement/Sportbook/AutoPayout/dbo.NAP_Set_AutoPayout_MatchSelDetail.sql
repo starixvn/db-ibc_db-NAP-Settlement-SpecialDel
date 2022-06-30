@@ -13,7 +13,8 @@ AS
 		- 20181002@Kathy: get eventstatus & betstatus [Redmine:#102028]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
-		
+		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
+
 	Parameters Explanation:    
 	
 	
@@ -22,28 +23,66 @@ BEGIN
 	SET NOCOUNT ON
 	SET NOCOUNT ON
 
-	DECLARE @sporttype SMALLINT
-	DECLARE  @tmpMatch_Info TABLE ( sporttype SMALLINT,	eventstatus NVARCHAR(100), betstatus NVARCHAR(100), SettlementStatus TINYINT,EventStatusReason TINYINT)
-	DECLARE  @tmpResult_Info TABLE (ResourceId VARCHAR(20), ResultStatusId TINYINT)
+	DECLARE @sporttype SMALLINT, @ParentId INT, @matchType TINYINT
+	
+	DECLARE  @tmpMatch_Info TABLE 
+	(  matchid INT, ParentId INT, sporttype SMALLINT
+		, eventstatus NVARCHAR(100), betstatus NVARCHAR(100), SettlementStatus TINYINT, EventStatusReason TINYINT
+		, AutoSetting TINYINT, MatchType TINYINT, ChildMatchType TINYINT 
+	)
+	
+	DECLARE  @tmpResult_Info TABLE (matchid INT, ResourceId VARCHAR(20), HomeValue VARCHAR(20), AwayValue VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT )
 
 	--get match info
-	INSERT INTO @tmpMatch_Info ( sporttype, eventstatus, betstatus, SettlementStatus, EventStatusReason)
-	SELECT 	m.sporttype	,m.eventstatus	,m.betstatus	,m.SettlementStatus	,m.EventStatusReason
+	INSERT INTO @tmpMatch_Info ( matchid, ParentId, sporttype, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, MatchType, ChildMatchType)
+	SELECT 	m.matchid, m.ParentId, m.sporttype	,m.eventstatus	,m.betstatus	,m.SettlementStatus	,m.EventStatusReason, ISNULL(m.AutoSetting, l.AutoSetting) AS AutoSetting, mr.MatchType, m.ChildMatchType
 	FROM	dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.match_remark mr WITH(NOLOCK)
+			ON m.matchid = mr.matchid
 		INNER JOIN dbo.League l WITH(NOLOCK) 
 			ON m.leagueid = l.leagueid
-	WHERE	matchid = @matchid
+	WHERE	m.matchid = @matchid
 
-	--get main result info
-	SELECT @sporttype = sporttype FROM @tmpMatch_Info
-
-	IF @sporttype = 1
-	
-	SELECT  eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting
+	SELECT @sporttype = sporttype 
+		, @ParentId = ParentId
+		,@matchType = MatchType
 	FROM @tmpMatch_Info
 
-	--SELECT ResourceId, ResultStatusId
-	--FROM @tmpResult_Info
+	IF @sporttype = 9
+	BEGIN
+		INSERT INTO @tmpResult_Info ( ResourceId, ResultStatusId )
+		SELECT 	r.ResourceId
+				,ResultStatusId
+		FROM dbo.ResultDetailOS r (NOLOCK)
+			CROSS APPLY ( SELECT f.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) f	
+    					  WHERE r.ResourceID = f.ResourceID) f		
+		WHERE	r.matchid = @matchid
+	END
+
+	IF @sporttype = 1 AND @ParentId  IS NOT NULL AND ISNULL(@matchType,0) = 33 ---Main match and corner match
+	BEGIN
+		INSERT INTO @tmpMatch_Info (matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, ChildMatchType)
+		SELECT matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting, ChildMatchType
+		FROM dbo.match m WITH(NOLOCK)
+		WHERE m.matchid =  @ParentId
+		OR (m.ParentID IS NOT NULL AND m.ParentID = @ParentId AND ISNULL(m.ChildMatchType,0) = 204)
+
+		INSERT INTO @tmpResult_Info (matchid, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId  )
+		SELECT r.matchid, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusId, r.SettlementStatusID
+		FROM dbo.ResultDetail r WITH(NOLOCK)
+			INNER JOIN @tmpMatch_Info m ON m.matchid = r.MatchId
+		WHERE m.matchid <> @MatchId
+			AND r.ResourceId IN ( '01', '00')
+	END
+
+	SELECT  matchid, eventstatus, betstatus, SettlementStatus, EventStatusReason, AutoSetting
+	FROM @tmpMatch_Info
+	WHERE matchid = @MatchId
+
+	SELECT r.MatchId, m.ChildMatchType, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusId
+	FROM @tmpMatch_Info m
+		INNER JOIN @tmpResult_Info r 
+			ON m.matchid = r.matchid
 
 
 END
