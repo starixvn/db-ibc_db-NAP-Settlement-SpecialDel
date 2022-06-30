@@ -37,33 +37,38 @@ BEGIN
 	SET NOCOUNT ON
 	
 	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid NVARCHAR(100))
+	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT, bettype SMALLINT, MarkType TINYINT, betid NVARCHAR(100))
+
+	DECLARE @Sporttypes AS TABLE (sporttype SMALLINT)
 
 	IF LEN(@MatchId) <= 10
 	BEGIN
-		;WITH CTE_FilterData
-		AS (
-			SELECT mt.TransId
-				,mt.MatchId
-				,mt.bettype
-				,mt.UserId
-				,mt.CreatedDate
-				,CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
-				,f.IsNameXBettype AS IsCheckBetId
-			FROM dbo.MarkedTransaction mt WITH (NOLOCK)
-				INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
-				INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
-				CROSS APPLY (
-					SELECT DISTINCT value AS sporttype
-					FROM STRING_SPLIT(@Sporttype, ',')
-					WHERE value = m.sporttype
-				) AS tmp
-				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
-			WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
-				AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
-				AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
-				AND m.sporttype <= 99
-				)
-		,CTE_FilterByTicketStatus
+		INSERT INTO @Sporttypes (sporttype)
+		SELECT DISTINCT value AS sporttype
+		FROM STRING_SPLIT(@Sporttype, ',')
+
+		INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, statusID, bettype, MarkType, betid)
+		SELECT mt.TransId
+			,mt.MatchId
+			,mt.UserId
+			,mt.CreatedDate
+			,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL END AS refno
+			,b.statusID
+			,CASE WHEN b.matchid = 29 THEN NULL ELSE b.bettype END AS bettype
+			,CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
+			,CASE WHEN b.matchid = 29 THEN NULL ELSE CONVERT(NVARCHAR(100), b.betid) END AS betid 
+		FROM dbo.MarkedTransaction mt WITH (NOLOCK)
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid 
+			INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
+			INNER JOIN @Sporttypes s ON s.sporttype = m.sporttype
+			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+		WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
+			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
+			AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
+			AND m.sporttype <= 99
+			AND 1 = CASE WHEN b.matchid <> 29 AND b.statusID IN (101,102) THEN 0 ELSE 1 END
+			
+		;WITH CTE_FilterByTicketStatus
 		AS (
 			SELECT f.TransId
 				,f.MatchId
@@ -71,24 +76,22 @@ BEGIN
 				,f.UserId
 				,f.CreatedDate
 				,f.MarkType
-				,CONVERT(NVARCHAR(100), b.betid) AS betid 
-			FROM CTE_FilterData AS f
-				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
-			WHERE b.matchid <> 29 AND b.statusID NOT IN (101, 102) 
+				,f.betid 
+			FROM #tmp_TransId AS f
+			WHERE f.refno IS NULL
 
 			UNION ALL
 			
 			SELECT f.TransId
 				,f.MatchId
-				,f.bettype
+				,m.bettype
 				,f.UserId
 				,f.CreatedDate
 				,f.MarkType
-				,m.betcheck
-			FROM CTE_FilterData AS f
-				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON f.TransId = b.transid	
-				INNER HASH JOIN bettransm AS m WITH (NOLOCK) ON f.MatchId = m.matchid AND b.refno = m.refno AND m.statusID NOT IN (101, 102)
-			WHERE b.matchid = 29
+				,m.betcheck as betid
+			FROM #tmp_TransId AS f
+				INNER JOIN bettransm AS m WITH (NOLOCK, INDEX = IX_refno) ON f.matchid = m.matchid AND f.refno = m.refno
+			WHERE m.statusID NOT IN (101, 102)
 														
 			)
 		INSERT INTO #MarkedTransaction_tmp (
@@ -114,7 +117,7 @@ BEGIN
 			,f.MarkType
 			,f.BetId
 
-		-----------------
+		---------------
 		SELECT mt.MatchId
 			, m.kickofftime
 			, m.homeid
@@ -167,4 +170,5 @@ BEGIN
 	ELSE RETURN
 
 	DROP TABLE #MarkedTransaction_tmp
+	DROP TABLE #tmp_TransId
 END

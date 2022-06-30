@@ -34,6 +34,7 @@ AS
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
+		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
 		
 	Param's explanation:	
 		
@@ -138,7 +139,7 @@ BEGIN
 			@Betid IS NULL
 			OR (
 				@Betid IS NOT NULL
-				AND bm.betcheck = @Betid
+				AND bm.betcheck = CONVERT(NVARCHAR(100), @Betid)
 				)
 			)
 	
