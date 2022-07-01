@@ -15,7 +15,6 @@ AS
 		- 20201005@Louisa: Create SP Job Step ( Job step will call to this SP)
 		- 20201019@Louisa: Implement for 11 Jobs
 		- 20210921@Max: Add new job CustLimitBet Max Payout [Redmine: #158846]
-		- 20220323@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 
