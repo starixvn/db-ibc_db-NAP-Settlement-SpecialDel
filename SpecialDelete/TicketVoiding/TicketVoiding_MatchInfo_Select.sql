@@ -26,6 +26,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20220418@July: TVS - Get column matchcode [Redmine: #170220]
+		- 20220617@July: Add column ParentId support get Provider of match [Redmine: #173229]
 
 	Param's explanation:		
 */
@@ -71,18 +72,18 @@ BEGIN
 	END	
 	ELSE IF @MatchId IS NOT NULL
 	BEGIN
-		CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, eventdate DATETIME, matchcode NVARCHAR(100))
-		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode
+		CREATE TABLE #MatchInfo (matchid INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, eventdate DATETIME, matchcode NVARCHAR(100), ParentId INT)
+		SET @query = '	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid
 					FROM	dbo.match m WITH(NOLOCK)
 					WHERE	m.sporttype = @Sporttype
 							AND m.matchid = @MatchId
 									'
 		SET @execSql = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@Sporttype SMALLINT, @MatchId INT'' , @Sporttype, @MatchId '
 
-		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode)
+		INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ParentId)
 		EXECUTE	sys.sp_executesql @execSql, N'@query NVARCHAR(MAX), @Sporttype SMALLINT, @MatchId INT ', @query, @Sporttype, @MatchId	
 		
-		SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode
+		SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ISNULL(parentid,matchid) AS parentid
 		FROM #MatchInfo
 
 		IF NOT EXISTS (SELECT TOP 1 1 FROM #MatchInfo) AND @IsUpdRequest = 0

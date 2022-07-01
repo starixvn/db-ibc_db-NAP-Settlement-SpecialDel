@@ -20,11 +20,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@KickOffTime			DATETIME	  = NULL
 	,@TransIds				VARCHAR(MAX)  = NULL
 	,@FilterBy				TINYINT		  = NULL
-	,@UserNames				NVARCHAR(MAX) = NULL
-	,@ProductIds			VARCHAR(50)	  = NULL
-	,@StatusIds				VARCHAR(50)	  = NULL
-	,@FromDate				DATETIME	  = NULL
-	,@ToDate				DATETIME	  = NULL
 	,@MatchProcessXML		XML           = NULL
 	,@MatchParlayProcessXML XML           = NULL
 	,@IsExistParlay			BIT			  = 0
@@ -37,8 +32,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@IsExistNG				BIT           = 0
 	,@IsExistVS				BIT           = 0
 	,@IsExistBB				BIT           = 0
-	,@IsVoidVIPMember		BIT			  = 0
 	,@IsConfirmCalculator   BIT			  = 0
+	,@AbnormalAccountInfo	NVARCHAR(MAX)  = NULL
 	,@WrongScoreInfo		VARCHAR(MAX)  = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX)  = NULL
 	,@RedCardInfo			VARCHAR(MAX)  = NULL
@@ -80,6 +75,7 @@ AS
 		- 20211213@July: TVS - Remove code [Redmine: #165097]
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
+		- 20220610@July: TVS - Some minor enhancements  [Redmine: #173229]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -95,6 +91,9 @@ AS
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" HDPValue ="" IsMainMatch= "" SubIssueTypeId=""/></root>
 		+ @WrongOUInfo, @Wrong1stOUInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" FilterBy="" WrongMarket ="" IsMainMatch =""/></root>
+		+ @AbnormalAccountInfo:
+			<root><r Usernames="" ProductIds="1" StatusIds ="" FromDate ="" ToDate = ""/></root>
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -282,12 +281,7 @@ BEGIN
 				,@FilterBy = @FilterBy				
 				,@SubIssueTypeId = @SubIssueTypeId		
 				,@IsConfirmCalculator = @IsConfirmCalculator
-				,@UserNames	= @UserNames				
-				,@ProductIds = @ProductIds			
-				,@StatusIds	= @StatusIds				
-				,@FromDate = @FromDate				
-				,@ToDate = @ToDate
-				,@IsVoidVIPMember = @IsVoidVIPMember
+				,@AbnormalAccountInfo = @AbnormalAccountInfo
 				,@WrongScoreInfo = @WrongScoreInfo	
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo
@@ -312,11 +306,7 @@ BEGIN
 				,@IP = @IP				
 				,@ActionId = @ActionId			
 				,@FilterBy = @FilterBy			
-				,@UserNames	= @UserNames			
-				,@ProductIds = @ProductIds		
-				,@StatusIds = @StatusIds			
-				,@FromDate = @FromDate			
-				,@ToDate = @ToDate
+				,@AbnormalAccountInfo = @AbnormalAccountInfo
 				,@WrongScoreInfo = @WrongScoreInfo
 				,@DangerAcceptedInfo = @DangerAcceptedInfo
 				,@RedCardInfo = @RedCardInfo

@@ -49,6 +49,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220615@Max: [TVS] Some minor enhancements [Redmine: #173229]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -1055,26 +1056,6 @@ BEGIN
 						 WHEN @IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM @tblTransId_MoveBet m WHERE m.TransId = it.TransId) THEN 1
 						 ELSE 0 END
 
-	-- backup into zzzbettrans
-	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2
-			,odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator  
-			,betteam, creator, refno, winlostdate, betfrom
-			,betcheck
-			,comstatus
-			,checktime, matchid, bettype  
-			,VoidingHistoryId
-		)  
-	SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
-		,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
-		,b.betteam, b.creator,b.refno, b.winlostdate, b.betfrom
-		,b.betcheck 
-		,b.comstatus
-		,b.checktime, b.matchid, b.bettype  
-		,@VoidingHistoryId
-	FROM	#tmpTransId AS t WITH (NOLOCK)  
-		INNER JOIN dbo.bettrans b WITH (NOLOCK)  
-			ON b.transid = t.TransId
-
 	--Get data before update
 	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1)
 	BEGIN
@@ -1183,6 +1164,26 @@ BEGIN
 		WHERE t.isFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
+
+		-- backup into zzzbettrans
+		INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2
+				,odds, stake, STATUS, winlost, livehomescore, liveawayscore, liveindicator  
+				,betteam, creator, refno, winlostdate, betfrom
+				,betcheck
+				,comstatus
+				,checktime, matchid, bettype  
+				,VoidingHistoryId
+			)  
+		SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
+			,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
+			,b.betteam, b.creator,b.refno, b.winlostdate, b.betfrom
+			,b.betcheck 
+			,b.comstatus
+			,b.checktime, b.matchid, b.bettype  
+			,@VoidingHistoryId
+		FROM @tmpTransIdBatch AS t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK)  
+				ON b.transid = t.TransId
 
 		SELECT @xmlTransId = (SELECT	t.TransId AS '@transid'
 										,CASE WHEN t.TicketType = 5 THEN t.Refno ELSE NULL END AS '@translogid'

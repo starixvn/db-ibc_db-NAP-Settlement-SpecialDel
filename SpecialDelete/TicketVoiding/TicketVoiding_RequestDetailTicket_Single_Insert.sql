@@ -12,11 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetailTicket_Single_Insert]
 	,@IP					VARCHAR(50) = NULL
 	,@ActionId				TINYINT = 0
 	,@FilterBy				TINYINT = NULL
-	,@UserNames				VARCHAR(MAX) = NULL
-	,@ProductIds			VARCHAR(50)  = NULL
-	,@StatusIds				VARCHAR(50)  = NULL
-	,@FromDate				DATETIME     = NULL
-    ,@ToDate				DATETIME     = NULL
+	,@AbnormalAccountInfo	NVARCHAR(MAX) = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
@@ -68,6 +64,7 @@ AS
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
 		- 20220525@Max: HotFix - TVS - Wrong score show difference between Log info and void page [Redmine: #173202]
 		- 20220602@July: TVS - Add column CustId  [Redmine: #172634]
+		- 20220610@July: TVS - Some minor enhancements  [Redmine: #173229]
 
 	Param's explanation:
 		(+) @FilterBy:	
@@ -107,6 +104,7 @@ BEGIN
 			,@Wrong1stHDPInfoXML	  XML = NULL
 			,@WrongOUInfoXML		  XML = NULL	
 			,@Wrong1stOUInfoXML		  XML = NULL
+			,@AbnormalAccountInfoXML  XML = NULL
 
 	CREATE TABLE #SpecialDeleteBets (
 			transid               BIGINT,
@@ -149,7 +147,7 @@ BEGIN
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, isFinish BIT)
-	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT)
+	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
 	CREATE TABLE #InputValidCustid_tmp (custid INT)
 	CREATE TABLE #tblGetLogInfo (
@@ -476,8 +474,23 @@ BEGIN
 						)tmp
 		WHERE l.value <> ''
 	END
-	ELSE IF @IssueTypeId = 13  AND @UserNames IS NOT NULL --Abnormal Account
+	ELSE IF @IssueTypeId = 13 --Abnormal Account
 	BEGIN
+		DECLARE @UserNames			NVARCHAR(MAX) = NULL
+			   ,@ProductIds			VARCHAR(50) = NULL
+			   ,@StatusIds			VARCHAR(50) = NULL
+			   ,@FromDate			DATETIME = NULL
+			   ,@ToDate				DATETIME = NULL
+
+		SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
+		SELECT @UserNames = t.c.value('@Usernames','NVARCHAR(MAX)') 
+			  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
+			  ,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
+			  ,@FromDate = t.c.value('@FromDate','DATETIME')
+			  ,@ToDate = t.c.value('@ToDate','DATETIME')
+		FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))
+
 		--Get Movebetdate
 		EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 	
@@ -492,7 +505,6 @@ BEGIN
 		INSERT INTO @Status_tmp (StatusId)
 		SELECT DISTINCT value 
 		FROM STRING_SPLIT(@StatusIds, ',')
-		WHERE value <> ''
 
 		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -502,12 +514,11 @@ BEGIN
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 	
 		INSERT INTO #InputUsernameList (Username, custid, roleid)
-		SELECT l.value
+		SELECT CAST(l.value AS NVARCHAR(30))
 			  ,ci.custid
 			  ,ci.roleid
 		FROM STRING_SPLIT(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.value = ci.username
-		WHERE ci.custid IS NOT NULL AND value <> ''
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
 
 		-- get SMA roleid = 2
 		INSERT INTO #InputValidCustid_2 (custid)		

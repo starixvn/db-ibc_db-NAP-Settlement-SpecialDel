@@ -27,6 +27,7 @@ AS
 		- 20220214@July: Intergrate new Saba Basketball PinGoal [Redmine: #168079]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
+		- 20220610@July: TVS - Check valid count SMA/member  [Redmine: #173229]
 
 	Param's Explanation:
 */
@@ -62,8 +63,10 @@ BEGIN
 			,@MatchParlayProcessXML	  XML = NULL
 			,@TotalRefnoParlay		  INT = 0
 			,@ThreadHold			  INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
+			,@CountSMA				  INT
+			,@CountMember             INT
+			,@IsExceededTotalUsernames BIT = 0
 
-	
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
@@ -112,7 +115,6 @@ BEGIN
 	INSERT INTO @Status_tmp (StatusId)
 	SELECT DISTINCT value 
 	FROM STRING_SPLIT(@StatusIds, ',')
-	WHERE value <> ''
 
 	SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -127,9 +129,20 @@ BEGIN
 		  ,ci.roleid
 		  ,ci.recommend
 	FROM #TmpInValidUserName l
-		LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
-	WHERE ci.custid IS NOT NULL
+		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
 	
+	SELECT @CountSMA = SUM(CASE WHEN roleid IN (2,3,4) THEN 1 ELSE 0 END)
+	      ,@CountMember = SUM(CASE WHEN roleid = 1 THEN 1 ELSE 0 END)
+	FROM #InputUsernameList 
+	
+	IF @CountSMA > 50 OR @CountMember > 1000
+	BEGIN
+		SET @IsExceededTotalUsernames = 1
+		
+		SELECT @IsExceededTotalUsernames AS IsExceededTotalUsernames
+		RETURN;
+	END
+
 	INSERT INTO #InputValidCustid_2 (custid)		
 	SELECT l.custid
 	FROM #InputUsernameList l
@@ -154,7 +167,6 @@ BEGIN
 			LEFT JOIN #InputValidCustid_2 ag ON ag.custid = ci.custid
 		WHERE l.roleid = 4 AND ci.roleid = 2 AND ag.custid IS NULL	
 	END
-
 	
 	-- list of member to process
 	INSERT INTO #InputValidCustid_1 (CustID)
@@ -315,8 +327,7 @@ BEGIN
 			SELECT @IsExistedInOtherRequest = 1
 		END
 
-		DELETE 
-		FROM #transIdTemp
+		DELETE FROM #transIdTemp
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		
 		SET @NumberOfTickets = @@ROWCOUNT
@@ -401,7 +412,6 @@ BEGIN
 	BEGIN
 		SET @MatchParlayProcessXML = NULL
 	END
-
 
 	--Error Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest

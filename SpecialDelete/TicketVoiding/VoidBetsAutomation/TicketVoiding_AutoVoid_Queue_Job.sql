@@ -23,6 +23,7 @@ AS
 		- 20210820@July: TVS - Add new status Void Instant without any policy [Redmine: #160012]
 		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220615@Max: [TVS] Some minor enhancements [Redmine: #173229]
 
 	Param's explanation:	
 	
@@ -52,15 +53,11 @@ BEGIN
 			,@QueueId			INT
 			,@UserId			INT = 10278938
 			,@Action			VARCHAR(50)
-			,@Checktime			DATETIME
 			,@IP				VARCHAR(50) = '125.227.140.97'
 			,@StatusId			TINYINT = 1
-			,@RequestIDList		VARCHAR(MAX) = NULL
 			,@ErrCode			INT
 			,@ErrMsg			VARCHAR(300)
 			,@NegativeBalanceUsers VARCHAR(MAX)
-			,@MatchidList_Waiting_10minutes VARCHAR(MAX) = ''
-			,@TransIDList_tmp	VARCHAR(MAX)= ''
 			,@Sporttype			SMALLINT 
 			,@Max_QueueId		INT = 0
 			,@Min_QueueId		INT = 0
@@ -70,16 +67,7 @@ BEGIN
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT)
 	DECLARE @tmpMatchMoveBet_update TABLE (MatchId	INT)
 			
-	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
-	DECLARE @Subject	NVARCHAR(500) = ''
-		,@Body			NVARCHAR(MAX) = ''
-		,@Recipients	VARCHAR(MAX) = ''	
-	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
-	DECLARE @msg NVARCHAR(4000)	= ''
-		,@title NVARCHAR(200)	= 'AutoVoid: Notification'
-	
 	DECLARE @tblRequestList AS TABLE (QueueID INT, Matchid INT, RequestID INT)
-	
 	DECLARE @tblMatchid_abnormal AS TABLE (matchid INT)
 	
 	-------------------STARTING OF Process invalid request -----------
@@ -159,6 +147,11 @@ BEGIN
 	
 	WHILE(1=1)
 	BEGIN
+		DELETE @VoidingHistory_tmp
+		DELETE @tmpMatchMoveBet_update
+		SET @VoidingHistoryIds = ''
+		SET @MoveBetMatchIds = ''
+
 		UPDATE TOP (1) t
 		SET t.IsFinished = 1
 			, @QueueId = t.QueueId
@@ -198,9 +191,12 @@ BEGIN
 					,@ErrMsg = SUBSTRING(ERROR_PROCEDURE() + ': ' + ERROR_MESSAGE(), 1, 300)
 		END CATCH
 		
-		INSERT INTO @VoidingHistory_tmp(VoidingHistoryId)
-		SELECT	value AS TransId
-		FROM	STRING_SPLIT(@VoidingHistoryIds, ',')
+		IF @VoidingHistoryIds <> ''
+		BEGIN
+			INSERT INTO @VoidingHistory_tmp(VoidingHistoryId)
+			SELECT	value AS TransId
+			FROM	STRING_SPLIT(@VoidingHistoryIds, ',')
+		END
 
 		IF (ISNULL(@ErrCode, 0) <> 0 )
 		BEGIN
@@ -242,7 +238,7 @@ BEGIN
 				INNER JOIN @VoidingHistory_tmp v ON v.VoidingHistoryId = s.VoidingHistory
 		END
 		
-		IF @MoveBetMatchIds IS NOT NULL
+		IF @MoveBetMatchIds <> ''
 		BEGIN
 			SELECT	@StatusId= 3, @ErrMsg = 'Could not void some tickets due to Movebet process.'
 

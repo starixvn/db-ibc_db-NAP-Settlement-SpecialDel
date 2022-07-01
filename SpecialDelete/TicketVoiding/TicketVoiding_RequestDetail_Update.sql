@@ -12,12 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_Update]
 	,@FilterBy				TINYINT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
 	,@IsConfirmCalculator   BIT = 0
-	,@UserNames				VARCHAR(MAX) = NULL
-	,@ProductIds			VARCHAR(50)  = NULL
-	,@StatusIds				VARCHAR(50)  = NULL
-	,@FromDate				DATETIME     = NULL
-    ,@ToDate				DATETIME     = NULL
-	,@IsVoidVIPMember		BIT = 0
+	,@AbnormalAccountInfo	NVARCHAR(MAX)  = NULL
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo	VARCHAR(MAX) = NULL
 	,@RedCardInfo			VARCHAR(MAX) = NULL
@@ -84,6 +79,7 @@ AS
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
+		- 20220610@July: TVS - Some minor enhancements  [Redmine: #173229]
 
 	Param's explanation:
 	
@@ -94,8 +90,8 @@ BEGIN
 	DECLARE @StartTime				 DATETIME
 			,@EndTime				 DATETIME
 			,@LogActionId			 INT
-			,@LogData				 VARCHAR(MAX)
-			,@LogDataContent		 VARCHAR(MAX)
+			,@LogData				 NVARCHAR(MAX)
+			,@LogDataContent		 NVARCHAR(MAX)
 			,@SB_Error				 BIT
 			,@OldKickOffTime		 DATETIME
 			,@LeagueId				 INT = 0
@@ -111,7 +107,7 @@ BEGIN
 			,@ResettleTransids       VARCHAR(MAX) = '' 
 			,@UnmarkTransids		 VARCHAR(MAX) =''
 			,@RemoveTransIds		 VARCHAR(MAX) =''
-			,@OldUserNames			 VARCHAR(MAX) = NULL
+			,@OldUserNames			 NVARCHAR(MAX) = NULL
 			,@OldFromDate			 DATETIME     = NULL
 			,@OldToDate				 DATETIME     = NULL
 			,@OldProductIds			 VARCHAR(50)  = NULL
@@ -138,6 +134,7 @@ BEGIN
 			,@Wrong1stHDPInfoXML	  XML = NULL
 			,@WrongOUInfoXML		  XML = NULL	
 			,@Wrong1stOUInfoXML		  XML = NULL
+			,@AbnormalAccountInfoXML  XML = NULL
 
 	CREATE TABLE #inputTransid (transid BIGINT)
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT)
@@ -146,7 +143,7 @@ BEGIN
 
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
-	CREATE TABLE #InputUsernameList ( Username VARCHAR(30),custid INT, roleid TINYINT, recommend INT)
+	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT, recommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
 	CREATE TABLE #InputValidCustid_1 (custid INT PRIMARY KEY )
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT )
@@ -208,9 +205,7 @@ BEGIN
 				,MatchId = ISNULL(@MatchId, MatchId)
 				,HomeId = ISNULL(@HomeId, HomeId)
 				,AwayId = ISNULL(@AwayId, AwayId)
-				,RequestType = CASE WHEN @ActionId IN (4,6,7,8) THEN 1
-								    ELSE 0
-								END
+				,RequestType = CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
 				,@OldSubIssueTypeId = SubIssueTypeId
 				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 		WHERE	RequestId = @RequestId
@@ -516,6 +511,21 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal Account
 	BEGIN
+		DECLARE @UserNames			NVARCHAR(MAX) = NULL
+			   ,@ProductIds			VARCHAR(50) = NULL
+			   ,@StatusIds			VARCHAR(50) = NULL
+			   ,@FromDate			DATETIME = NULL
+			   ,@ToDate				DATETIME = NULL
+
+		SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
+		SELECT @UserNames = t.c.value('@Usernames','NVARCHAR(MAX)') 
+			  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
+			  ,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
+			  ,@FromDate = t.c.value('@FromDate','DATETIME')
+			  ,@ToDate = t.c.value('@ToDate','DATETIME')
+		FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))
+
 		--Get Movebetdate
 		EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 	
@@ -530,7 +540,6 @@ BEGIN
 		INSERT INTO @Status_tmp (StatusId)
 		SELECT DISTINCT value 
 		FROM STRING_SPLIT(@StatusIds, ',')
-		WHERE value <> ''
 
 		SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 				, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -540,13 +549,12 @@ BEGIN
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 
 		INSERT INTO #InputUsernameList (Username, custid, roleid, recommend)
-		SELECT l.value
+		SELECT CAST(l.value AS NVARCHAR(30))
 			  ,ci.custid
 			  ,ci.roleid
 			  ,ci.recommend
 		FROM  STRING_SPLIT(@UserNames, ',') l
-			LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.value = ci.username
-		WHERE value <> '' AND ci.custid IS NOT NULL
+			INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
 	
 		INSERT INTO #InputValidCustid_2 (custid)		
 		SELECT l.custid
