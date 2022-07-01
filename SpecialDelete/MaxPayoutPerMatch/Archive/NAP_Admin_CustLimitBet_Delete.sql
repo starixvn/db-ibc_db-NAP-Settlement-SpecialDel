@@ -309,7 +309,9 @@ BEGIN
 		TRUNCATE TABLE #tmp_TransId_Parlay_batch
 
 		WAITFOR DELAY '00:00:00.020'
-    
+
+	END
+
 	--CustLimitBet_QueueRetry
 	SET @end = (SELECT MAX(ID) FROM #tmp_QueueRetry)
 	SET @start = 1
@@ -333,32 +335,6 @@ BEGIN
 		SET @start = @start + 1
 	END
 
-	END
-
-	--Phase 3: CustLimitBet_QueueRetry
-	SET @end = (SELECT MAX(ID) FROM #tmp_QueueRetry)
-	SET @start = 1
-
-	WHILE (@start <= @end)
-	BEGIN
-		
-		SELECT @QueueId = QueueId
-		FROM #tmp_QueueRetry
-		WHERE ID = @start
-
-		--CustLimitBet_MBC
-		WHILE (1=1)
-		BEGIN
-			DELETE TOP(1000) q
-			FROM dbo.CustLimitBet_QueueRetry q
-			WHERE q.MainQueueId = @QueueId
-			
-			IF @@ROWCOUNT = 0 BREAK
-		END	
-		
-		SET @start = @start + 1
-	END
-
 	DROP TABLE #match_tmp 
 	DROP TABLE #match_archive 
 	DROP TABLE #tmp_QueueID
@@ -368,7 +344,6 @@ BEGIN
 	DROP TABLE #tmp_TransId_pre_789
 	DROP TABLE #tmp_TransId_pre_mbc
 	DROP TABLE #tmp_TransId_Parlay_LIC
-	DROP TABLE #tmp_QueueRetry
 	DROP TABLE #tmp_TransId_pre_LIC
 	DROP TABLE #tmp_QueueRetry
 END
