@@ -321,13 +321,6 @@ BEGIN
 			SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
 			FROM @HistoryMissingTransId t
 
-			FROM @HistoryMissingTransId t
-		END
-		ELSE
-		BEGIN
-			SELECT TOP (5) @InvalidTransIds = @InvalidTransIds + ',' + CAST(t.transid AS VARCHAR)
-			FROM @HistoryMissingTransId t
-
 			SELECT @ErrCode = 100
 			SELECT @InvalidTransIds = SUBSTRING(@InvalidTransIds, 2, LEN(@InvalidTransIds) - 1)
 			SELECT @ErrMsg = 'Some transids not found on CustLimitBetHistory. Here are top 5 example transids: ' + @InvalidTransIds

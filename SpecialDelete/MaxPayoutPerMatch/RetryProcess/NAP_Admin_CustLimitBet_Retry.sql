@@ -7,8 +7,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Retry]
 )
 AS
 /*	
-	Created: 20220324@Max
-    Task: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
+	Created: 20220419@Max
+    Task: Max Payout - Retry for Reject Action [Redmine: #171674]
     DB: DBTXN/bodb02
     Revisions:
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
