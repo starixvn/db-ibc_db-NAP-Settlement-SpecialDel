@@ -17,20 +17,26 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+		- 20220531@Kathy: performance tunning [Redmine:#173456]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 	
+	DECLARE @minRefno			BIGINT				
+			,@xml				XML
+			,@statusId			TINYINT
+			,@winlost			MONEY
+			,@settlementTime	DATETIME
+			
+	DECLARE @tmpSource TABLE (TransId BIGINT PRIMARY KEY, WinlostDate SMALLDATETIME
+		, totalStake MONEY, Winlost MONEY, aWinlost MONEY, mWinlost MONEY, sWinlost MONEY
+		, playerComm MONEY, comm MONEY, aComm MONEY, sComm MONEY
+		, ruben TINYINT, IsMarked BIT)
+
 	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
-	DECLARE @minRefno BIGINT	
-			
-	DECLARE @xml XML
-			,@statusId TINYINT
-			,@winlost MONEY
-			,@settlementTime DATETIME
-			
+	
 	SET @xml = CONVERT(XML, N'<root><r rn="' + REPLACE(REPLACE(@strXML, '|', '" t="'), ',', '"/><r rn="') + '"/></root>')
 	
 	INSERT INTO #Refno (refno, transid)
@@ -51,27 +57,22 @@ BEGIN
 
 	SET @settlementTime = GETDATE();
 
-	;WITH _source AS (
-	SELECT transid = b.transid
-		,winlostdate = MAX(pr.winlostdate)
-		,totalStake = SUM(pr.stake)
-		--,modds = SUM(modds) 
-		,winlost = SUM(pr.winlost) 
-		,awinlost = SUM(pr.awinlost) 
-		,mwinlost = SUM(pr.mwinlost) 
-		,swinlost = SUM(pr.swinlost) 
-		,playercomm = SUM(pr.playercomm) 
-		,comm = SUM(pr.comm) 
-		,acomm = SUM(pr.acomm) 
-		,scomm = SUM(pr.scomm) 			
-		,ruben = CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
-		,IsMarked = b.IsMarked
+	INSERT INTO @tmpSource (TransId, WinlostDate, totalStake
+		,Winlost, aWinlost, mWinlost, sWinlost
+		,playerComm, comm, aComm, sComm
+		,ruben, IsMarked
+	)
+	SELECT b.transid, MAX(pr.winlostdate), SUM(pr.stake)
+		,SUM(pr.winlost), SUM(pr.awinlost), SUM(pr.mwinlost),  SUM(pr.swinlost) 
+		,SUM(pr.playercomm), SUM(pr.comm), SUM(pr.acomm), SUM(pr.scomm) 			
+		,CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
+		,b.IsMarked
 	FROM #Refno b 
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK)
 			ON pr.refno = b.refno
 	WHERE pr.RefNo >= @minRefno
 	GROUP BY b.refno, b.transid, b.IsMarked
-	)
+	
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusId = CASE
 					WHEN s.ruben = 0 THEN 0
@@ -125,8 +126,8 @@ BEGIN
 							WHEN @statusId = 113 THEN 4								
 							WHEN @statusId = 0 THEN NULL
 						END 
-	FROM dbo.bettrans b
-		INNER JOIN _source s
+	FROM @tmpSource s
+		INNER JOIN dbo.bettrans b
 			ON b.transid = s.transid
 END
 
