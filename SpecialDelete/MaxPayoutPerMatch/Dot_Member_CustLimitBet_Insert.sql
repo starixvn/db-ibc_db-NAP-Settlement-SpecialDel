@@ -18,7 +18,6 @@ AS
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
-		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 	
 	Param's explanation:	
 		
@@ -37,10 +36,7 @@ BEGIN
 	BEGIN
 		RETURN
 	END
-	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
-		OR (@sporttype IN (43,44) AND @sitetype <> 3)
-		OR (@sporttype IN (164,180,186)) 
-		OR (@sporttype BETWEEN 190 AND 197)
+	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) OR (@sporttype IN (43,44,164,180,186)) OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0
 	END
@@ -81,23 +77,9 @@ BEGIN
 			WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
 		END
 	END
-	ELSE IF @sitetype = 3 --licensee
+	ELSE IF @sitetype = 3 --licensee (next phase)
 	BEGIN
-		--CustLimitBet
-		IF NOT EXISTS (SELECT 1 FROM dbo.CustLimitBet_LIC cm WITH (NOLOCK) WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID)
-		BEGIN
-			INSERT INTO dbo.CustLimitBet_LIC (CustID, Matchid, AccumTurnover, AccumPayout, EventTypeID, ModifiedDate)
-			SELECT @custid, @MatchId, @turnover, @payout, @EventTypeID, GETDATE()
-		END
-		ELSE
-		BEGIN
-			UPDATE cm WITH (ROWLOCK, UPDLOCK) 
-				SET cm.AccumTurnover = cm.AccumTurnover + @turnover
-					, cm.AccumPayout = cm.AccumPayout + @payout
-					, cm.ModifiedDate = GETDATE()
-			FROM dbo.CustLimitBet_LIC cm
-			WHERE cm.CustID = @custid AND cm.Matchid = @MatchId AND cm.EventTypeID = @EventTypeID 
-		END		
+		RETURN
 	END
 END
 GO
