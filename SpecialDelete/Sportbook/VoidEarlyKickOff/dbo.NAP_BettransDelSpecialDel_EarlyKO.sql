@@ -108,6 +108,7 @@ Revisions:
 	- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 	- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 	- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
+	- 20220701@Max: Max Payout - Change to support Bettrans_Running [Redmine: #174304]
 	- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 
 Param's Explanation: Special bet delete option  
@@ -243,6 +244,7 @@ BEGIN
 		,ActualStake	MONEY
 		,Winlost		MONEY
 		,OddsId			INT
+		,BRID			BIGINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -678,6 +680,7 @@ BEGIN
 		,ActualStake
 		,Winlost
 		,OddsId
+		,BRID
 	)  
 	SELECT   
 		b.transid AS grouptransid  
@@ -714,6 +717,7 @@ BEGIN
 		,b.actual_stake AS ActualStake
 		,b.winlost - b.actual_stake AS Winlost
 		,b.OddsId
+		,b.BRID
 	FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 		 INNER JOIN bettrans b WITH (NOLOCK)  
 				 ON t.transid = b.transid
@@ -1089,6 +1093,7 @@ BEGIN
 			,ActualStake
 			,Winlost
 			,OddsId
+			,BRID
 		)  
 		SELECT   
 			b.transid grouptransid  
@@ -1126,6 +1131,7 @@ BEGIN
 			,b.actual_stake AS ActualStake
 			,b.winlost - b.actual_stake AS Winlost
 			,b.oddsid
+			,b.BRID
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -1914,6 +1920,7 @@ BEGIN
 							ELSE 1 END AS '@sitetype'
 						,b.TransId AS '@transid'
 						,b.Bettype AS '@bettype'
+						,b.BRID AS '@brid'
 					FROM #BetDelete b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid

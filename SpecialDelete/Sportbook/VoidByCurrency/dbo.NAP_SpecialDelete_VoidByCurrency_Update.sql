@@ -65,6 +65,7 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		- 20220701@Max: Max Payout - Change to support Bettrans_Running [Redmine: #174304]
 
 	Param's Explanation:
 */
@@ -246,7 +247,8 @@ BEGIN
 			SubHdp2				SMALLMONEY,
 			SubOdds				MONEY,
 			SubStatus			NVARCHAR(10),
-			ruben				TINYINT
+			ruben				TINYINT,
+			BRID				BIGINT
 	)	
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -446,7 +448,8 @@ BEGIN
 						SubHdp1,
 						SubHdp2,
 						SubOdds,
-						SubStatus		
+						SubStatus,
+						BRID
 					)
 			SELECT 	b.transid AS GroupID,
 					b.Stake,
@@ -499,7 +502,8 @@ BEGIN
 					NULL AS SubHdp1,
 					NULL AS SubHdp2,
 					NULL AS SubOdds,
-					NULL AS SubStatus
+					NULL AS SubStatus,
+					b.BRID
 			FROM @tblTransIds t
 				 INNER JOIN bettrans b WITH (NOLOCK)
 						 ON t.transid = b.transid
@@ -585,7 +589,8 @@ BEGIN
 							SubHdp1,
 							SubHdp2,
 							SubOdds,
-							SubStatus
+							SubStatus,
+							BRID
 						)
 				SELECT 	b.transid AS GroupID,
 						b.Stake,
@@ -638,7 +643,8 @@ BEGIN
 						NULL AS SubHdp1,
 						NULL AS SubHdp2,
 						NULL AS SubOdds,
-						NULL AS SubStatus
+						NULL AS SubStatus,
+						b.BRID
 				FROM #tmpRefCodeSummary r
 					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 							 ON b.RefCode = r.RefCode
@@ -1351,6 +1357,7 @@ BEGIN
 							ELSE 1 END AS '@sitetype'
 						,b.TransId AS '@transid'
 						,b.BetType AS '@bettype'
+						,b.BRID AS '@brid'
 					FROM #SpecialDeleteBets_Single b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid

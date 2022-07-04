@@ -52,6 +52,7 @@ AS
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 		- 20220509@Max: TVS- Hotfix Capture duplicate transid void and re-settle [Redmine: #00000]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220701@Max: Max Payout - Change to support Bettrans_Running [Redmine: #174304]
 
 	Param's explanation:	
 		
@@ -148,6 +149,7 @@ BEGIN
 		,winlostdate		DATETIME
 		,srecommend			INT
 		,ruben				TINYINT
+		,BRID				BIGINT
 	)
 	
 	CREATE TABLE #tmpTransId_Recalculate (
@@ -412,7 +414,7 @@ BEGIN
 			ON t.TransId = tl.translogid
 	WHERE	tl.statusID <> 102				
 
-	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
+	INSERT INTO #tmpTransId_VOID_RequestID(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid,RequestID, matchid, oddsid, winlostdate, Refno, srecommend, ruben, BRID)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN f.GroupId IS NULL THEN 1
@@ -421,7 +423,7 @@ BEGIN
 			,1 AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			, t.RequestID
-			,b.matchid, b.oddsid, t.Winlostdate, b.refno, b.srecommend,b.ruben
+			,b.matchid, b.oddsid, t.Winlostdate, b.refno, b.srecommend,b.ruben, b.BRID
 	FROM @tmpInputTransId_VOID AS t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -809,13 +811,13 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, TicketType, refcode, RequestID, betid)
+		INSERT INTO #tmpTransId_VOID_RequestID (TransId, custid, bettype, KeyId, TicketType, refcode, RequestID, betid, BRID)
 		SELECT b.TransId, b.custid, b.bettype
 		,CASE 
 				WHEN f.GroupId IS NULL THEN 1
 				WHEN f.GroupID = 2 THEN 7 
 			END AS KeyId
-		, 1, b.refcode, r.RequestID, b.betid
+		, 1, b.refcode, r.RequestID, b.betid, b.BRID
 		FROM #tmpRefCodeSummary_VOID r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON	b.RefCode = r.RefCode
@@ -1774,6 +1776,7 @@ BEGIN
 						ELSE 1 END AS '@sitetype'
 					,b.TransId AS '@transid'
 					,b.bettype AS '@bettype'
+					,b.BRID AS '@brid'
 				FROM #tmpTransId_VOID_RequestID b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid		

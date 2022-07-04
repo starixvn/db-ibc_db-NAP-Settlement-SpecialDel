@@ -30,6 +30,7 @@ AS
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20211105@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220701@Max: Max Payout - Change to support Bettrans_Running [Redmine: #174304]
 
 	Param's Explanation: Special bet delete option		
 	*/
@@ -74,7 +75,8 @@ BEGIN
 		Handicap1 MONEY,
 		Handicap2 MONEY,
 		BetTypeId SMALLINT,
-		WinLost MONEY
+		WinLost MONEY,
+		BRID BIGINT
 	)							
 	
 	DECLARE  @KeyID			INT			
@@ -182,7 +184,8 @@ BEGIN
 		 Handicap1,
 		 Handicap2,
 		 BetTypeId,
-		 WinLost)
+		 WinLost,
+		 BRID)
 	SELECT 
 		b.transid,
 		b.custid, 
@@ -209,7 +212,8 @@ BEGIN
 		b.hdp1 AS Handicap1,
 		b.hdp2 AS Handicap2,
 		b.bettype AS BetTypeId,
-		b.winlost - b.actual_stake AS WinLost
+		b.winlost - b.actual_stake AS WinLost,
+		b.BRID
 	FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 		 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.transid
 		 INNER JOIN custDB.dbo.customer sa WITH (NOLOCK) ON b.srecommend = sa.custid			
@@ -341,6 +345,7 @@ BEGIN
 						ELSE 1 END AS '@sitetype'
 					,b.TransId AS '@transid'
 					,10 AS '@bettype'
+					,b.BRID AS '@brid'
 				FROM #BetDelete b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid

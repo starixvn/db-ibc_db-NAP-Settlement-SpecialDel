@@ -32,6 +32,7 @@ BEGIN
 		, sitetype TINYINT
 		, transid BIGINT
 		, bettype SMALLINT
+		, BRID BIGINT
 	) 
 	
 
@@ -40,6 +41,7 @@ BEGIN
 		, sitetype TINYINT
 		, transid BIGINT
 		, bettype SMALLINT
+		, BRID BIGINT
 	)
 
 	CREATE TABLE #CustLimitBet_Outright (
@@ -47,6 +49,7 @@ BEGIN
 		, sitetype TINYINT
 		, transid BIGINT
 		, bettype SMALLINT
+		, BRID BIGINT
 	)
 
 	CREATE TABLE #CustLimitBet_38 (
@@ -54,15 +57,17 @@ BEGIN
 		, sitetype TINYINT
 		, transid BIGINT
 		, bettype SMALLINT
+		, BRID BIGINT
 	)
 	
 	SET @xml = CONVERT(XML, @TransidList)
 
-	INSERT INTO #CustLimitBet_tmp(CustId, sitetype, transid, bettype)        
+	INSERT INTO #CustLimitBet_tmp(CustId, sitetype, transid, bettype, BRID)        
 	SELECT t.c.value('@custid','int') AS custid
 		,t.c.value('@sitetype','tinyint') AS sitetype
 		,t.c.value('@transid','BIGINT') AS transid
 		,t.c.value('@bettype','smallint') AS bettype
+		,t.c.value('@brid','BIGINT') AS BRID
 	FROM @xml.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@xml = NULL))
 	
@@ -79,7 +84,8 @@ BEGIN
 				,DELETED.sitetype
 				,DELETED.transid
 				,DELETED.bettype
-			INTO #CustLimitBet_Outright (CustId, sitetype, transid, bettype)
+				,DELETED.BRID
+			INTO #CustLimitBet_Outright (CustId, sitetype, transid, bettype, BRID)
 		FROM #CustLimitBet_tmp t
 		WHERE bettype = 10
 	END
@@ -91,7 +97,8 @@ BEGIN
 				,DELETED.sitetype
 				,DELETED.transid
 				,DELETED.bettype
-			INTO #CustLimitBet_38 (CustId, sitetype, transid, bettype)
+				,DELETED.BRID
+			INTO #CustLimitBet_38 (CustId, sitetype, transid, bettype, BRID)
 		FROM #CustLimitBet_tmp t
 		WHERE bettype = 38
 	END
@@ -105,8 +112,8 @@ BEGIN
 			SET @TransIds = ''
 
 			DELETE TOP (1000) t
-				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid, DELETED.bettype
-				INTO @CustLimitBet_Batch
+				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid, DELETED.bettype, DELETED.BRID
+				INTO @CustLimitBet_Batch (CustId, sitetype, transid, bettype, BRID)
 			FROM #CustLimitBet_tmp t
 
 			IF @@ROWCOUNT = 0 BREAK
@@ -114,6 +121,7 @@ BEGIN
 			SELECT @TransIds = (SELECT t.CustId AS '@custid'
 									,t.sitetype AS '@sitetype'
 									,t.TransId AS '@transid'
+									,ISNULL(t.BRID, 0) AS '@brid'
 								FROM	@CustLimitBet_Batch t
 								FOR XML PATH('r'), ROOT('root')
 							)
@@ -130,8 +138,8 @@ BEGIN
 			SET @TransIds = ''
 
 			DELETE TOP (1000) t
-				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid, DELETED.bettype
-				INTO @CustLimitBet_Batch
+				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid, DELETED.bettype, DELETED.BRID
+				INTO @CustLimitBet_Batch (CustId, sitetype, transid, bettype, BRID)
 			FROM #CustLimitBet_Outright t
 
 			IF @@ROWCOUNT = 0 BREAK
@@ -139,6 +147,7 @@ BEGIN
 			SELECT @TransIds = (SELECT t.CustId AS '@custid'
 									,t.sitetype AS '@sitetype'
 									,t.TransId AS '@transid'
+									,ISNULL(t.BRID, 0) AS '@brid'
 								FROM	@CustLimitBet_Batch t
 								FOR XML PATH('r'), ROOT('root')
 							)
@@ -155,8 +164,8 @@ BEGIN
 			SET @TransIds = ''
 
 			DELETE TOP (1000) t
-				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid, DELETED.bettype
-				INTO @CustLimitBet_Batch
+				OUTPUT DELETED.CustId, DELETED.sitetype, DELETED.transid, DELETED.bettype, DELETED.BRID
+				INTO @CustLimitBet_Batch (CustId, sitetype, transid, bettype, BRID)
 			FROM #CustLimitBet_38 t
 
 			IF @@ROWCOUNT = 0 BREAK
@@ -164,6 +173,7 @@ BEGIN
 			SELECT @TransIds = (SELECT t.CustId AS '@custid'
 									,t.sitetype AS '@sitetype'
 									,t.TransId AS '@transid'
+									,t.BRID AS '@brid'
 								FROM	@CustLimitBet_Batch t
 								FOR XML PATH('r'), ROOT('root')
 							)
