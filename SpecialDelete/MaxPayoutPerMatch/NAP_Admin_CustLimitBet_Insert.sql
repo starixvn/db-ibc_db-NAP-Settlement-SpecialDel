@@ -91,7 +91,7 @@ BEGIN
 
 		IF @MatchId <> 29 --Match, Bettype 38
 		BEGIN
-			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype)
+			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype, BRID)
 			SELECT @MatchId
 				, b.custid
 				,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
@@ -100,6 +100,7 @@ BEGIN
 				,b.transid
 				,m.sporttype
 				,b.bettype
+				,b.BRID
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
