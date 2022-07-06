@@ -14,6 +14,7 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
+		- 20220706@Louisa: Fix cannot get resultdetail Badminton [Redmine:#]
 
 	Parameters Explanation:    
 	
@@ -50,7 +51,7 @@ BEGIN
 
 	IF @sporttype = 9
 	BEGIN
-		INSERT INTO @tmpResult_Info ( ResourceId, ResultStatusId )
+		INSERT INTO @tmpResult_Info ( matchid, ResourceId, ResultStatusId )
 		SELECT 	r.ResourceId
 				,ResultStatusId
 		FROM dbo.ResultDetailOS r (NOLOCK)
