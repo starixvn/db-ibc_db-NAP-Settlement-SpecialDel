@@ -58,7 +58,7 @@ BEGIN
 		TRUNCATE TABLE #Result_batch
 
 		SET @StartRow = @StopRow + 1
-		SET @StopRow = 1 + @StopRow + @Threshold
+		SET @StopRow = @StopRow + @Threshold
 		IF @StopRow >= @MaxRow
 			SET @StopRow = @MaxRow
 
