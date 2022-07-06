@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout]
 	, @BetStatus		NVARCHAR(50)	= ''
 	, @ResourceResult	VARCHAR(MAX)	= NULL
 	, @SourceId			TINYINT			= 5 -- default SoccerWay
+	, @RefResult		VARCHAR(500)	= NULL
 	, @KeyId			INT				= 0
 	, @ErrCode			INT				= 0		OUTPUT
 	, @ErrMsg			NVARCHAR(200)	= ''	OUTPUT
@@ -45,6 +46,7 @@ AS
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 
 	Param's Explanation:
 		 
@@ -206,6 +208,7 @@ BEGIN
 							,@IP AS '@IP'
 							,@TicketCount AS '@TicketCount'
 							,@SourceId AS '@SourceId'
+							,@RefResult AS '@RefResult'
 							,CASE WHEN @AutoSetting & 2 > 0 AND @action = 'CAL-HT' THEN 1 ELSE NULL END AS '@DeterminedFTStatus'
 							,@start AS '@Starttime'
 							,@ErrMsg AS '@ErrMsg'
@@ -420,7 +423,7 @@ BEGIN
 	SELECT @Remark ='NAP: ' 
 							+ CASE 
 									WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-									WHEN @SourceId = 101 THEN 'Auto Payout: Direct' + '<br/> '
+									WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> ' 
 									ELSE ''
 								END
 							+ CASE WHEN @sporttype = 1 THEN  'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> ' ELSE '' END

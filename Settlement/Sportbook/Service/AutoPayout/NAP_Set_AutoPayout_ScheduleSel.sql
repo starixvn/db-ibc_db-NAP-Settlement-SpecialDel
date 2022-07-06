@@ -20,6 +20,7 @@ AS
 		- 20210912@Helen: fix score NULL [Redmine:#161472]
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
+		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 
 	Param's Explanation:
  
@@ -40,17 +41,18 @@ BEGIN
 	DECLARE @tmpMatchAuto TABLE(
 									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
 									IsHalfTimeConfirmed INT, IsFullTimeConfirmed INT, BetStatus NVARCHAR(50), GoalRecord VARCHAR(50), 
-									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, AutoSetting TINYINT
+									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, 
+									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT
 								)
 
 	INSERT INTO @tmpMatchAuto (
 								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
-								, AutoSetting
+								, AutoSetting, ChildLeagueType, MainType
 							)
 	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
-		, AutoSetting
+		, AutoSetting, ChildLeagueType, MainType
 	FROM (
 			SELECT m.matchid AS MatchId
 				, m.hthomescore
@@ -72,6 +74,8 @@ BEGIN
 				, ISNULL(m.ChildMatchType,0) AS ChildMatchType
 				, m.SettlementStatus
 				, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
+				, ls.ChildLeagueType
+				, mr.MainType
 			FROM dbo.match m WITH(NOLOCK)
 				INNER JOIN dbo.match_remark mr WITH(NOLOCK)
 					ON	m.matchid = mr.matchid
@@ -81,6 +85,11 @@ BEGIN
 					SELECT f.TypeId
 					FROM (VALUES (1),(2)) AS f(TypeId)
 				) f
+				OUTER APPLY (	
+						SELECT TOP 1 ls.ChildLeagueType 
+						FROM dbo.LeagueSetting ls WITH(NOLOCK)
+						WHERE l.LeagueId = ls.Leagueid
+				) ls
 				OUTER APPLY (
 					SELECT TOP 1 1 AS IsExistAP 
 					FROM	dbo.AutoPayoutResult rs WITH(NOLOCK) 
@@ -132,7 +141,7 @@ BEGIN
 	-- Return data 
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
-			, AutoSetting
+			, AutoSetting, ChildLeagueType, MainType
 	FROM @tmpMatchAuto t
 		LEFT JOIN ProviderResultDetail p 
 			ON t.MatchId = p.MatchId AND t.TypeId = p.TypeId 
