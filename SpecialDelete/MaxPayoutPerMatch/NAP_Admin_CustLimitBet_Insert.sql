@@ -60,7 +60,7 @@ BEGIN
 			, BRID		BIGINT
 	)
 	
-	DECLARE @HistoryMissingTransId AS TABLE (transid BIGINT, sitetype TINYINT, BRID BIGINT)
+	DECLARE @HistoryMissingTransId AS TABLE (transid BIGINT, sitetype TINYINT)
 	
 
 	 
@@ -156,18 +156,19 @@ BEGIN
 		FROM #CustLimitBet_tmp t
 		WHERE t.sitetype = 2
 
-		INSERT INTO @HistoryMissingTransId (transid, sitetype, BRID)
-		SELECT t.transid, 2, t.BRID
+		INSERT INTO @HistoryMissingTransId (transid, sitetype )
+		SELECT t.transid, 2
 		FROM #CustLimitBet_789 t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
 				FROM dbo.CustLimitBetHistory_789 t1 WITH (NOLOCK)
-				WHERE 1 = CASE WHEN t1.Matchid = t.MatchId AND t1.CustID = t.CustId AND t1.Transid = 0 AND t1.BRID = t.BRID THEN 1
-								WHEN t1.Matchid = t.MatchId AND t1.CustID = t.CustId AND t1.Transid = t.transid AND t1.BRID = 0 THEN 1
-							ELSE 0 END
-
+				WHERE t1.Matchid = t.MatchId
+					AND t1.CustID = t.CustId
+					AND t1.Transid = t.transid
+					AND t1.BRID = 0
 			)tmp
 		WHERE tmp.Transid IS NULL
+
 
 	END
 
@@ -179,15 +180,16 @@ BEGIN
 		FROM #CustLimitBet_tmp t
 		WHERE t.sitetype = 3
 
-		INSERT INTO @HistoryMissingTransId (transid, sitetype, BRID)
-		SELECT t.transid, 3, BRID
+		INSERT INTO @HistoryMissingTransId (transid, sitetype)
+		SELECT t.transid, 3
 		FROM #CustLimitBet_LIC t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
 				FROM dbo.CustLimitBetHistory_LIC t1 WITH (NOLOCK)
-				WHERE 1 = CASE WHEN t1.Matchid = t.MatchId AND t1.CustID = t.CustId AND t1.Transid = 0 AND t1.BRID = t.BRID THEN 1
-								WHEN t1.Matchid = t.MatchId AND t1.CustID = t.CustId AND t1.Transid = t.transid AND t1.BRID = 0 THEN 1
-							ELSE 0 END
+				WHERE t1.Matchid = t.MatchId
+					AND t1.CustID = t.CustId
+					AND t1.Transid = t.transid
+					AND t1.BRID = 0
 			)tmp
 		WHERE tmp.Transid IS NULL
 
@@ -195,17 +197,19 @@ BEGIN
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp) --MBC
 	BEGIN
-		INSERT INTO @HistoryMissingTransId (transid, sitetype, BRID)
-		SELECT t.transid, 1, BRID
+		INSERT INTO @HistoryMissingTransId (transid, sitetype)
+		SELECT t.transid, 1
 		FROM #CustLimitBet_tmp t	
 		OUTER APPLY (
 				SELECT TOP 1 t1.Transid
 				FROM dbo.CustLimitBetHistory_MBC t1 WITH (NOLOCK)
-				WHERE 1 = CASE WHEN t1.Matchid = t.MatchId AND t1.CustID = t.CustId AND t1.Transid = 0 AND t1.BRID = t.BRID THEN 1
-								WHEN t1.Matchid = t.MatchId AND t1.CustID = t.CustId AND t1.Transid = t.transid AND t1.BRID = 0 THEN 1
-							ELSE 0 END
+				WHERE t1.Matchid = t.MatchId
+					AND t1.CustID = t.CustId
+					AND t1.Transid = t.transid
+					AND t1.BRID = 0
 			)tmp
 		WHERE tmp.Transid IS NULL
+
 	END
 
 	BEGIN TRY
@@ -316,7 +320,7 @@ BEGIN
 						FROM #CustLimitBet_LIC t1
 							CROSS APPLY (
 								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID
-								FROM dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK)
+								FROM dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK)
 								WHERE 1 = CASE WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = 0 AND t2.BRID = t1.BRID THEN 1
 												WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = t1.transid AND t2.BRID = 0 THEN 1
 											ELSE 0 END
@@ -339,7 +343,7 @@ BEGIN
 				FROM #CustLimitBet_LIC t
 					CROSS APPLY (
 								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID, t2.Transid, t2.BRID
-								FROM dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK)
+								FROM dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK)
 								WHERE 1 = CASE WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = 0 AND t2.BRID = t.BRID THEN 1
 												WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = t.transid AND t2.BRID = 0 THEN 1
 											ELSE 0 END
