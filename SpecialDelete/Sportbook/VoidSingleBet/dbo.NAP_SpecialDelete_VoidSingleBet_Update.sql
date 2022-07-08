@@ -120,6 +120,7 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 
 	Param's Explanation: Special bet delete option
@@ -149,8 +150,8 @@ AS
 					 ValueHdp2				-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
-					 OddsId="8518"			-- Default : "All" ; Format : Single Number
-					 Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
+					 OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
+					 Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 			/>
 		 <BetTypes/>'
 	*/
@@ -226,7 +227,7 @@ BEGIN
 		Goal			BIGINT,
 		OddsSpread		MONEY,
 		OddsId			INT,
-		Transdesc		NVARCHAR(1000)
+		Transdesc		NVARCHAR(2000)
 	)					
 	
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
@@ -413,8 +414,8 @@ BEGIN
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 	 	 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			 , t.c.value('@OddsSpread', 'VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
-			 , t.c.value('@OddsId','VARCHAR(20)') AS OddsId				-- check columns : OddsId		 ; single-choice
-			 , t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
+			 , t.c.value('@OddsId','VARCHAR(1000)') AS OddsId			-- check columns : OddsId		 ; single value + multi-choice
+			 , t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single value + multi-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -434,15 +435,18 @@ BEGIN
 						ELSE cte.Goal END AS BIGINT) AS Goal
 			 , CAST(CASE WHEN os.value = 'ALL' THEN @ValueDefault
 						ELSE os.value END AS MONEY) AS OddsSpread
-			, CAST(CASE WHEN cte.OddsId = 'ALL' THEN NULL
-		                ELSE cte.OddsId END AS INT) AS OddsId
-			, cte.Transdesc
+			, CAST(CASE WHEN osid.value = 'ALL' THEN NULL
+						ELSE osid.value END AS INT) AS OddsId
+			 , CAST(CASE WHEN td.value = 'ALL' THEN NULL
+						ELSE td.value END AS INT) AS Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
 			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
 			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
 			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
 			 CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
+			 CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
+			 CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
 	)	 
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id

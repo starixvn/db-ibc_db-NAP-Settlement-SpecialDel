@@ -90,6 +90,7 @@ AS
 		- 20220301@Max: [TVS] Integrate new bet types of Cricket [Redmine: #168080]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -120,8 +121,8 @@ AS
 					 ValueHdp2="2"			-- Default : "All" ; Format : Single Number
 					 Goal="2"				-- Default : "All" ; Format : Single Number
 					 OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
-					 OddsId="8518"			-- Default : "All" ; Format : Single Number
-					 Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
+					 OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
+					 Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 			/>
 		 <BetTypes/>'
 
@@ -152,8 +153,8 @@ BEGIN
 		ValueHdp2		VARCHAR(20),
 		Goal			VARCHAR(10),
 		OddsSpread		VARCHAR(500),
-		OddsId			VARCHAR(20),
-		Transdesc		NVARCHAR(1000)
+		OddsId			VARCHAR(1000),
+		Transdesc		NVARCHAR(2000)
 	)
 
 	CREATE TABLE #tblBetType_Detail
@@ -169,7 +170,7 @@ BEGIN
 		Goal			BIGINT,
 		OddsSpread		MONEY,
 		OddsId			INT,
-		Transdesc		NVARCHAR(1000)
+		Transdesc		NVARCHAR(2000)
 	)
 		
 	-- Parse xml @BetTypes
@@ -184,8 +185,8 @@ BEGIN
 			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			, t.c.value('@OddsSpread','VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
-			, t.c.value('@OddsId','VARCHAR(20)') AS OddsId			-- check columns : OddsId		 ; single-choice
-			, t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
+			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId		-- check columns : OddsId		 ; single-choice + multi-choice
+			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 			 
@@ -223,15 +224,18 @@ BEGIN
 						ELSE cte.Goal END AS BIGINT) AS Goal
 			 , CAST(CASE WHEN os.value = 'ALL' THEN @ValueDefault
 						ELSE os.value END AS MONEY) AS OddsSpread
-			 , CAST(CASE WHEN cte.OddsId = 'ALL' THEN NULL
-						ELSE cte.OddsId END AS INT) AS OddsId
-			 , cte.Transdesc
+			 , CAST(CASE WHEN osid.value = 'ALL' THEN NULL
+						ELSE osid.value END AS INT) AS OddsId
+			 , CAST(CASE WHEN td.value = 'ALL' THEN NULL
+						ELSE td.value END AS INT) AS Transdesc
 		FROM #tblBetType cte
 			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
 			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
 			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
 			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
 			 CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
+			 CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
+			 CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
 	) cte	
 	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
@@ -883,7 +887,7 @@ BEGIN
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.transdesc = tp.Transdesc))
 	END	
 
