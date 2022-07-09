@@ -28,6 +28,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220527@Kathy: Wrong settle SDT for over/under [Redmine:#173286]
 		- 20220512@Louisa: Auto refund Badminton [Redmine:#171676]
+		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -86,7 +87,9 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tmpParlayBalanceBefore (transid BIGINT PRIMARY KEY, custid INT, balance money)
 	CREATE TABLE #tmpParlayBalanceAfter (transid BIGINT PRIMARY KEY, custid INT, balance money)
-	CREATE TABLE #tmpParlayBalance (custid int, balance money)
+	CREATE TABLE #tmpParlayBalance (custid int, balance money)	
+	CREATE TABLE #tmpMainTransId ( transid BIGINT, refno BIGINT, IsFinished BIT, ruben TINYINT, custid INT)
+
 	--END Balance tables
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
@@ -462,9 +465,9 @@ BEGIN
 							WHERE	bm.refno = t.refno 
 									AND bm.statusID IN (1,101)
 						)
-	
+		
+		INSERT INTO #tmpMainTransId (transid, refno, IsFinished, ruben, custid)
 		SELECT	transid, refno, 0 AS IsFinished, ruben, custid
-			INTO #tmpMainTransId
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = 29
 				AND b.statusID NOT IN (101,102) --('VOID','REJECT')
