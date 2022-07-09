@@ -46,6 +46,7 @@ AS
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
 
 	Param's Explanation:
 		@parentMatchId: identify main match of cricket
@@ -63,6 +64,8 @@ BEGIN
 	
 	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50),AwayValue VARCHAR(50))		
 	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
+	
+	CREATE TABLE #temp_bettrans_29 ( transid BIGINT, refno BIGINT, IsFinished BIT, ruben TINYINT, custid INT)
 
 	SET @ActionID = CASE @action
 						WHEN 'CAL'	THEN 104
@@ -334,8 +337,8 @@ BEGIN
 	SET @rowCnt = @@ROWCOUNT --number of tickets of the match
 
 	BEGIN --BEGIN: calculate 29 ----------------------------------
+		INSERT INTO #temp_bettrans_29 ( transid, refno, IsFinished, ruben, custid)
 		SELECT transid, refno, 0 AS IsFinished, ruben, custid
-		INTO #temp_bettrans_29
 		FROM bettrans b WITH(NOLOCK)
 		WHERE b.matchid = 29
 			AND b.statusID NOT IN (101,102) --('VOID','REJECT')
