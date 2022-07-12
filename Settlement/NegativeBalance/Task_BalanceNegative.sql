@@ -25,7 +25,7 @@ BEGIN
 
 	--put wait for (x) seconds to wait for in-house replication
 	DECLARE @Delay VARCHAR(100) = ''
-	SET @Delay = dbo.f_SetWaitforDelay () 
+	SET @Delay = dbo.f_SetWaitforDelay ('NegativeBalance') 
 	WAITFOR DELAY @Delay
 
 	DECLARE @BatchCount INT
