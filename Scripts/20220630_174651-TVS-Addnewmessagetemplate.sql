@@ -38,6 +38,7 @@ SET MsgEnglish =N'Attn:[{{Sport type}}] Due to the number of scheduled overs bei
   , MsgChineseTraditional = N'請注意:[{{Sport type}}] 由於比賽輪數减少, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注單: "@@" {{PlacedFromTimeRange}}{{Score}} 只作廢受影響的注單. 串關以(1)計算. 即时兑现被取消. {{CheckStatement}}不便之處 敬請見諒!'
   , MsgChineseSimplified = N'请注意:[{{Sport type}}] 由于比赛轮数减少, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange}}{{Score}} 只作废受影响的注单. 串关以(1)计算. 实时兑现被取消. {{CheckStatement}}不便之处 敬请见谅!'
   , MsgChineseNewSimplified = N'请注意:[{{Sport type}}] 由于比赛轮数减少, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange}}{{Score}} 只作废受影响的注单. 串关以(1)计算. 实时兑现被取消. {{CheckStatement}}不便之处 敬请见谅!'
+  , JsonValue = NULL
 WHERE TemplateId = 38
 --Game Crashed Void Live
 INSERT INTO dbo.TicketVoiding_MessageTemplate(TemplateId, MsgEnglish, MsgChineseTraditional, MsgChineseSimplified, MsgChineseNewSimplified)
