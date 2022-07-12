@@ -29,6 +29,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20211116@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 
 	Example: 
 		DECLARE @ErrCode INT, @ErrMsg VARCHAR(300)
@@ -62,6 +63,7 @@ BEGIN
 		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
+	CREATE TABLE #tmpMatch (RowNumber INT, matchId INT, transId BIGINT, refno BIGINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @tblNoResettleTransIds TABLE (transid BIGINT PRIMARY KEY)
@@ -194,10 +196,11 @@ BEGIN
 		HAVING COUNT(CASE WHEN m.eventstatus <> 'completed' THEN 1 ELSE NULL END) -- count running subs for each main ticket
 			   = COUNT(*) -- count all subs for each main ticket
 
+			  
 		-- Get match list
+		INSERT INTO #tmpMatch(RowNumber, matchId, transId, refno)
 		SELECT	ROW_NUMBER() OVER (PARTITION BY t.transid ORDER BY m.eventdate DESC) AS RowNumber,
 				b.matchid, t.transid, t.refno
-		INTO #tmpMatch
 		FROM	dbo.bettransm b WITH(NOLOCK) 
 			INNER JOIN #tblRecoverBet t ON t.refno = b.refno	
 			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid			
