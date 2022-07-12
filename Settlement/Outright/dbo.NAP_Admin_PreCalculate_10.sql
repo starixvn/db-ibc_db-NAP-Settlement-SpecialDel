@@ -19,6 +19,7 @@ AS
         - 20200114@Sol: Server replacement - DB042 to DB055 [Redmine:#127173]
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		
 	Param's Explanation:
 
@@ -48,11 +49,19 @@ BEGIN
 		SELECT @winlostdate = CONVERT(CHAR(10),GETDATE(),111)
 	END
 	
+	CREATE TABLE #Outright_TempData(transid BIGINT, actual_stake MONEY, stake MONEY, odds SMALLMONEY, comstatus NVARCHAR(20), modds SMALLMONEY
+		, apositiontaking SMALLMONEY, mpositiontaking SMALLMONEY, spositiontaking SMALLMONEY, playerdiscount DECIMAL(9,8),discount DECIMAL(9,8), adiscount DECIMAL(9,8), sdiscount DECIMAL(9,8)
+		, WinLost MONEY, aWinLost MONEY, mWinLost MONEY, sWinLost MONEY, PlayerComm MONEY, comm MONEY, acomm MONEY, scomm MONEY, StatusID TINYINT
+		, ruben TINYINT, STATUS NVARCHAR(10), winlostdate SMALLDATETIME, statuswinlost TINYINT)
+
+	INSERT INTO #Outright_TempData(transid, actual_stake, stake, odds, comstatus, modds
+		, apositiontaking, mpositiontaking, spositiontaking, playerdiscount,discount, adiscount, sdiscount
+		, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, comm, acomm, scomm, StatusID
+		, ruben, STATUS, winlostdate, statuswinlost)
 	SELECT transid, actual_stake, stake, odds, comstatus, modds
 		, apositiontaking, mpositiontaking, spositiontaking, playerdiscount,discount, adiscount, sdiscount
 		, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, comm, acomm, scomm, StatusID
-		, ruben, STATUS, winlostdate, statuswinlost
-	INTO #Outright_TempData				
+		, ruben, STATUS, winlostdate, statuswinlost				
 	FROM dbo.bettrans WITH(ROWLOCK)	
 	WHERE matchid = @matchid 
 		AND bettype = 10

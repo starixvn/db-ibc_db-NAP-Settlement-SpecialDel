@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20160606@Bobby: Initialize
 		- 20170829@Kathy: 	Change datatype of bettransm.TransId [Redmine:#73545]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		
 	Param's Explanation:
  
@@ -23,6 +24,8 @@ BEGIN
 	DECLARE @xmlRefno	 	XML
 	DECLARE @IgnoreList 	VARCHAR(200)
 	DECLARE @tempRefno 		TABLE (refno BIGINT)
+
+	CREATE TABLE #TempData (TransId BIGINT)
 	
 	--CONVERT refno
 	SET @xmlRefno = CONVERT(XML, @strRefnos)
@@ -39,8 +42,8 @@ BEGIN
 		, @IgnoreList 			= 'DB04,DB042,DB043,DB044'
 	
 	--SELECT parlay tickets
+	INSERT INTO #TempData(TransId)
 	SELECT transid		
-	INTO #TempData				
 	FROM dbo.bettransm bm WITH(ROWLOCK)
 		INNER JOIN @tempRefno temp 
 			ON bm.refno = temp.refno

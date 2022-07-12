@@ -17,6 +17,7 @@ AS
 		- 20181116@Helen: action=165 Calculate Fast Markets,do NOT get for userid=111  [Redmine:82430]
 		- 20190405@Patrick: Support archive date range [Redmine: #111476]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -35,6 +36,8 @@ BEGIN
 		,SportType		INT
 	)
 	
+	CREATE TABLE #__tmpData (LogId BIGINT, LogDate DATETIME, finalhomescore INT, finalawayscore INT, hthomescore INT, htawayscore INT, ActionID INT, Remark VARCHAR(MAX), UserID INT)
+
 	IF @GroupID IN (1,2,7)
 	BEGIN 
 
@@ -178,7 +181,9 @@ BEGIN
 		DECLARE @__archiveDate DATETIME
 		SELECT @__archiveDate = DATEADD(DAY, 1, dbo.f_CustomerLog_GetArchiveDate())
 
-		SELECT * INTO #__tmpData
+		
+		INSERT INTO #__tmpData (LogId, LogDate, finalhomescore, finalawayscore, hthomescore, htawayscore, ActionID, Remark, UserID)
+		SELECT LogId, LogDate, finalhomescore, finalawayscore, hthomescore, htawayscore, ActionID, Remark, UserID
 		FROM (
 			SELECT LogID, LogDate, finalhomescore, finalawayscore, hthomescore, htawayscore, ActionID, Remark, UserID
 			FROM dbo.UserLog_Settle WITH(NOLOCK)

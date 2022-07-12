@@ -1,9 +1,4 @@
-/****** Object:  StoredProcedure [dbo].[NAP_Admin_PreCalculate_1]    Script Date: 08/27/2014 14:03:34 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-/****** Object:  Stored Procedure dbo.NAP_Admin_PreCalculate_1    Script Date: 3/17/2014 4:21:09 PM ******/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_PreCalculate_1] 
 	@matchid int,
 	@bettype smallint,
@@ -20,6 +15,7 @@ AS
 	Revisions:
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 */
 
 SET NOCOUNT ON
@@ -30,14 +26,28 @@ SET NOCOUNT ON
 		--,@LASCommand NVARCHAR(max)
 		,@createdDate DATETIME--, @Remark varchar(500)
 
+	CREATE TABLE #TempData (transid BIGINT, actual_stake MONEY, stake MONEY, odds MONEY, comstatus NVARCHAR(20), modds MONEY,
+			betteam NVARCHAR(10), hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT,
+			apositiontaking SMALLMONEY, mpositiontaking SMALLMONEY, spositiontaking SMALLMONEY, 
+			playerdiscount DECIMAL(9,8),discount DECIMAL(9,8), adiscount DECIMAL(9,8), sdiscount DECIMAL(9,8),
+			WinLost MONEY, aWinLost MONEY, mWinLost MONEY, sWinLost MONEY, 
+			PlayerComm MONEY, comm MONEY, acomm MONEY, scomm MONEY,
+			StatusID TINYINT, bettype SMALLINT)
+
+	INSERT INTO #TempData(transid, actual_stake, stake, odds, comstatus, modds,
+			betteam, hdp1, hdp2, livehomescore, liveawayscore,
+			apositiontaking, mpositiontaking, spositiontaking, 
+			playerdiscount,discount, adiscount, sdiscount,
+			WinLost, aWinLost, mWinLost, sWinLost, 
+			PlayerComm, comm, acomm, scomm,
+			StatusID, bettype)
 	SELECT	transid, actual_stake, stake, odds, comstatus, modds,
 			betteam, hdp1, hdp2, livehomescore, liveawayscore,
 			apositiontaking, mpositiontaking, spositiontaking, 
 			playerdiscount,discount, adiscount, sdiscount,
 			WinLost, aWinLost, mWinLost, sWinLost, 
 			PlayerComm, comm, acomm, scomm,
-			StatusID, bettype
-	INTO #TempData				
+			StatusID, bettype			
 	FROM dbo.bettrans with(rowlock)
 	WHERE matchid = @matchid 
 		AND bettype = @bettype 
@@ -136,7 +146,7 @@ SET NOCOUNT ON
 		--SELECT @LASCommand = '',
 		--	@Remark = ''
 		
-		DELETE TOP (300) #TempData
+		DELETE TOP (20) #TempData
 		OUTPUT deleted.transid, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost, 	
 			deleted.playercomm, deleted.comm, deleted.acomm, deleted.scomm, deleted.statusid, deleted.modds	
 		INTO @subtable(transid, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm, statusid, modds)	

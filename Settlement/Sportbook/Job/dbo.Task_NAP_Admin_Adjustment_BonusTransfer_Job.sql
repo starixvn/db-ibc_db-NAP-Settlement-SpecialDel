@@ -16,6 +16,7 @@ AS
 		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
 		- 20210817@Louisa: HF-Change datatype from INT to BIGINT [Redmine:#160262]
 		- 20211229@Max: Split Transfer - Adjust Negative Balance Service & Adjustment Transfer of Bonus [Redmine: #165098]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 
     Parameters Explanation:   
 		@Mode:	- Adjustment
@@ -63,6 +64,8 @@ BEGIN
 			,isValidDummy	BIT
 		)
 		
+		CREATE TABLE #tempAdjustment (ExecId BIGINT, CustId INT, username VARCHAR(30), MatchId INT, BonusId INT, Amount MONEY, currency TINYINT, currencyName NVARCHAR(50), site VARCHAR(10), srecommend INT, actualrate FLOAT)
+			
 		SELECT @maxExecID 		= 0
 			, @batchExec		= 100
 			, @bettype			= 22201
@@ -73,6 +76,7 @@ BEGIN
 			DELETE @transExecNo
 			
 			--SELECT top rows to insert bonus transfer
+			INSERT INTO #tempAdjustment(ExecId, CustId, username, MatchId, BonusId, Amount, currency, currencyName, site, srecommend , actualrate)
 			SELECT TOP(@batchExec)
 				trans.ExecID
 				, trans.CustID
@@ -85,7 +89,6 @@ BEGIN
 				, rec.[site]
 				, ci.srecommend
 				, ex.actualrate
-			INTO #tempAdjustment
 			FROM dbo.BonusAdjustmentTransfer AS trans WITH(NOLOCK)
 				INNER JOIN CustDB.dbo.Customer AS ci WITH(NOLOCK)
 					ON trans.custid = ci.custid
@@ -265,7 +268,7 @@ BEGIN
 				END
 			END
 			
-			DROP TABLE #tempAdjustment
+			TRUNCATE TABLE #tempAdjustment
 			
 			IF(@batchCount < @batchExec) BREAK;
 		END
