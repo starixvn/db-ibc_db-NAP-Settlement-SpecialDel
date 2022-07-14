@@ -17,6 +17,7 @@ AS
 		- 20190109@Vicky: Set Default Value of IsTest on table BingoBall from League  [Redmine:#107748]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 		- 20211108@Louisa: In-house Replicator: Updated/Delete Action [Redmine:#164393]
+		- 20220714@Louisa: Fix update IsDeleted = 1 [Redmine:#100002]
 
 */
 BEGIN	
@@ -107,7 +108,7 @@ BEGIN
 	WHEN NOT MATCHED BY TARGET THEN
 		INSERT (MatchId,  Seq,			Number,		UpdateTime, SportType,  isTest, Color, IsDeleted)
 		VALUES (@matchid, SOURCE.Seq, SOURCE.Number, GETDATE(), @Sporttype, @IsTest, SOURCE.Color, 0)
-	WHEN NOT MATCHED BY SOURCE THEN
+	WHEN NOT MATCHED BY SOURCE AND TARGET.MatchId = @matchid  THEN
 		UPDATE SET IsDeleted	= 1
 				  ,UpdateTime	= GETDATE() ;
 					
