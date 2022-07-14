@@ -16,6 +16,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -25,8 +26,10 @@ BEGIN
 		
 	DECLARE @subtable_CAL_Live TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
 
-	SELECT transid, modds, betteam, hdp1, bettype, betid, CASE WHEN bettype IN (89,90) THEN 1 ELSE 0 END AS OddsType 
-	INTO #TempData_CAL_Live				
+	CREATE TABLE #TempData_CAL_Live(transid BIGINT, modds MONEY, betteam NVARCHAR(10), hdp1 SMALLMONEY, bettype SMALLINT, betid BIGINT, OddsType TINYINT)
+
+	INSERT INTO #TempData_CAL_Live(transid, modds, betteam, hdp1, bettype, betid, OddsType)
+	SELECT transid, modds, betteam, hdp1, bettype, betid, CASE WHEN bettype IN (89,90) THEN 1 ELSE 0 END AS OddsType 				
 	FROM dbo.bettrans WITH(ROWLOCK)	
 	WHERE matchid = @matchid 
 		AND bettype IN (85, 86, 87, 89, 90, 91) 

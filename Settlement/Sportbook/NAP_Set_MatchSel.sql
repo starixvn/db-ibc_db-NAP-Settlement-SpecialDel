@@ -68,6 +68,7 @@ AS
 		- 20220404@Louisa: Wrong display early status [Redmine:#171037]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 
       
  Param explanation:  
@@ -98,7 +99,8 @@ BEGIN
 		,@EventStatusReason TINYINT = 0
 	
 	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT, IsMergedParlay BIT DEFAULT(0))
-		
+	CREATE TABLE #tempmatch (matchid INT, IsCalculatingSingle INT, IsCalculatingMP INT)
+
 	SET @StartTime = GETDATE()
 	
 	SELECT @matchcode = ISNULL(@matchcode, '')
@@ -532,7 +534,7 @@ BEGIN
 	FROM #matchList m
 		INNER JOIN MatchExtraStatusParlay ext 
 		ON m.matchid = ext.ParentId
-
+	
 	;WITH SingleTicket AS
 	(
 		SELECT	matchid, min(IsCalculating)  IsCalculating
@@ -547,11 +549,10 @@ BEGIN
 		WHERE	p.IsCalculating IN (0,1)
 		group by matchid 
 	)	
-
+	INSERT INTO #tempmatch(matchid, IsCalculatingSingle, IsCalculatingMP)
 	select isnull(sg.matchid, pl.matchid) matchid
 		, sg.IsCalculating IsCalculatingSingle
 		, pl.IsCalculating IsCalculatingMP
-	into #tempmatch
 	from SingleTicket sg
 		full outer join ParlayTicket pl on sg.matchid = pl.matchid 
 

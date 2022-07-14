@@ -17,6 +17,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -25,8 +26,10 @@ BEGIN
 
 	DECLARE @subtable_CAL_Deadball TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
 
+	CREATE TABLE #TempData_CAL_Deadball(transid BIGINT, modds MONEY, betteam NVARCHAR(10), hdp1 SMALLMONEY, bettype SMALLINT, OddsType TINYINT)
+
+	INSERT INTO #TempData_CAL_Deadball(transid, modds, betteam, hdp1, bettype, OddsType)
 	SELECT transid, modds, betteam, hdp1, bettype, CASE WHEN bettype IN (90) THEN 1 ELSE 0 END AS OddsType 
-	INTO #TempData_CAL_Deadball
 	FROM dbo.bettrans WITH(ROWLOCK)		
 	WHERE matchid = @MatchId
 		AND bettype = @BetType

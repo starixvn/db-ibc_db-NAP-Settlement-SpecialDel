@@ -64,6 +64,7 @@ AS
 	- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 	- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+	- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 
  Param explanation:  
 	@MatchCode: match code
@@ -216,7 +217,7 @@ BEGIN
 		, InstantKey				INT
 		, InstantScoreDiff			TINYINT DEFAULT(0)
 	)
-	
+	CREATE TABLE #tempmatch(MatchId INT, IsCalculatingSingle  INT, IsCalculatingMP INT)
 	CREATE TABLE #tempBettrans (matchid INT, bettype SMALLINT, runningBet INT, betCount INT, IsParlay BIT DEFAULT(0), IsExistHTFGNG BIT, IsExistHTLG BIT, IsExistFTFGNG BIT, IsExistFTLG BIT)
 	CREATE CLUSTERED INDEX IX_tempBettrans_bettype ON #tempBettrans (bettype)
 	
@@ -503,7 +504,7 @@ BEGIN
 	END
 	
 	SET @Today = DATEADD(MINUTE, -10, GETDATE())
-
+	
 	;WITH SingleTicket AS (
 		SELECT	matchid
 				,MIN(IsCalculating) AS IsCalculating
@@ -524,10 +525,10 @@ BEGIN
 			AND m.leagueid = CASE WHEN @LeagueId = 0 THEN m.leagueid ELSE @LeagueId END
 		GROUP BY p.matchid
 	)	
+	INSERT INTO #tempmatch(MatchId, IsCalculatingSingle, IsCalculatingMP)
 	SELECT ISNULL(sg.matchid, pl.matchid) AS matchid
 		, sg.IsCalculating AS IsCalculatingSingle
 		, pl.IsCalculating AS IsCalculatingMP
-	INTO #tempmatch
 	FROM SingleTicket sg
 		FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid 
 
