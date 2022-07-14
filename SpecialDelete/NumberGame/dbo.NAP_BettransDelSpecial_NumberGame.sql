@@ -41,6 +41,7 @@ AS
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		
 	Param's Explanation: 
 		- @Opition: 
@@ -628,6 +629,8 @@ BEGIN
 		-- CHECK IT GROUP or NOT ?   
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 		
+		CREATE TABLE #CTE_CustInfo (CustId INT, UserName VARCHAR(30), Username2 VARCHAR(50), Site VARCHAR(10))
+
 		;WITH CTE_CustIdAll AS (
 			SELECT DISTINCT t.custid
 			FROM #BetDelete b
@@ -647,7 +650,8 @@ BEGIN
 				INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid
 			
 		)
-		SELECT * INTO #CTE_CustInfo
+		INSERT INTO #CTE_CustInfo(CustId, UserName, Username2)
+		SELECT custid, username, username2
 		FROM CTE_CustInfo
 		
 		SELECT b.transid

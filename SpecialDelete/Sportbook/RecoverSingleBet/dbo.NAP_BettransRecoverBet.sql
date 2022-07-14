@@ -68,6 +68,7 @@ AS
 		- 20220118@July: HotFix - Recover Cash Out Transaction NOT CALC PlayerComm for tickets double Comm [Redmine: #167687]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 
 	Param's Explanation:
 */
@@ -159,6 +160,16 @@ BEGIN
 	CREATE TABLE #tbTransId (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
+	CREATE TABLE #t_match_completed(inputtransid BIGINT, custid INT, transdate DATETIME, odds MONEY, stake MONEY, winlost MONEY, status NVARCHAR(10))
+	CREATE TABLE #CTE_bettrans(transid BIGINT, custid INT, transdate DATETIME, odds MONEY
+		,oddsspread MONEY, oddstype TINYINT, bettype SMALLINT, actual_stake MONEY
+		,betteam NVARCHAR(10), betcheck NVARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY, betfrom NVARCHAR(1), stake MONEY
+		,matchid INT, liveindicator BIT, livehomescore SMALLINT, liveawayscore SMALLINT, CurrencyName NVARCHAR(50)
+		,betid BIGINT, transdesc NVARCHAR(1000), refno BIGINT, betdaqid BIGINT, recommend INT, mrecommend INT, srecommend INT
+		,SecAcceptFlag BIT, ExtraInfo VARCHAR(1000), IsCashOut BIT, WalletType TINYINT
+		,RefCode BIGINT, BonusID INT, MainTransId BIGINT, winlostdate SMALLDATETIME
+	)
+
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange
 		  , @tblAfterBalance  TVP_BalanceWalletChange
 
@@ -461,6 +472,14 @@ BEGIN
 		
 		IF @@ROWCOUNT > 0
 		BEGIN
+			
+			INSERT INTO #CTE_bettrans(transid,custid,transdate,odds,oddsspread,oddstype,bettype
+							,actual_stake,betteam,betcheck,hdp1
+							,hdp2,betfrom,stake,matchid,liveindicator,livehomescore
+							,liveawayscore,CurrencyName,betid,transdesc
+							,refno,betdaqid,recommend,mrecommend
+							,srecommend,SecAcceptFlag,ExtraInfo,IsCashOut	
+							,WalletType,RefCode,BonusID,MainTransId,winlostdate)
 			SELECT	 b.transid
 					,b.custid
 					,b.transdate
@@ -495,7 +514,6 @@ BEGIN
 					,b.BonusID
 					,r.transid AS MainTransId
 					,b.winlostdate
-						INTO #CTE_bettrans
 			FROM #tmpRefCodeSummary r
 				 INNER JOIN dbo.bettrans b WITH (NOLOCK)					 
 						 ON b.RefCode = r.RefCode
@@ -985,6 +1003,7 @@ BEGIN
 		, @ActionId				= 0		
 	
 	---- list ticket: match is completed
+	INSERT INTO #t_match_completed(inputtransid, custid, transdate, odds, stake, winlost, status)
 	select	t.transid AS inputtransid,
 			t.custid,
 			t.transdate,
@@ -992,7 +1011,6 @@ BEGIN
 			t.stake,
 			t.winlost,
 			t.status
-				INTO #t_match_completed
 	from	#tblTransInfo t
 		inner JOIN match m WITH(NOLOCK) 
 			ON	t.matchid = m.matchid

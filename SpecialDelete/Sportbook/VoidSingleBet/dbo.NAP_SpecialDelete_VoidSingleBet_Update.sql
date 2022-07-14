@@ -120,7 +120,8 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
-		
+		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
+
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
 		  + 0: All tickets
@@ -331,7 +332,9 @@ BEGIN
 		 ,bettype	SMALLINT
 		 ,transid	BIGINT
 	)
-	
+
+	CREATE TABLE #CTE_CustInfo(custid INT, username VARCHAR(30), username2 VARCHAR(50), site VARCHAR(10), currency TINYINT)
+
 	CREATE INDEX IX_BetDelete_RefCode ON #BetDelete(RefCode)	
 	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 	
@@ -1682,12 +1685,12 @@ BEGIN
 				,(srecommend)
 			) AS t (custid)
 		)
+		INSERT INTO #CTE_CustInfo(custid, username, username2, site, currency)
 		SELECT ci.custid
 			, ci.username
 			, ci.username2
 			, ci.site
 			, ci.currency
-				INTO #CTE_CustInfo
 		FROM CustDB.dbo.Customer ci WITH(NOLOCK)
 			INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid		
 		

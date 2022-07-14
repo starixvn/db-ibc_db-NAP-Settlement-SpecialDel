@@ -43,6 +43,7 @@ AS
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 
 	Param's Explanation:
 			- @Opition: 
@@ -94,6 +95,10 @@ BEGIN
 		,UNIQUE CLUSTERED(RefCode, custid, matchid, bettype, transid)				
 	)	
 	
+	CREATE TABLE #CTE_bettrans(transid BIGINT, matchid INT, custid INT, bettype SMALLINT, Username NVARCHAR(50), recommend INT
+			, transdate DATETIME, actual_stake MONEY, oddstype TINYINT, isdeposit BIT, betid BIGINT
+			, transdesc NVARCHAR(1000), betdaqid BIGINT, extrainfo VARCHAR(1000), wallettype TINYINT, refcode BIGINT, bonusId INT, MainTransId BIGINT)
+
 	CREATE TABLE #tmpRefCodeSummary (
 		 RefCode	BIGINT
 		 ,custid	INT
@@ -688,6 +693,10 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
+		INSERT INTO #CTE_bettrans(transid, matchid, custid, bettype, Username, recommend
+			, transdate, actual_stake, oddstype, isdeposit, betid
+			, transdesc, betdaqid, extrainfo, wallettype, refcode, bonusId, MainTransId
+		)
 		SELECT	 b.transid
 				,b.matchid
 				,b.custid
@@ -706,7 +715,6 @@ BEGIN
 				,b.RefCode
 				,b.BonusID
 				,t.transid AS MainTransId
-					INTO #CTE_bettrans	
 		FROM #tmpRefCodeSummary t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = t.RefCode
