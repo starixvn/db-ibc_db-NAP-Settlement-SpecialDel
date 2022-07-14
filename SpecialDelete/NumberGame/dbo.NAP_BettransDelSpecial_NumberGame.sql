@@ -650,8 +650,8 @@ BEGIN
 				INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid
 			
 		)
-		INSERT INTO #CTE_CustInfo(CustId, UserName, Username2)
-		SELECT custid, username, username2
+		INSERT INTO #CTE_CustInfo(CustId, UserName, Username2, Site)
+		SELECT custid, username, username2, site
 		FROM CTE_CustInfo
 		
 		SELECT b.transid
