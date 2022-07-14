@@ -42,7 +42,7 @@ BEGIN
 
 	-- NG
 	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s161_Manual', @WaitingTime, 0	 --manual
+	SELECT 'NAP_Admin_Settlement_s161_Manual', @WaitingTime, 0	 --manual   
 	UNION ALL
 	SELECT 'NAP_Admin_Settlement_s161', @WaitingTime, 0	 -- api
 	
