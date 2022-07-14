@@ -32,6 +32,7 @@ AS
 	   - 20211130@Kathy: New cashout model [Redmine:#164838]
 	   - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 	   - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 */
 BEGIN
@@ -80,6 +81,7 @@ BEGIN
 			,@ThreadHoldRefno	INT 
 			,@LockedByRefno		BIT
 			,@sqlCommand		VARCHAR(MAX)
+			,@IsCentral	BIT
 		
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -146,6 +148,9 @@ BEGIN
 			,@ThreadHoldRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
+			
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	IF @SessionId IS NULL
 	BEGIN
@@ -214,6 +219,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
+				AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 				AND 1 = CASE 
 							WHEN ISNULL(b.betdaqid,0) = -2 THEN 1
@@ -230,6 +236,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
+				AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
 				AND b.statusID <> 101
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 		GROUP BY b.custid, b.bettype
@@ -273,31 +280,34 @@ BEGIN
 						END
 	FROM	 @tmpMatchInfo
 
-	EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-		@Command            = 'NAP_Admin_Settlement_1-CAL'
-		,@MatchID            = @matchid
-		,@FTHome            = @fth
-		,@FTAway            = @fta
-		,@HTHome            = @hth
-		,@HTAway            = @hta
-		,@BetStatus         = @betstatus
-		,@GoalRecord        = @goalrecord              
-		,@Action            = @action
-		,@HTDone            = @HTDone
-		,@creator            = @creator
+	IF @IsCentral = 1
+	BEGIN
+		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+			@Command            = 'NAP_Admin_Settlement_1-CAL'
+			,@MatchID            = @matchid
+			,@FTHome            = @fth
+			,@FTAway            = @fta
+			,@HTHome            = @hth
+			,@HTAway            = @hta
+			,@BetStatus         = @betstatus
+			,@GoalRecord        = @goalrecord              
+			,@Action            = @action
+			,@HTDone            = @HTDone
+			,@creator            = @creator
 		
-	-- update resultdetail
-    EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
-        @Command        = 'NAP_Admin_Settlement_1-CAL',
-        @MatchID        = @MatchID,
-        @fth             = @fth,
-        @fta             = @fta,
-        @hth             = @hth,
-        @hta             = @hta,
-        @ResourceResult	 = @ResourceResult,
-        @Action            = @Action,
-        @IsAuto            = 0,
-        @creator        = @creator
+		-- update resultdetail
+		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+			@Command        = 'NAP_Admin_Settlement_1-CAL',
+			@MatchID        = @MatchID,
+			@fth             = @fth,
+			@fta             = @fta,
+			@hth             = @hth,
+			@hta             = @hta,
+			@ResourceResult	 = @ResourceResult,
+			@Action            = @Action,
+			@IsAuto            = 0,
+			@creator        = @creator
+	END
 
 	-- insert dummy resouceid
 	-----------------------------------------add more info-----------------------------------------
@@ -513,7 +523,7 @@ BEGIN
 												FOR XML RAW ('Resource'), ROOT ('Results')
 												)
 
-		IF @ResourceResult_Corner_Result IS NOT NULL
+		IF @ResourceResult_Corner_Result IS NOT NULL AND @IsCentral = 1
 		BEGIN	
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
 				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
@@ -670,6 +680,7 @@ BEGIN
 				,b.livehomescore, b.liveawayscore
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	matchid = @matchid
+				AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strCashoutBettype + ',') > 0
@@ -745,24 +756,28 @@ BEGIN
 		END
 	END
 
-	IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'
-    BEGIN
-        EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-            @matchid    = @matchid
-            ,@command    = 'C'                
-    END
-    ELSE IF (@action = 'CAL-HT')
-    BEGIN
-        EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-            @matchid    = @matchid
-            ,@command    = 'H'
-    END
+	IF @IsCentral = 1
+	BEGIN
+		IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%' 
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+				@matchid    = @matchid
+				,@command    = 'C'                
+		END
+		ELSE IF (@action = 'CAL-HT')
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+				@matchid    = @matchid
+				,@command    = 'H'
+		END
+	END
 
 	-- parlay
 	INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket)
 	SELECT 	bm.bettype, COUNT(1) AS totalticket
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 	WHERE	bm.matchid = @MatchID
+			AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 			AND bm.statusID NOT IN (101)
 			AND 1 = CASE 
 						WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
@@ -855,7 +870,8 @@ BEGIN
 								+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
 								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''														
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 														
-								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+								+ ', @IsReSettledTickets = ' + CONVERT(VARCHAR(1), @IsReSettledTickets) 	
+								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral) 	
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -878,7 +894,7 @@ BEGIN
 			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
 		END
 	END
-	ELSE IF @Action IN ('CAL', 'CAL-FT')
+	ELSE IF @Action IN ('CAL', 'CAL-FT') AND @IsCentral = 1
 	BEGIN
 		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
 			SET StatusId = 0, Starttime = GETDATE()

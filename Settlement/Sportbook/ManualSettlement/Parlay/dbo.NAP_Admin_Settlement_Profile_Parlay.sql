@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsAutoRefund			BIT			= 0
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
+	,@IsCentral				BIT			= 0
 
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
@@ -29,6 +30,7 @@ AS
 		- 20220527@Kathy: Wrong settle SDT for over/under [Redmine:#173286]
 		- 20220512@Louisa: Auto refund Badminton [Redmine:#171676]
 		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -195,6 +197,7 @@ BEGIN
 								AND mt.MatchId = @MatchID
 				) mt
 			WHERE	bm.matchid = @MatchID
+					AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 					AND bm.statusID NOT IN (101)
 					AND 1 = CASE 
 								WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
@@ -231,6 +234,7 @@ BEGIN
 									AND mt.MatchId = @MatchID
 					) mt
 				WHERE	bm.matchid = @MatchID
+						AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 						--AND bm.statusID IN (0,102)
 						AND m.modds IS NOT NULL
 						AND mt.TransId IS NULL
@@ -272,6 +276,7 @@ BEGIN
 								AND mt.MatchId = @MatchID
 				) mt
 			WHERE	bm.matchid = @MatchID
+					AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 					AND bm.statusID NOT IN (101)
 					AND 1 = CASE 
 								WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
@@ -304,6 +309,7 @@ BEGIN
 						AND mt.MatchId = @MatchID
 			) mt
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 				AND bm.statusID NOT IN (101)
 				AND 1 = CASE WHEN bm.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
 							 WHEN bm.statusID NOT IN (0, 1) THEN 1
@@ -325,6 +331,7 @@ BEGIN
 						AND t.IsSDT = 0
 			)sr
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 				AND bm.statusID NOT IN (101,103)
 		
 		SET @totalSubParlay = @@ROWCOUNT
@@ -347,6 +354,7 @@ BEGIN
 	  				) sr
 	  				CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, bm.betteam, bm.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL, sr.HomeRound, sr.AwayRound) m
 	  			WHERE	bm.matchid = @MatchId
+						AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 	  					AND bm.statusID NOT IN (101)
 
 				SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
@@ -369,6 +377,7 @@ BEGIN
 					)sr
 					CROSS APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @fth, @fta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, @IsABANDONEDHT) m
 				WHERE	bm.matchid = @MatchID
+						AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
 						AND bm.statusID NOT IN (101)
 		
 				SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT

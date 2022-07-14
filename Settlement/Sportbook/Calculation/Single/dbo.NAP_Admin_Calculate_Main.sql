@@ -157,6 +157,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220309@Kathy: Remove code old Cashout model [Redmine:#169643]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
         @action             @mode
@@ -178,7 +179,7 @@ BEGIN
 		,@IsSkipValidation		BIT
 		,@ServerAlias			VARCHAR(50)
 		,@TotalQueue			INT = 0
-
+		
 	SET @IsSkipValidation = CASE WHEN @action = 'MoveTicket' THEN 1 ELSE 0 END 
 
     SET @isUndo = CASE
@@ -352,29 +353,33 @@ BEGIN
 					,@matchid = @matchid
 					,@ServerAlias = @ServerAlias
 					,@SettlementProcessingId = @SettlementProcessingId
-					,@ActionId = @ActionId
+					,@ActionId = @ActionId					
 					,@ErrMessage = @ErrMessage OUTPUT 
 			END
 			ELSE
 			BEGIN
 				IF @action LIKE 'CAL%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_TransID
-						  @transIds   		= @strTransIds
+						  @transIds   		= @strTransIds						  
+						  ,@matchid			= @matchid
 
 				IF @action LIKE 'REFUND%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_Refund_TransID
-						   @transIds   		= @strTransIds
+						   @transIds   		= @strTransIds						 
+						   ,@matchid			= @matchid
 	                  
 				IF @action LIKE 'UNDO%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_Undo_TransID
-						   @transIds   		= @strTransIds
+						   @transIds   		= @strTransIds						  
+						   ,@matchid			= @matchid
 				
 				IF @sporttype = 2
 				BEGIN
 					IF  @CashoutVersion =  2
 						EXEC dbo.ExecRep_NAP_Admin_03
 							@transIds = @strTransIds
-							,@mode = @mode
+							,@mode = @mode							
+							,@matchid = @matchid
 				END
 			END
 	        RETURN
@@ -386,7 +391,7 @@ BEGIN
 				,@Mode = @Mode 
 				,@strTransIds = @strTransIds
 				,@EventDate = @EventDate
-
+				
 			RETURN
 		END
 		

@@ -1,6 +1,7 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
 	@transIds			VARCHAR(MAX)
+	,@MatchId			INT = 0
 
 AS
 /*
@@ -14,6 +15,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 			@transIds = '<root>
@@ -44,8 +46,18 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT)
-	DECLARE @handle INT,@IsUpd_Void BIT = 0
-	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+		,odds SMALLMONEY, statuswinlost TINYINT
+		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, RepUpdateTime DATETIME2
+
+		,bef_winlost MONEY
+		,bef_statusid TINYINT
+	)
+	DECLARE @handle			INT
+			,@IsUpd_Void	BIT = 0
+			,@transinfo		XML	
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
@@ -57,38 +69,83 @@ BEGIN
 	SET @RepUpdateTime = SYSDATETIME()
 
 	UPDATE	b
-	SET 
-		@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
-		,ruben = CASE 
-					WHEN @IsUpd_Void = 0 THEN ruben 
-					ELSE 0
-				END
+		SET 
+			@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
+			,ruben = CASE 
+						WHEN @IsUpd_Void = 0 THEN ruben 
+						ELSE 0
+					END
 						 
-		,STATUS = CASE 
-					WHEN @IsUpd_Void = 0 THEN b.[status] 
-					ELSE 'running'
-				END
+			,STATUS = CASE 
+						WHEN @IsUpd_Void = 0 THEN b.[status] 
+						ELSE 'running'
+					END
 						
-		,statusID = CASE 
-						WHEN @IsUpd_Void = 0 THEN statusID 
-						ELSE 0
-					END
-		,winlost = CASE 
-						WHEN @IsUpd_Void = 0 THEN winlost 
-						ELSE 0
-					END
-		,awinlost = 0
-		,mwinlost = 0
-		,swinlost = 0
-		,playercomm = 0
-		,comm = 0
-		,acomm = 0
-		,scomm = 0
-		,statuswinlost = NULL
-		,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
-		,RepUpdateTime = CASE WHEN b.statusId = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+			,statusID = CASE 
+							WHEN @IsUpd_Void = 0 THEN statusID 
+							ELSE 0
+						END
+			,winlost = CASE 
+							WHEN @IsUpd_Void = 0 THEN winlost 
+							ELSE 0
+						END
+			,awinlost = 0
+			,mwinlost = 0
+			,swinlost = 0
+			,playercomm = 0
+			,comm = 0
+			,acomm = 0
+			,scomm = 0
+			,statuswinlost = NULL
+			,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
+			,RepUpdateTime = CASE WHEN b.statusId = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+		OUTPUT	inserted.transid
+			,inserted.odds, inserted.statuswinlost
+			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+			,inserted.Status,inserted.StatusID,inserted.ruben
+			,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+	
+			,deleted.winlost
+			,deleted.statusid		
+		INTO @tmpTransInfo (
+			transId
+			,odds, statuswinlost,WinLost,aWinLost
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben, RepUpdateTime
+
+			,bef_winlost, bef_statusid
+		)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 		
+	IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+	BEGIN
+		SET @transInfo = (
+			SELECT	transId AS '@t'	
+					,odds AS '@o' 
+					,statuswinlost AS '@statuswl' 					
+					,WinLost AS '@w' 
+					,aWinLost AS '@aw' 
+					,mWinLost AS '@mw' 
+					,sWinLost AS '@sw' 
+					,PlayerComm AS '@pc' 
+					,Comm AS '@c' 
+					,aComm AS '@ac' 
+					,sComm AS '@sc' 
+					,Status AS '@s' 
+					,StatusID AS '@sid' 
+					,ruben AS '@r' 
+					,RepUpdateTime AS '@rut' 
+
+					,bef_winlost AS '@bef_w' 
+					,bef_statusid AS '@bef_sid' 
+					
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+
+		INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('Settlement', 'UndoOtherSport', 'bettrans', @MatchId, @transInfo)		
+	END
 END
 GO

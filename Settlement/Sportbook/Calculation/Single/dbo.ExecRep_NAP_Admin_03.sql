@@ -1,7 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_03] 
-	@transIds VARCHAR(MAX)
-	,@Mode VARCHAR(20)
+	@transIds	VARCHAR(MAX)
+	,@Mode		VARCHAR(20)
+	,@MatchId	INT = 0
 AS
 /*
 	Created: 20211130@Kathy.Nguyen	
@@ -11,6 +12,7 @@ AS
 	Revisions:
 		- 20211130@Kathy: New cashout model [Redmine:#164838]			
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:  
 		   
@@ -56,8 +58,18 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@commWinRate		SMALLMONEY
 			,@commLostRate		SMALLMONEY
-		
+			,@transinfo		XML	
+
 	DECLARE @tempTrans TABLE (TransID BIGINT, statuswinlost TINYINT, winlost MONEY)
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+		,statuswinlost TINYINT
+		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+		,Status NVARCHAR(10),StatusID TINYINT, RepUpdateTime DATETIME2
+
+		,bef_winlost MONEY
+		,bef_statusid TINYINT
+	)
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
@@ -157,8 +169,53 @@ BEGIN
 								ELSE CASE WHEN b.winlost <> t.Winlost OR b.statusID <> @StatusId THEN @settlementTime ELSE SettlementTime END
 								END	
 			,RepUpdateTime = CASE WHEN @statusId = 103 AND b.statusID <> 103 THEN SYSDATETIME() ELSE RepUpdateTime END
+		OUTPUT	inserted.transid
+			,inserted.statuswinlost
+			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+			,inserted.Status,inserted.StatusID
+			,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+	
+			,deleted.winlost
+			,deleted.statusid		
+		INTO @tmpTransInfo (
+			transId
+			,statuswinlost,WinLost,aWinLost
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID, RepUpdateTime
+
+			,bef_winlost, bef_statusid
+		)
 	FROM	dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @tempTrans t
 			ON b.transid = t.TransId
+
+	IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL
+	BEGIN
+		SET @transInfo = (
+			SELECT	transId AS '@t'	
+					,statuswinlost AS '@statuswl' 					
+					,WinLost AS '@w' 
+					,aWinLost AS '@aw' 
+					,mWinLost AS '@mw' 
+					,sWinLost AS '@sw' 
+					,PlayerComm AS '@pc' 
+					,Comm AS '@c' 
+					,aComm AS '@ac' 
+					,sComm AS '@sc' 
+					,Status AS '@s' 
+					,StatusID AS '@sid' 
+					,RepUpdateTime AS '@rut' 
+
+					,bef_winlost AS '@bef_w' 
+					,bef_statusid AS '@bef_sid' 
+					
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+
+		INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('Settlement', 'CalculateCashout', 'bettrans', @MatchId, @transInfo)	
+		
+	END
 END
 GO

@@ -21,6 +21,7 @@ AS
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 
 	Param's Explanation:  
@@ -71,9 +72,20 @@ BEGIN
 			,@CheckNegativeBalance INT = 0
 			,@StepDone			VARCHAR(300) = 'Done update'
 			,@RepUpdateTime		DATETIME2
+			
+			,@transInfo		XML
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
-	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT)
+	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT
+			,transId BIGINT
+			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2
+
+			,bef_winlost MONEY
+			,bef_statusid TINYINT
+	)
 
 	SET @xml = CAST(@transIds AS XML)
 
@@ -341,7 +353,26 @@ BEGIN
 					,inserted.WalletType
 					,inserted.BonusID
 					,inserted.matchId
-			INTO @tmpBalanceChanged (CustId, Balance, WalletType, BonusId, MatchId)
+
+					,inserted.transid
+					,inserted.modds, inserted.odds, inserted.oddsspread, inserted.statuswinlost
+					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+					,inserted.Status,inserted.StatusID,inserted.ruben
+					,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+
+					,deleted.winlost
+					,deleted.statusid		
+			INTO @tmpBalanceChanged (
+				CustId, Balance, WalletType, BonusId, MatchId
+				
+				,transId
+				,modds, odds, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,RepUpdateTime
+
+				,bef_winlost, bef_statusid
+			)
 			FROM @tmpTransId t
 				INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 					ON  t.transid = b.transid 
@@ -349,6 +380,38 @@ BEGIN
 			OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 		
 			SET @StepDone = @StepDone + ' bettrans'
+
+			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'
+							,odds AS '@o'
+							,oddsspread AS '@os' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,statuswinlost AS '@statuswl' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r' 
+							,RepUpdateTime AS '@rut' 
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					
+					FROM	@tmpBalanceChanged
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @MatchId, @transInfo)	
+			END
 
 			SELECT TOP 1 @matchid = MatchId
 			FROM	@tmpBalanceChanged
@@ -480,6 +543,7 @@ BEGIN
 			DELETE 
 			FROM	dbo.SettlementProcessing 
 			WHERE	id = @SettlementProcessingId
+					
 		END TRY
 		BEGIN CATCH
 			SET @ErrMessage = @StepDone + 'Error: ' + ERROR_MESSAGE()
@@ -487,7 +551,6 @@ BEGIN
 			UPDATE	dbo.SettlementProcessing
 				SET StatusId = 3 -- failed
 			WHERE	Id = @SettlementProcessingId
-
 		END CATCH
 
 		RETURN

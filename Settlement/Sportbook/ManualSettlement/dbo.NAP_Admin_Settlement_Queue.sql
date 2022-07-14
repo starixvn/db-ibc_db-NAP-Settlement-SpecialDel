@@ -185,6 +185,7 @@ BEGIN
 						,CAST(b.betid AS VARCHAR(50)) -- betcheck/betid
 						, 0) m
 			WHERE	b.matchid = @matchid
+					AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
 					AND m.modds IS NOT NULL
 					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
 							OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
@@ -218,6 +219,7 @@ BEGIN
 						,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
 				FROM	dbo.bettrans b WITH (NOLOCK)		
 				  WHERE	b.matchid = @MatchId
+						AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
 	  					AND b.statusID IN (0,102)	
 						AND ISNULL(b.betdaqid,0) <> -2
 						AND b.custid BETWEEN @MinCustId AND @MaxCusId			
@@ -266,6 +268,7 @@ BEGIN
 						,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
 				FROM	dbo.bettrans b WITH (NOLOCK)		
 				WHERE	b.matchid = @MatchId
+					AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
 	  				AND b.statusID NOT IN (101)
 					AND ISNULL(b.betdaqid,0) <> -2
 					AND b.custid BETWEEN @MinCustId AND @MaxCusId
