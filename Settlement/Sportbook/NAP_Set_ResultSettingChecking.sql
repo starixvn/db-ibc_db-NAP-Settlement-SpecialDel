@@ -21,7 +21,8 @@ AS
 		- 20211127@Helen: Settlement - The Volleyball match cannot key refund. [Redmine:#165296]
 		- 20220406@Louisa: Cannnot Refund child match Cricket ( childMatchType = 200) [Redmine:#171188]
 		- 20220512@Louisa: Auto Refund for Badminton [Redmine:#171676]
-
+		- 20220629@Louisa: Change rule confirm Refund: confirm [Redmineid:#173862]
+		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -63,7 +64,7 @@ BEGIN
 	SELECT DISTINCT Id	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
 	EXEC sp_xml_removedocument @handle
 
-	IF @Sporttype IN (6,45)
+	IF @Sporttype = 45
 	BEGIN
 		DELETE @tmpResourceID WHERE ResourceID <> '00'
 	END

@@ -22,52 +22,68 @@ BEGIN
 
 	DECLARE @SportType SMALLINT
 			,@LeagueId INT
-
+			,@ExternalResultTable TINYINT
 
 	SELECT @LeagueId = m.LeagueId 
-		, @SportType = m.sporttype
-	FROM dbo.Match m WITH(NOLOCK) 
+		 ,@SportType = m.sporttype
+	FROM dbo.Match m WITH(NOLOCK)
 	WHERE m.MatchId = @MatchId
 
-	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT,ResourceId	varchar(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50)	)
+	SELECT @ExternalResultTable  = s.ExternalResultTable
+	FROM dbo.SettlementResultTableSetting s WITH(NOLOCK)
+	WHERE s.Sporttype = @SportType
+
+	DECLARE @tmpLatestResult AS TABLE ( SourceId SMALLINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50)	)
 	DECLARE @tmpProviderExternalResult AS TABLE (SourceId SMALLINT,SourceName VARCHAR(50) ,Remark NVARCHAR(1000), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), OrderNo INT)
 	DECLARE @tmpSourceId AS TABLE ( SourceId SMALLINT,SourceName VARCHAR(50), Remark NVARCHAR(1000) , OrderNo INT )
 
-	;WITH cteLatestId
-	AS(
-		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
-				,p.SourceId
-				,p.ResourceId
-				,p.ProviderExternalId
-				,p.HomeValue
-				,p.AwayValue
-		FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
-		WHERE	@SportType <> 2
-			AND p.MatchId = @MatchId
+	IF @ExternalResultTable = 1
+	BEGIN
+		;WITH cteLatest (rn, SourceId, ResourceId, HomeValue, AwayValue) AS
+		(
+			SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+					,p.SourceId
+					,p.ResourceId
+					,p.HomeValue
+					,p.AwayValue
+			FROM	dbo.ProviderExternalResultDetail p WITH(NOLOCK)
+			WHERE	p.MatchId = @MatchId
+		)
+		INSERT INTO @tmpLatestResult (SourceId, ResourceId, HomeValue, AwayValue)
+		SELECT l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
+		FROM cteLatest l	
+			LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
+				ON l.ResourceId = fsmr.ResourceId
+		WHERE rn = 1
+			AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
+					   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
+					   ELSE 0
+					   END
+	END
 
-		UNION ALL
-		SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
-				,p.SourceId
-				,p.ResourceId
-				,p.ProviderExternalId
-				,p.HomeValue
-				,p.AwayValue
-		FROM	dbo.ProviderExternalResultDetail p WITH(NOLOCK)
-		WHERE	@SportType = 2
-			AND p.MatchId = @MatchId	
-	)
-
-	INSERT INTO @tmpLatestResult (SourceId,ResourceId, HomeValue, AwayValue)
-	SELECT l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
-	FROM cteLatestId l	
-		LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
-			ON l.ResourceId = fsmr.ResourceId
-	WHERE rn = 1
-		AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
-				   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
-				   ELSE 0
-				   END
-
+	IF @ExternalResultTable = 2
+	BEGIN
+		;WITH cteLatestOS (rn, SourceId, ResourceId, HomeValue, AwayValue) AS
+		(
+			SELECT	ROW_NUMBER() OVER (PARTITION BY p.SourceId, p.ResourceId ORDER BY p.CreateDate DESC) AS rn
+					,p.SourceId
+					,p.ResourceId
+					,p.HomeValue
+					,p.AwayValue
+			FROM	dbo.ProviderExternalResultDetailOS p WITH(NOLOCK)
+			WHERE	p.MatchId = @MatchId
+		)
+		INSERT INTO @tmpLatestResult (SourceId, ResourceId, HomeValue, AwayValue)
+		SELECT l.SourceId ,l.ResourceId, l.HomeValue, l.AwayValue
+		FROM cteLatestOS l	
+			LEFT JOIN dbo.f_Set_MajorRound(@SportType) fsmr
+				ON l.ResourceId = fsmr.ResourceId
+		WHERE rn = 1
+			AND 1 = CASE WHEN @SettleType = 'MNL' AND fsmr.ResourceId IS NOT NULL THEN 1
+					   WHEN @SettleType ='EAR' AND  fsmr.ResourceId IS  NULL THEN  1
+					   ELSE 0
+					   END
+	END
 	
 	INSERT INTO @tmpSourceId (SourceId,SourceName, Remark, OrderNo)
 	SELECT  pgm.SourceId, pi.SourceName, pi.Remark,  ISNULL(plmo.OrderNo, pgm.OrderNo) AS OrderNo
@@ -105,8 +121,7 @@ BEGIN
 			ON s.SourceId = l.SourceId
 	WHERE	( l.SourceId < 1001 AND s.SourceId IS NOT NULL )
 		OR s.SourceId >= 1001
-					 
-				
+					 			
 	SELECT	t.SourceId
 			,CASE WHEN @SportType = 5 AND t.SourceId = 1001 THEN 'Info Site' ELSE t.SourceName END AS SourceName
 			,t.Remark
@@ -115,8 +130,6 @@ BEGIN
 			,t.AwayValue
 			,t.OrderNo
 	FROM	@tmpProviderExternalResult t
-
-
 
 END
 GO

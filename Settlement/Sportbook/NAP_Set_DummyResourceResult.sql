@@ -24,6 +24,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220629@Louisa: Volleyball AIO ( 27 bettype ) [Redmineid:#173862]
 */
 
 BEGIN
@@ -81,6 +82,7 @@ BEGIN
 			,@string VARCHAR(50)
 			,@ResourceId VARCHAR(20) 
 			,@DeterminedType TINYINT
+			,@MaxValue INT
 
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
@@ -301,7 +303,6 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '643')
 		BEGIN
-			DECLARE @MaxValue INT
 			SELECT	@MaxValue = MAX(CAST(HomeValue AS INT) + CAST(AwayValue AS INT))
 			FROM	@tmpResultDetail
 			WHERE	ResourceId LIKE 'Q[1-4]'
@@ -1472,7 +1473,7 @@ BEGIN
 		END
 	END
 
-	ELSE IF @Sporttype IN ( 6, 45 )
+	ELSE IF @Sporttype IN ( 6, 9, 45 )
 	BEGIN
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
 		SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID
@@ -1481,6 +1482,19 @@ BEGIN
 		WHERE	MatchId = @MatchId
 			AND ResultStatusID  IN ( 2, 5 )
 		
+		--Highest Scoring Set Total
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '3902')
+		BEGIN
+			SET @MaxValue = 0
+
+			SELECT	@MaxValue = MAX(CAST(HomeValue AS INT) + CAST(AwayValue AS INT))
+			FROM	@tmpResultDetail
+			WHERE	ResourceId LIKE '010[1-5]'
+
+			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+			SELECT '3902', @MaxValue, 0, 0
+		END
+
 		IF NOT EXISTS ( SELECT TOP 1 1 FROM @tmpResultDetail)
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
 		SELECT	'00', '', '', 0
@@ -1491,10 +1505,10 @@ BEGIN
 				,@TotalAwayScore = SUM(CASE WHEN ResourceId <> '00' THEN CAST(AwayValue AS INT) ELSE 0 END)
 		FROM	@tmpResultDetail r
 
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '0100')
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '0100' OR ResourceId = '70400' )
 		BEGIN
 			INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	'0100'
+			SELECT	CASE WHEN @Sporttype = 9 THEN '70400' ELSE '0100' END
 					,CAST(CASE @TotalHomeScore WHEN 0 THEN @FTHome ELSE @TotalHomeScore END AS VARCHAR(50))
 					,CAST(CASE @TotalAwayScore WHEN 0 THEN @FTAway ELSE @TotalAwayScore END AS VARCHAR(50))
 					,MIN(ssId)

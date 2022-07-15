@@ -28,7 +28,7 @@ AS
 		- 20210514@Louisa: Use OPENQUERY to get remote data [Redmine:#154737]
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
-		
+		- 20220629@Louisa: Use RefResourceId for Badminton-bettype 704 instead of hard code [Redmineid:#173862]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -49,8 +49,8 @@ BEGIN
 		, BetRefundedCount INT
 		, BetMarkedCount INT
 		, OrdNo INT
-		, IsSpecialBettype TINYINT
-	) --Add new column IsSpecialBettype to check if there is at least 1 ticket bet on 704/705/706
+		, IsSpecialBettype TINYINT --- if exist bettype on total point and not allow Input Total Directly on UI then IsSpecialBettype = 1
+	) 
 
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InWaiting INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype BIT)
     DECLARE @tblResult TABLE(ResourceID VARCHAR(20), BetCount INT, InRunning INT, TicketStatus VARCHAR(20), OrdNo SMALLINT)
@@ -166,10 +166,9 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InWaiting, InRunning, BetSettledCount, BetRefundedCount, BetMarkedCount, OrdNo, IsSpecialBettype)
 		SELECT  CASE 
-					WHEN sp.ResourceID = '70400' THEN '00'
 					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
-				END AS ResourceID, --Convert ResourceID 70400 (using for bettype 704,705,706) to 00
+				END AS ResourceID,
 				COUNT(1) AS BetCount,
 				SUM(CASE WHEN bt.StatusID = 1 THEN 1 ELSE 0 END) As InWaiting,
 				SUM(CASE WHEN bt.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) As InRunning,
@@ -177,7 +176,11 @@ BEGIN
 				SUM(CASE WHEN bt.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount,
 				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
 				MAX(sp.OrdNo),
-				MAX(CASE WHEN SP.ResourceID  = '70400' OR bt.bettype = 153 THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
+				MAX(CASE WHEN bt.bettype = 153 THEN 1 
+						 WHEN sp.ResourceID  = '70400' THEN 1
+						 WHEN sp.ResourceID = '0100' AND bt.bettype NOT IN ( 2,3 ) THEN 1
+						ELSE 0 END
+					) AS IsSpecialBettype
 		FROM bettrans bt WITH (NOLOCK)
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -188,7 +191,6 @@ BEGIN
 			AND sp.sporttype = @SportType
 			AND (sp.Settletype = @SettleType)	
 		GROUP BY CASE 
-					WHEN sp.ResourceID = '70400' THEN '00' 
 					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
 				END 
@@ -268,7 +270,6 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpTicketStatusParlay(ResourceID, BetCount, InWaiting, InRunning, BetSettledCount, BetRefundedCount, OrdNo, BetMarkedCount, IsSpecialBettype)
 		SELECT CASE 
-						WHEN sp.ResourceID = '70400' THEN '00'  
 					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
 				END     
@@ -279,7 +280,11 @@ BEGIN
 				,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
 				,MAX(sp.OrdNo)
 				,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
-				,MAX(CASE WHEN sp.ResourceID  = '70400' OR bm.bettype = 153 THEN 1 ELSE 0 END) AS IsSpecialBettype -- 1 = there is at least 1 ticket bet on 704/705/706
+				,MAX(CASE WHEN bm.bettype = 153 THEN 1 
+						 WHEN sp.ResourceID  = '70400' THEN 1
+						 WHEN sp.ResourceID = '0100' AND bm.bettype NOT IN ( 2,3 ) THEN 1
+						ELSE 0 END
+					) AS IsSpecialBettype
 		FROM    dbo.Bettransm bm WITH (NOLOCK)
 			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
@@ -295,7 +300,6 @@ BEGIN
 				AND sp.sporttype = @sporttype
 				AND sp.Settletype = @Settletype
 		GROUP BY CASE 
-						WHEN sp.ResourceID = '70400' THEN '00' 
 					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
 				END
