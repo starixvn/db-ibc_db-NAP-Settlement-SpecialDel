@@ -176,11 +176,7 @@ BEGIN
 				SUM(CASE WHEN bt.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount,
 				SUM(CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount,
 				MAX(sp.OrdNo),
-				MAX(CASE WHEN bt.bettype = 153 THEN 1 
-						 WHEN sp.ResourceID  = '70400' THEN 1
-						 WHEN sp.ResourceID = '0100' AND bt.bettype NOT IN ( 2,3 ) THEN 1
-						ELSE 0 END
-					) AS IsSpecialBettype
+				MAX(ISNULL(sp.SpecialType,0) & 1 ) AS IsSpecialBettype
 		FROM bettrans bt WITH (NOLOCK)
 			INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bt.Bettype
 			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
@@ -280,11 +276,7 @@ BEGIN
 				,SUM(CASE WHEN bm.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount
 				,MAX(sp.OrdNo)
 				,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
-				,MAX(CASE WHEN bm.bettype = 153 THEN 1 
-						 WHEN sp.ResourceID  = '70400' THEN 1
-						 WHEN sp.ResourceID = '0100' AND bm.bettype NOT IN ( 2,3 ) THEN 1
-						ELSE 0 END
-					) AS IsSpecialBettype
+				,MAX(ISNULL(sp.SpecialType,0) & 1) AS IsSpecialBettype
 		FROM    dbo.Bettransm bm WITH (NOLOCK)
 			INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = bm.Bettype
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
@@ -362,7 +354,7 @@ BEGIN
 					WHEN ISNULL(bt.BetSettledCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetSettledCount,0) ELSE 0 END > 0 THEN 'Calculated'
 					WHEN ISNULL(bt.BetRefundedCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetRefundedCount,0) ELSE 0 END > 0 THEN CASE WHEN @SettleType = 'EAR' THEN 'Calculated' ELSE 'Refunded' END
 					END AS TicketStatus 
-	           ,CASE WHEN ISNULL(bt.IsSpecialBettype,0) + ISNULL(p.IsSpecialBettype,0) > 0 THEN 1 ELSE 0 END AS IsSpecialBettype --flag column for Badminton AIO only
+	           ,CASE WHEN ISNULL(bt.IsSpecialBettype,0) + ISNULL(p.IsSpecialBettype,0) > 0 THEN 1 ELSE 0 END AS IsSpecialBettype
 	  	FROM @tmpTicketStatus bt
 	  			FULL JOIN @tmpTicketStatusParlay p ON	bt.resourceId = p.ResourceID
 		  		OUTER  APPLY(
@@ -394,7 +386,7 @@ BEGIN
 					WHEN ISNULL(bt.BetSettledCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetSettledCount,0) ELSE 0 END > 0 THEN 'Calculated'
 					WHEN ISNULL(bt.BetRefundedCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetRefundedCount,0) ELSE 0 END > 0 THEN CASE WHEN @SettleType = 'EAR' THEN 'Calculated' ELSE 'Refunded' END
 					END AS TicketStatus 
-				,CASE WHEN ISNULL(bt.IsSpecialBettype,0) + ISNULL(p.IsSpecialBettype,0) > 0 THEN 1 ELSE 0 END AS IsSpecialBettype --flag column for tennis
+				,CASE WHEN ISNULL(bt.IsSpecialBettype,0) + ISNULL(p.IsSpecialBettype,0) > 0 THEN 1 ELSE 0 END AS IsSpecialBettype
 	  	FROM @tmpTicketStatus bt
 	  			 FULL JOIN @tmpTicketStatusParlay p ON	bt.resourceId = p.ResourceID
 				 OUTER  APPLY(
