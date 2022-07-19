@@ -15,9 +15,8 @@
 USE bodb02
 GO
 
+----1. Add new column [SpecialType]
 BEGIN
-	
-	----1. Add new column [SpecialType]
 	IF NOT EXISTS ( SELECT TOP 1 1
 					FROM sys.columns c 
 						INNER JOIN sys.objects o 
@@ -25,11 +24,12 @@ BEGIN
 					WHERE c.name = 'SpecialType'
 						AND o.name = 'SettlementSpecialBettypeProfile'
 					)
-	BEGIN
-		ALTER TABLE SettlementSpecialBettypeProfile ADD SpecialType TINYINT
-	END
+	ALTER TABLE SettlementSpecialBettypeProfile ADD SpecialType TINYINT
+END
+GO
 
-	----2. Update value for [SpecialType]
+----2. Update value for [SpecialType]
+BEGIN
 	;WITH cte_SpecialType ( SportType, Bettype ) 
 	AS (
 				SELECT CAST( 6 AS TINYINT )  AS SportType	,CAST( 401 AS SMALLINT ) AS bettype
@@ -62,6 +62,5 @@ BEGIN
 	FROM SettlementSpecialBettypeProfile ss
 		INNER JOIN cte_SpecialType cte
 			ON ss.SportType = cte.SportType AND ss.BetType = cte.Bettype
-
 END
 GO
