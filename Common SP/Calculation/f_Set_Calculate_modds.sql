@@ -82,7 +82,6 @@ RETURN
 			WHEN @pfID = 20 THEN --Moneyline
 				CASE WHEN @betteam = 'h' AND fm > 0 THEN 1
 					WHEN @betteam = 'a' AND fm < 0 THEN 1
-					WHEN @betteam = 'd' AND fm = 0 THEN 1
 					WHEN fm = 0 THEN 0
 					ELSE -1 END
 
