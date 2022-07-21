@@ -40,10 +40,11 @@ BEGIN
 	-- END CHECK
 	DECLARE @settlementTime DATETIME
 			,@RepUpdateTime	DATETIME2
-			,@transInfo	XML
+			,@rowcnt		SMALLINT
+			,@transInfo		XML
 			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
-			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,SettlementTime DATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
@@ -70,6 +71,20 @@ BEGIN
 				acomm=0,
 				scomm=0,
 				RepUpdateTime = CASE WHEN statusId = 103 THEN RepUpdateTime ELSE @RepUpdateTime END
+			OUTPUT	inserted.transid
+				,inserted.Status
+				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+				,inserted.StatusID,inserted.ruben		
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+			INTO @tmpTransInfo (
+				transId
+				,Status
+				,SettlementTime
+				,StatusID,ruben
+				,WinLost,aWinLost,mWinLost,sWinLost
+				,PlayerComm,Comm,aComm,sComm
+			)
 			where
 				matchid=@matchid
 				--AND [status] not in (N'Void', N'Reject')
@@ -83,7 +98,33 @@ BEGIN
 				AND bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217)
 				and custid IN (2331, 1077687, 115770, 15523642) 
 	
-			IF @@ROWCOUNT < 10000 BREAK
+			SET @rowcnt  = @@ROWCOUNT
+
+			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'				
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+			END
+
+			IF @rowcnt < 10000 BREAK
 		END
 	END
 END

@@ -451,6 +451,17 @@ BEGIN
 									WHEN @IsUpd_Void = 0 THEN ruben 
 									ELSE 1   
 								END
+				OUTPUT	inserted.transid
+						,inserted.modds, inserted.statuswinlost
+						,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+						,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+						,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+						,inserted.Status,inserted.StatusID,inserted.ruben		
+					INTO @tmpTransInfo (
+						transId
+						,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+						,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+					)
 				FROM	@tmpBatch c
 					INNER JOIN dbo.bettrans b
 						ON	c.BatchNo = @BatchNo
@@ -478,7 +489,32 @@ BEGIN
 									 ELSE 0
 								END
 						
-					
+				IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+				BEGIN
+					SET @transInfo = (
+						SELECT	transId AS '@t'
+								,modds AS '@m'				
+								,statuswinlost AS '@statuswl' 
+								,SettlementTime AS '@st' 
+								,WinLost AS '@w' 
+								,aWinLost AS '@aw' 
+								,mWinLost AS '@mw' 
+								,sWinLost AS '@sw' 
+								,PlayerComm AS '@pc' 
+								,Comm AS '@c' 
+								,aComm AS '@ac' 
+								,sComm AS '@sc' 
+								,Status AS '@s' 
+								,StatusID AS '@sid' 
+								,ruben AS '@r'				
+						FROM	@tmpTransInfo
+						FOR XML PATH('r'),ROOT('root'), TYPE
+					)
+
+					INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+					VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+				END
+
 				SET @BatchNo = @BatchNo - 1
 
 				WAITFOR DELAY '00:00:00:010'
@@ -870,8 +906,17 @@ BEGIN
 								WHEN @IsUpd_Void = 0 THEN ruben 
 								ELSE CASE WHEN @modds IS NULL THEN ruben ELSE 1 END
 							END
-							
-			--FROM	dbo.bettrans b
+			OUTPUT	inserted.transid
+					,inserted.modds, inserted.statuswinlost
+					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+					,inserted.Status,inserted.StatusID,inserted.ruben		
+				INTO @tmpTransInfo (
+					transId
+					,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				)
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b
 					ON	c.BatchNo = @BatchNo
@@ -894,6 +939,32 @@ BEGIN
 								WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
 								ELSE 0
 							END
+			
+			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'				
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'				
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+			END	
 
 				SET @BatchNo = @BatchNo - 1
 
@@ -1790,8 +1861,17 @@ BEGIN
 								WHEN @IsUpd_Void = 0 THEN ruben 
 								ELSE CASE WHEN @modds IS NOT NULL THEN 1 ELSE ruben END
 							END
-							
-			
+			OUTPUT	inserted.transid
+					,inserted.modds, inserted.statuswinlost
+					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+					,inserted.Status,inserted.StatusID,inserted.ruben		
+				INTO @tmpTransInfo (
+					transId
+					,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				)
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b
 					ON	c.BatchNo = @BatchNo
@@ -1826,7 +1906,33 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END 
-				
+			
+			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'				
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'				
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+			END
+			
 			SET @BatchNo = @BatchNo - 1
 
 			WAITFOR DELAY '00:00:00:010'
