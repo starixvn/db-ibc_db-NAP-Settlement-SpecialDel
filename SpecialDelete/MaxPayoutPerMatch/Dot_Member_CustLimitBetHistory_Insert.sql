@@ -6,11 +6,10 @@ CREATE PROCEDURE [dbo].[Dot_Member_CustLimitBetHistory_Insert]
 	,@custid		INT
 	,@sitetype		TINYINT
 	,@bettype		SMALLINT
-	,@Transid		BIGINT = 0
+	,@Transid		BIGINT
 	,@payout		MONEY
 	,@turnover		MONEY
 	,@EventTypeID	TINYINT = NULL
-	,@BRID			BIGINT = 0
 )
 AS
 /*	
@@ -49,39 +48,36 @@ BEGIN
 	IF @sitetype = 1 --MBC
 	BEGIN
 		--CustLimitBetHisoty
-		INSERT INTO dbo.CustLimitBetHistory_MBC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, BRID)
+		INSERT INTO dbo.CustLimitBetHistory_MBC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
 		SELECT @custid AS CustId
 			, @MatchId AS MatchId
-			, ISNULL(@Transid, 0) AS TransId
+			, @Transid AS TransId
 			, @turnover  AS TurnoverAdjust
 			, @payout AS PayoutAdjust
-			, @EventTypeID AS EventTypeID
-			, ISNULL(@BRID, 0) AS TransId 
+			, @EventTypeID AS EventTypeID 
 		
 	END
 	ELSE IF @sitetype = 2 --789y
 	BEGIN
 		--CustLimitBetHisoty
-		INSERT INTO dbo.CustLimitBetHistory_789 (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, BRID)
+		INSERT INTO dbo.CustLimitBetHistory_789 (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
 		SELECT @custid AS CustId
 			, @MatchId AS MatchId
-			, ISNULL(@Transid, 0) AS TransId
+			, @Transid AS TransId
 			, @turnover  AS TurnoverAdjust
 			, @payout AS PayoutAdjust
 			, @EventTypeID AS EventTypeID
-			, ISNULL(@BRID, 0) AS TransId
 	END
 	ELSE IF @sitetype = 3  --licensee
 	BEGIN
 		--CustLimitBetHisoty
-		INSERT INTO dbo.CustLimitBetHistory_LIC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, BRID)
+		INSERT INTO dbo.CustLimitBetHistory_LIC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
 		SELECT @custid AS CustId
 			, @MatchId AS MatchId
-			, ISNULL(@Transid, 0) AS TransId
+			, @Transid AS TransId
 			, @turnover  AS TurnoverAdjust
 			, @payout AS PayoutAdjust
 			, @EventTypeID AS EventTypeID
-			, ISNULL(@BRID, 0) AS TransId
 	END
 END
 GO
