@@ -42,7 +42,7 @@ AS
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20190626@Sol: Incorporate PHAIO 4b - 27 Corners Bet Types [Redmine:#115232]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
-
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
     SET NOCOUNT ON
@@ -84,6 +84,7 @@ BEGIN
 		,@totalFTScore	TINYINT
 		,@ResultPlus NVARCHAR(10)
 		,@IsUpd_Void BIT = 0
+		,@transInfo	XML
 		
     SELECT @fth2H = @fth - @hth
         ,@fta2H	= @fta - @hta
@@ -101,7 +102,13 @@ BEGIN
 		,@TransIdOfMinCust		BIGINT
 		,@TransIdOfMaxCust		BIGINT
 		
-
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)
+		
 	DECLARE @tmpBatch AS TABLE (
 		BatchNo					INT
 		,CustId					INT

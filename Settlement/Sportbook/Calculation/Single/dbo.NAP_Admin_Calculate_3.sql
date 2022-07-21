@@ -59,6 +59,7 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -72,6 +73,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@transInfo	XML
 
 	SET @ServerName = @@SERVERNAME
 
@@ -97,7 +99,14 @@ BEGIN
 		,@commBettypeGroupId SMALLINT
 		,@statusId TINYINT
 		,@IsUpd_Void BIT = 0
-		
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)
+
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
 
 	IF @IsReSettledTickets = 0
@@ -362,7 +371,17 @@ BEGIN
 										  ELSE 1
 									 END
 							END
-							
+			OUTPUT	inserted.transid
+				,inserted.modds, inserted.statuswinlost
+				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben		
+			INTO @tmpTransInfo (
+				transId
+				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+			)				
 			FROM #currList t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.custid = b.custid
 			WHERE matchid = @matchid AND bettype = @bettype 
@@ -376,6 +395,32 @@ BEGIN
 					END 
 				AND hdp1 <= @comparedValue
 				AND ISNULL(b.betdaqid,0) <> -2
+
+			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'				
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'				
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+			END	
 		END 
 		
     END-- END settle determined ticket
@@ -675,7 +720,17 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN ruben 
 							ELSE 1
 						END
-							
+			OUTPUT	inserted.transid
+				,inserted.modds, inserted.statuswinlost
+				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben		
+			INTO @tmpTransInfo (
+				transId
+				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+			)				
 			FROM	#currList t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
 					ON	t.custid = b.custid
@@ -701,6 +756,32 @@ BEGIN
 								 ELSE 0
 							END 
 			OPTION (FORCE ORDER)
+
+			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'				
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'				
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+			END	
 
 			WAITFOR DELAY '00:00:00:010'
 

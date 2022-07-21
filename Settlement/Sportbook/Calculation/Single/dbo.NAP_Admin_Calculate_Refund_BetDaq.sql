@@ -16,7 +16,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
-
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -39,7 +39,15 @@ BEGIN
 	-- END CHECK
 	DECLARE @settlementTime DATETIME
 			,@RepUpdateTime	DATETIME2
-
+			,@transInfo	XML
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)
+		
 	BEGIN
 		WHILE 1=1
 		BEGIN

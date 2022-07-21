@@ -13,6 +13,8 @@ AS
 		
 		Revisions:
 			- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+			- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+			
 			
 		Parameter's Explanation:
 			@Action: CAL, CAL-FT, REFUND-FT, REFUND, UNDO
@@ -22,6 +24,15 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @transInfo	XML
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)
+		
 	IF @Action IN ('CAL', 'CAL-FT', 'VOID')
 	BEGIN
 		--for case void & recover

@@ -18,6 +18,7 @@ AS
 		- 20190603@Sol: Incorporate PHAIO 4 [Redmine:#112885]
 		- 20191003@Sol: Support live score with bettype 468 [Redmine:#121337]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 */
@@ -26,7 +27,8 @@ BEGIN
 
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-
+			,@transInfo	XML
+			
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -61,6 +63,13 @@ BEGIN
 		,@posComma				INT
 		,@settlementTime		DATETIME
 		,@IsUpd_Void BIT = 0
+		
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)
 		
 	DECLARE @tmpBatch AS TABLE (
 		BatchNo					INT

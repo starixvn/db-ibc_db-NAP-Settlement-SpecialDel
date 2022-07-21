@@ -17,6 +17,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Void - Recover tickets in Bet 14 [Redmine:115377]
 		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Parameter's Explanation:
 								
@@ -39,6 +40,9 @@ BEGIN
 		IF @AllowCalculation = 0
 			RETURN
 	END
+	
+	IF @betcount = 0
+	RETURN
 	-- END CHECK
 		
 	DECLARE @modds			MONEY
@@ -46,9 +50,15 @@ BEGIN
 			,@statusId TINYINT
 			,@winlost MONEY
 			,@IsUpd_Void BIT = 0
+			,@transInfo	XML
 	
-	IF @betcount = 0
-		RETURN
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)	
+		
 	DECLARE @settlementTime DATETIME
 	SET @settlementTime = GETDATE();
 

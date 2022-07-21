@@ -47,6 +47,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
     Param's Explanation:
         @IsRefundHT: Indicate whether or not match has been refunded HT
@@ -84,7 +85,14 @@ BEGIN
 			,@TransIdOfMaxCust		BIGINT		
 			,@IsUpd_Void			BIT = 0
 			,@RepUpdateTime			DATETIME2
-			
+			,@transInfo	XML
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)
+		
 	DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT)
 
 	DECLARE @tmpBatch AS TABLE (

@@ -30,6 +30,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20190408@Sol: Settlement Time [Redmine:#99638]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN 
 	SET NOCOUNT ON
@@ -37,6 +38,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@transInfo	XML
 
 	SET @ServerName = @@SERVERNAME
 
@@ -73,7 +75,14 @@ BEGIN
     
     SET @bettype_22 = '22'
     SET @bettype_160 = '160'	
-
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+		)
+		
 	DECLARE @tmpBatch AS TABLE (
 		BatchNo					INT
 		,CustId					INT
