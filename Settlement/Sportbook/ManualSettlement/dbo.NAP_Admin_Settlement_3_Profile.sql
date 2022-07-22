@@ -148,6 +148,7 @@ BEGIN
 			,@ThreadHoldRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
+			,@IsCentral = 0
 			
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -219,7 +220,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
-				AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 				AND 1 = CASE 
 							WHEN ISNULL(b.betdaqid,0) = -2 THEN 1
@@ -236,7 +237,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
-				AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID <> 101
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 		GROUP BY b.custid, b.bettype
@@ -407,6 +408,7 @@ BEGIN
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	bettype BETWEEN 486 AND 490
 					AND matchid = @matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND EXISTS (SELECT TOP 1 1 FROM #tmpSelectedRID s WHERE s.BetType = b.bettype) 
 			GROUP BY bettype
 					,CAST(bettype AS VARCHAR) 
@@ -680,7 +682,7 @@ BEGIN
 				,b.livehomescore, b.liveawayscore
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	matchid = @matchid
-				AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strCashoutBettype + ',') > 0
@@ -777,7 +779,7 @@ BEGIN
 	SELECT 	bm.bettype, COUNT(1) AS totalticket
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 	WHERE	bm.matchid = @MatchID
-			AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND bm.statusID NOT IN (101)
 			AND 1 = CASE 
 						WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1

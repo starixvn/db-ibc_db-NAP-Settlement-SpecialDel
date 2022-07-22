@@ -106,7 +106,7 @@ BEGIN
 					WHERE	mt.TransId = b.transId
 				)mt
 	WHERE	b.matchid = @matchid
-			AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+			AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 			AND b.statusID NOT IN (101, 102)
 	GROUP BY b.bettype	
 	
@@ -123,7 +123,7 @@ BEGIN
 				,MAX(CASE WHEN liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 		WHERE	matchid = @matchid
-				AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
+				AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
 				AND statusID NOT IN (101, 102)
 		GROUP BY bm.bettype
 	END
@@ -149,7 +149,7 @@ BEGIN
 				ON	b.transid = mt.TransId
 					AND mt.matchid = bm.matchid
 		WHERE	bm.matchid = @matchid
-				AND bm.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteGroupId END
+				AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
 				AND bm.statusID NOT IN (101, 102)
 		GROUP BY bm.bettype
 	END
@@ -261,9 +261,10 @@ BEGIN
 					AND b.statusID = 0
 		) mt
 	WHERE   m.ParentID = @matchid  
-		AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+		AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 		AND m.ChildMatchType IN ( 201,202,203)
 		AND ISNULL(m.IsDeleted,0) = 0
 		AND @sporttype = 1 AND @LeagueGroupID IN (42,74,108)
+	GROUP BY m.matchid
 END
 GO

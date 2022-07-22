@@ -69,6 +69,7 @@ AS
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
       
  Param explanation:  
@@ -97,6 +98,7 @@ BEGIN
 		,@existSettingEarly BIT = 0		
 		,@matchidList VARCHAR(MAX) = ''
 		,@EventStatusReason TINYINT = 0
+		,@IsCentral	BIT
 	
 	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT, IsMergedParlay BIT DEFAULT(0))
 	CREATE TABLE #tempmatch (matchid INT, IsCalculatingSingle INT, IsCalculatingMP INT)
@@ -106,8 +108,11 @@ BEGIN
 	SELECT @matchcode = ISNULL(@matchcode, '')
 		,@LeagueID = ISNULL(@LeagueID, 0)
 		,@filterBy = ISNULL(@filterBy, 0)
+		,@IsCentral = 0
 
-
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+	
 	SELECT  @isSettingByProfile = 1
 	FROM	dbo.f_Set_SettingByProfile(@sporttype)
 
@@ -458,6 +463,7 @@ BEGIN
 				INNER JOIN #tmpBettypes t
 					ON b.bettype = t.bettype
 			WHERE b.matchid = m.MatchId
+				AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 				AND b.bettype BETWEEN @minbettype AND @maxbettype
 				AND b.statusID NOT IN (101, 102)
 			GROUP BY b.bettype
@@ -507,6 +513,7 @@ BEGIN
 				INNER JOIN	#tmpBettypes t
 					ON	bm.bettype = t.bettype
 			WHERE	bm.matchid = m.MatchId	
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND	t.groupid <> 9
 				AND bm.bettype BETWEEN @minbettype AND @maxbettype		
 				AND bm.statusID NOT IN (101, 102)
@@ -626,11 +633,13 @@ BEGIN
 								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 1 IsParlay
 						FROM	dbo.bettransm bm WITH(NOLOCK)
 						WHERE	bm.refno = b.refno
+								AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 								AND bm.statusid = 0
 								AND b.matchid = 29
 								AND bm.matchid = mt.matchId
@@ -681,6 +690,7 @@ BEGIN
 							INNER JOIN #tmpAllParentChildMatch tmp 
 								ON	b.MatchId = tmp.MatchId
 						WHERE	b.matchid = m.MatchId
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 								AND b.statusID = 0
 								AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 								AND b.bettype <> 38 -- BetBuilder
@@ -702,6 +712,7 @@ BEGIN
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 			INNER JOIN #tmpAllParentChildMatch tmp	ON	bm.matchid = tmp.MatchId
 		WHERE	bm.statusID = 0
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND 1 = CASE 
 							WHEN m.IsExistRunningTicket = 0
 									AND tmp.IsMergedParlay = 1 THEN 1
@@ -823,15 +834,6 @@ BEGIN
 		, m.matchid
 		, m.betstatus
 		, m.matchcode			
-
-	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	FROM #matchList
-	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
-	    
-	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
-		@matchidList = @matchidList
-  
-	DROP TABLE #matchList
 	
 	SET @EndTime = GETDATE()
 	

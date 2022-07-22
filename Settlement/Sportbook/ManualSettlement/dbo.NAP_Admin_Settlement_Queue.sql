@@ -25,6 +25,7 @@ AS
 		- 20211130@Kathy: New cashout model [Redmine:#164838]	
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:  
 		@Params: <Params><Params/>
@@ -41,6 +42,7 @@ BEGIN
 			,@SDTRecord			TINYINT = 0
 			,@IsHedgeMatch		BIT = 0
 			,@DeterminedType	TINYINT = 0
+			,@IsCentral			BIT = 0
 
 	DECLARE @MinRowId INT
 			,@MaxRowId INT
@@ -150,6 +152,7 @@ BEGIN
 			,@IsHedgeMatch = T.C.value('@IsHedgeMatch','bit')
 			,@IsABANDONEDHT = T.C.value('@IsABANDONEDHT','bit') 
 			,@DeterminedType = T.C.value('@DeterminedType','tinyint') 
+			,@IsCentral = T.C.value('@IsCentral','bit') 
 	FROM	@params.nodes('/root/r') AS T(C)	
 	
 	BEGIN TRY
@@ -185,7 +188,7 @@ BEGIN
 						,CAST(b.betid AS VARCHAR(50)) -- betcheck/betid
 						, 0) m
 			WHERE	b.matchid = @matchid
-					AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND m.modds IS NOT NULL
 					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
 							OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
@@ -219,7 +222,7 @@ BEGIN
 						,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
 				FROM	dbo.bettrans b WITH (NOLOCK)		
 				  WHERE	b.matchid = @MatchId
-						AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  					AND b.statusID IN (0,102)	
 						AND ISNULL(b.betdaqid,0) <> -2
 						AND b.custid BETWEEN @MinCustId AND @MaxCusId			
@@ -268,7 +271,7 @@ BEGIN
 						,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
 				FROM	dbo.bettrans b WITH (NOLOCK)		
 				WHERE	b.matchid = @MatchId
-					AND b.SiteGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteGroupId END
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  				AND b.statusID NOT IN (101)
 					AND ISNULL(b.betdaqid,0) <> -2
 					AND b.custid BETWEEN @MinCustId AND @MaxCusId

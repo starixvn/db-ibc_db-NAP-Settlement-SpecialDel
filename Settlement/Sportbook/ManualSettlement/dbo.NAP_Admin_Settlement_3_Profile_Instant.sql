@@ -18,6 +18,7 @@ AS
 
     Revisions:
 	   - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 */
 BEGIN
@@ -51,6 +52,7 @@ BEGIN
 
 			,@DummyResourceIds		VARCHAR(MAX) 
 			,@DummyResourceResults VARCHAR(MAX)
+			,@IsCentral	BIT
 			
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -89,6 +91,7 @@ BEGIN
 			,@ThreadHoldRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
+			,@IsCentral = 0
 			
 	IF @SessionId IS NULL
 	BEGIN
@@ -97,6 +100,9 @@ BEGIN
 
 		RETURN
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	-- Get min/max custid
 	BEGIN
@@ -113,6 +119,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 				AND 1 = CASE 
 							WHEN ISNULL(b.betdaqid,0) = -2 THEN 1
@@ -219,6 +226,7 @@ BEGIN
 	SET @Params = CASE WHEN @hth IS NOT NULL THEN ' hth=''' + CAST (@hth AS VARCHAR(20)) + '''' ELSE '' END
 					+ CASE WHEN @hta IS NOT NULL THEN ' hta=''' + CAST (@hta AS VARCHAR(20)) + '''' ELSE '' END
 					+ ' DeterminedType=''2''' 
+					+ ' IsCentral=''' + CAST(@IsCentral AS VARCHAR(1)) + ''''
 
 	SET @ParamsXML =  CAST('<root><r ' + REPLACE(@Params,'''','"') + ' /></root>' AS XML)
 
@@ -317,6 +325,7 @@ BEGIN
 				ON b.bettype = s.Bettype
 			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hth, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, 0) m
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND s.SessionId = @SessionId					
@@ -382,7 +391,8 @@ BEGIN
 	INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket, DeterminedType)
 	SELECT 	bm.bettype, COUNT(1) AS totalticket, 2 AS DeterminedType
 	FROM	dbo.bettransm bm WITH(NOLOCK)
-	WHERE	bm.matchid = @MatchId			
+	WHERE	bm.matchid = @MatchId		
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND bm.statusID IN (0,102)
 			AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = bm.bettype)
 	GROUP BY bm.bettype
@@ -469,7 +479,8 @@ BEGIN
 								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''	
 								+ ', @hth = ' + CONVERT(NVARCHAR(50), @hth) 
 								+ ', @hta = ' + CONVERT(NVARCHAR(50), @hta) 
-								+ ', @IsReSettledTickets = 0'								
+								+ ', @IsReSettledTickets = 0'			
+								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
