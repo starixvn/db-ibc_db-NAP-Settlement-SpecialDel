@@ -792,21 +792,14 @@ BEGIN
 			,m.AutoSetting
 			,t.IsCalculatingSingle
 			,t.IsCalculatingMP
-			,CASE 
-				WHEN m.IsExistFastMarket = 0 AND m.IsExistFastMarketResult = 0 THEN 'N/A'
-				WHEN m.IsExistFastMarket = 0 AND m.IsExistFastMarketResult = 1 THEN 'No Ticket'
-				WHEN m.IsRunningFastMarket > 0 THEN 'Running'	
-				ELSE 'Completed'		
-			END AS AutoSettleFastMarket
-			
-			,CASE
-				WHEN m.IsExistEarlyBettypes = 0 AND (m.ChildMatchType IN (202) OR te.matchid IS NOT NULL) THEN 'No Ticket' 
-				WHEN m.IsExistEarlyBettypes = 0 THEN 'N/A' 
-				WHEN m.IsRunningEarlyBettypes > 0 THEN 'Running'
-				WHEN m.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
-				ELSE 'Completed'
-			END AS EarlySettleStatus
-			
+			,m.IsExistFastMarket
+			,m.IsExistFastMarketResult
+			,m.IsRunningFastMarket
+			,m.IsExistEarlyBettypes
+			,m.ChildMatchType
+			,CASE WHEN te.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
+			,m.IsRunningEarlyBettypes
+			,m.IsWaitingEarlyBettypes
 			,m.IsExistRunningTicket
 			,m.IsExistRunningTicketParlay
 			,m.IsExistMarkedTicket
