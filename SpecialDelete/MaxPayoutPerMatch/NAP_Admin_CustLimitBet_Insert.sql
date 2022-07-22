@@ -41,7 +41,6 @@ BEGIN
 			, transid BIGINT
 			, sporttype SMALLINT
 			, bettype	SMALLINT
-			, BRID		BIGINT
 		)
 
 	CREATE TABLE #CustLimitBet_789 (
@@ -49,7 +48,6 @@ BEGIN
 			, CustId INT
 			, sitetype TINYINT
 			, transid BIGINT
-			, BRID		BIGINT
 	)
 
 	CREATE TABLE #CustLimitBet_LIC (
@@ -57,7 +55,6 @@ BEGIN
 			, CustId INT
 			, sitetype TINYINT
 			, transid BIGINT
-			, BRID		BIGINT
 	)
 	
 	DECLARE @HistoryMissingTransId AS TABLE (transid BIGINT, sitetype TINYINT)
@@ -69,12 +66,11 @@ BEGIN
 		
 		SET @xml = CONVERT(XML, @Transids)
 
-		INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, BRID)        
+		INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)        
 		SELECT @MatchId AS MatchId
 			, t.c.value('@custid','int') AS custid
 			,t.c.value('@sitetype','tinyint') AS sitetype
 			,t.c.value('@transid','BIGINT') AS transid
-			,t.c.value('@brid','BIGINT') AS BRID
 		FROM @xml.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@xml = NULL))
 	END
@@ -91,7 +87,7 @@ BEGIN
 
 		IF @MatchId <> 29 --Match, Bettype 38
 		BEGIN
-			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype, BRID)
+			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype)
 			SELECT @MatchId
 				, b.custid
 				,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
@@ -100,7 +96,6 @@ BEGIN
 				,b.transid
 				,m.sporttype
 				,b.bettype
-				,b.BRID
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
@@ -151,8 +146,8 @@ BEGIN
 	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp WHERE sitetype = 2) -- 789y
 	BEGIN
 		DELETE t OUTPUT
-			DELETED.CustId, DELETED.sitetype, DELETED.transid, @MatchId, DELETED.BRID
-			INTO #CustLimitBet_789 (CustId, sitetype, transid, MatchId, BRID)
+			DELETED.CustId, DELETED.sitetype, DELETED.transid, @MatchId
+			INTO #CustLimitBet_789 (CustId, sitetype, transid, MatchId)
 		FROM #CustLimitBet_tmp t
 		WHERE t.sitetype = 2
 
@@ -165,7 +160,6 @@ BEGIN
 				WHERE t1.Matchid = t.MatchId
 					AND t1.CustID = t.CustId
 					AND t1.Transid = t.transid
-					AND t1.BRID = 0
 			)tmp
 		WHERE tmp.Transid IS NULL
 
@@ -175,8 +169,8 @@ BEGIN
 	IF EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp WHERE sitetype = 3) -- deposit
 	BEGIN
 		DELETE t OUTPUT
-			DELETED.CustId, DELETED.sitetype, DELETED.transid, @MatchId, DELETED.BRID
-			INTO #CustLimitBet_LIC (CustId, sitetype, transid, MatchId, BRID)
+			DELETED.CustId, DELETED.sitetype, DELETED.transid, @MatchId
+			INTO #CustLimitBet_LIC (CustId, sitetype, transid, MatchId)
 		FROM #CustLimitBet_tmp t
 		WHERE t.sitetype = 3
 
@@ -189,7 +183,6 @@ BEGIN
 				WHERE t1.Matchid = t.MatchId
 					AND t1.CustID = t.CustId
 					AND t1.Transid = t.transid
-					AND t1.BRID = 0
 			)tmp
 		WHERE tmp.Transid IS NULL
 
@@ -206,7 +199,6 @@ BEGIN
 				WHERE t1.Matchid = t.MatchId
 					AND t1.CustID = t.CustId
 					AND t1.Transid = t.transid
-					AND t1.BRID = 0
 			)tmp
 		WHERE tmp.Transid IS NULL
 
@@ -225,13 +217,7 @@ BEGIN
 					(
 						SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
 						FROM #CustLimitBet_tmp t1
-							CROSS APPLY (
-								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID
-								FROM dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK)
-								WHERE 1 = CASE WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = 0 AND t2.BRID = t1.BRID THEN 1
-												WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = t1.transid AND t2.BRID = 0 THEN 1
-											ELSE 0 END
-							)t2
+							INNER JOIN dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = t1.CustId and t2.Transid = t1.transid
 						GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
 					)tmpsum
 					WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
@@ -240,22 +226,14 @@ BEGIN
 
 			IF @ActionId IN (1,3,4,5) 
 			BEGIN
-				INSERT INTO dbo.CustLimitBetHistory_MBC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, BRID)
-				SELECT t.CustId, t.MatchId
-					, CASE WHEN t1.Transid = 0 THEN 0 ELSE t.transid END
+				INSERT INTO dbo.CustLimitBetHistory_MBC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
+				SELECT t.CustId, t.MatchId, t.transid
 					, CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
 					,CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
 					, t1.EventTypeID
-					, CASE WHEN t1.BRID = 0 THEN 0 ELSE t.BRID END
 				FROM #CustLimitBet_tmp t
-					CROSS APPLY (
-								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID, t2.Transid, t2.BRID
-								FROM dbo.CustLimitBetHistory_MBC t2 WITH (NOLOCK)
-								WHERE 1 = CASE WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = 0 AND t2.BRID = t.BRID THEN 1
-												WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = t.transid AND t2.BRID = 0 THEN 1
-											ELSE 0 END
-							)t1
-				GROUP BY t.Matchid, t.CustId, CASE WHEN t1.Transid = 0 THEN 0 ELSE t.transid END, t1.EventTypeID, CASE WHEN t1.BRID = 0 THEN 0 ELSE t.BRID END
+					INNER JOIN dbo.CustLimitBetHistory_MBC t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid
+				GROUP BY t.Matchid, t.CustId, t.transid, t1.EventTypeID
 			END
 			
 		END
@@ -272,13 +250,7 @@ BEGIN
 					(
 						SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
 						FROM #CustLimitBet_789 t1
-							CROSS APPLY (
-								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID
-								FROM dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK)
-								WHERE 1 = CASE WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = 0 AND t2.BRID = t1.BRID THEN 1
-												WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = t1.transid AND t2.BRID = 0 THEN 1
-											ELSE 0 END
-							)t2
+							INNER JOIN dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = t1.CustId and t2.Transid = t1.transid
 						GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
 					)tmpsum
 					WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
@@ -287,22 +259,14 @@ BEGIN
 
 			IF @ActionId IN (1,3,4,5) 
 			BEGIN
-				INSERT INTO dbo.CustLimitBetHistory_789 (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, BRID)
-				SELECT t.CustId, t.MatchId
-					, CASE WHEN t1.Transid = 0 THEN 0 ELSE t.transid END
+				INSERT INTO dbo.CustLimitBetHistory_789 (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
+				SELECT t.CustId, t.MatchId, t.transid
 					, CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
 					,CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
 					, t1.EventTypeID
-					, CASE WHEN t1.BRID = 0 THEN 0 ELSE t.BRID END
 				FROM #CustLimitBet_789 t
-					CROSS APPLY (
-								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID, t2.Transid, t2.BRID
-								FROM dbo.CustLimitBetHistory_789 t2 WITH (NOLOCK)
-								WHERE 1 = CASE WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = 0 AND t2.BRID = t.BRID THEN 1
-												WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = t.transid AND t2.BRID = 0 THEN 1
-											ELSE 0 END
-							)t1
-				GROUP BY t.Matchid, t.CustId, CASE WHEN t1.Transid = 0 THEN 0 ELSE t.transid END, t1.EventTypeID, CASE WHEN t1.BRID = 0 THEN 0 ELSE t.BRID END
+					INNER JOIN dbo.CustLimitBetHistory_789 t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid
+				GROUP BY t.Matchid, t.CustId, t.transid, t1.EventTypeID
 			END
 		END
 
@@ -318,13 +282,7 @@ BEGIN
 					(
 						SELECT MAX(t2.TurnoverAdjust) AS AccumTurnover, MAX(t2.PayoutAdjust) AS AccumPayout, t1.MatchId, t1.CustId, t1.transid, t2.EventTypeID
 						FROM #CustLimitBet_LIC t1
-							CROSS APPLY (
-								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID
-								FROM dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK)
-								WHERE 1 = CASE WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = 0 AND t2.BRID = t1.BRID THEN 1
-												WHEN t2.Matchid = t1.MatchId AND t2.CustID = t1.CustId AND t2.Transid = t1.transid AND t2.BRID = 0 THEN 1
-											ELSE 0 END
-							)t2
+							INNER JOIN dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK) ON t2.Matchid = t1.MatchId and t2.CustID = t1.CustId and t2.Transid = t1.transid
 						GROUP BY t1.Matchid, t1.CustId, t1.transid, t2.EventTypeID
 					)tmpsum
 					WHERE t.Matchid = tmpsum.MatchId AND t.CustID = tmpsum.CustId AND t.EventTypeID = tmpsum.EventTypeID
@@ -333,22 +291,14 @@ BEGIN
 
 			IF @ActionId IN (1,3,4,5) 
 			BEGIN
-				INSERT INTO dbo.CustLimitBetHistory_LIC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID, BRID)
-				SELECT t.CustId, t.MatchId
-					, CASE WHEN t1.Transid = 0 THEN 0 ELSE t.transid END
+				INSERT INTO dbo.CustLimitBetHistory_LIC (CustID, Matchid, Transid, TurnoverAdjust, PayoutAdjust, EventTypeID)
+				SELECT t.CustId, t.MatchId, t.transid
 					, CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.TurnoverAdjust) ELSE MAX(t1.TurnoverAdjust) END
 					,CASE WHEN @ActionId IN (1,4) THEN -MAX(t1.PayoutAdjust) ELSE MAX(t1.PayoutAdjust) END
 					, t1.EventTypeID
-					, CASE WHEN t1.BRID = 0 THEN 0 ELSE t.BRID END
 				FROM #CustLimitBet_LIC t
-					CROSS APPLY (
-								SELECT t2.TurnoverAdjust, t2.PayoutAdjust, t2.EventTypeID, t2.Transid, t2.BRID
-								FROM dbo.CustLimitBetHistory_LIC t2 WITH (NOLOCK)
-								WHERE 1 = CASE WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = 0 AND t2.BRID = t.BRID THEN 1
-												WHEN t2.Matchid = t.MatchId AND t2.CustID = t.CustId AND t2.Transid = t.transid AND t2.BRID = 0 THEN 1
-											ELSE 0 END
-							)t1
-				GROUP BY t.Matchid, t.CustId, CASE WHEN t1.Transid = 0 THEN 0 ELSE t.transid END, t1.EventTypeID, CASE WHEN t1.BRID = 0 THEN 0 ELSE t.BRID END
+					INNER JOIN dbo.CustLimitBetHistory_LIC t1 WITH (NOLOCK) ON t1.Matchid = t.MatchId and t1.CustID = t.CustId and t1.Transid = t.transid
+				GROUP BY t.Matchid, t.CustId, t.transid, t1.EventTypeID
 			END
 			
 		END

@@ -41,7 +41,6 @@ AS
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-		- 20220701@Max: Max Payout - Change to support Bettrans_Running [Redmine: #174304]
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		
 	Param's Explanation: 
@@ -205,7 +204,6 @@ BEGIN
 		,matchid INT
 		,BallSequence TINYINT
 		,SportTypeId INT
-		,BRID BIGINT
 	)		
 
 	IF @Option = 0 AND EXISTS(SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchID AND m.sporttype = 164)
@@ -238,7 +236,6 @@ BEGIN
 			,matchid
 			,BallSequence
 			,SportTypeId
-			,BRID
 		)
 		SELECT DISTINCT b.transid
 			,b.custid
@@ -267,7 +264,6 @@ BEGIN
 			,m.matchid
 			,NULL AS BallSequence
 			,m.sporttype
-			,b.BRID
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid			
 		WHERE	b.matchid = @MatchId 
@@ -307,7 +303,6 @@ BEGIN
 			,matchid
 			,BallSequence
 			,SportTypeId
-			,BRID
 		)
 		SELECT DISTINCT b.transid
 			,b.custid
@@ -336,7 +331,6 @@ BEGIN
 			,m.matchid
 			,BS_tmp.BallSequence
 			,m.sporttype
-			,b.BRID
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 			OUTER APPLY (SELECT BallSequence 
@@ -600,7 +594,6 @@ BEGIN
 								ELSE 1 END AS '@sitetype'
 							,b.TransId AS '@transid'
 							,b.bettype AS '@bettype'
-							,b.BRID AS '@brid'
 						FROM #BetDelete b
 							INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 							LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid

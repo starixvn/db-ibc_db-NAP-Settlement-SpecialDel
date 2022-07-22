@@ -139,7 +139,6 @@ BEGIN
 		,ruben				TINYINT
 		,bonusId			INT
 		,WalletType			TINYINT	
-		,BRID				BIGINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -235,7 +234,7 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 		SET @isExistMG = 1
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend, ruben, BRID)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
@@ -249,7 +248,6 @@ BEGIN
 			,b.winlostdate, b.refno
 			,b.srecommend
 			,b.ruben
-			,b.BRID
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -1565,7 +1563,6 @@ BEGIN
 							ELSE 1 END AS '@sitetype'
 						,b.TransId AS '@transid'
 						,b.bettype AS '@bettype'
-						,b.BRID AS '@brid'
 					FROM #tmpTransId b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
@@ -1590,7 +1587,6 @@ BEGIN
 						ELSE 1 END AS '@sitetype'
 					,b.TransId AS '@transid'
 					,b.bettype AS '@bettype'
-					,b.BRID AS '@brid'
 				FROM #tmpTransId b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid

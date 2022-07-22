@@ -101,7 +101,6 @@ AS
 	  - 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 	  - 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 	  - 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
-	  - 20220701@Max: Max Payout - Change to support Bettrans_Running [Redmine: #174304]
 	  - 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 	  - 20220812@Max: MPO - [TVS] wrong data insert into CustLimitBetQueue when transid list include both single and parlay ticket [Redmine: #176578]
 
@@ -245,7 +244,6 @@ BEGIN
 		,ChildMatchType TINYINT
 		,EndTime		DATETIME
 		,ruben			TINYINT
-		,BRID			BIGINT
 	)
 
 	CREATE TABLE #tmpRefCodeSummary (
@@ -443,7 +441,6 @@ BEGIN
 		,BonusID
 		,actual_stake
 		,ruben
-		,BRID
 	)
 	SELECT	
 		b.refno AS groupTransId
@@ -493,7 +490,6 @@ BEGIN
 		,b.BonusID
 		,tl.actual_stake
 		,b.ruben
-		,b.BRID
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN dbo.translog tl WITH(NOLOCK)
 			ON b.custid 	= tl.custid
@@ -556,7 +552,6 @@ BEGIN
 		,b.BonusID
 		,b.actual_stake
 		,b.ruben
-		,b.BRID
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #tblTransIds t
 			ON b.transid = t.transid
@@ -622,7 +617,6 @@ BEGIN
 			,BonusID
 			,MainTransId
 			,actual_stake
-			,BRID
 		)
 		SELECT	
 			b.transid AS groupTransId
@@ -670,7 +664,6 @@ BEGIN
 			,b.BonusID
 			,r.transid AS MainTransId
 			,b.actual_stake
-			,b.BRID
 		FROM #tmpRefCodeSummary r
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					 ON b.RefCode = r.RefCode
@@ -1800,7 +1793,6 @@ BEGIN
 						ELSE 1 END AS '@sitetype'
 					,b.TransId AS '@transid'
 					,b.bettype AS '@bettype'
-					,b.BRID AS '@brid'
 				FROM #BetDelete b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid

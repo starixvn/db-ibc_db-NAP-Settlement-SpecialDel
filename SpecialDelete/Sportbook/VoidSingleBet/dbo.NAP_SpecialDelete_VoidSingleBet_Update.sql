@@ -304,8 +304,7 @@ BEGIN
 		ActualStake			MONEY,
 		main_ruben			TINYINT,
 		main_custId			INT,
-		OddsId				INT,
-		BRID				BIGINT
+		OddsId				INT
 	)
 
 	CREATE TABLE #BetDeletem (
@@ -711,7 +710,6 @@ BEGIN
 			,FilterTransdesc
 			,ActualStake
 			,OddsId
-			,BRID
 		)
 		SELECT	
 			b.transid
@@ -765,7 +763,6 @@ BEGIN
 			,b.transdesc AS FilterTransdesc
 			,b.actual_stake AS ActualStake
 			,b.oddsid
-			,b.BRID
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -834,7 +831,6 @@ BEGIN
 			,FilterTransdesc
 			,ActualStake
 			,OddsId
-			,BRID
 		)
 		SELECT	
 			b.transid
@@ -888,7 +884,6 @@ BEGIN
 			,b.transdesc AS FilterTransdesc
 			,b.actual_stake AS ActualStake
 			,b.oddsid
-			,b.BRID
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -1659,7 +1654,6 @@ BEGIN
 							ELSE 1 END AS '@sitetype'
 						,b.TransId AS '@transid'
 						,b.bettype AS '@bettype'
-						,b.BRID AS '@brid'
 					FROM #BetDelete b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
