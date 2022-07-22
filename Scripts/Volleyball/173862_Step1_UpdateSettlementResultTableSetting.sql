@@ -3,7 +3,7 @@
 /*
 	Created:20220629@Louisa
     Task: Volleyball AIO [Redmineid:#173862]
-    DB: DBTXN/bodb02
+    DB: DBPRO/bodb02
 	
 	Revisions:
 		- 20220629@Louisa: Apply SOP for Volleyball [Redmineid:#173862]

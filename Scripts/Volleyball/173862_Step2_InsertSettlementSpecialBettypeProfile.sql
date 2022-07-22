@@ -57,8 +57,8 @@ BEGIN
 	UNION ALL SELECT 102,	3914	,'EAR'		,NULL		,'3914'		,''			,''	
 	----early base on SET
 	UNION ALL SELECT 3915,	3903	,'EAR'		,NULL		,'39030'		,'[1-4]'	,'15'		 
-	UNION ALL SELECT 10,	3904	,'EAR'		,NULL		,'39030'		,'[1-4]'	,'15'		 
-	UNION ALL SELECT 3,		3905	,'EAR'		,NULL		,'39030'		,'[1-4]'	,'15'		 
+	UNION ALL SELECT 3904,	3904	,'EAR'		,NULL		,'39030'		,'[1-4]'	,'15'		 
+	UNION ALL SELECT 3905,	3905	,'EAR'		,NULL		,'39030'		,'[1-4]'	,'15'		 
 	UNION ALL SELECT 3915,	3912	,'EAR'		,NULL		,'39030'		,'[1-5]'	,'10'		 
 	UNION ALL SELECT 3915,	3912	,'EAR'		,NULL		,'39030'		,'[1-5]'	,'15'		 
 	UNION ALL SELECT 3915,	3912	,'EAR'		,NULL		,'39030'		,'[1-5]'	,'20'		 

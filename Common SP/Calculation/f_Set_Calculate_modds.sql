@@ -40,7 +40,7 @@ AS
 RETURN
 (
    SELECT  CASE
-			WHEN @pfID IN (1, 10, 9116) THEN --Handicap
+			WHEN @pfID IN (1, 10, 9116, 3904) THEN --Handicap
 			   CASE  WHEN @betteam = 'h' THEN
 			   				CASE WHEN fm > 0.25 THEN 1
 					 			 WHEN fm = 0.25 THEN 0.25
@@ -62,7 +62,7 @@ RETURN
 					WHEN @betteam IN ('a', 'e') AND fm = 0 THEN 1
 					ELSE -1 END
 					
-			WHEN @pfID IN (3, 387, 386, 9117, 9118, 9119, 9128, 9096) THEN --Over/under
+			WHEN @pfID IN (3, 387, 386, 9117, 9118, 9119, 9128, 9096, 3905) THEN --Over/under
 			   CASE WHEN @betteam IN ('h', 'o') THEN
 			   				CASE WHEN fm > 0.25 THEN 1
 								 WHEN fm = 0.25 THEN 0.25
@@ -528,11 +528,17 @@ RETURN
 		SELECT (CASE 
 					WHEN @pfID = 1 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @LiveHomeScore) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 - @LiveAwayScore)
 					WHEN @pfID = 10 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2) -- not use livescore
+					WHEN @pfID = 3904 THEN CASE WHEN @HomeValue = 'N' THEN 0
+												ELSE (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2)
+										   END
 					WHEN @pfID = 9116 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 * 1000)
 					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
 					
 					--Over/Under
 					WHEN @pfID IN (3, 9448) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
+					WHEN @pfID = 3905 THEN CASE WHEN @HomeValue = 'N' THEN 0
+													ELSE (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
+												END
 					WHEN @pfID = 9117 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000)
 					WHEN @pfID = 9118 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000
 					WHEN @pfID = 9119 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000
