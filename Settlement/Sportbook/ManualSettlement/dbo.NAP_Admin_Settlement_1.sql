@@ -17,6 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1]
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@KeyId				INT				= 0
 	,@RefResultStatus	TINYINT			= 0
+	
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
 AS
@@ -85,6 +86,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -108,14 +110,14 @@ BEGIN
         ,@goalrecord_old                VARCHAR(50)
         ,@LogData                       NVARCHAR(300)
         ,@eventstatus                   NVARCHAR(50)
-        ,@sporttype                     SMALLINT
-        ,@TicketCount                   INT    
+        ,@sporttype                     SMALLINT       
         ,@Remark                        VARCHAR(500)
         ,@ActionID						INT
         ,@HomeValue						VARCHAR(20)
         ,@AwayValue						VARCHAR(20)
         ,@TotalAccount					INT
         ,@TotalAccount_BalanceUpdate    INT
+		,@TicketCount					INT
         ,@HTDone                        BIT
         ,@FTDone                        BIT
         ,@strAutoBettypes				VARCHAR(MAX)
@@ -139,6 +141,8 @@ BEGIN
 		,@LockedByRefno					BIT
 		,@sqlCommand					VARCHAR(MAX)
 		,@AutoSetting					TINYINT
+
+		,@IsCentral	BIT
 		
 	DECLARE @tmpParlayAffectedBettypes TABLE (ResourceId VARCHAR(20), RefResourceId VARCHAR(20), bettype SMALLINT, totalticket INT)	
 
@@ -171,8 +175,7 @@ BEGIN
         RETURN
     END
 
-	 SELECT  @starttime = CURRENT_TIMESTAMP
-			,@TicketCount = 0
+	 SELECT  @starttime = CURRENT_TIMESTAMP		
             ,@ActionID = CASE @Action
 							WHEN 'CAL' THEN 100
 							WHEN 'CAL-FT' THEN 101
@@ -188,6 +191,7 @@ BEGIN
 												WHEN @action = 'UNDO' THEN 0 ELSE 1 END
 									ELSE 0
 								END
+			,@IsCentral = 0
 			
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 		@MatchId	= @Matchid
@@ -319,6 +323,9 @@ BEGIN
 		RETURN
 	END
 
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	SELECT  @strAutoBettypes = COALESCE(@strAutoBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM    dbo.f_Set_GetGroupBettypes() f 
 	WHERE   f.IsAuto = 1   
@@ -379,6 +386,7 @@ BEGIN
 				AND b.bettype NOT BETWEEN 801 AND 899
 				AND b.bettype NOT BETWEEN 911 AND 920
 	END	
+
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
 	---------------------------VVVV------------------------------
@@ -414,6 +422,7 @@ BEGIN
 			SELECT	b.transid, NULL
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	matchid = @matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.statusID NOT IN (101)
 					AND ISNULL(b.betdaqid,0) = - 2
 
@@ -459,6 +468,7 @@ BEGIN
 					,@creator        = @creator
 					,@action        = 'UNDO'              
 					,@IP            = @IP
+					,@IsCentral		= @IsCentral
 			END 
 			ELSE
 			BEGIN
@@ -476,6 +486,7 @@ BEGIN
 					INNER JOIN cteResource c
 						ON bm.bettype = c.BetType
 				WHERE	bm.matchid = @MatchID
+						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 						AND bm.statusID NOT IN (101,0)
 				GROUP BY c.ResourceID, c.RefResourceId, bm.bettype
 
@@ -501,6 +512,7 @@ BEGIN
 											+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
 											+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''
 											+ ', @Action = ''' + @Action + ''''	
+											+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral) 	
 											+ ', @ErrCode = @ErrCode OUTPUT' 
 											+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -512,6 +524,7 @@ BEGIN
 							,@Action		  	= @Action
 							,@SelectedResources = @SelectedResourceParlay
 							,@LockedByRefno		= 1 -- always lock refno for testing
+							,@IsCentral			= @IsCentral
 							,@ErrCode			= @ErrCode OUTPUT
 							,@ErrMsg 			= @ErrMsg OUTPUT
 					END
@@ -523,142 +536,102 @@ BEGIN
 				END
 			END
 
-            EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark 
-                @matchid        = @matchid
-                ,@command        = 'U'                
+			IF @IsCentral = 1
+			BEGIN
+				EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark 
+					@matchid        = @matchid
+					,@command        = 'U'                
                
-            EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-                @Command        = 'NAP_Admin_Settlement_1-UNDO'
-                ,@MatchID        = @matchid
-                ,@betstatus        = @betstatus               
-                ,@creator        = @creator
+				EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+					@Command        = 'NAP_Admin_Settlement_1-UNDO'
+					,@MatchID        = @matchid
+					,@betstatus        = @betstatus               
+					,@creator        = @creator
+			
+				IF @Sporttype = 1 -- Soccer
+				BEGIN
+					IF @ChildMatchType = 204 -- Corner
+					BEGIN
+						EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+							@Command            = 'NAP_Admin_Settlement_1-Corner-UNDO',
+							@MatchID            = @MatchID,
+							@creator            = @creator 
+					END
+					ELSE
+					BEGIN
+						EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+							@Command            = 'NAP_Admin_Settlement_1-UNDO',
+							@MatchID            = @MatchID,
+							@creator            = @creator 
+					END
 
-			IF @Sporttype = 1 -- Soccer
-            BEGIN
-                IF @ChildMatchType = 204 -- Corner
-                BEGIN
-					EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-						@Command            = 'NAP_Admin_Settlement_1-Corner-UNDO',
-						@MatchID            = @MatchID,
-						@creator            = @creator 
-                END
-                ELSE
-                BEGIN
-					EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-						@Command            = 'NAP_Admin_Settlement_1-UNDO',
-						@MatchID            = @MatchID,
-						@creator            = @creator 
-				END
+					EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
+						@MatchId = @matchid
+						,@TypeId = NULL
+						,@StatusId = NULL 
+						,@IsUndoMatch = 1 --Clear data in table AutoPayoutResult if match has been undo
 
-				EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
-					@MatchId = @matchid
-					,@TypeId = NULL
-					,@StatusId = NULL 
-					,@IsUndoMatch = 1 --Clear data in table AutoPayoutResult if match has been undo
-
-            END           
-            
-            /* --20110620@Thien: replace by calling SP instead
-            -- RESET 'SaveBet' of DB06
-            DELETE FROM DB06.bodb02.dbo.Save_Jobs WHERE matchid = @matchid
-            UPDATE DB06.bodb02.dbo.Save_ListMatch SET IsGameFinish = 1 WHERE matchid = @matchid
-
-            INSERT INTO DB06.bodb02.dbo.SAve_Jobs (matchid, liveindicator, savetype, bettype, typename)
-            SELECT @matchid, 1, 'DEL', 0, 0
-            */
-            --EXEC DBACC.bodb02.dbo.NAP_Admin_Match_UpdateSaveBet 
-            --    @action            = 'UNDO'
-            --    ,@matchid        = @matchid               
+				END           
+            END
         END
         ELSE
-        BEGIN
-            /* 06 OCT 2008 : Joe
-            As of Today.  Match Remark can't tell game just settled for HT yet
-            need below code to determine for mark match as calculated (all bets settled)
-            */
-			INSERT INTO @status(FTBet, BetCount, InRunning)		
-			SELECT    CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 0 ELSE 1 END AS FTBet
-					,SUM(CASE WHEN statusID IN (101, 102) THEN 0 ELSE 1 END)
-					,SUM(CASE WHEN statusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END)
-			FROM    dbo.bettrans b with (NOLOCK)
-						OUTER APPLY (
-										SELECT TOP 1 mt.transId
-										FROM MarkedTransaction mt WITH(NOLOCK)
-										WHERE b.transid = mt.TransId
-									) mt
-			WHERE    b.matchid = @matchid
-					AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
-					AND b.bettype NOT BETWEEN 1501 and 1599 -- Keno
-					AND b.bettype NOT BETWEEN 801 AND 899--Metric Gaming
-					AND b.bettype NOT BETWEEN 901 AND 920 --BT & CashOut 
-					AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') = 0 --ignore auto bettypes
-					
-			GROUP BY CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 0 ELSE 1 END    
+        BEGIN           
 
-			IF NOT EXISTS (SELECT * FROM @status WHERE FTBet = 0)
-				INSERT INTO @status VALUES (0, 0,0)
-
-			IF NOT EXISTS (SELECT * FROM @status WHERE FTBet = 1)
-				INSERT INTO @status VALUES (1, 0, 0)
-
-			SELECT    @HTDone = CASE InRunning
-								WHEN 0 THEN 1
-								ELSE 0
-								END
-			FROM    @status
-			WHERE    FTBet = 0
-
-			SELECT    @FTDone = CASE InRunning
-								WHEN 0 THEN 1
-								ELSE 0
-								END
-			FROM    @status
-			WHERE    FTBet = 1
+			IF @IsCentral = 1
+			BEGIN
+				SELECT	@HTDone = IsHTCal 
+				FROM	DBPRO.bodb02.dbo.match_remark WITH(NOLOCK)
+				WHERE	matchid = @matchid
 			
-			SELECT    @eventstatus = CASE 
-										WHEN @action = 'CAL' THEN N'completed'
-										WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-										WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
-										ELSE m.eventstatus
-										END
-					,@FTDone        = CASE 
-										WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
-										ELSE @FTDone
-										END
-			FROM    DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
-			WHERE    m.matchid = @matchid
+				SELECT    @eventstatus = CASE 
+											WHEN @action = 'CAL' THEN N'completed'
+											WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
+											WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
+											ELSE m.eventstatus
+											END
+						,@FTDone        = CASE 
+											WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
+											ELSE @FTDone
+											END
+				FROM    DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
+				WHERE    m.matchid = @matchid
 
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-				@Command            = 'NAP_Admin_Settlement_1-CAL'
-				,@MatchID            = @matchid
-				,@FTHome            = @fth
-				,@FTAway            = @fta
-				,@HTHome            = @hth
-				,@HTAway            = @hta
-				,@BetStatus         = @betstatus
-				,@GoalRecord        = @goalrecord              
-				,@Action            = @action
-				,@FTDone            = @FTDone
-				,@HTDone            = @HTDone
-				,@creator            = @creator
-           
+				EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+					@Command            = 'NAP_Admin_Settlement_1-CAL'
+					,@MatchID            = @matchid
+					,@FTHome            = @fth
+					,@FTAway            = @fta
+					,@HTHome            = @hth
+					,@HTAway            = @hta
+					,@BetStatus         = @betstatus
+					,@GoalRecord        = @goalrecord              
+					,@Action            = @action
+					,@FTDone            = @FTDone
+					,@HTDone            = @HTDone
+					,@creator            = @creator
+			END
+
 			EXEC dbo.NAP_Admin_Settlement_3
 				@matchid            = @matchid
 				,@mode                = @action    
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@creator = @creator
+				,@IsCentral = @IsCentral
 
-			IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'
+			IF @IsCentral = 1
 			BEGIN
-				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-					@matchid    = @matchid
-					,@command    = 'C'                
-			END
-			ELSE IF (@action = 'CAL-HT')
-			BEGIN
-				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-					@matchid    = @matchid
-					,@command    = 'H'
+				IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'
+				BEGIN
+					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+						@matchid    = @matchid
+						,@command    = 'C'                
+				END
+				ELSE IF (@action = 'CAL-HT')
+				BEGIN
+					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+						@matchid    = @matchid
+						,@command    = 'H'
+				END
 			END
 		END 
     END TRY
@@ -759,6 +732,7 @@ BEGIN
 												ELSE ''
 												END
 
+	IF @IsCentral = 1
 	BEGIN TRY
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 			@UserID                = @creator

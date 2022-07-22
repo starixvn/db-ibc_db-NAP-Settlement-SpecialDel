@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
 	,@IsAuto				BIT = 0
+	,@IsCentral				BIT = 0
 	,@IP					VARCHAR(15)		= ''
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
@@ -47,6 +48,7 @@ AS
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		@parentMatchId: identify main match of cricket
@@ -127,21 +129,6 @@ BEGIN
 	    RETURN
 	END
 
-	IF @SportType = 1
-	BEGIN
-		SELECT TOP(1) @IsExistEarlyBettype = 1
-		FROM dbo.bettransm bm WITH (NOLOCK)
-			CROSS APPLY (
-				SELECT TOP 1 1 AS IsExistEarlyBettype, s.SportType
-				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-				WHERE	s.BetType = bm.bettype 
-						AND s.SettleType = 'EAR'
-						AND s.sportType = @sportType
-			) AS f
-		WHERE matchid 		= @matchId
-			AND statusID	NOT IN (101, 102)
-	END
-
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
 	BEGIN
 	  	SET @IsSettleBySetting = 1
@@ -217,6 +204,7 @@ BEGIN
 					,@mode = 'REFUND'
 					,@sportType = @SportType
 					,@resultDetail = @SelectedResources
+					,@IsCentral = @IsCentral
 					,@ticketCount = @ticketCountTotal OUTPUT
 			END
 	       
@@ -228,61 +216,13 @@ BEGIN
 					,@mode = @Action
 					,@sportType = @SportType
 					,@resultDetail = @SelectedResources
+					,@IsCentral = @IsCentral
 					,@ticketCount = @ticketCountTotal OUTPUT
 			END
 		END
 		
 		IF @IsSettleBySetting = 0 AND @SelectedResources IS NULL
-		BEGIN
-			IF @Sporttype = 1
-			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_2 @mode = 'all'
-					,@matchid = @matchID
-					,@str_resultDetail = @resultDetail OUTPUT
-					
-				DECLARE @xmlResultDetail XML
-				-- check GoalBettype if all tickets have been voided
-				SET @xmlResultDetail = CAST(@resultDetail AS XML)
-			
-				INSERT INTO @ResourceResult_tmp (ResourceId,HomeValue)
-				SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-						,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-				FROM	@xmlResultDetail.nodes('/root/r') AS T(c)
-				OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )	
-					
-				INSERT INTO @GoalBettype_tmp (bettype, Voided_cnt,ticket_cnt)
-				SELECT b.bettype
-					, SUM(CASE WHEN statusID IN (101,102) THEN 1 ELSE 0 END) AS Voided_cnt
-					, COUNT(1) AS ticket_cnt
-				FROM bettransm b WITH (NOLOCK)
-					INNER JOIN dbo.f_Set_GetGroupBettypes() bt ON b.bettype = bt.BetType AND bt.IsUsedGoalRecordValue = 1
-				WHERE b.matchid = @matchid 
-				GROUP BY b.bettype
-					
-				DELETE g 
-				FROM @GoalBettype_tmp g
-					INNER JOIN dbo.SettlementSpecialBettypeProfile p WITH (NOLOCK) ON p.bettype = g.bettype
-				WHERE g.Voided_cnt = g.ticket_cnt
-					AND NOT EXISTS (SELECT 1 FROM @ResourceResult_tmp rs WHERE p.ResourceID = rs.ResourceId)	
-					
-				-- Do NOT touch on goal bettype having all tickets voided AND no results
-				SET @strBettypes = CAST((SELECT  f.BetType '@t'
-											,GroupId '@g'
-											,GroupName '@n'
-											,Is3x30 '@is3x'
-											,(SELECT 1 FROM dbo.f_Set_GetEarlyBettypes() WHERE bettype = f.BetType) '@isEarly'
-									FROM	dbo.f_Set_GetGroupBettypes() f
-										LEFT JOIN @GoalBettype_tmp gbt ON f.BetType = gbt.bettype
-									WHERE	f.GroupId <> 8 -- Early Soccer
-										AND 1= CASE 
-													WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NOT NULL THEN 1
-													WHEN @action = 'CAL' AND f.IsUsedGoalRecordValue = 1 AND gbt.bettype IS NULL THEN 0
-												ELSE 1
-											END
-									FOR XML PATH ('r'), ROOT('root'), TYPE
-								) AS VARCHAR(MAX))
-			END
-
+		BEGIN			
 			-- in case refund half event, we do need to calculate whole match first, then refund half event. as no way to get the other half calculate correctly after refund.
 			IF @action IN ('REFUND-HT','REFUND-FT') SET @priorAction = 'CAL'
 				
@@ -331,6 +271,7 @@ BEGIN
 	SELECT refno
 	FROM dbo.bettransm bm WITH(ROWLOCK)
 	WHERE matchid = @matchid
+		AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 		AND NOT EXISTS (
 			SELECT 1 FROM bettransm WITH(NOLOCK) WHERE refno = bm.refno AND statusID IN(1, 101)
 		)
@@ -340,7 +281,7 @@ BEGIN
 		INSERT INTO #temp_bettrans_29 ( transid, refno, IsFinished, ruben, custid)
 		SELECT transid, refno, 0 AS IsFinished, ruben, custid
 		FROM bettrans b WITH(NOLOCK)
-		WHERE b.matchid = 29
+		WHERE b.matchid = 29			
 			AND b.statusID NOT IN (101,102) --('VOID','REJECT')
 			AND refno IN (SELECT refno FROM @refnos)
 
@@ -487,7 +428,7 @@ BEGIN
 
 	----------------------------------------------------------------------------------------------------------------------------------------
 	BEGIN --BEGIN: UPDATE match_remark ----------------------------------
-		IF @action IN ('CAL', 'REFUND', 'REFUND-FT', 'REFUND-HT') -- for cal/refund
+		IF @action IN ('CAL', 'REFUND', 'REFUND-FT', 'REFUND-HT') AND @IsCentral = 1 -- for cal/refund
 		BEGIN
 			DECLARE @command varchar(5)
 			SET @command = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
@@ -517,55 +458,58 @@ BEGIN
 			,@Doing = @Remark
 			,@extend = @MatchId
 	
-		SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
-						+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
-						+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
-
-		IF @ParentMatchId IS NOT NULL ---Cricket
+		IF @IsCentral = 1
 		BEGIN
-			SELECT  @matchid		= @ParentMatchId
-					,@finalhomescore = finalhomescore 
-					,@finalawayscore = finalawayscore
-					,@betstatus		= betstatus
-			FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
-			WHERE	matchid = @ParentMatchId
+			SELECT @Remark = CASE WHEN @ParentMatchId IS NOT NULL THEN 'child: '+CAST(@matchid AS VARCHAR) +  '<br/> ' ELSE '' END
+							+ 'NAP: Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
+							+ CASE WHEN @action = 'CAL' OR @IsAuto = 1 THEN ' isAuto: ' + CAST (@IsAuto AS VARCHAR) ELSE '' END
+
+			IF @ParentMatchId IS NOT NULL ---Cricket
+			BEGIN
+				SELECT  @matchid		= @ParentMatchId
+						,@finalhomescore = finalhomescore 
+						,@finalawayscore = finalawayscore
+						,@betstatus		= betstatus
+				FROM	DBPRO.BODB02.dbo.Match WITH(NOLOCK)
+				WHERE	matchid = @ParentMatchId
+			END
+
+			IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
+			BEGIN
+				SELECT @hthomescore		= NULL
+						,@htawayscore	= NULL
+			END
+
+			BEGIN TRY
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
+					,@Matchid = @matchid
+					,@ActionID = @ActionID
+					,@finalhomescore = @finalhomescore
+					,@finalawayscore = @finalawayscore
+					,@hthomescore = @hthomescore
+					,@htawayscore = @htawayscore
+					,@GoalRecord = @goalrecord
+					,@betstatus = @betstatus
+					,@Remark = @Remark
+					,@IP = @IP
+			END TRY
+
+			BEGIN CATCH
+				SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
+
+				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
+					,@Matchid = @matchid
+					,@ActionID = @ActionID
+					,@finalhomescore = @finalhomescore
+					,@finalawayscore = @finalawayscore
+					,@hthomescore = @hthomescore
+					,@htawayscore = @htawayscore
+					,@GoalRecord = @goalrecord
+					,@betstatus = @betstatus
+					,@Remark = @Remark
+					,@IP = @IP
+			END CATCH
 		END
-
-		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
-		BEGIN
-			SELECT @hthomescore		= NULL
-					,@htawayscore	= NULL
-		END
-
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				,@Matchid = @matchid
-				,@ActionID = @ActionID
-				,@finalhomescore = @finalhomescore
-				,@finalawayscore = @finalawayscore
-				,@hthomescore = @hthomescore
-				,@htawayscore = @htawayscore
-				,@GoalRecord = @goalrecord
-				,@betstatus = @betstatus
-				,@Remark = @Remark
-				,@IP = @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				,@Matchid = @matchid
-				,@ActionID = @ActionID
-				,@finalhomescore = @finalhomescore
-				,@finalawayscore = @finalawayscore
-				,@hthomescore = @hthomescore
-				,@htawayscore = @htawayscore
-				,@GoalRecord = @goalrecord
-				,@betstatus = @betstatus
-				,@Remark = @Remark
-				,@IP = @IP
-		END CATCH
 	END --END: WRITE LOG ----------------------------------
 
 END --end SP

@@ -81,6 +81,8 @@ BEGIN
 			,@ThreadHoldRefno	INT 
 			,@LockedByRefno		BIT
 			,@sqlCommand		VARCHAR(MAX)
+			,@ParamsXML			XML
+			,@Params			VARCHAR(MAX)
 			,@IsCentral	BIT
 		
 	DECLARE @tmpResources TABLE(
@@ -252,7 +254,7 @@ BEGIN
 	INSERT INTO @tmpAffectedBettypes(BetType)
 	SELECT	bettype
 	FROM	cteAffectedBettypes
-			
+
 	SET @openquery = 'SELECT betstatus, childmatchtype, eventstatus, ResultStatusID
 					  FROM	OPENQUERY(DBPRO, ''SELECT m.betstatus, m.childmatchtype, m.eventstatus, r.ResultStatusID 
 											   FROM bodb02.dbo.match m WITH(NOLOCK)
@@ -265,7 +267,7 @@ BEGIN
 	INSERT INTO @tmpMatchInfo(betstatus,childmatchtype,eventstatus,HTResultStatusID)
 	EXEC (@openquery)
 
-	-- update match
+	
 	SELECT	@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
 			,@ChildMatchType = ChildMatchType
 			,@eventstatus = CASE 
@@ -281,7 +283,7 @@ BEGIN
 						END
 	FROM	 @tmpMatchInfo
 
-	IF @IsCentral = 1
+	IF @IsCentral = 1 -- update match
 	BEGIN
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
 			@Command            = 'NAP_Admin_Settlement_1-CAL'
@@ -525,7 +527,7 @@ BEGIN
 												FOR XML RAW ('Resource'), ROOT ('Results')
 												)
 
-		IF @ResourceResult_Corner_Result IS NOT NULL AND @IsCentral = 1
+		IF @ResourceResult_Corner_Result IS NOT NULL 
 		BEGIN	
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
 				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
@@ -601,6 +603,10 @@ BEGIN
 	FROM cteBatchNo
 	GROUP BY BatchNo
 	
+	SET @Params =  ' IsCentral=''' + CAST(@IsCentral AS VARCHAR(1)) + ''''
+
+	SET @ParamsXML =  CAST('<root><r ' + REPLACE(@Params,'''','"') + ' /></root>' AS XML)
+
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 		,@mode = 'LockMatch'
 		,@IsSettingByProfile = 1
@@ -626,6 +632,7 @@ BEGIN
 			,@QueueNo  = 1
 			,@SessionId  = @SessionId
 			,@ActionId  = @ActionID
+			,@Params = @ParamsXML
 			,@SettlementProcessingId  = @SettlementProcessingId
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
@@ -659,6 +666,7 @@ BEGIN
 											,@SessionId AS '@SessionId'
 											,@ActionID AS '@ActionID'
 											,@SettlementProcessingId AS '@SettlementProcessingId'
+											,@Params AS '@Params'
 									FOR XML PATH('r'), ROOT('root')
 									) AS VARCHAR(MAX))
 
@@ -886,6 +894,7 @@ BEGIN
 				,@SelectedResources = @SelectedResourceParlay
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@LockedByRefno		= 1 -- always lock refno for testing
+				,@IsCentral			= @IsCentral
 
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT

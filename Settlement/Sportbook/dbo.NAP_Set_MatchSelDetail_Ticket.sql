@@ -179,8 +179,7 @@ BEGIN
 		)
 		SELECT	CASE 
 					WHEN g.groupId IN (1,3) THEN 1 -- HT, HT FGLG
-					WHEN g.groupId = 4 OR (g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FGLG
-					ELSE 0
+					ELSE 2
 				END AS GroupId
 			,SUM(b.betCount) AS betCount
 			,SUM(b.betRunningCount) AS betRunningCount
@@ -196,13 +195,12 @@ BEGIN
 				ON	b.bettype = g.BetType
 		GROUP BY CASE 
 					WHEN g.groupId IN (1,3) THEN 1 -- HT, HT FGLG
-					WHEN g.groupId = 4 OR (g.GroupId = 2 AND g.IsUsedGoalRecordValue =1) THEN 2 -- FT FGLG
-					ELSE 0
+					ELSE 2
 				END
 
-		INSERT INTO @status (GroupId, betCount, betRunningCount, betWaitingCount, betParlayCount, betParlayRunningCount, betParlayWaitingCount)
-		SELECT t.GroupId, 0, 0, 0, 0, 0, 0
-		FROM (VALUES (0),(1),(2),(3)) AS t (GroupId)
+		INSERT INTO @status (GroupId, betCount, betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betParlayCount, betParlayRunningCount, betParlayWaitingCount)
+		SELECT t.GroupId, 0, 0, 0, 0, 0, 0, 0, 0
+		FROM (VALUES (1),(2)) AS t (GroupId)
 		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @status s WHERE s.GroupId = t.GroupId)
 
     END
@@ -214,7 +212,7 @@ BEGIN
 			,ISNULL(@IsEnabledGoalRecordFT,0) AS IsEnabledGoalRecordFT
 			,ISNULL(@IsLive,0) AS IsLive
 			,ISNULL(@isExistResultandFirstTeamScore,0) AS isExistResultandFirstTeamScore
-   
+
 	-- Get number of ticket	
 	SELECT t.GroupId
 			,SUM(t.betCount) AS betCount
@@ -240,10 +238,7 @@ BEGIN
 				,betParlayCount
 				,betParlayWaitingCount
 				,betParlayRunningCount
-		FROM	@status
-		WHERE	GroupId IN (0,1,2)
-				AND 1 = CASE WHEN @sporttype <= 99 AND @sporttype NOT IN (27,46,1,2,5,9,43) THEN 1 ELSE 0 END
-						
+		FROM	@status						
 	) t
 	GROUP BY t.GroupId
 	ORDER BY t.GroupId

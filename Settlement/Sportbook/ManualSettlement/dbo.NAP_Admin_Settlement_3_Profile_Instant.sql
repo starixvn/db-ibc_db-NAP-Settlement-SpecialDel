@@ -496,6 +496,7 @@ BEGIN
 				,@hth				= @hth
 				,@hta				= @hta
 				,@LockedByRefno		= 1 -- always lock refno for testing
+				,@IsCentral			= @IsCentral
 
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
