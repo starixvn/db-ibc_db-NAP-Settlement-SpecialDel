@@ -435,7 +435,7 @@ BEGIN
 									ELSE 0
 							END
 
-			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -457,7 +457,7 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
 			END	
 
@@ -731,7 +731,7 @@ BEGIN
 								 ELSE 0
 							END
 					
-			IF OBJECT_ID('Service_SideDB_CalculationLog','U') IS NOT NULL 
+			IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -753,7 +753,7 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.Service_SideDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
 			END
 

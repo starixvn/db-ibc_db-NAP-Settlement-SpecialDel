@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SideDB_Service_Validation]
+ALTER PROCEDURE [dbo].[NAP_SiteDB_Service_Validation]
 	@TransInfo XML
 	,@IsPassed BIT = 0 OUTPUT
 AS
