@@ -2,11 +2,6 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All] 
      @matchid                       	INT
     ,@creator                       	INT
-    ,@IsExcludeBetdaq               	BIT             = 0
-    ,@IsSettleAbandonedMatch            BIT             = 0
-    ,@IsExcludeBetfair                  BIT             = 0
-    ,@IsSettleAbandonedMatchBetFair     BIT             = 0
-    ,@IsSettleAbandonedMatchIBC         BIT             = 0
     ,@hth								INT             = NULL
     ,@hta                               INT             = NULL
     ,@fth                               INT             = NULL
@@ -15,11 +10,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All]
     ,@betstatus                        	NVARCHAR(50)    = NULL
     
     ,@Action                            VARCHAR(10)     = 'CAL'
-    ,@SelectedQuarter					VARCHAR(50)		= NULL
-    ,@ResourceResult					VARCHAR(MAX)	= NULL
     ,@IsNested                          BIT             = 1
     ,@IP                                VARCHAR(15)     = ''
-	,@IsAutoRefund						BIT				= 0
+	
     ,@ErrCode							INT             = 0      OUTPUT
     ,@ErrMsg                            NVARCHAR(200)   = ''        OUTPUT
 AS
@@ -87,33 +80,7 @@ AS
 		
     Param's Explanation:
     • @matchid: matchid need to refund
-    • @IsExcludeBetdaq: Is Exclude betdaq tickets or not
-    • @IsSettleAbandonedMatch: Is Settlement for Abandoned/postponed match or not
-    • @IsExcludeBetfair: Is Exclude betfair tickets or not
-    • @IsSettleAbandonedMatchBetFair: Is Settlement for Betfair ticket of Abandoned/postponed match or not
-      @IsSettleAbandonedMatchIBC: Is Settlement for IBC ticket of Abandoned/postponed match or not
-        * List of BetDaq Customers 
-                    custid    --- username    -    roleid
-                    50057    ---    BQUS888        -    1
-                    879241    ---    BQUSMLB        -    1
-                    103873    ---    BQUSNBA        -    1
-                    78761    ---    ITibc101    -    1
-                    1688156    ---    MTEST0101    -    2
-                    851668  --- BDUS01      -   1
-                    878902  --- BDUS016     -   1
-        * List of Betfair Customers 
-                    custid    --- username    -    roleid
-                    2331    ---    BF            -    1
-                    1077687    ---    BFOS        -    1
-                    15523642--- BF3            -    1
-
-    * @SelectedQuarter: the list of selected quarter for settlement basketball
-			'801,802,1H,803,804,2H,FT'
-	
-	* @ResourceResult
-					<Results>
-						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
-					</Results>
+    
 */
 BEGIN
     SET NOCOUNT ON
@@ -121,161 +88,44 @@ BEGIN
     DECLARE @start                              DATETIME
             ,@stop                              DATETIME
             ,@avaiableProcess					BIT
-            ,@ScoreLog                          VARCHAR(100)
-            ,@sporttype                         SMALLINT
-            ,@IsRefundHT                        BIT
-            ,@IsHTCal                           BIT -- checking user did CAL/Refund HT yet
-            ,@oddevenht                         SMALLMONEY
-            ,@HomeValue                         VARCHAR(20)
-            ,@AwayValue                         VARCHAR(20)
-            ,@BetstatusLOG                      VARCHAR(50)        = ''
-            ,@scorediff                         SMALLMONEY 
+            ,@sporttype                         SMALLINT    
             ,@Remark                            VARCHAR(500)
-            ,@ActionID                          INT
-            ,@movebet                           VARCHAR(20)
-            ,@matchcode                         NVARCHAR(50)
-            ,@log                               VARCHAR(300)
-            ,@strSettledBettypes                VARCHAR(MAX) 
+            ,@ActionID                          INT       
+            ,@log                               VARCHAR(300)     
             ,@strRefundBettypes					VARCHAR(MAX)
-            ,@strAutoBettypes					VARCHAR(MAX)
-			,@refundCommand						VARCHAR(100)
-			,@refundCommand_1s					VARCHAR(100)
-			,@SDTRecord							TINYINT = 0
-			,@IsHedgeMatch						BIT
-			,@QuarterResult						VARCHAR(MAX)
-			,@xmlResultDetail					XML
-			,@ht_fg								VARCHAR(10)
-			,@ht_lg								VARCHAR(10)
-			,@ft_fg								VARCHAR(10)
-			,@ft_lg								VARCHAR(10)
-			,@goaldiff							SMALLMONEY
-			,@matchdate 						DATETIME
-			,@goalsequenceHT					VARCHAR(50)
-			,@goalsequenceFT					VARCHAR(50)
-			-- for corner bettype 
-			,@ChildMatchType		TINYINT
-			,@CornerResultString	NVARCHAR(MAX)
-			,@Char					VARCHAR(1)
-			,@Position				TINYINT
-			,@HomeRaceTo			TINYINT
-			,@AwayRaceTo			TINYINT
-			,@LenResultString		TINYINT
-			,@hdp					VARCHAR(5) = ''
-			,@Index_Round_tmp		TINYINT = 0
-			,@Index_Round			TINYINT = 1
-			,@ResourceResult_Corner_Result	VARCHAR(MAX) = NULL
-			,@CheckingAction VARCHAR(20)
-			,@strTransIds	VARCHAR(MAX)
+  			,@refundCommand						VARCHAR(100)
+		
 			,@IsCentral			BIT = 0	
-	
-	DECLARE @ResourceResult_tmp AS TABLE (ResourceId VARCHAR(20),HomeValue VARCHAR(50))		
-	DECLARE @GoalBettype_tmp AS TABLE (bettype INT, Voided_cnt INT, ticket_cnt INT)
-
-	DECLARE @ListBettype_tmp AS TABLE (bettype SMALLINT, hdp1 SMALLMONEY)
-	
-	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10),Index_Round TINYINT)
-	DECLARE @ResultDetail_Corner_tmp AS TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(10))
-	DECLARE @ResultDetail_Corner_ticket AS TABLE (ResourceID VARCHAR(20))
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
-	DECLARE @tmpCashoutTransId TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY)
 	
     --START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
 	--END Balance tables    
 
-	SELECT @refundCommand 						= 'NAP_Admin_Settlement_Refund-All'
-		,@refundCommand_1s						= @refundCommand
-		,@IsRefundHT = 0
-		,@IsHTCal = 0
-	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
-    SELECT  @strAutoBettypes = COALESCE(@strAutoBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
-    FROM	dbo.f_Set_GetGroupBettypes() f 
-    WHERE   f.IsAuto = 1   
-
-    DECLARE @TennisTotal        SMALLINT
-            ,@T_Home            SMALLINT
-            ,@T_Away            SMALLINT
-            ,@totalgoal         SMALLMONEY
-            ,@totalht           SMALLMONEY
-        
-    IF @IsSettleAbandonedMatch = 1
-        SELECT @IsExcludeBetdaq = 1
-
-    IF @IsSettleAbandonedMatchBetFair = 1
-        SELECT @IsExcludeBetfair = 1    
-	
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
-
-	-- Select SDT value
-	SELECT @SDTRecord = ISNULL(@IsSettleAbandonedMatch, 0) * 1 + ISNULL(@IsSettleAbandonedMatchBetFair,0) * 2 + ISNULL(@IsSettleAbandonedMatchIBC,0) * 4
-	
-    SELECT	@sporttype   	= m.SportType
-			,@matchdate  	= eventdate
-			,@matchcode		= matchcode
-			,@ChildMatchType = m.ChildMatchType
-    FROM    DBPRO.BODB02.dbo.Match m  WITH (NOLOCK)
-    WHERE    m.matchid = @matchid
-
-	SELECT	@IsRefundHT = CASE WHEN SettlementStatusID = 2 THEN 1 ELSE 0 END
-			,@IsHTCal = CASE WHEN ResultStatusID = 5 THEN 1 ELSE 0 END
-    FROM	DBPRO.BODB02.dbo.ResultDetail WITH (NOLOCK)
-    WHERE	matchid = @matchid
-			AND ResourceId = '01'
-    
-    SELECT @SelectedQuarter = CASE WHEN @sporttype <> 2 THEN NULL ELSE @SelectedQuarter END
-    
     SELECT  @start 		= CURRENT_TIMESTAMP
 			,@ActionID 	= CASE 
 							WHEN  @action = 'CAL' 		THEN 109
 							WHEN  @action = 'CAL-FT' 	THEN 111
 							ELSE 0
 						END
-            ,@HomeValue = CAST(@fth AS VARCHAR(20))
-            ,@HomeValue = CAST(@fta AS VARCHAR(20))
-            ,@IsHedgeMatch = CASE WHEN @matchcode LIKE '%hedge%' AND @IsSettleAbandonedMatchIBC = 1 THEN 1 ELSE 0 END
-			,@CheckingAction = CASE @Action WHEN 'CAL' THEN 'REFUND'
-										  WHEN 'CAL-HT' THEN 'REFUND-HT'
-										  WHEN 'CAL-FT' THEN 'REFUND-FT'
-										ELSE ''
-							 END
-			
+			,@refundCommand 						= 'NAP_Admin_Settlement_Refund-All'
+           
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+	
+    SELECT	@sporttype  = m.SportType		
+    FROM    dbo.Match m  WITH (NOLOCK)
+    WHERE    m.matchid = @matchid
+
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
 	,@ErrCode	= @ErrCode OUTPUT
 	,@ErrMsg	= @ErrMsg OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0	    
-	RETURN
-
-	IF @sporttype = 1
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-			@MatchId	= @matchid
-			,@Action	= @CheckingAction
-			,@IsAutoRefund = @IsAutoRefund
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
-
-		IF @ErrCode > 0
 		RETURN
-	END
-
-	IF @IsAutoRefund = 1
-	BEGIN
-		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
-			 @MatchId	= @matchid
-			,@TypeId	= 1
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	 OUTPUT
-
-		IF ISNULL(@ErrCode,0) <> 0
-		RETURN
-	END
 
     -- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
@@ -297,23 +147,11 @@ BEGIN
         RETURN
 	END
 	
-	-- check marked ticket
-	IF @sporttype = 2
-	BEGIN
-		EXEC dbo.NAP_Set_EarlySettlement_CheckingMarkedTransaction
-			@MatchID = @MatchID
-			,@ResourceIds = @SelectedQuarter
+	EXEC dbo.NAP_Set_CheckingMarkedTransaction
+			@MatchID  = @matchid
+			,@Action  = 'REFUND'
 			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
-	END
-	ELSE
-	BEGIN
-		EXEC dbo.NAP_Set_CheckingMarkedTransaction
-				@MatchID  = @matchid
-				,@Action  = 'REFUND'
-				,@ErrCode = @ErrCode OUTPUT
-				,@ErrMsg  = @ErrMsg	OUTPUT
-	END
+			,@ErrMsg  = @ErrMsg	OUTPUT
 
 	IF @ErrCode <> 0
 	BEGIN
@@ -339,126 +177,10 @@ BEGIN
         @MatchId 			= @matchId
         , @sportType 	    = @sporttype
         , @Action 			= @Action
-        , @Mode 			= 3 --@Mode Manual Refund
-        , @BAQuarter		= @SelectedQuarter
+        , @Mode 			= 3 --@Mode Manual Refund       
 		, @IsCentral		= @IsCentral
-    -------------------------------------------------------------	
-	IF @sporttype = 1
-	BEGIN
-		SET @xmlResultDetail = CAST(@ResourceResult AS XML)
-				
-		INSERT INTO @ResourceResult_tmp (ResourceId,HomeValue)
-		SELECT	T.c.value('./@Id','VARCHAR(20)') AS ResourceId
-				,T.c.value('./@HomeValue','VARCHAR(50)') AS HomeValue
-		FROM	@xmlResultDetail.nodes('/Results/Resource') AS T(c)
-		OPTION ( OPTIMIZE FOR ( @xmlResultDetail = NULL ) )
-	END
-			
-    IF @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair = 1 OR @IsSettleAbandonedMatchIBC = 1
-    BEGIN            
-        SELECT @ScoreLog = ' HTHScore=' + ISNULL(CAST(@hth AS VARCHAR(10)), '') 
-                         + ' HTAScore=' + ISNULL(CAST(@hta AS VARCHAR(10)), '') 
-                         + ' FTHScore=' + ISNULL(CAST(@fth AS VARCHAR(10)), '') 
-                         + ' FTAScore=' + ISNULL(CAST(@fta AS VARCHAR(10)), '') 
-                         + CASE 
-                                WHEN @SportType IN (5, 6, 9, 30, 48) THEN ' Betstatus=Refund;' 
-                                ELSE ' Betstatus='
-                           END + ISNULL(@betstatus,'') + '<br/> ' 
-
-                        + CASE WHEN @GoalSequence IS NULL THEN '' ELSE ' GoalSequence=' + @GoalSequence + '<br/> ' END  
-
-        IF @SportType IN (6, 9, 30, 48) -- Tennis/VolleyBall/Badminton/Squash : get TotalGamesPlayed  -- Remove sporttype 5 
-        BEGIN
-            EXEC dbo.Admin_Settlement_2 
-                @betstatus    = @betstatus
-                ,@Total        = @TennisTotal    OUTPUT
-                ,@TotalHome = @T_Home        OUTPUT
-                ,@TotalAway = @T_Away        OUTPUT        
-        END
-		
-        SELECT    @totalgoal        = CASE 
-                                        WHEN @sporttype IN (6, 9, 30, 48) AND @TennisTotal > 0 THEN @TennisTotal
-                                        ELSE (@fth + @fta)
-                                    END
-                ,@totalht           = (@hth + @hta)
-                ,@oddevenht         = (@hth + @hta) % 2
-                ,@scorediff         = (@fth - @fta)
-
-        IF @Action IN ('CAL', 'CAL-FT') AND @totalgoal IS NULL
-        BEGIN
-            SELECT    @ErrCode = 1001004
-                    ,@ErrMsg = 'Cannot settle determined ticket(s) without FT Score!'
-
-            ------ releasing Settlement process
-            EXEC dbo.NAP_Admin_CheckingProcess
-                @isExistMatch		= 1
-                , @IsReleased		= 1
-
-            RETURN
-        END
-
-        IF @Action IN ('CAL', 'CAL-HT') AND @totalht IS NULL
-        BEGIN
-            SELECT    @ErrCode = 1001005
-                    ,@ErrMsg = 'Cannot settle determined ticket(s) without HT Score!'
-
-            ------ releasing Settlement process
-            EXEC dbo.NAP_Admin_CheckingProcess
-                @isExistMatch		= 1
-                , @IsReleased		= 1
-
-            RETURN
-        END
-    END
     
-    BEGIN TRY
-			
-		--using this way to avoid more param @betcount
-		;WITH cteBettypes
-		AS
-		(
-			SELECT    f.BetType
-			FROM    dbo.f_Set_GetGroupBettypes() f				
-			WHERE    f.IsDetermined = 1 -- support to settle determined tickets
-					AND 1 = CASE 
-								WHEN @Action = 'CAL-FT' THEN -- FT, HTFT-FGLG
-									CASE 
-										WHEN @IsRefundHT = 1 AND f.GroupId IN (2,4) AND f.Is3x30 = 1 THEN 0
-										ELSE 1
-									END
-								WHEN @Action = 'CAL-HT' THEN 0
-								WHEN @Action = 'CAL' THEN
-									CASE 
-										WHEN @IsHedgeMatch = 1 AND f.Bettype IN (3,8) THEN 1 --just support bettype 3&8 for hedge match SDT
-										WHEN @IsHedgeMatch = 0 THEN 1
-										ELSE 0
-									END
-								ELSE 0
-							END
-					AND f.IsAuto = 0 --excluding auto bettype
-		)
-
-		INSERT INTO @ListBettype_tmp (bettype,hdp1)
-		SELECT bettype,hdp1  
-		FROM (
-				SELECT    bettype, hdp1
-				FROM    dbo.bettrans b WITH(NOLOCK)
-				WHERE    matchid = @matchid
-						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-						AND statusID NOT IN (101)
-						AND 1 = CASE WHEN @IsSettleAbandonedMatch = 1 AND (custid IN (50057, 879241, 103873, 78761, 851668, 878902) OR recommend = 1688156) THEN 1
-									 WHEN @IsSettleAbandonedMatchBetFair = 1 AND custid IN (2331, 1077687, 115770, 15523642) THEN 1
-									 WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
-									 ELSE 0
-								END
-				GROUP BY b.bettype, hdp1
-			) AS b 
-		WHERE b.bettype IN (SELECT bettype	FROM cteBettypes )
-		GROUP BY b.bettype,hdp1
-
-		SELECT @strSettledBettypes = COALESCE(@strSettledBettypes + ',' + CAST(bettype AS VARCHAR(10)), CAST(bettype AS VARCHAR(10))) 
-		FROM (SELECT DISTINCT bettype FROM @ListBettype_tmp) AS tmp
-		
+    BEGIN TRY		
 		IF @IsCentral = 1
 		BEGIN
 			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
@@ -470,8 +192,7 @@ BEGIN
 				,@HTHome		 = @hth
 				,@HTAway		 = @hta
 				,@FTHome		 = @fth
-				,@FTAway		 = @fta
-				,@SelectedQuarter= @SelectedQuarter
+				,@FTAway		 = @fta				
 		END
 		
 		SET @strRefundBettypes = CAST((SELECT  f.BetType '@t'
@@ -485,62 +206,8 @@ BEGIN
 		EXEC dbo.NAP_Admin_Calculate_Main 
             @matchid                    = @matchid
             ,@action                    = 'REFUND'
-            ,@mode                      = 'REFUND'
-            ,@IsExcludeBetdaq           = @IsExcludeBetdaq
-            ,@IsExcludeBetfair          = @IsExcludeBetfair
-            ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-            ,@strBettypes               = @strRefundBettypes
-			,@matchdate					= @matchdate
-			,@SelectedQuarter			= @SelectedQuarter
-		
-         -- Calculate charged commission of Cricket
-        EXEC dbo.NAP_Admin_Calculate_500
-            @MatchId = @matchId
-            ,@Action = 'REFUND'
-
-		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
-		BEGIN
-			UPDATE t 
-				SET winlost = c.Winlost
-			FROM	@tmpCashoutTransId t
-				INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
-					ON t.TransId = c.TransID
-
-			WHILE (1=1)
-			BEGIN
-				DELETE @tmpTransIDBatch
-				SET @strTransIds = ''
-
-				DELETE 	TOP (2000)
-				FROM	@tmpCashoutTransId
-					OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
-
-				IF @@ROWCOUNT = 0
-					BREAK
-
-				SET @strTransIds = (SELECT transid	AS '@t'
-											,winlost	AS '@w'	
-											,statuswinlost AS '@s'
-									FROM @tmpTransIDBatch
-									FOR XML PATH('r'), ROOT( 'root' ))
-
-				EXEC dbo.NAP_Admin_Calculate_Main
-					@matchid	  = @matchid
-					,@action	  = 'Cashout'
-					,@mode		  = 'REFUND'
-					,@strTransIds = @strTransIds
-
-			END
-		END
-
-		IF @IsAutoRefund = 1 AND @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-			  @MatchId = @matchid
-			, @TypeId  = 1
-			, @StatusId = 2
-		END
-
+            ,@mode                      = 'REFUND'         
+            ,@strBettypes               = @strRefundBettypes		
     END TRY
     BEGIN CATCH
         -- CAPTURE value BALANCE after settlement  
@@ -556,8 +223,7 @@ BEGIN
             @MatchId 			= @matchId
             , @sportType 	    = @sporttype
             , @Action 			= @Action
-            , @Mode 			= 3 --@Mode Manual Refund
-            , @BAQuarter		= @SelectedQuarter
+            , @Mode 			= 3 --@Mode Manual Refund          
 			, @IsCentral		= @IsCentral
         
         -- Compare and update pending balance with error case
@@ -587,8 +253,7 @@ BEGIN
         @MatchId 			= @matchId
         , @sportType 	    = @sporttype
         , @Action 			= @Action
-        , @Mode 			= 3 --@Mode Manual Refund
-        , @BAQuarter		= @SelectedQuarter
+        , @Mode 			= 3 --@Mode Manual Refund     
 		, @IsCentral		= @IsCentral
     
     -- Compare and update pending balance with error case
@@ -604,30 +269,6 @@ BEGIN
 	
 	DROP TABLE #tblMatchProcess
 
-    --  Betfair & Betdaq - Warning message:
-    SELECT    @movebet = convert(VARCHAR(20), DATEADD(d, 1, m.kickofftime), 100),
-            @matchcode    = m.matchcode
-    FROM    DBPRO.bodb02.dbo.match m WITH (NOLOCK)
-    WHERE    m.matchid = @matchid
-
-    IF @matchcode not like '%Hedge%'
-    BEGIN 
-        IF (@IsExcludeBetdaq = 1 OR @IsSettleAbandonedMatch = 1) AND (@IsExcludeBetfair = 1 OR @IsSettleAbandonedMatchBetFair = 1)
-        BEGIN
-            SELECT @ErrCode = 1000006
-                ,@ErrMsg    = 'Please move Betdaq and Betfair tickets to a new match before ' + @movebet + ' GMT-4. Otherwise they will bring harm to the system'
-        END
-        ELSE IF (@IsExcludeBetdaq = 1 OR @IsSettleAbandonedMatch = 1)
-        BEGIN
-            SELECT @ErrCode = 1000006
-                ,@ErrMsg    = 'Please move Betdaq tickets to a new match before ' + @movebet + ' GMT-4. Otherwise they will bring harm to the system'
-        END
-        ELSE IF (@IsExcludeBetfair = 1 OR @IsSettleAbandonedMatchBetFair = 1)
-        BEGIN
-            SELECT @ErrCode = 1000006
-                ,@ErrMsg    = 'Please move Betfair tickets to a new match before ' + @movebet + ' GMT-4. Otherwise they will bring harm to the system'
-        END
-    END 
     -------------------------------------------------------------
     ---                      WRITE LOG                        ---
     ---------------------------VVVV------------------------------
@@ -637,14 +278,7 @@ BEGIN
     DECLARE @LogData NVARCHAR(300)
 
     SELECT @LogData = 'NAP: Calculate (Refund All) for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-                                                                 + CASE WHEN @IsExcludeBetdaq = 1                THEN ', Exclude Betdaq tickets'                ELSE '' END 
-                                                                 + CASE WHEN @IsSettleAbandonedMatch = 1        THEN ', Settle determined betdaq tickets'    ELSE '' END 
-                                                                 + CASE WHEN @IsExcludeBetfair = 1                THEN ', Exclude Betfair tickets'            ELSE '' END 
-                                                                 + CASE WHEN @IsSettleAbandonedMatchBetFair = 1 THEN ', Settle determined betfair tickets'    ELSE '' END
-                                                                 + CASE WHEN @IsSettleAbandonedMatchIBC = 1        THEN ', Settle determined IBC tickets'        ELSE '' END
-                                                                 + CASE WHEN (@IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair =1 OR @IsSettleAbandonedMatchIBC = 1) THEN @ScoreLog ELSE '' END 
-                                                                + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE 'SelectedQuarter:' + @SelectedQuarter + '<br/> ' END
-
+                                                               
     EXEC dbo.Logfile_V2 
 		@UserID = @creator
 		,@Doing = @LogData
@@ -652,56 +286,22 @@ BEGIN
 	
 	IF @IsNested = 0
 	BEGIN
-			-- Write log
-			SET @log = 'NAP: Refund for matchid: ' + CONVERT(VARCHAR(10), @matchid)
+		-- Write log
+		SET @log = 'NAP: Refund for matchid: ' + CONVERT(VARCHAR(10), @matchid)
 		
-			 EXEC dbo.Logfile_V2 
-				@UserID = @creator
-				,@Doing = @Log
-				,@extend = @MatchId
+			EXEC dbo.Logfile_V2 
+			@UserID = @creator
+			,@Doing = @Log
+			,@extend = @MatchId
 	END
 
 	IF @IsCentral = 1
 	BEGIN
 		--Write Log Settle
-		SELECT @Remark = 'NAP: IsAuto: '  + CAST(@IsAutoRefund AS CHAR(1)	) + '<br/> '
-						+ 'ExcludeBetdaqTickets='            + convert(char(1),@IsExcludeBetdaq) 
-						+ ' SettleDeterminedBetdaqTickets='        + convert(char(1),@IsSettleAbandonedMatch)
-						+ ' ExcludeBetfairTickets='                + convert(char(1),@IsExcludeBetfair) 
-						+ ' SettleDeterminedBetfairTickets='    + convert(char(1),@IsSettleAbandonedMatchBetFair)
-						+ ' SettleDeterminedIBCTickets='        + convert(char(1),@IsSettleAbandonedMatchIBC)
-						+ CASE WHEN (@IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair =1 OR @IsSettleAbandonedMatchIBC = 1) THEN @ScoreLog ELSE '' END 
-						+ CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE 'SelectedQuarter:' + @SelectedQuarter + '<br/> ' END
-						+ ' Action=' + @Action
+		SELECT @Remark = 'NAP: Action=' + @Action					
 						+ ' Duration=' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms;' 
 
-		SELECT  @BetstatusLOG =CASE 
-									WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL' THEN 'Abandoned 1H' 
-									ELSE 'Refund' 
-								END
-				
-	
-		SELECT @hth = CASE 
-						WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL' THEN @hth
-						WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL-FT' THEN 0
-						ELSE  NULL
-					END
-			, @hta = CASE 
-						WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL' THEN @hta
-						WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL-FT' THEN 0
-						ELSE  NULL
-					END
-			, @fth = CASE 
-						WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL-FT' THEN @fth
-						ELSE  NULL
-					END
-			, @fta = CASE 
-						WHEN @IsSettleAbandonedMatchIBC = 1 AND @action = 'CAL-FT' THEN @fta
-						ELSE  NULL
-					END
-				
-		BEGIN TRY
-		
+		BEGIN TRY		
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 				@UserID              = @creator
 				,@Matchid            = @matchid
@@ -711,7 +311,7 @@ BEGIN
 				,@hthomescore        = @hth
 				,@htawayscore        = @hta
 				,@GoalRecord         = @GoalSequence
-				,@betstatus          = @BetstatusLOG
+				,@betstatus          = 'Refund'
 				,@Remark             = @Remark
 				,@IP                 = @IP
 		END TRY
@@ -728,7 +328,7 @@ BEGIN
 				,@hthomescore        = @hth
 				,@htawayscore        = @hta
 				,@GoalRecord         = @GoalSequence
-				,@betstatus          = @BetstatusLOG
+				,@betstatus          = 'Refund'
 				,@Remark             = @Remark
 				,@IP                 = @IP
 		END CATCH
@@ -738,9 +338,7 @@ BEGIN
 			-- Update match_remark
 			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
 				@matchid       = @matchid
-				,@command      = 'F'
-				,@SelectedQuarter = @SelectedQuarter
-      
+				,@command      = 'F'			
 		END
 	END
 END
