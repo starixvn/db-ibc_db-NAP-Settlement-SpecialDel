@@ -6,10 +6,11 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_1_InstantCalculation_Push
     , @HomeScore		VARCHAR(50)
     , @AwayScore		VARCHAR(50)
     , @Action			VARCHAR(10)
-    , @Mode			VARCHAR(10)
+    , @Mode				VARCHAR(10)
     , @ResourceResult	VARCHAR(MAX)	 = NULL
     , @IP				VARCHAR(15)     = ''
     , @IsAutoInst		BIT			 = 0
+	, @SessionId		BIGINT			= 0
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -26,7 +27,8 @@ AS
 		- 20191213@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201111@Louisa: Prevent process if SettlementStatus turn on bit 1,2,3,5,7 [Redmine:#143441]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
     Param's Explanation:
 		- @Action: ['CAL', 'UNDO']
 		- @Mode: ['INST-HT', 'INST-FT']
@@ -60,77 +62,6 @@ BEGIN
 		, @ChildMatchType = m.ChildMatchType
 	FROM DBPRO.BODB02.dbo.match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
-	
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
-
-	-- checking for instant match validation
-	IF(@Action = 'CAL')
-	BEGIN
-		IF @IsAutoInst = 0
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-				@MatchId	= @matchid
-				,@Action	= @action
-				,@ErrCode	= @ErrCode	OUTPUT
-				,@ErrMsg	= @ErrMsg	OUTPUT
-
-			IF @ErrCode > 0
-				RETURN
-		END
-
-		EXEC dbo.NAP_Settlement_InstantCalculation_Checking 
-		@MatchId 			 = @MatchId
-		, @InstantKey		 = @InstantKey
-		, @Action 		 = @Action
-		, @Mode			 = @Mode
-	     , @ErrCode 		 = @ErrCode OUTPUT
-		, @ErrMsg 		 = @ErrMsg OUTPUT
-	END
-	ELSE IF (@Action = 'UNDO')
-	BEGIN
-		--DOUBLE CHECK match status
-		EXEC DBPRO.bodb02.dbo.NAP_Settlement_InstantCalculation_UndoChecking
-		@MatchId			= @MatchId
-		, @InstantCheck	= @InstantKey
-		, @ErrCode 		= @ErrCode OUTPUT
-		, @ErrMsg			= @ErrMsg OUTPUT
-	END
-        
-    IF (@ErrCode <> 0)
-    BEGIN
-        RETURN
-    END
-	
-    IF EXISTS (SELECT TOP 1 1
-			FROM dbo.Single_Calculate_Queue s WITH (NOLOCK)
-				INNER JOIN dbo.f_Set_GetAction() f
-					ON s.Action = f.Action
-					AND f.GroupAction = 'MNL'
-			WHERE s.matchid = @matchid
-			  AND s.IsCalculating IN (0, 1)
-			)
-    OR EXISTS (SELECT TOP 1 1
-			 FROM dbo.Parlay_Calculate_Queue WITH (NOLOCK)
-			 WHERE matchid = @matchid
-				AND IsCalculating IN (0, 1)
-			)
-    BEGIN
-        SELECT @ErrCode = 1001003
-			, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-        RETURN
-    END
     
     SELECT @ErrCode = 0, @ErrMsg = '', @procName = OBJECT_NAME(@@PROCID)
     SELECT @SourceINT = CASE 
@@ -155,28 +86,6 @@ BEGIN
 						  + ', @SourceID = ''' + CONVERT(NVARCHAR(50), @SourceINT) + '''' 
 						  + ', @ErrCode = @ErrCode OUTPUT' 
 						  + ', @ErrMsg = @ErrMsg OUTPUT'
-                                                         
-	   
-	   
-	   BEGIN
-		--insert into table AutoPayoutResult in Instant
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
-			@MatchId 		= @matchid
-			, @SourceId 	= @SourceINT
-			, @TypeId 	= @CalculationType
-			, @InstantKey	= @InstantKey
-			, @HomeValue 	= @HomeScore
-			, @AwayValue 	= @AwayScore
-			, @StatusId 	= 1 --waiting
-			, @ErrCode 	= @ErrCode OUTPUT
-			, @ErrMsg		= @ErrMsg OUTPUT
-		END	
-
-		
-		IF @ErrCode <> 0
-		BEGIN
-			RETURN
-		END
 	END
 	ELSE IF(@Action = 'UNDO')
 	BEGIN

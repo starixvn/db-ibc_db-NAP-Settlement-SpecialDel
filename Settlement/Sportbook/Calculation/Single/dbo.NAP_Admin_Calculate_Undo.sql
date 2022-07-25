@@ -281,7 +281,7 @@ BEGIN
 			)
 
 			INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+			VALUES ('Settlement', 'UndoOtherSport', 'bettrans', @MatchId, @transInfo)		
 		END
 		SET @BatchNo = @BatchNo - 1
 

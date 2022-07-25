@@ -212,8 +212,7 @@ BEGIN
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN
 	    SELECT	@ErrCode
-				,@ErrMsg
-	    
+				,@ErrMsg    
 	    RETURN
 	END
 

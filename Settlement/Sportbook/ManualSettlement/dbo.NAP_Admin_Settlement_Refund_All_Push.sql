@@ -56,6 +56,7 @@ AS
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20220415@July: Sporttype = 1 return message [Redmine:#171579]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
     • @matchid: matchid need to refund
@@ -127,14 +128,6 @@ BEGIN
 
         RETURN
     END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0	    
-	RETURN
 
 	-- Verify whether Instant Settlement has been executed with larger value than suspended score
 	SELECT	@Inst_HomeScore = HomeValue
