@@ -66,7 +66,8 @@ AS
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
 		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
-		
+		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
+
     Parameters Explanation:
 
 
@@ -517,7 +518,7 @@ BEGIN
 			IF @action = 'REFUND'
            		SELECT @eventstatus        = N'completed'
 	                   ,@ruben             = 1
-	                   ,@betstatus         = CASE WHEN @Sporttype = 5 
+	                   ,@betstatus         = CASE WHEN @Sporttype IN ( 5, 6 ) 
                                                     THEN CASE WHEN CHARINDEX('Refund;',@betstatus) > 0 THEN @betstatus ELSE 'Refund;' + @betstatus END
                                                 ELSE 'Refund;' END
 	                   
@@ -555,7 +556,7 @@ BEGIN
                 ,settletime     = GETDATE()
             WHERE matchid = @matchid
         END
-        ELSE IF @IsFinalRound = 0 AND @Sporttype IN (1,2,5)
+        ELSE IF @IsFinalRound = 0 AND @Sporttype IN (1,2,5,6)
         BEGIN
 			IF (@IsHTRound = 1 OR @Sporttype <> 2) AND @Action = 'UNDO'
 				SELECT	@HTHome = -1
