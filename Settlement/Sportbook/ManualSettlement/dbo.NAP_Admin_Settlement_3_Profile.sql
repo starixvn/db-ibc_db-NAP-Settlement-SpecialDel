@@ -84,7 +84,7 @@ BEGIN
 			,@ParamsXML			XML
 			,@Params			VARCHAR(MAX)
 			,@IsCentral	BIT
-		
+			
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
 		,HomeValue VARCHAR(2000)
@@ -151,7 +151,7 @@ BEGIN
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
 			,@IsCentral = 0
-			
+
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 

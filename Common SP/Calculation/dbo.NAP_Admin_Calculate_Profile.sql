@@ -74,6 +74,7 @@ BEGIN
 			,@RepUpdateTime		DATETIME2
 			
 			,@transInfo		XML
+			,@IsSiteDB		BIT
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
 	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT
@@ -108,10 +109,13 @@ BEGIN
 		SET @OddsType = 0
 	END
 
+	IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+
 	SET @settlementTime = GETDATE()	
 	SET @RepUpdateTime = SYSDATETIME()
 		
-	IF @ServerAlias = 'DBTXN'
+	IF @ServerAlias = 'DBTXN' OR @IsSiteDB = 1
 	BEGIN
 		BEGIN TRY
 			UPDATE TOP(@batchno)  b
@@ -381,7 +385,10 @@ BEGIN
 		
 			SET @StepDone = @StepDone + ' bettrans'
 
-			IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+			SELECT TOP 1 @matchid = MatchId
+			FROM	@tmpBalanceChanged
+
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -410,11 +417,8 @@ BEGIN
 				)
 
 				INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @MatchId, @transInfo)	
+				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @matchid, @transInfo)	
 			END
-
-			SELECT TOP 1 @matchid = MatchId
-			FROM	@tmpBalanceChanged
 
 			-- balance
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged WHERE WalletType = 1)

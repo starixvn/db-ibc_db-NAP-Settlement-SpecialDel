@@ -120,6 +120,7 @@ BEGIN
 			,@IsEnableServiceBroker = IsEnableServiceBroker
 			,@TotalQueue = TotalQueue
 			,@Environment = Environment
+			,@IsCentral = IsCentral
 	FROM	@tmpServerInfo
 	WHERE	ServerName = @ServerName
 
@@ -127,5 +128,7 @@ BEGIN
 	SET @IsEnableServiceBroker = ISNULL(@IsEnableServiceBroker, 0)
 	SET @TotalQueue = ISNULL(@TotalQueue,0)
 	SET @Environment = ISNULL(@Environment, '')
+	SET @IsCentral = ISNULL(@IsCentral,0)
+
 END
 GO

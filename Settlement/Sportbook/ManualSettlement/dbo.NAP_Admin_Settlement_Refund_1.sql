@@ -26,6 +26,7 @@ AS
 
     Revisions: 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
     
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -98,6 +99,7 @@ BEGIN
 			,@LogData							XML
 			,@CommandMonitor					NVARCHAR(MAX)
 			,@SSBStatus							TINYINT
+			,@IsCentral							BIT 	
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -147,7 +149,11 @@ BEGIN
 			,@ThreadHoldRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
+			,@IsCentral = 0
 			
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	SET @SDTRecord = CASE WHEN @SDTRecord & 1 > 0 AND @SDTRecord & 8 = 0 THEN @SDTRecord + 8 ELSE @SDTRecord END
 	SET @SDTRecord = CASE WHEN @SDTRecord & 2 > 0 AND @SDTRecord & 16 = 0 THEN @SDTRecord + 16 ELSE @SDTRecord END
 
@@ -276,6 +282,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 		GROUP BY b.custid, b.bettype
 		
@@ -306,6 +313,7 @@ BEGIN
 							, 5 AS ResultStatusId
 					FROM	dbo.bettrans b WITH (NOLOCK)
 					WHERE	b.matchid= @matchid
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							AND 1 = CASE 
 										WHEN @Action = 'REFUND-HT' AND b.bettype IN (487,489,490) THEN 1
 										WHEN @Action = 'REFUND-FT' AND b.bettype IN (486,488,490) THEN 1
@@ -345,6 +353,7 @@ BEGIN
 				FROM	dbo.bettrans b WITH(NOLOCK)
 				WHERE	bettype BETWEEN 486 AND 490
 						AND matchid = @matchid
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						AND EXISTS (SELECT TOP 1 1 FROM @tmpAffectedBettypes s WHERE s.BetType = b.bettype) 
 				GROUP BY bettype
 						,CAST(bettype AS VARCHAR) 
@@ -481,18 +490,21 @@ BEGIN
 									END
 		END
 		
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-            		@Command         = @refundCommand
-            		,@MatchID        = @matchid
-            		,@creator        = @creator
-					,@BetStatus 	 = @betstatus
-					,@GoalRecord	 = @GoalSequence 
-					,@HTHome		 = @hth
-					,@HTAway		 = @hta
-					,@FTHome		 = @fth
-					,@FTAway		 = @fta
-					,@HTDone		 = @IsHTDone
-	
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+				@Command         = @refundCommand
+				,@MatchID        = @matchid
+				,@creator        = @creator
+				,@BetStatus 	 = @betstatus
+				,@GoalRecord	 = @GoalSequence 
+				,@HTHome		 = @hth
+				,@HTAway		 = @hta
+				,@FTHome		 = @fth
+				,@FTAway		 = @fta
+				,@HTDone		 = @IsHTDone
+		END
+
 		EXEC DBPRO.BODB02.dbo.[NAP_Admin_Result_Update_1s] 
 			@Command                = @refundCommand_1s
 			,@MatchID               = @matchid
@@ -618,7 +630,7 @@ BEGIN
 						+ CASE WHEN @SDTRecord IS NOT NULL THEN ' SDTRecord=''' + CAST (@SDTRecord AS VARCHAR(20)) + '''' ELSE '' END
 						+ CASE WHEN @IsHedgeMatch IS NOT NULL THEN ' IsHedgeMatch=''' + CAST (@IsHedgeMatch AS VARCHAR(1)) + '''' ELSE '' END
 						+ CASE WHEN @IsABANDONEDHT IS NOT NULL THEN ' IsABANDONEDHT=''' + CAST (@IsABANDONEDHT AS VARCHAR(1)) + '''' ELSE '' END
-		
+						+ ' IsCentral=''' + CAST(@IsCentral AS VARCHAR(1)) + ''''
 		
 		EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 			,@mode = 'LockMatch'
@@ -722,6 +734,7 @@ BEGIN
 				ON b.bettype = s.Bettype
 			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, @IsABANDONEDHT) m
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND s.SessionId = @SessionId		
@@ -795,17 +808,20 @@ BEGIN
 				,@ActionId				= @ActionID		
 		END
 
-		IF @IsAutoRefund = 1
+		IF @IsCentral = 1
 		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-			@MatchId = @matchid
-			, @TypeId  = 1
-			, @StatusId = 2
-		END
+			IF @IsAutoRefund = 1
+			BEGIN
+				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
+				@MatchId = @matchid
+				, @TypeId  = 1
+				, @StatusId = 2
+			END
 
-		EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-			@matchid       = @matchid
-			,@command      = 'F'		
+			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+				@matchid       = @matchid
+				,@command      = 'F'		
+		END
 
 		INSERT INTO @tmpParlayAffectedBettypes(ResourceId, RefResourceId, SDTResourceId, bettype, IsSDTParlay, totalticket)
 		SELECT	a.ResourceID, a.RefResourceId, a.SDTResourceId, bm.bettype, ISNULL(a.IsSDTParlay,0), COUNT(1)		
@@ -813,6 +829,7 @@ BEGIN
 			INNER JOIN @tmpAllBettypes a
 				ON bm.bettype = a.BetType
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND bm.statusID NOT IN (101)
 				AND 1 = CASE WHEN @IsSettleAbandonedMatchIBC = 0 AND bm.statusID = 103  THEN 0 ELSE 1 END 
 		GROUP BY a.ResourceID, a.RefResourceId, a.SDTResourceId, bm.bettype, a.IsSDTParlay
@@ -885,6 +902,7 @@ BEGIN
 									+ ', @fta = ' + CONVERT(NVARCHAR(50), @fta)
 									+ ', @IsAutoRefund = ' + CONVERT(NVARCHAR(50), @IsAutoRefund)									
 									+ ', @Action = ''' + @Action + ''''	
+									+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -901,6 +919,7 @@ BEGIN
 					,@fta				= @fta
 					,@IsAutoRefund		= @IsAutoRefund
 					,@LockedByRefno		= 1 -- always lock refno for testing
+					,@IsCentral			= @IsCentral
 					,@ErrCode			= @ErrCode OUTPUT
 					,@ErrMsg 			= @ErrMsg OUTPUT
 			END
@@ -910,7 +929,7 @@ BEGIN
 				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
 			END
 		END
-		ELSE
+		ELSE IF @IsCentral = 1
 		BEGIN
 			IF @IsAutoRefund = 1
 			BEGIN

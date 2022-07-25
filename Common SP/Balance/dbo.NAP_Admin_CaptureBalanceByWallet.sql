@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_CaptureBalanceByWallet]
 	--, @ResourceIDs      VARCHAR(MAX)	= NULL 
 	, @SelectedRID      VARCHAR(MAX)    = NULL
 	, @TransIDs		    VARCHAR(MAX)    = NULL
+	, @IsCentral		BIT				= 0
 AS
 /* 
 	Created: 20170419@Bobby.nguyen  
@@ -30,6 +31,7 @@ AS
 		- 20210804@Helen: Support Cashout for Basketball [Redmine:#159617]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]	
 		- 20220309@Kathy: Remove code old Cashout model [Redmine:#169643]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:   
 		- @MatchId: Id of match event
@@ -159,6 +161,7 @@ BEGIN
 						,b.playercomm
 					FROM BetTrans b WITH (ROWLOCK)
 					WHERE b.matchid = @matchid_tmp
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						AND b.statusID NOT IN (101,102)
 						AND EXISTS( SELECT TOP 1 1
 									FROM @tmpSelectedRID t
@@ -234,7 +237,8 @@ BEGIN
 			FROM	 dbo.bettrans b WITH(ROWLOCK)
 				INNER JOIN @tmpBettypes bt
 					ON bt.bettype = b.bettype
-			WHERE	b.matchid = @matchid							
+			WHERE	b.matchid = @matchid	
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.bettype BETWEEN @minBettype AND @maxBettype	
 		) b
 		GROUP BY b.custid, b.WalletType, b.BonusId
@@ -290,6 +294,7 @@ BEGIN
 						SELECT CAST(CAST(b.bettype AS VARCHAR) + ISNULL(SUBSTRING(CAST(b.betid AS VARCHAR), 2, LEN(b.betid)),'') AS VARCHAR(20)) AS ResourceId		
 					) AS rs
 				WHERE b.matchid	= @matchid	
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND 1 = CASE 
 								WHEN @Mode IN (2, 3) AND @SportType = 2 THEN -- BasketBall
 									CASE 
@@ -344,6 +349,7 @@ BEGIN
 				INNER JOIN @TmpFMData t
 					ON t.bettype = b.bettype		
 			WHERE b.matchid	= @matchid	
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101)
 				AND 1 = CASE
 							WHEN t.HasInjuryTime = 0
@@ -370,6 +376,7 @@ BEGIN
 					SELECT	b.transid
 					FROM	dbo.bettrans b WITH(NOLOCK)
 					WHERE	b.matchid = @matchid
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							AND b.bettype = 228
 							AND b.statusID NOT IN (101)
 							AND @action = 'CAL'
@@ -386,6 +393,7 @@ BEGIN
 					SELECT	b.transid
 					FROM	dbo.bettrans b WITH(NOLOCK)
 					WHERE	b.matchid = @matchid
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							AND b.bettype = 228
 							AND b.statusID NOT IN (101)
 							AND 1 = CASE
