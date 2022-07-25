@@ -166,7 +166,7 @@ BEGIN
 	UPDATE sp
 	SET ResourceID = '70400'
 		,RefResourceId = '00'
-	FROM SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+	FROM SettlementSpecialBettypeProfile sp WITH(ROWLOCK, UPDLOCK)
 	WHERE sp.SportType = 9
 	AND sp.BetType  IN (2, 3)
 
