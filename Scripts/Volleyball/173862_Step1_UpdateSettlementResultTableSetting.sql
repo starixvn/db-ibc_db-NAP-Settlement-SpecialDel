@@ -18,7 +18,7 @@ GO
 BEGIN
 	SET NOCOUNT ON
 
-	UPDATE SettlementResultTableSetting
+	UPDATE SettlementResultTableSetting WITH(ROWLOCK, UPDLOCK)
 	SET IsAppliedSOP = 1	
 	WHERE Sporttype = 6
 

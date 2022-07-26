@@ -18,8 +18,6 @@ GO
 
 BEGIN
 
---SELECT top 1 * FROM dbo.SettlementSpecialBettypeProfile
-
 	DECLARE @tblNumber TABLE ( Id INT, Num VARCHAR(2) )
 	DECLARE @tblResourceFormat TABLE ( pfid SMALLINT, bettype SMALLINT, SettleType	VARCHAR(3), OddsType SMALLINT, Prefix VARCHAR(20), X VARCHAR(20) ,Y VARCHAR(20) )	
 	DECLARE @tblResource TABLE ( pfid SMALLINT , Ord INT, bettype SMALLINT, betid VARCHAR(5), SettleType VARCHAR(3), OddsType SMALLINT,  Prefix VARCHAR(20), ResourceId VARCHAR(20), RoundID	VARCHAR(10), GroupType CHAR(2) )	
