@@ -26,7 +26,8 @@ AS
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:
 		 @SelectedResources: <Resources>
 						    	<Resource Id="" Home="" Away="" />

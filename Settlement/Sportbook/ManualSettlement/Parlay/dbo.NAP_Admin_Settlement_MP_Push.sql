@@ -1,11 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP_Push] (
-	@MatchIds VARCHAR(4000)
-	,@AdminId INT
-	,@Action VARCHAR(20) = 'CAL'
-	,@IP VARCHAR(15) = ''
-	,@ErrCode INT = 0 OUTPUT
-	,@ErrMsg NVARCHAR(200) = '' OUTPUT
+	@MatchIds 	VARCHAR(4000)
+	,@AdminId 	INT
+	,@Action 	VARCHAR(20) = 'CAL'
+	,@IP 		VARCHAR(15) = ''
+	,@SessionId	BIGINT		= 0
+	,@ErrCode 	INT = 0 OUTPUT
+	,@ErrMsg 	NVARCHAR(200) = '' OUTPUT
 	)
 AS
 /*	Creator: 20140213@Kathy

@@ -9,6 +9,7 @@ CREATE PROCEDURE NAP_Admin_Settlement_Validation
 	,@SPName		VARCHAR(255)
 	,@SelectedResources	VARCHAR(MAX) = NULL
 	,@InstantKey	INT = NULL
+	,@SettleAbandonedMatchIBCParlay TINYINT	= 0
 
 	,@HalfTimeHome  INT = NULL
     ,@HalfTimeAway  INT = NULL
@@ -145,10 +146,12 @@ SET NOCOUNT ON
 		IF @sporttype = 1 AND @IsAuto = 0 AND ( @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%')
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-				@MatchId	= @matchid
-				,@Action	= @Action
-				,@ErrCode	= @ErrCode	OUTPUT
-				,@ErrMsg	= @ErrMsg	OUTPUT
+				@MatchId		= @matchid
+				,@Action		= @Action
+				,@IsAutoRefund  = @IsAutoRefund
+				--,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+				,@ErrCode		= @ErrCode	OUTPUT
+				,@ErrMsg		= @ErrMsg	OUTPUT
 
 			IF @ErrCode > 0
 				RETURN
@@ -237,12 +240,12 @@ SET NOCOUNT ON
 			END
 
 			EXEC NAP_Admin_Settlement_Checking
-				@MatchId = @MatchId
-				,@Action = @Action
-				,@Mode = 'CAL' --settlment_1_push
+				@MatchId  = @MatchId
+				,@Action  = @Action
+				,@Mode	  =  @Mode
 				,@xmlData = @SelectedResources
 				,@ErrCode = @ErrCode OUTPUT
-				,@ErrMsg = @ErrMsg OUTPUT
+				,@ErrMsg  = @ErrMsg OUTPUT
 	
 			IF ISNULL(@ErrCode,0) <> 0
 			RETURN
@@ -335,28 +338,48 @@ SET NOCOUNT ON
 		--Start: Validation for Refund
 		IF @Action LIKE 'REFUND%'
 		BEGIN
-			IF @Mode = 'ALL'
-			BEGIN
-				SELECT	@Inst_HomeScore = HomeValue
-						,@Inst_AwayScore = AwayValue
-				FROM	(	SELECT	HomeValue
-									,AwayValue
-									,ROW_NUMBER() OVER (ORDER BY AutoPayoutResultId DESC) AS rn
-							FROM	DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
-							WHERE	matchid = @Matchid
-									AND CalculationType = 101
-									AND statusId IN (1,2) -- Waiting, Completed
-						) s
-						WHERE	rn = 1
+			--IF @Sporttype = 1 AND @Mode = 'ALL'
+			--BEGIN
+			--	SELECT	@Inst_HomeScore = HomeValue
+			--			,@Inst_AwayScore = AwayValue
+			--	FROM	(	SELECT	HomeValue
+			--						,AwayValue
+			--						,ROW_NUMBER() OVER (ORDER BY AutoPayoutResultId DESC) AS rn
+			--				FROM	DBPRO.bodb02.dbo.AutoPayoutResult WITH (NOLOCK)
+			--				WHERE	matchid = @Matchid
+			--						AND CalculationType = 101
+			--						AND statusId IN (1,2) -- Waiting, Completed
+			--			) s
+			--			WHERE	rn = 1
 			
-				IF (@HalfTimeHome < @Inst_HomeScore  OR @HalfTimeAway < @Inst_AwayScore	)
+			--	IF (@HalfTimeHome < @Inst_HomeScore  OR @HalfTimeAway < @Inst_AwayScore	)
+			--	BEGIN
+			--		SELECT @ErrCode = 1001029
+			--			,@ErrMsg    = 'This match has been executed Instant Settlement with score '+ CAST(@Inst_HomeScore AS VARCHAR) + '-' + CAST(@Inst_AwayScore AS VARCHAR) + '. Please uncalculate it first!'
+			--		RETURN
+			--	END
+			--END
+
+			;WITH cteBettypes
+				AS(
+					SELECT	b.bettype
+					FROM	dbo.bettrans b WITH(NOLOCK)
+					WHERE	b.matchid = @MatchId
+							AND b.statusID = 0
+				)
+				SELECT	@IsHTDone = 0
+				FROM	cteBettypes b
+					INNER JOIN dbo.f_Set_GetGroupBettypes() f
+						ON b.bettype = f.BetType
+				WHERE	f.GroupId IN (1,3)
+
+				IF @IsHTDone = 0
 				BEGIN
-					SELECT @ErrCode = 1001029
-						,@ErrMsg    = 'This match has been executed Instant Settlement with score '+ CAST(@Inst_HomeScore AS VARCHAR) + '-' + CAST(@Inst_AwayScore AS VARCHAR) + '. Please uncalculate it first!'
+					SELECT	@ErrCode = 1001031
+							,@ErrMsg = 'Error! Cannot proceed due to running Half Time tickets. Please proceed with Half Time settlement and try again.'
 
 					RETURN
 				END
-						END
 
 		END
 		--/End: Validation for Auto Settle

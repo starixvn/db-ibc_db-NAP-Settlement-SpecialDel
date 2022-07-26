@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push] 
      @AdminId               INT
     ,@Matchid               INT
@@ -17,6 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
 	,@IsReSettledTickets	BIT				= 1
     ,@ChildMatchIds			VARCHAR(500)	= NULL
 	,@RefResultStatus		TINYINT			= 0
+	,@SessionId				BIGINT			= 0
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 AS

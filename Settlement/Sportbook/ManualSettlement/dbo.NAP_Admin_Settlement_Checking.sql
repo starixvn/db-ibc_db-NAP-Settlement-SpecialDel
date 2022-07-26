@@ -44,6 +44,7 @@ AS
 		- 20210906@Louisa: Get configuration from table SettlementResultTableSetting [Redmine:#160478]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		@Mode			@Action
@@ -92,8 +93,7 @@ BEGIN
 	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @Sporttype
 
-	
-	IF @Mode IN ('CAL', 'REFUND')
+	IF @Action NOT LIKE 'UNDO%' AND @Mode NOT IN ('BB', 'MP')
 	BEGIN	
 		IF @isSettingByProfile = 1
 		BEGIN			
@@ -171,7 +171,7 @@ BEGIN
 		
 	END
 	
-	IF @Mode = 'REFUND'
+	IF @Action LIKE 'REFUND%' AND @Mode <> 'EAR'
 	BEGIN
 		IF @Action = 'BetDaq'
 		BEGIN	
@@ -207,7 +207,7 @@ BEGIN
 				SELECT @isExistWaitingTicket = 1
 		END	
 	END
-	IF @Mode = 'CAL-MP'
+	IF @Action = 'CAL-MP'
 	BEGIN		
 		DECLARE @wtMatch TABLE (matchid INT)
 		
@@ -237,7 +237,7 @@ BEGIN
 		
 	END
 
-	IF @Mode = 'CAL-FM'
+	IF @Mode = 'FM'
 	BEGIN
 		DECLARE @maxSelectedTotalGoal	INT = 0
 				,@maxSelectedPosition	TINYINT = 0
@@ -472,7 +472,7 @@ BEGIN
 			SELECT @isExistWaitingTicket = 1
 	END
 	
-	IF @Mode = 'CAL-EARLY'
+	IF @Mode = 'EAR'
 	BEGIN
 		IF @isSettingByProfile = 1 OR @Sporttype = 1
 		BEGIN

@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP_Push] (
 	,@Action 						VARCHAR(20) = 'REFUND'
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0
 	,@IP 							VARCHAR(15) = ''
+	,@SessionId						BIGINT	= 0
 	,@ErrCode 						INT = 0 OUTPUT
 	,@ErrMsg NVARCHAR(200) 			= '' OUTPUT
 )
@@ -34,6 +35,7 @@ AS
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 	
 	Param's Explanation:		
 		- @Action: [Refund, Refund-HT, Refund-FT]
@@ -129,39 +131,6 @@ BEGIN
     BEGIN
         SELECT	@ErrCode = 1001001
 				,@ErrMsg    = 'The match or action is invalid!'
-
-        RETURN
-    END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
-
-    IF EXISTS (
-            SELECT	1
-            FROM	dbo.Single_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
-            )
-
-        OR EXISTS (
-            SELECT	1
-            FROM	dbo.Parlay_Calculate_Queue WITH (NOLOCK)
-            WHERE	matchid = @matchid
-					AND IsCalculating IN (0, 1)
-            )
-    BEGIN
-        SELECT @ErrCode = 1001003
-            ,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 
         RETURN
     END
