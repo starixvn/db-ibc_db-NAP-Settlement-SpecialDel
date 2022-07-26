@@ -10,6 +10,7 @@ AS
 
 	Revisions:
 		- 20220531@Kathy: get list CO ticket [Redmine:#173361]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -39,6 +40,7 @@ BEGIN
 	SELECT	b.transid, b.custid, b.statusID
 	FROM	dbo.bettrans b WITH(NOLOCK)
 	WHERE	b.matchid = @MatchId
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND ISNULL(b.betdaqid,0) = -2
 			AND EXISTS (SELECT TOP 1 1 FROM @tmpResources t WHERE t.Bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid ))
 			AND b.statusID <> 102

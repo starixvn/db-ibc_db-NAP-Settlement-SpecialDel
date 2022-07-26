@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_MonitorProcess]
 	,@HasError INT
 	,@LogData XML = ''
 	,@NeedWaiting BIT = 0 
+	,@IsCentral	BIT = 0 
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
 	,@SSBStatus TINYINT = 0 OUTPUT
@@ -20,6 +21,7 @@ AS
 		  - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		  - 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		  - 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
+		  - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:  
 	
@@ -172,62 +174,65 @@ BEGIN
 			,@Doing = @Remark
 			,@extend = @MatchId
 
-		SELECT @Remark ='NAP: ' 
-						+ CASE 
-							WHEN @Action LIKE 'CAL%' THEN 
-								CASE 
-									WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-									WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> '
-									ELSE ''
-								END 
-								+ CASE WHEN @DeterminedFTStatus = 2 THEN ' SDT-FT:1' ELSE '' END
-								+ CASE    WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
-											ELSE ' Old GoalRecord:' + @oldgoalrecord + '<br/> '
+		IF @IsCentral = 1
+		BEGIN
+			SELECT @Remark ='NAP: ' 
+							+ CASE 
+								WHEN @Action LIKE 'CAL%' THEN 
+									CASE 
+										WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
+										WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> '
+										ELSE ''
+									END 
+									+ CASE WHEN @DeterminedFTStatus = 2 THEN ' SDT-FT:1' ELSE '' END
+									+ CASE    WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
+												ELSE ' Old GoalRecord:' + @oldgoalrecord + '<br/> '
+												END
+									+ CASE WHEN @TicketCount IS NOT NULL THEN ' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';' ELSE '' END
+									+ CASE WHEN @IsReSettledTickets IS NOT NULL THEN ' Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + ';' ELSE '' END
+								   + CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
+											WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
+											ELSE ' RefChild:(' + @ChildMatchIds +')' 
 											END
-								+ CASE WHEN @TicketCount IS NOT NULL THEN ' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';' ELSE '' END
-								+ CASE WHEN @IsReSettledTickets IS NOT NULL THEN ' Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + ';' ELSE '' END
-							   + CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
-										WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
-										ELSE ' RefChild:(' + @ChildMatchIds +')' 
-										END
-							WHEN @Action LIKE 'REFUND%' THEN
-								CASE WHEN @IsAutoRefund IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAutoRefund AS CHAR(1)) ELSE '' END
-								+ ' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
-							ELSE ''
-						END
-						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 
+								WHEN @Action LIKE 'REFUND%' THEN
+									CASE WHEN @IsAutoRefund IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAutoRefund AS CHAR(1)) ELSE '' END
+									+ ' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
+								ELSE ''
+							END
+							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 
 		
-		SELECT @betstatus = CASE WHEN @SDTRecord & 4 > 0 THEN 'Abandoned 1H' ELSE 'Refund' END
-		WHERE	@Action = 'REFUND'
+			SELECT @betstatus = CASE WHEN @SDTRecord & 4 > 0 THEN 'Abandoned 1H' ELSE 'Refund' END
+			WHERE	@Action = 'REFUND'
 
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID                = @AdminId
-				,@Matchid            = @matchid
-				,@ActionID            = @ActionID
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord        = @goalrecord
-				,@betstatus            = @betstatus
-				,@Remark            = @Remark
-				,@IP                = @IP
-		END TRY
-		BEGIN CATCH
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID                = @AdminId
-				,@Matchid            = @matchid
-				,@ActionID            = @ActionID
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord        = @goalrecord
-				,@betstatus            = @betstatus
-				,@Remark            = @Remark
-				,@IP                = @IP
-		END CATCH
+			BEGIN TRY
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+					@UserID                = @AdminId
+					,@Matchid            = @matchid
+					,@ActionID            = @ActionID
+					,@finalhomescore    = @fth
+					,@finalawayscore    = @fta
+					,@hthomescore        = @hth
+					,@htawayscore        = @hta
+					,@GoalRecord        = @goalrecord
+					,@betstatus            = @betstatus
+					,@Remark            = @Remark
+					,@IP                = @IP
+			END TRY
+			BEGIN CATCH
+				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+					@UserID                = @AdminId
+					,@Matchid            = @matchid
+					,@ActionID            = @ActionID
+					,@finalhomescore    = @fth
+					,@finalawayscore    = @fta
+					,@hthomescore        = @hth
+					,@htawayscore        = @hta
+					,@GoalRecord        = @goalrecord
+					,@betstatus            = @betstatus
+					,@Remark            = @Remark
+					,@IP                = @IP
+			END CATCH
+		END
 
 		IF @DeterminedFTStatus = 1 -- determinable FT ticket
 		BEGIN

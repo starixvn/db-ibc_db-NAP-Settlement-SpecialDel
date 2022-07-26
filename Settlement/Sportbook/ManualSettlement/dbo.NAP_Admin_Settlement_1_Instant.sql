@@ -25,7 +25,7 @@ AS
     
     Revisions:
 		- 20220419@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
-
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
 	
@@ -42,6 +42,7 @@ BEGIN
 			,@CommandMonitor NVARCHAR(MAX)
 			,@SSBStatus	TINYINT
 			,@avaiableProcess BIT
+			,@IsCentral	BIT
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
@@ -69,6 +70,9 @@ BEGIN
         RETURN
 	END
 		
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	INSERT INTO dbo.Settlement_SettledSession (MatchId)
 	SELECT @matchid
 	SET @SessionId = SCOPE_IDENTITY()
@@ -108,6 +112,7 @@ BEGIN
 					+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)
 					+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 					+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
+					+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
 					+ ', @ErrCode = @ErrCode OUTPUT' 
                     + ', @ErrMsg = @ErrMsg OUTPUT'
 					+ ', @SSBStatus = @SSBStatus OUTPUT'

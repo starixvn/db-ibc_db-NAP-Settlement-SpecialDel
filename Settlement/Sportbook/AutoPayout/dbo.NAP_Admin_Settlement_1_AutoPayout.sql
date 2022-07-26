@@ -47,6 +47,7 @@ AS
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		 
@@ -78,6 +79,7 @@ BEGIN
 		, @SSBStatus					TINYINT
 		, @TypeId						TINYINT
 		, @AutoSetting					TINYINT
+		, @IsCentral					BIT
 		
 	--START Balance tables	
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -127,6 +129,9 @@ BEGIN
 	--CHECK avaiable process
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	SELECT @eventstatus = m.eventstatus
 		, @matchcode = m.matchcode
 		, @sporttype = m.sporttype
@@ -166,7 +171,8 @@ BEGIN
 					,@ErrMsg = ERROR_MESSAGE()
 		END CATCH
 			
-		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
+		IF @IsCentral = 1
+			EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
 																		, @SourceId = @SourceId
 
 		IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
@@ -218,6 +224,7 @@ BEGIN
 							+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)		
 							+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 							+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
+							+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
 							+ ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 							+ ', @SSBStatus = @SSBStatus OUTPUT'
@@ -281,55 +288,59 @@ BEGIN
 		, @sportType 	= @sporttype
 		, @Action		= @Action
 		, @Mode 		= 2
+		, @IsCentral	= @IsCentral
 		
 	SELECT @TotalAccount = COUNT(DISTINCT custid)
 	FROM @BalanceWalletBefore
  
 	BEGIN TRY
-		EXEC dbo.NAP_Admin_Settlement_1_CheckBetStatus @MatchId = @matchid
-			, @HTDone = @HTDone OUTPUT
-			, @FTDone = @FTDone OUTPUT
+		SELECT	@HTDone = IsHTCal 
+		FROM	DBPRO.bodb02.dbo.match_remark WITH(NOLOCK)
+		WHERE	matchid = @matchid
+			
 
 		SELECT @eventstatus = CASE WHEN @action = 'CAL'  THEN N'completed'
 									WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN @eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
 									WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 								ELSE @eventstatus END
-			, @FTDone = CASE WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN 0
-						ELSE @FTDone END
- 
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_1-CAL'
-			, @MatchID					= @matchid
-			, @FTHome					= @fth
-			, @FTAway					= @fta
-			, @HTHome					= @hth
-			, @HTAway					= @hta
-			, @BetStatus 				= @betstatus
-			, @GoalRecord				= @goalrecord
-			, @Action					= @action
-			, @FTDone					= @FTDone
-			, @HTDone					= @HTDone
-			, @creator					= @creator		
-	
+		
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_1-CAL'
+				, @MatchID					= @matchid
+				, @FTHome					= @fth
+				, @FTAway					= @fta
+				, @HTHome					= @hth
+				, @HTAway					= @hta
+				, @BetStatus 				= @betstatus
+				, @GoalRecord				= @goalrecord
+				, @Action					= @action			
+				, @HTDone					= @HTDone
+				, @creator					= @creator		
+		END
+
 		EXEC dbo.NAP_Admin_Settlement_3
 			@matchid            = @matchid
 			,@mode                = @action    
 			,@IsReSettledTickets = @IsReSettledTickets
 			,@creator = @creator
 
-		IF @eventstatus = 'completed'
+		IF @IsCentral = 1
 		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
-				, @command = 'C'
-		END
-		ELSE IF @action = 'CAL-HT'
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
-				, @command = 'H'
-		END
+			IF @eventstatus = 'completed'
+			BEGIN
+				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
+					, @command = 'C'
+			END
+			ELSE IF @action = 'CAL-HT'
+			BEGIN
+				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
+					, @command = 'H'
+			END
 		
-		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
+			EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
 																		, @SourceId = @SourceId
- 
+		END
 	END TRY
 	BEGIN CATCH
 		-- Capture Balance incase of failure
@@ -346,6 +357,7 @@ BEGIN
 			, @sportType 	= @sporttype
 			, @Action		= @Action
 			, @Mode 		= 2
+			, @IsCentral	= @IsCentral
 		
 		-- Compare Balance
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -385,6 +397,7 @@ BEGIN
 		, @sportType 	= @sporttype
 		, @Action		= @Action
 		, @Mode 		= 2
+		, @IsCentral	= @IsCentral
  
 	-------------------------------------------------------------
 	---                   compare BALANCE                     ---
@@ -420,52 +433,55 @@ BEGIN
 		,@Doing = @LogData
 		,@extend = @MatchId
 		
-	SELECT @Remark ='NAP: ' 
-							+ CASE 
-									WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-									WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> ' 
-									ELSE ''
-								END
-							+ CASE WHEN @sporttype = 1 THEN  'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> ' ELSE '' END
-							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
-							+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-							+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 
-														+ '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-							+ CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
-									WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
-									ELSE ' RefChild:(' + @ChildMatchIds +')' 
+	IF @IsCentral = 1
+	BEGIN
+		SELECT @Remark ='NAP: ' 
+								+ CASE 
+										WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
+										WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> ' 
+										ELSE ''
 									END
+								+ CASE WHEN @sporttype = 1 THEN  'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> ' ELSE '' END
+								+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
+								+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+								+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 
+															+ '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+								+ CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
+										WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
+										ELSE ' RefChild:(' + @ChildMatchIds +')' 
+										END
 	
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-			, @Matchid			= @matchid
-			, @ActionID			= @ActionID
-			, @finalhomescore	= @fth
-			, @finalawayscore	= @fta
-			, @hthomescore		= @hth
-			, @htawayscore		= @hta
-			, @GoalRecord		= @goalrecord
-			, @betstatus		= @betstatus
-			, @Remark			= @Remark
-			, @IP				= @IP
-	END TRY
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
+				, @Matchid			= @matchid
+				, @ActionID			= @ActionID
+				, @finalhomescore	= @fth
+				, @finalawayscore	= @fta
+				, @hthomescore		= @hth
+				, @htawayscore		= @hta
+				, @GoalRecord		= @goalrecord
+				, @betstatus		= @betstatus
+				, @Remark			= @Remark
+				, @IP				= @IP
+		END TRY
  
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
  
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-			, @Matchid			= @matchid
-			, @ActionID			= @ActionID
-			, @finalhomescore	= @fth
-			, @finalawayscore	= @fta
-			, @hthomescore		= @hth
-			, @htawayscore		= @hta
-			, @GoalRecord		= @goalrecord
-			, @betstatus		= @betstatus
-			, @Remark			= @Remark
-			, @IP				= @IP
-	END CATCH
-	
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
+				, @Matchid			= @matchid
+				, @ActionID			= @ActionID
+				, @finalhomescore	= @fth
+				, @finalawayscore	= @fta
+				, @hthomescore		= @hth
+				, @htawayscore		= @hta
+				, @GoalRecord		= @goalrecord
+				, @betstatus		= @betstatus
+				, @Remark			= @Remark
+				, @IP				= @IP
+		END CATCH
+	END
+
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 	@isExistMatch		= 1

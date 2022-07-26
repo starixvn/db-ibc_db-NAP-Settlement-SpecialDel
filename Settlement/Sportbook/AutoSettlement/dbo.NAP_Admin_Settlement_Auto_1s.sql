@@ -37,6 +37,7 @@ AS
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -77,6 +78,7 @@ BEGIN
 			,@sqlCommand		VARCHAR(MAX)
 			,@procName			SYSNAME
 			,@ActionParlay		VARCHAR(20)
+			,@IsCentral			BIT
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 			,@BalanceWalletAfter			TVP_BalanceWalletChange
@@ -140,6 +142,9 @@ BEGIN
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
 			,@procName = OBJECT_NAME(@@procid)
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
     --Write Log Settle
     SELECT   @fth            = finalhomescore
@@ -153,11 +158,11 @@ BEGIN
     WHERE    matchid = @matchid
 
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@IsEarly	= 1
-	,@SelectedResources = @SelectedResources
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
+		@MatchId	= @Matchid
+		,@IsEarly	= 1
+		,@SelectedResources = @SelectedResources
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0
 	BEGIN
@@ -237,12 +242,15 @@ BEGIN
 							  FOR XML PATH('r'), ROOT( 'root' )) 
 
 	-- update ResultDetail table
-	EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-        @Command            = @Command,
-        @MatchID            = @MatchID,
-		@SelectedResources	= @SelectedResources,
-        @IsAuto             = @IsAuto,
-        @creator            = @AdminID
+	IF @IsCentral = 1
+	BEGIN
+		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+			@Command            = @Command,
+			@MatchID            = @MatchID,
+			@SelectedResources	= @SelectedResources,
+			@IsAuto             = @IsAuto,
+			@creator            = @AdminID
+	END
 
 	IF (@action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDetermined = 1))
 	BEGIN
@@ -270,6 +278,7 @@ BEGIN
 													, CASE WHEN b.bettype = 376 THEN ISNULL(sr.HomeValue,'') + ISNULL(sr.AwayValue,'') ELSE sr.HomeValue END
 													, CASE WHEN b.bettype = 376 THEN b.betcheck ELSE sr.AwayValue END, NULL, NULL, NULL, NULL) m
 	  	WHERE	b.matchid = @MatchId
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  			AND b.statusID NOT IN (101)
 	  			AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
 								 WHEN @IsReSettledTickets = 1 THEN 1
@@ -279,6 +288,7 @@ BEGIN
 		SELECT @TotalSubParlay = COUNT(1)			
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND bm.statusID NOT IN (101)
 				AND 1 = CASE 
 							WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
@@ -305,6 +315,7 @@ BEGIN
 					WHERE	mt.TransId = b.transid
 				) mt		
 	  	WHERE	b.matchid = @MatchId
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  			AND	b.statusID NOT IN (101)
 	  			AND 1 = CASE WHEN b.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
 							 WHEN b.statusID NOT IN (0, 1) THEN 1
@@ -323,6 +334,7 @@ BEGIN
 						AND mt.MatchId = @MatchID
 			) mt
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND bm.statusID NOT IN (101)
 				AND 1 = CASE WHEN bm.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
 								WHEN bm.statusID NOT IN (0, 1) THEN 1
@@ -343,11 +355,13 @@ BEGIN
 				ON	b.BetType = t.BetType 
 					AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  	WHERE	b.matchid = @MatchId
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  			AND	b.statusID NOT IN (103, 101)
 
 		SELECT @TotalSubParlay = COUNT(1)			
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND bm.statusID NOT IN (101, 103)
 				AND EXISTS (SELECT	TOP 1 1
 							FROM	@tmpSelectedRID t
@@ -382,6 +396,7 @@ BEGIN
 	  		) sr
 	  		CROSS APPLY dbo.f_Set_SDT_CalModds_Early(sr.pfID, b.betteam, b.hdp1, NULL, sr.HomeValue, sr.AwayValue, NULL, NULL, @homeRound, @awayRound) m
 	  	WHERE	b.matchid = @MatchId
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  			AND b.statusID NOT IN (101)
 		
 		-- add tranid without determinded and refund
@@ -392,12 +407,14 @@ BEGIN
 				ON	b.BetType = t.BetType 
 					AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  	WHERE	b.matchid = @MatchId
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  			AND	b.statusID NOT IN (103, 101)
 				AND t.IsDetermined = 0
 
 		SELECT @TotalSubParlay = COUNT(1)			
 		FROM	dbo.bettransm bm WITH(NOLOCK)
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND bm.statusID NOT IN (101)
 				AND EXISTS (SELECT	TOP 1 1
 							FROM	@tmpSelectedRID t
@@ -423,6 +440,7 @@ BEGIN
         , @Action 			= @Action
         , @Mode 			= 2
         , @SelectedRID      = @SelectedRID
+		, @IsCentral		= @IsCentral
 							
 	------START UPDATE BETTRANS---------------------------------------------------------------------------
 	BEGIN TRY
@@ -516,6 +534,7 @@ BEGIN
 				, @Action 		= @Action
 				, @Mode 		= 2 
 				, @SelectedRID	= @SelectedRID
+				, @IsCentral		= @IsCentral
 	
 		-- Compare and update pending balance with error case
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -550,6 +569,7 @@ BEGIN
         , @Action 			= @Action
         , @Mode 			= 2
 		, @SelectedRID      = @SelectedRID
+		, @IsCentral		= @IsCentral
         
     -------------------------------------------------------------
     ---                   compare BALANCE                     ---
@@ -604,41 +624,44 @@ BEGIN
 		,@Doing = @logdata
 		,@extend = @MatchId
 
-    SELECT @Remark = 'NAP: Result:' + @SelectedResources +  ' <br/> ' 
-						+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
-                        + ' IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
-                        + ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + 'ms' 
-    BEGIN TRY
-        EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-            @userid                = @AdminId
-            ,@matchid            = @MatchID
-            ,@actionid            = @ActionID
-            ,@finalhomescore    = @fth
-            ,@finalawayscore    = @fta
-            ,@hthomescore        = @hth
-            ,@htawayscore        = @hta
-            ,@GoalRecord        = @goalrecord
-            ,@betstatus            = @betstatus
-            ,@Remark            = @Remark
-            ,@ip                = @ip
-    END TRY
+	IF @IsCentral = 1
+	BEGIN
+		SELECT @Remark = 'NAP: Result:' + @SelectedResources +  ' <br/> ' 
+							+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
+							+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
+							+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + 'ms' 
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@userid                = @AdminId
+				,@matchid            = @MatchID
+				,@actionid            = @ActionID
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
+				,@GoalRecord        = @goalrecord
+				,@betstatus            = @betstatus
+				,@Remark            = @Remark
+				,@ip                = @ip
+		END TRY
 
-    BEGIN CATCH
-        SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
+		BEGIN CATCH
+			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
 
-        EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-            @UserID                = @AdminId
-            ,@MatchID            = @matchid
-            ,@actionid            = @actionid
-            ,@finalhomescore    = @fth
-            ,@finalawayscore    = @fta
-            ,@hthomescore        = @hth
-            ,@htawayscore        = @hta
-            ,@GoalRecord        = @goalrecord
-            ,@betstatus            = @betstatus
-            ,@Remark            = @Remark
-            ,@IP                = @ip
-    END CATCH	
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID                = @AdminId
+				,@MatchID            = @matchid
+				,@actionid            = @actionid
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
+				,@GoalRecord        = @goalrecord
+				,@betstatus            = @betstatus
+				,@Remark            = @Remark
+				,@IP                = @ip
+		END CATCH	
+	END
 
 	IF @TotalSubParlay > 0
 	BEGIN	
@@ -667,7 +690,8 @@ BEGIN
 								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''														
 								+ ', @Action = ''' + @ActionParlay + '''' 														
 								+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
-								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 
+								+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -681,6 +705,7 @@ BEGIN
 				,@SelectedResources = @SelectedResourceParlay
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@LockedByRefno		= 1 -- always lock refno for testing
+				,@IsCentral			= @IsCentral
 
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT

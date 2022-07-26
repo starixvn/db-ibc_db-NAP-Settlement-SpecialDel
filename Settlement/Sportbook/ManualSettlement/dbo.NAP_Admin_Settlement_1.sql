@@ -142,7 +142,7 @@ BEGIN
 		,@sqlCommand					VARCHAR(MAX)
 		,@AutoSetting					TINYINT
 
-		,@IsCentral	BIT
+		,@IsCentral						BIT
 		
 	DECLARE @tmpParlayAffectedBettypes TABLE (ResourceId VARCHAR(20), RefResourceId VARCHAR(20), bettype SMALLINT, totalticket INT)	
 
@@ -247,6 +247,9 @@ BEGIN
         RETURN
 	END
 		
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	IF @RunBySSBProcess = 1
 	BEGIN
 		INSERT INTO dbo.Settlement_SettledSession (MatchId)
@@ -301,6 +304,7 @@ BEGIN
 						+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)				
 						+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 						+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
+						+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)	
 						+ ', @ErrCode = @ErrCode OUTPUT' 
                         + ', @ErrMsg = @ErrMsg OUTPUT'
 						+ ', @SSBStatus = @SSBStatus OUTPUT'
@@ -322,9 +326,6 @@ BEGIN
 
 		RETURN
 	END
-
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
 
 	SELECT  @strAutoBettypes = COALESCE(@strAutoBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
 	FROM    dbo.f_Set_GetGroupBettypes() f 

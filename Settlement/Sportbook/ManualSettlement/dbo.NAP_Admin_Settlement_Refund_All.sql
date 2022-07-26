@@ -1,16 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All] 
      @matchid                       	INT
-    ,@creator                       	INT
-    ,@hth								INT             = NULL
-    ,@hta                               INT             = NULL
-    ,@fth                               INT             = NULL
-    ,@fta                               INT             = NULL
-    ,@GoalSequence                      VARCHAR(50)     = NULL 
-    ,@betstatus                        	NVARCHAR(50)    = NULL
-    
-    ,@Action                            VARCHAR(10)     = 'CAL'
-    ,@IsNested                          BIT             = 1
+    ,@creator                       	INT   
+    ,@betstatus                        	NVARCHAR(50)    = NULL    
+    ,@Action                            VARCHAR(10)     = 'CAL'  
     ,@IP                                VARCHAR(15)     = ''
 	
     ,@ErrCode							INT             = 0      OUTPUT
@@ -187,12 +180,7 @@ BEGIN
             	@Command         = @refundCommand
             	,@MatchID        = @matchid
             	,@creator        = @creator
-				,@BetStatus 	 = @betstatus
-				,@GoalRecord	 = @GoalSequence 
-				,@HTHome		 = @hth
-				,@HTAway		 = @hta
-				,@FTHome		 = @fth
-				,@FTAway		 = @fta				
+				,@BetStatus 	 = @betstatus				
 		END
 		
 		SET @strRefundBettypes = CAST((SELECT  f.BetType '@t'
@@ -284,17 +272,6 @@ BEGIN
 		,@Doing = @LogData
 		,@extend = @MatchId
 	
-	IF @IsNested = 0
-	BEGIN
-		-- Write log
-		SET @log = 'NAP: Refund for matchid: ' + CONVERT(VARCHAR(10), @matchid)
-		
-			EXEC dbo.Logfile_V2 
-			@UserID = @creator
-			,@Doing = @Log
-			,@extend = @MatchId
-	END
-
 	IF @IsCentral = 1
 	BEGIN
 		--Write Log Settle
@@ -306,11 +283,10 @@ BEGIN
 				@UserID              = @creator
 				,@Matchid            = @matchid
 				,@ActionID           = @ActionID
-				,@finalhomescore     = @fth
-				,@finalawayscore     = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord         = @GoalSequence
+				,@finalhomescore     = 0
+				,@finalawayscore     = 0
+				,@hthomescore        = 0
+				,@htawayscore        = 0				
 				,@betstatus          = 'Refund'
 				,@Remark             = @Remark
 				,@IP                 = @IP
@@ -323,23 +299,15 @@ BEGIN
 				@UserID              = @creator
 				,@Matchid            = @matchid
 				,@ActionID           = @ActionID
-				,@finalhomescore     = @fth
-				,@finalawayscore     = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord         = @GoalSequence
+				,@finalhomescore     = 0
+				,@finalawayscore     = 0
+				,@hthomescore        = 0
+				,@htawayscore        = 0			
 				,@betstatus          = 'Refund'
 				,@Remark             = @Remark
 				,@IP                 = @IP
 		END CATCH
-
-		IF @IsNested = 0
-		BEGIN
-			-- Update match_remark
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-				@matchid       = @matchid
-				,@command      = 'F'			
-		END
+	
 	END
 END
 GO

@@ -986,6 +986,7 @@ BEGIN
 						+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)		
 						+ ', @HasError = ' + CAST(CASE WHEN @ErrCode = 1000006 THEN 0 ELSE @ErrCode END AS VARCHAR)
 						+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
+						+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)	
 						+ ', @ErrCode = @ErrCode OUTPUT' 
                         + ', @ErrMsg = @ErrMsg OUTPUT'
 						+ ', @SSBStatus = @SSBStatus OUTPUT'

@@ -1,5 +1,4 @@
-USE [bodb02]
-GO
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetFair_Move]
 	@MatchID		INT,
 	@NewMatchID		INT,
@@ -21,6 +20,7 @@ AS
 		- 20140901@Kathy: Support to move tickets (non-live and live) for Betfair [Redmine:#21221]
 		- 20141024@Jamie: Sportting Solution Tennis Settlement [Redmine:#23034]
 		- 20150418@Jamie: Betradar phase II [Readmine:#27212]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Note: For settlement SPs should hardcode the custid of betfair customer to avoid replication problem
 
@@ -37,7 +37,8 @@ BEGIN
 			@eventdate		DATETIME,			
 			@newEventdate	DATETIME,
 			@matchcode		VARCHAR(20),
-			@sporttype		INT
+			@sporttype		INT,
+			@IsCentral		BIT = 0		
 
 	DECLARE @finalhomescore INT, @finalawayscore INT,
 			@hthomescore INT, @htawayscore INT,
@@ -101,6 +102,10 @@ BEGIN
 			RETURN
 		END
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	UPDATE	bettrans WITH (ROWLOCK,UPDLOCK)
 	SET		matchid		= @NewMatchID, 
 			oddsid		= o.oddsid, 
@@ -108,6 +113,7 @@ BEGIN
 	FROM	bettrans b
 			INNER JOIN @tmpOdds o ON b.bettype = o.bettype 
 	WHERE	b.matchid = @MatchID 
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND b.custid IN (2331, 1077687, 115770, 15523642)
 			AND b.bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217)
 			AND b.ruben = 0
@@ -134,68 +140,67 @@ BEGIN
 	
 	
 	--Write Log Settle
-	SELECT @Remark = 'NAP: To match ' + convert(varchar(10),@NewMatchid) +', MatchCode:' + @newMatchcode,  
-	       @Remark1 = 'NAP: From match ' + convert(varchar(10),@Matchid) + ', MatchCode:' + @matchcode 
+	IF @IsCentral = 1
+	BEGIN
+		SELECT @Remark = 'NAP: To match ' + convert(varchar(10),@NewMatchid) +', MatchCode:' + @newMatchcode,  
+			   @Remark1 = 'NAP: From match ' + convert(varchar(10),@Matchid) + ', MatchCode:' + @matchcode 
 	       
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @AdminId,
-			@Matchid = @MatchID,
-			@ActionID = 113,
-			@finalhomescore = @finalhomescore,
-			@finalawayscore = @finalawayscore,  
-			@hthomescore = @hthomescore,
-			@htawayscore = @htawayscore,
-			@GoalRecord = @goalrecord,
-			@betstatus = @betstatus,
-			@Remark = @Remark,
-			@IP = @IP
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@UserID = @AdminId,
+				@Matchid = @MatchID,
+				@ActionID = 113,
+				@finalhomescore = @finalhomescore,
+				@finalawayscore = @finalawayscore,  
+				@hthomescore = @hthomescore,
+				@htawayscore = @htawayscore,
+				@GoalRecord = @goalrecord,
+				@betstatus = @betstatus,
+				@Remark = @Remark,
+				@IP = @IP
 
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @AdminId,
-			@Matchid = @NewMatchID,
-			@ActionID = 114,
-			@finalhomescore = @finalhomescore1,
-			@finalawayscore = @finalawayscore1,  
-			@hthomescore = @hthomescore1,
-			@htawayscore = @htawayscore1,
-			@GoalRecord = @goalrecord1,
-			@betstatus = @betstatus1,
-			@Remark = @Remark1,
-			@IP = @IP
-	END TRY  
-	BEGIN CATCH	
-		SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)	
-		SELECT @Remark1 = @Remark1 + ' ErrMsg=' + left(error_message(), 350)	
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @AdminId,
-			@Matchid = @MatchID,
-			@ActionID = 113,
-			@finalhomescore = @finalhomescore,
-			@finalawayscore = @finalawayscore,  
-			@hthomescore = @hthomescore,
-			@htawayscore = @htawayscore,
-			@GoalRecord = @goalrecord,
-			@betstatus = @betstatus,
-			@Remark = @Remark,
-			@IP = @IP
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@UserID = @AdminId,
+				@Matchid = @NewMatchID,
+				@ActionID = 114,
+				@finalhomescore = @finalhomescore1,
+				@finalawayscore = @finalawayscore1,  
+				@hthomescore = @hthomescore1,
+				@htawayscore = @htawayscore1,
+				@GoalRecord = @goalrecord1,
+				@betstatus = @betstatus1,
+				@Remark = @Remark1,
+				@IP = @IP
+		END TRY  
+		BEGIN CATCH	
+			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)	
+			SELECT @Remark1 = @Remark1 + ' ErrMsg=' + left(error_message(), 350)	
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@UserID = @AdminId,
+				@Matchid = @MatchID,
+				@ActionID = 113,
+				@finalhomescore = @finalhomescore,
+				@finalawayscore = @finalawayscore,  
+				@hthomescore = @hthomescore,
+				@htawayscore = @htawayscore,
+				@GoalRecord = @goalrecord,
+				@betstatus = @betstatus,
+				@Remark = @Remark,
+				@IP = @IP
 
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @AdminId,
-			@Matchid = @NewMatchID,
-			@ActionID = 114,
-			@finalhomescore = @finalhomescore1,
-			@finalawayscore = @finalawayscore1,  
-			@hthomescore = @hthomescore1,
-			@htawayscore = @htawayscore1,
-			@GoalRecord = @goalrecord1,
-			@betstatus = @betstatus1,
-			@Remark = @Remark1,
-			@IP = @IP
-	END CATCH
-
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@UserID = @AdminId,
+				@Matchid = @NewMatchID,
+				@ActionID = 114,
+				@finalhomescore = @finalhomescore1,
+				@finalawayscore = @finalawayscore1,  
+				@hthomescore = @hthomescore1,
+				@htawayscore = @htawayscore1,
+				@GoalRecord = @goalrecord1,
+				@betstatus = @betstatus1,
+				@Remark = @Remark1,
+				@IP = @IP
+		END CATCH
+	END
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_BetFair_Move] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_Settlement_BetFair_Move] TO [vnteam] AS [dbo]

@@ -21,6 +21,7 @@ AS
 		- 20150206@Jamie: Auto Settlement Betradar phase 2 [Redmine: #27212]
 		- 20150807@Kathy: Using new balance table (BalCreditSportsPending,BalDebitSportsPending) [Redmine:#40125]
 		- 20171023@Kathy: Include bettype 14, 127 [Redmine:#81308]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 	• @matchid: matchid need to refund
@@ -44,6 +45,7 @@ BEGIN
 			 ,@avaiableProcess	BIT
 			 ,@start			DATETIME
 			 ,@stop				DATETIME
+			 ,@IsCentral		BIT = 0	
 	
 	DECLARE @tblDebitPending TVP_BalanceList
 	DECLARE @tblCreditPending TVP_BalanceList
@@ -78,6 +80,9 @@ BEGIN
         RETURN
 	END
 
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	INSERT INTO #BalanceBefore
 	SELECT	custid, SUM(winlost-actual_stake+playercomm)
 	FROM	dbo.bettrans with (rowlock)
@@ -85,6 +90,7 @@ BEGIN
 			(	custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
 				OR recommend = 1688156	)
 			AND matchid = @matchid
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 			AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
 			AND bettype NOT BETWEEN 1301 AND 1399 -- exclude sporting solution product
 			AND bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
@@ -106,6 +112,7 @@ BEGIN
 			(	custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
 				OR recommend = 1688156	)
 			AND matchid = @matchid
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 			AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
 			AND bettype NOT BETWEEN 1301 AND 1399 -- exclude sporting solution product
 			AND bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
@@ -179,52 +186,54 @@ BEGIN
 	EXEC dbo.WriteLog_UserLog @creator, @LogData
 
 	--Write Log Settle
-	DECLARE 
-		@finalhomescore INT, @finalawayscore INT,
-		@hthomescore INT, @htawayscore INT,
-		@goalrecord varchar(50), @betstatus nvarchar(50)
-	SELECT 
-		@finalhomescore = finalhomescore,
-		@finalawayscore = finalawayscore,
-		@hthomescore = hthomescore, 
-		@htawayscore = htawayscore,
-		@goalrecord = goalrecord,
-		@betstatus = betstatus
-	 FROM dbo.match WITH(NOLOCK) WHERE matchid = @matchid
+	IF @IsCentral = 1
+	BEGIN
+		DECLARE 
+			@finalhomescore INT, @finalawayscore INT,
+			@hthomescore INT, @htawayscore INT,
+			@goalrecord varchar(50), @betstatus nvarchar(50)
+		SELECT 
+			@finalhomescore = finalhomescore,
+			@finalawayscore = finalawayscore,
+			@hthomescore = hthomescore, 
+			@htawayscore = htawayscore,
+			@goalrecord = goalrecord,
+			@betstatus = betstatus
+		 FROM dbo.match WITH(NOLOCK) WHERE matchid = @matchid
 
-	SELECT @Remark ='NAP: Duration=' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms;'
+		SELECT @Remark ='NAP: Duration=' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms;'
 
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @creator,
-			@Matchid = @matchid,
-			@ActionID = @ActionID,
-			@finalhomescore = @finalhomescore,
-			@finalawayscore = @finalawayscore,  
-			@hthomescore = @hthomescore,
-			@htawayscore = @htawayscore,
-			@GoalRecord =@GoalRecord,
-			@betstatus = @betstatus,
-			@Remark = @Remark,
-			@IP = @IP
-	END TRY
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)	
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @creator,
-			@Matchid = @matchid,
-			@ActionID = @ActionID,
-			@finalhomescore = @finalhomescore,
-			@finalawayscore = @finalawayscore,  
-			@hthomescore = @hthomescore,
-			@htawayscore = @htawayscore,
-			@GoalRecord =@GoalRecord,
-			@betstatus = @betstatus,
-			@Remark = @Remark,
-			@IP = @IP
-	END CATCH
-	    
-	  
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@UserID = @creator,
+				@Matchid = @matchid,
+				@ActionID = @ActionID,
+				@finalhomescore = @finalhomescore,
+				@finalawayscore = @finalawayscore,  
+				@hthomescore = @hthomescore,
+				@htawayscore = @htawayscore,
+				@GoalRecord =@GoalRecord,
+				@betstatus = @betstatus,
+				@Remark = @Remark,
+				@IP = @IP
+		END TRY
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)	
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+				@UserID = @creator,
+				@Matchid = @matchid,
+				@ActionID = @ActionID,
+				@finalhomescore = @finalhomescore,
+				@finalawayscore = @finalawayscore,  
+				@hthomescore = @hthomescore,
+				@htawayscore = @htawayscore,
+				@GoalRecord =@GoalRecord,
+				@betstatus = @betstatus,
+				@Remark = @Remark,
+				@IP = @IP
+		END CATCH
+	 END
+
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
