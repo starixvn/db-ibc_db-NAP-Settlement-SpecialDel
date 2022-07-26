@@ -19,6 +19,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -116,6 +117,7 @@ BEGIN
 			,@fta				INT
 			,@hth				INT
 			,@hta				INT
+			,@IsCentral			BIT
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -163,7 +165,8 @@ BEGIN
   	WHERE matchid = @matchid*/
 
 	
-
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
   	------------------------------------------get market info-----------------------------------------
 	IF @IsSettleByMarket = 1
@@ -287,41 +290,44 @@ BEGIN
 	
 	
 	---- UPDATE SMP_MarketSelection
-	SET @startRowIndex = 0
-	WHILE 1=1
+	IF @IsCentral = 1
 	BEGIN
-		TRUNCATE TABLE #tblDataByBatch
+		SET @startRowIndex = 0
+		WHILE 1=1
+		BEGIN
+			TRUNCATE TABLE #tblDataByBatch
 		
-		/*INSERT INTO #tblDataByBatch(vID, result)
-		SELECT marketSelectionID, result
-		FROM #tblMarketSelection t 
-		WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + @maximumRows) - 1*/
+			/*INSERT INTO #tblDataByBatch(vID, result)
+			SELECT marketSelectionID, result
+			FROM #tblMarketSelection t 
+			WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + @maximumRows) - 1*/
 		
-		DELETE TOP (4000) #tblMarketSelection
-		OUTPUT DELETED.marketSelectionID, DELETED.result
-		INTO #tblDataByBatch(vID, result)
+			DELETE TOP (4000) #tblMarketSelection
+			OUTPUT DELETED.marketSelectionID, DELETED.result
+			INTO #tblDataByBatch(vID, result)
 
-		SELECT @batchCount 	= @@ROWCOUNT
-			  --,@startRowIndex = @startRowIndex + @maximumRows
+			SELECT @batchCount 	= @@ROWCOUNT
+				  --,@startRowIndex = @startRowIndex + @maximumRows
 		
-		IF @batchCount = 0 BREAK
+			IF @batchCount = 0 BREAK
 		
-		SET @strDataByBatch 	= (SELECT vID		AS '@msl'
-									  	  ,result	AS '@rs'
-								   FROM #tblDataByBatch
-								   FOR XML PATH('Resource'), ROOT( 'Resources' ))
+			SET @strDataByBatch 	= (SELECT vID		AS '@msl'
+									  		  ,result	AS '@rs'
+									   FROM #tblDataByBatch
+									   FOR XML PATH('Resource'), ROOT( 'Resources' ))
 		
-		EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarketSelection_Update @matchID 	= @matchID
-														,@action			= @action
-														,@resources 		= @strDataByBatch
-														,@resultStatusID 	= @ResultStatusID
+			EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarketSelection_Update @matchID 	= @matchID
+															,@action			= @action
+															,@resources 		= @strDataByBatch
+															,@resultStatusID 	= @ResultStatusID
+		END
 	END
 	-- -------END SMP_MarketSelection-----------------------------------------------
 	
 			
 	
 	--update result of markets into temp table
-	IF @IsSettleByMarket <> 1
+	IF @IsSettleByMarket <> 1 AND @IsCentral = 1
   	BEGIN
 	  	
 	  	---------Update Result and ResultStatusID for SMP_Market--------------------------------------------------------
@@ -377,6 +383,7 @@ BEGIN
 	  	FROM dbo.bettrans b WITH (NOLOCK)
 	  		INNER JOIN #tblMarket mk ON b.BetCheck = mk.MarketID
 	  	WHERE b.matchID = @MatchID
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  		AND b.Bettype = @Bettype
 	  		AND b.statusID NOT IN (101,102) --VOID, REJECT
 	  		AND 1 = CASE WHEN mk.Result = 'REFUND' AND b.statusID = 103 THEN 0
@@ -405,6 +412,7 @@ BEGIN
 	  	FROM dbo.bettrans b WITH (NOLOCK)
 	  		INNER JOIN #tblMarket m ON b.BetCheck = m.MarketID
 	  	WHERE b.matchID = @MatchID
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	  		AND b.Bettype = @Bettype
 	  		AND	b.statusID NOT IN (102, 101, 0, 1)--VOID, REJECT, RUNNING
 	  		AND m.Result IS NULL
@@ -491,7 +499,7 @@ BEGIN
 							,@Action 				  = @ActionProcessing
 							,@Mode 					  = 2
 							,@TransIDs				  = @strDataByBatch
-			
+							,@IsCentral				  = @IsCentral
 		
 		    EXEC dbo.NAP_Admin_Calculate_Main
 							@matchid	  		 = @matchid
@@ -512,6 +520,7 @@ BEGIN
 						,@Action 			= @ActionProcessing
 						,@Mode 			  	= 2 --Used for Manual settle process
 						,@TransIDs			= @strDataByBatch
+						,@IsCentral				  = @IsCentral
 		
 			-- Compare and update pending balance with error case
 			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -546,6 +555,7 @@ BEGIN
 					  , @Action 			= @ActionProcessing
 					  , @Mode 				= 2 --Used for Manual settle process
 					  , @TransIDs			= @strDataByBatch
+					  , @IsCentral				  = @IsCentral
 		
 			  -- Compare and update pending balance with error case
 			  EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -645,42 +655,45 @@ BEGIN
 		,@Doing = @logdata
 		,@extend = @MatchId
 				
-	SELECT @Remark = CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END 
-						/*+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
-						+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
-						+ '<br/> ' */
-						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
-						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+	IF @IsCentral = 1
+	BEGIN
+		SELECT @Remark = CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END 
+							/*+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
+							+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
+							+ '<br/> ' */
+							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
+							+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+							+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 				
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-				@userid				= @AdminId
-				,@matchid			= @MatchID
-				,@actionid			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= @hth
-				,@htawayscore		= @hta
-				,@GoalRecord		= NULL
-				,@Remark			= @Remark
-				,@ip				= @ip
-	END TRY
-	BEGIN CATCH
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+					@userid				= @AdminId
+					,@matchid			= @MatchID
+					,@actionid			= @ActionID
+					,@finalhomescore	= @fth
+					,@finalawayscore	= @fta
+					,@hthomescore		= @hth
+					,@htawayscore		= @hta
+					,@GoalRecord		= NULL
+					,@Remark			= @Remark
+					,@ip				= @ip
+		END TRY
+		BEGIN CATCH
 		
-		SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-				@UserID				= @AdminId
-				,@MatchID			= @MatchID
-				,@actionid			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= @hth
-				,@htawayscore		= @hta
-				,@GoalRecord		= NULL
-				,@betstatus			= NULL
-				,@Remark			= @Remark
-				,@IP				= @ip
-	END CATCH
+			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+					@UserID				= @AdminId
+					,@MatchID			= @MatchID
+					,@actionid			= @ActionID
+					,@finalhomescore	= @fth
+					,@finalawayscore	= @fta
+					,@hthomescore		= @hth
+					,@htawayscore		= @hta
+					,@GoalRecord		= NULL
+					,@betstatus			= NULL
+					,@Remark			= @Remark
+					,@IP				= @ip
+		END CATCH
+	END
 END
 GO

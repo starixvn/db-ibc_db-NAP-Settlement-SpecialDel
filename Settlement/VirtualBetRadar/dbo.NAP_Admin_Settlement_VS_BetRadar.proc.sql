@@ -25,6 +25,7 @@ AS
 		- 20180214@Helen: Integrate VSBR 2 - Basketball - [Redmine:90154]
 		- 20220217@Kathy: Do not cal/refund if there is no ticket [Redmine:#168702]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		- @Hth: Total score which home team scored in Half Time(HT)
@@ -68,6 +69,7 @@ BEGIN
 			,@recipients		VARCHAR(250)
 			,@ResourceIDs		VARCHAR(100)
 			,@xml XML
+			,@IsCentral			BIT
 	
 	DECLARE @tempBetCount 		TABLE(bettype SMALLINT, custid INT, betcount INT, transid BIGINT)
 	DECLARE @tempRefno			TABLE(refno BIGINT)
@@ -86,6 +88,9 @@ BEGIN
 	FROM dbo.match m WITH(NOLOCK) 
 	WHERE m.matchid = @MatchId
 		
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	IF @sportType = 193 AND @Action = 'CAL'
 	BEGIN
 		
@@ -131,6 +136,7 @@ BEGIN
 	SELECT b.bettype, b.custid, COUNT(1), MAX(transid)
 	FROM dbo.bettrans b WITH(NOLOCK)
 	WHERE b.matchid = @matchid
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND EXISTS (
 				SELECT 1 
 				FROM dbo.f_Set_VS_BetRadar_GetBettypes() AS f
@@ -155,25 +161,28 @@ BEGIN
 	-----------------------------------------------------------
 	IF @Action = 'CAL'
 	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-			@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
-			,@MatchID	= @matchid
-			,@FTHome	= @fth
-			,@FTAway	= @fta
-			,@HTHome	= @hth
-			,@HTAway	= @hta
-			,@creator	= @AdminId
-		
-		IF @sportType = 193
+		IF @IsCentral = 1
 		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_VS_Betradar_Result_Update 
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
 				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
 				,@MatchID	= @matchid
-				,@ResourceResult = @ResourceResult
+				,@FTHome	= @fth
+				,@FTAway	= @fta
+				,@HTHome	= @hth
+				,@HTAway	= @hta
 				,@creator	= @AdminId
-				,@IsAuto = @IsAuto
-		END
 		
+			IF @sportType = 193
+			BEGIN
+				EXEC DBPRO.BODB02.dbo.NAP_Admin_VS_Betradar_Result_Update 
+					@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
+					,@MatchID	= @matchid
+					,@ResourceResult = @ResourceResult
+					,@creator	= @AdminId
+					,@IsAuto = @IsAuto
+			END
+		END
+
 		IF ISNULL(@TicketCount,0) > 0
 			EXEC dbo.NAP_Admin_Calculate_VS_BetRadar_Main
 				@MatchId		= @matchid
@@ -185,30 +194,35 @@ BEGIN
 				,@ResourceIDs	= @ResourceIDs
 				,@ErrCode		= @ErrCode OUTPUT
 				,@ErrMsg		= @ErrMsg OUTPUT
-				
-		EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-			@MatchId	= @MatchId
-			,@Command	= 'C' -- completedR
-		
+			
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+				@MatchId	= @MatchId
+				,@Command	= 'C' -- completedR
+		END
 	END
 	ELSE IF @Action = 'REFUND'
 	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-			@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
-			,@MatchID	= @matchid
-			,@creator	= @AdminId
-		
-		IF @sportType = 193
+		IF @IsCentral = 1
 		BEGIN
-		
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_VS_Betradar_Result_Update 
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
 				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
 				,@MatchID	= @matchid
-				,@ResourceResult = @ResourceResult
 				,@creator	= @AdminId
-				,@IsAuto = @IsAuto
-		END
 		
+			IF @sportType = 193
+			BEGIN
+		
+				EXEC DBPRO.BODB02.dbo.NAP_Admin_VS_Betradar_Result_Update 
+					@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
+					,@MatchID	= @matchid
+					,@ResourceResult = @ResourceResult
+					,@creator	= @AdminId
+					,@IsAuto = @IsAuto
+			END
+		END
+
 		IF ISNULL(@TicketCount,0) > 0
 			EXEC dbo.NAP_Admin_Calculate_VS_BetRadar_Refund 
 				@matchid 			= @matchid
@@ -219,10 +233,12 @@ BEGIN
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg			= @ErrMsg OUTPUT
 		
-		EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-			@MatchId	= @MatchId
-			,@Command	= 'F' -- refund
-		
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+				@MatchId	= @MatchId
+				,@Command	= 'F' -- refund
+		END
 	END
 	
 	IF(@ErrCode > 0) RETURN
@@ -259,52 +275,54 @@ BEGIN
 			,@Doing = @LogData
 			,@extend = @MatchId
 	
-	--RESET scores values
-	SELECT @fth = NULL
-		,@fta 	= NULL
-		,@hth 	= NULL
-		,@hta	= NULL
-	WHERE @Action = 'REFUND'
+	IF @IsCentral = 1
+	BEGIN
+		--RESET scores values
+		SELECT @fth = NULL
+			,@fta 	= NULL
+			,@hth 	= NULL
+			,@hta	= NULL
+		WHERE @Action = 'REFUND'
 	
-	SELECT @Remark = 'VS BetRadar - Calculate (' + @Action + ')' 
-					+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
-					+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
-					+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
-					+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-					+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+		SELECT @Remark = 'VS BetRadar - Calculate (' + @Action + ')' 
+						+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
+						+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
+						+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
+						+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+						+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID				= @AdminId
-			,@Matchid			= @matchid
-			,@ActionID			= @ActionID
-			,@finalhomescore	= @fth
-			,@finalawayscore	= @fta
-			,@hthomescore		= @hth
-			,@htawayscore		= @hta
-			,@GoalRecord		= NULL
-			,@betstatus			= NULL
-			,@Remark			= @Remark
-			,@IP				= @IP
-	END TRY
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID				= @AdminId
+				,@Matchid			= @matchid
+				,@ActionID			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= @hth
+				,@htawayscore		= @hta
+				,@GoalRecord		= NULL
+				,@betstatus			= NULL
+				,@Remark			= @Remark
+				,@IP				= @IP
+		END TRY
 
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
 
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID				= @AdminId
-			,@Matchid			= @matchid
-			,@ActionID			= @ActionID
-			,@finalhomescore	= @fth
-			,@finalawayscore	= @fta
-			,@hthomescore		= @hth
-			,@htawayscore		= @hta
-			,@GoalRecord		= NULL
-			,@betstatus			= NULL
-			,@Remark			= @Remark
-			,@IP				= @IP
-	END CATCH
-	
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID				= @AdminId
+				,@Matchid			= @matchid
+				,@ActionID			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= @hth
+				,@htawayscore		= @hta
+				,@GoalRecord		= NULL
+				,@betstatus			= NULL
+				,@Remark			= @Remark
+				,@IP				= @IP
+		END CATCH
+	END
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
