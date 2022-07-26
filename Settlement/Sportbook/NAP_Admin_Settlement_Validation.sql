@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE NAP_Admin_Settlement_Validation
+ALTER PROCEDURE NAP_Admin_Settlement_Validation
 (
 	 @matchid		INT = 0
 	,@Action		VARCHAR(10)
@@ -43,6 +43,8 @@ AS
 
 BEGIN
 SET NOCOUNT ON
+	
+	SET  @SessionID = SCOPE_IDENTITY()
 
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
