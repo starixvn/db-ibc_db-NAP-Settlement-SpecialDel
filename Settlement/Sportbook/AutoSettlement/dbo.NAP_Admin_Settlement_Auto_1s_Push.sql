@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	,@IsAuto					BIT				= 1
 	,@IP						VARCHAR(15)		= ''
 	,@IsReSettledTickets		BIT				= 1
+
 	,@ErrCode					INT				= 0		OUTPUT
 	,@ErrMsg					NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -51,89 +52,6 @@ BEGIN
 			,@leagueid		= m.leagueid
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
-
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SELECT	 @ErrCode	= 1001001
-				,@ErrMsg	= 'Match does not exist!'
-
-		RETURN
-	END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@IsEarly	= 1
-	,@SelectedResources =  @SelectedResources
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
-
-	IF @Action IN ('CAL', 'REFUND')
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-			@MatchId	= @matchid
-			,@Action	= @action
-			,@IsEarly	= 1
-			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
-
-		IF @ErrCode > 0
-			RETURN
-	END
-
-	IF EXISTS (
-			SELECT TOP 1 1
-			FROM Single_Calculate_Queue s WITH (NOLOCK)
-				INNER JOIN dbo.f_Set_GetAction() f
-					ON s.Action = f.Action
-					AND f.GroupAction = 'EAR'
-			WHERE	s.matchid = @matchid 
-					AND s.IsCalculating IN (0, 1)
-	) 
-	BEGIN
-		SELECT	 @ErrCode = 1001003
-				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-		RETURN
-	END
-
-	-- check waiting ticket
-	EXEC NAP_Admin_Settlement_Checking
-		@MatchId = @MatchId
-		,@Action = @Action
-		,@Mode = 'CAL-EARLY'
-		,@xmlData = @SelectedResources
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT @ErrCode
-			,@ErrMsg
-		
-		RETURN
-	END
-
-	-- check movebet day
-	EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
-		@MatchIds =  @MatchId 
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT @ErrCode = @ErrCode
-				,@ErrMsg = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
-
-		RETURN
-	END
 
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''

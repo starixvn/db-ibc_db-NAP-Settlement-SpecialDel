@@ -12,7 +12,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsDirectly		BIT				= 0
 	,@ChildMatchIds		VARCHAR(200)	= NULL
 	,@RefResultStatus	TINYINT			= 0
-	,@SessionId			BIGINT			= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT

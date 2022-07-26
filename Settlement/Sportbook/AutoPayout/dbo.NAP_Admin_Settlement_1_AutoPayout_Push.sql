@@ -14,7 +14,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
 	, @ResourceResult VARCHAR(MAX)	= NULL
 	, @SourceId		TINYINT			= 5 -- default SoccerWay
 	, @RefResult	VARCHAR(500)	= NULL
-	, @SessionId	BIGINT			= 0
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS

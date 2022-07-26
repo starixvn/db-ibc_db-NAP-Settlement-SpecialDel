@@ -5,11 +5,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All_Push]
     ,@HalfTimeHome                    	INT             = NULL
     ,@HalfTimeAway                    	INT             = NULL
     ,@FullTimeHome                    	INT             = NULL
-    ,@FullTimeAway                    	INT             = NULL
-    ,@GoalSequence                    	VARCHAR(50)     = NULL 
+    ,@FullTimeAway                    	INT             = NULL 
     ,@BetStatus                        	NVARCHAR(50)    = NULL
     ,@IP								VARCHAR(15)    	= ''
-    ,@SessionId							BIGINT			= 0
     ,@ErrCode							INT            	= 0     OUTPUT
     ,@ErrMsg							NVARCHAR(200)   = ''    OUTPUT
     ,@ServiceCommand					NVARCHAR(MAX)	= ''	OUTPUT
@@ -72,9 +70,6 @@ BEGIN
 			,@procName      		NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsExistNetPosition	BIT = 0
-
-			,@Inst_HomeScore		INT
-			,@Inst_AwayScore		INT
 			,@IsSystemSettlement	BIT
 
     SELECT	@matchcode    = m.matchcode
@@ -94,8 +89,7 @@ BEGIN
                                                                   + ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeHome), 'NULL') 
                                                                   + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL') 
                                                                   + ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeHome), 'NULL') 
-                                                                  + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL')
-                                                                  + ', @GoalSequence = ' + CASE WHEN @GoalSequence IS NULL THEN 'NULL' ELSE '''' + @GoalSequence + '''' END   
+                                                                  + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
                                                                   + ', @Action = ''' + 'CAL' + '''' 
                                                                   + ', @IsNested = ''' + CONVERT(NVARCHAR(1), @IsNested) + '''' 
                                                                   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 

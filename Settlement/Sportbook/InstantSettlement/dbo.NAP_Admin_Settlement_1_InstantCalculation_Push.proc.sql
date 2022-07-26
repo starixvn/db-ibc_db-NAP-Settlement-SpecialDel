@@ -10,7 +10,6 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_1_InstantCalculation_Push
     , @ResourceResult	VARCHAR(MAX)	 = NULL
     , @IP				VARCHAR(15)     = ''
     , @IsAutoInst		BIT			 = 0
-	, @SessionId		BIGINT			= 0
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS

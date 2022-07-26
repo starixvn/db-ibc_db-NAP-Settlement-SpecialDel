@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP_Push] (
 	,@Action 						VARCHAR(20) = 'REFUND'
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0
 	,@IP 							VARCHAR(15) = ''
-	,@SessionId						BIGINT	= 0
 	,@ErrCode 						INT = 0 OUTPUT
 	,@ErrMsg NVARCHAR(200) 			= '' OUTPUT
 )

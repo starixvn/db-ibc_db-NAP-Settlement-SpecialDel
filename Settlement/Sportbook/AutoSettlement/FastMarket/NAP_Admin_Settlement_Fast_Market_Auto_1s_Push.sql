@@ -36,6 +36,7 @@ AS
 							  - Check SP is in deployment 			
 			- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 			- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+			- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 			
 	Param's Explanation:
 		- @Result: 
@@ -133,24 +134,6 @@ BEGIN
 		,Position				TINYINT 
 		,Value					TINYINT
 	)
-	
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
 
 	SELECT	@matchcode = m.matchcode
 			,@sporttype = m.sporttype
@@ -158,49 +141,7 @@ BEGIN
 			,@AutoSetting = m.AutoSetting
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
-
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SELECT	@ErrCode = 1001001
-				,@ErrMsg = 'Match does not exist!'
-				
-		RETURN
-	END
-
-	IF @Action IN ('CAL', 'REFUND') AND @IsAuto = 0
-	BEGIN
-		DECLARE @fixedErrMsg VARCHAR(300) = '' --cannot pass varchar(max) via linked server 
-
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-			@MatchId	= @matchid
-			,@Action	= @action
-			,@IsEarly 	= 1
-			,@IsSettleDetermined = @IsSettleDetermined
-			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @fixedErrMsg	OUTPUT
-
-		IF @ErrCode > 0
-		BEGIN
-			SET @ErrMsg = @fixedErrMsg
-			RETURN
-		END
-	END
-
-	IF EXISTS (SELECT	TOP 1 1 
-				FROM	dbo.Single_Calculate_Queue s WITH (NOLOCK)
-					INNER JOIN dbo.f_Set_GetAction() f
-					ON s.Action = f.Action
-					AND f.GroupAction = 'FM'
-				WHERE	s.matchid = @matchid 
-						AND s.IsCalculating IN (0, 1))
-	BEGIN
-		SELECT	@ErrCode = 1001003
-				,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 		
-		RETURN
-	END
-	
-			
 	SET @xmlData = CONVERT(XML, @Results)
 	SET @xmlEventCounter = CONVERT(XML, @EventCounters)
 	

@@ -4,10 +4,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundFT_Push]
     ,@AdminId                       INT
     ,@FullTimeHome                  INT         	= NULL
     ,@FullTimeAway                  INT         	= NULL
-    ,@GoalSequence                  VARCHAR(50)     = NULL 
     ,@BetStatus                     NVARCHAR(50)    = NULL
     ,@IP                            VARCHAR(15)    	= ''
-	,@SessionId						BIGINT			= 0		OUTPUT
     ,@ErrCode                       INT            	= 0		OUTPUT
     ,@ErrMsg                        NVARCHAR(200)   = ''	OUTPUT
     ,@ServiceCommand				NVARCHAR(MAX)	= ''	OUTPUT
@@ -69,17 +67,13 @@ BEGIN
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
 
-	-- check HT running 
-
-
     SELECT @ErrCode    = 0
         ,@ErrMsg       = ''
         ,@procName     = OBJECT_NAME(@@procid)
         ,@sqlCommand   = 'EXEC [dbo].[NAP_Admin_Settlement_RefundFT] @matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
                                                                  + ', @adminid = ' + CONVERT(NVARCHAR(50), @AdminId) 
                                                                  + ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeHome), 'NULL') 
-                                                                 + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL') 
-                                                                 + ', @GoalSequence = ' + CASE WHEN @GoalSequence IS NULL THEN 'NULL' ELSE 'N''' + CONVERT(NVARCHAR(50), @GoalSequence) + '''' END                                                                 
+                                                                 + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL')                                                              
                                                                  + ', @betstatus = ' + CASE 
                                                                                             WHEN @BetStatus IS NULL THEN 'NULL'
                                                                                             ELSE '''' + @BetStatus + ''''

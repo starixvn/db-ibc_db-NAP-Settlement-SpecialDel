@@ -4,12 +4,14 @@ CREATE PROCEDURE NAP_Admin_Settlement_Validation
 	 @matchid		INT = 0
 	,@Action		VARCHAR(10)
 	,@Mode			VARCHAR(10)
-	,@IsAuto		BIT
-	,@IsAutoRefund	BIT =0
+	,@IsAuto		BIT = 0
+	,@IsAutoRefund	BIT = 0
 	,@SPName		VARCHAR(255)
 	,@SelectedResources	VARCHAR(MAX) = NULL
-	,@InstantKey	INT = NULL
-	,@SettleAbandonedMatchIBCParlay TINYINT	= 0
+	,@InstantKey	INT = NULL --NAP_Admin_Settlement_1_InstantCalculation_Push
+	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --NAP_Admin_Settlement_Refund_MP_Push
+	,@SDTRecord		TINYINT	= 0  --NAP_Admin_Settlement_Refund_1_Push
+	,@IsSettleDetermined	BIT	= 0 --NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
 
 	,@HalfTimeHome  INT = NULL
     ,@HalfTimeAway  INT = NULL
@@ -18,7 +20,7 @@ CREATE PROCEDURE NAP_Admin_Settlement_Validation
 
 	,@SessionID		BIGINT = 0		OUTPUT
 	,@ErrCode		INT		= 0     OUTPUT
-	,@ErrMsg		NVARCHAR(200)  = ''    OUTPUT
+	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
 )
 AS
 /*
@@ -32,6 +34,10 @@ AS
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,FM
 		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
+
+		@SettleAbandonedMatchIBCParlay
+		
+		select top 1 1 * from bettrans
 
 */
 
@@ -52,6 +58,7 @@ SET NOCOUNT ON
 
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
+			,@IsSettleAbandonedMatchIBC BIT --Refund DTM Soccer
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
@@ -88,6 +95,7 @@ SET NOCOUNT ON
 				,@LeagueGroupID		= lg.GroupID
 				,@finalhomescore	= m.finalhomescore
 				,@finalawayscore	= m.finalawayscore
+				,@IsSettleAbandonedMatchIBC = CASE WHEN @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -143,13 +151,14 @@ SET NOCOUNT ON
 		END
 	
 		--validate match.EventStatusReason, match.SettlementStatus, Odds
-		IF @sporttype = 1 AND @IsAuto = 0 AND ( @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%')
+		IF @sporttype = 1 AND ( @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%')
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 				@MatchId		= @matchid
 				,@Action		= @Action
 				,@IsAutoRefund  = @IsAutoRefund
-				--,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
+				,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC --refund_1_Push
+				,@IsSettleDetermined = @IsSettleDetermined --Fast market
 				,@ErrCode		= @ErrCode	OUTPUT
 				,@ErrMsg		= @ErrMsg	OUTPUT
 
@@ -360,24 +369,20 @@ SET NOCOUNT ON
 			--	END
 			--END
 
-			;WITH cteBettypes
-				AS(
-					SELECT	b.bettype
-					FROM	dbo.bettrans b WITH(NOLOCK)
-					WHERE	b.matchid = @MatchId
-							AND b.statusID = 0
-				)
-				SELECT	@IsHTDone = 0
-				FROM	cteBettypes b
-					INNER JOIN dbo.f_Set_GetGroupBettypes() f
-						ON b.bettype = f.BetType
-				WHERE	f.GroupId IN (1,3)
-
-				IF @IsHTDone = 0
+			--refund FT
+			IF @Action = 'REFUND-FT' AND EXISTS ( SELECT TOP 1 1
+						FROM	dbo.bettrans b WITH(NOLOCK)
+							CROSS APPLY ( SELECT TOP 1 b.bettype
+										  FROM dbo.f_Set_GetGroupBettypes() f
+										  WHERE b.bettype = f.BetType
+											AND f.GroupId IN (1,3)
+										) f
+						WHERE	b.matchid = @MatchId
+								AND b.statusID = 0
+					)
 				BEGIN
 					SELECT	@ErrCode = 1001031
 							,@ErrMsg = 'Error! Cannot proceed due to running Half Time tickets. Please proceed with Half Time settlement and try again.'
-
 					RETURN
 				END
 

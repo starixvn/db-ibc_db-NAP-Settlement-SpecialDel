@@ -24,7 +24,7 @@ AS
 
     Revisions: 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
-       
+        - 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
     
@@ -38,117 +38,14 @@ BEGIN
 			,@IsNested      		BIT
 			,@procName      		NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
-			,@IsSettleAbandonedMatchIBC BIT
 			,@KeyId					INT
 			,@IsHTDone				BIT = 1
 			
     SELECT	@matchcode    = m.matchcode
 			,@sporttype   = m.sporttype
 			,@leagueid    = m.leagueid	
-			,@IsSettleAbandonedMatchIBC = CASE WHEN @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
-
-    IF @@ROWCOUNT = 0
-    BEGIN
-        SELECT	@ErrCode = 1001001
-				,@ErrMsg    = 'Match does not exist!'
-
-        RETURN
-    END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-		@MatchId	= @Matchid
-		,@ErrCode	= @ErrCode OUTPUT
-		,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0	    
-	RETURN
-
-	IF @sporttype = 1
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-			@MatchId	= @matchid
-			,@Action	= @Action
-			,@IsAutoRefund = @IsAutoRefund
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
-
-		IF @ErrCode > 0
-			RETURN
-	END
-	
-	IF EXISTS (
-            SELECT TOP 1 1
-            FROM Single_Calculate_Queue s WITH (NOLOCK)		
-				INNER JOIN dbo.f_Set_GetAction() f
-					ON 	s.Action = f.Action
-						AND f.GroupAction = 'MNL'
-            WHERE 	s.matchid = @matchid
-					AND s.IsCalculating IN (0, 1)
-            )
-    BEGIN
-        SELECT @ErrCode = 1001003
-            ,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-        RETURN
-    END
-
-    -- check waiting ticket
-	EXEC NAP_Admin_Settlement_Checking
-        @MatchId = @MatchId
-        ,@Action = @Action
-        ,@Mode = 'REFUND'
-        ,@ErrCode = @ErrCode OUTPUT
-        ,@ErrMsg = @ErrMsg OUTPUT
-        
-    IF @ErrCode <> 0
-    BEGIN
-        SELECT	@ErrCode
-				,@ErrMsg
-        
-        RETURN
-    END
-
-    -- check movebet day
-	EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
-		@MatchIds =  @MatchId 
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT @ErrCode = @ErrCode
-				,@ErrMsg = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
-
-		RETURN
-	END
-
-	-- check HT running 
-	IF @Action = 'REFUND-FT'
-	BEGIN
-		;WITH cteBettypes
-		AS(
-			SELECT	DISTINCT b.bettype
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @MatchId
-					AND b.statusID = 0
-		)
-		SELECT	@IsHTDone = 0
-		FROM	cteBettypes b
-			INNER JOIN dbo.f_Set_GetGroupBettypes() f
-				ON b.bettype = f.BetType
-		WHERE	f.GroupId IN (1,3)
-
-		IF @IsHTDone = 0
-		BEGIN
-			SELECT	@ErrCode = 1001031
-					,@ErrMsg = 'Error! Cannot proceed due to running Half Time tickets. Please proceed with Half Time settlement and try again.'
-
-			RETURN
-		END
-	END
 
     SELECT @ErrCode     = 0
         ,@ErrMsg        = ''

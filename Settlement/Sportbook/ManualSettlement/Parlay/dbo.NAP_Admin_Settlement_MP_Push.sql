@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP_Push] (
 	,@AdminId 	INT
 	,@Action 	VARCHAR(20) = 'CAL'
 	,@IP 		VARCHAR(15) = ''
-	,@SessionId	BIGINT		= 0
 	,@ErrCode 	INT = 0 OUTPUT
 	,@ErrMsg 	NVARCHAR(200) = '' OUTPUT
 	)
