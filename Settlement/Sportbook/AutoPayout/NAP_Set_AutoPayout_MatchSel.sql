@@ -65,6 +65,7 @@ AS
 	- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 	- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+	- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
  Param explanation:  
 	@MatchCode: match code
@@ -83,6 +84,7 @@ BEGIN
 		,@MatchId INT, @Today DATETIME
 		,@SettlementStatus TINYINT
 		,@EventStatusReason TINYINT = 0
+		,@IsCentral BIT
 
 	SELECT @matchcode 	= ISNULL(@matchcode, '')
 		, @LeagueID 	= ISNULL(@LeagueID, 0)
@@ -90,6 +92,9 @@ BEGIN
 		, @Today 		= GETDATE()
 		, @MatchId 	= 0
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	-- if entering matcode, ignore other params (excep FromDate, ToDate, sport type)
 	IF @matchcode <> ''
 	BEGIN
@@ -372,8 +377,7 @@ BEGIN
 	END
 	
 	BEGIN --update status
-		DECLARE @n INT = 2147483647
-		
+		DECLARE @n INT = 2147483647		
 		
 		--checking bettrans
 		INSERT INTO #tempBettrans (matchid, bettype, runningBet, betCount)
@@ -392,6 +396,7 @@ BEGIN
 						,COUNT(1) AS betCount
 				FROM dbo.bettrans b WITH(NOLOCK)
 				WHERE b.matchid = m.MatchId
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.statusID NOT IN (101, 102)
 				GROUP BY b.bettype
 			) AS b
@@ -434,39 +439,40 @@ BEGIN
 		
 		INSERT INTO #tempBettrans (matchid, bettype, runningBet, betCount, IsParlay, IsExistFTFGNG, IsExistFTLG, IsExistHTFGNG, IsExistHTLG)
 		SELECT	m.matchid
-			,b.bettype
-			,b.runningBet
-			,b.betCount
+			,bm.bettype
+			,bm.runningBet
+			,bm.betCount
 			,1 AS IsParlay
-			,b.IsExistFTFGNG
-			,b.IsExistFTLG
-			,b.IsExistHTFGNG
-			,b.IsExistHTLG
+			,bm.IsExistFTFGNG
+			,bm.IsExistFTLG
+			,bm.IsExistHTFGNG
+			,bm.IsExistHTLG
 		FROM (
 				SELECT TOP (@n) MatchId 
 				FROM #matchList
 			) AS m
 			CROSS APPLY
 			(
-				SELECT	b.bettype
+				SELECT	bm.bettype
 						,SUM(CASE 
-								WHEN b.statusID = 0 AND GETDATE() > '20160801' THEN 1 -- using hint to force Compute Scalar included in Aggregate Operator 
+								WHEN bm.statusID = 0 AND GETDATE() > '20160801' THEN 1 -- using hint to force Compute Scalar included in Aggregate Operator 
 								ELSE 0 
 							END) AS runningBet
 						,COUNT(1) AS betCount
-						,MAX(CASE WHEN b.bettype = 14 AND betteam IN ('0:0', '1:1', '2:1') THEN 1 ELSE 0 END) AS IsExistFTFGNG
-						,MAX(CASE WHEN b.bettype = 14 AND betteam IN ('1:2', '2:2') THEN 1 ELSE 0 END) AS IsExistFTLG
-						,MAX(CASE WHEN b.bettype = 127 AND betteam IN ('0:0', '1:1', '2:1') THEN 1 ELSE 0 END) AS IsExistHTFGNG
-						,MAX(CASE WHEN b.bettype = 127 AND betteam IN ('1:2', '2:2') THEN 1 ELSE 0 END) AS IsExistHTLG
-				FROM	dbo.bettransm b WITH(NOLOCK)
-				WHERE	b.matchid = m.MatchId 
+						,MAX(CASE WHEN bm.bettype = 14 AND betteam IN ('0:0', '1:1', '2:1') THEN 1 ELSE 0 END) AS IsExistFTFGNG
+						,MAX(CASE WHEN bm.bettype = 14 AND betteam IN ('1:2', '2:2') THEN 1 ELSE 0 END) AS IsExistFTLG
+						,MAX(CASE WHEN bm.bettype = 127 AND betteam IN ('0:0', '1:1', '2:1') THEN 1 ELSE 0 END) AS IsExistHTFGNG
+						,MAX(CASE WHEN bm.bettype = 127 AND betteam IN ('1:2', '2:2') THEN 1 ELSE 0 END) AS IsExistHTLG
+				FROM	dbo.bettransm bm WITH(NOLOCK)
+				WHERE	bm.matchid = m.MatchId 
+						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 						AND 1 = CASE
-								WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',',',' + @strBettypesParlay + ',') > 0 THEN 1
+								WHEN CHARINDEX(',' + CAST(bm.bettype AS VARCHAR) + ',',',' + @strBettypesParlay + ',') > 0 THEN 1
 								ELSE 0
 							END
-						AND b.statusID NOT IN (101, 102)
-				GROUP BY b.bettype
-			) AS b
+						AND bm.statusID NOT IN (101, 102)
+				GROUP BY bm.bettype
+			) AS bm
 		OPTION (OPTIMIZE FOR (@n = 1))	-- using hint to force Optimize execute temp table first
 	
 		;WITH BetStatusM AS (
@@ -718,6 +724,7 @@ BEGIN
 								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 1 IsParlay
@@ -773,6 +780,7 @@ BEGIN
 						WHERE b.transid = mt.TransId
 					)mt
 				WHERE	b.matchid = m.matchid
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						AND b.statusID = 0
 						AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 						AND b.bettype <> 38 -- BetBuilder
@@ -785,7 +793,8 @@ BEGIN
 		SELECT	0, m.MatchId, bm.refno
 		FROM @tmpMatchCompleted m
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
-		WHERE	bm.statusID = 0
+		WHERE	bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+				AND bm.statusID = 0
 				AND m.IsExistRunningTicket = 0
 				
 		IF EXISTS (SELECT TOP 1 1 FROM #temp_match_parlay)
@@ -813,9 +822,7 @@ BEGIN
 									)mt
 									WHERE	mt.transId IS NULL
 									GROUP BY b.matchid
-								) t
-
-							
+								) t							
 		END
 
 		UPDATE m 
@@ -905,17 +912,7 @@ BEGIN
 		, m.betstatus
 		, m.matchcode
 	
-	DECLARE @matchidList varchar(MAX) = ''
 
-	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	FROM #matchList
-
-	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
-	    
-	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
-		@matchidList = @matchidList
-
-	
 	DROP TABLE #tempmatch
 	DROP TABLE #matchList
 	DROP TABLE #InstMatchInfo

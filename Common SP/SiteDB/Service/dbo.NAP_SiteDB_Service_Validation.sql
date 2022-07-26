@@ -1,6 +1,7 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SiteDB_Service_Validation]
 	@TransInfo XML
+	,@TableName VARCHAR(128)
 	,@IsPassed BIT = 0 OUTPUT
 AS
 /*
@@ -30,12 +31,15 @@ BEGIN
 	
 	SET @cnt_sitedb = @@ROWCOUNT
 
-	SELECT @cnt_central = COUNT(1)
-	FROM	@tmpTransId t
-	WHERE	EXISTS (SELECT TOP 1 1 
-					FROM dbo.bettrans b WITH(NOLOCK) 
-					WHERE b.transid = t.TransId
-			)
+	IF @TableName = 'bettrans'
+	BEGIN
+		SELECT @cnt_central = COUNT(1)
+		FROM	@tmpTransId t
+		WHERE	EXISTS (SELECT TOP 1 1 
+						FROM dbo.bettrans b WITH(NOLOCK) 
+						WHERE b.transid = t.TransId
+				)
+	END
 
 	IF @cnt_sitedb = @cnt_central
 		SET @IsPassed = 1

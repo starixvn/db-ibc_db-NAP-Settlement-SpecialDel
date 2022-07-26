@@ -41,6 +41,7 @@ AS
 			- 20220309@Louisa: Get latest status in AutoPayoutResult [Redmine:#168346]
 			- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 			- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
+			- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	 Param explanation:  
 		@TicketStatus:	Un-check all: 0
@@ -99,6 +100,7 @@ BEGIN
 			,@IsOverEarly		BIT = 0
 			,@IsOverOnly		BIT = 0
 			,@IsOver			BIT = 0
+			,@IsCentral			BIT
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
 	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT)
@@ -198,6 +200,9 @@ BEGIN
 				,@OverStatus	= '0'
 				,@HoldStatus	= ''
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 	
 	INSERT INTO @tmpSporttypes(Sporttype)
 	SELECT	DISTINCT [value]
@@ -239,7 +244,6 @@ BEGIN
 	BEGIN
 		SET @MatchId = CAST(@MatchCode AS INT)
 	END
-
 
 	IF @MatchCode <> ''
 	BEGIN
@@ -599,6 +603,7 @@ BEGIN
 						END AS IsPassEarly
 			FROM dbo.bettrans b WITH(NOLOCK)
 			WHERE b.matchid = m.matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusId IN ( 0, 101, 102)
 				AND 1 = CASE WHEN b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) THEN CASE WHEN m.IsEarly = 1 AND b.StatusId IN (101, 102) THEN 0
 																														ELSE 1 END
@@ -622,6 +627,7 @@ BEGIN
 						END AS IsPassEarly
 			FROM dbo.bettransm bm WITH(NOLOCK)
 			WHERE bm.matchid = m.matchid
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND bm.statusId IN ( 0, 101, 102)
 				AND 1 = CASE WHEN bm.bettype = m.bettype AND (bm.betcheck = 0 OR bm.betcheck = m.betid ) THEN CASE WHEN m.IsEarly = 1 AND bm.StatusId IN (101, 102) THEN 0
 																																ELSE 1 END
@@ -699,6 +705,7 @@ BEGIN
 					,0 AS isExistParlay
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	b.matchid = m.matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.statusID NOT IN(101, 102)
 					AND b.bettype BETWEEN @minBettype AND @maxBettype
 			GROUP BY b.matchid, b.bettype
@@ -712,6 +719,7 @@ BEGIN
 					,1 AS isExistParlay
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 			WHERE	bm.matchid = m.matchid
+					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (101, 102)
 					AND bm.bettype BETWEEN @minBettype AND @maxBettype
 			GROUP BY bm.matchid, bm.bettype
@@ -788,6 +796,7 @@ BEGIN
 								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 1 IsParlay
@@ -874,6 +883,7 @@ BEGIN
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 			INNER JOIN #tmpAllParentChildMatch tmp	ON	bm.matchid = tmp.MatchId
 		WHERE	bm.statusID = 0
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND 1 = CASE 
 						WHEN m.IsExistRunningTicket = 0
 								AND tmp.IsMergedParlay = 1 THEN 1
@@ -1014,14 +1024,6 @@ BEGIN
 		, m.leagueid
 		, m.matchcode
 	
-	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	FROM #tmpMatchIds
-
-	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
-		@matchidList = @matchidList
-
 END
 
 GO

@@ -1,9 +1,8 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SiteDB_Service_Calculation]
-	@LogId BIGINT
-	,@LastLogId BIGINT
-	,@TransInfo XML
+	@TransInfo XML
 	,@TableName VARCHAR(128)
+	,@StatusId TINYINT OUTPUT
 AS
 /*
 	Created by: 20201123@Kathy
@@ -20,9 +19,8 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @batchNo		INT
-			,@failedId		TINYINT
-			,@runningId		TINYINT
-			,@completedId	TINYINT
+			,@failedId		TINYINT = 3
+			,@completedId	TINYINT = 2
 
 	DECLARE @tmpTransId TABLE (transId BIGINT
 			,matchid INT, winlostdate DATETIME
@@ -31,10 +29,6 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2
 	)
-
-	UPDATE dbo.Service_SiteDB_LastLog WITH(ROWLOCK, UPDLOCK)
-		SET LogId = @LogId
-			,StatusId = @runningId
 	
 	BEGIN TRY
 		IF @tablename = 'bettrans' 
@@ -99,14 +93,10 @@ BEGIN
 		END
 	END TRY
 	BEGIN CATCH
-		UPDATE dbo.Service_SiteDB_LastLog WITH(ROWLOCK, UPDLOCK)
-			SET StatusId = @failedId
-				,LastLogId = @LogId
-				,LastStatusId = @failedId
+		SET @StatusId = @failedId
+
+		RETURN
 	END CATCH
 
-	UPDATE dbo.Service_SiteDB_LastLog WITH(ROWLOCK, UPDLOCK)
-		SET StatusId = @completedId
-			,LastLogId = @LogId
-			,LastStatusId = @completedId	
+	SET @StatusId = @completedId
 END

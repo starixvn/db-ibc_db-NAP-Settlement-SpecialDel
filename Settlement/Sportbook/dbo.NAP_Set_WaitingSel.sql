@@ -48,6 +48,7 @@ AS
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's explanation:  
 		
@@ -58,7 +59,8 @@ BEGIN
 
 	DECLARE @matchid INT, @StartTime DATETIME, @EndTime	DATETIME, @SqlCommand VARCHAR(MAX)
 		,@MinBettype SMALLINT, @MaxBettype SMALLINT,@isSettingByProfile BIT = 0, @n	INT = 2147483647
-		
+		,@IsCentral BIT
+
 	SET @StartTime = GETDATE()
 
 	SELECT @MatchCode = ISNULL(@MatchCode, ''), @LeagueId = ISNULL(@LeagueID, 0), @SportType = ISNULL(@SportType, 0)
@@ -123,6 +125,9 @@ BEGIN
 		SELECT @isSettingByProfile = 1
 	END
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	;WITH SingleTicket AS (
 		SELECT matchid, sporttype, MIN(IsCalculating) AS IsCalculating
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
@@ -286,6 +291,7 @@ BEGIN
 					INNER JOIN #tblBettype t
 						ON b.bettype = t.bettype
 				WHERE	b.matchid = m.MatchId
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						AND b.statusID NOT BETWEEN 101 AND 102
 						AND b.bettype BETWEEN @MinBettype AND @MaxBettype
 				GROUP BY b.bettype
@@ -309,9 +315,10 @@ BEGIN
 					INNER JOIN #tblBettype t
 						ON	bm.bettype = t.bettype
 				WHERE	bm.matchid = m.MatchId
-								AND bm.statusID NOT BETWEEN 101 AND 102
-								AND bm.bettype BETWEEN @MinBettype AND @MaxBettype
-						GROUP BY bm.bettype
+						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+						AND bm.statusID NOT BETWEEN 101 AND 102
+						AND bm.bettype BETWEEN @MinBettype AND @MaxBettype
+				GROUP BY bm.bettype
 			)bm
 		OPTION (OPTIMIZE FOR (@n = 1))
 
@@ -380,6 +387,7 @@ BEGIN
 								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 1 IsParlay
@@ -430,6 +438,7 @@ BEGIN
 							INNER JOIN #tmpAllParentChildMatch tmp 
 								ON	b.MatchId = tmp.MatchId
 						WHERE	b.matchid = m.MatchId
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 								AND b.statusID = 0
 								AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 								AND b.bettype <> 38 -- BetBuilder
@@ -451,6 +460,7 @@ BEGIN
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 			INNER JOIN #tmpAllParentChildMatch tmp	ON	bm.matchid = tmp.MatchId
 		WHERE	bm.statusID = 0
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND 1 = CASE 
 						WHEN m.IsExistRunningTicket = 0								
 								AND tmp.IsMergedParlay = 1 THEN 1
@@ -527,19 +537,14 @@ BEGIN
 		, m.IsExistHTFGLG
 		, m.SingleStatus AS IsCalculatingSingle
 		, m.ParlayStatus AS IsCalculatingMP
-		, CASE
-			WHEN m.IsExistFastMarket = 0 AND m.IsExistFastMarketResult = 0 THEN 'N/A'
-			WHEN m.IsExistFastMarket = 0 AND m.IsExistFastMarketResult = 1 THEN 'No Ticket'
-			WHEN m.IsRunningFastMarket > 0 THEN 'Running'
-			ELSE 'Completed'
-		END AS AutoSettleFastMarket
-		, CASE
-			WHEN m.IsExistEarlyBettypes = 0 AND (m.ChildMatchType IN (202) OR te.matchid IS NOT NULL)THEN 'No Ticket'
-			WHEN m.IsExistEarlyBettypes = 0 THEN 'N/A'
-			WHEN m.IsRunningEarlyBettypes > 0 THEN 'Running'
-			WHEN m.IsWaitingEarlyBettypes > 0 THEN 'Waiting'
-			ELSE 'Completed'
-		END AS EarlySettleStatus
+		, m.IsExistFastMarket
+		, m.IsExistFastMarketResult
+		, m.IsRunningFastMarket
+		, m.IsExistEarlyBettypes
+		, m.ChildMatchType
+		, CASE WHEN te.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds
+		, m.IsRunningEarlyBettypes
+		, m.IsWaitingEarlyBettypes
 		,m.IsExistMarkedTicket
 		,m.IsExistRunningTicket
 		,m.IsExistRunningTicketParlay
@@ -553,16 +558,6 @@ BEGIN
 		LEFT JOIN @tmp_ESportMatch te ON te.matchid = m.matchid
 		LEFT JOIN CustDB.dbo.custInfo ciHT WITH(NOLOCK) ON ciHT.custid = mr.ConfirmHT
 		LEFT JOIN CustDB.dbo.custInfo ciFT WITH(NOLOCK) ON ciFT.custid = mr.ConfirmFT
-
-	DECLARE @matchidList VARCHAR(MAX) = ''
-	    
-	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	FROM @TempMatch
-	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
-	    
-	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
-		@matchidList = @matchidList
-
 
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 5000
