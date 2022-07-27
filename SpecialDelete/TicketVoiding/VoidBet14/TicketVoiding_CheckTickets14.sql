@@ -1,7 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
-	 @TransIds	VARCHAR(MAX) = NULL
+	 @TransIds			VARCHAR(MAX) = NULL
+	,@TransInfo		VARCHAR(MAX)  = NULL
 )
 AS
 /*  
@@ -13,6 +14,7 @@ AS
 	Revisions:  
 		- 20211123@July: Create new SP [Redmine: #140180]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 
 	Param's Explanation:
 */
@@ -23,6 +25,7 @@ BEGIN
 		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		   ,@before_movebetday				DATETIME
 	       ,@MovebetDate					DATETIME
+		   ,@TransInfoXML					XML = NULL
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -47,11 +50,50 @@ BEGIN
 		,refno			BIGINT
 		,winlostdate	DATETIME
 		,betdaqid		BIGINT
-		)
+	)
 
-	IF (@TransIds IS NULL
-		OR LEN(@TransIds) = 0
-			) RETURN;
+	CREATE TABLE #tmpTransInfo(
+	   matchid INT
+	  ,transid BIGINT PRIMARY KEY
+      ,refno BIGINT
+      ,bettype SMALLINT
+      ,betid BIGINT
+	  ,betdaqid BIGINT
+      ,statusID TINYINT
+      ,betfrom NVARCHAR(1)
+	  ,statuswinlost TINYINT
+	  ,winlostdate SMALLDATETIME
+	  ,SiteDBGroupID SMALLINT
+	)
+	SET @TransInfoXML = CONVERT(XML, @TransInfo)
+	INSERT INTO #tmpTransInfo( 
+		   matchid
+		  ,transid 
+		  ,refno
+		  ,bettype
+		  ,betid
+		  ,betdaqid 
+		  ,betfrom
+		  ,statusID
+		  ,statuswinlost
+		  ,winlostdate
+		  ,SiteDBGroupID
+		)
+	SELECT t.c.value('@matchid','INT') AS matchid
+			,t.c.value('@transid','BIGINT') AS transid
+			,t.c.value('@refno','BIGINT') AS refno
+			,t.c.value('@bettype','SMALLINT') AS bettype
+			,t.c.value('@betid','BIGINT') AS betid
+			,t.c.value('@betdaqid','BIGINT') AS betdaqid
+			,t.c.value('@betfrom','NVARCHAR(1)') AS betfrom
+			,t.c.value('@statusID','TINYINT') AS statusID
+			,t.c.value('@statuswinlost','TINYINT') AS statuswinlost
+			,t.c.value('@winlostdate','SMALLDATETIME') AS winlostdate
+			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
+	FROM @TransInfoXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+
+	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 
 	INSERT INTO #transIdTemp (transid)
 	SELECT DISTINCT value
@@ -77,7 +119,7 @@ BEGIN
 		,refno
 		,winlostdate
 		,betdaqid
-	FROM dbo.bettrans14 AS b14 WITH (NOLOCK)
+	FROM #tmpTransInfo b14
 		INNER JOIN #transIdTemp tmp ON b14.transid = tmp.transid
 	
 	--final valid transid
@@ -115,4 +157,5 @@ BEGIN
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
+	DROP TABLE #tmpTransInfo
 END

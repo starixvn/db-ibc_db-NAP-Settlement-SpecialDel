@@ -1,13 +1,14 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
-	 @UserNames	 NVARCHAR(MAX) = ''
-	,@RequestId	 INT = 0
-	,@ActionId	 INT = 0
-	,@ProductIds VARCHAR(50)  = NULL
-	,@StatusIds	 VARCHAR(50)  = NULL
-	,@FromDate	 DATETIME     = NULL
-    ,@ToDate	 DATETIME     = NULL
+	 @UserNames	    NVARCHAR(MAX) = ''
+	,@RequestId	    INT = 0
+	,@ActionId	    INT = 0
+	,@ProductIds    VARCHAR(50)  = NULL
+	,@StatusIds	    VARCHAR(50)  = NULL
+	,@FromDate	    DATETIME     = NULL
+    ,@ToDate	    DATETIME     = NULL
+	,@TransInfo	VARCHAR(MAX) = NULL
 )
 AS
 /*
@@ -28,6 +29,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
 		- 20220610@July: TVS - Check valid count SMA/member  [Redmine: #173229]
+		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 
 	Param's Explanation:
 */
@@ -47,25 +49,12 @@ BEGIN
 			,@IsSaba				  BIT = 0
 			,@IsNonSport			  BIT = 0
 			--Add abnormal account
-			,@IsExistParlay			  BIT = 0
-			,@IsExistFM				  BIT = 0
-			,@IsExistFM2			  BIT = 0
-			,@IsExistSingle			  BIT = 0
-			,@IsExistMG				  BIT = 0
-			,@IsExistParlayVSBetradar BIT = 0
-			,@IsExistOutright		  BIT = 0
-			,@IsExistNG				  BIT = 0
-			,@IsExistVS				  BIT = 0
-			,@IsExistBB				  BIT = 0
-			,@MatchProcessXML		  XML = NULL
 			,@movebetdate			  SMALLDATETIME
 			,@maxdate 				  DATETIME = '9999-01-01'
-			,@MatchParlayProcessXML	  XML = NULL
-			,@TotalRefnoParlay		  INT = 0
-			,@ThreadHold			  INT = 0 -- over threadhold, the parlay process will be locked in systemsetting	
 			,@CountSMA				  INT
 			,@CountMember             INT
 			,@IsExceededTotalUsernames BIT = 0
+			,@TransInfoXML         XML = NULL
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
@@ -76,7 +65,6 @@ BEGIN
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 
 	INSERT INTO #TmpInValidUserName (Username)
 	SELECT DISTINCT value
@@ -101,6 +89,52 @@ BEGIN
 		RETURN;
 	END
 	
+	CREATE TABLE #tmpTransInfo(
+	   matchid INT
+	  ,transid BIGINT PRIMARY KEY
+	  ,custid INT	
+      ,livehomescore SMALLINT
+      ,liveawayscore SMALLINT
+      ,liveindicator BIT
+      ,betteam NVARCHAR(10)
+      ,creator INT
+      ,refno BIGINT
+      ,bettype SMALLINT
+      ,betid BIGINT
+	  ,betdaqid BIGINT
+      ,statusID TINYINT
+	  ,winlostdate SMALLDATETIME
+      ,recommend INT
+	)
+	SET @TransInfoXML = CONVERT(XML, @TransInfo)
+	INSERT INTO #tmpTransInfo( 
+		   matchid
+		  ,transid 
+		  ,refno
+		  ,custid		
+		  ,livehomescore 
+		  ,liveawayscore 
+		  ,liveindicator 
+		  ,bettype
+		  ,betdaqid 
+		  ,statusID
+		  ,winlostdate
+		)
+	SELECT t.c.value('@matchid','INT') AS matchid
+			,t.c.value('@transid','BIGINT') AS transid
+			,t.c.value('@refno','BIGINT') AS refno
+			,t.c.value('@custid','INT') AS custid
+			,t.c.value('@livehomescore','SMALLINT') AS livehomescore
+			,t.c.value('@liveawayscore','SMALLINT') AS liveawayscore
+			,t.c.value('@liveindicator','BIT') AS liveindicator
+			,t.c.value('@bettype','SMALLINT') AS bettype
+			,t.c.value('@bettype','SMALLINT') AS bettype
+			,t.c.value('@betdaqid','BIGINT') AS betdaqid
+			,t.c.value('@statusID','TINYINT') AS statusID
+			,t.c.value('@winlostdate','SMALLDATETIME') AS winlostdate
+	FROM @TransInfoXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
 	
@@ -191,32 +225,19 @@ BEGIN
 						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) AND pt.SportType NOT IN (168) THEN 1
 					ELSE 0 END
 			END
-		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
+		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
 	BEGIN
 		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo)
-		SELECT	b.translogid AS transid
-				,b.statusID 
-				,b.EventID
-				,b.GameID
-				,b.translogid AS refno
-		FROM	dbo.translog AS b WITH (NOLOCK)
-			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
-		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
-				AND b.GameID BETWEEN 801 AND 806
-				AND b.statusID = 0
-				AND @IsSB = 1
-					
-		UNION ALL
-		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
+		SELECT  b.transid
 				,b.statusID
 				,b.matchid
 				,b.bettype
 				,b.refno
-		FROM dbo.bettrans AS b WITH (NOLOCK)
+		FROM #tmpTransInfo b 
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
 				FROM dbo.match m WITH (NOLOCK)
@@ -235,10 +256,8 @@ BEGIN
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
-							AND b.bettype BETWEEN 801 AND 806 
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
-							AND b.bettype NOT BETWEEN 801 AND 806 -- MG
 							AND ml.LeagueGroupID IS NULL 
 							AND mc.sporttype IS NULL --exclude cricket
 							THEN 1
@@ -251,25 +270,12 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_1)
 	BEGIN
 		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo)
-		SELECT	b.translogid AS transid
-				,b.statusID 
-				,b.EventID
-				,b.GameID
-				,b.translogid AS refno
-		FROM	dbo.translog AS b WITH (NOLOCK)
-			INNER JOIN #InputValidCustid_1 c ON c.CustId = b.custid
-		WHERE	b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
-				AND b.GameID BETWEEN 801 AND 806
-				AND b.statusID = 0
-				AND @IsSB = 1
-					
-		UNION ALL
-		SELECT CASE WHEN b.bettype BETWEEN 801 AND 806 THEN b.refno ELSE b.transid END
+		SELECT b.transid
 				,b.statusID
 				,b.matchid
 				,b.bettype
 				,b.refno
-		FROM dbo.bettrans AS b WITH (NOLOCK)
+		FROM #tmpTransInfo b 
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
 				FROM dbo.match m WITH (NOLOCK)
@@ -288,10 +294,8 @@ BEGIN
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
-							AND b.bettype BETWEEN 801 AND 806 
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
-							AND b.bettype NOT BETWEEN 801 AND 806 -- MG
 							AND ml.LeagueGroupID IS NULL 
 							AND mc.sporttype IS NULL --exclude cricket
 							THEN 1
@@ -309,8 +313,7 @@ BEGIN
 		INSERT INTO #TransidInRequest (TransId)
 		SELECT DISTINCT rs.TransId
 		FROM  dbo.TicketVoiding_Request r WITH (NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						ON rs.RequestId = r.RequestId
+			INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK) ON rs.RequestId = r.RequestId
 			CROSS APPLY (
 						SELECT TOP 1 t.MatchId, t.transid, t.StatusId
 						FROM #transIdTemp t
@@ -345,73 +348,6 @@ BEGIN
 	ELSE 
 		SET @IsInValidTotalTicket = 1 
 	
-	---Prepare for lock match---
-	SELECT   @IsExistSingle 		    = MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-			,@IsExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
-			,@IsExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-			,@IsExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
-			,@IsExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
-			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
-			,@IsExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
-			,@IsExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
-			,@IsExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-			,@IsExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-	FROM	#transIdTemp t
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-
-	SET @MatchProcessXML = (
-		SELECT DISTINCT t.MatchId "@MatchId"
-				, CASE 
-					WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
-							AND Bettype NOT BETWEEN 801 AND 899
-							AND f.GroupId IS NULL
-							AND Bettype NOT IN (1231,1232,1233)
-						THEN 1 --SB,NG,LC
-					WHEN Bettype = 10 THEN 2	-- Outright
-					WHEN Bettype BETWEEN 801 AND 899 THEN 3 -- MG
-					WHEN f.GroupId = 1 THEN 6 -- FM
-					WHEN Bettype IN (1231,1232,1233) THEN 4 -- VS Racing
-					WHEN Bettype = 38 THEN 5 -- Bet Builder
-					WHEN f.GroupId = 2 THEN 7 -- FM 228
-					ELSE 0
-				END AS "@KeyID" 
-		FROM #transIdTemp t
-			OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-		FOR XML PATH('r'), ROOT('root')
-			)
-
-	--Lock Refno process - SportBook
-	EXEC dbo.NAP_Set_GlobalSettingSel 
-		@LockName = 'ParlayRefno'
-		,@ThreadHold = @ThreadHold OUTPUT
-
-	INSERT INTO @tblMatchParlay (MatchId, RefNo)
-	SELECT DISTINCT MatchId, refno
-	FROM #transIdTemp 
-	WHERE bettype IN (9,29) --NOT 2799: Virtual Sport
-
-	SET @TotalRefnoParlay = @@ROWCOUNT
-
-	IF @TotalRefnoParlay <= @ThreadHold
-	BEGIN
-		SET @MatchParlayProcessXML = (
-		SELECT  MatchId "@MatchId"
-				,refno AS "@RefNo"
-		FROM @tblMatchParlay 
-		FOR XML PATH('r'), ROOT('root'))
-	END	
-	ELSE
-	BEGIN
-		SET @MatchParlayProcessXML = NULL
-	END
 
 	--Error Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
@@ -419,18 +355,6 @@ BEGIN
 		  ,@MatchIDs AS MatchIDs
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
-		  ,@MatchProcessXML AS MatchProcessXML
-		  ,@IsExistSingle AS IsExistSingle				
-		  ,@IsExistMG AS IsExistMG					
-		  ,@IsExistOutright AS IsExistOutright			
-		  ,@IsExistParlay AS IsExistParlay 			
-		  ,@IsExistParlayVSBetradar	AS IsExistParlayVSBetradar		
-		  ,@IsExistNG AS IsExistNG												
-		  ,@IsExistVS AS IsExistVS				
-		  ,@IsExistBB AS IsExistBB							    
-		  ,@IsExistFM AS IsExistFM
-		  ,@IsExistFM2 AS IsExistFM2
-		  ,@MatchParlayProcessXML AS MatchParlayProcessXML 		
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1
@@ -438,6 +362,6 @@ BEGIN
 	DROP TABLE #TmpInValidUserName
 	DROP TABLE #TransidInRequest
 	DROP TABLE #transIdTemp
-
+	DROP TABLE #tmpTransInfo
 END
 
