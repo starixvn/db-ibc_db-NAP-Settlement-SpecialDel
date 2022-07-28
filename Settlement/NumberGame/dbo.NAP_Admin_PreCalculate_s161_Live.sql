@@ -17,16 +17,21 @@ AS
 		- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @modds MONEY
-	DECLARE  @strTransIds VARCHAR(MAX)
+			,@strTransIds VARCHAR(MAX)
+			,@IsCentral BIT = 0
 		
 	DECLARE @subtable_CAL_Live TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
 
 	CREATE TABLE #TempData_CAL_Live(transid BIGINT, modds MONEY, betteam NVARCHAR(10), hdp1 SMALLMONEY, bettype SMALLINT, betid BIGINT, OddsType TINYINT)
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	INSERT INTO #TempData_CAL_Live(transid, modds, betteam, hdp1, bettype, betid, OddsType)
 	SELECT transid, modds, betteam, hdp1, bettype, betid, CASE WHEN bettype IN (89,90) THEN 1 ELSE 0 END AS OddsType 				
@@ -35,6 +40,7 @@ BEGIN
 		AND bettype IN (85, 86, 87, 89, 90, 91) 
 		AND liveindicator = 1 
 		AND statusID NOT IN (101, 102) -- VOID, REJECT
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		AND livehomescore + liveawayscore + CASE WHEN bettype = 87 THEN 2 ELSE 1 END = @DrawSeq
 
 	IF @@ROWCOUNT = 0 RETURN

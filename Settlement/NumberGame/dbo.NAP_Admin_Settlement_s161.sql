@@ -26,6 +26,7 @@ AS
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
@@ -44,6 +45,7 @@ BEGIN
 	DECLARE @procName		SYSNAME
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT 
+			,@IsCentral		BIT = 0
 
 	SELECT @procName = OBJECT_NAME(@@procid)
 			,@IsWaiting = 0
@@ -65,6 +67,9 @@ BEGIN
 
 		RETURN
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	IF @IsLive = 1					SET @ActionID = 116
 	ELSE IF @Action = 'CAL-HT'		SET @ActionID = 118
@@ -93,6 +98,7 @@ BEGIN
 		IF (@@Error = 0)
 		BEGIN
 			BEGIN TRY
+				IF @IsCentral = 1
 				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
 					,@Matchid = @MatchId
 					,@KeyID = 1
@@ -133,16 +139,18 @@ BEGIN
 	)
 	BEGIN
 		-- waiting for releasing lock on bettrans table
-		SELECT @MaxTransID = MAX(transid)
-		FROM dbo.bettrans WITH(ROWLOCK)
-		WHERE matchid = @MatchId
+		SELECT @MaxTransID = MAX(b.transid)
+		FROM dbo.bettrans b WITH(ROWLOCK)
+		WHERE b.matchid = @MatchId
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		WAITFOR DELAY '00:00:02:000'
 	END
 
-	SELECT @MaxTransID = MAX(transid)
-	FROM dbo.bettrans WITH(NOLOCK)
-	WHERE matchid = @MatchId
+	SELECT @MaxTransID = MAX(b.transid)
+	FROM dbo.bettrans b WITH(NOLOCK)
+	WHERE b.matchid = @MatchId
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
@@ -163,7 +171,8 @@ BEGIN
 			,bettype
 		FROM dbo.bettrans WITH(ROWLOCK)
 		WHERE matchid = @MatchId AND transid <= @MaxTransID
-		AND bettype BETWEEN 81 AND 120
+			AND bettype BETWEEN 81 AND 120
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		GROUP BY custid, winlostdate, bettype
 
 	END
@@ -185,7 +194,7 @@ BEGIN
 
 		IF @DrawSeq = 1 -- Cal-HT
 		BEGIN
-																																																EXEC dbo.NAP_Admin_Settlement_s161 @MatchId = @MatchId
+			EXEC dbo.NAP_Admin_Settlement_s161 @MatchId = @MatchId
 				,@Action = 'CAL-HT'
 				,@IP = @IP
 				,@AdminID = @AdminID
@@ -195,21 +204,29 @@ BEGIN
 	END
 	ELSE IF @Action = 'Refund'
 	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-Refund', @MatchId = @MatchId, @Creator = @AdminID
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-Refund', @MatchId = @MatchId, @Creator = @AdminID
+		END
 
-								EXEC dbo.NAP_Admin_PreCalculate_s161_Refund @MatchId = @MatchId, @Action = @Action
-
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Refund @MatchId = @MatchId, @Action = @Action
+		
 		SET @LogData = 'REFUND Number Game for matchid:' + CAST(@MatchId AS NVARCHAR(10))
 		SET @ActionID = 117
+
 	END
 	ELSE IF @Action = 'Refund-FT'
 	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-Refund_FT', @MatchId = @MatchId, @Creator = @AdminID
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-Refund_FT', @MatchId = @MatchId, @Creator = @AdminID
+		END
 
-								EXEC dbo.NAP_Admin_PreCalculate_s161_Refund @MatchId = @MatchId, @Action = @Action
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Refund @MatchId = @MatchId, @Action = @Action
 
 		SET @LogData = 'REFUND FT Number Game for matchid:' + CAST(@MatchId AS NVARCHAR(10))
 		SET @ActionID = 119
+
 	END
 	ELSE IF @Action = 'CAL-HT'
 	BEGIN
@@ -274,11 +291,15 @@ BEGIN
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 86, @BetTeam = @Result86, @FirstBallNo = 0
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 88, @BetTeam = @Result88, @FirstBallNo = 0		
 
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-CAL', @Matchid = @MatchId, @Creator = @AdminID
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-CAL', @Matchid = @MatchId, @Creator = @AdminID
+		END
 
 		SELECT @LogData = 'Calculate Number Game for matchid:' + CAST(@matchid AS NVARCHAR(10))
 
 		SELECT @ActionID = 115
+
 	END
 
 	SELECT @stop = CURRENT_TIMESTAMP
@@ -290,7 +311,6 @@ BEGIN
 
 	IF @IsLoop = 0
 	BEGIN
-		--===
 		INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT custid
 			,SUM(winlost - actual_stake + playercomm)
@@ -302,9 +322,10 @@ BEGIN
 			,bettype
 		FROM dbo.bettrans WITH(ROWLOCK)
 		WHERE matchid = @matchid AND transid <= @MaxTransID
-		AND bettype BETWEEN 81 AND 120
+			AND bettype BETWEEN 81 AND 120
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		GROUP BY custid, winlostdate, bettype
-			--===
+
 	END
 
 	-------------------------------------------------------------
@@ -402,7 +423,8 @@ BEGIN
 
 	SET @Remark = @Remark + 'Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
 
-	BEGIN TRY		
+	BEGIN TRY	
+		IF @IsCentral =1
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminID
 			,@Matchid = @MatchId
 			,@ActionID = @ActionID
@@ -441,7 +463,8 @@ BEGIN
 
 		IF (@@Error = 0)
 		BEGIN
-			BEGIN TRY				
+			BEGIN TRY	
+				IF @IsCentral = 1
 				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
 					,@Matchid = @MatchId
 					,@KeyID = 1
@@ -461,7 +484,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			BEGIN TRY				
+			BEGIN TRY	
+				IF @IsCentral = 1
 				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
 					,@Matchid = @MatchId
 					,@KeyID = 1

@@ -18,11 +18,17 @@ AS
 		- 20181203@Helen: Apply Service Broker for Other Sports - [Redmine:101611]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @modds MONEY, @strTransIds VARCHAR(MAX)
+	DECLARE @modds MONEY
+		, @strTransIds VARCHAR(MAX)
+		, @IsCentral BIT = 0
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	DECLARE @subtable_CAL_Deadball TABLE(transid BIGINT, modds MONEY, OddsType SMALLINT)
 
@@ -35,6 +41,7 @@ BEGIN
 		AND bettype = @BetType
 		AND liveindicator = 0		
 		AND statusID NOT IN (101,102) -- VOID, REJECT
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 
 	IF @@ROWCOUNT = 0 RETURN
 

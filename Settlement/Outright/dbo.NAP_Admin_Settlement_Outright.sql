@@ -20,6 +20,7 @@ AS
 		- 20150807@Kathy: Using new balance table (BalCreditSportsPending,BalDebitSportsPending) [Redmine:#40125]
 		- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO | REFUND
@@ -49,6 +50,7 @@ BEGIN
 			,@procName		SYSNAME
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT 
+			,@IsCentral		BIT = 0
 
 	SELECT	@ActionID = CASE @Action WHEN 'UNDO' THEN 145 
 									 ELSE 0 END 
@@ -73,6 +75,9 @@ BEGIN
 		RETURN
 	END
 
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	INSERT INTO dbo.TempVariableNumber (
 		KeyID
 		,KeyValue
@@ -85,6 +90,7 @@ BEGIN
 	IF (@@Error = 0)
 	BEGIN
 		BEGIN TRY
+			IF @IsCentral =1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
 				@UserID = @AdminID,
 				@Matchid = @Matchid,
@@ -115,9 +121,9 @@ BEGIN
 	FROM	Outright WITH (NOLOCK)
 	WHERE	ORID = @MatchID
 	
-	IF @Action = 'UNDO'
+	IF @Action = 'UNDO' AND @IsCentral = 1
 	BEGIN
-				EXEC DBPRO.bodb02.dbo.NAP_Admin_Outright_Update 
+			EXEC DBPRO.bodb02.dbo.NAP_Admin_Outright_Update 
 			 @MatchID = @MatchID
 			,@Status = @Status
 			,@Action = @Action
@@ -141,8 +147,9 @@ BEGIN
 	SELECT custid, sum(winlost-actual_stake+playercomm)
 	FROM dbo.bettrans with (rowlock)
 	WHERE matchid = @matchid
-		and bettype = 10
-	Group by custid
+		AND bettype = 10
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+	GROUP BY custid
 	
 		EXEC dbo.NAP_Admin_PreCalculate_10 
 		 @MatchID = @MatchID
@@ -169,6 +176,7 @@ BEGIN
 	SELECT custid,sum( winlost-actual_stake+playercomm)
 	FROM dbo.bettrans with (rowlock)
 	WHERE matchid = @matchid and bettype = 10
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 	Group by custid
          
 	-------------------------------------------------------------
@@ -251,6 +259,7 @@ BEGIN
 	IF (@@Error = 0)
 	BEGIN
 		BEGIN TRY
+			IF @IsCentral =1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
 				@UserID = @AdminID,
 				@Matchid = @matchid,
@@ -272,6 +281,7 @@ BEGIN
 	ELSE
 	BEGIN
 		BEGIN TRY
+			IF @IsCentral =1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
 				@UserID = @AdminID,
 				@Matchid = @matchid,
@@ -293,6 +303,7 @@ BEGIN
 
 	-- WRITE LOG	
 	BEGIN TRY
+		IF @IsCentral = 1
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
 			@UserID = @AdminID
 			,@MatchID = @matchid

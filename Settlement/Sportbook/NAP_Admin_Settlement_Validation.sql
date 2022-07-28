@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE NAP_Admin_Settlement_Validation
+ALTER PROCEDURE NAP_Admin_Settlement_Validation  
 (
 	 @matchid		INT = 0
 	,@Action		VARCHAR(10)
@@ -138,7 +138,7 @@ SET NOCOUNT ON
 		END
 		
 		--SOP Refund (confirm refund on ResourceID )
-		IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' )
+		IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ))
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
 				@MatchId	= @MatchId
@@ -159,7 +159,7 @@ SET NOCOUNT ON
 				@MatchId		= @matchid
 				,@Action		= @Action
 				,@IsAutoRefund  = @IsAutoRefund
-				,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC --refund_1_Push
+				,@IsSettleAbandonedMatchIBC = @SDTRecord --refund_1_Push
 				,@IsSettleDetermined = @IsSettleDetermined --Fast market
 				,@ErrCode		= @ErrCode	OUTPUT
 				,@ErrMsg		= @ErrMsg	OUTPUT
