@@ -339,6 +339,8 @@ BEGIN
               FilterHdp1		 SMALLMONEY,
               FilterHdp2		 SMALLMONEY,
 			  FilterOddsSpread	 MONEY,
+			  FilterOddsId		 INT,
+			  FilterTransdesc	 NVARCHAR(2000),
               IsMarked           BIT,
 			  ActualStake		 MONEY,
 			  OddsId			INT
@@ -353,7 +355,7 @@ BEGIN
               LiveHomeScore SMALLINT,
               LiveAwayScore SMALLINT,
               Creator       INT,
-              TransDesc     NVARCHAR(1000),
+              TransDesc     NVARCHAR(2000),
               Refno         BIGINT,
               SubTransId    BIGINT,
               SubStatus     NVARCHAR(10),
@@ -364,7 +366,8 @@ BEGIN
               SubHdp2       SMALLMONEY,
               SubOdds       MONEY,
 			  SubOddsSpread	 MONEY,
-			  SubOddsId		INT
+			  SubOddsId		INT,
+			  SubTransDesc  NVARCHAR(2000)
              );
 	
 	CREATE TABLE #tmpRefCodeSummary
@@ -439,6 +442,8 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterOddsSpread
+			,FilterOddsId
+			,FilterTransdesc
 			,IsMarked
 			,ActualStake
 			,OddsId
@@ -491,6 +496,8 @@ BEGIN
 			b.hdp1 AS FilterHdp1,
 			CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
 			CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread,-- 229:SABA HDP Time Machine
+			b.oddsid AS FilterOddsId,
+			b.transdesc AS FilterTransdesc,
 			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 			b.actual_stake AS ActualStake,
 			b.oddsid
@@ -557,6 +564,8 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterOddsSpread
+			,FilterOddsId
+			,FilterTransdesc
 			,IsMarked
 			,ActualStake
 			,OddsId
@@ -609,6 +618,8 @@ BEGIN
 			b.hdp1 AS FilterHdp1,
 			CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
 			CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread,-- 229:SABA HDP Time Machine
+			b.oddsid AS FilterOddsId,
+			b.transdesc AS FilterTransdesc,
 			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
 			b.actual_stake AS ActualStake,
 			b.oddsid
@@ -656,6 +667,7 @@ BEGIN
 				,SubOdds
 				,SubOddsSpread
 				,SubOddsId
+				,SubTransDesc
 			)
 			SELECT
 				bm.custid, 
@@ -677,7 +689,8 @@ BEGIN
 				CASE WHEN bt.id = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS SubHdp2, --646: Match Handicap & Total
 				bm.odds As SubOdds,
 				CASE WHEN bt.id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread,-- 229:SABA HDP Time Machine
-				bm.oddsid
+				bm.oddsid,
+				bm.transdesc
 			FROM 
 				dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
@@ -744,6 +757,8 @@ BEGIN
 				,FilterHdp2
 				,FilterGoal
 				,FilterOddsSpread
+				,FilterOddsId
+				,FilterTransdesc
 				,ExtraInfo
 				,ActualStake
 				,OddsId
@@ -796,6 +811,8 @@ BEGIN
 				CASE WHEN b.bettype = 646 THEN ABS(bm.SubHdp2) ELSE bm.SubHdp2 END AS FilterHdp2, --646: Match Handicap & Total
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
 				CASE WHEN b.bettype = 229 THEN ABS (bm.SubOddsSpread) ELSE bm.SubOddsSpread END AS FilterOddsSpread, -- 229:SABA HDP Time Machine
+				bm.SubOddsId AS FilterOddsId,
+				bm.SubTransDesc AS FilterTransdesc,
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake,
 				bm.SubOddsId
@@ -883,12 +900,12 @@ BEGIN
 		DELETE b
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND (tp.OddsId IS NULL OR b.OddsId = tp.OddsId))
+			WHERE tp.Id = b.FilterBettype AND (tp.OddsId IS NULL OR b.FilterOddsId = tp.OddsId))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.transdesc = tp.Transdesc))
+			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
 	END	
 
 	-- update MainTransId	

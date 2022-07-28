@@ -298,6 +298,8 @@ BEGIN
 		FilterHdp1		 	SMALLMONEY,
         FilterHdp2		 	SMALLMONEY,
 		FilterOddsSpread	MONEY,
+		FilterOddsId		INT,
+		FilterTransdesc	    NVARCHAR(2000),
 		ActualStake			MONEY,
 		main_ruben			TINYINT,
 		main_custId			INT,
@@ -703,6 +705,8 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterOddsSpread
+			,FilterOddsId
+			,FilterTransdesc
 			,ActualStake
 			,OddsId
 		)
@@ -754,6 +758,8 @@ BEGIN
 			,b.hdp1 AS FilterHdp1
 			,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 			,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
+			,b.oddsid AS FilterOddsId
+			,b.transdesc AS FilterTransdesc
 			,b.actual_stake AS ActualStake
 			,b.oddsid
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
@@ -820,6 +826,8 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterOddsSpread
+			,FilterOddsId
+			,FilterTransdesc
 			,ActualStake
 			,OddsId
 		)
@@ -871,6 +879,8 @@ BEGIN
 			,b.hdp1 AS FilterHdp1
 			,CASE WHEN b.bettype = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2 --646: Match Handicap & Total
 			,CASE WHEN b.bettype = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread -- 229:SABA HDP Time Machine
+			,b.oddsid AS FilterOddsId
+			,b.transdesc AS FilterTransdesc
 			,b.actual_stake AS ActualStake
 			,b.oddsid
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
@@ -1002,6 +1012,8 @@ BEGIN
 				,FilterHdp2
 				,FilterGoal
 				,FilterOddsSpread
+				,FilterOddsId
+				,FilterTransdesc
 				,ExtraInfo
 				,ActualStake
 				,main_ruben
@@ -1055,6 +1067,8 @@ BEGIN
 				CASE WHEN b.bettype = 646 THEN ABS(bm.SubHdp2) ELSE bm.SubHdp2 END AS FilterHdp2, --646: Match Handicap & Total
 				ISNULL(bm.SubBetCheck, 0) AS FilterGoal,
 				CASE WHEN b.bettype = 229 THEN ABS(bm.SubOddsSpread) ELSE bm.SubOddsSpread END AS FilterOddsSpread, -- 229:SABA HDP Time Machine
+				bm.SubOddsId AS FilterOddsId,
+				bm.SubTransDesc AS FilterTransdesc,
 				b.ExtraInfo,
 				b.actual_stake AS ActualStake,
 				b.ruben,
@@ -1143,12 +1157,12 @@ BEGIN
 		DELETE b
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-			WHERE tp.Id = b.FilterBettype AND (tp.OddsId IS NULL OR b.OddsId = tp.OddsId))
+			WHERE tp.Id = b.FilterBettype AND (tp.OddsId IS NULL OR b.FilterOddsId = tp.OddsId))
 
 		DELETE b
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.transdesc = tp.Transdesc))
+			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
 	END	
 	------------------***** End of insert all data into #BetDelete *****------------------
 	--------------------------------------------------------------------------------------		
