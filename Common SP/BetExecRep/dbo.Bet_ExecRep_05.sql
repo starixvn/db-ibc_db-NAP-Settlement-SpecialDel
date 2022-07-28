@@ -115,7 +115,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
-		IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+		IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -135,7 +135,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 
-			INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)	
 		END
 	END		
@@ -202,7 +202,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
-		IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+		IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'	
@@ -224,7 +224,7 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'CalculateOtherSport', 'bettransm', @MatchId, @transInfo)				
 		END
 	END		
@@ -313,7 +313,7 @@ BEGIN
 				AND statusID IN (0, 1) -- only refund all running/waiting's tickets
 				AND bettype BETWEEN 81 AND 120
 
-			IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+			IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -332,7 +332,7 @@ BEGIN
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
-				INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)	
 			END
 		END
@@ -387,7 +387,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
-		IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+		IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -400,7 +400,7 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'CalculateVitualBetradar', 'bettrans', @MatchId, @transInfo)	
 		END
 
@@ -427,7 +427,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
-		IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+		IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -440,7 +440,7 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'RecoverVitualBetradar', 'bettransm', @MatchId, @transInfo)	
 		END
 	END
@@ -501,7 +501,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 		
-		IF OBJECT_ID('Service_SiteDB_CalculationLog','U') IS NOT NULL 
+		IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
 		BEGIN
 			SET @transInfo = (
 				SELECT	 transid AS '@t'
@@ -522,7 +522,7 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.Service_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'CalculateOutright', 'bettrans', @MatchId, @transInfo)	
 		END
 

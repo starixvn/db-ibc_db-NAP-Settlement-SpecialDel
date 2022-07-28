@@ -32,7 +32,7 @@ BEGIN
 		SELECT	TOP 1 @LogId = LogId
 				,@TransInfo = TransInfo
 				,@TableName = TableName
-		FROM	dbo.Service_SiteDB_CalculationLog WITH(NOLOCK)
+		FROM	dbo.Service_Settlement_SiteDB_CalculationLog WITH(NOLOCK)
 		WHERE	LogId > @LastLogId
 		ORDER BY LogId
 	END
