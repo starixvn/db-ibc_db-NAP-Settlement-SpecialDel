@@ -21,6 +21,8 @@ BEGIN
 			,@LogId BIGINT
 			,@TransInfo XML
 			,@TableName VARCHAR(128)
+			,@MatchId INT
+			,@RowCount INT
 
 	SELECT TOP (1) @LastLogId = LastLogId 
 			,@LastStatusId = LastStatusId
@@ -32,12 +34,17 @@ BEGIN
 		SELECT	TOP 1 @LogId = LogId
 				,@TransInfo = TransInfo
 				,@TableName = TableName
+				,@MatchId = MatchId
 		FROM	dbo.SiteDB_SettlementService_CalculationLog WITH(NOLOCK)
 		WHERE	LogId > @LastLogId
 		ORDER BY LogId
+		
+		SET @RowCount = @@ROWCOUNT
 	END
 
 	SELECT	@LogId AS LogId
 			,@TransInfo AS TransInfo
 			,@TableName AS TableName
+			,@MatchId AS MatchId
+	WHERE @RowCount = 1
 END

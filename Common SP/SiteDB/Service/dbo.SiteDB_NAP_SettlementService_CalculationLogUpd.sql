@@ -19,6 +19,7 @@ BEGIN
 	IF @StatusId = 1 -- running
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
+				,LogId = @LogId
 	ELSE	
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId

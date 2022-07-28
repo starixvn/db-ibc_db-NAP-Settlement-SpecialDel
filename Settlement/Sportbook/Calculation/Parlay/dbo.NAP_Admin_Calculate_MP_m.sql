@@ -55,6 +55,7 @@ AS
 		- 20210922@Louisa: Exclude LiveScores HDP for Ice Hockey and Rugby [Redmine:#159903]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
     Param's Explanation:
        

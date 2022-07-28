@@ -26,6 +26,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220205@Kathy: performance tunning [Redmine:#169814]
 		- 20220531@Kathy: performance tunning [Redmine:#173456]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -379,5 +380,11 @@ BEGIN
 			ELSE pr.stake * p.modds
 		END
 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	BEGIN
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @strXML)		
+			
+	END
 END -- end SP
 GO
