@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SiteDB_Service_Calculation]
+ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_Calculation]
 	@TransInfo XML
 	,@TableName VARCHAR(128)
 	,@StatusId TINYINT OUTPUT

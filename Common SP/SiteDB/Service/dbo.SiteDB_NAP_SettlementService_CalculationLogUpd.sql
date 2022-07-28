@@ -1,8 +1,7 @@
-/*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogUpd]
 	@LogId BIGINT
 	,@StatusId TINYINT
-	,@ErrMsg VARCHAR(300) = NULL
 AS
 /*
 	Created by: 20201123@Kathy
@@ -17,24 +16,12 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
-	IF @StatusId = 0 -- start validation
-	BEGIN
-		INSERT INTO dbo.SiteDB_SettlementService_LastLog(LogId, StatusId, StartTimeValidation) VALUES (@LogId, @StatusId, SYSDATETIME())
-	END
-	ELSE IF @StatusId = 1 -- start upd process
-	BEGIN
+	IF @StatusId = 1 -- running
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
-				,Starttime = SYSDATETIME()
-		WHERE LogId = @LogId
-	END
-	ELSE IF @StatusId IN (2,3) -- done process
-	BEGIN
+	ELSE	
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
-				,Endtime = SYSDATETIME()
-				,ErrMsg = CASE WHEN ISNULL(@ErrMsg,'') = '' THEN ErrMsg ELSE @ErrMsg END
-		WHERE LogId = @LogId
-	END
-				
+				,LastLogId = @LogId
+				,LastStatusId = @StatusId
 END

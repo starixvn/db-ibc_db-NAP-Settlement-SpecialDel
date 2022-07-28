@@ -23,8 +23,12 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @handle	INT
+	DECLARE @handle		INT
+			,@IsCentral	BIT
 	DECLARE @tmpResources TABLE(ResourceID VARCHAR(20), Bettype SMALLINT, BetId BIGINT)
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpResources(ResourceID, Bettype, BetId)
