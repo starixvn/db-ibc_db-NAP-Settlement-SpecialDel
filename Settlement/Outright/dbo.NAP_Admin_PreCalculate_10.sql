@@ -30,9 +30,13 @@ BEGIN
 
 	DECLARE	 @commWinRate SMALLMONEY
 			,@commLostRate SMALLMONEY
+			,@IsCentral	BIT = 0
 	
 	DECLARE @IgnoreList VARCHAR(200)
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	IF @Action='UNDO'
 		SET @IgnoreList = 'DB04,DB043,DB044,SITDB04,SITDB043,SITDB044,DB04ADMIN1,DB04ADMIN2'
 	ELSE

@@ -18,7 +18,6 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation
     ,@FullTimeHome  INT = NULL
     ,@FullTimeAway  INT = NULL
 
-	,@SessionID		BIGINT = 0		OUTPUT
 	,@ErrCode		INT		= 0     OUTPUT
 	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
 )
@@ -43,8 +42,6 @@ AS
 
 BEGIN
 SET NOCOUNT ON
-	
-	SET  @SessionID = SCOPE_IDENTITY()
 
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
@@ -82,13 +79,7 @@ SET NOCOUNT ON
 	 --calculate parlay other sports, single or multiple matches
 	IF @Action = 'CAL' AND @Mode = 'MP'
 	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue <> '0')
-			OR EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
-		BEGIN
-			SELECT	@ErrCode = 1000000
-					,@ErrMsg = 'Another parlay settlement is in progress or some parlay tickets are being deleted, please wait a few seconds until the on-going process has finished and try again.'
-			RETURN	
-		END
+		RETURN
 	END
 
 	ELSE
@@ -138,7 +129,7 @@ SET NOCOUNT ON
 		END
 		
 		--SOP Refund (confirm refund on ResourceID )
-		IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ))
+		IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
 				@MatchId	= @MatchId

@@ -29,7 +29,7 @@ BEGIN
 	WHERE r.Sporttype = @SportType
 
 	INSERT INTO @tblResource (ResourceID )
-	SELECT f.[value] from STRING_SPLIT(@MatchIds, ',') f
+	SELECT f.[value] from STRING_SPLIT(@Resources, ',') f
 
     ---return
     IF @ResultTable = 3 --E-Sports only
@@ -53,7 +53,7 @@ BEGIN
 				,rs.AwayValue
 				,rs.ResultStatusId
 				,rs.SettlementStatusId
-				,ISNULL(rs.ResultSetting,0) AS ResultSetting,tbl.OrdNo
+				,ISNULL(rs.ResultSetting,0) AS ResultSetting
 	  	FROM @tblResource tbl
 		  		LEFT JOIN dbo.ResultDetailOS rs WITH (NOLOCK) 
 		  			ON tbl.ResourceID = rs.ResourceID

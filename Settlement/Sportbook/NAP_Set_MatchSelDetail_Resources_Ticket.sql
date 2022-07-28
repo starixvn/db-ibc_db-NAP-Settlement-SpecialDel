@@ -162,11 +162,9 @@ BEGIN
 			AND bt.statusID NOT IN (101, 102) --void/reject
 			AND sp.sporttype = @SportType
 			AND (sp.Settletype = @SettleType)	
-		GROUP BY CASE 
-					WHEN sp.ResourceID = '70400' THEN '00' 
-					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
+		GROUP BY CASE WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
-				END 
+				END
 
 		-- insert more result
 		IF @SportType = 2
@@ -272,11 +270,9 @@ BEGIN
 	    		AND (sp.Betid = 0 OR sp.BetID = bm.Betcheck)
 				AND sp.sporttype = @sporttype
 				AND sp.Settletype = @Settletype
-		GROUP BY CASE 
-						WHEN sp.ResourceID = '70400' THEN '00' 
-					WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
+		GROUP BY CASE WHEN sp.RefResourceId IS NOT NULL THEN sp.RefResourceId
 					ELSE sp.ResourceID 
-				END
+				END 
 			
 	END
 
