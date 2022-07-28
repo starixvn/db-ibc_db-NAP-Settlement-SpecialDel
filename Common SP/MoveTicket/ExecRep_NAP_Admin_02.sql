@@ -67,7 +67,7 @@ BEGIN
 				INNER JOIN dbo.bettrans b
 					ON	t.TransID = b.transid
 
-			IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -78,7 +78,7 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'MoveEvent', 'bettrans', @MatchId, @transInfo)	
 				
 			END
@@ -102,7 +102,7 @@ BEGIN
 							ON	t.TransID = zb.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -113,7 +113,7 @@ BEGIN
 							FOR XML PATH('r'),ROOT('root'), TYPE
 						)
 
-						INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 						VALUES ('Settlement', 'MoveEvent', 'zzzbettrans', @MatchId, @transInfo)	
 					
 					END
@@ -145,7 +145,7 @@ BEGIN
 				INNER JOIN dbo.bettransm bm 
 					ON	bm.transid = t.transid
 			
-			IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -156,7 +156,7 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'MoveEvent', 'bettransm', @MatchId, @transInfo)	
 						
 			END
@@ -178,7 +178,7 @@ BEGIN
 					INNER JOIN dbo.BetParlayDetail d
 						ON	d.transid = t.TransId
 
-				IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+				IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 				BEGIN
 					SET @transInfo = (
 						SELECT	transId AS '@t'
@@ -188,7 +188,7 @@ BEGIN
 						FOR XML PATH('r'),ROOT('root'), TYPE
 					)
 
-					INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 					VALUES ('Settlement', 'MoveEvent', 'BetParlayDetail', @MatchId, @transInfo)	
 						
 				END
@@ -213,7 +213,7 @@ BEGIN
 							ON	t.TransID = zb.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -223,7 +223,7 @@ BEGIN
 							FOR XML PATH('r'),ROOT('root'), TYPE
 						)
 
-						INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 						VALUES ('Settlement', 'MoveEvent', 'zzzbettrans', @MatchId, @transInfo)	
 						
 					END
@@ -246,7 +246,7 @@ BEGIN
 							ON	t.TransID = zbm.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -256,7 +256,7 @@ BEGIN
 							FOR XML PATH('r'),ROOT('root'), TYPE
 						)
 
-						INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 						VALUES ('Settlement', 'MoveEvent', 'zzzbettransm', @MatchId, @transInfo)	
 							
 					END
@@ -279,7 +279,7 @@ BEGIN
 							ON	t.MainTransId = vt.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -288,7 +288,7 @@ BEGIN
 							FROM	@tmpTransInfo
 							FOR XML PATH('r'),ROOT('root'), TYPE
 						)
-						INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 						VALUES ('Settlement', 'MoveEvent', 'TicketVoiding_VoidedTransaction', @MatchId, @transInfo)		
 								
 					END
@@ -320,7 +320,7 @@ BEGIN
 			INNER JOIN dbo.bettrans b
 				ON	t.TransID = b.transid
 
-		IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		BEGIN		
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -331,7 +331,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 
-			INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'MoveOdds', 'bettrans', @MatchId, @transInfo)							
 		END
 	END

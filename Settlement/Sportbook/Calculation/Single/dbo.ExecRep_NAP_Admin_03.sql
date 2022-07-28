@@ -189,7 +189,7 @@ BEGIN
 		INNER JOIN @tempTrans t
 			ON b.transid = t.TransId
 
-	IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'	
@@ -213,7 +213,7 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.Service_Settlement_SiteDB_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 		VALUES ('Settlement', 'CalculateCashout', 'bettrans', @MatchId, @transInfo)	
 		
 	END

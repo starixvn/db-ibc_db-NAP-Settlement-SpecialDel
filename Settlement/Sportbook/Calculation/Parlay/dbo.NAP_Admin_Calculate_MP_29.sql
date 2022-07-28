@@ -163,7 +163,7 @@ BEGIN
 		INNER JOIN dbo.bettrans b
 			ON b.transid = s.transid
 
-	IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'			
