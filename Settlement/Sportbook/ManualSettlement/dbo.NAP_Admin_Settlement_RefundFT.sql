@@ -165,7 +165,6 @@ BEGIN
 		, @sportType 	    = @sporttype
 		, @Action 			= @Action
 		, @Mode 			= 3 --@Mode Manual Refund
-		, @IsRefundHT		= @IsRefundHT
 		, @IsCentral		= @IsCentral
 
     BEGIN TRY		
@@ -246,7 +245,6 @@ BEGIN
 		, @sportType 	    = @sporttype
 		, @Action 			= @Action
 		, @Mode 			= 3
-		, @IsRefundHT		= @IsRefundHT
 		, @IsCentral		= @IsCentral
 
 	-- Compare and update pending balance with error case
