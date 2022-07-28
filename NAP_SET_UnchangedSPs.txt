@@ -1,26 +1,100 @@
-Common SP\NAP_Admin_Settlement_Job.sql
-Common SP\NAP_Set_GlobalSettingSel.sql
-Common SP\NAP_Set_JobDeploymentInfo.sql
-Common SP\NAP_Set_MatchLockingDel.sql
-Common SP\NAP_Set_MatchLockingSel.sql
-Common SP\NAP_Set_MatchLockingTicketSel.sql
-Common SP\NAP_Set_ParlayLockingDel.sql
-Common SP\NAP_Set_ParlayLockingSel.sql
-Common SP\NAP_Set_ServerAction.sql
-Common SP\NAP_Set_ServerInfo.sql
-Common SP\NAP_Set_SPDeploymentInfo.sql
-Common SP\NAP_Set_SystemSettingsSel.sql
-Common SP\NAP_Set_SystemSettingsUpd.sql
-Common SP\Balance\MemberPlaceBet
-Common SP\Balance\dbo.DBA_BalanceMemberSel.sql
-Common SP\Balance\dbo.NAP_Admin_BalancePendingIns.proc.sql
-Common SP\Balance\dbo.NAP_Admin_BalancePending_WalletUpd.proc.sql
-Common SP\Balance\dbo.NAP_Admin_CaptureBalanceByWallet.sql
-Common SP\Balance\NAP_Admin_Settlement_BalanceProcess.sql
-Common SP\Balance\Task_BalanceUpdCreditCasino.sql
-Common SP\Balance\MemberPlaceBet\Dot_BalanceDebitUpd.sql
-Common SP\Balance\MemberPlaceBet\Dot_BalanceDebit_GeneralWalletUpd_new.sql
-Common SP\BetExecRep\dbo.Bet_ExecRep_05.sql
-Common SP\BetExecRep\dbo.Bet_ExecRep_BettransUpd.sql
-Common SP\Calculation\dbo.ExecRep_NAP_Admin_01.sql
-Common SP\Calculation\dbo.NAP_Admin_Calculate_Bettrans.sql
+Common SP\Function\f_Set_OddsTypeBettypes.sql
+Common SP\Function\f_Set_SettingByProfile.sql
+Common SP\Function\f_SplitString.sql
+Common SP\Internal Tool\NAP_Set_MatchLockingReplicatedServerSel.sql
+Common SP\Internal Tool\NAP_Set_SettlementLockDel.sql
+Common SP\Internal Tool\NAP_Set_SettlementProcessingDel.sql
+Common SP\Internal Tool\NAP_Set_SSBErrorMessageSel.sql
+Common SP\Internal Tool\NAP_Set_SSBSettlementLogUpd.sql
+Common SP\Log\NAP_UserLog_Settle_MatchSelByCode.sql
+Common SP\Log\NAP_UserLog_Settle_MatchSelByID.sql
+Common SP\Log\NAP_UserLog_Settle_MatchSelByID_by_Product.sql
+Common SP\MoveTicket\ExecRep_NAP_Admin_02.sql
+Common SP\SendMail\dbo.NAP_Admin_SendMail.proc.sql
+Common SP\SendMail\Task_SBQueueStatusCheck_EmailNofify.sql
+Common SP\ServiceBrokerObjects\Scripts_testing
+Common SP\ServiceBrokerObjects\bodb02_serviceBroker_servicebroker_object.sql
+Common SP\ServiceBrokerObjects\Scripts_OpenConversation.sql
+Common SP\ServiceBrokerObjects\Scripts_SB_Verificaton.sql
+Common SP\ServiceBrokerObjects\Scripts_testing\Script_Testing_Paralle_1.sql
+Common SP\ServiceBrokerObjects\Scripts_testing\Script_Testing_Paralle_2.sql
+Common SP\ServiceBrokerObjects\Scripts_testing\Script_Testing_Paralle_3.sql
+Common SP\ServiceBrokerObjects\Scripts_testing\Script_Testing_Paralle_4.sql
+Common SP\Validation\dbo.NAP_Admin_CheckingCashOutProcess.sql
+Common SP\Validation\dbo.NAP_Admin_CheckingProcess.proc.sql
+Settlement\Bitcoin\dbo.f_Set_Bitcoin_EmailConfig.sql
+Settlement\Bitcoin\dbo.NAP_Admin_Match3rd_Update.sql
+Settlement\Bitcoin\dbo.NAP_Admin_Result3rd_Update.sql
+Settlement\Bitcoin\dbo.NAP_Admin_SendNotify_Bitcoin.sql
+Settlement\Bitcoin\dbo.NAP_Admin_Settlement_s175.sql
+Settlement\Happy5\dbo.NAP_Admin_Result_Update_BingoBall.sql
+Settlement\Happy5\dbo.NAP_Admin_Settlement_s164.sql
+Settlement\Happy5\dbo.NAP_Set_MatchSelDetail_s164.sql
+Settlement\Happy5\dbo.NAP_Set_MatchSel_BingoBall.sql
+Settlement\Happy5\dbo.NAP_Set_MatchSel_s164.sql
+Settlement\Happy5\dbo.NAP_Set_Resource_Parsing.sql
+Settlement\HorseRacing\Admin_3rdAutoSettlement_s151_Admin_Step1.sql
+Settlement\HorseRacing\Admin_3rdAutoSettlement_s151_Admin_Step2.sql
+Settlement\HorseRacing\Admin_3rdAutoSettlement_s151_Admin_Step3.sql
+Settlement\HorseRacing\Admin_3rdCalculate_s151_Admin.sql
+Settlement\HorseRacing\Admin_3rdCalculate_s151_Refund_Admin.sql
+Settlement\HorseRacing\Admin_3rdCalculate_s151_Reject_Admin.sql
+Settlement\HorseRacing\Dot_Acc_Race_ResultUpd.sql
+Settlement\HorseRacing\Dot_Acc_Race_StatusUpd.sql
+Settlement\HorseRacing\Dot_Admin_HorseResultResettle_Step2.sql
+Settlement\LiveCasino\dbo.NAP_Admin_Calculate_1101.sql
+Settlement\LiveCasino\dbo.NAP_Admin_Calculate_1101G.sql
+Settlement\LiveCasino\dbo.NAP_Admin_Calculate_s162_Refund.sql
+Settlement\LiveCasino\dbo.NAP_Admin_Settlement_s162.sql
+Settlement\LiveCasino\dbo.NAP_Get_LiveCasinoGameDetail.sql
+Settlement\LiveCasino\dbo.NAP_Get_LiveCasinoGameList.sql
+Settlement\Lucky3\dbo.NAP_Admin_Match_Update_s160.sql
+Settlement\Lucky3\dbo.NAP_Admin_PreCalculate_s160.sql
+Settlement\Lucky3\dbo.NAP_Admin_Settlement_s160.sql
+Settlement\Lucky3\dbo.NAP_Set_MatchSelDetail_s160.sql
+Settlement\Lucky3\dbo.NAP_Set_MatchSel_s160.sql
+Settlement\Lucky3\dbo.NAP_Set_WinningShareSel.sql
+Settlement\NegativeBalance\Acc_BalanceNegativeSel_BySite.sql
+Settlement\NegativeBalance\Acc_BalanceNegativeSel_MatchLog.sql
+Settlement\NegativeBalance\Acc_BalanceNegativeUpd_StatusID.sql
+Settlement\NegativeBalance\Acc_Rpt_NegativeBalanceMember_Dep.sql
+Settlement\NegativeBalance\Task_BalanceNegative.sql
+Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Live.sql
+Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Pregame.sql
+Settlement\NumberGame\dbo.NAP_Admin_PreCalculate_s161_Refund.sql
+Settlement\NumberGame\dbo.NAP_Admin_Settlement_s161.sql
+Settlement\NumberGame\dbo.NAP_Admin_Settlement_s161_Manual.sql
+Settlement\NumberGame\dbo.NAP_Set_MatchSelNumberGame.sql
+Settlement\NumberGame\dbo.NAP_Set_MatchSelNumberGameDetail.sql
+Settlement\NumberGame\dbo.NAP_UpdateNumberGameBalls.sql
+Settlement\NumberGame\dbo.NAP_UpdateTempVariableNumber.sql
+Settlement\NumberGame2\dba.NAP_Admin_Calculate_Undo_s213.sql
+Settlement\NumberGame2\dbo.NAP_Admin_Calculate_Refund_s213.sql
+Settlement\NumberGame2\dbo.NAP_Admin_Calculate_s213.sql
+Settlement\NumberGame2\dbo.NAP_Admin_SendNotificationEmail_s213.sql
+Settlement\NumberGame2\dbo.NAP_Admin_Settlement_Refund_s213.sql
+Settlement\NumberGame2\dbo.NAP_Admin_Settlement_s213.sql
+Settlement\NumberGame2\dbo.NAP_Admin_Settlement_s213_Job.sql
+Settlement\NumberGame2\dbo.Nap_Admin_Settlement_Undo_s213.sql
+Settlement\NumberGame2\dbo.NAP_Admin_VoidBettrans_s213.sql
+Settlement\Outright\dbo.NAP_Admin_Calculate_10.sql
+Settlement\Outright\dbo.NAP_Admin_Outright_Update.sql
+Settlement\Outright\dbo.NAP_Admin_PreCalculate_10.sql
+Settlement\Outright\dbo.NAP_Admin_Settlement_Outright.sql
+Settlement\Outright\dbo.NAP_Set_LeagueSelOutright.sql
+Settlement\Outright\dbo.NAP_Set_OutrightSelInfo.sql
+Settlement\Outright\dbo.NAP_Set_OutrightSelInfoByLeagueID.sql
+Settlement\Outright\Dot_Admin_SettleOutright_Event.sql
+Settlement\Outright\Dot_Admin_SettleOutright_Trans.sql
+Settlement\Outright\Service\OWAPI\dbo.NAP_Set_OutrightSettlementActionIns_ByListOutrights.sql
+Settlement\saba.club\Dot_Member_LuckyDraw3rd_ShowBanner_Select.sql
+Settlement\saba.club\Task_LuckyDraw3rd_Freebets_Insert.sql
+Settlement\saba.club\Task_LuckyDraw3rd_Freebets_Select.sql
+Settlement\saba.club\Task_LuckyDraw3rd_Freebets_Update.sql
+Settlement\Sportbook\dbo.NAP_Admin_Match_Update.sql
+Settlement\Sportbook\dbo.NAP_Admin_Match_UpdateSaveBet.sql
+Settlement\Sportbook\dbo.NAP_Admin_Result_Update_1s.sql
+Settlement\Sportbook\dbo.NAP_Admin_Result_Update_2b.sql
+Settlement\Sportbook\dbo.NAP_Admin_Result_Update_9001.sql
+Settlement\Sportbook\dbo.NAP_Admin_SpecialITList.sql
+Settlement\Sportbook\dbo.NAP_SelSports.sql
