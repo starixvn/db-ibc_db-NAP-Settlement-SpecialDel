@@ -25,7 +25,7 @@ BEGIN
 	SELECT TOP (1) @LastLogId = LastLogId 
 			,@LastStatusId = LastStatusId
 			,@IsSkip = IsSkip
-	FROM	dbo.Service_SiteDB_LastLog WITH(NOLOCK)
+	FROM	dbo.SiteDB_SettlementService_LastLog WITH(NOLOCK)
 	
 	IF @LastStatusId = 2 OR @IsSkip = 1
 	BEGIN
