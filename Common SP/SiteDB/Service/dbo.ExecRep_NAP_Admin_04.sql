@@ -29,7 +29,7 @@ BEGIN
 	IF @tablename = 'bettrans' 
 	BEGIN
 		INSERT INTO @tmpTransId (TransID
-			,matchid, winlostdate
+			,matchid, winlostdate, betdaqid
 			,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
 			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,RepUpdateTime
 		)
