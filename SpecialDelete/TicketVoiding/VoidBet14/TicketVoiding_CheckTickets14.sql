@@ -155,6 +155,26 @@ BEGIN
 	SELECT @InvalidTransIds AS InvalidTransIds
 		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 
+	SET @TransInfoXML = (
+	SELECT DISTINCT 
+			t.matchid AS "@matchid"
+		    ,t.transid AS "@transid"
+			,t.refno AS "@refno"
+			,b.winlostdate AS "@winlostdate"
+			,b.statuswinlost AS "@statuswinlost"
+			,b.betid AS "@betid"
+			,t.statusID AS "@statusID"
+			,b.betfrom AS "@betfrom"
+			,b.betdaqid AS "@betdaqid"
+			,b.bettype AS "@bettype"
+			,b.SiteDBGroupID AS "@SiteDBGroupID"
+	FROM #validTransId t
+		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	FOR XML PATH('r'), ROOT('root')
+	)
+
+	SELECT @TransInfoXML AS TransInfo
+
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
 	DROP TABLE #tmpTransInfo

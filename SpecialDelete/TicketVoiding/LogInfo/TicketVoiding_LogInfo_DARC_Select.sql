@@ -28,10 +28,6 @@ BEGIN
 
 	DECLARE @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-			,@MatchProcessXML		  XML = NULL
-			,@MatchParlayProcessXML	  XML = NULL
-			,@TotalRefnoParlay		  INT = 0
-			,@ThreadHold			  INT = 0
 	
 	DECLARE	@DARCInfoInfoXML		XML = NULL
 		   ,@TransInfoXML			XML = NULL
@@ -154,20 +150,16 @@ BEGIN
 	  ,SubLiveBetAcceptTime SMALLINT
 	  ,SubSecAcceptTime TINYINT
       ,IsMixParlay BIT
+	  ,SiteDBGroupID SMALLINT
 	)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
-	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
 			 IsInvalidTransId		 BIT DEFAULT(0) 
 			,IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
-			,IsExistSingle			 BIT DEFAULT(0) 
-			,IsExistParlay			 BIT DEFAULT(0) 
-			,MatchProcessXML		 XML 
-			,MatchParlayProcessXML	 XML
 			,MatchId                 INT
 		)
 
@@ -219,7 +211,8 @@ BEGIN
 		  ,Subhdp2
 		  ,SubLiveBetAcceptTime 
 	      ,SubSecAcceptTime 
-		 ,IsMixParlay
+		  ,IsMixParlay
+		  ,SiteDBGroupID
 		)
 	SELECT t.c.value('@matchid','INT') AS matchid
 			,t.c.value('@transid','BIGINT') AS transid
@@ -255,6 +248,7 @@ BEGIN
 			,t.c.value('@SubLiveBetAcceptTime','SMALLINT') AS SubLiveBetAcceptTime
 			,t.c.value('@SubLiveBetAcceptTime','TINYINT') AS SubLiveBetAcceptTime
 			,t.c.value('@IsMixParlay','BIT') AS IsMixParlay
+			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
 
@@ -686,7 +680,7 @@ BEGIN
 
 	IF @SingleCount = 0 AND @MainParlayCount = 0
 	BEGIN
-		SELECT MatchId, IsInvalidTransId, 1 AS IsInValidTotalTickets, IsExistedInOtherRequest, IsExistSingle, IsExistParlay, MatchProcessXML, MatchParlayProcessXML
+		SELECT MatchId, IsInvalidTransId, 1 AS IsInValidTotalTickets, IsExistedInOtherRequest
 		FROM @Validation
 
 		--TransId in request table
@@ -719,7 +713,7 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
-		SELECT MatchId, IsInvalidTransId, IsInValidTotalTickets, IsExistedInOtherRequest, IsExistSingle, IsExistParlay, MatchProcessXML, MatchParlayProcessXML
+		SELECT MatchId, IsInvalidTransId, IsInValidTotalTickets, IsExistedInOtherRequest
 		FROM @Validation
 
 		--TransId in request table
@@ -867,10 +861,7 @@ BEGIN
 		RETURN;
 	END
 
-	UPDATE v SET 
-			v.IsExistSingle = tmp.IsExistSingle
-		  , v.IsExistParlay = tmp.IsExistParlay
-		  , v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
+	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 	FROM @Validation v
 	OUTER APPLY( 
 			SELECT SUM(SingleCount) AS SingleCount
@@ -879,64 +870,9 @@ BEGIN
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
 		)l
-	CROSS APPLY (
-			SELECT   MAX(CASE WHEN t.Bettype NOT IN (9, 29, 10) THEN 1 ELSE 0 END) AS IsExistSingle
-					, MAX (CASE WHEN t.IsMixParlay = 1 THEN 1 ELSE 0 END) AS IsExistParlay
-			FROM #TVSTicketBets AS t
-			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-				AND t.matchid = v.MatchId
-			GROUP BY t.matchid
-		)tmp
-
-	SET @MatchProcessXML = (
-		SELECT DISTINCT t.matchid "@MatchId"
-			,1 AS "@KeyID"
-		FROM #TVSTicketBets t
-		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-		FOR XML PATH('r'), ROOT('root')
-		)
 	
-	--Lock Refno process - SportBook
-	EXEC dbo.NAP_Set_GlobalSettingSel 
-		@LockName = 'ParlayRefno'
-		,@ThreadHold = @ThreadHold OUTPUT
-
-	INSERT INTO @tblMatchParlay (MatchId, RefNo)
-	SELECT '' AS MatchId, t.Refno --Many matches with same Refno  
-	FROM #TVSTicketBets t
-	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-			AND t.IsMixParlay = 1
-	GROUP BY t.Refno  
-	HAVING COUNT(*) > 1
-
-	SET @TotalRefnoParlay = @@ROWCOUNT
-	
-	INSERT INTO @tblMatchParlay (MatchId, RefNo)
-	SELECT  t.MatchId, t.RefNo
-	FROM #TVSTicketBets t
-	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-	  AND NOT EXISTS (SELECT 1 FROM @tblMatchParlay m WHERE m.RefNo = t.refno) 
-			AND t.IsMixParlay = 1
-	
-	SELECT @TotalRefnoParlay = @TotalRefnoParlay + @@ROWCOUNT
-
-	IF @TotalRefnoParlay <= @ThreadHold
-	BEGIN
-		SET @MatchParlayProcessXML = (
-		SELECT  DISTINCT MatchId "@MatchId"
-				,refno AS "@RefNo"
-		FROM @tblMatchParlay 
-		FOR XML PATH('r'), ROOT('root'))
-	END	
-	ELSE
-	BEGIN
-		SET @MatchParlayProcessXML = NULL
-	END
-
-	UPDATE @Validation SET MatchProcessXML = @MatchProcessXML, MatchParlayProcessXML = @MatchParlayProcessXML
-
 	--Error Table
-	SELECT MatchId, IsInvalidTransId, IsInValidTotalTickets, IsExistedInOtherRequest, IsExistSingle, IsExistParlay, MatchProcessXML, MatchParlayProcessXML
+	SELECT MatchId, IsInvalidTransId, IsInValidTotalTickets, IsExistedInOtherRequest
 	FROM @Validation
 
 	--TransId in request table
@@ -1019,6 +955,42 @@ BEGIN
 								)
 						ORDER BY CASE WHEN l.MinSingleTransId IS NOT NULL THEN 1 ELSE 0 END DESC
 			) AS tmpHighlight
+
+	
+	SET @TransInfoXML = (
+	SELECT DISTINCT 
+			t.matchid AS "@matchid"
+		    ,t.transid AS "@transid"
+			,t.Subtransid AS "@Subtransid"
+			,t.custid AS "@custid"
+			,t.transdate AS "@transdate"
+			,t.refno AS "@refno"
+			,b.hdp1 AS "@hdp1"
+			,b.hdp2 AS "@hdp2"
+			,t.livehomescore AS "@livehomescore"
+			,t.liveawayscore AS "@liveawayscore"
+			,b.liveindicator AS "@liveindicator"
+			,t.statusID AS "@statusID"
+			,b.betfrom AS "@betfrom"
+			,b.betdaqid AS "@betdaqid"
+			,b.bettype AS "@bettype"
+			,b.WalletType AS "@WalletType"
+			,b.RefCode AS "@RefCode"
+			,b.Subhdp1 AS "@Subhdp1"
+			,b.Subhdp2 AS "@Subhdp2"
+			,b.Subbettype AS "@Subbettype"
+			,b.Subbetfrom AS "@Subbetfrom"
+			,b.SubstatusID AS "@SubstatusID"
+			,b.Subtransdate AS "@Subbetfrom"
+			,b.IsMixParlay AS "@IsMixParlay"
+			,b.SiteDBGroupID AS "@SiteDBGroupID"
+	FROM #TVSTicketBets t
+		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+	FOR XML PATH('r'), ROOT('root')
+	)
+
+	SELECT @TransInfoXML AS TransInfo
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

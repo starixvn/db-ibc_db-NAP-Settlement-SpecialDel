@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
 	,@SubIssueTypeId	  INT = NULL
-	,@KickOffTime		  DATETIME = NULL
+	,@KickOffInfo		  VARCHAR(MAX) = NULL
 	,@WrongScoreInfo	  VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo  VARCHAR(MAX) = NULL
 	,@RedCardInfo		  VARCHAR(MAX) = NULL
@@ -97,7 +97,7 @@ BEGIN
 					+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
 					+ CASE WHEN @IsShowLogOnly IS NULL THEN '' ELSE ',@IsShowLogOnly = ' + CONVERT(NVARCHAR(50), @IsShowLogOnly) END
 					+ CASE WHEN @SubIssueTypeId IS NULL THEN '' ELSE ',@SubIssueTypeId = ' + CONVERT(NVARCHAR(50), @SubIssueTypeId) END
-					+ CASE WHEN @KickOffTime IS NULL THEN '' ELSE ',@KickOffTime = ''' + CONVERT(NVARCHAR(50), @KickOffTime, 21) + '''' END
+					+ CASE WHEN @KickOffInfo IS NULL THEN '' ELSE ',@KickOffInfo = ''' + CONVERT(NVARCHAR(MAX), @KickOffInfo) + '''' END
 					+ CASE WHEN @WrongScoreInfo IS NULL THEN '' ELSE ',@WrongScoreInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongScoreInfo) + '''' END
 					+ CASE WHEN @DangerAcceptedInfo IS NULL THEN '' ELSE ',@DangerAcceptedInfo = ''' + CONVERT(NVARCHAR(MAX), @DangerAcceptedInfo) + '''' END
 					+ CASE WHEN @RedCardInfo IS NULL THEN '' ELSE ',@RedCardInfo = ''' + CONVERT(NVARCHAR(MAX), @RedCardInfo) + '''' END	
@@ -127,12 +127,10 @@ BEGIN
 	ELSE IF @IssueTypeId = 3 --Wrong score
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_WC_Select
-			@MatchId               = @MatchId
-			,@RequestId			   = @RequestId
+			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
-			,@SubIssueTypeId	   = @SubIssueTypeId
 			,@WrongScoreInfo	   = @WrongScoreInfo
 			,@TransInfo		       = @TransInfo
 	END
@@ -179,11 +177,10 @@ BEGIN
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO
 	BEGIN
 		EXEC dbo.TicketVoiding_LogInfo_KO_Select
-			 @MatchId			   = @MatchId
-			,@RequestId			   = @RequestId
+			 @RequestId			   = @RequestId
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
-			,@KickOffTime		   = @KickOffTime
+			,@KickOffInfo		   = @KickOffInfo
 			,@TransInfo			   = @TransInfo
 	END
 	ELSE IF @IssueTypeId = 10 --Red card

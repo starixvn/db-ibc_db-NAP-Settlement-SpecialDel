@@ -48,7 +48,6 @@ BEGIN
 			,@IsOutright			  BIT = 0
 			,@IsSaba				  BIT = 0
 			,@IsNonSport			  BIT = 0
-			--Add abnormal account
 			,@movebetdate			  SMALLDATETIME
 			,@maxdate 				  DATETIME = '9999-01-01'
 			,@CountSMA				  INT
@@ -97,14 +96,15 @@ BEGIN
       ,liveawayscore SMALLINT
       ,liveindicator BIT
       ,betteam NVARCHAR(10)
-      ,creator INT
-      ,refno BIGINT
+      ,betfrom NVARCHAR(1)
+	  ,refno BIGINT
       ,bettype SMALLINT
       ,betid BIGINT
 	  ,betdaqid BIGINT
       ,statusID TINYINT
 	  ,winlostdate SMALLDATETIME
       ,recommend INT
+	  ,SiteDBGroupID SMALLINT
 	)
 	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
@@ -119,6 +119,7 @@ BEGIN
 		  ,betdaqid 
 		  ,statusID
 		  ,winlostdate
+		  ,SiteDBGroupID
 		)
 	SELECT t.c.value('@matchid','INT') AS matchid
 			,t.c.value('@transid','BIGINT') AS transid
@@ -132,6 +133,7 @@ BEGIN
 			,t.c.value('@betdaqid','BIGINT') AS betdaqid
 			,t.c.value('@statusID','TINYINT') AS statusID
 			,t.c.value('@winlostdate','SMALLDATETIME') AS winlostdate
+			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
 
@@ -355,6 +357,29 @@ BEGIN
 		  ,@MatchIDs AS MatchIDs
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
+
+	SET @TransInfoXML = (
+	SELECT DISTINCT 
+			t.matchid AS "@matchid"
+		    ,t.transid AS "@transid"
+			,b.custid AS "@custid"
+			,t.refno AS "@refno"
+			,b.winlostdate AS "@winlostdate"
+			,b.recommend AS "@recommend"
+			,b.livehomescore AS "@livehomescore"
+			,b.liveawayscore AS "@liveawayscore"
+			,b.liveindicator AS "@liveindicator"
+			,t.statusID AS "@statusID"
+			,b.betfrom AS "@betfrom"
+			,b.betdaqid AS "@betdaqid"
+			,b.bettype AS "@bettype"
+			,b.SiteDBGroupID AS "@SiteDBGroupID"
+	FROM #transIdTemp t
+		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	FOR XML PATH('r'), ROOT('root')
+	)
+
+	SELECT @TransInfoXML AS TransInfo
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1
