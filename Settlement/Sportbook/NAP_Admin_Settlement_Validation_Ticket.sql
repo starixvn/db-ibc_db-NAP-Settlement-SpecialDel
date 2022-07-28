@@ -188,7 +188,7 @@ SET NOCOUNT ON
 				@MatchId  = @MatchId
 				,@Action  = @Action
 				,@Mode	  =  @Mode
-				,@xmlData = @xmlData
+				,@xmlData = @SelectedResources
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg  = @ErrMsg OUTPUT
 	
