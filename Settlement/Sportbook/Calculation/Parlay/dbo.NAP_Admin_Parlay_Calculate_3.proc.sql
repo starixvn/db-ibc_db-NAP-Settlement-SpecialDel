@@ -18,6 +18,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
         
@@ -27,9 +28,9 @@ BEGIN
 	
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0
-		
+			,@transinfo XML
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT)		
+	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10))		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	
@@ -86,7 +87,9 @@ BEGIN
 				,INSERTED.refno
 				,INSERTED.statusID
 				,INSERTED.statuswinlost
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost)
+				,inserted.winlostdate
+				,inserted.status
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -153,7 +156,9 @@ BEGIN
 				,INSERTED.refno
 				,INSERTED.statusID
 				,INSERTED.statuswinlost
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost)
+				,inserted.winlostdate
+				,inserted.status
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -190,7 +195,9 @@ BEGIN
 				,INSERTED.refno
 				,INSERTED.statusID
 				,INSERTED.statuswinlost
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost)
+				,inserted.winlostdate
+				,inserted.status
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid        
@@ -205,6 +212,24 @@ BEGIN
 	    WHERE r.statusid NOT IN (102) 
 	END
 	
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	BEGIN
+		SET @transInfo = (
+			SELECT	transId AS '@t'							
+					,statuswinlost AS '@statuswl'
+					,Status AS '@s' 
+					,StatusID AS '@sid' 
+					,winlostdate AS '@wld'
+					,1 AS '@r' -- ruben	
+			FROM	#parlayOutput
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('Settlement', 'CalculateSubParlay', 'bettransm', @MatchId, @transInfo)		
+			
+	END
+
 	DROP TABLE #parlayTicket;
 	DROP TABLE #parlayOutput
 	RETURN;

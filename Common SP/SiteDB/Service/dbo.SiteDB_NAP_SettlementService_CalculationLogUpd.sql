@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogUpd]
 	@LogId BIGINT
 	,@StatusId TINYINT

@@ -18,6 +18,7 @@ AS
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220531@Kathy: performance tunning [Redmine:#173456]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 */
@@ -29,11 +30,23 @@ BEGIN
 			,@statusId			TINYINT
 			,@winlost			MONEY
 			,@settlementTime	DATETIME
+			,@transInfo			XML
 			
 	DECLARE @tmpSource TABLE (TransId BIGINT PRIMARY KEY, WinlostDate SMALLDATETIME
 		, totalStake MONEY, Winlost MONEY, aWinlost MONEY, mWinlost MONEY, sWinlost MONEY
 		, playerComm MONEY, comm MONEY, aComm MONEY, sComm MONEY
 		, ruben TINYINT, IsMarked BIT)
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT			
+		,SettlementTime DATETIME,Status NVARCHAR(10),StatusID TINYINT
+		,WinLostDate SMALLDATETIME, betdaqid BIGINT,ruben TINYINT 
+		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+		,statuswinlost TINYINT
+
+		,bef_winlost MONEY
+		,bef_statusid TINYINT
+	)
 
 	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
 	
@@ -126,9 +139,59 @@ BEGIN
 							WHEN @statusId = 113 THEN 4								
 							WHEN @statusId = 0 THEN NULL
 						END 
+	OUTPUT inserted.transid
+		,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+
+		,inserted.Status,inserted.StatusID,inserted.winlostdate,inserted.betdaqid,inserted.ruben
+		,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+		,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+		,inserted.statuswinlost
+		
+		,deleted.winlost
+		,deleted.statusid	
+	INTO @tmpTransInfo (transId
+		,SettlementTime
+		,Status, StatusID, WinLostDate, betdaqid, ruben
+		,WinLost,aWinLost,mWinLost,sWinLost
+		,PlayerComm,Comm,aComm,sComm
+		,statuswinlost
+
+		,bef_winlost
+		,bef_statusid
+	)
 	FROM @tmpSource s
 		INNER JOIN dbo.bettrans b
 			ON b.transid = s.transid
+
+	IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
+	BEGIN
+		SET @transInfo = (
+			SELECT	transId AS '@t'			
+					,SettlementTime AS '@st' 
+					,Status AS '@s' 
+					,StatusID AS '@sid'
+					,WinLostDate AS '@wld'
+					,betdaqid AS '@bdaq'
+					,ruben AS '@r'
+					,WinLost AS '@w' 
+					,aWinLost AS '@aw' 
+					,mWinLost AS '@mw' 
+					,sWinLost AS '@sw' 
+					,PlayerComm AS '@pc' 
+					,Comm AS '@c' 
+					,aComm AS '@ac' 
+					,sComm AS '@sc' 
+					,statuswinlost AS '@statuswl' 
+					,bef_winlost AS '@bef_w' 
+					,bef_statusid AS '@bef_sid' 
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('Settlement', 'CalculateMainParlay', 'bettrans', 29, @transInfo)		
+			
+	END
 END
 
 
