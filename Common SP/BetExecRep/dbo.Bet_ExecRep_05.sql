@@ -508,7 +508,7 @@ BEGIN
 						,awinlost AS '@aw' 
 						,mwinlost AS '@mw' 
 						,swinlost AS '@sw' 
-						,playercomm AS '@' 
+						,playercomm AS '@pc' 
 						,comm AS '@c' 
 						,acomm  AS '@ac' 
 						,scomm  AS '@sc' 
