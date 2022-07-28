@@ -1,20 +1,21 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_1_Push] 
-    @Matchid							INT
-	,@Action							VARCHAR(20)
-    ,@AdminId                        	INT
-    ,@SDTRecord							TINYINT			= 0
-    ,@HalfTimeHome                    	INT             = NULL
-    ,@HalfTimeAway                    	INT             = NULL
-    ,@FullTimeHome                    	INT             = NULL
-    ,@FullTimeAway                    	INT             = NULL
-    ,@GoalSequence                    	VARCHAR(50)     = NULL 
-    ,@BetStatus                        	NVARCHAR(50)    = NULL
-    ,@IP								VARCHAR(15)    	= ''
-    ,@ResourceResult					VARCHAR(MAX)	= NULL
-    ,@IsAutoRefund						BIT				= 0
-    ,@ErrCode							INT            	= 0     OUTPUT
-    ,@ErrMsg							NVARCHAR(200)   = ''    OUTPUT
+    @Matchid			INT
+	,@Action			VARCHAR(20)
+    ,@AdminId           INT
+    ,@SDTRecord			TINYINT			= 0
+    ,@HalfTimeHome      INT             = NULL
+    ,@HalfTimeAway      INT             = NULL
+    ,@FullTimeHome      INT             = NULL
+    ,@FullTimeAway      INT             = NULL
+    ,@GoalSequence      VARCHAR(50)     = NULL 
+    ,@BetStatus         NVARCHAR(50)    = NULL
+    ,@IP				VARCHAR(15)    	= ''
+    ,@ResourceResult	VARCHAR(MAX)	= NULL
+    ,@IsAutoRefund		BIT				= 0
+	,@SessionId			VARCHAR(50)		= NULL
+    ,@ErrCode			INT            	= 0     OUTPUT
+    ,@ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
 /*
     Created: Kathy
@@ -104,6 +105,7 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
+				,SessionId
             )
         SELECT	@MatchId
 				,@matchcode
@@ -114,6 +116,7 @@ BEGIN
 				,@IP
 				,@Action
 				,@sqlCommand
+				,@SessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 		

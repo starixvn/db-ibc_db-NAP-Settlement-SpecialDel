@@ -1,14 +1,15 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundFT_Push] 
-    @MatchId                        INT
-    ,@AdminId                       INT
-    ,@FullTimeHome                  INT         	= NULL
-    ,@FullTimeAway                  INT         	= NULL
-    ,@BetStatus                     NVARCHAR(50)    = NULL
-    ,@IP                            VARCHAR(15)    	= ''
-    ,@ErrCode                       INT            	= 0		OUTPUT
-    ,@ErrMsg                        NVARCHAR(200)   = ''	OUTPUT
-    ,@ServiceCommand				NVARCHAR(MAX)	= ''	OUTPUT
+    @MatchId            INT
+    ,@AdminId           INT
+    ,@FullTimeHome      INT         	= NULL
+    ,@FullTimeAway      INT         	= NULL
+    ,@BetStatus         NVARCHAR(50)    = NULL
+    ,@IP                VARCHAR(15)    	= ''
+	,@SessionId			VARCHAR(50)		= NULL
+    ,@ErrCode           INT            	= 0		OUTPUT
+    ,@ErrMsg            NVARCHAR(200)   = ''	OUTPUT
+    ,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
 AS
 /*
     Created: 20140213@Kathy
@@ -122,6 +123,7 @@ BEGIN
             ,Action
             ,sqlCommand
             ,execTime
+			,SessionId
             )
         SELECT @MatchId
             ,@matchcode
@@ -133,6 +135,7 @@ BEGIN
             ,@Action
             ,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
 			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+			,@SessionId
 		
 		IF @IsExistNetPosition = 1
 			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner

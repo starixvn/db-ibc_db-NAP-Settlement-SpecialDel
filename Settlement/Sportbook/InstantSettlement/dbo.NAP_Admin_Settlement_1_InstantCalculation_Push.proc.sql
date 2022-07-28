@@ -9,7 +9,8 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_1_InstantCalculation_Push
     , @Mode				VARCHAR(10)
     , @ResourceResult	VARCHAR(MAX)	 = NULL
     , @IP				VARCHAR(15)     = ''
-    , @IsAutoInst		BIT			 = 0
+    , @IsAutoInst		BIT				= 0
+	, @SessionId		VARCHAR(50)		= NULL
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -131,9 +132,9 @@ BEGIN
     ELSE
     BEGIN
         INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType
-			, AdminId, IP, Action, sqlCommand, execTime)
+			, AdminId, IP, Action, sqlCommand, execTime, SessionId)
         SELECT @MatchId, @matchcode, 0 AS IsCalculating, @leagueid, @sporttype
-			, @AdminId, @IP, @Mode, @sqlCommand, NULL
+			, @AdminId, @IP, @Mode, @sqlCommand, NULL, @SessionId
     END
 END
 GO

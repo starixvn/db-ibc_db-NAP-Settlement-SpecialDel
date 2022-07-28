@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsDirectly		BIT				= 0
 	,@ChildMatchIds		VARCHAR(200)	= NULL
 	,@RefResultStatus	TINYINT			= 0
+	,@SessionId			VARCHAR(50)		= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
@@ -166,6 +167,7 @@ BEGIN
 			,Action
 			,sqlCommand
 			,execTime
+			,SessionId
 			)
 		SELECT @MatchId
 			,@matchcode
@@ -177,6 +179,7 @@ BEGIN
 			,@Action
 			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
 			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+			,@SessionId
 
 		IF @IsExistNetPosition = 1
 			SET @ServiceCommand = @sqlCommand

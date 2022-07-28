@@ -17,6 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
 	,@IsReSettledTickets	BIT				= 1
     ,@ChildMatchIds			VARCHAR(500)	= NULL
 	,@RefResultStatus		TINYINT			= 0
+	,@SessionId				VARCHAR(50)		= NULL
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -188,6 +189,7 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
+				,SessionId
             )
         SELECT	@MatchId
 				,@matchcode
@@ -198,6 +200,7 @@ BEGIN
 				,@IP
 				,@Action
 				,@sqlCommand
+				,@SessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 		

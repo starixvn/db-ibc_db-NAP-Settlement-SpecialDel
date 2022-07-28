@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId I
 	,@Ip					VARCHAR(20)	= ''
 	,@IsReSettledTickets	BIT			= 1
 	,@IsSettleDetermined	BIT			= 0
-
+	,@SessionId				VARCHAR(50) = NULL
 	,@ErrCode				INT			= 0		OUTPUT
 	,@ErrMsg				VARCHAR(MAX)= ''	OUTPUT
 AS
@@ -670,8 +670,8 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand)
-		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, 'CAL-FM', @sqlCommand
+		INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, SessionId)
+		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, 'CAL-FM', @sqlCommand, @SessionId
 	END
 	
 	IF @subErrMsg <> ''

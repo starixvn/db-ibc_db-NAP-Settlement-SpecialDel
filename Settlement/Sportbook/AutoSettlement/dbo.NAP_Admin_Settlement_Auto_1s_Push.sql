@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	,@IsAuto					BIT				= 1
 	,@IP						VARCHAR(15)		= ''
 	,@IsReSettledTickets		BIT				= 1
-
+	,@SessionId					VARCHAR(50)		= NULL
 	,@ErrCode					INT				= 0		OUTPUT
 	,@ErrMsg					NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -93,6 +93,7 @@ BEGIN
 			,IP
 			,Action
 			,sqlCommand
+			,SessionId
 			)
 		SELECT @MatchId
 			,@matchcode
@@ -103,6 +104,7 @@ BEGIN
 			,@IP
 			,@Action + '-' + 'EARLY'
 			,@sqlCommand
+			,@SessionId
 	END
 
 END

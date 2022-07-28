@@ -28,6 +28,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@IsCentral			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
@@ -40,6 +41,9 @@ BEGIN
 		IF @AllowCalculation = 0
 			RETURN
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+ 		@IsCentral = @IsCentral OUTPUT
 	
 	IF @betcount = 0
 	RETURN
@@ -207,6 +211,8 @@ BEGIN
 						 WHEN @IsReSettledTickets = 1 THEN 1
 						 ELSE 0
 					END
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+ 	
 
 	IF OBJECT_ID('Service_Settlement_SiteDB_CalculationLog','U') IS NOT NULL 
 	BEGIN

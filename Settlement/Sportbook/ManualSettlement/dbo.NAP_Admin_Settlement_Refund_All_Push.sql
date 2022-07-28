@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All_Push]
     ,@FullTimeAway                    	INT             = NULL 
     ,@BetStatus                        	NVARCHAR(50)    = NULL
     ,@IP								VARCHAR(15)    	= ''
+	,@SessionId							VARCHAR(50)		= NULL
     ,@ErrCode							INT            	= 0     OUTPUT
     ,@ErrMsg							NVARCHAR(200)   = ''    OUTPUT
     ,@ServiceCommand					NVARCHAR(MAX)	= ''	OUTPUT
@@ -69,7 +70,6 @@ BEGIN
 			,@Action        		VARCHAR(20)
 			,@procName      		NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
-			,@IsExistNetPosition	BIT = 0
 			,@IsSystemSettlement	BIT
 
     SELECT	@matchcode    = m.matchcode
@@ -99,9 +99,6 @@ BEGIN
 
     SELECT @Action = 'REFUND'  -- ALL SPORTS
 
-	IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
-		SET	@IsExistNetPosition = 1
-
 	-- add new status "Under Settlement" for a match
 	IF @IsSystemSettlement IS NOT NULL
 	BEGIN
@@ -113,7 +110,7 @@ BEGIN
 			,@IP			= @Ip
 	END
 
-    IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+    IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
         BEGIN TRY
             EXEC sys.sp_executesql @sqlCommand
@@ -141,21 +138,19 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
-				,execTime
+				,SessionId
             )
         SELECT	@MatchId
 				,@matchcode
-				,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
+				,0
 				,@leagueid
 				,@sporttype
 				,@AdminId
 				,@IP
 				,@Action -- Refund
-				,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END 
-				,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+				,@sqlCommand
+				,@SessionId
 		
-		IF @IsExistNetPosition = 1
-			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner
     END
 
 END

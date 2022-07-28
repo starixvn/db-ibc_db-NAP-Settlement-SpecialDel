@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
 	, @ResourceResult VARCHAR(MAX)	= NULL
 	, @SourceId		TINYINT			= 5 -- default SoccerWay
 	, @RefResult	VARCHAR(500)	= NULL
+	, @SessionId	VARCHAR(50)		= NULL
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -148,11 +149,11 @@ BEGIN
         INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode
 			, IsCalculating
 			, LeagueID, SportType
-			, AdminId, IP, Action, sqlCommand, execTime)
+			, AdminId, IP, Action, sqlCommand, execTime, SessionId )
         SELECT @MatchId, @matchcode
 			, CASE WHEN @sporttype = 1 THEN 99 ELSE 0 END
 			, @leagueid, @sporttype
-			, @AdminId, @IP, @Action, @sqlCommand, NULL
+			, @AdminId, @IP, @Action, @sqlCommand, NULL, @SessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 
