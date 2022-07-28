@@ -18,12 +18,12 @@ BEGIN
 	
 	DECLARE @batchNo		INT			
 	
-	DECLARE @tmpTransId TABLE (transId BIGINT
+	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid BIGINT
 		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread MONEY, statuswinlost TINYINT,SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2
+		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2, creator INT
 	)
 	
 	IF @tablename = 'bettrans' 
@@ -86,6 +86,83 @@ BEGIN
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 
+		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+	END
+	ELSE IF @TableName = 'bettransm'
+	BEGIN
+		INSERT INTO @tmpTransId (TransID
+			,winlostdate, statuswinlost, refno, WinLost
+			,creator, Status, StatusID, ruben
+		)
+		SELECT	T.C.value('./@t', 'bigint') AS transid
+				,T.C.value('./@wld', 'SMALLDATETIME') AS Winlostdate
+				,T.C.value('./@statuswl', 'TINYINT') AS statuswinlost
+				,T.C.value('./@ref', 'BIGINT') AS refno
+				,T.C.value('./@w', 'MONEY') AS WinLost				
+				,T.C.value('./@cr', 'INT') AS Creator
+				,T.C.value('./@s', 'NVARCHAR(10)') AS Status
+				,T.C.value('./@sid', 'TINYINT') AS StatusID
+				,T.C.value('./@r', 'TINYINT') AS ruben					
+		FROM	@transInfo.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+	
+		SET @batchNo = @@ROWCOUNT
+
+		UPDATE TOP (@batchNo)  bm 
+			SET ruben = CASE WHEN t.ruben IS NULL THEN bm.ruben ELSE t.ruben END								
+				,winlostdate = CASE 
+									WHEN t.winlostdate IS NULL THEN bm.winlostdate	
+									WHEN t.winlostdate = '' THEN NULL
+									ELSE t.winlostdate
+								END
+				,[status] = CASE WHEN t.Status IS NULL THEN bm.status ELSE t.Status END
+				,statusID = CASE WHEN t.StatusID IS NULL THEN bm.statusID ELSE t.StatusID END								
+				,statuswinlost = CASE 
+									WHEN t.statuswinlost IS NULL THEN bm.statuswinlost
+									WHEN t.statuswinlost = '' THEN NULL
+									ELSE t.statuswinlost
+								END
+		FROM	@tmptransid t
+			INNER JOIN dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
+				ON	bm.transid = t.transid
+					AND bm.refno = t.refno
+		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+	END
+	ELSE IF @TableName = 'BetParlayDetail'
+	BEGIN
+		INSERT INTO @tmpTransId (TransID
+			,winlostdate, statuswinlost, StatusID
+		)
+		SELECT	T.C.value('./@t', 'bigint') AS transid
+				,CASE 
+					WHEN T.C.value('./@wld', 'SMALLDATETIME') = '' THEN NULL 
+					ELSE T.C.value('./@wld', 'SMALLDATETIME') 
+				END AS winlostdate
+				,CASE
+					WHEN T.C.value('./@statuswl', 'TINYINT') = '' THEN NULL
+					ELSE T.C.value('./@statuswl', 'TINYINT')
+				END AS statuswinlost				
+				,T.C.value('./@sid', 'TINYINT') AS StatusID									
+		FROM	@transInfo.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+	
+		SET @batchNo = @@ROWCOUNT
+
+		UPDATE TOP (@batchNo) pd 
+			SET winlostdate = CASE	
+								WHEN t.winlostdate IS NULL THEN pd.winlostdate
+								WHEN t.winlostdate = '' THEN NULL
+								ELSE t.winlostdate
+							END
+				,statusID = CASE WHEN t.StatusID IS NULL THEN pd.statusid ELSE t.StatusID END			
+				,statuswinlost = CASE 
+									WHEN t.statuswinlost IS NULL THEN pd.statuswinlost
+									WHEN t.statuswinlost = '' THEN NULL
+									ELSE t.statuswinlost
+								END		
+		FROM   @tmpTransId t
+			INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+				ON  pd.transid = t.transid
 		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 	END
 END

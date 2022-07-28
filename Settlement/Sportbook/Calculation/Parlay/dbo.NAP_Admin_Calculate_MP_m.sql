@@ -67,8 +67,25 @@ BEGIN
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
 			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
+			,@transinfo XML
+			,@betparlaydetailinfo XML
+			,@IsSiteDB BIT
+			,@FunctionName VARCHAR(100)
 
+	DECLARE @tmpOutputBettransm TABLE (transid BIGINT, refno BIGINT
+		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
+		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
+	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
+	DECLARE @tmpOutputBettransmVoidRecover TABLE (transid BIGINT, winlost MONEY
+		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
+		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)
+	DECLARE @tmpTransIdsVoidRecover TABLE (transid BIGINT)
+		 	
+            
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -183,6 +200,11 @@ BEGIN
     BEGIN        
         SET @doing = CASE @doing WHEN @priorAction THEN @action ELSE COALESCE(@priorAction, @action) END
 		
+		DELETE FROM @tmpOutputBettransm
+		DELETE FROM @tmpOutputBetParlayDetail
+		DELETE FROM @tmpTransIdsVoidRecover
+		DELETE FROM @tmpOutputBettransmVoidRecover
+
         IF @doing = 'correctBettype'
         BEGIN
             UPDATE BM
@@ -194,8 +216,8 @@ BEGIN
 
         IF @doing = 'REFUND'
         BEGIN
-            CREATE TABLE #RefundResult (transid BIGINT, refno BIGINT)
-        
+			SET @FunctionName = 'RefundSubParlay'
+
             UPDATE bm
             SET 
 				@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
@@ -215,7 +237,8 @@ BEGIN
 								ELSE 103
 							END
 								
-            OUTPUT INSERTED.transid, INSERTED.refno INTO #RefundResult(transid, refno)
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK) 
 				INNER JOIN @tblBettypes t
 					ON bm.bettype = t.bettype
@@ -235,7 +258,8 @@ BEGIN
 								ELSE ''
 							END AS QuarterX
 				)q
-            WHERE matchid = @matchid                 
+            WHERE matchid = @matchid      
+				AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
                 AND statusID NOT IN (101)
 				AND t.groupId <> 8 -- Early Soccer
 				AND 1 = CASE
@@ -256,20 +280,21 @@ BEGIN
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
                 ,statusID = 103
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #RefundResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
              WHERE pd.statusid NOT IN (102)
-             
         END --@doing = 'REFUND'
     
         -- ===================================================
         IF @doing = 'REFUND-FT'
         BEGIN
-            CREATE TABLE #RefundFTResult (transid BIGINT, refno BIGINT)
-            
-            UPDATE	bm
+			SET @FunctionName = 'RefundSubParlay'
+
+			UPDATE	bm
 				SET 
 					@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
 					,winlostdate = CASE 
@@ -286,13 +311,14 @@ BEGIN
 					,statusID = CASE 
 									WHEN @IsUpd_Void = 0 THEN statusID 
 									ELSE 103
-								END
-								
-            OUTPUT INSERTED.transid, INSERTED.refno INTO #RefundFTResult(transid, refno)
+								END								
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON bm.bettype = t.bettype
             WHERE	matchid = @matchid 
+					AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
 					AND t.groupId NOT IN (1,3,5,8)
 					AND statusID NOT IN (101)
 				
@@ -300,18 +326,19 @@ BEGIN
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
                 ,statusID = 103
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #RefundFTResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
-            WHERE pd.statusid NOT IN (102)            
+            WHERE pd.statusid NOT IN (102)
         END --@doing = 'REFUND-FT'
-
 
         IF @doing = 'REFUND-HT'
         BEGIN
-            CREATE TABLE #RefundHTResult (transid BIGINT, refno BIGINT)
-            
+			SET @FunctionName = 'RefundSubParlay'
+
             -- Refund sub tickets of 11 bet types (FT) from BetRadar in case '30x3' match has been suspended
             UPDATE	bm
 				SET 
@@ -330,34 +357,37 @@ BEGIN
 					,statusID = CASE 
 									WHEN @IsUpd_Void = 0 THEN statusID 
 									ELSE 103
-								END
-								
-            OUTPUT	INSERTED.transid, INSERTED.refno INTO #RefundHTResult(transid, refno)
+								END								
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON	bm.bettype = t.bettype
             WHERE	matchid = @matchid 
+					AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
 					AND t.is3x30 = 1
 					AND statusID NOT IN (101)
 			OPTION (FORCE ORDER)
 			
             UPDATE pd
-            SET winlostdate = @matchdate
-                ,statuswinlost = 0
-                ,statusID = 103
+				SET winlostdate = @matchdate
+					,statuswinlost = 0
+					,statusID = 103
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #RefundHTResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
-            WHERE pd.statusid NOT IN (102)            
+            WHERE pd.statusid NOT IN (102) 
         END -- @doing = 'REFUND-HT'
     
         -- ===================================================
         IF @doing = 'VOID'
-        BEGIN
-            DECLARE @transtbl TABLE (transid BIGINT)
+        BEGIN   
+			SET @FunctionName = 'VoidSubParlay'
 
-            INSERT INTO @transtbl
+            INSERT INTO @tmpTransIdsVoidRecover(transid)
             SELECT CONVERT(BIGINT, [value])
             FROM STRING_SPLIT(@VoidTransID, ',')
 
@@ -372,24 +402,28 @@ BEGIN
                 ,creator = @UserID
                 ,statusID = 102
                 ,winlostdate = @matchdate
+			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.statusID, inserted.winlostdate
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, creator, statusId, winlostdate)
             WHERE matchid = @matchid 
                 AND statusID NOT IN (101, 102) 
-                AND transid IN (SELECT transid FROM @transtbl)
+                AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
 
             UPDATE dbo.BetParlayDetail WITH(ROWLOCK, UPDLOCK)
             SET statuswinlost = 0
                 ,statusID = 102
                 ,winlostdate = @matchdate
+			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate
+			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
             WHERE matchid = @matchid 
                 AND statusID NOT IN (101, 102) 
-                AND transid IN (SELECT transid FROM @transtbl)
+                AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
         END --@doing = 'VOID'
     
         IF @doing = 'RECOVER'
-        BEGIN
-            DECLARE @tblTransIds TABLE (transid BIGINT)
-        
-            INSERT INTO @tblTransIds
+        BEGIN 
+			SET @FunctionName = 'RecoverSubParlay'
+
+            INSERT INTO @tmpTransIdsVoidRecover(transid)
             SELECT CONVERT(BIGINT, [value])
             FROM STRING_SPLIT(@VoidTransId, ',')
         
@@ -401,26 +435,27 @@ BEGIN
                     ,status = 'running'
                     ,statusID = 0
                     ,winlostdate = NULL
+			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, '', inserted.status, inserted.statusID, ''
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, statuswinlost, status, statusid, winlostdate)
             WHERE    matchid = @matchid
                     AND statusID = 102
-                    AND transid IN (SELECT transid FROM @tblTransIds)
-                
+                    AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)                
         
             UPDATE    dbo.BetParlayDetail WITH(ROWLOCK, UPDLOCK)
                 SET winlostdate = NULL
                     ,statuswinlost = NULL
                     ,statusid = 0
+			OUTPUT inserted.transid, '', '', inserted.statusid
             WHERE    matchid = @matchid 
                     AND statusID = 102
-                    AND transid IN (SELECT transid FROM @tblTransIds)
-        
+                    AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
         END --@doing = 'RECOVER'
 
         -- ===================================================        
         IF @doing = 'UNDO'
         BEGIN            
-            CREATE TABLE #UndoResult (transid BIGINT, refno BIGINT)
-         
+           SET @FunctionName = 'UndoSubParlay'
+
             UPDATE bm WITH(ROWLOCK, UPDLOCK)
             SET 
 				@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
@@ -428,7 +463,8 @@ BEGIN
                 ,statuswinlost = NULL
                 ,ruben = CASE WHEN @IsUpd_Void = 0 THEN ruben ELSE 0 END
                 ,statusID = CASE WHEN @IsUpd_Void = 0 THEN statusID ELSE 0 END
-            OUTPUT INSERTED.transid, INSERTED.refno INTO #UndoResult(transid, refno)
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost 
+			INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost)
             FROM    @tblBettypes t
 				INNER LOOP JOIN dbo.bettransm bm
 					ON	bm.bettype = t.bettype
@@ -436,6 +472,7 @@ BEGIN
 					SELECT CAST(CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)),'') AS VARCHAR(20)) AS ResourceId
 				)r
             WHERE matchid = @matchid  
+				AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
                 AND statusID NOT IN (101, 1)
 				AND t.groupId <> 8 -- Early Soccer
               AND 1 = CASE -- basketball
@@ -456,16 +493,20 @@ BEGIN
             UPDATE pd
             SET statuswinlost = NULL 
                 ,statusID = 0
+			OUTPUT inserted.transid, '', inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #UndoResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno 
-            WHERE pd.statusid NOT IN (102)            
+            WHERE pd.statusid NOT IN (102) 
         END --@doing = 'UNDO'
         -- ===================================================
         
         IF @doing = 'CAL'
         BEGIN
+			SET @FunctionName = 'CalSubParlay'
+
             IF @resultDetail_bb IS NOT NULL -- for basketball
             BEGIN
 				
@@ -2293,6 +2334,7 @@ BEGIN
 				LEFT JOIN @tmpResultDetail rd
 					ON r.ResourceId = rd.ResourceId
             WHERE   bm.matchid = @matchid
+					AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
 					AND bm.statusID NOT IN (101)  
                     AND 1 = CASE -- basketball
 								WHEN @resultDetail_bb IS NULL THEN 1
@@ -2317,6 +2359,7 @@ BEGIN
 						INNER JOIN dbo.bettrans b WITH(NOLOCK)
 							ON mt.TransId = b.transid
 					WHERE	mt.MatchId = @matchid
+							AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 							AND b.matchid = 29
 				)
 				UPDATE r 
@@ -2329,9 +2372,10 @@ BEGIN
 			WHILE (1 = 1)
 			BEGIN
 				
-				DELETE
-				FROM	@tmptransid
-				
+				DELETE FROM	@tmptransid				
+				DELETE FROM @tmpOutputBettransm
+				DELETE FROM @tmpOutputBetParlayDetail
+
 				DELETE TOP (2000 )
 				FROM #Result
 				OUTPUT deleted.transid, deleted.refno, deleted.modds, deleted.ismarked
@@ -2382,7 +2426,9 @@ BEGIN
 											WHEN t.modds > 0 THEN 1 -- Half WIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
 											ELSE 0 -- DRAW
-										END										
+										END		
+				OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+				INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost, winlostdate)
 				FROM	dbo.bettransm bm 
 					INNER JOIN @tmptransid t
 						ON	bm.transid = t.transid
@@ -2406,11 +2452,59 @@ BEGIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
 											ELSE 0 -- DRAW
 										END
+				OUTPUT INSERTED.transid, inserted.statuswinlost, inserted.statusID, inserted.winlostdate
+				INTO @tmpOutputBetParlayDetail(transid, statuswinlost, statusid, winlostdate)
 				FROM    dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 					INNER JOIN @tmptransid t ON  pd.transid = t.transid
-				WHERE pd.statusid NOT IN (102)						
+				WHERE pd.statusid NOT IN (102)	
 			END                
         END --@doing = 'CAL'
+
+		IF @IsSiteDB = 1
+		BEGIN
+			IF @doing IN ('VOID', 'RECOVER')
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'	
+							,winlost AS '@w'
+							,Status AS '@s' 
+							,creator AS '@cr'
+							,102 AS '@sid' 
+							,winlostdate AS '@wld'
+							,1 AS '@r' -- ruben
+					FROM	@tmpOutputBettransmVoidRecover
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+			END
+			ELSE
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'		
+							,refno AS '@ref'
+							,statuswinlost AS '@statuswl'
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,winlostdate AS '@wld'
+							,ruben AS '@r' -- ruben	
+					FROM	@tmpOutputBettransm
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+			END
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			VALUES ('Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo)	
+				
+			SET @betparlaydetailinfo = (
+				SELECT	transId AS '@t'						
+						,winlostdate AS '@wld'							
+						,statuswinlost AS '@statuswl'
+						,StatusId AS '@sid'
+				FROM	@tmpOutputBetParlayDetail
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			VALUES ('Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo)	
+		END
     END -- while
 END -- end SP
 GO

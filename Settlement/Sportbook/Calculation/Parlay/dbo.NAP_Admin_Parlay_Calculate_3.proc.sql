@@ -228,6 +228,30 @@ BEGIN
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 		VALUES ('Settlement', 'CalculateSubParlay', 'bettransm', @MatchId, @transInfo)		
 			
+		IF @Action = 'UNDO'
+		BEGIN
+			SET @transInfo = (
+				SELECT	transId AS '@t'							
+						,0 AS '@statuswl'
+						,0 AS '@sid' 
+				FROM	#parlayOutput
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+		END
+		ELSE
+		BEGIN
+			SET @transInfo = (
+				SELECT	transId AS '@t'							
+						,statuswinlost AS '@statuswl'
+						,statusId AS '@sid' 
+						,winlostdate AS '@wld'
+				FROM	#parlayOutput
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+		END
+
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('Settlement', 'CalculateSubParlay', 'BetParlayDetail', @MatchId, @transInfo)
 	END
 
 	DROP TABLE #parlayTicket;
