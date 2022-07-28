@@ -55,7 +55,8 @@ SET NOCOUNT ON
 			,@IsEarly			BIT = 0
 			,@IsCheckHoldEarly	BIT = 0
 			,@IsMergedParlay	BIT = 0
-			,@xmlData			XML = ''
+			,@xmlResourceResult		XML
+			,@xmlData			VARCHAR(MAX)
 
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
@@ -63,6 +64,9 @@ SET NOCOUNT ON
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
+
+	SET @xmlResourceResult = CAST(@SelectedResources AS XML)
+	SET @xmlData		   = @SelectedResources
 
 	-- Check SP settle is in deployment progress
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
@@ -159,14 +163,14 @@ SET NOCOUNT ON
 		BEGIN
 			IF @SportType = 1 AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') AND @LeagueGroupId <> 113
 			BEGIN
-				SET @xmlData = CAST(@SelectedResources AS XML)
-
-				;WITH cteGoalResource AS
-				(	
+				;WITH cteGoalResource
+				AS
+				(
 					SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
-					FROM   @xmlData.nodes('/Results/Resource') AS T(C)
+					FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
 				)
-				,cteResource AS
+				,cteResource
+				AS
 				(
 					SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
 					WHERE	@action IN ('CAL', 'CAL-HT', 'UNDO')
@@ -184,17 +188,18 @@ SET NOCOUNT ON
 				FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
 			END
 
+			
 			EXEC NAP_Admin_Settlement_Checking
 				@MatchId  = @MatchId
 				,@Action  = @Action
 				,@Mode	  =  @Mode
-				,@xmlData = @SelectedResources
+				,@xmlData = @xmlData
 				,@ErrCode = @ErrCode OUTPUT
 				,@ErrMsg  = @ErrMsg OUTPUT
 	
 			IF ISNULL(@ErrCode,0) <> 0
 			RETURN
-		END
+	END
 
 		--Start: validation for Instant settle
 		IF @Action = 'CAL' AND @Mode LIKE '%INST%'
