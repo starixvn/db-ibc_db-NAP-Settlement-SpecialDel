@@ -48,7 +48,7 @@ BEGIN
 	UNION ALL SELECT 2,		3906	,'MNL'		,NULL		,'010'		,'[1-5]'	,''				
 	UNION ALL SELECT 9128,	3907	,'MNL'		,NULL		,'010'		,'[1-5]'	,''				
 	UNION ALL SELECT 9096,	3908	,'MNL'		,NULL		,'010'		,'[1-5]'	,''					
-	UNION ALL SELECT 20,	154		,'MNL'		,NULL		,'010'		,'[1-5]'	,''		
+	UNION ALL SELECT 20,	3918	,'MNL'		,NULL		,'010'		,'[1-5]'	,''		
 	UNION ALL SELECT 10,	219		,'MNL'		,NULL		,'010'		,'[1-5]'	,''		
 	UNION ALL SELECT 3,		220		,'MNL'		,NULL		,'010'		,'[1-5]'	,''		
 	--early Other
