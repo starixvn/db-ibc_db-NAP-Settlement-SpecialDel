@@ -18,8 +18,8 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @tblFMBettype TABLE (BetType SMALLINT PRIMARY KEY, ResourceId VARCHAR(20))
-	DECLARE @tblResultDetail TABLE (ResourceId	VARCHAR(20)	,BetType	SMALLINT	)
-	DECLARE @ReturnTable TABLE (BetType SMALLINT,Position TINYINT,Result TINYINT,ResultStatus TINYINT, TicketStatus VARCHAR(50)	)
+	DECLARE @tblResultDetail TABLE (ResourceId	VARCHAR(20)	,BetType	SMALLINT , HomeValue VARCHAR(50), AwayValue VARCHAR(50)	, OtherInfo VARCHAR(50))
+	DECLARE @tblReturnTable TABLE (ResourceId	VARCHAR(20)	, BetType SMALLINT,Position TINYINT,Result TINYINT,ResultStatus TINYINT, TicketStatus VARCHAR(50)	)
 
 	CREATE TABLE #tblBettrans (TransId BIGINT, BetType SMALLINT, hdp1 SMALLMONEY, statusId TINYINT, isMarked BIT DEFAULT(0))
 	CREATE INDEX IX_tblBettrans_bettype ON #tblBettrans (BetType)
@@ -175,7 +175,7 @@ BEGIN
 		FROM	#tblBettrans
 		GROUP BY bettype, hdp1
 	)
-	INSERT INTO @ReturnTable(BetType, Position, Result, ResultStatus, TicketStatus )
+	INSERT INTO @tblReturnTable(BetType, Position, Result, ResultStatus, TicketStatus )
 	SELECT	CAST(t.BetType AS SMALLINT) AS BetType
 			, CAST(rs.Position AS TINYINT) AS Position
 			, CAST(rs.Result AS TINYINT) AS Result
@@ -263,7 +263,7 @@ BEGIN
 				END
 	
 	SELECT BetType, Position, Result, ResultStatus, TicketStatus
-	FROM @ReturnTable
+	FROM @tblReturnTable
 
 	SELECT	9 AS GroupId
 			,SUM(CASE WHEN statusId = 0 AND isMarked = 0 THEN 1 ELSE 0 END) AS betRunningCount
