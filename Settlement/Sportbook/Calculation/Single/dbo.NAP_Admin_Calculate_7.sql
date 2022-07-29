@@ -44,8 +44,12 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
 			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
+			,@IsCentral			BIT = 0
 	
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
     IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
 
@@ -89,6 +93,7 @@ BEGIN
 		WHERE	b.matchid = @matchid
 				AND b.bettype = @bettype
 				AND b.statusID IN (0,102)
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		GROUP BY b.custid, b.srecommend
 	END
 	ELSE
@@ -98,6 +103,7 @@ BEGIN
 		FROM	dbo.bettrans WITH(NOLOCK) 
 		WHERE	matchid = @matchid 
 				AND bettype = @bettype
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		GROUP BY custid, srecommend
 	END
 
@@ -417,7 +423,7 @@ BEGIN
 					
 		OPTION (FORCE ORDER)
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0 
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'

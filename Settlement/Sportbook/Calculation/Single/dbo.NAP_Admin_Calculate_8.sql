@@ -59,10 +59,14 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
     DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@IsCentral			BIT = 0
 
     IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -103,6 +107,7 @@ BEGIN
 		WHERE	b.matchid = @matchid
 				AND b.bettype = @bettype
 				AND b.statusID IN (0,102)
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		GROUP BY b.custid, srecommend
 	END
 	ELSE
@@ -112,6 +117,7 @@ BEGIN
 		FROM	dbo.bettrans WITH(NOLOCK) 
 		WHERE	matchid = @matchid 
 				AND bettype = @bettype
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		GROUP BY custid, srecommend
 	END
 
@@ -384,7 +390,7 @@ BEGIN
 				AND hdp1 <= @comparedValue
 				AND ISNULL(b.betdaqid,0) <> -2
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsCentral = 0
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -748,7 +754,7 @@ BEGIN
 					END
 			OPTION (FORCE ORDER)
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsCentral = 0
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'

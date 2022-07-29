@@ -51,9 +51,13 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@transInfo	XML
+			,@transInfo			XML
+			,@IsCentral			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
     IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
 
@@ -136,6 +140,7 @@ BEGIN
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	matchid = @matchid
 					AND bettype = @bettype
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
@@ -471,7 +476,7 @@ BEGIN
 								 ELSE 0
 							END 
 		
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'

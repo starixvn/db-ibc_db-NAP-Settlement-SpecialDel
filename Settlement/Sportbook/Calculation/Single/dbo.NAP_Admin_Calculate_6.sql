@@ -44,8 +44,12 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@IsCentral			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
     IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
 
@@ -373,8 +377,9 @@ BEGIN
 						WHEN @IsSettleAbandonedMatchIBC = 1 AND (custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
 						ELSE 0
 					END
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -438,6 +443,7 @@ BEGIN
 									 WHEN @IsReSettledTickets = 1 THEN 1
 									 ELSE 0
 								END
+						AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 			)b
 			CROSS APPLY (	
 				SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -729,7 +735,7 @@ BEGIN
 								 ELSE 0
 							END
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsCentral = 0 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
