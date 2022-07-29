@@ -25,8 +25,12 @@ BEGIN
 	-- CHECK SERVER BEFORE REFUND
 	DECLARE @ServerName		SYSNAME 
 			,@AllowRefund	BIT
+			,@IsCentral		BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -96,11 +100,12 @@ BEGIN
 				AND bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238) -- Outright, VSRacing
 				AND bettype NOT BETWEEN 1501 and 1599 -- Keno
 				AND bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217)
-				and custid IN (2331, 1077687, 115770, 15523642) 
-	
+				AND custid IN (2331, 1077687, 115770, 15523642) 
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+			
 			SET @rowcnt  = @@ROWCOUNT
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsCentral = 0
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'

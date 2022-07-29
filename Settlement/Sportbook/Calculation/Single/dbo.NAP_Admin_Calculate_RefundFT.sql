@@ -60,8 +60,12 @@ BEGIN
     
 	DECLARE @ServerName		SYSNAME 
 			,@AllowRefund	BIT
+			,@IsCentral		BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -141,7 +145,8 @@ BEGIN
 				INNER JOIN @tblBettypes t
 					ON b.bettype = t.bettype
 			WHERE	b.matchid = @matchid
-					AND b.statusID NOT IN (103, 101) 
+					AND b.statusID NOT IN (103, 101)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -244,7 +249,7 @@ BEGIN
 						END
 				AND ISNULL(b.betdaqid,0) <> -2
 		
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'

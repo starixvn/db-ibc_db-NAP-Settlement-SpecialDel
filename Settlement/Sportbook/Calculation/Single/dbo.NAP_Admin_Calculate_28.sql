@@ -34,11 +34,16 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@transInfo	XML
+			,@transInfo			XML
+			,@IsCentral			BIT = 0
 			
 	SET @ServerName = @@SERVERNAME
 
-    IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
+    IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' 
+		RETURN
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -117,6 +122,7 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END
+					AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -381,7 +387,7 @@ BEGIN
 						 ELSE 0
 					END
 		
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'

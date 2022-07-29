@@ -25,6 +25,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @transInfo	XML
+			,@IsCentral	BIT = 0
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
@@ -32,6 +33,9 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 		)
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 		
 	IF @Action IN ('CAL', 'CAL-FT', 'VOID')
 	BEGIN
@@ -73,6 +77,7 @@ BEGIN
 				AND (ISNULL(@CustIds, '') = '' OR (ISNULL(@CustIds, '') <> '' AND EXISTS (SELECT 1 FROM @CustIdList s WHERE b.CustId = s.CustId)))
 				 AND statusID NOT IN (0, 1, 101, 102) -- REJECT, VOID
 				AND playerdiscount < 0
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		GROUP BY custid
 		
 		UPDATE	n
@@ -280,6 +285,7 @@ BEGIN
 		WHERE	matchid = @MatchId
 				AND bettype = 500
 				AND statusID NOT IN (101, 102) -- REJECT, VOID
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 				
 	END
 END

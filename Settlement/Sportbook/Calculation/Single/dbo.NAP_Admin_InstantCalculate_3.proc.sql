@@ -37,8 +37,12 @@ BEGIN
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
 			,@transInfo			XML
+			,@IsCentral			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -237,7 +241,7 @@ BEGIN
 			SELECT transid,custid, winlost_before, actual_stake,playercomm_before,betdaqid
 			FROM @tmpTransInfo
 			
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsCentral = 0 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -407,7 +411,7 @@ BEGIN
 
 				OPTION(MAXDOP 1)
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsCentral = 0
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -467,7 +471,7 @@ BEGIN
 			
 		OPTION(MAXDOP 1)
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'

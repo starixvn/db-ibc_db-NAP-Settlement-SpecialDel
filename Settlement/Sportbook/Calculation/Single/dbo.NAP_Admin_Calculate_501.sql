@@ -32,6 +32,9 @@ BEGIN
 
 	SET @ServerName = @@SERVERNAME
 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
+
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
 		EXEC [dbo].[NAP_Set_ServerAction]
@@ -41,9 +44,6 @@ BEGIN
 		IF @AllowCalculation = 0
 			RETURN
 	END
-
-	EXEC dbo.NAP_Set_ServerInfo
- 		@IsCentral = @IsCentral OUTPUT
 	
 	IF @betcount = 0
 	RETURN
@@ -214,7 +214,7 @@ BEGIN
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
  	
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF @IsCentral = 0
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'
