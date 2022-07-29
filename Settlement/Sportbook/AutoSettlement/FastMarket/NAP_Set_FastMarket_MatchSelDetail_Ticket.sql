@@ -22,11 +22,10 @@ BEGIN
 	SET @xmlData = CAST( @Resources AS XML )
 
 	DECLARE @tblFMBettype TABLE (BetType SMALLINT PRIMARY KEY, ResourceId VARCHAR(20))
+
 	DECLARE @tblResultDetail TABLE (
 		ResourceId			VARCHAR(20)
 		,BetType			SMALLINT
-		,SettlementStatusId TINYINT
-		,ResultStatusId		TINYINT
 		,HomeValue			VARCHAR(50)
 		,AwayValue			VARCHAR(50)
 	)
@@ -40,7 +39,7 @@ BEGIN
 	FROM	dbo.f_Set_GetGroupBettypes()
 	WHERE	GroupId = 9
 	
-	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
+	EXEC sp_xml_preparedocument @handle OUTPUT, @Resources
 	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, BetType)
 	SELECT r, h, a, b
 	FROM OPENXML(@handle,'root/r',1) WITH(r   VARCHAR(20)
@@ -49,52 +48,6 @@ BEGIN
 										 ,b   INT
 									) tbl
 	EXEC sp_xml_removedocument @handle
-
-	INSERT INTO @tblResultDetail (ResourceId, BetType, SettlementStatusId, ResultStatusId, HomeValue, AwayValue)
-	SELECT	r.ResourceId, t.BetType, r.SettlementStatusId, r.ResultStatusID,  r.HomeValue, r.AwayValue
-	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
-		INNER JOIN (
-			SELECT	BetType, ResourceId
-			FROM	@tblFMBettype t
-			UNION ALL
-			SELECT 229, '22901H'
-			UNION ALL
-			SELECT 229, '22901A'
-			UNION ALL
-			SELECT 221, '221CNT__'
-			UNION ALL
-			SELECT 0, '221WB__'
-			UNION ALL
-			SELECT 0, '221SUS'
-		) t
-			ON r.ResourceId LIKE t.ResourceId
-	WHERE	matchid = @matchid			
-	
-	UPDATE d
-		SET HomeValue = CASE WHEN ISNULL(HomeValue,'') = '' THEN REPLICATE('0', 50) ELSE HomeValue END
-		, AwayValue = CASE WHEN ISNULL(AwayValue,'') = '' THEN REPLICATE('0', 50) ELSE AwayValue END
-	FROM @tblResultDetail d
-	WHERE bettype IN (228, 229) AND (ISNULL(HomeValue,'') = '' OR ISNULL(AwayValue,'') = '')
-	
-	-- Always shows 228, 229
-	;WITH cteBetOption
-	AS (
-		SELECT  228 AS Bettype, CAST('22800' AS VARCHAR(50)) AS ResourceId
-		UNION ALL
-		SELECT  228 AS Bettype, CAST('22801' AS VARCHAR(50))
-		UNION ALL
-		SELECT  229 AS Bettype,  CAST('22900' AS VARCHAR(50))
-		UNION ALL
-		SELECT  229 AS Bettype, CAST('22901H' AS VARCHAR(50))
-		UNION ALL
-		SELECT  229 AS Bettype, CAST('22901A' AS VARCHAR(50))
-	)
-	INSERT INTO @tblResultDetail (ResourceId, BetType,  HomeValue, AwayValue)
-	SELECT	c.ResourceId, c.Bettype, REPLICATE('0', 50) AS HomeValue, REPLICATE('0', 50) AS AwayValue
-	FROM	cteBetOption c
-		LEFT JOIN @tblResultDetail t
-			ON c.ResourceId = t.ResourceId
-	WHERE t.ResourceId IS NULL
 
 	INSERT INTO #tblBettrans(TransId, bettype, hdp1, statusId)
 	SELECT	b.transid, bettype, hdp1, statusID
@@ -107,75 +60,6 @@ BEGIN
 	FROM	#tblBettrans b
 		INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
 			ON b.TransId = mt.TransId
-
-	-- Event Counter
-	SELECT	CAST(f.Position AS TINYINT) AS Position
-			,CAST(f.Result AS VARCHAR(8)) AS Result
-	FROM	(
-			SELECT	CASE 
-						WHEN rCNT.ResourceId = '221CNT02' THEN 'Bit2' -- Goal
-						WHEN rCNT.ResourceId = '221CNT03' THEN 'Bit3' -- Corner
-						WHEN rCNT.ResourceId = '221CNT04' THEN 'Bit4' -- FreeKick
-						WHEN rCNT.ResourceId = '221CNT05' THEN 'Bit5' -- GoalKick
-						WHEN rCNT.ResourceId = '221CNT06' THEN 'Bit6' -- ThrowIn
-						WHEN rCNT.ResourceId = '221CNT08' THEN 'Bit8' -- Penalty
-					END AS EventCounter 
-					,rCNT.Result
-			FROM(
-				SELECT	def.ResourceId
-						,SUBSTRING(ISNULL(rCNT.HomeValue, REPLICATE(' ',45)),1,45) 
-							+ SUBSTRING(ISNULL(rCNT.AwayValue, REPLICATE(' ',45)),1,45) AS Result
-				FROM (VALUES ('221CNT02'), ('221CNT03'), ('221CNT04'), ('221CNT05'), ('221CNT06'), ('221CNT08')) AS def (ResourceId)
-				OUTER APPLY (
-					SELECT	ResourceId
-							,HomeValue
-							,AwayValue
-					FROM	@tblResultDetail rCNT
-					WHERE	rCNT.ResourceId = def.ResourceId 
-				) rCNT
-			)rCNT
-		)AS rCNT
-	PIVOT (
-		MAX(rCNT.Result)
-		FOR EventCounter IN (Bit1, Bit2, Bit3, Bit4, Bit5, Bit6, Bit7, Bit8)
-	) AS pvt
-	CROSS APPLY (
-		SELECT	init.Position AS Position
-				-- only show eventcounter if the inteval has been settled, if not --> set blank
-				,(CASE WHEN r00.SettlementStatus > 0 THEN CAST(bit8.ResultStatus AS VARCHAR(1)) ELSE ' ' END  -- Penalty
-					+ ' ' -- Booking
-					+ CASE WHEN r00.SettlementStatus > 0 THEN CAST(bit6.ResultStatus AS VARCHAR(1)) ELSE ' ' END -- ThrowIn
-					+ CASE WHEN r00.SettlementStatus > 0 THEN CAST(bit5.ResultStatus AS VARCHAR(1)) ELSE ' ' END -- GoalKick
-					+ CASE WHEN r00.SettlementStatus > 0 THEN CAST(bit4.ResultStatus AS VARCHAR(1)) ELSE ' ' END -- FreeKick
-					+ CASE WHEN r00.SettlementStatus > 0 THEN CAST(bit3.ResultStatus AS VARCHAR(1)) ELSE ' ' END -- Corner
-					+ CASE WHEN r00.SettlementStatus > 0 THEN CAST(bit2.ResultStatus AS VARCHAR(1)) ELSE ' ' END -- Goal
-					+ ' ' -- None
-				) AS Result				
-		FROM(
-			SELECT	init.pos AS Position
-					,SUBSTRING(ISNULL(r00.HomeValue,REPLICATE(' ', 45)),1,45) 
-						+ SUBSTRING(ISNULL(r00.AwayValue,REPLICATE(' ',45)),1,45) AS SettlementResult
-			FROM	dbo.f_Set_GetChars(REPLICATE(' ',90)) init
-				CROSS APPLY (
-					SELECT	HomeValue
-							,AwayValue
-					FROM	@tblResultDetail r
-					WHERE	r.ResourceId = '22100'
-				)r00
-		)init
-		OUTER APPLY (SELECT * FROM dbo.f_Set_GetChars(pvt.Bit2) f WHERE	init.Position = f.pos) bit2
-		OUTER APPLY (SELECT * FROM dbo.f_Set_GetChars(pvt.Bit3) f WHERE	init.Position = f.pos) bit3
-		OUTER APPLY (SELECT * FROM dbo.f_Set_GetChars(pvt.Bit4) f WHERE	init.Position = f.pos) bit4
-		OUTER APPLY (SELECT * FROM dbo.f_Set_GetChars(pvt.Bit5) f WHERE	init.Position = f.pos) bit5
-		OUTER APPLY (SELECT * FROM dbo.f_Set_GetChars(pvt.Bit6) f WHERE	init.Position = f.pos) bit6
-		OUTER APPLY (SELECT * FROM dbo.f_Set_GetChars(pvt.Bit8) f WHERE	init.Position = f.pos) bit8			
-		OUTER APPLY (
-			SELECT	f.ResultStatus AS SettlementStatus
-			FROM	dbo.f_Set_GetChars(init.SettlementResult) f
-			WHERE	init.Position = f.pos
-		) r00
-	)f
-
 
 	-- result detail of each bettype
 	;WITH cteBetOption AS (
