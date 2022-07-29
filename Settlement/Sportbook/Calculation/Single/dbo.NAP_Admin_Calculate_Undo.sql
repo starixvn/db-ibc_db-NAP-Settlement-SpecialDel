@@ -53,7 +53,7 @@ BEGIN
 			,@IsCentral		BIT  = 0
 
 	SET @ServerName = @@SERVERNAME
-
+	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
 		SET @IsCentral = 1
 
@@ -260,7 +260,8 @@ BEGIN
 							WHEN t.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
 							ELSE 0
 							END		
-				AND ISNULL(b.betdaqid,0) <> - 2
+				AND ISNULL(b.betdaqid,0) <> - 2	
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		IF @IsCentral = 0
 		BEGIN

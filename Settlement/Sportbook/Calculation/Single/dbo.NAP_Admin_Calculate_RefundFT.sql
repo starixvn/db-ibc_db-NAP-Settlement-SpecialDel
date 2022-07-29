@@ -247,7 +247,8 @@ BEGIN
 								THEN 0
 							ELSE 1
 						END
-				AND ISNULL(b.betdaqid,0) <> -2
+				AND ISNULL(b.betdaqid,0) <> -2		
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		IF @IsCentral = 0
 		BEGIN

@@ -75,9 +75,9 @@ BEGIN
 		WHERE	matchid = @matchid
 				AND bettype = 501
 				AND (ISNULL(@CustIds, '') = '' OR (ISNULL(@CustIds, '') <> '' AND EXISTS (SELECT 1 FROM @CustIdList s WHERE b.CustId = s.CustId)))
-				 AND statusID NOT IN (0, 1, 101, 102) -- REJECT, VOID
+				AND statusID NOT IN (0, 1, 101, 102) -- REJECT, VOID
 				AND playerdiscount < 0
-				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		GROUP BY custid
 		
 		UPDATE	n
@@ -108,7 +108,8 @@ BEGIN
 				ON	b.matchid = @MatchId
 					AND b.bettype = 500
 					AND b.custid = n.CustId
-			WHEN MATCHED AND b.winlost <> n.NetWin THEN UPDATE SET	[status] = CASE WHEN n.NetWin > 0 THEN 'LOSE' ELSE 'VOID' END
+			WHEN MATCHED AND b.winlost <> n.NetWin AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								THEN UPDATE SET	[status] = CASE WHEN n.NetWin > 0 THEN 'LOSE' ELSE 'VOID' END
 																	,winlost = CASE WHEN n.NetWin > 0 THEN n.NetWin ELSE 0 END
 																	,playerdiscount = n.PlayerDiscount
 																	,discount = n.Discount
@@ -265,6 +266,7 @@ BEGIN
 				AND bettype = 500
 				AND custid IN (SELECT CustId FROM @CustIdList)
 				AND statusID NOT IN (101, 102) -- REJECT, VOID
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 				
 		END
 		

@@ -140,11 +140,11 @@ BEGIN
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	matchid = @matchid
 					AND bettype = @bettype
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -475,6 +475,7 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END 
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		IF @IsCentral = 0
 		BEGIN

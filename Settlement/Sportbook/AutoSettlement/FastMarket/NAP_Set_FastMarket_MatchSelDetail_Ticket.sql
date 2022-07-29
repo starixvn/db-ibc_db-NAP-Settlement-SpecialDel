@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_FastMarket_MatchSelDetail_Ticket] 
-	@MatchId INT
-	,@ResourcesOutPut	   VARCHAR(Max) = '' OUTPUT
+	@MatchId	INT
+	,@Resources  VARCHAR(MAX) = ''
 AS
 /*
 	 Created by: 20220719@Louisa
@@ -17,9 +17,19 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
+	DECLARE @handle INT, @xmlData XML
+	
+	SET @xmlData = CAST( @Resources AS XML )
+
 	DECLARE @tblFMBettype TABLE (BetType SMALLINT PRIMARY KEY, ResourceId VARCHAR(20))
-	DECLARE @tblResultDetail TABLE (ResourceId	VARCHAR(20)	,BetType	SMALLINT , HomeValue VARCHAR(50), AwayValue VARCHAR(50)	, OtherInfo VARCHAR(50))
-	DECLARE @tblReturnTable TABLE (ResourceId	VARCHAR(20)	, BetType SMALLINT,Position TINYINT,Result TINYINT,ResultStatus TINYINT, TicketStatus VARCHAR(50)	)
+	DECLARE @tblResultDetail TABLE (
+		ResourceId			VARCHAR(20)
+		,BetType			SMALLINT
+		,SettlementStatusId TINYINT
+		,ResultStatusId		TINYINT
+		,HomeValue			VARCHAR(50)
+		,AwayValue			VARCHAR(50)
+	)
 
 	CREATE TABLE #tblBettrans (TransId BIGINT, BetType SMALLINT, hdp1 SMALLMONEY, statusId TINYINT, isMarked BIT DEFAULT(0))
 	CREATE INDEX IX_tblBettrans_bettype ON #tblBettrans (BetType)
@@ -30,10 +40,45 @@ BEGIN
 	FROM	dbo.f_Set_GetGroupBettypes()
 	WHERE	GroupId = 9
 	
+	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
+	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, BetType)
+	SELECT r, h, a, b
+	FROM OPENXML(@handle,'root/r',1) WITH(r   VARCHAR(20)
+										 ,h   SMALLMONEY
+										 ,a   TINYINT
+										 ,b   INT
+									) tbl
+	EXEC sp_xml_removedocument @handle
+
+	INSERT INTO @tblResultDetail (ResourceId, BetType, SettlementStatusId, ResultStatusId, HomeValue, AwayValue)
+	SELECT	r.ResourceId, t.BetType, r.SettlementStatusId, r.ResultStatusID,  r.HomeValue, r.AwayValue
+	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+		INNER JOIN (
+			SELECT	BetType, ResourceId
+			FROM	@tblFMBettype t
+			UNION ALL
+			SELECT 229, '22901H'
+			UNION ALL
+			SELECT 229, '22901A'
+			UNION ALL
+			SELECT 221, '221CNT__'
+			UNION ALL
+			SELECT 0, '221WB__'
+			UNION ALL
+			SELECT 0, '221SUS'
+		) t
+			ON r.ResourceId LIKE t.ResourceId
+	WHERE	matchid = @matchid			
+	
+	UPDATE d
+		SET HomeValue = CASE WHEN ISNULL(HomeValue,'') = '' THEN REPLICATE('0', 50) ELSE HomeValue END
+		, AwayValue = CASE WHEN ISNULL(AwayValue,'') = '' THEN REPLICATE('0', 50) ELSE AwayValue END
+	FROM @tblResultDetail d
+	WHERE bettype IN (228, 229) AND (ISNULL(HomeValue,'') = '' OR ISNULL(AwayValue,'') = '')
+	
 	-- Always shows 228, 229
-	INSERT INTO @tblResultDetail (ResourceId, BetType)
-	SELECT	r.ResourceId, r.Bettype
-	FROM (
+	;WITH cteBetOption
+	AS (
 		SELECT  228 AS Bettype, CAST('22800' AS VARCHAR(50)) AS ResourceId
 		UNION ALL
 		SELECT  228 AS Bettype, CAST('22801' AS VARCHAR(50))
@@ -43,7 +88,13 @@ BEGIN
 		SELECT  229 AS Bettype, CAST('22901H' AS VARCHAR(50))
 		UNION ALL
 		SELECT  229 AS Bettype, CAST('22901A' AS VARCHAR(50))
-	) r
+	)
+	INSERT INTO @tblResultDetail (ResourceId, BetType,  HomeValue, AwayValue)
+	SELECT	c.ResourceId, c.Bettype, REPLICATE('0', 50) AS HomeValue, REPLICATE('0', 50) AS AwayValue
+	FROM	cteBetOption c
+		LEFT JOIN @tblResultDetail t
+			ON c.ResourceId = t.ResourceId
+	WHERE t.ResourceId IS NULL
 
 	INSERT INTO #tblBettrans(TransId, bettype, hdp1, statusId)
 	SELECT	b.transid, bettype, hdp1, statusID
@@ -125,10 +176,6 @@ BEGIN
 		) r00
 	)f
 
-	-- Over/Under value of each situation 
-	SELECT	OtherInfo AS HandicapValue
-	FROM	@tblResultDetail
-	WHERE	ResourceId = '22201'
 
 	-- result detail of each bettype
 	;WITH cteBetOption AS (
@@ -175,7 +222,6 @@ BEGIN
 		FROM	#tblBettrans
 		GROUP BY bettype, hdp1
 	)
-	INSERT INTO @tblReturnTable(BetType, Position, Result, ResultStatus, TicketStatus )
 	SELECT	CAST(t.BetType AS SMALLINT) AS BetType
 			, CAST(rs.Position AS TINYINT) AS Position
 			, CAST(rs.Result AS TINYINT) AS Result
@@ -261,19 +307,12 @@ BEGIN
 					WHEN t.bettype IN (222,224,227) AND rs.Position > 85 THEN 0
 					ELSE 1
 				END
-	
-	SELECT BetType, Position, Result, ResultStatus, TicketStatus
-	FROM @tblReturnTable
 
 	SELECT	9 AS GroupId
 			,SUM(CASE WHEN statusId = 0 AND isMarked = 0 THEN 1 ELSE 0 END) AS betRunningCount
 			,SUM(CASE WHEN statusId BETWEEN 111 AND 113 OR statusId = 103 THEN 1 ELSE 0 END) AS betSettledCount
 			,SUM(CASE WHEN statusId BETWEEN 0 AND 1 AND isMarked = 1 THEN 1 ELSE 0 END) AS betMarkedCount
 	FROM	#tblBettrans
- 
-	SELECT @ResourcesOutPut =  @ResourcesOutPut + ',' + ResourceID FROM @tblReturnTable
-	 SET @ResourcesOutPut = SUBSTRING(@ResourcesOutPut, 2, LEN(@ResourcesOutPut))
 
-	
 END
 GO

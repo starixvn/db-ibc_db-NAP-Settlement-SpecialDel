@@ -144,8 +144,8 @@ BEGIN
 					,ROW_NUMBER() OVER (ORDER BY CustId, transid) AS rn
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	matchid = @matchid
-					AND statusID NOT IN (103, 101) 
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+					AND statusID NOT IN (103, 101)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END 
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -254,7 +254,8 @@ BEGIN
 							WHEN t.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
 							ELSE 0
 						END
-				AND ISNULL(b.betdaqid,0) <> -2
+				AND ISNULL(b.betdaqid,0) <> -2			
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		
 		IF @IsCentral = 0
 		BEGIN

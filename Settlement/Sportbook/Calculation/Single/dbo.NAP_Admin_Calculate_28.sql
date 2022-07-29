@@ -386,6 +386,7 @@ BEGIN
 						 WHEN @IsReSettledTickets = 1 THEN 1
 						 ELSE 0
 					END
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		
 		IF @IsCentral = 0
 		BEGIN

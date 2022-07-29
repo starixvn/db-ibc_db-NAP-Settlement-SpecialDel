@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Set_FastMarket_MatchSelDetail] 
 	@MatchId	INT
 	,@Bettypes	VARCHAR(MAX) = ''
+	,@ResourcesOutPut	VARCHAR(MAX) = '' OUTPUT
 AS
 /*
 	Created by: 20220719@Louisa
@@ -12,12 +13,16 @@ AS
 		- 20220719@Louisa: Initial [Redmine:#175251]
 
 	Param's Explanation:
+		@ResourcesOutPut
 		
 */
 BEGIN
 	SET NOCOUNT ON
 	
+	DECLARE @xmlData	XML
+
 	DECLARE @tblFMBettype TABLE (BetType SMALLINT PRIMARY KEY, ResourceId VARCHAR(20))
+
 	DECLARE @tblResultDetail TABLE (
 		ResourceId			VARCHAR(20)
 		,BetType			SMALLINT
@@ -27,13 +32,7 @@ BEGIN
 		,AwayValue			VARCHAR(50)
 		,OtherInfo			VARCHAR(50)
 	)
-	DECLARE @tblBettype TABLE ( Bettype SMALLINT )
-	INSERT INTO @tblBettype (Bettype )
- 	SELECT f.[value] from STRING_SPLIT(@Bettypes, ',') f
 
-	CREATE TABLE #tblBettrans (TransId BIGINT, BetType SMALLINT, hdp1 SMALLMONEY, statusId TINYINT, isMarked BIT DEFAULT(0))
-	CREATE INDEX IX_tblBettrans_bettype ON #tblBettrans (BetType)
-	
 	INSERT INTO @tblFMBettype(bettype, ResourceId)
 	SELECT	BetType
 			,CAST(BetType AS VARCHAR) + '__' AS ResourceId -- 22X__
@@ -42,7 +41,7 @@ BEGIN
 	
 	INSERT INTO @tblResultDetail (ResourceId, BetType, SettlementStatusId, ResultStatusId, HomeValue, AwayValue, OtherInfo)
 	SELECT	r.ResourceId, t.BetType, r.SettlementStatusId, r.ResultStatusID,  r.HomeValue, r.AwayValue, r.OtherInfo
-	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+	FROM	dbo.ResultDetail r WITH(NOLOCK)
 		INNER JOIN (
 			SELECT	BetType, ResourceId
 			FROM	@tblFMBettype t
@@ -85,6 +84,7 @@ BEGIN
 		LEFT JOIN @tblResultDetail t
 			ON c.ResourceId = t.ResourceId
 	WHERE t.ResourceId IS NULL
+
 
 	-- Event Counter
 	SELECT	CAST(f.Position AS TINYINT) AS Position
@@ -159,26 +159,20 @@ BEGIN
 	FROM	@tblResultDetail
 	WHERE	ResourceId = '22201'
 
-	-- result detail of each bettype
-	;WITH cteBetOption AS (
-		SELECT	bettype
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '00' THEN HomeValue END) AS ResultStatus1st -- 22X00 
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01' THEN HomeValue END) AS BetOption1st -- 22X01
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '00' THEN AwayValue END) AS ResultStatus2nd -- 22X00 
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01' THEN AwayValue END) AS BetOption2nd -- 22X01
-
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01H' THEN HomeValue END) AS BetOptionHome1st -- 22901H
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01H' THEN AwayValue END) AS BetOptionHome2nd -- 22901H
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01A' THEN HomeValue END) AS BetOptionAway1st -- 22901A
-				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '01A' THEN AwayValue END) AS BetOptionAway2nd -- 22901A
-		FROM	@tblResultDetail
-		WHERE	ResourceId LIKE CAST(BetType AS VARCHAR) + '0[0-1]%' 
-		GROUP BY bettype
-		
-	)
 	-- Water break
 	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo, r.ResultStatusId
 	FROM	@tblResultDetail r
 	WHERE	r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS'
+
+	SELECT @xmlData =  (	SELECT ResourceId AS '@r'
+									,HomeValue AS '@h'
+									,AwayValue AS '@a'
+									,BetType AS '@b'
+							FROM	@tblResultDetail r
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+
+	SET @ResourcesOutPut  = CAST(@xmlData AS VARCHAR(MAX) )
+
 END
 GO

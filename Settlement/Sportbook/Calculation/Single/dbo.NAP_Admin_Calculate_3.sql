@@ -400,7 +400,8 @@ BEGIN
 						ELSE 0
 					END 
 				AND hdp1 <= @comparedValue
-				AND ISNULL(b.betdaqid,0) <> -2
+				AND ISNULL(b.betdaqid,0) <> -2			
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 			IF @IsCentral = 0 
 			BEGIN
@@ -760,7 +761,9 @@ BEGIN
 					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
-							END 
+							END				
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+
 			OPTION (FORCE ORDER)
 
 			IF @IsCentral = 0
