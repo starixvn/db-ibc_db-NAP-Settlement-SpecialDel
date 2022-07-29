@@ -4,7 +4,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_KO_Select]
 	 @RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
-	,@KickOffInfo		  DATETIME = NULL
+	,@KickOffInfo		  VARCHAR(MAX) = NULL
 	,@TransInfo		      VARCHAR(MAX) = NULL
 )
 AS
@@ -81,6 +81,7 @@ BEGIN
       ,creator INT
       ,refno BIGINT
       ,bettype SMALLINT
+	  ,betid BIGINT
       ,betfrom NVARCHAR(1)
       ,statusID TINYINT
       ,WalletType TINYINT
@@ -115,6 +116,7 @@ BEGIN
 		  ,liveawayscore 
 		  ,liveindicator 
 		  ,bettype
+		  ,betid
 		  ,betfrom
 		  ,statusID
 		  ,WalletType 
@@ -143,6 +145,7 @@ BEGIN
 			,t.c.value('@liveawayscore','SMALLINT') AS liveawayscore
 			,t.c.value('@liveindicator','BIT') AS liveindicator
 			,t.c.value('@bettype','SMALLINT') AS bettype
+			,t.c.value('@betid','BIGINT') AS betid
 			,t.c.value('@betfrom','NVARCHAR(1)') AS betfrom
 			,t.c.value('@statusID','TINYINT') AS statusID
 			,t.c.value('@WalletType','TINYINT') AS WalletType
@@ -403,24 +406,9 @@ BEGIN
 		    ,t.transid AS "@transid"
 			,t.Subtransid AS "@Subtransid"
 			,t.custid AS "@custid"
-			,t.transdate AS "@transdate"
 			,t.refno AS "@refno"
-			,b.hdp1 AS "@hdp1"
-			,b.hdp2 AS "@hdp2"
-			,t.livehomescore AS "@livehomescore"
-			,t.liveawayscore AS "@liveawayscore"
-			,b.liveindicator AS "@liveindicator"
-			,t.statusID AS "@statusID"
-			,b.betfrom AS "@betfrom"
 			,b.bettype AS "@bettype"
-			,b.WalletType AS "@WalletType"
-			,b.RefCode AS "@RefCode"
-			,b.Subhdp1 AS "@Subhdp1"
-			,b.Subhdp2 AS "@Subhdp2"
-			,b.Subbettype AS "@Subbettype"
-			,b.Subbetfrom AS "@Subbetfrom"
-			,b.SubstatusID AS "@SubstatusID"
-			,b.Subtransdate AS "@Subbetfrom"
+			,b.betid AS "@betid"
 			,b.IsMixParlay AS "@IsMixParlay"
 			,b.SiteDBGroupID AS "@SiteDBGroupID"
 		FROM #TVSTicketBets t

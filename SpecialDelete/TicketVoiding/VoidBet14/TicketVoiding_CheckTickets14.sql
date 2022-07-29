@@ -2,7 +2,7 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
-	,@TransInfo		VARCHAR(MAX)  = NULL
+	,@TransInfo		    VARCHAR(MAX)  = NULL
 )
 AS
 /*  
@@ -56,13 +56,15 @@ BEGIN
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
       ,refno BIGINT
-      ,bettype SMALLINT
+      ,custid	INT	
+	  ,bettype SMALLINT
       ,betid BIGINT
 	  ,betdaqid BIGINT
       ,statusID TINYINT
       ,betfrom NVARCHAR(1)
 	  ,statuswinlost TINYINT
 	  ,winlostdate SMALLDATETIME
+	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
 	SET @TransInfoXML = CONVERT(XML, @TransInfo)
@@ -70,6 +72,7 @@ BEGIN
 		   matchid
 		  ,transid 
 		  ,refno
+		  ,custid
 		  ,bettype
 		  ,betid
 		  ,betdaqid 
@@ -77,11 +80,13 @@ BEGIN
 		  ,statusID
 		  ,statuswinlost
 		  ,winlostdate
+		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
 	SELECT t.c.value('@matchid','INT') AS matchid
 			,t.c.value('@transid','BIGINT') AS transid
 			,t.c.value('@refno','BIGINT') AS refno
+			,t.c.value('@custid','INT') AS custid
 			,t.c.value('@bettype','SMALLINT') AS bettype
 			,t.c.value('@betid','BIGINT') AS betid
 			,t.c.value('@betdaqid','BIGINT') AS betdaqid
@@ -89,6 +94,7 @@ BEGIN
 			,t.c.value('@statusID','TINYINT') AS statusID
 			,t.c.value('@statuswinlost','TINYINT') AS statuswinlost
 			,t.c.value('@winlostdate','SMALLDATETIME') AS winlostdate
+			,t.c.value('@IsMixParlay','BIT') AS IsMixParlay
 			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
@@ -159,14 +165,13 @@ BEGIN
 	SELECT DISTINCT 
 			t.matchid AS "@matchid"
 		    ,t.transid AS "@transid"
+			,b.custid AS "@custid"
 			,t.refno AS "@refno"
-			,b.winlostdate AS "@winlostdate"
-			,b.statuswinlost AS "@statuswinlost"
-			,b.betid AS "@betid"
 			,t.statusID AS "@statusID"
-			,b.betfrom AS "@betfrom"
-			,b.betdaqid AS "@betdaqid"
 			,b.bettype AS "@bettype"
+			,b.betid AS "@betid"
+			,b.statuswinlost AS "@statuswinlost"
+			,b.IsMixParlay AS "@IsMixParlay"
 			,b.SiteDBGroupID AS "@SiteDBGroupID"
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid

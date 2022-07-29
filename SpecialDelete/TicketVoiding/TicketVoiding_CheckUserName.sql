@@ -104,6 +104,7 @@ BEGIN
       ,statusID TINYINT
 	  ,winlostdate SMALLDATETIME
       ,recommend INT
+	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
 	SET @TransInfoXML = CONVERT(XML, @TransInfo)
@@ -119,6 +120,7 @@ BEGIN
 		  ,betdaqid 
 		  ,statusID
 		  ,winlostdate
+		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
 	SELECT t.c.value('@matchid','INT') AS matchid
@@ -133,6 +135,7 @@ BEGIN
 			,t.c.value('@betdaqid','BIGINT') AS betdaqid
 			,t.c.value('@statusID','TINYINT') AS statusID
 			,t.c.value('@winlostdate','SMALLDATETIME') AS winlostdate
+			,t.c.value('@IsMixParlay','BIT') AS IsMixParlay
 			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
@@ -364,20 +367,13 @@ BEGIN
 		    ,t.transid AS "@transid"
 			,b.custid AS "@custid"
 			,t.refno AS "@refno"
-			,b.winlostdate AS "@winlostdate"
-			,b.recommend AS "@recommend"
-			,b.livehomescore AS "@livehomescore"
-			,b.liveawayscore AS "@liveawayscore"
-			,b.liveindicator AS "@liveindicator"
-			,t.statusID AS "@statusID"
-			,b.betfrom AS "@betfrom"
-			,b.betdaqid AS "@betdaqid"
 			,b.bettype AS "@bettype"
+			,b.betid AS "@betid"
+			,b.IsMixParlay AS "@IsMixParlay"
 			,b.SiteDBGroupID AS "@SiteDBGroupID"
 	FROM #transIdTemp t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR XML PATH('r'), ROOT('root')
-	)
+	FOR XML PATH('r'), ROOT('root'))
 
 	SELECT @TransInfoXML AS TransInfo
 

@@ -76,7 +76,7 @@ BEGIN
 			,@OldAction					 TINYINT
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
-			,@TransInfoXML			 XML = NULL
+			,@TransInfoXML			     XML = NULL
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -573,14 +573,11 @@ BEGIN
 		    ,t.transid AS "@transid"
 			,b.custid AS "@custid"
 			,t.refno AS "@refno"
-			,b.recommend AS "@recommend"
-			,b.livehomescore AS "@livehomescore"
-			,b.liveawayscore AS "@liveawayscore"
-			,b.liveindicator AS "@liveindicator"
 			,t.statusID AS "@statusID"
-			,b.betfrom AS "@betfrom"
-			,b.betdaqid AS "@betdaqid"
 			,b.bettype AS "@bettype"
+			,b.betteam AS "@betteam"
+			,b.betid AS "@betid"
+			,b.statuswinlost AS "@statuswinlost"
 			,b.IsMixParlay AS "@IsMixParlay"
 			,b.SiteDBGroupID AS "@SiteDBGroupID"
 	FROM #validTransId t

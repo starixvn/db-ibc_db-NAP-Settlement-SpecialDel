@@ -104,6 +104,7 @@ BEGIN
       ,creator INT
       ,refno BIGINT
       ,bettype SMALLINT
+	  ,betid BIGINT
       ,betdaqid BIGINT
       ,betfrom NVARCHAR(1)
       ,statusID TINYINT
@@ -160,6 +161,7 @@ BEGIN
 		  ,liveawayscore 
 		  ,liveindicator 
 		  ,bettype
+		  ,betid 
 		  ,betdaqid 
 		  ,betfrom
 		  ,statusID
@@ -185,6 +187,7 @@ BEGIN
 			,t.c.value('@liveawayscore','SMALLINT') AS liveawayscore
 			,t.c.value('@liveindicator','BIT') AS liveindicator
 			,t.c.value('@bettype','SMALLINT') AS bettype
+			,t.c.value('@betid','BIGINT') AS betid
 			,t.c.value('@betdaqid','BIGINT') AS betdaqid
 			,t.c.value('@betfrom','NVARCHAR(1)') AS betfrom
 			,t.c.value('@statusID','TINYINT') AS statusID
@@ -598,25 +601,9 @@ BEGIN
 		    ,t.transid AS "@transid"
 			,t.Subtransid AS "@Subtransid"
 			,t.custid AS "@custid"
-			,t.transdate AS "@transdate"
 			,t.refno AS "@refno"
-			,b.hdp1 AS "@hdp1"
-			,b.hdp2 AS "@hdp2"
-			,t.livehomescore AS "@livehomescore"
-			,t.liveawayscore AS "@liveawayscore"
-			,b.liveindicator AS "@liveindicator"
-			,t.statusID AS "@statusID"
-			,b.betfrom AS "@betfrom"
-			,b.betdaqid AS "@betdaqid"
 			,b.bettype AS "@bettype"
-			,b.WalletType AS "@WalletType"
-			,b.RefCode AS "@RefCode"
-			,b.Subhdp1 AS "@Subhdp1"
-			,b.Subhdp2 AS "@Subhdp2"
-			,b.Subbettype AS "@Subbettype"
-			,b.Subbetfrom AS "@Subbetfrom"
-			,b.SubstatusID AS "@SubstatusID"
-			,b.Subtransdate AS "@Subbetfrom"
+			,b.betid AS "@betid"
 			,b.IsMixParlay AS "@IsMixParlay"
 			,b.SiteDBGroupID AS "@SiteDBGroupID"
 		FROM #TVSTicketBets t
