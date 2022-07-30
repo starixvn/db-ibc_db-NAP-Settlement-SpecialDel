@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSel_by_Vendor]
 	@FromDate			DATETIME
 	,@ToDate			DATETIME
@@ -11,7 +11,7 @@ AS
 /*
 	Created by: 20190103@Vicky
 	Task: Incorporate BetBuilder 
-	DB: DBTXN.BODB02
+	DB: DBPRO.BODB02
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
@@ -19,6 +19,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]					
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20220719@Kathy: Scale Out BetTrans: split code, move sp to DBPRO [Redmine:#175251]
 
 	Param's Explanation:	
 		@Status: All, Running, Completed
@@ -29,12 +30,8 @@ BEGIN
 	
 	DECLARE @MatchId			INT
 			,@CheckEventStatus	SMALLINT
-			,@strMatchIds		VARCHAR(MAX)
-			,@remoteQuery		NVARCHAR(MAX)
-			,@strResourceIds	VARCHAR(MAX)
 			
 	DECLARE @tblEventStatus TABLE (EventStatus VARCHAR(20))
-	DECLARE @TempMatch TABLE (MatchId INT,Sporttype SMALLINT, IsCalculating INT)
 	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
 	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
 	DECLARE @tmpResultDetail TABLE (
@@ -163,80 +160,6 @@ BEGIN
 				AND ISNULL(m.IsDeleted,0) = 0
 	END
 	
-	--Get match info in queue
-	;WITH SingleTicket AS (
-		SELECT matchid,st.Sporttype
-		FROM dbo.[match] m WITH (NOLOCK)
-			INNER JOIN @tmpSporttypes st ON m.sporttype=st.Sporttype 
-		WHERE m.eventdate BETWEEN @FromDate AND @ToDate
-			AND (@MatchCode = '' OR m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
-	),
-	QueueSingleMatch AS (
-		SELECT matchid, MIN(IsCalculating)  IsCalculating
-		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
-			INNER JOIN @tmpSporttypes st ON s.sporttype=st.Sporttype
-		WHERE Starttime > DATEADD(MINUTE,-10,GETDATE())
-			AND s.IsCalculating IN (0,1)
-		GROUP BY matchid
-	)	
-	INSERT INTO @TempMatch(MatchId,Sporttype, IsCalculating)
-	SELECT sg.matchid, sg.Sporttype, q.IsCalculating
-	FROM SingleTicket sg
-		INNER LOOP JOIN dbo.VendorStatus v WITH (NOLOCK) ON sg.matchID = v.matchID
-		LEFT JOIN QueueSingleMatch q ON q.matchID = sg.matchID
-	WHERE v.vendorId = @VendorID 
-			AND v.Opened = 1 
-	;
-	--------------------------------------------------------------------------------
-	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSporttypes WHERE Sporttype IN (1,2))
-	BEGIN 
-		SELECT @strMatchIds = ''
-			   ,@remoteQuery = ''
-			   ,@strResourceIds = ''
-
-		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
-		FROM #tmpMatchIds tempM
-		WHERE tempM.Sporttype in (1,2)
-
-		IF @strMatchIds <> '' 
-		BEGIN
-			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
-			FROM (
-				SELECT DISTINCT f.ResourceID
-				FROM #tmpMatchIds tempM
-					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
-			)f
-		
-			SELECT @strMatchIds		=  LEFT(@strMatchIds,LEN(@strMatchIds)-1) 
-				   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
-
-			SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
-								FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
-								WHERE	r.MatchId IN ('+ @strMatchIds+ ')
-										' + CASE WHEN @strResourceIds <> '' THEN 
-										' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
-
-			INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
-			EXECUTE sys.sp_executesql @remoteQuery
-		END
-	END
-	--------------------------------------------------------------------------------
-	;WITH cteBettrans AS(
-		SELECT matchID
-				,CASE	WHEN totalTicket = 0 			THEN 'No Ticket'
-						WHEN totalTicketRunning > 0 	THEN 'Running'
-						ELSE 'Completed' END AS parlayStatus
-		FROM  (
-				  SELECT m.matchID
-						 ,COUNT (*) AS totalTicket
-						 ,SUM (CASE WHEN statusID = 0 THEN 1 ELSE 0 END) AS totalTicketRunning
-				  FROM @TempMatch m
-				  		INNER JOIN dbo.Bettrans bt WITH (NOLOCK) ON m.MatchID = bt.MatchID
-				  WHERE bt.Bettype  = 38
-						AND bt.statusID NOT IN (101, 102)
-				  GROUP BY m.matchID
-			  ) AS tbtTicketCount
-	)
 	SELECT	m.matchID
 			,m.matchCode
 			,m.leagueID
@@ -248,15 +171,9 @@ BEGIN
 			,m.awayID
 			,m.autosetting
 			,m.autosettingforleague 
-			,ISNULL(cteBt.parlayStatus, 'No Ticket') AS parlayStatus
-			,ISNULL(tempM.IsCalculating, 2) AS QueueStatus
 			,m.sporttype
-	FROM #tmpMatchIds m
-		LEFT JOIN @TempMatch tempM ON m.matchid=tempM.MatchId
-		LEFT JOIN cteBettrans cteBt ON cteBt.MatchID = tempM.MatchID
+	FROM #tmpMatchIds m		
 	WHERE 1 = CASE WHEN @CheckEventStatus = 3 OR @Status='' OR @MatchCode <>'' THEN 1
-				   WHEN @CheckEventStatus = 2 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') IN (SELECT EventStatus FROM @tblEventStatus) THEN 1
-				   WHEN @CheckEventStatus = 1 AND @MatchCode ='' AND ISNULL(cteBt.parlayStatus, 'No Ticket') = @Status THEN 1 
 				   ELSE 0 END
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
 		, m.eventdate
@@ -266,15 +183,5 @@ BEGIN
 		, m.matchid
 		, m.betstatus
 		, m.matchcode
-
-	SELECT	MatchId
-			,ResourceId
-			,HomeValue
-			,AwayValue
-			,ResultStatusId
-			,SettlementStatusId
-	FROM	@tmpResultDetail
-
-	DROP TABLE #tmpMatchIds;
 END
 

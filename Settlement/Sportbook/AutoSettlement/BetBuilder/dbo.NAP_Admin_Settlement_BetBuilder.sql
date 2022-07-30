@@ -189,7 +189,6 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-	
 		INSERT INTO #tblMarket (MarketID)
 		EXEC DBPRO.bodb02.dbo.NAP_Admin_ChangedMarket_Sel
 					@matchID			= @matchID
@@ -197,7 +196,6 @@ BEGIN
 					,@action			= @Action
 					,@Resources			= @Resources
 					,@ResultStatusID	= @ResultStatusID
-		
 	END
 		
 	-- check and not allow attempt to settlement same game while it's still not finish
@@ -221,86 +219,67 @@ BEGIN
 
 		RETURN
 	END
-	
 		
 	SELECT @minMarketID = MIN(marketID)
 		   ,@maxMarketID = MAX(marketID)
 	FROM #tblMarket
-	
-	/*IF @IsAuto = 1
-	BEGIN
-		------------------------------skip MarketIDs have been already settled
-		DELETE r
-		FROM #tblMarket r
-			INNER JOIN DBPRO.bodb02.dbo.SMP_Market m WITH (NOLOCK) ON r.MarketID = m.MarketID	
-		WHERE m.ResultStatusID IN (2, 5, 3) --Auto Settled, Manually settled, UNDO
-			AND MatchID = @MatchID
-			AND VendorID = @VendorID
-	END*/
-	
 
 	---------lock table SMP_Market---------------------------------------------
 	SET @startRowIndex = 0
-	WHILE 1=1
-	BEGIN
-		TRUNCATE TABLE #tblDataByBatch
-		
-		INSERT INTO #tblDataByBatch(strID, result)
-		SELECT MarketID, result
-		FROM #tblMarket t 
-		WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + 5000)
-
-		SELECT @batchCount 		= @@ROWCOUNT
-			  ,@startRowIndex 	= @startRowIndex + 5000
-		
-		IF @batchCount = 0 BREAK
-
-		SET @strDataByBatch 	= (SELECT strID		AS '@m'
-								   FROM #tblDataByBatch
-								   FOR XML PATH('Resource'), ROOT( 'Resources'))
-				   
-		EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarket_Update @matchID 			= @matchID
-														,@VendorID			= @VendorID
-														,@action			= @action
-														,@resources 		= @strDataByBatch
-														,@resultStatusID 	= @ResultStatusID
-														,@mode				= 'ResultStatusID'
-	END
-
 	
-	---------SMP_MarketSelection---------------------------------------------------
-	IF @IsSettleByMarket = 1
-	BEGIN
-		
-		INSERT INTO #tblMarketSelection (marketSelectionID)
-		SELECT ml.marketSelectionID
-		FROM DBPRO.bodb02.dbo.SMP_MarketSelection ml WITH (NOLOCK)
-		WHERE EXISTS (SELECT MarketID FROM #tblMarket WHERE ml.MarketID = #tblMarket.MarketID)
-			AND ml.MatchID = @MatchID
-			AND ml.MarketID BETWEEN @minMarketID AND @maxMarketID
-	END
-	ELSE
-	BEGIN
-		INSERT INTO #tblMarketSelection (marketSelectionID, Result)
-		EXEC DBPRO.bodb02.dbo.NAP_Admin_MarketSelection_Sel 
-					@matchID						= @MatchID
-					,@action						= @action
-					,@Resources						= @Resources
-	END
-	
-	
-	---- UPDATE SMP_MarketSelection
 	IF @IsCentral = 1
 	BEGIN
-		SET @startRowIndex = 0
+		-- update market
 		WHILE 1=1
 		BEGIN
 			TRUNCATE TABLE #tblDataByBatch
 		
-			/*INSERT INTO #tblDataByBatch(vID, result)
-			SELECT marketSelectionID, result
-			FROM #tblMarketSelection t 
-			WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + @maximumRows) - 1*/
+			INSERT INTO #tblDataByBatch(strID, result)
+			SELECT MarketID, result
+			FROM #tblMarket t 
+			WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + 5000)
+
+			SELECT @batchCount 		= @@ROWCOUNT
+				  ,@startRowIndex 	= @startRowIndex + 5000
+		
+			IF @batchCount = 0 BREAK
+
+			SET @strDataByBatch 	= (SELECT strID		AS '@m'
+									   FROM #tblDataByBatch
+									   FOR XML PATH('Resource'), ROOT( 'Resources'))
+				   
+			EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarket_Update @matchID 			= @matchID
+															,@VendorID			= @VendorID
+															,@action			= @action
+															,@resources 		= @strDataByBatch
+															,@resultStatusID 	= @ResultStatusID
+															,@mode				= 'ResultStatusID'
+		END
+	
+		---------SMP_MarketSelection---------------------------------------------------
+		IF @IsSettleByMarket = 1
+		BEGIN
+			INSERT INTO #tblMarketSelection (marketSelectionID)
+			SELECT ml.marketSelectionID
+			FROM DBPRO.bodb02.dbo.SMP_MarketSelection ml WITH (NOLOCK)
+			WHERE EXISTS (SELECT MarketID FROM #tblMarket WHERE ml.MarketID = #tblMarket.MarketID)
+				AND ml.MatchID = @MatchID
+				AND ml.MarketID BETWEEN @minMarketID AND @maxMarketID
+		END
+		ELSE
+		BEGIN
+			INSERT INTO #tblMarketSelection (marketSelectionID, Result)
+			EXEC DBPRO.bodb02.dbo.NAP_Admin_MarketSelection_Sel 
+						@matchID						= @MatchID
+						,@action						= @action
+						,@Resources						= @Resources
+		END
+	
+		---- UPDATE SMP_MarketSelection
+		SET @startRowIndex = 0
+		WHILE 1=1
+		BEGIN
+			TRUNCATE TABLE #tblDataByBatch
 		
 			DELETE TOP (4000) #tblMarketSelection
 			OUTPUT DELETED.marketSelectionID, DELETED.result
@@ -321,43 +300,38 @@ BEGIN
 															,@resources 		= @strDataByBatch
 															,@resultStatusID 	= @ResultStatusID
 		END
-	END
-	-- -------END SMP_MarketSelection-----------------------------------------------
-	
+		-- -------END SMP_MarketSelection-----------------------------------------------
+
+		--update result of markets into temp table
+		IF @IsSettleByMarket <> 1 
+  		BEGIN
+	  		---------Update Result and ResultStatusID for SMP_Market--------------------------------------------------------
+			SET @startRowIndex = 0
+			WHILE 1=1
+			BEGIN
+				TRUNCATE TABLE #tblDataByBatch
 			
+				INSERT INTO #tblDataByBatch(strID, result)
+				SELECT MarketID, result
+				FROM #tblMarket t 
+				WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + @maximumRows) - 1
 	
-	--update result of markets into temp table
-	IF @IsSettleByMarket <> 1 AND @IsCentral = 1
-  	BEGIN
-	  	
-	  	---------Update Result and ResultStatusID for SMP_Market--------------------------------------------------------
-	  	
-		SET @startRowIndex = 0
-		WHILE 1=1
-		BEGIN
-			TRUNCATE TABLE #tblDataByBatch
+				SELECT @batchCount 		= @@ROWCOUNT
+					  ,@startRowIndex 	= @startRowIndex + @maximumRows
 			
-			INSERT INTO #tblDataByBatch(strID, result)
-			SELECT MarketID, result
-			FROM #tblMarket t 
-			WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + @maximumRows) - 1
+				IF @batchCount = 0 BREAK
 	
-			SELECT @batchCount 		= @@ROWCOUNT
-				  ,@startRowIndex 	= @startRowIndex + @maximumRows
-			
-			IF @batchCount = 0 BREAK
-	
-			SET @strDataByBatch 	= (SELECT strID				AS '@m'
-									   FROM #tblDataByBatch
-									   FOR XML PATH('Resource'), ROOT( 'Resources'))
+				SET @strDataByBatch 	= (SELECT strID				AS '@m'
+										   FROM #tblDataByBatch
+										   FOR XML PATH('Resource'), ROOT( 'Resources'))
 							   
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarket_Update @matchID 			= @matchID
-															,@action			= @action
-															,@resources 		= @strDataByBatch
-															,@resultStatusID 	= @ResultStatusID
+				EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarket_Update @matchID 			= @matchID
+					,@action			= @action
+					,@resources 		= @strDataByBatch
+					,@resultStatusID 	= @ResultStatusID
+			END
 		END
 	END
-	
 	-- -------END SMP_Market--------------------------------------------------------
 	
 	
@@ -397,7 +371,6 @@ BEGIN
 	  	FROM #tblTransID t
 		WHERE Result = 'REFUND'
 		
-		
 		DELETE t
 	  	OUTPUT DELETED.TransID INTO #tblTransIDUndo (TransID)
 	  	FROM #tblTransID t
@@ -406,7 +379,6 @@ BEGIN
 	END
 	ELSE IF @action LIKE 'UNDO%'
 	BEGIN
-		
 		INSERT INTO #tblTransIDUndo(TransID, custID)
 	  	SELECT transID, b.custID
 	  	FROM dbo.bettrans b WITH (NOLOCK)
@@ -420,16 +392,13 @@ BEGIN
 	  	SELECT @TotalAccount = (SELECT COUNT(DISTINCT custID) FROM #tblTransIDUndo)
 	END 
 	--END get transID-----------------------------------------------------
-	
-	
-	
+
 	------START CAL, UNDO-------------------------------------------------
 	SELECT @startRowIndex = 0,@ActionProcessing = @Action
 	WHILE 1=1
 	BEGIN
 		-------------BEGIN TRY--------------------------------------------
 		BEGIN TRY
-		
 			TRUNCATE TABLE #tblDataByBatch
 			DELETE FROM @BalanceWalletBefore
 			DELETE FROM @BalanceWalletAfter
@@ -449,10 +418,8 @@ BEGIN
 				END
 			END
 			
-			
 			IF @ActionProcessing LIKE 'REFUND%'
-			BEGIN
-				
+			BEGIN				
 				DELETE TOP (@batchNo) #tblTransIDRefund
 				OUTPUT DELETED.transID
 				INTO #tblDataByBatch(vID)
@@ -466,8 +433,7 @@ BEGIN
 			END
 			
 			IF @ActionProcessing LIKE 'UNDO%'
-			BEGIN
-				
+			BEGIN				
 				DELETE TOP (@batchNo) #tblTransIDUndo
 				OUTPUT DELETED.transID
 				INTO #tblDataByBatch(vID)
@@ -475,11 +441,9 @@ BEGIN
 				SELECT @batchCount 	= @@ROWCOUNT
 			END
 			
-			SELECT @ticketCount	+= @batchCount
-				  
+			SELECT @ticketCount	+= @batchCount				  
 			
 			IF @batchCount = 0 BREAK
-
 			
 			SET @strDataByBatch 	= (SELECT vID		AS '@t'
 											   ,modds	AS '@m'
@@ -490,37 +454,32 @@ BEGIN
 			--------------------------------------------------------------------
 			---		CAPTURE value BALANCE before settlement		---
 			---------------------------VVVV-------------------------------------
-			
-			
 			INSERT INTO @BalanceWalletBefore (matchID, custID, balanceType, WalletType, BonusID, balance)
 			EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-							@MatchID 				  = @matchID
-							,@sportType				  = @sportType
-							,@Action 				  = @ActionProcessing
-							,@Mode 					  = 2
-							,@TransIDs				  = @strDataByBatch
-							,@IsCentral				  = @IsCentral
+				@MatchID 				  = @matchID
+				,@sportType				  = @sportType
+				,@Action 				  = @ActionProcessing
+				,@Mode 					  = 2
+				,@TransIDs				  = @strDataByBatch
+				,@IsCentral				  = @IsCentral
 		
 		    EXEC dbo.NAP_Admin_Calculate_Main
-							@matchid	  		 = @matchid
-						   ,@action				 = @ActionProcessing
-						   ,@IsSettingByProfile  = 1
-						   ,@strTransIds		 = @strDataByBatch
-
-			------END UPDATE BETTRANS---------------------------------------------------------------------------
+				@matchid	  		 = @matchid
+				,@action				 = @ActionProcessing
+				,@IsSettingByProfile  = 1
+				,@strTransIds		 = @strDataByBatch
 			
-			   
 			-------------------------------------------------------------
 			---		 CAPTURE value BALANCE after settlement		---
 			---------------------------VVVV------------------------------
 			INSERT INTO @BalanceWalletAfter (matchID, custID, balanceType, WalletType, BonusID, balance)
 			EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-						@MatchID		  	= @matchID
-						,@sportType			= @sportType
-						,@Action 			= @ActionProcessing
-						,@Mode 			  	= 2 --Used for Manual settle process
-						,@TransIDs			= @strDataByBatch
-						,@IsCentral				  = @IsCentral
+				@MatchID		  	= @matchID
+				,@sportType			= @sportType
+				,@Action 			= @ActionProcessing
+				,@Mode 			  	= 2 --Used for Manual settle process
+				,@TransIDs			= @strDataByBatch
+				,@IsCentral				  = @IsCentral
 		
 			-- Compare and update pending balance with error case
 			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -528,26 +487,22 @@ BEGIN
 						,@BalanceWalletAfter	= @BalanceWalletAfter
 						,@ActionID				= @ActionID
 			
-			
-						
 			--SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custID)
 			INSERT INTO #tblCustIDBalanceUpdated(custID)
 			SELECT a.custID
 			FROM @BalanceWalletAfter a
 				INNER JOIN @BalanceWalletBefore b 
-				ON	 a.matchID				= b.matchID
-						AND a.custID		= b.custID
-						AND a.balanceType	= b.balanceType
-						AND a.walletType	= b.walletType
-						AND a.bonusID		= b.bonusID
-			WHERE a.balance <> b.balance
-			
+				ON	a.matchID				= b.matchID
+					AND a.custID		= b.custID
+					AND a.balanceType	= b.balanceType
+					AND a.walletType	= b.walletType
+					AND a.bonusID		= b.bonusID
+			WHERE a.balance <> b.balance			
 		END TRY
 		BEGIN CATCH
 			  -------------------------------------------------------------
 			  ---		 CAPTURE value BALANCE after settlement		---
-			  ---------------------------VVVV------------------------------
-			  
+			  ---------------------------VVVV------------------------------			  
 			  INSERT INTO @BalanceWalletAfter (matchID, custID, balanceType, WalletType, BonusID, balance)
 			  EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 					  @MatchID 				= @matchID
@@ -555,7 +510,7 @@ BEGIN
 					  , @Action 			= @ActionProcessing
 					  , @Mode 				= 2 --Used for Manual settle process
 					  , @TransIDs			= @strDataByBatch
-					  , @IsCentral				  = @IsCentral
+					  , @IsCentral			= @IsCentral
 		
 			  -- Compare and update pending balance with error case
 			  EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -568,23 +523,16 @@ BEGIN
 			  SELECT a.custID
 			  FROM @BalanceWalletAfter a
 					INNER JOIN @BalanceWalletBefore b 
-					ON	 a.matchID				= b.matchID
-							AND a.custID		= b.custID
-							AND a.balanceType	= b.balanceType
-							AND a.walletType	= b.walletType
-							AND a.bonusID		= b.bonusID
+					ON	a.matchID				= b.matchID
+						AND a.custID		= b.custID
+						AND a.balanceType	= b.balanceType
+						AND a.walletType	= b.walletType
+						AND a.bonusID		= b.bonusID
 				WHERE a.balance <> b.balance
 					
-				
 			  SELECT	@ErrCode = 1001017
 						,@ErrMsg = ERROR_MESSAGE() + ERROR_PROCEDURE()
 		
-			  ------ releasing Settlement process
-			  EXEC dbo.NAP_Admin_CheckingProcess
-						  @isExistMatch		= 1
-						  ,@IsReleased		= 1
-		
-			  RETURN
 		END CATCH
 	END
 	------END settle---------------------------------------------------
@@ -595,19 +543,13 @@ BEGIN
 			  ,@checkKeyValue2	= 1
 			  ,@IsReleased		= 1
 	
-	
+	IF @ErrCode > 0
+		RETURN
+
 	-------------------------------------------------------------
 	---					  WRITE LOG						---
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
-	
-	
-	----------------------------------------------------------------------------
-	
-	
-	
-
-				
 	--log marketID
 	DECLARE @LogDate DATETIME = GETDATE()
 			,@LogIDOutput	 BIGINT
@@ -657,10 +599,7 @@ BEGIN
 				
 	IF @IsCentral = 1
 	BEGIN
-		SELECT @Remark = CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END 
-							/*+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
-							+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
-							+ '<br/> ' */
+		SELECT @Remark = CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END 							
 							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
 							+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
@@ -678,8 +617,7 @@ BEGIN
 					,@Remark			= @Remark
 					,@ip				= @ip
 		END TRY
-		BEGIN CATCH
-		
+		BEGIN CATCH		
 			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
 			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 					@UserID				= @AdminId

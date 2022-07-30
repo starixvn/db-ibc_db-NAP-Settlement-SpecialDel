@@ -100,8 +100,7 @@ BEGIN
 			@matchid = 0
 			,@action = 'REFUND'
 			,@IsSettingByProfile = 1
-			,@strTransIds = @TransIDs
-		
+			,@strTransIds = @TransIDs		
 		
 	---------------CAL----------------------------------------------------------
 	SET @transIDs 			= (SELECT transID		AS '@t'
