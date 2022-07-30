@@ -25,9 +25,13 @@ BEGIN
 	DECLARE @StartTime	DATETIME
 			,@EndTime	DATETIME
 			,@sqlCommand VARCHAR(MAX)
+			,@IsCentral BIT
 
 	DECLARE @tmpMatchInQueue TABLE (MatchId INT, QueueStatus INT )
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	--Get match info in queue
 	;WITH cteSingle3rdQueue AS (
 		SELECT s.matchid, MIN(s.IsCalculating) AS QueueStatus
@@ -61,6 +65,7 @@ BEGIN
 			INNER JOIN dbo.bettrans bt WITH (NOLOCK)
 				ON q.MatchId = bt.matchid
 		WHERE	bt.statusID NOT BETWEEN 101 AND 102
+				AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
 				AND bt.bettype = 38
 		GROUP BY bt.matchid
 	)

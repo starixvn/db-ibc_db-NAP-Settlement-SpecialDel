@@ -56,6 +56,7 @@ BEGIN
 			INNER JOIN @tmpBettype bt
 				ON	b.bettype = bt.bettype
 		WHERE	b.matchid = @MatchID
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID = 0	
 				AND 1 = CASE
 							WHEN b.bettype NOT IN (228, 229)
