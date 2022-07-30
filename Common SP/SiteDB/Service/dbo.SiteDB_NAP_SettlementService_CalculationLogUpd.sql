@@ -23,6 +23,7 @@ BEGIN
 	ELSE	
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
+				,LogId = @LogId
 				,LastLogId = @LogId
 				,LastStatusId = @StatusId
 END

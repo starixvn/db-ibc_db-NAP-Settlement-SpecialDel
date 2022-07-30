@@ -22,6 +22,8 @@ BEGIN
 	
 	SELECT @cnt_sitedb = 0
 			,@cnt_central = 0
+			,@IsPassed = 0
+
 	DECLARE @tmpTransId TABLE (TransId BIGINT)
 
 	INSERT INTO @tmpTransId(TransId)

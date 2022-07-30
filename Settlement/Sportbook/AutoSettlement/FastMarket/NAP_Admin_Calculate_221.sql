@@ -24,6 +24,7 @@ AS
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
     Param's Explanation:
 
@@ -35,7 +36,7 @@ BEGIN
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
 			,@AllowRefund		BIT
-	
+		
 	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
@@ -69,6 +70,8 @@ BEGIN
 			,@maxSelectedPosition TINYINT = 0
 			,@totalChangedScore INT = 0
 			,@ActionId TINYINT
+			,@IsSubDB BIT = 0
+			,@transinfo XML
 
 	DECLARE @settlementTime DATETIME
 			,@RepUpdateTime DATETIME2
@@ -80,6 +83,9 @@ BEGIN
 						WHEN @action = 'REFUND' THEN 2
 						ELSE 0
 					END
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSubDB = 1
 	
 	CREATE TABLE #tblTransIds(transid BIGINT, BetOption INT, IsRefund BIT DEFAULT(0), ScoreDiff SMALLMONEY DEFAULT (0), ActionId TINYINT)	 --ActionId: 0 - Undo, 1 - CAL, 2 - Refund
 
@@ -95,6 +101,16 @@ BEGIN
 		,HasInjuryTime			BIT DEFAULT(0)
 	)
 	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+		,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, RepUpdateTime DATETIME2
+
+		,bef_winlost MONEY
+		,bef_statusid TINYINT
+	)
+
 	INSERT INTO @TmpData (bettype, Position, BetOption, OldAccumulatedScore, AccumulatedScore, AccumulatedHomeScore, AccumulatedAwayScore, IsSettleDetermined, HasInjuryTime)
 	SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 		,X.C.value('@p','TINYINT') as Position
@@ -147,6 +163,7 @@ BEGIN
 			ON	b.matchid = @matchid
 				AND b.bettype = t.Bettype
 	WHERE	b.statusID NOT IN (101)
+			AND b.SiteDBGroupID = CASE WHEN @IsSubDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 			AND 1 = CASE
 						WHEN t.HasInjuryTime = 0
 							THEN CASE 
@@ -194,6 +211,7 @@ BEGIN
 			SELECT	b.transid
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	b.matchid = @matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsSubDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 					AND b.bettype = 228
 					AND b.statusID NOT IN (101)
 					AND 1 = CASE
@@ -375,7 +393,22 @@ BEGIN
 								WHEN @IsUpd_Void = 0 THEN ruben 
 								ELSE 1
 							END
-						
+				OUTPUT	inserted.transid
+					,inserted.modds
+					,inserted.statuswinlost
+					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+					,inserted.Status,inserted.StatusID,inserted.ruben
+					
+					,deleted.winlost
+					,deleted.statusid
+				INTO @tmpTransInfo (
+					transId
+					,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+					,bef_winlost, bef_statusid
+				)
 				FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 					INNER JOIN #tblTransIds t
 						ON b.transid = t.transid
@@ -392,6 +425,35 @@ BEGIN
 								ELSE 0
 							END
 						AND t.ActionId = 1
+			
+			IF @IsSubDB = 1
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'	
+							,modds AS '@m'
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 							
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r' 
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'CalculateFM', 'bettrans', @MatchId, @transInfo)		
+			END
 		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 2) AND @AllowRefund = 1 -- REFUND
@@ -424,10 +486,63 @@ BEGIN
 					, ruben = 1
 					, statuswinlost = 6	
 					, RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+			OUTPUT	inserted.transid
+				,inserted.Status				
+				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+				,inserted.StatusID
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.ruben
+				,inserted.statuswinlost
+				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+	
+				,deleted.winlost
+				,deleted.statusid	
+			INTO @tmpTransInfo (
+				transId
+				,Status
+				,SettlementTime
+				,StatusID	
+				,WinLost,aWinLost,mWinLost,sWinLost
+				,PlayerComm,Comm,aComm,sComm
+				,ruben
+				,statuswinlost
+				,RepUpdateTime
+				,bef_winlost, bef_statusid
+			)
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblTransIds t
 					ON	b.transid = t.transid	
 			WHERE	t.ActionId = 2
+
+			IF @IsSubDB = 1
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'	
+							,Status AS '@s' 
+							,SettlementTime AS '@st' 
+							,StatusID AS '@sid' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,ruben AS '@r' 
+							,statuswinlost AS '@statuswl' 
+							,RepUpdateTime AS '@rut'
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'RefundFM', 'bettrans', @MatchId, @transInfo)		
+			END
 		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 0) AND @AllowUndo = 1 -- UNDO
@@ -450,10 +565,60 @@ BEGIN
 					, ruben = CASE WHEN @IsUpd_Void= 0 THEN ruben ELSE 0 END 
 					, statuswinlost = NULL
 					, RepUpdateTime = CASE WHEN b.statusId = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+			OUTPUT	inserted.transid
+				,inserted.Status	
+				,inserted.StatusID
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.ruben
+				,inserted.statuswinlost
+				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+	
+				,deleted.winlost
+				,deleted.statusid	
+			INTO @tmpTransInfo (
+				transId
+				,Status
+				,StatusID	
+				,WinLost,aWinLost,mWinLost,sWinLost
+				,PlayerComm,Comm,aComm,sComm
+				,ruben
+				,statuswinlost
+				,RepUpdateTime
+				,bef_winlost, bef_statusid
+			)
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #tblTransIds t
 					ON	b.transid = t.transid
 			WHERE	t.ActionId = 0
+
+			IF @IsSubDB = 1
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'	
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,ruben AS '@r' 
+							,statuswinlost AS '@statuswl' 
+							,RepUpdateTime AS '@rut'
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'UndoFM', 'bettrans', @MatchId, @transInfo)		
+			END
 		END
 		
 		BREAK

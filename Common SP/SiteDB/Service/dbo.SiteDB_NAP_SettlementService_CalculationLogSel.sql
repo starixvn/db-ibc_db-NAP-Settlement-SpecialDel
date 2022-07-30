@@ -16,8 +16,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @LastLogId BIGINT
-			,@LastStatusId TINYINT
-			,@IsSkip BIT
+			,@LastStatusId TINYINT			
 			,@LogId BIGINT
 			,@TransInfo XML
 			,@TableName VARCHAR(128)
@@ -25,11 +24,10 @@ BEGIN
 			,@RowCount INT
 
 	SELECT TOP (1) @LastLogId = LastLogId 
-			,@LastStatusId = LastStatusId
-			,@IsSkip = IsSkip
+			,@LastStatusId = LastStatusId		
 	FROM	dbo.SiteDB_SettlementService_LastLog WITH(NOLOCK)
 	
-	IF @LastStatusId = 2 OR @IsSkip = 1
+	IF @LastStatusId = 2 
 	BEGIN
 		SELECT	TOP 1 @LogId = LogId
 				,@TransInfo = TransInfo
@@ -48,3 +46,4 @@ BEGIN
 			,@MatchId AS MatchId
 	WHERE @RowCount = 1
 END
+GO

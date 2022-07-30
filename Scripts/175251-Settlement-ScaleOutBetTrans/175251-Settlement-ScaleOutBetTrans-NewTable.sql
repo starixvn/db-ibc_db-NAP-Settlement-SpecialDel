@@ -24,10 +24,8 @@ CREATE TABLE dbo.SiteDB_SettlementService_LastLog
 	,StatusId TINYINT
 	,LastLogId BIGINT
 	,LastStatusId TINYINT
-	,IsSkip BIT
 )ON [DATA]
 GO
-ALTER TABLE dbo.SiteDB_SettlementService_LastLog ADD  CONSTRAINT [DF_SiteDB_SettlementService_LastLog_IsSkip]  DEFAULT (0) FOR [IsSkip]
-GO
+
 
 

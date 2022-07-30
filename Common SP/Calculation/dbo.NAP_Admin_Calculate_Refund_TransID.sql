@@ -135,6 +135,7 @@ BEGIN
 					,Status AS '@s' 
 					,StatusID AS '@sid' 
 					,ruben AS '@r' 
+					,RepUpdateTime AS '@rut'
 					,bef_winlost AS '@bef_w' 
 					,bef_statusid AS '@bef_sid' 
 					
