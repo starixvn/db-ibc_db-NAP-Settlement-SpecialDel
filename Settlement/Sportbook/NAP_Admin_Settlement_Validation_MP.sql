@@ -26,31 +26,25 @@ SET NOCOUNT ON
 
 			DECLARE @NotAllowCalculating VARCHAR(200)
 			,@HaveWaitingTicket VARCHAR(200)
-			,@matchcode nvarchar(50)
 
 			,@MovingMatchIds VARCHAR(MAX) 
 			,@InvalidMatchIds VARCHAR(MAX) = ''
 			,@HoldSettingMatchIds VARCHAR(200) = ''
-			,@ParentIds VARCHAR(MAX) = ''
 								 
 		Create table #Match (matchid INT
 							  ,matchcode NVARCHAR(50)
 							  ,sporttype SMALLINT
 							  ,SettlementStatus	TINYINT
-							  ,ParentId INT )
+							 )
 
-		INSERT INTO #Match ( matchid, matchcode, sporttype, SettlementStatus, ParentId)
+		INSERT INTO #Match ( matchid, matchcode, sporttype, SettlementStatus )
 		SELECT matchid
 			,matchcode
 			,sporttype
 			,ISNULL(SettlementStatus,0) SettlementStatus
-			,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND m.ParentId IS NOT NULL AND m.sporttype = 50 THEN m.ParentId ELSE m.MatchId END ParentId
 		FROM DBPRO.bodb02.dbo.Match m WITH (NOLOCK)
 			INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , ',')) tm
 				ON m.matchid = tm.value		
-
-		SELECT @ParentIds =  COALESCE(@ParentIds + ',' + CAST(m.ParentId AS varchar),  CAST(ParentId AS varchar)) from #Match m 	
-		SELECT @ParentIds = STUFF(@ParentIds, 1, 1, '')
 
 		SELECT @HoldSettingMatchIds = COALESCE(@HoldSettingMatchIds + ',' + m.matchcode, m.matchcode)
 		FROM	#Match m

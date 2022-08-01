@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="Dot_Member" viewers="vnteam" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar_MP] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar_MP] 
 	@AdminId			INT
 	,@MatchId			INT
 	,@Action			VARCHAR(10)		= 'CAL'

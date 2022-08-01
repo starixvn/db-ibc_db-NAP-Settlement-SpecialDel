@@ -152,7 +152,7 @@ BEGIN
 			,inserted.ruben 
 			,deleted.winlost
 			,deleted.statusid
-	INTO @transInfo (transId 
+	INTO @tmpTransInfo (transId 
 			,modds, statuswinlost, winlostdate 
 			,WinLost,aWinLost,mWinLost,sWinLost 
 			,PlayerComm, Comm,aComm,sComm 
@@ -189,8 +189,8 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)		
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
+		VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @transInfo)		
 	END
 END
 GO
