@@ -14,6 +14,7 @@ AS
 		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
 		- 20200928@Kathy: Implement New Bettype 228 Time Machine Over/Under [Redmine:#142001]
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
     Param's Explanation:
 		@Results
@@ -29,11 +30,15 @@ BEGIN
 	
 	DECLARE @isExistMarkedTicket	BIT
 			,@xml					XML
+			,@IsCentral				BIT
 		
 	DECLARE @tmpBettype TABLE (bettype SMALLINT, Position TINYINT)
 
 	SET @isExistMarkedTicket = 0
 	SET @xml = CONVERT(XML, @Results)
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	INSERT INTO @tmpBettype(bettype, Position)
 	SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
@@ -64,6 +69,7 @@ BEGIN
 									ELSE 0
 								END
 						END
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		)
 	BEGIN
 		SET @isExistMarkedTicket = 1
