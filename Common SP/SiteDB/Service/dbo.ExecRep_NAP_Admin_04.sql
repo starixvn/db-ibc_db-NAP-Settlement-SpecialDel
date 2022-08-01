@@ -74,7 +74,6 @@ BEGIN
 									WHEN t.statuswinlost = '' THEN NULL
 									ELSE t.statuswinlost
 								END
-				--,statuswinlost = CASE WHEN t.statuswinlost IS NULL THEN b.statuswinlost ELSE t.statuswinlost END
 				,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
 				,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
 				,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			

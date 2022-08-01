@@ -47,7 +47,7 @@ BEGIN
     DECLARE @starttime                          DATETIME
 			,@ActionID                          INT
             ,@avaiableProcess					BIT
-			,@xmlResourceResult					XML
+			--,@xmlResourceResult					XML
 			,@Sporttype							SMALLINT
 			,@handle							INT
 			,@DummySDTResourceIds				VARCHAR(MAX) = ''
@@ -63,6 +63,7 @@ BEGIN
 			,@IsHTDone							BIT
 			
 			,@ResourceResult_Corner_Result		VARCHAR(MAX) = NULL
+			,@ResourceResult_Main_Result		VARCHAR(MAX) = NULL
 			,@refundCommand						VARCHAR(100)
 			,@refundCommand_1s					VARCHAR(100)
 			,@IsSettleAbandonedMatchIBC			BIT
@@ -139,7 +140,7 @@ BEGIN
 			,@MinThreadHold = 0
 			,@BatchNo = 0
 			,@TotalTicket = 0
-			,@xmlResourceResult = CAST(@ResourceResult AS XML)
+			--,@xmlResourceResult = CAST(@ResourceResult AS XML)
 			
 			,@messageBody = ''
 			,@SettlementProcessingId = 0
@@ -259,7 +260,30 @@ BEGIN
 	END 
    
    BEGIN TRY
-		SET @xmlResourceResult = CAST(@ResourceResult AS XML)
+		--SET @xmlResourceResult = CAST(@ResourceResult AS XML)
+
+		;WITH cteMainResource
+		AS
+		(
+			SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
+					,CAST( @hth AS VARCHAR(50)) AS HomeValue
+					,CAST( @hta AS VARCHAR(50)) AS AwayValue
+			WHERE	@action IN ('REFUND', 'REFUND-HT')
+			UNION ALL
+			SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
+					,CAST( @fth AS VARCHAR(50)) AS HomeValue
+					,CAST( @fta AS VARCHAR(50)) AS AwayValue
+			WHERE	@action IN ('REFUND', 'REFUND-FT')
+			
+		)
+		SELECT	@ResourceResult_Main_Result = CAST((SELECT	ResourceID AS '@Id'
+												,HomeValue AS '@HomeValue'
+												,AwayValue AS '@AwayValue'
+										FROM	cteMainResource
+										FOR XML PATH('Resource'), ROOT ('Results'), TYPE
+								) AS VARCHAR(MAX))
+
+		SET @ResourceResult_Main_Result = @ResourceResult_Main_Result + @ResourceResult
 
 		INSERT INTO @tmpAllBettypes(ResourceId, RefResourceId, SDTResourceId, BetType, SDTpfId, IsSDTParlay, OddsType)
 		SELECT	sp.ResourceID, sp.RefResourceId, sp.SDTResourceId, sp.BetType
@@ -529,6 +553,7 @@ BEGIN
 			EXEC dbo.NAP_Set_DummyResourceResult
 				@MatchID = @MatchID
 				,@sportType = @sportType
+				,@WebResourceResult = @ResourceResult_Main_Result
 				,@IsDetermined = 1
 				,@DummyResourceIds = @DummySDTResourceIds
 				,@DummyResourceResults = @DummySDTResourceResults OUTPUT
@@ -853,6 +878,7 @@ BEGIN
 				EXEC dbo.NAP_Set_DummyResourceResult
 					@MatchID = @MatchID
 					,@sportType = @sportType
+					,@WebResourceResult = @ResourceResult_Main_Result
 					,@IsDetermined = 1
 					,@DummyResourceIds = @DummySDTResourceIds
 					,@DummyResourceResults = @DummySDTResourceResults OUTPUT

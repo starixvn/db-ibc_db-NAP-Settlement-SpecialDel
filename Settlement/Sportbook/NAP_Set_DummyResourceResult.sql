@@ -85,7 +85,8 @@ BEGIN
 			,@ResourceId VARCHAR(20) 
 			,@DeterminedType TINYINT
 			,@MaxValue INT
-			,@xml@WebResourceResult XML
+			,@ResultTable TINYINT
+			,@xmlWebResourceResult XML
 
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
@@ -96,7 +97,7 @@ BEGIN
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
 	WHERE	Sporttype = @Sporttype
 
-	SET @xml@WebResourceResult = CAST(@WebResourceResult AS XML)
+	SET @xmlWebResourceResult = CAST(@WebResourceResult AS XML)
 	SET @CorrectQuaterOddEven = ''
 	
 	INSERT INTO @tmpDummyResourceIds(ResourceId)
@@ -115,7 +116,7 @@ BEGIN
 						,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
 						,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
 						,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
-				FROM    @xml@WebResourceResult.nodes('/Results/Resource') AS T(C)
+				FROM    @xmlWebResourceResult.nodes('/Results/Resource') AS T(C)
 			)
 			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
 			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
@@ -130,7 +131,7 @@ BEGIN
 						,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
 						,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
 						,4 AS SettlementStatusId
-				FROM    @xml@WebResourceResult.nodes('/Results/Resource') AS T(C)
+				FROM    @xmlWebResourceResult.nodes('/Results/Resource') AS T(C)
 			)
 			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
 			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
