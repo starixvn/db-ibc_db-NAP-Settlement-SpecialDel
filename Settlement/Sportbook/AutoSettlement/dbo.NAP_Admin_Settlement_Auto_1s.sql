@@ -373,11 +373,19 @@ BEGIN
 		SELECT 
 			@homeRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3820[12345]' THEN ResourceID END),1),0), 
 			@awayRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1),0) 
-		FROM DBPRO.BODB02.dbo.ResultDetail WITH(NOLOCK)
-		WHERE MatchID = @MatchID 
-				AND ResourceID LIKE '38[12]0[12345]'
-				AND SettlementStatusID = 4
-				AND ResultStatusID = 5
+		FROM 
+		(
+			SELECT t.ResourceID
+			FROM @tmpSelectedRID t
+			UNION 
+			SELECT	r.ResourceId
+			FROM	DBPRO.BODB02.dbo.ResultDetail r WITH(NOLOCK)
+			WHERE	MatchID = @MatchID 
+					AND ResourceID LIKE '38[12]0[12345]'
+					AND SettlementStatusID = 4
+					AND ResultStatusID = 5
+					AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID t WHERE t.ResourceID = r.ResourceId)
+		)t
 
 		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked, srecommend, bettype)
 	  	SELECT	b.transid, m.modds, sr.oddstype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked, b.srecommend, b.bettype

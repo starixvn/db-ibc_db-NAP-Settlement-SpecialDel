@@ -306,6 +306,7 @@ BEGIN
 			EXEC dbo.NAP_Set_DummyResourceResult
 				@MatchID = @MatchID
 				,@sportType = @sportType
+				,@WebResourceResult = @SelectedResources
 				,@DummyResourceIds = @DummyResourceIds
 				,@DummyResourceResults = @DummyResourceResults OUTPUT
 
@@ -319,15 +320,35 @@ BEGIN
 			EXEC sp_xml_removedocument @handle
 		END
 
+								SELECT ResourceID, HomeValue, AwayValue
+								FROM @tmpResourcesWeb
+								UNION
+								SELECT	ResourceID, HomeValue, AwayValue
+								FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(ROWLOCK)
+								WHERE	MatchID = @MatchID 
+										AND ResourceID IN ('0101','0102','0103','0104','0105')
+										AND SettlementStatusID = 4
+										AND ResultStatusID IN ( 2, 5 )
+										AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpResourcesWeb t WHERE t.ResourceID = r.ResourceID )
+							) t
 		-- Tennis
 		IF (@sportType = 5) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN
 			SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
 					@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
-			FROM DBPRO.bodb02.dbo.ResultDetail WITH(ROWLOCK)
-			WHERE MatchID = @MatchID AND ResourceID IN ('01','02','03','04','05')
-					AND SettlementStatusID = 4
-					AND ResultStatusID = 5
+			FROM 
+				(
+					SELECT ResourceID, HomeValue, AwayValue
+					FROM @tmpResourcesWeb
+					UNION
+					SELECT	ResourceID, HomeValue, AwayValue
+					FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(ROWLOCK)
+					WHERE	MatchID = @MatchID 
+							AND ResourceID IN ('01','02','03','04','05')
+							AND SettlementStatusID = 4
+							AND ResultStatusID = 5
+							AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpResourcesWeb t WHERE t.ResourceID = r.ResourceID )
+				) t
 		END
 		
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType, RefResourceId)

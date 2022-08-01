@@ -84,7 +84,7 @@ BEGIN
 			,@ParamsXML			XML
 			,@Params			VARCHAR(MAX)
 			,@IsCentral	BIT
-			,@WebResourceResult XML
+			,@WebResourceResult VARCHAR(MAX)
 			
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -195,14 +195,14 @@ BEGIN
 	SELECT	ResourceID, HomeValue, AwayValue
 	FROM	cteResource
 
-	SELECT	@WebResourceResult = (SELECT	ResourceID AS '@ResourceId'
+	SET	@WebResourceResult = CAST((SELECT	ResourceID AS '@Id'
 											,HomeValue AS '@HomeValue'
 											,AwayValue AS '@AwayValue'
 											,4 AS '@SettlementStatusId'
 											,5 AS '@ResultStatusId'
 									FROM	@tmpResources
 									FOR XML PATH('Resource'), ROOT ('Results'), TYPE
-							)
+							) AS VARCHAR(MAX))
 
 	INSERT INTO @tmpAllBettypes(Bettype)
 	SELECT bettype

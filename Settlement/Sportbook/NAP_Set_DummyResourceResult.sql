@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_DummyResourceResult]
 	,@Sporttype SMALLINT
 	,@IsDetermined BIT = 0
 	,@Action VARCHAR(20) = 'CAL'
-	,@WebResourceResult XML = NULL
+	,@WebResourceResult VARCHAR(MAX) = NULL
 	,@DummyResourceIds VARCHAR(MAX)
 	,@DummyResourceResults VARCHAR(MAX) = '' OUTPUT
 
@@ -85,12 +85,18 @@ BEGIN
 			,@ResourceId VARCHAR(20) 
 			,@DeterminedType TINYINT
 			,@MaxValue INT
+			,@xml@WebResourceResult XML
 
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 
 	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
 
+	SELECT	@ResultTable = ResultTable
+	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
+	WHERE	Sporttype = @Sporttype
+
+	SET @xml@WebResourceResult = CAST(@WebResourceResult AS XML)
 	SET @CorrectQuaterOddEven = ''
 	
 	INSERT INTO @tmpDummyResourceIds(ResourceId)
@@ -98,28 +104,59 @@ BEGIN
 	FROM	STRING_SPLIT(@DummyResourceIds, ',')
 	WHERE	[value] <> ''
 
-	IF @Sporttype  IN ( 1, 2) AND @WebResourceResult IS NOT NULL
+	IF @WebResourceResult IS NOT NULL
 	BEGIN
-		;WITH cteResourceResult
-		AS
-		(
-			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
-					,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
-					,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
-					,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
-			FROM    @WebResourceResult.nodes('/Results/Resource') AS T(C)
-		)
-		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-		SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
-		FROM	cteResourceResult
+		IF @Sporttype = 1
+		BEGIN
+			;WITH cteResourceResult
+			AS
+			(
+				SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+						,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+						,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+						,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
+				FROM    @xml@WebResourceResult.nodes('/Results/Resource') AS T(C)
+			)
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+			FROM	cteResourceResult
+		END
+		ELSE
+		BEGIN
+			;WITH cteResourceSelected
+			AS
+			(
+				SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+						,T.C.value('@Home', 'VARCHAR(50)') AS HomeValue
+						,T.C.value('@Away', 'VARCHAR(50)') AS AwayValue
+						,4 AS SettlementStatusId
+				FROM    @xml@WebResourceResult.nodes('/Results/Resource') AS T(C)
+			)
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+			FROM	cteResourceSelected
+		END
+		
+		IF @ResultTable = 1
+		BEGIN
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+			FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+			WHERE	MatchId = @MatchId
+					AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
+		END
+		ELSE IF @ResultTable = 2
+		BEGIN
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+			SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID
+			FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+			WHERE	MatchId = @MatchId
+				AND ResultStatusID  IN ( 2, 5 )	
+		END
 
-		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-		SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
-		FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
-		WHERE	MatchId = @MatchId
-				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
 	END
-
+	
 	IF @Sporttype = 2
 	BEGIN
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
@@ -1491,13 +1528,6 @@ BEGIN
 
 	ELSE IF @Sporttype IN ( 6, 9, 45 )
 	BEGIN
-		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-		SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID
-		FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
-			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-		WHERE	MatchId = @MatchId
-			AND ResultStatusID  IN ( 2, 5 )
-		
 		--Highest Scoring Set Total
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '3902')
 		BEGIN
