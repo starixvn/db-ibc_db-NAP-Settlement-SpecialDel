@@ -91,6 +91,7 @@ BEGIN
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 		
 	DECLARE @tblBettypes TABLE (bettype SMALLINT,GroupName VARCHAR(50), GroupId SMALLINT)
@@ -214,14 +215,17 @@ BEGIN
 				,statuswinlost = NULL
 				,RepUpdateTime = CASE WHEN b.statusid = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		OUTPUT	inserted.transid
-				,inserted.modds, inserted.odds, inserted.oddsspread, inserted.statuswinlost
+				,inserted.modds, inserted.odds, inserted.oddsspread, NULL AS statuswinlost
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID,inserted.ruben		
+				,inserted.Status,inserted.StatusID,inserted.ruben	
+				,deleted.winlost
+				,deleted.statusid
 			INTO @tmpTransInfo (
 				transId
 				,modds, odds, oddsspread, statuswinlost,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost  ,bef_statusid 
 			)
 		FROM	dbo.bettrans b WITH (ROWLOCK)
 			INNER JOIN @tmpBatch c
@@ -270,7 +274,7 @@ BEGIN
 						,modds AS '@m'	
 						,odds AS '@o'
 						,oddsspread AS '@os'
-						,statuswinlost AS '@statuswl'
+						,'' AS '@statuswl'
 						,WinLost AS '@w' 
 						,aWinLost AS '@aw' 
 						,mWinLost AS '@mw' 
@@ -287,7 +291,8 @@ BEGIN
 			)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			VALUES ('Settlement', 'UndoOtherSport', 'bettrans', @MatchId, @transInfo)		
+			SELECT 'Settlement', 'Undo', 'bettrans', @MatchId, @transInfo
+			WHERE @transInfo IS NOT NULL
 		END
 		SET @BatchNo = @BatchNo - 1
 
