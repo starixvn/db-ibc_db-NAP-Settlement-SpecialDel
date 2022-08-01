@@ -12,6 +12,9 @@ AS
 	Task: Scale Out BetTrans [Redmine:#175251]
 	DB: DBPRO/bodb02
 
+	Revisions:
+		- 20220719@Louisa: Move SP from DBTrans to DBPRO [Redmine:#175251]
+
 	Param's Explanation:
 		Old SP is located in DBTXN/bodb02
 		
