@@ -23,6 +23,8 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
+			,@matchdate		SMALLDATETIME
+			,@strTransIds	VARCHAR(MAX)
 	BEGIN TRY
 		/* Sync for some tables when void bettrans14: bettrans14, Transfer, TicketVoiding_RoutineTasks */
 		IF @TableName IN ('Transfer', 'TicketVoiding_RoutineTasks') AND @Action = 'I'

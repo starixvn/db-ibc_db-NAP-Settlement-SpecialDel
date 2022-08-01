@@ -68,8 +68,13 @@ BEGIN
 				,modds = CASE WHEN t.modds IS NULL THEN b.modds ELSE t.modds END
 				,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
 				,oddsid = CASE WHEN t.oddsid IS NULL THEN b.oddsid ELSE t.oddsid END
-				,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE t.oddsspread END  				
-				,statuswinlost = CASE WHEN t.statuswinlost IS NULL THEN b.statuswinlost ELSE t.statuswinlost END
+				,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE t.oddsspread END  	
+				,statuswinlost = CASE 
+									WHEN t.statuswinlost IS NULL THEN b.statuswinlost
+									WHEN t.statuswinlost = '' THEN NULL
+									ELSE t.statuswinlost
+								END
+				--,statuswinlost = CASE WHEN t.statuswinlost IS NULL THEN b.statuswinlost ELSE t.statuswinlost END
 				,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
 				,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
 				,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
@@ -125,7 +130,6 @@ BEGIN
 		FROM	@tmptransid t
 			INNER JOIN dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
 				ON	bm.transid = t.transid
-					AND bm.refno = t.refno
 		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 	END
 	ELSE IF @TableName = 'BetParlayDetail'

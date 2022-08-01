@@ -382,8 +382,16 @@ BEGIN
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	BEGIN
+		DECLARE @TransInfo XML
+
+		SET @TransInfo = (
+			SELECT	 @matchdate as '@wld'
+					,@strXML as '@strTransId'
+			FOR XML PATH ('r'), ROOT ('root'), TYPE
+		)
+
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @strXML)		
+		VALUES ('Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @TransInfo)	
 			
 	END
 END -- end SP

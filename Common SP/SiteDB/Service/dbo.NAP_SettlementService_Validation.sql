@@ -42,6 +42,19 @@ BEGIN
 						WHERE b.transid = t.TransId
 				)
 	END
+	ELSE IF @TableName = 'bettransm'
+	BEGIN
+		SELECT @cnt_central = COUNT(1)
+		FROM	@tmpTransId t
+		WHERE	EXISTS (SELECT TOP 1 1 
+						FROM dbo.bettransm b WITH(NOLOCK) 
+						WHERE b.transid = t.TransId
+				)
+	END
+	ELSE
+	BEGIN
+		SET @IsPassed = 1
+	END
 
 	IF @cnt_sitedb = @cnt_central
 		SET @IsPassed = 1
