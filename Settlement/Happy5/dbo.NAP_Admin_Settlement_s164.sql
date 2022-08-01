@@ -167,7 +167,7 @@ BEGIN
 				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.Result1, sr.Result2, NULL, NULL, NULL, NULL) m
 			WHERE b.matchid = @MatchId
 				AND b.statusID NOT IN (101,102)
-				AND b.iteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
