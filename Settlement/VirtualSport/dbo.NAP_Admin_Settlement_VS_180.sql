@@ -19,7 +19,8 @@ AS
 		- 20161201@Kathy: Company win limit [Redmine:#66599]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
-	
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:
 		@Action - CAL
 				- REFUND
@@ -38,6 +39,10 @@ BEGIN
 			,@procName		SYSNAME
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT 
+			,@IsCentral		BIT
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	SET @Start = CURRENT_TIMESTAMP
 	
@@ -94,6 +99,7 @@ BEGIN
 	IF (@@Error = 0)
 	BEGIN
 		BEGIN TRY
+			IF @IsCentral =1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
 				@UserID		= @AdminId
 				,@Matchid	= @matchid
@@ -125,6 +131,7 @@ BEGIN
 	FROM	dbo.bettrans WITH(NOLOCK)
 	WHERE	matchid = @matchid
 			AND bettype IN (1201, 1203, 1204, 1205, 1206, 1224, 1220, 1235, 1236)
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 	
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
@@ -152,6 +159,7 @@ BEGIN
 	FROM	dbo.bettrans WITH (ROWLOCK)
 	WHERE	matchid = @matchid 
 			AND bettype IN (1201, 1203, 1204, 1205, 1206, 1224, 1220, 1235, 1236)
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 	GROUP BY custid, winlostdate, bettype
 
 	SET @TotalAccount = @@ROWCOUNT
@@ -160,34 +168,48 @@ BEGIN
 	
 	IF @Action = 'CAL'
 	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-			@Command	= 'NAP_Admin_Settlement_VS_180-CAL'
-			,@MatchID	= @matchid
-			,@FTHome	= @fth
-			,@FTAway	= @fta
-			,@creator	= @AdminId
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+				@Command	= 'NAP_Admin_Settlement_VS_180-CAL'
+				,@MatchID	= @matchid
+				,@FTHome	= @fth
+				,@FTAway	= @fta
+				,@creator	= @AdminId
+		END
 			
 		EXEC dbo.NAP_Admin_Settlement_3_VS 
 			@Creator	= @AdminId
 			,@MatchId	= @matchid
 			,@Mode		= @Action
-			
-		EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-			@MatchId	= @MatchId
-			,@Command	= 'C' -- completed
+		
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+				@MatchId	= @MatchId
+				,@Command	= 'C' -- completed
+		END
 	END
 	ELSE IF @Action = 'REFUND'
 	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-			@Command	= 'NAP_Admin_Settlement_VS_180-REFUND'
-			,@MatchID	= @matchid
-			,@creator	= @AdminId
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+				@Command	= 'NAP_Admin_Settlement_VS_180-REFUND'
+				,@MatchID	= @matchid
+				,@creator	= @AdminId
+		END
 			
-		EXEC dbo.NAP_Admin_Calculate_VS_180_Refund @matchid = @matchid
+		EXEC dbo.NAP_Admin_Calculate_VS_180_Refund 
+			@matchid = @matchid
+			,@IsCentral = @IsCentral
 		
-		EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-			@MatchId	= @MatchId
-			,@Command	= 'F' -- refund
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
+				@MatchId	= @MatchId
+				,@Command	= 'F' -- refund
+		END
 			
 	END
 			
@@ -214,6 +236,7 @@ BEGIN
 	FROM	dbo.bettrans WITH (ROWLOCK)
 	WHERE	matchid = @matchid
 			AND bettype IN (1201, 1203, 1204, 1205, 1206, 1224, 1220, 1235, 1236)
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 	GROUP BY custid, winlostdate, bettype
 	
 	-------------------------------------------------------------
@@ -334,6 +357,7 @@ BEGIN
 					+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 
 	BEGIN TRY
+		IF @IsCentral = 1
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 			@UserID				= @AdminId
 			,@Matchid			= @matchid
@@ -372,6 +396,7 @@ BEGIN
 	IF (@@Error = 0)
 	BEGIN
 		BEGIN TRY
+			IF @IsCentral = 1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
 				@UserID		= @AdminId
 				,@Matchid	= @matchid
@@ -394,6 +419,7 @@ BEGIN
 	ELSE
 	BEGIN
 		BEGIN TRY
+			IF @IsCentral = 1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
 				@UserID		= @AdminId
 				,@Matchid	= @matchid

@@ -57,15 +57,25 @@ BEGIN
 			,@procName				NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsSystemSettlement	BIT
+			,@CalType				TINYINT
 			,@HomeValue				VARCHAR(50)
 			,@AwayValue				VARCHAR(50)
 			,@LeagueGroupID			SMALLINT
 			,@KeyId					INT
 			,@xmlResourceResult		XML
+			,@IsCentral				BIT = 0
 	
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 
-	SELECT  @HomeValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeHome 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
+
+	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
+								WHEN @Action = 'CAL-FT' THEN 2
+								WHEN @Action = 'CAL' THEN 2
+								ELSE 0 
+							END,
+			@HomeValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeHome 
 								WHEN @Action = 'CAL-FT' THEN @FullTimeHome
 								WHEN @Action = 'CAL' THEN @FullTimeHome
 								ELSE 0 
@@ -114,7 +124,7 @@ BEGIN
 							END
 							
 	-- add new status "Under Settlement" for a match
-	IF @IsSystemSettlement IS NOT NULL
+	IF @IsCentral = 1 AND @IsSystemSettlement IS NOT NULL
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
 			@Matchid		= @Matchid
@@ -123,7 +133,24 @@ BEGIN
 			,@AdminId		= @AdminId
 	END
 
-	IF @sporttype = 1 AND @Action = 'CAL-FT' AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeHome,0) <> ISNULL(@FullTimeAway,0)
+	-- insert waiting status into AutoPayoutResult table - Redmine:#106901
+	IF @IsCentral = 1
+	BEGIN
+		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
+			  @MatchId 		= @matchid
+			, @SourceId 	= @SourceId
+			, @TypeId 		= @CalType
+			, @HomeValue 	= @HomeValue
+			, @AwayValue 	= @AwayValue
+			, @StatusId 	= 1 -- waiting
+			, @ErrCode 		= @ErrCode OUTPUT
+			, @ErrMsg		= @ErrMsg OUTPUT
+		
+		IF @ErrCode <> 0
+		RETURN
+	END
+
+	IF @IsCentral = 1 AND @sporttype = 1 AND @Action = 'CAL-FT' AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeHome,0) <> ISNULL(@FullTimeAway,0)
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns  @ParentId = @MatchId
 	END

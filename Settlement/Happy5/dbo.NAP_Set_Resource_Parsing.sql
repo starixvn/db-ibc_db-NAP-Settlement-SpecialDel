@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.[NAP_Set_Resource_Parsing]
 	@Sporttype				TINYINT
 	,@MatchID				INT
@@ -8,13 +8,12 @@ ALTER PROCEDURE dbo.[NAP_Set_Resource_Parsing]
 	
 AS
 /*
-	Created by: Vicky.phan
-	Date: 20181015
-	Task: Happy 5 - Settlement 
-	DB: DBTXN/BODB02
-	
-	Revisions:
-		- 20181016@Vicky: Incorporate Happy 5  [Redmine:#102844]
+	Created by: 20220719@Louisa
+	Task: Scale Out BetTrans [Redmine:#175251]
+	DB: DBPRO/bodb02
+
+	Param's Explanation:
+		Old SP is located in DBTXN/bodb02
 		
 */
 BEGIN
@@ -28,7 +27,7 @@ BEGIN
 		
 		INSERT INTO @tmpResultDetail(ResourceID, Result1, isSourceFromDB)
 		SELECT  Seq, Number, 1
-		FROM	DBPRO.bodb02.dbo.BingoBall b WITH (NOLOCK)
+		FROM	dbo.BingoBall b WITH (NOLOCK)
 		WHERE matchid = @matchid
 	END
 	

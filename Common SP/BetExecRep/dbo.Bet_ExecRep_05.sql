@@ -48,6 +48,10 @@ BEGIN
 	
 	DECLARE @_xml XML
 			,@transInfo	XML
+			,@IsCentral	BIT = 0
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY
@@ -115,7 +119,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -202,7 +206,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'	
@@ -312,8 +316,9 @@ BEGIN
 			WHERE matchid = @matchid 
 				AND statusID IN (0, 1) -- only refund all running/waiting's tickets
 				AND bettype BETWEEN 81 AND 120
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsCentral = 0
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -350,9 +355,41 @@ BEGIN
 				,[Status] = N'Refund'
 				,StatusID = 103
 				,ruben = 1
+			OUTPUT	inserted.transid
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben		
+			INTO @tmpTransInfo ( transid
+				,WinLost,aWinLost,mWinLost,sWinLost
+				,PlayerComm,Comm,aComm,sComm
+				,Status,StatusID,ruben
+				)
 			WHERE matchid = @matchid 
 				AND statusID NOT IN (101,102) -- refund all, except void/reject
 				AND bettype BETWEEN 81 AND 120
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+
+			IF @IsCentral = 0
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'				
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)	
+			END
 		END		
 	END
 	ELSE IF @updatetype = 5 --CAL/REFUND/VOID VS BetRadar parlay
@@ -387,7 +424,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -425,7 +462,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -499,7 +536,7 @@ BEGIN
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 		
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsCentral = 0
 		BEGIN
 			SET @transInfo = (
 				SELECT	 transid AS '@t'

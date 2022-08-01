@@ -11,7 +11,8 @@ AS
 		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
-
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
 					
@@ -22,6 +23,19 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
+			,@transInfo	XML
+			,@IsCentral	BIT = 0
+			
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT, winlostdate SMALLDATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+		)
+		
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
 	SET @ServerName = @@SERVERNAME
 
@@ -129,13 +143,55 @@ BEGIN
 								WHEN s.statusid IN (103) THEN 0 --REFUND
 								ELSE b.statuswinlost 
 							END
+	OUTPUT inserted.transid		
+			,inserted.modds ,inserted.statuswinlost	,inserted.winlostdate 
+			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm		
+			,inserted.status 			
+			,inserted.statusID 	
+			,inserted.ruben 
+			,deleted.winlost
+			,deleted.statusid
+	INTO @transInfo (transId 
+			,modds, statuswinlost, winlostdate 
+			,WinLost,aWinLost,mWinLost,sWinLost 
+			,PlayerComm, Comm,aComm,sComm 
+			,Status ,StatusID ,ruben 
+			,bef_winlost  ,bef_statusid )
 	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @sourceTicket s 
 		ON b.matchid 		= s.matchid
 			AND b.custid 	= s.custid
 			AND b.bettype 	= s.bettype
 			AND b.transid 	= s.transid
-		
+	
+	IF @IsCentral = 0
+	BEGIN
+		SET @transInfo = (
+			SELECT	transId AS '@t'	
+					,modds AS '@m'
+					,statuswinlost AS '@statuswl' 
+					,winlostdate AS '@wld'
+					,WinLost AS '@w' 
+					,aWinLost AS '@aw' 
+					,mWinLost AS '@mw' 
+					,sWinLost AS '@sw' 
+					,PlayerComm AS '@pc' 
+					,Comm AS '@c' 
+					,aComm AS '@ac' 
+					,sComm AS '@sc' 
+					,Status AS '@s' 
+					,StatusID AS '@sid' 
+					,ruben AS '@r' 
+					,bef_winlost AS '@bef_w' 
+					,bef_statusid AS '@bef_sid' 				
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)		
+	END
 END
 GO
 

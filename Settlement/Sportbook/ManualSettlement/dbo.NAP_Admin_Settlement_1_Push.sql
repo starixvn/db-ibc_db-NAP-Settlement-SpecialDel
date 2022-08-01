@@ -92,8 +92,12 @@ BEGIN
 			,@IsMergedParlay		BIT = 0
 			,@xmlResourceResult		XML
 			,@xmlData				VARCHAR(MAX)
+			,@IsCentral				BIT = 0
 
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+		SET @IsCentral = 1
 
     SELECT	@matchcode = m.matchcode
 			,@sporttype   = m.sporttype
@@ -144,7 +148,7 @@ BEGIN
 									END
 	
 	-- add new status "Under Settlement" for a match
-	IF @IsSystemSettlement IS NOT NULL 
+	IF @IsCentral = 1 AND  @IsSystemSettlement IS NOT NULL 
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd
 			@Matchid		= @Matchid
@@ -154,7 +158,7 @@ BEGIN
 			,@IP			= @IP
 	END
 
-	IF ISNULL(@ChildMatchIds ,'') <> '' AND @Action IN ('CAL', 'CAL-FT') AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeAway,0) <> ISNULL(@FullTimeHome,0)
+	IF @IsCentral = 1 AND ISNULL(@ChildMatchIds ,'') <> '' AND @Action IN ('CAL', 'CAL-FT') AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeAway,0) <> ISNULL(@FullTimeHome,0)
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns
 			 @parentId = @Matchid

@@ -14,6 +14,7 @@ AS
 		- 20201216@Louisa: Checking ET & PEN matches [Redmine:#145597]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220512@Louisa: Auto refund Badminton [Redmine:#171676]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 	Param's explaination: 
 		- @TypeId:  1 - Auto refund single
@@ -32,6 +33,10 @@ BEGIN
 			, @queryInfo			NVARCHAR(MAX) = ''
 			, @execSql				NVARCHAR(MAX) =''
 			, @sporttype			SMALLINT
+			, @IsCentral			BIT = 0
+
+		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
+			SET @IsCentral = 1
 		
 		SELECT  @ParentId = m.ParentId
 				,@sporttype = m.sporttype
@@ -90,7 +95,12 @@ BEGIN
 					RETURN
 				END
 
-				IF EXISTS (SELECT TOP 1 1  FROM  dbo.bettrans bt WITH(NOLOCK) WHERE bt.matchid = @MatchId AND bt.statusID IN (111,112,113,103) AND ISNULL(bt.betdaqid,0) <> -2	)
+				IF EXISTS (SELECT TOP 1 1  FROM  dbo.bettrans bt WITH(NOLOCK) 
+							WHERE bt.matchid = @MatchId 
+								AND bt.statusID IN (111,112,113,103) 
+								AND ISNULL(bt.betdaqid,0) <> -2
+								AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
+							)
 				BEGIN
 					SELECT @ErrCode = 	1001070   ,@ErrMsg  = 	'Auto refund child match failed: settled tickets exist.'
 					RETURN
@@ -137,6 +147,7 @@ BEGIN
 							INNER JOIN #tmpResultDetail tmp ON b.Bettype = tmp.bettype AND (b.betcheck = 0 OR b.betcheck = tmp.betid)
 						WHERE b.matchid = @matchid
 							AND statusid  IN ( 111, 112, 113, 103 )
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						) b
 			END
 

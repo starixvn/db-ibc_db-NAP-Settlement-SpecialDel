@@ -2,6 +2,7 @@
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 (
 	 @matchid		INT = 0
+	,@matchids		VARCHAR(500) = ''
 	,@Action		VARCHAR(10)
 	,@Mode			VARCHAR(10)
 	,@IsAuto		BIT = 0
@@ -20,6 +21,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 
 	,@ErrCode		INT		= 0     OUTPUT
 	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
+	,@MatchIdsOutPut VARCHAR(500) = '' OUTPUT --for settle parlay - multiple match 
 )
 AS
 /*
@@ -44,6 +46,14 @@ SET NOCOUNT ON
 	--calculate parlay other sports, single or multiple matches
 	IF @Action = 'CAL' AND @Mode = 'MP'
 	BEGIN
+		EXEC NAP_Admin_Settlement_Validation_MP
+			 @matchids		=  @matchids
+			,@Action		=  @Action
+			,@Mode			=  @Mode
+			,@ErrCode		=  @ErrCode OUTPUT
+			,@ErrMsg		  = @ErrMsg   OUTPUT
+			,@MatchIdsOutPut  = @MatchIdsOutPut OUTPUT
+
 		RETURN
 	END
 

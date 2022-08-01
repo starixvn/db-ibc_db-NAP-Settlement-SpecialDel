@@ -19,7 +19,8 @@ AS
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20210930@Kathy: Change BalanceType  [Redmine:#159714]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:	
 		@Action: CAL, REFUND
 */
@@ -40,6 +41,7 @@ BEGIN
 			,@recipients			VARCHAR(250)
 			,@hasNotify				BIT 
 			,@remark				VARCHAR(200)
+			,@IsCentral				BIT
 	
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY)	
 	DECLARE @BalanceWalletBefore 	TVP_BalanceWalletChange
@@ -56,6 +58,8 @@ BEGIN
 			
 	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 	
 	SELECT	@StartTime = GETDATE()
 			,@ActionId = CASE @Action 
@@ -110,18 +114,21 @@ BEGIN
 			RETURN
 		END		
 		
-		EXEC DBPRO.bodb02.dbo.NAP_Admin_Result3rd_Update 
-			@matchid = @matchid
-			,@Action = @Action
-			,@AdminId = @AdminId
-			,@IsAuto = @IsAuto
-			,@ResultId = @ResultId
-			,@GameResult = @GameResult
-	
+		IF @IsCentral =  1
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Admin_Result3rd_Update 
+				@matchid = @matchid
+				,@Action = @Action
+				,@AdminId = @AdminId
+				,@IsAuto = @IsAuto
+				,@ResultId = @ResultId
+				,@GameResult = @GameResult
+		END
+
 		--get transid
 		IF @Action LIKE 'CAL%'
 		BEGIN
-			IF ISNULL(@GameResult,'') = ''
+			IF ISNULL(@GameResult,'') = '' AND @IsCentral = 1
 			BEGIN
 				SELECT	@GameResult = GameResult
 				FROM	DBPRO.bodb02.dbo.ResultDetail3rd WITH(NOLOCK)
@@ -136,6 +143,7 @@ BEGIN
 			WHERE	b.matchid = @MatchId
 					AND b.bettype = @bettype
 					AND b.statusID NOT IN (101,102)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
@@ -146,11 +154,15 @@ BEGIN
 			WHERE	b.matchid = @MatchId
 					AND b.bettype = @bettype
 					AND	b.statusID NOT IN (103, 101, 102)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END 
 		
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match3rd_Update
-			@Action	= @Action
-			,@MatchID = @matchid
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match3rd_Update
+				@Action	= @Action
+				,@MatchID = @matchid
+		END
 			 
 		INSERT INTO #BalanceBefore(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT	custid
@@ -332,11 +344,14 @@ BEGIN
 						+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END
 						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@Remark = @Remark
-			,@IP = @IP
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+				,@Matchid = @matchid
+				,@ActionID = @ActionID
+				,@Remark = @Remark
+				,@IP = @IP
+		END
 	END TRY
 
 	BEGIN CATCH
@@ -354,7 +369,8 @@ BEGIN
 		--SEND notify
 		EXEC [dbo].[NAP_Admin_SendNotify_Bitcoin]
 			@matchid		= @matchid
-			,@notifyAction	= @ActionId
+			,@notifyAction	= @ActionId		
+			,@IsCentral		= @IsCentral
 			,@ErrCode 		= @ErrCode OUTPUT
 			,@ErrMsg  		= @ErrMsg   OUTPUT
 	END

@@ -62,6 +62,7 @@ SET NOCOUNT ON
 			,@IsCheckSettlementStatusEarly	BIT = 0
 			,@xmlResourceResult		XML
 			,@xmlData				VARCHAR(MAX)
+			,@IsFailed				BIT = 0
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
@@ -172,7 +173,7 @@ SET NOCOUNT ON
 	END
 	--/ END validation for Instant settle
 		
-	--Start: Validation for Auto Settle
+	--Start: Validation for Auto Payout
 	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%' AND @Mode <> 'FM'
 	BEGIN
 		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
@@ -185,27 +186,28 @@ SET NOCOUNT ON
 		END
 
 		--Auto payout soccer
+		--NAP_Admin_Settlement_1_AutoPayout_Push.
 		IF @SportType = 1 AND @Action LIKE 'CAL%' AND @LeagueGroupId <> 113
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1
 						FROM dbo.ResultDetail with(NOLOCK)
 						WHERE matchid = @matchid
-							AND 1 = CASE 
-										WHEN resourceId = '00' AND @Action IN ('CAL', 'CAL-FT') THEN 1
-										WHEN resourceId = '01' AND @Action  = 'CAL-HT' THEN 1
-										ELSE 0
+							AND 1 = CASE WHEN resourceId = '00' AND @Action IN ('CAL', 'CAL-FT') THEN 1
+										 WHEN resourceId = '01' AND @Action  = 'CAL-HT' THEN 1
+										 ELSE 0
 									END
 							AND resultStatusId = 5 -- completed (manual)
 						)
-			BEGIN
-				SELECT @ErrCode = 1001018
-					, @ErrMsg   = 'Auto payout is cancelled because the match has been calculated manually.'
-				RETURN
-			END
+			SET @IsFailed  = 1
 		END
 
 		--Auto Payout Table Tennis
 		IF @sporttype = 18 AND EXISTS (SELECT 1 FROM dbo.match_remark WITH (NOLOCK) WHERE calculate = 1 AND matchid = @MatchId)
+		BEGIN
+			SET @IsFailed = 1
+		END
+
+		IF @IsFailed = 1
 		BEGIN
 			SELECT @ErrCode = 1001018
 				, @ErrMsg   = 'Auto payout is cancelled because the match has been calculated manually.'

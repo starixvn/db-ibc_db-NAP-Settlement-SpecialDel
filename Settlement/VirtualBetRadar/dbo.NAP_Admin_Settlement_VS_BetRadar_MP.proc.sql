@@ -15,6 +15,7 @@ AS
 	Revisions:
 		- 20160606@Bobby: Initialize
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
  
@@ -35,8 +36,13 @@ BEGIN
 		, @start				DATETIME
 		, @stop					DATETIME
 		, @avaiableProcess		BIT
+		, @IsCentral			BIT  = 0
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 		
 	DECLARE @tempRefno			TABLE (refno BIGINT)
+	
 	
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
@@ -74,6 +80,7 @@ BEGIN
 						AND f.sportType = @sportType
 				)
 		AND chk.refno IS NULL
+		AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 		
 	IF (@@ROWCOUNT = 0) RETURN
 	
@@ -133,7 +140,7 @@ BEGIN
 	
 	----------------------------------------------------------------------------------------------------------------------------------------
 	BEGIN --BEGIN: UPDATE match_remark ----------------------------------	
-		IF @Action IN ('CAL', 'REFUND') -- for cal/refund
+		IF @IsCentral = 1 AND @Action IN ('CAL', 'REFUND') -- for cal/refund
 		BEGIN
 			DECLARE @command varchar(5)
 			SET @command = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
@@ -177,6 +184,7 @@ BEGIN
 		WHERE @Action = 'REFUND'
 		
 		BEGIN TRY
+			IF @IsCentral = 1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 				,@Matchid = @matchid
 				,@ActionID = @ActionID

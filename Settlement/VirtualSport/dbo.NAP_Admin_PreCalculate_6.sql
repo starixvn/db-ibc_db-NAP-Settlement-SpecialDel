@@ -2,7 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_PreCalculate_6]
 	@matchid int,
 	@bettype smallint,
-	@totalgoal smallmoney
+	@totalgoal smallmoney,
+	@IsCentral	BIT = 0
 AS
 /*
 	Created by: Kathy
@@ -15,6 +16,7 @@ AS
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]	
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 SET NOCOUNT ON
 	DECLARE @IgnoreList varchar(200)
@@ -51,6 +53,7 @@ SET NOCOUNT ON
 	WHERE matchid = @matchid 
 		AND bettype = @bettype 
 		AND statusID NOT IN (101,102) --void/reject
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		
 	IF @@ROWCOUNT = 0 RETURN		
 	-----------------	

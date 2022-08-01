@@ -20,6 +20,7 @@ AS
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -47,6 +48,7 @@ BEGIN
 			,@procName				SYSNAME
 			,@WaitingTime			VARCHAR(10)
 			,@IsWaiting				BIT 
+			,@IsCentral				BIT
 			
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT)
@@ -88,6 +90,9 @@ BEGIN
 		RETURN
 	END
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	--get info of match
 	SELECT @sportType	   = sportType
 	FROM   DBPRO.BODB02.dbo.match WITH (NOLOCK)
@@ -124,7 +129,7 @@ BEGIN
 		WHERE matchid = @matchid
 		
 		
-		IF @IsAuto = 0
+		IF @IsAuto = 0 AND @IsCentral = 1
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.[NAP_Admin_Result_Update_BingoBall] 
 										@matchid	= @matchid
@@ -162,6 +167,7 @@ BEGIN
 				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.Result1, sr.Result2, NULL, NULL, NULL, NULL) m
 			WHERE b.matchid = @MatchId
 				AND b.statusID NOT IN (101,102)
+				AND b.iteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
@@ -176,6 +182,7 @@ BEGIN
 							FROM @tmpResultDetail t
 							WHERE b.BetType = t.BetType
 							)
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END 
 		
 		
@@ -195,13 +202,15 @@ BEGIN
 	
 		SELECT @MaxTransID = MAX(transid)
 		FROM #tmpTransID
-			
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-						@Command			= 'profile_bingoball'
-						,@Action			= @Action
-						,@MatchID			= @matchid
-						,@creator			= @AdminId
-			 
+		
+		IF @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
+							@Command			= 'profile_bingoball'
+							,@Action			= @Action
+							,@MatchID			= @matchid
+							,@creator			= @AdminId
+		END	 
 		-------------------------------------------------------------
 		---		CAPTURE value BALANCE before settlement		---
 		---------------------------VVVV------------------------------
@@ -219,6 +228,7 @@ BEGIN
 			,bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
 		WHERE matchid = @matchid AND transid <= @MaxTransID
+			AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
 		GROUP BY custid, winlostdate, bettype
 		
 		
@@ -281,6 +291,7 @@ BEGIN
 			,bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
 		WHERE matchid = @matchid AND transid <= @MaxTransID
+			AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
 		GROUP BY custid, winlostdate, bettype
 		
 		-------------------------------------------------------------
@@ -411,18 +422,20 @@ BEGIN
 						+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
 						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		
-		
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@finalhomescore = NULL
-			,@finalawayscore = NULL
-			,@hthomescore = NULL
-			,@htawayscore = NULL
-			,@GoalRecord = NULL
-			,@betstatus = NULL
-			,@Remark = @Remark
-			,@IP = @IP
+		IF @IsCentral =  1
+		BEGIN
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+				,@Matchid = @matchid
+				,@ActionID = @ActionID
+				,@finalhomescore = NULL
+				,@finalawayscore = NULL
+				,@hthomescore = NULL
+				,@htawayscore = NULL
+				,@GoalRecord = NULL
+				,@betstatus = NULL
+				,@Remark = @Remark
+				,@IP = @IP
+		END
 	END TRY
 
 	BEGIN CATCH
