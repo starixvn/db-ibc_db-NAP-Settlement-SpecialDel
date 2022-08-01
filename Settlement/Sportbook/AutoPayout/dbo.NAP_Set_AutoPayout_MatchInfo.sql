@@ -24,7 +24,8 @@ AS
 		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
-		
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+
 	Param's explanation: 
 */
 BEGIN
@@ -375,6 +376,9 @@ BEGIN
 			,ISNULL(q.HTFGNGResultStatusId,0) AS HTFGNGResultStatusId
 			,ISNULL(q.HTLGResultStatusId,0) AS HTLGResultStatusId
 			,m.EventStatusReason
+			,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
+			,ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
+			,ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
 	FROM	@tblMatchInQueue q
 		INNER JOIN match m WITH(NOLOCK)
 			ON	q.MatchId = m.matchid
@@ -385,6 +389,18 @@ BEGIN
 		LEFT JOIN dbo.ResultDetail r WITH (NOLOCK)
 			ON	m.matchid = r.MatchId
 				AND r.ResourceId = '00'
+		OUTER APPLY (
+			SELECT TOP 1 ss.WaitingTime
+			FROM	dbo.SettlementSetting ss WITH (NOLOCK)
+			WHERE	ss.LeagueId = l.leagueid
+					AND AutoType = 2
+		)ss
+		OUTER APPLY (
+			SELECT TOP 1 ss.WaitingTime
+			FROM	dbo.SettlementSetting ss WITH (NOLOCK)
+			WHERE	ss.LeagueId = l.leagueid
+					AND AutoType = 5
+		)ssDirect
 		
 END
 GO

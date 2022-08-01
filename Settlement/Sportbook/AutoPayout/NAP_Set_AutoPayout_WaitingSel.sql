@@ -116,6 +116,9 @@ BEGIN
 		, HTFGNGResultStatusId		    TINYINT		
 		, HTLGResultStatusId		    TINYINT
 		, EventStatusReason				TINYINT
+		, autoSettingForLeague			TINYINT
+		, InstantWaitingTime			INT
+		, DirectWaitingTime				INT
 	)
 	
 	DECLARE @strBettypesParlay VARCHAR (MAX)
@@ -485,11 +488,15 @@ BEGIN
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
 			,i.EventStatusReason
+			,i.autoSettingForLeague
+			,i.InstantWaitingTime
+			,i.DirectWaitingTime			
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
-		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
-	
+		LEFT JOIN @tmp_ExternalSourceResult exSource 
+			ON m.matchid = exSource.Matchid
+		
 	DROP TABLE #tblMatchInQueue
 	DROP TABLE #tblBetStatus
 
