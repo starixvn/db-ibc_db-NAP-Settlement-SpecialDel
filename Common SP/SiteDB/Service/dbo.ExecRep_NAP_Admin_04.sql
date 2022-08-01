@@ -24,6 +24,7 @@ BEGIN
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2, creator INT
+		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
 	)
 	
 	IF @tablename = 'bettrans' 
@@ -54,7 +55,12 @@ BEGIN
 				,T.C.value('./@s', 'NVARCHAR(10)') AS Status
 				,T.C.value('./@sid', 'TINYINT') AS StatusID
 				,T.C.value('./@r', 'TINYINT') AS ruben
-				,T.C.value('./@rut', 'DATETIME2') AS RepUpdateTime					
+				,T.C.value('./@rut', 'DATETIME2') AS RepUpdateTime	
+				,T.C.value('./@hdp1', 'SMALLMONEY') AS hdp1
+				,T.C.value('./@hdp2', 'SMALLMONEY') AS hdp2
+				,T.C.value('./@lh', 'SMALLINT') AS livehomescore
+				,T.C.value('./@la', 'SMALLINT') AS liveawayscore
+				,T.C.value('./@cr', 'INT') AS creator
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 	
@@ -87,6 +93,11 @@ BEGIN
 				,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
 				,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END
 				,RepUpdateTime = CASE WHEN t.RepUpdateTime IS NULL THEN b.RepUpdateTime ELSE SYSDATETIME() END
+				,hdp1 = CASE WHEN t.hdp1 IS NULL THEN b.hdp1 ELSE t.hdp1 END					
+				,hdp2 = CASE WHEN t.hdp2 IS NULL THEN b.hdp2  ELSE t.hdp2 END					
+				,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					
+				,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN b.liveawayscore ELSE t.liveawayscore END									
+				,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 
@@ -102,11 +113,15 @@ BEGIN
 				,T.C.value('./@wld', 'SMALLDATETIME') AS Winlostdate
 				,T.C.value('./@statuswl', 'TINYINT') AS statuswinlost
 				,T.C.value('./@ref', 'BIGINT') AS refno
-				,T.C.value('./@w', 'MONEY') AS WinLost				
-				,T.C.value('./@cr', 'INT') AS Creator
+				,T.C.value('./@w', 'MONEY') AS WinLost	
 				,T.C.value('./@s', 'NVARCHAR(10)') AS Status
 				,T.C.value('./@sid', 'TINYINT') AS StatusID
-				,T.C.value('./@r', 'TINYINT') AS ruben					
+				,T.C.value('./@r', 'TINYINT') AS ruben	
+				,T.C.value('./@hdp1', 'SMALLMONEY') AS hdp1
+				,T.C.value('./@hdp2', 'SMALLMONEY') AS hdp2
+				,T.C.value('./@lh', 'SMALLINT') AS livehomescore
+				,T.C.value('./@la', 'SMALLINT') AS liveawayscore	
+				,T.C.value('./@cr', 'INT') AS Creator
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 	
@@ -126,6 +141,11 @@ BEGIN
 									WHEN t.statuswinlost = '' THEN NULL
 									ELSE t.statuswinlost
 								END
+				,hdp1 = CASE WHEN t.hdp1 IS NULL THEN bm.hdp1 ELSE t.hdp1 END					
+				,hdp2 = CASE WHEN t.hdp2 IS NULL THEN bm.hdp2  ELSE t.hdp2 END					
+				,livehomescore = CASE WHEN t.livehomescore IS NULL THEN bm.livehomescore ELSE t.livehomescore END					
+				,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN bm.liveawayscore ELSE t.liveawayscore END									
+				,creator = CASE WHEN t.creator IS NULL THEN bm.creator ELSE t.creator END
 		FROM	@tmptransid t
 			INNER JOIN dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
 				ON	bm.transid = t.transid
