@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_DummyResourceResult]
 	,@Sporttype SMALLINT
 	,@IsDetermined BIT = 0
 	,@Action VARCHAR(20) = 'CAL'
+	,@WebResourceResult XML = NULL
 	,@DummyResourceIds VARCHAR(MAX)
 	,@DummyResourceResults VARCHAR(MAX) = '' OUTPUT
 
@@ -25,6 +26,7 @@ AS
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220629@Louisa: Volleyball AIO ( 27 bettype ) [Redmineid:#173862]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 */
 
 BEGIN
@@ -96,12 +98,26 @@ BEGIN
 	FROM	STRING_SPLIT(@DummyResourceIds, ',')
 	WHERE	[value] <> ''
 
-	IF @Sporttype  IN ( 1, 2)
+	IF @Sporttype  IN ( 1, 2) AND @WebResourceResult IS NOT NULL
 	BEGIN
+		;WITH cteResourceResult
+		AS
+		(
+			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+					,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+					,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+					,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
+			FROM    @WebResourceResult.nodes('/Results/Resource') AS T(C)
+		)
 		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
 		SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
-		FROM	DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
+		FROM	cteResourceResult
+
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+		FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
 		WHERE	MatchId = @MatchId
+				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
 	END
 
 	IF @Sporttype = 2

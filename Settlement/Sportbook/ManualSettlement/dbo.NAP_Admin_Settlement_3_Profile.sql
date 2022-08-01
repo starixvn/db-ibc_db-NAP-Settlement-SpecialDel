@@ -84,6 +84,7 @@ BEGIN
 			,@ParamsXML			XML
 			,@Params			VARCHAR(MAX)
 			,@IsCentral	BIT
+			,@WebResourceResult XML
 			
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -193,6 +194,15 @@ BEGIN
 	INSERT INTO @tmpResources (ResourceID, HomeValue, AwayValue)
 	SELECT	ResourceID, HomeValue, AwayValue
 	FROM	cteResource
+
+	SELECT	@WebResourceResult = (SELECT	ResourceID AS '@ResourceId'
+											,HomeValue AS '@HomeValue'
+											,AwayValue AS '@AwayValue'
+											,4 AS '@SettlementStatusId'
+											,5 AS '@ResultStatusId'
+									FROM	@tmpResources
+									FOR XML PATH('Resource'), ROOT ('Results'), TYPE
+							)
 
 	INSERT INTO @tmpAllBettypes(Bettype)
 	SELECT bettype
@@ -306,7 +316,7 @@ BEGIN
 			@fta             = @fta,
 			@hth             = @hth,
 			@hta             = @hta,
-			@ResourceResult	 = @ResourceResult,
+			@ResourceResult	 = @WebResourceResult,
 			@Action            = @Action,
 			@IsAuto            = 0,
 			@creator        = @creator
@@ -327,6 +337,7 @@ BEGIN
 		EXEC dbo.NAP_Set_DummyResourceResult
 			@MatchID = @MatchID
 			,@sportType = @sportType
+			,@WebResourceResult = @WebResourceResult
 			,@DummyResourceIds = @DummyResourceIds
 			,@DummyResourceResults = @DummyResourceResults OUTPUT
 
@@ -826,6 +837,7 @@ BEGIN
 			EXEC dbo.NAP_Set_DummyResourceResult
 				@MatchID = @MatchID
 				,@sportType = @sportType
+				,@WebResourceResult = @WebResourceResult
 				,@DummyResourceIds = @DummyResourceIds
 				,@DummyResourceResults = @DummyResourceResults OUTPUT
 

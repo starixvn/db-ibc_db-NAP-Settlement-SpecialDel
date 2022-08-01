@@ -61,8 +61,8 @@ BEGIN
 			,@strMainTransIdRefnos	VARCHAR(MAX) = ''			
 			,@totalMainParlay		INT
 			,@IsABANDONEDHT			BIT = 0
-			,@DummySDTResourceIds		VARCHAR(MAX) = ''
-			,@DummySDTResourceResults	VARCHAR(MAX) = ''
+			--,@DummySDTResourceIds		VARCHAR(MAX) = ''
+			--,@DummySDTResourceResults	VARCHAR(MAX) = ''
 			,@IsSDT				BIT = 0
 			,@subAction			VARCHAR(20) = ''
 			,@DeterminedType	TINYINT = 0
@@ -77,7 +77,7 @@ BEGIN
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
 		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
 	)
-	DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
+	--DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
 	DECLARE @tmpResourceAutoRefund TABLE ( ResourceID VARCHAR(20) )
