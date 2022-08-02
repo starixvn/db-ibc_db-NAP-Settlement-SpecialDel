@@ -1,29 +1,25 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Auto_1s]
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Auto_1s_Ticket]
     @MatchID        INT
 AS
-/*    Creator: Jamie
-    Date: 20150202
-    Task: BetRadar - Auto settlement detail for manual calculation 
-    DB: DBTXN/BODB02
-    Original: 
+/*  
+	Created: 20220719@Louisa
+    Task: Scale Out BetTrans [Redmine:#175251]
+    DB: DBPRO/bodb02
     
     Revisions:
-        - 20160830@Kathy: PH-AIO phase 2b [Redmine:#62861]
-        - 20161118@Kathy: Changes on Auto Settlement [Redmine:#67328]
-		- 20160505@Patrick: Move code select match info to another SP [RedmineId: #56587]
-		- 20171023@Helen: PHAIO 3 - Integrate into Settlement site [Redmine:#80947]
-		- 20190320@Kathy: Settlement with Tickets Exclusion [Redmine:#106823]
-		- 20190620@Kathy: Remove auto betradar bettypes [Redmine:#109584]
-		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
-		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
-		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Louisa: Initial [Redmine:#175251]
 
     Param's Explanation:
 */
 BEGIN
     SET NOCOUNT ON 
-   
+    
+	DECLARE @IsCentral			BIT
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
     DECLARE @tmpTicketStatus TABLE(
          ResourceID			VARCHAR(20)
         ,BetCount			INT
@@ -33,16 +29,6 @@ BEGIN
 		,betSettledCount	INT
 		,betMarkedCount		INT 
     )
-
-  --  DECLARE @tmpTicketStatusParlay TABLE(
-  --       ResourceID			VARCHAR(20)
-  --      ,BetCount			INT
-  --      ,InRunning			INT
-  --      ,InWaiting			INT
-  --      ,GroupId			SMALLINT
-		--,betSettledCount	INT
-		--,betMarkedCount		INT 
-  --  )
 
 	DECLARE @tmpAutoBettypes TABLE (
 		bettype		SMALLINT
@@ -75,6 +61,7 @@ BEGIN
 			ON	b.transid = mt.TransId
 	WHERE	b.matchid = @MatchID
 			AND b.statusID NOT IN (101, 102)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
     GROUP BY f.ResourceId
 
 	-- Insert ResourceId of bettype = 382, 381 in case of No Ticket
@@ -112,42 +99,24 @@ BEGIN
 				AND mt.matchid = bm.matchid
     WHERE   bm.matchID = @MatchID 
 			AND bm.statusID NOT IN (101,102)
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
     GROUP BY f.ResourceID
 		
 	-- Detail 
 	SELECT	tp.ResourceID
-			,CASE 
-				WHEN tp.InRunning > 0 THEN 'Running'
-				WHEN tp.InWaiting > 0 AND tp.InWaiting = tp.BetCount THEN 'Waiting'
-				WHEN tp.betMarkedCount > 0 THEN 'Marked'
-				WHEN tp.BetCount = 0 AND tp.ResourceID LIKE '38[12]%' THEN 'No Ticket'
-				ELSE 'Calculated'
-			END AS TicketStatus
-			,r.HomeValue
-			,r.AwayValue
-			,r.ResultStatusID
-			,r.SettlementStatusID
-			, ISNULL( r.ResultSetting, 0) AS ResultSetting
+			,InRunning
+			,InWaiting
+			,betMarkedCount
+			,BetCount
 	FROM (
-		SELECT  t.ResourceID
-				,ISNULL(SUM(t.InRunning),0) AS InRunning
-				,ISNULL(SUM(t.InWaiting),0) AS InWaiting
-				,ISNULL(SUM(t.betMarkedCount),0) AS betMarkedCount
-				,ISNULL(SUM(t.BetCount),0) AS BetCount
-		FROM    @tmpTicketStatus t
-		GROUP BY t.ResourceID
-	) tp
-        OUTER APPLY( 
-			SELECT  r.ResourceId
-					,r.HomeValue
-					,r.AwayValue
-					,r.ResultStatusID
-					,r.SettlementStatusID
-					,ISNULL( r.ResultSetting, 0) AS ResultSetting                      
-			FROM    DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK)
-			WHERE	r.ResourceID = tp.ResourceID
-					AND r.MatchId =  @MatchID
-			) AS r
+			SELECT  t.ResourceID
+					,ISNULL(SUM(t.InRunning),0) AS InRunning
+					,ISNULL(SUM(t.InWaiting),0) AS InWaiting
+					,ISNULL(SUM(t.betMarkedCount),0) AS betMarkedCount
+					,ISNULL(SUM(t.BetCount),0) AS BetCount
+			FROM    @tmpTicketStatus t
+			GROUP BY t.ResourceID
+		) tp
 		CROSS APPLY (
 			SELECT	DISTINCT OrdNo
 			FROM	@tmpAutoBettypes 

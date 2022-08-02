@@ -140,7 +140,7 @@ BEGIN
 			)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @transInfo)	
+			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo)	
 		END
 	END		
 	ELSE IF @updatetype = 2 --bettransm (for virtual racing) 
@@ -229,7 +229,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateOtherSport', 'bettransm', @transInfo)				
+			VALUES ('Settlement', 'CalculateNonSport', 'bettransm', @transInfo)				
 		END
 	END		
 	ELSE IF @updatetype = 3 --bettrans (for virtual racing) 
@@ -338,7 +338,7 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)	
+				VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @MatchId, @transInfo)	
 			END
 		END
 		ELSE
@@ -388,7 +388,7 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)	
+				VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @MatchId, @transInfo)	
 			END
 		END		
 	END
@@ -438,7 +438,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateVitualBetradar', 'bettrans', @transInfo)	
+			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo)	
 		END
 
 	END
@@ -476,7 +476,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'RecoverVitualBetradar', 'bettransm', @transInfo)	
+			VALUES ('Settlement', 'CalculateNonSport', 'bettransm', @transInfo)	
 		END
 	END
 	ELSE IF @updatetype = 7 -- outright settlement
@@ -558,7 +558,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateOutright', 'bettrans', @transInfo)	
+			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo)	
 		END
 
 	END

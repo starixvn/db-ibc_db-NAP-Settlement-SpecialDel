@@ -13,10 +13,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 	,@SDTRecord		TINYINT	= 0  --NAP_Admin_Settlement_Refund_1_Push
 	,@IsSettleDetermined	BIT	= 0 --NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
 
-	,@HalfTimeHome  INT = NULL
-    ,@HalfTimeAway  INT = NULL
-    ,@FullTimeHome  INT = NULL
-    ,@FullTimeAway  INT = NULL
+	,@VendorID		SMALLINT		= 34
 
 	,@ErrCode		INT		= 0     OUTPUT
 	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
@@ -33,8 +30,8 @@ AS
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
 		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
-		@SelectedResources: Appy for
-				Instant soccer, Othersports settle by Profile, FastMarket, TimeMachine
+		@SelectedResources: Appy for Instant soccer, Othersports settle by Profile, FastMarket, TimeMachine, BB
+			BB: @SelectedResources = '<Resources><rsc m="1"/><rsc m="2"/><rsc m="3"/><rsc m="4"/><rsc m="5"/></Resources>'
 
 */
 
@@ -54,6 +51,7 @@ SET NOCOUNT ON
 			,@IsSettleByProfile	BIT = 0
 			,@IsEarly			BIT = 0
 			,@AutoSetting		TINYINT
+			,@maxNumProcessBB	INT = 50000
 
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
@@ -65,10 +63,10 @@ SET NOCOUNT ON
 			,@IsFailed				BIT = 0
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
-	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
+			,@IsAuto = CASE WHEN @Action LIKE '%_MARKET' THEN 0 ELSE @IsAuto END
+			,@IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
 									ELSE 0 END
-			,@IsCheckSettlementStatusEarly = CASE WHEN @IsAuto = 0 AND @Mode = 'FM' THEN 1 
-													ELSE 0 END
+			,@IsCheckSettlementStatusEarly = CASE WHEN @IsAuto = 0 AND @Mode = 'FM' THEN 1 ELSE 0 END
 
 	SELECT @sporttype = m.sporttype
 			,@LeagueGroupID		= lg.GroupID
@@ -103,11 +101,11 @@ SET NOCOUNT ON
 
 	--Check hold match, hold result
 	EXEC dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @MatchId
-	,@SelectedResources = @SelectedResources
-	,@IsEarly	= @IsCheckHoldEarly
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
+		@MatchId	= @MatchId
+		,@SelectedResources = @SelectedResources
+		,@IsEarly	= @IsCheckHoldEarly
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0
 	RETURN
@@ -146,7 +144,7 @@ SET NOCOUNT ON
 	
 	------------PARTIAL CHECKING ( Special rule checking ) --------------------
 
-	--Start: validation for Instant settle
+	--Start: validation for Instant settle ( Auto Inst, Manual Inst )
 	IF @Mode LIKE '%INST%'
 	BEGIN
 		IF @Action = 'CAL' AND @IsAuto = 1
@@ -173,8 +171,25 @@ SET NOCOUNT ON
 	END
 	--/ END validation for Instant settle
 		
-	--Start: Validation for Auto Payout
-	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%' AND @Mode <> 'FM'
+	--Start: Validation Betbuider
+	IF @IsAuto = 1 AND @Mode = 'BB'
+		BEGIN
+			
+			IF @AutoSetting & 8 = 0  -- 100 -- setting of BetBuilder
+			BEGIN
+				SELECT	@ErrCode = 1001017
+						,@ErrMsg = 'The auto-settlement failed due to OFF setting.'
+				RETURN
+			END					
+			
+
+					   			
+
+		END
+	--/End validation Betbuider
+	
+	
+	IF @IsAuto =1 AND @Mode NOT LIKE '%INST%' AND @Mode <> 'FM' AND @Mode <> 'BB'
 	BEGIN
 		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
 			OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket

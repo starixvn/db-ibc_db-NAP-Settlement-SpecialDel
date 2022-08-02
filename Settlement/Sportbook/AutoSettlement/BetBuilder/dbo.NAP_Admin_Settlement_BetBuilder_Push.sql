@@ -18,6 +18,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903] 
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -108,14 +109,6 @@ BEGIN
 			,@AutoSetting   = m.AutoSetting
 	FROM	DBPRO.bodb02.dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
-
-	
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SELECT	 @ErrCode	= 1001001
-				,@ErrMsg	= 'Match does not exist!'
-		RETURN
-	END
 		
 	SELECT @ActionID = CASE
 						  WHEN @Action IN ('CAL','CAL_MARKET')  AND @IsAuto = 0 THEN 81009
@@ -143,33 +136,7 @@ BEGIN
 	
 	IF @isAuto = 1 
 	BEGIN
-		
-		--check auto setting
-		IF @AutoSetting IS NULL
-			SELECT @AutoSetting = ISNULL(AutoSetting,0)
-			FROM	DBPRO.bodb02.dbo.League WITH(NOLOCK)
-			WHERE	leagueid = @leagueid
-		
-			
-		IF @AutoSetting & 8 = 0  -- 100 -- setting of BetBuilder
-		BEGIN
-			SELECT	@ErrCode = 1001017
-					,@ErrMsg = 'The auto-settlement failed due to OFF setting.'
-			RETURN
-		END	
-		--end check auto setting
-	
-		
-		--check number of marketID
-		IF EXISTS (SELECT TOP 1 1 FROM #tblMarketPush HAVING COUNT(*) > @maxNumProcess) 
-		BEGIN
-			SELECT   @ErrCode = 1001010
-					,@ErrMsg  = 'There are too many inputted results to proceed at one time. Please select each one to execute separately.'	
-			RETURN 
-		END
-		--end check number of marketID		
-		
-		
+ 	
 		------------------------------check settled marketIDs-------------------
 		DELETE r
 		OUTPUT DELETED.MarketID INTO #tblInvalidMarketID
