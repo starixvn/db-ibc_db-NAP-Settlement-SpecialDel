@@ -33,6 +33,7 @@ BEGIN
 			,matchid, winlostdate, betdaqid
 			,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
 			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,RepUpdateTime
+			, hdp1 , hdp2 , livehomescore , liveawayscore , creator
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@mid', 'INT') AS matchid
@@ -107,7 +108,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @tmpTransId (TransID
 			,winlostdate, statuswinlost, refno, WinLost
-			,creator, Status, StatusID, ruben
+			, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@wld', 'SMALLDATETIME') AS Winlostdate
