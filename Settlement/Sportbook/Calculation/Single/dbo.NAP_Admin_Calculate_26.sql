@@ -388,7 +388,7 @@ BEGIN
 									 WHEN @IsReSettledTickets = 1 THEN 1
 									 ELSE 0
 								END
-						AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+						AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 			)b
 			CROSS APPLY (	
 				SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
