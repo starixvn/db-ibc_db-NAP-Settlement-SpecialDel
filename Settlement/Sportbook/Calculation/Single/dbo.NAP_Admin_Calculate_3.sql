@@ -74,12 +74,12 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
 			,@transInfo			XML
-			,@IsCentral			BIT = 0
+			,@IsSiteDB	BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
     IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
 
@@ -109,6 +109,7 @@ BEGIN
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
@@ -121,7 +122,7 @@ BEGIN
 		WHERE	matchid = @matchid 
 				AND bettype = @bettype
 				AND statusID IN (0,102)
-				AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		GROUP BY custid, bt.srecommend
 	END
 	ELSE
@@ -131,7 +132,7 @@ BEGIN
 		FROM	dbo.bettrans bt WITH(NOLOCK) 
 		WHERE	matchid = @matchid 
 				AND bettype = @bettype
-				AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		GROUP BY custid, bt.srecommend
 	END
 
@@ -383,10 +384,12 @@ BEGIN
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.Status,inserted.StatusID,inserted.ruben		
+				,deleted.winlost ,deleted.statusid
 			INTO @tmpTransInfo (
 				transId
 				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
 			)				
 			FROM #currList t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.custid = b.custid
@@ -401,15 +404,15 @@ BEGIN
 					END 
 				AND hdp1 <= @comparedValue
 				AND ISNULL(b.betdaqid,0) <> -2			
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 
-			IF @IsCentral = 0 
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
 							,modds AS '@m'				
 							,statuswinlost AS '@statuswl' 
-							,SettlementTime AS '@st' 
+							,CASE WHEN SettlementTime IS NULL THEN '' ELSE SettlementTime END AS '@st' 
 							,WinLost AS '@w' 
 							,aWinLost AS '@aw' 
 							,mWinLost AS '@mw' 
@@ -420,7 +423,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'	
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
@@ -732,11 +737,12 @@ BEGIN
 				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID,inserted.ruben		
+				,inserted.Status,inserted.StatusID,inserted.ruben	
+				,deleted.winlost ,deleted.statusid	
 			INTO @tmpTransInfo (
 				transId
 				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
-				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,bef_winlost ,bef_statusid 
 			)				
 			FROM	#currList t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
@@ -761,12 +767,12 @@ BEGIN
 					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
-							END				
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+							END	
+					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 
 			OPTION (FORCE ORDER)
 
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -783,7 +789,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)

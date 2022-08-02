@@ -60,12 +60,12 @@ BEGIN
     
 	DECLARE @ServerName		SYSNAME 
 			,@AllowRefund	BIT
-			,@IsCentral		BIT = 0
+			,@IsSiteDB			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -90,11 +90,14 @@ BEGIN
 			,@IsUpd_Void			BIT = 0
 			,@RepUpdateTime			DATETIME2
 			,@transInfo	XML
+	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,statuswinlost TINYINT,SettlementTime DATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+			,RepUpdateTime DATETIME2
 		)
 		
 	DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT)
@@ -146,7 +149,7 @@ BEGIN
 					ON b.bettype = t.bettype
 			WHERE	b.matchid = @matchid
 					AND b.statusID NOT IN (103, 101)
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -207,6 +210,8 @@ BEGIN
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.ruben
 				,inserted.statuswinlost
+				,deleted.winlost ,deleted.statusid
+				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
 			INTO @tmpTransInfo (
 				transId
 				,Status
@@ -216,6 +221,8 @@ BEGIN
 				,PlayerComm,Comm,aComm,sComm
 				,ruben
 				,statuswinlost
+				,bef_winlost ,bef_statusid 
+				,RepUpdateTime
 			)
 		FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpBatch c
@@ -248,9 +255,9 @@ BEGIN
 							ELSE 1
 						END
 				AND ISNULL(b.betdaqid,0) <> -2		
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		
-		IF @IsCentral = 0
+		IF @IsSiteDB = 1
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -267,6 +274,9 @@ BEGIN
 						,StatusID AS '@sid'
 						,ruben AS '@r'
 						,statuswinlost AS '@statuswl' 
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
+						,RepUpdateTime AS '@rut'
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)

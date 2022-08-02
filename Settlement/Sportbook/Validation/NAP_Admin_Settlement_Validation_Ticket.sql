@@ -43,6 +43,9 @@ AS
 BEGIN
 SET NOCOUNT ON
 	
+	IF @Mode = 'BB'
+		RETURN
+
 	--calculate parlay other sports, single or multiple matches
 	IF @Action = 'CAL' AND @Mode = 'MP'
 	BEGIN

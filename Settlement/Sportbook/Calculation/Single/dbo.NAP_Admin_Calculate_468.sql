@@ -28,12 +28,12 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
 			,@transInfo			XML
-			,@IsCentral			BIT =  0
+			,@IsSiteDB			BIT =  0
 			
 	SET @ServerName = @@SERVERNAME
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -73,6 +73,7 @@ BEGIN
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 		
 	DECLARE @tmpBatch AS TABLE (
@@ -122,7 +123,7 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END
-					AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -300,11 +301,11 @@ BEGIN
 					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-					,inserted.Status,inserted.StatusID,inserted.ruben		
+					,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
 				INTO @tmpTransInfo (
 					transId
 					,modds, odds, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
-					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,bef_winlost ,bef_statusid 
 				)					
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b
@@ -327,9 +328,9 @@ BEGIN
 									WHEN @IsSettleAbandonedMatchIBC = 1 AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND b.recommend <> 1688156) THEN 1							
 									ELSE 0
 							END
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 			
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -348,7 +349,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'	
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid'
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
@@ -521,11 +524,11 @@ BEGIN
 					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-					,inserted.Status,inserted.StatusID,inserted.ruben		
+					,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
 				INTO @tmpTransInfo (
 					transId
 					,modds, odds, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
-					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,bef_winlost ,bef_statusid 
 				)					
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b 
@@ -553,9 +556,9 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 			
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -574,7 +577,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'	
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)

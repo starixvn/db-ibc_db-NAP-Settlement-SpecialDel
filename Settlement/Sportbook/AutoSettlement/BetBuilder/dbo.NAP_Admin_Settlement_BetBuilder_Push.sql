@@ -134,7 +134,7 @@ BEGIN
 			AND mk.VendorID = @VendorID
 	END 
 	
-	IF @isAuto = 1 
+	IF @isAuto = 1 --for test version
 	BEGIN
  	
 		------------------------------check settled marketIDs-------------------

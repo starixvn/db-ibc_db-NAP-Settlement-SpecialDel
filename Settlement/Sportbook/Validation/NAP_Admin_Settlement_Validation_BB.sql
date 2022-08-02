@@ -3,8 +3,8 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_BB
 (
 	 @matchid		INT = 0
 	,@Action		VARCHAR(10)
-	,@AutoSetting	TINYINT
 	,@SelectedResources	VARCHAR(MAX) = NULL 
+	,@maxNumProcess	INT = 50000
 	,@VendorID		SMALLINT		= 34
 	,@ErrCode		INT				= 0     OUTPUT
 	,@ErrMsg		NVARCHAR(300)   = ''    OUTPUT
@@ -31,14 +31,7 @@ BEGIN
 
 	DECLARE @tblMarketPush TABLE (marketID VARCHAR(20), Result VARCHAR(20), ResultStatusID TINYINT)
 
-	SET @xmlResourceResult = CAST(@SelectedResources AS XML)
-			
-	IF @AutoSetting & 8 = 0  -- 100 -- setting of BetBuilder
-	BEGIN
-		SELECT	@ErrCode = 1001017
-				,@ErrMsg = 'The auto-settlement failed due to OFF setting.'
-		RETURN
-	END					
+	SET @xmlResourceResult = CAST(@SelectedResources AS XML)					
 
 	;WITH TmpData AS (
 		SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
@@ -51,8 +44,8 @@ BEGIN
 	WHERE mk.MatchID = @MatchID
 		AND mk.VendorID = @VendorID
 			 
-		--check number of marketID
-	IF EXISTS (SELECT TOP 1 1 FROM @tblMarketPush HAVING COUNT(*) > @maxNumProcessBB) 
+	--check number of marketID
+	IF EXISTS (SELECT TOP 1 1 FROM @tblMarketPush HAVING COUNT(*) > @maxNumProcess ) 
 	BEGIN
 		SELECT   @ErrCode = 1001010
 				,@ErrMsg  = 'There are too many inputted results to proceed at one time. Please select each one to execute separately.'	

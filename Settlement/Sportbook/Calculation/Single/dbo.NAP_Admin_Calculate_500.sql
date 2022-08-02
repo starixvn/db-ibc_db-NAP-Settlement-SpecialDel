@@ -25,17 +25,18 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @transInfo	XML
-			,@IsCentral	BIT = 0
+			,@IsSiteDB	BIT = 0
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 		
 	IF @Action IN ('CAL', 'CAL-FT', 'VOID')
 	BEGIN
@@ -77,7 +78,7 @@ BEGIN
 				AND (ISNULL(@CustIds, '') = '' OR (ISNULL(@CustIds, '') <> '' AND EXISTS (SELECT 1 FROM @CustIdList s WHERE b.CustId = s.CustId)))
 				AND statusID NOT IN (0, 1, 101, 102) -- REJECT, VOID
 				AND playerdiscount < 0
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		GROUP BY custid
 		
 		UPDATE	n
@@ -108,7 +109,7 @@ BEGIN
 				ON	b.matchid = @MatchId
 					AND b.bettype = 500
 					AND b.custid = n.CustId
-			WHEN MATCHED AND b.winlost <> n.NetWin AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+			WHEN MATCHED AND b.winlost <> n.NetWin AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 								THEN UPDATE SET	[status] = CASE WHEN n.NetWin > 0 THEN 'LOSE' ELSE 'VOID' END
 																	,winlost = CASE WHEN n.NetWin > 0 THEN n.NetWin ELSE 0 END
 																	,playerdiscount = n.PlayerDiscount
@@ -266,7 +267,7 @@ BEGIN
 				AND bettype = 500
 				AND custid IN (SELECT CustId FROM @CustIdList)
 				AND statusID NOT IN (101, 102) -- REJECT, VOID
-				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 				
 		END
 		
@@ -287,7 +288,7 @@ BEGIN
 		WHERE	matchid = @MatchId
 				AND bettype = 500
 				AND statusID NOT IN (101, 102) -- REJECT, VOID
-				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 				
 	END
 END

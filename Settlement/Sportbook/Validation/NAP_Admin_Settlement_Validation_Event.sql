@@ -173,7 +173,7 @@ SET NOCOUNT ON
 		
 	--Start: Validation Betbuider
 	IF @IsAuto = 1 AND @Mode = 'BB'
-		BEGIN
+	BEGIN
 			
 			IF @AutoSetting & 8 = 0  -- 100 -- setting of BetBuilder
 			BEGIN
@@ -182,10 +182,19 @@ SET NOCOUNT ON
 				RETURN
 			END					
 			
+			EXEC  dbo.NAP_Admin_Settlement_Validation_BB 
+			 @matchid		= @matchid
+			,@Action		= @Action
+			,@SelectedResources	= @SelectedResources
+			,@maxNumProcess	= @maxNumProcessBB
+			,@VendorID		= @VendorID
+			,@ErrCode		= @ErrCode    OUTPUT
+			,@ErrMsg		= @ErrMsg   OUTPUT
+				
+			IF ISNULL(@ErrCode,0) > 0
+			RETURN
 
-					   			
-
-		END
+	END
 	--/End validation Betbuider
 	
 	

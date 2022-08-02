@@ -25,12 +25,12 @@ BEGIN
 	-- CHECK SERVER BEFORE REFUND
 	DECLARE @ServerName		SYSNAME 
 			,@AllowRefund	BIT
-			,@IsCentral		BIT = 0
+			,@IsSiteDB		BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -52,6 +52,8 @@ BEGIN
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+			,RepUpdateTime DATETIME2
 		)
 		
 	BEGIN
@@ -80,14 +82,16 @@ BEGIN
 				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 				,inserted.StatusID,inserted.ruben		
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
-				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm,deleted.winlost ,deleted.statusid
+				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
 			INTO @tmpTransInfo (
 				transId
 				,Status
 				,SettlementTime
 				,StatusID,ruben
 				,WinLost,aWinLost,mWinLost,sWinLost
-				,PlayerComm,Comm,aComm,sComm
+				,PlayerComm,Comm,aComm,sComm,bef_winlost ,bef_statusid 
+				,RepUpdateTime
 			)
 			where
 				matchid=@matchid
@@ -101,11 +105,11 @@ BEGIN
 				AND bettype NOT BETWEEN 1501 and 1599 -- Keno
 				AND bettype NOT IN (135,160,164,168,169,173,174,175,176,180,192,193,210,211,212,213,214,215,216,217)
 				AND custid IN (2331, 1077687, 115770, 15523642) 
-				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 			
 			SET @rowcnt  = @@ROWCOUNT
 
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -120,7 +124,10 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+							,RepUpdateTime AS '@rut'
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)

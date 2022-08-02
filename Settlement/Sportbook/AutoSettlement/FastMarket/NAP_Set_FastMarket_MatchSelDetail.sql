@@ -157,6 +157,11 @@ BEGIN
 	FROM	@tblResultDetail
 	WHERE	ResourceId = '22201'
 
+	-- Water break
+	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo, r.ResultStatusId
+	FROM	@tblResultDetail r
+	WHERE	r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS'		
+
 
 	;WITH cteBetOption AS (
 		SELECT	bettype
@@ -254,12 +259,7 @@ BEGIN
 	WHERE	1 = CASE 
 					WHEN t.bettype IN (222,224,227) AND rs.Position > 85 THEN 0
 					ELSE 1
-				END
-
-		-- Water break
-	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo, r.ResultStatusId
-	FROM	@tblResultDetail r
-	WHERE	r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS'					
+				END			
 
 
 END

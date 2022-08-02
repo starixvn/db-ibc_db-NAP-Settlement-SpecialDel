@@ -11,10 +11,24 @@ AS
         - 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
+		Old SP is located on DBTXN
 
 */
 BEGIN
     SET NOCOUNT ON 
+
+	DECLARE @tmpAutoBettypes TABLE (ResourceId VARCHAR(20) ,OrdNo SMALLINT)
+	
+	INSERT INTO @tmpAutoBettypes (ResourceId, OrdNo)
+	SELECT	s.ResourceID,MAX(s.OrdNo) AS OrdNo
+	FROM	dbo.f_Set_GetGroupBettypes() f
+		INNER JOIN dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+			ON	f.BetType = s.BetType
+	WHERE	f.GroupId = 8
+			AND s.SportType = 1
+			AND s.SettleType = 'EAR'
+	GROUP BY s.ResourceID
+	
 
 	SELECT  r.ResourceId
 			,r.HomeValue
@@ -23,8 +37,10 @@ BEGIN
 			,r.SettlementStatusID
 			,ISNULL( r.ResultSetting, 0) AS ResultSetting                      
 	FROM    dbo.ResultDetail r WITH (NOLOCK)
+		INNER JOIN @tmpAutoBettypes t
+			ON t.ResourceId = r.ResourceId
 	WHERE	r.MatchId =  @MatchID
-
+		ORDER BY t.OrdNo
 
 END
 GO

@@ -37,12 +37,12 @@ BEGIN
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
 			,@transInfo			XML
-			,@IsCentral			BIT = 0
+			,@IsSiteDB			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -75,7 +75,7 @@ BEGIN
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
-			,custid INT, winlost_before MONEY, actual_stake MONEY,playercomm_before MONEY,betdaqid BIGINT
+			,custid INT, winlost_before MONEY, bef_statusid TINYINT, actual_stake MONEY,playercomm_before MONEY,betdaqid BIGINT
 		)
 	DECLARE @instantTicket_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT)
 	
@@ -212,6 +212,7 @@ BEGIN
 					,inserted.Status,inserted.StatusID,inserted.ruben
 					,deleted.custid
 					,deleted.winlost  
+					,deleted.statusid
 					,deleted.actual_stake
 					,deleted.playercomm
 					,deleted.betdaqid 
@@ -221,6 +222,7 @@ BEGIN
 					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
 					,custid 
 					,winlost_before 
+					,bef_statusid 
 					,actual_stake
 					,playercomm_before
 					,betdaqid 
@@ -241,7 +243,7 @@ BEGIN
 			SELECT transid,custid, winlost_before, actual_stake,playercomm_before,betdaqid
 			FROM @tmpTransInfo
 			
-			IF @IsCentral = 0 
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -258,7 +260,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'	
+							,winlost_before AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
@@ -392,11 +396,13 @@ BEGIN
 						,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 						,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 						,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-						,inserted.Status,inserted.StatusID,inserted.ruben		
+						,inserted.Status,inserted.StatusID,inserted.ruben	
+						,deleted.winlost ,deleted.statusid
 					INTO @tmpTransInfo (
 						transId
 						,modds, statuswinlost,SettlementTime,WinLost,aWinLost
 						,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+						,winlost_before ,bef_statusid 
 					)	
 				FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 					INNER JOIN #InstantTicket_Input t
@@ -411,7 +417,7 @@ BEGIN
 
 				OPTION(MAXDOP 1)
 
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -428,7 +434,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'	
+							,winlost_before AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
@@ -459,11 +467,13 @@ BEGIN
 				,inserted.statuswinlost
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID		
+				,inserted.Status,inserted.StatusID	
+				,deleted.winlost ,deleted.statusid
 			INTO @tmpTransInfo (
 				transId
 				,statuswinlost,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID
+				,winlost_before ,bef_statusid 
 			)
 		FROM dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN #InstantTicket_Input t
@@ -471,7 +481,7 @@ BEGIN
 			
 		OPTION(MAXDOP 1)
 
-		IF @IsCentral = 0
+		IF @IsSiteDB = 1
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -485,7 +495,9 @@ BEGIN
 						,aComm AS '@ac' 
 						,sComm AS '@sc' 
 						,Status AS '@s' 
-						,StatusID AS '@sid'				
+						,StatusID AS '@sid'	
+						,winlost_before AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)

@@ -24,12 +24,12 @@ BEGIN
 	-- CHECK SERVER BEFORE REFUND
 	DECLARE @ServerName		SYSNAME 
 			,@AllowRefund	BIT
-			,@IsCentral		BIT = 0
+			,@IsSiteDB		BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -51,6 +51,8 @@ BEGIN
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+			,RepUpdateTime DATETIME2
 		)
 		
 	BEGIN
@@ -80,14 +82,16 @@ BEGIN
 				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 				,inserted.StatusID,inserted.ruben		
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
-				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm,deleted.winlost ,deleted.statusid
+				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
 			INTO @tmpTransInfo (
 				transId
 				,Status
 				,SettlementTime
 				,StatusID,ruben
 				,WinLost,aWinLost,mWinLost,sWinLost
-				,PlayerComm,Comm,aComm,sComm
+				,PlayerComm,Comm,aComm,sComm,bef_winlost ,bef_statusid 
+				,RepUpdateTime
 			)
 			where
 				matchid=@matchid
@@ -103,11 +107,11 @@ BEGIN
 				and( custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
 					OR  recommend IN (1688156)
 				)
-				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 			
 			SET @rowcnt = @@ROWCOUNT
 
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -122,7 +126,10 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+							,RepUpdateTime AS '@rut'
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
