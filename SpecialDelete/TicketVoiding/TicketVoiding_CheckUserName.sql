@@ -123,20 +123,19 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT t.c.value('@matchid','INT') AS matchid
-			,t.c.value('@transid','BIGINT') AS transid
-			,t.c.value('@refno','BIGINT') AS refno
-			,t.c.value('@custid','INT') AS custid
-			,t.c.value('@livehomescore','SMALLINT') AS livehomescore
-			,t.c.value('@liveawayscore','SMALLINT') AS liveawayscore
-			,t.c.value('@liveindicator','BIT') AS liveindicator
-			,t.c.value('@bettype','SMALLINT') AS bettype
-			,t.c.value('@bettype','SMALLINT') AS bettype
-			,t.c.value('@betdaqid','BIGINT') AS betdaqid
-			,t.c.value('@statusID','TINYINT') AS statusID
-			,t.c.value('@winlostdate','SMALLDATETIME') AS winlostdate
-			,t.c.value('@IsMixParlay','BIT') AS IsMixParlay
-			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
+	SELECT t.c.value('@mid','INT') AS matchid
+			,t.c.value('@t','BIGINT') AS transid
+			,t.c.value('@ref','BIGINT') AS refno
+			,t.c.value('@c','INT') AS custid
+			,t.c.value('@lh','SMALLINT') AS livehomescore
+			,t.c.value('@la','SMALLINT') AS liveawayscore
+			,t.c.value('@li','BIT') AS liveindicator
+			,t.c.value('@btype','SMALLINT') AS bettype
+			,t.c.value('@bdaq','BIGINT') AS betdaqid
+			,t.c.value('@sid','TINYINT') AS statusID
+			,t.c.value('@wld','SMALLDATETIME') AS winlostdate
+			,t.c.value('@isP','BIT') AS IsMixParlay
+			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
 
@@ -363,14 +362,14 @@ BEGIN
 
 	SET @TransInfoXML = (
 	SELECT DISTINCT 
-			t.matchid AS "@matchid"
-		    ,t.transid AS "@transid"
-			,b.custid AS "@custid"
-			,t.refno AS "@refno"
-			,b.bettype AS "@bettype"
-			,b.betid AS "@betid"
-			,b.IsMixParlay AS "@IsMixParlay"
-			,b.SiteDBGroupID AS "@SiteDBGroupID"
+			t.matchid AS "@mid"
+		    ,t.transid AS "@t"
+			,t.refno AS "@ref"
+			,b.custid AS "@c"
+			,b.bettype AS "@btype"
+			,b.betid AS "@bid"
+			,b.IsMixParlay AS "@isP"
+			,b.SiteDBGroupID AS "@sitedb"
 	FROM #transIdTemp t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR XML PATH('r'), ROOT('root'))

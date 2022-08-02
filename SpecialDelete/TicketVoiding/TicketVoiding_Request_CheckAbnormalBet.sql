@@ -80,7 +80,6 @@ BEGIN
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
 	DECLARE @tblRemoveTickets AS TABLE (TransId BIGINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
@@ -190,27 +189,27 @@ BEGIN
 		  ,IsMoved14
 		  ,SiteDBGroupID
 		)
-	SELECT t.c.value('@matchid','INT') AS matchid
-			,t.c.value('@transid','BIGINT') AS transid
-			,t.c.value('@Subtransid','BIGINT') AS Subtransid
-			,t.c.value('@refno','BIGINT') AS refno
-			,t.c.value('@custid','INT') AS custid
-			,t.c.value('@livehomescore','SMALLINT') AS livehomescore
-			,t.c.value('@liveawayscore','SMALLINT') AS liveawayscore
-			,t.c.value('@liveindicator','BIT') AS liveindicator
-			,t.c.value('@betteam','NVARCHAR(10)') AS betteam
-			,t.c.value('@bettype','SMALLINT') AS bettype
-			,t.c.value('@betid','BIGINT') AS betid
-			,t.c.value('@betdaqid','BIGINT') AS betdaqid
-			,t.c.value('@betfrom','NVARCHAR(1)') AS betfrom
-			,t.c.value('@statusID','TINYINT') AS statusID
-			,t.c.value('@recommend','INT') AS recommend
-			,t.c.value('@mrecommend','INT') AS mrecommend
-			,t.c.value('@srecommend','INT') AS srecommend
-			,t.c.value('@statuswinlost','TINYINT') AS statuswinlost
-			,t.c.value('@IsMixParlay','BIT') AS IsMixParlay
-			,t.c.value('@IsMoved14','BIT') AS IsMoved14
-			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
+	SELECT t.c.value('@mid','INT') AS matchid
+			,t.c.value('@t','BIGINT') AS transid
+			,t.c.value('@s_t','BIGINT') AS Subtransid
+			,t.c.value('@ref','BIGINT') AS refno
+			,t.c.value('@c','INT') AS custid
+			,t.c.value('@lh','SMALLINT') AS livehomescore
+			,t.c.value('@la','SMALLINT') AS liveawayscore
+			,t.c.value('@li','BIT') AS liveindicator
+			,t.c.value('@bteam','NVARCHAR(10)') AS betteam
+			,t.c.value('@btype','SMALLINT') AS bettype
+			,t.c.value('@bid','BIGINT') AS betid
+			,t.c.value('@bdaq','BIGINT') AS betdaqid
+			,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
+			,t.c.value('@s','TINYINT') AS statusID
+			,t.c.value('@re','INT') AS recommend
+			,t.c.value('@mre','INT') AS mrecommend
+			,t.c.value('@sre','INT') AS srecommend
+			,t.c.value('@statuswl','TINYINT') AS statuswinlost
+			,t.c.value('@isP','BIT') AS IsMixParlay
+			,t.c.value('@IsM','BIT') AS IsMoved14
+			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
 
@@ -569,17 +568,17 @@ BEGIN
 
 	SET @TransInfoXML = (
 	SELECT DISTINCT 
-			t.matchid AS "@matchid"
-		    ,t.transid AS "@transid"
-			,b.custid AS "@custid"
-			,t.refno AS "@refno"
-			,t.statusID AS "@statusID"
-			,b.bettype AS "@bettype"
-			,b.betteam AS "@betteam"
-			,b.betid AS "@betid"
-			,b.statuswinlost AS "@statuswinlost"
-			,b.IsMixParlay AS "@IsMixParlay"
-			,b.SiteDBGroupID AS "@SiteDBGroupID"
+			t.matchid AS "@mid"
+		    ,t.transid AS "@t"
+			,b.refno AS "@ref"
+			,b.custid AS "@c"
+			,b.bettype AS "@btype"
+			,t.statusID AS "@sid"
+			,b.betteam AS "@bteam"
+			,b.betid AS "@bid"
+			,b.statuswinlost AS "@statuswl"
+			,b.IsMixParlay AS "@isP"
+			,b.SiteDBGroupID AS "@sitedb"
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR XML PATH('r'), ROOT('root')

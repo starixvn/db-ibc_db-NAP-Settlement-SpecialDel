@@ -70,98 +70,200 @@ BEGIN
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
       ,Subtransid BIGINT
+	  ,refno BIGINT
 	  ,custid INT	
-      ,transdate DATETIME
       ,hdp1 SMALLMONEY
       ,hdp2 SMALLMONEY
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
       ,liveindicator BIT
-      ,betteam NVARCHAR(10)
-      ,creator INT
-      ,refno BIGINT
-      ,bettype SMALLINT
-	  ,betid BIGINT
+	  ,odds MONEY
+	  ,oddsspread MONEY
       ,betfrom NVARCHAR(1)
-      ,statusID TINYINT
-      ,WalletType TINYINT
-	  ,RefCode BIGINT
-	  ,Subcustid INT	
-	  ,Sublivehomescore SMALLINT
-      ,Subliveawayscore SMALLINT
+      ,bettype SMALLINT
+      ,betteam NVARCHAR(10)
+	  ,betcheck NVARCHAR(50)
+	  ,Status NVARCHAR(10)
+      ,transdate DATETIME
+	  ,checktime DATETIME
+	  ,betid BIGINT
+	  ,Transdesc NVARCHAR(1000)
+	  ,statusID TINYINT
+	  ,Subcustid INT
 	  ,Subhdp1 SMALLMONEY
       ,Subhdp2 SMALLMONEY
+	  ,Sublivehomescore SMALLINT
+      ,Subliveawayscore SMALLINT
+	  ,Subliveindicator BIT
+	  ,Subodds MONEY
+	  ,Suboddsspread MONEY
 	  ,Subbetfrom NVARCHAR(1)
 	  ,Subbettype SMALLINT
-	  ,SubstatusID TINYINT
+	  ,Subbetteam  NVARCHAR(10)
+	  ,Subbetcheck NVARCHAR(50)
+	  ,SubStatus NVARCHAR(10)
 	  ,Subtransdate DATETIME
-	  ,Subliveindicator BIT
+	  ,Subchecktime DATETIME
+	  ,SubTransdesc  NVARCHAR(1000)
+	  ,SubstatusID TINYINT
+	  ,srecommend INT
+	  ,mrecommend INT
+	  ,recommend INT
+      ,creator INT
+	  ,WalletType TINYINT
+	  ,RefCode BIGINT
+	  ,stake MONEY
+	  ,oddstype TINYINT
+	  ,CurrencyName NVARCHAR(50)
+	  ,betdaqid BIGINT
+	  ,ExtraInfo VARCHAR(1000)
+	  ,BonusID INT
+	  ,winlost	MONEY
+	  ,actual_stake MONEY
+	  ,winlostdate SMALLDATETIME
+	  ,modds MONEY
+	  ,statuswinlost MONEY
+	  ,LiveBetAcceptTime SMALLINT
+	  ,SecAcceptTime TINYINT
+	  ,SubLiveBetAcceptTime SMALLINT
+	  ,SubSecAcceptTime TINYINT
       ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
+	  ,IsMove14 BIT
 	)
 
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 
 	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
-		   matchid
-		  ,transid 
-		  ,Subtransid
-		  ,refno
-		  ,custid		
-		  ,transdate 
-		  ,hdp1 
-		  ,hdp2 
-		  ,livehomescore 
-		  ,liveawayscore 
-		  ,liveindicator 
-		  ,bettype
-		  ,betid
-		  ,betfrom
-		  ,statusID
-		  ,WalletType 
-		  ,RefCode 
-		  ,Subcustid
-		  ,Sublivehomescore 
-		  ,Subliveawayscore 
-		  ,Subbetfrom
-		  ,Subbettype
-		  ,Subtransdate
-		  ,Subhdp1
-		  ,Subhdp2
-		  ,Subliveindicator
-		  ,IsMixParlay
-		  ,SiteDBGroupID
-		)
-	SELECT t.c.value('@matchid','INT') AS matchid
-			,t.c.value('@transid','BIGINT') AS transid
-			,t.c.value('@Subtransid','BIGINT') AS Subtransid
-			,t.c.value('@refno','BIGINT') AS refno
-			,t.c.value('@custid','INT') AS custid
-			,t.c.value('@transdate','DATETIME') AS transdate
-			,t.c.value('@hdp1','SMALLMONEY') AS hdp1
-			,t.c.value('@hdp2','SMALLMONEY') AS hdp2
-			,t.c.value('@livehomescore','SMALLINT') AS livehomescore
-			,t.c.value('@liveawayscore','SMALLINT') AS liveawayscore
-			,t.c.value('@liveindicator','BIT') AS liveindicator
-			,t.c.value('@bettype','SMALLINT') AS bettype
-			,t.c.value('@betid','BIGINT') AS betid
-			,t.c.value('@betfrom','NVARCHAR(1)') AS betfrom
-			,t.c.value('@statusID','TINYINT') AS statusID
-			,t.c.value('@WalletType','TINYINT') AS WalletType
-			,t.c.value('@RefCode','BIGINT') AS RefCode
-			,t.c.value('@Subcustid','INT') AS Subcustid
-			,t.c.value('@Sublivehomescore','SMALLINT') AS Sublivehomescore
-			,t.c.value('@Subliveawayscore','SMALLINT') AS Subliveawayscore
-			,t.c.value('@Subbetfrom','NVARCHAR(1)') AS Subbetfrom
-			,t.c.value('@Subbettype','SMALLINT') AS Subbettype
-			,t.c.value('@Subtransdate','SMALLINT') AS Subtransdate
-			,t.c.value('@Subhdp1','SMALLMONEY') AS Subhdp1
-			,t.c.value('@Subhdp2','SMALLMONEY') AS Subhdp2
-			,t.c.value('@Subliveindicator','BIT') AS Subliveindicator
-			,t.c.value('@IsMixParlay','BIT') AS IsMixParlay
-			,t.c.value('@SiteDBGroupID','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfoXML.nodes('root/r') t(c)
+		    matchid 
+	       ,transid 
+           ,Subtransid 
+	       ,refno 
+	       ,custid 	
+           ,hdp1 
+           ,hdp2 
+           ,livehomescore 
+           ,liveawayscore 
+           ,liveindicator 
+	       ,odds 
+	       ,oddsspread 
+           ,betfrom 
+           ,bettype 
+           ,betteam 
+	       ,betcheck 
+	       ,Status 
+           ,transdate 
+	       ,checktime 
+	       ,betid 
+	       ,Transdesc 
+	       ,statusID 
+	       ,Subcustid 
+	       ,Subhdp1 
+           ,Subhdp2 
+	       ,Sublivehomescore 
+           ,Subliveawayscore 
+	       ,Subliveindicator 
+	       ,Subodds 
+	       ,Suboddsspread 
+	       ,Subbetfrom 
+	       ,Subbettype 
+	       ,Subbetteam  
+	       ,Subbetcheck 
+	       ,SubStatus 
+	       ,Subtransdate 
+	       ,Subchecktime 
+	       ,SubTransdesc  
+	       ,SubstatusID 
+	       ,srecommend 
+	       ,mrecommend 
+	       ,recommend 
+           ,creator 
+	       ,WalletType 
+	       ,RefCode 
+	       ,stake 
+	       ,oddstype 
+	       ,CurrencyName 
+	       ,betdaqid 
+	       ,ExtraInfo 
+	       ,BonusID 
+	       ,winlost	
+	       ,actual_stake 
+	       ,winlostdate 
+	       ,modds 
+	       ,statuswinlost 
+	       ,LiveBetAcceptTime 
+	       ,SecAcceptTime 
+	       ,SubLiveBetAcceptTime 
+	       ,SubSecAcceptTime 
+           ,IsMixParlay 
+	       ,SiteDBGroupID 
+	       ,IsMove14 
+	)
+	SELECT t.c.value('@mid','INT') AS matchid	
+		,t.c.value('@t','BIGINT') AS transid
+		,t.c.value('@s_t','BIGINT') AS Subtransid
+		,t.c.value('@ref','BIGINT') AS refno
+		,t.c.value('@c','INT') AS custid
+		,t.c.value('@hdp1','SMALLMONEY') AS hdp1
+		,t.c.value('@hdp2','SMALLMONEY') AS hdp2
+		,t.c.value('@lh','SMALLINT') AS livehomescore
+		,t.c.value('@la','SMALLINT') AS liveawayscore
+		,t.c.value('@li','BIT') AS liveindicator
+		,t.c.value('@o','MONEY') AS odds
+		,t.c.value('@os','MONEY') AS oddsspread
+		,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
+		,t.c.value('@btype','SMALLINT') AS bettype
+		,t.c.value('@bteam','NVARCHAR(10)') AS betteam
+		,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
+		,t.c.value('@s','NVARCHAR(10)') AS Status
+		,t.c.value('@tdate','DATETIME') AS transdate
+		,t.c.value('@checkt','DATETIME') AS checktime
+		,t.c.value('@bid','BIGINT') AS betid
+		,t.c.value('@tdes','NVARCHAR(1000)') AS Transdesc
+		,t.c.value('@sid','TINYINT') AS statusID
+		,t.c.value('@s_c','INT') AS Subcustid
+		,t.c.value('@s_hdp1','SMALLMONEY') AS Subhdp1
+		,t.c.value('@s_hdp2','SMALLMONEY') AS Subhdp2
+		,t.c.value('@s_lh','SMALLINT') AS Sublivehomescore
+		,t.c.value('@s_la','SMALLINT') AS Subliveawayscore
+		,t.c.value('@s_li','BIT') AS Subliveindicator
+		,t.c.value('@s_o','MONEY') AS Subodds
+		,t.c.value('@s_os','MONEY') AS Suboddsspread
+		,t.c.value('@s_bfr','NVARCHAR(1)') AS Subbetfrom
+		,t.c.value('@s_btype','SMALLINT') AS Subbettype
+		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
+		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
+		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
+		,t.c.value('@s_tdate','SMALLINT') AS Subtransdate
+		,t.c.value('@s_checkt','SMALLINT') AS Subchecktime
+		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
+		,t.c.value('@s_sid', 'MONEY') AS SubstatusID
+		,t.c.value('@sre','INT') AS srecommend
+		,t.c.value('@mre','INT') AS mrecommend
+		,t.c.value('@re','INT') AS recommend
+		,t.c.value('@cr','INT') AS creator
+		,t.c.value('@wt','TINYINT') AS WalletType
+		,t.c.value('@refc','BIGINT') AS RefCode
+		,t.c.value('@stake','MONEY') AS stake
+		,t.c.value('@ost','TINYINT') AS oddstype
+		,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
+		,t.c.value('@bdaq','BIGINT') AS betdaqid
+		,t.c.value('@ex','VARCHAR(1000)') AS ExtraInfo
+		,t.c.value('@bo','INT') AS BonusID
+		,t.c.value('@w','MONEY') AS winlost
+		,t.c.value('@acstake','MONEY') AS actual_stake
+		,t.c.value('@wld', 'SMALLDATETIME') AS winlostdate
+		,t.c.value('@m', 'MONEY') AS modds
+		,t.c.value('@statuswl', 'MONEY') AS statuswinlost
+		,t.c.value('@lbat', 'SMALLINT') AS LiveBetAcceptTime
+		,t.c.value('@sat', 'TINYINT') AS SecAcceptTime
+		,t.c.value('@s_lbat', 'SMALLINT') AS SubLiveBetAcceptTime
+		,t.c.value('@s_sat', 'TINYINT') AS SubSecAcceptTime
+		,t.c.value('@isP','BIT') AS IsMixParlay
+		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
+		,t.c.value('@isM','BIT') AS IsMoved14 
+	FROM @TransInfoXML.nodes('root/r') t(c)	
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
 
 	INSERT INTO #TVSTicketBets(
@@ -399,18 +501,62 @@ BEGIN
 		FROM #TransidInRequest
 	END
 
-
 	SET @TransInfoXML = (
 	SELECT DISTINCT 
-			t.matchid AS "@matchid"
-		    ,t.transid AS "@transid"
-			,t.Subtransid AS "@Subtransid"
-			,t.custid AS "@custid"
-			,t.refno AS "@refno"
-			,b.bettype AS "@bettype"
-			,b.betid AS "@betid"
-			,b.IsMixParlay AS "@IsMixParlay"
-			,b.SiteDBGroupID AS "@SiteDBGroupID"
+			t.matchid AS "@mid"
+		    ,t.transid AS "@t"
+			,t.Subtransid AS "@s_t"
+			,t.refno AS "@ref"
+			,b.custid AS "@c"
+			,b.hdp1 AS "@hdp1"
+		    ,b.hdp2 AS "@hdp2"
+		    ,b.livehomescore AS "@lh" 
+		    ,b.liveawayscore AS "@la"  
+		    ,b.liveindicator AS "@li"  
+			,b.odds AS "@o" 
+		    ,b.oddsspread AS "@os" 
+		    ,b.betfrom AS "@bfr" 
+		    ,b.betteam AS "@bteam" 
+			,b.bettype AS "@btype"
+		    ,b.betcheck AS "@bcheck" 
+		    ,b.Status AS "@s" 
+			,b.transdate AS "@tdate"
+			,b.betid AS "@bid"
+		    ,b.Transdesc AS "@tdesc" 
+		    ,b.statusID AS "@sid" 
+		    ,b.Subcustid AS "@s_c"  
+		    ,b.Subhdp1 AS "@s_hdp1" 
+		    ,b.Subhdp2 AS "@s_hdp2" 
+			,b.Sublivehomescore AS "@s_lh"   
+		    ,b.Subliveawayscore AS "@s_la"   
+		    ,b.Subliveindicator AS "@s_li" 
+		    ,b.Subodds AS "@s_o"  
+		    ,b.Suboddsspread AS "@s_os" 
+		    ,b.Subbetfrom AS "@s_bfr" 
+		    ,b.Subbetteam AS "@s_bteam" 
+		    ,b.Subbettype AS "@s_btype" 
+		    ,b.Subbetcheck AS "@s_bcheck" 
+		    ,b.SubStatus AS "@s_s" 
+		    ,b.Subtransdate AS "@s_tdate"
+		    ,b.SubTransdesc AS "@s_tdes"
+			,b.SubstatusID AS "@s_sid" 
+		    ,b.srecommend AS "@sre" 
+		    ,b.mrecommend AS "@mre" 
+		    ,b.recommend AS "@re" 
+		    ,b.creator AS "@cr" 
+		    ,b.WalletType AS "@wt"  
+		    ,b.RefCode AS "@refc" 
+		    ,b.stake AS "@s" 
+		    ,b.oddstype AS "@ost"  
+		    ,b.CurrencyName AS "@curr"  
+		    ,b.betdaqid AS "@bdaq"  
+		    ,b.ExtraInfo AS "@ex"  
+		    ,b.BonusID AS "@bo"  
+		    ,b.winlost AS "@w" 	
+		    ,b.actual_stake AS "@acstake" 
+			,b.modds AS "@m"  
+			,b.IsMixParlay AS "@isP"
+			,b.SiteDBGroupID AS "@sitedb"
 		FROM #TVSTicketBets t
 			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
