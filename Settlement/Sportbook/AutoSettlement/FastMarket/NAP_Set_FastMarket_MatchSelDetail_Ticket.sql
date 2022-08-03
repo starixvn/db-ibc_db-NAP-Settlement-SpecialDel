@@ -16,6 +16,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
+	DECLARE @IsCentral BIT = 0
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	DECLARE @tblFMBettype TABLE (BetType SMALLINT PRIMARY KEY, ResourceId VARCHAR(20))
 
 	CREATE TABLE #tblBettrans (TransId BIGINT, BetType SMALLINT, hdp1 SMALLMONEY, statusId TINYINT, isMarked BIT DEFAULT(0))
@@ -31,6 +36,7 @@ BEGIN
 	SELECT	b.transid, bettype, hdp1, statusID
 	FROM	dbo.bettrans b WITH(NOLOCK)
 	WHERE	matchid = @matchid
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND EXISTS(SELECT TOP 1 1 FROM @tblFMBettype WHERE bettype = b.bettype)
 	
 	UPDATE b 

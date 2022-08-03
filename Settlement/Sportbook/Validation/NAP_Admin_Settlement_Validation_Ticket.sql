@@ -97,10 +97,8 @@ SET NOCOUNT ON
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-	BEGIN
-		SET @IsCentral = 1
-	END
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	SET @xmlResourceResult = CAST(@SelectedResources AS XML)
 	SET @xmlData		   = @SelectedResources
