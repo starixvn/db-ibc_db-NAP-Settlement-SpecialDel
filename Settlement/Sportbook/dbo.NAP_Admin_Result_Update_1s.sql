@@ -250,18 +250,18 @@ BEGIN
     /* END - @Command = 'NAP_Admin_Settlement_Auto_1s-REFUND' */
     ELSE IF @Command = 'NAP_Admin_Settlement_1-CAL'
     BEGIN
-        ---- HalfTime
-        --INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
-        --SELECT '01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50))
+        -- HalfTime
+        INSERT INTO @tmpResultDetail(ResourceID,HomeValue,AwayValue)
+        SELECT '01', CAST(@hth AS VARCHAR(50)), CAST(@hta AS VARCHAR(50))
        
-        ---- FullTime 
-        --UNION ALL 
-        --SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)) WHERE @fth IS NOT NULL AND @fta IS NOT NULL 
+        -- FullTime 
+        UNION ALL 
+        SELECT'00', CAST(@fth AS VARCHAR(50)), CAST(@fta AS VARCHAR(50)) WHERE @fth IS NOT NULL AND @fta IS NOT NULL 
        
-        --UPDATE @tmpResultDetail
-        --    SET SettlementStatusID = 4 -- Completed
-        --        ,ResultStatusID = 5 -- Manual Settlement
-        --WHERE   SourceType = 0
+        UPDATE @tmpResultDetail
+            SET SettlementStatusID = 4 -- Completed
+                ,ResultStatusID = 5 -- Manual Settlement
+        WHERE   SourceType = 0
         
         MERGE   ResultDetail AS TARGET
         USING   @tmpResultDetail AS SOURCE ON (TARGET.MatchID = @MatchID AND TARGET.ResourceID = SOURCE.ResourceID)

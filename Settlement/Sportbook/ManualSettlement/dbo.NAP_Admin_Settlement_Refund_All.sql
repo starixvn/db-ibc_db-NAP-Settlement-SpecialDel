@@ -2,8 +2,6 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All] 
      @matchid                       	INT
     ,@creator                       	INT   
-    ,@betstatus                        	NVARCHAR(50)    = NULL    
-    ,@Action                            VARCHAR(10)     = 'CAL'  
     ,@IP                                VARCHAR(15)     = ''
 	
     ,@ErrCode							INT             = 0      OUTPUT
@@ -86,7 +84,7 @@ BEGIN
             ,@ActionID                          INT       
             ,@log                               VARCHAR(300)     
             ,@strRefundBettypes					VARCHAR(MAX)
-  			,@refundCommand						VARCHAR(100)
+			,@Action							VARCHAR(20)
 		
 			,@IsCentral			BIT = 0	
 	
@@ -98,13 +96,9 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
     SELECT  @start 		= CURRENT_TIMESTAMP
-			,@ActionID 	= CASE 
-							WHEN  @action = 'CAL' 		THEN 109
-							WHEN  @action = 'CAL-FT' 	THEN 111
-							ELSE 0
-						END
-			,@refundCommand 						= 'NAP_Admin_Settlement_Refund-All'
-           
+			,@ActionID 	= 109
+			,@Action = 'REFUND'
+	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 	
@@ -142,7 +136,7 @@ BEGIN
 	
 	EXEC dbo.NAP_Set_CheckingMarkedTransaction
 			@MatchID  = @matchid
-			,@Action  = 'REFUND'
+			,@Action  = @Action
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg  = @ErrMsg	OUTPUT
 
@@ -169,20 +163,11 @@ BEGIN
     EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
         @MatchId 			= @matchId
         , @sportType 	    = @sporttype
-        , @Action 			= @Action
+        , @Action 			= 'CAL'
         , @Mode 			= 3 --@Mode Manual Refund       
 		, @IsCentral		= @IsCentral
     
     BEGIN TRY		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-            	@Command         = @refundCommand
-            	,@MatchID        = @matchid
-            	,@creator        = @creator
-				,@BetStatus 	 = @betstatus				
-		END
-		
 		SET @strRefundBettypes = CAST((SELECT  f.BetType '@t'
 										,GroupId '@g'
 										,GroupName '@n'
@@ -193,8 +178,8 @@ BEGIN
         
 		EXEC dbo.NAP_Admin_Calculate_Main 
             @matchid                    = @matchid
-            ,@action                    = 'REFUND'
-            ,@mode                      = 'REFUND'         
+            ,@action                    = @Action
+            ,@mode                      = @Action         
             ,@strBettypes               = @strRefundBettypes		
     END TRY
     BEGIN CATCH
@@ -210,7 +195,7 @@ BEGIN
         EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
             @MatchId 			= @matchId
             , @sportType 	    = @sporttype
-            , @Action 			= @Action
+            , @Action 			= 'CAL'
             , @Mode 			= 3 --@Mode Manual Refund          
 			, @IsCentral		= @IsCentral
         
@@ -240,7 +225,7 @@ BEGIN
     EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
         @MatchId 			= @matchId
         , @sportType 	    = @sporttype
-        , @Action 			= @Action
+        , @Action 			= 'CAL'
         , @Mode 			= 3 --@Mode Manual Refund     
 		, @IsCentral		= @IsCentral
     

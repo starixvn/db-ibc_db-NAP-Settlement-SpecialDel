@@ -537,103 +537,52 @@ BEGIN
 				END
 			END
 
-			IF @IsCentral = 1
-			BEGIN
-				EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark 
-					@matchid        = @matchid
-					,@command        = 'U'                
+			--IF @IsCentral = 1
+			--BEGIN
+			--	EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark 
+			--		@matchid        = @matchid
+			--		,@command        = 'U'                
                
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-					@Command        = 'NAP_Admin_Settlement_1-UNDO'
-					,@MatchID        = @matchid
-					,@betstatus        = @betstatus               
-					,@creator        = @creator
+			--	EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+			--		@Command        = 'NAP_Admin_Settlement_1-UNDO'
+			--		,@MatchID        = @matchid
+			--		,@betstatus        = @betstatus               
+			--		,@creator        = @creator
 			
-				IF @Sporttype = 1 -- Soccer
-				BEGIN
-					IF @ChildMatchType = 204 -- Corner
-					BEGIN
-						EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-							@Command            = 'NAP_Admin_Settlement_1-Corner-UNDO',
-							@MatchID            = @MatchID,
-							@creator            = @creator 
-					END
-					ELSE
-					BEGIN
-						EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-							@Command            = 'NAP_Admin_Settlement_1-UNDO',
-							@MatchID            = @MatchID,
-							@creator            = @creator 
-					END
+			--	IF @Sporttype = 1 -- Soccer
+			--	BEGIN
+			--		IF @ChildMatchType = 204 -- Corner
+			--		BEGIN
+			--			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+			--				@Command            = 'NAP_Admin_Settlement_1-Corner-UNDO',
+			--				@MatchID            = @MatchID,
+			--				@creator            = @creator 
+			--		END
+			--		ELSE
+			--		BEGIN
+			--			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
+			--				@Command            = 'NAP_Admin_Settlement_1-UNDO',
+			--				@MatchID            = @MatchID,
+			--				@creator            = @creator 
+			--		END
 
-					EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
-						@MatchId = @matchid
-						,@TypeId = NULL
-						,@StatusId = NULL 
-						,@IsUndoMatch = 1 --Clear data in table AutoPayoutResult if match has been undo
+			--		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
+			--			@MatchId = @matchid
+			--			,@TypeId = NULL
+			--			,@StatusId = NULL 
+			--			,@IsUndoMatch = 1 --Clear data in table AutoPayoutResult if match has been undo
 
-				END           
-            END
+			--	END           
+   --         END
         END
         ELSE
         BEGIN           
-
-			IF @IsCentral = 1
-			BEGIN
-				SELECT	@HTDone = IsHTCal 
-				FROM	DBPRO.bodb02.dbo.match_remark WITH(NOLOCK)
-				WHERE	matchid = @matchid
-			
-				SELECT    @eventstatus = CASE 
-											WHEN @action = 'CAL' THEN N'completed'
-											WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-											WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
-											ELSE m.eventstatus
-											END
-						,@FTDone        = CASE 
-											WHEN @action = 'CAL-HT' AND m.matchcode LIKE '%hedge%' THEN 0
-											ELSE @FTDone
-											END
-				FROM    DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
-				WHERE    m.matchid = @matchid
-
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-					@Command            = 'NAP_Admin_Settlement_1-CAL'
-					,@MatchID            = @matchid
-					,@FTHome            = @fth
-					,@FTAway            = @fta
-					,@HTHome            = @hth
-					,@HTAway            = @hta
-					,@BetStatus         = @betstatus
-					,@GoalRecord        = @goalrecord              
-					,@Action            = @action
-					,@FTDone            = @FTDone
-					,@HTDone            = @HTDone
-					,@creator            = @creator
-			END
-
 			EXEC dbo.NAP_Admin_Settlement_3
 				@matchid            = @matchid
 				,@mode                = @action    
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@creator = @creator
 				,@IsCentral = @IsCentral
-
-			IF @IsCentral = 1
-			BEGIN
-				IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%'
-				BEGIN
-					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-						@matchid    = @matchid
-						,@command    = 'C'                
-				END
-				ELSE IF (@action = 'CAL-HT')
-				BEGIN
-					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-						@matchid    = @matchid
-						,@command    = 'H'
-				END
-			END
 		END 
     END TRY
     BEGIN CATCH

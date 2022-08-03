@@ -78,8 +78,7 @@ BEGIN
 			,@stop      			DATETIME		
 			,@sporttype     		SMALLINT		
 			,@RowCount				INT			
-			,@strRefundBettypes		VARCHAR(MAX)		
-			,@refundCommand			VARCHAR(100)			
+			,@strRefundBettypes		VARCHAR(MAX)					
             ,@avaiableProcess		BIT		
 			,@Action				VARCHAR(20)			
 			,@IsCentral			BIT 
@@ -93,9 +92,8 @@ BEGIN
 	
 	SELECT	@start    = CURRENT_TIMESTAMP
 			,@ActionID  	= 111
-			,@Action		= 'CAL-FT'		
-			,@refundCommand = 'NAP_Admin_Settlement_Refund-FT'
-	
+			,@Action		= 'REFUND-FT'		
+			
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
@@ -134,7 +132,7 @@ BEGIN
 	-- check marked ticket
 	EXEC dbo.NAP_Set_CheckingMarkedTransaction
 			@MatchID  = @matchid
-			,@Action  = 'REFUND-FT'
+			,@Action  = @Action
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg  = @ErrMsg	OUTPUT
 
@@ -163,40 +161,26 @@ BEGIN
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 			= @matchId
 		, @sportType 	    = @sporttype
-		, @Action 			= @Action
+		, @Action 			= 'CAL-FT'
 		, @Mode 			= 3 --@Mode Manual Refund
 		, @IsCentral		= @IsCentral
 
     BEGIN TRY		
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-			@Command 	= @refundCommand --'NAP_Admin_Settlement_Refund-FT'
-			,@MatchID 	= @matchid		
-			,@RowCount 	= @RowCount OUTPUT
-			,@creator 	= @adminid
-			,@BetStatus = @betstatus		
-
-	    IF @RowCount > 0
-		BEGIN		
-			-- SELECT for new formation
-			SET @strRefundBettypes = (SELECT  f.BetType 'r/@t'
-							,f.GroupId 'r/@g'
-						FROM dbo.f_Set_GetGroupBettypes() AS f								
-						WHERE f.GroupId IN (2,4,6,7) 								
-						FOR XML PATH ('root')
-					)							
+	   -- SELECT for new formation
+		SET @strRefundBettypes = (SELECT  f.BetType 'r/@t'
+						,f.GroupId 'r/@g'
+					FROM dbo.f_Set_GetGroupBettypes() AS f								
+					WHERE f.GroupId IN (2,4,6,7) 								
+					FOR XML PATH ('root')
+				)							
 			
-			-- Calculate Refund FT
-			EXEC dbo.NAP_Admin_Calculate_Main 
-				@matchid                     = @matchid
-				,@action                     = 'REFUND'
-				,@mode                       = 'REFUND-FT'	
-				,@strBettypes				 = @strRefundBettypes
+		-- Calculate Refund FT
+		EXEC dbo.NAP_Admin_Calculate_Main 
+			@matchid                     = @matchid
+			,@action                     = 'REFUND'
+			,@mode                       = @Action
+			,@strBettypes				 = @strRefundBettypes
 			
-			IF @IsCentral = 1
-				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-					@matchid    = @matchid
-					,@command   = 'F'
-		END
     END TRY
     BEGIN CATCH
 		-- Capture Balance incase of failure
@@ -212,7 +196,7 @@ BEGIN
 		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 			@MatchId 			= @matchId
 			, @sportType 	    = @sporttype
-			, @Action 			= @Action
+			, @Action 			= 'CAL-FT'
 			, @Mode 			= 3
 			, @IsCentral		= @IsCentral
 			
@@ -243,7 +227,7 @@ BEGIN
 	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
 		@MatchId 			= @matchId
 		, @sportType 	    = @sporttype
-		, @Action 			= @Action
+		, @Action 			= 'CAL-FT'
 		, @Mode 			= 3
 		, @IsCentral		= @IsCentral
 

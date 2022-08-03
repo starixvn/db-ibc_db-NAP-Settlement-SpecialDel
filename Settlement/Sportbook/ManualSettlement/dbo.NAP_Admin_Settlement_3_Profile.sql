@@ -6,7 +6,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@fth INT = 0
 	,@fta INT = 0
 	,@goalrecord NVARCHAR(50) = ''
-	,@BetStatus NVARCHAR(50) = ''
     ,@action VARCHAR(6) = 'CAL'
 	,@ActionID	INT = 0
 	,@creator INT = 0
@@ -39,10 +38,7 @@ BEGIN
     SET NOCOUNT ON;
 
 	DECLARE @sporttype		SMALLINT
-			,@isRefundHT	BIT
-			,@matchcode		VARCHAR(50)
-			,@eventstatus	NVARCHAR(50)
-			,@HTDone		BIT
+			,@isRefundHT	BIT			
 			,@handle		INT
 			,@DummyResourceIds		VARCHAR(MAX) 
 			,@DummyResourceResults VARCHAR(MAX)
@@ -91,7 +87,6 @@ BEGIN
 		,HomeValue VARCHAR(2000)
 		,AwayValue VARCHAR(2000)
 	)
-	DECLARE @tmpMatchInfo TABLE (betstatus VARCHAR(50), childmatchtype TINYINT, eventstatus VARCHAR(50), HTResultStatusID TINYINT)
 
 	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
@@ -130,8 +125,8 @@ BEGIN
 		,bettype SMALLINT
 	)
 
-	SELECT	@HTDone = 0
-			,@DummyResourceIds = ''
+	SELECT				
+			@DummyResourceIds = ''
 			,@DummyResourceResults = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
 			,@MaxThreadHold = 0
@@ -265,62 +260,10 @@ BEGIN
 	SELECT	bettype
 	FROM	cteAffectedBettypes
 
-	SET @openquery = 'SELECT betstatus, childmatchtype, eventstatus, ResultStatusID
-					  FROM	OPENQUERY(DBPRO, ''SELECT m.betstatus, m.childmatchtype, m.eventstatus, r.ResultStatusID 
-											   FROM bodb02.dbo.match m WITH(NOLOCK)
-													LEFT JOIN bodb02.dbo.resultdetail r WITH(NOLOCK)
-														ON	r.matchid = m.matchid
-															AND r.resourceId =''''01''''
-											   WHERE m.matchid = ' + CAST(@matchid AS VARCHAR)+ '
-													'')'
-
-	INSERT INTO @tmpMatchInfo(betstatus,childmatchtype,eventstatus,HTResultStatusID)
-	EXEC (@openquery)
-
-	
 	SELECT	@isRefundHT = CASE WHEN betstatus LIKE 'Refund HT%' THEN 1 ELSE 0 END 
-			,@ChildMatchType = ChildMatchType
-			,@eventstatus = CASE 
-								WHEN @action = 'CAL' THEN N'completed'
-								WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%'    THEN eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-								WHEN @action = 'CAL-FT' AND HTResultStatusID = 5 THEN N'completed'
-								ELSE eventstatus
-								END
-			,@HTDone = CASE 
-							WHEN @action = 'CAL' THEN 1
-							WHEN @action = 'CAL-FT' AND HTResultStatusID = 5 THEN 1 
-							ELSE 0 
-						END
-	FROM	 @tmpMatchInfo
-
-	IF @IsCentral = 1 -- update match
-	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-			@Command            = 'NAP_Admin_Settlement_1-CAL'
-			,@MatchID            = @matchid
-			,@FTHome            = @fth
-			,@FTAway            = @fta
-			,@HTHome            = @hth
-			,@HTAway            = @hta
-			,@BetStatus         = @betstatus
-			,@GoalRecord        = @goalrecord              
-			,@Action            = @action
-			,@HTDone            = @HTDone
-			,@creator            = @creator
-		
-		-- update resultdetail
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
-			@Command        = 'NAP_Admin_Settlement_1-CAL',
-			@MatchID        = @MatchID,
-			@fth             = @fth,
-			@fta             = @fta,
-			@hth             = @hth,
-			@hta             = @hta,
-			@ResourceResult	 = @WebResourceResult,
-			@Action            = @Action,
-			@IsAuto            = 0,
-			@creator        = @creator
-	END
+			,@ChildMatchType = ChildMatchType			
+	FROM	DBPRO.bodb02.dbo.match m WITH(NOLOCK)
+	WHERE	m.matchid = @matchid
 
 	-- insert dummy resouceid
 	-----------------------------------------add more info-----------------------------------------
@@ -774,22 +717,6 @@ BEGIN
 				@BalanceWalletBefore	= @BalanceWalletBefore
 				,@BalanceWalletAfter	= @BalanceWalletAfter
 				,@ActionId				= @ActionID		
-		END
-	END
-
-	IF @IsCentral = 1
-	BEGIN
-		IF @eventstatus = 'completed' AND @betstatus NOT LIKE '%Refund;%' AND @betstatus NOT LIKE '%Refund FT;%' AND @betstatus NOT LIKE '%Abandoned%' 
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-				@matchid    = @matchid
-				,@command    = 'C'                
-		END
-		ELSE IF (@action = 'CAL-HT')
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-				@matchid    = @matchid
-				,@command    = 'H'
 		END
 	END
 

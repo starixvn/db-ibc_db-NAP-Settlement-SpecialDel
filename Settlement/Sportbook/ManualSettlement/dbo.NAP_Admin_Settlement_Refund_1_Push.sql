@@ -13,7 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_1_Push]
     ,@IP				VARCHAR(15)    	= ''
     ,@ResourceResult	VARCHAR(MAX)	= NULL
     ,@IsAutoRefund		BIT				= 0
-	,@SessionId			VARCHAR(50)		= NULL
+	,@BroadcastSessionId VARCHAR(50)		= NULL
     ,@ErrCode			INT            	= 0     OUTPUT
     ,@ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -33,14 +33,13 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    DECLARE @matchcode				NVARCHAR(50)
+    DECLARE 
+			@matchcode				NVARCHAR(50)
 			,@sporttype     		INT
 			,@leagueid      		INT		
-			,@IsNested      		BIT
 			,@procName      		NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@KeyId					INT
-			,@IsHTDone				BIT = 1
 			
     SELECT	@matchcode    = m.matchcode
 			,@sporttype   = m.sporttype
@@ -67,15 +66,6 @@ BEGIN
 																  +  CASE WHEN @IsAutoRefund = 1 THEN + ', @IsAutoRefund =' + CONVERT(NVARCHAR(1), @IsAutoRefund ) +''  ELSE '' END
 																  + ', @ErrCode = @ErrCode OUTPUT' 
                                                                   + ', @ErrMsg = @ErrMsg OUTPUT'
-
-	-- add new status "Under Settlement" for a match
-	IF @Action IN ('REFUND', 'REFUND-FT')
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= 1 
-			,@AdminId		= @AdminId
-			,@IP			= @Ip
 	
     IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
@@ -105,7 +95,7 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
-				,SessionId
+				,BroadcastSessionId
             )
         SELECT	@MatchId
 				,@matchcode
@@ -116,7 +106,7 @@ BEGIN
 				,@IP
 				,@Action
 				,@sqlCommand
-				,@SessionId
+				,@BroadcastSessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 		

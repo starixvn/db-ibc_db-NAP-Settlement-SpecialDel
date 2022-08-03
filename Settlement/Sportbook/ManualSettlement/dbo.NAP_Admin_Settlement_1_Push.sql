@@ -9,8 +9,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@GoalRecord			VARCHAR(50)     = NULL
     ,@BetStatus             NVARCHAR(50)    
    
-    ,@SelectedQuarter		VARCHAR(50)		= NULL
-    ,@QuarterResult			VARCHAR(MAX)	= NULL
     ,@ResourceResult		VARCHAR(MAX)	= NULL
     ,@Action                VARCHAR(10)     = 'CAL'
     ,@IP                    VARCHAR(15)     = ''
@@ -21,7 +19,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 AS
-/*    Creator: Kathy
+/*  Creator: Kathy
     Date: 20140213
     Task: SP for settlement
     DB: DBTXN/BODB02
@@ -60,14 +58,6 @@ AS
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
 		
-		* @SelectedQuarter: the list of selected quarter for settlement basketball
-			'801,802,1H,803,804,2H,FT'
-		* @QuarterResult: the result of each quarter bettype of basketball
-			Sample:	'<Results>
-					   <Resource Id="603" HomeValue="H"/> 
-					   <Resource Id="604" HomeValue="H"/> 
-					   <Resource Id="Q1" HomeValue="30" AwayValue="40"/> 
-					 </Results>
 		* @ResourceResult
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
@@ -87,84 +77,31 @@ BEGIN
 			,@procName          	NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
 			,@IsSystemSettlement	BIT
-			,@LeagueGroupID			SMALLINT
 			,@KeyId					INT
-			,@IsMergedParlay		BIT = 0
-			,@xmlResourceResult		XML
-			,@xmlData				VARCHAR(MAX)
-			,@IsCentral				BIT = 0
-
-	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
-
-    SELECT	@matchcode = m.matchcode
-			,@sporttype   = m.sporttype
-			,@leagueid    = m.leagueid
-			,@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
-    FROM	dbo.match m WITH (NOLOCK)
-		INNER JOIN dbo.League l WITH (NOLOCK)
-			ON m.leagueid = l.leagueid
-    WHERE	m.matchid = @MatchId
-
+	
     SELECT	@ErrCode        = 0
 			,@ErrMsg        = ''
 			,@procName      = OBJECT_NAME(@@procid)
 			,@sqlCommand    = 'EXEC [dbo].[NAP_Admin_Settlement_1] @matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
-                                                          + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
-                                                          + ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeHome), 'NULL') 
-                                                          + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL') 
-                                                          + ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeHome), 'NULL') 
-                                                          + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
-                                                          + ', @goalrecord = ' + CASE WHEN @GoalRecord IS NULL THEN 'NULL'
-                                                                                      ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END 
-                                                          + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
-                                                                                     ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
-                                                          + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''                                                          
-														  + ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
-                                                                                     ELSE '''' + @ResourceResult + '''' END 
-                                                          + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
-														  + ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
-														  +    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
-														  +	   CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END
-                                                          + ', @ErrCode = @ErrCode OUTPUT' 
-                                                          + ', @ErrMsg = @ErrMsg OUTPUT'
+                                    + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
+                                    + ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeHome), 'NULL') 
+                                    + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL') 
+                                    + ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeHome), 'NULL') 
+                                    + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
+                                    + ', @goalrecord = ' + CASE WHEN @GoalRecord IS NULL THEN 'NULL'
+                                                                ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END 
+                                    + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
+                                                                ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
+                                    + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''                                                          
+									+ ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
+                                                                ELSE '''' + @ResourceResult + '''' END 
+                                    + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
+									+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
+									+    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
+									+	   CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END
+                                    + ', @ErrCode = @ErrCode OUTPUT' 
+                                    + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           
-				,@IsSystemSettlement = CASE
-										WHEN @Action = 'UNDO' 
-											THEN CASE 
-													WHEN @sporttype NOT IN (2) THEN 0
-													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 0
-													ELSE NULL
-												END
-										WHEN @Action IN ('CAL', 'CAL-FT') 
-											THEN CASE
-													WHEN @sporttype NOT IN (2) THEN 1
-													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 1
-													ELSE NULL
-												END
-										ELSE NULL
-									END
-	
-	-- add new status "Under Settlement" for a match
-	IF @IsCentral = 1 AND  @IsSystemSettlement IS NOT NULL 
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= @IsSystemSettlement 
-			,@AdminId		= @AdminId
-			,@IP			= @IP
-	END
-
-	IF @IsCentral = 1 AND ISNULL(@ChildMatchIds ,'') <> '' AND @Action IN ('CAL', 'CAL-FT') AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeAway,0) <> ISNULL(@FullTimeHome,0)
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns
-			 @parentId = @Matchid
-			 ,@ChildMatchIds = @ChildMatchIds
-	END
-
     IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
         BEGIN TRY

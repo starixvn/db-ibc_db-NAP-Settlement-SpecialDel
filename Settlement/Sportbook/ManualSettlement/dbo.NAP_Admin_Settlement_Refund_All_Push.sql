@@ -1,13 +1,11 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All_Push] 
     @Matchid							INT
-    ,@AdminId                        	INT
-    ,@BetStatus                        	NVARCHAR(50)    = NULL
+    ,@AdminId                        	INT   
     ,@IP								VARCHAR(15)    	= ''
-	,@SessionId							VARCHAR(50)		= NULL
+	,@BroadcastSessionId				VARCHAR(50)		= NULL
     ,@ErrCode							INT            	= 0     OUTPUT
     ,@ErrMsg							NVARCHAR(200)   = ''    OUTPUT
-    ,@ServiceCommand					NVARCHAR(MAX)	= ''	OUTPUT
 AS
 /*
     Created: Kathy
@@ -48,13 +46,7 @@ AS
 
     Param's Explanation:
     • @matchid: matchid need to refund
-    * @isExistTotalCorner: = 1 When existing tickets or result details of corners bettypes 
-    * @sqlCommand: just use this output for Cricket - Match Winner
-	
-	* @ResourceResult
-					<Results>
-						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
-					</Results>
+   
 */
 BEGIN
     SET NOCOUNT ON
@@ -62,15 +54,12 @@ BEGIN
     DECLARE @matchcode				NVARCHAR(50)
 			,@sporttype     		INT
 			,@leagueid      		INT	
-			,@Action        		VARCHAR(20)
 			,@procName      		NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
-			,@IsSystemSettlement	BIT
-
+			
     SELECT	@matchcode    = m.matchcode
 			,@sporttype   = m.sporttype
-			,@leagueid    = m.leagueid
-			
+			,@leagueid    = m.leagueid			
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
     
@@ -79,25 +68,9 @@ BEGIN
         ,@procName      = OBJECT_NAME(@@procid)
         ,@sqlCommand    = 'EXEC [dbo].[NAP_Admin_Settlement_Refund_All] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
                                                                   + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId)
-                                                                  + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' ELSE '''' + @BetStatus + '''' END 
-                                                                  + ', @Action = ''' + 'CAL' + '''' 
                                                                   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 																  + ', @ErrCode = @ErrCode OUTPUT' 
                                                                   + ', @ErrMsg = @ErrMsg OUTPUT'
-			,@IsSystemSettlement = 1
-
-    SELECT @Action = 'REFUND'  -- ALL SPORTS
-
-	-- add new status "Under Settlement" for a match
-	IF @IsSystemSettlement IS NOT NULL
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= @IsSystemSettlement 
-			,@AdminId		= @AdminId
-			,@IP			= @Ip
-	END
 
     IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
@@ -127,7 +100,7 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
-				,SessionId
+				,BroadcastSessionId
             )
         SELECT	@MatchId
 				,@matchcode
@@ -136,9 +109,9 @@ BEGIN
 				,@sporttype
 				,@AdminId
 				,@IP
-				,@Action -- Refund
+				,'REFUND'
 				,@sqlCommand
-				,@SessionId
+				,@BroadcastSessionId
 		
     END
 

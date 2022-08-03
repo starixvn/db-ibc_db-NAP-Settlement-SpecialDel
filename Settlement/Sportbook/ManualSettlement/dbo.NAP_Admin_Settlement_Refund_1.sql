@@ -47,7 +47,7 @@ BEGIN
     DECLARE @starttime                          DATETIME
 			,@ActionID                          INT
             ,@avaiableProcess					BIT
-			--,@xmlResourceResult					XML
+			
 			,@Sporttype							SMALLINT
 			,@handle							INT
 			,@DummySDTResourceIds				VARCHAR(MAX) = ''
@@ -60,12 +60,9 @@ BEGIN
             ,@matchcode                         NVARCHAR(50)
 			,@openquery							NVARCHAR(MAX)
 			,@IsHedgeMatch						BIT
-			,@IsHTDone							BIT
 			
 			,@ResourceResult_Corner_Result		VARCHAR(MAX) = NULL
-			,@ResourceResult_Main_Result		VARCHAR(MAX) = NULL
-			,@refundCommand						VARCHAR(100)
-			,@refundCommand_1s					VARCHAR(100)
+			,@ResourceResult_Main_Result		VARCHAR(MAX) = NULL		
 			,@IsSettleAbandonedMatchIBC			BIT
 			
 			,@SPName							NVARCHAR(128)
@@ -140,7 +137,6 @@ BEGIN
 			,@MinThreadHold = 0
 			,@BatchNo = 0
 			,@TotalTicket = 0
-			--,@xmlResourceResult = CAST(@ResourceResult AS XML)
 			
 			,@messageBody = ''
 			,@SettlementProcessingId = 0
@@ -177,10 +173,7 @@ BEGIN
 			,@IsABANDONEDHT = CASE WHEN @Action = 'REFUND' AND @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
 			,@IsRefundHT = CASE WHEN m.HTSettlementStatusId = 2 THEN 1 ELSE 0 END
 			,@IsHedgeMatch = CASE WHEN m.matchcode LIKE '%hedge%' AND @SDTRecord & 4 > 0 THEN 1 ELSE 0 END 
-			,@IsHTDone = CASE 
-							WHEN @Action = 'REFUND' THEN 1						
-							WHEN @Action = 'REFUND-FT' AND m.HTResultStatusID = 5 THEN 1 
-							ELSE 0 END
+			
     FROM    @tmpMatchInfo m
     
     SELECT  @starttime 		= CURRENT_TIMESTAMP
@@ -260,8 +253,6 @@ BEGIN
 	END 
    
    BEGIN TRY
-		--SET @xmlResourceResult = CAST(@ResourceResult AS XML)
-
 		;WITH cteMainResource
 		AS
 		(
@@ -497,50 +488,11 @@ BEGIN
 	
 		SELECT @ResourceResult = ISNULL(@ResourceResult,'') + ISNULL(@ResourceResult_Corner_Result,'')
 
-		--just for IBC case
-		SELECT @refundCommand = CASE 
-									WHEN @Action = 'REFUND' OR (@IsRefundHT = 1 AND @Action = 'REFUND-FT') THEN 'NAP_Admin_Settlement_Refund-All'
-									WHEN @Action = 'REFUND-HT' THEN 'NAP_Admin_Settlement_Refund-HT'
-									WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_Refund-FT'									
-								END
-		SELECT @refundCommand_1s =  @refundCommand
-
-		IF @IsSettleAbandonedMatchIBC = 1
-		BEGIN
-			SET @refundCommand = @refundCommand + '-Abandoned'
-			SET @refundCommand_1s = CASE 
-										WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_RefundFT-Abandoned' 
-										ELSE @refundCommand
-									END
-		END
-		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-				@Command         = @refundCommand
-				,@MatchID        = @matchid
-				,@creator        = @creator
-				,@BetStatus 	 = @betstatus
-				,@GoalRecord	 = @GoalSequence 
-				,@HTHome		 = @hth
-				,@HTAway		 = @hta
-				,@FTHome		 = @fth
-				,@FTAway		 = @fta
-				,@HTDone		 = @IsHTDone
-		END
-
-		EXEC DBPRO.BODB02.dbo.[NAP_Admin_Result_Update_1s] 
-			@Command                = @refundCommand_1s
-			,@MatchID               = @matchid
-			,@creator               = @creator
-			,@SDTRecord		= @SDTRecord
-			,@fth			= @fth
-			,@fta			= @fta
-			,@hth			= @hth
-			,@hta			= @hta
-			--Refund HT then Refund FT SDT
-			,@ResourceResult	= @ResourceResult
-			,@Action        = @Action
+		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+			@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
+			@MatchID        = @MatchID,                  
+			@ResourceResult	= @ResourceResult_Corner_Result,                    
+			@creator        = @creator
 
 		SELECT	@DummySDTResourceIds = @DummySDTResourceIds + CAST(a.SDTResourceId AS VARCHAR(20)) + ','
 		FROM	@tmpAllBettypes a 
@@ -842,10 +794,6 @@ BEGIN
 				, @TypeId  = 1
 				, @StatusId = 2
 			END
-
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-				@matchid       = @matchid
-				,@command      = 'F'		
 		END
 
 		INSERT INTO @tmpParlayAffectedBettypes(ResourceId, RefResourceId, SDTResourceId, bettype, IsSDTParlay, totalticket)

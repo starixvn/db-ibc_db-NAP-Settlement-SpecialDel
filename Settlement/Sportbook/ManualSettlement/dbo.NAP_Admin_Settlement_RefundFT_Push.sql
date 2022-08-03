@@ -1,13 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_RefundFT_Push] 
     @MatchId            INT
-    ,@AdminId           INT
+    ,@AdminId           INT  
     ,@BetStatus         NVARCHAR(50)    = NULL
     ,@IP                VARCHAR(15)    	= ''
-	,@SessionId			VARCHAR(50)		= NULL
+	,@BroadcastSessionId VARCHAR(50)		= NULL
     ,@ErrCode           INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)   = ''	OUTPUT
-    ,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
 AS
 /*
     Created: 20140213@Kathy
@@ -53,12 +52,7 @@ BEGIN
 			,@procName				NVARCHAR(50)
 			,@Action				VARCHAR(10)
 			,@sqlCommand			NVARCHAR(MAX)
-			,@IsExistNetPosition	BIT = 0
-
-			,@Inst_HomeScore		INT
-			,@Inst_AwayScore		INT
-			,@IsHTDone				BIT = 1
-
+		
     SELECT	@matchcode		= m.matchcode
 			,@sporttype     = m.sporttype
 			,@leagueid      = m.leagueid
@@ -70,7 +64,7 @@ BEGIN
         ,@ErrMsg       = ''
         ,@procName     = OBJECT_NAME(@@procid)
         ,@sqlCommand   = 'EXEC [dbo].[NAP_Admin_Settlement_RefundFT] @matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
-                                                                 + ', @adminid = ' + CONVERT(NVARCHAR(50), @AdminId)                                                              
+                                                                 + ', @adminid = ' + CONVERT(NVARCHAR(50), @AdminId)                                                                                                                              
                                                                  + ', @betstatus = ' + CASE 
                                                                                             WHEN @BetStatus IS NULL THEN 'NULL'
                                                                                             ELSE '''' + @BetStatus + ''''
@@ -79,18 +73,7 @@ BEGIN
                                                                  + ', @ErrCode = @ErrCode OUTPUT' 
                                                                  + ', @ErrMsg = @ErrMsg OUTPUT'
     
-    IF @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
-		SET	@IsExistNetPosition = 1 
-
-	--  add new status "Under Settlement" for a match
-	EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= 1 
-			,@AdminId		= @AdminId
-			,@IP			= @Ip
-
-    IF @IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+    IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
         BEGIN TRY
             EXEC sys.sp_executesql @sqlCommand
@@ -123,18 +106,15 @@ BEGIN
             )
         SELECT @MatchId
             ,@matchcode
-            ,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
+			,0 
             ,@leagueid
             ,@sporttype
             ,@AdminId
             ,@IP
             ,@Action
-            ,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
-			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
-			,@SessionId
-		
-		IF @IsExistNetPosition = 1
-			SET @ServiceCommand = @sqlCommand -- just use this output for Cricket - Match Winner
+			,@sqlCommand
+			,GETDATE()          
+			,@BroadcastSessionId
     END
 END
 GO
