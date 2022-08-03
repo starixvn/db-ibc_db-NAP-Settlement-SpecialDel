@@ -323,7 +323,7 @@ BEGIN
 				,SubTransdesc  
 				,modds 
 			)
-		SELECT b.matchid
+		SELECT sub.matchid
 			,b.TransId
 			,sub.transid AS SubTransID
 			,b.custid
