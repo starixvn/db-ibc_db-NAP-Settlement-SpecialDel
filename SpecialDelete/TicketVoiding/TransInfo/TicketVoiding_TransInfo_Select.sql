@@ -90,7 +90,7 @@ BEGIN
 	IF @IssueTypeId = 10
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_RC_Select
-			@DangerAcceptedInfo = @DangerAcceptedInfo
+			@RedCardInfo = @RedCardInfo
 	END
 	/*-----------------*/
 
