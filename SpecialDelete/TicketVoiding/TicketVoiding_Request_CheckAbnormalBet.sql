@@ -1,8 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
-	 @MatchId	BIGINT = 0
-	,@TransIds	VARCHAR(MAX) = NULL
+	 @TransIds	VARCHAR(MAX) = NULL
 	,@RequestId INT = 0
 	,@ActionId	TINYINT	= 0
 	,@FilterBy	TINYINT	= NULL
@@ -77,6 +76,7 @@ BEGIN
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@TransInfoXML			     XML = NULL
+			,@MatchId					 INT = 0
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -92,26 +92,14 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
-	-- check valid match id
-	IF @FilterBy IS NULL AND @MatchId <> 0 AND NOT EXISTS (SELECT TOP 1 1
-					FROM dbo.match AS m WITH (NOLOCK)
-					WHERE m.matchid = @MatchId
-						AND EXISTS (
-							SELECT TOP 1 1
-							FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
-							WHERE bm.ProductID = 1
-								AND bm.SportType = m.sporttype
-							)
-					)	
-	BEGIN
-		SET @InvalidMatchId = @MatchId
+	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 
-		SELECT @InvalidMatchId AS InvalidMatchId
-
-		RETURN;
-	END
-	
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
+	INSERT INTO #transIdTemp (transid)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
+
 	CREATE TABLE #transid_tmp (transid BIGINT,StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #transidremove_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
@@ -213,12 +201,33 @@ BEGIN
 	FROM @TransInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
 
-	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
+	SET @MatchId = (SELECT TOP 1 b.matchid
+						FROM #tmpTransInfo AS b WITH (NOLOCK)
+							INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
+						WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
+									   WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
+									   ELSE 0 END) 
+								AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
 
-	INSERT INTO #transIdTemp (transid)
-	SELECT DISTINCT value
-	FROM STRING_SPLIT(@TransIds, ',')
-	WHERE value <> ''
+
+	-- check valid match id
+	IF @FilterBy IS NULL AND @MatchId <> 0 AND NOT EXISTS (SELECT TOP 1 1
+					FROM dbo.match AS m WITH (NOLOCK)
+					WHERE m.matchid = @MatchId
+						AND EXISTS (
+							SELECT TOP 1 1
+							FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
+							WHERE bm.ProductID = 1
+								AND bm.SportType = m.sporttype
+							)
+					)	
+	BEGIN
+		SET @InvalidMatchId = @MatchId
+
+		SELECT @InvalidMatchId AS InvalidMatchId
+
+		RETURN;
+	END
 
 	-- Check auto calculator
     SELECT @OldAction = ActionId 
