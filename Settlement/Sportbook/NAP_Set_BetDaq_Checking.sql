@@ -1,10 +1,4 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-USE [bodb02]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[NAP_Set_BetDaq_Checking]
 	@matchid				int = 0
 AS 
@@ -26,7 +20,7 @@ Revisions:
 	- 20160120@Patrick: PH-AiO - Change request [Redmine: #51116]
 	- 20160705@Kathy: PH-AIO phase 2 (67 bettypes ) [Redmine:#53154]
 	- 20160428@Kathy: Exclude Fast Market bettypes [Redmine:#56367]
-	
+	- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 Note: For settlement SPs should hardcode the custid of betdaq customer to avoid replication problem
 	* List of BetDaq Customers 
@@ -63,12 +57,16 @@ BEGIN
 		@IsMovebetdaq			bit ,
 		@IsExcludeBetdaq		bit,
 		@IsSettleAbandonedMatch bit,
-		@IsRefundRunningBetDaq	bit
+		@IsRefundRunningBetDaq	bit,
+		@IsCentral				BIT = 0
 		
 	SELECT	@IsMovebetdaq = 0, 
 			@IsExcludeBetdaq = 0, 
 			@IsSettleAbandonedMatch =0 ,
 			@IsRefundRunningBetDaq =0 
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	IF EXISTS (
 				SELECT 1 
@@ -83,6 +81,7 @@ BEGIN
 						AND b.bettype NOT BETWEEN 1301 AND 1399	-- Sportting solution exclude in Betdaq/Betfair 
 						AND b.bettype NOT BETWEEN 153 AND 156		-- Tennis new bet types 
 						AND f.IsAuto = 0
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			   )
 	BEGIN
 		SELECT	@isMoveBetDaq = 1, @isExcludeBetDaq = 1, @IsRefundRunningBetDaq = 1  	
@@ -102,6 +101,7 @@ BEGIN
 						AND f.IsAuto = 0
 						AND statusID NOT IN (101, 102, 103)
 						AND ruben = 0 
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			   )
 	BEGIN
 		SELECT	@IsSettleAbandonedMatch = 1 
@@ -114,6 +114,3 @@ BEGIN
 	
 END
 GO
-GRANT EXECUTE ON [dbo].[NAP_Set_BetDaq_Checking] TO [bodbAdminNet] AS [dbo]
-GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Set_BetDaq_Checking] TO [vnteam] AS [dbo]
