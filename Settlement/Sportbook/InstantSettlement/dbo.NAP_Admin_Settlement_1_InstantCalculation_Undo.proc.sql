@@ -83,6 +83,8 @@ BEGIN
 		,@ResourceResult_CornerRace NVARCHAR(MAX) = ''
 		,@NeitherRaceTo			TINYINT
 		,@IsCentral				BIT
+		,@HTBetStatus			NVARCHAR(50) = ''
+		,@FTBetStatus			NVARCHAR(50) = ''
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -428,7 +430,7 @@ BEGIN
 	--SELECT @FGLGCheck 		= MAX(CASE WHEN bettype = 127 AND RIGHT(betteam, 1) IN ('0', '1' ) THEN 1 ELSE 0 END)
 	--	, @FGLGCheck 		+= MAX(CASE WHEN bettype = 14 AND RIGHT(betteam, 1) IN ('0', '1' ) THEN 2 ELSE 0 END)	
 	--FROM #tempUndoTickets 
-	IF @ChildMatchType = 204 AND @IsCentral = 1
+	IF @ChildMatchType = 204 
 	BEGIN
 		IF @ResourceResult IS NOT NULL
 		BEGIN
@@ -472,34 +474,18 @@ BEGIN
 
 		IF @FGLGCheck > 0
 		BEGIN
-			SELECT @betstatus = REPLACE(@betstatus, SUBSTRING(@betstatus,CHARINDEX('1FL', @betstatus), 8), '') --as betstatus1H
-			WHERE @FGLGCheck & 1 = 1
+			SELECT @HTBetStatus = ''
+			WHERE @FGLGCheck & 1 <> 1
 
-			
-			SELECT	@betstatus = REPLACE(REPLACE(@betstatus,ht.HTBetStatus,''), ft.FTBetStatus, '') + ht.HTBetStatus
-			FROM(
-					SELECT  CASE WHEN CHARINDEX('1FL', @betstatus) > 0 THEN SUBSTRING(@betstatus, CHARINDEX('1FL', @betstatus),8) else '' end as HTBetStatus
-			) ht
-				CROSS APPLY (
-					SELECT REPLACE(@betstatus, ht.HTBetStatus,'') as betstatus
-				) m
-				CROSS APPLY (
-					SELECT case when charindex('FL',m.betstatus) > 0 then SUBSTRING(m.betstatus, charindex('FL',m.betstatus),7) else '' end as FTBetStatus
-				)ft
-			WHERE	@FGLGCheck & 2 = 2
-			
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
+			SELECT @FTBetStatus = ''
+			WHERE @FGLGCheck & 2 <> 2
+
+			EXEC DBPRO.bodb02.dbo.NAP_Admin_Match_Update
 				@Command         = 'NAP_Admin_Settlement_1_InstantCalculation-Undo'
 				,@MatchID        = @matchid
-				,@creator        = @creator
-				,@BetStatus 	 = @betstatus	
-			
-			
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
-				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO',
-				@MatchID        = @MatchID,                  
-				@ResourceResult	= @ResourceResult,                    
-				@creator        = @creator	
+				,@creator        = @Creator
+				,@HTBetStatus	 = @HTBetStatus
+				,@FTBetStatus	 = @FTBetStatus
 		END	
 	END
 	

@@ -4,10 +4,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	,@MatchId					INT
 	,@SelectedResources			VARCHAR(MAX)	= '' 
 	,@Action					VARCHAR(10)		= 'CAL'
-	,@IsAuto					BIT				= 1
 	,@IP						VARCHAR(15)		= ''
 	,@IsReSettledTickets		BIT				= 1
-	,@SessionId					VARCHAR(50)		= NULL
+	,@BroadcastSessionId		VARCHAR(50)		= NULL
 	,@ErrCode					INT				= 0		OUTPUT
 	,@ErrMsg					NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -38,9 +37,6 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	IF @IsAuto = 1
-		RETURN
-
 	DECLARE	@matchcode		NVARCHAR(50)
 			,@sporttype		INT
 			,@leagueid		INT
@@ -59,8 +55,7 @@ BEGIN
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @SelectedResources = ''' + @SelectedResources + ''''
-															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
-															+ ', @isAuto = ' + CONVERT(NVARCHAR(50), @isAuto) 														
+															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''  														
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
 															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 														
 															+ ', @ErrCode = @ErrCode OUTPUT' 
@@ -93,7 +88,7 @@ BEGIN
 			,IP
 			,Action
 			,sqlCommand
-			,SessionId
+			,BroadcastSessionId
 			)
 		SELECT @MatchId
 			,@matchcode
@@ -104,7 +99,7 @@ BEGIN
 			,@IP
 			,@Action + '-' + 'EARLY'
 			,@sqlCommand
-			,@SessionId
+			,@BroadcastSessionId
 	END
 
 END

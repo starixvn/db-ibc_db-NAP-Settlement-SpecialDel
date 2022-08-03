@@ -103,6 +103,8 @@ BEGIN
 		,@ResourceResult_CornerRace NVARCHAR(MAX) = ''
 		,@NeitherRaceTo			TINYINT
 		,@IsCentral			BIT
+		,@HTBetStatus			NVARCHAR(50) = ''
+		,@FTBetStatus			NVARCHAR(50) = ''
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
@@ -708,28 +710,19 @@ BEGIN
 									WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1-0;'  
 									WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2-0;'  
 								END
-			IF CHARINDEX ('1FL', @betstatus) = 0
-				SELECT @betstatus	= CASE WHEN CHARINDEX('1FL', @betstatus) > 0 THEN REPLACE(@betstatus, SUBSTRING(@betstatus,CHARINDEX('1FL', @betstatus), 8), '') ELSE @betstatus END
-					, @betstatus	+= '1FL:' + @FLValue 
-				WHERE @FGLGCheck & 1 = 1
-			
-			IF CHARINDEX ('FL', REPLACE(@betstatus, CASE WHEN CHARINDEX('1FL', @betstatus) > 0 THEN SUBSTRING(@betstatus, CHARINDEX('1FL', @betstatus),8) ELSE '' END,'')) = 0			
-				SELECT @betstatus	= CASE WHEN CHARINDEX(';FL', @betstatus) > 0 THEN REPLACE(@betstatus, SUBSTRING(@betstatus,CHARINDEX(';FL', @betstatus), 8), '') ELSE @betstatus END
-					, @betstatus	+= 'FL:' + @FLValue 
-				WHERE @FGLGCheck & 2 = 2
-			
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
+
+			SELECT @HTBetStatus = '1FL:' + @FLValue
+			WHERE @FGLGCheck & 1 = 1
+				
+			SELECT @FTBetStatus = 'FL:' + @FLValue 
+			WHERE @FGLGCheck & 2 = 2
+
+			EXEC DBPRO.bodb02.dbo.NAP_Admin_Match_Update 
 				@Command         = 'NAP_Admin_Settlement_1-InstantCalculation'
 				,@MatchID        = @matchid
-				,@creator        = @creator
-				,@BetStatus 	 = @betstatus
-			
-			IF @ResourceResult IS NOT NULL	
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
-					@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL',
-					@MatchID        = @MatchID,                  
-					@ResourceResult	= @ResourceResult,                    
-					@creator        = @creator
+				,@creator        = @Creator
+				,@HTBetStatus 	 = @HTBetStatus
+				,@FTBetStatus	 = @FTBetStatus
 		END
 	END
 	--SET @TotalAccount_Updated

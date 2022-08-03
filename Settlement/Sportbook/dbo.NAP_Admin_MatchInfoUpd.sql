@@ -2,6 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	@MatchId			INT
 	,@Action			VARCHAR(20)
+	,@Mode				VARCHAR(20)
 	,@FullTimeHome		SMALLINT        = NULL
     ,@FullTimeAway		SMALLINT        = NULL
     ,@HalfTimeHome		SMALLINT        = NULL
@@ -22,6 +23,10 @@ AS
     Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
+	Param's Explanation:
+		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
+		@Mode: INST-HT, INST-FT
+
 */
 BEGIN
 	DECLARE @eventstatus	NVARCHAR(50)
@@ -29,7 +34,9 @@ BEGIN
 			,@HTDone		BIT
 			,@SportType		SMALLINT
 			,@ChildMatchType TINYINT
+			,@calCommand	VARCHAR(100)
 			,@refundCommand VARCHAR(100)
+			,@undoCommand	VARCHAR(100)
 			,@refundCommand_1s VARCHAR(100)
 			,@IsRefundHT	BIT
 			,@IsSettleByProfile	BIT
@@ -109,11 +116,24 @@ BEGIN
 					,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
 		END
 	END
-
-	IF @Action LIKE 'CAL%'
+	
+	IF @Action LIKE 'CAL%' 
 	BEGIN
-		IF (@SportType = 1 AND @LeagueGroupID <> 113)
-			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
+		IF @Mode LIKE 'INST%'
+		BEGIN
+			-- cal instant
+			IF @ResourceResult IS NOT NULL	
+				EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+					@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL',
+					@MatchID        = @MatchID,                  
+					@ResourceResult	= @ResourceResult,                    
+					@creator        = @AdminId
+
+			RETURN
+		END
+
+		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL) -- soccer main
+			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal soccer pingoal manually
 			OR @IsSettleByProfile = 0
 		BEGIN
 			SELECT	@eventstatus = CASE 
@@ -122,9 +142,11 @@ BEGIN
 										WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 										ELSE @eventstatus
 										END			
+			
+			SET @calCommand = 'NAP_Admin_Settlement_1-CAL'
 
 			EXEC dbo.NAP_Admin_Match_Update 
-				@Command            = 'NAP_Admin_Settlement_1-CAL'
+				@Command            = @calCommand
 				,@MatchID           = @matchid
 				,@FTHome            = @FullTimeHome
 				,@FTAway            = @FullTimeAway
@@ -152,7 +174,7 @@ BEGIN
 			IF @SportType = 1
 			BEGIN
 				EXEC dbo.NAP_Admin_Result_Update_1s
-					@Command         = 'NAP_Admin_Settlement_1-CAL',
+					@Command         = @calCommand,
 					@MatchID         = @MatchID,
 					@fth             = @FullTimeHome,
 					@fta             = @FullTimeAway,
@@ -164,7 +186,17 @@ BEGIN
 					@creator		 = @AdminId
 			END
 		END
-		ELSE
+		ELSE IF @SportType = 1 AND @SelectedResources IS NOT NULL -- early settlement
+		BEGIN
+			SELECT @calCommand = 'NAP_Admin_Settlement_Auto_1s-CAL'
+
+			EXEC dbo.NAP_Admin_Result_Update_1s 
+				@Command            = @calCommand,
+				@MatchID            = @MatchID,
+				@SelectedResources	= @SelectedResources,
+				@creator            = @AdminID
+		END
+		ELSE -- profile
 		BEGIN
 			EXEC dbo.NAP_Admin_Match_Update
 					@Command				= 'profile'
@@ -206,7 +238,18 @@ BEGIN
 	END
 	ELSE IF @Action LIKE 'UNDO%'
 	BEGIN
-		IF (@SportType = 1 AND @LeagueGroupID <> 113)
+		IF @Mode LIKE 'INST%'
+		BEGIN
+			EXEC dbo.NAP_Admin_Result_Update_1s
+				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO',
+				@MatchID        = @MatchID,                  
+				@ResourceResult	= @ResourceResult,                    
+				@creator        = @AdminId	
+
+			RETURN
+		END
+
+		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
 			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
 			OR @IsSettleByProfile = 0
 		BEGIN
@@ -252,7 +295,18 @@ BEGIN
 
 			END   
 		END
-		ELSE
+		ELSE IF @SportType = 1 AND @SelectedResources IS NOT NULL -- early settlement
+		BEGIN
+			SELECT @undoCommand = 'NAP_Admin_Settlement_Auto_1s-UNDO'
+
+			EXEC dbo.NAP_Admin_Result_Update_1s 
+				@Command            = @undoCommand,
+				@MatchID            = @MatchID,
+				@SelectedResources	= @SelectedResources,
+				@creator            = @AdminID
+
+		END
+		ELSE -- profile
 		BEGIN
 			EXEC dbo.NAP_Admin_Match_Update
 				@Command			='profile'
@@ -294,7 +348,7 @@ BEGIN
 									WHEN @Action = 'REFUND-HT' THEN 'NAP_Admin_Settlement_Refund-HT'
 								END
 		
-		IF (@SportType = 1 AND @LeagueGroupID <> 113)
+		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
 			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
 		BEGIN
 			SELECT @refundCommand_1s =  @refundCommand
@@ -341,6 +395,17 @@ BEGIN
 				,@ResourceResult = @ResourceResult
 				,@Action        = @Action
 		END
+		ELSE IF @SportType = 1 AND @SelectedResources IS NOT NULL -- early settlement
+		BEGIN
+			SELECT @refundCommand = 'NAP_Admin_Settlement_Auto_1s-REFUND'
+
+			EXEC dbo.NAP_Admin_Result_Update_1s 
+				@Command            = @refundCommand,
+				@MatchID            = @MatchID,
+				@SelectedResources	= @SelectedResources,
+				@creator            = @AdminID
+
+		END
 		ELSE IF @IsSettleByProfile = 0
 		BEGIN
 			EXEC dbo.NAP_Admin_Match_Update 
@@ -354,7 +419,7 @@ BEGIN
 				,@command   = 'F'
 
 		END
-		ELSE
+		ELSE -- profile
 		BEGIN
 			SELECT  @HalfTimeHome	= COALESCE (@HalfTimeHome, 0)
 					,@HalfTimeAway   = COALESCE (@HalfTimeAway, 0)

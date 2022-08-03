@@ -18,7 +18,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
 	@Creator 					INT = 0,
 	@IsFinalRound               BIT = NULL,
 	@IsHTRound					BIT = 0,
-	@IsMovedMatch				BIT = 0
+	@IsMovedMatch				BIT = 0,
+	@HTBetStatus				NVARCHAR(50) = NULL,
+	@FTBetStatus				NVARCHAR(50) = NULL
 )
 AS
 /*

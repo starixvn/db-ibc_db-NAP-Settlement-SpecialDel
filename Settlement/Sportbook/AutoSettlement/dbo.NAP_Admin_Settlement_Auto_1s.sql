@@ -59,8 +59,7 @@ BEGIN
             ,@ActionID          INT
             ,@Remark			VARCHAR(500)
             ,@LogData           NVARCHAR(300)
-			,@handle			INT
-			,@Command			VARCHAR(100)
+			,@handle			INT			
                                 
 			,@avaiableProcess	BIT
             ,@sportType			INT
@@ -129,12 +128,7 @@ BEGIN
 			,@SelectedRID = ''
 			,@batchNo = 2000
 			,@strTransIds = ''
-			,@Command = CASE 
-							WHEN @Action = 'CAL' THEN 'NAP_Admin_Settlement_Auto_1s-CAL'
-							WHEN @Action = 'REFUND' THEN 'NAP_Admin_Settlement_Auto_1s-REFUND'
-							WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_Auto_1s-UNDO'
-							ELSE ''
-						END
+			
 			,@IsExistDetermined = 0
 			,@TotalSubParlay = 0
 			,@SelectedResourceParlay = ''
@@ -241,17 +235,7 @@ BEGIN
 							  FROM	@tmpSelectedRID
 							  FOR XML PATH('r'), ROOT( 'root' )) 
 
-	-- update ResultDetail table
-	IF @IsCentral = 1
-	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-			@Command            = @Command,
-			@MatchID            = @MatchID,
-			@SelectedResources	= @SelectedResources,
-			@IsAuto             = @IsAuto,
-			@creator            = @AdminID
-	END
-
+	
 	IF (@action = 'REFUND' AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE IsDetermined = 1))
 	BEGIN
 		SET @IsExistDetermined = 1
