@@ -163,7 +163,7 @@ BEGIN
 				,@ActionID	= @ActionID
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@ResourceResult = @ResourceResult
-				--,@SessionId = @SessionId
+				,@SessionId = @SessionId
 				,@TicketCount = @TicketCount OUTPUT
 		END TRY
 		BEGIN CATCH

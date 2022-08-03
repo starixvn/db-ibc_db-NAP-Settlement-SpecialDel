@@ -269,7 +269,7 @@ BEGIN
 				,@ActionID	= @ActionID
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@ResourceResult = @ResourceResult
-				--,@SessionId = @SessionId
+				,@SessionId = @SessionId
 				,@creator = @creator
 				,@TicketCount = @TicketCount OUTPUT
 				,@ErrCode = @ErrCode OUTPUT

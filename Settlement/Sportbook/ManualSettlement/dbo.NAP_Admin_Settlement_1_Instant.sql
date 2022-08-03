@@ -84,7 +84,7 @@ BEGIN
 			,@hta = @hta
 			,@action	= @action
 			,@ActionId = @ActionId
-			--,@SessionId = @SessionId
+			,@SessionId = @SessionId
 			,@creator = @creator
 			,@TicketCount = @TicketCount OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
