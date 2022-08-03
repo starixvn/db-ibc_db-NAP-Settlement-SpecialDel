@@ -341,7 +341,6 @@ BEGIN
 				,b.bettype
 				,b.Sublivehomescore
 				,b.Subliveawayscore
-				,b.liveawayscore
 				,b.IsMixParlay
 				,b.Subliveindicator
 				,@MatchId
