@@ -61,8 +61,7 @@ BEGIN
 
     DECLARE @matchcode				NVARCHAR(50)
 			,@sporttype     		INT
-			,@leagueid      		INT		
-			,@IsNested      		BIT
+			,@leagueid      		INT	
 			,@Action        		VARCHAR(20)
 			,@procName      		NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
@@ -71,7 +70,6 @@ BEGIN
     SELECT	@matchcode    = m.matchcode
 			,@sporttype   = m.sporttype
 			,@leagueid    = m.leagueid
-			,@IsNested    = 0
 			
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
@@ -83,7 +81,6 @@ BEGIN
                                                                   + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId)
                                                                   + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' ELSE '''' + @BetStatus + '''' END 
                                                                   + ', @Action = ''' + 'CAL' + '''' 
-                                                                  + ', @IsNested = ''' + CONVERT(NVARCHAR(1), @IsNested) + '''' 
                                                                   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 																  + ', @ErrCode = @ErrCode OUTPUT' 
                                                                   + ', @ErrMsg = @ErrMsg OUTPUT'
