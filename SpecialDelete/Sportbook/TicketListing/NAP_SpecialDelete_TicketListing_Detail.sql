@@ -74,6 +74,7 @@ AS;
 		- 20211221@July: Remove column old CO [Redmine:#165097]
 		- 20220303@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 		- 20220425@July: Separate Send Data to China View & Remove support CN88 [Redmine:#171395]
+		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -115,8 +116,8 @@ AS;
 					 	ValueHdp2				-- Default : "All" ; Format : Single Number
 						Goal="2"				-- Default : "All" ; Format : Single Number
 						OddsSpread="1.5"		-- Default : "All" ; Format : 1.5,0.5,1.0,...
-						OddsId ="10006450"		-- Default : "All" ; Format : Single Number
-						Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
+						OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
+						Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 			/>
 		<BetTypes/>'
     - @SingleOrSubParlay: 
@@ -324,8 +325,8 @@ BEGIN
 		ValueHdp2		VARCHAR(20),
 		Goal			VARCHAR(10),
 		OddsSpread		VARCHAR(20),
-		OddsId			VARCHAR(20),
-		Transdesc		NVARCHAR(1000)
+		OddsId			VARCHAR(1000),
+		Transdesc		NVARCHAR(2000)
 	)
 	CREATE TABLE #tblBetType_Detail
 	(
@@ -340,7 +341,7 @@ BEGIN
 		Goal			BIGINT,
 		OddsSpread		MONEY,
 		OddsId			INT,
-		Transdesc		NVARCHAR(1000)
+		Transdesc		NVARCHAR(2000)
 	)
 	
 	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
@@ -377,8 +378,8 @@ BEGIN
 			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 ; single-choice
 			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
 			, t.c.value('@OddsSpread', 'VARCHAR(20)') AS OddsSpread	-- Check columns : OddsSpread ; single value
-			, t.c.value('@OddsId','VARCHAR(20)') AS OddsId			-- check columns : OddsId		 ; single-choice
-			, t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
+			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId			-- check columns : OddsId		 ; single-choice + multi-choice
+			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
 	FROM @BetTeams.nodes('BetTypes/BetType') t(c)
 	OPTION (OPTIMIZE FOR (@BetTeams = NULL))
 			 
@@ -411,9 +412,10 @@ BEGIN
 						ELSE cte.Goal END AS BIGINT) AS Goal
 				, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
-				, CAST(CASE WHEN cte.OddsId = 'ALL' THEN NULL 
-						ELSE cte.OddsId END AS INT) AS OddsId
-			    , cte.Transdesc
+				, CAST(CASE WHEN osid.val = 'ALL' THEN NULL
+						ELSE osid.val END AS INT) AS OddsId
+				, CAST(CASE WHEN td.val = 'ALL' THEN NULL
+						ELSE td.val END AS INT) AS Transdesc
 		FROM #tblBetType cte
 				CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
 				CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
@@ -421,6 +423,8 @@ BEGIN
 				CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
 				CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
 				CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
+				CROSS APPLY dbo.f_SplitString(cte.OddsId, ',') osid
+				CROSS APPLY dbo.f_SplitString(cte.Transdesc, ',') td
 	) cte
 	OPTION(MAXRECURSION 0)
 

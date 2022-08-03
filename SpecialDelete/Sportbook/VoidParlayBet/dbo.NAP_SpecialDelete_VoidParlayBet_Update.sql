@@ -50,6 +50,7 @@ AS
 		- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
 		- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -63,8 +64,8 @@ AS
 						ValueHdp1				-- Default : "All" ; Format : 1,2,3,4,... ;	
 					 	ValueHdp2				-- Default : "All" ; Format : Single Number
 						Goal="2"				-- Default : "All" ; Format : Single Number
-						OddsId ="10006450"		-- Default : "All" ; Format : Single Number
-						Transdesc = '100001'	-- Default : "All" ; Format : Single Number (PlayerId - [Team].[TeamID])
+						OddsId="8518"			-- Default : "All" ; Format : 8518,8519,...
+						Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 			/>
 			<BetTypes/>'
 */  
@@ -100,7 +101,7 @@ BEGIN
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
 		OddsId			INT,
-		Transdesc		NVARCHAR(1000)
+		Transdesc		NVARCHAR(2000)
 	)
 			
 	CREATE TABLE #BetDelete (   
@@ -176,8 +177,8 @@ BEGIN
 			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
 			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 		 ; single-choice
 			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
-			 , t.c.value('@OddsId','VARCHAR(20)') AS OddsId			-- check columns : OddsId		 ; single-choice
-			 , t.c.value('@Transdesc','NVARCHAR(1000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice
+			 , t.c.value('@OddsId','VARCHAR(1000)') AS OddsId			-- check columns : OddsId		 ; single-choice + multi-choice
+			 , t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
 		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
 	),
 	CTE_ParsedBettypes AS
@@ -203,15 +204,16 @@ BEGIN
 						WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal
 					END AS BIGINT) AS Goal
-			, CAST(CASE 
-						WHEN cte.OddsId = 'ALL' THEN NULL 
-						ELSE cte.OddsId
-					END AS INT) AS OddsId
-			, cte.Transdesc
+			 , CAST(CASE WHEN osid.value = 'ALL' THEN NULL
+						ELSE osid.value END AS INT) AS OddsId
+			 , CAST(CASE WHEN td.value = 'ALL' THEN NULL
+						ELSE td.value END AS INT) AS Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
 			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
 			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
+			 CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
 	)	 
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, [Value], Goal, ValueHdp1, ValueHdp2, OddsId, Transdesc)
 	SELECT cte.Id
@@ -484,7 +486,7 @@ BEGIN
 	DELETE s
 	FROM  #BetDelete s
 	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-		WHERE tp.Id = s.Bettype AND  (tp.Transdesc = 'ALL' OR s.transdesc = tp.Transdesc))	 
+		WHERE tp.Id = s.Bettype AND  (tp.Transdesc IS NULL OR s.transdesc = tp.Transdesc))	 
 	END				
 
 	CREATE NONCLUSTERED INDEX nl_Ref_custid_transid ON #BetDelete(custid,transid)  
