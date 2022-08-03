@@ -39,11 +39,11 @@ BEGIN
 	/*-----------------*/
 
 	/*---WrongScore---*/
-	IF @IssueTypeId = 3
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_WC_Select
-			@WrongScoreInfo = @WrongScoreInfo
-	END
+	--IF @IssueTypeId = 3
+	--BEGIN
+	--	EXEC dbo.TicketVoiding_TransInfo_WC_Select
+	--		@WrongScoreInfo = @WrongScoreInfo
+	--END
 	/*-----------------*/
 
 	/*---WrongHDP---*/
@@ -95,27 +95,27 @@ BEGIN
 	/*-----------------*/
 
 	/*---AbnormalBet / AB RealMember---*/
-	IF @IssueTypeId IN (11,15)
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_AB_Select
-			@AbnormalBetTransIds = @AbnormalBetTransIds
-	END
+	--IF @IssueTypeId IN (11,15)
+	--BEGIN
+	--	EXEC dbo.TicketVoiding_TransInfo_AB_Select
+	--		@AbnormalBetTransIds = @AbnormalBetTransIds
+	--END
 	/*-----------------*/
 
 	/*---AbnormalAccount---*/
-	IF @IssueTypeId = 13
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_ACC_Select
-			@AnormalAccounts = @AnormalAccounts
-	END
+	--IF @IssueTypeId = 13
+	--BEGIN
+	--	EXEC dbo.TicketVoiding_TransInfo_ACC_Select
+	--		@AnormalAccounts = @AnormalAccounts
+	--END
 	/*-----------------*/
 
 	/*---Archived Ticket---*/
-	IF @IssueTypeId = 17
-	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_ARC_Select
-			@ArchivedTransIds = @ArchivedTransIds
-	END
+	--IF @IssueTypeId = 17
+	--BEGIN
+	--	EXEC dbo.TicketVoiding_TransInfo_ARC_Select
+	--		@ArchivedTransIds = @ArchivedTransIds
+	--END
 	/*-----------------*/
 
 END
