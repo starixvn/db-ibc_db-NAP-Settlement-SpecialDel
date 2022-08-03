@@ -90,7 +90,8 @@ BEGIN
 		CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
-      ,Subtransid BIGINT
+      ,Maintransid BIGINT
+	  ,Subtransid BIGINT
 	  ,refno BIGINT
 	  ,custid INT	
       ,hdp1 SMALLMONEY
@@ -206,7 +207,8 @@ BEGIN
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
-           ,Subtransid 
+           ,Maintransid
+		   ,Subtransid 
 	       ,refno 
 	       ,custid 	
            ,hdp1 
@@ -270,6 +272,7 @@ BEGIN
 	)
 	SELECT t.c.value('@mid','INT') AS matchid	
 		,t.c.value('@t','BIGINT') AS transid
+		,t.c.value('@m_t','BIGINT') AS Maintransid
 		,t.c.value('@s_t','BIGINT') AS Subtransid
 		,t.c.value('@ref','BIGINT') AS refno
 		,t.c.value('@c','INT') AS custid
