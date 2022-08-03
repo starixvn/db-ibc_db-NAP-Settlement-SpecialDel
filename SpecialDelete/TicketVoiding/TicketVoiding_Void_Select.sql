@@ -213,7 +213,6 @@ BEGIN
 			  ,Subbetcheck NVARCHAR(50)
 			  ,SubStatus NVARCHAR(10)
 			  ,Subtransdate DATETIME
-			  ,Subchecktime DATETIME
 			  ,SubTransdesc  NVARCHAR(1000)
 			  ,SubstatusID TINYINT
 			  ,srecommend INT
@@ -232,7 +231,6 @@ BEGIN
 			  ,actual_stake MONEY
 			  ,winlostdate SMALLDATETIME
 			  ,modds MONEY
-			  ,statuswinlost MONEY
 			  ,IsMixParlay BIT
 			  ,SiteDBGroupID SMALLINT
 			)
@@ -312,7 +310,6 @@ BEGIN
 			,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
 			,t.c.value('@s','NVARCHAR(10)') AS Status
 			,t.c.value('@tdate','DATETIME') AS transdate
-			,t.c.value('@checkt','DATETIME') AS checktime
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@tdes','NVARCHAR(1000)') AS Transdesc
 			,t.c.value('@sid','TINYINT') AS statusID
