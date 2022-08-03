@@ -1,12 +1,14 @@
-﻿
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Update] @Status          SMALLINT      = 0,
-                                                             @TransIds        VARCHAR(MAX)  = NULL,
-                                                             @UserId          INT           = 0,
-                                                             @Username        NVARCHAR(100) = '',
-                                                             @IP              VARCHAR(15)   = NULL,                        
-                                                             @ErrMsg          NVARCHAR(200) = '' OUTPUT,
-                                                             @ErrCode         INT           = 0 OUTPUT
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Update] 
+	   @Status          SMALLINT      = 0,
+       @TransIds        VARCHAR(MAX)  = NULL,
+       @UserId          INT           = 0,
+       @Username        NVARCHAR(100) = '',
+       @IP              VARCHAR(15)   = NULL,                        
+       @TransInfo		VARCHAR(MAX)  = NULL,
+	   @IssueTypeId	    INT			  = NULL,
+	   @ErrMsg          NVARCHAR(200) = '' OUTPUT,
+       @ErrCode         INT           = 0 OUTPUT
 AS
 /*
     Created by: Alan
@@ -25,6 +27,7 @@ AS
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20200730@Max: [TVS] Enhance Block Match of Unmark Ticket  [Redmine: #136734]
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -32,20 +35,26 @@ BEGIN
 	-- Not Marked:
 	IF @Status = 0
 	BEGIN
-		EXEC [dbo].[Nap_SpecialDelete_UnMarkedTickets_Update] @TransIds = @TransIds
+		EXEC [dbo].[Nap_SpecialDelete_UnMarkedTickets_Update] 
+			@TransIds = @TransIds
 			,@UserId = @UserId
 			,@Username = @Username
 			,@IP = @IP
+			,@TransInfo = @TransInfo
+			,@IssueTypeId = @IssueTypeId
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@ErrCode = @ErrCode OUTPUT;
 	END
 	-- Marked;
 	ELSE
 	BEGIN
-		EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] @TransIds = @TransIds
+		EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] 
+			 @TransIds = @TransIds
 			,@UserId = @UserId
 			,@Username = @Username
 			,@IP = @IP
+			,@TransInfo = @TransInfo
+			,@IssueTypeId = @IssueTypeId
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@ErrCode = @ErrCode OUTPUT;
 	END;
