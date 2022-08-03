@@ -70,11 +70,8 @@ BEGIN
 		INSERT INTO @tmpTicketStatus(ResourceID, BetCount, InRunning,InWaiting, betSettledCount, betMarkedCount)
 		SELECT t.ResourceId , NULL, NULL, NULL, NULL, NULL
 		FROM @tmpAutoBettypes t
-			LEFT JOIN (SELECT r.ResourceId FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) WHERE matchid = @MatchID) r
-				on t.ResourceId = r.ResourceId
 		WHERE t.bettype IN (381,382) 
 			AND 1 = CASE WHEN t.ResourceId LIKE '38[12]0[12345]' AND t.ResourceId NOT IN (SELECT ResourceID FROM @tmpTicketStatus) THEN 1 
-						WHEN t.ResourceId NOT LIKE '38[12]0[12345]' AND r.ResourceId IS NOT NULL THEN 1
 						ELSE 0 
 					END
 	END
