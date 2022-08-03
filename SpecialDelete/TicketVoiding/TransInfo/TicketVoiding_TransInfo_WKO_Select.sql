@@ -1,3 +1,4 @@
+
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_WKO_Select] 
 (
@@ -105,7 +106,7 @@ BEGIN
 	SELECT @MatchId = t.c.value('@MatchId','INT')
 			,@KickOffTime = t.c.value('@KickOffTime','DATETIME')
 	FROM @WrongKOXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@DARCInfoInfoXML = NULL)) 
+	OPTION (OPTIMIZE FOR (@WrongKOXML = NULL)) 
 
 	--Search single tickets
 	INSERT INTO #TransInfo(

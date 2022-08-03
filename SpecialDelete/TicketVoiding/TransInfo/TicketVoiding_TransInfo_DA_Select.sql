@@ -112,7 +112,7 @@ BEGIN
 			,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
 			,t.c.value('@FilterBy','TINYINT') AS FilterBy
 	FROM @DangerAcceptedXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@DARCInfoInfoXML = NULL)) 
+	OPTION (OPTIMIZE FOR (@DangerAcceptedXML = NULL)) 
 
 	--Search single tickets
 	INSERT INTO #TransInfo(

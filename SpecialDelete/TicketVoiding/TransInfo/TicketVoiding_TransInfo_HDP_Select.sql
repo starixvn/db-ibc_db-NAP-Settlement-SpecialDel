@@ -111,7 +111,7 @@ BEGIN
 			,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
 			,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
 	FROM @WrongHDPXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@DARCInfoInfoXML = NULL)) 
+	OPTION (OPTIMIZE FOR (@WrongHDPXML = NULL)) 
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
