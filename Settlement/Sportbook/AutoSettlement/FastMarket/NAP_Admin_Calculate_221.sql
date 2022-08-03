@@ -426,7 +426,7 @@ BEGIN
 							END
 						AND t.ActionId = 1
 			
-			IF @IsSubDB = 1
+			IF @IsSubDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'	
@@ -446,7 +446,7 @@ BEGIN
 							,ruben AS '@r' 
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
-					
+				
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
@@ -515,7 +515,7 @@ BEGIN
 					ON	b.transid = t.transid	
 			WHERE	t.ActionId = 2
 
-			IF @IsSubDB = 1
+			IF @IsSubDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'	
@@ -592,7 +592,7 @@ BEGIN
 					ON	b.transid = t.transid
 			WHERE	t.ActionId = 0
 
-			IF @IsSubDB = 1
+			IF @IsSubDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'	

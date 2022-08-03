@@ -21,9 +21,9 @@ BEGIN
 					FROM sys.columns c 
 						INNER JOIN sys.objects o 
 							ON c.object_id = o.object_id
-					WHERE c.name = 'SessionId'
+					WHERE c.name = 'BroadcastSessionId'
 						AND o.name = 'Single_Calculate_Queue'
 					)
-	ALTER TABLE Single_Calculate_Queue ADD SessionId VARCHAR(50)
+	ALTER TABLE Single_Calculate_Queue ADD BroadcastSessionId VARCHAR(50)
 END
 GO
