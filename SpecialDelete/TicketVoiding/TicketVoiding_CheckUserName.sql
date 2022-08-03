@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
 	 @UserNames	    NVARCHAR(MAX) = ''
@@ -8,13 +8,13 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 	,@StatusIds	    VARCHAR(50)  = NULL
 	,@FromDate	    DATETIME     = NULL
     ,@ToDate	    DATETIME     = NULL
-	,@TransInfo	VARCHAR(MAX) = NULL
+	,@TransInfo	    XML = NULL
 )
 AS
 /*
 	Created: 20201106@July
 	Task : [TVS] - Abnormal Account + Check lock match before add request
-	DB: DBTXN/BODB02
+	DB: DBCTG/bodb02
 
 	Revisions:
 		- 20201106@July: Create new SP - Check username invalid [Redmine: #143666]
@@ -53,7 +53,6 @@ BEGIN
 			,@CountSMA				  INT
 			,@CountMember             INT
 			,@IsExceededTotalUsernames BIT = 0
-			,@TransInfoXML         XML = NULL
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
@@ -107,7 +106,6 @@ BEGIN
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
@@ -136,8 +134,8 @@ BEGIN
 			,t.c.value('@wld','SMALLDATETIME') AS winlostdate
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
@@ -360,7 +358,7 @@ BEGIN
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
 
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -374,7 +372,7 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR XML PATH('r'), ROOT('root'))
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1

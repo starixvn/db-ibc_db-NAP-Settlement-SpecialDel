@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_WC_Select]
 (	
 	 @RequestId			  INT = 0
@@ -6,23 +6,21 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_WC_Select]
 	,@IsShowLogOnly		  BIT = 0
 	,@IssueTypeId		  INT = 3
 	,@WrongScoreInfo	  VARCHAR(MAX) = NULL
-	,@TransInfo		      VARCHAR(MAX) = NULL
+	,@TransInfo		      XML = NULL
 )
 AS
 /*	
 	Created by: July
 	Date 20220720
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220720@July: Create new SP - Refactor code issue type Wrong score [Redmine: #175412]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
-		<root>
-			<r MatchId ="" LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" FilterBy="" ScoreId='3966607' AATime="" PATime ="" SATime="" SubIssueTypeId ="" />
-		</root>
+				<root><r MatchId ="" LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" FilterBy="" ScoreId='3966607' AATime="" PATime ="" SATime="" SubIssueTypeId ="" /></root>
 		(1: By Transdate, 2: By Checktime, 4: Filter by Transdate & Checktime)
 */
 BEGIN
@@ -37,7 +35,6 @@ BEGIN
 			,@FilterBy				  TINYINT = 0
 	
 	DECLARE	 @WrongScoreInfoXML		XML = NULL
-	        ,@TransInfoXML          XML = NULL
 			,@MinAccept				TINYINT	 = 0	
 		    ,@VoidFromTime			DATETIME = NULL
 		    ,@VoidToTime			DATETIME = NULL
@@ -219,72 +216,71 @@ BEGIN
 
 	SELECT TOP (1) @FilterBy = FilterBy ,@SubIssueTypeId = SubIssueTypeId FROM #FilterInfo
 	
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
-		INSERT INTO #tmpTransInfo( 
-		    matchid 
-	       ,transid 
-           ,Maintransid
-		   ,Subtransid 
-	       ,refno 
-	       ,custid 	
-           ,hdp1 
-           ,hdp2 
-           ,livehomescore 
-           ,liveawayscore 
-           ,liveindicator 
-	       ,odds 
-	       ,oddsspread 
-           ,betfrom 
-           ,bettype 
-           ,betteam 
-	       ,betcheck 
-	       ,Status 
-           ,transdate 
-	       ,checktime 
-	       ,betid 
-	       ,Transdesc 
-	       ,statusID 
-	       ,Subcustid 
-	       ,Subhdp1 
-           ,Subhdp2 
-	       ,Sublivehomescore 
-           ,Subliveawayscore 
-	       ,Subliveindicator 
-	       ,Subodds 
-	       ,Suboddsspread 
-	       ,Subbetfrom 
-	       ,Subbettype 
-	       ,Subbetteam  
-	       ,Subbetcheck 
-	       ,SubStatus 
-	       ,Subtransdate 
-	       ,Subchecktime 
-	       ,SubTransdesc  
-	       ,SubstatusID 
-	       ,srecommend 
-	       ,mrecommend 
-	       ,recommend 
-           ,creator 
-	       ,WalletType 
-	       ,RefCode 
-	       ,stake 
-	       ,oddstype 
-	       ,CurrencyName 
-	       ,betdaqid 
-	       ,ExtraInfo 
-	       ,BonusID 
-	       ,winlost	
-	       ,actual_stake 
-	       ,winlostdate 
-	       ,modds 
-	       ,statuswinlost 
-	       ,LiveBetAcceptTime 
-	       ,SecAcceptTime 
-	       ,SubLiveBetAcceptTime 
-	       ,SubSecAcceptTime 
-           ,IsMixParlay 
-	       ,SiteDBGroupID 
-	       ,IsMove14 
+	INSERT INTO #tmpTransInfo( 
+		matchid 
+	    ,transid 
+        ,Maintransid
+		,Subtransid 
+	    ,refno 
+	    ,custid 	
+        ,hdp1 
+        ,hdp2 
+        ,livehomescore 
+        ,liveawayscore 
+        ,liveindicator 
+	    ,odds 
+	    ,oddsspread 
+        ,betfrom 
+        ,bettype 
+        ,betteam 
+	    ,betcheck 
+	    ,Status 
+        ,transdate 
+	    ,checktime 
+	    ,betid 
+	    ,Transdesc 
+	    ,statusID 
+	    ,Subcustid 
+	    ,Subhdp1 
+        ,Subhdp2 
+	    ,Sublivehomescore 
+        ,Subliveawayscore 
+	    ,Subliveindicator 
+	    ,Subodds 
+	    ,Suboddsspread 
+	    ,Subbetfrom 
+	    ,Subbettype 
+	    ,Subbetteam  
+	    ,Subbetcheck 
+	    ,SubStatus 
+	    ,Subtransdate 
+	    ,Subchecktime 
+	    ,SubTransdesc  
+	    ,SubstatusID 
+	    ,srecommend 
+	    ,mrecommend 
+	    ,recommend 
+        ,creator 
+	    ,WalletType 
+	    ,RefCode 
+	    ,stake 
+	    ,oddstype 
+	    ,CurrencyName 
+	    ,betdaqid 
+	    ,ExtraInfo 
+	    ,BonusID 
+	    ,winlost	
+	    ,actual_stake 
+	    ,winlostdate 
+	    ,modds 
+	    ,statuswinlost 
+	    ,LiveBetAcceptTime 
+	    ,SecAcceptTime 
+	    ,SubLiveBetAcceptTime 
+	    ,SubSecAcceptTime 
+        ,IsMixParlay 
+	    ,SiteDBGroupID 
+	    ,IsMove14 
 	)
 	SELECT t.c.value('@mid','INT') AS matchid	
 		,t.c.value('@t','BIGINT') AS transid
@@ -322,8 +318,8 @@ BEGIN
 		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
 		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-		,t.c.value('@s_tdate','SMALLINT') AS Subtransdate
-		,t.c.value('@s_checkt','SMALLINT') AS Subchecktime
+		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
+		,t.c.value('@s_checkt','DATETIME') AS Subchecktime
 		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
 		,t.c.value('@s_sid', 'MONEY') AS SubstatusID
 		,t.c.value('@sre','INT') AS srecommend
@@ -350,8 +346,8 @@ BEGIN
 		,t.c.value('@isP','BIT') AS IsMixParlay
 		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 		,t.c.value('@isM','BIT') AS IsMoved14 
-	FROM @TransInfoXML.nodes('root/r') t(c)	
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -1214,7 +1210,7 @@ BEGIN
 				) AS tmpHighlight
 	END
 
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 			 t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -1231,7 +1227,7 @@ BEGIN
 		FOR XML PATH('r'), ROOT('root')
 		)
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
 
 
 

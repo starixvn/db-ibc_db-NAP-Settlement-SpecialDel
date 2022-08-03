@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Update]
        @UserId          INT           = 0,
        @Username        NVARCHAR(100) = '',
        @IP              VARCHAR(15)   = NULL,                        
-       @TransInfo		VARCHAR(MAX)  = NULL,
+       @TransInfo		XML  = NULL,
 	   @IssueTypeId	    INT			  = NULL,
 	   @ErrMsg          NVARCHAR(200) = '' OUTPUT,
        @ErrCode         INT           = 0 OUTPUT

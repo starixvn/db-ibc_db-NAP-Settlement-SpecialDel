@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_HDP_Select]
 (	
 	 @RequestId			  INT = 0
@@ -6,14 +6,14 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_HDP_Select]
 	,@IsShowLogOnly		  BIT = 0
 	,@IssueTypeId		  INT = 4
 	,@WrongHDPInfo		  VARCHAR(MAX) = NULL
-	,@TransInfo		  VARCHAR(MAX) = NULL
+	,@TransInfo		      XML = NULL
 )
 AS
 /*	
 	Created by: Max
 	Date 20220510
 	Task: Refactor code issue type Wrong OU & Wrong 1st OU [Redmine: #172281]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220510@Max: Create new SP [Redmine: #172281]
@@ -21,9 +21,7 @@ AS
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root>
-				<r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/>
-			</root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/></root>
 
 */
 BEGIN
@@ -33,7 +31,6 @@ BEGIN
 			,@MainParlayCount		  INT = 0
 	
 	DECLARE	 @WrongHDPInfoXML		  XML = NULL	
-			,@TransInfoXML		  XML = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -183,7 +180,6 @@ BEGIN
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
@@ -286,8 +282,8 @@ BEGIN
 		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
 		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-		,t.c.value('@s_tdate','SMALLINT') AS Subtransdate
-		,t.c.value('@s_checkt','SMALLINT') AS Subchecktime
+		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
+		,t.c.value('@s_checkt','DATETIME') AS Subchecktime
 		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
 		,t.c.value('@s_sid', 'MONEY') AS SubstatusID
 		,t.c.value('@sre','INT') AS srecommend
@@ -314,8 +310,8 @@ BEGIN
 		,t.c.value('@isP','BIT') AS IsMixParlay
 		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 		,t.c.value('@isM','BIT') AS IsMoved14 
-	FROM @TransInfoXML.nodes('root/r') t(c)	
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 	--Init Validation
 	INSERT INTO @Validation (MatchId)
@@ -442,8 +438,8 @@ BEGIN
 				AND b.Subbetfrom <> 'P'
 				AND b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND 1 = CASE WHEN @IssueTypeId = 4 AND b.Subbettype = 1 THEN 1
-								WHEN @IssueTypeId = 5 AND b.Subbettype = 7 THEN 1 
-								ELSE 0 END
+							 WHEN @IssueTypeId = 5 AND b.Subbettype = 7 THEN 1 
+							 ELSE 0 END
 				AND 1 = CASE WHEN d.SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND d.HomeFavorite IS NOT NULL THEN 1
 							 WHEN d.SubIssueTypeId IN (8,9) AND b.Subhdp2 = xHDPAway.AwayFavorite AND d.AwayFavorite IS NOT NULL THEN 1
 							 WHEN d.SubIssueTypeId IN (22,24) AND b.Subhdp2 = xHDPvalue.HdpValue AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
@@ -520,7 +516,8 @@ BEGIN
 						   ELSE 0 END
 		END  			    				    					    				    					    	
 	END
-	
+
+
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
@@ -709,7 +706,7 @@ BEGIN
 	GROUP BY MatchId, w.scores
 
 	--4. Trans info table
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 			 t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -726,7 +723,7 @@ BEGIN
 		FOR XML PATH('r'), ROOT('root')
 		)
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

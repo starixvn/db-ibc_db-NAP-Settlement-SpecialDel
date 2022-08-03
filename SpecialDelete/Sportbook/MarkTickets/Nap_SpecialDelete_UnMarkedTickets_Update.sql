@@ -8,7 +8,7 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
         @MarkType		 TINYINT	   = 0,
 		@RequestId		 INT		   = NULL,
 		@LogActionId	 INT		   = 90500,
-		@TransInfo       VARCHAR(MAX)  = NULL,
+		@TransInfo       XML  = NULL,
 		@IssueTypeId     INT           = NULL,
         @ErrMsg          NVARCHAR(200) = '' OUTPUT,
         @ErrCode         INT           = 0 OUTPUT
@@ -75,7 +75,6 @@ BEGIN
 		   ,@LogData VARCHAR(MAX) = ''
 		   ,@ThreadHold	INT = 0 
 		   ,@totalParlay INT = 0
-		   ,@TransInfoXML XML = NULL
            ,@IsCentral	BIT, @IsSiteDB BIT
 
 	EXEC dbo.NAP_Set_ServerInfo @IsCentral = @IsCentral OUTPUT
@@ -221,7 +220,6 @@ BEGIN
 
 	IF @TransInfo IS NOT NULL AND @TransIds IS NULL --TVS
 	BEGIN
-		SET @TransInfoXML = CONVERT(XML, @TransInfo)
 		INSERT INTO #tmpTransInfo( 
 			   matchid
 			  ,transid 
@@ -246,8 +244,8 @@ BEGIN
 				,t.c.value('@s_btype','SMALLINT') AS Subbettype
 				,t.c.value('@isP','BIT') AS IsMixParlay
 				,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-		FROM @TransInfoXML.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+		FROM @TransInfo.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 		INSERT INTO #Tickets (
 			TransId

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_DARC_Select]
 (	
 	 @RequestId			  INT = 0
@@ -6,14 +6,14 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_DARC_Select]
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
 	,@DARCInfo			  VARCHAR(MAX) = NULL
-	,@TransInfo		      VARCHAR(MAX) = NULL
+	,@TransInfo		      XML = NULL
 )
 AS
 /*	
 	Created by: July
 	Date 20220720
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220720@July: Create new SP - Refactor code issue type Danger Accept & Red card [Redmine: #175412]
@@ -30,7 +30,6 @@ BEGIN
 			,@MainParlayCount		  INT = 0
 	
 	DECLARE	@DARCInfoInfoXML		XML = NULL
-		   ,@TransInfoXML			XML = NULL
 		   ,@MinAccept				TINYINT	= 0	
 		   ,@VoidFromTime			DATETIME = NULL
 		   ,@VoidToTime				DATETIME = NULL
@@ -203,7 +202,6 @@ BEGIN
 	FROM @DARCInfoInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@DARCInfoInfoXML = NULL))
 
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
@@ -306,8 +304,8 @@ BEGIN
 		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
 		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-		,t.c.value('@s_tdate','SMALLINT') AS Subtransdate
-		,t.c.value('@s_checkt','SMALLINT') AS Subchecktime
+		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
+		,t.c.value('@s_checkt','DATETIME') AS Subchecktime
 		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
 		,t.c.value('@s_sid', 'MONEY') AS SubstatusID
 		,t.c.value('@sre','INT') AS srecommend
@@ -334,8 +332,8 @@ BEGIN
 		,t.c.value('@isP','BIT') AS IsMixParlay
 		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 		,t.c.value('@isM','BIT') AS IsMoved14 
-	FROM @TransInfoXML.nodes('root/r') t(c)	
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -1042,7 +1040,7 @@ BEGIN
 			) AS tmpHighlight
 
 	
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -1059,7 +1057,7 @@ BEGIN
 	FOR XML PATH('r'), ROOT('root')
 	)
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

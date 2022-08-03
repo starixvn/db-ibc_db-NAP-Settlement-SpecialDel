@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
 	 @TransIds	VARCHAR(MAX) = NULL
@@ -6,14 +6,14 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@ActionId	TINYINT	= 0
 	,@FilterBy	TINYINT	= NULL
 	,@SubIssueTypeId TINYINT	= NULL
-	,@TransInfo	VARCHAR(MAX) = NULL
+	,@TransInfo	XML = NULL
 )
 AS
 /*  
 	Created by: Raymond.Le  
 	Date: 20190625
 	Task: Validate matchId, betId of Abnormal bet
-	DB: DBTXN/bodb02   
+	DB: DBCTG/bodb02   
 	Original:      
 
 	Revisions:  
@@ -75,7 +75,6 @@ BEGIN
 			,@OldAction					 TINYINT
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
-			,@TransInfoXML			     XML = NULL
 			,@MatchId					 INT = 0
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
@@ -153,7 +152,6 @@ BEGIN
 	  ,IsMoved14 BIT
 	  ,SiteDBGroupID SMALLINT
 	)
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
@@ -198,35 +196,48 @@ BEGIN
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@IsM','BIT') AS IsMoved14
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
-	SET @MatchId = (SELECT TOP 1 b.matchid
-						FROM #tmpTransInfo AS b WITH (NOLOCK)
-							INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
-						WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
-									   WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
-									   ELSE 0 END) 
-								AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
-
-
-	-- check valid match id
-	IF @FilterBy IS NULL AND @MatchId <> 0 AND NOT EXISTS (SELECT TOP 1 1
-					FROM dbo.match AS m WITH (NOLOCK)
-					WHERE m.matchid = @MatchId
-						AND EXISTS (
-							SELECT TOP 1 1
-							FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
-							WHERE bm.ProductID = 1
-								AND bm.SportType = m.sporttype
-							)
-					)	
+	IF @FilterBy IS NULL
 	BEGIN
-		SET @InvalidMatchId = @MatchId
+		SET @MatchId = (SELECT TOP 1 b.matchid
+							FROM #tmpTransInfo AS b WITH (NOLOCK)
+								INNER JOIN #transIdTemp tmp ON b.transid = tmp.transid
+							WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
+										   WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
+										   ELSE 0 END) 
+									AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
+	
+		IF @MatchId IS NULL
+		BEGIN
+			RETURN;
+		END
+		ELSE
+		BEGIN
+			SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.matchcode
+			FROM dbo.match m WITH(NOLOCK) 
+			WHERE m.matchid = @MatchId
 
-		SELECT @InvalidMatchId AS InvalidMatchId
+			-- check valid match id
+			IF NOT EXISTS (SELECT TOP 1 1
+							FROM dbo.match AS m WITH (NOLOCK)
+							WHERE m.matchid = @MatchId
+								AND EXISTS (
+									SELECT TOP 1 1
+									FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
+									WHERE bm.ProductID = 1
+										AND bm.SportType = m.sporttype
+									)
+							)	
+			BEGIN
+				SET @InvalidMatchId = @MatchId
 
-		RETURN;
+				SELECT @InvalidMatchId AS InvalidMatchId
+
+				RETURN;
+			END
+		END
 	END
 
 	-- Check auto calculator
@@ -249,6 +260,7 @@ BEGIN
 			FROM #transid_tmp tmp
 			INNER JOIN #tmpTransInfo m ON m.IsMixParlay = 1
 		END
+
 		SET @IsCalQueue = ( SELECT TOP (1) 1
 								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 								WHERE StatusId IN (1,2,4) AND RequestId = 0
@@ -304,7 +316,7 @@ BEGIN
 		,b.livehomescore
 		,b.liveawayscore
 		,b.liveindicator
-		,@MatchId
+		,CASE WHEN @FilterBy = 1 THEN 29 ELSE @MatchId END
 		,m.sporttype
 		,b.betfrom
 		,b.recommend
@@ -575,7 +587,7 @@ BEGIN
 			,@IsCheckAutoCal AS IsCheckAutoCal
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -590,10 +602,10 @@ BEGIN
 			,b.SiteDBGroupID AS "@sitedb"
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR XML PATH('r'), ROOT('root')
-	)
+	FOR XML PATH('r'), ROOT('root'))
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
+		  
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #transid_tmp

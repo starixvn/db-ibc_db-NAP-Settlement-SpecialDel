@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_OU_Select]
 (	
 	@RequestId			  INT = 0
@@ -6,14 +6,14 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_OU_Select]
 	,@IsShowLogOnly		  BIT = 0
 	,@IssueTypeId		  INT = 6
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
-	,@TransInfo		      VARCHAR(MAX) = NULL
+	,@TransInfo		      XML = NULL
 )
 AS
 /*	
 	Created by: Max
 	Date 20220510
 	Task: Refactor code issue type Wrong OU & Wrong 1st OU [Redmine: #172281]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220510@Max: Create new SP [Redmine: #172281]
@@ -22,9 +22,7 @@ AS
 
 	Param's explanation:
 		+ @WrongOUInfo, @Wrong1stOUInfo:
-			<root>
-				<r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" WrongMarket ="" SubIssueTypeId=""/>
-			</root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" WrongMarket ="" SubIssueTypeId=""/></root>
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -33,7 +31,6 @@ BEGIN
 			,@MainParlayCount		  INT = 0
 	
 	DECLARE	 @WrongOUInfoXML		  XML = NULL
-			,@TransInfoXML         XML = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -87,7 +84,7 @@ BEGIN
 		,WrongMarket			VARCHAR(50)
 	)
 	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT)
-		CREATE TABLE #tmpTransInfo(
+	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
       ,Maintransid BIGINT
@@ -203,7 +200,6 @@ BEGIN
 			)f	 	
 	END	
 	
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
@@ -306,8 +302,8 @@ BEGIN
 		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
 		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-		,t.c.value('@s_tdate','SMALLINT') AS Subtransdate
-		,t.c.value('@s_checkt','SMALLINT') AS Subchecktime
+		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
+		,t.c.value('@s_checkt','DATETIME') AS Subchecktime
 		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
 		,t.c.value('@s_sid', 'MONEY') AS SubstatusID
 		,t.c.value('@sre','INT') AS srecommend
@@ -334,8 +330,8 @@ BEGIN
 		,t.c.value('@isP','BIT') AS IsMixParlay
 		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 		,t.c.value('@isM','BIT') AS IsMoved14 
-	FROM @TransInfoXML.nodes('root/r') t(c)	
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 	--Init Validation
 	INSERT INTO @Validation (MatchId)
@@ -702,7 +698,7 @@ BEGIN
 					)w (scores) 
 	GROUP BY MatchId, w.scores
 
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 		     t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -719,7 +715,7 @@ BEGIN
 		FOR XML PATH('r'), ROOT('root')
 		)
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

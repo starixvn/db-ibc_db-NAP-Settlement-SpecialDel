@@ -1,29 +1,30 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_KO_Select]
 (	
 	 @RequestId			  INT = 0
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
 	,@KickOffInfo		  VARCHAR(MAX) = NULL
-	,@TransInfo		      VARCHAR(MAX) = NULL
+	,@TransInfo		      XML = NULL
 )
 AS
 /*	
 	Created by: July
 	Date 20220720
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220720@July: Create new SP - Refactor code issue type EKO & WKO [Redmine: #175412]
 
 	Param's explanation:
+	+ @KickOffInfo: 
+			<root><r MatchId="0" KickOffTime=""/></root>
 */
 BEGIN
 	SET NOCOUNT ON 
 
 	DECLARE  @IsExistedInOtherRequest BIT = 0
-			,@TransInfoXML         XML = NULL
 			,@KickOffInfoXML	   XML = NULL	
 			,@MatchId			   INT
 			,@KickOffTime		   DATETIME = NULL
@@ -132,10 +133,8 @@ BEGIN
 	  ,SiteDBGroupID SMALLINT
 	  ,IsMove14 BIT
 	)
-
 	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
@@ -238,8 +237,8 @@ BEGIN
 		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
 		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-		,t.c.value('@s_tdate','SMALLINT') AS Subtransdate
-		,t.c.value('@s_checkt','SMALLINT') AS Subchecktime
+		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
+		,t.c.value('@s_checkt','DATETIME') AS Subchecktime
 		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
 		,t.c.value('@s_sid', 'MONEY') AS SubstatusID
 		,t.c.value('@sre','INT') AS srecommend
@@ -266,8 +265,8 @@ BEGIN
 		,t.c.value('@isP','BIT') AS IsMixParlay
 		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 		,t.c.value('@isM','BIT') AS IsMoved14 
-	FROM @TransInfoXML.nodes('root/r') t(c)	
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -503,7 +502,7 @@ BEGIN
 		FROM #TransidInRequest
 	END
 
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -566,7 +565,7 @@ BEGIN
 		FOR XML PATH('r'), ROOT('root')
 		)
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
 	@MatchId              INT = 0
@@ -16,14 +16,14 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL	
-	,@TransInfo			  VARCHAR(MAX) = NULL	
+	,@TransInfo			  XML = NULL	
 )
 AS
 /*	
 	Created by: Max
 	Date 20200701
 	Task: [TVS] Danger Accept Bets Issue Type [Redmine: #111573]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]

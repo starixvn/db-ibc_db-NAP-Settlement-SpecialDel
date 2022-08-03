@@ -2,7 +2,7 @@
 CREATE PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
-	,@TransInfo		    VARCHAR(MAX)  = NULL
+	,@TransInfo		    XML  = NULL
 )
 AS
 /*  
@@ -25,7 +25,6 @@ BEGIN
 		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		   ,@before_movebetday				DATETIME
 	       ,@MovebetDate					DATETIME
-		   ,@TransInfoXML					XML = NULL
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -67,7 +66,6 @@ BEGIN
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
-	SET @TransInfoXML = CONVERT(XML, @TransInfo)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
@@ -96,8 +94,8 @@ BEGIN
 			,t.c.value('@wld','SMALLDATETIME') AS winlostdate
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+	FROM @TransInfo.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 
@@ -161,7 +159,7 @@ BEGIN
 	SELECT @InvalidTransIds AS InvalidTransIds
 		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 
-	SET @TransInfoXML = (
+	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
 		    ,t.transid AS "@t"
@@ -178,7 +176,7 @@ BEGIN
 	FOR XML PATH('r'), ROOT('root')
 	)
 
-	SELECT @TransInfoXML AS TransInfo
+	SELECT @TransInfo AS TransInfo
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

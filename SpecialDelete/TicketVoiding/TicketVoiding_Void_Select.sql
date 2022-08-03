@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select] 
 (
 	@MatchId			INT = 0
@@ -9,13 +9,13 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
 	,@ActionId			TINYINT = 0
 	,@LiveHomeScore		SMALLINT = NULL
 	,@LiveAwayScore		SMALLINT = NULL
-	,@TransInfo		    VARCHAR(MAX) = NULL
+	,@TransInfo		    XML = NULL
 )
 AS
 /*	Created by: Kathy
 	Date 20181212
 	Task: view voided ticket [Redmine:#90155]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -176,7 +176,7 @@ BEGIN
 		   
 	IF @IssueTypeId in (8,9) AND @TransInfo IS NOT NULL
 	BEGIN
-			CREATE TABLE #tmpTransInfo(
+		CREATE TABLE #tmpTransInfo(
 			   matchid INT
 			  ,transid BIGINT PRIMARY KEY
 			  ,Subtransid BIGINT
@@ -234,8 +234,6 @@ BEGIN
 			  ,IsMixParlay BIT
 			  ,SiteDBGroupID SMALLINT
 			)
-		DECLARE @TransInfoXML  XML = NULL
-		SET @TransInfoXML = CONVERT(XML, @TransInfo)
 		INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
@@ -326,7 +324,7 @@ BEGIN
 			,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 			,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
 			,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-			,t.c.value('@s_tdate','SMALLINT') AS Subtransdate
+			,t.c.value('@s_tdate','DATETIME') AS Subtransdate
 			,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
 			,t.c.value('@s_sid', 'MONEY') AS SubstatusID
 			,t.c.value('@sre','INT') AS srecommend
@@ -346,8 +344,8 @@ BEGIN
 			,t.c.value('@m', 'MONEY') AS modds
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-		FROM @TransInfoXML.nodes('root/r') t(c)	
-		OPTION (OPTIMIZE FOR (@TransInfoXML = NULL))
+		FROM @TransInfo.nodes('root/r') t(c)	
+		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 		INSERT INTO #TVSTicketBets(
 				GroupID			
@@ -529,8 +527,6 @@ BEGIN
 		DROP TABLE #tmpTransInfo
 		
 	END
-	
-	
 	
 	IF @IssueTypeId = 13
 	BEGIN
