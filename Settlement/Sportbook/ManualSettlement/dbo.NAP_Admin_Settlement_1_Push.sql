@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
 	,@IsReSettledTickets	BIT				= 1
     ,@ChildMatchIds			VARCHAR(500)	= NULL
 	,@RefResultStatus		TINYINT			= 0
-	,@SessionId				VARCHAR(50)		= NULL
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -75,10 +75,15 @@ BEGIN
 			,@sporttype         	INT
 			,@leagueid          	INT
 			,@procName          	NVARCHAR(50)
-			,@sqlCommand			NVARCHAR(MAX)
-			,@IsSystemSettlement	BIT
+			,@sqlCommand			NVARCHAR(MAX)			
 			,@KeyId					INT
 	
+	SELECT	@matchcode = m.matchcode
+			,@leagueid = m.leagueid
+			,@sporttype = m.sporttype
+	FROM	dbo.match m WITH(NOLOCK)
+	WHERE	m.matchid = @Matchid
+
     SELECT	@ErrCode        = 0
 			,@ErrMsg        = ''
 			,@procName      = OBJECT_NAME(@@procid)
@@ -130,7 +135,7 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
-				,SessionId
+				,BroadcastSessionId
             )
         SELECT	@MatchId
 				,@matchcode
@@ -141,7 +146,7 @@ BEGIN
 				,@IP
 				,@Action
 				,@sqlCommand
-				,@SessionId
+				,@BroadcastSessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 		

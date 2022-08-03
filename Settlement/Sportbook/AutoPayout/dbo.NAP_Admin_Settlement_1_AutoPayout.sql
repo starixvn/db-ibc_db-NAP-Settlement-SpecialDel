@@ -294,31 +294,6 @@ BEGIN
 	FROM @BalanceWalletBefore
  
 	BEGIN TRY
-		SELECT	@HTDone = IsHTCal 
-		FROM	DBPRO.bodb02.dbo.match_remark WITH(NOLOCK)
-		WHERE	matchid = @matchid
-			
-
-		SELECT @eventstatus = CASE WHEN @action = 'CAL'  THEN N'completed'
-									WHEN @action = 'CAL-HT' AND @matchcode LIKE '%hedge%' THEN @eventstatus -- Jamie@20120330: Not change eventstatus='completed' for Hedge Match although 
-									WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
-								ELSE @eventstatus END
-		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_1-CAL'
-				, @MatchID					= @matchid
-				, @FTHome					= @fth
-				, @FTAway					= @fta
-				, @HTHome					= @hth
-				, @HTAway					= @hta
-				, @BetStatus 				= @betstatus
-				, @GoalRecord				= @goalrecord
-				, @Action					= @action			
-				, @HTDone					= @HTDone
-				, @creator					= @creator		
-		END
-
 		EXEC dbo.NAP_Admin_Settlement_3
 			@matchid            = @matchid
 			,@mode                = @action    
@@ -327,17 +302,6 @@ BEGIN
 
 		IF @IsCentral = 1
 		BEGIN
-			IF @eventstatus = 'completed'
-			BEGIN
-				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
-					, @command = 'C'
-			END
-			ELSE IF @action = 'CAL-HT'
-			BEGIN
-				EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark @matchid = @matchid
-					, @command = 'H'
-			END
-		
 			EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
 																		, @SourceId = @SourceId
 		END

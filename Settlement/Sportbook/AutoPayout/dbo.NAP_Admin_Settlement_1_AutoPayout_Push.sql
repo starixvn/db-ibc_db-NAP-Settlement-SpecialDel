@@ -14,7 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
 	, @ResourceResult VARCHAR(MAX)	= NULL
 	, @SourceId		TINYINT			= 5 -- default SoccerWay
 	, @RefResult	VARCHAR(500)	= NULL
-	, @SessionId	VARCHAR(50)		= NULL
+	, @BroadcastSessionId	VARCHAR(50)		= NULL
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -56,19 +56,15 @@ BEGIN
 			,@leagueid				INT
 			,@procName				NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
-			,@IsSystemSettlement	BIT
+			
 			,@CalType				TINYINT
 			,@HomeValue				VARCHAR(50)
 			,@AwayValue				VARCHAR(50)
 			,@LeagueGroupID			SMALLINT
 			,@KeyId					INT
 			,@xmlResourceResult		XML
-			,@IsCentral				BIT = 0
 	
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
 
 	SELECT @CalType = CASE WHEN @Action = 'CAL-HT' THEN 1 
 								WHEN @Action = 'CAL-FT' THEN 2
@@ -118,42 +114,6 @@ BEGIN
 											ELSE '' END
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
-		,@IsSystemSettlement = CASE
-								WHEN @Action IN ('CAL-FT', 'CAL') THEN 1
-								ELSE NULL
-							END
-							
-	-- add new status "Under Settlement" for a match
-	IF @IsCentral = 1 AND @IsSystemSettlement IS NOT NULL
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= @IsSystemSettlement 
-			,@AdminId		= @AdminId
-	END
-
-	-- insert waiting status into AutoPayoutResult table - Redmine:#106901
-	IF @IsCentral = 1
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
-			  @MatchId 		= @matchid
-			, @SourceId 	= @SourceId
-			, @TypeId 		= @CalType
-			, @HomeValue 	= @HomeValue
-			, @AwayValue 	= @AwayValue
-			, @StatusId 	= 1 -- waiting
-			, @ErrCode 		= @ErrCode OUTPUT
-			, @ErrMsg		= @ErrMsg OUTPUT
-		
-		IF @ErrCode <> 0
-		RETURN
-	END
-
-	IF @IsCentral = 1 AND @sporttype = 1 AND @Action = 'CAL-FT' AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeHome,0) <> ISNULL(@FullTimeAway,0)
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns  @ParentId = @MatchId
-	END
 
     IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
     BEGIN
@@ -176,11 +136,11 @@ BEGIN
         INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode
 			, IsCalculating
 			, LeagueID, SportType
-			, AdminId, IP, Action, sqlCommand, execTime, SessionId )
+			, AdminId, IP, Action, sqlCommand, execTime, BroadcastSessionId )
         SELECT @MatchId, @matchcode
 			, CASE WHEN @sporttype = 1 THEN 99 ELSE 0 END
 			, @leagueid, @sporttype
-			, @AdminId, @IP, @Action, @sqlCommand, NULL, @SessionId
+			, @AdminId, @IP, @Action, @sqlCommand, NULL, @BroadcastSessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 

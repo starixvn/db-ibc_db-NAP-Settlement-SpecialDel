@@ -129,7 +129,7 @@ BEGIN
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT)
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	--DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), bettype SMALLINT, betid BIGINT)
+
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT, BetdaqId BIGINT, DeadHeat TINYINT)
 
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, DeadHeat TINYINT)
@@ -278,19 +278,6 @@ BEGIN
 	END
 	-------------BEGIN TRY------------------------------------------
 	BEGIN TRY
-
-		IF @Action LIKE 'CAL%' AND @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
-						@action					= 'CAL'
-						,@MatchID				= @MatchID
-						,@creator				= @creator
-						,@Sporttype				= @Sporttype
-						,@SelectedRID   		= @SelectedResources
-						,@IsDirectly			= @IsDirectly
-						,@IsAuto				= @IsAuto
-		END
-
 		-----------------------------------------add more info-----------------------------------------
 		SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
 		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
@@ -565,81 +552,6 @@ BEGIN
 									WHERE	t.BetType = bm.bettype
 											AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 		END 
-	
-		IF @IsCentral = 1
-		BEGIN
-			---check FT round
-			SET @existsFinalRound = 0
-  			SELECT TOP 1 @existsFinalRound = 1
-						,@fth = sr.HomeValue
-						,@fta = sr.AwayValue
-  			FROM @tmpSelectedRID sr
-  			WHERE sr.ResourceID = '00'
-  	
-  			---check HT round
-  			SET @existsHTRound = 0
-  			SELECT TOP 1 @existsHTRound = 1
-						,@hth = sr.HomeValue
-						,@hta = sr.AwayValue
-  			FROM @tmpSelectedRID sr
-  			WHERE sr.ResourceID = '01' 
-				AND 1 = CASE WHEN @sportType = 2 THEN 1
-							 WHEN @sportType = 1 AND @LeagueGroupID = 113 THEN 1---PinGoal
-							 ELSE 0
-							 END
-
-			IF @existsHTRound = 1
-			BEGIN
-				SELECT  @hth	= COALESCE (@hth, 0)
-						,@hta   = COALESCE (@hta, 0)
-						,@SelectedQuarter = '1H'
-			END
-			
-  			IF @existsFinalRound = 1
-  			BEGIN
-	  			IF @Action LIKE 'CAL%'
-	  			BEGIN
-					SELECT  @hth	= COALESCE (@hth, 0)
-							,@hta   = COALESCE (@hta, 0)
-							,@fth   = COALESCE (@fth, 0)
-							,@fta   = COALESCE (@fta, 0)
-				END
-		
-				IF @Action LIKE 'REFUND%'
-	  			BEGIN
-					SELECT  @hth	= COALESCE (@hth, 0)
-							,@hta   = COALESCE (@hta, 0)
-							,@fth   = COALESCE (@fth, 0)
-							,@fta   = COALESCE (@fta, 0)
-				END
-		
-				IF @Action LIKE 'UNDO%'
-	  			BEGIN
-					SELECT  @hth	= NULL
-							,@hta   = NULL
-							,@fth	= NULL
-							,@fta	= NULL
-				END
-
-				SELECT @SelectedQuarter = CASE WHEN @existsHTRound = 1 THEN '1H' ELSE 'FT' END WHERE @sportType = 2
-			END
-
-			IF @Action LIKE 'CAL%'
-			BEGIN
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-							@Command				= 'profile'
-							,@Action				= 'CAL'
-							,@MatchID				= @matchid
-							,@FTHome				= @fth
-							,@FTAway				= @fta
-							,@HTHome				= @hth
-							,@HTAway				= @hta
-							,@creator				= @creator
-							,@IsFinalRound			= @existsFinalRound
-							,@IsHTRound				= @existsHTRound
-							,@BetStatus				= @BetStatus
-			END
-		END
 
 		IF @sportType = 2 AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE ResourceID IN ('00','01'))-- BASKETBALL
 		BEGIN
@@ -771,95 +683,6 @@ BEGIN
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		IF @IsCentral = 1
 		BEGIN
-			IF @Action LIKE 'CAL%'
-			BEGIN
-
-				IF  @existsFinalRound = 1
-				BEGIN				 
-					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
-								@matchid				= @matchid
-								,@command				= 'C'
-				END
-
-				ELSE IF @existsHTRound = 1
-				BEGIN				 
-					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-							@matchid    = @matchid
-							,@command    = 'H'
-				END
-
-			END-------------------end CAL
-			ELSE IF @action LIKE 'UNDO%'
-			BEGIN
-
-				--update ResultDetail before settle Parlay
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
-								@action  			= 'UNDO'
-								,@matchid 			= @MatchId
-								,@SelectedRID   	= @SelectedResources
-								,@Sporttype			= @Sporttype
-								,@creator 			= @creator
-							
-				IF @existsFinalRound = 1
-				BEGIN
-					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
-								@matchid			= @matchid
-								,@command			= 'U'
-								,@IsFinalRound		= @existsFinalRound
-								,@SelectedQuarter   = @SelectedQuarter
-				END
-				ELSE IF @existsHTRound = 1
-				BEGIN
-					EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
-								@matchid			= @matchid
-								,@command			= 'U'
-								, @SelectedQuarter  = @SelectedQuarter
-				END
-			
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-								@Command			='profile'
-								,@Action			='UNDO'
-								,@MatchID			= @matchid
-								,@creator			= @creator
-								,@IsFinalRound		= @existsFinalRound
-								,@IsHTRound			= @existsHTRound
-								,@BetStatus			= @BetStatus
-														
-			END-------------------end UNDO
-			ELSE IF @Action LIKE 'REFUND%'
-			BEGIN
-			
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-								@matchid			= @matchid
-								,@command			= 'profile'
-								,@Action			= 'REFUND'
-								,@FTHome			= @fth
-								,@FTAway			= @fta
-								,@HTHome			= @hth
-								,@HTAway			= @hta
-								,@IsFinalRound  	= @existsFinalRound
-								,@IsHTRound			= @existsHTRound
-								,@BetStatus			= @BetStatus
-							
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_9001
-								@action				= 'REFUND'
-								,@MatchID			= @MatchID
-								,@creator			= @creator
-								,@Sporttype			= @Sporttype
-								,@SelectedRID   	= @SelectedResources
-								,@IsAuto			= @IsAuto
-							
-				IF  @existsFinalRound = 1 OR @existsHTRound = 1
-				BEGIN
-					  EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark
-								@matchid			= @matchid
-								,@command			= 'F'
-								,@IsFinalRound		= @existsFinalRound
-								,@SelectedQuarter   = @SelectedQuarter
-
-				END
-			END------------end REFUND
-
 			IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action = 'CAL' )
 			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 

@@ -12,7 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsDirectly		BIT				= 0
 	,@ChildMatchIds		VARCHAR(200)	= NULL
 	,@RefResultStatus	TINYINT			= 0
-	,@SessionId			VARCHAR(50)		= NULL
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
@@ -64,11 +64,7 @@ BEGIN
 			,@sqlCommand			NVARCHAR(MAX)
 			,@procName				SYSNAME	= OBJECT_NAME(@@procid)
 			,@IsExistNetPosition	BIT = 0		
-			,@IsSystemSettlement	BIT = NULL
 			,@handle 				INT
-			,@IsEarly				BIT
-			,@WaitingTime			VARCHAR(10)
-			,@IsWaiting				BIT = 0
 		
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 								  
@@ -117,26 +113,6 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
 		SET	@IsExistNetPosition = 1 
   	END
-
-	---check FT round
-  	SELECT TOP 1 @IsSystemSettlement = CASE
-										WHEN @Action = 'UNDO' 	THEN 0
-										WHEN @Action IN ('CAL', 'REFUND') 	THEN 1
-										ELSE NULL
-									  END 
-  	FROM @tmpSelectedRID sr
-  	WHERE GroupType = 'FT' AND isFinal = 1
-		
-	-- add new status "Under Settlement" for a match
-	IF @IsSystemSettlement IS NOT NULL 
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= @IsSystemSettlement 
-			,@AdminId		= @AdminId
-			,@IP			= @IP
-	END
 	
 	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
 		OR ( @IsAuto = 1 AND @sporttype IN (1,2) ) -- product PinGoal will be executed directly instead of pushing in queue
@@ -167,7 +143,7 @@ BEGIN
 			,Action
 			,sqlCommand
 			,execTime
-			,SessionId
+			,BroadcastSessionId
 			)
 		SELECT @MatchId
 			,@matchcode
@@ -179,7 +155,7 @@ BEGIN
 			,@Action
 			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
 			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
-			,@SessionId
+			,@BroadcastSessionId
 
 		IF @IsExistNetPosition = 1
 			SET @ServiceCommand = @sqlCommand
