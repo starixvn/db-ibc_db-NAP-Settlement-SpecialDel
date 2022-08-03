@@ -264,7 +264,6 @@ BEGIN
 				,@fth = @fth 
 				,@fta = @fta
 				,@goalrecord = @goalrecord
-				,@BetStatus = @BetStatus
 				,@action	= @action
 				,@ActionID	= @ActionID
 				,@IsReSettledTickets = @IsReSettledTickets
