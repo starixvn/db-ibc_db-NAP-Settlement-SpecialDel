@@ -2,10 +2,6 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_All_Push] 
     @Matchid							INT
     ,@AdminId                        	INT
-    ,@HalfTimeHome                    	INT             = NULL
-    ,@HalfTimeAway                    	INT             = NULL
-    ,@FullTimeHome                    	INT             = NULL
-    ,@FullTimeAway                    	INT             = NULL 
     ,@BetStatus                        	NVARCHAR(50)    = NULL
     ,@IP								VARCHAR(15)    	= ''
 	,@SessionId							VARCHAR(50)		= NULL
@@ -86,10 +82,6 @@ BEGIN
         ,@sqlCommand    = 'EXEC [dbo].[NAP_Admin_Settlement_Refund_All] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
                                                                   + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId)
                                                                   + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' ELSE '''' + @BetStatus + '''' END 
-                                                                  + ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeHome), 'NULL') 
-                                                                  + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL') 
-                                                                  + ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeHome), 'NULL') 
-                                                                  + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
                                                                   + ', @Action = ''' + 'CAL' + '''' 
                                                                   + ', @IsNested = ''' + CONVERT(NVARCHAR(1), @IsNested) + '''' 
                                                                   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
