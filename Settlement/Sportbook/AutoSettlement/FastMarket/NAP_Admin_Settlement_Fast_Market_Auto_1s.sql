@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @MatchId INT
 	,@Action				VARCHAR(20)
 	,@Results				VARCHAR(MAX)
+	,@OldResults			VARCHAR(MAX)	= NULL
 	,@EventCounters			VARCHAR(MAX)	= NULL
 
 	,@IsAuto				BIT				= 0
@@ -97,6 +98,7 @@ BEGIN
 				,@isExistFM BIT = 1
 				,@isExistFM2 BIT = 0
 				,@IsCentral			BIT
+				,@xmlOldAccumulatedScore XML
 
 	DECLARE @tblAccumulatedScore TABLE (
 		bettype					SMALLINT
@@ -133,6 +135,7 @@ BEGIN
 
 	SET @XmlData =  CONVERT(XML, @Results)
 	SET @xmlEventCounter = CONVERT(XML,@EventCounters)
+	SET @xmlOldAccumulatedScore = CONVERT(XML, @OldResults)
 
 	SELECT	@start = CURRENT_TIMESTAMP
 	SELECT	@ActionID = CASE 
@@ -231,69 +234,25 @@ BEGIN
 	FROM	TmpEventCounter
 	OPTION ( OPTIMIZE FOR ( @xmlEventCounter = NULL ) )
 	
-	-- get score before update for UNDO action
-	IF @Action IN ('UNDO', 'REFUND', 'CAL') AND EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228) AND @IsSettleDetermined = 0
+	-- get score before update 
+	IF @Action = 'CAL' AND EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228) AND @IsSettleDetermined = 0
 	BEGIN
-		SELECT	@BetOption1st = MAX(CASE WHEN ResourceId = '22801' THEN HomeValue ELSE '' END)
-				,@BetOption2nd = MAX (CASE WHEN ResourceId = '22801' THEN AwayValue ELSE '' END)
-				,@ResultStatus1st = MAX (CASE WHEN ResourceId = '22800' THEN HomeValue ELSE '' END)
-				,@ResultStatus2nd = MAX (CASE WHEN ResourceId = '22800' THEN AwayValue ELSE '' END)				
-		FROM	DBPRO.bodb02.dbo.ResultDetail WITH (NOLOCK)
-		WHERE	MatchId = @MatchId 
-				AND ResourceId LIKE '2280_'
-		GROUP BY MatchId
-
-		-- calculate accumulated score before settle
-		IF @Action = 'CAL'
-		BEGIN
-			;WITH cteBetOption
-			AS
-			(
-				SELECT	f.pos AS Position, f.ResultStatus AS BetOption
-				FROM	dbo.f_Set_GetChars(@BetOption1st) f
-				WHERE	f.pos < 46 AND ISNULL(@BetOption1st,'') <> ''
-				UNION ALL
-				SELECT	f.pos + 46 AS Position, f.ResultStatus AS BetOption
-				FROM	dbo.f_Set_GetChars(@BetOption2nd) f
-				WHERE	f.pos < 45 AND ISNULL(@BetOption2nd,'') <> ''
-			)
-			,cteResutStatus
-			AS (
-				SELECT	f.pos AS Position, f.ResultStatus AS ResultStatus
-				FROM	dbo.f_Set_GetChars(@ResultStatus1st) f
-				WHERE	f.pos < 46 AND ISNULL(@ResultStatus1st,'') <> ''
-				UNION ALL
-				SELECT	f.pos + 46 AS Position, f.ResultStatus AS ResultStatus
-				FROM	dbo.f_Set_GetChars(@ResultStatus2nd) f
-				WHERE	f.pos < 45 AND ISNULL(@ResultStatus2nd,'') <> ''
-			)
-			,cteResult
-			AS (
-				SELECT rs.Position, CASE WHEN rs.ResultStatus IN (4,5,7) THEN bo.BetOption ELSE 0 END AS BetOption
-				FROM cteResutStatus rs
-					INNER JOIN cteBetOption bo
-						ON rs.Position = bo.Position
-			)
-			,cteOldAccumulatedScore
-			AS (
-			SELECT 228 AS bettype, c1.Position, c1.BetOption, c2.BetOption AS OldAccumulatedScore
-			FROM cteResult c1
-				INNER JOIN cteResutStatus crs
-					ON c1.Position = crs.Position
-				CROSS APPLY (
-					SELECT	ISNULL(SUM(c2.BetOption), 0) as BetOption
-					FROM	cteResult c2
-					WHERE	c2.Position <= c1.Position
-				) c2
-			)					
-			UPDATE r 
+		;WITH cteOldAccumulatedScore
+		AS(
+			SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
+				,X.C.value('@p','TINYINT') as Position
+				,X.C.value('@oe','TINYINT') as OldAccumulatedScore
+			FROM @xmlData.nodes('/r/b') AS T(C)
+				CROSS APPLY
+					C.nodes('r') AS X(C)
+		)
+		UPDATE r 
 				SET OldAccumulatedScore = a.OldAccumulatedScore
 			FROM	#tblResultDetail r
 				INNER JOIN cteOldAccumulatedScore a
 					ON	r.BetType = a.bettype
 						AND r.Position = a.Position
 			WHERE r.BetType = 228
-		END
 	END
 
 	-- update resultstatus

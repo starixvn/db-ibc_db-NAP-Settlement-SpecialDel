@@ -2,7 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	@MatchId			INT
 	,@Action			VARCHAR(20)
-	,@Mode				VARCHAR(20)
+	,@Mode				VARCHAR(20)		= NULL
 	,@FullTimeHome		SMALLINT        = NULL
     ,@FullTimeAway		SMALLINT        = NULL
     ,@HalfTimeHome		SMALLINT        = NULL
@@ -12,6 +12,8 @@ ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	,@ResourceResult	VARCHAR(MAX)	= NULL
 	,@SDTRecord			TINYINT = NULL
 	,@SelectedResources	VARCHAR(MAX)	= NULL
+	,@Results			VARCHAR(MAX)	= NULL -- FM
+	,@EventCounters		VARCHAR(MAX)	= NULL -- FM
 	,@IsDirectly		BIT				= 0
 	,@IsAuto			BIT				= 0
 	,@AdminId			INT
@@ -25,7 +27,9 @@ AS
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
-		@Mode: INST-HT, INST-FT
+		@Mode: INST-HT, INST-FT, FM
+
+
 
 */
 BEGIN
@@ -116,7 +120,17 @@ BEGIN
 					,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
 		END
 	END
+	IF @Mode = 'FM'
+	BEGIN
+		EXEC dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId = @MatchId
+			,@Results = @Results
+			,@EventCounters = @EventCounters
+			,@Action = @Action
+			,@IsAuto = @IsAuto
+			,@AdminId = @AdminId	
 	
+		RETURN
+	END
 	IF @Action LIKE 'CAL%' 
 	BEGIN
 		IF @Mode LIKE 'INST%'

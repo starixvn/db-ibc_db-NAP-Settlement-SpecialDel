@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s_Push] @MatchId INT
 	,@Action				VARCHAR(20)
 	,@Results				VARCHAR(MAX)
+	,@OldResults			VARCHAR(MAX) = NULL
 	,@EventCounters			VARCHAR(MAX) = NULL
 	,@IsAuto				BIT			= 0
 	,@AdminId				INT			= 0
@@ -115,11 +116,6 @@ BEGIN
 	SET @xmlData = CONVERT(XML, @Results)
 	SET @xmlEventCounter = CONVERT(XML, @EventCounters)
 	
-	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
-	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
-	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
-	WHERE	matchid = @matchid
-	
 	;WITH TmpData AS (
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 			,X.C.value('@Position','TINYINT') as Position
@@ -140,6 +136,11 @@ BEGIN
 
 	IF @IsAuto = 1
 	BEGIN		
+		INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
+		SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
+		FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
+		WHERE	matchid = @matchid
+
 		IF EXISTS (SELECT TOP 1 1 FROM @tblData WHERE bettype IN (228,229))
 			SET @IsReSettledTickets = 0
 
@@ -245,6 +246,7 @@ BEGIN
 	SELECT	@sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @Results = ''' + CONVERT(VARCHAR(MAX), @Results) + ''''
+															+ ', @OldResults = ''' + CONVERT(VARCHAR(MAX), @OldResults) + ''''
 															+ CASE 
 																WHEN @EventCounters IS NULL THEN ''
 																ELSE ', @EventCounters = ''' + @EventCounters + '''' 
