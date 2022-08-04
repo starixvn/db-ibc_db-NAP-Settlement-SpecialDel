@@ -579,7 +579,7 @@ BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.FilterTransdesc = tp.Transdesc))
+				WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
 		END																								  
 	END
 

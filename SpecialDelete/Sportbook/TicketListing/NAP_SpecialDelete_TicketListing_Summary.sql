@@ -786,7 +786,7 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.OddsId IS NULL OR t.FilterOddsId = bd.OddsId ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc = 'All' OR t.FilterTransdesc = bd.Transdesc ))
+					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc IS NULL OR t.FilterTransdesc = bd.Transdesc ))
 			  )
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
