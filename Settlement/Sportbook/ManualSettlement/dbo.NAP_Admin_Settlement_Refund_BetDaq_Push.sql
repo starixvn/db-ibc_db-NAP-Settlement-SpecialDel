@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_BetDaq_Push]
 	@MatchId int,
 	@AdminId int, 	
 	@IP varchar(15) = '',
-	@BroadcastSessionId VARCHAR(50) = NULL,
 	@ErrCode int = 0 OUTPUT,
 	@ErrMsg nvarchar(200) = '' OUTPUT
 AS
@@ -77,8 +76,8 @@ BEGIN
 	END 
 	ELSE
 	BEGIN
-		INSERT INTO Single_Calculate_Queue(matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, BroadcastSessionId)
-		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand, @BroadcastSessionId
+		INSERT INTO Single_Calculate_Queue(matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand)
+		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand
 	END
 END
 

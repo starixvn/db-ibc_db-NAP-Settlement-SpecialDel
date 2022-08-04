@@ -1,10 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_AutoInstant_GetTicketInfo]
 	 @MatchId		INT	
-	, @InstantKey		INT	
-	, @HomeScore		VARCHAR(50)
-	, @AwayScore		VARCHAR(50)
-
 AS
 /*
 	Created by: 20220719@Louisa
