@@ -48,6 +48,7 @@ AS
 		- 20211122@July: SD - Send data to OIC instead of file [Redmine: #159115]
 		- 20220303@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
+		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -294,7 +295,7 @@ BEGIN
 				, CAST(CASE WHEN osid.val = 'ALL' THEN NULL
 						ELSE osid.val END AS INT) AS OddsId
 				, CAST(CASE WHEN td.val = 'ALL' THEN NULL
-						ELSE td.val END AS INT) AS Transdesc
+						ELSE td.val END AS NVARCHAR(2000)) AS Transdesc
 		FROM #tblBetType cte
 				CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
 				CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
@@ -471,7 +472,7 @@ BEGIN
 				DELETE b
 				FROM  #SpecialDeleteBets b
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-					WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.FilterTransdesc = tp.Transdesc))
+					WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
 		
 			END
 		END 

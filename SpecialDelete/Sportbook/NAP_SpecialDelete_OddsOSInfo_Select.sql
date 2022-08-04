@@ -13,6 +13,7 @@ AS
 	
 	Revisions:
 		- 20220228@Max: Create new SP [Redmine: #168080]
+		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 
 	Param's explanation:		
 */
@@ -37,6 +38,7 @@ BEGIN
 		INNER JOIN dbo.oddsOS_flex os WITH (NOLOCK) ON os.oddsid = o.oddsid
 		INNER JOIN @tmpBettype t ON t.bettype = o.bettype
 	WHERE o.matchid = @MatchId
+		AND os.OddsInfo <> ''
 
 END
 
