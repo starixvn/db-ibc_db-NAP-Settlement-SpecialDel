@@ -255,17 +255,6 @@ BEGIN
 			WHERE r.BetType = 228
 	END
 
-	-- update resultstatus
-	IF @IsCentral = 1
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId = @MatchId
-			,@Results = @Results
-			,@EventCounters = @EventCounters
-			,@Action = @Action
-			,@IsAuto = @IsAuto
-			,@AdminId = @AdminId					
-	END
-	
 	-- Get Result bettype 228
 	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
 	BEGIN
