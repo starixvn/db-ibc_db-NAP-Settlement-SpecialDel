@@ -1,0 +1,122 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Update]
+(
+	@RequestId				INT
+   ,@IssueTypeId			TINYINT	= NULL
+   ,@MatchInfo				VARCHAR(MAX) = NULL
+   ,@ActionID				TINYINT = NULL
+   ,@FilterBy				TINYINT = NULL
+   ,@IsEditRequest			INT = 0
+   ,@TransIds				VARCHAR(MAX) = NULL
+)
+AS
+/*	
+	Created by: July
+	Date 20220720
+	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+	DB: DBTXN/bodb02
+	
+	Revisions: 
+		- 20220720@July: Create new SP - Insert auto void queue [Redmine: #175412]
+
+	Param's explanation:
+		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member), 13 - Abnormal account
+		+ @MatchInfo : <root><r matchid="1,2,3" sporttype ="" /></root>
+		+ @TransIds: apply for issuetype (11,15)
+*/
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @MatchInfoXML		 XML = NULL
+		   ,@IsCalQueue			 BIT = 0
+		   ,@IsTransidProcessed  BIT = 0
+		   ,@IsCentral			 BIT 
+	EXEC dbo.NAP_Set_ServerInfo @IsCentral = @IsCentral OUTPUT
+
+	CREATE TABLE #tmpMatchId (matchId INT, sporttype SMALLINT)
+	CREATE TABLE #tmpTransId (transid BIGINT, statusid INT, statuswinlost TINYINT)
+
+	SET @MatchInfoXML = CONVERT(XML, @MatchInfo)
+	INSERT INTO #tmpMatchId (matchId, sporttype)
+	SELECT t.c.value('@matchid','INT') AS matchId	
+		  ,t.c.value('@sporttype','BIGINT') AS sporttype
+	FROM @MatchInfoXML.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@MatchInfoXML = NULL))
+
+	IF @TransIds IS NOT NULL AND @ActionID = 1
+	BEGIN
+		INSERT INTO #tmpTransId (transid, statusid, statuswinlost)
+		SELECT DISTINCT t.value, b.statusID, b.statuswinlost
+		FROM dbo.bettrans b WITH (NOLOCK) 
+			INNER JOIN STRING_SPLIT(@TransIds, ',') t ON b.TransId = CAST(t.value AS BIGINT)
+		WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+
+		SET @IsCalQueue = ( SELECT TOP (1) 1
+									FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+									WHERE StatusId IN (1,2,4) AND RequestId = 0
+									AND matchid IN ( SELECT MatchId FROM #tmpMatchId)
+								)
+		IF EXISTS (SELECT TOP (1) 1 FROM #tmpTransId WHERE statusid = 0 AND statuswinlost IS NOT NULL)
+				SET @IsTransidProcessed = 1
+	END
+
+	IF @IssueTypeId = 13 
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+		SELECT @RequestId, m.MatchId, 'VoidInstant', 99, 10278938, GETDATE(), '125.227.140.97', m.sporttype
+		FROM #tmpMatchId m
+	END
+	ELSE IF @IssueTypeId IN (11,15)
+	BEGIN
+		-- Insert queue for auto void
+		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @FilterBy IS NULL AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			SELECT @RequestId
+					, matchid
+					, CASE WHEN @ActionId = 1 THEN 'AddRequest' 
+						   WHEN @ActionId = 4 THEN 'VoidInstant'
+						   WHEN @ActionId = 6 THEN 'VoidInstant5m'
+						   WHEN @ActionId = 7 THEN 'VoidInstant10m' 
+						   WHEN @ActionId = 8 THEN 'VoidInstantNopolicy'
+						ELSE '' END 
+			      , 99, 10278938, GETDATE(), '125.227.140.97'
+				  , sporttype
+			FROM #tmpMatchId
+		END
+		-- Abnormal Bet - Mixparlay ticket
+		IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
+		BEGIN
+			IF @IsEditRequest = 0 --Insert
+			BEGIN
+				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+				SELECT @RequestId, matchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', sporttype
+				FROM #tmpMatchId 
+			END
+			ELSE 
+			BEGIN
+				--Re-insert ticket the deleted ticket
+				UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK, UPDLOCK)
+				SET StatusId = 99, ErrMsg = NULL
+				WHERE RequestId = @RequestId AND StatusId = 4
+					AND MatchId IN (SELECT MatchId FROM #tmpMatchId )
+
+				--Remove ticket
+				UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK, UPDLOCK)
+				SET StatusId = 4, ErrMsg = 'Remove Mix-parlay ticket from action Auto Void Winning'
+				WHERE RequestId = @RequestId 
+					AND MatchId NOT IN (SELECT MatchId FROM #tmpMatchId )
+			
+				--Insert new ticket
+				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+				SELECT @RequestId, t.MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', t.sporttype
+				FROM #tmpMatchId t
+				WHERE  MatchId NOT IN (SELECT MatchId FROM TicketVoiding_AutoVoidRequest_Queue (NOLOCK) WHERE RequestId = @RequestId)
+			END
+		END
+	END
+
+	DROP TABLE #tmpTransId
+	DROP TABLE #tmpMatchId
+END
+GO
