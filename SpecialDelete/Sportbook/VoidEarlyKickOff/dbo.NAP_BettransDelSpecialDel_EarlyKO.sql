@@ -109,6 +109,7 @@ Revisions:
 	- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 	- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 	- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
+	- 20220727@Max: [TVS] Changes of TVS for increasing length of transid [Redmine: #175648]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -582,65 +583,6 @@ BEGIN
 	END
 
 	END -- end SD checking process		
-
-	-- Apply for move match Cricket
-	IF EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransIds t
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
-				WHERE matchid <> @MatchId
-			)
-		OR EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransIds t
-					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
-					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-				WHERE b.matchid = 29  
-					AND b.bettype = 29   
-					AND bm.matchid  <> @matchid  
-			)
-	BEGIN
-		SELECT	@ErrCode = 99
-				,@ErrMsg = 'Some tickets not found.'
-
-		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
-		BEGIN
-			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
-			BEGIN
-				------ releasing single process
-				EXEC dbo.NAP_Admin_CheckingProcess   
-					@isExistMG  	= @isExistMG  
-					, @isExistFM	= @isExistFM  
-					, @isExistMatch	= @isExistMatch  
-					, @isExistBB	= @isExistBB
-					, @isExistFM2	= @isExistFM2
-					, @IsReleased  	= 1
-			END
-			
-			IF @totalSubParlay > 0 
-			BEGIN
-				------ releasing Refno parlay proccess
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
-				   ,@Session	= @Session
-				   ,@IsReleased = 1
-			END
-
-			RETURN
-		END
-		ELSE IF @totalSubParlay > @ThreadHold
-		BEGIN
-			------ releasing SD process
-			EXEC dbo.NAP_Admin_CheckingProcess  
-				@isExistParlay	= @isExistParlay  
-				, @isExistMG  	= @isExistMG  
-				, @isExistFM	= @isExistFM  
-				, @isExistMatch	= @isExistMatch  
-				, @isExistBB	= @isExistBB
-				, @isExistFM2	= @isExistFM2
-				, @IsReleased  	= 1
-
-			RETURN
-		END
-	END
 
 	------------------***** Insert all data into #BetDelete,#BetmDelete *****------------------    
 	INSERT INTO #BetDelete (  
@@ -1160,6 +1102,65 @@ BEGIN
 	DELETE  
 	FROM #BetmDelete  
 	WHERE statusID IN (SELECT statusID FROM @Status) 
+
+	-- Apply for move match Cricket
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #BetDelete t
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE b.matchid <> @MatchId
+			)
+		OR EXISTS ( SELECT TOP 1 1 
+				FROM #BetmDelete t
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
+					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
+				WHERE b.matchid = 29  
+					AND b.bettype = 29   
+					AND bm.matchid  <> @matchid  
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Some tickets not found.'
+
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess   
+					@isExistMG  	= @isExistMG  
+					, @isExistFM	= @isExistFM  
+					, @isExistMatch	= @isExistMatch  
+					, @isExistBB	= @isExistBB
+					, @isExistFM2	= @isExistFM2
+					, @IsReleased  	= 1
+			END
+			
+			IF @totalSubParlay > 0 
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END
+
+			RETURN
+		END
+		ELSE IF @totalSubParlay > @ThreadHold
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay	= @isExistParlay  
+				, @isExistMG  	= @isExistMG  
+				, @isExistFM	= @isExistFM  
+				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
+				, @IsReleased  	= 1
+
+			RETURN
+		END
+	END
 	
 	--check no data  
 	IF ( NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)   
