@@ -3,13 +3,10 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_Update
 (
 	@TransIds			VARCHAR(MAX)	= NULL,
     @UserId				INT				= 0,
-    @Username			NVARCHAR(100)	= '',
     @IP					VARCHAR(15)		= NULL,
-	@RequestId			INT				= NULL,
-	@LogActionId		INT				= 90501,
-	@IsLockMatch		BIT				= 1,
 	@TransInfo			XML	= NULL,
 	@IssueTypeId	    INT				= NULL,
+	@LogActionId		INT				= 90501,
     @ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
     @ErrCode			INT				= 0		OUTPUT
 )
@@ -55,9 +52,7 @@ BEGIN
 			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update '
 				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
 				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
-				+ CASE WHEN @RequestId IS NULL THEN '' ELSE ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
 				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
 				+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' + CONVERT(NVARCHAR(MAX), @TransInfo) END
 				+ CASE WHEN @IssueTypeId IS NULL THEN '' ELSE ',@IssueTypeId = ' + CONVERT(NVARCHAR(50), @IssueTypeId) END
@@ -149,13 +144,9 @@ BEGIN
 			,NULL
 		FROM #transIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-		WHERE 1 = CASE WHEN @IsLockMatch = 0 THEN 1
-					   WHEN @IsLockMatch = 1 AND b.matchid <> 29 THEN 1
-					   ELSE 0 END
-			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		WHERE  b.matchid <> 29
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
-		
-	
 		-- Bonus
 		IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE RefCode IS NOT NULL)
 		BEGIN
@@ -269,7 +260,7 @@ BEGIN
 			AND b.statusID IN (0,1) 
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND 1 = CASE WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
-						 WHEN @IssueTypeId <> 13 THEN 1 
+						 WHEN ISNULL(@IssueTypeId,0) <> 13 THEN 1 
 					 ELSE 0 END 
 
 		INSERT INTO #Tickets (
@@ -353,12 +344,12 @@ BEGIN
 			-- checking single proccess
 			EXEC dbo.NAP_Admin_CheckingProcess 
 					@isExistMatch = @IsExistSingle
-				,@IsExistFM = @IsExistFM
-				,@IsExistFM2 = @IsExistFM2
-				,@spName = @spName
-				,@avaiableProcess = @avaiableProcess OUTPUT
-				,@ErrCode = @ErrCode OUTPUT
-				,@ErrMsg = @ErrMsg OUTPUT;
+				   ,@IsExistFM = @IsExistFM
+				   ,@IsExistFM2 = @IsExistFM2
+				   ,@spName = @spName
+				   ,@avaiableProcess = @avaiableProcess OUTPUT
+				   ,@ErrCode = @ErrCode OUTPUT
+				   ,@ErrMsg = @ErrMsg OUTPUT;
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN	
@@ -371,11 +362,11 @@ BEGIN
 			-- checking Refno parlay proccess
 			EXEC dbo.NAP_Admin_CheckingProcess
 					@IsLockingByRefno	= 1
-				,@spName			= @spName
-				,@Session			= @Session
-				,@avaiableProcess 	= @avaiableProcess OUTPUT
-				,@ErrCode			= @ErrCode OUTPUT
-				,@ErrMsg			= @ErrMsg OUTPUT
+				   ,@spName				= @spName
+				   ,@Session			= @Session
+				   ,@avaiableProcess 	= @avaiableProcess OUTPUT
+				   ,@ErrCode			= @ErrCode OUTPUT
+				   ,@ErrMsg				= @ErrMsg OUTPUT
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN	
@@ -497,10 +488,9 @@ BEGIN
 
 	-- Write Log
 	SET @xmlLog = CAST((
-				SELECT @LogActionId AS '@LogActionId' -- 90501: Action Unmark, 90510: Unmark by autovoid System
+				SELECT @LogActionId AS '@LogActionId' 
 					,@UserId AS '@UserId'
 					,@IP AS '@IP'
-					,@RequestId AS '@RequestId'
 					,m.matchid AS '@MatchId'
 					,STUFF((
 							SELECT ',' + CAST(d.TransId AS NVARCHAR(100))

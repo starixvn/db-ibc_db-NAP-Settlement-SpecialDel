@@ -6,7 +6,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
         @Username        NVARCHAR(100) = '',
         @IP              VARCHAR(15)   = NULL,
         @MarkType		 TINYINT	   = 0,
-		@RequestId		 INT		   = NULL,
 		@LogActionId	 INT		   = 90500,
 		@TransInfo       XML  = NULL,
 		@IssueTypeId     INT           = NULL,
@@ -59,7 +58,6 @@ BEGIN
 				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 				+ CASE WHEN @MarkType IS NULL THEN '' ELSE ',@MarkType = ' + CONVERT(NVARCHAR(50), @MarkType) END 
-				+ CASE WHEN @RequestId IS NULL THEN '' ELSE ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
 				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
 				+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' + CONVERT(NVARCHAR(MAX), @TransInfo) END
 				+ CASE WHEN @IssueTypeId IS NULL THEN '' ELSE ',@IssueTypeId = ' + CONVERT(NVARCHAR(50), @IssueTypeId) END
@@ -269,7 +267,7 @@ BEGIN
 		WHERE IsMixParlay = 0 AND b.statusID IN (0,1) 
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND 1 = CASE WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
-					 WHEN @IssueTypeId <> 13 THEN 1 
+					 WHEN ISNULL(@IssueTypeId,0) <> 13 THEN 1 
 					 ELSE 0 END 
 
 		INSERT INTO #Tickets (
@@ -519,7 +517,6 @@ BEGIN
 			SELECT @LogActionId AS '@LogActionId' -- 90500: Action Mark, 90508: Mark by add request, 90509: Mark by auto void system
 				,@UserId AS '@UserId'
 				,@IP AS '@IP'
-				,@RequestId AS '@RequestId'
 				,m.matchid AS '@MatchId'
 				,STUFF((
 						SELECT ',' + CAST(t.TransId AS NVARCHAR(100))

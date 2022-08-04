@@ -3,9 +3,9 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Update]
 	   @Status          SMALLINT      = 0,
        @TransIds        VARCHAR(MAX)  = NULL,
        @UserId          INT           = 0,
-       @Username        NVARCHAR(100) = '',
-       @IP              VARCHAR(15)   = NULL,                        
-       @TransInfo		XML  = NULL,
+       @IP              VARCHAR(15)   = NULL,   
+       @TransInfo		XML			  = NULL,
+	   @LogActionId     INT			  = 90500,
 	   @IssueTypeId	    INT			  = NULL,
 	   @ErrMsg          NVARCHAR(200) = '' OUTPUT,
        @ErrCode         INT           = 0 OUTPUT
@@ -20,6 +20,13 @@ AS
 		- @Status: 
 			+ 0: Not Marked
 			+ 1: Marked
+		- @LogActionId:
+			+ 90500: SD - Action Mark 
+			+ 90508: TVS - Mark by add request
+			+ 90509: Mark by auto void system
+			+ 90501: SD - Action Unmark
+		    + 90511: TVS - Unmark by edit request
+			+ 90510: Unmark by autovoid System 
 
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion	[108826]
@@ -38,10 +45,10 @@ BEGIN
 		EXEC [dbo].[Nap_SpecialDelete_UnMarkedTickets_Update] 
 			@TransIds = @TransIds
 			,@UserId = @UserId
-			,@Username = @Username
 			,@IP = @IP
 			,@TransInfo = @TransInfo
 			,@IssueTypeId = @IssueTypeId
+			,@LogActionId = @LogActionId
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@ErrCode = @ErrCode OUTPUT;
 	END
@@ -51,10 +58,10 @@ BEGIN
 		EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_Update] 
 			 @TransIds = @TransIds
 			,@UserId = @UserId
-			,@Username = @Username
 			,@IP = @IP
 			,@TransInfo = @TransInfo
 			,@IssueTypeId = @IssueTypeId
+			,@LogActionId = @LogActionId
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@ErrCode = @ErrCode OUTPUT;
 	END;
