@@ -48,10 +48,10 @@ BEGIN
 	
 	DECLARE @_xml XML
 			,@transInfo	XML
-			,@IsCentral	BIT = 0
+			,@IsSiteDB	BIT = 0
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
+		SET @IsSiteDB = 1
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY
@@ -64,6 +64,7 @@ BEGIN
 			,hdp1 SMALLMONEY ,hdp2 SMALLMONEY
 			,livehomescore INT,liveawayscore INT
 			,creator INT
+			,bef_winlost MONEY ,bef_statusid TINYINT
 			)
 
 	SELECT @_xml = CONVERT(XML, @_sXML)
@@ -110,16 +111,16 @@ BEGIN
 			,inserted.modds
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-			,inserted.Status,inserted.StatusID,inserted.ruben		
+			,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
 		INTO @tmpTransInfo ( transid,modds
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
-			,Status,StatusID,ruben
+			,Status,StatusID,ruben,bef_winlost ,bef_statusid 
 			)			
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
-		IF @IsCentral = 0
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -134,7 +135,9 @@ BEGIN
 						,sComm AS '@sc' 
 						,Status AS '@s' 
 						,StatusID AS '@sid' 
-						,ruben AS '@r'				
+						,ruben AS '@r'	
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 						
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
@@ -195,6 +198,7 @@ BEGIN
 			,inserted.livehomescore ,inserted.liveawayscore 
 			,inserted.status  
 			,inserted.ruben
+			,deleted.winlost ,deleted.statusid
 		INTO @tmpTransInfo (transid,
 			winlost,awinlost ,mwinlost ,swinlost  
 			,playercomm  ,comm  ,acomm ,scomm 
@@ -202,11 +206,12 @@ BEGIN
 			,livehomescore,liveawayscore
 			,status  
 			,ruben
+			,bef_winlost ,bef_statusid 
 		)				
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
-		IF @IsCentral = 0
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'	
@@ -224,7 +229,9 @@ BEGIN
 						,hdp2  AS '@hdp2'
 						,livehomescore AS '@lh'
 						,liveawayscore AS '@la'
-						,ruben AS '@r'				
+						,ruben AS '@r'	
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
@@ -307,18 +314,20 @@ BEGIN
 				,inserted.modds
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID,inserted.ruben		
+				,inserted.Status,inserted.StatusID,inserted.ruben
+				,deleted.winlost ,deleted.statusid
 			INTO @tmpTransInfo ( transid,modds
 				,WinLost,aWinLost,mWinLost,sWinLost
 				,PlayerComm,Comm,aComm,sComm
 				,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
 				)	
 			WHERE matchid = @matchid 
 				AND statusID IN (0, 1) -- only refund all running/waiting's tickets
 				AND bettype BETWEEN 81 AND 120
-				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -333,7 +342,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'	
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
@@ -358,18 +369,20 @@ BEGIN
 			OUTPUT	inserted.transid
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID,inserted.ruben		
+				,inserted.Status,inserted.StatusID,inserted.ruben
+				,deleted.winlost ,deleted.statusid
 			INTO @tmpTransInfo ( transid
 				,WinLost,aWinLost,mWinLost,sWinLost
 				,PlayerComm,Comm,aComm,sComm
 				,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
 				)
 			WHERE matchid = @matchid 
 				AND statusID NOT IN (101,102) -- refund all, except void/reject
 				AND bettype BETWEEN 81 AND 120
-				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 
-			IF @IsCentral = 0
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -383,7 +396,9 @@ BEGIN
 							,sComm AS '@sc' 
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,ruben AS '@r'				
+							,ruben AS '@r'	
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
@@ -419,12 +434,20 @@ BEGIN
 				WHEN s.statusid IN (111,112,113,103,102) THEN 1
 				ELSE 0 END
 			,creator = ISNULL(s.creator, bettransm.creator)  
-		OUTPUT inserted.transid, inserted.winlostdate ,inserted.statuswinlost ,inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
-		INTO @tmpTransInfo (transid, winlostdate ,statuswinlost ,statusId ,status ,ruben ,creator )
+		OUTPUT inserted.transid
+			,inserted.winlostdate ,inserted.statuswinlost 
+			,inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
+			,deleted.winlost ,deleted.statusid
+		INTO @tmpTransInfo (
+			transid
+			, winlostdate ,statuswinlost 
+			,statusId ,status ,ruben ,creator 
+			,bef_winlost ,bef_statusid 
+			)
 		FROM sourceData s
 		WHERE bettransm.transid = s.transid
 
-		IF @IsCentral = 0
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -434,6 +457,8 @@ BEGIN
 						,StatusID AS '@sid' 
 						,ruben AS '@r'	
 						,creator AS '@cr'
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
@@ -457,12 +482,20 @@ BEGIN
 			,creator = s.creator
 			,status = 'Running' 			
 			,ruben = 0
-		OUTPUT inserted.transid,inserted.statuswinlost ,inserted.winlost, inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
-		INTO @tmpTransInfo (transid ,statuswinlost ,winlost, statusId ,status ,ruben ,creator )
+		OUTPUT inserted.transid
+			,CASE WHEN inserted.statuswinlost IS NULL THEN '' ELSE inserted.statuswinlost END 
+			 ,inserted.winlost
+			, inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
+			,deleted.winlost ,deleted.statusid
+		INTO @tmpTransInfo (
+			transid 
+			,statuswinlost ,winlost, statusId ,status ,ruben ,creator
+			,bef_winlost ,bef_statusid 
+			)
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 
-		IF @IsCentral = 0
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -524,6 +557,7 @@ BEGIN
 			,inserted.statusID,inserted.status  
 			,inserted.winlostdate ,inserted.statuswinlost
 			,inserted.ruben  
+			,deleted.winlost ,deleted.statusid
 		INTO @tmpTransInfo (
 			 transid
 			,SettlementTime
@@ -532,11 +566,12 @@ BEGIN
 			,statusID,status  
 			,winlostdate ,statuswinlost
 			,ruben  
+			,bef_winlost ,bef_statusid 
 		)
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
 		
-		IF @IsCentral = 0
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	 transid AS '@t'

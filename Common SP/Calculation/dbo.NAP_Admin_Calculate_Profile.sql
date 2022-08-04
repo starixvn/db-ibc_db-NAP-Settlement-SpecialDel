@@ -388,7 +388,7 @@ BEGIN
 			SELECT TOP 1 @matchid = MatchId
 			FROM	@tmpBalanceChanged
 
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged )
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'

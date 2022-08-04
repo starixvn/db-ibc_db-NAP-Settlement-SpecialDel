@@ -216,7 +216,8 @@ BEGIN
 				,statuswinlost = NULL
 				,RepUpdateTime = CASE WHEN b.statusid = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		OUTPUT	inserted.transid
-				,inserted.modds, inserted.odds, inserted.oddsspread, NULL AS statuswinlost
+				,inserted.modds, inserted.odds, inserted.oddsspread
+				, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE Inserted.Statuswinlost END AS statuswinlost
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.Status,inserted.StatusID,inserted.ruben	
@@ -269,14 +270,14 @@ BEGIN
 				AND ISNULL(b.betdaqid,0) <> - 2	
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		
-		IF @IsSiteDB = 1
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
 						,modds AS '@m'	
 						,odds AS '@o'
 						,oddsspread AS '@os'
-						,'' AS '@statuswl'
+						,statuswinlost AS '@statuswl'
 						,WinLost AS '@w' 
 						,aWinLost AS '@aw' 
 						,mWinLost AS '@mw' 
@@ -297,7 +298,8 @@ BEGIN
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			SELECT 'Settlement', 'Undo', 'bettrans', @MatchId, @transInfo
-			WHERE @transInfo IS NOT NULL
+			
+			DELETE FROM @tmpTransInfo
 		END
 		SET @BatchNo = @BatchNo - 1
 

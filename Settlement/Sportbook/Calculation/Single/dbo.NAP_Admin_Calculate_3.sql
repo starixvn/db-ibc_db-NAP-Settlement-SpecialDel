@@ -406,13 +406,13 @@ BEGIN
 				AND ISNULL(b.betdaqid,0) <> -2			
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
 							,modds AS '@m'				
 							,statuswinlost AS '@statuswl' 
-							,CASE WHEN SettlementTime IS NULL THEN '' ELSE SettlementTime END AS '@st' 
+							,SettlementTime AS '@st' 
 							,WinLost AS '@w' 
 							,aWinLost AS '@aw' 
 							,mWinLost AS '@mw' 
@@ -432,6 +432,8 @@ BEGIN
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+				
+				DELETE FROM @tmpTransInfo
 			END	
 		END 
 		
@@ -742,7 +744,8 @@ BEGIN
 			INTO @tmpTransInfo (
 				transId
 				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
-				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,bef_winlost ,bef_statusid 
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
 			)				
 			FROM	#currList t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
@@ -772,7 +775,7 @@ BEGIN
 
 			OPTION (FORCE ORDER)
 
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -797,7 +800,9 @@ BEGIN
 				)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)	
+				
+				DELETE FROM @tmpTransInfo
 			END	
 
 			WAITFOR DELAY '00:00:00:010'

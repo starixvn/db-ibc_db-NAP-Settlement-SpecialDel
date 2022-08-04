@@ -243,7 +243,7 @@ BEGIN
 			SELECT transid,custid, winlost_before, actual_stake,playercomm_before,betdaqid
 			FROM @tmpTransInfo
 			
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -417,7 +417,7 @@ BEGIN
 
 				OPTION(MAXDOP 1)
 
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -481,7 +481,7 @@ BEGIN
 			
 		OPTION(MAXDOP 1)
 
-		IF @IsSiteDB = 1
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'

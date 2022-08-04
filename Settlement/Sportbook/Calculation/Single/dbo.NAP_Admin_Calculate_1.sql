@@ -465,7 +465,7 @@ BEGIN
 			
 		OPTION (FORCE ORDER)
 
-		IF @IsSiteDB = 1
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -491,6 +491,8 @@ BEGIN
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+
+			DELETE FROM @tmpTransInfo
 			
 		END
 

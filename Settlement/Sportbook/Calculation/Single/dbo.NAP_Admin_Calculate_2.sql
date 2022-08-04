@@ -480,7 +480,7 @@ BEGIN
 							END 
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		
-		IF @IsSiteDB = 1
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -506,7 +506,9 @@ BEGIN
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
-		END		
+		END	
+		
+		DELETE FROM @tmpTransInfo
 
 		SET @BatchNo = @BatchNo - 1
 				

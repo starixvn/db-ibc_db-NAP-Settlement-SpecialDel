@@ -413,11 +413,13 @@ BEGIN
 				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
+				,inserted.Status,inserted.StatusID,inserted.ruben
+				,deleted.winlost ,deleted.statusid		
 			INTO @tmpTransInfo (
 				transId
 				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
-				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,bef_winlost ,bef_statusid 
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
 			)
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b
@@ -442,7 +444,7 @@ BEGIN
 							END
 					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -469,6 +471,8 @@ BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
 			END	
+
+			DELETE FROM @tmpTransInfo
 
 			SET @BatchNo = @BatchNo - 1
 				
@@ -698,11 +702,13 @@ BEGIN
 				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
+				,inserted.Status,inserted.StatusID,inserted.ruben
+				,deleted.winlost ,deleted.statusid		
 			INTO @tmpTransInfo (
 				transId
 				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
-				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,bef_winlost ,bef_statusid 
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
 			)							
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b -- WITH (ROWLOCK, UPDLOCK)
@@ -741,7 +747,7 @@ BEGIN
 							END
 					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 					
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -767,6 +773,8 @@ BEGIN
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
+
+				DELETE FROM @tmpTransInfo
 			END
 
 			SET @BatchNo = @BatchNo - 1

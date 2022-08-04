@@ -38,6 +38,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@IsSiteDB			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
@@ -51,6 +52,10 @@ BEGIN
 			RETURN
 
 	END
+	
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+		
 	-----------------------CHECK SERVER-----------------------------------------
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT, finalodds SMALLMONEY, DeadHeat TINYINT)
@@ -291,7 +296,7 @@ BEGIN
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 	WHERE ISNULL(b.betdaqid,0) <> -2
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'
