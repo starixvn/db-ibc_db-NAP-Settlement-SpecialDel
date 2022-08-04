@@ -28,7 +28,9 @@ AS
 		- 20220719@Louisa: Validation event before settle  [Redmine:#175251]
 
 	Param's Explanation:
-		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
+		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
+				REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
+				, BetFair, BetDaq
 		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
 		@SelectedResources: Appy for Instant soccer, Othersports settle by Profile, FastMarket, TimeMachine, BB
 			BB: @SelectedResources = '<Resources><rsc m="1"/><rsc m="2"/><rsc m="3"/><rsc m="4"/><rsc m="5"/></Resources>'

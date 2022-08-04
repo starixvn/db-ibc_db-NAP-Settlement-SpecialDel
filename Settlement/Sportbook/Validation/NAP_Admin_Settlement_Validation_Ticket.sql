@@ -35,7 +35,9 @@ AS
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
 
-		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
+		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
+				, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
+				, BetFair, BetDaq
 		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
 
 */
@@ -144,9 +146,10 @@ SET NOCOUNT ON
 								) f
 				WHERE s.matchid = @matchid
 					AND s.IsCalculating IN (0, 1)
-					AND 1 = CASE @SportType WHEN 1 THEN CASE WHEN f.GroupAction IS NOT NULL THEN 1
+					AND 1 = CASE WHEN @Action IN ( 'BetFair', 'BetDaq' ) THEN 1
+								 WHEN @SportType = 1 THEN CASE WHEN f.GroupAction IS NOT NULL THEN 1
 															ELSE 0 END
-											ELSE 1 END
+								 ELSE 1 END
 				)
 	BEGIN
 		SELECT @ErrCode = 1001003
@@ -154,7 +157,11 @@ SET NOCOUNT ON
 		RETURN
 	END
 
-	IF @IsMergedParlay = 0 OR @Mode = 'INST'
+	IF ( @IsMergedParlay = 0 
+			OR @Mode = 'INST'
+			OR @Action IN ('BetFair', 'BetDaq')
+		)
+
 	BEGIN
 		IF EXISTS (	SELECT TOP 1 1
 					FROM dbo.Parlay_Calculate_Queue WITH (NOLOCK)
@@ -172,7 +179,10 @@ SET NOCOUNT ON
 	-- check waiting ticket
 	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action = 'CAL' AND @Mode = 'MP' )
 	BEGIN
-		IF @SportType = 1 AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') AND @LeagueGroupId <> 113
+		IF (  @SportType = 1 AND 
+				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
+				AND @LeagueGroupId <> 113
+			)
 		BEGIN
 			;WITH cteGoalResource
 			AS

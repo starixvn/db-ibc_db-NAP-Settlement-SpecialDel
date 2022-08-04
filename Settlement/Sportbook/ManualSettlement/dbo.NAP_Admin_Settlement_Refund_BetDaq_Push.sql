@@ -1,8 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_BetDaq_Push]
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_BetDaq_Push]
 	@MatchId int,
 	@AdminId int, 	
 	@IP varchar(15) = '',
+	@BroadcastSessionId VARCHAR(50) = NULL,
 	@ErrCode int = 0 OUTPUT,
 	@ErrMsg nvarchar(200) = '' OUTPUT
 AS
@@ -18,7 +19,7 @@ AS
 	- 20141030@Jamie: Sporting Solution for Tennis [Redmine:#23034]
 	- 20150401@Kathy: Add checking ticket status before performing settlement [Redmine:#33493]
 	- 20151005@Kathy: add more UAT version for testing (UAT1,UAT2,UAT3,UAT4)
-	
+	- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 	• @matchid: matchid need to refund
@@ -49,36 +50,6 @@ BEGIN
 			,@Action = 'BetDaq'
 	FROM match m with(NOLOCK)
 	where m.matchid = @MatchId
-
-	IF @@ROWCOUNT = 0 
-	BEGIN
-		SELECT	 @ErrCode	= 1001001
-				,@ErrMsg	= 'Match does not exist!'	
-		RETURN
-	END 
-
-	IF EXISTS (SELECT 1 from Single_Calculate_Queue with(NOLOCK) WHERE matchid = @matchid AND IsCalculating IN (0,1) )
-		OR EXISTS (SELECT 1 from Parlay_Calculate_Queue with(NOLOCK) WHERE matchid = @matchid AND IsCalculating IN (0,1))
-	BEGIN 
-		SELECT	 @ErrCode	= 1001003
-				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'	
-		RETURN
-	END 
-	
-	-- check waiting ticket
-				EXEC NAP_Admin_Settlement_Checking
-		@MatchId = @MatchId
-		,@Action = @Action
-		,@Mode = 'REFUND'
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT @ErrCode
-			,@ErrMsg
-		
-		RETURN
-	END
 	
 	SELECT   @ErrCode = 0
 			,@ErrMsg = ''
@@ -106,8 +77,8 @@ BEGIN
 	END 
 	ELSE
 	BEGIN
-		INSERT INTO Single_Calculate_Queue(matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand)
-		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand
+		INSERT INTO Single_Calculate_Queue(matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, BroadcastSessionId)
+		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand, @BroadcastSessionId
 	END
 END
 
