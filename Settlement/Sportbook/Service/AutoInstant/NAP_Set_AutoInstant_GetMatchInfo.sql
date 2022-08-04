@@ -15,6 +15,7 @@ AS
 		- 20180801@Kaden: Verify calculateHT before calculating FT [Redmine:#99247]
 		- 20181205@Vicky: Add New Undecided Option for MTD team [Redmine:#104948]
 		- 20220520@Louisa: If AutoSetting on Match IS NULL, get AutoSetting on Leagues [Redmine:#172907]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 			@MatchId:	   MatchID need to compare Score
@@ -133,19 +134,6 @@ BEGIN
 					   AND ap.SourceID IN (100, 5) 
 					   AND ap.ModifiedDate > d.CreatedDate)
 
-
-	   --FGLG:
-	   INSERT INTO #FGLG (MatchID, IsExistFGNG, IsExistHTFGNG)
-		  SELECT @MatchID
-			  , MAX(CASE WHEN Bettype = 14 THEN 1 ELSE 0 END) AS IsExistFGNG
-			  , MAX(CASE WHEN Bettype = 127 THEN 1 ELSE 0 END) AS IsExistHTFGNG
-		  FROM DBTXN.bodb02.dbo.bettrans b WITH(NOLOCK)
-		  WHERE b.MatchID = @MatchID
-			 AND b.Bettype IN (14, 127)
-			 AND b.StatusID NOT IN (101, 102)
-			 AND b.Betteam IN ('1:1', '2:1', '0:0')
-
-
 	   --Calculated
 	   INSERT INTO #Match_Status (MatchID, IsCalculatedFT, IsInstCalculated)
 	   SELECT @MatchID
@@ -175,18 +163,14 @@ BEGIN
 		, m.PreviousAwayScore
 		, m.InstantKey 
 		, m.GoalRecord
-		, CAST(ISNULL(f.IsExistFGNG, 0) AS BIT) AS IsExistFGNG
-		, CAST(ISNULL(f.IsExistHTFGNG, 0) AS BIT) AS IsExistHTFGNG	
 		, m.IsCalculatedHT			
 		, CAST(ISNULL(n.IsCalculatedFT, 0) AS BIT) AS IsCalculatedFT
 		, CAST(ISNULL(n.IsInstCalculated, 0) AS BIT) AS IsInstCalculated
 	FROM #Match_Info m
-	LEFT JOIN #FGLG f ON m.MatchID = f.MatchID
 	LEFT JOIN #Match_Status n ON m.MatchID = n.MatchID
 
 
 DROP TABLE #match_info
-DROP TABLE #FGLG
 DROP TABLE #Match_Status
 
 END
