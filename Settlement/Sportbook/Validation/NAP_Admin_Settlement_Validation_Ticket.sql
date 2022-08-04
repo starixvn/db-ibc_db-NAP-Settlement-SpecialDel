@@ -37,7 +37,8 @@ AS
 
 		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
 				, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
-				, BetFair, BetDaq
+				,BetFair, BetDaq ( for Move Betdaq/betfair )
+
 		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
 
 */

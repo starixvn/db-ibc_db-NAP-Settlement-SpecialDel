@@ -96,11 +96,7 @@ BEGIN
 		GROUP BY bettype 
 		
 		IF @@rowcount = 0
-		BEGIN
-			SELECT	@ErrCode = 102,
-					@ErrMsg  =  'The selected match has not any odds for moving tickets. Please select another match with existing odds.'
-			RETURN
-		END
+		RETURN
 	END
 
 	EXEC dbo.NAP_Set_ServerInfo

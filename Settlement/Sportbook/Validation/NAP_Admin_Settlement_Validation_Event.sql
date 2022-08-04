@@ -2,16 +2,17 @@
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event  
 (
 	 @matchid		INT = 0
+	,@NewMatchID	INT = 0 --for Move Ticket
 	,@Action		VARCHAR(10)
 	,@Mode			VARCHAR(10)
 	,@IsAuto		BIT = 0
 	,@IsAutoRefund	BIT = 0
 	,@SPName		VARCHAR(255)
 	,@SelectedResources	VARCHAR(MAX) = NULL 
-	,@InstantKey	INT = NULL --NAP_Admin_Settlement_1_InstantCalculation_Push
-	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --NAP_Admin_Settlement_Refund_MP_Push
-	,@SDTRecord		TINYINT	= 0  --NAP_Admin_Settlement_Refund_1_Push
-	,@IsSettleDetermined	BIT	= 0 --NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
+	,@InstantKey	INT = NULL			--InstantCalculation_Push
+	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --_Refund_MP_Push
+	,@SDTRecord		TINYINT	= 0			--Refund_1_Push
+	,@IsSettleDetermined	BIT	= 0		--Fast_Market_Auto_1s_Push
 
 	,@VendorID		SMALLINT		= 34
 
@@ -30,8 +31,12 @@ AS
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
 				REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
-				, BetFair, BetDaq
+				, BetFair, BetDaq ( for refund betdaq,/betfair )
+				, MoveTicket
+
 		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
+				,BetFair, BetDaq ( for Move Betdaq/betfair )
+		
 		@SelectedResources: Appy for Instant soccer, Othersports settle by Profile, FastMarket, TimeMachine, BB
 			BB: @SelectedResources = '<Resources><rsc m="1"/><rsc m="2"/><rsc m="3"/><rsc m="4"/><rsc m="5"/></Resources>'
 
@@ -41,8 +46,24 @@ BEGIN
 SET NOCOUNT ON
 	
 	--calculate parlay other sports, single or multiple matches
-	IF @Action = 'CAL' AND @Mode = 'MP'
+	IF	( @Action = 'CAL' AND @Mode = 'MP' )
+		OR @Mode = 'BetDaq' --move betdaq
 	BEGIN
+		RETURN
+	END
+
+	IF @Mode = 'Betfair' --move betfair
+	BEGIN
+		IF	NOT EXISTS (	SELECT TOP 1 1
+							FROM	dbo.odds WITH (NOLOCK)
+							WHERE	matchid = @NewMatchID
+								AND liveindicator IN (0 , 1 )
+						)
+		BEGIN
+			SELECT	@ErrCode = 102
+					,@ErrMsg  =  'The selected match has not any odds for moving tickets. Please select another match with existing odds.'
+		END
+
 		RETURN
 	END
 
