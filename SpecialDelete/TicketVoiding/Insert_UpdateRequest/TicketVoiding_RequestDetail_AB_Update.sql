@@ -182,7 +182,7 @@ BEGIN
 	SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, t.transid, @MatchId, @RequestDetailId AS RequestDetailId, tmp.bettype, tmp.betid, tmp.custid, tmp.SiteDBGroupID
 	FROM #transIdTemp t
 		CROSS APPLY (
-					SELECT b.bettype, b.betid, b.custid, SiteDBGroupID
+					SELECT b.bettype, b.betid, b.custid, b.SiteDBGroupID
 					FROM #tmpTransInfo b
 					WHERE b.matchid = @MatchId
 						AND t.transid = b.transid

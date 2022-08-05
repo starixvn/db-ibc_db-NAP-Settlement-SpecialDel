@@ -89,48 +89,16 @@ BEGIN
 
 	SET @RequestId = SCOPE_IDENTITY()
 
-	IF @IssueTypeId IN (11,15)
+	IF @IssueTypeId IN (1)
 	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_AB_Update
-				 @RequestId		 = @RequestId		
-				,@MatchId		 = @MatchId		
-				,@IssueTypeId	 = @IssueTypeId	
-				,@TransIds		 = @TransIds		
-				,@UserId		 = @UserId		
-				,@IP			 = @IP			
-				,@ActionId		 = @ActionId		
-				,@FilterBy		 = @FilterBy		
-				,@SubIssueTypeId = @SubIssueTypeId
-				,@TransInfo		 = @TransInfo		
-				,@IsEditRequest	 = @IsEditRequest
-				,@MatchInfo      = @MatchInfo OUTPUT
-	END
-	/*
-	ELSE IF @IssueTypeId IN (13) 
-	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_AC_Update
-				 @RequestId		 = @RequestId		
-				,@IssueTypeId	 = @IssueTypeId	
-				,@UserId		 = @UserId		
-				,@IP			 = @IP		
-				,@ActionId		 = @ActionId
-				,@SubIssueTypeId = @SubIssueTypeId
-				,@AbnormalAccountInfo = @AbnormalAccountInfo
-				,@TransInfo		 = @TransInfo		
-				,@IsEditRequest	 = @IsEditRequest
-				,@MatchInfo      = @MatchInfo OUTPUT
-	END
-	ELSE IF @IssueTypeId IN (8,9)
-	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_KO_Update
+		EXEC dbo.TicketVoiding_RequestDetail_DARC_Update
 				 @RequestId		 = @RequestId		
 				,@IssueTypeId	 = @IssueTypeId	
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
-				,@SubIssueTypeId = @SubIssueTypeId
-				,@KickOffInfo	 = @KickOffInfo
+				,@DARCInfo		 = @DangerAcceptedInfo
 				,@TransInfo		 = @TransInfo		
-				,@IsEditRequest	 = @IsEditRequest	
+				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (4)
 	BEGIN
@@ -176,33 +144,21 @@ BEGIN
 				,@TransInfo		 = @TransInfo		
 				,@IsEditRequest	 = @IsEditRequest
 	END
-	ELSE IF @IssueTypeId IN (17)
+	ELSE IF @IssueTypeId IN (8,9)
 	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_ARC_Update
+		EXEC dbo.TicketVoiding_RequestDetail_KO_Update
 				 @RequestId		 = @RequestId		
 				,@IssueTypeId	 = @IssueTypeId	
-			    ,@TransIds		 = @TransIds		
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
-				,@FilterBy		 = @FilterBy		
 				,@SubIssueTypeId = @SubIssueTypeId
+				,@KickOffInfo	 = @KickOffInfo
 				,@TransInfo		 = @TransInfo		
-				,@IsEditRequest	 = @IsEditRequest
+				,@IsEditRequest	 = @IsEditRequest	
 	END
-	ELSE IF @IssueTypeId IN (1)
+	ELSE IF @IssueTypeId IN (10)
 	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_DARC_InsertUpdate
-				 @RequestId		 = @RequestId		
-				,@IssueTypeId	 = @IssueTypeId	
-				,@UserId		 = @UserId		
-				,@IP			 = @IP			
-				,@DARCInfo		 = @DangerAcceptedInfo
-				,@TransInfo		 = @TransInfo		
-				,@IsEditRequest	 = @IsEditRequest
-	END
-		ELSE IF @IssueTypeId IN (10)
-	BEGIN
-		EXEC dbo.TicketVoiding_RequestDetail_DARC_InsertUpdate
+		EXEC dbo.TicketVoiding_RequestDetail_DARC_Update
 				 @RequestId		 = @RequestId		
 				,@IssueTypeId	 = @IssueTypeId	
 				,@UserId		 = @UserId		
@@ -211,7 +167,50 @@ BEGIN
 				,@TransInfo		 = @TransInfo		
 				,@IsEditRequest	 = @IsEditRequest
 	END
-	*/
+	ELSE IF @IssueTypeId IN (11,15)
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_AB_Update
+				 @RequestId		 = @RequestId		
+				,@MatchId		 = @MatchId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@TransIds		 = @TransIds		
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@ActionId		 = @ActionId		
+				,@FilterBy		 = @FilterBy		
+				,@SubIssueTypeId = @SubIssueTypeId
+				,@TransInfo		 = @TransInfo		
+				,@IsEditRequest	 = @IsEditRequest
+				,@MatchInfo      = @MatchInfo OUTPUT
+	END
+	ELSE IF @IssueTypeId IN (13) 
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_ACC_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP		
+				,@ActionId		 = @ActionId
+				,@SubIssueTypeId = @SubIssueTypeId
+				,@AbnormalAccountInfo = @AbnormalAccountInfo
+				,@TransInfo		 = @TransInfo		
+				,@IsEditRequest	 = @IsEditRequest
+				,@MatchInfo      = @MatchInfo OUTPUT
+	END
+	ELSE IF @IssueTypeId IN (17)
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_ARC_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@TransIds		 = @TransIds		
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@FilterBy		 = @FilterBy		
+				,@SubIssueTypeId = @SubIssueTypeId
+				,@TransInfo		 = @TransInfo		
+				,@IsEditRequest	 = @IsEditRequest
+	END
+
 	IF @Operators IS NOT NULL
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_OperatorInfo (RequestId, OperatorId, OperatorTypeId)
