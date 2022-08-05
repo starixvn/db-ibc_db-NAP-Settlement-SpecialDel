@@ -69,6 +69,7 @@ AS
 		- 20220303@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 		- 20220425@July: Separate Send Data to China View & Remove support CN88 [Redmine:#171395]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
+		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -357,7 +358,7 @@ BEGIN
 				, CAST(CASE WHEN osid.val = 'ALL' THEN NULL
 						ELSE osid.val END AS INT) AS OddsId
 				, CAST(CASE WHEN td.val = 'ALL' THEN NULL
-						ELSE td.val END AS INT) AS Transdesc
+						ELSE td.val END AS NVARCHAR(2000)) AS Transdesc
 		FROM #tblBetType cte
 				CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
 				CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
@@ -593,7 +594,7 @@ BEGIN
 			DELETE b
 			FROM  @TmpBettransList b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc = 'ALL' OR b.FilterTransdesc = tp.Transdesc))
+				WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
 		
 		END
 
@@ -785,7 +786,7 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.OddsId IS NULL OR t.FilterOddsId = bd.OddsId ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc = 'All' OR t.FilterTransdesc = bd.Transdesc ))
+					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc IS NULL OR t.FilterTransdesc = bd.Transdesc ))
 			  )
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
@@ -973,7 +974,7 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.OddsId IS NULL OR t.FilterOddsId = bd.OddsId ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc = 'All' OR t.FilterTransdesc = bd.Transdesc ))
+					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc IS NULL OR t.FilterTransdesc = bd.Transdesc ))
 				)
 			GROUP BY t.ParentBettype
 				,t.mLiveIndicator
@@ -1171,7 +1172,7 @@ BEGIN
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.OddsId IS NULL OR t.FilterOddsId = bd.OddsId ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc = 'All' OR t.FilterTransdesc = bd.Transdesc ))
+					WHERE bd.Id = t.FilterBettype AND (bd.Transdesc IS NULL OR t.FilterTransdesc = bd.Transdesc ))
 				)
 		  GROUP BY t.Site, t.IsChinaView
 			 ,t.mLiveIndicator

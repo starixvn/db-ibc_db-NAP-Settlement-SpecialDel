@@ -122,6 +122,7 @@ AS
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
+		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -440,7 +441,7 @@ BEGIN
 			, CAST(CASE WHEN osid.value = 'ALL' THEN NULL
 						ELSE osid.value END AS INT) AS OddsId
 			 , CAST(CASE WHEN td.value = 'ALL' THEN NULL
-						ELSE td.value END AS INT) AS Transdesc
+						ELSE td.value END AS NVARCHAR(2000)) AS Transdesc
 		FROM CTE_ParsedBettypes_1 cte
 			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
 			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
