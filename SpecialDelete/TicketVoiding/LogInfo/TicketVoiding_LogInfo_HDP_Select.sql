@@ -44,9 +44,6 @@ BEGIN
 			betdaqid              BIGINT,
 			IsMixParlay           BIT DEFAULT(0),
 			matchid               INT,
-			WalletType            TINYINT,
-			RefCode               BIGINT,
-			MainTransId           BIGINT,
 			StatusId			  TINYINT,
 			SubIssueTypeId		  SMALLINT
 	)
@@ -77,7 +74,6 @@ BEGIN
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
-      ,Maintransid BIGINT
 	  ,Subtransid BIGINT
 	  ,refno BIGINT
 	  ,custid INT	
@@ -119,8 +115,6 @@ BEGIN
 	  ,mrecommend INT
 	  ,recommend INT
       ,creator INT
-	  ,WalletType TINYINT
-	  ,RefCode BIGINT
 	  ,stake MONEY
 	  ,oddstype TINYINT
 	  ,CurrencyName NVARCHAR(50)
@@ -142,8 +136,7 @@ BEGIN
 	)
 
 	DECLARE @Validation AS TABLE (
-			 IsInvalidTransId		 BIT DEFAULT(0) 
-			,IsInValidTotalTickets   BIT DEFAULT(0) 
+			 IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
 			,MatchId                 INT
 		)
@@ -171,7 +164,6 @@ BEGIN
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
-           ,Maintransid
 		   ,Subtransid 
 	       ,refno 
 	       ,custid 	
@@ -213,8 +205,6 @@ BEGIN
 	       ,mrecommend 
 	       ,recommend 
            ,creator 
-	       ,WalletType 
-	       ,RefCode 
 	       ,stake 
 	       ,oddstype 
 	       ,CurrencyName 
@@ -236,7 +226,6 @@ BEGIN
 	)
 	SELECT t.c.value('@mid','INT') AS matchid	
 		,t.c.value('@t','BIGINT') AS transid
-		,t.c.value('@m_t','BIGINT') AS Maintransid
 		,t.c.value('@s_t','BIGINT') AS Subtransid
 		,t.c.value('@ref','BIGINT') AS refno
 		,t.c.value('@c','INT') AS custid
@@ -278,8 +267,6 @@ BEGIN
 		,t.c.value('@mre','INT') AS mrecommend
 		,t.c.value('@re','INT') AS recommend
 		,t.c.value('@cr','INT') AS creator
-		,t.c.value('@wt','TINYINT') AS WalletType
-		,t.c.value('@refc','BIGINT') AS RefCode
 		,t.c.value('@stake','MONEY') AS stake
 		,t.c.value('@ost','TINYINT') AS oddstype
 		,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
@@ -315,8 +302,6 @@ BEGIN
 			,livehomescore 	
 			,liveawayscore 			
 			,betdaqid	
-			,WalletType
-			,RefCode
 			,matchid
 			,StatusId
 			,SubIssueTypeId
@@ -330,8 +315,6 @@ BEGIN
 			,b.livehomescore
 			,b.liveawayscore
 			,b.betdaqid
-			,b.WalletType
-			,b.RefCode
 			,b.matchid
 			,b.statusID
 			,d.SubIssueTypeId
@@ -484,9 +467,7 @@ BEGIN
 	FROM #logInfo
 	IF @SingleCount = 0 AND @MainParlayCount = 0
 	BEGIN
-		
 		SELECT MatchId
-			,IsInvalidTransId
 			,1 AS IsInValidTotalTickets
 			,IsExistedInOtherRequest
 		FROM @Validation
@@ -522,7 +503,6 @@ BEGIN
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		SELECT MatchId
-			,ISNULL(IsInvalidTransId,0) AS IsInvalidTransId
 			,ISNULL(IsInValidTotalTickets, 0) AS IsInValidTotalTickets
 			,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
 		FROM @Validation
@@ -576,9 +556,8 @@ BEGIN
 		)l 
 
 	/*****************Return table **************************/
-	-- 1. Error Table
+	-- 1. Validate table
 	SELECT MatchId
-		,IsInvalidTransId
 		,IsInValidTotalTickets
 		,IsExistedInOtherRequest
 	FROM @Validation
@@ -622,7 +601,7 @@ BEGIN
 					)w (scores) 
 	GROUP BY MatchId, w.scores
 
-	--4. Trans info table
+	--4. Transinfo table
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			 t.matchid AS "@mid"

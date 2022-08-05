@@ -25,9 +25,10 @@ BEGIN
 	SET NOCOUNT ON 
 
 	DECLARE  @IsExistedInOtherRequest BIT = 0
-			,@KickOffInfoXML	   XML = NULL	
-			,@MatchId			   INT
-			,@KickOffTime		   DATETIME = NULL
+			,@KickOffInfoXML		  XML = NULL	
+			,@MatchId			      INT
+			,@KickOffTime		      DATETIME = NULL
+			,@UnmarkTransIds		  VARCHAR(MAX) =''
 
 	SET @KickOffInfoXML = CONVERT(XML, @KickOffInfo)
 	SELECT @MatchId = t.c.value('@MatchId','INT') 
@@ -46,9 +47,6 @@ BEGIN
 			liveawayscore         SMALLINT,
 			IsMixParlay           BIT DEFAULT(0),
 			matchid               INT,
-			WalletType            TINYINT,
-			RefCode               BIGINT,
-			MainTransId           BIGINT,
 			LiveIndicator		  BIT DEFAULT(0),
 			StatusId			  TINYINT,
 			SiteDBGroupID		  SMALLINT,
@@ -58,7 +56,6 @@ BEGIN
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
-      ,Maintransid BIGINT
 	  ,Subtransid BIGINT
 	  ,refno BIGINT
 	  ,custid INT	
@@ -100,8 +97,6 @@ BEGIN
 	  ,mrecommend INT
 	  ,recommend INT
       ,creator INT
-	  ,WalletType TINYINT
-	  ,RefCode BIGINT
 	  ,stake MONEY
 	  ,oddstype TINYINT
 	  ,CurrencyName NVARCHAR(50)
@@ -126,7 +121,6 @@ BEGIN
 	INSERT INTO #tmpTransInfo( 
 		    matchid 
 	       ,transid 
-           ,Maintransid
 		   ,Subtransid 
 	       ,refno 
 	       ,custid 	
@@ -168,8 +162,6 @@ BEGIN
 	       ,mrecommend 
 	       ,recommend 
            ,creator 
-	       ,WalletType 
-	       ,RefCode 
 	       ,stake 
 	       ,oddstype 
 	       ,CurrencyName 
@@ -191,7 +183,6 @@ BEGIN
 	)
 	SELECT t.c.value('@mid','INT') AS matchid	
 		,t.c.value('@t','BIGINT') AS transid
-		,t.c.value('@m_t','BIGINT') AS Maintransid
 		,t.c.value('@s_t','BIGINT') AS Subtransid
 		,t.c.value('@ref','BIGINT') AS refno
 		,t.c.value('@c','INT') AS custid
@@ -233,8 +224,6 @@ BEGIN
 		,t.c.value('@mre','INT') AS mrecommend
 		,t.c.value('@re','INT') AS recommend
 		,t.c.value('@cr','INT') AS creator
-		,t.c.value('@wt','TINYINT') AS WalletType
-		,t.c.value('@refc','BIGINT') AS RefCode
 		,t.c.value('@stake','MONEY') AS stake
 		,t.c.value('@ost','TINYINT') AS oddstype
 		,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
@@ -265,8 +254,6 @@ BEGIN
 			,bettype 				
 			,livehomescore 	
 			,liveawayscore 		
-			,WalletType
-			,RefCode
 			,LiveIndicator
 			,matchid
 			,StatusId
@@ -280,8 +267,6 @@ BEGIN
 			,b.bettype
 			,b.livehomescore
 			,b.liveawayscore
-			,b.WalletType
-			,b.RefCode
 			,b.liveindicator
 			,@MatchId
 			,b.statusID
@@ -348,73 +333,6 @@ BEGIN
 				AND b.statusID NOT IN (101, 102, 103)
 	END 
 
-	-- update MainTransId
-	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE RefCode IS NOT NULL)
-	BEGIN
-		UPDATE sub
-		SET MainTransId = main.transid
-		FROM #TVSTicketBets main
-				INNER JOIN #TVSTicketBets sub
-						ON main.RefCode = sub.RefCode
-						AND main.transid <> sub.transid	
-						AND main.custid = sub.custid
-						AND main.bettype = sub.bettype
-		WHERE main.WalletType = 1					
-		  
-		INSERT INTO #tmpRefCodeSummary(RefCode, custid, bettype, transid, MatchId)
-		SELECT RefCode, custid, bettype
-				, MAX(transid) AS transid
-				, matchid
-		FROM #TVSTicketBets
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, bettype, matchid
-		HAVING COUNT(*) = 1
-
-		IF @@ROWCOUNT > 0
-		BEGIN	
-			INSERT INTO #TVSTicketBets(
-						transid		
-						,SubTransid		
-						,refno			
-						,custid					
-						,transdate		
-						,bettype 					
-						,livehomescore 	
-						,liveawayscore 			
-						,WalletType
-						,RefCode
-						,MainTransId
-						,LiveIndicator
-						,matchid
-						,StatusId
-					)
-				SELECT   b.transid
-						,b.SubTransID
-						,b.refno
-						,b.custid
-						,b.transdate
-						,b.bettype
-						,b.livehomescore
-						,b.liveawayscore
-						,b.WalletType
-						,b.RefCode
-						,t.transid AS MainTransId
-						,b.liveindicator
-						,b.matchid
-						,b.statusID
-			FROM #tmpRefCodeSummary t
-					INNER JOIN #tmpTransInfo b
-							ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.matchid = t.MatchId
-							AND b.custid = t.custid
-							AND b.bettype = t.bettype 
-			WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							ELSE 0 END
-		END  			    				    					    				    					    	
-	END
-	
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
@@ -466,10 +384,12 @@ BEGIN
 		RETURN;
 	END
 	
-	--Error Table
+	/*****************Return table **************************/
+	-- 1. Validate table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
+		  ,@UnmarkTransIds AS UnmarkTransIds
 
-	--TransId in request table
+	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN
 		SELECT RequestId, MatchId,
@@ -490,12 +410,12 @@ BEGIN
 		FROM #TransidInRequest
 	END
 
+	-- 3. Transinfo table
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
 		    ,t.transid AS "@t"
 			,t.Subtransid AS "@s_t"
-			,b.Maintransid AS "@m_t"
 			,t.refno AS "@ref"
 			,b.custid AS "@c"
 			,b.hdp1 AS "@hdp1"
@@ -534,8 +454,6 @@ BEGIN
 		    ,b.mrecommend AS "@mre" 
 		    ,b.recommend AS "@re" 
 		    ,b.creator AS "@cr" 
-		    ,b.WalletType AS "@wt"  
-		    ,b.RefCode AS "@refc" 
 		    ,b.stake AS "@s" 
 		    ,b.oddstype AS "@ost"  
 		    ,b.CurrencyName AS "@curr"  
@@ -557,7 +475,6 @@ BEGIN
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #tmpTransInfo
 
 END

@@ -29,7 +29,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
 		- 20220610@July: TVS - Check valid count SMA/member  [Redmine: #173229]
-		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 
 	Param's Explanation:
 */
@@ -53,6 +53,7 @@ BEGIN
 			,@CountSMA				  INT
 			,@CountMember             INT
 			,@IsExceededTotalUsernames BIT = 0
+			,@UnmarkTransIds		  VARCHAR(MAX) =''
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
@@ -336,7 +337,25 @@ BEGIN
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		
 		SET @NumberOfTickets = @@ROWCOUNT
-
+		
+		IF @RequestId <> 0 
+		BEGIN
+			--Edit from to time of Abnormal account issue -> unmark ticket change void time
+			SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid)
+												AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+												AND rdt.RequestId = @RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+		END
+	END
+	ELSE IF @ActionId = 2 AND @RequestId <> 0
+	BEGIN
+		SELECT @UnmarkTransIds = STUFF((SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
+										FROM #transIdTemp tp
+										WHERE tp.StatusId IN (0, 1) 
+										GROUP BY TransId for XML PATH('')), 1, 1, '')
 	END
 
 	--Get list match
@@ -351,13 +370,17 @@ BEGIN
 		SET @IsInValidTotalTicket = 1 
 	
 
-	--Error Table
+	/*****************Return table **************************/
+	
+	-- 1. Validate Table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
 		  ,@InvalidUserName AS InvalidUserName
 		  ,@MatchIDs AS MatchIDs
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
+		  ,@UnmarkTransIds AS UnmarkTransIds
 
+	--2. Transinfo table
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
