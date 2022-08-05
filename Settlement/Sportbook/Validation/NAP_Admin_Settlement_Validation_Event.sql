@@ -223,9 +223,11 @@ SET NOCOUNT ON
 	
 	IF @IsAuto =1 AND @Mode NOT LIKE '%INST%' AND @Mode <> 'FM' AND @Mode <> 'BB'
 	BEGIN
-		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
-			OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
-			OR (@LeagueGroupId <> 122 AND @sporttype = 2) -- Auto settle pingoal basketball
+		IF  @SPName = 'NAP_Admin_Settlement_Profile_Push'
+			AND (	( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
+						OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
+						OR (@LeagueGroupId <> 122 AND @sporttype = 2) -- Auto settle pingoal basketball
+				)
 		BEGIN
 			SELECT	 @ErrCode	= 1001052
 					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
