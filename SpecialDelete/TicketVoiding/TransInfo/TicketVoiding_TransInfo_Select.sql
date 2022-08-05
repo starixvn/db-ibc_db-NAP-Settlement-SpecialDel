@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select] 
 (
 	@IssueTypeId		  INT
-	,@WrongKOInfo	      VARCHAR(MAX) = NULL
+	,@KickOffInfo	      VARCHAR(MAX) = NULL
 	,@WrongScoreInfo	  VARCHAR(MAX) = NULL
 	,@DangerAcceptedInfo  VARCHAR(MAX) = NULL
 	,@RedCardInfo		  VARCHAR(MAX) = NULL
@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select]
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL
 	,@AbnormalBetTransIds VARCHAR(MAX) = NULL
-	,@AnormalAccounts	  VARCHAR(MAX) = NULL
+	,@AbnormalAccounts	  VARCHAR(MAX) = NULL
 	,@ArchivedTransIds	  VARCHAR(MAX) = NULL
 )
 AS
@@ -39,11 +39,11 @@ BEGIN
 	/*-----------------*/
 
 	/*---WrongScore---*/
-	--IF @IssueTypeId = 3
-	--BEGIN
-	--	EXEC dbo.TicketVoiding_TransInfo_WC_Select
-	--		@WrongScoreInfo = @WrongScoreInfo
-	--END
+	IF @IssueTypeId = 3
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_WC_Select
+			@WrongScoreInfo = @WrongScoreInfo
+	END
 	/*-----------------*/
 
 	/*---WrongHDP---*/
@@ -82,7 +82,7 @@ BEGIN
 	IF @IssueTypeId IN (8,9)
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_WKO_Select
-			@WrongKOInfo = @WrongKOInfo
+			@KickOffInfo = @KickOffInfo
 	END
 	/*-----------------*/
 
@@ -106,7 +106,7 @@ BEGIN
 	--IF @IssueTypeId = 13
 	--BEGIN
 	--	EXEC dbo.TicketVoiding_TransInfo_ACC_Select
-	--		@AnormalAccounts = @AnormalAccounts
+	--		@AbnormalAccounts = @AbnormalAccounts
 	--END
 	/*-----------------*/
 
