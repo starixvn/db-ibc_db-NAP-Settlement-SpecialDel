@@ -188,7 +188,7 @@ BEGIN
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@bdaq','BIGINT') AS betdaqid
 			,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
-			,t.c.value('@s','TINYINT') AS statusID
+			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@re','INT') AS recommend
 			,t.c.value('@mre','INT') AS mrecommend
 			,t.c.value('@sre','INT') AS srecommend

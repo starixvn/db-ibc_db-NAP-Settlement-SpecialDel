@@ -873,8 +873,8 @@ BEGIN
 	/*****************Return table **************************/
 	-- 1. Validate table
 	SELECT MatchId
-	, IsInValidTotalTickets
-	, IsExistedInOtherRequest
+		, IsInValidTotalTickets
+		, IsExistedInOtherRequest
 	FROM @Validation
 
 	-- 2. TransId exists in other request table

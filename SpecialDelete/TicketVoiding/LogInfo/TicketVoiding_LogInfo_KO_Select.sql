@@ -408,7 +408,7 @@ BEGIN
 	/*****************Return table **************************/
 	-- 1. Validate table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
-		  ,@UnmarkTransIds AS UnmarkTransIds
+		  
 
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
