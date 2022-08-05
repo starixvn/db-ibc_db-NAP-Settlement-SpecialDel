@@ -102,7 +102,7 @@ BEGIN
             ,Action
             ,sqlCommand
             ,execTime
-			,SessionId
+			,BroadcastSessionId
             )
         SELECT @MatchId
             ,@matchcode
