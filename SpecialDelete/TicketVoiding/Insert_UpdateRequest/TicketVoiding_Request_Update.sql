@@ -63,7 +63,7 @@ AS
 		- 20220110@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 		- 20220610@July: TVS - Some minor enhancements  [Redmine: #173229]
-		- 20220722@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
+		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader

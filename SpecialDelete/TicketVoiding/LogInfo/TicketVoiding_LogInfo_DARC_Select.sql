@@ -11,12 +11,12 @@ CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_DARC_Select]
 AS
 /*	
 	Created by: July
-	Date 20220720
+	Date 20220808
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
-		- 20220720@July: Create new SP - Refactor code issue type Danger Accept & Red card [Redmine: #175412]
+		- 20220808@July: Create new SP - Refactor code issue type Danger Accept & Red card [Redmine: #175412]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -26,9 +26,10 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @SingleCount			  INT = 0
-			,@MainParlayCount		  INT = 0
-	
+	DECLARE @SingleCount			INT = 0
+			,@MainParlayCount		INT = 0
+			,@UnmarkTransIds		VARCHAR(MAX) =''
+
 	DECLARE	@DARCInfoInfoXML		XML = NULL
 		   ,@MinAccept				TINYINT	= 0	
 		   ,@VoidFromTime			DATETIME = NULL
@@ -847,6 +848,28 @@ BEGIN
 			GROUP BY MatchId
 		)l
 	
+	IF @IsShowLogOnly = 0 AND @RequestId <> 0 
+	BEGIN
+		--Edit request filter on UI -> unmark ticket 
+		SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+										FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 0
+											LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+										WHERE tp.TransId IS NULL AND tr.TransId is NULL
+											AND rdt.RequestId = @RequestId
+										FOR XML PATH('')), 1,1,'')
+
+		SELECT @UnmarkTransIds = @UnmarkTransIds + ','
+								+ STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
+												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 1
+												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+											WHERE tp.TransId IS NULL AND tr.TransId IS NULL
+												  AND rdt.RequestId=@RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+	END
+
 	/*****************Return table **************************/
 	-- 1. Validate table
 	SELECT MatchId
@@ -954,6 +977,7 @@ BEGIN
 	)
 
 	SELECT @TransInfo AS TransInfo
+		  ,@UnmarkTransIds AS UnmarkTransIds
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

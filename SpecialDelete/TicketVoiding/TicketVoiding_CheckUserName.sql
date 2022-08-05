@@ -368,7 +368,6 @@ BEGIN
 		SET @IsInValidTotalTicket = 0 
 	ELSE 
 		SET @IsInValidTotalTicket = 1 
-	
 
 	/*****************Return table **************************/
 	
@@ -378,9 +377,9 @@ BEGIN
 		  ,@MatchIDs AS MatchIDs
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
-		  ,@UnmarkTransIds AS UnmarkTransIds
+		  
 
-	--2. Transinfo table
+	--2. Transinfo table & list ticket unmark (if any)
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
@@ -396,6 +395,7 @@ BEGIN
 	FOR XML PATH('r'), ROOT('root'))
 
 	SELECT @TransInfo AS TransInfo
+		  ,@UnmarkTransIds AS UnmarkTransIds
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1

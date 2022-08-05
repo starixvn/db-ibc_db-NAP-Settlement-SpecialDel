@@ -114,7 +114,7 @@ BEGIN
 		,SiteDBGroupID SMALLINT
 	)
 		
-	IF @TransIds IS NOT NULL AND @TransInfo IS NULL-- Special delete
+	IF @TransIds IS NOT NULL 
 	BEGIN
 		-- Get tickets insert into transaction
 		INSERT INTO #Tickets (
@@ -175,7 +175,7 @@ BEGIN
 		END
 	END
 
-	IF @TransInfo IS NOT NULL AND @TransIds IS NULL --TVS
+	IF @TransInfo IS NOT NULL 
 	BEGIN
 		INSERT INTO #tmpTransInfo( 
 			   matchid

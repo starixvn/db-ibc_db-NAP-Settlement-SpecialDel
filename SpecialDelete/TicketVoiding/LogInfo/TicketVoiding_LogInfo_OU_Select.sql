@@ -29,8 +29,8 @@ BEGIN
 
 	DECLARE @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-	
-	DECLARE	 @WrongOUInfoXML		  XML = NULL
+	        ,@WrongOUInfoXML		  XML = NULL
+			,@UnmarkTransIds		  VARCHAR(MAX) = ''
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -138,7 +138,6 @@ BEGIN
 			,IsExistedInOtherRequest BIT 
 			,MatchId                 INT
 		)
-	DECLARE @InstantlySettleCount_tmp AS TABLE (InstantlySettleCount BIGINT, SettleCount BIGINT, RequestId INT, MatchId INT)
 
 	SET @WrongOUInfoXML = CONVERT(XML, @WrongOUInfo)
 		
@@ -546,6 +545,28 @@ BEGIN
 			GROUP BY MatchId
 		)l
 
+	IF @IsShowLogOnly = 0 AND @RequestId <> 0  
+	BEGIN
+		--Edit request filter on UI -> unmark ticket 
+		SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+										FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 0
+											LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+										WHERE tp.TransId IS NULL AND tr.TransId is NULL
+											AND rdt.RequestId = @RequestId
+										FOR XML PATH('')), 1,1,'')
+
+		SELECT @UnmarkTransIds = @UnmarkTransIds + ','
+								+ STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
+												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 1
+												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+											WHERE tp.TransId IS NULL AND tr.TransId IS NULL
+												  AND rdt.RequestId=@RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+	END
+
 	/*****************Return table **************************/
 	-- 1. Validate table
 	SELECT MatchId
@@ -594,7 +615,7 @@ BEGIN
 					)w (scores) 
 	GROUP BY MatchId, w.scores
 
-	--4. Transinfo table
+	--4. Transinfo table & list ticket unmark (if any)
 	SET @TransInfo = (
 	SELECT DISTINCT 
 		     t.matchid AS "@mid"
@@ -613,6 +634,7 @@ BEGIN
 		)
 
 	SELECT @TransInfo AS TransInfo
+		  ,@UnmarkTransIds AS UnmarkTransIds
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

@@ -102,7 +102,6 @@ BEGIN
 			,t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
 			,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-			,t.c.value('@FilterBy','TINYINT') AS FilterBy
 			,t.c.value('@SingleCount','INT') AS SingleCount
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
@@ -121,7 +120,6 @@ BEGIN
 		, HomeId
 		, AwayId
 		, KickOffTime
-		, RequestType
 		, FilterFromTransTime
 		, FilterToTransTime
 		, SingleCount
@@ -138,7 +136,6 @@ BEGIN
 		, m.homeid
 		, m.awayid
 		, m.kickofftime
-		, 0
 		, l.FilterFromTransTime
 		, l.FilterToTransTime
 		, l.SingleCount

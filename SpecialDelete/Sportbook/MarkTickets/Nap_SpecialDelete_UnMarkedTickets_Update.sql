@@ -3,7 +3,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
 (	
 		@TransIds        VARCHAR(MAX)  = NULL,
         @UserId          INT           = 0,
-        @Username        NVARCHAR(100) = '',
         @IP              VARCHAR(15)   = NULL,
         @MarkType		 TINYINT	   = 0,
 		@LogActionId	 INT		   = 90500,
@@ -55,7 +54,6 @@ BEGIN
 			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_UnMarkedTickets_Update '
 				+ CASE WHEN @UserID IS NULL THEN '' ELSE '@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
 				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 				+ CASE WHEN @MarkType IS NULL THEN '' ELSE ',@MarkType = ' + CONVERT(NVARCHAR(50), @MarkType) END 
 				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
@@ -113,7 +111,7 @@ BEGIN
 		,IsMixParlay BIT
 		,SiteDBGroupID SMALLINT
 	)
-	IF @TransIds IS NOT NULL AND @TransInfo IS NULL-- Special delete
+	IF @TransIds IS NOT NULL
 	BEGIN
 		-- Get tickets insert into transaction
 		INSERT INTO #Tickets (
@@ -177,7 +175,7 @@ BEGIN
 		END
 	END
 
-	IF @TransInfo IS NOT NULL AND @TransIds IS NULL --TVS
+	IF @TransInfo IS NOT NULL 
 	BEGIN
 		INSERT INTO #tmpTransInfo( 
 			   matchid
@@ -230,6 +228,7 @@ BEGIN
 		AND 1 = CASE WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
 					 WHEN ISNULL(@IssueTypeId,0) <> 13 THEN 1 
 					 ELSE 0 END 
+		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = b.transid)
 
 		INSERT INTO #Tickets (
 			TransId
@@ -252,6 +251,7 @@ BEGIN
 		FROM #tmpTransInfo b
 		WHERE IsMixParlay = 1
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = b.transid)
 	END
 
 	--check no data
@@ -337,20 +337,20 @@ BEGIN
 			-- checking Refno parlay proccess
 			EXEC dbo.NAP_Admin_CheckingProcess
 					@IsLockingByRefno	= 1
-				,@spName			= @spName
-				,@Session			= @Session
-				,@avaiableProcess 	= @avaiableProcess OUTPUT
-				,@ErrCode			= @ErrCode OUTPUT
-				,@ErrMsg			= @ErrMsg OUTPUT
+				   ,@spName				= @spName
+				   ,@Session			= @Session
+				   ,@avaiableProcess 	= @avaiableProcess OUTPUT
+				   ,@ErrCode			= @ErrCode OUTPUT
+				   ,@ErrMsg				= @ErrMsg OUTPUT
 				
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN	
 				-- releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistMatch = @IsExistSingle,
-					@IsExistFM = @IsExistFM,
-					@IsExistFM2 = @IsExistFM2,
-					@IsReleased = 1;
+					@isExistMatch	= @IsExistSingle,
+					@IsExistFM		= @IsExistFM,
+					@IsExistFM2		= @IsExistFM2,
+					@IsReleased		= 1;
 				RETURN;		
 			END
 
@@ -360,14 +360,14 @@ BEGIN
 	BEGIN
 		-- checking SD proccess
 		EXEC dbo.NAP_Admin_CheckingProcess 
-				@isExistMatch = @IsExistSingle
-			   ,@isExistParlay = @IsExistParlay
-			   ,@IsExistFM = @IsExistFM
-			   ,@IsExistFM2 = @IsExistFM2
-			   ,@spName = @spName
-			   ,@avaiableProcess = @avaiableProcess OUTPUT
-			   ,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT;
+				@isExistMatch		= @IsExistSingle
+			   ,@isExistParlay		= @IsExistParlay
+			   ,@IsExistFM			= @IsExistFM
+			   ,@IsExistFM2			= @IsExistFM2
+			   ,@spName				= @spName
+			   ,@avaiableProcess	= @avaiableProcess OUTPUT
+			   ,@ErrCode			= @ErrCode OUTPUT
+			   ,@ErrMsg				= @ErrMsg OUTPUT
 
 		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 		BEGIN

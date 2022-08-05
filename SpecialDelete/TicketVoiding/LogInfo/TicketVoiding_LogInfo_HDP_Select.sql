@@ -17,7 +17,7 @@ AS
 	
 	Revisions: 
 		- 20220510@Max: Create new SP [Redmine: #172281]
-		- 20220720@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
@@ -29,9 +29,9 @@ BEGIN
 
 	DECLARE @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-	
-	DECLARE	 @WrongHDPInfoXML		  XML = NULL	
-
+			,@WrongHDPInfoXML		  XML = NULL
+			,@UnmarkTransIds		  VARCHAR(MAX) =''
+	 	
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
 			SubTransid            BIGINT,
@@ -555,6 +555,27 @@ BEGIN
 			GROUP BY MatchId
 		)l 
 
+	IF @IsShowLogOnly = 0 AND @RequestId <> 0 
+	BEGIN
+		--Edit request filter on UI -> unmark ticket 
+		SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+										FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 0
+											LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+										WHERE tp.TransId IS NULL AND tr.TransId is NULL
+											AND rdt.RequestId = @RequestId
+										FOR XML PATH('')), 1,1,'')
+
+		SELECT @UnmarkTransIds = @UnmarkTransIds + ','
+								+ STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
+												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 1
+												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+											WHERE tp.TransId IS NULL AND tr.TransId IS NULL
+												  AND rdt.RequestId=@RequestId
+											FOR XML PATH('')
+										), 1,1,'')
+	END
 	/*****************Return table **************************/
 	-- 1. Validate table
 	SELECT MatchId
@@ -562,7 +583,7 @@ BEGIN
 		,IsExistedInOtherRequest
 	FROM @Validation
 
-	-- 2. TransId in request table
+	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN
 		SELECT RequestId, MatchId,
@@ -582,7 +603,7 @@ BEGIN
 		FROM #TransidInRequest
 	END
 
-	--3. Loginfo table
+	-- 3. Loginfo table
 	SELECT MatchId
 		,STUFF(w.scores,1,1,'') AS LiveScores
 		,MIN(VoidFromTime) AS VoidFromTime
@@ -601,7 +622,7 @@ BEGIN
 					)w (scores) 
 	GROUP BY MatchId, w.scores
 
-	--4. Transinfo table
+	--4. Transinfo table & list ticket unmark (if any)
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			 t.matchid AS "@mid"
@@ -620,6 +641,7 @@ BEGIN
 		)
 
 	SELECT @TransInfo AS TransInfo
+		  ,@UnmarkTransIds AS UnmarkTransIds
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

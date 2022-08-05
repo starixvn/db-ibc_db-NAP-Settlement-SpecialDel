@@ -1,8 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
-	@MatchId              INT = 0
-	,@RequestId			  INT = 0
+	 @RequestId			  INT = 0
 	,@UserID			  INT
 	,@IssueTypeId		  INT = 1
 	,@ActionId			  INT = 5
@@ -62,7 +61,7 @@ AS
 		- 20220517@Max: TVS - Wrong Score: Add/Edit Request COUNT single ticket NOT RIGHT at log info [Redmine: #172851]
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220627@July: TVS - Remove invalid column [Redmine: #174122]
-		- 20220720@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -90,8 +89,7 @@ BEGIN
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN	
 			SET @sqlCommand = 'EXEC dbo.TicketVoiding_LogInfo_Select '
-					+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
-					+ CASE WHEN @RequestId IS NULL THEN '' ELSE ',@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
+					+ CASE WHEN @RequestId IS NULL THEN '' ELSE '@RequestId = ' + CONVERT(NVARCHAR(50), @RequestId) END
 					+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
 					+ CASE WHEN @IssueTypeId IS NULL THEN '' ELSE ',@IssueTypeId = ' + CONVERT(NVARCHAR(50), @IssueTypeId) END
 					+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
@@ -108,7 +106,7 @@ BEGIN
 					+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
-			VALUES (@ID, @spName, @sqlCommand, @UserID, @MatchId, GETDATE(),@SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
 		END	
 	END TRY
 	BEGIN CATCH
@@ -199,7 +197,7 @@ BEGIN
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN	       
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
-			VALUES (@ID, @spName, NULL, @UserID, @MatchId, GETDATE(),@SubmittedDate)
+			VALUES (@ID, @spName, NULL, @UserID, NULL, GETDATE(),@SubmittedDate)
 		END        
 	END TRY
 	BEGIN CATCH

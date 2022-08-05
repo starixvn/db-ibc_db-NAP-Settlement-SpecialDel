@@ -12,12 +12,12 @@ CREATE PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Update]
 AS
 /*	
 	Created by: July
-	Date 20220720
+	Date 20220808
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20220720@July: Create new SP - Insert auto void queue [Redmine: #175412]
+		- 20220808@July: Create new SP - Insert auto void queue [Redmine: #175412]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member), 13 - Abnormal account

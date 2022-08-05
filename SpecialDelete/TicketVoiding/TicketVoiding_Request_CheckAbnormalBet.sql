@@ -606,10 +606,9 @@ BEGIN
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsCheckAutoCal AS IsCheckAutoCal
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
-			,@UnmarkTransIds AS UnmarkTransIds
-		    ,@ResettleTransids AS ResettleTransids
+			
 	
-	--3. Transinfo table
+	--3. Transinfo table & list ticket unmark + re-settled  (if any)
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
@@ -628,7 +627,9 @@ BEGIN
 	FOR XML PATH('r'), ROOT('root'))
 
 	SELECT @TransInfo AS TransInfo
-	
+		  ,@UnmarkTransIds AS UnmarkTransIds
+		  ,@ResettleTransids AS ResettleTransids
+
 	DROP TABLE #inputTransid
 	DROP TABLE #transid_tmp
 	DROP TABLE #validTransId
