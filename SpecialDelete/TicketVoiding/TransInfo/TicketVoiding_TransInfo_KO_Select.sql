@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_WKO_Select] 
+ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_KO_Select] 
 (
 	@KickOffInfo  VARCHAR(MAX) = NULL
 )
