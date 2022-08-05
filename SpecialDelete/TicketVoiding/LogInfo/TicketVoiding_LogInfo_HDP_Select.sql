@@ -51,18 +51,6 @@ BEGIN
 			SubIssueTypeId		  SMALLINT
 	)
 
-	CREATE TABLE #tmpRefCodeSummary (
-			RefCode		BIGINT,
-			custid		INT,
-			bettype		SMALLINT,
-			transid		BIGINT,
-			MatchId		INT,
-			SubIssueTypeId SMALLINT
-	)
-
-	CREATE INDEX IX_TVSTicketBets_RefCode ON #TVSTicketBets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
-	
 	CREATE TABLE #logInfo (
 		 MatchId				INT
 		,LiveScores				NVARCHAR(300)
@@ -447,77 +435,6 @@ BEGIN
 							 ELSE 0 END
 	END  
 
-	-- update MainTransId
-	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE RefCode IS NOT NULL)
-	BEGIN
-		UPDATE sub
-		SET MainTransId = main.transid
-		FROM #TVSTicketBets main
-				INNER JOIN #TVSTicketBets sub
-						ON main.RefCode = sub.RefCode
-						AND main.transid <> sub.transid	
-						AND main.custid = sub.custid
-						AND main.bettype = sub.bettype
-		WHERE main.WalletType = 1					
-		  
-		-- Insert more bonus or cash ticket in case only one ticket appears in #TVSTicketBets  
-		INSERT INTO #tmpRefCodeSummary(RefCode, custid, bettype, transid, MatchId, SubIssueTypeId)
-		SELECT RefCode, custid, bettype
-				, MAX(transid) AS transid
-				, matchid, SubIssueTypeId
-		FROM #TVSTicketBets
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, bettype, matchid, SubIssueTypeId
-		HAVING COUNT(*) = 1
-
-		IF @@ROWCOUNT > 0
-		BEGIN	
-			INSERT INTO #TVSTicketBets(
-						transid		
-						,SubTransid		
-						,refno			
-						,custid					
-						,transdate		
-						,bettype 					
-						,livehomescore 	
-						,liveawayscore 			
-						,betdaqid
-						,WalletType
-						,RefCode
-						,MainTransId
-						,matchid
-						,StatusId
-						,SubIssueTypeId
-					)
-				SELECT   b.transid
-						,b.transid AS SubTransID
-						,b.refno
-						,b.custid
-						,b.transdate
-						,b.bettype
-						,b.livehomescore
-						,b.liveawayscore
-						,b.betdaqid
-						,b.WalletType
-						,b.RefCode
-						,t.transid AS MainTransId
-						,b.matchid
-						,b.statusID
-						,t.SubIssueTypeId
-			FROM #tmpRefCodeSummary t
-					INNER JOIN #tmpTransInfo b
-							ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.matchid = t.MatchId
-							AND b.custid = t.custid
-							AND b.bettype = t.bettype 
-			WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-						   WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-						   ELSE 0 END
-		END  			    				    					    				    					    	
-	END
-
-
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
@@ -728,7 +645,6 @@ BEGIN
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #logInfo
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #FilterInfo
 	DROP TABLE #logInfoVoidPage
 	DROP TABLE #tmpTransInfo

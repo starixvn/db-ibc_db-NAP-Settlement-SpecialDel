@@ -99,15 +99,7 @@ BEGIN
 				SubTransId BIGINT,
 				IsFinish	BIT
 				);
-	CREATE TABLE #tmpRefCodeSummary
-				(RefCode BIGINT,
-				custid  INT,
-				matchid INT,
-				bettype SMALLINT,
-				transid BIGINT
-				);
-	CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode);
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode);
+	CREATE INDEX IX_Tickets_RefCode ON #Tickets(RefCode);
 	CREATE TABLE #tmpTransInfo(
 		matchid INT
 		,transid BIGINT PRIMARY KEY
@@ -148,37 +140,6 @@ BEGIN
 		WHERE m.TransId IS NULL AND b.matchid <> 29 
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	
-		-- Bonus
-		IF EXISTS(SELECT TOP (1) 1 FROM #Tickets WHERE RefCode IS NOT NULL)
-		BEGIN
-				-- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
-				INSERT INTO #tmpRefCodeSummary(RefCode, custid, matchid, bettype, transid)
-				SELECT RefCode, custid, matchid, bettype, MAX(transid) AS transid
-				FROM #Tickets
-				WHERE RefCode IS NOT NULL
-				GROUP BY RefCode, custid, matchid, bettype
-				HAVING COUNT(*) = 1
-
-				IF @@ROWCOUNT > 0
-				BEGIN
-					INSERT INTO #Tickets(TransId, MatchId, BetType, CustId, RefCode )
-					SELECT b.transid,
-							b.matchid,
-							b.bettype,
-							b.custid,
-							b.RefCode
-					FROM #tmpRefCodeSummary t
-						INNER JOIN dbo.bettrans b WITH (NOLOCK) 
-							ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.matchid = t.matchid
-							AND b.custid = t.custid
-							AND b.bettype = t.bettype
-					WHERE b.statusID IN(0, 1) -- running, waiting
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-				END
-		END;
-		
 		-- get only parlay tickets from @input transid
 		INSERT INTO #ParlayTransIds (TransId)
 		SELECT tmp.TransId
@@ -544,7 +505,6 @@ BEGIN
 	END CATCH
 
 	DROP TABLE #Tickets;
-	DROP TABLE #tmpRefCodeSummary;
 	DROP TABLE #transIds;
 	DROP TABLE #Match;
 	DROP TABLE #ParlayTransIds;

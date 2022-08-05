@@ -22,6 +22,7 @@ AS;
 		- 20210601@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211210@July: Remove code CashOut [Redmine: #165097]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		
@@ -396,21 +397,6 @@ BEGIN
 	SET t.IsMarked = CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END 
 	FROM #tmpTicket  t
 	LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON t.transid = m.TransId		
-
-	-- Update maintransid for bonus ticket
-	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
-	BEGIN
-		UPDATE sub 
-			SET maintransid = main.transid
-			,IsMarked = main.IsMarked
-		FROM	#tmpTicket sub  
-			INNER JOIN #tmpTicket main 
-				ON 	main.refcode = sub.refcode
-					AND main.transid <> sub.transid
-					AND main.custid = sub.custid
-					AND main.bettype = sub.bettype
-		WHERE	main.wallettype = 1
-	END	
 
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1

@@ -54,19 +54,7 @@ BEGIN
 			SiteDBGroupID		  SMALLINT,
 	)
 
-	CREATE TABLE #tmpRefCodeSummary (
-			RefCode		BIGINT,
-			custid		INT,
-			bettype		SMALLINT,
-			transid		BIGINT,
-			MatchId		INT
-	)
-
-	CREATE INDEX IX_TVSTicketBets_RefCode ON #TVSTicketBets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary(RefCode)
-
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
-
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY

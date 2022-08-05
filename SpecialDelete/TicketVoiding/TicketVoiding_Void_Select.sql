@@ -43,7 +43,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
-		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		
@@ -127,17 +127,6 @@ BEGIN
 		winlostdate			  DATETIME,
 		statusID			  TINYINT
     )
-    CREATE TABLE #tmpRefCodeSummary
-             (RefCode  BIGINT,
-              custid   INT,
-			  matchid  INT,
-              bettype  SMALLINT,
-              transid  BIGINT,
-              IsMarked BIT
-             )
-
-	CREATE INDEX IX_TVSTicketBets_RefCode ON #TVSTicketBets (RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 
 	CREATE TABLE #tblBetType
 	(
@@ -1096,7 +1085,6 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			-- search tickets : not metric gaming tickets, mix parlay tickets
 			INSERT INTO #TVSTicketBets(
 					GroupID			
 					,transid		
@@ -1318,8 +1306,6 @@ BEGIN
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal account
 	BEGIN
-				
-		-- bettrans tickets	
 		INSERT INTO #TVSTicketBets (
 			GroupID			
 			,bettype		
@@ -2293,7 +2279,6 @@ BEGIN
 			 END			
 	
 	DROP TABLE #TVSTicketBets
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #InstantSettlementBettypes
