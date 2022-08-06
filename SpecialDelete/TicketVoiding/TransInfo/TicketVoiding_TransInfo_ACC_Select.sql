@@ -337,6 +337,8 @@ BEGIN
 		,SubTransdesc  
 		,modds 
 		,SiteDBGroupID
+		,oddsid
+		,winlostdate
 	FROM #TransInfo
 	
 	DROP TABLE #TransInfo
