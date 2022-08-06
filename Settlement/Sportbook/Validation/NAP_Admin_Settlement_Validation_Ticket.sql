@@ -3,6 +3,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 (
 	 @matchid		INT = 0
 	,@matchids		VARCHAR(500) = ''
+	,@DestinationMatchId	INT = 0
 	,@Action		VARCHAR(10)
 	,@Mode			VARCHAR(10)
 	,@IsAuto		BIT = 0
@@ -46,23 +47,6 @@ AS
 BEGIN
 SET NOCOUNT ON
 	
-	IF @Mode = 'BB'
-		RETURN
-
-	--calculate parlay other sports, single or multiple matches
-	IF @Action = 'CAL' AND @Mode = 'MP'
-	BEGIN
-		EXEC NAP_Admin_Settlement_Validation_MP
-			 @matchids		=  @matchids
-			,@Action		=  @Action
-			,@Mode			=  @Mode
-			,@ErrCode		=  @ErrCode OUTPUT
-			,@ErrMsg		  = @ErrMsg   OUTPUT
-			,@MatchIdsOutPut  = @MatchIdsOutPut OUTPUT
-
-		RETURN
-	END
-
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
 			,@finalhomescore	INT
@@ -92,6 +76,7 @@ SET NOCOUNT ON
 		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK)
 			ON l.LeagueGroupID = lg.GroupID
 	WHERE m.matchid = @matchid
+		AND ISNULL(@matchid,0) > 0
 		
 	SELECT @IsMergedParlay = s.IsMergedParlay		
 	FROM SettlementResultTableSetting s WITH(NOLOCK) --table contains sportbook only
@@ -106,6 +91,36 @@ SET NOCOUNT ON
 	SET @xmlResourceResult = CAST(@SelectedResources AS XML)
 	SET @xmlData		   = @SelectedResources
 
+	-----------------------------------------------------
+	IF @Mode = 'BB' OR (@Action = 'MoveTicket' AND @Mode = '50')
+		RETURN
+
+	--calculate parlay other sports, single or multiple matches
+	IF @Action = 'CAL' AND @Mode = 'MP'
+	BEGIN
+		EXEC NAP_Admin_Settlement_Validation_MP
+			 @matchids		=  @matchids
+			,@Action		=  @Action
+			,@Mode			=  @Mode
+			,@ErrCode		=  @ErrCode OUTPUT
+			,@ErrMsg		  = @ErrMsg   OUTPUT
+			,@MatchIdsOutPut  = @MatchIdsOutPut OUTPUT
+
+		RETURN
+	END
+
+	IF @Action = 'MoveTicket' AND @Mode = 43
+	BEGIN
+		EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking_Ticket
+			 @MatchId			 = @MatchId
+			,@DestinationMatchId = @DestinationMatchId
+			,@ErrCode			 = @ErrCode OUTPUT
+			,@ErrMsg			 = @ErrMsg OUTPUT
+
+		RETURN
+	END
+
+	-----------------------------------------------------
 	-- Check SP settle is in deployment progress
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @SPName

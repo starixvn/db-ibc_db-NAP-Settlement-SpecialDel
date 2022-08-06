@@ -16,7 +16,8 @@ AS
 
 	Revisions:
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
-		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]		  
+		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]	
+		- 20220719@Louisa: Scale out DBTRANS [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -33,6 +34,10 @@ BEGIN
 			,@strTransIds	VARCHAR(MAX) = ''
 			,@NewAccumTurnover MONEY
 			,@NewMatchCode	NVARCHAR(100)
+			,@IsCentral		BIT = 0
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	DECLARE @tmpCustLimit TABLE ( CustID INT, AccumTurnover MONEY, AccumPayout MONEY, SiteType TINYINT )
 
@@ -52,22 +57,25 @@ BEGIN
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	RETURN
-									
-	EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking
-		 @MatchId			 = @MatchId
-		,@DestinationMatchId = @DestinationMatchId
-		,@ErrCode			 = @ErrCode OUTPUT
-		,@ErrMsg			 = @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) > 0
-	BEGIN
-		EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch		= 1
-		,@IsReleased		= 1
+	INSERT INTO #tmpTransIds ( custid, transid, oddsid,  bettype, BetId, liveindicator, StatusId, srecommend )
+	SELECT b.custid, b.transid, b.oddsid,  b.bettype, b.BetId, b.liveindicator, b.statusID, b.srecommend
+	FROM dbo.bettrans b WITH(NOLOCK)
+		LEFT JOIN dbo.MarkedTransaction mk WITH(NOLOCK)
+			ON b.transid = mk.TransId
+	WHERE b.matchid = @MatchId
+		AND b.statusID = 0
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND mk.TransId IS NULL
 
-		RETURN
-	END
-
+	SET @remoteQuery = 'SELECT oddsid, bettype, liveindicator, ResourceId 
+						FROM DBPRO.bodb02.dbo.OddsES o WITH(NOLOCK)
+						WHERE o.matchid = ' + CAST (@DestinationMatchId AS NVARCHAR(20) )
+						+' AND ISNULL(o.IsDeleted,0) = 0 '
+		
+	INSERT INTO #tmpNewOdds ( oddsid, bettype, liveindicator, ResourceId )
+	EXEC sys.sp_executesql @remoteQuery
+	
 	--backup old info before moving: this table can be removed after data stable
 	IF EXISTS (SELECT TOP 1 1 FROM sys.tables WHERE name = 'SettlementMoveTicketHistoryTemp' )
 	BEGIN
@@ -112,11 +120,7 @@ BEGIN
 	END
 	--End/ Move single ticket
 
-	--Update source match, destination match
-	EXEC DBPRO.bodb02.dbo.NAP_Admin_Match_Update
-		@matchid = @matchid
-		,@DestinationMatchId =  @DestinationMatchId
-		,@Command = 'NAP_Admin_Settlement-MoveTicket'
+
 			 
 	--Start: Update MaxPayout
 	--ESports hasn's PayoutAdjust, AccumPayout, not support Deposite
@@ -242,13 +246,6 @@ BEGIN
 	END
 	--/End: update MaxPayout
 
-	--Copy result from old match to new match
-	EXEC DBPRO.bodb02.dbo.NAP_Admin_Settlement_CopyResult
-		 @MatchId	= @MatchId
-		,@DestinationMatchId = @DestinationMatchId
-		,@IsOverrideResult	 = @IsOverrideResult
-		,@AdminId	= @AdminId	
-
 	--release lock
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
@@ -257,26 +254,29 @@ BEGIN
 	SELECT @totalTicket = COUNT(1) FROM #tmpTransIds
 	SET @logData = CAST(@MatchId AS VARCHAR(20)) +' TC: ' + CAST(@totalTicket AS VARCHAR(12) )
 
-	BEGIN TRY	
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID             = @AdminId
-			,@Matchid           = @matchid
-			,@ActionID			= @ActionID
-			,@Remark            = @logData
-			,@IP                = @IP
-	END TRY
+	IF @IsCentral = 1
+	BEGIN
+		BEGIN TRY	
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID             = @AdminId
+				,@Matchid           = @matchid
+				,@ActionID			= @ActionID
+				,@Remark            = @logData
+				,@IP                = @IP
+		END TRY
 
-	BEGIN CATCH
-		SELECT @logData = @logData + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
+		BEGIN CATCH
+			SELECT @logData = @logData + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
 
-		EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID             = @AdminId
-			,@Matchid           = @matchid
-			,@ActionID          = @ActionID
-			,@Remark            = @logData
-			,@IP                = @IP
+			EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID             = @AdminId
+				,@Matchid           = @matchid
+				,@ActionID          = @ActionID
+				,@Remark            = @logData
+				,@IP                = @IP
 
-	END CATCH
+		END CATCH
+	END
 
 	SET @logdata = 'NAP: Move ticket from match: ' + CAST(@matchid AS VARCHAR(20) ) 
 				+' to match: ' + CAST(@DestinationMatchId AS VARCHAR(20) )

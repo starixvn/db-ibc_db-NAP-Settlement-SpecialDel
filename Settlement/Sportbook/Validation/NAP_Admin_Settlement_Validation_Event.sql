@@ -1,8 +1,8 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event  
 (
-	 @matchid		INT = 0
-	,@NewMatchID	INT = 0 --for Move Ticket
+	 @matchid			INT = 0
+	,@DestinationMatchId	INT = 0 --for Move Ticket
 	,@Action		VARCHAR(10)
 	,@Mode			VARCHAR(10)
 	,@IsAuto		BIT = 0
@@ -14,10 +14,10 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 	,@SDTRecord		TINYINT	= 0			--Refund_1_Push
 	,@IsSettleDetermined	BIT	= 0		--Fast_Market_Auto_1s_Push
 
-	,@VendorID		SMALLINT		= 34
-
-	,@ErrCode		INT		= 0     OUTPUT
-	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
+	,@VendorID				SMALLINT = 34
+	,@childMatchIdCricket	INT		 = 0 OUTPUT
+	,@ErrCode				INT		 = 0 OUTPUT
+	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
 )
 AS
 /*
@@ -32,7 +32,7 @@ AS
 		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
 				REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
 				, BetFair, BetDaq ( for refund betdaq,/betfair )
-				, MoveTicket
+				, MoveTicket ( move betdaq,betfair, ESport )
 
 		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
 				,BetFair, BetDaq ( for Move Betdaq/betfair )
@@ -45,35 +45,16 @@ AS
 BEGIN
 SET NOCOUNT ON
 	
-	--calculate parlay other sports, single or multiple matches
-	IF	( @Action = 'CAL' AND @Mode = 'MP' )
-		OR @Mode = 'BetDaq' --move betdaq
-	BEGIN
-		RETURN
-	END
-
-	IF @Mode = 'Betfair' --move betfair
-	BEGIN
-		IF	NOT EXISTS (	SELECT TOP 1 1
-							FROM	dbo.odds WITH (NOLOCK)
-							WHERE	matchid = @NewMatchID
-								AND liveindicator IN (0 , 1 )
-						)
-		BEGIN
-			SELECT	@ErrCode = 102
-					,@ErrMsg  =  'The selected match has not any odds for moving tickets. Please select another match with existing odds.'
-		END
-
-		RETURN
-	END
-
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
+			,@eventdate			DATETIME
+			,@eventstatus		NVARCHAR(100)
 			,@finalhomescore	INT
 			,@finalawayscore	INT
 			,@IsSettleByProfile	BIT = 0
 			,@IsEarly			BIT = 0
 			,@AutoSetting		TINYINT
+			,@childMatchId		INT
 			,@maxNumProcessBB	INT = 50000
 
 	DECLARE  @Inst_HomeScore		INT
@@ -93,6 +74,8 @@ SET NOCOUNT ON
 
 	SELECT @sporttype = m.sporttype
 			,@LeagueGroupID		= lg.GroupID
+			,@eventdate			= m.eventdate
+			,@eventstatus		= m.eventstatus
 			,@finalhomescore	= m.finalhomescore
 			,@finalawayscore	= m.finalawayscore
 			,@IsSettleAbandonedMatchIBC = CASE WHEN @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
@@ -104,6 +87,78 @@ SET NOCOUNT ON
 			ON l.LeagueGroupID = lg.GroupID
 	WHERE m.matchid = @matchid
 
+	--------------------------------------------------------------------
+	--calculate parlay other sports, single or multiple matches
+	IF	( @Action = 'CAL' AND @Mode = 'MP' )
+		OR @Mode = 'BetDaq' --move betdaq
+	BEGIN
+		RETURN
+	END
+
+	IF @Mode = 'Betfair' --move betfair
+	BEGIN
+		IF	NOT EXISTS (	SELECT TOP 1 1
+							FROM	dbo.odds WITH (NOLOCK)
+							WHERE	matchid = @DestinationMatchId
+								AND liveindicator IN (0 , 1 )
+						)
+		BEGIN
+			SELECT	@ErrCode = 102
+					,@ErrMsg  =  'The selected match has not any odds for moving tickets. Please select another match with existing odds.'
+		END
+
+		RETURN
+	END
+
+	--Move ticket Cricket
+	IF @Action = 'MoveTicket' AND @Mode = 43
+	BEGIN
+		EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking_Event
+			 @MatchId			 = @MatchId
+			,@DestinationMatchId = @DestinationMatchId
+			,@ErrCode			 = @ErrCode OUTPUT
+			,@ErrMsg			 = @ErrMsg OUTPUT
+		
+		IF ISNULL(@ErrCode, 0) > 0
+			RETURN
+
+		RETURN
+	END
+
+	IF @Action = 'MoveTicket' AND @Mode = 50
+	BEGIN
+		
+		IF @eventstatus = 'completed'
+		BEGIN
+			SELECT	@ErrCode = 1001050
+					,@ErrMsg = 'WARNING! Cannot continue due to current match is completed.'	
+			RETURN
+		END
+
+		EXEC dbo.NAP_Set_HoldSettingChecking
+			@MatchId	= @Matchid
+			,@ErrCode	= @ErrCode OUTPUT
+			,@ErrMsg	= @ErrMsg OUTPUT
+
+		IF ISNULL(@ErrCode,0) > 0
+		RETURN
+
+		IF NOT EXISTS( SELECT TOP 1 1
+						FROM	dbo.match m WITH(NOLOCK)
+						WHERE	m.ParentID = @MatchId
+								AND m.ChildMatchType = 200
+								AND m.eventdate = @eventdate
+								AND ISNULL(m.IsDeleted,0) = 0
+						ORDER BY m.matchid
+					)
+		BEGIN
+			SELECT	@ErrCode = 1001048
+					,@ErrMsg = 'WARNING! Cannot continue due to destination match not found.'	
+			RETURN
+		END
+
+		RETURN
+	END
 
 	------------COMMON CHECKING ( Apply for almost sports ) --------------------
 

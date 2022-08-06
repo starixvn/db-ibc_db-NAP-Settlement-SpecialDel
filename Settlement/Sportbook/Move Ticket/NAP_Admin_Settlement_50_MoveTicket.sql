@@ -1,8 +1,11 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_50_MoveTicket
-	@MatchId INT
-	,@AdminId INT
-	,@IP VARCHAR(15) = ''
+	@MatchId		INT
+	,@AdminId		INT
+	,@eventdate		DATETIME
+	,@ChildMatchId  INT
+	,@Resources		VARCHAR(MAX) = ''
+	,@IP			VARCHAR(15) = ''
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
 AS
@@ -17,6 +20,7 @@ AS
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220719@Louisa: Scale out DBTRANS [Redmine:#175251]
 
 	Param's Explanation:
 */
@@ -24,10 +28,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @Action VARCHAR(20)
-			,@Mode VARCHAR(15) 
-			,@eventdate DATETIME
-			,@eventstatus NVARCHAR(100)
-			,@childMatchId INT
+			,@Mode VARCHAR(15)
 			,@avaiableProcess BIT
 			,@ThreadHold INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 			,@Session			NVARCHAR(50)
@@ -48,11 +49,14 @@ BEGIN
 			,@logdata VARCHAR(300) 
 			,@ResourceIds VARCHAR(MAX) = ''
 			,@Remark VARCHAR(MAX)
+			,@IsCentral	BIT = 0
+			,@xmlData	XML
 			
 	SELECT @Action = 'MoveTicket'
 		,@batchNo = 2000
 		,@ActionID = 81025		
 		,@StartTime = GETDATE()
+		,@xmlData = CAST(@ResourceIds AS XML)
 		
 	DECLARE @tmpResourceId TABLE (ResourceId VARCHAR(20))
 	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
@@ -62,48 +66,9 @@ BEGIN
 
 	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, ResourceId VARCHAR(20) )
 	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT, ResourceId VARCHAR(20) )
-
-	SELECT	@eventdate = m.eventdate
-			,@eventstatus = m.eventstatus
-	FROM	dbo.match m WITH(NOLOCK)
-	WHERE	m.matchid = @MatchId
-
-	IF @eventstatus = 'completed'
-		BEGIN
-			SELECT	@ErrCode = 1001050
-					,@ErrMsg = 'WARNING! Cannot continue due to current match is completed.'
-		
-			RETURN
-	END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-		@MatchId	= @Matchid
-		,@ErrCode	= @ErrCode OUTPUT
-		,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0 
-	BEGIN
-	    SELECT	@ErrCode = 1001038
-				,@ErrMsg = 'WARNING! Cannot continue due to current match is on-hold.'
-	    
-	    RETURN
-	END
 	
-	SELECT	TOP 1 @childMatchId = matchid
-	FROM	dbo.match m WITH(NOLOCK)
-	WHERE	m.ParentID = @MatchId
-			AND m.ChildMatchType = 200
-			AND m.eventdate = @eventdate
-			AND ISNULL(m.IsDeleted,0) = 0
-	ORDER BY m.matchid
-
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SELECT	@ErrCode = 1001048
-				,@ErrMsg = 'WARNING! Cannot continue due to destination match not found.'
-		
-		RETURN
-	END
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	VALUES (@MatchId, 1), (@childMatchId, 1)
@@ -117,13 +82,9 @@ BEGIN
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		RETURN
 	
-	SET @sqlRemoteQuery = ' SELECT	ResourceID 
-							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(NOLOCK)
-							WHERE	matchid = ' + CAST (@MatchId AS VARCHAR) + '
-									AND ResultStatusID = 5'
-
 	INSERT INTO @tmpResourceId(ResourceId)
-	EXECUTE sys.sp_executesql @sqlRemoteQuery
+	SELECT T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
+	FROM @xmlData.nodes('/Resources/Resource') AS T(C)
 
 	INSERT INTO @tmpBettypeResourceId(Bettype, BetId, ResourceId)
 	SELECT	s.BetType, s.BetID, t.ResourceID
@@ -146,6 +107,7 @@ BEGIN
 					AND (t.BetId = 0 OR t.BetId = b.betid)
 		)t				
 	WHERE	b.matchid = @MatchId
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 	SET @totalSingle = @@ROWCOUNT
 
@@ -159,6 +121,7 @@ BEGIN
 					AND (t.BetId = 0 OR CAST(t.Betid AS NVARCHAR(50)) = bm.betcheck)
 		)t				
 	WHERE	bm.matchid = @MatchId
+		AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 	
 	SET @totalParlay = @@ROWCOUNT
 
@@ -207,22 +170,6 @@ BEGIN
 			SET @startRowId = @startRowId + @batchNo
 		END
 	END
-	
-	-- set child match completed
-	 EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-        @Command            = 'NAP_Admin_Settlement_1-CAL'
-        ,@MatchID            = @childMatchId
-        ,@FTHome            = 0
-        ,@FTAway            = 0
-        ,@HTHome            = 0
-        ,@HTAway            = 0
-        ,@Action            = 'CAL'
-		,@IsMovedMatch		= 1
-
-	EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-		@matchid    = @childMatchId
-		,@command    = 'C'
-		,@IsMovedMatch = 1
 
 	IF @totalSingle > 0
 		EXEC dbo.NAP_Admin_CheckingProcess
@@ -320,8 +267,8 @@ BEGIN
 						+ '(' + @ResourceIds + ')' + '<br/>'
 						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + '/' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20)) 				
-				
 	BEGIN TRY
+		IF @IsCentral = 1
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 				@userid				= @AdminId
 				,@matchid			= @MatchID

@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MoveTicketChecking] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MoveTicketChecking_Ticket] 
 	@MatchId 				INT 
 	,@DestinationMatchId	INT
 	,@ErrCode 				INT = 0 OUTPUT
@@ -12,20 +12,20 @@ AS
 	DB: DBTXN/bodb02
 
 	Revisions:
-		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
+		Old SP is NAP_Admin_Settlement_MoveTicketChecking
+		- 20220719@Louisa: Scale out DBTRANS [Redmine:#175251]
 
 */
+
 BEGIN
 
 SET NOCOUNT ON
 	
-	DECLARE @Sporttype SMALLINT
-			,@remoteQuery NVARCHAR(MAX)
-
-	SET @Sporttype = 43 -- Currently, apply for ESports only
-
-	DECLARE  @matchcode NVARCHAR(100), @leagueid INT, @homeid INT, @awayid INT, @eventdate DATETIME, @eventstatus NVARCHAR(100)
-			 ,@des_leagueid INT, @des_homeid INT, @des_awayid INT, @des_eventdate DATETIME, @des_eventstatus NVARCHAR(100)
+	DECLARE @remoteQuery	NVARCHAR(MAX)
+			,@IsCentral		BIT = 0
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	IF OBJECT_ID('tempdb..#tmpTransIds') IS NULL
 	CREATE TABLE #tmpTransIds	( RowId INT IDENTITY(1,1) PRIMARY KEY, custid INT, transid BIGINT, oddsid INT,  bettype SMALLINT, BetId INT, liveindicator BIT, StatusId TINYINT, srecommend INT)
@@ -33,52 +33,11 @@ SET NOCOUNT ON
 	IF OBJECT_ID('tempdb..#tmpNewOdds') IS NULL
 	CREATE TABLE #tmpNewOdds	( oddsid INT, bettype SMALLINT, liveindicator BIT, ResourceId VARCHAR(20) )
 
-	SELECT	 @matchcode		= m.matchcode		 
-			, @leagueid		= m.leagueid
-			, @homeid		= m.homeid
-			, @awayid		= m.awayid
-			, @eventdate	= m.eventdate
-			, @eventstatus	= m.eventstatus
-	FROM dbo.match m WITH(NOLOCK)
-	WHERE m.matchid = @MatchId
-		AND m.sporttype = @Sporttype
-		AND ISNULL(m.IsDeleted,0) = 0
-
-	SELECT	 @des_leagueid		= m.leagueid
-			, @des_homeid		= m.homeid
-			, @des_awayid		= m.awayid
-			, @des_eventdate	= m.eventdate
-	FROM dbo.match m WITH(NOLOCK)
-	WHERE m.matchid = @DestinationMatchId
-		AND m.sporttype = @Sporttype
-		AND ISNULL(m.IsDeleted,0) = 0 
-	
-	SELECT	@ErrCode = CASE WHEN @matchcode IS NULL OR @matchcode LIKE 'betdaq%' OR @des_leagueid IS NULL THEN 1001001
-							WHEN @eventstatus NOT IN ('closed','postponed','internal') THEN 1001058
-							WHEN @leagueid <> @des_leagueid THEN 1001059
-							WHEN @homeid <> @des_homeid OR @awayid <> @des_awayid THEN 1001060
-							WHEN @eventdate <> @des_eventdate THEN 1001061
-						ELSE NULL
-						END
-			,@ErrMsg = CASE WHEN @matchcode IS NULL OR @matchcode LIKE 'betdaq%' OR @des_leagueid IS NULL THEN 'Match does not exist!'
-							WHEN @eventstatus NOT IN ('closed','postponed','internal') THEN 'WARNING! Cannot continue due to: Status of source match should be closed, postponed or internal'
-							WHEN @leagueid <> @des_leagueid THEN  'WARNING! Cannot continue due to: Matches should be in same league'
-							WHEN @homeid <> @des_homeid OR @awayid <> @des_awayid THEN 'WARNING! Cannot continue due to: Team names of matches should be the same'
-							WHEN @eventdate <> @des_eventdate THEN  'WARNING! Cannot continue due to: Eventdate of matches should be the same'
-						ELSE NULL
-						END
-			
-	IF @ErrCode > 0
-	RETURN
-
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.ParentID IS NOT NULL AND m.ParentID = @MatchId AND ISNULL(m.IsDeleted,0)  = 0 )
-	BEGIN
-		SELECT @ErrCode = 1001062
-				, @ErrMsg = 'WARNING! Cannot continue due to: Source Match is having child match'
-		RETURN
-	END
-
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK) WHERE b.matchid =  @DestinationMatchid AND b.statusID NOT IN ( 101, 102)  )
+	IF EXISTS (	SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK) 
+				WHERE b.matchid =  @DestinationMatchid 
+					AND b.statusID NOT IN ( 101, 102)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+				)
 	BEGIN
 		SELECT @ErrCode = 1001063
 				,@ErrMsg = 'WARNING! Cannot continue due to: Target Match is having running or settled tickets'
@@ -87,6 +46,7 @@ SET NOCOUNT ON
 
 	IF EXISTS ( SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK) 
 				WHERE b.matchid = @MatchId
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND 1 =  CASE WHEN b.statusID = 1 THEN 1
 								  WHEN b.statusID = 0 AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 1
 							ELSE 0
@@ -105,6 +65,7 @@ SET NOCOUNT ON
 			ON b.transid = mk.TransId
 	WHERE b.matchid = @MatchId
 		AND b.statusID = 0
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND mk.TransId IS NULL
 
 	IF @@ROWCOUNT = 0
