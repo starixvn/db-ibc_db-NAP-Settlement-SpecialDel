@@ -94,9 +94,8 @@ BEGIN
 	SET @SB_Error = 0
 
 	INSERT INTO @tmpInputTransId (TransId)
-	SELECT	DISTINCT val
-	FROM	dbo.f_SplitString(@TransIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT	DISTINCT value
+	FROM STRING_SPLIT(@TransIds, ',')
 
 	IF @@rowcount > 1000
 	BEGIN

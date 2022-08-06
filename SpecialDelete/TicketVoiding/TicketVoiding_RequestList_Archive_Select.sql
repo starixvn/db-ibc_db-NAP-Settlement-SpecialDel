@@ -97,15 +97,12 @@ BEGIN
 	DECLARE @MinEventDate_tmp TABLE (RequestID INT, Eventdate DATETIME)
 
 	INSERT INTO @tmpIssueType (IssueTypeId)
-	SELECT DISTINCT val AS IssueTypeId
-	FROM bodb02.dbo.f_SplitString(@IssueTypeId, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value AS IssueTypeId
+	FROM STRING_SPLIT(@IssueTypeId, ',')
 
 	INSERT INTO @SubIssueType_tmp (SubIssueTypeId)
-	SELECT	val AS SubIssueTypeId
-	FROM	bodb02.dbo.f_SplitString(@SubIssueType, ',')
-	OPTION (MAXRECURSION 0) 
+	SELECT	value AS SubIssueTypeId
+	FROM STRING_SPLIT(@SubIssueType, ',')
 
 	IF @RequestIdXml IS NOT NULL
 	BEGIN

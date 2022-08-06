@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20200811@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 
 	Param's explanation:
 	- @RequestInfo : 
@@ -47,10 +48,9 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@RequestInfo = NULL))
 
 	INSERT INTO #tblRequestInfo_Detail(RequestId, TransId)
-	SELECT	req.RequestId, CAST(tr.val AS BIGINT)
+	SELECT	req.RequestId, CAST(tr.value AS BIGINT)
 	FROM	#tblRequestInfo req
-		CROSS APPLY bodb02.dbo.f_SplitString(req.TransIds, ',') tr
-	OPTION (MAXRECURSION 0)
+		CROSS APPLY STRING_SPLIT(req.TransIds, ',') tr
 	
 	UPDATE t
 		SET Bettype = s.Bettype

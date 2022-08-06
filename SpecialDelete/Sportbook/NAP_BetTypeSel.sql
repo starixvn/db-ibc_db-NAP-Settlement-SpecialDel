@@ -41,6 +41,7 @@ AS
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		- 20210331@July: Check logic mark ticket for cricket [Redmine: #150522]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 
     Param's Explanation:  
     @Mode:   
@@ -103,10 +104,9 @@ BEGIN
     CREATE TABLE #betTypesTemp (bettype SMALLINT PRIMARY KEY)
 
     INSERT INTO #betTypesTemp (bettype)
-	SELECT DISTINCT val 
-	FROM dbo.f_SplitString(@BetTypes, ',')
-	WHERE val <> ''
-	OPTION (maxrecursion 0)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@BetTypes, ',')
+	WHERE value <> ''
 		
     -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , --4: Mix Parlay, 9: Mark Ticket  
     -- type = 0: Sport Book
