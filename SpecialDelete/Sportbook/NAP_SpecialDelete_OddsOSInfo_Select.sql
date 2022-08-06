@@ -28,7 +28,6 @@ BEGIN
 	SELECT DISTINCT value 
 	FROM STRING_SPLIT(@BetTypes, ',')
 	WHERE value <> ''
-	OPTION (MAXRECURSION 0)
 
 	SELECT DISTINCT CASE WHEN t.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN o.oddsid ELSE NULL END AS oddsid
 		, o.bettype AS BettypeId

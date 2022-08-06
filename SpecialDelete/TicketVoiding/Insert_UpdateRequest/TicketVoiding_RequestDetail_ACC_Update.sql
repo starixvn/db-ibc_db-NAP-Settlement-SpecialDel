@@ -11,7 +11,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_ACC_Update]
 	,@TransInfo				XML  = NULL
 	,@IsEditRequest			INT = 0
 	,@MatchInfo				VARCHAR(MAX) = '' OUTPUT
-	,@RemoveTransIds		VARCHAR(MAX) = '' OUTPUT
 )
 AS
 /*	
@@ -257,14 +256,6 @@ BEGIN
 				, SubIssueTypeId = @SubIssueTypeId
 		WHERE	RequestId = @RequestId
 
-		--Edit from to time of Abnormal account issue -> unmark ticket change void time
-		SELECT @RemoveTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #tmpTransInfo tp WHERE rdt.TransId = tp.transid)
-												  AND EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = rdt.transid)
-												  AND rdt.RequestId = @RequestId
-											FOR XML PATH('')
-										), 1,1,'')
 	END
 	--Get list match
 	SET @MatchInfo = (

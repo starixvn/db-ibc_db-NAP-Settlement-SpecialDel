@@ -30,7 +30,6 @@ BEGIN
 	INSERT INTO @tmpTransId (transid, matchid)
 	SELECT	value, @MatchId
 	FROM STRING_SPLIT (@transId, ',')
-	OPTION (maxrecursion 0)
 
 	IF @MatchId = 0
 	BEGIN
