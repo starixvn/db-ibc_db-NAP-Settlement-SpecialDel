@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_Request_AB_Update]
+CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_AB_Update]
 (
 	@RequestId				INT
 	,@MatchId				INT = 0
@@ -202,7 +202,7 @@ BEGIN
 	SET @LogDataContent = ''
 	IF @IsEditRequest = 0
 	BEGIN
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds + ', SubIssueTypeId: ' + @SubIssueTypeId
+		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', TransIds: ' + @TransIds + ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
 	END
 	ELSE
 	BEGIN
@@ -216,7 +216,7 @@ BEGIN
 		END
 		IF @SubIssueTypeId <> @OldSubIssueTypeId
 		BEGIN
-			SET @LogDataContent += ' Old SubIssueTypeId: ' + @OldSubIssueTypeId + ' New SubIssueTypeId: ' + @SubIssueTypeId
+			SET @LogDataContent += ' Old SubIssueTypeId: ' + CAST(@OldSubIssueTypeId AS VARCHAR(20))  + ' New SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
 		END
 	END
 	

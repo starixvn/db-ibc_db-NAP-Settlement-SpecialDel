@@ -257,5 +257,6 @@ BEGIN
 
 	SELECT ISNULL(@LastTime, @FilterFromTransTime) AS LastTime
 
+	DROP TABLE #tmpTransInfo
 END
 GO

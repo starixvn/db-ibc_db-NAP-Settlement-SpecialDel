@@ -300,7 +300,7 @@ BEGIN
 	SET @LogDataContent = ''
 	IF @IsEditRequest = 0
 	BEGIN
-		SET @LogDataContent += ' SubIssueTypeID: '+ CAST(@SubIssueTypeId AS VARCHAR(50))
+		SET @LogDataContent += ' SubIssueTypeID: '+ CAST(@SubIssueTypeId AS VARCHAR(20))
 						    + ', Username: ' + CAST(@UserNames AS NVARCHAR(MAX)) 
 						    + ', ProductIds: '+ CAST(@ProductIds AS VARCHAR(50))
 						    + ', StatusIds: '+ CAST(@StatusIds AS VARCHAR(50))
@@ -311,7 +311,7 @@ BEGIN
 	BEGIN
 		IF @OldSubIssueTypeId <> @SubIssueTypeId
 		BEGIN
-			SET @LogDataContent += ' Old SubIssueTypeID: ' +  CAST(@OldSubIssueTypeId AS VARCHAR(50)) + ' New SubIssueTypeID: ' +  CAST(@SubIssueTypeId AS VARCHAR(50))
+			SET @LogDataContent += ' Old SubIssueTypeID: ' +  CAST(@OldSubIssueTypeId AS VARCHAR(20)) + ' New SubIssueTypeID: ' +  CAST(@SubIssueTypeId AS VARCHAR(20))
 		END
 		IF @OldUserNames <> @UserNames
 		BEGIN

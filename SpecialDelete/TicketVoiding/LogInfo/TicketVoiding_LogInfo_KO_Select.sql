@@ -97,6 +97,8 @@ BEGIN
 	  ,mrecommend INT
 	  ,recommend INT
       ,creator INT
+	  ,WalletType TINYINT
+	  ,RefCode BIGINT
 	  ,stake MONEY
 	  ,oddstype TINYINT
 	  ,CurrencyName NVARCHAR(50)
@@ -162,7 +164,9 @@ BEGIN
 	       ,mrecommend 
 	       ,recommend 
            ,creator 
-	       ,stake 
+	       ,WalletType 
+		   ,RefCode
+		   ,stake 
 	       ,oddstype 
 	       ,CurrencyName 
 	       ,betdaqid 
@@ -224,6 +228,8 @@ BEGIN
 		,t.c.value('@mre','INT') AS mrecommend
 		,t.c.value('@re','INT') AS recommend
 		,t.c.value('@cr','INT') AS creator
+		,t.c.value('@wt','TINYINT') AS WalletType
+		,t.c.value('@refc','BIGINT') AS RefCode
 		,t.c.value('@stake','MONEY') AS stake
 		,t.c.value('@ost','TINYINT') AS oddstype
 		,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
@@ -475,7 +481,9 @@ BEGIN
 		    ,b.mrecommend AS "@mre" 
 		    ,b.recommend AS "@re" 
 		    ,b.creator AS "@cr" 
-		    ,b.stake AS "@s" 
+		    ,b.WalletType AS "@wt"  
+		    ,b.RefCode AS "@refc" 
+			,b.stake AS "@s" 
 		    ,b.oddstype AS "@ost"  
 		    ,b.CurrencyName AS "@curr"  
 		    ,b.betdaqid AS "@bdaq"  

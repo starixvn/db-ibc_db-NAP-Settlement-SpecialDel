@@ -173,6 +173,13 @@ BEGIN
 				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 		END
+
+		--check no data
+		IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
+		BEGIN
+			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.';
+			RETURN;
+		END;
 	END
 
 	IF @TransInfo IS NOT NULL 
@@ -253,14 +260,7 @@ BEGIN
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = b.transid)
 	END
-
-	--check no data
-	IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
-	BEGIN
-		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.';
-		RETURN;
-	END;
-
+	
 	-- Check Lock Match
 	DECLARE @avaiableProcess	BIT
 		   ,@IsExistSingle		BIT = 0
