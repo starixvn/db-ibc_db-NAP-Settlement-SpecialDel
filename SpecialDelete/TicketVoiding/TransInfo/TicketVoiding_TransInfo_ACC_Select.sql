@@ -84,6 +84,8 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
+		,oddsid INT
+		,winlostdate SMALLDATETIME
     )
 
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
@@ -197,6 +199,8 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
+			,oddsid
+			,winlostdate
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -260,6 +264,8 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
+		,b.oddsid
+		,b.winlostdate
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 	WHERE b.statusID NOT IN (101, 102, 103)
