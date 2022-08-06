@@ -107,7 +107,7 @@ BEGIN
 	/*-----------------*/
 
 	/*---AbnormalBet / AB RealMember---*/
-	--IF @IssueTypeId IN (11,15)
+	IF @IssueTypeId IN (11,15)
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_AB_Select
 			@AbnormalBetTransIds = @AbnormalBetTransIds
@@ -116,7 +116,7 @@ BEGIN
 	/*-----------------*/
 
 	/*---AbnormalAccount---*/
-	--IF @IssueTypeId = 13
+	IF @IssueTypeId = 13
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_ACC_Select
 			@AbnormalAccounts = @AbnormalAccounts
@@ -125,7 +125,7 @@ BEGIN
 	/*-----------------*/
 
 	/*---Archived Ticket---*/
-	--IF @IssueTypeId = 17
+	IF @IssueTypeId = 17
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_ARC_Select
 			@ArchivedTransIds = @ArchivedTransIds
