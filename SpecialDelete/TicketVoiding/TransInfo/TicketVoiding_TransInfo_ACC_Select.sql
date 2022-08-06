@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ACC_Select] 
 (
 	@AbnormalAccounts  VARCHAR(MAX) = NULL
+	,@IsCentral BIT = 0
 )
 AS
 /*	
@@ -82,6 +83,7 @@ BEGIN
 		,Suboddsspread MONEY
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
+		,SiteDBGroupID SMALLINT
     )
 
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
@@ -194,6 +196,7 @@ BEGIN
 			,Suboddsspread 
 			,SubTransdesc  
 			,modds 
+			,SiteDBGroupID
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -256,12 +259,14 @@ BEGIN
 		,b.oddsspread AS Suboddsspread 
 		,b.transdesc SubTransdesc  
 		,b.modds 
+		,b.SiteDBGroupID
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						
 	--RETURN DATA
 	SELECT matchid 
@@ -325,6 +330,7 @@ BEGIN
 		,Suboddsspread 
 		,SubTransdesc  
 		,modds 
+		,SiteDBGroupID
 	FROM #TransInfo
 	
 	DROP TABLE #TransInfo

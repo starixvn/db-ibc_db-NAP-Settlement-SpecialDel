@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_AB_Select] 
 (
 	@AbnormalBetTransIds  VARCHAR(MAX) = NULL
+	,@IsCentral BIT = 0
 )
 AS
 /*	
@@ -82,6 +83,7 @@ BEGIN
 		,Suboddsspread MONEY
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
+		,SiteDBGroupID SMALLINT
     )
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
@@ -154,6 +156,7 @@ BEGIN
 			,Suboddsspread 
 			,SubTransdesc  
 			,modds 
+			,SiteDBGroupID
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -216,12 +219,14 @@ BEGIN
 		,b.oddsspread AS Suboddsspread 
 		,b.transdesc SubTransdesc  
 		,b.modds 
+		,b.SiteDBGroupID
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 	IF EXISTS (SELECT TOP(1) 1 
 				FROM #transIdTemp t
@@ -290,6 +295,7 @@ BEGIN
 			,Suboddsspread 
 			,SubTransdesc  
 			,modds 
+			,SiteDBGroupID
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -352,12 +358,14 @@ BEGIN
 		,b.oddsspread AS Suboddsspread 
 		,b.transdesc SubTransdesc  
 		,b.modds 
+		,b.SiteDBGroupID
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	END
 						
 	--RETURN DATA
@@ -422,6 +430,7 @@ BEGIN
 		,Suboddsspread 
 		,SubTransdesc  
 		,modds 
+		,SiteDBGroupID
 	FROM #TransInfo
 	
 	DROP TABLE #TransInfo

@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_HDP_Select] 
 (
 	@WrongHDPInfo  VARCHAR(MAX) = NULL
+	,@IsCentral BIT = 0
 )
 AS
 /*	
@@ -91,6 +92,7 @@ BEGIN
 		,Suboddsspread MONEY
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
+		,SiteDBGroupID SMALLINT
     )
 
 	SET @WrongHDPXML = CONVERT(XML, @WrongHDPInfo)
@@ -164,6 +166,7 @@ BEGIN
 			,Suboddsspread 
 			,SubTransdesc  
 			,modds 
+			,SiteDBGroupID
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -226,6 +229,7 @@ BEGIN
 		,b.oddsspread AS Suboddsspread 
 		,b.transdesc SubTransdesc  
 		,b.modds 
+		,b.SiteDBGroupID
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
@@ -234,6 +238,7 @@ BEGIN
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	
 	--Search sub-parlay
 	IF EXISTS (
@@ -306,6 +311,7 @@ BEGIN
 				,Suboddsspread 
 				,SubTransdesc  
 				,modds 
+				,SiteDBGroupID
 			)
 		SELECT sub.matchid
 			,b.TransId
@@ -368,6 +374,7 @@ BEGIN
 			,sub.oddsspread AS Suboddsspread 
 			,sub.transdesc SubTransdesc  
 			,b.modds
+			,sub.SiteDBGroupID
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno	
 			INNER JOIN #FilterInfo d ON d.MatchId = sub.matchid
@@ -376,6 +383,7 @@ BEGIN
 			AND b.matchid = 29
 			AND b.bettype = 29
 			AND sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+			AND sub.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE sub.SiteDBGroupID END
 	END 
 			
 	--RETURN DATA
@@ -440,6 +448,7 @@ BEGIN
 		,Suboddsspread 
 		,SubTransdesc  
 		,modds 
+		,SiteDBGroupID
 	FROM #TransInfo
 	
 	DROP TABLE #TransInfo

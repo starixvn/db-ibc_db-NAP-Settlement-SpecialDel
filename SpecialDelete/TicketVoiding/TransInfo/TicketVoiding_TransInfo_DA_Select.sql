@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_DA_Select] 
 (
 	@DangerAcceptedInfo  VARCHAR(MAX) = NULL
+	,@IsCentral BIT = 0
 )
 AS
 /*	
@@ -91,6 +92,7 @@ BEGIN
 		,Suboddsspread MONEY
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
+		,SiteDBGroupID SMALLINT
     )
 
 	SET @DangerAcceptedXML = CONVERT(XML, @DangerAcceptedInfo)
@@ -165,6 +167,7 @@ BEGIN
 			,Suboddsspread 
 			,SubTransdesc  
 			,modds 
+			,SiteDBGroupID
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -227,6 +230,7 @@ BEGIN
 		,b.oddsspread AS Suboddsspread 
 		,b.transdesc SubTransdesc  
 		,b.modds 
+		,b.SiteDBGroupID
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
@@ -238,6 +242,7 @@ BEGIN
 					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
 					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 			END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	
 	--Search sub-parlay
 	IF EXISTS (
@@ -310,6 +315,7 @@ BEGIN
 				,Suboddsspread 
 				,SubTransdesc  
 				,modds 
+				,SiteDBGroupID
 			)
 		SELECT sub.matchid
 			,b.TransId
@@ -372,6 +378,7 @@ BEGIN
 			,sub.oddsspread AS Suboddsspread 
 			,sub.transdesc SubTransdesc  
 			,b.modds
+			,sub.SiteDBGroupID
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno	
 			INNER JOIN #FilterInfo d ON d.MatchId = sub.matchid
@@ -383,6 +390,7 @@ BEGIN
 						WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 						WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 				END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+			AND sub.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE sub.SiteDBGroupID END
 	END 
 			
 	--RETURN DATA
@@ -447,6 +455,7 @@ BEGIN
 		,Suboddsspread 
 		,SubTransdesc  
 		,modds 
+		,SiteDBGroupID
 	FROM #TransInfo
 	
 	DROP TABLE #TransInfo
