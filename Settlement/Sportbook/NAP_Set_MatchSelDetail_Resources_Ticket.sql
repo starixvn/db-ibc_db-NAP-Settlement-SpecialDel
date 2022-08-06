@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources_Ticket]
 	@matchid 			   INT
 	,@SportType            INT = 0
 	,@SettleType		   VARCHAR(10) = 'MNL'
-	,@ResourcesOutPut	   VARCHAR(Max) = '' OUTPUT
+	--,@ResourcesOutPut	   VARCHAR(Max) = '' OUTPUT
 AS
 /*
     Created by: 20220719@Louisa
@@ -307,10 +307,6 @@ BEGIN
 			,ISNULL(bt.OrdNo,p.OrdNo)
 	FROM @tmpTicketStatus bt
 	  		FULL JOIN @tmpTicketStatusParlay p ON bt.resourceId = p.ResourceID
-
-	 ---return
-	 SELECT @ResourcesOutPut =  @ResourcesOutPut + ',' + ResourceID FROM @tblReturnTable
-	 SET @ResourcesOutPut = SUBSTRING(@ResourcesOutPut, 2, LEN(@ResourcesOutPut))
 
 	 SELECT ResourceID, TicketStatus, IsSpecialBettype
 	 FROM @tblReturnTable

@@ -20,7 +20,7 @@ BEGIN
 	
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid BIGINT
-		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread MONEY, statuswinlost VARCHAR(1),SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2, creator INT
@@ -133,7 +133,7 @@ BEGIN
 				,winlostdate = CASE 
 									WHEN t.winlostdate IS NULL THEN bm.winlostdate	
 									WHEN t.winlostdate = '' THEN NULL
-									ELSE t.winlostdate
+									ELSE CAST(t.winlostdate AS TINYINT)
 								END
 				,[status] = CASE WHEN t.Status IS NULL THEN bm.status ELSE t.Status END
 				,statusID = CASE WHEN t.StatusID IS NULL THEN bm.statusID ELSE t.StatusID END								

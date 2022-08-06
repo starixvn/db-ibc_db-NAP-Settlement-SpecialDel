@@ -1,6 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_SMPSelectionDetailSel]
 	@matchID 			INT
+	,@Resources		VARCHAR(MAX) = NULL
 AS
 /*
 	Created by: 20190103@Vicky
@@ -9,9 +10,13 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]		
 		
 	Param's Explanation:
+		@TicketStatus
+			'<Resources>
+					<Resource Id="200" s="1"/>
+			</Resources>'
 
 
 */
@@ -21,19 +26,18 @@ BEGIN
 	
 	DECLARE @tblMarketID TABLE (MarketID VARCHAR(20) NOT NULL PRIMARY KEY, IsRunning TINYINT)
 	DECLARE @FixtureID VARCHAR(20)
+			,@xmlData	XML
 	----------------------------------------------------------------------------
-	
+	IF ISNULL(@Resources,'') = ''
+	RETURN
+
+	SET @xmlData = CAST(@Resources AS XML )
+
 	INSERT INTO @tblMarketID (MarketID, IsRunning)
-	SELECT Betcheck
-			,MAX(CASE WHEN statusID IN (0,1) THEN 1 ELSE 0 END) AS IsRunning
-	FROM DBTXN.bodb02.dbo.Bettrans bt WITH (NOLOCK)
-	WHERE bt.matchID = @matchID 
-		AND bt.Bettype = 38
-		AND bt.StatusID NOT IN (101,102)
-	GROUP BY Betcheck
-		
-	
-	----------------------------------------------------------------------------
+	SELECT T.C.value('@Id', 'VARCHAR(20) ') AS MarketID
+ 		  ,T.C.value('@s','TINYINT') as TINYINT
+ 	FROM @xmlData.nodes('/Resources/Resource') AS T(C)
+
 	;WITH cteMarket AS (
 		SELECT ms.SelectionType
 				,COUNT(DISTINCT ms.Result)  AS countResult			--count all result (not count NULL value)
