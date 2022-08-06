@@ -8,5 +8,5 @@
 USE bodb02
 GO
 
-ALTER TABLE dbo.TicketVoiding_AutoVoidRequest_Queue ADD BroadcastSessionId VARCHAR(200)
+ALTER TABLE dbo.TicketVoiding_AutoVoidRequest_Queue ADD BroadcastSessionId VARCHAR(50)
 GO

@@ -221,15 +221,16 @@ BEGIN
 			,IsParlay
 			,SubTransId
 		)
-		SELECT TransId
-		  ,b.MatchId
-		  ,b.BetType
-		  ,b.custid
+		SELECT t.TransId
+		  ,t.MatchId
+		  ,t.BetType
+		  ,t.custid
 		  ,NULL
-		  ,b.refno
+		  ,t.refno
 		  ,0
 		  ,NULL
-		FROM #tmpTransInfo b
+		FROM #tmpTransInfo t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 		WHERE IsMixParlay = 0 AND b.statusID IN (0,1) 
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND 1 = CASE WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
@@ -247,15 +248,16 @@ BEGIN
 			,IsParlay
 			,SubTransId
 		)
-		SELECT b.TransId
-			,b.matchid
-			,b.Subbettype
-			,b.Subcustid
+		SELECT t.TransId
+			,t.matchid
+			,t.Subbettype
+			,t.Subcustid
 			,NULL
 			,b.refno
 			,1
-			,b.Subtransid
-		FROM #tmpTransInfo b
+			,t.Subtransid
+		FROM #tmpTransInfo t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 		WHERE IsMixParlay = 1
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = b.transid)

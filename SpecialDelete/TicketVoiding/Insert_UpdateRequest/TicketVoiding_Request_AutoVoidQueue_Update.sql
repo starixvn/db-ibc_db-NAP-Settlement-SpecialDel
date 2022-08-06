@@ -8,6 +8,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Update]
    ,@FilterBy				TINYINT = NULL
    ,@IsEditRequest			INT = 0
    ,@TransIds				VARCHAR(MAX) = NULL
+   ,@BroadcastSessionId		VARCHAR(50)
 )
 AS
 /*	
@@ -62,8 +63,8 @@ BEGIN
 
 	IF @IssueTypeId = 13 
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-		SELECT @RequestId, m.MatchId, 'VoidInstant', 99, 10278938, GETDATE(), '125.227.140.97', m.sporttype
+		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
+		SELECT @RequestId, m.MatchId, 'VoidInstant', 99, 10278938, GETDATE(), '125.227.140.97', m.sporttype, @BroadcastSessionId
 		FROM #tmpMatchId m
 	END
 	ELSE IF @IssueTypeId IN (11,15)
@@ -71,7 +72,7 @@ BEGIN
 		-- Insert queue for auto void
 		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @FilterBy IS NULL AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
 			SELECT @RequestId
 					, matchid
 					, CASE WHEN @ActionId = 1 THEN 'AddRequest' 
@@ -82,6 +83,7 @@ BEGIN
 						ELSE '' END 
 			      , 99, 10278938, GETDATE(), '125.227.140.97'
 				  , sporttype
+				  , @BroadcastSessionId
 			FROM #tmpMatchId
 		END
 		-- Abnormal Bet - Mixparlay ticket
@@ -89,8 +91,8 @@ BEGIN
 		BEGIN
 			IF @IsEditRequest = 0 --Insert
 			BEGIN
-				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-				SELECT @RequestId, matchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', sporttype
+				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
+				SELECT @RequestId, matchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', sporttype, @BroadcastSessionId
 				FROM #tmpMatchId 
 			END
 			ELSE 
@@ -108,8 +110,8 @@ BEGIN
 					AND MatchId NOT IN (SELECT MatchId FROM #tmpMatchId )
 			
 				--Insert new ticket
-				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype)
-				SELECT @RequestId, t.MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', t.sporttype
+				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
+				SELECT @RequestId, t.MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', t.sporttype, @BroadcastSessionId
 				FROM #tmpMatchId t
 				WHERE  MatchId NOT IN (SELECT MatchId FROM TicketVoiding_AutoVoidRequest_Queue (NOLOCK) WHERE RequestId = @RequestId)
 			END
