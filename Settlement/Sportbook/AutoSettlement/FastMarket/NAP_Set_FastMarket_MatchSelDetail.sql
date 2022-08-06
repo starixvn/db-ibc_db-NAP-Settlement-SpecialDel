@@ -157,12 +157,6 @@ BEGIN
 	FROM	@tblResultDetail
 	WHERE	ResourceId = '22201'
 
-	-- Water break
-	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo, r.ResultStatusId
-	FROM	@tblResultDetail r
-	WHERE	r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS'		
-
-
 	;WITH cteBetOption AS (
 		SELECT	bettype
 				, MAX(CASE WHEN ResourceId LIKE CAST(bettype AS VARCHAR) + '00' THEN HomeValue END) AS ResultStatus1st -- 22X00 
@@ -194,6 +188,7 @@ BEGIN
 		FROM	cteBetOption t
 	)
 
+	--bettype, position
 	SELECT	CAST(t.BetType AS SMALLINT) AS BetType
 			, CAST(rs.Position AS TINYINT) AS Position
 			, CAST(rs.Result AS TINYINT) AS Result
@@ -260,6 +255,12 @@ BEGIN
 					WHEN t.bettype IN (222,224,227) AND rs.Position > 85 THEN 0
 					ELSE 1
 				END			
+
+	
+	-- Water break
+	SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.OtherInfo, r.ResultStatusId
+	FROM	@tblResultDetail r
+	WHERE	r.ResourceId LIKE '221WB__' OR r.ResourceId = '221SUS'	
 
 
 END
