@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder]
 	 @AdminId			INT				
 	,@MatchId			INT
 	,@Resources			VARCHAR(MAX)	
+	,@SelectedMarket	VARCHAR(MAX)	= NULL
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IsAuto			BIT				= 1
 	,@VendorID			SMALLINT		= 34
@@ -23,9 +24,8 @@ AS
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
-				  CAL_MARKET: settle by marketIDs, ignore validation, @IsAuto should be = 0
-				  
-		IF @IsAuto = 1 OR @Action LIKE '%MARKET'
+				
+		IF @IsAuto = 1 
 			@Resources = '<Resources>
 				            <rsc m="1"/>
 				            <rsc m="2"/>
@@ -56,19 +56,6 @@ AS
 																  ,@ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
 				SELECT @ErrCode,@ErrMsg
 			
-			
-				--settle by SAS		
-				DECLARE @ErrCode INT,@ErrMsg NVARCHAR(200)
-				SELECT @ErrCode = 0, @ErrMsg = ''												         
-				EXEC [dbo].[NAP_Admin_Settlement_BetBuilder] @MatchId	= 1
-															  ,@Action	= 'CAL_MARKET'
-															  ,@AdminId = 8
-															  ,@IsAuto	= 0
-															  ,@Resources = '<Resources><rsc m="1"/><rsc m="2"/><rsc m="3"/><rsc m="4"/><rsc m="5"/></Resources>'
-															  ,@ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
-				SELECT @ErrCode,@ErrMsg
-			
-			
 				--settle by manual
 				DECLARE @ErrCode INT,@ErrMsg NVARCHAR(200)
 				SELECT @ErrCode = 0, @ErrMsg = ''
@@ -93,13 +80,14 @@ BEGIN
 			,@ActionID			INT
 			,@sportType 		INT
 			,@ResultStatusID	TINYINT
-			,@IsSettleByMarket	BIT				= 0
+		
 			,@ticketCount		INT				= 0
 			,@TotalAccount		INT
 			,@TotalAccount_BalanceUpdate INT
 			,@batchCount		INT		
 			,@strDataByBatch	VARCHAR(MAX)	= ''
-			,@xml				XML
+			
+			,@xmlMarket			XML
 			,@startRowIndex		INT
 			--------------log---------------------------------------------------
 			,@start				DATETIME
@@ -133,7 +121,6 @@ BEGIN
 							,UNIQUE CLUSTERED (rowNum)
 							,UNIQUE NONCLUSTERED (marketID)
 							)
-	CREATE TABLE #tblMarketSelection (marketSelectionID BIGINT, result VARCHAR(20))
 	CREATE TABLE #tblCustIDBalanceUpdated (custID INT NOT NULL)
 	----------------------------------------------------------------------------------------------------------------------
 
@@ -149,9 +136,6 @@ BEGIN
 						WHEN @Action = 'UNDO' THEN 3 					--undo
 						WHEN @IsAuto = 1 THEN 2 						--auto cal
 						ELSE 5 END 										--manual cal
-			,@IsSettleByMarket = CASE
-						WHEN @IsAuto = 1 OR @Action LIKE '%MARKET' THEN 1
-						ELSE 0 END
 
 	IF @ActionID = 0
 		RETURN
@@ -160,34 +144,11 @@ BEGIN
 		@IsCentral = @IsCentral OUTPUT
 
   	------------------------------------------get market info-----------------------------------------
-	--IF @IsSettleByMarket = 1
-	--BEGIN
+	SET @xmlMarket = CAST(@SelectedMarket AS XML)
 
-	--	SET @xml = CAST(@Resources AS XML)
-				
-	--	;WITH TmpData AS (
-	--		SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
-	--		FROM @xml.nodes('/Resources/rsc') AS T(C)
-	--	)
-	--	INSERT INTO #tblMarket (MarketID)
-	--	SELECT	d.MarketID
-	--	FROM TmpData d
-	--		INNER JOIN DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK) ON d.MarketID = mk.MarketID	
-	--	WHERE mk.MatchID = @MatchID
-	--		AND mk.VendorID = @VendorID
-	--		AND (mk.ResultStatusID NOT IN (2, 5, 3) OR @IsAuto = 0) --Auto Settled, Manually settled, UNDO
-	--		AND mk.Result IS NOT NULL
-	--END
-	--ELSE
-	--BEGIN
-	--	INSERT INTO #tblMarket (MarketID)
-	--	EXEC DBPRO.bodb02.dbo.NAP_Admin_ChangedMarket_Sel
-	--				@matchID			= @matchID
-	--				,@VendorID			= @VendorID
-	--				,@action			= @Action
-	--				,@Resources			= @Resources
-	--				,@ResultStatusID	= @ResultStatusID
-	--END
+	INSERT INTO #tblMarket(marketID)
+	SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
+	FROM @xmlMarket.nodes('/Resources/rsc') AS T(C)
 		
 	-- check and not allow attempt to settlement same game while it's still not finish
   	INSERT INTO #tblMatchProcessKeyValue2(matchID, KeyID, KeyValue2)
@@ -215,117 +176,6 @@ BEGIN
 		   ,@maxMarketID = MAX(marketID)
 	FROM #tblMarket
 
-	---------lock table SMP_Market---------------------------------------------
-	SET @startRowIndex = 0
-	
-	IF @IsCentral = 1
-	BEGIN
-		-- update market
-		WHILE 1=1
-		BEGIN
-			TRUNCATE TABLE #tblDataByBatch
-		
-			INSERT INTO #tblDataByBatch(strID, result)
-			SELECT MarketID, result
-			FROM #tblMarket t 
-			WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + 5000)
-
-			SELECT @batchCount 		= @@ROWCOUNT
-				  ,@startRowIndex 	= @startRowIndex + 5000
-		
-			IF @batchCount = 0 BREAK
-
-			SET @strDataByBatch 	= (SELECT strID		AS '@m'
-									   FROM #tblDataByBatch
-									   FOR XML PATH('Resource'), ROOT( 'Resources'))
-				   
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarket_Update @matchID 			= @matchID
-															,@VendorID			= @VendorID
-															,@action			= @action
-															,@resources 		= @strDataByBatch
-															,@resultStatusID 	= @ResultStatusID
-															,@mode				= 'ResultStatusID'
-		END
-	
-		---------SMP_MarketSelection---------------------------------------------------
-		IF @IsSettleByMarket = 1
-		BEGIN
-			INSERT INTO #tblMarketSelection (marketSelectionID)
-			SELECT ml.marketSelectionID
-			FROM DBPRO.bodb02.dbo.SMP_MarketSelection ml WITH (NOLOCK)
-			WHERE EXISTS (SELECT MarketID FROM #tblMarket WHERE ml.MarketID = #tblMarket.MarketID)
-				AND ml.MatchID = @MatchID
-				AND ml.MarketID BETWEEN @minMarketID AND @maxMarketID
-		END
-		ELSE
-		BEGIN
-			INSERT INTO #tblMarketSelection (marketSelectionID, Result)
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_MarketSelection_Sel 
-						@matchID						= @MatchID
-						,@action						= @action
-						,@Resources						= @Resources
-		END
-	
-		---- UPDATE SMP_MarketSelection
-		SET @startRowIndex = 0
-		WHILE 1=1
-		BEGIN
-			TRUNCATE TABLE #tblDataByBatch
-		
-			DELETE TOP (4000) #tblMarketSelection
-			OUTPUT DELETED.marketSelectionID, DELETED.result
-			INTO #tblDataByBatch(vID, result)
-
-			SELECT @batchCount 	= @@ROWCOUNT
-				  --,@startRowIndex = @startRowIndex + @maximumRows
-		
-			IF @batchCount = 0 BREAK
-		
-			SET @strDataByBatch 	= (SELECT vID		AS '@msl'
-									  		  ,result	AS '@rs'
-									   FROM #tblDataByBatch
-									   FOR XML PATH('Resource'), ROOT( 'Resources' ))
-		
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarketSelection_Update @matchID 	= @matchID
-															,@action			= @action
-															,@resources 		= @strDataByBatch
-															,@resultStatusID 	= @ResultStatusID
-		END
-		-- -------END SMP_MarketSelection-----------------------------------------------
-
-		--update result of markets into temp table
-		IF @IsSettleByMarket <> 1 
-  		BEGIN
-	  		---------Update Result and ResultStatusID for SMP_Market--------------------------------------------------------
-			SET @startRowIndex = 0
-			WHILE 1=1
-			BEGIN
-				TRUNCATE TABLE #tblDataByBatch
-			
-				INSERT INTO #tblDataByBatch(strID, result)
-				SELECT MarketID, result
-				FROM #tblMarket t 
-				WHERE RowNum BETWEEN @startRowIndex AND (@startRowIndex + @maximumRows) - 1
-	
-				SELECT @batchCount 		= @@ROWCOUNT
-					  ,@startRowIndex 	= @startRowIndex + @maximumRows
-			
-				IF @batchCount = 0 BREAK
-	
-				SET @strDataByBatch 	= (SELECT strID				AS '@m'
-										   FROM #tblDataByBatch
-										   FOR XML PATH('Resource'), ROOT( 'Resources'))
-							   
-				EXEC DBPRO.bodb02.dbo.NAP_Admin_SMPMarket_Update @matchID 			= @matchID
-					,@action			= @action
-					,@resources 		= @strDataByBatch
-					,@resultStatusID 	= @ResultStatusID
-			END
-		END
-	END
-	-- -------END SMP_Market--------------------------------------------------------
-	
-	
 	---------START get transID--------------------------------------------------
   	IF @Action LIKE 'CAL%'
   	BEGIN
@@ -545,16 +395,6 @@ BEGIN
 	DECLARE @LogDate DATETIME = GETDATE()
 			,@LogIDOutput	 BIGINT
 	
-	IF @IsSettleByMarket = 1 AND EXISTS(SELECT TOP 1 1 FROM #tblMarket)
-	BEGIN
-		SELECT @Remark = ''
-
-		SELECT @Remark = @Remark + CAST(marketID AS VARCHAR(20)) + ','
-		FROM	#tblMarket
-
-		SET @SelectedResources = 'MarketIds: ' + STUFF(@Remark, LEN(@Remark), 1, '')
-	END
-	ELSE
 	BEGIN
 		
 		DECLARE @xmlLogResult XML

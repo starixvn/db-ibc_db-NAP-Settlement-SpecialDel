@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder_Push]
 	 @AdminId			INT				= 148		-- calculated by system (default)
 	,@MatchId			INT
 	,@Resources			VARCHAR(MAX)	= ''  
+	,@SelectedMarket	VARCHAR(MAX)	= NULL
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IsAuto			BIT				= 1
 	,@VendorID			SMALLINT		= 34
@@ -23,7 +24,12 @@ AS
 	Param's Explanation:
 		@Action : CAL, UNDO, 
 				  CAL_MARKET: settle by marketIDs, ignore validation, @IsAuto should be = 0
-				  
+			
+		@SelectedMarket: <Resources>
+				            <Resource m="200342" />
+				            <Resource m="200462" />
+				         </Resources>
+
 		IF @IsAuto = 1 OR @Action IN (CAL_MARKET)
 			@Resources = '<Resources>
 				            <rsc m="1"/>
@@ -183,14 +189,15 @@ BEGIN
 				  
 	SELECT	@procName		= OBJECT_NAME(@@procid)
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_BetBuilder] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
-															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
-															+ ', @Resources = ''' + CONVERT(VARCHAR(MAX), @Resources) + ''''
-															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''
-															+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
-															+ ', @VendorID = ' + CONVERT(NVARCHAR(50), @VendorID)
-															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
-															+ ', @ErrCode = @ErrCode OUTPUT' 
-															+ ', @ErrMsg = @ErrMsg OUTPUT'
+									+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
+									+ ', @Resources = ''' + CONVERT(VARCHAR(MAX), @Resources) + ''''
+									+ CASE WHEN ISNULL(@SelectedMarket,'') <> '' THEN ', @SelectedMarket = ''' + CONVERT(VARCHAR(MAX), @SelectedMarket) + '''' ELSE '' END
+									+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''
+									+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
+									+ ', @VendorID = ' + CONVERT(NVARCHAR(50), @VendorID)
+									+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
+									+ ', @ErrCode = @ErrCode OUTPUT' 
+									+ ', @ErrMsg = @ErrMsg OUTPUT'
 
 														
 	

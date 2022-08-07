@@ -31,7 +31,21 @@ AS
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
 		@Mode: INST-HT, INST-FT, FM, BB
 
+		@SelectedMarket: <Resources>
+				            <rsc m="1"/>
+				            <rsc m="2"/>
+				            <rsc m="3"/>
+				            <rsc m="4"/>
+				            <rsc m="5"/>
+				         </Resources>
 
+		@SelectedSelection: <Resources>
+								<Resource Id="200" Result="WON"/>
+								<Resource Id="201" Result="WON"/>
+								<Resource Id="202" Result="WON"/>
+								<Resource Id="203" Result="REFUND"/>
+								<Resource Id="204" Result="LOSE"/>
+						   </Resources>
 
 */
 BEGIN
@@ -50,11 +64,10 @@ BEGIN
 			,@existsHTRound BIT
 			,@LeagueGroupID SMALLINT
 			,@handle	INT
+			,@ResultStatusID TINYINT
 
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20))
-	DECLARE @tmpMarketID TABLE(MarketId VARCHAR(20))
-	DECLARE @tmpSelectionType TABLE(SelectionType INT)
-
+	
 	SELECT @HTDone = 0
 
 	SELECT	@SportType = m.sporttype
@@ -124,19 +137,13 @@ BEGIN
 					,@FullTimeAway   = COALESCE (@FullTimeAway, 0)
 		END
 	END
-	IF @Mode = 'FM'
-	BEGIN
-		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedMarket
-		INSERT INTO @tmpMarketID(ResourceID)
-		SELECT Id
-		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)																
-											) AS tbl
-		EXEC sp_xml_removedocument @handle
 
+	IF @Mode = 'FM'
+	BEGIN		
 		EXEC dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId = @MatchId
 			,@Results = @Results
 			,@EventCounters = @EventCounters
-			,@Action = @Actionhhhhhhhhhhhhhg
+			,@Action = @Action
 			,@IsAuto = @IsAuto
 			,@AdminId = @AdminId	
 	
@@ -144,13 +151,30 @@ BEGIN
 	END
 	IF @Mode = 'BB'
 	BEGIN
+		SET @ResultStatusID = CASE 
+						WHEN @Action = 'UNDO' THEN 3	--undo
+						WHEN @IsAuto = 1 THEN 2 		--auto cal
+						ELSE 5 END 						--manual cal
+
 		EXEC dbo.NAP_Admin_SMPMarket_Update 
 			@matchID 			= @matchID
 			,@VendorID			= 34
 			,@action			= @action
-			,@resources 		= @strDataByBatch
+			,@resources 		= @SelectedMarket
 			,@resultStatusID 	= @ResultStatusID
 			,@mode				= 'ResultStatusID'
+
+		EXEC dbo.NAP_Admin_SMPMarketSelection_Update 
+			@matchID 			= @matchID
+			,@action			= @action
+			,@resources 		= @SelectedSelection
+			,@resultStatusID 	= @ResultStatusID
+
+		EXEC dbo.NAP_Admin_SMPMarket_Update 
+			@matchID 			= @matchID
+			,@action			= @action
+			,@resources 		= @SelectedMarket
+			,@resultStatusID 	= @ResultStatusID
 
 		RETURN
 	END
@@ -160,7 +184,7 @@ BEGIN
 		BEGIN
 			-- cal instant
 			IF @ResourceResult IS NOT NULL	
-				EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+				EXEC dbo.NAP_Admin_Result_Update_1s
 					@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL',
 					@MatchID        = @MatchID,                  
 					@ResourceResult	= @ResourceResult,                    

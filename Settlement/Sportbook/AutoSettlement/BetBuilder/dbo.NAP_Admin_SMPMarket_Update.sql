@@ -17,9 +17,12 @@ AS
 
 	Param's Explanation:
 			@Resources = '<Resources>
-								<Resource m="200"/>
-								<Resource m="201"/>
-						   </Resources>'
+				            <rsc m="1"/>
+				            <rsc m="2"/>
+				            <rsc m="3"/>
+				            <rsc m="4"/>
+				            <rsc m="5"/>
+				         </Resources>'
 	Example:
 			EXEC [dbo].[NAP_Admin_SMPMarket_Update] @MatchId	= 1
 												  ,@action = 'CAL'
@@ -38,7 +41,7 @@ BEGIN
 		SET @xml = CAST(@Resources AS XML)
 		;WITH cteData AS (
 			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketID
-			FROM @xml.nodes('/Resources/Resource') AS T(C)
+			FROM @xml.nodes('/Resources/rsc') AS T(C)
 		)
 		INSERT INTO #tblData(marketID)
 		SELECT marketID
@@ -59,7 +62,7 @@ BEGIN
 		SET @xml = CAST(@Resources AS XML)
 		;WITH cteData AS (
 			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketID
-			FROM @xml.nodes('/Resources/Resource') AS T(C)
+			FROM @xml.nodes('/Resources/rsc') AS T(C)
 		)	
 		INSERT INTO #tblData (marketID, Result, ResultStatusID)
 		SELECT marketID

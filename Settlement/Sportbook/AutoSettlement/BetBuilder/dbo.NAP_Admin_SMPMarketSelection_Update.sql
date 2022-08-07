@@ -15,14 +15,18 @@ AS
 
 	Param's Explanation:
 			@Resources = '<Resources>
-								<Resource msl="200" rs="WON"/>
-								<Resource msl="201" rs="LOSE"/>
+								<Resource Id="200" Result="WON"/>
+								<Resource Id="201" Result="WON"/>
+								<Resource Id="202" Result="WON"/>
+								<Resource Id="203" Result="REFUND"/>
+								<Resource Id="204" Result="LOSE"/>
+						   </Resources>
 						   </Resources>'
 	Example:
 			EXEC [dbo].[NAP_Admin_SMPMarketSelection_Update] @MatchId	= 1
 												  ,@action = 'CAL'
 												  ,@resultStatusId = 2
-												  ,@Resources = '<Resources><Resource msl="200" rs="WON"/><Resource msl="201" rs="LOSE"/></Resources>'
+												  ,@Resources = '<Resources><Resource Id="200" Result="WON"/><Resource Id="201" Result="LOSE"/></Resources>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -33,8 +37,8 @@ BEGIN
 	
 	SET @xml = CAST(@Resources AS XML)
 	;WITH cteData AS (
-		SELECT T.C.value('@msl', 'BIGINT') AS marketSelectionId
-			   ,T.C.value('@rs', 'VARCHAR(20)') AS result
+		SELECT T.C.value('@Id', 'BIGINT') AS marketSelectionId
+			   ,T.C.value('@Result', 'VARCHAR(20)') AS result
 		FROM @xml.nodes('/Resources/Resource') AS T(C)
 	)
 	INSERT INTO #tblData(marketSelectionID, result)
