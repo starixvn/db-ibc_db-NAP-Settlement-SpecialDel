@@ -79,7 +79,7 @@ BEGIN
 				,statuswinlost = CASE 
 									WHEN t.statuswinlost IS NULL THEN b.statuswinlost
 									WHEN t.statuswinlost = '' THEN NULL
-									ELSE t.statuswinlost
+									ELSE CAST(t.statuswinlost AS TINYINT)
 								END
 				,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
 				,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
@@ -133,14 +133,14 @@ BEGIN
 				,winlostdate = CASE 
 									WHEN t.winlostdate IS NULL THEN bm.winlostdate	
 									WHEN t.winlostdate = '' THEN NULL
-									ELSE CAST(t.winlostdate AS TINYINT)
+									ELSE t.winlostdate
 								END
 				,[status] = CASE WHEN t.Status IS NULL THEN bm.status ELSE t.Status END
 				,statusID = CASE WHEN t.StatusID IS NULL THEN bm.statusID ELSE t.StatusID END								
 				,statuswinlost = CASE 
 									WHEN t.statuswinlost IS NULL THEN bm.statuswinlost
 									WHEN t.statuswinlost = '' THEN NULL
-									ELSE t.statuswinlost
+									ELSE CAST(t.statuswinlost AS TINYINT)
 								END
 				,hdp1 = CASE WHEN t.hdp1 IS NULL THEN bm.hdp1 ELSE t.hdp1 END					
 				,hdp2 = CASE WHEN t.hdp2 IS NULL THEN bm.hdp2  ELSE t.hdp2 END					
@@ -182,7 +182,7 @@ BEGIN
 				,statuswinlost = CASE 
 									WHEN t.statuswinlost IS NULL THEN pd.statuswinlost
 									WHEN t.statuswinlost = '' THEN NULL
-									ELSE t.statuswinlost
+									ELSE CAST(t.statuswinlost AS TINYINT)
 								END		
 		FROM   @tmpTransId t
 			INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
