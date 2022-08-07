@@ -113,6 +113,27 @@ BEGIN
 	FROM @WrongOUInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL))
 
+	IF @IsEditRequest = 1
+	BEGIN
+		DELETE rd
+		FROM dbo.TicketVoiding_RequestDetail rd
+			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.MatchId = t.MatchID
+		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
+		
+		UPDATE	r
+		SET	  FilterFromTransTime = l.FilterFromTransTime
+			, FilterToTransTime = l.FilterToTransTime
+			, SingleCount = l.SingleCount
+			, MainParlayCount = l.MainParlayCount
+			, VoidFromTime = l.VoidFromTime
+			, VoidToTime = l.VoidToTime
+			, IssueDetail = l.LiveScores
+			, SubIssueTypeId = l.SubIssueTypeId
+			, TransIds = l.WrongOU
+		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
+	END
+
 	INSERT INTO dbo.TicketVoiding_RequestDetail (
 		RequestId
 		, MatchId
@@ -147,6 +168,8 @@ BEGIN
 		, l.WrongOU
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
+		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
+	WHERE rd.RequestId IS NULL
 
 	IF @IsEditRequest = 0 
 	BEGIN

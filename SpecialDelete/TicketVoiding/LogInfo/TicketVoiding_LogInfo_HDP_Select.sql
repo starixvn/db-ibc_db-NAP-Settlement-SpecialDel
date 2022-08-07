@@ -632,6 +632,9 @@ BEGIN
 			,b.custid AS "@c"
 			,b.bettype AS "@btype"
 			,b.betid AS "@bid"
+			,b.statusID AS "@sid"
+			,b.Subcustid AS "@s_c"
+			,b.Subbettype AS "@s_btype"
 			,b.IsMixParlay AS "@isP"
 			,b.SiteDBGroupID AS "@sitedb"
 		FROM #TVSTicketBets t
