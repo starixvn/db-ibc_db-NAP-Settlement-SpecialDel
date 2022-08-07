@@ -387,6 +387,8 @@ BEGIN
 			FROM #TransidInRequest
 		END
 
+		SELECT NULL AS MatchId
+		SELECT NULL AS TransInfo
 		RETURN;
 	END
 	
@@ -437,7 +439,10 @@ BEGIN
 		FROM #TransidInRequest
 	END
 
-	-- 3. Transinfo table & list ticket unmark (if any)
+	-- 3. Loginto table (no-need but must return)
+	SELECT NULL MatchId
+
+	-- 4. Transinfo table & list ticket unmark (if any)
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
@@ -483,7 +488,7 @@ BEGIN
 		    ,b.creator AS "@cr" 
 		    ,b.WalletType AS "@wt"  
 		    ,b.RefCode AS "@refc" 
-			,b.stake AS "@s" 
+			,b.stake AS "@stake" 
 		    ,b.oddstype AS "@ost"  
 		    ,b.CurrencyName AS "@curr"  
 		    ,b.betdaqid AS "@bdaq"  

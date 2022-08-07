@@ -1489,7 +1489,7 @@ BEGIN
 					t.transid AS GroupID
 					,t.transid AS TransId
 					,t.Subtransid
-					,t..refno
+					,t.refno
 					,t.Subcustid				
 					,t.odds
 					,t.Subodds
