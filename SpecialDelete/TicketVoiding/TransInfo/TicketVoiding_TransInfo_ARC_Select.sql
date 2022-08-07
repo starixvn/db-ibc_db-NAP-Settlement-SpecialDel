@@ -84,6 +84,7 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
+		,winlostdate SMALLDATETIME
     )
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
@@ -157,6 +158,7 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
+			,winlostdate
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -220,6 +222,7 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
+		,b.winlostdate
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE b.statusID NOT IN (101, 102, 103)
@@ -291,6 +294,7 @@ BEGIN
 		,SubTransdesc  
 		,modds
 		,SiteDBGroupID
+		,winlostdate
 	FROM #TransInfo
 	
 	DROP TABLE #TransInfo
