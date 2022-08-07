@@ -404,7 +404,7 @@ BEGIN
 											FOR XML PATH('')
 										), 1,1,'')
 
-		IF @@ROWCOUNT > 0
+		IF @UnmarkTransIds IS NOT NULL
 		BEGIN
 			SET @IsHasWarningRemovedTickets = 1
 							

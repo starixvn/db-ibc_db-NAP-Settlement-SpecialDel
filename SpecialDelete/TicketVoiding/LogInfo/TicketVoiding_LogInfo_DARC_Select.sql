@@ -709,6 +709,7 @@ BEGIN
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = s.MatchId
 		WHERE s.RequestId = @RequestId
 			AND b.StatusId IN (111, 112, 113)
+		GROUP BY b.matchid
 
 		IF EXISTS( SELECT TOP 1 RequestId FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK) WHERE RequestId = @RequestId AND MinSingleTransId IS NOT NULL)
 		BEGIN

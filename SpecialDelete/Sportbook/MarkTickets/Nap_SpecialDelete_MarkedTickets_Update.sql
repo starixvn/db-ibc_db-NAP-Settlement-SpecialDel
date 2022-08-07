@@ -69,9 +69,8 @@ BEGIN
 	
 	DECLARE @ThreadHold			INT = 0 
 		   ,@totalParlay		INT = 0
-		   ,@IsCentral BIT, @IsSiteDB BIT
-
-	EXEC dbo.NAP_Set_ServerInfo @IsCentral = @IsCentral OUTPUT
+	       ,@SiteDBGroupID SMALLINT = 0 
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #TransIds (TransId BIGINT PRIMARY KEY); -- single + parlay tickets
@@ -89,14 +88,12 @@ BEGIN
 				MatchId   INT,
 				CustId    INT,
 				BetType   SMALLINT,
-				RefCode   BIGINT,
 				refno	 BIGINT,
 				IsParlay  BIT DEFAULT(0),
 				SubTransId BIGINT,
 				IsFinish	BIT
 				);
 	
-	CREATE INDEX IX_Tickets_RefCode ON #Tickets(RefCode);
 	CREATE TABLE #Match(MatchId INT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 			
@@ -122,7 +119,6 @@ BEGIN
 			,MatchId
 			,BetType
 			,CustId
-			,RefCode
 			,refno
 			,IsParlay
 			,SubTransId
@@ -131,14 +127,13 @@ BEGIN
 			,b.MatchId
 			,b.BetType
 			,b.custid
-			,b.RefCode
 			,b.refno
 			,0
 			,NULL
 		FROM #transIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 		WHERE  b.matchid <> 29
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND b.SiteDBGroupID = @SiteDBGroupID
 
 		-- get only parlay tickets from @input transid
 		INSERT INTO #ParlayTransIds (TransId)
@@ -154,7 +149,6 @@ BEGIN
 				,MatchId
 				,BetType
 				,CustId
-				,RefCode
 				,refno
 				,IsParlay
 				,SubTransId
@@ -163,15 +157,13 @@ BEGIN
 				,bm.matchid
 				,bm.bettype
 				,bm.custid
-				,NULL
 				,bm.refno
 				,1
 				,bm.transid
 			FROM #ParlayTransIds t
 				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
-			WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-			 AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+			WHERE b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
 		END
 	END
 
@@ -209,7 +201,6 @@ BEGIN
 			,MatchId
 			,BetType
 			,CustId
-			,RefCode
 			,refno
 			,IsParlay
 			,SubTransId
@@ -218,16 +209,13 @@ BEGIN
 		  ,t.MatchId
 		  ,t.BetType
 		  ,t.custid
-		  ,NULL
 		  ,t.refno
 		  ,0
 		  ,NULL
 		FROM #tmpTransInfo t
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-		WHERE IsMixParlay = 0 
-			AND b.statusID IN (0,1) 
-			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-			AND 1 = CASE WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
+		WHERE IsMixParlay = 0 AND t.statusID IN (0,1) 
+			AND t.SiteDBGroupID = @SiteDBGroupID
+			AND 1 = CASE WHEN @IssueTypeId = 13 AND t.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
 						 WHEN ISNULL(@IssueTypeId,0) <> 13 THEN 1 
 					 ELSE 0 END 
 
@@ -236,7 +224,6 @@ BEGIN
 			,MatchId
 			,BetType
 			,CustId
-			,RefCode
 			,refno
 			,IsParlay
 			,SubTransId
@@ -245,14 +232,11 @@ BEGIN
 			,t.matchid
 			,t.Subbettype
 			,t.Subcustid
-			,NULL
-			,b.refno
+			,t.refno
 			,1
 			,t.Subtransid
 		FROM #tmpTransInfo t
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-		WHERE IsMixParlay = 1
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		WHERE IsMixParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
 	END
 
 	-- Check Lock Match
@@ -443,8 +427,6 @@ BEGIN
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	BEGIN
-		SET @IsSiteDB = 1
-
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 		SELECT 'TVS', 'UnMark', 'MarkedTransaction', 'D', m.MatchId
 						, STUFF((SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
