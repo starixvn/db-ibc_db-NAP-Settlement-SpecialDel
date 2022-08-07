@@ -518,15 +518,15 @@ BEGIN
 			,tmp.settlementstatus
 			,tmp.suspenderhalftime
 			,tmp.suspenderfulltime
-			,CASE
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsExistEarlyBettypesParlay = 0 AND (tmp.childmatchtype = 202 OR me.MatchId IS NOT NULL ) THEN 'No Ticket'
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
-				WHEN tmp.IsRunningEarlyBettypesSingle + (CASE WHEN tmp.IsMergedParlay = 1 THEN tmp.IsRunningEarlyBettypesParlay ELSE 0 END) > 0 THEN 'Running'
-				WHEN tmp.IsWaitingEarlyBettypesSingle + (CASE WHEN tmp.IsMergedParlay = 1 THEN tmp.IsWaitingEarlyBettypesSingle ELSE 0 END) > 0 THEN 'Waiting'
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsRunningEarlyBettypesParlay = 1 THEN 'Parlay Running'
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsWaitingEarlyBettypesParlay = 1 THEN 'Parlay Waiting'
-				ELSE 'Completed'
-			END AS EarlySettleStatus
+			,tmp.IsExistEarlyBettypesSingle
+			,tmp.IsExistEarlyBettypesParlay
+			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
+			,tmp.IsRunningEarlyBettypesSingle
+			,tmp.IsMergedParlay
+			,tmp.IsRunningEarlyBettypesParlay
+			,tmp.IsRunningEarlyBettypesParlay
+			,tmp.IsWaitingEarlyBettypesSingle
+			,tmp.IsWaitingEarlyBettypesParlay
 			,tmp.IsExistRunningTicket
 			,tmp.IsExistRunningTicketParlay
 			,tmp.IsExistMarkedTicket

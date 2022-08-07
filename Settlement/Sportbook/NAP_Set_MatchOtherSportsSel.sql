@@ -987,15 +987,14 @@ BEGIN
 			,m.IsRefund
 			,m.IsCalRefund
 			,m.IsHalfTimeCal
-			,CASE
-				WHEN m.IsExistEarlyBettypesSingle = 0 AND m.IsExistEarlyBettypesParlay = 0 AND (m.childmatchtype = 202 OR me.MatchId IS NOT NULL ) THEN 'No Ticket'
-				WHEN m.IsExistEarlyBettypesSingle = 0 AND m.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
-				WHEN m.IsRunningEarlyBettypesSingle + (CASE WHEN m.IsMergedParlay = 1 THEN m.IsRunningEarlyBettypesParlay ELSE 0 END) > 0 THEN 'Running'
-				WHEN m.IsWaitingEarlyBettypesSingle + (CASE WHEN m.IsMergedParlay = 1 THEN m.IsWaitingEarlyBettypesParlay ELSE 0 END) > 0 THEN 'Waiting'
-				WHEN m.IsExistEarlyBettypesSingle = 0 AND m.IsRunningEarlyBettypesParlay = 1 THEN 'Parlay Running'
-				WHEN m.IsExistEarlyBettypesSingle = 0 AND m.IsWaitingEarlyBettypesParlay = 1 THEN 'Parlay Waiting'
-				ELSE 'Completed'
-			END AS EarlySettleStatus
+			,m.IsExistEarlyBettypesSingle
+			,m.IsExistEarlyBettypesParlay
+			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
+			,m.IsMergedParlay
+			,m.IsRunningEarlyBettypesParlay
+			,m.IsWaitingEarlyBettypesSingle
+			,m.IsWaitingEarlyBettypesParlay
+			
 			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
 			,m.IsExistRunningTicketParlay
 			,m.IsExistMarkedTicket

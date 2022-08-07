@@ -14,6 +14,8 @@ ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	,@SelectedResources	VARCHAR(MAX)	= NULL
 	,@Results			VARCHAR(MAX)	= NULL -- FM
 	,@EventCounters		VARCHAR(MAX)	= NULL -- FM
+	,@SelectedMarket	VARCHAR(MAX)	= NULL -- BB
+	,@SelectedSelection	VARCHAR(MAX)	= NULL -- BB
 	,@IsDirectly		BIT				= 0
 	,@IsAuto			BIT				= 0
 	,@AdminId			INT
@@ -27,7 +29,7 @@ AS
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
-		@Mode: INST-HT, INST-FT, FM
+		@Mode: INST-HT, INST-FT, FM, BB
 
 
 
@@ -50,6 +52,8 @@ BEGIN
 			,@handle	INT
 
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20))
+	DECLARE @tmpMarketID TABLE(MarketId VARCHAR(20))
+	DECLARE @tmpSelectionType TABLE(SelectionType INT)
 
 	SELECT @HTDone = 0
 
@@ -122,13 +126,32 @@ BEGIN
 	END
 	IF @Mode = 'FM'
 	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedMarket
+		INSERT INTO @tmpMarketID(ResourceID)
+		SELECT Id
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)																
+											) AS tbl
+		EXEC sp_xml_removedocument @handle
+
 		EXEC dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId = @MatchId
 			,@Results = @Results
 			,@EventCounters = @EventCounters
-			,@Action = @Action
+			,@Action = @Actionhhhhhhhhhhhhhg
 			,@IsAuto = @IsAuto
 			,@AdminId = @AdminId	
 	
+		RETURN
+	END
+	IF @Mode = 'BB'
+	BEGIN
+		EXEC dbo.NAP_Admin_SMPMarket_Update 
+			@matchID 			= @matchID
+			,@VendorID			= 34
+			,@action			= @action
+			,@resources 		= @strDataByBatch
+			,@resultStatusID 	= @ResultStatusID
+			,@mode				= 'ResultStatusID'
+
 		RETURN
 	END
 	IF @Action LIKE 'CAL%' 

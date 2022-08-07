@@ -100,7 +100,7 @@ BEGIN
 		,@EventStatusReason TINYINT = 0
 		,@IsCentral	BIT
 	
-	CREATE TABLE #temp_match_parlay (ParentID INT, transid BIGINT, matchid INT, refno BIGINT, IsMergedParlay BIT DEFAULT(0))
+	CREATE TABLE #temp_match_parlay (transid BIGINT, matchid INT, refno BIGINT, IsMergedParlay BIT DEFAULT(0))
 	CREATE TABLE #tempmatch (matchid INT, IsCalculatingSingle INT, IsCalculatingMP INT)
 
 	SET @StartTime = GETDATE()
@@ -232,11 +232,8 @@ BEGIN
 		,IsRunningFastMarket BIT		
 		,IsExistFastMarketResult BIT
 		,IsExistEarlyBettypes BIT
-		--,IsExistEarlyBettypesParlay BIT
 		,IsRunningEarlyBettypes BIT
-		--,IsRunningEarlyBettypesParlay BIT
 		,IsWaitingEarlyBettypes BIT
-		--,IsWaitingEarlyBettypesParlay BIT
 		,IsExistRunningTicket BIT
 		,IsExistRunningTicketParlay BIT
 		,IsExistMarkedTicket BIT
@@ -244,17 +241,13 @@ BEGIN
 		,ChildMatchType TINYINT
 		,IsMergedParlay BIT DEFAULT(0)
 		,EventStatusReason TINYINT
-		,BestOfMap TINYINT
 		)
-
-	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT, IsMergedParlay BIT DEFAULT(0))
 
 	DECLARE @strmatchid VARCHAR(MAX)
 		,@betstatus VARCHAR(8000)
 		,@intDocHandle INT
 		,@rowcount INT
 		,@max_matchid INT
-	DECLARE @tmp_ESportMatch TABLE (matchid INT)
 	
 	INSERT INTO #matchList (HalfTimeHomeScore,HalfTimeAwayScore ,IsCalculated ,IsMultiCaled ,IsRefund ,IsCalRefund ,matchid ,leagueid ,homeid ,awayid ,matchcode ,kickofftime ,finalhomescore ,finalawayscore 
 		,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
@@ -264,7 +257,7 @@ BEGIN
 		,IsExistFastMarketResult
 		,IsExistEarlyBettypes,IsRunningEarlyBettypes, IsWaitingEarlyBettypes
 		,IsExistRunningTicket, IsExistRunningTicketParlay, IsExistMarkedTicket, IsExistMarkedTicketParlay
-		,ChildMatchType, IsMergedParlay, EventStatusReason, BestOfMap
+		,ChildMatchType, IsMergedParlay, EventStatusReason
 	)
 	SELECT 
 		tmp.hthomescore
@@ -322,7 +315,7 @@ BEGIN
 		,tmp.ChildMatchType
 		,ISNULL(f.IsMergedParlay,0) AS IsMergedParlay
 		,tmp.EventStatusReason
-		,mr.BestOfMap
+		--,mr.BestOfMap
 	FROM (
 		SELECT hthomescore
 			,htawayscore			
@@ -384,7 +377,6 @@ BEGIN
 					OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(r.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
 				)
 			AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
-			AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 			AND ISNULL(m.IsDeleted,0) = 0
 	) tmp
@@ -431,24 +423,12 @@ BEGIN
 		,@maxbettype = MAX(bettype)
 	FROM	#tmpBettypes
 	
-	CREATE TABLE #BettypeExtraStatus(matchid INT, ParentId INT, bettype SMALLINT,Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
+	CREATE TABLE #BettypeExtraStatus(matchid INT, bettype SMALLINT,Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
 		
-	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay)
-	SELECT	m.matchid, m.ParentId, t.IsMergedParlay
-	FROM	#matchList t
-		CROSS APPLY (
-			SELECT	m.matchid, m.ParentId
-			FROM	dbo.match m WITH(NOLOCK)
-			WHERE	m.sporttype = 50
-					AND m.ChildMatchType = 200
-					AND m.ParentID = t.matchid
-		)m
-	UNION ALL SELECT m.matchid, m.matchid, m.IsMergedParlay FROM #matchList m
-
-	INSERT INTO #BettypeExtraStatus (matchid, ParentId, bettype, Bet_cnt, isRunning,Waiting_cnt, GroupId,IsFGLG, IsEarly)
-	SELECT m.matchid, m.ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly
+	INSERT INTO #BettypeExtraStatus (matchid, bettype, Bet_cnt, isRunning,Waiting_cnt, GroupId,IsFGLG, IsEarly)
+	SELECT m.matchid, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly
 	FROM (
-		SELECT TOP (@n) MatchId, ParentId FROM #tmpAllParentChildMatch
+		SELECT TOP (@n) MatchId FROM #matchList
 	) AS m
 		CROSS APPLY 
 		(
@@ -471,7 +451,7 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@n = 1))	-- using hint to force Optimize execute temp table first
 	
 	;WITH MatchExtraStatus AS (
-		SELECT ParentId
+		SELECT matchid
 			,SUM(CASE WHEN GroupId IN (2,4) AND IsFGLG = 1 THEN 1 ELSE 0 END ) AS cntFGLG
 			,SUM(CASE WHEN GroupId IN (1,3) AND IsFGLG = 1  THEN 1 ELSE 0 END ) AS cntHTFGLG
 			,SUM(CASE WHEN GroupId = 9 THEN 1 ELSE 0 END ) AS cntFastMarket
@@ -481,7 +461,7 @@ BEGIN
 			,MAX(CASE WHEN IsEarly = 1 AND Waiting_cnt = Bet_cnt THEN 1 ELSE 0 END) IsWatingEarlyBettypes
 			,MAX(CASE WHEN  isRunning = 1 THEN 1 ELSE 0 END ) AS	IsExistRunningTicket
 		FROM #BettypeExtraStatus
-		GROUP BY ParentId
+		GROUP BY matchid
 	)
 	UPDATE m
 	SET IsExistFGLG 			= CASE WHEN ext.cntFGLG > 0 THEN 1 ELSE 0 END
@@ -493,13 +473,13 @@ BEGIN
 		,IsWaitingEarlyBettypes = CASE WHEN ext.IsWatingEarlyBettypes = 1 THEN 1 ELSE 0 END
 	FROM #matchList m
 		INNER JOIN MatchExtraStatus ext
-		ON m.matchid = ext.ParentId
+		ON m.matchid = ext.matchid
 	
 	-- check bettransm
-	INSERT INTO #BettypeExtraStatus (matchid, ParentId, bettype, Bet_cnt, isRunning, Waiting_cnt, IsParLay, GroupId, IsEarly)
-	SELECT m.matchid, m.ParentId, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId, chk.IsEarly
+	INSERT INTO #BettypeExtraStatus (matchid, bettype, Bet_cnt, isRunning, Waiting_cnt, IsParLay, GroupId, IsEarly)
+	SELECT m.matchid, chk.bettype,chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId, chk.IsEarly
 	FROM (
-		SELECT TOP (@n) MatchId, ParentId FROM #tmpAllParentChildMatch
+		SELECT TOP (@n) MatchId FROM #matchList
 	) AS m
 		CROSS APPLY 
 		(
@@ -522,7 +502,7 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@n = 1))	-- using hint to force Optimize execute temp table first
 	
 	;WITH MatchExtraStatusParlay AS (
-		SELECT ParentId
+		SELECT matchid
 			,SUM(CASE WHEN GroupId = 4 THEN 1 ELSE 0 END ) AS cntFGLG
 			,SUM(CASE WHEN GroupId = 3 THEN 1 ELSE 0 END ) AS cntHTFGLG
 			,SUM(CASE WHEN IsEarly = 1 THEN 1 ELSE 0 END) AS cntEarlyBettypeParlay
@@ -530,7 +510,7 @@ BEGIN
 			,MAX(CASE WHEN IsEarly = 1 AND Waiting_cnt = Bet_cnt THEN 1 ELSE 0 END) IsWaitingEarlyBettypesParlay
 		FROM #BettypeExtraStatus
 		WHERE IsParLay = 1
-		GROUP BY ParentId
+		GROUP BY matchid
 	)
 	UPDATE m
 	SET IsExistFGLG 			= CASE WHEN m.IsExistFGLG = 1 OR ext.cntFGLG > 0 THEN 1 ELSE 0 END
@@ -540,7 +520,7 @@ BEGIN
 		,IsWaitingEarlyBettypes = CASE WHEN m.IsWaitingEarlyBettypes = 1 OR ext.IsWaitingEarlyBettypesParlay = 1 THEN 1 ELSE 0 END
 	FROM #matchList m
 		INNER JOIN MatchExtraStatusParlay ext 
-		ON m.matchid = ext.ParentId
+		ON m.matchid = ext.matchid
 	
 	;WITH SingleTicket AS
 	(
@@ -609,7 +589,6 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
-	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId
@@ -685,9 +664,9 @@ BEGIN
 			CROSS APPLY (
 				SELECT 1 AS IsExistRunningTicket
 				FROM (
-						SELECT	tmp.ParentId, b.transid, tmp.MatchId
+						SELECT	b.transid, tmp.MatchId
 						FROM	dbo.bettrans b WITH(NOLOCK)
-							INNER JOIN #tmpAllParentChildMatch tmp 
+							INNER JOIN #matchList tmp 
 								ON	b.MatchId = tmp.MatchId
 						WHERE	b.matchid = m.MatchId
 								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
@@ -702,15 +681,15 @@ BEGIN
 								AND b.MatchId = mt.matchId
 					)mt
 				WHERE	mt.transId IS NULL
-				GROUP BY b.ParentId
+				GROUP BY b.matchid
 			) t
 		
 		-- parlay
-		INSERT INTO #temp_match_parlay (ParentID, transid, matchid, refno, IsMergedParlay)
-		SELECT	tmp.ParentId, 0, tmp.MatchId, bm.refno, tmp.IsMergedParlay
+		INSERT INTO #temp_match_parlay (transid, matchid, refno, IsMergedParlay)
+		SELECT	0, tmp.MatchId, bm.refno, tmp.IsMergedParlay
 		FROM @tmpMatchCompleted m
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
-			INNER JOIN #tmpAllParentChildMatch tmp	ON	bm.matchid = tmp.MatchId
+			INNER JOIN #matchList tmp	ON	bm.matchid = tmp.MatchId
 		WHERE	bm.statusID = 0
 				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND 1 = CASE 
@@ -734,7 +713,7 @@ BEGIN
 								SELECT	1 AS IsExistRunningTicketParlay
 										,MAX(CASE WHEN b.IsMergedParlay = 1 THEN 1 ELSE 0 END) AS IsMergedParlay
 								FROM (
-										SELECT	ParentId, transid, MatchId, p.IsMergedParlay
+										SELECT	transid, MatchId, p.IsMergedParlay
 										FROM	#temp_match_parlay p
 										WHERE p.matchid = m.MatchId
 									) b
@@ -745,9 +724,8 @@ BEGIN
 												AND b.MatchId = mt.matchId
 									)mt
 									WHERE	mt.transId IS NULL
-									GROUP BY b.ParentId
+									GROUP BY b.matchid
 								) t
-			--WHERE m.IsExistRunningTicket = 0
 		END
 		
 		UPDATE m 
@@ -756,21 +734,6 @@ BEGIN
 		FROM	#matchList m
 			INNER JOIN @tmpMatchCompleted t
 				ON m.matchid = t.MatchId
-	END
-
-	IF (@SportType = 43)
-	BEGIN
-
-		INSERT INTO @tmp_ESportMatch(MatchId)
-		SELECT DISTINCT m.MatchId
-		FROM DBPRO.BODB02.dbo.oddsES o WITH (NOLOCK)
-				INNER JOIN f_Set_GetEarlyBettypes() f
-					ON o.bettype = f.bettype
-				INNER JOIN #matchList m 
-					ON m.matchid = o.matchid 
-		WHERE m.sporttype = 43
-			AND ISNULL(o.IsDeleted,0) = 0
-
 	END
 
 	SELECT	m.HalfTimeHomeScore
@@ -808,7 +771,6 @@ BEGIN
 			,m.IsRunningFastMarket
 			,m.IsExistEarlyBettypes
 			,m.ChildMatchType
-			,CASE WHEN te.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
 			,m.IsRunningEarlyBettypes
 			,m.IsWaitingEarlyBettypes
 			,m.IsExistRunningTicket
@@ -816,13 +778,9 @@ BEGIN
 			,m.IsExistMarkedTicket
 			,m.IsExistMarkedTicketParlay
 			,m.EventStatusReason
-			,m.BestOfMap
 	FROM	#matchList m
 			LEFT JOIN #tempmatch t 
-				ON	t.matchid = m.matchid
-			LEFT JOIN @tmp_ESportMatch te
-				ON te.matchid = m.matchid
-				
+				ON	t.matchid = m.matchid				
 	ORDER BY CASE 
 				WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
 				ELSE 0 

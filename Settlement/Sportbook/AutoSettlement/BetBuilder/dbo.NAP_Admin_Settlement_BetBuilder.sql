@@ -156,47 +156,38 @@ BEGIN
 	IF @ActionID = 0
 		RETURN
 	
-	--get info of match
-  	/*SELECT @fth			= finalhomescore
-		  ,@fta			= finalawayscore
-		  ,@hth			= hthomescore
-		  ,@hta			= htawayscore
-  	FROM DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  	WHERE matchid = @matchid*/
-
-	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
   	------------------------------------------get market info-----------------------------------------
-	IF @IsSettleByMarket = 1
-	BEGIN
+	--IF @IsSettleByMarket = 1
+	--BEGIN
 
-		SET @xml = CAST(@Resources AS XML)
+	--	SET @xml = CAST(@Resources AS XML)
 				
-		;WITH TmpData AS (
-			SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
-			FROM @xml.nodes('/Resources/rsc') AS T(C)
-		)
-		INSERT INTO #tblMarket (MarketID)
-		SELECT	d.MarketID
-		FROM TmpData d
-			INNER JOIN DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK) ON d.MarketID = mk.MarketID	
-		WHERE mk.MatchID = @MatchID
-			AND mk.VendorID = @VendorID
-			AND (mk.ResultStatusID NOT IN (2, 5, 3) OR @IsAuto = 0) --Auto Settled, Manually settled, UNDO
-			AND mk.Result IS NOT NULL
-	END
-	ELSE
-	BEGIN
-		INSERT INTO #tblMarket (MarketID)
-		EXEC DBPRO.bodb02.dbo.NAP_Admin_ChangedMarket_Sel
-					@matchID			= @matchID
-					,@VendorID			= @VendorID
-					,@action			= @Action
-					,@Resources			= @Resources
-					,@ResultStatusID	= @ResultStatusID
-	END
+	--	;WITH TmpData AS (
+	--		SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
+	--		FROM @xml.nodes('/Resources/rsc') AS T(C)
+	--	)
+	--	INSERT INTO #tblMarket (MarketID)
+	--	SELECT	d.MarketID
+	--	FROM TmpData d
+	--		INNER JOIN DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK) ON d.MarketID = mk.MarketID	
+	--	WHERE mk.MatchID = @MatchID
+	--		AND mk.VendorID = @VendorID
+	--		AND (mk.ResultStatusID NOT IN (2, 5, 3) OR @IsAuto = 0) --Auto Settled, Manually settled, UNDO
+	--		AND mk.Result IS NOT NULL
+	--END
+	--ELSE
+	--BEGIN
+	--	INSERT INTO #tblMarket (MarketID)
+	--	EXEC DBPRO.bodb02.dbo.NAP_Admin_ChangedMarket_Sel
+	--				@matchID			= @matchID
+	--				,@VendorID			= @VendorID
+	--				,@action			= @Action
+	--				,@Resources			= @Resources
+	--				,@ResultStatusID	= @ResultStatusID
+	--END
 		
 	-- check and not allow attempt to settlement same game while it's still not finish
   	INSERT INTO #tblMatchProcessKeyValue2(matchID, KeyID, KeyValue2)
