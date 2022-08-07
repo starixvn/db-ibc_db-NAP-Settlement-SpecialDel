@@ -91,7 +91,7 @@ BEGIN
 	/*---EKO / WrongKOTime---*/
 	IF @IssueTypeId IN (8,9)
 	BEGIN
-		EXEC dbo.TicketVoiding_TransInfo_WKO_Select
+		EXEC dbo.TicketVoiding_TransInfo_KO_Select
 			@KickOffInfo = @KickOffInfo
 			,@IsCentral = @IsCentral
 	END
