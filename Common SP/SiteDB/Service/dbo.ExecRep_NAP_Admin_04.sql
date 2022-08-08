@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_04] 	
 	@TransInfo XML
 	,@TableName VARCHAR(128)
+	,@Action VARCHAR(1) = 'U'
 AS
 /*
 	Created by: 20220728@Kathy
@@ -25,6 +26,7 @@ BEGIN
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2, creator INT
 		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
+		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT
 	)
 	
 	IF @tablename = 'bettrans' 
@@ -188,6 +190,38 @@ BEGIN
 			INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 				ON  pd.transid = t.transid
 		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+	END
+	ELSE IF @TableName = 'MarkedTransaction'
+	BEGIN
+		IF @Action = 'I'
+		BEGIN
+			INSERT INTO @tmpTransId (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
+			SELECT	T.C.value('./@t', 'BIGINT') AS transid
+					,T.C.value('./@mid', 'INT') AS matchid
+					,T.C.value('./@cust', 'INT') AS custid
+					,T.C.value('./@btype', 'SMALLINT') AS bettype			
+					,T.C.value('./@us', 'INT') AS userid	
+					,T.C.value('./@crdate', 'DATETIME') AS CreatedDate
+					,T.C.value('./@mt', 'TINYINT') AS MarkType		
+			FROM	@transInfo.nodes('/root/r') AS T(C)
+			OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+
+			INSERT INTO dbo.MarkedTransaction (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
+			SELECT TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType
+			FROM @tmpTransId
+		END
+		ELSE IF @Action = 'D'
+		BEGIN
+			INSERT INTO @tmpTransId (TransID ,matchid)
+			SELECT	T.C.value('./@t', 'bigint') AS transid
+				   ,T.C.value('./@mid', 'INT') AS matchid
+			FROM	@transInfo.nodes('/root/r') AS T(C)
+			OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+
+			DELETE m 
+			FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
+		END
 	END
 END
 GO
