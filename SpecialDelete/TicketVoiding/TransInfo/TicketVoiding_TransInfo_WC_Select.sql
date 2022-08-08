@@ -237,7 +237,7 @@ BEGIN
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND (b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+		AND ((b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	
 	--Search sub-parlay
@@ -382,7 +382,7 @@ BEGIN
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
-			AND (sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+			AND ((sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
 			AND sub.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE sub.SiteDBGroupID END
 	END 
 			
