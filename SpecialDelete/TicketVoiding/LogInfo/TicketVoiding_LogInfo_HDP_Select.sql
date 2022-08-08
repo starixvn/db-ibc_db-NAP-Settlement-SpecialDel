@@ -497,6 +497,9 @@ BEGIN
 		DELETE #logInfo
 		SELECT MatchId FROM #logInfo
 
+		--TransInfo table
+		SELECT NULL AS TransInfo
+
 		RETURN;
 	END
 
@@ -541,6 +544,9 @@ BEGIN
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId
+
+		--TransInfo table
+		SELECT NULL AS TransInfo
 
 		RETURN;
 	END

@@ -199,6 +199,17 @@ BEGIN
 	FROM @TransInfo.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
+	BEGIN
+		SELECT NULL AS MatchId
+
+		SET @InvalidTransIds = @TransIds
+		SELECT  @InvalidTransIds AS InvalidTransIds
+
+		SELECT NULL AS TransInfo
+		RETURN;
+	END
+
 	IF @FilterBy IS NULL
 	BEGIN
 		SET @MatchId = (SELECT TOP 1 b.matchid

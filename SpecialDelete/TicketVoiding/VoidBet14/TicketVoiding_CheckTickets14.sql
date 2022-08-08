@@ -99,6 +99,15 @@ BEGIN
 
 	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
+	BEGIN
+
+		SET @InvalidTransIds = @TransIds
+		SELECT  @InvalidTransIds AS InvalidTransIds
+
+		RETURN;
+	END
+
 	INSERT INTO #transIdTemp (transid)
 	SELECT DISTINCT value
 	FROM STRING_SPLIT(@TransIds, ',')

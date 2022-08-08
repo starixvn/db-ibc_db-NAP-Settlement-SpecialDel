@@ -387,7 +387,10 @@ BEGIN
 			FROM #TransidInRequest
 		END
 
+		--Loginto table
 		SELECT NULL AS MatchId
+
+		--TransInfo table
 		SELECT NULL AS TransInfo
 		RETURN;
 	END

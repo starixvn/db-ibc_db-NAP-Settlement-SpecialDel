@@ -766,6 +766,9 @@ BEGIN
 			DELETE #logInfo
 			SELECT MatchId, ScoreId FROM #logInfo
 
+			--TransInfo table
+			SELECT NULL AS TransInfo
+
 		END
 		ELSE 
 		BEGIN 
@@ -796,6 +799,9 @@ BEGIN
 			--Loginfo Table
 			DELETE #logInfo
 			SELECT MatchId, ScoreId FROM #logInfo
+
+			--TransInfo table
+			SELECT NULL AS TransInfo
 		END
 
 		RETURN;
@@ -865,6 +871,10 @@ BEGIN
 					) a (ScoreId)
 				LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId AND tmp.ScoreId = a.ScoreId
 			WHERE rd.RequestId = @RequestId 
+
+			--TransInfo table
+			SELECT NULL AS TransInfo
+
 		END
 		ELSE IF @FilterBy = 2
 		BEGIN
@@ -995,6 +1005,9 @@ BEGIN
 					FOR XML PATH('')
 				)sm(ScoreOfMatch)
 			WHERE rd.RequestId = @RequestId
+
+			--TransInfo table
+			SELECT NULL AS TransInfo
 		END
 			
 		RETURN;
