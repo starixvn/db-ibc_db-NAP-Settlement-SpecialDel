@@ -147,7 +147,7 @@ BEGIN
 							)
 		END
 
-		ELSE IF @oddsTable = 2 
+		IF @oddsTable = 2 
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
