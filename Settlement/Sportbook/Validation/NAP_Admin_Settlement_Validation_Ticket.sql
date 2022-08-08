@@ -109,7 +109,7 @@ SET NOCOUNT ON
 		RETURN
 	END
 
-	IF @Action = 'MoveTicket' AND @Mode = 43
+	IF @Action = 'MoveTicket' AND @Mode = '43'
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking_Ticket
 			 @MatchId			 = @MatchId
