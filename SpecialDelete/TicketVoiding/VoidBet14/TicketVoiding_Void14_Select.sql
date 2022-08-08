@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void14_Select] 
 (
     @RequestId			INT = NULL
@@ -7,19 +7,20 @@ AS
 /*	Created by: July
 	Date 20211123
 	Task: TVS - Void Archived Tickets [Redmine:#140180]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20211123@July: Create new SP - view voided ticket [Redmine:#140180]
 		- 20220620@July: Remove code instant settlement for archive ticket [Redmine: #174122]
-		
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON	
 
-	CREATE TABLE #SpecialDeleteBets (
+	CREATE TABLE #TVSTicketBets (
 		GroupID               BIGINT,
         transid               BIGINT,
         SubTransid            BIGINT,
@@ -82,16 +83,6 @@ BEGIN
 		winlostdate			  DATETIME,
 		statusID			  TINYINT
     )
-    CREATE TABLE #tmpRefCodeSummary
-             (RefCode  BIGINT,
-              custid   INT,
-			  matchid  INT,
-              bettype  SMALLINT,
-              transid  BIGINT
-             )
-
-	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 
 	CREATE TABLE #TmpMatch( MatchId INT)
 
@@ -107,7 +98,7 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 	WHERE RequestId = @RequestId
 	
-	INSERT INTO #SpecialDeleteBets(
+	INSERT INTO #TVSTicketBets(
 			GroupID			
 			,transid		
 			,SubTransid		
@@ -197,135 +188,10 @@ BEGIN
 	FROM	bettrans14 b WITH (NOLOCK)	
 		INNER JOIN @transIdTemp t ON t.transid = b.transid
 	WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-		
-	-- update MainTransId
-	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE RefCode IS NOT NULL)
-	BEGIN
-		UPDATE sub
-		SET MainTransId = main.transid
-		FROM #SpecialDeleteBets main
-				INNER JOIN #SpecialDeleteBets sub
-						ON main.RefCode = sub.RefCode
-						AND main.transid <> sub.transid	
-						AND main.custid = sub.custid
-						AND main.bettype = sub.bettype
-		WHERE main.WalletType = 1					
-		  
-		-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets  
-		INSERT INTO #tmpRefCodeSummary(RefCode, custid, matchid, bettype, transid)
-		SELECT RefCode, custid, matchid, bettype
-				, MAX(transid) AS transid
-		FROM #SpecialDeleteBets
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, matchid, bettype
-		HAVING COUNT(*) = 1
 
-		IF @@ROWCOUNT > 0
-		BEGIN	
-			INSERT INTO #SpecialDeleteBets(
-						GroupID			
-						,transid		
-						,SubTransid		
-						,refno			
-						,custid			
-						,odds			
-						,SubOdds		
-						,oddsspread
-						,OddsType		
-						,transdate		
-						,bettype 		
-						,betteam 		
-						,SubBetTeam
-						,betcheck	
-						,SubBetcheck	
-						,hdp1 			
-						,hdp2 			
-						,livehomescore 	
-						,liveawayscore 	
-						,creator		
-						,Stake			
-						,currencyname		
-						,STATUS			
-						,SubStatus	
-						,srecommend
-						,mrecommend		
-						,recommend		
-						,betid			
-						,Transdesc		
-						,betdaqid
-						,ExtraInfo	
-						,IsCashOut
-						,WalletType
-						,RefCode
-						,BonusID
-						,MainTransId
-						,WinLost
-						,LiveIndicator
-						,mainstatusid
-						,ActualStake
-						,matchid
-						,winlostdate
-					)
-				SELECT 
-						b.transid AS GroupID
-						,b.transid
-						,b.transid AS SubTransID
-						,b.refno
-						,b.custid
-						,b.odds
-						,b.odds AS SubOdds
-						,b.oddsspread
-						,b.OddsType
-						,b.transdate
-						,b.bettype
-						,b.betteam
-						,b.betteam AS SubBetteam
-						,b.betcheck
-						,b.betcheck AS SubBetcheck
-						,b.hdp1
-						,b.hdp2
-						,b.livehomescore
-						,b.liveawayscore
-						,b.creator
-						,b.stake
-						,b.CurrencyName
-						,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-								ELSE b.STATUS
-							END AS STATUS
-						,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-								ELSE b.STATUS
-							END AS SubStatus
-						,b.srecommend
-						,b.mrecommend
-						,b.recommend
-						,b.betid
-						,b.Transdesc
-						,b.betdaqid
-						,b.ExtraInfo
-						,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
-						,b.WalletType
-						,b.RefCode
-						,b.BonusID
-						,t.transid AS MainTransId
-						,b.winlost - b.actual_stake AS WinLost
-						,b.liveindicator
-						,b.statusID AS mainstatusid
-						,b.actual_stake AS ActualStake
-						,t.matchid
-						,b.winlostdate
-			FROM #tmpRefCodeSummary t
-					INNER JOIN dbo.bettrans14 b WITH (NOLOCK)
-							ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.matchid = t.matchid
-							AND b.custid = t.custid
-							AND b.bettype = t.bettype 
-			WHERE b.statusID NOT IN (101, 102, 103)-- reject, void, refund	
-		END  			    				    					    				    					    	
-	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -335,14 +201,14 @@ BEGIN
 			,sporttype 	= m.sporttype
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
-		FROM #SpecialDeleteBets d
+		FROM #TVSTicketBets d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
 		WHERE d.bettype NOT IN (9, 29, 2799)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (10)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (10)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= odds.matchcode
@@ -351,7 +217,7 @@ BEGIN
 			,leagueid 	= odds.leagueid
 			,sporttype 	= l.sporttype
 			,showtime	= ''
-		FROM #SpecialDeleteBets d
+		FROM #TVSTicketBets d
 			INNER JOIN dbo.outright14 AS odds WITH (NOLOCK) 
 			ON	d.matchid = odds.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
@@ -359,7 +225,7 @@ BEGIN
 		WHERE d.bettype IN (10)
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE d
 			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
@@ -368,7 +234,7 @@ BEGIN
 				,leagueid 	= r.leagueid
 				,sporttype 	= r.sporttype
 				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
-		FROM #SpecialDeleteBets d
+		FROM #TVSTicketBets d
 			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) 
 			ON d.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
@@ -379,24 +245,24 @@ BEGIN
 	BEGIN
 		UPDATE d
 		SET sporttype = sb.SportType
-		FROM #SpecialDeleteBets d
+		FROM #TVSTicketBets d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
 		WHERE sb.ProductID = 37
 	END
 
 	-- UPDATE IsMixParlay = 1 [MixParlay bettype]
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (9, 29, 2799)))
 	BEGIN
 		UPDATE d
 		SET IsMixParlay = 1
-		FROM #SpecialDeleteBets d
+		FROM #TVSTicketBets d
 		WHERE d.bettype IN (9, 29, 2799)
 	END
 
 	--- Remove invalid sporttype
 	DELETE 
-	FROM #SpecialDeleteBets
+	FROM #TVSTicketBets
 	WHERE bettype NOT IN (9, 29, 2799)
 		AND (
 			sporttype IS NULL
@@ -408,7 +274,7 @@ BEGIN
 		SET username = ci.username
 			,creatorName = cr.username
 			,SubLeagueId = al.Leagueid
-	FROM	#SpecialDeleteBets al
+	FROM	#TVSTicketBets al
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
 			ON al.custid = ci.custid
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK)
@@ -417,7 +283,7 @@ BEGIN
 	-- update Isdeposit
 	UPDATE al 
 		SET IsDeposit = 1
-	FROM	#SpecialDeleteBets al
+	FROM	#TVSTicketBets al
 	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
 	
 	-- TICKET SECTION
@@ -482,10 +348,10 @@ BEGIN
 			   ,s.winlostdate
 			   ,s.statusID
 			   ,s.IsCashOut
-		FROM	#SpecialDeleteBets s
+		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
-			LEFT JOIN #SpecialDeleteBets sub
+			LEFT JOIN #TVSTicketBets sub
 				ON	s.GroupID = sub.GroupID
 					AND s.transid <> sub.transid
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.recommend		
@@ -558,7 +424,7 @@ BEGIN
 			   ,s.winlostdate
 			   ,s.statusID
 			   ,s.IsCashOut
-		FROM	#SpecialDeleteBets s 
+		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON	s.betid = b.transid
 					AND b.matchid = s.matchid	
@@ -624,10 +490,10 @@ BEGIN
 			   ,s.winlostdate
 			   ,s.statusID
 			   ,s.IsCashOut
-		FROM	#SpecialDeleteBets s 
+		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
-			LEFT JOIN #SpecialDeleteBets sub
+			LEFT JOIN #TVSTicketBets sub
 				ON	s.GroupID = sub.GroupID
 					AND s.transid <> sub.transid
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -698,8 +564,8 @@ BEGIN
 		   ,s.winlostdate
 		   ,s.statusID
 		   ,s.IsCashOut
-		FROM	#SpecialDeleteBets s WITH (NOLOCK)
-			LEFT JOIN #SpecialDeleteBets sub
+		FROM	#TVSTicketBets s WITH (NOLOCK)
+			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 				OR sub.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
@@ -773,8 +639,7 @@ BEGIN
 		   , ISNULL(s.MainTransId, s.transid)
 		  
 	
-	DROP TABLE #SpecialDeleteBets
-	DROP TABLE #tmpRefCodeSummary
+	DROP TABLE #TVSTicketBets
 	DROP TABLE #TmpMatch
 END
 

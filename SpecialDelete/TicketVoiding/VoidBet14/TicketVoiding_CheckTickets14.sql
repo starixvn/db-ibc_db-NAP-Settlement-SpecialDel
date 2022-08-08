@@ -1,5 +1,5 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
 	,@TransInfo		    XML  = NULL
@@ -9,12 +9,12 @@ AS
 	Created by: July
 	Date: 20211123
 	Task: TVS - Void Archived Tickets
-	DB: DBTXN/bodb02   
+	DB: DBCTG/bodb02   
 
 	Revisions:  
 		- 20211123@July: Create new SP [Redmine: #140180]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 */
@@ -81,7 +81,7 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT t.c.value('@m','INT') AS matchid
+	SELECT t.c.value('@mid','INT') AS matchid
 			,t.c.value('@t','BIGINT') AS transid
 			,t.c.value('@ref','BIGINT') AS refno
 			,t.c.value('@c','INT') AS custid
@@ -89,7 +89,7 @@ BEGIN
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@bdaq','BIGINT') AS betdaqid
 			,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
-			,t.c.value('@s','TINYINT') AS statusID
+			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,t.c.value('@wld','SMALLDATETIME') AS winlostdate
 			,t.c.value('@isP','BIT') AS IsMixParlay
@@ -155,10 +155,6 @@ BEGIN
 													), 1, 1, ''), '')
 	END	
 
-	-- return table result
-	SELECT @InvalidTransIds AS InvalidTransIds
-		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
-
 	SET @TransInfo = (
 	SELECT DISTINCT 
 			t.matchid AS "@mid"
@@ -176,7 +172,10 @@ BEGIN
 	FOR XML PATH('r'), ROOT('root')
 	)
 
-	SELECT @TransInfo AS TransInfo
+	-- return table result
+	SELECT @InvalidTransIds AS InvalidTransIds
+		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
+		  ,@TransInfo AS TransInfo
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

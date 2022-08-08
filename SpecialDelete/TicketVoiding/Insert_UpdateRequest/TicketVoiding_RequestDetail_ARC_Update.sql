@@ -216,7 +216,7 @@ BEGIN
 	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, Bettype, BetId, CustId, SiteDBGroupID)
 	SELECT DISTINCT @RequestId, @IssueTypeId, @SubIssueTypeId, b14.transid, b14.matchid , rd.Id AS RequestDetailId, b14.bettype, b14.betid, b14.custid, b14.SiteDBGroupID
 	FROM #tmpTransInfo b14
-		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b14.matchid = rd.MatchId
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON b14.matchid = rd.MatchId AND rd.RequestId = @RequestId
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
