@@ -78,8 +78,8 @@ BEGIN
 	FROM	dbo.match m WITH (NOLOCK)
 	WHERE	m.matchid = @MatchId
 
-	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 6 )			THEN 1 --Odds
-							 WHEN @sporttype IN ( 9, 45, 50 )		THEN 2 --OddsOS
+	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5  )			THEN 1 --Odds
+							 WHEN @sporttype IN ( 9, 45, 50, 6 )	THEN 2 --OddsOS
 							 WHEN @sporttype = 43					THEN 3 --OddsES
 							 ELSE 0 END -- not checking
 
@@ -133,7 +133,7 @@ BEGIN
 
 	IF @CheckType = 0
 	BEGIN
-		IF @oddsTable = 1
+		IF @oddsTable = 1 OR @sporttype = 6 --when Volleyball AIO release, odds info will save into OddsOS instead of Odds
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.odds o WITH (NOLOCK)
@@ -147,7 +147,7 @@ BEGIN
 							)
 		END
 
-		ELSE IF @oddsTable = 2 OR @sporttype = 6 --when Volleyball AIO release, odds info will save into OddsOS instead of Odds
+		ELSE IF @oddsTable = 2 
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
