@@ -63,6 +63,8 @@ BEGIN
 			,@IsSiteDB	BIT 
 			,@transInfo XML 
 			,@CreatedDate DATETIME 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
@@ -168,6 +170,10 @@ BEGIN
 						FOR XML PATH('r'),ROOT('root'), TYPE)
 
 						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+						SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', @matchid, @transInfo 
+					END
+				END
+		
 						SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', @matchid, @transInfo 
 					END
 				END

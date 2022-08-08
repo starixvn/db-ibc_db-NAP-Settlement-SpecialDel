@@ -222,12 +222,16 @@ BEGIN
 	
 		IF @MatchId IS NULL
 		BEGIN
+			SELECT NULL AS MatchId
+
+			SET @InvalidTransIds = @TransIds
+			SELECT  @InvalidTransIds AS InvalidTransIds
+
+			SELECT NULL AS TransInfo
 			RETURN;
 		END
 		ELSE
 		BEGIN
-			
-
 			-- check valid match id
 			IF NOT EXISTS (SELECT TOP 1 1
 							FROM dbo.match AS m WITH (NOLOCK)
@@ -243,12 +247,12 @@ BEGIN
 				SET @InvalidMatchId = @MatchId
 
 				SELECT @InvalidMatchId AS InvalidMatchId
-
+				SELECT NULL AS InvalidTransIds
+				SELECT NULL AS TransInfo
 				RETURN;
 			END
 		END
 	END
-
 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
@@ -288,7 +292,7 @@ BEGIN
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
-	WHERE 1 = CASE WHEN @FilterBy IS NULL THEN 1
+	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
 

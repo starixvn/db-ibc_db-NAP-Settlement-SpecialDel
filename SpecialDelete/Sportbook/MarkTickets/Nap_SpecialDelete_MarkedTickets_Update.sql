@@ -66,11 +66,8 @@ BEGIN
 
 	DECLARE @ThreadHold			INT = 0 
 		   ,@totalParlay		INT = 0
-	       ,@SiteDBGroupID SMALLINT = 0 ,@IsSiteDB	BIT = 0
+	       ,@SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-		SET @IsSiteDB = 1
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #TransIds (TransId BIGINT PRIMARY KEY); -- single + parlay tickets
@@ -362,29 +359,6 @@ BEGIN
 	INSERT INTO #Match (MatchId)
 	SELECT DISTINCT MatchId
 	FROM #Tickets
-
-	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM #Tickets)
-	BEGIN
-		DECLARE @MatchId INT =0
-		WHILE (1=1)
-		BEGIN
-			UPDATE TOP(1)m
-			SET IsFinish = 1, @MatchId = MatchId 
-			FROM #Match m
-			WHERE IsFinish IS NULL
-
-			IF @@ROWCOUNT = 0 BREAK;
-
-			SET @transInfo = (
-			SELECT	transId AS '@t'
-			FROM #Tickets  WHERE matchid = @MatchId
-			FOR XML PATH('r'),ROOT('root'), TYPE)
-
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'UnMark', 'MarkedTransaction', 'D', @MatchId, @transInfo 
-		END
-		
-	END
 
 	-- Write Log
 	SET @xmlLog = CAST((
