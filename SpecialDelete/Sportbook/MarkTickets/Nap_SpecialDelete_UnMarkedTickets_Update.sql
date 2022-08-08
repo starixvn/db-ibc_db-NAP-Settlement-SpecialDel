@@ -93,6 +93,7 @@ BEGIN
 				refno	 BIGINT,
 				IsParlay  BIT DEFAULT(0),
 				SubTransId BIGINT,
+				SiteDBGroupID SMALLINT,
 				IsFinish	BIT
 				);
 	CREATE TABLE #tmpTransInfo(
@@ -119,6 +120,7 @@ BEGIN
 				,refno
 				,IsParlay
 				,SubTransId
+				,SiteDBGroupID
 		)
 		SELECT t.TransId,
 			   b.MatchId
@@ -127,6 +129,7 @@ BEGIN
 			  ,b.refno
 			  ,0
 			  ,NULL
+			  ,@SiteDBGroupID
 		FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 		LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
@@ -150,6 +153,7 @@ BEGIN
 				,refno
 				,IsParlay
 				,SubTransId
+				,SiteDBGroupID
 			)
 			SELECT b.TransId
 				,bm.matchid
@@ -158,6 +162,7 @@ BEGIN
 				,bm.refno
 				,1
 				,bm.transid
+				,@SiteDBGroupID
 			FROM #ParlayTransIds t
 				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
@@ -211,6 +216,7 @@ BEGIN
 			,refno
 			,IsParlay
 			,SubTransId
+			,SiteDBGroupID
 		)
 		SELECT t.TransId
 		  ,t.MatchId
@@ -219,6 +225,7 @@ BEGIN
 		  ,t.refno
 		  ,0
 		  ,NULL
+		  ,@SiteDBGroupID
 		FROM #tmpTransInfo t
 		WHERE IsMixParlay = 0 AND t.statusID IN (0,1) 
 		AND t.SiteDBGroupID = @SiteDBGroupID
@@ -235,6 +242,7 @@ BEGIN
 			,refno
 			,IsParlay
 			,SubTransId
+			,SiteDBGroupID
 		)
 		SELECT t.TransId
 			,t.matchid
@@ -243,6 +251,7 @@ BEGIN
 			,t.refno
 			,1
 			,t.Subtransid
+			,@SiteDBGroupID
 		FROM #tmpTransInfo t
 		WHERE IsMixParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
 		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = t.transid)
@@ -264,7 +273,7 @@ BEGIN
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 					WHERE Bettype = t.Bettype
 			)f
-	WHERE t.IsParlay = 0;
+	WHERE t.IsParlay = 0 AND t.SiteDBGroupID = @SiteDBGroupID
 
 	EXEC dbo.NAP_Set_GlobalSettingSel 
 			@LockName = 'ParlayRefno'
@@ -273,7 +282,7 @@ BEGIN
 	INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
 	SELECT t.MatchId, t.refno
 	FROM #Tickets AS t
-	WHERE t.IsParlay = 1
+	WHERE t.IsParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
 
 	SET @totalParlay = @@ROWCOUNT
 	IF @totalParlay > 0 
@@ -296,6 +305,7 @@ BEGIN
 	WHERE 1 = CASE WHEN @totalParlay <= @ThreadHold AND t.IsParlay <> 1 THEN 1
 				    WHEN @totalParlay > @ThreadHold THEN 1
 				    ELSE 0 END
+		AND t.SiteDBGroupID = @SiteDBGroupID
 		
 	-- Apply new way to lock parlay tickets
 	IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
@@ -364,7 +374,7 @@ BEGIN
 
 	INSERT INTO #Match (matchid)
 	SELECT DISTINCT MatchId
-	FROM #Tickets;
+	FROM #Tickets WHERE SiteDBGroupID = @SiteDBGroupID
     
 	-- Insert Transaction
 	DECLARE @TransIds_SB VARCHAR(MAX)
@@ -380,7 +390,7 @@ BEGIN
 			,DELETED.CustId
 		INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId)
 		FROM #Tickets t
-		WHERE t.IsFinish IS NULL
+		WHERE t.IsFinish IS NULL AND SiteDBGroupID = @SiteDBGroupID
 
 		IF @@ROWCOUNT = 0 BREAK	
 
@@ -452,7 +462,7 @@ BEGIN
 		SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', m.MatchId
 						, STUFF((SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
 							FROM #Tickets AS d
-							WHERE d.MatchId = m.MatchId
+							WHERE d.MatchId = m.MatchId AND d.SiteDBGroupID = @SiteDBGroupID
 							FOR XML PATH('')
 							), 1, 1, '')
 		FROM #Match m
@@ -467,7 +477,7 @@ BEGIN
 				,STUFF((
 						SELECT ',' + CAST(t.TransId AS NVARCHAR(100))
 						FROM #Tickets AS t
-						WHERE t.MatchId = m.MatchId
+						WHERE t.MatchId = m.MatchId AND t.SiteDBGroupID = @SiteDBGroupID
 						FOR XML PATH('')
 						), 1, 1, '')  AS '@LogData'
 			FROM #Match AS m
