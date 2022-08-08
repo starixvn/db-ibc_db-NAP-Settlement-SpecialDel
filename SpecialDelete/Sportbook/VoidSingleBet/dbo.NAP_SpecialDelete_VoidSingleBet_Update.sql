@@ -232,7 +232,7 @@ BEGIN
 		Transdesc		NVARCHAR(2000)
 	)					
 	
-	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY, FilterMatchId INT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
@@ -391,8 +391,8 @@ BEGIN
 	END	
 			
 	BEGIN TRY
-		INSERT INTO #tblTransIds (transid)
-		SELECT DISTINCT value 
+		INSERT INTO #tblTransIds (transid, FilterMatchId)
+		SELECT DISTINCT value , @MatchId
 		FROM STRING_SPLIT(@TransIds,',')	
 		
 		SET @CountTransId = @@ROWCOUNT	
@@ -603,6 +603,57 @@ BEGIN
 		BEGIN	
 			RETURN		
 		END	
+	END
+
+	-- Apply for move match Cricket
+	--Single & Parlay
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransIds t
+					LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid AND b.matchid = t.FilterMatchId
+				WHERE b.matchid IS NULL
+			)
+		OR EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransIds t
+					LEFT JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid AND bm.matchid = t.FilterMatchId
+				WHERE bm.matchid  IS NULL
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Some tickets not found.'
+		
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= @isExistSingle
+					,@isExistFM			= @isExistFM
+					,@isExistFM2		= @isExistFM2
+					,@IsReleased		= 1
+			END
+
+			IF @totalSubParlay > 0
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END
+		END
+		ELSE IF @totalSubParlay > @ThreadHold 
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@isExistParlay		= @isExistParlay  
+				,@isExistMatch		= @isExistSingle
+				,@isExistFM			= @isExistFM
+				,@isExistFM2		= @isExistFM2
+				,@IsReleased		= 1
+		END
+
+		RETURN;
 	END
 
 	------------------***** Insert all data into #BetDelete *****------------------
@@ -1214,60 +1265,6 @@ BEGIN
 						AND b.bettype = r.bettype
 		WHERE b.statusID NOT IN (101,102, 103) -- reject, void, refund
 	END
-
-	-- Apply for move match Cricket
-	--Single & Parlay
-	IF EXISTS ( SELECT TOP 1 1 
-				FROM #BetDelete t
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
-				WHERE b.matchid <> @MatchId
-					AND t.IsMixParlay = 0
-			)
-		OR EXISTS ( SELECT TOP 1 1 
-				FROM #BetDelete t
-					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
-				WHERE bm.matchid  <> @matchid  
-					AND t.IsMixParlay = 1
-			)
-	BEGIN
-		SELECT	@ErrCode = 99
-				,@ErrMsg = 'Some tickets not found.'
-		
-		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
-		BEGIN
-			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
-			BEGIN
-				------ releasing single process
-				EXEC dbo.NAP_Admin_CheckingProcess
-					 @isExistMatch		= @isExistSingle
-					,@isExistFM			= @isExistFM
-					,@isExistFM2		= @isExistFM2
-					,@IsReleased		= 1
-			END
-
-			IF @totalSubParlay > 0
-			BEGIN
-				------ releasing Refno parlay proccess
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
-				   ,@Session	= @Session
-				   ,@IsReleased = 1
-			END
-		END
-		ELSE IF @totalSubParlay > @ThreadHold 
-		BEGIN
-			------ releasing SD process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistParlay		= @isExistParlay  
-				,@isExistMatch		= @isExistSingle
-				,@isExistFM			= @isExistFM
-				,@isExistFM2		= @isExistFM2
-				,@IsReleased		= 1
-		END
-
-		RETURN;
-	END
-
 	
 	 --check no data
 	IF (NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete) AND NOT EXISTS (SELECT TOP 1 1 FROM #BetDeletem))

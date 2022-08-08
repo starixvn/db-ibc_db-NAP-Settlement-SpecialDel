@@ -19,6 +19,7 @@ AS
 	
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #172281]
+		- 20220727@Max: [TVS] Changes of TVS for increasing length of transid [Redmine: #175648]
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
@@ -509,15 +510,15 @@ BEGIN
 		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,MIN(b.transdate) AS VoidFromTime
 		,MAX(b.transdate) AS VoidToTime
-		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
-		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
+		,COUNT(CASE WHEN b.IsMixParlay = 0 THEN b.transid ELSE NULL END) AS SingleCount
+		,COUNT(CASE WHEN b.IsMixParlay = 0 AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
 		,0 AS InstantlySettleCount
-		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
-		,MIN(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS MinSingleTransId
-		,MAX(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS MaxSingleTransId
-		,COUNT(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MainParlayCount
-		,MIN(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MinMainParlayTransId
-		,MAX(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MaxMainParlayTransId
+		,COUNT(CASE WHEN b.IsMixParlay = 0 AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
+		,MIN(CASE WHEN b.IsMixParlay = 0 THEN b.transid ELSE NULL END) AS MinSingleTransId
+		,MAX(CASE WHEN b.IsMixParlay = 0 THEN b.transid ELSE NULL END) AS MaxSingleTransId
+		,COUNT(CASE WHEN b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MainParlayCount
+		,MIN(CASE WHEN b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MinMainParlayTransId
+		,MAX(CASE WHEN b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MaxMainParlayTransId
 		,b.ScoreId
 	FROM #SpecialDeleteBets b WITH (NOLOCK)
 		OUTER APPLY (

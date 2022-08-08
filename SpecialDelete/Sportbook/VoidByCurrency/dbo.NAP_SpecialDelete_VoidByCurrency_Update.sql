@@ -181,7 +181,7 @@ BEGIN
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 
-	DECLARE @tblTransIds TABLE (transid BIGINT)	
+	DECLARE @tblTransIds TABLE (transid BIGINT, FilterMatchId INT)	
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange
 	
@@ -323,8 +323,8 @@ BEGIN
 				 ON CAST(ss.value AS INT) = e.exchangeid			 	
 				 
 	-------> Parse @MainTransIds
-	INSERT INTO @tblTransIds(transid)
-	SELECT ss.value AS transid
+	INSERT INTO @tblTransIds(transid, FilterMatchId)
+	SELECT ss.value AS transid, @MatchID
 	FROM STRING_SPLIT(@TransIds, ',') ss
 	
 	-------> Build string @CurrencyCodes
@@ -907,12 +907,12 @@ BEGIN
 
 			-- Apply for move match Cricket
 			IF EXISTS ( SELECT TOP 1 1 
-						FROM #SpecialDeleteBets_Single t
-						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
-						WHERE b.matchid <> @MatchId
+						FROM @tblTransIds t
+							LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid AND b.matchid = t.FilterMatchId
+						WHERE b.matchid IS NULL
 					)
 			OR EXISTS ( SELECT TOP 1 1 
-						FROM #SpecialDeleteBets_Parlay t
+						FROM @tblTransIds t
 							INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
 							INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
 						WHERE b.matchid = 29  
