@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_Void14_Select] 
 (
     @RequestId			INT = NULL
+	,@TransInfo			XML = NULL
 )
 AS
 /*	Created by: July
@@ -83,21 +84,180 @@ BEGIN
 		winlostdate			  DATETIME,
 		statusID			  TINYINT
     )
+	CREATE TABLE #tmpTransInfo(
+			   matchid INT
+			  ,transid BIGINT PRIMARY KEY
+			  ,Subtransid BIGINT
+			  ,refno BIGINT
+			  ,custid INT	
+			  ,hdp1 SMALLMONEY
+			  ,hdp2 SMALLMONEY
+			  ,livehomescore SMALLINT
+			  ,liveawayscore SMALLINT
+			  ,liveindicator BIT
+			  ,odds MONEY
+			  ,oddsspread MONEY
+			  ,betfrom NVARCHAR(1)
+			  ,bettype SMALLINT
+			  ,betteam NVARCHAR(10)
+			  ,betcheck NVARCHAR(50)
+			  ,Status NVARCHAR(10)
+			  ,transdate DATETIME
+			  ,checktime DATETIME
+			  ,betid BIGINT
+			  ,Transdesc NVARCHAR(1000)
+			  ,statusID TINYINT
+			  ,Subcustid INT
+			  ,Subhdp1 SMALLMONEY
+			  ,Subhdp2 SMALLMONEY
+			  ,Sublivehomescore SMALLINT
+			  ,Subliveawayscore SMALLINT
+			  ,Subliveindicator BIT
+			  ,Subodds MONEY
+			  ,Suboddsspread MONEY
+			  ,Subbetfrom NVARCHAR(1)
+			  ,Subbettype SMALLINT
+			  ,Subbetteam  NVARCHAR(10)
+			  ,Subbetcheck NVARCHAR(50)
+			  ,SubStatus NVARCHAR(10)
+			  ,Subtransdate DATETIME
+			  ,SubTransdesc  NVARCHAR(1000)
+			  ,SubstatusID TINYINT
+			  ,srecommend INT
+			  ,mrecommend INT
+			  ,recommend INT
+			  ,creator INT
+			  ,WalletType TINYINT
+			  ,RefCode BIGINT
+			  ,stake MONEY
+			  ,oddstype TINYINT
+			  ,CurrencyName NVARCHAR(50)
+			  ,betdaqid BIGINT
+			  ,ExtraInfo VARCHAR(1000)
+			  ,BonusID INT
+			  ,winlost	MONEY
+			  ,actual_stake MONEY
+			  ,winlostdate SMALLDATETIME
+			  ,modds MONEY
+			  ,oddsid INT
+			  ,IsMixParlay BIT
+			  ,SiteDBGroupID SMALLINT
+			)
+	INSERT INTO #tmpTransInfo( 
+		    matchid 
+	       ,transid 
+           ,Subtransid 
+	       ,refno 
+	       ,custid 	
+           ,hdp1 
+           ,hdp2 
+           ,livehomescore 
+           ,liveawayscore 
+           ,liveindicator 
+	       ,odds 
+		   ,oddsid
+	       ,oddsspread 
+           ,betfrom 
+           ,bettype 
+           ,betteam 
+	       ,betcheck 
+	       ,Status 
+           ,transdate 
+	       ,betid 
+	       ,Transdesc 
+	       ,statusID 
+	       ,Subcustid 
+	       ,Subhdp1 
+           ,Subhdp2 
+	       ,Sublivehomescore 
+           ,Subliveawayscore 
+	       ,Subliveindicator 
+	       ,Subodds 
+	       ,Suboddsspread 
+	       ,Subbetfrom 
+	       ,Subbettype 
+	       ,Subbetteam  
+	       ,Subbetcheck 
+	       ,SubStatus 
+	       ,Subtransdate 
+	       ,SubTransdesc  
+	       ,SubstatusID 
+	       ,srecommend 
+	       ,mrecommend 
+	       ,recommend 
+           ,creator 
+	       ,WalletType 
+	       ,RefCode 
+	       ,stake 
+	       ,oddstype 
+	       ,CurrencyName 
+	       ,betdaqid 
+	       ,ExtraInfo 
+	       ,BonusID 
+	       ,winlost	
+	       ,actual_stake 
+	       ,modds 
+           ,IsMixParlay 
+	       ,SiteDBGroupID 
+		)
+	SELECT t.c.value('@mid','INT') AS matchid	
+		  ,t.c.value('@t','BIGINT') AS transid
+		  ,t.c.value('@s_t','BIGINT') AS Subtransid
+		  ,t.c.value('@ref','BIGINT') AS refno
+		  ,t.c.value('@c','INT') AS custid
+		  ,t.c.value('@hdp1','SMALLMONEY') AS hdp1
+		  ,t.c.value('@hdp2','SMALLMONEY') AS hdp2
+		  ,t.c.value('@lh','SMALLINT') AS livehomescore
+		  ,t.c.value('@la','SMALLINT') AS liveawayscore
+		  ,t.c.value('@li','BIT') AS liveindicator
+		  ,t.c.value('@o','MONEY') AS odds
+		  ,t.c.value('@oid','MONEY') AS oddsid
+		  ,t.c.value('@os','MONEY') AS oddsspread
+		  ,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
+		  ,t.c.value('@btype','SMALLINT') AS bettype
+		  ,t.c.value('@bteam','NVARCHAR(10)') AS betteam
+		  ,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
+		  ,t.c.value('@s','NVARCHAR(10)') AS Status
+		  ,t.c.value('@tdate','DATETIME') AS transdate
+		  ,t.c.value('@bid','BIGINT') AS betid
+		  ,t.c.value('@tdes','NVARCHAR(1000)') AS Transdesc
+		  ,t.c.value('@sid','TINYINT') AS statusID
+		  ,t.c.value('@s_c','INT') AS Subcustid
+		  ,t.c.value('@s_hdp1','SMALLMONEY') AS Subhdp1
+		  ,t.c.value('@s_hdp2','SMALLMONEY') AS Subhdp2
+		  ,t.c.value('@s_lh','SMALLINT') AS Sublivehomescore
+		  ,t.c.value('@s_la','SMALLINT') AS Subliveawayscore
+		  ,t.c.value('@s_li','BIT') AS Subliveindicator
+		  ,t.c.value('@s_o','MONEY') AS Subodds
+		  ,t.c.value('@s_os','MONEY') AS Suboddsspread
+		  ,t.c.value('@s_bfr','NVARCHAR(1)') AS Subbetfrom
+		  ,t.c.value('@s_btype','SMALLINT') AS Subbettype
+		  ,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
+		  ,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
+		  ,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
+		  ,t.c.value('@s_tdate','DATETIME') AS Subtransdate
+		  ,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
+		  ,t.c.value('@s_sid', 'MONEY') AS SubstatusID
+		  ,t.c.value('@sre','INT') AS srecommend
+		  ,t.c.value('@mre','INT') AS mrecommend
+		  ,t.c.value('@re','INT') AS recommend
+		  ,t.c.value('@cr','INT') AS creator
+		  ,t.c.value('@wt','TINYINT') AS WalletType
+		  ,t.c.value('@refc','BIGINT') AS RefCode
+		  ,t.c.value('@stake','MONEY') AS stake
+		  ,t.c.value('@ost','TINYINT') AS oddstype
+		  ,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
+		  ,t.c.value('@bdaq','BIGINT') AS betdaqid
+		  ,t.c.value('@ex','VARCHAR(1000)') AS ExtraInfo
+		  ,t.c.value('@bo','INT') AS BonusID
+		  ,t.c.value('@w','MONEY') AS winlost
+		  ,t.c.value('@acstake','MONEY') AS actual_stake
+		  ,t.c.value('@m', 'MONEY') AS modds
+		  ,t.c.value('@isP','BIT') AS IsMixParlay
+		  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
+	FROM @TransInfo.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
-	CREATE TABLE #TmpMatch( MatchId INT)
-
-	INSERT INTO #TmpMatch( MatchId)
-	SELECT DISTINCT rd.matchid
-	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-	WHERE rd.RequestId = @RequestId
-
-	DECLARE @transIdTemp TABLE (transid BIGINT NULL);
-				
-	INSERT INTO @transIdTemp (transid)
-	SELECT TransId
-	FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-	WHERE RequestId = @RequestId
-	
 	INSERT INTO #TVSTicketBets(
 			GroupID			
 			,transid		
@@ -163,12 +323,8 @@ BEGIN
 			,b.creator
 			,b.stake
 			,b.CurrencyName
-			,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					ELSE b.STATUS
-				END AS STATUS
-			,CASE WHEN b.STATUS = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-					ELSE b.STATUS
-				END AS SubStatus
+			,b.STATUS
+			,b.SubStatus
 			,b.srecommend
 			,b.mrecommend
 			,b.recommend
@@ -185,8 +341,12 @@ BEGIN
 			,b.statusID AS mainstatusid
 			,b.actual_stake AS ActualStake
 			,b.matchid
-	FROM	bettrans14 b WITH (NOLOCK)	
-		INNER JOIN @transIdTemp t ON t.transid = b.transid
+	FROM	#tmpTransInfo b
+		CROSS APPLY (
+			SELECT TOP(1) s.TransId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+			WHERE s.RequestId = @RequestId AND b.transid = s.TransId
+		)s
 	WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 
 
@@ -396,8 +556,8 @@ BEGIN
 			   ,s.SubBetcheck
 			   ,s.IsMixParlay
 			   ,s.ParlayType
-			   ,b.transid AS followedId
-			   ,b.Username AS followedUsername			   
+			   ,NULL AS followedId
+			   ,NULL AS followedUsername			   
 			   ,s.Transdesc
 			   ,s.sporttype
 			   ,s.modds
@@ -425,9 +585,9 @@ BEGIN
 			   ,s.statusID
 			   ,s.IsCashOut
 		FROM	#TVSTicketBets s 
-			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK)
-				ON	s.betid = b.transid
-					AND b.matchid = s.matchid	
+			--LEFT JOIN dbo.bettrans14 b WITH(NOLOCK)
+			--	ON	s.betid = b.transid
+			--		AND b.matchid = s.matchid	
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -571,7 +731,7 @@ BEGIN
 				OR sub.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
 	)
 	
-	SELECT CASE WHEN s.bettype BETWEEN 801 AND 806 THEN s.refno ELSE s.transid END transid
+	SELECT s.transid
 		   ,s.SubTransid
 		   ,s.refno		
 		   ,s.custid		
@@ -640,7 +800,7 @@ BEGIN
 		  
 	
 	DROP TABLE #TVSTicketBets
-	DROP TABLE #TmpMatch
+	DROP TABLE #tmpTransInfo
 END
 
 GO

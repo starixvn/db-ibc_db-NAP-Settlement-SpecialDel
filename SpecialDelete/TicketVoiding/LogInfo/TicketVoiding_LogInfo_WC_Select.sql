@@ -34,6 +34,7 @@ BEGIN
 			,@ThreadHold			  INT = 0
 			,@FilterBy				  TINYINT = 0
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
+			,@LastTimeScore			  DATETIME
 
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
 			,@MinAccept				  TINYINT = 0	
@@ -178,6 +179,7 @@ BEGIN
 			,LiveScores				 NVARCHAR(300)
 			,MatchId                 INT
 			,ScoreId                 INT
+			,LastTimeScore			 DATETIME
 		)
 	SET @WrongScoreInfoXML = CONVERT(XML, @WrongScoreInfo)
 		
@@ -362,6 +364,65 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+	
+	--Init Validation
+	INSERT INTO @Validation (MatchId, ScoreId, LiveScores)
+	SELECT DISTINCT MatchId, ScoreId, CAST(livehomescore AS VARCHAR(10)) + '-' + CAST(liveawayscore AS VARCHAR(10)) AS LiveScores
+	FROM #FilterInfo
+
+	--Get LastTime for score final
+	IF @FilterBy IN (1,4)
+	BEGIN
+
+		SELECT @FilterFromTransTime = m.FilterFromTransTime
+		FROM #FilterInfo m
+		WHERE  FilterToTransTime IS NULL
+
+		SELECT @LastTimeScore = (
+					SELECT MAX(LastTimeScore)
+					FROM
+					(
+						SELECT MAX(b.transdate) AS LastTimeScore
+						FROM #tmpTransInfo b
+							INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
+						WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
+							AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate > @FilterFromTransTime THEN 1
+										 WHEN @FilterBy = 4 AND ((b.checktime > @FilterFromTransTime) OR (b.transdate > @FilterFromTransTime)) THEN 1
+									ELSE 0 END 
+							AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+									     WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+									ELSE 0 END
+							AND b.betfrom <> 'P'
+							AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
+
+						UNION ALL
+						SELECT MAX(bm.Subtransdate) AS LastTimeScore
+						FROM #tmpTransInfo bm
+							INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = bm.bettype
+						WHERE bm.matchid = @MatchId AND bm.IsMixParlay = 1
+							AND 1 = CASE WHEN @FilterBy = 1 AND bm.transdate > @FilterFromTransTime THEN 1
+										 WHEN @FilterBy = 4 AND ((bm.checktime > @FilterFromTransTime) OR (bm.transdate > @FilterFromTransTime)) THEN 1
+									ELSE 0 END 
+							AND 1 = CASE WHEN @ActionId <> 2 AND bm.SubstatusID NOT IN (101, 102, 103) THEN 1
+									     WHEN @ActionId = 2 AND bm.SubstatusID NOT IN (101, 103) THEN 1
+									ELSE 0 END
+							AND bm.Subbetfrom <> 'P'
+							AND bm.statusID NOT IN (102, 103)
+							AND 1 = CASE WHEN bm.Sublivehomescore = 0 AND bm.Subliveawayscore = 0 AND bm.Subliveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
+					)b
+				)
+
+			UPDATE v
+			SET LastTimeScore = ISNULL(@LastTimeScore, @FilterFromTransTime)
+			FROM @Validation v
+				INNER JOIN #FilterInfo f ON v.MatchId = f.MatchId AND v.ScoreId = f.ScoreId
+			WHERE f.FilterToTransTime IS NULL
+
+			UPDATE #FilterInfo
+			SET FilterToTransTime = ISNULL(@LastTimeScore, @FilterFromTransTime)
+			WHERE FilterToTransTime IS NULL
+	END
+
 
 	WHILE (1=1) 
 	BEGIN
@@ -456,10 +517,7 @@ BEGIN
 		END 
 	END			
 
-	--Init Validation
-	INSERT INTO @Validation (MatchId, ScoreId, LiveScores)
-	SELECT DISTINCT MatchId, ScoreId, CAST(livehomescore AS VARCHAR(10)) + '-' + CAST(liveawayscore AS VARCHAR(10)) AS LiveScores
-	FROM #FilterInfo
+	
 		
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -775,6 +833,7 @@ BEGIN
 				,IsInValidTotalTickets
 				,IsExistedInOtherRequest
 				,ScoreId
+				,LastTimeScore
 			FROM @Validation
 
 			--TransId in request table
@@ -998,6 +1057,7 @@ BEGIN
 			,IsInValidTotalTickets
 			,IsExistedInOtherRequest
 			,ScoreId
+			,LastTimeScore
 		FROM @Validation
 
 		--TransId in request table
