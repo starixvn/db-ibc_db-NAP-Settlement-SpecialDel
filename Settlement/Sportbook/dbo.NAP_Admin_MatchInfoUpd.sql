@@ -14,6 +14,7 @@ ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	,@SelectedResources	VARCHAR(MAX)	= NULL
 	,@Results			VARCHAR(MAX)	= NULL -- FM
 	,@EventCounters		VARCHAR(MAX)	= NULL -- FM
+	,@IsSettleDetermined	BIT			= 0    -- FM
 	,@SelectedMarket	VARCHAR(MAX)	= NULL -- BB
 	,@SelectedSelection	VARCHAR(MAX)	= NULL -- BB
 	,@IsDirectly		BIT				= 0
@@ -65,6 +66,8 @@ BEGIN
 			,@LeagueGroupID SMALLINT
 			,@handle	INT
 			,@ResultStatusID TINYINT
+			,@xmlResults XML
+			,@xmlEventCounter XML
 
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20))
 	
@@ -139,7 +142,48 @@ BEGIN
 	END
 
 	IF @Mode = 'FM'
-	BEGIN		
+	BEGIN				
+		SET @xmlResults = CONVERT(XML, @Results)
+		SET @xmlEventCounter = CONVERT(XML, @EventCounters)
+
+		;WITH cteInputResults AS (
+			SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
+				,X.C.value('@Position','TINYINT') as Position
+				,X.C.value('@Result','TINYINT') as BetOption
+			FROM @xmlResults.nodes('/BetTypes/BetType') AS T(C)
+				CROSS APPLY
+					C.nodes('Item') AS X(C)
+		)
+		SELECT @Results = CAST((
+					SELECT bettype '@Id'
+						,(SELECT Position '@p'
+								,BetOption '@r'
+								,CASE WHEN r.bettype = 229 THEN 0 ELSE @IsSettleDetermined END AS '@s'
+								,CASE WHEN r.bettype IN (228, 229) THEN 1 ELSE NULL END AS '@i' -- HasInjuryTime
+							FROM cteInputResults WHERE r.bettype = bettype FOR XML PATH('r'), TYPE)
+					FROM cteInputResults r
+					GROUP BY r.bettype
+					FOR XML PATH('b'), ROOT ('r'), TYPE
+				) AS VARCHAR(MAX))		
+
+		;WITH cteEventCounter
+		AS (
+			SELECT T.C.value('@Id', 'VARCHAR(20)') AS 'Id'
+				,X.C.value('@Position','TINYINT') AS Position
+				,X.C.value('@Result','TINYINT') AS Result
+			FROM	@xmlEventCounter.nodes('/EventCounters/EventCounter') AS T(C)
+				CROSS APPLY C.nodes('Item') AS X(C)
+		)
+		SELECT @EventCounters = CAST((SELECT   Id '@Id'
+				,(	SELECT	Position AS '@p'
+							,Result AS '@r'
+					FROM	cteEventCounter 
+					WHERE	Id = c.Id 
+					FOR XML PATH('r'), TYPE)
+		FROM	cteEventCounter c
+		GROUP BY Id
+		FOR XML PATH('e'), ROOT('r'), TYPE)  AS VARCHAR(MAX))
+
 		EXEC dbo.NAP_Set_FastMarket_ResultDetailUpd @MatchId = @MatchId
 			,@Results = @Results
 			,@EventCounters = @EventCounters
