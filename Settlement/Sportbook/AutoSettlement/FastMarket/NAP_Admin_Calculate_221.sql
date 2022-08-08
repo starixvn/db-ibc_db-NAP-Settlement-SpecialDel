@@ -190,6 +190,7 @@ BEGIN
 			SELECT	b.transid
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	b.matchid = @matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsSubDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 					AND b.bettype = 228
 					AND b.statusID NOT IN (101)
 					AND @action = 'CAL'
