@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
 (	
 	@MatchId				INT
 	,@FilterFromTransTime	DATETIME = NULL
