@@ -58,8 +58,7 @@ BEGIN
         betid                 BIGINT DEFAULT(0),
         Transdesc             NVARCHAR(1000),
         betdaqid              BIGINT,
-        ParlayType            SMALLINT DEFAULT(0),
-        -- sub bettype of parlay 
+        ParlayType            SMALLINT DEFAULT(0),-- sub bettype of parlay 
         IsMixParlay           BIT DEFAULT(0),
         sporttype             SMALLINT,
         modds                 MONEY,
@@ -724,7 +723,7 @@ BEGIN
 		   ,s.winlostdate
 		   ,s.statusID
 		   ,s.IsCashOut
-		FROM	#TVSTicketBets s WITH (NOLOCK)
+		FROM	#TVSTicketBets s
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3

@@ -4,8 +4,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_MarkedTickets_Update
 	@TransIds			VARCHAR(MAX)	= NULL,
     @UserId				INT				= 0,
     @IP					VARCHAR(15)		= NULL,
-	@TransInfo			XML	= NULL,
-	@IssueTypeId	    INT				= NULL,
 	@LogActionId		INT				= 90501,
     @ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
     @ErrCode			INT				= 0		OUTPUT
@@ -54,8 +52,6 @@ BEGIN
 				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
-				+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' + CONVERT(NVARCHAR(MAX), @TransInfo) END
-				+ CASE WHEN @IssueTypeId IS NULL THEN '' ELSE ',@IssueTypeId = ' + CONVERT(NVARCHAR(50), @IssueTypeId) END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
@@ -65,12 +61,16 @@ BEGIN
 	END CATCH 
 
 	DECLARE @xmlLog VARCHAR(MAX)
-			,@LogData VARCHAR(MAX) = '';
-	
+			,@LogData VARCHAR(MAX) = ''
+			,@transInfo			XML
+
 	DECLARE @ThreadHold			INT = 0 
 		   ,@totalParlay		INT = 0
-	       ,@SiteDBGroupID SMALLINT = 0 
+	       ,@SiteDBGroupID SMALLINT = 0 ,@IsSiteDB	BIT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #TransIds (TransId BIGINT PRIMARY KEY); -- single + parlay tickets
@@ -95,7 +95,7 @@ BEGIN
 				IsFinish	BIT
 				);
 	
-	CREATE TABLE #Match(MatchId INT);
+	CREATE TABLE #Match(MatchId INT, IsFinish BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 			
 	CREATE TABLE #tmpTransInfo(
@@ -170,82 +170,11 @@ BEGIN
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
 			WHERE b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
 		END
-	END
-
-	IF @TransInfo IS NOT NULL 
-	BEGIN
-		INSERT INTO #tmpTransInfo( 
-			   matchid
-			  ,transid 
-			  ,Subtransid
-			  ,refno
-			  ,custid		
-			  ,bettype
-			  ,statusID
-			  ,Subcustid
-			  ,Subbettype
-			  ,IsMixParlay
-			  ,SiteDBGroupID
-			)
-		SELECT t.c.value('@mid','INT') AS matchid
-				,t.c.value('@t','BIGINT') AS transid
-				,t.c.value('@s_t','BIGINT') AS Subtransid
-				,t.c.value('@ref','BIGINT') AS refno
-				,t.c.value('@c','INT') AS custid
-				,t.c.value('@btype','SMALLINT') AS bettype
-				,t.c.value('@sid','TINYINT') AS statusID
-				,t.c.value('@s_c','INT') AS Subcustid
-				,t.c.value('@s_btype','SMALLINT') AS Subbettype
-				,t.c.value('@isP','BIT') AS IsMixParlay
-				,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-		FROM @TransInfo.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
-
-		INSERT INTO #Tickets (
-			TransId
-			,MatchId
-			,BetType
-			,CustId
-			,refno
-			,IsParlay
-			,SubTransId
-			,SiteDBGroupID
-		)
-		SELECT t.TransId
-		  ,t.MatchId
-		  ,t.BetType
-		  ,t.custid
-		  ,t.refno
-		  ,0
-		  ,NULL
-		  ,@SiteDBGroupID
-		FROM #tmpTransInfo t
-		WHERE IsMixParlay = 0 AND t.statusID IN (0,1) 
-			AND t.SiteDBGroupID = @SiteDBGroupID
-			AND 1 = CASE WHEN @IssueTypeId = 13 AND t.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
-						 WHEN ISNULL(@IssueTypeId,0) <> 13 THEN 1 
-					 ELSE 0 END 
-
-		INSERT INTO #Tickets (
-			TransId
-			,MatchId
-			,BetType
-			,CustId
-			,refno
-			,IsParlay
-			,SubTransId
-			,SiteDBGroupID
-		)
-		SELECT t.TransId
-			,t.matchid
-			,t.Subbettype
-			,t.Subcustid
-			,t.refno
-			,1
-			,t.Subtransid
-			,@SiteDBGroupID
-		FROM #tmpTransInfo t
-		WHERE IsMixParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
+		--check no data
+		IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
+		BEGIN
+			RETURN;
+		END;
 	END
 
 	-- Check Lock Match
@@ -264,7 +193,7 @@ BEGIN
 				FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 				WHERE Bettype = t.Bettype
 		)f
-	WHERE t.IsParlay = 0 AND t.SiteDBGroupID = @SiteDBGroupID
+	WHERE t.IsParlay = 0
 
 	EXEC dbo.NAP_Set_GlobalSettingSel 
 			@LockName = 'ParlayRefno'
@@ -273,7 +202,7 @@ BEGIN
 	INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
 	SELECT t.MatchId, t.refno
 	FROM #Tickets AS t
-	WHERE t.IsParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
+	WHERE t.IsParlay = 1
 
 	SET @totalParlay = @@ROWCOUNT
 	IF @totalParlay > 0 
@@ -296,7 +225,6 @@ BEGIN
 	WHERE 1 = CASE WHEN @totalParlay <= @ThreadHold AND t.IsParlay <> 1 THEN 1
 					WHEN @totalParlay > @ThreadHold THEN 1
 					ELSE 0 END
-		 AND t.SiteDBGroupID = @SiteDBGroupID
 
 	-- Apply new way to lock parlay tickets
 	IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
@@ -376,7 +304,6 @@ BEGIN
 		INTO #MarkedTransactionDeleted (TransId, MatchId)
 		FROM #Tickets t
 		WHERE t.IsFinish IS NULL 
-			AND t.SiteDBGroupID = @SiteDBGroupID
 
 		IF @@ROWCOUNT = 0 BREAK	
 
@@ -434,18 +361,29 @@ BEGIN
 
 	INSERT INTO #Match (MatchId)
 	SELECT DISTINCT MatchId
-	FROM #Tickets WHERE SiteDBGroupID = @SiteDBGroupID;
+	FROM #Tickets
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM #Tickets)
 	BEGIN
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-		SELECT 'TVS', 'UnMark', 'MarkedTransaction', 'D', m.MatchId
-						, STUFF((SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
-							FROM #Tickets AS d
-							WHERE d.MatchId = m.MatchId AND d.SiteDBGroupID = @SiteDBGroupID
-							FOR XML PATH('')
-							), 1, 1, '')
-		FROM #Match m
+		DECLARE @MatchId INT =0
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1)m
+			SET IsFinish = 1, @MatchId = MatchId 
+			FROM #Match m
+			WHERE IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK;
+
+			SET @transInfo = (
+			SELECT	transId AS '@t'
+			FROM #Tickets  WHERE matchid = @MatchId
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'UnMark', 'MarkedTransaction', 'D', @MatchId, @transInfo 
+		END
+		
 	END
 
 	-- Write Log

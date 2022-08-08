@@ -59,8 +59,6 @@ BEGIN
 			 @TransIds = @TransIds
 			,@UserId = @UserId
 			,@IP = @IP
-			,@TransInfo = @TransInfo
-			,@IssueTypeId = @IssueTypeId
 			,@LogActionId = @LogActionId
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@ErrCode = @ErrCode OUTPUT;

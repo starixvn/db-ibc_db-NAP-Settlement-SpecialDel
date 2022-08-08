@@ -71,7 +71,7 @@ BEGIN
 		   ,@LogData VARCHAR(MAX) = ''
 		   ,@ThreadHold	INT = 0 
 		   ,@totalParlay INT = 0
-           ,@SiteDBGroupID SMALLINT = 0 
+           ,@SiteDBGroupID SMALLINT = 0 ,@IsSiteDB	BIT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #transIds  (TransId BIGINT PRIMARY KEY );     -- single + sub parlay Id
@@ -80,9 +80,12 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> '';
 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+	
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
-	CREATE TABLE #Match(matchid INT);
+	CREATE TABLE #Match(matchid INT, IsFinish BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 
 	CREATE TABLE #Tickets
@@ -132,7 +135,7 @@ BEGIN
 			  ,@SiteDBGroupID
 		FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-		LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
+		LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
 		WHERE m.TransId IS NULL AND b.matchid <> 29 
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
@@ -166,7 +169,7 @@ BEGIN
 			FROM #ParlayTransIds t
 				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
-				LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON m.TransId = b.TransId AND m.MatchId = bm.matchid
+				LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON b.TransId = m.TransId AND m.MatchId = bm.matchid
 			WHERE m.TransId IS NULL
 				AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
 		END
@@ -227,12 +230,12 @@ BEGIN
 		  ,NULL
 		  ,@SiteDBGroupID
 		FROM #tmpTransInfo t
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON  t.transid = m.TransId 
 		WHERE IsMixParlay = 0 AND t.statusID IN (0,1) 
-		AND t.SiteDBGroupID = @SiteDBGroupID
+		AND t.SiteDBGroupID = @SiteDBGroupID AND m.TransId IS NULL
 		AND 1 = CASE WHEN @IssueTypeId = 13 AND t.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
 					 WHEN ISNULL(@IssueTypeId,0) <> 13 THEN 1 
 					 ELSE 0 END 
-		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = t.transid)
 
 		INSERT INTO #Tickets (
 			TransId
@@ -253,8 +256,15 @@ BEGIN
 			,t.Subtransid
 			,@SiteDBGroupID
 		FROM #tmpTransInfo t
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON  t.transid = m.TransId 
 		WHERE IsMixParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
-		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE mt.TransId = t.transid)
+			AND m.TransId IS NULL
+
+		--check no data
+		IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
+		BEGIN
+			RETURN;
+		END;
 	END
 	
 	-- Check Lock Match
@@ -282,7 +292,7 @@ BEGIN
 	INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
 	SELECT t.MatchId, t.refno
 	FROM #Tickets AS t
-	WHERE t.IsParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
+	WHERE t.IsParlay = 1
 
 	SET @totalParlay = @@ROWCOUNT
 	IF @totalParlay > 0 
@@ -305,7 +315,6 @@ BEGIN
 	WHERE 1 = CASE WHEN @totalParlay <= @ThreadHold AND t.IsParlay <> 1 THEN 1
 				    WHEN @totalParlay > @ThreadHold THEN 1
 				    ELSE 0 END
-		AND t.SiteDBGroupID = @SiteDBGroupID
 		
 	-- Apply new way to lock parlay tickets
 	IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
@@ -374,7 +383,7 @@ BEGIN
 
 	INSERT INTO #Match (matchid)
 	SELECT DISTINCT MatchId
-	FROM #Tickets WHERE SiteDBGroupID = @SiteDBGroupID
+	FROM #Tickets
     
 	-- Insert Transaction
 	DECLARE @TransIds_SB VARCHAR(MAX)
@@ -390,7 +399,7 @@ BEGIN
 			,DELETED.CustId
 		INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId)
 		FROM #Tickets t
-		WHERE t.IsFinish IS NULL AND SiteDBGroupID = @SiteDBGroupID
+		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK	
 
@@ -456,18 +465,27 @@ BEGIN
 	FROM #Match b
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM #Tickets)
 	BEGIN
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-		SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', m.MatchId
-						, STUFF((SELECT ',' + CAST(d.TransId AS NVARCHAR(100))
-							FROM #Tickets AS d
-							WHERE d.MatchId = m.MatchId AND d.SiteDBGroupID = @SiteDBGroupID
-							FOR XML PATH('')
-							), 1, 1, '')
-		FROM #Match m
-	END
+		DECLARE @MatchId INT =0
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1)m
+			SET IsFinish = 1, @MatchId = MatchId 
+			FROM #Match m
+			WHERE IsFinish IS NULL
 
+			IF @@ROWCOUNT = 0 BREAK;
+			SET @transInfo = (
+			SELECT	transId AS '@t'
+			FROM	#Tickets WHERE matchid = @MatchId 
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', @MatchId, @transInfo 
+		END
+		
+	END
 	-- Write Log
 	SET @xmlLog = CAST((
 			SELECT @LogActionId AS '@LogActionId' -- 90500: Action Mark, 90508: Mark by add request, 90509: Mark by auto void system
