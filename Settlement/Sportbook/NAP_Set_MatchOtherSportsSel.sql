@@ -166,11 +166,11 @@ BEGIN
 		,IsHalfTimeCal					BIT
 		,ConfirmFT						INT DEFAULT (0)
 		,ConfirmHT						INT DEFAULT (0)
-		,IsExistEarlyBettypesSingle		BIT DEFAULT (0)
+		,IsExistEarlyBettypes			BIT DEFAULT (0)
 		,IsExistEarlyBettypesParlay		BIT DEFAULT (0)
-		,IsRunningEarlyBettypesSingle	BIT DEFAULT (0)
+		,IsRunningEarlyBettypes			BIT DEFAULT (0)
 		,IsRunningEarlyBettypesParlay	BIT DEFAULT (0)
-		,IsWaitingEarlyBettypesSingle	BIT DEFAULT (0)
+		,IsWaitingEarlyBettypes			BIT DEFAULT (0)
 		,IsWaitingEarlyBettypesParlay	BIT DEFAULT (0)
 
 		,IsExistMarkedTicket			BIT DEFAULT (0)
@@ -730,11 +730,11 @@ BEGIN
 	OPTION(OPTIMIZE FOR (@n = 1))
 
 	UPDATE m
-		SET  IsExistEarlyBettypesSingle = b.isExistSingle
+		SET  IsExistEarlyBettypes = b.isExistSingle
 			,IsExistEarlyBettypesParlay = b.isExistParlay
-			,IsRunningEarlyBettypesSingle = b.isRunningSingle
+			,IsRunningEarlyBettypes = b.isRunningSingle
 			,IsRunningEarlyBettypesParlay = b.isRunningParlay
-			,IsWaitingEarlyBettypesSingle = b.isWaitingSingle
+			,IsWaitingEarlyBettypes = b.isWaitingSingle
 			,IsWaitingEarlyBettypesParlay = b.isWaitingParlay
 	FROM	#tmpMatchIds m 
 		INNER JOIN @tmpEarlyBettypeStatus b
@@ -833,7 +833,7 @@ BEGIN
 			WHERE	1 = CASE
 							WHEN t.Id = 0 THEN 1
 							WHEN t.Id = 1 AND (m.IsExistMarkedTicket > 0 OR m.IsExistMarkedTicketParlay > 0) THEN 1 -- marked ticket
-							WHEN t.Id = 2 AND m.IsExistEarlyBettypesSingle > 0 AND m.IsRunningEarlyBettypesSingle > 0 THEN 1 -- un-calculated early
+							WHEN t.Id = 2 AND m.IsExistEarlyBettypes > 0 AND m.IsRunningEarlyBettypes > 0 THEN 1 -- un-calculated early
 							WHEN t.Id = 3 AND m.IsExistRunningBettypeSingle = 1 THEN 1 -- un-calculate single
 							WHEN t.Id = 4 AND (ISNULL(m.IsCalculated,0) = 1 OR ISNULL(m.IsCalRefund,0) = 1) AND (ISNULL(m.IsMultiCaled,0) = 0 AND ISNULL(m.IsRefund,0) = 0) AND m.IsMergedParlay = 0 THEN 1 -- un-calculate parlay
 							ELSE 0
@@ -987,12 +987,12 @@ BEGIN
 			,m.IsRefund
 			,m.IsCalRefund
 			,m.IsHalfTimeCal
-			,m.IsExistEarlyBettypesSingle
+			,m.IsExistEarlyBettypes
 			,m.IsExistEarlyBettypesParlay
 			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
 			,m.IsMergedParlay
 			,m.IsRunningEarlyBettypesParlay
-			,m.IsWaitingEarlyBettypesSingle
+			,m.IsWaitingEarlyBettypes
 			,m.IsWaitingEarlyBettypesParlay
 			
 			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
