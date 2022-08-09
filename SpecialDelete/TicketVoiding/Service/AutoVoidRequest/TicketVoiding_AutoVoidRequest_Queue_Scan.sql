@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Scan]
 AS
 /*	
 	Created by: Max
@@ -26,22 +26,17 @@ BEGIN
 		RETURN
 
 	SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action
-	FROM TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
+	FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 		LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
-		OUTER APPLY (
-				SELECT TOP 1 r.ActionId
-				FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
-					INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = r.RequestId AND rd.FilterBy IS NULL
-				WHERE r.RequestId = q.RequestId
-			)r
-	WHERE StatusId = 0 
+	WHERE StatusId IN (0 ,100)
 		AND t.KeyID IS NULL -- waiting
-		AND 1 = CASE WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1 
-					WHEN q.RequestId > 0 AND r.ActionId IN (1,4,8) THEN 1 --Void Instant Abnormal Bet, AB, AA
-					WHEN q.RequestId > 0 AND r.ActionId IN (6,7) AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1 --AB
-					WHEN q.RequestId > 0 AND r.ActionId = 6 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1 --AB
-					WHEN q.RequestId > 0 AND r.ActionId = 7 AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
+		AND 1 = CASE WHEN q.StatusId = 100 AND DATEADD(SECOND,600,q.Starttime) <= GETDATE() THEN 1 --AbnormalBet MixParay (case all event completed)
+					WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1  --Settletment signal
+					WHEN q.RequestId > 0 AND q.Action IN ('AddRequest','VoidInstant','VoidInstantNopolicy') THEN 1 --Void Instant Abnormal Bet, AB, AA
+					WHEN q.RequestId > 0 AND q.Action IN ('VoidInstant5m','VoidInstant10m') AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1 --AB
+					WHEN q.RequestId > 0 AND q.Action = 'VoidInstant5m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1 --AB
+					WHEN q.RequestId > 0 AND q.Action = 'VoidInstant10m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
 				ELSE 0 END
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId	
 	ORDER BY q.Action DESC, Starttime
