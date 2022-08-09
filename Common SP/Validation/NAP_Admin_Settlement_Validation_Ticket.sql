@@ -135,6 +135,19 @@ SET NOCOUNT ON
 		RETURN
 	END
 
+	IF @IsAutoRefund = 1
+	BEGIN
+		EXEC NAP_Set_AutoRefund_MatchChecking_Ticket
+			@MatchId		= @matchid
+			,@sporttype		= @SportType
+			,@ResourceIds	= @SelectedResources
+			,@ErrCode 		= @ErrCode OUTPUT
+			,@ErrMsg 		= @ErrMsg OUTPUT
+
+		IF ISNULL(@ErrCode, 0) > 0
+		RETURN
+	END
+
 	--Check MoveBet date ( apply all sportbook)
 	IF @Mode NOT LIKE '%INST%'
 	BEGIN

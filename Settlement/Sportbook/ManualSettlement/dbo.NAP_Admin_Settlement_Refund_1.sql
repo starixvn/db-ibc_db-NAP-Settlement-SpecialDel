@@ -206,11 +206,11 @@ BEGIN
 
 	IF @IsAutoRefund = 1
 	BEGIN
-		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
-			 @MatchId	= @matchid
-			,@TypeId	= 1
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	 OUTPUT
+		EXEC NAP_Set_AutoRefund_MatchChecking_Ticket
+			@MatchId		= @matchid
+			,@sporttype		= 1
+			,@ErrCode 		= @ErrCode OUTPUT
+			,@ErrMsg 		= @ErrMsg OUTPUT
 
 		IF ISNULL(@ErrCode,0) <> 0
 			RETURN

@@ -31,7 +31,8 @@ AS
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
-
+		- 20201216@Louisa: Scale Out BetTrans [Redmine:#175251]
+		
 	Param's Explanation:		
 		
 */
@@ -193,11 +194,12 @@ BEGIN
 	IF @Creator = 0
 	BEGIN
 		SET @IsAutoRefund  =  1 
-		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
-			 @MatchId	= @matchid
-			,@TypeId	= 10
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	 OUTPUT
+		EXEC NAP_Set_AutoRefund_MatchChecking_Ticket
+			@MatchId		= @matchid
+			,@sporttype		= 1
+			,@Typeid		= 10
+			,@ErrCode 		= @ErrCode OUTPUT
+			,@ErrMsg 		= @ErrMsg OUTPUT
 	END
 
 	IF ISNULL(@ErrCode,0) <> 0

@@ -54,7 +54,7 @@ SET NOCOUNT ON
 			,@IsSettleByProfile	BIT = 0
 			,@IsEarly			BIT = 0
 			,@AutoSetting		TINYINT
-			,@childMatchId		INT
+			,@ParentId			INT
 			,@maxNumProcessBB	INT = 50000
 
 	DECLARE  @Inst_HomeScore		INT
@@ -73,6 +73,7 @@ SET NOCOUNT ON
 			,@IsCheckSettlementStatusEarly = CASE WHEN @IsAuto = 0 AND @Mode = 'FM' THEN 1 ELSE 0 END
 
 	SELECT @sporttype = m.sporttype
+			,@ParentId			= m.ParentID
 			,@LeagueGroupID		= lg.GroupID
 			,@eventdate			= m.eventdate
 			,@eventstatus		= m.eventstatus
@@ -111,7 +112,7 @@ SET NOCOUNT ON
 	END
 
 	--Move ticket Cricket
-	IF @Action = 'MoveTicket' AND @Mode = 43
+	IF @Action = 'MoveTicket' AND @Mode = '43'
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking_Event
 			 @MatchId			 = @MatchId
@@ -125,7 +126,7 @@ SET NOCOUNT ON
 		RETURN
 	END
 
-	IF @Action = 'MoveTicket' AND @Mode = 50
+	IF @Action = 'MoveTicket' AND @Mode = '50'
 	BEGIN
 		
 		IF @eventstatus = 'completed'
@@ -203,6 +204,20 @@ SET NOCOUNT ON
 		RETURN
 	END
 	
+	IF @SportType = 1 AND @IsAutoRefund = 1
+	BEGIN
+		EXEC NAP_Set_AutoRefund_MatchChecking_Event
+			@MatchId		= @matchid
+			,@sporttype		= @SportType
+			,@ParentId		= @ParentId
+			,@TypeId		= 1
+			,@ErrCode 		= @ErrCode OUTPUT
+			,@ErrMsg 		= @ErrMsg OUTPUT
+
+		IF ISNULL(@ErrCode,0) > 0
+			RETURN
+	END
+
 	--validate match.EventStatusReason, match.SettlementStatus, Odds
 	IF @sporttype = 1 AND ( @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%')
 	BEGIN
