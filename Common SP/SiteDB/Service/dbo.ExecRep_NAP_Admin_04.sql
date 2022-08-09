@@ -45,7 +45,7 @@ BEGIN
 				,T.C.value('./@o', 'SMALLMONEY') AS odds
 				,T.C.value('./@oid', 'INT') AS oddsid
 				,T.C.value('./@os', 'MONEY') AS oddsspread
-				,T.C.value('./@statuswl', 'TINYINT') AS statuswinlost
+				,T.C.value('./@statuswl', 'VARCHAR(1)') AS statuswinlost
 				,T.C.value('./@st', 'DATETIME') AS SettlementTime
 				,T.C.value('./@w', 'MONEY') AS WinLost
 				,T.C.value('./@aw', 'MONEY') AS aWinLost
@@ -114,7 +114,7 @@ BEGIN
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@wld', 'SMALLDATETIME') AS Winlostdate
-				,T.C.value('./@statuswl', 'TINYINT') AS statuswinlost
+				,T.C.value('./@statuswl', 'VARCHAR(1)') AS statuswinlost
 				,T.C.value('./@ref', 'BIGINT') AS refno
 				,T.C.value('./@w', 'MONEY') AS WinLost	
 				,T.C.value('./@s', 'NVARCHAR(10)') AS Status
