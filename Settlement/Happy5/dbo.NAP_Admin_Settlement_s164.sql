@@ -5,6 +5,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_s164
 	,@AdminId		INT
 	,@IsAuto		BIT				= 1
 	,@Resources		VARCHAR(MAX)	= NULL
+	,@strOldResult	VARCHAR(MAX)	= NULL
 	,@IP			VARCHAR(50)		= ''
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		VARCHAR(200)	= ''	OUTPUT
@@ -46,8 +47,6 @@ BEGIN
 			,@MaxTransID			BIGINT
 			,@delegateBettype		SMALLINT
 			,@procName				SYSNAME
-			,@WaitingTime			VARCHAR(10)
-			,@IsWaiting				BIT 
 			,@IsCentral				BIT
 			
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT)
@@ -70,25 +69,7 @@ BEGIN
 						END
 			,@Remark = ''
 			,@procName = OBJECT_NAME(@@procid)
-			,@IsWaiting = 0
-
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_s164
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
+	
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -105,8 +86,7 @@ BEGIN
 		INSERT INTO #tblMatchProcess (matchid, KeyID)
 		SELECT	@matchid AS matchid, 1 AS KeyID
 		----------------------------------------------------------------------------------------------
-	
-	
+		
 		--check settlement process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch = 1
@@ -121,36 +101,22 @@ BEGIN
 	
 			RETURN
 		END
-		
-	
-		INSERT INTO @tmpOldResultDetail (Seq, Number)
-		SELECT Seq, Number
-		FROM DBPRO.bodb02.dbo.bingoBall WITH (NOLOCK)
-		WHERE matchid = @matchid
-		
-		
-		IF @IsAuto = 0 AND @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.[NAP_Admin_Result_Update_BingoBall] 
-										@matchid	= @matchid
-										,@Sporttype	= @Sporttype
-										,@Resources = @Resources
-		END
 		-------------------------------------------parse XML and add more info----------------------------------
 		INSERT INTO @tmpResultDetail(pfID, ResourceID, Bettype, Result1, Result2, OddsType, isSourceFromDB)
-		EXEC dbo.[NAP_Set_Resource_Parsing] @Sporttype = @Sporttype
-										,@MatchID	= @MatchID
-										,@Action	= @Action
-										,@ErrCode 	= @ErrCode OUTPUT
-										,@ErrMsg	= @ErrMsg OUTPUT
+		EXEC DBPRO.bodb02.dbo.[NAP_Set_Resource_Parsing] 
+			@Sporttype = @Sporttype
+			,@MatchID	= @MatchID
+			,@Action	= @Action
+			,@ErrCode 	= @ErrCode OUTPUT
+			,@ErrMsg	= @ErrMsg OUTPUT
 		
-		IF @ErrCode IS NOT NULL AND @ErrCode > 0
-		BEGIN
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistMatch		= 1
-				,@IsReleased		= 1
-			RETURN
-		END
+		--IF @ErrCode IS NOT NULL AND @ErrCode > 0
+		--BEGIN
+		--	EXEC dbo.NAP_Admin_CheckingProcess
+		--		@isExistMatch		= 1
+		--		,@IsReleased		= 1
+		--	RETURN
+		--END
 		----------------------------------------------------------------------------------------------------
 		
 		--get transid
@@ -202,15 +168,7 @@ BEGIN
 	
 		SELECT @MaxTransID = MAX(transid)
 		FROM #tmpTransID
-		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-							@Command			= 'profile_bingoball'
-							,@Action			= @Action
-							,@MatchID			= @matchid
-							,@creator			= @AdminId
-		END	 
+
 		-------------------------------------------------------------
 		---		CAPTURE value BALANCE before settlement		---
 		---------------------------VVVV------------------------------
@@ -405,20 +363,15 @@ BEGIN
 		
 	BEGIN TRY
 		
-		DECLARE @remarkOldValue VARCHAR(MAX) = '',@remarkNewValue VARCHAR(MAX) = ''
+		DECLARE @remarkNewValue VARCHAR(MAX) = ''
 		SET @Remark = ''
-		
-		SELECT @remarkOldValue = @remarkOldValue + ', B' + CAST(Seq AS VARCHAR(5)) + '(' + CAST(Number AS VARCHAR(5)) + ')'
-		FROM @tmpOldResultDetail
-		WHERE Number > 0 AND @IsAuto = 0
-		
-		
+
 		SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
 		FROM @tmpResultDetail
 		WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
 		
 		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
-						+ CASE WHEN @remarkOldValue <> '' THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
+						+ CASE WHEN ISNULL(@strOldResult,'') <> '' THEN 'Old Results: ' + SUBSTRING(@strOldResult, 2, LEN(@strOldResult))  + '<br/> ' ELSE '' END
 						+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
 						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		

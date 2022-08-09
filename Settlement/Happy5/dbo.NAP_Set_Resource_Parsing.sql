@@ -16,7 +16,6 @@ AS
 		- 20220719@Louisa: Move SP from DBTrans to DBPRO [Redmine:#175251]
 
 	Param's Explanation:
-		Old SP is located in DBTXN/bodb02
 		
 */
 BEGIN
@@ -41,32 +40,6 @@ BEGIN
 	
 		IF @Action LIKE 'CAL%'
 		BEGIN
-			--------------------------------------VALIDATE DATA-----------------
-			IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail) 
-			BEGIN
-				SELECT	@ErrCode = 1000001
-						,@ErrMsg	= 'Ball number is required.'
-			END
-		
-			SELECT @ErrCode = 1000002
-					,@ErrMsg = 'Data is not valid'
-			FROM @tmpResultDetail
-			HAVING COUNT(*) <> 5
-			
-			SELECT @ErrCode = 1000002
-					,@ErrMsg = 'Duplicate ball numbers'
-			FROM @tmpResultDetail
-			GROUP BY Result1
-			HAVING COUNT(Result1) > 1
-			
-			SELECT @ErrCode = 1000002
-					,@ErrMsg = 'Ball number must be from 1 to 20'
-			FROM @tmpResultDetail
-			WHERE Result1 < 1 OR Result1 > 20
-		
-			IF @ErrCode <> 0
-				RETURN
-			--------------------------------------END VALIDATE DATA-------------
 		
 			INSERT INTO @tmpResultDetail(ResourceID, Result1, Result2)
 			SELECT '00', SUM(CAST(Result1 AS INT)), '0'

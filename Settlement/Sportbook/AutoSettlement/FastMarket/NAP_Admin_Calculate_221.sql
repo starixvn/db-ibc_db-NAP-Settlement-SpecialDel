@@ -397,7 +397,7 @@ BEGIN
 				OUTPUT	inserted.transid
 					,inserted.modds
 					, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
-					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 					,inserted.Status,inserted.StatusID,inserted.ruben
@@ -491,7 +491,7 @@ BEGIN
 					, RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 			OUTPUT	inserted.transid
 				,inserted.Status				
-				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 				,inserted.StatusID
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
