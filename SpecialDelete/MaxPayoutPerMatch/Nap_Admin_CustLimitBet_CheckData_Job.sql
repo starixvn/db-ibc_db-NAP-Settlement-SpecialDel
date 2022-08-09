@@ -12,6 +12,7 @@ AS
 		- 20211111@Tina: create
 		- 20211210@Tina: remove code check "No ticket found on Queue" [Redmine: #159626]
 		- 20220607@Tina: include checking data of testing currency
+		- 20220809@Tina: include checking data for deposit - phase 3 [Redmine: #167898]
 
 	Param's explanation:		
 		
@@ -60,8 +61,18 @@ BEGIN
 	BEGIN
 		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_MBC table is inserted data for excluded sporttype. ' + CHAR(13) + CHAR(10)
 	END
+
+	IF EXISTS (SELECT TOP 1 1
+				FROM dbo.CustLimitBet_LIC cb WITH (NOLOCK)
+					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
+					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
+				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
+	BEGIN
+		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_LIC table is inserted data for excluded sporttype. ' + CHAR(13) + CHAR(10)
+	END
 	
 	-----------------------------------------------------History table is missing data--------------------------------------------------------------------
+	--789y
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
@@ -75,6 +86,7 @@ BEGIN
 		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data. '  + CHAR(13) + CHAR(10)
 	END
 	
+	--MBC
 	IF EXISTS(SELECT TOP 1 1
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
@@ -88,7 +100,22 @@ BEGIN
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data. '  + CHAR(13) + CHAR(10)
 	END
-
+	--LIC
+	IF EXISTS(SELECT TOP 1 1
+			FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN #RunningMatch m ON b.matchid = m.matchid
+			WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
+				AND NOT EXISTS (SELECT TOP 1 1 
+								FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
+								WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
+								)
+				AND b.transdate BETWEEN @StartTime AND @EndTime
+				AND b.statusID NOT IN (101, 0)
+				AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend))
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_LIC table is missing data. '  + CHAR(13) + CHAR(10)
+	END
+	--789y
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
@@ -101,7 +128,8 @@ BEGIN
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
 	END
-
+	
+	--MBC
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
@@ -115,7 +143,22 @@ BEGIN
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
 	END
-
+	--LIC
+	IF EXISTS (SELECT TOP 1 1
+				FROM dbo.bettrans b WITH (NOLOCK)
+					INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
+				WHERE B.bettype = 10
+					AND NOT EXISTS (SELECT TOP 1 1 
+									FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
+									WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
+									)
+					AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
+					AND b.transdate BETWEEN @StartTime AND @EndTime
+					--AND ci.currency NOT IN (20,72)
+					)
+	BEGIN
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_LIC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10)
+	END
 
 	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
 
@@ -144,7 +187,6 @@ BEGIN
 	FROM dbo.bettrans b WITH (NOLOCK)        
 			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 	WHERE b.statusID = 101
-			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
 			AND b.transdate BETWEEN @StartTime AND @EndTime
 
 
