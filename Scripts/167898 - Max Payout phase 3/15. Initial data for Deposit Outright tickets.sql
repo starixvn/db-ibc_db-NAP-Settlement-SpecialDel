@@ -9,7 +9,6 @@ DECLARE @MaxTransID BIGINT = xxx
 
 CREATE TABLE #Outright (transid BIGINT, MatchID INT, CustID INT, StatusID TINYINT, Stake MONEY, Odds SMALLMONEY)
 CREATE TABLE #LICAdjust (MatchID INT, CustID INT, TurnoverAdjust MONEY, PayoutAdjust MONEY, IsFinished BIT DEFAULT 0)
-CREATE TABLE #MBCAdjust (MatchID INT, CustID INT, TurnoverAdjust MONEY, PayoutAdjust MONEY, IsFinished BIT DEFAULT 0)
 CREATE TABLE #AdjustTemp (MatchID INT, CustID INT, TurnoverAdjust MONEY, PayoutAdjust MONEY)
 
 --Get Outright tickets
