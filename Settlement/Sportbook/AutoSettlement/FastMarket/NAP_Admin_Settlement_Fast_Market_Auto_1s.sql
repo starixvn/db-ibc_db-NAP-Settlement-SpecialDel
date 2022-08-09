@@ -235,7 +235,7 @@ BEGIN
 	OPTION ( OPTIMIZE FOR ( @xmlEventCounter = NULL ) )
 	
 	-- get score before update 
-	IF @Action = 'CAL' AND EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228) AND @IsSettleDetermined = 0
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228) AND @IsSettleDetermined = 0
 	BEGIN
 		;WITH cteOldAccumulatedScore
 		AS(
