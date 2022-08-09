@@ -121,8 +121,8 @@ BEGIN
 		,ResourceId			VARCHAR(20)
 		,Position			TINYINT
 		,BetOption			TINYINT
-		,OldAccumulatedScore	INT
-		,AccumulatedScore		INT
+		,OldAccumulatedScore	INT DEFAULT(0)
+		,AccumulatedScore		INT DEFAULT(0)
 		,AccumulatedHomeScore	INT
 		,AccumulatedAwayScore	INT
 	)
@@ -235,19 +235,19 @@ BEGIN
 	OPTION ( OPTIMIZE FOR ( @xmlEventCounter = NULL ) )
 	
 	-- get score before update 
-	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228) AND @IsSettleDetermined = 0
+	IF EXISTS (SELECT TOP 1 1 FROM #tblResultDetail WHERE BetType = 228)
 	BEGIN
 		;WITH cteOldAccumulatedScore
 		AS(
 			SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 				,X.C.value('@p','TINYINT') as Position
-				,X.C.value('@oe','TINYINT') as OldAccumulatedScore
-			FROM @xmlData.nodes('/r/b') AS T(C)
+				,X.C.value('@oa','TINYINT') as OldAccumulatedScore
+			FROM @xmlOldAccumulatedScore.nodes('/r/b') AS T(C)
 				CROSS APPLY
 					C.nodes('r') AS X(C)
 		)
 		UPDATE r 
-				SET OldAccumulatedScore = a.OldAccumulatedScore
+				SET OldAccumulatedScore = CASE WHEN @Action = 'CAL' THEN a.OldAccumulatedScore ELSE 0 END					
 			FROM	#tblResultDetail r
 				INNER JOIN cteOldAccumulatedScore a
 					ON	r.BetType = a.bettype
