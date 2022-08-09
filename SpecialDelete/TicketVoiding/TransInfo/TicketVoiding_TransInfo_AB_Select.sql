@@ -23,7 +23,7 @@ BEGIN
 
 	CREATE TABLE #TransInfo (
 		matchid INT
-		,transid BIGINT PRIMARY KEY
+		,transid BIGINT
 		,Subtransid BIGINT
 		,custid        INT        
 		,transdate DATETIME
@@ -84,6 +84,7 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
+		,SubMatchIdList	VARCHAR(2000)
     )
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
@@ -368,6 +369,20 @@ BEGIN
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	END
 						
+	IF EXISTS (SELECT TOP(1) 1 FROM #TransInfo WHERE bettype = 29)
+	BEGIN
+		UPDATE t SET t.SubMatchIdList = bm.SubMatchIdList
+		FROM #TransInfo t
+		CROSS APPLY (
+			SELECT STUFF((SELECT TOP 10 ',' + CAST(bm.matchid  AS VARCHAR(50)) 
+			FROM dbo.bettransm bm WITH (NOLOCK)
+			WHERE bm.refno = t.refno
+				AND t.bettype = 29
+			FOR XML PATH(''))
+			,1,1,'') AS SubMatchIdList
+		)bm
+	END
+	
 	--RETURN DATA
 	SELECT matchid 
 		,transid
@@ -431,6 +446,7 @@ BEGIN
 		,SubTransdesc  
 		,modds 
 		,SiteDBGroupID
+		,SubMatchIdList
 	FROM #TransInfo
 	
 	DROP TABLE #TransInfo

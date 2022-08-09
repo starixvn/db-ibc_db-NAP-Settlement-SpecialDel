@@ -23,7 +23,7 @@ BEGIN
 
 	CREATE TABLE #TransInfo (
 		matchid INT
-		,transid BIGINT PRIMARY KEY
+		,transid BIGINT
 		,Subtransid BIGINT
 		,custid        INT        
 		,transdate DATETIME
