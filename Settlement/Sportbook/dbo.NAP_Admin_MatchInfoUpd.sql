@@ -90,7 +90,7 @@ BEGIN
 	IF @SportType = 1
 	BEGIN
 		SELECT	@HTDone = CASE WHEN r.ResultStatusID = 5 THEN 1 ELSE 0 END
-				,@IsRefundHT = CASE WHEN r.ResultStatusID = 2 THEN 1 ELSE 0 END
+				,@IsRefundHT = CASE WHEN r.SettlementStatusID = 2 THEN 1 ELSE 0 END
 		FROM	dbo.ResultDetail r WITH(NOLOCK)
 		WHERE	r.MatchID = @MatchId
 				AND r.ResourceID = '01'
