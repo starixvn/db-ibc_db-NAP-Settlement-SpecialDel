@@ -24,8 +24,29 @@ AS
 
 		@Mode: 
 			'164' : Happy5
+			'175' : Bitcoint
 
 		@SelectedResources: 
+			happy5:
+				'<Resources>
+						<Resource Id="1" Result="1" />
+						<Resource Id="2" Result="2" />
+						<Resource Id="3" Result="3" />
+						<Resource Id="4" Result="4" />
+						<Resource Id="5" Result="5" />
+					  </Resources>'
+			Pingoal: 
+				@Action = 'CAL'
+					<Resources>
+							<Resource Id="00" Home="1" Away="3" /> 
+							<Resource Id="01" Home="1" Away="2" />
+					</Resources>
+				@Action = 'REFUND'
+					<Resources>
+							<Resource Id="00" Home="" Away="" /> 
+							<Resource Id="01" Home="" Away="" />
+					</Resources>
+				
 
 */
 BEGIN

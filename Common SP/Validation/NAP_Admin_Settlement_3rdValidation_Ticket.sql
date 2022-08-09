@@ -24,6 +24,7 @@ AS
 
 		@Mode: 
 			'164' : Happy5
+			'175' : Bitcoint
 			'pingoal'
 
 		@SelectedResources: 
@@ -35,7 +36,7 @@ BEGIN
 	DECLARE @IsWaiting BIT = 0
 			,@WaitingTime VARCHAR(10)
 	
-	IF @Mode IN ( '164' , 'pingoal' )--happy5
+	IF @Mode IN ( '164' , '175' )--happy5
 	BEGIN
 		-- Check SP is in deployment
 		EXEC dbo.NAP_Set_SPDeploymentInfo 

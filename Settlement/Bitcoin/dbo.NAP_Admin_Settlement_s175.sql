@@ -75,23 +75,6 @@ BEGIN
 	FROM	dbo.Match3rd WITH(NOLOCK)
 	WHERE	match3rdId = @MatchId
 	
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
 	-------------------------BEGIN TRY------------------------------------------------------------------------
 	BEGIN TRY
 		-- check and not allow attempt to settlement same game while it's still not finish
@@ -113,17 +96,6 @@ BEGIN
 	
 			RETURN
 		END		
-		
-		IF @IsCentral =  1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_Result3rd_Update 
-				@matchid = @matchid
-				,@Action = @Action
-				,@AdminId = @AdminId
-				,@IsAuto = @IsAuto
-				,@ResultId = @ResultId
-				,@GameResult = @GameResult
-		END
 
 		--get transid
 		IF @Action LIKE 'CAL%'
@@ -155,14 +127,7 @@ BEGIN
 					AND b.bettype = @bettype
 					AND	b.statusID NOT IN (103, 101, 102)
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-		END 
-		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match3rd_Update
-				@Action	= @Action
-				,@MatchID = @matchid
-		END
+		END 		
 			 
 		INSERT INTO #BalanceBefore(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT	custid
