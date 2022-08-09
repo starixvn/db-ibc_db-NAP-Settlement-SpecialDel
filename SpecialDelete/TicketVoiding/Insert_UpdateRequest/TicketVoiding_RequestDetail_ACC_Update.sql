@@ -10,7 +10,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_ACC_Update]
 	,@AbnormalAccountInfo	NVARCHAR(MAX) = NULL
 	,@TransInfo				XML  = NULL
 	,@IsEditRequest			INT = 0
-	,@MatchInfo				VARCHAR(MAX) = '' OUTPUT
 )
 AS
 /*	
@@ -257,14 +256,6 @@ BEGIN
 		WHERE	RequestId = @RequestId
 
 	END
-	--Get list match
-	SET @MatchInfo = (
-				SELECT DISTINCT 
-					 t.matchid AS "@matchid"
-					,b.sporttype AS "@sporttype"
-				FROM #TempMatch t
-					LEFT JOIN dbo.match b ON t.matchid = b.matchid 
-				FOR XML PATH('r'), ROOT('root'))
 
 	IF @IsEditRequest = 1
 	BEGIN

@@ -77,7 +77,7 @@ BEGIN
 			,@MatchId					 INT = 0
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@ResettleTransids 			 VARCHAR(MAX) =''
-
+			,@MatchInfo					 XML = NULL
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
@@ -119,6 +119,7 @@ BEGIN
 		,srecommend		INT
 		,refno			BIGINT
 		,betteam		NVARCHAR(10)
+		,SubMatchIdList	VARCHAR(2000)
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
@@ -149,6 +150,7 @@ BEGIN
 	  ,srecommend INT
 	  ,statuswinlost TINYINT
 	  ,IsMixParlay BIT
+	  ,SubMatchIdList VARCHAR(2000)
 	  ,IsMoved14 BIT
 	  ,SiteDBGroupID SMALLINT
 	)
@@ -172,6 +174,7 @@ BEGIN
 		  ,srecommend
 		  ,statuswinlost
 		  ,IsMixParlay
+		  ,SubMatchIdList
 		  ,IsMoved14
 		  ,SiteDBGroupID
 		)
@@ -194,6 +197,7 @@ BEGIN
 			,t.c.value('@sre','INT') AS srecommend
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,t.c.value('@isP','BIT') AS IsMixParlay
+			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
 			,t.c.value('@IsM','BIT') AS IsMoved14
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)
@@ -274,6 +278,7 @@ BEGIN
 		,srecommend
 		,refno
 		,betteam
+		,SubMatchIdList
 		)
 	SELECT b.transid
 		,CASE WHEN b.matchid = @MatchId THEN 1 ELSE 0 END
@@ -291,6 +296,7 @@ BEGIN
 		,b.srecommend
 		,b.refno
 		,b.betteam
+		,SubMatchIdList
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
@@ -600,6 +606,20 @@ BEGIN
 					), 1, 1, ''), '')
 	END
 
+	IF @FilterBy IS NULL AND @MatchId <> 0
+	BEGIN
+		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @Sporttype AS "@sporttype" FOR XML PATH('r'), ROOT('root'))
+	END
+	ELSE IF @FilterBy = 1 AND @MatchId IS NULL
+	BEGIN
+		SET @MatchInfo = (
+				SELECT DISTINCT 
+					 t.matchid AS "@matchid"
+					,b.sporttype AS "@sporttype"
+				FROM @tblMatchId t
+					LEFT JOIN dbo.match b ON t.matchid = b.matchid 
+				FOR XML PATH('r'), ROOT('root'))
+	END
 	/*****************Return table **************************/
 	
 	--1. Info match table
@@ -627,6 +647,7 @@ BEGIN
 	--3. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@ResettleTransids AS ResettleTransids
+		  ,@MatchInfo AS MatchInfo
 
 	--4. Transinfo table
 	SELECT t.matchid 

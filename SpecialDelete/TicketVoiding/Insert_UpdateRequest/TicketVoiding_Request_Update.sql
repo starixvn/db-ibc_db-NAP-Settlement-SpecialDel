@@ -30,7 +30,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfo				VARCHAR(MAX)  = NULL
-	,@MatchInfo			    VARCHAR(MAX)  = NULL OUTPUT
 )
 AS
 /*	Created by: Kathy
@@ -231,7 +230,6 @@ BEGIN
 					,@SubIssueTypeId = @SubIssueTypeId
 					,@TransInfo		 = @TransInfo		
 					,@IsEditRequest	 = @IsEditRequest
-					,@MatchInfo      = @MatchInfo OUTPUT
 		END
 		ELSE IF @IssueTypeId IN (13) 
 		BEGIN
@@ -245,7 +243,6 @@ BEGIN
 					,@AbnormalAccountInfo = @AbnormalAccountInfo
 					,@TransInfo		 = @TransInfo		
 					,@IsEditRequest	 = @IsEditRequest
-					,@MatchInfo      = @MatchInfo OUTPUT
 		END
 		ELSE IF @IssueTypeId IN (17)
 		BEGIN

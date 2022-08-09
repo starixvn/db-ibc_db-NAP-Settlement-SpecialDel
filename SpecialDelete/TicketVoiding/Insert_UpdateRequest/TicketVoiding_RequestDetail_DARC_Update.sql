@@ -250,6 +250,17 @@ BEGIN
 		END
 	END
 
+	WHILE (1=1) AND @IsEditRequest = 1
+	BEGIN
+		DELETE TOP(@topBatch) s 
+		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s
+		WHERE s.RequestId = @RequestId
+
+		IF @@ROWCOUNT < @topBatch BREAK
+
+		WAITFOR DELAY '00:00:00.100'
+	END
+
 	IF @MainParlayCount > 0
 	BEGIN
 		WHILE (1=1)

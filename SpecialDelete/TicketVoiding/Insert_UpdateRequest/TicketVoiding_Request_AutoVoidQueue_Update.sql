@@ -65,7 +65,6 @@ BEGIN
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
 		SELECT @RequestId, 0, 'VoidInstant', 99, 10278938, GETDATE(), '125.227.140.97', NULL, @BroadcastSessionId
-		--FROM #tmpMatchId m
 	END
 	ELSE IF @IssueTypeId IN (11,15)
 	BEGIN

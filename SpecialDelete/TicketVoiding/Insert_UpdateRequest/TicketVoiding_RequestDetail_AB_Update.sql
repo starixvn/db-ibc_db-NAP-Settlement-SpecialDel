@@ -12,7 +12,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_AB_Update]
 	,@SubIssueTypeId		TINYINT = NULL
 	,@TransInfo				XML  = NULL
 	,@IsEditRequest			INT = 0
-	,@MatchInfo				VARCHAR(MAX) = '' OUTPUT
 )
 AS
 /*	
@@ -155,21 +154,6 @@ BEGIN
 				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
 				,@RequestDetailId =Id
 		WHERE	RequestId = @RequestId
-	END
-
-	IF @MatchId NOT IN (29)
-	BEGIN
-		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @Sporttype AS "@sporttype" FOR XML PATH('r'), ROOT('root'))
-	END
-	ELSE 
-	BEGIN
-		SET @MatchInfo = (
-				SELECT DISTINCT 
-					 t.matchid AS "@matchid"
-					,b.sporttype AS "@sporttype"
-				FROM @tblMatchId t
-					LEFT JOIN dbo.match b ON t.matchid = b.matchid 
-				FOR XML PATH('r'), ROOT('root'))
 	END
 	
 	IF @IsEditRequest = 1
