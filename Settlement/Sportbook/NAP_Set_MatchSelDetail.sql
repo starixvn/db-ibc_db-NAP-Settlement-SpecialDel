@@ -107,7 +107,7 @@ BEGIN
 	SELECT	m.matchid
 			,m.matchcode
 			,m.eventstatus
-			,ISNULL(m.SettlementStatus,0)
+			,ISNULL(m.SettlementStatus,0) AS SettlementStatus
 			,m.homeid
 			,m.awayid
 			,m.betstatus

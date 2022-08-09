@@ -991,6 +991,7 @@ BEGIN
 			,m.IsExistEarlyBettypesParlay
 			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
 			,m.IsMergedParlay
+			,m.IsRunningEarlyBettypes
 			,m.IsRunningEarlyBettypesParlay
 			,m.IsWaitingEarlyBettypes
 			,m.IsWaitingEarlyBettypesParlay
