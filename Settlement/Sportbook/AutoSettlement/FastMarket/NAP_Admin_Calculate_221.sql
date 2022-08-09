@@ -102,7 +102,7 @@ BEGIN
 	)
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
-		,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+		,modds MONEY, statuswinlost VARCHAR(1),SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, RepUpdateTime DATETIME2
@@ -396,7 +396,7 @@ BEGIN
 							END
 				OUTPUT	inserted.transid
 					,inserted.modds
-					,inserted.statuswinlost
+					, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
@@ -406,7 +406,9 @@ BEGIN
 					,deleted.statusid
 				INTO @tmpTransInfo (
 					transId
-					,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+					,modds
+					,statuswinlost
+					,SettlementTime,WinLost,aWinLost
 					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
 					,bef_winlost, bef_statusid
 				)
@@ -572,7 +574,7 @@ BEGIN
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.ruben
-				,inserted.statuswinlost
+				, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
 	
 				,deleted.winlost

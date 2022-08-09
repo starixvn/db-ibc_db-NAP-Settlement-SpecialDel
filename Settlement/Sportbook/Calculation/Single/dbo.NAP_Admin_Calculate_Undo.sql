@@ -87,7 +87,7 @@ BEGIN
 			,@transInfo	XML
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
-			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost TINYINT
+			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost VARCHAR(1)
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
@@ -217,7 +217,7 @@ BEGIN
 				,RepUpdateTime = CASE WHEN b.statusid = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		OUTPUT	inserted.transid
 				,inserted.modds, inserted.odds, inserted.oddsspread
-				, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE Inserted.Statuswinlost END AS statuswinlost
+				, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.Status,inserted.StatusID,inserted.ruben	
