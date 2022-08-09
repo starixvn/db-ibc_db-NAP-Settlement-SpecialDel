@@ -79,7 +79,7 @@ BEGIN
 				RepUpdateTime = CASE WHEN statusId = 103 THEN RepUpdateTime ELSE @RepUpdateTime END
 			OUTPUT	inserted.transid
 				,inserted.Status
-				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 				,inserted.StatusID,inserted.ruben		
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm,deleted.winlost ,deleted.statusid

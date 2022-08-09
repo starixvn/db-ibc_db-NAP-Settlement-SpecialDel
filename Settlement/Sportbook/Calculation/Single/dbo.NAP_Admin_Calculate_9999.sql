@@ -460,7 +460,7 @@ BEGIN
 								END
 				OUTPUT	inserted.transid
 						,inserted.modds, inserted.statuswinlost
-						,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+						,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 						,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 						,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 						,inserted.Status,inserted.StatusID,inserted.ruben		
@@ -922,7 +922,7 @@ BEGIN
 							END
 			OUTPUT	inserted.transid
 					,inserted.modds, inserted.statuswinlost
-					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 					,inserted.Status,inserted.StatusID,inserted.ruben
@@ -1884,7 +1884,7 @@ BEGIN
 							END
 			OUTPUT	inserted.transid
 					,inserted.modds, inserted.statuswinlost
-					,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 					,inserted.Status,inserted.StatusID,inserted.ruben

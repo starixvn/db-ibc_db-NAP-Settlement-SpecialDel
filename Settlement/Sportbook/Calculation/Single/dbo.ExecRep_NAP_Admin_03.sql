@@ -66,7 +66,7 @@ BEGIN
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT, RepUpdateTime DATETIME2
-
+		,SettlementTime DATETIME
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
 	)
@@ -174,15 +174,14 @@ BEGIN
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID
-			,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
-	
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+			,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END	
 			,deleted.winlost
 			,deleted.statusid		
 		INTO @tmpTransInfo (
 			transId
 			,statuswinlost,WinLost,aWinLost
-			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID, RepUpdateTime
-
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID, SettlementTime, RepUpdateTime
 			,bef_winlost, bef_statusid
 		)
 	FROM	dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
@@ -205,7 +204,7 @@ BEGIN
 					,Status AS '@s' 
 					,StatusID AS '@sid' 
 					,RepUpdateTime AS '@rut' 
-
+					,SettlementTime AS '@st'
 					,bef_winlost AS '@bef_w' 
 					,bef_statusid AS '@bef_sid' 
 					
