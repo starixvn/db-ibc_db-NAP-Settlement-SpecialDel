@@ -448,9 +448,9 @@ BEGIN
 	ELSE IF @Action LIKE 'REFUND%'
 	BEGIN
 		SELECT @refundCommand = CASE 
-									WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_Refund-FT'
 									WHEN @Action = 'REFUND' OR (@IsRefundHT = 1 AND @Action = 'REFUND-FT') THEN 'NAP_Admin_Settlement_Refund-All'
 									WHEN @Action = 'REFUND-HT' THEN 'NAP_Admin_Settlement_Refund-HT'
+									WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_Refund-FT'									
 								END
 		
 		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
