@@ -109,7 +109,6 @@ Revisions:
 	- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 	- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 	- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
-	- 20220727@Max: [TVS] Changes of TVS for increasing length of transid [Redmine: #175648]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -200,7 +199,7 @@ BEGIN
 		Transdesc		NVARCHAR(1000)
 	)   
 
-	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY, FilterMatchId INT)  
+	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)  
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)	
 
@@ -356,8 +355,8 @@ BEGIN
 	END  
 
 	BEGIN TRY  
-		INSERT INTO #tblTransIds (transid, FilterMatchId)  
-		SELECT DISTINCT value, @MatchId
+		INSERT INTO #tblTransIds (transid)  
+		SELECT DISTINCT value   
 		FROM STRING_SPLIT(@TransIds,',')   
 		
 		SET @CountTransId = @@ROWCOUNT 
@@ -582,13 +581,13 @@ BEGIN
 		END
 	END
 
-	END -- end SD checking process	
-	
+	END -- end SD checking process		
+
 	-- Apply for move match Cricket
 	IF EXISTS ( SELECT TOP 1 1 
 				FROM #tblTransIds t
-					LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid AND b.matchid = t.FilterMatchId
-				WHERE b.matchid IS NULL
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE matchid <> @MatchId
 			)
 		OR EXISTS ( SELECT TOP 1 1 
 				FROM #tblTransIds t

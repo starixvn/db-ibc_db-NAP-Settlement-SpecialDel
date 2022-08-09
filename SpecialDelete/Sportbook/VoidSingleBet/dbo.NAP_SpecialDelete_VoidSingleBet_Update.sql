@@ -122,7 +122,6 @@ AS
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
-		- 20220727@Max: [TVS] Changes of TVS for increasing length of transid [Redmine: #175648]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 
 	Param's Explanation: Special bet delete option
@@ -232,7 +231,7 @@ BEGIN
 		Transdesc		NVARCHAR(2000)
 	)					
 	
-	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY, FilterMatchId INT)
+	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
@@ -391,8 +390,8 @@ BEGIN
 	END	
 			
 	BEGIN TRY
-		INSERT INTO #tblTransIds (transid, FilterMatchId)
-		SELECT DISTINCT value , @MatchId
+		INSERT INTO #tblTransIds (transid)
+		SELECT DISTINCT value 
 		FROM STRING_SPLIT(@TransIds,',')	
 		
 		SET @CountTransId = @@ROWCOUNT	
@@ -609,13 +608,13 @@ BEGIN
 	--Single & Parlay
 	IF EXISTS ( SELECT TOP 1 1 
 				FROM #tblTransIds t
-					LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid AND b.matchid = t.FilterMatchId
-				WHERE b.matchid IS NULL
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE matchid <> @MatchId
 			)
 		OR EXISTS ( SELECT TOP 1 1 
 				FROM #tblTransIds t
-					LEFT JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid AND bm.matchid = t.FilterMatchId
-				WHERE bm.matchid  IS NULL
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
+				WHERE bm.matchid  <> @matchid  
 			)
 	BEGIN
 		SELECT	@ErrCode = 99

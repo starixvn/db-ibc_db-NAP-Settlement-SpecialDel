@@ -65,7 +65,6 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
-		- 20220727@Max: [TVS] Changes of TVS for increasing length of transid [Redmine: #175648]
 
 	Param's Explanation:
 */
@@ -181,7 +180,7 @@ BEGIN
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 
-	DECLARE @tblTransIds TABLE (transid BIGINT, FilterMatchId INT)	
+	DECLARE @tblTransIds TABLE (transid BIGINT)	
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange
 	
@@ -323,8 +322,8 @@ BEGIN
 				 ON CAST(ss.value AS INT) = e.exchangeid			 	
 				 
 	-------> Parse @MainTransIds
-	INSERT INTO @tblTransIds(transid, FilterMatchId)
-	SELECT ss.value AS transid, @MatchID
+	INSERT INTO @tblTransIds(transid)
+	SELECT ss.value AS transid
 	FROM STRING_SPLIT(@TransIds, ',') ss
 	
 	-------> Build string @CurrencyCodes
@@ -908,8 +907,8 @@ BEGIN
 			-- Apply for move match Cricket
 			IF EXISTS ( SELECT TOP 1 1 
 						FROM @tblTransIds t
-							LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid AND b.matchid = t.FilterMatchId
-						WHERE b.matchid IS NULL
+						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
+						WHERE matchid <> @MatchId
 					)
 			OR EXISTS ( SELECT TOP 1 1 
 						FROM @tblTransIds t
