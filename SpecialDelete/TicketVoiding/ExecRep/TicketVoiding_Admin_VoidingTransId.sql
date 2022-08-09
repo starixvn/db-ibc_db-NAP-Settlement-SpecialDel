@@ -127,6 +127,7 @@ BEGIN
 			SELECT DISTINCT MatchId
 			FROM @tmpTrans_SB
 
+
 			IF @ActionType = 1
 			BEGIN
 				 SET @CreatedDate =  CURRENT_TIMESTAMP

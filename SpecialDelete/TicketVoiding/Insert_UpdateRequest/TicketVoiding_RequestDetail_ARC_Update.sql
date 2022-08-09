@@ -38,7 +38,7 @@ BEGIN
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
+	  ,transid BIGINT
 	  ,custid	INT	
 	  ,refno BIGINT
 	  ,statusID TINYINT

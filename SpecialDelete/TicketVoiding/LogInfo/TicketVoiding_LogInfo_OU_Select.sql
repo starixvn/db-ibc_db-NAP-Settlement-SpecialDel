@@ -71,7 +71,7 @@ BEGIN
 	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT)
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
+	  ,transid BIGINT
 	  ,Subtransid BIGINT
 	  ,refno BIGINT
 	  ,custid INT	
@@ -440,12 +440,12 @@ BEGIN
 		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,MIN(b.transdate) AS VoidFromTime
 		,MAX(b.transdate) AS VoidToTime
-		,COUNT(CASE WHEN b.IsMixParlay = 0 THEN b.transid ELSE NULL END) AS SingleCount
-		,COUNT(CASE WHEN b.IsMixParlay = 0 AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
-		,COUNT(CASE WHEN b.IsMixParlay = 0 AND b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS InstantlySettleCount
-		,COUNT(CASE WHEN b.IsMixParlay = 0 AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
-		,COUNT(CASE WHEN b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS MainParlayCount
-	FROM #TVSTicketBets b WITH (NOLOCK)
+		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS CashOutCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS InstantlySettleCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN  b.transid ELSE NULL END) AS SettleCount --Exclude InstantlySettleCount,CO
+		,COUNT(CASE WHEN b.transid <> b.SubTransid THEN b.transid ELSE NULL END) AS MainParlayCount
+	FROM #TVSTicketBets b 
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
 		LEFT JOIN #TransidInRequest tmp ON tmp.TransId = b.SubTransid
 	WHERE tmp.TransId IS NULL
@@ -487,7 +487,10 @@ BEGIN
 		DELETE #logInfo
 		SELECT MatchId FROM #logInfo
 
-		--TransInfo table
+		--Unmark table
+		SELECT NULL AS UnmarkTransIds
+		
+		--Transinfo table
 		SELECT NULL AS TransInfo
 
 		RETURN;
@@ -620,29 +623,26 @@ BEGIN
 					)w (scores) 
 	GROUP BY MatchId, w.scores
 
-	--4. Transinfo table & list ticket unmark (if any)
-	SET @TransInfo = (
-	SELECT DISTINCT 
-		     t.matchid AS "@mid"
-		    ,t.transid AS "@t"
-			,t.Subtransid AS "@s_t"
-			,t.refno AS "@ref"
-			,b.custid AS "@c"
-			,b.bettype AS "@btype"
-			,b.betid AS "@bid"
-			,b.statusID AS "@sid"
-			,b.Subcustid AS "@s_c"
-			,b.Subbettype AS "@s_btype"
-			,b.IsMixParlay AS "@isP"
-			,b.SiteDBGroupID AS "@sitedb"
-		FROM #TVSTicketBets t
-			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-		FOR XML PATH('r'), ROOT('root')
-		)
+	-- 4. List ticket unmark   (if any)
+	SELECT @UnmarkTransIds AS UnmarkTransIds
 
-	SELECT @TransInfo AS TransInfo
-		  ,@UnmarkTransIds AS UnmarkTransIds
+	-- 5. Transinfo table
+	SELECT DISTINCT 
+			t.matchid
+		    ,t.transid
+			,t.Subtransid
+			,t.refno
+			,b.custid 
+			,b.bettype 
+			,b.betid 
+			,b.statusID 
+			,b.Subcustid 
+			,b.Subbettype
+			,b.IsMixParlay 
+			,b.SiteDBGroupID 
+	FROM #TVSTicketBets t
+		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

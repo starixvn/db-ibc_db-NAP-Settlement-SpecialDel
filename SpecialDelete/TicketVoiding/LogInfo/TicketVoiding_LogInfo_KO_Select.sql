@@ -55,7 +55,7 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
+	  ,transid BIGINT
 	  ,Subtransid BIGINT
 	  ,refno BIGINT
 	  ,custid INT	
@@ -390,8 +390,12 @@ BEGIN
 		--Loginto table
 		SELECT NULL AS MatchId
 
-		--TransInfo table
+		--Unmark table
+		SELECT NULL AS UnmarkTransIds
+		
+		--Transinfo table
 		SELECT NULL AS TransInfo
+
 		RETURN;
 	END
 	
@@ -445,72 +449,69 @@ BEGIN
 	-- 3. Loginto table (no-need but must return)
 	SELECT NULL MatchId
 
-	-- 4. Transinfo table & list ticket unmark (if any)
-	SET @TransInfo = (
+	-- 4. List ticket unmark   (if any)
+	SELECT @UnmarkTransIds AS UnmarkTransIds
+
+	-- 5. Transinfo table
 	SELECT DISTINCT 
-			t.matchid AS "@mid"
-		    ,t.transid AS "@t"
-			,t.Subtransid AS "@s_t"
-			,t.refno AS "@ref"
-			,b.custid AS "@c"
-			,b.hdp1 AS "@hdp1"
-		    ,b.hdp2 AS "@hdp2"
-		    ,b.livehomescore AS "@lh" 
-		    ,b.liveawayscore AS "@la"  
-		    ,b.liveindicator AS "@li"  
-			,b.odds AS "@o" 
-		    ,b.oddsspread AS "@os" 
-		    ,b.betfrom AS "@bfr" 
-		    ,b.betteam AS "@bteam" 
-			,b.bettype AS "@btype"
-		    ,b.betcheck AS "@bcheck" 
-		    ,b.Status AS "@s" 
-			,b.transdate AS "@tdate"
-			,b.betid AS "@bid"
-		    ,b.Transdesc AS "@tdesc" 
-		    ,b.statusID AS "@sid" 
-		    ,b.Subcustid AS "@s_c"  
-		    ,b.Subhdp1 AS "@s_hdp1" 
-		    ,b.Subhdp2 AS "@s_hdp2" 
-			,b.Sublivehomescore AS "@s_lh"   
-		    ,b.Subliveawayscore AS "@s_la"   
-		    ,b.Subliveindicator AS "@s_li" 
-		    ,b.Subodds AS "@s_o"  
-		    ,b.Suboddsspread AS "@s_os" 
-		    ,b.Subbetfrom AS "@s_bfr" 
-		    ,b.Subbetteam AS "@s_bteam" 
-		    ,b.Subbettype AS "@s_btype" 
-		    ,b.Subbetcheck AS "@s_bcheck" 
-		    ,b.SubStatus AS "@s_s" 
-		    ,b.Subtransdate AS "@s_tdate"
-		    ,b.SubTransdesc AS "@s_tdes"
-			,b.SubstatusID AS "@s_sid" 
-		    ,b.srecommend AS "@sre" 
-		    ,b.mrecommend AS "@mre" 
-		    ,b.recommend AS "@re" 
-		    ,b.creator AS "@cr" 
-		    ,b.WalletType AS "@wt"  
-		    ,b.RefCode AS "@refc" 
-			,b.stake AS "@stake" 
-		    ,b.oddstype AS "@ost"  
-		    ,b.CurrencyName AS "@curr"  
-		    ,b.betdaqid AS "@bdaq"  
-		    ,b.ExtraInfo AS "@ex"  
-		    ,b.BonusID AS "@bo"  
-		    ,b.winlost AS "@w" 	
-		    ,b.actual_stake AS "@acstake" 
-			,b.modds AS "@m"  
-			,b.IsMixParlay AS "@isP"
-			,b.SiteDBGroupID AS "@sitedb"
+			t.matchid 
+		    ,t.transid 
+			,t.Subtransid 
+			,t.refno
+			,b.custid 
+			,b.hdp1 
+		    ,b.hdp2 
+		    ,b.livehomescore  
+		    ,b.liveawayscore 
+		    ,b.liveindicator 
+			,b.odds 
+		    ,b.oddsspread 
+		    ,b.betfrom 
+		    ,b.betteam 
+			,b.bettype 
+		    ,b.betcheck 
+		    ,b.Status 
+			,b.transdate 
+			,b.betid 
+		    ,b.Transdesc 
+		    ,b.statusID 
+		    ,b.Subcustid 
+		    ,b.Subhdp1 
+		    ,b.Subhdp2 
+			,b.Sublivehomescore  
+		    ,b.Subliveawayscore  
+		    ,b.Subliveindicator 
+		    ,b.Subodds 
+		    ,b.Suboddsspread 
+		    ,b.Subbetfrom 
+		    ,b.Subbetteam 
+		    ,b.Subbettype 
+		    ,b.Subbetcheck 
+		    ,b.SubStatus 
+		    ,b.Subtransdate 
+		    ,b.SubTransdesc 
+			,b.SubstatusID 
+		    ,b.srecommend 
+		    ,b.mrecommend 
+		    ,b.recommend 
+		    ,b.creator 
+		    ,b.WalletType 
+		    ,b.RefCode 
+			,b.stake
+		    ,b.oddstype
+		    ,b.CurrencyName 
+		    ,b.betdaqid   
+		    ,b.ExtraInfo
+		    ,b.BonusID 
+		    ,b.winlost 
+		    ,b.actual_stake 
+			,b.modds
+			,b.IsMixParlay
+			,b.SiteDBGroupID
 		FROM #TVSTicketBets t
 			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-		FOR XML PATH('r'), ROOT('root')
-		)
-
-	SELECT @TransInfo AS TransInfo
-		  ,@UnmarkTransIds AS UnmarkTransIds
-
+		
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tmpTransInfo

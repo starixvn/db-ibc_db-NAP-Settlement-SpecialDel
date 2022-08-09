@@ -80,17 +80,18 @@ BEGIN
 
 	IF @invalidUserName IS NOT NULL
 	BEGIN
-		SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
-			,@InvalidUserName AS InvalidUserName
-			,@IsInValidTotalTicket AS IsInValidTotalTicket
-			,@MatchIDs AS MatchIDs
-			,@NumberOfTickets AS NumberOfTickets
+		 
+		SELECT @InvalidUserName AS InvalidUserName
+			
+		SELECT NULL AS UnmarkTransIds
+		SELECT NULL AS TransInfo
+
 		RETURN;
 	END
 	
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
+	  ,transid BIGINT
 	  ,custid INT	
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
@@ -175,8 +176,10 @@ BEGIN
 	IF @CountSMA > 50 OR @CountMember > 1000
 	BEGIN
 		SET @IsExceededTotalUsernames = 1
-		
 		SELECT @IsExceededTotalUsernames AS IsExceededTotalUsernames
+
+		SELECT NULL AS UnmarkTransIds
+		SELECT NULL AS TransInfo
 		RETURN;
 	END
 
@@ -378,24 +381,21 @@ BEGIN
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
 		  
+	--2. List ticket unmark (if any)
+	SELECT @UnmarkTransIds AS UnmarkTransIds
 
-	--2. Transinfo table & list ticket unmark (if any)
-	SET @TransInfo = (
+	--3. Transinfo table
 	SELECT DISTINCT 
-			t.matchid AS "@mid"
-		    ,t.transid AS "@t"
-			,t.refno AS "@ref"
-			,b.custid AS "@c"
-			,b.bettype AS "@btype"
-			,b.betid AS "@bid"
-			,b.IsMixParlay AS "@isP"
-			,b.SiteDBGroupID AS "@sitedb"
+			t.matchid
+		    ,t.transid
+			,t.refno 
+			,b.custid
+			,b.bettype 
+			,b.betid 
+			,b.IsMixParlay 
+			,b.SiteDBGroupID
 	FROM #transIdTemp t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR XML PATH('r'), ROOT('root'))
-
-	SELECT @TransInfo AS TransInfo
-		  ,@UnmarkTransIds AS UnmarkTransIds
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1

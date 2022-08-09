@@ -204,8 +204,8 @@ BEGIN
 		SELECT NULL AS MatchId
 
 		SET @InvalidTransIds = @TransIds
-		SELECT  @InvalidTransIds AS InvalidTransIds
-
+		SELECT @InvalidTransIds AS InvalidTransIds
+		SELECT NULL AS UnmarkTransIds
 		SELECT NULL AS TransInfo
 		RETURN;
 	END
@@ -227,6 +227,7 @@ BEGIN
 			SET @InvalidTransIds = @TransIds
 			SELECT  @InvalidTransIds AS InvalidTransIds
 
+			SELECT NULL AS UnmarkTransIds
 			SELECT NULL AS TransInfo
 			RETURN;
 		END
@@ -245,9 +246,10 @@ BEGIN
 							)	
 			BEGIN
 				SET @InvalidMatchId = @MatchId
-
 				SELECT @InvalidMatchId AS InvalidMatchId
+
 				SELECT NULL AS InvalidTransIds
+				SELECT NULL AS UnmarkTransIds
 				SELECT NULL AS TransInfo
 				RETURN;
 			END
@@ -621,29 +623,25 @@ BEGIN
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsCheckAutoCal AS IsCheckAutoCal
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
-			
 	
-	--3. Transinfo table & list ticket unmark + re-settled  (if any)
-	SET @TransInfo = (
-	SELECT DISTINCT 
-			t.matchid AS "@mid"
-		    ,t.transid AS "@t"
-			,b.refno AS "@ref"
-			,b.custid AS "@c"
-			,b.bettype AS "@btype"
-			,t.statusID AS "@sid"
-			,b.betteam AS "@bteam"
-			,b.betid AS "@bid"
-			,b.statuswinlost AS "@statuswl"
-			,b.IsMixParlay AS "@isP"
-			,b.SiteDBGroupID AS "@sitedb"
+	--3. List ticket unmark (if any)
+	SELECT @UnmarkTransIds AS UnmarkTransIds
+		  ,@ResettleTransids AS ResettleTransids
+
+	--4. Transinfo table
+	SELECT t.matchid 
+		    ,t.transid 
+			,b.refno
+			,b.custid 
+			,b.bettype 
+			,t.statusID 
+			,b.betteam 
+			,b.betid 
+			,b.statuswinlost 
+			,b.IsMixParlay 
+			,b.SiteDBGroupID 
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR XML PATH('r'), ROOT('root'))
-
-	SELECT @TransInfo AS TransInfo
-		  ,@UnmarkTransIds AS UnmarkTransIds
-		  ,@ResettleTransids AS ResettleTransids
 
 	DROP TABLE #inputTransid
 	DROP TABLE #transid_tmp

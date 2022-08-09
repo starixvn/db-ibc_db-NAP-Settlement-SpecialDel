@@ -51,7 +51,7 @@ BEGIN
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
+	  ,transid BIGINT
 	  ,custid	INT	
 	  ,refno BIGINT
       ,livehomescore SMALLINT

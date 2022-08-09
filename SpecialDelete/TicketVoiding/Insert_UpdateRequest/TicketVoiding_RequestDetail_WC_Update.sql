@@ -62,7 +62,7 @@ BEGIN
 
 	CREATE TABLE #tmpTransInfo(
 			 matchid		INT
-			,transid		BIGINT PRIMARY KEY
+			,transid		BIGINT
 			,Subtransid		BIGINT
 			,refno			BIGINT
 			,custid			INT	
