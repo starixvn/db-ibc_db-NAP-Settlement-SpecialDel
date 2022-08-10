@@ -47,7 +47,7 @@ BEGIN
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT)
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
-		,odds SMALLMONEY, statuswinlost TINYINT
+		,odds SMALLMONEY, statuswinlost VARCHAR(1)
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, RepUpdateTime DATETIME2
@@ -100,7 +100,8 @@ BEGIN
 			,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
 			,RepUpdateTime = CASE WHEN b.statusId = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		OUTPUT	inserted.transid
-			,inserted.odds, inserted.statuswinlost
+			,inserted.odds
+			, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben
