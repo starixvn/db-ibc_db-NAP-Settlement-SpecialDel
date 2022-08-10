@@ -91,7 +91,7 @@ BEGIN
 			,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
 			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
-			,t.c.value('@wld','SMALLDATETIME') AS winlostdate
+			,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)

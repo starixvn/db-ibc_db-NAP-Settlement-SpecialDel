@@ -45,7 +45,6 @@ BEGIN
 
 	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT, IsMixParlay BIT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
-	DECLARE @tblMatchId AS TABLE (MatchId INT)
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
@@ -105,14 +104,6 @@ BEGIN
 	FROM #transIdTemp t
 		INNER JOIN #tmpTransInfo b ON t.transid = b.transid
 		
-	IF @FilterBy = 1
-	BEGIN
-		INSERT INTO @tblMatchId (MatchId)
-		SELECT DISTINCT matchid
-		FROM #transid_tmp 
-	    WHERE IsMixParlay = 1
-	END
-
 	IF @IsEditRequest = 0 
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (

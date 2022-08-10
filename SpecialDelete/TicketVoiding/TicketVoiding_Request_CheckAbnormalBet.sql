@@ -69,14 +69,13 @@ BEGIN
 			,@query						 NVARCHAR(MAX) = ''
 			,@ExecuteSQL				 NVARCHAR(MAX) = ''
 			,@IsCalQueue				 BIT = 0
-			,@IsCheckAutoCal			 BIT=0
 			,@IsHasWarningRemovedTickets BIT=0
 			,@OldAction					 TINYINT
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@MatchId					 INT = 0
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
-			,@ResettleTransids 			 VARCHAR(MAX) =''
+			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 			,@MatchInfo					 XML = NULL
 	
 	DECLARE @homeid INT, @awayid INT, @leagueid INT, @sporttype SMALLINT, @matchcode NVARCHAR(50)
@@ -414,16 +413,11 @@ BEGIN
 											 WHEN @FilterBy = 1 AND matchid IN ( SELECT MatchId FROM @tblMatch) THEN 1
 											 ELSE 0 END
 							)
-		SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-												FROM #transid_tmp
-												WHERE statuswinlost IS NOT NULL
-												FOR XML PATH('')
-									), 1,1,'')
-
-		IF (@ResettleTransids <>'' AND @IsCalQueue =1 )
+		IF @IsCalQueue = 1
 		BEGIN
-			SELECT @IsCheckAutoCal = 1 	-- auto calculator
+			SELECT @RemoveTransids = @UnmarkTransids
 		END
+
 	END
 
 	IF @RequestId <> 0 AND @ActionId <> 2
@@ -440,22 +434,8 @@ BEGIN
 		IF @UnmarkTransIds IS NOT NULL
 		BEGIN
 			SET @IsHasWarningRemovedTickets = 1
-							
-			INSERT INTO #transidremove_tmp (transid, StatusId, statuswinlost)
-			SELECT  t.value, b.statusID, b.statuswinlost
-			FROM STRING_SPLIT(@UnmarkTransIds, ',') t
-				INNER JOIN #tmpTransInfo b ON b.transid = CAST (t.value AS BIGINT) AND b.IsMixParlay = 0
-			WHERE b.statusID IN (0,1) AND statuswinlost IS NOT NULL
-
-			IF @@ROWCOUNT > 0 -- ticket have statuswinlost
-			BEGIN
-				SET @IsCheckAutoCal = 1	
-				SELECT @ResettleTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM #transidremove_tmp
-											WHERE statuswinlost IS NOT NULL
-											FOR XML PATH('')
-								), 1,1,'')
-			END
+				
+			SELECT @RemoveTransids = @UnmarkTransIds
 		END
 	END
 
@@ -659,12 +639,11 @@ BEGIN
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
 			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
-			,@IsCheckAutoCal AS IsCheckAutoCal
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 	
 	--3. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
-		  ,@ResettleTransids AS ResettleTransids
+		  ,@RemoveTransids AS RemoveTransids
 		  ,@MatchInfo AS MatchInfo
 
 	--4. Transinfo table

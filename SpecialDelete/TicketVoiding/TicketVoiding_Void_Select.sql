@@ -1,12 +1,9 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select] 
 (
-	@MatchId			INT = 0
-    ,@KickOffDate		DATETIME = NULL
-    ,@RequestId			INT = NULL
+     @RequestId			INT = NULL
     ,@IssueTypeId		INT = NULL
 	,@BetTypes			XML = NULL
-	,@ActionId			TINYINT = 0
 	,@LiveHomeScore		SMALLINT = NULL
 	,@LiveAwayScore		SMALLINT = NULL
 	,@TransInfo		    XML = NULL
@@ -167,7 +164,7 @@ BEGIN
 	
 	CREATE TABLE #tmpTransInfo(
 			   matchid INT
-			  ,transid BIGINT PRIMARY KEY
+			  ,transid BIGINT
 			  ,Subtransid BIGINT
 			  ,refno BIGINT
 			  ,custid INT	
@@ -184,7 +181,6 @@ BEGIN
 			  ,betcheck NVARCHAR(50)
 			  ,Status NVARCHAR(10)
 			  ,transdate DATETIME
-			  ,checktime DATETIME
 			  ,betid BIGINT
 			  ,Transdesc NVARCHAR(1000)
 			  ,statusID TINYINT
@@ -633,10 +629,10 @@ BEGIN
 								AND RequestId = @RequestId
 					) ts
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
-			WHERE	b.matchid = @matchid
-					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
+			WHERE	b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
+					AND b.IsMixParlay = 0
 					AND b.betfrom <> 'P'
 					AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE b.livehomescore END
 					AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE b.liveawayscore END
@@ -755,6 +751,7 @@ BEGIN
 									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId
 							) ts
 				WHERE	bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
+						AND bm.IsMixParlay = 1
 						AND bm.Subbetfrom <> 'P'
 						AND bm.Sublivehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE bm.Sublivehomescore END
 						AND bm.Subliveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE bm.Subliveawayscore END
@@ -935,7 +932,7 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
 					) ts
-			WHERE	b.matchid = @matchid AND b.IsMixParlay = 0
+			WHERE b.IsMixParlay = 0
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
@@ -1238,15 +1235,7 @@ BEGIN
 					WHERE RequestId = @RequestId AND b.transid = TransId AND b.matchid = MatchId
 			)ts
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
-		WHERE	b.matchid = @matchid AND b.IsMixParlay = 0
-				AND b.transdate >= @KickOffDate
-				AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
-							WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
-							ELSE 0 END
-				AND b.liveindicator = 0
-				AND b.bettype NOT IN (805, 806, 9, 29)			
-				AND b.bettype NOT BETWEEN 901 AND 920
-				AND b.betfrom <> 'P'	
+		WHERE b.IsMixParlay = 0 AND b.statusID NOT IN (101, 102, 103) 
 		
 		---get sub ticket of a mix parlay	
 		IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo AS bm  WHERE bm.IsMixParlay = 1)
@@ -1340,13 +1329,7 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rs WITH (NOLOCK)
 							WHERE rs.TransId = bm.Subtransid AND rs.MatchId = bm.matchid AND rs.RequestId = @RequestId
 						)tmp
-			WHERE	bm.Subtransdate >= @KickOffDate AND bm.IsMixParlay = 1
-					AND 1= CASE WHEN @ActionId <> 2 AND bm.SubstatusID NOT IN (101, 102, 103) THEN 1
-								WHEN @ActionId = 2 AND bm.SubstatusID NOT IN (101, 103) THEN 1
-								ELSE 0 END
-					AND bm.liveindicator = 0 AND bm.Subliveindicator = 0 
-					AND bm.Subbetfrom <> 'P'
-					AND bm.transdate >= @KickOffDate
+			WHERE	bm.IsMixParlay = 1
 					AND bm.statusID NOT IN (101, 102, 103)
 		END 
 	END

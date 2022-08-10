@@ -195,6 +195,7 @@ BEGIN
 	       ,BonusID 
 	       ,winlost	
 	       ,actual_stake 
+		   ,winlostdate
 	       ,modds 
            ,IsMixParlay 
 	       ,SiteDBGroupID 
@@ -251,6 +252,7 @@ BEGIN
 		  ,t.c.value('@bo','INT') AS BonusID
 		  ,t.c.value('@w','MONEY') AS winlost
 		  ,t.c.value('@acstake','MONEY') AS actual_stake
+		  ,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
 		  ,t.c.value('@m', 'MONEY') AS modds
 		  ,t.c.value('@isP','BIT') AS IsMixParlay
 		  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID

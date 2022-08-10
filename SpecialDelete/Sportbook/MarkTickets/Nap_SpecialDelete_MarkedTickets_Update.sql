@@ -394,7 +394,6 @@ BEGIN
 	DROP TABLE #ParlayTransIds
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblMatchParlayProcess
-	DROP TABLE #tmpTransInfo
 
 	SET NOCOUNT OFF;
 END

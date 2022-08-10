@@ -203,7 +203,7 @@ BEGIN
 		,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
 		,t.c.value('@s','NVARCHAR(10)') AS Status
 		,t.c.value('@tdate','DATETIME') AS transdate
-		,t.c.value('@checkt','DATETIME') AS checktime
+		,CASE WHEN t.c.value('@checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@checkt','DATETIME') END AS checktime
 		,t.c.value('@bid','BIGINT') AS betid
 		,t.c.value('@tdes','NVARCHAR(1000)') AS Transdesc
 		,t.c.value('@sid','TINYINT') AS statusID
@@ -218,7 +218,7 @@ BEGIN
 		,t.c.value('@s_bfr','NVARCHAR(1)') AS Subbetfrom
 		,t.c.value('@s_btype','SMALLINT') AS Subbettype
 		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
-		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
+		,CASE WHEN t.c.value('@s_checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@s_checkt','DATETIME') END AS Subchecktime
 		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
 		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
 		,t.c.value('@s_checkt','DATETIME') AS Subchecktime
@@ -238,7 +238,7 @@ BEGIN
 		,t.c.value('@bo','INT') AS BonusID
 		,t.c.value('@w','MONEY') AS winlost
 		,t.c.value('@acstake','MONEY') AS actual_stake
-		,t.c.value('@wld', 'SMALLDATETIME') AS winlostdate
+		,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
 		,t.c.value('@m', 'MONEY') AS modds
 		,t.c.value('@statuswl', 'MONEY') AS statuswinlost
 		,t.c.value('@lbat', 'SMALLINT') AS LiveBetAcceptTime
