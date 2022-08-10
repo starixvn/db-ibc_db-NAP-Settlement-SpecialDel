@@ -12,7 +12,7 @@ AS
 	Created by: Max
 	Date 20220727
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
@@ -80,6 +80,12 @@ BEGIN
 		WHERE rds.MatchId = @MatchId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 	END
+
+	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #SingleTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #ParlayTickets
+
+	DROP TABLE #SingleTickets
+	DROP TABLE #ParlayTickets
 END		
 GO
 
