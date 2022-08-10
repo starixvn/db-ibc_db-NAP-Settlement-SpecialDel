@@ -78,6 +78,7 @@ BEGIN
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@ResettleTransids 			 VARCHAR(MAX) =''
 			,@MatchInfo					 XML = NULL
+
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblMatch AS TABLE (MatchId INT)
@@ -608,16 +609,23 @@ BEGIN
 
 	IF @FilterBy IS NULL AND @MatchId <> 0
 	BEGIN
-		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @Sporttype AS "@sporttype" FOR XML PATH('r'), ROOT('root'))
+		SET @MatchInfo = (SELECT @MatchId AS "@matchid", m.sporttype AS "@sporttype" 
+						  FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+						  FOR XML PATH('r'), ROOT('root'))
 	END
 	ELSE IF @FilterBy = 1 AND @MatchId IS NULL
 	BEGIN
 		SET @MatchInfo = (
 				SELECT DISTINCT 
-					 t.matchid AS "@matchid"
+					 s.submatchId AS "@matchid"
 					,b.sporttype AS "@sporttype"
-				FROM @tblMatchId t
+				FROM #validTransId t
+					CROSS APPLY (
+							SELECT value AS submatchId
+							FROM STRING_SPLIT (t.SubMatchIdList,',')
+					)s
 					LEFT JOIN dbo.match b ON t.matchid = b.matchid 
+				WHERE SubMatchIdList IS NOT NULL
 				FOR XML PATH('r'), ROOT('root'))
 	END
 	/*****************Return table **************************/

@@ -94,24 +94,40 @@ BEGIN
 	
 	CREATE TABLE #Match(MatchId INT, IsFinish BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-			
-	CREATE TABLE #tmpTransInfo(
-		matchid INT
-		,transid BIGINT PRIMARY KEY
-		,Subtransid BIGINT
-		,custid INT	
-		,refno BIGINT
-		,bettype SMALLINT
-		,statusID TINYINT
-		,Subcustid INT
-		,Subbettype SMALLINT
-		,IsMixParlay BIT
-		,SiteDBGroupID SMALLINT
-	)
-		
-	IF @TransIds IS NOT NULL 
+
+	-- Get tickets insert into transaction
+	INSERT INTO #Tickets (
+		TransId
+		,MatchId
+		,BetType
+		,CustId
+		,refno
+		,IsParlay
+		,SubTransId
+		,SiteDBGroupID
+		)
+	SELECT t.TransId
+		,b.MatchId
+		,b.BetType
+		,b.custid
+		,b.refno
+		,0
+		,NULL
+		,@SiteDBGroupID
+	FROM #transIds t
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
+	WHERE  b.matchid <> 29
+	AND b.SiteDBGroupID = @SiteDBGroupID
+
+	-- get only parlay tickets from @input transid
+	INSERT INTO #ParlayTransIds (TransId)
+	SELECT tmp.TransId
+	FROM #transIds AS tmp
+	WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #Tickets AS t WHERE t.TransId = tmp.TransId)
+
+	-- get parlay tickets
+	IF EXISTS (SELECT TOP 1 1 FROM #ParlayTransIds)
 	BEGIN
-		-- Get tickets insert into transaction
 		INSERT INTO #Tickets (
 			TransId
 			,MatchId
@@ -122,57 +138,24 @@ BEGIN
 			,SubTransId
 			,SiteDBGroupID
 			)
-		SELECT t.TransId
-			,b.MatchId
-			,b.BetType
-			,b.custid
-			,b.refno
-			,0
-			,NULL
+		SELECT b.transid
+			,bm.matchid
+			,bm.bettype
+			,bm.custid
+			,bm.refno
+			,1
+			,bm.transid
 			,@SiteDBGroupID
-		FROM #transIds t
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-		WHERE  b.matchid <> 29
-		AND b.SiteDBGroupID = @SiteDBGroupID
-
-		-- get only parlay tickets from @input transid
-		INSERT INTO #ParlayTransIds (TransId)
-		SELECT tmp.TransId
-		FROM #transIds AS tmp
-		WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #Tickets AS t WHERE t.TransId = tmp.TransId)
-
-		-- get parlay tickets
-		IF EXISTS (SELECT TOP 1 1 FROM #ParlayTransIds)
-		BEGIN
-			INSERT INTO #Tickets (
-				TransId
-				,MatchId
-				,BetType
-				,CustId
-				,refno
-				,IsParlay
-				,SubTransId
-				,SiteDBGroupID
-				)
-			SELECT b.transid
-				,bm.matchid
-				,bm.bettype
-				,bm.custid
-				,bm.refno
-				,1
-				,bm.transid
-				,@SiteDBGroupID
-			FROM #ParlayTransIds t
-				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
-				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
-			WHERE b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
-		END
-		--check no data
-		IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
-		BEGIN
-			RETURN;
-		END;
+		FROM #ParlayTransIds t
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
+		WHERE b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
 	END
+	--check no data
+	IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
+	BEGIN
+		RETURN;
+	END;
 
 	-- Check Lock Match
 	DECLARE @avaiableProcess BIT

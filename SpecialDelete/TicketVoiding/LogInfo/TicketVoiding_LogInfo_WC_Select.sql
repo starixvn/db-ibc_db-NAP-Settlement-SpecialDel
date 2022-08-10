@@ -402,7 +402,7 @@ BEGIN
 			SET FilterVoidFromTime = @FilterFromTransTime, FilterVoidToTime = @FilterToTransTime
 			WHERE MatchId = @MatchId AND ScoreId = @ScoreId
 		END 
-		ELSE 
+		ELSE IF @IsShowLogOnly = 0
 		BEGIN
 			SELECT @MinAccept = @AATime
 
@@ -1008,9 +1008,9 @@ BEGIN
 		SELECT @UnmarkTransIds = @UnmarkTransIds + ','
 								+ STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
-												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 1
+												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.SubTransid AND tp.IsMixParlay = 1
 												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
-											WHERE tp.TransId IS NULL AND tr.TransId IS NULL
+											WHERE tp.SubTransid IS NULL AND tr.TransId IS NULL
 												  AND rdt.RequestId=@RequestId
 											FOR XML PATH('')
 										), 1,1,'')
