@@ -47,21 +47,20 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
-		@Mode			@Action
-		CAL				CAL, CAL-HT, CAL-FT
-		CAL-PS			CAL
-		CAL-MP			CAL, REFUND, REFUND-HT, REFUND-FT
-		CAL-FGLG		CAL-HT, CAL-FT
-		REFUND			REFUND, REFUND-HT, REFUND-FT, BetDaq, BetFair		
-		REFUND-FGLG		REFUND, REFUND-HT, REFUND-FT
-		CAL-AUTO		CAL, REFUND
-		
 		
 */
 
 BEGIN
 	SET NOCOUNT ON
-	
+
+	IF  ( @Action LIKE 'REFUND%' AND @Mode ='MP' ) --refund parlay
+		OR @Mode LIKE 'INST%'	---setle instant
+		OR @Mode = 'BB'			----Betbuider
+		OR @Action = 'MoveTicket'
+	BEGIN
+		RETURN
+	END
+
 	DECLARE @isExistWaitingTicket	BIT
 		,@xml						XML
 		,@currentdate				DATETIME
@@ -70,6 +69,7 @@ BEGIN
 		,@handle					INT
 		,@IsSettleDetermined		BIT
 		,@IsMergedParlay			BIT
+		,@IsCentral					BIT
     
 	
 	DECLARE	@tmpResourceIDs TABLE(
@@ -93,7 +93,13 @@ BEGIN
 	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
 	WHERE ss.Sporttype = @Sporttype
 
-	IF @Action NOT LIKE 'UNDO%' AND @Mode NOT IN ('BB', 'MP')
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
+	--cal/undo/refund FT/HT/Game/Set
+	--cal early sports settle by profile except early soccer
+	IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND' ) AND @Mode NOT IN ( 'EAR', 'FM' ) 
+			OR (@Action IN ('CAL_EAR', 'UNDO_EAR', 'REFUND_EAR') )
 	BEGIN	
 		IF @isSettingByProfile = 1
 		BEGIN			
@@ -122,6 +128,7 @@ BEGIN
 					   					FROM @tmpResourceIDs t
 					   					WHERE t.Bettype = b.Bettype AND (t.BetID = 0 OR t.BetID = b.BetID)
 					   					)
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					)
 				SELECT @isExistWaitingTicket = 1
 			ELSE IF @IsMergedParlay = 1
@@ -135,6 +142,7 @@ BEGIN
 					   					FROM @tmpResourceIDs t
 					   					WHERE t.Bettype = bm.Bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 					   					)
+							AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					)
 				SELECT @isExistWaitingTicket = 1
 			END
@@ -145,69 +153,71 @@ BEGIN
 				FROM dbo.bettrans b WITH(NOLOCK)
 					INNER JOIN dbo.f_Set_GetGroupBettypes() f
 						ON b.bettype = f.BetType
-				WHERE b.matchid = @matchid
+				WHERE b.matchid = @matchid			
+					AND (b.statusID = 1 -- waiting status
+						OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
 			
-			AND (b.statusID = 1 -- waiting status
-				OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-			
-				AND f.IsAuto = 0
-				AND ((@Action IN ('CAL', 'REFUND'))
-					OR (@Action IN ('CAL-HT', 'REFUND-HT')
-							AND f.GroupId IN (1,3) -- HT, HT FGLG						
-						)
-					OR (@Action IN ('CAL-FT', 'REFUND-FT') 
-							AND f.GroupId NOT IN (1,3)
-						) --exclude bettype [172] in case auto-payout
-					)
-				AND 1 = CASE
-							WHEN @SelectedQuarter IS NULL THEN 1
-							WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1
-							WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
-							ELSE 0
-						END				
+						AND f.IsAuto = 0
+						AND ((@Action IN ('CAL', 'REFUND'))
+							OR (@Action IN ('CAL-HT', 'REFUND-HT')
+									AND f.GroupId IN (1,3) -- HT, HT FGLG						
+								)
+							OR (@Action IN ('CAL-FT', 'REFUND-FT') 
+									AND f.GroupId NOT IN (1,3)
+								) --exclude bettype [172] in case auto-payout
+							)
+						AND 1 = CASE
+									WHEN @SelectedQuarter IS NULL THEN 1
+									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1
+									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
+									ELSE 0
+								END
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			)
 				SELECT @isExistWaitingTicket = 1
 		END
 		
 	END
 	
-	IF @Action LIKE 'REFUND%' AND @Mode <> 'EAR'
+	--refund betDaq
+	ELSE IF @Action = 'BetDaq'
+	BEGIN	
+		IF EXISTS (SELECT TOP 1 1 
+			FROM	dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
+			WHERE	b.matchid = @matchid
+					AND (b.statusID = 1 -- waiting status
+						OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))					 
+					AND f.GroupId BETWEEN 1 AND 7
+					AND b.bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
+					AND (custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
+						OR recommend = 1688156	)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		)
+			SELECT @isExistWaitingTicket = 1
+	END		
+	
+	--refund betfair
+	ELSE IF @Action = 'BetFair'
 	BEGIN
-		IF @Action = 'BetDaq'
-		BEGIN	
-			IF EXISTS (SELECT TOP 1 1 
-				FROM	dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN dbo.f_Set_GetGroupBettypes() f
-						ON b.bettype = f.BetType
-				WHERE	b.matchid = @matchid
-						AND (b.statusID = 1 -- waiting status
-						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-						 
-						AND f.GroupId BETWEEN 1 AND 7
-						AND b.bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
-						AND (custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
-							OR recommend = 1688156	)
-			)
-				SELECT @isExistWaitingTicket = 1
-		END		
-		
-		IF @Action = 'BetFair'
-		BEGIN
-			IF EXISTS (SELECT TOP 1 1 
-				FROM dbo.bettrans b WITH(NOLOCK)
-					INNER JOIN dbo.f_Set_GetGroupBettypes() f
-						ON b.bettype = f.BetType
-				WHERE b.matchid = @matchid
-				AND (b.statusID = 1 -- waiting status
-						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
-				AND f.GroupId BETWEEN 1 AND 7
-				AND b.bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
-				AND custid IN (2331, 1077687, 115770, 15523642)
-			)
-				SELECT @isExistWaitingTicket = 1
-		END	
-	END
-	IF @Action = 'CAL-MP'
+		IF EXISTS (SELECT TOP 1 1 
+			FROM dbo.bettrans b WITH(NOLOCK)
+				INNER JOIN dbo.f_Set_GetGroupBettypes() f
+					ON b.bettype = f.BetType
+			WHERE b.matchid = @matchid
+			AND (b.statusID = 1 -- waiting status
+						OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
+			AND f.GroupId BETWEEN 1 AND 7
+			AND b.bettype NOT BETWEEN 153 AND 156   -- New bettype of Tennis
+			AND custid IN (2331, 1077687, 115770, 15523642)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		)
+			SELECT @isExistWaitingTicket = 1
+	END	
+
+	--calculate parlay sports not yet settle by profile
+	ELSE IF @Action = 'CAL' AND @Mode = 'MP'
 	BEGIN		
 		DECLARE @wtMatch TABLE (matchid INT)
 		
@@ -217,11 +227,12 @@ BEGIN
 			INNER JOIN dbo.f_Set_GetGroupBettypes() f
 				ON b.bettype = f.BetType
 		WHERE b.matchid IN (SELECT CONVERT(INT,[value]) FROM STRING_SPLIT(@MatchIds, ','))
-		AND 
-			(
-				b.statusID = 1 -- waiting status
-				OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime,@currentdate) > @currentdate)
-			)
+			AND 
+				(
+					b.statusID = 1 -- waiting status
+					OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime,@currentdate) > @currentdate)
+				)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		GROUP BY b.matchid
 		
 		SET @MatchIds = ''
@@ -237,7 +248,7 @@ BEGIN
 		
 	END
 
-	IF @Mode = 'FM'
+	ELSE IF @Mode = 'FM'
 	BEGIN
 		DECLARE @maxSelectedTotalGoal	INT = 0
 				,@maxSelectedPosition	TINYINT = 0
@@ -421,6 +432,7 @@ BEGIN
 										END
 								AND (b.statusID = 1
 										OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime, @currentdate) > @currentdate))
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 				)
 				SELECT @isExistWaitingTicket = 1
@@ -443,6 +455,7 @@ BEGIN
 											END
 									AND (b.statusID = 1
 										OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime, @currentdate) > @currentdate))
+									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					)
 				SET @isExistWaitingTicket = 1
 			END
@@ -467,12 +480,13 @@ BEGIN
 											END
 									END
 							AND (b.statusID = 1 -- waiting status
-							OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
+								OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		)
 			SELECT @isExistWaitingTicket = 1
 	END
-	
-	IF @Mode = 'EAR'
+		
+	IF @Action IN ( 'CAL', 'REFUND', 'UNDO' ) AND @Mode = 'EAR'
 	BEGIN
 		IF @isSettingByProfile = 1 OR @Sporttype = 1
 		BEGIN
@@ -495,6 +509,7 @@ BEGIN
 					   		AND (b.statusID = 1 -- waiting status
 								OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime, @currentdate) > @currentdate)
 							)
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					)	
 				SELECT @isExistWaitingTicket = 1
 		END
@@ -521,7 +536,8 @@ BEGIN
 										ON b.bettype = t.bettype
 								WHERE	b.matchid = @matchid
 									AND (b.statusID = 1 -- waiting status
-									OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
+										OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,@currentdate) > @currentdate))
+									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							) b
 								ON b.ResourceId = t.ResourceID
 				)

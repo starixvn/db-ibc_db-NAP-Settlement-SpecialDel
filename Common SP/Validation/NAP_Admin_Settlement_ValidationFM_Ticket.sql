@@ -186,7 +186,7 @@ BEGIN
 		@MatchId = @MatchId
 		,@xmlData = @SelectedResources
 		,@Action = @Action
-		,@Mode = 'CAL-FM'
+		,@Mode = 'FM'
 		,@IsAuto = @IsAuto
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT
