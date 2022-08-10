@@ -1,18 +1,18 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event  
+ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 (
 	 @matchid			INT = 0
 	,@DestinationMatchId	INT = 0 --for Move Ticket
-	,@Action		VARCHAR(10)
-	,@Mode			VARCHAR(10)
-	,@IsAuto		BIT = 0
-	,@IsAutoRefund	BIT = 0
-	,@SPName		VARCHAR(255)
-	,@SelectedResources	VARCHAR(MAX) = NULL 
-	,@InstantKey	INT = NULL			--InstantCalculation_Push
+	,@Action				VARCHAR(10)
+	,@Mode					VARCHAR(10)
+	,@IsAuto				BIT = 0
+	--,@IsAutoRefund	BIT = 0
+	,@SPName				VARCHAR(255)
+	,@SelectedResources		VARCHAR(MAX) = NULL 
+	,@InstantKey			INT = NULL			--InstantCalculation_Push
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --_Refund_MP_Push
-	,@SDTRecord		TINYINT	= 0			--Refund_1_Push
-	,@IsSettleDetermined	BIT	= 0		--Fast_Market_Auto_1s_Push
+	,@SDTRecord				TINYINT	= 0			--Refund_1_Push
+	,@IsSettleDetermined	BIT	= 0				--Fast_Market_Auto_1s_Push
 
 	,@VendorID				SMALLINT = 34
 	,@childMatchIdCricket	INT		 = 0 OUTPUT
@@ -65,12 +65,17 @@ SET NOCOUNT ON
 			,@xmlResourceResult		XML
 			,@xmlData				VARCHAR(MAX)
 			,@IsFailed				BIT = 0
+			,@IsAutoRefund			BIT = 0 
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 			,@IsAuto = CASE WHEN @Action LIKE '%_MARKET' THEN 0 ELSE @IsAuto END
 			,@IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
 									ELSE 0 END
-			,@IsCheckSettlementStatusEarly = CASE WHEN @IsAuto = 0 AND @Mode = 'FM' THEN 1 ELSE 0 END
+			,@IsCheckSettlementStatusEarly = CASE WHEN @IsAuto = 0 AND @Mode = 'FM' THEN 1 
+													WHEN @Mode = 'EAR' THEN 1
+													ELSE 0 END
+			,@IsAutoRefund	=  CASE WHEN @Action = 'REFUND' AND @IsAuto = 1 THEN 1
+									ELSE 0 END
 
 	SELECT @sporttype = m.sporttype
 			,@ParentId			= m.ParentID

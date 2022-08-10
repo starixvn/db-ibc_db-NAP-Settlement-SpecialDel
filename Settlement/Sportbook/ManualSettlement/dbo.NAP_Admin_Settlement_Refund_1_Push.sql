@@ -12,7 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_1_Push]
     ,@BetStatus         NVARCHAR(50)    = NULL
     ,@IP				VARCHAR(15)    	= ''
     ,@ResourceResult	VARCHAR(MAX)	= NULL
-    ,@IsAutoRefund		BIT				= 0
+    ,@IsAuto			BIT				= 0
 	,@BroadcastSessionId VARCHAR(50)		= NULL
     ,@ErrCode			INT            	= 0     OUTPUT
     ,@ErrMsg			NVARCHAR(200)   = ''    OUTPUT
@@ -63,7 +63,7 @@ BEGIN
                                                                   + ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
                                                                                      ELSE '''' + @ResourceResult + '''' END 
                                                                   + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
-																  +  CASE WHEN @IsAutoRefund = 1 THEN + ', @IsAutoRefund =' + CONVERT(NVARCHAR(1), @IsAutoRefund ) +''  ELSE '' END
+																  +  CASE WHEN @IsAuto = 1 THEN + ', @IsAuto =' + CONVERT(NVARCHAR(1), @IsAuto ) +''  ELSE '' END
 																  + ', @ErrCode = @ErrCode OUTPUT' 
                                                                   + ', @ErrMsg = @ErrMsg OUTPUT'
 	

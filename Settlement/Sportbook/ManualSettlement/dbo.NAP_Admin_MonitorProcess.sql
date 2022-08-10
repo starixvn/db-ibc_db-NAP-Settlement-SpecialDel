@@ -48,7 +48,7 @@ BEGIN
 			,@Remark VARCHAR(500)
 			,@TicketCount INT
 			,@SDTRecord TINYINT
-			,@IsAutoRefund BIT
+			,@IsAuto BIT
 			,@Starttime DATETIME
 			,@Endtime DATETIME
 
@@ -145,7 +145,7 @@ BEGIN
 				,@AdminId = T.C.value('@AdminId','INT')
 				,@TicketCount = T.C.value('@TicketCount','INT')
 				,@SDTRecord = T.C.value('@SDTRecord','TINYINT')
-				,@IsAutoRefund = T.C.value('@IsAutoRefund','BIT')
+				,@IsAuto = T.C.value('@IsAuto','BIT')
 				,@DeterminedFTStatus = ISNULL(T.C.value('@DeterminedFTStatus','TINYINT'),0)
 				,@Starttime = T.C.value('@Starttime','DATETIME')
 				,@ErrMsg = T.C.value('@ErrMsg','VARCHAR(300)')
@@ -195,7 +195,7 @@ BEGIN
 											ELSE ' RefChild:(' + @ChildMatchIds +')' 
 											END
 								WHEN @Action LIKE 'REFUND%' THEN
-									CASE WHEN @IsAutoRefund IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAutoRefund AS CHAR(1)) ELSE '' END
+									CASE WHEN @IsAuto IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAuto AS CHAR(1)) ELSE '' END
 									+ ' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
 								ELSE ''
 							END

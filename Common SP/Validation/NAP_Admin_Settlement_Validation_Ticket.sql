@@ -7,18 +7,18 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 	,@Action		VARCHAR(10)
 	,@Mode			VARCHAR(10)
 	,@IsAuto		BIT = 0
-	,@IsAutoRefund	BIT = 0
+	--,@IsAutoRefund	BIT = 0
 	,@SPName		VARCHAR(255)
 	,@SelectedResources	VARCHAR(MAX) = NULL
-	,@InstantKey	INT = NULL --NAP_Admin_Settlement_1_InstantCalculation_Push
+	,@InstantKey	INT = NULL					--NAP_Admin_Settlement_1_InstantCalculation_Push
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --NAP_Admin_Settlement_Refund_MP_Push
-	,@SDTRecord		TINYINT	= 0  --NAP_Admin_Settlement_Refund_1_Push
-	,@IsSettleDetermined	BIT	= 0 --NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
 
 	,@HalfTimeHome  INT = NULL
     ,@HalfTimeAway  INT = NULL
     ,@FullTimeHome  INT = NULL
     ,@FullTimeAway  INT = NULL
+	,@SDTRecord		TINYINT	= 0					--NAP_Admin_Settlement_Refund_1_Push
+	,@IsSettleDetermined	BIT	= 0				--NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
 
 	,@ErrCode		INT		= 0     OUTPUT
 	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
@@ -64,6 +64,7 @@ SET NOCOUNT ON
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
 			,@IsSettleAbandonedMatchIBC BIT --Refund DTM Soccer
+			,@IsAutoRefund			BIT = 0 
 
 	SELECT @sporttype = m.sporttype
 			,@LeagueGroupID		= lg.GroupID
@@ -83,6 +84,9 @@ SET NOCOUNT ON
 	WHERE s.Sporttype = @SportType
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
+			,@IsAutoRefund	=  CASE WHEN @Action = 'REFUND' AND @IsAuto = 1 THEN 1
+									ELSE 0 END
+	
 	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
 	EXEC dbo.NAP_Set_ServerInfo

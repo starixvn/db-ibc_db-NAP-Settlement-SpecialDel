@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@hta					INT			= 0
 	,@fth					INT			= 0
 	,@fta					INT			= 0
-	,@IsAutoRefund			BIT			= 0
+	,@IsAuto				BIT			= 0
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
@@ -654,7 +654,7 @@ BEGIN
 		RETURN
 	
 	
-	IF @IsAutoRefund = 1 AND @Action = 'REFUND'
+	IF @IsAuto = 1 AND @Action = 'REFUND'
 	BEGIN
 		IF  @sportType = 1
 		BEGIN
@@ -676,7 +676,7 @@ BEGIN
 	END
 
 	--Auto refund Badminton after calculate parlay by Auto Service
-	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAutoRefund = 1 AND @Action = 'CAL' AND ResourceID = '00' AND HomeValue <> AwayValue )
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00' AND HomeValue <> AwayValue )
 	BEGIN
 		EXEC dbo.NAP_Set_GetRefundResult
 				@MatchId		= @MatchID

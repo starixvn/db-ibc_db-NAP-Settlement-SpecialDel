@@ -13,7 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_1]
     ,@Action                            VARCHAR(10)     = 'REFUND'
     ,@ResourceResult					VARCHAR(MAX)	= NULL
     ,@IP                                VARCHAR(15)     = ''
-	,@IsAutoRefund						BIT				= 0
+	,@IsAuto							BIT				= 0
 	,@KeyId								INT				= 0
     ,@ErrCode							INT             = 0      OUTPUT
     ,@ErrMsg                            NVARCHAR(200)   = ''        OUTPUT
@@ -196,7 +196,7 @@ BEGIN
 	EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 		@MatchId	= @matchid
 		,@Action	= @Action
-		,@IsAutoRefund = @IsAutoRefund
+		,@IsAutoRefund = @IsAuto
 		,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 		,@ErrCode	= @ErrCode	OUTPUT
 		,@ErrMsg	= @ErrMsg	OUTPUT
@@ -204,7 +204,7 @@ BEGIN
 	IF @ErrCode > 0
 		RETURN
 
-	IF @IsAutoRefund = 1
+	IF @IsAuto = 1
 	BEGIN
 		EXEC NAP_Set_AutoRefund_MatchChecking_Ticket
 			@MatchId		= @matchid
@@ -787,7 +787,7 @@ BEGIN
 
 		IF @IsCentral = 1
 		BEGIN
-			IF @IsAutoRefund = 1
+			IF @IsAuto = 1
 			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
 				@MatchId = @matchid
@@ -874,7 +874,7 @@ BEGIN
 									+ ', @hta = ' + CONVERT(NVARCHAR(50), @hta) 
 									+ ', @fth = ' + CONVERT(NVARCHAR(50), @fth) 
 									+ ', @fta = ' + CONVERT(NVARCHAR(50), @fta)
-									+ ', @IsAutoRefund = ' + CONVERT(NVARCHAR(50), @IsAutoRefund)									
+									+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)									
 									+ ', @Action = ''' + @Action + ''''	
 									+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 									+ ', @ErrCode = @ErrCode OUTPUT' 
@@ -891,7 +891,7 @@ BEGIN
 					,@hta				= @hta
 					,@fth				= @fth
 					,@fta				= @fta
-					,@IsAutoRefund		= @IsAutoRefund
+					,@IsAuto			= @IsAuto
 					,@LockedByRefno		= 1 -- always lock refno for testing
 					,@IsCentral			= @IsCentral
 					,@ErrCode			= @ErrCode OUTPUT
@@ -905,7 +905,7 @@ BEGIN
 		END
 		ELSE IF @IsCentral = 1
 		BEGIN
-			IF @IsAutoRefund = 1
+			IF @IsAuto = 1
 			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
 					@MatchId = @matchid 
@@ -953,7 +953,7 @@ BEGIN
 				,@ErrMsg AS '@ErrMsg'
 				,@ErrCode AS '@ErrCode'
 				,@GoalSequence AS '@goalrecord'
-				,@IsAutoRefund AS '@IsAutoRefund'
+				,@IsAuto AS '@IsAuto'
 		FOR XML PATH('r'), ROOT('root'), TYPE)
 
 	SET @CommandMonitor = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
