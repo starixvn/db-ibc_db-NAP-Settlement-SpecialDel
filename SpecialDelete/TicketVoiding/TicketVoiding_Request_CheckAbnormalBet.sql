@@ -78,6 +78,8 @@ BEGIN
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@ResettleTransids 			 VARCHAR(MAX) =''
 			,@MatchInfo					 XML = NULL
+	
+	DECLARE @homeid INT, @awayid INT, @leagueid INT, @sporttype SMALLINT, @matchcode NVARCHAR(50)
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -261,6 +263,14 @@ BEGIN
 		END
 	END
 
+	SELECT @homeid = m.homeid
+		  ,@awayid = m.awayid
+	      ,@leagueid = m.leagueid
+		  ,@sporttype = m.sporttype
+	      ,@matchcode = m.matchcode
+	FROM dbo.match m WITH(NOLOCK) 
+	WHERE m.matchid = @MatchId
+
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
 		transid
@@ -290,7 +300,7 @@ BEGIN
 		,b.liveawayscore
 		,b.liveindicator
 		,CASE WHEN @FilterBy = 1 THEN 29 ELSE @MatchId END
-		,m.sporttype
+		,@sporttype
 		,b.betfrom
 		,b.recommend
 		,b.mrecommend
@@ -300,7 +310,6 @@ BEGIN
 		,SubMatchIdList
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
-		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
@@ -609,9 +618,7 @@ BEGIN
 
 	IF @FilterBy IS NULL AND @MatchId <> 0
 	BEGIN
-		SET @MatchInfo = (SELECT @MatchId AS "@matchid", m.sporttype AS "@sporttype" 
-						  FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
-						  FOR XML PATH('r'), ROOT('root'))
+		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @sporttype AS "@sporttype"  FOR XML PATH('r'), ROOT('root'))
 	END
 	ELSE IF @FilterBy = 1 AND @MatchId IS NULL
 	BEGIN
@@ -631,9 +638,12 @@ BEGIN
 	/*****************Return table **************************/
 	
 	--1. Info match table
-	SELECT m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.matchcode
-	FROM dbo.match m WITH(NOLOCK) 
-	WHERE m.matchid = @MatchId
+	SELECT @matchid AS matchid
+	, @homeid AS homeid 
+	, @awayid AS awayid
+	, @leagueid	AS leagueid
+	, @sporttype AS sporttype
+	, @matchcode AS matchcode
 	
 	--2. Validate Table
 	SELECT @InvalidMatchId AS InvalidMatchId

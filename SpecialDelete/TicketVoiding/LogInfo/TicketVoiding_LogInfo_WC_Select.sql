@@ -196,7 +196,10 @@ BEGIN
 	FROM @WrongScoreInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 
-	SELECT TOP (1) @FilterBy = FilterBy ,@SubIssueTypeId = SubIssueTypeId FROM #FilterInfo
+	SELECT TOP (1) @FilterBy = FilterBy 
+				 , @SubIssueTypeId = SubIssueTypeId
+				 , @MatchId = MatchId 
+	FROM #FilterInfo
 	
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -368,13 +371,11 @@ BEGIN
 	SELECT DISTINCT MatchId, ScoreId, CAST(livehomescore AS VARCHAR(10)) + '-' + CAST(liveawayscore AS VARCHAR(10)) AS LiveScores
 	FROM #FilterInfo
 
-
 	WHILE (1=1) 
 	BEGIN
 		SELECT @MinAccept				= 0	
 			, @VoidFromTime				= NULL
 			, @VoidToTime				= NULL
-			, @MatchId					= 0
 			, @FilterFromTransTime		= NULL
 			, @FilterToTransTime		= NULL
 			, @AATime					= 0 
@@ -384,7 +385,6 @@ BEGIN
 		
 		UPDATE TOP(1) m SET
 			m.isFinish = 1
-			,@MatchId = m.MatchId
 			,@FilterFromTransTime = m.FilterFromTransTime
 			,@FilterToTransTime = m.FilterToTransTime
 			,@AATime = m.AATime
