@@ -161,12 +161,13 @@ BEGIN
 	FROM @tblResource ORDER BY Ord
 
 	-- 2 rows
-	UPDATE sp
-	SET ResourceID = '70400'
-		,RefResourceId = '00'
-	FROM SettlementSpecialBettypeProfile sp WITH(ROWLOCK, UPDLOCK)
-	WHERE sp.SportType = 9
-	AND sp.BetType  IN (2, 3)
+	---- Note: This block code will be run when release production
+	--UPDATE sp
+	--SET ResourceID = '70400'
+	--	,RefResourceId = '00'
+	--FROM SettlementSpecialBettypeProfile sp WITH(ROWLOCK, UPDLOCK)
+	--WHERE sp.SportType = 9
+	--AND sp.BetType  IN (2, 3)
 
 	
 END
