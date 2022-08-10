@@ -29,63 +29,23 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON 
-	-- check and not allow attempt to settlement same game while it's still not finish
-	IF EXISTS (
-			SELECT 1
-			FROM dbo.TempVariableNumber
-			WHERE KeyID = 2
-				AND KeyValue = @MatchID
-			)
-	BEGIN
-		SELECT	 @ErrCode = 101
-				,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
+	
 
 	DECLARE  @Remark 	VARCHAR(500)
 			,@ActionID 	INT
 			,@LogData 	NVARCHAR(300)
 			,@LeagueID	INT
 			,@EventDate	DATETIME
-			,@procName		SYSNAME
-			,@WaitingTime	VARCHAR(10)
-			,@IsWaiting		BIT 
 			,@IsCentral		BIT = 0
 
 	SELECT	@ActionID = CASE @Action WHEN 'UNDO' THEN 145 
 									 ELSE 0 END 
-			,@procName = OBJECT_NAME(@@PROCID)
-			,@IsWaiting = 0
-
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_Outright
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	INSERT INTO dbo.TempVariableNumber (
-		KeyID
-		,KeyValue
-		)
-	VALUES (
-		2
-		,@MatchID
-		)
+	INSERT INTO dbo.TempVariableNumber (KeyID	,KeyValue)
+	VALUES (2,@MatchID)
 
 	IF (@@Error = 0)
 	BEGIN
@@ -121,16 +81,6 @@ BEGIN
 	FROM	Outright WITH (NOLOCK)
 	WHERE	ORID = @MatchID
 	
-	IF @Action = 'UNDO' AND @IsCentral = 1
-	BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_Outright_Update 
-			 @MatchID = @MatchID
-			,@Status = @Status
-			,@Action = @Action
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
-	END
-
 	-- add log to outright_log to notify for Apollo
 	EXEC dbo.[Acc_Set_ConfirmedActionOutright] 
 		 @matchid = @matchid
@@ -195,10 +145,6 @@ BEGIN
  
 	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
  
-	--INSERT INTO dbo.BalancePendingDebit (custid, balance)
-	--SELECT custid, ABS(balance)
-	--FROM #Balance
-	--WHERE Increased = 0
 	INSERT INTO @tblDebitPending (custID, balance)
 	SELECT	custid, ABS(balance)
 	FROM	#Balance
@@ -208,11 +154,7 @@ BEGIN
 		EXEC dbo.Dot_BalancePendingDebitIns 
 			@BalancePending = @tblDebitPending
 			,@Type			= 1 -- Sports
- 
-	--INSERT INTO dbo.BalancePendingCredit (custid, balance)
-	--SELECT custid, balance
-	--FROM #Balance
-	--WHERE Increased = 1
+
 	INSERT INTO @tblCreditPending (custID, balance)
 	SELECT	custid, balance
 	FROM	#Balance

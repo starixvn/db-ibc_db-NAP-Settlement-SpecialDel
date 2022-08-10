@@ -36,64 +36,18 @@ BEGIN
 			,@TicketCount	INT
 			,@ActionId		INT
 			,@EventStatus	NVARCHAR(50)
-			,@procName		SYSNAME
-			,@WaitingTime	VARCHAR(10)
-			,@IsWaiting		BIT 
 			,@IsCentral		BIT
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
 	SET @Start = CURRENT_TIMESTAMP
-	
-	SELECT @procName = OBJECT_NAME(@@procid)
-		,@IsWaiting = 0
-	
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_VS_180
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
-
-	IF NOT EXISTS (SELECT 1 FROM dbo.match m with(NOLOCK) WHERE m.matchid = @MatchId)
-	BEGIN
-		SELECT	 @ErrCode	= 1000001
-				,@ErrMsg	= 'Match does not exist!'	
-				
-		RETURN
-	END 
-	
+		
 	SELECT @ActionID = CASE @Action
 							WHEN 'CAL'		THEN 155
 							WHEN 'REFUND'	THEN 156
 						END
 						
-	-- check and not allow attempt to settlement same game while it's still not finish
-	IF EXISTS (
-			SELECT	1
-			FROM	dbo.TempVariableNumber
-			WHERE	KeyID = 1 
-					AND KeyValue = @matchid
-			)
-	BEGIN
-		SELECT @ErrCode = 1000000
-			,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-		RETURN
-	END						
-	
 	INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue) VALUES (1, @matchid)
 
 	IF (@@Error = 0)
@@ -168,49 +122,16 @@ BEGIN
 	
 	IF @Action = 'CAL'
 	BEGIN
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-				@Command	= 'NAP_Admin_Settlement_VS_180-CAL'
-				,@MatchID	= @matchid
-				,@FTHome	= @fth
-				,@FTAway	= @fta
-				,@creator	= @AdminId
-		END
-			
 		EXEC dbo.NAP_Admin_Settlement_3_VS 
 			@Creator	= @AdminId
 			,@MatchId	= @matchid
 			,@Mode		= @Action
-		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-				@MatchId	= @MatchId
-				,@Command	= 'C' -- completed
-		END
 	END
 	ELSE IF @Action = 'REFUND'
 	BEGIN
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-				@Command	= 'NAP_Admin_Settlement_VS_180-REFUND'
-				,@MatchID	= @matchid
-				,@creator	= @AdminId
-		END
-			
 		EXEC dbo.NAP_Admin_Calculate_VS_180_Refund 
 			@matchid = @matchid
-			,@IsCentral = @IsCentral
-		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-				@MatchId	= @MatchId
-				,@Command	= 'F' -- refund
-		END
-			
+			,@IsCentral = @IsCentral		
 	END
 			
 	-------------------------------------------------------------
