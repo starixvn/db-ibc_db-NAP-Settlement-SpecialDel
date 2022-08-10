@@ -215,6 +215,7 @@ SET NOCOUNT ON
 		IF (  @SportType = 1 AND 
 				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
 				AND @LeagueGroupId <> 113
+				AND @Mode <> 'FM' 
 			)
 		BEGIN
 			;WITH cteGoalResource
@@ -242,14 +243,28 @@ SET NOCOUNT ON
 			FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
 		END
 
-			
-		EXEC NAP_Admin_Settlement_Checking
-			@MatchId  = @MatchId
-			,@Action  = @Action
-			,@Mode	  = @Mode
-			,@xmlData = @xmlData
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg OUTPUT
+		IF @Mode = 'FM'
+		BEGIN
+			EXEC NAP_Admin_Settlement_ValidationFM_Ticket  
+				 @matchid		= @MatchId
+				,@Action		= @Action
+				,@IsAuto		= @IsAuto
+				,@SelectedResources		= @SelectedResources
+				,@IsSettleDetermined	= @IsSettleDetermined
+				,@ErrCode		= @ErrCode OUTPUT
+				,@ErrMsg		= @ErrMsg OUTPUT
+		END
+		
+		ELSE
+		BEGIN
+			EXEC NAP_Admin_Settlement_Checking
+				@MatchId  = @MatchId
+				,@Action  = @Action
+				,@Mode	  = @Mode
+				,@xmlData = @xmlData
+				,@ErrCode = @ErrCode OUTPUT
+				,@ErrMsg  = @ErrMsg OUTPUT
+		END
 	
 		IF ISNULL(@ErrCode,0) <> 0
 		RETURN
