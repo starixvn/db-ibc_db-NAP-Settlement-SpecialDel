@@ -42,55 +42,55 @@
 	INSERT INTO [dbo].[BalCreditCasino] ([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalCreditCasino_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--2. BalCreditOthers
 	INSERT INTO [dbo].[BalCreditOthers] ([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalCreditOthers_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--3. BalCreditSports
 	INSERT INTO [dbo].[BalCreditSports] ([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalCreditSports_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--4. BalCreditTransfer
 	INSERT INTO  [dbo].[BalCreditTransfer]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalCreditTransfer_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--5. BalDebitCasino
 	INSERT INTO  [dbo].[BalDebitCasino]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalDebitCasino_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--6. BalDebitOthers
 	INSERT INTO [dbo].[BalDebitOthers]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalDebitOthers_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--7. BalDebitSports
 	INSERT INTO [dbo].[BalDebitSports]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalDebitSports_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--8. BalDebitTransfer
 	INSERT INTO [dbo].[BalDebitTransfer]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
 	FROM [dbo].[BalDebitTransfer_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--9. BalNetPosition
 	INSERT INTO [dbo].[BalNetPosition]([CustID], [MatchID], [Bettype], [Debit], [Credit], [CreatedDate], [ModifiedDate])
 	SELECT bal.[CustID], bal.[MatchID], bal.[Bettype], bal.[Debit], bal.[Credit], bal.[CreatedDate], bal.[ModifiedDate]
 	FROM [dbo].[BalNetPosition_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--10. balanceTable
 	--There is no index for table balanceTable
@@ -99,7 +99,7 @@
 	SELECT  bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
 			bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
 	FROM [dbo].[balanceTable_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--11. balanceTable_tmp
 	INSERT INTO [dbo].[balanceTable_tmp](	[winlostdate], [custid], [roleid], [amount], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm], [recommend], [mrecommend], 
@@ -107,7 +107,7 @@
 	SELECT  bal.[winlostdate], bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
 			bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
 	FROM [dbo].[balanceTable_tmp_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	--12. BalanceTable_tmp_cal
 	--There is no index for table balanceTable
@@ -116,7 +116,7 @@
 	SELECT	bal.[dow], bal.[roleid], bal.[custid], bal.[recommend], bal.[mrecommend], bal.[srecommend], 
 			bal.[amt1], bal.[tcnt1], bal.[amt2], bal.[tcnt2], bal.[amt3], bal.[tcnt3], bal.[amt4], bal.[tcnt4]
 	FROM [dbo].[BalanceTable_tmp_cal_old20220825] bal WITH (NOLOCK)
-	INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bal.custid
 
 	------------------------------------------------
 	DROP TABLE #tmp_cust
