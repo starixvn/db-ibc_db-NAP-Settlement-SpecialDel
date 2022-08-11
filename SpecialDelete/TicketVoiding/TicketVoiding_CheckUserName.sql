@@ -54,6 +54,7 @@ BEGIN
 			,@CountMember             INT
 			,@IsExceededTotalUsernames BIT = 0
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
+			,@OldActionId			  TINYINT
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
@@ -340,25 +341,30 @@ BEGIN
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
 		
 		SET @NumberOfTickets = @@ROWCOUNT
-		
-		IF @RequestId <> 0 
+	END
+
+	IF @RequestId <> 0 
+	BEGIN
+		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
+
+		IF @ActionId NOT IN (2)
 		BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
-			SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid)
-												AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 												AND rdt.RequestId = @RequestId
-											FOR XML PATH('')
-										), 1,1,'')
+											FOR XML PATH('')), 1,1,'')
+											,'')
 		END
-	END
-	ELSE IF @ActionId = 2 AND @RequestId <> 0
-	BEGIN
-		SELECT @UnmarkTransIds = STUFF((SELECT ',' + CONVERT(VARCHAR(50), tp.transid)
-										FROM #transIdTemp tp
-										WHERE tp.StatusId IN (0, 1) 
-										GROUP BY TransId for XML PATH('')), 1, 1, '')
+		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId
+		BEGIN
+			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CONVERT(VARCHAR(50), rdt.transid)
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											WHERE rdt.RequestId = @RequestId
+											FOR XML PATH('')), 1, 1, '')
+										,'')
+		END
 	END
 
 	--Get list match

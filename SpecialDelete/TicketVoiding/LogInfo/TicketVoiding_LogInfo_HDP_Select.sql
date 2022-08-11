@@ -31,7 +31,8 @@ BEGIN
 			,@MainParlayCount		  INT = 0
 			,@WrongHDPInfoXML		  XML = NULL
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
-	 	
+	 		,@OldActionId			  TINYINT
+
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
 			SubTransid            BIGINT,
@@ -561,28 +562,51 @@ BEGIN
 
 	IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
-		--Edit request filter on UI -> unmark ticket 
-		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
-										FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 0
-											LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
-										WHERE tp.TransId IS NULL AND tr.TransId is NULL
-											AND rdt.RequestId = @RequestId
-										FOR XML PATH('')), 1,1,'')
-									,'')
+		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
-		IF @UnmarkTransIds <> ''
-			SET @UnmarkTransIds = @UnmarkTransIds + ','
-
-		SELECT @UnmarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
-										 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
-												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.SubTransid AND tp.IsMixParlay = 1
+		IF @ActionId NOT IN (2)
+		BEGIN
+			--Edit request filter on UI -> unmark ticket 
+			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 0
 												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
-										  WHERE tp.SubTransid IS NULL AND tr.TransId IS NULL
-												  AND rdt.RequestId=@RequestId
-										  FOR XML PATH('')
-										), 1,1,'')
-									,'')
+											WHERE tp.TransId IS NULL AND tr.TransId is NULL
+												AND rdt.RequestId = @RequestId
+											FOR XML PATH('')), 1,1,'')
+										,'')
+
+			IF @UnmarkTransIds <> ''
+				SET @UnmarkTransIds = @UnmarkTransIds + ','
+
+			SELECT @UnmarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
+													LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.SubTransid AND tp.IsMixParlay = 1
+													LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
+											  WHERE tp.SubTransid IS NULL AND tr.TransId IS NULL
+													  AND rdt.RequestId=@RequestId
+											  FOR XML PATH('')
+											), 1,1,'')
+										,'')
+		END
+		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId -- Take note
+		BEGIN
+			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											WHERE rdt.RequestId = @RequestId
+											FOR XML PATH('')), 1,1,'')
+										,'')
+			IF @UnmarkTransIds <> ''
+				SET @UnmarkTransIds = @UnmarkTransIds + ','
+			
+			SELECT @UnmarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+											 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
+											  WHERE rdt.RequestId=@RequestId
+											  FOR XML PATH('')
+											), 1,1,'')
+										,'')
+		END
+
 	END
 	/*****************Return table **************************/
 	-- 1. Validate table

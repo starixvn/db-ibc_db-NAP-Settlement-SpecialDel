@@ -70,7 +70,7 @@ BEGIN
 			,@ExecuteSQL				 NVARCHAR(MAX) = ''
 			,@IsCalQueue				 BIT = 0
 			,@IsHasWarningRemovedTickets BIT=0
-			,@OldAction					 TINYINT
+			,@OldActionId				 TINYINT
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@MatchId					 INT = 0
@@ -82,7 +82,7 @@ BEGIN
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tblMatch AS TABLE (MatchId INT)
+	DECLARE @Matchinfo_tmp AS TABLE (matchid INT, sporttype SMALLINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 				
 	INSERT INTO @bettype_tmp (bettype)
@@ -101,7 +101,6 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> ''
 
-	CREATE TABLE #transid_tmp (transid BIGINT,StatusId INT, statuswinlost TINYINT, refno BIGINT)
 	CREATE TABLE #transidremove_tmp (transid BIGINT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
@@ -380,62 +379,70 @@ BEGIN
 				) AS tmp
 	WHERE  req.RequestId <> @RequestId AND req.ActionId <> 2
 
-	-- Check auto calculator
-    SELECT @OldAction = ActionId 
-	FROM dbo.TicketVoiding_Request WITH(NOLOCK) 
-	WHERE RequestId = @RequestId
-
-	IF (@ActionId <> @OldAction AND @ActionId = 2 AND @OldAction IS NOT NULL)
+    IF @FilterBy IS NULL AND @MatchId <> 0
 	BEGIN
-		INSERT INTO #transid_tmp (transid, StatusId, statuswinlost, refno)
-		SELECT t.transid, b.statusID, b.statuswinlost, b.refno
+		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @sporttype AS "@sporttype"  FOR XML PATH('r'), ROOT('root'))
+	END
+	ELSE IF @FilterBy = 1 AND @MatchId IS NULL
+	BEGIN
+		INSERT INTO @Matchinfo_tmp (matchid, sporttype)
+		SELECT DISTINCT s.submatchId 
+					,b.sporttype 
 		FROM #validTransId t
-			INNER JOIN #tmpTransInfo b ON t.transid = b.transid AND b.IsMixParlay = 0
-		WHERE b.statusID IN (0, 1) --if status of ticket is running
+			CROSS APPLY (
+					SELECT value AS submatchId
+					FROM STRING_SPLIT (t.SubMatchIdList,',')
+			)s
+			LEFT JOIN dbo.match b ON t.matchid = b.matchid 
+		WHERE SubMatchIdList IS NOT NULL AND t.matchid = 29
 
-		SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-										FROM #transid_tmp tp
-										FOR XML PATH('')
-								), 1,1,'')
-
-		IF @FilterBy = 1
-		BEGIN
-			INSERT INTO @tblMatch (MatchId)
-			SELECT DISTINCT m.matchid
-			FROM #transid_tmp tmp
-			INNER JOIN #tmpTransInfo m ON m.IsMixParlay = 1
-		END
-
-		SET @IsCalQueue = ( SELECT TOP (1) 1
-								FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-								WHERE StatusId IN (1,2,4) AND RequestId = 0
-								AND 1 = CASE WHEN @FilterBy IS NULL AND matchid = @MatchId THEN 1
-											 WHEN @FilterBy = 1 AND matchid IN ( SELECT MatchId FROM @tblMatch) THEN 1
-											 ELSE 0 END
-							)
-		IF @IsCalQueue = 1
-		BEGIN
-			SELECT @RemoveTransids = @UnmarkTransids
-		END
-
+		SET @MatchInfo = (
+				SELECT t.matchid AS "@matchid"
+					,t.sporttype AS "@sporttype"
+				FROM @Matchinfo_tmp t
+				FOR XML PATH('r'), ROOT('root'))
 	END
 
-	IF @RequestId <> 0 AND @ActionId <> 2
+	IF @RequestId <> 0
 	BEGIN
-		--Remove transid from request => unmark ticket & re-cal ticket
-		SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
-												  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
-												  AND rdt.RequestId = @RequestId
-											FOR XML PATH('')
-										), 1,1,'')
+		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
-		IF @UnmarkTransIds IS NOT NULL
+		IF @ActionId NOT IN (2)
 		BEGIN
-			SET @IsHasWarningRemovedTickets = 1
+			--Remove transid from request => unmark ticket & re-cal ticket
+			SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+												WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
+													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+													  AND rdt.RequestId = @RequestId
+												FOR XML PATH('')
+											), 1,1,'')
+
+			IF @UnmarkTransIds IS NOT NULL
+			BEGIN
+				SET @IsHasWarningRemovedTickets = 1
 				
-			SELECT @RemoveTransids = @UnmarkTransIds
+				SELECT @RemoveTransids = @UnmarkTransIds
+			END
+		END
+		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
+		BEGIN
+			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(rdt.TransId AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											WHERE rdt.RequestId = @RequestId
+											FOR XML PATH('')), 1,1,'')
+
+			SET @IsCalQueue = ( SELECT TOP (1) 1
+									FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+									WHERE StatusId IN (1,2,4) AND RequestId = 0
+									AND 1 = CASE WHEN @FilterBy IS NULL AND matchid = @MatchId THEN 1
+												 WHEN @FilterBy = 1 AND matchid IN ( SELECT MatchId FROM @Matchinfo_tmp) THEN 1
+												 ELSE 0 END
+								)
+			IF @IsCalQueue = 1
+			BEGIN
+				SELECT @RemoveTransids = @UnmarkTransids
+			END
 		END
 	END
 
@@ -596,25 +603,7 @@ BEGIN
 					), 1, 1, ''), '')
 	END
 
-	IF @FilterBy IS NULL AND @MatchId <> 0
-	BEGIN
-		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @sporttype AS "@sporttype"  FOR XML PATH('r'), ROOT('root'))
-	END
-	ELSE IF @FilterBy = 1 AND @MatchId IS NULL
-	BEGIN
-		SET @MatchInfo = (
-				SELECT DISTINCT 
-					 s.submatchId AS "@matchid"
-					,b.sporttype AS "@sporttype"
-				FROM #validTransId t
-					CROSS APPLY (
-							SELECT value AS submatchId
-							FROM STRING_SPLIT (t.SubMatchIdList,',')
-					)s
-					LEFT JOIN dbo.match b ON t.matchid = b.matchid 
-				WHERE SubMatchIdList IS NOT NULL
-				FOR XML PATH('r'), ROOT('root'))
-	END
+
 	/*****************Return table **************************/
 	
 	--1. Info match table
@@ -662,7 +651,6 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 
 	DROP TABLE #inputTransid
-	DROP TABLE #transid_tmp
 	DROP TABLE #validTransId
 	DROP TABLE #TransidInRequest
 	DROP TABLE #UnsupportedTransids
