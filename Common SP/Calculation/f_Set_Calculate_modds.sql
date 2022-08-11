@@ -424,7 +424,7 @@ RETURN
 			WHEN @pfID = 3910 THEN
 				CASE
 					WHEN @betteam <> 'aos' AND @betteam = @HomeValue + ':' + @AwayValue  THEN 1
-					WHEN @betteam = 'aos' AND CHARINDEX(@HomeValue + ':' + @AwayValue, @Transdesc) = 0 THEN 1
+					WHEN @betteam = 'aos' AND ISNULL(td.IsExistScore,0) = 0 THEN 1
 					ELSE -1
 				END	
 			WHEN @pfID = 646 THEN
@@ -584,7 +584,14 @@ RETURN
 		WHERE	@pfID = 376
 				AND ISNULL(@AwayValue,'') <> ''
 	) ps
-	GROUP BY tbl.fm
+	OUTER APPLY
+	(	
+		SELECT	TOP 1 1 AS IsExistScore
+		FROM	STRING_SPLIT(@TransDesc, ',') t
+		WHERE	@pfID = 3910 
+				AND t.value = @HomeValue + ':' + @AwayValue
+	)td
+	GROUP BY tbl.fm, td.IsExistScore
 
 )
 GO
