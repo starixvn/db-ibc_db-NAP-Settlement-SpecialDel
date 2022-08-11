@@ -17,11 +17,15 @@
 		custid INT
 	)
 
+	CREATE TABLE #tmp_refno
+	(
+		refno BIGINT
+	)
 	------------------------------------------------
 	INSERT INTO #tmp_cust (custid)
 	SELECT DISTINCT custid
 	FROM CustDB.dbo.Customer WITH (NOLOCK)
-	WHERE site = 'Athena000'
+	WHERE site IN ('Athena000','SampleSite')
 
 	------------------------------------------------
 	--dbo.bettrans
@@ -132,6 +136,17 @@
 	FROM dbo.bettransLC14_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
+	--#tmp_refno
+	INSERT INTO #tmp_refno (refno)
+	SELECT DISTINCT refno
+	FROM dbo.bettrans WITH (NOLOCK)
+
+	INSERT INTO #tmp_refno (refno)
+	SELECT DISTINCT b.refno
+	FROM dbo.bettrans14 b WITH (NOLOCK)
+		LEFT JOIN #tmp_refno tmp ON tmp.refno = b.refno
+	WHERE tmp.refno IS NULL
+
 	--dbo.bettransm
 	INSERT INTO dbo.bettransm ( [transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 								[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], 
@@ -144,26 +159,7 @@
 			bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], 
 			bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[RepUpdateTime], bm.[SiteDBGroupID]
 	FROM dbo.bettransm_old20220825 bm WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = bm.matchid
-	WHERE b.bettype IN (9,29,2799)
-		AND b.matchID IN (9,29,2799)
-	
-	INSERT INTO dbo.bettransm ( [transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
-								[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], 
-								[mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], [playercomm], [comm], [acomm], 
-								[actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], [spositiontaking], [swinlost], [sdiscount], 
-								[scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], [LiveBetAcceptTime], [ReasonIDm], [RepUpdateTime], [SiteDBGroupID])
-	SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[hdp2], bm.[odds], bm.[stake], bm.[status], bm.[winlost], bm.[livehomescore], bm.[liveawayscore], 
-			bm.[liveindicator], bm.[betteam], bm.[creator], bm.[refno], bm.[comstatus], bm.[winlostdate], bm.[betfrom], bm.[betcheck], bm.[checktime], bm.[oddsspread], bm.[apositiontaking], 
-			bm.[mpositiontaking], bm.[tpositiontaking], bm.[awinlost], bm.[mwinlost], bm.[playerdiscount], bm.[discount], bm.[adiscount], bm.[playercomm], bm.[comm], bm.[acomm], 
-			bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], 
-			bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[RepUpdateTime], bm.[SiteDBGroupID]
-	FROM dbo.bettransm_old20220825 bm WITH (NOLOCK)
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.refno = bm.refno 
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = bm.matchid
-	WHERE b.bettype IN (9,29,2799)
-		AND b.matchID IN (9,29,2799)
+		INNER JOIN #tmp_refno tmp ON tmp.refno = bm.refno
 
 	--dbo.bettransm14
 	INSERT INTO dbo.bettransm14		([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
@@ -179,28 +175,7 @@
 			bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], 
 			bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[SiteDBGroupID]
 	FROM dbo.bettransm14_old20220825 bm WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
-		INNER JOIN dbo.match14 m WITH (NOLOCK) ON m.matchid = bm.matchid
-	WHERE b.bettype IN (9,29,2799)
-		AND b.matchID IN (9,29,2799)
-
-	INSERT INTO dbo.bettransm14 (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
-									[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], 
-									[apositiontaking], [mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], 
-									[playercomm], [comm], [acomm], [actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], 
-									[spositiontaking], [swinlost], [sdiscount], [scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], 
-									[LiveBetAcceptTime], [ReasonIDm], [SiteDBGroupID])
-	SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[hdp2], bm.[odds], bm.[stake], bm.[status], bm.[winlost], bm.[livehomescore], bm.[liveawayscore], 
-			bm.[liveindicator], bm.[betteam], bm.[creator], bm.[refno], bm.[comstatus], bm.[winlostdate], bm.[betfrom], bm.[betcheck], bm.[checktime], bm.[oddsspread], 
-			bm.[apositiontaking], bm.[mpositiontaking], bm.[tpositiontaking], bm.[awinlost], bm.[mwinlost], bm.[playerdiscount], bm.[discount], bm.[adiscount], 
-			bm.[playercomm], bm.[comm], bm.[acomm], bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], 
-			bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], 
-			bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[SiteDBGroupID]
-	FROM dbo.bettransm14_old20220825 bm WITH (NOLOCK)
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.refno = bm.refno 
-		INNER JOIN dbo.match14 m WITH (NOLOCK) ON m.matchid = bm.matchid
-	WHERE b.bettype IN (9,29,2799)
-		AND b.matchID IN (9,29,2799)
+		INNER JOIN #tmp_refno tmp ON tmp.refno = bm.refno
 
 	--dbo.bettransRnG
 	INSERT INTO dbo.bettransRnG ([transid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -284,7 +259,7 @@
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
 			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
 	FROM dbo.zzzbettransm_old20220825 z WITH (NOLOCK)
-		INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.refno = z.refno AND bm.transid = z.transid
+		INNER JOIN #tmp_cust tmp ON tmp.custid = z.custid
 
 	SET IDENTITY_INSERT zzzbettransm OFF
 
@@ -305,9 +280,7 @@
 			b.[Comm], b.[AComm], b.[SComm], b.[StatusId], b.[RefNo], b.[TransDesc], b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Username], b.[Currency], b.[CurrencyName], 
 			b.[ActualRate], b.[Creator], b.[Balance], b.[IP], b.[CheckTime], b.[SerialNo], b.[RepUpdateTime]
 	FROM dbo.Transfer_old20220825 b WITH (NOLOCK)
-		LEFT JOIN Transfer b1 ON b1.TransId = b.TransId
 	WHERE b.CustId = 3 AND b.Bettype = 20000
-		AND b1.TransId IS NULL
 
 	--dbo.BetParlayDetail
 	INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
@@ -315,23 +288,14 @@
 	SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
 			bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
 	FROM dbo.BetParlayDetail_old20220825 bpd WITH (NOLOCK)
-	INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.refno = bpd.refno AND bm.transid = bpd.transid
-
-	INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
-									[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
-	SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
-			bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
-	FROM dbo.BetParlayDetail_old20220825 bpd WITH (NOLOCK)
-	INNER JOIN dbo.bettransm14 bm WITH (NOLOCK) ON bm.refno = bpd.refno AND bm.transid = bpd.transid
+	INNER JOIN #tmp_refno tmp ON tmp.refno = bpd.refno
 
 	--dbo.BetParlayResult
-	;WITH bpd_refno AS (
-		SELECT DISTINCT refno FROM dbo.BetParlayDetail bpd WITH (NOLOCK)
-	)
 	INSERT INTO dbo.BetParlayResult ([RefNo], [Serial], [transid], [winlostdate], [statusid], [stake], [Odds], [mOdds], [winlost], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm])
 	SELECT	bpr.[RefNo], bpr.[Serial], bpr.[transid], bpr.[winlostdate], bpr.[statusid], bpr.[stake], bpr.[Odds], bpr.[mOdds], bpr.[winlost], bpr.[awinlost], bpr.[mwinlost], bpr.[swinlost], bpr.[playercomm], bpr.[comm], bpr.[acomm], bpr.[scomm]
 	FROM dbo.BetParlayResult_old20220825 bpr WITH (NOLOCK)
-	INNER JOIN bpd_refno bpd ON bpd.refno = bpr.refno
+	INNER JOIN #tmp_refno tmp ON tmp.refno = bpr.refno
 	
 	------------------------------------------------
 	DROP TABLE #tmp_cust
+	DROP TABLE #tmp_refno
