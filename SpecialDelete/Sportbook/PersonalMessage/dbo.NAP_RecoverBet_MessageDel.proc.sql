@@ -9,6 +9,7 @@ AS
 	Revisions:   
 		- 20160609@Bobby.Nguyen: #59171 - Implement remove message function when recovering multiple tickets
 		- 20181221@Kathy: get messageid of voided transaction from new table [Redmine:#101231]
+		- 20220727@Max: [TVS] Changes of TVS for increasing length of transid [Redmine: #175648]
 	Param's Explanation:
 */
 BEGIN
@@ -21,9 +22,9 @@ BEGIN
 	CREATE TABLE #updatedMsgTarget (MsgTargetId INT, BettransId VARCHAR(MAX), IsDeleted BIT)
 
 	INSERT INTO @tmpInputTransId(TransId)
-	SELECT DISTINCT val
-	FROM dbo.strSplit(@transids, ',')
-	WHERE LEN(val) > 0 AND val <> '0'
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@transids, ',')
+	WHERE LEN(value) > 0 AND value <> '0'
 
 	INSERT INTO #tempTransId (transid, messageId)
 	SELECT	t.TransId, vt.messageId
@@ -69,11 +70,11 @@ BEGIN
 			,0 AS IsDeleted
 		FROM #tempMsgTarget temp
 			CROSS APPLY (
-				SELECT REPLACE(v.val, ' ', '')  AS transid
-				FROM dbo.strSplit(temp.BetTransId, ',') AS v
+				SELECT REPLACE(v.value, ' ', '')  AS transid
+				FROM STRING_SPLIT(temp.BetTransId, ',') AS v
 					LEFT JOIN #tempTransId f 
-					ON REPLACE(v.val, ' ', '') = f.transid
-				WHERE REPLACE(v.val, ' ', '') <> '0' AND f.transid IS NULL
+					ON REPLACE(v.value, ' ', '') = f.transid
+				WHERE REPLACE(v.value, ' ', '') <> '0' AND f.transid IS NULL
 			) AS msg
 	), CTE_KeepLastTransID AS 
 	(
@@ -83,9 +84,9 @@ BEGIN
 		FROM #tempMsgTarget temp
 			CROSS APPLY (
 				SELECT TOP 1 f.transid
-				FROM dbo.strSplit(temp.BetTransId, ',') AS v
+				FROM STRING_SPLIT(temp.BetTransId, ',') AS v
 					INNER JOIN #tempTransId f 
-					ON REPLACE(v.val, ' ', '') = f.transid
+					ON REPLACE(v.value, ' ', '') = f.transid
 				ORDER BY f.rankIdx
 			) AS tm
 		WHERE MsgTargetId NOT IN (SELECT DISTINCT MsgTargetId FROM CTE_UpdateMsgTarget)
