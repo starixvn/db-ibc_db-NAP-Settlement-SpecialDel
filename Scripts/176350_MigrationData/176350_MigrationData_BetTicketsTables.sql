@@ -310,9 +310,9 @@
 
 	--dbo.Transfer_Coll
 	INSERT INTO dbo.Transfer_Coll	([CustId], [WinlostDate], [TransDate], [Bettype], [Debit], [Credit], [Currency], [ActualRate], [TransID], [RefNo], [Username], 
-									[Recommend], [MRecommend], [SRecommend], [Creator], [TransDesc], [IP])
+									[Recommend], [MRecommend], [SRecommend], [Creator], [TransDesc], [IP], [RepUpdateTime])
 	SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
-			b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP]
+			b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP], b.[RepUpdateTime]
 	FROM dbo.Transfer_Coll_old20220825 b WITH (NOLOCK)
 		INNER JOIN dbo.Transfer b1 WITH (NOLOCK) ON b1.TransID = b.TransID
 	WHERE b1.CustId <> 3 
