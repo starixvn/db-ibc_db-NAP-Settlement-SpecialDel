@@ -215,7 +215,7 @@ SET NOCOUNT ON
 		IF (  @SportType = 1 AND 
 				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
 				AND @LeagueGroupId <> 113
-				AND @Mode <> 'FM' 
+				AND @Mode NOT IN ('FM', 'EAR')
 			)
 		BEGIN
 			;WITH cteGoalResource

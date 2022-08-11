@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSel]
 	,@LeagueID INT = 0 -- 0 for ALL Leagues
 	,@MatchCode NVARCHAR(50) = ''
 	,@StatusId TINYINT = 0
-	--,@FilterBy TINYINT = 0
+	,@FilterBy TINYINT = 0
 	,@FilterOver TINYINT = 0
 	,@AutoSettlementOnly BIT = 0 
 	,@FastMarketsOnly BIT = 0 
@@ -277,8 +277,8 @@ BEGIN
 		,ISNULL(mr.refund, 0) IsRefund
 		,ISNULL(mr.calrefund, 0) IsCalRefund
 		,tmp.matchid
-		,ISNULL(tmp.LeagueGroupID,0) AS LeagueGroupID
 		,tmp.leagueid
+		,ISNULL(tmp.LeagueGroupID,0) AS LeagueGroupID
 		,tmp.homeid
 		,tmp.awayid
 		,tmp.matchcode

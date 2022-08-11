@@ -184,16 +184,19 @@ SET NOCOUNT ON
 	END
 
 	--Check hold match, hold result
-	EXEC dbo.NAP_Set_HoldSettingChecking
-		@MatchId	= @MatchId
-		,@SelectedResources = @SelectedResources
-		,@IsEarly	= @IsCheckHoldEarly
-		,@ErrCode	= @ErrCode OUTPUT
-		,@ErrMsg	= @ErrMsg OUTPUT
+	IF @Mode <> 'FM'
+	BEGIN 
+		EXEC dbo.NAP_Set_HoldSettingChecking
+			@MatchId	= @MatchId
+			,@SelectedResources = @SelectedResources
+			,@IsEarly	= @IsCheckHoldEarly
+			,@ErrCode	= @ErrCode OUTPUT
+			,@ErrMsg	= @ErrMsg OUTPUT
 
-	IF ISNULL(@ErrCode,0) <> 0
-	RETURN
-		
+		IF ISNULL(@ErrCode,0) <> 0
+		RETURN
+	END
+
 	--SOP Refund (confirm refund on ResourceID )
 	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
 	BEGIN
@@ -224,7 +227,9 @@ SET NOCOUNT ON
 	END
 
 	--validate match.EventStatusReason, match.SettlementStatus, Odds
-	IF @sporttype = 1 AND ( @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%')
+	IF @sporttype = 1 
+		AND ( @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%') 
+		AND (@Mode = 'FM' AND @IsAuto = 0) OR (@Mode <> 'FM')
 	BEGIN
 		EXEC dbo.NAP_Set_SettlementStatusChecking
 			@MatchId		= @matchid
@@ -239,7 +244,7 @@ SET NOCOUNT ON
 		IF @ErrCode > 0
 			RETURN
 	END
-	
+
 	------------PARTIAL CHECKING ( Special rule checking ) --------------------
 
 	--Start: validation for Instant settle ( Auto Inst, Manual Inst )
