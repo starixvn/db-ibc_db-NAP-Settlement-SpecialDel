@@ -31,8 +31,8 @@ BEGIN
 	DECLARE @MatchInfoXML		 XML = NULL
 		   ,@IsCalQueue			 BIT = 0
 		   ,@IsTransidProcessed  BIT = 0
-		   ,@IsCentral			 BIT 
-	EXEC dbo.NAP_Set_ServerInfo @IsCentral = @IsCentral OUTPUT
+		   ,@SiteDBGroupID SMALLINT = 0 
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #tmpMatchId (matchId INT, sporttype SMALLINT)
 	CREATE TABLE #tmpTransId (transid BIGINT, statusid INT, statuswinlost TINYINT)
@@ -50,7 +50,7 @@ BEGIN
 		SELECT DISTINCT t.value, b.statusID, b.statuswinlost
 		FROM dbo.bettrans b WITH (NOLOCK) 
 			INNER JOIN STRING_SPLIT(@TransIds, ',') t ON b.TransId = CAST(t.value AS BIGINT)
-		WHERE b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 		SET @IsCalQueue = ( SELECT TOP (1) 1
 									FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)

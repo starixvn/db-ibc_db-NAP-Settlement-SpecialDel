@@ -44,10 +44,6 @@ BEGIN
 			,FilterBy				TINYINT 
 			,SingleCount			INT 
 			,MainParlayCount		INT 
-			,MinSingleTransId		BIGINT 
-			,MaxSingleTransId		BIGINT 
-			,MinMainParlayTransId	BIGINT 
-			,MaxMainParlayTransId	BIGINT 
 			,VoidFromTime			DATETIME 
 			,VoidToTime				DATETIME
 			,LiveHomeScore			INT
@@ -100,10 +96,6 @@ BEGIN
 			,FilterBy				
 			,SingleCount			
 			,MainParlayCount		
-			,MinSingleTransId		
-			,MaxSingleTransId		
-			,MinMainParlayTransId	
-			,MaxMainParlayTransId	
 			,VoidFromTime			
 			,VoidToTime				
 			,LiveScores					
@@ -117,10 +109,6 @@ BEGIN
 			,t.c.value('@FilterBy','TINYINT') AS FilterBy
 			,t.c.value('@SingleCount','INT') AS SingleCount
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
-			,t.c.value('@MinSingleTransId','BIGINT') AS MinSingleTransId
-			,t.c.value('@MaxSingleTransId','BIGINT') AS MaxSingleTransId
-			,t.c.value('@MinMainParlayTransId','BIGINT') AS MinMainParlayTransId
-			,t.c.value('@MaxMainParlayTransId','BIGINT') AS MaxMainParlayTransId
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
@@ -143,10 +131,6 @@ BEGIN
 			, FilterBy = l.FilterBy
 			, SingleCount = l.SingleCount
 			, MainParlayCount = l.MainParlayCount
-			, MinSingleTransId = l.MinSingleTransId
-			, MaxSingleTransId = l.MaxSingleTransId
-			, MinMainParlayTransId = l.MinMainParlayTransId
-			, MaxMainParlayTransId = l.MaxMainParlayTransId
 			, VoidFromTime = l.VoidFromTime
 			, VoidToTime = l.VoidToTime
 			, LiveHomeScore = l.LiveHomeScore
@@ -170,10 +154,6 @@ BEGIN
 		, FilterBy
 		, SingleCount
 		, MainParlayCount
-		, MinSingleTransId
-		, MaxSingleTransId
-		, MinMainParlayTransId
-		, MaxMainParlayTransId
 		, VoidFromTime
 		, VoidToTime
 		, LiveHomeScore
@@ -193,10 +173,6 @@ BEGIN
 		, l.FilterBy
 		, l.SingleCount
 		, l.MainParlayCount
-		, l.MinSingleTransId
-		, l.MaxSingleTransId
-		, l.MinMainParlayTransId
-		, l.MaxMainParlayTransId
 		, l.VoidFromTime
 		, l.VoidToTime
 		, l.LiveHomeScore
@@ -293,10 +269,6 @@ BEGIN
 							+ ', FilterTo: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
 							+ ', SingleCount: ' + CAST(l.SingleCount AS VARCHAR(20))
 							+ ', MainParlayCount: ' + CAST(l.MainParlayCount AS VARCHAR(20))
-							+ ', MinSingleTransId: ' + CAST(l.MinSingleTransId AS VARCHAR(20))
-							+ ', MaxSingleTransId: '+ CAST(l.MaxSingleTransId AS VARCHAR(20))
-							+ ', MinMainParlayTransId: ' + CAST(l.MinMainParlayTransId AS VARCHAR(20))
-					        + ', MaxMainParlayTransId: ' + CAST(l.MaxMainParlayTransId AS VARCHAR(20))
 							+ ', VoidFrom: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidTo: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
 							+ ', TypeAccept: ' + l.TypeAccept

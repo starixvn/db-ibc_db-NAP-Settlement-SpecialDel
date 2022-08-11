@@ -60,13 +60,13 @@ AS
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
 		+ @WrongScoreInfo: 
-			<root><r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/></root>
+			<root><r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/></root>
 		+ @DangerAcceptInfo, @RedCardInfo:
-			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMainMatch=''1''" LiveScores="" FilterBy="1"/></root>
+			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1"  VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMainMatch=''1''" LiveScores="" FilterBy="1"/></root>
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" HDPValue = "" IsMainMatch ="" SubIssueTypeId=""/></root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" SingleCount="5" MainParlayCount="1" VoidFromTime="" VoidToTime="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" HDPValue = "" IsMainMatch ="" SubIssueTypeId=""/></root>
 		+ @WrongOUInfo, @Wrong1stOUInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" SingleCount="5" MainParlayCount="1" MinSingleTransId="" MaxSingleTransId="" MinMainParlayTransId="" MaxMainParlayTransId="" VoidFromTime="" VoidToTime="" WrongMarket ="" IsMainMatch =""/></root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" SingleCount="5" MainParlayCount="1" VoidFromTime="" VoidToTime="" WrongMarket ="" IsMainMatch =""/></root>
 		+ @AbnormalAccountInfo:
 			<root><r Usernames="" ProductIds="1" StatusIds ="" FromDate ="" ToDate = ""/></root>
 */

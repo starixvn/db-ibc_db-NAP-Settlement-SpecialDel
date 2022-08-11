@@ -98,7 +98,7 @@ BEGIN
 				);
 	CREATE TABLE #tmpTransInfo(
 		matchid INT
-		,transid BIGINT PRIMARY KEY
+		,transid BIGINT
 		,Subtransid BIGINT
 		,custid INT	
 		,refno BIGINT
@@ -253,7 +253,7 @@ BEGIN
 			,t.Subtransid
 			,@SiteDBGroupID
 		FROM #tmpTransInfo t
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON  t.transid = m.TransId 
+			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON  t.transid = m.TransId AND t.matchid = m.MatchId
 		WHERE IsMixParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
 			AND m.TransId IS NULL
 

@@ -350,15 +350,7 @@ BEGIN
 						ELSE 0 END
 	
 	---get sub ticket of a mix parlay	
-	IF EXISTS ( SELECT 1
-				FROM #tmpTransInfo bm
-					INNER JOIN #FilterInfo d ON d.MatchId = bm.matchid
-				WHERE 1 = CASE WHEN @ActionId <> 2 AND bm.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
-							WHEN @ActionId = 2 AND bm.statusID NOT IN (101, 103) THEN 1
-							ELSE 0 END
-					AND bm.Subbetfrom <> 'P' 
-						AND bm.IsMixParlay = 1
-					)
+	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo bm  WHERE bm.IsMixParlay = 1)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
 				 transid
@@ -570,23 +562,27 @@ BEGIN
 	IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
 		--Edit request filter on UI -> unmark ticket 
-		SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
 										FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 0
 											LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
 										WHERE tp.TransId IS NULL AND tr.TransId is NULL
 											AND rdt.RequestId = @RequestId
 										FOR XML PATH('')), 1,1,'')
+									,'')
 
-		SELECT @UnmarkTransIds = @UnmarkTransIds + ','
-								+ STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
+		IF @UnmarkTransIds <> ''
+			SET @UnmarkTransIds = @UnmarkTransIds + ','
+
+		SELECT @UnmarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
+										 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
 												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.SubTransid AND tp.IsMixParlay = 1
 												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
-											WHERE tp.SubTransid IS NULL AND tr.TransId IS NULL
+										  WHERE tp.SubTransid IS NULL AND tr.TransId IS NULL
 												  AND rdt.RequestId=@RequestId
-											FOR XML PATH('')
+										  FOR XML PATH('')
 										), 1,1,'')
+									,'')
 	END
 	/*****************Return table **************************/
 	-- 1. Validate table
