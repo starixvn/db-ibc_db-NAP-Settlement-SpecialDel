@@ -6,7 +6,18 @@
     DB: DBSIG-bodb02
 
 	 Revisions:
-		- 20220809@Victoria: INSERT data for table tickets [Redmineid:#176350]
+		- 20220809@Victoria: INSERT data for the following tickets tables [Redmineid:#176350] 
+								1.  dbo.bettrans			2.  dbo.bettrans14
+								3.  dbo.bettransG			4.  dbo.bettransG14
+								5.  dbo.BettransInfo		6.  dbo.BettransInfo14
+								7.  dbo.bettransLC			8.  dbo.bettransLC14
+								9.  dbo.bettransm			10. dbo.bettransm14
+								11. dbo.bettransRnG			12. dbo.bettransRnG14
+								13. dbo.translog			14. dbo.translog14
+								15. dbo.zzzbettrans			16. dbo.zzzbettransm
+								17. dbo.Transfer			18. dbo.Transfer_Coll		19. dbo.TransferInfo
+								20. dbo.BetParlayDetail		20. dbo.BetParlayResult
+								
 */
 
 	USE bodb02
@@ -14,12 +25,12 @@
 
 	CREATE TABLE #tmp_cust
 	(
-		custid INT
+		custid INT PRIMARY KEY
 	)
 
 	CREATE TABLE #tmp_refno
 	(
-		refno BIGINT
+		refno BIGINT PRIMARY KEY
 	)
 	------------------------------------------------
 	INSERT INTO #tmp_cust (custid)
@@ -140,14 +151,15 @@
 	INSERT INTO #tmp_refno (refno)
 	SELECT DISTINCT refno
 	FROM dbo.bettrans WITH (NOLOCK)
+	WHERE bettype = 29 AND matchid = 29
 
 	INSERT INTO #tmp_refno (refno)
-	SELECT DISTINCT b.refno
-	FROM dbo.bettrans14 b WITH (NOLOCK)
-		LEFT JOIN #tmp_refno tmp ON tmp.refno = b.refno
-	WHERE tmp.refno IS NULL
+	SELECT DISTINCT refno
+	FROM dbo.bettrans14  WITH (NOLOCK)
+	WHERE bettype = 29 AND matchid = 29
 
 	--dbo.bettransm
+	-- since there is no index on custid for bettransm, need to join via refno
 	INSERT INTO dbo.bettransm ( [transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 								[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], 
 								[mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], [playercomm], [comm], [acomm], 
@@ -176,6 +188,20 @@
 			bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[SiteDBGroupID]
 	FROM dbo.bettransm14_old20220825 bm WITH (NOLOCK)
 		INNER JOIN #tmp_refno tmp ON tmp.refno = bm.refno
+
+   --dbo.BetParlayDetail
+	INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
+									[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
+	SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
+			bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
+	FROM dbo.BetParlayDetail_old20220825 bpd WITH (NOLOCK)
+		INNER JOIN #tmp_refno tmp ON tmp.refno = bpd.refno
+
+	--dbo.BetParlayResult
+	INSERT INTO dbo.BetParlayResult ([RefNo], [Serial], [transid], [winlostdate], [statusid], [stake], [Odds], [mOdds], [winlost], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm])
+	SELECT	bpr.[RefNo], bpr.[Serial], bpr.[transid], bpr.[winlostdate], bpr.[statusid], bpr.[stake], bpr.[Odds], bpr.[mOdds], bpr.[winlost], bpr.[awinlost], bpr.[mwinlost], bpr.[swinlost], bpr.[playercomm], bpr.[comm], bpr.[acomm], bpr.[scomm]
+	FROM dbo.BetParlayResult_old20220825 bpr WITH (NOLOCK)
+		INNER JOIN #tmp_refno tmp ON tmp.refno = bpr.refno
 
 	--dbo.bettransRnG
 	INSERT INTO dbo.bettransRnG ([transid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -282,20 +308,24 @@
 	FROM dbo.Transfer_old20220825 b WITH (NOLOCK)
 	WHERE b.CustId = 3 AND b.Bettype = 20000
 
-	--dbo.BetParlayDetail
-	INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
-									[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
-	SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
-			bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
-	FROM dbo.BetParlayDetail_old20220825 bpd WITH (NOLOCK)
-	INNER JOIN #tmp_refno tmp ON tmp.refno = bpd.refno
+	--dbo.Transfer_Coll
+	INSERT INTO dbo.Transfer_Coll	([CustId], [WinlostDate], [TransDate], [Bettype], [Debit], [Credit], [Currency], [ActualRate], [TransID], [RefNo], [Username], 
+									[Recommend], [MRecommend], [SRecommend], [Creator], [TransDesc], [IP])
+	SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
+			b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP]
+	FROM dbo.Transfer_Coll_old20220825 b WITH (NOLOCK)
+		INNER JOIN dbo.Transfer b1 ON b1.TransID = b.TransID
+	WHERE b1.CustId <> 3 
 
-	--dbo.BetParlayResult
-	INSERT INTO dbo.BetParlayResult ([RefNo], [Serial], [transid], [winlostdate], [statusid], [stake], [Odds], [mOdds], [winlost], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm])
-	SELECT	bpr.[RefNo], bpr.[Serial], bpr.[transid], bpr.[winlostdate], bpr.[statusid], bpr.[stake], bpr.[Odds], bpr.[mOdds], bpr.[winlost], bpr.[awinlost], bpr.[mwinlost], bpr.[swinlost], bpr.[playercomm], bpr.[comm], bpr.[acomm], bpr.[scomm]
-	FROM dbo.BetParlayResult_old20220825 bpr WITH (NOLOCK)
-	INNER JOIN #tmp_refno tmp ON tmp.refno = bpr.refno
-	
+	--dbo.TransferInfo
+	INSERT INTO dbo.TransferInfo	([TransId], [APositiontaking], [MPositiontaking], [SPositiontaking], [EPositiontaking], [PlayerDiscount], [Discount], [ADiscount], [SDiscount], 
+									[WalletType], [BonusID], [Amount], [CheckerId], [CheckerName], [IsCollection], [IsDel], [RepUpdateTime])
+	SELECT  b.[TransId], b.[APositiontaking], b.[MPositiontaking], b.[SPositiontaking], b.[EPositiontaking], b.[PlayerDiscount], b.[Discount], b.[ADiscount], b.[SDiscount], 
+			b.[WalletType], b.[BonusID], b.[Amount], b.[CheckerId], b.[CheckerName], b.[IsCollection], b.[IsDel], b.[RepUpdateTime]
+	FROM dbo.TransferInfo_old20220825 b WITH (NOLOCK)
+		INNER JOIN dbo.Transfer b1 ON b1.TransID = b.TransID
+	WHERE b1.CustId <> 3 
+
 	------------------------------------------------
 	DROP TABLE #tmp_cust
 	DROP TABLE #tmp_refno
