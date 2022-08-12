@@ -18,7 +18,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 	
 	Samlple execution to parse XML
 
-	DECLARE @transid VARCHAR(MAX), @xml XML
+	DECLARE @transIds VARCHAR(MAX), @xml XML
 	
 	SET @transIds = (SELECT TOP 10 transid as t
 		from bettrans (NOLOCK)
