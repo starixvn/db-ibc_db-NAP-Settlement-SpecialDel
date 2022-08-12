@@ -165,7 +165,7 @@ FROM bettrans b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 -- bettrans14
 INSERT INTO #tmp_bettrans14_scaleout (transid)
-SELECT transid, SiteDBGroupID
+SELECT transid
 FROM bettrans14 b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 -- bettransm
