@@ -111,7 +111,7 @@ BEGIN
 		,b.BetType
 		,b.custid
 		,b.refno
-		,0
+		,CASE WHEN b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay
 		,NULL
 		,@SiteDBGroupID
 	FROM #transIds t

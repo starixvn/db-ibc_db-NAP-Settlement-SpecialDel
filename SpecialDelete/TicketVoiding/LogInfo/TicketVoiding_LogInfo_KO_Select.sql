@@ -119,7 +119,6 @@ BEGIN
 	  ,SiteDBGroupID SMALLINT
 	  ,IsMove14 BIT
 	)
-	DECLARE @tblMatchParlay AS TABLE (MatchId INT, RefNo BIGINT)
 
 	INSERT INTO #tmpTransInfo( 
 		    matchid 

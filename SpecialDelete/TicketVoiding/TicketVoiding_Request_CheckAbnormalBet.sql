@@ -133,7 +133,7 @@ BEGIN
 	CREATE TABLE #ABWhiteListCustIds_AllowVoid (custid INT)
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
-	  ,transid BIGINT PRIMARY KEY
+	  ,transid BIGINT
       ,Subtransid BIGINT
 	  ,custid	INT	
       ,livehomescore SMALLINT
@@ -329,8 +329,11 @@ BEGIN
 		INSERT #UnsupportedTransids (transid)
 		SELECT DISTINCT t.transid
 		FROM #validTransId t
-			INNER JOIN #tmpTransInfo b ON t.refno = b.refno AND b.IsMixParlay = 1
-			INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid
+			CROSS APPLY (
+					SELECT value AS submatchId
+					FROM STRING_SPLIT (t.SubMatchIdList,',')
+			)s
+			INNER JOIN dbo.match m WITH(NOLOCK) ON s.submatchId = m.matchid
 		WHERE t.bettype = 29 AND t.betteam = '1' AND m.sporttype = 50 
 		AND t.transid NOT IN (SELECT transid FROM #UnsupportedTransids)
 	END	
