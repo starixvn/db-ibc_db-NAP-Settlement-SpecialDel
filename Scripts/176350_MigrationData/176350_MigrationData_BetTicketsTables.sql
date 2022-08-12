@@ -23,6 +23,10 @@
 	USE bodb02
 	GO
 
+	DECLARE @SiteDBGroupID SMALLINT
+
+	SET @SiteDBGroupID = 1
+
 	CREATE TABLE #tmp_cust
 	(
 		custid INT PRIMARY KEY
@@ -53,7 +57,7 @@
 			b.[matchid], b.[recommend], b.[mrecommend], b.[ruben], b.[betid], b.[statuswinlost], b.[modds], b.[bettype], b.[betdaqid], b.[actual_stake], b.[currency], 
 			b.[ip], b.[transdesc], b.[sdiscount], b.[scomm], b.[spositiontaking], b.[swinlost], b.[srecommend], b.[Username], b.[CurrencyName], b.[virtualrate], b.[oddstype], 
 			b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], b.[RefCode], b.[SettlementTime],
-			b.[epositiontaking], b.[ReasonID], b.[sort], b.[BetSiteID], b.[RepUpdateTime], b.[SiteDBGroupID], b.[FcUpdateTime]
+			b.[epositiontaking], b.[ReasonID], b.[sort], b.[BetSiteID], b.[RepUpdateTime], @SiteDBGroupID, b.[FcUpdateTime]
 	FROM dbo.bettrans_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -71,7 +75,7 @@
 			b.[actualrate], b.[matchid], b.[recommend], b.[mrecommend], b.[ruben], b.[betid], b.[statuswinlost], b.[modds], b.[bettype], b.[betdaqid], 
 			b.[actual_stake], b.[currency], b.[ip], b.[transdesc], b.[sdiscount], b.[scomm], b.[spositiontaking], b.[swinlost], b.[srecommend], b.[virtualrate], b.[Username], 
 			b.[CurrencyName], b.[oddstype], b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], 
-			b.[RefCode], b.[SettlementTime], b.[epositiontaking], b.[ReasonID], b.[sort], b.[SiteDBGroupID]
+			b.[RefCode], b.[SettlementTime], b.[epositiontaking], b.[ReasonID], b.[sort], @SiteDBGroupID
 	FROM dbo.bettrans14_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -85,7 +89,7 @@
 			b.[checktime], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[awinlost], b.[mwinlost], b.[playerdiscount], b.[discount], b.[adiscount], 
 			b.[playercomm], b.[comm], b.[acomm], b.[actualrate], b.[matchid], b.[matchdate], b.[statuswinlost], b.[ruben], b.[bettype], b.[spositiontaking], b.[swinlost], 
 			b.[sdiscount], b.[scomm], b.[statusID], b.[virtualrate], b.[SiteID], b.[transdesc], b.[BetID3rd], b.[epositiontaking], b.[actual_stake], b.[netstake], 
-			b.[SiteDBGroupID], b.[RepUpdateTime]
+			@SiteDBGroupID, b.[RepUpdateTime]
 	FROM dbo.bettransG_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -99,7 +103,7 @@
 			b.[checktime], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[awinlost], b.[mwinlost], b.[playerdiscount], b.[discount], b.[adiscount], 
 			b.[playercomm], b.[comm], b.[acomm], b.[actualrate], b.[matchid], b.[matchdate], b.[statuswinlost], b.[ruben], b.[bettype], b.[spositiontaking], b.[swinlost], 
 			b.[sdiscount], b.[scomm], b.[statusID], b.[virtualrate], b.[SiteID], b.[transdesc], b.[BetID3rd], b.[epositiontaking], b.[actual_stake], b.[netstake], 
-			b.[SiteDBGroupID]
+			@SiteDBGroupID
 	FROM dbo.bettransG14_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -129,7 +133,7 @@
 			b.[playerdiscount], b.[discount], b.[adiscount], b.[sdiscount], b.[creator], b.[winlostdate], b.[betfrom], b.[virtualrate], b.[actualrate], b.[actual_stake], 
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], 
 			b.[gameID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], b.[acomm], 
-			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[SiteID], b.[epositiontaking], b.[SiteDBGroupID], b.[RepUpdateTime]
+			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[SiteID], b.[epositiontaking], @SiteDBGroupID, b.[RepUpdateTime]
 	FROM dbo.bettransLC_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -143,7 +147,7 @@
 			b.[playerdiscount], b.[discount], b.[adiscount], b.[sdiscount], b.[creator], b.[winlostdate], b.[betfrom], b.[virtualrate], b.[actualrate], b.[actual_stake], 
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], 
 			b.[gameID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], b.[acomm], 
-			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[epositiontaking], b.[SiteID], b.[SiteDBGroupID]
+			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[epositiontaking], b.[SiteID], @SiteDBGroupID
 	FROM dbo.bettransLC14_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -159,7 +163,7 @@
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], b.[gameID], 
 			b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], b.[acomm], b.[scomm], 
 			b.[Transdate3rd], b.[SiteID], b.[Additional], b.[JackpotInfo], b.[RefNo2], b.[ContributionRate], b.[BetStake], b.[ContributionStake3rd], 
-			b.[epositiontaking], b.[SiteDBGroupID], b.[RepUpdateTime]
+			b.[epositiontaking], @SiteDBGroupID, b.[RepUpdateTime]
 	FROM dbo.bettransRnG_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -175,7 +179,7 @@
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], 
 			b.[gameID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], 
 			b.[acomm], b.[scomm], b.[Transdate3rd], b.[Additional], b.[Siteid], b.[JackpotInfo], b.[RefNo2], b.[ContributionRate], b.[BetStake], b.[ContributionStake3rd], 
-			b.[epositiontaking], b.[SiteDBGroupID]
+			b.[epositiontaking], @SiteDBGroupID
 	FROM dbo.bettransRnG14_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -189,7 +193,7 @@
 			b.[playerdiscount], b.[discount], b.[adiscount], b.[sdiscount], b.[creator], b.[winlostdate], b.[betfrom], b.[virtualrate], b.[actualrate], b.[actual_stake], 
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], 
 			b.[gameID], b.[eventID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[custom1], b.[custom2], b.[custom3], b.[LiveIndicator], b.[checkCount], b.[SiteId], 
-			b.[epositiontaking], b.[SiteDBGroupID], b.[LicenseeTransId], b.[RepUpdateTime]
+			b.[epositiontaking], @SiteDBGroupID, b.[LicenseeTransId], b.[RepUpdateTime]
 	FROM dbo.translog_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -201,7 +205,7 @@
 	SELECT  b.[translogid], b.[custid], b.[transdate], b.[odds], b.[stake], b.[status], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[spositiontaking], 
 			b.[playerdiscount], b.[discount], b.[adiscount], b.[sdiscount], b.[creator], b.[winlostdate], b.[betfrom], b.[virtualrate], b.[actualrate], b.[actual_stake], 
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], b.[gameID], 
-			b.[eventID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[custom1], b.[custom2], b.[custom3], b.[LiveIndicator], b.[SiteDBGroupID]
+			b.[eventID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[custom1], b.[custom2], b.[custom3], b.[LiveIndicator], @SiteDBGroupID
 	FROM dbo.translog14_old20220825 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
@@ -227,7 +231,7 @@
 			bm.[liveindicator], bm.[betteam], bm.[creator], bm.[refno], bm.[comstatus], bm.[winlostdate], bm.[betfrom], bm.[betcheck], bm.[checktime], bm.[oddsspread], bm.[apositiontaking], 
 			bm.[mpositiontaking], bm.[tpositiontaking], bm.[awinlost], bm.[mwinlost], bm.[playerdiscount], bm.[discount], bm.[adiscount], bm.[playercomm], bm.[comm], bm.[acomm], 
 			bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], 
-			bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[RepUpdateTime], bm.[SiteDBGroupID]
+			bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[RepUpdateTime], @SiteDBGroupID
 	FROM dbo.bettransm_old20220825 bm WITH (NOLOCK)
 		INNER JOIN #tmp_refno tmp ON tmp.refno = bm.refno
 
@@ -243,7 +247,7 @@
 			bm.[apositiontaking], bm.[mpositiontaking], bm.[tpositiontaking], bm.[awinlost], bm.[mwinlost], bm.[playerdiscount], bm.[discount], bm.[adiscount], 
 			bm.[playercomm], bm.[comm], bm.[acomm], bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], 
 			bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], 
-			bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[SiteDBGroupID]
+			bm.[LiveBetAcceptTime], bm.[ReasonIDm], @SiteDBGroupID
 	FROM dbo.bettransm14_old20220825 bm WITH (NOLOCK)
 		INNER JOIN #tmp_refno tmp ON tmp.refno = bm.refno
 
@@ -269,7 +273,7 @@
 								[keyid], [VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
+			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID
 	FROM dbo.zzzbettrans_old20220825 z WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = z.custid
 
@@ -283,7 +287,7 @@
 									[keyid], [VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
+			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID
 	FROM dbo.zzzbettransm_old20220825 z WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = z.custid
 
