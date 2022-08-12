@@ -42,7 +42,7 @@ BEGIN
 		,WinLostDate SMALLDATETIME, betdaqid BIGINT,ruben TINYINT 
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,statuswinlost TINYINT
+		,statuswinlost VARCHAR(1)
 
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
@@ -140,12 +140,12 @@ BEGIN
 							WHEN @statusId = 0 THEN NULL
 						END 
 	OUTPUT inserted.transid
-		,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+		,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 
 		,inserted.Status,inserted.StatusID,inserted.winlostdate,inserted.betdaqid,inserted.ruben
 		,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 		,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-		,inserted.statuswinlost
+		, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 		
 		,deleted.winlost
 		,deleted.statusid	

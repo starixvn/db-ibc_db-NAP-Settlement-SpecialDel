@@ -435,7 +435,9 @@ BEGIN
                     ,status = 'running'
                     ,statusID = 0
                     ,winlostdate = NULL
-			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, '', inserted.status, inserted.statusID, ''
+			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben
+					, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
+					, inserted.status, inserted.statusID, ''
 			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, statuswinlost, status, statusid, winlostdate)
             WHERE    matchid = @matchid
                     AND statusID = 102
@@ -463,7 +465,8 @@ BEGIN
                 ,statuswinlost = NULL
                 ,ruben = CASE WHEN @IsUpd_Void = 0 THEN ruben ELSE 0 END
                 ,statusID = CASE WHEN @IsUpd_Void = 0 THEN statusID ELSE 0 END
-            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost 
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben
+					, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 			INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost)
             FROM    @tblBettypes t
 				INNER LOOP JOIN dbo.bettransm bm
