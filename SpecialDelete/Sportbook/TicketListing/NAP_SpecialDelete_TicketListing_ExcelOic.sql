@@ -49,7 +49,6 @@ AS
 		- 20220303@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
-		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -109,14 +108,17 @@ BEGIN
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
 	INSERT INTO @tmpBettypes (bettype)
-	SELECT	CONVERT(smallint, value)
-	FROM STRING_SPLIT(@p_bettypes, ',')
+	SELECT	CONVERT(smallint, val)
+	FROM	dbo.f_SplitString(@p_bettypes, ',')
+	GROUP BY val
+	OPTION (maxrecursion 0)
 
 	IF (@Quarter <> 'All')
 	BEGIN
 		INSERT INTO @tmpQuarter (Id)
-		SELECT value
-		FROM STRING_SPLIT(@Quarter, ',')
+		SELECT val
+		FROM dbo.f_SplitString(@Quarter, ',')
+		OPTION (maxrecursion 0) 
 	END
 
 	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
@@ -125,8 +127,9 @@ BEGIN
 	IF @SelectionType <> ''
 	BEGIN
 		INSERT INTO #tmpSelectionType (Selectiontype)
-		SELECT value
-		FROM STRING_SPLIT(@SelectionType, ',')
+		SELECT val
+		FROM dbo.f_SplitString(@SelectionType, ',')
+		OPTION (maxrecursion 0) 
 	
 		INSERT INTO @tmpTransid (Transid)
 		SELECT DISTINCT b.transid
@@ -208,8 +211,9 @@ BEGIN
 	CREATE TABLE #TmpBallSequence (Seq TINYINT)
 
 	INSERT INTO #TmpBallSequence(Seq)
-	SELECT  value
-	FROM STRING_SPLIT(@BallSequence, ',')
+	SELECT  val
+	FROM	dbo.f_SplitString(@BallSequence, ',')
+	OPTION (maxrecursion 0)
 
 	CREATE TABLE #tblBetType
 	(
@@ -274,34 +278,35 @@ BEGIN
 			, cte.Transdesc
 	FROM (
 		SELECT cte.Id
-				, bt.value AS BetTeam 
-				, se.value AS [Set]
-				, ga.value AS Game
-				, bop.value AS BetOption
-				, CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault
-						ELSE v.value END AS SMALLMONEY) AS [Value]
-				, CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
-						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
+				, bt.val AS BetTeam 
+				, se.val AS [Set]
+				, ga.val AS Game
+				, bop.val AS BetOption
+				, CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault
+						ELSE v.val END AS SMALLMONEY) AS [Value]
+				, CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault
+						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
 				, CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2		
 				, CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
 				, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
-				, CAST(CASE WHEN osid.value = 'ALL' THEN NULL
-						ELSE osid.value END AS INT) AS OddsId
-				, CAST(CASE WHEN td.value = 'ALL' THEN NULL
-						ELSE td.value END AS NVARCHAR(2000)) AS Transdesc
+				, CAST(CASE WHEN osid.val = 'ALL' THEN NULL
+						ELSE osid.val END AS INT) AS OddsId
+				, CAST(CASE WHEN td.val = 'ALL' THEN NULL
+						ELSE td.val END AS NVARCHAR(2000)) AS Transdesc
 		FROM #tblBetType cte
-				CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
-				CROSS APPLY STRING_SPLIT(cte.[Set], ',') se
-				CROSS APPLY STRING_SPLIT(cte.Game, ',') ga
-				CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
-				CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
-				CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
-				CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
-				CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
+				CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
+				CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
+				CROSS APPLY dbo.f_SplitString(cte.Game, ',') ga
+				CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
+				CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
+				CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
+				CROSS APPLY dbo.f_SplitString(cte.OddsId, ',') osid
+				CROSS APPLY dbo.f_SplitString(cte.Transdesc, ',') td
 	) cte
+	OPTION(MAXRECURSION 0)
 
 	BEGIN
 		IF @Type = 1 -- Number Game

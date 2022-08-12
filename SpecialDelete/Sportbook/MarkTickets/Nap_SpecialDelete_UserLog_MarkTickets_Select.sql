@@ -19,8 +19,7 @@ AS
 		- 20200414@Charles: Separate single tickets with parlay tickets on LogData [131670]
 		- 20200914@Zane: Return logdata [Redmine: #141235]
 		- 20210923@Zane: Change data type of filter time [Redmine: #160209]
-		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
-		
+
 	Param's explanation:
 */
 BEGIN
@@ -29,9 +28,10 @@ BEGIN
 	CREATE TABLE #LogActionId (Id INT);
 
 	INSERT INTO #LogActionId (Id)
-	SELECT DISTINCT value
-	FROM STRING_SPLIT(@LogActionIds, ',')
-	WHERE value <> ''
+	SELECT DISTINCT val
+	FROM dbo.f_StringSplit(@LogActionIds, ',')
+	WHERE val <> ''
+	OPTION (MAXRECURSION 0);
 
 	CREATE TABLE #LogResult (
 		SessionId 	INT,
@@ -85,6 +85,7 @@ BEGIN
 				)
 			AND (@DoneBy IS NULL OR c.username like '%' + @DoneBy +'%')
 	ORDER BY l.CreatedDate DESC
+	OPTION (MAXRECURSION 0);
 
 	-- Check and update information of match if it was moved to match14
 	UPDATE lr

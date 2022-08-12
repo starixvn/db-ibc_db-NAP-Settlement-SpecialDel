@@ -12,7 +12,6 @@ AS
 
 	Revisions:
 		- 20190419@Kathy: Mark Ticket for Settlement Exclusion [Redmine:#108826]
-		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 		
 	Param's Explanation: 
 		@MatchId = 0 for list transid with more than 1 match
@@ -28,8 +27,9 @@ BEGIN
 	DECLARE @tmpResult TABLE (matchId INT, TotalVoidedMarkedTicket INT, TotalRunningTicket INT, IsFinished BIT DEFAULT(0))
 
 	INSERT INTO @tmpTransId (transid, matchid)
-	SELECT	value, @MatchId
-	FROM STRING_SPLIT (@transId, ',')
+	SELECT	val, @MatchId
+	FROM	dbo.f_SplitString (@transId, ',')
+	OPTION (maxrecursion 0)
 
 	IF @MatchId = 0
 	BEGIN

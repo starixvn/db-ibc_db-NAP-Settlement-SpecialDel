@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@FilterBy	TINYINT	= NULL
 	,@SubIssueTypeId TINYINT	= NULL
 	,@TransInfo	XML = NULL
+	,@IsRemoveCustomerClass1 BIT = 0
 )
 AS
 /*  
@@ -409,13 +410,13 @@ BEGIN
 		IF @ActionId NOT IN (2)
 		BEGIN
 			--Remove transid from request => unmark ticket & re-cal ticket
-			SELECT @UnmarkTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 												FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 												WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
 													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 													  AND rdt.RequestId = @RequestId
-												FOR XML PATH('')
-											), 1,1,'')
+												FOR XML PATH('')), 1,1,'')
+												,'')
 
 			IF @UnmarkTransIds IS NOT NULL
 			BEGIN
@@ -426,12 +427,12 @@ BEGIN
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
-			SELECT @UnmarkTransids = STUFF((SELECT ',' + CAST(rdt.TransId AS VARCHAR(50)) 
+			SELECT @UnmarkTransids = ISNULL(STUFF((SELECT ',' + CAST(rdt.TransId AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE rdt.RequestId = @RequestId
 											FOR XML PATH('')), 1,1,'')
+											,'')
 
-		
 			SELECT @RemoveTransids = @UnmarkTransids
 		END
 	END
@@ -471,27 +472,25 @@ BEGIN
 			END
 	FROM t_invalid
 
-	SELECT @DifferentMatchTransIds = ISNULL(STUFF((
-				SELECT ',' + CAST(v.transid AS VARCHAR(50))
-				FROM #validTransId AS v
-				WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29)
-				FOR XML PATH('')
-				), 1, 1, ''), '')
+	SELECT @DifferentMatchTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+										FROM #validTransId AS v
+										WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29)
+										FOR XML PATH('')), 1, 1, '')
+										, '')
 
 	IF @ActionId <> 2
 	BEGIN
 		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 										FROM #inputTransid t 
 											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-										FOR XML PATH('')
-								), 1, 1, ''), '')
+										FOR XML PATH('')), 1, 1, '')
+										, '')
 
-		SELECT @SettledTransIds = ISNULL(STUFF((
-					SELECT ',' + CAST(v.transid AS VARCHAR(50))
-					FROM #validTransId AS v
-					WHERE v.StatusId NOT IN (0,1)
-					FOR XML PATH('')
-					), 1, 1, ''), '')
+		SELECT @SettledTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+										FROM #validTransId AS v
+										WHERE v.StatusId NOT IN (0,1)
+										FOR XML PATH('')), 1, 1, '')
+										, '')
 
 		--get list VIP Account
 		SELECT  @query = N''		
@@ -502,25 +501,22 @@ BEGIN
 		INSERT INTO @VIPAccount_tmp(CustID)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((
-					SELECT ', ' + CAST(v.transid AS VARCHAR(50))
-					FROM #validTransId AS v				
-					WHERE EXISTS (
-						SELECT TOP 1 1
-						FROM @VIPAccount_tmp as vip
-						WHERE vip.CustID = v.custId
-					)
-					FOR XML PATH('')
-					), 1, 1, ''), '')
+		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
+											FROM #validTransId AS v				
+											WHERE EXISTS (
+												SELECT TOP 1 1
+												FROM @VIPAccount_tmp as vip
+												WHERE vip.CustID = v.custId)
+											FOR XML PATH('')), 1, 1, '')
+											, '')
 
 		-- Check validation for the ticket that has customer class = 1
-		SELECT @TransIdsOfCustomerClass1 = ISNULL(STUFF((
-					SELECT ',' + CAST(v.transid AS VARCHAR(50))
-					FROM #validTransId AS v	
-						INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
-					WHERE c.CustomerClass = 1
-					FOR XML PATH('')
-					), 1, 1, ''), '')
+		SELECT @TransIdsOfCustomerClass1 = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+												FROM #validTransId AS v	
+													INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
+												WHERE c.CustomerClass = 1
+												FOR XML PATH('')), 1, 1, '')
+											, '')
 
 		--Check AB White List Invalid Transid
 		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
@@ -547,9 +543,9 @@ BEGIN
 				INNER JOIN #ABWhiteListCustIds c ON c.CustID = t.custId
 
 			SELECT @ABWhiteListTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #ABWhiteListTransIds t
-										FOR XML PATH('')
-								), 1, 1, ''), '')
+											FROM #ABWhiteListTransIds t
+											FOR XML PATH('')), 1, 1, '')
+										  , '')
 		END
 	END
 	
@@ -573,27 +569,31 @@ BEGIN
 		SELECT @NonLiveTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
 										FROM #LiveTransIds lt
 										WHERE lt.IsNonLive = 1
-										FOR XML PATH('')
-								), 1, 1, ''), '')
+										FOR XML PATH('')), 1, 1, '')
+									, '')
 
 		SELECT @DifferentLiveScoreTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
-										FROM #LiveTransIds lt
-										WHERE lt.IsDifferentScore = 1
-										FOR XML PATH('')
-								), 1, 1, ''), '')
+														FROM #LiveTransIds lt
+														WHERE lt.IsDifferentScore = 1
+														FOR XML PATH('')), 1, 1, '')
+											, '')
 
 		-- get cn88 tickets
-		SELECT @CN88TransIds = ISNULL(STUFF((
-					SELECT ', ' + CAST(v.transid AS VARCHAR(50))
-					FROM #validTransId AS v				
-						INNER JOIN #tmpTransInfo b ON b.transid = v.transid AND b.IsMixParlay = 0
-						LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
-					WHERE cs.CustId IS NOT NULL
-					FOR XML PATH('')
-					), 1, 1, ''), '')
+		SELECT @CN88TransIds = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
+									FROM #validTransId AS v				
+										INNER JOIN #tmpTransInfo b ON b.transid = v.transid AND b.IsMixParlay = 0
+										LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
+									WHERE cs.CustId IS NOT NULL
+									FOR XML PATH('')), 1, 1, '')
+									, '')
 	END
 
-
+	IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
+	BEGIN
+		IF @RemoveTransids <> ''
+				SET @RemoveTransids = @RemoveTransids + ','
+		SET @RemoveTransids += @TransIdsOfCustomerClass1
+	END
 	/*****************Return table **************************/
 	
 	--1. Info match table
