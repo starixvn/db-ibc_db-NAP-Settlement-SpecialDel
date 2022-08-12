@@ -108,14 +108,10 @@
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
 	--dbo.BettransInfo
-	SET IDENTITY_INSERT BettransInfo ON
-
-	INSERT INTO dbo.BettransInfo ([BettransInfoID], [transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds])
-	SELECT binfo.[BettransInfoID], binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds]
+	INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds])
+	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds]
 	FROM dbo.BettransInfo_old20220825 binfo WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = binfo.transid 
-
-	SET IDENTITY_INSERT BettransInfo OFF
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = binfo.transid
 
 	--dbo.BettransInfo14
 	INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds])
