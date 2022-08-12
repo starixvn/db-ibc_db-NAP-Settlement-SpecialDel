@@ -68,7 +68,6 @@ BEGIN
 			,@DifferentLiveScoreTransIds VARCHAR(MAX) = ''
 			,@query						 NVARCHAR(MAX) = ''
 			,@ExecuteSQL				 NVARCHAR(MAX) = ''
-			,@IsCalQueue				 BIT = 0
 			,@IsHasWarningRemovedTickets BIT=0
 			,@OldActionId				 TINYINT
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
@@ -432,17 +431,8 @@ BEGIN
 											WHERE rdt.RequestId = @RequestId
 											FOR XML PATH('')), 1,1,'')
 
-			SET @IsCalQueue = ( SELECT TOP (1) 1
-									FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-									WHERE StatusId IN (1,2,4) AND RequestId = 0
-									AND 1 = CASE WHEN @FilterBy IS NULL AND matchid = @MatchId THEN 1
-												 WHEN @FilterBy = 1 AND matchid IN ( SELECT MatchId FROM @Matchinfo_tmp) THEN 1
-												 ELSE 0 END
-								)
-			IF @IsCalQueue = 1
-			BEGIN
-				SELECT @RemoveTransids = @UnmarkTransids
-			END
+		
+			SELECT @RemoveTransids = @UnmarkTransids
 		END
 	END
 

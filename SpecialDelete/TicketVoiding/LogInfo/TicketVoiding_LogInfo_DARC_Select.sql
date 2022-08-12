@@ -643,10 +643,11 @@ BEGIN
 
 	IF @SingleCount = 0 AND @MainParlayCount = 0
 	BEGIN
+		-- 1. Validate table
 		SELECT MatchId, 1 AS IsInValidTotalTickets, IsExistedInOtherRequest
 		FROM @Validation
 
-		--TransId in request table
+		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT RequestId,
@@ -667,25 +668,27 @@ BEGIN
 			FROM #TransidInRequest 
 		END
 			
-		--Loginfo Table
+		-- 3. Loginfo Table
 		DELETE #logInfo
 		SELECT MatchId FROM #logInfo
 
-		--Unmark table
+		-- 4. Unmark table
 		SELECT NULL AS UnmarkTransIds
 		
-		--Transinfo table
-		SELECT NULL AS TransInfo
+		-- 5. Transinfo table
+		DELETE #tmpTransInfo
+		SELECT Matchid FROM #tmpTransInfo
 
 		RETURN;
 	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
+		-- 1. Validate table
 		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest
 		FROM @Validation
 
-		--TransId in request table
+		-- 2. TransId in request table
 		SELECT CAST(TransId AS VARCHAR(MAX)) AS TransIds, RequestId, MatchId
 		FROM #TransidInRequest
 
@@ -735,6 +738,7 @@ BEGIN
 			WHERE rd.RequestId = @RequestId
 		END
 
+		-- 3. Loginfo Table
 		SELECT rd.MatchId
 			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
 			,rd.VoidFromTime
@@ -766,11 +770,34 @@ BEGIN
 			)sm(ScoreOfMatch)
 		WHERE rd.RequestId = @RequestId
 
-		--Unmark table
+		-- 4. Unmark table
 		SELECT NULL AS UnmarkTransIds
 		
-		--Transinfo table
-		SELECT NULL AS TransInfo
+		-- 5. Transinfo table
+		SELECT  t.matchid
+				,t.transid
+				,t.Subtransid
+				,t.refno
+				,t.custid 
+				,t.bettype 
+				,t.betid 
+				,t.statusID 
+				,t.Subcustid 
+				,t.Subbettype
+				,t.IsMixParlay 
+				,t.SiteDBGroupID 
+		FROM #tmpTransInfo t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId AND rs.RequestId = @RequestId
+						UNION ALL
+						SELECT rp.TransId, rp.MainTransId, rp.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid AND rp.RequestId = @RequestId
+				)tmp
+		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+
 		RETURN;
 	END
 
@@ -907,8 +934,7 @@ BEGIN
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 
 	-- 5. Transinfo table
-	SELECT DISTINCT 
-			t.matchid
+	SELECT  t.matchid
 		    ,t.transid
 			,t.Subtransid
 			,t.refno

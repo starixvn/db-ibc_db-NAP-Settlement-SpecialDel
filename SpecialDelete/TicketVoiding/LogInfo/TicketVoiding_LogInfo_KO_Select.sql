@@ -356,9 +356,10 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
+		-- 1. Validate table
 		SELECT  @IsExistedInOtherRequest AS IsExistedInOtherRequest
 
-		--TransId in request table
+		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT RequestId, MatchId,
@@ -378,14 +379,36 @@ BEGIN
 			FROM #TransidInRequest
 		END
 
-		--Loginto table
+		-- 3. Loginto table ( NO-use)
 		SELECT NULL AS MatchId
 
-		--Unmark table
+		-- 4. Unmark table
 		SELECT NULL AS UnmarkTransIds
 		
-		--Transinfo table
-		SELECT NULL AS TransInfo
+		-- 5. Transinfo table
+		SELECT  t.matchid
+				,t.transid
+				,t.Subtransid
+				,t.refno
+				,t.custid 
+				,t.bettype 
+				,t.betid 
+				,t.statusID 
+				,t.Subcustid 
+				,t.Subbettype
+				,t.IsMixParlay 
+				,t.SiteDBGroupID 
+		FROM #tmpTransInfo t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId AND rs.RequestId = @RequestId
+						UNION ALL
+						SELECT rp.TransId, rp.MainTransId, rp.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid AND rp.RequestId = @RequestId
+				)tmp
+		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 
 		RETURN;
 	END
@@ -442,7 +465,6 @@ BEGIN
 	-- 1. Validate table
 	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
 		  
-
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 	BEGIN

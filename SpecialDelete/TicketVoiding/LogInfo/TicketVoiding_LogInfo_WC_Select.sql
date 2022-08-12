@@ -666,13 +666,14 @@ BEGIN
 	BEGIN
 		IF @FilterBy <> 2
 		BEGIN
+			-- 1. Validate table
 			SELECT LiveScores
 				,1 AS IsInValidTotalTickets
 				,IsExistedInOtherRequest
 				,ScoreId
 			FROM @Validation
 
-			--TransId in request table
+			-- 2. TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 			BEGIN
 				SELECT RequestId, MatchId,
@@ -692,25 +693,27 @@ BEGIN
 				FROM #TransidInRequest r
 			END
 			
-			--Loginfo Table
+			-- 3. Loginfo Table
 			DELETE #logInfo
 			SELECT MatchId, ScoreId FROM #logInfo
 
-			--Unmark table
+			-- 4. Unmark table
 			SELECT NULL AS UnmarkTransIds
 		
-			--Transinfo table
-			SELECT NULL AS TransInfo
+			-- 5. Transinfo table
+			DELETE #tmpTransInfo
+		    SELECT Matchid FROM #tmpTransInfo
 
 		END
 		ELSE 
 		BEGIN 
+			-- 1. Validate table
 			SELECT MatchId
 				,1 AS IsInValidTotalTickets
 				,IsExistedInOtherRequest
 			FROM @Validation
 		
-			--TransId in request table
+			-- 2. TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 			BEGIN
 				SELECT RequestId, NULL AS LiveScores, r.ScoreId, 
@@ -729,12 +732,16 @@ BEGIN
 				FROM #TransidInRequest
 			END
 			
-			--Loginfo Table
+			-- 3. Loginfo Table
 			DELETE #logInfo
 			SELECT MatchId, ScoreId FROM #logInfo
 
-			--TransInfo table
-			SELECT NULL AS TransInfo
+			-- 4. Unmark table
+			SELECT NULL AS UnmarkTransIds
+
+			-- 5. TransInfo table
+			DELETE #tmpTransInfo
+		    SELECT Matchid FROM #tmpTransInfo
 		END
 
 		RETURN;
@@ -768,16 +775,18 @@ BEGIN
 
 		IF @FilterBy <> 2
 		BEGIN
+			-- 1. Validate table
 			SELECT LiveScores
 				,IsInValidTotalTickets
 				,IsExistedInOtherRequest
 				,ScoreId
 			FROM @Validation
 
-			--TransId in request table
+			-- 2. TransId in request table
 			SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 
+			-- 3.Loginfo table
 			SELECT rd.MatchId
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
 				,rd.IssueDetail AS ActualScore
@@ -799,21 +808,18 @@ BEGIN
 				LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId AND tmp.ScoreId = a.ScoreId
 			WHERE rd.RequestId = @RequestId 
 
-			--Unmark table
-			SELECT NULL AS UnmarkTransIds
 		
-			--Transinfo table
-			SELECT NULL AS TransInfo
 
 		END
 		ELSE IF @FilterBy = 2
 		BEGIN
+			-- 1. Validate table
 			SELECT MatchId
 				,IsInValidTotalTickets
 				,IsExistedInOtherRequest
 			FROM @Validation
 
-			--TransId in request table
+			-- 2. TransId in request table
 			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 			
@@ -877,17 +883,38 @@ BEGIN
 				)sm(ScoreOfMatch)
 			WHERE rd.RequestId = @RequestId
 
-			--Unmark table
-			SELECT NULL AS UnmarkTransIds
-		
-			--Transinfo table
-			SELECT NULL AS TransInfo
 		END
 			
+		-- 4.Unmark table
+		SELECT NULL AS UnmarkTransIds
+		
+		-- 5. Transinfo table
+		SELECT  t.matchid
+			,t.transid
+			,t.Subtransid
+			,t.refno
+			,t.custid 
+			,t.bettype 
+			,t.betid 
+			,t.statusID 
+			,t.Subcustid 
+			,t.Subbettype
+			,t.IsMixParlay 
+			,t.SiteDBGroupID 
+		FROM #tmpTransInfo t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId AND rs.RequestId = @RequestId
+						UNION ALL
+						SELECT rp.TransId, rp.MainTransId, rp.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid AND rp.RequestId = @RequestId
+				)tmp
+		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 		RETURN;
 	END
 
-	---Prepare for lock match---
 	IF @FilterBy <> 2
 	BEGIN
 		UPDATE v 
@@ -967,13 +994,14 @@ BEGIN
 
 	IF @FilterBy <> 2
 	BEGIN
+		-- 1. Validate table
 		SELECT LiveScores
 			,IsInValidTotalTickets
 			,IsExistedInOtherRequest
 			,ScoreId
 		FROM @Validation
 
-		--TransId in request table
+		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT RequestId,
@@ -993,7 +1021,8 @@ BEGIN
 			SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 		END
-		--Loginfo table
+
+		-- 3. Loginfo table
 		SELECT MatchId
 			,LiveScores
 			,MIN(VoidFromTime) AS VoidFromTime
@@ -1010,12 +1039,13 @@ BEGIN
 	END
 	ELSE IF @FilterBy = 2
 	BEGIN
+		-- 1. Validate table
 		SELECT MatchId
 			,IsInValidTotalTickets
 			,IsExistedInOtherRequest
 		FROM @Validation
 
-		--TransId in request table
+		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT RequestId,
@@ -1037,7 +1067,7 @@ BEGIN
 			FROM #TransidInRequest r
 		END
 	
-		--Loginfo table
+		-- 3. Loginfo table
 		;WITH _cte AS (
 				SELECT MatchId
 					,STUFF(w.scores,1,1,'') AS LiveScores

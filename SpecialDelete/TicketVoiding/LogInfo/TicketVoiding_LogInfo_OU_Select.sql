@@ -135,8 +135,8 @@ BEGIN
 	)
 
 	DECLARE @Validation AS TABLE (
-			 IsInValidTotalTickets   BIT 
-			,IsExistedInOtherRequest BIT 
+			 IsInValidTotalTickets   BIT DEFAULT(0)
+			,IsExistedInOtherRequest BIT DEFAULT(0)
 			,MatchId                 INT
 		)
 
@@ -453,11 +453,13 @@ BEGIN
 	FROM #logInfo
 	IF @SingleCount = 0 AND @MainParlayCount = 0
 	BEGIN
+		-- 1. Validate table
 		SELECT MatchId
 			,1 AS IsInValidTotalTickets
 			,IsExistedInOtherRequest
 		FROM @Validation
 
+		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT RequestId,
@@ -478,26 +480,29 @@ BEGIN
 			FROM #TransidInRequest 
 		END
 			
-		--Loginfo Table
+		-- 3. Loginfo Table
 		DELETE #logInfo
 		SELECT MatchId FROM #logInfo
 
-		--Unmark table
+		-- 4. Unmark table
 		SELECT NULL AS UnmarkTransIds
 		
-		--Transinfo table
-		SELECT NULL AS TransInfo
+		-- 5. TransInfo table
+		DELETE #tmpTransInfo
+		SELECT Matchid FROM #tmpTransInfo
 
 		RETURN;
 	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
+		-- 1. Validate table
 		SELECT MatchId
-			,ISNULL(IsInValidTotalTickets, 0) AS IsInValidTotalTickets
-			,ISNULL(IsExistedInOtherRequest,0) AS IsExistedInOtherRequest
+			,IsInValidTotalTickets
+			,IsExistedInOtherRequest
 		FROM @Validation
 
+		-- 2. TransId in request table
 		SELECT RequestId, MatchId, 
 			   STUFF((SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
@@ -507,7 +512,6 @@ BEGIN
 		FROM #TransidInRequest r
 		GROUP BY r.RequestId, r.MatchId
 
-		/*Get log info for Void Page*/
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, InstantlySettleCount, SettleCount)
 		SELECT @RequestId
 			  ,b.matchid
@@ -520,6 +524,7 @@ BEGIN
 		WHERE s.RequestId = @RequestId AND b.StatusId IN (111, 112, 113)
 		GROUP BY b.matchid
 
+		-- 3. Loginfo Table
 		SELECT rd.MatchId
 			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
 			,rd.VoidFromTime
@@ -533,8 +538,33 @@ BEGIN
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId
 
-		--TransInfo table
-		SELECT NULL AS TransInfo
+		-- 4. Unmark table
+		SELECT NULL AS UnmarkTransIds
+
+		-- 5. Transinfo table
+		SELECT  t.matchid
+				,t.transid
+				,t.Subtransid
+				,t.refno
+				,t.custid 
+				,t.bettype 
+				,t.betid 
+				,t.statusID 
+				,t.Subcustid 
+				,t.Subbettype
+				,t.IsMixParlay 
+				,t.SiteDBGroupID 
+		FROM #tmpTransInfo t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
+						UNION ALL
+						SELECT rp.TransId, rp.MainTransId, rp.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
+				)tmp
+		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 		RETURN;
 	END
 
@@ -594,7 +624,6 @@ BEGIN
 											), 1,1,'')
 										,'')
 		END
-
 	END
 
 	/*****************Return table **************************/
