@@ -30,7 +30,7 @@ BEGIN
 			,@IsUpd_Void BIT = 0
 			,@transinfo XML
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10))		
+	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost VARCHAR(1), winlostdate SMALLDATETIME, status VARCHAR(10))		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	
@@ -89,7 +89,7 @@ BEGIN
 				,INSERTED.statuswinlost
 				,inserted.winlostdate
 				,inserted.status
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status)
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -194,7 +194,7 @@ BEGIN
 	    OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
-				,INSERTED.statuswinlost
+				,CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 				,inserted.winlostdate
 				,inserted.status
 		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status)
