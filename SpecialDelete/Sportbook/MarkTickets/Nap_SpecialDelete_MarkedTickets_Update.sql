@@ -180,11 +180,19 @@ BEGIN
 		   ,@ThreadHold = @ThreadHold OUTPUT
 
 	INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
-	SELECT t.MatchId, t.refno
+	SELECT 0, t.refno  --Many matches with same Refno  
 	FROM #Tickets AS t
 	WHERE t.IsParlay = 1
-
+	GROUP BY t.Refno  
+	HAVING COUNT(*) > 1
 	SET @totalParlay = @@ROWCOUNT
+
+	INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+	SELECT t.MatchId, t.refno
+	FROM #Tickets AS t
+	WHERE t.IsParlay = 1 AND NOT EXISTS (SELECT 1 FROM #tblMatchParlayProcess m WHERE m.RefNo = t.refno) 
+
+	SELECT  @totalParlay = @totalParlay + @@ROWCOUNT
 	IF @totalParlay > 0 
 		SET @isExistParlay = 1
 
