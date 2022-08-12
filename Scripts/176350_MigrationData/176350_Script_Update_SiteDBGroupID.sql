@@ -368,21 +368,21 @@ GO
 SELECT transid
 FROM bettrans b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-WHERE SiteDBGroupID IS NULL
+WHERE SiteDBGroupID = 0
 -- bettrans14
 SELECT transid
 FROM bettrans14 b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-WHERE SiteDBGroupID IS NULL
+WHERE SiteDBGroupID = 0
 -- bettransm
 SELECT transid
 FROM bettransm b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-WHERE SiteDBGroupID IS NULL
+WHERE SiteDBGroupID = 0
 -- bettransm14
 SELECT transid, SiteDBGroupID
 FROM bettransm14 b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-WHERE SiteDBGroupID IS NULL
+WHERE SiteDBGroupID = 0
 
 */
