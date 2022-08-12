@@ -74,7 +74,7 @@ BEGIN
 			,@transinfo XML
 
 	DECLARE @settlementTime DATETIME
-			,@RepUpdateTime DATETIME2
+			,@FcRepUpdateTime DATETIME2
 			
 	SET @xmlData = CONVERT(XML, @result)
 	SET @ActionId = CASE 
@@ -105,7 +105,7 @@ BEGIN
 		,modds MONEY, statuswinlost VARCHAR(1),SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, RepUpdateTime DATETIME2
+		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, FcRepUpdateTime DATETIME2
 
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
@@ -462,7 +462,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 2) AND @AllowRefund = 1 -- REFUND
 		BEGIN
 			SET @settlementTime = GETDATE()
-			SET @RepUpdateTime = SYSDATETIME()
+			SET @FcRepUpdateTime = SYSDATETIME()
 
 			UPDATE	b
 				SET 
@@ -488,7 +488,7 @@ BEGIN
 					, scomm = 0
 					, ruben = 1
 					, statuswinlost = 6	
-					, RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+					, FcRepUpdateTime = CASE WHEN b.statusId = 103 THEN b.FcRepUpdateTime ELSE @FcRepUpdateTime END
 			OUTPUT	inserted.transid
 				,inserted.Status				
 				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
@@ -497,7 +497,7 @@ BEGIN
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.ruben
 				,inserted.statuswinlost
-				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+				,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
 	
 				,deleted.winlost
 				,deleted.statusid	
@@ -510,7 +510,7 @@ BEGIN
 				,PlayerComm,Comm,aComm,sComm
 				,ruben
 				,statuswinlost
-				,RepUpdateTime
+				,FcRepUpdateTime
 				,bef_winlost, bef_statusid
 			)
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
@@ -535,7 +535,7 @@ BEGIN
 							,sComm AS '@sc' 
 							,ruben AS '@r' 
 							,statuswinlost AS '@statuswl' 
-							,RepUpdateTime AS '@rut'
+							,FcRepUpdateTime AS '@rut'
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
 					
@@ -550,7 +550,7 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 0) AND @AllowUndo = 1 -- UNDO
 		BEGIN
-			SET @RepUpdateTime = SYSDATETIME()
+			SET @FcRepUpdateTime = SYSDATETIME()
 
 			UPDATE	b
 				SET 
@@ -567,7 +567,7 @@ BEGIN
 					, scomm = 0
 					, ruben = CASE WHEN @IsUpd_Void= 0 THEN ruben ELSE 0 END 
 					, statuswinlost = NULL
-					, RepUpdateTime = CASE WHEN b.statusId = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+					, FcRepUpdateTime = CASE WHEN b.statusId = 0 THEN b.FcRepUpdateTime ELSE @FcRepUpdateTime END
 			OUTPUT	inserted.transid
 				,inserted.Status	
 				,inserted.StatusID
@@ -575,7 +575,7 @@ BEGIN
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.ruben
 				, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
-				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+				,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
 	
 				,deleted.winlost
 				,deleted.statusid	
@@ -587,7 +587,7 @@ BEGIN
 				,PlayerComm,Comm,aComm,sComm
 				,ruben
 				,statuswinlost
-				,RepUpdateTime
+				,FcRepUpdateTime
 				,bef_winlost, bef_statusid
 			)
 			FROM	dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
@@ -611,7 +611,7 @@ BEGIN
 							,sComm AS '@sc' 
 							,ruben AS '@r' 
 							,statuswinlost AS '@statuswl' 
-							,RepUpdateTime AS '@rut'
+							,FcRepUpdateTime AS '@rut'
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
 					

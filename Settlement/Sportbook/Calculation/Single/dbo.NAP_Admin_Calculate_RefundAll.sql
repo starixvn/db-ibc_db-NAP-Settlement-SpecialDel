@@ -87,7 +87,7 @@ BEGIN
 			,@TransIdOfMinCust		BIGINT
 			,@TransIdOfMaxCust		BIGINT	
 			,@IsUpd_Void			BIT = 0
-			,@RepUpdateTime			DATETIME2
+			,@FcRepUpdateTime			DATETIME2
 			,@transInfo	XML
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -96,7 +96,7 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 			,bef_winlost MONEY ,bef_statusid TINYINT
-			,RepUpdateTime DATETIME2
+			,FcRepUpdateTime DATETIME2
 		)
 		
 	DECLARE @tblBettypes TABLE (bettype SMALLINT, GroupId SMALLINT, GroupName VARCHAR(50))	
@@ -172,7 +172,7 @@ BEGIN
 		WHERE	BatchNo = @BatchNo
 
 		SET @settlementTime = GETDATE();
-		SET @RepUpdateTime = SYSDATETIME()
+		SET @FcRepUpdateTime = SYSDATETIME()
 
 		UPDATE	b
 			SET 
@@ -202,7 +202,7 @@ BEGIN
 				,scomm = 0
 				,ruben = 1
 				,statuswinlost = 6	
-				,RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+				,FcRepUpdateTime = CASE WHEN b.statusId = 103 THEN b.FcRepUpdateTime ELSE @FcRepUpdateTime END
 		OUTPUT	inserted.transid
 				,inserted.Status
 				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
@@ -212,7 +212,7 @@ BEGIN
 				,inserted.ruben
 				,inserted.statuswinlost
 				,deleted.winlost ,deleted.statusid
-				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+				,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
 			INTO @tmpTransInfo (
 				transId
 				,Status
@@ -223,7 +223,7 @@ BEGIN
 				,ruben
 				,statuswinlost
 				,bef_winlost ,bef_statusid 
-				,RepUpdateTime
+				,FcRepUpdateTime
 			)
 		FROM	dbo.bettrans b WITH (ROWLOCK)
 			INNER JOIN @tmpBatch c
@@ -282,7 +282,7 @@ BEGIN
 						,statuswinlost AS '@statuswl' 
 						,bef_winlost AS '@bef_w' 
 						,bef_statusid AS '@bef_sid' 
-						,RepUpdateTime AS '@rut'
+						,FcRepUpdateTime AS '@rut'
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)

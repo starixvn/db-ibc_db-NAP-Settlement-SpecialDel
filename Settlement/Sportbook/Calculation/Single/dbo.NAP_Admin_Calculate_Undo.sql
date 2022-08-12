@@ -83,7 +83,7 @@ BEGIN
 			,@posOdds				INT
 			,@posComma				INT
 			,@IsUpd_Void			BIT = 0
-			,@RepUpdateTime			DATETIME2
+			,@FcRepUpdateTime			DATETIME2
 			,@transInfo	XML
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -92,7 +92,7 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 			,bef_winlost MONEY ,bef_statusid TINYINT
-			,RepUpdateTime DATETIME2
+			,FcRepUpdateTime DATETIME2
 		)
 		
 	DECLARE @tblBettypes TABLE (bettype SMALLINT,GroupName VARCHAR(50), GroupId SMALLINT)
@@ -167,7 +167,7 @@ BEGIN
 		FROM	@tmpBatch
 		WHERE	BatchNo = @BatchNo
 
-		SET @RepUpdateTime = SYSDATETIME()
+		SET @FcRepUpdateTime = SYSDATETIME()
 
 		UPDATE	b
 			SET 
@@ -214,7 +214,7 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,statuswinlost = NULL
-				,RepUpdateTime = CASE WHEN b.statusid = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+				,FcRepUpdateTime = CASE WHEN b.statusid = 0 THEN b.FcRepUpdateTime ELSE @FcRepUpdateTime END
 		OUTPUT	inserted.transid
 				,inserted.modds, inserted.odds, inserted.oddsspread
 				, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
@@ -222,13 +222,13 @@ BEGIN
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.Status,inserted.StatusID,inserted.ruben	
 				,deleted.winlost ,deleted.statusid
-				,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END
+				,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
 			INTO @tmpTransInfo (
 				transId
 				,modds, odds, oddsspread, statuswinlost,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
 				,bef_winlost  ,bef_statusid 
-				,RepUpdateTime
+				,FcRepUpdateTime
 			)
 		FROM	dbo.bettrans b WITH (ROWLOCK)
 			INNER JOIN @tmpBatch c
@@ -291,7 +291,7 @@ BEGIN
 						,ruben AS '@r'		
 						,bef_winlost AS '@bef_w' 
 						,bef_statusid AS '@bef_sid' 
-						,RepUpdateTime AS '@rut'
+						,FcRepUpdateTime AS '@rut'
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)

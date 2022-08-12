@@ -24,7 +24,7 @@ BEGIN
 		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread MONEY, statuswinlost VARCHAR(1),SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,RepUpdateTime DATETIME2, creator INT
+		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcRepUpdateTime DATETIME2, creator INT
 		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
 		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT
 	)
@@ -34,7 +34,7 @@ BEGIN
 		INSERT INTO @tmpTransId (TransID
 			,matchid, winlostdate, betdaqid
 			,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
-			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,RepUpdateTime
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcRepUpdateTime
 			, hdp1 , hdp2 , livehomescore , liveawayscore , creator
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
@@ -58,7 +58,7 @@ BEGIN
 				,T.C.value('./@s', 'NVARCHAR(10)') AS Status
 				,T.C.value('./@sid', 'TINYINT') AS StatusID
 				,T.C.value('./@r', 'TINYINT') AS ruben
-				,T.C.value('./@rut', 'DATETIME2') AS RepUpdateTime	
+				,T.C.value('./@rut', 'DATETIME2') AS FcRepUpdateTime	
 				,T.C.value('./@hdp1', 'SMALLMONEY') AS hdp1
 				,T.C.value('./@hdp2', 'SMALLMONEY') AS hdp2
 				,T.C.value('./@lh', 'SMALLINT') AS livehomescore
@@ -95,7 +95,7 @@ BEGIN
 				,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
 				,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
 				,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END
-				,RepUpdateTime = CASE WHEN t.RepUpdateTime IS NULL THEN b.RepUpdateTime ELSE SYSDATETIME() END
+				,FcRepUpdateTime = CASE WHEN t.FcRepUpdateTime IS NULL THEN b.FcRepUpdateTime ELSE SYSDATETIME() END
 				,hdp1 = CASE WHEN t.hdp1 IS NULL THEN b.hdp1 ELSE t.hdp1 END					
 				,hdp2 = CASE WHEN t.hdp2 IS NULL THEN b.hdp2  ELSE t.hdp2 END					
 				,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					

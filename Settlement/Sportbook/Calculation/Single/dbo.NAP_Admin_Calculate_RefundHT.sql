@@ -78,7 +78,7 @@ BEGIN
 			,@TransIdOfMinCust		BIGINT
 			,@TransIdOfMaxCust		BIGINT			
 			,@IsUpd_Void			BIT = 0
-			,@RepUpdateTime			DATETIME2
+			,@FcRepUpdateTime			DATETIME2
 			,@transInfo	XML
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -161,7 +161,7 @@ BEGIN
 		WHERE	BatchNo = @BatchNo
 
 		SET @settlementTime = GETDATE();
-		SET @RepUpdateTime = SYSDATETIME()
+		SET @FcRepUpdateTime = SYSDATETIME()
 
 		UPDATE b
 			SET 
@@ -188,7 +188,7 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,statuswinlost = 6
-				,RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+				,FcRepUpdateTime = CASE WHEN b.statusId = 103 THEN b.FcRepUpdateTime ELSE @FcRepUpdateTime END
 		OUTPUT	inserted.transid
 				,inserted.Status
 				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END

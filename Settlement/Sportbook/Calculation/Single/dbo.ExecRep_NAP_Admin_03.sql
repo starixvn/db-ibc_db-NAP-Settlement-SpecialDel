@@ -65,7 +65,7 @@ BEGIN
 		,statuswinlost TINYINT
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,Status NVARCHAR(10),StatusID TINYINT, RepUpdateTime DATETIME2
+		,Status NVARCHAR(10),StatusID TINYINT, FcRepUpdateTime DATETIME2
 		,SettlementTime DATETIME
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
@@ -168,20 +168,20 @@ BEGIN
 								WHEN @IsUpdated = 0 THEN b.SettlementTime
 								ELSE CASE WHEN b.winlost <> t.Winlost OR b.statusID <> @StatusId THEN @settlementTime ELSE SettlementTime END
 								END	
-			,RepUpdateTime = CASE WHEN @statusId = 103 AND b.statusID <> 103 THEN SYSDATETIME() ELSE RepUpdateTime END
+			,FcRepUpdateTime = CASE WHEN @statusId = 103 AND b.statusID <> 103 THEN SYSDATETIME() ELSE FcRepUpdateTime END
 		OUTPUT	inserted.transid
 			,inserted.statuswinlost
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID
 			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
-			,CASE WHEN inserted.RepUpdateTime <> deleted.RepUpdateTime THEN inserted.RepUpdateTime ELSE NULL END	
+			,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END	
 			,deleted.winlost
 			,deleted.statusid		
 		INTO @tmpTransInfo (
 			transId
 			,statuswinlost,WinLost,aWinLost
-			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID, SettlementTime, RepUpdateTime
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID, SettlementTime, FcRepUpdateTime
 			,bef_winlost, bef_statusid
 		)
 	FROM	dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
@@ -203,7 +203,7 @@ BEGIN
 					,sComm AS '@sc' 
 					,Status AS '@s' 
 					,StatusID AS '@sid' 
-					,RepUpdateTime AS '@rut' 
+					,FcRepUpdateTime AS '@rut' 
 					,SettlementTime AS '@st'
 					,bef_winlost AS '@bef_w' 
 					,bef_statusid AS '@bef_sid' 
