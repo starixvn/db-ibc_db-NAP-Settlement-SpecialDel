@@ -256,6 +256,32 @@ BEGIN
 	FROM @tmpTicketStatus bt
 	  		FULL JOIN @tmpTicketStatusParlay p ON bt.resourceId = p.ResourceID
 
+	
+	---INSERT for Major round if not exists
+	INSERT INTO @tblReturnTable (ResourceID
+			,BetCount
+			,InWaiting
+			,InRunning
+			,BetMarkedCount
+			,BetSettledCount
+			,BetRefundedCount
+			,SettleType
+			,IsSpecialBettype
+			,OrdNo)
+	 SELECT mr.ResourceID
+			,0 AS BetCount
+			,0 AS InWaiting
+			,0 AS InRunning
+			,0 AS betMarkedCount
+			,0 AS BetSettledCount
+			,0 AS BetRefundedCount
+			,'MNL' AS SettleType		
+			,0 AS IsSpecialBettype
+			,mr.OrdNo
+	 FROM dbo.f_Set_MajorRound(@Sporttype) mr
+		LEFT JOIN @tblReturnTable r ON r.ResourceID = mr.ResourceID
+	WHERE r.ResourceId IS NULL
+
 	 SELECT ResourceID
 			, ISNULL(IsSpecialBettype,0) AS IsSpecialBettype
 			,BetCount
@@ -265,8 +291,7 @@ BEGIN
 			,BetSettledCount
 			,BetRefundedCount
 	 FROM @tblReturnTable
-	 ORDER BY --CASE SettleType WHEN 'MNL' THEN 0 ELSE 1 END , 
-			OrdNo
+	 ORDER BY CASE SettleType WHEN 'MNL' THEN 0 ELSE 1 END , OrdNo
 
 	SELECT	SUM(betRunningCount)	AS betRunningCount
 			,SUM(betSettledCount)	AS betSettledCount
