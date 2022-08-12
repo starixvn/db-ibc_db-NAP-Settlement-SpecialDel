@@ -52,7 +52,6 @@ AS
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 		- 20220509@Max: TVS- Hotfix Capture duplicate transid void and re-settle [Redmine: #00000]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
-		- 20220812@Max: MPO - [TVS] wrong data insert into CustLimitBetQueue when transid list include both single and parlay ticket [Redmine: #176578]
 
 	Param's explanation:	
 		
@@ -1796,7 +1795,6 @@ BEGIN
 									,t.ruben AS '@ruben'
 									,t.transid AS '@transid'
 								FROM #tmpTransId_VOID_RequestID t
-								WHERE t.bettype = 29
 								GROUP BY custid, ruben, transid
 								FOR XML PATH('r'), ROOT('root')
 							)
@@ -1812,7 +1810,6 @@ BEGIN
 									,t.ruben AS '@ruben'
 									,t.transid AS '@transid'
 								FROM #tmpTransId_Recalculate t
-								WHERE t.bettype = 29
 								GROUP BY custid, ruben, transid
 								FOR XML PATH('r'), ROOT('root')
 							)
