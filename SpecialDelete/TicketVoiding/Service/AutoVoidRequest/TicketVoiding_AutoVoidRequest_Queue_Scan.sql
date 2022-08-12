@@ -1,5 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Scan]
+(
+	@BroadcastSessionId VARCHAR(10) = NULL
+)
 AS
 /*	
 	Created by: Max
@@ -39,6 +42,7 @@ BEGIN
 					WHEN q.RequestId > 0 AND q.Action = 'VoidInstant10m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
 				ELSE 0 END
 		AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId	
+		AND q.BroadcastSessionId = CASE WHEN @BroadcastSessionId IS NOT NULL THEN @BroadcastSessionId ELSE q.BroadcastSessionId END
 	ORDER BY q.Action DESC, Starttime
 	
 END		
