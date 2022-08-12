@@ -1,5 +1,5 @@
 -----------STEP 1: ALTER SP ExecRep on DBTRANS ------------------------------------------
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 (
 	@transIds VARCHAR(MAX)
