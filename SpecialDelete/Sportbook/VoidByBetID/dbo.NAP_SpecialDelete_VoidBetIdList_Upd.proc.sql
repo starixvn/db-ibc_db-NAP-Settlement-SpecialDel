@@ -102,6 +102,7 @@ AS
 	  - 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 	  - 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 	  - 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
+	  - 20220812@Max: MPO - [TVS] wrong data insert into CustLimitBetQueue when transid list include both single and parlay ticket [Redmine: #176578]
 
 	 Param's Explanation:   
 	*/
@@ -1773,6 +1774,7 @@ BEGIN
 	INSERT INTO @Match_tmp (MatchId, sporttype, ParentID, ChildMatchType)
 	SELECT DISTINCT t.matchid, t.sporttype, t.ParentID, t.ChildMatchType
 	FROM #BetDelete t
+	WHERE t.Bettype <> 29
 
 	WHILE (1=1)
 	BEGIN
@@ -1804,22 +1806,23 @@ BEGIN
 			@MatchId = @MatchId_MaxPO
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
+	END
 
-		IF EXISTS (SELECT TOP 1 1 FROM #BetDelete WHERE bettype = 29)
-		BEGIN
-			--Prepare for Max Payout
-			SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
-										,t.ruben AS '@ruben'
-										,t.transid AS '@transid'
-									FROM #BetDelete t
-									GROUP BY custid, ruben, transid
-									FOR XML PATH('r'), ROOT('root')
-								)
+	IF EXISTS (SELECT TOP 1 1 FROM #BetDelete WHERE bettype = 29)
+	BEGIN
+		--Prepare for Max Payout
+		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+									,t.ruben AS '@ruben'
+									,t.transid AS '@transid'
+								FROM #BetDelete t
+								WHERE t.Bettype = 29
+								GROUP BY custid, ruben, transid
+								FOR XML PATH('r'), ROOT('root')
+							)
 
-			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
-				@MatchId= 29
-				,@TransidList = @MainParlay_MaxPO
-		END
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@TransidList = @MainParlay_MaxPO
 	END
 	-------------------------------------------------------
 	 
