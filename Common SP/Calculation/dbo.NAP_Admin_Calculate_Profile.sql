@@ -71,7 +71,7 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@CheckNegativeBalance INT = 0
 			,@StepDone			VARCHAR(300) = 'Done update'
-			,@FcRepUpdateTime		DATETIME2
+			,@FcUpdateTime		DATETIME2
 			
 			,@transInfo		XML
 			,@IsSiteDB		BIT
@@ -82,7 +82,7 @@ BEGIN
 			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost TINYINT,SettlementTime DATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcRepUpdateTime DATETIME2
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcUpdateTime DATETIME2
 
 			,bef_winlost MONEY
 			,bef_statusid TINYINT
@@ -364,7 +364,7 @@ BEGIN
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 					,inserted.Status,inserted.StatusID,inserted.ruben
-					,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
+					,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 
 					,deleted.winlost
 					,deleted.statusid		
@@ -373,7 +373,7 @@ BEGIN
 				
 				,transId
 				,modds, odds, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
-				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcRepUpdateTime
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
 
 				,bef_winlost, bef_statusid
 			)
@@ -408,7 +408,7 @@ BEGIN
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
 							,ruben AS '@r' 
-							,FcRepUpdateTime AS '@rut' 
+							,FcUpdateTime AS '@rut' 
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
 					
@@ -794,7 +794,7 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN b.ruben 
 							ELSE 1
 						END
-				,FcRepUpdateTime = CASE WHEN @statusId = 103 THEN @FcRepUpdateTime ELSE b.FcRepUpdateTime END
+				,FcUpdateTime = CASE WHEN @statusId = 103 THEN @FcUpdateTime ELSE b.FcUpdateTime END
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 

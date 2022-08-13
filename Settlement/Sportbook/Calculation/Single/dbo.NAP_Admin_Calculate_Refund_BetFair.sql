@@ -43,7 +43,7 @@ BEGIN
 	END
 	-- END CHECK
 	DECLARE @settlementTime DATETIME
-			,@FcRepUpdateTime	DATETIME2
+			,@FcUpdateTime	DATETIME2
 			,@rowcnt		SMALLINT
 			,@transInfo		XML
 			
@@ -53,14 +53,14 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 			,bef_winlost MONEY ,bef_statusid TINYINT
-			,FcRepUpdateTime DATETIME2
+			,FcUpdateTime DATETIME2
 		)
 		
 	BEGIN
 		WHILE 1=1
 		BEGIN
 			SET @settlementTime = GETDATE();
-			SET @FcRepUpdateTime = SYSDATETIME()
+			SET @FcUpdateTime = SYSDATETIME()
 
 			UPDATE TOP (10000) dbo.bettrans with (ROWLOCK, UPDLOCK)
 			SET
@@ -76,14 +76,14 @@ BEGIN
 				comm=0,
 				acomm=0,
 				scomm=0,
-				FcRepUpdateTime = CASE WHEN statusId = 103 THEN FcRepUpdateTime ELSE @FcRepUpdateTime END
+				FcUpdateTime = CASE WHEN statusId = 103 THEN FcUpdateTime ELSE @FcUpdateTime END
 			OUTPUT	inserted.transid
 				,inserted.Status
 				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 				,inserted.StatusID,inserted.ruben		
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm,deleted.winlost ,deleted.statusid
-				,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
+				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 			INTO @tmpTransInfo (
 				transId
 				,Status
@@ -91,7 +91,7 @@ BEGIN
 				,StatusID,ruben
 				,WinLost,aWinLost,mWinLost,sWinLost
 				,PlayerComm,Comm,aComm,sComm,bef_winlost ,bef_statusid 
-				,FcRepUpdateTime
+				,FcUpdateTime
 			)
 			where
 				matchid=@matchid
@@ -127,7 +127,7 @@ BEGIN
 							,ruben AS '@r'
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
-							,FcRepUpdateTime AS '@rut'
+							,FcUpdateTime AS '@rut'
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)

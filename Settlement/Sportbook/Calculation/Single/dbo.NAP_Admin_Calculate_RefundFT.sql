@@ -88,7 +88,7 @@ BEGIN
 			,@TransIdOfMinCust		BIGINT
 			,@TransIdOfMaxCust		BIGINT		
 			,@IsUpd_Void			BIT = 0
-			,@FcRepUpdateTime			DATETIME2
+			,@FcUpdateTime			DATETIME2
 			,@transInfo	XML
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -97,7 +97,7 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 			,bef_winlost MONEY ,bef_statusid TINYINT
-			,FcRepUpdateTime DATETIME2
+			,FcUpdateTime DATETIME2
 		)
 		
 	DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT)
@@ -174,7 +174,7 @@ BEGIN
 		WHERE	BatchNo = @BatchNo
 
 		SET @settlementTime = GETDATE();
-		SET @FcRepUpdateTime = SYSDATETIME()
+		SET @FcUpdateTime = SYSDATETIME()
 
 		UPDATE	b
 			SET 
@@ -201,7 +201,7 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,statuswinlost = 6
-				,FcRepUpdateTime = CASE WHEN b.statusId = 103 THEN b.FcRepUpdateTime ELSE @FcRepUpdateTime END
+				,FcUpdateTime = CASE WHEN b.statusId = 103 THEN b.FcUpdateTime ELSE @FcUpdateTime END
 		OUTPUT	inserted.transid
 				,inserted.Status
 				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
@@ -211,7 +211,7 @@ BEGIN
 				,inserted.ruben
 				,inserted.statuswinlost
 				,deleted.winlost ,deleted.statusid
-				,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
+				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 			INTO @tmpTransInfo (
 				transId
 				,Status
@@ -222,7 +222,7 @@ BEGIN
 				,ruben
 				,statuswinlost
 				,bef_winlost ,bef_statusid 
-				,FcRepUpdateTime
+				,FcUpdateTime
 			)
 		FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpBatch c
@@ -276,7 +276,7 @@ BEGIN
 						,statuswinlost AS '@statuswl' 
 						,bef_winlost AS '@bef_w' 
 						,bef_statusid AS '@bef_sid' 
-						,FcRepUpdateTime AS '@rut'
+						,FcUpdateTime AS '@rut'
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)

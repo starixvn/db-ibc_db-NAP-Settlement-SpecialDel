@@ -29,7 +29,7 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
-			,@FcRepUpdateTime		DATETIME2
+			,@FcUpdateTime		DATETIME2
 
 	SET @ServerName = @@SERVERNAME
 
@@ -50,7 +50,7 @@ BEGIN
 		,odds SMALLMONEY, statuswinlost VARCHAR(1)
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, FcRepUpdateTime DATETIME2
+		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, FcUpdateTime DATETIME2
 
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
@@ -66,7 +66,7 @@ BEGIN
 	FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT ) tbl
 	EXEC sp_xml_removedocument @handle
 	
-	SET @FcRepUpdateTime = SYSDATETIME()
+	SET @FcUpdateTime = SYSDATETIME()
 
 	UPDATE	b
 		SET 
@@ -98,21 +98,21 @@ BEGIN
 			,scomm = 0
 			,statuswinlost = NULL
 			,odds = CASE WHEN b.bettype = 376 THEN b.oddsspread ELSE b.odds END
-			,FcRepUpdateTime = CASE WHEN b.statusId = 0 THEN b.FcRepUpdateTime ELSE @FcRepUpdateTime END
+			,FcUpdateTime = CASE WHEN b.statusId = 0 THEN b.FcUpdateTime ELSE @FcUpdateTime END
 		OUTPUT	inserted.transid
 			,inserted.odds
 			, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben
-			,CASE WHEN inserted.FcRepUpdateTime <> deleted.FcRepUpdateTime THEN inserted.FcRepUpdateTime ELSE NULL END
+			,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 	
 			,deleted.winlost
 			,deleted.statusid		
 		INTO @tmpTransInfo (
 			transId
 			,odds, statuswinlost,WinLost,aWinLost
-			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben, FcRepUpdateTime
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben, FcUpdateTime
 
 			,bef_winlost, bef_statusid
 		)
@@ -136,7 +136,7 @@ BEGIN
 					,Status AS '@s' 
 					,StatusID AS '@sid' 
 					,ruben AS '@r' 
-					,FcRepUpdateTime AS '@rut' 
+					,FcUpdateTime AS '@rut' 
 
 					,bef_winlost AS '@bef_w' 
 					,bef_statusid AS '@bef_sid' 
