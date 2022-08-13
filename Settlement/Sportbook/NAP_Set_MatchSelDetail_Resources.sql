@@ -87,49 +87,61 @@ BEGIN
 
     IF @ResultTable = 3 --E-Sports only
     BEGIN
-		SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
-	    		,rs.HomeValue
-				,rs.AwayValue
-				,ISNULL(rs.ResultStatusId,0)	 AS ResultStatusId
-				,ISNULL(rs.SettlementStatusId,0) AS SettlementStatusId
-				,ISNULL(rs.ResultSetting, 0) AS ResultSetting
-				,tbl.OrdNo
-	  	FROM @tblResource tbl
-	  		LEFT JOIN dbo.ResultDetailES rs WITH (NOLOCK)  
-				ON tbl.ResourceID = rs.ResourceID
-		  		AND rs.matchid = @matchid
+		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo
+		FROM (
+			SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
+	    			,rs.HomeValue
+					,rs.AwayValue
+					,ISNULL(rs.ResultStatusId,0)	 AS ResultStatusId
+					,ISNULL(rs.SettlementStatusId,0) AS SettlementStatusId
+					,ISNULL(rs.ResultSetting, 0) AS ResultSetting
+					,tbl.OrdNo
+					,tbl.SettleType
+	  		FROM @tblResource tbl
+	  			LEFT JOIN dbo.ResultDetailES rs WITH (NOLOCK)  
+					ON tbl.ResourceID = rs.ResourceID
+		  			AND rs.matchid = @matchid
+		) tbl
 		 ORDER BY CASE tbl.SettleType WHEN 'MNL' THEN 0 ELSE 1 END , tbl.OrdNo
 	END
 	
 	ELSE IF @ResultTable = 2 ---dbo.ResultDetailOS
 	BEGIN
-		SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
-	    		,rs.HomeValue
-				,rs.AwayValue
-				,ISNULL(rs.ResultStatusId,0)	 AS ResultStatusId
-				,ISNULL(rs.SettlementStatusId,0) AS SettlementStatusId
-				,ISNULL(rs.ResultSetting,0) AS ResultSetting
-				,tbl.OrdNo
-	  	FROM  @tblResource tbl
-			INNER JOIN dbo.ResultDetailOS rs WITH (NOLOCK)
-			ON tbl.ResourceID = rs.ResourceID
-		  		AND rs.matchid = @matchid
+		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo
+		FROM (
+				SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
+	    			,rs.HomeValue
+					,rs.AwayValue
+					,ISNULL(rs.ResultStatusId,0)	 AS ResultStatusId
+					,ISNULL(rs.SettlementStatusId,0) AS SettlementStatusId
+					,ISNULL(rs.ResultSetting,0) AS ResultSetting
+					,tbl.OrdNo
+					,tbl.SettleType
+	  		FROM  @tblResource tbl
+				INNER JOIN dbo.ResultDetailOS rs WITH (NOLOCK)
+				ON tbl.ResourceID = rs.ResourceID
+		  			AND rs.matchid = @matchid
+		) tbl
 		 ORDER BY CASE tbl.SettleType WHEN 'MNL' THEN 0 ELSE 1 END , tbl.OrdNo
 	END
 	
 	ELSE
 	BEGIN
-		SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
-	    		,rs.HomeValue
-				,rs.AwayValue
-				,ISNULL(rs.ResultStatusId,0)	 AS ResultStatusId
-				,ISNULL(rs.SettlementStatusId,0) AS SettlementStatusId
-				,ISNULL(rs.ResultSetting,0) AS ResultSetting
-				,OrdNo
-	  	FROM @tblResource tbl
-			INNER JOIN dbo.ResultDetail rs WITH (NOLOCK)
-			ON tbl.ResourceID = rs.ResourceID
-		  		AND rs.matchid = @matchid
+		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo
+		FROM (
+			SELECT  DISTINCT ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
+	    			,rs.HomeValue
+					,rs.AwayValue
+					,ISNULL(rs.ResultStatusId,0)	 AS ResultStatusId
+					,ISNULL(rs.SettlementStatusId,0) AS SettlementStatusId
+					,ISNULL(rs.ResultSetting,0) AS ResultSetting
+					,OrdNo
+					,tbl.SettleType
+	  		FROM @tblResource tbl
+				INNER JOIN dbo.ResultDetail rs WITH (NOLOCK)
+				ON tbl.ResourceID = rs.ResourceID
+		  			AND rs.matchid = @matchid
+			) tbl
 		 ORDER BY CASE tbl.SettleType WHEN 'MNL' THEN 0 ELSE 1 END , tbl.OrdNo
 	END
 
