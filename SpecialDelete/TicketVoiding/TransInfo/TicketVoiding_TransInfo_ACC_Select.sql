@@ -166,7 +166,7 @@ BEGIN
 	SELECT CAST(l.value AS NVARCHAR(30))
 			,ci.custid
 			,ci.roleid
-	FROM STRING_SPLIT(@AbnormalAccounts, ',') l
+	FROM STRING_SPLIT(@UserNames, ',') l
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
 
 	-- get SMA roleid = 2
