@@ -66,6 +66,11 @@ SET NOCOUNT ON
 			,@xmlData				VARCHAR(MAX)
 			,@IsFailed				BIT = 0
 			,@IsAutoRefund			BIT = 0 
+			
+			,@IsSettlementStatusChecking	BIT = 0 ---  call NAP_Set_SettlementStatusChecking
+			,@IsHoldChecking			BIT = 0 --- call NAP_Set_HoldSettingChecking
+			,@IsResultSettingChecking		BIT = 0 --call NAP_Set_ResultSettingChecking
+			,@IsAutoRefundChecking			BIT = 0 --call NAP_Set_AutoRefund_MatchChecking_Event
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 			,@IsAuto = CASE WHEN @Action LIKE '%_MARKET' THEN 0 ELSE @IsAuto END
@@ -92,6 +97,25 @@ SET NOCOUNT ON
 		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK)
 			ON l.LeagueGroupID = lg.GroupID
 	WHERE m.matchid = @matchid
+
+
+	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
+	SELECT @IsResultSettingChecking = 1
+
+	IF  1 =  ( CASE WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
+					THEN CASE WHEN	@Mode IN ( 'BB', 'MP' )	THEN 0
+							WHEN @Mode = 'FM' AND @IsAuto = 1 THEN 0
+							ELSE 1 END
+					ELSE 0 
+					END )
+	SELECT @IsSettlementStatusChecking = 1
+
+	IF @Mode <> 'FM'
+	SELECT @IsHoldChecking = 1
+
+	IF @SportType = 1 AND @IsAutoRefund = 1 
+	SELECT @IsAutoRefundChecking = 1
+
 
 	--------------------------------------------------------------------
 	--calculate parlay other sports, single or multiple matches
@@ -184,7 +208,7 @@ SET NOCOUNT ON
 	END
 
 	--Check hold match, hold result
-	IF @Mode <> 'FM'
+	IF @IsHoldChecking = 1
 	BEGIN 
 		EXEC dbo.NAP_Set_HoldSettingChecking
 			@MatchId	= @MatchId
@@ -198,7 +222,7 @@ SET NOCOUNT ON
 	END
 
 	--SOP Refund (confirm refund on ResourceID )
-	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
+	IF @IsResultSettingChecking = 1
 	BEGIN
 		EXEC dbo.NAP_Set_ResultSettingChecking
 			@MatchId	= @MatchId
@@ -212,7 +236,7 @@ SET NOCOUNT ON
 		RETURN
 	END
 	
-	IF @SportType = 1 AND @IsAutoRefund = 1
+	IF @IsAutoRefundChecking  = 1
 	BEGIN
 		EXEC NAP_Set_AutoRefund_MatchChecking_Event
 			@MatchId		= @matchid
@@ -227,9 +251,8 @@ SET NOCOUNT ON
 	END
 
 	--validate match.EventStatusReason, match.SettlementStatus, Odds
-	IF @sporttype = 1 
-		AND ( @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%') 
-		AND (@Mode = 'FM' AND @IsAuto = 0) OR (@Mode <> 'FM')
+	-- action cal/refund exclude auto fm, parlay, betbuider
+	IF @IsSettlementStatusChecking = 1
 	BEGIN
 		EXEC dbo.NAP_Set_SettlementStatusChecking
 			@MatchId		= @matchid
