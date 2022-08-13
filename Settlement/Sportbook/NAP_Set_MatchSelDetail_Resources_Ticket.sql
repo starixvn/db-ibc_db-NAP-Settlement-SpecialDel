@@ -42,6 +42,7 @@ BEGIN
 
 	SELECT @IsMergedParlay = r.IsMergedParlay
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
+	WHERE	r.Sporttype = @SportType
     ---------------------------------------------------------------------------------------------
 
     --count ticket and group by Bettype and BetID

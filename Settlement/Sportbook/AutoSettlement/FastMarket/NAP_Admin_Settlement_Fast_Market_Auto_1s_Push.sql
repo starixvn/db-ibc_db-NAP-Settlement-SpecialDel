@@ -246,7 +246,10 @@ BEGIN
 	SELECT	@sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @Results = ''' + CONVERT(VARCHAR(MAX), @Results) + ''''
-															+ ', @OldResults = ''' + CONVERT(VARCHAR(MAX), @OldResults) + ''''
+															+ CASE 
+																WHEN @OldResults IS NULL THEN ''
+																ELSE ', @OldResults = ''' + CONVERT(VARCHAR(MAX), @OldResults) + ''''
+															END
 															+ CASE 
 																WHEN @EventCounters IS NULL THEN ''
 																ELSE ', @EventCounters = ''' + @EventCounters + '''' 
