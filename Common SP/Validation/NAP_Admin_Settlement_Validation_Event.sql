@@ -98,16 +98,18 @@ SET NOCOUNT ON
 			ON l.LeagueGroupID = lg.GroupID
 	WHERE m.matchid = @matchid
 
-
+	--SOP Refund (confirm refund on ResourceID )
 	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
 	SELECT @IsResultSettingChecking = 1
 
-	IF  1 =  ( CASE WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
-					THEN CASE WHEN	@Mode IN ( 'BB', 'MP' )	THEN 0
-							WHEN @Mode = 'FM' AND @IsAuto = 1 THEN 0
-							ELSE 1 END
-					ELSE 0 
-					END )
+	--validate match.EventStatusReason, match.SettlementStatus, Odds
+	-- action cal/refund exclude auto fm, parlay, betbuider
+	IF @SportType = 1 AND  1 =  ( CASE  WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
+										THEN CASE WHEN	@Mode IN ( 'BB', 'MP' )	THEN 0
+												WHEN @Mode = 'FM' AND @IsAuto = 1 THEN 0
+												ELSE 1 END
+									ELSE 0 
+									END )
 	SELECT @IsSettlementStatusChecking = 1
 
 	IF @Mode <> 'FM'
@@ -221,7 +223,6 @@ SET NOCOUNT ON
 		RETURN
 	END
 
-	--SOP Refund (confirm refund on ResourceID )
 	IF @IsResultSettingChecking = 1
 	BEGIN
 		EXEC dbo.NAP_Set_ResultSettingChecking
@@ -250,8 +251,6 @@ SET NOCOUNT ON
 			RETURN
 	END
 
-	--validate match.EventStatusReason, match.SettlementStatus, Odds
-	-- action cal/refund exclude auto fm, parlay, betbuider
 	IF @IsSettlementStatusChecking = 1
 	BEGIN
 		EXEC dbo.NAP_Set_SettlementStatusChecking
