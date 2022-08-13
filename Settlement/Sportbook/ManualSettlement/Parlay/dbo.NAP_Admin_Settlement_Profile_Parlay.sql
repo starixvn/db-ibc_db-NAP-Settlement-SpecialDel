@@ -693,6 +693,7 @@ BEGIN
 END
 	
 	-- Write log
+	IF @IsCentral = 1
 	BEGIN 
 		DECLARE @ResultRemarkLog VARCHAR(MAX) = ''
 				,@logdata		VARCHAR(MAX) = ''

@@ -11,9 +11,11 @@ AS
 /*
 	Creator: 20220719@Louisa
 	Task: Scale Out BetTrans [Redmine:#175251]
-	DB: DBTXN/bodb02
+	DB: DBPRO/bodb02
+
 	Revisions:		
-		- 20201216@Louisa: Update match/reult info Happy5 [Redmine:#175251]
+		- 20201216@Louisa: Update match/reult info Happy5 [Redmine:#175251]
+
 	Param's explaination: 
 		@Resources:   <Resources>
 							<Resource Id="1" Result="1"/>
