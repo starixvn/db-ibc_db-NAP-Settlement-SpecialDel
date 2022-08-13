@@ -113,7 +113,7 @@ BEGIN
 		SET @IsSiteDB = 1
 
 	SET @settlementTime = GETDATE()	
-	SET @FCUpdateTime = SYSDATETIME()
+	SET @FcUpdateTime = SYSDATETIME()
 		
 	IF @ServerAlias = 'DBTXN' OR @IsSiteDB = 1
 	BEGIN
@@ -355,7 +355,7 @@ BEGIN
 			OUTPUT	deleted.custid
 					,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 					,inserted.WalletType
-					,inserted.BonusIc
+					,inserted.BonusID
 					,inserted.matchId
 
 					,inserted.transid
