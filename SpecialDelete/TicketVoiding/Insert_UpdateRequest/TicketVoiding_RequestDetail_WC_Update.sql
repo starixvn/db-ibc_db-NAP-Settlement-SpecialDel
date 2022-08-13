@@ -53,7 +53,7 @@ BEGIN
 			,TypeAccept				VARCHAR(50)
 			,SubIssueTypeId			SMALLINT
 			)
-
+	CREATE TABLE #TVSTicketBets (MatchId INT, TransId BIGINT, SubTransId BIGINT, VoidFromTime DATETIME, VoidToTime DATETIME, bettype SMALLINT, betid BIGINT, CustId INT, IsMixParlay BIT, SiteDBGroupID SMALLINT)
 	CREATE TABLE #tmpTransInfo(
 			 matchid		INT
 			,transid		BIGINT
@@ -62,6 +62,8 @@ BEGIN
 			,custid			INT	
 			,bettype		SMALLINT
 			,betid			BIGINT
+			,transdate		DATETIME
+			,checktime      DATETIME
 			,IsMixParlay	BIT
 			,SiteDBGroupID  SMALLINT
 	)
@@ -73,6 +75,8 @@ BEGIN
 		  ,custid	
 		  ,bettype
 		  ,betid
+		  ,transdate	
+		  ,checktime  
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
@@ -83,6 +87,8 @@ BEGIN
 			,t.c.value('@c','INT') AS custid
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
+			,t.c.value('@tdate','DATETIME') AS transdate
+			,t.c.value('@checkt','DATETIME') AS checktime
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)
@@ -105,7 +111,6 @@ BEGIN
 			,SubIssueTypeId
 			,TypeAccept
 		)
-
 	SELECT @RequestId AS RequestId
 			,t.c.value('@MatchId','INT') AS MatchID
 			,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
@@ -210,16 +215,34 @@ BEGIN
 		DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
 		WHERE RequestId = @RequestId
 	END
+	INSERT INTO #TVSTicketBets (MatchId, TransId, SubTransId, VoidFromTime, VoidToTime, bettype, betid, CustId, IsMixParlay, SiteDBGroupID)
+	SELECT b.matchid
+			, b.transid
+			, b.Subtransid
+			, d.VoidFromTime
+			, d.VoidToTime
+			, b.bettype
+			, b.betid
+			, b.custid
+			, b.IsMixParlay
+			,b.SiteDBGroupID
+		FROM #tmpTransInfo b 
+			INNER JOIN #tblGetLogInfo d ON d.MatchID = b.matchid
+		WHERE 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
+						 WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
+						 WHEN d.FilterBy = 4 AND ((b.checktime BETWEEN d.VoidFromTime AND d.VoidToTime) OR (b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime)) THEN 1
+					ELSE 0 END 
+
 	SELECT @SingleCount = SUM(SingleCount)
 		  ,@MainParlayCount = SUM(MainParlayCount)
 	FROM #tblGetLogInfo
-	 
+	
 	IF @SingleCount > 0
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
 		SELECT @RequestId
 			, @IssueTypeId
-			, l.SubIssueTypeId
+			, rd.SubIssueTypeId
 			, t.TransId
 			, t.MatchId
 			, rd.Id AS RequestDetailId
@@ -227,10 +250,8 @@ BEGIN
 			, t.betid
 			, t.CustId
 			, t.SiteDBGroupID
-		FROM #tmpTransInfo t
-			INNER JOIN #tblGetLogInfo l ON t.matchid = l.MatchID 
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
-			AND rd.VoidFromTime = l.VoidFromTime AND rd.VoidToTime = l.VoidToTime
+		FROM #TVSTicketBets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
 		WHERE rd.RequestId = @RequestId  AND t.IsMixParlay = 0
 	END
 
@@ -239,16 +260,14 @@ BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
 		SELECT @RequestId
 			, @IssueTypeId
-			, l.SubIssueTypeId
+			, rd.SubIssueTypeId
 			, t.Subtransid
 			, t.MatchId
 			, rd.Id AS RequestDetailId
 			, t.TransId
 			, t.SiteDBGroupID
-		FROM #tmpTransInfo t
-			INNER JOIN #tblGetLogInfo l ON t.matchid = l.MatchID 
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
-			AND rd.VoidFromTime = l.VoidFromTime AND rd.VoidToTime = l.VoidToTime
+		FROM #TVSTicketBets t
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
 		WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 1
 	END
 
@@ -302,6 +321,6 @@ BEGIN
 
 	DROP TABLE #tblGetLogInfo
 	DROP TABLE #tmpTransInfo
-	
+	DROP TABLE #TVSTicketBets
 END
 GO

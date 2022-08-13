@@ -1100,6 +1100,8 @@ BEGIN
 			,b.statusID 
 			,b.Subcustid 
 			,b.Subbettype
+			,b.transdate
+			,b.checktime
 			,b.IsMixParlay 
 			,b.SiteDBGroupID 
 	FROM #TVSTicketBets t

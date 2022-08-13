@@ -1,7 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select] 
 (
-     @RequestId			INT = NULL
+	 @MatchId			INT
+    ,@RequestId			INT = NULL
     ,@IssueTypeId		INT = NULL
 	,@BetTypes			XML = NULL
 	,@LiveHomeScore		SMALLINT = NULL
@@ -631,7 +632,8 @@ BEGIN
 								AND RequestId = @RequestId
 					) ts
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
-			WHERE	b.statusID NOT IN (101, 102, 103) -- reject, void, refund
+			WHERE	b.matchId = @MatchId
+					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
 					AND b.IsMixParlay = 0
@@ -640,7 +642,7 @@ BEGIN
 					AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE b.liveawayscore END
 		
 			---get sub ticket of a mix parlay	
-			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo bm WHERE bm.IsMixParlay = 1)
+			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo bm WHERE bm.IsMixParlay = 1 AND bm.matchid = @MatchId)
 			BEGIN		
 				INSERT INTO #TVSTicketBets(
 						GroupID			
@@ -752,7 +754,8 @@ BEGIN
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId
 							) ts
-				WHERE	bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
+				WHERE	bm.matchid = @MatchId
+						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND bm.IsMixParlay = 1
 						AND bm.Subbetfrom <> 'P'
 						AND bm.Sublivehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE bm.Sublivehomescore END
@@ -934,7 +937,7 @@ BEGIN
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
 					) ts
-			WHERE b.IsMixParlay = 0
+			WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.bettype NOT IN (805, 806, 9, 29)			
 					AND b.bettype NOT BETWEEN 901 AND 920
@@ -943,7 +946,7 @@ BEGIN
 					AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE b.liveawayscore END
 					
 			---get sub ticket of a mix parlay	
-			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo AS bm  WHERE bm.IsMixParlay = 1)
+			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo AS bm  WHERE bm.IsMixParlay = 1 AND bm.matchid = @MatchId)
 			BEGIN		
 				INSERT INTO #TVSTicketBets(
 						GroupID			
@@ -1034,7 +1037,8 @@ BEGIN
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId
 							) ts
-				WHERE	bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
+				WHERE	bm.matchid = @MatchId
+						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND bm.Subbetfrom <> 'P' AND bm.IsMixParlay = 1
 						AND bm.Sublivehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE bm.Sublivehomescore END
 						AND bm.Subliveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE bm.Subliveawayscore END
