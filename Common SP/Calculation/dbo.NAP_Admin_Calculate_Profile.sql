@@ -113,7 +113,7 @@ BEGIN
 		SET @IsSiteDB = 1
 
 	SET @settlementTime = GETDATE()	
-	SET @RepUpdateTime = SYSDATETIME()
+	SET @FCUpdateTime = SYSDATETIME()
 		
 	IF @ServerAlias = 'DBTXN' OR @IsSiteDB = 1
 	BEGIN
@@ -351,11 +351,11 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN b.ruben 
 							ELSE 1
 						END
-				,RepUpdateTime = CASE WHEN @statusId = 103 THEN @RepUpdateTime ELSE b.RepUpdateTime END
+				,FcUpdateTime = CASE WHEN @statusId = 103 THEN @FcUpdateTime ELSE b.FcUpdateTime END
 			OUTPUT	deleted.custid
 					,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 					,inserted.WalletType
-					,inserted.BonusID
+					,inserted.BonusIc
 					,inserted.matchId
 
 					,inserted.transid
