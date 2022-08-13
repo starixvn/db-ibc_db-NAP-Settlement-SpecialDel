@@ -103,8 +103,8 @@ BEGIN
 			,@FromDate			DATETIME = NULL
 			,@ToDate			DATETIME = NULL
 			,@FromWinlostDate   DATETIME
-			,@maxdate 			SMALLDATETIME = '9999-01-01'
-			,@movebetdate		SMALLDATETIME
+			,@maxdate 			DATETIME = '9999-01-01'
+			,@movebetdate		DATETIME
 			,@IsSB				  BIT = 0
 			,@IsParlay			  BIT = 0
 			,@IsBB				  BIT = 0
