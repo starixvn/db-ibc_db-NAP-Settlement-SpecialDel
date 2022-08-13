@@ -74,8 +74,8 @@ BEGIN
 
 	DECLARE @tmpOutputBettransm TABLE (transid BIGINT, refno BIGINT
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
-		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
-	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
+		,statuswinlost VARCHAR(1), winlostdate SMALLDATETIME)
+	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost VARCHAR(1), StatusId TINYINT, winlostdate SMALLDATETIME)   
 	DECLARE @tmpOutputBettransmVoidRecover TABLE (transid BIGINT, winlost MONEY
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)

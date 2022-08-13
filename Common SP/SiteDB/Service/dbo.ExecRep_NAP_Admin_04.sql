@@ -164,10 +164,7 @@ BEGIN
 					WHEN T.C.value('./@wld', 'SMALLDATETIME') = '' THEN NULL 
 					ELSE T.C.value('./@wld', 'SMALLDATETIME') 
 				END AS winlostdate
-				,CASE
-					WHEN T.C.value('./@statuswl', 'TINYINT') = '' THEN NULL
-					ELSE T.C.value('./@statuswl', 'TINYINT')
-				END AS statuswinlost				
+				,T.C.value('./@statuswl', 'VARCHAR(1)')				
 				,T.C.value('./@sid', 'TINYINT') AS StatusID									
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
