@@ -58,7 +58,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF @Mode IN ( 'outright' , '175')
+	IF @Mode IN ( 'outright' , '175', '193')
 	RETURN
 
 	--------------------------------------------

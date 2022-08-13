@@ -754,6 +754,7 @@ END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
 						
 		BEGIN TRY
+			IF @IsCentral = 1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 				,@Matchid = @matchLog
 				,@ActionID = @ActionID				

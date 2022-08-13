@@ -118,7 +118,6 @@ BEGIN
 			,@ThreadHold		INT = 0
 			,@LockedByRefno		BIT = 0
 			,@ResourceRefund	VARCHAR(100) = ''
-			,@IsAutoRefund		BIT  = 0
 			,@IsCentral			BIT = 0	
 			
   	--START Balance tables
@@ -883,11 +882,7 @@ BEGIN
 					,@Remark			= @Remark
 					,@IP				= @ip
 		END CATCH
-	END
-
-	SELECT @IsAutoRefund =  CASE  WHEN @IsAuto = 1 AND @sportType = 9 THEN 1
-								  ELSE @IsAutoRefund
-								  END 		
+	END		
 
 	IF @TotalSubParlay > 0
 	BEGIN		
@@ -913,7 +908,7 @@ BEGIN
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 														
 								+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
 								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 								
-								+ ', @IsAutoRefund  = ''' + CONVERT(CHAR(1), @IsAutoRefund ) + ''''	
+								+ ', @IsAuto = ''' + CONVERT(CHAR(1), @IsAuto ) + ''''	
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
@@ -928,7 +923,7 @@ BEGIN
 				,@SelectedResources = @SelectedResourceParlay
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@LockedByRefno		= 1 -- always lock refno for testing
-				,@IsAutoRefund		= @IsAutoRefund
+				,@IsAuto			= @IsAuto
 				,@IsCentral			= @IsCentral
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
