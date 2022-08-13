@@ -808,8 +808,6 @@ BEGIN
 				LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId AND tmp.ScoreId = a.ScoreId
 			WHERE rd.RequestId = @RequestId 
 
-		
-
 		END
 		ELSE IF @FilterBy = 2
 		BEGIN
@@ -888,30 +886,10 @@ BEGIN
 		-- 4.Unmark table
 		SELECT NULL AS UnmarkTransIds
 		
-		-- 5. Transinfo table
-		SELECT  t.matchid
-			,t.transid
-			,t.Subtransid
-			,t.refno
-			,t.custid 
-			,t.bettype 
-			,t.betid 
-			,t.statusID 
-			,t.Subcustid 
-			,t.Subbettype
-			,t.IsMixParlay 
-			,t.SiteDBGroupID 
-		FROM #tmpTransInfo t
-			CROSS APPLY (
-						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId AND rs.RequestId = @RequestId
-						UNION ALL
-						SELECT rp.TransId, rp.MainTransId, rp.RequestId
-						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid AND rp.RequestId = @RequestId
-				)tmp
-		WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+		-- 5. Transinfo table (No need return data)
+		DELETE #tmpTransInfo
+		SELECT Matchid FROM #tmpTransInfo
+
 		RETURN;
 	END
 

@@ -273,7 +273,8 @@ BEGIN
 	       ,BonusID 
 	       ,winlost	
 	       ,actual_stake 
-	       ,modds 
+	       ,winlostdate
+		   ,modds 
            ,IsMixParlay 
 	       ,SiteDBGroupID 
 		)
@@ -329,6 +330,7 @@ BEGIN
 		  ,t.c.value('@bo','INT') AS BonusID
 		  ,t.c.value('@w','MONEY') AS winlost
 		  ,t.c.value('@acstake','MONEY') AS actual_stake
+		  ,t.c.value('@wld','SMALLDATETIME') AS winlostdate
 		  ,t.c.value('@m', 'MONEY') AS modds
 		  ,t.c.value('@isP','BIT') AS IsMixParlay
 		  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
@@ -1088,6 +1090,7 @@ BEGIN
 			,statusID
 			,ActualStake
 			,mainstatusid
+			,creator
 		)
 		SELECT	
 			b.transid AS GroupId
@@ -1131,6 +1134,7 @@ BEGIN
 			,b.statusID
 			,b.actual_stake AS ActualStake
 			,b.statusID AS mainstatusid
+			,b.creator
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId

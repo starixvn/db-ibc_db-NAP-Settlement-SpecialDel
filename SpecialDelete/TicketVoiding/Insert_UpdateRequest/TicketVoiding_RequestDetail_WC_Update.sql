@@ -5,7 +5,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_WC_Update]
 	,@IssueTypeId			TINYINT = 3
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
-	,@ActionId				TINYINT
 	,@WrongScoreInfo		VARCHAR(MAX) = NULL
 	,@TransInfo		        XML = NULL
 	,@IsEditRequest			INT 
@@ -32,7 +31,6 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
-			,@SubIssueTypeId		TINYINT = NULL
 			,@MatchId				INT
 			,@FilterBy				TINYINT = NULL
 			,@actualscore			VARCHAR(50)

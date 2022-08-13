@@ -99,6 +99,17 @@ BEGIN
 				,@TransInfo		 = @TransInfo		
 				,@IsEditRequest	 = @IsEditRequest
 	END
+	ELSE IF @IssueTypeId IN (3)
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_WC_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@WrongScoreInfo = @WrongScoreInfo
+				,@TransInfo		 = @TransInfo		
+				,@IsEditRequest	 = @IsEditRequest	
+	END
 	ELSE IF @IssueTypeId IN (4)
 	BEGIN
 		EXEC dbo.TicketVoiding_RequestDetail_HDP_Update
