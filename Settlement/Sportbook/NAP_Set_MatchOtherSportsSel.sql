@@ -752,6 +752,7 @@ BEGIN
 						,MAX(CASE WHEN b.statusID = 0 THEN 1 ELSE 0 END) AS IsRunningBettypeSingle
 				FROM	dbo.bettrans b WITH(NOLOCK)
 				WHERE	m.matchid = b.matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				GROUP BY b.bettype
 			) b
 			INNER JOIN dbo.f_Set_GetGroupBettypes() f
@@ -865,6 +866,7 @@ BEGIN
 								AND b.statusID = 0
 								AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 								AND b.bettype <> 38 -- BetBuilder
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 mt.transId
