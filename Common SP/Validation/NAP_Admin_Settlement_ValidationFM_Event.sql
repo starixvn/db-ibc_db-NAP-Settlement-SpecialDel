@@ -335,45 +335,47 @@ BEGIN
 			IF @ErrCode <> 0
 				RETURN
 		END
+
+		-- Compare selected intervals with suspend time
+		;WITH cteSUS
+		AS (
+			SELECT	CAST(HomeValue AS INT) AS startSUS
+					,CAST(SUBSTRING(otherinfo,CHARINDEX(':',otherinfo)+ 1,LEN(otherinfo)) AS SMALLMONEY) AS second 
+			FROM	@tblSpecialResultDetail
+			WHERE	ResourceId = '221SUS'
+		)
+
+		SELECT	@ErrCode = 1001047
+				,@ErrMsg = 'WARNING! Cannot continue due to invalid intervals selected. Please check with special sessions and try again.'
+		FROM	@tblFM_Data d
+			CROSS APPLY (	
+				SELECT CASE
+							WHEN d.bettype IN (222, 224, 227) THEN 4
+							ELSE 0
+						END AS mins
+						,CASE 
+							WHEN d.bettype IN (228, 229)
+								THEN CASE 
+										WHEN d.Position <= 44 THEN d.Position
+										ELSE d.Position - 1
+									END
+							ELSE d.Position
+						END AS Position			
+			)m
+			CROSS APPLY (SELECT TOP 1 1 AS IsOverlap
+							FROM	cteSUS sus
+							WHERE	m.Position BETWEEN sus.startSUS - m.mins AND 90
+									OR m.Position >=  sus.startSUS - m.mins
+									OR (d.bettype IN (228, 229) AND sus.second = 0 AND m.Position + 1 = sus.startSUS) 
+							) sus
+
+		IF @ErrCode <> 0
+		BEGIN
+			RETURN
+		END
 	END
 
-	-- Compare selected intervals with suspend time
-	;WITH cteSUS
-	AS (
-		SELECT	CAST(HomeValue AS INT) AS startSUS
-				,CAST(SUBSTRING(otherinfo,CHARINDEX(':',otherinfo)+ 1,LEN(otherinfo)) AS SMALLMONEY) AS second 
-		FROM	@tblSpecialResultDetail
-		WHERE	ResourceId = '221SUS'
-	)
-
-	SELECT	@ErrCode = 1001047
-			,@ErrMsg = 'WARNING! Cannot continue due to invalid intervals selected. Please check with special sessions and try again.'
-	FROM	@tblFM_Data d
-		CROSS APPLY (	
-			SELECT CASE
-						WHEN d.bettype IN (222, 224, 227) THEN 4
-						ELSE 0
-					END AS mins
-					,CASE 
-						WHEN d.bettype IN (228, 229)
-							THEN CASE 
-									WHEN d.Position <= 44 THEN d.Position
-									ELSE d.Position - 1
-								END
-						ELSE d.Position
-					END AS Position			
-		)m
-		CROSS APPLY (SELECT TOP 1 1 AS IsOverlap
-						FROM	cteSUS sus
-						WHERE	m.Position BETWEEN sus.startSUS - m.mins AND 90
-								OR m.Position >=  sus.startSUS - m.mins
-								OR (d.bettype IN (228, 229) AND sus.second = 0 AND m.Position + 1 = sus.startSUS) 
-						) sus
-
-	IF @ErrCode <> 0
-	BEGIN
-		RETURN
-	END
+	
 
 	IF @IsAuto = 1
 	BEGIN		
