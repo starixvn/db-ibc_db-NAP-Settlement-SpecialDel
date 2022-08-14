@@ -28,6 +28,7 @@ AS
 			'pingoal'
 			'outright'
 			'VS1' : virtual soccer /tennis
+			'NG'  : NumberGame
 
 		@SelectedResources: 
 
@@ -52,7 +53,7 @@ BEGIN
 	WHERE m.matchid = @MatchId
 
 	-- Check SP is in deployment
-	IF @Mode IN ( '164' , '175' , '193', 'outright' , 'VS1')
+	IF @Mode IN ( '164' , '175' , '193', 'outright' , 'VS1', 'NG')
 	BEGIN
 		EXEC dbo.NAP_Set_SPDeploymentInfo 
 			@SPName = @SPName
@@ -194,6 +195,25 @@ BEGIN
 		END	
 	END
 
+
+	IF @Mode = 'NG'
+	BEGIN
+		IF EXISTS(SELECT 1 FROM SystemSettings WITH (NOLOCK) WHERE VValue = 1 AND VName = 'isCalculatingNGManual')
+		BEGIN
+			SELECT @ErrCode = 102
+				, @ErrMsg = 'Another number game re-calculation is in progress, please wait a few seconds until the ongoing process has finished and try again.'
+			WHERE @IsAuto = 0
+
+			RETURN
+		END
+
+		IF EXISTS (SELECT 1 FROM dbo.TempVariableNumber WHERE KeyID = 1 AND KeyValue = @MatchId)
+		BEGIN
+			SELECT  @ErrCode =  CASE WHEN @IsAuto = 0 THEN 103 ELSE 101 END
+					,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+			RETURN
+		END
+	END
 
 END
 GO

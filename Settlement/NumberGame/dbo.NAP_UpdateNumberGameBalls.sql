@@ -18,18 +18,11 @@ AS
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 		- 20211108@Louisa: In-house Replicator: Updated/Delete Action [Redmine:#164393]
 		- 20220714@Louisa: Fix update IsDeleted = 1 [Redmine:#100002]
-
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN	
 
 	SET NOCOUNT ON
-	-- check and not allow attempt to settlement same game while it's still not finish
-	IF EXISTS (SELECT 1 FROM DBTXN.bodb02.dbo.TempVariableNumber WHERE KeyID = 1 AND KeyValue = @MatchId)
-	BEGIN
-		SELECT  @ErrCode = 103,
-				@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
 
 	DECLARE @LogData NVARCHAR(300)
 

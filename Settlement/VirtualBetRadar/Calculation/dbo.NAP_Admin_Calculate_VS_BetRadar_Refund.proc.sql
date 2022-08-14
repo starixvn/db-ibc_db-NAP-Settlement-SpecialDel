@@ -21,6 +21,7 @@ AS
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]
 		- 20180214@Helen: Integrate VSBR 2 - Basketball - [Redmine:90154]
 		- 20220217@Kathy: Do not cal/refund if there is no ticket [Redmine:#168702]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		• @Mode:
@@ -40,7 +41,10 @@ BEGIN
 		, @balanceType		TINYINT
 		, @batchCount		INT
 		, @GroupID			INT
-		
+		, @IsCentral		BIT = 0
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 		
 	DECLARE @tempBettype 	TABLE (bettype SMALLINT)
 	DECLARE @BetTickets  	TVP_Settlement_BetTicket
@@ -109,6 +113,7 @@ BEGIN
 						SELECT 1 FROM @tempBettype AS f
 						WHERE f.bettype = b.bettype
 					)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					
 				IF @@ROWCOUNT = 0 BREAK	
 			END
