@@ -174,6 +174,8 @@ BEGIN
 	WHERE q.RequestId = @RequestId 
 		AND q.VoidingTypeId = @VoidingHistoryId
 		AND q.StatusId = 99
+
+	DROP TABLE #tmpInputTransId
 END
 GO
 
