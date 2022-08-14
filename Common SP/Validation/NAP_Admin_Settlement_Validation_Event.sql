@@ -104,12 +104,17 @@ SET NOCOUNT ON
 
 	--validate match.EventStatusReason, match.SettlementStatus, Odds
 	-- action cal/refund exclude auto fm, parlay, betbuider
-	IF @SportType = 1 AND  1 =  ( CASE  WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
-										THEN CASE WHEN	@Mode IN ( 'BB', 'MP' )	THEN 0
-												WHEN @Mode = 'FM' AND @IsAuto = 1 THEN 0
-												ELSE 1 END
-									ELSE 0 
-									END )
+	IF @SportType = 1 
+		AND  1 = ( CASE  
+					WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
+						THEN CASE 
+								WHEN @Mode IN ( 'BB', 'MP' ) THEN 0
+								WHEN (@Mode = 'FM' OR @Mode LIKE 'INST%') AND @IsAuto = 1 THEN 0
+								ELSE 1 
+							END
+					ELSE 0 
+				END 
+			)
 	SELECT @IsSettlementStatusChecking = 1
 
 	IF @Mode <> 'FM'
@@ -272,15 +277,6 @@ SET NOCOUNT ON
 	--Start: validation for Instant settle ( Auto Inst, Manual Inst )
 	IF @Mode LIKE '%INST%'
 	BEGIN
-		IF @Action = 'CAL' AND @IsAuto = 1
-		BEGIN 
-			EXEC dbo.NAP_Set_SettlementStatusChecking
-				@MatchId	= @matchid
-				,@Action	= @action
-				,@ErrCode	= @ErrCode	OUTPUT
-				,@ErrMsg	= @ErrMsg	OUTPUT
-		END
-			
 		IF @Action = 'UNDO'
 		BEGIN
 			EXEC dbo.NAP_Settlement_InstantCalculation_UndoChecking

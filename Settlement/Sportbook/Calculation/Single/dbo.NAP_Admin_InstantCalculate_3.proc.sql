@@ -204,29 +204,13 @@ BEGIN
 						WHEN t.modds IS NULL THEN ruben
 						ELSE 1
 					END
-			OUTPUT	inserted.transid
-					,inserted.modds, inserted.statuswinlost
-					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
-					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
-					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-					,inserted.Status,inserted.StatusID,inserted.ruben
-					,deleted.custid
-					,deleted.winlost  
-					,deleted.statusid
-					,deleted.actual_stake
-					,deleted.playercomm
-					,deleted.betdaqid 
-				INTO @tmpTransInfo (
-					transId
-					,modds, statuswinlost,SettlementTime,WinLost,aWinLost
-					,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
-					,custid 
-					,winlost_before 
-					,bef_statusid 
-					,actual_stake
-					,playercomm_before
-					,betdaqid 
-				)
+			OUTPUT deleted.Transid,
+						deleted.custid,  
+						deleted.winlost,  
+						deleted.actual_stake, 
+						deleted.playercomm,
+						deleted.betdaqid  
+				INTO @instantTicket_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
 			FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN #InstantTicket_Input t ON b.transid = t.transid
 				OUTER APPLY(
@@ -236,40 +220,8 @@ BEGIN
 				)mt
 			WHERE	mt.TransId IS NULL
 					AND ISNULL(b.betdaqid,0) <> -2
-
 			OPTION(MAXDOP 1)
 
-			INSERT	INTO @instantTicket_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
-			SELECT transid,custid, winlost_before, actual_stake,playercomm_before,betdaqid
-			FROM @tmpTransInfo
-			
-			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
-			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,modds AS '@m'				
-							,statuswinlost AS '@statuswl' 
-							,SettlementTime AS '@st' 
-							,WinLost AS '@w' 
-							,aWinLost AS '@aw' 
-							,mWinLost AS '@mw' 
-							,sWinLost AS '@sw' 
-							,PlayerComm AS '@pc' 
-							,Comm AS '@c' 
-							,aComm AS '@ac' 
-							,sComm AS '@sc' 
-							,Status AS '@s' 
-							,StatusID AS '@sid' 
-							,ruben AS '@r'	
-							,winlost_before AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
-					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
-				)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)		
-			END
 			-- Process for cashout tickets make change Balance before
 			SET @strTransCashout = ISNULL(CAST((SELECT t,c,b,s
 												FROM
@@ -392,7 +344,8 @@ BEGIN
 						ELSE 1
 					END
 				OUTPUT	inserted.transid
-						,inserted.modds, inserted.statuswinlost
+						,inserted.modds
+						,CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(inserted.Statuswinlost AS VARCHAR(1)) END
 						,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 						,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 						,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
@@ -464,15 +417,15 @@ BEGIN
 			,scomm 		= 0
 			,statuswinlost = NULL
 		OUTPUT	inserted.transid
-				,inserted.statuswinlost
+				,CASE WHEN inserted.statuswinlost IS NULL THEN '' ELSE CAST(inserted.statuswinlost AS VARCHAR(1)  ) END
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID	
+				,inserted.Status,inserted.StatusID,inserted.ruben
 				,deleted.winlost ,deleted.statusid
 			INTO @tmpTransInfo (
 				transId
 				,statuswinlost,WinLost,aWinLost
-				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
 				,winlost_before ,bef_statusid 
 			)
 		FROM dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
@@ -496,6 +449,7 @@ BEGIN
 						,sComm AS '@sc' 
 						,Status AS '@s' 
 						,StatusID AS '@sid'	
+						,ruben AS '@r'
 						,winlost_before AS '@bef_w' 
 						,bef_statusid AS '@bef_sid' 
 				FROM	@tmpTransInfo

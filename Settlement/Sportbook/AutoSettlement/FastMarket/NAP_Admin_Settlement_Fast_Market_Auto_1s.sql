@@ -247,7 +247,7 @@ BEGIN
 					C.nodes('r') AS X(C)
 		)
 		UPDATE r 
-				SET OldAccumulatedScore = CASE WHEN @Action = 'CAL' THEN a.OldAccumulatedScore ELSE 0 END					
+				SET OldAccumulatedScore = CASE WHEN @Action = 'CAL' THEN ISNULL(a.OldAccumulatedScore,0) ELSE 0 END					
 			FROM	#tblResultDetail r
 				INNER JOIN cteOldAccumulatedScore a
 					ON	r.BetType = a.bettype

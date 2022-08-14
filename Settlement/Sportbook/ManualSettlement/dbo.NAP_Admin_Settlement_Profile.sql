@@ -215,18 +215,6 @@ BEGIN
 	    RETURN
 	END
 
-	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) AND @LeagueGroupID <> 122
-		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
-		@MatchId	= @MatchId
-		,@Action	= @Action
-		,@IsAuto	= @IsAuto
-		,@SelectedResources = @SelectedResources
-		,@ErrCode	= @ErrCode OUTPUT
-		,@ErrMsg	= @ErrMsg  OUTPUT
-	
-	IF ISNULL(@ErrCode,0) <> 0
-	RETURN
-
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch			= 1

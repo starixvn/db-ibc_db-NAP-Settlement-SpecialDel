@@ -184,6 +184,7 @@ BEGIN
 		, suspenderFullTime NVARCHAR(50)
 		, IsHalfTimeCal BIT
 		, SettlementStatus TINYINT
+		, ChildMatchType	TINYINT
 		, IsExistFGLG BIT -- is exist ticket of bettype 14
 		, IsExistHTFGLG BIT -- is exist ticket of bettype 127
 		
@@ -228,7 +229,7 @@ BEGIN
 	
 	INSERT INTO #matchList (HalfTimeHomeScore, HalfTimeAwayScore, IsCalculated, IsFTCalculated, IsMultiCaled, IsRefund, IsCalRefund
 		,matchid , leagueid, homeid, awayid, matchcode, kickofftime, finalhomescore, finalawayscore, betstatus, eventstatus
-		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, IsExistFGLG , IsExistHTFGLG 
+		,sporttype, IsNeutral, eventdate, goalrecord, suspenderHalfTime, suspenderFullTime, IsHalfTimeCal, SettlementStatus, ChildMatchType, IsExistFGLG , IsExistHTFGLG 
 		,AutoSetting, AutoSettingForLeague
 		,BetCount, IsEnabledGoalRecordHT, IsEnabledGoalRecordFT, IsExistGoalRecordBettypeFT, IsExistRunningUseGoalRecordHT, IsExistRunningUseGoalRecordFT
 		,IsExistHTFGNG, IsExistHTLG, IsExistFTFGNG, IsExistFTLG, LivePeriod, IsHT	, livehomescore, liveawayscore, IsExistRunningTicket, IsExistMarkedTicket,EventStatusReason
@@ -258,6 +259,7 @@ BEGIN
 		, ISNULL(cci.username, '') AS suspenderFT
 		, ISNULL(mr.IsHTCal, 0) AS IsHTCal
 		, ISNULL(m.SettlementStatus, 0) AS SettlementStatus
+		, m.ChildMatchType
 		, 0 AS IsExistFGLG
 		, 0 AS IsExistHTFGLG		
 		, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
@@ -882,6 +884,7 @@ BEGIN
 		, m.IsExistMarkedTicket
 		, ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
 		, m.EventStatusReason
+		, m.ChildMatchType
 	FROM #matchList m
 		LEFT JOIN #tempmatch t ON t.matchid = m.matchid
 		LEFT JOIN #InstMatchInfo im ON m.matchid = im.matchid

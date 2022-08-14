@@ -84,6 +84,11 @@ BEGIN
 	FROM	dbo.ResultDetail r WITH (ROWLOCK)
 	WHERE	matchid = @matchid
 
+	INSERT INTO @tblSpecialResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
+	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
+	FROM	@tblResultDetail
+	WHERE	ResourceId LIKE '221WB__' OR ResourceId = '221SUS'
+
 	;WITH TmpData AS (
 		SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 			,X.C.value('@Position','TINYINT') as Position

@@ -21,9 +21,9 @@ BEGIN
 			,@OpenQuery			NVARCHAR(MAX) 
 			,@IsCentral			BIT = 0
 
-    DECLARE @tmpTicketStatus TABLE	(ResourceID VARCHAR(20), BetCount INT, InWaiting INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype BIT, SettleType VARCHAR(10)	)
+    DECLARE @tmpTicketStatus TABLE	(ResourceID VARCHAR(20), BetCount INT, InWaiting INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype BIT)
     DECLARE @tmpTicketStatusParlay TABLE(ResourceID VARCHAR(20), BetCount INT, InWaiting INT, InRunning INT, BetSettledCount INT, BetRefundedCount INT, BetMarkedCount INT, OrdNo INT, IsSpecialBettype BIT)
-    DECLARE @tblReturnTable TABLE (	ResourceID VARCHAR(20) ,SettleType VARCHAR(10) ,BetCount INT,InWaiting INT,InRunning INT,BetMarkedCount INT,BetSettledCount INT,BetRefundedCount INT, IsSpecialBettype BIT, OrdNo INT	)
+    DECLARE @tblReturnTable TABLE (	ResourceID VARCHAR(20),BetCount INT,InWaiting INT,InRunning INT,BetMarkedCount INT,BetSettledCount INT,BetRefundedCount INT, IsSpecialBettype BIT, OrdNo INT	)
 
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT)
     ---------------------------------------------------------------------------------------------
@@ -241,7 +241,6 @@ BEGIN
 			,BetMarkedCount
 			,BetSettledCount
 			,BetRefundedCount
-			--,SettleType
 			,IsSpecialBettype
 			,OrdNo)
 	SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
@@ -251,7 +250,6 @@ BEGIN
 			,ISNULL(bt.betMarkedCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetMarkedCount,0) ELSE 0 END AS BetMarkedCount
 			,ISNULL(bt.BetSettledCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetSettledCount,0) ELSE 0 END AS BetSettledCount
 			,ISNULL(bt.BetRefundedCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetRefundedCount,0) ELSE 0 END AS BetRefundedCount
-			--,ISNULL(bt.SettleType, @SettleType)
 			,ISNULL(bt.IsSpecialBettype, p.IsSpecialBettype)
 			,ISNULL(bt.OrdNo,p.OrdNo)
 	FROM @tmpTicketStatus bt
@@ -266,7 +264,6 @@ BEGIN
 			,BetMarkedCount
 			,BetSettledCount
 			,BetRefundedCount
-			,SettleType
 			,IsSpecialBettype
 			,OrdNo)
 	 SELECT mr.ResourceID
@@ -276,7 +273,6 @@ BEGIN
 			,0 AS betMarkedCount
 			,0 AS BetSettledCount
 			,0 AS BetRefundedCount
-			,'MNL' AS SettleType		
 			,0 AS IsSpecialBettype
 			,mr.OrdNo
 	 FROM dbo.f_Set_MajorRound(@Sporttype) mr
@@ -292,7 +288,7 @@ BEGIN
 			,BetSettledCount
 			,BetRefundedCount
 	 FROM @tblReturnTable
-	 ORDER BY CASE SettleType WHEN 'MNL' THEN 0 ELSE 1 END , OrdNo
+	 ORDER BY OrdNo
 
 	SELECT	SUM(betRunningCount)	AS betRunningCount
 			,SUM(betSettledCount)	AS betSettledCount

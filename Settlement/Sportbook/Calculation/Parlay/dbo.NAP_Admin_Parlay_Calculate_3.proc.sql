@@ -86,7 +86,7 @@ BEGIN
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
-				,INSERTED.statuswinlost
+				,CASE WHEN INSERTED.statuswinlost IS NULL THEN '' ELSE CAST(INSERTED.statuswinlost AS VARCHAR(1)) END
 				,inserted.winlostdate
 				,inserted.status
 		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status)
