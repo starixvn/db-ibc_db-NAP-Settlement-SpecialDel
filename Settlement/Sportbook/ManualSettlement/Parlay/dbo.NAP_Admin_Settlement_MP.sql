@@ -426,22 +426,6 @@ BEGIN
 
 	END --END: calculate 29 ----------------------------------
 
-	----------------------------------------------------------------------------------------------------------------------------------------
-	BEGIN --BEGIN: UPDATE match_remark ----------------------------------
-		IF @action IN ('CAL', 'REFUND', 'REFUND-FT', 'REFUND-HT') AND @IsCentral = 1 -- for cal/refund
-		BEGIN
-			DECLARE @command varchar(5)
-			SET @command = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
-
-			EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark @matchid = @matchid
-					,@command = @command
-		END
-
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Parlay'
-			,@Matchid = @matchid
-			,@creator = @creator
-	END --END: UPDATE match_remark ----------------------------------
-
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, NULL, CURRENT_TIMESTAMP, 'well done, no more to do')
 

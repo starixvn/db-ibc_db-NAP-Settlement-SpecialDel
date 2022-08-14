@@ -508,20 +508,6 @@ BEGIN
 		END
 	END
 	
-	----------------------------------------------------------------------------------------------------------------------------------------
-	BEGIN --BEGIN: UPDATE match_remark ----------------------------------	
-		DECLARE @command varchar(5)
-		--SET @command = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
-		SET @command = 'R'
-
-		EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark @matchid = @matchid
-				,@command = @command
-
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Refund_MP'
-			,@Matchid = @matchid
-			,@creator = @creator		
-	END --END: UPDATE match_remark ----------------------------------	
-
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, NULL, CURRENT_TIMESTAMP, 'well done, no more to do')
 

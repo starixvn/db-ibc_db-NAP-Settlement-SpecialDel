@@ -30,7 +30,7 @@ AS
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
-		@Mode: INST-HT, INST-FT, FM, BB
+		@Mode: INST-HT, INST-FT, FM, BB, MP
 
 		@SelectedMarket: <Resources>
 				            <rsc m="1"/>
@@ -68,6 +68,7 @@ BEGIN
 			,@ResultStatusID TINYINT
 			,@xmlResults XML
 			,@xmlEventCounter XML
+			,@parlaycommand VARCHAR(1)
 
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20))
 	
@@ -222,6 +223,21 @@ BEGIN
 
 		RETURN
 	END
+
+	IF @Mode = 'MP' AND @IsSettleByProfile = 0
+	BEGIN
+		SET @parlaycommand = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
+
+		EXEC dbo.NAP_UpdateMatch_Remark @matchid = @matchid
+			,@command = @parlaycommand
+
+		EXEC dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Parlay'
+			,@Matchid = @matchid
+			,@creator = @AdminId
+
+		RETURN
+	END
+
 	IF @Action LIKE 'CAL%' 
 	BEGIN
 		IF @Mode LIKE 'INST%'
