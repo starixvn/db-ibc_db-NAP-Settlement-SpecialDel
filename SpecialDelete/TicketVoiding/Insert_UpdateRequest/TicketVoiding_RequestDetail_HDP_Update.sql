@@ -107,13 +107,14 @@ BEGIN
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') 
+			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') 
 										+ '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
 										+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
-					WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' THEN '<r AwayFavorite="' + REPLACE(t.c.value('@AwayFavorite','VARCHAR(50)') , '&', '&amp;') 
+					WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' THEN '<r AwayFavorite="' + REPLACE(t.c.value('@AwayFavorite','VARCHAR(50)') , '&', '&amp;') 
 										+ '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
 										+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
-					WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(50)') + '" />'
+					WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23,24,25) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(50)') + '" />'
+					
 					ELSE '' END AS WrongHDP
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
@@ -229,7 +230,8 @@ BEGIN
 							+ ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) +  ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							+ ', WrongHDP: ' + l.WrongHDP
+							+ CASE WHEN @IssueTypeId = 4 THEN ', WrongHDP: ' + l.WrongHDP
+								   WHEN @IssueTypeId = 5 THEN ', Wrong 1st HDP: ' + l.WrongHDP ELSE '' END
 							FROM #tblGetLogInfo l
 
 	-- Write Log

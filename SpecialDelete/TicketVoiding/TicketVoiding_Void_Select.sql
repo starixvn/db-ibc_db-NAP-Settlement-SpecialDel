@@ -124,7 +124,8 @@ BEGIN
 		SettlementStatus	  TINYINT,
 		winlostdate			  DATETIME,
 		statusID			  TINYINT,
-		eventstatus			  NVARCHAR(50)	
+		eventstatus			  NVARCHAR(50),
+		SiteDBGroupID		  SMALLINT
     )
 
 	CREATE TABLE #tblBetType
@@ -391,6 +392,7 @@ BEGIN
 				,matchid
 				,IsMixParlay
 				,winlostdate
+				,SiteDBGroupID
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -436,6 +438,7 @@ BEGIN
 				,b.matchid
 				,CASE WHEN @IssueTypeId = 11 AND @FilterBy = 1 THEN 1 ELSE 0 END AS IsMixParlay
 				,b.winlostdate
+				,b.SiteDBGroupID
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -568,6 +571,7 @@ BEGIN
 					,FilterOddsSpread
 					,ActualStake
 					,matchid
+					,SiteDBGroupID
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -622,6 +626,7 @@ BEGIN
 					,CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread --229:SABA HDP Time Machine
 					,b.actual_stake AS ActualStake
 					,b.matchid
+					,b.SiteDBGroupID
 			FROM #tmpTransInfo b	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
@@ -694,7 +699,7 @@ BEGIN
 						,ExtraInfo
 						,ActualStake
 						,matchid
-						
+						,SiteDBGroupID
 					)
 				SELECT 
 						bm.transid AS GroupID
@@ -746,6 +751,7 @@ BEGIN
 						,bm.ExtraInfo
 						,bm.actual_stake AS ActualStake
 						,bm.matchid
+						,bm.SiteDBGroupID
 				  FROM #tmpTransInfo bm
 						INNER JOIN #tblBettype tp
 							ON	bm.Subbettype = tp.Id
@@ -887,6 +893,7 @@ BEGIN
 					,mainstatusid
 					,ActualStake
 					,matchid
+					,SiteDBGroupID
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -930,6 +937,7 @@ BEGIN
 					,b.statusID AS mainstatusid
 					,b.actual_stake AS ActualStake
 					,b.matchid
+					,b.SiteDBGroupID
 			FROM	#tmpTransInfo b
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   CROSS APPLY (
@@ -989,6 +997,7 @@ BEGIN
 						,ExtraInfo
 						,ActualStake
 						,matchid
+						,SiteDBGroupID
 					)
 				SELECT 
 						bm.transid AS GroupID
@@ -1031,6 +1040,7 @@ BEGIN
 						,bm.ExtraInfo
 						,bm.actual_stake AS ActualStake
 						,bm.matchid
+						,bm.SiteDBGroupID
 				FROM	#tmpTransInfo bm 
 						CROSS APPLY (
 									SELECT TOP (1) transid
@@ -1095,6 +1105,7 @@ BEGIN
 			,ActualStake
 			,mainstatusid
 			,creator
+			,SiteDBGroupID
 		)
 		SELECT	
 			b.transid AS GroupId
@@ -1139,6 +1150,7 @@ BEGIN
 			,b.actual_stake AS ActualStake
 			,b.statusID AS mainstatusid
 			,b.creator
+			,b.SiteDBGroupID
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -1193,6 +1205,7 @@ BEGIN
 				,mainstatusid
 			    ,ActualStake
 				,matchid
+				,SiteDBGroupID
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1236,6 +1249,7 @@ BEGIN
 				,b.statusID AS mainstatusid
 			    ,b.actual_stake AS ActualStake
 				,b.matchid
+				,b.SiteDBGroupID
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -1289,6 +1303,7 @@ BEGIN
 					,ExtraInfo
 					,ActualStake
 					,matchid
+					,SiteDBGroupID
 				)
 			SELECT 
 					bm.transid AS GroupID
@@ -1331,6 +1346,7 @@ BEGIN
 					,bm.ExtraInfo
 					,bm.actual_stake AS ActualStake
 					,bm.matchid
+					,bm.SiteDBGroupID
 			FROM	#tmpTransInfo bm
 					CROSS APPLY (
 							SELECT TOP 1 rs.TransId
@@ -1386,6 +1402,7 @@ BEGIN
 			    ,ActualStake
 				,matchid
 				,modds
+				,SiteDBGroupID
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1430,6 +1447,7 @@ BEGIN
 			    ,b.actual_stake AS ActualStake
 				,b.matchid
 				,b.modds
+				,b.SiteDBGroupID
 		FROM #tmpTransInfo b
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 		WHERE b.IsMixParlay = 0
@@ -1475,6 +1493,7 @@ BEGIN
 					,ExtraInfo
 					,ActualStake
 					,matchid
+					,SiteDBGroupID
 				)
 			SELECT 
 					t.transid AS GroupID
@@ -1517,6 +1536,7 @@ BEGIN
 					,t.ExtraInfo
 					,t.actual_stake AS ActualStake
 					,t.matchid
+					,t.SiteDBGroupID
 			FROM	#tmpTransInfo t		
 			WHERE IsMixParlay = 1
 	END	
@@ -1717,6 +1737,7 @@ BEGIN
 			   ,s.IsDeposit
 			   ,s.eventstatus
 			   ,s.SettlementStatus
+			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1797,6 +1818,7 @@ BEGIN
 			   ,s.IsDeposit
 			   ,s.eventstatus
 			   ,s.SettlementStatus
+			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s 
 			--LEFT JOIN dbo.bettrans b WITH(NOLOCK)
 			--	ON	s.betid = b.transid
@@ -1867,6 +1889,7 @@ BEGIN
 			   ,s.IsDeposit
 			   ,s.eventstatus
 			   ,s.SettlementStatus
+			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1945,6 +1968,7 @@ BEGIN
 		   ,s.IsDeposit
 		   ,s.eventstatus
 		   ,s.SettlementStatus
+		   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2058,6 +2082,7 @@ BEGIN
 		   ,s.IsDeposit
 		   ,ISNULL(si.IsChinaView,0) AS IsChinaView
 		   ,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
+		   ,s.SiteDBGroupID
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
