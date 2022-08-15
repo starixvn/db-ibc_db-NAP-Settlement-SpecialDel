@@ -19,9 +19,6 @@
 									10. dbo.sum_winloss
 									11. dbo.TicketVoiding_AutoVoidRequest_Queue
 									12. dbo.TicketVoiding_Queue
-									13. dbo.Task_bettrans14_IP2Country
-									14. dbo.Task_bettransLC14_IP2Country
-									15. dbo.Task_bettransRNG14_IP2Country
 */
 
 	USE bodb02
@@ -39,6 +36,3 @@
 	TRUNCATE TABLE [dbo].[sum_winloss]
 	TRUNCATE TABLE [dbo].[TicketVoiding_AutoVoidRequest_Queue]
 	TRUNCATE TABLE [dbo].[TicketVoiding_Queue]
-	TRUNCATE TABLE [dbo].[Task_bettrans14_IP2Country]
-	TRUNCATE TABLE [dbo].[Task_bettransLC14_IP2Country]
-	TRUNCATE TABLE [dbo].[Task_bettransRNG14_IP2Country]
