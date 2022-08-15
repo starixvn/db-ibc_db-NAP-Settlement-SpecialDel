@@ -74,6 +74,7 @@ BEGIN
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@MatchId					 INT = 0
+			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 			,@MatchInfo					 XML = NULL
@@ -211,7 +212,7 @@ BEGIN
 		SET @InvalidTransIds = @TransIds
 		SELECT @InvalidTransIds AS InvalidTransIds
 		SELECT NULL AS UnmarkTransIds
-		SELECT NULL AS TransInfo
+		SELECT matchid FROM #tmpTransInfo
 		RETURN;
 	END
 
@@ -233,7 +234,9 @@ BEGIN
 			SELECT  @InvalidTransIds AS InvalidTransIds
 
 			SELECT NULL AS UnmarkTransIds
-			SELECT NULL AS TransInfo
+
+			DELETE FROM #tmpTransInfo
+			SELECT matchid FROM #tmpTransInfo
 			RETURN;
 		END
 		ELSE
@@ -250,12 +253,15 @@ BEGIN
 									)
 							)	
 			BEGIN
+				SELECT @MatchId AS MatchId
+
 				SET @InvalidMatchId = @MatchId
 				SELECT @InvalidMatchId AS InvalidMatchId
 
-				SELECT NULL AS InvalidTransIds
 				SELECT NULL AS UnmarkTransIds
-				SELECT NULL AS TransInfo
+
+				DELETE FROM #tmpTransInfo
+				SELECT matchid FROM #tmpTransInfo
 				RETURN;
 			END
 		END
@@ -342,7 +348,6 @@ BEGIN
 									FROM #UnsupportedTransids t
 									FOR XML PATH('')
 							), 1, 1, ''), '')
-
 	
 	-- get ABWhiteList Cust
 	INSERT INTO @CustId_tmp (CustID, recommend, mrecommend, srecommend)
@@ -378,7 +383,7 @@ BEGIN
 		CROSS APPLY (
 					SELECT TransId
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE RequestId = req.RequestId AND MatchId = @MatchId
+					WHERE RequestId = req.RequestId AND (MatchId = @MatchId OR MatchId = 29)
 				) AS tmp
 	WHERE  req.RequestId <> @RequestId AND req.ActionId <> 2
 
@@ -390,7 +395,7 @@ BEGIN
 	BEGIN
 		INSERT INTO @Matchinfo_tmp (matchid, sporttype)
 		SELECT DISTINCT s.submatchId 
-					,b.sporttype 
+					   ,b.sporttype 
 		FROM #validTransId t
 			CROSS APPLY (
 					SELECT value AS submatchId
@@ -405,8 +410,15 @@ BEGIN
 				FROM @Matchinfo_tmp t
 				FOR XML PATH('r'), ROOT('root'))
 	END
-
-	IF @RequestId <> 0
+	
+	IF @RequestId = 0
+	BEGIN
+		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #validTransId t
+									FOR XML PATH('')), 1, 1, '')
+									, '')
+	END
+	ELSE IF @RequestId <> 0
 	BEGIN
 		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
@@ -427,6 +439,14 @@ BEGIN
 				
 				SELECT @RemoveTransids = @UnmarkTransIds
 			END
+
+			--Add mark when edit request
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM #validTransId it
+												WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE it.transid = rdt.transid AND rdt.RequestId = @RequestId)
+													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
+												FOR XML PATH('')), 1,1,'')
+												,'')
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
@@ -625,7 +645,8 @@ BEGIN
 	
 	--3. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
-		  ,@RemoveTransids AS RemoveTransids
+		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
+		  ,@MarkTransIds AS MarkTransIds
 		  ,@MatchInfo AS MatchInfo
 
 	--4. Transinfo table

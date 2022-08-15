@@ -71,25 +71,6 @@ BEGIN
 	FROM STRING_SPLIT(@UserNames, ',')
 	WHERE value <> ''
 
-	--1. Check valid
-	SET @invalidUserName = STUFF((SELECT  ',' + l.username
-								  FROM #TmpInValidUserName l
-									LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
-									WHERE ci.custid IS NULL	
-									FOR XML PATH ('')
-									),1,1,'')
-
-	IF @invalidUserName IS NOT NULL
-	BEGIN
-		 
-		SELECT @InvalidUserName AS InvalidUserName
-			
-		SELECT NULL AS UnmarkTransIds
-		SELECT NULL AS TransInfo
-
-		RETURN;
-	END
-	
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT
@@ -109,6 +90,26 @@ BEGIN
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
+
+	--1. Check valid
+	SET @invalidUserName = STUFF((SELECT  ',' + l.username
+								  FROM #TmpInValidUserName l
+									LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
+									WHERE ci.custid IS NULL	
+									FOR XML PATH ('')
+									),1,1,'')
+
+	IF @invalidUserName IS NOT NULL
+	BEGIN
+		 
+		SELECT @InvalidUserName AS InvalidUserName
+			
+		SELECT NULL AS UnmarkTransIds
+		SELECT matchid FROM #tmpTransInfo
+
+		RETURN;
+	END
+	
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
@@ -180,7 +181,9 @@ BEGIN
 		SELECT @IsExceededTotalUsernames AS IsExceededTotalUsernames
 
 		SELECT NULL AS UnmarkTransIds
-		SELECT NULL AS TransInfo
+		
+		DELETE FROM #tmpTransInfo
+		SELECT matchid FROM #tmpTransInfo
 		RETURN;
 	END
 
