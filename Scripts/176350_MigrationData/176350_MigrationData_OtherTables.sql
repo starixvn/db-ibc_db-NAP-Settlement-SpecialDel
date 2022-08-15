@@ -16,6 +16,10 @@
 									7.  dbo.CashOutSelling
 									8.  dbo.CustLimitBet_LIC
 									9.  dbo.CustLimitBetHistory_LIC
+									10. dbo.Task_bettrans14_IP2Country
+									11. dbo.Task_bettransLC14_IP2Country
+									12. dbo.Task_bettransRNG14_IP2Country
+
 */
 
 	USE bodb02
@@ -116,6 +120,24 @@
 	FROM [dbo].[CustLimitBetHistory_LIC] clbh WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = clbh.custid
 
+	--10. dbo.Task_bettrans14_IP2Country
+	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+	INTO [Task_bettrans14_IP2Country_old20220825]
+	FROM [dbo].[Task_bettrans14_IP2Country] tbip WITH (NOLOCK)
+		INNER JOIN [dbo].[bettrans14] b WITH (NOLOCK) ON b.transid = tbip.transid
+		
+	--11. dbo.Task_bettransLC14_IP2Country
+	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+	INTO [Task_bettransLC14_IP2Country_old20220825]
+	FROM [dbo].[Task_bettransLC14_IP2Country] tbip WITH (NOLOCK)
+		INNER JOIN [dbo].[bettransLC14] b WITH (NOLOCK) ON b.transid = tbip.transid
+
+	--12. dbo.Task_bettransRNG14_IP2Country
+	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+	INTO [Task_bettransRNG14_IP2Country_old20220825]
+	FROM [dbo].[Task_bettransRNG14_IP2Country] tbip WITH (NOLOCK)
+		INNER JOIN [dbo].[bettransRNG14] b WITH (NOLOCK) ON b.transid = tbip.transid
+
 	------------------------------------------------
 	DROP TABLE #tmp_cust
 GO
@@ -130,6 +152,9 @@ TRUNCATE TABLE  dbo.BonusWalletPending
 TRUNCATE TABLE  dbo.CashOutSelling
 TRUNCATE TABLE  dbo.CustLimitBet_LIC
 TRUNCATE TABLE  dbo.CustLimitBetHistory_LIC
+TRUNCATE TABLE  dbo.Task_bettrans14_IP2Country
+TRUNCATE TABLE  dbo.Task_bettransLC14_IP2Country
+TRUNCATE TABLE  dbo.Task_bettransRNG14_IP2Country
 
 
 --- INSERT DATA 
@@ -206,3 +231,17 @@ TRUNCATE TABLE  dbo.CustLimitBetHistory_LIC
 	FROM [dbo].[CustLimitBetHistory_LIC_old20220825] clbh WITH (NOLOCK)
 		--INNER JOIN #tmp_cust tmp ON tmp.custid = clbh.custid
 
+	--10. dbo.Task_bettrans14_IP2Country
+	INSERT INTO Task_bettrans14_IP2Country ([transid], [winlostdate], [CountryShort], [IPArchive])
+	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+	FROM [dbo].[Task_bettrans14_IP2Country_old20220825] tbip WITH (NOLOCK)
+		
+	--11. dbo.Task_bettransLC14_IP2Country
+	INSERT INTO Task_bettransLC14_IP2Country ([transid], [winlostdate], [CountryShort], [IPArchive])
+	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+	FROM [dbo].[Task_bettransLC14_IP2Country_old20220825] tbip WITH (NOLOCK)
+
+	--12. dbo.Task_bettransRNG14_IP2Country
+	INSERT INTO Task_bettransRNG14_IP2Country ([transid], [winlostdate], [CountryShort], [IPArchive])
+	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+	FROM [dbo].[Task_bettransRNG14_IP2Country_old20220825] tbip WITH (NOLOCK)
