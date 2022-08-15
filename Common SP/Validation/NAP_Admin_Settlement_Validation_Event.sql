@@ -28,12 +28,12 @@ AS
 		- 20220719@Louisa: Validation event before settle  [Redmine:#175251]
 
 	Param's Explanation:
-		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
+		@Action: CAL, CAL-HT, CAL-FT
 				REFUND, REFUND-HT, REFUND-FT, REFUND-EAR
 				, BetFair, BetDaq ( for refund betdaq,/betfair )
 				, MoveTicket ( move betdaq,betfair, ESport )
 
-		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, BB, MP
+		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, MP
 				,BetFair, BetDaq ( for Move Betdaq/betfair )
 		
 		@SelectedResources: Appy for Instant soccer, Othersports settle by Profile, FastMarket, TimeMachine, BB
@@ -113,8 +113,6 @@ SET NOCOUNT ON
 		AND  1 = ( CASE  
 					WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
 						THEN CASE 
-								--WHEN @Mode IN ( 'BB', 'MP' ) THEN 0
-								--WHEN (@Mode = 'FM' OR @Mode LIKE 'INST%') AND @IsAuto = 1 THEN 0
 								WHEN @Mode = 'MP' THEN 0
 								WHEN @Mode LIKE 'INST%' AND @IsAuto = 1 THEN 0
 								ELSE 1 

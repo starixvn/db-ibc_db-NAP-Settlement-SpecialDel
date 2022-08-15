@@ -36,17 +36,20 @@ AS
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
 
-		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
+		@Action: CAL, CAL-HT, CAL-FT
 				, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
 				,BetFair, BetDaq ( for Move Betdaq/betfair )
 
-		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
+		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, MP
 
 */
 
 BEGIN
 SET NOCOUNT ON
 	
+	IF @Action = 'MoveTicket' AND @Mode = '50'
+		RETURN
+
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
 			,@finalhomescore	INT
@@ -96,8 +99,7 @@ SET NOCOUNT ON
 	SET @xmlData		   = @SelectedResources
 
 	-----------------------------------------------------
-	IF @Mode = 'BB' OR (@Action = 'MoveTicket' AND @Mode = '50')
-		RETURN
+	
 
 	--calculate parlay other sports, single or multiple matches
 	IF @Action = 'CAL' AND @Mode = 'MP'
