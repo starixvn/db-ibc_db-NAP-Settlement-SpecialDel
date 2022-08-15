@@ -217,7 +217,7 @@ BEGIN
 
 	IF @Mode = 'BB' AND @IsAuto = 1
 	BEGIN
-		SET @xmlData = CAST(@SelectedResources AS XML)
+		SET @xmlResourceResult = CAST(@SelectedResources AS XML)
 
 		IF @AutoSetting & 8 = 0  -- 100 is setting of BetBuilder
 		BEGIN
