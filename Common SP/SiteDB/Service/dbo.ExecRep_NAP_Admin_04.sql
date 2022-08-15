@@ -17,7 +17,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @batchNo		INT			
+	--DECLARE @batchNo		INT			
 	
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid BIGINT
@@ -102,7 +102,7 @@ BEGIN
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 
-		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+		--OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 	END
 	ELSE IF @TableName = 'bettransm'
 	BEGIN
@@ -125,10 +125,8 @@ BEGIN
 				,T.C.value('./@cr', 'INT') AS Creator
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
-	
-		SET @batchNo = @@ROWCOUNT
 
-		UPDATE TOP (@batchNo)  bm 
+		UPDATE bm 
 			SET ruben = CASE WHEN t.ruben IS NULL THEN bm.ruben ELSE t.ruben END								
 				,winlostdate = CASE 
 									WHEN t.winlostdate IS NULL THEN bm.winlostdate	
@@ -150,7 +148,7 @@ BEGIN
 		FROM	@tmptransid t
 			INNER JOIN dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
 				ON	bm.transid = t.transid
-		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+		--OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 	END
 	ELSE IF @TableName = 'BetParlayDetail'
 	BEGIN
@@ -182,7 +180,7 @@ BEGIN
 		FROM   @tmpTransId t
 			INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 				ON  pd.transid = t.transid
-		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+		--OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 	END
 	ELSE IF @TableName = 'MarkedTransaction'
 	BEGIN
