@@ -217,17 +217,7 @@
 	FROM dbo.translog14 b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
-	--#tmp_refno
-	INSERT INTO #tmp_refno (refno)
-	SELECT DISTINCT refno
-	FROM dbo.bettrans WITH (NOLOCK)
-	WHERE bettype = 29 AND matchid = 29
-
-	INSERT INTO #tmp_refno (refno)
-	SELECT DISTINCT refno
-	FROM dbo.bettrans14  WITH (NOLOCK)
-	WHERE bettype = 29 AND matchid = 29
-
+	
 	--dbo.bettransm
 	-- since there is no index on custid for bettransm, need to join via refno
 	--INSERT INTO dbo.bettransm ( [transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
@@ -242,7 +232,7 @@
 			bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
 	INTO bettransm_old20220825
 	FROM dbo.bettransm bm WITH (NOLOCK)
-		INNER JOIN #tmp_refno tmp ON tmp.refno = bm.refno
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bm.custid
 
 	--dbo.bettransm14
 	--INSERT INTO dbo.bettransm14		([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
@@ -259,8 +249,19 @@
 			bm.[LiveBetAcceptTime], bm.[ReasonIDm], @SiteDBGroupID SiteDBGroupID
 	INTO bettransm14_old20220825
 	FROM dbo.bettransm14 bm WITH (NOLOCK)
-		INNER JOIN #tmp_refno tmp ON tmp.refno = bm.refno
+		INNER JOIN #tmp_cust tmp ON tmp.custid = bm.custid
 
+	--#tmp_refno
+	INSERT INTO #tmp_refno (refno)
+	SELECT DISTINCT refno
+	FROM dbo.bettrans_old20220825 WITH (NOLOCK)
+	WHERE bettype = 29 AND matchid = 29
+
+	INSERT INTO #tmp_refno (refno)
+	SELECT DISTINCT refno
+	FROM dbo.bettrans14_old20220825  WITH (NOLOCK)
+	WHERE bettype = 29 AND matchid = 29
+	
    --dbo.BetParlayDetail
 	--INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
 	--								[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
