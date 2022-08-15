@@ -53,6 +53,7 @@ BEGIN
 			,@CountSMA				  INT
 			,@CountMember             INT
 			,@IsExceededTotalUsernames BIT = 0
+			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
 
@@ -346,7 +347,14 @@ BEGIN
 		SET @NumberOfTickets = @@ROWCOUNT
 	END
 
-	IF @RequestId <> 0 
+	IF @RequestId = 0
+	BEGIN
+		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #transIdTemp t
+									FOR XML PATH('')), 1, 1, '')
+									, '')
+	END
+	ELSE IF @RequestId <> 0 
 	BEGIN
 		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
@@ -359,6 +367,14 @@ BEGIN
 												AND rdt.RequestId = @RequestId
 											FOR XML PATH('')), 1,1,'')
 											,'')
+			
+			--Add mark when edit request
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+											FROM #transIdTemp t
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE t.transid = rdt.transid AND rdt.RequestId = @RequestId)
+											FOR XML PATH('')), 1, 1, '')
+									, '')
+
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId
 		BEGIN
@@ -392,6 +408,7 @@ BEGIN
 		  
 	--2. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
+		  ,@MarkTransIds AS MarkTransIds
 
 	--3. Transinfo table
 	SELECT DISTINCT 

@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Update]
        @TransIds        VARCHAR(MAX)  = NULL,
        @UserId          INT           = 0,
        @IP              VARCHAR(15)   = NULL,   
-       @TransInfo		XML			  = NULL,
 	   @LogActionId     INT			  = 90500,
 	   @IssueTypeId	    INT			  = NULL,
 	   @ErrMsg          NVARCHAR(200) = '' OUTPUT,
@@ -46,7 +45,6 @@ BEGIN
 			@TransIds = @TransIds
 			,@UserId = @UserId
 			,@IP = @IP
-			,@TransInfo = @TransInfo
 			,@IssueTypeId = @IssueTypeId
 			,@LogActionId = @LogActionId
 			,@ErrMsg = @ErrMsg OUTPUT

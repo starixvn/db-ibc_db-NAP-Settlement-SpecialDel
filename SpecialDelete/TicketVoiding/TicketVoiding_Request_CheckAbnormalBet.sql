@@ -411,55 +411,6 @@ BEGIN
 				FOR XML PATH('r'), ROOT('root'))
 	END
 	
-	IF @RequestId = 0
-	BEGIN
-		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-									FROM #validTransId t
-									FOR XML PATH('')), 1, 1, '')
-									, '')
-	END
-	ELSE IF @RequestId <> 0
-	BEGIN
-		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
-
-		IF @ActionId NOT IN (2)
-		BEGIN
-			--Remove transid from request => unmark ticket & re-cal ticket
-			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-												FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-												WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
-													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
-													  AND rdt.RequestId = @RequestId
-												FOR XML PATH('')), 1,1,'')
-												,'')
-
-			IF @UnmarkTransIds IS NOT NULL
-			BEGIN
-				SET @IsHasWarningRemovedTickets = 1
-				
-				SELECT @RemoveTransids = @UnmarkTransIds
-			END
-
-			--Add mark when edit request
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-												FROM #validTransId it
-												WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE it.transid = rdt.transid AND rdt.RequestId = @RequestId)
-													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
-												FOR XML PATH('')), 1,1,'')
-												,'')
-		END
-		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
-		BEGIN
-			SELECT @UnmarkTransids = ISNULL(STUFF((SELECT ',' + CAST(rdt.TransId AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE rdt.RequestId = @RequestId
-											FOR XML PATH('')), 1,1,'')
-											,'')
-
-			SELECT @RemoveTransids = @UnmarkTransids
-		END
-	END
-
 	-- invalid transId
 	;WITH t_invalid
 	AS (
@@ -572,6 +523,65 @@ BEGIN
 		END
 	END
 	
+	IF @RequestId = 0
+	BEGIN
+		IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
+		BEGIN
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+										FROM #validTransId v
+											LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
+										WHERE c.CustomerClass = 1 AND c.custid IS NULL
+										FOR XML PATH('')), 1, 1, '')
+										, '')
+		END
+		ELSE
+		BEGIN
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+										FROM #validTransId v
+										FOR XML PATH('')), 1, 1, '')
+										, '')
+		END
+	END
+	ELSE IF @RequestId <> 0
+	BEGIN
+		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
+
+		IF @ActionId NOT IN (2)
+		BEGIN
+			--Remove transid from request => unmark ticket & re-cal ticket
+			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+												WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
+													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+													  AND rdt.RequestId = @RequestId
+												FOR XML PATH('')), 1,1,'')
+												,'')
+
+			--Add mark when edit request
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM #validTransId it
+												WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE it.transid = rdt.transid AND rdt.RequestId = @RequestId)
+													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
+												FOR XML PATH('')), 1,1,'')
+												,'')
+		END
+		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
+		BEGIN
+			SELECT @UnmarkTransids = ISNULL(STUFF((SELECT ',' + CAST(rdt.TransId AS VARCHAR(50)) 
+											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+											WHERE rdt.RequestId = @RequestId
+											FOR XML PATH('')), 1,1,'')
+											,'')
+		END
+
+		IF @UnmarkTransIds <> ''
+		BEGIN
+			SET @IsHasWarningRemovedTickets = 1
+				
+			SELECT @RemoveTransids = @UnmarkTransIds
+		END
+	END
+
 	IF @FilterBy IS NULL AND @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
 	BEGIN
 		-- get non-live and different score transids
@@ -611,12 +621,6 @@ BEGIN
 									, '')
 	END
 
-	IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
-	BEGIN
-		IF @UnmarkTransIds <> ''
-				SET @UnmarkTransIds = @UnmarkTransIds + ','
-		SET @UnmarkTransIds += @TransIdsOfCustomerClass1
-	END
 	/*****************Return table **************************/
 	
 	--1. Info match table

@@ -88,7 +88,7 @@ BEGIN
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@tdate','DATETIME') AS transdate
-			,t.c.value('@checkt','DATETIME') AS checktime
+			,CASE WHEN t.c.value('@checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@checkt','DATETIME') END AS checktime
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)

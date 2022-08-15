@@ -6,7 +6,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
         @IP              VARCHAR(15)   = NULL,
         @MarkType		 TINYINT	   = 0,
 		@LogActionId	 INT		   = 90500,
-		@TransInfo       XML  = NULL,
 		@IssueTypeId     INT           = NULL,
         @ErrMsg          NVARCHAR(200) = '' OUTPUT,
         @ErrCode         INT           = 0 OUTPUT
@@ -57,7 +56,6 @@ BEGIN
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 				+ CASE WHEN @MarkType IS NULL THEN '' ELSE ',@MarkType = ' + CONVERT(NVARCHAR(50), @MarkType) END 
 				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
-				+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' + CONVERT(NVARCHAR(MAX), @TransInfo) END
 				+ CASE WHEN @IssueTypeId IS NULL THEN '' ELSE ',@IssueTypeId = ' + CONVERT(NVARCHAR(50), @IssueTypeId) END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
@@ -96,19 +94,7 @@ BEGIN
 				SiteDBGroupID SMALLINT,
 				IsFinish	BIT
 				);
-	CREATE TABLE #tmpTransInfo(
-		matchid INT
-		,transid BIGINT
-		,Subtransid BIGINT
-		,custid INT	
-		,refno BIGINT
-		,bettype SMALLINT
-		,statusID TINYINT
-		,Subcustid INT
-		,Subbettype SMALLINT
-		,IsMixParlay BIT
-		,SiteDBGroupID SMALLINT
-	)
+
 	IF @TransIds IS NOT NULL
 	BEGIN
 		-- Get tickets insert into transaction
@@ -127,15 +113,18 @@ BEGIN
 			  ,b.BetType
 			  ,b.custid
 			  ,b.refno
-			  ,0
+			  ,CASE WHEN @IssueTypeId = 11 AND b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
 			  ,NULL
 			  ,@SiteDBGroupID
 		FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 		LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
-		WHERE m.TransId IS NULL AND b.matchid <> 29 
-		AND b.SiteDBGroupID = @SiteDBGroupID
-	
+		WHERE m.TransId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
+			         WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
+					 WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 THEN 1 --Other IssueType 
+					 ELSE 0 END
+
 		-- get only parlay tickets from @input transid
 		INSERT INTO #ParlayTransIds (TransId)
 		SELECT tmp.TransId
@@ -179,91 +168,6 @@ BEGIN
 		END;
 	END
 
-	IF @TransInfo IS NOT NULL 
-	BEGIN
-		INSERT INTO #tmpTransInfo( 
-			   matchid
-			  ,transid 
-			  ,Subtransid
-			  ,refno
-			  ,custid		
-			  ,bettype
-			  ,statusID
-			  ,Subcustid
-			  ,Subbettype
-			  ,IsMixParlay
-			  ,SiteDBGroupID
-			)
-		SELECT t.c.value('@mid','INT') AS matchid
-				,t.c.value('@t','BIGINT') AS transid
-				,t.c.value('@s_t','BIGINT') AS Subtransid
-				,t.c.value('@ref','BIGINT') AS refno
-				,t.c.value('@c','INT') AS custid
-				,t.c.value('@btype','SMALLINT') AS bettype
-				,t.c.value('@sid','TINYINT') AS statusID
-				,t.c.value('@s_c','INT') AS Subcustid
-				,t.c.value('@s_btype','SMALLINT') AS Subbettype
-				,t.c.value('@isP','BIT') AS IsMixParlay
-				,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-		FROM @TransInfo.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
-
-		INSERT INTO #Tickets (
-			TransId
-			,MatchId
-			,BetType
-			,CustId
-			,refno
-			,IsParlay
-			,SubTransId
-			,SiteDBGroupID
-		)
-		SELECT t.TransId
-		  ,t.MatchId
-		  ,t.BetType
-		  ,t.custid
-		  ,t.refno
-		  ,CASE WHEN @IssueTypeId <> 13 AND t.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
-		  ,NULL
-		  ,@SiteDBGroupID
-		FROM #tmpTransInfo t
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON  t.transid = m.TransId 
-		WHERE IsMixParlay = 0 AND t.statusID IN (0,1) 
-		AND t.SiteDBGroupID = @SiteDBGroupID AND m.TransId IS NULL
-		AND 1 = CASE WHEN @IssueTypeId = 13 AND t.bettype NOT IN (9,29,10) THEN 1  --Abnormal account :not mark parlay,outright
-					 WHEN ISNULL(@IssueTypeId,0) <> 13 THEN 1 
-					 ELSE 0 END 
-
-		INSERT INTO #Tickets (
-			TransId
-			,MatchId
-			,BetType
-			,CustId
-			,refno
-			,IsParlay
-			,SubTransId
-			,SiteDBGroupID
-		)
-		SELECT t.TransId
-			,t.matchid
-			,t.Subbettype
-			,t.Subcustid
-			,t.refno
-			,1
-			,t.Subtransid
-			,@SiteDBGroupID
-		FROM #tmpTransInfo t
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON  t.transid = m.TransId AND t.matchid = m.MatchId
-		WHERE IsMixParlay = 1 AND t.SiteDBGroupID = @SiteDBGroupID
-			AND m.TransId IS NULL
-
-		--check no data
-		IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
-		BEGIN
-			RETURN;
-		END;
-	END
-	
 	-- Check Lock Match
 	DECLARE @avaiableProcess	BIT
 		   ,@IsExistSingle		BIT = 0
@@ -507,7 +411,6 @@ BEGIN
 	DROP TABLE #ParlayTransIds;
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblMatchParlayProcess
-	DROP TABLE #tmpTransInfo
 
 	SET NOCOUNT OFF;
 END
