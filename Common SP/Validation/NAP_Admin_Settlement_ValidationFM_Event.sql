@@ -5,9 +5,9 @@ ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Event
 	,@Action		VARCHAR(10)
 	,@IsAuto		BIT = 0
 	,@SelectedResources	VARCHAR(MAX) = NULL
-	,@AutoSetting		TINYINT = 0
-	,@ErrCode		INT		= 0     OUTPUT
-	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
+	,@IsSettleDetermined	BIT	= 0
+	,@ErrCode				INT		= 0     OUTPUT
+	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
 )
 AS
 /*
@@ -27,6 +27,9 @@ BEGIN
 	DECLARE @xmlResourceResult	XML
 			,@IsFailed			BIT = 0
 			,@subErrMsg		VARCHAR(MAX) = ''
+			,@IsEarly			BIT = 0
+			,@AutoSetting		TINYINT
+			,@IsResultSettingChecking	BIT = 0
 
 			-- bettype 228
 			,@BetOption1st	VARCHAR(50)
@@ -78,7 +81,39 @@ BEGIN
 	)
 
 	SET @xmlResourceResult = CONVERT(XML, @SelectedResources)
+
+	SELECT @AutoSetting	= ISNULL( m.AutoSetting, l.AutoSetting )
+	FROM dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.League l WITH(NOLOCK)
+			ON m.leagueid = l.leagueid
+		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK)
+			ON l.LeagueGroupID = lg.GroupID
+	WHERE m.matchid = @matchid
+
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SELECT	@ErrCode = 1001001
+				,@ErrMsg = 'Match does not exist!'			
+		RETURN
+	END
+
 	
+	IF @Action IN ('CAL', 'REFUND') AND @IsAuto = 0 
+	BEGIN
+		DECLARE @fixedErrMsg VARCHAR(300) = '' --cannot pass varchar(max) via linked server 
+
+		EXEC dbo.NAP_Set_SettlementStatusChecking
+			@MatchId		= @matchid
+			,@Action		= @Action
+			,@IsEarly 		= 1 
+			,@IsSettleDetermined = @IsSettleDetermined --Fast market
+			,@ErrCode		= @ErrCode	OUTPUT
+			,@ErrMsg		= @ErrMsg	OUTPUT
+
+		IF @ErrCode > 0
+			RETURN
+	END
+	 
 	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
 	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
 	FROM	dbo.ResultDetail r WITH (ROWLOCK)

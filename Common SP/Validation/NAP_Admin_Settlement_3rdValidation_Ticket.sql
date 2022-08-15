@@ -36,6 +36,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	IF @Mode = 'BB'
+	RETURN
+
 	DECLARE @sporttype		SMALLINT
 			,@IsWaiting		BIT = 0
 			,@WaitingTime	VARCHAR(10)

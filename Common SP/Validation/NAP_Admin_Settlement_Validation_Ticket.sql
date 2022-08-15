@@ -18,7 +18,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
     ,@FullTimeHome  INT = NULL
     ,@FullTimeAway  INT = NULL
 	,@SDTRecord		TINYINT	= 0					--NAP_Admin_Settlement_Refund_1_Push
-	,@IsSettleDetermined	BIT	= 0				--NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
+	--,@IsSettleDetermined	BIT	= 0				--NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
 
 	,@ErrCode		INT		= 0     OUTPUT
 	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT

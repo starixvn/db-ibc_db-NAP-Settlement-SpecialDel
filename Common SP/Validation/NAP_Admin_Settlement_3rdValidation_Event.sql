@@ -7,8 +7,9 @@ ALTER PROCEDURE NAP_Admin_Settlement_3rdValidation_Event
 	,@IsAuto		BIT = 0
 	,@SPName		VARCHAR(255)
 	,@SelectedResources	VARCHAR(MAX) = NULL
-	,@ErrCode				INT		 = 0 OUTPUT
-	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
+	,@VendorID		SMALLINT = 34 --for betbuider
+	,@ErrCode		INT		 = 0 OUTPUT
+	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
 )
 AS
 /*
@@ -28,13 +29,13 @@ AS
 			
 			'193' : VS Betrardar
 			'VS1' : Virtual soccer/Tennis
+			,'BB' : Betbuider
 
 		@SelectedResources: 
 			happy5:
 				'<Resources>
-						<Resource Id="1" Result="1" /><Resource Id="2" Result="2" /><Resource Id="3" Result="3" /><Resource Id="4" Result="4" />
-						<Resource Id="5" Result="5" />
-					  </Resources>'
+						<Resource Id="1" Result="1" /><Resource Id="2" Result="2" /><Resource Id="3" Result="3" /><Resource Id="4" Result="4" /><Resource Id="5" Result="5" />
+				</Resources>'
 			Pingoal: 
 				@Action = 'CAL'
 					<Resources>
@@ -46,13 +47,16 @@ AS
 					</Resources>
 
 			VS Betrardar
-				@ResourceResult='<Results>
+				   <Results>
                             <Resource ResourceId="00" Custom1="100" Custom2="106" />
                             <Resource ResourceId="01" Custom1="60" Custom2="41" />
                             <Resource ResourceId="280920" Custom1="H" Custom2="" />
                             <Resource ResourceId="280940" Custom1="A" Custom2="" />
                             <Resource ResourceId="280960" Custom1="N" Custom2="" />
                     </Results>'
+
+			Betbuider
+				'<Resources><rsc m="1"/><rsc m="2"/><rsc m="3"/><rsc m="4"/><rsc m="5"/></Resources>'
 		
 */
 BEGIN
@@ -63,19 +67,36 @@ BEGIN
 
 	--------------------------------------------
 
-	DECLARE @ActionId	INT		
-			,@sportType	INT
-			,@xmlData	XML
-			,@FTHome	INT 
-			,@FTAway    INT
-			,@HTHome    INT
-			,@HTAway    INT
+	DECLARE @ActionId		INT		
+			,@sportType		INT
+			,@AutoSetting	TINYINT
+			,@xmlData		XML
+			,@xmlResourceResult VARCHAR(MAX)
+			,@FTHome		INT 
+			,@FTAway		INT
+			,@HTHome		INT
+			,@HTAway		INT
+			,@maxNumProcessBB	INT = 50000 --for betbuider
 	
 	SET @xmlData = CONVERT(XML,@SelectedResources)
+	DECLARE @tblMarketBB TABLE (marketID VARCHAR(20), Result VARCHAR(20), ResultStatusID TINYINT)
 
-	SELECT @sportType 		= sportType
+	SELECT @sportType 		= m.sportType
+			,@AutoSetting	= ISNULL(m.AutoSetting, l.AutoSetting)
 	FROM dbo.match m WITH(NOLOCK) 
+		INNER JOIN dbo.league l WITH(NOLOCK)
+			ON m.leagueid = l.leagueid
 	WHERE m.matchid = @MatchId
+
+	IF @Mode IN ( 'VS1', 'BB' )
+	BEGIN
+		IF ISNULL(@sportType,0) = 0
+		BEGIN
+			SELECT	 @ErrCode	= 1000001
+					,@ErrMsg	= 'Match does not exist!'			
+			RETURN
+		END 
+	END
 
 	--invalid ball
 	IF @Mode = '164' AND @Action LIKE 'CAL%'
@@ -194,14 +215,36 @@ BEGIN
 	END
 	--/End check VR Beradar
 
-	IF @Mode IN ( 'VS1' )
+	IF @Mode = 'BB' AND @IsAuto = 1
 	BEGIN
-		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.match m with(NOLOCK) WHERE m.matchid = @MatchId)
+		SET @xmlResourceResult = CAST(@SelectedResources AS XML)
+
+		IF @AutoSetting & 8 = 0  -- 100 is setting of BetBuilder
 		BEGIN
-			SELECT	 @ErrCode	= 1000001
-					,@ErrMsg	= 'Match does not exist!'			
+			SELECT	@ErrCode = 1001017
+					,@ErrMsg = 'The auto-settlement failed due to OFF setting.'
 			RETURN
-		END 
+		END
+
+		;WITH TmpData AS (
+			SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
+			FROM @xmlData.nodes('/Resources/rsc') AS T(C)
+		)
+		INSERT INTO @tblMarketBB  (marketID, Result, ResultStatusID )
+		SELECT d.marketID, mk.ResultStatusID, mk.Result
+		FROM TmpData d
+			INNER JOIN dbo.SMP_Market mk WITH (NOLOCK) ON d.MarketID = mk.MarketID	
+		WHERE mk.MatchID = @MatchID
+			AND mk.VendorID = @VendorID
+			 
+		--check number of marketID
+		IF EXISTS (SELECT TOP 1 1 FROM @tblMarketBB HAVING COUNT(*) > @maxNumProcessBB ) 
+		BEGIN
+			SELECT   @ErrCode = 1001010
+					,@ErrMsg  = 'There are too many inputted results to proceed at one time. Please select each one to execute separately.'	
+			RETURN 
+		END
+
 	END
 END
 GO

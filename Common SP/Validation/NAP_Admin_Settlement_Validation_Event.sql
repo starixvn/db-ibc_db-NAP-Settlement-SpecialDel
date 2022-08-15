@@ -12,9 +12,8 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 	,@InstantKey			INT = NULL			--InstantCalculation_Push
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --_Refund_MP_Push
 	,@SDTRecord				TINYINT	= 0			--Refund_1_Push
-	,@IsSettleDetermined	BIT	= 0				--Fast_Market_Auto_1s_Push
-
-	,@VendorID				SMALLINT = 34
+	--,@IsSettleDetermined	BIT	= 0				--Fast_Market_Auto_1s_Push
+	--,@VendorID				SMALLINT = 34
 	,@childMatchIdCricket	INT		 = 0 OUTPUT
 	,@ErrCode				INT		 = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
@@ -30,11 +29,11 @@ AS
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT, CAL_MARKET
-				REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
+				REFUND, REFUND-HT, REFUND-FT, REFUND-EAR
 				, BetFair, BetDaq ( for refund betdaq,/betfair )
 				, MoveTicket ( move betdaq,betfair, ESport )
 
-		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, BB, MP
+		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, BB, MP
 				,BetFair, BetDaq ( for Move Betdaq/betfair )
 		
 		@SelectedResources: Appy for Instant soccer, Othersports settle by Profile, FastMarket, TimeMachine, BB
@@ -45,6 +44,9 @@ AS
 BEGIN
 SET NOCOUNT ON
 	
+	IF @Mode IN ('FM', 'BB' )
+	RETURN
+
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
 			,@eventdate			DATETIME
@@ -55,7 +57,6 @@ SET NOCOUNT ON
 			,@IsEarly			BIT = 0
 			,@AutoSetting		TINYINT
 			,@ParentId			INT
-			,@maxNumProcessBB	INT = 50000
 
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
@@ -76,8 +77,7 @@ SET NOCOUNT ON
 			,@IsAuto = CASE WHEN @Action LIKE '%_MARKET' THEN 0 ELSE @IsAuto END
 			,@IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
 									ELSE 0 END
-			,@IsCheckSettlementStatusEarly = CASE WHEN @IsAuto = 0 AND @Mode = 'FM' THEN 1 
-													WHEN @Mode = 'EAR' THEN 1
+			,@IsCheckSettlementStatusEarly = CASE WHEN @Mode = 'EAR' THEN 1
 													ELSE 0 END
 			,@IsAutoRefund	=  CASE WHEN @Action = 'REFUND' AND @IsAuto = 1 THEN 1
 									ELSE 0 END
@@ -98,9 +98,14 @@ SET NOCOUNT ON
 			ON l.LeagueGroupID = lg.GroupID
 	WHERE m.matchid = @matchid
 
+	--alway check hold status
+	SELECT @IsHoldChecking = 1
+
 	--SOP Refund (confirm refund on ResourceID )
 	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
-	SELECT @IsResultSettingChecking = 1
+	BEGIN
+		SELECT @IsResultSettingChecking = 1
+	END
 
 	--validate match.EventStatusReason, match.SettlementStatus, Odds
 	-- action cal/refund exclude auto fm, parlay, betbuider
@@ -108,20 +113,23 @@ SET NOCOUNT ON
 		AND  1 = ( CASE  
 					WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
 						THEN CASE 
-								WHEN @Mode IN ( 'BB', 'MP' ) THEN 0
-								WHEN (@Mode = 'FM' OR @Mode LIKE 'INST%') AND @IsAuto = 1 THEN 0
+								--WHEN @Mode IN ( 'BB', 'MP' ) THEN 0
+								--WHEN (@Mode = 'FM' OR @Mode LIKE 'INST%') AND @IsAuto = 1 THEN 0
+								WHEN @Mode = 'MP' THEN 0
+								WHEN @Mode LIKE 'INST%' AND @IsAuto = 1 THEN 0
 								ELSE 1 
 							END
 					ELSE 0 
 				END 
 			)
-	SELECT @IsSettlementStatusChecking = 1
-
-	IF @Mode <> 'FM'
-	SELECT @IsHoldChecking = 1
+	BEGIN
+		SELECT @IsSettlementStatusChecking = 1
+	END
 
 	IF @SportType = 1 AND @IsAutoRefund = 1 
-	SELECT @IsAutoRefundChecking = 1
+	BEGIN
+		SELECT @IsAutoRefundChecking = 1
+	END
 
 
 	--------------------------------------------------------------------
@@ -264,7 +272,6 @@ SET NOCOUNT ON
 			,@IsEarly 		= @IsCheckSettlementStatusEarly 
 			,@IsAutoRefund  = @IsAutoRefund
 			,@IsSettleAbandonedMatchIBC = @SDTRecord --refund_1_Push
-			,@IsSettleDetermined = @IsSettleDetermined --Fast market
 			,@ErrCode		= @ErrCode	OUTPUT
 			,@ErrMsg		= @ErrMsg	OUTPUT
 
@@ -292,34 +299,7 @@ SET NOCOUNT ON
 	END
 	--/ END validation for Instant settle
 		
-	--Start: Validation Betbuider
-	IF @IsAuto = 1 AND @Mode = 'BB'
-	BEGIN
-			
-			IF @AutoSetting & 8 = 0  -- 100 -- setting of BetBuilder
-			BEGIN
-				SELECT	@ErrCode = 1001017
-						,@ErrMsg = 'The auto-settlement failed due to OFF setting.'
-				RETURN
-			END					
-			
-			EXEC  dbo.NAP_Admin_Settlement_Validation_BB 
-			 @matchid		= @matchid
-			,@Action		= @Action
-			,@SelectedResources	= @SelectedResources
-			,@maxNumProcess	= @maxNumProcessBB
-			,@VendorID		= @VendorID
-			,@ErrCode		= @ErrCode    OUTPUT
-			,@ErrMsg		= @ErrMsg   OUTPUT
-				
-			IF ISNULL(@ErrCode,0) > 0
-			RETURN
-
-	END
-	--/End validation Betbuider
-	
-	
-	IF @IsAuto =1 AND @Mode NOT LIKE '%INST%' AND @Mode <> 'FM' AND @Mode <> 'BB'
+	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%'
 	BEGIN
 		IF  @SPName = 'NAP_Admin_Settlement_Profile_Push'
 			AND (	( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
@@ -363,22 +343,6 @@ SET NOCOUNT ON
 
 	END
 	--/End: Validation for Auto Settle
-
-	--Fast Market
-	IF @Mode = 'FM'
-	BEGIN
-		EXEC NAP_Admin_Settlement_ValidationFM_Event
-			 @matchid		= @matchid
-			,@Action		= @Action
-			,@IsAuto		= @IsAuto
-			,@SelectedResources	= @SelectedResources
-			,@AutoSetting	= @AutoSetting	
-			,@ErrCode		= @ErrCode   OUTPUT
-			,@ErrMsg		= @ErrMsg    OUTPUT
-
-		IF ISNULL(@ErrCode,0)>0
-			RETURN
-	END
 
 
 END

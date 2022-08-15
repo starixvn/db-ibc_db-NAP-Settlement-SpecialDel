@@ -6,8 +6,9 @@ ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Ticket
 	,@IsAuto		BIT = 0
 	,@SelectedResources		VARCHAR(MAX) = NULL
 	,@IsSettleDetermined	BIT	= 0
-	,@ErrCode		INT		= 0     OUTPUT
-	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
+	,@SPName				VARCHAR(255)
+	,@ErrCode				INT		= 0     OUTPUT
+	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
 )
 AS
 /*
@@ -26,7 +27,9 @@ BEGIN
 
 	DECLARE @xmlResourceResult	XML
 			,@IsFailed			BIT = 0
-			,@subErrMsg		VARCHAR(MAX) = ''
+			,@subErrMsg			VARCHAR(MAX) = ''
+			,@WaitingTime		VARCHAR(10)
+			,@IsWaiting			BIT = 0
 
 			-- bettype 228
 			,@BetOption1st	VARCHAR(50)
@@ -79,6 +82,37 @@ BEGIN
 
 	SET @xmlResourceResult = CONVERT(XML, @SelectedResources)
 	
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName		= @SPName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+		,@ErrCode	= @ErrCode OUTPUT
+		,@ErrMsg	= @ErrMsg OUTPUT
+
+	IF @IsWaiting = 1
+	BEGIN
+		WAITFOR DELAY @WaitingTime
+			
+		SELECT	@ErrCode = @ErrCode
+				,@ErrMsg = @ErrMsg
+		RETURN
+	END
+
+	IF EXISTS (SELECT	TOP 1 1 
+				FROM	dbo.Single_Calculate_Queue s WITH (NOLOCK)
+					INNER JOIN dbo.f_Set_GetAction() f
+					ON s.Action = f.Action
+					AND f.GroupAction = 'FM'
+				WHERE	s.matchid = @matchid 
+						AND s.IsCalculating IN (0, 1))
+	BEGIN
+		SELECT	@ErrCode = 1001003
+				,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+		
+		RETURN
+	END
+
+
 	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
 	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
 	FROM	dbo.ResultDetail r WITH (ROWLOCK)
