@@ -176,7 +176,7 @@ SET NOCOUNT ON
 					OUTER APPLY (	SELECT TOP 1 f.GroupAction
 									FROM dbo.f_Set_GetAction() f
 									WHERE s.Action = f.Action
-										AND f.GroupAction = CASE WHEN @Mode IN ( 'EAR', 'MP', 'FM') THEN @Mode
+										AND f.GroupAction = CASE WHEN @Mode IN ( 'EAR', 'MP') THEN @Mode
 																	ELSE 'MNL' END
 								) f
 				WHERE s.matchid = @matchid
@@ -217,7 +217,7 @@ SET NOCOUNT ON
 		IF (  @SportType = 1 AND 
 				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
 				AND @LeagueGroupId <> 113
-				AND @Mode NOT IN ('FM', 'EAR')
+				AND @Mode <> 'EAR'
 			)
 		BEGIN
 			;WITH cteGoalResource
@@ -243,18 +243,6 @@ SET NOCOUNT ON
 			SELECT @xmlData = CAST((SELECT	ResourceID AS '@Id'
 			FROM	cteResource
 			FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
-		END
-
-		IF @Mode = 'FM'
-		BEGIN
-			EXEC NAP_Admin_Settlement_ValidationFM_Ticket  
-				 @matchid		= @MatchId
-				,@Action		= @Action
-				,@IsAuto		= @IsAuto
-				,@SelectedResources		= @SelectedResources
-				,@IsSettleDetermined	= @IsSettleDetermined
-				,@ErrCode		= @ErrCode OUTPUT
-				,@ErrMsg		= @ErrMsg OUTPUT
 		END
 		
 		ELSE
