@@ -66,10 +66,8 @@ BEGIN
 				,T.C.value('./@cr', 'INT') AS creator
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
-	
-		SET @batchNo = @@ROWCOUNT
 
-		UPDATE TOP (@batchNo) b
+		UPDATE b
 			SET
 				matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
 				,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
@@ -168,10 +166,8 @@ BEGIN
 				,T.C.value('./@sid', 'TINYINT') AS StatusID									
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
-	
-		SET @batchNo = @@ROWCOUNT
 
-		UPDATE TOP (@batchNo) pd 
+		UPDATE pd 
 			SET winlostdate = CASE	
 								WHEN t.winlostdate IS NULL THEN pd.winlostdate
 								WHEN t.winlostdate = '' THEN NULL

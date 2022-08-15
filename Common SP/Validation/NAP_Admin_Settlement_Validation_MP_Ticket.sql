@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE NAP_Admin_Settlement_Validation_MP_Ticket
+ALTER PROCEDURE NAP_Admin_Settlement_Validation_MP_Ticket
 (
 	 @matchids		VARCHAR(4000) = ''
 	,@matchid		INT			 = 0
@@ -8,7 +8,7 @@ CREATE PROCEDURE NAP_Admin_Settlement_Validation_MP_Ticket
 	,@ErrCode		INT		= 0				OUTPUT
 	,@ErrMsg		NVARCHAR(500)  = ''		OUTPUT
 	,@MatchIdsValid VARCHAR(500) = ''		OUTPUT
-	--,@MatchIdsInValid	VARCHAR(500) = ''	OUTPUT
+	,@MatchIdsInValid	VARCHAR(500) = ''	OUTPUT
 )
 AS
 /*
@@ -28,46 +28,36 @@ SET NOCOUNT ON
 
 	DECLARE  @NotKeyScoreList VARCHAR(130) = ''
 			,@NotAllowCalculating VARCHAR(200)
-			,@HaveWaitingTicket	VARCHAR(200)
-			,@NotExecutedFGLG	VARCHAR(200)
-			,@procName			NVARCHAR(50)	
-			,@matchidParlay		INT
+			,@HaveWaitingTicket	VARCHAR(200) 
 			,@matchcode			NVARCHAR(50)
-
 			,@MovingMatchIds	VARCHAR(MAX) 
 			,@InvalidMatchIds	VARCHAR(MAX) = ''
-			,@HoldSettingMatchIds VARCHAR(200) = ''
-			,@ParentIds VARCHAR(MAX) = ''
-			
-	DECLARE @subErrCode		INT
-			,@subErrMsg		NVARCHAR(200)
-	
-	DECLARE @tblParentId TABLE ( ParentId INT)
-
-	CREATE TABLE #tblValidMatch (matchid INT, matchcode NVARCHAR(50),sporttype SMALLINT ,ParentId INT )
+				
+	CREATE TABLE #tblValidMatch (matchid INT, matchcode NVARCHAR(50) ,fth SMALLINT ,fta SMALLINT ,hth SMALLINT ,hta SMALLINT ,sporttype SMALLINT ,ParentId INT )
 	CREATE TABLE #tblInValidMatch (matchid INT	,matchcode NVARCHAR(50) )
 	CREATE TABLE #ResultDetailOS (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	DECLARE @tblResultRunning TABLE (matchid INT, ResourceId NVARCHAR(50), OrdNo SMALLINT)
 
-	INSERT INTO #tblValidMatch ( matchid, matchcode, sporttype, ParentId)
+	INSERT INTO #tblValidMatch ( matchid, matchcode, fth, fta, hth, hta, sporttype, ParentId)
 	SELECT matchid
 			,matchcode
+			,finalhomescore
+			,finalawayscore
+			,hthomescore
+			,htawayscore
 			,sporttype
 			,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND m.ParentId IS NOT NULL AND m.sporttype = 50 THEN m.ParentId ELSE m.MatchId END ParentId
 	FROM dbo.Match m WITH (NOLOCK)
 			INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , ',')) tm
 				ON m.matchid = tm.value
 
-
-
 	IF EXISTS (SELECT TOP(1) 1 FROM #tblValidMatch m WHERE m.sporttype = 50 )
 	BEGIN
-		-- get date from remote ResultDetailOS table 
 		INSERT INTO #ResultDetailOS (MatchId, ResourceId, ResultStatusId, SettlementStatusId)
 		SELECT r.MatchId, ResourceId, ResultStatusId, SettlementStatusId
-		FROM dbo.ResultDetailOS r WITH (NOLOCK)
+		FROM DBPRO.bodb02.dbo.ResultDetailOS r WITH (NOLOCK)
 			INNER JOIN  #tblValidMatch tm
-				ON r.matchid = tm.matchid
+				ON r.matchid = tm.ParentId
 
 		;WITH cteBetstatus
 			AS(
@@ -209,15 +199,10 @@ SET NOCOUNT ON
 	INTO #tblInValidMatch
 	WHERE matchid IN (SELECT [value] FROM STRING_SPLIT(@MatchIds, ','))
 	
-	IF ( ISNULL(@HoldSettingMatchIds,'') <> '' or ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '' OR ISNULL(@MovingMatchIds,'') <> '' )
+	IF ( ISNULL(@NotAllowCalculating,'') <> '' OR ISNULL(@HaveWaitingTicket,'') <> '' OR ISNULL(@MovingMatchIds,'') <> '' )
 	BEGIN
 		SELECT   @ErrCode = 1001011
-				,@ErrMsg = 'All matches are being calculated, except following matches ' 
-							+ CASE WHEN ISNULL(@HoldSettingMatchIds, '') <> ''
-									THEN '(on hold): ' + STUFF(@HoldSettingMatchIds, 1, 1, '')
-									ELSE ''
-								END
-							+ CASE when ISNULL(@NotAllowCalculating,'') <> ''
+				,@ErrMsg =  CASE when ISNULL(@NotAllowCalculating,'') <> ''
 									THEN  ' (being calculated by another user): ' + @NotAllowCalculating
 									ELSE ''
 								END 
