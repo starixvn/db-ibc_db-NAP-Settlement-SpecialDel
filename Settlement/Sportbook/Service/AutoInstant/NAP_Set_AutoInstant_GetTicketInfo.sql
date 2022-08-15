@@ -20,14 +20,23 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-		SELECT MAX(CASE WHEN Bettype = 14 THEN 1 ELSE 0 END) AS IsExistFGNG
-			  , MAX(CASE WHEN Bettype = 127 THEN 1 ELSE 0 END) AS IsExistHTFGNG
-		  FROM dbo.bettrans b WITH(NOLOCK)
-		  WHERE b.MatchID = @MatchID
-			 AND b.Bettype IN (14, 127)
-			 AND b.StatusID NOT IN (101, 102)
-			 AND b.Betteam IN ('1:1', '2:1', '0:0')
-			 AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+	;WITH cteBetTickets
+	AS (
+		SELECT	bettype, MAX(CASE WHEN RIGHT(betteam,1) = '1' THEN 1 ELSE 0 END) AS IsExistsFG 
+		FROM	dbo.bettrans WITH(NOLOCK)
+		WHERE	matchid = @MatchId
+				AND bettype IN (14, 127)
+				AND statusID NOT IN (101, 102)
+				AND betteam IN ('1:1', '2:1', '0:0')
+				AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+		GROUP BY bettype
+	)
+	SELECT	MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END) AS IsExistFGNG
+			,MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END) AS IsExistHTFGNG
+
+			,MAX(CASE WHEN bettype = 14 AND IsExistsFG = 1 THEN 1 ELSE 0 END) AS IsExistsFG
+			,MAX(CASE WHEN bettype = 127 AND IsExistsFG = 1 THEN 1 ELSE 0 END) AS IsExistsHTFG
+	FROM	cteBetTickets
 
 END
 GO

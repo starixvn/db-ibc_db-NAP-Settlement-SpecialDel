@@ -62,6 +62,8 @@ BEGIN
 		
 		, @IsExistFGNG		BIT
 		, @IsExistHTFGNG	BIT
+		, @IsExistsHTFG		BIT
+		, @IsExistsFG		BIT
 		--CornerBettype
 		,@ChildMatchType		TINYINT
 		,@CornerResultString	NVARCHAR(MAX)
@@ -344,7 +346,7 @@ BEGIN
 	BEGIN	
 		;WITH cteBetTickets
 		AS (
-			SELECT	bettype
+			SELECT	bettype, MAX(CASE WHEN RIGHT(betteam,1) = '1' THEN 1 ELSE 0 END) AS IsExistsFG 
 			FROM	dbo.bettrans WITH(NOLOCK)
 			WHERE	matchid = @MatchId
 					AND bettype IN (14, 127)
@@ -355,11 +357,16 @@ BEGIN
 		)
 		SELECT	@IsExistFGNG = MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END)
 				,@IsExistHTFGNG = MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END)
+
+				,@IsExistsFG = MAX(CASE WHEN bettype = 14 AND IsExistsFG = 1 THEN 1 ELSE 0 END)
+				,@IsExistsHTFG = MAX(CASE WHEN bettype = 127 AND IsExistsFG = 1 THEN 1 ELSE 0 END)
 		FROM	cteBetTickets
 	END
 	
 	SELECT	ISNULL(@IsExistFGNG,0) AS IsExistFGNG
 			,ISNULL(@IsExistHTFGNG,0) AS IsExistHTFGNG
 			,ISNULL(@GoalRecord,'') AS GoalRecord
+			,ISNULL(@IsExistsFG,0) AS IsExistsFG
+			,ISNULL(@IsExistsHTFG,0) AS IsExistsHTFG
 END
 GO
