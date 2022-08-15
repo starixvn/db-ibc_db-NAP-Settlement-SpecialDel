@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE NAP_Admin_Settlement_Validation_MP
+CREATE PROCEDURE NAP_Admin_Settlement_Validation_MP
 (
 	 @matchids		VARCHAR(4000) = ''
 	,@matchid		INT			 = 0
@@ -50,7 +50,7 @@ SET NOCOUNT ON
 	CREATE TABLE #ResultDetailOS (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	DECLARE @tblResultRunning TABLE (matchid INT, ResourceId NVARCHAR(50), OrdNo SMALLINT)
 
-	INSERT INTO #tblValidMatch ( matchid, matchcode, sporttype, SettlementStatus )
+	INSERT INTO #tblValidMatch ( matchid, matchcode, fth, fta, hth, hta, sporttype, SettlementStatus, ParentId)
 	SELECT matchid
 			,matchcode
 			,finalhomescore
@@ -61,7 +61,7 @@ SET NOCOUNT ON
 			,ISNULL(SettlementStatus,0) SettlementStatus
 			,CASE WHEN ISNULL(ChildMatchType,0) = 200 AND m.ParentId IS NOT NULL AND m.sporttype = 50 THEN m.ParentId ELSE m.MatchId END ParentId
 	FROM dbo.Match m WITH (NOLOCK)
-			INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , '','')) tm
+			INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , ',')) tm
 				ON m.matchid = tm.value
 
 	
