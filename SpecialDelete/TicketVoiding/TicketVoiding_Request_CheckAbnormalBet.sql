@@ -593,9 +593,9 @@ BEGIN
 
 	IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
 	BEGIN
-		IF @RemoveTransids <> ''
-				SET @RemoveTransids = @RemoveTransids + ','
-		SET @RemoveTransids += @TransIdsOfCustomerClass1
+		IF @UnmarkTransIds <> ''
+				SET @UnmarkTransIds = @UnmarkTransIds + ','
+		SET @UnmarkTransIds += @TransIdsOfCustomerClass1
 	END
 	/*****************Return table **************************/
 	

@@ -223,7 +223,7 @@ BEGIN
 		  ,t.BetType
 		  ,t.custid
 		  ,t.refno
-		  ,0
+		  ,CASE WHEN @IssueTypeId <> 13 AND t.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
 		  ,NULL
 		  ,@SiteDBGroupID
 		FROM #tmpTransInfo t

@@ -116,8 +116,7 @@ BEGIN
 		,@SiteDBGroupID
 	FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-	WHERE  b.matchid <> 29
-	AND b.SiteDBGroupID = @SiteDBGroupID
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 	-- get only parlay tickets from @input transid
 	INSERT INTO #ParlayTransIds (TransId)
