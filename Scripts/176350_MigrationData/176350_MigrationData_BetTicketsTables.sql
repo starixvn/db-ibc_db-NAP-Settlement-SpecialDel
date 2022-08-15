@@ -625,14 +625,14 @@ TRUNCATE TABLE dbo.BetParlayResult
 	FROM dbo.Transfer_old20220825 b WITH (NOLOCK)
 		--INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
-	INSERT INTO dbo.Transfer	([TransId], [CustId], [TransDate], [WinlostDate], [Bettype], [Stake], [Actual_Stake], [Winlost], [AWinlost], [MWinlost], [SWinlost], [PlayerComm], 
+	/*INSERT INTO dbo.Transfer	([TransId], [CustId], [TransDate], [WinlostDate], [Bettype], [Stake], [Actual_Stake], [Winlost], [AWinlost], [MWinlost], [SWinlost], [PlayerComm], 
 								[Comm], [AComm], [SComm], [StatusId], [RefNo], [TransDesc], [Recommend], [MRecommend], [SRecommend], [Username], [Currency], [CurrencyName], 
 								[ActualRate], [Creator], [Balance], [IP], [CheckTime], [SerialNo], [RepUpdateTime])
 	SELECT  b.[TransId], b.[CustId], b.[TransDate], b.[WinlostDate], b.[Bettype], b.[Stake], b.[Actual_Stake], b.[Winlost], b.[AWinlost], b.[MWinlost], b.[SWinlost], b.[PlayerComm], 
 			b.[Comm], b.[AComm], b.[SComm], b.[StatusId], b.[RefNo], b.[TransDesc], b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Username], b.[Currency], b.[CurrencyName], 
 			b.[ActualRate], b.[Creator], b.[Balance], b.[IP], b.[CheckTime], b.[SerialNo], b.[RepUpdateTime]
 	FROM dbo.Transfer_old20220825 b WITH (NOLOCK)
-	WHERE b.CustId = 3 AND b.Bettype = 20000
+	WHERE b.CustId = 3 AND b.Bettype = 20000*/
 
 	--dbo.Transfer_Coll
 	INSERT INTO dbo.Transfer_Coll	([CustId], [WinlostDate], [TransDate], [Bettype], [Debit], [Credit], [Currency], [ActualRate], [TransID], [RefNo], [Username], 
@@ -641,7 +641,7 @@ TRUNCATE TABLE dbo.BetParlayResult
 			b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP], b.[RepUpdateTime]
 	FROM dbo.Transfer_Coll_old20220825 b WITH (NOLOCK)
 		--INNER JOIN dbo.Transfer b1 WITH (NOLOCK) ON b1.TransID = b.TransID
-	WHERE b1.CustId <> 3 
+	--WHERE b1.CustId <> 3 
 
 	--dbo.TransferInfo
 	INSERT INTO dbo.TransferInfo	([TransId], [APositiontaking], [MPositiontaking], [SPositiontaking], [EPositiontaking], [PlayerDiscount], [Discount], [ADiscount], [SDiscount], 
@@ -650,5 +650,5 @@ TRUNCATE TABLE dbo.BetParlayResult
 			b.[WalletType], b.[BonusID], b.[Amount], b.[CheckerId], b.[CheckerName], b.[IsCollection], b.[IsDel], b.[RepUpdateTime]
 	FROM dbo.TransferInfo_old20220825 b WITH (NOLOCK)
 		--INNER JOIN dbo.Transfer b1 WITH (NOLOCK) ON b1.TransID = b.TransID
-	WHERE b1.CustId <> 3 
+	--WHERE b1.CustId <> 3 
 	 
