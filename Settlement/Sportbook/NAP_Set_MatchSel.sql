@@ -79,7 +79,7 @@ AS
 	@StatusId:  0: all, 1: running; 2: closed; 3: completed; 4: refund, 5: Postponed, 6: Abandoned, 7: Result Pending, 8: Undecided, 9: Under Settlement, 10: MTD Hold, 11: Hold Key
 				12: Irregular Time 1H	13:Irregular Time	14:Wrong Team Name	15:Suspended, 16 Completed (Running tickets)
 	@FilterBy: 0: none, 1: un-calculated game; 2: Un-calculated multiple only; 3: all
-	@FilterOver: 0: none, 1: Early over, 2: HT over, 4: FT over, 7: check 3 options
+	@FilterOver: 0: none, 1: Early over, 2: HT over, 3: FT over
 	@PenaltyShootoutOnly: 0: none; 1: running penalty shootout only
 	@IsReLoad: 1: reload partial matches of a league, 0: not reload
 	@IsIncludeTest: 1: include test matches, 0: exclude test matches
@@ -403,37 +403,6 @@ BEGIN
 			FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK) 
 			WHERE ss.Sporttype = tmp.sporttype
 		)f
-	--WHERE	
-			--(@UncalOnly = 0 OR ISNULL(mr.calculate, 0) = 0 OR @UncalOnly IS NULL) 
-			--AND 
-			--1 = CASE
-			--			WHEN @UncalMultiOnly = 1 AND ISNULL(f.IsMergedParlay,0) = 0
-			--				THEN CASE
-			--						WHEN tmp.sporttype = 1 AND tmp.LeagueGroupID = 113 THEN 0 --PinGoal
-			--						WHEN (ISNULL(mr.calculate,0) = 1 OR ISNULL(mr.calrefund,0) = 1) -- match completed (cal/refund)
-			--							AND ISNULL(mr.multiple,0) = 0 AND ISNULL(mr.refund,0) = 0 THEN 1 -- not cal/refund parlay yet
-			--						ELSE 0
-			--					END
-			--			ELSE 1
-			--		END
-			--AND 
-			--@FilterOver = CASE
-			--				WHEN 
-			--				WHEN tmp.eventstatus IN ('Closed', 'running', 'internal')
-			--						AND ((DATEDIFF(MINUTE, tmp.kickofftime, GETDATE()) > 40
-			--								AND DATEDIFF(MINUTE, tmp.kickofftime, GETDATE()) < 100)
-			--							OR mr.confirmHT <> 0
-			--						)
-			--						AND mr.ishtcal = 0 THEN 2 -- HT over
-			--				WHEN tmp.eventstatus <> 'Completed'
-			--								AND (tmp.kickofftime < CASE 
-			--															WHEN ISNULL(tmp.LeagueGroupID,0) NOT IN (42,74,108) THEN DATEADD(s, - 6000, GETDATE())
-			--															ELSE DATEADD(s, -1800, GETDATE())
-			--														END
-			--										OR mr.ConfirmFT > 0
-			--									) THEN 3 -- FT over
-			--				ELSE 0
-			--			END
 	
 	--check FGLG & BetRadar
 
@@ -697,16 +666,6 @@ BEGIN
 		DELETE FROM	#matchList WHERE IsExistFastMarket = 0 AND IsExistFastMarketResult = 0
 	END
 	
-	--IF (@AutoSettlementOnly = 1) --Running Auto bettypes ONLY (BAIO, BETRADAR)
-	--BEGIN
-	--	IF (@sporttype IN (1,2) OR @existSettingEarly = 1)
-	--	BEGIN
-	--		DELETE FROM #matchList
-	--		WHERE IsRunningEarlyBettypes = 0
-	--	END			
-		
-	--END
-
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
