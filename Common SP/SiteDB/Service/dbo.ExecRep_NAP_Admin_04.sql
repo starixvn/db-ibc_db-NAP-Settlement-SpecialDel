@@ -17,7 +17,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	--DECLARE @batchNo		INT			
+	DECLARE @batchNo		INT			
 	
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid BIGINT
@@ -67,7 +67,9 @@ BEGIN
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
-		UPDATE b
+		SET @batchNo = @@ROWCOUNT
+
+		UPDATE TOP (@batchNo) b
 			SET
 				matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
 				,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
@@ -102,7 +104,7 @@ BEGIN
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 
-		--OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 	END
 	ELSE IF @TableName = 'bettransm'
 	BEGIN
@@ -126,7 +128,9 @@ BEGIN
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
-		UPDATE bm 
+		SET @batchNo = @@ROWCOUNT
+
+		UPDATE TOP (@batchNo)  bm
 			SET ruben = CASE WHEN t.ruben IS NULL THEN bm.ruben ELSE t.ruben END								
 				,winlostdate = CASE 
 									WHEN t.winlostdate IS NULL THEN bm.winlostdate	
