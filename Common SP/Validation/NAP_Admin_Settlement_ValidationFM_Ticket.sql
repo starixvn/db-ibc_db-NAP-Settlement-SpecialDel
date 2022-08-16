@@ -7,7 +7,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Ticket
 	,@SelectedResources		VARCHAR(MAX) = NULL
 	,@IsSettleDetermined	BIT	= 0
 	,@ErrCode				INT		= 0     OUTPUT
-	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
+	,@ErrMsg				VARCHAR(MAX)  = ''    OUTPUT
 )
 AS
 /*
