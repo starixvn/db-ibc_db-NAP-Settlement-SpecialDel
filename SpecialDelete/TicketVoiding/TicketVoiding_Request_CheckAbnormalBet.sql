@@ -529,8 +529,8 @@ BEGIN
 		BEGIN
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 										FROM #validTransId v
-											LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
-										WHERE c.CustomerClass = 1 AND c.custid IS NULL
+											LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
+										WHERE c.custid IS NULL
 										FOR XML PATH('')), 1, 1, '')
 										, '')
 		END
@@ -557,6 +557,20 @@ BEGIN
 												FOR XML PATH('')), 1,1,'')
 												,'')
 
+			IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
+			BEGIN
+				IF @UnmarkTransIds <> ''
+					SET @UnmarkTransIds = @UnmarkTransIds + ','
+
+				SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+											FROM #validTransId v
+												LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
+											WHERE c.custid IS NULL
+											FOR XML PATH('')), 1, 1, '')
+											, '')
+			END
+			ELSE
+			BEGIN
 			--Add mark when edit request
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 												FROM #validTransId it
@@ -564,6 +578,7 @@ BEGIN
 													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
 												FOR XML PATH('')), 1,1,'')
 												,'')
+			END
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
 		BEGIN
