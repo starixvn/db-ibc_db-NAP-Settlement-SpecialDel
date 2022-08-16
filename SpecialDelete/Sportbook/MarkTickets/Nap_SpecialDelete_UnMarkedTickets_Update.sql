@@ -95,277 +95,269 @@ BEGIN
 				IsFinish	BIT
 				);
 
-	IF @TransIds IS NOT NULL
+	-- Get tickets insert into transaction
+	INSERT INTO #Tickets (
+			TransId
+			,MatchId
+			,BetType
+			,CustId
+			,refno
+			,IsParlay
+			,SubTransId
+			,SiteDBGroupID
+	)
+	SELECT t.TransId,
+			b.MatchId
+			,b.BetType
+			,b.custid
+			,b.refno
+			,CASE WHEN @IssueTypeId = 11 AND b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
+			,NULL
+			,@SiteDBGroupID
+	FROM #transIds t
+	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
+	LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
+	WHERE m.TransId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID
+	AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
+			        WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
+					WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 THEN 1 --Other IssueType 
+					ELSE 0 END
+
+	-- get only parlay tickets from @input transid
+	INSERT INTO #ParlayTransIds (TransId)
+	SELECT tmp.TransId
+	FROM #transIds AS tmp
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #Tickets AS t WHERE t.TransId = tmp.TransId)
+
+	-- check if exists parlay tickets
+	IF EXISTS (SELECT TOP 1 1 FROM #ParlayTransIds)
 	BEGIN
-		-- Get tickets insert into transaction
 		INSERT INTO #Tickets (
-				TransId
-				,MatchId
-				,BetType
-				,CustId
-				,refno
-				,IsParlay
-				,SubTransId
-				,SiteDBGroupID
+			TransId
+			,MatchId
+			,BetType
+			,CustId
+			,refno
+			,IsParlay
+			,SubTransId
+			,SiteDBGroupID
 		)
-		SELECT t.TransId,
-			   b.MatchId
-			  ,b.BetType
-			  ,b.custid
-			  ,b.refno
-			  ,CASE WHEN @IssueTypeId = 11 AND b.bettype = 29 THEN 1 ELSE 0 END AS IsParlay --Mixparlay of AB
-			  ,NULL
-			  ,@SiteDBGroupID
-		FROM #transIds t
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
-		LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
-		WHERE m.TransId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID
-		AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
-			         WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
-					 WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 THEN 1 --Other IssueType 
-					 ELSE 0 END
-
-		-- get only parlay tickets from @input transid
-		INSERT INTO #ParlayTransIds (TransId)
-		SELECT tmp.TransId
-		FROM #transIds AS tmp
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #Tickets AS t WHERE t.TransId = tmp.TransId)
-
-		-- check if exists parlay tickets
-		IF EXISTS (SELECT TOP 1 1 FROM #ParlayTransIds)
-		BEGIN
-			INSERT INTO #Tickets (
-				TransId
-				,MatchId
-				,BetType
-				,CustId
-				,refno
-				,IsParlay
-				,SubTransId
-				,SiteDBGroupID
-			)
-			SELECT b.TransId
-				,bm.matchid
-				,bm.bettype
-				,bm.custid
-				,bm.refno
-				,1
-				,bm.transid
-				,@SiteDBGroupID
-			FROM #ParlayTransIds t
-				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
-				INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
-				LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON b.TransId = m.TransId AND m.MatchId = bm.matchid
-			WHERE m.TransId IS NULL
-				AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
-		END
-
-		--check no data
-		IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
-		BEGIN
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.';
-			RETURN;
-		END;
+		SELECT b.TransId
+			,bm.matchid
+			,bm.bettype
+			,bm.custid
+			,bm.refno
+			,1
+			,bm.transid
+			,@SiteDBGroupID
+		FROM #ParlayTransIds t
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
+			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
+			LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON b.TransId = m.TransId AND m.MatchId = bm.matchid
+		WHERE m.TransId IS NULL
+			AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = @SiteDBGroupID
 	END
-
-	-- Check Lock Match
-	DECLARE @avaiableProcess	BIT
-		   ,@IsExistSingle		BIT = 0
-		   ,@IsExistParlay		BIT = 0
-		   ,@IsExistFM			BIT = 0
-		   ,@IsExistFM2			BIT = 0;
-
-	SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
-			,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
-			,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-	FROM #Tickets AS t
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-	WHERE t.IsParlay = 0 AND t.SiteDBGroupID = @SiteDBGroupID
-
-	EXEC dbo.NAP_Set_GlobalSettingSel 
-			@LockName = 'ParlayRefno'
-		   ,@ThreadHold = @ThreadHold OUTPUT
-
-	INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
-	SELECT 0, t.refno  --Many matches with same Refno  
-	FROM #Tickets AS t
-	WHERE t.IsParlay = 1
-	GROUP BY t.Refno  
-	HAVING COUNT(*) > 1
-	SET @totalParlay = @@ROWCOUNT
-
-	INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
-	SELECT t.MatchId, t.refno
-	FROM #Tickets AS t
-	WHERE t.IsParlay = 1 AND NOT EXISTS (SELECT 1 FROM #tblMatchParlayProcess m WHERE m.RefNo = t.refno) 
-
-	SELECT  @totalParlay = @totalParlay + @@ROWCOUNT
-	IF @totalParlay > 0 
-		SET @isExistParlay = 1
-
-	INSERT INTO #tblMatchProcess (MatchId, KeyID)
-	SELECT DISTINCT MatchId
-		,CASE 
-			WHEN f.GroupId IS NULL THEN 1 --SB
-			WHEN f.GroupId = 1 THEN 6 -- Fast Market
-			WHEN f.GroupId = 2 THEN 7 -- Fast market 228
-			ELSE 0
-			END AS KeyID
-	FROM #Tickets t
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = t.Bettype
-			)f
-	WHERE 1 = CASE WHEN @totalParlay <= @ThreadHold AND t.IsParlay <> 1 THEN 1
-				    WHEN @totalParlay > @ThreadHold THEN 1
-				    ELSE 0 END
-		
-	-- Apply new way to lock parlay tickets
-	IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #Tickets)
 	BEGIN
-		DELETE FROM #tblMatchProcess WHERE KeyID = 0
-		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
-		BEGIN
-			-- checking single proccess
-			EXEC dbo.NAP_Admin_CheckingProcess 
-					@isExistMatch = @IsExistSingle
-				   ,@IsExistFM = @IsExistFM
-				   ,@IsExistFM2 = @IsExistFM2
-				   ,@spName = @spName
-				   ,@avaiableProcess = @avaiableProcess OUTPUT
-				   ,@ErrCode = @ErrCode OUTPUT
-				   ,@ErrMsg = @ErrMsg OUTPUT;
+		-- Check Lock Match
+		DECLARE @avaiableProcess	BIT
+			   ,@IsExistSingle		BIT = 0
+			   ,@IsExistParlay		BIT = 0
+			   ,@IsExistFM			BIT = 0
+			   ,@IsExistFM2			BIT = 0;
 
-			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-			BEGIN	
-				RETURN;		
+		SELECT @IsExistSingle = MAX(CASE WHEN f.GroupId IS NULL THEN 1 ELSE 0	END)
+				,@IsExistFM = MAX(CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
+				,@IsExistFM2 = MAX(CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+		FROM #Tickets AS t
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+		WHERE t.IsParlay = 0 AND t.SiteDBGroupID = @SiteDBGroupID
+
+		EXEC dbo.NAP_Set_GlobalSettingSel 
+				@LockName = 'ParlayRefno'
+			   ,@ThreadHold = @ThreadHold OUTPUT
+
+		INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+		SELECT 0, t.refno  --Many matches with same Refno  
+		FROM #Tickets AS t
+		WHERE t.IsParlay = 1
+		GROUP BY t.Refno  
+		HAVING COUNT(*) > 1
+		SET @totalParlay = @@ROWCOUNT
+
+		INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
+		SELECT t.MatchId, t.refno
+		FROM #Tickets AS t
+		WHERE t.IsParlay = 1 AND NOT EXISTS (SELECT 1 FROM #tblMatchParlayProcess m WHERE m.RefNo = t.refno) 
+
+		SELECT  @totalParlay = @totalParlay + @@ROWCOUNT
+		IF @totalParlay > 0 
+			SET @isExistParlay = 1
+
+		INSERT INTO #tblMatchProcess (MatchId, KeyID)
+		SELECT DISTINCT MatchId
+			,CASE 
+				WHEN f.GroupId IS NULL THEN 1 --SB
+				WHEN f.GroupId = 1 THEN 6 -- Fast Market
+				WHEN f.GroupId = 2 THEN 7 -- Fast market 228
+				ELSE 0
+				END AS KeyID
+		FROM #Tickets t
+			OUTER APPLY (
+						SELECT GroupId
+						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+						WHERE Bettype = t.Bettype
+				)f
+		WHERE 1 = CASE WHEN @totalParlay <= @ThreadHold AND t.IsParlay <> 1 THEN 1
+						WHEN @totalParlay > @ThreadHold THEN 1
+						ELSE 0 END
+		
+		-- Apply new way to lock parlay tickets
+		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
+		BEGIN
+			DELETE FROM #tblMatchProcess WHERE KeyID = 0
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				-- checking single proccess
+				EXEC dbo.NAP_Admin_CheckingProcess 
+						@isExistMatch = @IsExistSingle
+					   ,@IsExistFM = @IsExistFM
+					   ,@IsExistFM2 = @IsExistFM2
+					   ,@spName = @spName
+					   ,@avaiableProcess = @avaiableProcess OUTPUT
+					   ,@ErrCode = @ErrCode OUTPUT
+					   ,@ErrMsg = @ErrMsg OUTPUT;
+
+				IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+				BEGIN	
+					RETURN;		
+				END
+			END
+
+			IF @totalParlay > 0 
+			BEGIN
+				-- checking Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+						@IsLockingByRefno	= 1
+					   ,@spName				= @spName
+					   ,@Session			= @Session
+					   ,@avaiableProcess 	= @avaiableProcess OUTPUT
+					   ,@ErrCode			= @ErrCode OUTPUT
+					   ,@ErrMsg				= @ErrMsg OUTPUT
+				
+				IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+				BEGIN	
+					-- releasing single process
+					EXEC dbo.NAP_Admin_CheckingProcess
+						@isExistMatch	= @IsExistSingle,
+						@IsExistFM		= @IsExistFM,
+						@IsExistFM2		= @IsExistFM2,
+						@IsReleased		= 1;
+					RETURN;		
+				END
+
 			END
 		END
-
-		IF @totalParlay > 0 
+		ELSE IF @totalParlay > @ThreadHold
 		BEGIN
-			-- checking Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno	= 1
+			-- checking SD proccess
+			EXEC dbo.NAP_Admin_CheckingProcess 
+					@isExistMatch		= @IsExistSingle
+				   ,@isExistParlay		= @IsExistParlay
+				   ,@IsExistFM			= @IsExistFM
+				   ,@IsExistFM2			= @IsExistFM2
 				   ,@spName				= @spName
-				   ,@Session			= @Session
-				   ,@avaiableProcess 	= @avaiableProcess OUTPUT
+				   ,@avaiableProcess	= @avaiableProcess OUTPUT
 				   ,@ErrCode			= @ErrCode OUTPUT
 				   ,@ErrMsg				= @ErrMsg OUTPUT
-				
-			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-			BEGIN	
+
+			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+			BEGIN
+				RETURN;
+			END;
+		END
+
+		INSERT INTO #Match (matchid)
+		SELECT DISTINCT MatchId
+		FROM #Tickets
+    
+		-- Insert Transaction
+		DECLARE @TransIds_SB VARCHAR(MAX)
+		DECLARE @MarkedTransactionDeleted TABLE (TransId BIGINT, MatchId INT, BetType SMALLINT, CustId INT);
+		WHILE (0=0)
+		BEGIN
+			DELETE @MarkedTransactionDeleted
+			UPDATE TOP (2000) t
+				SET t.IsFinish = 1
+			OUTPUT DELETED.TransId
+				,DELETED.MatchId
+				,DELETED.BetType
+				,DELETED.CustId
+			INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId)
+			FROM #Tickets t
+			WHERE t.IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK	
+
+			SELECT @TransIds_SB = CAST((
+										SELECT t.TransId AS '@id'
+											,t.MatchId AS '@match'
+											,t.BetType AS '@bettype'
+											,t.CustId AS '@cust'
+											,@MarkType AS '@type'
+										FROM @MarkedTransactionDeleted t
+										FOR XML PATH('r')
+											,ROOT('root')
+											,TYPE
+									) AS VARCHAR(MAX));
+	
+			EXEC dbo.TicketVoiding_Admin_VoidingTransId
+				@TransIds = @TransIds_SB,
+				@UserId = @UserId,
+				@CalledByBrokerService = 0,
+				@IsUseServiceBroker = 1,
+				@ActionType = 1
+
+			SET @TransIds_SB = ''
+		END
+
+		IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
 				-- releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess
-					@isExistMatch	= @IsExistSingle,
-					@IsExistFM		= @IsExistFM,
-					@IsExistFM2		= @IsExistFM2,
-					@IsReleased		= 1;
-				RETURN;		
+					@isExistMatch = @IsExistSingle,
+					@IsExistFM = @IsExistFM,
+					@IsExistFM2 = @IsExistFM2,
+					@IsReleased = 1;
 			END
 
+			IF @totalParlay > 0 
+			BEGIN
+				-- releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+					,@Session	= @Session
+					,@IsReleased = 1
+			END
 		END
-	END
-	ELSE IF @totalParlay > @ThreadHold
-	BEGIN
-		-- checking SD proccess
-		EXEC dbo.NAP_Admin_CheckingProcess 
-				@isExistMatch		= @IsExistSingle
-			   ,@isExistParlay		= @IsExistParlay
-			   ,@IsExistFM			= @IsExistFM
-			   ,@IsExistFM2			= @IsExistFM2
-			   ,@spName				= @spName
-			   ,@avaiableProcess	= @avaiableProcess OUTPUT
-			   ,@ErrCode			= @ErrCode OUTPUT
-			   ,@ErrMsg				= @ErrMsg OUTPUT
-
-		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
+		ELSE IF @totalParlay > @ThreadHold
 		BEGIN
-			RETURN;
-		END;
-	END
-
-	INSERT INTO #Match (matchid)
-	SELECT DISTINCT MatchId
-	FROM #Tickets
-    
-	-- Insert Transaction
-	DECLARE @TransIds_SB VARCHAR(MAX)
-	DECLARE @MarkedTransactionDeleted TABLE (TransId BIGINT, MatchId INT, BetType SMALLINT, CustId INT);
-	WHILE (0=0)
-	BEGIN
-		DELETE @MarkedTransactionDeleted
-		UPDATE TOP (2000) t
-			SET t.IsFinish = 1
-		OUTPUT DELETED.TransId
-			,DELETED.MatchId
-			,DELETED.BetType
-			,DELETED.CustId
-		INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId)
-		FROM #Tickets t
-		WHERE t.IsFinish IS NULL
-
-		IF @@ROWCOUNT = 0 BREAK	
-
-		SELECT @TransIds_SB = CAST((
-									SELECT t.TransId AS '@id'
-										,t.MatchId AS '@match'
-										,t.BetType AS '@bettype'
-										,t.CustId AS '@cust'
-										,@MarkType AS '@type'
-									FROM @MarkedTransactionDeleted t
-									FOR XML PATH('r')
-										,ROOT('root')
-										,TYPE
-								) AS VARCHAR(MAX));
-	
-		EXEC dbo.TicketVoiding_Admin_VoidingTransId
-			@TransIds = @TransIds_SB,
-			@UserId = @UserId,
-			@CalledByBrokerService = 0,
-			@IsUseServiceBroker = 1,
-			@ActionType = 1
-
-		SET @TransIds_SB = ''
-	END
-
-	IF @totalParlay = 0 OR @totalParlay <= @ThreadHold
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
-		BEGIN
-			-- releasing single process
+			-- Release Match
 			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistMatch = @IsExistSingle,
+				@isExistParlay = @IsExistParlay,
 				@IsExistFM = @IsExistFM,
 				@IsExistFM2 = @IsExistFM2,
 				@IsReleased = 1;
 		END
-
-		IF @totalParlay > 0 
-		BEGIN
-			-- releasing Refno parlay proccess
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@IsLockingByRefno = 1
-				,@Session	= @Session
-				,@IsReleased = 1
-		END
 	END
-	ELSE IF @totalParlay > @ThreadHold
-	BEGIN
-		-- Release Match
-		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch = @IsExistSingle,
-			@isExistParlay = @IsExistParlay,
-			@IsExistFM = @IsExistFM,
-			@IsExistFM2 = @IsExistFM2,
-			@IsReleased = 1;
-	END
-
 	SELECT b.MatchId,
 		m.HomeId,
 		m.AwayId,

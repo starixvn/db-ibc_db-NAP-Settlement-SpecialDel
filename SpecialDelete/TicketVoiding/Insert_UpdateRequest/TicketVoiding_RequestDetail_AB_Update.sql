@@ -70,6 +70,7 @@ BEGIN
 		  ,betteam
 		  ,betid
 		  ,statuswinlost
+		  ,SubMatchIdList
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
@@ -178,7 +179,7 @@ BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
 			SELECT @RequestId, t.Submatchid, t.maintransid
 			FROM #tmpMatchId t
-			WHERE  Submatchid NOT IN (SELECT matchId FROM TicketVoiding_RequestDetail_MixParlay (NOLOCK) WHERE RequestId = @RequestId)
+			WHERE  Submatchid NOT IN (SELECT matchId FROM dbo.TicketVoiding_RequestDetail_MixParlay (NOLOCK) WHERE RequestId = @RequestId)
 		END
 	END
 

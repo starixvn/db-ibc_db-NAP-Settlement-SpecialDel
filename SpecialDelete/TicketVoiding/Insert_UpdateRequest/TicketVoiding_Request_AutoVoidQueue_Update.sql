@@ -6,7 +6,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Update]
    ,@MatchInfo				VARCHAR(MAX) = NULL
    ,@ActionID				TINYINT = NULL
    ,@FilterBy				TINYINT = NULL
-   ,@IsEditRequest			INT = 0
    ,@TransIds				VARCHAR(MAX) = NULL
    ,@BroadcastSessionId		VARCHAR(50)
 )
