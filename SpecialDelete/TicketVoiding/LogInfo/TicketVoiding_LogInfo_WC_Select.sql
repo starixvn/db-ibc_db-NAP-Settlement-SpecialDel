@@ -926,7 +926,7 @@ BEGIN
 		--Mark ticket when add request
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
 											FROM #TVSTicketBets tp   
-											WHERE tp.IsMixParlay = 0 
+											WHERE tp.IsMixParlay = 0 AND tp.StatusId IN (0,1)
 											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)-- exist in # request
 											FOR XML PATH('')), 1,1,'')
 										,'')

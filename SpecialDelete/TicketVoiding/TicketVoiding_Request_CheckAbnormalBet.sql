@@ -509,7 +509,7 @@ BEGIN
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 										FROM #validTransId v
 											LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
-										WHERE c.custid IS NULL
+										WHERE c.custid IS NULL AND v.StatusId IN (0,1)
 										FOR XML PATH('')), 1, 1, '')
 										, '')
 		END
@@ -517,6 +517,7 @@ BEGIN
 		BEGIN
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 										FROM #validTransId v
+										WHERE v.StatusId IN (0,1)
 										FOR XML PATH('')), 1, 1, '')
 										, '')
 		END
@@ -552,8 +553,8 @@ BEGIN
 			BEGIN
 				--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-													FROM #validTransId it
-													WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
+													FROM #validTransId v
+													WHERE v.StatusId IN (0,1) AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
 													FOR XML PATH('')), 1,1,'')
 													,'')
 			END
@@ -572,7 +573,7 @@ BEGIN
 				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 											FROM #validTransId v
 												LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
-											WHERE c.custid IS NULL
+											WHERE c.custid IS NULL AND v.StatusId IN (0,1)
 											FOR XML PATH('')), 1, 1, '')
 											, '')
 			END
@@ -580,6 +581,7 @@ BEGIN
 			BEGIN
 				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 											FROM #validTransId v
+											WHERE v.StatusId IN (0,1)
 											FOR XML PATH('')), 1, 1, '')
 											, '')
 			END

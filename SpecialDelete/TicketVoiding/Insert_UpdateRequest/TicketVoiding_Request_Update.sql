@@ -237,6 +237,7 @@ BEGIN
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
 					,@ActionId		 = @ActionId		
+					,@OldActionId	 = @OldActionId
 					,@FilterBy		 = @FilterBy		
 					,@SubIssueTypeId = @SubIssueTypeId
 					,@TransInfo		 = @TransInfo		

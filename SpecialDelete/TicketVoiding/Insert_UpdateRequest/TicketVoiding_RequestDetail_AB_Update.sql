@@ -8,6 +8,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_AB_Update]
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@ActionId				TINYINT
+	,@OldActionId			TINYINT = NULL
 	,@FilterBy				TINYINT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
 	,@TransInfo				XML  = NULL
@@ -152,34 +153,53 @@ BEGIN
 	END
 
 	-- Abnormal Bet - Mixparlay ticket
-	IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
+	IF @IssueTypeId = 11 AND @FilterBy = 1
 	BEGIN
 		INSERT INTO #tmpMatchId (Submatchid, Maintransid)
 		SELECT s.submatchId, t.transid AS maintransid
-		FROM #tmpTransInfo t
-		CROSS APPLY (
-						SELECT value AS submatchId
-						FROM STRING_SPLIT (t.SubMatchIdList,',')
-				)s
-
-		IF @IsEditRequest = 0 --Insert
+		FROM #transIdTemp t
+			INNER JOIN #tmpTransInfo b ON t.transid = b.transid
+			CROSS APPLY (
+							SELECT value AS submatchId
+							FROM STRING_SPLIT (b.SubMatchIdList,',')
+					)s
+		IF @ActionId = 1
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
-			SELECT @RequestId, Submatchid, maintransid
-			FROM #tmpMatchId 
-		END
-		ELSE 
-		BEGIN
-			--Remove ticket
-			DELETE dbo.TicketVoiding_RequestDetail_MixParlay 
-			WHERE RequestId = @RequestId 
-				AND matchId NOT IN (SELECT matchId FROM #tmpMatchId)
+			IF @IsEditRequest = 0 --Insert
+			BEGIN
+				INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
+				SELECT @RequestId, Submatchid, maintransid
+				FROM #tmpMatchId 
+			END
+			ELSE IF @IsEditRequest = 1 --Edit
+			BEGIN
+				IF @ActionId = @OldActionId
+				BEGIN
+					--Remove ticket
+					DELETE m
+					FROM  dbo.TicketVoiding_RequestDetail_MixParlay m 
+						LEFT JOIN #tmpMatchId t ON m.MatchId = t.Submatchid AND m.MainTransId = t.Maintransid
+					WHERE RequestId = @RequestId AND t.Submatchid IS NULL
 			
-			--Insert new ticket
-			INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
-			SELECT @RequestId, t.Submatchid, t.maintransid
-			FROM #tmpMatchId t
-			WHERE  Submatchid NOT IN (SELECT matchId FROM dbo.TicketVoiding_RequestDetail_MixParlay (NOLOCK) WHERE RequestId = @RequestId)
+					--Insert new ticket
+					INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
+					SELECT @RequestId, t.Submatchid, t.maintransid
+					FROM #tmpMatchId t
+						LEFT JOIN dbo.TicketVoiding_RequestDetail_MixParlay m ON m.RequestId = @RequestId AND t.Submatchid = m.MatchId AND t.Maintransid = m.MainTransId
+					WHERE m.MatchId IS NULL
+				END
+				ELSE IF @ActionId <> @OldActionId
+				BEGIN
+					INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
+					SELECT @RequestId, Submatchid, maintransid
+					FROM #tmpMatchId 
+				END
+			END
+		END
+		ELSE IF @ActionId <> 1
+		BEGIN
+			DELETE FROM dbo.TicketVoiding_RequestDetail_MixParlay 
+			WHERE RequestId = @RequestId
 		END
 	END
 
@@ -194,14 +214,6 @@ BEGIN
 						AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
 									 WHEN @FilterBy = 1 AND b.betteam = '1' THEN 1 ELSE 0 END
 					)tmp
-
-	--For Auto Void Instant
-	BEGIN
-		UPDATE q SET q.StatusId = 0
-		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
-		WHERE q.RequestId = @RequestId AND q.StatusId = 99
-			AND [Action] <> 'MixParlay'
-	END
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
@@ -241,6 +253,6 @@ BEGIN
 	
 	DROP TABLE #transIdTemp
 	DROP TABLE #tmpTransInfo
-	
+	DROP TABLE #tmpMatchId
 END
 GO
