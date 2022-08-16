@@ -702,8 +702,6 @@ BEGIN
 					,@action	  = 'Cashout'
 					,@mode		  = 'CAL'
 					,@strTransIds = @strTransIds
-					,@matchid	  = @matchid
-
 			END
 
 			INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
