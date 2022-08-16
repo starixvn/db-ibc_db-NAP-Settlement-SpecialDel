@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Ticket_Select]
 (
 	@SiteDBGroupID	SMALLINT
 	,@MatchId		INT = 0

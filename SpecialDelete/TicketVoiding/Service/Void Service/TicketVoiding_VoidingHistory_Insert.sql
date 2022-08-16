@@ -1,17 +1,18 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 (
-	@BroadcastSessionId VARCHAR(50)
-	,@SiteDBGroupId TINYINT
-	,@IsAutoVoid BIT = 0
-	,@RequestInfoXml XML = NULL
-	,@UserId INT = 0
+	@BroadcastSessionId		VARCHAR(50)
+	,@SiteDBGroupId			TINYINT
+	,@IsAutoVoid			BIT = 0
+	,@VoidServiceXml		XML = NULL
+	,@VoidData				XML = NULL
+	,@UserId				INT = 0
 )
 AS
 /*	Created by: Kathy
 	Date 20181212
 	Task: view voided ticket [Redmine:#90155]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -26,23 +27,23 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpRequestInfo (RequestId INT, IssueTypeId INT, MatchId INT, TransIds VARCHAR(MAX), VoidData VARCHAR(MAX), BroadcastSessionId VARCHAR(50), SiteDBGroupId TINYINT, IsAutoVoid BIT)
+	CREATE TABLE #tmpRequestInfo (RequestId INT, IssueTypeId INT, MatchId INT, TransIds VARCHAR(MAX))
+	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
 
-	INSERT INTO #tmpRequestInfo (RequestId, IssueTypeId, MatchId, TransIds, VoidData, BroadcastSessionId, SiteDBGroupId, IsAutoVoid)
+	INSERT INTO #tmpRequestInfo (RequestId, IssueTypeId, MatchId, TransIds)
 	SELECT t.c.value('@RequestId','INT') 
 			,t.c.value('@IssueTypeId','INT')
 			,t.c.value('@MatchId','INT')
 			,t.c.value('@TransIds','VARCHAR(MAX)')
-			,t.c.value('@VoidData','VARCHAR(MAX)')
-			,@BroadcastSessionId, @SiteDBGroupId, @IsAutoVoid
-	FROM @RequestInfoXml.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@RequestInfoXml = NULL))
+	FROM @VoidServiceXml.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@VoidServiceXml = NULL))
 
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
 								INNER JOIN #tmpRequestInfo t ON t.RequestId = v.RequestId
 					WHERE v.BroadcastSessionId = @BroadcastSessionId
 				)
 	BEGIN
+		--Initial VoidingHistory
 		INSERT INTO dbo.TicketVoiding_VoidingHistory (
 				RequestId
 				,UserId
@@ -50,13 +51,15 @@ BEGIN
 				,TransIds
 				,VoidData
 			)
+		OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
 		SELECT t.RequestId
 			,@UserId
 			,1
 			,t.TransIds
-			,t.VoidData
+			,@VoidData
 		FROM #tmpRequestInfo t 
 
+		--Initial Void Service
 		INSERT INTO dbo.TicketVoiding_Void_Service (
 				RequestId
 				,VoidingHistoryId
@@ -69,12 +72,12 @@ BEGIN
 		SELECT t.RequestId
 			,v.VoidingHistoryId
 			,1
-			,t.BroadcastSessionId
-			,t.SiteDBGroupId
-			,t.IsAutoVoid
+			,@BroadcastSessionId
+			,@SiteDBGroupId
+			,@IsAutoVoid
 			,t.MatchId
 		FROM #tmpRequestInfo t
-			INNER JOIN dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) ON v.RequestId = v.RequestId AND v.StatusId = 1
+			INNER JOIN @VoidingHistory_tmp v ON v.RequestId = t.RequestId
 	END
 
 	SELECT DISTINCT v.RequestId, v.VoidingHistoryId

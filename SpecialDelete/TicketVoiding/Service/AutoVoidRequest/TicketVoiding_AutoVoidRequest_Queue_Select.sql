@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Scan]
+ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Select]
 (
 	@BroadcastSessionId VARCHAR(10) = NULL
 )
