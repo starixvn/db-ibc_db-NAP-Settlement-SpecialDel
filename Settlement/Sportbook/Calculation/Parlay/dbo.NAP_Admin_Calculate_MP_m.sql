@@ -2498,7 +2498,7 @@ BEGIN
 			VALUES ('Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo)	
 				
 			SET @betparlaydetailinfo = (
-				SELECT	transId AS '@t'						
+				SELECT	DISTINCT transId AS '@t'						
 						,winlostdate AS '@wld'							
 						,statuswinlost AS '@statuswl'
 						,StatusId AS '@sid'
