@@ -266,14 +266,6 @@ BEGIN
 	FROM @tmpTicketStatus bt
 	  		FULL JOIN @tmpTicketStatusParlay p ON bt.resourceId = p.ResourceID
 
-	IF @SportType = 43 AND  @BestOfMap IS NOT NULL
-	BEGIN
-		DELETE t
-		FROM @tmpTicketStatus t
-		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
-		WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
-	END
-
 	 SELECT ResourceID
 			, ISNULL(IsSpecialBettype,0) AS IsSpecialBettype
 			,BetCount
