@@ -550,11 +550,10 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				--Add mark when edit request
+				--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 													FROM #validTransId it
-													WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE it.transid = rdt.transid AND rdt.RequestId = @RequestId)
-														  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
+													WHERE NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
 													FOR XML PATH('')), 1,1,'')
 													,'')
 			END

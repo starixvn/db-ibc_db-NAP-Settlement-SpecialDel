@@ -609,12 +609,11 @@ BEGIN
 											), 1,1,'')
 										,'')
 
-			--Add mark ticket when edit request
+			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 											FROM #TVSTicketBets t
 												LEFT JOIN #TransidInRequest tr on tr.TransId = t.SubTransid
 											WHERE t.IsMixParlay = 0 AND tr.TransId IS NULL
-												AND NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE t.transid = rdt.transid AND rdt.RequestId = @RequestId)
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 
@@ -624,8 +623,7 @@ BEGIN
 			SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 											FROM #TVSTicketBets t
 												LEFT JOIN #TransidInRequest tr on tr.TransId = t.TransId
-											WHERE t.IsMixParlay = 1
-												AND NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_SubParlay rdt WHERE t.SubTransid = rdt.transid AND rdt.RequestId = @RequestId)
+											WHERE t.IsMixParlay = 1 AND tr.TransId IS NULL
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 		END

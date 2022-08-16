@@ -368,10 +368,9 @@ BEGIN
 											FOR XML PATH('')), 1,1,'')
 											,'')
 			
-			--Add mark when edit request
+			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 											FROM #transIdTemp t
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE t.transid = rdt.transid AND rdt.RequestId = @RequestId)
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 
