@@ -112,15 +112,15 @@
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
 	--dbo.BettransInfo
-	--INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds])
-	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds]
+	--INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
+	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
 	INTO BettransInfo_old20220825
 	FROM dbo.BettransInfo binfo WITH (NOLOCK)
 		INNER JOIN dbo.bettrans_old20220825 b WITH (NOLOCK) ON b.transid = binfo.transid
 
 	--dbo.BettransInfo14
-	--INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds])
-	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds]
+	--INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
+	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
 	INTO BettransInfo14_old20220825
 	FROM dbo.BettransInfo14 binfo WITH (NOLOCK)
 		INNER JOIN dbo.bettrans14_old20220825 b WITH (NOLOCK) ON binfo.transid = b.transid 
@@ -444,14 +444,14 @@ TRUNCATE TABLE dbo.BetParlayResult
 		--INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
 	--dbo.BettransInfo
-	INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds])
-	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds]
+	INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
+	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
 	FROM dbo.BettransInfo_old20220825 binfo WITH (NOLOCK)
 		--INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = binfo.transid
 
 	--dbo.BettransInfo14
-	INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds])
-	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds]
+	INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
+	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
 	FROM dbo.BettransInfo14_old20220825 binfo WITH (NOLOCK)
 		--INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON binfo.transid = b.transid 
 
