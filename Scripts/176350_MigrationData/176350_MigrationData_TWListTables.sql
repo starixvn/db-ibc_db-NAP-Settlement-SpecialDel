@@ -23,19 +23,19 @@
 								13. dbo.NetPositionCalculationLog
 								14. dbo.NetPositionTrans
 								15. dbo.Task_Cust_CheckBalance_Exception
+								16. dbo.Task_Cust_BalanceProblem1
 
 							 TRUNCATE for the following tables:
 								1.  dbo.Task_Cust_CheckBalanceVerify1
 								2.  dbo.NetPositionTrans_UAT
 								3.  dbo.RejectTicketLog
-								4.  dbo.Task_Cust_BalanceProblem1
-								5.  dbo.NetPositionCalculationLog_UAT
-								6.  dbo.NetPositionQueue_UAT
-								7.  dbo.CS_CustSuper
-								8.  dbo.AcceptTicketLog
-								9.  dbo.BalanceErr
-								10. dbo.CustLimitBet_QueueRetry
-								11. dbo.IntgUserLog
+								4.  dbo.NetPositionCalculationLog_UAT
+								5.  dbo.NetPositionQueue_UAT
+								6.  dbo.CS_CustSuper
+								7.  dbo.AcceptTicketLog
+								8.  dbo.BalanceErr
+								9.  dbo.CustLimitBet_QueueRetry
+								10. dbo.IntgUserLog
 
 */
 
@@ -182,6 +182,13 @@
 	INTO Task_Cust_CheckBalance_Exception_old20220825
 	FROM [dbo].[Task_Cust_CheckBalance_Exception] tce WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = tce.custid
+
+	--16. dbo.Task_Cust_BalanceProblem1
+	--There is no index on custid for table Task_Cust_BalanceProblem1, has only an index on keyID
+	SELECT tcb.[keyID], tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
+	INTO Task_Cust_BalanceProblem1_old20220825
+	FROM [dbo].[Task_Cust_BalanceProblem1] tcb WITH (NOLOCK)
+		INNER JOIN #tmp_cust tmp ON tmp.custid = tcb.custid
 	------------------------------------------------
 	DROP TABLE #tmp_cust
 
@@ -347,11 +354,20 @@ GO
 	FROM [dbo].[Task_Cust_CheckBalance_Exception_old20220825] tce WITH (NOLOCK)
 		--INNER JOIN #tmp_cust tmp ON tmp.custid = tce.custid
 
+	--16. bodb02.dbo.Task_Cust_BalanceProblem1
+	--There is no index on custid for table Task_Cust_BalanceProblem1, has only an index on keyID
+	SET IDENTITY_INSERT Task_Cust_BalanceProblem1 ON
+
+	INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([keyID], [UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
+	SELECT tcb.[keyID], tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
+	FROM [dbo].[Task_Cust_BalanceProblem1_old20220825] tcb WITH (NOLOCK)
+
+	SET IDENTITY_INSERT Task_Cust_BalanceProblem1 OFF
+
 	/*******PART 2 - TRUNCATE TABLE*******/
 	TRUNCATE TABLE [dbo].[Task_Cust_CheckBalanceVerify1]
 	TRUNCATE TABLE [dbo].[NetPositionTrans_UAT]
 	TRUNCATE TABLE [dbo].[RejectTicketLog]
-	TRUNCATE TABLE [dbo].[Task_Cust_BalanceProblem1]
 	TRUNCATE TABLE [dbo].[NetPositionCalculationLog_UAT]
 	TRUNCATE TABLE [dbo].[NetPositionQueue_UAT]
 	TRUNCATE TABLE [dbo].[CS_CustSuper]
