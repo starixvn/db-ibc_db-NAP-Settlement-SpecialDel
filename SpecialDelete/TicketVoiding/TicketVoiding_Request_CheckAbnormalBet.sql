@@ -525,7 +525,7 @@ BEGIN
 	BEGIN
 		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
-		IF @ActionId NOT IN (2)
+		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Remove transid from request => unmark ticket & re-cal ticket
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -541,7 +541,36 @@ BEGIN
 				IF @UnmarkTransIds <> ''
 					SET @UnmarkTransIds = @UnmarkTransIds + ','
 
-				SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+				SELECT @UnmarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+											FROM #validTransId v
+												LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
+											WHERE c.custid IS NOT NULL
+											FOR XML PATH('')), 1, 1, '')
+											, '')
+			END
+			ELSE
+			BEGIN
+				--Add mark when edit request
+				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+													FROM #validTransId it
+													WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE it.transid = rdt.transid AND rdt.RequestId = @RequestId)
+														  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
+													FOR XML PATH('')), 1,1,'')
+													,'')
+			END
+
+			IF @UnmarkTransIds <> ''
+			BEGIN
+				SET @IsHasWarningRemovedTickets = 1
+				
+				SELECT @RemoveTransids = @UnmarkTransIds
+			END
+		END
+		ELSE IF @ActionId <> 2 AND @OldActionId = 2
+		BEGIN
+			IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
+			BEGIN
+				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 											FROM #validTransId v
 												LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
 											WHERE c.custid IS NULL
@@ -550,13 +579,10 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-			--Add mark when edit request
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-												FROM #validTransId it
-												WHERE NOT EXISTS( SELECT TOP 1 1 FROM TicketVoiding_RequestDetailTicket_Single rdt WHERE it.transid = rdt.transid AND rdt.RequestId = @RequestId)
-													  AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = it.TransId)-- exist in # request
-												FOR XML PATH('')), 1,1,'')
-												,'')
+				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+											FROM #validTransId v
+											FOR XML PATH('')), 1, 1, '')
+											, '')
 			END
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
@@ -566,13 +592,13 @@ BEGIN
 											WHERE rdt.RequestId = @RequestId
 											FOR XML PATH('')), 1,1,'')
 											,'')
-		END
-
-		IF @UnmarkTransIds <> ''
-		BEGIN
-			SET @IsHasWarningRemovedTickets = 1
+			
+			IF @UnmarkTransIds <> ''
+			BEGIN
+				SET @IsHasWarningRemovedTickets = 1
 				
-			SELECT @RemoveTransids = @UnmarkTransIds
+				SELECT @RemoveTransids = @UnmarkTransIds
+			END
 		END
 	END
 

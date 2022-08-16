@@ -358,7 +358,7 @@ BEGIN
 	BEGIN
 		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
 
-		IF @ActionId NOT IN (2)
+		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -375,6 +375,13 @@ BEGIN
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 
+		END
+		ELSE IF @ActionId <> 2 AND @OldActionId = 2
+		BEGIN
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+									FROM #transIdTemp t
+									FOR XML PATH('')), 1, 1, '')
+									, '')
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId
 		BEGIN

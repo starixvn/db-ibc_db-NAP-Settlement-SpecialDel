@@ -405,7 +405,7 @@ BEGIN
 		IF @MarkTransIds <> ''
 				SET @MarkTransIds = @MarkTransIds + ','
 
-		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
+		SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
 											FROM #TVSTicketBets tp   
 											WHERE tp.IsMixParlay = 1 
 											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
@@ -455,7 +455,7 @@ BEGIN
 				IF @MarkTransIds <> ''
 					SET @MarkTransIds = @MarkTransIds + ','
 
-				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
+				SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 												FROM #TVSTicketBets t
 													LEFT JOIN #TransidInRequest tr on tr.TransId = t.TransId
 												WHERE t.IsMixParlay = 1
@@ -476,7 +476,7 @@ BEGIN
 				IF @MarkTransIds <> ''
 						SET @MarkTransIds = @MarkTransIds + ','
 
-				SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
+				SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
 													FROM #TVSTicketBets tp   
 													WHERE tp.IsMixParlay = 1 
 													AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
