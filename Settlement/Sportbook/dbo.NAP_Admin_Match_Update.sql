@@ -69,6 +69,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
+		- 20220719@Louisa: Update match.multiple = 1 before calcualte/refund for VSBetradar [Redmine:#175251]
 
     Parameters Explanation:
 
@@ -311,6 +312,7 @@ BEGIN
     BEGIN
         UPDATE match WITH(ROWLOCK,UPDLOCK) SET multiple=multiple, changetime = GETDATE() WHERE matchid=@MatchID
     END
+
     IF @Command = 'NAP_Admin_Settlement_135'
     BEGIN
         UPDATE dbo.match with(ROWLOCK, UPDLOCK)
@@ -468,6 +470,7 @@ BEGIN
                 ,htawayscore = @htaway
                 ,eventstatus = 'Completed'
                 ,betstatus = ''
+				,multiple	= 1
                 ,changetime = CURRENT_TIMESTAMP
                 ,settletime = CURRENT_TIMESTAMP
         WHERE   matchid = @matchid
@@ -483,6 +486,7 @@ BEGIN
                 ,finalawayscore=0
                 ,hthomescore = 0
                 ,htawayscore = 0
+				,multiple	= 1
         WHERE   matchid = @matchid
     END
     --END: 77720

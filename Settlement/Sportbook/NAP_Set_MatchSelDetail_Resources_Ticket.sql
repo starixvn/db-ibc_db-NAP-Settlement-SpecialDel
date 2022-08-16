@@ -224,16 +224,30 @@ BEGIN
 				END 
 			
 	END
-
-	IF @SportType = 43 AND  @BestOfMap IS NOT NULL
-	BEGIN
-		DELETE t
-		FROM @tmpTicketStatus t
-		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
-		WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
-	END
-
    
+   	---INSERT for Major round if not exists
+    INSERT INTO @tmpTicketStatus (ResourceID, BetCount, InWaiting, InRunning, OrdNo)
+	SELECT mr.ResourceID, 0, 0, 0, mr.OrdNo
+	FROM dbo.f_Set_MajorRound(@Sporttype) mr
+		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
+	WHERE bt.ResourceID IS NULL
+
+	IF @BestOfMap IS NOT NULL
+		BEGIN
+			DELETE t
+			FROM @tmpTicketStatus t
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
+			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
+		END
+
+	IF @BestOfMap IS NOT NULL
+		BEGIN
+			DELETE t
+			FROM @tmpTicketStatusParlay t
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
+			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
+		END
+
 	INSERT INTO @tblReturnTable (ResourceID
 			,BetCount
 			,InWaiting
@@ -255,29 +269,13 @@ BEGIN
 	FROM @tmpTicketStatus bt
 	  		FULL JOIN @tmpTicketStatusParlay p ON bt.resourceId = p.ResourceID
 
-	
-	---INSERT for Major round if not exists
-	INSERT INTO @tblReturnTable (ResourceID
-			,BetCount
-			,InWaiting
-			,InRunning
-			,BetMarkedCount
-			,BetSettledCount
-			,BetRefundedCount
-			,IsSpecialBettype
-			,OrdNo)
-	 SELECT mr.ResourceID
-			,0 AS BetCount
-			,0 AS InWaiting
-			,0 AS InRunning
-			,0 AS betMarkedCount
-			,0 AS BetSettledCount
-			,0 AS BetRefundedCount
-			,0 AS IsSpecialBettype
-			,mr.OrdNo
-	 FROM dbo.f_Set_MajorRound(@Sporttype) mr
-		LEFT JOIN @tblReturnTable r ON r.ResourceID = mr.ResourceID
-	WHERE r.ResourceId IS NULL
+	IF @SportType = 43 AND  @BestOfMap IS NOT NULL
+	BEGIN
+		DELETE t
+		FROM @tmpTicketStatus t
+		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
+		WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
+	END
 
 	 SELECT ResourceID
 			, ISNULL(IsSpecialBettype,0) AS IsSpecialBettype

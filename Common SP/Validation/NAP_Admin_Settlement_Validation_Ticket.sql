@@ -8,7 +8,8 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 	,@Mode			VARCHAR(10)
 	,@IsAuto		BIT = 0
 	--,@IsAutoRefund	BIT = 0
-	,@SPName		VARCHAR(255)
+	,@ResourceResult VARCHAR(MAX)	= NULL		--AutoPayout_Push
+	,@SPName		 VARCHAR(255)
 	,@SelectedResources	VARCHAR(MAX) = NULL
 	,@InstantKey	INT = NULL					--NAP_Admin_Settlement_1_InstantCalculation_Push
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --NAP_Admin_Settlement_Refund_MP_Push
@@ -18,11 +19,10 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
     ,@FullTimeHome  INT = NULL
     ,@FullTimeAway  INT = NULL
 	,@SDTRecord		TINYINT	= 0					--NAP_Admin_Settlement_Refund_1_Push
-	--,@IsSettleDetermined	BIT	= 0				--NAP_Admin_Settlement_Fast_Market_Auto_1s_Push
 
 	,@ErrCode		INT		= 0     OUTPUT
-	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
-	,@MatchIdsOutPut VARCHAR(500) = '' OUTPUT --for settle parlay - multiple match 
+	,@ErrMsg		NVARCHAR(300)  = ''   OUTPUT
+	,@MatchIdsOutPut VARCHAR(500) = '' OUTPUT	--for settle parlay - multiple match 
 )
 AS
 /*
@@ -96,7 +96,7 @@ SET NOCOUNT ON
 		@IsCentral = @IsCentral OUTPUT
 
 	SET @xmlResourceResult = CAST(@SelectedResources AS XML)
-	SET @xmlData		   = @SelectedResources
+	SET @xmlData		   = @ResourceResult
 
 	-----------------------------------------------------
 	
@@ -212,7 +212,7 @@ SET NOCOUNT ON
 	--End: Check is match in Queue
 
 	-- check waiting ticket
-	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action = 'CAL' AND @Mode = 'MP' )
+	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode NOT IN ( 'MP', 'INST') )
 	BEGIN
 		IF (  @SportType = 1 AND 
 				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
@@ -244,17 +244,14 @@ SET NOCOUNT ON
 			FROM	cteResource
 			FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
 		END
-		
-		ELSE
-		BEGIN
-			EXEC NAP_Admin_Settlement_Checking
-				@MatchId  = @MatchId
-				,@Action  = @Action
-				,@Mode	  = @Mode
-				,@xmlData = @xmlData
-				,@ErrCode = @ErrCode OUTPUT
-				,@ErrMsg  = @ErrMsg OUTPUT
-		END
+
+		EXEC NAP_Admin_Settlement_Checking
+			@MatchId  = @MatchId
+			,@Action  = @Action
+			,@Mode	  = @Mode
+			,@xmlData = @xmlData
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg  = @ErrMsg OUTPUT
 	
 		IF ISNULL(@ErrCode,0) <> 0
 		RETURN

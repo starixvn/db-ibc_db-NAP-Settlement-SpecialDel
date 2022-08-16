@@ -87,6 +87,14 @@ BEGIN
 
     IF @ResultTable = 3 --E-Sports only
     BEGIN
+		IF @BestOfMap IS NOT NULL
+		BEGIN
+			DELETE t
+			FROM @tblResource t
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
+			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
+		END
+
 		SELECT ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId, ResultSetting, OrdNo
 		FROM (
 			SELECT  ISNULL(tbl.RefResourceId, tbl.ResourceID ) AS ResourceId
