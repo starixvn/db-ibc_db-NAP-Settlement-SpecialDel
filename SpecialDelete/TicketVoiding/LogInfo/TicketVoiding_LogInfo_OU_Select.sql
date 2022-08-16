@@ -47,6 +47,7 @@ BEGIN
 			IsMixParlay           BIT DEFAULT(0),
 			matchid               INT,
 			StatusId			  TINYINT,
+			SubStatusId			  TINYINT,
 			SubIssueTypeId		  SMALLINT
 	)
 
@@ -325,6 +326,7 @@ BEGIN
 			,betdaqid	
 			,matchid
 			,StatusId
+			,SubStatusId
 			,SubIssueTypeId
 		)
 	SELECT  b.transid
@@ -338,6 +340,7 @@ BEGIN
 			,b.betdaqid
 			,b.matchid
 			,b.statusID
+			,b.SubstatusID
 			,d.SubIssueTypeId
 	FROM #tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
@@ -372,6 +375,7 @@ BEGIN
 				,IsMixParlay
 				,matchid
 				,StatusId
+				,SubStatusId
 				,SubIssueTypeId
 			)
 		SELECT  b.transid
@@ -385,6 +389,7 @@ BEGIN
 				,1 AS IsMixParlay
 				,b.matchid
 				,b.statusID
+				,b.SubstatusID
 				,d.SubIssueTypeId
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
@@ -564,7 +569,7 @@ BEGIN
 		--Mark ticket when add request
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
 											FROM #TVSTicketBets tp   
-											WHERE tp.IsMixParlay = 0 
+											WHERE tp.IsMixParlay = 0 AND tp.StatusId IN (0,1)
 											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)-- exist in # request
 											FOR XML PATH('')), 1,1,'')
 										,'')
@@ -572,9 +577,9 @@ BEGIN
 		IF @MarkTransIds <> ''
 				SET @MarkTransIds = @MarkTransIds + ','
 
-		SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
+		SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50)) 
 											FROM #TVSTicketBets tp   
-											WHERE tp.IsMixParlay = 1 
+											WHERE tp.IsMixParlay = 1 AND tp.SubStatusId IN (0,1)
 											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
 											FOR XML PATH('')), 1,1,'')
 										,'')
@@ -610,20 +615,20 @@ BEGIN
 										,'')
 
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-											FROM #TVSTicketBets t
-												LEFT JOIN #TransidInRequest tr on tr.TransId = t.SubTransid
-											WHERE t.IsMixParlay = 0 AND tr.TransId IS NULL
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50))
+											FROM #TVSTicketBets tp
+												LEFT JOIN #TransidInRequest tr on tr.TransId = tp.transid
+											WHERE tp.IsMixParlay = 0 AND tr.TransId IS NULL AND tp.StatusId IN (0,1)
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 
 			IF @MarkTransIds <> ''
 				SET @MarkTransIds = @MarkTransIds + ','
 
-			SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-											FROM #TVSTicketBets t
-												LEFT JOIN #TransidInRequest tr on tr.TransId = t.TransId
-											WHERE t.IsMixParlay = 1 AND tr.TransId IS NULL
+			SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50))
+											FROM #TVSTicketBets tp
+												LEFT JOIN #TransidInRequest tr on tr.TransId = tp.SubTransid
+											WHERE tp.IsMixParlay = 1 AND tr.TransId IS NULL AND tp.SubStatusId IN (0,1)
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 		END
@@ -632,7 +637,7 @@ BEGIN
 			--Mark ticket when add request
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
 												FROM #TVSTicketBets tp   
-												WHERE tp.IsMixParlay = 0 
+												WHERE tp.IsMixParlay = 0 AND tp.StatusId IN (0,1)
 												AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)-- exist in # request
 												FOR XML PATH('')), 1,1,'')
 											,'')
@@ -640,9 +645,9 @@ BEGIN
 			IF @MarkTransIds <> ''
 					SET @MarkTransIds = @MarkTransIds + ','
 
-			SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
+			SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50)) 
 												FROM #TVSTicketBets tp   
-												WHERE tp.IsMixParlay = 1 
+												WHERE tp.IsMixParlay = 1 AND tp.SubStatusId IN (0,1)
 												AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
 												FOR XML PATH('')), 1,1,'')
 											,'')
