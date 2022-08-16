@@ -22,7 +22,7 @@ AS
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member), 13 - Abnormal account
-		+ @MatchInfo : <root><r matchid="1,2,3" sporttype ="" /></root>
+		+ @MatchInfo : <root><r matchid="1,2,3" sporttype =""/></root>
 		+ @TransIds: apply for issuetype (11,15)
 */
 BEGIN
@@ -40,7 +40,7 @@ BEGIN
 	SET @MatchInfoXML = CONVERT(XML, @MatchInfo)
 	INSERT INTO #tmpMatchId (matchId, sporttype)
 	SELECT t.c.value('@matchid','INT') AS matchId	
-		  ,t.c.value('@sporttype','BIGINT') AS sporttype
+		  ,t.c.value('@sporttype','SMALLINT') AS sporttype
 	FROM @MatchInfoXML.nodes('root/r') t(c)	
 	OPTION (OPTIMIZE FOR (@MatchInfoXML = NULL))
 
@@ -84,36 +84,6 @@ BEGIN
 				  , sporttype
 				  , @BroadcastSessionId
 			FROM #tmpMatchId
-		END
-		-- Abnormal Bet - Mixparlay ticket
-		IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
-		BEGIN
-			IF @IsEditRequest = 0 --Insert
-			BEGIN
-				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
-				SELECT @RequestId, matchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', sporttype, @BroadcastSessionId
-				FROM #tmpMatchId 
-			END
-			ELSE 
-			BEGIN
-				--Re-insert ticket the deleted ticket
-				UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK, UPDLOCK)
-				SET StatusId = 99, ErrMsg = NULL
-				WHERE RequestId = @RequestId AND StatusId = 4
-					AND MatchId IN (SELECT MatchId FROM #tmpMatchId )
-
-				--Remove ticket
-				UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue WITH(ROWLOCK, UPDLOCK)
-				SET StatusId = 4, ErrMsg = 'Remove Mix-parlay ticket from action Auto Void Winning'
-				WHERE RequestId = @RequestId 
-					AND MatchId NOT IN (SELECT MatchId FROM #tmpMatchId )
-			
-				--Insert new ticket
-				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
-				SELECT @RequestId, t.MatchId, 'MixParlay', 99, 10278938, GETDATE(), '125.227.140.97', t.sporttype, @BroadcastSessionId
-				FROM #tmpMatchId t
-				WHERE  MatchId NOT IN (SELECT MatchId FROM TicketVoiding_AutoVoidRequest_Queue (NOLOCK) WHERE RequestId = @RequestId)
-			END
 		END
 	END
 

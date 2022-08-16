@@ -83,7 +83,6 @@ BEGIN
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @Matchinfo_tmp AS TABLE (matchid INT, sporttype SMALLINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 				
 	INSERT INTO @bettype_tmp (bettype)
@@ -391,26 +390,6 @@ BEGIN
 	BEGIN
 		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @sporttype AS "@sporttype"  FOR XML PATH('r'), ROOT('root'))
 	END
-	ELSE IF @FilterBy = 1 AND @MatchId IS NULL
-	BEGIN
-		INSERT INTO @Matchinfo_tmp (matchid, sporttype)
-		SELECT DISTINCT s.submatchId 
-					   ,b.sporttype 
-		FROM #validTransId t
-			CROSS APPLY (
-					SELECT value AS submatchId
-					FROM STRING_SPLIT (t.SubMatchIdList,',')
-			)s
-			LEFT JOIN dbo.match b ON t.matchid = b.matchid 
-		WHERE SubMatchIdList IS NOT NULL AND t.matchid = 29
-
-		SET @MatchInfo = (
-				SELECT t.matchid AS "@matchid"
-					,t.sporttype AS "@sporttype"
-				FROM @Matchinfo_tmp t
-				FOR XML PATH('r'), ROOT('root'))
-	END
-	
 	-- invalid transId
 	;WITH t_invalid
 	AS (
@@ -679,7 +658,8 @@ BEGIN
 			,b.betid 
 			,b.statuswinlost 
 			,b.IsMixParlay 
-			,b.SiteDBGroupID 
+			,b.SiteDBGroupID
+			,t.SubMatchIdList
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 

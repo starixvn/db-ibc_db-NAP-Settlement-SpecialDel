@@ -43,8 +43,8 @@ BEGIN
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
 			,@RequestDetailId	 INT
 
-	CREATE TABLE #transid_tmp (transid BIGINT, bettype SMALLINT, StatusId INT, statuswinlost TINYINT, refno BIGINT, matchid INT, IsMixParlay BIT)
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tmpMatchId (Submatchid INT, Maintransid BIGINT)
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
@@ -56,6 +56,7 @@ BEGIN
 	  ,betteam NVARCHAR(10)
       ,betid BIGINT
 	  ,statuswinlost TINYINT
+	  ,SubMatchIdList	VARCHAR(2000)
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
@@ -81,6 +82,7 @@ BEGIN
 			,t.c.value('@bteam','NVARCHAR(10)') AS betteam
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
+			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)
@@ -99,11 +101,6 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> ''
 
-	INSERT INTO #transid_tmp (transid, bettype, StatusId, statuswinlost, refno, matchid, IsMixParlay)
-	SELECT t.transid, b.bettype, b.statusID, b.statuswinlost, b.refno, b.matchid, b.IsMixParlay
-	FROM #transIdTemp t
-		INNER JOIN #tmpTransInfo b ON t.transid = b.transid
-		
 	IF @IsEditRequest = 0 
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
@@ -151,6 +148,38 @@ BEGIN
 	BEGIN
 		DELETE dbo.TicketVoiding_RequestDetailTicket_Single 
 		WHERE RequestId = @RequestId
+	END
+
+	-- Abnormal Bet - Mixparlay ticket
+	IF @ActionId = 1 AND @IssueTypeId = 11 AND @FilterBy = 1
+	BEGIN
+		INSERT INTO #tmpMatchId (Submatchid, Maintransid)
+		SELECT s.submatchId, t.transid AS maintransid
+		FROM #tmpTransInfo t
+		CROSS APPLY (
+						SELECT value AS submatchId
+						FROM STRING_SPLIT (t.SubMatchIdList,',')
+				)s
+
+		IF @IsEditRequest = 0 --Insert
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
+			SELECT @RequestId, Submatchid, maintransid
+			FROM #tmpMatchId 
+		END
+		ELSE 
+		BEGIN
+			--Remove ticket
+			DELETE dbo.TicketVoiding_RequestDetail_MixParlay 
+			WHERE RequestId = @RequestId 
+				AND matchId NOT IN (SELECT matchId FROM #tmpMatchId)
+			
+			--Insert new ticket
+			INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
+			SELECT @RequestId, t.Submatchid, t.maintransid
+			FROM #tmpMatchId t
+			WHERE  Submatchid NOT IN (SELECT matchId FROM TicketVoiding_RequestDetail_MixParlay (NOLOCK) WHERE RequestId = @RequestId)
+		END
 	END
 
 	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
@@ -210,7 +239,6 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 	
 	DROP TABLE #transIdTemp
-	DROP TABLE #transid_tmp
 	DROP TABLE #tmpTransInfo
 	
 END
