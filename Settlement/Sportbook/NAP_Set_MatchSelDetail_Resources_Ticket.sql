@@ -232,16 +232,13 @@ BEGIN
 		LEFT JOIN @tmpTicketStatus bt ON bt.ResourceID = mr.ResourceID
 	WHERE bt.ResourceID IS NULL
 
-	IF @BestOfMap IS NOT NULL
+	IF @SportType = 43 AND @BestOfMap IS NOT NULL
 		BEGIN
 			DELETE t
 			FROM @tmpTicketStatus t
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
 			WHERE mr.OrdNo > @BestOfMap AND mr.ResourceID <> '00'
-		END
 
-	IF @BestOfMap IS NOT NULL
-		BEGIN
 			DELETE t
 			FROM @tmpTicketStatusParlay t
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) mr ON mr.ResourceID = t.ResourceID
