@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" IsNested="1"></info>*/
-ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Event  
+ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Event_UAT1 
 (
 	 @matchid		INT = 0
 	,@Action		VARCHAR(10)
@@ -520,6 +520,28 @@ BEGIN
 		FROM @tblFM_Data t
 		WHERE	t.bettype IN (228, 229)
 				AND (ResultStatus IN (0,3,4,5,6,7) OR t.ResultStatus IS NULL OR t.BetOption IS NULL)
+		GROUP BY t.bettype
+
+		-- No Result, UNDO, CAL (manually), REFUND
+		SELECT @subErrMsg = @subErrMsg + 'Bettype: ' + CAST(t.bettype AS VARCHAR) 
+			+ ', Interval: ' + STUFF((SELECT ',' + CAST(Position AS VARCHAR) + '-'
+						+ CASE
+							WHEN ResultStatus = 3 THEN 'Undo'
+							WHEN ResultStatus = 5 THEN 'Manually Settled'
+							WHEN ResultStatus = 6 THEN 'Refunded'
+							WHEN ResultStatus = 7 THEN 'Refunded SDT'
+							WHEN BetOption = 0 THEN 'No KeyedIn'
+						END
+				FROM @tblFM_Data
+				WHERE t.bettype = bettype	
+					 AND (ResultStatus IN (0,3,5,6,7)
+						OR BetOption = 0
+					)
+				FOR XML PATH ('')),1,1,'')
+			+ '</br>'
+		FROM @tblFM_Data t
+		WHERE	t.ResultStatus IN (3,5,6,7) OR t.BetOption = 0
+				AND t.bettype NOT IN (228, 229)
 		GROUP BY t.bettype
 		
 		IF ISNULL(@subErrMsg,'') <> ''
