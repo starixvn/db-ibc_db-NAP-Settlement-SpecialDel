@@ -645,7 +645,7 @@ BEGIN
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund-HT' */
 
-    ELSE IF @Command = 'NAP_Admin_Settlement_1_InstantCalculation-CAL'
+    ELSE IF @Command = 'CalByResourceId'
     BEGIN
         IF @ResourceResult IS NULL
             RETURN
@@ -692,8 +692,7 @@ BEGIN
                     ,GETDATE()
                 );   
     END
-    /* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-CAL' */
-    ELSE IF @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO'
+    ELSE IF @Command = 'UndoByResouceId'
     BEGIN
         UPDATE  r  WITH (UPDLOCK,ROWLOCK)
         SET     HomeValue           = NULL
@@ -707,7 +706,6 @@ BEGIN
                 ON  r.ResourceID = t.ResourceID
         WHERE   r.MatchID = @MatchID
     END
-	/* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO' */
 	ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO'
     BEGIN
         UPDATE ResultDetail WITH (UPDLOCK,ROWLOCK)

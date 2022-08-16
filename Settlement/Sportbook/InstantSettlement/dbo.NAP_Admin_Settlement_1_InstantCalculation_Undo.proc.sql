@@ -68,8 +68,7 @@ BEGIN
 		, @InstantKeyValue				VARCHAR(50)
 		, @livehomescore				TINYINT
 		, @liveawayscore				TINYINT
-		, @FGLGCheck					TINYINT
-		--CornerBettype
+		
 		,@ChildMatchType		TINYINT
 		,@CornerResultString	NVARCHAR(MAX)
 		,@Char					VARCHAR(1)
@@ -83,8 +82,6 @@ BEGIN
 		,@ResourceResult_CornerRace NVARCHAR(MAX) = ''
 		,@NeitherRaceTo			TINYINT
 		,@IsCentral				BIT
-		,@HTBetStatus			NVARCHAR(50) = ''
-		,@FTBetStatus			NVARCHAR(50) = ''
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -96,7 +93,6 @@ BEGIN
 	DECLARE @instantBettype TABLE (bettype SMALLINT)
 
 	SELECT @start					= CURRENT_TIMESTAMP
-		, @FGLGCheck				= 0
 		, @InstantKeyValue			= CAST(@InstantKey AS VARCHAR(50))
 		, @ticketCount				= 0
 		, @TotalAccount				= 0 
@@ -426,10 +422,6 @@ BEGIN
 		RETURN
 	END CATCH
 	
-	-- UPDATE match betstatus
-	--SELECT @FGLGCheck 		= MAX(CASE WHEN bettype = 127 AND RIGHT(betteam, 1) IN ('0', '1' ) THEN 1 ELSE 0 END)
-	--	, @FGLGCheck 		+= MAX(CASE WHEN bettype = 14 AND RIGHT(betteam, 1) IN ('0', '1' ) THEN 2 ELSE 0 END)	
-	--FROM #tempUndoTickets 
 	IF @ChildMatchType = 204 
 	BEGIN
 		IF @ResourceResult IS NOT NULL
@@ -440,53 +432,6 @@ BEGIN
 					@ResourceResult	= @ResourceResult,                    
 					@creator        = @creator	
 		END
-	END
-	ELSE
-	BEGIN
-		;WITH cteFGLGTicket
-		AS
-		(
-			SELECT	MAX(CASE WHEN bettype = 127 AND statusID BETWEEN 112 AND 113 AND RIGHT(betteam,1) = '1' THEN 1 ELSE 0 END) AS HasSettledHTFGLGTicket
-					,MAX(CASE WHEN bettype = 14 AND statusID BETWEEN 112 AND 113 AND RIGHT(betteam,1) = '1' THEN 1 ELSE 0 END) AS HasSettledFTFGLGTicket
-					,SUM(CASE WHEN bettype = 127 THEN 1 ELSE 0 END) CntHTFGLG				
-					,SUM(CASE WHEN bettype = 14 THEN 1 ELSE 0 END) CntFTFGLG
-			FROM	dbo.bettrans WITH (NOLOCK)
-			WHERE	matchid = @MatchId
-					AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
-			GROUP BY matchid
-		)
-		SELECT @FGLGCheck = CASE
-								WHEN @Mode = 'INST-HT' 
-									THEN CASE 
-											WHEN HasSettledHTFGLGTicket = 1 OR HasSettledFTFGLGTicket = 1 THEN 0
-											WHEN CntHTFGLG > 0 AND CntFTFGLG > 0 THEN 3
-											WHEN CntFTFGLG > 0 THEN 2
-											WHEN CntHTFGLG > 0 THEN 1
-											ELSE 0
-										END
-								ELSE CASE	-- 'INST-FT'
-										WHEN HasSettledFTFGLGTicket = 1 THEN 0
-										WHEN CntFTFGLG > 0 THEN 2
-										ELSE 0
-									END
-							END
-		FROM	cteFGLGTicket
-
-		IF @FGLGCheck > 0
-		BEGIN
-			SELECT @HTBetStatus = ''
-			WHERE @FGLGCheck & 1 <> 1
-
-			SELECT @FTBetStatus = ''
-			WHERE @FGLGCheck & 2 <> 2
-
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_Match_Update
-				@Command         = 'NAP_Admin_Settlement_1_InstantCalculation-Undo'
-				,@MatchID        = @matchid
-				,@creator        = @Creator
-				,@HTBetStatus	 = @HTBetStatus
-				,@FTBetStatus	 = @FTBetStatus
-		END	
 	END
 	
 	--capture balance after

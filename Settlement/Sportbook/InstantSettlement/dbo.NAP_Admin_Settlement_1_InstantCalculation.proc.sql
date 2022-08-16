@@ -83,10 +83,7 @@ BEGIN
 		, @toTransId					BIGINT
 		, @FGNG							VARCHAR(50)
 		, @GoalRecord					VARCHAR(50)
-		, @InstKeyValue					VARCHAR(50)
-		, @FGLGCheck					TINYINT
-		, @FLValue 						VARCHAR(50)
-		, @betstatusOld					VARCHAR(50)
+		, @InstKeyValue					VARCHAR(50)		
 		, @Source						VARCHAR(50) = 'Soccerway'
 		, @strTransCashout VARCHAR (MAX)
 		--CornerBettype
@@ -103,8 +100,6 @@ BEGIN
 		,@ResourceResult_CornerRace NVARCHAR(MAX) = ''
 		,@NeitherRaceTo			TINYINT
 		,@IsCentral			BIT
-		,@HTBetStatus			NVARCHAR(50) = ''
-		,@FTBetStatus			NVARCHAR(50) = ''
 		
 	DECLARE @BalanceWalletBefore 			TVP_BalanceWalletChange
 		, @BalanceWalletAfter				TVP_BalanceWalletChange
@@ -162,7 +157,6 @@ BEGIN
 		, @isExistMatch			= 1
 		, @hScore					= CAST(@HomeScore AS INT)
 		, @aScore					= CAST(@AwayScore AS INT)
-		, @FGLGCheck				= 0
 
 	-- check match validation
 	SELECT @sporttype 		= m.sporttype
@@ -187,7 +181,6 @@ BEGIN
 						  ELSE ''
 					  END 
 		, @FGNG		= CASE WHEN @FGNG <> '' THEN @FGNG + ':1' ELSE '' END
-		, @FGLGCheck	= 0
 	
 	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
 	@MatchId	= @Matchid
@@ -672,60 +665,7 @@ BEGIN
 				@ResourceResult	= @ResourceResult,                    
 				@creator        = @creator
 	END
-	ELSE
-	BEGIN
-		;WITH cteFGLGTicket
-		AS
-		(
-			SELECT	MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END) AS HasSettledHTFGLGTicket
-					,MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END) AS HasSettledFTFGLGTicket
-			FROM	dbo.bettrans WITH (NOLOCK)
-			WHERE	matchid = @MatchId
-					AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
-					AND bettype IN (14, 127)
-					AND statusId BETWEEN 112 AND 113
-			GROUP BY matchid
-		)
-		SELECT @FGLGCheck = CASE
-								WHEN @Mode = 'INST-HT' 
-									THEN CASE 
-											WHEN HasSettledHTFGLGTicket = 1 AND HasSettledFTFGLGTicket = 1 THEN 3
-											WHEN HasSettledFTFGLGTicket = 1 THEN 2
-											WHEN HasSettledHTFGLGTicket = 1 THEN 1
-											ELSE 0
-										END
-								ELSE CASE	-- 'INST-FT'
-										WHEN HasSettledFTFGLGTicket = 1 THEN 2
-										ELSE 0
-									END
-							END
-		FROM	cteFGLGTicket
-		
-		--UPDATE back to match's betstatus
-		IF(@FGLGCheck > 0) -- The first time to do IS
-		BEGIN
-			--SET betstatus
-			SELECT @betstatus	= ISNULL(@betstatus,'')
-				,@FLValue		= CASE 
-									WHEN LEFT(@GoalRecord, 1) = 'H' THEN '1-0;'  
-									WHEN LEFT(@GoalRecord, 1) = 'A' THEN '2-0;'  
-								END
-
-			SELECT @HTBetStatus = '1FL:' + @FLValue
-			WHERE @FGLGCheck & 1 = 1
-				
-			SELECT @FTBetStatus = 'FL:' + @FLValue 
-			WHERE @FGLGCheck & 2 = 2
-
-			EXEC DBPRO.bodb02.dbo.NAP_Admin_Match_Update 
-				@Command         = 'NAP_Admin_Settlement_1-InstantCalculation'
-				,@MatchID        = @matchid
-				,@creator        = @Creator
-				,@HTBetStatus 	 = @HTBetStatus
-				,@FTBetStatus	 = @FTBetStatus
-		END
-	END
-	--SET @TotalAccount_Updated
+	
 	SELECT @TotalAccount 		= COUNT(1)
 		, @TotalAccount_Updated = SUM(CASE WHEN acc.IsUpdated = 1 THEN 1 ELSE 0 END)
 	FROM (

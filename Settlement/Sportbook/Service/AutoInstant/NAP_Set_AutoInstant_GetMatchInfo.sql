@@ -54,7 +54,9 @@ BEGIN
 					   , InstantKey				INT
 					   , PreviousHomeScore		VARCHAR(50)
 					   , PreviousAwayScore		VARCHAR(50)
-					   , GoalRecord				VARCHAR(50))
+					   , GoalRecord				VARCHAR(50)
+					   , betstatus				NVARCHAR(50)
+					  )
 
 	CREATE TABLE #FGLG (MatchID					 INT
 				  , IsExistFGNG				 BIT
@@ -65,7 +67,7 @@ BEGIN
 						 , IsInstCalculated	 BIT)
 
 	   --Match Info
-	   INSERT INTO #Match_Info (MatchID, AutoSetting, SettlementStatus, IsCalculatedHT, TypeID, CurrentHomeScore, CurrentAwayScore, HTHomescore, HTAwayscore, PreviousHomeScore, PreviousAwayScore, InstantKey, GoalRecord)
+	   INSERT INTO #Match_Info (MatchID, AutoSetting, SettlementStatus, IsCalculatedHT, TypeID, CurrentHomeScore, CurrentAwayScore, HTHomescore, HTAwayscore, PreviousHomeScore, PreviousAwayScore, InstantKey, GoalRecord, betstatus)
 	   SELECT  @MatchId
 			, ISNULL(m.AutoSetting, l.AutoSetting)
 			, m.SettlementStatus
@@ -79,7 +81,7 @@ BEGIN
 			, ISNULL(p.AwayValue, 0) AS PreviousAwayScore
 			, p.ProviderResultDetailID AS InstantKey
 			, ISNULL(pr.HomeValue, '') AS GoalRecord
-	   
+			, m.betstatus
 	   FROM dbo.Match m WITH (NOLOCK)
 		   INNER JOIN dbo.Match_Remark mr WITH (NOLOCK)
 				ON m.MatchID = mr.MatchID
@@ -166,12 +168,13 @@ BEGIN
 		, m.IsCalculatedHT			
 		, CAST(ISNULL(n.IsCalculatedFT, 0) AS BIT) AS IsCalculatedFT
 		, CAST(ISNULL(n.IsInstCalculated, 0) AS BIT) AS IsInstCalculated
+		, m.betstatus
 	FROM #Match_Info m
 	LEFT JOIN #Match_Status n ON m.MatchID = n.MatchID
 
 
-DROP TABLE #match_info
-DROP TABLE #Match_Status
+	DROP TABLE #match_info
+	DROP TABLE #Match_Status
 
 END
 GO

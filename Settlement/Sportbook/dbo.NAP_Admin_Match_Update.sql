@@ -439,52 +439,25 @@ BEGIN
                 ,finalawayscore=0
         WHERE   matchid = @matchid
     END
-    IF (
-        @Command = 'NAP_Admin_Settlement_1-InstantCalculation'
-        OR @Command = 'NAP_Admin_Settlement_1_InstantCalculation-Undo'
-    )
+	
+    IF @Command = 'instant'
     BEGIN
 
-        SELECT @Sporttype   = sporttype				
+        SET @betstatus = ISNULL(@betstatus, '')
+
+        SELECT @Sporttype   = sporttype
         FROM dbo.match WITH(NOLOCK)
         WHERE matchid = @matchid
 
         IF @sporttype =  1
         BEGIN
-            UPDATE m
-				SET betstatus   = s.betstatus
-					,changetime = GETDATE()
-			FROM	dbo.match m WITH(ROWLOCK,UPDLOCK)
-				CROSS APPLY (
-					SELECT CAST (
-									(
-										SELECT	CASE 
-													WHEN t.part = 2 AND s.value IS NULL then @htbetstatus + ';'
-													WHEN t.part = 3 AND s.value is null then @ftbetstatus
-													ELSE CASE WHEN ISNULL(s.value,'') = '' THEN '' ELSE s.value  + ';' END
-												END
-										FROM	(VALUES (1),(2),(3)) AS t (part)
-											OUTER APPLY (
-												SELECT	CASE 
-															WHEN CHARINDEX('1FL',value) > 0 THEN 2
-															WHEN CHARINDEX('FL',value) > 0 THEN 3
-															ELSE 1
-														END AS pos	
-														,value
-												FROM	STRING_SPLIT(m.betstatus, ';')
-												WHERE	t.part = CASE 
-																	WHEN CHARINDEX('1FL',value) > 0 THEN 2
-																	WHEN CHARINDEX('FL',value) > 0 THEN 3
-																	ELSE 1
-																END
-											) s
-										FOR XML PATH('')
-								) AS VARCHAR (50)
-							)  betstatus
-				)s
-            WHERE	m.matchid   = @MatchID
+            UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
+            SET betstatus   = @betstatus
+				,changetime = GETDATE()
+            WHERE matchid   = @MatchID
         END
     END
+
     --BEGIN: 77720 - Implement BetRadar VS
     IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-CAL'
     BEGIN

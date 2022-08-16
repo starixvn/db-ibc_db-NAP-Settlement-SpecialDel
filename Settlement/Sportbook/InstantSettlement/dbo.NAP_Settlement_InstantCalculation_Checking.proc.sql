@@ -37,6 +37,7 @@ BEGIN
 	
 	DECLARE @matchcode		VARCHAR(30)
 		, @leagueid			INT
+		, @betstatus		NVARCHAR(50)
 		, @totalGoal		TINYINT
 		, @totalGoalCheck	TINYINT
 		, @goalRecordCheck	VARCHAR(50)
@@ -129,6 +130,7 @@ BEGIN
     SELECT 
 		@matchcode 			= m.matchcode
 		, @leagueid   		= m.leagueid
+		, @betstatus		= m.betstatus
 		--, @isPending		= ISNULL(mr.isPending, 0)
 		--, @isUnDecided		= ISNULL(mr.isUnDecided, 0)
 		, @SettlementStatus	= ISNULL(m.SettlementStatus, 0)
@@ -368,5 +370,6 @@ BEGIN
 			,ISNULL(@GoalRecord,'') AS GoalRecord
 			,ISNULL(@IsExistsFG,0) AS IsExistsFG
 			,ISNULL(@IsExistsHTFG,0) AS IsExistsHTFG
+			,@betstatus AS betstatus
 END
 GO

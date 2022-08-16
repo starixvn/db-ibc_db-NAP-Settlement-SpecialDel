@@ -59,6 +59,7 @@ BEGIN
 			,@refundCommand VARCHAR(100)
 			,@undoCommand	VARCHAR(100)
 			,@refundCommand_1s VARCHAR(100)
+			,@instcommand	VARCHAR(100)
 			,@IsRefundHT	BIT
 			,@IsSettleByProfile	BIT
 			,@existsFinalRound	BIT
@@ -194,6 +195,7 @@ BEGIN
 	
 		RETURN
 	END
+
 	IF @Mode = 'BB'
 	BEGIN
 		SET @ResultStatusID = CASE 
@@ -238,21 +240,31 @@ BEGIN
 		RETURN
 	END
 
+	IF @Mode LIKE 'INST%' AND  @ResourceResult IS NOT NULL	
+	BEGIN
+		SET @instcommand = CASE 
+								WHEN @Action = 'CAL' THEN 'CalByResourceId'
+								WHEN @Action = 'UNDO' THEN 'UndoByResouceId'
+								ELSE ''
+							END
+
+		EXEC dbo.NAP_Admin_Result_Update_1s
+			@Command        = @instcommand,
+			@MatchID        = @MatchID,                  
+			@ResourceResult	= @ResourceResult,                    
+			@creator        = @AdminId
+
+		EXEC dbo.NAP_Admin_Match_Update 
+			@Command         = 'instant'
+			,@MatchID        = @matchid
+			,@creator        = @AdminId
+			,@BetStatus 	 = @betstatus
+
+		RETURN
+	END
+
 	IF @Action LIKE 'CAL%' 
 	BEGIN
-		IF @Mode LIKE 'INST%'
-		BEGIN
-			-- cal instant
-			IF @ResourceResult IS NOT NULL	
-				EXEC dbo.NAP_Admin_Result_Update_1s
-					@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL',
-					@MatchID        = @MatchID,                  
-					@ResourceResult	= @ResourceResult,                    
-					@creator        = @AdminId
-
-			RETURN
-		END
-
 		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL) -- soccer main
 			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal soccer pingoal manually
 			OR @IsSettleByProfile = 0
@@ -355,21 +367,9 @@ BEGIN
 				,@IsDirectly			= @IsDirectly
 				,@IsAuto				= @IsAuto
 		END
-
 	END
 	ELSE IF @Action LIKE 'UNDO%'
 	BEGIN
-		IF @Mode LIKE 'INST%'
-		BEGIN
-			EXEC dbo.NAP_Admin_Result_Update_1s
-				@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO',
-				@MatchID        = @MatchID,                  
-				@ResourceResult	= @ResourceResult,                    
-				@creator        = @AdminId	
-
-			RETURN
-		END
-
 		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
 			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
 			OR @IsSettleByProfile = 0
