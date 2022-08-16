@@ -2,13 +2,10 @@
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_MP_Ticket
 (
 	 @matchids		VARCHAR(4000) = ''
-	,@matchid		INT			 = 0
 	,@Action		VARCHAR(10)
-	,@Mode			VARCHAR(10)
 	,@ErrCode		INT		= 0				OUTPUT
 	,@ErrMsg		NVARCHAR(500)  = ''		OUTPUT
 	,@MatchIdsValid VARCHAR(500) = ''		OUTPUT
-	,@MatchIdsInValid	VARCHAR(500) = ''	OUTPUT
 )
 AS
 /*
@@ -20,7 +17,7 @@ AS
 		- 20220719@Louisa: Validation before call SP MP_Push  [Redmine:#175251]
 
 	Param's Explanation:
-		@Action:  REFUND-FT, REFUND, CAL
+		@Action:  CAL, UNDO
 */
 
 BEGIN

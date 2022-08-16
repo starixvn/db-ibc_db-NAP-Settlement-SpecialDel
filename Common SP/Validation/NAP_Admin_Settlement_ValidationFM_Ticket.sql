@@ -6,7 +6,6 @@ ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Ticket
 	,@IsAuto		BIT = 0
 	,@SelectedResources		VARCHAR(MAX) = NULL
 	,@IsSettleDetermined	BIT	= 0
-	,@SPName				VARCHAR(255)
 	,@ErrCode				INT		= 0     OUTPUT
 	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
 )
@@ -83,7 +82,7 @@ BEGIN
 	SET @xmlResourceResult = CONVERT(XML, @SelectedResources)
 	
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName		= @SPName
+		@SPName		= 'NAP_Admin_Settlement_Fast_Market_Auto_1s_Push'
 		,@WaitingTime = @WaitingTime OUTPUT
 		,@IsWaiting = @IsWaiting OUTPUT
 		,@ErrCode	= @ErrCode OUTPUT

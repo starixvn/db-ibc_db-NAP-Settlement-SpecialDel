@@ -2,9 +2,7 @@
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_MP
 (
 	 @matchids		VARCHAR(4000) = ''
-	,@matchid		INT			 = 0
 	,@Action		VARCHAR(10)
-	,@Mode			VARCHAR(10)
 	,@ErrCode		INT		= 0				OUTPUT
 	,@ErrMsg		NVARCHAR(500)  = ''		OUTPUT
 	,@MatchIdsValid VARCHAR(500) = ''		OUTPUT
@@ -20,7 +18,7 @@ AS
 		- 20220719@Louisa: Validation before call SP MP_Push  [Redmine:#175251]
 
 	Param's Explanation:
-		@Action:  REFUND-FT, REFUND, CAL
+		@Action:  CAL, UNDO
 
 */
 
@@ -49,7 +47,7 @@ SET NOCOUNT ON
 	WHERE m.SettlementStatus & 87 > 0
 
 	DELETE FROM #tblValidMatch
-	OUTPUT deleted.matchid
+	OUTPUT deleted.matchid, deleted.matchcode
 	INTO #tblInValidMatch
 	WHERE	SettlementStatus & 87 > 0
 
@@ -63,10 +61,10 @@ SET NOCOUNT ON
 								END					
 		END
 
-	SELECT @MatchIdsInValid =  @MatchIdsInValid + ',' + Matchid FROM #tblInValidMatch
+	SELECT @MatchIdsInValid =  @MatchIdsInValid + ',' + CAST(Matchid AS VARCHAR(50) ) FROM #tblInValidMatch
 	SET @MatchIdsValid = SUBSTRING(@MatchIdsValid, 2, LEN(@MatchIdsValid))
 
-	SELECT @MatchIdsValid =  @MatchIdsValid + ',' + Matchid FROM #tblValidMatch
+	SELECT @MatchIdsValid =  @MatchIdsValid + ',' + CAST(Matchid AS VARCHAR(50) ) FROM #tblValidMatch
 	SET @MatchIdsValid = SUBSTRING(@MatchIdsValid, 2, LEN(@MatchIdsValid))
 
 END
