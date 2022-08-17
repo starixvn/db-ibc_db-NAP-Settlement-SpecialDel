@@ -75,14 +75,14 @@
 								[matchid], [recommend], [mrecommend], [ruben], [betid], [statuswinlost], [modds], [bettype], [betdaqid], [actual_stake], [currency], 
 								[ip], [transdesc], [sdiscount], [scomm], [spositiontaking], [swinlost], [srecommend], [Username], [CurrencyName], [virtualrate], [oddstype], 
 								[statusID], [currency2], [balance], [SecAcceptFlag], [transid2], [recommdate], [ExtraInfo], [WalletType], [BonusID], [RefCode], [SettlementTime],
-								[epositiontaking], [ReasonID], [sort], [BetSiteID], [RepUpdateTime], [SiteDBGroupID], [FcUpdateTime])
+								[epositiontaking], [ReasonID], [sort], [BetSiteID], [RepUpdateTime], b.[RepDstUpdateTime], [SiteDBGroupID], [FcUpdateTime])
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], b.[odds], b.[stake], b.[status], b.[winlost], b.[awinlost], b.[mwinlost], b.[playercomm], b.[comm], 
 			b.[acomm], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[playerdiscount], b.[discount], b.[adiscount], b.[livehomescore], b.[liveawayscore], 
 			b.[liveindicator], b.[betteam], b.[creator], b.[refno], b.[comstatus], b.[winlostdate], b.[betfrom], b.[betcheck], b.[checktime], b.[oddsspread], b.[actualrate], 
 			b.[matchid], b.[recommend], b.[mrecommend], b.[ruben], b.[betid], b.[statuswinlost], b.[modds], b.[bettype], b.[betdaqid], b.[actual_stake], b.[currency], 
 			b.[ip], b.[transdesc], b.[sdiscount], b.[scomm], b.[spositiontaking], b.[swinlost], b.[srecommend], b.[Username], b.[CurrencyName], b.[virtualrate], b.[oddstype], 
 			b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], b.[RefCode], b.[SettlementTime],
-			b.[epositiontaking], b.[ReasonID], b.[sort], b.[BetSiteID], b.[RepUpdateTime], b.[SiteDBGroupID], b.[FcUpdateTime]
+			b.[epositiontaking], b.[ReasonID], b.[sort], b.[BetSiteID], b.[RepUpdateTime], b.[RepDstUpdateTime], b.[SiteDBGroupID], b.[FcUpdateTime]
 	FROM DBCTG.SiteDBtmp.dbo.bettrans_20220915 b WITH (NOLOCK)
 
 	--bettrans14
@@ -575,15 +575,11 @@
 	SET IDENTITY_INSERT NetPositionCalculationLog OFF
 
 	--14. dbo.NetPositionTrans
-	SET IDENTITY_INSERT NetPositionTrans ON
-
 	INSERT INTO [dbo].[NetPositionTrans] (	[TransID], [CustID], [MatchID], [Bettype], [Actual_stake], [Payout1], [Payoutx], [Payout2], [SyncStatus], 
 											[isSettled], [CreatedDate], [ModifiedDate])
 	SELECT	npt.[TransID], npt.[CustID], npt.[MatchID], npt.[Bettype], npt.[Actual_stake], npt.[Payout1], npt.[Payoutx], npt.[Payout2], npt.[SyncStatus], 
 			npt.[isSettled], npt.[CreatedDate], npt.[ModifiedDate]
 	FROM DBCTG.SiteDBtmp.dbo.NetPositionTrans_20220915 npt WITH (NOLOCK)
-	
-	SET IDENTITY_INSERT NetPositionTrans OFF
 
 	--15. dbo.Task_Cust_CheckBalance_Exception
 	INSERT INTO [dbo].[Task_Cust_CheckBalance_Exception] ([custid], [Remark])
