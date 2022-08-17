@@ -95,7 +95,7 @@ SET NOCOUNT ON
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	SET @xmlResourceResult = CAST(@SelectedResources AS XML)
+	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 	SET @xmlData		   = @ResourceResult
 
 	-----------------------------------------------------
@@ -239,7 +239,7 @@ SET NOCOUNT ON
 				FROM	cteGoalResource
 				WHERE   ResourceID IS NOT NULL
 			)
-	
+			
 			SELECT @xmlData = CAST((SELECT	ResourceID AS '@Id'
 			FROM	cteResource
 			FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
