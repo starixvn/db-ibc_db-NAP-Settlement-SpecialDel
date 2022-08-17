@@ -96,7 +96,6 @@ SET NOCOUNT ON
 		@IsCentral = @IsCentral OUTPUT
 
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
-	SET @xmlData		   = @ResourceResult
 
 	-----------------------------------------------------
 	
