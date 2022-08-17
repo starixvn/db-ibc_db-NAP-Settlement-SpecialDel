@@ -25,6 +25,7 @@ AS
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -50,6 +51,7 @@ BEGIN
 		, @SSBStatus		TINYINT
 		, @SSBCommand		NVARCHAR(MAX)
 		, @IsRunBySSB		BIT
+		, @BroadcastSessionId VARCHAR(50)
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
@@ -79,6 +81,7 @@ BEGIN
 			,@AdminId = AdminId
 			,@MatchId = matchid
 			,@IP = IP
+			,@BroadcastSessionId = BroadcastSessionId
 	FROM	dbo.Single_Calculate_Queue WITH (NOLOCK)
 	WHERE	IsCalculating = 1 
 			AND sqlCommand <> ''
@@ -146,6 +149,7 @@ BEGIN
 			, @IP			= IP
 			, @Action		= Action
 			, @sqlCommand	= sqlCommand
+			, @BroadcastSessionId = BroadcastSessionId
 		WHERE keyid = @keyId
 
 		IF @@ROWCOUNT = 0 RETURN
@@ -229,9 +233,10 @@ BEGIN
 					,SSBStatus = CASE WHEN @SSBStatus = 2 THEN 2 ELSE SSBStatus END
 			WHERE	keyid = @keyId			
 		
-			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId,MatchId,sporttype,StatusId,UserId,Ip,starttime,action)
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId,MatchId,sporttype,StatusId,UserId,Ip,starttime,action,BroadcastSessionId)
 			SELECT	0,MatchId,SportType,0 StatusID,10278938 AS Userid,'125.227.140.97',GETDATE() AS starttime
 					, CASE WHEN q.Sporttype IN (9, 43) AND sqlCommand LIKE '%CAL_EAR%' THEN 'CAL_EAR' ELSE Action END
+					, @BroadcastSessionId
 			FROM Single_Calculate_Queue q WITH (NOLOCK)
 			WHERE keyid = @keyId 
 				AND q.SportType <= 99
