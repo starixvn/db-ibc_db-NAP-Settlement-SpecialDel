@@ -6,12 +6,11 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ParlayType_Update]
 	,@TransIds			VARCHAR(MAX)
 	,@UserId			INT
 	,@IP				VARCHAR(50)
-	,@BypassCheckingProcess TINYINT = 0
+	,@IssueTypeId		TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
-	,@QueueIds			VARCHAR(MAX)	= NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -28,6 +27,7 @@ AS
 		- 20210722@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		
@@ -44,10 +44,10 @@ BEGIN
 			,@Session			NVARCHAR(50)
 		    ,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting 
 		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
-
-	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
-
-	DECLARE @avaiableProcess BIT
+			,@limitsecond				INT	= 180
+			,@StartTime_Retry			DATETIME
+			,@MainParlay_MaxPO	VARCHAR(MAX) = NULL
+			,@avaiableProcess BIT
 			,@MatchDate DATETIME
 			,@RowId INT
 			,@RowCount INT
@@ -56,8 +56,6 @@ BEGIN
 			,@strRefno VARCHAR(MAX)
 			,@CustIds VARCHAR(MAX)
 
-	DECLARE @Retry INT, @Success BIT, @RetryCnt INT
-	SET @RetryCnt = 0
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	DECLARE @tblDebitPending TVP_BalanceList  
@@ -89,22 +87,6 @@ BEGIN
 	INSERT INTO @tmpInputTransId (TransId)
 	SELECT	value AS TransId
 	FROM	STRING_SPLIT(@TransIds, ',')
-
-	SELECT @QueueIds = STUFF((SELECT ',' + CAST(QueueId AS VARCHAR(50)) 
-							FROM dbo. TicketVoiding_Queue q WITH (NOLOCK)	
-							WHERE q.RequestId = @RequestId
-								AND q.StatusId IN (1)
-								AND q.VoidingHistoryId = @VoidingHistoryId
-						FOR XML PATH('')),1,1,'')
-
-	IF  NOT EXISTS (SELECT TOP 1 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK) WHERE RequestID = @RequestId AND VoidingHistory = @VoidingHistoryId)
-	BEGIN
-		DECLARE @sessionID INT = 0
-		SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
-
-		INSERT INTO Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
-		SELECT @RequestId, @VoidingHistoryId,1,@MatchId,@sessionID,0
-	END
 	
 	UPDATE t 
 		SET MainTransId = b.transid
@@ -144,11 +126,6 @@ BEGIN
 
 	IF @MatchDate <= @Movebetdate
 	BEGIN
-		IF @BypassCheckingProcess = 1
-			EXEC dbo.NAP_Admin_CheckingProcess  
-				@isExistParlay  = 1  
-			   ,@IsReleased  = 1 
-
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
 
@@ -163,68 +140,56 @@ BEGIN
 	SELECT @MatchId, refno
 	FROM #tmpSubTransId
 
-	IF @BypassCheckingProcess = 0
+	SET @StartTime_Retry = GETDATE()
+	WHILE (1=1)
 	BEGIN
+		SELECT	@ErrCode = 0
+				,@ErrMsg = ''
 
-		SET @Retry = 0
-		SET @Success = 0
-	
-		WHILE @Retry < 3 AND @Success = 0
+		IF DATEDIFF(SECOND, @StartTime_Retry, getdate()) > @limitsecond
 		BEGIN
-			SET @Success = 1
+			SELECT	@ErrCode = 1000000
+					,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 
-			-- Apply new way to lock parlay tickets	
-			IF @RowCount <= @ThreadHold
-			BEGIN
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno		= 1
-					,@SPName				= @SPName
-					,@Session				= @Session
-					,@avaiableProcess 		= @avaiableProcess OUTPUT
-					,@ErrCode				= @ErrCode OUTPUT
-					,@ErrMsg				= @ErrMsg OUTPUT
-			END
-			ELSE --@totalSubParlay > 10K
-			BEGIN
-				EXEC dbo.NAP_Admin_CheckingProcess  
-					@isExistParlay		= 1  
-					,@avaiableProcess	= @avaiableProcess OUTPUT  
-					,@ErrCode			= @ErrCode OUTPUT  
-					,@ErrMsg			= @ErrMsg OUTPUT  
-			END
-
-			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-			BEGIN
-				SET @Retry = @Retry + 1
-				SET @Success = 0
-
-				WAITFOR DELAY '00:00:20'
-			END
-				
+			RETURN;
 		END
-	
-		IF @Success = 0 
+
+		-- Apply new way to lock parlay tickets	
+		IF @RowCount <= @ThreadHold
 		BEGIN
-			SELECT @FailedTransIds = COALESCE(@FailedTransIds + ',' + CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)), CAST(ISNULL(MainTransId, TransId) AS VARCHAR(30)))
-			FROM	@tmpInputTransId
-
-			--For update queue
-			SELECT @ErrCode = 101
-
-			RETURN
+			EXEC dbo.NAP_Admin_CheckingProcess
+				@IsLockingByRefno		= 1
+				,@SPName				= @SPName
+				,@Session				= @Session
+				,@avaiableProcess 		= @avaiableProcess OUTPUT
+				,@ErrCode				= @ErrCode OUTPUT
+				,@ErrMsg				= @ErrMsg OUTPUT
 		END
+		ELSE --@totalSubParlay > 10K
+		BEGIN
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay		= 1  
+				,@avaiableProcess	= @avaiableProcess OUTPUT  
+				,@ErrCode			= @ErrCode OUTPUT  
+				,@ErrMsg			= @ErrMsg OUTPUT  
+		END
+
+		IF @avaiableProcess = 0 OR @ErrCode <> 0
+			CONTINUE
+		ELSE 
+			BREAK
 	END
 
-	SET @FailedTransIds = ''
+	SET @FailedTransIds = NULL
 
 	-- BackUp bettransm tickets into zzzbettrans  
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 			winlost, livehomescore, liveawayscore, liveindicator, betteam, creator , refno,   
-			winlostdate, betfrom, betcheck, checktime, matchid, bettype
+			winlostdate, betfrom, betcheck, checktime, matchid, bettype, SiteDBGroupID
 	)  
 	SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,  
 			b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,  
-			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype
+			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, b.SiteDBGroupID
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  
 			ON	b.transid = t.TransId
@@ -232,10 +197,11 @@ BEGIN
 	-- BackUp tickets of bettransm  
 	INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 				winlost, livehomescore, liveawayscore, liveINdicator, betteam, creator , refno,   
-				winlostdate, betfrom, betcheck, checktime, matchid, bettype, VoidingHistoryId)  
+				winlostdate, betfrom, betcheck, checktime, matchid, bettype, VoidingHistoryId, SiteDBGroupID)  
 	SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,   
 			b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
 			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, @VoidingHistoryId
+			, b.SiteDBGroupID
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  
 			ON	t.transid = b.transid   
@@ -355,12 +321,6 @@ BEGIN
 
 	IF @RowCount <= @ThreadHold
 	BEGIN
-		IF @BypassCheckingProcess IN (1,3)  
-			SET @Session = (SELECT TOP 1 Session 
-							FROM dbo.ParlayLocking p WITH(NOLOCK)
-									INNER JOIN #tblMatchParlayProcess m ON p.MatchId = m.matchId AND p.Refno = m.RefNo
-							WHERE p.MatchId = @MatchId)
-
 		EXEC dbo.NAP_Admin_CheckingProcess
 					@IsLockingByRefno = 1
 				   ,@Session	= @Session
@@ -368,10 +328,9 @@ BEGIN
 	END
 	ELSE 
 	BEGIN
-		IF @BypassCheckingProcess IN (0,1) 
-			EXEC dbo.NAP_Admin_CheckingProcess  
-					@isExistParlay  = 1  
-				   ,@IsReleased  = 1 
+		EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay  = 1  
+				,@IsReleased  = 1 
 	END
 	
 	-- Write Log

@@ -30,41 +30,44 @@ BEGIN
 		, @MatchId INT
 		, @TotalTicket INT
 		, @TransIds VARCHAR(MAX)
+		, @IssueTypeId TINYINT
 		, @start INT = 1
 		, @end INT
 
 	
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, MatchId INT, VoidingHistoryId INT, IsMixParlay BIT DEFAULT(0))
-	--CREATE TABLE #tmpInputParlayTransId (TransId BIGINT, RequestId INT, MatchId INT, VoidingHistoryId INT)
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, MatchId INT, VoidingHistoryId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT)
 
 	DECLARE @tmpMatchId AS TABLE (ID INT IDENTITY(1,1), MatchId INT)
 	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT)
 
 	IF @SingleTicketsXML IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, MatchId, VoidingHistoryId)
+		INSERT INTO #tmpInputTransId (TransId, RequestId, MatchId, VoidingHistoryId, IssueTypeId)
 		SELECT t.c.value('@tid','BIGINT') AS TransId
 				,t.c.value('@req','INT') AS RequestId
 				,t.c.value('@mid','INT') AS MatchId
 				,t.c.value('@vid','INT') AS VoidingHistoryId
+				,t.c.value('@iss','TINYINT') AS IssueTypeId
 		FROM @SingleTicketsXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@SingleTicketsXML = NULL)) 
 	END
 
 	IF @ParlayTicketsXML IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, MatchId, VoidingHistoryId, IsMixParlay)
+		INSERT INTO #tmpInputTransId (TransId, RequestId, MatchId, VoidingHistoryId, IsMixParlay, IssueTypeId)
 		SELECT t.c.value('@tid','BIGINT') AS TransId
 				,t.c.value('@req','INT') AS RequestId
 				,t.c.value('@mid','INT') AS MatchId
 				,t.c.value('@vid','INT') AS VoidingHistoryId
 				,1 AS IsMixParlay
+				,t.c.value('@iss','TINYINT') AS IssueTypeId
 		FROM @ParlayTicketsXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
 	END
 
 	SELECT @RequestId = MAX(t.RequestId)
 		,@VoidingHistoryId = MAX(t.VoidingHistoryId)
+		,@IssueTypeId = MAX(t.IssueTypeId)
 	FROM #tmpInputTransId t
 
 	INSERT INTO @tmpMatchId (MatchId)
@@ -109,6 +112,7 @@ BEGIN
 					,Ip
 					,VoidingTypeId
 					,TotalTicket
+					,IssueTypeId
 				)
 				SELECT	@RequestId
 						,@MatchId
@@ -119,6 +123,7 @@ BEGIN
 						,@IP
 						,1
 						,@TotalTicket
+						,@IssueTypeId
 			END
 		END
 
@@ -153,6 +158,7 @@ BEGIN
 					,Ip
 					,VoidingTypeId
 					,TotalTicket
+					,IssueTypeId
 				)
 				SELECT	@RequestId
 						,@MatchId
@@ -163,6 +169,7 @@ BEGIN
 						,@IP
 						,2
 						,@TotalTicket
+						,@IssueTypeId
 			END
 		END
 
