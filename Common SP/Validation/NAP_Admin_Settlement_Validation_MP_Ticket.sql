@@ -119,7 +119,7 @@ SET NOCOUNT ON
 		-- exclude matches were not keyscore yet
 		DELETE
 		FROM #tblValidMatch
-		OUTPUT deleted.matchid
+		OUTPUT deleted.matchid, deleted.matchcode
 		INTO #tblInValidMatch
 		WHERE (MatchId = ParentId AND (fth IS NULL OR fta IS NULL OR hth IS NULL OR hta IS NULL))
 			
@@ -139,7 +139,7 @@ SET NOCOUNT ON
 			SET @NotKeyScoreList = LEFT(@NotKeyScoreList,LEN(@NotKeyScoreList)-1)
 			
 		DELETE m
-		OUTPUT deleted.matchid
+		OUTPUT deleted.matchid, deleted.matchcode
 		INTO #tblInValidMatch
 		FROM #tblValidMatch m
 		WHERE EXISTS (SELECT TOP 1 1 FROM @tblResultRunning WHERE matchid = m.matchid)
@@ -159,7 +159,7 @@ SET NOCOUNT ON
 		-- exclude matches were not allow to calculate
 		DELETE
 		FROM #tblValidMatch
-		OUTPUT deleted.matchid
+		OUTPUT deleted.matchid, deleted.matchcode
 		INTO #tblInValidMatch
 		WHERE matchid IN (SELECT matchid from Single_Calculate_Queue with(NOLOCK) where IsCalculating IN (0,1) )
 		OR matchid IN (SELECT matchid FROM Parlay_Calculate_Queue with(NOLOCK) WHERE IsCalculating IN (0,1) ) 
@@ -176,7 +176,7 @@ SET NOCOUNT ON
 					ON m.matchid = tm.value 
 	
 	DELETE FROM #tblValidMatch
-	OUTPUT deleted.matchid
+	OUTPUT deleted.matchid, deleted.matchcode
 	INTO #tblInValidMatch
 	WHERE	matchid IN (SELECT [value] FROM STRING_SPLIT(@InvalidMatchIds, ','))
 
@@ -192,7 +192,7 @@ SET NOCOUNT ON
 				ON m.matchid = tm.value
 	
 	DELETE FROM #tblValidMatch
-	OUTPUT deleted.matchid
+	OUTPUT deleted.matchid, deleted.matchcode
 	INTO #tblInValidMatch
 	WHERE matchid IN (SELECT [value] FROM STRING_SPLIT(@MatchIds, ','))
 	

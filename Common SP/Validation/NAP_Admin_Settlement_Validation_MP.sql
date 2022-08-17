@@ -27,6 +27,9 @@ SET NOCOUNT ON
 
 	DECLARE @matchcode			NVARCHAR(50)
 			,@HoldSettingMatchIds VARCHAR(200) = ''
+	
+	SET @MatchIdsValid	 = ''
+	SET @MatchIdsInValid = ''
 
 	CREATE TABLE #tblValidMatch (matchid INT, matchcode NVARCHAR(50) ,sporttype SMALLINT ,SettlementStatus	TINYINT ,ParentId INT )
 	CREATE TABLE #tblInvalidMatch (matchid INT	,matchcode NVARCHAR(50) )
