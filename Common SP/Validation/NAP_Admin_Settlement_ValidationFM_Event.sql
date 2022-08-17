@@ -100,8 +100,7 @@ BEGIN
 	
 	IF @Action IN ('CAL', 'REFUND') AND @IsAuto = 0 
 	BEGIN
-		DECLARE @fixedErrMsg VARCHAR(300) = '' --cannot pass varchar(max) via linked server 
-
+		
 		EXEC dbo.NAP_Set_SettlementStatusChecking
 			@MatchId		= @matchid
 			,@Action		= @Action

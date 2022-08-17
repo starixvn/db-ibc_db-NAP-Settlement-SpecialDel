@@ -214,7 +214,7 @@ BEGIN
 	    WHERE r.statusid NOT IN (102) 
 	END
 	
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND EXISTS(SELECT TOP 1 1 FROM #parlayOutput)
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'							
@@ -228,7 +228,15 @@ BEGIN
 		)
 
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'CalculateSubParlay', 'bettransm', @MatchId, @transInfo)		
+		VALUES ('Settlement', 'CalculateSubParlay', 'bettransm', @MatchId, @transInfo)	
+		SELECT  'Settlement'
+				, CASE  WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
+						WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
+						WHEN  @action LIKE 'UNDO%' THEN  'UndoSubParlay'
+						END
+				, 'bettransm'
+				, @MatchId
+				, @transInfo
 			
 		IF @Action = 'UNDO'
 		BEGIN
@@ -253,7 +261,15 @@ BEGIN
 		END
 
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'CalculateSubParlay', 'BetParlayDetail', @MatchId, @transInfo)
+		SELECT 'Settlement'
+				, CASE  WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
+						WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
+						WHEN  @action LIKE 'UNDO%' THEN  'UndoSubParlay'
+						END
+				, 'BetParlayDetail'
+				, @MatchId
+				, @transInfo
+
 	END
 
 	DROP TABLE #parlayTicket;
