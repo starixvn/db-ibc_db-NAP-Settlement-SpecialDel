@@ -22,12 +22,12 @@ VALUES (90511,
 GO
 
 UPDATE dbo.LogAction
-SET ActionNameEN = 'TVS - Mark Ticket When Add Request'
-  , ActionNameCH = 'TVS - Mark Ticket When Add Request'
-  , ActionNameCS = 'TVS - Mark Ticket When Add Request'
-  , ActionNameJP = 'TVS - Mark Ticket When Add Request'
-  , ActionNameTH = 'TVS - Mark Ticket When Add Request'
-  , ActionNameKO = 'TVS - Mark Ticket When Add Request'
-  , ActionNameVI = 'TVS - Mark Ticket When Add Request'
+SET ActionNameEN = 'TVS - Mark Ticket When Add/Edit Request'
+  , ActionNameCH = 'TVS - Mark Ticket When Add/Edit Request'
+  , ActionNameCS = 'TVS - Mark Ticket When Add/Edit Request'
+  , ActionNameJP = 'TVS - Mark Ticket When Add/Edit Request'
+  , ActionNameTH = 'TVS - Mark Ticket When Add/Edit Request'
+  , ActionNameKO = 'TVS - Mark Ticket When Add/Edit Request'
+  , ActionNameVI = 'TVS - Mark Ticket When Add/Edit Request'
 WHERE ActionID = 90508
 GO

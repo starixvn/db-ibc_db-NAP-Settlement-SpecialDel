@@ -15,7 +15,7 @@ AS
 	Revisions: 
 		- 20190823@Kathy: recover sub parlay ticket [Redmine:#115376]
 		- 20210514@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
-	
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 	Param's explanation:	
 		
 */

@@ -15,7 +15,7 @@ AS
 		- 20190823@Kathy: recover single ticket [Redmine:#115376]
 		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
 		- 20210514@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
-	
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 	Param's explanation:	
 		
 */
