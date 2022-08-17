@@ -196,7 +196,7 @@ BEGIN
 				END
 			END
 		END
-		ELSE IF @ActionId <> 1
+		ELSE IF @ActionId <> 1 AND @OldActionId = 1
 		BEGIN
 			DELETE FROM dbo.TicketVoiding_RequestDetail_MixParlay 
 			WHERE RequestId = @RequestId
