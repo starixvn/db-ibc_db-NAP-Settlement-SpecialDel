@@ -337,7 +337,6 @@ GO
 	SET IDENTITY_INSERT NetPositionCalculationLog OFF
 
 	--14. dbo.NetPositionTrans
-	SET IDENTITY_INSERT NetPositionTrans ON
 
 	INSERT INTO [dbo].[NetPositionTrans] (	[TransID], [CustID], [MatchID], [Bettype], [Actual_stake], [Payout1], [Payoutx], [Payout2], [SyncStatus], 
 											[isSettled], [CreatedDate], [ModifiedDate])
@@ -345,8 +344,6 @@ GO
 			npt.[isSettled], npt.[CreatedDate], npt.[ModifiedDate]
 	FROM [dbo].[NetPositionTrans_old20220825] npt WITH (NOLOCK)
 		--INNER JOIN #tmp_cust tmp ON tmp.custid = npt.custid
-	
-	SET IDENTITY_INSERT NetPositionTrans OFF
 
 	--15. dbo.Task_Cust_CheckBalance_Exception
 	INSERT INTO [dbo].[Task_Cust_CheckBalance_Exception] ([custid], [Remark])
