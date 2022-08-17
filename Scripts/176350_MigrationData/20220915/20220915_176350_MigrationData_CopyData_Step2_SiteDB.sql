@@ -276,6 +276,9 @@
 	--zzzbettransm
 	SET IDENTITY_INSERT zzzbettransm ON
 
+	INSERT INTO dbo.zzzbettransm (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
+									[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [matchid], [bettype], 
+									[keyid], [VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
 			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
