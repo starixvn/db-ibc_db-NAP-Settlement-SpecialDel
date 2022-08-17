@@ -6,7 +6,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_MP
 	,@ErrCode		INT		= 0				OUTPUT
 	,@ErrMsg		NVARCHAR(500)  = ''		OUTPUT
 	,@MatchIdsValid VARCHAR(500) = ''		OUTPUT
-	,@MatchIdsInValid	VARCHAR(500) = ''	OUTPUT
+	,@MatchIdsInvalid	VARCHAR(500) = ''	OUTPUT
 )
 AS
 /*
@@ -29,10 +29,7 @@ SET NOCOUNT ON
 			,@HoldSettingMatchIds VARCHAR(200) = ''
 
 	CREATE TABLE #tblValidMatch (matchid INT, matchcode NVARCHAR(50) ,sporttype SMALLINT ,SettlementStatus	TINYINT ,ParentId INT )
-	CREATE TABLE #tblInValidMatch (matchid INT	,matchcode NVARCHAR(50) )
-
-	SET @MatchIdsValid	 = ''
-	SET @MatchIdsInValid = ''
+	CREATE TABLE #tblInvalidMatch (matchid INT	,matchcode NVARCHAR(50) )
 
 	INSERT INTO #tblValidMatch ( matchid, matchcode, sporttype, SettlementStatus, ParentId)
 	SELECT matchid
@@ -51,7 +48,7 @@ SET NOCOUNT ON
 
 	DELETE FROM #tblValidMatch
 	OUTPUT deleted.matchid, deleted.matchcode
-	INTO #tblInValidMatch
+	INTO #tblInvalidMatch
 	WHERE	SettlementStatus & 87 > 0
 
 	
@@ -64,7 +61,7 @@ SET NOCOUNT ON
 								END					
 		END
 
-	SELECT @MatchIdsInValid =  @MatchIdsInValid + ',' + CAST(Matchid AS VARCHAR(50) ) FROM #tblInValidMatch
+	SELECT @MatchIdsInvalid =  @MatchIdsInvalid + ',' + CAST(Matchid AS VARCHAR(50) ) FROM #tblInvalidMatch
 	SET @MatchIdsValid = SUBSTRING(@MatchIdsValid, 2, LEN(@MatchIdsValid))
 
 	SELECT @MatchIdsValid =  @MatchIdsValid + ',' + CAST(Matchid AS VARCHAR(50) ) FROM #tblValidMatch
