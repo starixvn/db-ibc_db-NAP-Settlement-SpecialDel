@@ -67,6 +67,12 @@ BEGIN
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
 			,r.UserId
+			,CASE WHEN r.ActionId = 1 THEN 'AddRequest' 
+				  WHEN r.ActionId = 4 THEN 'VoidInstant'
+				  WHEN r.ActionId = 6 THEN 'VoidInstant5m'
+				  WHEN r.ActionId = 7 THEN 'VoidInstant10m' 
+				  WHEN r.ActionId = 8 THEN 'VoidInstantNopolicy'
+				ELSE '' END AS [Action]
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
 		OUTER APPLY (SELECT TOP 1 1 AS isVoided, tv.UserId AS VoidBy, tv.RequestId

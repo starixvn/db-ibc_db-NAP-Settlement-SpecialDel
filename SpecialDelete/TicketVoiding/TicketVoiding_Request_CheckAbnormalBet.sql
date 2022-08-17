@@ -77,7 +77,6 @@ BEGIN
 			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
-			,@MatchInfo					 XML = NULL
 	
 	DECLARE @homeid INT, @awayid INT, @leagueid INT, @sporttype SMALLINT, @matchcode NVARCHAR(50)
 
@@ -388,10 +387,7 @@ BEGIN
 				) AS tmp
 	WHERE  req.RequestId <> @RequestId AND req.ActionId <> 2
 
-    IF @FilterBy IS NULL AND @MatchId <> 0
-	BEGIN
-		SET @MatchInfo = (SELECT @MatchId AS "@matchid", @sporttype AS "@sporttype"  FOR XML PATH('r'), ROOT('root'))
-	END
+
 	-- invalid transId
 	;WITH t_invalid
 	AS (
@@ -650,9 +646,9 @@ BEGIN
 	END
 
 	/*****************Return table **************************/
-	
+	IF @FilterBy = 1 SET @MatchId = 29
 	--1. Info match table
-	SELECT @matchid AS matchid
+	SELECT  @matchid AS matchid
 	, @homeid AS homeid 
 	, @awayid AS awayid
 	, @leagueid	AS leagueid
@@ -679,7 +675,6 @@ BEGIN
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
 		  ,@MarkTransIds AS MarkTransIds
-		  ,@MatchInfo AS MatchInfo
 
 	--4. Transinfo table
 	SELECT t.matchid 

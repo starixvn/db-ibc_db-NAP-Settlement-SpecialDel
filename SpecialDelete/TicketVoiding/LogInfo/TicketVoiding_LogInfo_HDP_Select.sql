@@ -143,7 +143,6 @@ BEGIN
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
 			,MatchId                 INT
 		)
-
 	SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
 	INSERT INTO #FilterInfo( 
 			MatchID				
@@ -580,7 +579,7 @@ BEGIN
 		IF @MarkTransIds <> ''
 				SET @MarkTransIds = @MarkTransIds + ','
 
-		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50)) 
+		SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50)) 
 											FROM #TVSTicketBets tp   
 											WHERE tp.IsMixParlay = 1 AND tp.SubTransid IN (0,1)
 											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
