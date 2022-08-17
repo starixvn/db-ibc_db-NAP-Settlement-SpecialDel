@@ -228,7 +228,6 @@ BEGIN
 		)
 
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'CalculateSubParlay', 'bettransm', @MatchId, @transInfo)	
 		SELECT  'Settlement'
 				, CASE  WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
 						WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'

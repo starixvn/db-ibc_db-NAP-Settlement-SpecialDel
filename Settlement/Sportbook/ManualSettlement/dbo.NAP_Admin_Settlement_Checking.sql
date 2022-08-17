@@ -95,10 +95,42 @@ BEGIN
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+	
+		--calculate parlay sports not yet settle by profile
+	IF @Action = 'CAL' AND @Mode = 'MP'
+	BEGIN		
+		DECLARE @wtMatch TABLE (matchid INT)
+		
+		INSERT INTO @wtMatch(matchid)
+		SELECT b.matchid
+		FROM bettransm b WITH(NOLOCK)
+			INNER JOIN dbo.f_Set_GetGroupBettypes() f
+				ON b.bettype = f.BetType
+		WHERE b.matchid IN (SELECT CONVERT(INT,[value]) FROM STRING_SPLIT(@MatchIds, ','))
+			AND 
+				(
+					b.statusID = 1 -- waiting status
+					OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime,@currentdate) > @currentdate)
+				)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		GROUP BY b.matchid
+		
+		SET @MatchIds = ''
+		
+		IF EXISTS(SELECT TOP 1 1 FROM @wtMatch)
+		BEGIN
+			SELECT @MatchIds = COALESCE(@MatchIds + ',' + CONVERT(VARCHAR(20),matchid), CONVERT(VARCHAR(20),matchid)) -- retrieve matchids have 'waiting' tickets
+			FROM @wtMatch
+			
+			SET @isExistWaitingTicket = 1		
+			
+		END
+		
+	END
 
 	--cal/undo/refund FT/HT/Game/Set
 	--cal early sports settle by profile except early soccer
-	IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND' ) AND @Mode NOT IN ( 'EAR', 'FM' ) 
+	ELSE IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND' ) AND @Mode NOT IN ( 'EAR', 'FM' ) 
 			OR (@Action IN ('CAL_EAR', 'UNDO_EAR', 'REFUND_EAR') )
 	BEGIN	
 		IF @isSettingByProfile = 1
@@ -215,38 +247,6 @@ BEGIN
 		)
 			SELECT @isExistWaitingTicket = 1
 	END	
-
-	--calculate parlay sports not yet settle by profile
-	ELSE IF @Action = 'CAL' AND @Mode = 'MP'
-	BEGIN		
-		DECLARE @wtMatch TABLE (matchid INT)
-		
-		INSERT INTO @wtMatch(matchid)
-		SELECT b.matchid
-		FROM bettransm b WITH(NOLOCK)
-			INNER JOIN dbo.f_Set_GetGroupBettypes() f
-				ON b.bettype = f.BetType
-		WHERE b.matchid IN (SELECT CONVERT(INT,[value]) FROM STRING_SPLIT(@MatchIds, ','))
-			AND 
-				(
-					b.statusID = 1 -- waiting status
-					OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime,@currentdate) > @currentdate)
-				)
-			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-		GROUP BY b.matchid
-		
-		SET @MatchIds = ''
-		
-		IF EXISTS(SELECT TOP 1 1 FROM @wtMatch)
-		BEGIN
-			SELECT @MatchIds = COALESCE(@MatchIds + ',' + CONVERT(VARCHAR(20),matchid), CONVERT(VARCHAR(20),matchid)) -- retrieve matchids have 'waiting' tickets
-			FROM @wtMatch
-			
-			SET @isExistWaitingTicket = 1		
-			
-		END
-		
-	END
 
 	ELSE IF @Mode = 'FM'
 	BEGIN

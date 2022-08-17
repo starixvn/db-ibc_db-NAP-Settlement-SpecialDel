@@ -215,8 +215,8 @@ SET NOCOUNT ON
 							
 		END
 
-	SELECT @MatchIdsValid =  @MatchIdsValid + ',' + Matchid FROM #tblValidMatch
-	SET @MatchIdsValid = SUBSTRING(@MatchIdsValid, 2, LEN(@MatchIdsValid))
+	SELECT @MatchIdsValid =  @MatchIdsValid + ',' + CAST(Matchid AS VARCHAR(50) ) FROM #tblValidMatch
+	SET @MatchIdsValid = SUBSTRING(@MatchIdsValid, 1, LEN(@MatchIdsValid))
 
 END
 GO
