@@ -397,7 +397,7 @@ BEGIN
 		RETURN;
 	END
 	
-	IF @RequestId = 0
+	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		--Mark ticket when add request
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 

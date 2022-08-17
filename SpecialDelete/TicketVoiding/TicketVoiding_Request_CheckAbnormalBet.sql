@@ -502,7 +502,7 @@ BEGIN
 		END
 	END
 	
-	IF @RequestId = 0
+	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
 		BEGIN

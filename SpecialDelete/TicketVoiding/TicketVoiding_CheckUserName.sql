@@ -347,7 +347,7 @@ BEGIN
 		SET @NumberOfTickets = @@ROWCOUNT
 	END
 
-	IF @RequestId = 0
+	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #transIdTemp t
