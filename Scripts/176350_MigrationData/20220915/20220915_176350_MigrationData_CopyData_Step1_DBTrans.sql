@@ -84,7 +84,7 @@
 	INSERT INTO #tmp_cust (custid)
 	SELECT DISTINCT custid
 	FROM CustDB.dbo.Customer WITH (NOLOCK)
-	WHERE site IN ('XXXXXXXX')
+	WHERE site IN ('Heaven', 'Bobo88')
 
 	------------------------------------------------
 	/*******************Bet Tickets Tables**********************/
