@@ -399,7 +399,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch 
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -444,7 +444,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch 
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -488,7 +488,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch 
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -532,7 +532,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -576,7 +576,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch 
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -620,7 +620,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch 
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -663,7 +663,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -706,7 +706,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
@@ -749,7 +749,7 @@ BEGIN
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch (NOLOCK)
+						FROM #tmp_batch
 						FOR XML RAW ('r'), ROOT ('root'))
 
 		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
