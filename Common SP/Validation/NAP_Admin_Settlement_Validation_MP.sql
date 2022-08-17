@@ -31,6 +31,9 @@ SET NOCOUNT ON
 	CREATE TABLE #tblValidMatch (matchid INT, matchcode NVARCHAR(50) ,sporttype SMALLINT ,SettlementStatus	TINYINT ,ParentId INT )
 	CREATE TABLE #tblInValidMatch (matchid INT	,matchcode NVARCHAR(50) )
 
+	SET @MatchIdsValid	 = ''
+	SET @MatchIdsInValid = ''
+
 	INSERT INTO #tblValidMatch ( matchid, matchcode, sporttype, SettlementStatus, ParentId)
 	SELECT matchid
 			,matchcode

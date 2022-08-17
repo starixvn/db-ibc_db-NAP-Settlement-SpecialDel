@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" IsNested="1"></info>*/
-ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Event_UAT1 
+ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Event
 (
 	 @matchid		INT = 0
 	,@Action		VARCHAR(10)
