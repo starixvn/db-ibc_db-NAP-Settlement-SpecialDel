@@ -225,10 +225,12 @@ BEGIN
 			,SUM(t.betParlayWaitingCount) AS betParlayWaitingCount
 			,SUM(t.betParlayRunningCount) AS betParlayRunningCount
 	FROM(
-		SELECT	CASE 
-					WHEN @sporttype = 1 THEN GroupId
-					ELSE 0
-				END AS GroupId
+		SELECT	
+				--CASE 
+				--	WHEN @sporttype = 1 THEN GroupId
+				--	ELSE 0
+				--END AS GroupId
+				GroupId
 				,betCount
 				,betWaitingCount
 				,betRunningCount
