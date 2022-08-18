@@ -4,7 +4,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_ChangedMarket_Sel]
 	,@VendorID						SMALLINT		= 34
 	,@action						VARCHAR(20)		= 'CAL'
 	,@Resources						VARCHAR(MAX)
-	,@IsAuto						BIT = 0
 	,@ResultStatusID				TINYINT			= 5
 AS 
 /*
@@ -34,7 +33,6 @@ BEGIN
 	
 	DECLARE @xml XML
 		, @ResultDefault VARCHAR(5) = 'Lose'
-		, @IsSettleByMarket	BIT	= 0
 
 	DECLARE @tblSelectionType TABLE (selectionType INT, result VARCHAR(20))
 	CREATE TABLE #tblMarketChecking (MarketID VARCHAR(20) PRIMARY KEY, result VARCHAR(20), ResultStatusID TINYINT)
@@ -43,41 +41,20 @@ BEGIN
 	----------------------------------------------------------------------------
 	SET @xml = CAST(@Resources AS XML)
 	
-	SELECT @IsSettleByMarket = CASE
-						WHEN @IsAuto = 1 OR @Action LIKE '%MARKET' THEN 1
-						ELSE 0 END
+	;WITH TmpData AS (
+		SELECT T.C.value('@Id', 'INT') AS selectionType
+				,T.C.value('@Result', 'VARCHAR(20)') AS result
+		FROM @xml.nodes('/Resources/Resource') AS T(C)
+	)
+	INSERT INTO @tblSelectionType (selectionType, Result)
+	SELECT	TmpData.selectionType, TmpData.Result
+	FROM TmpData
 
-	IF @IsSettleByMarket = 1
-	BEGIN
-		;WITH TmpDataAuto AS (
-			SELECT T.C.value('@m', 'VARCHAR(20)') AS MarketID
-			FROM @xml.nodes('/Resources/rsc') AS T(C)
-		)
-		SELECT	d.MarketID
-		FROM TmpDataAuto d
-			INNER JOIN DBPRO.bodb02.dbo.SMP_Market mk WITH (NOLOCK) ON d.MarketID = mk.MarketID	
-		WHERE mk.MatchID = @MatchID
-			AND mk.VendorID = @VendorID
-			AND (mk.ResultStatusID NOT IN (2, 5, 3) OR @IsAuto = 0) --Auto Settled, Manually settled, UNDO
-			AND mk.Result IS NOT NULL
-	END
-
-	ELSE
-	BEGIN
-		;WITH TmpDataManual AS (
-			SELECT T.C.value('@Id', 'INT') AS selectionType
-				   ,T.C.value('@Result', 'VARCHAR(20)') AS result
-			FROM @xml.nodes('/Resources/Resource') AS T(C)
-		)
-		INSERT INTO @tblSelectionType (selectionType, Result)
-		SELECT	TmpDataManual.selectionType, TmpDataManual.Result
-		FROM TmpDataManual
-
-		INSERT INTO #tblMarket (MarketID)
-		SELECT DISTINCT ms.marketID 
-		FROM @tblSelectionType sl
-			INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON ms.SelectionType = sl.SelectionType
-		WHERE ms.MatchID = @matchID
+	INSERT INTO #tblMarket (MarketID)
+	SELECT DISTINCT ms.marketID 
+	FROM @tblSelectionType sl
+		INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON ms.SelectionType = sl.SelectionType
+	WHERE ms.MatchID = @matchID
 								
 	--get marketID from selection
 	;WITH cteFilter AS (
@@ -141,8 +118,6 @@ BEGIN
 					 WHEN mc.ResultStatusID IN (3,5) THEN 1
 					 --WHEN mc.Result IS NOT NULL AND mk.ResultStatusID IN (0,1) THEN 1
 					 ELSE 0 END
-
-	END
 
 END
 GO
