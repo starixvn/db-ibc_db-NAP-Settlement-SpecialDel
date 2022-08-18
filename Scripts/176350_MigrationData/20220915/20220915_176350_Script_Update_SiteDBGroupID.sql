@@ -3,7 +3,7 @@
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 (
 	@transIds VARCHAR(MAX)
-	, @SiteDBGroupID SMALLINT = 1
+	, @SiteDBGroupID SMALLINT
 	, @tablename VARCHAR(200) = ''
 )
 /*
@@ -231,16 +231,26 @@ SELECT translogid
 FROM translog14 b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
----------------------- param declar to process data -----
+---------------------- param declare to process data -----
 DECLARE @StartRow INT = 1
 	, @StopRow INT 
 	, @MaxRow INT 
 	, @Threshold INT = 2000 -- the number of each batch
 	, @tablename VARCHAR (200)
 	, @transIds VARCHAR (MAX) = ''
-	, @siteDBGroupID SMALLINT = 1
+	, @siteDBGroupID SMALLINT 
 
 DECLARE @debug_message VARCHAR(500)
+
+----------------------check SiteDBGroupID before updating----
+SET @siteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88') AND SiteDBGroupID > 0)
+
+IF ISNULL(@siteDBGroupID,0) = 0
+BEGIN
+	SET @debug_message = 'SiteDBGroupID of these sites have not been updated.'
+	RAISERROR (@debug_message, 0, 1) WITH NOWAIT
+	RETURN
+END
 
 ------ 1. bettrans - #tmp_bettrans_scaleout ------------
 IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettrans_scaleout)
