@@ -773,7 +773,7 @@ BEGIN
 					SELECT t.c.value('@ScoreId','INT') AS ScoreId
 					FROM t.xDATA.nodes('/r') t(c)
 				) tmp (ScoreId)
-			INNER JOIN #tmpTransInfo b ON s.MatchId = b.matchid AND b.IsMixParlay = 0
+			INNER JOIN #tmpTransInfo b ON s.MatchId = b.matchid AND s.TransId = b.transid AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = s.MatchId
 		WHERE s.RequestId = @RequestId
 			AND b.StatusId IN (111, 112, 113)
@@ -802,6 +802,7 @@ BEGIN
 				,tmp.CashOutCount
 				,tmp.InstantlySettleCount
 				,tmp.SettleCount
+				,rd.MainParlayCount
 				,a.ScoreId AS ScoreId
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (

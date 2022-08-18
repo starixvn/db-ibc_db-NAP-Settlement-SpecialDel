@@ -581,7 +581,7 @@ BEGIN
 
 		SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50)) 
 											FROM #TVSTicketBets tp   
-											WHERE tp.IsMixParlay = 1 AND tp.SubTransid IN (0,1)
+											WHERE tp.IsMixParlay = 1 AND tp.SubStatusId IN (0,1)
 											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
 											FOR XML PATH('')), 1,1,'')
 										,'')
