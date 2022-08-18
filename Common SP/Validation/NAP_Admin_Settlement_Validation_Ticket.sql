@@ -60,8 +60,8 @@ SET NOCOUNT ON
 			,@IsCheckHoldEarly	BIT = 0
 			,@IsMergedParlay	BIT = 0
 			,@xmlResourceResult		XML
-			,@xmlData			VARCHAR(MAX)
-			,@IsCentral			BIT = 0
+			,@xmlData			 VARCHAR(MAX)
+			,@IsCentral			 BIT = 0
 
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
@@ -79,7 +79,8 @@ SET NOCOUNT ON
 	WHERE m.matchid = @matchid
 		AND ISNULL(@matchid,0) > 0
 		
-	SELECT @IsMergedParlay = s.IsMergedParlay		
+	SELECT @IsMergedParlay = s.IsMergedParlay
+			,@IsSettleByProfile = s.IsSettleByProfile
 	FROM SettlementResultTableSetting s WITH(NOLOCK) --table contains sportbook only
 	WHERE s.Sporttype = @SportType
 
@@ -94,6 +95,10 @@ SET NOCOUNT ON
 
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 
+	IF @IsSettleByProfile = 1
+	BEGIN
+		SET @xmlData = @SelectedResources
+	END
 	-----------------------------------------------------
 	
 
