@@ -539,7 +539,7 @@ BEGIN
 				FOR XML PATH ('')),1,1,'')
 			+ '</br>'
 		FROM @tblFM_Data t
-		WHERE	t.ResultStatus IN (3,5,6,7) OR t.BetOption = 0
+		WHERE	(t.ResultStatus IN (3,5,6,7) OR t.BetOption = 0)
 				AND t.bettype NOT IN (228, 229)
 		GROUP BY t.bettype
 		
