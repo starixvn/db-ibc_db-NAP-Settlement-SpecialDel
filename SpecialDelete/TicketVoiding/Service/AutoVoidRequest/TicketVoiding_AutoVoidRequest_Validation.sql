@@ -21,12 +21,12 @@ BEGIN
 	SET NOCOUNT ON
 
 	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpTransIds (TransId BIGINT PRIMARY KEY, RequestId INT, StatusID TINYINT, statuswinlost TINYINT, refno BIGINT, IsMixParlay BIT DEFAULT(0))
+	CREATE TABLE #tmpTransIds (TransId BIGINT PRIMARY KEY, RequestId INT, StatusID TINYINT, statuswinlost TINYINT, refno BIGINT, IsMixParlay BIT DEFAULT(0), Matchid INT)
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT)
-	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT)
-	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT)
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, Matchid INT)
+	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT)
+	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT)
 	CREATE TABLE #RequestMixParlay_NoStatusWL (RequestId INT)
 
 	IF @SingleTicketsXML IS NOT NULL
@@ -48,39 +48,40 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
 	END
 
-	INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, IsMixParlay, refno)
+	INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, IsMixParlay, refno, Matchid)
 	SELECT t.TransId
 		,t.RequestId
 		,b.statusID
 		,b.statuswinlost
 		,t.IsMixParlay
 		,b.refno
+		,b.matchid
 	FROM #tmpTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE b.statusID NOT IN (101, 102, 103)
 	
 	IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
 	BEGIN
-		INSERT INTO #SingleTickets (TransId, RequestId)
-		SELECT t.TransId, t.RequestId
+		INSERT INTO #SingleTickets (TransId, RequestId, Matchid)
+		SELECT t.TransId, t.RequestId, t.Matchid
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 0
 			AND t.statuswinlost IN (1,2)
 
-		INSERT INTO #SingleTickets_ReSettle (TransId, RequestId)
-		SELECT t.TransId, t.RequestId
+		INSERT INTO #SingleTickets_ReSettle (TransId, RequestId, Matchid)
+		SELECT t.TransId, t.RequestId, t.Matchid
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 0
 			AND t.statuswinlost IN (0,3,4)
 
-		INSERT INTO #ParlayTickets (TransId, RequestId)
-		SELECT t.TransId, t.RequestId
+		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid)
+		SELECT t.TransId, t.RequestId, t.Matchid
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 1
 			AND t.statuswinlost IN (1,2)
 
-		INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId)
-		SELECT t.TransId, t.RequestId
+		INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId, Matchid)
+		SELECT t.TransId, t.RequestId, t.Matchid
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 1
 			AND t.statuswinlost IN (0,3,4)
