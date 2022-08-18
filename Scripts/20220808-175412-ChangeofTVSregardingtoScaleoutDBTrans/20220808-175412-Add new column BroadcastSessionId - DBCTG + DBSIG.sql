@@ -1,8 +1,8 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20220808@July
 	Task: Add new column  [Redmine:#175412]  
-	DB: DBTXN.bodb02
+	DB: DBCTG.bodb02, DBSIG.bodb02
 		   
 */
 USE bodb02
