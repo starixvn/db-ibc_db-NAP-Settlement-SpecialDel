@@ -207,20 +207,21 @@ BEGIN
 			@matchID 			= @matchID
 			,@VendorID			= 34
 			,@action			= @action
-			,@resources 		= @SelectedMarket
+			,@SelectedMarket 	= @SelectedMarket
 			,@resultStatusID 	= @ResultStatusID
 			,@mode				= 'ResultStatusID'
 
 		EXEC dbo.NAP_Admin_SMPMarketSelection_Update 
 			@matchID 			= @matchID
 			,@action			= @action
-			,@resources 		= @SelectedSelection
+			,@SelectedMarket	= @SelectedMarket
+			,@SelectedSelection	= @SelectedSelection
 			,@resultStatusID 	= @ResultStatusID
 
 		EXEC dbo.NAP_Admin_SMPMarket_Update 
 			@matchID 			= @matchID
 			,@action			= @action
-			,@resources 		= @SelectedMarket
+			,@SelectedMarket	= @SelectedMarket
 			,@resultStatusID 	= @ResultStatusID
 
 		RETURN

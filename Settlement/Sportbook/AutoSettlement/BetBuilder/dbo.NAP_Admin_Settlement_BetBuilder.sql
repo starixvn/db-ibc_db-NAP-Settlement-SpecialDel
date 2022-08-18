@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder]
 	 @AdminId			INT				
 	,@MatchId			INT
-	,@Resources			VARCHAR(MAX)	
 	,@SelectedMarket	VARCHAR(MAX)	= NULL
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IsAuto			BIT				= 1
@@ -25,47 +24,14 @@ AS
 	Param's Explanation:
 		@Action : CAL, UNDO, 
 				
-		IF @IsAuto = 1 
-			@Resources = '<Resources>
-				            <rsc m="1"/>
-				            <rsc m="2"/>
-				            <rsc m="3"/>
-				            <rsc m="4"/>
-				            <rsc m="5"/>
-				         </Resources>'
-			
-		------------------------------------------------------------------------
-		IF @IsAuto = 0			  
-			@Resources = '<Resources>
-								<Resource Id="200" Result="WON"/>
-								<Resource Id="201" Result="WON"/>
-								<Resource Id="202" Result="WON"/>
-								<Resource Id="203" Result="REFUND"/>
-								<Resource Id="204" Result="LOSE"/>
-						   </Resources>'
+		@SelectedMarket = '<Resources>
+				        <rsc m="1"/>
+				        <rsc m="2"/>
+				        <rsc m="3"/>
+				        <rsc m="4"/>
+				        <rsc m="5"/>
+				        </Resources>'
 		
-		Example:
-				--settle by auto
-				DECLARE @ErrCode INT,@ErrMsg NVARCHAR(200)
-				SELECT @ErrCode = 0, @ErrMsg = ''
-					EXEC [dbo].[NAP_Admin_Settlement_BetBuilder] @MatchId	= 1
-																  ,@Action	= 'CAL'
-																  ,@AdminId = 8
-																  ,@IsAuto	= 1
-																  ,@Resources = '<Resources><rsc m="1"/><rsc m="2"/><rsc m="3"/><rsc m="4"/><rsc m="5"/></Resources>'
-																  ,@ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
-				SELECT @ErrCode,@ErrMsg
-			
-				--settle by manual
-				DECLARE @ErrCode INT,@ErrMsg NVARCHAR(200)
-				SELECT @ErrCode = 0, @ErrMsg = ''
-				EXEC [dbo].[NAP_Admin_Settlement_BetBuilder] @MatchId	= 1
-															  ,@Action	= 'CAL'
-															  ,@AdminId = 8
-															  ,@IsAuto	= 0
-															  ,@Resources = '<Resources><Resource Id="200" Result="WON"/><Resource Id="203" Result="REFUND"/></Resources>'
-															  ,@ErrCode = @ErrCode OUTPUT, @ErrMsg = @ErrMsg OUTPUT
-				SELECT @ErrCode,@ErrMsg
 */	
 BEGIN
 	SET NOCOUNT ON

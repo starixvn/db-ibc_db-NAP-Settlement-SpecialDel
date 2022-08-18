@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_ChangedMarket_Sel]
 	@matchID						INT
 	,@VendorID						SMALLINT		= 34
 	,@action						VARCHAR(20)		= 'CAL'
-	,@Resources						VARCHAR(MAX)
+	,@SelectedSelection				VARCHAR(MAX)
 	,@ResultStatusID				TINYINT			= 5
 AS 
 /*
@@ -15,7 +15,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
 
 	Param's Explanation:
-			@Resources = '<Resources>
+			@SelectedSelection = '<Resources>
 								<Resource Id="200" Result="WON"/>
 								<Resource Id="201" Result="WON"/>
 								<Resource Id="202" Result="WON"/>
@@ -25,7 +25,7 @@ AS
 	Example:
 			EXEC [dbo].[NAP_Admin_ChangedMarket_Sel] @MatchId	= 1
 													,@action 	= 'CAL'
-													,@Resources = '<Resources><Resource Id="200" Result="WON"/></Resources>'
+													,@SelectedSelection = '<Resources><Resource Id="200" Result="WON"/></Resources>'
 													,@ResultStatusID = 5
 */
 BEGIN
@@ -39,7 +39,7 @@ BEGIN
 	CREATE TABLE #tblMarket (MarketID VARCHAR(20) PRIMARY KEY)
 	
 	----------------------------------------------------------------------------
-	SET @xml = CAST(@Resources AS XML)
+	SET @xml = CAST(@SelectedSelection AS XML)
 	
 	;WITH TmpData AS (
 		SELECT T.C.value('@Id', 'INT') AS selectionType
