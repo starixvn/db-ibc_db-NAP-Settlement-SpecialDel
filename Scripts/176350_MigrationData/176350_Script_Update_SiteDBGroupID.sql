@@ -9,7 +9,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 /*
 	Created by: 20220811@Helen
 	Task: execRep SP for Settlement [Redmine:#176350]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02
 	
 	Revisions:
 		- 	20220811@Helen: update sitedbgroupid [Redmine:#176350]
