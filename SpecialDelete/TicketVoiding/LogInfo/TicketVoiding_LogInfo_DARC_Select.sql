@@ -548,8 +548,8 @@ BEGIN
 									ELSE 3 --Pending Accept
 								END
 					END AS accepttype
-					,d.SubIssueTypeId
-					,d.FilterBy
+				,d.SubIssueTypeId
+				,d.FilterBy
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON b.matchid = d.MatchId AND b.IsMixParlay = 1 
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund

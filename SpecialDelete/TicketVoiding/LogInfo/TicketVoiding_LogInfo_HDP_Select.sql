@@ -375,10 +375,10 @@ BEGIN
 				,b.Subtransid 
 				,b.refno
 				,b.custid				
-				,b.transdate
+				,b.Subtransdate
 				,b.bettype
-				,b.livehomescore
-				,b.liveawayscore
+				,b.Sublivehomescore
+				,b.Subliveawayscore
 				,b.IsMixParlay
 				,b.matchid
 				,b.statusID
