@@ -208,7 +208,7 @@ SET NOCOUNT ON
 	--End: Check is match in Queue
 
 	-- check waiting ticket
-	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode NOT IN ( 'MP', 'INST') )
+	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode IN ( 'MP', 'INST') )
 	BEGIN
 		IF (  @SportType = 1 AND 
 				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
