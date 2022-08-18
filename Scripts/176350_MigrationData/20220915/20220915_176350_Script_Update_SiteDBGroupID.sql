@@ -245,9 +245,9 @@ DECLARE @debug_message VARCHAR(500)
 ----------------------check SiteDBGroupID before updating----
 SET @siteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88') AND SiteDBGroupID > 0)
 
-IF ISNULL(@siteDBGroupID,0) = 0
+IF @siteDBGroupID IS NULL
 BEGIN
-	SET @debug_message = 'SiteDBGroupID of these sites have not been updated.'
+	SET @debug_message = 'SiteDBGroupID of these sites have not been configured yet.'
 	RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 	RETURN
 END
