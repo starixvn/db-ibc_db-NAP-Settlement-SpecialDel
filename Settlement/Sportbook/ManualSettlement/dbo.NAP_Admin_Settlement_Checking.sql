@@ -301,7 +301,7 @@ BEGIN
 			WHERE	MatchId = @MatchId 
 					AND ResourceId LIKE '2280_'
 
-			IF (@Action = 'CAL' AND @IsAuto = 0)
+			IF @Action = 'CAL' 
 			BEGIN
 				SET @ResultStatus = 5
 
@@ -322,22 +322,25 @@ BEGIN
 				FROM	@tblResultDetail t
 				WHERE	t.ResourceId = '22800'
 
-				INSERT INTO @tblPosition (ResourceId, strPosHome, strPosAway)
-				SELECT	t.ResourceId
-						,STUFF ((SELECT	',' + CAST(bt.position AS VARCHAR(200)) + '|' + CAST(bt.betOption AS VARCHAR(200))
-									FROM	@tblBettype	bt
-									WHERE	bt.bettype = 228
-											AND bt.position <= 45
-									FOR XML PATH ('')
-							),1,1,'') strBetOptionHome
-						,STUFF ((SELECT	',' + CAST((bt.position - 46) AS VARCHAR(200)) + '|' + CAST(bt.betOption AS VARCHAR(200))
-									FROM	@tblBettype	bt
-									WHERE	bt.bettype = 228
-											AND bt.position >= 46
-									FOR XML PATH ('')
-							),1,1,'') strBetOptionAway
-				FROM	@tblResultDetail t
-				WHERE	t.ResourceId = '22801'
+				IF @IsAuto = 0
+				BEGIN
+					INSERT INTO @tblPosition (ResourceId, strPosHome, strPosAway)
+					SELECT	t.ResourceId
+							,STUFF ((SELECT	',' + CAST(bt.position AS VARCHAR(200)) + '|' + CAST(bt.betOption AS VARCHAR(200))
+										FROM	@tblBettype	bt
+										WHERE	bt.bettype = 228
+												AND bt.position <= 45
+										FOR XML PATH ('')
+								),1,1,'') strBetOptionHome
+							,STUFF ((SELECT	',' + CAST((bt.position - 46) AS VARCHAR(200)) + '|' + CAST(bt.betOption AS VARCHAR(200))
+										FROM	@tblBettype	bt
+										WHERE	bt.bettype = 228
+												AND bt.position >= 46
+										FOR XML PATH ('')
+								),1,1,'') strBetOptionAway
+					FROM	@tblResultDetail t
+					WHERE	t.ResourceId = '22801'
+				END
 
 				UPDATE	r 
 					SET	HomeValue = CASE WHEN ISNULL(p.strPosHome,'') <> '' THEN dbo.f_Set_SetChars(v.HomeValue, p.strPosHome) ELSE r.HomeValue END 
