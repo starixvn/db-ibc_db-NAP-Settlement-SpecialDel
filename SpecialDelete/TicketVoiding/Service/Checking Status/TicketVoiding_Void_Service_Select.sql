@@ -1,14 +1,11 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Select]
-(
-	@VoidingHistoryId	INT = NULL
-)
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[TicketVoiding_Void_Service_Select]
 AS
 /*	
 	Created by: Max
 	Date 20220727
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
@@ -17,52 +14,40 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-
-	DECLARE @RetryTime INT = 120
-		,@ErrMsgLockMatch VARCHAR(300) = '1000000'
-
-	IF @VoidingHistoryId IS NULL
-	BEGIN
-		SELECT TOP (1) @VoidingHistoryId = q.VoidingHistoryId
-		FROM	dbo.TicketVoiding_Queue q WITH(ROWLOCK)
-		WHERE q.StatusId = 1
-			AND 1 = CASE 
-					WHEN ErrMsg = @ErrMsgLockMatch AND DATEADD(SECOND, @RetryTime, DATEADD(MS, duration, Exectime)) > GETDATE() THEN 0
-					ELSE 1
-				END
-		ORDER BY CASE WHEN ErrMsg = @ErrMsgLockMatch THEN DATEADD(SECOND, @RetryTime, DATEADD(MS, duration, Exectime)) ELSE Starttime END
-				,q.VoidingHistoryId
-
-		IF @@ROWCOUNT = 0
-			RETURN
 	
-		IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) WHERE v.VoidingHistoryId = @VoidingHistoryId AND v.StatusId = 99)
-		BEGIN
-			SELECT	RequestId
-					,QueueId
-					,MatchId
-					,VoidingTypeId
-					,TransIds
-					,UserId
-					,IP
-					,@VoidingHistoryId
-			FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
-			WHERE	VoidingHistoryId = @VoidingHistoryId
-		END
-	END
-	ELSE
+	CREATE TABLE #tmp_BroadcastSessionId (BroadcastSessionId VARCHAR(50), ID INT IDENTITY(1,1))
+
+	DECLARE @CheckStatus_tmp AS TABLE (BroadcastSessionId VARCHAR(50))
+
+	INSERT INTO #tmp_BroadcastSessionId
+	SELECT DISTINCT sv.BroadcastSessionId
+	FROM dbo.TicketVoiding_Void_Service sv WITH (NOLOCK)
+	WHERE sv.StatusId = 12
+	ORDER BY sv.CreatedDate
+
+	IF EXISTS (SELECT TOP(1) 1 FROM #tmp_BroadcastSessionId)
 	BEGIN
-		SELECT	RequestId
-					,QueueId
-					,MatchId
-					,VoidingTypeId
-					,TransIds
-					,UserId
-					,IP
-					,@VoidingHistoryId
-			FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
-			WHERE	VoidingHistoryId = @VoidingHistoryId
+		;WITH cte_BroadcastSessionId AS
+		(
+			SELECT BroadcastSessionId
+			FROM #tmp_BroadcastSessionId 
+		)
+		, cte_CheckStatus AS
+		(
+			SELECT TOP(1) sv.BroadcastSessionId
+			FROM dbo.TicketVoiding_Void_Service sv WITH (NOLOCK)
+				INNER JOIN cte_BroadcastSessionId c ON c.BroadcastSessionId = sv.BroadcastSessionId
+			WHERE sv.StatusId NOT IN (12,2,3)
+		)
+		INSERT INTO @CheckStatus_tmp (BroadcastSessionId)
+		SELECT BroadcastSessionId FROM cte_CheckStatus
 	END
+
+	SELECT BroadcastSessionId
+	FROM #tmp_BroadcastSessionId b
+	WHERE NOT EXISTS (SELECT TOP(1) 1 FROM @CheckStatus_tmp t WHERE b.BroadcastSessionId = t.BroadcastSessionId)
+	
+	DROP TABLE #tmp_BroadcastSessionId
 END
 GO
 
