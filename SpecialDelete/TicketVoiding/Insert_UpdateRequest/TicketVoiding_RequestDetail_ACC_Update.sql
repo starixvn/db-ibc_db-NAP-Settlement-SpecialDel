@@ -53,10 +53,6 @@ BEGIN
 	  ,transid BIGINT
 	  ,custid	INT	
 	  ,refno BIGINT
-      ,livehomescore SMALLINT
-      ,liveawayscore SMALLINT
-      ,liveindicator BIT
-	  ,statusID TINYINT
       ,bettype SMALLINT
       ,betid BIGINT
 	  ,IsMixParlay BIT
@@ -99,7 +95,7 @@ BEGIN
 
 	IF @IsEditRequest = 0 
 	BEGIN
-			IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0)
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail (
 					RequestId
@@ -128,7 +124,7 @@ BEGIN
 					, @ToDate
 					, @SubIssueTypeId
 			FROM #TempMatch t
-				INNER JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+				LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 			WHERE t.IsOutright = 0
 
 		END
@@ -332,5 +328,6 @@ BEGIN
 
 	DROP TABLE #TempMatch
 	DROP TABLE #tmpTransInfo
+	DROP TABLE #TempEditMatchID
 END
 GO

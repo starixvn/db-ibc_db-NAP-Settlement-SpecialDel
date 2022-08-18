@@ -43,7 +43,6 @@ BEGIN
 	  ,refno BIGINT
 	  ,statusID TINYINT
       ,bettype SMALLINT
-	  ,betteam NVARCHAR(10)
       ,betid BIGINT
 	  ,statuswinlost TINYINT
 	  ,IsMixParlay BIT
@@ -56,7 +55,6 @@ BEGIN
 		  ,refno
 		  ,statusID
 		  ,bettype
-		  ,betteam
 		  ,betid
 		  ,statuswinlost
 		  ,IsMixParlay
@@ -68,7 +66,6 @@ BEGIN
 			,t.c.value('@ref','BIGINT') AS refno
 			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@btype','SMALLINT') AS bettype
-			,t.c.value('@bteam','NVARCHAR(10)') AS betteam
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,t.c.value('@isP','BIT') AS IsMixParlay
@@ -102,7 +99,7 @@ BEGIN
 					, @SubIssueTypeId
 					, @FilterBy
 			FROM #TempMatch t
-				INNER JOIN dbo.match14 m14 WITH(NOLOCK) ON t.MatchId = m14.matchid
+				LEFT JOIN dbo.match14 m14 WITH(NOLOCK) ON t.MatchId = m14.matchid
 			WHERE t.IsOutright = 0
 
 		END
@@ -176,7 +173,7 @@ BEGIN
 					, ISNULL(m14.awayid, 0) 
 					, @SubIssueTypeId
 				FROM #TempEditMatchID e 
-					INNER JOIN dbo.match14 m14 WITH(NOLOCK) ON e.MatchID = m14.matchid 
+					LEFT JOIN dbo.match14 m14 WITH(NOLOCK) ON e.MatchID = m14.matchid 
 				WHERE e.IsFlag = 1	AND e.IsOutright = 0	
 		END  
 		ELSE IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1)
