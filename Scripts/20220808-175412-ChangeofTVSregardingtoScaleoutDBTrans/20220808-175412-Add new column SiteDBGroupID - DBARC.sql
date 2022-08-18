@@ -5,7 +5,7 @@
 	DB: DBARC.bodb_Archive
 		   
 */
-USE bodb02
+USE bodb_Archive
 GO
 
 ALTER TABLE TicketVoiding_RequestDetailTicket_Single_bk ADD SiteDBGroupID SMALLINT
