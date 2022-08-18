@@ -49,6 +49,7 @@ BEGIN
 	(		
 		SELECT m.matchID
 				,COUNT (*) AS totalTickets
+				, SUM(CASE WHEN statusID = 0 THEN 1 ELSE 0 END) AS totalTicketsRunning
 		FROM	#tmpMatchIds m
 			INNER JOIN dbo.Bettrans bt WITH (NOLOCK) 
 				ON m.MatchID = bt.MatchID
@@ -59,6 +60,7 @@ BEGIN
 	)
 	SELECT	m.matchID
 			,ISNULL(b.totalTickets,0) AS totalTickets
+			,ISNULL(b.totalTicketsRunning,0) AS totalTicketsRunning
 			,ISNULL(q.IsCalculating, 2) AS QueueStatus
 	FROM #tmpMatchIds m
 		LEFT JOIN @tmpMatchInQueue q ON m.matchid= q.MatchId

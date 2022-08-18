@@ -170,7 +170,7 @@ BEGIN
 								END	
 			,FcUpdateTime = CASE WHEN @statusId = 103 AND b.statusID <> 103 THEN SYSDATETIME() ELSE FcUpdateTime END
 		OUTPUT	inserted.transid
-			,inserted.statuswinlost
+			,CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(inserted.Statuswinlost AS VARCHAR(1)) END
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID

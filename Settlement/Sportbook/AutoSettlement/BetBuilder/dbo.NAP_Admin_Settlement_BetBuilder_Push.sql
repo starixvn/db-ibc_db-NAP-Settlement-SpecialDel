@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder_Push]
 	 @AdminId			INT				= 148		-- calculated by system (default)
 	,@MatchId			INT
 	,@SelectedMarket	VARCHAR(MAX)	= NULL
+	,@SelectedSelection	VARCHAR(MAX)	= NULL
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IsAuto			BIT				= 1
 	,@VendorID			SMALLINT		= 34
@@ -58,6 +59,7 @@ BEGIN
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_BetBuilder] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 									+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 								
 									+ ', @SelectedMarket = ''' + CONVERT(VARCHAR(MAX), @SelectedMarket) + '''' 
+									+ CASE WHEN @SelectedSelection IS NOT NULL THEN + ', @SelectedSelection = ''' + CONVERT(VARCHAR(MAX), @SelectedSelection) + '''' ELSE '' END
 									+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''
 									+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
 									+ ', @VendorID = ' + CONVERT(NVARCHAR(50), @VendorID)

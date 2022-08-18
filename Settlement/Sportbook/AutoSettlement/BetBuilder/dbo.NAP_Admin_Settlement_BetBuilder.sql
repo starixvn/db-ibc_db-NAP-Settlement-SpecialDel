@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder]
 	 @AdminId			INT				
 	,@MatchId			INT
 	,@SelectedMarket	VARCHAR(MAX)	= NULL
+	,@SelectedSelection	VARCHAR(MAX)	= NULL
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IsAuto			BIT				= 1
 	,@VendorID			SMALLINT		= 34
@@ -364,10 +365,9 @@ BEGIN
 	BEGIN
 		
 		DECLARE @xmlLogResult XML
-		SET @SelectedResources = ''
+		SET @SelectedResources = ''		
 		
-		
-		SET @xmlLogResult = CAST(@Resources AS XML)
+		SET @xmlLogResult = CAST(@SelectedSelection AS XML)
 		;WITH cteData AS (
 			SELECT T.C.value('@Id', 'INT') AS selectionType
 				   ,T.C.value('@Result', 'VARCHAR(20)') AS result
@@ -375,7 +375,8 @@ BEGIN
 		)
 		SELECT @SelectedResources = @SelectedResources + ',' + s.SelectionName + (CASE WHEN result IS NULL THEN '' ELSE '(' + result + ')' END)
 		FROM cteData
-			INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s WITH(NOLOCK) ON s.SelectionType = cteData.selectionType
+			INNER JOIN DBPRO.bodb02.dbo.SMP_Selection s WITH(NOLOCK) 
+				ON s.SelectionType = cteData.selectionType
 			
 		SELECT @SelectedResources = 'Selections:' + STUFF(@SelectedResources, 1, 1, '')
 	END
