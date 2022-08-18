@@ -2495,7 +2495,8 @@ BEGIN
 			END
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			VALUES ('Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo)	
+			SELECT 'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
+			WHERE @transInfo IS NOT NULL
 				
 			SET @betparlaydetailinfo = (
 				SELECT	DISTINCT transId AS '@t'						
@@ -2506,7 +2507,8 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			VALUES ('Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo)	
+			SELECT 'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
+			WHERE @betparlaydetailinfo IS NOT NULL
 		END
     END -- while
 END -- end SP

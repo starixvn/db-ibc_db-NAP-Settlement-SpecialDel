@@ -1,12 +1,10 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Match_s164_Upd
 	@MatchID	INT
-	,@IsAuto	BIT = 0
-	--,@Sporttype	SMALLINT
-	,@Resources	VARCHAR(MAX)
-	--,@Command	VARCHAR(100) = 'profile_bingoball'
+	,@IsAuto	BIT			 = 0
+	,@Resources	VARCHAR(MAX) = NULL
 	,@Action	VARCHAR(10)
-	,@AdminId	INT = 0
+	,@AdminId	INT			 = 0
 AS
 /*
 	Creator: 20220719@Louisa

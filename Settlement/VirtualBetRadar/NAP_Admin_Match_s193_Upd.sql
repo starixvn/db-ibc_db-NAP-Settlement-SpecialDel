@@ -13,9 +13,11 @@ AS
 /*
 	Creator: 20220719@Louisa
 	Task: Scale Out BetTrans [Redmine:#175251]
-	DB: DBPRO/bodb02
+	DB: DBPRO/bodb02
+
 	Revisions:		
-		- 20201216@Louisa: Update match/reult info Happy5 [Redmine:#175251]
+		- 20201216@Louisa: Update match/reult info Happy5 [Redmine:#175251]
+
 	Param's explaination: 
 		@Resources:   '<Results>
                             <Resource ResourceId="00" Custom1="100" Custom2="106" />
@@ -48,7 +50,7 @@ BEGIN
 		
 		EXEC dbo.NAP_updateMatch_remark 
 				@MatchId	= @MatchId
-				,@Command	= 'C' -- completedR
+				,@Command	= 'VSC'
 
 		IF @sportType = 193
 			BEGIN
@@ -71,7 +73,7 @@ BEGIN
 		
 		EXEC dbo.NAP_updateMatch_remark 
 				@MatchId	= @MatchId
-				,@Command	= 'F' -- refund
+				,@Command	= 'VSR' -- refund
 
 			IF @sportType = 193
 			BEGIN

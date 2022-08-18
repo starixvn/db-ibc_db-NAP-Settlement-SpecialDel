@@ -28,6 +28,7 @@ WITH RECOMPILE
 		- 20210219@Louisa: Update match_remark when calculate HT for Basketball [Redmine:#150328]
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
+		- 20220719@Louisa: Update match_remark before calcualte/refund for VSBetradar [Redmine:#175251]
 
 	Param's Explanation: 
 */
@@ -371,6 +372,34 @@ BEGIN
 	--	SET SettlementStatus135 = @ivalue
 	--	WHERE matchid = @matchid  
 	--END
+
+	IF @command = 'VSC' 
+	BEGIN
+		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
+		SET Calculate		= 1
+			,calrefund		= 0
+			,IsHTCal		= CASE WHEN @SelectedQuarter IS NULL OR @SelectedQuarter LIKE '%1H%' THEN 1 ELSE IsHTCal END
+			,isPending		= 0
+			,isUndecided	= 0
+			,multiple		= 1
+			,refund			= 0
+			,RepUpdateTime = SYSDATETIME()
+		WHERE matchid = @matchid -- whole match calculated
+	END
+
+	IF @command = 'VSR'
+	BEGIN
+		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
+		SET calculate		= 0
+			,IsHTCal		= 0
+			,calrefund		= 1
+			,isPending		= 0
+			,isUndecided	= 0
+			,multiple		= 0
+			,refund			= 1
+			,RepUpdateTime = SYSDATETIME() 
+		WHERE matchid = @matchid
+	END
 
 END
 GO

@@ -154,23 +154,34 @@ BEGIN
 					,@ErrMsg	= 'Match does not exist or the sport type is not valid!'	
 			RETURN
 		END 
-	
-		INSERT INTO @Resources_193 
-		VALUES ('280920'),('280940'),('280960')
 		
-		INSERT INTO @tmpResult (ResourceId, HomeValue, AwayValue)
-		SELECT DISTINCT
-			T.C.value('@ResourceId', 'VARCHAR(20)') AS ResourceId
-			,T.C.value('@Custom1', 'VARCHAR(20)') AS HomeValue
-			,T.C.value('@Custom2', 'VARCHAR(20)') AS AwayValue
-		FROM @xmlData.nodes('/Results/Resource') AS T(C)
-		OPTION ( OPTIMIZE FOR ( @xmlData = NULL ) )	
+		IF @sportType = 193
+		BEGIN
+			INSERT INTO @Resources_193 
+			VALUES ('280920'),('280940'),('280960')
 		
-		SET @FTHome = (SELECT HomeValue FROM @tmpResult WHERE ResourceId = '00')
-		SET @FTAway = (SELECT AwayValue FROM @tmpResult WHERE ResourceId = '00')
-		SET @HTHome = (SELECT HomeValue FROM @tmpResult WHERE ResourceId = '01')
-		SET @HTAway = (SELECT AwayValue FROM @tmpResult WHERE ResourceId = '01')
+			INSERT INTO @tmpResult (ResourceId, HomeValue, AwayValue)
+			SELECT DISTINCT
+				T.C.value('@ResourceId', 'VARCHAR(20)') AS ResourceId
+				,T.C.value('@Custom1', 'VARCHAR(20)') AS HomeValue
+				,T.C.value('@Custom2', 'VARCHAR(20)') AS AwayValue
+			FROM @xmlData.nodes('/Results/Resource') AS T(C)
+			OPTION ( OPTIMIZE FOR ( @xmlData = NULL ) )	
+		
+			SET @FTHome = (SELECT HomeValue FROM @tmpResult WHERE ResourceId = '00')
+			SET @FTAway = (SELECT AwayValue FROM @tmpResult WHERE ResourceId = '00')
+			SET @HTHome = (SELECT HomeValue FROM @tmpResult WHERE ResourceId = '01')
+			SET @HTAway = (SELECT AwayValue FROM @tmpResult WHERE ResourceId = '01')
 
+			IF @Action = 'CAL' 
+			AND EXISTS (SELECT COUNT(1) FROM @tmpResult	GROUP BY ResourceId HAVING COUNT(1)> 1)
+			BEGIN
+				SELECT	 @ErrCode	= 1000006
+						,@ErrMsg	= 'Inputed results are duplicate!'	
+				RETURN
+			END
+
+		END
 
 		IF(@Action = 'CAL' AND (@FTHome IS NULL OR @FTAway IS NULL OR @HTHome IS NULL OR @HTAway IS NULL))
 		BEGIN
@@ -178,14 +189,6 @@ BEGIN
 					,@ErrMsg	= 'The input score values are not valid!'	
 			RETURN
 		END
-
-		IF @Action = 'CAL' 
-			AND EXISTS (SELECT COUNT(1) FROM @tmpResult	GROUP BY ResourceId HAVING COUNT(1)> 1)
-		BEGIN
-			SELECT	 @ErrCode	= 1000006
-					,@ErrMsg	= 'Inputed results are duplicate!'	
-			RETURN
-		END	
 
 		IF EXISTS (SELECT 1 FROM @tmpResult 
 					WHERE ResourceId IN ('00','01') 

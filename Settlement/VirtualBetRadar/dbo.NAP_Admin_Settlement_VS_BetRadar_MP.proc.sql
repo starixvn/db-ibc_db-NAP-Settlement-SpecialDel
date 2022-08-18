@@ -136,25 +136,8 @@ BEGIN
 			,@ErrMsg			= @ErrMsg OUTPUT
 	END	
 	
-	IF(@ErrCode > 0) RETURN
-	
-	----------------------------------------------------------------------------------------------------------------------------------------
-	BEGIN --BEGIN: UPDATE match_remark ----------------------------------	
-		IF @IsCentral = 1 AND @Action IN ('CAL', 'REFUND') -- for cal/refund
-		BEGIN
-			DECLARE @command varchar(5)
-			SET @command = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
-
-			EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark @matchid = @matchid
-				,@command = @command
-		END
-
-		--RE-USE old parlay
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Parlay'
-			,@Matchid = @matchid
-			,@creator = @AdminId
-			
-	END --END: UPDATE match_remark ----------------------------------	
+	IF(@ErrCode > 0) 
+		RETURN	
 	
 	--RELEASE process
 	EXEC dbo.NAP_Admin_CheckingProcess
