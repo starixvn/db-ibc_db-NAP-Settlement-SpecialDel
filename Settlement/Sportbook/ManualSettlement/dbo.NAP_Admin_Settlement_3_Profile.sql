@@ -96,7 +96,9 @@ BEGIN
 	DECLARE @tmpParlayAffectedBettypes TABLE (bettype SMALLINT, totalticket INT)	
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY
-		, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY,livehomescore SMALLINT, liveawayscore SMALLINT, isFinished BIT DEFAULT(0))
+		, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY,livehomescore SMALLINT, liveawayscore SMALLINT, isFinished BIT DEFAULT(0)
+		, currentStatuswinlost TINYINT
+	)
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -637,11 +639,12 @@ BEGIN
 
 	IF @strCashoutBettype <> ''
 	BEGIN
-		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, bettype, betteam, hdp1, hdp2, WalletType, BonusID, balance, livehomescore, liveawayscore)
+		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, bettype, betteam, hdp1, hdp2, WalletType, BonusID, balance, livehomescore, liveawayscore, currentStatuswinlost)
 		SELECT	b.transid, NULL, b.custid, b.bettype, b.betteam, b.hdp1, b.hdp2, ISNULL(b.WalletType,2)
 				,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
 				,(b.winlost - b.actual_stake + b.playercomm) AS balance
 				,b.livehomescore, b.liveawayscore
+				,b.statuswinlost
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	matchid = @matchid
 				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
@@ -671,51 +674,59 @@ BEGIN
 						AND sr.matchid = @matchid
 				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, t.betteam, t.hdp1, t.hdp2, sr.HomeValue, sr.AwayValue, t.livehomescore, t.liveawayscore, NULL, NULL) m
 			WHERE	sr.SessionId = @SessionId
-			
-			INSERT INTO @BalanceWalletBefore (matchid, custid, balanceType, WalletType, BonusID, balance)
-			SELECT	@matchid, custid, balanceType, WalletType, BonusID, SUM(balance)
+
+			DELETE 
 			FROM	@tmpCashoutTransId
-			GROUP BY	custid, balanceType, WalletType, BonusID
+			WHERE	currentStatuswinlost IS NOT NULL
+					AND currentStatuswinlost = statuswinlost
+			
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+			BEGIN 
+				INSERT INTO @BalanceWalletBefore (matchid, custid, balanceType, WalletType, BonusID, balance)
+				SELECT	@matchid, custid, balanceType, WalletType, BonusID, SUM(balance)
+				FROM	@tmpCashoutTransId
+				GROUP BY	custid, balanceType, WalletType, BonusID
 
-			WHILE (1=1)
-			BEGIN
-				DELETE @tmpTransIDBatch
-				SET @strTransIds = ''
+				WHILE (1=1)
+				BEGIN
+					DELETE @tmpTransIDBatch
+					SET @strTransIds = ''
 
-				UPDATE	TOP (2000) t
-					SET isFinished = 1
-				OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+					UPDATE	TOP (2000) t
+						SET isFinished = 1
+					OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+					FROM	@tmpCashoutTransId t
+					WHERE	isFinished = 0					
+
+					IF @@ROWCOUNT = 0
+						BREAK
+
+					SET @strTransIds = (SELECT transid	AS '@t'
+												,winlost	AS '@w'	
+												,statuswinlost AS '@s'
+										FROM @tmpTransIDBatch
+										FOR XML PATH('r'), ROOT( 'root' ))
+
+					EXEC dbo.NAP_Admin_Calculate_Main
+						@matchid	  = @matchid
+						,@action	  = 'Cashout'
+						,@mode		  = 'CAL'
+						,@strTransIds = @strTransIds
+				END
+
+				INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
+				SELECT	@matchid, t.custid, t.balanceType, t.WalletType, t.BonusID, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 				FROM	@tmpCashoutTransId t
-				WHERE	isFinished = 0					
-
-				IF @@ROWCOUNT = 0
-					BREAK
-
-				SET @strTransIds = (SELECT transid	AS '@t'
-											,winlost	AS '@w'	
-											,statuswinlost AS '@s'
-									FROM @tmpTransIDBatch
-									FOR XML PATH('r'), ROOT( 'root' ))
-
-				EXEC dbo.NAP_Admin_Calculate_Main
-					@matchid	  = @matchid
-					,@action	  = 'Cashout'
-					,@mode		  = 'CAL'
-					,@strTransIds = @strTransIds
-			END
-
-			INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
-			SELECT	@matchid, t.custid, t.balanceType, t.WalletType, t.BonusID, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
-			FROM	@tmpCashoutTransId t
-				INNER JOIN dbo.bettrans b WITH(NOLOCK)
-					ON t.TransId = b.transid
-			GROUP BY	t.custid, t.balanceType, t.WalletType, t.BonusID			
+					INNER JOIN dbo.bettrans b WITH(NOLOCK)
+						ON t.TransId = b.transid
+				GROUP BY	t.custid, t.balanceType, t.WalletType, t.BonusID			
 		
-			-- Compare and update pending balance with error case
-			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-				@BalanceWalletBefore	= @BalanceWalletBefore
-				,@BalanceWalletAfter	= @BalanceWalletAfter
-				,@ActionId				= @ActionID		
+				-- Compare and update pending balance with error case
+				EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+					@BalanceWalletBefore	= @BalanceWalletBefore
+					,@BalanceWalletAfter	= @BalanceWalletAfter
+					,@ActionId				= @ActionID		
+			END
 		END
 	END
 

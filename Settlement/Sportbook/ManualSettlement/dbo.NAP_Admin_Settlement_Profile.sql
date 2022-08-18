@@ -125,11 +125,11 @@ BEGIN
 		   , @BalanceWalletAfter		TVP_BalanceWalletChange
 	--END Balance tables
 
-	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT)
+	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT, BetdaqId BIGINT, DeadHeat TINYINT)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT, srecommend INT, bettype SMALLINT, IsMarked	BIT, BetdaqId BIGINT, DeadHeat TINYINT, currentStatuswinlost TINYINT)
 
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, DeadHeat TINYINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
@@ -360,13 +360,14 @@ BEGIN
 
 			IF @sportType <> 1
 			BEGIN
-				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, DeadHeat)
+				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, DeadHeat, currentStatuswinlost)
 	  			SELECT 
 					b.transid, m.modds
 					, sr.OddsType
 					, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 					,ISNULL(b.betdaqid,0)
 					,m.DeadHeat
+					,b.statuswinlost
 	  			FROM bettrans b WITH (NOLOCK)
 					OUTER APPLY (
 									SELECT TOP (1) mt.TransId
@@ -399,17 +400,19 @@ BEGIN
 							WHEN deleted.modds = -0.25 THEN 3
 							ELSE 4
 						END
-					INTO @tmpCashoutTransId(TransId, statuswinlost)
+						, deleted.currentStatuswinlost
+					INTO @tmpCashoutTransId(TransId, statuswinlost, currentstatuswinlost)
 				WHERE	BetdaqId = -2
 			END
 			ELSE
 			BEGIN
-				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId)
+				INSERT INTO #tmpTransID(TransID, modds, OddsType, srecommend, bettype, IsMarked, BetdaqId, currentStatuswinlost)
 	  			SELECT 
 					b.transid, m.modds
 					, sr.OddsType
 					, b.srecommend, b.bettype, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 					,ISNULL(b.betdaqid,0)
+					,b.statuswinlost
 	  			FROM bettrans b WITH (NOLOCK)
 					OUTER APPLY (
 									SELECT TOP (1) mt.TransId
@@ -442,7 +445,8 @@ BEGIN
 							WHEN deleted.modds = -0.25 THEN 3
 							ELSE 4
 						END
-					INTO @tmpCashoutTransId(TransId, statuswinlost)
+						, deleted.currentStatuswinlost
+					INTO @tmpCashoutTransId(TransId, statuswinlost, currentstatuswinlost)
 				WHERE	BetdaqId = -2
 			END
 			
@@ -465,8 +469,8 @@ BEGIN
 		ELSE IF @action LIKE 'UNDO%'
 		BEGIN
 			--get transid
-			INSERT INTO #tmpTransID(TransID, betdaqid)
-	  		SELECT b.transid, ISNULL(b.betdaqid,0)
+			INSERT INTO #tmpTransID(TransID, BetdaqId, currentStatuswinlost)
+	  		SELECT b.transid, ISNULL(b.betdaqid,0), b.statuswinlost
 	  		FROM bettrans b WITH (NOLOCK)
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID)
 				OUTER APPLY (
@@ -484,7 +488,7 @@ BEGIN
 			
 			DELETE 
 			FROM	#tmpTransID
-				OUTPUT deleted.TransID, NULL INTO @tmpCashoutTransId(TransId, statuswinlost)
+				OUTPUT deleted.TransID, NULL, deleted.currentStatuswinlost INTO @tmpCashoutTransId(TransId, statuswinlost, currentstatuswinlost)
 			WHERE	BetdaqId = -2
 
 			IF @IsMergedParlay = 1					
@@ -515,8 +519,8 @@ BEGIN
 		ELSE IF @action LIKE 'REFUND%'
 		BEGIN
 			--get transid
-			INSERT INTO #tmpTransID(TransID, BetdaqId)
-	  		SELECT transid, ISNULL(b.betdaqid,0)
+			INSERT INTO #tmpTransID(TransID, BetdaqId, currentStatuswinlost)
+	  		SELECT transid, ISNULL(b.betdaqid,0), b.statuswinlost
 	  		FROM bettrans b WITH (NOLOCK)
 	  			INNER JOIN @tmpSelectedRID t ON b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	  		WHERE b.matchid = @MatchId
@@ -525,7 +529,7 @@ BEGIN
 			
 			DELETE 
 			FROM	#tmpTransID
-				OUTPUT deleted.TransID, 6 INTO @tmpCashoutTransId(TransId, statuswinlost)
+				OUTPUT deleted.TransID, 6, deleted.currentStatuswinlost INTO @tmpCashoutTransId(TransId, statuswinlost, currentstatuswinlost)
 			WHERE	BetdaqId = -2
 			
 			IF @IsMergedParlay = 1
@@ -539,6 +543,11 @@ BEGIN
 									WHERE	t.BetType = bm.bettype
 											AND (t.BetID = 0 OR t.BetID = bm.betcheck))
 		END 
+
+		DELETE 
+		FROM	@tmpCashoutTransId
+		WHERE	currentstatuswinlost IS NOT NULL
+				AND statuswinlost = currentstatuswinlost
 
 		IF @sportType = 2 AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE ResourceID IN ('00','01'))-- BASKETBALL
 		BEGIN

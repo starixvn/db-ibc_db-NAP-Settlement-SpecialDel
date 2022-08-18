@@ -107,7 +107,9 @@ BEGIN
 	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)	
-	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY, IsFinished BIT DEFAULT(0))
+	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0)
+		, statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY, IsFinished BIT DEFAULT(0)
+		, currentStatuswinlost TINYINT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
 	DECLARE @tmpParlayAffectedBettypes TABLE (
 		ResourceId VARCHAR(20)
@@ -685,7 +687,7 @@ BEGIN
 			END
 		END
 
-		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, balanceType, WalletType, BonusID, balance)
+		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, balanceType, WalletType, BonusID, balance, currentStatuswinlost)
 		SELECT	b.transid
 				,CASE 
 					WHEN @SDTRecord & 4 > 0 
@@ -704,6 +706,7 @@ BEGIN
 				,ISNULL(b.WalletType,2)
 				,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
 				,(b.winlost - b.actual_stake + b.playercomm) AS balance
+				,b.statuswinlost
 		FROM	dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN dbo.f_Set_GetCashoutBettypes() f
 				ON b.bettype = f.bettype
@@ -715,6 +718,11 @@ BEGIN
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND s.SessionId = @SessionId		
+
+		DELETE 
+		FROM	@tmpCashoutTransId
+		WHERE	currentStatuswinlost IS NOT NULL
+				AND currentStatuswinlost = statuswinlost
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
 		BEGIN
