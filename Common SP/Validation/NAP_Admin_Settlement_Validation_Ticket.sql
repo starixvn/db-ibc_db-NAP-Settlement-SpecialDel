@@ -7,7 +7,6 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 	,@Action		VARCHAR(10)
 	,@Mode			VARCHAR(10)
 	,@IsAuto		BIT = 0
-	--,@IsAutoRefund	BIT = 0
 	,@ResourceResult VARCHAR(MAX)	= NULL		--AutoPayout_Push
 	,@SPName		 VARCHAR(255)
 	,@SelectedResources	VARCHAR(MAX) = NULL
@@ -70,15 +69,13 @@ SET NOCOUNT ON
 			,@IsAutoRefund			BIT = 0 
 
 	SELECT @sporttype = m.sporttype
-			,@LeagueGroupID		= lg.GroupID
+			,@LeagueGroupID		= l.LeagueGroupID
 			,@finalhomescore	= m.finalhomescore
 			,@finalawayscore	= m.finalawayscore
 			,@IsSettleAbandonedMatchIBC = CASE WHEN @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
-		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK)
-			ON l.LeagueGroupID = lg.GroupID
 	WHERE m.matchid = @matchid
 		AND ISNULL(@matchid,0) > 0
 		
