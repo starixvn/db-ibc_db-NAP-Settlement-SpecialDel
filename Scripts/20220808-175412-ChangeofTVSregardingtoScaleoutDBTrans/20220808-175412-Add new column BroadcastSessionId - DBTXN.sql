@@ -10,3 +10,10 @@ GO
 
 ALTER TABLE dbo.TicketVoiding_AutoVoidRequest_Queue ADD BroadcastSessionId VARCHAR(50)
 GO
+
+CREATE NONCLUSTERED INDEX [IX_BroadcastSessionId] ON [dbo].[TicketVoiding_AutoVoidRequest_Queue]
+(
+	[BroadcastSessionId]	ASC
+
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO

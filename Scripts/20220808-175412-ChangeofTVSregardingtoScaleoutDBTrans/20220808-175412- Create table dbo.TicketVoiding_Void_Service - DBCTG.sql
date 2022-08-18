@@ -15,6 +15,7 @@ CREATE TABLE [dbo].[TicketVoiding_Void_Service](
 	VoidingHistoryId	BIGINT	NOT NULL,
 	StatusId			TINYINT	NOT NULL,
 	IsAutoVoid			BIT NOT NULL,
+	MatchId				INT NOT NULL,
 	CreatedDate			DATETIME NOT NULL,
 	ModifiedDate		DATETIME NOT NULL
   CONSTRAINT [PK_TicketVoiding_Void_Service] PRIMARY KEY NONCLUSTERED 
@@ -23,6 +24,20 @@ CREATE TABLE [dbo].[TicketVoiding_Void_Service](
 	
 )WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [DATA]
 ) ON DATA
+
+CREATE NONCLUSTERED INDEX [IX_TicketVoiding_Void_Service_BroadcastSessionId] ON [dbo].[TicketVoiding_Void_Service]
+(
+	[BroadcastSessionId]	ASC
+
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
+
+CREATE NONCLUSTERED INDEX [IX_TicketVoiding_Void_Service_StatusId] ON [dbo].[TicketVoiding_Void_Service]
+(
+	[StatusId]	ASC
+
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
 
 GO
 ALTER TABLE dbo.TicketVoiding_Void_Service ADD CONSTRAINT [DF_TicketVoiding_Void_Service_CreatedDate]  DEFAULT (GETDATE()) FOR [CreatedDate]
