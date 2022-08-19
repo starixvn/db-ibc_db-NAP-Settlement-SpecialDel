@@ -351,7 +351,7 @@ BEGIN
 	BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #transIdTemp t
-									WHERE t.StatusId IN (0,1)
+									WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 	END
@@ -372,7 +372,7 @@ BEGIN
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 											FROM #transIdTemp t
-											WHERE t.StatusId IN (0,1)
+											WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 
@@ -381,7 +381,7 @@ BEGIN
 		BEGIN
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #transIdTemp t
-									WHERE t.StatusId IN (0,1)
+									WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 		END
