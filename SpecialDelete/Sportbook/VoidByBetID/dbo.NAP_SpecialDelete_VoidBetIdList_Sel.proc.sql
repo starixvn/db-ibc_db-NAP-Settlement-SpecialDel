@@ -554,6 +554,7 @@ BEGIN
 		,c.custid
 		,d.ActualStake
 		,d.EndTime 
+		,@SitedbgroupId AS SiteDBgroupId
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid
