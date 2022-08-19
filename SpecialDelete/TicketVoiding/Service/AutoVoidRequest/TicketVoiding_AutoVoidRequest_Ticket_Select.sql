@@ -23,7 +23,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, MainTransId BIGINT)
 
 	IF @RequestId > 0
 	BEGIN
@@ -44,8 +44,8 @@ BEGIN
 			AND rds.MatchId = 29
 
 		--Sub parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, MainTransId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.MainTransId
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
 		WHERE rds.RequestId = @RequestId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
@@ -74,15 +74,15 @@ BEGIN
 			AND rds.MatchId = 29
 
 		--Sub parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, MainTransId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.MainTransId
 		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
 		WHERE rds.MatchId = @MatchId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 	END
 
 	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #SingleTickets
-	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #ParlayTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId, MainTransId FROM #ParlayTickets
 
 	DROP TABLE #SingleTickets
 	DROP TABLE #ParlayTickets
