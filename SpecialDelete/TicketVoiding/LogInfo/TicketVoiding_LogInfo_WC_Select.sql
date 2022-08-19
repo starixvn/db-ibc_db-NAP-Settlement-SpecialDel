@@ -670,13 +670,12 @@ BEGIN
 	FROM #logInfo
 	IF @SingleCount = 0 AND @MainParlayCount = 0
 	BEGIN
-		IF @FilterBy <> 2
+		IF @FilterBy = 2
 		BEGIN
 			-- 1. Validate table
-			SELECT LiveScores
+			SELECT MatchId
 				,1 AS IsInValidTotalTickets
 				,IsExistedInOtherRequest
-				,ScoreId
 			FROM @Validation
 
 			-- 2. TransId in request table
@@ -714,9 +713,10 @@ BEGIN
 		ELSE 
 		BEGIN 
 			-- 1. Validate table
-			SELECT MatchId
+			SELECT LiveScores
 				,1 AS IsInValidTotalTickets
 				,IsExistedInOtherRequest
+				,ScoreId
 			FROM @Validation
 		
 			-- 2. TransId in request table
@@ -867,7 +867,7 @@ BEGIN
 				,tmp.InstantlySettleCount
 				,tmp.SettleCount
 				,rd.MainParlayCount
-				,rd.VoidFromTime AS HighLightTime
+				,rd.VoidFromTime AS HighLightMinTime
 				,h.HighlightAcceptType
 				,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 				,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
@@ -1048,15 +1048,15 @@ BEGIN
 		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
-			SELECT RequestId,
-				STUFF((
+			SELECT RequestId
+				,NULL AS LiveScores
+				,r.ScoreId
+				,STUFF((
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
 				WHERE (RequestId = r.RequestId AND ScoreId = r.ScoreId) 
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
-				,NULL AS LiveScores
-				,r.ScoreId
 			FROM #TransidInRequest r
 			GROUP BY r.RequestId, r.ScoreId
 		END
@@ -1106,9 +1106,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SELECT CAST(r.TransId AS VARCHAR(MAX)) AS TransIds
-				,r.RequestId, r.MatchId
-			FROM #TransidInRequest r
+			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds 
+			FROM #TransidInRequest
 		END
 	
 		-- 3. Loginfo table
