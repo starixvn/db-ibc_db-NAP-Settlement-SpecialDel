@@ -242,17 +242,20 @@ BEGIN
 			SELECT T.C.value('@Id', 'SMALLINT') AS Bettype
 				,X.C.value('@p','TINYINT') as Position
 				,X.C.value('@oa','TINYINT') as OldAccumulatedScore
+				,X.C.value('@or','TINYINT') as OldBetOption
 			FROM @xmlOldAccumulatedScore.nodes('/r/b') AS T(C)
 				CROSS APPLY
 					C.nodes('r') AS X(C)
 		)
 		UPDATE r 
-				SET OldAccumulatedScore = CASE WHEN @Action = 'CAL' THEN ISNULL(a.OldAccumulatedScore,0) ELSE 0 END					
-			FROM	#tblResultDetail r
-				INNER JOIN cteOldAccumulatedScore a
-					ON	r.BetType = a.bettype
-						AND r.Position = a.Position
-			WHERE r.BetType = 228
+			SET OldAccumulatedScore = CASE WHEN @Action = 'CAL' THEN ISNULL(a.OldAccumulatedScore,0) ELSE 0 END	
+				,AccumulatedScore = ISNULL(a.OldAccumulatedScore,0)
+				,BetOption = ISNULL(a.OldBetOption,0)
+		FROM	#tblResultDetail r
+			INNER JOIN cteOldAccumulatedScore a
+				ON	r.BetType = a.bettype
+					AND r.Position = a.Position
+		WHERE r.BetType = 228
 	END
 
 	-- Get Result bettype 228
