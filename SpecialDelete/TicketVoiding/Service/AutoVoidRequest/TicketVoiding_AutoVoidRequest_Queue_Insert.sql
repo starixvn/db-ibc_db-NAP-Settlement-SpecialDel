@@ -1,7 +1,11 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Insert]
 (
-	@RequestIdList VARCHAR(MAX)
+	@BroadcastSessionId VARCHAR(50)
+	,@RequestId INT
+	,@MatchId INT
+	,@StatusId TINYINT
+	,@Action	VARCHAR(50)
 	,@UserId INT = 0
 	,@IP VARCHAR(50) = ''
 )
@@ -20,17 +24,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpRequests (RequestId INT)
-
-	INSERT INTO #tmpRequests (RequestId)
-	SELECT DISTINCT value AS RequestId
-	FROM STRING_SPLIT(@RequestIdList, ',')
-
 	INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
-	SELECT t.RequestId, 0, 'MixParlay', 100, @UserId, GETDATE(), @IP
-	FROM #tmpRequests t
-	
-	DROP TABLE #tmpRequests
+	SELECT @RequestId, @MatchId, @Action, @StatusId, @UserId, GETDATE(), @IP
+
 END		
 GO
 
