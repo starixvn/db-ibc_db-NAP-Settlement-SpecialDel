@@ -26,7 +26,7 @@ BEGIN
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcUpdateTime DATETIME2, creator INT
 		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
-		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT
+		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
 	)
 	
 	IF @tablename = 'bettrans' 
@@ -35,7 +35,7 @@ BEGIN
 			,matchid, winlostdate, betdaqid
 			,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
 			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
-			, hdp1 , hdp2 , livehomescore , liveawayscore , creator
+			, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@mid', 'INT') AS matchid
@@ -64,6 +64,8 @@ BEGIN
 				,T.C.value('./@lh', 'SMALLINT') AS livehomescore
 				,T.C.value('./@la', 'SMALLINT') AS liveawayscore
 				,T.C.value('./@cr', 'INT') AS creator
+				,T.C.value('./@bid', 'BIGINT') AS betid
+				,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
@@ -101,6 +103,8 @@ BEGIN
 				,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					
 				,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN b.liveawayscore ELSE t.liveawayscore END									
 				,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
+				,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE t.betid END
+				,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 
@@ -215,6 +219,40 @@ BEGIN
 
 			DELETE m 
 			FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
+		END
+	END
+	ELSE IF @TableName = 'zzzbettrans'
+	BEGIN
+		IF @Action = 'U'
+		BEGIN
+			INSERT INTO @tmpTransId (TransID ,matchid, Status, WinLost)
+			SELECT	T.C.value('./@t', 'bigint') AS transid	
+				,T.C.value('./@mid', 'INT') AS matchid	
+				,T.C.value('./@s', 'NVARCHAR(10)') AS Status	
+				,T.C.value('./@w', 'MONEY') AS WinLost	
+			FROM	@transInfo.nodes('/root/r') AS T(C)	
+			OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+
+			SET @batchNo = @@ROWCOUNT
+
+			UPDATE TOP (@batchNo)  b
+				SET [status] = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
+					,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+			FROM	@tmptransid t
+				INNER JOIN dbo.zzzbettrans b WITH (ROWLOCK, UPDLOCK)
+					ON	b.transid = t.transid
+		END
+		ELSE IF @Action = 'D'
+		BEGIN
+			INSERT INTO @tmpTransId (TransID ,matchid)
+			SELECT	T.C.value('./@t', 'bigint') AS transid
+				   ,T.C.value('./@mid', 'INT') AS matchid
+			FROM	@transInfo.nodes('/root/r') AS T(C)
+			OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+
+			DELETE m 
+			FROM dbo.zzzbettrans m WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
 		END
 	END
