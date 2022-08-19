@@ -272,8 +272,11 @@ BEGIN
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+			IF @IsSiteDB = 1
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+			END
 
 
 			-- Process for cashout tickets make change Balance before
@@ -354,8 +357,11 @@ BEGIN
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+			IF @IsSiteDB = 1
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+			END
 			
 			-- Process for cashout tickets make change Balance before
 			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
