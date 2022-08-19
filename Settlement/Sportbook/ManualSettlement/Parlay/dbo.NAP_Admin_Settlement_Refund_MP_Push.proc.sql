@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_MP_Push] (
 	,@Action 						VARCHAR(20) = 'REFUND'
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0
 	,@IP 							VARCHAR(15) = ''
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
 	,@ErrCode 						INT = 0 OUTPUT
 	,@ErrMsg NVARCHAR(200) 			= '' OUTPUT
 )
@@ -412,8 +413,8 @@ BEGIN
 	END
 	ELSE
 	BEGIN		
-		INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, Sporttype)
-		SELECT @matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @mode, @sporttype
+		INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, Sporttype, BroadcastSessionId)
+		SELECT @matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @mode, @sporttype, @BroadcastSessionId
 	END
 END
 GO 

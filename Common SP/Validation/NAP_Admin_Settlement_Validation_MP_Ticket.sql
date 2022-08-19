@@ -35,6 +35,8 @@ SET NOCOUNT ON
 	CREATE TABLE #ResultDetailOS (MatchId INT, ResourceId VARCHAR(20), ResultStatusId TINYINT, SettlementStatusId TINYINT)
 	DECLARE @tblResultRunning TABLE (matchid INT, ResourceId NVARCHAR(50), OrdNo SMALLINT)
 
+	SET @MatchIdsValid = ''
+
 	INSERT INTO #tblValidMatch ( matchid, matchcode, fth, fta, hth, hta, sporttype, ParentId)
 	SELECT matchid
 			,matchcode

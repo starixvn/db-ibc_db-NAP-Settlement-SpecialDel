@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP_Push] (
 	,@AdminId 	INT
 	,@Action 	VARCHAR(20) = 'CAL'
 	,@IP 		VARCHAR(15) = ''
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
 	,@ErrCode 	INT = 0 OUTPUT
 	,@ErrMsg 	NVARCHAR(200) = '' OUTPUT
 	)
@@ -158,8 +159,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN		
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, Sporttype)
-			SELECT matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @action, sporttype
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, Sporttype, BroadcastSessionId)
+			SELECT matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @action, sporttype, @BroadcastSessionId
 			FROM #Match
 		END
 	END
