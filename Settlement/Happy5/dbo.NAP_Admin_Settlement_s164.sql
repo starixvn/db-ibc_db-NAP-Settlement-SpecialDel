@@ -4,7 +4,6 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_s164
 	,@Action		VARCHAR(20)		= 'CAL'
 	,@AdminId		INT
 	,@IsAuto		BIT				= 1
-	--,@Resources		VARCHAR(MAX)	= NULL
 	,@strOldResult	VARCHAR(MAX)	= NULL
 	,@IP			VARCHAR(50)		= ''
 	,@ErrCode		INT				= 0		OUTPUT

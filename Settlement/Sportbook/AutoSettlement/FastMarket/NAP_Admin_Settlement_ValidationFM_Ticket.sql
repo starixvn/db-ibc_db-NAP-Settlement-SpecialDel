@@ -114,7 +114,7 @@ BEGIN
 
 	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
 	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
-	FROM	dbo.ResultDetail r WITH (ROWLOCK)
+	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)
 	WHERE	matchid = @matchid
 
 	;WITH TmpData AS (

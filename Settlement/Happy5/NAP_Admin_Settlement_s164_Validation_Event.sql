@@ -2,9 +2,10 @@
 ALTER PROCEDURE NAP_Admin_Settlement_s164_Validation_Event
 (
 	 @matchid		INT = 0
+	,@IsAuto		BIT = 0
 	,@Action		VARCHAR(10) 
-	,@ErrCode		INT		 = 0 OUTPUT
-	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
+	,@ErrCode		INT		 = 0		OUTPUT
+	,@ErrMsg		NVARCHAR(300)  = '' OUTPUT
 )
 AS
 /*
@@ -13,10 +14,10 @@ AS
     DB: DBPRO/bodb02
 	
 	Revisions:
-		- 20220719@Louisa: Validation event before settle 3rd [Redmine:#175251]
+		- 20220719@Louisa: initial [Redmine:#175251]
 
 	Param's Explanation:
-		@Action: CAL, REFUND,			
+		@Action: CAL, REFUND		
 
 		@SelectedResources: 
 			happy5:
@@ -26,6 +27,9 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+
+	IF @IsAuto = 1 
+	RETURN
 
 	--invalid ball
 	IF @Action LIKE 'CAL%'
@@ -63,7 +67,6 @@ BEGIN
 		IF @ErrCode <> 0
 			RETURN
 	END
-
 
 END
 GO

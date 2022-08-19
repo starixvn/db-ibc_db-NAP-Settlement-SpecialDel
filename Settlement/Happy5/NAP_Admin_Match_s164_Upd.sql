@@ -2,8 +2,8 @@
 ALTER PROCEDURE NAP_Admin_Match_s164_Upd
 	@MatchID	INT
 	,@IsAuto	BIT			 = 0
-	,@Resources	VARCHAR(MAX) = NULL
-	,@Action	VARCHAR(10)
+	,@Resources	VARCHAR(MAX) = NULL --for manual
+	,@Action	VARCHAR(10)	 = NULL
 	,@AdminId	INT			 = 0
 AS
 /*
