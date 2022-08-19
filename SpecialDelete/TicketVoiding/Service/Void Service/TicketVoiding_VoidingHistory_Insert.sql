@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 (
 	@BroadcastSessionId		VARCHAR(50)
-	,@SiteDBGroupId			TINYINT
 	,@IsAutoVoid			BIT = 0
 	,@VoidServiceXml		XML = NULL
 	,@VoidData				XML = NULL
@@ -27,14 +26,15 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpRequestInfo (RequestId INT, IssueTypeId INT, MatchId INT, TransIds VARCHAR(MAX))
+	CREATE TABLE #tmpRequestInfo (RequestId INT, IssueTypeId INT, MatchId INT, TransIds VARCHAR(MAX), SiteDBGroupId TINYINT)
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
 
-	INSERT INTO #tmpRequestInfo (RequestId, IssueTypeId, MatchId, TransIds)
+	INSERT INTO #tmpRequestInfo (RequestId, IssueTypeId, MatchId, TransIds, SiteDBGroupId)
 	SELECT t.c.value('@RequestId','INT') 
 			,t.c.value('@IssueTypeId','INT')
 			,t.c.value('@MatchId','INT')
 			,t.c.value('@TransIds','VARCHAR(MAX)')
+			,t.c.value('@SiteDBGroupId','TINYINT')
 	FROM @VoidServiceXml.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@VoidServiceXml = NULL))
 
@@ -73,7 +73,7 @@ BEGIN
 			,v.VoidingHistoryId
 			,1
 			,@BroadcastSessionId
-			,@SiteDBGroupId
+			,t.SiteDBGroupId
 			,@IsAutoVoid
 			,t.MatchId
 		FROM #tmpRequestInfo t

@@ -1,7 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 (
-	@SingleTicketsXML	XML = NULL
+	@VoidingHistoryId	INT
+	,@RequestId			INT
+	,@IssueTypeId		TINYINT
+	,@SingleTicketsXML	XML = NULL
 	,@ParlayTicketsXML	XML = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)
@@ -25,12 +28,9 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @RequestId INT
-		, @VoidingHistoryId INT
-		, @MatchId INT
+	DECLARE @MatchId INT
 		, @TotalTicket INT
 		, @TransIds VARCHAR(MAX)
-		, @IssueTypeId TINYINT
 		, @start INT = 1
 		, @end INT
 
@@ -64,11 +64,6 @@ BEGIN
 		FROM @ParlayTicketsXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
 	END
-
-	SELECT @RequestId = MAX(t.RequestId)
-		,@VoidingHistoryId = MAX(t.VoidingHistoryId)
-		,@IssueTypeId = MAX(t.IssueTypeId)
-	FROM #tmpInputTransId t
 
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT DISTINCT t.MatchId
