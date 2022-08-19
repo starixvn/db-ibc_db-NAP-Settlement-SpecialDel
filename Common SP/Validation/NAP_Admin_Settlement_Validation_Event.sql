@@ -1,19 +1,16 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 (
-	 @matchid			INT = 0
+	 @matchid				INT = 0
 	,@DestinationMatchId	INT = 0 --for Move Ticket
 	,@Action				VARCHAR(10)
 	,@Mode					VARCHAR(10)
 	,@IsAuto				BIT = 0
-	--,@IsAutoRefund	BIT = 0
 	,@SPName				VARCHAR(255)
 	,@SelectedResources		VARCHAR(MAX) = NULL 
 	,@InstantKey			INT = NULL			--InstantCalculation_Push
 	,@SettleAbandonedMatchIBCParlay TINYINT	= 0 --_Refund_MP_Push
 	,@SDTRecord				TINYINT	= 0			--Refund_1_Push
-	--,@IsSettleDetermined	BIT	= 0				--Fast_Market_Auto_1s_Push
-	--,@VendorID				SMALLINT = 34
 	,@childMatchIdCricket	INT		 = 0 OUTPUT
 	,@ErrCode				INT		 = 0 OUTPUT
 	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
@@ -68,8 +65,8 @@ SET NOCOUNT ON
 			,@IsFailed				BIT = 0
 			,@IsAutoRefund			BIT = 0 
 			
-			,@IsSettlementStatusChecking	BIT = 0 ---  call NAP_Set_SettlementStatusChecking
-			,@IsHoldChecking			BIT = 0 --- call NAP_Set_HoldSettingChecking
+			,@IsSettlementStatusChecking	BIT = 0 --call NAP_Set_SettlementStatusChecking
+			,@IsHoldChecking				BIT = 0 --call NAP_Set_HoldSettingChecking
 			,@IsResultSettingChecking		BIT = 0 --call NAP_Set_ResultSettingChecking
 			,@IsAutoRefundChecking			BIT = 0 --call NAP_Set_AutoRefund_MatchChecking_Event
 
@@ -94,7 +91,7 @@ SET NOCOUNT ON
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
-		INNER JOIN dbo.LeagueGroup lg WITH(NOLOCK)
+		LEFT JOIN dbo.LeagueGroup lg WITH(NOLOCK)
 			ON l.LeagueGroupID = lg.GroupID
 	WHERE m.matchid = @matchid
 
@@ -102,7 +99,7 @@ SET NOCOUNT ON
 	SELECT @IsHoldChecking = 1
 
 	--SOP Refund (confirm refund on ResourceID )
-	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND @LeagueGroupID <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
+	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND ISNULL(@LeagueGroupID,0) <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
 	BEGIN
 		SELECT @IsResultSettingChecking = 1
 	END
@@ -300,9 +297,9 @@ SET NOCOUNT ON
 	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%'
 	BEGIN
 		IF  @SPName = 'NAP_Admin_Settlement_Profile_Push'
-			AND (	( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
-						OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
-						OR (@LeagueGroupId <> 122 AND @sporttype = 2) -- Auto settle pingoal basketball
+			AND (	(ISNULL(@LeagueGroupId,0) <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
+						OR (ISNULL(@LeagueGroupId,0) <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
+						OR (ISNULL(@LeagueGroupId,0) <> 122 AND @sporttype = 2) -- Auto settle pingoal basketball
 				)
 		BEGIN
 			SELECT	 @ErrCode	= 1001052
@@ -312,7 +309,7 @@ SET NOCOUNT ON
 
 		--Auto payout soccer
 		--NAP_Admin_Settlement_1_AutoPayout_Push.
-		IF @SportType = 1 AND @Action LIKE 'CAL%' AND @LeagueGroupId <> 113
+		IF @SportType = 1 AND @Action LIKE 'CAL%' AND ISNULL(@LeagueGroupId,0) <> 113
 		BEGIN
 			IF EXISTS (SELECT TOP 1 1
 						FROM dbo.ResultDetail with(NOLOCK)

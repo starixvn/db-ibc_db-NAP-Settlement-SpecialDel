@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_s175_Validation
 (
-	@ErrCode				INT		 = 0		OUTPUT
-	,@ErrMsg				NVARCHAR(300)  = '' OUTPUT
+	@ErrCode INT		 = 0	 OUTPUT
+	,@ErrMsg NVARCHAR(300)  = '' OUTPUT
 )
 AS
 /*

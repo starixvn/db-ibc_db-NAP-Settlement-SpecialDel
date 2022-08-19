@@ -1,6 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Match_NumberGame_Upd
-	@MatchID	INT
+	 @MatchID	INT
 	,@IsAuto	BIT = 0
 	,@Resources	VARCHAR(MAX)
 	,@Action	VARCHAR(10)

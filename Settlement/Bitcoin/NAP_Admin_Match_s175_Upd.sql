@@ -3,19 +3,26 @@ ALTER PROCEDURE NAP_Admin_Match_s175_Upd
 	@MatchID		INT
 	,@IsAuto		BIT = 0
 	,@Action		VARCHAR(10)
-	,@ResultId		INT	,@GameResult	VARCHAR(50)		= ''
+	,@ResultId		INT
+	,@GameResult	VARCHAR(50)		= ''
 	,@AdminId		INT
 AS
 /*
 	Creator: 20220719@Louisa
 	Task: Scale Out BetTrans [Redmine:#175251]
-	DB: DBPRO/bodb02
+	DB: DBPRO/bodb02
+
 	Revisions:		
-		- 20201216@Louisa: Update match/reult info Bitcoin [Redmine:#175251]
-	Param's explaination: 
-*/
-BEGIN
-	SET NOCOUNT ON
+		- 20201216@Louisa: Update match/reult info Bitcoin [Redmine:#175251]
+
+	Param's explaination: 
+
+*/
+
+BEGIN
+
+	SET NOCOUNT ON
+
 	IF @IsAuto = 0
 	RETURN
 
@@ -29,6 +36,8 @@ BEGIN
 
 	EXEC dbo.NAP_Admin_Match3rd_Update
 		@Action	= @Action
-		,@MatchID = @matchid
-END
+		,@MatchID = @matchid
+
+END
+
 GO

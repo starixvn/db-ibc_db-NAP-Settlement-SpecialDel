@@ -1,11 +1,11 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Match_s193_Upd
-	@MatchID	INT
+	@MatchId	INT
 	,@IsAuto	BIT = 0
-	,@Fth				SMALLINT		= NULL
-	,@Fta				SMALLINT		= NULL
-	,@Hth				SMALLINT		= NULL
-	,@Hta				SMALLINT		= NULL
+	,@Fth		SMALLINT		= NULL
+	,@Fta		SMALLINT		= NULL
+	,@Hth		SMALLINT		= NULL
+	,@Hta		SMALLINT		= NULL
 	,@Resources	VARCHAR(MAX)
 	,@Action	VARCHAR(10)
 	,@AdminId	INT = 0
