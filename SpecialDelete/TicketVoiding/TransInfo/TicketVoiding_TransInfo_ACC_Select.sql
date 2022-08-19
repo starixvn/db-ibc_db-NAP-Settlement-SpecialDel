@@ -117,7 +117,7 @@ BEGIN
 			,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
 			,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
 			,@FromDate = t.c.value('@FromDate','DATETIME')
-			,@ToDate = t.c.value('@ToDate','DATETIME')
+			,@ToDate = NULLIF(t.c.value('@ToDate','DATETIME'), '')
 	FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))	
 
