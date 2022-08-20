@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [NAP_Admin_Settlement_3_VS]
 	@creator int,
 	@matchid int,
@@ -59,14 +60,10 @@ SET NOCOUNT ON
 	-- bettype 1235 : Virtual Score Bet	
 		EXEC dbo.NAP_Admin_PreCalculate_4 @matchid, 1235, @betstatus, @scorediff
 	-- bettype 1236 : Virtual Total Points	
-		EXEC dbo.NAP_Admin_PreCalculate_6 @matchid, 1236, @totalgoal	
+		EXEC dbo.NAP_Admin_PreCalculate_6 @matchid, 1236, @totalgoal, @IsCentral	
 		
 	END
 
 
 GO
-
-GRANT VIEW DEFINITION ON [NAP_Admin_Settlement_3_VS] TO [vnteam] AS [dbo]
-GO
-
 

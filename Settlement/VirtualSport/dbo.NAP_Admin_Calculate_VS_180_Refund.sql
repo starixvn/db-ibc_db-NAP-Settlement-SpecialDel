@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_180_Refund]
 	@MatchId			INT
 	,@IsCentral			BIT = 0
@@ -10,7 +11,7 @@ AS
 	Revisions:
 	
 	Param's Explanation:
-		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]    
  
 */
 BEGIN
@@ -96,6 +97,3 @@ BEGIN
 	END
 	
 END
-
-GO
-GRANT VIEW DEFINITION ON [dbo].NAP_Admin_Calculate_VS_180_Refund TO [vnteam] AS [dbo]

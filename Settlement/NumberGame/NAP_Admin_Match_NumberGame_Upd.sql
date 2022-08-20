@@ -2,7 +2,7 @@
 ALTER PROCEDURE NAP_Admin_Match_NumberGame_Upd
 	 @MatchID	INT
 	,@IsAuto	BIT = 0
-	,@Resources	VARCHAR(MAX)
+	,@Resources	VARCHAR(MAX) = NULL
 	,@Action	VARCHAR(10)
 	,@AdminId	INT = 0
 	,@ErrCode	INT = 0 OUTPUT
@@ -24,43 +24,27 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF @Action = 'Refund' OR @IsAuto = 0
-	BEGIN
-		EXEC NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-Refund', @MatchId = @MatchId, @Creator = @AdminID
-	END
+	DECLARE @Command VARCHAR(100)
 
-	ELSE IF @Action = 'Refund-FT'
-	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-Refund_FT', @MatchId = @MatchId, @Creator = @AdminID
-	END
+	SET @Command = CASE 
+						WHEN @Action = 'CAL' THEN 'NAP_Admin_Settlement_s161-CAL'
+						WHEN @Action = 'REFUND' THEN 'NAP_Admin_Settlement_s161-Refund'
+						WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_s161-Refund_FT'
+						ELSE ''
+					END
 
-	ELSE IF @Action = 'CAL'
-	BEGIN
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_s161-CAL', @Matchid = @MatchId, @Creator = @AdminID
-	END
-
+	EXEC NAP_Admin_Match_Update 
+		@Command = @Command 
+		,@MatchId = @MatchId
+		,@Creator = @AdminID
+	
 	IF @IsAuto = 0
 	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
-
 		EXEC dbo.NAP_UpdateNumberGameBalls 
 			@MatchId = @MatchId
 			,@BallResults = @Resources
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
-
-		IF @ErrCode <> 0
-		BEGIN
-			UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-			SET		VValue = '0'
-			WHERE	VName = 'isCalculatingNGManual'
-		
-		RETURN
-		END
-
 	END
-
 END
 GO
