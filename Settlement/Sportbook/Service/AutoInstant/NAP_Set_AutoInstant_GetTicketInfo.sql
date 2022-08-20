@@ -34,8 +34,8 @@ BEGIN
 	SELECT	MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END) AS IsExistFGNG
 			,MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END) AS IsExistHTFGNG
 
-			,MAX(CASE WHEN bettype = 14 AND IsExistsFG = 1 THEN 1 ELSE 0 END) AS IsExistsFG
-			,MAX(CASE WHEN bettype = 127 AND IsExistsFG = 1 THEN 1 ELSE 0 END) AS IsExistsHTFG
+			,MAX(CASE WHEN bettype = 14 AND IsExistsFG = 1 THEN 1 ELSE 0 END) AS IsExistFG
+			,MAX(CASE WHEN bettype = 127 AND IsExistsFG = 1 THEN 1 ELSE 0 END) AS IsExistHTFG
 	FROM	cteBetTickets
 
 END
