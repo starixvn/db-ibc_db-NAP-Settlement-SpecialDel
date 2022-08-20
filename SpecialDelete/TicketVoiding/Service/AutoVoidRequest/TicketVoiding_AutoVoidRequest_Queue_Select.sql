@@ -51,7 +51,8 @@ BEGIN
 						WHEN q.RequestId > 0 AND q.Action = 'VoidInstant5m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1 --AB
 						WHEN q.RequestId > 0 AND q.Action = 'VoidInstant10m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
 					ELSE 0 END
-			AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId	
+			AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
+			AND q.BroadcastSessionId IS NOT NULL
 		ORDER BY q.Action DESC, Starttime
 	END	
 END		
