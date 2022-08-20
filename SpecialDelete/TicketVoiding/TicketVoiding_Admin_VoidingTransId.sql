@@ -320,7 +320,7 @@ BEGIN
 				,statusID = 102
 				,status = 'VOID'
 				,betid = t.BetId
-				,RepUpdateTime  = @FcUpdateTime
+				,FcUpdateTime  = @FcUpdateTime
 					OUTPUT deleted.Transid,
 						deleted.custid,  
 						deleted.winlost,  
