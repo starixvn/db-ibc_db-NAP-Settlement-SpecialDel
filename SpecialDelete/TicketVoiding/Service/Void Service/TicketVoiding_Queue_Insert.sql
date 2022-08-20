@@ -147,28 +147,32 @@ BEGIN
 									FOR XML PATH ('')
 								),1,1,''))
 				
-				INSERT INTO dbo.TicketVoiding_Queue (
-					RequestId
-					,MatchId
-					,VoidingHistoryId
-					,TransIds
-					,StatusId
-					,UserId
-					,Ip
-					,VoidingTypeId
-					,TotalTicket
-					,IssueTypeId
-				)
-				SELECT	@RequestId
-						,@MatchId
-						,@VoidingHistoryId
-						,@TransIds
-						,99 -- waiting
-						,@UserId
-						,@IP
-						,2
-						,@TotalTicket
-						,@IssueTypeId
+				IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Queue q WITH (NOLOCK) 
+								WHERE q.RequestId = @RequestId AND q.VoidingHistoryId = @VoidingHistoryId AND q.TransIds = @TransIds)
+				BEGIN
+					INSERT INTO dbo.TicketVoiding_Queue (
+						RequestId
+						,MatchId
+						,VoidingHistoryId
+						,TransIds
+						,StatusId
+						,UserId
+						,Ip
+						,VoidingTypeId
+						,TotalTicket
+						,IssueTypeId
+					)
+					SELECT	@RequestId
+							,@MatchId
+							,@VoidingHistoryId
+							,@TransIds
+							,99 -- waiting
+							,@UserId
+							,@IP
+							,2
+							,@TotalTicket
+							,@IssueTypeId
+				END
 			END
 		END
 
