@@ -28,6 +28,10 @@ BEGIN
 
 	DECLARE @xml XML
 			,@transInfo	XML
+			,@IsSiteDB	BIT
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 
 	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY, StatusId TINYINT, MainTransId BIGINT, oddsid INT)
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -67,7 +71,7 @@ BEGIN
 				INNER JOIN dbo.bettrans b
 					ON	t.TransID = b.transid
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -102,7 +106,7 @@ BEGIN
 							ON	t.TransID = zb.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -145,7 +149,7 @@ BEGIN
 				INNER JOIN dbo.bettransm bm 
 					ON	bm.transid = t.transid
 			
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -178,7 +182,7 @@ BEGIN
 					INNER JOIN dbo.BetParlayDetail d
 						ON	d.transid = t.TransId
 
-				IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 				BEGIN
 					SET @transInfo = (
 						SELECT	transId AS '@t'
@@ -213,7 +217,7 @@ BEGIN
 							ON	t.TransID = zb.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -246,7 +250,7 @@ BEGIN
 							ON	t.TransID = zbm.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -279,7 +283,7 @@ BEGIN
 							ON	t.MainTransId = vt.transId
 					WHERE	t.StatusId = 102
 
-					IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 					BEGIN
 						SET @transInfo = (
 							SELECT	transId AS '@t'
@@ -320,7 +324,7 @@ BEGIN
 			INNER JOIN dbo.bettrans b
 				ON	t.TransID = b.transid
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 		BEGIN		
 			SET @transInfo = (
 				SELECT	transId AS '@t'

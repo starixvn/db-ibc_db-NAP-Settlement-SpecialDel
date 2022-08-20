@@ -30,6 +30,7 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
 			,@FcUpdateTime		DATETIME2
+			,@IsSiteDB			BIT
 
 	SET @ServerName = @@SERVERNAME
 
@@ -43,6 +44,10 @@ BEGIN
 		IF @AllowUndo = 0
 			RETURN
 	END
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+
 	-----------------------CHECK SERVER-----------------------------------------
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT)
@@ -119,7 +124,7 @@ BEGIN
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 		
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF @IsSiteDB = 1 AND EXISTS( SELECT TOP 1 1 FROM @tmpTransInfo )
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'	

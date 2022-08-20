@@ -24,7 +24,7 @@ BEGIN
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
 			,@transInfo	XML
-			,@IsCentral	BIT = 0
+			,@IsSiteDB	BIT = 0
 			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY, statuswinlost TINYINT, winlostdate SMALLDATETIME
@@ -34,8 +34,8 @@ BEGIN
 			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 		
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
+		SET @IsSiteDB = 1
 
 	SET @ServerName = @@SERVERNAME
 
@@ -165,7 +165,7 @@ BEGIN
 			AND b.bettype 	= s.bettype
 			AND b.transid 	= s.transid
 	
-	IF @IsCentral = 0
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'	

@@ -19,6 +19,7 @@ AS
 		- 20210904@Kathy: Data is Inserted into Table Settled_Message Continuously [Redmine:#161175]
 		- 20211122@Max: Support Settlement Exclusion for Parlay Sub Tickets [Redmine: #163172]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -36,6 +37,7 @@ BEGIN
 		,@sqlCommand NVARCHAR(MAX)
 		,@LockedByRefno BIT = 0
 		,@LockedBySystemSetting BIT = 0
+		,@BroadcastSessionId VARCHAR(50)
 	
 	IF EXISTS (
 			SELECT TOP 1 1
@@ -58,6 +60,7 @@ BEGIN
 	SELECT TOP 1 @keyId =  p.keyid
 		,@Sporttype = p.Sporttype
 		,@LockedByRefno = p.LockedByRefno
+		,@BroadcastSessionId = BroadcastSessionId
 	FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
 	INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
 	WHERE p.IsCalculating = 0
@@ -193,7 +196,10 @@ BEGIN
 			WHERE MatchId = @matchid
 				AND Action = 'MixParlay'
 				AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
-			
+		
+		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
+		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL_PAR', @BroadcastSessionId
+
 	END
 
 	---

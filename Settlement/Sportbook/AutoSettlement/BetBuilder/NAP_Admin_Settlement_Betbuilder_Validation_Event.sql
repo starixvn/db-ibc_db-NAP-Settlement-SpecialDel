@@ -9,7 +9,6 @@ ALTER PROCEDURE NAP_Admin_Settlement_Betbuilder_Validation_Event
 	,@ErrCode		INT		 = 0 OUTPUT
 	,@ErrMsg		NVARCHAR(300)  = ''    OUTPUT
 	,@InvalidMarketId	VARCHAR(MAX) = ''  OUTPUT
-	,@ValidMarketId		VARCHAR(MAX) = ''  OUTPUT
 )
 AS
 /*
@@ -98,6 +97,7 @@ BEGIN
 	BEGIN
 		--delete marketID does not have Result
 		DELETE r
+		OUTPUT DELETED.MarketID INTO #tblInvalidMarketID
 		FROM #tblMarketPush r
 		WHERE r.Result IS NULL
 	END
@@ -108,13 +108,6 @@ BEGIN
 	FROM #tblInvalidMarketID
 			
 	SET @InvalidMarketId = SUBSTRING(@InvalidMarketId, 2 , LEN(@InvalidMarketId))
-
-	SET @ValidMarketId = ''
-	
-	SELECT @ValidMarketId = @ValidMarketId + ',' + CAST(marketID AS VARCHAR(20))
-	FROM #tblMarketPush
-			
-	SET @ValidMarketId = SUBSTRING(@ValidMarketId, 2 , LEN(@ValidMarketId))
 
 END
 GO
