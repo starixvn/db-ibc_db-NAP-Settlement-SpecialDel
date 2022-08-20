@@ -147,6 +147,11 @@ BEGIN
 	FROM	dbo.TicketVoiding_Queue q
 		LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 	WHERE q.QueueId = @QueueId 
+	
+	SELECT q.QueueId, q.StatusId, q.ErrMsg AS [Message], q.UserId, c.username
+	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
+		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
+	WHERE q.QueueId = @QueueId
 
 END
 

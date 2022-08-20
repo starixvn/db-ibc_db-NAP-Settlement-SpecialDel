@@ -105,6 +105,8 @@ BEGIN
 			,@IsAutoVoid
 			,t.MatchId
 		FROM #tmpRequestInfo t
+		WHERE NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service s WITH (NOLOCK) 
+						WHERE s.RequestId = t.RequestId AND s.VoidingHistoryId = @VoidingHistoryId AND s.SiteDBGroupID = t.SiteDBGroupId)
 	END
 
 	SELECT v.BroadcastSessionId, v.SiteDBGroupID, v.RequestId, v.VoidingHistoryId, v.StatusId, v.IsAutoVoid, v.MatchId
