@@ -531,9 +531,10 @@ BEGIN
 		ELSE IF @IsSettleByProfile = 0
 		BEGIN
 			EXEC dbo.NAP_Admin_Match_Update 
-				@Command 	= @refundCommand --'NAP_Admin_Settlement_Refund-FT'
+				@Command 	= @refundCommand 
 				,@MatchID 	= @matchid		
 				,@creator 	= @adminid
+				,@HTDone	= @HTDone
 				,@BetStatus = @betstatus	
 				
 			EXEC dbo.NAP_updateMatch_remark 
