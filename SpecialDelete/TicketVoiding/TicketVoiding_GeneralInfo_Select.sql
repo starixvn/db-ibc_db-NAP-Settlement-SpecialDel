@@ -1,5 +1,5 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
 ( 
 	 @RequestId	INT
 	,@MatchId   INT = 0
@@ -14,7 +14,8 @@ AS
 		- 20201224@Zane: Return KO time [Redmine:#143666]
 		- 20210305@July: TVS - Auto void before KO time - [Redmine: #150522] 
 		- 20211202@Max: [TVS] Implement function allow to void bettrans14 [Redmine:#140180]
-	
+		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Param's explanation:
 		
 */
@@ -66,41 +67,12 @@ BEGIN
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId = 0)
 	
-	-- single
 	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, VoidedTime) 
 	SELECT	 vh.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId AS VoidedBy
 			,vh.CreatedDate
 	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		CROSS APPLY 
-			(
-				SELECT TOP 1 z.VoidingHistoryId
-				FROM  dbo.zzzbettrans z WITH(NOLOCK) 
-				WHERE z.VoidingHistoryId = vh.VoidingHistoryId
-					AND (z.matchid = @MatchId OR @MatchId = 0)
-					AND 1 = CASE
-								WHEN z.bettype = 911 THEN 1
-								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
-								ELSE 0
-							END
-			)z
-	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
-		
-	UNION 
-	-- parlay
-	SELECT   vh.RequestId
-			,vh.VoidingHistoryId
-			,vh.UserId AS VoidedBy
-			,vh.CreatedDate
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		CROSS APPLY 
-			( 
-				SELECT TOP 1 zm.VoidingHistoryId
-				FROM dbo.zzzbettransm zm WITH(NOLOCK) 
-				WHERE zm.VoidingHistoryId = vh.VoidingHistoryId
-				AND (zm.matchid = @MatchId OR @MatchId = 0)
-			)zm	
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
 
 	--Update column XML
