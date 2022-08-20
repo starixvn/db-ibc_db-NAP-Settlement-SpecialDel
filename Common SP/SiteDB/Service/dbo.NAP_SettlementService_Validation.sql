@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_Validation]
-	@TransInfo XML
+	@TransInfo XML = NULL
 	,@TableName VARCHAR(128)
 	,@IsPassed BIT = 0 OUTPUT
 AS
