@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_Void_Service_Update]
 (
 	@BroadcastSessionId	VARCHAR(50)
 	,@VoidingHistoryId	INT
