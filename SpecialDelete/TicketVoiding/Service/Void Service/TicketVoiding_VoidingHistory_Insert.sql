@@ -79,8 +79,30 @@ BEGIN
 		FROM #tmpRequestInfo t
 			INNER JOIN @VoidingHistory_tmp v ON v.RequestId = t.RequestId
 	END
+	ELSE
+	BEGIN
+		--Insert other site after initial
+		INSERT INTO dbo.TicketVoiding_Void_Service (
+				RequestId
+				,VoidingHistoryId
+				,StatusId
+				,BroadcastSessionId
+				,SiteDBGroupID
+				,IsAutoVoid
+				,MatchId
+			)
+		SELECT t.RequestId
+			,v.VoidingHistoryId
+			,1
+			,@BroadcastSessionId
+			,t.SiteDBGroupId
+			,@IsAutoVoid
+			,t.MatchId
+		FROM #tmpRequestInfo t
+			INNER JOIN @VoidingHistory_tmp v ON v.RequestId = t.RequestId
+	END
 
-	SELECT DISTINCT v.RequestId, v.VoidingHistoryId
+	SELECT @BroadcastSessionId, v.SiteDBGroupID, v.RequestId, v.VoidingHistoryId, v.StatusId, v.IsAutoVoid
 	FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
 	WHERE v.BroadcastSessionId = @BroadcastSessionId
 
