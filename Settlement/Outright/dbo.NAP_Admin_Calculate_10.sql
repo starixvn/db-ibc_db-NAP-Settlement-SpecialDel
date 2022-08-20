@@ -30,6 +30,7 @@ BEGIN
 			,@commLostRate SMALLMONEY
 			,@IsCentral	BIT = 0
 			,@transInfo	XML
+			,@IsSiteDB	BIT
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,modds MONEY
@@ -39,10 +40,10 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,statusID TINYINT, status TINYINT, ruben TINYINT
 			)
-
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
 	
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
+
 	IF @winlostdate IS NULL
 	BEGIN
 		SELECT @winlostdate = CONVERT(CHAR(10),GETDATE(),111)
@@ -75,7 +76,8 @@ BEGIN
 		WHERE matchid = @MatchID
 			  AND bettype = 10 
 			  AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
@@ -137,7 +139,7 @@ BEGIN
 			WHERE matchid = @matchid and bettype = 10 and statusID NOT IN (101, 102) -- 101:reject, 102:void
 				 AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -199,7 +201,7 @@ BEGIN
 			WHERE matchid = @matchid and bettype = 10 and statusID NOT IN (101, 102) -- 101:reject, 102:void
 				 AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
@@ -254,7 +256,7 @@ BEGIN
 			WHERE matchid = @matchid and bettype = 10 and statusID NOT IN (101, 102) -- 101:reject, 102:void
 				 AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 
-			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	 
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'

@@ -31,6 +31,10 @@ BEGIN
 			,@winlost			MONEY
 			,@settlementTime	DATETIME
 			,@transInfo			XML
+			,@IsSiteDB			BIT
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 			
 	DECLARE @tmpSource TABLE (TransId BIGINT PRIMARY KEY, WinlostDate SMALLDATETIME
 		, totalStake MONEY, Winlost MONEY, aWinlost MONEY, mWinlost MONEY, sWinlost MONEY
@@ -163,7 +167,7 @@ BEGIN
 		INNER JOIN dbo.bettrans b
 			ON b.transid = s.transid
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'			

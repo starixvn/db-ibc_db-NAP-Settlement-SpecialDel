@@ -77,16 +77,19 @@ BEGIN
         BEGIN
             EXEC dbo.NAP_Admin_Calculate_TransID
                   @transIds         = @strTransIds
+				  ,@MatchId			= @matchid
         END
         ELSE IF @action LIKE 'REFUND%'
         BEGIN
             EXEC dbo.NAP_Admin_Calculate_Refund_TransID
                    @transIds        = @strTransIds
+				   ,@MatchId		= @matchid
         END       
         ELSE IF @action LIKE 'UNDO%'
         BEGIN
             EXEC dbo.NAP_Admin_Calculate_Undo_TransID
                    @transIds        = @strTransIds
+				   ,@MatchId		= @matchid
         END                
     END                
 END
