@@ -178,7 +178,7 @@ BEGIN
 	UPDATE q SET q.StatusId = 1
 	FROM dbo.TicketVoiding_Queue q WITH (ROWLOCK, UPDLOCK)
 	WHERE q.RequestId = @RequestId 
-		AND q.VoidingTypeId = @VoidingHistoryId
+		AND q.VoidingHistoryId = @VoidingHistoryId
 		AND q.StatusId = 99
 
 	DROP TABLE #tmpInputTransId
