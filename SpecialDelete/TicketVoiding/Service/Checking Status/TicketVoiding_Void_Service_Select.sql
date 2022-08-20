@@ -23,7 +23,6 @@ BEGIN
 	SELECT DISTINCT sv.BroadcastSessionId
 	FROM dbo.TicketVoiding_Void_Service sv WITH (NOLOCK)
 	WHERE sv.StatusId = 12
-	ORDER BY sv.CreatedDate
 
 	IF EXISTS (SELECT TOP(1) 1 FROM #tmp_BroadcastSessionId)
 	BEGIN
