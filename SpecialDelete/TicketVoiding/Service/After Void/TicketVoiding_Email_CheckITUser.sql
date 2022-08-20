@@ -16,7 +16,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (vh.UserId,2)),0) AS isITAdmin
+	SELECT ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (vh.UserId,2)),0) AS IsITSupport
 		, ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (r.UserId,2)),0)  AS IsITSupportCreatedRequest
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK)

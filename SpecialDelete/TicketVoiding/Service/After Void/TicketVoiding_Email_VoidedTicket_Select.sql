@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select]
 	@VoidingHistoryId		INT = NULL
-	,@isITAdmin BIT = 0
+	,@IsITSupport BIT = 0
 	,@IsITSupportCreatedRequest BIT = 0
 AS
 /*	Created by: Kathy
@@ -371,7 +371,7 @@ BEGIN
 			END AS EmailGroup
 			,su.site
 			,t.IsCashOut
-			,@isITAdmin AS IsITSupport
+			,@IsITSupport AS IsITSupport
 			,@IsITSupportCreatedRequest AS IsITSupportCreatedRequest
 			,t.SettlementStatus
 			,t.LiveIndicator AS IsLive
