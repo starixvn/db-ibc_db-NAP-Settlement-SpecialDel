@@ -26,7 +26,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpRequestInfo (RequestId INT, IssueTypeId INT, MatchId INT, TransIds VARCHAR(MAX), SiteDBGroupId TINYINT)
+	CREATE TABLE #tmpRequestInfo (RequestId INT, IssueTypeId INT, MatchId INT, TransIds VARCHAR(MAX), SiteDBGroupId SMALLINT)
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
 
 	INSERT INTO #tmpRequestInfo (RequestId, IssueTypeId, MatchId, TransIds, SiteDBGroupId)
@@ -34,7 +34,7 @@ BEGIN
 			,t.c.value('@IssueTypeId','INT')
 			,t.c.value('@MatchId','INT')
 			,t.c.value('@TransIds','VARCHAR(MAX)')
-			,t.c.value('@SiteDBGroupId','TINYINT')
+			,t.c.value('@SiteDBGroupId','SMALLINT')
 	FROM @VoidServiceXml.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@VoidServiceXml = NULL))
 
@@ -83,6 +83,8 @@ BEGIN
 	SELECT DISTINCT v.RequestId, v.VoidingHistoryId
 	FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
 	WHERE v.BroadcastSessionId = @BroadcastSessionId
+
+	DROP TABLE #tmpRequestInfo
 
 END
 GO

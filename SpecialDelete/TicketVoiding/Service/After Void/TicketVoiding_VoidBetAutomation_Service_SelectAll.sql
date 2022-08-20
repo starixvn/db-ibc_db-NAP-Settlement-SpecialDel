@@ -27,7 +27,7 @@ BEGIN
 						AND NOT EXISTS (
 										SELECT TOP 1 1
 										FROM dbo.Ticketvoiding_VoidBetAutomation_Service temp WITH(NOLOCK)
-										WHERE vb.SessionID = temp.SessionID AND temp.statusID IN (1,3,13)
+										WHERE vb.SessionID = temp.SessionID AND temp.statusID IN (3)
 									))
 	
 	-- get requests will run after void
