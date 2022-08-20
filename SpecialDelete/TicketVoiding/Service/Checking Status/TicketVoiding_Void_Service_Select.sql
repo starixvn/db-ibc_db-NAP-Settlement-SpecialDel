@@ -42,8 +42,9 @@ BEGIN
 		SELECT BroadcastSessionId FROM cte_CheckStatus
 	END
 
-	SELECT BroadcastSessionId
+	SELECT b.BroadcastSessionId, s.SiteDBGroupID, s.RequestId, s.VoidingHistoryId, s.StatusId, s.IsAutoVoid, s.MatchId
 	FROM #tmp_BroadcastSessionId b
+		INNER JOIN dbo.TicketVoiding_Void_Service s WITH (NOLOCK) ON s.BroadcastSessionId = b.BroadcastSessionId
 	WHERE NOT EXISTS (SELECT TOP(1) 1 FROM @CheckStatus_tmp t WHERE b.BroadcastSessionId = t.BroadcastSessionId)
 	
 	DROP TABLE #tmp_BroadcastSessionId
