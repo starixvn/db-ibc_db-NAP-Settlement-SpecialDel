@@ -30,7 +30,7 @@ BEGIN
 
 	IF @BroadcastSessionId IS NOT NULL
 	BEGIN
-		SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action
+		SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action, q.StatusId
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 		WHERE q.BroadcastSessionId =  @BroadcastSessionId
 			AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
@@ -38,7 +38,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action
+		SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action, q.StatusId
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 			LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
 			LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
