@@ -643,7 +643,7 @@ BEGIN
 					SELECT TOP 1 RequestId, statusID
 					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					WHERE s.RequestId = t.RequestID
-					ORDER BY VoidingHistory DESC 
+					ORDER BY VoidingHistoryId DESC 
 					)l
 		OUTER APPLY (
 					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore

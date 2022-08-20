@@ -81,7 +81,7 @@ BEGIN
 	    ,h.VoidResults = s.VoidResults
 	FROM #tmpVoidingHistory h
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON h.VoidingHistoryId = vh.VoidingHistoryId
-		LEFT JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON h.RequestId = s.RequestID AND h.VoidingHistoryId = s.VoidingHistory
+		LEFT JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON h.RequestId = s.RequestID AND h.VoidingHistoryId = s.VoidingHistoryId
 
 	WHILE (1=1)
 	BEGIN
@@ -134,7 +134,7 @@ BEGIN
 						FROM DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) 
 						WHERE sv.MessageId = msg.MessageId
 					)msg
-				WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistory
+				WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistoryId
 					AND sv.RequestID = @RequestId
 			)sv
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
