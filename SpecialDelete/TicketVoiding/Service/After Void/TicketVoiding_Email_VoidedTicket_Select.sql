@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select]
 	@VoidingHistoryId		INT = NULL
 	,@IsITSupport BIT = 0
 	,@IsITSupportCreatedRequest BIT = 0
+	,@SiteDBGroupID	SMALLINT = 0
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -99,12 +100,13 @@ BEGIN
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
 		,IsDeposit      BIT DEFAULT(0)
+		,SiteDBGroupID	SMALLINT
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -115,15 +117,17 @@ BEGIN
 			,z.refno
 			,z.odds
 			,z.oddsid
+			,z.SiteDBGroupID
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 	WHERE	z.VoidingHistoryId = @VoidingHistoryId
 		AND 1 = CASE
 				WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
 				ELSE 0
 			END
+		AND z.SiteDBGroupID = @SiteDBGroupID
 
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid, SiteDBGroupID)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
@@ -133,6 +137,7 @@ BEGIN
 			,zm.oddsid
 	FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 	WHERE	zm.VoidingHistoryId = @VoidingHistoryId
+		AND zm.SiteDBGroupID = @SiteDBGroupID
 
 	UPDATE t 
 		SET actual_stake = b.actual_stake
@@ -401,6 +406,7 @@ BEGIN
 				    AND t.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)  -- Betfair: BFOS, BF, ITibc102, BF3
 					AND c.site <> 'CN88'
 			THEN 1 ELSE 0 END IsCredit
+			,t.SiteDBGroupID
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
