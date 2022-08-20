@@ -135,6 +135,7 @@ BEGIN
 			,zm.transdate AS VoidedTime
 			,zm.custid
 			,zm.oddsid
+			,zm.SiteDBGroupID
 	FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 	WHERE	zm.VoidingHistoryId = @VoidingHistoryId
 		AND zm.SiteDBGroupID = @SiteDBGroupID
