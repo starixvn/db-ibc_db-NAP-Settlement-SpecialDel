@@ -32,7 +32,7 @@ BEGIN
 	
 	-- get requests will run after void
 	SELECT vb.RequestID
-		, vb.VoidingHistory
+		, vb.VoidingHistoryId
 		, vb.statusID
 		, vb.matchID
 		, vb.SessionID

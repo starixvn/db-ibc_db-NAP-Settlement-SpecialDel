@@ -21,7 +21,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	SELECT tvs.RequestID
-			, tvs.VoidingHistory AS VoidingHistoryId
+			, tvs.VoidingHistoryId AS VoidingHistoryId
 			, tvs.statusID
 			, tvs.matchID
 			, tvs.SessionID

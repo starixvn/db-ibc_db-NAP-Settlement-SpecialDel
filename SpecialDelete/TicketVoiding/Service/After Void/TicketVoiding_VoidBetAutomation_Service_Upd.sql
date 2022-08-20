@@ -46,7 +46,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET statusID = @StatusId
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 2
 	BEGIN
@@ -60,7 +60,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET MessageId = @MessageId
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 4
 	BEGIN
@@ -83,7 +83,7 @@ BEGIN
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
 			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 6
 	BEGIN
@@ -99,13 +99,13 @@ BEGIN
 			,IsRunExternalService = @IsRunExternalService
 			,IsSentLetsTalk = @IsSentLetsTalk
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 7
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET VoidResults = @VoidResults
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 END
