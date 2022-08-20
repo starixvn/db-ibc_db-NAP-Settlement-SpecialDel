@@ -55,9 +55,6 @@ BEGIN
 	   ,TransIds VARCHAR(MAX)
 	)
 
-	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_Queue WHERE StatusId = 1)
-		RETURN
-	
 	SELECT	@RequestId = q.RequestId
 			,@MatchId =q.MatchId
 			,@VoidingTypeId = q.VoidingTypeId
