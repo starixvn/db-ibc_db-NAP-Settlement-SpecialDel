@@ -1,6 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select]
 	@VoidingHistoryId		INT = NULL
+	,@isITAdmin BIT = 0
+	,@IsITSupportCreatedRequest BIT = 0
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -25,6 +27,7 @@ AS
 		- 20211207@July: Remove code CashOut [Redmine: #165097]
 		- 20220523@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		
@@ -32,9 +35,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @isITAdmin BIT
-		   ,@IsITSupportCreatedRequest BIT
-		   ,@query NVARCHAR(MAX) = ''
+	DECLARE @query NVARCHAR(MAX) = ''
 		   ,@ExecuteSQL NVARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpTicket (
@@ -102,69 +103,36 @@ BEGIN
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
-	SELECT @isITAdmin = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (vh.UserId,2)),0)
-		, @IsITSupportCreatedRequest = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (r.UserId,2)),0) 
-	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK)
-			ON r.RequestId =  vh.RequestId
-	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
-
-
 	-- single ticket
 	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
-			,z.VoidedTime
+			,z.transdate
 			,z.custid
 			,z.winlost
 			,z.bettype
 			,z.refno
 			,z.odds
 			,z.oddsid
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT	z.transid
-					,z.matchid
-					,z.status
-					,z.transdate AS VoidedTime
-					,z.custid
-					,z.winlost
-					,z.bettype
-					,z.refno
-					,z.odds
-					,z.oddsid
-			FROM	dbo.zzzbettrans z WITH(NOLOCK)
-			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-					AND 1 = CASE
-								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
-								ELSE 0
-							END
-		) z
-	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
+	FROM	dbo.zzzbettrans z WITH(NOLOCK)
+	WHERE	z.VoidingHistoryId = @VoidingHistoryId
+		AND 1 = CASE
+				WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
+				ELSE 0
+			END
 
 	-- parlay ticket
 	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
-			,zm.SubStatus
-			,zm.VoidedTime
+			,zm.status AS SubStatus
+			,zm.transdate AS VoidedTime
 			,zm.custid
 			,zm.oddsid
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT	zm.transid
-					,zm.matchid
-					,zm.refno 
-					,zm.status AS SubStatus
-					,zm.transdate AS VoidedTime
-					,zm.custid
-					,zm.oddsid
-			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
-			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
-		) zm
-	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
+	FROM	dbo.zzzbettransm zm WITH(NOLOCK)
+	WHERE	zm.VoidingHistoryId = @VoidingHistoryId
 
 	UPDATE t 
 		SET actual_stake = b.actual_stake
