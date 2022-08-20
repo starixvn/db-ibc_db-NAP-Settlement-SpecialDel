@@ -11,7 +11,7 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20220727@Max: Create new SP [Redmine:#175412]a
 
 	Param's explanation:
 */
@@ -23,7 +23,7 @@ BEGIN
 	SELECT @Max_QueueId = MAX(q.QueueId)
 		  ,@Min_QueueId = MIN(q.QueueId)
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK)
-	WHERE q.StatusId = 0
+	WHERE q.StatusId IN (0,100)
 		
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
@@ -33,7 +33,6 @@ BEGIN
 		SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action, q.StatusId
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 		WHERE q.BroadcastSessionId =  @BroadcastSessionId
-			AND q.QueueId BETWEEN @Min_QueueId AND @Max_QueueId
 		ORDER BY q.Action DESC, Starttime
 	END
 	ELSE
