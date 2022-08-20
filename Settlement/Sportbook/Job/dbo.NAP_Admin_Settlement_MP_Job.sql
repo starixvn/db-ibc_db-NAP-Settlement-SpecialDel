@@ -198,7 +198,7 @@ BEGIN
 				AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
 		
 		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
-		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL_PAR', @BroadcastSessionId
+		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId
 
 	END
 

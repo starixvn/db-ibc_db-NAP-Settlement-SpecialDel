@@ -41,15 +41,22 @@ AS
 BEGIN
 SET NOCOUNT ON
 	
-	IF @Mode IN ('FM', 'BB' )
-	RETURN
+	IF @Mode IN ('FM', 'BB', 'BetDaq') --fastmarket, betbuilder, move betdaq
+	BEGIN
+		RETURN
+	END
 
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
+			,@matchcode			NVARCHAR(100)
 			,@eventdate			DATETIME
 			,@eventstatus		NVARCHAR(100)
+			,@betstatus			NVARCHAR(100)
+			,@childMatchType	TINYINT	
 			,@finalhomescore	INT
 			,@finalawayscore	INT
+			,@hthomescore		INT
+			,@htawayscore		INT
 			,@IsSettleByProfile	BIT = 0
 			,@IsEarly			BIT = 0
 			,@AutoSetting		TINYINT
@@ -81,6 +88,9 @@ SET NOCOUNT ON
 
 	SELECT @sporttype = m.sporttype
 			,@ParentId			= m.ParentID
+			,@matchcode			= m.matchcode
+			,@betstatus			= m.betstatus
+			,@childMatchType	= m.ChildMatchType
 			,@LeagueGroupID		= lg.GroupID
 			,@eventdate			= m.eventdate
 			,@eventstatus		= m.eventstatus
@@ -126,14 +136,7 @@ SET NOCOUNT ON
 		SELECT @IsAutoRefundChecking = 1
 	END
 
-
 	--------------------------------------------------------------------
-	--calculate parlay other sports, single or multiple matches
-	IF	( @Action = 'CAL' AND @Mode = 'MP' )
-		OR @Mode = 'BetDaq' --move betdaq
-	BEGIN
-		RETURN
-	END
 
 	IF @Mode = 'Betfair' --move betfair
 	BEGIN
@@ -339,6 +342,38 @@ SET NOCOUNT ON
 	END
 	--/End: Validation for Auto Settle
 
+	--Start: validation for refund parlay 
+	IF @Mode = 'MP' AND @Action LIKE 'REFUND%'
+	BEGIN
+		IF (SELECT CASE 
+						WHEN @Action = 'REFUND' AND @SettleAbandonedMatchIBCParlay =  1 THEN 'ABANDONED-1H'
+						WHEN @Action = 'REFUND-FT' AND @SettleAbandonedMatchIBCParlay =  2 THEN 'ABANDONED-2H'
+						ELSE @Action
+					END AS Mode) 
+			NOT IN ('REFUND', 'REFUND-HT','REFUND-FT','ABANDONED-1H','ABANDONED-2H')
+		BEGIN
+			SELECT	@ErrCode = 1001001
+					,@ErrMsg    = 'The match or action is invalid!'
+			RETURN
+		END
+
+		IF  EXISTS (
+			SELECT 1
+			WHERE 1 = CASE 
+						WHEN @betstatus LIKE 'Abandoned 1H%' THEN CASE WHEN (@hthomescore IS NULL OR @htawayscore IS NULL) THEN 1 ELSE 0 END
+						WHEN @MatchId = CASE WHEN @SportType =50 AND ISNULL(@childMatchType,0) = 200 THEN @ParentId 
+											 ELSE @matchId END 
+							AND (@finalhomescore IS NULL OR @finalawayscore IS NULL OR @hthomescore IS NULL OR @htawayscore IS NULL) THEN 1
+						ELSE 0
+					END
+			)
+		BEGIN
+			SELECT   @ErrCode = 1001011
+				,@ErrMsg = 'This match is being calculated, except following matches (not keyed in score yet): ' + @matchcode
+			RETURN
+		END
+	END
+	--End: validation for refund parlay
 
 END
 GO

@@ -65,7 +65,7 @@ BEGIN
 		
 		SELECT @rowcnt = @@ROWCOUNT
 
-		IF @IsCentral = 0	
+		IF @IsCentral = 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'	

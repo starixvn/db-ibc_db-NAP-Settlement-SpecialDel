@@ -61,27 +61,13 @@ BEGIN
 	DECLARE  @procName nvarchar(50)	
 			,@matchid int
 			,@matchcode nvarchar(50)
-			,@ParentIds VARCHAR(MAX) = ''
 			
 	DECLARE @subErrCode		INT
 			,@subErrMsg		NVARCHAR(200)
-		
-	DECLARE @tblBettype TABLE ( matchid INT
-						  ,Sporttype SMALLINT
-						  ,Bettype SMALLINT
-						  ,Betcheck NVARCHAR(50)
-						  ,ResourceID VARCHAR(20)
-						 )
 						 
 	Create table #Match (matchid INT
 						  ,matchcode NVARCHAR(50)
-						  ,fth SMALLINT
-						  ,fta SMALLINT
-						  ,hth SMALLINT
-						  ,hta SMALLINT
-						  ,sporttype SMALLINT
-						  ,SettlementStatus	TINYINT
-						  ,ParentId INT )
+						  ,sporttype SMALLINT  )
 	
 	SELECT	 @ErrCode = 0
 			,@ErrMsg = ''
@@ -89,10 +75,11 @@ BEGIN
 			,@subErrCode = 0
 			,@subErrMsg = ''
 	
-	INSERT INTO #Match ( matchid, sporttype)
+	INSERT INTO #Match ( matchid, matchcode, sporttype)
 	SELECT matchid
+		,matchcode
 		,sporttype
-	FROM DBPRO.bodb02.dbo.Match m WITH (NOLOCK)
+	FROM dbo.Match m WITH (NOLOCK)
 		INNER JOIN (SELECT value FROM STRING_SPLIT(@matchids , ',')) tm
 			ON m.matchid = tm.value		
 

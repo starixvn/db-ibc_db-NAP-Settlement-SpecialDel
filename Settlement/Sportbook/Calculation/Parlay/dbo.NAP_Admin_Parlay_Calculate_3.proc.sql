@@ -29,6 +29,8 @@ BEGIN
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0
 			,@transinfo XML
+			,@IsSiteDB	BIT
+
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
 	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost VARCHAR(1), winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		
 	
@@ -44,6 +46,9 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@xmlParlayTicket = NULL ))
 	
 	IF(@@ROWCOUNT = 0) RETURN
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 	
 	--CALCULATE PROCESS
 	IF @action = 'ABANDONED'  OR @Action LIKE 'REFUND%'
@@ -214,7 +219,7 @@ BEGIN
 	    WHERE r.statusid NOT IN (102) 
 	END
 	
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND EXISTS(SELECT TOP 1 1 FROM #parlayOutput)
+	IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM #parlayOutput)
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'							
@@ -236,6 +241,7 @@ BEGIN
 				, 'bettransm'
 				, @MatchId
 				, @transInfo
+		WHERE @transInfo IS NOT NULL
 			
 		IF @Action = 'UNDO'
 		BEGIN
@@ -268,6 +274,7 @@ BEGIN
 				, 'BetParlayDetail'
 				, @MatchId
 				, @transInfo
+		WHERE @transInfo IS NOT NULL
 
 	END
 

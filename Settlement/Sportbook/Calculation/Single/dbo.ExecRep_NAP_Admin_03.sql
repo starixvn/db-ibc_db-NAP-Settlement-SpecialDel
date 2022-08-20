@@ -30,8 +30,12 @@ BEGIN
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
 			,@AllowRefund		BIT
+			,@IsSiteDB			BIT
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -188,7 +192,7 @@ BEGIN
 		INNER JOIN @tempTrans t
 			ON b.transid = t.TransId
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
+	IF @IsSiteDB = 1
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'	
@@ -213,7 +217,8 @@ BEGIN
 		)
 
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'CalculateCashout', 'bettrans', @MatchId, @transInfo)	
+		SELECT 'Settlement', 'CalculateCashout', 'bettrans', @MatchId, @transInfo
+		WHERE @transInfo IS NOT NULL
 		
 	END
 END

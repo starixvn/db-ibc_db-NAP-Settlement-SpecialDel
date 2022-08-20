@@ -51,6 +51,8 @@ SET NOCOUNT ON
 
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
+			,@matchcode			NVARCHAR(50)
+			,@ParentId			INT
 			,@finalhomescore	INT
 			,@finalawayscore	INT
 			,@WaitingTime		VARCHAR(10)
@@ -61,15 +63,22 @@ SET NOCOUNT ON
 			,@IsMergedParlay	BIT = 0
 			,@xmlResourceResult		XML
 			,@xmlData			 VARCHAR(MAX)
+			,@currentdate		 DATETIME
 			,@IsCentral			 BIT = 0
 
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
 			,@IsSettleAbandonedMatchIBC BIT --Refund DTM Soccer
 			,@IsAutoRefund			BIT = 0 
+			,@IsWaitingTicket		BIT = 0
+			,@InvalidMatchIds		VARCHAR(MAX)
+			,@HaveWaitingTicket		VARCHAR(200)
+			,@MovingMatchIds		VARCHAR(MAX)
 
 	SELECT @sporttype = m.sporttype
 			,@LeagueGroupID		= l.LeagueGroupID
+			,@matchcode		   	= m.matchcode
+			,@ParentId			= m.ParentID
 			,@finalhomescore	= m.finalhomescore
 			,@finalawayscore	= m.finalawayscore
 			,@IsSettleAbandonedMatchIBC = CASE WHEN @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
@@ -78,7 +87,7 @@ SET NOCOUNT ON
 			ON m.leagueid = l.leagueid
 	WHERE m.matchid = @matchid
 		AND ISNULL(@matchid,0) > 0
-		
+	
 	SELECT @IsMergedParlay = s.IsMergedParlay
 			,@IsSettleByProfile = s.IsSettleByProfile
 	FROM SettlementResultTableSetting s WITH(NOLOCK) --table contains sportbook only
@@ -90,6 +99,8 @@ SET NOCOUNT ON
 	
 	SELECT @IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
+	SET @currentdate = CURRENT_TIMESTAMP
+
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
@@ -100,22 +111,6 @@ SET NOCOUNT ON
 		SET @xmlData = @SelectedResources
 	END
 	-----------------------------------------------------
-	
-
-	--calculate parlay other sports, single or multiple matches
-	IF @Action = 'CAL' AND @Mode = 'MP'
-	BEGIN
-		EXEC NAP_Admin_Settlement_Validation_MP
-			 @matchids		=  @matchids
-			,@Action		=  @Action
-			,@Mode			=  @Mode
-			,@ErrCode		=  @ErrCode OUTPUT
-			,@ErrMsg		  = @ErrMsg   OUTPUT
-			,@MatchIdsOutPut  = @MatchIdsOutPut OUTPUT
-
-		RETURN
-	END
-
 	IF @Action = 'MoveTicket' AND @Mode = '43'
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_MoveTicketChecking_Ticket
@@ -159,11 +154,12 @@ SET NOCOUNT ON
 	IF @Mode NOT LIKE '%INST%'
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
-			@MatchIds =  @MatchId 
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
+			@MatchIds		 = @MatchId 
+			,@MovingMatchIds = @InvalidMatchIds OUTPUT
+			,@ErrCode		 = @ErrCode OUTPUT
+			,@ErrMsg		 = @ErrMsg OUTPUT
 
-		IF @ErrCode <> 0
+		IF @ErrCode <> 0 AND @SPName <> 'NAP_Admin_Settlement_Refund_MP_Push'
 		BEGIN
 			SELECT @ErrCode = @ErrCode
 					,@ErrMsg = 'Cannot proceed due to this match is in during move-bet progress. Please contact admin for support.'
@@ -212,8 +208,9 @@ SET NOCOUNT ON
 	END
 	--End: Check is match in Queue
 
-	-- check waiting ticket
-	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode IN ( 'MP', 'INST') )
+	-- check waiting ticket for calculate cal-ht/ft/call/early,  all undo
+	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode IN ( 'INST') )
+		AND @SPName <> 'NAP_Admin_Settlement_Refund_MP_Push'
 	BEGIN
 		IF (  @SportType = 1 AND 
 				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
@@ -245,7 +242,7 @@ SET NOCOUNT ON
 			FROM	cteResource
 			FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
 		END
-
+		
 		EXEC NAP_Admin_Settlement_Checking
 			@MatchId  = @MatchId
 			,@Action  = @Action
@@ -276,8 +273,8 @@ SET NOCOUNT ON
 	--/ END validation for Instant settle
 		
 
-	--Start: Validation for Refund
-	IF @Action = 'REFUND-FT' AND EXISTS ( SELECT TOP 1 1
+	--Start: Validation for Refund Single
+	IF @Action = 'REFUND-FT' AND @Mode <> 'MP' AND EXISTS ( SELECT TOP 1 1
 				FROM	dbo.bettrans b WITH(NOLOCK)
 					CROSS APPLY ( SELECT TOP 1 b.bettype
 									FROM dbo.f_Set_GetGroupBettypes() f
@@ -293,7 +290,47 @@ SET NOCOUNT ON
 					,@ErrMsg = 'Error! Cannot proceed due to running Half Time tickets. Please proceed with Half Time settlement and try again.'
 			RETURN
 		END
-	--/End: Validation for Refund
+	--/End: Validation for Refund Single
+
+	--Start: Validation for Refund Parlay
+	IF @Action LIKE 'REFUND%' AND @Mode = 'MP'
+	BEGIN
+		SET @MovingMatchIds		= ''
+		SET @HaveWaitingTicket  = ''
+
+		SELECT	@MovingMatchIds = COALESCE(@MovingMatchIds + ',' + @matchcode, @matchcode)
+		FROM	STRING_SPLIT (@InvalidMatchIds, ',') f
+		WHERE	f.[value] = @MatchId
+
+		SELECT @HaveWaitingTicket = 
+						(	SELECT TOP 1 1
+							FROM dbo.bettransm bm WITH(NOLOCK)
+								INNER JOIN dbo.[f_Set_GetGroupBettypes]() f
+									ON bm.bettype = f.BetType
+							WHERE bm.matchid = @MatchId
+								AND ( 	bm.statusID = 1 -- waiting status
+										OR ( bm.statusID = 0 AND bm.SecAcceptFlag = 1 AND ISNULL(bm.checktime, @currentdate) > @currentdate)
+									)
+								AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+							)
+
+		IF  ISNULL(@HaveWaitingTicket,'') <> '' OR ISNULL(@MovingMatchIds,'') <> '' 
+		BEGIN
+			SELECT   @ErrCode = 1001011
+					,@ErrMsg = 'This match is being calculated, except following matches ' 
+								+ CASE WHEN ISNULL(@HaveWaitingTicket, '') <> ''
+										THEN ' (existing some PENDING tickets): ' + @HaveWaitingTicket
+										ELSE ''
+									END
+								+ CASE WHEN ISNULL(@MovingMatchIds, '') <> ''
+										THEN ' (during move-bet progress): ' + @MovingMatchIds + '. Please contact Starix IT for further support!'
+										ELSE ''
+									END
+			RETURN
+		END
+		
+    END
+	--/End: Validation for Refund Single
 
 END
 GO

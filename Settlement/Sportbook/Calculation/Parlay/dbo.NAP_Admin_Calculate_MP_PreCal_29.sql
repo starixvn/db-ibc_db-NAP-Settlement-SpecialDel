@@ -52,6 +52,10 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
+			,@IsSiteDB	BIT
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 
 	SET @ServerName = @@SERVERNAME
 
@@ -380,7 +384,7 @@ BEGIN
 			ELSE pr.stake * p.modds
 		END
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF @IsSiteDB = 1
 	BEGIN
 		DECLARE @TransInfo XML
 
@@ -391,7 +395,8 @@ BEGIN
 		)
 
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @TransInfo)	
+		SELECT 'Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @TransInfo
+		WHERE @TransInfo IS NOT NULL
 			
 	END
 END -- end SP
