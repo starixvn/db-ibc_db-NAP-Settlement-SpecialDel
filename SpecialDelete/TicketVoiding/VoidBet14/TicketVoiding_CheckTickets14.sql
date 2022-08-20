@@ -164,27 +164,23 @@ BEGIN
 													), 1, 1, ''), '')
 	END	
 
-	SET @TransInfo = (
-	SELECT DISTINCT 
-			t.matchid AS "@mid"
-		    ,t.transid AS "@t"
-			,b.refno AS "@ref"
-			,b.custid AS "@c"
-			,t.statusID AS "@sid"
-			,b.bettype AS "@btype"
-			,b.betid AS "@bid"
-			,b.statuswinlost AS "@statuswl"
-			,b.IsMixParlay AS "@isP"
-			,b.SiteDBGroupID AS "@sitedb"
-	FROM #validTransId t
-		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR XML PATH('r'), ROOT('root')
-	)
-
-	-- return table result
+	-- 1. return table result
 	SELECT @InvalidTransIds AS InvalidTransIds
 		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
-		  ,@TransInfo AS TransInfo
+
+	-- 2. Transinfo table
+	SELECT DISTINCT 
+			t.matchid
+		    ,t.transid 
+			,b.refno
+			,b.custid 
+			,t.statusID
+			,b.bettype
+			,b.betid
+			,b.IsMixParlay 
+			,b.SiteDBGroupID 
+	FROM #validTransId t
+		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

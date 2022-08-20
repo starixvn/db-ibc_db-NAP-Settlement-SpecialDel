@@ -44,7 +44,6 @@ BEGIN
 	  ,statusID TINYINT
       ,bettype SMALLINT
       ,betid BIGINT
-	  ,statuswinlost TINYINT
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
@@ -56,7 +55,6 @@ BEGIN
 		  ,statusID
 		  ,bettype
 		  ,betid
-		  ,statuswinlost
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
@@ -67,7 +65,6 @@ BEGIN
 			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
-			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)

@@ -40,10 +40,11 @@ BEGIN
 			,@OldStatusIds			 VARCHAR(50)  = NULL
 			,@OldSubIssueTypeId		 SMALLINT
 			,@UserNames				 NVARCHAR(MAX) = NULL
-			,@ProductIds			VARCHAR(50) = NULL
-			,@StatusIds				VARCHAR(50) = NULL
-			,@FromDate				DATETIME = NULL
-			,@ToDate				DATETIME = NULL
+			,@ProductIds			 VARCHAR(50) = NULL
+			,@StatusIds				 VARCHAR(50) = NULL
+			,@FromDate				 DATETIME = NULL
+			,@ToDate				 DATETIME = NULL
+			,@maxdate 				 DATETIME = '9999-01-01'
 
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
@@ -84,7 +85,7 @@ BEGIN
 			,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
 			,@StatusIds = t.c.value('@StatusIds','VARCHAR(50)')
 			,@FromDate = t.c.value('@FromDate','DATETIME')
-			,@ToDate = NULLIF(t.c.value('@ToDate','DATETIME'), '')
+			,@ToDate = CASE WHEN t.c.value('@ToDate','DATETIME') = '1900-01-01 00:00:00.000' THEN @maxdate ELSE t.c.value('@ToDate','DATETIME') END
 	FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))
 
