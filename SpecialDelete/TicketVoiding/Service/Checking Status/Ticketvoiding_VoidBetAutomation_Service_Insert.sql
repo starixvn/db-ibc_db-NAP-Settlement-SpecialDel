@@ -21,19 +21,20 @@ BEGIN
 
 	DECLARE @sessionID	INT = 0
 	
-	CREATE TABLE #AfterVoidData (RequestId INT, VoidingHistoryId INT, MatchId INT)
-	INSERT INTO #AfterVoidData (RequestId, VoidingHistoryId, MatchId)
+	CREATE TABLE #AfterVoidData (RequestId INT, VoidingHistoryId INT, MatchId INT, NegativeBalanceUsers VARCHAR(1000))
+	INSERT INTO #AfterVoidData (RequestId, VoidingHistoryId, MatchId, NegativeBalanceUsers)
 	SELECT t.c.value('@RequestId','INT') AS TransId
 		,t.c.value('@VoidingHistoryId','INT') AS VoidingHistoryId
 		,t.c.value('@MatchId','INT') AS MatchId
+		,t.c.value('@NegativeBalanceUsers','VARCHAR(1000)') AS NegativeBalanceUsers
 	FROM @AfterVoidDataXml.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AfterVoidDataXml = NULL)) 
 
 
 	SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 
-	INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid)
-	SELECT v.RequestId, v.VoidingHistoryId, 1, v.MatchId , @sessionID, @IsAutoVoid
+	INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistory,statusID,matchID,SessionID, IsAutoVoid, NegativeBalanceUsers)
+	SELECT v.RequestId, v.VoidingHistoryId, 1, v.MatchId , @sessionID, @IsAutoVoid, v.NegativeBalanceUsers
 	FROM #AfterVoidData v
 		LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK) ON s.RequestID = v.RequestId AND s.VoidingHistory = v.VoidingHistoryId
 	WHERE s.RequestID IS NULL
