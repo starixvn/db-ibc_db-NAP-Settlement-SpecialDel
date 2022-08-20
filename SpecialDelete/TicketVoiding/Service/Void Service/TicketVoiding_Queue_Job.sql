@@ -64,7 +64,7 @@ BEGIN
 			,@VoidingHistoryId = q.VoidingHistoryId
 			,@IssueTypeId = q.IssueTypeId
 	FROM	dbo.TicketVoiding_Queue q WITH(NOLOCK)
-	WHERE	QueueId = @UserId
+	WHERE	QueueId = @QueueId
 
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
