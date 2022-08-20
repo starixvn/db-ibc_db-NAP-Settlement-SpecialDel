@@ -2,8 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Update]
 	@VoidingHistoryId	INT
 	,@StatusId			TINYINT
-	,@SiteDBGroupId		TINYINT
-	,@RequestId			INT
 	,@MessageId			INT = NULL
 	,@ReasonId			INT = NULL
 AS
@@ -24,30 +22,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF @StatusId = 3 --Failed
-	BEGIN
-		UPDATE dbo.TicketVoiding_Void_Service WITH (ROWLOCK, UPDLOCK)
-			SET StatusId = @StatusId
-				,ModifiedDate = GETDATE()
-		WHERE VoidingHistoryId = @VoidingHistoryId 
-			AND RequestId = @RequestId
-			AND SiteDBGroupID = @SiteDBGroupId
-
-		UPDATE	dbo.TicketVoiding_VoidingHistory WITH(ROWLOCK, UPDLOCK)
-			SET	StatusId = @StatusId
-				,MessageId = ISNULL(@MessageId, MessageId)
-				,ReasonId = ISNULL(@ReasonId, ReasonId)
-		WHERE	VoidingHistoryId = @VoidingHistoryId
-	END
-	ELSE
-	BEGIN
-		UPDATE dbo.TicketVoiding_Void_Service WITH (ROWLOCK, UPDLOCK)
-			SET StatusId = @StatusId
-				,ModifiedDate = GETDATE()
-		WHERE VoidingHistoryId = @VoidingHistoryId 
-			AND RequestId = @RequestId
-			AND SiteDBGroupID = @SiteDBGroupId
-	END
+	UPDATE	dbo.TicketVoiding_VoidingHistory WITH(ROWLOCK, UPDLOCK)
+		SET	StatusId = @StatusId
+			,MessageId = ISNULL(@MessageId, MessageId)
+			,ReasonId = ISNULL(@ReasonId, ReasonId)
+	WHERE	VoidingHistoryId = @VoidingHistoryId
 END
 GO
 
