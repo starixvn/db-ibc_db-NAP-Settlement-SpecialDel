@@ -71,9 +71,9 @@ SET NOCOUNT ON
 			,@IsSettleAbandonedMatchIBC BIT --Refund DTM Soccer
 			,@IsAutoRefund			BIT = 0 
 			,@IsWaitingTicket		BIT = 0
-			,@InvalidMatchIds		VARCHAR(MAX)
+			,@InvalidMatchIds		VARCHAR(200)
 			,@HaveWaitingTicket		VARCHAR(200)
-			,@MovingMatchIds		VARCHAR(MAX)
+			,@MovingMatchIds		VARCHAR(200)
 
 	SELECT @sporttype = m.sporttype
 			,@LeagueGroupID		= l.LeagueGroupID
@@ -303,7 +303,7 @@ SET NOCOUNT ON
 		WHERE	f.[value] = @MatchId
 
 		SELECT @HaveWaitingTicket = 
-						(	SELECT TOP 1 1
+						(	SELECT TOP 1 @matchcode
 							FROM dbo.bettransm bm WITH(NOLOCK)
 								INNER JOIN dbo.[f_Set_GetGroupBettypes]() f
 									ON bm.bettype = f.BetType
