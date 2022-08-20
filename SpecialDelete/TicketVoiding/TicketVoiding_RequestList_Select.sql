@@ -597,10 +597,10 @@ BEGIN
 			,CASE WHEN t.IssueTypeId IN (17) THEN LEN(ISNULL(p.TransIds,'')) - LEN(REPLACE(ISNULL(p.TransIds,''), ',', ''))  ELSE 0 END AS TotalParlay
 			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN f.statusID IS NULL AND l.statusID IS NULL THEN ''
-				  WHEN ISNULL(f.statusID,l.statusID) IN (1,2) THEN 'Running'
-				  WHEN ISNULL(f.statusID,l.statusID) = 12 THEN 'Completed'
-				  WHEN ISNULL(f.statusID,l.statusID) = 3 THEN 'Failed'
+			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
+				  WHEN ISNULL(l_vh.statusID,l_s.statusID) NOT IN (2,3) THEN 'Running'
+				  WHEN ISNULL(l_vh.statusID,l_s.statusID) = 2 THEN 'Completed'
+				  WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
 				  ELSE NULL END AS Status
 			,t.FilterBy
 			,t.VoidFromTime
@@ -632,7 +632,31 @@ BEGIN
 					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799)
 					FOR XML PATH('')
 				)p	 (TransIds)	
-
+				---Case Failed
+		OUTER APPLY ( 
+					SELECT DISTINCT RequestId, vh.StatusId
+					FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
+					WHERE vh.RequestId = t.RequestID AND vh.StatusId = 3
+				)f_vh
+		OUTER APPLY ( 
+					SELECT DISTINCT RequestId, vh.StatusId
+					FROM dbo.Ticketvoiding_VoidBetAutomation_Service vh WITH(NOLOCK) 
+					WHERE vh.RequestId = t.RequestID AND vh.StatusId = 3
+				)f_s
+				---Case Completed, Running
+		OUTER APPLY ( 
+					SELECT TOP 1 RequestId, statusID
+					FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
+					WHERE vh.RequestId = t.RequestID
+					ORDER BY VoidingHistoryId DESC 
+				)l_vh
+		OUTER APPLY ( 
+					SELECT TOP 1 RequestId, statusID
+					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+					WHERE s.RequestId = t.RequestID
+					ORDER BY VoidingHistoryId DESC 
+				)l_s	
+		/*
 		OUTER APPLY ( -- Failed
 					SELECT DISTINCT RequestId, 3 AS statusID
 					FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
@@ -645,6 +669,8 @@ BEGIN
 					WHERE s.RequestId = t.RequestID
 					ORDER BY VoidingHistoryId DESC 
 					)l
+		*/
+
 		OUTER APPLY (
 					SELECT	m.matchcode, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore
 					FROM	dbo.match m WITH(NOLOCK)
@@ -663,10 +689,10 @@ BEGIN
 			)mr
 	WHERE 1 = CASE 
 				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND f.statusID IS NULL AND l.statusID IS NULL THEN 1 --New
-				WHEN @Status = 1 AND ISNULL(f.statusID,l.statusID) IN (1,2) THEN 1 --Running
-				WHEN @Status = 2 AND ISNULL(f.statusID,l.statusID) = 12 THEN 1 -- Completed
-				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
+				WHEN @Status = 0 AND f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN 1 --New
+				WHEN @Status = 1 AND ISNULL(l_vh.statusID,l_s.statusID) NOT IN (2,3) THEN 1 --Running
+				WHEN @Status = 2 AND ISNULL(l_vh.statusID,l_s.statusID) = 2 THEN 1 -- Completed
+				WHEN @Status = 3 AND ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 1 -- Failed
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
