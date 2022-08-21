@@ -32,12 +32,16 @@ BEGIN
 
 
 	SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
-
-	INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistoryId,statusID,matchID,SessionID, IsAutoVoid, NegativeBalanceUsers)
-	SELECT v.RequestId, v.VoidingHistoryId, 1, v.MatchId , @sessionID, @IsAutoVoid, v.NegativeBalanceUsers
-	FROM #AfterVoidData v
-		LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK) ON s.RequestID = v.RequestId AND s.VoidingHistoryId = v.VoidingHistoryId
-	WHERE s.RequestID IS NULL
+	
+	IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK)
+							INNER JOIN #AfterVoidData t ON t.RequestId = s.RequestID AND t.VoidingHistoryId = s.VoidingHistoryId)
+	BEGIN
+		INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistoryId,statusID,matchID,SessionID, IsAutoVoid, NegativeBalanceUsers)
+		SELECT v.RequestId, v.VoidingHistoryId, 1, v.MatchId , @sessionID, @IsAutoVoid, v.NegativeBalanceUsers
+		FROM #AfterVoidData v
+			LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK) ON s.RequestID = v.RequestId AND s.VoidingHistoryId = v.VoidingHistoryId
+		WHERE s.RequestID IS NULL
+	END
 	
 	SELECT s.SessionID, s.matchID, s.RequestID, s.VoidingHistoryId, s.statusID, s.NegativeBalanceUsers
 	FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK)

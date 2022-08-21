@@ -35,32 +35,26 @@ BEGIN
 		, @end INT
 
 	
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, MatchId INT, VoidingHistoryId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT)
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, MatchId INT, IsMixParlay BIT DEFAULT(0))
 
 	DECLARE @tmpMatchId AS TABLE (ID INT IDENTITY(1,1), MatchId INT)
 	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT)
 
 	IF @SingleTicketsXML IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, MatchId, VoidingHistoryId, IssueTypeId)
+		INSERT INTO #tmpInputTransId (TransId, MatchId)
 		SELECT t.c.value('@tid','BIGINT') AS TransId
-				,t.c.value('@req','INT') AS RequestId
 				,t.c.value('@mid','INT') AS MatchId
-				,t.c.value('@vid','INT') AS VoidingHistoryId
-				,t.c.value('@iss','TINYINT') AS IssueTypeId
 		FROM @SingleTicketsXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@SingleTicketsXML = NULL)) 
 	END
 
 	IF @ParlayTicketsXML IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, MatchId, VoidingHistoryId, IsMixParlay, IssueTypeId)
+		INSERT INTO #tmpInputTransId (TransId, MatchId, IsMixParlay)
 		SELECT t.c.value('@tid','BIGINT') AS TransId
-				,t.c.value('@req','INT') AS RequestId
 				,t.c.value('@mid','INT') AS MatchId
-				,t.c.value('@vid','INT') AS VoidingHistoryId
 				,1 AS IsMixParlay
-				,t.c.value('@iss','TINYINT') AS IssueTypeId
 		FROM @ParlayTicketsXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
 	END
