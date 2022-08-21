@@ -20,7 +20,7 @@ BEGIN
 	DECLARE @CheckStatus_tmp AS TABLE (BroadcastSessionId VARCHAR(50))
 
 	INSERT INTO #tmp_BroadcastSessionId
-	SELECT DISTINCT sv.BroadcastSessionId
+	SELECT TOP(1) sv.BroadcastSessionId
 	FROM dbo.TicketVoiding_Void_Service sv WITH (NOLOCK)
 	WHERE sv.StatusId = 12
 
