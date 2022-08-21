@@ -47,6 +47,8 @@ BEGIN
 					,IP
 					,@VoidingHistoryId AS VoidingHistoryId
 					,StatusId
+					,IssueTypeId
+					,NegativeBalanceUsers
 			FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
 			WHERE	VoidingHistoryId = @VoidingHistoryId
 		END
@@ -62,6 +64,8 @@ BEGIN
 					,IP
 					,@VoidingHistoryId AS VoidingHistoryId
 					,StatusId
+					,IssueTypeId
+					,NegativeBalanceUsers
 			FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
 			WHERE	VoidingHistoryId = @VoidingHistoryId
 	END
