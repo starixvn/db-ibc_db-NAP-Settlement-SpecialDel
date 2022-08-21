@@ -109,8 +109,13 @@ BEGIN
 						WHERE s.RequestId = t.RequestId AND s.VoidingHistoryId = @VoidingHistoryId AND s.SiteDBGroupID = t.SiteDBGroupId)
 	END
 
-	SELECT v.BroadcastSessionId, v.SiteDBGroupID, v.RequestId, v.VoidingHistoryId, v.StatusId, v.IsAutoVoid, v.MatchId
+	SELECT v.BroadcastSessionId, v.SiteDBGroupID, v.RequestId, v.VoidingHistoryId, v.StatusId, v.IsAutoVoid, v.MatchId, tmp.IssueTypeId
 	FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
+		CROSS APPLY (
+				SELECT TOP(1) t.IssueTypeId
+				FROM #tmpRequestInfo t 
+				WHERE t.RequestId = v.RequestId 
+		)tmp
 	WHERE v.BroadcastSessionId = @BroadcastSessionId
 
 	DROP TABLE #tmpRequestInfo
