@@ -164,7 +164,7 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 	SET @IsAbnormalMixParlay = CASE WHEN @IssueTypeId = 11 AND @MatchId = 29 THEN 1 ELSE 0 END
-	SET @FailedTransIds = @TransIds
+	SET @FailedTransIds = NULL
 
 	INSERT INTO @tmpInputTransId (TransId)
 	SELECT	value AS TransId
