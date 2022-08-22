@@ -56,7 +56,7 @@ BEGIN
 		,t.IsMixParlay
 		,b.refno
 		,b.matchid
-	FROM #tmpTransIds t
+	FROM #tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE b.statusID NOT IN (101, 102, 103)
 	
