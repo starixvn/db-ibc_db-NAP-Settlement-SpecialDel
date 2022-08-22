@@ -249,27 +249,27 @@ BEGIN
 			,@IsReleased		= 1
 
 	END
-	
+
+	SELECT @ResourceIds = COALESCE( @ResourceIds + ',' + r.ResourceId, r.ResourceId)
+	FROM (
+			SELECT  ResourceId FROM	#tmpTransIdsSingle
+			UNION ALL
+			SELECT  ResourceId FROM	#tmpTransIdsParlay
+		) r
+		GROUP BY r.ResourceId
+
+
+	SELECT @ResourceIds = STUFF(@ResourceIds, 1, 1, '')
+
+	SET @EndTime = GETDATE()
+
+	SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
+						+ '(' + @ResourceIds + ')' + '<br/>'
+						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + '/' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20)) 				
+
 	IF @IsCentral = 1
 	BEGIN
-
-		SELECT @ResourceIds = COALESCE( @ResourceIds + ',' + r.ResourceId, r.ResourceId)
-		FROM (
-				SELECT  ResourceId FROM	#tmpTransIdsSingle
-				UNION ALL
-				SELECT  ResourceId FROM	#tmpTransIdsParlay
-			) r
-			GROUP BY r.ResourceId
-
-
-		SELECT @ResourceIds = STUFF(@ResourceIds, 1, 1, '')
-
-		SET @EndTime = GETDATE()
-
-		SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
-							+ '(' + @ResourceIds + ')' + '<br/>'
-							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
-							+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + '/' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20)) 				
 		BEGIN TRY
 			
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
@@ -288,16 +288,17 @@ BEGIN
 					,@Remark			= @Remark
 					,@IP				= @ip
 		END CATCH
-
-		SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
-					+' into child match: ' + CAST(@childMatchId AS VARCHAR)
-					+ ',Settled Results: (' + @ResourceIds + ')'
-							   
-		EXEC dbo.Logfile_V2 
-			@UserID = @AdminId
-			,@Doing = @logdata
-			,@extend = @MatchId								   
+							   							   
 	END
+
+	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
+	+' into child match: ' + CAST(@childMatchId AS VARCHAR)
+	+ ',Settled Results: (' + @ResourceIds + ')'
+
+	EXEC dbo.Logfile_V2 
+	@UserID = @AdminId
+	,@Doing = @logdata
+	,@extend = @MatchId	
 	
 	RETURN
 

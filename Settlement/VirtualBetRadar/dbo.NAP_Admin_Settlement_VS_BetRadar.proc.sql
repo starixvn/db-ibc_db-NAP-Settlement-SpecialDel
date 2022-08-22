@@ -209,34 +209,34 @@ BEGIN
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
+
+	SELECT @stop = CURRENT_TIMESTAMP
+	
+	SELECT @LogData = 'NAP: VS BetRadar - Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
+					+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
+					+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
+					+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+
+	EXEC dbo.Logfile_V2 
+			@UserID = @AdminId
+			,@Doing = @LogData
+			,@extend = @MatchId
+
+	--RESET scores values
+	SELECT @fth = NULL
+		,@fta 	= NULL
+		,@hth 	= NULL
+		,@hta	= NULL
+	WHERE @Action = 'REFUND'
+	
+	SELECT @Remark = 'VS BetRadar - Calculate (' + @Action + ')' 
+					+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
+					+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
+					+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
+					+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+					+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 	IF @IsCentral = 1
 	BEGIN
-		SELECT @stop = CURRENT_TIMESTAMP
-	
-		SELECT @LogData = 'NAP: VS BetRadar - Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-						+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
-						+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
-						+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
-		EXEC dbo.Logfile_V2 
-				@UserID = @AdminId
-				,@Doing = @LogData
-				,@extend = @MatchId
-
-		--RESET scores values
-		SELECT @fth = NULL
-			,@fta 	= NULL
-			,@hth 	= NULL
-			,@hta	= NULL
-		WHERE @Action = 'REFUND'
-	
-		SELECT @Remark = 'VS BetRadar - Calculate (' + @Action + ')' 
-						+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
-						+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
-						+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
-						+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-						+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 				@UserID				= @AdminId

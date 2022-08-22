@@ -144,30 +144,30 @@ BEGIN
 		@IsExistParlayVSBetradar	= 1
 		,@IsReleased				= 1
 		
-	----------------------------------------------------------------------------------------------------------------------------------------
-	BEGIN --BEGIN: WRITE LOG ----------------------------------		
-		DECLARE @Remark VARCHAR(200)
+	--BEGIN: WRITE LOG ----------------------------------		
+	DECLARE @Remark VARCHAR(200)
 		
-		SET @stop = CURRENT_TIMESTAMP
+	SET @stop = CURRENT_TIMESTAMP
 
-		SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+	SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 		
-		EXEC dbo.Logfile_V2 
-			@UserID = @AdminId
-			,@Doing = @Remark
-			,@extend = @MatchId
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @Remark
+		,@extend = @MatchId
 			
-		SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
+	SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 		
-		--RESET scores values
-		SELECT @fth = NULL
-			,@fta 	= NULL
-			,@hth 	= NULL
-			,@hta	= NULL
-		WHERE @Action = 'REFUND'
+	--RESET scores values
+	SELECT @fth = NULL
+		,@fta 	= NULL
+		,@hth 	= NULL
+		,@hta	= NULL
+	WHERE @Action = 'REFUND'
 		
+	IF @IsCentral = 1
+	BEGIN
 		BEGIN TRY
-			IF @IsCentral = 1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 				,@Matchid = @matchid
 				,@ActionID = @ActionID
@@ -196,7 +196,8 @@ BEGIN
 				,@Remark = @Remark
 				,@IP = @IP
 		END CATCH
-	END --END: WRITE LOG ----------------------------------
+	END
+	--END: WRITE LOG ----------------------------------
 	
 	RETURN
 END

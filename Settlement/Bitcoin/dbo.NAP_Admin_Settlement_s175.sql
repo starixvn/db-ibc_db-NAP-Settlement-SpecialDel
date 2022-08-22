@@ -298,14 +298,14 @@ BEGIN
 	
 	SET @EndTime = GETDATE()	
 	
+	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @doing
+		,@extend = @MatchId
+	
 	IF @IsCentral = 1
 	BEGIN
-		DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
-		EXEC dbo.Logfile_V2 
-			@UserID = @AdminId
-			,@Doing = @doing
-			,@extend = @MatchId
-		
 		BEGIN TRY		
 			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
 							+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END

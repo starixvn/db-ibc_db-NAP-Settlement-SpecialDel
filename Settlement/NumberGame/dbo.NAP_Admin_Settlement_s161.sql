@@ -357,6 +357,7 @@ BEGIN
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
 	-- LOG
+	
 	SET @LogData = @LogData + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)' + ' MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
 
 	EXEC dbo.Logfile_V2 
@@ -366,11 +367,8 @@ BEGIN
 	
 	IF @IsCentral = 1
 	BEGIN
-
 		SET @Remark = @Remark + 'Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
-
 		BEGIN TRY	
-			IF @IsCentral =1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminID
 				,@Matchid = @MatchId
 				,@ActionID = @ActionID

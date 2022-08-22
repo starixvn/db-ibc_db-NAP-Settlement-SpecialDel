@@ -348,19 +348,17 @@ BEGIN
 			,@IsReleased		= 1
 	END CATCH
 	
+	SET @EndTime = GETDATE()
+		
+	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @doing
+		,@extend = @MatchId
 	
 	IF @IsCentral = 1
 	BEGIN
-		SET @EndTime = GETDATE()
-		
-		DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
-		EXEC dbo.Logfile_V2 
-			@UserID = @AdminId
-			,@Doing = @doing
-			,@extend = @MatchId
-		
-	BEGIN TRY
-		
+	BEGIN TRY	
 		DECLARE @remarkNewValue VARCHAR(MAX) = ''
 		SET @Remark = ''
 

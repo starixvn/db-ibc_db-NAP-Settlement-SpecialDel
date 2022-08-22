@@ -124,11 +124,41 @@ BEGIN
 	SELECT @Remark = 'NAP: To match ' + convert(varchar(10),@NewMatchid) +', MatchCode:' + @newMatchcode,  
 	       @Remark1 = 'NAP: From match ' + convert(varchar(10),@Matchid) + ', MatchCode:' + @matchcode 
 	    
-		
-	BEGIN TRY
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+	IF @IsCentral = 1
+	BEGIN
+		BEGIN TRY
+			BEGIN
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+					@UserID = @AdminId,
+					@Matchid = @MatchID,
+					@ActionID = 113,
+					@finalhomescore = @finalhomescore,
+					@finalawayscore = @finalawayscore,  
+					@hthomescore = @hthomescore,
+					@htawayscore = @htawayscore,
+					@GoalRecord = @goalrecord,
+					@betstatus = @betstatus,
+					@Remark = @Remark,
+					@IP = @IP
+
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+					@UserID = @AdminId,
+					@Matchid = @NewMatchID,
+					@ActionID = 114,
+					@finalhomescore = @finalhomescore1,
+					@finalawayscore = @finalawayscore1,  
+					@hthomescore = @hthomescore1,
+					@htawayscore = @htawayscore1,
+					@GoalRecord = @goalrecord1,
+					@betstatus = @betstatus1,
+					@Remark = @Remark1,
+					@IP = @IP
+			END
+		END TRY  
+		BEGIN CATCH	
+			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)	
+			SELECT @Remark1 = @Remark1 + ' ErrMsg=' + left(error_message(), 350)	
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 				@UserID = @AdminId,
 				@Matchid = @MatchID,
 				@ActionID = 113,
@@ -141,7 +171,7 @@ BEGIN
 				@Remark = @Remark,
 				@IP = @IP
 
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 				@UserID = @AdminId,
 				@Matchid = @NewMatchID,
 				@ActionID = 114,
@@ -153,37 +183,8 @@ BEGIN
 				@betstatus = @betstatus1,
 				@Remark = @Remark1,
 				@IP = @IP
-		END
-	END TRY  
-	BEGIN CATCH	
-		SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)	
-		SELECT @Remark1 = @Remark1 + ' ErrMsg=' + left(error_message(), 350)	
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @AdminId,
-			@Matchid = @MatchID,
-			@ActionID = 113,
-			@finalhomescore = @finalhomescore,
-			@finalawayscore = @finalawayscore,  
-			@hthomescore = @hthomescore,
-			@htawayscore = @htawayscore,
-			@GoalRecord = @goalrecord,
-			@betstatus = @betstatus,
-			@Remark = @Remark,
-			@IP = @IP
-
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-			@UserID = @AdminId,
-			@Matchid = @NewMatchID,
-			@ActionID = 114,
-			@finalhomescore = @finalhomescore1,
-			@finalawayscore = @finalawayscore1,  
-			@hthomescore = @hthomescore1,
-			@htawayscore = @htawayscore1,
-			@GoalRecord = @goalrecord1,
-			@betstatus = @betstatus1,
-			@Remark = @Remark1,
-			@IP = @IP
-	END CATCH
+		END CATCH
+	END
 
 END
 GO
