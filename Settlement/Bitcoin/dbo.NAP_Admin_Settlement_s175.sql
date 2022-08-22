@@ -298,36 +298,38 @@ BEGIN
 	
 	SET @EndTime = GETDATE()	
 	
-	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @doing
-		,@extend = @MatchId
+	IF @IsCentral = 1
+	BEGIN
+		DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
+		EXEC dbo.Logfile_V2 
+			@UserID = @AdminId
+			,@Doing = @doing
+			,@extend = @MatchId
 		
-	BEGIN TRY		
-		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
-						+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END
-						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
-		
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+		BEGIN TRY		
+			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
+							+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END
+							+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+
+			BEGIN
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+					,@Matchid = @matchid
+					,@ActionID = @ActionID
+					,@Remark = @Remark
+					,@IP = @IP
+			END
+		END TRY
+
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
+
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 				,@Matchid = @matchid
 				,@ActionID = @ActionID
 				,@Remark = @Remark
 				,@IP = @IP
-		END
-	END TRY
-
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
-
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@Remark = @Remark
-			,@IP = @IP
-	END CATCH
+		END CATCH
+	END
 
 	IF @hasNotify = 1
 	BEGIN
