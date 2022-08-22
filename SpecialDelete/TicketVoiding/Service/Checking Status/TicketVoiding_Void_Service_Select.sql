@@ -17,7 +17,7 @@ BEGIN
 	
 	CREATE TABLE #tmp_BroadcastSessionId (BroadcastSessionId VARCHAR(50), CreatedDate DATETIME)
 
-	INSERT INTO #tmp_BroadcastSessionId
+	INSERT INTO #tmp_BroadcastSessionId (BroadcastSessionId)
 	SELECT DISTINCT sv.BroadcastSessionId
 	FROM dbo.TicketVoiding_Void_Service sv WITH (NOLOCK)
 	WHERE sv.StatusId = 12
