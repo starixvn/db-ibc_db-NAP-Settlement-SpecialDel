@@ -185,11 +185,11 @@ BEGIN
 	-- BackUp bettransm tickets into zzzbettrans  
 	INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 			winlost, livehomescore, liveawayscore, liveindicator, betteam, creator , refno,   
-			winlostdate, betfrom, betcheck, checktime, matchid, bettype, SiteDBGroupID
+			winlostdate, betfrom, betcheck, checktime, matchid, bettype, SiteDBGroupID, RepUpdateTime
 	)  
 	SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,  
 			b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,  
-			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, b.SiteDBGroupID
+			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, b.SiteDBGroupID, SYSDATETIME()
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  
 			ON	b.transid = t.TransId
@@ -197,10 +197,10 @@ BEGIN
 	-- BackUp tickets of bettransm  
 	INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 				winlost, livehomescore, liveawayscore, liveINdicator, betteam, creator , refno,   
-				winlostdate, betfrom, betcheck, checktime, matchid, bettype, VoidingHistoryId, SiteDBGroupID)  
+				winlostdate, betfrom, betcheck, checktime, matchid, bettype, VoidingHistoryId, SiteDBGroupID, RepUpdateTime)  
 	SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,   
 			b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
-			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, @VoidingHistoryId
+			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, @VoidingHistoryId, SYSDATETIME()
 			, b.SiteDBGroupID
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  

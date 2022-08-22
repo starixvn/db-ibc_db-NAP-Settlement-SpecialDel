@@ -98,6 +98,9 @@ BEGIN
 			,@ErrMsgRefNo				VARCHAR(300) = '' 
 			,@limitsecond				INT	= 180
 			,@StartTime_Retry			DATETIME
+			,@SitedbgroupId				INT = 0
+			,@IsSiteDB					BIT
+			,@TransInfo					XML
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -145,6 +148,7 @@ BEGIN
 
 	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
 	CREATE TABLE #balanceGameAfter (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
 
 	DECLARE @tmpTransIdBatch TABLE (
 		TransId				BIGINT
@@ -157,6 +161,12 @@ BEGIN
 
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, bonusId INT, WalletType TINYINT, status VARCHAR(20))
 	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90100
@@ -196,7 +206,8 @@ BEGIN
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 					WHERE Bettype = b.bettype
 			)f
-	WHERE	b.statusID <> 102		
+	WHERE	b.statusID <> 102	
+		AND b.SiteDBGroupID = @SitedbgroupId
 
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM #tmpTransId)
 	BEGIN
@@ -570,6 +581,7 @@ BEGIN
 				,checktime, matchid, bettype  
 				,VoidingHistoryId
 				,SiteDBGroupID
+				,RepUpdateTime
 			)  
 		SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
 			,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
@@ -579,6 +591,7 @@ BEGIN
 			,b.checktime, b.matchid, b.bettype  
 			,@VoidingHistoryId
 			,b.SiteDBGroupID
+			,SYSDATETIME()
 		FROM @tmpTransIdBatch AS t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)  
 				ON b.transid = t.TransId
@@ -635,9 +648,26 @@ BEGIN
 			UPDATE z
 			SET z.status = t.status
 				, z.winlost = t.winlost
+			OUTPUT deleted.matchid, deleted.transid, t.status, t.winlost
+			INTO @tmpTransInfo (matchid, transid, STATUS, winlost)
 			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN @CashoutTickets_tmp t ON t.transid = z.transid
 			WHERE z.status <> t.status
+
+			IF @IsSiteDB = 1
+			BEGIN
+
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							, matchid AS '@mid'
+							, STATUS AS '@s'
+							, winlost AS '@w'
+					FROM	@tmpTransInfo WHERE matchid = @MatchId 
+					FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'Void', 'zzzbettrans', 'U', @matchid, @transInfo 
+			END
 		END
 	END
 
