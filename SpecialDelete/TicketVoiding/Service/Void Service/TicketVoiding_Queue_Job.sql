@@ -104,7 +104,7 @@ BEGIN
 	IF @ErrCode = @ErrMsgLockMatch
 	BEGIN 
 		UPDATE	q WITH(ROWLOCK, UPDLOCK)
-			SET @StatusId = CASE WHEN ErrMsg = CAST(@ErrCode AS VARCHAR) THEN 3 ELSE 0 END
+			SET @StatusId = CASE WHEN ErrMsg = CAST(@ErrCode AS VARCHAR) THEN 3 ELSE 1 END
 				,ErrMsg = CASE WHEN @StatusId = 3 THEN @ErrMsg ELSE CAST(@ErrCode AS VARCHAR) END
 				,StatusId = @StatusId
 				,FailedTransIds = CASE WHEN @StatusId = 3 THEN TransIds ELSE NULL END
@@ -113,6 +113,11 @@ BEGIN
 		FROM	dbo.TicketVoiding_Queue q
 		WHERE	RequestId = @RequestId
 				AND VoidingHistoryId = @VoidingHistoryId
+
+		SELECT q.QueueId, q.StatusId, q.ErrMsg AS [Message], q.UserId, c.username
+		FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
+		WHERE q.QueueId = @QueueId
 		
 		RETURN
 	END
