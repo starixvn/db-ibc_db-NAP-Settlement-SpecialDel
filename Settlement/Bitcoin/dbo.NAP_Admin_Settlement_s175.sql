@@ -100,7 +100,7 @@ BEGIN
 		--get transid
 		IF @Action LIKE 'CAL%'
 		BEGIN
-			IF ISNULL(@GameResult,'') = '' AND @IsCentral = 1
+			IF ISNULL(@GameResult,'') = ''
 			BEGIN
 				SELECT	@GameResult = GameResult
 				FROM	DBPRO.bodb02.dbo.ResultDetail3rd WITH(NOLOCK)
