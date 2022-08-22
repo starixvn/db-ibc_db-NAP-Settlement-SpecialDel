@@ -12,5 +12,4 @@ ALTER TABLE TicketVoiding_RequestDetailTicket_Single ADD SiteDBGroupID SMALLINT
 GO
 ALTER TABLE TicketVoiding_RequestDetailTicket_SubParlay ADD SiteDBGroupID SMALLINT
 GO
-ALTER TABLE TicketVoiding_VoidedTransaction ADD SiteDBGroupID SMALLINT
-GO
+
