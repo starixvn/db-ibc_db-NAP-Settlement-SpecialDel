@@ -9,7 +9,7 @@ USE bodb02
 GO
 CREATE TABLE [dbo].[TicketVoiding_Void_Service](
 	Id					INT	IDENTITY (1,1) NOT NULL,
-	BroadcastSessionId	INT	NOT NULL,
+	BroadcastSessionId	VARCHAR(50)	NOT NULL,
 	SiteDBGroupID		SMALLINT NOT NULL,
 	RequestId			INT	NOT NULL,
 	VoidingHistoryId	BIGINT	NOT NULL,
@@ -24,6 +24,13 @@ CREATE TABLE [dbo].[TicketVoiding_Void_Service](
 	
 )WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [DATA]
 ) ON DATA
+
+CREATE NONCLUSTERED INDEX [IX_TicketVoiding_Void_Service_RequestId] ON [dbo].[TicketVoiding_Void_Service]
+(
+	[RequestId]	ASC
+
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [DATA]
+GO
 
 CREATE NONCLUSTERED INDEX [IX_TicketVoiding_Void_Service_BroadcastSessionId] ON [dbo].[TicketVoiding_Void_Service]
 (
