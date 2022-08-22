@@ -39,7 +39,8 @@ BEGIN
  	FROM @xmlData.nodes('/Resources/Resource') AS T(C)
 
 	;WITH cteMarket AS (
-		SELECT ms.SelectionType
+		SELECT	m.MarketID
+				,ms.SelectionType
 				,COUNT(DISTINCT ms.Result)  AS countResult			--count all result (not count NULL value)
 				,MAX(ISNULL(ms.Result,'')) AS Result
 				,MAX(CASE ISNULL(ms.ResultStatusID,0)
@@ -53,9 +54,10 @@ BEGIN
 		FROM @tblMarketID m
 			INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON m.MarketID = ms.MarketID
 		WHERE ms.matchID = @matchID
-		GROUP BY ms.SelectionType
+		GROUP BY m.MarketID, ms.SelectionType
 	)
-	SELECT m.SelectionType
+	SELECT	m.MarketID
+			,m.SelectionType
 			,s.SelectionName
 			,CASE WHEN countResult > 1 THEN '' ELSE Result	END				AS Result
 			,CASE WHEN countResult > 1 THEN 1 ELSE 0 END 					AS IsDifferentResult
