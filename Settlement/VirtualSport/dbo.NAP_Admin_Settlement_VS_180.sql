@@ -270,97 +270,102 @@ BEGIN
 		@UserID = @AdminId
 		,@Doing = @LogData
 		,@extend = @MatchId
-		
-	SELECT @Remark = 'Calculate (' + @Action + ')' 
-					+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
-					+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
-					+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-					+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+	
 
-	BEGIN TRY
-		IF @IsCentral = 1
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID				= @AdminId
-			,@Matchid			= @matchid
-			,@ActionID			= @ActionID
-			,@finalhomescore	= @fth
-			,@finalawayscore	= @fta
-			,@hthomescore		= NULL
-			,@htawayscore		= NULL
-			,@GoalRecord		= NULL
-			,@betstatus			= NULL
-			,@Remark			= @Remark
-			,@IP				= @IP
-	END TRY
+	IF @IsCentral = 1
+	BEGIN
+		SELECT @Remark = 'Calculate (' + @Action + ')' 
+						+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
+						+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
+						+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+						+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
+		BEGIN TRY		
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID				= @AdminId
+				,@Matchid			= @matchid
+				,@ActionID			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= NULL
+				,@htawayscore		= NULL
+				,@GoalRecord		= NULL
+				,@betstatus			= NULL
+				,@Remark			= @Remark
+				,@IP				= @IP
+		END TRY
 
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID				= @AdminId
-			,@Matchid			= @matchid
-			,@ActionID			= @ActionID
-			,@finalhomescore	= @fth
-			,@finalawayscore	= @fta
-			,@hthomescore		= NULL
-			,@htawayscore		= NULL
-			,@GoalRecord		= NULL
-			,@betstatus			= NULL
-			,@Remark			= @Remark
-			,@IP				= @IP
-	END CATCH
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
+
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID				= @AdminId
+				,@Matchid			= @matchid
+				,@ActionID			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= NULL
+				,@htawayscore		= NULL
+				,@GoalRecord		= NULL
+				,@betstatus			= NULL
+				,@Remark			= @Remark
+				,@IP				= @IP
+		END CATCH
+	END
 	
 	DELETE
 	FROM dbo.TempVariableNumber WITH (ROWLOCK, UPDLOCK)
 	WHERE KeyID = 1 AND KeyValue = @matchid
 
-	IF (@@Error = 0)
+	SELECT @ErrCode = @@ERROR
+
+	IF @IsCentral = 1
 	BEGIN
-		BEGIN TRY
-			IF @IsCentral = 1
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID		= @AdminId
-				,@Matchid	= @matchid
-				,@KeyID		= 1
-				,@ActionID	= @ActionID
-				,@Remark	= 'DEL SUCCESS'
-		END TRY
+		IF ISNULL(@ErrCode,0) = 0
+		BEGIN
+			BEGIN TRY
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
+					@UserID		= @AdminId
+					,@Matchid	= @matchid
+					,@KeyID		= 1
+					,@ActionID	= @ActionID
+					,@Remark	= 'DEL SUCCESS'
+			END TRY
 
-		BEGIN CATCH
-			SELECT @Remark = 'DEL SUCCESS  ErrMsg=' + left(error_message(), 400)
+			BEGIN CATCH
+				SELECT @Remark = 'DEL SUCCESS  ErrMsg=' + left(error_message(), 400)
 
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID		= @AdminId
-				,@Matchid	= @matchid
-				,@KeyID		= 1
-				,@ActionID	= @ActionID
-				,@Remark	= @Remark
-		END CATCH
+				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
+					@UserID		= @AdminId
+					,@Matchid	= @matchid
+					,@KeyID		= 1
+					,@ActionID	= @ActionID
+					,@Remark	= @Remark
+			END CATCH
+		END
+		ELSE
+		BEGIN
+			BEGIN TRY
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
+					@UserID		= @AdminId
+					,@Matchid	= @matchid
+					,@KeyID		= 1
+					,@ActionID	= @ActionID
+					,@Remark	= 'DEL FAILED'
+			END TRY
+
+			BEGIN CATCH
+				SELECT @Remark = 'DEL FAILED  ErrMsg=' + left(error_message(), 400)
+
+				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
+					@UserID		= @AdminId
+					,@Matchid	= @matchid
+					,@KeyID		= 1
+					,@ActionID	= @ActionID
+					,@Remark	= @Remark
+			END CATCH
+		END
 	END
-	ELSE
-	BEGIN
-		BEGIN TRY
-			IF @IsCentral = 1
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID		= @AdminId
-				,@Matchid	= @matchid
-				,@KeyID		= 1
-				,@ActionID	= @ActionID
-				,@Remark	= 'DEL FAILED'
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = 'DEL FAILED  ErrMsg=' + left(error_message(), 400)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID		= @AdminId
-				,@Matchid	= @matchid
-				,@KeyID		= 1
-				,@ActionID	= @ActionID
-				,@Remark	= @Remark
-		END CATCH
-	END
-
 END
 
 GO
