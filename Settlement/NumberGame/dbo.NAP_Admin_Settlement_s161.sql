@@ -40,12 +40,15 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @start DATETIME, @stop DATETIME
+	DECLARE @start DATETIME
+			,@stop DATETIME
+			,@LogData		NVARCHAR(200)
+			,@Remark		VARCHAR(500)
+			,@ActionID		INT
+			,@IsCentral	BIT = 0
+			,@avaiableProcess	BIT
 
-	DECLARE @LogData		NVARCHAR(200)
-			, @Remark		VARCHAR(500)
-			, @ActionID		INT
-			, @IsCentral	BIT = 0
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -59,47 +62,21 @@ BEGIN
 	IF @IsLoopTempTable = 0
 	BEGIN
 		-- check and not allow attempt to settlement same game while it's still not finish
-		IF EXISTS (
-				SELECT 1
-				FROM dbo.TempVariableNumber WITH(NOLOCK)
-				WHERE KeyID = 1 AND KeyValue = @MatchId
-				)
+		INSERT INTO #tblMatchProcess(matchid, KeyID)
+		SELECT	@matchid AS matchid
+				,1 AS KeyId
+		
+		--check settlement process
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG			= 1
+			,@avaiableProcess 	= @avaiableProcess OUTPUT
+			,@ErrCode			= @ErrCode OUTPUT
+			,@ErrMsg			= @ErrMsg OUTPUT
+
+		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		BEGIN
-			SELECT @ErrCode = 101
-				,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-			RETURN
-		END
-
-		INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue)
-		VALUES (1, @MatchId)
-
-		IF (@@Error = 0)
-		BEGIN
-			BEGIN TRY
-				IF @IsCentral = 1
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
-					,@Matchid = @MatchId
-					,@KeyID = 1
-					,@ActionID = @ActionID
-					,@Remark = 'ADD SUCCESS'
-			END TRY
-
-			BEGIN CATCH
-				SET @Remark = 'ADD SUCCESS ErrMsg=' + left(error_message(), 400)
-				
-				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
-					,@Matchid = @MatchId
-					,@KeyID = 1
-					,@ActionID = @ActionID
-					,@Remark = @Remark
-
-			END CATCH
-		END
-		ELSE
-		BEGIN
-			SELECT @ErrCode = 100 
-				,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+			SELECT  @ErrCode 
+					,@ErrMsg  
 
 			RETURN
 		END
@@ -426,54 +403,9 @@ BEGIN
 	----
 	IF @IsLoopTempTable = 0
 	BEGIN
-		DELETE
-		FROM dbo.TempVariableNumber
-		WHERE KeyID = 1 AND KeyValue = @MatchId
-
-		IF @IsCentral = 1
-		BEGIN
-			IF (@@Error = 0)
-			BEGIN
-				BEGIN TRY
-					EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
-						,@Matchid = @MatchId
-						,@KeyID = 1
-						,@ActionID = @ActionID
-						,@Remark = 'DEL SUCCESS'
-				END TRY
-
-				BEGIN CATCH
-					SELECT @Remark = 'DEL SUCCESS ErrMsg=' + left(error_message(), 400)
-				
-					EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
-						,@Matchid = @MatchId
-						,@KeyID = 1
-						,@ActionID = @ActionID
-						,@Remark = @Remark
-				END CATCH
-			END
-			ELSE
-			BEGIN
-				BEGIN TRY	
-					IF @IsCentral = 1
-					EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
-						,@Matchid = @MatchId
-						,@KeyID = 1
-						,@ActionID = @ActionID
-						,@Remark = 'DEL FAILED'
-				END TRY
-
-				BEGIN CATCH
-					SELECT @Remark = 'DEL FAILED ErrMsg=' + left(error_message(), 400)
-				
-					EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking @UserID = @AdminID
-						,@Matchid = @MatchId
-						,@KeyID = 1
-						,@ActionID = @ActionID
-						,@Remark = @Remark
-				END CATCH
-			END
-		END
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 	END
 END
 GO

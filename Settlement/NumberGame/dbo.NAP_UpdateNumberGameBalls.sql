@@ -25,31 +25,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @LogData NVARCHAR(300)
-
-	EXEC DBTXN.bodb02.dbo.NAP_UpdateTempVariableNumber @matchid = @matchid, @ActionId = 1, @ErrCode = @ErrCode OUTPUT
-
-	IF (@ErrCode = 0)
-	BEGIN 
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = 5838421, --dbaAdmin
-				@Matchid = @MatchId, 
-				@KeyID = 1,
-				@ActionID = 0, 
-				@Remark = 'ADD SUCCESS SPName = NAP_UpdateNumberGameBalls'
-		END TRY
-		BEGIN CATCH
-			SELECT @LogData = 'ADD SUCCESS SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-			EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-								  @Doing = @LogData		
-		END CATCH
-	END
-	ELSE 
-	BEGIN
-		SELECT @ErrCode = 100, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
-	
 	---------
 	DECLARE @IsTest BIT, @SportType SMALLINT
 	DECLARE @tblResult TABLE(Seq TINYINT, Number TINYINT, Color VARCHAR(1))
@@ -104,40 +79,5 @@ BEGIN
 	WHEN NOT MATCHED BY SOURCE AND TARGET.MatchId = @matchid  THEN
 		UPDATE SET IsDeleted	= 1
 				  ,UpdateTime	= GETDATE() ;
-					
-	EXEC DBTXN.bodb02.dbo.NAP_UpdateTempVariableNumber @matchid = @matchid, @ActionId = 0, @ErrCode = @ErrCode OUTPUT
-	IF @ErrCode = 0
-	BEGIN	
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = 5838421, --dbaAdmin
-				@Matchid = @MatchId, 
-				@KeyID = 1,
-				@ActionID = 0, 
-				@Remark = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls'
-		END TRY
-		BEGIN CATCH
-			SELECT @LogData = 'DEL SUCCESS SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-			EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-								  @Doing = @LogData	
-		END CATCH	
-	END				
-	ELSE
-	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = 5838421, --dbaAdmin
-				@Matchid = @MatchId, 
-				@KeyID = 1,
-				@ActionID = 0, 
-				@Remark = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls'
-		END TRY
-		BEGIN CATCH
-			SELECT @LogData = 'DEL FAILED SPName = NAP_UpdateNumberGameBalls MatchID=' + @MatchId + ' KeyID=1 ErrMsg='+ left(error_message(), 70)		
-			EXEC WriteLog_UserLog @UserID = 5838421, --dbaAdmin
-								  @Doing = @LogData	
-		END CATCH					
-	END
-
 END
 GO

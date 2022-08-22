@@ -535,44 +535,6 @@ BEGIN
 					END
 				END
 			END
-
-			--IF @IsCentral = 1
-			--BEGIN
-			--	EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark 
-			--		@matchid        = @matchid
-			--		,@command        = 'U'                
-               
-			--	EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-			--		@Command        = 'NAP_Admin_Settlement_1-UNDO'
-			--		,@MatchID        = @matchid
-			--		,@betstatus        = @betstatus               
-			--		,@creator        = @creator
-			
-			--	IF @Sporttype = 1 -- Soccer
-			--	BEGIN
-			--		IF @ChildMatchType = 204 -- Corner
-			--		BEGIN
-			--			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-			--				@Command            = 'NAP_Admin_Settlement_1-Corner-UNDO',
-			--				@MatchID            = @MatchID,
-			--				@creator            = @creator 
-			--		END
-			--		ELSE
-			--		BEGIN
-			--			EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s 
-			--				@Command            = 'NAP_Admin_Settlement_1-UNDO',
-			--				@MatchID            = @MatchID,
-			--				@creator            = @creator 
-			--		END
-
-			--		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
-			--			@MatchId = @matchid
-			--			,@TypeId = NULL
-			--			,@StatusId = NULL 
-			--			,@IsUndoMatch = 1 --Clear data in table AutoPayoutResult if match has been undo
-
-			--	END           
-   --         END
         END
         ELSE
         BEGIN           
