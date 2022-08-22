@@ -1,8 +1,7 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_SendNotify_Bitcoin] 
 	@MatchId			INT 
 	,@notifyAction		INT
-	,@IsCentral			BIT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -13,7 +12,6 @@ AS
 	
 	Revisions:
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
-		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:	
 		@notifyAction: CAL, REFUND
@@ -109,7 +107,6 @@ BEGIN
 		WHERE matchid = @matchid
 			AND b.statusId	NOT IN (101, 102)
 			AND b.bettype = 7901
-			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		SET @totalTicket = @@ROWCOUNT
 

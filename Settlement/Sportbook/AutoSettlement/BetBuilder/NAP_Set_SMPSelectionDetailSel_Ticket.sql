@@ -3,12 +3,12 @@ ALTER PROCEDURE [dbo].[NAP_Set_SMPSelectionDetailSel_Ticket]
 	@matchID 			INT
 AS
 /*
-	Created by: 20220719@Louisa
+	Created by: 20220719@Kathy
 	Task: Scale Out BetTrans
 	DB: DBTXN/BODB02
 	
 	Revisions:
-		- 20220719@Louisa: Get ticket BB [Redmine:#175251]		
+		- 20220719@Kathy: Get ticket BB [Redmine:#175251]		
 		
 	Param's Explanation:
 

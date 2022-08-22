@@ -24,13 +24,6 @@ AS
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
-		@Resources = '<Resources>
-						<Resource Id="1" Result="1" />
-						<Resource Id="2" Result="2" />
-						<Resource Id="3" Result="3" />
-						<Resource Id="4" Result="4" />
-						<Resource Id="5" Result="5" />
-					  </Resources>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -66,7 +59,6 @@ BEGIN
 							WHEN 'REFUND' THEN 81001 
 						END
 			,@Remark = ''
-	
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -358,36 +350,20 @@ BEGIN
 	
 	IF @IsCentral = 1
 	BEGIN
-	BEGIN TRY	
-		DECLARE @remarkNewValue VARCHAR(MAX) = ''
-		SET @Remark = ''
+		BEGIN TRY		
+			DECLARE @remarkNewValue VARCHAR(MAX) = ''
+			SET @Remark = ''
 
-		SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
-		FROM @tmpResultDetail
-		WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
+			SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
+			FROM @tmpResultDetail
+			WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
 		
-		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
-						+ CASE WHEN ISNULL(@strOldResult,'') <> '' THEN 'Old Results: ' + SUBSTRING(@strOldResult, 2, LEN(@strOldResult))  + '<br/> ' ELSE '' END
-						+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
-						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
+							+ CASE WHEN ISNULL(@strOldResult,'') <> '' THEN 'Old Results: ' + SUBSTRING(@strOldResult, 2, LEN(@strOldResult))  + '<br/> ' ELSE '' END
+							+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
+							+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@finalhomescore = NULL
-			,@finalawayscore = NULL
-			,@hthomescore = NULL
-			,@htawayscore = NULL
-			,@GoalRecord = NULL
-			,@betstatus = NULL
-			,@Remark = @Remark
-			,@IP = @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 				,@Matchid = @matchid
 				,@ActionID = @ActionID
 				,@finalhomescore = NULL
@@ -398,8 +374,23 @@ BEGIN
 				,@betstatus = NULL
 				,@Remark = @Remark
 				,@IP = @IP
-		END CATCH
+			END TRY
 
+			BEGIN CATCH
+				SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
+
+				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+					,@Matchid = @matchid
+					,@ActionID = @ActionID
+					,@finalhomescore = NULL
+					,@finalawayscore = NULL
+					,@hthomescore = NULL
+					,@htawayscore = NULL
+					,@GoalRecord = NULL
+					,@betstatus = NULL
+					,@Remark = @Remark
+					,@IP = @IP
+			END CATCH
 	END
 END
 GO

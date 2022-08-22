@@ -279,32 +279,6 @@ BEGIN
             --,settletime = GETDATE()
         WHERE matchid = @matchid
     END
-    IF @Command = 'NAP_Admin_Settlement_s161-Refund'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET betstatus = 'Refund',
-            eventstatus = 'Completed', changetime = CURRENT_TIMESTAMP, settleTime = CURRENT_TIMESTAMP
-        WHERE matchid=@MatchID
-    END
-    IF @Command = 'NAP_Admin_Settlement_s161-Refund_FT'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET eventstatus = 'Completed',
-            betstatus = 'Refund FT',
-            changetime = CURRENT_TIMESTAMP
-
-        WHERE matchid=@MatchID
-    END
-    IF @Command = 'NAP_Admin_Settlement_s161-CAL'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET
-            betstatus = '',
-            eventstatus = 'Completed',
-            changetime = CURRENT_TIMESTAMP,
-            settleTime = CURRENT_TIMESTAMP
-        WHERE matchid = @MatchID
-    END
     IF @Command = 'NAP_Admin_Settlement_s162-Refund'
     BEGIN
         UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
@@ -449,14 +423,15 @@ BEGIN
 	
      IF @Command = 'profile_bingoball'
     BEGIN	
+		SET @eventstatus = N'completed'
+
 		IF @action = 'REFUND'
-       		SELECT @eventstatus        = N'completed'
-                   ,@betstatus         = N'refund'
-                   
-        IF @action = 'CAL'
-        	SELECT @eventstatus		   = N'completed'
-        		   ,@betstatus         = N''
-        		   
+       		SELECT @betstatus = CASE 
+									WHEN @Action = 'REFUND' THEN N'Refund'
+									WHEN @Action = 'REFUND-FT' THEN N'Refund FT'
+									ELSE ''
+								END
+    	   
         UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET eventstatus     = COALESCE(@eventstatus, eventstatus)
                 ,betstatus      = COALESCE(@betstatus, '')

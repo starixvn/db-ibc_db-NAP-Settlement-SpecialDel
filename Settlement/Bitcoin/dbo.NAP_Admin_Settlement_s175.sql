@@ -39,7 +39,6 @@ BEGIN
 			,@IsWaiting				BIT 
 			,@procName				SYSNAME
 			,@recipients			VARCHAR(250)
-			,@hasNotify				BIT 
 			,@remark				VARCHAR(200)
 			,@IsCentral				BIT
 	
@@ -71,10 +70,6 @@ BEGIN
 			,@IsWaiting = 0
 			,@procName =  OBJECT_NAME(@@procid)
 			
-	SELECT	@hasNotify = CASE WHEN EventStatus = 'completed' or @Action = 'REFUND' THEN 1 ELSE 0 END 
-	FROM	dbo.Match3rd WITH(NOLOCK)
-	WHERE	match3rdId = @MatchId
-	
 	-------------------------BEGIN TRY------------------------------------------------------------------------
 	BEGIN TRY
 		-- check and not allow attempt to settlement same game while it's still not finish
@@ -296,16 +291,16 @@ BEGIN
 		RETURN
 	END
 	
-	SET @EndTime = GETDATE()	
-	
 	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
 	EXEC dbo.Logfile_V2 
 		@UserID = @AdminId
 		,@Doing = @doing
 		,@extend = @MatchId
 	
+	SET @EndTime = GETDATE()	
+	
 	IF @IsCentral = 1
-	BEGIN
+	BEGIN		
 		BEGIN TRY		
 			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
 							+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END
@@ -331,15 +326,5 @@ BEGIN
 		END CATCH
 	END
 
-	IF @hasNotify = 1
-	BEGIN
-		--SEND notify
-		EXEC [dbo].[NAP_Admin_SendNotify_Bitcoin]
-			@matchid		= @matchid
-			,@notifyAction	= @ActionId		
-			,@IsCentral		= @IsCentral
-			,@ErrCode 		= @ErrCode OUTPUT
-			,@ErrMsg  		= @ErrMsg   OUTPUT
-	END
 END
 GO

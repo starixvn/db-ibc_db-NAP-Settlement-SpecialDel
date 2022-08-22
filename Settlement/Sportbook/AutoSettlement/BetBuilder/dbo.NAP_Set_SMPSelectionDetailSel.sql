@@ -10,7 +10,7 @@ AS
 	
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
-		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]		
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]		
 		
 	Param's Explanation:
 		@TicketStatus
@@ -39,8 +39,7 @@ BEGIN
  	FROM @xmlData.nodes('/Resources/Resource') AS T(C)
 
 	;WITH cteMarket AS (
-		SELECT	m.MarketID
-				,ms.SelectionType
+		SELECT	ms.SelectionType
 				,COUNT(DISTINCT ms.Result)  AS countResult			--count all result (not count NULL value)
 				,MAX(ISNULL(ms.Result,'')) AS Result
 				,MAX(CASE ISNULL(ms.ResultStatusID,0)
@@ -54,10 +53,9 @@ BEGIN
 		FROM @tblMarketID m
 			INNER JOIN dbo.SMP_MarketSelection ms WITH (NOLOCK) ON m.MarketID = ms.MarketID
 		WHERE ms.matchID = @matchID
-		GROUP BY m.MarketID, ms.SelectionType
+		GROUP BY ms.SelectionType
 	)
-	SELECT	m.MarketID
-			,m.SelectionType
+	SELECT	m.SelectionType
 			,s.SelectionName
 			,CASE WHEN countResult > 1 THEN '' ELSE Result	END				AS Result
 			,CASE WHEN countResult > 1 THEN 1 ELSE 0 END 					AS IsDifferentResult
