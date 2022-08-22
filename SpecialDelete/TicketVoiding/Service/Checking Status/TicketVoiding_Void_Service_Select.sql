@@ -42,10 +42,10 @@ BEGIN
 			)s
 	END
 
-	SELECT b.BroadcastSessionId, s.SiteDBGroupID, s.RequestId, s.VoidingHistoryId, s.StatusId, s.IsAutoVoid, s.MatchId, s.CreatedDate
+	SELECT b.BroadcastSessionId, s.SiteDBGroupID, s.RequestId, s.VoidingHistoryId, s.StatusId, s.IsAutoVoid, s.MatchId, DATEDIFF(SECOND, b.CreatedDate, GETDATE()) AS CreatedTimeDuration
 	FROM 
 	(
-		SELECT TOP(1) b.BroadcastSessionId
+		SELECT TOP(1) b.BroadcastSessionId, CreatedDate
 		FROM #tmp_BroadcastSessionId b
 		ORDER BY b.CreatedDate
 	)b
