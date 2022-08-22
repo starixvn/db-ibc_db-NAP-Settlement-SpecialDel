@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@matchid 			INT,
 	@command 			VARCHAR(5),
 	@ivalue 			BIGINT = NULL,
-	@SelectedQuarter 	VARCHAR(50) = NULL,
+	@IsHTRound 			BIT = 0,
 	@IsFinalRound       BIT = 0,
 	@IsMovedMatch		BIT = 1
 WITH RECOMPILE
@@ -29,6 +29,7 @@ WITH RECOMPILE
 		- 20210122@Louisa: Cricket AIO [Redmine:#148870]
 		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
 		- 20220719@Louisa: Update match_remark before calcualte/refund for VSBetradar [Redmine:#175251]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation: 
 */
@@ -40,6 +41,7 @@ BEGIN
 			,@Calculate BIT
 			,@IsPending BIT
 			,@ParentMatchId	INT
+			,@Sporttype SMALLINT
 
 	SELECT	@IsHTCal		= IsHTCal
 			,@Calculate 	= Calculate
@@ -47,15 +49,13 @@ BEGIN
 	FROM	match_remark WITH (NOLOCK)
 	WHERE	matchid = @matchid 
 
-	IF @IsMovedMatch = 0
-	BEGIN
-		SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
-		FROM	dbo.match m WITH(NOLOCK)
-		WHERE	m.matchid = @MatchID
+	SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+			,@Sporttype = m.sporttype
+	FROM	dbo.match m WITH(NOLOCK)
+	WHERE	m.matchid = @MatchID
 
-		IF @ParentMatchId IS NOT NULL -- child match of cricket
-			RETURN
-	END
+	IF @IsMovedMatch = 0 AND @ParentMatchId IS NOT NULL -- child match of cricket
+		RETURN
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM match_remark WITH(NOLOCK) WHERE matchid = @matchid)
 	BEGIN
@@ -71,7 +71,7 @@ BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET Calculate		= 1
 			,calrefund		= 0
-			,IsHTCal		= CASE WHEN @SelectedQuarter IS NULL OR @SelectedQuarter LIKE '%1H%' THEN 1 ELSE IsHTCal END
+			,IsHTCal		= CASE WHEN (@Sporttype = 2 AND @IsHTRound = 1) OR @Sporttype <> 2 THEN 1 ELSE IsHTCal END
 			,isPending		= 0
 			,isUndecided	= 0
 			,RepUpdateTime = SYSDATETIME()
@@ -92,14 +92,13 @@ BEGIN
 	END
 	
 	-- Match Refund
-	IF @command = 'F' AND (@SelectedQuarter IS NULL
-							OR @SelectedQuarter LIKE '%FT%'
-							OR ISNULL(@IsFinalRound,0) = 1
+	IF @command = 'F' AND (@Sporttype <> 2
+							OR (@Sporttype = 2 AND @IsFinalRound = 1)
 						)
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET calculate		= 0
-			,IsHTCal		= CASE WHEN @SelectedQuarter IS NULL OR @SelectedQuarter LIKE '%1H%' OR @SelectedQuarter LIKE '%80[1,2]%' THEN 0 ELSE IsHTCal END
+			,IsHTCal		= CASE WHEN @Sporttype <> 2 OR (@Sporttype = 2 AND @IsHTRound = 1) THEN 0 ELSE IsHTCal END
 			,calrefund		= 1
 			,isPending		= 0
 			,isUndecided	= 0
@@ -107,7 +106,7 @@ BEGIN
 		WHERE matchid = @matchid 
 	END
 
-	IF @command = 'F' AND @SelectedQuarter = '1H' AND ISNULL(@IsFinalRound,0) = 0
+	IF @command = 'F' AND @Sporttype = 2 AND @IsHTRound = 1 AND @IsFinalRound = 0
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET IsHTCal		= 0
@@ -140,13 +139,12 @@ BEGIN
 	END
 	
 	-- [U]ndo settlement
-	IF @command = 'U' AND (@SelectedQuarter IS NULL
-							OR ISNULL(@SelectedQuarter,'') LIKE '%FT%'
-							OR ISNULL(@IsFinalRound,0) = 1
+	IF @command = 'U' AND (@Sporttype <> 2
+							OR (@Sporttype = 2 AND @IsFinalRound = 1)
 							)
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
-		SET IsHTCal					= CASE WHEN ISNULL(@SelectedQuarter,'') LIKE '%FT%' THEN IsHTCal ELSE 0 END
+		SET IsHTCal					= CASE WHEN (@Sporttype = 2 AND @IsFinalRound = 1) THEN IsHTCal ELSE 0 END
 			,Calculate				= 0
 			,multiple				= 0
 			,calrefund				= 0
@@ -157,8 +155,7 @@ BEGIN
 	END
 	
 	-- [U]ndo settlement of HT, Q1, Q2 Basketball
-	IF @command = 'U' AND (ISNULL(@SelectedQuarter,'') LIKE '%1H%' 
-							OR ISNULL(@SelectedQuarter,'') LIKE '%80[1,2]%')
+	IF @command = 'U' AND @Sporttype = 2 AND @IsHTRound = 1
 	BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
 		SET IsHTCal					= 0
@@ -378,7 +375,7 @@ BEGIN
 		UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 		SET Calculate		= 1
 			,calrefund		= 0
-			,IsHTCal		= CASE WHEN @SelectedQuarter IS NULL OR @SelectedQuarter LIKE '%1H%' THEN 1 ELSE IsHTCal END
+			,IsHTCal		= 1
 			,isPending		= 0
 			,isUndecided	= 0
 			,multiple		= 1

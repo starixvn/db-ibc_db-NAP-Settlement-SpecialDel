@@ -19,7 +19,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@GoalSequence          VARCHAR(50) = NULL
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
-    ,@SelectedQuarter VARCHAR(MAX) = NULL
     ,@strBettypes   VARCHAR(MAX) = NULL
     ,@strTransIds   VARCHAR(MAX) = NULL
     ,@betstatus     NVARCHAR(50) = NULL
@@ -113,8 +112,7 @@ BEGIN
                 + CASE WHEN @TennisTotal IS NULL THEN '' ELSE ',@TennisTotal = ' + CONVERT(NVARCHAR(50), @TennisTotal) END
                 + CASE WHEN @GoalSequence IS NULL THEN '' ELSE ',@GoalSequence = ''' + @GoalSequence + '''' END
                 + CASE WHEN @resultDetail_bb IS NULL THEN '' ELSE ',@resultDetail_bb = ''' + @resultDetail_bb + '''' END
-                + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END
-                + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ''' + @SelectedQuarter + '''' END
+                + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END              
                 + CASE WHEN @strBettypes IS NULL THEN '' ELSE ',@strBettypes = ''' + @strBettypes + '''' END
                 + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + @strTransIds + '''' END
                 + CASE WHEN @betstatus IS NULL THEN '' ELSE ',@betstatus = ''' + @betstatus + '''' END
@@ -141,8 +139,7 @@ BEGIN
             @hta = @hta,
             @matchdate = @matchdate,
             @action = 'CAL',
-            @priorAction = 'REFUND',
-            @selectedQuarter = @SelectedQuarter,
+            @priorAction = 'REFUND',           
             @resultDetail_bb = @resultDetail_bb,
             @strBettypes = @strBettypes
     END
@@ -162,8 +159,7 @@ BEGIN
             , @GoalSequence = @GoalSequence
             , @resultDetail = @resultDetail
             , @strBettypes = @strBettypes
-            , @betstatus = @betstatus
-            , @SelectedQuarter = @SelectedQuarter
+            , @betstatus = @betstatus          
 			, @Sporttype = @Sporttype
     END
 

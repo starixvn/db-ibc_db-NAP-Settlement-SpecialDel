@@ -102,7 +102,6 @@ BEGIN
 			,@DummyResourceIds		VARCHAR(MAX) = ''
 			,@DummyResourceResults VARCHAR(MAX) = ''
 			,@IsEarly				BIT
-			,@SelectedQuarter 	VARCHAR(50) = NULL
 			,@ParentMatchId		INT
 			,@procName			SYSNAME	= OBJECT_NAME(@@procid)
 			,@WaitingTime		VARCHAR(10)

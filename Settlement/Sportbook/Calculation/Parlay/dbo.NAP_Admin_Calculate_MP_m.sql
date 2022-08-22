@@ -14,7 +14,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
     ,@GoalSequence VARCHAR(50) = NULL         
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
-    ,@SelectedQuarter VARCHAR(MAX) = NULL
     ,@strBettypes VARCHAR(MAX) = NULL
 	,@betstatus	NVARCHAR(50) = NULL
 	,@IsRefundHT BIT = NULL
@@ -116,24 +115,10 @@ BEGIN
 			,@totalht				SMALLINT = 0
 			,@totalgoal_2H			SMALLINT = 0
 			
-            -- for basketball
-            ,@basketball_ResourceIdsCAL	VARCHAR(MAX) = NULL
-			,@basketball_ResourceIdsREFUND VARCHAR(MAX) = NULL
-			
-			,@FTHighestQuarter	VARCHAR(10) = NULL			
-			,@Q1Home			INT
-			,@Q2Home			INT
-			,@Q3Home			INT
-			,@Q4Home			INT			
-			,@Q1Away			INT
-			,@Q2Away			INT
-			,@Q3Away			INT
-			,@Q4Away			INT    
 			,@IsUpd_Void BIT = 0
 			
         DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-        DECLARE @InputResultDetail_bb TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatusId TINYINT)
-        
+       
         DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT, groupname VARCHAR(50), is3x30 BIT, isEarly BIT)
             
         SET @xmlBettypes = CONVERT(XML, @strBettypes)
@@ -153,47 +138,6 @@ BEGIN
         OPTION ( OPTIMIZE FOR ( @xmlBettypes = NULL ) )
     END --END: params for corner bets, sportting solution and betradar ----------------------------------
 		
-	IF @resultDetail_bb IS NOT NULL -- for basketball
-    BEGIN
-							
-        SET @xml = CONVERT(XML, @resultDetail_bb)
-        
-        INSERT INTO @InputResultDetail_bb (ResourceId, HomeValue, AwayValue, SettlementStatusId)
-		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-				,T.c.value('./@away','VARCHAR(50)') AS AwayValue
-				,T.c.value('./@ssId','TINYINT') AS SettlementStatusId
-		FROM	@xml.nodes('/root/r') AS T(c)
-		OPTION	( OPTIMIZE FOR ( @xml = NULL ) )  
-		
-		SELECT	@basketball_ResourceIdsREFUND = COALESCE(@basketball_ResourceIdsREFUND + ',' + r.ResourceId ,r.ResourceId)	
-		FROM	@InputResultDetail_bb
-			CROSS APPLY (
-				SELECT CASE
-							WHEN ResourceId = '00' THEN 'FT'
-							WHEN ResourceId = '01' THEN '1H'
-							WHEN ResourceId = '02' THEN '2H'
-							ELSE ResourceId
-						END AS ResourceId
-							
-			) r
-		WHERE	SettlementStatusId = 1		
-		
-		SELECT	@basketball_ResourceIdsCAL =  COALESCE(@basketball_ResourceIdsCAL + ',' + r.ResourceId ,r.ResourceId)
-		FROM	@InputResultDetail_bb
-			CROSS APPLY (
-				SELECT CASE
-							WHEN ResourceId = '00' THEN 'FT'
-							WHEN ResourceId = '01' THEN '1H'
-							WHEN ResourceId = '02' THEN '2H'
-							ELSE ResourceId
-						END AS ResourceId
-							
-			) r
-		WHERE	SettlementStatusId = 4	
-		
-	END	
-	
 	DECLARE @modds MONEY , @doing VARCHAR(10) = 'zzz'
 	
 	WHILE (@doing <> @action)
@@ -245,36 +189,10 @@ BEGIN
 				CROSS APPLY (
 					SELECT	CAST(CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)),'') AS VARCHAR(20)) AS ResourceId
 				)r
-				CROSS APPLY (
-					SELECT CASE 
-								WHEN t.groupId = 10 
-									THEN CASE 
-											WHEN bm.betcheck = '801' THEN 'Q1'
-											WHEN bm.betcheck = '802' THEN 'Q2'
-											WHEN bm.betcheck = '803' THEN 'Q3'
-											WHEN bm.betcheck = '804' THEN 'Q4'
-											ELSE ''
-										END
-								ELSE ''
-							END AS QuarterX
-				)q
             WHERE matchid = @matchid      
 				AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
                 AND statusID NOT IN (101)
-				AND t.groupId <> 8 -- Early Soccer
-				AND 1 = CASE
-							WHEN @basketball_ResourceIdsREFUND IS NULL AND @basketball_ResourceIdsCAL IS NULL THEN 1 --s basketball
-							WHEN t.isEarly = 1 THEN CASE
-														WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
-														ELSE 0
-													END
-							WHEN t.groupId = 10 THEN CASE
-														WHEN CHARINDEX(',' + q.QuarterX + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
-														ELSE 0
-													END
-							WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
-							ELSE 0
-							END														
+				AND t.groupId <> 8 -- Early Soccer						
 			
             UPDATE pd
             SET winlostdate = @matchdate
@@ -478,19 +396,6 @@ BEGIN
 				AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
                 AND statusID NOT IN (101, 1)
 				AND t.groupId <> 8 -- Early Soccer
-              AND 1 = CASE -- basketball
-							WHEN @SelectedQuarter IS NULL THEN 1
-							WHEN t.isEarly = 1 THEN CASE
-														WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @SelectedQuarter + ',') > 0 THEN 1
-														ELSE 0
-														END
-							WHEN t.groupId = 10 THEN CASE
-														WHEN CHARINDEX(',' + bm.betcheck + ',', ',' + @SelectedQuarter + ',') > 0 THEN 1
-														ELSE 0
-													END
-							WHEN CHARINDEX(',' + t.groupName + ',', ',' + @SelectedQuarter + ',') > 0 THEN 1
-							ELSE 0
-							END	
 			OPTION (FORCE ORDER)			
 					
             UPDATE pd
@@ -510,89 +415,6 @@ BEGIN
         BEGIN
 			SET @FunctionName = 'CalSubParlay'
 
-            IF @resultDetail_bb IS NOT NULL -- for basketball
-            BEGIN
-				
-				INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue)
-				SELECT	ResourceId, HomeValue, AwayValue
-				FROM	@InputResultDetail_bb r
-				WHERE	SettlementStatusId = 4
-				
-				SELECT	@FTHighestQuarter = CASE
-											WHEN MAX(result.HomeValue) > MAX(result.AwayValue) THEN 'H'
-											WHEN MAX(result.HomeValue) < MAX(result.AwayValue) THEN 'A'
-											ELSE 'N'
-										END
-				FROM	@tmpResultDetail t
-					CROSS APPLY (
-						SELECT CAST(t.HomeValue AS INT) HomeValue
-							,CAST(t.AwayValue AS INT) AwayValue
-					)result
-				WHERE	ResourceId LIKE 'Q[1-4]'
-					
-				SELECT	@Q1Home = HomeValue
-						,@Q1Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q1'
-				
-				SELECT	@Q2Home = HomeValue
-						,@Q2Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q2'
-				
-				SELECT	@Q3Home = HomeValue
-						,@Q3Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q3'
-				
-				SELECT	@Q4Home = HomeValue
-						,@Q4Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q4'
-				
-            END  
-   
-			IF @resultDetail IS NOT NULL
-			BEGIN
-				 SET @xml = CONVERT(XML, @resultDetail)
-				
-				;WITH cteResult
-				AS(
-					SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-							,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-							,T.c.value('./@away','VARCHAR(50)') AS AwayValue
-					FROM	@xml.nodes('/root/r') AS T(c)
-				)
-				SELECT	@ht_fg = ISNULL(MAX(CASE 
-												WHEN ResourceID ='127F' 
-													THEN CASE 
-															WHEN HomeValue = 'N' THEN '0:0'
-															WHEN HomeValue = 'H' THEN '1:1'
-															WHEN HomeValue = 'A' THEN '2:1'
-															ELSE ''
-														END
-													ELSE '' 
-											END),'')		
-						,@ht_lg = ISNULL(MAX(CASE 
-												WHEN ResourceID ='127L' 
-													THEN CASE 
-															WHEN HomeValue = 'N' THEN '0:0'
-															WHEN HomeValue = 'H' THEN '1:2'
-															WHEN HomeValue = 'A' THEN '2:2'
-															ELSE ''
-														END
-													ELSE '' 
-											END),'')			
-						
-						,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
-						,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')
-						,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
-						,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')													
-				FROM	cteResult r
-				OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-				
-			END
-			
             DECLARE @csHTFT NVARCHAR(10) -- HT/FT correct score
     
             SELECT @csHTFT = CASE WHEN @hth + @hta >= 4 THEN '4+' 
@@ -1749,145 +1571,6 @@ BEGIN
 								WHEN (betteam = @ht_fg OR betteam = @ht_lg) THEN 1
 								ELSE - 1
 							END
-                        WHEN 601 THEN -- FT Winning Margin 14 Way
-							CASE 
-								WHEN betteam = 'H1-2' AND (@fth - @fta) BETWEEN 1 AND 2 THEN 1
-								WHEN betteam = 'H3-6' AND (@fth - @fta) BETWEEN 3 AND 6 THEN 1
-								WHEN betteam = 'H7-9' AND (@fth - @fta) BETWEEN 7 AND 9 THEN 1
-								WHEN betteam = 'H10-13' AND (@fth - @fta) BETWEEN 10 AND 13 THEN 1
-								WHEN betteam = 'H14-16' AND (@fth - @fta) BETWEEN 14 AND 16 THEN 1
-								WHEN betteam = 'H17-20' AND (@fth - @fta) BETWEEN 17 AND 20 THEN 1
-								WHEN betteam = 'H21+' AND (@fth - @fta) >= 21 THEN 1
-								WHEN betteam = 'A1-2' AND (@fth - @fta) BETWEEN -2 AND -1 THEN 1
-								WHEN betteam = 'A3-6' AND (@fth - @fta) BETWEEN -6 AND -3 THEN 1
-								WHEN betteam = 'A7-9' AND (@fth - @fta) BETWEEN -9 AND -7 THEN 1
-								WHEN betteam = 'A10-13' AND (@fth - @fta) BETWEEN -13 AND -10 THEN 1
-								WHEN betteam = 'A14-16' AND (@fth - @fta) BETWEEN -16 AND -14 THEN 1
-								WHEN betteam = 'A17-20' AND (@fth - @fta) BETWEEN -20 AND -17 THEN 1
-								WHEN betteam = 'A21+' AND (@fth - @fta) <= -21 THEN 1
-								ELSE -1
-							END 
-						WHEN 602 THEN -- FT Winning Margin 12 Way
-							CASE
-								WHEN betteam = 'H1-5' AND (@fth - @fta) BETWEEN 1 AND 5 THEN 1
-								WHEN betteam = 'H6-10' AND (@fth - @fta) BETWEEN 6 AND 10 THEN 1
-								WHEN betteam = 'H11-15' AND (@fth - @fta) BETWEEN 11 AND 15 THEN 1
-								WHEN betteam = 'H16-20' AND (@fth - @fta) BETWEEN 16 AND 20 THEN 1
-								WHEN betteam = 'H21-25' AND (@fth - @fta) BETWEEN 21 AND 25 THEN 1
-								WHEN betteam = 'H26+' AND (@fth - @fta) >= 26 THEN 1
-								WHEN betteam = 'A1-5' AND (@fth - @fta) BETWEEN -5 AND -1 THEN 1
-								WHEN betteam = 'A6-10' AND (@fth - @fta) BETWEEN -10 AND -6 THEN 1
-								WHEN betteam = 'A11-15' AND (@fth - @fta) BETWEEN -15 AND -11 THEN 1
-								WHEN betteam = 'A16-20' AND (@fth - @fta) BETWEEN -20 AND -16 THEN 1
-								WHEN betteam = 'A21-25' AND (@fth - @fta) BETWEEN -25 AND -21 THEN 1
-								WHEN betteam = 'A26+' AND (@fth - @fta) <= -26 THEN 1	
-								ELSE -1
-							END
-						WHEN 603 THEN -- FT Which team to score the highest quarter
-							CASE 
-								WHEN @FTHighestQuarter = 'N' THEN 0
-								WHEN betteam = @FTHighestQuarter THEN 1 
-								ELSE -1 
-							END
-						WHEN 604 THEN -- FT Which team to score the first basket
-							CASE
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 605 THEN -- FT Which team to score the last basket 	
-							CASE
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 606 THEN -- 1H Race to YY
-							CASE 
-								WHEN rd.HomeValue = 'N' THEN 0 
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 607 THEN -- 2H Race to YY
-							CASE 
-								WHEN rd.HomeValue = 'N' THEN 0 
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 608 THEN -- 1H Winning Margin 12 Way
-							CASE
-								WHEN (@hth - @hta) BETWEEN 1 AND 5 AND betteam = 'H1-5' THEN 1
-								WHEN (@hth - @hta) BETWEEN 6 AND 10 AND betteam = 'H6-10' THEN 1
-								WHEN (@hth - @hta) BETWEEN 11 AND 15 AND betteam = 'H11-15' THEN 1 
-								WHEN (@hth - @hta) BETWEEN 16 AND 20 AND betteam = 'H16-20' THEN 1
-								WHEN (@hth - @hta) BETWEEN 21 AND 25 AND betteam = 'H21-25' THEN 1 
-								WHEN (@hth - @hta) >= 26 AND betteam = 'H26+' THEN 1
-								WHEN (@hth - @hta) = 0 AND betteam = 'D' THEN 1
-								WHEN (@hth - @hta) BETWEEN -5 AND -1 AND betteam = 'A1-5' THEN 1
-								WHEN (@hth - @hta) BETWEEN -10 AND -6 AND betteam = 'A6-10' THEN 1
-								WHEN (@hth - @hta) BETWEEN -15 AND -11 AND betteam = 'A11-15' THEN 1
-								WHEN (@hth - @hta) BETWEEN -20 AND -16 AND betteam = 'A16-20' THEN 1
-								WHEN (@hth - @hta) BETWEEN -25 AND -21 AND betteam = 'A21-25' THEN 1
-								WHEN (@hth - @hta) <= -26 AND betteam = 'A26+' THEN 1
-								ELSE -1
-							END
-						WHEN 609 THEN -- Quarter X Handicap
-							CASE 
-								WHEN betteam = 'h' THEN (res.QXHome - hdp1) - (res.QXAway - hdp2)
-								WHEN betteam = 'a' THEN (res.QXAway - hdp2) - (res.QXHome - hdp1)
-								ELSE -1
-							END
-						WHEN 610 THEN -- Quarter X Over Under
-							CASE 
-								WHEN betteam = 'o' THEN res.QXHome + res.QXAway - hdp1
-								WHEN betteam = 'u' THEN hdp1 - (res.QXHome + res.QXAway) 
-								ELSE -1
-							END
-						WHEN 611 THEN -- Quarter X Odd Even
-							CASE 
-								WHEN betteam = 'o' AND (res.QXHome + res.QXAway) % 2 = 1 THEN 1
-								WHEN betteam = 'e' AND (res.QXHome + res.QXAway) % 2 = 0 THEN 1
-								ELSE -1
-							END
-						WHEN 612 THEN -- Quarter X Moneyline
-							CASE 
-								WHEN betteam = 'h' THEN (res.QXHome - res.QXAway)
-								WHEN betteam = 'a' THEN (res.QXAway - res.QXHome)
-								ELSE -1
-							END
-						WHEN 613 THEN -- Quarter X Race to YY
-							CASE 
-								WHEN rd.HomeValue = 'N' THEN 0
-								WHEN bm.betteam = rd.HomeValue THEN 1
-								ELSE -1
-							END
-						WHEN 614 THEN -- Quarter X Winning Margin 7 Way
-							CASE	
-								WHEN betteam = 'H1-4' AND (res.QXHome - res.QXAway) BETWEEN 1 AND 4 THEN 1
-								WHEN betteam = 'H5-8' AND (res.QXHome - res.QXAway) BETWEEN 5 AND 8 THEN 1
-								WHEN betteam = 'H9+' AND (res.QXHome - res.QXAway) >= 9 THEN 1
-								WHEN betteam = 'D' AND (res.QXHome - res.QXAway) = 0 THEN 1
-								WHEN betteam = 'A1-4' AND (res.QXAway - res.QXHome) BETWEEN 1 AND 4 THEN 1
-								WHEN betteam = 'A5-8' AND (res.QXAway - res.QXHome) BETWEEN 5 AND 8 THEN 1
-								WHEN betteam = 'A9+' AND (res.QXAway - res.QXHome) >= 9 THEN 1
-								ELSE -1
-							END
-						WHEN 615 THEN -- Quarter X Home Team Over Under
-							CASE	
-								WHEN betteam = 'o' THEN res.QXHome - hdp1
-								WHEN betteam = 'u' THEN hdp1 - res.QXHome
-								ELSE -1
-							END
-						WHEN 616 THEN -- Quarter X Away Team Over Under
-							CASE	
-								WHEN betteam = 'o' THEN res.QXAway - hdp1
-								WHEN betteam = 'u' THEN hdp1 - res.QXAway
-								ELSE -1
-							END
-						WHEN 617 THEN -- Quarter X Which team to score the last basket
-							CASE	
-								WHEN rd.HomeValue = 'N' THEN 0
-								WHEN bm.betteam = rd.HomeValue THEN 1
-								ELSE -1
-							END
-						
 						--STARTING for new bettype for PHAIO 3
 						-- 456: 1H Both Teams To Score / Result
 						WHEN 456 THEN 
@@ -2304,55 +1987,11 @@ BEGIN
 									ELSE NULL 
 								END AS NVARCHAR(1000)) AS ExcludingFTChoice    
 				) i
-				CROSS APPLY (
-					SELECT	CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)), '') AS ResourceId
-				)r
-				CROSS APPLY ( -- for basketball
-					SELECT 	CASE
-								WHEN bm.betcheck = '801' THEN @Q1Home
-								WHEN bm.betcheck = '802' THEN @Q2Home
-								WHEN bm.betcheck = '803' THEN @Q3Home
-								WHEN bm.betcheck = '804' THEN @Q4Home
-								ELSE 0
-							END AS QXHome
-							,CASE
-								WHEN bm.betcheck = '801' THEN @Q1Away
-								WHEN bm.betcheck = '802' THEN @Q2Away
-								WHEN bm.betcheck = '803' THEN @Q3Away
-								WHEN bm.betcheck = '804' THEN @Q4Away
-								ELSE 0
-							END AS QXAway
-							,CASE 
-								WHEN t.groupId = 10 
-									THEN CASE 
-											WHEN bm.betcheck = '801' THEN 'Q1'
-											WHEN bm.betcheck = '802' THEN 'Q2'
-											WHEN bm.betcheck = '803' THEN 'Q3'
-											WHEN bm.betcheck = '804' THEN 'Q4'
-											ELSE ''
-										END
-								ELSE ''
-							END AS QuarterX
-				) res
-				LEFT JOIN @tmpResultDetail rd
-					ON r.ResourceId = rd.ResourceId
+						
             WHERE   bm.matchid = @matchid
 					AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
 					AND bm.statusID NOT IN (101)  
-                    AND 1 = CASE -- basketball
-								WHEN @resultDetail_bb IS NULL THEN 1
-								WHEN t.isEarly = 1 THEN CASE
-															WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
-															ELSE 0
-															END
-								WHEN t.groupId = 10 THEN CASE
-															WHEN CHARINDEX(',' + res.QuarterX + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
-															ELSE 0
-														END
-								WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
-								ELSE 0
-								END		
-				
+                   
 			IF EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE matchid = @matchid)
 			BEGIN
 				;WITH cteMarkedTrans

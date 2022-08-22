@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking]
 	, @Action 				VARCHAR(10) = 'CAL'
 	, @Mode 				VARCHAR(20) = 'CAL'
 	, @xmlData				VARCHAR(MAX) = NULL
-	, @SelectedQuarter 		VARCHAR(50) = NULL
 	, @IsAuto				BIT = 0
 	, @ErrCode 				INT = 0 OUTPUT
 	, @ErrMsg 				NVARCHAR(200)	= '' OUTPUT
@@ -197,13 +196,7 @@ BEGIN
 							OR (@Action IN ('CAL-FT', 'REFUND-FT') 
 									AND f.GroupId NOT IN (1,3)
 								) --exclude bettype [172] in case auto-payout
-							)
-						AND 1 = CASE
-									WHEN @SelectedQuarter IS NULL THEN 1
-									WHEN @SelectedQuarter LIKE '%' + f.GroupName + '%' THEN 1
-									WHEN f.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
-									ELSE 0
-								END
+							)					
 						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			)
 				SELECT @isExistWaitingTicket = 1

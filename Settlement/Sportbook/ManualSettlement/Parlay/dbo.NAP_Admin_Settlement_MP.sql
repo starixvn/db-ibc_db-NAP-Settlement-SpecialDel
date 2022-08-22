@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	@matchid				INT
 	,@creator				INT
 	,@action				VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
-	,@SelectedQuarter		VARCHAR(MAX)	= NULL
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
 	,@IsAuto				BIT = 0
 	,@IsCentral				BIT = 0
@@ -242,7 +241,6 @@ BEGIN
 				@resultDetail = @resultDetail,
 				@strBettypes = @strBettypes,
 				@betstatus	= @betstatus,
-				@SelectedQuarter = @SelectedQuarter,
 				@SportType = @SportType
 		END
 	END --END: handle bettransM ------------------------------------------

@@ -575,6 +575,7 @@ BEGIN
 						@matchid			= @matchid
 						,@command			= 'F'
 						,@IsFinalRound		= @existsFinalRound
+						,@IsHTRound         = @existsHTRound
 
 			END
 		END

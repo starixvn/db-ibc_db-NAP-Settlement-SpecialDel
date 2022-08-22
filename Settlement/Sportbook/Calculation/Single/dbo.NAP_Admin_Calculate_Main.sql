@@ -50,8 +50,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     --to do instant calculation
     ,@strTransIds                   VARCHAR(MAX)= NULL
 
-    ,@SelectedQuarter               VARCHAR(50)= NULL
-
     ,@IsSettleAbandonedMatch        BIT         = 0
     ,@IsSettleAbandonedMatchBetFair BIT         = 0
     ,@IsExcludeBetdaq               BIT         = 0
@@ -302,8 +300,7 @@ BEGIN
             + CASE WHEN @strBettypes IS NULL THEN '' ELSE ',@strBettypes = ''' + CONVERT(VARCHAR(MAX), @strBettypes) + '''' END
             + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + CONVERT(VARCHAR(MAX), @strTransIds) + '''' END
             + CASE WHEN @xmlData IS NULL THEN '' ELSE ',@xmlData = ''' + @xmlData + '''' END
-
-            + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ' + '''' + CONVERT(NVARCHAR(50), @SelectedQuarter) + '''' END
+      
             + CASE WHEN @IsSettingByProfile IS NULL THEN '' ELSE ',@IsSettingByProfile = ' + CONVERT(NVARCHAR(50), @IsSettingByProfile) END
 			+ CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
 			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
@@ -561,8 +558,7 @@ BEGIN
             BEGIN
                 EXEC dbo.NAP_Admin_Calculate_Undo
                     @matchid       = @matchid
-                    ,@strBettypes   = @strBettypes
-                    ,@SelectedQuarter = @SelectedQuarter              
+                    ,@strBettypes   = @strBettypes                           
             END
         END
 
@@ -600,8 +596,7 @@ BEGIN
                     ,@IsExcludeBetdaq            = @IsExcludeBetdaq
                     ,@IsExcludeBetfair            = @IsExcludeBetfair
                     ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                    ,@strBettypes                   = @strBettypes
-                    ,@SelectedQuarter           = @SelectedQuarter
+                    ,@strBettypes                   = @strBettypes                   
             END
 
             IF @mode = 'BetDaq'

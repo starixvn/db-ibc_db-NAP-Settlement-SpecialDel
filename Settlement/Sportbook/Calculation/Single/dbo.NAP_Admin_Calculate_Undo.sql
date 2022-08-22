@@ -1,8 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo] 
 	 @matchid		INT
-	,@strBettypes	VARCHAR(MAX)	= NULL
-	,@SelectedQuarter VARCHAR(50)	= NULL
+	,@strBettypes	VARCHAR(MAX)	= NULL	
 AS
 /*
 	Created: Kathy
@@ -260,13 +259,7 @@ BEGIN
 							 WHEN b.statusID NOT IN (0, 1) THEN 1
 							ELSE 0 END
 							
-				AND i.IsCalculated = 1
-				AND 1 = CASE -- basketball
-							WHEN @SelectedQuarter IS NULL THEN 1
-							WHEN @SelectedQuarter LIKE '%' + t.GroupName + '%' THEN 1
-							WHEN t.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
-							ELSE 0
-							END		
+				AND i.IsCalculated = 1				
 				AND ISNULL(b.betdaqid,0) <> - 2	
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		

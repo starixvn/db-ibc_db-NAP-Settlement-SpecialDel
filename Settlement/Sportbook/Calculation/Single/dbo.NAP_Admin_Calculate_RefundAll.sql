@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_RefundAll]
     ,@IsExcludeBetfair              BIT = 0
     ,@IsSettleAbandonedMatchIBC     BIT = 0
 	,@strBettypes					VARCHAR(MAX) = NULL
-	,@SelectedQuarter				VARCHAR(50)	 = NULL
 AS
 /*    Created by: Kathy
     Date: 20140213
@@ -254,12 +253,6 @@ BEGIN
 								AND (b.statusID IN (112, 113) OR (b.statusID = 102 AND b.statuswinlost IN (1,2,3,4))) THEN 0  
 						ELSE 1
 					END
-				AND 1 = CASE	
-							WHEN @SelectedQuarter IS NULL THEN 1				
-							WHEN @SelectedQuarter LIKE '%' + t.GroupName + '%' THEN 1
-							WHEN t.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
-							ELSE 0
-						END
 				AND ISNULL(b.betdaqid,0) <> -2			
 				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		
