@@ -39,10 +39,8 @@ BEGIN
 	BEGIN
 		SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action, q.StatusId
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
-			LEFT JOIN dbo.TempVariableNumber t WITH (NOLOCK) ON q.MatchId = t.KeyValue AND t.KeyID = 1
 			LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 		WHERE StatusId IN (0 ,100)
-			AND t.KeyID IS NULL -- waiting
 			AND 1 = CASE WHEN q.StatusId = 100 AND DATEADD(SECOND,600,q.Starttime) <= GETDATE() THEN 1 --AbnormalBet MixParay (case all event completed)
 						WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1  --Settletment signal
 						WHEN q.RequestId > 0 AND q.Action IN ('AddRequest','VoidInstant','VoidInstantNopolicy') THEN 1 --Void Instant Abnormal Bet, AB, AA

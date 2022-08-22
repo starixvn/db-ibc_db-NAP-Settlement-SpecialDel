@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Service_Update]
 	,@StatusId			TINYINT = NULL
 	,@SiteDBGroupId		TINYINT = NULL
 	,@RequestId			INT = NULL
+	,@IsUpdateCreatedDate BIT = 0
 )
 AS
 /*	
@@ -27,8 +28,9 @@ BEGIN
 	BEGIN
 
 		UPDATE dbo.TicketVoiding_Void_Service WITH (ROWLOCK, UPDLOCK)
-		SET StatusId = @StatusId
+		SET StatusId = CASE WHEN @StatusId IS NULL THEN StatusId ELSE @StatusId END
 			,ModifiedDate = GETDATE()
+			,CreatedDate = CASE WHEN @IsUpdateCreatedDate = 1 THEN GETDATE() ELSE CreatedDate END
 		WHERE BroadcastSessionId = @BroadcastSessionId
 	END
 	ELSE
