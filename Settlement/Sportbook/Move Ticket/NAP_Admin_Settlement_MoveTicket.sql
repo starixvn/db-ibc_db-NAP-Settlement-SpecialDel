@@ -268,7 +268,7 @@ BEGIN
 		BEGIN CATCH
 			SELECT @logData = @logData + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
 
-			EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+			EXEC dbo.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 				@UserID             = @AdminId
 				,@Matchid           = @matchid
 				,@ActionID          = @ActionID
