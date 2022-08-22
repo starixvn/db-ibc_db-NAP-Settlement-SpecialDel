@@ -60,7 +60,7 @@ BEGIN
 			,SettlementTime DATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-			,statusID TINYINT, status TINYINT, ruben TINYINT
+			,statusID TINYINT, status NVARCHAR(20), ruben TINYINT
 			,hdp1 SMALLMONEY ,hdp2 SMALLMONEY
 			,livehomescore INT,liveawayscore INT
 			,creator INT
