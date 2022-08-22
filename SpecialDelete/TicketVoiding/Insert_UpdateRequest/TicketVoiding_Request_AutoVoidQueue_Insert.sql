@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Update]
+CREATE PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Insert]
 (
 	@RequestId				INT
    ,@IssueTypeId			TINYINT	= NULL
