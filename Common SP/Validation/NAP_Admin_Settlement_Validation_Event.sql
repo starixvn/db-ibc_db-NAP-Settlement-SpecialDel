@@ -6,6 +6,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 	,@Action				VARCHAR(10)
 	,@Mode					VARCHAR(10)
 	,@IsAuto				BIT = 0
+	,@IsAutoRefund			BIT = 0
 	,@SPName				VARCHAR(255)
 	,@SelectedResources		VARCHAR(MAX) = NULL 
 	,@InstantKey			INT = NULL			--InstantCalculation_Push
@@ -39,7 +40,7 @@ AS
 */
 
 BEGIN
-SET NOCOUNT ON
+	SET NOCOUNT ON
 	
 	IF @Mode IN ('FM', 'BB', 'BetDaq') --fastmarket, betbuilder, move betdaq
 	BEGIN
@@ -70,22 +71,18 @@ SET NOCOUNT ON
 			,@xmlResourceResult		XML
 			,@xmlData				VARCHAR(MAX)
 			,@IsFailed				BIT = 0
-			,@IsAutoRefund			BIT = 0 
 			
 			,@IsSettlementStatusChecking	BIT = 0 --call NAP_Set_SettlementStatusChecking
 			,@IsHoldChecking				BIT = 0 --call NAP_Set_HoldSettingChecking
 			,@IsResultSettingChecking		BIT = 0 --call NAP_Set_ResultSettingChecking
-			,@IsAutoRefundChecking			BIT = 0 --call NAP_Set_AutoRefund_MatchChecking_Event
-
+			
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 			,@IsAuto = CASE WHEN @Action LIKE '%_MARKET' THEN 0 ELSE @IsAuto END
 			,@IsCheckHoldEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 
 									ELSE 0 END
 			,@IsCheckSettlementStatusEarly = CASE WHEN @Mode = 'EAR' THEN 1
 													ELSE 0 END
-			,@IsAutoRefund	=  CASE WHEN @Action = 'REFUND' AND @IsAuto = 1 THEN 1
-									ELSE 0 END
-
+			
 	SELECT @sporttype = m.sporttype
 			,@ParentId			= m.ParentID
 			,@matchcode			= m.matchcode
@@ -96,6 +93,8 @@ SET NOCOUNT ON
 			,@eventstatus		= m.eventstatus
 			,@finalhomescore	= m.finalhomescore
 			,@finalawayscore	= m.finalawayscore
+			,@hthomescore		= m.hthomescore
+			,@htawayscore		= m.htawayscore
 			,@IsSettleAbandonedMatchIBC = CASE WHEN @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
 			,@AutoSetting		= ISNULL( m.AutoSetting, l.AutoSetting )
 	FROM dbo.match m WITH(NOLOCK)
@@ -130,12 +129,6 @@ SET NOCOUNT ON
 	BEGIN
 		SELECT @IsSettlementStatusChecking = 1
 	END
-
-	IF @SportType = 1 AND @IsAutoRefund = 1 
-	BEGIN
-		SELECT @IsAutoRefundChecking = 1
-	END
-
 	--------------------------------------------------------------------
 
 	IF @Mode = 'Betfair' --move betfair
@@ -248,7 +241,7 @@ SET NOCOUNT ON
 		RETURN
 	END
 	
-	IF @IsAutoRefundChecking  = 1
+	IF @IsAutoRefund  = 1
 	BEGIN
 		EXEC NAP_Set_AutoRefund_MatchChecking_Event
 			@MatchId		= @matchid

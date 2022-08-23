@@ -34,9 +34,7 @@ BEGIN
 			,@batchCount			INT = 2000	
 			,@strTransIds			VARCHAR(MAX)
 			,@bettype				SMALLINT
-
-			,@WaitingTime			VARCHAR(10)
-			,@IsWaiting				BIT 
+		
 			,@procName				SYSNAME
 			,@recipients			VARCHAR(250)
 			,@remark				VARCHAR(200)
@@ -67,7 +65,6 @@ BEGIN
 						END
 			,@Remark = ''
 			,@Bettype = 7901
-			,@IsWaiting = 0
 			,@procName =  OBJECT_NAME(@@procid)
 			
 	-------------------------BEGIN TRY------------------------------------------------------------------------
@@ -86,8 +83,8 @@ BEGIN
 			
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		BEGIN
-			SELECT	@ErrCode = 1000000
-					,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+			SELECT	@ErrCode
+					,@ErrMsg
 	
 			RETURN
 		END		

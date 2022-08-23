@@ -1,10 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_s193_Validation
 (
-	 @matchid		INT = 0
-	,@SelectedResources	VARCHAR(MAX) = NULL
-	,@ErrCode				INT		 = 0 OUTPUT
-	,@ErrMsg				NVARCHAR(300)  = ''    OUTPUT
+	 @matchid				INT = 0
+	,@SelectedResources		VARCHAR(MAX)	= NULL
+	,@ErrCode				INT				= 0		OUTPUT
+	,@ErrMsg				NVARCHAR(300)	= ''    OUTPUT
 )
 AS
 /*

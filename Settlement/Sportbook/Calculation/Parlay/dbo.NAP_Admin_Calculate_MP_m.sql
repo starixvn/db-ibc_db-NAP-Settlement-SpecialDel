@@ -2015,9 +2015,7 @@ BEGIN
 			BEGIN
 				
 				DELETE FROM	@tmptransid				
-				DELETE FROM @tmpOutputBettransm
-				DELETE FROM @tmpOutputBetParlayDetail
-
+				
 				DELETE TOP (2000 )
 				FROM #Result
 				OUTPUT deleted.transid, deleted.refno, deleted.modds, deleted.ismarked

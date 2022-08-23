@@ -111,7 +111,6 @@ BEGIN
 		RETURN
 	END
 
-
 	INSERT INTO @tblResultDetail (ResourceId, HomeValue, AwayValue, OtherInfo)
 	SELECT	ResourceId, HomeValue, AwayValue, OtherInfo
 	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (ROWLOCK)

@@ -28,9 +28,6 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF @IsAuto = 1 
-	RETURN
-
 	--invalid ball
 	IF @Action LIKE 'CAL%'
 	BEGIN
@@ -41,11 +38,12 @@ BEGIN
 		FROM	dbo.BingoBall b WITH (NOLOCK)
 		WHERE matchid = @matchid
 
-
-		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail) 
+		IF @@ROWCOUNT  = 0
 		BEGIN
 			SELECT	@ErrCode = 1000001
 					,@ErrMsg	= 'Ball number is required.'
+
+			RETURN
 		END
 		
 		SELECT @ErrCode = 1000002

@@ -44,19 +44,23 @@ BEGIN
 	CREATE TABLE #tblData (marketSelectionID BIGINT, Result VARCHAR(20), PRIMARY KEY CLUSTERED(marketSelectionID) )
 	----------------------------------------------------------------------------
 	
-	IF ISNULL(@SelectedSelection,'') <> '' -- auto
+	IF ISNULL(@SelectedSelection,'') <> '' 
 	BEGIN
 		SET @xml = CAST(@SelectedSelection AS XML)
+		
 		;WITH cteData AS (
-			SELECT T.C.value('@Id', 'BIGINT') AS marketSelectionId
+			SELECT T.C.value('@Id', 'BIGINT') AS SelectionType
 				   ,T.C.value('@Result', 'VARCHAR(20)') AS result
 			FROM @xml.nodes('/Resources/Resource') AS T(C)
 		)
 		INSERT INTO #tblData(marketSelectionID, result)
-		SELECT marketSelectionId, result
-		FROM cteData
+		SELECT ms.marketSelectionId, c.result
+		FROM cteData c
+			INNER JOIN dbo.SMP_MarketSelection ms WITH(NOLOCK)
+				ON ms.SelectionType = c.SelectionType
+		WHERE	ms.MatchId = @matchID
 	END
-	ELSE IF ISNULL(@SelectedMarket,'') <> '' -- manual
+	ELSE IF ISNULL(@SelectedMarket,'') <> '' 
 	BEGIN
 		SET @xml = CAST(@SelectedMarket AS XML)
 

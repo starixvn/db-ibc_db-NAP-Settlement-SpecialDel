@@ -1,13 +1,13 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" IsNested="1"></info>*/
 ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Event
 (
-	 @matchid		INT = 0
-	,@Action		VARCHAR(10)
-	,@IsAuto		BIT = 0
-	,@SelectedResources	VARCHAR(MAX) = NULL
-	,@IsSettleDetermined	BIT	= 0
-	,@ErrCode				INT		= 0     OUTPUT
-	,@ErrMsg				VARCHAR(MAX)  = ''    OUTPUT
+	 @matchid				INT				= 0
+	,@Action				VARCHAR(10)
+	,@IsAuto				BIT				= 0
+	,@SelectedResources		VARCHAR(MAX)	= NULL
+	,@IsSettleDetermined	BIT				= 0
+	,@ErrCode				INT				= 0     OUTPUT
+	,@ErrMsg				VARCHAR(MAX)	= ''    OUTPUT
 )
 AS
 /*
@@ -408,8 +408,6 @@ BEGIN
 			RETURN
 		END
 	END
-
-	
 
 	IF @IsAuto = 1
 	BEGIN		

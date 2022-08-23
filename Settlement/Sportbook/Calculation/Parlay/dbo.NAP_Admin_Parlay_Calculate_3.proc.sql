@@ -94,7 +94,8 @@ BEGIN
 				,CASE WHEN INSERTED.statuswinlost IS NULL THEN '' ELSE CAST(INSERTED.statuswinlost AS VARCHAR(1)) END
 				,inserted.winlostdate
 				,inserted.status
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status)
+				,inserted.ruben
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -163,7 +164,7 @@ BEGIN
 				,INSERTED.statuswinlost
 				,inserted.winlostdate
 				,inserted.status
-				,CASE WHEN inserted.ruben <> deleted.ruben THEN inserted.ruben ELSE NULL END
+				,inserted.ruben
 		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
@@ -203,7 +204,7 @@ BEGIN
 				,CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
 				,inserted.winlostdate
 				,inserted.status
-				,CASE WHEN inserted.ruben <> deleted.ruben THEN inserted.ruben ELSE NULL END
+				,inserted.ruben
 		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
@@ -227,11 +228,12 @@ BEGIN
 					,Status AS '@s' 
 					,StatusID AS '@sid' 
 					,winlostdate AS '@wld'
-					,1 AS '@r' -- ruben	
+					,ruben AS '@r' -- ruben	
 			FROM	#parlayOutput
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
+		-- bettransm
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 		SELECT  'Settlement'
 				, CASE  WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
@@ -243,34 +245,22 @@ BEGIN
 				, @transInfo
 		WHERE @transInfo IS NOT NULL
 			
-		IF @Action = 'UNDO'
-		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'							
-						,'0' AS '@statuswl'
-						,'0' AS '@sid' 
-				FROM	#parlayOutput
-				FOR XML PATH('r'),ROOT('root'), TYPE
-			)
-		END
-		ELSE
-		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'							
-						,statuswinlost AS '@statuswl'
-						,statusId AS '@sid' 
-						,winlostdate AS '@wld'
-				FROM	#parlayOutput
-				FOR XML PATH('r'),ROOT('root'), TYPE
-			)
-		END
+		SET @transInfo = (
+			SELECT	transId AS '@t'							
+					,CASE WHEN @Action LIKE 'UNDO%' THEN '0' ELSE statuswinlost END AS '@statuswl'
+					,statusId AS '@sid' 
+					,winlostdate AS '@wld'
+			FROM	#parlayOutput
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
 
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 		SELECT 'Settlement'
-				, CASE  WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
-						WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
-						WHEN  @action LIKE 'UNDO%' THEN  'UndoSubParlay'
-						END
+				, CASE  
+					WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
+					WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
+					WHEN  @action LIKE 'UNDO%' THEN  'UndoSubParlay'
+				END
 				, 'BetParlayDetail'
 				, @MatchId
 				, @transInfo
