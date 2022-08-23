@@ -20,35 +20,37 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpTransIds (TransId BIGINT PRIMARY KEY, RequestId INT, StatusID TINYINT, statuswinlost TINYINT, refno BIGINT, IsMixParlay BIT DEFAULT(0), Matchid INT)
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT)
+	CREATE TABLE #tmpTransIds (TransId BIGINT PRIMARY KEY, RequestId INT, StatusID TINYINT, statuswinlost TINYINT, refno BIGINT, IsMixParlay BIT DEFAULT(0), Matchid INT, IssueTypeId TINYINT)
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, Matchid INT)
-	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT)
-	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT)
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT)
+	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT)
+	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT)
 	CREATE TABLE #RequestMixParlay_NoStatusWL (RequestId INT)
 
 	IF @SingleTicketsXML IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId)
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId)
 		SELECT t.c.value('@tid','BIGINT') AS TransId
 				,t.c.value('@req','INT') AS RequestId
+				,t.c.value('@iss','TINYINT') AS IssueTypeId
 		FROM @SingleTicketsXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@SingleTicketsXML = NULL)) 
 	END
 
 	IF @ParlayTicketsXML IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay)
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId)
 		SELECT t.c.value('@tid','BIGINT') AS TransId
 				,t.c.value('@req','INT') AS RequestId
 				,1 AS IsMixParlay
+				,t.c.value('@iss','TINYINT') AS IssueTypeId
 		FROM @ParlayTicketsXML.nodes('root/r') t(c)
 		OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
 	END
 
-	INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, IsMixParlay, refno, Matchid)
+	INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, IsMixParlay, refno, Matchid, IssueTypeId)
 	SELECT t.TransId
 		,t.RequestId
 		,b.statusID
@@ -56,32 +58,33 @@ BEGIN
 		,t.IsMixParlay
 		,b.refno
 		,b.matchid
+		,t.IssueTypeId
 	FROM #tmpInputTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE b.statusID NOT IN (101, 102, 103)
 	
 	IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
 	BEGIN
-		INSERT INTO #SingleTickets (TransId, RequestId, Matchid)
-		SELECT t.TransId, t.RequestId, t.Matchid
+		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId)
+		SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 0
 			AND t.statuswinlost IN (1,2)
 
-		INSERT INTO #SingleTickets_ReSettle (TransId, RequestId, Matchid)
-		SELECT t.TransId, t.RequestId, t.Matchid
+		INSERT INTO #SingleTickets_ReSettle (TransId, RequestId, Matchid, IssueTypeId)
+		SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 0
 			AND t.statuswinlost IN (0,3,4)
 
-		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid)
-		SELECT t.TransId, t.RequestId, t.Matchid
+		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId)
+		SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 1
 			AND t.statuswinlost IN (1,2)
 
-		INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId, Matchid)
-		SELECT t.TransId, t.RequestId, t.Matchid
+		INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId, Matchid, IssueTypeId)
+		SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
 		FROM #tmpTransIds t
 		WHERE t.IsMixParlay = 1
 			AND t.statuswinlost IN (0,3,4)
@@ -116,10 +119,10 @@ BEGIN
 				AND c.TransId IS NULL
 	END
 
-	SELECT TransId, RequestId, Matchid FROM #SingleTickets
-	SELECT TransId, RequestId, Matchid FROM #ParlayTickets
-	SELECT TransId, RequestId, Matchid FROM #SingleTickets_ReSettle
-	SELECT TransId, RequestId, Matchid FROM #ParlayTickets_ReSettle
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #ParlayTickets
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #ParlayTickets_ReSettle
 	SELECT RequestId FROM #RequestMixParlay_NoStatusWL
 
 	DROP TABLE #tmpInputTransId

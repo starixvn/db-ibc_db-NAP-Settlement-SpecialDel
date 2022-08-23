@@ -36,7 +36,7 @@ BEGIN
 		IF @@ROWCOUNT = 0
 			RETURN
 	
-		IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) WHERE v.VoidingHistoryId = @VoidingHistoryId AND v.StatusId = 99)
+		IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Queue v WITH (NOLOCK) WHERE v.VoidingHistoryId = @VoidingHistoryId AND v.StatusId = 99)
 		BEGIN
 			SELECT	RequestId
 					,QueueId
