@@ -7,6 +7,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
+		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 	
 	Param's explanation:		
 		
@@ -85,6 +86,7 @@ BEGIN
 												FROM #CustLimitBet_QueueRetry tmp
 													INNER JOIN dbo.CustLimitBet_QueueRetry q  WITH (NOLOCK) ON q.MainQueueId = tmp.QueueId
 												WHERE q.StatusId = 1
+													AND q.Sitetype <> 3 --temp config, will remove on 08/25
 												FOR XML PATH(''))
 												,1,1,''),'')
 
@@ -92,6 +94,7 @@ BEGIN
 												FROM #CustLimitBet_QueueRetry tmp
 													INNER JOIN dbo.CustLimitBet_QueueRetry q  WITH (NOLOCK) ON q.MainQueueId = tmp.QueueId
 												WHERE q.StatusId = 2
+													AND q.Sitetype <> 3 --temp config, will remove on 08/25
 												FOR XML PATH(''))
 												,1,1,''),'')
 
