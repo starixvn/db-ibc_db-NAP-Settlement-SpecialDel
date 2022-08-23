@@ -717,6 +717,7 @@ BEGIN
 		,checktime
 		,matchid
 		,bettype
+		,RepUpdateTime
 		,SiteDBGroupID
 		)
 	SELECT main.transid
@@ -741,7 +742,8 @@ BEGIN
 		,main.checktime
 		,main.matchid
 		,main.bettype
-		,@SitedbgroupId
+		,SYSDATETIME()
+		,main.SiteDBGroupID
 	FROM dbo.bettrans AS main WITH (NOLOCK)
 		INNER JOIN #tblMatch tm 
 		ON main.matchid = tm.matchid
