@@ -45,21 +45,44 @@ BEGIN
 					WHERE v.BroadcastSessionId = @BroadcastSessionId
 				)
 	BEGIN
-		--Initial VoidingHistory
-		INSERT INTO dbo.TicketVoiding_VoidingHistory (
-				RequestId
-				,UserId
-				,StatusId
-				,TransIds
-				,VoidData
+		IF @IsAutoVoid = 1
+		BEGIN
+			--Initial VoidingHistory
+			INSERT INTO dbo.TicketVoiding_VoidingHistory (
+					RequestId
+					,UserId
+					,StatusId
+					,TransIds
+					,VoidData
+				)
+				OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
+				SELECT t.RequestId
+					,@UserId
+					,1
+					,t.TransIds
+					,@VoidData
+			FROM #tmpRequestInfo t 
+		END	
+		ELSE
+		BEGIN
+			DECLARE @RequestId INT
+
+			SELECT @RequestId = MAX(t.RequestId)
+			FROM #tmpRequestInfo t
+
+			--Initial VoidingHistory
+			INSERT INTO dbo.TicketVoiding_VoidingHistory (
+					RequestId
+					,UserId
+					,StatusId
+					,VoidData
 			)
-		OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
-		SELECT t.RequestId
-			,@UserId
-			,1
-			,t.TransIds
-			,@VoidData
-		FROM #tmpRequestInfo t 
+			OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
+			SELECT @RequestId
+				,@UserId
+				,1
+				,@VoidData
+		END
 
 		--Initial Void Service
 		INSERT INTO dbo.TicketVoiding_Void_Service (
