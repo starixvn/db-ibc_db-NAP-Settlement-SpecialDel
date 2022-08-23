@@ -11,6 +11,7 @@ AS
 		- 20220530@Tina: Cannot send notification via Letstalk [Redmine: #173376]
 		- 20220607@Tina: remove some email of @Recipients on production environment
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
+		- 20220823@Max: Remove Temp Code - [Redmine: #169407]
 
 	Param's explanation:		
 		
@@ -54,7 +55,6 @@ BEGIN
 												FROM dbo.CustLimitBetQueue q WITH (NOLOCK)
 												WHERE q.Statusid = 2
 													AND DATEDIFF(MINUTE, q.ExecTime, @CurrentTime) < 2
-													AND q.ErrMsg NOT LIKE 'Some transids not found on CustLimitBetHistory%' ---temp config, will remove on 08/25
 												FOR XML PATH(''))
 												,1,1,''),'')
 	
