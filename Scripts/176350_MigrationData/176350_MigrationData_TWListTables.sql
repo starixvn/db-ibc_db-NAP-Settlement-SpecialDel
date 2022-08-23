@@ -208,6 +208,7 @@ TRUNCATE TABLE [dbo].[MarkedTransaction]
 TRUNCATE TABLE [dbo].[NetPositionCalculationLog]
 TRUNCATE TABLE [dbo].[NetPositionTrans]
 TRUNCATE TABLE [dbo].[Task_Cust_CheckBalance_Exception]
+TRUNCATE TABLE [dbo].[Task_Cust_BalanceProblem1]
 GO
 
 	
