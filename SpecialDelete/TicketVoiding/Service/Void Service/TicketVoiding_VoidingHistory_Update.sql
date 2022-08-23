@@ -4,6 +4,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Update]
 	,@StatusId			TINYINT
 	,@MessageId			INT = NULL
 	,@ReasonId			INT = NULL
+	,@TransIds			VARCHAR(MAX) = NULL
+	,@MinWinLostDate	SMALLDATETIME = NULL
+	,@MaxWinLostDate	SMALLDATETIME = NULL
 AS
 /*	
 	Created by: Kathy
@@ -26,6 +29,9 @@ BEGIN
 		SET	StatusId = @StatusId
 			,MessageId = ISNULL(@MessageId, MessageId)
 			,ReasonId = ISNULL(@ReasonId, ReasonId)
+			,TransIds = ISNULL(@TransIds, TransIds)
+			,MinWinlostdate = ISNULL(@MinWinLostDate, MinWinlostdate)
+			,MaxWinlostdate = ISNULL(@MaxWinLostDate, MaxWinlostdate)
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 END
 GO

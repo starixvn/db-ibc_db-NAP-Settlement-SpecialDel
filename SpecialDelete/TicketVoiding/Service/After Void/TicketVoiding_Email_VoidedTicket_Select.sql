@@ -101,12 +101,13 @@ BEGIN
 		,eventstatus	NVARCHAR(50)
 		,IsDeposit      BIT DEFAULT(0)
 		,SiteDBGroupID	SMALLINT
+		,winlostdate	SMALLDATETIME
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -118,6 +119,7 @@ BEGIN
 			,z.odds
 			,z.oddsid
 			,z.SiteDBGroupID
+			,z.winlostdate
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 	WHERE	z.VoidingHistoryId = @VoidingHistoryId
 		AND 1 = CASE
@@ -127,7 +129,7 @@ BEGIN
 		AND z.SiteDBGroupID = @SiteDBGroupID
 
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid, SiteDBGroupID)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid, SiteDBGroupID, winlostdate)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
@@ -136,6 +138,7 @@ BEGIN
 			,zm.custid
 			,zm.oddsid
 			,zm.SiteDBGroupID
+			,zm.winlostdate
 	FROM	dbo.zzzbettransm zm WITH(NOLOCK)
 	WHERE	zm.VoidingHistoryId = @VoidingHistoryId
 		AND zm.SiteDBGroupID = @SiteDBGroupID
@@ -408,6 +411,7 @@ BEGIN
 					AND c.site <> 'CN88'
 			THEN 1 ELSE 0 END IsCredit
 			,t.SiteDBGroupID
+			,t.winlostdate
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid

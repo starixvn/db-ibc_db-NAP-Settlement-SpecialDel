@@ -116,10 +116,10 @@ BEGIN
 				AND c.TransId IS NULL
 	END
 
-	SELECT TransId, RequestId FROM #SingleTickets
-	SELECT TransId, RequestId FROM #ParlayTickets
-	SELECT TransId, RequestId FROM #SingleTickets_ReSettle
-	SELECT TransId, RequestId FROM #ParlayTickets_ReSettle
+	SELECT TransId, RequestId, Matchid FROM #SingleTickets
+	SELECT TransId, RequestId, Matchid FROM #ParlayTickets
+	SELECT TransId, RequestId, Matchid FROM #SingleTickets_ReSettle
+	SELECT TransId, RequestId, Matchid FROM #ParlayTickets_ReSettle
 	SELECT RequestId FROM #RequestMixParlay_NoStatusWL
 
 	DROP TABLE #tmpInputTransId
