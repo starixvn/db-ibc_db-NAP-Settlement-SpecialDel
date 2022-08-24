@@ -121,14 +121,14 @@ BEGIN
 				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
                 + ',@CalledByBrokerService = 1'
 		
-		IF @IsSiteDBService = 1
-		BEGIN
-			EXEC dbo.SSB_Send_Message 
-				@MessageContent = @sMessage
-				,@FunctionName = 'settlement'
-				,@MessageType = 'bet_SiteDB_msg_type_01'
-		END
-		ELSE
+		--IF @IsSiteDBService = 1
+		--BEGIN
+		--	EXEC dbo.SSB_Send_Message 
+		--		@MessageContent = @sMessage
+		--		,@FunctionName = 'settlement'
+		--		,@MessageType = 'bet_SiteDB_msg_type_01'
+		--END
+		--ELSE
 		BEGIN
 			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
 				,@toService = N'//Service/Calculation_receive'
