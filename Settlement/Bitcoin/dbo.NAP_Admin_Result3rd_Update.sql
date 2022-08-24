@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"  isNested="1"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"  isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Result3rd_Update]
 	@MatchID			INT
 	,@Action			VARCHAR(20) = 'CAL'

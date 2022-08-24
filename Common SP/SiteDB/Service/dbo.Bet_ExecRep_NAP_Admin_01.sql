@@ -27,15 +27,30 @@ BEGIN
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcUpdateTime DATETIME2, creator INT
 		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
 		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
+		
+		,transdate	 DATETIME ,apositiontaking SMALLMONEY ,mpositiontaking SMALLMONEY ,tpositiontaking SMALLMONEY 
+		,spositiontaking SMALLMONEY,playerdiscount DECIMAL ,discount	DECIMAL	,adiscount	DECIMAL	,liveindicator	BIT	,betteam NVARCHAR(20) 
+		,comstatus NVARCHAR(40)	,betfrom	NVARCHAR(2)	,betcheck	NVARCHAR(100)	,checktime	DATETIME	
+		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
+		,currency	TINYINT	,[ip] VARCHAR(45)	,transdesc NVARCHAR(2000) ,sdiscount DECIMAL		
+		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT
+		,oddstype	TINYINT	,currency2	TINYINT	,balance MONEY,SecAcceptFlag BIT,transid2	BIGINT	
+		,RecommDate	DATETIME ,SiteDBGroupID	SMALLINT
 	)
 	
-	IF @tablename = 'bettrans' 
+	IF @tablename = 'bettrans'
 	BEGIN
 		INSERT INTO @tmpTransId (TransID
 			,matchid, winlostdate, betdaqid
 			,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
 			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
 			, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo
+			
+			,transdate,apositiontaking ,mpositiontaking ,tpositiontaking ,spositiontaking 
+			,playerdiscount,discount,adiscount	,liveindicator,betteam,comstatus,betfrom,betcheck,checktime		 
+			,actualrate	,recommend,mrecommend,srecommend, stake, actual_stake,currency,ip,transdesc		 
+			,sdiscount,Username,CurrencyName,virtualrate,oddstype,currency2	,balance		 
+			,SecAcceptFlag,transid2	,RecommDate	,SiteDBGroupID	 
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@mid', 'INT') AS matchid
@@ -55,10 +70,10 @@ BEGIN
 				,T.C.value('./@c', 'MONEY') AS Comm 
 				,T.C.value('./@ac', 'MONEY') AS aComm
 				,T.C.value('./@sc', 'MONEY') AS sComm
-				,T.C.value('./@s', 'NVARCHAR(10)') AS Status
-				,T.C.value('./@sid', 'TINYINT') AS StatusID
-				,T.C.value('./@r', 'TINYINT') AS ruben
-				,T.C.value('./@rut', 'DATETIME2') AS FcUpdateTime	
+				,T.C.value('./@s', 'NVARCHAR(10)')	AS [Status]
+				,T.C.value('./@sid', 'TINYINT')		AS StatusID
+				,T.C.value('./@r', 'TINYINT')		AS ruben
+				,T.C.value('./@rut', 'DATETIME2')	AS FcUpdateTime	
 				,T.C.value('./@hdp1', 'SMALLMONEY') AS hdp1
 				,T.C.value('./@hdp2', 'SMALLMONEY') AS hdp2
 				,T.C.value('./@lh', 'SMALLINT') AS livehomescore
@@ -66,49 +81,221 @@ BEGIN
 				,T.C.value('./@cr', 'INT') AS creator
 				,T.C.value('./@bid', 'BIGINT') AS betid
 				,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo
+				,T.C.value('./@td', 'DATETIME') AS transdate
+				,T.C.value('./@apos', 'SMALLMONEY') AS apositiontaking
+				,T.C.value('./@mpos', 'SMALLMONEY') AS mpositiontaking
+				,T.C.value('./@tpos', 'SMALLMONEY') AS tpositiontaking
+				,T.C.value('./@spos', 'SMALLMONEY') AS spositiontaking
+				,T.C.value('./@pd', 'decimal') AS playerdiscount		
+				,T.C.value('./@d' , 'DECIMAL')	AS discount	 
+				,T.C.value('./@ad', 'DECIMAL')	AS adiscount	 
+				,T.C.value('./@li', 'BIT')		AS liveindicator 
+				,T.C.value('./@bteam', 'NVARCHAR(20)')	AS betteam	 
+				,T.C.value('./@cst', 'NVARCHAR(40)')	AS comstatus	 
+				,T.C.value('./@bf','NVARCHAR(2)')		AS betfrom	 
+				,T.C.value('./@bc','NVARCHAR(100)')		AS betcheck	 
+				,T.C.value('./@ct','DATETIME')	AS checktime	 
+				,T.C.value('./@ar', 'FLOAT')	AS actualrate	 
+				,T.C.value('./@rc' , 'INT')		AS recommend	 
+				,T.C.value('./@mrc', 'INT')		AS mrecommend	 
+				,T.C.value('./@src', 'INT')		AS srecommend	
+				,T.C.value('./@stake', 'MONEY') AS stake 
+				,T.C.value('./@astake', 'MONEY') AS actual_stake 
+				,T.C.value('./@cur','TINYINT')		AS currency	 
+				,T.C.value('./@ip', 'VARCHAR(45)')	AS [ip]			 
+				,T.C.value('./@tdesc', 'NVARCHAR(2000)') AS transdesc 
+				,T.C.value('./@sdis' , 'DECIMAL'	) AS sdiscount	 
+				,T.C.value('./@uname', 'NVARCHAR(100)') AS Username	 
+				,T.C.value('./@curname', 'NVARCHAR(100)') AS CurrencyName 
+				,T.C.value('./@v', 'FLOAT') AS virtualrate 
+				,T.C.value('./@otype', 'TINYINT')	AS oddstype	 
+				,T.C.value('./@cur2', 'TINYINT')	AS currency2	 
+				,T.C.value('./@b', 'MONEY')		AS balance	 
+				,T.C.value('./@sec', 'BIT')		AS SecAcceptFlag	 
+				,T.C.value('./@t2', 'BIGINT')	AS transid2		 
+				,T.C.value('./@rcd', 'DATETIME') AS RecommDate
+				,T.C.value('./@sgid', 'SMALLINT') AS SiteDBGroupID
 		FROM	@transInfo.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
 		SET @batchNo = @@ROWCOUNT
 
-		UPDATE TOP (@batchNo) b
-			SET
-				matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
-				,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
-				,betdaqid = CASE WHEN t.betdaqid IS NULL THEN b.betdaqid ELSE t.betdaqid END
-				,modds = CASE WHEN t.modds IS NULL THEN b.modds ELSE t.modds END
-				,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
-				,oddsid = CASE WHEN t.oddsid IS NULL THEN b.oddsid ELSE t.oddsid END
-				,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE t.oddsspread END  	
-				,statuswinlost = CASE 
-									WHEN t.statuswinlost IS NULL THEN b.statuswinlost
-									WHEN t.statuswinlost = '' THEN NULL
-									ELSE CAST(t.statuswinlost AS TINYINT)
-								END
-				,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
-				,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
-				,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
-				,mWinLost = CASE WHEN t.mWinLost IS NULL THEN b.mwinlost ELSE t.mWinLost END
-				,sWinLost = CASE WHEN t.sWinLost IS NULL THEN b.swinlost ELSE t.sWinLost END
-				,PlayerComm = CASE WHEN t.PlayerComm IS NULL THEN b.playercomm ELSE t.PlayerComm END
-				,Comm = CASE WHEN t.Comm IS NULL THEN b.comm ELSE t.Comm END					
-				,aComm = CASE WHEN t.aComm IS NULL THEN b.acomm  ELSE t.aComm END					
-				,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
-				,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
-				,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
-				,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END
-				,FcUpdateTime = CASE WHEN t.FcUpdateTime IS NULL THEN b.FcUpdateTime ELSE SYSDATETIME() END
-				,hdp1 = CASE WHEN t.hdp1 IS NULL THEN b.hdp1 ELSE t.hdp1 END					
-				,hdp2 = CASE WHEN t.hdp2 IS NULL THEN b.hdp2  ELSE t.hdp2 END					
-				,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					
-				,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN b.liveawayscore ELSE t.liveawayscore END									
-				,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
-				,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE t.betid END
-				,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
-		FROM @tmpTransId t
-			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
-				ON  t.transid = b.transid 
-		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+		IF @Action = 'U'
+		BEGIN
+			UPDATE TOP (@batchNo) b
+				SET
+					matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
+					,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
+					,betdaqid = CASE WHEN t.betdaqid IS NULL THEN b.betdaqid ELSE t.betdaqid END
+					,modds = CASE WHEN t.modds IS NULL THEN b.modds ELSE t.modds END
+					,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
+					,oddsid = CASE WHEN t.oddsid IS NULL THEN b.oddsid ELSE t.oddsid END
+					,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE t.oddsspread END  	
+					,statuswinlost = CASE 
+										WHEN t.statuswinlost IS NULL THEN b.statuswinlost
+										WHEN t.statuswinlost = '' THEN NULL
+										ELSE CAST(t.statuswinlost AS TINYINT)
+									END
+					,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
+					,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+					,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
+					,mWinLost = CASE WHEN t.mWinLost IS NULL THEN b.mwinlost ELSE t.mWinLost END
+					,sWinLost = CASE WHEN t.sWinLost IS NULL THEN b.swinlost ELSE t.sWinLost END
+					,PlayerComm = CASE WHEN t.PlayerComm IS NULL THEN b.playercomm ELSE t.PlayerComm END
+					,Comm = CASE WHEN t.Comm IS NULL THEN b.comm ELSE t.Comm END					
+					,aComm = CASE WHEN t.aComm IS NULL THEN b.acomm  ELSE t.aComm END					
+					,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
+					,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
+					,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
+					,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END
+					,FcUpdateTime = CASE WHEN t.FcUpdateTime IS NULL THEN b.FcUpdateTime ELSE SYSDATETIME() END
+					,hdp1 = CASE WHEN t.hdp1 IS NULL THEN b.hdp1 ELSE t.hdp1 END					
+					,hdp2 = CASE WHEN t.hdp2 IS NULL THEN b.hdp2  ELSE t.hdp2 END					
+					,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					
+					,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN b.liveawayscore ELSE t.liveawayscore END									
+					,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
+					,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE t.betid END
+					,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
+			FROM @tmpTransId t
+				INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
+					ON  t.transid = b.transid 
+			OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+		END
+
+		ELSE IF @Action = 'I'
+		BEGIN
+			INSERT INTO dbo.bettrans (
+				TransId
+				,custid
+				,transdate
+				,oddsid
+				,hdp1
+				,hdp2
+				,odds
+				,stake
+				,[STATUS]
+				,winlost
+				,awinlost
+				,mwinlost
+				,playercomm
+				,comm
+				,acomm
+				,apositiontaking
+				,mpositiontaking
+				,tpositiontaking
+				,playerdiscount
+				,discount
+				,adiscount
+				,livehomescore
+				,liveawayscore
+				,liveindicator
+				,betteam
+				,creator
+				,refno
+				,comstatus
+				,winlostdate
+				,betfrom
+				,betcheck
+				,checktime
+				,oddsspread
+				,actualrate
+				,matchid
+				,recommend
+				,mrecommend
+				,ruben
+				,betid
+				,statuswinlost
+				,modds
+				,bettype
+				,betdaqid						
+				,actual_stake
+				,currency
+				,[ip]
+				,transdesc
+				,sdiscount
+				,scomm
+				,spositiontaking
+				,swinlost
+				,srecommend
+				,Username
+				,CurrencyName
+				,virtualrate
+				,oddstype
+				,statusID
+				,currency2
+				,balance
+				,SecAcceptFlag
+				,transid2
+				,RecommDate
+				,SiteDBGroupID
+				)
+			SELECT 
+				transid
+				,custid
+				,transdate
+				,oddsid
+				,hdp1
+				,hdp2
+				,odds
+				,stake
+				,[STATUS]
+				,winlost
+				,awinlost
+				,mwinlost
+				,playercomm
+				,comm
+				,acomm
+				,apositiontaking
+				,mpositiontaking
+				,tpositiontaking
+				,playerdiscount
+				,discount
+				,adiscount
+				,livehomescore
+				,liveawayscore
+				,liveindicator
+				,betteam
+				,creator
+				,refno
+				,comstatus
+				,winlostdate
+				,betfrom
+				,betcheck
+				,checktime
+				,oddsspread
+				,actualrate
+				,matchid
+				,recommend
+				,mrecommend
+				,ruben
+				,betid
+				,statuswinlost
+				,modds
+				,bettype
+				,betdaqid						
+				,actual_stake
+				,currency
+				,ip
+				,transdesc
+				,sdiscount
+				,scomm
+				,spositiontaking
+				,swinlost
+				,srecommend
+				,Username
+				,CurrencyName
+				,virtualrate
+				,oddstype
+				,statusID
+				,currency2
+				,balance
+				,SecAcceptFlag
+				,transid2
+				,RecommDate
+				,SiteDBGroupID
+			FROM @tmpTransId t
+
+		END
 	END
 	ELSE IF @TableName = 'bettransm'
 	BEGIN

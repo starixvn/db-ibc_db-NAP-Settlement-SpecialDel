@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_SendMail]
 	@SoureName 			VARCHAR(100) = 'NAP-Settlement'
 	, @matchid			INT
