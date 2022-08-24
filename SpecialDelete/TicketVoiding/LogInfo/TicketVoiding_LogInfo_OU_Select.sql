@@ -453,53 +453,6 @@ BEGIN
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.matchid
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2))
 
-	--For case no ticket valid
-	SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
-		,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
-	FROM #logInfo
-	IF @SingleCount = 0 AND @MainParlayCount = 0
-	BEGIN
-		-- 1. Validate table
-		SELECT MatchId
-			,1 AS IsInValidTotalTickets
-			,IsExistedInOtherRequest
-		FROM @Validation
-
-		-- 2. TransId in request table
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
-		BEGIN
-			SELECT RequestId,
-				STUFF((
-				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
-				FROM #TransidInRequest
-				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
-				ORDER BY TransId
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,'') AS TransIds
-				,MatchId
-			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.MatchId
-		END
-		ELSE
-		BEGIN
-			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
-			FROM #TransidInRequest 
-		END
-			
-		-- 3. Loginfo Table
-		DELETE #logInfo
-		SELECT MatchId FROM #logInfo
-
-		-- 4. Unmark table
-		SELECT NULL AS UnmarkTransIds
-		
-		-- 5. TransInfo table
-		DELETE #tmpTransInfo
-		SELECT Matchid FROM #tmpTransInfo
-
-		RETURN;
-	END
-
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		-- 1. Validate table
@@ -548,6 +501,53 @@ BEGIN
 		SELECT NULL AS UnmarkTransIds
 
 		-- 5. Transinfo table (No need return data)
+		DELETE #tmpTransInfo
+		SELECT Matchid FROM #tmpTransInfo
+
+		RETURN;
+	END
+
+	--For case no ticket valid
+	SELECT @SingleCount = ISNULL(SUM(SingleCount),0)
+		,@MainParlayCount = ISNULL(SUM(MainParlayCount),0)
+	FROM #logInfo
+	IF @SingleCount = 0 AND @MainParlayCount = 0
+	BEGIN
+		-- 1. Validate table
+		SELECT MatchId
+			,1 AS IsInValidTotalTickets
+			,IsExistedInOtherRequest
+		FROM @Validation
+
+		-- 2. TransId in request table
+		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+		BEGIN
+			SELECT RequestId,
+				STUFF((
+				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
+				FROM #TransidInRequest
+				WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
+				ORDER BY TransId
+				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+				,1,2,'') AS TransIds
+				,MatchId
+			FROM #TransidInRequest r
+			GROUP BY r.RequestId, r.MatchId
+		END
+		ELSE
+		BEGIN
+			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			FROM #TransidInRequest 
+		END
+			
+		-- 3. Loginfo Table
+		DELETE #logInfo
+		SELECT MatchId FROM #logInfo
+
+		-- 4. Unmark table
+		SELECT NULL AS UnmarkTransIds
+		
+		-- 5. TransInfo table
 		DELETE #tmpTransInfo
 		SELECT Matchid FROM #tmpTransInfo
 
