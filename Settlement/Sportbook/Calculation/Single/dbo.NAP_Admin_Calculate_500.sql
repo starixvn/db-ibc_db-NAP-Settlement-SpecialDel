@@ -342,10 +342,10 @@ BEGIN
 						,inserted.livehomescore	 
 						,inserted.liveawayscore	 
 						,inserted.liveindicator	 
-						,'' AS betteam 
+						,inserted.betteam 
 						,inserted.creator 
 						,inserted.refno	 
-						,'' AS comstatus	 
+						,inserted.comstatus	 
 						,inserted.winlostdate	 
 						,inserted.betfrom	 
 						,inserted.betcheck	 
@@ -356,8 +356,8 @@ BEGIN
 						,inserted.recommend	 
 						,inserted.mrecommend	 
 						,inserted.ruben	 
-						,inserted.betid	 
-						,inserted.statuswinlost	 
+						,'' AS betid	 
+						,'' AS statuswinlost	 
 						,inserted.modds	 
 						,inserted.bettype	 
 						,'' AS betdaqid	 
@@ -379,7 +379,7 @@ BEGIN
 						,'' AS balance	 
 						,'' AS SecAcceptFlag	 
 						,'' AS transid2	 
-						,'' AS RecommDate	 
+						,'' AS RecommDate
 						,inserted.SiteDBGroupID	 
 			INTO @tmpTransInfo (
 						[Action]

@@ -23,13 +23,13 @@ BEGIN
 			,@strTransIds	VARCHAR(MAX)
 
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
-		,matchid INT, winlostdate DATETIME, betdaqid BIGINT
-		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread MONEY, statuswinlost VARCHAR(1),SettlementTime DATETIME
+		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
+		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcUpdateTime DATETIME2, creator INT
 		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
-		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
+		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT, betid VARCHAR(50), ExtraInfo VARCHAR(1000)
 		
 		,transdate	 DATETIME ,apositiontaking SMALLMONEY ,mpositiontaking SMALLMONEY ,tpositiontaking SMALLMONEY 
 		,spositiontaking SMALLMONEY,playerdiscount DECIMAL ,discount	DECIMAL	,adiscount	DECIMAL	,liveindicator	BIT	,betteam NVARCHAR(20) 
@@ -37,7 +37,7 @@ BEGIN
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
 		,currency	TINYINT	,[ip] VARCHAR(45)	,transdesc NVARCHAR(2000) ,sdiscount DECIMAL		
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT
-		,oddstype	TINYINT	,currency2	TINYINT	,balance MONEY,SecAcceptFlag BIT,transid2	BIGINT	
+		,oddstype	VARCHAR(3)	,currency2	VARCHAR(3)	,balance VARCHAR(20),SecAcceptFlag VARCHAR(1),transid2	VARCHAR(50)	
 		,RecommDate	DATETIME ,SiteDBGroupID	SMALLINT
 	)
 	
@@ -58,11 +58,11 @@ BEGIN
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@mid', 'INT') AS matchid
 				,T.C.value('./@wld', 'SMALLDATETIME') AS winlostdate
-				,T.C.value('./@bdaq', 'BIGINT') AS betdaqid
+				,T.C.value('./@bdaq', 'VARCHAR(50)') AS betdaqid
 				,T.C.value('./@m', 'MONEY') AS modds
 				,T.C.value('./@o', 'SMALLMONEY') AS odds
 				,T.C.value('./@oid', 'INT') AS oddsid
-				,T.C.value('./@os', 'MONEY') AS oddsspread
+				,T.C.value('./@os', 'VARCHAR(20)') AS oddsspread
 				,T.C.value('./@statuswl', 'VARCHAR(1)') AS statuswinlost
 				,T.C.value('./@st', 'DATETIME') AS SettlementTime
 				,T.C.value('./@w', 'MONEY') AS WinLost
@@ -82,7 +82,7 @@ BEGIN
 				,T.C.value('./@lh', 'SMALLINT') AS livehomescore
 				,T.C.value('./@la', 'SMALLINT') AS liveawayscore
 				,T.C.value('./@cr', 'INT') AS creator
-				,T.C.value('./@bid', 'BIGINT') AS betid
+				,T.C.value('./@bid', 'VARCHAR(50)') AS betid
 				,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo
 				,T.C.value('./@td', 'DATETIME') AS transdate
 				,T.C.value('./@apos', 'SMALLMONEY') AS apositiontaking
@@ -111,11 +111,11 @@ BEGIN
 				,T.C.value('./@uname', 'NVARCHAR(100)') AS Username	 
 				,T.C.value('./@curname', 'NVARCHAR(100)') AS CurrencyName 
 				,T.C.value('./@v', 'FLOAT') AS virtualrate 
-				,T.C.value('./@otype', 'TINYINT')	AS oddstype	 
-				,T.C.value('./@cur2', 'TINYINT')	AS currency2	 
-				,T.C.value('./@b', 'MONEY')		AS balance	 
-				,T.C.value('./@sec', 'BIT')		AS SecAcceptFlag	 
-				,T.C.value('./@t2', 'BIGINT')	AS transid2		 
+				,T.C.value('./@otype', 'VARCHAR(3)')	AS oddstype	 
+				,T.C.value('./@cur2', 'VARCHAR(3)')	AS currency2	 
+				,T.C.value('./@b', 'VARCHAR(20)')		AS balance	 
+				,T.C.value('./@sec', 'VARCHAR(1)')		AS SecAcceptFlag	 
+				,T.C.value('./@t2', 'VARCHAR(50)')	AS transid2		 
 				,T.C.value('./@rcd', 'DATETIME') AS RecommDate
 				,T.C.value('./@sgid', 'SMALLINT') AS SiteDBGroupID
 		FROM	@transInfo.nodes('/root/r') AS T(C)
@@ -129,11 +129,11 @@ BEGIN
 				SET
 					matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
 					,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
-					,betdaqid = CASE WHEN t.betdaqid IS NULL THEN b.betdaqid ELSE t.betdaqid END
+					,betdaqid = CASE WHEN t.betdaqid IS NULL THEN b.betdaqid ELSE CAST(t.betdaqid AS BIGINT) END
 					,modds = CASE WHEN t.modds IS NULL THEN b.modds ELSE t.modds END
 					,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
 					,oddsid = CASE WHEN t.oddsid IS NULL THEN b.oddsid ELSE t.oddsid END
-					,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE t.oddsspread END  	
+					,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE CAST(t.oddsspread AS MONEY) END  	
 					,statuswinlost = CASE 
 										WHEN t.statuswinlost IS NULL THEN b.statuswinlost
 										WHEN t.statuswinlost = '' THEN NULL
@@ -157,7 +157,7 @@ BEGIN
 					,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					
 					,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN b.liveawayscore ELSE t.liveawayscore END									
 					,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
-					,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE t.betid END
+					,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE CAST(t.betid AS BIGINT) END
 					,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
 			FROM @tmpTransId t
 				INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
@@ -264,18 +264,28 @@ BEGIN
 				,winlostdate
 				,betfrom
 				,betcheck
-				,checktime
-				,oddsspread
+				,CASE checktime WHEN '' THEN NULL 
+					ELSE checktime
+					END
+				,CASE oddsspread WHEN '' THEN NULL
+					 ELSE CAST(oddsspread AS MONEY)
+					 END
 				,actualrate
 				,matchid
 				,recommend
 				,mrecommend
 				,ruben
-				,betid
-				,statuswinlost
+				,CASE betid WHEN '' THEN NULL
+					ELSE CAST(betid AS BIGINT)
+					END
+				,CASE statuswinlost WHEN '' THEN NULL
+					ELSE CAST(statuswinlost AS TINYINT)
+					END
 				,modds
 				,bettype
-				,betdaqid						
+				,CASE betdaqid	WHEN '' THEN NULL
+					ELSE CAST(betdaqid AS BIGINT)
+					END
 				,actual_stake
 				,currency
 				,ip
@@ -288,13 +298,25 @@ BEGIN
 				,Username
 				,CurrencyName
 				,virtualrate
-				,oddstype
+				,CASE oddstype WHEN '' THEN NULL
+					ELSE CAST(oddstype AS TINYINT)
+					END
 				,statusID
-				,currency2
-				,balance
-				,SecAcceptFlag
-				,transid2
-				,RecommDate
+				,CASE currency2 WHEN '' THEN NULL
+					ELSE CAST(currency2 AS TINYINT)
+					END
+				,CASE balance  WHEN '' THEN NULL
+					ELSE CAST(balance AS MONEY)
+					END
+				,CASE SecAcceptFlag  WHEN '' THEN NULL
+					ELSE CAST(SecAcceptFlag AS BIT)
+					END
+				,CASE transid2  WHEN '' THEN NULL
+					ELSE CAST(transid2 AS BIGINT)
+					END
+				,CASE RecommDate  WHEN '' THEN NULL
+					ELSE RecommDate
+					END
 				,SiteDBGroupID
 			FROM @tmpTransId t
 
