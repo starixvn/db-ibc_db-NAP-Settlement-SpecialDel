@@ -7,7 +7,6 @@
 	
 	Revisions:
 		- 20220629@Louisa: Insert settle formular for Volleyball ( 27 bettype ) [Redmineid:#173862]
-							Update config for Badminton bettype 2, 3 [Redmineid:#173862]
 
 	Param's Explanation: 
 
@@ -159,16 +158,6 @@ BEGIN
 				ELSE NULL 
 				END AS RefResourceId
 	FROM @tblResource ORDER BY Ord
-
-	-- 2 rows
-	---- Note: This block code will be run when release production
-	--UPDATE sp
-	--SET ResourceID = '70400'
-	--	,RefResourceId = '00'
-	--FROM SettlementSpecialBettypeProfile sp WITH(ROWLOCK, UPDLOCK)
-	--WHERE sp.SportType = 9
-	--AND sp.BetType  IN (2, 3)
-
 	
 END
 GO
