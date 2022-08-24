@@ -432,10 +432,10 @@ BEGIN
 			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
-				  WHEN (l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3)) OR (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3)) THEN 1 --Running
-				  WHEN l_vh.statusID = 2 AND l_s.statusID = 2 THEN 'Completed'
-				  WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
-				  ELSE '' END AS Status
+				  ELSE CASE WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
+							WHEN l_vh.statusID = 2 AND l_s.statusID = 2 THEN 'Completed'
+							ELSE 'Running' END
+				  END AS Status
 			,t.FilterBy
 			,t.VoidFromTime
 			,t.VoidToTime
@@ -501,13 +501,20 @@ BEGIN
 					WHERE mr.matchid = t.MatchId
 			)mr
 		WHERE 1 = CASE 
-					WHEN @Status = -1 THEN 1
-					WHEN @Status = 0 AND f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN 1 --New
-					WHEN @Status = 1 AND ((l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3)) OR (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3))) THEN 1 --Running
-					WHEN @Status = 2 AND l_vh.statusID = 2 AND l_s.statusID = 2 THEN 1 -- Completed
-					WHEN @Status = 3 AND ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 1 -- Failed
-					ELSE 0
-				END	
+				--All
+				WHEN @Status = -1 THEN 1
+				--New
+				WHEN @Status = 0 AND f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN 1 
+				--Completed
+				WHEN @Status = 2 AND l_vh.statusID = 2 AND l_s.statusID = 2 THEN 1 
+				--Failed
+				WHEN @Status = 3 AND ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 1 
+				--Running
+				WHEN @Status = 1 AND (l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3) AND l_s.statusID IS NULL) THEN 1 
+				WHEN @Status = 1 AND (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3) AND l_vh.statusID IS NULL) THEN 1 
+				WHEN @Status = 1 AND (l_vh.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3) AND l_vh.statusID NOT IN (2,3) AND l_s.statusID IS NOT NULL) THEN 1 
+				ELSE 0
+			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
 	DROP TABLE #tmpResult

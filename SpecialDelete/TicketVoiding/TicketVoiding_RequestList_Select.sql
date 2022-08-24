@@ -380,7 +380,7 @@ BEGIN
 		FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			LEFT JOIN (
+			INNER JOIN (
 						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
@@ -433,7 +433,7 @@ BEGIN
 				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			LEFT JOIN (
+			INNER JOIN (
 						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
@@ -480,10 +480,12 @@ BEGIN
 				,ISNULL((LEN(rd.Usernames)- LEN(REPLACE(rd.Usernames,',','')) + 1),0)
 				,CASE WHEN r.IssueTypeId = 3 AND rd.FilterBy = 2 THEN  SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6)
 					ELSE STUFF(w.scores,1,1,'') END AS WrongScores
-		FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
+		FROM @tmpRequest t
+			INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK)
+				ON t.RequestId = r.RequestId
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 				ON r.RequestId = rd.RequestId
-			LEFT JOIN (
+			INNER JOIN (
 						SELECT DISTINCT RequestID, MIN(m.eventdate) eventdate
 						FROM @MinEventDate_tmp m
 						GROUP BY RequestID
@@ -544,10 +546,10 @@ BEGIN
 			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
-				  WHEN (l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3)) OR (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3)) THEN 1 --Running
-				  WHEN l_vh.statusID = 2 AND l_s.statusID = 2 THEN 'Completed'
-				  WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
-				  ELSE NULL END AS Status
+				  ELSE CASE WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
+							WHEN l_vh.statusID = 2 AND l_s.statusID = 2 THEN 'Completed'
+							ELSE 'Running' END
+				  END AS Status
 			,t.FilterBy
 			,t.VoidFromTime
 			,t.VoidToTime
@@ -617,11 +619,18 @@ BEGIN
 					WHERE mr.matchid = t.MatchId
 			)mr
 	WHERE 1 = CASE 
+				--All
 				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN 1 --New
-				WHEN @Status = 1 AND ((l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3)) OR (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3))) THEN 1 --Running
-				WHEN @Status = 2 AND l_vh.statusID = 2 AND l_s.statusID = 2 THEN 1 -- Completed
-				WHEN @Status = 3 AND ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 1 -- Failed
+				--New
+				WHEN @Status = 0 AND f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN 1 
+				--Completed
+				WHEN @Status = 2 AND l_vh.statusID = 2 AND l_s.statusID = 2 THEN 1 
+				--Failed
+				WHEN @Status = 3 AND ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 1 
+				--Running
+				WHEN @Status = 1 AND (l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3) AND l_s.statusID IS NULL) THEN 1 
+				WHEN @Status = 1 AND (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3) AND l_vh.statusID IS NULL) THEN 1 
+				WHEN @Status = 1 AND (l_vh.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3) AND l_vh.statusID NOT IN (2,3) AND l_s.statusID IS NOT NULL) THEN 1 
 				ELSE 0
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
