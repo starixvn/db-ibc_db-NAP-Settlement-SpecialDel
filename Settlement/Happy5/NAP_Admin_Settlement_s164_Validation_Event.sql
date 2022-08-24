@@ -28,6 +28,12 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @Sporttype SMALLINT
+
+	SELECT @Sporttype = m.sporttype 
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE m.matchid = @matchid
+
 	--invalid ball
 	IF @Action LIKE 'CAL%'
 	BEGIN
@@ -36,14 +42,15 @@ BEGIN
 		INSERT INTO @tmpResultDetail(ResourceID, Result1, isSourceFromDB)
 		SELECT  Seq, Number, 1
 		FROM	dbo.BingoBall b WITH (NOLOCK)
-		WHERE matchid = @matchid
+		WHERE matchid = 70039351
+	END
 
-		IF @@ROWCOUNT  = 0
+	IF @Sporttype = 164
+	BEGIN
+		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail) 
 		BEGIN
 			SELECT	@ErrCode = 1000001
 					,@ErrMsg	= 'Ball number is required.'
-
-			RETURN
 		END
 		
 		SELECT @ErrCode = 1000002
@@ -65,6 +72,7 @@ BEGIN
 		IF @ErrCode <> 0
 			RETURN
 	END
+
 
 END
 GO
