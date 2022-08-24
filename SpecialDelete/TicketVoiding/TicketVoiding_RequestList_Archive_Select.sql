@@ -34,7 +34,7 @@ AS
 		- 20220113@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220225@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
-
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		@Status: 
@@ -431,11 +431,11 @@ BEGIN
 			,CASE WHEN t.IssueTypeId IN (17) THEN LEN(ISNULL(p.TransIds,'')) - LEN(REPLACE(ISNULL(p.TransIds,''), ',', ''))  ELSE 0 END AS TotalParlay
 			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
-			,CASE WHEN f.statusID IS NULL AND l.statusID IS NULL THEN ''
-				  WHEN ISNULL(f.statusID,l.statusID) IN (1,2) THEN 'Running'
-				  WHEN ISNULL(f.statusID,l.statusID) = 12 THEN 'Completed'
-				  WHEN ISNULL(f.statusID,l.statusID) = 3 THEN 'Failed'
-				  ELSE NULL END AS Status
+			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
+				  WHEN (l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3)) OR (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3)) THEN 1 --Running
+				  WHEN l_vh.statusID = 2 AND l_s.statusID = 2 THEN 'Completed'
+				  WHEN ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 'Failed'
+				  ELSE '' END AS Status
 			,t.FilterBy
 			,t.VoidFromTime
 			,t.VoidToTime
@@ -464,18 +464,30 @@ BEGIN
 					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799)
 					FOR XML PATH('')
 				)p	 (TransIds)
-		OUTER APPLY ( -- Failed
-				SELECT DISTINCT RequestId, 3 AS statusID
-				FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
-				WHERE s.RequestId = t.RequestID
-				AND s.statusID IN (3, 13)
-				)f
-		OUTER APPLY ( -- Completed, Running
+				---Case Failed
+		OUTER APPLY ( 
+					SELECT DISTINCT RequestId, vh.StatusId
+					FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH(NOLOCK) 
+					WHERE vh.RequestId = t.RequestID AND vh.StatusId = 3
+				)f_vh
+		OUTER APPLY ( 
+					SELECT DISTINCT RequestId, s.StatusId
+					FROM bodb02.dbo.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+					WHERE s.RequestId = t.RequestID AND s.StatusId = 3
+				)f_s
+				---Case Completed, Running
+		OUTER APPLY ( 
+					SELECT TOP 1 RequestId, vh.statusID
+					FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH(NOLOCK) 
+					WHERE vh.RequestId = t.RequestID
+					ORDER BY VoidingHistoryId DESC 
+				)l_vh
+		OUTER APPLY ( 
 					SELECT TOP 1 RequestId, statusID
 					FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					WHERE s.RequestId = t.RequestID
 					ORDER BY VoidingHistoryId DESC 
-					)l
+				)l_s	
 		OUTER APPLY (
 					SELECT matchcode, hthomescore, htawayscore, finalhomescore, finalawayscore
 					FROM dbo.match_bk WITH (NOLOCK)
@@ -488,15 +500,14 @@ BEGIN
 					FROM dbo.match_remark mr WITH (NOLOCK) 
 					WHERE mr.matchid = t.MatchId
 			)mr
-
 		WHERE 1 = CASE 
-				WHEN @Status = -1 THEN 1
-				WHEN @Status = 0 AND f.statusID IS NULL AND l.statusID IS NULL THEN 1 --New
-				WHEN @Status = 1 AND ISNULL(f.statusID,l.statusID) IN (1,2) THEN 1 --Running
-				WHEN @Status = 2 AND ISNULL(f.statusID,l.statusID) = 12 THEN 1 -- Completed
-				WHEN @Status = 3 AND ISNULL(f.statusID,l.statusID) = 3 THEN 1 -- Failed
-				ELSE 0
-			END	
+					WHEN @Status = -1 THEN 1
+					WHEN @Status = 0 AND f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN 1 --New
+					WHEN @Status = 1 AND ((l_vh.statusID IS NOT NULL AND l_vh.statusID NOT IN (2,3)) OR (l_s.statusID IS NOT NULL AND l_s.statusID NOT IN (2,3))) THEN 1 --Running
+					WHEN @Status = 2 AND l_vh.statusID = 2 AND l_s.statusID = 2 THEN 1 -- Completed
+					WHEN @Status = 3 AND ISNULL(f_vh.statusID,f_s.statusID) = 3 THEN 1 -- Failed
+					ELSE 0
+				END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
 	DROP TABLE #tmpResult

@@ -105,8 +105,6 @@ BEGIN
 				,m.GlobalShowTime
 				,rd.FilterFromTransTime
 				,rd.FilterToTransTime
-				,rd.FilterFromBetId
-				,rd.FilterToBetId
 				,rd.FilterBy
 				,rd.TransIds AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
