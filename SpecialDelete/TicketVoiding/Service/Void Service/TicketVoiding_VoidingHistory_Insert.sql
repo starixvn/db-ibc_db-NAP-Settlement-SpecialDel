@@ -26,8 +26,6 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @VoidingHistoryId INT
-
 	CREATE TABLE #tmpRequestInfo (RequestId INT, IssueTypeId INT, MatchId INT, TransIds VARCHAR(MAX), SiteDBGroupId SMALLINT)
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
 
@@ -106,8 +104,9 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SELECT TOP(1) @VoidingHistoryId = v.VoidingHistoryId FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
-					INNER JOIN #tmpRequestInfo t ON t.RequestId = v.RequestId
+		INSERT INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
+		SELECT DISTINCT v.VoidingHistoryId, v.RequestId
+		FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
 		WHERE v.BroadcastSessionId = @BroadcastSessionId
 
 		--Insert other site after initial
@@ -121,15 +120,16 @@ BEGIN
 				,MatchId
 			)
 		SELECT t.RequestId
-			,@VoidingHistoryId
+			,v.VoidingHistoryId
 			,1
 			,@BroadcastSessionId
 			,t.SiteDBGroupId
 			,@IsAutoVoid
 			,t.MatchId
 		FROM #tmpRequestInfo t
+			INNER JOIN @VoidingHistory_tmp v ON v.RequestId = t.RequestId
 		WHERE NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service s WITH (NOLOCK) 
-						WHERE s.RequestId = t.RequestId AND s.VoidingHistoryId = @VoidingHistoryId AND s.SiteDBGroupID = t.SiteDBGroupId)
+						WHERE s.RequestId = t.RequestId AND s.VoidingHistoryId = v.VoidingHistoryId AND s.SiteDBGroupID = t.SiteDBGroupId)
 	END
 
 	SELECT v.BroadcastSessionId, v.SiteDBGroupID, v.RequestId, v.VoidingHistoryId, v.StatusId, v.IsAutoVoid, v.MatchId, tmp.IssueTypeId
