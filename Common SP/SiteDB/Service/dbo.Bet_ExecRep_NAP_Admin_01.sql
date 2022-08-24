@@ -1,8 +1,9 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 	
-	@TransInfo XML
+	@TransInfo	XML
 	,@TableName VARCHAR(128)
-	,@Action VARCHAR(1) = 'U'
+	,@Action	VARCHAR(1)	= 'U'
+	,@MatchId	INT			= 0
 AS
 /*
 	Created by: 20220728@Kathy
@@ -18,7 +19,9 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @batchNo		INT			
-	
+			,@matchdate		SMALLDATETIME
+			,@strTransIds	VARCHAR(MAX)
+
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid BIGINT
 		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread MONEY, statuswinlost VARCHAR(1),SettlementTime DATETIME
@@ -442,6 +445,18 @@ BEGIN
 			FROM dbo.zzzbettrans m WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
 		END
+	END
+	ELSE IF @TableName = 'BetParlayResult'
+	BEGIN
+		SELECT  @matchdate = T.C.value('@wld', 'SMALLDATETIME') 
+				,@strTransIds = T.C.value('@strTransId', 'VARCHAR(MAX)') 
+		FROM    @TransInfo.nodes('/root/r') AS T(C)
+
+		EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchid
+			,@mode = 'PRECAL-29'
+			,@matchdate = @matchdate
+			,@strXML = @strTransIds
+			,@IsSiteDBService = 1
 	END
 END
 GO

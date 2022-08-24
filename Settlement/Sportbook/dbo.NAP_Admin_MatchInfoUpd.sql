@@ -218,11 +218,12 @@ BEGIN
 			,@SelectedSelection	= @SelectedSelection
 			,@resultStatusID 	= @ResultStatusID
 
-		EXEC dbo.NAP_Admin_SMPMarket_Update 
-			@matchID 			= @matchID
-			,@action			= @action
-			,@SelectedMarket	= @SelectedMarket
-			,@resultStatusID 	= @ResultStatusID
+		IF @IsAuto = 0
+			EXEC dbo.NAP_Admin_SMPMarket_Update 
+				@matchID 			= @matchID
+				,@action			= @action
+				,@SelectedMarket	= @SelectedMarket
+				,@resultStatusID 	= @ResultStatusID
 
 		RETURN
 	END

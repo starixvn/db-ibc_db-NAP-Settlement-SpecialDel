@@ -9,6 +9,7 @@ CREATE PROCEDURE [dbo].[NAP_Admin_SendMail]
 	, @severity			VARCHAR(30) 	= 'Error'
 	, @remark			VARCHAR(MAX) 	= ''
 	, @recipients		VARCHAR(250) 	= ''
+	, @GroupName		VARCHAR(10)		= ''
 	, @ErrCode			INT				= 0		OUTPUT
 	, @ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -19,9 +20,12 @@ AS
 	
     Revisions:
 		- 20160606@Bobby: Initialize
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+
 		
     Parameters Explanation:   
 		- @severity: [Error, Warning]
+		, GroupName: ERROR...
 */
 BEGIN
 	SET NOCOUNT ON
@@ -34,6 +38,13 @@ BEGIN
 		, @SPName			VARCHAR(100)
 		--, @xmlDoc			XML
 		
+	IF ISNULL(@recipients,'') = ''
+	BEGIN
+		SELECT @recipients = Recipients
+		FROM [dbo].[f_Set_VS_BetRadar_EmailConfig] ()
+		WHERE GroupName = @GroupName
+	END
+
 	BEGIN TRY
 	
 		SELECT @actionName 	= ActionNameEn
@@ -41,7 +52,7 @@ BEGIN
 		FROM DBLOG.bodb_CustomerLog.dbo.LogAction WITH(NOLOCK)
 		WHERE ActionId = @actionId
 		
-		SELECT @subject	= @severity + ' - ' + @SoureName + ' - ' + ISNULL(@actionName, 'N/A')
+		SELECT @subject	= @severity + ' on ' + @@SERVERNAME + ' - ' + @SoureName + ' - ' + ISNULL(@actionName, 'N/A')
 			,@email_body = '
 			<html>
 				<body>

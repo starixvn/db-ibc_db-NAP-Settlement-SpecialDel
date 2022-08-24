@@ -30,62 +30,58 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @tblSelectedRID TABLE (ResourceID TINYINT, Result TINYINT)
 	DECLARE @sporttype SMALLINT
 
-	SELECT @sportType 	= sportType
-	FROM dbo.match m WITH(NOLOCK) 
-	WHERE m.matchid = @MatchId
+	SELECT	@sportType 	= sportType
+	FROM	dbo.match m WITH(NOLOCK) 
+	WHERE	m.matchid = @MatchId
 
 	IF @Action = 'CAL'
 	BEGIN
 		EXEC dbo.NAP_Admin_Match_Update 
-				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
-				,@MatchID	= @matchid
-				,@FTHome	= @fth
-				,@FTAway	= @fta
-				,@HTHome	= @hth
-				,@HTAway	= @hta
-				,@creator	= @AdminId
+			@Command	= 'completed'
+			,@MatchID	= @matchid
+			,@FTHome	= @fth
+			,@FTAway	= @fta
+			,@HTHome	= @hth
+			,@HTAway	= @hta
+			,@creator	= @AdminId
 		
 		EXEC dbo.NAP_updateMatch_remark 
-				@MatchId	= @MatchId
-				,@Command	= 'VSC'
+			@MatchId	= @MatchId
+			,@Command	= 'VSC'
 
 		IF @sportType = 193
-			BEGIN
-				EXEC dbo.NAP_Admin_VS_Betradar_Result_Update 
-					@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
-					,@MatchID	= @matchid
-					,@ResourceResult = @Resources
-					,@creator	= @AdminId
-					,@IsAuto = @IsAuto
-			END
+		BEGIN
+			EXEC dbo.NAP_Admin_VS_Betradar_Result_Update 
+				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
+				,@MatchID	= @matchid
+				,@ResourceResult = @Resources
+				,@creator	= @AdminId
+				,@IsAuto = @IsAuto
+		END
 
 	END
-
 	ELSE IF @Action = 'REFUND'
 	BEGIN
 		EXEC dbo.NAP_Admin_Match_Update 
-				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
-				,@MatchID	= @matchid
-				,@creator	= @AdminId
+			@Command	= 'completed'
+			,@MatchID	= @matchid
+			,@creator	= @AdminId
 		
 		EXEC dbo.NAP_updateMatch_remark 
-				@MatchId	= @MatchId
-				,@Command	= 'VSR' -- refund
+			@MatchId	= @MatchId
+			,@Command	= 'VSR' -- refund
 
-			IF @sportType = 193
-			BEGIN
-				EXEC dbo.NAP_Admin_VS_Betradar_Result_Update 
-					@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
-					,@MatchID	= @matchid
-					,@ResourceResult = @Resources
-					,@creator	= @AdminId
-					,@IsAuto = @IsAuto
-			END
-
-
+		IF @sportType = 193
+		BEGIN
+			EXEC dbo.NAP_Admin_VS_Betradar_Result_Update 
+				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
+				,@MatchID	= @matchid
+				,@ResourceResult = @Resources
+				,@creator	= @AdminId
+				,@IsAuto = @IsAuto
+		END
 	END
 
 END

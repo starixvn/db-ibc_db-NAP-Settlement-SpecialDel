@@ -24,8 +24,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @sporttype		SMALLINT
-			,@IsWaiting		BIT = 0
-			,@WaitingTime	VARCHAR(10)
 			,@xml			XML
 			,@IsCentral		BIT = 0
 
@@ -35,27 +33,9 @@ BEGIN
 	DECLARE @tmpResultVS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(20), AwayValue VARCHAR(20))
 	DECLARE @Resources_193 TABLE (ResourceID VARCHAR(100))
 
-	SELECT @sportType 	= sportType
-	FROM dbo.match m WITH(NOLOCK) 
-	WHERE m.matchid = @MatchId
-
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = 'NAP_Admin_Settlement_VS_BetRadar_Push'
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_s164
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
+	SELECT	@sportType 	= sportType
+	FROM	dbo.match m WITH(NOLOCK) 
+	WHERE	m.matchid = @MatchId
 
 	IF @sporttype = 193
 	BEGIN
@@ -79,9 +59,7 @@ BEGIN
 					,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
 			RETURN
 		END
-
 		--/end check match in queue
-
 
 		--start check invalid result
 		SET @xml = CONVERT(XML,@SelectedResources)

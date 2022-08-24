@@ -173,8 +173,6 @@ BEGIN
 			,m.autosettingforleague 
 			,m.sporttype
 	FROM #tmpMatchIds m		
-	WHERE 1 = CASE WHEN @CheckEventStatus = 3 OR @Status='' OR @MatchCode <>'' THEN 1
-				   ELSE 0 END
 	ORDER BY CASE m.eventstatus WHEN 'completed' THEN 1 WHEN 'refund' THEN 1 ELSE 0 END
 		, m.eventdate
 		, m.kickofftime

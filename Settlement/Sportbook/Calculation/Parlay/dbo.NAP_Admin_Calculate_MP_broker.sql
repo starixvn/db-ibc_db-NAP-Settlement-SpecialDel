@@ -22,9 +22,10 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@strBettypes   VARCHAR(MAX) = NULL
     ,@strTransIds   VARCHAR(MAX) = NULL
     ,@betstatus     NVARCHAR(50) = NULL
-	,@Sporttype SMALLINT = NULL
+	,@Sporttype		SMALLINT = NULL
     ,@CalledByBrokerService BIT = 0
-	,@RunOnServer VARCHAR(100) = NULL
+	,@RunOnServer	VARCHAR(100) = NULL
+	,@IsSiteDBService	BIT = 0
 AS
 /*
     Created: Kathy
@@ -87,7 +88,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 		
-    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0
+	IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0 
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)
@@ -119,13 +120,22 @@ BEGIN
 				+ CASE WHEN @sporttype IS NULL THEN '' ELSE ',@sporttype = ' + CONVERT(NVARCHAR(50), @sporttype) END
 				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
                 + ',@CalledByBrokerService = 1'
-
-        EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
-            ,@toService = N'//Service/Calculation_receive'
-            ,@onContract = N'//Contract/Calculation'
-            ,@messageType = N'//Message/Calculation'
-            ,@messageBody = @sMessage
-
+		
+		IF @IsSiteDBService = 1
+		BEGIN
+			EXEC dbo.SSB_Send_Message 
+				@MessageContent = @sMessage
+				,@FunctionName = 'settlement'
+				,@MessageType = 'bet_SiteDB_msg_type_01'
+		END
+		ELSE
+		BEGIN
+			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
+				,@toService = N'//Service/Calculation_receive'
+				,@onContract = N'//Contract/Calculation'
+				,@messageType = N'//Message/Calculation'
+				,@messageBody = @sMessage
+		END
         RETURN
     END
 

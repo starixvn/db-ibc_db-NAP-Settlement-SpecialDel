@@ -327,37 +327,6 @@ BEGIN
         END
     END
 
-    --BEGIN: 77720 - Implement BetRadar VS
-    IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-CAL'
-    BEGIN
-        UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
-            SET finalhomescore = @fthome
-                ,finalawayscore = @ftaway
-                ,hthomescore = @hthome
-                ,htawayscore = @htaway
-                ,eventstatus = 'Completed'
-                ,betstatus = ''
-				,multiple	= 1
-                ,changetime = CURRENT_TIMESTAMP
-                ,settletime = CURRENT_TIMESTAMP
-        WHERE   matchid = @matchid
-    END
-    IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
-            SET eventstatus = 'Completed'
-                ,betstatus = 'Refund'
-                ,changetime = CURRENT_TIMESTAMP
-                ,settletime = CURRENT_TIMESTAMP
-                ,finalhomescore=0
-                ,finalawayscore=0
-                ,hthomescore = 0
-                ,htawayscore = 0
-				,multiple	= 1
-        WHERE   matchid = @matchid
-    END
-    --END: 77720
-	
     IF @Command = 'completed'
     BEGIN	
 		SET @eventstatus = N'completed'
@@ -373,6 +342,11 @@ BEGIN
 			IF @sporttype = 180
 				SELECT	@fthome = 0
 						,@ftaway = 0
+			ELSE IF @Sporttype BETWEEN 190 AND 197
+				SELECT	@fthome = 0
+						,@ftaway = 0
+						,@HTHome = 0
+						,@HTAway = 0
     	 END
 		 
         UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
@@ -380,8 +354,11 @@ BEGIN
                 ,betstatus      = COALESCE(@betstatus, '')
 				,finalhomescore	= COALESCE(@fthome, finalhomescore)
 				,finalawayscore	= COALESCE(@ftaway, finalawayscore)
+				,hthomescore	= COALESCE(@hthome, hthomescore)
+				,htawayscore	= COALESCE(@htaway, htawayscore)
                 ,changetime     = GETDATE()
                 ,settletime     = GETDATE()
+				,multiple		= CASE WHEN @Sporttype BETWEEN 190 AND 197 THEN 1 ELSE multiple END
         WHERE   matchid = @matchid
     END
 
