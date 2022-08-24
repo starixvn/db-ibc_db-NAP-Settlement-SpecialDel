@@ -483,7 +483,7 @@ BEGIN
 						,custid		AS '@cust'
 						,transdate	AS '@td'
 						,oddsid		AS '@oid'
-						,hdp1		AS '@hdp2'
+						,hdp1		AS '@hdp1'
 						,hdp2		AS '@hdp2'
 						,odds		AS '@o'
 						,stake		AS '@stake'
