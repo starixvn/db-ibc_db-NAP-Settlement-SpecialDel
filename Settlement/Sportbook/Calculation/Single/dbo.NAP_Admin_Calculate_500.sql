@@ -63,7 +63,7 @@ BEGIN
 			,refno	BIGINT
 			,comstatus	NVARCHAR(40)
 			,winlostdate	SMALLDATETIME
-			,betfrom	NVARCHAR(2)
+			,betfrom	NVARCHAR(3)
 			,betcheck	NVARCHAR(100)
 			,checktime	DATETIME
 			,oddsspread	MONEY
@@ -118,7 +118,7 @@ BEGIN
 									,ADiscount		DECIMAL(9,8)
 									,Creator		INT
 									,WinlostDate	SMALLDATETIME
-									,BetFrom		NVARCHAR(1)
+									,BetFrom		NVARCHAR(3)
 									,BetCheck		NVARCHAR(50)
 									,ActualRate		FLOAT
 									,Recommend		INT

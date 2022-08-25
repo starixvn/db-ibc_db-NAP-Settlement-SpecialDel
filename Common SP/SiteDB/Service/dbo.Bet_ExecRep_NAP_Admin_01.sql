@@ -33,7 +33,7 @@ BEGIN
 		
 		,transdate	 DATETIME ,apositiontaking SMALLMONEY ,mpositiontaking SMALLMONEY ,tpositiontaking SMALLMONEY 
 		,spositiontaking SMALLMONEY,playerdiscount DECIMAL ,discount	DECIMAL	,adiscount	DECIMAL	,liveindicator	BIT	,betteam NVARCHAR(20) 
-		,comstatus NVARCHAR(40)	,betfrom	NVARCHAR(2)	,betcheck	NVARCHAR(100)	,checktime	DATETIME	
+		,comstatus NVARCHAR(40)	,betfrom NVARCHAR(3)	,betcheck	NVARCHAR(100)	,checktime	DATETIME	
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
 		,currency	TINYINT	,[ip] VARCHAR(45)	,transdesc NVARCHAR(2000) ,sdiscount DECIMAL		
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT
@@ -95,7 +95,7 @@ BEGIN
 				,T.C.value('./@li', 'BIT')		AS liveindicator 
 				,T.C.value('./@bteam', 'NVARCHAR(20)')	AS betteam	 
 				,T.C.value('./@cst', 'NVARCHAR(40)')	AS comstatus	 
-				,T.C.value('./@bf','NVARCHAR(2)')		AS betfrom	 
+				,T.C.value('./@bf','NVARCHAR(3)')		AS betfrom	 
 				,T.C.value('./@bc','NVARCHAR(100)')		AS betcheck	 
 				,T.C.value('./@ct','DATETIME')	AS checktime	 
 				,T.C.value('./@ar', 'FLOAT')	AS actualrate	 
