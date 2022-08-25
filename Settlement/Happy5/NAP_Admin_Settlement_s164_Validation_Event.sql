@@ -27,47 +27,50 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-
-	DECLARE @Sporttype SMALLINT
-
-	SELECT @Sporttype = m.sporttype 
-	FROM dbo.match m WITH(NOLOCK)
-	WHERE m.matchid = @matchid
+	
+	DECLARE @RowCount INT
 
 	--invalid ball
 	IF @Action LIKE 'CAL%'
 	BEGIN
-		DECLARE @tmpResultDetail TABLE (ResourceID VARCHAR(20), Result1 VARCHAR(50), Result2 VARCHAR(50), isSourceFromDB BIT)
+		DECLARE @tmpResultDetail TABLE (ResourceID VARCHAR(20), Result VARCHAR(50))
 		
-		INSERT INTO @tmpResultDetail(ResourceID, Result1, isSourceFromDB)
-		SELECT  Seq, Number, 1
+		INSERT INTO @tmpResultDetail(ResourceID, Result)
+		SELECT  Seq, Number
 		FROM	dbo.BingoBall b WITH (NOLOCK)
-		WHERE matchid = 70039351
-	END
+		WHERE matchid = @matchid
 
-	IF @Sporttype = 164
+		SET @RowCount = @@ROWCOUNT
+	END
+	
+	IF @IsAuto = 1 OR (@IsAuto = 0 AND @RowCount > 0)
 	BEGIN
-		IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail) 
+		IF @RowCount = 0
 		BEGIN
 			SELECT	@ErrCode = 1000001
 					,@ErrMsg	= 'Ball number is required.'
+
+			RETURN
 		END
 		
-		SELECT @ErrCode = 1000002
-				,@ErrMsg = 'Data is not valid'
-		FROM @tmpResultDetail
-		HAVING COUNT(*) <> 5
-			
-		SELECT @ErrCode = 1000002
+		IF @RowCount <> 5
+		BEGIN
+			SELECT	@ErrCode = 1000002
+					,@ErrMsg = 'Data is not valid'
+
+			RETURN
+		END 
+
+		SELECT	@ErrCode = 1000002
 				,@ErrMsg = 'Duplicate ball numbers'
-		FROM @tmpResultDetail
-		GROUP BY Result1
-		HAVING COUNT(Result1) > 1
+		FROM	@tmpResultDetail
+		GROUP BY Result
+		HAVING COUNT(Result) > 1
 			
-		SELECT @ErrCode = 1000002
+		SELECT	@ErrCode = 1000002
 				,@ErrMsg = 'Ball number must be from 1 to 20'
-		FROM @tmpResultDetail
-		WHERE Result1 < 1 OR Result1 > 20
+		FROM	@tmpResultDetail
+		WHERE Result NOT BETWEEN 1 AND 20
 		
 		IF @ErrCode <> 0
 			RETURN

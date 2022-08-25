@@ -2030,7 +2030,7 @@ BEGIN
 						,ruben = CASE 
 									WHEN @IsUpd_Void = 0 THEN bm.ruben 
 									ELSE CASE 
-											WHEN t.modds IS NOT NULL THEN 0 
+											WHEN t.modds IS NULL THEN 0 
 											ELSE 1 
 										END
 								END
