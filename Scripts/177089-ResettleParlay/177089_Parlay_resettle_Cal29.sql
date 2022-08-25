@@ -18,6 +18,12 @@ DECLARE @tmpSource TABLE (TransId BIGINT PRIMARY KEY, WinlostDate SMALLDATETIME
 	, playerComm MONEY, comm MONEY, aComm MONEY, sComm MONEY
 	, ruben TINYINT, IsMarked BIT)
 
+CREATE TABLE #tmpParlayBalanceBefore (transid BIGINT PRIMARY KEY, custid INT, balance money)
+CREATE TABLE #tmpParlayBalanceAfter (transid BIGINT PRIMARY KEY, custid INT, balance money)
+CREATE TABLE #tmpParlayBalance (custid int, balance money)
+DECLARE @tmpParlayDebitPending		TVP_BalanceList
+		,@tmpParlayCreditPending	TVP_BalanceList
+
 CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
 	
 INSERT INTO #Refno (refno, transid)
@@ -27,6 +33,12 @@ WHERE transid in (20556782925512714,20562383562866752,20568439466754109,20569929
 	AND statusid NOT IN (0,101, 102)
 	
 SET @settlementTime = GETDATE();
+
+INSERT INTO #tmpParlayBalanceBefore (transid, custid, balance)
+				SELECT	b.transid, b.custid, (b.winlost - b.actual_stake + b.playercomm) AS balance
+				FROM	dbo.bettrans b WITH(ROWLOCK)
+				WHERE	b.transid IN (SELECT transid FROM #Refno)
+
 
 INSERT INTO @tmpSource (TransId, WinlostDate, totalStake
 	,Winlost, aWinlost, mWinlost, sWinlost
@@ -100,3 +112,57 @@ SET @statusId = CASE
 FROM @tmpSource s
 	INNER JOIN dbo.bettrans b
 		ON b.transid = s.transid
+
+---- CAPTURE value BALANCE after udpate bettrans [Redmine:#108768]: to avoid parlay settlement & movebet delete bet ticket run the same time
+INSERT INTO #tmpParlayBalanceAfter (transid, custid, balance)
+SELECT	b.transid, b.custid, (b.winlost - b.actual_stake + b.playercomm) AS balance
+FROM	dbo.bettrans b WITH(ROWLOCK)
+WHERE	b.transid IN (SELECT transid FROM #Refno)
+
+INSERT INTO #tmpParlayBalance (custid, balance)
+SELECT b.custid, SUM(a.balance - b.balance)
+FROM #tmpParlayBalanceBefore b
+	INNER JOIN #tmpParlayBalanceAfter a ON b.transid = a.transid
+GROUP BY b.custid
+
+INSERT INTO @tmpParlayDebitPending (custID, balance)
+SELECT t.custid, ABS(t.balance)
+FROM (
+	SELECT	custID, SUM(balance) AS balance
+	FROM	#tmpParlayBalance
+	GROUP BY custID
+) t
+WHERE t.balance < 0
+
+IF @@ROWCOUNT <> 0
+	EXEC dbo.Dot_BalancePendingDebitIns
+		@BalancePending = @tmpParlayDebitPending
+		,@Type			= 1 -- Sports
+
+INSERT INTO @tmpParlayCreditPending (custID, balance)
+SELECT t.custid, ABS(t.balance)
+FROM (
+	SELECT	custID, SUM(balance) AS balance
+	FROM	#tmpParlayBalance
+	GROUP BY custID
+) t
+WHERE t.balance > 0
+
+IF @@ROWCOUNT <> 0
+	EXEC dbo.Dot_BalancePendingCreditIns
+		@BalancePending = @tmpParlayCreditPending
+		,@Type			= 1 -- Sports
+
+INSERT INTO [bodb02].[dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
+SELECT GETDATE()
+	,0
+	,104 -- CAL
+	,2 -- Sportsbook Parlay Settlement
+	,t.CustID
+	,t.Balance
+	,0
+	,''
+FROM (	SELECT	custID, SUM(balance) AS balance
+		FROM	#tmpParlayBalance
+		GROUP BY custID) t
+WHERE t.balance < 0
