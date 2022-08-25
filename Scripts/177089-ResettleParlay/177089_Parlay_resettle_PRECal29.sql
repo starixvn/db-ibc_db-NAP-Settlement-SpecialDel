@@ -11,13 +11,13 @@
 DECLARE @transIDs AS TABLE(transid BIGINT primary key)
 
 SELECT DISTINCT refno, transid
-INTO tableBettransResettle_tmp
+INTO ParlayBettransResettle_tmp
 FROM Parlay_bettrans_tmp (NOLOCK)
 WHERE statusid NOT IN (0,101, 102)
 
 INSERT INTO @transIDs (transid)
 SELECT DISTINCT transid
-FROM tableBettransResettle_tmp (NOLOCK)
+FROM ParlayBettransResettle_tmp (NOLOCK)
 
 CREATE TABLE #temp_bettrans (
 	transid bigint NOT NULL
