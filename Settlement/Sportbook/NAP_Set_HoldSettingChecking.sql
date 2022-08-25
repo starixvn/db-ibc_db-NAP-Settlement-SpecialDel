@@ -17,7 +17,7 @@ AS
 		-  20201113@Louisa: Check Hold Result [Redmine:#135097]
 		-  20210122@Louisa: Cricket AIO [Redmine:#148870]
 		-  20210706@Louisa: Letstalk message [Redmine:#157540]
-
+		-  20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		
 	Parameters Explanation:    
 		@IsEarly = 0 : Check dbo.Match.SettlementStatus bit[1]-Pending, bit[2]-Undecided, bit[3]-UnderSettlement, bit[5]-MTDHold, bit[7]-Hold Key
@@ -34,11 +34,12 @@ BEGIN
 	SET NOCOUNT ON 
 	
 	DECLARE @SettlementStatus TINYINT
-			,@Sporrtype TINYINT
+			,@SportType TINYINT
 			,@handle INT
 			,@ParentMatchId	INT
+			,@ResultTable		TINYINT	= 0	
 
-	SELECT @Sporrtype = m.Sporttype 
+	SELECT @SportType = m.Sporttype 
 			,@SettlementStatus = m.SettlementStatus
 			,@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
 	FROM dbo.match m WITH(NOLOCK)
@@ -56,7 +57,14 @@ BEGIN
 	-- Soccer, Basketball, Badminton, and E-Sports.
 	ELSE IF @IsEarly = 1 AND ISNULL(@SelectedResources,'') <> ''
 	BEGIN	
-	
+		
+		IF @SportType NOT IN ( 1, 2, 6, 9, 50, 43 )
+		RETURN 
+
+		SELECT @ResultTable =  r.ResultTable 
+		FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK) 
+		WHERE r.Sporttype = @SportType
+
 		DECLARE @tmpResourceID TABLE ( ResourceID VARCHAR(20) )
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 
@@ -65,7 +73,7 @@ BEGIN
 		EXEC sp_xml_removedocument @handle
 
 		 ----Soccer, Basketball
-		IF @Sporrtype IN ( 1,2 )
+		IF @ResultTable = 1
 		BEGIN
 			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'	
 			FROM ResultDetail r WITH(NOLOCK)
@@ -76,7 +84,7 @@ BEGIN
 		END
 
 		---- Badminton
-		ELSE IF @Sporrtype IN ( 9 , 50 ) 
+		ELSE IF @ResultTable = 2
 		BEGIN
 			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'
 			FROM ResultDetailOS r WITH(NOLOCK)
@@ -87,7 +95,7 @@ BEGIN
 		END
 
 		----E-Sports
-		ELSE IF @Sporrtype =  43
+		ELSE IF @ResultTable = 3
 		BEGIN
 			SELECT @ErrCode = 1001039 , @ErrMsg = 'WARNING! Cannot continue due to selected results are on hold. Please recheck and try again.	'
 			FROM ResultDetailES r WITH(NOLOCK)

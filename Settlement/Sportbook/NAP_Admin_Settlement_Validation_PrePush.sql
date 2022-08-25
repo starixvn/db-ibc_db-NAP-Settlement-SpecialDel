@@ -27,6 +27,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220512@Louisa: Change message content [Redmine:#171676]
+		- 20220629@Louisa: Volleyball AIO - use dbo.ddsOS instead of dbo.Odds [Redmineid:#173862]
      
     Param's Explanation:
 
@@ -77,8 +78,8 @@ BEGIN
 	FROM	dbo.match m WITH (NOLOCK)
 	WHERE	m.matchid = @MatchId
 
-	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5, 6 )			THEN 1 --Odds
-							 WHEN @sporttype IN ( 9, 45, 50 )		THEN 2 --OddsOS
+	SELECT @oddsTable = CASE WHEN @sporttype IN ( 2, 5  )			THEN 1 --Odds
+							 WHEN @sporttype IN ( 9, 45, 50, 6 )	THEN 2 --OddsOS
 							 WHEN @sporttype = 43					THEN 3 --OddsES
 							 ELSE 0 END -- not checking
 
@@ -88,8 +89,8 @@ BEGIN
 	IF OBJECT_ID('tempdb..#SelectedMatchResource') IS NOT NULL
 		DROP TABLE #SelectedMatchResource
 
-	IF OBJECT_ID('tempdb..#Bettype') IS NOT NULL
-		DROP TABLE #Bettype
+	IF OBJECT_ID('tempdb..#Bettypes') IS NOT NULL
+		DROP TABLE #Bettypes
 
 	CREATE TABLE #SelectedMatchResource ( Matchid INT, ResourceId VARCHAR(20) )
 	CREATE TABLE #Bettypes ( Bettype SMALLINT, BetID BIGINT )
@@ -132,7 +133,7 @@ BEGIN
 
 	IF @CheckType = 0
 	BEGIN
-		IF @oddsTable = 1
+		IF @oddsTable = 1 OR @sporttype = 6 --when Volleyball AIO release, odds info will save into OddsOS instead of Odds
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.odds o WITH (NOLOCK)
@@ -146,7 +147,7 @@ BEGIN
 							)
 		END
 
-		ELSE IF @oddsTable = 2
+		IF @oddsTable = 2 
 		BEGIN
 		SET @ErrCode = (SELECT TOP (1) 1001018
 							FROM dbo.oddsOS o WITH (NOLOCK)
@@ -179,11 +180,27 @@ BEGIN
 
 	END
 	
-	ELSE
+	ELSE IF @CheckType = 1 AND @sporttype = 6
 	BEGIN
 		INSERT INTO @tmpMatchRunningOdds ( Matchid )
 				SELECT DISTINCT o.matchid
 				FROM dbo.odds o WITH (NOLOCK)
+				INNER JOIN #Bettypes b
+					ON o.bettype = b.Bettype
+				CROSS APPLY 
+				(
+					SELECT TOP 1 matchid
+					FROM #SelectedMatchResource mr
+						WHERE o.matchid = mr.Matchid
+						AND ( b.BetID = 0 OR CHARINDEX (o.Resourceid, BetID ) > 0 )
+						AND o.liveindicator = 1
+						AND o.oddsstatus <> 'closed'
+						AND ISNULL(o.IsDeleted,0) = 0
+				) r
+
+		INSERT INTO @tmpMatchRunningOdds ( Matchid )
+				SELECT DISTINCT o.matchid
+				FROM dbo.oddsOS o WITH (NOLOCK)
 				INNER JOIN #Bettypes b
 					ON o.bettype = b.Bettype
 				CROSS APPLY 

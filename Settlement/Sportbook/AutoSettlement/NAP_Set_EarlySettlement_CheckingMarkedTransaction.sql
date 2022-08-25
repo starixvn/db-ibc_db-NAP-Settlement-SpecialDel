@@ -21,6 +21,7 @@ AS
 		- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220629@Louisa: Use RefResourceId for Badminton-bettype 704 instead of hard code [Redmineid:#173862]
 
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -40,11 +41,6 @@ BEGIN
 	INSERT INTO @tmpResourceIds(ResourceID)
 	SELECT	CAST([value] AS VARCHAR(20)) AS ResourceID
 	FROM	STRING_SPLIT(@ResourceIDs,',')
-
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpResourceIds WHERE ResourceID = '00') AND @SportType = 9
-	BEGIN
-		INSERT INTO @tmpResourceIds(ResourceID) VALUES('70400')
-	END
 
 	INSERT INTO @tmpBettype(ResourceID, BetType, BetID)
 	SELECT DISTINCT c.ResourceID, sp.BetType, sp.BetID

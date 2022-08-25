@@ -57,6 +57,7 @@ AS
 		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220512@Louisa: Auto settle and Auto refund Badminton [Redmine:#171676]
+		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -314,35 +315,8 @@ BEGIN
 			EXEC sp_xml_removedocument @handle
 		END
 
-		-- badminton
-		IF (@sportType = 9) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
-		BEGIN
-			IF @Action LIKE 'CAL%'
-			BEGIN
-				--Insert data for internal ResourceId 70400
-				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-				SELECT '70400' AS ResourceID, CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)) AS HomeValue, CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50)) AS AwayValue
-							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(ROWLOCK)
-							WHERE MatchID = @MatchID AND ResourceID IN ('0101','0102','0103','0104','0105')
-									AND SettlementStatusID = 4
-									AND ResultStatusID IN ( 2, 5 )
-
-				--Get total home value/total away value of ResourceId = '70400' 
-				SELECT TOP 1 @TotalPointHomeValue = HomeValue, @TotalPointAwayValue = AwayValue
-				FROM @tmpResourcesWeb
-				WHERE ResourceID = '70400'
-
-			END
-			ELSE
-			BEGIN
-
-				INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-				SELECT '70400' AS ResourceID, '' AS HomeValue, '' AS AwayValue
-
-			END
-		END
 		-- Tennis
-		ELSE IF (@sportType = 5) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
+		IF (@sportType = 5) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN
 			SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
 					@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
@@ -383,7 +357,7 @@ BEGIN
 				SET HomeValue = CASE WHEN ISNULL(@TotalPointHomeValue, '') <> '' THEN @TotalPointHomeValue ELSE HomeValue END,
 					AwayValue = CASE WHEN ISNULL(@TotalPointAwayValue, '') <> '' THEN @TotalPointAwayValue ELSE AwayValue END
 			FROM @tmpSelectedRID t
-			WHERE t.BetType IN (2, 3) AND @sportType IN (5, 9) 
+			WHERE t.BetType IN (2, 3) AND @sportType = 5
 
 			IF @sportType <> 1
 			BEGIN
@@ -919,7 +893,7 @@ BEGIN
 				AND sp.SportType =50 )
 	END
 
-	IF @sportType IN ( 6, 45 ) ---for Log Only
+	IF @sportType = 45 ---for Log Only
 	BEGIN
 		INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName )
 		SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
@@ -941,7 +915,7 @@ BEGIN
 	ORDER BY OrdNo
 
 	--Log Auto Refund for Badminton
-	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00'	AND HomeValue <> AwayValue 	)
+	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN ( 6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00'	AND HomeValue <> AwayValue 	)
 	BEGIN
 		EXEC dbo.NAP_Set_GetRefundResult
 			@MatchId		= @MatchID
@@ -976,7 +950,7 @@ BEGIN
 						   
 	SELECT @Remark = @ResultRemarkLog + '<br/> '
 						+ CASE
-							WHEN @sportType IN ( 2, 5, 43 ) OR ( @sportType IN ( 9, 50 ) AND @IsAuto = 0) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							WHEN @sportType IN ( 2, 5, 43 ) OR ( @sportType IN ( 6, 9, 50 ) AND @IsAuto = 0) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
 							ELSE ''
 						END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 

@@ -23,6 +23,7 @@ AS
 		- 20210202@Louisa: Cricket AIO -119 bettypes [Redmine:#148870]
 		- 20210521@Louisa: Cricket AIO - Phase 1.2 [Redmine:#154811]
 		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]
+		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 	
     Parameters Explanation:    
 		- oddsType
@@ -548,5 +549,14 @@ RETURN (
 	UNION ALL SELECT 9737, 1
 	UNION ALL SELECT 9738, 1
 	UNION ALL SELECT 9739, 1
+
+	----Volleyball AIO
+	UNION ALL SELECT 3900, 1
+	UNION ALL SELECT 3910, 1
+	UNION ALL SELECT 3911, 1
+	UNION ALL SELECT 3913, 1
+	UNION ALL SELECT 3915, 1
+	UNION ALL SELECT 3917, 1
+
 	)
 GO

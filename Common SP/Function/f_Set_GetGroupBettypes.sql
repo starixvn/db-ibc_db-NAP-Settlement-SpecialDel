@@ -37,7 +37,8 @@ AS
 		- 20210406@Kathy: New bettype 229 [Readmine:#152748]
 		- 20210521@Louisa: Cricket AIO - Phase 1.2 [Redmine:#154811]
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
-		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]		
+		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]
+		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 	
     Parameters Explanation:    
     
@@ -52,7 +53,7 @@ AS
                9 - FastMarket
 			   10 - new bettypes of Basketball
 			   11 - E-Sports 2.0
-			   12 - Cricket AIO
+			   12 - Cricket AIO and Others
 			
 	- CommBettypeGroupId: 1 - Major group
 
@@ -849,6 +850,29 @@ RETURN (
 	UNION ALL SELECT 12, 9739,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	
 	-- End: Cricket AIO
+
+	-- Volleyball AIO
+	UNION ALL SELECT 12, 3901,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3903,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3904,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3905,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3909,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3912,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3914,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3915,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3916,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 219,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 220,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3900,  0, 0, 0, 0, 'FT', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3902,  0, 0, 0, 0, 'FT', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3906,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3907,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3908,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3910,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3911,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3913,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3917,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3918,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 
 	)										 
 GO

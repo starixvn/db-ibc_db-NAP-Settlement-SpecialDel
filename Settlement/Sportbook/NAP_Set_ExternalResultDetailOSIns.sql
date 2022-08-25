@@ -22,6 +22,7 @@ AS
 		- 20210506@Louisa: SOP for Cricket [Redmine:#153915]
 		- 20210524@Louisa: SOP for Badminton, Basketball [Redmine:#155361,#155360]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 
 	Param's Explanation:
 		@OutsideSources : any scores(OutsideSource) have changed by user
@@ -59,6 +60,7 @@ BEGIN
 			,@Remark	VARCHAR(MAX)
 			,@xmlSources XML 
 			,@xmlOutsideSources XML
+			,@ExternalResultTable TINYINT = 0
 
 	DECLARE @tmpAllResult TABLE (
 									SourceId SMALLINT
@@ -72,6 +74,11 @@ BEGIN
 		  ,@LeagueId  = m.leagueid
 	FROM dbo.Match m WITH(NOLOCK)
 	WHERE m.MatchId = @MatchId
+
+	SELECT @ExternalResultTable = r.ExternalResultTable
+	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK)
+	WHERE r.Sporttype = @SportType
+		AND IsAppliedSOP = 1
 
 	SELECT @ActionID =  CASE WHEN ISNULL(@IsTrader,0) = 1 THEN 81027 ELSE 81016 END
 	
@@ -101,52 +108,54 @@ BEGIN
 				,1										AS IsChanged
 				FROM	@xmlOutsideSources.nodes('/Sources/Source') AS T(C)
 
-				INSERT INTO dbo.ProviderExternalResultDetailOS 	(
-					MatchId3rd
-					,MatchId
-					,SourceId
-					,ResourceId
-					,HomeValue
-					,AwayValue
-					,CreateBy
-					,LastModifyBy
-				)
-				SELECT 0
-					,@MatchId
-					,r.SourceId
-					,r.ResourceId
-					,r.HomeValue
-					,r.AwayValue
-					,@UserId
-					,@UserId
-				FROM @tmpAllResult	 r	
-				WHERE r.IsChanged = 1
-					AND r.SourceId  <> 100 ----[Redmine:#153915]
-							AND @Sporttype IN ( 5, 9, 50 )
+				IF @ExternalResultTable = 2
+				BEGIN
+					INSERT INTO dbo.ProviderExternalResultDetailOS 	(
+						MatchId3rd
+						,MatchId
+						,SourceId
+						,ResourceId
+						,HomeValue
+						,AwayValue
+						,CreateBy
+						,LastModifyBy
+					)
+					SELECT 0
+						,@MatchId
+						,r.SourceId
+						,r.ResourceId
+						,r.HomeValue
+						,r.AwayValue
+						,@UserId
+						,@UserId
+					FROM @tmpAllResult	 r	
+					WHERE r.IsChanged = 1
+						AND r.SourceId  <> 100 ----[Redmine:#153915]
+				END
 
-
-
-						INSERT INTO dbo.ProviderExternalResultDetail	(
-							MatchId3rd
-							,MatchId
-							,SourceId
-							,ResourceId
-							,HomeValue
-							,AwayValue
-							,CreateBy
-							,LastModifyBy
-						)
-						SELECT 0
-							,@MatchId
-							,r.SourceId
-							,r.ResourceId
-							,r.HomeValue
-							,r.AwayValue
-							,@UserId
-							,@UserId
-						FROM @tmpAllResult	 r	
-						WHERE r.IsChanged = 1
-							AND @Sporttype = 2
+				IF @ExternalResultTable = 1
+				BEGIN
+					INSERT INTO dbo.ProviderExternalResultDetail	(
+								MatchId3rd
+								,MatchId
+								,SourceId
+								,ResourceId
+								,HomeValue
+								,AwayValue
+								,CreateBy
+								,LastModifyBy
+							)
+							SELECT 0
+								,@MatchId
+								,r.SourceId
+								,r.ResourceId
+								,r.HomeValue
+								,r.AwayValue
+								,@UserId
+								,@UserId
+							FROM @tmpAllResult	 r	
+							WHERE r.IsChanged = 1
+				END
 
 				----This block code supports Keyscore save data by themself until they can get data from Admin Site and Weverdat ----[Redmine:#153915]
 				IF @Sporttype = 50 
