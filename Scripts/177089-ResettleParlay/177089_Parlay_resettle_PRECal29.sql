@@ -12,7 +12,7 @@ DECLARE @transIDs AS TABLE(transid BIGINT primary key)
 
 SELECT DISTINCT refno, transid
 INTO ParlayBettransResettle_tmp
-FROM Parlay_bettrans_tmp (NOLOCK)
+FROM Parlay_bettrans_tmp_test (NOLOCK)
 WHERE statusid NOT IN (0,101, 102)
 
 INSERT INTO @transIDs (transid)
