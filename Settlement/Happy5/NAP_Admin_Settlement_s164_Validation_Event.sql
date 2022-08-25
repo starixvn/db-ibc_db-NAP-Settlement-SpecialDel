@@ -2,7 +2,6 @@
 ALTER PROCEDURE NAP_Admin_Settlement_s164_Validation_Event
 (
 	 @matchid		INT = 0
-	,@IsAuto		BIT = 0
 	,@Action		VARCHAR(10) 
 	,@ErrCode		INT		 = 0		OUTPUT
 	,@ErrMsg		NVARCHAR(300)  = '' OUTPUT
@@ -42,42 +41,35 @@ BEGIN
 
 		SET @RowCount = @@ROWCOUNT
 	
-	
-		IF @IsAuto = 1 OR (@IsAuto = 0 AND @RowCount > 0)
+		IF @RowCount = 0
 		BEGIN
-			IF @RowCount = 0
-			BEGIN
-				SELECT	@ErrCode = 1000001
-						,@ErrMsg	= 'Ball number is required.'
+			SELECT	@ErrCode = 1000001
+					,@ErrMsg	= 'Ball number is required.'
 
-				RETURN
-			END
-		
-			IF @RowCount <> 5
-			BEGIN
-				SELECT	@ErrCode = 1000002
-						,@ErrMsg = 'Data is not valid'
-
-				RETURN
-			END 
+			RETURN
 		END
-
-		IF @IsAuto = 1
+		
+		IF @RowCount <> 5
 		BEGIN
 			SELECT	@ErrCode = 1000002
-					,@ErrMsg = 'Duplicate ball numbers'
-			FROM	@tmpResultDetail
-			GROUP BY Result
-			HAVING COUNT(Result) > 1
+					,@ErrMsg = 'Data is not valid'
+
+			RETURN
+		END 
+
+		SELECT	@ErrCode = 1000002
+				,@ErrMsg = 'Duplicate ball numbers'
+		FROM	@tmpResultDetail
+		GROUP BY Result
+		HAVING COUNT(Result) > 1
 			
-			SELECT	@ErrCode = 1000002
-					,@ErrMsg = 'Ball number must be from 1 to 20'
-			FROM	@tmpResultDetail
-			WHERE Result NOT BETWEEN 1 AND 20
+		SELECT	@ErrCode = 1000002
+				,@ErrMsg = 'Ball number must be from 1 to 20'
+		FROM	@tmpResultDetail
+		WHERE Result NOT BETWEEN 1 AND 20
 		
-			IF @ErrCode <> 0
-				RETURN
-		END
+		IF @ErrCode <> 0
+			RETURN
 	END
 END
 GO

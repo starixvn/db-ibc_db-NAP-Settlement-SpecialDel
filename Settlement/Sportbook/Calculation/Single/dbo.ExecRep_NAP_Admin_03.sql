@@ -174,7 +174,7 @@ BEGIN
 								END	
 			,FcUpdateTime = CASE WHEN @statusId = 103 AND b.statusID <> 103 THEN SYSDATETIME() ELSE FcUpdateTime END
 		OUTPUT	inserted.transid
-			,CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(inserted.Statuswinlost AS VARCHAR(1)) END
+			,inserted.statuswinlost
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID
@@ -196,7 +196,7 @@ BEGIN
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'	
-					,statuswinlost AS '@statuswl' 					
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl' 					
 					,WinLost AS '@w' 
 					,aWinLost AS '@aw' 
 					,mWinLost AS '@mw' 
@@ -215,7 +215,7 @@ BEGIN
 			FROM	@tmpTransInfo
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
-
+	
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
 		SELECT 'Settlement', 'CalculateCashout', 'bettrans', @MatchId, @transInfo
 		WHERE @transInfo IS NOT NULL
