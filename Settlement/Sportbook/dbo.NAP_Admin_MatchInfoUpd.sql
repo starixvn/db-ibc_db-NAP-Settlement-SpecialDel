@@ -452,7 +452,7 @@ BEGIN
 				EXEC dbo.NAP_updateMatch_remark
 					@matchid			= @matchid
 					,@command			= 'U'							
-
+					,@IsHTRound			= @existsHTRound
 			END
 
 			EXEC dbo.NAP_Admin_Result_Update_9001

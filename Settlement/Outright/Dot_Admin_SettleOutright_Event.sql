@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="Dot_Admin,bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[Dot_Admin_SettleOutright_Event]
     @matchid int,
     @status nvarchar(10),
