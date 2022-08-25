@@ -24,8 +24,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP)
-	SELECT @RequestId, @MatchId, @Action, @StatusId, @UserId, GETDATE(), @IP
+	INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, BroadcastSessionId)
+	SELECT @RequestId, @MatchId, @Action, @StatusId, @UserId, GETDATE(), @IP, @BroadcastSessionId
 
 END		
 GO

@@ -200,8 +200,7 @@ BEGIN
 				winlostdate, betfrom, betcheck, checktime, matchid, bettype, VoidingHistoryId, SiteDBGroupID, RepUpdateTime)  
 	SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,   
 			b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
-			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, @VoidingHistoryId, SYSDATETIME()
-			, b.SiteDBGroupID
+			b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, @VoidingHistoryId, b.SiteDBGroupID, SYSDATETIME()
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  
 			ON	t.transid = b.transid   
