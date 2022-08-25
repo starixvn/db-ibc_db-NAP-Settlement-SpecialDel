@@ -872,6 +872,7 @@ RETURN (
 	UNION ALL SELECT 12, 3911,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 3913,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 	UNION ALL SELECT 12, 3917,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
+	UNION ALL SELECT 12, 3918,  0, 0, 0, 0, 'Special', 0, 0, 0, 0
 
 	)										 
 GO
