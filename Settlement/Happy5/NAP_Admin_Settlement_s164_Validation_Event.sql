@@ -41,41 +41,43 @@ BEGIN
 		WHERE matchid = @matchid
 
 		SET @RowCount = @@ROWCOUNT
-	END
 	
-	IF @IsAuto = 1 OR (@IsAuto = 0 AND @RowCount > 0)
-	BEGIN
-		IF @RowCount = 0
+	
+		IF @IsAuto = 1 OR (@IsAuto = 0 AND @RowCount > 0)
 		BEGIN
-			SELECT	@ErrCode = 1000001
-					,@ErrMsg	= 'Ball number is required.'
+			IF @RowCount = 0
+			BEGIN
+				SELECT	@ErrCode = 1000001
+						,@ErrMsg	= 'Ball number is required.'
 
-			RETURN
-		END
+				RETURN
+			END
 		
-		IF @RowCount <> 5
+			IF @RowCount <> 5
+			BEGIN
+				SELECT	@ErrCode = 1000002
+						,@ErrMsg = 'Data is not valid'
+
+				RETURN
+			END 
+		END
+
+		IF @IsAuto = 1
 		BEGIN
 			SELECT	@ErrCode = 1000002
-					,@ErrMsg = 'Data is not valid'
-
-			RETURN
-		END 
-
-		SELECT	@ErrCode = 1000002
-				,@ErrMsg = 'Duplicate ball numbers'
-		FROM	@tmpResultDetail
-		GROUP BY Result
-		HAVING COUNT(Result) > 1
+					,@ErrMsg = 'Duplicate ball numbers'
+			FROM	@tmpResultDetail
+			GROUP BY Result
+			HAVING COUNT(Result) > 1
 			
-		SELECT	@ErrCode = 1000002
-				,@ErrMsg = 'Ball number must be from 1 to 20'
-		FROM	@tmpResultDetail
-		WHERE Result NOT BETWEEN 1 AND 20
+			SELECT	@ErrCode = 1000002
+					,@ErrMsg = 'Ball number must be from 1 to 20'
+			FROM	@tmpResultDetail
+			WHERE Result NOT BETWEEN 1 AND 20
 		
-		IF @ErrCode <> 0
-			RETURN
+			IF @ErrCode <> 0
+				RETURN
+		END
 	END
-
-
 END
 GO
