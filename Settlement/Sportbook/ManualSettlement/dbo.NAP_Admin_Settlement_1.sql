@@ -425,6 +425,7 @@ BEGIN
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.statusID NOT IN (101)
 					AND ISNULL(b.betdaqid,0) = - 2
+					AND b.statuswinlost IS NOT NULL
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
 			BEGIN
