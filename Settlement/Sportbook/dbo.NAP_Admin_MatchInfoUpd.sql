@@ -321,7 +321,7 @@ BEGIN
 					@creator		 = @AdminId
 			END
 		END
-		ELSE IF @SportType = 1 AND @SelectedResources IS NOT NULL -- early settlement
+		ELSE IF @SportType = 1 AND @SelectedResources IS NOT NULL AND @existsFinalRound = 0 AND @existsHTRound = 0 -- early settlement
 		BEGIN
 			SELECT @calCommand = 'NAP_Admin_Settlement_Auto_1s-CAL'
 
