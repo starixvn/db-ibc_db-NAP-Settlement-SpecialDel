@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_05] 
 	 @IgnoreList VARCHAR(200)
+	,@matchid		INT		= 0
 	,@updatetype 	TINYINT = 1  -- 1, 2, 3, 4
 	,@_sXML 		VARCHAR(MAX)
 
@@ -290,7 +291,7 @@ BEGIN
 	END		
 	ELSE IF @updatetype = 4 --refund number game
 	BEGIN		
-		DECLARE @matchid INT, @action varchar(10)
+		DECLARE @action varchar(10)
 
 		SELECT @matchid = T.C.value('./@matchid', 'int')-- as matchid
 			,@action = ISNULL(T.C.value('./@action', 'varchar(10)'), 0)-- as [action]
@@ -575,6 +576,7 @@ BEGIN
 		BEGIN
 			SET @transInfo = (
 				SELECT	 transid AS '@t'
+						,@matchid AS '@mid'
 						,SettlementTime AS '@st'
 						,winlost AS '@w' 
 						,awinlost AS '@aw' 

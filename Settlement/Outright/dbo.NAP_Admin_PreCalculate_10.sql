@@ -191,8 +191,9 @@ BEGIN
 		SELECT @_sXML = CONVERT(VARCHAR(max), @_xml)
 
 		EXEC dbo.Bet_ExecRep_05 @IgnoreList = @IgnoreList
-			,@updatetype = 7 --outright mode
-			,@_sXML = @_sXML		
+			,@updatetype	= 7 --outright mode
+			,@matchid		= @matchid
+			,@_sXML			= @_sXML		
 	END
 
 	DROP TABLE #Outright_TempData
