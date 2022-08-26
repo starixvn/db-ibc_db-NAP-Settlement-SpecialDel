@@ -132,10 +132,7 @@ BEGIN
 		  ,@IsReleased		= 1
 		
 		IF @totalParlay = 0
-		BEGIN
-			SELECT	@ErrCode = 1001049
-					,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'
-		
+		BEGIN		
 			RETURN
 		END
 	END
