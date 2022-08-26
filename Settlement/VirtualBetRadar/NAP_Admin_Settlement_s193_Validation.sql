@@ -43,6 +43,13 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK) 
 	WHERE	m.matchid = @MatchId
 
+	IF(@Action NOT IN ('CAL', 'REFUND'))
+	BEGIN
+		SELECT	 @ErrCode	= 1000001
+				,@ErrMsg	= 'This action ''' + @Action + ''' does not support!'	
+		RETURN
+	END
+
 	IF (@sportType IS NULL OR @sportType NOT BETWEEN 190 AND 199)
 	BEGIN
 		SELECT	 @ErrCode	= 1000002
