@@ -52,7 +52,7 @@ BEGIN
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT)
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
-		,odds SMALLMONEY, statuswinlost VARCHAR(1)
+		,odds SMALLMONEY, statuswinlost TINYINT
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, FcUpdateTime DATETIME2
@@ -106,7 +106,7 @@ BEGIN
 			,FcUpdateTime = CASE WHEN b.statusId = 0 THEN b.FcUpdateTime ELSE @FcUpdateTime END
 		OUTPUT	inserted.transid
 			,inserted.odds
-			, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
+			,Inserted.Statuswinlost
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben
@@ -129,7 +129,7 @@ BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'	
 					,odds AS '@o' 
-					,statuswinlost AS '@statuswl' 					
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl' 					
 					,WinLost AS '@w' 
 					,aWinLost AS '@aw' 
 					,mWinLost AS '@mw' 

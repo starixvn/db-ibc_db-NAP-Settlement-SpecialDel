@@ -483,9 +483,9 @@ BEGIN
 			,status = 'Running' 			
 			,ruben = 0
 		OUTPUT inserted.transid
-			,CASE WHEN inserted.statuswinlost IS NULL THEN '' ELSE inserted.statuswinlost END 
-			 ,inserted.winlost
-			, inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
+			,inserted.statuswinlost
+			,inserted.winlost
+			,inserted.statusId ,inserted.status ,inserted.ruben ,inserted.creator
 			,deleted.winlost ,deleted.statusid
 		INTO @tmpTransInfo (
 			transid 
@@ -499,7 +499,7 @@ BEGIN
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
-						,statuswinlost AS '@statuswl'
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
 						, WinLost AS '@wl'
 						,Status AS '@s' 
 						,StatusID AS '@sid' 

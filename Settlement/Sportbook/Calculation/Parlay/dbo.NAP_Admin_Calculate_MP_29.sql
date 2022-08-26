@@ -46,7 +46,7 @@ BEGIN
 		,WinLostDate SMALLDATETIME, betdaqid BIGINT,ruben TINYINT 
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,statuswinlost VARCHAR(1)
+		,statuswinlost TINYINT
 
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
@@ -149,7 +149,7 @@ BEGIN
 		,inserted.Status,inserted.StatusID,inserted.winlostdate,inserted.betdaqid,inserted.ruben
 		,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 		,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-		, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
+		, Inserted.Statuswinlost
 		
 		,deleted.winlost
 		,deleted.statusid	
@@ -185,7 +185,7 @@ BEGIN
 					,Comm AS '@c' 
 					,aComm AS '@ac' 
 					,sComm AS '@sc' 
-					,statuswinlost AS '@statuswl' 
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl' 
 					,bef_winlost AS '@bef_w' 
 					,bef_statusid AS '@bef_sid' 
 			FROM	@tmpTransInfo

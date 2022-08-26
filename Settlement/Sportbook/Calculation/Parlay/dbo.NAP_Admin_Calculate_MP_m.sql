@@ -73,8 +73,8 @@ BEGIN
 
 	DECLARE @tmpOutputBettransm TABLE (transid BIGINT, refno BIGINT
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
-		,statuswinlost VARCHAR(1), winlostdate SMALLDATETIME)
-	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost VARCHAR(1), StatusId TINYINT, winlostdate SMALLDATETIME)   
+		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
+	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
 	DECLARE @tmpOutputBettransmVoidRecover TABLE (transid BIGINT, winlost MONEY
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)
@@ -354,8 +354,8 @@ BEGIN
                     ,statusID = 0
                     ,winlostdate = NULL
 			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben
-					, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
-					, inserted.status, inserted.statusID, ''
+					, Inserted.Statuswinlost
+					, inserted.status, inserted.statusID, inserted.winlostdate
 			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, statuswinlost, status, statusid, winlostdate)
             WHERE    matchid = @matchid
                     AND statusID = 102
@@ -384,7 +384,7 @@ BEGIN
                 ,ruben = CASE WHEN @IsUpd_Void = 0 THEN ruben ELSE 0 END
                 ,statusID = CASE WHEN @IsUpd_Void = 0 THEN statusID ELSE 0 END
             OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben
-					, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
+					,Inserted.Statuswinlost
 			INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost)
             FROM    @tblBettypes t
 				INNER LOOP JOIN dbo.bettransm bm
@@ -2110,7 +2110,7 @@ BEGIN
 							,Status AS '@s' 
 							,creator AS '@cr'
 							,102 AS '@sid' 
-							,winlostdate AS '@wld'
+							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
 							,1 AS '@r' -- ruben
 					FROM	@tmpOutputBettransmVoidRecover
 					FOR XML PATH('r'),ROOT('root'), TYPE
@@ -2121,10 +2121,10 @@ BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'		
 							,refno AS '@ref'
-							,statuswinlost AS '@statuswl'
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
 							,Status AS '@s' 
 							,StatusID AS '@sid' 
-							,winlostdate AS '@wld'
+							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
 							,ruben AS '@r' -- ruben	
 					FROM	@tmpOutputBettransm
 					FOR XML PATH('r'),ROOT('root'), TYPE
@@ -2137,8 +2137,8 @@ BEGIN
 				
 			SET @betparlaydetailinfo = (
 				SELECT	DISTINCT transId AS '@t'						
-						,winlostdate AS '@wld'							
-						,statuswinlost AS '@statuswl'
+						,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
 						,StatusId AS '@sid'
 				FROM	@tmpOutputBetParlayDetail
 				FOR XML PATH('r'),ROOT('root'), TYPE

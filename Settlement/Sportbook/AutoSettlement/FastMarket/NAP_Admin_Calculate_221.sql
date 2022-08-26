@@ -102,7 +102,7 @@ BEGIN
 	)
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
-		,modds MONEY, statuswinlost VARCHAR(1),SettlementTime DATETIME
+		,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, FcUpdateTime DATETIME2
@@ -396,7 +396,7 @@ BEGIN
 							END
 				OUTPUT	inserted.transid
 					,inserted.modds
-					, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
+					,inserted.StatusWinlost
 					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
@@ -434,7 +434,7 @@ BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'	
 							,modds AS '@m'
-							,statuswinlost AS '@statuswl' 
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl' 
 							,SettlementTime AS '@st' 
 							,WinLost AS '@w' 
 							,aWinLost AS '@aw' 
@@ -574,7 +574,7 @@ BEGIN
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.ruben
-				, CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
+				,Inserted.Statuswinlost
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 	
 				,deleted.winlost
@@ -610,7 +610,7 @@ BEGIN
 							,aComm AS '@ac' 
 							,sComm AS '@sc' 
 							,ruben AS '@r' 
-							,statuswinlost AS '@statuswl' 
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl' 
 							,FcUpdateTime AS '@rut'
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
