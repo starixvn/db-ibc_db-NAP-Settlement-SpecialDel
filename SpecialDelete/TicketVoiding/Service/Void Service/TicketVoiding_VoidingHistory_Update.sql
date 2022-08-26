@@ -32,6 +32,7 @@ BEGIN
 			,TransIds = ISNULL(@TransIds, TransIds)
 			,MinWinlostdate = ISNULL(@MinWinLostDate, MinWinlostdate)
 			,MaxWinlostdate = ISNULL(@MaxWinLostDate, MaxWinlostdate)
+			,ModifiedDate = GETDATE()
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 END
 GO

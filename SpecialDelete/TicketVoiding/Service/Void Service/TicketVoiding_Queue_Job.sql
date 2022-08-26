@@ -111,8 +111,7 @@ BEGIN
 				,Duration = DATEDIFF(MS, @Exectime, GETDATE())
 				,Exectime = @ExecTime
 		FROM	dbo.TicketVoiding_Queue q
-		WHERE	RequestId = @RequestId
-				AND VoidingHistoryId = @VoidingHistoryId
+		WHERE	QueueId = @QueueId
 
 		SELECT q.QueueId, q.StatusId, q.ErrMsg AS [Message], q.UserId, c.username
 		FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
