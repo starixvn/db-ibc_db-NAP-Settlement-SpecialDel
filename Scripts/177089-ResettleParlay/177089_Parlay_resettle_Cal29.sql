@@ -21,6 +21,9 @@ BEGIN
 	IF OBJECT_ID (N'BetParlayResult', N'U') IS NULL 
 		RETURN
 	
+	IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055')
+        RETURN
+
 	DECLARE @statusId			TINYINT
 			,@winlost			MONEY
 			,@settlementTime	DATETIME
