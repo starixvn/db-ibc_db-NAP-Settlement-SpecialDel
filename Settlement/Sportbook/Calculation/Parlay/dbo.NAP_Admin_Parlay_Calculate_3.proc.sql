@@ -32,7 +32,7 @@ BEGIN
 			,@IsSiteDB	BIT
 
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost VARCHAR(1), winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		
+	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	
@@ -91,7 +91,7 @@ BEGIN
 		OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
-				,CASE WHEN INSERTED.statuswinlost IS NULL THEN '' ELSE CAST(INSERTED.statuswinlost AS VARCHAR(1)) END
+				,INSERTED.statuswinlost
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
@@ -201,7 +201,7 @@ BEGIN
 	    OUTPUT INSERTED.transid
 				,INSERTED.refno
 				,INSERTED.statusID
-				,CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(Inserted.Statuswinlost AS VARCHAR(1)  ) END AS statuswinlost
+				,Inserted.Statuswinlost
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
@@ -224,7 +224,7 @@ BEGIN
 	BEGIN
 		SET @transInfo = (
 			SELECT	transId AS '@t'							
-					,statuswinlost AS '@statuswl'
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
 					,Status AS '@s' 
 					,StatusID AS '@sid' 
 					,winlostdate AS '@wld'
@@ -247,7 +247,7 @@ BEGIN
 			
 		SET @transInfo = (
 			SELECT	transId AS '@t'							
-					,CASE WHEN @Action LIKE 'UNDO%' THEN '0' ELSE statuswinlost END AS '@statuswl'
+					,CASE WHEN @Action LIKE 'UNDO%' THEN '0' ELSE CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END END AS '@statuswl'
 					,statusId AS '@sid' 
 					,winlostdate AS '@wld'
 			FROM	#parlayOutput

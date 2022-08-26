@@ -32,7 +32,6 @@ BEGIN
 			,@avaiableProcess BIT
 			,@ThreadHold INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 			,@Session			NVARCHAR(50)
-			,@SPName			SYSNAME
 			,@IsExistParlay		BIT = 0
 			,@IsLockingByRefno	BIT = 0
 
@@ -41,7 +40,6 @@ BEGIN
 			,@startRowId INT 
 			,@batchNo INT 
 			,@strTransIds VARCHAR(MAX) 
-			,@sqlRemoteQuery NVARCHAR(MAX) 
 
 			,@StartTime DATETIME
 			,@EndTime DATETIME

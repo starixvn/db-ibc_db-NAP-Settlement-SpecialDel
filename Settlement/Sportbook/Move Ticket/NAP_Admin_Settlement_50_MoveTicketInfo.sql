@@ -17,6 +17,7 @@ BEGIN
 
 	DECLARE @eventdate DATETIME
 			,@ChildMatchId	INT
+			,@ResourceIds VARCHAR(MAX) = ''
 
 	SELECT @eventdate = m.eventdate
 	FROM dbo.match m WITH(NOLOCK)
@@ -30,15 +31,17 @@ BEGIN
 			AND ISNULL(m.IsDeleted,0) = 0
 	ORDER BY m.matchid
 
-	--return
+	SELECT @ResourceIds = @ResourceIds + ','  + r.ResourceID
+	FROM (
+			SELECT	ResourceID 
+			FROM dbo.ResultDetailOS WITH(NOLOCK)
+			WHERE	matchid = @MatchId
+					AND ResultStatusID = 5
+		) r
 
-	SELECT @eventdate  AS eventdate
+	SET @ResourceIds =  SUBSTRING(@ResourceIds, 2, LEN(@ResourceIds))
 
-	SELECT @ChildMatchId  AS ChildMatchId
-
-	SELECT	ResourceID 
-	FROM dbo.ResultDetailOS WITH(NOLOCK)
-	WHERE	matchid = @MatchId
-			AND ResultStatusID = 5
+	SELECT @eventdate  AS eventdate, @ChildMatchId  AS ChildMatchId, @ResourceIds AS Resources
+	
 END
 GO
