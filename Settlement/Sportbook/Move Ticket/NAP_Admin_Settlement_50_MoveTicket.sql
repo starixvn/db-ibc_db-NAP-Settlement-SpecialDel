@@ -47,16 +47,13 @@ BEGIN
 			,@EndTime DATETIME
 			,@ActionID INT 
 			,@logdata VARCHAR(300) 
-			,@ResourceIds VARCHAR(MAX) = ''
 			,@Remark VARCHAR(MAX)
 			,@IsCentral	BIT = 0
-			,@xmlData	XML
 			
 	SELECT @Action = 'MoveTicket'
 		,@batchNo = 2000
 		,@ActionID = 81025		
 		,@StartTime = GETDATE()
-		,@xmlData = CAST(@ResourceIds AS XML)
 		
 	DECLARE @tmpResourceId TABLE (ResourceId VARCHAR(20))
 	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
@@ -83,8 +80,7 @@ BEGIN
 		RETURN
 	
 	INSERT INTO @tmpResourceId(ResourceId)
-	SELECT T.C.value('@Id', 'VARCHAR(20)') AS ResourceId
-	FROM @xmlData.nodes('/Resources/Resource') AS T(C)
+	SELECT [value] FROM STRING_SPLIT(@Resources, ',') tm
 
 	INSERT INTO @tmpBettypeResourceId(Bettype, BetId, ResourceId)
 	SELECT	s.BetType, s.BetID, t.ResourceID
@@ -247,7 +243,7 @@ BEGIN
 
 	END
 
-	SELECT @ResourceIds = COALESCE( @ResourceIds + ',' + r.ResourceId, r.ResourceId)
+	SELECT @Resources = COALESCE( @Resources + ',' + r.ResourceId, r.ResourceId)
 	FROM (
 			SELECT  ResourceId FROM	#tmpTransIdsSingle
 			UNION ALL
@@ -256,12 +252,12 @@ BEGIN
 		GROUP BY r.ResourceId
 
 
-	SELECT @ResourceIds = STUFF(@ResourceIds, 1, 1, '')
+	SELECT @Resources = STUFF(@Resources, 1, 1, '')
 
 	SET @EndTime = GETDATE()
 
 	SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
-						+ '(' + @ResourceIds + ')' + '<br/>'
+						+ '(' + @Resources + ')' + '<br/>'
 						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + '/' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20)) 				
 
@@ -290,7 +286,7 @@ BEGIN
 
 	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
 	+' into child match: ' + CAST(@childMatchId AS VARCHAR)
-	+ ',Settled Results: (' + @ResourceIds + ')'
+	+ ',Settled Results: (' + @Resources + ')'
 
 	EXEC dbo.Logfile_V2 
 	@UserID = @AdminId
