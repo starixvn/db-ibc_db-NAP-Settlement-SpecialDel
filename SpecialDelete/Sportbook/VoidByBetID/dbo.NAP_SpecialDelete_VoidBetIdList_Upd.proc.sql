@@ -167,7 +167,7 @@ BEGIN
 			,@xmlCashoutTicket			XML
 			,@IsSiteDB					BIT
 			,@TransIds					VARCHAR(MAX) =''
-			,@SitedbgroupId				INT = 0
+			,@SiteDBGroupID				INT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -280,7 +280,7 @@ BEGIN
 
 	SELECT @TransIds = transid FROM #tmpTransInfo
 
-	DELETE FROM #tmpTransInfo WHERE SiteDBGroupID <> @SitedbgroupId
+	DELETE FROM #tmpTransInfo WHERE SiteDBGroupID <> @SiteDBGroupID
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
 		RETURN;
@@ -404,7 +404,7 @@ BEGIN
 		AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND b.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
 		AND b.statusID NOT IN (101, 102)	
-		AND b.SiteDBGroupID = @SitedbgroupId
+		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype NOT IN (9, 29, 2799)))
@@ -747,10 +747,10 @@ BEGIN
 	FROM dbo.bettrans AS main WITH (NOLOCK)
 		INNER JOIN #tblMatch tm 
 		ON main.matchid = tm.matchid
-		INNER JOIN #BetDelete AS tmpmain WITH (NOLOCK) 
+		INNER JOIN #BetDelete AS tmpmain 
 		ON	main.transid = tmpmain.transid 
 		AND main.matchid = tmpmain.matchid		
-	WHERE main.SiteDBGroupID = @SitedbgroupId
+	WHERE main.SiteDBGroupID = @SiteDBGroupID
 
 	--Get data before update
 	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistLucky3 = 1 OR @isExistMatch3rd = 1)
@@ -777,7 +777,7 @@ BEGIN
 			OR b.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
 			OR b.bettype BETWEEN 7901 AND 7999
-			) AND b.SiteDBGroupID = @SitedbgroupId
+			) AND b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -796,7 +796,7 @@ BEGIN
 		,WalletType = ISNULL(WalletType, 2) -- Cash Wallet as default
 		,main.betdaqid
 	FROM dbo.bettrans main WITH (NOLOCK)
-	WHERE main.SiteDBGroupID = @SitedbgroupId 
+	WHERE main.SiteDBGroupID = @SiteDBGroupID 
 		AND transid IN (SELECT transid FROM #BetDelete)
 
 	--capture balance before
@@ -840,7 +840,7 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblMatch tm 
 				ON b.matchid = tm.matchid
-		WHERE b.bettype = 500 AND b.SiteDBGroupID = @SitedbgroupId
+		WHERE b.bettype = 500 AND b.SiteDBGroupID = @SiteDBGroupID
 			AND EXISTS (
 				SELECT TOP 1 1 
 				FROM #BetDelete d 
@@ -1112,7 +1112,7 @@ BEGIN
 			OR tmp.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
 			OR b.bettype BETWEEN 7901 AND 7999
-			) AND b.SiteDBGroupID = @SitedbgroupId
+			) AND b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101

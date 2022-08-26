@@ -92,8 +92,8 @@ BEGIN
 			@IsSaba BIT = 0,
 			@IsNonSport BIT = 0,
 			@MovebetDay DATETIME,
-			@SitedbgroupId INT = 0
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+			@SiteDBgroupId INT = 0
+	SELECT @SiteDBgroupId = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
@@ -349,7 +349,7 @@ BEGIN
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype				
 		WHERE	b.winlostdate >= @FromDate				
 			AND b.statusID NOT IN (101, 102, 103)	
-			AND b.SiteDBGroupID = @SitedbgroupId
+			AND b.SiteDBGroupID = @SiteDBgroupId
 	END			
 
 	-- delete main parlay tickets
@@ -498,7 +498,7 @@ BEGIN
 			ON cs.srecommend = s.custid
 	)
 
-	-- ALL tickets	
+	--1. Table get all tickets
 	SELECT d.transid
 		,d.bettype
 		,d.betid
@@ -554,7 +554,7 @@ BEGIN
 		,c.custid
 		,d.ActualStake
 		,d.EndTime 
-		,@SitedbgroupId AS SiteDBgroupId
+		,@SiteDBgroupId AS SiteDBgroupId
 	FROM #SpecialDeleteBets d
 		INNER JOIN CTE_GroupInfo g ON d.custid = g.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON d.recommend = c.custid
@@ -565,7 +565,7 @@ BEGIN
 							END AS GroupName) AS T
 		OUTER APPLY (SELECT TOP 1 transid, username
 					 FROM bettrans (NOLOCK)
-					 WHERE transid = d.betid AND SitedbgroupId = @SitedbgroupId				   
+					 WHERE transid = d.betid AND SitedbgroupId = @SiteDBgroupId				   
 					   AND T.GroupName = '1-8RM/BARM'
 			) AS FollowInfo							
 	WHERE NOT EXISTS (
@@ -586,39 +586,29 @@ BEGIN
 								ELSE 2 
 							 END
 				ELSE d.transid
-			 END	
+			 END
+			 
+	DECLARE @tmpInvalid TABLE (transid BIGINT, isMoved BIT)
+	INSERT INTO @tmpInvalid (transid, isMoved)
+	SELECT	transid
+			,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
+	FROM #transIdTemp temp
+		OUTER APPLY (
+			SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+			FROM dbo.bettrans14 WITH(NOLOCK) 
+			WHERE transid = temp.transid AND SitedbgroupId = @SiteDBgroupId
+			UNION ALL
+			SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+			FROM @tmpTransIdMoveBet m  
+			WHERE m.transid = temp.transid
+		) bm
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE transid = temp.transid)
 
-	;WITH t_invalid AS
-	(
-		SELECT	transid
-				,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
-		FROM #transIdTemp temp
-			OUTER APPLY (
-				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-				FROM dbo.bettrans14 WITH(NOLOCK) 
-				WHERE transid = temp.transid AND SitedbgroupId = @SitedbgroupId
-				UNION ALL
-				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-				FROM @tmpTransIdMoveBet m  
-				WHERE m.transid = temp.transid
-			) bm
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE transid = temp.transid OR refno = temp.transid)
-	)
-	SELECT @InvalidTransIds = @InvalidTransIds +
-							  CASE
-								  WHEN isMoved = 0
-										THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
-											 CAST(transid AS VARCHAR(100))
-								  ELSE ''
-							  END								  
-		 , @MovedTransIds = @MovedTransIds +
-							CASE
-								WHEN isMoved = 1
-										THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
-											 CAST(transid AS VARCHAR(100))
-								ELSE ''
-							END
-		FROM t_invalid
+	--2. Table get invalid transid
+	SELECT transid FROM @tmpInvalid WHERE isMoved = 0
+	
+	--3. Table get moved transid
+	SELECT transid FROM @tmpInvalid WHERE isMoved = 1
 
 	DROP TABLE #CustId
 	DROP TABLE #SpecialDeleteBets
