@@ -438,7 +438,7 @@ BEGIN
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
-						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost VARCHAR(1)) END AS '@statuswl' 
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl' 
 						,WinLost AS '@w' 
 						,aWinLost AS '@aw' 
 						,mWinLost AS '@mw' 
