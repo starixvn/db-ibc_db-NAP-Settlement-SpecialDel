@@ -324,11 +324,12 @@ BEGIN
 	END
 	ELSE IF @TableName = 'bettransm'
 	BEGIN
-		INSERT INTO @tmpTransId (TransID
+		INSERT INTO @tmpTransId (TransID, matchid
 			,winlostdate, statuswinlost, refno, WinLost
 			, Status, StatusID, ruben, hdp1, hdp2, livehomescore, liveawayscore, Creator
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
+				,T.C.value('./@mid', 'INT') AS matchid
 				,T.C.value('./@wld', 'SMALLDATETIME') AS Winlostdate
 				,T.C.value('./@statuswl', 'VARCHAR(1)') AS statuswinlost
 				,T.C.value('./@ref', 'BIGINT') AS refno
@@ -347,7 +348,8 @@ BEGIN
 		SET @batchNo = @@ROWCOUNT
 
 		UPDATE TOP (@batchNo)  bm
-			SET ruben = CASE WHEN t.ruben IS NULL THEN bm.ruben ELSE t.ruben END								
+			SET matchid = CASE WHEN t.matchid IS NULL THEN bm.matchid ELSE t.matchid END
+				,ruben = CASE WHEN t.ruben IS NULL THEN bm.ruben ELSE t.ruben END								
 				,winlostdate = CASE 
 									WHEN t.winlostdate IS NULL THEN bm.winlostdate	
 									WHEN t.winlostdate = '' THEN NULL
@@ -372,10 +374,11 @@ BEGIN
 	END
 	ELSE IF @TableName = 'BetParlayDetail'
 	BEGIN
-		INSERT INTO @tmpTransId (TransID
+		INSERT INTO @tmpTransId (TransID, matchid
 			,winlostdate, statuswinlost, StatusID
 		)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
+				,T.C.value('./@mid', 'INT') AS matchid
 				,CASE 
 					WHEN T.C.value('./@wld', 'SMALLDATETIME') = '' THEN NULL 
 					ELSE T.C.value('./@wld', 'SMALLDATETIME') 
@@ -386,7 +389,8 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
 		UPDATE pd 
-			SET winlostdate = CASE	
+			SET matchid = CASE WHEN t.matchid IS NULL THEN pd.matchid ELSE t.matchid END
+				,winlostdate = CASE	
 								WHEN t.winlostdate IS NULL THEN pd.winlostdate
 								WHEN t.winlostdate = '' THEN NULL
 								ELSE t.winlostdate
@@ -468,6 +472,25 @@ BEGIN
 				INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
 		END
 	END
+	ELSE IF @TableName = 'zzzbettransm'
+	BEGIN
+		IF @Action = 'U'
+		BEGIN
+			INSERT INTO @tmpTransId (TransID ,matchid)
+			SELECT	T.C.value('./@t', 'bigint') AS transid	
+				,T.C.value('./@mid', 'INT') AS matchid
+			FROM	@transInfo.nodes('/root/r') AS T(C)	
+			OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+
+			SET @batchNo = @@ROWCOUNT
+
+			UPDATE TOP (@batchNo)  b
+				SET matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
+			FROM	@tmptransid t
+				INNER JOIN dbo.zzzbettransm b WITH (ROWLOCK, UPDLOCK)
+					ON	b.transid = t.transid
+		END
+	END
 	ELSE IF @TableName = 'BetParlayResult'
 	BEGIN
 		SELECT  @matchdate = T.C.value('@wld', 'SMALLDATETIME') 
@@ -480,5 +503,25 @@ BEGIN
 			,@strXML = @strTransIds
 			,@IsSiteDBService = 1
 	END
+	ELSE IF @TableName = 'TicketVoiding_VoidedTransaction'
+	BEGIN
+		IF @Action = 'U'
+		BEGIN
+			INSERT INTO @tmpTransId (TransID ,matchid)
+			SELECT	T.C.value('./@t', 'bigint') AS transid	
+				,T.C.value('./@mid', 'INT') AS matchid
+			FROM	@transInfo.nodes('/root/r') AS T(C)	
+			OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+
+			SET @batchNo = @@ROWCOUNT
+
+			UPDATE TOP (@batchNo)  v
+				SET matchid = CASE WHEN t.matchid IS NULL THEN v.matchid ELSE t.matchid END
+			FROM	@tmptransid t
+				INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
+					ON	v.transid = t.transid
+		END
+	END
+
 END
 GO
