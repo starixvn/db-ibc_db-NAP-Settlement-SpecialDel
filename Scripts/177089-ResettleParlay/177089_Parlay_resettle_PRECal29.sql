@@ -257,7 +257,7 @@ CREATE TABLE #Result_batch (transid BIGINT PRIMARY KEY)
 DECLARE @transidlist VARCHAR(MAX) = ''
 
 INSERT INTO #Result (transid)
-SELECT DISTINCT transid
+SELECT DISTINCT t.transid
 FROM Parlay_bettrans_tmp_test t (NOLOCK)
 	INNER JOIN bettrans b (NOLOCK) ON t.transid = b.transid
 WHERE b.statusid NOT IN (0,101, 102)
