@@ -350,17 +350,17 @@ BEGIN
 						,inserted.betfrom	 
 						,inserted.betcheck	 
 						,'' AS checktime	 
-						,'' AS oddsspread	 
+						,inserted.oddsspread	 
 						,inserted.actualrate	 
 						,inserted.matchid	 
 						,inserted.recommend	 
 						,inserted.mrecommend	 
 						,inserted.ruben	 
-						,'' AS betid	 
-						,'' AS statuswinlost	 
+						,inserted.betid	 
+						,inserted.statuswinlost	 
 						,inserted.modds	 
 						,inserted.bettype	 
-						,'' AS betdaqid	 
+						,inserted.betdaqid	 
 						,inserted.actual_stake	 
 						,inserted.currency	 
 						,inserted.[ip]	 
@@ -373,12 +373,12 @@ BEGIN
 						,inserted.Username	 
 						,inserted.CurrencyName	 
 						,inserted.virtualrate	 
-						,'' AS oddstype	 
+						,inserted.oddstype	 
 						,inserted.statusID	 
-						,'' AS currency2	 
-						,'' AS balance	 
-						,'' AS SecAcceptFlag	 
-						,'' AS transid2	 
+						,inserted.currency2	 
+						,inserted.balance	 
+						,inserted.SecAcceptFlag	 
+						,inserted.transid2	 
 						,'' AS RecommDate
 						,inserted.SiteDBGroupID	 
 			INTO @tmpTransInfo (
@@ -466,7 +466,7 @@ BEGIN
 							,scomm 	 AS '@sc'												
 							,actual_stake  AS '@as'
 							,statusID  AS '@sid'
-							,statuswinlost  AS '@statuswl'
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END  AS '@statuswl'
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
 					FROM @tmpTransInfo
@@ -511,17 +511,17 @@ BEGIN
 						,betfrom		AS '@bf'
 						,betcheck		AS '@bc'
 						,checktime		AS '@ct'
-						,oddsspread		AS '@os'
+						,CASE WHEN oddsspread IS NULL THEN '' ELSE CAST(oddsspread AS VARCHAR(20) ) END	AS '@os'
 						,actualrate		AS '@ar'
 						,matchid		AS '@mid'
 						,recommend		AS '@rc'
 						,mrecommend		AS '@mrc'
 						,ruben			AS '@r'
-						,betid			AS '@bid'
-						,statuswinlost	AS '@statuswl'
+						,CASE WHEN betid  IS NULL THEN '' ELSE CAST(betid AS VARCHAR(50) ) END	AS '@bid'
+						,CASE WHEN statuswinlost  IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
 						,modds			AS '@m'
 						,bettype		AS '@btype'
-						,betdaqid		AS '@bdq'				
+						,CASE WHEN betdaqid IS NULL THEN '' ELSE CAST(betdaqid AS VARCHAR(50)) END	AS '@bdq'
 						,actual_stake	AS '@astake'
 						,currency		AS '@cur'
 						,ip				AS '@ip'
@@ -534,12 +534,12 @@ BEGIN
 						,Username		AS '@uname'
 						,CurrencyName	AS '@curname'
 						,virtualrate	AS '@v'
-						,oddstype		AS '@otype'
+						,CASE WHEN oddstype IS NULL THEN ''	ELSE CAST(oddstype AS VARCHAR(3)) END AS '@otype'
 						,statusID		AS '@sid'
-						,currency2		AS '@cur2'
-						,balance		AS '@b'
-						,SecAcceptFlag	AS '@sec'
-						,transid2		AS '@t2'
+						,CASE WHEN currency2  IS NULL THEN '' ELSE CAST(currency2	AS VARCHAR(3)) END AS '@cur2'
+						,CASE WHEN balance  IS NULL THEN ''	ELSE CAST(balance AS VARCHAR(20)) END AS '@b'
+						,CASE WHEN SecAcceptFlag IS NULL THEN ''	ELSE CAST(SecAcceptFlag AS VARCHAR(1)) END	AS '@sec'
+						,CASE WHEN transid2 IS NULL THEN ''	ELSE CAST(transid2 AS VARCHAR(50)) END	AS '@t2'
 						,RecommDate		AS '@rcd'
 						,SiteDBGroupID	AS '@sgid'
 				FROM @tmpTransInfo

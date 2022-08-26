@@ -345,7 +345,7 @@ BEGIN
 					END
 				OUTPUT	inserted.transid
 						,inserted.modds
-						,CASE WHEN inserted.StatusWinlost IS NULL THEN '' ELSE CAST(inserted.Statuswinlost AS VARCHAR(1)) END
+						,inserted.Statuswinlost
 						,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 						,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 						,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
@@ -417,7 +417,7 @@ BEGIN
 			,scomm 		= 0
 			,statuswinlost = NULL
 		OUTPUT	inserted.transid
-				,CASE WHEN inserted.statuswinlost IS NULL THEN '' ELSE CAST(inserted.statuswinlost AS VARCHAR(1)  ) END
+				,inserted.statuswinlost
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.Status,inserted.StatusID,inserted.ruben
@@ -438,7 +438,7 @@ BEGIN
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
-						,statuswinlost AS '@statuswl' 
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost VARCHAR(1)) END AS '@statuswl' 
 						,WinLost AS '@w' 
 						,aWinLost AS '@aw' 
 						,mWinLost AS '@mw' 
