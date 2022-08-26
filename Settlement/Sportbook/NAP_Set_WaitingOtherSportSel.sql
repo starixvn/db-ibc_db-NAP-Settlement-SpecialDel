@@ -88,11 +88,11 @@ BEGIN
 		,suspenderfulltime				NVARCHAR(50)
 		
 		
-		,IsExistEarlyBettypesSingle		BIT DEFAULT (0)
+		,IsExistEarlyBettypes			BIT DEFAULT (0)
 		,IsExistEarlyBettypesParlay		BIT DEFAULT (0)
-		,IsRunningEarlyBettypesSingle	BIT DEFAULT(0)
+		,IsRunningEarlyBettypes			BIT DEFAULT(0)
 		,IsRunningEarlyBettypesParlay	BIT DEFAULT(0)
-		,IsWaitingEarlyBettypesSingle	BIT DEFAULT(0)
+		,IsWaitingEarlyBettypes			BIT DEFAULT(0)
 		,IsWaitingEarlyBettypesParlay	BIT DEFAULT(0)
 		,IsExistMarkedTicket			BIT DEFAULT(0)
 		,IsExistMarkedTicketParlay		BIT DEFAULT(0)
@@ -308,11 +308,11 @@ BEGIN
 	OPTION(OPTIMIZE FOR (@n = 1))
 
 	UPDATE m
-		SET  IsExistEarlyBettypesSingle = b.isExistSingle
+		SET  IsExistEarlyBettypes = b.isExistSingle
 			,IsExistEarlyBettypesParlay = b.isExistParlay
-			,IsRunningEarlyBettypesSingle = b.isRunningSingle
+			,IsRunningEarlyBettypes = b.isRunningSingle
 			,IsRunningEarlyBettypesParlay = b.isRunningParlay
-			,IsWaitingEarlyBettypesSingle = b.isWaitingSingle
+			,IsWaitingEarlyBettypes = b.isWaitingSingle
 			,IsWaitingEarlyBettypesParlay = b.isWaitingParlay
 	FROM	@tmpMatchIds m 
 		INNER JOIN @tmpBettypeStatus b
@@ -518,14 +518,14 @@ BEGIN
 			,tmp.settlementstatus
 			,tmp.suspenderhalftime
 			,tmp.suspenderfulltime
-			,tmp.IsExistEarlyBettypesSingle
+			,tmp.IsExistEarlyBettypes
 			,tmp.IsExistEarlyBettypesParlay
 			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
-			,tmp.IsRunningEarlyBettypesSingle
+			,tmp.IsRunningEarlyBettypes
 			,tmp.IsMergedParlay
 			,tmp.IsRunningEarlyBettypesParlay
 			,tmp.IsRunningEarlyBettypesParlay
-			,tmp.IsWaitingEarlyBettypesSingle
+			,tmp.IsWaitingEarlyBettypes
 			,tmp.IsWaitingEarlyBettypesParlay
 			,tmp.IsExistRunningTicket
 			,tmp.IsExistRunningTicketParlay
