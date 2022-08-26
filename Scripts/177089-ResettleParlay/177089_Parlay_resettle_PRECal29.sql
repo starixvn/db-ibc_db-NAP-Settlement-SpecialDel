@@ -1,4 +1,10 @@
+-----------STEP 1: ALTER SP EXCREP ------------------
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_08]
+(
+	@transidlist VARCHAR(MAX) = ''
+)
+
 /*	
 	Creator: Helen
 	Date: 20220826
@@ -7,75 +13,66 @@
 	Revisions:
 		- 20220826@Helen: Resettle ticket for parlay  [Redmine:#177089]
 
-*/
-DECLARE @transIDs AS TABLE(transid BIGINT primary key)
-
-SELECT DISTINCT refno, transid
-INTO ParlayBettransResettle_tmp
-FROM Parlay_bettrans_tmp_test t (NOLOCK)
-	inner join bettrans b (NOLOCK) ON t.transid = b.transid
-WHERE b.statusid NOT IN (0,101, 102)
-
-INSERT INTO @transIDs (transid)
-SELECT DISTINCT transid
-FROM ParlayBettransResettle_tmp (NOLOCK)
-
-CREATE TABLE #temp_bettrans (
-	transid bigint NOT NULL
-	,refno bigint --PRIMARY KEY CLUSTERED
-	,stake money NOT NULL
-	,bitmapR INT NOT NULL -- bitmap to identify which parlay set is choosen
-	,winlostdate smalldatetime NOT NULL
-	,apositiontaking smallmoney
-	,mpositiontaking smallmoney
-	,spositiontaking smallmoney
-	,playerdiscount decimal(9, 8)
-	,discount decimal(9, 8)
-	,adiscount decimal(9, 8)
-	,sdiscount decimal(9, 8)
-	,comstatus nvarchar(20)
-	,inserted bit -- row has been inserted into betParlayResult/betParlayDetail
-	,eventdate SMALLDATETIME -- max(eventdate) - using for set winlostdate of running ticket
-	,selection_cnt tinyint NOT NULL ---- number of selections (bettransM count)
-	,oddsspread	money
-	,actual_stake	money
-)
-		
-CREATE TABLE #tmpSource (refno BIGINT, transid BIGINT, winlostdate SMALLDATETIME, statuswinlost TINYINT, statusId TINYINT, matchid INT
-	, bettype SMALLINT, odds SMALLMONEY, betteam NVARCHAR(10)
-	,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
-	,liveindicator BIT, betcheck NVARCHAR(50), selection_cnt TINYINT , bitmapR INT, SetStake MONEY, transdesc NVARCHAR(1000)
-	,RN INT
-)
-	
-CREATE TABLE #tmpSetStake (Refno BIGINT, RN INT, SetStake MONEY)
-CREATE CLUSTERED INDEX CIX_tmpSetStake_refno ON #tmpSetStake (refno)
-
+*/	
+AS
 BEGIN
-	INSERT INTO #temp_bettrans (
-		transid, refno, stake
-		,selection_cnt
-		,bitmapR
-		,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
-		,adiscount, sdiscount, comstatus, inserted
-		,oddsspread, actual_stake
+	SET NOCOUNT ON
+
+	IF OBJECT_ID (N'BetParlayResult', N'U') IS NULL 
+		RETURN
+
+	DECLARE @transIDs AS TABLE (transid BIGINT)
+
+	INSERT INTO @transIDs (transid)
+	SELECT CAST(value AS BIGINT) transid
+	FROM STRING_SPLIT(@transidlist, ',')
+
+	CREATE TABLE #temp_bettrans (
+		transid bigint NOT NULL
+		,refno bigint --PRIMARY KEY CLUSTERED
+		,stake money NOT NULL
+		,bitmapR INT NOT NULL -- bitmap to identify which parlay set is choosen
+		,winlostdate smalldatetime NOT NULL
+		,apositiontaking smallmoney
+		,mpositiontaking smallmoney
+		,spositiontaking smallmoney
+		,playerdiscount decimal(9, 8)
+		,discount decimal(9, 8)
+		,adiscount decimal(9, 8)
+		,sdiscount decimal(9, 8)
+		,comstatus nvarchar(20)
+		,inserted bit -- row has been inserted into betParlayResult/betParlayDetail
+		,eventdate SMALLDATETIME -- max(eventdate) - using for set winlostdate of running ticket
+		,selection_cnt tinyint NOT NULL ---- number of selections (bettransM count)
+		,oddsspread	money
+		,actual_stake	money
 	)
-	SELECT	[transid], [refno], [stake]
-			,CASE 
-				WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
-				ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
-				END AS selection_cnt
-			,CASE 
-				WHEN betcheck IS NOT NULL THEN CAST(betteam AS INT) -- Combo Parlay	- New format	
-				ELSE CAST(hdp2/2 AS INT)  -- Old format
-				END AS bitmapR
-			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
-			,adiscount, sdiscount, comstatus, 0
-			,ISNULL(oddsspread, 0), actual_stake
-	FROM	dbo.bettrans WITH(NOLOCK)
-	WHERE	transid IN (SELECT transid FROM @transIDs)
-			
 		
+	BEGIN
+		INSERT INTO #temp_bettrans (
+			transid, refno, stake
+			,selection_cnt
+			,bitmapR
+			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
+			,adiscount, sdiscount, comstatus, inserted
+			,oddsspread, actual_stake
+		)
+		SELECT	[transid], [refno], [stake]
+				,CASE 
+					WHEN betcheck IS NOT NULL THEN CAST(hdp2 AS TINYINT) -- Combo Parlay - New format	
+					ELSE CAST(LEN(betteam) AS TINYINT)  -- Old format
+					END AS selection_cnt
+				,CASE 
+					WHEN betcheck IS NOT NULL THEN CAST(betteam AS INT) -- Combo Parlay	- New format	
+					ELSE CAST(hdp2/2 AS INT)  -- Old format
+					END AS bitmapR
+				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
+				,adiscount, sdiscount, comstatus, 0
+				,ISNULL(oddsspread, 0), actual_stake
+		FROM	dbo.bettrans WITH(NOLOCK)
+		WHERE	transid IN (SELECT transid FROM @transIDs)
+			
+	END		
 	-- Remove duplicate transid if page split occurs
 	;WITH cteDuplicateTransId
 	AS(
@@ -92,234 +89,222 @@ BEGIN
 	FROM	cteDuplicateTransId
 	WHERE	rn > 1
 
-
 	-- Create index after remove duplicate rows
 	CREATE UNIQUE CLUSTERED INDEX CIX_tempBettrans_refno ON #temp_bettrans (refno)
+	-----------------------
+	-----------------------
+	-- eventdate = max(match.eventdate) - using for set winlostdate of running ticket	
+	;WITH s AS (
+		SELECT pd.refno, MAX(m.eventdate) AS EventDate
+		FROM dbo.BetParlayDetail pd WITH (NOLOCK)			
+			INNER JOIN #temp_bettrans t ON pd.refno = t.refno
+			INNER JOIN dbo.match m WITH (NOLOCK)
+				ON m.matchid = pd.matchid
+		GROUP BY pd.refno
+	)
+	UPDATE #temp_bettrans
+		SET eventdate = s.eventdate
+	FROM s
+	WHERE #temp_bettrans.refno = s.refno 
 
-	UPDATE t
-		SET inserted = 1
-	FROM #temp_bettrans t
-	WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayResult r WITH (NOLOCK) WHERE t.refno = r.refno)			
-		
-	INSERT INTO #tmpSource(refno, transid, winlostdate, statuswinlost, statusId, matchid
-		,bettype, odds, betteam, hdp1, hdp2, livehomescore
-		,liveawayscore, liveindicator, betcheck, selection_cnt, bitmapR, SetStake, transdesc
-		,RN
-	)
-	SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
-		,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
-		,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
-		,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY m.mainmatch) --RN			
-	FROM #temp_bettrans b
-		INNER LOOP JOIN dbo.bettransm bm WITH(ROWLOCK)
-			ON b.refno = bm.refno
-		CROSS APPLY
-			(
-				SELECT	TOP 1 CASE 
-								WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID 
-								ELSE bm.matchid 
-							END AS mainmatch
-				FROM dbo.match m WITH (NOLOCK)									
-				WHERE	bm.matchid = m.matchid
-						AND m.sporttype BETWEEN 1 AND 99											
-			) m
-	WHERE	b.inserted = 0 
-	
-	INSERT INTO #tmpSetStake (Refno, RN, SetStake)
-	SELECT	refno, RN, SetStake
-	FROM	#tmpSource
-	WHERE	SetStake > 0
+	DECLARE @statusID TINYINT, @modds MONEY
+	DECLARE @commWinRate MONEY, @commLostRate MONEY
 
-	INSERT INTO dbo.BetParlayDetail (
-		RefNo, Serial, transid, winlostdate, statuswinlost, statusid
-		,matchid, bettype, stake, odds, betteam, hdp1
-		,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+	;WITH p AS (
+		SELECT pd.refno as refno
+			,pd.serial
+			,b.eventdate
+			,SUM(CASE WHEN pd.statusID IN (121, 103) THEN 0 ELSE 1 END) as NoRefund
+			,SUM(CASE WHEN pd.statuswinlost = 4	AND pd.statusID NOT IN (102, 0) THEN 1 ELSE 0 END) as loseCnt
+			,SUM(CASE WHEN pd.statusID IN (0, 1) THEN 1 ELSE 0 END) as runningCnt
+			,MAX(pd.winlostdate) as matchdate_max
+			,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
+			,CAST(dbo.PRODUCT(
+				CASE WHEN pd.statusid = 102 THEN 1
+					WHEN pd.statusid = 0 THEN 1
+					ELSE
+						CASE pd.statuswinlost
+							WHEN 0 THEN 1 -- draw
+							WHEN 1 THEN 1+((pd.odds-1)/2) -- half won
+							WHEN 2 THEN pd.odds -- won
+							WHEN 3 THEN 0.5 -- half lose
+							WHEN 4 THEN 0.000000000001 -- lose
+							ELSE 1 -- VOID/REJECT
+						END
+				END
+				) AS MONEY) AS modds
+		FROM dbo.BetParlayDetail pd WITH (NOLOCK)
+			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
+		GROUP BY pd.refno, pd.serial, b.eventdate
 	)
-	SELECT p.RefNo, rc.Serial, p.transid, p.winlostdate, p.statuswinlost, p.statusid
-		,p.matchid, p.bettype, ps.SetStake, p.odds, p.betteam, p.hdp1
-		,p.hdp2, p.livehomescore, p.liveawayscore, p.liveindicator, p.betcheck, p.transdesc
-	FROM	#tmpSource p
-		INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
-		INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
-		INNER JOIN #tmpSetStake ps ON ps.refno = p.refno AND ps.RN = rc.R
-				
-	INSERT INTO dbo.BetParlayResult (
-		RefNo, Serial, transid, winlostdate, statusid, Stake
-		,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
-		,playercomm, comm, acomm, scomm
-	)
-	SELECT DISTINCT b.RefNo, r.Serial, 0, b.winlostdate, 0, r.stake
-		,0, 0, 0, 0, 0, 0
-		,0, 0, 0, 0
-	FROM #temp_bettrans b
-		INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
-	WHERE b.inserted = 0 -- only insert the row not yet insert to that table
-		
+	UPDATE pr			
+	SET @statusID = statusID = CASE
+					WHEN p.loseCnt > 0    THEN 113 -- Lose
+					WHEN p.runningCnt > 0 THEN 0   -- running
+					WHEN p.NoRefund = 0   THEN 103 -- Refund
+					WHEN p.modds < 1      THEN 113 -- Lose
+					WHEN p.modds = 1      THEN 111 -- Draw
+					ELSE 112 -- Won
+				END
+		--,winlostdate = CASE
+		--		WHEN @statusId = 0 THEN p.eventdate
+		--		WHEN @statusID IN (103, 111, 112) THEN p.matchdate_max
+		--		WHEN @statusID = 113                 THEN @matchdate
+		--		ELSE @matchdate
+		--	END
+		,odds = p.odds
+		,@modds = pr.modds = CASE 
+			WHEN p.loseCnt > 0 THEN 0
+			WHEN @statusID = 0 THEN 0
+			ELSE p.modds
+			END
+		,@commWinRate = CASE b.comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
+			WHEN '0' THEN 1
+			WHEN '1' THEN 0
+			ELSE 1
+			END
+		,@commLostRate = CASE b.comstatus
+			WHEN '0' THEN 1
+			WHEN '1' THEN 2
+			ELSE 1
+			END
+		,winlost = CASE 
+			WHEN loseCnt > 0   THEN 0
+			WHEN @statusID = 0 THEN 0
+			WHEN  b.oddsspread = 1	THEN	CASE 
+											WHEN @modds > 1 THEN @modds * pr.stake + (b.actual_stake - pr.stake)
+											WHEN @modds < 1 THEN @modds * b.actual_stake
+											ELSE b.actual_stake
+											END
+			ELSE ISNULL(PR.stake * @modds,0)
+			END
+		,awinlost = CASE 
+			WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
+														WHEN b.oddsspread  = 1 THEN b.actual_stake 
+																				ELSE PR.stake
+																				END	* apositiontaking
+
+			WHEN @statusID = 112		         THEN - PR.stake * (@modds - 1) * apositiontaking
+
+			WHEN  @statusID = 113				THEN	CASE
+														WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
+																				ELSE - PR.stake * (@modds - 1)
+																				END * apositiontaking
+			ELSE 0
+			END
+		,mwinlost = CASE 
+			WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
+														WHEN b.oddsspread  = 1 THEN b.actual_stake 
+																				ELSE PR.stake
+																				END	* mpositiontaking
+
+			WHEN @statusID = 112		         THEN	- PR.stake * (@modds - 1) * mpositiontaking
+
+			WHEN  @statusID = 113				THEN	CASE
+														WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
+																				ELSE - PR.stake * (@modds - 1)
+																				END * mpositiontaking
+			ELSE 0
+			END
+		,swinlost = CASE 
+			WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
+														WHEN b.oddsspread  = 1 THEN b.actual_stake 
+																				ELSE PR.stake
+																				END	* spositiontaking
+
+			WHEN @statusID = 112		         THEN	- PR.stake * (@modds - 1) * spositiontaking
+
+			WHEN  @statusID = 113				THEN	CASE
+														WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
+																				ELSE - PR.stake * (@modds - 1)
+																				END * spositiontaking
+			ELSE 0
+			END
+		,playercomm = CASE @statusID
+			WHEN 112 THEN @commWinRate  * PR.stake * playerdiscount
+			WHEN 113 THEN @commLostRate * PR.stake * playerdiscount
+			ELSE 0
+			END
+		,comm = CASE @statusID
+			WHEN 112 THEN @commWinRate  * PR.stake * discount * (1 - apositiontaking)
+			WHEN 113 THEN @commLostRate * PR.stake * discount * (1 - apositiontaking)
+			ELSE 0
+			END
+		,acomm = CASE @statusID
+			WHEN 112 THEN @commWinRate  * PR.stake * adiscount * (1 - apositiontaking - mpositiontaking)
+			WHEN 113 THEN @commLostRate * PR.stake * adiscount * (1 - apositiontaking - mpositiontaking)
+			ELSE 0
+			END
+		,scomm = CASE @statusID
+			WHEN 112 THEN @commWinRate  * PR.stake * sdiscount * (1 - apositiontaking - mpositiontaking - spositiontaking)
+			WHEN 113 THEN @commLostRate * PR.stake * sdiscount * (1 - apositiontaking - mpositiontaking - spositiontaking)
+			ELSE 0
+			END
+	FROM dbo.BetParlayResult pr
+		INNER JOIN #temp_bettrans b ON pr.refno = b.refno 
+		INNER JOIN p ON pr.refno = p.refno AND pr.serial = p.serial
+
 END
------------------------
------------------------
--- eventdate = max(match.eventdate) - using for set winlostdate of running ticket	
-;WITH s AS (
-	SELECT pd.refno, MAX(m.eventdate) AS EventDate
-	FROM dbo.BetParlayDetail pd WITH (NOLOCK)			
-		INNER JOIN #temp_bettrans t ON pd.refno = t.refno
-		INNER JOIN dbo.match m WITH (NOLOCK)
-			ON m.matchid = pd.matchid
-	GROUP BY pd.refno
-)
-UPDATE #temp_bettrans
-	SET eventdate = s.eventdate
-FROM s
-WHERE #temp_bettrans.refno = s.refno 
+GO
+-----------STEP 2: UPDATE BETPARLAYRESULT VIA SP EXCREP ------------------
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+--should define primary key for the temporary tables
+CREATE TABLE #Result (transid BIGINT PRIMARY KEY, id INT IDENTITY (1,1))
+CREATE TABLE #Result_batch (transid BIGINT PRIMARY KEY)
+DECLARE @transidlist VARCHAR(MAX) = ''
 
-DECLARE @statusID TINYINT, @modds MONEY
-DECLARE @commWinRate MONEY, @commLostRate MONEY
+INSERT INTO #Result (transid)
+SELECT DISTINCT transid
+FROM Parlay_bettrans_tmp_test t (NOLOCK)
+	INNER JOIN bettrans b (NOLOCK) ON t.transid = b.transid
+WHERE b.statusid NOT IN (0,101, 102)
 
-;WITH p AS (
-	SELECT pd.refno as refno
-		,pd.serial
-		,b.eventdate
-		,SUM(CASE WHEN pd.statusID IN (121, 103) THEN 0 ELSE 1 END) as NoRefund
-		,SUM(CASE WHEN pd.statuswinlost = 4	AND pd.statusID NOT IN (102, 0) THEN 1 ELSE 0 END) as loseCnt
-		,SUM(CASE WHEN pd.statusID IN (0, 1) THEN 1 ELSE 0 END) as runningCnt
-		,MAX(pd.winlostdate) as matchdate_max
-		,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
-		,CAST(dbo.PRODUCT(
-			CASE WHEN pd.statusid = 102 THEN 1
-				WHEN pd.statusid = 0 THEN 1
-				ELSE
-					CASE pd.statuswinlost
-						WHEN 0 THEN 1 -- draw
-						WHEN 1 THEN 1+((pd.odds-1)/2) -- half won
-						WHEN 2 THEN pd.odds -- won
-						WHEN 3 THEN 0.5 -- half lose
-						WHEN 4 THEN 0.000000000001 -- lose
-						ELSE 1 -- VOID/REJECT
-					END
-			END
-			) AS MONEY) AS modds
-	FROM dbo.BetParlayDetail pd WITH (NOLOCK)
-		INNER JOIN #temp_bettrans b ON pd.refno = b.refno
-	GROUP BY pd.refno, pd.serial, b.eventdate
-)
-UPDATE pr			
-SET @statusID = statusID = CASE
-				WHEN p.loseCnt > 0    THEN 113 -- Lose
-				WHEN p.runningCnt > 0 THEN 0   -- running
-				WHEN p.NoRefund = 0   THEN 103 -- Refund
-				WHEN p.modds < 1      THEN 113 -- Lose
-				WHEN p.modds = 1      THEN 111 -- Draw
-				ELSE 112 -- Won
-			END
-	--,winlostdate = CASE
-	--		WHEN @statusId = 0 THEN p.eventdate
-	--		WHEN @statusID IN (103, 111, 112) THEN p.matchdate_max
-	--		WHEN @statusID = 113                 THEN @matchdate
-	--		ELSE @matchdate
-	--	END
-	,odds = p.odds
-	,@modds = pr.modds = CASE 
-		WHEN p.loseCnt > 0 THEN 0
-		WHEN @statusID = 0 THEN 0
-		ELSE p.modds
-		END
-	,@commWinRate = CASE b.comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
-		WHEN '0' THEN 1
-		WHEN '1' THEN 0
-		ELSE 1
-		END
-	,@commLostRate = CASE b.comstatus
-		WHEN '0' THEN 1
-		WHEN '1' THEN 2
-		ELSE 1
-		END
-	,winlost = CASE 
-		WHEN loseCnt > 0   THEN 0
-		WHEN @statusID = 0 THEN 0
-		WHEN  b.oddsspread = 1	THEN	CASE 
-										WHEN @modds > 1 THEN @modds * pr.stake + (b.actual_stake - pr.stake)
-										WHEN @modds < 1 THEN @modds * b.actual_stake
-										ELSE b.actual_stake
-										END
-		ELSE ISNULL(PR.stake * @modds,0)
-		END
-	,awinlost = CASE 
-		WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
-													WHEN b.oddsspread  = 1 THEN b.actual_stake 
-																			ELSE PR.stake
-																			END	* apositiontaking
+------ info for deployer
+DECLARE @StartRow INT = 1
+		, @StopRow INT 
+		, @MaxRow INT = 1 -- Keep the total row of your data
+		, @Threshold INT = 2000 -- the number of each batch
+		
+DECLARE @debug_message VARCHAR(500)
+SET @MaxRow = (SELECT MAX(ID) FROM #Result)
 
-		WHEN @statusID = 112		         THEN - PR.stake * (@modds - 1) * apositiontaking
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
 
-		WHEN  @statusID = 113				THEN	CASE
-													WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
-																			ELSE - PR.stake * (@modds - 1)
-																			END * apositiontaking
-		ELSE 0
-		END
-	,mwinlost = CASE 
-		WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
-													WHEN b.oddsspread  = 1 THEN b.actual_stake 
-																			ELSE PR.stake
-																			END	* mpositiontaking
+-- SET for first batch
+SET @StopRow = @Threshold
 
-		WHEN @statusID = 112		         THEN	- PR.stake * (@modds - 1) * mpositiontaking
+WHILE (1 = 1)
+BEGIN
+	
+		PRINT @StartRow
+		PRINT @StopRow
+		
+		DELETE R
+		OUTPUT DELETED.transid
+		INTO #Result_batch (transid)		
+		FROM #Result R
+		WHERE ID BETWEEN @StartRow AND @StopRow
 
-		WHEN  @statusID = 113				THEN	CASE
-													WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
-																			ELSE - PR.stake * (@modds - 1)
-																			END * mpositiontaking
-		ELSE 0
-		END
-	,swinlost = CASE 
-		WHEN @statusID = 113 AND loseCnt > 0 THEN	CASE 
-													WHEN b.oddsspread  = 1 THEN b.actual_stake 
-																			ELSE PR.stake
-																			END	* spositiontaking
+		SET @transidlist =STUFF((SELECT ',' + CONVERT(VARCHAR(50),transid)
+					  FROM #Result_batch
+					  FOR XML PATH ('')),1,1,'')
+		
+		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
-		WHEN @statusID = 112		         THEN	- PR.stake * (@modds - 1) * spositiontaking
+		EXEC ExecRep_NAP_Admin_08 @transidlist = @transidlist
+		
+		IF @StopRow > @MaxRow 
+			BREAK
 
-		WHEN  @statusID = 113				THEN	CASE
-													WHEN  b.oddsspread  = 1 THEN - b.actual_stake *(@modds - 1)
-																			ELSE - PR.stake * (@modds - 1)
-																			END * spositiontaking
-		ELSE 0
-		END
-	,playercomm = CASE @statusID
-		WHEN 112 THEN @commWinRate  * PR.stake * playerdiscount
-		WHEN 113 THEN @commLostRate * PR.stake * playerdiscount
-		ELSE 0
-		END
-	,comm = CASE @statusID
-		WHEN 112 THEN @commWinRate  * PR.stake * discount * (1 - apositiontaking)
-		WHEN 113 THEN @commLostRate * PR.stake * discount * (1 - apositiontaking)
-		ELSE 0
-		END
-	,acomm = CASE @statusID
-		WHEN 112 THEN @commWinRate  * PR.stake * adiscount * (1 - apositiontaking - mpositiontaking)
-		WHEN 113 THEN @commLostRate * PR.stake * adiscount * (1 - apositiontaking - mpositiontaking)
-		ELSE 0
-		END
-	,scomm = CASE @statusID
-		WHEN 112 THEN @commWinRate  * PR.stake * sdiscount * (1 - apositiontaking - mpositiontaking - spositiontaking)
-		WHEN 113 THEN @commLostRate * PR.stake * sdiscount * (1 - apositiontaking - mpositiontaking - spositiontaking)
-		ELSE 0
-		END
-FROM dbo.BetParlayResult pr
-	INNER JOIN #temp_bettrans b ON pr.refno = b.refno 
-	INNER JOIN p ON pr.refno = p.refno AND pr.serial = p.serial
-WHERE
-	pr.statusID <>
-	CASE
-		WHEN p.loseCnt > 0    THEN 113 -- Lose
-		WHEN p.runningCnt > 0 THEN 0   -- running
-		WHEN p.NoRefund = 0   THEN 103 -- Refund
-		WHEN p.modds < 1      THEN 113 -- Lose
-		WHEN p.modds = 1      THEN 111 -- Draw
-		ELSE 112 -- Won
-	END
-	OR pr.winlost <>
-	CASE 
-		WHEN p.loseCnt > 0 OR p.runningCnt > 0 THEN 0 
-		ELSE pr.stake * p.modds
-	END
+		WAITFOR DELAY '00:00:00.050' --optional
+		TRUNCATE TABLE #Result_batch
+
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+
+END
+
+DROP TABLE #Result
+DROP TABLE #Result_batch
