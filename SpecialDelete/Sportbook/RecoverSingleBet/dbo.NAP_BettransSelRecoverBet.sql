@@ -87,7 +87,9 @@ BEGIN
 		,ActualStake	MONEY
 		,UNIQUE CLUSTERED(RefCode, custid, matchid, bettype, transid)				
 	)	
-	
+	DECLARE  @InvalidTransIds   VARCHAR(MAX) = ''
+			,@MovedTransIds     VARCHAR(MAX) = '' 
+
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 	DECLARE  @MovebetDate		DATETIME
@@ -298,7 +300,33 @@ BEGIN
 		WHERE EventDate <= @MovebetDate
 	END
 
-	--1. Table get all tickets
+	------------------------------------------------------------------------------
+	--1. Table invald/moved transid
+	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT);
+	INSERT INTO #InvalidTransIds(transid, IsMoved)
+	SELECT	t.transid,
+		CASE WHEN b.transid IS NOT NULL THEN 1
+				WHEN m.TransId IS NOT NULL THEN 1
+			ELSE 0 END AS IsMoved
+	FROM @tblTransIds t
+		LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
+		LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId
+	WHERE NOT EXISTS (SELECT 1 FROM @tblRecoverBet r WHERE r.transid = t.transid)
+
+	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+									 FROM #InvalidTransIds
+									 WHERE IsMoved = 0
+									 FOR XML PATH('')), 1, 1, '');									
+
+	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+								   FROM #InvalidTransIds
+								   WHERE IsMoved = 1
+								   FOR XML PATH('')), 1, 1, '');
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+	      ,@MovedTransIds AS MovedTransIds
+	
+	--2. Table get tickets
 	SELECT	ag.site
 			,t.transid
 			,t.refno
@@ -349,27 +377,6 @@ BEGIN
 							END
 			ELSE t.transid
 		  END 
-	
-	DECLARE @tmpInvalid TABLE (transid BIGINT, isMoved BIT)
-	INSERT INTO @tmpInvalid (transid, isMoved)
-	SELECT t.transid AS InvalidTrans
-		 ,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
-	FROM @tblTransIds t
-		OUTER APPLY (
-				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-				FROM dbo.bettrans14  b14 WITH(NOLOCK) 
-				WHERE b14.transid = t.transid AND b14.SiteDBGroupID = @SiteDBGroupID
-				UNION ALL
-				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-				FROM @tmpTransIdMoveBet m  
-				WHERE m.transid = t.transid
-			) bm
-	WHERE t.transid NOT IN (SELECT transid FROM @tblRecoverBet)
 
-	--2. Table get invalid transid
-	SELECT transid FROM @tmpInvalid WHERE isMoved = 0
-	
-	--3. Table get moved transid
-	SELECT transid FROM @tmpInvalid WHERE isMoved = 1
-
+	DROP TABLE #InvalidTransIds
 END

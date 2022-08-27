@@ -3,10 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 (
 	@TransInfo			XML, 	
 	@UserId				INT,	
-	@IP					VARCHAR(50),
-	@ErrCode			INT				= 0		OUTPUT,
-	@ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
-	@AutoReSettledTransIds   VARCHAR(MAX)	= '' OUTPUT
+	@IP					VARCHAR(50)
 )
 AS
 /*
@@ -88,17 +85,17 @@ BEGIN
 			,@Movebetdate		DATETIME  
 			,@SiteDBGroupID     INT = 0
 			,@IsSiteDB			BIT
-			,@TransIds			VARCHAR(MAX) = ''
+			,@ValidTransIDs		VARCHAR(MAX) = ''
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	DECLARE @ErrCode INT = 0
+			,@ErrMsg NVARCHAR(200)	= ''
+			,@AutoReSettledTransIds VARCHAR(MAX) = '' 
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
 
-	SELECT	@ErrCode = 0
-			,@ErrMsg = ''
-	
 	CREATE TABLE #tblTransInfo (
 		grouptransid	BIGINT
 		,transid		BIGINT PRIMARY KEY
@@ -178,7 +175,6 @@ BEGIN
 
 		DELETE FROM #tbTransId WHERE SiteDBGroupID <> @SiteDBGroupID
 
-		SELECT @TransIds = STUFF((SELECT  ',' + transid FROM #tbTransId FOR XML PATH ('')),1,1,'')
 
 		-- Normal tickets
 		INSERT INTO #tblTransInfo(
@@ -381,16 +377,16 @@ BEGIN
 
 		IF EXISTS ( SELECT TOP 1 1 FROM #tblTransInfo WHERE winlostdate <= @Movebetdate )
 		BEGIN
-			SELECT @ErrCode = 102
-				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+			SELECT @ErrCode = 102, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
 			RETURN	
 		END			
 	END TRY
 	BEGIN CATCH
-		SELECT @ErrCode = 100,
-				@ErrMsg = 'Invalid TransIds'						
-						
+		SELECT @ErrCode = 100, @ErrMsg = 'Invalid TransIds'						
+			
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
 		RETURN
 	END CATCH
 
@@ -398,8 +394,12 @@ BEGIN
 	BEGIN
 		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'				
 		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
+		
 		RETURN
 	END
+
+	SELECT @ValidTransIDs = STUFF((SELECT ',' + CAST(transid AS VARCHAR(MAX)) FROM #tblTransInfo FOR XML PATH('')), 1, 1, '');
 
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
@@ -440,7 +440,7 @@ BEGIN
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN		
-		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
 		RETURN
 	END
 	
@@ -810,11 +810,15 @@ BEGIN
 				 INNER JOIN bettrans b (NOLOCK) ON t.TransId = b.transid
 			WHERE b.statusID IN (111, 112, 113, 103) AND b.SiteDBGroupID = @SiteDBGroupID
 
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @AutoReSettledTransIds AS AutoReSettledTransIds
+
 			DROP TABLE #BetBuilderTransId;
 		END TRY 
 		BEGIN CATCH
-			SELECT @ErrCode = 38
-				,@ErrMsg = 'Called NAP_Admin_Settlement_BetBuilder_Recover with error.'
+			SELECT @ErrCode = 38, @ErrMsg = 'Called NAP_Admin_Settlement_BetBuilder_Recover with error.'
+			
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
+
 		END CATCH
 	END
 	
@@ -928,7 +932,6 @@ BEGIN
 		DELETE FROM @tmpMatchidInfo
 	END
 	
-	
 	------ release data of TempVariableNumBer table
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch		= @isExistMatch
@@ -978,10 +981,15 @@ BEGIN
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
 	END
-	-------------------------------------------------------
-	
+
+	------------------------------------------------------------------------------
+	--1. Table return error code/ msg
+	SELECT @ErrCode AS ErrorCode
+	     , @ErrMsg AS ErrorMsg
+	     , @AutoReSettledTransIds AS AutoReSettledTransIds
+
+	--2. Table get tickets
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
-	
 	;WITH CTE
 	AS
 	(	
@@ -1114,7 +1122,7 @@ BEGIN
 				ELSE t.transid
 			 END		
 	
-	SELECT @LogData = 'Recover bet have transid: ' + @TransIds + ' IP: ' + @Ip
+	SELECT @LogData = 'Recover bet have transid: ' + @ValidTransIDs + ' IP: ' + @Ip
 	
 	EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData 				
 		
