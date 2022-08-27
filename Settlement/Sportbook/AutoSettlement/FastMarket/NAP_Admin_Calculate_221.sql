@@ -454,8 +454,8 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateFM', 'bettrans', @MatchId, @transInfo)		
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateFM', 'bettrans', @MatchId, @transInfo, 'CAL', 's')		
 			END
 		END
 
@@ -543,8 +543,8 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'RefundFM', 'bettrans', @MatchId, @transInfo)		
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'RefundFM', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')		
 			END
 		END
 
@@ -619,8 +619,8 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'UndoFM', 'bettrans', @MatchId, @transInfo)		
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'UndoFM', 'bettrans', @MatchId, @transInfo, 'UNDO','s')		
 			END
 		END
 		

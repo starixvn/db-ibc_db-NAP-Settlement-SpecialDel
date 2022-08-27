@@ -192,8 +192,8 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'CalculateMainParlay', 'bettrans', 29, @transInfo)		
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+		VALUES ('Settlement', 'CalculateMainParlay', 'bettrans', 29, @transInfo, 'CAL', 'p')		
 			
 	END
 END

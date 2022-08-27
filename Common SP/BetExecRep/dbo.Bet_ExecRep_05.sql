@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_05]
 	,@matchid		INT		= 0
 	,@updatetype 	TINYINT = 1  -- 1, 2, 3, 4
 	,@_sXML 		VARCHAR(MAX)
+	,@Action		VARCHAR(20) = NULL
 
 AS
 /*
@@ -291,13 +292,13 @@ BEGIN
 	END		
 	ELSE IF @updatetype = 4 --refund number game
 	BEGIN		
-		DECLARE @action varchar(10)
+		DECLARE @mode varchar(10)
 
 		SELECT @matchid = T.C.value('./@matchid', 'int')-- as matchid
 			,@action = ISNULL(T.C.value('./@action', 'varchar(10)'), 0)-- as [action]
 		from @_xml.nodes('/root/r') as [T](C) --T: table, C: column
 
-		IF @action = 'Refund-FT'
+		IF @mode = 'Refund-FT'
 		BEGIN
 			UPDATE dbo.bettrans WITH (ROWLOCK,UPDLOCK)
 			SET WinLost = actual_stake
@@ -463,8 +464,8 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo)	
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'CalculateVSBetRadar', 'bettransm', @transInfo, @Action, 'p')	
 		END
 
 	END
@@ -501,7 +502,7 @@ BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
 						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-						, WinLost AS '@wl'
+						,WinLost AS '@wl'
 						,Status AS '@s' 
 						,StatusID AS '@sid' 
 						,ruben AS '@r'	
@@ -510,7 +511,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateNonSport', 'bettransm', @transInfo)	
+			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo)	
 		END
 	END
 	ELSE IF @updatetype = 7 -- outright settlement
@@ -594,8 +595,8 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo)	
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo, @Action, 's')	
 		END
 
 	END

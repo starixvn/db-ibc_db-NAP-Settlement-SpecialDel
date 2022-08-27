@@ -331,7 +331,7 @@ BEGIN
     BEGIN	
 		SET @eventstatus = N'completed'
 
-		IF @action = 'REFUND'
+		IF @action LIKE 'REFUND%'
 		BEGIN
        		SELECT @betstatus = CASE 
 									WHEN @Action = 'REFUND' THEN N'Refund'

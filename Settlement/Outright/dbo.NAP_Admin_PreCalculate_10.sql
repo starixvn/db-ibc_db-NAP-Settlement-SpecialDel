@@ -154,6 +154,11 @@ BEGIN
 		END
 	END
 	
+	SET @Action = CASE 
+					WHEN @Status = 'refund' THEN 'REFUND'
+					ELSE @Action
+				END
+
 	WHILE (1 = 1)
 	BEGIN
 		DELETE @subtable
@@ -194,6 +199,7 @@ BEGIN
 			,@updatetype	= 7 --outright mode
 			,@matchid		= @matchid
 			,@_sXML			= @_sXML		
+			,@Action = @Action
 	END
 
 	DROP TABLE #Outright_TempData

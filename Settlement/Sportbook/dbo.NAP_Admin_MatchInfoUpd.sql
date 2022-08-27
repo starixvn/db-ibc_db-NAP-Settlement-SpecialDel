@@ -71,7 +71,7 @@ BEGIN
 			,@xmlEventCounter XML
 			,@parlaycommand VARCHAR(1)
 
-	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20))
+	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	
 	SELECT @HTDone = 0
 
@@ -107,19 +107,25 @@ BEGIN
 	IF  @IsSettleByProfile = 1 AND @SelectedResources IS NOT NULL
 	BEGIN
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpSelectedRID(ResourceID)
-		SELECT Id
-		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)																
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue)
+		SELECT Id, Home, Away
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
+															,Home VARCHAR(50)
+															,Away VARCHAR(50)
 											) AS tbl
 		EXEC sp_xml_removedocument @handle
 
 		SET @existsFinalRound = 0
   		SELECT TOP 1 @existsFinalRound = 1
+			,@FullTimeHome = HomeValue
+			,@FullTimeAway = AwayValue
   		FROM @tmpSelectedRID sr
   		WHERE sr.ResourceID = '00'
 
   		SET @existsHTRound = 0
-  		SELECT TOP 1 @existsHTRound = 1					
+  		SELECT TOP 1 @existsHTRound = 1		
+			,@HalfTimeHome = HomeValue
+			,@HalfTimeAway = AwayValue
   		FROM @tmpSelectedRID sr
   		WHERE sr.ResourceID = '01' 
 			AND 1 = CASE 
@@ -471,8 +477,7 @@ BEGIN
 									WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_Refund-FT'									
 								END
 		
-		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
-			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
+		IF (@SportType = 1 AND @SelectedResources IS NULL) -- cal soccer/pingoal soccer manually
 		BEGIN
 			SELECT @refundCommand_1s =  @refundCommand
 
@@ -518,7 +523,7 @@ BEGIN
 				,@ResourceResult = @ResourceResult
 				,@Action        = @Action
 		END
-		ELSE IF @SportType = 1 AND @SelectedResources IS NOT NULL -- early settlement
+		ELSE IF @SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NOT NULL -- early settlement 
 		BEGIN
 			SELECT @refundCommand = 'NAP_Admin_Settlement_Auto_1s-REFUND'
 

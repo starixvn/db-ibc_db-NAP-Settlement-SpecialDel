@@ -472,8 +472,8 @@ BEGIN
 					FROM @tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo)	
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
 			END
 
 			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo WHERE Action = 'I')
@@ -545,8 +545,8 @@ BEGIN
 				FROM @tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, [Action])
-				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo, 'I')
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, [Action], SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo, 'I', 'CAL', 's')
 			END
 		END
 		ELSE IF ISNULL(@CustIds, '') <> ''

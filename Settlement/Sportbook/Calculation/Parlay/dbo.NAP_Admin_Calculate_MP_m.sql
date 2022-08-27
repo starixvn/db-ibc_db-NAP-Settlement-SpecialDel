@@ -2131,8 +2131,14 @@ BEGIN
 				)
 			END
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			SELECT 'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			SELECT	'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
+					,CASE 
+						WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+						WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+						ELSE ''
+					END
+					,'p'
 			WHERE @transInfo IS NOT NULL
 				
 			SET @betparlaydetailinfo = (
@@ -2143,9 +2149,14 @@ BEGIN
 				FROM	@tmpOutputBetParlayDetail
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			SELECT 'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
-			WHERE @betparlaydetailinfo IS NOT NULL
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
+					,CASE 
+						WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+						WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+					END
+					,'p'
+			WHERE	@betparlaydetailinfo IS NOT NULL
 		END
     END -- while
 END -- end SP

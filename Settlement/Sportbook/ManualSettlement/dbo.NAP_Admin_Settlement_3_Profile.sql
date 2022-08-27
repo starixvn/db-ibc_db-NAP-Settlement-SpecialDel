@@ -854,7 +854,7 @@ BEGIN
 			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
 		END
 	END
-	ELSE IF @Action IN ('CAL', 'CAL-FT') AND @IsCentral = 1
+	ELSE IF @Action IN ('CAL', 'CAL-FT') --AND @IsCentral = 1
 	BEGIN
 		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
 			SET StatusId = 0, Starttime = GETDATE()

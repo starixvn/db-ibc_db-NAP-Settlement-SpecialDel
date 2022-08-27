@@ -289,8 +289,8 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			SELECT 'Settlement', 'Undo', 'bettrans', @MatchId, @transInfo
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			SELECT 'Settlement', 'Undo', 'bettrans', @MatchId, @transInfo, 'UNDO', 's'
 			
 			DELETE FROM @tmpTransInfo
 		END

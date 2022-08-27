@@ -150,8 +150,8 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		VALUES ('Settlement', 'UndoOtherSport', 'bettrans', @MatchId, @transInfo)		
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+		VALUES ('Settlement', 'UndoOtherSport', 'bettrans', @MatchId, @transInfo, 'UNDO', 's')		
 	END
 END
 GO

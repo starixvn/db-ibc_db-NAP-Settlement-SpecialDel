@@ -234,7 +234,7 @@ BEGIN
 		)
 
 		-- bettransm
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 		SELECT  'Settlement'
 				, CASE  WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
 						WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
@@ -243,6 +243,12 @@ BEGIN
 				, 'bettransm'
 				, @MatchId
 				, @transInfo
+				, CASE 
+					WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'REFUND'
+					WHEN @Action LIKE 'CAL%' THEN 'CAL'
+					WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
+				END
+				, 'p'
 		WHERE @transInfo IS NOT NULL
 			
 		SET @transInfo = (
@@ -254,7 +260,7 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 		SELECT 'Settlement'
 				, CASE  
 					WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
@@ -264,6 +270,12 @@ BEGIN
 				, 'BetParlayDetail'
 				, @MatchId
 				, @transInfo
+				, CASE 
+					WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'REFUND'
+					WHEN @Action LIKE 'CAL%' THEN 'CAL'
+					WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
+				END
+				, 'p'
 		WHERE @transInfo IS NOT NULL
 
 	END

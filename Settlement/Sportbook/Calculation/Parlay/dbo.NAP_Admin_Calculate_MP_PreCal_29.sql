@@ -394,8 +394,8 @@ BEGIN
 			FOR XML PATH ('r'), ROOT ('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-		SELECT 'Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @TransInfo
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+		SELECT 'Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @TransInfo, 'CAL', 'p'
 		WHERE @TransInfo IS NOT NULL
 			
 	END

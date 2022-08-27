@@ -40,9 +40,15 @@ BEGIN
 
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @AllowCalculation	BIT
-
+			,@AllowRefund BIT
+			,@Action VARCHAR(20)
+			
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
-
+	SET @Action = CASE 
+					WHEN @ActionID BETWEEN 100 AND 102 THEN 'CAL' 
+					WHEN @ActionID BETWEEN 109 AND 111 THEN 'REFUND'
+				END
+				
 	IF @ServerName <> @@SERVERNAME
 		RETURN
 
@@ -51,8 +57,12 @@ BEGIN
 		EXEC [dbo].[NAP_Set_ServerAction]
 			@ServerName			= @ServerName
 			,@AllowCalculation	= @AllowCalculation	OUTPUT
-
-		IF @AllowCalculation = 0
+			,@AllowRefund		= @AllowRefund OUTPUT
+			
+		IF @AllowCalculation = 0 AND @Action = 'CAL'
+			RETURN
+			
+		IF @AllowRefund = 0 AND @Action = 'REFUND' 
 			RETURN
 
 	END
@@ -416,8 +426,8 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @matchid, @transInfo)	
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @matchid, @transInfo, @Action, 's')	
 			END
 
 			-- balance

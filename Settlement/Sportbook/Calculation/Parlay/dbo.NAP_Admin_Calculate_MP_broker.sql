@@ -25,7 +25,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
 	,@Sporttype		SMALLINT = NULL
     ,@CalledByBrokerService BIT = 0
 	,@RunOnServer	VARCHAR(100) = NULL
-	,@IsSiteDBService	BIT = 0
 AS
 /*
     Created: Kathy
@@ -121,21 +120,12 @@ BEGIN
 				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
                 + ',@CalledByBrokerService = 1'
 		
-		--IF @IsSiteDBService = 1
-		--BEGIN
-		--	EXEC dbo.SSB_Send_Message 
-		--		@MessageContent = @sMessage
-		--		,@FunctionName = 'settlement'
-		--		,@MessageType = 'bet_SiteDB_msg_type_01'
-		--END
-		--ELSE
-		BEGIN
-			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
-				,@toService = N'//Service/Calculation_receive'
-				,@onContract = N'//Contract/Calculation'
-				,@messageType = N'//Message/Calculation'
-				,@messageBody = @sMessage
-		END
+		EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
+			,@toService = N'//Service/Calculation_receive'
+			,@onContract = N'//Contract/Calculation'
+			,@messageType = N'//Message/Calculation'
+			,@messageBody = @sMessage
+
         RETURN
     END
 

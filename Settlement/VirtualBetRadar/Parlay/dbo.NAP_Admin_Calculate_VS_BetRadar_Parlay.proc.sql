@@ -351,6 +351,7 @@ BEGIN
 				@IgnoreList 	= @IgnoreList
 				, @updatetype 	= 5
 				, @_sXML 		= @_sXML
+				,@Action		= 'CAL'
 									
 		END
 	END TRY
