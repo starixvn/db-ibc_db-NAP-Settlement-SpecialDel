@@ -7,9 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel]
     @ToDate            DATETIME     = NULL,
     @IncludeMainParlay BIT          = 0,
 	@Products		   VARCHAR(50)  = NULL,
-	@StatusIds		   VARCHAR(50)  = NULL,
-    @InvalidTransIds   VARCHAR(MAX) = '' OUTPUT,
-    @MovedTransIds     VARCHAR(MAX) = '' OUTPUT
+	@StatusIds		   VARCHAR(50)  = NULL
 )
 AS;
 /*  
@@ -95,11 +93,12 @@ BEGIN
 			@SiteDBgroupId INT = 0
 	SELECT @SiteDBgroupId = dbo.f_Get_SiteDBGroupID()
 
+	DECLARE  @InvalidTransIds   VARCHAR(MAX) = ''
+			,@MovedTransIds     VARCHAR(MAX) = '' 
+
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)	
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
-	-- invalid trans
-	SELECT @InvalidTransIds = '', @MovedTransIds = ''
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
@@ -588,27 +587,40 @@ BEGIN
 				ELSE d.transid
 			 END
 			 
-	DECLARE @tmpInvalid TABLE (transid BIGINT, isMoved BIT)
-	INSERT INTO @tmpInvalid (transid, isMoved)
-	SELECT	transid
-			,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
-	FROM #transIdTemp temp
-		OUTER APPLY (
-			SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-			FROM dbo.bettrans14 WITH(NOLOCK) 
-			WHERE transid = temp.transid AND SitedbgroupId = @SiteDBgroupId
-			UNION ALL
-			SELECT TOP 1 CAST(1 AS BIT) AS isMoved
-			FROM @tmpTransIdMoveBet m  
-			WHERE m.transid = temp.transid
-		) bm
-	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE transid = temp.transid)
+	;WITH t_invalid AS
+	(
+		SELECT	transid
+				,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
+		FROM #transIdTemp temp
+			OUTER APPLY (
+				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				FROM dbo.bettrans14 WITH(NOLOCK) 
+				WHERE transid = temp.transid
+				UNION ALL
+				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
+				FROM @tmpTransIdMoveBet m  
+				WHERE m.transid = temp.transid
+			) bm
+		WHERE NOT EXISTS (SELECT 1 FROM #SpecialDeleteBets WHERE transid = temp.transid)
+	)
+	SELECT @InvalidTransIds = @InvalidTransIds +
+							CASE
+								  WHEN isMoved = 0
+										THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
+											 CAST(transid AS VARCHAR(100))
+								  ELSE ''
+							  END								  
+		 , @MovedTransIds = @MovedTransIds +
+							CASE
+								WHEN isMoved = 1
+										THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
+											 CAST(transid AS VARCHAR(100))
+								ELSE ''
+							END
+		FROM t_invalid
 
-	--2. Table get invalid transid
-	SELECT transid FROM @tmpInvalid WHERE isMoved = 0
-	
-	--3. Table get moved transid
-	SELECT transid FROM @tmpInvalid WHERE isMoved = 1
+	SELECT @InvalidTransIds AS InvalidTransIds
+	      ,@MovedTransIds AS MovedTransIds
 
 	DROP TABLE #CustId
 	DROP TABLE #SpecialDeleteBets
