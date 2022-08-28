@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Select]
-	@TransIds			VARCHAR(MAX)
+	@TransIds			VARCHAR(MAX) = ''
 AS
 
 /*
@@ -103,8 +103,6 @@ BEGIN
 
 	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY);
 
-	CREATE TABLE #TempTransIds (transid NVARCHAR(MAX), IsNum BIT);
-
 	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT);
 
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
@@ -120,19 +118,10 @@ BEGIN
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
 
 	--Parse trans ID string
-	INSERT INTO #TempTransIds(transid, IsNum)
-	SELECT s.value, ISNUMERIC(s.value)
-	FROM STRING_SPLIT(ISNULL(@TransIds, ''), ',') s
-
 	INSERT INTO #TransIds(transid)
-	SELECT DISTINCT transid
-	FROM #TempTransIds
-	WHERE IsNum = 1;
-
-	INSERT INTO #InvalidTransIds(transid, IsMoved)
-	SELECT transid, 0
-	FROM #TempTransIds
-	WHERE IsNum = 0;
+	SELECT s.value
+	FROM STRING_SPLIT(@TransIds, ',') s
+	WHERE s.value <> ''
 
 	--Get tickets from zzzbettrans
 	INSERT INTO #TempBettrans(
@@ -371,7 +360,6 @@ BEGIN
 	DROP TABLE #TempBettrans
 	DROP TABLE #InvalidTransIds
 	DROP TABLE #TransIds
-	DROP TABLE #TempTransIds
 	DROP TABLE #SupportedSports
 
 	SET NOCOUNT OFF;

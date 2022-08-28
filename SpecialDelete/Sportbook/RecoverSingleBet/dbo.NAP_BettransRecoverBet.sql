@@ -484,7 +484,7 @@ BEGIN
 		,transdesc = main.transdesc
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
 		,FcUpdateTime  = SYSDATETIME()
-	OUTPUT t.matchid, t.transid, inserted.STATUS, inserted.winlost, inserted.ruben, ''
+	OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.winlost, inserted.ruben, ''
 			, inserted.statusID, inserted.creator, inserted.actual_stake, inserted.odds, inserted.transdesc, inserted.ExtraInfo, inserted.FcUpdateTime
 	INTO @tmpTransInfo (matchid, transid, status, winlost, ruben, statuswinlost, statusID, creator, actual_stake, odds, transdesc, ExtraInfo, FcUpdateTime)
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
@@ -554,7 +554,7 @@ BEGIN
 			WHERE IsCashOut = 1
 		)
 
-		UPDATE	b WITH(ROWLOCK, UPDLOCK)
+		UPDATE	b
 		SET status = t.status
 		  , statusID = t.StatusId
 		  , stake = TRef.stake
@@ -570,12 +570,12 @@ BEGIN
 		  , creator = t.creator
 		  , ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,t.SportType, b.bettype)
 		  , FcUpdateTime  = SYSDATETIME()
-		OUTPUT deleted.matchid, t.transid, inserted.STATUS, inserted.statusID, inserted.stake
+		OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.statusID, inserted.stake
 			, inserted.winlost, inserted.awinlost, inserted.mWinLost, inserted.swinlost, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm
 			, inserted.ruben, inserted.creator,inserted.ExtraInfo, inserted.FcUpdateTime
 		INTO @tmpTransInfo (matchid, transid, status, statusID, stake, winlost, awinlost, mWinLost, sWinLost
 				, playercomm, Comm, aComm, sComm, ruben, creator, ExtraInfo, FcUpdateTime)
-		FROM dbo.bettrans b WITH(NOLOCK) 
+		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN CTE_main_cashoutticket AS t
 					ON b.transid = t.transId	    			
 			OUTER APPLY (
@@ -724,7 +724,7 @@ BEGIN
 			AND score.id = t.id
 			AND score.rank = 1
 		)
-	UPDATE main WITH(ROWLOCK, UPDLOCK)
+	UPDATE main 
 	SET winlost = 0
 	    ,ruben = 0
 	    ,statuswinlost = NULL
@@ -735,10 +735,10 @@ BEGIN
 		,oddsspread = bc.score
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
 		,FcUpdateTime  = SYSDATETIME()
-	OUTPUT t.matchid, t.transid, inserted.STATUS, inserted.winlost, inserted.ruben, ''
+	OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.winlost, inserted.ruben, ''
 			, inserted.statusID, inserted.creator, inserted.odds, inserted.oddsspread, inserted.ExtraInfo, inserted.FcUpdateTime
 	INTO @tmpTransInfo (matchid, transid, status, winlost, ruben, statuswinlost, statusID, creator, odds, oddsspread, ExtraInfo, FcUpdateTime)
-	FROM bettrans main 
+	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 		LEFT JOIN CTE_Betcheck_Final AS bc ON bc.transid = t.transid
 	WHERE t.bettype IN (468, 469) AND main.SiteDBGroupID = @SiteDBGroupID

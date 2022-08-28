@@ -99,6 +99,7 @@ BEGIN
 	INSERT INTO @tblTransIds (transid)
 	SELECT ss.value
 	FROM STRING_SPLIT(@TransIds, ',') ss
+	WHERE ss.value <> ''
 
 	-- Outright
 	INSERT INTO @tblRecoverBet(

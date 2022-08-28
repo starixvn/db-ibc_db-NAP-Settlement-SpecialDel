@@ -70,6 +70,7 @@ AS
 		- 20220425@July: Separate Send Data to China View & Remove support CN88 [Redmine:#171395]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
+		- 20220828@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -77,10 +78,10 @@ AS
 		1: Number Game
 		2: Virtual sports
 		3: Live casino
-		4: Metric Gaming Super Live
+		4: Metric Gaming Super Live (Not used)
 		5: Virtual sports betradar
-		6: Lucky 3
-		7: Bull fighting
+		6: Lucky 3 (Not used)
+		7: Bull fighting (Not used)
 		8: Bet Builder
 		9: Bitcoin
 
@@ -134,7 +135,7 @@ BEGIN
 
 	DECLARE @SportType SMALLINT = NULL
 		   ,@ValueDefault SMALLMONEY = 9999.00
-
+		
 	SELECT @SportType = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
@@ -216,15 +217,6 @@ BEGIN
 		,FilterTransdesc	NVARCHAR(2000)
 	)
 
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
-
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
-
 	CREATE TABLE #TmpBettrans (
 		srecommend		INT
 		,bettype		SMALLINT
@@ -236,10 +228,7 @@ BEGIN
 		
 	CREATE TABLE #TmpBallSequence (Seq TINYINT)
 
-	DECLARE @tmpConsolidatedBettypes TABLE (
-		parentid	INT
-		,typeid		INT
-		)
+	DECLARE @tmpConsolidatedBettypes TABLE (parentid INT, typeid INT)
 		
 	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
 	DECLARE @tmpTransid TABLE (Transid BIGINT)
@@ -247,9 +236,8 @@ BEGIN
 	IF @SelectionType <> ''
 	BEGIN
 		INSERT INTO #tmpSelectionType (Selectiontype)
-		SELECT val
-		FROM dbo.f_SplitString(@SelectionType, ',')
-		OPTION (maxrecursion 0) 
+		SELECT value
+		FROM STRING_SPLIT(@SelectionType, ',')
 	
 		INSERT INTO @tmpTransid (Transid)
 		SELECT DISTINCT b.transid
@@ -260,21 +248,18 @@ BEGIN
 				WHERE b.betcheck = ms.MarketId and matchid = b.matchid
 				)ms
 			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
-		WHERE b.matchid = @MatchId	
+		WHERE b.matchid = @MatchId
 	END
 	
 	INSERT INTO @tmpBettypes (bettype)
-	SELECT	CONVERT(smallint, val)
-	FROM	dbo.f_SplitString(@BetTypes, ',')
-	GROUP BY val
-	OPTION (maxrecursion 0)
+	SELECT	CONVERT(smallint, value)
+	FROM STRING_SPLIT(@BetTypes, ',')
 
 	IF (@Quarter <> 'All')
 	BEGIN
 		INSERT INTO @tmpQuarter (Id)
-		SELECT val
-		FROM dbo.f_SplitString(@Quarter, ',')
-		OPTION (maxrecursion 0) 
+		SELECT value
+		FROM STRING_SPLIT(@Quarter, ',')
 	END	
 	
 	-- filter bettype detail
@@ -341,35 +326,34 @@ BEGIN
 			, cte.Transdesc
 	FROM (
 		SELECT cte.Id
-				, bt.val AS BetTeam 
-				, se.val AS [Set]
-				, ga.val AS Game
-				, bop.val AS BetOption
-				, CAST(CASE WHEN v.val = 'ALL' THEN @ValueDefault
-						ELSE v.val END AS SMALLMONEY) AS [Value]
-				, CAST(CASE WHEN vhdp1.val = 'ALL' THEN @ValueDefault
-						ELSE vhdp1.val END AS SMALLMONEY) AS ValueHdp1
+				, bt.value AS BetTeam 
+				, se.value AS [Set]
+				, ga.value AS Game
+				, bop.value AS BetOption
+				, CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault
+						ELSE v.value END AS SMALLMONEY) AS [Value]
+				, CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
+						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
 				, CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2		
 				, CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
 				, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
 						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
-				, CAST(CASE WHEN osid.val = 'ALL' THEN NULL
-						ELSE osid.val END AS INT) AS OddsId
-				, CAST(CASE WHEN td.val = 'ALL' THEN NULL
-						ELSE td.val END AS NVARCHAR(2000)) AS Transdesc
+				, CAST(CASE WHEN osid.value = 'ALL' THEN NULL
+						ELSE osid.value END AS INT) AS OddsId
+				, CAST(CASE WHEN td.value = 'ALL' THEN NULL
+						ELSE td.value END AS NVARCHAR(2000)) AS Transdesc
 		FROM #tblBetType cte
-				CROSS APPLY dbo.f_SplitString(cte.betteam, ',') bt
-				CROSS APPLY dbo.f_SplitString(cte.[Set], ',') se
-				CROSS APPLY dbo.f_SplitString(cte.Game, ',') ga
-				CROSS APPLY dbo.f_SplitString(cte.BetOption, ',') bop
-				CROSS APPLY dbo.f_SplitString(cte.[Value], ',') v
-				CROSS APPLY dbo.f_SplitString(cte.ValueHdp1, ',') vhdp1
-				CROSS APPLY dbo.f_SplitString(cte.OddsId, ',') osid
-				CROSS APPLY dbo.f_SplitString(cte.Transdesc, ',') td
+				CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+				CROSS APPLY STRING_SPLIT(cte.[Set], ',') se
+				CROSS APPLY STRING_SPLIT(cte.Game, ',') ga
+				CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
+				CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+				CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
+				CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
+				CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
 	) cte
-	OPTION(MAXRECURSION 0)
 
 	INSERT INTO @tmpConsolidatedBettypes
 	SELECT f.GroupTypeId AS parentid
@@ -382,9 +366,8 @@ BEGIN
 		IF @SportType = 164
 			BEGIN		
 				INSERT INTO #TmpBallSequence(Seq)
-				SELECT  val
-				FROM	dbo.f_SplitString(@BallSequence, ',')
-				OPTION (maxrecursion 0)	
+				SELECT  value
+				FROM STRING_SPLIT(@BallSequence, ',')
 	
 				INSERT INTO #TmpBettrans (srecommend,bettype,liveindicator,statusID,matchid,cnt)
 				SELECT b.srecommend
@@ -414,9 +397,8 @@ BEGIN
 		ELSE
 			BEGIN		
 				INSERT INTO #TmpBallSequence(Seq)
-				SELECT  val
-				FROM	dbo.f_SplitString(@BallSequence, ',')
-				OPTION (maxrecursion 0)	
+				SELECT  value
+				FROM STRING_SPLIT(@BallSequence, ',')
 	
 				INSERT INTO #TmpBettrans (srecommend,bettype,liveindicator,statusID,matchid,cnt)
 				SELECT b.srecommend
@@ -438,9 +420,7 @@ BEGIN
 						WHEN 1 THEN 0
 						WHEN 2 THEN 1
 						END
-					AND EXISTS (SELECT TOP 1 1
-								FROM #TmpBallSequence WITH (NOLOCK)
-								WHERE Seq = BS_tmp.BallSequence)
+					AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)
 				GROUP BY b.srecommend
 					,b.matchid
 					,b.bettype
@@ -490,40 +470,6 @@ BEGIN
 					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 627 AND 631 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
 					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
 																										WHERE b.betid LIKE q.Id + '%')))
-		UNION ALL
-		SELECT bl.translogid transid 
-			,bl.srecommend
-			,bl.GameID bettype
-			,bl.liveindicator
-			,bl.statusID
-			,bl.EventID matchid
-			,bl.custid
-			,b.RefCode	
-			,NULL AS FilterBetType
-			,NULL AS FilterBetTeam
-			,NULL AS FilterSet
-			,NULL AS FilterGame
-			,NULL AS FilterValue
-			,NULL AS FilterGoal
-			,NULL AS FilterBetOption
-			,NULL AS FilterHdp1
-			,NULL AS FilterHdp2
-			,NULL AS FilterOddsSpread
-			,NULL AS FilterOddsId
-			,NULL AS FilterTransdesc
-		FROM translog bl WITH (NOLOCK)
-			LEFT JOIN bettrans b WITH(NOLOCK) ON bl.gameid = b.bettype AND b.matchid = bl.eventid AND b.custid = bl.Custid AND bl.translogid = b.refno
-		WHERE EventID = @MatchId
-			AND GameID IN (801,803,804,805,806,1004) -- MEtric Gaming SUper Live -- MEtric Gaming SUper Live						
-			AND bl.statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-			AND EXISTS (SELECT TOP 1 1 FROM @tmpBettypes t WHERE t.bettype = bl.gameID)
-			AND b.refno IS NULL
-			AND CASE 
-					WHEN @LiveType <> 2 THEN bl.liveindicator
-					ELSE 0 END = CASE 
-					WHEN @LiveType <> 2 THEN @LiveType
-					ELSE 0 
-				END	
 
 		IF (@IsReSettled = 1 AND @SportType = 1)
 		BEGIN
@@ -598,40 +544,6 @@ BEGIN
 		
 		END
 
-		-- Insert data for Bonus tickets
-		INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid)
-		SELECT RefCode, custid, bettype
-				, MAX(transid) AS transid
-		FROM @tmpBettransList
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, bettype
-		HAVING COUNT(*) = 1
-		
-		IF @@ROWCOUNT <> 0
-		BEGIN
-			INSERT INTO @tmpBettransList (transid, srecommend, bettype, liveindicator, statusID, matchid, custid, RefCode)
-			SELECT b.transid 
-				,b.srecommend
-				,b.bettype
-				,b.liveindicator
-				,b.statusID
-				,b.matchid
-				,b.custid
-				,b.RefCode
-			FROM #tmpRefCodeSummary t
-				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-						 ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.matchid = @MatchId
-							AND b.custid = t.custid
-							AND b.bettype = t.bettype
-							AND (@Quarter = 'All' 
-								OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 627 AND 631 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
-								OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																													WHERE b.betid LIKE q.Id + '%')))
-			WHERE b.statusID NOT IN (101,102, 121)--('Void', 'Reject', 'Dummy')	
-		END
-
 		INSERT INTO #TmpBettrans
 		SELECT srecommend
 			,bettype
@@ -676,13 +588,8 @@ BEGIN
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
 		    FROM #TmpBettrans WITH (NOLOCK)
-		    WHERE srecommend IN (
-					   SELECT custid
-					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-					   WHERE site = @LicenseeName
-					   )
-		    GROUP BY bettype
-		    ,LiveIndicator
+		    WHERE srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
+		    GROUP BY bettype, LiveIndicator
 		END
 
 		-- System parlay - Sportsbook 29
@@ -811,7 +718,7 @@ BEGIN
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
 			FROM bettransm bm WITH (NOLOCK)
-				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno 
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
@@ -914,7 +821,7 @@ BEGIN
 							UNION
 							SELECT custid
 							FROM dbo.CS_CustSuper WITH (NOLOCK))
-					AND bm.matchid = @MatchId
+					AND bm.matchid = @MatchId 
 					AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
 					AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 					AND b.bettype = 29
@@ -1105,12 +1012,12 @@ BEGIN
 			,bm.transdesc AS FilterTransdesc
 			,ISNULL(s.IsChinaView,0) AS IsChinaView
 		  FROM bettransm bm WITH (NOLOCK)
-			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno 
 			 INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
-		  WHERE bm.matchid = @MatchId
+		  WHERE bm.matchid = @MatchId 
 			 AND b.bettype = 29
 			 AND b.matchid = 29
 			 AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
@@ -1200,7 +1107,7 @@ BEGIN
 			 ,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
 			 ,ISNULL(s.IsChinaView,0)
 		  FROM bettransm bm WITH (NOLOCK)
-			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+			 INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno 
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
@@ -1257,7 +1164,6 @@ BEGIN
 
 	DROP TABLE #TmpBettrans
 	DROP TABLE #TmpBallSequence
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #tmpSelectionType

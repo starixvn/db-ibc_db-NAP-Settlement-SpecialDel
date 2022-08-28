@@ -369,7 +369,7 @@ BEGIN
 			statusID = 0,
 			creator = r.creator
 		OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, '', inserted.status, inserted.statusID, inserted.creator
-		INTO @tmpTransInfo ( matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator) 
+		INTO @tmpTransInfo (matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator) 
 		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #RecoverBet r ON b.transid = r.transid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
