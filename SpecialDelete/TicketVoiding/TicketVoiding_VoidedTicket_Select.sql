@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
 ( 
 	@VoidingHistoryIds VARCHAR(MAX) =''
+	,@MatchId   INT = 0
 )
 AS;
 /*	Created by: Kathy
@@ -125,7 +126,8 @@ BEGIN
 					,z.oddsid
 					,z.winlostdate
 			FROM dbo.zzzbettrans z WITH(NOLOCK)
-			WHERE z.VoidingHistoryId = vh.VoidingHistoryId 
+			WHERE z.VoidingHistoryId = vh.VoidingHistoryId
+				AND (z.MatchId = @MatchId OR @MatchId = 0)
 				AND z.SiteDBGroupID = @SiteDBGroupID
 		) z
 		
@@ -153,6 +155,7 @@ BEGIN
 					,zm.winlostdate
 			FROM dbo.zzzbettransm zm WITH(NOLOCK)
 			WHERE zm.VoidingHistoryId = vh.VoidingHistoryId 
+				AND (zm.MatchId = @MatchId OR @MatchId = 0)
 				AND zm.SiteDBGroupID = @SiteDBGroupID
 		) zm
 	

@@ -72,9 +72,9 @@ BEGIN
 					,CASE WHEN vh.IssueTypeId IN (1,4,5,6,7) THEN z.matchid ELSE NULL END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
-					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND z.SiteDBGroupID = @SiteDBGroupID
+					ON	vh.VoidingHistoryId = z.VoidingHistoryId AND vh.MatchId = z.matchid AND z.SiteDBGroupID = @SiteDBGroupID
 			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (1,4,5,6,7) THEN z.matchid ELSE NULL END
-	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId
+	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND (vh.MatchId = t.matchid OR t.MatchId IS NULL)
 			
 	--parlay
 	UPDATE vh
@@ -87,9 +87,9 @@ BEGIN
 					,CASE WHEN vh.IssueTypeId IN (1,4,5,6,7) THEN zm.matchid ELSE NULL END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
-					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND zm.SiteDBGroupID = @SiteDBGroupID
+					ON	zm.VoidingHistoryId = vh.VoidingHistoryId AND vh.MatchId = zm.matchid AND zm.SiteDBGroupID = @SiteDBGroupID
 			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (1,4,5,6,7) THEN zm.matchid ELSE NULL END
-	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId
+	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND (vh.MatchId = t.matchid OR t.MatchId IS NULL)
 
 	UPDATE t 
 		SET TotalVoidedSingle = ISNULL(vh.TotalVoidedSingle,0)
