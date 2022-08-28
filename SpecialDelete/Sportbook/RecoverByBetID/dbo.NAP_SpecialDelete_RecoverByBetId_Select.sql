@@ -1,8 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Select]
-	@TransIds			VARCHAR(MAX),
-	@InvalidTransIds	VARCHAR(MAX) OUTPUT,
-	@MovedTransIds		VARCHAR(MAX) OUTPUT
+	@TransIds			VARCHAR(MAX)
 AS
 
 /*
@@ -16,12 +14,17 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 */
 
 BEGIN
 	SET NOCOUNT ON;
+	DECLARE @SiteDBGroupID		INT = 0
+	        ,@InvalidTransIds   VARCHAR(MAX) = ''
+			,@MovedTransIds     VARCHAR(MAX) = ''
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #RecoverBet (
 		transid			BIGINT,
@@ -102,12 +105,11 @@ BEGIN
 
 	CREATE TABLE #TempTransIds (transid NVARCHAR(MAX), IsNum BIT);
 
-	CREATE TABLE #InvalidTransIds (transid NVARCHAR(MAX), IsMoved BIT);
+	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT);
 
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
 
 	INSERT INTO #SupportedSports(SportType)
-	--VALUES (160); --Lucky3
 	VALUES (175); --Bitcoin 
 
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
@@ -132,190 +134,205 @@ BEGIN
 	FROM #TempTransIds
 	WHERE IsNum = 0;
 
-	IF EXISTS(SELECT 1 FROM #TransIds)
-	BEGIN
-		--Get tickets from zzzbettrans
-		INSERT INTO #TempBettrans(
-			custid,
-			matchid,
-			bettype,
-			transid,
-			username,
-			actual_stake,
-			oddstype,
-			srecommend,
-			betid,
-			transdesc,
-			CurrencyName,
-			transdate
-		)
-		SELECT	b.custid,
-				b.matchid,
-				b.bettype,
-				b.transid,
-				b.username,
-				b.actual_stake,
-				b.oddstype,
-				b.srecommend,
-				b.betid,
-				b.transdesc,
-				b.CurrencyName,
-				b.transdate
-		FROM dbo.bettrans b WITH(NOLOCK)
-		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
-			AND b.winlostdate >= @MovedBetDay	
-			AND b.betfrom <> 'p';
+	--Get tickets from zzzbettrans
+	INSERT INTO #TempBettrans(
+		custid,
+		matchid,
+		bettype,
+		transid,
+		username,
+		actual_stake,
+		oddstype,
+		srecommend,
+		betid,
+		transdesc,
+		CurrencyName,
+		transdate
+	)
+	SELECT	b.custid,
+			b.matchid,
+			b.bettype,
+			b.transid,
+			b.username,
+			b.actual_stake,
+			b.oddstype,
+			b.srecommend,
+			b.betid,
+			b.transdesc,
+			b.CurrencyName,
+			b.transdate
+	FROM dbo.bettrans b WITH(NOLOCK)
+	WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
+		AND b.winlostdate >= @MovedBetDay	
+		AND b.betfrom <> 'p'
+		AND b.SiteDBGroupID = @SiteDBGroupID
 
-		------159948 - Support Bitcoin
-		INSERT INTO #TempBet(
-			custid,
-			matchid,
-			bettype,
-			transid,
-			username,
-			actual_stake,
-			oddstype,
-			srecommend,
-			betid,
-			transdesc,
-			CurrencyName,
-			matchcode,
-			leagueid,
-			homeid,
-			awayid,
-			IsNeutral,
-			sporttype,
-			transdate,
-			eventdate,
-			endtime
-		)
-		SELECT	b.custid,
-				b.matchid,
-				b.bettype,
-				b.transid,
-				b.username,
-				b.actual_stake,
-				b.oddstype,
-				b.srecommend,
-				b.betid,
-				b.transdesc,
-				b.CurrencyName,
-				m.MatchNo AS matchcode,
-				m.League3rdId AS leagueid,
-				m.HomeId,
-				m.AwayId,
-				NULL AS IsNeutral,
-				m.sporttype,
-				b.transdate,
-				m.eventdate,
-				m.EndTime
-		FROM #TempBettrans b
-			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
-		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype);
+	------159948 - Support Bitcoin
+	INSERT INTO #TempBet(
+		custid,
+		matchid,
+		bettype,
+		transid,
+		username,
+		actual_stake,
+		oddstype,
+		srecommend,
+		betid,
+		transdesc,
+		CurrencyName,
+		matchcode,
+		leagueid,
+		homeid,
+		awayid,
+		IsNeutral,
+		sporttype,
+		transdate,
+		eventdate,
+		endtime
+	)
+	SELECT	b.custid,
+			b.matchid,
+			b.bettype,
+			b.transid,
+			b.username,
+			b.actual_stake,
+			b.oddstype,
+			b.srecommend,
+			b.betid,
+			b.transdesc,
+			b.CurrencyName,
+			m.MatchNo AS matchcode,
+			m.League3rdId AS leagueid,
+			m.HomeId,
+			m.AwayId,
+			NULL AS IsNeutral,
+			m.sporttype,
+			b.transdate,
+			m.eventdate,
+			m.EndTime
+	FROM #TempBettrans b
+		INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
+	WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype);
 
-		CREATE CLUSTERED INDEX ix_TempBet_cl ON #TempBet(custid, matchid, bettype);
+	CREATE CLUSTERED INDEX ix_TempBet_cl ON #TempBet(custid, matchid, bettype);
 
-		INSERT INTO #RecoverBet(
-			transid,
-			refno,
-			username,	
-			transdate,	
-			odds,
-			stake,
-			winlost,
-			STATUS,
-			bettype,
-			matchcode,
-			OddsType,					
-			betteam,		
-			betcheck,		
-			hdp1,			
-			hdp2,		
-			srecommend,		
-			IsLiveIndicator,
-			livehomescore,	
-			liveawayscore,						
-			betid,
-			transdesc,
-			leagueid,
-			sporttype,
-			homeid,
-			awayid,
-			custid,
-			IsNeutral,
-			CurrencyName,
-			EventDate,
-			matchid,
-			endtime
-		)
-		SELECT	z.transid,
-				z.refno,
-				b.Username,		
-				b.transdate,
-				z.odds,
-				z.stake,
-				z.winlost - b.actual_stake,
-				z.STATUS,
-				z.bettype,
-				b.matchcode,
-				b.oddstype,				
-				z.betteam,
-				z.betcheck,
-				z.hdp1,
-				z.hdp2,
-				b.srecommend,
-				z.liveindicator,
-				z.livehomescore,
-				z.liveawayscore,	
-				b.betid,
-				b.transdesc,
-				b.leagueid,
-				b.sporttype,
-				b.homeid,
-				b.awayid,
-				z.custid,
-				b.IsNeutral,
-				b.CurrencyName,
-				b.EventDate,
-				b.matchid,
-				b.endtime
-		FROM dbo.zzzbettrans z WITH(NOLOCK)
-			INNER JOIN #TempBet b
-				ON z.transid = b.transid
-					AND z.custid = b.custid
-					AND z.matchid = b.matchid					
-					AND z.bettype = b.bettype;
+	INSERT INTO #RecoverBet(
+		transid,
+		refno,
+		username,	
+		transdate,	
+		odds,
+		stake,
+		winlost,
+		STATUS,
+		bettype,
+		matchcode,
+		OddsType,					
+		betteam,		
+		betcheck,		
+		hdp1,			
+		hdp2,		
+		srecommend,		
+		IsLiveIndicator,
+		livehomescore,	
+		liveawayscore,						
+		betid,
+		transdesc,
+		leagueid,
+		sporttype,
+		homeid,
+		awayid,
+		custid,
+		IsNeutral,
+		CurrencyName,
+		EventDate,
+		matchid,
+		endtime
+	)
+	SELECT	z.transid,
+			z.refno,
+			b.Username,		
+			b.transdate,
+			z.odds,
+			z.stake,
+			z.winlost - b.actual_stake,
+			z.STATUS,
+			z.bettype,
+			b.matchcode,
+			b.oddstype,				
+			z.betteam,
+			z.betcheck,
+			z.hdp1,
+			z.hdp2,
+			b.srecommend,
+			z.liveindicator,
+			z.livehomescore,
+			z.liveawayscore,	
+			b.betid,
+			b.transdesc,
+			b.leagueid,
+			b.sporttype,
+			b.homeid,
+			b.awayid,
+			z.custid,
+			b.IsNeutral,
+			b.CurrencyName,
+			b.EventDate,
+			b.matchid,
+			b.endtime
+	FROM dbo.zzzbettrans z WITH(NOLOCK)
+		INNER JOIN #TempBet b
+			ON z.transid = b.transid
+				AND z.custid = b.custid
+				AND z.matchid = b.matchid					
+				AND z.bettype = b.bettype
+	WHERE z.SiteDBGroupID = @SiteDBGroupID
 
-		CREATE CLUSTERED INDEX ix_RecoverBet_cl ON #RecoverBet(transid);
+	CREATE CLUSTERED INDEX ix_RecoverBet_cl ON #RecoverBet(transid);
 
-		UPDATE t
-		SET GroupName = CASE WHEN d.custid IS NULL THEN 'Credit' ELSE 'Deposit' END
-		FROM #RecoverBet t
-			LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON t.srecommend = d.custid;
+	UPDATE t
+	SET GroupName = CASE WHEN d.custid IS NULL THEN 'Credit' ELSE 'Deposit' END
+	FROM #RecoverBet t
+		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON t.srecommend = d.custid;
 		
-		/*Modify the way to get move bet date*/
-		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
+	/*Modify the way to get move bet date*/
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
-		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
-		BEGIN
-			DELETE 
-			FROM #RecoverBet
-				OUTPUT	DELETED.TransId
-				INTO @tmpTransIdMoveBet (TransId)
-			WHERE EventDate <= @MovebetDate
-		END
-
-		INSERT INTO #InvalidTransIds(transid, IsMoved)
-		SELECT	t.transid,
-				CASE WHEN b.transid IS NOT NULL THEN 1
-					 WHEN m.TransId IS NOT NULL THEN 1
-					ELSE 0 END AS IsMoved
-		FROM #TransIds t
-			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid
-			LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId
-		WHERE NOT EXISTS (SELECT 1 FROM #RecoverBet r WHERE r.transid = t.transid);
+	IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
+	BEGIN
+		DELETE 
+		FROM #RecoverBet
+			OUTPUT	DELETED.TransId
+			INTO @tmpTransIdMoveBet (TransId)
+		WHERE EventDate <= @MovebetDate
 	END
 
+	------------------------------------------------------------------------------
+	--1. Table invald/moved transid
+	INSERT INTO #InvalidTransIds(transid, IsMoved)
+	SELECT	t.transid,
+			CASE WHEN b.transid IS NOT NULL THEN 1
+				 WHEN m.TransId IS NOT NULL THEN 1
+				ELSE 0 END AS IsMoved
+	FROM #TransIds t
+		LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
+		LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId
+	WHERE NOT EXISTS (SELECT 1 FROM #RecoverBet r WHERE r.transid = t.transid)
+	
+	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+									 FROM #InvalidTransIds
+									 WHERE IsMoved = 0
+									 FOR XML PATH('')), 1, 1, '');									
+
+	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+								   FROM #InvalidTransIds
+								   WHERE IsMoved = 1
+								   FOR XML PATH('')), 1, 1, '');	
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+	      ,@MovedTransIds AS MovedTransIds
+	
+	--2. Table get tickets
 	SELECT	t.GroupName,
 			t.transid,
 			t.refno,
@@ -344,25 +361,11 @@ BEGIN
 			t.IsNeutral,
 			t.CurrencyName,
 			t.matchid, 
-			t.endtime
+			t.endtime,
+			@SiteDBGroupID AS SiteDBGroupID
 	FROM #RecoverBet t
 	ORDER BY GroupName, transid;
 
-	SELECT @InvalidTransIds = STUFF(
-									(
-										SELECT ',' + transid
-										FROM #InvalidTransIds
-										WHERE IsMoved = 0
-										FOR XML PATH('')
-									), 1, 1, '');									
-
-	SELECT @MovedTransIds = STUFF(
-									(
-										SELECT ',' + transid
-										FROM #InvalidTransIds
-										WHERE IsMoved = 1
-										FOR XML PATH('')
-									), 1, 1, '');	
 	DROP TABLE #RecoverBet
 	DROP TABLE #TempBet
 	DROP TABLE #TempBettrans

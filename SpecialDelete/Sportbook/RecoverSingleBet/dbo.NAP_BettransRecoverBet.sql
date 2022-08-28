@@ -174,8 +174,6 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
 		DELETE FROM #tbTransId WHERE SiteDBGroupID <> @SiteDBGroupID
-
-
 		-- Normal tickets
 		INSERT INTO #tblTransInfo(
 				grouptransid	

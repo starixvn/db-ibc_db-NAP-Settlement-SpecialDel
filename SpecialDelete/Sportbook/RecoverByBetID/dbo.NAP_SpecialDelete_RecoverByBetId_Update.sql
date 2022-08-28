@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Update]
-	@TransIds		      VARCHAR(MAX),
+	@TransInfo			  XML, 
 	@UserId			      INT,	
 	@IP					  VARCHAR(50)
 AS
@@ -16,14 +16,16 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:	
+		@TransInfo : <root><r t='121321' sitedb='1'/></root>
 */
 
 BEGIN
 	SET NOCOUNT ON;
 
-	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY);
+	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY, SiteDBGroupID SMALLINT);
 
 	CREATE TABLE #CompletedMatches (matchid INT, TransIds VARCHAR(MAX), [Action] VARCHAR(20), isFinish BIT);
 
@@ -109,11 +111,8 @@ BEGIN
 
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
 
-	CREATE TABLE #OutputValue (
-		KeyName		VARCHAR(50),
-		KeyValue	VARCHAR(MAX)
-	);
-
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost MONEY, stake MONEY, statusID TINYINT, creator INT)
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
 
@@ -122,14 +121,20 @@ BEGIN
 			@isITAdmin			  BIT = 0,
 			@ValidTransIDs		  VARCHAR(MAX),
 			@ErrCode			  INT = 0,
-			@ErrMsg				  NVARCHAR(MAX),
+			@ErrMsg				  NVARCHAR(MAX) = '',
 			@ReCalcMatches		  VARCHAR(MAX) = '',
 			@LogData			  NVARCHAR(MAX),
 			@MovebetDate		  DATETIME,
 			@SPName				  VARCHAR(500) = OBJECT_NAME(@@PROCID),
 			@MatchId			  INT,
 			@ResettleTransIds	  VARCHAR(MAX) = '',
-			@Action				  VARCHAR(20)
+			@Action				  VARCHAR(20),
+			@IsSiteDB			  BIT,
+			@SiteDBGroupID        INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
@@ -140,10 +145,13 @@ BEGIN
 
 	BEGIN TRY
 		--Pare trans ID string
-		INSERT INTO #TransIds (transid)
-		SELECT	DISTINCT s.value 
-		FROM	STRING_SPLIT(ISNULL(@TransIds, ''), ',') s
+		INSERT INTO #TransIds (transid, SiteDBGroupID)
+		SELECT t.c.value('@t','BIGINT') AS transid
+			  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
+		FROM @TransInfo.nodes('root/r') t(c)
+		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
+		DELETE FROM #TransIds WHERE SiteDBGroupID <> @SiteDBGroupID
 		INSERT INTO #TempBettrans(
 			custid,
 			matchid,
@@ -173,7 +181,7 @@ BEGIN
 				b.currency,
 				b.transdate
 		FROM dbo.bettrans b WITH(NOLOCK)
-		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
+		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid AND b.SiteDBGroupID = t.SiteDBGroupID)
 			AND b.winlostdate >= @MovedBetDay	
 			AND b.betfrom <> 'p';
 
@@ -320,7 +328,8 @@ BEGIN
 				ON z.transid = b.transid
 					AND z.custid = b.custid
 					AND z.matchid = b.matchid					
-					AND z.bettype = b.bettype;	
+					AND z.bettype = b.bettype
+		WHERE z.SiteDBGroupID = @SiteDBGroupID
 
 		--Check SD process and lock
 		INSERT INTO #tblMatchProcess(matchid, KeyID)
@@ -350,18 +359,53 @@ BEGIN
 				SUM(balance) AS balance
 		FROM dbo.f_GetBalanceByTransID(@ValidTransIDs)
 		GROUP BY custid, BalanceType
-		OPTION(MAXRECURSION 0);
 	
 		--Recover tickets
-		UPDATE b WITH(ROWLOCK, UPDLOCK)
+		UPDATE b 
 		SET	winlost = 0,
 			ruben = 0,
 			statuswinlost = NULL,
 			STATUS = 'running',
 			statusID = 0,
 			creator = r.creator
-		FROM dbo.bettrans b
-			INNER JOIN #RecoverBet r ON b.transid = r.transid;
+		OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, '', inserted.status, inserted.statusID, inserted.creator
+		INTO @tmpTransInfo ( matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator) 
+		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #RecoverBet r ON b.transid = r.transid
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
+
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo )
+		BEGIN
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId 
+				FROM @tmpMatchidInfo m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+				SET @transInfo = (
+				SELECT	matchid AS '@mid'
+						, transId AS '@t'
+						, STATUS AS '@s'
+						, winlost AS '@w'
+						, ruben AS '@r'
+						, statuswinlost AS '@statuswl'
+						, statusID AS '@sid'
+						, creator AS '@cr'
+				FROM	@tmpTransInfo WHERE matchid = @MatchId 
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @transInfo 
+			END
+
+			DELETE FROM @tmpTransInfo
+			DELETE FROM @tmpMatchidInfo
+		END
 
 		--Capture balance after Recover
 		INSERT INTO @AfterRecover (
@@ -374,15 +418,47 @@ BEGIN
 				SUM(balance) AS balance
 		FROM dbo.f_GetBalanceByTransID(@ValidTransIDs)
 		GROUP BY custid, BalanceType
-		OPTION(MAXRECURSION 0);
 
 		--Insert balance pending
 		EXEC [dbo].[NAP_Admin_BalancePendingIns] @BeforeUpd = @BeforeRecover, @AfterUpd = @AfterRecover;
 
 		--Delete recovers tickets
+		INSERT INTO @tmpTransInfo (matchid, transid)
+		SELECT z.matchid, z.transid
+		FROM zzzbettrans z WITH(NOLOCK)
+			INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid
+		WHERE z.SiteDBGroupID = @SiteDBGroupID 
+
 		DELETE z WITH(UPDLOCK, ROWLOCK)
 		FROM zzzbettrans z
-			INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid;
+			INNER JOIN @tmpTransInfo t ON z.matchid = t.matchid AND z.transid = t.transid;
+		
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId 
+				FROM @tmpMatchidInfo m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+				SET @transInfo = (
+				SELECT	matchid AS '@mid'
+						, transId AS '@t'
+				FROM	@tmpTransInfo WHERE matchid = @MatchId 
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @transInfo 
+			END
+
+			DELETE FROM @tmpTransInfo
+			DELETE FROM @tmpMatchidInfo
+		END
 
 		--Return completed matches to resettle
 		INSERT INTO #CompletedMatches(matchid, [Action])
@@ -436,12 +512,13 @@ BEGIN
 
 	END
 
-	INSERT INTO #OutputValue(KeyName, KeyValue)
-	VALUES ('ErrCode', CAST(@ErrCode AS VARCHAR(MAX))), ('ErrMsg', @ErrMsg), ('ReCalcMatches', @ReCalcMatches);
+	------------------------------------------------------------------------------
+	--1. Table return error code/ msg
+	SELECT @ErrCode AS ErrorCode
+		  ,@ErrMsg AS ErrorMsg
+		  ,@ReCalcMatches AS ReCalcMatches
 
-	SELECT KeyName, KeyValue
-	FROM #OutputValue;
-
+	--2. Table get tickets
 	SELECT	CASE WHEN d.custid IS NULL THEN 'Credit' ELSE 'Deposit' END AS GroupName,
 			t.transid,
 			t.refno,
@@ -486,7 +563,6 @@ BEGIN
 	DROP TABLE #TempBet
 	DROP TABLE #TempBettrans
 	DROP TABLE #SupportedSports
-	DROP TABLE #OutputValue
 	SET NOCOUNT OFF;
 END
 GO
