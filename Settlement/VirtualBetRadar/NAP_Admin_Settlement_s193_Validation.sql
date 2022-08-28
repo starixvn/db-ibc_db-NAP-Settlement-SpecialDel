@@ -43,7 +43,7 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK) 
 	WHERE	m.matchid = @MatchId
 
-	IF(@Action NOT IN ('CAL', 'REFUND'))
+	IF( @Action NOT IN ('CAL', 'REFUND') )
 	BEGIN
 		SELECT	 @ErrCode	= 1000001
 				,@ErrMsg	= 'This action ''' + @Action + ''' does not support!'	
@@ -59,8 +59,7 @@ BEGIN
 
 	IF @sporttype = 193
 	BEGIN
-		
-		--start check invalid result
+
 		SET @xml = CONVERT(XML,@SelectedResources)
 		
 		INSERT INTO @Resources_193 
@@ -88,15 +87,66 @@ BEGIN
 			RETURN			
 		END
 
-		IF EXISTS (SELECT 1 FROM @tmpResultVS 
-					WHERE ResourceId IN ('280920','280940','280960')
-						AND HomeValue NOT IN ('H','A','N')
-					)		
+		IF EXISTS (SELECT 1 FROM @tmpResultVS WHERE ResourceId IN ('280920','280940','280960')	AND HomeValue NOT IN ('H','A','N')		)		
 		BEGIN
 			SELECT	 @ErrCode	= 1000005
 					,@ErrMsg	= 'Result not found!'
 			RETURN
 		END
+
+		IF @Action ='CAL' 
+		BEGIN
+			IF EXISTS (SELECT COUNT(1) FROM @tmpResultVS GROUP BY ResourceId HAVING COUNT(1)> 1)
+			BEGIN
+				SELECT	 @ErrCode	= 1000006
+						,@ErrMsg	= 'Inputed results are duplicate!'	
+				RETURN
+			END
+		
+			IF ISNULL( (SELECT COUNT(1) FROM @tmpResultVS WHERE ResourceId IN (SELECT ResourceID FROM @Resources_193)),0) < 3
+			BEGIN
+				-- Single Ticket: Checking Ticket if resources not exist
+				IF EXISTS (SELECT TOP 1 1 
+							FROM bettrans b (nolock)
+							WHERE b.matchid = @MatchId
+								AND b.statusId NOT IN (101, 102)
+								AND b.betid IN ('820','840','860')
+								AND EXISTS (SELECT 1 
+											FROM dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+											WHERE f.bettype 	= b.bettype
+												AND f.sportType = @sportType)				
+								AND (@ResourceIDs IS NULL OR CHARINDEX (RIGHT(BETID,2),@ResourceIDs)= 0)
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+							) 						
+				BEGIN
+					SELECT	 @ErrCode	= 1000005
+							,@ErrMsg	= 'Result not found!'	
+					RETURN
+				END
+			
+				-- Parlay Ticket: Checking Ticket if resources not exist
+				IF EXISTS (SELECT TOP 1 1 
+							FROM bettransm bm (nolock)
+							WHERE bm.matchid = @MatchId
+								AND bm.statusId NOT IN (101, 102)
+								AND bm.betcheck IN ('820','840','860')
+								AND EXISTS (SELECT 1 
+											FROM dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+											WHERE f.bettype 	= bm.bettype
+												AND f.sportType = @sportType)
+							
+								AND (@ResourceIDs IS NULL OR CHARINDEX (RIGHT(betcheck,2),@ResourceIDs)= 0)
+								AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+							) 						
+				BEGIN
+					SELECT	 @ErrCode	= 1000005
+							,@ErrMsg	= 'Result not found!'	
+					RETURN
+				END
+			
+			END
+		END
+		--/end check @Action ='CAL' sporttype 193
 
 		SET @Fth = (SELECT HomeValue FROM @tmpResultVS WHERE ResourceId = '00')
 		SET @Fta = (SELECT AwayValue FROM @tmpResultVS WHERE ResourceId = '00')
@@ -108,6 +158,7 @@ BEGIN
 							WHERE ResourceId IN (SELECT ResourceID FROM @Resources_193)
 							FOR XML PATH('')),1,1,'')
 	END
+	--/end check sporttype 193
 
 	--CHECK: HOME, AWAY scores validation
 	IF(@Action = 'CAL' AND (@Fth IS NULL OR @Fta IS NULL OR @Hth IS NULL OR @Hta IS NULL))
@@ -117,68 +168,7 @@ BEGIN
 		RETURN
 	END
 
-	IF @sportType = 193 AND @Action = 'CAL'
-	BEGIN
-
-		IF EXISTS (SELECT COUNT(1) 
-					FROM @tmpResultVS
-					GROUP BY ResourceId
-					HAVING COUNT(1)> 1)
-		BEGIN
-			SELECT	 @ErrCode	= 1000006
-					,@ErrMsg	= 'Inputed results are duplicate!'	
-			RETURN
-		END
-
-		IF ISNULL((SELECT COUNT(1) 
-					FROM @tmpResultVS 
-					WHERE ResourceId IN (SELECT ResourceID FROM @Resources_193)),0) < 3
-		BEGIN
-			-- Single Ticket: Checking Ticket if resources not exist
-			IF EXISTS (SELECT TOP 1 1 
-						FROM bettrans b (nolock)
-						WHERE b.matchid = @MatchId
-							AND b.statusId NOT IN (101, 102)
-							AND b.betid IN ('820','840','860')
-							AND EXISTS (SELECT 1 
-										FROM dbo.f_Set_VS_BetRadar_GetBettypes() AS f
-										WHERE f.bettype 	= b.bettype
-											AND f.sportType = @sportType)
-							
-							AND (@ResourceIDs IS NULL OR CHARINDEX (RIGHT(BETID,2),@ResourceIDs)= 0)
-							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-						) 						
-			BEGIN
-				SELECT	 @ErrCode	= 1000005
-						,@ErrMsg	= 'Result not found!'	
-				RETURN
-			END
-			
-			-- Parlay Ticket: Checking Ticket if resources not exist
-			IF EXISTS (SELECT TOP 1 1 
-						FROM bettransm bm (nolock)
-						WHERE bm.matchid = @MatchId
-							AND bm.statusId NOT IN (101, 102)
-							AND bm.betcheck IN ('820','840','860')
-							AND EXISTS (SELECT 1 
-										FROM dbo.f_Set_VS_BetRadar_GetBettypes() AS f
-										WHERE f.bettype 	= bm.bettype
-											AND f.sportType = @sportType)
-							
-							AND (@ResourceIDs IS NULL OR CHARINDEX (RIGHT(betcheck,2),@ResourceIDs)= 0)
-							AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-						) 						
-			BEGIN
-				SELECT	 @ErrCode	= 1000005
-						,@ErrMsg	= 'Result not found!'	
-				RETURN
-			END
-			
-		END
-		--/end 
-	END
-
-	--/startcheck match in queue
+	--start check match in queue
 	IF EXISTS (
         SELECT	1
         FROM	dbo.Single_Calculate_Queue_VS WITH (NOLOCK)
@@ -197,5 +187,6 @@ BEGIN
 		RETURN
 	END
 	--/end check match in queue
+
 END
 GO
