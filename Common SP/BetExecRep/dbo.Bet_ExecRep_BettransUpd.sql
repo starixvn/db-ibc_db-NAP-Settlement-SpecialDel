@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_BettransUpd] 
 	@BetTickets	VARCHAR(MAX)
+	,@matchid	INT = 0
 AS
 /*
 	Created: 20160606@Bobby
@@ -189,8 +190,8 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-		VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @transInfo)		
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, MatchId)
+		VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @transInfo, @matchid)		--cal or refund
 	END
 END
 GO

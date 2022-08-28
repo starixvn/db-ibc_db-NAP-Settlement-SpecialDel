@@ -148,6 +148,7 @@ BEGIN
 	
 			EXEC dbo.NAP_Admin_Calculate_Bettrans
 				@BetTickets		= @BetTickets
+				,@MatchId		= @MatchId
 				,@CWLBettype	= @CWLBettype
 				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
