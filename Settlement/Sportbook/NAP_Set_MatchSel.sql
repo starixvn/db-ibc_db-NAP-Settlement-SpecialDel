@@ -148,6 +148,8 @@ BEGIN
 			,@IsMarkedTicket	= 0
 			,@IsIncludeTest		= 1
 			,@FilterOver		= 0
+			,@FilterBy			= 0
+			,@StatusId			= 0
 		BEGIN TRY
 			SET @matchid = CASE 
 					WHEN ISNUMERIC(@matchcode) = 1 THEN CAST(@matchcode AS INT)
