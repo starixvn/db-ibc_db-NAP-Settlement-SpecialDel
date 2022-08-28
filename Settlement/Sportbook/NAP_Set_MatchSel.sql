@@ -828,7 +828,7 @@ BEGIN
 	BEGIN
 		DELETE 
 		FROM	#matchList
-		WHERE	1 = CASE WHEN IsExistRunningTicket + IsExistRunningTicketParlay > 0 THEN 0 ELSE 1 END
+		WHERE	1 = CASE WHEN ISNULL(IsExistRunningTicket,0) > 0 OR ISNULL(IsExistRunningTicketParlay,0) > 0 THEN 0 ELSE 1 END
 	END
 
 	SELECT	m.HalfTimeHomeScore
