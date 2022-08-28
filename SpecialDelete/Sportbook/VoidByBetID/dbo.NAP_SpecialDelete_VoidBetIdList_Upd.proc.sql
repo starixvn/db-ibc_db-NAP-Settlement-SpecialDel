@@ -13,8 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]
 	,@StatusIds			VARCHAR(50) = NULL
 	,@FromDate			DATETIME	= NULL	
 	,@ToDate			DATETIME	= NULL
-	,@ErrCode			INT = 0 OUTPUT
-	,@ErrMsg			NVARCHAR(200) = '' OUTPUT
+
 AS 
 	/* Created by: Jamie  
 	 Task:  VOID BY BET ID (Running & Settled tickets)  
@@ -175,8 +174,8 @@ BEGIN
 			,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 			,@totalMainParlay		INT = 0
 
-	SELECT @ErrCode	= 0
-		  ,@ErrMsg	= ''
+	DECLARE @ErrCode 		INT = 0 
+		   ,@ErrMsg		    NVARCHAR(200) = '' 
 	
 	DECLARE @beforeUpd 	TVP_BalanceWalletChange
 		  , @afterUpd 	TVP_BalanceWalletChange
@@ -275,9 +274,11 @@ BEGIN
 
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @password AND custid = @userId AND roleid >=5)
 	BEGIN
-		SELECT @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
-				,@ErrCode = 101  
+		SELECT @ErrCode = 101, @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
 		
+		SELECT @ErrCode AS ErrorCode
+			  ,@ErrMsg AS ErrorMsg
+
 		SELECT @LogData = 'Try to delete transaction for custid: ' + cast(@UserID AS VARCHAR(10)) + ' betlist: ' 
 							+ cast(@TransIds AS VARCHAR(8000)) + ' - Username: ' + @username + ' - reason: ' + @reason  
 		  
@@ -511,14 +512,14 @@ BEGIN
 	BEGIN
 		IF @FilterUserName IS NULL -- By Bet ID
 		BEGIN
-			SELECT @ErrCode = 102
-				 , @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
+			SELECT @ErrCode= 102, @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
 		END
 		ELSE -- By Username
 		BEGIN
-			SELECT @ErrCode = 102
-				 , @ErrMsg = 'Could not void some tickets due to Movebet process. Please try a new Date range and Search again.'
+			SELECT @ErrCode = 102, @ErrMsg = 'Could not void some tickets due to Movebet process. Please try a new Date range and Search again.'
 		END
+
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 
 		RETURN	
 	END
@@ -532,8 +533,10 @@ BEGIN
 	--check no data
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)
 	BEGIN
- 		SELECT	@ErrCode = 99
- 			   ,@ErrMsg = 'No ticket found.' 						
+ 		SELECT	@ErrCode = 99, @ErrMsg = 'No ticket found.' 
+		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+
 		RETURN
 	END
 	
@@ -619,6 +622,8 @@ BEGIN
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN	
+				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+
 				RETURN
 			END
 		END
@@ -648,7 +653,8 @@ BEGIN
 					, @isExistFM2				= @isExistFM2
 					, @isExistMatch3rd			= @isExistMatch3rd
 					, @IsReleased				= 1
-						
+					
+				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 				RETURN
 			END
 		END		
@@ -673,7 +679,8 @@ BEGIN
 			, @ErrMsg					= @ErrMsg OUTPUT
 
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-		BEGIN		
+		BEGIN
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 			RETURN
 		END
 	END 
@@ -998,8 +1005,9 @@ BEGIN
 			END
 		END TRY 
 		BEGIN CATCH
-			SELECT	@ErrCode = 500
-				,@ErrMsg = 'Called NAP_Admin_Calculate_500 with error.'
+			SELECT	@ErrCode = 500, @ErrMsg = 'Called NAP_Admin_Calculate_500 with error.'
+			
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		END CATCH
 	END
 	
@@ -1325,6 +1333,8 @@ BEGIN
 	FROM CustDB.dbo.Customer ci WITH(NOLOCK)
 		INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid			
 	
+	SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
+
 	SELECT	
 		b.transId
 		,b.custid
