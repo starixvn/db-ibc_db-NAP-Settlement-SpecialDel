@@ -28,6 +28,7 @@ AS
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -42,7 +43,9 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON 
-	
+	DECLARE @SitedbgroupId	INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)
 	
 	DECLARE @tmpCurrentBalance TABLE (
@@ -108,101 +111,14 @@ BEGIN
 			,b.BonusID
 	FROM	@tmpTransId t
 		INNER JOIN bettrans b WITH(NOLOCK)
-			ON	b.transid = t.transid		
+			ON	b.transid = t.transid AND b.SiteDBGroupID = @SitedbgroupId
 	WHERE	1 = CASE 
 					WHEN @Type = 0 AND @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
 					WHEN @Type = 0 AND @ExcludeRunning = 1 AND b.statusID IN (111, 112, 113) THEN 1
 					WHEN @Type = 1 AND b.statusID = 102 THEN 1
 					ELSE 0 
 					END 
-			AND b.bettype NOT IN (801,803,804,805,806)
 	
-	INSERT INTO #BetDelete(
-		transid
-		,custid
-		,winlost
-		,actual_stake
-		,playercomm
-		,bettype
-		,matchid
-		,refno
-		,betdaqid
-	)
-	SELECT	ISNULL(b.transId,tl.translogid) AS transid
-			,tl.custid
-			,ISNULL(b.winlost,0) AS winlost
-			,tl.actual_stake
-			,ISNULL(b.playercomm,0) AS playercomm
-			,tl.gameID
-			,tl.eventID
-			,ISNULL(b.refno, tl.translogid) as refno
-			,-1 AS betdaqid			
-	FROM	@tmpTransId t
-		INNER JOIN translog tl WITH(NOLOCK)
-			ON	tl.translogid = t.transid		
-		LEFT JOIN dbo.bettrans b WITH(NOLOCK)
-			ON	b.matchid = tl.eventID
-				AND b.custid = tl.custid
-				AND b.bettype = tl.gameID
-				AND b.refno = tl.translogid
-	WHERE	1 = CASE 
-					WHEN @Type = 0 AND @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
-					WHEN @Type = 0 AND @ExcludeRunning = 1 AND b.statusID IN (111, 112, 113) THEN 1
-					WHEN @Type = 1 AND b.statusID = 102 THEN 1
-					ELSE 0 
-					END 
-			AND b.bettype IN (801,803,804,805,806)
-
-	-- Insert more bonus or cash ticket in case only one ticket appears in #BetDelete
-	;WITH CTE_RefCodeSummary AS
-	(
-		SELECT RefCode, matchid, custid, bettype			 
-			 , transid
-		FROM #BetDelete
-		WHERE RefCode IS NOT NULL		
-	)	
-	INSERT INTO #BetDelete(
-			transid
-			,custid
-			,winlost
-			,actual_stake
-			,playercomm
-			,bettype
-			,matchid
-			,refno
-			,betdaqid
-			,ExtraInfo
-			,WalletType
-			,RefCode
-			,BonusID
-	)
-	SELECT	b.transid  
-			,b.custid
-			,b.winlost
-			,b.actual_stake
-			,b.playercomm
-			,b.bettype
-			,b.matchid
-			,b.refno
-			,b.betdaqid
-			,b.ExtraInfo
-			,b.WalletType
-			,b.RefCode
-			,b.BonusID
-	FROM CTE_RefCodeSummary r
-		 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-				 ON b.RefCode = r.RefCode
-					AND b.transid <> r.transid
-					AND b.matchid = r.matchid
-					AND b.custid = r.custid
-					AND b.bettype = r.bettype	
-	WHERE 1 = CASE 
-					WHEN @Type = 0 AND @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
-					WHEN @Type = 0 AND @ExcludeRunning = 1 AND b.statusID IN (111, 112, 113) THEN 1
-					WHEN @Type = 1 AND b.statusID = 102 THEN 1
-					ELSE 0 
-			  END												
-
 	-- delete bonus tickets belonging to canceled/expired campaign
 	DELETE t
 	FROM #BetDelete t
@@ -231,12 +147,12 @@ BEGIN
 		FROM	dbo.bettrans b WITH(NOLOCK)
 			LEFT JOIN dbo.translog tl WITH(NOLOCK)
 				ON	b.refno = tl.translogid
-					AND b.matchid = tl.eventID						
+					AND b.matchid = tl.eventID				
 		WHERE	b.custid IN (SELECT custid FROM #BetDelete)
 				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))	
 				AND b.bettype < 19999
 				AND b.winlostdate > @movebetdate 
-		
+				AND b.SiteDBGroupID = @SitedbgroupId AND tl.SiteDBGroupID = b.SiteDBGroupID
 		--Get sum ticket from new table Transfer
 		UNION ALL
 		SELECT	tl.custid, tl.Username, (tl.Winlost - tl.actual_stake + tl.PlayerComm) AS balance
@@ -244,22 +160,25 @@ BEGIN
 		WHERE	tl.custid IN (SELECT custid FROM @tmpAffectedCustId)
 				AND tl.Bettype >= 19999
 				AND 1 = CASE WHEN tl.bettype = 19999 AND tl.winlostdate > @movebetdate THEN 0 ELSE 1 END
-		
+				
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance
 		FROM	dbo.translog tl WITH(NOLOCK)
 		WHERE	tl.custid IN (SELECT custid FROM @tmpAffectedCustId)
-				AND tl.statusID IN (0, 1)				
+				AND tl.statusID IN (0, 1)	
+				AND tl.SiteDBGroupID = @SitedbgroupId
 		UNION ALL
 		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
 		FROM	dbo.bettransRnG b WITH(NOLOCK)
 		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId)
 				AND b.IsSum=0				
+				AND b.SiteDBGroupID = @SitedbgroupId
 		UNION ALL
 		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
 		FROM	dbo.bettransLC b WITH(NOLOCK)
 		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId) 
 				AND b.IsSum=0	
+				AND b.SiteDBGroupID = @SitedbgroupId
 	) b
 	GROUP BY b.custid, b.Username
 
@@ -275,16 +194,17 @@ BEGIN
 			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpTransId bb WHERE b.transid = bb.transid)
 			AND bettype = 501
 			AND playerdiscount < 0
+			AND b.SiteDBGroupID = @SitedbgroupId
 		GROUP BY custid, matchid
 	)t
-	INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.FirstTransId = b.transid
+	INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.FirstTransId = b.transid AND b.SiteDBGroupID = @SitedbgroupId
 	WHERE t.NetWin > 0
 
 	UNION ALL
 	SELECT DISTINCT b.custid, b.matchid, b.winlost, b.actual_stake, -b.playercomm
 	From dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #BetDelete bd on bd.matchid = b.matchid AND bd.custid = b.custid
-	WHERE b.bettype = 500
+	WHERE b.bettype = 500 AND b.SiteDBGroupID = @SitedbgroupId
 
 	IF(@Type = 0)
 	BEGIN
