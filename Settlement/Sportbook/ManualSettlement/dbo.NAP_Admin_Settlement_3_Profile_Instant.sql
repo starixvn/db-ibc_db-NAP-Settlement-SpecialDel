@@ -323,7 +323,7 @@ BEGIN
 		FROM	dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN dbo.SettlementBettypeResult s
 				ON b.bettype = s.Bettype
-			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hth, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, 0) m
+			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, 0) m
 		WHERE	b.matchid = @matchid
 				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101)
