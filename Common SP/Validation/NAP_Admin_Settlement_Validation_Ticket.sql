@@ -46,9 +46,6 @@ AS
 BEGIN
 SET NOCOUNT ON
 	
-	IF @Action = 'MoveTicket' AND @Mode = '50'
-		RETURN
-
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
 			,@matchcode			NVARCHAR(50)
@@ -74,6 +71,9 @@ SET NOCOUNT ON
 			,@InvalidMatchIds		VARCHAR(200)
 			,@HaveWaitingTicket		VARCHAR(200)
 			,@MovingMatchIds		VARCHAR(200)
+			,@totalSingle			INT 
+			,@totalParlay			INT
+			,@sqlRemoteQuery		NVARCHAR(MAX)
 
 	SELECT @sporttype = m.sporttype
 			,@LeagueGroupID		= l.LeagueGroupID
@@ -122,6 +122,64 @@ SET NOCOUNT ON
 		RETURN
 	END
 
+	IF @Action = 'MoveTicket' AND @Mode = '50'
+	BEGIN
+		DECLARE @tmpResourceId50 TABLE (ResourceId VARCHAR(20))
+		DECLARE @tmpBettypeResourceId50 TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
+
+		SET @sqlRemoteQuery = ' SELECT	ResourceID 
+							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(NOLOCK)
+							WHERE	matchid = ' + CAST (@MatchId AS VARCHAR) + '
+									AND ResultStatusID = 5'
+
+		INSERT INTO @tmpResourceId50(ResourceId)
+		EXECUTE sys.sp_executesql @sqlRemoteQuery
+
+		INSERT INTO @tmpBettypeResourceId50(Bettype, BetId, ResourceId)
+		SELECT	s.BetType, s.BetID, t.ResourceID
+		FROM	@tmpResourceId50 t
+			CROSS APPLY (
+				SELECT	s.BetType, s.BetID
+				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+				WHERE	s.SportType = 50
+						AND (s.ResourceID = t.ResourceId
+							OR s.RefResourceId = t.ResourceId)
+			)s
+		
+		IF NOT EXISTS ( SELECT TOP 1 1
+						FROM	dbo.bettrans b WITH(NOLOCK)
+							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
+											FROM	@tmpBettypeResourceId50 t
+											WHERE	t.Bettype = b.bettype
+													AND (t.BetId = 0 OR t.BetId = b.betid)
+													AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+										)t				
+						WHERE	b.matchid = @MatchId
+					)
+		BEGIN
+			SELECT	@ErrCode = 1001049
+					,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'		
+			RETURN
+		END
+		
+		IF NOT EXISTS ( SELECT	TOP 1 1
+						FROM	dbo.bettransm bm WITH(NOLOCK)
+							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
+											FROM	@tmpBettypeResourceId50 t
+											WHERE	t.Bettype = bm.bettype
+													AND (t.BetId = 0 OR CAST(t.Betid AS NVARCHAR(50)) = bm.betcheck)
+													AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+										)t				
+						WHERE	bm.matchid = @MatchId
+					)
+		BEGIN
+			SELECT	@ErrCode = 1001049
+					,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'	
+			RETURN
+		END
+
+		RETURN
+	END
 	-----------------------------------------------------
 	-- Check SP settle is in deployment progress
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
