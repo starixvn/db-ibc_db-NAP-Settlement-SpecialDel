@@ -293,17 +293,6 @@ BEGIN
 			EXEC sp_xml_removedocument @handle
 		END
 
-								SELECT ResourceID, HomeValue, AwayValue
-								FROM @tmpResourcesWeb
-								UNION
-								SELECT	ResourceID, HomeValue, AwayValue
-								FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(ROWLOCK)
-								WHERE	MatchID = @MatchID 
-										AND ResourceID IN ('0101','0102','0103','0104','0105')
-										AND SettlementStatusID = 4
-										AND ResultStatusID IN ( 2, 5 )
-										AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpResourcesWeb t WHERE t.ResourceID = r.ResourceID )
-							) t
 		-- Tennis
 		IF (@sportType = 5) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN
