@@ -3,7 +3,7 @@
 /*
     Created by: 20220829@Victoria
     Task: 
-    DB: DBCTG-bodb0
+    DB: DBCTG-bodb02
 
 	Revisions: Script to correct SiteDBGroupID on CentralDB for the folowing transids: [Redmine:#]
 					20577003631542312
