@@ -98,6 +98,7 @@ BEGIN
 			, 0
 			, @SubIssueTypeId
 		FROM dbo.match WITH(NOLOCK)
+		WHERE matchid = @MatchId
 		SET @RequestDetailId = SCOPE_IDENTITY()
 	END
 	ELSE 
