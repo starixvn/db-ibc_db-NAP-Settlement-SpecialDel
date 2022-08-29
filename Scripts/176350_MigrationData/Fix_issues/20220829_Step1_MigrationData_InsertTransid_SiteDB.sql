@@ -18,9 +18,19 @@
 	USE bodb02
 	GO
 
+	CREATE TABLE #tmp_bettrans (transid BIGINT PRIMARY KEY)
+
 	DECLARE @SiteDBGroupID SMALLINT
 
 	SET @SiteDBGroupID = 1
+
+	INSERT INTO #tmp_bettrans (transid)
+	VALUES	(20577003631542312),
+			(20935697825267826),
+			(20935878213894148),
+			(20942548298104886),
+			(20942702916927522),
+			(20950416678191172)
 
 	--bettrans
 	INSERT INTO dbo.bettrans (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], [comm], 
@@ -38,11 +48,12 @@
 			b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], b.[RefCode], b.[SettlementTime],
 			b.[epositiontaking], b.[ReasonID], b.[sort], b.[BetSiteID], b.[RepUpdateTime], b.[RepDstUpdateTime], @SiteDBGroupID AS SiteDBGroupID, b.[FcUpdateTime]
 	FROM  DBCTG.bodb02.dbo.bettrans b WITH (NOLOCK)
-	WHERE b.TransId IN (20577003631542312,
-						20935697825267826,
-						20935878213894148,
-						20942548298104886,
-						20942702916927522,
-						20950416678191172)
+		INNER JOIN #tmp_bettrans tmp ON tmp.transid = b.TransId
 
-	
+	--BettransInfo
+	INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
+	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
+	FROM DBCTG.bodb02.dbo.BettransInfo binfo WITH (NOLOCK)
+		INNER JOIN #tmp_bettrans tmp ON tmp.transid = b.TransId
+
+	DROP TABLE #tmp_bettrans
