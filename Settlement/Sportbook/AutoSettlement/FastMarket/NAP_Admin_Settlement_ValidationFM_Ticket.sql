@@ -4,7 +4,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Ticket
 	 @matchid		INT = 0
 	,@Action		VARCHAR(10)
 	,@IsAuto		BIT = 0
-	,@SelectedResources		VARCHAR(MAX) = NULL
+	,@Results		VARCHAR(MAX) = NULL
 	,@IsSettleDetermined	BIT	= 0
 	,@ErrCode				INT		= 0     OUTPUT
 	,@ErrMsg				VARCHAR(MAX)  = ''    OUTPUT
@@ -79,7 +79,7 @@ BEGIN
 		,Value					TINYINT
 	)
 
-	SET @xmlResourceResult = CONVERT(XML, @SelectedResources)
+	SET @xmlResourceResult = CONVERT(XML, @Results)
 	
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName		= 'NAP_Admin_Settlement_Fast_Market_Auto_1s_Push'
@@ -202,7 +202,7 @@ BEGIN
 		WHERE	(ResultStatus IN (3,5,6,7) OR BetOption = 0) AND bettype NOT IN (228, 229)
 	END
 
-	SET @SelectedResources = CAST((
+	SET @Results = CAST((
 				SELECT bettype '@Id'
 					,(SELECT Position '@p'
 							,BetOption '@r'
@@ -216,7 +216,7 @@ BEGIN
 
 	EXEC dbo.NAP_Admin_Settlement_Checking 
 		@MatchId = @MatchId
-		,@xmlData = @SelectedResources
+		,@xmlData = @Results
 		,@Action = @Action
 		,@Mode = 'FM'
 		,@IsAuto = @IsAuto

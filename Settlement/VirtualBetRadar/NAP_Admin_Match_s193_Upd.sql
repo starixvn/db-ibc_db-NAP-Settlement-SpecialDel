@@ -6,9 +6,9 @@ ALTER PROCEDURE NAP_Admin_Match_s193_Upd
 	,@Fta		SMALLINT		= NULL
 	,@Hth		SMALLINT		= NULL
 	,@Hta		SMALLINT		= NULL
-	,@Resources	VARCHAR(MAX)
-	,@Action	VARCHAR(10)
-	,@AdminId	INT = 0
+	,@ResourceResult	VARCHAR(MAX)
+	,@Action			VARCHAR(10)
+	,@AdminId			INT = 0
 AS
 /*
 	Creator: 20220719@Louisa
@@ -19,7 +19,7 @@ AS
 		- 20201216@Louisa: Update match/reult info Happy5 [Redmine:#175251]
 
 	Param's explaination: 
-		@Resources:   '<Results>
+		@ResourceResult:   '<Results>
                             <Resource ResourceId="00" Custom1="100" Custom2="106" />
                             <Resource ResourceId="01" Custom1="60" Custom2="41" />
                             <Resource ResourceId="280920" Custom1="H" Custom2="" />
@@ -56,7 +56,7 @@ BEGIN
 			EXEC dbo.NAP_Admin_VS_Betradar_Result_Update 
 				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
 				,@MatchID	= @matchid
-				,@ResourceResult = @Resources
+				,@ResourceResult = @ResourceResult
 				,@creator	= @AdminId
 				,@IsAuto = @IsAuto
 		END
@@ -78,7 +78,7 @@ BEGIN
 			EXEC dbo.NAP_Admin_VS_Betradar_Result_Update 
 				@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
 				,@MatchID	= @matchid
-				,@ResourceResult = @Resources
+				,@ResourceResult = @ResourceResult
 				,@creator	= @AdminId
 				,@IsAuto = @IsAuto
 		END

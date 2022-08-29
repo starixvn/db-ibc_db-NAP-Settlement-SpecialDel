@@ -4,7 +4,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_ValidationFM_Event
 	 @matchid				INT				= 0
 	,@Action				VARCHAR(10)
 	,@IsAuto				BIT				= 0
-	,@SelectedResources		VARCHAR(MAX)	= NULL
+	,@Results		VARCHAR(MAX)	= NULL
 	,@IsSettleDetermined	BIT				= 0
 	,@ErrCode				INT				= 0     OUTPUT
 	,@ErrMsg				VARCHAR(MAX)	= ''    OUTPUT
@@ -80,7 +80,7 @@ BEGIN
 		,Value					TINYINT
 	)
 
-	SET @xmlResourceResult = CONVERT(XML, @SelectedResources)
+	SET @xmlResourceResult = CONVERT(XML, @Results)
 
 	SELECT @AutoSetting	= ISNULL( m.AutoSetting, l.AutoSetting )
 	FROM dbo.match m WITH(NOLOCK)

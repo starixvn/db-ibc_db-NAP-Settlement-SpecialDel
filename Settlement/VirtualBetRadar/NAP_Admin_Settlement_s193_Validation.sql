@@ -7,7 +7,7 @@ ALTER PROCEDURE NAP_Admin_Settlement_s193_Validation
 	 ,@Fta				SMALLINT		= NULL
 	 ,@Hth				SMALLINT		= NULL
 	 ,@Hta				SMALLINT		= NULL
-	 ,@SelectedResources		VARCHAR(MAX)	= NULL
+	 ,@ResourceResult	VARCHAR(MAX)	= NULL
 	 ,@ErrCode				INT				= 0		OUTPUT
 	 ,@ErrMsg				NVARCHAR(300)	= ''    OUTPUT
 )
@@ -60,7 +60,7 @@ BEGIN
 	IF @sporttype = 193
 	BEGIN
 
-		SET @xml = CONVERT(XML,@SelectedResources)
+		SET @xml = CONVERT(XML,@ResourceResult)
 		
 		INSERT INTO @Resources_193 
 		VALUES ('280920'),('280940'),('280960')
