@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources_Ticket]
 	@matchid INT
 	,@SportType INT = 0
 	,@SettleType VARCHAR(10) = 'MNL'
-	--,@ResourcesOutPut	   VARCHAR(Max) = '' OUTPUT
 AS
 /*
     Created by: 20220719@Louisa
@@ -274,6 +273,7 @@ BEGIN
 			,betMarkedCount
 			,BetSettledCount
 			,BetRefundedCount
+			,OrdNo
 	 FROM @tblReturnTable
 	 ORDER BY OrdNo
 

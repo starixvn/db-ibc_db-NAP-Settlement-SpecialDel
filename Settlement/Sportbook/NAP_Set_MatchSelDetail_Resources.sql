@@ -2,8 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Set_MatchSelDetail_Resources]
 	@matchid 		INT
 	,@SportType     INT
-	,@SettleType	CHAR(3) = 'MNL'
-	--,@Resources		VARCHAR(MAX) = ''		
+	,@SettleType	CHAR(3) = 'MNL'		
 AS
 /*
     Created by: 20220719@Louisa
