@@ -23,6 +23,8 @@ BEGIN
 			,@MatchId INT
 			,@RowCount INT
 			,@Action VARCHAR(1)
+			,@SettlementAction VARCHAR(20)
+			,@TicketType VARCHAR(1)
 
 	SELECT TOP (1) @LastLogId = LastLogId 
 			,@LastStatusId = LastStatusId		
@@ -35,6 +37,8 @@ BEGIN
 				,@TableName = TableName
 				,@MatchId = MatchId
 				,@Action = Action
+				,@SettlementAction = SettlementAction
+				,@TicketType = TicketType
 		FROM	dbo.SiteDB_SettlementService_CalculationLog WITH(NOLOCK)
 		WHERE	LogId > @LastLogId
 		ORDER BY LogId
@@ -47,6 +51,8 @@ BEGIN
 			,@TableName AS TableName
 			,@MatchId AS MatchId
 			,@Action AS Action
+			,@SettlementAction AS SettlementAction
+			,@TicketType AS TicketType
 	WHERE @RowCount = 1
 END
 GO

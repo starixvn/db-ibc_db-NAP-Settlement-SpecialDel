@@ -52,6 +52,8 @@ BEGIN
 		,RecommDate	DATETIME ,SiteDBGroupID	SMALLINT
 	)
 
+	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
+
 	IF @RunOnServer <> @@SERVERNAME
 	BEGIN
 		PRINT 'This command was skipped because run wrong server'
@@ -66,8 +68,6 @@ BEGIN
 			AND @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042','DB232\SQLSERVER2008R2', 'DB233\SQLSERVER2008R2', 'TESTDB055', 'SITDB055', 'DB055', 'DB-61\DEVDB055' ) 
 			AND @SettlementAction = 'UNDO'
 		RETURN
-
-	SET @ServerName = @@SERVERNAME
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN

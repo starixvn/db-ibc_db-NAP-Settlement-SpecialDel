@@ -68,7 +68,7 @@ BEGIN
 		
 		--check settlement process
 		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistNG			= 1
+			@IsExistMatch		= 1
 			,@avaiableProcess 	= @avaiableProcess OUTPUT
 			,@ErrCode			= @ErrCode OUTPUT
 			,@ErrMsg			= @ErrMsg OUTPUT
@@ -402,7 +402,7 @@ BEGIN
 	IF @IsLoopTempTable = 0
 	BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistNG		= 1
+			@IsExistMatch	= 1
 			,@IsReleased	= 1
 	END
 END

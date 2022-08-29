@@ -84,6 +84,15 @@ BEGIN
 		@ErrCode = @ErrCode OUTPUT,
 		@ErrMsg = @ErrMsg OUTPUT
 
+	IF @ErrCode <> 0
+	BEGIN
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
+		
+		RETURN
+	END
+
 	-- step 3: FIRST ball case
 	IF @FirstBall is NULL 
 	BEGIN
