@@ -44,7 +44,7 @@ BEGIN
 	-- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
 	SELECT	@matchid AS matchid
-			,1 AS KeyId
+			,2 AS KeyId
 		
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
