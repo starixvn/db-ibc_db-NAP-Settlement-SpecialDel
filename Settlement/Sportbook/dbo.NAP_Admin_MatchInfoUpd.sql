@@ -298,8 +298,8 @@ BEGIN
 				,@Action            = @Action
 				,@HTDone            = @HTDone
 				,@creator           = @AdminId
-
-			IF @eventstatus = 'completed' AND @BetStatus NOT LIKE '%Refund;%' AND @BetStatus NOT LIKE '%Refund FT;%' AND @BetStatus NOT LIKE '%Abandoned%' 
+	
+			IF @eventstatus = 'completed' AND ISNULL(@BetStatus,'') NOT LIKE '%Refund;%' AND ISNULL(@BetStatus,'') NOT LIKE '%Refund FT;%' AND ISNULL(@BetStatus,'') NOT LIKE '%Abandoned%' 
 			BEGIN
 				EXEC dbo.NAP_updateMatch_remark 
 					@matchid    = @matchid
