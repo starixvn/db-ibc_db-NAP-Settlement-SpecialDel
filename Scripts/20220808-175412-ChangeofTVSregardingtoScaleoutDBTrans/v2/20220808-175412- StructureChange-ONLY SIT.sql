@@ -8,7 +8,7 @@
 USE bodb02
 GO
 
-DROP INDEX [IX_TicketVoiding_Void_Service_BroadcastSessionId] GO  [TicketVoiding_Void_Service]
+DROP INDEX [IX_TicketVoiding_Void_Service_BroadcastSessionId] ON [TicketVoiding_Void_Service]
 GO
 
 ALTER TABLE [TicketVoiding_Void_Service] ALTER COLUMN BroadcastSessionId VARCHAR(50)
