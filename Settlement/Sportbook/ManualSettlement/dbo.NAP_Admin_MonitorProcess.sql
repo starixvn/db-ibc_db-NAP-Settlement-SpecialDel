@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_MonitorProcess]
 	,@LogData XML = ''
 	,@NeedWaiting BIT = 0 
 	,@IsCentral	BIT = 0 
+	,@BroadcastSessionId VARCHAR(50)	= NULL
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
 	,@SSBStatus TINYINT = 0 OUTPUT
@@ -242,6 +243,9 @@ BEGIN
 									+ ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @hta), 'NULL') 
 									+ ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''   
 									+ ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
+									+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'
 			

@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@IsReSettledTickets BIT = 1
 	,@SessionId	BIGINT = NULL
 	,@ResourceResult VARCHAR(MAX) = NULL
+	,@BroadcastSessionId VARCHAR(50)	= NULL
 	,@TicketCount INT = 0 OUTPUT
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
@@ -850,16 +851,19 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
 	END
 	ELSE IF @Action IN ('CAL', 'CAL-FT') --AND @IsCentral = 1
 	BEGIN
-		UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
-			SET StatusId = 0, Starttime = GETDATE()
-		WHERE MatchId = @matchid
-			AND Action = 'MixParlay'
-			AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
+		--UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
+		--	SET StatusId = 0, Starttime = GETDATE()
+		--WHERE MatchId = @matchid
+		--	AND Action = 'MixParlay'
+		--	AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
+
+		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
+		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
 	END
 END

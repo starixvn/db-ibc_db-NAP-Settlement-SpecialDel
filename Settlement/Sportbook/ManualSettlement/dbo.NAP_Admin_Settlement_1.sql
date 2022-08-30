@@ -17,7 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1]
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@KeyId				INT				= 0
 	,@RefResultStatus	TINYINT			= 0
-	
+	,@BroadcastSessionId VARCHAR(50)	= NULL
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
 AS
@@ -269,6 +269,7 @@ BEGIN
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@ResourceResult = @ResourceResult
 				,@SessionId = @SessionId
+				,@BroadcastSessionId = @BroadcastSessionId
 				,@creator = @creator
 				,@TicketCount = @TicketCount OUTPUT
 				,@ErrCode = @ErrCode OUTPUT
@@ -304,6 +305,9 @@ BEGIN
 						+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 						+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
 						+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)	
+						+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
 						+ ', @ErrCode = @ErrCode OUTPUT' 
                         + ', @ErrMsg = @ErrMsg OUTPUT'
 						+ ', @SSBStatus = @SSBStatus OUTPUT'
@@ -531,8 +535,8 @@ BEGIN
 					END
 					ELSE
 					BEGIN
-						INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-						SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno
+						INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+						SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 					END
 				END
 			END

@@ -112,6 +112,9 @@ BEGIN
 							+ ', @SourceId = ' + CONVERT(NVARCHAR(3), @SourceId)
 							+ CASE WHEN @RefResult IS NOT NULL THEN ',@RefResult = ''' + CONVERT(NVARCHAR(500),@RefResult) +  ''''
 											ELSE '' END
+							+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 

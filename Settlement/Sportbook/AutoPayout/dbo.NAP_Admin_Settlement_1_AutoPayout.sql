@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout]
 	, @ResourceResult	VARCHAR(MAX)	= NULL
 	, @SourceId			TINYINT			= 5 -- default SoccerWay
 	, @RefResult		VARCHAR(500)	= NULL
+	, @BroadcastSessionId VARCHAR(50)	= NULL
 	, @KeyId			INT				= 0
 	, @ErrCode			INT				= 0		OUTPUT
 	, @ErrMsg			NVARCHAR(200)	= ''	OUTPUT
@@ -163,6 +164,7 @@ BEGIN
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@ResourceResult = @ResourceResult
 				,@SessionId = @SessionId
+				,@BroadcastSessionId = @BroadcastSessionId
 				,@TicketCount = @TicketCount OUTPUT
 		END TRY
 		BEGIN CATCH
@@ -224,6 +226,9 @@ BEGIN
 							+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 							+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
 							+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
+							+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
 							+ ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
 							+ ', @SSBStatus = @SSBStatus OUTPUT'

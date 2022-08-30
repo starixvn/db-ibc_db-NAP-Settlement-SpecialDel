@@ -97,7 +97,10 @@ BEGIN
 																	WHEN @ChildMatchIds IS NOT NULL THEN ', @ChildMatchIds = ''' + CONVERT(NVARCHAR(200),@ChildMatchIds ) + ''''
 																	ELSE ''
 															END
-															+ CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END    
+															+ CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END   
+															+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+																	ELSE '' END
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 

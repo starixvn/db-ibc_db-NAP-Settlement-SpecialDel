@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@IsDirectly		BIT				= 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@RefResultStatus	TINYINT			= 0
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -915,8 +916,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
 	END
 	ELSE IF @IsCentral = 1

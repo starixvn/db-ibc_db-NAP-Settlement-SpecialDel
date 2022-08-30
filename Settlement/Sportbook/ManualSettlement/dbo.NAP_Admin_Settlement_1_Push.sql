@@ -104,6 +104,9 @@ BEGIN
 									+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
 									+    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
 									+	   CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END
+									+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
                                     + ', @ErrCode = @ErrCode OUTPUT' 
                                     + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           

@@ -57,7 +57,10 @@ BEGIN
 															+ ', @SelectedResources = ''' + @SelectedResources + ''''
 															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''  														
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
-															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 														
+															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+															+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+																	ELSE '' END
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 														

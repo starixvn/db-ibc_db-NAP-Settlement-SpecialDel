@@ -146,15 +146,25 @@ SET NOCOUNT ON
 							OR s.RefResourceId = t.ResourceId)
 			)s
 		
-		IF NOT EXISTS ( SELECT TOP 1 1
-						FROM	dbo.bettrans b WITH(NOLOCK)
+		--check ticket central and site at SiteDB
+		IF NOT EXISTS ( SELECT TOP 1 1	FROM dbo.bettrans b WITH(NOLOCK)
 							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
 											FROM	@tmpBettypeResourceId50 t
 											WHERE	t.Bettype = b.bettype
 													AND (t.BetId = 0 OR t.BetId = b.betid)
-													AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+													--AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 										)t				
 						WHERE	b.matchid = @MatchId
+					)
+			AND
+			NOT EXISTS ( SELECT	TOP 1 1	FROM	dbo.bettransm bm WITH(NOLOCK)
+							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
+											FROM	@tmpBettypeResourceId50 t
+											WHERE	t.Bettype = bm.bettype
+													AND (t.BetId = 0 OR CAST(t.Betid AS NVARCHAR(50)) = bm.betcheck)
+													--AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+										)t				
+						WHERE	bm.matchid = @MatchId
 					)
 		BEGIN
 			SELECT	@ErrCode = 1001049
@@ -162,21 +172,6 @@ SET NOCOUNT ON
 			RETURN
 		END
 		
-		IF NOT EXISTS ( SELECT	TOP 1 1
-						FROM	dbo.bettransm bm WITH(NOLOCK)
-							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
-											FROM	@tmpBettypeResourceId50 t
-											WHERE	t.Bettype = bm.bettype
-													AND (t.BetId = 0 OR CAST(t.Betid AS NVARCHAR(50)) = bm.betcheck)
-													AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-										)t				
-						WHERE	bm.matchid = @MatchId
-					)
-		BEGIN
-			SELECT	@ErrCode = 1001049
-					,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'	
-			RETURN
-		END
 
 		RETURN
 	END

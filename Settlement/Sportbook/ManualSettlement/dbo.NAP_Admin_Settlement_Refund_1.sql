@@ -1,22 +1,23 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_1] 
-     @matchid                       	INT
-    ,@creator                       	INT
-	,@SDTRecord							TINYINT			= 0
-    ,@hth								INT             = NULL
-    ,@hta                               INT             = NULL
-    ,@fth                               INT             = NULL
-    ,@fta                               INT             = NULL
-    ,@GoalSequence                      VARCHAR(50)     = NULL 
-    ,@betstatus                        	NVARCHAR(50)    = NULL
+     @matchid               INT
+    ,@creator               INT
+	,@SDTRecord				TINYINT			= 0
+    ,@hth					INT             = NULL
+    ,@hta                   INT             = NULL
+    ,@fth                   INT             = NULL
+    ,@fta                   INT             = NULL
+    ,@GoalSequence          VARCHAR(50)     = NULL 
+    ,@betstatus             NVARCHAR(50)    = NULL
     
-    ,@Action                            VARCHAR(10)     = 'REFUND'
-    ,@ResourceResult					VARCHAR(MAX)	= NULL
-    ,@IP                                VARCHAR(15)     = ''
-	,@IsAuto							BIT				= 0
-	,@KeyId								INT				= 0
-    ,@ErrCode							INT             = 0      OUTPUT
-    ,@ErrMsg                            NVARCHAR(200)   = ''        OUTPUT
+    ,@Action                VARCHAR(10)     = 'REFUND'
+    ,@ResourceResult		VARCHAR(MAX)	= NULL
+    ,@IP                    VARCHAR(15)     = ''
+	,@IsAuto				BIT				= 0
+	,@KeyId					INT				= 0
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
+    ,@ErrCode				INT             = 0      OUTPUT
+    ,@ErrMsg                NVARCHAR(200)   = ''     OUTPUT
 AS
 /*
     Created: Kathy
@@ -907,8 +908,8 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
+				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 			END
 		END
 		ELSE IF @IsCentral = 1
@@ -969,6 +970,9 @@ BEGIN
 						+ ', @HasError = ' + CAST(CASE WHEN @ErrCode = 1000006 THEN 0 ELSE @ErrCode END AS VARCHAR)
 						+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
 						+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)	
+						+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+								THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+								ELSE '' END
 						+ ', @ErrCode = @ErrCode OUTPUT' 
                         + ', @ErrMsg = @ErrMsg OUTPUT'
 						+ ', @SSBStatus = @SSBStatus OUTPUT'

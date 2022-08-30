@@ -15,6 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Instant]
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@KeyId				INT				= 0
 	,@RefResultStatus	TINYINT			= 0
+	,@BroadcastSessionId VARCHAR(50)	= NULL
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
 AS
@@ -85,6 +86,7 @@ BEGIN
 			,@action	= @action
 			,@ActionId = @ActionId
 			,@SessionId = @SessionId
+			,@BroadcastSessionId = @BroadcastSessionId
 			,@creator = @creator
 			,@TicketCount = @TicketCount OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
@@ -113,6 +115,9 @@ BEGIN
 					+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 					+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
 					+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
+					+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+							THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+							ELSE '' END
 					+ ', @ErrCode = @ErrCode OUTPUT' 
                     + ', @ErrMsg = @ErrMsg OUTPUT'
 					+ ', @SSBStatus = @SSBStatus OUTPUT'

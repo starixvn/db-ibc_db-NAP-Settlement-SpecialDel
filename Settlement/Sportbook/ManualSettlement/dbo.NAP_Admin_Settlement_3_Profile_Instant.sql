@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile_Instant]
 	,@ActionID	INT = 0
 	,@creator INT = 0
 	,@SessionId	BIGINT = NULL
+	,@BroadcastSessionId VARCHAR(50)	= NULL
 	,@TicketCount INT = 0 OUTPUT
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
@@ -503,8 +504,8 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, 'SDT-FT', @sqlCommand, @sportType, @LockedByRefno
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, 'SDT-FT', @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
 	END
 END
