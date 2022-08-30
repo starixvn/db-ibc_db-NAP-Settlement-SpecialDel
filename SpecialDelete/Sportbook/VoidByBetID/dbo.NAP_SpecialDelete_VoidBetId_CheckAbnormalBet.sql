@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_CheckAbnormalBet] 
 	 @MatchId	BIGINT
-	,@TransIds	VARCHAR(MAX) = NULL
+	,@TransIds	VARCHAR(MAX) = ''
 AS
 /*  
 	Created by: Raymond.Le  

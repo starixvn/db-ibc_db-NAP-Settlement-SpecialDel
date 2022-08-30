@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Upd]  
-	@TransInfo			XML
+	@TransIds			VARCHAR(MAX) =''
 	,@UserName			VARCHAR(30) --login username
 	,@Password			VARCHAR(50)
 	,@UserId			INT = 0 -- custid of Admin
@@ -104,8 +104,7 @@ AS
 	  - 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 
 	 Param's Explanation:   
-		@TransInfo : <root><r t='121321' sitedb='1'/></root>
-	*/
+*/
 BEGIN
 	SET NOCOUNT ON	
 
@@ -119,7 +118,7 @@ BEGIN
 		BEGIN
 			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidBetIdList_Upd '
 				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
-				+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
 				+ CASE WHEN @Password IS NULL THEN '' ELSE ',@Password = ''' + CONVERT(NVARCHAR(50), @Password) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
@@ -161,7 +160,7 @@ BEGIN
 			,@strTransCashout			VARCHAR(MAX) = ''
 			,@xmlCashoutTicket			XML
 			,@IsSiteDB					BIT
-			,@TransIds					VARCHAR(MAX) =''
+			,@TransInfo					XML
 			,@SiteDBGroupID				INT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -183,7 +182,7 @@ BEGIN
 	--get balance game for livecs
 	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
 	CREATE TABLE #balanceGameAfter (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
-	CREATE TABLE #tmpTransInfo (transid BIGINT PRIMARY KEY, SiteDBGroupID SMALLINT)	
+	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)	
 	
 	CREATE TABLE #BetDelete (
 		GroupTransId	BIGINT
@@ -258,20 +257,6 @@ BEGIN
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, bonusId INT, WalletType TINYINT, status VARCHAR(20))
 	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, Balance MONEY, Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 
-	INSERT INTO #tmpTransInfo (transid, SiteDBGroupID)
-	SELECT t.c.value('@t','BIGINT') AS transid
-		  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
-
-	SELECT @TransIds = transid FROM #tmpTransInfo
-
-	DELETE FROM #tmpTransInfo WHERE SiteDBGroupID <> @SiteDBGroupID
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
-	BEGIN
-		RETURN;
-	END
-
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @password AND custid = @userId AND roleid >=5)
 	BEGIN
 		SELECT @ErrCode = 101, @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
@@ -286,7 +271,12 @@ BEGIN
 		
 		RETURN
 	END
-	
+
+	INSERT INTO #tblTransIds (transid)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@TransIds,',')
+	WHERE value <> ''
+
 	/* Products & bettype
 	-- SB/NG/LC/BT
 	-- Parlay vs Outright ticket 
@@ -387,7 +377,7 @@ BEGIN
 		,b.actual_stake
 		,b.ruben
 	FROM dbo.bettrans b WITH(NOLOCK)
-		INNER JOIN #tmpTransInfo t ON b.transid = t.transid AND b.SiteDBGroupID = t.SiteDBGroupID
+		INNER JOIN #tblTransIds t ON b.transid = t.transid
 	WHERE b.bettype < 19001
 		AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND b.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
@@ -1333,8 +1323,12 @@ BEGIN
 	FROM CustDB.dbo.Customer ci WITH(NOLOCK)
 		INNER JOIN CTE_CustIdAll ca ON ci.custid = ca.custid			
 	
-	SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
+	------------------------------------------------------------------------------
+	--1. Table return error code/ msg
+	SELECT @ErrCode AS ErrorCode
+		  ,@ErrMsg AS ErrorMsg
 
+	--2. Table get tickets
 	SELECT	
 		b.transId
 		,b.custid
@@ -1450,7 +1444,7 @@ BEGIN
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #balanceGameBefore
 	DROP TABLE #balanceGameAfter
-	DROP TABLE #tmpTransInfo
+	DROP TABLE #tblTransIds
 	DROP TABLE #BetDelete
 	DROP TABLE #tblMatch
 	DROP TABLE #tblMatchParlayProcess
