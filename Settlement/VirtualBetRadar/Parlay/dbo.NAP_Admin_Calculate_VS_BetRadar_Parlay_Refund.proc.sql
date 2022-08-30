@@ -81,6 +81,7 @@ BEGIN
 				@IgnoreList 	= @IgnoreList
 				, @updatetype 	= 5
 				, @_sXML 		= @_sXML
+				, @Action		= 'REFUND'
 									
 		END
 	END TRY

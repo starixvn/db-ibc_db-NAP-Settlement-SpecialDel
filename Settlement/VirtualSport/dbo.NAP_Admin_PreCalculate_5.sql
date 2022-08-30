@@ -17,7 +17,7 @@ AS
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
-
+BEGIN
 	DECLARE @IgnoreList varchar(200)
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'
 
@@ -176,44 +176,13 @@ AS
 		) 
 		SELECT @_sXML = CONVERT(varchar(max), @_xml)
 		
-		EXEC dbo.Bet_ExecRep_05 @IgnoreList, 1, @_sXML	
-		
-		----- LAS settlement 
-		--SELECT @LASCommand = 'EXEC [dbo].[Admin_Calculate_VS_5] @_sXML = ''' + @_sXML + ''''
-		--		,@createdDate = GETDATE()
-
-		--BEGIN TRY
-		--	EXEC DBLAS.LASDB.[dbo].[Las_GeneratingSettlementCommand] @SPName = 'Admin_Calculate_VS_5'
-		--		,@SQLCommand = @LASCommand
-		--		,@CreatedDate = @createdDate
-		--		,@StatusID = 0 -- waiting
-		--		,@MatchID = @matchid
-		--		,@Bettype = NULL
-		--		,@Status = 'waiting'
-		--		,@BetCount = NULL
-		--END TRY
-		--BEGIN CATCH			
-		--	SELECT @Remark = @Remark + CAST(transid as varchar(20)) + ','
-		--	FROM @subtable
-
-		--	SET @Remark = SUBSTRING(@Remark, 1, LEN(@Remark)-1)
-
-		--	BEGIN TRY			
-		--		EXEC DBLOG.bodb_CustomerLog.dbo.LAS_WriteLog_UserLog_RunSP
-		--						@UserID = NULL, 
-		--						@Matchid = @matchid, 
-		--						@ActionID = 40019, 
-		--						@Remark = @Remark
-		--	END TRY
-		--	BEGIN CATCH
-		--		EXEC bodb_CustomerLog.dbo.LAS_WriteLog_UserLog_RunSP
-		--						@UserID = NULL, 
-		--						@Matchid = @matchid, 
-		--						@ActionID = 40019, 
-		--						@Remark = @Remark
-		--	END CATCH
-		--END CATCH 			 				
+		EXEC dbo.Bet_ExecRep_05 
+			@IgnoreList = @IgnoreList
+			,@updatetype = 1
+			,@_sXML = @_sXML
+			,@Action = 'CAL'
+			,@matchid = @matchid
+			 				
 	END		
-	-------------------------
+END
 GO
-GRANT VIEW DEFINITION ON [dbo].[NAP_Admin_PreCalculate_5] TO [vnteam] AS [dbo]

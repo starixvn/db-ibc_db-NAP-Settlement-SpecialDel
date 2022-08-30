@@ -87,8 +87,8 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)	
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
 		END
 
 		IF @rowcnt < 10000

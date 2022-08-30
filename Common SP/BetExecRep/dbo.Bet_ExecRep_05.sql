@@ -1,10 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_05] 
 	 @IgnoreList VARCHAR(200)
-	,@matchid		INT		= 0
 	,@updatetype 	TINYINT = 1  -- 1, 2, 3, 4
 	,@_sXML 		VARCHAR(MAX)
 	,@Action		VARCHAR(20) = NULL
+	,@matchid		INT		= 0
 
 AS
 /*

@@ -2,6 +2,8 @@
 ALTER PROCEDURE [dbo].[Bet_ExecRep_BettransUpd] 
 	@BetTickets	VARCHAR(MAX)
 	,@matchid	INT = 0
+	,@Action VARCHAR(20) = NULL
+	,@TicketType VARCHAR(1) = NULL
 AS
 /*
 	Created: 20160606@Bobby
@@ -190,8 +192,8 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, MatchId)
-		VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @transInfo, @matchid)		--cal or refund
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, MatchId, SettlementAction, TicketType)
+		VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @transInfo, @matchid, @Action, @TicketType)		--cal or refund
 	END
 END
 GO

@@ -1,7 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans] 
 	@BetTickets			TVP_Settlement_BetTicket READONLY
-	,@matchid			INT
+	,@matchid			INT				= 0
+	,@Action			VARCHAR(20)		= NULL
 	,@CWLBettype		SMALLINT 		= 0
 	,@BalanceUpd		VARCHAR(MAX)	= NULL 	OUTPUT
 	,@ErrCode			INT				= 0		OUTPUT
@@ -87,7 +88,7 @@ BEGIN
 									) 
 								)
 								
-		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid
+		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = 'p'
 			
 	END TRY
 	BEGIN CATCH
