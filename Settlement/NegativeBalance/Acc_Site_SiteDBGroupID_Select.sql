@@ -12,7 +12,7 @@ AS
 
 */
 BEGIN
-	SELECT S.[site], S.SiteDBGroupID
+	SELECT S.[Site], S.SiteDBGroupID
 	FROM dbo.[Site] S WITH (NOLOCK)
 	WHERE S.isLicensee = 1 AND S.SiteDBGroupID > 0
 END
