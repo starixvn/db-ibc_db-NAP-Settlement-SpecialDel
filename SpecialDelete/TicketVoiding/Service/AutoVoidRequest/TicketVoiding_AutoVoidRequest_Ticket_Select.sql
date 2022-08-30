@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Ticket_Select]
 (
 	@SiteDBGroupID	SMALLINT
 	,@MatchId		INT = 0
-	,@Action		VARCHAR(50) = NULL
+	,@Action		VARCHAR(50) = 'CAL'
 	,@RequestId		INT = 0
 
 )
@@ -45,30 +45,35 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
-		WHERE rds.MatchId = @MatchId
-			AND rds.SiteDBGroupID = @SiteDBGroupID
-			AND rds.MatchId <> 29
-			AND r.ActionId NOT IN (2,3,5)
-
-		--Main parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
-			CROSS APPLY (
-					SELECT m.MainTransId
-					FROM dbo.TicketVoiding_RequestDetail_MixParlay m WITH (NOLOCK)
-					WHERE m.MatchId = @MatchId
-						AND m.MainTransId = rds.TransId
-				)rm
-		WHERE rds.SiteDBGroupID = @SiteDBGroupID
-			AND rds.MatchId = 29
-			AND r.ActionId NOT IN (2,3,5)
+		IF @Action <> 'CAL-PAR'
+		BEGIN
+			--Single
+			INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
+			SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
+			WHERE rds.MatchId = @MatchId
+				AND rds.SiteDBGroupID = @SiteDBGroupID
+				AND rds.MatchId <> 29
+				AND r.ActionId NOT IN (2,3,5)
+		END
+		ELSE
+		BEGIN
+			--Main parlay
+			INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
+			SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
+				CROSS APPLY (
+						SELECT m.MainTransId
+						FROM dbo.TicketVoiding_RequestDetail_MixParlay m WITH (NOLOCK)
+						WHERE m.MatchId = @MatchId
+							AND m.MainTransId = rds.TransId
+					)rm
+			WHERE rds.SiteDBGroupID = @SiteDBGroupID
+				AND rds.MatchId = 29
+				AND r.ActionId NOT IN (2,3,5)
+		END
 	END
 
 	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #SingleTickets
