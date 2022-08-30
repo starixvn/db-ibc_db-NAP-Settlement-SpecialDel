@@ -8,4 +8,4 @@
 USE bodb02
 GO
 
-EXEC sys.sp_rename 'Ticketvoiding_VoidBetAutomation_Service.VoidingHistory ', 'VoidingHistoryId';
+EXEC sp_RENAME 'Ticketvoiding_VoidBetAutomation_Service.VoidingHistory' , 'VoidingHistoryId', 'COLUMN'
