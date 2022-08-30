@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Validation]
 (
 	@SingleTicketsXML	XML = NULL
 	,@ParlayTicketsXML	XML = NULL
-	,@Action			VARCHAR(50) = NULL
+	,@Action			VARCHAR(50) = 'CAL'
 )
 AS
 /*	
