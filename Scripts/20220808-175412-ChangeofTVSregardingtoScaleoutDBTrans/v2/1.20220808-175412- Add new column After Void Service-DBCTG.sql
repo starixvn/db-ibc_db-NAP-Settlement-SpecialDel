@@ -8,4 +8,5 @@
 USE bodb02
 GO
 
-EXEC sp_RENAME 'Ticketvoiding_VoidBetAutomation_Service.VoidingHistory' , 'VoidingHistoryId', 'COLUMN'
+ALTER TABLE Ticketvoiding_VoidBetAutomation_Service ADD VoidingHistoryId INT
+GO
