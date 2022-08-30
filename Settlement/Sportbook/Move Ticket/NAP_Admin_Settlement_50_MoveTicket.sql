@@ -241,6 +241,9 @@ BEGIN
 
 	END
 
+	--get actual settled result has ticket to write log
+	SET @Resources = ''
+
 	SELECT @Resources = COALESCE( @Resources + ',' + r.ResourceId, r.ResourceId)
 	FROM (
 			SELECT  ResourceId FROM	#tmpTransIdsSingle
