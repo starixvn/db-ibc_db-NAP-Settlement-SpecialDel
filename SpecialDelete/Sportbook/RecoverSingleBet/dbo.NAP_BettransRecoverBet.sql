@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransRecoverBet]
 (
-	@TransInfo			XML, 	
+	@TransIds			VARCHAR(MAX), 	
 	@UserId				INT,	
 	@IP					VARCHAR(50)
 )
@@ -69,23 +69,20 @@ AS
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
-		@TransInfo : <root><r t='121321' sitedb='1'/></root>
 */
 BEGIN
 	SET NOCOUNT ON;		
 	
 	DECLARE @LogData			NVARCHAR(500)
-			,@Remark			VARCHAR(500) = ''
-			,@today				DATETIME
 			,@isExistMatch		BIT = 1
 			,@isExistFM			BIT = 0
 			,@IsExistBB			BIT = 0
-			,@avaiableProcess	BIT	= 0
+			,@avaiableProcess	BIT
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
 			,@SiteDBGroupID     INT = 0
 			,@IsSiteDB			BIT
-			,@ValidTransIDs		VARCHAR(MAX) = ''
+			,@TransInfo			XML
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
@@ -150,7 +147,7 @@ BEGIN
 		,ActualStake	MONEY
 	)
 
-	CREATE TABLE #tbTransId (transid BIGINT PRIMARY KEY, SiteDBGroupID SMALLINT)
+	CREATE TABLE #tbTransId (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #t_match_completed(inputtransid BIGINT, custid INT, transdate DATETIME, odds MONEY, stake MONEY, winlost MONEY, status NVARCHAR(10))
 	
@@ -167,13 +164,11 @@ BEGIN
 		  , @tblAfterBalance  TVP_BalanceWalletChange
 
 	BEGIN TRY
-		INSERT INTO #tbTransId (transid, SiteDBGroupID)
-		SELECT t.c.value('@t','BIGINT') AS transid
-			  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-		FROM @TransInfo.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+		INSERT INTO #tbTransId (transid)
+		SELECT value 
+		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> ''
 
-		DELETE FROM #tbTransId WHERE SiteDBGroupID <> @SiteDBGroupID
 		-- Normal tickets
 		INSERT INTO #tblTransInfo(
 				grouptransid	
@@ -259,13 +254,13 @@ BEGIN
 				,b.actual_stake AS ActualStake
 		FROM	#tbTransId t		
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
-				ON	t.transid = b.transid AND b.SiteDBGroupID = t.SiteDBGroupID
+				ON	t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 				ON	b.transid = z.transid
 					AND z.custid = b.custid
 					AND z.matchid = b.matchid
 					AND z.bettype = b.bettype
-					AND z.SiteDBGroupID = t.SiteDBGroupID
+					AND z.SiteDBGroupID = b.SiteDBGroupID
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON m.matchid = b.matchid
 		WHERE	(m.sporttype BETWEEN 1 AND 99 OR m.sporttype = 154)
@@ -357,13 +352,13 @@ BEGIN
 				,b.actual_stake AS ActualStake
 		FROM	#tbTransId t			
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
-				ON	t.transid = b.transid AND b.SiteDBGroupID = t.SiteDBGroupID
+				ON	t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 				ON	b.transid = z.transid
 					AND z.custid = b.custid
 					AND z.matchid = b.matchid
 					AND z.bettype = b.bettype			
-					AND z.SiteDBGroupID = t.SiteDBGroupID
+					AND z.SiteDBGroupID = b.SiteDBGroupID
 			INNER JOIN dbo.outright o WITH(NOLOCK)
 				ON o.orid = b.matchid
 			INNER JOIN dbo.League l WITH (NOLOCK) ON o.leagueid = l.leagueid
@@ -396,8 +391,6 @@ BEGIN
 		
 		RETURN
 	END
-
-	SELECT @ValidTransIDs = STUFF((SELECT ',' + CAST(transid AS VARCHAR(MAX)) FROM #tblTransInfo FOR XML PATH('')), 1, 1, '');
 
 	;WITH CTE_matchProcess AS (
 		SELECT	matchid
@@ -470,7 +463,6 @@ BEGIN
 	FROM	#tblTransInfo t
 		INNER JOIN dbo.match m WITH(NOLOCK) ON	t.matchid = m.matchid
 
-
 	---- recover : normal (NOT IN 468, 469), main bettrade, main cash-out, cash-out member bet ticket
 	UPDATE main
 	SET winlost = 0
@@ -506,7 +498,7 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @transInfo = (
+			SET @TransInfo = (
 			SELECT	matchid AS '@mid'
 					, transId AS '@t'
 					, STATUS AS '@s'
@@ -524,7 +516,7 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @transInfo 
+			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo 
 		END
 
 		DELETE FROM @tmpTransInfo
@@ -643,7 +635,7 @@ BEGIN
 				WHERE IsFinish IS NULL
 
 				IF @@ROWCOUNT = 0 BREAK;
-				SET @transInfo = (
+				SET @TransInfo = (
 				SELECT	matchid AS '@mid'
 						, transId AS '@t'
 						, STATUS AS '@s'
@@ -665,7 +657,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @transInfo 
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo 
 			END
 
 			DELETE FROM @tmpMatchidInfo
@@ -756,7 +748,7 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @transInfo = (
+			SET @TransInfo = (
 			SELECT	matchid AS '@mid'
 					, transId AS '@t'
 					, STATUS AS '@s'
@@ -773,7 +765,7 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @transInfo 
+			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo 
 		END
 
 		DELETE FROM @tmpTransInfo
@@ -916,14 +908,14 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @transInfo = (
+			SET @TransInfo = (
 			SELECT	matchid AS '@mid'
 					, transId AS '@t'
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @transInfo 
+			SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo 
 		END
 
 		DELETE FROM @tmpTransInfo
@@ -1120,7 +1112,7 @@ BEGIN
 				ELSE t.transid
 			 END		
 	
-	SELECT @LogData = 'Recover bet have transid: ' + @ValidTransIDs + ' IP: ' + @Ip
+	SELECT @LogData = 'Recover bet have transid: ' + @TransIds + ' IP: ' + @Ip
 	
 	EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData 				
 		

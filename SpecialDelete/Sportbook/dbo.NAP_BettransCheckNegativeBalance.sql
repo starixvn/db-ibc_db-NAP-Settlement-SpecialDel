@@ -147,12 +147,13 @@ BEGIN
 		FROM	dbo.bettrans b WITH(NOLOCK)
 			LEFT JOIN dbo.translog tl WITH(NOLOCK)
 				ON	b.refno = tl.translogid
-					AND b.matchid = tl.eventID				
+					AND b.matchid = tl.eventID AND tl.SiteDBGroupID = b.SiteDBGroupID				
 		WHERE	b.custid IN (SELECT custid FROM #BetDelete)
 				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))	
 				AND b.bettype < 19999
 				AND b.winlostdate > @movebetdate 
-				AND b.SiteDBGroupID = @SitedbgroupId AND tl.SiteDBGroupID = b.SiteDBGroupID
+				AND b.SiteDBGroupID = @SitedbgroupId
+
 		--Get sum ticket from new table Transfer
 		UNION ALL
 		SELECT	tl.custid, tl.Username, (tl.Winlost - tl.actual_stake + tl.PlayerComm) AS balance

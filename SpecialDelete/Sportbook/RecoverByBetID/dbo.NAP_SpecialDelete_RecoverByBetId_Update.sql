@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverByBetId_Update]
-	@TransInfo			  XML, 
+	@TransIds		      VARCHAR(MAX), 
 	@UserId			      INT,	
 	@IP					  VARCHAR(50)
 AS
@@ -19,13 +19,12 @@ AS
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:	
-		@TransInfo : <root><r t='121321' sitedb='1'/></root>
 */
 
 BEGIN
 	SET NOCOUNT ON;
 
-	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY, SiteDBGroupID SMALLINT);
+	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY);
 
 	CREATE TABLE #CompletedMatches (matchid INT, TransIds VARCHAR(MAX), [Action] VARCHAR(20), isFinish BIT);
 
@@ -129,6 +128,7 @@ BEGIN
 			@MatchId			  INT,
 			@ResettleTransIds	  VARCHAR(MAX) = '',
 			@Action				  VARCHAR(20),
+			@TransInfo			  XML,
 			@IsSiteDB			  BIT,
 			@SiteDBGroupID        INT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -145,13 +145,9 @@ BEGIN
 
 	BEGIN TRY
 		--Pare trans ID string
-		INSERT INTO #TransIds (transid, SiteDBGroupID)
-		SELECT t.c.value('@t','BIGINT') AS transid
-			  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-		FROM @TransInfo.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+		INSERT INTO #TransIds (transid)		SELECT DISTINCT value 		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> ''
 
-		DELETE FROM #TransIds WHERE SiteDBGroupID <> @SiteDBGroupID
 		INSERT INTO #TempBettrans(
 			custid,
 			matchid,
@@ -181,8 +177,8 @@ BEGIN
 				b.currency,
 				b.transdate
 		FROM dbo.bettrans b WITH(NOLOCK)
-		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid AND b.SiteDBGroupID = t.SiteDBGroupID)
-			AND b.winlostdate >= @MovedBetDay	
+		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
+			AND b.winlostdate >= @MovedBetDay AND b.SiteDBGroupID = @SiteDBGroupID
 			AND b.betfrom <> 'p';
 
 		------159948 - Support Bitcoin
@@ -387,7 +383,7 @@ BEGIN
 				WHERE IsFinish IS NULL
 
 				IF @@ROWCOUNT = 0 BREAK;
-				SET @transInfo = (
+				SET @TransInfo = (
 				SELECT	matchid AS '@mid'
 						, transId AS '@t'
 						, STATUS AS '@s'
@@ -400,7 +396,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @transInfo 
+				SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @TransInfo 
 			END
 
 			DELETE FROM @tmpTransInfo
@@ -446,14 +442,14 @@ BEGIN
 				WHERE IsFinish IS NULL
 
 				IF @@ROWCOUNT = 0 BREAK;
-				SET @transInfo = (
+				SET @TransInfo = (
 				SELECT	matchid AS '@mid'
 						, transId AS '@t'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @transInfo 
+				SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @TransInfo 
 			END
 
 			DELETE FROM @tmpTransInfo
