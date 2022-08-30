@@ -22,7 +22,8 @@ AS
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		- 20210709@Max: [TVS] Tuning SP mark/unmark tickets [Redmine: #157930]
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
-		
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Explanation's Param:
 	@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
 */
@@ -55,6 +56,8 @@ BEGIN
 		   ,@totalParlay		INT = 0
 		   ,@Row_SD				INT = 0
 		   ,@Row_Refno			INT = 0
+		   ,@SiteDBGroupID		INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
@@ -111,7 +114,7 @@ BEGIN
 		INNER JOIN #Match t ON t.MatchId = m.MatchId
 								AND t.UserId = m.UserId
 								AND m.CreatedDate = t.CreatedDate
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.transid
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.transid AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	-- Check Lock Match
 	DECLARE @avaiableProcess BIT
@@ -154,10 +157,7 @@ BEGIN
 		@LockName = 'ParlayRefno'
 		,@ThreadHold = @ThreadHold OUTPUT
 
-	INSERT INTO #tblMatchProcess (
-		MatchId
-		,KeyID
-		)
+	INSERT INTO #tblMatchProcess (MatchId, KeyID)
 	SELECT DISTINCT MatchId
 		,CASE 
 			WHEN f.GroupId IS NULL THEN 1 --SB

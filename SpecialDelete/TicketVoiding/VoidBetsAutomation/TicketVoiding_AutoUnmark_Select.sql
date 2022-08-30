@@ -29,6 +29,7 @@ AS
 		- 20211125@July: Change length match [Redmine: #161337]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 	
@@ -40,6 +41,9 @@ BEGIN
 	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT, bettype SMALLINT, MarkType TINYINT, betid NVARCHAR(100))
 
 	DECLARE @Sporttypes AS TABLE (sporttype SMALLINT)
+
+	DECLARE @SiteDBGroupID	INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	IF LEN(@MatchId) <= 10
 	BEGIN
@@ -67,7 +71,8 @@ BEGIN
 			AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
 			AND m.sporttype <= 99
 			AND 1 = CASE WHEN b.matchid <> 29 AND b.statusID IN (101,102) THEN 0 ELSE 1 END
-			
+			AND b.SiteDBGroupID = @SiteDBGroupID
+
 		;WITH CTE_FilterByTicketStatus
 		AS (
 			SELECT f.TransId
@@ -91,7 +96,7 @@ BEGIN
 				,m.betcheck as betid
 			FROM #tmp_TransId AS f
 				INNER JOIN bettransm AS m WITH (NOLOCK, INDEX = IX_refno) ON f.matchid = m.matchid AND f.refno = m.refno
-			WHERE m.statusID NOT IN (101, 102)
+			WHERE m.statusID NOT IN (101, 102) AND m.SiteDBGroupID = @SiteDBGroupID
 														
 			)
 		INSERT INTO #MarkedTransaction_tmp (

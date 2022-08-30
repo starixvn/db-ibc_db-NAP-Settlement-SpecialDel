@@ -7,11 +7,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
 	@Betid			 BIGINT = NULL,
 	@UserId          INT           = 0,
     @Username        NVARCHAR(100) = '',
-    @IP              VARCHAR(15)   = NULL,
-    @ErrMsg          NVARCHAR(200) = '' OUTPUT,
-    @ErrCode         INT           = 0 OUTPUT,
-	@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT,
-	@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
+    @IP              VARCHAR(15)   = NULL
+    
 )
 AS
 /*	Created by: Max
@@ -35,26 +32,32 @@ AS
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
-		
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @UnmarkTransids VARCHAR(MAX)  = '', @ResettleTransids VARCHAR(MAX) = '' 
+	DECLARE @UnmarkTransids		VARCHAR(MAX)  = ''
+	      , @ResettleTransids	VARCHAR(MAX) = '' 
+		  , @ErrMsg				NVARCHAR(200) = ''
+          , @ErrCode			INT   = 0
+	      , @FailedTransIds		VARCHAR(MAX)= NULL
+	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
 
 	DECLARE @query NVARCHAR(MAX) = ''
-	, @ExecuteSQL NVARCHAR(MAX) = ''
-	, @IsActiveVoidWinning BIT = 0
+		   ,@ExecuteSQL NVARCHAR(MAX) = ''
+		   ,@IsActiveVoidWinning BIT = 0
+		   ,@avaiableProcess BIT
+		   ,@isExistMatch BIT
+		   ,@Sporttype   SMALLINT
+		   ,@IsCalQueue	BIT = 0
+		   ,@isExistFM2	BIT = 0
+		   ,@SiteDBGroupID	INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @avaiableProcess BIT
-			,@isExistMatch BIT
-			,@Sporttype    SMALLINT
-			,@IsCalQueue		BIT = 0
-			,@isExistFM2				BIT = 0
-			
-			
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
 
 	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, isFinish INT, IsMixParlay BIT DEFAULT(0))
@@ -78,7 +81,7 @@ BEGIN
 	SELECT t.TransId
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-	WHERE b.bettype = @Bettype
+	WHERE b.bettype = @Bettype AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- get all transid that not belong to any abnormal request
 	SELECT  @query = N''		
@@ -100,7 +103,7 @@ BEGIN
 		,b.statuswinlost
 		,0
 	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = mt.MatchId
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = mt.MatchId AND b.SiteDBGroupID = @SiteDBGroupID
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
@@ -128,8 +131,8 @@ BEGIN
 		,NULL
 		,1
 	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = 29
-		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = mt.MatchId
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = 29 AND b.SiteDBGroupID = @SiteDBGroupID
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = mt.MatchId AND bm.SiteDBGroupID = b.SiteDBGroupID
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
@@ -147,6 +150,8 @@ BEGIN
 	BEGIN
 		SELECT	@ErrCode = 100
 				,@ErrMsg = 'The confirmation is updated successfully. But there is no ticket affected by this action as the remaining marked tickets have to wait for the event result.'
+		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		RETURN
 	END
 	
@@ -158,18 +163,20 @@ BEGIN
 			END AS KeyId
 	
 	SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
-		,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
+		   ,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
 	FROM	#tblMatchProcess
 			
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch = 1
 		,@isExistFM2 = @isExistFM2
-		, @avaiableProcess = @avaiableProcess OUTPUT
-		, @ErrCode = @ErrCode OUTPUT
-		, @ErrMsg = @ErrMsg OUTPUT
+		,@avaiableProcess = @avaiableProcess OUTPUT
+		,@ErrCode = @ErrCode OUTPUT
+		,@ErrMsg = @ErrMsg OUTPUT
 		
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+
 		RETURN
 	END
 	
@@ -209,7 +216,8 @@ BEGIN
 								), 1,1,'')
 								
 			--Step 3: Unmark
-			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @UnmarkTransids
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update 
+				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
 				,@Username = @Username
 				,@IP = @IP
@@ -233,8 +241,9 @@ BEGIN
 			
 		END TRY
 		BEGIN CATCH
-			SELECT @ErrCode = ERROR_NUMBER()
-				, @ErrMsg = ERROR_MESSAGE()
+			SELECT @ErrCode = ERROR_NUMBER(), @ErrMsg = ERROR_MESSAGE()
+
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		END CATCH
 	END
 
@@ -242,6 +251,13 @@ BEGIN
 		@isExistMatch = @isExistMatch
 		,@isExistFM2 = @isExistFM2
 		,@IsReleased = 1
+
+	------------------------------------------------------------------------------
+	--1. Table error code/msg transid
+	SELECT @ErrCode AS ErrorCode
+	      ,@ErrMsg AS ErrorMsg			
+	      ,@FailedTransIds AS FailedTransIds
+	      ,@NegativeBalanceUsers AS NegativeBalanceUsers
 
 	DROP TABLE #ValidRequestTransId
 	DROP TABLE #inputRequestTransId

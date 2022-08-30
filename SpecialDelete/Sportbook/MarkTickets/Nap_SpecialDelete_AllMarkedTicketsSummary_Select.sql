@@ -18,11 +18,16 @@ AS
 		- 20200825@Max: [TVS] HotFix - Danger Accept [Redmine: #140164]
 		- 20200831@Zane: TVS - Enhance for Danger Accept. [Redmine: #140339]
 		- 20220627@Max: [TVS] Tuning perforamance of Unmark All function [Redmine: #174560]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Explanation's Param:
 */
 BEGIN
      SET NOCOUNT ON;
-     CREATE TABLE #Tickets
+     DECLARE @SiteDBGroupID		INT = 0
+	 SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	 CREATE TABLE #Tickets
               (MatchId     INT,
                UserId      INT,
                CreatedDate DATETIME,
@@ -39,10 +44,10 @@ BEGIN
 		,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL end as refno
 		,b.statusID
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
-		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid 
+		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 	WHERE ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
 		AND 1 = CASE WHEN mt.MatchId = 29 THEN 0 --not support main parlay
-					WHEN b.matchid <> 29 AND b.statusID NOT IN (0,1) THEN 0 
+					 WHEN b.matchid <> 29 AND b.statusID NOT IN (0,1) THEN 0 
 				ELSE 1 END
 	OPTION (MAXDOP 1)
      
@@ -62,7 +67,7 @@ BEGIN
 			,f.UserId
 			,f.CreatedDate
 		FROM #tmp_TransId AS f
-			INNER JOIN bettransm AS m WITH (NOLOCK, INDEX = IX_refno) ON f.MatchId = m.matchid AND f.refno = m.refno
+			INNER JOIN bettransm AS m WITH (NOLOCK, INDEX = IX_refno) ON f.MatchId = m.matchid AND f.refno = m.refno AND m.SiteDBGroupID = @SiteDBGroupID
 		WHERE m.statusID IN (0, 1)													
 	)
 	INSERT INTO #Tickets

@@ -41,6 +41,7 @@ AS
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		- 20210331@July: Check logic mark ticket for cricket [Redmine: #150522]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
     Param's Explanation:  
     @Mode:   
@@ -50,7 +51,6 @@ AS
          3: TicketListing  
          4: Mix Parlay   
          5: Virtual sports  
-		 6: Lucky 3
 		 7: Bull fighting
 		 8: Bet Builder
          9: Mark Ticket
@@ -85,7 +85,7 @@ BEGIN
     
     CREATE TABLE #TmpBettype (
         typeid            INT
-        ,type            INT -- 0:Sport Book, 1:Number Game, 2:Virtual Sports, 3:Live Casino  , 4: Metric Gaming, 5: Virtual Sports Betradar
+        ,type            INT -- 0:Sport Book, 1:Number Game, 2:Virtual Sports, 3:Live Casino, 5: Virtual Sports Betradar
         ,liveindicator  BIT
         ,GroupName	VARCHAR(50) 
         )
@@ -103,10 +103,9 @@ BEGIN
     CREATE TABLE #betTypesTemp (bettype SMALLINT PRIMARY KEY)
 
     INSERT INTO #betTypesTemp (bettype)
-	SELECT DISTINCT val 
-	FROM dbo.f_SplitString(@BetTypes, ',')
-	WHERE val <> ''
-	OPTION (maxrecursion 0)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@BetTypes, ',')
+	WHERE value <> ''
 		
     -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , --4: Mix Parlay, 9: Mark Ticket  
     -- type = 0: Sport Book
@@ -168,17 +167,6 @@ BEGIN
      -- 3: TicketListing  
     IF @Mode = 3
     BEGIN
-		INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator            
-            )
-        SELECT typeid
-            ,4 AS type -- type = 4: Metric Gaming Super Live
-            ,0 AS liveindicator            
-        FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND typeid IN (801,803,804,805,806)
-
 		INSERT INTO #TmpBettype (  
             typeid  
             ,type  
@@ -189,17 +177,6 @@ BEGIN
             ,0 AS liveindicator              
         FROM bettype WITH (NOLOCK)  
         WHERE @matchid = 0 AND typeid BETWEEN 2700 AND 2899
-
-		INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator            
-            )
-        SELECT typeid
-            ,6 AS type -- type = 6: Lucky 3
-            ,0 AS liveindicator            
-        FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND typeid = 1600
 
 		INSERT INTO #TmpBettype (
             typeid
@@ -236,27 +213,6 @@ BEGIN
 
     END
     
-    IF @Mode = 2
-    BEGIN
-        --metric gaming
-        INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator 
-			,GroupName			
-            )
-        SELECT DISTINCT b.typeid
-            , 4                    
-            , 0 
-			, 'Special' AS GroupName  			
-        FROM dbo.bettype b WITH(NOLOCK) 
-        INNER JOIN dbo.ResultDetail3rd rd WITH(NOLOCK) ON b.typeid = rd.gameid
-        WHERE rd.matchid = @matchid 
-        AND rd.vendorid = 5 
-        AND rd.gameID IN (805,806)    
-		
-    END
-        
     ----- number game  
     IF @Mode IN (1, 3)
     BEGIN

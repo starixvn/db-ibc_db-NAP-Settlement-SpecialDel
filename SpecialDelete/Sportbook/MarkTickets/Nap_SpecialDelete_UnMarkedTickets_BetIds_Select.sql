@@ -1,9 +1,6 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_UnMarkedTickets_BetIds_Select]
-	@TransIds				VARCHAR(MAX)	= NULL,
-	@InvalidTransIds		VARCHAR(MAX)	= '' OUTPUT,
-	@MovedTransIds			VARCHAR(MAX)	= '' OUTPUT,
-	@MarkedTransIds			VARCHAR(MAX)	= '' OUTPUT
+	@TransIds				VARCHAR(MAX)	= NULL
 AS
 /*
     Created by: Alan
@@ -23,13 +20,19 @@ AS
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Explanation's Param:
 */
 BEGIN
-
 	SET NOCOUNT ON
-
+	
+	DECLARE @InvalidTransIds	VARCHAR(MAX)	= ''
+		   ,@MovedTransIds		VARCHAR(MAX)	= ''
+	       ,@MarkedTransIds		VARCHAR(MAX)	= '' 
+	       ,@SiteDBGroupID		INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	
 	CREATE TABLE #Tickets
              (GroupID               BIGINT,
               transid               BIGINT,
@@ -73,15 +76,6 @@ BEGIN
               SettlementStatus      TINYINT,
 			  ActualStake			MONEY
              );
-	CREATE TABLE #tmpRefCodeSummary
-             (RefCode BIGINT,
-              custid  INT,
-              matchid INT,
-              bettype SMALLINT,
-              transid BIGINT
-             );
-	CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 
@@ -124,162 +118,70 @@ BEGIN
 			,BonusID
 			,ActualStake
 		)
-		SELECT
-			b.transid AS GroupId
-			,b.bettype
-			,b.transid
-			,isnull(b.BetID, 0) AS BetID
-			,b.refno
-			,b.hdp1
-			,b.hdp2
-			,b.odds
-			,b.oddsspread
-			,b.OddsType
-			,b.STATUS
-			,b.stake
-			,b.transdate
-			,b.betteam
-			,b.betcheck
-			,b.liveindicator
-			,b.custid
-			,b.livehomescore
-			,b.liveawayscore
-			,b.matchid
-			,(b.winlost - b.actual_stake) winlost
-			,b.transdesc
-			,b.betdaqid
-			,b.username
-			,b.srecommend
-			,b.recommend
-			,b.ExtraInfo
-			,b.CurrencyName
-			,b.WalletType
-			,b.RefCode
-			,b.BonusID
-			,b.actual_stake AS ActualStake
-		FROM dbo.bettrans AS b WITH (NOLOCK)
-			INNER JOIN #transIdTemp temp ON b.transid = temp.transid
-		WHERE	b.bettype < 19001
-			AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-			AND b.bettype NOT BETWEEN 801 AND 806		-- MG
-			AND b.bettype NOT BETWEEN 1501 AND 1599		-- NOT IN Keno
-			AND b.bettype NOT IN (10, 9, 29, 2799, 38, 500)			-- Outright, Mix Parlay, BetBuilder
-			AND (b.statusID = 0 -- running
-				AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP)) -- not in waiting SecAccept
-			AND b.betfrom <> 'p'
+	SELECT
+		b.transid AS GroupId
+		,b.bettype
+		,b.transid
+		,isnull(b.BetID, 0) AS BetID
+		,b.refno
+		,b.hdp1
+		,b.hdp2
+		,b.odds
+		,b.oddsspread
+		,b.OddsType
+		,b.STATUS
+		,b.stake
+		,b.transdate
+		,b.betteam
+		,b.betcheck
+		,b.liveindicator
+		,b.custid
+		,b.livehomescore
+		,b.liveawayscore
+		,b.matchid
+		,(b.winlost - b.actual_stake) winlost
+		,b.transdesc
+		,b.betdaqid
+		,b.username
+		,b.srecommend
+		,b.recommend
+		,b.ExtraInfo
+		,b.CurrencyName
+		,b.WalletType
+		,b.RefCode
+		,b.BonusID
+		,b.actual_stake AS ActualStake
+	FROM dbo.bettrans AS b WITH (NOLOCK)
+		INNER JOIN #transIdTemp temp ON b.transid = temp.transid
+	WHERE	b.bettype < 19001
+		AND b.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+		AND b.bettype NOT BETWEEN 1501 AND 1599		-- NOT IN Keno
+		AND b.bettype NOT IN (10, 9, 29, 2799, 38, 500)			-- Outright, Mix Parlay, BetBuilder
+		AND (b.statusID = 0 -- running
+			AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP)) -- not in waiting SecAccept
+		AND b.betfrom <> 'p'
+		AND b.SiteDBGroupID = @SiteDBGroupID
 
-	-- update MainTransId
-	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE refno IS NOT NULL)
-	BEGIN
-		UPDATE sub
-		SET MainTransId = main.transid
-		FROM #Tickets main
-			 INNER JOIN #Tickets sub
-					 ON main.RefCode = sub.RefCode	
-						AND main.transid <> sub.transid					
-						AND main.custid = sub.custid
-						AND main.matchid = sub.matchid
-						AND main.bettype = sub.bettype											
-		WHERE main.WalletType = 1			
-	  
-		-- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
-		INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
-		SELECT RefCode, custid, matchid, bettype, MAX(transid) AS transid
-		FROM #Tickets
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, matchid, bettype
-		HAVING COUNT(*) = 1
-		
-		IF @@ROWCOUNT > 0
-		BEGIN
-			INSERT INTO #Tickets (
-					GroupID
-					,bettype
-					,transid
-					,betid
-					,refno
-					,hdp1
-					,hdp2
-					,odds
-					,OddsType
-					,STATUS
-					,stake
-					,transdate
-					,betteam
-					,betcheck
-					,IsLiveIndicator
-					,custid
-					,livehomescore
-					,liveawayscore
-					,matchid
-					,winlost
-					,TransDesc
-					,betdaqid
-					,username
-					,srecommend
-					,recommend
-					,ExtraInfo
-					,WalletType
-					,RefCode
-					,BonusID
-					,MainTransId
-					,ActualStake
-				)
-				SELECT	
-					b.refno AS GroupId
-					,b.bettype
-					,b.transid
-					,isnull(b.BetID, 0) AS BetID
-					,b.refno			
-					,b.hdp1
-					,b.hdp2
-					,b.odds
-					,b.OddsType
-					,b.STATUS
-					,b.stake
-					,b.transdate
-					,b.betteam
-					,b.betcheck
-					,b.liveindicator
-					,b.custid
-					,b.livehomescore
-					,b.liveawayscore
-					,b.matchid
-					,(b.winlost - b.actual_stake) winlost
-					,b.transdesc
-					,b.betdaqid
-					,b.username
-					,b.srecommend
-					,b.recommend
-					,b.ExtraInfo
-					,b.WalletType
-					,b.RefCode
-					,b.BonusID
-					,t.transid AS MainTransId
-					,b.actual_stake AS ActualStake
-			FROM #tmpRefCodeSummary t
-				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-						 ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.custid = t.custid
-							AND b.matchid = t.matchid
-							AND b.bettype = t.bettype
-			WHERE b.statusID = 0 -- running
-				AND NOT ( b.SecAcceptFlag = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP) -- not in waiting SecAccept
-		END
-	END
-		
-	BEGIN
-		UPDATE d
-		SET  homeid 	= m.homeid
-			,awayid 	= m.awayid
-			,leagueid 	= m.leagueid
-			,sporttype 	= m.sporttype
-			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-			,SettlementStatus = m.SettlementStatus
-		FROM #Tickets d
-			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid
-	END
+	UPDATE sub
+	SET MainTransId = main.transid
+	FROM #Tickets main
+			INNER JOIN #Tickets sub
+					ON main.RefCode = sub.RefCode	
+					AND main.transid <> sub.transid					
+					AND main.custid = sub.custid
+					AND main.matchid = sub.matchid
+					AND main.bettype = sub.bettype											
+	WHERE main.WalletType = 1	
+
+	UPDATE d
+	SET  homeid 	= m.homeid
+		,awayid 	= m.awayid
+		,leagueid 	= m.leagueid
+		,sporttype 	= m.sporttype
+		,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+		,SettlementStatus = m.SettlementStatus
+	FROM #Tickets d
+		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid
 
 	-- delete marked tickets
 	DELETE t FROM #Tickets t
@@ -341,6 +243,43 @@ BEGIN
 						 ) AS cte
 	END
 
+	------------------------------------------------------------------------------
+	--1. Table invald/moved transid
+	;WITH t_invalid AS
+	(
+		SELECT	transid
+				,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
+				,ISNULL(m.isMarked, CAST(0 AS BIT)) AS isMarked
+		FROM #transIdTemp temp
+			OUTER APPLY (
+				SELECT TOP (1) CAST(1 AS BIT) AS isMoved
+				FROM dbo.bettrans14 WITH(NOLOCK) 
+				WHERE transid = temp.transid
+			) bm
+			OUTER APPLY (
+				SELECT TOP (1) CAST(1 AS BIT) AS isMarked
+				FROM dbo.MarkedTransaction m WITH(NOLOCK) 
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON m.transid = b.transid
+				WHERE m.transid = temp.transid AND b.bettype NOT IN (9, 29)
+			) m
+		WHERE NOT EXISTS (SELECT 1 FROM #Tickets WHERE transid = temp.transid OR refno = temp.transid)
+	)
+	SELECT @InvalidTransIds = @InvalidTransIds + CASE WHEN isMoved = 0 AND isMarked = 0
+							  THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(50))
+							  ELSE '' END
+		 , @MovedTransIds = @MovedTransIds + CASE WHEN isMoved = 1
+							THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(50))
+							ELSE '' END
+		 , @MarkedTransIds = @MarkedTransIds + CASE WHEN isMarked = 1
+							THEN CASE WHEN @MarkedTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(50))
+							ELSE '' END
+		FROM t_invalid
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+	      ,@MovedTransIds AS MovedTransIds
+		  ,@MarkedTransIds AS MarkedTransIds
+
+	--2. Table get tickets
 	SELECT 
 		b.Stake,
 		b.BetCheck,
@@ -406,40 +345,9 @@ BEGIN
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END
 
-	-- invalid trans
-	SELECT @InvalidTransIds = '', @MovedTransIds = '', @MarkedTransIds = ''
-	;WITH t_invalid AS
-	(
-		SELECT	transid
-				,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
-				,ISNULL(m.isMarked, CAST(0 AS BIT)) AS isMarked
-		FROM #transIdTemp temp
-			OUTER APPLY (
-				SELECT TOP (1) CAST(1 AS BIT) AS isMoved
-				FROM dbo.bettrans14 WITH(NOLOCK) 
-				WHERE transid = temp.transid
-			) bm
-			OUTER APPLY (
-				SELECT TOP (1) CAST(1 AS BIT) AS isMarked
-				FROM dbo.MarkedTransaction m WITH(NOLOCK) 
-				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON m.transid = b.transid
-				WHERE m.transid = temp.transid AND b.bettype NOT IN (9, 29)
-			) m
-		WHERE NOT EXISTS (SELECT 1 FROM #Tickets WHERE transid = temp.transid OR refno = temp.transid)
-	)
-	SELECT @InvalidTransIds = @InvalidTransIds + CASE WHEN isMoved = 0 AND isMarked = 0
-							  THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(100))
-							  ELSE '' END
-		 , @MovedTransIds = @MovedTransIds + CASE WHEN isMoved = 1
-							THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(100))
-							ELSE '' END
-		 , @MarkedTransIds = @MarkedTransIds + CASE WHEN isMarked = 1
-							THEN CASE WHEN @MarkedTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(100))
-							ELSE '' END
-		FROM t_invalid
+	
 
 	DROP TABLE #Tickets
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
 	DROP TABLE #t_LicenseeNames
 	DROP TABLE #t_UIRepresentativeLicenseeGroupNames

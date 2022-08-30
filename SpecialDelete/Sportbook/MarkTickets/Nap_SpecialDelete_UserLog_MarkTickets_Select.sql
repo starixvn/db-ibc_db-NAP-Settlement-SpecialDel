@@ -19,6 +19,7 @@ AS
 		- 20200414@Charles: Separate single tickets with parlay tickets on LogData [131670]
 		- 20200914@Zane: Return logdata [Redmine: #141235]
 		- 20210923@Zane: Change data type of filter time [Redmine: #160209]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:
 */
@@ -28,10 +29,9 @@ BEGIN
 	CREATE TABLE #LogActionId (Id INT);
 
 	INSERT INTO #LogActionId (Id)
-	SELECT DISTINCT val
-	FROM dbo.f_StringSplit(@LogActionIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0);
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@LogActionIds, ',')
+	WHERE value <> ''
 
 	CREATE TABLE #LogResult (
 		SessionId 	INT,
@@ -78,14 +78,9 @@ BEGIN
 			LEFT JOIN bodb02.dbo.ResultDetail AS rdFT WITH (NOLOCK) ON rdFT.MatchId = m.matchid AND rdFT.ResourceID = '00'
 		WHERE l.CreatedDate BETWEEN @LogDateFrom AND @LogDateTo
 			AND (@MatchId IS NULL OR l.MatchId = @MatchId)
-			AND EXISTS (
-				SELECT TOP 1 1
-				FROM #LogActionId AS lid
-				WHERE lid.Id = l.LogActionId
-				)
+			AND EXISTS (SELECT TOP 1 1 FROM #LogActionId AS lid WHERE lid.Id = l.LogActionId)
 			AND (@DoneBy IS NULL OR c.username like '%' + @DoneBy +'%')
 	ORDER BY l.CreatedDate DESC
-	OPTION (MAXRECURSION 0);
 
 	-- Check and update information of match if it was moved to match14
 	UPDATE lr

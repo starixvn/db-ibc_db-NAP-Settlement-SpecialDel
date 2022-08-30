@@ -2,8 +2,6 @@
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select] 
 (
 	@MatchId       INT,
-    @FromTransId   BIGINT       = 0,
-    @ToTransId     BIGINT       = 0,
     @Duration      XML          = NULL,
     @LiveIndicator INT          = 0,
     @LiveHomeScore SMALLINT     = NULL,
@@ -11,7 +9,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select]
     @CurrencyIDs   VARCHAR(MAX) = NULL,
     @LicenseeNames VARCHAR(MAX) = NULL,
     @BetTypes      XML          = NULL,
-	@Bet 		  VARCHAR(10)  = 'All'
+	@Bet 		   VARCHAR(10)  = 'All'
 )
 AS;
 /*
@@ -39,6 +37,7 @@ AS;
 		- 20210823@Max: [TVS] Mark sub-parlay for from/to bet ID filter [Redmine: #160209]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -69,6 +68,8 @@ BEGIN
     
     DECLARE @SportType		TINYINT= NULL
 		   ,@ValueDefault	SMALLMONEY = 9999.00
+		   ,@SiteDBGroupID INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
     SELECT @SportType = SportType
     FROM dbo.match WITH (NOLOCK)
@@ -289,16 +290,6 @@ BEGIN
 		ActualStake			MONEY
 	)
 
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
-
-	CREATE INDEX IX_Tickets_RefCode ON #Tickets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
-
 	IF @Bet = 'All' OR @Bet = 'Single'
 	BEGIN
 		INSERT INTO #Tickets (
@@ -394,33 +385,22 @@ BEGIN
 			CASE WHEN bt.Id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
 			CASE WHEN bt.Id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread, --229:SABA HDP Time Machine
 			b.actual_stake AS ActualStake
-		FROM 
-			dbo.bettrans b WITH (NOLOCK)
+		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 			INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
-		WHERE
-				b.statusID IN (0, 1) -- running, waiting
-			AND b.matchid = @MatchId 
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
+			AND	b.statusID IN (0, 1) -- running, waiting
+			AND b.matchid = @MatchId  
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
-			AND 1 = CASE WHEN @FromTransId > 0 AND b.transid BETWEEN @FromTransId AND @ToTransId THEN 1
-						WHEN EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE b.transdate BETWEEN d.FromTransDate AND d.ToTransDate) THEN 1
-					ELSE 0 END
+			AND EXISTS (SELECT TOP (1) 1 FROM #Durations d WHERE b.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
 	END
 
 	IF @Bet = 'All' OR @Bet = 'Parlay'
 	BEGIN
-		IF @FromTransId > 0
-		BEGIN
-			INSERT INTO #Durations(FromTransDate, ToTransDate)
-			SELECT MIN(b.transdate), MAX(b.transdate)
-			FROM dbo.bettrans b
-			WHERE b.matchid = @MatchId
-				AND b.transid BETWEEN @FromTransId AND @ToTransId
-		END
 
 		INSERT INTO #Tickets (
 			GroupID
@@ -526,8 +506,8 @@ BEGIN
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
-		WHERE
-			bm.statusID IN (0, 1)
+		WHERE bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
+			AND bm.statusID IN (0, 1)
 			AND bm.matchid = @MatchId
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
@@ -599,111 +579,16 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP (1) 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread))
 	END
-	
-	-- update MainTransId	
-	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE RefCode IS NOT NULL)
-	BEGIN
-		UPDATE sub
-		SET MainTransId = main.transid
-		FROM #Tickets main
-			 INNER JOIN #Tickets sub
-					 ON main.RefCode = sub.RefCode
-						AND main.transid <> sub.transid	
-						AND main.custid = sub.custid
-						AND main.bettype = sub.bettype
-		WHERE main.WalletType = 1
 
-		-- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
-		INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid)
-		SELECT	RefCode, custid, bettype, MAX(transid) AS transid
-		FROM	#Tickets
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, bettype
-		HAVING COUNT(*) = 1	
-	
-		IF @@ROWCOUNT > 0
-		BEGIN		
-			INSERT INTO #Tickets(
-					GroupID
-					,transid
-					,custid
-					,odds
-					,oddsspread
-					,OddsType
-					,transdate
-					,bettype
-					,betteam
-					,betcheck
-					,hdp1
-					,hdp2
-					,IsLiveIndicator
-					,livehomescore
-					,liveawayscore
-					,creator
-					,username
-					,Stake
-					,CurrencyName
-					,status
-					,srecommend
-					,mrecommend
-					,recommend
-					,SecAcceptFlag
-					,betid
-					,betdaqid
-					,refno
-					,ExtraInfo
-					,WalletType
-					,RefCode
-					,BonusID
-					,MainTransId
-					,WinLost
-					,ActualStake
-				)
-			SELECT  b.transid,
-					b.transid,
-					b.custid,
-					b.odds, 
-					b.oddsspread,
-					b.OddsType,  
-					b.transdate,
-					b.bettype,
-					b.betteam,
-					betcheck,
-					b.hdp1,
-					b.hdp2,
-					b.liveindicator,
-					b.livehomescore,
-					b.liveawayscore,
-					b.creator,
-					b.Username,
-					b.stake,
-					b.CurrencyName,
-					CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						 ELSE b.status END AS status,
-					b.srecommend,
-					b.mrecommend,
-					b.recommend,
-					ISNULL(SecAcceptFlag,0) SecAcceptFlag,
-					b.betid,
-					b.betdaqid,
-					b.refno,
-					b.ExtraInfo,
-					b.WalletType,
-					b.RefCode,
-					b.BonusID,
-					t.transid AS MainTransId,
-					b.WinLost - b.actual_stake AS WinLost,
-					b.actual_stake AS ActualStake
-			FROM #tmpRefCodeSummary t
-				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-						 ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.matchid = @MatchId
-							AND b.custid = t.custid
-							AND b.bettype = t.bettype 
-			WHERE b.statusID IN (0,1 ) -- running, waiting
-		END 		
-	END
+	UPDATE sub
+	SET MainTransId = main.transid
+	FROM #Tickets main
+			INNER JOIN #Tickets sub
+					ON main.RefCode = sub.RefCode
+					AND main.transid <> sub.transid	
+					AND main.custid = sub.custid
+					AND main.bettype = sub.bettype
+	WHERE main.WalletType = 1
 
 	SELECT 
 		b.Stake,
@@ -785,7 +670,6 @@ BEGIN
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #Durations
 	DROP TABLE #Tickets
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #t_exchanges
 	DROP TABLE #t_LicenseeNames
 	DROP TABLE #t_UIRepresentativeLicenseeGroupNames

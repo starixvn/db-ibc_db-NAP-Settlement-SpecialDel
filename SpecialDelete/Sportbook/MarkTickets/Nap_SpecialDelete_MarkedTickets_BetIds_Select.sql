@@ -1,8 +1,7 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_BetIds_Select]
-	@TransIds				VARCHAR(MAX)	= NULL,
-	@InvalidTransIds		VARCHAR(MAX)	= '' OUTPUT,
-	@MovedTransIds			VARCHAR(MAX)	= '' OUTPUT
+	@TransIds				VARCHAR(MAX)	= NULL
+	
 AS
 /*
     Created by: Alan
@@ -22,11 +21,18 @@ AS
 		- 20210302@Max: TVS - Integrate Cricket AIO [Redmine: #150075] 
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Explanation's Param:			    
 */
 BEGIN
-SET NOCOUNT ON
+	SET NOCOUNT ON
+
+	DECLARE @InvalidTransIds	VARCHAR(MAX)	= ''
+		   ,@MovedTransIds		VARCHAR(MAX)	= '' 
+		   ,@SiteDBGroupID		INT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 	CREATE TABLE #Tickets
              (GroupID          BIGINT,
               transid          BIGINT,
@@ -70,15 +76,6 @@ SET NOCOUNT ON
               SettlementStatus TINYINT,
 			  ActualStake	   MONEY
              );
-    CREATE TABLE #tmpRefCodeSummary
-             (RefCode BIGINT,
-              custid  INT,
-              matchid INT,
-              bettype SMALLINT,
-              transid BIGINT
-             );
-	CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 
@@ -161,121 +158,28 @@ SET NOCOUNT ON
 			INNER JOIN #transIdTemp temp ON b.transid = temp.transid
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
 		WHERE b.statusID IN (0, 1) -- running, waiting	
+			AND b.SiteDBGroupID = @SiteDBGroupID
+	
+	UPDATE sub
+	SET MainTransId = main.transid
+	FROM #Tickets main
+			INNER JOIN #Tickets sub
+					ON main.RefCode = sub.RefCode	
+					AND main.transid <> sub.transid					
+					AND main.custid = sub.custid
+					AND main.matchid = sub.matchid
+					AND main.bettype = sub.bettype											
+	WHERE main.WalletType = 1
 
-	-- update MainTransId
-	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE refno IS NOT NULL)
-	BEGIN
-		UPDATE sub
-		SET MainTransId = main.transid
-		FROM #Tickets main
-			 INNER JOIN #Tickets sub
-					 ON main.RefCode = sub.RefCode	
-						AND main.transid <> sub.transid					
-						AND main.custid = sub.custid
-						AND main.matchid = sub.matchid
-						AND main.bettype = sub.bettype											
-		WHERE main.WalletType = 1			
-	  
-		-- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
-		INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
-		SELECT RefCode, custid, matchid, bettype, MAX(transid) AS transid
-		FROM #Tickets
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, matchid, bettype
-		HAVING COUNT(*) = 1
-		
-		IF @@ROWCOUNT > 0
-		BEGIN
-			INSERT INTO #Tickets (
-					GroupID
-					,bettype
-					,transid
-					,betid
-					,refno
-					,hdp1
-					,hdp2
-					,odds
-					,OddsType
-					,STATUS
-					,stake
-					,transdate
-					,betteam
-					,betcheck
-					,IsLiveIndicator
-					,custid
-					,livehomescore
-					,liveawayscore
-					,matchid
-					,winlost
-					,TransDesc
-					,betdaqid
-					,username
-					,srecommend
-					,recommend
-					,ExtraInfo
-					,WalletType
-					,RefCode
-					,BonusID
-					,MainTransId
-					,ActualStake
-				)
-				SELECT	
-					b.refno AS GroupId
-					,b.bettype
-					,b.transid
-					,isnull(b.BetID, 0) AS BetID
-					,b.refno			
-					,b.hdp1
-					,b.hdp2
-					,b.odds
-					,b.OddsType
-					,CASE WHEN b.STATUS = 'running'
-							AND IsNull(b.SecAcceptFlag, 0) = 1
-							AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS END AS STATUS
-					,b.stake
-					,b.transdate
-					,b.betteam
-					,b.betcheck
-					,b.liveindicator
-					,b.custid
-					,b.livehomescore
-					,b.liveawayscore
-					,b.matchid
-					,(b.winlost - b.actual_stake) winlost
-					,b.transdesc
-					,b.betdaqid
-					,b.username
-					,b.srecommend
-					,b.recommend
-					,b.ExtraInfo
-					,b.WalletType
-					,b.RefCode
-					,b.BonusID
-					,t.transid AS MainTransId
-					,b.actual_stake AS ActualStake
-			FROM #tmpRefCodeSummary t
-				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-						 ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.custid = t.custid
-							AND b.matchid = t.matchid
-							AND b.bettype = t.bettype
-			WHERE b.statusID IN (0, 1)
-		END
-	END
-
-	BEGIN
-		UPDATE d
-		SET  homeid 	= m.homeid
-			,awayid 	= m.awayid
-			,leagueid 	= m.leagueid
-			,sporttype 	= m.sporttype
-			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-			,SettlementStatus = m.SettlementStatus
-		FROM #Tickets d
-			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid
-	END
+	UPDATE d
+	SET  homeid 	= m.homeid
+		,awayid 	= m.awayid
+		,leagueid 	= m.leagueid
+		,sporttype 	= m.sporttype
+		,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+		,SettlementStatus = m.SettlementStatus
+	FROM #Tickets d
+		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid
 
 	-- delete unmarked tickets
 	DELETE t FROM #Tickets t
@@ -337,6 +241,34 @@ SET NOCOUNT ON
 						 ) AS cte
 	END
 
+	------------------------------------------------------------------------------
+	--1. Table invald/moved transid
+	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT);
+	INSERT INTO #InvalidTransIds (transid, IsMoved)
+	SELECT	transid
+			,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
+	FROM #transIdTemp temp
+		OUTER APPLY (
+			SELECT TOP (1) CAST(1 AS BIT) AS isMoved
+			FROM dbo.bettrans14 WITH(NOLOCK) 
+			WHERE transid = temp.transid AND SiteDBGroupID = @SiteDBGroupID
+		) bm
+	WHERE NOT EXISTS (SELECT 1 FROM #Tickets WHERE transid = temp.transid OR refno = temp.transid)
+
+	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+									 FROM #InvalidTransIds
+									 WHERE IsMoved = 0
+									 FOR XML PATH('')), 1, 1, '');									
+
+	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+								   FROM #InvalidTransIds
+								   WHERE IsMoved = 1
+								   FOR XML PATH('')), 1, 1, '');
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+	      ,@MovedTransIds AS MovedTransIds
+
+	--2. Table get tickets
 	SELECT 
 		b.Stake,
 		b.BetCheck,
@@ -402,33 +334,11 @@ SET NOCOUNT ON
 				THEN CASE WHEN b.MainTransId IS NULL THEN 1
 				ELSE 2 END ELSE b.transid END
 
-	-- invalid trans
-	SELECT @InvalidTransIds = '', @MovedTransIds = ''
-	;WITH t_invalid AS
-	(
-		SELECT	transid
-				,ISNULL(bm.isMoved, CAST(0 AS BIT)) AS isMoved
-		FROM #transIdTemp temp
-			OUTER APPLY (
-				SELECT TOP (1) CAST(1 AS BIT) AS isMoved
-				FROM dbo.bettrans14 WITH(NOLOCK) 
-				WHERE transid = temp.transid
-			) bm
-		WHERE NOT EXISTS (SELECT 1 FROM #Tickets WHERE transid = temp.transid OR refno = temp.transid)
-	)
-	SELECT @InvalidTransIds = @InvalidTransIds + CASE WHEN isMoved = 0
-							  THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(100))
-							  ELSE '' END
-		 , @MovedTransIds = @MovedTransIds + CASE WHEN isMoved = 1
-							THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + CAST(transid AS VARCHAR(100))
-							ELSE '' END
-		FROM t_invalid
-
 	DROP TABLE #Tickets
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #transIdTemp
 	DROP TABLE #t_LicenseeNames
 	DROP TABLE #t_UIRepresentativeLicenseeGroupNames
+	DROP TABLE #InvalidTransIds
 
 SET NOCOUNT OFF
 END
