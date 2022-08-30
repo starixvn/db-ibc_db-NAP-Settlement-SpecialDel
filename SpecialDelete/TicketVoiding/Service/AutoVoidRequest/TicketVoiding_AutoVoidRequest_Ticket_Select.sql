@@ -23,9 +23,9 @@ BEGIN
 	SET NOCOUNT ON
 	
 	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, MainTransId BIGINT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT)
 
-	IF @RequestId > 0
+	IF @RequestId > 0 AND EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Request r WITH (NOLOCK) WHERE r.RequestId = @RequestId AND r.ActionId NOT IN (2,3,5))
 	BEGIN
 		--Single
 		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
@@ -42,13 +42,6 @@ BEGIN
 		WHERE rds.RequestId = @RequestId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
-
-		--Sub parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, MainTransId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.MainTransId
-		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
-		WHERE rds.RequestId = @RequestId
-			AND rds.SiteDBGroupID = @SiteDBGroupID
 	END
 	ELSE
 	BEGIN
@@ -56,14 +49,17 @@ BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
 		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.MatchId = @MatchId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId <> 29
+			AND r.ActionId NOT IN (2,3,5)
 
 		--Main parlay
 		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
 		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 			CROSS APPLY (
 					SELECT m.MainTransId
 					FROM dbo.TicketVoiding_RequestDetail_MixParlay m WITH (NOLOCK)
@@ -72,17 +68,11 @@ BEGIN
 				)rm
 		WHERE rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
-
-		--Sub parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, MainTransId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.MainTransId
-		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
-		WHERE rds.MatchId = @MatchId
-			AND rds.SiteDBGroupID = @SiteDBGroupID
+			AND r.ActionId NOT IN (2,3,5)
 	END
 
 	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #SingleTickets
-	SELECT TransId, RequestId, IssueTypeId, MatchId, MainTransId FROM #ParlayTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #ParlayTickets
 
 	DROP TABLE #SingleTickets
 	DROP TABLE #ParlayTickets
