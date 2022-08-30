@@ -8,6 +8,11 @@
 USE bodb02
 GO
 
+--Step 1.Add new column After Void Service-DBCTG
+ALTER TABLE Ticketvoiding_VoidBetAutomation_Service ADD VoidingHistoryId INT
+GO
+
+--Step 2.Migrate data After Void Service-DBCTG
 CREATE TABLE #tmpResult (Id INT PRIMARY KEY, Isfinished BIT)
 
 DECLARE @tmpResultBatch AS TABLE (Id INT PRIMARY KEY)
@@ -45,3 +50,17 @@ BEGIN
 END
 
 DROP TABLE #tmpResult
+
+--Step 3.Drop old column After Void Service-DBCTG
+DROP INDEX [IX_Ticketvoiding_VoidBetAutomation_Service_RequestID_VoidingHistory] ON [Ticketvoiding_VoidBetAutomation_Service]
+GO
+
+ALTER TABLE [Ticketvoiding_VoidBetAutomation_Service] DROP COLUMN VoidingHistory
+GO
+
+CREATE NONCLUSTERED INDEX [IX_Ticketvoiding_VoidBetAutomation_Service_RequestID_VoidingHistoryId] ON [dbo].[Ticketvoiding_VoidBetAutomation_Service]
+(
+	[RequestID] ASC,
+	[VoidingHistoryId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [DATA]
+GO
