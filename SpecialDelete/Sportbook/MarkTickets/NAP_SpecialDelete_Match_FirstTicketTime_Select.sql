@@ -25,7 +25,7 @@ BEGIN
 		   ,@SiteDBGroupID	INT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	WITH cte_transdate
+	;WITH cte_transdate
 	AS (
 		SELECT b.transdate
 		FROM dbo.bettrans AS b WITH (NOLOCK)

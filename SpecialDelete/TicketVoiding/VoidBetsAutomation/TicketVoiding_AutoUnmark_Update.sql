@@ -2,13 +2,12 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
 (
 	@Matchid		 INT,
+	@TransIds		 VARCHAR(MAX) ='',
 	@Bettype		 SMALLINT,
 	@MarkedBy		 INT,
 	@Betid			 BIGINT = NULL,
 	@UserId          INT           = 0,
-    @Username        NVARCHAR(100) = '',
     @IP              VARCHAR(15)   = NULL
-    
 )
 AS
 /*	Created by: Max
@@ -47,12 +46,8 @@ BEGIN
 	      , @FailedTransIds		VARCHAR(MAX)= NULL
 	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
 
-	DECLARE @query NVARCHAR(MAX) = ''
-		   ,@ExecuteSQL NVARCHAR(MAX) = ''
-		   ,@IsActiveVoidWinning BIT = 0
-		   ,@avaiableProcess BIT
+	DECLARE @avaiableProcess BIT
 		   ,@isExistMatch BIT
-		   ,@Sporttype   SMALLINT
 		   ,@IsCalQueue	BIT = 0
 		   ,@isExistFM2	BIT = 0
 		   ,@SiteDBGroupID	INT = 0
@@ -63,35 +58,12 @@ BEGIN
 	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, isFinish INT, IsMixParlay BIT DEFAULT(0))
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
-	--Step 1: Insert table TicketVoiding_AutoUnmarkSetting
-	INSERT INTO dbo.TicketVoiding_AutoUnmarkSetting (Matchid, Bettype, IsConfirm, CreatedDate, UserId, MarkedBy, betid)
-	VALUES(@Matchid, @Bettype, 1, GETDATE(), @UserId, @MarkedBy, @Betid)
-
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
-	CREATE TABLE #ValidRequestTransId (TransId BIGINT)
-	CREATE TABLE #ProblemAccount_tmp (CustID INT)
-	
 	INSERT INTO #inputRequestTransId (TransId)
-	SELECT  rd.transid
-	FROM dbo.TicketVoiding_RequestDetailTicket_Single rd WITH (NOLOCK) 
-	WHERE rd.IssueTypeId = 11 AND rd.MatchId = @MatchId
-	
-	INSERT INTO #ValidRequestTransId (TransId)	
-	SELECT t.TransId
-	FROM #inputRequestTransId t
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-	WHERE b.bettype = @Bettype AND b.SiteDBGroupID = @SiteDBGroupID
-
-	-- get all transid that not belong to any abnormal request
-	SELECT  @query = N''		
-	SELECT	@query = @query + N'SELECT Custid 
-								FROM dbo.ProblemAccount WITH (NOLOCK)	
-								WHERE Actionid = 2 and SubIssueTypeId = 38'
-	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-
-	INSERT INTO #ProblemAccount_tmp (CustID)
-	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+	SELECT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
 
 	-- get list transid to unmark
 	INSERT INTO #tmpTransid_unmark (
@@ -108,15 +80,7 @@ BEGIN
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
-		AND mt.TransId NOT IN (
-			SELECT transid
-			FROM #ValidRequestTransId
-			)
-		AND NOT EXISTS (
-			SELECT TOP 1 1
-			FROM #ProblemAccount_tmp t
-			WHERE t.custid = b.custid
-			)
+		AND mt.TransId NOT IN (SELECT transid FROM #inputRequestTransId)
 		AND b.statusID IN (0, 1)
 		AND (
 			@Betid IS NULL
@@ -125,7 +89,6 @@ BEGIN
 				AND b.betid = @Betid
 				)
 			)
-
 	UNION
 	SELECT bm.TransId
 		,NULL
@@ -219,9 +182,7 @@ BEGIN
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update 
 				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
-				,@Username = @Username
 				,@IP = @IP
-				,@IsLockMatch = 0
 				,@ErrMsg = @ErrMsg OUTPUT
 				,@ErrCode = @ErrCode OUTPUT;
 
@@ -259,9 +220,7 @@ BEGIN
 	      ,@FailedTransIds AS FailedTransIds
 	      ,@NegativeBalanceUsers AS NegativeBalanceUsers
 
-	DROP TABLE #ValidRequestTransId
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tmpTransid_unmark
-	DROP TABLE #ProblemAccount_tmp	
 END

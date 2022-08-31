@@ -137,7 +137,6 @@ BEGIN
 			,refno
 			,IsParlay
 			,SubTransId
-			,SiteDBGroupID
 		)
 		SELECT b.TransId
 			,bm.matchid
@@ -146,7 +145,6 @@ BEGIN
 			,bm.refno
 			,1
 			,bm.transid
-			,@SiteDBGroupID
 		FROM #ParlayTransIds t
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
@@ -173,7 +171,7 @@ BEGIN
 						FROM dbo.f_TVS_CheckingProcessGroupBettypes()
 						WHERE Bettype = t.Bettype
 				)f
-		WHERE t.IsParlay = 0 AND t.SiteDBGroupID = @SiteDBGroupID
+		WHERE t.IsParlay = 0
 
 		EXEC dbo.NAP_Set_GlobalSettingSel 
 				@LockName = 'ParlayRefno'
