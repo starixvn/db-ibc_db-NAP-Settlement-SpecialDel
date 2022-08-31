@@ -122,8 +122,10 @@ SET NOCOUNT ON
 		RETURN
 	END
 
-	IF @Action = 'MoveTicket' AND @Mode = '50'
+	--check ticket central and site at CentralDB
+	IF @Action = 'MoveTicket' AND @Mode = '50' AND @IsCentral = 1
 	BEGIN
+
 		DECLARE @tmpResourceId50 TABLE (ResourceId VARCHAR(20))
 		DECLARE @tmpBettypeResourceId50 TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
 
@@ -146,7 +148,6 @@ SET NOCOUNT ON
 							OR s.RefResourceId = t.ResourceId)
 			)s
 		
-		--check ticket central and site at SiteDB
 		IF NOT EXISTS ( SELECT TOP 1 1	FROM dbo.bettrans b WITH(NOLOCK)
 							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
 											FROM	@tmpBettypeResourceId50 t
