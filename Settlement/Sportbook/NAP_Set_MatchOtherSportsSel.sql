@@ -61,7 +61,9 @@ AS
 							4 - Postponed	
 							5 - Completed
 							6 - Refund
-							7 - Internal )
+							7 - Internal 
+							8 - Completed (running ticket)
+						)
 
 		@HoldStatus:   Un-check all: 0
 					   Check all: '87,1,2,4,16,64'
@@ -222,7 +224,7 @@ BEGIN
 				WHEN [value] = 1 THEN 'Closed'
 				WHEN [value] IN (2,3) THEN 'running'
 				WHEN [value] = 4 THEN 'Postponed'
-				WHEN [value] = 5 THEN 'Completed'
+				WHEN [value] IN (5,8) THEN 'Completed'
 				WHEN [value] = 7 THEN 'internal'
 				ELSE ''
 			END	
@@ -240,10 +242,15 @@ BEGIN
 			,@IsOver	 =  MAX(CASE WHEN s.Id = 3 THEN 1 ELSE 0 END)
 	FROM @tmpOverStatus s
 
-	IF ISNUMERIC(@MatchCode) = 1
-	BEGIN
-		SET @MatchId = CAST(@MatchCode AS INT)
-	END
+	BEGIN TRY
+		IF ISNUMERIC(@MatchCode) = 1
+		BEGIN
+			SET @MatchId = CAST(@MatchCode AS INT)
+		END
+	END TRY
+	BEGIN CATCH
+		SET @MatchId = NULL
+	END CATCH
 
 	IF @MatchCode <> ''
 	BEGIN
@@ -457,9 +464,9 @@ BEGIN
 												ELSE s.EventStatus
 											END
 							AND 1 = CASE
-										WHEN s.Id NOT IN (3,5,6) THEN 1
+										WHEN s.Id NOT IN (3,5,6,8) THEN 1
 										WHEN s.Id = 3 AND m.kickofftime < GETDATE() THEN 1 -- kicked-off/in-play: 'Running' and have passed Kick-off Time.
-										WHEN s.Id = 5 AND m.betstatus NOT LIKE '%Refund%' THEN 1
+										WHEN s.Id IN (5,8) AND m.betstatus NOT LIKE '%Refund%' THEN 1
 										WHEN s.Id = 6 AND m.betstatus LIKE '%Refund%' THEN 1									
 										ELSE 0
 									END
@@ -929,6 +936,13 @@ BEGIN
 		FROM	#tmpMatchIds m
 			INNER JOIN @tmpMatchCompleted t
 				ON	m.matchid = t.MatchId
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchStatus WHERE id = 8) -- match completed but running ticket
+	BEGIN
+		DELETE 
+		FROM	#tmpMatchIds
+		WHERE	1 = CASE WHEN ISNULL(IsExistRunningTicket,0) > 0 OR ISNULL(IsExistRunningTicketParlay,0) > 0 THEN 0 ELSE 1 END
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43)

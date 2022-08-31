@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP]
 	,@action				VARCHAR(20)		= 'CAL' -- CAL / UNDO / REFUND-FT / REFUND-HT / REFUND	
 	,@SelectedResources 	VARCHAR(MAX)  	= NULL
 	,@IsAuto				BIT = 0
-	,@IsCentral				BIT = 0
 	,@IP					VARCHAR(15)		= ''
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				NVARCHAR(200)	= ''	OUTPUT
@@ -60,6 +59,7 @@ BEGIN
 			,@ActionID	INT
 			,@strBettypes	VARCHAR(MAX)
       		,@ticketCountTotal INT
+			,@IsCentral		BIT = 0
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
@@ -78,6 +78,9 @@ BEGIN
 					END
 
 	SET @start = CURRENT_TIMESTAMP
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	-- match info
 	DECLARE @matchdate			SMALLDATETIME
