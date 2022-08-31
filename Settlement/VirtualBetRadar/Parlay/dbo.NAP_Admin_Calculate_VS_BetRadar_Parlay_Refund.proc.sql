@@ -82,6 +82,7 @@ BEGIN
 				, @updatetype 	= 5
 				, @_sXML 		= @_sXML
 				, @Action		= 'REFUND'
+				, @MatchId		= @MatchId
 									
 		END
 	END TRY

@@ -1,10 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans] 
 	@BetTickets			TVP_Settlement_BetTicket READONLY
-	,@matchid			INT				= 0
 	,@Action			VARCHAR(20)		= NULL
 	,@CWLBettype		SMALLINT 		= 0
 	,@BalanceUpd		VARCHAR(MAX)	= NULL 	OUTPUT
+	,@matchid			INT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS

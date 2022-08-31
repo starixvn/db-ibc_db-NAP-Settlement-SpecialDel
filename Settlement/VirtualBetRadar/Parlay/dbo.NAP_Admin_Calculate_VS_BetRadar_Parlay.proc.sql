@@ -351,7 +351,8 @@ BEGIN
 				@IgnoreList 	= @IgnoreList
 				, @updatetype 	= 5
 				, @_sXML 		= @_sXML
-				,@Action		= 'CAL'
+				, @Action		= 'CAL'
+				, @MatchId		= @MatchId
 									
 		END
 	END TRY
