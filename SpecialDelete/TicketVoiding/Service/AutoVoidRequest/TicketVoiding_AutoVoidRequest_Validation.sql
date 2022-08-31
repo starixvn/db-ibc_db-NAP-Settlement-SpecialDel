@@ -30,7 +30,67 @@ BEGIN
 	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT)
 	CREATE TABLE #RequestMixParlay_NoStatusWL (RequestId INT, ProcessMixParlayStatus TINYINT)
 
-	IF @Action = 'CAL'
+	IF @Action = 'MixParlay'
+	BEGIN
+		IF @ParlayTicketsXML IS NOT NULL
+		BEGIN
+			INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId)
+			SELECT t.c.value('@tid','BIGINT') AS TransId
+					,t.c.value('@req','INT') AS RequestId
+					,1 AS IsMixParlay
+					,t.c.value('@iss','TINYINT') AS IssueTypeId
+			FROM @ParlayTicketsXML.nodes('root/r') t(c)
+			OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
+		END
+
+		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, IsMixParlay, refno, Matchid, IssueTypeId)
+		SELECT t.TransId
+			,t.RequestId
+			,b.statusID
+			,b.statuswinlost
+			,t.IsMixParlay
+			,b.refno
+			,b.matchid
+			,t.IssueTypeId
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE b.statusID IN (0,1)
+
+		IF NOT EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds t)
+		BEGIN
+			INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
+			SELECT DISTINCT t.RequestId, 2
+			FROM #tmpTransIds t
+		END
+		ELSE IF NOT EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds t WHERE t.StatusID IN (0,1) AND t.statuswinlost IS NOT NULL)
+		BEGIN
+			INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
+			SELECT DISTINCT t.RequestId, 1
+			FROM #tmpTransIds t
+		END
+		ELSE IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
+		BEGIN
+			INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId)
+			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
+			FROM #tmpTransIds t
+			WHERE t.IsMixParlay = 1
+				AND t.statuswinlost IN (1,2)
+
+			INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId, Matchid, IssueTypeId)
+			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
+			FROM #tmpTransIds t
+			WHERE t.IsMixParlay = 1
+				AND t.statuswinlost IN (0,3,4)
+
+			IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE IsMixParlay = 1 AND statuswinlost IS NULL) 
+			BEGIN
+				INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
+				SELECT DISTINCT t.RequestId, 0
+				FROM #tmpTransIds t
+			END
+		END
+	END
+	ELSE
 	BEGIN
 		IF @SingleTicketsXML IS NOT NULL
 		BEGIN
@@ -120,66 +180,6 @@ BEGIN
 			WHERE t.IsMixParlay = 1
 					AND t.statuswinlost IS NULL
 					AND c.TransId IS NULL
-		END
-	END
-	ELSE IF @Action = 'MixParlay'
-	BEGIN
-		IF @ParlayTicketsXML IS NOT NULL
-		BEGIN
-			INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId)
-			SELECT t.c.value('@tid','BIGINT') AS TransId
-					,t.c.value('@req','INT') AS RequestId
-					,1 AS IsMixParlay
-					,t.c.value('@iss','TINYINT') AS IssueTypeId
-			FROM @ParlayTicketsXML.nodes('root/r') t(c)
-			OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
-		END
-
-		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, IsMixParlay, refno, Matchid, IssueTypeId)
-		SELECT t.TransId
-			,t.RequestId
-			,b.statusID
-			,b.statuswinlost
-			,t.IsMixParlay
-			,b.refno
-			,b.matchid
-			,t.IssueTypeId
-		FROM #tmpInputTransId t
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-		WHERE b.statusID IN (0,1)
-
-		IF NOT EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds t)
-		BEGIN
-			INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
-			SELECT DISTINCT t.RequestId, 2
-			FROM #tmpTransIds t
-		END
-		ELSE IF NOT EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds t WHERE t.StatusID IN (0,1) AND t.statuswinlost IS NOT NULL)
-		BEGIN
-			INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
-			SELECT DISTINCT t.RequestId, 1
-			FROM #tmpTransIds t
-		END
-		ELSE IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
-		BEGIN
-			INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId)
-			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
-			FROM #tmpTransIds t
-			WHERE t.IsMixParlay = 1
-				AND t.statuswinlost IN (1,2)
-
-			INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId, Matchid, IssueTypeId)
-			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
-			FROM #tmpTransIds t
-			WHERE t.IsMixParlay = 1
-				AND t.statuswinlost IN (0,3,4)
-
-			IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE IsMixParlay = 1 AND statuswinlost IS NULL) 
-			BEGIN
-				INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
-				SELECT DISTINCT t.RequestId, 0
-				FROM #tmpTransIds t
-			END
 		END
 	END
 
