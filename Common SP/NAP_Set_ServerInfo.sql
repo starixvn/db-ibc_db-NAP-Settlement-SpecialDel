@@ -19,6 +19,7 @@ AS
 		- 20211208@Louisa: Add ServerAlias DBTP10C [Redmine:#164060]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220606@Kathy: Adjust number of execution service from 6 to 8 [Redmine:#173205]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON

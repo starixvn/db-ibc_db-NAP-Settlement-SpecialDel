@@ -59,6 +59,7 @@ AS
 		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
         @action         @mode
