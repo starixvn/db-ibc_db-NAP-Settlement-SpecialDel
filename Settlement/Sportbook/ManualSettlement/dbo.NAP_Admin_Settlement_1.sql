@@ -473,7 +473,6 @@ BEGIN
 					,@creator        = @creator
 					,@action        = 'UNDO'              
 					,@IP            = @IP
-					,@IsCentral		= @IsCentral
 			END 
 			ELSE
 			BEGIN
