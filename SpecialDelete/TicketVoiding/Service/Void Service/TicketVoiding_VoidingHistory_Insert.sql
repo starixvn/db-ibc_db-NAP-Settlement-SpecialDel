@@ -55,16 +55,17 @@ BEGIN
 					,StatusId
 					,TransIds
 					,VoidData
-				)
-				SELECT t.RequestId
-					,@UserId
-					,1
-					,t.TransIds
-					,@VoidData
-				FROM #tmpRequestInfo t 
-				WHERE NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
-										WHERE v.BroadcastSessionId = @BroadcastSessionId AND t.RequestId = v.RequestId AND t.SiteDBGroupId = v.SiteDBGroupID
-								)
+			)
+			OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
+			SELECT t.RequestId
+				,@UserId
+				,1
+				,t.TransIds
+				,@VoidData
+			FROM #tmpRequestInfo t 
+			WHERE NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
+									WHERE v.BroadcastSessionId = @BroadcastSessionId AND t.RequestId = v.RequestId AND t.SiteDBGroupId = v.SiteDBGroupID
+							)
 		END	
 		ELSE
 		BEGIN
@@ -80,6 +81,7 @@ BEGIN
 					,StatusId
 					,VoidData
 			)
+			OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
 			SELECT @RequestId
 				,@UserId
 				,1
@@ -93,6 +95,7 @@ BEGIN
 		SELECT DISTINCT v.VoidingHistoryId, v.RequestId
 		FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
 		WHERE v.BroadcastSessionId = @BroadcastSessionId
+			AND NOT EXISTS (SELECT TOP(1) 1 FROM @VoidingHistory_tmp t WHERE t.VoidingHistoryId = v.VoidingHistoryId AND v.RequestId = t.RequestId)
 
 		--Initial Void Service
 		INSERT INTO dbo.TicketVoiding_Void_Service (
