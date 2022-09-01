@@ -401,7 +401,7 @@ BEGIN
             UPDATE pd
             SET statuswinlost = NULL 
                 ,statusID = 0
-			OUTPUT inserted.transid, '', inserted.statusid
+			OUTPUT inserted.transid, inserted.statuswinlost , inserted.statusid
 			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
                 INNER JOIN @tmpOutputBettransm r

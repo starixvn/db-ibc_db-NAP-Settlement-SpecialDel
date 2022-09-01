@@ -105,6 +105,7 @@ BEGIN
 			,InWaiting
 			,betMarkedCount
 			,BetCount
+			,o.OrdNo
 	FROM (
 			SELECT  t.ResourceID
 					,ISNULL(SUM(t.InRunning),0) AS InRunning
@@ -119,7 +120,6 @@ BEGIN
 			FROM	@tmpAutoBettypes 
 			WHERE	ResourceId = tp.ResourceID
 		)o
-	ORDER BY o.OrdNo
 
 	-- number of ticket
 	SELECT	8 AS GroupId 

@@ -35,12 +35,12 @@ BEGIN
 			,r.AwayValue
 			,r.ResultStatusID
 			,r.SettlementStatusID
-			,ISNULL( r.ResultSetting, 0) AS ResultSetting                      
+			,ISNULL( r.ResultSetting, 0) AS ResultSetting   
+			,t.OrdNo
 	FROM    dbo.ResultDetail r WITH (NOLOCK)
 		INNER JOIN @tmpAutoBettypes t
 			ON t.ResourceId = r.ResourceId
 	WHERE	r.MatchId =  @MatchID
-		ORDER BY t.OrdNo
-
+	
 END
 GO
