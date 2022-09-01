@@ -60,7 +60,7 @@ BEGIN
 		BEGIN
 			INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
 			SELECT DISTINCT t.RequestId, 2
-			FROM #tmpTransIds t
+			FROM #tmpInputTransId t
 		END
 		ELSE IF NOT EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds t WHERE t.StatusID IN (0,1) AND t.statuswinlost IS NOT NULL)
 		BEGIN
