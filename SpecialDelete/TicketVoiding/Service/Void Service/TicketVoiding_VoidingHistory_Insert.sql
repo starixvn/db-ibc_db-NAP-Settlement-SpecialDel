@@ -38,9 +38,12 @@ BEGIN
 	FROM @VoidServiceXml.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@VoidServiceXml = NULL))
 
-	IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
-								INNER JOIN #tmpRequestInfo t ON t.RequestId = v.RequestId
-					WHERE v.BroadcastSessionId = @BroadcastSessionId
+	IF EXISTS (SELECT TOP(1) 1 FROM #tmpRequestInfo t
+						LEFT JOIN dbo.TicketVoiding_Void_Service v WITH (NOLOCK) 
+							ON t.RequestId = v.RequestId 
+								AND t.SiteDBGroupId = v.SiteDBGroupID
+								AND v.BroadcastSessionId = @BroadcastSessionId
+					WHERE v.RequestId IS NULL
 				)
 	BEGIN
 		IF @IsAutoVoid = 1
@@ -53,13 +56,15 @@ BEGIN
 					,TransIds
 					,VoidData
 				)
-				OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
 				SELECT t.RequestId
 					,@UserId
 					,1
 					,t.TransIds
 					,@VoidData
-			FROM #tmpRequestInfo t 
+				FROM #tmpRequestInfo t 
+				WHERE NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
+										WHERE v.BroadcastSessionId = @BroadcastSessionId AND t.RequestId = v.RequestId AND t.SiteDBGroupId = v.SiteDBGroupID
+								)
 		END	
 		ELSE
 		BEGIN
@@ -75,12 +80,19 @@ BEGIN
 					,StatusId
 					,VoidData
 			)
-			OUTPUT INSERTED.VoidingHistoryId, INSERTED.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
 			SELECT @RequestId
 				,@UserId
 				,1
 				,@VoidData
+			WHERE NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
+										WHERE v.BroadcastSessionId = @BroadcastSessionId AND v.RequestId = @RequestId)
 		END
+
+
+		INSERT INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
+		SELECT DISTINCT v.VoidingHistoryId, v.RequestId
+		FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
+		WHERE v.BroadcastSessionId = @BroadcastSessionId
 
 		--Initial Void Service
 		INSERT INTO dbo.TicketVoiding_Void_Service (

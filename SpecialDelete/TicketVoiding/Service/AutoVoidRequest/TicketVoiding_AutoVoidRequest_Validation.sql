@@ -88,6 +88,12 @@ BEGIN
 				SELECT DISTINCT t.RequestId, 0
 				FROM #tmpTransIds t
 			END
+			ELSE
+			BEGIN
+				INSERT INTO #RequestMixParlay_NoStatusWL (RequestId, ProcessMixParlayStatus)
+				SELECT DISTINCT t.RequestId, 2
+				FROM #tmpTransIds t
+			END
 		END
 	END
 	ELSE
