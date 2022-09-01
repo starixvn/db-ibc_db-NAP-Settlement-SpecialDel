@@ -355,26 +355,10 @@ BEGIN
 			,m.ChildMatchType
 			,m.EventStatusReason			
 		FROM	dbo.match m WITH (NOLOCK)
-				--OUTER APPLY (
-				--	SELECT *
-				--	FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK)
-				--	WHERE	m.matchID = r.MatchId
-				--)r
-				--LEFT JOIN DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK) ON m.matchID = r.MatchId AND r.ResourceId ='00'
-				INNER JOIN dbo.League l WITH(NOLOCK)
+			INNER JOIN dbo.League l WITH(NOLOCK)
 					ON m.leagueid = l.leagueid
 		WHERE m.eventdate BETWEEN @FromDate AND @ToDate 
 			AND m.leagueID = CASE WHEN @LeagueID <> 0 THEN @LeagueID ELSE m.leagueID END 	
-			--AND CASE 
-			--		WHEN @UncalMultiOnly = 0 THEN 1 
-			--		WHEN @UncalMultiOnly = 1 THEN 
-			--				CASE 
-			--					WHEN (m.betstatus LIKE 'Abandoned 1H%') THEN m.hthomescore * m.htawayscore
-			--					WHEN (m.betstatus LIKE 'Abandoned 2H%') THEN m.finalhomescore * m.finalawayscore
-			--					ELSE m.hthomescore * m.htawayscore * m.finalhomescore * m.finalawayscore 
-			--				END
-			--		WHEN @UncalMultiOnly IS NULL OR @UncalOnly IS NULL THEN 1
-			--	END IS NOT NULL 
 			AND m.sporttype = @sporttype 
 			AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode LIKE + '%' + @matchcode + '%')) 
 			AND 1 = CASE WHEN @eventstatus = '' THEN 1
@@ -392,9 +376,7 @@ BEGIN
 									END
 						) 
 					OR (@isRefund = 0 AND ISNULL(betstatus, '') NOT LIKE 'Refund%' AND ISNULL(betstatus, '') NOT LIKE 'Abandoned%')
-					--OR (m.sporttype = 5 AND @isRefund = 1 AND ISNULL(r.SettlementStatusID,0) BETWEEN 1 AND 3)
-					--OR (m.sporttype = 5 AND @isRefund = 0 AND ISNULL(r.SettlementStatusID,0) NOT BETWEEN 1 AND 3)
-				)
+					)
 			AND (@SettlementStatus = 0 OR @SettlementStatus & m.SettlementStatus > 0)
 			AND l.isTest = CASE WHEN @IsIncludeTest = 0 THEN 0 ELSE l.isTest END
 			AND ISNULL(m.IsDeleted,0) = 0
