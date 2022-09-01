@@ -64,7 +64,7 @@ BEGIN
 				,@VoidData
 			FROM #tmpRequestInfo t 
 			WHERE NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Void_Service v WITH (NOLOCK)
-									WHERE v.BroadcastSessionId = @BroadcastSessionId AND t.RequestId = v.RequestId AND t.SiteDBGroupId = v.SiteDBGroupID
+									WHERE v.BroadcastSessionId = @BroadcastSessionId AND t.RequestId = v.RequestId --AND t.SiteDBGroupId = v.SiteDBGroupID
 							)
 		END	
 		ELSE
