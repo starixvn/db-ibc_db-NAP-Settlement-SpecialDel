@@ -26,9 +26,10 @@ BEGIN
 			,@SettlementAction VARCHAR(20)
 			,@TicketType VARCHAR(1)
 
-	SELECT TOP (1) @LastLogId = LastLogId 
-			,@LastStatusId = LastStatusId		
+	SELECT TOP (1) @LastLogId = LogId 
+			,@LastStatusId = StatusId		
 	FROM	dbo.SiteDB_SettlementService_LastLog WITH(NOLOCK)
+	ORDER BY LogId DESC
 	
 	IF @LastStatusId = 2 
 	BEGIN

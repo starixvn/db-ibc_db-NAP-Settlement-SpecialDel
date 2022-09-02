@@ -21,15 +21,26 @@ GO
 ALTER TABLE dbo.SiteDB_SettlementService_CalculationLog ADD  CONSTRAINT [DF_SiteDB_SettlementService_CalculationLog_Action]  DEFAULT ('U') FOR [Action]
 GO
 
+CREATE CLUSTERED INDEX [CIX_SiteDB_SettlementService_CalculationLog] ON [dbo].[SiteDB_SettlementService_CalculationLog]
+(
+	[LogId] ASC
+)ON [DATA]
+GO
+
 
 CREATE TABLE dbo.SiteDB_SettlementService_LastLog
 (
 	LogId BIGINT
 	,StatusId TINYINT
-	,LastLogId BIGINT
-	,LastStatusId TINYINT
+	,Starttime DATETIME2
+	,EndTime DATETIME2
 )ON [DATA]
 GO
 
+CREATE CLUSTERED INDEX [CIX_SiteDB_SettlementService_LastLog] ON [dbo].[SiteDB_SettlementService_LastLog]
+(
+	[LogId] ASC
+) ON [DATA]
+GO
 
 

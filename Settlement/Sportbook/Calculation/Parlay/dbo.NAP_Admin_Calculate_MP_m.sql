@@ -365,7 +365,8 @@ BEGIN
                 SET winlostdate = NULL
                     ,statuswinlost = NULL
                     ,statusid = 0
-			OUTPUT inserted.transid, '', '', inserted.statusid
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             WHERE    matchid = @matchid 
                     AND statusID = 102
                     AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
@@ -2012,9 +2013,10 @@ BEGIN
 			END
 
 			WHILE (1 = 1)
-			BEGIN
-				
-				DELETE FROM	@tmptransid				
+			BEGIN				
+				DELETE FROM	@tmptransid	
+				DELETE FROM @tmpOutputBettransm
+				DELETE FROM @tmpOutputBetParlayDetail
 				
 				DELETE TOP (2000 )
 				FROM #Result
@@ -2097,10 +2099,53 @@ BEGIN
 				FROM    dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 					INNER JOIN @tmptransid t ON  pd.transid = t.transid
 				WHERE pd.statusid NOT IN (102)	
+
+				IF @IsSiteDB = 1
+				BEGIN
+					SET @transInfo = (
+							SELECT	transId AS '@t'		
+									,refno AS '@ref'
+									,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
+									,Status AS '@s' 
+									,StatusID AS '@sid' 
+									,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
+									,ruben AS '@r' -- ruben	
+							FROM	@tmpOutputBettransm
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+					SELECT	'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
+							,CASE 
+								WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+								WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+								ELSE ''
+							END
+							,'p'
+					WHERE @transInfo IS NOT NULL
+				
+					SET @betparlaydetailinfo = (
+						SELECT	DISTINCT transId AS '@t'						
+								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
+								,StatusId AS '@sid'
+						FROM	@tmpOutputBetParlayDetail
+						FOR XML PATH('r'),ROOT('root'), TYPE
+					)
+
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+					SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
+							,CASE 
+								WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+								WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+							END
+							,'p'
+					WHERE	@betparlaydetailinfo IS NOT NULL
+				END
 			END                
         END --@doing = 'CAL'
 
-		IF @IsSiteDB = 1
+		IF @IsSiteDB = 1 AND @doing <> 'CAL'
 		BEGIN
 			IF @doing IN ('VOID', 'RECOVER')
 			BEGIN
@@ -2149,6 +2194,7 @@ BEGIN
 				FROM	@tmpOutputBetParlayDetail
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
+
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 			SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
 					,CASE 

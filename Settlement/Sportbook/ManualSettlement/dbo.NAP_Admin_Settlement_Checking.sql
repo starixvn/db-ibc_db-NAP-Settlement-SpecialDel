@@ -94,7 +94,7 @@ BEGIN
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
-	
+
 		--calculate parlay sports not yet settle by profile
 	IF @Action = 'CAL' AND @Mode = 'MP'
 	BEGIN		
@@ -129,8 +129,7 @@ BEGIN
 
 	--cal/undo/refund FT/HT/Game/Set
 	--cal early sports settle by profile except early soccer
-	ELSE IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND' ) AND @Mode NOT IN ( 'EAR', 'FM' ) 
-			OR (@Action IN ('CAL_EAR', 'UNDO_EAR', 'REFUND_EAR') )
+	ELSE IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND','CAL_EAR', 'UNDO_EAR', 'REFUND_EAR') AND @Mode <> 'FM'
 	BEGIN	
 		IF @isSettingByProfile = 1
 		BEGIN			
@@ -141,7 +140,7 @@ BEGIN
 		        INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.Id
 		    WHERE sp.SportType = @SportType 
 		    EXEC sp_xml_removedocument @handle
-	
+		
 			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
 		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
 		    SELECT DISTINCT tbl.Id, sp.BetType, sp.BetID
@@ -149,9 +148,10 @@ BEGIN
 		        INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.RefResourceId = tbl.Id
 				LEFT JOIN @tmpResourceIDs r
 					ON r.ResourceID = tbl.Id
+						AND r.bettype = sp.bettype
 		    WHERE sp.SportType = @SportType 
 				AND sp.RefResourceId IS NOT NULL
-				AND r.ResourceID IS NULL
+				AND r.ResourceID IS NULL		
 				
 		    EXEC sp_xml_removedocument @handle
 			
@@ -205,8 +205,7 @@ BEGIN
 						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			)
 				SELECT @isExistWaitingTicket = 1
-		END
-		
+		END		
 	END
 	
 	--refund betDaq

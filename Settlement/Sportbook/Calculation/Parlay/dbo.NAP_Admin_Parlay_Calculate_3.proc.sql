@@ -213,7 +213,7 @@ BEGIN
 	    
 	    --update BetParlayDetail
 	    UPDATE pd
-	    SET statuswinlost   = 0
+	    SET statuswinlost   = NULL
 	        ,statusID       = 0
 	    FROM dbo.BetParlayDetail pd WITH (ROWLOCK, UPDLOCK)
 	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
@@ -253,7 +253,7 @@ BEGIN
 			
 		SET @transInfo = (
 			SELECT	transId AS '@t'							
-					,CASE WHEN @Action LIKE 'UNDO%' THEN '0' ELSE CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END END AS '@statuswl'
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
 					,statusId AS '@sid' 
 					,winlostdate AS '@wld'
 			FROM	#parlayOutput

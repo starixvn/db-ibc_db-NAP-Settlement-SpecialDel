@@ -268,7 +268,7 @@ BEGIN
 		AND @SPName <> 'NAP_Admin_Settlement_Refund_MP_Push'
 	BEGIN
 		IF (  @SportType = 1  
-				AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
+				AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO') 
 				AND @SelectedResources IS NULL
 			)
 		BEGIN
@@ -297,7 +297,7 @@ BEGIN
 			FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
 
 		END
-		
+	
 		EXEC NAP_Admin_Settlement_Checking
 			@MatchId  = @MatchId
 			,@Action  = @Action

@@ -17,13 +17,15 @@ BEGIN
 	SET NOCOUNT ON
 	
 	IF @StatusId = 1 -- running
-		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
-			SET StatusId = @StatusId
-				,LogId = @LogId
+	BEGIN
+		INSERT INTO dbo.SiteDB_SettlementService_LastLog(LogId, StatusId, Starttime) VALUES (@LogId, @StatusId, SYSDATETIME())
+	END
 	ELSE	
+	BEGIN
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
-				,LogId = @LogId
-				,LastLogId = @LogId
-				,LastStatusId = @StatusId
+				,Endtime = SYSDATETIME()
+		WHERE LogId = @LogId
+	END
+				
 END

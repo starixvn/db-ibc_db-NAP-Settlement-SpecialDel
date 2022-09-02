@@ -237,6 +237,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 1) AND @AllowCalculation = 1 -- CAL
 		BEGIN
 			SET @settlementTime = GETDATE();
+			DELETE @tmpTransInfo
 
 			UPDATE b
 				SET @modds = CASE 
@@ -463,6 +464,7 @@ BEGIN
 		BEGIN
 			SET @settlementTime = GETDATE()
 			SET @FcUpdateTime = SYSDATETIME()
+			DELETE @tmpTransInfo
 
 			UPDATE	b
 				SET 
@@ -551,6 +553,7 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tblTransIds WHERE ActionId = 0) AND @AllowUndo = 1 -- UNDO
 		BEGIN
 			SET @FcUpdateTime = SYSDATETIME()
+			DELETE @tmpTransInfo
 
 			UPDATE	b
 				SET 
