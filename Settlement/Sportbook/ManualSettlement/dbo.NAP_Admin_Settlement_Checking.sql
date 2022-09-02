@@ -142,14 +142,19 @@ BEGIN
 		    WHERE sp.SportType = @SportType 
 		    EXEC sp_xml_removedocument @handle
 	
-			INSERT INTO @tmpResourceIDs(ResourceID, Bettype, BetID)
-			SELECT	t.ResourceID, sp.BetType, sp.BetID
-			FROM	@tmpResourceIDs t
-				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-					ON	sp.RefResourceId = t.ResourceID
-			WHERE	sp.SportType = @Sporttype
-					AND sp.RefResourceId IS NOT NULL
-		    
+			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
+		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
+		    SELECT DISTINCT tbl.Id, sp.BetType, sp.BetID
+		    FROM OPENXML(@handle,'Resources/Resource',1) WITH (Id VARCHAR(20)) AS tbl
+		        INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.RefResourceId = tbl.Id
+				LEFT JOIN @tmpResourceIDs r
+					ON r.ResourceID = tbl.Id
+		    WHERE sp.SportType = @SportType 
+				AND sp.RefResourceId IS NOT NULL
+				AND r.ResourceID IS NULL
+				
+		    EXEC sp_xml_removedocument @handle
+			
 			IF EXISTS (SELECT TOP 1 1
 					   FROM dbo.bettrans b WITH(NOLOCK)
 					   WHERE b.matchid = @matchid

@@ -44,7 +44,7 @@ AS
 */
 
 BEGIN
-SET NOCOUNT ON
+	SET NOCOUNT ON
 	
 	DECLARE @SportType			SMALLINT
 			,@LeagueGroupID		INT
@@ -106,10 +106,6 @@ SET NOCOUNT ON
 
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 
-	IF @IsSettleByProfile = 1
-	BEGIN
-		SET @xmlData = @SelectedResources
-	END
 	-----------------------------------------------------
 	IF @Action = 'MoveTicket' AND @Mode = '43'
 	BEGIN
@@ -262,14 +258,18 @@ SET NOCOUNT ON
 	END
 	--End: Check is match in Queue
 
+	IF @IsSettleByProfile = 1 AND @SelectedResources IS NOT NULL
+	BEGIN
+		SET @xmlData = @SelectedResources
+	END
+
 	-- check waiting ticket for calculate cal-ht/ft/call/early,  all undo
 	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode IN ( 'INST') )
 		AND @SPName <> 'NAP_Admin_Settlement_Refund_MP_Push'
 	BEGIN
-		IF (  @SportType = 1 AND 
-				@Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
-				AND @LeagueGroupId <> 113
-				AND @Mode <> 'EAR'
+		IF (  @SportType = 1  
+				AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT') 
+				AND @SelectedResources IS NULL
 			)
 		BEGIN
 			;WITH cteGoalResource
@@ -295,6 +295,7 @@ SET NOCOUNT ON
 			SELECT @xmlData = CAST((SELECT	ResourceID AS '@Id'
 			FROM	cteResource
 			FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+
 		END
 		
 		EXEC NAP_Admin_Settlement_Checking
