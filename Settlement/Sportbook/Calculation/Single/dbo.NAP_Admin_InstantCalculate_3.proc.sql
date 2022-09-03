@@ -430,7 +430,7 @@ BEGIN
 				transId
 				,statuswinlost,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
-				,winlost_before ,bef_statusid 
+				,bef_winlost ,bef_statusid 
 			)
 		FROM dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN #InstantTicket_Input t
