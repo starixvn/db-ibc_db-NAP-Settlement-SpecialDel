@@ -137,7 +137,9 @@ BEGIN
 	IF @IsSettleAbandonedMatchIBC = 1 OR @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetFair = 1
 	BEGIN
 		WHILE (@BatchNo > 0)
-		BEGIN
+		BEGIN	
+			DELETE FROM @tmpTransInfo
+
 			SELECT	@MinCustId = MAX(MinCustId)
 					,@MaxCustId = MAX(MaxCustId)
 					,@MinTransId = MAX(MinTransId)
@@ -361,7 +363,6 @@ BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
 				
-				DELETE FROM @tmpTransInfo
 			END
 
 			SET @BatchNo = @BatchNo - 1
@@ -372,7 +373,9 @@ BEGIN
 	ELSE
 	BEGIN
 		WHILE @BatchNo > 0
-		BEGIN
+		BEGIN	
+			DELETE FROM @tmpTransInfo
+
 			SELECT	@MinCustId = MAX(MinCustId)
 					,@MaxCustId = MAX(MaxCustId)
 					,@MinTransId = MAX(MinTransId)
@@ -593,7 +596,6 @@ BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
 				
-				DELETE FROM @tmpTransInfo
 			END
 
 			SET @BatchNo = @BatchNo - 1

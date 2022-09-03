@@ -30,6 +30,8 @@ BEGIN
 	
 	WHILE 1 = 1
 	BEGIN
+		DELETE FROM @tmpTransInfo
+
 		UPDATE TOP (10000) dbo.bettrans WITH (ROWLOCK, UPDLOCK)
 			SET [status] = N'Refund'
 				,statusID = 103
@@ -88,7 +90,7 @@ BEGIN
 			)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
+			VALUES ('Settlement', 'RefundVS', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
 		END
 
 		IF @rowcnt < 10000

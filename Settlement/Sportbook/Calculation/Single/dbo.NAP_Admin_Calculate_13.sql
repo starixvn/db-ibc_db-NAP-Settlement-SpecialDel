@@ -201,6 +201,8 @@ BEGIN
 
 	IF @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetfair = 1 OR @IsSettleAbandonedMatchIBC = 1
 	BEGIN
+		DELETE FROM @tmpTransInfo
+
 		SET @settlementTime = GETDATE();
 
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
@@ -537,7 +539,9 @@ BEGIN
 		FROM @tmpBatch
 
 		WHILE (@BatchNo > 0)
-		BEGIN
+		BEGIN	
+			DELETE FROM @tmpTransInfo
+
 			SELECT	@MinCustId = MAX(MinCustId)
 					,@MaxCustId = MAX(MaxCustId)
 					,@MinTransId = MAX(MinTransId)
@@ -838,8 +842,7 @@ BEGIN
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
-				
-				DELETE FROM @tmpTransInfo
+			
 			END	
 
 			SET @BatchNo = @BatchNo - 1

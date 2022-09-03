@@ -169,7 +169,9 @@ BEGIN
 	DECLARE @settlementTime DATETIME
 
 	WHILE (@BatchNo > 0)
-	BEGIN
+	BEGIN		
+		DELETE FROM @tmpTransInfo
+
 		SELECT	@MinCustId = MAX(MinCustId)
 				,@MaxCustId = MAX(MaxCustId)
 				,@MinTransId = MAX(MinTransId)
@@ -508,8 +510,6 @@ BEGIN
 			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')		
 		END	
 		
-		DELETE FROM @tmpTransInfo
-
 		SET @BatchNo = @BatchNo - 1
 				
 		WAITFOR DELAY '00:00:00:010'

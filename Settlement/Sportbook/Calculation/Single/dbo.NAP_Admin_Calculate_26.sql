@@ -99,6 +99,8 @@ BEGIN
 
 	IF @IsSettleAbandonedMatch = 1 OR @IsSettleAbandonedMatchBetfair = 1 OR @IsSettleAbandonedMatchIBC = 1
 	BEGIN
+		DELETE FROM @tmpTransInfo
+
 		SET @settlementTime = GETDATE();
 
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
@@ -403,6 +405,8 @@ BEGIN
 			
 		WHILE @BatchNo > 0
 		BEGIN
+			DELETE FROM @tmpTransInfo
+
 			SELECT	@MinCustId = MAX(MinCustId)
 					,@MaxCustId = MAX(MaxCustId)
 					,@MinTransId = MAX(MinTransId)
@@ -649,35 +653,33 @@ BEGIN
 							END 
 			AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		
-		IF @IsSiteDB =  1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
-		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'
-						,modds AS '@m'				
-						,statuswinlost AS '@statuswl' 
-						,SettlementTime AS '@st' 
-						,WinLost AS '@w' 
-						,aWinLost AS '@aw' 
-						,mWinLost AS '@mw' 
-						,sWinLost AS '@sw' 
-						,PlayerComm AS '@pc' 
-						,Comm AS '@c' 
-						,aComm AS '@ac' 
-						,sComm AS '@sc' 
-						,Status AS '@s' 
-						,StatusID AS '@sid' 
-						,ruben AS '@r'	
-						,bef_winlost AS '@bef_w' 
-						,bef_statusid AS '@bef_sid' 
-				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-			)
+			IF @IsSiteDB =  1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'				
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'	
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
-			
-			DELETE FROM @tmpTransInfo
-		END	
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
+			END	
 
 			SET @BatchNo = @BatchNo - 1
 

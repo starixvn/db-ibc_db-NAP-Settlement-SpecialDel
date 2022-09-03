@@ -58,7 +58,8 @@ BEGIN
 	BEGIN
 		WHILE 1=1
 		BEGIN
-			
+			DELETE FROM @tmpTransInfo
+
 			SET @settlementTime = GETDATE();
 			SET @FcUpdateTime = SYSDATETIME()
 
@@ -134,10 +135,9 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo)	
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'RefundBetDaq', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
 				
-				DELETE FROM @tmpTransInfo
 			END
 
 			IF @rowcnt < 10000 BREAK

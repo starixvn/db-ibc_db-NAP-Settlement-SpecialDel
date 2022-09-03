@@ -67,8 +67,7 @@ BEGIN
 	END
 	-- END CHECK
 
-	DECLARE	@xml					XML
-		
+	DECLARE	@xml					XML		
 			,@BatchCount			INT
 			,@BatchNo				INT
 			,@MinCustId				INT
@@ -157,6 +156,8 @@ BEGIN
 		
 	WHILE @BatchNo > 0
 	BEGIN
+		DELETE FROM @tmpTransInfo
+
 		SELECT	@MinCustId = MAX(MinCustId)
 				,@MaxCustId = MAX(MaxCustId)
 				,@MinTransId = MAX(MinTransId)
@@ -291,8 +292,6 @@ BEGIN
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 			SELECT 'Settlement', 'Undo', 'bettrans', @MatchId, @transInfo, 'UNDO', 's'
-			
-			DELETE FROM @tmpTransInfo
 		END
 		SET @BatchNo = @BatchNo - 1
 

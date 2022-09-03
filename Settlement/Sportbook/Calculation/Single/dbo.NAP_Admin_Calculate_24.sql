@@ -155,6 +155,8 @@ BEGIN
 			
 		WHILE @BatchNo > 0
 		BEGIN
+			DELETE FROM @tmpTransInfo
+
 			SELECT	@MinCustId = MAX(MinCustId)
 					,@MaxCustId = MAX(MaxCustId)
 					,@MinTransId = MAX(MinTransId)
@@ -165,7 +167,7 @@ BEGIN
 			WHERE	BatchNo = @BatchNo
 			
 			SET @settlementTime = GETDATE();
-
+			
 			UPDATE b
 			SET @modds = CASE
 					WHEN @bettype = 449 THEN
@@ -460,8 +462,6 @@ BEGIN
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
-				
-				DELETE FROM @tmpTransInfo
 			END
 					
 			SET @BatchNo = @BatchNo - 1
@@ -470,7 +470,9 @@ BEGIN
 		END				
 	END
 	ELSE
-	BEGIN -- settle determined tickets
+	BEGIN -- settle determined tickets	
+		DELETE FROM @tmpTransInfo
+
 		SET @settlementTime = GETDATE();
 
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)

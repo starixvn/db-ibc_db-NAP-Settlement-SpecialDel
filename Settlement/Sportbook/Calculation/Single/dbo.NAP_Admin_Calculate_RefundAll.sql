@@ -161,6 +161,8 @@ BEGIN
 
 	WHILE @BatchNo > 0
 	BEGIN
+		DELETE FROM @tmpTransInfo
+
 		SELECT	@MinCustId = MAX(MinCustId)
 				,@MaxCustId = MAX(MaxCustId)
 				,@MinTransId = MAX(MinTransId)
@@ -280,10 +282,8 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo)		
-
-			DELETE FROM @tmpTransInfo
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')		
 		END
 
 		SET @BatchNo = @BatchNo - 1

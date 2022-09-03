@@ -124,6 +124,7 @@ BEGIN
 
 	WHILE 1 = 1
 	BEGIN
+		DELETE FROM @tmpTransInfo
 		DELETE FROM #currList
 
 		DELETE TOP (1000)
@@ -454,8 +455,6 @@ BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
 			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
 			
-			DELETE FROM @tmpTransInfo
-
 		END	
 
 		WAITFOR DELAY '00:00:00:010'
