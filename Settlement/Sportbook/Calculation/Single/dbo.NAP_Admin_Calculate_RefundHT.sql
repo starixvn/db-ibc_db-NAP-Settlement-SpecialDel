@@ -32,7 +32,6 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
-		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
     Param's Explanation:
         + @IsExcludeBetdaq: 
@@ -49,12 +48,8 @@ BEGIN
 	-- CHECK SERVER BEFORE REFUND
 	DECLARE @ServerName		SYSNAME 
 			,@AllowRefund	BIT
-			,@IsCentral		BIT = 0
 
 	SET @ServerName = @@SERVERNAME
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NULL
-		SET @IsCentral = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -78,16 +73,8 @@ BEGIN
 			,@TransIdOfMinCust		BIGINT
 			,@TransIdOfMaxCust		BIGINT			
 			,@IsUpd_Void			BIT = 0
-			,@FcUpdateTime			DATETIME2
-			,@transInfo	XML
-	
-	DECLARE @tmpTransInfo TABLE (transId BIGINT
-			,statuswinlost TINYINT,SettlementTime DATETIME
-			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
-			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
-		)
-		
+			,@RepUpdateTime			DATETIME2
+			
 	DECLARE @tblBettypes TABLE (bettype SMALLINT)
 
 	DECLARE @tmpBatch AS TABLE (
@@ -136,7 +123,6 @@ BEGIN
 					ON b.bettype = t.bettype
 			WHERE	b.matchid = @matchid
 					AND b.statusID NOT IN (103, 101) 
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -161,7 +147,7 @@ BEGIN
 		WHERE	BatchNo = @BatchNo
 
 		SET @settlementTime = GETDATE();
-		SET @FcUpdateTime = SYSDATETIME()
+		SET @RepUpdateTime = SYSDATETIME()
 
 		UPDATE b
 			SET 
@@ -188,25 +174,7 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,statuswinlost = 6
-				,FcUpdateTime = CASE WHEN b.statusId = 103 THEN b.FcUpdateTime ELSE @FcUpdateTime END
-		OUTPUT	inserted.transid
-				,inserted.Status
-				,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
-				,inserted.StatusID		
-				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
-				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.ruben
-				,inserted.statuswinlost
-			INTO @tmpTransInfo (
-				transId
-				,Status
-				,SettlementTime
-				,StatusID
-				,WinLost,aWinLost,mWinLost,sWinLost
-				,PlayerComm,Comm,aComm,sComm
-				,ruben
-				,statuswinlost
-			)
+				,RepUpdateTime = CASE WHEN b.statusId = 103 THEN b.RepUpdateTime ELSE @RepUpdateTime END
 		FROM	dbo.bettrans b --WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpBatch c
 				ON	c.BatchNo = @BatchNo
@@ -233,32 +201,6 @@ BEGIN
 							ELSE 1
 						END
 				AND ISNULL(b.betdaqid,0) <> -2
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-
-		IF @IsCentral = 0
-		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'
-						,SettlementTime AS '@st' 
-						,WinLost AS '@w' 
-						,aWinLost AS '@aw' 
-						,mWinLost AS '@mw' 
-						,sWinLost AS '@sw' 
-						,PlayerComm AS '@pc' 
-						,Comm AS '@c' 
-						,aComm AS '@ac' 
-						,sComm AS '@sc' 
-						,Status AS '@s' 
-						,StatusID AS '@sid'
-						,ruben AS '@r'
-						,statuswinlost AS '@statuswl' 
-				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-			)
-
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')		
-		END
 
 		SET @BatchNo = @BatchNo - 1
 
