@@ -13,6 +13,7 @@ AS
 
 	Revision
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 			@SelectedSelection = '<Resources>

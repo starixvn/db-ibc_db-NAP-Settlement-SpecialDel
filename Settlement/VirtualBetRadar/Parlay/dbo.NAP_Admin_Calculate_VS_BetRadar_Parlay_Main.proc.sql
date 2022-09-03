@@ -18,6 +18,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20180214@Helen: Integrate VSBR 2 - Basketball - [Redmine:90154]
 		- 20190604@Helen: User-Defined Aggregate SQL Function for Parlay Calculation [Redmine:#114391]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 	

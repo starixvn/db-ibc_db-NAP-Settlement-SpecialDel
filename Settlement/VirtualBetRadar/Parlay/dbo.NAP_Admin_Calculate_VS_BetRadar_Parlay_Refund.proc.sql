@@ -14,6 +14,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20170829@Kathy: 	Change datatype of bettransm.TransId [Redmine:#73545]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
  

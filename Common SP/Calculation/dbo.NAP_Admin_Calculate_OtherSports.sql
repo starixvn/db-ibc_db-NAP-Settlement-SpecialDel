@@ -20,6 +20,7 @@ AS
         - 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
         - 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
 
