@@ -108,6 +108,7 @@ BEGIN
 						ON tmp.bettype = f.BetType
 
 		IF @@SERVERNAME IN ('DBTRANS','DB230','DB206','TESTDBTRANS','SITDBTRANS', 'DBBAL', 'SITDBAWS', 'SITDBBAL')
+			OR @IsSiteDB = 1
 		BEGIN
 			SET @settlementTime = GETDATE();
 
