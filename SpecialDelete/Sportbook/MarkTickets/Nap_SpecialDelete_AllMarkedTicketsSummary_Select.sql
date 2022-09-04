@@ -98,8 +98,9 @@ BEGIN
             m.SportType,
             m.kickofftime,
             ISNULL(CAST(rdHT.hthomescore AS CHAR(10)) + '-' + CAST(rdHT.htawayscore AS CHAR(10)), '-') AS 'HTScore',
-            ISNULL(CAST(rdFT.finalhomescore AS CHAR(10)) + '-' + CAST(rdFT.finalawayscore AS CHAR(10)), '-') AS 'FTScore'
-     FROM #Tickets t
+            ISNULL(CAST(rdFT.finalhomescore AS CHAR(10)) + '-' + CAST(rdFT.finalawayscore AS CHAR(10)), '-') AS 'FTScore',
+			@SiteDBGroupID AS SiteDBGroupID
+	 FROM #Tickets t
 		  INNER JOIN dbo.match m WITH (NOLOCK) ON m.MatchId = t.MatchId
 		  OUTER APPLY (
 						SELECT TOP 1 m.hthomescore, m.htawayscore

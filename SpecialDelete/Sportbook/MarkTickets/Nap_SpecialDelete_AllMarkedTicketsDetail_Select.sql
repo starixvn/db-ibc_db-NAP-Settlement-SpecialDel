@@ -336,7 +336,8 @@ BEGIN
 		b.SubBettype,
 		b.SubHdp1,
 		b.SubHdp2,
-		b.SubOdds
+		b.SubOdds,
+		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 

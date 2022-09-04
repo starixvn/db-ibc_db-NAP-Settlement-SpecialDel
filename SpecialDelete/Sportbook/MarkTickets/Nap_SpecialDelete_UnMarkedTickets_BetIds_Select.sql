@@ -320,7 +320,8 @@ BEGIN
 		b.SettlementStatus,
 		c.site AS LicenseeName,
 		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit,
-		b.ActualStake
+		b.ActualStake,
+		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
