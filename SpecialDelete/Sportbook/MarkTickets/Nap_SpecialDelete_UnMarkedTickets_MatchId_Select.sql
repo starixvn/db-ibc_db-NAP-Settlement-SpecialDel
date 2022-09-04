@@ -657,6 +657,13 @@ BEGIN
 					AND main.bettype = sub.bettype
 	WHERE main.WalletType = 1
 
+	------------------------------------------------------------------------------
+	--1. Table invald/moved transid
+	SELECT '' AS InvalidTransIds
+	      ,'' AS MovedTransIds
+		  ,'' AS MarkedTransIds
+
+	--2. Table get tickets
 	SELECT 
 		b.Stake,
 		b.BetCheck,

@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update]
 (
 	@Matches  XML           = NULL,
     @UserId   INT           = 0,
-    @Username NVARCHAR(100) = N'',
     @IP       VARCHAR(15)   = NULL,
     @ErrMsg   NVARCHAR(200) = '' OUTPUT,
     @ErrCode  INT           = 0 OUTPUT
@@ -41,7 +40,6 @@ BEGIN
 			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_AllMarkedTicketsSummary_Update '
 				+ CASE WHEN @Matches IS NULL THEN '' ELSE '@Matches = ''' + CONVERT(NVARCHAR(4000), @Matches) + '''' END
 				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
