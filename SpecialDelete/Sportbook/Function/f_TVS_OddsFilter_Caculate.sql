@@ -24,7 +24,7 @@ AS
 BEGIN 
 	IF @OddsType_Input = 'DEC'
 	BEGIN
-		INSERT INTO @OddFilter (Odds, OddType)
+		INSERT INTO @OddFilter (Odds, OddsType)
 		SELECT f.value, 1
 		FROM STRING_SPLIT(@Odds_str, ',') f
 	END
@@ -80,7 +80,7 @@ BEGIN
 					, 7 AS OddsType
 			FROM cte c
 		)
-		INSERT INTO @OddFilter (Odds, OddType)
+		INSERT INTO @OddFilter (Odds, OddsType)
 		SELECT r.OddValue, r.OddsType
 		FROM cte_convert r
 	END
