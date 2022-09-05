@@ -254,12 +254,12 @@ BEGIN
 			OUTER APPLY (
 				SELECT TOP (1) CAST(1 AS BIT) AS isMoved
 				FROM dbo.bettrans14 WITH(NOLOCK) 
-				WHERE transid = temp.transid
+				WHERE transid = temp.transid AND SiteDBGroupID = @SiteDBGroupID
 			) bm
 			OUTER APPLY (
 				SELECT TOP (1) CAST(1 AS BIT) AS isMarked
 				FROM dbo.MarkedTransaction m WITH(NOLOCK) 
-				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON m.transid = b.transid
+				INNER JOIN dbo.bettrans b WITH(NOLOCK) ON m.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 				WHERE m.transid = temp.transid AND b.bettype NOT IN (9, 29)
 			) m
 		WHERE NOT EXISTS (SELECT 1 FROM #Tickets WHERE transid = temp.transid OR refno = temp.transid)
