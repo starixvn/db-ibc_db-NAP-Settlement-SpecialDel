@@ -38,21 +38,21 @@ BEGIN
 		,cte_convert AS
 		(
 			--MY -> DEC
-			SELECT CASE WHEN c.OddValue > 0 THEN 1 + c.OddValue
-						ELSE 1 + (1 / ABS(c.OddValue)) END AS OddValue
-					, 1 AS OddsType
+			SELECT CASE WHEN c.OddValue > 0 THEN CONVERT(DECIMAL(18,2), ROUND(1 + c.OddValue, 2, 1))
+						ELSE  CONVERT(DECIMAL(18,2), ROUND(1 + (1 / ABS(c.OddValue)), 2, 1)) END AS OddValue
+					, CONVERT(TINYINT, 1) AS OddsType
 			FROM cte c
 
 			--MY -> HK
 			UNION ALL
 			SELECT CASE WHEN c.OddValue > 0 THEN c.OddValue
-						ELSE 1 / ABS(c.OddValue) END AS OddValue
+						ELSE CONVERT(DECIMAL(18,2), ROUND(1 / ABS(c.OddValue), 2, 1)) END AS OddValue
 					, 2 AS OddsType
 			FROM cte c
 
 			--MY -> INDO
 			UNION ALL
-			SELECT -1 / c.OddValue AS OddValue
+			SELECT CONVERT(DECIMAL(18,2),-1 / c.OddValue) AS OddValue
 					, 3 AS OddsType
 			FROM cte c
 
@@ -64,7 +64,7 @@ BEGIN
 
 			--MY -> US
 			UNION ALL
-			SELECT -100 / c.OddValue AS OddValue
+			SELECT CONVERT(DECIMAL(18,2), -100 / c.OddValue) AS OddValue
 					, 5 AS OddsType
 			FROM cte c
 
@@ -81,7 +81,7 @@ BEGIN
 			FROM cte c
 		)
 		INSERT INTO @OddFilter (Odds, OddsType)
-		SELECT r.OddValue, r.OddsType
+		SELECT CONVERT(SMALLMONEY,r.OddValue), r.OddsType
 		FROM cte_convert r
 	END
 
