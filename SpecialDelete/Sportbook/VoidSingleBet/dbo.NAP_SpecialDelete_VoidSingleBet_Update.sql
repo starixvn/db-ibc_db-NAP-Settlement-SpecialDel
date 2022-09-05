@@ -1566,6 +1566,11 @@ BEGIN
 		
 		-- CHECK IT GROUP or NOT ?   
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+
+		--1. Table return error code/ msg
+		SELECT @ErrCode AS ErrorCode
+			,@ErrMsg AS ErrorMsg
+			,@NegativeBalanceUsers AS NegativeBalanceUsers
 		
 		;WITH CTE_CustIdAll AS (
 			SELECT DISTINCT t.custid
