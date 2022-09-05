@@ -90,7 +90,7 @@ BEGIN
 				IsFinish	BIT
 				);
 	
-	CREATE TABLE #Match(MatchId INT, IsFinish BIT);
+	CREATE TABLE #Match(MatchId INT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
 	-- Get tickets insert into transaction

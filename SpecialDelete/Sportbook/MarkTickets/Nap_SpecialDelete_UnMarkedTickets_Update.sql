@@ -80,7 +80,7 @@ BEGIN
 
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
-	CREATE TABLE #Match(matchid INT, IsFinish BIT);
+	CREATE TABLE #Match(matchid INT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 
 	CREATE TABLE #Tickets

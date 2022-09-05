@@ -50,6 +50,7 @@ BEGIN
 		   ,@isExistMatch BIT
 		   ,@IsCalQueue	BIT = 0
 		   ,@isExistFM2	BIT = 0
+		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 		   ,@SiteDBGroupID	INT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -130,8 +131,9 @@ BEGIN
 	FROM	#tblMatchProcess
 			
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = 1
-		,@isExistFM2 = @isExistFM2
+		@isExistMatch	= 1
+		,@isExistFM2	= @isExistFM2
+		,@spName		= @spName
 		,@avaiableProcess = @avaiableProcess OUTPUT
 		,@ErrCode = @ErrCode OUTPUT
 		,@ErrMsg = @ErrMsg OUTPUT
@@ -146,7 +148,6 @@ BEGIN
 	SET @IsCalQueue = ( SELECT TOP (1) 1
 							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 							WHERE matchid = @MatchId AND RequestId = 0
-								--AND StatusId IN (1,2,4) 
 						)
 	WHILE (1 = 1)
 	BEGIN

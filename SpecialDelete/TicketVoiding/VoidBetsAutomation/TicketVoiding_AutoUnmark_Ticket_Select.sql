@@ -13,7 +13,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT TransId, SiteDBGroupID
+	SELECT TransId, ISNULL(SiteDBGroupID,0) AS SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK) 
 	WHERE IssueTypeId = 11 AND MatchId = @MatchId
 
