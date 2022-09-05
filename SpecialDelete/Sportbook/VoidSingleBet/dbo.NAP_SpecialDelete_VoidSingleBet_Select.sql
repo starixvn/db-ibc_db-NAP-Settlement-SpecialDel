@@ -344,6 +344,7 @@ BEGIN
 			  FilterOddsSpread	 MONEY,
 			  FilterOddsId		 INT,
 			  FilterTransdesc	 NVARCHAR(2000),
+			  FilterOdds	 MONEY,
               IsMarked           BIT,
 			  ActualStake		 MONEY,
 			  OddsId			INT,
@@ -454,6 +455,7 @@ BEGIN
 			,ActualStake
 			,OddsId
 			,SiteDBGroupId
+			,FilterOdds
 		)
 		SELECT
 			b.transid,
@@ -509,6 +511,7 @@ BEGIN
 			b.actual_stake AS ActualStake,
 			b.oddsid
 			,b.SiteDBGroupID
+			,b.odds AS FilterOdds
 		FROM 
 			dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
@@ -651,6 +654,7 @@ BEGIN
 				,ActualStake
 				,OddsId
 				,SiteDBGroupId
+				,FilterOdds
 			)
 			SELECT
 				b.transid,
@@ -706,6 +710,7 @@ BEGIN
 				b.actual_stake AS ActualStake,
 				bm.SubOddsId
 				,bm.SiteDBGroupId
+				,bm.SubOdds AS FilterOdds
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 		END
@@ -796,6 +801,11 @@ BEGIN
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
+
+		DELETE b
+		FROM #SpecialDeleteBets b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
+			WHERE tp.OddsType = b.OddsType AND tp.Odds = b.FilterOdds)
 	END	
 	
 	-- update username/creatorname column, Isdeposit

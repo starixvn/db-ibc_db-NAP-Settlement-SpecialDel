@@ -304,6 +304,7 @@ BEGIN
 		FilterOddsSpread	MONEY,
 		FilterOddsId		INT,
 		FilterTransdesc	    NVARCHAR(2000),
+		FilterOdds			MONEY,
 		ActualStake			MONEY,
 		main_ruben			TINYINT,
 		main_custId			INT,
@@ -733,6 +734,7 @@ BEGIN
 			,ActualStake
 			,OddsId
 			,SiteDBGroupId
+			,FilterOdds
 		)
 		SELECT	
 			b.transid
@@ -787,6 +789,7 @@ BEGIN
 			,b.actual_stake AS ActualStake
 			,b.oddsid
 			,b.SiteDBGroupID
+			,b.odds AS FilterOdds
 		FROM (SELECT TOP (@CountTransId) * FROM #tblTransIds) t
 			 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON	t.transid = b.transid
 		WHERE	b.matchid=@matchid 
@@ -928,6 +931,7 @@ BEGIN
 				,main_custId
 				,OddsId
 				,SiteDBGroupId
+				,FilterOdds
 			)
 			SELECT
 				b.transid,
@@ -984,6 +988,7 @@ BEGIN
 				b.custid,
 				bm.SubOddsId
 				,bm.SiteDBGroupId
+				,bm.SubOdds AS FilterOdds
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 		END
@@ -1073,6 +1078,11 @@ BEGIN
 		FROM  #BetDelete b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
 			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
+
+		DELETE b
+		FROM #BetDelete b
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
+			WHERE tp.OddsType = b.OddsType AND tp.Odds = b.FilterOdds)
 	END	
 	------------------***** End of insert all data into #BetDelete *****------------------
 	--------------------------------------------------------------------------------------			
