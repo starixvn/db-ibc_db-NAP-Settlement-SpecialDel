@@ -386,14 +386,17 @@ BEGIN
 		SET @SportType = NULL
 	END	
 	
-	DECLARE @tmp_Odds AS TABLE (OddsValue NVARCHAR(MAX), OddsType TINYINT)
-	DECLARE @tmp_Odds_Detail AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
+	DECLARE @Odds_str NVARCHAR(100)
+		, @OddsType_Input VARCHAR(29)
+	DECLARE @tmp_Odds AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
 
-	INSERT INTO @tmp_Odds (OddsValue, OddsType)
-	SELECT t.c.value('@o','NVARCHAR(MAX)') AS Odds
-			, t.c.value('@ost','TINYINT') AS OddsType 
+	SELECT @Odds_str = REPLACE(t.c.value('@o','NVARCHAR(MAX)'), '&', ',')
+			, @OddsType_Input = t.c.value('@ost','VARCHAR(20)')
 	FROM @OddsFilter.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@OddsFilter = NULL))
+
+	INSERT INTO @tmp_Odds (Odds, OddsType)
+	SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Caculate(@Odds_str, @OddsType_Input) f
 			
 	-- search tickets
 	-- Search Single Tickets

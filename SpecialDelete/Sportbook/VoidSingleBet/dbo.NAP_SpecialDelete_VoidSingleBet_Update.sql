@@ -206,6 +206,7 @@ BEGIN
 			,@ErrMsg					NVARCHAR(200)	= ''
 			,@ErrCode				INT				= 0	  
 			,@SiteDBGroupID		SMALLINT
+			,@transInfo XML 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -340,15 +341,19 @@ BEGIN
 			,@CountTransId	INT
 
 	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, status VARCHAR(20), Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
+	
+	DECLARE @Odds_str NVARCHAR(100)
+		, @OddsType_Input VARCHAR(29)
+	DECLARE @tmp_Odds AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
 
-	DECLARE @tmp_Odds AS TABLE (OddsValue NVARCHAR(MAX), OddsType TINYINT)
-	DECLARE @tmp_Odds_Detail AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
-
-	INSERT INTO @tmp_Odds (OddsValue, OddsType)
-	SELECT t.c.value('@o','NVARCHAR(MAX)') AS Odds
-			, t.c.value('@ost','TINYINT') AS OddsType 
+	SELECT @Odds_str = REPLACE(t.c.value('@o','NVARCHAR(MAX)'), '&', ',')
+			, @OddsType_Input = t.c.value('@ost','VARCHAR(20)')
 	FROM @OddsFilter.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@OddsFilter = NULL))
+
+	INSERT INTO @tmp_Odds (Odds, OddsType)
+	SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Caculate(@Odds_str, @OddsType_Input) f
 	
 	SET @session = CAST (NEWID() AS NVARCHAR(50))
 	DECLARE @SettlementStatus TINYINT = NULL, @sporttype SMALLINT = NULL, @ParentID INT = NULL, @ChildMatchType TINYINT = NULL
@@ -1185,6 +1190,34 @@ BEGIN
 				AND main.transid = tmpmain.grouptransid
 				AND main.matchid = @matchid
 
+		SET @transInfo = (
+		SELECT	t.transId AS '@t'
+				, b.winlost AS '@w'
+				, b.ruben AS '@r'
+				, b.creator AS '@cr'
+				, b.awinlost AS '@aw'
+				, b.mwinlost AS '@mw'
+				, b.swinlost AS '@sw'
+				, b.playercomm AS '@pc'
+				, b.comm AS '@c'
+				, b.acomm AS '@ac'
+				, b.scomm AS '@sc'
+				, b.statusID AS '@sid'
+				, b.status AS '@s'
+				, b.betid AS '@bid'
+				, b.ExtraInfo AS '@ex'
+				, b.FcUpdateTime AS '@rut'
+		FROM	#BetDelete t 
+			INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+		FOR XML PATH('r'),ROOT('root'), TYPE)
+
+		IF @SiteDBGroupID <> 0
+		BEGIN
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+		END
+
 		-- Capture balance before updating Bettrans - New code for CO new Model
 		INSERT INTO @BeforeUpd (matchid, custid, balanceType, BonusID, WalletType, balance)
 		SELECT	@MatchId AS matchid
@@ -1223,10 +1256,27 @@ BEGIN
 			UPDATE z
 			SET z.status = t.status
 				, z.winlost = t.winlost
+			OUTPUT deleted.matchid, deleted.transid, t.status, t.winlost
+			INTO @tmpTransInfo (matchid, transid, STATUS, winlost)
 			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
 			WHERE z.status <> t.status
 				AND t.betdaqid = -2
+
+			IF @SiteDBGroupID <> 0
+			BEGIN
+
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							, matchid AS '@mid'
+							, STATUS AS '@s'
+							, winlost AS '@w'
+					FROM	@tmpTransInfo WHERE matchid = @MatchId 
+					FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'Void', 'zzzbettrans', 'U', @matchid, @transInfo 
+			END
 		END
 		
 		-- Capture balance after updating Bettrans
