@@ -1,5 +1,4 @@
 /*<info serverAlias="SBSETTLE-bodb02" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
---01
 
 use bodb02
 go
