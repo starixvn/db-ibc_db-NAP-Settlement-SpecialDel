@@ -32,6 +32,7 @@ CREATE TABLE dbo.SiteDB_SettlementService_LastLog
 (
 	LogId BIGINT
 	,StatusId TINYINT
+	,StarttimeValidation DATETIME2
 	,Starttime DATETIME2
 	,EndTime DATETIME2
 )ON [DATA]

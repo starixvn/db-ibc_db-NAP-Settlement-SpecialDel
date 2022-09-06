@@ -16,11 +16,18 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
-	IF @StatusId = 1 -- running
+	IF @StatusId = 0 -- start validation
 	BEGIN
-		INSERT INTO dbo.SiteDB_SettlementService_LastLog(LogId, StatusId, Starttime) VALUES (@LogId, @StatusId, SYSDATETIME())
+		INSERT INTO dbo.SiteDB_SettlementService_LastLog(LogId, StatusId, StartTimeValidation) VALUES (@LogId, @StatusId, SYSDATETIME())
 	END
-	ELSE	
+	ELSE IF @StatusId = 1 -- start upd process
+	BEGIN
+		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
+			SET StatusId = @StatusId
+				,Starttime = SYSDATETIME()
+		WHERE LogId = @LogId
+	END
+	ELSE IF @StatusId IN (2,3) -- done process
 	BEGIN
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
