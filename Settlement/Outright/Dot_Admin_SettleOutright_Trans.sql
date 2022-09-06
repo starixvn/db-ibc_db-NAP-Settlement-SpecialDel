@@ -190,28 +190,30 @@ BEGIN
 
 	-- WRITE LOG
 	IF @IsCentral = 1
-	BEGIN TRY
-		SELECT @Remark = CAST(@deadheat AS VARCHAR(5))
+	BEGIN
+		BEGIN TRY
+			SELECT @Remark = CAST(@deadheat AS VARCHAR(5))
 
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-			@UserID = @adminid
-			,@MatchID = @matchid
-			,@ActionID = @ActionID
-			,@LeagueID = @LeagueID
-			,@EventDate = @winlostdate
-			,@Result = @status
-			,@Remark = @Remark
-	END TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
+				@UserID = @adminid
+				,@MatchID = @matchid
+				,@ActionID = @ActionID
+				,@LeagueID = @LeagueID
+				,@EventDate = @winlostdate
+				,@Result = @status
+				,@Remark = @Remark
+		END TRY
 
-	BEGIN CATCH
-		SELECT @Remark = CAST(@deadheat AS VARCHAR(5)) + ' ErrMsg=' + left(error_message(), 400)
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-			@UserID = @adminid
-			,@MatchID = @matchid
-			,@ActionID = @ActionID
-			,@LeagueID = @LeagueID
-			,@EventDate = @winlostdate
-			,@Result = @status
-			,@Remark = @Remark
-	END CATCH
+		BEGIN CATCH
+			SELECT @Remark = CAST(@deadheat AS VARCHAR(5)) + ' ErrMsg=' + left(error_message(), 400)
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
+				@UserID = @adminid
+				,@MatchID = @matchid
+				,@ActionID = @ActionID
+				,@LeagueID = @LeagueID
+				,@EventDate = @winlostdate
+				,@Result = @status
+				,@Remark = @Remark
+		END CATCH
+	END
 END

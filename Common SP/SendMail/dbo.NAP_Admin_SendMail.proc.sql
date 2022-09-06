@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_SendMail]
-	@SoureName 			VARCHAR(100) = 'NAP-Settlement'
+	@SourceName 			VARCHAR(100) = 'NAP-Settlement'
 	, @matchid			INT
 	, @message			VARCHAR(500)
 	, @actionId			INT
@@ -21,7 +21,7 @@ AS
     Revisions:
 		- 20160606@Bobby: Initialize
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-
+		- 20220719@Louisa: Change param name from @SoureName to @SourceName  [Redmine:#175251]
 		
     Parameters Explanation:   
 		- @severity: [Error, Warning]
@@ -52,7 +52,7 @@ BEGIN
 		FROM DBLOG.bodb_CustomerLog.dbo.LogAction WITH(NOLOCK)
 		WHERE ActionId = @actionId
 		
-		SELECT @subject	= @severity + ' on ' + @@SERVERNAME + ' - ' + @SoureName + ' - ' + ISNULL(@actionName, 'N/A')
+		SELECT @subject	= @severity + ' on ' + @@SERVERNAME + ' - ' + @SourceName + ' - ' + ISNULL(@actionName, 'N/A')
 			,@email_body = '
 			<html>
 				<body>

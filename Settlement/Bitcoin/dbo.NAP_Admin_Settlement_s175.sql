@@ -275,7 +275,7 @@ BEGIN
 		
 		--SEND error message				
 		EXEC [dbo].[NAP_Admin_SendMail]
-			@SoureName 		= 'NAP-Settlement-Bitcoin'
+			@SourceName 		= 'NAP-Settlement-Bitcoin'
 			,@matchid		= @matchid
 			,@AdminId		= @AdminId
 			,@ActionId		= @ActionId

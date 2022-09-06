@@ -185,26 +185,28 @@ BEGIN
 
 	-- WRITE LOG	
 	IF @IsCentral = 1
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-			@UserID = @AdminID
-			,@MatchID = @matchid
-			,@ActionID = @ActionID
-			,@LeagueID = @LeagueID
-			,@EventDate = @EventDate
-			,@Result = @Status
-	END TRY
-	BEGIN CATCH
-		SELECT @Remark = 'ErrMsg=' + left(error_message(), 400)
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-			@UserID = @AdminID
-			,@MatchID = @matchid
-			,@ActionID = @ActionID
-			,@LeagueID = @LeagueID
-			,@EventDate = @EventDate
-			,@Result = @Status
-			,@Remark = @Remark
-	END CATCH
+	BEGIN
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
+				@UserID = @AdminID
+				,@MatchID = @matchid
+				,@ActionID = @ActionID
+				,@LeagueID = @LeagueID
+				,@EventDate = @EventDate
+				,@Result = @Status
+		END TRY
+		BEGIN CATCH
+			SELECT @Remark = 'ErrMsg=' + left(error_message(), 400)
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
+				@UserID = @AdminID
+				,@MatchID = @matchid
+				,@ActionID = @ActionID
+				,@LeagueID = @LeagueID
+				,@EventDate = @EventDate
+				,@Result = @Status
+				,@Remark = @Remark
+		END CATCH
+	END
 END
 
 GO
