@@ -143,6 +143,9 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @ValueDefault SMALLMONEY = 9999.00
+		,@SiteDBGroupID		SMALLINT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #tblBetType
 	(
@@ -529,6 +532,7 @@ BEGIN
 			AND statusID NOT IN (101,102, 103) -- reject, void, refund		
 			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
 			AND b.betfrom <> 'p'	
+			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 
 	-- Search Parlay Tickets
@@ -597,6 +601,7 @@ BEGIN
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END			
 				AND bm.statusID NOT IN (101,102, 103) -- reject, void, refund
 				AND bm.betfrom <> 'p'
+				AND bm.SiteDBGroupID = @SiteDBGroupID
 		END
 
 		BEGIN
