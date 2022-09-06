@@ -354,7 +354,7 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@OddsFilter = NULL))
 
 	INSERT INTO @tmp_Odds (Odds, OddsType)
-	SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Caculate(@Odds_str, @OddsType_Input) f
+	SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, @OddsType_Input) f
 	
 	SET @session = CAST (NEWID() AS NVARCHAR(50))
 	DECLARE @SettlementStatus TINYINT = NULL, @sporttype SMALLINT = NULL, @ParentID INT = NULL, @ChildMatchType TINYINT = NULL
