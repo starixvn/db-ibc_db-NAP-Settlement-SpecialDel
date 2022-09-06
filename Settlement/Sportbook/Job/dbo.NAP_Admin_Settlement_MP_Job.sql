@@ -190,16 +190,17 @@ BEGIN
 				AND IsCalculating = 1
 		
 		--Update for Auto Void Job
-		IF @Action <> 'SDT-FT'
-			UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
-				SET StatusId = 0, Starttime = GETDATE()
-			WHERE MatchId = @matchid
-				AND Action = 'MixParlay'
-				AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
+		IF @Action NOT LIKE 'UNDO%' AND @ActionId <> 'SDT-FT'
+		BEGIN
+			--UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
+			--	SET StatusId = 0, Starttime = GETDATE()
+			--WHERE MatchId = @matchid
+			--	AND Action = 'MixParlay'
+			--	AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
 		
-		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
-		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId
-
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
+			SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId
+		END
 	END
 
 	---
