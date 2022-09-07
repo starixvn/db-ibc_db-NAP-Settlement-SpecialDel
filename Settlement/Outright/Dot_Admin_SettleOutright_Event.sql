@@ -28,6 +28,7 @@ AS
 		- 20150625@Martin: request by Cooper, replace insert statement by sp NAP_UpdateTempVariableNumber
 		- 20201211@Louisa: Show Calculate Outright Log, add param @AdminId [Redmine:#146738]
 		- 20201216@JackChang(DB02): select @LogFile table
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		- @deadheat = fraction of deadheat to divide (1,2,3  etc)

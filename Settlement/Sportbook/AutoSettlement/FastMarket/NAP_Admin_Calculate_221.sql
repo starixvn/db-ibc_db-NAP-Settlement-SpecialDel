@@ -47,14 +47,14 @@ BEGIN
 			,@AllowUndo			= @AllowUndo		OUTPUT
 			,@AllowRefund		= @AllowRefund		OUTPUT
 		
-		IF @action = 'CAL' AND @AllowCalculation = 0
-			RETURN
+		--IF @action = 'CAL' AND @AllowCalculation = 0
+		--	RETURN
 
 		IF @action = 'UNDO' AND @AllowUndo = 0
 			RETURN
 		
-		IF @action = 'REFUND' AND @AllowRefund = 0
-			RETURN
+		--IF @action = 'REFUND' AND @AllowRefund = 0
+		--	RETURN
 
 	END
 	    
