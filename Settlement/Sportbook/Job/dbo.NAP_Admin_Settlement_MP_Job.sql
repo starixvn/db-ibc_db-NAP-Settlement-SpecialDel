@@ -190,7 +190,7 @@ BEGIN
 				AND IsCalculating = 1
 		
 		--Update for Auto Void Job
-		IF @Action NOT LIKE 'UNDO%' AND @ActionId <> 'SDT-FT'
+		IF @Action NOT LIKE 'UNDO%' AND @Action <> 'SDT-FT'
 		BEGIN
 			--UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
 			--	SET StatusId = 0, Starttime = GETDATE()
