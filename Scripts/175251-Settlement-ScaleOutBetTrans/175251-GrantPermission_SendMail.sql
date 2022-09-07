@@ -3,7 +3,7 @@
 /*
 	Created: 20220906@Louisa
     Task: Scale Out BetTrans [Redmine:#175251]
-    DB: DBTXN/bodb02
+    DB: DBCTG/bodb02
  	
 	Revisions:
 		- 20220906@Louisa: grant permission send email to account bodbAdminNet  [Redmine:#175251]
