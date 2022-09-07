@@ -693,61 +693,61 @@ BEGIN
 END
 	
 	-- Write log
-	IF @IsCentral = 1
-	BEGIN 
-		DECLARE @ResultRemarkLog VARCHAR(MAX) = ''
-				,@logdata		VARCHAR(MAX) = ''
-				,@Remark		VARCHAR(MAX) = ''
-				,@matchLog		INT = @matchid
+	DECLARE @ResultRemarkLog VARCHAR(MAX) = ''
+			,@logdata		VARCHAR(MAX) = ''
+			,@Remark		VARCHAR(MAX) = ''
+			,@matchLog		INT = @matchid
 
-		IF @ParentMatchId IS NOT NULL 
-		BEGIN
-			DELETE FROM @tmpSelectedRID
-			WHERE ResourceID NOT IN (
-				SELECT sp.ResourceID 
-				FROM dbo.bettrans bt WITH(NOLOCK)
-					INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-						ON (sp.BetID = 0 OR sp.BetID =bt.betid)
-							AND sp.BetType = bt.bettype
-				WHERE bt.matchid = @MatchID
-					AND sp.SportType =50 )
+	IF @ParentMatchId IS NOT NULL 
+	BEGIN
+		DELETE FROM @tmpSelectedRID
+		WHERE ResourceID NOT IN (
+			SELECT sp.ResourceID 
+			FROM dbo.bettrans bt WITH(NOLOCK)
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+					ON (sp.BetID = 0 OR sp.BetID =bt.betid)
+						AND sp.BetType = bt.bettype
+			WHERE bt.matchid = @MatchID
+				AND sp.SportType =50 )
 
-			SET @matchLog = @ParentMatchId
-		END
+		SET @matchLog = @ParentMatchId
+	END
 
-		SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
-				CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
-					 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
-					 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
-					 ELSE '' END
-		FROM (
-				SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
-		  		FROM @tmpSelectedRID sr
-		  		GROUP BY ResourceID, HomeValue, AwayValue, RoundName
-  			) AS tbl1
-		ORDER BY OrdNo
+	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
+			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
+					WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
+					WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
+					ELSE '' END
+	FROM (
+			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
+		  	FROM @tmpSelectedRID sr
+		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
+  		) AS tbl1
+	ORDER BY OrdNo
 
-		IF @ParentMatchId IS NOT NULL -- Child match Cricket
-			SELECT @ResultRemarkLog =  'child: ' + CAST(@matchid AS VARCHAR)  
-										+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
-											ELSE ' Selected:' 
-										END 
-										+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-		ELSE
-			SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+	IF @ParentMatchId IS NOT NULL -- Child match Cricket
+		SELECT @ResultRemarkLog =  'child: ' + CAST(@matchid AS VARCHAR)  
+									+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
+										ELSE ' Selected:' 
+									END 
+									+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+	ELSE
+		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	
-		SET @stop = CURRENT_TIMESTAMP
+	SET @stop = CURRENT_TIMESTAMP
 
-		SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-								+ CASE WHEN @DeterminedType = 2 THEN ' SDT-FT:1' ELSE '' END
-								+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
-								+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+	SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
+							+ CASE WHEN @DeterminedType = 2 THEN ' SDT-FT:1' ELSE '' END
+							+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
+							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 						   
-		EXEC dbo.Logfile_V2 
-			@UserID = @creator
-			,@Doing = @logdata
-			,@extend = @MatchId
-
+	EXEC dbo.Logfile_V2 
+		@UserID = @creator
+		,@Doing = @logdata
+		,@extend = @MatchId
+	
+	IF @IsCentral = 1
+	BEGIN
 		SELECT @Remark = CASE WHEN @sportType <> 1 THEN @ResultRemarkLog + '<br/> '  ELSE '' END
 							+ CASE WHEN @DeterminedType = 2 THEN 'SDT-FT:1' ELSE '' END
 							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
@@ -755,7 +755,6 @@ END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
 						
 		BEGIN TRY
-			IF @IsCentral = 1
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 				,@Matchid = @matchLog
 				,@ActionID = @ActionID				
@@ -772,6 +771,8 @@ END
 				,@Remark = @Remark
 				,@IP = @IP
 		END CATCH
-	END --END: WRITE LOG ---------------------------------- 
+	END
+
+	--END: WRITE LOG ---------------------------------- 
 END
 GO

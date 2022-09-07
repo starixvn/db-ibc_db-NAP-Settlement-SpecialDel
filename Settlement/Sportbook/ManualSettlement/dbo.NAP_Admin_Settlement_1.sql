@@ -648,37 +648,39 @@ BEGIN
 												END
 
 	IF @IsCentral = 1
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID                = @creator
-			,@Matchid            = @matchid
-			,@ActionID            = @ActionID
-			,@finalhomescore    = @fth
-			,@finalawayscore    = @fta
-			,@hthomescore        = @hth
-			,@htawayscore        = @hta
-			,@GoalRecord        = @goalrecord
-			,@betstatus            = @betstatus
-			,@Remark            = @Remark
-			,@IP                = @IP
-	END TRY
+	BEGIN
+		BEGIN TRY
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID                = @creator
+				,@Matchid            = @matchid
+				,@ActionID            = @ActionID
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
+				,@GoalRecord        = @goalrecord
+				,@betstatus            = @betstatus
+				,@Remark            = @Remark
+				,@IP                = @IP
+		END TRY
 
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
 
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-			@UserID                = @creator
-			,@Matchid            = @matchid
-			,@ActionID            = @ActionID
-			,@finalhomescore    = @fth
-			,@finalawayscore    = @fta
-			,@hthomescore        = @hth
-			,@htawayscore        = @hta
-			,@GoalRecord        = @goalrecord
-			,@betstatus            = @betstatus
-			,@Remark            = @Remark
-			,@IP                = @IP
-	END CATCH
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				@UserID                = @creator
+				,@Matchid            = @matchid
+				,@ActionID            = @ActionID
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
+				,@GoalRecord        = @goalrecord
+				,@betstatus            = @betstatus
+				,@Remark            = @Remark
+				,@IP                = @IP
+		END CATCH
+	END
 	
 	DROP TABLE #tblMatchProcess
 
