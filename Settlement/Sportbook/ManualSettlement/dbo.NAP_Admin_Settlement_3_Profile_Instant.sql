@@ -156,7 +156,8 @@ BEGIN
 				,@TotalTicket = CASE WHEN @TotalTicket + TotalTicket >= @ThreadHold THEN TotalTicket ELSE @TotalTicket + TotalTicket END
 				,BatchNo = @batchNo
 				,@batchNo = CASE WHEN @TotalTicket = TotalTicket THEN @BatchNo + 1 ELSE @batchNo END
-		
+		OPTION (MAXDOP 1)
+
 		;WITH cteBatchNo
 		AS(
 			SELECT	BatchNo, MIN(custid) minCustId, MAX(custid) maxCustId
