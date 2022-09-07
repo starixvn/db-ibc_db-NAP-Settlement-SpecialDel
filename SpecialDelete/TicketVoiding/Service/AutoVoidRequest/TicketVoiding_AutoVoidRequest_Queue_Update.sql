@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Update]
 	,@StatusId INT = NULL
 	,@ErrMsg VARCHAR(1000) = NULL
 	,@IsUpdateStartTime BIT = 0
+	,@BroadcastsessionId VARCHAR(100) = NULL
 )
 AS
 /*	
@@ -22,8 +23,9 @@ BEGIN
 	SET NOCOUNT ON
 
 	UPDATE q SET 
-		q.StatusId = CASE WHEN @StatusId IS NOT NULL THEN @StatusId ELSE q.StatusId END
+		q.StatusId = ISNULL(@StatusId, q.StatusId)
 		,q.Starttime = CASE WHEN @IsUpdateStartTime = 1 THEN GETDATE() ELSE q.Starttime END
+		,q.BroadcastSessionId = ISNULL(@BroadcastsessionId, q.BroadcastSessionId)
 		,q.ErrMsg = @ErrMsg		
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
 	WHERE q.QueueId = @QueueId	

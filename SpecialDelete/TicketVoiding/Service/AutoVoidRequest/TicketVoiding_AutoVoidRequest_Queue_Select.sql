@@ -23,7 +23,7 @@ BEGIN
 	SELECT @Max_QueueId = MAX(q.QueueId)
 		  ,@Min_QueueId = MIN(q.QueueId)
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK)
-	WHERE q.StatusId IN (0,100)
+	WHERE q.StatusId IN (0)
 		
 	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
 		RETURN
@@ -41,7 +41,7 @@ BEGIN
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 			LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 		WHERE StatusId IN (0 ,100)
-			AND 1 = CASE WHEN q.StatusId = 100 AND DATEADD(SECOND,600,q.Starttime) <= GETDATE() THEN 1 --AbnormalBet MixParay (case all event completed)
+			AND 1 = CASE WHEN q.Action = 'MixParlay' AND DATEADD(SECOND,600,q.Starttime) <= GETDATE() THEN 1 --AbnormalBet MixParay (case all event completed)
 						WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1  --Settletment signal
 						WHEN q.RequestId > 0 AND q.Action IN ('AddRequest','VoidInstant','VoidInstantNopolicy') THEN 1 --Void Instant Abnormal Bet, AB, AA
 						WHEN q.RequestId > 0 AND q.Action IN ('VoidInstant5m','VoidInstant10m') AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1 --AB
