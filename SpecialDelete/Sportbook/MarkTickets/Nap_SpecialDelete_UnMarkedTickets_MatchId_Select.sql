@@ -68,7 +68,7 @@ BEGIN
 
     DECLARE @SportType		TINYINT= NULL
 		   ,@ValueDefault	SMALLMONEY = 9999.00
-		   ,@SiteDBGroupID INT = 0
+		   ,@SiteDBGroupID  SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
     SELECT @SportType = SportType

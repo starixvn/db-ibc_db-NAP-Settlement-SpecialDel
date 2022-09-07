@@ -30,7 +30,7 @@ BEGIN
 
 	DECLARE @InvalidTransIds	VARCHAR(MAX)	= ''
 		   ,@MovedTransIds		VARCHAR(MAX)	= '' 
-		   ,@SiteDBGroupID		INT = 0
+		   ,@SiteDBGroupID		SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #Tickets

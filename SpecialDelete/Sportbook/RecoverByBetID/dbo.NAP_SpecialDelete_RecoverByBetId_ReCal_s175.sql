@@ -27,7 +27,7 @@ BEGIN
 	DECLARE @strTransIds			VARCHAR(MAX)
 			,@Bettype				SMALLINT = 7901
 			,@GameResult			VARCHAR(50)	= ''
-			,@SiteDBGroupID			INT = 0
+			,@SiteDBGroupID			SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpTransIDResettle TABLE (TransId BIGINT)	

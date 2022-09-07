@@ -43,7 +43,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON 
-	DECLARE @SitedbgroupId	INT = 0
+	DECLARE @SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)

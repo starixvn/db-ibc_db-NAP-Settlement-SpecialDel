@@ -130,7 +130,7 @@ BEGIN
 			@Action				  VARCHAR(20),
 			@TransInfo			  XML,
 			@IsSiteDB			  BIT,
-			@SiteDBGroupID        INT = 0
+			@SiteDBGroupID        SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 

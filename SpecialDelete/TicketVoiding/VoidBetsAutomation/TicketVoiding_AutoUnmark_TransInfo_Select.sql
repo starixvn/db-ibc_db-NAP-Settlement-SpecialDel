@@ -26,7 +26,7 @@ BEGIN
 
 	DECLARE @Sporttypes AS TABLE (sporttype SMALLINT)
 
-	DECLARE @SiteDBGroupID	INT = 0
+	DECLARE @SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	IF LEN(@MatchId) <= 10

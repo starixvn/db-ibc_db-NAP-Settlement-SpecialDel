@@ -51,7 +51,7 @@ BEGIN
 		   ,@IsCalQueue	BIT = 0
 		   ,@isExistFM2	BIT = 0
 		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
-		   ,@SiteDBGroupID	INT = 0
+		   ,@SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)

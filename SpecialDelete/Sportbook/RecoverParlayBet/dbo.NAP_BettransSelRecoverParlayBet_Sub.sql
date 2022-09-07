@@ -276,13 +276,13 @@ BEGIN
 				ON t.transid = b.transid
 				   AND b.bettype = 29 AND b.SiteDBGroupID = @SiteDBGroupID
 		 LEFT JOIN bettransm bm WITH (NOLOCK)
-				ON b.refno = bm.refno AND bm.SiteDBGroupID = @SiteDBGroupID
+				ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID
 				   AND bm.matchid = @MatchId
 		 LEFT JOIN bettrans14 b14 WITH(NOLOCK)
 				ON t.transid = b14.transid AND b14.SiteDBGroupID = @SiteDBGroupID
 		 LEFT JOIN bettransm14 bm14 WITH(NOLOCK)
 				ON ISNULL(b.refno, b14.refno) = bm14.refno
-				   AND bm14.matchid = @MatchId AND bm14.SiteDBGroupID = @SiteDBGroupID
+				   AND bm14.matchid = @MatchId AND bm14.SiteDBGroupID = b14.SiteDBGroupID
 		 LEFT JOIN @tmpTransIdMoveBet m
 				ON t.transid = m.transid		
 END

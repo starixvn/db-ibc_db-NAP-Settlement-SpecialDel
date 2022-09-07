@@ -21,7 +21,7 @@ AS
 
 BEGIN
 	SET NOCOUNT ON;
-	DECLARE @SiteDBGroupID		INT = 0
+	DECLARE @SiteDBGroupID		SMALLINT = 0
 	        ,@InvalidTransIds   VARCHAR(MAX) = ''
 			,@MovedTransIds     VARCHAR(MAX) = ''
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()

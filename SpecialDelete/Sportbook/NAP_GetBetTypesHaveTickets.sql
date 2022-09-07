@@ -29,12 +29,10 @@ AS
 BEGIN
     SET NOCOUNT ON
 	
-	DECLARE @SiteDBGroupID INT = 0
+	DECLARE @SiteDBGroupID SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-    CREATE TABLE #TmpBettype (
-        bettype     SMALLINT
-    )
+    CREATE TABLE #TmpBettype (bettype SMALLINT)
 
     -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , 9: Mark Ticket  
     IF @Mode IN (0, 2, 3, 9)

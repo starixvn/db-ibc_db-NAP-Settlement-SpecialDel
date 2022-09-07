@@ -68,7 +68,7 @@ BEGIN
 		   ,@ThreadHold		INT = 0 
 		   ,@totalParlay	INT = 0
            ,@ErrMsg			NVARCHAR(200) = ''
-           ,@ErrCode        INT           = 0 
+           ,@ErrCode        INT = 0 
 		   ,@SiteDBGroupID	SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 

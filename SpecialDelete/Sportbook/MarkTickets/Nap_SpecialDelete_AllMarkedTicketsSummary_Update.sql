@@ -3,9 +3,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update]
 (
 	@Matches  XML           = NULL,
     @UserId   INT           = 0,
-    @IP       VARCHAR(15)   = NULL,
-    @ErrMsg   NVARCHAR(200) = '' OUTPUT,
-    @ErrCode  INT           = 0 OUTPUT
+    @IP       VARCHAR(15)   = NULL
 )
 AS
 /*
@@ -24,7 +22,7 @@ AS
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Explanation's Param:
-	@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
+		@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -54,7 +52,9 @@ BEGIN
 		   ,@totalParlay		INT = 0
 		   ,@Row_SD				INT = 0
 		   ,@Row_Refno			INT = 0
-		   ,@SiteDBGroupID		INT = 0
+		   ,@ErrMsg				NVARCHAR(200) = ''
+		   ,@ErrCode			INT = 0 
+		   ,@SiteDBGroupID		SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
@@ -191,6 +191,7 @@ BEGIN
 
 			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 			BEGIN
+				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 				RETURN;
 			END;
 		END
@@ -208,6 +209,8 @@ BEGIN
 			
 			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 			BEGIN
+				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+
 				-- releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistMatch = @IsExistSingle,
@@ -235,6 +238,7 @@ BEGIN
 
 		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 		BEGIN
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 			RETURN;
 		END;
 	END
@@ -350,7 +354,13 @@ BEGIN
 				@IsReleased = 1;
 		END
 	END
-	
+
+	------------------------------------------------------------------------------
+	--1. Table return error code/ msg
+	SELECT @ErrCode AS ErrorCode
+		 , @ErrMsg AS ErrorMsg
+ 
+	--2. Table get match info
 	SELECT b.MatchId
 		,m.HomeId
 		,m.AwayId
@@ -383,10 +393,7 @@ BEGIN
 					,TYPE
 				) AS VARCHAR(MAX));
 
-	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog
-		,@functionName = 'TicketVoiding'
-		,@MessageType = 'MessageType_TicketVoiding_Log';
-
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log';
 
 	-- Write useraction log	
 	BEGIN TRY
