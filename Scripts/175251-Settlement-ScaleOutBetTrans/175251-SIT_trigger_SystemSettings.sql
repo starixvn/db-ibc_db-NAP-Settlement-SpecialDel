@@ -21,11 +21,17 @@ BEGIN
 		id	INT IDENTITY(1,1) PRIMARY KEY
 		,IP	VARCHAR(20)
 		,username VARCHAR(100)
-		,dtime DATETIME
+		,dtime DATETIME 
 		,sqltext VARCHAR(MAX)
 		,hostname VARCHAR(100)
 		,VValue VARCHAR(1)
 	)
+END
+GO
+
+IF NOT EXISTS (SELECT TOP 1 1 FROM sys.indexes WHERE name = 'IX_dtime_Settlement_Tracking175251' )
+BEGIN
+	CREATE NONCLUSTERED INDEX [IX_dtime_Settlement_Tracking175251] ON [dbo].[Settlement_Tracking175251] ( dtime )
 END
 GO
 
