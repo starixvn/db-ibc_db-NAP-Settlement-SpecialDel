@@ -80,7 +80,7 @@ BEGIN
 			,@avaiableProcess	BIT
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
-			,@SiteDBGroupID     INT = 0
+			,@SiteDBGroupID     SMALLINT = 0
 			,@IsSiteDB			BIT
 			,@TransInfo			XML
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -109,7 +109,7 @@ BEGIN
 		,betcheck		NVARCHAR(50)
 		,hdp1			SMALLMONEY
 		,hdp2			SMALLMONEY
-		,betfrom		NVARCHAR(1)
+		,betfrom		NVARCHAR(3)
 		,stake			MONEY
 		,matchid		INT
 		,IsLiveIndicator	BIT

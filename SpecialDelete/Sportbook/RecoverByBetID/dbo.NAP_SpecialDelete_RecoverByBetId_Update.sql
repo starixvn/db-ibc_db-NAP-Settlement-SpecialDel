@@ -59,7 +59,7 @@ BEGIN
 		IsNeutral		BIT,
 		CurrencyName	NVARCHAR(50),
 		Currency		TINYINT,
-		BetFrom			NVARCHAR(1),
+		BetFrom			NVARCHAR(3),
 		creator			INT,
 		matchid			INT,
 		EndTime			DATETIME

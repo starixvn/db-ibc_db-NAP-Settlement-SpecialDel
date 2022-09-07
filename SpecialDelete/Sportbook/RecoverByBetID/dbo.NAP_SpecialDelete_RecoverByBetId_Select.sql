@@ -101,7 +101,7 @@ BEGIN
 
 	CREATE INDEX ix_TempBettrans ON #TempBettrans(matchid);
 
-	CREATE TABLE #TransIds (transid BIGINT PRIMARY KEY);
+	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY);
 
 	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT);
 
@@ -118,7 +118,7 @@ BEGIN
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
 
 	--Parse trans ID string
-	INSERT INTO #TransIds(transid)
+	INSERT INTO #tblTransIds(transid)
 	SELECT s.value
 	FROM STRING_SPLIT(@TransIds, ',') s
 	WHERE s.value <> ''
@@ -151,7 +151,7 @@ BEGIN
 			b.CurrencyName,
 			b.transdate
 	FROM dbo.bettrans b WITH(NOLOCK)
-	WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
+	WHERE EXISTS (SELECT 1 FROM #tblTransIds t WHERE t.transid = b.transid)
 		AND b.winlostdate >= @MovedBetDay	
 		AND b.betfrom <> 'p'
 		AND b.SiteDBGroupID = @SiteDBGroupID
@@ -303,7 +303,7 @@ BEGIN
 			CASE WHEN b.transid IS NOT NULL THEN 1
 				 WHEN m.TransId IS NOT NULL THEN 1
 				ELSE 0 END AS IsMoved
-	FROM #TransIds t
+	FROM #tblTransIds t
 		LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId
 	WHERE NOT EXISTS (SELECT 1 FROM #RecoverBet r WHERE r.transid = t.transid)
@@ -359,7 +359,7 @@ BEGIN
 	DROP TABLE #TempBet
 	DROP TABLE #TempBettrans
 	DROP TABLE #InvalidTransIds
-	DROP TABLE #TransIds
+	DROP TABLE #tblTransIds
 	DROP TABLE #SupportedSports
 
 	SET NOCOUNT OFF;

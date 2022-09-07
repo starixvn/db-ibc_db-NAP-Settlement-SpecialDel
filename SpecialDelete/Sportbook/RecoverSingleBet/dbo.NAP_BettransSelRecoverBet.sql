@@ -93,7 +93,7 @@ BEGIN
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 	DECLARE  @MovebetDate		DATETIME
-			,@SiteDBGroupID		INT = 0
+			,@SiteDBGroupID		SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	INSERT INTO @tblTransIds (transid)

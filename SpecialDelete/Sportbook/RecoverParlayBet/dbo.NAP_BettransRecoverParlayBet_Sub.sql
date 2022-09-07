@@ -4,11 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub]
 	@IP					VARCHAR(50),
 	@BetType			VARCHAR(20)		= 'All',
 	@MainTransIds		VARCHAR(MAX)	= '',
-	@matchid			BIGINT,	
-	@SettledMainTranIds	VARCHAR(MAX) = '' OUTPUT,
-	@NegativeBalanceUsers VARCHAR(MAX) = '' OUTPUT,
-	@ErrCode			INT = 0	OUTPUT,
-	@ErrMsg				NVARCHAR(200) = '' OUTPUT
+	@matchid			INT	
 AS
 /*
 	Created: Kent
@@ -27,6 +23,7 @@ AS
 		- 20210801@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:			
 			- @BetType:
@@ -37,10 +34,22 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @RecoverPatchSize INT = 100
-		   ,@Movebetdate		DATETIME 
-	
+	DECLARE @RecoverPatchSize		INT = 100
+		   ,@Movebetdate			DATETIME 
+		   ,@ErrCode				INT = 0
+	       ,@ErrMsg					NVARCHAR(200) = ''
+		   ,@SettledMainTranIds		VARCHAR(MAX) = '' 
+		   ,@NegativeBalanceUsers	VARCHAR(MAX) = '' 
+		   ,@TransInfo				XML = NULL
+		   ,@IsSiteDB				BIT
+		   ,@SiteDBGroupID			SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+
 	DECLARE @MatchDate			DATETIME
+		   ,@Eventstatus		NVARCHAR(100) = ''
 		   ,@transids_29		VARCHAR(MAX) = ''
 		   ,@refnos_29			VARCHAR(MAX) = ''
 		   ,@LogData			NVARCHAR(500)
@@ -60,7 +69,6 @@ BEGIN
 
 	DECLARE @tblRecoverBet TABLE (
 		 RowNumber				BIGINT IDENTITY(1, 1) PRIMARY KEY
-		 
 		,SubTransID				BIGINT		 
 		,SubBetCheck			NVARCHAR(50)
 		,SubOdds				MONEY   
@@ -116,31 +124,27 @@ BEGIN
 	CREATE CLUSTERED INDEX IDX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
 	
 	DECLARE @tblMainTransIds TABLE (transid BIGINT)
-	
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
 	DECLARE @tblSettledBeforeRecoveredMainTicket TABLE (transid	BIGINT)
 								
 	DECLARE @tblBeforeBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
-	
 	DECLARE @tblAfterBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
 	
 	DECLARE @tblDebitPending TVP_BalanceList
-	
 	DECLARE @tblCreditPending TVP_BalanceList					
-	
-	SELECT @ErrCode = 0
-		  ,@ErrMsg = ''
 	
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
 	SELECT  @MatchDate = eventdate
+		  , @Eventstatus = eventstatus
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @matchid	
 
 	IF @MatchDate <= @Movebetdate
 	BEGIN
-		SELECT @ErrCode = 102
-		     , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+		SELECT @ErrCode = 102, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 		RETURN	
 	END
 	
@@ -153,6 +157,7 @@ BEGIN
 	BEGIN		
 		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'				
 		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 		RETURN
 	END		  
 	
@@ -161,9 +166,9 @@ BEGIN
 	SELECT bm.matchid, bm.refno
 	FROM @tblMainTransIds t
 		  INNER JOIN dbo.bettrans b WITH (NOLOCK)
-		  		ON t.transid = b.transid
+		  		ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		  INNER JOIN bettransm bm WITH (NOLOCK)
-		  		ON bm.refno	= b.refno	   							
+		  		ON bm.refno	= b.refno AND bm.SiteDBGroupID = b.SiteDBGroupID	   							
 	WHERE bm.matchid = @MatchId
 		AND b.bettype = 29	
 		AND bm.statusid = 102
@@ -196,7 +201,8 @@ BEGIN
 	END
 	
 	IF (@ErrCode <> 0 OR @avaiableProcess = 0)
-	BEGIN					 
+	BEGIN		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 		RETURN		 
 	END 
 	
@@ -287,9 +293,9 @@ BEGIN
 				,b.ruben
 		FROM @tblMainTransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
-					ON t.transid = b.transid
+					ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 			INNER JOIN bettransm bm WITH (NOLOCK)
-					ON bm.refno	= b.refno	   							
+					ON bm.refno	= b.refno AND bm.SiteDBGroupID = b.SiteDBGroupID	   							
 			INNER JOIN dbo.match m WITH(NOLOCK)
 					ON	bm.matchid = m.matchid
 		WHERE bm.matchid = @MatchId
@@ -321,18 +327,14 @@ BEGIN
 				   ,@IsReleased	= 1		
 			END	  			
 			
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'						
-		
+			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
+			
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 			RETURN
 		END										
 	
 		--> get list of MainTranIds	
-		INSERT INTO #tblMainTicket(transid
-								 , refno								 
-								 , StatusId								 
-								 , custid
-								 , balance
-								 , ruben)
+		INSERT INTO #tblMainTicket(transid, refno, StatusId, custid, balance, ruben)
 		SELECT t.transid
 			 , t.refno			 
 			 , t.StatusId			 
@@ -370,7 +372,7 @@ BEGIN
 			SET @SubTransIds = ''
 			SELECT @SubTransIds = @SubTransIds + 
 								  CASE WHEN @SubTransIds <> '' THEN ',' ELSE '' END +
-								  CONVERT(VARCHAR(20), SubTransID)
+								  CONVERT(VARCHAR(50), SubTransID)
 			FROM @tblRecoverBet
 			WHERE RowNumber BETWEEN (@RowNumber + 1) AND (@RowNumber + @RecoverPatchSize)						
 			
@@ -386,8 +388,8 @@ BEGIN
 			SET @RowNumber = @RowNumber + @RecoverPatchSize				
 		END				
 		
-		SELECT @transids_29 = @transids_29 + CONVERT(VARCHAR(20), transid) + ','
-			 , @refnos_29 = @refnos_29 + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid) + ','
+		SELECT @transids_29 = @transids_29 + CONVERT(VARCHAR(50), transid) + ','
+			 , @refnos_29 = @refnos_29 + CONVERT(VARCHAR(50), refno) + '|' + CONVERT(VARCHAR(50), transid) + ','
 		FROM #tblMainTicket				
 			
 		-- call pre-cal: betparlaydetail/betparlayresult		
@@ -415,7 +417,7 @@ BEGIN
 				,SUM (b.winlost - b.actual_stake + b.playercomm) balance
 		FROM #tblMainTicket t	
 			INNER JOIN bettrans b WITH (NOLOCK) 
-				ON t.transid = b.transid		
+				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		
 		GROUP BY t.CustID
 		
 		--> update credit balance of cust
@@ -443,42 +445,73 @@ BEGIN
 			EXEC dbo.Dot_BalancePendingDebitIns 
 				@BalancePending = @tblDebitPending
 				,@Type			= 1 -- Sports
-				
-		DELETE	z
-		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
+		
+		INSERT INTO @tmpTransInfo (matchid, transid)
+		SELECT z.matchid, z.transid
+		FROM	dbo.zzzbettrans z WITH(NOLOCK)
 			INNER JOIN @tblRecoverBet t 
 				ON	z.custid = t.custid
 					AND z.matchid = t.matchid
 					AND z.transid = t.SubTransID
-		
-		DELETE	zm
-		FROM	dbo.zzzbettransm zm WITH(ROWLOCK, UPDLOCK)
+		WHERE z.SiteDBGroupID = @SiteDBGroupID
+
+		DELETE	z
+		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tmpTransInfo t 
+				ON	z.matchid = t.matchid AND z.transid = t.transid
+
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			SET @TransInfo = (
+			SELECT	matchid AS '@mid'
+				  , transId AS '@t'
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			
+			DELETE FROM @tmpTransInfo
+		END
+
+		INSERT INTO @tmpTransInfo (matchid, transid)
+		SELECT zm.matchid, zm.transid
+		FROM dbo.zzzbettransm zm WITH(NOLOCK)
 			INNER JOIN @tblRecoverBet t 
 				ON	zm.custid = t.custid
 					AND zm.matchid = t.matchid
-					AND zm.transid = t.SubTransID				
-				
+					AND zm.transid = t.SubTransID
+		WHERE zm.SiteDBGroupID = @SiteDBGroupID
+		
+		DELETE	zm
+		FROM	dbo.zzzbettransm zm WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tmpTransInfo t 
+				ON zm.matchid = t.matchid AND zm.transid = t.transid				
+			
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			SET @TransInfo = (
+			SELECT	matchid AS '@mid'
+				  , transId AS '@t'
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo 
+			
+			DELETE FROM @tmpTransInfo
+		END
 		--> Build list of changed status main transids that corresponding match needs to re-settle
-		SET @SettledMainTranIds = ''
-		IF EXISTS (SELECT TOP 1 1
-				   FROM dbo.match WITH(NOLOCK)
-				   WHERE matchid = @matchid
-				     AND eventstatus = 'completed')
+		IF @Eventstatus = 'completed'
 		BEGIN				   
-			SELECT @SettledMainTranIds = @SettledMainTranIds + 
-										 CASE WHEN @SettledMainTranIds <> '' THEN ',' ELSE '' END +
-										 CONVERT(VARCHAR(20), t.transid)
+			SELECT @SettledMainTranIds += CASE WHEN @SettledMainTranIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(50), t.transid)
 			FROM @tblSettledBeforeRecoveredMainTicket t			 
-				 INNER JOIN dbo.bettrans b WITH(NOLOCK)
-						 ON t.transid = b.transid			 
-			WHERE b.statusID = 0
+				 INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid	 
+			WHERE b.statusID = 0 AND b.SiteDBGroupID = @SiteDBGroupID
 		END
 		
 		--> Build list of customer name with negative balance
-		SET @NegativeBalanceUsers = ''
-		SELECT @CustIds = @CustIds +
-						  CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
-						  CONVERT(VARCHAR(20), b.custid)
+		SELECT @CustIds = @CustIds + CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
 		FROM @tblBeforeBalance b
 			 INNER JOIN	@tblAfterBalance a 	
 					 ON a.custid = b.custid
@@ -505,12 +538,15 @@ BEGIN
 
 		--> write log		
 		SELECT @LogData = 'Recover Parlay bets having transid: IP=' + @Ip + ' ' + @transids_29
-		EXEC WriteLog_UserLog 
-			 @UserId = @UserId,
-			 @Doing = @LogData 
-			 
+		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData 
+			
+		--1. Table return error code/ msg
+		SELECT @ErrCode AS ErrorCode
+			  ,@ErrMsg AS ErrorMsg
+		      ,@SettledMainTranIds AS SettledMainTranIds
+			  ,@NegativeBalanceUsers AS NegativeBalanceUsers
+
 		--> Data for sending mail: Rule R1 + Rule R2 + Rule R3 + Rule R4
-		
 		DECLARE @IsITAdmin BIT = 0
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 			
@@ -621,9 +657,9 @@ BEGIN
 				,@IsReleased	= 1		
 		END		  
 	
-		SELECT @ErrCode = 100,
-				@ErrMsg = 'Unable to recover these parlay bets'						
-							
+		SELECT @ErrCode = 100,@ErrMsg = 'Unable to recover these parlay bets'						
+		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 					
 		RETURN				
 	END CATCH		  		  	  
 	
