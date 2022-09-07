@@ -1,5 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_Admin_Bet14_RoutineTask_Insert](@AffectedList VARCHAR(MAX))
+ALTER PROCEDURE [dbo].[TicketVoiding_Admin_Bet14_RoutineTask_Insert]
+(
+	@AffectedList VARCHAR(MAX)
+	,@IsSiteDB			BIT  = 0
+)
 AS
 /*
 	Created by: 20190715@Helen
@@ -8,6 +12,7 @@ AS
 	
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		
 	Param's Explanation:  
 	
@@ -43,6 +48,11 @@ BEGIN
 	CREATE TABLE #Result_affectedList (custid INT, winlostdate SMALLDATETIME)
 	
 	SET @xml= CAST(@AffectedList AS XML)
+
+	DECLARE @transInfo	XML 
+	DECLARE @tmpTransInfo AS TABLE (RequestID INT, StepNo TINYINT, [Action] VARCHAR(MAX), StatusId TINYINT
+							, CreatedDate DATETIME, AffectedList VARCHAR(MAX), ExecuteType TINYINT
+						)
 	
 	INSERT INTO #Result_affectedList (custid,winlostdate)
 	SELECT r.value('@c','INT') AS CustID
@@ -61,7 +71,9 @@ BEGIN
 							FOR XML RAW ('r'),ROOT('root')
 							)
 							
-	INSERT INTO TicketVoiding_RoutineTasks (RequestID,StepNo, [Action], [Status], CreatedDate, AffectedList, ExecuteType)
+	INSERT INTO dbo.TicketVoiding_RoutineTasks (RequestID, StepNo, [Action], [Status], CreatedDate, AffectedList, ExecuteType)
+		OUTPUT inserted.RequestID, inserted.StepNo, inserted.Action, inserted.Status, inserted.CreatedDate, inserted.AffectedList, inserted.ExecuteType
+		INTO @tmpTransInfo (RequestID, StepNo, Action, StatusId, CreatedDate, AffectedList, ExecuteType)
 	SELECT @RequestID, 1, 'Update sum_winloss', 0, GETDATE(),@AffectedList_tmp, 1
 	UNION ALL
 	SELECT @RequestID, 2, 'Update CS_Sum_winloss', 0, GETDATE(),@AffectedList_tmp, 1
@@ -77,6 +89,23 @@ BEGIN
 	SELECT @RequestID, 7, 'Fraud Sensor', 0, GETDATE(),@AffectedList_tmp, 2
 	UNION ALL
 	SELECT @RequestID, 8, 'TGRS', 0, GETDATE(),@AffectedList_tmp, 2
+
+	IF @IsSiteDB = 1
+	BEGIN
+		SET @transInfo = (
+		SELECT	b.RequestID AS '@'
+				, b.StepNo AS '@'
+				, b.Action AS '@'
+				, b.StatusId AS '@sid'
+				, b.CreatedDate AS '@crdate'
+				, b.AffectedList AS '@'
+				, b.ExecuteType AS '@'
+		FROM	@tmpTransInfo b
+		FOR XML PATH('r'),ROOT('root'), TYPE)
+
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+		SELECT 'TVS', 'Void_14', 'TicketVoiding_RoutineTasks', 'I', 0, @transInfo
+	END
 	
 	DROP TABLE #Result_affectedList
 		

@@ -40,7 +40,7 @@ BEGIN
 		SELECT TOP(1) q.QueueId, q.matchid, q.RequestId, q.BroadcastSessionId, q.Action, q.StatusId
 		FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(NOLOCK)
 			LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
-		WHERE StatusId IN (0 ,100)
+		WHERE StatusId IN (0)
 			AND 1 = CASE WHEN q.Action = 'MixParlay' AND DATEADD(SECOND,600,q.Starttime) <= GETDATE() THEN 1 --AbnormalBet MixParay (case all event completed)
 						WHEN q.RequestId = 0 AND DATEADD(SECOND,300,Starttime) <= GETDATE() THEN 1  --Settletment signal
 						WHEN q.RequestId > 0 AND q.Action IN ('AddRequest','VoidInstant','VoidInstantNopolicy') THEN 1 --Void Instant Abnormal Bet, AB, AA
