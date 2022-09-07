@@ -137,25 +137,24 @@ BEGIN
 			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
 			FROM	cteResourceSelected
 		END
-		
-		IF @ResultTable = 1
-		BEGIN
-			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
-			FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
-			WHERE	MatchId = @MatchId
-					AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
-		END
-		ELSE IF @ResultTable = 2
-		BEGIN
-			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID
-			FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
-				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-			WHERE	MatchId = @MatchId
-				AND ResultStatusID  IN ( 2, 5 )	
-		END
+	END
 
+	IF @ResultTable = 1
+	BEGIN
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+		FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
+		WHERE	MatchId = @MatchId
+				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
+	END
+	ELSE IF @ResultTable = 2
+	BEGIN
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
+		SELECT	r.ResourceId, r.HomeValue, r.AwayValue, r.SettlementStatusID
+		FROM	DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+		WHERE	MatchId = @MatchId
+			AND ResultStatusID  IN ( 2, 5 )	
 	END
 	
 	IF @Sporttype = 2
