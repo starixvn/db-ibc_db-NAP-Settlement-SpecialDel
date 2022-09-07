@@ -1,4 +1,4 @@
-/*info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created: 20220907@Louisa
     Task: Scale Out BetTrans [Redmine:#175251]
