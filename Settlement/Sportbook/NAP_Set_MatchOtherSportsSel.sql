@@ -942,7 +942,7 @@ BEGIN
 	BEGIN
 		DELETE 
 		FROM	#tmpMatchIds
-		WHERE	1 = CASE WHEN ISNULL(IsExistRunningTicket,0) > 0 OR ISNULL(IsExistRunningTicketParlay,0) > 0 THEN 0 ELSE 1 END
+		WHERE	1 = CASE WHEN ISNULL(IsExistRunningTicketAfterCompleted,0) > 0 OR ISNULL(IsExistRunningTicketParlay,0) > 0 THEN 0 ELSE 1 END
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43)
