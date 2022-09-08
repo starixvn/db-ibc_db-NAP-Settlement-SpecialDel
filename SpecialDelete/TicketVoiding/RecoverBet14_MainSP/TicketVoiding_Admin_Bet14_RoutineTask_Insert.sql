@@ -93,13 +93,13 @@ BEGIN
 	IF @IsSiteDB = 1
 	BEGIN
 		SET @transInfo = (
-		SELECT	b.RequestID AS '@'
-				, b.StepNo AS '@'
-				, b.Action AS '@'
+		SELECT	b.RequestID AS '@req'
+				, b.StepNo AS '@stn'
+				, b.Action AS '@act'
 				, b.StatusId AS '@sid'
 				, b.CreatedDate AS '@crdate'
-				, b.AffectedList AS '@'
-				, b.ExecuteType AS '@'
+				, b.AffectedList AS '@affs'
+				, b.ExecuteType AS '@exect'
 		FROM	@tmpTransInfo b
 		FOR XML PATH('r'),ROOT('root'), TYPE)
 
