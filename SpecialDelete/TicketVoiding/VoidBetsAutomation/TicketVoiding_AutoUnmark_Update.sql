@@ -184,8 +184,6 @@ BEGIN
 				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
 				,@IP = @IP
-				,@ErrMsg = @ErrMsg OUTPUT
-				,@ErrCode = @ErrCode OUTPUT;
 
 			--Step 4: resettle ticket
 			IF @ResettleTransids <> '' AND @IsCalQueue = 1 
@@ -195,7 +193,6 @@ BEGIN
 							@TransIds = @ResettleTransids,
 							@UserId  = @UserId,
 							@IP = @IP,
-							@FailedTransIds = @FailedTransIds OUTPUT,
 							@ErrMsg = @ErrMsg OUTPUT,
 							@ErrCode = @ErrCode OUTPUT,
 							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
@@ -204,8 +201,6 @@ BEGIN
 		END TRY
 		BEGIN CATCH
 			SELECT @ErrCode = ERROR_NUMBER(), @ErrMsg = ERROR_MESSAGE()
-
-			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		END CATCH
 	END
 
