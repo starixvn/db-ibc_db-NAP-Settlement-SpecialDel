@@ -81,7 +81,7 @@
 		refno BIGINT PRIMARY KEY
 	)
 	------------------------------------------------
-	SET @SiteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88') AND SiteDBGroupID > 0)
+	SET @SiteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88', 'khmerA2') AND SiteDBGroupID > 0)
 	
 	IF @SiteDBGroupID IS NULL
 	BEGIN
@@ -94,7 +94,7 @@
 	INSERT INTO #tmp_cust (custid)
 	SELECT DISTINCT custid
 	FROM CustDB.dbo.Customer WITH (NOLOCK)
-	WHERE site IN ('Heaven', 'Bobo88')
+	WHERE site IN ('Heaven', 'Bobo88', 'khmerA2')
 
 	------------------------------------------------
 	/*******************Bet Tickets Tables**********************/

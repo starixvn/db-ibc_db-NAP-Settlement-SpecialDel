@@ -167,7 +167,7 @@ CREATE TABLE #tmp_batch (transid BIGINT PRIMARY KEY)
 INSERT INTO #tmp_cust_scaleout (custid)
 SELECT DISTINCT custid
 FROM CustDB.dbo.Customer WITH (NOLOCK)
-WHERE site IN ('Heaven', 'Bobo88')
+WHERE site IN ('Heaven', 'Bobo88', 'khmerA2')
 -------------------DATA PREPARATION --------------------------
 -- bettrans
 INSERT INTO #tmp_bettrans_scaleout (transid)
@@ -243,7 +243,7 @@ DECLARE @StartRow INT = 1
 DECLARE @debug_message VARCHAR(500)
 
 ----------------------check SiteDBGroupID before updating----
-SET @siteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88') AND SiteDBGroupID > 0)
+SET @siteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88', 'khmerA2') AND SiteDBGroupID > 0)
 
 IF @siteDBGroupID IS NULL
 BEGIN
