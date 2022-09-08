@@ -13,6 +13,7 @@ AS
     Revisions:
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
+		- 20220908@Helen: Performance Tuning - [Redmine: #177591]
 	
 	Param's explanation:	
 		
@@ -45,28 +46,35 @@ BEGIN
 		, transid BIGINT
 	)
 
-	
+	CREATE TABLE #tmpParlayTransid (custid INT, ruben TINYINT, transid BIGINT)
+
 	SET @xml = CONVERT(XML, @TransidList)
+
+	INSERT INTO #tmpParlayTransid (custid, ruben, transid)
+	SELECT t.c.value('@custid','int') AS custid
+			,t.c.value('@ruben','tinyint') AS ruben
+			,t.c.value('@transid','BIGINT') AS transid
+	FROM @xml.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@xml = NULL ))
 
 	INSERT INTO #CustLimitBet_tmp(CustId, sitetype, transid, ruben)
 	SELECT tmp.custid
-		,CASE 
-			WHEN dp.custid IS NOT NULL THEN 3 --deposit 
-			WHEN c.site = '789y' THEN 2 --789y
-			ELSE 1 END
+		,dp.sitetype
 		,tmp.transid
 		,b.ruben
-	FROM (
-			SELECT t.c.value('@custid','int') AS custid
-				,t.c.value('@ruben','tinyint') AS ruben
-				,t.c.value('@transid','BIGINT') AS transid
-			FROM @xml.nodes('root/r') t(c)
-	)tmp
+	FROM #tmpParlayTransid tmp
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = tmp.transid
-		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = tmp.custid
-		LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON c.srecommend = dp.custid
+		CROSS APPLY (SELECT TOP 1 
+								CASE 
+									WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+									WHEN c.site = '789y' THEN 2 --789y
+									ELSE 1 
+								END	AS sitetype
+					FROM CustDB.dbo.Customer c WITH (NOLOCK) 
+						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+					WHERE c.custid = tmp.custid
+					) AS dp
 	WHERE tmp.ruben <> b.ruben
-	OPTION (OPTIMIZE FOR (@xml = NULL ))
 
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM #CustLimitBet_tmp)
 		RETURN
@@ -181,6 +189,7 @@ BEGIN
 	
 	DROP TABLE #CustLimitBet_tmp
 	DROP TABLE #CustLimitBet_tmp_ruben_0
+	DROP TABLE #tmpParlayTransid
 END
 GO
 	
