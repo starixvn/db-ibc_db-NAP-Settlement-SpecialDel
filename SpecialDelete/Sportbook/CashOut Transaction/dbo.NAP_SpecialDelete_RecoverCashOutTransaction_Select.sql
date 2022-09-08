@@ -169,6 +169,7 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON m.matchid = z.matchid
 	WHERE	sub.betdaqid = -1
+		AND sub.SiteDBGroupID = @SiteDBGroupID
 				
 	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @MovebetDate)
 	BEGIN
