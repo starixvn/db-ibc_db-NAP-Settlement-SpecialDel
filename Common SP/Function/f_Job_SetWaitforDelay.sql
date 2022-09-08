@@ -22,6 +22,7 @@ RETURNS VARCHAR(100)
 		- 20210201@Max: Hotfix - TVS - Abnormal Accounts [Redmine: #149697]
 		- 20210301@July: HotFix - Update balance CO wrong wallet [Redmine: #150621]
 		- 20220406@Kathy: Change default value to 100ms [Redmine:#166457]
+		- 20220809@Max: DBA - PROD - Enhance Parlay Calculation for Max Payout [Redmine: #177611]
    
 	Notes:
 		DECLARE @Delay VARCHAR(100) = ''
