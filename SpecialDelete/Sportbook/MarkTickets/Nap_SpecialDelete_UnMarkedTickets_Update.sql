@@ -115,6 +115,7 @@ BEGIN
 	INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 	LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON t.TransId = m.TransId AND b.matchid = m.matchid --check case mark same ticket main & sub-match
 	WHERE m.TransId IS NULL AND b.SiteDBGroupID = @SiteDBGroupID
+	AND b.statusID IN (0,1)
 	AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
 			        WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
 					WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 THEN 1 --Other IssueType 
@@ -149,7 +150,7 @@ BEGIN
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = t.TransId
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
 			LEFT JOIN dbo.MarkedTransaction AS m WITH (NOLOCK) ON b.TransId = m.TransId AND m.MatchId = bm.matchid
-		WHERE m.TransId IS NULL
+		WHERE m.TransId IS NULL AND bm.statusID IN (0,1)
 			AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
 	END
 	
