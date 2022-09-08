@@ -8,9 +8,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Update]
     ,@IP				VARCHAR(15)		= ''
     ,@Reason			NVARCHAR(500)	= ''
 	,@ReasonSC			NVARCHAR(500)	= ''
-	,@ErrCode			INT				= 0		OUTPUT
-	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
-	,@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT
 )	
 AS
 /*
@@ -37,6 +34,7 @@ AS
 		- 20220303@Max: [TVS] Update Virtual Setting when Cancel CO and some enhancements [Redmine: #169237]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Explanation's Param:
 
@@ -48,8 +46,16 @@ BEGIN
 		  , @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
-		  , @RepUpdateTime		DATETIME2
+		  , @FCUpdateTime		DATETIME2
 		  , @xmlTransId			VARCHAR(MAX) = ''
+		  , @SiteDBGroupID		SMALLINT
+		  , @ErrCode			INT				= 0		
+		  , @ErrMsg				VARCHAR(300)	= ''	
+		  , @InvalidTransIds	VARCHAR(MAX)	= ''	
+		  , @transInfo			XML
+		  , @MatchId			INT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
 		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
@@ -86,7 +92,7 @@ BEGIN
 		matchid				INT,
 		awinlost			MONEY,
 		CurrencyName		NVARCHAR(50),
-		BetFrom				NVARCHAR(1),
+		BetFrom				NVARCHAR(3),
 		HomeId				INT,
 		AwayId				INT,
 		LeagueId			INT,
@@ -95,7 +101,8 @@ BEGIN
 		MatchCode			NVARCHAR(50),
 		EventDate			DATETIME,
 		ActualStake			MONEY,
-		statuswinlost		TINYINT
+		statuswinlost		TINYINT,
+		SiteDBGroupID		SMALLINT
 	)
 	CREATE INDEX IDX_SpecialDeleteBets_RefNo_Bettype_matchid_custid	
 	ON #SpecialDeleteBets(RefNo, BetType, matchid, custid) INCLUDE(stake)
@@ -110,6 +117,13 @@ BEGIN
 	
 	DECLARE @BeforeUpd 	TVP_BalanceChange
 	DECLARE @AfterUpd 	TVP_BalanceChange
+
+	DECLARE @tmpTransInfo TABLE (transId BIGINT, matchId INT
+		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+		,Status NVARCHAR(10),StatusID TINYINT, ruben TINYINT
+		,FcUpdateTime DATETIME2,creator INT, betdaqid BIGINT, virtualrate FLOAT
+	)
 	
 	SELECT @ErrCode	= 0
 		 , @ErrMsg = ''
@@ -175,7 +189,8 @@ BEGIN
 					MatchCode,
 					EventDate,
 					ActualStake,
-					statuswinlost
+					statuswinlost,
+					SiteDBGroupID
 			)
 	SELECT 	sub.TransId,
 			sub.BetType,
@@ -213,13 +228,15 @@ BEGIN
 			m.MatchCode,
 			m.eventdate,
 			sub.actual_stake AS ActualStake,
-			sub.statuswinlost
+			sub.statuswinlost,
+			sub.SiteDBGroupID
 	FROM dbo.bettrans sub WITH(NOLOCK)
 		 INNER JOIN dbo.match m WITH(NOLOCK) 
 				 ON m.matchid = sub.matchid
 	WHERE	sub.transid IN (SELECT t.transid FROM #tblTransIds t)
 			AND sub.betdaqid = -2 
 			AND sub.statusID IN (103, 111, 112, 113)
+			AND sub.SiteDBGroupID = @SiteDBGroupID
 	
 	/*Modify the way to get move bet date*/
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
@@ -229,6 +246,10 @@ BEGIN
 		SELECT @ErrCode = 102
 			 , @ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
 				
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @InvalidTransIds AS InvalidTransIds
+
 		RETURN
 	END
 
@@ -238,7 +259,11 @@ BEGIN
 		IF @InvalidTransIds = ''		
 			SELECT @ErrMsg = 'No ticket found.'
 				 , @ErrCode  = 101
-		
+
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @InvalidTransIds AS InvalidTransIds
+
 		RETURN
 	END
 	
@@ -262,10 +287,10 @@ BEGIN
 	--> backup cash-out transaction ticket
 	INSERT INTO dbo.zzzbettrans (transid,custid,transdate,oddsid,hdp1,hdp2,odds,stake,status,
 				winlost,livehomescore,liveawayscore,liveindicator,betteam,creator, refno, 
-				winlostdate,betfrom,betcheck,checktime,matchid, bettype, comstatus)
+				winlostdate,betfrom,betcheck,checktime,matchid, bettype, comstatus, RepUpdateTime)
 	SELECT  b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status, 
 			b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno, 
-			b.winlostdate, b.betfrom, @session AS betcheck, b.checktime, b.matchid, b.bettype, 'CO'
+			b.winlostdate, b.betfrom, @session AS betcheck, b.checktime, b.matchid, b.bettype, 'CO', SYSDATETIME()
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #SpecialDeleteBets s
 			ON	s.transId = b.transid
@@ -286,7 +311,7 @@ BEGIN
 	
 	--> update bettrans
 	/*1. Update to running for CO Transaction*/
-	SET @RepUpdateTime = SYSDATETIME()
+	SET @FCUpdateTime = SYSDATETIME()
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET		b.winlost = 0
 			,b.awinlost = 0
@@ -302,11 +327,42 @@ BEGIN
 			,b.creator = @UserId
 			,b.betdaqid = -1
 			,b.virtualrate = CASE WHEN c.VirtualRate = 0 THEN b.virtualrate ELSE c.VirtualRate END
-			,RepUpdateTime  = @RepUpdateTime
+			,b.FcUpdateTime  = @FCUpdateTime
+		OUTPUT inserted.TransId, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost, inserted.playercomm, inserted.comm, inserted.acomm
+			, inserted.scomm, inserted.status, inserted.statusID, inserted.ruben, inserted.creator, inserted.betdaqid, inserted.virtualrate, inserted.FcUpdateTime
+		INTO @tmpTransInfo (transId, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben, creator, betdaqid, virtualrate, FcUpdateTime)
 	FROM	dbo.bettrans b 
 		INNER JOIN #SpecialDeleteBets s ON	b.transid = s.transId
 		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID
+		
 	
+	SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
+	SET @transInfo = (
+	SELECT	b.transId AS '@t'
+			, b.winlost AS '@w'
+			, b.awinlost AS '@aw'
+			, b.mwinlost AS '@mw'
+			, b.swinlost AS '@sw'
+			, b.playercomm AS '@pc'
+			, b.comm AS '@c'
+			, b.acomm AS '@ac'
+			, b.scomm AS '@sc'
+			, b.status AS '@s'
+			, b.statusID AS '@sid'			
+			, b.ruben AS '@r'
+			, b.creator AS '@cr'
+			, b.betdaqid AS '@bdaq'
+			, b.virtualrate AS '@v'
+			, b.FcUpdateTime AS '@rut'
+	FROM	@tmpTransInfo b
+	FOR XML PATH('r'),ROOT('root'), TYPE)
+
+	IF @SiteDBGroupID <> 0
+	BEGIN
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+		SELECT 'TVS', 'Cancel_CO', 'bettrans', 'U', @matchid, @transInfo
+	END
+
 	/*2. Re-Cal for CO Transaction already has statuswinlost*/
 	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
 									FROM	#SpecialDeleteBets t
@@ -342,10 +398,10 @@ BEGIN
 	UPDATE s
 	SET s.CashOutStatus = 6
 		, s.CashoutExtraInfo = REPLACE(s.CashoutExtraInfo, '</root>', c.CashOutExtraInfo) + '</root>'
-		, s.ChangeDate = CONVERT(DATETIME,@RepUpdateTime)
+		, s.ChangeDate = CONVERT(DATETIME,@FCUpdateTime)
 	FROM dbo.CashOutSelling s WITH (ROWLOCK, UPDLOCK)
 		CROSS APPLY (
-				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),CONVERT(DATETIME,@RepUpdateTime),21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo
+				SELECT N'<r ct=''' + CONVERT(VARCHAR(30),CONVERT(DATETIME,@FCUpdateTime),21) + ''' s=''6'' w=''0''/>' AS CashOutExtraInfo
 				FROM #SpecialDeleteBets t
 				WHERE t.TransId = s.TransID
 			)c
@@ -443,7 +499,8 @@ BEGIN
 			d.SportTypeId,
 			d.IsNeutral,
 			d.MatchCode ,
-			d.ActualStake
+			d.ActualStake,
+			d.SiteDBGroupID
 	FROM #SpecialDeleteBets AS d
 	LEFT JOIN #tblCustInfo AS ci ON d.custid = ci.custid
 	LEFT JOIN #tblCustInfo AS ag ON d.recommend = ag.custid	

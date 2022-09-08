@@ -247,7 +247,7 @@ BEGIN
 		recommend			INT, 
 		mrecommend			INT, 
 		srecommend			INT, 
-		betfrom				NVARCHAR(1),
+		betfrom				NVARCHAR(3),
 		statusID			INT, 
 		status				NVARCHAR(10), 
 		username			VARCHAR(30),
@@ -1192,7 +1192,7 @@ BEGIN
 				,scomm			= 0
 				,statusID		= 102       
 				,status			= 'VOID'
-				,RepUpdateTime  = @FCUpdateTime
+				,FcUpdateTime  = @FCUpdateTime
 					OUTPUT deleted.Transid,
 						deleted.custid,  
 						deleted.winlost,

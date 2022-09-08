@@ -3,10 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Update]
 (
 	@TransIds			VARCHAR(MAX),
 	@UserId				INT,
-	@IP					VARCHAR(50)		= '',
-	@ErrCode			INT				= 0		OUTPUT,
-	@ErrMsg				NVARCHAR(200)	= ''	OUTPUT,
-	@InvalidTransIds	VARCHAR(MAX)	= ''	OUTPUT
+	@IP					VARCHAR(50)		= ''
 )
 AS
 /*
@@ -32,6 +29,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 	
@@ -44,6 +42,13 @@ BEGIN
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
 		  , @RepUpdateTime		DATETIME2
+		  , @ErrCode			INT				= 0		
+		  , @ErrMsg				NVARCHAR(200)	= ''	
+		  , @InvalidTransIds	VARCHAR(MAX)	= ''	
+		  , @SiteDBGroupID		SMALLINT
+		  , @transInfo XML 
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	  		  
 		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
