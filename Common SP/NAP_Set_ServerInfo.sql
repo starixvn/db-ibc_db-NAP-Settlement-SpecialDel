@@ -4,7 +4,6 @@ ALTER PROCEDURE dbo.NAP_Set_ServerInfo
 	,@IsEnableServiceBroker BIT = 0 OUTPUT
 	,@TotalQueue INT = 0 OUTPUT
 	,@Environment VARCHAR(50) = '' OUTPUT
-	,@IsCentral BIT = 0 OUTPUT
 AS
 /*
     Created: 20200825@Kathy
@@ -31,97 +30,95 @@ BEGIN
 		, IsEnableServiceBroker BIT DEFAULT(0)
 		, TotalQueue INT
 		, Environment VARCHAR(50)
-		, IsCentral BIT DEFAULT(0)
 		)
 
 	SET @ServerName = @@SERVERNAME
 
-	INSERT INTO @tmpServerInfo(ServerName, ServerAlias, IsEnableServiceBroker, TotalQueue, Environment, IsCentral)
+	INSERT INTO @tmpServerInfo(ServerName, ServerAlias, IsEnableServiceBroker, TotalQueue, Environment)
 	-- local dev
-	SELECT 'DEVDB053', 'DBEXT', 1, 4, 'Local',0
+	SELECT 'DEVDB053', 'DBEXT', 1, 4, 'Local'
 	UNION ALL
-	SELECT 'DB-61\DEVDB053', 'DBEXT', 1, 4, 'Local',0
+	SELECT 'DB-61\DEVDB053', 'DBEXT', 1, 4, 'Local'
 	UNION ALL
-	SELECT 'DB232', 'DBACC', 1, 4, 'Local',0
+	SELECT 'DB232', 'DBACC', 1, 4, 'Local'
 	UNION ALL
-	SELECT 'devdb055', 'DBBOF', 1, 6, 'Local',0
+	SELECT 'devdb055', 'DBBOF', 1, 6, 'Local'
 	UNION ALL
-	SELECT 'DB230', 'DBTXN', 0, 6, 'Local',0
+	SELECT 'DB230', 'DBTXN', 0, 6, 'Local'
 	UNION ALL
-	SELECT 'DB-60\DEVDBTRANS', 'DBTXN', 0, 6, 'Local',1	
+	SELECT 'DB-60\DEVDBTRANS', 'DBTXN', 0, 6, 'Local'	
 
 	UNION ALL -- local test
-	SELECT 'DB215', 'DBEXT', 1, 8, 'Local',0
+	SELECT 'DB215', 'DBEXT', 1, 8, 'Local'
 	UNION ALL
-	SELECT 'DB215\SQLSERVER2008R2', 'DBAGE', 1, 8, 'Local',0
+	SELECT 'DB215\SQLSERVER2008R2', 'DBAGE', 1, 8, 'Local'
 	UNION ALL
-	SELECT 'DB234', 'DBACC', 1, 8, 'Local',0
+	SELECT 'DB234', 'DBACC', 1, 8, 'Local'
 	UNION ALL
-	SELECT 'DB233\SQLSERVER2008R2', 'DBBOF', 1, 8, 'Local',0
+	SELECT 'DB233\SQLSERVER2008R2', 'DBBOF', 1, 8, 'Local'
 	UNION ALL
-	SELECT 'DB206', 'DBTXN', 0, 8, 'Local',1
+	SELECT 'DB206', 'DBTXN', 0, 8, 'Local'
 
 	UNION ALL -- new local test 2019
-	SELECT 'TESTDB053', 'DBEXT', 1, 8, 'Local',0
+	SELECT 'TESTDB053', 'DBEXT', 1, 8, 'Local'
 	UNION ALL
-	SELECT 'TESTDB061', 'DBACC', 1, 8, 'Local',0
+	SELECT 'TESTDB061', 'DBACC', 1, 8, 'Local'
 	UNION ALL
-	SELECT 'TESTDB055', 'DBBOF', 1, 8, 'Local',0
+	SELECT 'TESTDB055', 'DBBOF', 1, 8, 'Local'
 	UNION ALL
-	SELECT 'TESTDBTRANS', 'DBTXN', 0, 8, 'Local',1
+	SELECT 'TESTDBTRANS', 'DBTXN', 0, 8, 'Local'
 
 	UNION ALL -- SIT
-	SELECT 'SITDB052', 'DBEXT', 1, 8, 'SIT',0
+	SELECT 'SITDB052', 'DBEXT', 1, 8, 'SIT'
 	UNION ALL
-	SELECT 'SITDB053', 'DBAGE', 1, 8, 'SIT',0
+	SELECT 'SITDB053', 'DBAGE', 1, 8, 'SIT'
 	UNION ALL
-	SELECT 'SITDB06', 'DBACC', 1, 8, 'SIT',0
+	SELECT 'SITDB06', 'DBACC', 1, 8, 'SIT'
 	UNION ALL
-	SELECT 'SITDB055', 'DBBOF', 1, 8, 'SIT',0
+	SELECT 'SITDB055', 'DBBOF', 1, 8, 'SIT'
 	UNION ALL
-	SELECT 'SITDBAWS', 'DBBAL', 1, 8, 'SIT',0
+	SELECT 'SITDBAWS', 'DBBAL', 1, 8, 'SIT'
 	UNION ALL
-	SELECT 'SITDBBAL', 'DBBAL', 1, 8, 'SIT',0
+	SELECT 'SITDBBAL', 'DBBAL', 1, 8, 'SIT'
 	UNION ALL
-	SELECT 'SITDBTRANS', 'DBTXN', 0, 8, 'SIT',1
+	SELECT 'SITDBTRANS', 'DBTXN', 0, 8, 'SIT'
 	
 	UNION ALL -- PROD
-	SELECT 'DB052', 'DBEXT', 1, 8, 'PROD',0
+	SELECT 'DB052', 'DBEXT', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB053', 'DBAGE', 1, 8, 'PROD',0
+	SELECT 'DB053', 'DBAGE', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB054', 'DBBOF', 1, 8, 'PROD',0
+	SELECT 'DB054', 'DBBOF', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB054C2\DB054', 'DBBOF', 1, 8, 'PROD',0
+	SELECT 'DB054C2\DB054', 'DBBOF', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB055', 'DBBOF', 1, 8, 'PROD',0
+	SELECT 'DB055', 'DBBOF', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB06C2\DB06', 'DBACC', 1, 8, 'PROD',0
+	SELECT 'DB06C2\DB06', 'DBACC', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB06', 'DBACC', 1, 8, 'PROD',0
+	SELECT 'DB06', 'DBACC', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DBTP', 'DBACC', 1, 8, 'PROD',0
+	SELECT 'DBTP', 'DBACC', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB061', 'DBACC', 1, 8, 'PROD',0
+	SELECT 'DB061', 'DBACC', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB062', 'DBACC', 1, 8, 'PROD',0
+	SELECT 'DB062', 'DBACC', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DB042', 'DB042', 1, 8, 'PROD',0
+	SELECT 'DB042', 'DB042', 1, 8, 'PROD'
 	UNION ALL
-	SELECT 'DBTRANS', 'DBTXN', 0, 8, 'PROD',1
+	SELECT 'DBTRANS', 'DBTXN', 0, 8, 'PROD'
 
 	UNION ALL
-	SELECT 'DBBAL', 'DBBAL', 1, 8, 'DBBAL',0
+	SELECT 'DBBAL', 'DBBAL', 1, 8, 'DBBAL'
 
 	UNION ALL
-	SELECT 'DBTP10C', 'DBACC', 1, 8, 'PROD',0
+	SELECT 'DBTP10C', 'DBACC', 1, 8, 'PROD'
 
 
 	SELECT	@ServerAlias = ServerAlias
 			,@IsEnableServiceBroker = IsEnableServiceBroker
 			,@TotalQueue = TotalQueue
 			,@Environment = Environment
-			,@IsCentral = IsCentral
 	FROM	@tmpServerInfo
 	WHERE	ServerName = @ServerName
 
@@ -129,8 +126,5 @@ BEGIN
 	SET @IsEnableServiceBroker = ISNULL(@IsEnableServiceBroker, 0)
 	SET @TotalQueue = ISNULL(@TotalQueue,0)
 	SET @Environment = ISNULL(@Environment, '')
-	SET @IsCentral = ISNULL(@IsCentral,0)
-
 END
 GO
-
