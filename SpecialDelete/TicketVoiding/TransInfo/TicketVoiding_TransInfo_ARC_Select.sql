@@ -39,7 +39,7 @@ BEGIN
 		,betid BIGINT
 		,bettype SMALLINT
 		,betdaqid BIGINT
-		,betfrom NVARCHAR(1)
+		,betfrom NVARCHAR(3)
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
@@ -50,7 +50,7 @@ BEGIN
 		,Subliveawayscore SMALLINT
 		,Subhdp1 SMALLMONEY
 		,Subhdp2 SMALLMONEY
-		,Subbetfrom NVARCHAR(1)
+		,Subbetfrom NVARCHAR(3)
 		,Subbettype SMALLINT
 		,SubstatusID TINYINT
 		,Subtransdate DATETIME
