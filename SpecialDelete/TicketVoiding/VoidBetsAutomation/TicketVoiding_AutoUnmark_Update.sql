@@ -43,7 +43,6 @@ BEGIN
 	      , @ResettleTransids	VARCHAR(MAX) = '' 
 		  , @ErrMsg				NVARCHAR(200) = ''
           , @ErrCode			INT   = 0
-	      , @FailedTransIds		VARCHAR(MAX)= NULL
 	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
 
 	DECLARE @avaiableProcess BIT
@@ -61,10 +60,12 @@ BEGIN
 	
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
-	INSERT INTO #inputRequestTransId (TransId)
-	SELECT value
-	FROM STRING_SPLIT(@TransIds, ',')
-	WHERE value <> ''
+	IF @TransIds <> ''
+	BEGIN
+		INSERT INTO #inputRequestTransId (TransId)
+		SELECT value
+		FROM STRING_SPLIT(@TransIds, ',')
+	END
 
 	-- get list transid to unmark
 	INSERT INTO #tmpTransid_unmark (
@@ -116,32 +117,6 @@ BEGIN
 				,@ErrMsg = 'The confirmation is updated successfully. But there is no ticket affected by this action as the remaining marked tickets have to wait for the event result.'
 		
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
-		RETURN
-	END
-	
-	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT	@matchid AS matchid
-			,CASE 
-				WHEN @Bettype NOT IN (228,229) THEN 1
-				WHEN @Bettype IN (228,229) THEN 7 
-			END AS KeyId
-	
-	SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
-		   ,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
-	FROM	#tblMatchProcess
-			
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch	= 1
-		,@isExistFM2	= @isExistFM2
-		,@spName		= @spName
-		,@avaiableProcess = @avaiableProcess OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-		
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN		
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
-
 		RETURN
 	END
 	
@@ -204,16 +179,10 @@ BEGIN
 		END CATCH
 	END
 
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = @isExistMatch
-		,@isExistFM2 = @isExistFM2
-		,@IsReleased = 1
-
 	------------------------------------------------------------------------------
 	--1. Table error code/msg transid
 	SELECT @ErrCode AS ErrorCode
 	      ,@ErrMsg AS ErrorMsg			
-	      ,@FailedTransIds AS FailedTransIds
 	      ,@NegativeBalanceUsers AS NegativeBalanceUsers
 
 	DROP TABLE #inputRequestTransId
