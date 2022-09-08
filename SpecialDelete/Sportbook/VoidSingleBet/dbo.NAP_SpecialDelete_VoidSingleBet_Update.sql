@@ -1208,33 +1208,34 @@ BEGIN
 				ON	main.transid = tmpmain.transid 
 				AND main.transid = tmpmain.grouptransid
 				AND main.matchid = @matchid
-
-		SET @transInfo = (
-		SELECT	t.transId AS '@t'
-				, b.winlost AS '@w'
-				, b.ruben AS '@r'
-				, b.creator AS '@cr'
-				, b.awinlost AS '@aw'
-				, b.mwinlost AS '@mw'
-				, b.swinlost AS '@sw'
-				, b.playercomm AS '@pc'
-				, b.comm AS '@c'
-				, b.acomm AS '@ac'
-				, b.scomm AS '@sc'
-				, b.statusID AS '@sid'
-				, b.status AS '@s'
-				, b.betid AS '@bid'
-				, b.ExtraInfo AS '@ex'
-				, b.FcUpdateTime AS '@rut'
-		FROM	#BetDelete t 
-			INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-		FOR XML PATH('r'),ROOT('root'), TYPE)
+		
 
 		IF @SiteDBGroupID <> 0
 		BEGIN
+			SET @transInfo = (
+			SELECT	t.transId AS '@t'
+					, b.winlost AS '@w'
+					, b.ruben AS '@r'
+					, b.creator AS '@cr'
+					, b.awinlost AS '@aw'
+					, b.mwinlost AS '@mw'
+					, b.swinlost AS '@sw'
+					, b.playercomm AS '@pc'
+					, b.comm AS '@c'
+					, b.acomm AS '@ac'
+					, b.scomm AS '@sc'
+					, b.statusID AS '@sid'
+					, b.status AS '@s'
+					, b.betid AS '@bid'
+					, b.ExtraInfo AS '@ex'
+					, b.FcUpdateTime AS '@rut'
+			FROM	#BetDelete t 
+				INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+			SELECT 'TVS', 'VoidSingleBet', 'bettrans', 'U', @matchid, @transInfo
 		END
 
 		-- Capture balance before updating Bettrans - New code for CO new Model
@@ -1294,7 +1295,7 @@ BEGIN
 					FOR XML PATH('r'),ROOT('root'), TYPE)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'Void', 'zzzbettrans', 'U', @matchid, @transInfo 
+				SELECT 'TVS', 'VoidSingleBet', 'zzzbettrans', 'U', @matchid, @transInfo 
 			END
 		END
 		

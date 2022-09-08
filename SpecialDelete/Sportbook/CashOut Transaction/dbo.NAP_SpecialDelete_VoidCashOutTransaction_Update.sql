@@ -143,6 +143,10 @@ BEGIN
 			
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'
 			 , @ErrCode  = 101
+
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @InvalidTransIds AS InvalidTransIds
 		
 		RETURN
 	END		
@@ -281,6 +285,10 @@ BEGIN
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN		
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @InvalidTransIds AS InvalidTransIds
+
 		RETURN
 	END	
 	
@@ -335,30 +343,30 @@ BEGIN
 		INNER JOIN #SpecialDeleteBets s ON	b.transid = s.transId
 		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID
 		
-	
-	SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
-	SET @transInfo = (
-	SELECT	b.transId AS '@t'
-			, b.winlost AS '@w'
-			, b.awinlost AS '@aw'
-			, b.mwinlost AS '@mw'
-			, b.swinlost AS '@sw'
-			, b.playercomm AS '@pc'
-			, b.comm AS '@c'
-			, b.acomm AS '@ac'
-			, b.scomm AS '@sc'
-			, b.status AS '@s'
-			, b.statusID AS '@sid'			
-			, b.ruben AS '@r'
-			, b.creator AS '@cr'
-			, b.betdaqid AS '@bdaq'
-			, b.virtualrate AS '@v'
-			, b.FcUpdateTime AS '@rut'
-	FROM	@tmpTransInfo b
-	FOR XML PATH('r'),ROOT('root'), TYPE)
 
 	IF @SiteDBGroupID <> 0
 	BEGIN
+		SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
+		SET @transInfo = (
+		SELECT	b.transId AS '@t'
+				, b.winlost AS '@w'
+				, b.awinlost AS '@aw'
+				, b.mwinlost AS '@mw'
+				, b.swinlost AS '@sw'
+				, b.playercomm AS '@pc'
+				, b.comm AS '@c'
+				, b.acomm AS '@ac'
+				, b.scomm AS '@sc'
+				, b.status AS '@s'
+				, b.statusID AS '@sid'			
+				, b.ruben AS '@r'
+				, b.creator AS '@cr'
+				, b.betdaqid AS '@bdaq'
+				, b.virtualrate AS '@v'
+				, b.FcUpdateTime AS '@rut'
+		FROM	@tmpTransInfo b
+		FOR XML PATH('r'),ROOT('root'), TYPE)
+
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 		SELECT 'TVS', 'Cancel_CO', 'bettrans', 'U', @matchid, @transInfo
 	END
@@ -427,6 +435,11 @@ BEGIN
 	--> output data
 	-- CHECK IT GROUP or NOT ?   
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+
+	--1. Output table validate
+	SELECT @ErrCode AS ErrorCode
+		, @ErrMsg AS ErrorMsg
+		, @InvalidTransIds AS InvalidTransIds
 	
 	--- Return all additional information for mailing 
 	;WITH CTE_CustIdAll AS (
