@@ -69,7 +69,7 @@ BEGIN
 		,p.starttime
 		,p.keyid
 
-	IF ISNULL(@LockedByRefno,0) = 0 -- lock by systemsetting
+	IF ISNULL(@keyId,0) <> 0 AND ISNULL(@LockedByRefno,0) = 0 -- lock by systemsetting
 	BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = 0)
 			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
