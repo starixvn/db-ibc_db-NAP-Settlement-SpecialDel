@@ -36,7 +36,11 @@ BEGIN
 			@newEventdate	DATETIME,
 			@matchcode		VARCHAR(20),
 			@sporttype		INT ,
-			@IsCentral		BIT = 0
+			@transinfo		XML,
+			@IsSiteDB		BIT
+	
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 
 	DECLARE @finalhomescore INT, @finalawayscore INT,
 			@hthomescore INT, @htawayscore INT,
@@ -51,8 +55,12 @@ BEGIN
 		oddsid		INT
 	)
 	
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
+	DECLARE @tmpTransInfo TABLE 
+	(	transid			BIGINT
+		,matchid		INT
+		,oddsid			INT
+		,winlostdate	SMALLDATETIME
+	)
 
 	SELECT	@awayID		= awayID,
 			@homeID		= homeID,
@@ -90,7 +98,11 @@ BEGIN
 	UPDATE	bettrans WITH (ROWLOCK,UPDLOCK)
 	SET		matchid		= @NewMatchID, 
 			oddsid		= o.oddsid, 
-			winlostdate = @newEventdate  
+			winlostdate = @newEventdate 
+	OUTPUT inserted.TransId
+			,@MatchID 
+			,inserted.oddsid
+			,inserted.winlostdate
 	FROM	bettrans b
 			INNER JOIN @tmpOdds o ON b.bettype = o.bettype 
 	WHERE	b.matchid = @MatchID 
@@ -99,15 +111,28 @@ BEGIN
 			AND b.ruben = 0
 			AND 1 = CASE WHEN @Sporttype = 5 AND b.bettype NOT IN (1,2,3,20) THEN 0 
 						 ELSE 1 END 
-			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+			AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 			/*
 			AND (
 				b.custid IN (Select CustID from  [f_GetBetDaqCustomer] (1)) 
 				or b.recommend IN (Select CustID from  [f_GetBetDaqCustomer] (2))
 				)
 			*/	
-			
-	IF @@ERROR <>0
+	
+	IF @@ERROR = 0 AND @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	BEGIN
+			SET @transInfo = (
+				SELECT transId AS '@t'	
+						,matchid AS '@mid'
+						,oddsid AS '@oid'
+						,winlostdate AS '@wld'
+				FROM	@tmpTransInfo
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'MoveBetdaq', 'bettrans', @MatchId, @transInfo, 'MoveBetdaq', 's')
+	END
+	ELSE IF @@ERROR <> 0
 	BEGIN
 		SELECT	@ErrCode = 103,
 				@ErrMsg  =  'Moving match is not successful!'
@@ -124,7 +149,7 @@ BEGIN
 	SELECT @Remark = 'NAP: To match ' + convert(varchar(10),@NewMatchid) +', MatchCode:' + @newMatchcode,  
 	       @Remark1 = 'NAP: From match ' + convert(varchar(10),@Matchid) + ', MatchCode:' + @matchcode 
 	    
-	IF @IsCentral = 1
+	IF @IsSiteDB = 0
 	BEGIN
 		BEGIN TRY
 			BEGIN
