@@ -45,27 +45,21 @@ BEGIN
           , @ErrCode			INT   = 0
 	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
 
-	DECLARE @avaiableProcess BIT
-		   ,@isExistMatch BIT
-		   ,@IsCalQueue	BIT = 0
-		   ,@isExistFM2	BIT = 0
-		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	DECLARE @IsCalQueue	BIT = 0
 		   ,@SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
+	DECLARE @tmpError TABLE (ErrorCode INT, ErrorMsg NVARCHAR(200), NegativeBalanceUsers VARCHAR(MAX))
 
-	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, isFinish INT, IsMixParlay BIT DEFAULT(0))
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, IsMixParlay BIT DEFAULT(0), isFinish INT)
 	
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
-	IF @TransIds <> ''
-	BEGIN
-		INSERT INTO #inputRequestTransId (TransId)
-		SELECT value
-		FROM STRING_SPLIT(@TransIds, ',')
-	END
+	INSERT INTO #inputRequestTransId (TransId)
+	SELECT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
 
 	-- get list transid to unmark
 	INSERT INTO #tmpTransid_unmark (
@@ -155,6 +149,7 @@ BEGIN
 								), 1,1,'')
 								
 			--Step 3: Unmark
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg)
 			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update 
 				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
@@ -172,20 +167,24 @@ BEGIN
 							@ErrCode = @ErrCode OUTPUT,
 							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			END	
-			
+			IF @ErrCode <> 0 OR @NegativeBalanceUsers <> ''
+			BEGIN
+				INSERT INTO @tmpError (ErrorCode, ErrorMsg, NegativeBalanceUsers)
+				SELECT @ErrCode, @ErrMsg, @NegativeBalanceUsers
+			END
 		END TRY
 		BEGIN CATCH
-			SELECT @ErrCode = ERROR_NUMBER(), @ErrMsg = ERROR_MESSAGE()
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg)
+			SELECT ERROR_NUMBER(), ERROR_MESSAGE()
 		END CATCH
 	END
 
 	------------------------------------------------------------------------------
 	--1. Table error code/msg transid
-	SELECT @ErrCode AS ErrorCode
-	      ,@ErrMsg AS ErrorMsg			
-	      ,@NegativeBalanceUsers AS NegativeBalanceUsers
+	SELECT TOP 1 ErrorCode, ErrorMsg, NegativeBalanceUsers
+	FROM @tmpError
+	WHERE ErrorCode <> 0
 
 	DROP TABLE #inputRequestTransId
-	DROP TABLE #tblMatchProcess
 	DROP TABLE #tmpTransid_unmark
 END

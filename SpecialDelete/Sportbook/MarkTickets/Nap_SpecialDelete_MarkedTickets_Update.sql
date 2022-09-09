@@ -378,16 +378,6 @@ BEGIN
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg
 
-	--2. Table get match info
-	-- Return matches don't have marked ticket ??
-	SELECT b.MatchId,
-		m.HomeId,
-		m.AwayId,
-		m.SportType,
-		m.IsNeutral
-	FROM #Match b
-		LEFT JOIN dbo.match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
-	
 	-- Write useraction log	
 	BEGIN TRY
         IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
