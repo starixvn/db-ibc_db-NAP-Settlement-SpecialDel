@@ -103,6 +103,7 @@ BEGIN
 			,@IsOverOnly		BIT = 0
 			,@IsOver			BIT = 0
 			,@IsCentral			BIT
+			,@IsCompletedWithRunningTicket	BIT = 0 --match completed but exists running ticket
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
 	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT)
@@ -229,6 +230,10 @@ BEGIN
 				ELSE ''
 			END	
 	FROM	STRING_SPLIT(@MatchStatus, ',')
+
+	IF EXISTS (SELECT 1 FROM @tmpMatchStatus WHERE Id = 8 ) --completed with running ticket
+		AND NOT EXISTS (SELECT 1 FROM @tmpMatchStatus WHERE Id = 5 ) --match completed
+	SELECT @IsCompletedWithRunningTicket = 1
 
 	INSERT INTO @tmpOverStatus (Id)
 	SELECT CAST ([value]  AS TINYINT)
@@ -938,11 +943,12 @@ BEGIN
 				ON	m.matchid = t.MatchId
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchStatus WHERE id = 8) -- match completed but running ticket
+	IF @IsCompletedWithRunningTicket  = 1
 	BEGIN
 		DELETE 
 		FROM	#tmpMatchIds
 		WHERE	1 = CASE WHEN ISNULL(IsExistRunningTicketAfterCompleted,0) > 0 OR ISNULL(IsExistRunningTicketParlay,0) > 0 THEN 0 ELSE 1 END
+			AND eventstatus = 'completed'
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43)
