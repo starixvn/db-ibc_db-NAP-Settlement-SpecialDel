@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
-	@TransInfo XML = NULL
+	@TransInfo			XML				= NULL
 	,@TableName			VARCHAR(128) 
 	,@MatchId			INT				= 0
 	,@Action			VARCHAR(1)		= 'U'
