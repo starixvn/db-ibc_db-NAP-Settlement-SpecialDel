@@ -282,11 +282,27 @@ BEGIN
 				SET @TransInfo = (
 				SELECT	matchid AS '@mid'
 						, transId AS '@t'
+					    , STATUS AS '@s'
+						, statusID AS '@sid'
+						, ruben AS '@r'
+					    , modds AS '@m'
+					    , winlost AS '@w'
+						, awinlost AS '@aw'
+						, mwinlost AS '@mw'
+						, swinlost AS '@sw'
+						, playercomm AS '@pc'
+						, comm AS '@c'
+						, acomm AS '@ac'
+						, scomm AS '@sc'
+					    , statuswinlost AS '@statuswl'
+					    , creator AS '@cr'
+					    , ExtraInfo AS '@ex'
+					    , FcUpdateTime AS '@rut'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverMainParlay', 'zzzbettrans', 'D', @MatchId, @TransInfo 
+				SELECT 'TVS', 'RecoverMainParlay', 'bettrans', 'U', @MatchId, @TransInfo 
 			END
 
 			DELETE FROM @tmpTransInfo
