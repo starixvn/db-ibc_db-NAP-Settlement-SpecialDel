@@ -112,9 +112,10 @@ BEGIN
 			oddsid		= o.oddsid, 
 			winlostdate = @newEventdate  
 	OUTPUT inserted.TransId
-			,@MatchID 
+			,inserted.matchid
 			,inserted.oddsid
 			,inserted.winlostdate
+	INTO @tmpTransInfo (transid, matchid, oddsid, winlostdate)
 	FROM	bettrans b
 			INNER JOIN @tmpOdds o ON b.bettype = o.bettype 
 	WHERE	b.matchid = @MatchID 
