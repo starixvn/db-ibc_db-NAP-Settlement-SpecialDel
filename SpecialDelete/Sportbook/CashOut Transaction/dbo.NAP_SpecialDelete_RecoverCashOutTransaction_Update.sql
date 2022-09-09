@@ -398,31 +398,31 @@ BEGIN
 								END AS scomm
 						) AS TCal	
 
-	IF @SiteDBGroupID <> 0
-	BEGIN
-		SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
-		SET @transInfo = (
-		SELECT	b.transId AS '@t'
-				, b.status AS '@s'
-				, b.statusID AS '@sid'	
-				, b.stake AS '@stake'
-				, b.winlost AS '@w'
-				, b.awinlost AS '@aw'
-				, b.mwinlost AS '@mw'
-				, b.swinlost AS '@sw'
-				, b.playercomm AS '@pc'
-				, b.comm AS '@c'
-				, b.acomm AS '@ac'
-				, b.scomm AS '@sc'					
-				, b.ruben AS '@r'
-				, b.creator AS '@cr'
-				, b.modds AS '@m'
-				, b.betdaqid AS '@bdaq'
-				, b.virtualrate AS '@v'
-				, b.FcUpdateTime AS '@rut'
-		FROM	@tmpTransInfo b
-		FOR XML PATH('r'),ROOT('root'), TYPE)
+	SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
+	SET @transInfo = (
+	SELECT	b.transId AS '@t'
+			, b.status AS '@s'
+			, b.statusID AS '@sid'	
+			, b.stake AS '@stake'
+			, b.winlost AS '@w'
+			, b.awinlost AS '@aw'
+			, b.mwinlost AS '@mw'
+			, b.swinlost AS '@sw'
+			, b.playercomm AS '@pc'
+			, b.comm AS '@c'
+			, b.acomm AS '@ac'
+			, b.scomm AS '@sc'					
+			, b.ruben AS '@r'
+			, b.creator AS '@cr'
+			, b.modds AS '@m'
+			, b.betdaqid AS '@bdaq'
+			, b.virtualrate AS '@v'
+			, b.FcUpdateTime AS '@rut'
+	FROM	@tmpTransInfo b
+	FOR XML PATH('r'),ROOT('root'), TYPE)
 
+	IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+	BEGIN		
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 		SELECT 'TVS', 'Recover_CO', 'bettrans', 'U', @matchid, @transInfo
 	END

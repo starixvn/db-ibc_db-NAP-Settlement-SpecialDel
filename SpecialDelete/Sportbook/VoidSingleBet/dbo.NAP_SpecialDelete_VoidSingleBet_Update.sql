@@ -1146,32 +1146,32 @@ BEGIN
 		-- 1.1. Backup normal tickets
 		INSERT INTO zzzbettrans (transid,custid,transdate,oddsid,hdp1,hdp2,odds,stake,status,
 					winlost,livehomescore,liveawayscore,liveindicator,betteam,creator, refno, 
-					winlostdate,betfrom,betcheck,checktime,matchid, bettype, RepUpdateTime)
+					winlostdate,betfrom,betcheck,checktime,matchid, bettype, RepUpdateTime, SiteDBGroupID)
 		SELECT  main.transid, main.custid, CURRENT_TIMESTAMP, main.oddsid, main.hdp1, main.hdp2, main.odds, main.stake, main.status, 
 				main.winlost, main.livehomescore, main.liveawayscore, main.liveindicator, main.betteam, main.creator , main.refno, 
 				main.winlostdate, main.betfrom, main.betcheck, 
-				main.checktime, main.matchid, main.bettype, SYSDATETIME()
+				main.checktime, main.matchid, main.bettype, SYSDATETIME(), main.SiteDBGroupID
 		FROM	dbo.bettrans main WITH (nolock)
 			INNER JOIN #BetDelete tmpmain ON main.transid = tmpmain.transid AND main.transid = tmpmain.grouptransid AND main.matchid = @matchid
 
 		-- 1.4.  BackUp bettransm tickets into zzzbettrans
 		INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 				winlost, livehomescore, liveawayscore, liveindicator, betteam, creator , refno,   
-				winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime
+				winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime, SiteDBGroupID
 		)  
 		SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,  
 				b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,  
-				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype , SYSDATETIME()
+				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype , SYSDATETIME(), b.SiteDBGroupID
 		FROM	dbo.bettransm AS b WITH (nolock)  
 			INNER JOIN #BetDelete AS r ON r.SubTransId=b.transid
 
 		-- 1.5.  BackUp bettransm tickets into zzzbettransm
 		INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 				 winlost, livehomescore, liveawayscore, liveINdicator, betteam, creator , refno,   
-				 winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime)  
+				 winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime, SiteDBGroupID)  
 		SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,   
 				b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
-				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype , SYSDATETIME()
+				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype , SYSDATETIME(), b.SiteDBGroupID
 		FROM	dbo.bettransm AS b WITH (nolock)  
 			INNER JOIN #BetDelete AS r ON r.SubTransId=b.transid   
 		
@@ -1210,9 +1210,7 @@ BEGIN
 				AND main.matchid = @matchid
 		
 
-		IF @SiteDBGroupID <> 0
-		BEGIN
-			SET @transInfo = (
+		SET @transInfo = (
 			SELECT	t.transId AS '@t'
 					, b.winlost AS '@w'
 					, b.ruben AS '@r'
@@ -1233,7 +1231,9 @@ BEGIN
 				INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 			FOR XML PATH('r'),ROOT('root'), TYPE)
-
+		
+		IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 			SELECT 'TVS', 'VoidSingleBet', 'bettrans', 'U', @matchid, @transInfo
 		END
@@ -1282,11 +1282,9 @@ BEGIN
 				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
 			WHERE z.status <> t.status
 				AND t.betdaqid = -2
-
-			IF @SiteDBGroupID <> 0
-			BEGIN
-
-				SET @transInfo = (
+			
+			SET @transInfo = NULL
+			SET @transInfo = (
 					SELECT	transId AS '@t'
 							, matchid AS '@mid'
 							, STATUS AS '@s'
@@ -1294,6 +1292,8 @@ BEGIN
 					FROM	@tmpTransInfo WHERE matchid = @MatchId 
 					FOR XML PATH('r'),ROOT('root'), TYPE)
 
+			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'VoidSingleBet', 'zzzbettrans', 'U', @matchid, @transInfo 
 			END

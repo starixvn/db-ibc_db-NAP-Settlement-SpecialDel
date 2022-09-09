@@ -295,10 +295,10 @@ BEGIN
 	--> backup cash-out transaction ticket
 	INSERT INTO dbo.zzzbettrans (transid,custid,transdate,oddsid,hdp1,hdp2,odds,stake,status,
 				winlost,livehomescore,liveawayscore,liveindicator,betteam,creator, refno, 
-				winlostdate,betfrom,betcheck,checktime,matchid, bettype, comstatus, RepUpdateTime)
+				winlostdate,betfrom,betcheck,checktime,matchid, bettype, comstatus, RepUpdateTime, SiteDBGroupID)
 	SELECT  b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status, 
 			b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno, 
-			b.winlostdate, b.betfrom, @session AS betcheck, b.checktime, b.matchid, b.bettype, 'CO', SYSDATETIME()
+			b.winlostdate, b.betfrom, @session AS betcheck, b.checktime, b.matchid, b.bettype, 'CO', SYSDATETIME(), b.SiteDBGroupID
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #SpecialDeleteBets s
 			ON	s.transId = b.transid
@@ -341,32 +341,31 @@ BEGIN
 		INTO @tmpTransInfo (transId, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben, creator, betdaqid, virtualrate, FcUpdateTime)
 	FROM	dbo.bettrans b 
 		INNER JOIN #SpecialDeleteBets s ON	b.transid = s.transId
-		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID
-		
+		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID		
 
-	IF @SiteDBGroupID <> 0
+	SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
+	SET @transInfo = (
+	SELECT	b.transId AS '@t'
+			, b.winlost AS '@w'
+			, b.awinlost AS '@aw'
+			, b.mwinlost AS '@mw'
+			, b.swinlost AS '@sw'
+			, b.playercomm AS '@pc'
+			, b.comm AS '@c'
+			, b.acomm AS '@ac'
+			, b.scomm AS '@sc'
+			, b.status AS '@s'
+			, b.statusID AS '@sid'			
+			, b.ruben AS '@r'
+			, b.creator AS '@cr'
+			, b.betdaqid AS '@bdaq'
+			, b.virtualrate AS '@v'
+			, b.FcUpdateTime AS '@rut'
+	FROM	@tmpTransInfo b
+	FOR XML PATH('r'),ROOT('root'), TYPE)
+
+	IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 	BEGIN
-		SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
-		SET @transInfo = (
-		SELECT	b.transId AS '@t'
-				, b.winlost AS '@w'
-				, b.awinlost AS '@aw'
-				, b.mwinlost AS '@mw'
-				, b.swinlost AS '@sw'
-				, b.playercomm AS '@pc'
-				, b.comm AS '@c'
-				, b.acomm AS '@ac'
-				, b.scomm AS '@sc'
-				, b.status AS '@s'
-				, b.statusID AS '@sid'			
-				, b.ruben AS '@r'
-				, b.creator AS '@cr'
-				, b.betdaqid AS '@bdaq'
-				, b.virtualrate AS '@v'
-				, b.FcUpdateTime AS '@rut'
-		FROM	@tmpTransInfo b
-		FOR XML PATH('r'),ROOT('root'), TYPE)
-
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 		SELECT 'TVS', 'Cancel_CO', 'bettrans', 'U', @matchid, @transInfo
 	END
