@@ -129,12 +129,8 @@ BEGIN
 			@ResettleTransIds	  VARCHAR(MAX) = '',
 			@Action				  VARCHAR(20),
 			@TransInfo			  XML,
-			@IsSiteDB			  BIT,
 			@SiteDBGroupID        SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-		SET @IsSiteDB = 1
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
@@ -370,7 +366,7 @@ BEGIN
 			INNER JOIN #RecoverBet r ON b.transid = r.transid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 
-		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo )
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo )
 		BEGIN
 			INSERT INTO @tmpMatchidInfo (MatchId)
 			SELECT DISTINCT MatchId FROM @tmpTransInfo
@@ -429,7 +425,7 @@ BEGIN
 		FROM zzzbettrans z
 			INNER JOIN @tmpTransInfo t ON z.matchid = t.matchid AND z.transid = t.transid;
 		
-		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			INSERT INTO @tmpMatchidInfo (MatchId)
 			SELECT DISTINCT MatchId FROM @tmpTransInfo

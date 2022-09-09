@@ -41,12 +41,8 @@ BEGIN
 		   ,@SettledMainTranIds		VARCHAR(MAX) = '' 
 		   ,@NegativeBalanceUsers	VARCHAR(MAX) = '' 
 		   ,@TransInfo				XML = NULL
-		   ,@IsSiteDB				BIT
 		   ,@SiteDBGroupID			SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-		SET @IsSiteDB = 1
 
 	DECLARE @MatchDate			DATETIME
 		   ,@Eventstatus		NVARCHAR(100) = ''
@@ -460,7 +456,7 @@ BEGIN
 			INNER JOIN @tmpTransInfo t 
 				ON	z.matchid = t.matchid AND z.transid = t.transid
 
-		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @TransInfo = (
 			SELECT	matchid AS '@mid'
@@ -488,7 +484,7 @@ BEGIN
 			INNER JOIN @tmpTransInfo t 
 				ON zm.matchid = t.matchid AND zm.transid = t.transid				
 			
-		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @TransInfo = (
 			SELECT	matchid AS '@mid'

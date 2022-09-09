@@ -81,7 +81,6 @@ BEGIN
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
 			,@SiteDBGroupID     SMALLINT = 0
-			,@IsSiteDB			BIT
 			,@TransInfo			XML
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -89,9 +88,6 @@ BEGIN
 	DECLARE @ErrCode INT = 0
 			,@ErrMsg NVARCHAR(200)	= ''
 			,@AutoReSettledTransIds VARCHAR(MAX) = '' 
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-		SET @IsSiteDB = 1
 
 	CREATE TABLE #tblTransInfo (
 		grouptransid	BIGINT
@@ -485,7 +481,7 @@ BEGIN
 		AND ISNULL(main.betdaqid, 0) <> -2
 		AND main.SiteDBGroupID = @SiteDBGroupID
 
-	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		INSERT INTO @tmpMatchidInfo (MatchId)
 		SELECT DISTINCT MatchId FROM @tmpTransInfo
@@ -622,7 +618,7 @@ BEGIN
 						) AS TCal	
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 
-		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			INSERT INTO @tmpMatchidInfo (MatchId)
 			SELECT DISTINCT MatchId FROM @tmpTransInfo
@@ -735,7 +731,7 @@ BEGIN
 		LEFT JOIN CTE_Betcheck_Final AS bc ON bc.transid = t.transid
 	WHERE t.bettype IN (468, 469) AND main.SiteDBGroupID = @SiteDBGroupID
 
-	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		INSERT INTO @tmpMatchidInfo (MatchId)
 		SELECT DISTINCT MatchId FROM @tmpTransInfo
@@ -895,7 +891,7 @@ BEGIN
 	FROM zzzbettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @tmpTransInfo t ON main.matchid = t.matchid AND main.transid = t.transid
 
-	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		INSERT INTO @tmpMatchidInfo (MatchId)
 		SELECT DISTINCT MatchId FROM @tmpTransInfo

@@ -51,12 +51,8 @@ BEGIN
 	        ,@ErrMsg			NVARCHAR(200) = ''
 		    ,@SettledMainTranIds VARCHAR(MAX) = '' 
 		    ,@NegativeBalanceUsers VARCHAR(MAX) = '' 
-		    ,@IsSiteDB			BIT
 		    ,@SiteDBGroupID		SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-		SET @IsSiteDB = 1
 
 	DECLARE @MainParlay_MaxPO   VARCHAR(MAX) = NULL
 
@@ -270,7 +266,7 @@ BEGIN
 			INNER JOIN #tblRecoverBet t ON b.transid = t.transid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 
-		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			INSERT INTO @tmpMatchidInfo (MatchId)
 			SELECT DISTINCT MatchId FROM @tmpTransInfo
@@ -403,7 +399,7 @@ BEGIN
 		FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransInfo t ON z.matchid = t.matchid AND z.transid = t.transid
 		
-		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			INSERT INTO @tmpMatchidInfo (MatchId)
 			SELECT DISTINCT MatchId FROM @tmpTransInfo
