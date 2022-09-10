@@ -585,6 +585,18 @@ BEGIN
 					INNER JOIN dbo.zzzbettransm b WITH (ROWLOCK, UPDLOCK)
 						ON	b.transid = t.transid
 			END
+			ELSE IF @Action = 'D' --TVS subparlay
+			BEGIN
+				INSERT INTO @tmpTransId (TransID ,matchid)
+				SELECT	T.C.value('./@t', 'BIGINT') AS transid	
+					   ,T.C.value('./@mid', 'INT') AS matchid
+				FROM	@transInfo.nodes('/root/r') AS T(C)	
+				OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+
+				DELETE bm 
+				FROM dbo.zzzbettransm bm WITH (ROWLOCK, UPDLOCK)
+					INNER JOIN @tmpTransId t ON t.TransId = bm.TransId AND t.MatchId = bm.MatchId
+			END
 		END
 		ELSE IF @TableName = 'BetParlayResult'
 		BEGIN
