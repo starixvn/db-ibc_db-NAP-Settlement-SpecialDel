@@ -17,6 +17,7 @@ AS
 		- 20170726@Paul: Create new [RedmineID: #77175]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220910@July: Change of TVS regarding to Scale out DBTrans - Support NumberGame [Redmine: #175412]
 
 	Param's Explanation:      
 		You need to use option: option (maxrecursion 0) at the statement if the lengh of string exceed 100 levels
@@ -28,10 +29,6 @@ RETURN
 	WITH cteTransId AS (
 		SELECT CAST(value AS BIGINT) transid
 		FROM STRING_SPLIT(@TransID, ',')
-
-		UNION ALL
-
-		SELECT NULL
 	), cteBettrans AS (
 		SELECT	b.matchid,
 				b.custid,
@@ -41,12 +38,9 @@ RETURN
 				b.winlostdate,
 				b.ruben,
 				b.bettype
-		FROM dbo.bettrans b WITH(ROWLOCK)
+		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN cteTransId t ON b.transid = t.transid
-
-		UNION ALL
-
-		SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+		WHERE b.SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	), cteMatch AS (
 		SELECT	b.matchid,
 				b.custid,
@@ -61,9 +55,19 @@ RETURN
 			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
 		UNION ALL
 
-		SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+		SELECT	b.matchid,
+				b.custid,
+				b.winlost,
+				b.actual_stake,
+				b.playercomm,
+				b.winlostdate,
+				b.ruben,
+				b.bettype,
+				m.SportType
+		FROM cteBettrans b
+			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 	), cteBalanceType AS (
-		SELECT	DISTINCT CASE WHEN s.BetType BETWEEN 801 AND 806 THEN 4 ELSE p.BalanceType END AS BalanceType,
+		SELECT	DISTINCT p.BalanceType,
 				s.SportType,
 				s.BetType
 		FROM dbo.SportBettypeMatrix s WITH(NOLOCK)

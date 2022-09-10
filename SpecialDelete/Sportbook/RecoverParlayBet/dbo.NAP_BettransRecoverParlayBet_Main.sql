@@ -557,10 +557,10 @@ BEGIN
 		SELECT @ErrCode = 100, @ErrMsg = 'Unable to recover these parlay bets'						
 		
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 					
-		RETURN
+		RETURN;
 	END CATCH	
 
 	DROP TABLE #tblRecoverBet
 	DROP TABLE #tblMatchParlayProcess
-
+	DROP TABLE #tmpMatch
 END

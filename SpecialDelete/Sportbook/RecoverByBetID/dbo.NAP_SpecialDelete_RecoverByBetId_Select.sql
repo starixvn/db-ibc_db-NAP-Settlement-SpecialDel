@@ -14,7 +14,7 @@ AS
 		- 20180327@Helen:  Correct Transdesc column size [Redmine: #92810]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220825@July: Change of TVS regarding to Scale out DBTrans - Support NumberGame  [Redmine: #175412]
 
 	Param's Explanation:
 */
@@ -22,7 +22,8 @@ AS
 BEGIN
 	SET NOCOUNT ON;
 	DECLARE @SiteDBGroupID		SMALLINT = 0
-	        ,@InvalidTransIds   VARCHAR(MAX) = ''
+	        ,@MovebetDate		DATETIME
+			,@InvalidTransIds   VARCHAR(MAX) = ''
 			,@MovedTransIds     VARCHAR(MAX) = ''
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -32,7 +33,7 @@ BEGIN
 		custid			INT,
 		username		VARCHAR(50),
 		transdate		DATETIME,
-		odds			MONEY,
+		odds			SMALLMONEY,
 		stake			MONEY,
 		winlost			MONEY,
 		STATUS			NVARCHAR(10),
@@ -98,24 +99,22 @@ BEGIN
 		CurrencyName	NVARCHAR(50),
 		transdate		DATETIME
 	);
-
 	CREATE INDEX ix_TempBettrans ON #TempBettrans(matchid);
+	CREATE CLUSTERED INDEX ix_TempBet_cl ON #TempBet(custid, matchid, bettype);
+	CREATE CLUSTERED INDEX ix_RecoverBet_cl ON #RecoverBet(transid);
 
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY);
-
 	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT);
 
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
-
 	INSERT INTO #SupportedSports(SportType)
-	VALUES (175); --Bitcoin 
+	VALUES (175), --Bitcoin 
+		   (161), (164) --Number game
 
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
-	DECLARE @MovedBetDay	  SMALLDATETIME
-		   ,@MovebetDate	  DATETIME
 
 	--Get Movebetdate
-	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
 	--Parse trans ID string
 	INSERT INTO #tblTransIds(transid)
@@ -152,11 +151,10 @@ BEGIN
 			b.transdate
 	FROM dbo.bettrans b WITH(NOLOCK)
 	WHERE EXISTS (SELECT 1 FROM #tblTransIds t WHERE t.transid = b.transid)
-		AND b.winlostdate >= @MovedBetDay	
+		AND b.winlostdate >= @MovebetDate	
 		AND b.betfrom <> 'p'
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
-	------159948 - Support Bitcoin
 	INSERT INTO #TempBet(
 		custid,
 		matchid,
@@ -179,6 +177,7 @@ BEGIN
 		eventdate,
 		endtime
 	)
+	------159948 - Support Bitcoin
 	SELECT	b.custid,
 			b.matchid,
 			b.bettype,
@@ -201,9 +200,32 @@ BEGIN
 			m.EndTime
 	FROM #TempBettrans b
 		INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
+	WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype)
+	UNION ALL 
+	------175412 - Support NumberGame
+	SELECT	b.custid,
+			b.matchid,
+			b.bettype,
+			b.transid,
+			b.username,
+			b.actual_stake,
+			b.oddstype,
+			b.srecommend,
+			b.betid,
+			b.transdesc,
+			b.CurrencyName,
+			m.matchcode,
+			m.leagueid,
+			m.HomeId,
+			m.AwayId,
+			m.IsNeutral ,
+			m.sporttype,
+			b.transdate,
+			m.eventdate,
+			NULL AS EndTime
+	FROM #TempBettrans b
+		INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 	WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype);
-
-	CREATE CLUSTERED INDEX ix_TempBet_cl ON #TempBet(custid, matchid, bettype);
 
 	INSERT INTO #RecoverBet(
 		transid,
@@ -277,16 +299,12 @@ BEGIN
 				AND z.bettype = b.bettype
 	WHERE z.SiteDBGroupID = @SiteDBGroupID
 
-	CREATE CLUSTERED INDEX ix_RecoverBet_cl ON #RecoverBet(transid);
-
 	UPDATE t
 	SET GroupName = CASE WHEN d.custid IS NULL THEN 'Credit' ELSE 'Deposit' END
 	FROM #RecoverBet t
 		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON t.srecommend = d.custid;
 		
 	/*Modify the way to get move bet date*/
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
-
 	IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
 	BEGIN
 		DELETE 

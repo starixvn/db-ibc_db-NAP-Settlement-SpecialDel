@@ -16,7 +16,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220825@July: Change of TVS regarding to Scale out DBTrans - Support NumberGame [Redmine: #175412]
 
 	Param's Explanation:	
 */
@@ -35,7 +35,7 @@ BEGIN
 		custid			INT,
 		username		VARCHAR(50),
 		transdate		DATETIME,
-		odds			MONEY,
+		odds			SMALLMONEY,
 		stake			MONEY,
 		winlost			MONEY,
 		STATUS			NVARCHAR(10),
@@ -115,8 +115,7 @@ BEGIN
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
 
-	DECLARE @MovedBetDay	      SMALLDATETIME,
-			@avaiableProcess	  BIT = 0,
+	DECLARE @avaiableProcess	  BIT ,
 			@isITAdmin			  BIT = 0,
 			@ValidTransIDs		  VARCHAR(MAX),
 			@ErrCode			  INT = 0,
@@ -133,11 +132,12 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	--Get Movebetdate
-	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @MovedBetDay OUTPUT
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0) --Return data for mailing
 
 	INSERT INTO #SupportedSports(SportType)
-	VALUES (175); --Bitcoin
+	VALUES (175), --Bitcoin
+		   (161), (164) --Number game
 
 	BEGIN TRY
 		--Pare trans ID string
@@ -174,10 +174,9 @@ BEGIN
 				b.transdate
 		FROM dbo.bettrans b WITH(NOLOCK)
 		WHERE EXISTS (SELECT 1 FROM #TransIds t WHERE t.transid = b.transid)
-			AND b.winlostdate >= @MovedBetDay AND b.SiteDBGroupID = @SiteDBGroupID
+			AND b.winlostdate >= @MovebetDate AND b.SiteDBGroupID = @SiteDBGroupID
 			AND b.betfrom <> 'p';
 
-		------159948 - Support Bitcoin
 		INSERT INTO #TempBet(
 			custid,
 			matchid,
@@ -200,6 +199,7 @@ BEGIN
 			eventdate,
 			EndTime
 		)
+		------159948 - Support Bitcoin
 		SELECT	b.custid,
 				b.matchid,
 				b.bettype,
@@ -222,240 +222,286 @@ BEGIN
 				m.EndTime
 		FROM #TempBettrans b
 			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
+		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype)
+		UNION ALL
+		------175412 - Support NumberGame
+		SELECT	b.custid,
+				b.matchid,
+				b.bettype,
+				b.transid,
+				b.username,
+				b.actual_stake,
+				b.oddstype,
+				b.srecommend,
+				b.betid,
+				b.transdesc,
+				b.CurrencyName,
+				m.matchcode,
+				m.leagueid,
+				m.HomeId,
+				m.AwayId,
+				m.IsNeutral ,
+				m.sporttype,
+				b.transdate,
+				m.eventdate,
+				NULL AS EndTime
+		FROM #TempBettrans b
+			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype);
 
 		IF NOT EXISTS(SELECT TOP 1 1 FROM #TempBet)
 		BEGIN
-			SELECT	@ErrCode = 101,
-					@ErrMsg = 'All trans ID of unsupported sports';
+			SELECT	@ErrCode = 101, @ErrMsg = 'All trans ID of unsupported sports'
+
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+			RETURN;
 		END
 	END TRY
 	BEGIN CATCH
-		SELECT	@ErrCode = 100,
-				@ErrMsg = 'Invalid TransIds';
+		SELECT	@ErrCode = 100, @ErrMsg = 'Invalid TransIds'
+
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+		RETURN;
 	END CATCH
 
 	/*Modify the way to get move bet date*/
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
-
-	IF @ErrCode = 0 AND EXISTS (SELECT TOP 1 1 FROM #TempBet WHERE EventDate <= @MovebetDate)
+	IF EXISTS (SELECT TOP 1 1 FROM #TempBet WHERE EventDate <= @MovebetDate)
 	BEGIN
-		SELECT @ErrCode = 102
-			  ,@ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
+		SELECT @ErrCode = 102 ,@ErrMsg = 'Could not void some tickets due to Movebet process. Please try Search again.'
+	
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+		RETURN;
 	END
 
-	IF @ErrCode = 0
-	BEGIN
-		--Get tickets from zzzbettrans
-		INSERT INTO #RecoverBet (
-			transid,
-			refno,
-			username,	
-			transdate,	
-			odds,
-			stake,
-			winlost,
-			STATUS,
-			bettype,
-			matchcode,
-			OddsType,					
-			betteam,		
-			betcheck,		
-			hdp1,			
-			hdp2,		
-			srecommend,		
-			IsLiveIndicator,
-			livehomescore,	
-			liveawayscore,						
-			betid,
-			transdesc,
-			leagueid,
-			sporttype,
-			homeid,
-			awayid,
-			custid,
-			IsNeutral,
-			CurrencyName,
-			Currency,
-			BetFrom,
-			creator,
-			matchid,
-			EndTime
-		)
-		SELECT	z.transid,
-				z.refno,
-				b.Username,		
-				b.transdate,
-				z.odds,
-				z.stake,
-				z.winlost - b.actual_stake,
-				z.STATUS,
-				z.bettype,
-				b.matchcode,
-				b.oddstype,				
-				z.betteam,
-				z.betcheck,
-				z.hdp1,
-				z.hdp2,
-				b.srecommend,
-				z.liveindicator,
-				z.livehomescore,
-				z.liveawayscore,	
-				b.betid,
-				b.transdesc,
-				b.leagueid,
-				b.sporttype,
-				b.homeid,
-				b.awayid,
-				z.custid,
-				b.IsNeutral,
-				b.CurrencyName,
-				b.currency,
-				z.betfrom,
-				z.creator,
-				b.matchid,
-				b.EndTime
-		FROM dbo.zzzbettrans z WITH(NOLOCK)
-			INNER JOIN #TempBet b 
-				ON z.transid = b.transid
-					AND z.custid = b.custid
-					AND z.matchid = b.matchid					
-					AND z.bettype = b.bettype
-		WHERE z.SiteDBGroupID = @SiteDBGroupID
+	--Get tickets from zzzbettrans
+	INSERT INTO #RecoverBet (
+		transid,
+		refno,
+		username,	
+		transdate,	
+		odds,
+		stake,
+		winlost,
+		STATUS,
+		bettype,
+		matchcode,
+		OddsType,					
+		betteam,		
+		betcheck,		
+		hdp1,			
+		hdp2,		
+		srecommend,		
+		IsLiveIndicator,
+		livehomescore,	
+		liveawayscore,						
+		betid,
+		transdesc,
+		leagueid,
+		sporttype,
+		homeid,
+		awayid,
+		custid,
+		IsNeutral,
+		CurrencyName,
+		Currency,
+		BetFrom,
+		creator,
+		matchid,
+		EndTime
+	)
+	SELECT	z.transid,
+			z.refno,
+			b.Username,		
+			b.transdate,
+			z.odds,
+			z.stake,
+			z.winlost - b.actual_stake,
+			z.STATUS,
+			z.bettype,
+			b.matchcode,
+			b.oddstype,				
+			z.betteam,
+			z.betcheck,
+			z.hdp1,
+			z.hdp2,
+			b.srecommend,
+			z.liveindicator,
+			z.livehomescore,
+			z.liveawayscore,	
+			b.betid,
+			b.transdesc,
+			b.leagueid,
+			b.sporttype,
+			b.homeid,
+			b.awayid,
+			z.custid,
+			b.IsNeutral,
+			b.CurrencyName,
+			b.currency,
+			z.betfrom,
+			z.creator,
+			b.matchid,
+			b.EndTime
+	FROM dbo.zzzbettrans z WITH(NOLOCK)
+		INNER JOIN #TempBet b 
+			ON z.transid = b.transid
+				AND z.custid = b.custid
+				AND z.matchid = b.matchid					
+				AND z.bettype = b.bettype
+	WHERE z.SiteDBGroupID = @SiteDBGroupID
 
-		--Check SD process and lock
-		INSERT INTO #tblMatchProcess(matchid, KeyID)
-		SELECT	DISTINCT matchid, 8 AS KeyID --Bitcoin 
-		FROM #RecoverBet;
+	DECLARE @isExistMatch3rd BIT = 0
+			,@isExistNG      BIT = 0
+	SELECT @isExistMatch3rd = MAX(CASE WHEN sporttype = 175 THEN 1 ELSE 0 END)
+		  ,@isExistNG = MAX(CASE WHEN sporttype IN (161,164) THEN 1 ELSE 0 END)
+	FROM #RecoverBet
 
-		EXEC dbo.NAP_Admin_CheckingProcess 
-			  @isExistMatch3rd = 1
-			, @SPName	       = @SPName
-			, @avaiableProcess = @avaiableProcess OUTPUT
-			, @ErrCode		   = @ErrCode OUTPUT
-			, @ErrMsg          = @ErrMsg OUTPUT;
+	--Check SD process and lock
+	INSERT INTO #tblMatchProcess(matchid, KeyID)
+	SELECT	DISTINCT matchid
+		  , CASE WHEN sporttype IN (161,164) THEN 1 --NG 
+				 WHEN sporttype = 175 THEN 8  --Bitcoin 
+				 ELSE 0 
+			END AS KeyID
+	FROM #RecoverBet;
+
+	EXEC dbo.NAP_Admin_CheckingProcess 
+			@isExistMatch3rd	= @isExistMatch3rd
+		   , @isExistNG			= @isExistNG
+		   , @SPName			= @SPName
+		   , @avaiableProcess	= @avaiableProcess OUTPUT
+		   , @ErrCode			= @ErrCode OUTPUT
+		   , @ErrMsg			= @ErrMsg OUTPUT;
 		
-		SELECT @ValidTransIDs = STUFF((SELECT ',' + CAST(transid AS VARCHAR(MAX))
-									   FROM #RecoverBet
-									   FOR XML PATH('')
-									   ), 1, 1, '');	
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+	BEGIN	
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+		RETURN;	
+	END
+
+	SELECT @ValidTransIDs = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+									FROM #RecoverBet
+									FOR XML PATH('')
+									), 1, 1, '');	
 		
-		--Capture balance before Recover
-		INSERT INTO @BeforeRecover (
-			custid,
-			balanceType,
-			balance
-		)
-		SELECT	custid,
-				BalanceType,
-				SUM(balance) AS balance
-		FROM dbo.f_GetBalanceByTransID(@ValidTransIDs)
-		GROUP BY custid, BalanceType
+	--Capture balance before Recover
+	INSERT INTO @BeforeRecover (
+		custid,
+		balanceType,
+		balance
+	)
+	SELECT	custid,
+			BalanceType,
+			SUM(balance) AS balance
+	FROM dbo.f_GetBalanceByTransID(@ValidTransIDs)
+	GROUP BY custid, BalanceType
 	
-		--Recover tickets
-		UPDATE b 
-		SET	winlost = 0,
-			ruben = 0,
-			statuswinlost = NULL,
-			STATUS = 'running',
-			statusID = 0,
-			creator = r.creator
-		OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, '', inserted.status, inserted.statusID, inserted.creator
-		INTO @tmpTransInfo (matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator) 
-		FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #RecoverBet r ON b.transid = r.transid
-		WHERE b.SiteDBGroupID = @SiteDBGroupID
+	--Recover tickets
+	UPDATE b 
+	SET	winlost = 0,
+		ruben = 0,
+		statuswinlost = NULL,
+		STATUS = 'running',
+		statusID = 0,
+		creator = r.creator
+	OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, '', inserted.status, inserted.statusID, inserted.creator
+	INTO @tmpTransInfo (matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator) 
+	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
+		INNER JOIN #RecoverBet r ON b.transid = r.transid
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
 
-		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo )
+	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo )
+	BEGIN
+		INSERT INTO @tmpMatchidInfo (MatchId)
+		SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+		WHILE (1=1)
 		BEGIN
-			INSERT INTO @tmpMatchidInfo (MatchId)
-			SELECT DISTINCT MatchId FROM @tmpTransInfo
+			UPDATE TOP(1)m
+			SET IsFinish = 1, @matchid = MatchId 
+			FROM @tmpMatchidInfo m
+			WHERE IsFinish IS NULL
 
-			WHILE (1=1)
-			BEGIN
-				UPDATE TOP(1)m
-				SET IsFinish = 1, @matchid = MatchId 
-				FROM @tmpMatchidInfo m
-				WHERE IsFinish IS NULL
+			IF @@ROWCOUNT = 0 BREAK;
+			SET @TransInfo = (
+			SELECT	matchid AS '@mid'
+					, transId AS '@t'
+					, STATUS AS '@s'
+					, winlost AS '@w'
+					, ruben AS '@r'
+					, statuswinlost AS '@statuswl'
+					, statusID AS '@sid'
+					, creator AS '@cr'
+			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-				IF @@ROWCOUNT = 0 BREAK;
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-						, STATUS AS '@s'
-						, winlost AS '@w'
-						, ruben AS '@r'
-						, statuswinlost AS '@statuswl'
-						, statusID AS '@sid'
-						, creator AS '@cr'
-				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @TransInfo 
-			END
-
-			DELETE FROM @tmpTransInfo
-			DELETE FROM @tmpMatchidInfo
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @TransInfo 
 		END
 
-		--Capture balance after Recover
-		INSERT INTO @AfterRecover (
-			custid,
-			balanceType,
-			balance
-		)
-		SELECT	custid,
-				BalanceType,
-				SUM(balance) AS balance
-		FROM dbo.f_GetBalanceByTransID(@ValidTransIDs)
-		GROUP BY custid, BalanceType
+		DELETE FROM @tmpTransInfo
+		DELETE FROM @tmpMatchidInfo
+	END
 
-		--Insert balance pending
-		EXEC [dbo].[NAP_Admin_BalancePendingIns] @BeforeUpd = @BeforeRecover, @AfterUpd = @AfterRecover;
+	--Capture balance after Recover
+	INSERT INTO @AfterRecover (
+		custid,
+		balanceType,
+		balance
+	)
+	SELECT	custid,
+			BalanceType,
+			SUM(balance) AS balance
+	FROM dbo.f_GetBalanceByTransID(@ValidTransIDs)
+	GROUP BY custid, BalanceType
 
-		--Delete recovers tickets
-		INSERT INTO @tmpTransInfo (matchid, transid)
-		SELECT z.matchid, z.transid
-		FROM zzzbettrans z WITH(NOLOCK)
-			INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid
-		WHERE z.SiteDBGroupID = @SiteDBGroupID 
+	--Insert balance pending
+	EXEC [dbo].[NAP_Admin_BalancePendingIns] @BeforeUpd = @BeforeRecover, @AfterUpd = @AfterRecover;
 
-		DELETE z WITH(UPDLOCK, ROWLOCK)
-		FROM zzzbettrans z
-			INNER JOIN @tmpTransInfo t ON z.matchid = t.matchid AND z.transid = t.transid;
+	--Delete recovers tickets
+	INSERT INTO @tmpTransInfo (matchid, transid)
+	SELECT z.matchid, z.transid
+	FROM zzzbettrans z WITH(NOLOCK)
+		INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid
+	WHERE z.SiteDBGroupID = @SiteDBGroupID 
+
+	DELETE z WITH(UPDLOCK, ROWLOCK)
+	FROM zzzbettrans z
+		INNER JOIN @tmpTransInfo t ON z.matchid = t.matchid AND z.transid = t.transid;
 		
-		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	BEGIN
+		INSERT INTO @tmpMatchidInfo (MatchId)
+		SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+		WHILE (1=1)
 		BEGIN
-			INSERT INTO @tmpMatchidInfo (MatchId)
-			SELECT DISTINCT MatchId FROM @tmpTransInfo
+			UPDATE TOP(1)m
+			SET IsFinish = 1, @matchid = MatchId 
+			FROM @tmpMatchidInfo m
+			WHERE IsFinish IS NULL
 
-			WHILE (1=1)
-			BEGIN
-				UPDATE TOP(1)m
-				SET IsFinish = 1, @matchid = MatchId 
-				FROM @tmpMatchidInfo m
-				WHERE IsFinish IS NULL
+			IF @@ROWCOUNT = 0 BREAK;
+			SET @TransInfo = (
+			SELECT	matchid AS '@mid'
+					, transId AS '@t'
+			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-				IF @@ROWCOUNT = 0 BREAK;
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @TransInfo 
-			END
-
-			DELETE FROM @tmpTransInfo
-			DELETE FROM @tmpMatchidInfo
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @TransInfo 
 		END
 
+		DELETE FROM @tmpTransInfo
+		DELETE FROM @tmpMatchidInfo
+	END
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #RecoverBet WHERE sporttype = 175) --Bitcoin
+	BEGIN
 		--Return completed matches to resettle
 		INSERT INTO #CompletedMatches(matchid, [Action])
 		SELECT m.Match3rdId
-			  ,CASE WHEN m.BetStatus LIKE 'Refund%' THEN 'REFUND'
+				,CASE WHEN m.BetStatus LIKE 'Refund%' THEN 'REFUND'
 					WHEN m.BetStatus IS NULL THEN 'CAL' 
 					END AS [Action]
 		FROM dbo.Match3rd m WITH(NOLOCK)
@@ -466,10 +512,10 @@ BEGIN
 		SET TransIds = STUFF(ts.TransIds,1,1,'')
 		FROM #CompletedMatches m
 		CROSS APPLY (SELECT ',' + CAST(r.TransId AS VARCHAR(MAX)) 
-					 FROM #RecoverBet r
-					 WHERE r.matchid = m.matchid
-					 FOR XML PATH('')
-					 )ts(TransIds)
+						FROM #RecoverBet r
+						WHERE r.matchid = m.matchid
+						FOR XML PATH('')
+						)ts(TransIds)
 
 		SELECT @ReCalcMatches = STUFF((SELECT ', ' + CAST(matchid AS VARCHAR(MAX))
 										FROM #CompletedMatches
@@ -486,23 +532,23 @@ BEGIN
 			IF @@ROWCOUNT = 0 BREAK
 
 			EXEC dbo.NAP_SpecialDelete_RecoverByBetId_ReCal_s175
-			        @MatchId      = @MatchId
-				   ,@TransIds	  = @ResettleTransIds
-			       ,@Action       = @Action
-			       ,@ErrCode      = @ErrCode OUTPUT
-			       ,@ErrMsg       = @ErrMsg OUTPUT
+					@MatchId      = @MatchId
+					,@TransIds	  = @ResettleTransIds
+					,@Action       = @Action
+					,@ErrCode      = @ErrCode OUTPUT
+					,@ErrMsg       = @ErrMsg OUTPUT
 		END
-
-		--Check SD process and release
-		EXEC dbo.NAP_Admin_CheckingProcess 
-			  @isExistMatch3rd = 1
-			, @IsReleased = 1;
-
-		SELECT @LogData = 'Recovered bets having transid: ' + @ValidTransIDs + ' IP: ' + @Ip;
-	
-		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData;
-
 	END
+	
+	--Check SD process and release
+	EXEC dbo.NAP_Admin_CheckingProcess 
+			@isExistMatch3rd = @isExistMatch3rd
+		  , @isExistNG = @isExistNG
+		  , @IsReleased = 1;
+
+	SELECT @LogData = 'Recovered bets having transid: ' + @ValidTransIDs + ' IP: ' + @Ip;
+	
+	EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData;
 
 	------------------------------------------------------------------------------
 	--1. Table return error code/ msg

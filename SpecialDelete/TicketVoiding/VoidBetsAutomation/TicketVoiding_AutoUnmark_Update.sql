@@ -185,7 +185,7 @@ BEGIN
 	FROM @tmpError
 	ORDER BY 
 		CASE WHEN ErrorCode <> 0 THEN '1'
-			 WHEN NegativeBalanceUsers <> ''  THEN '2'
+			 WHEN ISNULL(NegativeBalanceUsers,'') <> ''  THEN '2'
 			 ELSE '3'
 		END
 
