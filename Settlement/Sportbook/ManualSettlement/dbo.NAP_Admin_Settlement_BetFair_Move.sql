@@ -39,7 +39,7 @@ BEGIN
 			@matchcode		VARCHAR(20),
 			@sporttype		INT,
 			@transinfo		XML,
-			@IsSiteDB		BIT
+			@IsSiteDB		BIT = 0
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
