@@ -393,7 +393,6 @@ BEGIN
 			, 'Sorry. You can not process void bet due to either wrong password or insufficient permission!' AS ErrorMsg
 			, @NegativeBalanceUsers AS NegativeBalanceUsers
 		
-		
 		RETURN
 	END	
 			
