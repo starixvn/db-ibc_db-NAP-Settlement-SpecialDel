@@ -167,7 +167,7 @@ BEGIN
 							@ErrCode = @ErrCode OUTPUT,
 							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			END	
-			IF @ErrCode <> 0 OR @NegativeBalanceUsers <> ''
+			IF @ErrCode <> 0 OR ISNULL(@NegativeBalanceUsers,'') <> ''
 			BEGIN
 				INSERT INTO @tmpError (ErrorCode, ErrorMsg, NegativeBalanceUsers)
 				SELECT @ErrCode, @ErrMsg, @NegativeBalanceUsers
@@ -183,7 +183,11 @@ BEGIN
 	--1. Table error code/msg transid
 	SELECT TOP 1 ErrorCode, ErrorMsg, NegativeBalanceUsers
 	FROM @tmpError
-	WHERE ErrorCode <> 0
+	ORDER BY 
+		CASE WHEN ErrorCode <> 0 THEN '1'
+			 WHEN NegativeBalanceUsers <> ''  THEN '2'
+			 ELSE '3'
+		END
 
 	DROP TABLE #inputRequestTransId
 	DROP TABLE #tmpTransid_unmark
