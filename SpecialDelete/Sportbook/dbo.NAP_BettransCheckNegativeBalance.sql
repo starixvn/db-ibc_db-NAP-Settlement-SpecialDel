@@ -43,7 +43,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON 
-	DECLARE @SitedbgroupId	INT = 0
+	DECLARE @SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)
@@ -111,7 +111,7 @@ BEGIN
 			,b.BonusID
 	FROM	@tmpTransId t
 		INNER JOIN bettrans b WITH(NOLOCK)
-			ON	b.transid = t.transid AND b.SiteDBGroupID = @SitedbgroupId
+			ON	b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
 	WHERE	1 = CASE 
 					WHEN @Type = 0 AND @ExcludeRunning = 0 AND b.statusID IN (0, 1,111,112,113) THEN 1 
 					WHEN @Type = 0 AND @ExcludeRunning = 1 AND b.statusID IN (111, 112, 113) THEN 1
@@ -152,7 +152,7 @@ BEGIN
 				AND (tl.translogid IS NULL OR (tl.translogid IS NOT NULL AND tl.statusID <> 0))	
 				AND b.bettype < 19999
 				AND b.winlostdate > @movebetdate 
-				AND b.SiteDBGroupID = @SitedbgroupId
+				AND b.SiteDBGroupID = @SiteDBGroupID
 		--Get sum ticket from new table Transfer
 		UNION ALL
 		SELECT	tl.custid, tl.Username, (tl.Winlost - tl.actual_stake + tl.PlayerComm) AS balance
@@ -166,19 +166,19 @@ BEGIN
 		FROM	dbo.translog tl WITH(NOLOCK)
 		WHERE	tl.custid IN (SELECT custid FROM @tmpAffectedCustId)
 				AND tl.statusID IN (0, 1)	
-				AND tl.SiteDBGroupID = @SitedbgroupId
+				AND tl.SiteDBGroupID = @SiteDBGroupID
 		UNION ALL
 		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
 		FROM	dbo.bettransRnG b WITH(NOLOCK)
 		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId)
 				AND b.IsSum=0				
-				AND b.SiteDBGroupID = @SitedbgroupId
+				AND b.SiteDBGroupID = @SiteDBGroupID
 		UNION ALL
 		SELECT	b.custid, b.Username, (b.winlost - b.actual_stake + b.playercomm ) AS balance
 		FROM	dbo.bettransLC b WITH(NOLOCK)
 		WHERE	b.custid IN (SELECT custid FROM @tmpAffectedCustId) 
 				AND b.IsSum=0	
-				AND b.SiteDBGroupID = @SitedbgroupId
+				AND b.SiteDBGroupID = @SiteDBGroupID
 	) b
 	GROUP BY b.custid, b.Username
 
@@ -194,17 +194,17 @@ BEGIN
 			AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpTransId bb WHERE b.transid = bb.transid)
 			AND bettype = 501
 			AND playerdiscount < 0
-			AND b.SiteDBGroupID = @SitedbgroupId
+			AND b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY custid, matchid
 	)t
-	INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.FirstTransId = b.transid AND b.SiteDBGroupID = @SitedbgroupId
+	INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.FirstTransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 	WHERE t.NetWin > 0
 
 	UNION ALL
 	SELECT DISTINCT b.custid, b.matchid, b.winlost, b.actual_stake, -b.playercomm
 	From dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #BetDelete bd on bd.matchid = b.matchid AND bd.custid = b.custid
-	WHERE b.bettype = 500 AND b.SiteDBGroupID = @SitedbgroupId
+	WHERE b.bettype = 500 AND b.SiteDBGroupID = @SiteDBGroupID
 
 	IF(@Type = 0)
 	BEGIN

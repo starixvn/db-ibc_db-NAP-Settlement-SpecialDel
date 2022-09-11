@@ -30,7 +30,7 @@ BEGIN
 		   ,@InvalidMatchId VARCHAR(200) = '' 
 		   ,@MovebetDate DATETIME
 		   ,@MatchDate DATETIME
-		   ,@SitedbgroupId INT = 0
+		   ,@SiteDBGroupID SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 
@@ -101,7 +101,7 @@ BEGIN
 		AND b.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 		AND b.bettype NOT IN (38) -- Bet Builder
 		AND b.statusID NOT IN (101, 102)
-		AND b.SiteDBGroupID = @SitedbgroupId
+		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	IF @MatchDate <= @MovebetDate
 	BEGIN
@@ -121,7 +121,7 @@ BEGIN
 			OUTER APPLY (
 				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
 				FROM dbo.bettrans14 WITH (NOLOCK)
-				WHERE transid = TEMP.transid AND SiteDBGroupID = @SitedbgroupId
+				WHERE transid = TEMP.transid AND SiteDBGroupID = @SiteDBGroupID
 				UNION ALL
 				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
 				FROM @tmpTransIdMoveBet m  
