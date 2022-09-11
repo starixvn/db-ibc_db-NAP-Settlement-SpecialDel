@@ -1,12 +1,12 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_NumberGame] 
-	@Option BIT = 0
-	,@MatchID INT
-	,@FromDate DATETIME = NULL
-	,@ToDate DATETIME = NULL
-	,@BetTypes VARCHAR(100) = ''
-	,@BallSequence VARCHAR(200)	= ''	
-	,@TransIds VARCHAR(4000) = NULL
+	@Option			BIT = 0
+	,@MatchID		INT
+	,@FromTransdate DATETIME = NULL
+	,@ToTransdate	DATETIME = NULL
+	,@BetTypes		VARCHAR(100) = ''
+	,@BallSequence	VARCHAR(200)	= ''	
+	,@TransIds		VARCHAR(4000) = NULL
 		
 AS
 /*  
@@ -137,7 +137,7 @@ BEGIN
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid						
 			WHERE b.matchid = @matchid 
-				AND b.transdate BETWEEN @FromDate AND @ToDate
+				AND b.transdate BETWEEN @FromTransdate AND @ToTransdate
 				AND statusID NOT IN (101, 102, 121) ---- Void, Reject, 121: dummy ticket
 				AND b.bettype IN (SELECT CONVERT(SMALLINT,value) FROM STRING_SPLIT(@BetTypes, ','))
 				AND b.SiteDBGroupID = @SiteDBGroupID
@@ -196,7 +196,7 @@ BEGIN
 							WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 							) AS BS_tmp							
 			WHERE b.matchid = @matchid 
-				AND b.transdate BETWEEN @FromDate AND @ToDate
+				AND b.transdate BETWEEN @FromTransdate AND @ToTransdate
 				AND statusID NOT IN (101, 102, 121) ---- Void, Reject, 121: dummy ticket
 				AND b.bettype IN (SELECT CONVERT(SMALLINT,value) FROM STRING_SPLIT(@BetTypes, ','))			
 				AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)-- Filter for BallSequence

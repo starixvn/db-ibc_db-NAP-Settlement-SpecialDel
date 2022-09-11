@@ -140,7 +140,6 @@ BEGIN
 
 	DECLARE	@LogData					NVARCHAR(500) = ''
 			,@isITAdmin					BIT = 0
-			,@winlostdate				DATETIME
 			,@isExistMatch				BIT = 0
 			,@isExistFM					BIT = 0
 			,@isExistParlay				BIT = 0
@@ -180,17 +179,17 @@ BEGIN
 	CREATE TABLE #balanceGameAfter (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)	
 	
-	CREATE TABLE #BetDelete (
+	CREATE TABLE #SpecialDeleteBets (
 		GroupTransId	BIGINT
 		,transid		BIGINT PRIMARY KEY --bettrans.transid
 		,matchid		INT
 		,Bettype		SMALLINT
 		,betid			BIGINT
 		,stake			MONEY
-		,odds			MONEY
+		,odds			SMALLMONEY
 		,oddsspread 	MONEY
 		,refno			BIGINT 
-		,betfrom		NVARCHAR(10)
+		,betfrom		NVARCHAR(3)
 		,statusid		TINYINT
 		,betdaqid		BIGINT		
 		,winlostdate	SMALLDATETIME
@@ -257,7 +256,8 @@ BEGIN
 	BEGIN
 		SELECT @ErrCode = 101, @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
 		
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+		SELECT @ErrCode AS ErrorCode
+			  ,@ErrMsg AS ErrorMsg
 
 		SELECT @LogData = 'Try to delete transaction for custid: ' + cast(@UserID AS VARCHAR(10)) + ' betlist: ' 
 							+ cast(@TransIds AS VARCHAR(8000)) + ' - Username: ' + @username + ' - reason: ' + @reason  
@@ -276,7 +276,7 @@ BEGIN
 	-- SB/NG/LC/BT
 	-- Parlay vs Outright ticket 
 	*/
-	INSERT INTO #BetDelete(
+	INSERT INTO #SpecialDeleteBets(
 		GroupTransId	
 		,transid			
 		,matchid		
@@ -380,7 +380,7 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS (SELECT 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
 		UPDATE	b
 		SET homeid 		= m.homeid
@@ -393,14 +393,14 @@ BEGIN
 			,sporttype 	= m.sporttype
 			,ParentID	= CASE WHEN m.sporttype = 50 THEN ISNULL(m.ParentID,0) ELSE 0 END
 			,ChildMatchType = CASE WHEN m.sporttype = 50 THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
-		FROM	#BetDelete b
+		FROM	#SpecialDeleteBets b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
 		WHERE bettype NOT IN (9, 29, 2799)
 	END
 	
 	-- -- UPDATE eventtype = 2 [Outright ticket]
-	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (10)))
+	IF(EXISTS (SELECT 1 FROM #SpecialDeleteBets WHERE bettype IN (10)))
 	BEGIN
 		UPDATE b
 		SET homeid 		= o.teamid
@@ -411,7 +411,7 @@ BEGIN
 			,IsNeutral  = 0
 			,showtime 	= '' 
 			,sporttype	= l.sporttype
-		FROM	#BetDelete b
+		FROM	#SpecialDeleteBets b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
@@ -420,7 +420,7 @@ BEGIN
 	END
 	
 	-- -- UPDATE eventtype = 3 [VS range bettypes]
-	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS (SELECT 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
 		SET homeid 		= o.RacerID
@@ -431,7 +431,7 @@ BEGIN
 			,IsNeutral  = 0
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 			,sporttype 	= r.sporttype
-		FROM	#BetDelete b
+		FROM	#SpecialDeleteBets b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
@@ -442,13 +442,13 @@ BEGIN
 	BEGIN
 		UPDATE d
 		SET sporttype = sb.SportType
-		FROM #BetDelete d
+		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON d.bettype = sb.BetType
 		WHERE sb.ProductID = 37
 	END
 	-- UPDATE Sportype, Endtime for Bitcoin 
-	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype BETWEEN 7901 AND 7999))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype BETWEEN 7901 AND 7999))
 	BEGIN
 		UPDATE d
 		SET  matchcode 	= m.MatchNo
@@ -458,38 +458,38 @@ BEGIN
 			,sporttype 	= m.SportType
 			,eventdate  = m.EventDate
 			,EndTime    = m.EndTime
-		FROM #BetDelete d
+		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.Match3rd m WITH (NOLOCK) 
 			ON d.matchid = m.Match3rdId
 	END
 	
 	-- remove un-supported sports & bettype
 	DELETE bd
-	FROM #BetDelete bd
+	FROM #SpecialDeleteBets bd
 	WHERE bettype NOT IN (9, 29, 2799)
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		) 
 	
-	IF EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE Bettype BETWEEN 1101 AND 1199 AND StatusID BETWEEN 0 AND 1)  
+	IF EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE Bettype BETWEEN 1101 AND 1199 AND StatusID BETWEEN 0 AND 1)  
 	BEGIN  
 		DELETE 
-		FROM	#BetDelete 
+		FROM	#SpecialDeleteBets 
 		WHERE	Bettype BETWEEN 1101 AND 1199 AND StatusID BETWEEN 0 AND 1 -- Not allowed to settle the running Live CS bet   
 	END  
 	
 	/*Modify the way to get move bet date*/
-	IF(EXISTS(SELECT TOP 1 1 FROM #BetDelete WHERE bettype IN (9,29,2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (9,29,2799)))
 	BEGIN
-		UPDATE #BetDelete
+		UPDATE #SpecialDeleteBets
 		SET eventdate = winlostdate
 		WHERE bettype IN (9, 29, 2799)	
 	END
 
 	INSERT INTO @tmpMatch_Eventdate (MatchId, Eventdate)
 	SELECT DISTINCT MatchId, eventdate
-	FROM #BetDelete
+	FROM #SpecialDeleteBets
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
@@ -512,11 +512,11 @@ BEGIN
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
 	SELECT	matchid
-	FROM	#BetDelete
+	FROM	#SpecialDeleteBets
 	GROUP BY matchid
 	
 	--check no data
-	IF NOT EXISTS (SELECT TOP 1 1 FROM #BetDelete)
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets)
 	BEGIN
  		SELECT	@ErrCode = 99, @ErrMsg = 'No ticket found.' 
 		
@@ -525,8 +525,7 @@ BEGIN
 		RETURN
 	END
 	
-	SELECT @winlostdate 				= MIN (winlostdate)
-			,@isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
+	SELECT   @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
 			,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 			,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
@@ -539,7 +538,7 @@ BEGIN
 			,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 			,@isExistMatch3rd			= MAX (CASE WHEN Bettype BETWEEN 7901 AND 7999 THEN 1 ELSE 0 END)
-	FROM	#BetDelete b
+	FROM	#SpecialDeleteBets b
 		OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -565,7 +564,7 @@ BEGIN
 			WHEN Bettype BETWEEN 7901 AND 7999 THEN 8 --Bitcoin
 			ELSE 0
 		END AS KeyID
-	FROM #BetDelete b
+	FROM #SpecialDeleteBets b
 		OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -575,7 +574,7 @@ BEGIN
 	-- Apply new way to lock parlay tickets
 	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
 	SELECT matchid, refno
-	FROM #BetDelete
+	FROM #SpecialDeleteBets
 	WHERE Bettype IN (9,29) --NOT 2799: Virtual Sport
 
 	SET @totalMainParlay = @@ROWCOUNT
@@ -725,7 +724,7 @@ BEGIN
 	FROM dbo.bettrans AS main WITH (NOLOCK)
 		INNER JOIN #tblMatch tm 
 		ON main.matchid = tm.matchid
-		INNER JOIN #BetDelete AS tmpmain 
+		INNER JOIN #SpecialDeleteBets AS tmpmain 
 		ON	main.transid = tmpmain.transid 
 		AND main.matchid = tmpmain.matchid		
 	WHERE main.SiteDBGroupID = @SiteDBGroupID
@@ -746,7 +745,7 @@ BEGIN
 				ELSE 1201
 			END AS groupId
 		FROM dbo.bettrans b WITH(NOLOCK)
-			INNER JOIN #BetDelete tmp 
+			INNER JOIN #SpecialDeleteBets tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE (tmp.Bettype BETWEEN 1101 AND 1199
 			OR b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120
@@ -772,7 +771,7 @@ BEGIN
 		,main.betdaqid
 	FROM dbo.bettrans main WITH (NOLOCK)
 	WHERE main.SiteDBGroupID = @SiteDBGroupID 
-		AND transid IN (SELECT transid FROM #BetDelete)
+		AND transid IN (SELECT transid FROM #SpecialDeleteBets)
 
 	--capture balance before
 	INSERT INTO @BeforeUpd (
@@ -802,7 +801,7 @@ BEGIN
 			 , main.Balance AS winlost, 0 AS actual_stake , 0 AS playercomm --because balance aleady sum into @tmpTrans_beforeUpd
 			 , tmpmain.bettype, tmpmain.matchid,tmpmain.sporttype
 		FROM @tmpTrans_beforeUpd main 
-			INNER JOIN #BetDelete tmpmain
+			INNER JOIN #SpecialDeleteBets tmpmain
 				ON	main.transid = tmpmain.transid
 							
 		UNION ALL
@@ -818,7 +817,7 @@ BEGIN
 		WHERE b.bettype = 500 AND b.SiteDBGroupID = @SiteDBGroupID
 			AND EXISTS (
 				SELECT TOP 1 1 
-				FROM #BetDelete d 
+				FROM #SpecialDeleteBets d 
 				WHERE b.custid = d.custid
 			)
 	) tmp
@@ -857,7 +856,7 @@ BEGIN
 			   ,DELETED.actual_stake
 			   ,tmp.betdaqid
 		INTO @tmpTransIDBatch (TransId, BetId, Actual_stake, betdaqid)
-		FROM #BetDelete t
+		FROM #SpecialDeleteBets t
 			INNER JOIN #tblMatch tm ON t.matchid = tm.matchid
 			INNER JOIN @tmpTrans_beforeUpd tmp ON tmp.transid = t.transid
 		WHERE t.IsFinish IS NULL
@@ -911,10 +910,9 @@ BEGIN
 				, b.actual_stake = t.actual_stake
 				, b.betdaqid = -2
 				, b.IsCashOut = 1
-			FROM #BetDelete b 
+			FROM #SpecialDeleteBets b 
 				INNER JOIN @CashoutTickets_tmp t ON t.transid = b.transid
 			WHERE b.IsCashOut = 0 
-
 
 			DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
 			DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
@@ -966,9 +964,9 @@ BEGIN
 		BEGIN TRY
 			INSERT INTO @TempData(MatchId, CustIds)
 			SELECT MatchId, STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
-									FROM #BetDelete tt where tt.MatchId = t.MatchId
+									FROM #SpecialDeleteBets tt where tt.MatchId = t.MatchId
 									FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
-			FROM #BetDelete t
+			FROM #SpecialDeleteBets t
 			WHERE Bettype = 501
 			GROUP BY MatchId
 
@@ -992,6 +990,7 @@ BEGIN
 		BEGIN CATCH
 			SELECT	@ErrCode = 500, @ErrMsg = 'Called NAP_Admin_Calculate_500 with error.'
 			
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		END CATCH
 	END
 	
@@ -1000,7 +999,7 @@ BEGIN
 	SET CashOutStatus = 6 --Void
 	   ,ChangeDate = GETDATE()
 	FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN #BetDelete b ON c.TransID = b.transid AND c.MatchID = b.matchid
+		INNER JOIN #SpecialDeleteBets b ON c.TransID = b.transid AND c.MatchID = b.matchid
 	WHERE b.betdaqid = -2 
 
 	--Get data after update
@@ -1019,7 +1018,7 @@ BEGIN
 				ELSE 1201
 			END
 		FROM dbo.bettrans b WITH(NOLOCK)
-			INNER JOIN #BetDelete tmp 
+			INNER JOIN #SpecialDeleteBets tmp 
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE (tmp.Bettype BETWEEN 1101 AND 1199
 			OR tmp.bettype BETWEEN 81 AND 120 OR tmp.bettype BETWEEN 8101 AND 8120
@@ -1063,7 +1062,7 @@ BEGIN
 			 , main.WalletType
 			 , main.winlost, main.actual_stake ,main.playercomm, tmpmain.bettype, tmpmain.matchid,tmpmain.sporttype
 		FROM dbo.bettrans main WITH (NOLOCK)
-			INNER JOIN #BetDelete tmpmain
+			INNER JOIN #SpecialDeleteBets tmpmain
 				ON	main.transid = tmpmain.transid
 					AND main.transid = tmpmain.grouptransid
 					AND main.matchid = tmpmain.matchid
@@ -1081,7 +1080,7 @@ BEGIN
 		WHERE b.bettype = 500
 			AND EXISTS (
 				SELECT TOP 1 1 
-				FROM #BetDelete d 
+				FROM #SpecialDeleteBets d 
 				WHERE b.custid = d.custid
 			)
 	) tmp
@@ -1214,7 +1213,7 @@ BEGIN
 
 	INSERT INTO @Match_tmp (MatchId, sporttype, ParentID, ChildMatchType)
 	SELECT DISTINCT t.matchid, t.sporttype, t.ParentID, t.ChildMatchType
-	FROM #BetDelete t
+	FROM #SpecialDeleteBets t
 	WHERE t.Bettype <> 29
 
 	WHILE (1=1)
@@ -1234,7 +1233,7 @@ BEGIN
 						ELSE 1 END AS '@sitetype'
 					,b.TransId AS '@transid'
 					,b.bettype AS '@bettype'
-				FROM #BetDelete b
+				FROM #SpecialDeleteBets b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
 				WHERE b.matchid = @MatchId_MaxPO AND b.sporttype = @sporttype AND b.Bettype NOT IN (29,2799)
@@ -1249,13 +1248,13 @@ BEGIN
 			,@TransidList = @TransIds_MaxPO
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #BetDelete WHERE bettype = 29)
+	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype = 29)
 	BEGIN
 		--Prepare for Max Payout
 		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
 									,t.ruben AS '@ruben'
 									,t.transid AS '@transid'
-								FROM #BetDelete t
+								FROM #SpecialDeleteBets t
 								WHERE t.Bettype = 29
 								GROUP BY custid, ruben, transid
 								FOR XML PATH('r'), ROOT('root')
@@ -1300,7 +1299,7 @@ BEGIN
 	--- BETS: return all additional information for mailing 
 	;WITH CTE_CustIdAll AS (
 		SELECT DISTINCT t.custid
-		FROM #BetDelete b
+		FROM #SpecialDeleteBets b
 		CROSS APPLY (
 			VALUES (custid)
 			,(creator)
@@ -1404,7 +1403,7 @@ BEGIN
 		END AS IsInstantSettlementTicket
 		,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 		,b.EndTime --Support bitcoin
-	FROM	#BetDelete b
+	FROM	#SpecialDeleteBets b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
 		LEFT JOIN #CTE_CustInfo ci WITH(NOLOCK) ON b.custid = ci.custid
@@ -1439,7 +1438,7 @@ BEGIN
 	DROP TABLE #balanceGameBefore
 	DROP TABLE #balanceGameAfter
 	DROP TABLE #tblTransIds
-	DROP TABLE #BetDelete
+	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #tblMatch
 	DROP TABLE #tblMatchParlayProcess
 	DROP TABLE #CTE_CustInfo

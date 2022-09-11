@@ -101,7 +101,7 @@ BEGIN
 		,Odds					MONEY		
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY
-		,betfrom				NVARCHAR(1)		
+		,betfrom				NVARCHAR(3)		
 		,betcheck				NVARCHAR(50)
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY

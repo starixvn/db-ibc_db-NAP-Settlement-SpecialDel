@@ -81,16 +81,15 @@ BEGIN
 	
 	IF(@CustID IS NULL AND @TransIds IS NULL) RETURN
 	
-	DECLARE @movebetdate SMALLDATETIME,
-			@maxdate 	DATETIME = '9999-01-01',
-			@IsSB BIT = 0,
-			@IsParlay BIT = 0,
-			@IsBB BIT = 0,
-			@IsOutright BIT = 0,
-			@IsSaba BIT = 0,
-			@IsNonSport BIT = 0,
-			@MovebetDay DATETIME,
-			@SiteDBGroupID SMALLINT = 0
+	DECLARE @movebetdate	DATETIME,
+			@maxdate 		DATETIME = '9999-01-01',
+			@IsSB			BIT = 0,
+			@IsParlay		BIT = 0,
+			@IsBB			BIT = 0,
+			@IsOutright		BIT = 0,
+			@IsSaba			BIT = 0,
+			@IsNonSport		BIT = 0,
+			@SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE  @InvalidTransIds   VARCHAR(MAX) = ''
@@ -101,7 +100,7 @@ BEGIN
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 
 	--Get Movebetdate
-	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @movebetdate OUTPUT
 	
 	SELECT @FromDate	= ISNULL(@FromDate, @movebetdate)
 		, @FromDate 	= CASE WHEN @FromDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromDate END
@@ -125,7 +124,7 @@ BEGIN
               awayid                INT,
               hdp1                  SMALLMONEY,
               hdp2                  SMALLMONEY,
-              odds                  MONEY,
+              odds                  SMALLMONEY,
               oddsspread            MONEY DEFAULT 0,
               finalodds             MONEY,
               finalodds2            MONEY,
@@ -137,14 +136,14 @@ BEGIN
               betteam               NVARCHAR(10),
               betcheck              NVARCHAR(50),
               liveindicator         BIT,
-              modds                 MONEY,
+              modds                 SMALLMONEY,
               custid                INT,
               username              VARCHAR(30),
-              livehomescore         INT,
-              liveawayscore         INT,
+              livehomescore         SMALLINT,
+              liveawayscore         SMALLINT,
               leagueid              INT,
               sporttype             SMALLINT,
-              betfrom               NVARCHAR(1),
+              betfrom               NVARCHAR(3),
               matchid               INT,
               isNeutral             BIT,
               winlost               MONEY,
@@ -452,15 +451,13 @@ BEGIN
 		)	
 
 	/*Modify the way to get move bet date*/
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDay OUTPUT
-
-	IF @TransIds IS NOT NULL AND EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE eventdate <= @MovebetDay)
+	IF @TransIds IS NOT NULL AND EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE eventdate <= @movebetdate)
 	BEGIN
 		DELETE 
 		FROM #SpecialDeleteBets
 			OUTPUT	DELETED.TransId
 			INTO @tmpTransIdMoveBet (TransId)
-		WHERE eventdate <= @MovebetDay
+		WHERE eventdate <= @movebetdate
 	END
 		
 	------------------------------------------------------------------------------	--1. Table invald/moved transid	
