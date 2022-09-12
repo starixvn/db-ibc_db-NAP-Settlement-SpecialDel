@@ -4,7 +4,6 @@ ALTER PROCEDURE dbo.Nap_SpecialDelete_UnMarkedTickets_Update
 	@TransIds        VARCHAR(MAX)  = NULL,
     @UserId          INT           = 0,
     @IP              VARCHAR(15)   = NULL,
-    @MarkType		 TINYINT	   = 0,
 	@LogActionId	 INT		   = 90500,
 	@IssueTypeId     INT           = NULL
 )
@@ -52,7 +51,6 @@ BEGIN
 				+ CASE WHEN @UserID IS NULL THEN '' ELSE '@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
 				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
-				+ CASE WHEN @MarkType IS NULL THEN '' ELSE ',@MarkType = ' + CONVERT(NVARCHAR(50), @MarkType) END 
 				+ CASE WHEN @LogActionId IS NULL THEN '' ELSE ',@LogActionId = ' + CONVERT(NVARCHAR(50), @LogActionId) END
 				+ CASE WHEN @IssueTypeId IS NULL THEN '' ELSE ',@IssueTypeId = ' + CONVERT(NVARCHAR(50), @IssueTypeId) END
 
@@ -69,6 +67,7 @@ BEGIN
 		   ,@totalParlay	INT = 0
            ,@ErrMsg			NVARCHAR(200) = ''
            ,@ErrCode        INT = 0 
+		   ,@MarkType		TINYINT	= 0 --default 0 (function mark)
 		   ,@SiteDBGroupID	SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -78,6 +77,10 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> '';
 
+	IF @IssueTypeId IS NOT NULL --TVS
+	BEGIN
+		SET @MarkType = 1
+	END
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	CREATE TABLE #Match(matchid INT);
