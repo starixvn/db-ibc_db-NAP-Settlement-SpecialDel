@@ -83,7 +83,7 @@ BEGIN
 				)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'MoveEvent', 'bettrans', @MatchId, @transInfo)	
+				VALUES ('Settlement', 'MoveTicket', 'bettrans', @MatchId, @transInfo)	
 				
 			END
 
@@ -118,7 +118,7 @@ BEGIN
 						)
 
 						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveEvent', 'zzzbettrans', @MatchId, @transInfo)	
+						VALUES ('Settlement', 'MoveTicket', 'zzzbettrans', @MatchId, @transInfo)	
 					
 					END
 				END
@@ -161,7 +161,7 @@ BEGIN
 				)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'MoveEvent', 'bettransm', @MatchId, @transInfo)	
+				VALUES ('Settlement', 'MoveTicket', 'bettransm', @MatchId, @transInfo)	
 						
 			END
 
@@ -193,7 +193,7 @@ BEGIN
 					)
 
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-					VALUES ('Settlement', 'MoveEvent', 'BetParlayDetail', @MatchId, @transInfo)	
+					VALUES ('Settlement', 'MoveTicket', 'BetParlayDetail', @MatchId, @transInfo)	
 						
 				END
 			END
@@ -228,7 +228,7 @@ BEGIN
 						)
 
 						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveEvent', 'zzzbettrans', @MatchId, @transInfo)	
+						VALUES ('Settlement', 'MoveTicket', 'zzzbettrans', @MatchId, @transInfo)	
 						
 					END
 				END
@@ -261,12 +261,27 @@ BEGIN
 						)
 
 						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveEvent', 'zzzbettransm', @MatchId, @transInfo)	
+						VALUES ('Settlement', 'MoveTicket', 'zzzbettransm', @MatchId, @transInfo)	
 							
 					END
 				END
 
-				IF OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
+				--sitedb not exists table TicketVoiding_VoidedTransaction'
+				IF @IsSiteDB = 1
+					BEGIN
+						SET @transInfo = (
+							SELECT	MainTransId AS '@t'
+									,@MatchId AS '@mid'							
+							FROM	@tmpTrans
+							WHERE	StatusId = 102
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						VALUES ('Settlement', 'MoveTicket', 'TicketVoiding_VoidedTransaction', @MatchId, @transInfo)		
+								
+					END
+
+				IF @IsSiteDB = 0 AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
 				BEGIN
 					DELETE @tmpTransInfo
 
@@ -280,23 +295,9 @@ BEGIN
 						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
-							ON	t.MainTransId = vt.transId
-					WHERE	t.StatusId = 102
-
-					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
-					BEGIN
-						SET @transInfo = (
-							SELECT	transId AS '@t'
-									,matchid AS '@mid'
-								
-							FROM	@tmpTransInfo
-							FOR XML PATH('r'),ROOT('root'), TYPE
-						)
-						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveEvent', 'TicketVoiding_VoidedTransaction', @MatchId, @transInfo)		
-								
-					END
+							ON	t.MainTransId = vt.transId			
 				END
+
 			END
 		END
 	END
