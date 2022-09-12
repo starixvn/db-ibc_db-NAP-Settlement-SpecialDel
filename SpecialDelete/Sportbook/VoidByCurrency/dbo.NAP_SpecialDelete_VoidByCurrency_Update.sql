@@ -164,6 +164,7 @@ BEGIN
 		SELECT @ErrorCode AS ErrorCode
 			,@ErrorMsg AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
 
 		RETURN	
 	END	
@@ -350,6 +351,7 @@ BEGIN
 		SELECT @ErrorCode AS ErrorCode
 			,@ErrorMsg AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
         
         RETURN
     END
@@ -362,6 +364,7 @@ BEGIN
 		SELECT @ErrorCode AS ErrorCode
 			,@ErrorMsg AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
 		
 		RETURN
 	END
@@ -673,6 +676,7 @@ BEGIN
 			SELECT @ErrorCode AS ErrorCode
 			,@ErrorMsg AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
 
 			RETURN
 		END
@@ -741,6 +745,7 @@ BEGIN
 						SELECT @ErrorCode AS ErrorCode
 							,@ErrorMsg AS ErrorMsg
 							,@NegativeBalanceUsers AS NegativeBalanceUsers
+							,@SiteDBGroupID AS SiteDBGroupID
 
 						RETURN		
 					END	 
@@ -771,6 +776,7 @@ BEGIN
 						SELECT @ErrorCode AS ErrorCode
 							,@ErrorMsg AS ErrorMsg
 							,@NegativeBalanceUsers AS NegativeBalanceUsers
+							,@SiteDBGroupID AS SiteDBGroupID
 										
 						RETURN		
 					END
@@ -797,6 +803,7 @@ BEGIN
 					SELECT @ErrorCode AS ErrorCode
 						,@ErrorMsg AS ErrorMsg
 						,@NegativeBalanceUsers AS NegativeBalanceUsers
+						,@SiteDBGroupID AS SiteDBGroupID
 
 					RETURN
 				END
@@ -860,6 +867,7 @@ BEGIN
 				SELECT @ErrorCode AS ErrorCode
 						,@ErrorMsg AS ErrorMsg
 						,@NegativeBalanceUsers AS NegativeBalanceUsers
+						,@SiteDBGroupID AS SiteDBGroupID
 
 				RETURN;
 			END
@@ -1331,6 +1339,7 @@ BEGIN
 		SELECT @ErrorCode AS ErrorCode
 				,@ErrorMsg AS ErrorMsg
 				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@SiteDBGroupID AS SiteDBGroupID
 		
 		SELECT  s.Stake,				
 				s.BetCheck,
@@ -1472,6 +1481,7 @@ BEGIN
 		SELECT @ErrorCode AS ErrorCode
 			,@ErrorMsg AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
 
 		RETURN				
 	END CATCH		

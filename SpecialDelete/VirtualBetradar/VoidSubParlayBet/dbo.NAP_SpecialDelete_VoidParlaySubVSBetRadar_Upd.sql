@@ -12,11 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd]
     @UserID					INT,
     @IP						VARCHAR(15),
     @Reason					NVARCHAR(500)	= '',
-	@ReasonSC				NVARCHAR(500)	= '',
-    
-    @NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT,
-    @ErrMsg					NVARCHAR(200)	= ''	OUTPUT,
-    @ErrCode				INT				= 0		OUTPUT
+	@ReasonSC				NVARCHAR(500)	= ''
 AS
 /*  
 	Created by: Kent  
@@ -28,6 +24,7 @@ AS
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]	
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]
 		- 20181207@Alan: Support Chinese Email [105976]	
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 		- @SearchBy:		
@@ -42,6 +39,7 @@ BEGIN
 	SET NOCOUNT ON	
 	
 	IF @SearchBy = 'MatchId'
+	BEGIN
 		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Upd]
 			@MatchId = @MatchId,
 			@TransIds = @TransIds,
@@ -50,11 +48,10 @@ BEGIN
 			@UserID	= @UserID,
 			@IP	= @IP,
 			@Reason	= @Reason,
-			@ReasonSC = @ReasonSC,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
-			@ErrMsg	= @ErrMsg OUTPUT,
-			@ErrCode = @ErrCode OUTPUT
+			@ReasonSC = @ReasonSC
+	END
 	ELSE IF @SearchBy = 'SubTransIds'
+	BEGIN
 		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd]
 			@SubTransIds = @SubTransIds,
 			@UserName = @UserName,
@@ -62,10 +59,8 @@ BEGIN
 			@UserID	= @UserID,
 			@IP	= @IP,
 			@Reason	= @Reason,
-			@ReasonSC = @ReasonSC,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
-			@ErrMsg	= @ErrMsg OUTPUT,
-			@ErrCode = @ErrCode OUTPUT
+			@ReasonSC = @ReasonSC
+	END
 						
 	SET NOCOUNT OFF
 END

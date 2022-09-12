@@ -372,6 +372,7 @@ BEGIN
 		SELECT 99 AS ErrorCode
 		     , 'Match is under Movebet process, could not void ticket.' AS ErrorMsg
 			 , @NegativeBalanceUsers AS NegativeBalanceUsers
+			 ,@SiteDBGroupID AS SiteDBGroupID
 
 		RETURN	
 	END	
@@ -408,6 +409,7 @@ BEGIN
 		SELECT	101 AS ErrorCode
 				, 'Invalid TransIds.' AS ErrorMsg	
 				, @NegativeBalanceUsers AS NegativeBalanceUsers
+				,@SiteDBGroupID AS SiteDBGroupID
 		
 		RETURN
 	END CATCH	
@@ -569,6 +571,7 @@ BEGIN
 				SELECT @ErrCode AS ErrorCode
 					, @ErrMsg AS ErrorMsg
 					, @NegativeBalanceUsers AS NegativeBalanceUsers
+					,@SiteDBGroupID AS SiteDBGroupID
 
 				RETURN		
 			END	
@@ -597,6 +600,7 @@ BEGIN
 				SELECT @ErrCode AS ErrorCode
 					, @ErrMsg AS ErrorMsg
 					, @NegativeBalanceUsers AS NegativeBalanceUsers
+					,@SiteDBGroupID AS SiteDBGroupID
 
 				RETURN;	
 			END	
@@ -620,6 +624,7 @@ BEGIN
 			SELECT @ErrCode AS ErrorCode
 					, @ErrMsg AS ErrorMsg
 					, @NegativeBalanceUsers AS NegativeBalanceUsers
+					,@SiteDBGroupID AS SiteDBGroupID
 
 			RETURN		
 		END	
@@ -1397,6 +1402,7 @@ BEGIN
 					SELECT 100 AS ErrorCode
 						, ERROR_MESSAGE()  AS ErrorMsg
 						, @NegativeBalanceUsers AS NegativeBalanceUsers
+						,@SiteDBGroupID AS SiteDBGroupID
 
 				END CATCH  
 
@@ -1572,6 +1578,7 @@ BEGIN
 		SELECT @ErrCode AS ErrorCode
 			,@ErrMsg AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
 		
 		;WITH CTE_CustIdAll AS (
 			SELECT DISTINCT t.custid

@@ -138,8 +138,8 @@ BEGIN
 
    );
 				
-	DECLARE @t_LicenseeNames TABLE(LicenseeName VARCHAR(100), GroupName VARCHAR(10))	
-	DECLARE @t_UIRepresentativeLicenseeGroupNames TABLE (GroupName VARCHAR(10))	
+	DECLARE @t_LicenseeNames TABLE(LicenseeName VARCHAR(100), GroupName VARCHAR(100))	
+	DECLARE @t_UIRepresentativeLicenseeGroupNames TABLE (GroupName VARCHAR(100))	
 	
 	DECLARE @t_exchanges TABLE(exchangeid INT, currency NVARCHAR(50))
 	
