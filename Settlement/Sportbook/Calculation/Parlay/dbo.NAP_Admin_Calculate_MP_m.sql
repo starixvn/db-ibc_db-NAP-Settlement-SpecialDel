@@ -2154,7 +2154,7 @@ BEGIN
 							,winlost AS '@w'
 							,Status AS '@s' 
 							,creator AS '@cr'
-							,102 AS '@sid' 
+							,statusId AS '@sid' 
 							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
 							,1 AS '@r' -- ruben
 					FROM	@tmpOutputBettransmVoidRecover
