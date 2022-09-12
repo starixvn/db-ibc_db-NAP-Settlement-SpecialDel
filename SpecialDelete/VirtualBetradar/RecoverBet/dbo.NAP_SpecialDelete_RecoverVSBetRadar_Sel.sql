@@ -3,9 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverVSBetRadar_Sel]
 	@TicketType			VARCHAR(100),
 	@Type				VARCHAR(100)	= NULL,
 	@MatchId			INT				= 0,		
-	@TransIds			VARCHAR(MAX)	= '',
-	@InvalidTransIds	VARCHAR(MAX)  = '' OUTPUT,
-	@MovedTransIds		VARCHAR(MAX)  = '' OUTPUT
+	@TransIds			VARCHAR(MAX)	= ''
 AS
 /*  
 	Created by: Kent  
@@ -19,7 +17,8 @@ AS
 		- 20180406@Helen: add filter by bettype for sport 181->185 to avoid the same value in table VSOutright (orid) and bettrans (oddsid) [Redmind:93183]
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-				
+		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		
 	Param's Explanation:			
 		- @TicketType:		
 		'Single': Single ticket
@@ -32,9 +31,13 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 	
-	DECLARE @before_yesterday DATETIME
-		   ,@Movebetdate	  DATETIME
-	
+	DECLARE @before_yesterday	DATETIME
+		   ,@Movebetdate		DATETIME
+		   ,@InvalidTransIds	VARCHAR(MAX)  = ''
+		   ,@MovedTransIds		VARCHAR(MAX)  = '' 
+		   ,@SiteDBGroupID		SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 	CREATE TABLE #RecoverBet
 	(
 		Stake			MONEY,
@@ -50,7 +53,7 @@ BEGIN
 		IsLiveIndicator BIT,
 		LiveAwayScore	SMALLINT,
 		LiveHomeScore	SMALLINT,
-		Odds			MONEY,
+		Odds			SMALLMONEY,
 		OddsType		INT,
 		RefNo			BIGINT,
 		SportType		SMALLINT,
@@ -76,7 +79,7 @@ BEGIN
 		SubBetType		SMALLINT,
 		SubHdp1			SMALLMONEY,
 		SubHdp2			SMALLMONEY,
-		SubOdds			MONEY,
+		SubOdds			SMALLMONEY,
 		SubTransdesc	NVARCHAR(2000)		
 	)
 	
@@ -91,8 +94,6 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',') t								
 	
 	SELECT @before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)
-	
-	SELECT @InvalidTransIds = '', @MovedTransIds = ''
 	
 	--> search by @TransIds
 	IF @TicketType = 'Single'	   	
@@ -196,7 +197,8 @@ BEGIN
 				OR m.sporttype IN (180, 186) -- Inspired VS 
 			  )
 		  AND z.bettype NOT IN (2799)		  		
-		  
+		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
+
 		--> Inspired VS 181
 		INSERT INTO #RecoverBet(
 				Stake,
@@ -295,7 +297,8 @@ BEGIN
 		  AND z.winlostdate >= @before_yesterday
 		  AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181		  				  			  				
 		  AND b.bettype IN (1231,1232,1233,1237,1238)		
-		  
+		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
+
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
 		BEGIN
 			DELETE 
@@ -311,7 +314,7 @@ BEGIN
 					,CASE 
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
-									 WHERE b14.transid = t.transid) 
+									 WHERE b14.transid = t.transid AND b14.SiteDBGroupID = @SiteDBGroupID) 
 								THEN 1 
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM @tmpTransIdMoveBet m
@@ -326,14 +329,14 @@ BEGIN
 								  CASE
 									  WHEN isMoved = 0
 											THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
+												 CAST(transid AS VARCHAR(50))
 									  ELSE ''
 								  END								  
 			 , @MovedTransIds = @MovedTransIds +
 								CASE
 									WHEN isMoved = 1
 											THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
+												 CAST(transid AS VARCHAR(50))
 									ELSE ''
 								END
 		FROM t_invalid
@@ -430,7 +433,8 @@ BEGIN
 		  AND z.winlostdate >= @before_yesterday
 		  AND z.matchid = 2799
 		  AND z.bettype = 2799		  
-		
+		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
+
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
 		BEGIN
 			DELETE 
@@ -447,7 +451,7 @@ BEGIN
 					,CASE 
 						WHEN EXISTS (SELECT TOP 1 1 
 									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
-									 WHERE b14.transid = t.transid
+									 WHERE b14.transid = t.transid AND b14.SiteDBGroupID = @SiteDBGroupID
 									 UNION ALL
 									 SELECT TOP 1 1 
 									 FROM @tmpTransIdMoveBet m
@@ -462,14 +466,14 @@ BEGIN
 								  CASE
 									  WHEN isMoved = 0
 											THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
+												 CAST(transid AS VARCHAR(50))
 									  ELSE ''
 								  END								  
 			 , @MovedTransIds = @MovedTransIds +
 								CASE
 									WHEN isMoved = 1
 											THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
+												 CAST(transid AS VARCHAR(50))
 									ELSE ''
 								END
 		FROM t_invalid
@@ -573,7 +577,8 @@ BEGIN
 		  AND b.matchid = 2799
 		  AND bm.statusid = 102
 		  AND b.statusID NOT IN (101, 102) -- reject, void		  		  		
-		 
+		  AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = b.SiteDBGroupID
+
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
 		BEGIN
 			DELETE 
@@ -612,14 +617,14 @@ BEGIN
 			FROM #tblTransIds t
 				 LEFT JOIN bettrans b WITH(NOLOCK)
 						ON t.transid = b.transid
-						   AND b.bettype = 29
+						   AND b.bettype = 29 AND b.SiteDBGroupID = @SiteDBGroupID
 				 LEFT JOIN bettransm bm WITH (NOLOCK)
-						ON b.refno = bm.refno
+						ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID
 						   AND bm.matchid = @MatchId
 				 LEFT JOIN bettrans14 b14 WITH(NOLOCK)
-						ON t.transid = b14.transid
+						ON t.transid = b14.transid AND b14.SiteDBGroupID = @SiteDBGroupID
 				 LEFT JOIN bettransm14 bm14 WITH(NOLOCK)
-						ON ISNULL(b.refno, b14.refno) = bm14.refno
+						ON ISNULL(b.refno, b14.refno) = bm14.refno AND bm14.SiteDBGroupID = @SiteDBGroupID
 						   AND bm14.matchid = @MatchId	
 				 LEFT JOIN @tmpTransIdMoveBet m
 						ON t.transid = m.transid
@@ -629,20 +634,25 @@ BEGIN
 								  CASE
 									  WHEN isMoved = 0
 											THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
+												 CAST(transid AS VARCHAR(50))
 									  ELSE ''
 								  END								  
 			 , @MovedTransIds = @MovedTransIds +
 								CASE
 									WHEN isMoved = 1
 											THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
+												 CAST(transid AS VARCHAR(50))
 									ELSE ''
 								END
 		FROM t_invalid
 	END		
 	
-	--> return data to web		
+	------------------------------------------------------------------------------
+	--1. Table invald/moved transid
+	SELECT @InvalidTransIds AS InvalidTransIds
+		  ,@MovedTransIds AS MovedTransIds
+
+	--2. Table get tickets
 	SELECT  r.Stake,
 			r.AwayId,
 			r.BetCheck,
@@ -671,7 +681,6 @@ BEGIN
 			r.LeagueId,
 			r.matchcode,
 			r.modds,
-
 			r.SubStatus,
 			r.SubTransId,
 			r.SubBetCheck,

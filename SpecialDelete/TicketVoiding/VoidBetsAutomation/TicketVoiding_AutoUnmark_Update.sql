@@ -56,10 +56,17 @@ BEGIN
 	
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
+	CREATE TABLE #ValidRequestTransId (TransId BIGINT)
 	INSERT INTO #inputRequestTransId (TransId)
 	SELECT value
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> ''
+
+	INSERT INTO #ValidRequestTransId (TransId)	
+	SELECT t.TransId
+	FROM #inputRequestTransId t
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
+	WHERE b.bettype = @Bettype AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- get list transid to unmark
 	INSERT INTO #tmpTransid_unmark (
@@ -76,7 +83,7 @@ BEGIN
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
-		AND mt.TransId NOT IN (SELECT transid FROM #inputRequestTransId)
+		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
 		AND b.statusID IN (0, 1)
 		AND (
 			@Betid IS NULL
@@ -191,5 +198,6 @@ BEGIN
 		END
 
 	DROP TABLE #inputRequestTransId
+	DROP TABLE #ValidRequestTransId
 	DROP TABLE #tmpTransid_unmark
 END

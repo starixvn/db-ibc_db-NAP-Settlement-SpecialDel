@@ -20,7 +20,6 @@ AS
 		- @LogActionId:
 			+ 90500: SD - Action Mark 
 			+ 90508: TVS - Mark by add request & Add mark when edit request
-			+ 90509: Mark by auto void system
 			+ 90501: SD - Action Unmark
 		    + 90511: TVS - Unmark by edit request
 			+ 90510: Unmark by autovoid System 

@@ -96,11 +96,11 @@ BEGIN
 		,username		VARCHAR(30)
 		,username2		VARCHAR(50)
 		,transdate		DATETIME
-		,odds			MONEY
+		,odds			SMALLMONEY
 		,oddsspread 	MONEY
 		,oddstype		TINYINT
 		,bettype		SMALLINT
-		,winlost		money
+		,winlost		MONEY
 		,betteam		NVARCHAR(10)
 		,betcheck		NVARCHAR(50)
 		,hdp1			SMALLMONEY
@@ -139,7 +139,7 @@ BEGIN
 		,ParentID		INT
 		,ChildMatchType TINYINT
 		,zzzwinlost		MONEY
-		,modds			MONEY
+		,modds			SMALLMONEY
 		,ActualStake	MONEY
 	)
 
@@ -368,14 +368,14 @@ BEGIN
 		BEGIN
 			SELECT @ErrCode = 102, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
-			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @SiteDBGroupID AS SiteDBGroupID
 			RETURN	
 		END			
 	END TRY
 	BEGIN CATCH
 		SELECT @ErrCode = 100, @ErrMsg = 'Invalid TransIds'						
 			
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @SiteDBGroupID AS SiteDBGroupID
 		RETURN
 	END CATCH
 
@@ -383,8 +383,7 @@ BEGIN
 	BEGIN
 		SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'				
 		
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
-		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @SiteDBGroupID AS SiteDBGroupID 
 		RETURN
 	END
 
@@ -427,7 +426,7 @@ BEGIN
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN		
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @SiteDBGroupID AS SiteDBGroupID
 		RETURN
 	END
 	
@@ -796,14 +795,10 @@ BEGIN
 				 INNER JOIN bettrans b (NOLOCK) ON t.TransId = b.transid
 			WHERE b.statusID IN (111, 112, 113, 103) AND b.SiteDBGroupID = @SiteDBGroupID
 
-			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @AutoReSettledTransIds AS AutoReSettledTransIds
-
 			DROP TABLE #BetBuilderTransId;
 		END TRY 
 		BEGIN CATCH
-			SELECT @ErrCode = 38, @ErrMsg = 'Called NAP_Admin_Settlement_BetBuilder_Recover with error.'
-			
-			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg  
+			SELECT @ErrCode = 38, @ErrMsg = 'Called NAP_Admin_Settlement_BetBuilder_Recover with error.'		
 
 		END CATCH
 	END
@@ -973,6 +968,7 @@ BEGIN
 	SELECT @ErrCode AS ErrorCode
 	     , @ErrMsg AS ErrorMsg
 	     , @AutoReSettledTransIds AS AutoReSettledTransIds
+		 , @SiteDBGroupID AS SiteDBGroupID
 
 	--2. Table get tickets
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
