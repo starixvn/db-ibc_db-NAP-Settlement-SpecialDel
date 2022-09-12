@@ -257,7 +257,8 @@ BEGIN
 		SELECT @ErrCode = 101, @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
 		
 		SELECT @ErrCode AS ErrorCode
-			  ,@ErrMsg AS ErrorMsg
+		      ,@ErrMsg AS ErrorMsg
+		      ,@SiteDBGroupID AS SiteDBGroupID
 
 		SELECT @LogData = 'Try to delete transaction for custid: ' + cast(@UserID AS VARCHAR(10)) + ' betlist: ' 
 							+ cast(@TransIds AS VARCHAR(8000)) + ' - Username: ' + @username + ' - reason: ' + @reason  
@@ -504,7 +505,9 @@ BEGIN
 			SELECT @ErrCode = 102, @ErrMsg = 'Could not void some tickets due to Movebet process. Please try a new Date range and Search again.'
 		END
 
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+		SELECT @ErrCode AS ErrorCode
+		      ,@ErrMsg AS ErrorMsg
+		      ,@SiteDBGroupID AS SiteDBGroupID
 
 		RETURN	
 	END
@@ -520,7 +523,9 @@ BEGIN
 	BEGIN
  		SELECT	@ErrCode = 99, @ErrMsg = 'No ticket found.' 
 		
-		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+		SELECT @ErrCode AS ErrorCode
+		      ,@ErrMsg AS ErrorMsg
+		      ,@SiteDBGroupID AS SiteDBGroupID
 
 		RETURN
 	END
@@ -606,7 +611,9 @@ BEGIN
 
 			IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 			BEGIN	
-				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+				SELECT @ErrCode AS ErrorCode
+		              ,@ErrMsg AS ErrorMsg
+		              ,@SiteDBGroupID AS SiteDBGroupID
 
 				RETURN
 			END
@@ -638,7 +645,9 @@ BEGIN
 					, @isExistMatch3rd			= @isExistMatch3rd
 					, @IsReleased				= 1
 					
-				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+				SELECT @ErrCode AS ErrorCode
+		              ,@ErrMsg AS ErrorMsg
+		              ,@SiteDBGroupID AS SiteDBGroupID
 				RETURN
 			END
 		END		
@@ -664,7 +673,10 @@ BEGIN
 
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		BEGIN
-			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+			SELECT @ErrCode AS ErrorCode
+				  ,@ErrMsg AS ErrorMsg
+				  ,@SiteDBGroupID AS SiteDBGroupID
+
 			RETURN
 		END
 	END 
@@ -989,8 +1001,6 @@ BEGIN
 		END TRY 
 		BEGIN CATCH
 			SELECT	@ErrCode = 500, @ErrMsg = 'Called NAP_Admin_Calculate_500 with error.'
-			
-			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		END CATCH
 	END
 	
@@ -1320,6 +1330,7 @@ BEGIN
 	--1. Table return error code/ msg
 	SELECT @ErrCode AS ErrorCode
 		  ,@ErrMsg AS ErrorMsg
+		  ,@SiteDBGroupID AS SiteDBGroupID
 
 	--2. Table get tickets
 	SELECT	

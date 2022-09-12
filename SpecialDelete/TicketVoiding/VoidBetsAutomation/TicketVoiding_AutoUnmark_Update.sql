@@ -107,7 +107,7 @@ BEGIN
 	
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN
-		SELECT	@ErrCode = 100
+		SELECT	@ErrCode = 111
 				,@ErrMsg = 'The confirmation is updated successfully. But there is no ticket affected by this action as the remaining marked tickets have to wait for the event result.'
 		
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
