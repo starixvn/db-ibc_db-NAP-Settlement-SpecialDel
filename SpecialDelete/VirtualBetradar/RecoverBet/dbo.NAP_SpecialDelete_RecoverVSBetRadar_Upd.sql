@@ -7,13 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverVSBetRadar_Upd]
 	@TransIds					VARCHAR(MAX)	= '',
 		
     @UserID						INT,
-    @IP							VARCHAR(15),    
-        
-    @CompletedMatchIds			VARCHAR(MAX)	= '' OUTPUT, 
-    @ReCalculatedMainTransIds   VARCHAR(MAX)	= '' OUTPUT,
-    @NegativeBalanceUsers		VARCHAR(MAX)	= '' OUTPUT,
-    @ErrMsg						NVARCHAR(200)	= '' OUTPUT,
-    @ErrCode					INT				= 0	 OUTPUT
+    @IP							VARCHAR(15)
 AS
 /*  
 	Created by: Kent  
@@ -24,6 +18,7 @@ AS
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]		
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]	
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -44,22 +39,14 @@ BEGIN
 		EXEC [dbo].[NAP_SpecialDelete_RecoverSingleVSBetRadar_Upd]			
 			@TransIds = @TransIds,
 			@UserID = @UserID,
-			@IP= @IP,
-			@CompletedMatchIds = @CompletedMatchIds OUTPUT,     
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
-			@ErrMsg = @ErrMsg OUTPUT,
-			@ErrCode = @ErrCode OUTPUT
+			@IP= @IP
 	END
 	ELSE IF @TicketType = 'Mix Parlay' AND @Type = 'Main'
 	BEGIN
 		EXEC [dbo].[NAP_SpecialDelete_RecoverMainParlayVSBetRadar_Upd] 
 			@TransIds = @TransIds,				
 			@UserID = @UserID,
-			@IP = @IP,    		            
-			@ReCalculatedMainTransIds = @ReCalculatedMainTransIds OUTPUT,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
-			@ErrMsg = @ErrMsg OUTPUT,
-			@ErrCode = @ErrCode OUTPUT
+			@IP = @IP
 	END
 	ELSE IF @TicketType = 'Mix Parlay' AND @Type = 'Sub'			
 	BEGIN
@@ -67,11 +54,7 @@ BEGIN
 			@MatchId = @MatchId,		
 			@TransIds = @TransIds,				
 			@UserID = @UserID,
-			@IP = @IP,    		            
-			@ReCalculatedMainTransIds = @ReCalculatedMainTransIds OUTPUT,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT,
-			@ErrMsg	= @ErrMsg OUTPUT,
-			@ErrCode = @ErrCode OUTPUT
+			@IP = @IP
 	END
 	
 	SET NOCOUNT OFF		

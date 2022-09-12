@@ -3,11 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd]
 	@MatchId					INT,		
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
-    @IP							VARCHAR(15),    
-    @ReCalculatedMainTransIds   VARCHAR(MAX)	= '' OUTPUT,
-    @NegativeBalanceUsers		VARCHAR(MAX)	= '' OUTPUT,
-    @ErrMsg						NVARCHAR(200)	= '' OUTPUT,
-    @ErrCode					INT				= 0	 OUTPUT
+    @IP							VARCHAR(15)
 AS
 /*  
 	Created by: Kent  
@@ -21,6 +17,7 @@ AS
 		- 20180808@Helen: DB05.DBPOLICY migration - Move to DBCUST [Redmine:99462]
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 				
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -48,6 +45,15 @@ BEGIN
 		  , @eventstatus				NVARCHAR(100)
 		  , @betstatus					NVARCHAR(100)
 		  , @TicketInfos_Recal 			VARCHAR(MAX) = ''
+		  , @ReCalculatedMainTransIds   VARCHAR(MAX)	= ''
+		  , @NegativeBalanceUsers		VARCHAR(MAX)	= '' 
+		  , @ErrMsg						NVARCHAR(200)	= ''
+		  , @ErrCode					INT				= 0	
+		  , @SiteDBGroupID		SMALLINT
+		  , @transInfo XML 
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  
 	
@@ -95,7 +101,7 @@ BEGIN
 		SubOdds				MONEY,
 		SubCustId			INT,
 		SubTransdesc		NVARCHAR(2000),			
-		BetFrom				NVARCHAR(1),
+		BetFrom				NVARCHAR(3),
 		matchid				INT						
 	)
 	
@@ -128,6 +134,11 @@ BEGIN
 			SELECT @ErrCode = 102
 				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
+
 			RETURN	
 		END
 
@@ -139,6 +150,11 @@ BEGIN
 		IF @@ROWCOUNT = 0
 		BEGIN
 			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
+
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 
 			RETURN
 		END	 
@@ -244,10 +260,16 @@ BEGIN
 			AND b.matchid = 2799
 			AND bm.statusid = 102
 			AND b.statusID NOT IN (101, 102) -- reject, void
+			AND b.SiteDBGroupID = @SiteDBGroupID
 				
 		IF @@ROWCOUNT = 0
 		BEGIN
 			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
+
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 
 			RETURN
 		END
@@ -263,7 +285,14 @@ BEGIN
 			, @ErrMsg					= @ErrMsg OUTPUT
 
 		IF @ErrCode <> 0 OR @avaiableProcess = 0
+		BEGIN
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
+
 			RETURN
+		END
 		
 		--> Capture balance before update	
 		INSERT INTO @beforeUpd(custid, balance, balanceType)
@@ -369,12 +398,26 @@ BEGIN
 
 		--> Delete zzzbettransm
 		DELETE z
+			OUTPUT deleted.transid, deleted.matchid
+			INTO @tmpTransInfo (transid, matchid)
 		FROM zzzbettransm z WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN #RecoverBet t 
 						ON	z.transid = t.SubTransId
 						AND z.custid = t.SubCustId
 						AND z.matchid = @Matchid
 						AND z.bettype = t.SubBetType
+		
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN			
+			SET @TransInfo = (
+			SELECT	matchid AS '@mid'
+					, transId AS '@t'
+			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+		END
 			
 		--> Release Concurrency process
 		EXEC dbo.NAP_Admin_CheckingProcess
@@ -416,6 +459,12 @@ BEGIN
 			
 		--> Return data to web
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+
+		--1. Return table validate
+		SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 					
 		SELECT  r.Stake,
 				r.AwayId,
@@ -504,6 +553,11 @@ BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				  @IsExistParlayVSBetradar	= 1				
 				, @IsReleased				= 1	
+
+		SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 	END CATCH		
 	
 	SET NOCOUNT OFF		
