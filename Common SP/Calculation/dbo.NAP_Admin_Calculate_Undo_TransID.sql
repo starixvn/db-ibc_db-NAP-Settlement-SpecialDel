@@ -30,7 +30,7 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowUndo			BIT
 			,@FcUpdateTime		DATETIME2
-			,@IsSiteDB			BIT
+			,@IsSiteDB			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 

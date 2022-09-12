@@ -30,7 +30,7 @@ BEGIN
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
 			,@AllowRefund		BIT
-			,@IsSiteDB			BIT
+			,@IsSiteDB			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 

@@ -68,7 +68,7 @@ BEGIN
 			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
 			,@transinfo XML
 			,@betparlaydetailinfo XML
-			,@IsSiteDB BIT
+			,@IsSiteDB BIT = 0
 			,@FunctionName VARCHAR(100)
 
 	DECLARE @tmpOutputBettransm TABLE (transid BIGINT, refno BIGINT

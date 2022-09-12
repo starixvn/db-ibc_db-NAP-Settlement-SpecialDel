@@ -29,7 +29,7 @@ BEGIN
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0
 			,@transinfo XML
-			,@IsSiteDB	BIT
+			,@IsSiteDB	BIT = 0
 
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
 	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		

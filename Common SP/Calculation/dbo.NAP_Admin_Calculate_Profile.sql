@@ -84,7 +84,7 @@ BEGIN
 			,@FcUpdateTime		DATETIME2
 			
 			,@transInfo		XML
-			,@IsSiteDB		BIT
+			,@IsSiteDB		BIT = 0
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
 	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT
