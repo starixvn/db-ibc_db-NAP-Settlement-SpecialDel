@@ -154,6 +154,7 @@ BEGIN
 				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
 				,@IP = @IP
+				,@LogActionId = 90510 --Unmark by autovoid System 
 
 			--Step 4: resettle ticket
 			IF @ResettleTransids <> '' AND @IsCalQueue = 1 
