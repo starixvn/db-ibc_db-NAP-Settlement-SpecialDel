@@ -546,6 +546,50 @@ BEGIN
 		  , @isExistNG = @isExistNG
 		  , @IsReleased = 1;
 
+	----------------Insert Max Payout Queue----------------
+	IF EXISTS (SELECT TOP(1) 1 FROM #RecoverBet r WHERE r.sporttype IN (161, 164)) --NumberGame
+	BEGIN
+		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL, @sporttype SMALLINT = NULL
+		DECLARE @Match_tmp AS TABLE (matchId INT, sporttype SMALLINT, IsFinish BIT)
+
+		INSERT INTO @Match_tmp (MatchId, sporttype)
+		SELECT DISTINCT mt.matchid, m.sporttype
+		FROM #RecoverBet mt
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = mt.matchid
+		WHERE mt.sporttype IN (161, 164)
+
+		WHILE (1=1)
+		BEGIN
+			SELECT @TransIds_MaxPO = '', @MatchId_MaxPO = NULL, @sporttype = NULL
+		
+			UPDATE TOP(1) mt SET mt.IsFinish = 1, @MatchId_MaxPO = mt.matchid, @sporttype = mt.sporttype
+			FROM @Match_tmp mt
+			WHERE mt.IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK
+
+			SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
+						,CASE 
+							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
+							WHEN c.site = '789y' THEN 2 --789y
+							ELSE 1 END AS '@sitetype'
+						,b.TransId AS '@transid'
+						,b.bettype AS '@bettype'
+					FROM #RecoverBet b
+						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
+					WHERE b.matchid = @MatchId_MaxPO AND b.sporttype IN (161, 164)
+					FOR XML PATH('r'), ROOT('root')
+				)
+
+			EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Recover
+				@MatchId = @MatchId_MaxPO
+				,@sporttype = @sporttype
+				,@TransidList = @TransIds_MaxPO
+		END
+	END
+	-------------------------------------------------------
+
 	SELECT @LogData = 'Recovered bets having transid: ' + @ValidTransIDs + ' IP: ' + @Ip;
 	
 	EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData;
