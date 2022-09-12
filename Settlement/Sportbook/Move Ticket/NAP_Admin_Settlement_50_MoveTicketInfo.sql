@@ -23,13 +23,15 @@ BEGIN
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.matchid = @matchid
 
-	SELECT @ChildMatchId = m.matchid
-	FROM	dbo.match m WITH(NOLOCK)
-	WHERE	m.ParentID = @MatchId
-			AND m.ChildMatchType = 200
-			AND m.eventdate = @eventdate
-			AND ISNULL(m.IsDeleted,0) = 0
-	ORDER BY m.matchid
+	SELECT @ChildMatchId = 
+	( SELECT TOP 1 m.matchid
+		FROM	dbo.match m WITH(NOLOCK)
+		WHERE	m.ParentID = @MatchId
+				AND m.ChildMatchType = 200
+				AND m.eventdate = @eventdate
+				AND ISNULL(m.IsDeleted,0) = 0
+		ORDER BY m.matchid
+	)
 
 	SELECT @ResourceIds = @ResourceIds + ','  + r.ResourceID
 	FROM (
