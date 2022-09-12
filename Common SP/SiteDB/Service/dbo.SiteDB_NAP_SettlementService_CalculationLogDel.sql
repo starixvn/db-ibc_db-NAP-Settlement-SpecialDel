@@ -1,5 +1,5 @@
 /*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogDel] 
+ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogDel] 
 AS  
 /* 
 	 Creator: 20220912@Kathy  
