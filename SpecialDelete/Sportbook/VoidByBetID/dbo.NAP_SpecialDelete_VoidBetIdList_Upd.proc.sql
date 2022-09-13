@@ -968,42 +968,6 @@ BEGIN
 
 	END	
 
-	--re-calculate Cricket - charge comm
-	IF(@isExistCricket = 1)
-	BEGIN
-		DECLARE @TempData TABLE(RowId INT IDENTITY(1,1), MatchId INT, CustIds VARCHAR(MAX))
-		
-		BEGIN TRY
-			INSERT INTO @TempData(MatchId, CustIds)
-			SELECT MatchId, STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
-									FROM #SpecialDeleteBets tt where tt.MatchId = t.MatchId
-									FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
-			FROM #SpecialDeleteBets t
-			WHERE Bettype = 501
-			GROUP BY MatchId
-
-			IF EXISTS (SELECT TOP 1 1 FROM @TempData)
-			BEGIN
-				DECLARE @RowId INT, @MatchIdTmp INT, @CustIds VARCHAR(MAX)
-				SELECT @RowId = 1
-				WHILE EXISTS (SELECT TOP 1 1 FROM @TempData WHERE RowId = @RowId)
-				BEGIN
-					SELECT @MatchIdTmp = MatchId
-						, @CustIds = CustIds
-					FROM @TempData t WHERE RowId = @RowId
-					SET @RowId = @RowId + 1
-					
-					EXEC dbo.NAP_Admin_Calculate_500 @MatchId	= @MatchIdTmp
-						, @Action = 'VOID'
-						, @CustIds = @CustIds
-				END
-			END
-		END TRY 
-		BEGIN CATCH
-			SELECT	@ErrCode = 500, @ErrMsg = 'Called NAP_Admin_Calculate_500 with error.'
-		END CATCH
-	END
-	
 	-- Update CashOutSelling [#165097]
 	UPDATE c
 	SET CashOutStatus = 6 --Void
