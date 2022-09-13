@@ -5,8 +5,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd]
 	@MatchId				INT = 0,	
 	@TransIds				VARCHAR(MAX) = '',
 	
-	@SubTransIds			VARCHAR(MAX) = '',
-	
 	@UserName 				NVARCHAR(50),
     @Password				NVARCHAR(50),
     @UserID					INT,
@@ -53,7 +51,7 @@ BEGIN
 	ELSE IF @SearchBy = 'SubTransIds'
 	BEGIN
 		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd]
-			@SubTransIds = @SubTransIds,
+			@SubTransIds = @TransIds,
 			@UserName = @UserName,
 			@Password = @Password,
 			@UserID	= @UserID,

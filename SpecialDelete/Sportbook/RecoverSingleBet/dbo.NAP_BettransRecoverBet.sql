@@ -152,6 +152,7 @@ BEGIN
 			, statusID TINYINT, creator INT, actual_stake MONEY, odds SMALLMONEY, oddsspread MONEY, transdesc NVARCHAR(2000), ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
 			, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			, transdate DATETIME, comstatus NVARCHAR(40)
 			)
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 	DECLARE @matchid INT
@@ -871,8 +872,8 @@ BEGIN
 	
 	-- delete normal ticket
 	DELETE main
-		OUTPUT deleted.matchid, deleted.transid
-		INTO @tmpTransInfo (matchid, transid)
+		OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
+		INTO @tmpTransInfo (matchid, transid, transdate, comstatus)
 	FROM zzzbettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t 
 			ON	main.transid = t.transid
@@ -899,6 +900,8 @@ BEGIN
 			SET @TransInfo = (
 			SELECT	matchid AS '@mid'
 					, transId AS '@t'
+					, transdate AS '@td'
+					, comstatus AS '@cst'
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 

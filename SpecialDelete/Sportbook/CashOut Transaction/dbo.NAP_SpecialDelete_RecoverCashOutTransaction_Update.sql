@@ -112,7 +112,7 @@ BEGIN
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT, ruben TINYINT
 		,FcUpdateTime DATETIME2,creator INT, betdaqid BIGINT, virtualrate FLOAT
-		,modds SMALLMONEY
+		,modds SMALLMONEY, transdate DATETIME, comstatus NVARCHAR(40) 
 	)
 		
 	SELECT @ErrCode	= 0
@@ -450,7 +450,7 @@ BEGIN
 	--> delete zzzbettrans
 	DELETE @tmpTransInfo
 
-	DELETE z OUTPUT deleted.transid, deleted.matchid INTO @tmpTransInfo (transId, matchId)	
+	DELETE z OUTPUT deleted.transid, deleted.matchid, deleted.transdate, deleted.comstatus INTO @tmpTransInfo (transId, matchId, transdate, comstatus)	
 	FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 		 INNER JOIN #SpecialDeleteBets t
 				 ON z.transid = t.transid
@@ -463,6 +463,8 @@ BEGIN
 		SET @TransInfo = (
 		SELECT	matchid AS '@mid'
 				, transId AS '@t'
+				, transdate AS '@td'
+				, comstatus AS '@cst'
 		FROM	@tmpTransInfo WHERE matchid = @MatchId 
 		FOR XML PATH('r'),ROOT('root'), TYPE)
 
