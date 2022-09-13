@@ -110,7 +110,7 @@ BEGIN
 
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
 
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost MONEY, stake MONEY, statusID TINYINT, creator INT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost MONEY, stake MONEY, statusID TINYINT, creator INT, transdate DATETIME, comstatus NVARCHAR(40))
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
@@ -460,8 +460,8 @@ BEGIN
 
 	--Delete recovers tickets
 	DELETE z 
-		OUTPUT deleted.matchid, deleted.transid
-	    INTO @tmpTransInfo (matchid, transid)
+		OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
+	    INTO @tmpTransInfo (matchid, transid , transdate, comstatus)
 	FROM zzzbettrans z WITH(UPDLOCK, ROWLOCK)
 		INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid
 	WHERE z.SiteDBGroupID = @SiteDBGroupID 
@@ -482,6 +482,8 @@ BEGIN
 			SET @TransInfo = (
 			SELECT	matchid AS '@mid'
 					, transId AS '@t'
+					, transdate AS '@td'
+					, comstatus AS '@cst'
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 

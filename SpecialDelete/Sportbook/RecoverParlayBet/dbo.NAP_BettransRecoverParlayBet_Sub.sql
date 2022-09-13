@@ -120,7 +120,7 @@ BEGIN
 	CREATE CLUSTERED INDEX IDX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
 	
 	DECLARE @tblMainTransIds TABLE (transid BIGINT)
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40))
 	DECLARE @tblSettledBeforeRecoveredMainTicket TABLE (transid	BIGINT)
 								
 	DECLARE @tblBeforeBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
@@ -443,8 +443,8 @@ BEGIN
 				,@Type			= 1 -- Sports
 		
 		DELETE	z
-			OUTPUT deleted.matchid, deleted.transid
-			INTO @tmpTransInfo (matchid, transid)
+			OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
+			INTO @tmpTransInfo (matchid, transid, transdate, comstatus)
 		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tblRecoverBet t 
 				ON	z.custid = t.custid
@@ -457,6 +457,8 @@ BEGIN
 			SET @TransInfo = (
 			SELECT	matchid AS '@mid'
 				  , transId AS '@t'
+				  , transdate AS '@td'
+					, comstatus AS '@cst'
 			FROM	@tmpTransInfo
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
