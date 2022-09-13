@@ -2156,6 +2156,7 @@ BEGIN
 							,creator AS '@cr'
 							,statusId AS '@sid' 
 							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
 							,ruben AS '@r' -- ruben
 					FROM	@tmpOutputBettransmVoidRecover
 					FOR XML PATH('r'),ROOT('root'), TYPE
