@@ -13,8 +13,6 @@ AS
 		
 		Revisions:
 			- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
-			- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
-			
 			
 		Parameter's Explanation:
 			@Action: CAL, CAL-FT, REFUND-FT, REFUND, UNDO
@@ -24,81 +22,6 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @transInfo	XML
-			,@IsSiteDB	BIT = 0
-	
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-	SET @IsSiteDB = 1
-
-	DECLARE @tmpTransInfo TABLE (
-			Action VARCHAR(1)
-			,transId BIGINT
-			,bef_winlost MONEY 
-			,bef_statusid TINYINT
-			,custid	INT
-			,transdate	DATETIME
-			,oddsid	INT
-			,hdp1	SMALLMONEY
-			,hdp2	SMALLMONEY
-			,odds	SMALLMONEY
-			,stake	MONEY
-			,[status]	NVARCHAR(20)
-			,winlost	MONEY
-			,awinlost	MONEY
-			,mwinlost	MONEY
-			,playercomm	MONEY
-			,comm	MONEY
-			,acomm	MONEY
-			,apositiontaking	SMALLMONEY
-			,mpositiontaking	SMALLMONEY
-			,tpositiontaking	SMALLMONEY
-			,playerdiscount	DECIMAL
-			,discount	DECIMAL
-			,adiscount	DECIMAL
-			,livehomescore	SMALLINT
-			,liveawayscore	SMALLINT
-			,liveindicator	BIT
-			,betteam	NVARCHAR(20)
-			,creator	INT
-			,refno	BIGINT
-			,comstatus	NVARCHAR(40)
-			,winlostdate	SMALLDATETIME
-			,betfrom	NVARCHAR(3)
-			,betcheck	NVARCHAR(100)
-			,checktime	DATETIME
-			,oddsspread	MONEY
-			,actualrate	FLOAT
-			,matchid	INT
-			,recommend	INT
-			,mrecommend	INT
-			,ruben	TINYINT
-			,betid	BIGINT
-			,statuswinlost	TINYINT
-			,modds	SMALLMONEY
-			,bettype	SMALLINT
-			,betdaqid	BIGINT
-			,actual_stake	MONEY
-			,currency	TINYINT
-			,[ip]	VARCHAR(45)
-			,transdesc	NVARCHAR(2000)
-			,sdiscount	DECIMAL
-			,scomm	MONEY
-			,spositiontaking	SMALLMONEY
-			,swinlost	MONEY
-			,srecommend	INT
-			,Username	NVARCHAR(100)
-			,CurrencyName	NVARCHAR(100)
-			,virtualrate	FLOAT
-			,oddstype	TINYINT
-			,statusID	TINYINT
-			,currency2	TINYINT
-			,balance	MONEY
-			,SecAcceptFlag	BIT
-			,transid2	BIGINT
-			,RecommDate	DATETIME
-			,SiteDBGroupID	SMALLINT
-			)
-		
 	IF @Action IN ('CAL', 'CAL-FT', 'VOID')
 	BEGIN
 		--for case void & recover
@@ -118,7 +41,7 @@ BEGIN
 									,ADiscount		DECIMAL(9,8)
 									,Creator		INT
 									,WinlostDate	SMALLDATETIME
-									,BetFrom		NVARCHAR(3)
+									,BetFrom		NVARCHAR(1)
 									,BetCheck		NVARCHAR(50)
 									,ActualRate		FLOAT
 									,Recommend		INT
@@ -129,19 +52,17 @@ BEGIN
 									,Username		NVARCHAR(50)
 									,CurrencyName	NVARCHAR(50)
 									,VirtualRate	FLOAT
-									,SiteDBGroupID	SMALLINT
 								)
 									
-		INSERT INTO #NetWinCust (FirstTransId, NetWin, CustId, SiteDBGroupID)
-		SELECT	MIN(transid), SUM(winlost - actual_stake), custid, b.SiteDBGroupID
+		INSERT INTO #NetWinCust (FirstTransId, NetWin, CustId)
+		SELECT	MIN(transid), SUM(winlost - actual_stake), custid
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	matchid = @matchid
 				AND bettype = 501
 				AND (ISNULL(@CustIds, '') = '' OR (ISNULL(@CustIds, '') <> '' AND EXISTS (SELECT 1 FROM @CustIdList s WHERE b.CustId = s.CustId)))
-				AND statusID NOT IN (0, 1, 101, 102) -- REJECT, VOID
+				 AND statusID NOT IN (0, 1, 101, 102) -- REJECT, VOID
 				AND playerdiscount < 0
-				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
-		GROUP BY b.custid, b.SiteDBGroupID
+		GROUP BY custid
 		
 		UPDATE	n
 			SET PlayerDiscount = b.playerdiscount
@@ -171,9 +92,7 @@ BEGIN
 				ON	b.matchid = @MatchId
 					AND b.bettype = 500
 					AND b.custid = n.CustId
-			WHEN MATCHED AND b.winlost <> n.NetWin 
-				AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
-								THEN UPDATE SET	[status] = CASE WHEN n.NetWin > 0 THEN 'LOSE' ELSE 'VOID' END
+			WHEN MATCHED AND b.winlost <> n.NetWin THEN UPDATE SET	[status] = CASE WHEN n.NetWin > 0 THEN 'LOSE' ELSE 'VOID' END
 																	,winlost = CASE WHEN n.NetWin > 0 THEN n.NetWin ELSE 0 END
 																	,playerdiscount = n.PlayerDiscount
 																	,discount = n.Discount
@@ -186,9 +105,7 @@ BEGIN
 																	,actual_stake = CASE WHEN n.NetWin > 0 THEN n.NetWin ELSE 0 END
 																	,statusID = CASE WHEN n.NetWin > 0 THEN 113 ELSE 102 END
 																	,statuswinlost = CASE WHEN n.NetWin > 0 THEN NULL ELSE 6 END
-
-			WHEN NOT MATCHED BY TARGET AND n.NetWin > 0 AND n.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN n.SiteDBGroupID ELSE 0 END
-										THEN INSERT (	
+			WHEN NOT MATCHED BY TARGET AND n.NetWin > 0 THEN INSERT (	
 													custid
 													,transdate
 													,oddsid
@@ -250,7 +167,6 @@ BEGIN
 													,SecAcceptFlag
 													,transid2
 													,RecommDate
-													,SiteDBGroupID
 												)
 										VALUES (custid
 												,GETDATE() --AS transdate
@@ -313,241 +229,8 @@ BEGIN
 												,NULL --AS SecAcceptFlag
 												,NULL --AS transid2
 												,NULL --AS RecommDate
-												,SiteDBGroupID
 												)
-				OUTPUT CASE WHEN ISNULL(deleted.transId,0) = 0 THEN 'I' ELSE 'U' END AS [Action]
-						,inserted.transId	
-						,deleted.winlost AS bef_winlost 
-						,deleted.statusid  AS bef_statusid  
-						,inserted.custid 
-						,inserted.transdate	 
-						,inserted.oddsid	 
-						,inserted.hdp1	 
-						,inserted.hdp2	 
-						,inserted.odds	 
-						,inserted.stake	 
-						,inserted.[status] 
-						,inserted.winlost 
-						,inserted.awinlost 
-						,inserted.mwinlost 
-						,inserted.playercomm	 
-						,inserted.comm	 
-						,inserted.acomm	 
-						,inserted.apositiontaking 
-						,inserted.mpositiontaking 
-						,inserted.tpositiontaking 
-						,inserted.playerdiscount 
-						,inserted.discount	 
-						,inserted.adiscount	 
-						,inserted.livehomescore	 
-						,inserted.liveawayscore	 
-						,inserted.liveindicator	 
-						,inserted.betteam 
-						,inserted.creator 
-						,inserted.refno	 
-						,inserted.comstatus	 
-						,inserted.winlostdate	 
-						,inserted.betfrom	 
-						,inserted.betcheck	 
-						,'' AS checktime	 
-						,inserted.oddsspread	 
-						,inserted.actualrate	 
-						,inserted.matchid	 
-						,inserted.recommend	 
-						,inserted.mrecommend	 
-						,inserted.ruben	 
-						,inserted.betid	 
-						,inserted.statuswinlost	 
-						,inserted.modds	 
-						,inserted.bettype	 
-						,inserted.betdaqid	 
-						,inserted.actual_stake	 
-						,inserted.currency	 
-						,inserted.[ip]	 
-						,inserted.transdesc	 
-						,inserted.sdiscount	 
-						,inserted.scomm	 
-						,inserted.spositiontaking 
-						,inserted.swinlost	 
-						,inserted.srecommend	 
-						,inserted.Username	 
-						,inserted.CurrencyName	 
-						,inserted.virtualrate	 
-						,inserted.oddstype	 
-						,inserted.statusID	 
-						,inserted.currency2	 
-						,inserted.balance	 
-						,inserted.SecAcceptFlag	 
-						,inserted.transid2	 
-						,'' AS RecommDate
-						,inserted.SiteDBGroupID	 
-			INTO @tmpTransInfo (
-						[Action]
-						,transId	
-						,bef_winlost 
-						,bef_statusid  
-						,custid 
-						,transdate	 
-						,oddsid	 
-						,hdp1	 
-						,hdp2	 
-						,odds	 
-						,stake	 
-						,[status] 
-						,winlost 
-						,awinlost 
-						,mwinlost 
-						,playercomm	 
-						,comm	 
-						,acomm	 
-						,apositiontaking 
-						,mpositiontaking 
-						,tpositiontaking 
-						,playerdiscount 
-						,discount	 
-						,adiscount	 
-						,livehomescore	 
-						,liveawayscore	 
-						,liveindicator	 
-						,betteam 
-						,creator 
-						,refno	 
-						,comstatus	 
-						,winlostdate	 
-						,betfrom	 
-						,betcheck	 
-						,checktime	 
-						,oddsspread	 
-						,actualrate	 
-						,matchid	 
-						,recommend	 
-						,mrecommend	 
-						,ruben	 
-						,betid	 
-						,statuswinlost	 
-						,modds	 
-						,bettype	 
-						,betdaqid	 
-						,actual_stake	 
-						,currency	 
-						,[ip]	 
-						,transdesc	 
-						,sdiscount	 
-						,scomm	 
-						,spositiontaking 
-						,swinlost	 
-						,srecommend	 
-						,Username	 
-						,CurrencyName	 
-						,virtualrate	 
-						,oddstype	 
-						,statusID	 
-						,currency2	 
-						,balance	 
-						,SecAcceptFlag	 
-						,transid2	 
-						,RecommDate	 
-						,SiteDBGroupID	 
-						);
-		
-			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo WHERE Action = 'U')
-			BEGIN
-				SELECT @transInfo = (
-					SELECT  transid AS '@t'
-							,[status]  AS '@s'
-							,winlost AS '@w'
-							,playerdiscount  AS '@pd'
-							,discount  AS '@d'
-							,adiscount  AS '@ad'
-							,sdiscount  AS '@sd'
-							,playercomm  AS '@pc'
-							,comm   AS '@c'
-							,acomm  AS '@ac'
-							,scomm 	 AS '@sc'												
-							,actual_stake  AS '@as'
-							,statusID  AS '@sid'
-							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END  AS '@statuswl'
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
-					FROM @tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
-			END
-
-			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo WHERE Action = 'I')
-			BEGIN
-				SELECT @transInfo = (
-				SELECT  transid		AS '@t'
-						,custid		AS '@cust'
-						,transdate	AS '@td'
-						,oddsid		AS '@oid'
-						,hdp1		AS '@hdp1'
-						,hdp2		AS '@hdp2'
-						,odds		AS '@o'
-						,stake		AS '@stake'
-						,[STATUS]	AS '@s'
-						,winlost	AS '@w'
-						,awinlost	AS '@aw'
-						,mwinlost	AS '@mw'
-						,playercomm AS '@pc'
-						,comm		AS '@c'
-						,acomm		AS '@ac'
-						,apositiontaking AS '@apos'	
-						,mpositiontaking AS '@mpos'
-						,tpositiontaking AS '@tpos'
-						,playerdiscount	 AS '@pd'
-						,discount		AS '@d'
-						,adiscount		AS '@ad'
-						,livehomescore	AS '@lh'
-						,liveawayscore	AS '@la'
-						,liveindicator	AS '@li'
-						,betteam		AS '@bteam'
-						,creator		AS '@cr'
-						,refno			AS '@ref'
-						,comstatus		AS '@cst'
-						,winlostdate	AS '@wld'
-						,betfrom		AS '@bf'
-						,betcheck		AS '@bc'
-						,checktime		AS '@ct'
-						,CASE WHEN oddsspread IS NULL THEN '' ELSE CAST(oddsspread AS VARCHAR(20) ) END	AS '@os'
-						,actualrate		AS '@ar'
-						,matchid		AS '@mid'
-						,recommend		AS '@rc'
-						,mrecommend		AS '@mrc'
-						,ruben			AS '@r'
-						,CASE WHEN betid  IS NULL THEN '' ELSE CAST(betid AS VARCHAR(50) ) END	AS '@bid'
-						,CASE WHEN statuswinlost  IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-						,modds			AS '@m'
-						,bettype		AS '@btype'
-						,CASE WHEN betdaqid IS NULL THEN '' ELSE CAST(betdaqid AS VARCHAR(50)) END	AS '@bdq'
-						,actual_stake	AS '@astake'
-						,currency		AS '@cur'
-						,ip				AS '@ip'
-						,transdesc		AS '@tdesc'
-						,sdiscount		AS '@sdis'
-						,scomm			AS '@sc'
-						,spositiontaking AS '@spos'
-						,swinlost		AS '@sw'
-						,srecommend		AS '@src'
-						,Username		AS '@uname'
-						,CurrencyName	AS '@curname'
-						,virtualrate	AS '@v'
-						,CASE WHEN oddstype IS NULL THEN ''	ELSE CAST(oddstype AS VARCHAR(3)) END AS '@otype'
-						,statusID		AS '@sid'
-						,CASE WHEN currency2  IS NULL THEN '' ELSE CAST(currency2	AS VARCHAR(3)) END AS '@cur2'
-						,CASE WHEN balance  IS NULL THEN ''	ELSE CAST(balance AS VARCHAR(20)) END AS '@b'
-						,CASE WHEN SecAcceptFlag IS NULL THEN ''	ELSE CAST(SecAcceptFlag AS VARCHAR(1)) END	AS '@sec'
-						,CASE WHEN transid2 IS NULL THEN ''	ELSE CAST(transid2 AS VARCHAR(50)) END	AS '@t2'
-						,RecommDate		AS '@rcd'
-						,SiteDBGroupID	AS '@sgid'
-				FROM @tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, [Action], SettlementAction, TicketType)
-				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo, 'I', 'CAL', 's')
-			END
+			;								
 		END
 		ELSE IF ISNULL(@CustIds, '') <> ''
 		BEGIN
@@ -566,29 +249,7 @@ BEGIN
 				AND bettype = 500
 				AND custid IN (SELECT CustId FROM @CustIdList)
 				AND statusID NOT IN (101, 102) -- REJECT, VOID
-				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
-
-			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
-			BEGIN
-				SELECT @transInfo = (
-					SELECT  transid AS '@t'
-							,[status]  AS '@s'
-							,winlost AS '@w'
-							,playerdiscount  AS '@pd'
-							,comm   AS '@c'
-							,acomm  AS '@ac'
-							,scomm 	 AS '@sc'												
-							,actual_stake  AS '@as'
-							,statusID  AS '@sid'
-							,statuswinlost  AS '@statuswl'
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
-					FROM @tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo)
-			END	
+				
 		END
 		
 		DROP TABLE #NetWinCust
@@ -608,29 +269,6 @@ BEGIN
 		WHERE	matchid = @MatchId
 				AND bettype = 500
 				AND statusID NOT IN (101, 102) -- REJECT, VOID
-				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
-
-		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
-			BEGIN
-				SELECT @transInfo = (
-					SELECT  transid AS '@t'
-							,[status]  AS '@s'
-							,winlost AS '@w'
-							,playerdiscount  AS '@pd'
-							,comm   AS '@c'
-							,acomm  AS '@ac'
-							,scomm 	 AS '@sc'												
-							,actual_stake  AS '@as'
-							,statusID  AS '@sid'
-							,statuswinlost  AS '@statuswl'
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
-					FROM @tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'CalculateCommission', 'bettrans', @MatchId, @transInfo)
-			END	
 				
 	END
 END
