@@ -405,16 +405,13 @@ BEGIN
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT	
 		
-		INSERT INTO @tmpTransInfo (matchid, transid)
-		SELECT z.matchid, z.transid
-		FROM dbo.zzzbettrans z WITH(NOLOCK)
+		DELETE	z
+			OUTPUT deleted.matchid, deleted.transid
+			 INTO @tmpTransInfo (matchid, transid)
+		FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblRecoverBet t  ON	z.custid = t.custid AND z.matchid = t.matchid AND z.transid = t.transid
 		WHERE z.SiteDBGroupID = @SiteDBGroupID
 
-		DELETE	z
-		FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransInfo t ON z.matchid = t.matchid AND z.transid = t.transid
-		
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			INSERT INTO @tmpMatchidInfo (MatchId)

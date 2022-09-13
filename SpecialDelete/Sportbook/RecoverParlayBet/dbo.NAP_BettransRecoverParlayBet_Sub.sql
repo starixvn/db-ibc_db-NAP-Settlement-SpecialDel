@@ -67,7 +67,7 @@ BEGIN
 		 RowNumber				BIGINT IDENTITY(1, 1) PRIMARY KEY
 		,SubTransID				BIGINT		 
 		,SubBetCheck			NVARCHAR(50)
-		,SubOdds				MONEY   
+		,SubOdds				SMALLMONEY   
 		,SubBetTeam				NVARCHAR(20)  
 		,SubBetType				INT  
 		,SubHdp1				SMALLMONEY   
@@ -98,7 +98,7 @@ BEGIN
 		,betid					BIGINT 
 		,BetTeam				NVARCHAR(20)		 
 		,Stake					MONEY
-		,Odds					MONEY		
+		,Odds					SMALLMONEY		
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY
 		,betfrom				NVARCHAR(3)		
@@ -442,19 +442,15 @@ BEGIN
 				@BalancePending = @tblDebitPending
 				,@Type			= 1 -- Sports
 		
-		INSERT INTO @tmpTransInfo (matchid, transid)
-		SELECT z.matchid, z.transid
-		FROM	dbo.zzzbettrans z WITH(NOLOCK)
+		DELETE	z
+			OUTPUT deleted.matchid, deleted.transid
+			INTO @tmpTransInfo (matchid, transid)
+		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tblRecoverBet t 
 				ON	z.custid = t.custid
 					AND z.matchid = t.matchid
 					AND z.transid = t.SubTransID
 		WHERE z.SiteDBGroupID = @SiteDBGroupID
-
-		DELETE	z
-		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransInfo t 
-				ON	z.matchid = t.matchid AND z.transid = t.transid
 
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
@@ -470,19 +466,15 @@ BEGIN
 			DELETE FROM @tmpTransInfo
 		END
 
-		INSERT INTO @tmpTransInfo (matchid, transid)
-		SELECT zm.matchid, zm.transid
-		FROM dbo.zzzbettransm zm WITH(NOLOCK)
+		DELETE	zm
+			OUTPUT deleted.matchid, deleted.transid
+			INTO @tmpTransInfo (matchid, transid)
+		FROM dbo.zzzbettransm zm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tblRecoverBet t 
 				ON	zm.custid = t.custid
 					AND zm.matchid = t.matchid
 					AND zm.transid = t.SubTransID
 		WHERE zm.SiteDBGroupID = @SiteDBGroupID
-		
-		DELETE	zm
-		FROM	dbo.zzzbettransm zm WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransInfo t 
-				ON zm.matchid = t.matchid AND zm.transid = t.transid				
 			
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN

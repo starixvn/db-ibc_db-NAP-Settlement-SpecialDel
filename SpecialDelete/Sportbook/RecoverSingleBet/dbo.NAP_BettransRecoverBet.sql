@@ -869,10 +869,11 @@ BEGIN
 		INNER JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
 			ON	t.recommend = ag.custid
 	
-	-- delete normal : normal, cash-out member bet ticket
-	INSERT INTO @tmpTransInfo (matchid, transid)
-	SELECT main.matchid, main.transid
-	FROM   zzzbettrans main WITH(NOLOCK)
+	-- delete normal ticket
+	DELETE main
+		OUTPUT deleted.matchid, deleted.transid
+		INTO @tmpTransInfo (matchid, transid)
+	FROM zzzbettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t 
 			ON	main.transid = t.transid
 				AND main.custid = t.custid
@@ -881,10 +882,6 @@ BEGIN
 				AND main.transid = t.grouptransid
 				AND ISNULL(main.comstatus,'') <> 'CO'
 				AND main.SiteDBGroupID = @SiteDBGroupID
-
-	DELETE main
-	FROM zzzbettrans main WITH(ROWLOCK, UPDLOCK)
-		INNER JOIN @tmpTransInfo t ON main.matchid = t.matchid AND main.transid = t.transid
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN

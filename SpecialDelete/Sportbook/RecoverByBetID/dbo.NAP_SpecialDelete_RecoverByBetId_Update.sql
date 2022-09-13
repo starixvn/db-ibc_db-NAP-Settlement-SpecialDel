@@ -459,16 +459,13 @@ BEGIN
 	EXEC [dbo].[NAP_Admin_BalancePendingIns] @BeforeUpd = @BeforeRecover, @AfterUpd = @AfterRecover;
 
 	--Delete recovers tickets
-	INSERT INTO @tmpTransInfo (matchid, transid)
-	SELECT z.matchid, z.transid
-	FROM zzzbettrans z WITH(NOLOCK)
+	DELETE z 
+		OUTPUT deleted.matchid, deleted.transid
+	    INTO @tmpTransInfo (matchid, transid)
+	FROM zzzbettrans z WITH(UPDLOCK, ROWLOCK)
 		INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid
 	WHERE z.SiteDBGroupID = @SiteDBGroupID 
 
-	DELETE z WITH(UPDLOCK, ROWLOCK)
-	FROM zzzbettrans z
-		INNER JOIN @tmpTransInfo t ON z.matchid = t.matchid AND z.transid = t.transid;
-		
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
 		INSERT INTO @tmpMatchidInfo (MatchId)
@@ -496,7 +493,7 @@ BEGIN
 		DELETE FROM @tmpMatchidInfo
 	END
 
-	IF EXISTS ( SELECT TOP 1 1 FROM #RecoverBet WHERE sporttype = 175) --Bitcoin
+	IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE sporttype = 175) --Bitcoin
 	BEGIN
 		--Return completed matches to resettle
 		INSERT INTO #CompletedMatches(matchid, [Action])
