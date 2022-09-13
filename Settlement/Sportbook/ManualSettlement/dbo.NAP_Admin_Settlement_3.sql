@@ -282,11 +282,6 @@ BEGIN
 		,@IsReSettledTickets = @IsReSettledTickets
 		-- using by service broker
 		,@CalledByBrokerService = 0 -- this one is called by NAP_Admin_Settlement_3 instead :)
-					   
-        --Cricket: Charged Commision
-        EXEC dbo.NAP_Admin_Calculate_500
-			@MatchId = @matchId
-			,@Action = @Mode
 			
 END
 GO
