@@ -1,3 +1,4 @@
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_RollbackCricketList @CricketIds VARCHAR(MAX)
 	, @Action VARCHAR(50)
 	, @AdminId INT
@@ -23,7 +24,7 @@ BEGIN
 	INSERT INTO #TmpCricketIds(TransId, MatchId)
 	SELECT CAST(value AS BIGINT), b.matchid
 	FROM STRING_SPLIT(@CricketIds, ',') f
-		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON CAST(f.val AS BIGINT) = b.transid
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON CAST(f.value AS BIGINT) = b.transid
 		--INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid
 	WHERE b.bettype = 501
 		AND b.statusID NOT IN (101, 102)
