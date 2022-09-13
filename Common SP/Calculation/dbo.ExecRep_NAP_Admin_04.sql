@@ -254,7 +254,6 @@ BEGIN
 						,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
 						,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE CAST(t.betid AS BIGINT) END
 						,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
-						,virtualrate = CASE WHEN t.virtualrate IS NULL THEN b.virtualrate ELSE t.virtualrate END
 				FROM @tmpTransId t
 					INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 						ON  t.transid = b.transid 
@@ -557,19 +556,15 @@ BEGIN
 			END
 			ELSE IF @Action = 'D'
 			BEGIN
-				INSERT INTO @tmpTransId (TransID ,matchid, transdate, comstatus)
+				INSERT INTO @tmpTransId (TransID ,matchid)
 				SELECT	T.C.value('./@t', 'bigint') AS transid
 					   ,T.C.value('./@mid', 'INT') AS matchid
-					   ,T.C.value('./@td', 'datetime') AS transdate
-						,T.C.value('./@cst', 'nvarchar(40)') AS comstatus
 				FROM	@transInfo.nodes('/root/r') AS T(C)
 				OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
 				DELETE m 
 				FROM dbo.zzzbettrans m WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId 
-										AND ISNULL(m.comstatus, '') = ISNULL(t.comstatus, '')
-										AND m.transdate = t.transdate
+					INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
 			END
 		END
 		ELSE IF @TableName = 'zzzbettransm'
@@ -589,18 +584,6 @@ BEGIN
 				FROM	@tmptransid t
 					INNER JOIN dbo.zzzbettransm b WITH (ROWLOCK, UPDLOCK)
 						ON	b.transid = t.transid
-			END
-			ELSE IF @Action = 'D' --TVS subparlay
-			BEGIN
-				INSERT INTO @tmpTransId (TransID ,matchid)
-				SELECT	T.C.value('./@t', 'BIGINT') AS transid	
-					   ,T.C.value('./@mid', 'INT') AS matchid
-				FROM	@transInfo.nodes('/root/r') AS T(C)	
-				OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
-
-				DELETE bm 
-				FROM dbo.zzzbettransm bm WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN @tmpTransId t ON t.TransId = bm.TransId AND t.MatchId = bm.MatchId
 			END
 		END
 		ELSE IF @TableName = 'BetParlayResult'
