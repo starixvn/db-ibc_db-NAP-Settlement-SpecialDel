@@ -220,6 +220,8 @@ BEGIN
 	FROM #tblSubTransIds
 	WHERE SubTransId NOT IN (SELECT SubTransId FROM #tmpResult)			
 
+	SELECT @InvalidTransIds AS InvalidTransIds
+
 	--2. Table get tickets
 	SELECT  t.Stake
 		   ,m.AwayId
