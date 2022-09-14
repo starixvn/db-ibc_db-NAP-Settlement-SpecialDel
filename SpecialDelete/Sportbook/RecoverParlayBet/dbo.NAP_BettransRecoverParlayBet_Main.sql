@@ -71,6 +71,7 @@ BEGIN
 			, winlost MONEY, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			, statuswinlost MONEY, creator INT, ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
+			, transdate DATETIME, comstatus NVARCHAR(40)
 			)
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 	DECLARE @matchid INT
@@ -406,8 +407,8 @@ BEGIN
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT	
 		
 		DELETE	z
-			OUTPUT deleted.matchid, deleted.transid
-			 INTO @tmpTransInfo (matchid, transid)
+			OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
+			INTO @tmpTransInfo (matchid, transid, transdate, comstatus)
 		FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblRecoverBet t  ON	z.custid = t.custid AND z.matchid = t.matchid AND z.transid = t.transid
 		WHERE z.SiteDBGroupID = @SiteDBGroupID
@@ -428,6 +429,8 @@ BEGIN
 				SET @TransInfo = (
 				SELECT	matchid AS '@mid'
 						, transId AS '@t'
+						, transdate AS '@td'
+						, comstatus AS '@cst'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
