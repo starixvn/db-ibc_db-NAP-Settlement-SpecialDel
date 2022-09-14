@@ -231,7 +231,7 @@ BEGIN
 
 	IF EXISTS ( SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @Movebetdate )
 	BEGIN
-		SELECT @ErrCode = 102
+		SELECT @ErrCode = 112
 			 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
 		SELECT @ErrCode AS ErrorCode
@@ -246,7 +246,7 @@ BEGIN
 	BEGIN
 		IF @InvalidTransIds = ''		
 			SELECT @ErrMsg = 'No ticket found.'
-				 , @ErrCode  = 101	
+				 , @ErrCode  = 119	
 				 
 		SELECT @ErrCode AS ErrorCode
 			, @ErrMsg AS ErrorMsg

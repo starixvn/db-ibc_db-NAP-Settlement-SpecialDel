@@ -157,7 +157,7 @@ BEGIN
 				 @UserId = @UserId  
 				,@Doing = @LogData  
 		  
-			SELECT @ErrCode = 101
+			SELECT @ErrCode = 113
 				 , @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'
 
 			SELECT @ErrCode AS ErrorCode

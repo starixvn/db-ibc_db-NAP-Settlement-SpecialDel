@@ -152,7 +152,7 @@ BEGIN
 			@UserId = @UserId  
 			,@Doing = @LogData  
 	  
-		SELECT @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!', @ErrCode = 101	   
+		SELECT @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!', @ErrCode = 113	   
 		
 		SELECT @ErrCode AS ErrorCode
 			, @ErrMsg AS ErrorMsg
@@ -261,7 +261,7 @@ BEGIN
 		SET @CountSubTransId = @@ROWCOUNT
 	END TRY  
 	BEGIN CATCH  
-		SELECT @ErrCode = 102  
+		SELECT @ErrCode = 114  
 		, @ErrMsg = 'Invalid TransIds.'	
 		
 		SELECT @ErrCode AS ErrorCode

@@ -344,7 +344,7 @@ BEGIN
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @UserPassword AND custid = @userId AND roleid >=5)
     BEGIN
         SELECT @ErrorMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
-                ,@ErrorCode = 101  
+                ,@ErrorCode = 113  
                 
         EXEC [dbo].[WriteLog_UserLog] @UserID = @UserID ,@Doing = @LogData   
 		
@@ -1162,21 +1162,6 @@ BEGIN
 				,@strXML	= @refnos_29  -- main transid + refno: refno|transid,refno|transid...
 				,@mode		= '29' 
 		END	
-		
-		--> re-calculate Cricket - charge comm			
-		IF EXISTS (SELECT TOP 1 1
-				   FROM #t_CustID_501)
-		BEGIN
-			DECLARE @CustIds VARCHAR(MAX)
-			
-			SET @CustIds = STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
-								  FROM #t_CustID_501								  
-								  FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
-									
-			EXEC dbo.NAP_Admin_Calculate_500 @MatchId	= @MatchID
-						, @Action = 'VOID'
-						, @CustIds = @CustIds									
-		END
 		
 		-------> Capture after balance		
 		INSERT INTO @tblAfterBalance (matchid

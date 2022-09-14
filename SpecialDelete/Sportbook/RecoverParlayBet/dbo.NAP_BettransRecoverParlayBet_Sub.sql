@@ -138,7 +138,7 @@ BEGIN
 
 	IF @MatchDate <= @Movebetdate
 	BEGIN
-		SELECT @ErrCode = 102, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+		SELECT @ErrCode = 112, @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
 
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 
 		RETURN	

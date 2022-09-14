@@ -390,7 +390,7 @@ BEGIN
 			@UserID = @UserID, 
 			@Doing	= @LogData
 			
-		SELECT 101 AS ErrorCode
+		SELECT 113 AS ErrorCode
 			, 'Sorry. You can not process void bet due to either wrong password or insufficient permission!' AS ErrorMsg
 			, @NegativeBalanceUsers AS NegativeBalanceUsers
 		
@@ -406,7 +406,7 @@ BEGIN
 		
 	END TRY
 	BEGIN CATCH
-		SELECT	101 AS ErrorCode
+		SELECT	114 AS ErrorCode
 				, 'Invalid TransIds.' AS ErrorMsg	
 				, @NegativeBalanceUsers AS NegativeBalanceUsers
 				,@SiteDBGroupID AS SiteDBGroupID

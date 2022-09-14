@@ -332,7 +332,7 @@ BEGIN
 		,@Doing = @LogData  
 
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'  
-		,@ErrCode = 101				 
+		,@ErrCode = 113				 
 
 		SELECT @ErrCode AS ErrorCode
 			, @ErrMsg AS ErrorMsg
@@ -367,7 +367,7 @@ BEGIN
 
 	END TRY  
 	BEGIN CATCH  
-		SELECT @ErrCode = 101  
+		SELECT @ErrCode = 114  
 		,@ErrMsg = 'Invalid TransIds.'	
 		
 		SELECT @ErrCode AS ErrorCode
@@ -1014,7 +1014,7 @@ BEGIN
 	WHERE statusID IN (111, 112, 113)
 	)  
 	BEGIN  
-		SELECT @ErrCode = 100
+		SELECT @ErrCode = 117
 			  ,@ErrMsg = 'You can only void the unsettled or refunded tickets.'  
 	END  
 
