@@ -59,7 +59,7 @@ BEGIN
 		,t.c.value('@us','INT') AS UserId
 		,t.c.value('@crdate','DATETIME') AS CreatedDate
 		,t.c.value('@mt','INT') AS MarkType
-		,t.c.value('@bid','NVARCHAR(100)') AS betid
+		,CASE WHEN t.c.value('@bid','NVARCHAR(100)') ='' THEN NULL ELSE t.c.value('@bid','NVARCHAR(100)') END AS betid
 	FROM @TransInfo.nodes('root/r') t(c)	
 	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 

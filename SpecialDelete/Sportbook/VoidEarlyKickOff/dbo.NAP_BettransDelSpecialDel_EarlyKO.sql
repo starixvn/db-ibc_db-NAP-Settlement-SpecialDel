@@ -164,17 +164,16 @@ BEGIN
 			,@FCUpdateTime		DATETIME2
 
 	DECLARE @isExistMatch		BIT = 0  
-			,@isExistMG			BIT = 0 
 			,@isExistFM			BIT = 0 
 			,@isExistParlay		BIT = 0  
-			,@avaiableProcess	BIT = 0  
+			,@avaiableProcess	BIT
 			,@IsExistBB			BIT = 0
 			,@isExistFM2		BIT = 0
 			,@ValueDefault		SMALLMONEY = 9999.00
-			,@ErrMsg					NVARCHAR(200)	= ''
-			,@ErrCode				INT				= 0	  
+			,@ErrMsg			NVARCHAR(200)	= ''
+			,@ErrCode			INT				= 0	  
 			,@SiteDBGroupID		SMALLINT
-			,@transInfo XML 
+			,@transInfo			XML 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -453,13 +452,9 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
 
 	BEGIN --SD checking process  
-	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (29, 38) 
-										AND b.Bettype NOT BETWEEN 801 AND 806 
-										AND f.GroupId IS NULL
-									THEN 1 ELSE 0 END)  
-			
-		,@isExistFM  = MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)  
-			,@isExistBB		= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
+	SELECT @isExistMatch  = MAX (CASE WHEN b.Bettype NOT IN (29, 38) AND f.GroupId IS NULL THEN 1 ELSE 0 END)  
+		    ,@isExistFM  = MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)  
+			,@isExistBB	 = MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 			,@isExistFM2 = MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 	FROM dbo.bettrans b WITH (NOLOCK)  
 		INNER JOIN #tblTransIds t ON t.transid = b.transid  
@@ -470,20 +465,6 @@ BEGIN
 					WHERE Bettype = b.Bettype
 			)f
 	WHERE b.matchid = @matchid  
-
-	IF (ISNULL(@isExistMG, 0) = 0   
-		AND EXISTS (SELECT 1 FROM #tblBettype WHERE Id BETWEEN 801 AND 899 )  
-	)  
-	BEGIN  
-		SELECT TOP 1 @isExistMG  = 1  
-		FROM dbo.translog b WITH(NOLOCK)  
-			INNER JOIN #tblTransIds t   
-			ON t.transid = b.translogid  
-			INNER JOIN #tblBettype tp   
-			ON tp.Id = b.gameid  
-		WHERE b.eventid = @matchid  
-			AND b.gameid BETWEEN 801 AND 899  
-	END  
 
 	IF(EXISTS (SELECT 1 FROM #tblBettype WHERE Id = 29))    
 	BEGIN  
@@ -510,8 +491,6 @@ BEGIN
 	INSERT INTO #tblMatchProcess(matchid, KeyID)  
 	SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistMatch = 1  
 	UNION ALL  
-	SELECT @matchid AS matchid, 3 AS KeyID WHERE @isExistMG = 1  
-	UNION ALL  
 	SELECT @matchid AS matchid, 6 AS KeyID WHERE @isExistFM = 1  
 	UNION ALL
 	SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1
@@ -526,8 +505,7 @@ BEGIN
 		BEGIN
 			-- checking single proccess		
 			EXEC dbo.NAP_Admin_CheckingProcess   
-				@isExistMG			= @isExistMG  
-				, @isExistFM		= @isExistFM  
+				  @isExistFM		= @isExistFM  
 				, @isExistMatch		= @isExistMatch  
 				, @isExistBB		= @isExistBB
 				, @isExistFM2		= @isExistFM2
@@ -561,8 +539,7 @@ BEGIN
 			BEGIN		
 				------ releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess   
-					@isExistMG  	= @isExistMG  
-					, @isExistFM	= @isExistFM  
+					  @isExistFM	= @isExistFM  
 					, @isExistMatch	= @isExistMatch  
 					, @isExistBB	= @isExistBB
 					, @isExistFM2	= @isExistFM2
@@ -581,7 +558,6 @@ BEGIN
 		-- checking SD proccess
 		EXEC dbo.NAP_Admin_CheckingProcess  
 			@isExistParlay		= @isExistParlay  
-			, @isExistMG		= @isExistMG  
 			, @isExistFM		= @isExistFM  
 			, @isExistMatch		= @isExistMatch  
 			, @isExistBB		= @isExistBB
@@ -627,8 +603,7 @@ BEGIN
 			BEGIN
 				------ releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess   
-					@isExistMG  	= @isExistMG  
-					, @isExistFM	= @isExistFM  
+					  @isExistFM	= @isExistFM  
 					, @isExistMatch	= @isExistMatch  
 					, @isExistBB	= @isExistBB
 					, @isExistFM2	= @isExistFM2
@@ -655,7 +630,6 @@ BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess  
 				@isExistParlay	= @isExistParlay  
-				, @isExistMG  	= @isExistMG  
 				, @isExistFM	= @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
@@ -1041,8 +1015,7 @@ BEGIN
 			BEGIN
 				------ releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess   
-					@isExistMG  	= @isExistMG  
-					, @isExistFM	= @isExistFM  
+					  @isExistFM	= @isExistFM  
 					, @isExistMatch	= @isExistMatch  
 					, @isExistBB	= @isExistBB
 					, @isExistFM2	= @isExistFM2
@@ -1063,7 +1036,6 @@ BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess  
 				@isExistParlay	= @isExistParlay  
-				, @isExistMG  	= @isExistMG  
 				, @isExistFM	= @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
@@ -1611,8 +1583,7 @@ BEGIN
 			BEGIN
 				------ releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess   
-					@isExistMG  	= @isExistMG  
-					, @isExistFM	= @isExistFM  
+					  @isExistFM	= @isExistFM  
 					, @isExistMatch	= @isExistMatch  
 					, @isExistBB	= @isExistBB
 					, @isExistFM2	= @isExistFM2
@@ -1633,7 +1604,6 @@ BEGIN
 			------ releasing SD process
 			EXEC dbo.NAP_Admin_CheckingProcess  
 				@isExistParlay	= @isExistParlay  
-				, @isExistMG  	= @isExistMG  
 				, @isExistFM	= @isExistFM  
 				, @isExistMatch	= @isExistMatch  
 				, @isExistBB	= @isExistBB
@@ -1785,7 +1755,7 @@ BEGIN
 			,al.oddstype  
 			,al.transdate  
 			,al.Bettype
-			,CASE WHEN al.Bettype BETWEEN 801 AND 806 THEN al.refno ELSE al.transid END transid 
+			,al.transid
 			,al.refno  
 			,al.betteam  
 			,al.betteam AS choiceBetTeam   
