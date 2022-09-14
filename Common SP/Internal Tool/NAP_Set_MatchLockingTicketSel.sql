@@ -12,6 +12,7 @@ AS
 	
 	Revisions:
 		- 20210506@Kathy: Get number of ticket of locked  [Redmine:#151475]
+		- 20220913@Louisa: Support delete locking at SiteDB after release Scale out DBTrans [RedmineId:#177711]
 
 */
 BEGIN
@@ -19,12 +20,16 @@ BEGIN
 
 	DECLARE @SportType SMALLINT
 			,@TicketCount INT
+			,@IsCentral BIT = 0
 
 	DECLARE @tmpBettype TABLE (bettype SMALLINT)
 	
 	SELECT	@SportType = m.sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	IF @KeyId = 5 -- Bet Builder
 	BEGIN
@@ -34,6 +39,7 @@ BEGIN
 				AND b.bettype = 38
 				AND b.statusID IN (0,1)
 				AND b.betcheck = @MarketId
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	END
 	ELSE
 	BEGIN
@@ -103,6 +109,7 @@ BEGIN
 					ON b.bettype = t.bettype
 			WHERE	b.matchid = @MatchId
 					AND b.statusID IN (0,1)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		ELSE
 		BEGIN
@@ -113,6 +120,7 @@ BEGIN
 			WHERE	b.matchid = @MatchId
 					AND b.statusID IN (0,1)
 					AND (@KeyId = 1 OR t.bettype IS NOT NULL)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		
 	END

@@ -9,14 +9,16 @@ AS
 	
 	Revisions:
 		- 20210506@Kathy: Get all matches being locked [Redmine:#151475]
-
+		- 20220913@Louisa: Get more info [RedmineId:#177711]
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @fromdatetime DATETIME
+			,@ServerName VARCHAR(100) 
 
 	SET @fromdatetime = DATEADD(MINUTE, -5, GETDATE())
+	SET @ServerName = @@SERVERNAME
 
 	DECLARE @tmpLockedMatch TABLE (MatchId INT, KeyId INT, MarketId VARCHAR(20), CreatedDateTime DATETIME)
 
@@ -35,7 +37,8 @@ BEGIN
 									AND hd.CreatedDateTime > hi.CreatedDateTime
 							)
 	
-	SELECT	t.MatchId
+	SELECT @ServerName AS ServerName
+		,t.MatchId
 		,st.SportName
 		,h.teamname AS HomeTeam
 		,a.teamname AS AwayTeam

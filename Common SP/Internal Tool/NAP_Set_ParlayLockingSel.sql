@@ -10,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20210830@Louisa: Get all matches're being locking by refno [Redmineid:#160738]
+		- 20220913@Louisa: Get more info [RedmineId:#177711]
 
 	Param's Explanation:
 		@TimeRange: the range to scan data (hours)
@@ -20,10 +21,13 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @FromDateTime DATETIME, @ToDatetime DATETIME
+	DECLARE @FromDateTime DATETIME
+			, @ToDatetime DATETIME
+			, @ServerName VARCHAR(100)
 
 	SET @FromDateTime = DATEADD (HOUR, - @TimeRange, GETDATE() )
 	SET @ToDatetime = DATEADD(MINUTE, -5, GETDATE())
+	SET @ServerName = @@SERVERNAME
 
 	DECLARE @tmpParlayLocking TABLE 
 	(MatchId INT, Refno BIGINT, Session NVARCHAR(100), SPName SYSNAME, CreatedDate DATETIME)
@@ -47,7 +51,8 @@ BEGIN
 			)
 	END
 	
-	SELECT p.MatchID
+	SELECT @ServerName AS ServerName 
+		,p.MatchID
 		, COUNT(p.Refno) AS TotalAffectedRefno
 		, p.Session 
 		, p.SPName 
