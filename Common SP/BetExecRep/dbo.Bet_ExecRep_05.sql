@@ -453,7 +453,7 @@ BEGIN
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
-						,winlostdate AS '@w' 
+						,winlostdate AS '@wld' 
 						,statuswinlost AS '@statuswl'
 						,Status AS '@s' 
 						,StatusID AS '@sid' 
