@@ -372,7 +372,7 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'Void_14', 'bettrans', 'U', @matchid, @transInfo
+			SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo
 		END
 
 	END
