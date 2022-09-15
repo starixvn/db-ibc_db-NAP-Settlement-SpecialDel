@@ -114,6 +114,7 @@ BEGIN
 		,FcUpdateTime DATETIME2,creator INT, betdaqid BIGINT, virtualrate FLOAT
 		,modds SMALLMONEY, transdate DATETIME, comstatus NVARCHAR(40) 
 	)
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 		
 	SELECT @ErrCode	= 0
 		 , @ErrMsg = ''
@@ -398,33 +399,47 @@ BEGIN
 								END AS scomm
 						) AS TCal	
 
-	SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
-	SET @transInfo = (
-	SELECT	b.transId AS '@t'
-			, b.status AS '@s'
-			, b.statusID AS '@sid'	
-			, b.stake AS '@stake'
-			, b.winlost AS '@w'
-			, b.awinlost AS '@aw'
-			, b.mwinlost AS '@mw'
-			, b.swinlost AS '@sw'
-			, b.playercomm AS '@pc'
-			, b.comm AS '@c'
-			, b.acomm AS '@ac'
-			, b.scomm AS '@sc'					
-			, b.ruben AS '@r'
-			, b.creator AS '@cr'
-			, b.modds AS '@m'
-			, b.betdaqid AS '@bdaq'
-			, b.virtualrate AS '@v'
-			, b.FcUpdateTime AS '@rut'
-	FROM	@tmpTransInfo b
-	FOR XML PATH('r'),ROOT('root'), TYPE)
+	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	BEGIN
+		INSERT INTO @tmpMatchidInfo (MatchId)
+		SELECT DISTINCT MatchId FROM @tmpTransInfo
 
-	IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
-	BEGIN		
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-		SELECT 'TVS', 'Recover_CO', 'bettrans', 'U', @matchid, @transInfo
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1)m
+			SET IsFinish = 1, @matchid = MatchId 
+			FROM @tmpMatchidInfo m
+			WHERE IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK;
+			SET @transInfo = (
+				SELECT	b.transId AS '@t'
+						, b.status AS '@s'
+						, b.statusID AS '@sid'	
+						, b.stake AS '@stake'
+						, b.winlost AS '@w'
+						, b.awinlost AS '@aw'
+						, b.mwinlost AS '@mw'
+						, b.swinlost AS '@sw'
+						, b.playercomm AS '@pc'
+						, b.comm AS '@c'
+						, b.acomm AS '@ac'
+						, b.scomm AS '@sc'					
+						, b.ruben AS '@r'
+						, b.creator AS '@cr'
+						, b.modds AS '@m'
+						, b.betdaqid AS '@bdaq'
+						, b.virtualrate AS '@v'
+						, b.FcUpdateTime AS '@rut'
+				FROM	@tmpTransInfo b WHERE b.matchId = @MatchId
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'Recover_CO', 'bettrans', 'U', @matchid, @transInfo
+		END
+
+		DELETE FROM @tmpTransInfo
+		DELETE FROM @tmpMatchidInfo
 	END
 	
 	--> capture after
@@ -448,8 +463,6 @@ BEGIN
 		, @AfterUpd	 = @afterUpd
 	
 	--> delete zzzbettrans
-	DELETE @tmpTransInfo
-
 	DELETE z OUTPUT deleted.transid, deleted.matchid, deleted.transdate, deleted.comstatus INTO @tmpTransInfo (transId, matchId, transdate, comstatus)	
 	FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 		 INNER JOIN #SpecialDeleteBets t
@@ -458,18 +471,32 @@ BEGIN
 	
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
-		SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
+		INSERT INTO @tmpMatchidInfo (MatchId)
+		SELECT DISTINCT MatchId FROM @tmpTransInfo
 
-		SET @TransInfo = (
-		SELECT	matchid AS '@mid'
-				, transId AS '@t'
-				, transdate AS '@td'
-				, comstatus AS '@cst'
-		FROM	@tmpTransInfo WHERE matchid = @MatchId 
-		FOR XML PATH('r'),ROOT('root'), TYPE)
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1)m
+			SET IsFinish = 1, @matchid = MatchId 
+			FROM @tmpMatchidInfo m
+			WHERE IsFinish IS NULL
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-		SELECT 'TVS', 'Recover_CO', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			IF @@ROWCOUNT = 0 BREAK;
+
+			SET @TransInfo = (
+			SELECT	matchid AS '@mid'
+					, transId AS '@t'
+					, transdate AS '@td'
+					, comstatus AS '@cst'
+			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'Recover_CO', 'zzzbettrans', 'D', @matchid, @TransInfo 
+		END
+
+		DELETE FROM @tmpTransInfo
+		DELETE FROM @tmpMatchidInfo
 	END
 
 	
