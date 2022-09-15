@@ -1,4 +1,4 @@
-/*<info serverAlias="SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="SBSETTLE-bodb02,DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
 alter procedure dbo.SSB_Replicated_SyncSiteDB_UpdateData @ConversationHandle uniqueidentifier
 	, @MessageType varchar(200)
 	, @MessageBody nvarchar(max)

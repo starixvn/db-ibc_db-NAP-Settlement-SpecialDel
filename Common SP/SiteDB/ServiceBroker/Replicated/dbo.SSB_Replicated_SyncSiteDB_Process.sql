@@ -1,9 +1,9 @@
-/*<info serverAlias="SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="SBSETTLE-bodb02,DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
 create procedure dbo.SSB_Replicated_SyncSiteDB_Process
 as
 /*  Created: Kathy@20220827
 	Task: Pick conversation
-	DB: SBSETTLE-bodb02
+	DB: SBSETTLE-bodb02,DBBAL-bodb02
 	Revisions:  
 		- 20220827@Kathy: Scale Out BetTrans [Redmine:#175251]
 */
