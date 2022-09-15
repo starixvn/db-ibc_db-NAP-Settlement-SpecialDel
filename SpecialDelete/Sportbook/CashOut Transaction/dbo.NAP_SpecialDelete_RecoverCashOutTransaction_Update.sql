@@ -334,9 +334,9 @@ BEGIN
 	  , betdaqid = -2
 	  , virtualrate = actualrate
 	  , FcUpdateTime = @FCUpdateTime
-	  OUTPUT inserted.TransId, inserted.status, inserted.statusID, inserted.stake, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost
+	  OUTPUT inserted.TransId, inserted.matchid, inserted.status, inserted.statusID, inserted.stake, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost
 		, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.ruben, inserted.creator, inserted.modds, inserted.betdaqid, inserted.virtualrate, inserted.FcUpdateTime
-		INTO @tmpTransInfo (transId, Status, StatusID, stake, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm
+		INTO @tmpTransInfo (transId, matchId, Status, StatusID, stake, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm
 			, ruben, creator, modds, betdaqid, virtualrate, FcUpdateTime)
 	FROM dbo.bettrans b 
 		INNER JOIN CTE_main_cashoutticket AS t
