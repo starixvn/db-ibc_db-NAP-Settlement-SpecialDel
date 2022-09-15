@@ -502,7 +502,7 @@ BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
 						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-						,WinLost AS '@wl'
+						,WinLost AS '@w'
 						,Status AS '@s' 
 						,StatusID AS '@sid' 
 						,ruben AS '@r'	
