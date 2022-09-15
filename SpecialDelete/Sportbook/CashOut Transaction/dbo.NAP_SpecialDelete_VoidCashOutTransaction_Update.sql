@@ -336,9 +336,9 @@ BEGIN
 			,b.betdaqid = -1
 			,b.virtualrate = CASE WHEN c.VirtualRate = 0 THEN b.virtualrate ELSE c.VirtualRate END
 			,b.FcUpdateTime  = @FCUpdateTime
-		OUTPUT inserted.TransId, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost, inserted.playercomm, inserted.comm, inserted.acomm
+		OUTPUT inserted.TransId, inserted.matchid, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost, inserted.playercomm, inserted.comm, inserted.acomm
 			, inserted.scomm, inserted.status, inserted.statusID, inserted.ruben, inserted.creator, inserted.betdaqid, inserted.virtualrate, inserted.FcUpdateTime
-		INTO @tmpTransInfo (transId, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben, creator, betdaqid, virtualrate, FcUpdateTime)
+		INTO @tmpTransInfo (transId, matchId, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben, creator, betdaqid, virtualrate, FcUpdateTime)
 	FROM	dbo.bettrans b 
 		INNER JOIN #SpecialDeleteBets s ON	b.transid = s.transId
 		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID		
