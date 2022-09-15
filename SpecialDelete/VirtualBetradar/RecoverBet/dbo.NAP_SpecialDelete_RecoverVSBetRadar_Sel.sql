@@ -689,7 +689,8 @@ BEGIN
 			r.SubHdp1,
 			r.SubHdp2,
 			r.SubOdds,
-			r.SubTransdesc
+			r.SubTransdesc,
+			@SiteDBGroupID AS SiteDBGroupID
 	FROM #RecoverBet r
 	     CROSS APPLY (SELECT CASE 
 								WHEN r.IsDeposit = 0  
