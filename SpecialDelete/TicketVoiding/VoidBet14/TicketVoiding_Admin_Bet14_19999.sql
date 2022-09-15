@@ -124,6 +124,7 @@ BEGIN
 				, b.comm AS '@c'
 				, b.acomm AS '@ac'
 				, b.scomm AS '@sc'
+				, b.winlostdate AS '@wld'
 		FROM	@tmpTransInfo b
 		FOR XML PATH('r'),ROOT('root'), TYPE)
 
