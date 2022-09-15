@@ -8,7 +8,7 @@ AS
 	/*	Created by: 20201207@July
 	Task: Optimize Voiding Workflow - General info delete bet check [Redmine:#145719]
 	DB: DBTXN/bodb02
-	
+
 	Revisions: 
 		- 20201207@July: Create new SP [Redmine:#145719]
 		- 20201224@Zane: Return KO time [Redmine:#143666]
@@ -25,6 +25,7 @@ BEGIN
 	DECLARE  @VoidingHistoryId  INT
 			,@xmlVoidData		XML = NULL
 			,@xmlVoidResults	XML = NULL
+			,@cnt_matchid		INT = 0
 
 	CREATE TABLE #tmpMatch 
 	(
@@ -46,6 +47,7 @@ BEGIN
 		,VoidedBy INT
 		,VoidResults XML
 		,VoidedTime DATETIME
+		,MatchId INT
 		,IsFinish BIT
 	)
 
@@ -65,23 +67,41 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
-	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId = 0)
+	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId IN (0,29))
 	
-	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, VoidedTime) 
+	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, VoidedTime, VoidData) 
 	SELECT	 vh.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId AS VoidedBy
 			,vh.CreatedDate
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+			,vh.VoidData
+	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
+	
+	SELECT @cnt_matchid = COUNT(matchid)
+	FROM  Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+	WHERE RequestId = @RequestId
 
-	--Update column XML
-	UPDATE h
-	SET  h.VoidData = vh.VoidData
-	    ,h.VoidResults = s.VoidResults
-	FROM #tmpVoidingHistory h
-		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON h.VoidingHistoryId = vh.VoidingHistoryId
-		LEFT JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON h.RequestId = s.RequestID AND h.VoidingHistoryId = s.VoidingHistoryId
+	IF @cnt_matchid = 1 --Many voidinghistory 1 request -> 1 match
+	BEGIN
+		UPDATE vh
+		SET vh.VoidResults = s.VoidResults
+		   ,vh.matchid = s.matchID
+		FROM #tmpVoidingHistory vh
+			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
+		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
+	END
+	ELSE --Many voidinghistory 1 request -> matches
+	begin
+		UPDATE vh
+		SET vh.VoidResults = s.VoidResults
+			,vh.matchid = s.matchid
+		FROM #tmpVoidingHistory vh
+			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
+		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
+		
+		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
+	END
 
 	WHILE (1=1)
 	BEGIN

@@ -44,7 +44,7 @@ BEGIN
               Betcheck        NVARCHAR(50),
               betdaqid        BIGINT,
               betid           BIGINT,
-              betfrom         NVARCHAR(1),
+              betfrom         NVARCHAR(3),
               Betteam         NVARCHAR(10),
               Bettype         SMALLINT,
               Currency        TINYINT,

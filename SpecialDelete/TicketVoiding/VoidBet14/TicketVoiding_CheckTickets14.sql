@@ -45,7 +45,7 @@ BEGIN
 		,StatusId		INT
 		,bettype		SMALLINT
 		,matchid		INT
-		,betfrom		NVARCHAR(1)
+		,betfrom		NVARCHAR(3)
 		,refno			BIGINT
 		,winlostdate	DATETIME
 		,betdaqid		BIGINT
@@ -60,8 +60,7 @@ BEGIN
       ,betid BIGINT
 	  ,betdaqid BIGINT
       ,statusID TINYINT
-      ,betfrom NVARCHAR(1)
-	  ,statuswinlost TINYINT
+      ,betfrom NVARCHAR(3)
 	  ,winlostdate SMALLDATETIME
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
@@ -76,7 +75,6 @@ BEGIN
 		  ,betdaqid 
 		  ,betfrom
 		  ,statusID
-		  ,statuswinlost
 		  ,winlostdate
 		  ,IsMixParlay
 		  ,SiteDBGroupID
@@ -88,9 +86,8 @@ BEGIN
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@bdaq','BIGINT') AS betdaqid
-			,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
+			,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
 			,t.c.value('@sid','TINYINT') AS statusID
-			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID

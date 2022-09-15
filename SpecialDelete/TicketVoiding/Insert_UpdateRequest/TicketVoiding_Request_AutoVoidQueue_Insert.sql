@@ -7,7 +7,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Insert]
    ,@ActionID				TINYINT = NULL
    ,@FilterBy				TINYINT = NULL
    ,@TransIds				VARCHAR(MAX) = NULL
-   ,@BroadcastSessionId		VARCHAR(50)
+   ,@BroadcastSessionId		VARCHAR(100)
 )
 AS
 /*	
@@ -21,7 +21,6 @@ AS
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member), 13 - Abnormal account
-		+ @MatchInfo : <root><r matchid="1,2,3" sporttype =""/></root>
 		+ @TransIds: apply for issuetype (11,15)
 */
 BEGIN
@@ -29,7 +28,7 @@ BEGIN
 
 	DECLARE @IsCalQueue			 BIT = 0
 		   ,@IsTransidProcessed  BIT = 0
-		   ,@SiteDBGroupID SMALLINT = 0 
+		   ,@SiteDBGroupID		 SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #tmpTransId (transid BIGINT, statusid INT, statuswinlost TINYINT)

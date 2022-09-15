@@ -51,12 +51,9 @@ BEGIN
 	   matchid INT
 	  ,transid BIGINT
 	  ,custid	INT	
-	  ,refno BIGINT
-	  ,statusID TINYINT
       ,bettype SMALLINT
 	  ,betteam NVARCHAR(10)
       ,betid BIGINT
-	  ,statuswinlost TINYINT
 	  ,SubMatchIdList	VARCHAR(2000)
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
@@ -65,12 +62,9 @@ BEGIN
 		   matchid
 		  ,transid 
 		  ,custid	
-		  ,refno
-		  ,statusID
 		  ,bettype
 		  ,betteam
 		  ,betid
-		  ,statuswinlost
 		  ,SubMatchIdList
 		  ,IsMixParlay
 		  ,SiteDBGroupID
@@ -78,12 +72,9 @@ BEGIN
 	SELECT t.c.value('@mid','INT') AS matchid
 			,t.c.value('@t','BIGINT') AS transid
 			,t.c.value('@c','INT') AS custid
-			,t.c.value('@ref','BIGINT') AS refno
-			,t.c.value('@s','TINYINT') AS statusID
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bteam','NVARCHAR(10)') AS betteam
 			,t.c.value('@bid','BIGINT') AS betid
-			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
@@ -148,7 +139,7 @@ BEGIN
 	
 	IF @IsEditRequest = 1
 	BEGIN
-		DELETE dbo.TicketVoiding_RequestDetailTicket_Single 
+		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single 
 		WHERE RequestId = @RequestId
 	END
 

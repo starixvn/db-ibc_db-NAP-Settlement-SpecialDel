@@ -107,9 +107,9 @@ BEGIN
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
       ,liveindicator BIT
-	  ,odds MONEY
+	  ,odds SMALLMONEY
 	  ,oddsspread MONEY
-      ,betfrom NVARCHAR(1)
+      ,betfrom NVARCHAR(3)
       ,bettype SMALLINT
       ,betteam NVARCHAR(10)
 	  ,betcheck NVARCHAR(50)
@@ -125,9 +125,9 @@ BEGIN
 	  ,Sublivehomescore SMALLINT
       ,Subliveawayscore SMALLINT
 	  ,Subliveindicator BIT
-	  ,Subodds MONEY
+	  ,Subodds SMALLMONEY
 	  ,Suboddsspread MONEY
-	  ,Subbetfrom NVARCHAR(1)
+	  ,Subbetfrom NVARCHAR(3)
 	  ,Subbettype SMALLINT
 	  ,Subbetteam  NVARCHAR(10)
 	  ,Subbetcheck NVARCHAR(50)
@@ -149,15 +149,14 @@ BEGIN
 	  ,winlost	MONEY
 	  ,actual_stake MONEY
 	  ,winlostdate SMALLDATETIME
-	  ,modds MONEY
-	  ,statuswinlost MONEY
+	  ,modds SMALLMONEY
+	  ,statuswinlost TINYINT
 	  ,LiveBetAcceptTime SMALLINT
 	  ,SecAcceptTime TINYINT
 	  ,SubLiveBetAcceptTime SMALLINT
 	  ,SubSecAcceptTime TINYINT
       ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
-	  ,IsMove14 BIT
 	)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
@@ -243,7 +242,6 @@ BEGIN
 	       ,SubSecAcceptTime 
            ,IsMixParlay 
 	       ,SiteDBGroupID 
-	       ,IsMove14 
 	)
 	SELECT t.c.value('@mid','INT') AS matchid	
 		,t.c.value('@t','BIGINT') AS transid
@@ -255,9 +253,9 @@ BEGIN
 		,t.c.value('@lh','SMALLINT') AS livehomescore
 		,t.c.value('@la','SMALLINT') AS liveawayscore
 		,t.c.value('@li','BIT') AS liveindicator
-		,t.c.value('@o','MONEY') AS odds
+		,t.c.value('@o','SMALLMONEY') AS odds
 		,t.c.value('@os','MONEY') AS oddsspread
-		,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
+		,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
 		,t.c.value('@btype','SMALLINT') AS bettype
 		,t.c.value('@bteam','NVARCHAR(10)') AS betteam
 		,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
@@ -273,9 +271,9 @@ BEGIN
 		,t.c.value('@s_lh','SMALLINT') AS Sublivehomescore
 		,t.c.value('@s_la','SMALLINT') AS Subliveawayscore
 		,t.c.value('@s_li','BIT') AS Subliveindicator
-		,t.c.value('@s_o','MONEY') AS Subodds
+		,t.c.value('@s_o','SMALLMONEY') AS Subodds
 		,t.c.value('@s_os','MONEY') AS Suboddsspread
-		,t.c.value('@s_bfr','NVARCHAR(1)') AS Subbetfrom
+		,t.c.value('@s_bfr','NVARCHAR(3)') AS Subbetfrom
 		,t.c.value('@s_btype','SMALLINT') AS Subbettype
 		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
@@ -283,7 +281,7 @@ BEGIN
 		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
 		,CASE WHEN t.c.value('@s_checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@s_checkt','DATETIME') END AS Subchecktime
 		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
-		,t.c.value('@s_sid', 'MONEY') AS SubstatusID
+		,t.c.value('@s_sid', 'TINYINT') AS SubstatusID
 		,t.c.value('@sre','INT') AS srecommend
 		,t.c.value('@mre','INT') AS mrecommend
 		,t.c.value('@re','INT') AS recommend
@@ -297,15 +295,14 @@ BEGIN
 		,t.c.value('@w','MONEY') AS winlost
 		,t.c.value('@acstake','MONEY') AS actual_stake
 		,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
-		,t.c.value('@m', 'MONEY') AS modds
-		,t.c.value('@statuswl', 'MONEY') AS statuswinlost
+		,t.c.value('@m', 'SMALLMONEY') AS modds
+		,t.c.value('@statuswl', 'TINYINT') AS statuswinlost
 		,t.c.value('@lbat', 'SMALLINT') AS LiveBetAcceptTime
 		,t.c.value('@sat', 'TINYINT') AS SecAcceptTime
 		,t.c.value('@s_lbat', 'SMALLINT') AS SubLiveBetAcceptTime
 		,t.c.value('@s_sat', 'TINYINT') AS SubSecAcceptTime
 		,t.c.value('@isP','BIT') AS IsMixParlay
 		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-		,t.c.value('@isM','BIT') AS IsMoved14 
 	FROM @TransInfo.nodes('root/r') t(c)	
 	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
@@ -708,15 +705,16 @@ BEGIN
 			,t.InstantlySettleCount
 			,t.SettleCount
 			,rd.MainParlayCount
-			,rd.VoidFromTime AS HighLightMinTime
+			,li.HighLightMinTime
 			,h.HighlightAcceptType
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+			LEFT JOIN #logInfo li ON li.MatchId = rd.MatchId
 			OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType
 						 FROM #TVSTicketBets b 
 					     WHERE rd.MatchId = b.matchid 
-						 AND rd.VoidFromTime = (CASE WHEN b.FilterBy = 1 THEN b.transdate
+						 AND li.HighLightMinTime = (CASE WHEN b.FilterBy = 1 THEN b.transdate
 													 WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
 													 WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate END
 												)

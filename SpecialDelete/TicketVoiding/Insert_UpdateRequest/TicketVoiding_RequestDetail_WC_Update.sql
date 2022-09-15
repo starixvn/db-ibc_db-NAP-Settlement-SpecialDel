@@ -58,7 +58,6 @@ BEGIN
 			 matchid		INT
 			,transid		BIGINT
 			,Subtransid		BIGINT
-			,refno			BIGINT
 			,custid			INT	
 			,bettype		SMALLINT
 			,betid			BIGINT
@@ -71,7 +70,6 @@ BEGIN
 		   matchid
 		  ,transid 
 		  ,Subtransid
-		  ,refno
 		  ,custid	
 		  ,bettype
 		  ,betid
@@ -83,7 +81,6 @@ BEGIN
 	SELECT t.c.value('@mid','INT') AS matchid
 			,t.c.value('@t','BIGINT') AS transid
 			,t.c.value('@s_t','BIGINT') AS Subtransid
-			,t.c.value('@ref','BIGINT') AS refno
 			,t.c.value('@c','INT') AS custid
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
@@ -212,7 +209,7 @@ BEGIN
 		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single 
 		WHERE RequestId = @RequestId	
 		
-		DELETE dbo.TicketVoiding_RequestDetailTicket_SubParlay
+		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay
 		WHERE RequestId = @RequestId
 	END
 	INSERT INTO #TVSTicketBets (MatchId, TransId, SubTransId, VoidFromTime, VoidToTime, bettype, betid, CustId, IsMixParlay, SiteDBGroupID)

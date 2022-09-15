@@ -40,8 +40,6 @@ BEGIN
 	   matchid INT
 	  ,transid BIGINT
 	  ,custid	INT	
-	  ,refno BIGINT
-	  ,statusID TINYINT
       ,bettype SMALLINT
       ,betid BIGINT
 	  ,IsMixParlay BIT
@@ -51,8 +49,6 @@ BEGIN
 		   matchid
 		  ,transid 
 		  ,custid	
-		  ,refno
-		  ,statusID
 		  ,bettype
 		  ,betid
 		  ,IsMixParlay
@@ -61,8 +57,6 @@ BEGIN
 	SELECT t.c.value('@mid','INT') AS matchid
 			,t.c.value('@t','BIGINT') AS transid
 			,t.c.value('@c','INT') AS custid
-			,t.c.value('@ref','BIGINT') AS refno
-			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@isP','BIT') AS IsMixParlay
@@ -203,7 +197,7 @@ BEGIN
 
 	IF @IsEditRequest = 1
 	BEGIN
-		DELETE dbo.TicketVoiding_RequestDetailTicket_Single 
+		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single 
 		WHERE RequestId = @RequestId
 	END
 

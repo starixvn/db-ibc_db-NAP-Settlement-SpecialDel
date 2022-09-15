@@ -28,8 +28,8 @@ BEGIN
         refno                 BIGINT,
         custid                INT,
         username              VARCHAR(30),
-        odds                  MONEY,
-        SubOdds               MONEY,
+        odds                  SMALLMONEY,
+        SubOdds               SMALLMONEY,
         oddsspread            MONEY,
         OddsType              INT,
         transdate             DATETIME,
@@ -61,7 +61,7 @@ BEGIN
         ParlayType            SMALLINT DEFAULT(0),-- sub bettype of parlay 
         IsMixParlay           BIT DEFAULT(0),
         sporttype             SMALLINT,
-        modds                 MONEY,
+        modds                 SMALLMONEY,
         ExtraInfo             VARCHAR(1000),
         IsCashOut			  BIT DEFAULT(0),
         matchid               INT,
@@ -94,9 +94,10 @@ BEGIN
 			  ,livehomescore SMALLINT
 			  ,liveawayscore SMALLINT
 			  ,liveindicator BIT
-			  ,odds MONEY
+			  ,odds SMALLMONEY
+			  ,oddsid INT
 			  ,oddsspread MONEY
-			  ,betfrom NVARCHAR(1)
+			  ,betfrom NVARCHAR(3)
 			  ,bettype SMALLINT
 			  ,betteam NVARCHAR(10)
 			  ,betcheck NVARCHAR(50)
@@ -112,9 +113,9 @@ BEGIN
 			  ,Sublivehomescore SMALLINT
 			  ,Subliveawayscore SMALLINT
 			  ,Subliveindicator BIT
-			  ,Subodds MONEY
+			  ,Subodds SMALLMONEY
 			  ,Suboddsspread MONEY
-			  ,Subbetfrom NVARCHAR(1)
+			  ,Subbetfrom NVARCHAR(3)
 			  ,Subbettype SMALLINT
 			  ,Subbetteam  NVARCHAR(10)
 			  ,Subbetcheck NVARCHAR(50)
@@ -137,8 +138,7 @@ BEGIN
 			  ,winlost	MONEY
 			  ,actual_stake MONEY
 			  ,winlostdate SMALLDATETIME
-			  ,modds MONEY
-			  ,oddsid INT
+			  ,modds SMALLMONEY
 			  ,IsMixParlay BIT
 			  ,SiteDBGroupID SMALLINT
 			)
@@ -210,10 +210,10 @@ BEGIN
 		  ,t.c.value('@lh','SMALLINT') AS livehomescore
 		  ,t.c.value('@la','SMALLINT') AS liveawayscore
 		  ,t.c.value('@li','BIT') AS liveindicator
-		  ,t.c.value('@o','MONEY') AS odds
-		  ,t.c.value('@oid','MONEY') AS oddsid
+		  ,t.c.value('@o','SMALLMONEY') AS odds
+		  ,t.c.value('@oid','INT') AS oddsid
 		  ,t.c.value('@os','MONEY') AS oddsspread
-		  ,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
+		  ,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
 		  ,t.c.value('@btype','SMALLINT') AS bettype
 		  ,t.c.value('@bteam','NVARCHAR(10)') AS betteam
 		  ,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
@@ -228,9 +228,9 @@ BEGIN
 		  ,t.c.value('@s_lh','SMALLINT') AS Sublivehomescore
 		  ,t.c.value('@s_la','SMALLINT') AS Subliveawayscore
 		  ,t.c.value('@s_li','BIT') AS Subliveindicator
-		  ,t.c.value('@s_o','MONEY') AS Subodds
+		  ,t.c.value('@s_o','SMALLMONEY') AS Subodds
 		  ,t.c.value('@s_os','MONEY') AS Suboddsspread
-		  ,t.c.value('@s_bfr','NVARCHAR(1)') AS Subbetfrom
+		  ,t.c.value('@s_bfr','NVARCHAR(3)') AS Subbetfrom
 		  ,t.c.value('@s_btype','SMALLINT') AS Subbettype
 		  ,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
 		  ,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
@@ -253,7 +253,7 @@ BEGIN
 		  ,t.c.value('@w','MONEY') AS winlost
 		  ,t.c.value('@acstake','MONEY') AS actual_stake
 		  ,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
-		  ,t.c.value('@m', 'MONEY') AS modds
+		  ,t.c.value('@m', 'SMALLMONEY') AS modds
 		  ,t.c.value('@isP','BIT') AS IsMixParlay
 		  ,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)	

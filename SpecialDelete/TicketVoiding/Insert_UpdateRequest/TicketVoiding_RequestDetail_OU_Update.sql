@@ -54,7 +54,6 @@ BEGIN
 	   matchid INT
 	  ,transid BIGINT
       ,Subtransid BIGINT
-	  ,refno BIGINT
 	  ,custid	INT	
       ,bettype SMALLINT
       ,betid BIGINT
@@ -65,7 +64,6 @@ BEGIN
 		   matchid
 		  ,transid 
 		  ,Subtransid
-		  ,refno
 		  ,custid		
 		  ,bettype
 		  ,betid
@@ -75,7 +73,6 @@ BEGIN
 	SELECT t.c.value('@mid','INT') AS matchid
 			,t.c.value('@t','BIGINT') AS transid
 			,t.c.value('@s_t','BIGINT') AS Subtransid
-			,t.c.value('@ref','BIGINT') AS refno
 			,t.c.value('@c','INT') AS custid
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid

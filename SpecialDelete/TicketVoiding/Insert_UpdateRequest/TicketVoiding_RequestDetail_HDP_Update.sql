@@ -54,7 +54,6 @@ BEGIN
 		  ,transid BIGINT
 		  ,Subtransid BIGINT
 		  ,custid	INT	
-		  ,refno BIGINT
 		  ,bettype SMALLINT
 		  ,betid BIGINT
 		  ,IsMixParlay BIT
@@ -65,7 +64,6 @@ BEGIN
 		  ,transid 
 		  ,Subtransid
 		  ,custid	
-		  ,refno
 		  ,bettype
 		  ,betid
 		  ,IsMixParlay
@@ -75,7 +73,6 @@ BEGIN
 			,t.c.value('@t','BIGINT') AS transid
 			,t.c.value('@s_t','BIGINT') AS Subtransid
 			,t.c.value('@c','INT') AS custid
-			,t.c.value('@ref','BIGINT') AS refno
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@isP','BIT') AS IsMixParlay

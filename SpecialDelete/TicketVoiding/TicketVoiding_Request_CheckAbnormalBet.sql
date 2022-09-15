@@ -115,7 +115,7 @@ BEGIN
 		,liveindicator	BIT
 		,matchid		INT
 		,sporttype		SMALLINT
-		,betfrom		NVARCHAR(1)
+		,betfrom		NVARCHAR(3)
 		,recommend		INT
 		,mrecommend		INT
 		,srecommend		INT
@@ -135,7 +135,6 @@ BEGIN
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT
-      ,Subtransid BIGINT
 	  ,custid	INT	
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
@@ -146,20 +145,19 @@ BEGIN
       ,betid BIGINT
 	  ,betdaqid BIGINT
       ,statusID TINYINT
-      ,betfrom NVARCHAR(1)
+      ,betfrom NVARCHAR(3)
 	  ,recommend INT
 	  ,mrecommend INT
 	  ,srecommend INT
 	  ,statuswinlost TINYINT
-	  ,IsMixParlay BIT
 	  ,SubMatchIdList VARCHAR(2000)
 	  ,IsMoved14 BIT
+	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
-		  ,Subtransid
 		  ,refno
 		  ,custid		
 		  ,livehomescore 
@@ -175,14 +173,14 @@ BEGIN
 		  ,mrecommend
 		  ,srecommend
 		  ,statuswinlost
-		  ,IsMixParlay
 		  ,SubMatchIdList
 		  ,IsMoved14
+		  ,IsMixParlay
 		  ,SiteDBGroupID
+
 		)
 	SELECT t.c.value('@mid','INT') AS matchid
 			,t.c.value('@t','BIGINT') AS transid
-			,t.c.value('@s_t','BIGINT') AS Subtransid
 			,t.c.value('@ref','BIGINT') AS refno
 			,t.c.value('@c','INT') AS custid
 			,t.c.value('@lh','SMALLINT') AS livehomescore
@@ -192,15 +190,15 @@ BEGIN
 			,t.c.value('@btype','SMALLINT') AS bettype
 			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@bdaq','BIGINT') AS betdaqid
-			,t.c.value('@bfr','NVARCHAR(1)') AS betfrom
+			,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
 			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@re','INT') AS recommend
 			,t.c.value('@mre','INT') AS mrecommend
 			,t.c.value('@sre','INT') AS srecommend
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
-			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
 			,t.c.value('@IsM','BIT') AS IsMoved14
+			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@TransInfo = NULL))

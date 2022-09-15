@@ -76,15 +76,9 @@ BEGIN
 	   matchid INT
 	  ,transid BIGINT
 	  ,custid INT	
-      ,livehomescore SMALLINT
-      ,liveawayscore SMALLINT
-      ,liveindicator BIT
-      ,betteam NVARCHAR(10)
-      ,betfrom NVARCHAR(1)
 	  ,refno BIGINT
       ,bettype SMALLINT
       ,betid BIGINT
-	  ,betdaqid BIGINT
       ,statusID TINYINT
 	  ,winlostdate SMALLDATETIME
       ,recommend INT
@@ -116,13 +110,11 @@ BEGIN
 		  ,transid 
 		  ,refno
 		  ,custid		
-		  ,livehomescore 
-		  ,liveawayscore 
-		  ,liveindicator 
 		  ,bettype
-		  ,betdaqid 
+		  ,betid
 		  ,statusID
 		  ,winlostdate
+		  ,recommend
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
@@ -130,13 +122,11 @@ BEGIN
 			,t.c.value('@t','BIGINT') AS transid
 			,t.c.value('@ref','BIGINT') AS refno
 			,t.c.value('@c','INT') AS custid
-			,t.c.value('@lh','SMALLINT') AS livehomescore
-			,t.c.value('@la','SMALLINT') AS liveawayscore
-			,t.c.value('@li','BIT') AS liveindicator
 			,t.c.value('@btype','SMALLINT') AS bettype
-			,t.c.value('@bdaq','BIGINT') AS betdaqid
+			,t.c.value('@bid','BIGINT') AS betid
 			,t.c.value('@sid','TINYINT') AS statusID
 			,t.c.value('@wld','SMALLDATETIME') AS winlostdate
+			,t.c.value('@re','INT') AS recommend
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)
@@ -423,7 +413,6 @@ BEGIN
 	SELECT DISTINCT 
 			t.matchid
 		    ,t.transid
-			,t.refno 
 			,b.custid
 			,b.bettype 
 			,b.betid 

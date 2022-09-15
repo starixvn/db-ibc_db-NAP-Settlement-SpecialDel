@@ -363,21 +363,21 @@ BEGIN
 	UPDATE vh 
 		SET TotalSingle = t.TotalVoidedSingle
 			,MatchId = t.matchid
-			,TotalParlay = CASE WHEN vh.IssueTypeId = 17 THEN t.TotalVoidedParlay ELSE 0 END
+			,TotalParlay = CASE WHEN vh.IssueTypeId IN (11,13,17) THEN t.TotalVoidedParlay ELSE 0 END
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId <> 17 AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
-							WHEN vh.IssueTypeId = 17 AND z.bettype NOT IN(9,29,2799) AND z.bettype NOT BETWEEN 901 AND 920 THEN 1
+							WHEN vh.IssueTypeId NOT IN (11,13,17) THEN 1
+							WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
 					) AS TotalVoidedSingle
-					,SUM(CASE WHEN vh.IssueTypeId = 17 AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN z.matchid ELSE NULL END AS matchid
+					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
+					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN z.matchid ELSE NULL END
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END 
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 		
@@ -389,11 +389,11 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
-					,CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN zm.matchid ELSE NULL END AS matchid
+					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN(1,4,5,6,7) THEN zm.matchid ELSE NULL END
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END 
 	) t
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
@@ -405,7 +405,7 @@ BEGIN
 			SELECT	SUM(vh.TotalSingle) AS TotalSingle
 					,SUM(vh.TotalParlay) AS TotalParlay
 			FROM	@tmpMatchVoidingHistory vh
-			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId IS NULL)
+			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
 		) vh
 
 	--Return Data
