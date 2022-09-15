@@ -116,7 +116,7 @@ BEGIN
 		  srecommend	INT,   
 		  mrecommend	INT,   
 		  recommend		INT,   
-		  betfrom		NVARCHAR(1),   
+		  betfrom		NVARCHAR(3),   
 		  bettype		SMALLINT,   
 		  hdp1			SMALLMONEY,   
 		  hdp2			SMALLMONEY,   

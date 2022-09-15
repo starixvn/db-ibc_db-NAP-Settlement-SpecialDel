@@ -280,7 +280,7 @@ BEGIN
 		,choiceBetCheck NVARCHAR(50)  
 		,betcheck		NVARCHAR(50)  
 		,maintransid	BIGINT  
-		,betfrom		NVARCHAR(1)  
+		,betfrom		NVARCHAR(3)  
 		,STATUS			VARCHAR(20)  
 		,statusid		TINYINT  
 		,creator		INT  

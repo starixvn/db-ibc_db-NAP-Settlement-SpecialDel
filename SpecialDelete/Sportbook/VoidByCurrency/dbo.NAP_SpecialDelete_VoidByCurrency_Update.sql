@@ -233,7 +233,7 @@ BEGIN
 			UserName			VARCHAR(30),
 			NetWinLost			MONEY,
 			site				VARCHAR(10),
-			betfrom				NVARCHAR(1),
+			betfrom				NVARCHAR(3),
 			srecommend			INT,
 			mrecommend			INT,
 			recommend			INT,
