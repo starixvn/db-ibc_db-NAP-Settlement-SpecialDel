@@ -59,7 +59,8 @@ BEGIN
 		  , @transInfo XML 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  
 	
@@ -725,8 +726,8 @@ BEGIN
 		
 		--> Delete zzzbettrans
 		DELETE z
-			OUTPUT deleted.transid, deleted.matchid
-			INTO @tmpTransInfo (transid, matchid)
+			OUTPUT deleted.transid, deleted.matchid, deleted.transdate, deleted.comstatus
+			INTO @tmpTransInfo (transid, matchid, transdate, comstatus)
 		FROM zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			 INNER JOIN #RecoverBet t 
 					 ON	z.transid = t.transid
@@ -735,15 +736,34 @@ BEGIN
 						AND z.bettype = t.bettype
 
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
-		BEGIN			
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-			FROM	@tmpTransInfo WHERE matchid = @MatchId 
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+		BEGIN
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT MatchId FROM @tmpTransInfo
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId 
+				FROM @tmpMatchidInfo m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				SET @TransInfo = (
+				SELECT	matchid AS '@mid'
+						, transId AS '@t'
+						, transdate AS '@td'
+						, comstatus AS '@cst'
+				FROM	@tmpTransInfo WHERE matchid = @MatchId 
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			END
+
+			DELETE FROM @tmpTransInfo
+			DELETE FROM @tmpMatchidInfo
+
 		END
 		
 		--> Release Concurrency process

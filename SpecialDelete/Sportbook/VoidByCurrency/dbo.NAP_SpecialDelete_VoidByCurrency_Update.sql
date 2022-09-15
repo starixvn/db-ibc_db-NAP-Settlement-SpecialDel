@@ -1095,7 +1095,7 @@ BEGIN
 			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'VoidSingleBet', 'zzzbettrans', 'U', @matchid, @transInfo 
+				SELECT 'TVS', 'VoidCurrency', 'zzzbettrans', 'U', @matchid, @transInfo 
 			END
 		END
 

@@ -53,7 +53,7 @@ BEGIN
 		  , @transInfo XML 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  
 	
@@ -398,8 +398,8 @@ BEGIN
 
 		--> Delete zzzbettransm
 		DELETE z
-			OUTPUT deleted.transid, deleted.matchid
-			INTO @tmpTransInfo (transid, matchid)
+			OUTPUT deleted.transid, deleted.matchid, deleted.transdate, deleted.comstatus
+			INTO @tmpTransInfo (transid, matchid, transdate, comstatus)
 		FROM zzzbettransm z WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN #RecoverBet t 
 						ON	z.transid = t.SubTransId

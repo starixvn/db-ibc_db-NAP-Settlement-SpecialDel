@@ -214,7 +214,7 @@ BEGIN
 		,refno			BIGINT  
 		,betid			BIGINT  
 		,stake			MONEY  
-		,odds			MONEY  
+		,odds			SMALLMONEY  
 		,oddsspread		MONEY
 		,custid			INT  
 		,recommend		INT  
@@ -259,9 +259,9 @@ BEGIN
 		,recommend		INT  
 		,mrecommend		INT  
 		,srecommend		INT  
-		,odds			MONEY  
+		,odds			SMALLMONEY  
 		,oddsspread		MONEY
-		,choiceodds		MONEY  
+		,choiceodds		SMALLMONEY  
 		,OddsType		TINYINT  
 		,Transdate		DATETIME  
 		,Bettype		SMALLINT  
@@ -284,7 +284,7 @@ BEGIN
 		,STATUS			VARCHAR(20)  
 		,statusid		TINYINT  
 		,creator		INT  
-		,modds			MONEY  
+		,modds			SMALLMONEY  
 		,transdesc		NVARCHAR(1000)
 		,mainstatusID	INT
 		,ExtraInfo		VARCHAR(1000)
@@ -1225,15 +1225,15 @@ BEGIN
 		INNER JOIN #BetmDelete AS tmpbm  
 		ON bm.transid = tmpbm.transid  	
 
-		-- STEP 3 : Update bettrans/translog  
+		-- STEP 3 : Update bettrans
 		-- 3.1. Update normal ticket  
 		SET @FCUpdateTime = SYSDATETIME()
 		UPDATE main  
 		SET   
 			winlost = main.actual_stake  
 			,ruben = 1  
-			--,statuswinlost = 6  
 			,creator = @UserID  
+			,awinlost = 0
 			,mwinlost = 0  
 			,swinlost = 0  
 			,playercomm = 0  
@@ -1242,7 +1242,7 @@ BEGIN
 			,scomm = 0  
 			,statusID = 102  
 			,status = 'VOID' 
-			,betid =  CASE WHEN main.Bettype IN (805,806) AND main.BetID IS NULL THEN rs_tmp.ResultID ELSE main.betid END
+			,betid = main.betid
 			,FcUpdateTime = @FCUpdateTime
 				OUTPUT deleted.Transid,
 						deleted.custid,  
@@ -1257,14 +1257,6 @@ BEGIN
 				INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype, betdaqid, status)
 		FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)  
 			INNER JOIN #BetDelete AS tmpmain ON main.transid = tmpmain.transid  AND main.transid = tmpmain.grouptransid  
-			OUTER APPLY (SELECT TOP 1 rs.ResultID
-						 FROM @ResultDetail3rd rs
-						 WHERE ((ISNULL(rs.Custom1,'') <> '' AND CHARINDEX('BettypeTime='+ rs.Custom1, main.transdesc,0) <> 0)  
-							   OR  
-							   main.bettype = 806  
-							  )  
-							  AND rs.GameID = main.bettype   
-							 ) AS rs_tmp
 		WHERE main.matchid = @matchid 
 		
 		SET @transInfo = (
@@ -1306,7 +1298,7 @@ BEGIN
 		)  
 		SELECT @MatchId AS matchid
 			 , custid  
-			 , CASE WHEN bettype IN (805, 806) THEN 4 ELSE 1 END AS balanceType
+			 , 1 AS balanceType
 			 , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END AS BonusID
 			 , ISNULL(tmp.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
 			 , SUM(winlost - actual_stake + playercomm) balance  
@@ -1321,22 +1313,9 @@ BEGIN
 			INNER JOIN #BetDelete tmpmain  
 				ON main.transid = tmpmain.transid  
 				AND main.transid = tmpmain.grouptransid  
-			WHERE 1 = CASE WHEN tmpmain.bettype IN (805, 806) AND tmpmain.statusID = 0 THEN 0 ELSE 1 END  			
-			UNION ALL  
-			SELECT  tl.custid
-				  , 0 AS BonusID -- running metric gaming tickets always bet from cash wallet
-				  , 2 AS WalletType -- running metric gaming tickets always bet from cash wallet
-				  , 0 AS winlost, tl.actual_stake, 0 AS playercomm, tl.gameID  
-			FROM dbo.translog tl WITH(NOLOCK)  
-			INNER JOIN #BetDelete tmpmain  
-				ON tl.translogid = tmpmain.refno  
-				AND tl.eventID = @matchid  
-			WHERE tl.statusID = 0  
-				AND tl.gameID IN (805, 806)  			
 		) tmp  
 
 		GROUP BY CustID  
-			   , CASE WHEN bettype IN (805, 806) THEN 4 ELSE 1 END
 			   , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END
 			   , ISNULL(tmp.WalletType, 2) -- normal tickets are treated as cash tickets
 		
@@ -1378,18 +1357,9 @@ BEGIN
 			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'VoidSingleBet', 'zzzbettrans', 'U', @matchid, @transInfo 
+				SELECT 'TVS', 'VoidEKO', 'zzzbettrans', 'U', @matchid, @transInfo 
 			END
 		END
-		
-		--STEP5: Update awinlost of normal ticket 
-		UPDATE main  
-		SET awinlost = 0  
-		FROM dbo.bettrans AS main WITH (ROWLOCK, UPDLOCK)  
-		INNER JOIN #BetDelete AS tmpmain   
-		ON main.transid = tmpmain.transid   
-		 AND main.transid = tmpmain.grouptransid  
-		 AND main.matchid = @matchid  
 		
 		--Get data after update 
 		INSERT INTO @AfterUpd (
@@ -1402,7 +1372,7 @@ BEGIN
 		)  
 		SELECT @MatchId AS matchid
 			 , custid  
-			 , CASE WHEN bettype IN (805, 806) THEN 4 ELSE 1 END AS balanceType  
+			 , 1 AS balanceType  
 			 , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END AS BonusID
 			 , ISNULL(tmp.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
 			 , SUM(winlost - actual_stake + playercomm) balance  
@@ -1420,7 +1390,6 @@ BEGIN
 					AND main.matchid = @matchid  			
 		) tmp  
 		GROUP BY CustID  
-			   , CASE WHEN bettype IN (805, 806) THEN 4 ELSE 1 END
 			   , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END
 			   , ISNULL(tmp.WalletType, 2) -- normal tickets are treated as cash tickets
 
