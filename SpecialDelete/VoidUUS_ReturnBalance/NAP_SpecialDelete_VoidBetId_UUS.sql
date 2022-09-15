@@ -17,6 +17,7 @@ AS
 		- 20210813@Max: Fix CO issue [Redmine: #149927]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -99,17 +100,6 @@ BEGIN
 		,IsFinish		BIT
 		,actual_stake   MONEY
 	)
-
-	CREATE TABLE #tmpRefCodeSummary (
-		RefCode		BIGINT
-		,custid		INT
-		,matchid	INT
-		,bettype	SMALLINT
-		,transid	BIGINT
-	)
-
-	CREATE INDEX IX_BetDelete_RefCode ON #BetDelete(RefCode)		
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 	
 	CREATE TABLE #tblMatch (matchid INT)
 	
@@ -229,117 +219,6 @@ BEGIN
 		AND b.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
 		AND b.statusID NOT IN (101, 102)
 		AND b.currency = 20
-	
-	-- Insert more bonus or cash ticket in case only one ticket appears in #BetDelete	
-	INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
-	SELECT RefCode, custid, matchid, bettype, MAX(transid) as transid
-	FROM #BetDelete
-	WHERE RefCode IS NOT NULL	
-	GROUP BY RefCode, custid, matchid, bettype
-	HAVING COUNT(*) = 1	
-	
-	IF @@ROWCOUNT > 0
-	BEGIN
-		INSERT INTO #BetDelete(
-			GroupTransId	
-			,transid			
-			,matchid		
-			,Bettype		
-			,betid			
-			,stake			
-			,odds			
-			,refno			
-			,betfrom		
-			,statusid				
-			,betdaqid		
-			,winlostdate
-			,status		
-			,oddstype		
-			,transdate		
-			,betteam		
-			,betcheck		
-			,hdp1			
-			,hdp2			
-			,livehomescore	
-			,liveawayscore	
-			,liveindicator	
-			,winlost		
-			,playercomm		
-			,currency	
-			,transdesc		
-			,custid			
-			,creator	
-			,recommend
-			,mrecommend
-			,srecommend
-			,IsHideComm
-			,eventdate
-			,oddsid		
-			,ExtraInfo
-			,awinlost
-			,SiteId
-			,IsMetricGaming
-			,modds		
-			,WalletType
-			,RefCode
-			,BonusID
-			,MainTransId
-			,actual_stake
-		)
-		SELECT	
-			b.transid AS groupTransId
-			,b.transid
-			,b.matchid
-			,b.bettype
-			,b.betid
-			,b.stake
-			,b.odds
-			,b.refno
-			,b.betfrom
-			,b.statusID
-			,b.betdaqid
-			,b.winlostdate
-			,b.status
-			,b.oddstype
-			,b.transdate
-			,b.betteam
-			,b.betcheck
-			,b.hdp1
-			,b.hdp2
-			,b.livehomescore
-			,b.liveawayscore
-			,b.liveindicator
-			,b.winlost - b.actual_stake
-			,b.playercomm
-			,b.currency
-			,b.transdesc
-			,b.custid
-			,b.creator
-			,b.recommend
-			,b.mrecommend
-			,b.srecommend
-			,CASE WHEN b.bettype = 501 AND b.playerdiscount < 0 THEN 1 ELSE 0 END AS IsHideComm
-			,b.winlostdate
-			,b.oddsid		
-			,b.ExtraInfo
-			,b.awinlost
-			,NULL AS SiteId
-			,0 AS IsMetricGaming
-			,b.modds		
-			,b.WalletType
-			,b.RefCode
-			,b.BonusID
-			,r.transid AS MainTransId
-			,b.actual_stake
-		FROM #tmpRefCodeSummary r
-			 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-					 ON b.RefCode = r.RefCode
-						AND b.transid <> r.transid					
-						AND b.custid = r.custid
-						AND b.matchid = r.matchid
-						AND b.bettype = r.bettype	
-		WHERE b.statusID NOT IN (101,102 ) -- reject, void
-	END
 	
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype NOT IN (9, 29, 2799)))
@@ -476,6 +355,8 @@ BEGIN
 		,checktime
 		,matchid
 		,bettype
+		,SiteDBGroupID
+		,RepUpdateTime
 		)
 	SELECT main.transid
 		,main.custid
@@ -499,6 +380,8 @@ BEGIN
 		,main.checktime
 		,main.matchid
 		,main.bettype
+		,main.SiteDBGroupID
+		,NULL --do not need to IH-Rep from SiteDB to Central because central already inserted too
 	FROM dbo.bettrans AS main WITH (NOLOCK)
 		INNER JOIN #tblMatch tm 
 		ON main.matchid = tm.matchid
@@ -857,7 +740,6 @@ BEGIN
 	DROP TABLE #tblTransIds
 	DROP TABLE #BetDelete
 	DROP TABLE #tblMatch
-	DROP TABLE #tmpRefCodeSummary
 
 	RETURN
 END
