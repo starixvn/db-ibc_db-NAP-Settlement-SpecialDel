@@ -472,7 +472,7 @@ BEGIN
 				)f_vh
 		OUTER APPLY ( 
 					SELECT DISTINCT RequestId, s.StatusId
-					FROM bodb02.dbo.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
+					FROM bodb02.dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 					WHERE s.RequestId = t.RequestID AND s.StatusId = 3
 				)f_s
 				---Case Completed, Running
