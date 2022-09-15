@@ -15,10 +15,12 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @checktime DATETIME2
+			,@ServerName VARCHAR(100)
 
 	DECLARE @tmpErrorMessage TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
+	SET @ServerName = @@SERVERNAME
 
 	;WITH cteErrorMessage
 	AS(
@@ -53,7 +55,8 @@ BEGIN
 			WHERE	s.MatchId = @MatchId
 	END
 
-	SELECT	m.MatchId
+	SELECT	@ServerName AS ServerName
+			,m.MatchId
 			,t.SessionId
 			,t.CreatedTime
 			,h.teamname AS HomeTeam
