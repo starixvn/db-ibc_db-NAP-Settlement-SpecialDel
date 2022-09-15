@@ -272,7 +272,7 @@ BEGIN
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
@@ -357,7 +357,7 @@ BEGIN
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			IF @IsSiteDB = 1
+			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> 0
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
