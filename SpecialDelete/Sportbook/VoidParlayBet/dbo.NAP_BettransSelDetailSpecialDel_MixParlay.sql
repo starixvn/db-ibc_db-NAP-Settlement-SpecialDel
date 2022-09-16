@@ -36,7 +36,7 @@ BEGIN
 		,AwayID			INT
 		,hdp1			SMALLMONEY
 		,hdp2			SMALLMONEY
-		,Odds			MONEY
+		,Odds			SMALLMONEY
 		,Betteam		NVARCHAR(20)
 		,statusid		INT
 		,Livehomescore	SMALLINT
