@@ -211,7 +211,7 @@ BEGIN
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
-		,odds MONEY
+		,odds SMALLMONEY
 		,oddstype TINYINT
 		,transdate DATETIME
 		,bettype INT

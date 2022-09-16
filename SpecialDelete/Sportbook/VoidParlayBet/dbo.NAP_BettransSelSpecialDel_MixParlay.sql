@@ -137,7 +137,7 @@ BEGIN
         ,SubHdp2				SMALLMONEY
         ,hdp1					SMALLMONEY
         ,hdp2					SMALLMONEY
-        ,SubOdds				MONEY
+        ,SubOdds				SMALLMONEY
         ,SubBetTeam			    NVARCHAR(20)
 		,BetTeam				NVARCHAR(20)
         ,SubLiveHomeScore	    SMALLINT
@@ -150,7 +150,7 @@ BEGIN
         ,ChoiceMatchCode		NVARCHAR(50)  
         ,SubBetCheck			NVARCHAR(50)
         ,betcheck				NVARCHAR(50)
-        ,modds					MONEY
+        ,modds					SMALLMONEY
         ,transdesc				NVARCHAR(1000)
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
@@ -163,7 +163,7 @@ BEGIN
       ,Bettype			INT  
       ,hdp1 			SMALLMONEY  
       ,hdp2 			SMALLMONEY  
-      ,odds 			MONEY  
+      ,odds 			SMALLMONEY  
       ,betteam			NVARCHAR(20)  
       ,livehomescore 	SMALLINT  
       ,liveawayscore 	SMALLINT  

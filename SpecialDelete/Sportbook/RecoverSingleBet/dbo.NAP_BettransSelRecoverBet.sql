@@ -55,7 +55,7 @@ BEGIN
 		,recommend		INT
 		,username		VARCHAR(50)
 		,transdate		DATETIME
-		,odds			MONEY
+		,odds			SMALLMONEY
 		,oddsspread 	MONEY
 		,stake			MONEY
 		,winlost		MONEY

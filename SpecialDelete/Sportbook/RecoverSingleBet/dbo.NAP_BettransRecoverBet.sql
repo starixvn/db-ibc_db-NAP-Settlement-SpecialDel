@@ -145,7 +145,7 @@ BEGIN
 
 	CREATE TABLE #tbTransId (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	CREATE TABLE #t_match_completed(inputtransid BIGINT, custid INT, transdate DATETIME, odds MONEY, stake MONEY, winlost MONEY, status NVARCHAR(10))
+	CREATE TABLE #t_match_completed(inputtransid BIGINT, custid INT, transdate DATETIME, odds SMALLMONEY, stake MONEY, winlost MONEY, status NVARCHAR(10))
 	
 	DECLARE @tmpTransInfo TABLE(
 			  matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost MONEY, stake MONEY

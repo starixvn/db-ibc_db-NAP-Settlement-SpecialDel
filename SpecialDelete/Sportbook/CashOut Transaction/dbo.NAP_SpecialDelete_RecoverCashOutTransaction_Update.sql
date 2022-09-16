@@ -64,7 +64,7 @@ BEGIN
 		BetType				SMALLINT,
 		BetTeam				NVARCHAR(10),
 		Stake				MONEY,
-		Odds				MONEY,
+		Odds				SMALLMONEY,
 		OddsType			INT,		
 		Hdp1				SMALLMONEY,
 		Hdp2				SMALLMONEY,		

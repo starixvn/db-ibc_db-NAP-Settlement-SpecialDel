@@ -39,7 +39,7 @@ BEGIN
               custid           INT,
               username         VARCHAR(50),
               oddsspread       MONEY,
-              odds             MONEY,
+              odds             SMALLMONEY,
               OddsType         INT,
               transdate        DATETIME,
               bettype          SMALLINT,

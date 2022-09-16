@@ -30,7 +30,7 @@ BEGIN
 	DECLARE @tblRecoverBet TABLE (
 		SubTransID				BIGINT		 
 		,SubBetCheck			NVARCHAR(50)
-		,SubOdds				MONEY   
+		,SubOdds				SMALLMONEY   
 		,SubBetTeam				NVARCHAR(20)  
 		,SubBetType				INT  
 		,SubHdp1				SMALLMONEY   
@@ -58,7 +58,7 @@ BEGIN
 		,betid					BIGINT 
 		,BetTeam				NVARCHAR(20)		
 		,Stake					MONEY
-		,Odds					MONEY		
+		,Odds					SMALLMONEY		
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY		 
 		,betcheck				NVARCHAR(50)

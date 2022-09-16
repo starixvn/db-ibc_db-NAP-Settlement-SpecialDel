@@ -343,7 +343,7 @@ BEGIN
 		ELSE IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
 		BEGIN
 			INSERT INTO #SpecialDeleteBets (transid, CustId, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
-			SELECT	CASE WHEN b.Bettype IN (801,803,804,805,806) THEN b.refno ELSE b.transid END transid
+			SELECT	 b.transid
 					,b.custid
 					,b.bettype AS FilterBetType
 					,b.betteam AS FilterBetTeam

@@ -221,7 +221,7 @@ BEGIN
 			IsNeutral			BIT,			
 			LiveAwayScore		SMALLINT,
 			LiveHomeScore		SMALLINT,
-			Odds				MONEY,			
+			Odds				SMALLMONEY,			
 			Oddsspread 			MONEY,
 			OddsType			INT,
 			RefNo				BIGINT,
@@ -256,7 +256,7 @@ BEGIN
 			SubBetType			SMALLINT,
 			SubHdp1				SMALLMONEY,
 			SubHdp2				SMALLMONEY,
-			SubOdds				MONEY,
+			SubOdds				SMALLMONEY,
 			SubStatus			NVARCHAR(10),
 			ruben				TINYINT,
 			SiteDBGroupId		SMALLINT

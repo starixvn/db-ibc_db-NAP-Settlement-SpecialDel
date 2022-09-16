@@ -44,7 +44,7 @@ BEGIN
 		,livehomescore			SMALLINT 
 		,liveawayscore			SMALLINT 
 		,Stake					MONEY
-		,Odds					MONEY		
+		,Odds					SMALLMONEY		
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY						
 		,betcheck				NVARCHAR(50)

@@ -120,7 +120,7 @@ BEGIN
 		  bettype		SMALLINT,   
 		  hdp1			SMALLMONEY,   
 		  hdp2			SMALLMONEY,   
-		  odds			MONEY,   
+		  odds			SMALLMONEY,   
 		  betteam		NVARCHAR(20),   
 		  livehomescore SMALLINT,  
 		  liveawayscore SMALLINT,   

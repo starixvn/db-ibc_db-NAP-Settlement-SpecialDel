@@ -34,7 +34,7 @@ BEGIN
               custid          INT,
               username        VARCHAR(50),
               oddsspread      MONEY,
-              odds            MONEY,
+              odds            SMALLMONEY,
               OddsType        INT,
               transdate       DATETIME,
               bettype         SMALLINT,
@@ -70,7 +70,7 @@ BEGIN
               SubBetType      SMALLINT DEFAULT(0),
               SubHdp1         SMALLMONEY,
               SubHdp2         SMALLMONEY,
-              SubOdds         MONEY
+              SubOdds         SMALLMONEY
              );
 	-- get single tickets
 	INSERT INTO #Tickets (
