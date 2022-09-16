@@ -273,6 +273,8 @@ BEGIN
 		SELECT @InvalidTransIds = @InvalidTransIds + CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + CAST(t.transid AS VARCHAR(50))
 		FROM @tblTransIds t
 		WHERE t.transid NOT IN (SELECT r.transid FROM #SpecialDeleteBets r)
+
+		SELECT @InvalidTransIds AS InvalidTransIds
 	END
 	
 	/* --2. Table get tickets */

@@ -197,8 +197,13 @@ BEGIN
 		, @ErrMsg			= @ErrMsg OUTPUT
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+	BEGIN
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
+
 		RETURN
-		
+	END	
+
 	----################ End of check concurrent running #####################----
 	CREATE TABLE #BetDelete (
 		transid BIGINT
