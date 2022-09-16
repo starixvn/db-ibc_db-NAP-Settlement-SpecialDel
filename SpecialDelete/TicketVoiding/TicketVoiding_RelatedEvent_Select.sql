@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 (	
 	@MatchId		INT
@@ -11,7 +11,7 @@ AS
 	Created by: Max
 	Date 20200701
 	Task: [TVS] Danger Accept Bets Issue Type [Redmine: #111573]
-	DB: DBTXN/bodb02
+	DB: DBPRO/bodb02
 	
 	Revisions: 
 		- 20200701@Max: Create new SP [Redmine: #135947]
@@ -23,6 +23,7 @@ AS
 		- 20220114@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
 		- 20220221@July: Modify code get fantasy match [Redmine: #164561] 
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
+		- 20220916@July: Change of TVS regarding to Scale out DBTrans - Change config [Redmine: #175412]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -34,17 +35,11 @@ BEGIN
 	
 	IF @IsMainMatch = 1
 	BEGIN
-		DECLARE @query NVARCHAR(MAX) = ''
-		DECLARE @ExecuteSQL NVARCHAR(MAX) = ''
-		
 		CREATE TABLE #LinkedMatch_tmp (MainMatchID INT, LinkedMatchID INT)
-		
-		SET @query = '	SELECT MainMatchID, LinkedMatchID
-						FROM dbo.Dot_Admin_LinkedMatch WITH(NOLOCK)
-						WHERE MainMatchID = @MatchId '
-		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@MatchId INT'' , @MatchId'
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
-		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
+		SELECT MainMatchID, LinkedMatchID
+		FROM dbo.Dot_Admin_LinkedMatch WITH(NOLOCK)
+		WHERE MainMatchID = @MatchId 
 
 		IF @IssueTypeId IN (4,5,6,7)
 		BEGIN
@@ -52,7 +47,7 @@ BEGIN
 
 			INSERT INTO @fantasymatch_tmp (fantasy_match, value)
 			SELECT  m.MatchId, ','+ m.Value +','
-			FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
+			FROM dbo.Match_Property m WITH(NOLOCK)
 			WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(20)) +'%' AND m.[Key] = 'fantasy'
 
 			IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)
