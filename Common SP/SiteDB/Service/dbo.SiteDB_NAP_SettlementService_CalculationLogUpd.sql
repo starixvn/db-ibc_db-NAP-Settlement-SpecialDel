@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogUpd]
 	@LogId BIGINT
 	,@StatusId TINYINT
+	,@ErrMsg VARCHAR(300) = NULL
 AS
 /*
 	Created by: 20201123@Kathy
@@ -32,6 +33,7 @@ BEGIN
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
 				,Endtime = SYSDATETIME()
+				,ErrMsg = ISNULL(@ErrMsg,ErrMsg)
 		WHERE LogId = @LogId
 	END
 				

@@ -1,6 +1,0 @@
-use bodb02
-go
-
-alter table SiteDB_SettlementService_LastLog add StartTimeValidation DATETIME2
-GO
-alter table SiteDB_SettlementService_LastLog add Endtime DATETIME2
