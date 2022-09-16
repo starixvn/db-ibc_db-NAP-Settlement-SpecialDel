@@ -3,7 +3,7 @@
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 (
 	@transIds VARCHAR(MAX)
-	, @SiteDBGroupID SMALLINT
+	, @SiteDBGroupID SMALLINT = 1
 	, @tablename VARCHAR(200) = ''
 )
 /*
@@ -238,19 +238,9 @@ DECLARE @StartRow INT = 1
 	, @Threshold INT = 2000 -- the number of each batch
 	, @tablename VARCHAR (200)
 	, @transIds VARCHAR (MAX) = ''
-	, @siteDBGroupID SMALLINT 
+	, @siteDBGroupID SMALLINT = 1
 
 DECLARE @debug_message VARCHAR(500)
-
-----------------------check SiteDBGroupID before updating----
-SET @siteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88', 'khmerA2') AND SiteDBGroupID > 0)
-
-IF @siteDBGroupID IS NULL
-BEGIN
-	SET @debug_message = 'SiteDBGroupID of these sites have not been configured yet.'
-	RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-	RETURN
-END
 
 ------ 1. bettrans - #tmp_bettrans_scaleout ------------
 IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettrans_scaleout)

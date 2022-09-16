@@ -69,7 +69,8 @@
 
 	DECLARE @SiteDBGroupID SMALLINT
 	DECLARE @debug_message VARCHAR(500)
-	--SET @SiteDBGroupID = 1
+	
+	SET @SiteDBGroupID = 1
 
 	CREATE TABLE #tmp_cust
 	(
@@ -80,15 +81,6 @@
 	(
 		refno BIGINT PRIMARY KEY
 	)
-	------------------------------------------------
-	SET @SiteDBGroupID = (SELECT TOP 1 SiteDBGroupID FROM CustDB.dbo.Site WITH (NOLOCK) WHERE site IN ('Heaven', 'Bobo88', 'khmerA2') AND SiteDBGroupID > 0)
-	
-	IF @SiteDBGroupID IS NULL
-	BEGIN
-		SET @debug_message = 'SiteDBGroupID of these sites have not been configured yet.'
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-		RETURN
-	END
 
 	------------------------------------------------
 	INSERT INTO #tmp_cust (custid)
