@@ -53,7 +53,7 @@ BEGIN
 		  , @transInfo XML 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  
 	
@@ -398,8 +398,8 @@ BEGIN
 
 		--> Delete zzzbettransm
 		DELETE z
-			OUTPUT deleted.transid, deleted.matchid, deleted.transdate, deleted.comstatus
-			INTO @tmpTransInfo (transid, matchid, transdate, comstatus)
+			OUTPUT deleted.transid, deleted.matchid
+			INTO @tmpTransInfo (transid, matchid)
 		FROM zzzbettransm z WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN #RecoverBet t 
 						ON	z.transid = t.SubTransId
@@ -416,7 +416,7 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			SELECT 'TVS', 'RecoverVS', 'zzzbettransm', 'D', @matchid, @TransInfo 
 		END
 			
 		--> Release Concurrency process
