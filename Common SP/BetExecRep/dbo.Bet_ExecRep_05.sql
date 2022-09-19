@@ -511,7 +511,7 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo)
-			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo)	
+			VALUES ('Settlement', 'RecoverNonSport', 'bettrans', @transInfo)	
 		END
 	END
 	ELSE IF @updatetype = 7 -- outright settlement
