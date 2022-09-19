@@ -1,8 +1,8 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
     Created: 20220808@Max
 	Task: Migrate old data TicketVoiding_AutoVoidRequest_Queue - [Redmine:#175412]  
-	DB: DBCTG-bodb02,DBSIG-bodb02
+	DB: DBCTG-bodb02
 */
 
 USE bodb02
@@ -19,8 +19,6 @@ BEGIN
 	WHERE q.StatusId IN (4, 99)
 
 	IF @@ROWCOUNT = 0 BREAK
-
-	WAITFOR DELAY '00:00:00.100'
 END
 
 --Initial session for waiting/running queue before release
@@ -33,8 +31,6 @@ BEGIN
 		AND q.BroadcastSessionId IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK
-
-	WAITFOR DELAY '00:00:00.100'
 END
 
 
