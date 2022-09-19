@@ -1,7 +1,7 @@
 /*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SiteDBServiceLog_Del
 	@LogId	BIGINT
-	,@Action VARCHAR(1)
+	,@Action VARCHAR(10)
 AS
 /*
 	Created:20220913@Louisa
@@ -13,19 +13,19 @@ AS
 
 	Param's Explanation:
 		@Action:
-			D: delete to let service re-run that @LogId again
-			U: update status is successfull to skip that @LogId
+			Delete: delete to let service re-run that @LogId again
+			Update: update status is successfull to skip that @LogId
 */
 BEGIN
 	SET NOCOUNT ON
 		
-		IF @Action = 'D'
+		IF @Action = 'Delete'
 		BEGIN
 			DELETE FROM dbo.SiteDB_SettlementService_LastLog
 			WHERE LogId = @LogId
 		END
 
-		IF @Action = 'U'
+		IF @Action = 'Update'
 		BEGIN
 			UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK,UPDLOCK)
 			SET StatusId = 2
