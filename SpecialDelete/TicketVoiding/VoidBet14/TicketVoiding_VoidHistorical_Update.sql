@@ -233,6 +233,7 @@ BEGIN
 			,checktime, matchid, bettype  
 			,VoidingHistoryId
 			,RepUpdateTime
+			,SiteDBGroupID
 		)  
 	SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
 		,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
@@ -242,6 +243,7 @@ BEGIN
 		,b.checktime, b.matchid, b.bettype  
 		,@VoidingHistoryId
 		,SYSDATETIME()
+		,b.SiteDBGroupID
 	FROM	#tmpTransId AS t WITH (NOLOCK)  
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK)  
 			ON b.transid = t.TransId
