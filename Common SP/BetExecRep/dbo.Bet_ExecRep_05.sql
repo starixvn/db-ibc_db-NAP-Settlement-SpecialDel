@@ -71,7 +71,7 @@ BEGIN
 
 	SELECT @_xml = CONVERT(XML, @_sXML)
 
-	IF @updatetype = 1 
+	IF @updatetype = 1 --Virtual Sports
 	BEGIN
 		;WITH sourceData AS (
 			SELECT	
@@ -453,8 +453,8 @@ BEGIN
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'
-						,winlostdate AS '@wld' 
-						,statuswinlost AS '@statuswl'
+						,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
 						,Status AS '@s' 
 						,StatusID AS '@sid' 
 						,ruben AS '@r'	
