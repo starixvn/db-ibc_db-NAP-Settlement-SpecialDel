@@ -14,6 +14,8 @@ GO
 ALTER TABLE [TicketVoiding_AutoVoidRequest_Queue] ALTER COLUMN BroadcastSessionId VARCHAR(100)
 GO
 
+--Only run on DBCTG--
 ALTER TABLE [TicketVoiding_Void_Service] ALTER COLUMN BroadcastSessionId VARCHAR(100)
 GO
 
+ 

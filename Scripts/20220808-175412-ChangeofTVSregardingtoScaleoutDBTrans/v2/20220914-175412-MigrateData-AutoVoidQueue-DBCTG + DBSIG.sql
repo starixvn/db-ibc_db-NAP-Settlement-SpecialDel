@@ -30,6 +30,7 @@ BEGIN
 		SET q.BroadcastSessionId = NEWID()
 	FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK, UPDLOCK)
 	WHERE q.StatusId IN (0, 1)
+		AND q.BroadcastSessionId IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK
 
