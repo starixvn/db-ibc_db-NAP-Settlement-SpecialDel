@@ -50,6 +50,7 @@ BEGIN
 		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT
 		,oddstype	VARCHAR(3)	,currency2	VARCHAR(3)	,balance VARCHAR(20),SecAcceptFlag VARCHAR(1),transid2	VARCHAR(50)	
 		,RecommDate	DATETIME ,SiteDBGroupID	SMALLINT
+		,RequestId INT, StepNo TINYINT, [Action] VARCHAR(100), AffectedList VARCHAR(MAX), ExecuteType TINYINT
 	)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -632,7 +633,162 @@ BEGIN
 					INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
 						ON	v.transid = t.transid
 			END
-	END
+		END
+		/* Sync for some tables when void bettrans14: bettrans14, Transfer, TicketVoiding_RoutineTasks */
+		ELSE IF @TableName = 'bettrans14'
+		BEGIN
+			IF @Action = 'U'
+			BEGIN
+				INSERT INTO @tmpTransId (TransID, WinLost, ruben, creator, aWinLost, mWinLost, sWinLost
+										, PlayerComm, Comm, aComm, sComm, StatusID, Status, betid, ExtraInfo
+									)
+				SELECT	T.C.value('./@t', 'bigint') AS transid
+					,T.C.value('./@w', 'MONEY') AS WinLost
+					,T.C.value('./@r', 'TINYINT')	AS ruben
+					,T.C.value('./@cr', 'INT') AS creator
+					,T.C.value('./@aw', 'MONEY') AS aWinLost
+					,T.C.value('./@mw', 'MONEY') AS mWinLost
+					,T.C.value('./@sw', 'MONEY') AS sWinLost
+					,T.C.value('./@pc', 'MONEY') AS PlayerComm
+					,T.C.value('./@c', 'MONEY') AS Comm 
+					,T.C.value('./@ac', 'MONEY') AS aComm
+					,T.C.value('./@sc', 'MONEY') AS sComm
+					,T.C.value('./@sid', 'TINYINT')		AS StatusID
+					,T.C.value('./@s', 'NVARCHAR(10)')	AS [Status]
+					,T.C.value('./@bid', 'VARCHAR(50)') AS betid
+					,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo
+				FROM	@transInfo.nodes('/root/r') AS T(C)	
+				OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+
+				SET @batchNo = @@ROWCOUNT
+
+				UPDATE TOP (@batchNo)  b
+					SET	WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+						,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
+						,mWinLost = CASE WHEN t.mWinLost IS NULL THEN b.mwinlost ELSE t.mWinLost END
+						,sWinLost = CASE WHEN t.sWinLost IS NULL THEN b.swinlost ELSE t.sWinLost END
+						,PlayerComm = CASE WHEN t.PlayerComm IS NULL THEN b.playercomm ELSE t.PlayerComm END
+						,Comm = CASE WHEN t.Comm IS NULL THEN b.comm ELSE t.Comm END					
+						,aComm = CASE WHEN t.aComm IS NULL THEN b.acomm  ELSE t.aComm END					
+						,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
+						,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
+						,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
+						,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END									
+						,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
+						,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE CAST(t.betid AS BIGINT) END
+						,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
+				FROM	@tmptransid t
+					INNER JOIN dbo.bettrans14 b WITH (ROWLOCK, UPDLOCK)
+						ON	b.transid = t.transid
+			END
+		END
+		ELSE IF @TableName = 'Transfer'
+		BEGIN
+			IF @Action = 'U'
+			BEGIN
+				INSERT INTO @tmpTransId (custid, stake, actual_stake, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, winlostdate)
+				SELECT T.C.value('./@cust', 'INT') AS custid
+					,T.C.value('./@stake', 'MONEY') AS stake 
+					,T.C.value('./@astake', 'MONEY') AS actual_stake 
+					,T.C.value('./@w', 'MONEY') AS WinLost
+					,T.C.value('./@aw', 'MONEY') AS aWinLost
+					,T.C.value('./@mw', 'MONEY') AS mWinLost
+					,T.C.value('./@sw', 'MONEY') AS sWinLost
+					,T.C.value('./@pc', 'MONEY') AS PlayerComm
+					,T.C.value('./@c', 'MONEY') AS Comm 
+					,T.C.value('./@ac', 'MONEY') AS aComm
+					,T.C.value('./@sc', 'MONEY') AS sComm
+					,T.C.value('./@wld', 'SMALLDATETIME') AS winlostdate
+				FROM	@transInfo.nodes('/root/r') AS T(C)	
+				OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+
+				SET @batchNo = @@ROWCOUNT
+
+				UPDATE TOP (@batchNo)  b
+					SET	Stake = CASE WHEN t.stake IS NULL THEN b.Stake ELSE t.stake END
+						,Actual_Stake = CASE WHEN t.actual_stake IS NULL THEN b.Actual_Stake ELSE t.actual_stake END
+						,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+						,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
+						,mWinLost = CASE WHEN t.mWinLost IS NULL THEN b.mwinlost ELSE t.mWinLost END
+						,sWinLost = CASE WHEN t.sWinLost IS NULL THEN b.swinlost ELSE t.sWinLost END
+						,PlayerComm = CASE WHEN t.PlayerComm IS NULL THEN b.playercomm ELSE t.PlayerComm END
+						,Comm = CASE WHEN t.Comm IS NULL THEN b.comm ELSE t.Comm END					
+						,aComm = CASE WHEN t.aComm IS NULL THEN b.acomm  ELSE t.aComm END					
+						,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
+				FROM	@tmptransid t
+					INNER JOIN dbo.Transfer b WITH (ROWLOCK, UPDLOCK)
+						ON	b.CustId = t.custid AND t.winlostdate = b.WinlostDate AND b.Bettype = 19999 
+			END
+			ELSE IF @Action = 'I'
+			BEGIN
+				INSERT INTO @tmpTransId (statusID, bettype, creator, transdate,
+								custid, currency, recommend, mrecommend, srecommend,
+								winlostdate, stake, winlost, awinlost, mwinlost, swinlost,
+								actual_stake, playercomm, comm, acomm, scomm, 
+								actualrate, Username, CurrencyName, checktime, refno
+							)
+				SELECT T.C.value('./@sid', 'TINYINT') AS StatusID
+					,T.C.value('./@btype', 'SMALLINT') AS bettype
+					,T.C.value('./@cr', 'INT') AS creator
+					,T.C.value('./@td', 'DATETIME') AS transdate
+					,T.C.value('./@cust', 'INT') AS custid
+					,T.C.value('./@cur','TINYINT')  AS currency
+					,T.C.value('./@rc' , 'INT') AS recommend
+					,T.C.value('./@mrc', 'INT')  AS mrecommend
+					,T.C.value('./@src', 'INT')  AS srecommend
+					,T.C.value('./@wld', 'SMALLDATETIME') AS Winlostdate
+					,T.C.value('./@stake', 'MONEY') AS stake
+					,T.C.value('./@w', 'MONEY') AS WinLost
+					,T.C.value('./@aw', 'MONEY') AS aWinLost
+					,T.C.value('./@mw', 'MONEY') AS mWinLost
+					,T.C.value('./@sw', 'MONEY') AS sWinLost
+					,T.C.value('./@astake', 'MONEY') AS actual_stake
+					,T.C.value('./@pc', 'MONEY') AS PlayerComm
+					,T.C.value('./@c', 'MONEY') AS Comm 
+					,T.C.value('./@ac', 'MONEY') AS aComm
+					,T.C.value('./@sc', 'MONEY') AS sComm
+					,T.C.value('./@ar', 'FLOAT')   AS actualrate
+					,T.C.value('./@uname', 'NVARCHAR(100)') AS Username
+					,T.C.value('./@curname', 'NVARCHAR(100)') AS CurrencyName
+					,T.C.value('./@ct','DATETIME') AS checktime
+					,T.C.value('./@ref', 'BIGINT') AS refno
+				FROM	@transInfo.nodes('/root/r') AS T(C)	
+				OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+
+				INSERT INTO dbo.Transfer (statusID, bettype, creator, transdate,
+								custid, currency, recommend, mrecommend, srecommend,
+								winlostdate, stake, winlost, awinlost, mwinlost, swinlost,
+								actual_stake, playercomm, comm, acomm, scomm, 
+								actualrate, Username, CurrencyName, checktime, refno
+							)
+				SELECT statusID, bettype, creator, transdate,
+								custid, currency, recommend, mrecommend, srecommend,
+								winlostdate, stake, winlost, awinlost, mwinlost, swinlost,
+								actual_stake, playercomm, comm, acomm, scomm, 
+								actualrate, Username, CurrencyName, checktime, refno 
+				FROM @tmpTransId
+			END
+		END
+		ELSE IF @TableName = 'TicketVoiding_RoutineTasks'
+		BEGIN
+			IF @Action = 'I'
+			BEGIN
+				INSERT INTO @tmpTransId (RequestId, StepNo, [Action], StatusID, CreatedDate, AffectedList, ExecuteType)
+				SELECT T.C.value('./@req', 'INT') AS RequestId
+					,T.C.value('./@stn', 'TINYINT') AS StepNo 
+					,T.C.value('./@act', 'VARCHAR(100)') AS [Action] 
+					,T.C.value('./@sid', 'TINYINT') AS StatusID
+					,T.C.value('./@crdate', 'DATETIME') AS createddate
+					,T.C.value('./@affs', 'VARCHAR(MAX)') AS AffectedList
+					,T.C.value('./@exect', 'TINYINT') AS ExecuteType 
+				FROM	@transInfo.nodes('/root/r') AS T(C)	
+				OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+
+				INSERT INTO dbo.TicketVoiding_RoutineTasks (RequestID, StepNo, [Action], [Status], CreatedDate, AffectedList, ExecuteType)
+				SELECT RequestId, StepNo, [Action], StatusID, CreatedDate, AffectedList, ExecuteType
+				FROM @tmpTransId
+			END
+		END
 	END
 END
 GO
