@@ -11,3 +11,9 @@ GO
 ALTER TABLE [TicketVoiding_Queue] ADD IssueTypeId TINYINT
 GO
 
+ALTER TABLE [TicketVoiding_AutoVoidRequest_Queue] ALTER COLUMN BroadcastSessionId VARCHAR(100)
+GO
+
+ALTER TABLE [TicketVoiding_Void_Service] ALTER COLUMN BroadcastSessionId VARCHAR(100)
+GO
+

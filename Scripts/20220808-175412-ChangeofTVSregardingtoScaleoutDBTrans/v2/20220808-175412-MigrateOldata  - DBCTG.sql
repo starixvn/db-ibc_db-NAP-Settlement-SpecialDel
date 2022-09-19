@@ -19,6 +19,8 @@ BEGIN
 	WHERE s.SiteDBGroupID IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK
+
+	WAITFOR DELAY '00:00:00.100'
 END
 
 /***** UPDATE column SiteDBGroupID into dbo.TicketVoiding_RequestDetailTicket_SubParlay*****/
@@ -29,6 +31,9 @@ BEGIN
 	FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH(ROWLOCK, UPDLOCK)
 		LEFT JOIN dbo.bettransm bm WITH (NOLOCK) ON rp.TransId = bm.TransId AND rp.MatchId = bm.matchid
 	WHERE rp.SiteDBGroupID IS NULL
+
 	IF @@ROWCOUNT = 0 BREAK
+
+	WAITFOR DELAY '00:00:00.100'
 END
 GO
