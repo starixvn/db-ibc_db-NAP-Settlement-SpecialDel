@@ -40,6 +40,9 @@ BEGIN
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT 
 			,@transInfo			XML 
+			,@SitedbgroupId				INT = 0
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
@@ -127,6 +130,7 @@ BEGIN
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 			ON b.transid = t.transid
 	WHERE b.statusID NOT IN (101, 102)
+		AND b.SiteDBGroupID = @SitedbgroupId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
