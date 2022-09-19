@@ -459,10 +459,12 @@ BEGIN
 		-- update summary ticket
 		EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 			@AffectedList = @AffectedList
+			,@IsSiteDB = @IsSiteDB
 
 		-- insert routine task
 		EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
 			@AffectedList = @AffectedList
+			,@IsSiteDB = @IsSiteDB
 	END TRY
 	BEGIN CATCH
 		SELECT	@ErrCode = 100
