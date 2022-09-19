@@ -103,9 +103,9 @@ BEGIN
 			, scomm = b.scomm + r.scomm_dif 
 
 		OUTPUT inserted.CustId, inserted.Stake, inserted.Actual_Stake, inserted.Winlost, inserted.AWinlost, inserted.MWinlost, inserted.SWinlost
-			, inserted.PlayerComm, inserted.Comm, inserted.AComm, inserted.SComm
+			, inserted.PlayerComm, inserted.Comm, inserted.AComm, inserted.SComm, inserted.WinlostDate
 
-		INTO @tmpTransInfo (custid, stake, actual_stake, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm)
+		INTO @tmpTransInfo (custid, stake, actual_stake, winlost, awinlost, mwinlost, swinlost, playercomm, comm, acomm, scomm, winlostdate)
 	FROM #Result_19999 r
 		INNER LOOP JOIN dbo.Transfer b WITH (ROWLOCK) ON b.custid = r.custid AND b.winlostdate = r.winlostdate 
 	WHERE b.bettype = 19999  
@@ -128,8 +128,13 @@ BEGIN
 		FROM	@tmpTransInfo b
 		FOR XML PATH('r'),ROOT('root'), TYPE)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-		SELECT 'TVS', 'Void_14', 'Transfer', 'U', 0, @transInfo
+		IF @transInfo IS NOT NULL
+		BEGIN
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'Void_14', 'Transfer', 'U', 0, @transInfo
+		END
+
+		DELETE @tmpTransInfo
 	END
 	
 	-- Insert if not exists
@@ -195,9 +200,12 @@ BEGIN
 				, b.refno AS '@ref'
 		FROM	@tmpTransInfo b
 		FOR XML PATH('r'),ROOT('root'), TYPE)
-
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-		SELECT 'TVS', 'Void_14', 'Transfer', 'I', 0, @transInfo
+		
+		IF @transInfo IS NOT NULL
+		BEGIN
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'Void_14', 'Transfer', 'I', 0, @transInfo
+		END
 	END
 			
 	DROP TABLE #Result_19999
