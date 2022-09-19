@@ -33,7 +33,7 @@ BEGIN
 		UPDATE dbo.SiteDB_SettlementService_LastLog WITH(ROWLOCK, UPDLOCK)
 			SET StatusId = @StatusId
 				,Endtime = SYSDATETIME()
-				,ErrMsg = ISNULL(@ErrMsg,ErrMsg)
+				,ErrMsg = CASE WHEN ISNULL(@ErrMsg,'') = '' THEN ErrMsg ELSE @ErrMsg END
 		WHERE LogId = @LogId
 	END
 				
