@@ -26,7 +26,7 @@ DECLARE @tmp_session AS TABLE (MatchId INT, RequestId INT, BroadcastSessionId VA
 INSERT INTO @tmp_session (MatchId, RequestId, BroadcastSessionId, Action)
 SELECT q1.MatchId, q1.RequestId, q1.BroadcastSessionId, q1.Action
 FROM DBCTG.bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue q1 WITH (NOLOCK) 
-WHERE q1.StatusId IN (0, 1)
+WHERE q1.BroadcastSessionId IS NOT NULL
 
 IF @@ROWCOUNT > 0
 BEGIN
