@@ -81,7 +81,8 @@ BEGIN
 		matchcode             NVARCHAR(50),
 		showtime              NVARCHAR(50),
 		winlostdate			  DATETIME,
-		statusID			  TINYINT
+		statusID			  TINYINT,
+		SiteDBGroupID		  SMALLINT
     )
 	CREATE TABLE #tmpTransInfo(
 			   matchid INT
@@ -300,6 +301,7 @@ BEGIN
 			,mainstatusid
 			,ActualStake
 			,matchid
+			,SiteDBGroupID
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -342,6 +344,7 @@ BEGIN
 			,b.statusID AS mainstatusid
 			,b.actual_stake AS ActualStake
 			,b.matchid
+			,b.SiteDBGroupID
 	FROM	#tmpTransInfo b
 		CROSS APPLY (
 			SELECT TOP(1) s.TransId
@@ -509,6 +512,7 @@ BEGIN
 			   ,s.winlostdate
 			   ,s.statusID
 			   ,s.IsCashOut
+			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -585,6 +589,7 @@ BEGIN
 			   ,s.winlostdate
 			   ,s.statusID
 			   ,s.IsCashOut
+			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s 
 			--LEFT JOIN dbo.bettrans14 b WITH(NOLOCK)
 			--	ON	s.betid = b.transid
@@ -651,6 +656,7 @@ BEGIN
 			   ,s.winlostdate
 			   ,s.statusID
 			   ,s.IsCashOut
+			   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -725,6 +731,7 @@ BEGIN
 		   ,s.winlostdate
 		   ,s.statusID
 		   ,s.IsCashOut
+		   ,s.SiteDBGroupID
 		FROM	#TVSTicketBets s
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -788,6 +795,7 @@ BEGIN
 		   ,s.winlostdate
 		   ,s.statusID
 		   ,s.IsCashOut
+		   ,s.SiteDBGroupID
 	FROM CTE_OriginResult s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 	ORDER BY CASE

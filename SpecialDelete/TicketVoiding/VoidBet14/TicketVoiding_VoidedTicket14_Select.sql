@@ -346,7 +346,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 		FROM	#tmpTicket s 
-			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid 
+			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
