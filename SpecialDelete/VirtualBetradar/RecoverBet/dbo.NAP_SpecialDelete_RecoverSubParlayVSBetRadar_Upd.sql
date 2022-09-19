@@ -72,7 +72,7 @@ BEGIN
 		IsLiveIndicator		BIT,
 		LiveAwayScore		SMALLINT,
 		LiveHomeScore		SMALLINT,
-		Odds				MONEY,
+		Odds				SMALLMONEY,
 		OddsType			INT,
 		RefNo				BIGINT,
 		SportType			SMALLINT,
@@ -98,7 +98,7 @@ BEGIN
 		SubBetType			SMALLINT,
 		SubHdp1				SMALLMONEY,
 		SubHdp2				SMALLMONEY,
-		SubOdds				MONEY,
+		SubOdds				SMALLMONEY,
 		SubCustId			INT,
 		SubTransdesc		NVARCHAR(2000),			
 		BetFrom				NVARCHAR(3),
@@ -343,8 +343,9 @@ BEGIN
 				
 			EXEC dbo.Bet_ExecRep_05 
 					@IgnoreList 	= @IgnoreList
-				, @updatetype 	= 5
-				, @_sXML 		= @_sXML
+					, @updatetype 	= 5
+					, @_sXML 		= @_sXML
+					, @MatchId      = @MatchId
 					
 			IF @eventstatus = 'completed'
 			BEGIN

@@ -62,12 +62,13 @@ BEGIN
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @tmpTransInfo TABLE (transId BIGINT
+	DECLARE @tmpTransInfo TABLE (transId BIGINT, matchId INT
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,statusID TINYINT, status NVARCHAR(20), ruben TINYINT
 			,creator INT
 			)
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 
 	IF NOT EXISTS (
 			SELECT 1
@@ -508,35 +509,48 @@ BEGIN
 			,acomm = 0
 			,scomm = 0
 			,statusID = 102
-			OUTPUT inserted.TransId, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.awinlost, inserted.mwinlost, inserted.swinlost
+			OUTPUT inserted.TransId, inserted.matchid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.awinlost, inserted.mwinlost, inserted.swinlost
 				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID
-			INTO @tmpTransInfo (transId, WinLost, ruben, status, creator, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID)
+			INTO @tmpTransInfo (transId, matchId, WinLost, ruben, status, creator, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID)
 		WHERE transid IN (
 				SELECT transid
 				FROM #BetDelete
 				)
-
-		SET @transInfo = (
-			SELECT	b.transId AS '@t'
-					, b.winlost AS '@w'
-					, b.ruben AS '@r'
-					, b.creator AS '@cr'
-					, b.awinlost AS '@aw'
-					, b.mwinlost AS '@mw'
-					, b.swinlost AS '@sw'
-					, b.playercomm AS '@pc'
-					, b.comm AS '@c'
-					, b.acomm AS '@ac'
-					, b.scomm AS '@sc'
-					, b.statusID AS '@sid'
-					, b.status AS '@s'
-			FROM	@tmpTransInfo b
-			FOR XML PATH('r'),ROOT('root'), TYPE)
 		
-		IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'VoidNumberGame', 'bettrans', 'U', @matchid, @transInfo
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId 
+				FROM @tmpMatchidInfo m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				SET @transInfo = (
+				SELECT	b.transId AS '@t'
+						, b.winlost AS '@w'
+						, b.ruben AS '@r'
+						, b.creator AS '@cr'
+						, b.awinlost AS '@aw'
+						, b.mwinlost AS '@mw'
+						, b.swinlost AS '@sw'
+						, b.playercomm AS '@pc'
+						, b.comm AS '@c'
+						, b.acomm AS '@ac'
+						, b.scomm AS '@sc'
+						, b.statusID AS '@sid'
+						, b.status AS '@s'
+				FROM	@tmpTransInfo b WHERE matchid = @MatchId
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+		
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'VoidNumberGame', 'bettrans', 'U', @MatchId, @transInfo
+			END
 		END
 
 		--Get data after update
