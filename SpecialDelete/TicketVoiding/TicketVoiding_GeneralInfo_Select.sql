@@ -57,9 +57,9 @@ BEGIN
 	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId)
 	SELECT DISTINCT 
 			 rd.RequestId
-			,CASE WHEN r.IssuetypeId = 13 THEN NULL ELSE m.homeid END
-			,CASE WHEN r.IssuetypeId = 13 THEN NULL ELSE m.awayid END
-			,CASE WHEN r.IssuetypeId = 13 THEN NULL ELSE m.leagueid END
+			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.homeid END
+			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.awayid END
+			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.leagueid END
 			,r.UserId
 			,r.DecidedBy
 			,rd.kickofftime
