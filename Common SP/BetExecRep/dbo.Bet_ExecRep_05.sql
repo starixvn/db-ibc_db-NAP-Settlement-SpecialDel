@@ -553,7 +553,7 @@ BEGIN
 				,statuswinlost=s.statuswinlost
 				,ruben = s.ruben
 		OUTPUT inserted.transid
-			,CASE WHEN inserted.SettlementTime <> deleted.SettlementTime THEN inserted.SettlementTime ELSE NULL END
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 			,inserted.winlost ,inserted.awinlost,inserted.mwinlost,inserted.swinlost
 			,inserted.playercomm ,inserted.comm ,inserted.acomm  ,inserted.scomm  
 			,inserted.statusID,inserted.status  
@@ -595,8 +595,8 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @transInfo, @Action, 's')	
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'CalculateNonSport', 'bettrans',@matchid, @transInfo, @Action, 's')	
 		END
 
 	END
