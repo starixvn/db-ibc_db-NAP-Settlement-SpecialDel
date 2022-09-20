@@ -53,7 +53,7 @@ BEGIN
 	END
 
 	/*Modify the way to get move bet date*/
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @EventTable = @EventTable,  @Movebetdate = @Movebetdate OUTPUT
 
 	SELECT	@MovingMatchIds = COALESCE(@MovingMatchIds + ',' +CAST(t.MatchId AS VARCHAR), CAST(t.MatchId AS VARCHAR))
 	FROM	@tmpMatchId t
