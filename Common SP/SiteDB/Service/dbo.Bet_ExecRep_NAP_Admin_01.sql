@@ -43,14 +43,11 @@ BEGIN
 		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
 		,custid INT, bettype SMALLINT, userid INT , CreatedDate DATETIME, MarkType TINYINT, betid VARCHAR(50), ExtraInfo VARCHAR(1000)
 		
-		,transdate	 DATETIME ,apositiontaking SMALLMONEY ,mpositiontaking SMALLMONEY ,tpositiontaking SMALLMONEY 
-		,spositiontaking SMALLMONEY,playerdiscount DECIMAL ,discount	DECIMAL	,adiscount	DECIMAL	,liveindicator	BIT	,betteam NVARCHAR(20) 
-		,comstatus NVARCHAR(40)	,betfrom	NVARCHAR(3)	,betcheck	NVARCHAR(100)	,checktime	DATETIME	
+		,transdate	 DATETIME 
+		,comstatus NVARCHAR(40),checktime	DATETIME	
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
-		,currency	TINYINT	,[ip] VARCHAR(45)	,transdesc NVARCHAR(2000) ,sdiscount DECIMAL		
-		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT
-		,oddstype	VARCHAR(3)	,currency2	VARCHAR(3)	,balance VARCHAR(20),SecAcceptFlag VARCHAR(1),transid2	VARCHAR(50)	
-		,RecommDate	DATETIME ,SiteDBGroupID	SMALLINT
+		,currency	TINYINT	
+		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT	
 		,RequestId INT, StepNo TINYINT, [Action] VARCHAR(100), AffectedList VARCHAR(MAX), ExecuteType TINYINT
 	)
 
@@ -144,13 +141,8 @@ BEGIN
 				,matchid, winlostdate, betdaqid
 				,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
 				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
-				, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo
-			
-				,transdate,apositiontaking ,mpositiontaking ,tpositiontaking ,spositiontaking 
-				,playerdiscount,discount,adiscount	,liveindicator,betteam,comstatus,betfrom,betcheck,checktime		 
-				,actualrate	,recommend,mrecommend,srecommend, stake, actual_stake,currency,ip,transdesc		 
-				,sdiscount,Username,CurrencyName,virtualrate,oddstype,currency2	,balance		 
-				,SecAcceptFlag,transid2	,RecommDate	,SiteDBGroupID	 
+				, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo		
+				,virtualrate	 
 			)
 			SELECT	T.C.value('./@t', 'bigint') AS transid
 					,T.C.value('./@mid', 'INT') AS matchid
@@ -180,41 +172,8 @@ BEGIN
 					,T.C.value('./@la', 'SMALLINT') AS liveawayscore
 					,T.C.value('./@cr', 'INT') AS creator
 					,T.C.value('./@bid', 'VARCHAR(50)') AS betid
-					,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo
-					,T.C.value('./@td', 'DATETIME') AS transdate
-					,T.C.value('./@apos', 'SMALLMONEY') AS apositiontaking
-					,T.C.value('./@mpos', 'SMALLMONEY') AS mpositiontaking
-					,T.C.value('./@tpos', 'SMALLMONEY') AS tpositiontaking
-					,T.C.value('./@spos', 'SMALLMONEY') AS spositiontaking
-					,T.C.value('./@pd', 'decimal') AS playerdiscount		
-					,T.C.value('./@d' , 'DECIMAL')	AS discount	 
-					,T.C.value('./@ad', 'DECIMAL')	AS adiscount	 
-					,T.C.value('./@li', 'BIT')		AS liveindicator 
-					,T.C.value('./@bteam', 'NVARCHAR(20)')	AS betteam	 
-					,T.C.value('./@cst', 'NVARCHAR(40)')	AS comstatus	 
-					,T.C.value('./@bf','NVARCHAR(3)')		AS betfrom	 
-					,T.C.value('./@bc','NVARCHAR(100)')		AS betcheck	 
-					,T.C.value('./@ct','DATETIME')	AS checktime	 
-					,T.C.value('./@ar', 'FLOAT')	AS actualrate	 
-					,T.C.value('./@rc' , 'INT')		AS recommend	 
-					,T.C.value('./@mrc', 'INT')		AS mrecommend	 
-					,T.C.value('./@src', 'INT')		AS srecommend	
-					,T.C.value('./@stake', 'MONEY') AS stake 
-					,T.C.value('./@astake', 'MONEY') AS actual_stake 
-					,T.C.value('./@cur','TINYINT')		AS currency	 
-					,T.C.value('./@ip', 'VARCHAR(45)')	AS [ip]			 
-					,T.C.value('./@tdesc', 'NVARCHAR(2000)') AS transdesc 
-					,T.C.value('./@sdis' , 'DECIMAL'	) AS sdiscount	 
-					,T.C.value('./@uname', 'NVARCHAR(100)') AS Username	 
-					,T.C.value('./@curname', 'NVARCHAR(100)') AS CurrencyName 
-					,T.C.value('./@v', 'FLOAT') AS virtualrate 
-					,T.C.value('./@otype', 'VARCHAR(3)')	AS oddstype	 
-					,T.C.value('./@cur2', 'VARCHAR(3)')	AS currency2	 
-					,T.C.value('./@b', 'VARCHAR(20)')		AS balance	 
-					,T.C.value('./@sec', 'VARCHAR(1)')		AS SecAcceptFlag	 
-					,T.C.value('./@t2', 'VARCHAR(50)')	AS transid2		 
-					,T.C.value('./@rcd', 'DATETIME') AS RecommDate
-					,T.C.value('./@sgid', 'SMALLINT') AS SiteDBGroupID
+					,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo	  
+					,T.C.value('./@v', 'FLOAT') AS virtualrate
 			FROM	@transInfo.nodes('/root/r') AS T(C)
 			OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
@@ -261,164 +220,7 @@ BEGIN
 					INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 						ON  t.transid = b.transid 
 				OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
-			END
-
-			ELSE IF @Action = 'I'
-			BEGIN
-				INSERT INTO dbo.bettrans (
-					TransId
-					,custid
-					,transdate
-					,oddsid
-					,hdp1
-					,hdp2
-					,odds
-					,stake
-					,[STATUS]
-					,winlost
-					,awinlost
-					,mwinlost
-					,playercomm
-					,comm
-					,acomm
-					,apositiontaking
-					,mpositiontaking
-					,tpositiontaking
-					,playerdiscount
-					,discount
-					,adiscount
-					,livehomescore
-					,liveawayscore
-					,liveindicator
-					,betteam
-					,creator
-					,refno
-					,comstatus
-					,winlostdate
-					,betfrom
-					,betcheck
-					,checktime
-					,oddsspread
-					,actualrate
-					,matchid
-					,recommend
-					,mrecommend
-					,ruben
-					,betid
-					,statuswinlost
-					,modds
-					,bettype
-					,betdaqid						
-					,actual_stake
-					,currency
-					,[ip]
-					,transdesc
-					,sdiscount
-					,scomm
-					,spositiontaking
-					,swinlost
-					,srecommend
-					,Username
-					,CurrencyName
-					,virtualrate
-					,oddstype
-					,statusID
-					,currency2
-					,balance
-					,SecAcceptFlag
-					,transid2
-					,RecommDate
-					,SiteDBGroupID
-					)
-				SELECT 
-					transid
-					,custid
-					,transdate
-					,oddsid
-					,hdp1
-					,hdp2
-					,odds
-					,stake
-					,[STATUS]
-					,winlost
-					,awinlost
-					,mwinlost
-					,playercomm
-					,comm
-					,acomm
-					,apositiontaking
-					,mpositiontaking
-					,tpositiontaking
-					,playerdiscount
-					,discount
-					,adiscount
-					,livehomescore
-					,liveawayscore
-					,liveindicator
-					,betteam
-					,creator
-					,refno
-					,comstatus
-					,winlostdate
-					,betfrom
-					,betcheck
-					,CASE checktime WHEN '' THEN NULL 
-						ELSE checktime
-						END
-					,CASE oddsspread WHEN '' THEN NULL
-						 ELSE CAST(oddsspread AS MONEY)
-						 END
-					,actualrate
-					,matchid
-					,recommend
-					,mrecommend
-					,ruben
-					,CASE betid WHEN '' THEN NULL
-						ELSE CAST(betid AS BIGINT)
-						END
-					,CASE statuswinlost WHEN '' THEN NULL
-						ELSE CAST(statuswinlost AS TINYINT)
-						END
-					,modds
-					,bettype
-					,CASE betdaqid	WHEN '' THEN NULL
-						ELSE CAST(betdaqid AS BIGINT)
-						END
-					,actual_stake
-					,currency
-					,ip
-					,transdesc
-					,sdiscount
-					,scomm
-					,spositiontaking
-					,swinlost
-					,srecommend
-					,Username
-					,CurrencyName
-					,virtualrate
-					,CASE oddstype WHEN '' THEN NULL
-						ELSE CAST(oddstype AS TINYINT)
-						END
-					,statusID
-					,CASE currency2 WHEN '' THEN NULL
-						ELSE CAST(currency2 AS TINYINT)
-						END
-					,CASE balance  WHEN '' THEN NULL
-						ELSE CAST(balance AS MONEY)
-						END
-					,CASE SecAcceptFlag  WHEN '' THEN NULL
-						ELSE CAST(SecAcceptFlag AS BIT)
-						END
-					,CASE transid2  WHEN '' THEN NULL
-						ELSE CAST(transid2 AS BIGINT)
-						END
-					,CASE RecommDate  WHEN '' THEN NULL
-						ELSE RecommDate
-						END
-					,SiteDBGroupID
-				FROM @tmpTransId t
-
-			END
+			END			
 		END
 		ELSE IF @TableName = 'bettransm'
 		BEGIN
