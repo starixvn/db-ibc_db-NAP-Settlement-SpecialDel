@@ -40,6 +40,9 @@ BEGIN
 					@TransInfo = @TransInfo
 					,@TableName = @TableName
 					,@Action = @Action
+					,@MatchId = @MatchId
+					,@SettlementAction = @SettlementAction
+					,@TicketType = @TicketType
 		END
 		ELSE IF @TableName = 'Transfer' AND @Action =  'U'
 		BEGIN
@@ -47,11 +50,14 @@ BEGIN
 					@TransInfo = @TransInfo
 					,@TableName = @TableName
 					,@Action = @Action
+					,@MatchId = @MatchId
+					,@SettlementAction = @SettlementAction
+					,@TicketType = @TicketType
 		END
 		/*---------------------------------------------------------------------------------------------*/
 		ELSE
 		BEGIN
-			EXEC dbo.Bet_ExecRep_NAP_Admin_01 
+			EXEC dbo.ExecRep_NAP_Admin_04 
 					@TransInfo = @TransInfo
 					,@TableName = @TableName
 					,@Action = @Action
