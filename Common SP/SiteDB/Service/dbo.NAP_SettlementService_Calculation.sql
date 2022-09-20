@@ -40,9 +40,6 @@ BEGIN
 					@TransInfo = @TransInfo
 					,@TableName = @TableName
 					,@Action = @Action
-					,@MatchId = @MatchId
-					,@SettlementAction = @SettlementAction
-					,@TicketType = @TicketType
 		END
 		ELSE IF @TableName = 'Transfer' AND @Action =  'U'
 		BEGIN
@@ -50,9 +47,6 @@ BEGIN
 					@TransInfo = @TransInfo
 					,@TableName = @TableName
 					,@Action = @Action
-					,@MatchId = @MatchId
-					,@SettlementAction = @SettlementAction
-					,@TicketType = @TicketType
 		END
 		/*---------------------------------------------------------------------------------------------*/
 		ELSE
