@@ -11,6 +11,7 @@ AS
 		- 20211210@Tina: send Letstalk [Redmine: #159626]
 		- 20220530@Tina: Cannot send notification via Letstalk [Redmine: #173376]
 		- 20220607@Tina: remove some email of @Recipients on production environment
+		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 
 	Param's explanation:		
 		
@@ -31,13 +32,13 @@ BEGIN
 		,@Body			NVARCHAR(MAX) = ''
 		,@Recipients	VARCHAR(MAX) = ''	
 	
-	IF @@SERVERNAME IN ('DBTRANS')
+	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
 		SET @Recipients = 'dbaadmin@starixvn.com'
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'tina.vo@starixvn.com;liz.nguyen@starixvn.com'
+		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com'
 	END
 	
 

@@ -13,6 +13,7 @@ AS
 		- 20201012@Louisa: Update new email domain starixvn.com + Use DBNOTI instead of DBTP [Redmine:#143284]
 		- 20210401@Max: [TVS] Auto void before KO time [Redmine: #150522]
 		- 20210405@Max: Enhance [TVS] Auto void before KO time [Redmine: #150522]
+		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 	
 	Param's explanation:	
 		
@@ -20,7 +21,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @MatchidList_Waiting_30minutes VARCHAR(MAX) = '',
-			@MatchIdList_Failed VARCHAR(MAX) = ''
+			@MatchIdList_Failed VARCHAR(MAX) = '',
+			@QueueList_Waiting_30minutes VARCHAR(MAX) = ''
 			
 	--SEND NOTIFICATION VIA EMAIL FOR LOCAL
 	DECLARE @Subject	NVARCHAR(500) = ''
@@ -32,7 +34,8 @@ BEGIN
 		 ,@title NVARCHAR(200)	= 'AutoVoid: Notification'
 	
 	------Sending notification if stay in queue too long, over 30 minutes -----------
-	SET @MatchidList_Waiting_30minutes = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(q.matchid  AS VARCHAR(50))
+	SET @MatchidList_Waiting_30minutes = ISNULL(STUFF((
+												SELECT TOP 10 ',' + CAST(q.matchid  AS VARCHAR(50))
 												FROM dbo.TicketVoiding_AutoVoidRequest_Queue q  WITH (NOLOCK)
 													INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 												WHERE q.StatusId = 0
@@ -51,15 +54,24 @@ BEGIN
 												WHERE StatusId = 3											
 												FOR XML PATH(''))
 												,1,1,''),'')
+
+	------Sending notification if stay in queue too long, over 30 minutes -----------
+	SET @QueueList_Waiting_30minutes = ISNULL(STUFF((
+												SELECT TOP 10 ',' + CAST(q.QueueId  AS VARCHAR(50))
+												FROM dbo.TicketVoiding_Queue q  WITH (NOLOCK)
+												WHERE q.StatusId = 1
+													AND DATEDIFF(MINUTE, q.Starttime, GETDATE()) > 30
+												FOR XML PATH(''))
+												,1,1,''),'')
 	
 	--In queue too long
 	IF @MatchidList_Waiting_30minutes <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS')
+		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 		BEGIN
 			-- send letstalk
-			SET @msg = 'Matchid waiting in queue over 10 minutes: 
+			SET @msg = 'Matchid waiting in queue over 30 minutes: 
 			-------------
 			' 
 			+ @MatchidList_Waiting_30minutes
@@ -113,11 +125,72 @@ BEGIN
 		END			
 	END
 
+	--In queue too long
+	IF @QueueList_Waiting_30minutes <> ''
+	BEGIN
+		-- Send via letstalk for production											
+		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+		BEGIN
+			-- send letstalk
+			SET @msg = 'Queue waiting in queue over 30 minutes: 
+			-------------
+			' 
+			+ @MatchidList_Waiting_30minutes
+			+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
+			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
+			
+			-- Send email
+			SET @Subject = 'TVS: Void Notification!'	
+			-- For testing------------
+			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
+			*/
+			-- For Production -----------
+			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
+			
+			SET @Body = 'TVS: Void Notification: Queue still waiting in queue too long: ' + @QueueList_Waiting_30minutes
+						+ ' ( Sample: SELECT TOP 10 QueueId FROM dbo.TicketVoiding_Queue WITH (NOLOCK) WHERE StatusId = 1 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
+				
+			EXEC msdb.dbo.sp_send_dbmail
+					@recipients= @Recipients
+					,@body=@Body
+					,@sensitivity ='Personal'
+					,@importance ='High'
+					,@subject =@Subject
+					,@body_format = 'HTML'
+					,@profile_name =DEFAULT;
+					
+
+		END
+		ELSE
+		BEGIN
+			-- Send via email 
+			SET @Subject = 'TVS: Void Notification!'	
+			-- For testing------------
+			/*SET @Recipients = 'helen.do@starixvn.com;max.tran@starixvn.com;julien.le@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;jane.dinh@starixvn.com;charles.nguyen@starixvn.com;raymond.le@starixvn.com'
+			*/
+			-- For Production -----------
+			
+			SET @Recipients = 'it@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
+			
+			SET @Body = 'TVS: Void Notification: Queue still waiting in queue too long: ' + @QueueList_Waiting_30minutes
+						+ ' ( Sample: SELECT TOP 10 QueueId FROM dbo.TicketVoiding_Queue WITH (NOLOCK) WHERE StatusId = 1 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
+				
+			EXEC msdb.dbo.sp_send_dbmail
+					@recipients= @Recipients
+					,@body=@Body
+					,@sensitivity ='Personal'
+					,@importance ='High'
+					,@subject =@Subject
+					,@body_format = 'HTML'
+					,@profile_name =DEFAULT;
+		END			
+	END
+
 	--Auto Void Failed
 	IF @MatchIdList_Failed <> ''
 	BEGIN
 		-- Send via letstalk for production											
-		IF @@SERVERNAME IN ('DBTRANS')
+		IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 		BEGIN
 			-- send letstalk
 			SET @msg = 'Ticket Voiding System: Void Bets Automation Failed !
