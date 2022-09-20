@@ -1,3 +1,4 @@
+/*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 use bodb02
 go
 
