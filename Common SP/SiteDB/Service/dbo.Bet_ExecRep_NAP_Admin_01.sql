@@ -32,6 +32,7 @@ BEGIN
 			,@AllowRefund	BIT
 			,@AllowCalculation		BIT
 			,@ServerName	SYSNAME
+			,@RequestID INT
 
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
@@ -784,8 +785,11 @@ BEGIN
 				FROM	@transInfo.nodes('/root/r') AS T(C)	
 				OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
+				SET @RequestID = ISNULL((SELECT MAX(RequestID) 
+							 FROM dbo.TicketVoiding_RoutineTasks WITH (NOLOCK)) + 1, 1)
+
 				INSERT INTO dbo.TicketVoiding_RoutineTasks (RequestID, StepNo, [Action], [Status], CreatedDate, AffectedList, ExecuteType)
-				SELECT RequestId, StepNo, [Action], StatusID, CreatedDate, AffectedList, ExecuteType
+				SELECT @RequestID, StepNo, [Action], StatusID, CreatedDate, AffectedList, ExecuteType
 				FROM @tmpTransId
 			END
 		END
