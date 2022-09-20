@@ -589,7 +589,7 @@ BEGIN
 						,scomm  AS '@sc' 
 						,statusID AS '@sid' 
 						,status   AS '@s' 
-						,winlostdate AS '@wd' 
+						,winlostdate AS '@wld' 
 						,statuswinlost AS '@statuswl' 
 						,ruben  AS '@r' 
 				FROM	@tmpTransInfo
