@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb_Archive" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBARC-bodb_Archive" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20220913@July
 	Task: Migrate column SiteDBGroupID [Redmine:#175412]  
