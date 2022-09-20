@@ -10,15 +10,17 @@ GO
 
 --Mark single
 INSERT INTO dbo.MarkedTransaction ( TransId, MatchId, CustId, bettype, UserId, CreatedDate, MarkType)
-SELECT s.TransId, s.MatchId, s.CustId, s.Bettype, GETDATE(), 0
+SELECT DISTINCT s.TransId, s.MatchId, ISNULL(s.CustId, b.custid), ISNULL(s.Bettype, b.Bettype), 10278938, GETDATE(), 0
 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+	INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.transid = s.TransId AND s.MatchId = b.matchid
 	LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON s.MatchId = m.MatchId AND s.TransId = m.TransId
 WHERE IssueTypeId IN (8,9) AND m.TransId IS NULL
 
 --Mark subparly
 INSERT INTO dbo.MarkedTransaction ( TransId, MatchId, CustId, bettype, UserId, CreatedDate, MarkType)
-SELECT rp.MainTransId, rp.MatchId, bm.CustId, bm.Bettype, GETDATE(), 0
+SELECT DISTINCT rp.MainTransId, rp.MatchId, bm.CustId, bm.Bettype, 10278938, GETDATE(), 0
 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH(NOLOCK)
 	INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.transid = rp.TransId AND rp.MatchId = bm.matchid
-	LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON rp.MatchId = m.MatchId AND rp.TransId = m.TransId
-WHERE IssueTypeId IN (8,9) AND m.TransId IS NULL
+	LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON rp.MatchId = m.MatchId AND rp.MainTransId = m.TransId
+WHERE IssueTypeId IN (8,9) AND m.TransId IS NULL 
+
