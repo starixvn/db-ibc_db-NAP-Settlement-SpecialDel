@@ -416,7 +416,7 @@ BEGIN
 				,@matchdate = @matchdate
 				,@strXML = @strTransIds
 		END
-		ELSE IF @TableName = 'TicketVoiding_VoidedTransaction'
+		ELSE IF @TableName = 'TicketVoiding_VoidedTransaction' AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL
 		BEGIN
 			IF @Action = 'U'
 			BEGIN
