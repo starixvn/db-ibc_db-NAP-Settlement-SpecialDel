@@ -12,6 +12,7 @@ AS
 		- 20220607@Tina: remove some email of @Recipients on production environment
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220823@Max: Remove Temp Code - [Redmine: #169407]
+		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 
 	Param's explanation:		
 		
@@ -28,13 +29,13 @@ BEGIN
 		,@Recipients	VARCHAR(MAX) = ''	
 	
 	--For PROD EVN
-	IF @@SERVERNAME IN ('DBTRANS')
+	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
 		SET @Recipients = 'dbaadmin@starixvn.com'
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'tina.vo@starixvn.com;liz.nguyen@starixvn.com'
+		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com'
 	END
 		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
@@ -62,7 +63,7 @@ BEGIN
 	IF @List_Waiting_5minutes <> ''
 	BEGIN
 		-- Send via letstalk for production and SIT											
-		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
+		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'SITDBGRP%' 
 		BEGIN
 			-- send letstalk
 			SET @msg = 'NAP: CustLimitBet Failed! Queue waiting in queue over 5 minutes. 
@@ -119,7 +120,7 @@ Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE Sta
 	IF @List_Failed <> ''
 	BEGIN
 		-- Send via letstalk for production	and SIT									
-		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS')
+		IF @@SERVERNAME IN ('DBTRANS', 'SITDBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' OR @@SERVERNAME LIKE 'SITDBGRP%' 
 		BEGIN
 			-- send letstalk
 			SET @msg = 'NAP: CustLimitbet Failed! Queue execution failed.
