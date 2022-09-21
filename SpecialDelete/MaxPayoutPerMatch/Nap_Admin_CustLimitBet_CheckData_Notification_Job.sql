@@ -64,7 +64,7 @@ BEGIN
 		-- send letstalk
 		EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				  , @JobId = NULL
-				  , @JobName = N'vndba:Check slowly parlay settlement'
+				  , @JobName = N'vndba:Check slowly running or failed processes'
 				  , @Message = @Body
 				  , @CaseId = 1;
 	END

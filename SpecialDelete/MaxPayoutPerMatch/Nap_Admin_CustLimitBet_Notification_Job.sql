@@ -75,7 +75,7 @@ QueueId: ' + @List_Waiting_5minutes +'
 			
 			EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				  , @JobId = NULL
-				  , @JobName = N'vndba:Check slowly parlay settlement'
+				  , @JobName = N'vndba:Check slowly running or failed processes'
 				  , @Message = @msg
 				  , @CaseId = 1;
 			
@@ -132,7 +132,7 @@ Table: bodb02.dbo.CustLimitBetQueue
 
 			EXECUTE  DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				  , @JobId = NULL
-				  , @JobName = N'vndba:Check slowly parlay settlement'
+				  , @JobName = N'vndba:Check slowly running or failed processes'
 				  , @Message = @msg
 				  , @CaseId = 1;
 			
