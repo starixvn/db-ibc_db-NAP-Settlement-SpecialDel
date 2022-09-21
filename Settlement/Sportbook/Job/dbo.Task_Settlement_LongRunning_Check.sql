@@ -10,11 +10,16 @@ as
 	Revisions:
 		- 20210824@Kathy: Check cricket long running [Redmine:#154737]
 		- 20211101@Kathy: Check balance error [Redmine:#159486]
+		- 20220921@Louisa: at @step5, set interval = 5 minutes and do not send alert for UUS bettween 7AM to 7PM [Redmine:#175251]
 */
 begin
 	set nocount on
 	declare @__errorMessage varchar(400)
 			,@fromdate datetime
+			,@IsLimitedTime	BIT = 0
+
+	if  DATEPART (HOUR,GETDATE() ) not between 7 and 19 
+	set @IsLimitedTime = 1 --do not send alert for UUS bettween 7AM to 7PM
 			
 	if @Step = 1 --check Parlay Queue
 	begin
@@ -120,16 +125,22 @@ begin
 
 	if @Step = 5 --check balance error
 	begin
-		set @fromdate = DATEADD(second, -1800, GETDATE())
+		set @fromdate = DATEADD(second, -300, GETDATE())
 
 		IF exists (select top 1 1
-					from dbo.BalanceErr with(nolock)
+					from dbo.BalanceErr b with(nolock)
+						inner join CustDB.dbo.custInfo c with(nolock)
+							on b.Custid = c.custid
 					where LogDate > @fromdate
+						and IsResolved = 0
+						and 1 =CASE WHEN @IsLimitedTime = 1 AND c.currency = 20 THEN 0
+									ELSE 1
+									END
 		)
 		begin
 			set @__errorMessage = 'Hey guys, process insert balance pending got error (table BalanceErr). Please check!!!'
 			execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
-				, @JobId = NULL, @JobName = N'vndba:Check slowly parlay settlement'
+				, @JobId = NULL, @JobName = N'vndba:Check slowly running or failed processes'
 				, @Message = @__errorMessage
 				, @CaseId = 1;
 
