@@ -39,7 +39,7 @@ BEGIN
 	IF @ErrorMessage <> ''
 	BEGIN
 		execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
-			, @JobId = NULL, @JobName = N'vndba:Check slowly parlay settlement'
+			, @JobId = NULL, @JobName = N'vndba:Check slowly running or failed processes'
 			, @Message = @ErrorMessage
 			, @CaseId = 1;
 
