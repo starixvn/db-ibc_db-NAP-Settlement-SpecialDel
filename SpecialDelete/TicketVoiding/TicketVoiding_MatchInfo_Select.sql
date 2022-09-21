@@ -16,15 +16,6 @@ AS
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
-		- 20191112@Max: AdnormalBet TVS [Redmine:#123691]
-		- 20200826@Zane: TVS - Enhance for Danger Accept [#140339]
-		- 20200901@July: [TVS] - Enhance for Danger Accept - Phase 2 [Redmine: #140785]
-		- 20200921@Charles: TVS - HotFix - Edit request [#142009]
-		- 20210201@Zane: TVS - Danger Accept/Red Card Enhancement [#146330]
-		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-		- 20220321@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
-		- 20220418@July: TVS - Get column matchcode [Redmine: #170220]
-		- 20220617@July: Add column ParentId support get Provider of match [Redmine: #173229]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:		
