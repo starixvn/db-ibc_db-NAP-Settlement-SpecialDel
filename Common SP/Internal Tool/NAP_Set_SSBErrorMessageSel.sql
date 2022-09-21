@@ -9,7 +9,7 @@ AS
 	
 	Revisions:
 		- 20211111@Kathy: Get all ssb error message [Redmine:#164162]
-
+		- 20220913@Louisa: Get more info [RedmineId:#177711]
 */
 BEGIN
 	SET NOCOUNT ON

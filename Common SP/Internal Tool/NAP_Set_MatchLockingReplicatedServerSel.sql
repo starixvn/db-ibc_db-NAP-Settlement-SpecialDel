@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20211111@Kathy: Get all matches being locked on replicated servers [Redmine:#164162]
+		- 20220913@Louisa: get more info [RedmineId:#177711]
 
 */
 BEGIN
