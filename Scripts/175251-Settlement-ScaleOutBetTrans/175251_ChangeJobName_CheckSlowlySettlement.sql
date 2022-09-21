@@ -15,5 +15,5 @@
 
 EXEC msdb.dbo.sp_update_job 
 	@job_name = 'vndba:Check slowly parlay settlement'  
-	,@new_name = 'Check slowly settlement' 
+	,@new_name = 'vndba:Check slowly running processes'  
 	
