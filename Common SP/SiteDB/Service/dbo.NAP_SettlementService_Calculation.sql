@@ -49,7 +49,7 @@ BEGIN
 		/*---------------------------------------------------------------------------------------------*/
 		ELSE
 		BEGIN
-			EXEC dbo.Bet_ExecRep_NAP_Admin_01 
+			EXEC dbo.ExecRep_NAP_Admin_04 
 					@TransInfo = @TransInfo
 					,@TableName = @TableName
 					,@Action = @Action
