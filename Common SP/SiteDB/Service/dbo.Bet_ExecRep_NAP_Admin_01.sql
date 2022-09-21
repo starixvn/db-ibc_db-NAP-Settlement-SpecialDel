@@ -336,7 +336,7 @@ BEGIN
 					INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
 			END
 		END
-		ELSE IF @TableName = 'zzzbettrans'
+		ELSE IF @TableName = 'zzzbettrans' AND OBJECT_ID('zzzbettrans','U') IS NOT NULL
 		BEGIN
 			IF @Action = 'U'
 			BEGIN
@@ -374,7 +374,7 @@ BEGIN
 										AND m.transdate = t.transdate
 			END
 		END
-		ELSE IF @TableName = 'zzzbettransm'
+		ELSE IF @TableName = 'zzzbettransm' AND OBJECT_ID('zzzbettransm','U') IS NOT NULL
 		BEGIN
 			IF @Action = 'U'
 			BEGIN
