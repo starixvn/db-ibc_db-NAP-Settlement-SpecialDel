@@ -375,9 +375,9 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
-		FROM dbo.bettransm sub WITH (NOLOCK)
-			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno	
-			INNER JOIN #FilterInfo d ON d.MatchId = sub.matchid
+		FROM #FilterInfo d
+			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
+			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
