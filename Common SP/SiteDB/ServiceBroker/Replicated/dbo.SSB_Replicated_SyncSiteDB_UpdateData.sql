@@ -15,7 +15,7 @@ begin
 			,@endtime DATETIME
 			,@errmsg VARCHAR(1024)
 
-	SET @starttime = CURRENT_TIMESTAMP
+	SET @starttime = sysdatetime()
 	
 	set deadlock_priority high
 	BEGIN TRY	
@@ -26,7 +26,7 @@ begin
 	END CATCH
 	set deadlock_priority normal
 	
-	SET @endtime = CURRENT_TIMESTAMP
+	SET @endtime = sysdatetime()
 
 	EXEC dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
 		, @MessageType			= @MessageType
