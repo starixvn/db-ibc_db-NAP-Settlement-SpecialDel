@@ -36,8 +36,8 @@ BEGIN
 		INNER JOIN dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
 			ON ll.LogId = l.LogId
 	WHERE ll.StatusId IN ( 0,1,3)
-		AND 1 = CASE WHEN ll.StatusId = 0 AND ll.StartTimeValidation >= DATEADD ( MINUTE, 5, @CurrentTime) THEN 1
-					 WHEN ll.StatusId = 1 AND ll.StartTimeValidation >= DATEADD ( MINUTE, 2, @CurrentTime) THEN 1
+		AND 1 = CASE WHEN ll.StatusId = 0 AND DATEDIFF( MINUTE, ll.StartTimeValidation, @CurrentTime) >= 5 THEN 1
+					 WHEN ll.StatusId = 1 AND DATEDIFF( MINUTE, ll.StartTimeValidation, @CurrentTime) >=2 THEN 1
 					 WHEN ll.StatusId = 3  THEN 1
 					 ELSE 0
 				END
