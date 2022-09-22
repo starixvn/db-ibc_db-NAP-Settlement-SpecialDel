@@ -1,6 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select]
 	@VoidingHistoryId		INT = NULL
+	,@IsITSupport BIT = 0
+	,@IsITSupportCreatedRequest BIT = 0
+	,@SiteDBGroupID	SMALLINT = 0
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -25,6 +28,7 @@ AS
 		- 20211207@July: Remove code CashOut [Redmine: #165097]
 		- 20220523@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		
@@ -32,9 +36,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @isITAdmin BIT
-		   ,@IsITSupportCreatedRequest BIT
-		   ,@query NVARCHAR(MAX) = ''
+	DECLARE @query NVARCHAR(MAX) = ''
 		   ,@ExecuteSQL NVARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpTicket (
@@ -52,7 +54,7 @@ BEGIN
 		,Betcheck		NVARCHAR(50)
 		,betdaqid		BIGINT
 		,betid			BIGINT
-		,betfrom		NVARCHAR(1)
+		,betfrom		NVARCHAR(3)
 		,Betteam		NVARCHAR(10)
 		,Bettype		SMALLINT
 		,Currency		TINYINT
@@ -98,73 +100,48 @@ BEGIN
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
 		,IsDeposit      BIT DEFAULT(0)
+		,SiteDBGroupID	SMALLINT
+		,winlostdate	SMALLDATETIME
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
-	SELECT @isITAdmin = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (vh.UserId,2)),0)
-		, @IsITSupportCreatedRequest = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (r.UserId,2)),0) 
-	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK)
-			ON r.RequestId =  vh.RequestId
-	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
-
-
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
-			,z.VoidedTime
+			,z.transdate
 			,z.custid
 			,z.winlost
 			,z.bettype
 			,z.refno
 			,z.odds
 			,z.oddsid
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT	z.transid
-					,z.matchid
-					,z.status
-					,z.transdate AS VoidedTime
-					,z.custid
-					,z.winlost
-					,z.bettype
-					,z.refno
-					,z.odds
-					,z.oddsid
-			FROM	dbo.zzzbettrans z WITH(NOLOCK)
-			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
-					AND 1 = CASE
-								WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
-								ELSE 0
-							END
-		) z
-	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
+			,z.SiteDBGroupID
+			,z.winlostdate
+	FROM	dbo.zzzbettrans z WITH(NOLOCK)
+	WHERE	z.VoidingHistoryId = @VoidingHistoryId
+		AND 1 = CASE
+				WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
+				ELSE 0
+			END
+		AND z.SiteDBGroupID = @SiteDBGroupID
 
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, SubStatus, VoidedTime, custid, oddsid, SiteDBGroupID, winlostdate)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
-			,zm.SubStatus
-			,zm.VoidedTime
+			,zm.status AS SubStatus
+			,zm.transdate AS VoidedTime
 			,zm.custid
 			,zm.oddsid
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		CROSS APPLY (
-			SELECT	zm.transid
-					,zm.matchid
-					,zm.refno 
-					,zm.status AS SubStatus
-					,zm.transdate AS VoidedTime
-					,zm.custid
-					,zm.oddsid
-			FROM	dbo.zzzbettransm zm WITH(NOLOCK)
-			WHERE	zm.VoidingHistoryId = vh.VoidingHistoryId
-		) zm
-	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
+			,zm.SiteDBGroupID
+			,zm.winlostdate
+	FROM	dbo.zzzbettransm zm WITH(NOLOCK)
+	WHERE	zm.VoidingHistoryId = @VoidingHistoryId
+		AND zm.SiteDBGroupID = @SiteDBGroupID
 
 	UPDATE t 
 		SET actual_stake = b.actual_stake
@@ -403,7 +380,7 @@ BEGIN
 			END AS EmailGroup
 			,su.site
 			,t.IsCashOut
-			,@isITAdmin AS IsITSupport
+			,@IsITSupport AS IsITSupport
 			,@IsITSupportCreatedRequest AS IsITSupportCreatedRequest
 			,t.SettlementStatus
 			,t.LiveIndicator AS IsLive
@@ -433,6 +410,8 @@ BEGIN
 				    AND t.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)  -- Betfair: BFOS, BF, ITibc102, BF3
 					AND c.site <> 'CN88'
 			THEN 1 ELSE 0 END IsCredit
+			,t.SiteDBGroupID
+			,t.winlostdate
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid

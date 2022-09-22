@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 (
 	@SessionId 						INT = NULL,
@@ -21,11 +21,12 @@ AS
 /*	Created by: Max
 	Date 20200212
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20200215@Max: Create new SP [Redmine: #128359]
 		- 20201203@Charles: Optimize Voiding Workflow [Redmine: #145719]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	
 	Param's explanation:
 	- @UpdateType:
@@ -45,7 +46,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET statusID = @StatusId
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 2
 	BEGIN
@@ -59,7 +60,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET MessageId = @MessageId
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 4
 	BEGIN
@@ -82,7 +83,7 @@ BEGIN
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
 			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 6
 	BEGIN
@@ -98,13 +99,13 @@ BEGIN
 			,IsRunExternalService = @IsRunExternalService
 			,IsSentLetsTalk = @IsSentLetsTalk
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 7
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET VoidResults = @VoidResults
 			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistory = @VoidingHistoryId
+		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 END

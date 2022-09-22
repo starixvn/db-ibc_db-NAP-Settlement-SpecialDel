@@ -16,7 +16,8 @@ AS
 		- 20200924@Louisa: Implement for Myanmar odds - bettype 1,3,7,8 [Redmine:#142220]
 		- 20201023@Louisa: Change commission formula of MMR odds [Redmine:#144046]
 		- 20220110@Kathy: Apply service broker when calculate ticket [Redmine:#167251]
-		
+		- 20220808@Max: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Param's explanation:	
 		
 */
@@ -29,6 +30,11 @@ BEGIN
 			,@xml					XML
 			,@IsEnableServiceBroker BIT -- server is using service broker or not
 			,@sMessage				NVARCHAR(MAX)
+			,@transInfo				XML
+			,@IsSiteDB				BIT
+			,@matchId				INT
+			,@SiteDBGroupID SMALLINT = 0 
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	SET @ServerName = @@SERVERNAME
 
@@ -42,6 +48,16 @@ BEGIN
 			RETURN
 
 	END
+	DECLARE @tmpTransInfo TABLE (transId BIGINT, matchId INT
+		,statuswinlost TINYINT
+		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+		,Status NVARCHAR(10),StatusID TINYINT, ruben TINYINT
+		,SettlementTime DATETIME, FcUpdateTime DATETIME2
+	)
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 	-----------------------CHECK SERVER-----------------------------------------
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -97,6 +113,7 @@ BEGIN
 		INNER LOOP JOIN dbo.bettrans b	WITH (NOLOCK) ON b.transid = t.transid
 		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
 	WHERE b.statuswinlost IS NOT NULL
+		AND b.SiteDBGroupID = @SiteDBGroupID
 		 
 	-- update if bettype belongs to the CN88 site or not
 	UPDATE tmp
@@ -161,6 +178,7 @@ BEGIN
 						END
 			,SettlementTime = @settlementTime
 			,WinLost = @winlost
+			,@matchId = b.matchid
 			,aWinLost = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
 																WHEN statuswinlost IN (2,4) THEN stake * @odds * -apositiontaking
@@ -302,6 +320,50 @@ BEGIN
 					END
 			,StatusID = @statusId
 			,ruben= 1
+			,FcUpdateTime = CASE WHEN @statusId = 103 THEN SYSDATETIME() ELSE b.FcUpdateTime END
+		OUTPUT	inserted.transid
+			,inserted.statuswinlost
+			,@settlementTime
+			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+			,inserted.Status,inserted.StatusID, inserted.ruben
+			,inserted.FcUpdateTime
+		INTO @tmpTransInfo (
+			transId
+			,statuswinlost
+			,SettlementTime
+			,WinLost,aWinLost,mWinLost,sWinLost
+			,PlayerComm,Comm,aComm,sComm
+			,Status,StatusID, ruben, FcUpdateTime
+		)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
+
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	BEGIN
+		SET @transInfo = (
+			SELECT	transId AS '@t'	
+					,statuswinlost AS '@statuswl' 					
+					,SettlementTime AS '@st'
+					,WinLost AS '@w' 
+					,aWinLost AS '@aw' 
+					,mWinLost AS '@mw' 
+					,sWinLost AS '@sw' 
+					,PlayerComm AS '@pc' 
+					,Comm AS '@c' 
+					,aComm AS '@ac' 
+					,sComm AS '@sc' 
+					,Status AS '@s' 
+					,StatusID AS '@sid' 
+					,ruben AS '@r' 
+					,FcUpdateTime AS '@rut'
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+		VALUES ('TVS', 'Re-cal', 'bettrans', @matchId, @transInfo)	
+		
+	END
 END

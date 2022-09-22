@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@VoidingTypeId		TINYINT
 	,@UserId			INT
 	,@IP				VARCHAR(50)
-	,@BypassCheckingProcess TINYINT = 0
+	,@IssueTypeId		TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
@@ -27,14 +27,13 @@ AS
 		- 20210622@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20211115@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 		- 20211202@Max: TVS - Void Archived Tickets [Redmine: #140180]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @IssueTypeId INT
-	SELECT @IssueTypeId = (SELECT IssueTypeId FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId)
 
 	IF @IssueTypeId = 17 --Void 14
 	BEGIN
@@ -59,12 +58,11 @@ BEGIN
 			,@TransIds = @TransIds
 			,@UserId = @UserId
 			,@IP = @IP
-			,@BypassCheckingProcess = @BypassCheckingProcess
+			,@IssueTypeId = @IssueTypeId
 			,@ErrCode = @ErrCode OUTPUT	
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-			,@QueueIds = @QueueIds OUTPUT
 			,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
 	END
 	ELSE IF @VoidingTypeId = 2 -- subParlay
@@ -76,12 +74,11 @@ BEGIN
 			,@TransIds = @TransIds
 			,@UserId = @UserId
 			,@IP = @IP
-			,@BypassCheckingProcess = @BypassCheckingProcess
+			,@IssueTypeId = @IssueTypeId
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-			,@QueueIds = @QueueIds OUTPUT
 	END
 	
 END

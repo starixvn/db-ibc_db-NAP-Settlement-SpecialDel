@@ -23,6 +23,7 @@ AS
 		- 20211202@Max: Create new SP [Redmine:#140180]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
 		
@@ -37,6 +38,14 @@ BEGIN
 			,@SB_Error			BIT
 			,@IsAbnormalBet		TINYINT
 			,@CustIds			VARCHAR(MAX)
+			,@IsSiteDB			BIT 
+			,@transInfo			XML 
+			,@SitedbgroupId				INT = 0
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
 
@@ -66,6 +75,11 @@ BEGIN
 	DECLARE @tblInputTransId AS TABLE (transid BIGINT PRIMARY KEY)		
 	DECLARE @tmpTransIdBatch TABLE (TransId	BIGINT,sporttype SMALLINT)
 
+	DECLARE @tmpTransInfo AS TABLE (transid BIGINT, winlost MONEY, playercomm MONEY, comm MONEY, acomm MONEY, scomm MONEY
+							, status VARCHAR(20), statusID TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
+							, ruben TINYINT, creator INT, awinlost MONEY, mwinlost MONEY, swinlost MONEY
+						)
+
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
 		,custid				INT
@@ -86,16 +100,6 @@ BEGIN
 		,betdaqid			BIGINT
 	)
 
-	CREATE TABLE #tmpRefCodeSummary (
-		RefCode		BIGINT
-		,custid		INT
-		,matchid	INT
-		,bettype	SMALLINT
-		,transid	BIGINT
-	)
-	
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
-	
 	CREATE TABLE #tblMatch (matchid INT)
 	
 	SET @StartTime = GETDATE()
@@ -126,6 +130,7 @@ BEGIN
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 			ON b.transid = t.transid
 	WHERE b.statusID NOT IN (101, 102)
+		AND b.SiteDBGroupID = @SitedbgroupId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
@@ -199,28 +204,6 @@ BEGIN
 		
 		RETURN
 	END
-
-	-- Insert more bonus or cash ticket in case only one ticket appears in #BetDelete	
-	INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
-	SELECT RefCode, custid, matchid, bettype, MAX(transid) as transid
-	FROM #tmpTransId
-	WHERE RefCode IS NOT NULL	
-	GROUP BY RefCode, custid, matchid, bettype
-	HAVING COUNT(*) = 1	
-	
-	IF @@ROWCOUNT > 0
-	BEGIN
-		INSERT INTO #tmpTransId (TransId, custid, bettype, refcode, matchid, betdaqid)
-		SELECT b.TransId, b.custid, b.bettype, b.refcode, b.matchid, b.betdaqid
-		FROM #tmpRefCodeSummary r
-			 INNER JOIN dbo.bettrans14 b WITH (NOLOCK)
-					 ON b.RefCode = r.RefCode
-						AND b.transid <> r.transid					
-						AND b.custid = r.custid
-						AND b.matchid = r.matchid
-						AND b.bettype = r.bettype	
-		WHERE b.statusID NOT IN (101,102 ) -- reject, void
-	END
 	
 	--Return Invalid TransId
 	SELECT @FailedTransIds = ''
@@ -253,6 +236,8 @@ BEGIN
 			,comstatus
 			,checktime, matchid, bettype  
 			,VoidingHistoryId
+			,RepUpdateTime
+			,SiteDBGroupID
 		)  
 	SELECT b.transid, b.custid, GETDATE(), b.oddsid, b.hdp1, b.hdp2
 		,b.odds, b.stake, b.STATUS, b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator
@@ -261,6 +246,8 @@ BEGIN
 		,b.comstatus
 		,b.checktime, b.matchid, b.bettype  
 		,@VoidingHistoryId
+		,SYSDATETIME()
+		,b.SiteDBGroupID
 	FROM	#tmpTransId AS t WITH (NOLOCK)  
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK)  
 			ON b.transid = t.TransId
@@ -329,7 +316,7 @@ BEGIN
 			,t.sporttype
 
 	/**********************************************   *************************************************************/
-	SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
+	SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
 	-- STEP 2 : Update bettrans14
 	WHILE (1=1)
 	BEGIN
@@ -362,8 +349,37 @@ BEGIN
 				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalBet = 1 AND @MatchId <> 29 THEN 1
 																	WHEN @IsAbnormalBet = 1 AND @MatchId = 29 THEN 2
 																	ELSE 0 END,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
+
+			OUTPUT inserted.transid, inserted.winlost, inserted.ruben, inserted.creator, inserted.mwinlost, inserted.swinlost, inserted.awinlost
+				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID, inserted.status, inserted.ExtraInfo
+			INTO @tmpTransInfo (transid, winlost, ruben, creator, mwinlost, swinlost, awinlost, playercomm, comm, acomm, scomm, statusID, status, ExtraInfo)
 		FROM dbo.bettrans14 AS main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch AS tmpmain ON main.transid = tmpmain.transid
+
+		IF @IsSiteDB = 1
+		BEGIN
+			SET @transInfo = (
+			SELECT	b.transId AS '@t'
+					, b.winlost AS '@w'
+					, b.ruben AS '@r'
+					, b.creator AS '@cr'
+					, b.awinlost AS '@aw'
+					, b.mwinlost AS '@mw'
+					, b.swinlost AS '@sw'
+					, b.playercomm AS '@pc'
+					, b.comm AS '@c'
+					, b.acomm AS '@ac'
+					, b.scomm AS '@sc'
+					, b.statusID AS '@sid'
+					, b.status AS '@s'
+					, b.betid AS '@bid'
+					, b.ExtraInfo AS '@ex'
+			FROM	@tmpTransInfo b
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo
+		END
 
 	END
 
@@ -443,10 +459,12 @@ BEGIN
 		-- update summary ticket
 		EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 			@AffectedList = @AffectedList
+			,@IsSiteDB = @IsSiteDB
 
 		-- insert routine task
 		EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
 			@AffectedList = @AffectedList
+			,@IsSiteDB = @IsSiteDB
 	END TRY
 	BEGIN CATCH
 		SELECT	@ErrCode = 100
@@ -491,7 +509,6 @@ BEGIN
 	END
 
 	DROP TABLE #tblMatch
-	DROP TABLE #tmpRefCodeSummary
 END
 GO
  
