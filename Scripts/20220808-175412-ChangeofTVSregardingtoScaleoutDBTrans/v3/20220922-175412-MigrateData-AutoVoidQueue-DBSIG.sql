@@ -12,7 +12,7 @@ DECLARE @batch INT = 3000;
 
 --Migrate Cancel, MixParlay(99) queue to compepleted for consistency with new web service
 UPDATE TOP (@batch) q	
-	SET q.StatusId = 2
+	SET q.StatusId = 2, ErrMsg = 'No ticket found.'
 FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH(ROWLOCK, UPDLOCK)
 WHERE q.QueueId = 23
 
