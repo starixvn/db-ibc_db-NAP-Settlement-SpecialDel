@@ -18,7 +18,7 @@ AS
 		- 20210209@Helen: TVS - Performance Tuning for void abnormal account over 300 matches [Redmine: #150204]
 		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
 		- 20220822@Max: Deploy [TVS] Support Max Payout & Max Turnover for Deposit [Redmine: #176894]
-		- 20220809@Max: DBA - PROD - Enhance Parlay Calculation for Max Payout [Redmine: #177611]
+		- 20220809@Max: DBA - PROD - Enhance Parlay Calculation for Max Payout [Redmine: #177611]   
 */
 BEGIN
 	SET NOCOUNT ON
