@@ -39,7 +39,7 @@ BEGIN
 	IF @Action = 'CAL'
 	BEGIN
 		EXEC dbo.NAP_Admin_Match_Update 
-			@Command	= 'NAP_Admin_Settlement_VS_BetRadar-CAL'
+			@Command	= 'completed'
 			,@MatchID	= @matchid
 			,@FTHome	= @fth
 			,@FTAway	= @fta
@@ -65,7 +65,8 @@ BEGIN
 	ELSE IF @Action = 'REFUND'
 	BEGIN
 		EXEC dbo.NAP_Admin_Match_Update 
-			@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
+			@Command	= 'completed'
+			,@Action	= @Action
 			,@MatchID	= @matchid
 			,@creator	= @AdminId
 		
