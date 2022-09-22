@@ -74,7 +74,7 @@ BEGIN
 
 	--12.VS BetRadar
 	UNION ALL
-	SELECT 'bodb02 : NAP Settlement VS BetRadar', '00:01:00', 0
+	SELECT 'bodb02 : NAP Settlement VS BetRadar', '00:01:00', 0 
 
 	--13.Max Payout
 	UNION ALL

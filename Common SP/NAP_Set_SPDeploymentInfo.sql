@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SPDeploymentInfo
 	@SPName			SYSNAME
 	,@WaitingTime	VARCHAR(10) 	OUTPUT
@@ -15,7 +15,6 @@ AS
 		- 20210514@Kathy: Set waiting time for SP [Redmine:#153155]
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
-		 20220719@Louisa: Check SP under deployment [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -49,8 +48,6 @@ BEGIN
 	-- HP5
 	UNION ALL
 	SELECT 'NAP_Admin_Settlement_s164', @WaitingTime, 0	
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s164_Manual', @WaitingTime, 0
 
 	-- VS
 	UNION ALL
