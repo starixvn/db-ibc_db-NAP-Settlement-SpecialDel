@@ -144,7 +144,7 @@ BEGIN
 			winlostdate, stake, winlost, awinlost, mwinlost, swinlost,
 			actual_stake, playercomm, comm, acomm, scomm, 
 			actualrate, Username, CurrencyName, checktime
-			,refno)
+			,refno, RepUpdateTime)
 		
 		OUTPUT inserted.StatusId, inserted.Bettype, inserted.Creator, inserted.TransDate, inserted.CustId, inserted.Currency
 			, inserted.Recommend, inserted.MRecommend, inserted.SRecommend, inserted.WinlostDate, inserted.Stake, inserted.Winlost
@@ -159,7 +159,7 @@ BEGIN
 		r.winlostdate, r.stake, r.winlost_dif, awinlost_dif, mwinlost_dif, swinlost_dif,
 		r.actual_stake, r.playercomm_dif, r.comm_dif, r.acomm_dif, r.scomm_dif,
 		rate.actualrate, c.username, e.currency, GETDATE()
-		,0 -- for recover Bet14
+		,0, NULL -- for recover Bet14
 	FROM #Result_19999 r with (nolock)
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON r.custid = c.custid AND c.roleid = 1
 		INNER JOIN CustDB.dbo.exchange e WITH (NOLOCK) ON e.exchangeid = c.currency
