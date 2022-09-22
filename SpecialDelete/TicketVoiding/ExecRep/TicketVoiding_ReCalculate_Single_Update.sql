@@ -17,6 +17,7 @@ AS
 		- 20201023@Louisa: Change commission formula of MMR odds [Redmine:#144046]
 		- 20220110@Kathy: Apply service broker when calculate ticket [Redmine:#167251]
 		- 20220808@Max: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220922@Helen: fix issue [Redmine: #175412]
 
 	Param's explanation:	
 		
@@ -34,7 +35,8 @@ BEGIN
 			,@IsSiteDB				BIT
 			,@matchId				INT
 			,@SiteDBGroupID SMALLINT = 0 
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	--SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	SET @ServerName = @@SERVERNAME
 
@@ -57,7 +59,10 @@ BEGIN
 	)
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	BEGIN
 		SET @IsSiteDB = 1
+		SET @SiteDBGroupID = 1
+	END
 	-----------------------CHECK SERVER-----------------------------------------
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
