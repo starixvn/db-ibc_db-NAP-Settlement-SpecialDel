@@ -196,39 +196,39 @@ WHERE site IN ('Athena000','SampleSite')
 -------------------DATA PREPARATION --------------------------
 -- zzzbettrans
 INSERT INTO #tmp_zzzbettrans_scaleout (transid)
-SELECT transid
+SELECT b.transid
 FROM zzzbettrans b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 WHERE b.SiteDBGroupID = 0
 
 -- zzzbettrans
 INSERT INTO #tmp_zzzbettrans_scaleout (transid)
-SELECT transid
+SELECT b.transid
 FROM zzzbettrans b WITH (NOLOCK)
 	INNER JOIN SiteDBtmp.dbo.zzzbettrans_20220922 s ON s.transid = b.transid
 
 -- zzzbettransm
 INSERT INTO #tmp_zzzbettransm_scaleout (transid)
-SELECT transid
+SELECT b.transid
 FROM zzzbettransm b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 WHERE b.SiteDBGroupID = 0
 
 -- zzzbettransm
 INSERT INTO #tmp_zzzbettransm_scaleout (transid)
-SELECT transid
+SELECT b.transid
 FROM zzzbettransm b WITH (NOLOCK)
 	INNER JOIN SiteDBtmp.dbo.zzzbettransm_20220922 s ON s.transid = b.transid
 
 -- TicketVoiding_RequestDetailTicket_Single
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT transid
+SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
 	INNER JOIN SiteDBtmp.dbo.bettrans_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
 
 -- TicketVoiding_RequestDetailTicket_SubParlay
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT transid
+SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
 	INNER JOIN SiteDBtmp.dbo.bettransm_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
 
