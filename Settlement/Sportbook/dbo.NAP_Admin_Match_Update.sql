@@ -328,6 +328,20 @@ BEGIN
         END
     END
 
+	IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
+    BEGIN
+        UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
+            SET eventstatus = 'Completed'
+                ,betstatus = 'Refund'
+                ,changetime = CURRENT_TIMESTAMP
+                ,settletime = CURRENT_TIMESTAMP
+                ,finalhomescore=0
+                ,finalawayscore=0
+                ,hthomescore = 0
+                ,htawayscore = 0
+        WHERE   matchid = @matchid
+    END
+
     IF @Command = 'completed'
     BEGIN	
 		SET @eventstatus = N'completed'
