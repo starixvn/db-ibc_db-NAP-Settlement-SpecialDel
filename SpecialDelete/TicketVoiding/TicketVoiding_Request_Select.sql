@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_Select]
 (
 	@RequestId		INT
@@ -7,7 +7,7 @@ AS
 /*	Created by: Kathy
 	Date 20181212
 	Task: view request [Redmine:#90155]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
@@ -40,6 +40,7 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20220525@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
+		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 
 	Param's explanation:	
 	
@@ -66,15 +67,20 @@ BEGIN
 			,cr.username AS RequestedBy
 			,cv.username AS VoidedBy
 			,r.UserId
+			,CASE WHEN r.ActionId = 1 THEN 'AddRequest' 
+				  WHEN r.ActionId = 4 THEN 'VoidInstant'
+				  WHEN r.ActionId = 6 THEN 'VoidInstant5m'
+				  WHEN r.ActionId = 7 THEN 'VoidInstant10m' 
+				  WHEN r.ActionId = 8 THEN 'VoidInstantNopolicy'
+				ELSE '' END AS ActionName
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
 		OUTER APPLY (SELECT TOP 1 1 AS isVoided, tv.UserId AS VoidBy, tv.RequestId
 					 FROM TicketVoiding_VoidingHistory tv WITH (NOLOCK)
-					 WHERE tv.RequestId = r.RequestId --AND tv.StatusId = 2 --Update after service web done
+					 WHERE tv.RequestId = r.RequestId 
 					 ORDER BY tv.CreatedDate DESC
 					)AS tblVoid
 		LEFT JOIN CustDB.dbo.Customer cv WITH (NOLOCK) ON cv.custid = tblVoid.VoidBy			
-		LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON tblVoid.RequestId = s.RequestID AND s.StatusId = 2 -- show lettalk
 	WHERE	r.RequestId = @RequestId
 
 	SELECT @IssueTypeId = ( SELECT TOP 1 IssueTypeId 
@@ -99,8 +105,6 @@ BEGIN
 				,m.GlobalShowTime
 				,rd.FilterFromTransTime
 				,rd.FilterToTransTime
-				,rd.FilterFromBetId
-				,rd.FilterToBetId
 				,rd.FilterBy
 				,rd.TransIds AS SettingTime
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore

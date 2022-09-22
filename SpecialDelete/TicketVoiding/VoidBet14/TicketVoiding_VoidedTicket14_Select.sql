@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_VoidedTicket14_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket14_Select]
 ( 
-	 @RequestId	INT
+	@VoidingHistoryIds VARCHAR(MAX) =''
 )
 AS;
 /*	Created by: July
@@ -11,20 +11,17 @@ AS;
 	
 	Revisions: 
 		- 20211126@July: Create new SP [Redmine:#140180]
-		
+		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON
+	DECLARE  @SiteDBGroupID SMALLINT = 0 
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @tmpMatch TABLE (Matchid INT)
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
-
-	INSERT INTO @tmpMatch (Matchid)
-	SELECT rd.MatchId
-	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
-	WHERE rd.RequestId = @RequestId 
 
 	CREATE TABLE #tmpTicket
              (TransId         BIGINT,
@@ -37,7 +34,7 @@ BEGIN
               Betcheck        NVARCHAR(50),
               betdaqid        BIGINT,
               betid           BIGINT,
-              betfrom         NVARCHAR(1),
+              betfrom         NVARCHAR(3),
               Betteam         NVARCHAR(10),
               Bettype         SMALLINT,
               Currency        TINYINT,
@@ -84,9 +81,9 @@ BEGIN
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
 	INSERT INTO @tmpVoidingHistory(VoidingHistoryId) 
-	SELECT	vh.VoidingHistoryId
-	FROM	dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-	WHERE	vh.RequestId = @RequestId AND vh.StatusId IN (2,3)
+	SELECT CAST(value AS INT)
+	FROM STRING_SPLIT(@VoidingHistoryIds, ',')
+	WHERE value <> ''
 
 	-- single ticket
 	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate)
@@ -116,8 +113,8 @@ BEGIN
 					,z.oddsid
 					,z.winlostdate
 			FROM	dbo.zzzbettrans z WITH(NOLOCK)
-					INNER JOIN @tmpMatch m ON z.matchid = m.Matchid
 			WHERE	z.VoidingHistoryId = vh.VoidingHistoryId
+				AND z.SiteDBGroupID = @SiteDBGroupID
 		) z
 		
 	UPDATE t 
@@ -152,7 +149,7 @@ BEGIN
 			,subTransId = b.transid
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 	FROM	#tmpTicket t
-		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid
+		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
@@ -349,7 +346,7 @@ BEGIN
 			   ,s.matchcode
 			   ,s.winlostdate
 		FROM	#tmpTicket s 
-			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid 
+			LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON	s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -457,7 +454,7 @@ BEGIN
 		   ,s.isNeutral 
 		   ,s.matchcode
 		   ,s.winlostdate
-		FROM	#tmpTicket s WITH (NOLOCK)
+		FROM	#tmpTicket s 
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
 	SELECT s.transid

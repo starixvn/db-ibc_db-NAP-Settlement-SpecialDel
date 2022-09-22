@@ -1,18 +1,20 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
-	 @TransIds	VARCHAR(MAX) = NULL
+	 @TransIds			VARCHAR(MAX) = NULL
+	,@TransInfo		    XML  = NULL
 )
 AS
 /*  
 	Created by: July
 	Date: 20211123
 	Task: TVS - Void Archived Tickets
-	DB: DBTXN/bodb02   
+	DB: DBCTG/bodb02   
 
 	Revisions:  
 		- 20211123@July: Create new SP [Redmine: #140180]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 */
@@ -43,15 +45,65 @@ BEGIN
 		,StatusId		INT
 		,bettype		SMALLINT
 		,matchid		INT
-		,betfrom		NVARCHAR(1)
+		,betfrom		NVARCHAR(3)
 		,refno			BIGINT
 		,winlostdate	DATETIME
 		,betdaqid		BIGINT
-		)
+	)
 
-	IF (@TransIds IS NULL
-		OR LEN(@TransIds) = 0
-			) RETURN;
+	CREATE TABLE #tmpTransInfo(
+	   matchid INT
+	  ,transid BIGINT PRIMARY KEY
+      ,refno BIGINT
+      ,custid	INT	
+	  ,bettype SMALLINT
+      ,betid BIGINT
+	  ,betdaqid BIGINT
+      ,statusID TINYINT
+      ,betfrom NVARCHAR(3)
+	  ,winlostdate SMALLDATETIME
+	  ,IsMixParlay BIT
+	  ,SiteDBGroupID SMALLINT
+	)
+	INSERT INTO #tmpTransInfo( 
+		   matchid
+		  ,transid 
+		  ,refno
+		  ,custid
+		  ,bettype
+		  ,betid
+		  ,betdaqid 
+		  ,betfrom
+		  ,statusID
+		  ,winlostdate
+		  ,IsMixParlay
+		  ,SiteDBGroupID
+		)
+	SELECT t.c.value('@mid','INT') AS matchid
+			,t.c.value('@t','BIGINT') AS transid
+			,t.c.value('@ref','BIGINT') AS refno
+			,t.c.value('@c','INT') AS custid
+			,t.c.value('@btype','SMALLINT') AS bettype
+			,t.c.value('@bid','BIGINT') AS betid
+			,t.c.value('@bdaq','BIGINT') AS betdaqid
+			,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
+			,t.c.value('@sid','TINYINT') AS statusID
+			,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
+			,t.c.value('@isP','BIT') AS IsMixParlay
+			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
+	FROM @TransInfo.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+
+	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
+
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
+	BEGIN
+
+		SET @InvalidTransIds = @TransIds
+		SELECT  @InvalidTransIds AS InvalidTransIds
+
+		RETURN;
+	END
 
 	INSERT INTO #transIdTemp (transid)
 	SELECT DISTINCT value
@@ -77,7 +129,7 @@ BEGIN
 		,refno
 		,winlostdate
 		,betdaqid
-	FROM dbo.bettrans14 AS b14 WITH (NOLOCK)
+	FROM #tmpTransInfo b14
 		INNER JOIN #transIdTemp tmp ON b14.transid = tmp.transid
 	
 	--final valid transid
@@ -109,10 +161,25 @@ BEGIN
 													), 1, 1, ''), '')
 	END	
 
-	-- return table result
+	-- 1. return table result
 	SELECT @InvalidTransIds AS InvalidTransIds
 		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 
+	-- 2. Transinfo table
+	SELECT DISTINCT 
+			t.matchid
+		    ,t.transid 
+			,b.refno
+			,b.custid 
+			,t.statusID
+			,b.bettype
+			,b.betid
+			,b.IsMixParlay 
+			,b.SiteDBGroupID 
+	FROM #validTransId t
+		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
+	DROP TABLE #tmpTransInfo
 END

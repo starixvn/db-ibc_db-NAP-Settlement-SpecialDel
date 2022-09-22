@@ -15,7 +15,8 @@ AS
 		- 20201215@Max: CTS - Missing Category/Class [Redmine: #146822]
 		- 20211124@Max: [CTS] Update Category when PA updated [Redmine: #156935]
 		- 20220422@Max: CTS Support creator Problem Account [Redmine: #171686]
-	
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
+		
 	Param's explanation:
 		+ @CustIds = 0: the first run then get all data
 		+ @CustIds IS NULL OR '': get all changed data from @datetime
@@ -100,9 +101,8 @@ BEGIN
 	BEGIN
 		DECLARE @custid_tbl AS TABLE (custid INT )
 		INSERT INTO @custid_tbl (custid)
-		SELECT t.val
-		FROM dbo.f_SplitString (@CustIds,',') AS t
-		OPTION (MAXRECURSION 0)
+		SELECT value
+		FROM STRING_SPLIT (@CustIds,',')
 		
 		INSERT INTO #tmpResult (CustId, ReasonID, CreatedDate, Creator)
 		SELECT pa.custid, ISNULL(pa.reasonID, upline.ReasonId), ISNULL(pa.CreatedDate, upline.CreatedDate), ISNULL(pa.Creator, upline.Creator)

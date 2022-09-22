@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20200521@Max:[CTS] Problem Account Monitor [Redmine:#133798]
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
 		
 	Param's explanation:	
 */
@@ -21,21 +22,19 @@ BEGIN
 	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT)
 
 	INSERT INTO #inputTransId (transid)
-	SELECT DISTINCT val
-	FROM dbo.f_SplitString(@TransIds, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
 
 	INSERT INTO #TransidInRequest (TransId, RequestId)
 	SELECT tmp.transid, req.RequestId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) 
 		INNER JOIN dbo.TicketVoiding_Request req WITH (NOLOCK) ON req.RequestId = rd.RequestId 
-		CROSS APPLY (SELECT val AS transid
-						FROM dbo.f_SplitString(rd.TransIds, ',')
+		CROSS APPLY (SELECT value AS transid
+						FROM STRING_SPLIT(rd.TransIds, ',')
 					) AS tmp
 	WHERE req.IssueTypeId = 11 
 		AND rd.MatchId = @MatchId
-	OPTION (maxrecursion 0)
 
 	SELECT t.transid, req.RequestId
 	FROM #inputTransId t WITH (NOLOCK)

@@ -14,7 +14,8 @@ AS
 	Revisions:
 		- 20220228@Max: Create new SP [Redmine: #168080]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
-
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
+		
 	Param's explanation:		
 */
 
@@ -24,10 +25,9 @@ BEGIN
 	DECLARE @tmpBettype AS TABLE (bettype SMALLINT)
 	
 	INSERT INTO @tmpBettype (bettype)
-	SELECT DISTINCT val 
-	FROM dbo.f_SplitString(@BetTypes, ',')
-	WHERE val <> ''
-	OPTION (MAXRECURSION 0)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@BetTypes, ',')
+	WHERE value <> ''
 
 	SELECT DISTINCT CASE WHEN t.bettype IN (9662, 9664, 9666, 9663, 9665, 9667) THEN o.oddsid ELSE NULL END AS oddsid
 		, o.bettype AS BettypeId

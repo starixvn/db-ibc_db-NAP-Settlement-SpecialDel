@@ -1,5 +1,5 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 (	
 	@MatchId		INT
 	,@EventDate		DATETIME = NULL
@@ -8,21 +8,13 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 )
 AS
 /*	
-	Created by: Max
-	Date 20200701
-	Task: [TVS] Danger Accept Bets Issue Type [Redmine: #111573]
-	DB: DBTXN/bodb02
+	Created by: July
+	Date 20220916
+	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+	DB: DBPRO/bodb02
 	
 	Revisions: 
-		- 20200701@Max: Create new SP [Redmine: #135947]
-		- 20200828@Charles: Get linked matches of main match [Redmine: #140339]
-		- 20200921@Charles: TVS - Enhance for Danger Accept Phase 3 [Redmine: #141579]
-		- 20201113@Charles: Danger Accept/Red Card Enhancement - Phase 5 [Redmine: #145102]
-		- 20210608@Max: [TVS] Danger Accept Enhancement - Phase 9 [Redmine: #153216]
-		- 20211019@July: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
-		- 20220114@July: TVS - New issue type Wrong HDP and Wrong 1H HDP [Redmine: #146717]
-		- 20220221@July: Modify code get fantasy match [Redmine: #164561] 
-		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
+		- 20220916@July: Change config DBTXN -> DBPRO [Redmine: #175412]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -34,17 +26,11 @@ BEGIN
 	
 	IF @IsMainMatch = 1
 	BEGIN
-		DECLARE @query NVARCHAR(MAX) = ''
-		DECLARE @ExecuteSQL NVARCHAR(MAX) = ''
-		
 		CREATE TABLE #LinkedMatch_tmp (MainMatchID INT, LinkedMatchID INT)
-		
-		SET @query = '	SELECT MainMatchID, LinkedMatchID
-						FROM dbo.Dot_Admin_LinkedMatch WITH(NOLOCK)
-						WHERE MainMatchID = @MatchId '
-		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@MatchId INT'' , @MatchId'
 		INSERT INTO #LinkedMatch_tmp (MainMatchID, LinkedMatchID)
-		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @MatchId INT', @query, @MatchId
+		SELECT MainMatchID, LinkedMatchID
+		FROM dbo.Dot_Admin_LinkedMatch WITH(NOLOCK)
+		WHERE MainMatchID = @MatchId 
 
 		IF @IssueTypeId IN (4,5,6,7)
 		BEGIN
@@ -52,7 +38,7 @@ BEGIN
 
 			INSERT INTO @fantasymatch_tmp (fantasy_match, value)
 			SELECT  m.MatchId, ','+ m.Value +','
-			FROM DBPRO.bodb02.dbo.Match_Property m WITH(NOLOCK)
+			FROM dbo.Match_Property m WITH(NOLOCK)
 			WHERE m.Value LIKE '%'+ CAST(@MatchId AS VARCHAR(20)) +'%' AND m.[Key] = 'fantasy'
 
 			IF EXISTS ( SELECT TOP 1 1 FROM @fantasymatch_tmp)

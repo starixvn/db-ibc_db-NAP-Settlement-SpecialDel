@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LastTime_Select]
 (	
 	@MatchId				INT
 	,@FilterFromTransTime	DATETIME = NULL
@@ -16,13 +16,16 @@ AS
 	Revisions: 
 		- 20210616@Max: Create new SP [Redmine: #156349]
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
-	
+		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Param's explanation:
 		
 */
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @LastTime  DATETIME
+		   ,@SiteDBGroupID SMALLINT = 0 
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	SELECT @LastTime = (
 					SELECT MAX(LastTime)
@@ -44,6 +47,7 @@ BEGIN
 								ELSE 0 END
 							AND b.betfrom <> 'P'
 							AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
+							AND b.SiteDBGroupID = @SiteDBGroupID
 
 						UNION ALL
 						SELECT MAX(CASE WHEN @FilterBy IN (1,4) THEN bm.transdate 
@@ -64,6 +68,7 @@ BEGIN
 							AND bm.betfrom <> 'P'
 							AND b.statusID NOT IN (102, 103)
 							AND 1 = CASE WHEN b.livehomescore = 0 AND bm.liveawayscore = 0 AND bm.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
+							AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = @SiteDBGroupID
 					)b
 				)
 

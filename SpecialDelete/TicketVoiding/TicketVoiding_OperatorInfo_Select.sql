@@ -11,7 +11,8 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20191118@Max: AdnormalBet TVS [Redmine:#123691]
 		- 20211101@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine:#155792]
-
+		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
+		
 	Param's explanation:	
 */
 BEGIN
@@ -20,9 +21,8 @@ BEGIN
 	DECLARE @tmpMatchId TABLE (MatchId INT)
 
 	INSERT INTO @tmpMatchId (MatchId)
-	SELECT	val AS MatchId
-	FROM	dbo.f_SplitString(@MatchIds, ',')
-	OPTION (maxrecursion 0)
+	SELECT	value AS MatchId
+	FROM STRING_SPLIT(@MatchIds, ',')
 
 	SELECT	m.MatchId, o.TraderID, o.TraderName, o.SuspenderID, o.SuspenderName
 	FROM	@tmpMatchId m
