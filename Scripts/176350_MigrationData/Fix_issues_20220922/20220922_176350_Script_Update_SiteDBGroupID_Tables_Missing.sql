@@ -139,7 +139,7 @@ BEGIN
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
 
-	IF EXISTS(SELECT 1 FROM sys.Objects WHERE  Object_id = OBJECT_ID(N'dbo.zzzbettrans'))
+	IF (@tablename = 'zzzbettrans' AND OBJECT_ID(N'dbo.zzzbettrans') is not null)
 	BEGIN
 		UPDATE b
 			SET SiteDBGroupID = @SiteDBGroupID
@@ -147,7 +147,7 @@ BEGIN
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
 
-	IF EXISTS(SELECT 1 FROM sys.Objects WHERE  Object_id = OBJECT_ID(N'dbo.zzzbettransm'))
+	IF (@tablename = 'zzzbettransm' AND OBJECT_ID(N'dbo.zzzbettransm') is not null)
 	BEGIN
 		UPDATE b
 			SET SiteDBGroupID = @SiteDBGroupID
@@ -155,7 +155,7 @@ BEGIN
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
 
-	IF EXISTS(SELECT 1 FROM sys.Objects WHERE  Object_id = OBJECT_ID(N'dbo.TicketVoiding_RequestDetailTicket_Single'))
+	IF (@tablename = 'TicketVoiding_RequestDetailTicket_Single' AND OBJECT_ID(N'dbo.TicketVoiding_RequestDetailTicket_Single') is not null)
 	BEGIN
 		UPDATE b
 			SET SiteDBGroupID = @SiteDBGroupID
@@ -163,7 +163,7 @@ BEGIN
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
 
-	IF EXISTS(SELECT 1 FROM sys.Objects WHERE  Object_id = OBJECT_ID(N'dbo.TicketVoiding_RequestDetailTicket_SubParlay'))
+	IF (@tablename = 'TicketVoiding_RequestDetailTicket_SubParlay' AND OBJECT_ID(N'dbo.TicketVoiding_RequestDetailTicket_SubParlay') is not null)
 	BEGIN
 		UPDATE b
 			SET SiteDBGroupID = @SiteDBGroupID
