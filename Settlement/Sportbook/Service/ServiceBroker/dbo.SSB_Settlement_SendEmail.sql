@@ -8,6 +8,7 @@ as
 	DB: DBTXN-bodb02,SBSETTLE-bodb02
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
+		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 */
 begin
 	set nocount on
@@ -17,13 +18,13 @@ begin
 		declare @__enviroment varchar(50)
 		exec dbo.NAP_Set_ServerInfo @Environment = @__enviroment OUTPUT
 		
-		if @__enviroment = 'PROD'
+		if @__enviroment = 'PROD' OR @@SERVERNAME LIKE 'DBGRP%' 
 			set @Recipients = 'dbaadmin@starixvn.com'
-		else if @__enviroment = 'SIT'
+		else if @__enviroment = 'SIT' OR @@SERVERNAME LIKE 'SITDBGRP%' 
 			set @Recipients = 'pontus@starixvn.com'
 		else if @__enviroment = 'DBBAL'
 			set @Recipients = 'pontus@starixvn.com'
-		else if @__enviroment = 'Local'
+		else if @__enviroment = 'Local' OR @@SERVERNAME IN ('testdb053\TESTSITEDB')
 			set @Recipients = 'kathy.nguyen@starixvn.com'
 		else
 			set @Recipients = 'pontus@starixvn.com'

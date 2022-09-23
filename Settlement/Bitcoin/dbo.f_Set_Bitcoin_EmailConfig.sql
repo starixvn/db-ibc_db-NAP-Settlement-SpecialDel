@@ -12,6 +12,7 @@ AS
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20211005@Kathy: Change email on Prod [Redmine:#159714]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
+		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		
 	Columns Explanation:    
     
@@ -54,11 +55,36 @@ RETURN (
 
 		UNION ALL 
 		SELECT 'NOTIFY'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'testdb053\TESTSITEDB'
+			, 'LOCAL'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
 			, 'qa@starixvn.com'
 			, 'qa@starixvn.com'
 			, 'qa@starixvn.com'
 			, 'SITDBTRANS'
 			, 'SIT'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'qa@starixvn.com'
+			, 'qa@starixvn.com'
+			, 'qa@starixvn.com'
+			, 'SITDBGRP01N1'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'qa@starixvn.com'
+			, 'qa@starixvn.com'
+			, 'qa@starixvn.com'
+			, 'SITDBGRP01N2'
+			, 'SIT'
+
 		UNION ALL 
 		SELECT 'NOTIFY'
 			--,'qa@starixvn.com'
@@ -68,6 +94,28 @@ RETURN (
 			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'DBTRANS'
+			, 'PROD'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			--,'qa@starixvn.com'
+			--,'qa@starixvn.com'
+			--,'qa@starixvn.com'
+			, 'it@starixvn.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'DBGRP01N1'
+			, 'PROD'
+
+		UNION ALL 
+		SELECT 'NOTIFY'
+			--,'qa@starixvn.com'
+			--,'qa@starixvn.com'
+			--,'qa@starixvn.com'
+			, 'it@starixvn.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'DBGRP01N2'
 			, 'PROD'
 
 		/*----------------------
@@ -93,8 +141,26 @@ RETURN (
 
 		UNION ALL 
 		SELECT 'ERROR'
+			, 'kathy.nguyen@starixvn.com;qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'testdb053\TESTSITEDB'
+			, 'LOCAL'
+
+		UNION ALL 
+		SELECT 'ERROR'
 			, 'qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
 			, 'SITDBTRANS'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'SITDBGRP01N1'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'SITDBGRP01N2'
 			, 'SIT'
 		
 		UNION ALL 
@@ -103,6 +169,22 @@ RETURN (
 			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'qa@starixvn.com', 'qa@starixvn.com'
 			, 'DBTRANS'
+			, 'PROD'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			--,'qa@starixvn.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'DBGRP01N1'
+			, 'PROD'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			--,'qa@starixvn.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'DBGRP01N2'
 			, 'PROD'
 			
 	) AS vs
