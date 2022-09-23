@@ -31,7 +31,8 @@ AS
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
-
+		- 20201216@Louisa: Scale Out BetTrans [Redmine:#175251]
+		
 	Param's Explanation:		
 		
 */
@@ -58,7 +59,11 @@ BEGIN
 		,@maxRefno				BIGINT
 		,@IsExistEarlyBettype	BIT
 		,@IsSettleBySetting 	BIT			= 0
+		,@IsCentral				BIT = 0
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 	
 	CREATE TABLE #temp_bettrans_29 ( transid BIGINT, refno BIGINT, IsFinished BIT, ruben TINYINT, custid INT)
@@ -146,6 +151,7 @@ BEGIN
 			AND f.SportType = @SportType
 			AND f.SettleType = 'EAR'
 			AND statusID	NOT IN (101, 102)
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_SettingByProfile(@sporttype))
@@ -193,11 +199,12 @@ BEGIN
 	IF @Creator = 0
 	BEGIN
 		SET @IsAutoRefund  =  1 
-		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
-			 @MatchId	= @matchid
-			,@TypeId	= 10
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	 OUTPUT
+		EXEC NAP_Set_AutoRefund_MatchChecking_Ticket
+			@MatchId		= @matchid
+			,@sporttype		= 1
+			,@Typeid		= 10
+			,@ErrCode 		= @ErrCode OUTPUT
+			,@ErrMsg 		= @ErrMsg OUTPUT
 	END
 
 	IF ISNULL(@ErrCode,0) <> 0
@@ -340,6 +347,8 @@ BEGIN
 			AND NOT EXISTS (
 				SELECT 1 FROM bettransm WITH(NOLOCK) WHERE refno = bm.refno AND statusID IN(1, 101)
 			)
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+
 		SET @rowCnt = @@ROWCOUNT --number of tickets of the match
 		
 		BEGIN --BEGIN: calculate 29 ----------------------------------
@@ -350,6 +359,7 @@ BEGIN
 			WHERE b.matchid = 29
 				AND b.statusID NOT IN (101,102) --('VOID','REJECT')
 				AND refno IN (SELECT refno FROM @refnos)
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				
 			SET @rowCnt29 = @@ROWCOUNT -- number of system parlay ticket
 
@@ -498,20 +508,6 @@ BEGIN
 		END
 	END
 	
-	----------------------------------------------------------------------------------------------------------------------------------------
-	BEGIN --BEGIN: UPDATE match_remark ----------------------------------	
-		DECLARE @command varchar(5)
-		--SET @command = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
-		SET @command = 'R'
-
-		EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark @matchid = @matchid
-				,@command = @command
-
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Refund_MP'
-			,@Matchid = @matchid
-			,@creator = @creator		
-	END --END: UPDATE match_remark ----------------------------------	
-
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, NULL, CURRENT_TIMESTAMP, 'well done, no more to do')
 
@@ -523,6 +519,7 @@ BEGIN
 			, @StatusId = 2
 		END
 	----------------------------------------------------------------------------------------------------------------------------------------
+	IF @IsCentral = 1 
 	BEGIN --BEGIN: WRITE LOG ----------------------------------		
 		DECLARE @Remark VARCHAR(200)
 		

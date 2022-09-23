@@ -50,8 +50,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
     --to do instant calculation
     ,@strTransIds                   VARCHAR(MAX)= NULL
 
-    ,@SelectedQuarter               VARCHAR(50)= NULL
-
     ,@IsSettleAbandonedMatch        BIT         = 0
     ,@IsSettleAbandonedMatchBetFair BIT         = 0
     ,@IsExcludeBetdaq               BIT         = 0
@@ -157,6 +155,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220309@Kathy: Remove code old Cashout model [Redmine:#169643]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
         @action             @mode
@@ -178,7 +177,7 @@ BEGIN
 		,@IsSkipValidation		BIT
 		,@ServerAlias			VARCHAR(50)
 		,@TotalQueue			INT = 0
-
+		
 	SET @IsSkipValidation = CASE WHEN @action = 'MoveTicket' THEN 1 ELSE 0 END 
 
     SET @isUndo = CASE
@@ -301,8 +300,7 @@ BEGIN
             + CASE WHEN @strBettypes IS NULL THEN '' ELSE ',@strBettypes = ''' + CONVERT(VARCHAR(MAX), @strBettypes) + '''' END
             + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + CONVERT(VARCHAR(MAX), @strTransIds) + '''' END
             + CASE WHEN @xmlData IS NULL THEN '' ELSE ',@xmlData = ''' + @xmlData + '''' END
-
-            + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ' + '''' + CONVERT(NVARCHAR(50), @SelectedQuarter) + '''' END
+      
             + CASE WHEN @IsSettingByProfile IS NULL THEN '' ELSE ',@IsSettingByProfile = ' + CONVERT(NVARCHAR(50), @IsSettingByProfile) END
 			+ CASE WHEN @IsReSettledTickets IS NULL THEN '' ELSE ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) END
 			+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
@@ -352,29 +350,33 @@ BEGIN
 					,@matchid = @matchid
 					,@ServerAlias = @ServerAlias
 					,@SettlementProcessingId = @SettlementProcessingId
-					,@ActionId = @ActionId
+					,@ActionId = @ActionId		
 					,@ErrMessage = @ErrMessage OUTPUT 
 			END
 			ELSE
 			BEGIN
 				IF @action LIKE 'CAL%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_TransID
-						  @transIds   		= @strTransIds
+						  @transIds   		= @strTransIds						  
+						  ,@matchid			= @matchid
 
 				IF @action LIKE 'REFUND%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_Refund_TransID
-						   @transIds   		= @strTransIds
+						   @transIds   		= @strTransIds						 
+						   ,@matchid			= @matchid
 	                  
 				IF @action LIKE 'UNDO%' AND @strTransIds IS NOT NULL
 					EXEC dbo.NAP_Admin_Calculate_Undo_TransID
-						   @transIds   		= @strTransIds
+						   @transIds   		= @strTransIds						  
+						   ,@matchid			= @matchid
 				
 				IF @sporttype = 2
 				BEGIN
 					IF  @CashoutVersion =  2
 						EXEC dbo.ExecRep_NAP_Admin_03
 							@transIds = @strTransIds
-							,@mode = @mode
+							,@mode = @mode							
+							,@matchid = @matchid
 				END
 			END
 	        RETURN
@@ -386,7 +388,7 @@ BEGIN
 				,@Mode = @Mode 
 				,@strTransIds = @strTransIds
 				,@EventDate = @EventDate
-
+				
 			RETURN
 		END
 		
@@ -556,8 +558,7 @@ BEGIN
             BEGIN
                 EXEC dbo.NAP_Admin_Calculate_Undo
                     @matchid       = @matchid
-                    ,@strBettypes   = @strBettypes
-                    ,@SelectedQuarter = @SelectedQuarter              
+                    ,@strBettypes   = @strBettypes                           
             END
         END
 
@@ -595,8 +596,7 @@ BEGIN
                     ,@IsExcludeBetdaq            = @IsExcludeBetdaq
                     ,@IsExcludeBetfair            = @IsExcludeBetfair
                     ,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-                    ,@strBettypes                   = @strBettypes
-                    ,@SelectedQuarter           = @SelectedQuarter
+                    ,@strBettypes                   = @strBettypes                   
             END
 
             IF @mode = 'BetDaq'
@@ -644,6 +644,7 @@ BEGIN
 			EXEC dbo.ExecRep_NAP_Admin_03
 				@transIds = @strTransIds
 				,@mode = @mode
+				,@matchid = @matchid
 		END
     END
     

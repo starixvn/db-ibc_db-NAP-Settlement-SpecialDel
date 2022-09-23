@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_AutoPayout_Push]
 	, @ResourceResult VARCHAR(MAX)	= NULL
 	, @SourceId		TINYINT			= 5 -- default SoccerWay
 	, @RefResult	VARCHAR(500)	= NULL
+	, @BroadcastSessionId	VARCHAR(50)		= NULL
     , @ErrCode		INT             = 0     OUTPUT
     , @ErrMsg		NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -42,6 +43,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
         
@@ -54,14 +56,13 @@ BEGIN
 			,@leagueid				INT
 			,@procName				NVARCHAR(50)
 			,@sqlCommand			NVARCHAR(MAX)
-			,@IsSystemSettlement	BIT
+			
 			,@CalType				TINYINT
 			,@HomeValue				VARCHAR(50)
 			,@AwayValue				VARCHAR(50)
 			,@LeagueGroupID			SMALLINT
 			,@KeyId					INT
 			,@xmlResourceResult		XML
-			,@xmlData				VARCHAR(MAX)
 	
 	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
 
@@ -69,7 +70,7 @@ BEGIN
 								WHEN @Action = 'CAL-FT' THEN 2
 								WHEN @Action = 'CAL' THEN 2
 								ELSE 0 
-							END, 
+							END,
 			@HomeValue = CASE WHEN @Action = 'CAL-HT' THEN @HalfTimeHome 
 								WHEN @Action = 'CAL-FT' THEN @FullTimeHome
 								WHEN @Action = 'CAL' THEN @FullTimeHome
@@ -93,149 +94,7 @@ BEGIN
 		INNER JOIN DBPRO.bodb02.dbo.League l WITH (NOLOCK)
 			ON m.leagueid = l.leagueid
     WHERE m.matchid = @MatchId
-	
-	
-	IF @@ROWCOUNT = 0
-    BEGIN
-        SELECT @ErrCode = 1001001
-			, @ErrMsg   = 'Match does not exist!'
-
-        RETURN
-    END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg  OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = 'Cannot execute auto-settle process due to match is on hold.'
-	    
-	    RETURN
-	END
-
-	IF EXISTS (SELECT TOP 1 1
-				FROM DBPRO.bodb02.dbo.ResultDetail with(NOLOCK)
-				WHERE matchid = @matchid
-					AND 1 = CASE 
-								WHEN resourceId = '00' AND @CalType = 2 THEN 1
-								WHEN resourceId = '01' AND @Action  = 'CAL-HT' THEN 1
-								ELSE 0
-							END
-					AND resultStatusId = 5 -- completed (manual)
-			)
-	BEGIN
-		SELECT @ErrCode = 1001018
-			, @ErrMsg   = 'Auto payout is cancelled because the match has been calculated manually.'
-
-        RETURN
-	END
-	IF @sporttype = 18 AND EXISTS (SELECT 1 FROM DBPRO.bodb02.dbo.match_remark WITH (NOLOCK) WHERE calculate = 1 AND matchid = @MatchId)
-	BEGIN
-		SELECT @ErrCode = 1001018
-			, @ErrMsg   = 'Auto payout is cancelled because the match has been calculated manually.'
-
-        RETURN
-	END
-
-	IF @sporttype =  1
-	BEGIN
-		IF EXISTS (
-				SELECT TOP 1 1
-				FROM Single_Calculate_Queue s WITH (NOLOCK)
-					INNER JOIN dbo.f_Set_GetAction() f
-					ON s.Action = f.Action
-					AND f.GroupAction = 'MNL'
-				WHERE s.matchid = @matchid 
-				AND s.IsCalculating IN (0, 1)
-				) 
-		BEGIN
-			SELECT	 @ErrCode = 1001003
-					,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-			RETURN
-		END
-	END
-	ELSE
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1
-					FROM dbo.Single_Calculate_Queue WITH (NOLOCK)
-					WHERE matchid = @matchid
-						AND IsCalculating IN (0, 1))
-			OR EXISTS (SELECT TOP 1 1
-						FROM dbo.Parlay_Calculate_Queue WITH (NOLOCK)
-						WHERE matchid = @matchid
-							AND IsCalculating IN (0, 1))
-		BEGIN
-			SELECT @ErrCode = 1001003
-				, @ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-			RETURN
-		END
-	END
-    
-    -- check waiting ticket
-	IF @sporttype = 1
-	BEGIN
-		;WITH cteGoalResource
-		AS
-		(
-			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
-			FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
-		)
-		,cteResource
-		AS
-		(
-			SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
-			WHERE	@action IN ('CAL', 'CAL-HT', 'UNDO')
-			UNION ALL
-			SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
-			WHERE	@action IN ('CAL', 'CAL-FT', 'UNDO')
-			UNION ALL
-			SELECT  ResourceId
-			FROM	cteGoalResource
-			WHERE   ResourceID IS NOT NULL
-		)
-	
-		SELECT @xmlData = CAST((SELECT	ResourceID AS '@Id'
-		FROM	cteResource
-		FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
-
-	END 
-
-	EXEC dbo.NAP_Admin_Settlement_Checking 
-		@MatchId = @MatchId
-        , @Action = @Action
-        , @Mode	= 'CAL'
-		, @xmlData = @xmlData
-        , @ErrCode = @ErrCode OUTPUT
-        , @ErrMsg = @ErrMsg OUTPUT
-        
-    IF @ErrCode <> 0
-    BEGIN
-        SELECT	@ErrCode, @ErrMsg
-        RETURN
-    END
-
-	-- check movebet day
-	IF @sporttype = 1
-	BEGIN 
-		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
-			@MatchIds =  @MatchId 
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
-
-		IF @ErrCode <> 0
-		BEGIN
-			SELECT @ErrCode = @ErrCode
-					,@ErrMsg = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
-
-			RETURN
-		END
-	END 
-	
+ 
     SELECT @ErrCode = 0, @ErrMsg = '', @procName = OBJECT_NAME(@@PROCID)
 		, @sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_1_AutoPayout] @matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
                             + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
@@ -253,43 +112,11 @@ BEGIN
 							+ ', @SourceId = ' + CONVERT(NVARCHAR(3), @SourceId)
 							+ CASE WHEN @RefResult IS NOT NULL THEN ',@RefResult = ''' + CONVERT(NVARCHAR(500),@RefResult) +  ''''
 											ELSE '' END
+							+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
                             + ', @ErrCode = @ErrCode OUTPUT' 
                             + ', @ErrMsg = @ErrMsg OUTPUT'
-		,@IsSystemSettlement = CASE
-								WHEN @Action IN ('CAL-FT', 'CAL') THEN 1
-								ELSE NULL
-							END
-							
-	-- add new status "Under Settlement" for a match
-	IF @IsSystemSettlement IS NOT NULL
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= @IsSystemSettlement 
-			,@AdminId		= @AdminId
-	END
-
-	-- insert waiting status into AutoPayoutResult table - Redmine:#106901
-	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultIns 
-		  @MatchId 		= @matchid
-		, @SourceId 	= @SourceId
-		, @TypeId 		= @CalType
-		, @HomeValue 	= @HomeValue
-		, @AwayValue 	= @AwayValue
-		, @StatusId 	= 1 -- waiting
-		, @ErrCode 		= @ErrCode OUTPUT
-		, @ErrMsg		= @ErrMsg OUTPUT
-		
-	IF @ErrCode <> 0
-	BEGIN
-		RETURN
-	END
-
-	IF @sporttype = 1 AND @Action = 'CAL-FT' AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeHome,0) <> ISNULL(@FullTimeAway,0)
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns  @ParentId = @MatchId
-	END
 
     IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_' -- UAT1 -->UAT9
     BEGIN
@@ -312,11 +139,11 @@ BEGIN
         INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode
 			, IsCalculating
 			, LeagueID, SportType
-			, AdminId, IP, Action, sqlCommand, execTime)
+			, AdminId, IP, Action, sqlCommand, execTime, BroadcastSessionId )
         SELECT @MatchId, @matchcode
 			, CASE WHEN @sporttype = 1 THEN 99 ELSE 0 END
 			, @leagueid, @sporttype
-			, @AdminId, @IP, @Action, @sqlCommand, NULL
+			, @AdminId, @IP, @Action, @sqlCommand, NULL, @BroadcastSessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 

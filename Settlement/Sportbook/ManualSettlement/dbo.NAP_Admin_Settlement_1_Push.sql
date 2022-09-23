@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push] 
      @AdminId               INT
     ,@Matchid               INT
@@ -9,18 +9,17 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@GoalRecord			VARCHAR(50)     = NULL
     ,@BetStatus             NVARCHAR(50)    
    
-    ,@SelectedQuarter		VARCHAR(50)		= NULL
-    ,@QuarterResult			VARCHAR(MAX)	= NULL
     ,@ResourceResult		VARCHAR(MAX)	= NULL
     ,@Action                VARCHAR(10)     = 'CAL'
     ,@IP                    VARCHAR(15)     = ''
 	,@IsReSettledTickets	BIT				= 1
     ,@ChildMatchIds			VARCHAR(500)	= NULL
 	,@RefResultStatus		TINYINT			= 0
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
 AS
-/*    Creator: Kathy
+/*  Creator: Kathy
     Date: 20140213
     Task: SP for settlement
     DB: DBTXN/BODB02
@@ -54,18 +53,11 @@ AS
 		- 20211216@Louisa: Hide confirmed result [Redmine:#165656]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
 		
-		* @SelectedQuarter: the list of selected quarter for settlement basketball
-			'801,802,1H,803,804,2H,FT'
-		* @QuarterResult: the result of each quarter bettype of basketball
-			Sample:	'<Results>
-					   <Resource Id="603" HomeValue="H"/> 
-					   <Resource Id="604" HomeValue="H"/> 
-					   <Resource Id="Q1" HomeValue="30" AwayValue="40"/> 
-					 </Results>
 		* @ResourceResult
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
@@ -83,226 +75,41 @@ BEGIN
 			,@sporttype         	INT
 			,@leagueid          	INT
 			,@procName          	NVARCHAR(50)
-			,@sqlCommand			NVARCHAR(MAX)
-			,@IsSystemSettlement	BIT
-			,@LeagueGroupID			SMALLINT
+			,@sqlCommand			NVARCHAR(MAX)			
 			,@KeyId					INT
-			,@IsMergedParlay		BIT = 0
-			,@xmlResourceResult		XML
-			,@xmlData				VARCHAR(MAX)
-
-	SET @xmlResourceResult = CAST(@ResourceResult AS XML)
-
-    SELECT	@matchcode = m.matchcode
-			,@sporttype   = m.sporttype
-			,@leagueid    = m.leagueid
-			,@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
-    FROM	dbo.match m WITH (NOLOCK)
-		INNER JOIN dbo.League l WITH (NOLOCK)
-			ON m.leagueid = l.leagueid
-    WHERE	m.matchid = @MatchId
-
-    IF @@ROWCOUNT = 0
-    BEGIN
-        SELECT	@ErrCode = 1001001
-				,@ErrMsg    = 'Match does not exist!'
-
-        RETURN
-    END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
-
-    IF @action = 'CAL' AND @sporttype = 154 AND (@FullTimeHome = 0 OR @FullTimeHome IS NULL OR @FullTimeAway = 0 OR @FullTimeAway IS NULL)
-    BEGIN
-        SELECT	@ErrCode = 1001002
-				,@ErrMsg    = 'Score is not valid.'
-
-        RETURN
-    END
-
-	IF @sporttype = 1 AND @action LIKE 'CAL%'
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-			@MatchId	= @matchid
-			,@Action	= @action
-			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
-
-		IF @ErrCode > 0
-			RETURN
-	END
 	
-	IF @sporttype = 1
-	BEGIN
-		IF EXISTS (
-				SELECT TOP 1 1
-				FROM Single_Calculate_Queue s WITH (NOLOCK)		
-					INNER JOIN dbo.f_Set_GetAction() f
-						ON s.Action = f.Action
-						AND f.GroupAction = 'MNL'
-				WHERE s.matchid = @matchid
-					AND s.IsCalculating IN (0, 1)
-				)
-		BEGIN
-			SELECT @ErrCode = 1000000
-				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-			RETURN
-		END
-	END
-	ELSE
-	BEGIN
-		IF EXISTS (
-				SELECT	1
-				FROM	Single_Calculate_Queue WITH (NOLOCK)
-				WHERE	matchid = @matchid
-						AND IsCalculating IN (0, 1)
-				)
-			OR EXISTS (
-				SELECT	1
-				FROM	Parlay_Calculate_Queue WITH (NOLOCK)
-				WHERE	matchid = @matchid
-						AND IsCalculating IN (0, 1)
-				)
-		BEGIN
-			SELECT	@ErrCode = 1001003
-					,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-			RETURN
-		END
-	END
-    
-    -- check waiting ticket	
-	IF @sporttype = 1
-	BEGIN
-		;WITH cteGoalResource
-		AS
-		(
-			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
-			FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
-		)
-		,cteResource
-		AS
-		(
-			SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
-			WHERE	@action IN ('CAL', 'CAL-HT', 'UNDO')
-			UNION ALL
-			SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
-			WHERE	@action IN ('CAL', 'CAL-FT', 'UNDO')
-			UNION ALL
-			SELECT  ResourceId
-			FROM	cteGoalResource
-			WHERE   ResourceID IS NOT NULL
-		)
-	
-		SELECT @xmlData = CAST((SELECT	ResourceID AS '@Id'
-		FROM	cteResource
-		FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
-
-	END 
-
-	EXEC dbo.NAP_Admin_Settlement_Checking @MatchId	= @MatchId
-    , @Action = @Action
-    , @Mode = 'CAL'
-	, @xmlData = @xmlData
-    , @ErrCode = @ErrCode OUTPUT
-    , @ErrMsg = @ErrMsg OUTPUT
-        
-    IF @ErrCode <> 0
-        RETURN
-
-	IF @sporttype = 1
-	BEGIN
-		SELECT	@IsMergedParlay = IsMergedParlay
-		FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-		WHERE	ss.Sporttype = @sporttype
-
-		-- check movebet day
-		IF @IsMergedParlay = 1
-		BEGIN
-			EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
-				@MatchIds =  @MatchId 
-				,@ErrCode = @ErrCode OUTPUT
-				,@ErrMsg = @ErrMsg OUTPUT
-
-			IF @ErrCode <> 0
-			BEGIN
-				SELECT @ErrCode = @ErrCode
-						,@ErrMsg = 'Cannot proceed due to this match is in during move-bet progress. Please contact admin for support.'
-
-				RETURN
-			END
-		END
-	END
+	SELECT	@matchcode = m.matchcode
+			,@leagueid = m.leagueid
+			,@sporttype = m.sporttype
+	FROM	dbo.match m WITH(NOLOCK)
+	WHERE	m.matchid = @Matchid
 
     SELECT	@ErrCode        = 0
 			,@ErrMsg        = ''
 			,@procName      = OBJECT_NAME(@@procid)
 			,@sqlCommand    = 'EXEC [dbo].[NAP_Admin_Settlement_1] @matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
-                                                          + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
-                                                          + ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeHome), 'NULL') 
-                                                          + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL') 
-                                                          + ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeHome), 'NULL') 
-                                                          + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
-                                                          + ', @goalrecord = ' + CASE WHEN @GoalRecord IS NULL THEN 'NULL'
-                                                                                      ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END 
-                                                          + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
-                                                                                     ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
-                                                          + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''                                                          
-														  + ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
-                                                                                     ELSE '''' + @ResourceResult + '''' END 
-                                                          + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
-														  + ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
-														  +    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
-														  +	   CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END
-                                                          + ', @ErrCode = @ErrCode OUTPUT' 
-                                                          + ', @ErrMsg = @ErrMsg OUTPUT'
+                                    + ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
+                                    + ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeHome), 'NULL') 
+                                    + ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @FullTimeAway), 'NULL') 
+                                    + ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeHome), 'NULL') 
+                                    + ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @HalfTimeAway), 'NULL') 
+                                    + ', @goalrecord = ' + CASE WHEN @GoalRecord IS NULL THEN 'NULL'
+                                                                ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END 
+                                    + ', @betstatus = ' + CASE WHEN @BetStatus IS NULL THEN 'NULL' 
+                                                                ELSE 'N''' + CONVERT(NVARCHAR(50), @BetStatus) + '''' END 
+                                    + ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''                                                          
+									+ ', @ResourceResult = ' + CASE WHEN @ResourceResult IS NULL THEN 'NULL'
+                                                                ELSE '''' + @ResourceResult + '''' END 
+                                    + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
+									+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
+									+    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
+									+	   CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END
+									+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
+                                    + ', @ErrCode = @ErrCode OUTPUT' 
+                                    + ', @ErrMsg = @ErrMsg OUTPUT'
                                                           
-				,@IsSystemSettlement = CASE
-										WHEN @Action = 'UNDO' 
-											THEN CASE 
-													WHEN @sporttype NOT IN (2) THEN 0
-													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 0
-													ELSE NULL
-												END
-										WHEN @Action IN ('CAL', 'CAL-FT') 
-											THEN CASE
-													WHEN @sporttype NOT IN (2) THEN 1
-													WHEN @sporttype = 2 AND @SelectedQuarter LIKE '%FT%' THEN 1
-													ELSE NULL
-												END
-										ELSE NULL
-									END
-	
-	-- add new status "Under Settlement" for a match
-	IF @IsSystemSettlement IS NOT NULL 
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= @IsSystemSettlement 
-			,@AdminId		= @AdminId
-			,@IP			= @IP
-	END
-
-	IF ISNULL(@ChildMatchIds ,'') <> '' AND @Action IN ('CAL', 'CAL-FT') AND @LeagueGroupID IN (42,74,108) AND ISNULL(@FullTimeAway,0) <> ISNULL(@FullTimeHome,0)
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultIns
-			 @parentId = @Matchid
-			 ,@ChildMatchIds = @ChildMatchIds
-	END
-
     IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
     BEGIN
         BEGIN TRY
@@ -331,6 +138,7 @@ BEGIN
 				,IP
 				,Action
 				,sqlCommand
+				,BroadcastSessionId
             )
         SELECT	@MatchId
 				,@matchcode
@@ -341,6 +149,7 @@ BEGIN
 				,@IP
 				,@Action
 				,@sqlCommand
+				,@BroadcastSessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 		

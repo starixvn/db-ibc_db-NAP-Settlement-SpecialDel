@@ -1,5 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Set_MatchSelHedge @matchid INT
+ALTER PROCEDURE dbo.NAP_Set_MatchSelHedge 
+	@matchid INT
 AS
 /*	
 	Created: 20140114@Kathy
@@ -21,21 +22,14 @@ BEGIN
 
 	SELECT TOP (1) m.matchid
 			,m.matchcode
-			,CASE WHEN ISNULL(sdt.IsDeterminedHedgeMatch, 0 ) = 1 AND m.sporttype = 1 THEN 1 ELSE 0 END AS IsDeterminedHedgeMatch
 			,ISNULL(mr.isUndecided,0) AS isUndecided
 	FROM	dbo.match m WITH (NOLOCK)
-		OUTER APPLY (
-			SELECT	TOP 1 CAST(1 AS BIT) AS IsDeterminedHedgeMatch
-			FROM	DBTXN.bodb02.dbo.bettrans WITH(NOLOCK)
-			WHERE	matchid = m.matchid
-					AND bettype IN (3)
-					AND ruben = 0
-		) AS sdt
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) 
 			ON	m.matchid = mr.matchid
 	WHERE	m.ParentID = @MatchId
 			AND m.ChildMatchType = 100
 			AND ISNULL(m.IsDeleted,0) = 0
 	ORDER BY m.matchid
+
 END
 GO

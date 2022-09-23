@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile_Instant]
 	,@ActionID	INT = 0
 	,@creator INT = 0
 	,@SessionId	BIGINT = NULL
+	,@BroadcastSessionId VARCHAR(50)	= NULL
 	,@TicketCount INT = 0 OUTPUT
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
@@ -18,6 +19,7 @@ AS
 
     Revisions:
 	   - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 */
 BEGIN
@@ -51,6 +53,7 @@ BEGIN
 
 			,@DummyResourceIds		VARCHAR(MAX) 
 			,@DummyResourceResults VARCHAR(MAX)
+			,@IsCentral	BIT
 			
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -89,6 +92,7 @@ BEGIN
 			,@ThreadHoldRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
+			,@IsCentral = 0
 			
 	IF @SessionId IS NULL
 	BEGIN
@@ -97,6 +101,9 @@ BEGIN
 
 		RETURN
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	-- Get min/max custid
 	BEGIN
@@ -113,6 +120,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 				AND 1 = CASE 
 							WHEN ISNULL(b.betdaqid,0) = -2 THEN 1
@@ -148,7 +156,8 @@ BEGIN
 				,@TotalTicket = CASE WHEN @TotalTicket + TotalTicket >= @ThreadHold THEN TotalTicket ELSE @TotalTicket + TotalTicket END
 				,BatchNo = @batchNo
 				,@batchNo = CASE WHEN @TotalTicket = TotalTicket THEN @BatchNo + 1 ELSE @batchNo END
-		
+		OPTION (MAXDOP 1)
+
 		;WITH cteBatchNo
 		AS(
 			SELECT	BatchNo, MIN(custid) minCustId, MAX(custid) maxCustId
@@ -219,6 +228,7 @@ BEGIN
 	SET @Params = CASE WHEN @hth IS NOT NULL THEN ' hth=''' + CAST (@hth AS VARCHAR(20)) + '''' ELSE '' END
 					+ CASE WHEN @hta IS NOT NULL THEN ' hta=''' + CAST (@hta AS VARCHAR(20)) + '''' ELSE '' END
 					+ ' DeterminedType=''2''' 
+					+ ' IsCentral=''' + CAST(@IsCentral AS VARCHAR(1)) + ''''
 
 	SET @ParamsXML =  CAST('<root><r ' + REPLACE(@Params,'''','"') + ' /></root>' AS XML)
 
@@ -315,8 +325,9 @@ BEGIN
 		FROM	dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN dbo.SettlementBettypeResult s
 				ON b.bettype = s.Bettype
-			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hth, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, 0) m
+			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @hth, @hta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, 0) m
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND s.SessionId = @SessionId					
@@ -382,7 +393,8 @@ BEGIN
 	INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket, DeterminedType)
 	SELECT 	bm.bettype, COUNT(1) AS totalticket, 2 AS DeterminedType
 	FROM	dbo.bettransm bm WITH(NOLOCK)
-	WHERE	bm.matchid = @MatchId			
+	WHERE	bm.matchid = @MatchId		
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND bm.statusID IN (0,102)
 			AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = bm.bettype)
 	GROUP BY bm.bettype
@@ -469,7 +481,8 @@ BEGIN
 								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''	
 								+ ', @hth = ' + CONVERT(NVARCHAR(50), @hth) 
 								+ ', @hta = ' + CONVERT(NVARCHAR(50), @hta) 
-								+ ', @IsReSettledTickets = 0'								
+								+ ', @IsReSettledTickets = 0'			
+								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
@@ -485,14 +498,15 @@ BEGIN
 				,@hth				= @hth
 				,@hta				= @hta
 				,@LockedByRefno		= 1 -- always lock refno for testing
+				,@IsCentral			= @IsCentral
 
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
 		END
 		ELSE
 		BEGIN
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, 'SDT-FT', @sqlCommand, @sportType, @LockedByRefno
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, 'SDT-FT', @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
 	END
 END

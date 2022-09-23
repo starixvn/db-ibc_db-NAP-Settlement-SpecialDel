@@ -38,7 +38,8 @@ AS
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
-		
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+
 	Param's explanation: 
 		
 */
@@ -51,12 +52,16 @@ BEGIN
 		 , @n			  INT = 2147483647
 		 , @MinBettype		  SMALLINT
 		 , @MaxBettype		  SMALLINT
-				
+		 , @IsCentral		  BIT
+
 	SELECT	@LeagueID	   = ISNULL(@LeagueID, 0)
 		   , @SportType   = ISNULL(@SportType, 0)
 		   , @Today	   = GETDATE()
 
 	SET @Today = DATEADD(MINUTE, -10, @Today)
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	CREATE TABLE #tblMatchInQueue(
 		MatchId						INT PRIMARY KEY
@@ -111,6 +116,9 @@ BEGIN
 		, HTFGNGResultStatusId		    TINYINT		
 		, HTLGResultStatusId		    TINYINT
 		, EventStatusReason				TINYINT
+		, autoSettingForLeague			TINYINT
+		, InstantWaitingTime			INT
+		, DirectWaitingTime				INT
 	)
 	
 	DECLARE @strBettypesParlay VARCHAR (MAX)
@@ -193,6 +201,7 @@ BEGIN
 							
 					FROM	dbo.bettrans b WITH(NOLOCK)
 					WHERE	b.matchid = m.MatchId
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						AND b.bettype BETWEEN @MinBettype AND @MaxBettype
 						AND b.statusID NOT IN (101, 102)
 					GROUP BY b.matchid, b.bettype
@@ -220,6 +229,7 @@ BEGIN
 							,MAX(CASE WHEN bm.bettype = 127 AND betteam IN ('1:2', '2:2') THEN 1 ELSE 0 END) AS IsExistHTLG
 					FROM	dbo.bettransm bm WITH(NOLOCK)
 					WHERE	bm.matchid = m.matchid
+							AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 							AND bm.bettype BETWEEN @MinBettype AND @MaxBettype
 							AND 1 = CASE
 									WHEN CHARINDEX(',' + CAST(bm.bettype AS VARCHAR) + ',',',' + @strBettypesParlay + ',') > 0 THEN 1
@@ -300,6 +310,7 @@ BEGIN
 								,b.statusID
 						FROM	dbo.bettrans b WITH(NOLOCK)
 						WHERE	mt.transid = b.transid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					) b
 					OUTER APPLY (
 						SELECT TOP 1 1 IsParlay
@@ -363,6 +374,7 @@ BEGIN
 		FROM @tmpMatchCompleted m
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 		WHERE	bm.statusID = 0
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND m.IsExistRunningTicket = 0
 
 		IF EXISTS (SELECT TOP 1 1 FROM #temp_match_parlay)
@@ -476,20 +488,15 @@ BEGIN
 			,m.IsExistMarkedTicket
 			,m.IsExistRunningTicket
 			,i.EventStatusReason
+			,i.autoSettingForLeague
+			,i.InstantWaitingTime
+			,i.DirectWaitingTime			
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
-		LEFT JOIN @tmp_ExternalSourceResult exSource ON m.matchid = exSource.Matchid
-	
-	DECLARE @matchidList VARCHAR(MAX) = ''
-	    
-	SELECT @matchidList =  @matchidList + ',' + CAST(matchid AS VARCHAR(20))
-	FROM #tblMatchInQueue
-	SET @matchidList = SUBSTRING(@matchidList, 2, LEN(@matchidList))
-	    
-	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
-		@matchidList = @matchidList
-
+		LEFT JOIN @tmp_ExternalSourceResult exSource 
+			ON m.matchid = exSource.Matchid
+		
 	DROP TABLE #tblMatchInQueue
 	DROP TABLE #tblBetStatus
 

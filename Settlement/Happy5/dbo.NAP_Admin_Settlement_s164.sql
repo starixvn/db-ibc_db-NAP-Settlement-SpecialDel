@@ -4,7 +4,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_s164
 	,@Action		VARCHAR(20)		= 'CAL'
 	,@AdminId		INT
 	,@IsAuto		BIT				= 1
-	,@Resources		VARCHAR(MAX)	= NULL
+	,@strOldResult	VARCHAR(MAX)	= NULL
 	,@IP			VARCHAR(50)		= ''
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		VARCHAR(200)	= ''	OUTPUT
@@ -20,16 +20,10 @@ AS
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
-		@Resources = '<Resources>
-						<Resource Id="1" Result="1" />
-						<Resource Id="2" Result="2" />
-						<Resource Id="3" Result="3" />
-						<Resource Id="4" Result="4" />
-						<Resource Id="5" Result="5" />
-					  </Resources>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -44,9 +38,7 @@ BEGIN
 			,@strTransIds			VARCHAR(MAX)
 			,@MaxTransID			BIGINT
 			,@delegateBettype		SMALLINT
-			,@procName				SYSNAME
-			,@WaitingTime			VARCHAR(10)
-			,@IsWaiting				BIT 
+			,@IsCentral				BIT
 			
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT)
@@ -67,27 +59,10 @@ BEGIN
 							WHEN 'REFUND' THEN 81001 
 						END
 			,@Remark = ''
-			,@procName = OBJECT_NAME(@@procid)
-			,@IsWaiting = 0
-
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_s164
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	--get info of match
 	SELECT @sportType	   = sportType
 	FROM   DBPRO.BODB02.dbo.match WITH (NOLOCK)
@@ -100,8 +75,7 @@ BEGIN
 		INSERT INTO #tblMatchProcess (matchid, KeyID)
 		SELECT	@matchid AS matchid, 1 AS KeyID
 		----------------------------------------------------------------------------------------------
-	
-	
+		
 		--check settlement process
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch = 1
@@ -111,33 +85,19 @@ BEGIN
 			
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		BEGIN
-			SELECT	@ErrCode = 1000000
-					,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+			SELECT	@ErrCode 
+					,@ErrMsg
 	
 			RETURN
 		END
-		
-	
-		INSERT INTO @tmpOldResultDetail (Seq, Number)
-		SELECT Seq, Number
-		FROM DBPRO.bodb02.dbo.bingoBall WITH (NOLOCK)
-		WHERE matchid = @matchid
-		
-		
-		IF @IsAuto = 0
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.[NAP_Admin_Result_Update_BingoBall] 
-										@matchid	= @matchid
-										,@Sporttype	= @Sporttype
-										,@Resources = @Resources
-		END
 		-------------------------------------------parse XML and add more info----------------------------------
 		INSERT INTO @tmpResultDetail(pfID, ResourceID, Bettype, Result1, Result2, OddsType, isSourceFromDB)
-		EXEC dbo.[NAP_Set_Resource_Parsing] @Sporttype = @Sporttype
-										,@MatchID	= @MatchID
-										,@Action	= @Action
-										,@ErrCode 	= @ErrCode OUTPUT
-										,@ErrMsg	= @ErrMsg OUTPUT
+		EXEC DBPRO.bodb02.dbo.[NAP_Set_Resource_Parsing] 
+			@Sporttype = @Sporttype
+			,@MatchID	= @MatchID
+			,@Action	= @Action
+			,@ErrCode 	= @ErrCode OUTPUT
+			,@ErrMsg	= @ErrMsg OUTPUT
 		
 		IF @ErrCode IS NOT NULL AND @ErrCode > 0
 		BEGIN
@@ -162,6 +122,7 @@ BEGIN
 				CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, NULL, NULL, sr.Result1, sr.Result2, NULL, NULL, NULL, NULL) m
 			WHERE b.matchid = @MatchId
 				AND b.statusID NOT IN (101,102)
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
@@ -176,6 +137,7 @@ BEGIN
 							FROM @tmpResultDetail t
 							WHERE b.BetType = t.BetType
 							)
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END 
 		
 		
@@ -195,13 +157,7 @@ BEGIN
 	
 		SELECT @MaxTransID = MAX(transid)
 		FROM #tmpTransID
-			
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update
-						@Command			= 'profile_bingoball'
-						,@Action			= @Action
-						,@MatchID			= @matchid
-						,@creator			= @AdminId
-			 
+
 		-------------------------------------------------------------
 		---		CAPTURE value BALANCE before settlement		---
 		---------------------------VVVV------------------------------
@@ -219,6 +175,7 @@ BEGIN
 			,bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
 		WHERE matchid = @matchid AND transid <= @MaxTransID
+			AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
 		GROUP BY custid, winlostdate, bettype
 		
 		
@@ -281,6 +238,7 @@ BEGIN
 			,bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
 		WHERE matchid = @matchid AND transid <= @MaxTransID
+			AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
 		GROUP BY custid, winlostdate, bettype
 		
 		-------------------------------------------------------------
@@ -382,63 +340,57 @@ BEGIN
 			,@IsReleased		= 1
 	END CATCH
 	
-		
 	SET @EndTime = GETDATE()
-	
-	
+		
 	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
 	EXEC dbo.Logfile_V2 
 		@UserID = @AdminId
 		,@Doing = @doing
 		,@extend = @MatchId
-		
-	BEGIN TRY
-		
-		DECLARE @remarkOldValue VARCHAR(MAX) = '',@remarkNewValue VARCHAR(MAX) = ''
-		SET @Remark = ''
-		
-		SELECT @remarkOldValue = @remarkOldValue + ', B' + CAST(Seq AS VARCHAR(5)) + '(' + CAST(Number AS VARCHAR(5)) + ')'
-		FROM @tmpOldResultDetail
-		WHERE Number > 0 AND @IsAuto = 0
-		
-		
-		SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
-		FROM @tmpResultDetail
-		WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
-		
-		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
-						+ CASE WHEN @remarkOldValue <> '' THEN 'Old Results: ' + SUBSTRING(@remarkOldValue, 2, LEN(@remarkOldValue))  + '<br/> ' ELSE '' END
-						+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
-						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
-		
-		
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@finalhomescore = NULL
-			,@finalawayscore = NULL
-			,@hthomescore = NULL
-			,@htawayscore = NULL
-			,@GoalRecord = NULL
-			,@betstatus = NULL
-			,@Remark = @Remark
-			,@IP = @IP
-	END TRY
+	
+	IF @IsCentral = 1
+	BEGIN
+		BEGIN TRY		
+			DECLARE @remarkNewValue VARCHAR(MAX) = ''
+			SET @Remark = ''
 
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
+			SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
+			FROM @tmpResultDetail
+			WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
+		
+			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
+							+ CASE WHEN ISNULL(@strOldResult,'') <> '' THEN 'Old Results: ' + SUBSTRING(@strOldResult, 2, LEN(@strOldResult))  + '<br/> ' ELSE '' END
+							+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
+							+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+		
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+				,@Matchid = @matchid
+				,@ActionID = @ActionID
+				,@finalhomescore = NULL
+				,@finalawayscore = NULL
+				,@hthomescore = NULL
+				,@htawayscore = NULL
+				,@GoalRecord = NULL
+				,@betstatus = NULL
+				,@Remark = @Remark
+				,@IP = @IP
+			END TRY
 
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@finalhomescore = NULL
-			,@finalawayscore = NULL
-			,@hthomescore = NULL
-			,@htawayscore = NULL
-			,@GoalRecord = NULL
-			,@betstatus = NULL
-			,@Remark = @Remark
-			,@IP = @IP
-	END CATCH
+			BEGIN CATCH
+				SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
+
+				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+					,@Matchid = @matchid
+					,@ActionID = @ActionID
+					,@finalhomescore = NULL
+					,@finalawayscore = NULL
+					,@hthomescore = NULL
+					,@htawayscore = NULL
+					,@GoalRecord = NULL
+					,@betstatus = NULL
+					,@Remark = @Remark
+					,@IP = @IP
+			END CATCH
+	END
 END
 GO

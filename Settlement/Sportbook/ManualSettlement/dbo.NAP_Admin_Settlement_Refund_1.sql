@@ -1,22 +1,23 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_1] 
-     @matchid                       	INT
-    ,@creator                       	INT
-	,@SDTRecord							TINYINT			= 0
-    ,@hth								INT             = NULL
-    ,@hta                               INT             = NULL
-    ,@fth                               INT             = NULL
-    ,@fta                               INT             = NULL
-    ,@GoalSequence                      VARCHAR(50)     = NULL 
-    ,@betstatus                        	NVARCHAR(50)    = NULL
+     @matchid               INT
+    ,@creator               INT
+	,@SDTRecord				TINYINT			= 0
+    ,@hth					INT             = NULL
+    ,@hta                   INT             = NULL
+    ,@fth                   INT             = NULL
+    ,@fta                   INT             = NULL
+    ,@GoalSequence          VARCHAR(50)     = NULL 
+    ,@betstatus             NVARCHAR(50)    = NULL
     
-    ,@Action                            VARCHAR(10)     = 'REFUND'
-    ,@ResourceResult					VARCHAR(MAX)	= NULL
-    ,@IP                                VARCHAR(15)     = ''
-	,@IsAutoRefund						BIT				= 0
-	,@KeyId								INT				= 0
-    ,@ErrCode							INT             = 0      OUTPUT
-    ,@ErrMsg                            NVARCHAR(200)   = ''        OUTPUT
+    ,@Action                VARCHAR(10)     = 'REFUND'
+    ,@ResourceResult		VARCHAR(MAX)	= NULL
+    ,@IP                    VARCHAR(15)     = ''
+	,@IsAuto				BIT				= 0
+	,@KeyId					INT				= 0
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
+    ,@ErrCode				INT             = 0      OUTPUT
+    ,@ErrMsg                NVARCHAR(200)   = ''     OUTPUT
 AS
 /*
     Created: Kathy
@@ -26,6 +27,7 @@ AS
 
     Revisions: 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
     
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -46,7 +48,7 @@ BEGIN
     DECLARE @starttime                          DATETIME
 			,@ActionID                          INT
             ,@avaiableProcess					BIT
-			,@xmlResourceResult					XML
+			
 			,@Sporttype							SMALLINT
 			,@handle							INT
 			,@DummySDTResourceIds				VARCHAR(MAX) = ''
@@ -59,11 +61,9 @@ BEGIN
             ,@matchcode                         NVARCHAR(50)
 			,@openquery							NVARCHAR(MAX)
 			,@IsHedgeMatch						BIT
-			,@IsHTDone							BIT
 			
 			,@ResourceResult_Corner_Result		VARCHAR(MAX) = NULL
-			,@refundCommand						VARCHAR(100)
-			,@refundCommand_1s					VARCHAR(100)
+			,@ResourceResult_Main_Result		VARCHAR(MAX) = NULL		
 			,@IsSettleAbandonedMatchIBC			BIT
 			
 			,@SPName							NVARCHAR(128)
@@ -98,6 +98,7 @@ BEGIN
 			,@LogData							XML
 			,@CommandMonitor					NVARCHAR(MAX)
 			,@SSBStatus							TINYINT
+			,@IsCentral							BIT 	
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 		, @BalanceWalletAfter			TVP_BalanceWalletChange
@@ -107,7 +108,9 @@ BEGIN
 	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)	
-	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY, IsFinished BIT DEFAULT(0))
+	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0)
+		, statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY, IsFinished BIT DEFAULT(0)
+		, currentStatuswinlost TINYINT)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)
 	DECLARE @tmpParlayAffectedBettypes TABLE (
 		ResourceId VARCHAR(20)
@@ -137,7 +140,6 @@ BEGIN
 			,@MinThreadHold = 0
 			,@BatchNo = 0
 			,@TotalTicket = 0
-			,@xmlResourceResult = CAST(@ResourceResult AS XML)
 			
 			,@messageBody = ''
 			,@SettlementProcessingId = 0
@@ -147,7 +149,11 @@ BEGIN
 			,@ThreadHoldRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
+			,@IsCentral = 0
 			
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	SET @SDTRecord = CASE WHEN @SDTRecord & 1 > 0 AND @SDTRecord & 8 = 0 THEN @SDTRecord + 8 ELSE @SDTRecord END
 	SET @SDTRecord = CASE WHEN @SDTRecord & 2 > 0 AND @SDTRecord & 16 = 0 THEN @SDTRecord + 16 ELSE @SDTRecord END
 
@@ -170,10 +176,7 @@ BEGIN
 			,@IsABANDONEDHT = CASE WHEN @Action = 'REFUND' AND @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
 			,@IsRefundHT = CASE WHEN m.HTSettlementStatusId = 2 THEN 1 ELSE 0 END
 			,@IsHedgeMatch = CASE WHEN m.matchcode LIKE '%hedge%' AND @SDTRecord & 4 > 0 THEN 1 ELSE 0 END 
-			,@IsHTDone = CASE 
-							WHEN @Action = 'REFUND' THEN 1						
-							WHEN @Action = 'REFUND-FT' AND m.HTResultStatusID = 5 THEN 1 
-							ELSE 0 END
+			
     FROM    @tmpMatchInfo m
     
     SELECT  @starttime 		= CURRENT_TIMESTAMP
@@ -196,7 +199,7 @@ BEGIN
 	EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 		@MatchId	= @matchid
 		,@Action	= @Action
-		,@IsAutoRefund = @IsAutoRefund
+		,@IsAutoRefund = @IsAuto
 		,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
 		,@ErrCode	= @ErrCode	OUTPUT
 		,@ErrMsg	= @ErrMsg	OUTPUT
@@ -204,13 +207,13 @@ BEGIN
 	IF @ErrCode > 0
 		RETURN
 
-	IF @IsAutoRefund = 1
+	IF @IsAuto = 1
 	BEGIN
-		EXEC dbo.NAP_Set_AutoRefund_MatchChecking
-			 @MatchId	= @matchid
-			,@TypeId	= 1
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg  = @ErrMsg	 OUTPUT
+		EXEC NAP_Set_AutoRefund_MatchChecking_Ticket
+			@MatchId		= @matchid
+			,@sporttype		= 1
+			,@ErrCode 		= @ErrCode OUTPUT
+			,@ErrMsg 		= @ErrMsg OUTPUT
 
 		IF ISNULL(@ErrCode,0) <> 0
 			RETURN
@@ -253,7 +256,28 @@ BEGIN
 	END 
    
    BEGIN TRY
-		SET @xmlResourceResult = CAST(@ResourceResult AS XML)
+		;WITH cteMainResource
+		AS
+		(
+			SELECT	CAST('01' AS VARCHAR(20)) AS ResourceID
+					,CAST( @hth AS VARCHAR(50)) AS HomeValue
+					,CAST( @hta AS VARCHAR(50)) AS AwayValue
+			WHERE	@action IN ('REFUND', 'REFUND-HT')
+			UNION ALL
+			SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
+					,CAST( @fth AS VARCHAR(50)) AS HomeValue
+					,CAST( @fta AS VARCHAR(50)) AS AwayValue
+			WHERE	@action IN ('REFUND', 'REFUND-FT')
+			
+		)
+		SELECT	@ResourceResult_Main_Result = CAST((SELECT	ResourceID AS '@Id'
+												,HomeValue AS '@HomeValue'
+												,AwayValue AS '@AwayValue'
+										FROM	cteMainResource
+										FOR XML PATH('Resource'), ROOT ('Results'), TYPE
+								) AS VARCHAR(MAX))
+
+		SET @ResourceResult_Main_Result = @ResourceResult_Main_Result + @ResourceResult
 
 		INSERT INTO @tmpAllBettypes(ResourceId, RefResourceId, SDTResourceId, BetType, SDTpfId, IsSDTParlay, OddsType)
 		SELECT	sp.ResourceID, sp.RefResourceId, sp.SDTResourceId, sp.BetType
@@ -276,6 +300,7 @@ BEGIN
 				,COUNT(1) AS TotalTicket
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 		GROUP BY b.custid, b.bettype
 		
@@ -306,6 +331,7 @@ BEGIN
 							, 5 AS ResultStatusId
 					FROM	dbo.bettrans b WITH (NOLOCK)
 					WHERE	b.matchid= @matchid
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							AND 1 = CASE 
 										WHEN @Action = 'REFUND-HT' AND b.bettype IN (487,489,490) THEN 1
 										WHEN @Action = 'REFUND-FT' AND b.bettype IN (486,488,490) THEN 1
@@ -345,6 +371,7 @@ BEGIN
 				FROM	dbo.bettrans b WITH(NOLOCK)
 				WHERE	bettype BETWEEN 486 AND 490
 						AND matchid = @matchid
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						AND EXISTS (SELECT TOP 1 1 FROM @tmpAffectedBettypes s WHERE s.BetType = b.bettype) 
 				GROUP BY bettype
 						,CAST(bettype AS VARCHAR) 
@@ -464,47 +491,11 @@ BEGIN
 	
 		SELECT @ResourceResult = ISNULL(@ResourceResult,'') + ISNULL(@ResourceResult_Corner_Result,'')
 
-		--just for IBC case
-		SELECT @refundCommand = CASE 
-									WHEN @Action = 'REFUND' OR (@IsRefundHT = 1 AND @Action = 'REFUND-FT') THEN 'NAP_Admin_Settlement_Refund-All'
-									WHEN @Action = 'REFUND-HT' THEN 'NAP_Admin_Settlement_Refund-HT'
-									WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_Refund-FT'									
-								END
-		SELECT @refundCommand_1s =  @refundCommand
-
-		IF @IsSettleAbandonedMatchIBC = 1
-		BEGIN
-			SET @refundCommand = @refundCommand + '-Abandoned'
-			SET @refundCommand_1s = CASE 
-										WHEN @Action = 'REFUND-FT' THEN 'NAP_Admin_Settlement_RefundFT-Abandoned' 
-										ELSE @refundCommand
-									END
-		END
-		
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update 
-            		@Command         = @refundCommand
-            		,@MatchID        = @matchid
-            		,@creator        = @creator
-					,@BetStatus 	 = @betstatus
-					,@GoalRecord	 = @GoalSequence 
-					,@HTHome		 = @hth
-					,@HTAway		 = @hta
-					,@FTHome		 = @fth
-					,@FTAway		 = @fta
-					,@HTDone		 = @IsHTDone
-	
-		EXEC DBPRO.BODB02.dbo.[NAP_Admin_Result_Update_1s] 
-			@Command                = @refundCommand_1s
-			,@MatchID               = @matchid
-			,@creator               = @creator
-			,@SDTRecord		= @SDTRecord
-			,@fth			= @fth
-			,@fta			= @fta
-			,@hth			= @hth
-			,@hta			= @hta
-			--Refund HT then Refund FT SDT
-			,@ResourceResult	= @ResourceResult
-			,@Action        = @Action
+		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
+			@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
+			@MatchID        = @MatchID,                  
+			@ResourceResult	= @ResourceResult_Corner_Result,                    
+			@creator        = @creator
 
 		SELECT	@DummySDTResourceIds = @DummySDTResourceIds + CAST(a.SDTResourceId AS VARCHAR(20)) + ','
 		FROM	@tmpAllBettypes a 
@@ -517,6 +508,7 @@ BEGIN
 			EXEC dbo.NAP_Set_DummyResourceResult
 				@MatchID = @MatchID
 				,@sportType = @sportType
+				,@WebResourceResult = @ResourceResult_Main_Result
 				,@IsDetermined = 1
 				,@DummyResourceIds = @DummySDTResourceIds
 				,@DummyResourceResults = @DummySDTResourceResults OUTPUT
@@ -618,7 +610,7 @@ BEGIN
 						+ CASE WHEN @SDTRecord IS NOT NULL THEN ' SDTRecord=''' + CAST (@SDTRecord AS VARCHAR(20)) + '''' ELSE '' END
 						+ CASE WHEN @IsHedgeMatch IS NOT NULL THEN ' IsHedgeMatch=''' + CAST (@IsHedgeMatch AS VARCHAR(1)) + '''' ELSE '' END
 						+ CASE WHEN @IsABANDONEDHT IS NOT NULL THEN ' IsABANDONEDHT=''' + CAST (@IsABANDONEDHT AS VARCHAR(1)) + '''' ELSE '' END
-		
+						+ ' IsCentral=''' + CAST(@IsCentral AS VARCHAR(1)) + ''''
 		
 		EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 			,@mode = 'LockMatch'
@@ -696,7 +688,7 @@ BEGIN
 			END
 		END
 
-		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, balanceType, WalletType, BonusID, balance)
+		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost, custid, balanceType, WalletType, BonusID, balance, currentStatuswinlost)
 		SELECT	b.transid
 				,CASE 
 					WHEN @SDTRecord & 4 > 0 
@@ -715,6 +707,7 @@ BEGIN
 				,ISNULL(b.WalletType,2)
 				,CASE WHEN b.BonusID > 0 AND b.WalletType = 1 THEN b.BonusID ELSE 0 END AS BonusId
 				,(b.winlost - b.actual_stake + b.playercomm) AS balance
+				,b.statuswinlost
 		FROM	dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN dbo.f_Set_GetCashoutBettypes() f
 				ON b.bettype = f.bettype
@@ -722,9 +715,15 @@ BEGIN
 				ON b.bettype = s.Bettype
 			OUTER APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam, b.hdp1, b.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, b.betcheck, @IsABANDONEDHT) m
 		WHERE	b.matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND s.SessionId = @SessionId		
+
+		DELETE 
+		FROM	@tmpCashoutTransId
+		WHERE	currentStatuswinlost IS NOT NULL
+				AND currentStatuswinlost = statuswinlost
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
 		BEGIN
@@ -795,17 +794,16 @@ BEGIN
 				,@ActionId				= @ActionID		
 		END
 
-		IF @IsAutoRefund = 1
+		IF @IsCentral = 1
 		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-			@MatchId = @matchid
-			, @TypeId  = 1
-			, @StatusId = 2
+			IF @IsAuto = 1
+			BEGIN
+				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
+				@MatchId = @matchid
+				, @TypeId  = 1
+				, @StatusId = 2
+			END
 		END
-
-		EXEC DBPRO.BODB02.dbo.NAP_updateMatch_remark 
-			@matchid       = @matchid
-			,@command      = 'F'		
 
 		INSERT INTO @tmpParlayAffectedBettypes(ResourceId, RefResourceId, SDTResourceId, bettype, IsSDTParlay, totalticket)
 		SELECT	a.ResourceID, a.RefResourceId, a.SDTResourceId, bm.bettype, ISNULL(a.IsSDTParlay,0), COUNT(1)		
@@ -813,6 +811,7 @@ BEGIN
 			INNER JOIN @tmpAllBettypes a
 				ON bm.bettype = a.BetType
 		WHERE	bm.matchid = @MatchID
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 				AND bm.statusID NOT IN (101)
 				AND 1 = CASE WHEN @IsSettleAbandonedMatchIBC = 0 AND bm.statusID = 103  THEN 0 ELSE 1 END 
 		GROUP BY a.ResourceID, a.RefResourceId, a.SDTResourceId, bm.bettype, a.IsSDTParlay
@@ -836,6 +835,7 @@ BEGIN
 				EXEC dbo.NAP_Set_DummyResourceResult
 					@MatchID = @MatchID
 					,@sportType = @sportType
+					,@WebResourceResult = @ResourceResult_Main_Result
 					,@IsDetermined = 1
 					,@DummyResourceIds = @DummySDTResourceIds
 					,@DummyResourceResults = @DummySDTResourceResults OUTPUT
@@ -883,8 +883,9 @@ BEGIN
 									+ ', @hta = ' + CONVERT(NVARCHAR(50), @hta) 
 									+ ', @fth = ' + CONVERT(NVARCHAR(50), @fth) 
 									+ ', @fta = ' + CONVERT(NVARCHAR(50), @fta)
-									+ ', @IsAutoRefund = ' + CONVERT(NVARCHAR(50), @IsAutoRefund)									
+									+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)									
 									+ ', @Action = ''' + @Action + ''''	
+									+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -899,20 +900,21 @@ BEGIN
 					,@hta				= @hta
 					,@fth				= @fth
 					,@fta				= @fta
-					,@IsAutoRefund		= @IsAutoRefund
+					,@IsAuto			= @IsAuto
 					,@LockedByRefno		= 1 -- always lock refno for testing
+					,@IsCentral			= @IsCentral
 					,@ErrCode			= @ErrCode OUTPUT
 					,@ErrMsg 			= @ErrMsg OUTPUT
 			END
 			ELSE
 			BEGIN
-				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno
+				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 			END
 		END
-		ELSE
+		ELSE IF @IsCentral = 1
 		BEGIN
-			IF @IsAutoRefund = 1
+			IF @IsAuto = 1
 			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
 					@MatchId = @matchid 
@@ -960,13 +962,17 @@ BEGIN
 				,@ErrMsg AS '@ErrMsg'
 				,@ErrCode AS '@ErrCode'
 				,@GoalSequence AS '@goalrecord'
-				,@IsAutoRefund AS '@IsAutoRefund'
+				,@IsAuto AS '@IsAuto'
 		FOR XML PATH('r'), ROOT('root'), TYPE)
 
 	SET @CommandMonitor = 'EXEC dbo.NAP_Admin_MonitorProcess @SessionId = ' + CAST(@SessionId AS VARCHAR(50))
 						+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)		
 						+ ', @HasError = ' + CAST(CASE WHEN @ErrCode = 1000006 THEN 0 ELSE @ErrCode END AS VARCHAR)
 						+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
+						+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)	
+						+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+								THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+								ELSE '' END
 						+ ', @ErrCode = @ErrCode OUTPUT' 
                         + ', @ErrMsg = @ErrMsg OUTPUT'
 						+ ', @SSBStatus = @SSBStatus OUTPUT'

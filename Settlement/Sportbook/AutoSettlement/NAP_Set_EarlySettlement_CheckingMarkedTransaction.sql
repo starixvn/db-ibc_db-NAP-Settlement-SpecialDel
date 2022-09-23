@@ -22,6 +22,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220629@Louisa: Use RefResourceId for Badminton-bettype 704 instead of hard code [Redmineid:#173862]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -30,9 +31,13 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @SportType		SMALLINT
+			,@IsCentral		BIT
 
 	DECLARE @tmpBettype TABLE (bettype SMALLINT, ResourceId VARCHAR(20), BetId BIGINT)
 	DECLARE @tmpResourceIds TABLE (ResourceId VARCHAR(20))
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	SELECT	@SportType = sporttype
 	FROM	dbo.match WITH(NOLOCK)
@@ -63,6 +68,7 @@ BEGIN
 			INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
 				ON	b.transid = mt.TransId
 		WHERE	b.matchid = @MatchID
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101, 102)
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
 	)
@@ -80,6 +86,7 @@ BEGIN
 									,b.matchid
 							FROM	dbo.bettrans b WITH(NOLOCK)
 							WHERE	b.transid = mt.TransId
+									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 									AND b.matchid = 29
 						) b							
 						CROSS APPLY (

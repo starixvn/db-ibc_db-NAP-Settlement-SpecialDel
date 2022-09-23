@@ -36,7 +36,8 @@ AS
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
 		- 20200522@Kathy: update settlementstatusid = 2 if refund HT [Redmine:#134192]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
-		
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
         + @ResourceResult
@@ -644,7 +645,7 @@ BEGIN
     END 
     /* END - @Command = 'NAP_Admin_Settlement_Refund-HT' */
 
-    ELSE IF @Command = 'NAP_Admin_Settlement_1_InstantCalculation-CAL'
+    ELSE IF @Command = 'CalByResourceId'
     BEGIN
         IF @ResourceResult IS NULL
             RETURN
@@ -691,8 +692,7 @@ BEGIN
                     ,GETDATE()
                 );   
     END
-    /* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-CAL' */
-    ELSE IF @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO'
+    ELSE IF @Command = 'UndoByResouceId'
     BEGIN
         UPDATE  r  WITH (UPDLOCK,ROWLOCK)
         SET     HomeValue           = NULL
@@ -706,7 +706,6 @@ BEGIN
                 ON  r.ResourceID = t.ResourceID
         WHERE   r.MatchID = @MatchID
     END
-	/* END - @Command = 'NAP_Admin_Settlement_1_InstantCalculation-UNDO' */
 	ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO'
     BEGIN
         UPDATE ResultDetail WITH (UPDLOCK,ROWLOCK)

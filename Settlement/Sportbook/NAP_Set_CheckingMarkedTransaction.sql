@@ -18,6 +18,7 @@ AS
 		- 20190620@Kathy: Remove betradar corner bettypes [Redmine:#109584]
 		- 20200515@Kathy: Settlement Exclusion for Parlay [Redmine:#134103]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
 		@Action: single ticket: REFUND, REFUND-HT, REFUND-FT
@@ -28,11 +29,15 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @IsMergedParlay	BIT = 0
+			,@IsCentral	BIT = 0
 	DECLARE @tmpBettype TABLE (bettype SMALLINT)	
 
 	SELECT	@IsMergedParlay = IsMergedParlay
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
 	WHERE	Sporttype IN (SELECT Sporttype FROM dbo.match WITH(NOLOCK) WHERE matchid = @MatchID)
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	INSERT INTO @tmpBettype(bettype)
 	SELECT	BetType
@@ -53,6 +58,7 @@ BEGIN
 						INNER JOIN @tmpBettype bt
 							ON b.bettype = bt.bettype
 					WHERE	b.matchid = @MatchID
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 							AND b.statusID NOT IN (101, 102)
 			)
 		BEGIN
@@ -66,6 +72,7 @@ BEGIN
 							SELECT TOP 1 b.refno
 									,b.statusID
 									,b.matchid
+									,b.SiteDBGroupID
 							FROM	dbo.bettrans b WITH(NOLOCK)
 							WHERE	b.transid = mt.TransId
 									AND b.matchid = 29
@@ -79,6 +86,7 @@ BEGIN
 									AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = bm.bettype)
 						)bm
 					WHERE	mt.MatchId = @MatchID
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		)
 			SET @isExistMarkedTicket = 1
 		END
@@ -91,6 +99,7 @@ BEGIN
 							SELECT TOP 1 b.refno
 									,b.statusID
 									,b.matchid
+									,b.SiteDBGroupID
 							FROM	dbo.bettrans b WITH(NOLOCK)
 							WHERE	b.transid = mt.TransId
 									AND b.matchid = 29
@@ -103,6 +112,7 @@ BEGIN
 									AND bm.statusID = 0
 						)bm
 					WHERE	mt.MatchId = @MatchID
+							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		)
 		BEGIN
 			SET @IsExistMarkedTicket = 1

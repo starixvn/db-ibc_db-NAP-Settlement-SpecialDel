@@ -13,16 +13,20 @@ AS
 	Revisions:		
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]
 		- 20181203@Helen: Remove execution on LAS + Apply Service Broker for Other Sports - [Redmine:101611]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @strTransIds VARCHAR(MAX)
+			,@IsCentral BIT
 	
 	CREATE TABLE #TempData_NG_Refund (TransID BIGINT)
 	DECLARE @tmpTransIDBatch_NG_Refund TABLE (TransID BIGINT)
-		  					
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	IF @action = 'Refund-FT'
 	BEGIN
 		INSERT INTO #TempData_NG_Refund(TransID)
@@ -31,6 +35,7 @@ BEGIN
   		WHERE matchid = @matchid 
 			AND statusID IN (0, 1) -- only refund all running/waiting's tickets
 			AND bettype BETWEEN 81 AND 120
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 	END
 	ELSE
 	BEGIN
@@ -40,6 +45,7 @@ BEGIN
   		WHERE matchid = @matchid 
 			AND statusID NOT IN (101,102) -- refund all, except void/reject
 			AND bettype BETWEEN 81 AND 120
+			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 	END		
 	
 	WHILE (1 = 1)

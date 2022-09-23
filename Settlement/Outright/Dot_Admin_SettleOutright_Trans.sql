@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Admin" viewers="vnteam" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[Dot_Admin_SettleOutright_Trans]
+ALTER PROCEDURE [dbo].[Dot_Admin_SettleOutright_Trans]
 	@matchid INT
 	,@status NVARCHAR(10)
 	,@deadheat FLOAT = 1
@@ -30,6 +30,7 @@ Revisions:
 	- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
 	- 20201211@Louisa: Show Calculate Outright Log, add param @AdminId [Redmine:#146738]
 	- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
+	- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 Param's Explanation:
 	- @deadheat = fraction of deadheat to divide (1,2,3  etc)
@@ -37,82 +38,43 @@ Param's Explanation:
 BEGIN	
 	SET NOCOUNT ON
 
-	-- check and not allow attempt to settlement same game while it's still not finish
-	IF EXISTS (SELECT 1 FROM dbo.TempVariableNumber WHERE KeyID = 2 AND KeyValue = @matchid)
-	BEGIN
-		SELECT  @ErrCode = 101,
-				@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
+	DECLARE @Remark			VARCHAR(500)
+			,@ActionID		INT
+			,@LeagueID		INT
+			,@procName		SYSNAME			
+			,@IsCentral		BIT = 0
+			,@winlostdate	SMALLDATETIME
+			,@avaiableProcess	BIT
 
-	DECLARE @Remark VARCHAR(500), @ActionID INT, @LeagueID	INT
-			,@procName		SYSNAME
-			,@WaitingTime	VARCHAR(10)
-			,@IsWaiting		BIT 
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+
+	-- check and not allow attempt to settlement same game while it's still not finish
+	INSERT INTO #tblMatchProcess(matchid, KeyID)
+	SELECT	@matchid AS matchid
+			,2 AS KeyId
+		
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@IsExistOutright	= 1
+		, @avaiableProcess 	= @avaiableProcess OUTPUT
+		, @ErrCode			= @ErrCode OUTPUT
+		, @ErrMsg			= @ErrMsg OUTPUT
+
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) RETURN
 
 	SELECT @ActionID = CASE @status 
-				WHEN 'Refund' THEN 139 
-				WHEN 'Won' THEN 137
-				WHEN 'Lose' THEN 137
-			END
+						WHEN 'Refund' THEN 139 
+						WHEN 'Won' THEN 137
+						WHEN 'Lose' THEN 137
+					END
 			,@procName = OBJECT_NAME(@@PROCID)
-			,@IsWaiting = 0
 
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime -- Dot_Admin_SettleOutright_Trans
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	SELECT	@LeagueID	= LeagueID
 	FROM	Outright WITH (NOLOCK)
 	WHERE	ORID = @MatchID
-
-	INSERT INTO dbo.TempVariableNumber (KeyID, KeyValue) VALUES (2, @matchid)
-	IF (@@Error = 0)
-	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @adminid,--dbaAdmin
-				@Matchid = @matchid,
-				@KeyID = 2,
-				@ActionID = @ActionID,
-				@Remark = 'ADD SUCCESS'
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = 'ADD SUCCESS ErrMsg=' + left(error_message(), 400)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @adminid,--dbaAdmin
-				@Matchid = @matchid,
-				@KeyID = 2,
-				@ActionID = @ActionID,
-				@Remark = @Remark
-		END CATCH
-	END
-	ELSE
-	BEGIN
-		SELECT @ErrCode = 102
-			,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-		RETURN
-	END
-
-	---------
-	DECLARE @winlostdate SMALLDATETIME
 
 	IF (@eventdate IS NULL)
 		SET @winlostdate = convert(CHAR(10), getdate(), 111)
@@ -128,7 +90,8 @@ BEGIN
     SELECT custid,sum( winlost-actual_stake+playercomm)
     FROM dbo.bettrans with (rowlock)
     WHERE matchid = @matchid and bettype = 10 and statusID NOT IN (101, 102)
-	Group by custid
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+ 	GROUP BY custid
 
 	EXEC NAP_Admin_PreCalculate_10 @matchid, @status, @deadheat, @winlostdate
 
@@ -141,11 +104,12 @@ BEGIN
     SELECT custid,sum( winlost-actual_stake+playercomm)
     FROM dbo.bettrans with (rowlock)
     WHERE matchid = @matchid and bettype = 10
-		and statusID = case @status when 'won' then 112
+		AND statusID = case @status when 'won' then 112
 			when 'lose' then 113
 			when 'Refund' then 103
 			else 999 end
-	Group by custid
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+	GROUP BY custid
 
 	-------------------------------------------------------------
 	---                   compare BALANCE                     ---
@@ -162,10 +126,6 @@ BEGIN
 			INNER JOIN #BalanceAfter a ON b.custid = a.custid
 	WHERE b.balance <> a.balance
 
-	--INSERT INTO dbo.BalancePendingDebit (custid, balance)
-	--SELECT custid, ABS(balance)
-	--FROM #Balance
-	--WHERE Increased = 0
 	INSERT INTO @tblDebitPending (custID, balance)
 	SELECT	custid, ABS(balance)
 	FROM	#Balance
@@ -176,11 +136,6 @@ BEGIN
 			@BalancePending = @tblDebitPending
 			,@Type			= 1 -- Sports
 
-
-	--INSERT INTO dbo.BalancePendingCredit (custid, balance)
-	--SELECT custid, balance
-	--FROM #Balance
-	--WHERE Increased = 1
 	INSERT INTO @tblCreditPending (custID, balance)
 	SELECT	custid, balance
 	FROM	#Balance
@@ -216,12 +171,16 @@ BEGIN
 	WHERE Increased = 0
 
 	---------------------------------------------------
+
+	------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@IsExistOutright	= 1
+		, @IsReleased		= 1
+	
+	DROP TABLE #tblMatchProcess	
 	DROP TABLE #Balance
-
 	DROP TABLE #BalanceBefore
-
 	DROP TABLE #BalanceAfter
-
 	---------------------------------------------------
 	--add log to outright_log to notify for Apollo
 	EXEC bodb02.dbo.[Acc_Set_ConfirmedActionOutright] @matchid = @matchid
@@ -229,75 +188,32 @@ BEGIN
 		,@status = @status
 		,@deadheat = @deadheat
 
-	----------------------------------------------------
-	DELETE FROM dbo.TempVariableNumber WITH (ROWLOCK,UPDLOCK)
-	WHERE KeyID = 2 AND KeyValue = @matchid
-
-	IF (@@Error = 0)
-	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @adminid,--dbaAdmin
-				@Matchid = @matchid,
-				@KeyID = 2,
-				@ActionID = @ActionID,
-				@Remark = 'DEL SUCCESS'
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = 'DEL SUCCESS ErrMsg=' + left(error_message(), 400)
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @adminid,--dbaAdmin
-				@Matchid = @matchid,
-				@KeyID = 2,
-				@ActionID = @ActionID,
-				@Remark = @Remark
-		END CATCH
-	END
-	ELSE
-	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @adminid,--dbaAdmin
-				@Matchid = @matchid,
-				@KeyID = 2,
-				@ActionID = @ActionID,
-				@Remark = 'DEL FAILED'
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = 'DEL FAILED ErrMsg=' + left(error_message(), 400)
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle_Checking 
-				@UserID = @adminid,--dbaAdmin
-				@Matchid = @matchid,
-				@KeyID = 2,
-				@ActionID = @ActionID,
-				@Remark = @Remark
-		END CATCH
-	END
-
 	-- WRITE LOG
-	BEGIN TRY
-		SELECT @Remark = CAST(@deadheat AS VARCHAR(5))
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-			@UserID = @adminid
-			,@MatchID = @matchid
-			,@ActionID = @ActionID
-			,@LeagueID = @LeagueID
-			,@EventDate = @winlostdate
-			,@Result = @status
-			,@Remark = @Remark
-	END TRY
+	IF @IsCentral = 1
+	BEGIN
+		BEGIN TRY
+			SELECT @Remark = CAST(@deadheat AS VARCHAR(5))
 
-	BEGIN CATCH
-		SELECT @Remark = CAST(@deadheat AS VARCHAR(5)) + ' ErrMsg=' + left(error_message(), 400)
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-			@UserID = @adminid
-			,@MatchID = @matchid
-			,@ActionID = @ActionID
-			,@LeagueID = @LeagueID
-			,@EventDate = @winlostdate
-			,@Result = @status
-			,@Remark = @Remark
-	END CATCH
+			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
+				@UserID = @adminid
+				,@MatchID = @matchid
+				,@ActionID = @ActionID
+				,@LeagueID = @LeagueID
+				,@EventDate = @winlostdate
+				,@Result = @status
+				,@Remark = @Remark
+		END TRY
+
+		BEGIN CATCH
+			SELECT @Remark = CAST(@deadheat AS VARCHAR(5)) + ' ErrMsg=' + left(error_message(), 400)
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
+				@UserID = @adminid
+				,@MatchID = @matchid
+				,@ActionID = @ActionID
+				,@LeagueID = @LeagueID
+				,@EventDate = @winlostdate
+				,@Result = @status
+				,@Remark = @Remark
+		END CATCH
+	END
 END

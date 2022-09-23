@@ -15,6 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Instant]
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@KeyId				INT				= 0
 	,@RefResultStatus	TINYINT			= 0
+	,@BroadcastSessionId VARCHAR(50)	= NULL
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
 AS
@@ -25,7 +26,7 @@ AS
     
     Revisions:
 		- 20220419@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
-
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
 	
@@ -42,6 +43,7 @@ BEGIN
 			,@CommandMonitor NVARCHAR(MAX)
 			,@SSBStatus	TINYINT
 			,@avaiableProcess BIT
+			,@IsCentral	BIT
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
@@ -69,6 +71,9 @@ BEGIN
         RETURN
 	END
 		
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	INSERT INTO dbo.Settlement_SettledSession (MatchId)
 	SELECT @matchid
 	SET @SessionId = SCOPE_IDENTITY()
@@ -81,6 +86,7 @@ BEGIN
 			,@action	= @action
 			,@ActionId = @ActionId
 			,@SessionId = @SessionId
+			,@BroadcastSessionId = @BroadcastSessionId
 			,@creator = @creator
 			,@TicketCount = @TicketCount OUTPUT
 			,@ErrCode = @ErrCode OUTPUT
@@ -108,6 +114,10 @@ BEGIN
 					+ ', @MatchId = ' + CAST(@MatchId AS VARCHAR)
 					+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 					+ ', @LogData = ' + '''' + CAST(@LogDataSoccer AS VARCHAR(MAX)) + ''''
+					+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
+					+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+							THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+							ELSE '' END
 					+ ', @ErrCode = @ErrCode OUTPUT' 
                     + ', @ErrMsg = @ErrMsg OUTPUT'
 					+ ', @SSBStatus = @SSBStatus OUTPUT'

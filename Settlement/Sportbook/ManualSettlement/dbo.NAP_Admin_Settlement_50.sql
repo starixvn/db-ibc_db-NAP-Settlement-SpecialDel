@@ -20,6 +20,7 @@ AS
 		- 20171115@Kathy: Change datatype of @ServiceCommand to NVARCHAR(MAX) [Redmine:#86735]
 		- 20200623@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20220922@Louisa: Scaleout DBTrans [Redmine:#175251]
         
     Param's Explanation:
 		@ServiceStatus: - 0: Waiting for calculating NetPosition
@@ -85,9 +86,10 @@ BEGIN
 				WHERE 	keyid = @keyId
 
 				--Insert TVS AutoVoid Queue
-				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId,MatchId,sporttype,StatusId,UserId,Ip,starttime,action)
+				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId,MatchId,sporttype,StatusId,UserId,Ip,starttime,action, BroadcastSessionId)
 				SELECT	0,MatchId,SportType,0 StatusID,10278938 AS Userid,'125.227.140.97',GETDATE() AS starttime
 						, Action
+						,q.BroadcastSessionId
 				FROM Single_Calculate_Queue q WITH (NOLOCK)
 				WHERE keyid = @keyId 
 					AND q.[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY','CAL_EAR')

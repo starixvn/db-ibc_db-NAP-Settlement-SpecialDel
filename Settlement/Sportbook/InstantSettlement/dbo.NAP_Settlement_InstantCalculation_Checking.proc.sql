@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Settlement_InstantCalculation_Checking]
 	, @ErrCode 			INT = 0 OUTPUT
 	, @ErrMsg 			VARCHAR(250) = '' OUTPUT
 AS
+
 /*
 	Creator: 20160930@Bobby
 	Task: Update or insert new score result for Instant Calculation.
@@ -24,7 +25,7 @@ AS
 		- 20191210@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
-
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		- @Action: ['CAL']
@@ -36,6 +37,7 @@ BEGIN
 	
 	DECLARE @matchcode		VARCHAR(30)
 		, @leagueid			INT
+		, @betstatus		NVARCHAR(50)
 		, @totalGoal		TINYINT
 		, @totalGoalCheck	TINYINT
 		, @goalRecordCheck	VARCHAR(50)
@@ -61,6 +63,8 @@ BEGIN
 		
 		, @IsExistFGNG		BIT
 		, @IsExistHTFGNG	BIT
+		, @IsExistHTFG		BIT
+		, @IsExistFG		BIT
 		--CornerBettype
 		,@ChildMatchType		TINYINT
 		,@CornerResultString	NVARCHAR(MAX)
@@ -74,6 +78,7 @@ BEGIN
 		,@ResourceResult_Corner	NVARCHAR(MAX) = ''
 		,@ResourceResult_CornerRace NVARCHAR(MAX) = ''
 		,@NeitherRaceTo			TINYINT
+		,@IsCentral				BIT = 0
 
 	CREATE TABLE #instantBettype (bettype SMALLINT)
 	DECLARE @ResultDetail_Corner AS TABLE (hdp INT, ResourceID VARCHAR(20), HomeValue VARCHAR(10))
@@ -109,6 +114,9 @@ BEGIN
 		, @aScore			= CAST(@AwayScore AS INT)
 		, @totalGoal		= @hScore + @aScore
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	INSERT INTO #instantBettype (bettype)
 	SELECT bettype
 	FROM dbo.f_Set_Instant_GetBettypes()
@@ -122,6 +130,7 @@ BEGIN
     SELECT 
 		@matchcode 			= m.matchcode
 		, @leagueid   		= m.leagueid
+		, @betstatus		= m.betstatus
 		--, @isPending		= ISNULL(mr.isPending, 0)
 		--, @isUnDecided		= ISNULL(mr.isUnDecided, 0)
 		, @SettlementStatus	= ISNULL(m.SettlementStatus, 0)
@@ -315,6 +324,7 @@ BEGIN
 						AND EXISTS (SELECT TOP 1 1 FROM #instantBettype ib WHERE ib.bettype = b.bettype)
 						AND b.statusId IN (112, 113)
 						AND ISNULL(b.betdaqid,0) <> -2
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				)
 				SELECT TOP(1) @instantCheck = 1
 				FROM instantTicketCheck
@@ -338,21 +348,28 @@ BEGIN
 	BEGIN	
 		;WITH cteBetTickets
 		AS (
-			SELECT	bettype
+			SELECT	bettype, MAX(CASE WHEN RIGHT(betteam,1) = '1' THEN 1 ELSE 0 END) AS IsExistFG 
 			FROM	dbo.bettrans WITH(NOLOCK)
 			WHERE	matchid = @MatchId
 					AND bettype IN (14, 127)
 					AND statusID NOT IN (101, 102)
 					AND betteam IN ('1:1', '2:1', '0:0')
+					AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 			GROUP BY bettype
 		)
 		SELECT	@IsExistFGNG = MAX(CASE WHEN bettype = 14 THEN 1 ELSE 0 END)
 				,@IsExistHTFGNG = MAX(CASE WHEN bettype = 127 THEN 1 ELSE 0 END)
+
+				,@IsExistFG = MAX(CASE WHEN bettype = 14 AND IsExistFG = 1 THEN 1 ELSE 0 END)
+				,@IsExistHTFG = MAX(CASE WHEN bettype = 127 AND IsExistFG = 1 THEN 1 ELSE 0 END)
 		FROM	cteBetTickets
 	END
 	
 	SELECT	ISNULL(@IsExistFGNG,0) AS IsExistFGNG
 			,ISNULL(@IsExistHTFGNG,0) AS IsExistHTFGNG
 			,ISNULL(@GoalRecord,'') AS GoalRecord
+			,ISNULL(@IsExistFG,0) AS IsExistFG
+			,ISNULL(@IsExistHTFG,0) AS IsExistHTFG
+			,@betstatus AS betstatus
 END
 GO

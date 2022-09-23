@@ -12,6 +12,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@IsDirectly		BIT				= 0
 	,@ChildMatchIds		VARCHAR(200)	= NULL
 	,@RefResultStatus	TINYINT			= 0
+	,@BroadcastSessionId	VARCHAR(50)		= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
@@ -42,6 +43,7 @@ AS
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
 		- 20220512@Louisa: Auto settle and Auto refund Badminton [Redmine:#171676]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -62,160 +64,15 @@ BEGIN
 			,@sqlCommand			NVARCHAR(MAX)
 			,@procName				SYSNAME	= OBJECT_NAME(@@procid)
 			,@IsExistNetPosition	BIT = 0		
-			,@IsSystemSettlement	BIT = NULL
 			,@handle 				INT
-			,@IsEarly				BIT
-			,@WaitingTime			VARCHAR(10)
-			,@IsWaiting				BIT = 0
-			,@IsMergedParlay		BIT = 0
 		
 	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
-
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
 								  
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
 			,@leagueid		= m.leagueid
 	FROM	DBPRO.bodb02.dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
-
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SELECT	 @ErrCode	= 1001001
-				,@ErrMsg	= 'Match does not exist!'
-		RETURN
-	END
-	
-	SELECT	@LeagueGroupId = LeagueGroupID
-	FROM	dbo.League l WITH(NOLOCK)
-	WHERE	l.leagueid = @leagueid
-
-	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
-
-	IF @IsAuto = 1
-	BEGIN
-
-		IF  ( @LeagueGroupId <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
-			OR (@LeagueGroupId <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
-			OR (@LeagueGroupId <> 122 AND @sporttype = 2) -- Auto settle pingoal basketball
-		BEGIN
-			SELECT	 @ErrCode	= 1001052
-					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
-					RETURN
-		END
-	END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @MatchId
-	,@SelectedResources = @SelectedResources
-	,@IsEarly	= @IsEarly
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
-
-	IF ( @Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) AND @LeagueGroupID <> 122
-		EXEC DBPRO.bodb02.dbo.NAP_Set_ResultSettingChecking
-		@MatchId	= @MatchId
-		,@Action	= @Action
-		,@IsAuto	= @IsAuto
-		,@SelectedResources = @SelectedResources
-		,@ErrCode	= @ErrCode OUTPUT
-		,@ErrMsg	= @ErrMsg  OUTPUT
-	
-	IF ISNULL(@ErrCode,0) <> 0
-	RETURN
-
-
-	IF EXISTS (
-			SELECT 1
-			FROM Single_Calculate_Queue s WITH (NOLOCK)
-			WHERE s.matchid = @matchid 
-			AND s.IsCalculating IN (0, 1)
-			) 
-	BEGIN
-		SELECT	 @ErrCode = 1001003
-				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-		RETURN
-	END
-
-	-- check waiting ticket
-	EXEC NAP_Admin_Settlement_Checking
-		@MatchId = @MatchId
-		,@Action = @Action
-		,@Mode = 'CAL'
-		,@xmlData = @SelectedResources
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT @ErrCode
-			,@ErrMsg
-		
-		RETURN
-	END
-
-	IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action = 'CAL' )
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-			  @MatchId 				= @matchid
-			, @SelectedResources 	= @SelectedResources
-			, @StatusId 			= 1 -- waiting
-			, @UserId				= @AdminId
-			, @ErrCode 				= @ErrCode OUTPUT
-			, @ErrMsg				= @ErrMsg OUTPUT
-	END
-		
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT  @ErrCode = @ErrCode
-			   ,@ErrMsg	 = @ErrMsg
-		RETURN
-	END
-
-	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-	WHERE ss.Sporttype = @sporttype
-
-	-- check movebet day
-	IF @IsMergedParlay = 1
-	BEGIN
-		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
-			@MatchIds =  @MatchId 
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
-
-		IF @ErrCode <> 0
-		BEGIN
-			SELECT @ErrCode = @ErrCode
-				  ,@ErrMsg  = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
-
-			RETURN
-		END
-	END
 
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
@@ -240,7 +97,10 @@ BEGIN
 																	WHEN @ChildMatchIds IS NOT NULL THEN ', @ChildMatchIds = ''' + CONVERT(NVARCHAR(200),@ChildMatchIds ) + ''''
 																	ELSE ''
 															END
-															+ CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END    
+															+ CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END   
+															+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+																	ELSE '' END
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -256,26 +116,6 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
 		SET	@IsExistNetPosition = 1 
   	END
-
-	---check FT round
-  	SELECT TOP 1 @IsSystemSettlement = CASE
-										WHEN @Action = 'UNDO' 	THEN 0
-										WHEN @Action IN ('CAL', 'REFUND') 	THEN 1
-										ELSE NULL
-									  END 
-  	FROM @tmpSelectedRID sr
-  	WHERE GroupType = 'FT' AND isFinal = 1
-		
-	-- add new status "Under Settlement" for a match
-	IF @IsSystemSettlement IS NOT NULL 
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusUpd 
-			@Matchid		= @Matchid
-			,@Type			= 4
-			,@IsEnabled		= @IsSystemSettlement 
-			,@AdminId		= @AdminId
-			,@IP			= @IP
-	END
 	
 	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
 		OR ( @IsAuto = 1 AND @sporttype IN (1,2) ) -- product PinGoal will be executed directly instead of pushing in queue
@@ -306,6 +146,7 @@ BEGIN
 			,Action
 			,sqlCommand
 			,execTime
+			,BroadcastSessionId
 			)
 		SELECT @MatchId
 			,@matchcode
@@ -317,6 +158,7 @@ BEGIN
 			,@Action
 			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
 			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+			,@BroadcastSessionId
 
 		IF @IsExistNetPosition = 1
 			SET @ServiceCommand = @sqlCommand

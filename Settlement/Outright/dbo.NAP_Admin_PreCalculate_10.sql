@@ -20,7 +20,8 @@ AS
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:
 
 */
@@ -29,9 +30,13 @@ BEGIN
 
 	DECLARE	 @commWinRate SMALLMONEY
 			,@commLostRate SMALLMONEY
+			,@IsCentral	BIT = 0
 	
 	DECLARE @IgnoreList VARCHAR(200)
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	IF @Action='UNDO'
 		SET @IgnoreList = 'DB04,DB043,DB044,SITDB04,SITDB043,SITDB044,DB04ADMIN1,DB04ADMIN2'
 	ELSE
@@ -66,6 +71,7 @@ BEGIN
 	WHERE matchid = @matchid 
 		AND bettype = 10
 		AND statusID NOT IN (101, 102)
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		
 	IF @Action='UNDO'
 	BEGIN
@@ -148,6 +154,11 @@ BEGIN
 		END
 	END
 	
+	SET @Action = CASE 
+					WHEN @Status = 'refund' THEN 'REFUND'
+					ELSE @Action
+				END
+
 	WHILE (1 = 1)
 	BEGIN
 		DELETE @subtable
@@ -185,8 +196,10 @@ BEGIN
 		SELECT @_sXML = CONVERT(VARCHAR(max), @_xml)
 
 		EXEC dbo.Bet_ExecRep_05 @IgnoreList = @IgnoreList
-			,@updatetype = 7 --outright mode
-			,@_sXML = @_sXML		
+			,@updatetype	= 7 --outright mode
+			,@matchid		= @matchid
+			,@_sXML			= @_sXML		
+			,@Action = @Action
 	END
 
 	DROP TABLE #Outright_TempData

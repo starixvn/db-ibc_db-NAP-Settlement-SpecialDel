@@ -26,7 +26,8 @@ AS
 		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984] 
 		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:
 		- ? @Mode:
 			CAL : All single BetTypes (HT-FT)
@@ -55,6 +56,10 @@ BEGIN
 		, @fta					INT
 		, @hth					INT
 		, @hta					INT
+		, @IsCentral			BIT = 0
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 		
 	DECLARE @tempBettype 	TABLE (bettype SMALLINT, CalMode TINYINT)
 	DECLARE @BetTickets  	TVP_Settlement_BetTicket
@@ -212,6 +217,7 @@ BEGIN
 					) AS ods
 				WHERE b.matchid = @matchid 
 					AND b.statusID NOT IN (101,102) --void/reject
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			END
 			ELSE -- SOCCER
 			BEGIN
@@ -237,6 +243,7 @@ BEGIN
 					) AS ods
 				WHERE b.matchid = @matchid 
 					AND b.statusID NOT IN (101,102) --void/reject
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					
 			END	
 		END			
@@ -404,6 +411,8 @@ BEGIN
 				
 				EXEC dbo.NAP_Admin_Calculate_Bettrans
 					@BetTickets		= @BetTickets	
+					,@matchid		= @matchid
+					,@Action		= 'CAL'
 					,@CWLBettype	= @CWLBettype
 					,@balanceUpd 	= @balanceUpd OUTPUT
 					,@ErrCode 		= @ErrCode OUTPUT

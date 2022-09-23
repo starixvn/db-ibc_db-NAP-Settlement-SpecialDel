@@ -14,7 +14,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_m]
     ,@GoalSequence VARCHAR(50) = NULL         
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
-    ,@SelectedQuarter VARCHAR(MAX) = NULL
     ,@strBettypes VARCHAR(MAX) = NULL
 	,@betstatus	NVARCHAR(50) = NULL
 	,@IsRefundHT BIT = NULL
@@ -55,6 +54,7 @@ AS
 		- 20210922@Louisa: Exclude LiveScores HDP for Ice Hockey and Rugby [Redmine:#159903]
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
     Param's Explanation:
        
@@ -66,8 +66,25 @@ BEGIN
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
 			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
+			,@transinfo XML
+			,@betparlaydetailinfo XML
+			,@IsSiteDB BIT = 0
+			,@FunctionName VARCHAR(100)
 
+	DECLARE @tmpOutputBettransm TABLE (transid BIGINT, refno BIGINT
+		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
+		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
+	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
+	DECLARE @tmpOutputBettransmVoidRecover TABLE (transid BIGINT, winlost MONEY
+		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
+		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)
+	DECLARE @tmpTransIdsVoidRecover TABLE (transid BIGINT)
+		 	
+            
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -98,24 +115,10 @@ BEGIN
 			,@totalht				SMALLINT = 0
 			,@totalgoal_2H			SMALLINT = 0
 			
-            -- for basketball
-            ,@basketball_ResourceIdsCAL	VARCHAR(MAX) = NULL
-			,@basketball_ResourceIdsREFUND VARCHAR(MAX) = NULL
-			
-			,@FTHighestQuarter	VARCHAR(10) = NULL			
-			,@Q1Home			INT
-			,@Q2Home			INT
-			,@Q3Home			INT
-			,@Q4Home			INT			
-			,@Q1Away			INT
-			,@Q2Away			INT
-			,@Q3Away			INT
-			,@Q4Away			INT    
 			,@IsUpd_Void BIT = 0
 			
         DECLARE @tmpResultDetail TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
-        DECLARE @InputResultDetail_bb TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatusId TINYINT)
-        
+       
         DECLARE @tblBettypes TABLE (bettype SMALLINT, groupId SMALLINT, groupname VARCHAR(50), is3x30 BIT, isEarly BIT)
             
         SET @xmlBettypes = CONVERT(XML, @strBettypes)
@@ -135,53 +138,17 @@ BEGIN
         OPTION ( OPTIMIZE FOR ( @xmlBettypes = NULL ) )
     END --END: params for corner bets, sportting solution and betradar ----------------------------------
 		
-	IF @resultDetail_bb IS NOT NULL -- for basketball
-    BEGIN
-							
-        SET @xml = CONVERT(XML, @resultDetail_bb)
-        
-        INSERT INTO @InputResultDetail_bb (ResourceId, HomeValue, AwayValue, SettlementStatusId)
-		SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-				,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-				,T.c.value('./@away','VARCHAR(50)') AS AwayValue
-				,T.c.value('./@ssId','TINYINT') AS SettlementStatusId
-		FROM	@xml.nodes('/root/r') AS T(c)
-		OPTION	( OPTIMIZE FOR ( @xml = NULL ) )  
-		
-		SELECT	@basketball_ResourceIdsREFUND = COALESCE(@basketball_ResourceIdsREFUND + ',' + r.ResourceId ,r.ResourceId)	
-		FROM	@InputResultDetail_bb
-			CROSS APPLY (
-				SELECT CASE
-							WHEN ResourceId = '00' THEN 'FT'
-							WHEN ResourceId = '01' THEN '1H'
-							WHEN ResourceId = '02' THEN '2H'
-							ELSE ResourceId
-						END AS ResourceId
-							
-			) r
-		WHERE	SettlementStatusId = 1		
-		
-		SELECT	@basketball_ResourceIdsCAL =  COALESCE(@basketball_ResourceIdsCAL + ',' + r.ResourceId ,r.ResourceId)
-		FROM	@InputResultDetail_bb
-			CROSS APPLY (
-				SELECT CASE
-							WHEN ResourceId = '00' THEN 'FT'
-							WHEN ResourceId = '01' THEN '1H'
-							WHEN ResourceId = '02' THEN '2H'
-							ELSE ResourceId
-						END AS ResourceId
-							
-			) r
-		WHERE	SettlementStatusId = 4	
-		
-	END	
-	
 	DECLARE @modds MONEY , @doing VARCHAR(10) = 'zzz'
 	
 	WHILE (@doing <> @action)
     BEGIN        
         SET @doing = CASE @doing WHEN @priorAction THEN @action ELSE COALESCE(@priorAction, @action) END
 		
+		DELETE FROM @tmpOutputBettransm
+		DELETE FROM @tmpOutputBetParlayDetail
+		DELETE FROM @tmpTransIdsVoidRecover
+		DELETE FROM @tmpOutputBettransmVoidRecover
+
         IF @doing = 'correctBettype'
         BEGIN
             UPDATE BM
@@ -193,8 +160,8 @@ BEGIN
 
         IF @doing = 'REFUND'
         BEGIN
-            CREATE TABLE #RefundResult (transid BIGINT, refno BIGINT)
-        
+			SET @FunctionName = 'RefundSubParlay'
+
             UPDATE bm
             SET 
 				@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
@@ -214,61 +181,38 @@ BEGIN
 								ELSE 103
 							END
 								
-            OUTPUT INSERTED.transid, INSERTED.refno INTO #RefundResult(transid, refno)
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK) 
 				INNER JOIN @tblBettypes t
 					ON bm.bettype = t.bettype
 				CROSS APPLY (
 					SELECT	CAST(CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)),'') AS VARCHAR(20)) AS ResourceId
 				)r
-				CROSS APPLY (
-					SELECT CASE 
-								WHEN t.groupId = 10 
-									THEN CASE 
-											WHEN bm.betcheck = '801' THEN 'Q1'
-											WHEN bm.betcheck = '802' THEN 'Q2'
-											WHEN bm.betcheck = '803' THEN 'Q3'
-											WHEN bm.betcheck = '804' THEN 'Q4'
-											ELSE ''
-										END
-								ELSE ''
-							END AS QuarterX
-				)q
-            WHERE matchid = @matchid                 
+            WHERE matchid = @matchid      
+				AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
                 AND statusID NOT IN (101)
-				AND t.groupId <> 8 -- Early Soccer
-				AND 1 = CASE
-							WHEN @basketball_ResourceIdsREFUND IS NULL AND @basketball_ResourceIdsCAL IS NULL THEN 1 --s basketball
-							WHEN t.isEarly = 1 THEN CASE
-														WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
-														ELSE 0
-													END
-							WHEN t.groupId = 10 THEN CASE
-														WHEN CHARINDEX(',' + q.QuarterX + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
-														ELSE 0
-													END
-							WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsREFUND + ',') > 0 THEN 1
-							ELSE 0
-							END														
+				AND t.groupId <> 8 -- Early Soccer						
 			
             UPDATE pd
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
                 ,statusID = 103
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #RefundResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
              WHERE pd.statusid NOT IN (102)
-             
         END --@doing = 'REFUND'
     
         -- ===================================================
         IF @doing = 'REFUND-FT'
         BEGIN
-            CREATE TABLE #RefundFTResult (transid BIGINT, refno BIGINT)
-            
-            UPDATE	bm
+			SET @FunctionName = 'RefundSubParlay'
+
+			UPDATE	bm
 				SET 
 					@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
 					,winlostdate = CASE 
@@ -285,13 +229,14 @@ BEGIN
 					,statusID = CASE 
 									WHEN @IsUpd_Void = 0 THEN statusID 
 									ELSE 103
-								END
-								
-            OUTPUT INSERTED.transid, INSERTED.refno INTO #RefundFTResult(transid, refno)
+								END								
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON bm.bettype = t.bettype
             WHERE	matchid = @matchid 
+					AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
 					AND t.groupId NOT IN (1,3,5,8)
 					AND statusID NOT IN (101)
 				
@@ -299,18 +244,19 @@ BEGIN
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
                 ,statusID = 103
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #RefundFTResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
-            WHERE pd.statusid NOT IN (102)            
+            WHERE pd.statusid NOT IN (102)
         END --@doing = 'REFUND-FT'
-
 
         IF @doing = 'REFUND-HT'
         BEGIN
-            CREATE TABLE #RefundHTResult (transid BIGINT, refno BIGINT)
-            
+			SET @FunctionName = 'RefundSubParlay'
+
             -- Refund sub tickets of 11 bet types (FT) from BetRadar in case '30x3' match has been suspended
             UPDATE	bm
 				SET 
@@ -329,34 +275,37 @@ BEGIN
 					,statusID = CASE 
 									WHEN @IsUpd_Void = 0 THEN statusID 
 									ELSE 103
-								END
-								
-            OUTPUT	INSERTED.transid, INSERTED.refno INTO #RefundHTResult(transid, refno)
+								END								
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON	bm.bettype = t.bettype
             WHERE	matchid = @matchid 
+					AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
 					AND t.is3x30 = 1
 					AND statusID NOT IN (101)
 			OPTION (FORCE ORDER)
 			
             UPDATE pd
-            SET winlostdate = @matchdate
-                ,statuswinlost = 0
-                ,statusID = 103
+				SET winlostdate = @matchdate
+					,statuswinlost = 0
+					,statusID = 103
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #RefundHTResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
-            WHERE pd.statusid NOT IN (102)            
+            WHERE pd.statusid NOT IN (102) 
         END -- @doing = 'REFUND-HT'
     
         -- ===================================================
         IF @doing = 'VOID'
-        BEGIN
-            DECLARE @transtbl TABLE (transid BIGINT)
+        BEGIN   
+			SET @FunctionName = 'VoidSubParlay'
 
-            INSERT INTO @transtbl
+            INSERT INTO @tmpTransIdsVoidRecover(transid)
             SELECT CONVERT(BIGINT, [value])
             FROM STRING_SPLIT(@VoidTransID, ',')
 
@@ -371,24 +320,28 @@ BEGIN
                 ,creator = @UserID
                 ,statusID = 102
                 ,winlostdate = @matchdate
+			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.statusID, inserted.winlostdate
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, status, creator, statusId, winlostdate)
             WHERE matchid = @matchid 
                 AND statusID NOT IN (101, 102) 
-                AND transid IN (SELECT transid FROM @transtbl)
+                AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
 
             UPDATE dbo.BetParlayDetail WITH(ROWLOCK, UPDLOCK)
             SET statuswinlost = 0
                 ,statusID = 102
                 ,winlostdate = @matchdate
+			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate
+			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
             WHERE matchid = @matchid 
                 AND statusID NOT IN (101, 102) 
-                AND transid IN (SELECT transid FROM @transtbl)
+                AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
         END --@doing = 'VOID'
     
         IF @doing = 'RECOVER'
-        BEGIN
-            DECLARE @tblTransIds TABLE (transid BIGINT)
-        
-            INSERT INTO @tblTransIds
+        BEGIN 
+			SET @FunctionName = 'RecoverSubParlay'
+
+            INSERT INTO @tmpTransIdsVoidRecover(transid)
             SELECT CONVERT(BIGINT, [value])
             FROM STRING_SPLIT(@VoidTransId, ',')
         
@@ -400,26 +353,30 @@ BEGIN
                     ,status = 'running'
                     ,statusID = 0
                     ,winlostdate = NULL
+			OUTPUT INSERTED.transid, inserted.winlost, inserted.ruben
+					, Inserted.Statuswinlost
+					, inserted.status, inserted.statusID, inserted.winlostdate
+			INTO @tmpOutputBettransmVoidRecover(transid, winlost, ruben, statuswinlost, status, statusid, winlostdate)
             WHERE    matchid = @matchid
                     AND statusID = 102
-                    AND transid IN (SELECT transid FROM @tblTransIds)
-                
+                    AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)                
         
             UPDATE    dbo.BetParlayDetail WITH(ROWLOCK, UPDLOCK)
                 SET winlostdate = NULL
                     ,statuswinlost = NULL
                     ,statusid = 0
+			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             WHERE    matchid = @matchid 
                     AND statusID = 102
-                    AND transid IN (SELECT transid FROM @tblTransIds)
-        
+                    AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
         END --@doing = 'RECOVER'
 
         -- ===================================================        
         IF @doing = 'UNDO'
         BEGIN            
-            CREATE TABLE #UndoResult (transid BIGINT, refno BIGINT)
-         
+           SET @FunctionName = 'UndoSubParlay'
+
             UPDATE bm WITH(ROWLOCK, UPDLOCK)
             SET 
 				@IsUpd_Void = CASE WHEN statusID = 102 THEN 0 ELSE 1 END
@@ -427,7 +384,9 @@ BEGIN
                 ,statuswinlost = NULL
                 ,ruben = CASE WHEN @IsUpd_Void = 0 THEN ruben ELSE 0 END
                 ,statusID = CASE WHEN @IsUpd_Void = 0 THEN statusID ELSE 0 END
-            OUTPUT INSERTED.transid, INSERTED.refno INTO #UndoResult(transid, refno)
+            OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben
+					,Inserted.Statuswinlost
+			INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost)
             FROM    @tblBettypes t
 				INNER LOOP JOIN dbo.bettransm bm
 					ON	bm.bettype = t.bettype
@@ -435,119 +394,28 @@ BEGIN
 					SELECT CAST(CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)),'') AS VARCHAR(20)) AS ResourceId
 				)r
             WHERE matchid = @matchid  
+				AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
                 AND statusID NOT IN (101, 1)
 				AND t.groupId <> 8 -- Early Soccer
-              AND 1 = CASE -- basketball
-							WHEN @SelectedQuarter IS NULL THEN 1
-							WHEN t.isEarly = 1 THEN CASE
-														WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @SelectedQuarter + ',') > 0 THEN 1
-														ELSE 0
-														END
-							WHEN t.groupId = 10 THEN CASE
-														WHEN CHARINDEX(',' + bm.betcheck + ',', ',' + @SelectedQuarter + ',') > 0 THEN 1
-														ELSE 0
-													END
-							WHEN CHARINDEX(',' + t.groupName + ',', ',' + @SelectedQuarter + ',') > 0 THEN 1
-							ELSE 0
-							END	
 			OPTION (FORCE ORDER)			
 					
             UPDATE pd
             SET statuswinlost = NULL 
                 ,statusID = 0
+			OUTPUT inserted.transid, inserted.statuswinlost , inserted.statusid
+			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId)
             FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-                INNER JOIN #UndoResult r
+                INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno 
-            WHERE pd.statusid NOT IN (102)            
+            WHERE pd.statusid NOT IN (102) 
         END --@doing = 'UNDO'
         -- ===================================================
         
         IF @doing = 'CAL'
         BEGIN
-            IF @resultDetail_bb IS NOT NULL -- for basketball
-            BEGIN
-				
-				INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue)
-				SELECT	ResourceId, HomeValue, AwayValue
-				FROM	@InputResultDetail_bb r
-				WHERE	SettlementStatusId = 4
-				
-				SELECT	@FTHighestQuarter = CASE
-											WHEN MAX(result.HomeValue) > MAX(result.AwayValue) THEN 'H'
-											WHEN MAX(result.HomeValue) < MAX(result.AwayValue) THEN 'A'
-											ELSE 'N'
-										END
-				FROM	@tmpResultDetail t
-					CROSS APPLY (
-						SELECT CAST(t.HomeValue AS INT) HomeValue
-							,CAST(t.AwayValue AS INT) AwayValue
-					)result
-				WHERE	ResourceId LIKE 'Q[1-4]'
-					
-				SELECT	@Q1Home = HomeValue
-						,@Q1Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q1'
-				
-				SELECT	@Q2Home = HomeValue
-						,@Q2Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q2'
-				
-				SELECT	@Q3Home = HomeValue
-						,@Q3Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q3'
-				
-				SELECT	@Q4Home = HomeValue
-						,@Q4Away = AwayValue
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = 'Q4'
-				
-            END  
-   
-			IF @resultDetail IS NOT NULL
-			BEGIN
-				 SET @xml = CONVERT(XML, @resultDetail)
-				
-				;WITH cteResult
-				AS(
-					SELECT	T.c.value('./@rid','VARCHAR(20)') AS ResourceId
-							,T.c.value('./@home','VARCHAR(50)') AS HomeValue
-							,T.c.value('./@away','VARCHAR(50)') AS AwayValue
-					FROM	@xml.nodes('/root/r') AS T(c)
-				)
-				SELECT	@ht_fg = ISNULL(MAX(CASE 
-												WHEN ResourceID ='127F' 
-													THEN CASE 
-															WHEN HomeValue = 'N' THEN '0:0'
-															WHEN HomeValue = 'H' THEN '1:1'
-															WHEN HomeValue = 'A' THEN '2:1'
-															ELSE ''
-														END
-													ELSE '' 
-											END),'')		
-						,@ht_lg = ISNULL(MAX(CASE 
-												WHEN ResourceID ='127L' 
-													THEN CASE 
-															WHEN HomeValue = 'N' THEN '0:0'
-															WHEN HomeValue = 'H' THEN '1:2'
-															WHEN HomeValue = 'A' THEN '2:2'
-															ELSE ''
-														END
-													ELSE '' 
-											END),'')			
-						
-						,@ft_fg = ISNULL(MAX(CASE WHEN ResourceId = '14F' THEN HomeValue ELSE '' END),'')
-						,@ft_lg = ISNULL(MAX(CASE WHEN ResourceId = '14L' THEN HomeValue ELSE '' END),'')
-						,@goalsequenceHT = ISNULL(MAX(CASE WHEN ResourceId = '09' THEN HomeValue ELSE '' END),'')
-						,@goalsequenceFT = ISNULL(MAX(CASE WHEN ResourceId = '08' THEN HomeValue ELSE '' END),'')													
-				FROM	cteResult r
-				OPTION ( OPTIMIZE FOR ( @xml = NULL ) )
-				
-			END
-			
+			SET @FunctionName = 'CalSubParlay'
+
             DECLARE @csHTFT NVARCHAR(10) -- HT/FT correct score
     
             SELECT @csHTFT = CASE WHEN @hth + @hta >= 4 THEN '4+' 
@@ -1704,145 +1572,6 @@ BEGIN
 								WHEN (betteam = @ht_fg OR betteam = @ht_lg) THEN 1
 								ELSE - 1
 							END
-                        WHEN 601 THEN -- FT Winning Margin 14 Way
-							CASE 
-								WHEN betteam = 'H1-2' AND (@fth - @fta) BETWEEN 1 AND 2 THEN 1
-								WHEN betteam = 'H3-6' AND (@fth - @fta) BETWEEN 3 AND 6 THEN 1
-								WHEN betteam = 'H7-9' AND (@fth - @fta) BETWEEN 7 AND 9 THEN 1
-								WHEN betteam = 'H10-13' AND (@fth - @fta) BETWEEN 10 AND 13 THEN 1
-								WHEN betteam = 'H14-16' AND (@fth - @fta) BETWEEN 14 AND 16 THEN 1
-								WHEN betteam = 'H17-20' AND (@fth - @fta) BETWEEN 17 AND 20 THEN 1
-								WHEN betteam = 'H21+' AND (@fth - @fta) >= 21 THEN 1
-								WHEN betteam = 'A1-2' AND (@fth - @fta) BETWEEN -2 AND -1 THEN 1
-								WHEN betteam = 'A3-6' AND (@fth - @fta) BETWEEN -6 AND -3 THEN 1
-								WHEN betteam = 'A7-9' AND (@fth - @fta) BETWEEN -9 AND -7 THEN 1
-								WHEN betteam = 'A10-13' AND (@fth - @fta) BETWEEN -13 AND -10 THEN 1
-								WHEN betteam = 'A14-16' AND (@fth - @fta) BETWEEN -16 AND -14 THEN 1
-								WHEN betteam = 'A17-20' AND (@fth - @fta) BETWEEN -20 AND -17 THEN 1
-								WHEN betteam = 'A21+' AND (@fth - @fta) <= -21 THEN 1
-								ELSE -1
-							END 
-						WHEN 602 THEN -- FT Winning Margin 12 Way
-							CASE
-								WHEN betteam = 'H1-5' AND (@fth - @fta) BETWEEN 1 AND 5 THEN 1
-								WHEN betteam = 'H6-10' AND (@fth - @fta) BETWEEN 6 AND 10 THEN 1
-								WHEN betteam = 'H11-15' AND (@fth - @fta) BETWEEN 11 AND 15 THEN 1
-								WHEN betteam = 'H16-20' AND (@fth - @fta) BETWEEN 16 AND 20 THEN 1
-								WHEN betteam = 'H21-25' AND (@fth - @fta) BETWEEN 21 AND 25 THEN 1
-								WHEN betteam = 'H26+' AND (@fth - @fta) >= 26 THEN 1
-								WHEN betteam = 'A1-5' AND (@fth - @fta) BETWEEN -5 AND -1 THEN 1
-								WHEN betteam = 'A6-10' AND (@fth - @fta) BETWEEN -10 AND -6 THEN 1
-								WHEN betteam = 'A11-15' AND (@fth - @fta) BETWEEN -15 AND -11 THEN 1
-								WHEN betteam = 'A16-20' AND (@fth - @fta) BETWEEN -20 AND -16 THEN 1
-								WHEN betteam = 'A21-25' AND (@fth - @fta) BETWEEN -25 AND -21 THEN 1
-								WHEN betteam = 'A26+' AND (@fth - @fta) <= -26 THEN 1	
-								ELSE -1
-							END
-						WHEN 603 THEN -- FT Which team to score the highest quarter
-							CASE 
-								WHEN @FTHighestQuarter = 'N' THEN 0
-								WHEN betteam = @FTHighestQuarter THEN 1 
-								ELSE -1 
-							END
-						WHEN 604 THEN -- FT Which team to score the first basket
-							CASE
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 605 THEN -- FT Which team to score the last basket 	
-							CASE
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 606 THEN -- 1H Race to YY
-							CASE 
-								WHEN rd.HomeValue = 'N' THEN 0 
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 607 THEN -- 2H Race to YY
-							CASE 
-								WHEN rd.HomeValue = 'N' THEN 0 
-								WHEN betteam = rd.HomeValue THEN 1 
-								ELSE -1 
-							END
-						WHEN 608 THEN -- 1H Winning Margin 12 Way
-							CASE
-								WHEN (@hth - @hta) BETWEEN 1 AND 5 AND betteam = 'H1-5' THEN 1
-								WHEN (@hth - @hta) BETWEEN 6 AND 10 AND betteam = 'H6-10' THEN 1
-								WHEN (@hth - @hta) BETWEEN 11 AND 15 AND betteam = 'H11-15' THEN 1 
-								WHEN (@hth - @hta) BETWEEN 16 AND 20 AND betteam = 'H16-20' THEN 1
-								WHEN (@hth - @hta) BETWEEN 21 AND 25 AND betteam = 'H21-25' THEN 1 
-								WHEN (@hth - @hta) >= 26 AND betteam = 'H26+' THEN 1
-								WHEN (@hth - @hta) = 0 AND betteam = 'D' THEN 1
-								WHEN (@hth - @hta) BETWEEN -5 AND -1 AND betteam = 'A1-5' THEN 1
-								WHEN (@hth - @hta) BETWEEN -10 AND -6 AND betteam = 'A6-10' THEN 1
-								WHEN (@hth - @hta) BETWEEN -15 AND -11 AND betteam = 'A11-15' THEN 1
-								WHEN (@hth - @hta) BETWEEN -20 AND -16 AND betteam = 'A16-20' THEN 1
-								WHEN (@hth - @hta) BETWEEN -25 AND -21 AND betteam = 'A21-25' THEN 1
-								WHEN (@hth - @hta) <= -26 AND betteam = 'A26+' THEN 1
-								ELSE -1
-							END
-						WHEN 609 THEN -- Quarter X Handicap
-							CASE 
-								WHEN betteam = 'h' THEN (res.QXHome - hdp1) - (res.QXAway - hdp2)
-								WHEN betteam = 'a' THEN (res.QXAway - hdp2) - (res.QXHome - hdp1)
-								ELSE -1
-							END
-						WHEN 610 THEN -- Quarter X Over Under
-							CASE 
-								WHEN betteam = 'o' THEN res.QXHome + res.QXAway - hdp1
-								WHEN betteam = 'u' THEN hdp1 - (res.QXHome + res.QXAway) 
-								ELSE -1
-							END
-						WHEN 611 THEN -- Quarter X Odd Even
-							CASE 
-								WHEN betteam = 'o' AND (res.QXHome + res.QXAway) % 2 = 1 THEN 1
-								WHEN betteam = 'e' AND (res.QXHome + res.QXAway) % 2 = 0 THEN 1
-								ELSE -1
-							END
-						WHEN 612 THEN -- Quarter X Moneyline
-							CASE 
-								WHEN betteam = 'h' THEN (res.QXHome - res.QXAway)
-								WHEN betteam = 'a' THEN (res.QXAway - res.QXHome)
-								ELSE -1
-							END
-						WHEN 613 THEN -- Quarter X Race to YY
-							CASE 
-								WHEN rd.HomeValue = 'N' THEN 0
-								WHEN bm.betteam = rd.HomeValue THEN 1
-								ELSE -1
-							END
-						WHEN 614 THEN -- Quarter X Winning Margin 7 Way
-							CASE	
-								WHEN betteam = 'H1-4' AND (res.QXHome - res.QXAway) BETWEEN 1 AND 4 THEN 1
-								WHEN betteam = 'H5-8' AND (res.QXHome - res.QXAway) BETWEEN 5 AND 8 THEN 1
-								WHEN betteam = 'H9+' AND (res.QXHome - res.QXAway) >= 9 THEN 1
-								WHEN betteam = 'D' AND (res.QXHome - res.QXAway) = 0 THEN 1
-								WHEN betteam = 'A1-4' AND (res.QXAway - res.QXHome) BETWEEN 1 AND 4 THEN 1
-								WHEN betteam = 'A5-8' AND (res.QXAway - res.QXHome) BETWEEN 5 AND 8 THEN 1
-								WHEN betteam = 'A9+' AND (res.QXAway - res.QXHome) >= 9 THEN 1
-								ELSE -1
-							END
-						WHEN 615 THEN -- Quarter X Home Team Over Under
-							CASE	
-								WHEN betteam = 'o' THEN res.QXHome - hdp1
-								WHEN betteam = 'u' THEN hdp1 - res.QXHome
-								ELSE -1
-							END
-						WHEN 616 THEN -- Quarter X Away Team Over Under
-							CASE	
-								WHEN betteam = 'o' THEN res.QXAway - hdp1
-								WHEN betteam = 'u' THEN hdp1 - res.QXAway
-								ELSE -1
-							END
-						WHEN 617 THEN -- Quarter X Which team to score the last basket
-							CASE	
-								WHEN rd.HomeValue = 'N' THEN 0
-								WHEN bm.betteam = rd.HomeValue THEN 1
-								ELSE -1
-							END
-						
 						--STARTING for new bettype for PHAIO 3
 						-- 456: 1H Both Teams To Score / Result
 						WHEN 456 THEN 
@@ -2259,54 +1988,11 @@ BEGIN
 									ELSE NULL 
 								END AS NVARCHAR(1000)) AS ExcludingFTChoice    
 				) i
-				CROSS APPLY (
-					SELECT	CAST(bm.bettype AS VARCHAR) + ISNULL(SUBSTRING(bm.betcheck, 2, LEN(bm.betcheck)), '') AS ResourceId
-				)r
-				CROSS APPLY ( -- for basketball
-					SELECT 	CASE
-								WHEN bm.betcheck = '801' THEN @Q1Home
-								WHEN bm.betcheck = '802' THEN @Q2Home
-								WHEN bm.betcheck = '803' THEN @Q3Home
-								WHEN bm.betcheck = '804' THEN @Q4Home
-								ELSE 0
-							END AS QXHome
-							,CASE
-								WHEN bm.betcheck = '801' THEN @Q1Away
-								WHEN bm.betcheck = '802' THEN @Q2Away
-								WHEN bm.betcheck = '803' THEN @Q3Away
-								WHEN bm.betcheck = '804' THEN @Q4Away
-								ELSE 0
-							END AS QXAway
-							,CASE 
-								WHEN t.groupId = 10 
-									THEN CASE 
-											WHEN bm.betcheck = '801' THEN 'Q1'
-											WHEN bm.betcheck = '802' THEN 'Q2'
-											WHEN bm.betcheck = '803' THEN 'Q3'
-											WHEN bm.betcheck = '804' THEN 'Q4'
-											ELSE ''
-										END
-								ELSE ''
-							END AS QuarterX
-				) res
-				LEFT JOIN @tmpResultDetail rd
-					ON r.ResourceId = rd.ResourceId
+						
             WHERE   bm.matchid = @matchid
+					AND bm.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN bm.SiteDBGroupID ELSE 0 END
 					AND bm.statusID NOT IN (101)  
-                    AND 1 = CASE -- basketball
-								WHEN @resultDetail_bb IS NULL THEN 1
-								WHEN t.isEarly = 1 THEN CASE
-															WHEN CHARINDEX(',' + r.ResourceId + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
-															ELSE 0
-															END
-								WHEN t.groupId = 10 THEN CASE
-															WHEN CHARINDEX(',' + res.QuarterX + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
-															ELSE 0
-														END
-								WHEN CHARINDEX(',' + t.groupName + ',', ',' + @basketball_ResourceIdsCAL + ',') > 0 THEN 1
-								ELSE 0
-								END		
-				
+                   
 			IF EXISTS (SELECT TOP 1 1 FROM dbo.MarkedTransaction mt WITH(NOLOCK) WHERE matchid = @matchid)
 			BEGIN
 				;WITH cteMarkedTrans
@@ -2316,6 +2002,7 @@ BEGIN
 						INNER JOIN dbo.bettrans b WITH(NOLOCK)
 							ON mt.TransId = b.transid
 					WHERE	mt.MatchId = @matchid
+							AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 							AND b.matchid = 29
 				)
 				UPDATE r 
@@ -2326,10 +2013,10 @@ BEGIN
 			END
 
 			WHILE (1 = 1)
-			BEGIN
-				
-				DELETE
-				FROM	@tmptransid
+			BEGIN				
+				DELETE FROM	@tmptransid	
+				DELETE FROM @tmpOutputBettransm
+				DELETE FROM @tmpOutputBetParlayDetail
 				
 				DELETE TOP (2000 )
 				FROM #Result
@@ -2345,7 +2032,7 @@ BEGIN
 						,ruben = CASE 
 									WHEN @IsUpd_Void = 0 THEN bm.ruben 
 									ELSE CASE 
-											WHEN t.modds IS NOT NULL THEN 0 
+											WHEN t.modds IS NULL THEN 0 
 											ELSE 1 
 										END
 								END
@@ -2381,7 +2068,9 @@ BEGIN
 											WHEN t.modds > 0 THEN 1 -- Half WIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
 											ELSE 0 -- DRAW
-										END										
+										END		
+				OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
+				INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost, winlostdate)
 				FROM	dbo.bettransm bm 
 					INNER JOIN @tmptransid t
 						ON	bm.transid = t.transid
@@ -2405,11 +2094,117 @@ BEGIN
 											WHEN t.modds < 0 THEN 3 -- Half LOSE
 											ELSE 0 -- DRAW
 										END
+				OUTPUT INSERTED.transid, inserted.statuswinlost, inserted.statusID, inserted.winlostdate
+				INTO @tmpOutputBetParlayDetail(transid, statuswinlost, statusid, winlostdate)
 				FROM    dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 					INNER JOIN @tmptransid t ON  pd.transid = t.transid
-				WHERE pd.statusid NOT IN (102)						
+				WHERE pd.statusid NOT IN (102)	
+
+				IF @IsSiteDB = 1
+				BEGIN
+					SET @transInfo = (
+							SELECT	transId AS '@t'		
+									,refno AS '@ref'
+									,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
+									,Status AS '@s' 
+									,StatusID AS '@sid' 
+									,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
+									,ruben AS '@r' -- ruben	
+							FROM	@tmpOutputBettransm
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+					SELECT	'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
+							,CASE 
+								WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+								WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+								ELSE ''
+							END
+							,'p'
+					WHERE @transInfo IS NOT NULL
+				
+					SET @betparlaydetailinfo = (
+						SELECT	DISTINCT transId AS '@t'						
+								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
+								,StatusId AS '@sid'
+						FROM	@tmpOutputBetParlayDetail
+						FOR XML PATH('r'),ROOT('root'), TYPE
+					)
+
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+					SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
+							,CASE 
+								WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+								WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+							END
+							,'p'
+					WHERE	@betparlaydetailinfo IS NOT NULL
+				END
 			END                
         END --@doing = 'CAL'
+
+		IF @IsSiteDB = 1 AND @doing <> 'CAL'
+		BEGIN
+			IF @doing IN ('VOID', 'RECOVER')
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'	
+							,winlost AS '@w'
+							,Status AS '@s' 
+							,creator AS '@cr'
+							,statusId AS '@sid' 
+							,CASE WHEN @doing = 'RECOVER' AND winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
+							,CASE WHEN @doing = 'RECOVER' AND statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
+							,ruben AS '@r' -- ruben
+					FROM	@tmpOutputBettransmVoidRecover
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+			END
+			ELSE
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'		
+							,refno AS '@ref'
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
+							,ruben AS '@r' -- ruben	
+					FROM	@tmpOutputBettransm
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+			END
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			SELECT	'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
+					,CASE 
+						WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+						WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+						ELSE ''
+					END
+					,'p'
+			WHERE @transInfo IS NOT NULL
+				
+			SET @betparlaydetailinfo = (
+				SELECT	DISTINCT transId AS '@t'						
+						,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
+						,StatusId AS '@sid'
+				FROM	@tmpOutputBetParlayDetail
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
+					,CASE 
+						WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+						WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+					END
+					,'p'
+			WHERE	@betparlaydetailinfo IS NOT NULL
+		END
     END -- while
 END -- end SP
 GO

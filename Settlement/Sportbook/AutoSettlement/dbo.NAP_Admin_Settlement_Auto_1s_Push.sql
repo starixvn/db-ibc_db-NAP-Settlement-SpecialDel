@@ -4,9 +4,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Auto_1s_Push]
 	,@MatchId					INT
 	,@SelectedResources			VARCHAR(MAX)	= '' 
 	,@Action					VARCHAR(10)		= 'CAL'
-	,@IsAuto					BIT				= 1
 	,@IP						VARCHAR(15)		= ''
 	,@IsReSettledTickets		BIT				= 1
+	,@BroadcastSessionId		VARCHAR(50)		= NULL
 	,@ErrCode					INT				= 0		OUTPUT
 	,@ErrMsg					NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -26,7 +26,8 @@ AS
 		- 20201113@Louisa: Check Hold Result [Redmine:#135097]
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:
 		 @SelectedResources: <Resources>
 						    	<Resource Id="" Home="" Away="" />
@@ -35,9 +36,6 @@ AS
 */		
 BEGIN
 	SET NOCOUNT ON 
-
-	IF @IsAuto = 1
-		RETURN
 
 	DECLARE	@matchcode		NVARCHAR(50)
 			,@sporttype		INT
@@ -51,99 +49,18 @@ BEGIN
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 
-	IF @@ROWCOUNT = 0
-	BEGIN
-		SELECT	 @ErrCode	= 1001001
-				,@ErrMsg	= 'Match does not exist!'
-
-		RETURN
-	END
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_HoldSettingChecking
-	@MatchId	= @Matchid
-	,@IsEarly	= 1
-	,@SelectedResources =  @SelectedResources
-	,@ErrCode	= @ErrCode OUTPUT
-	,@ErrMsg	= @ErrMsg OUTPUT
-
-	IF ISNULL(@ErrCode,0) <> 0
-	BEGIN
-	    SELECT	@ErrCode
-				,@ErrMsg
-	    
-	    RETURN
-	END
-
-	IF @Action IN ('CAL', 'REFUND')
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-			@MatchId	= @matchid
-			,@Action	= @action
-			,@IsEarly	= 1
-			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
-
-		IF @ErrCode > 0
-			RETURN
-	END
-
-	IF EXISTS (
-			SELECT TOP 1 1
-			FROM Single_Calculate_Queue s WITH (NOLOCK)
-				INNER JOIN dbo.f_Set_GetAction() f
-					ON s.Action = f.Action
-					AND f.GroupAction = 'EAR'
-			WHERE	s.matchid = @matchid 
-					AND s.IsCalculating IN (0, 1)
-	) 
-	BEGIN
-		SELECT	 @ErrCode = 1001003
-				,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-
-		RETURN
-	END
-
-	-- check waiting ticket
-	EXEC NAP_Admin_Settlement_Checking
-		@MatchId = @MatchId
-		,@Action = @Action
-		,@Mode = 'CAL-EARLY'
-		,@xmlData = @SelectedResources
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT @ErrCode
-			,@ErrMsg
-		
-		RETURN
-	END
-
-	-- check movebet day
-	EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
-		@MatchIds =  @MatchId 
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @ErrCode <> 0
-	BEGIN
-		SELECT @ErrCode = @ErrCode
-				,@ErrMsg = 'Cannot proceed due to this match is in move-bets process. Please contact admin for support.'
-
-		RETURN
-	END
-
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
 			,@procName		= OBJECT_NAME(@@procid)
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Auto_1s] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @SelectedResources = ''' + @SelectedResources + ''''
-															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
-															+ ', @isAuto = ' + CONVERT(NVARCHAR(50), @isAuto) 														
+															+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''  														
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + '''' 
-															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 														
+															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 	
+															+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+																	ELSE '' END
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 														
@@ -174,6 +91,7 @@ BEGIN
 			,IP
 			,Action
 			,sqlCommand
+			,BroadcastSessionId
 			)
 		SELECT @MatchId
 			,@matchcode
@@ -184,6 +102,7 @@ BEGIN
 			,@IP
 			,@Action + '-' + 'EARLY'
 			,@sqlCommand
+			,@BroadcastSessionId
 	END
 
 END

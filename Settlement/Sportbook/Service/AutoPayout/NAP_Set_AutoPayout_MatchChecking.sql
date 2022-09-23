@@ -11,12 +11,17 @@ AS
     Revisions:            
 		- 20190507@Sol: Auto payout phase 3 - Checking FGLG bettypes exist in match - [Redmine:#116073]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
     SET NOCOUNT ON
-    	
+    
+	DECLARE @IsCentral BIT = 0
 	DECLARE @tmpGoalRecordBettypes TABLE (bettype SMALLINT, GroupId TINYINT, isFGLG BIT)
     
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
     INSERT INTO @tmpGoalRecordBettypes (bettype, GroupId,isFGLG)
 	SELECT	BetType, GroupId,isFGLG
 	FROM	dbo.[f_Set_GetGroupBettypes]()
@@ -35,6 +40,7 @@ BEGIN
 					ON	b.bettype = f.BetType
 		WHERE	b.matchid = @matchid
 				AND b.statusID NOT IN (101, 102)
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		GROUP BY b.bettype
 
 		UNION ALL
@@ -49,6 +55,7 @@ BEGIN
 					ON	bm.bettype = f.BetType
 		WHERE	bm.matchid = @matchid
 				AND bm.statusID NOT IN (101, 102)
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 		GROUP BY bm.bettype
 	)
 	SELECT  ISNULL(MAX(CASE WHEN ExistFGLG = 1 THEN 1 ELSE 0 END),0) AS IsExistFGLG

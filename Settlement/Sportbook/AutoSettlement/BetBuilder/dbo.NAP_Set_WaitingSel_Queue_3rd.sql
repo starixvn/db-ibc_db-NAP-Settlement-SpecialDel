@@ -13,7 +13,8 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200803@July : Get list Sporttype and LeagueId [Redmine:#138475]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
-		
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation: 
 		@SettleType = BBD: BetBuilder
 */
@@ -21,165 +22,70 @@ BEGIN
 
 	SET NOCOUNT ON
 
-	DECLARE @matchid INT, @StartTime DATETIME, @EndTime	DATETIME, @SqlCommand VARCHAR(MAX)
-			,@MinBettype INT, @MaxBettype INT
-			,@strMatchIds		VARCHAR(MAX)
-			,@remoteQuery		NVARCHAR(MAX)
-			,@strResourceIds	VARCHAR(MAX)
-	DECLARE @TempMatch TABLE (MatchId INT,Sporttype SMALLINT, QueueStatus INT )
-	DECLARE @tblTicketStatusBySettleType TABLE (matchid INT, totalTicket INT, totalTicketRunning INT, SettleType VARCHAR(20))
-	DECLARE @tblBettype TABLE (Bettype INT, SettleType VARCHAR(3))
-	DECLARE @tblTicketStatus TABLE (MatchID INT, ParlayStatus VARCHAR(20))
-	DECLARE @tmpSporttypes TABLE ( Sporttype SMALLINT)
-	DECLARE @tmpLeagueIds TABLE ( LeagueId INT)
-	DECLARE @tmpResultDetail TABLE (
-		MatchId				INT
-		,ResourceId			VARCHAR(20)
-		,HomeValue			VARCHAR(50)
-		,AwayValue			VARCHAR(50)
-		,ResultStatusId		TINYINT
-		,SettlementStatusId TINYINT
-	)
-	------------------------------------------------------------------------------	
-	INSERT INTO @tmpSporttypes(Sporttype)
-	SELECT [Value] 
-	FROM STRING_SPLIT(@SportTypes, ',')
+	DECLARE @StartTime	DATETIME
+			,@EndTime	DATETIME
+			,@sqlCommand VARCHAR(MAX)
+			,@IsCentral BIT
 
-	INSERT INTO @tmpLeagueIds(LeagueId)
-	SELECT [value] 
-	FROM STRING_SPLIT(@LeagueIds, ',')
-    	
-	----------------------------------------------------------------------------
-	--Get Bettype from PROFILE
-	IF @SettleType IS NOT NULL
-	BEGIN
-		INSERT INTO @tblBettype (Bettype, SettleType)
-		SELECT DISTINCT ss.Bettype, ss.SettleType
-		FROM dbo.SettlementSpecialBettypeProfile ss WITH (NOLOCK)
-			INNER JOIN @tmpSporttypes st ON ss.Sporttype = st.Sporttype 
-		WHERE ss.SettleType IN (SELECT [value] FROM STRING_SPLIT(@SettleType, ','))
-		ORDER BY Bettype
-	END
+	DECLARE @tmpMatchInQueue TABLE (MatchId INT, QueueStatus INT )
 	
-		
-	SELECT @MinBettype	= MIN(bettype)
-		   ,@MaxBettype = MAX(bettype)
-	FROM @tblBettype
-		
-	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	--Get match info in queue
-	;WITH SingleTicket AS (
-		SELECT s.matchid,st.SportType, MIN(s.IsCalculating) AS QueueStatus
+	;WITH cteSingle3rdQueue AS (
+		SELECT s.matchid, MIN(s.IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue_3rd s WITH(NOLOCK)
-			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
-			INNER JOIN @tmpLeagueIds l   ON s.LeagueID = l.LeagueId
-		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
-		GROUP BY matchid ,st.SportType
+		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE())
+		GROUP BY matchid
 	),
-	SingleTicketMainQueue AS (
-		SELECT s.matchid,st.SportType, MIN(s.IsCalculating) AS QueueStatus
+	cteSingleMainQueue AS (
+		SELECT s.matchid, MIN(s.IsCalculating) AS QueueStatus
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
-			INNER JOIN dbo.VendorStatus vs WITH(NOLOCK) ON vs.MatchID = s.MatchID
-			INNER JOIN @tmpSporttypes st ON s.SportType =st.Sporttype
-			INNER JOIN @tmpLeagueIds l   ON s.LeagueID = l.LeagueId
-		WHERE Starttime > DATEADD(MINUTE, -10, GETDATE())
-			AND vs.Opened = 1 
-			AND IsCalculating = 2
-		GROUP BY s.matchid,st.SportType
+			INNER JOIN dbo.VendorStatus vs WITH(NOLOCK) 
+				ON	vs.MatchID = s.MatchID
+		WHERE	Starttime > DATEADD(MINUTE, -10, GETDATE())
+				AND vs.Opened = 1 
+				AND IsCalculating = 2
+		GROUP BY s.matchid
 	)
-	INSERT INTO @TempMatch(MatchId,SportType, QueueStatus)
-	SELECT ISNULL(sg.MatchID, mq.MatchID) AS MatchID
-		, ISNULL(sg.SportType, mq.SportType) AS SportType
-		, ISNULL(sg.QueueStatus, mq.QueueStatus) AS QueueStatus
-	FROM SingleTicket sg
-		FULL OUTER JOIN SingleTicketMainQueue mq ON sg.matchid = mq.matchid
-	----------------------------------------------------------------------------------------
-	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSporttypes WHERE Sporttype IN (1,2))
-	BEGIN
-		SELECT @strMatchIds = ''
-			   ,@remoteQuery = ''
-			   ,@strResourceIds = ''
-
-		SELECT @strMatchIds = @strMatchIds + CAST(tempM.MatchId AS VARCHAR(20)) + ','
-		FROM @TempMatch tempM
-		WHERE tempM.Sporttype IN (1,2)
-		
-		IF @strMatchIds <>''
-		BEGIN
-			SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
-			FROM (
-				SELECT DISTINCT f.ResourceID
-				FROM @TempMatch tempM
-					CROSS APPLY dbo.f_Set_MajorRound (tempM.sporttype) f
-			)f
-			SELECT @strMatchIds		= LEFT(@strMatchIds,LEN(@strMatchIds)-1)
-				   ,@strResourceIds = CASE WHEN @strResourceIds = '' THEN @strResourceIds ELSE LEFT(@strResourceIds, LEN(@strResourceIds) - 1) END 
-
-			SET @remoteQuery = 'SELECT	MatchId,ResourceId,HomeValue,AwayValue,ResultStatusID,SettlementStatusID
-								FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK) 
-								WHERE	r.MatchId IN ('+ @strMatchIds+ ')
-										' + CASE WHEN @strResourceIds <> '' THEN 
-										' AND r.ResourceId IN ('+ @strResourceIds +')' ELSE '' END
-
-			INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId)
-			EXECUTE sys.sp_executesql @remoteQuery
-		END
-	END
-	----------------------------------------------------------------------------------------
+	INSERT INTO @tmpMatchInQueue(MatchId, QueueStatus)
+	SELECT	ISNULL(s3.MatchID, mq.MatchID) AS MatchID
+			, ISNULL(s3.QueueStatus, mq.QueueStatus) AS QueueStatus
+	FROM cteSingle3rdQueue s3
+		FULL OUTER JOIN  cteSingleMainQueue mq 
+			ON	s3.matchid = mq.matchid
 	
 	--count ticket on table Bettrans
-	;WITH cteTicketCount AS(
-		SELECT	bt.matchid, bt.bettype
-				, COUNT (*) AS totalTicket
-				, SUM(CASE WHEN bt.statusID = 0 THEN 1 ELSE 0 END) totalTicketRunning
-		FROM	dbo.bettrans bt WITH (NOLOCK)
-		WHERE	EXISTS (SELECT TOP 1 1 FROM @TempMatch t WHERE t.matchid = bt.matchid)
-				AND bt.statusID NOT BETWEEN 101 AND 102
-				AND bt.bettype BETWEEN @MinBettype AND @MaxBettype
-		GROUP BY bt.matchid, bt.bettype
+	;WITH cteBettrans 
+	AS (
+		SELECT	bt.matchid
+				,COUNT (*) AS totalTicket
+		FROM	@tmpMatchInQueue q
+			INNER JOIN dbo.bettrans bt WITH (NOLOCK)
+				ON q.MatchId = bt.matchid
+		WHERE	bt.statusID NOT BETWEEN 101 AND 102
+				AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
+				AND bt.bettype = 38
+		GROUP BY bt.matchid
 	)
-	INSERT INTO @tblTicketStatusBySettleType (matchid, SettleType, totalTicket, totalTicketRunning)
-	SELECT  cte.matchid, bt.SettleType, SUM(totalTicket), SUM(totalTicketRunning)
-	FROM	@tblBettype bt
-		INNER JOIN cteTicketCount cte ON cte.bettype = bt.bettype
-	GROUP BY cte.matchid, bt.SettleType
-		
-	
-	
-	---------------------------------------RETURN DATA--------------------------------------
-	INSERT INTO @tblTicketStatus(MatchID, parlayStatus)
-	SELECT MatchID
-			,MAX (CASE WHEN totalTicket = 0 		THEN 'No Ticket'
-					  WHEN totalTicketRunning > 0 	THEN 'Running'
-					  ELSE 'Completed' END
-			     ) AS parlayStatus
-	FROM @tblTicketStatusBySettleType
-	GROUP BY MatchID
-   
-	
-	
 	SELECT	m.matchID
 			,m.SettlementStatus 
 			,m.betStatus
 			,m.eventStatus
 			,m.autoSetting
-			--,l.autoSetting AS autoSettingForLeague
-			,ISNULL(rs.parlayStatus,'No Ticket') AS parlayStatus
-			,tm.QueueStatus
+			,ISNULL(b.totalTicket,0) AS totalTickets
+			,q.QueueStatus
 			,m.sporttype
-	FROM	@TempMatch tm
-		INNER JOIN dbo.[match] m WITH (NOLOCK) ON m.matchid = tm.matchid
-		--INNER JOIN dbo.[League] l WITH (NOLOCK) ON m.leagueID = l.LeagueID
-		LEFT JOIN @tblTicketStatus rs ON m.matchid = rs.matchid
+	FROM	@tmpMatchInQueue q
+		INNER JOIN dbo.[match] m WITH (NOLOCK) 
+			ON m.matchid = q.matchid
+		INNER JOIN STRING_SPLIT(@SportTypes, ',') st
+			ON	m.SportType =st.value
+		INNER JOIN STRING_SPLIT(@LeagueIds, ',') l    
+			ON	m.LeagueID = l.value
+		LEFT JOIN cteBettrans b ON m.matchid = b.matchid
 
-	SELECT	MatchId
-			,ResourceId
-			,HomeValue
-			,AwayValue
-			,ResultStatusId
-			,SettlementStatusId	
-	FROM	@tmpResultDetail
-	
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 1000
 	BEGIN

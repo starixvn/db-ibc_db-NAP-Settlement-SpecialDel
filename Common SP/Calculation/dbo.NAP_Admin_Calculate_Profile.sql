@@ -21,6 +21,7 @@ AS
 		- 20210809@Kathy: Settle by custid [Redmine:159486]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 
 	Param's Explanation:  
@@ -39,9 +40,15 @@ BEGIN
 
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @AllowCalculation	BIT
-
+			,@AllowRefund BIT
+			,@Action VARCHAR(20)
+			
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
-
+	SET @Action = CASE 
+					WHEN @ActionID BETWEEN 100 AND 102 THEN 'CAL' 
+					WHEN @ActionID BETWEEN 109 AND 111 THEN 'REFUND'
+				END
+				
 	IF @ServerName <> @@SERVERNAME
 		RETURN
 
@@ -50,8 +57,12 @@ BEGIN
 		EXEC [dbo].[NAP_Set_ServerAction]
 			@ServerName			= @ServerName
 			,@AllowCalculation	= @AllowCalculation	OUTPUT
-
-		IF @AllowCalculation = 0
+			,@AllowRefund		= @AllowRefund OUTPUT
+			
+		IF @AllowCalculation = 0 AND @Action = 'CAL'
+			RETURN
+			
+		IF @AllowRefund = 0 AND @Action = 'REFUND' 
 			RETURN
 
 	END
@@ -70,10 +81,22 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@CheckNegativeBalance INT = 0
 			,@StepDone			VARCHAR(300) = 'Done update'
-			,@RepUpdateTime		DATETIME2
+			,@FcUpdateTime		DATETIME2
+			
+			,@transInfo		XML
+			,@IsSiteDB		BIT = 0
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
-	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT)
+	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT
+			,transId BIGINT
+			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcUpdateTime DATETIME2
+
+			,bef_winlost MONEY
+			,bef_statusid TINYINT
+	)
 
 	SET @xml = CAST(@transIds AS XML)
 
@@ -96,10 +119,13 @@ BEGIN
 		SET @OddsType = 0
 	END
 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+
 	SET @settlementTime = GETDATE()	
-	SET @RepUpdateTime = SYSDATETIME()
+	SET @FcUpdateTime = SYSDATETIME()
 		
-	IF @ServerAlias = 'DBTXN'
+	IF @ServerAlias = 'DBTXN' OR @IsSiteDB = 1
 	BEGIN
 		BEGIN TRY
 			UPDATE TOP(@batchno)  b
@@ -335,13 +361,32 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN b.ruben 
 							ELSE 1
 						END
-				,RepUpdateTime = CASE WHEN @statusId = 103 THEN @RepUpdateTime ELSE b.RepUpdateTime END
+				,FcUpdateTime = CASE WHEN @statusId = 103 THEN @FcUpdateTime ELSE b.FcUpdateTime END
 			OUTPUT	deleted.custid
 					,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 					,inserted.WalletType
 					,inserted.BonusID
 					,inserted.matchId
-			INTO @tmpBalanceChanged (CustId, Balance, WalletType, BonusId, MatchId)
+
+					,inserted.transid
+					,inserted.modds, inserted.odds, inserted.oddsspread, inserted.statuswinlost
+					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+					,inserted.Status,inserted.StatusID,inserted.ruben
+					,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
+
+					,deleted.winlost
+					,deleted.statusid		
+			INTO @tmpBalanceChanged (
+				CustId, Balance, WalletType, BonusId, MatchId
+				
+				,transId
+				,modds, odds, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
+
+				,bef_winlost, bef_statusid
+			)
 			FROM @tmpTransId t
 				INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 					ON  t.transid = b.transid 
@@ -352,6 +397,38 @@ BEGIN
 
 			SELECT TOP 1 @matchid = MatchId
 			FROM	@tmpBalanceChanged
+
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged )
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'
+							,odds AS '@o'
+							,oddsspread AS '@os' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,statuswinlost AS '@statuswl' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r' 
+							,FcUpdateTime AS '@rut' 
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					
+					FROM	@tmpBalanceChanged
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @matchid, @transInfo, @Action, 's')	
+			END
 
 			-- balance
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged WHERE WalletType = 1)
@@ -480,6 +557,7 @@ BEGIN
 			DELETE 
 			FROM	dbo.SettlementProcessing 
 			WHERE	id = @SettlementProcessingId
+					
 		END TRY
 		BEGIN CATCH
 			SET @ErrMessage = @StepDone + 'Error: ' + ERROR_MESSAGE()
@@ -487,7 +565,6 @@ BEGIN
 			UPDATE	dbo.SettlementProcessing
 				SET StatusId = 3 -- failed
 			WHERE	Id = @SettlementProcessingId
-
 		END CATCH
 
 		RETURN
@@ -727,7 +804,7 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN b.ruben 
 							ELSE 1
 						END
-				,RepUpdateTime = CASE WHEN @statusId = 103 THEN @RepUpdateTime ELSE b.RepUpdateTime END
+				,FcUpdateTime = CASE WHEN @statusId = 103 THEN @FcUpdateTime ELSE b.FcUpdateTime END
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 

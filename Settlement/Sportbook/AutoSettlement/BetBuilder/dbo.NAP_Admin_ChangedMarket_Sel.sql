@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_ChangedMarket_Sel]
 	@matchID						INT
 	,@VendorID						SMALLINT		= 34
 	,@action						VARCHAR(20)		= 'CAL'
-	,@Resources						VARCHAR(MAX)
+	,@SelectedSelection				VARCHAR(MAX)
 	,@ResultStatusID				TINYINT			= 5
 AS 
 /*
@@ -12,10 +12,11 @@ AS
 	DB: DBPRO/bodb02 
 
 	Revision
-		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]		
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
-			@Resources = '<Resources>
+			@SelectedSelection = '<Resources>
 								<Resource Id="200" Result="WON"/>
 								<Resource Id="201" Result="WON"/>
 								<Resource Id="202" Result="WON"/>
@@ -25,29 +26,31 @@ AS
 	Example:
 			EXEC [dbo].[NAP_Admin_ChangedMarket_Sel] @MatchId	= 1
 													,@action 	= 'CAL'
-													,@Resources = '<Resources><Resource Id="200" Result="WON"/></Resources>'
+													,@SelectedSelection = '<Resources><Resource Id="200" Result="WON"/></Resources>'
 													,@ResultStatusID = 5
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @xml XML, @ResultDefault VARCHAR(5) = 'Lose'
+	DECLARE @xml XML
+		, @ResultDefault VARCHAR(5) = 'Lose'
+
 	DECLARE @tblSelectionType TABLE (selectionType INT, result VARCHAR(20))
 	CREATE TABLE #tblMarketChecking (MarketID VARCHAR(20) PRIMARY KEY, result VARCHAR(20), ResultStatusID TINYINT)
 	CREATE TABLE #tblMarket (MarketID VARCHAR(20) PRIMARY KEY)
 	
 	----------------------------------------------------------------------------
-	SET @xml = CAST(@Resources AS XML)
+	SET @xml = CAST(@SelectedSelection AS XML)
 	
 	;WITH TmpData AS (
 		SELECT T.C.value('@Id', 'INT') AS selectionType
-			   ,T.C.value('@Result', 'VARCHAR(20)') AS result
+				,T.C.value('@Result', 'VARCHAR(20)') AS result
 		FROM @xml.nodes('/Resources/Resource') AS T(C)
 	)
 	INSERT INTO @tblSelectionType (selectionType, Result)
-	SELECT	tmpData.selectionType, tmpData.Result
-	FROM tmpData
-	
+	SELECT	TmpData.selectionType, TmpData.Result
+	FROM TmpData
+
 	INSERT INTO #tblMarket (MarketID)
 	SELECT DISTINCT ms.marketID 
 	FROM @tblSelectionType sl
@@ -116,6 +119,7 @@ BEGIN
 					 WHEN mc.ResultStatusID IN (3,5) THEN 1
 					 --WHEN mc.Result IS NOT NULL AND mk.ResultStatusID IN (0,1) THEN 1
 					 ELSE 0 END
+
 END
 GO
 

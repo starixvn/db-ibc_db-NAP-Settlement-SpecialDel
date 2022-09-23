@@ -35,6 +35,7 @@ AS
 						  - Exclude livescore for bettype moneyline [Redmine:#144297]
 		- 20210303@Kathy: Exclude LiveScores When Calculate HDP Bet Types [Redmine:#150198]
 		- 20210922@Louisa: Exclude LiveScores HDP for Ice Hockey and Rugby [Redmine:#159903]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
     SET NOCOUNT ON
@@ -43,8 +44,12 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
 			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
+			,@IsSiteDB			BIT = 0
 	
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
     IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
 
@@ -69,6 +74,15 @@ BEGIN
 		,@commBettypeGroupId SMALLINT
 		,@statusId TINYINT
 		,@IsUpd_Void BIT = 0
+		,@transInfo	XML
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+		)
 		
 	CREATE TABLE #tempCust(custid INT PRIMARY KEY, sRecommend int, isCN88 bit)
 
@@ -80,6 +94,7 @@ BEGIN
 		WHERE	b.matchid = @matchid
 				AND b.bettype = @bettype
 				AND b.statusID IN (0,102)
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		GROUP BY b.custid, b.srecommend
 	END
 	ELSE
@@ -89,6 +104,7 @@ BEGIN
 		FROM	dbo.bettrans WITH(NOLOCK) 
 		WHERE	matchid = @matchid 
 				AND bettype = @bettype
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		GROUP BY custid, srecommend
 	END
 
@@ -108,6 +124,7 @@ BEGIN
 
 	WHILE 1 = 1
 	BEGIN
+		DELETE FROM @tmpTransInfo
 		DELETE FROM #currList
 
 		DELETE TOP (1000)
@@ -377,7 +394,19 @@ BEGIN
 						WHEN @IsUpd_Void = 0 THEN ruben 
 						ELSE 1
 					END
-						
+		OUTPUT	inserted.transid
+			,inserted.modds, inserted.statuswinlost
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+			,inserted.Status,inserted.StatusID,inserted.ruben
+			, deleted.winlost ,deleted.statusid		
+		INTO @tmpTransInfo (
+			transId
+			,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID
+			,ruben,bef_winlost ,bef_statusid
+		)			
 		FROM	#currList t
 			INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) 
 				ON	t.custid = b.custid
@@ -395,8 +424,38 @@ BEGIN
 						 WHEN @IsReSettledTickets = 1 THEN 1
 						 ELSE 0
 					END
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 					
 		OPTION (FORCE ORDER)
+
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			SET @transInfo = (
+				SELECT	transId AS '@t'
+						,modds AS '@m'				
+						,statuswinlost AS '@statuswl' 
+						,SettlementTime AS '@st' 
+						,WinLost AS '@w' 
+						,aWinLost AS '@aw' 
+						,mWinLost AS '@mw' 
+						,sWinLost AS '@sw' 
+						,PlayerComm AS '@pc' 
+						,Comm AS '@c' 
+						,aComm AS '@ac' 
+						,sComm AS '@sc' 
+						,Status AS '@s' 
+						,StatusID AS '@sid' 
+						,ruben AS '@r'	
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
+				FROM	@tmpTransInfo
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
+			
+		END	
 
 		WAITFOR DELAY '00:00:00:010'
 	END

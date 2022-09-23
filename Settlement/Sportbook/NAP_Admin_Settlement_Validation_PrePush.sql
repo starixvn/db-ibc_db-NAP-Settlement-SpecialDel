@@ -28,6 +28,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220512@Louisa: Change message content [Redmine:#171676]
 		- 20220629@Louisa: Volleyball AIO - use dbo.ddsOS instead of dbo.Odds [Redmineid:#173862]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
      
     Param's Explanation:
 
@@ -67,7 +68,6 @@ BEGIN
     SET NOCOUNT ON
 
     DECLARE	@sporttype SMALLINT
-		, @queryMatch NVARCHAR(MAX) = ''
 		, @XmlData XML
 		, @oddsTable TINYINT = 0
 		, @ChildMatchList	VARCHAR(200) = ''
@@ -118,18 +118,12 @@ BEGIN
 
 
 	----------------- Checking running Odds
-	SET	@queryMatch = N'INSERT INTO #Bettypes ( Bettype , BetID )
-						SELECT   BetType
-								, BetID
-						FROM	OPENQUERY(DBTXN, '' SELECT  sp.BetType , sp.BetID
-										FROM bodb02.dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-										INNER JOIN (SELECT value FROM STRING_SPLIT(''''' + @SelectedResource + ''''' , '''','''')) tm
-															ON sp.ResourceID = tm.value OR sp.RefResourceID = tm.value
-										WHERE sp.sporttype ='   + CAST( @sporttype AS VARCHAR(4) ) + '									
-										'')'
-
-	EXECUTE	sys.sp_executesql @queryMatch
-
+	INSERT INTO #Bettypes ( Bettype , BetID )
+	SELECT   BetType, BetID
+	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+		INNER JOIN (SELECT f.value FROM STRING_SPLIT(@SelectedResource , ',') f ) tm
+			ON sp.ResourceID = tm.value OR sp.RefResourceID = tm.value
+	WHERE sp.sporttype = @sporttype								
 
 	IF @CheckType = 0
 	BEGIN

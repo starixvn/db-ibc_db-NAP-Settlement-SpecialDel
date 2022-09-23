@@ -3,7 +3,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_SMPMarketSelection_Update]
 	@matchID						INT
 	,@action						VARCHAR(20)			= 'CAL'
 	,@resultStatusId				TINYINT				= 5
-	,@Resources						VARCHAR(MAX)
+	,@SelectedMarket				VARCHAR(MAX)		= NULL
+	,@SelectedSelection				VARCHAR(MAX)		= NULL
 AS 
 /*
 	Created by:20190104@Vicky
@@ -12,17 +13,29 @@ AS
 
 	Revision
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
-			@Resources = '<Resources>
-								<Resource msl="200" rs="WON"/>
-								<Resource msl="201" rs="LOSE"/>
-						   </Resources>'
+			@SelectedSelection = '<Resources>
+								<Resource Id="200" Result="WON"/>
+								<Resource Id="201" Result="WON"/>
+								<Resource Id="202" Result="WON"/>
+								<Resource Id="203" Result="REFUND"/>
+								<Resource Id="204" Result="LOSE"/>
+						   </Resources>
+			@SelectedMarket: <Resources>
+				            <rsc m="1"/>
+				            <rsc m="2"/>
+				            <rsc m="3"/>
+				            <rsc m="4"/>
+				            <rsc m="5"/>
+				         </Resources>
+
 	Example:
 			EXEC [dbo].[NAP_Admin_SMPMarketSelection_Update] @MatchId	= 1
 												  ,@action = 'CAL'
 												  ,@resultStatusId = 2
-												  ,@Resources = '<Resources><Resource msl="200" rs="WON"/><Resource msl="201" rs="LOSE"/></Resources>'
+												  ,@SelectedSelection = '<Resources><Resource Id="200" Result="WON"/><Resource Id="201" Result="LOSE"/></Resources>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -31,16 +44,37 @@ BEGIN
 	CREATE TABLE #tblData (marketSelectionID BIGINT, Result VARCHAR(20), PRIMARY KEY CLUSTERED(marketSelectionID) )
 	----------------------------------------------------------------------------
 	
-	SET @xml = CAST(@Resources AS XML)
-	;WITH cteData AS (
-		SELECT T.C.value('@msl', 'BIGINT') AS marketSelectionId
-			   ,T.C.value('@rs', 'VARCHAR(20)') AS result
-		FROM @xml.nodes('/Resources/Resource') AS T(C)
-	)
-	INSERT INTO #tblData(marketSelectionID, result)
-	SELECT marketSelectionId, result
-	FROM cteData
-	
+	IF ISNULL(@SelectedSelection,'') <> '' 
+	BEGIN
+		SET @xml = CAST(@SelectedSelection AS XML)
+		
+		;WITH cteData AS (
+			SELECT T.C.value('@Id', 'BIGINT') AS SelectionType
+				   ,T.C.value('@Result', 'VARCHAR(20)') AS result
+			FROM @xml.nodes('/Resources/Resource') AS T(C)
+		)
+		INSERT INTO #tblData(marketSelectionID, result)
+		SELECT ms.marketSelectionId, c.result
+		FROM cteData c
+			INNER JOIN dbo.SMP_MarketSelection ms WITH(NOLOCK)
+				ON ms.SelectionType = c.SelectionType
+		WHERE	ms.MatchId = @matchID
+	END
+	ELSE IF ISNULL(@SelectedMarket,'') <> '' 
+	BEGIN
+		SET @xml = CAST(@SelectedMarket AS XML)
+
+		;WITH cteData AS (
+			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketId
+			FROM @xml.nodes('/Resources/rsc') AS T(C)
+		)
+		INSERT INTO #tblData (marketSelectionID)
+		SELECT	ml.marketSelectionID
+		FROM	dbo.SMP_MarketSelection ml WITH (NOLOCK)
+		WHERE	EXISTS (SELECT MarketID FROM cteData c WHERE ml.MarketID = c.MarketID)
+				AND ml.MatchID = @MatchID
+	END
+
 	UPDATE ms 
 	SET resultStatusId = ISNULL(@ResultStatusId, ResultStatusId)
 		,result = CASE WHEN @action LIKE 'UNDO%' THEN NULL

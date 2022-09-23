@@ -25,6 +25,7 @@ AS
 		- 20181212@Alan: Integrate Betradar VS phase 3 [106158]
 		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984] 
 		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048]  
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
 		• @Mode:
@@ -351,6 +352,8 @@ BEGIN
 				@IgnoreList 	= @IgnoreList
 				, @updatetype 	= 5
 				, @_sXML 		= @_sXML
+				, @Action		= 'CAL'
+				, @MatchId		= @MatchId
 									
 		END
 	END TRY

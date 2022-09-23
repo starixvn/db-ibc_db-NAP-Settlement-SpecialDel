@@ -14,6 +14,7 @@ AS
 		- 20210218@Kathy: Move Tickets of Settled Results Functions [Redmine:#148870]
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		@matchid: child matchid
@@ -24,10 +25,21 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+
 	DECLARE @xml XML
+			,@transInfo	XML
+			,@IsSiteDB	BIT = 0
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 
 	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY, StatusId TINYINT, MainTransId BIGINT, oddsid INT)
-	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+		,winlostdate SMALLDATETIME
+		,matchid INT
+		,oddsid INT
+	)
+
 	SET @xml = CAST(@strTransIds AS XML)
 
 	IF @Mode IN ('Single', 'subParlay' ) -- move ticket for Cricket Test match
@@ -42,28 +54,82 @@ BEGIN
 		IF @Mode = 'Single'
 		BEGIN
 			-- bettrans
+			DELETE @tmpTransInfo
+
 			UPDATE	b WITH(ROWLOCK, UPDLOCK)
 				SET matchid = @MatchId
 					,winlostdate = CASE WHEN @EventDate IS NOT NULL AND winlostdate <> @EventDate THEN @EventDate ELSE winlostdate END
+				OUTPUT	inserted.transid
+					,inserted.matchid
+					,inserted.winlostdate
+				INTO @tmpTransInfo (
+					transId
+					,matchid
+					,winlostdate
+				)
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b
 					ON	t.TransID = b.transid
 
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,matchid AS '@mid'
+							,winlostdate AS '@wld'
+					
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'MoveTicket', 'bettrans', @MatchId, @transInfo)	
+				
+			END
+
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
 			BEGIN
 				IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
+				BEGIN
+					DELETE @tmpTransInfo
+					
 					UPDATE	zb WITH(ROWLOCK, UPDLOCK)
 						SET matchid = @MatchId
+						OUTPUT	inserted.transid
+							,inserted.matchid
+						INTO @tmpTransInfo (
+							transId
+							,matchid
+						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.zzzbettrans zb
 							ON	t.TransID = zb.transId
 					WHERE	t.StatusId = 102
+
+					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+					BEGIN
+						SET @transInfo = (
+							SELECT	transId AS '@t'
+									,matchid AS '@mid'
+									,winlostdate AS '@wld'
+					
+							FROM	@tmpTransInfo
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						VALUES ('Settlement', 'MoveTicket', 'zzzbettrans', @MatchId, @transInfo)	
+					
+					END
+				END
 			END
 		END
 
 		ELSE IF @Mode = 'subParlay'
 		BEGIN
 			-- bettransM
+			DELETE @tmpTransInfo
+
 			UPDATE	bm WITH(UPDLOCK, ROWLOCK)
 				SET matchid = @MatchId
 					,winlostdate = CASE 
@@ -71,46 +137,167 @@ BEGIN
 										WHEN @EventDate IS NOT NULL AND winlostdate <> @EventDate THEN @EventDate 
 										ELSE winlostdate 
 									END
+				OUTPUT	inserted.transid
+					,inserted.matchid
+					,inserted.winlostdate
+				INTO @tmpTransInfo (
+					transId
+					,matchid
+					,winlostdate
+				)
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettransm bm 
 					ON	bm.transid = t.transid
+			
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,matchid AS '@mid'
+							,winlostdate AS '@wld'
+					
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+				VALUES ('Settlement', 'MoveTicket', 'bettransm', @MatchId, @transInfo)	
+						
+			END
 
 			-- BetParlayDetail
 			IF OBJECT_ID('BetParlayDetail','U') IS NOT NULL 
+			BEGIN
+				DELETE @tmpTransInfo
+
 				UPDATE	d  WITH(ROWLOCK, UPDLOCK)
 					SET matchid = @MatchId
+					OUTPUT	inserted.transid
+						,inserted.matchid
+					INTO @tmpTransInfo (
+						transId
+						,matchid
+					)
 				FROM	@tmpTrans t
 					INNER JOIN dbo.BetParlayDetail d
 						ON	d.transid = t.TransId
 
+				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
+				BEGIN
+					SET @transInfo = (
+						SELECT	transId AS '@t'
+								,matchid AS '@mid'
+								
+						FROM	@tmpTransInfo
+						FOR XML PATH('r'),ROOT('root'), TYPE
+					)
+
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+					VALUES ('Settlement', 'MoveTicket', 'BetParlayDetail', @MatchId, @transInfo)	
+						
+				END
+			END
+
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE StatusId = 102)
 			BEGIN
 				IF OBJECT_ID('zzzbettrans','U') IS NOT NULL 
+				BEGIN
+					DELETE @tmpTransInfo
+
 					UPDATE	zb WITH(ROWLOCK, UPDLOCK)
 						SET matchid = @MatchId
+						OUTPUT	inserted.transid
+							,inserted.matchid
+						INTO @tmpTransInfo (
+							transId
+							,matchid
+						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.zzzbettrans zb
 							ON	t.TransID = zb.transId
 					WHERE	t.StatusId = 102
 
+					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+					BEGIN
+						SET @transInfo = (
+							SELECT	transId AS '@t'
+									,matchid AS '@mid'
+								
+							FROM	@tmpTransInfo
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						VALUES ('Settlement', 'MoveTicket', 'zzzbettrans', @MatchId, @transInfo)	
+						
+					END
+				END
+
 				IF OBJECT_ID('zzzbettransm','U') IS NOT NULL 
+				BEGIN
+					DELETE @tmpTransInfo
+
 					UPDATE zbm WITH(ROWLOCK, UPDLOCK)
 						SET matchid = @MatchId
+						OUTPUT	inserted.transid
+							,inserted.matchid
+						INTO @tmpTransInfo (
+							transId
+							,matchid
+						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.zzzbettransm zbm
 							ON	t.TransID = zbm.transId
 					WHERE	t.StatusId = 102
 
-				IF OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
+					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
+					BEGIN
+						SET @transInfo = (
+							SELECT	transId AS '@t'
+									,matchid AS '@mid'
+								
+							FROM	@tmpTransInfo
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						VALUES ('Settlement', 'MoveTicket', 'zzzbettransm', @MatchId, @transInfo)	
+							
+					END
+				END
+
+				--sitedb not exists table TicketVoiding_VoidedTransaction'
+				IF @IsSiteDB = 1
+					BEGIN
+						SET @transInfo = (
+							SELECT	MainTransId AS '@t'
+									,@MatchId AS '@mid'							
+							FROM	@tmpTrans
+							WHERE	StatusId = 102
+							FOR XML PATH('r'),ROOT('root'), TYPE
+						)
+						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+						VALUES ('Settlement', 'MoveTicket', 'TicketVoiding_VoidedTransaction', @MatchId, @transInfo)		
+								
+					END
+
+				IF @IsSiteDB = 0 AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
 				BEGIN
+					DELETE @tmpTransInfo
+
 					UPDATE	vt WITH(ROWLOCK, UPDLOCK)
 						SET matchid = @MatchId
+						OUTPUT	inserted.transid
+							,inserted.matchid
+						INTO @tmpTransInfo (
+							transId
+							,matchid
+						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
-							ON	t.MainTransId = vt.transId
-					WHERE	t.StatusId = 102
-
+							ON	t.MainTransId = vt.transId			
 				END
+
 			END
 		END
 	END
@@ -124,11 +311,34 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
 
 		UPDATE	b WITH(ROWLOCK, UPDLOCK)
-				SET matchid = @MatchId
-					,oddsid = t.oddsid
-			FROM	@tmpTrans t
-				INNER JOIN dbo.bettrans b
-					ON	t.TransID = b.transid
+			SET matchid = @MatchId
+				,oddsid = t.oddsid
+			OUTPUT	inserted.transid
+				,inserted.matchid
+				,inserted.oddsid
+			INTO @tmpTransInfo (
+				transId
+				,matchid
+				,oddsid
+			)
+		FROM	@tmpTrans t
+			INNER JOIN dbo.bettrans b
+				ON	t.TransID = b.transid
+
+		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
+		BEGIN		
+			SET @transInfo = (
+				SELECT	transId AS '@t'
+						,matchid AS '@mid'
+						,oddsid AS '@oid'
+									
+				FROM	@tmpTransInfo
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
+			VALUES ('Settlement', 'MoveOdds', 'bettrans', @MatchId, @transInfo)							
+		END
 	END
 	
 END

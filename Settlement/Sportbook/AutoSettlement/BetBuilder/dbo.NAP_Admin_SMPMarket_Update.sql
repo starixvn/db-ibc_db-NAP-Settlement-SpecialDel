@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_SMPMarket_Update]
 	,@VendorID						SMALLINT			= 34
 	,@action						VARCHAR(20)			= 'CAL'
 	,@resultStatusId				TINYINT				= NULL
-	,@Resources						VARCHAR(MAX)
+	,@SelectedMarket				VARCHAR(MAX)
 	,@mode							VARCHAR(50)			= ''
 AS 
 /*
@@ -14,17 +14,21 @@ AS
 
 	Revision
 		- 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
-			@Resources = '<Resources>
-								<Resource m="200"/>
-								<Resource m="201"/>
-						   </Resources>'
+			@SelectedMarket = '<Resources>
+				            <rsc m="1"/>
+				            <rsc m="2"/>
+				            <rsc m="3"/>
+				            <rsc m="4"/>
+				            <rsc m="5"/>
+				         </Resources>'
 	Example:
 			EXEC [dbo].[NAP_Admin_SMPMarket_Update] @MatchId	= 1
 												  ,@action = 'CAL'
 												  ,@resultStatusId = 2
-												  ,@Resources = '<Resources><Resource m="200"/></Resources>'
+												  ,@SelectedMarket = '<Resources><Resource m="200"/></Resources>'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -32,13 +36,13 @@ BEGIN
 	DECLARE @xml XML, @ResultDefault VARCHAR(5) = 'Lose'
 	CREATE TABLE #tblData (marketID VARCHAR(20), result VARCHAR(20), ResultStatusID TINYINT, PRIMARY KEY CLUSTERED(marketID) )
 	----------------------------------------------------------------------------
-	
+	SET @xml = CAST(@SelectedMarket AS XML)
+
 	IF @mode = 'ResultStatusID'
-	BEGIN
-		SET @xml = CAST(@Resources AS XML)
+	BEGIN		
 		;WITH cteData AS (
 			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketID
-			FROM @xml.nodes('/Resources/Resource') AS T(C)
+			FROM @xml.nodes('/Resources/rsc') AS T(C)
 		)
 		INSERT INTO #tblData(marketID)
 		SELECT marketID
@@ -56,10 +60,9 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @xml = CAST(@Resources AS XML)
 		;WITH cteData AS (
 			SELECT T.C.value('@m', 'VARCHAR(20)') AS marketID
-			FROM @xml.nodes('/Resources/Resource') AS T(C)
+			FROM @xml.nodes('/Resources/rsc') AS T(C)
 		)	
 		INSERT INTO #tblData (marketID, Result, ResultStatusID)
 		SELECT marketID

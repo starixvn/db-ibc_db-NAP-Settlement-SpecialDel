@@ -17,6 +17,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Void - Recover tickets in Bet 14 [Redmine:115377]
 		- 20200417@Sol: Ticket Exclusion for Other Sports - Phase 4: Remaining Sports of Other Sports [Redmine:#131765]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Parameter's Explanation:
 								
@@ -27,8 +28,12 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@IsSiteDB			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -39,6 +44,9 @@ BEGIN
 		IF @AllowCalculation = 0
 			RETURN
 	END
+	
+	IF @betcount = 0
+	RETURN
 	-- END CHECK
 		
 	DECLARE @modds			MONEY
@@ -46,9 +54,16 @@ BEGIN
 			,@statusId TINYINT
 			,@winlost MONEY
 			,@IsUpd_Void BIT = 0
+			,@transInfo	XML
 	
-	IF @betcount = 0
-		RETURN
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+		)	
+		
 	DECLARE @settlementTime DATETIME
 	SET @settlementTime = GETDATE();
 
@@ -172,6 +187,19 @@ BEGIN
 						WHEN @IsUpd_Void = 0 THEN ruben 
 						ELSE 1
 					END
+	OUTPUT	inserted.transid
+			,inserted.modds, inserted.statuswinlost
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+			,inserted.Status,inserted.StatusID,inserted.ruben
+			,deleted.winlost ,deleted.statusid		
+		INTO @tmpTransInfo (
+			transId
+			,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID
+			,ruben,bef_winlost ,bef_statusid 
+		)
 	FROM dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 		OUTER APPLY (
 				SELECT TOP (1) mt.TransId
@@ -186,6 +214,37 @@ BEGIN
 						 WHEN @IsReSettledTickets = 1 THEN 1
 						 ELSE 0
 					END
+		AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+ 	
+
+	IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+	BEGIN
+		SET @transInfo = (
+			SELECT	transId AS '@t'
+					,modds AS '@m'				
+					,statuswinlost AS '@statuswl' 
+					,SettlementTime AS '@st' 
+					,WinLost AS '@w' 
+					,aWinLost AS '@aw' 
+					,mWinLost AS '@mw' 
+					,sWinLost AS '@sw' 
+					,PlayerComm AS '@pc' 
+					,Comm AS '@c' 
+					,aComm AS '@ac' 
+					,sComm AS '@sc' 
+					,Status AS '@s' 
+					,StatusID AS '@sid' 
+					,ruben AS '@r'	
+					,bef_winlost AS '@bef_w' 
+					,bef_statusid AS '@bef_sid' 
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+		VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')		
+	END	
+
 END
 
 

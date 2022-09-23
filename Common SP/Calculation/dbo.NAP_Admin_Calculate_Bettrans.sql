@@ -1,8 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans] 
 	@BetTickets			TVP_Settlement_BetTicket READONLY
+	,@Action			VARCHAR(20)		= NULL
 	,@CWLBettype		SMALLINT 		= 0
 	,@BalanceUpd		VARCHAR(MAX)	= NULL 	OUTPUT
+	,@matchid			INT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -13,6 +15,7 @@ AS
 	Revisions:
 		- 20160606@Bobby: Initialize
 		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:
 		
@@ -86,7 +89,7 @@ BEGIN
 									) 
 								)
 								
-		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket
+		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = 'p'
 			
 	END TRY
 	BEGIN CATCH

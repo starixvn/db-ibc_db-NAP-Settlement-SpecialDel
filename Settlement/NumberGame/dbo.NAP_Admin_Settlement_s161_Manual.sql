@@ -17,47 +17,38 @@ AS
 	Revisions: 
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
-	
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:
 		
 */
 BEGIN	
-	DECLARE @procName		SYSNAME
-			,@WaitingTime	VARCHAR(10)
-			,@IsWaiting		BIT 
+	DECLARE @IsCentral			BIT  = 0
+			 ,@avaiableProcess	BIT
 
-	SELECT @procName = OBJECT_NAME(@@procid)
-			,@IsWaiting = 0
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
-	IF @IsWaiting = 1
+	-- check and not allow attempt to settlement same game while it's still not finish
+	INSERT INTO #tblMatchProcess(matchid, KeyID)
+	SELECT	@matchid AS matchid
+			,1 AS KeyId
+		
+	--check settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		@isExistNG			= 1
+		,@avaiableProcess 	= @avaiableProcess OUTPUT
+		,@ErrCode			= @ErrCode OUTPUT
+		,@ErrMsg			= @ErrMsg OUTPUT
+
+	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN
-		WAITFOR DELAY @WaitingTime -- NAP_Admin_Settlement_s161_Manual
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
+		SELECT  @ErrCode 
+				,@ErrMsg  
 
-		RETURN
-	END
-
-	IF EXISTS(SELECT 1 FROM SystemSettings WITH (NOLOCK) WHERE VValue = 1 AND VName = 'isCalculatingNGManual')
-	BEGIN
-		SELECT @ErrCode = 102
-		SELECT @ErrMsg = 'Another number game re-calculation is in progress, please wait a few seconds until the ongoing process has finished and try again.'
-		RETURN
-	END
-	ELSE 
-	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '1'
-		WHERE	VName = 'isCalculatingNGManual'
+        RETURN
 	END
 
 	-- get data from xml
@@ -84,35 +75,20 @@ BEGIN
 
 	-- step 1: refund all
 	EXEC dbo.NAP_Admin_settlement_s161
-	@MatchId = @MatchId,
-	@IsLive = 0,
-	@Action = 'Refund',
-	@IP = @IP,
-	@AdminID = @AdminID,
-	@ErrCode = @ErrCode OUTPUT,
-	@ErrMsg = @ErrMsg OUTPUT
-	
-	IF @ErrCode <> 0
-	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
-		
-		RETURN
-	END
-	
-	-- step 2: update ball result
-	EXEC DBPRO.BODB02.dbo.NAP_UpdateNumberGameBalls 
 		@MatchId = @MatchId,
-		@BallResults = @BallResults,
+		@IsLive = 0,
+		@Action = 'Refund',
+		@IP = @IP,
+		@IsLoopTempTable = 1,
+		@AdminID = @AdminID,
 		@ErrCode = @ErrCode OUTPUT,
 		@ErrMsg = @ErrMsg OUTPUT
-	
+
 	IF @ErrCode <> 0
 	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 		
 		RETURN
 	END
@@ -120,29 +96,30 @@ BEGIN
 	-- step 3: FIRST ball case
 	IF @FirstBall is NULL 
 	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 		
 		RETURN
 	END
 
 	-- calculate first ball (live) [ and HT (dead) ]
 	EXEC dbo.NAP_Admin_settlement_s161
-	@MatchId = @MatchId,
-	@IsLive = 1,
-	@DrawSeq = 1,
-	@Action = 'CAL',
-	@IP = @IP,
-	@AdminID = @AdminID,
-	@ErrCode = @ErrCode OUTPUT,
-	@ErrMsg = @ErrMsg OUTPUT
+		@MatchId = @MatchId,
+		@IsLive = 1,
+		@DrawSeq = 1,
+		@Action = 'CAL',
+		@IP = @IP,
+		@IsLoopTempTable = 1,
+		@AdminID = @AdminID,
+		@ErrCode = @ErrCode OUTPUT,
+		@ErrMsg = @ErrMsg OUTPUT
 	
 	IF @ErrCode <> 0 
 	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 		
 		RETURN
 	END
@@ -155,13 +132,14 @@ BEGIN
 			@IsLive = 0,
 			@Action = 'Refund-FT',
 			@IP = @IP,
+			@IsLoopTempTable = 1,
 			@AdminID = @AdminID,			
 			@ErrCode = @ErrCode OUTPUT,
 			@ErrMsg = @ErrMsg OUTPUT
 			
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 		
 		RETURN
 		
@@ -173,15 +151,16 @@ BEGIN
 		@DrawSeq = 2,
 		@Action = 'CAL',
 		@IP = @IP,
+		@IsLoopTempTable = 1,
 		@AdminID = @AdminID,		
 		@ErrCode = @ErrCode OUTPUT,
 		@ErrMsg = @ErrMsg OUTPUT
 	
 	IF @ErrCode <> 0 
 	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 		
 		RETURN
 	END
@@ -194,13 +173,14 @@ BEGIN
 			@IsLive = 0,
 			@Action = 'Refund-FT',
 			@IP = @IP,
+			@IsLoopTempTable = 1,
 			@AdminID = @AdminID,			
 			@ErrCode = @ErrCode OUTPUT,
 			@ErrMsg = @ErrMsg OUTPUT
 	
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 		
 		RETURN
 	END
@@ -212,15 +192,16 @@ BEGIN
 		@DrawSeq = 3,
 		@Action = 'CAL',
 		@IP = @IP,
+		@IsLoopTempTable = 1,
 		@AdminID = @AdminID,
 		@ErrCode = @ErrCode OUTPUT,
 		@ErrMsg = @ErrMsg OUTPUT
 	
 	IF @ErrCode <> 0 
 	BEGIN
-		UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-		SET		VValue = '0'
-		WHERE	VName = 'isCalculatingNGManual'
+		EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
 		
 		RETURN
 	END
@@ -231,13 +212,14 @@ BEGIN
 		@IsLive = 0,	
 		@Action = 'CAL',
 		@IP = @IP,
+		@IsLoopTempTable = 1,
 		@AdminID = @AdminID,
 		@ErrCode = @ErrCode OUTPUT,
 		@ErrMsg = @ErrMsg OUTPUT
 		
-
-	UPDATE	systemSettings WITH (ROWLOCK, UPDLOCK)
-	SET		VValue = '0'
-	WHERE	VName = 'isCalculatingNGManual'
+	EXEC dbo.NAP_Admin_CheckingProcess
+			@isExistNG		= 1
+			,@IsReleased	= 1
+		
 END
 GO

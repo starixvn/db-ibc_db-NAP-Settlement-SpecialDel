@@ -19,13 +19,12 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
     ,@GoalSequence          VARCHAR(50) = NULL
     ,@resultDetail_bb VARCHAR(MAX) = NULL -- for basketball
     ,@resultDetail VARCHAR(MAX) = NULL -- for all result
-    ,@SelectedQuarter VARCHAR(MAX) = NULL
     ,@strBettypes   VARCHAR(MAX) = NULL
     ,@strTransIds   VARCHAR(MAX) = NULL
     ,@betstatus     NVARCHAR(50) = NULL
-	,@Sporttype SMALLINT = NULL
+	,@Sporttype		SMALLINT = NULL
     ,@CalledByBrokerService BIT = 0
-	,@RunOnServer VARCHAR(100) = NULL
+	,@RunOnServer	VARCHAR(100) = NULL
 AS
 /*
     Created: Kathy
@@ -60,6 +59,7 @@ AS
 		- 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
     Param's Explanation:
         @action         @mode
@@ -88,7 +88,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 		
-    IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0
+	IF (@@SERVERNAME IN ('DB052', 'DB053', 'DBTP','DB061', 'DB062') OR @IsEnableServiceBroker = 1) AND @CalledByBrokerService = 0 
     BEGIN
         -- DB052/DB053/DB054/DB06: got servicebroker, then just send a message to service broker and then let it to handle the rest.
         DECLARE @sMessage NVARCHAR(MAX)
@@ -113,20 +113,19 @@ BEGIN
                 + CASE WHEN @TennisTotal IS NULL THEN '' ELSE ',@TennisTotal = ' + CONVERT(NVARCHAR(50), @TennisTotal) END
                 + CASE WHEN @GoalSequence IS NULL THEN '' ELSE ',@GoalSequence = ''' + @GoalSequence + '''' END
                 + CASE WHEN @resultDetail_bb IS NULL THEN '' ELSE ',@resultDetail_bb = ''' + @resultDetail_bb + '''' END
-                + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END
-                + CASE WHEN @SelectedQuarter IS NULL THEN '' ELSE ',@SelectedQuarter = ''' + @SelectedQuarter + '''' END
+                + CASE WHEN @resultDetail IS NULL THEN '' ELSE ',@resultDetail = ''' + @resultDetail + '''' END              
                 + CASE WHEN @strBettypes IS NULL THEN '' ELSE ',@strBettypes = ''' + @strBettypes + '''' END
                 + CASE WHEN @strTransIds IS NULL THEN '' ELSE ',@strTransIds = ''' + @strTransIds + '''' END
                 + CASE WHEN @betstatus IS NULL THEN '' ELSE ',@betstatus = ''' + @betstatus + '''' END
 				+ CASE WHEN @sporttype IS NULL THEN '' ELSE ',@sporttype = ' + CONVERT(NVARCHAR(50), @sporttype) END
 				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
                 + ',@CalledByBrokerService = 1'
-
-        EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
-            ,@toService = N'//Service/Calculation_receive'
-            ,@onContract = N'//Contract/Calculation'
-            ,@messageType = N'//Message/Calculation'
-            ,@messageBody = @sMessage
+		
+		EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
+			,@toService = N'//Service/Calculation_receive'
+			,@onContract = N'//Contract/Calculation'
+			,@messageType = N'//Message/Calculation'
+			,@messageBody = @sMessage
 
         RETURN
     END
@@ -141,8 +140,7 @@ BEGIN
             @hta = @hta,
             @matchdate = @matchdate,
             @action = 'CAL',
-            @priorAction = 'REFUND',
-            @selectedQuarter = @SelectedQuarter,
+            @priorAction = 'REFUND',           
             @resultDetail_bb = @resultDetail_bb,
             @strBettypes = @strBettypes
     END
@@ -162,8 +160,7 @@ BEGIN
             , @GoalSequence = @GoalSequence
             , @resultDetail = @resultDetail
             , @strBettypes = @strBettypes
-            , @betstatus = @betstatus
-            , @SelectedQuarter = @SelectedQuarter
+            , @betstatus = @betstatus          
 			, @Sporttype = @Sporttype
     END
 

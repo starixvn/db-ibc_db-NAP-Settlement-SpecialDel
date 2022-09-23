@@ -16,7 +16,7 @@ AS
 		- 20181129@Kathy: Do not settle ticket on DB04x [Redmine:#105327]
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
-
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -24,8 +24,12 @@ BEGIN
 	-- CHECK SERVER BEFORE REFUND
 	DECLARE @ServerName		SYSNAME 
 			,@AllowRefund	BIT
+			,@IsSiteDB		BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -38,14 +42,26 @@ BEGIN
 	END
 	-- END CHECK
 	DECLARE @settlementTime DATETIME
-			,@RepUpdateTime	DATETIME2
-
+			,@FcUpdateTime	DATETIME2
+			,@rowcnt		SMALLINT
+			,@transInfo		XML
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+			,FcUpdateTime DATETIME2
+		)
+		
 	BEGIN
 		WHILE 1=1
 		BEGIN
-			
+			DELETE FROM @tmpTransInfo
+
 			SET @settlementTime = GETDATE();
-			SET @RepUpdateTime = SYSDATETIME()
+			SET @FcUpdateTime = SYSDATETIME()
 
 			UPDATE TOP (10000) dbo.bettrans with (ROWLOCK, UPDLOCK)
 			SET
@@ -61,7 +77,23 @@ BEGIN
 				comm=0,
 				acomm=0,
 				scomm=0,
-				RepUpdateTime = CASE WHEN statusId = 103 THEN RepUpdateTime ELSE @RepUpdateTime END
+				FcUpdateTime = CASE WHEN statusId = 103 THEN FcUpdateTime ELSE @FcUpdateTime END
+			OUTPUT	inserted.transid
+				,inserted.Status
+				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+				,inserted.StatusID,inserted.ruben		
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm,deleted.winlost ,deleted.statusid
+				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
+			INTO @tmpTransInfo (
+				transId
+				,Status
+				,SettlementTime
+				,StatusID,ruben
+				,WinLost,aWinLost,mWinLost,sWinLost
+				,PlayerComm,Comm,aComm,sComm,bef_winlost ,bef_statusid 
+				,FcUpdateTime
+			)
 			where
 				matchid=@matchid
 				--AND [status] not in (N'Void', N'Reject')
@@ -76,8 +108,39 @@ BEGIN
 				and( custid IN (50057, 879241, 103873, 78761, 851668, 878902) 
 					OR  recommend IN (1688156)
 				)
-	
-			IF @@ROWCOUNT < 10000 BREAK
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+			
+			SET @rowcnt = @@ROWCOUNT
+
+			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+							,FcUpdateTime AS '@rut'
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'RefundBetDaq', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
+				
+			END
+
+			IF @rowcnt < 10000 BREAK
 		END
 	END
 END

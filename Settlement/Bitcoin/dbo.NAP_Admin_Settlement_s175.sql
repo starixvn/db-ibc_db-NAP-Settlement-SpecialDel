@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="dot_intg" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="dot_intg,bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_s175
 	@MatchId		INT
 	,@Action		VARCHAR(20)		= 'CAL'
@@ -19,7 +19,8 @@ AS
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20210930@Kathy: Change BalanceType  [Redmine:#159714]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
 	Param's Explanation:	
 		@Action: CAL, REFUND
 */
@@ -33,13 +34,11 @@ BEGIN
 			,@batchCount			INT = 2000	
 			,@strTransIds			VARCHAR(MAX)
 			,@bettype				SMALLINT
-
-			,@WaitingTime			VARCHAR(10)
-			,@IsWaiting				BIT 
+		
 			,@procName				SYSNAME
 			,@recipients			VARCHAR(250)
-			,@hasNotify				BIT 
 			,@remark				VARCHAR(200)
+			,@IsCentral				BIT
 	
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY)	
 	DECLARE @BalanceWalletBefore 	TVP_BalanceWalletChange
@@ -56,6 +55,8 @@ BEGIN
 			
 	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
 	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 	
 	SELECT	@StartTime = GETDATE()
 			,@ActionId = CASE @Action 
@@ -64,30 +65,8 @@ BEGIN
 						END
 			,@Remark = ''
 			,@Bettype = 7901
-			,@IsWaiting = 0
 			,@procName =  OBJECT_NAME(@@procid)
 			
-	SELECT	@hasNotify = CASE WHEN EventStatus = 'completed' or @Action = 'REFUND' THEN 1 ELSE 0 END 
-	FROM	dbo.Match3rd WITH(NOLOCK)
-	WHERE	match3rdId = @MatchId
-	
-	-- Check SP is in deployment
-	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
-		,@WaitingTime = @WaitingTime OUTPUT
-		,@IsWaiting = @IsWaiting OUTPUT
-		,@ErrCode = @ErrCode OUTPUT
-		,@ErrMsg = @ErrMsg OUTPUT
-
-	IF @IsWaiting = 1
-	BEGIN
-		WAITFOR DELAY @WaitingTime
-			
-		SELECT	@ErrCode = @ErrCode
-				,@ErrMsg = @ErrMsg
-
-		RETURN
-	END
 	-------------------------BEGIN TRY------------------------------------------------------------------------
 	BEGIN TRY
 		-- check and not allow attempt to settlement same game while it's still not finish
@@ -104,20 +83,12 @@ BEGIN
 			
 		IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 		BEGIN
-			SELECT	@ErrCode = 1000000
-					,@ErrMsg	= 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
+			SELECT	@ErrCode
+					,@ErrMsg
 	
 			RETURN
 		END		
-		
-		EXEC DBPRO.bodb02.dbo.NAP_Admin_Result3rd_Update 
-			@matchid = @matchid
-			,@Action = @Action
-			,@AdminId = @AdminId
-			,@IsAuto = @IsAuto
-			,@ResultId = @ResultId
-			,@GameResult = @GameResult
-	
+
 		--get transid
 		IF @Action LIKE 'CAL%'
 		BEGIN
@@ -136,6 +107,7 @@ BEGIN
 			WHERE	b.matchid = @MatchId
 					AND b.bettype = @bettype
 					AND b.statusID NOT IN (101,102)
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
@@ -146,11 +118,8 @@ BEGIN
 			WHERE	b.matchid = @MatchId
 					AND b.bettype = @bettype
 					AND	b.statusID NOT IN (103, 101, 102)
-		END 
-		
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match3rd_Update
-			@Action	= @Action
-			,@MatchID = @matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		END 		
 			 
 		INSERT INTO #BalanceBefore(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT	custid
@@ -306,7 +275,7 @@ BEGIN
 		
 		--SEND error message				
 		EXEC [dbo].[NAP_Admin_SendMail]
-			@SoureName 		= 'NAP-Settlement-Bitcoin'
+			@SourceName 		= 'NAP-Settlement-Bitcoin'
 			,@matchid		= @matchid
 			,@AdminId		= @AdminId
 			,@ActionId		= @ActionId
@@ -319,44 +288,40 @@ BEGIN
 		RETURN
 	END
 	
-	SET @EndTime = GETDATE()	
-	
 	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
 	EXEC dbo.Logfile_V2 
 		@UserID = @AdminId
 		,@Doing = @doing
 		,@extend = @MatchId
-		
-	BEGIN TRY		
-		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
-						+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END
-						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
-		
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@Remark = @Remark
-			,@IP = @IP
-	END TRY
+	
+	SET @EndTime = GETDATE()	
+	
+	IF @IsCentral = 1
+	BEGIN		
+		BEGIN TRY		
+			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
+							+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END
+							+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 
-	BEGIN CATCH
-		SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
+			BEGIN
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+					,@Matchid = @matchid
+					,@ActionID = @ActionID
+					,@Remark = @Remark
+					,@IP = @IP
+			END
+		END TRY
 
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@Remark = @Remark
-			,@IP = @IP
-	END CATCH
+		BEGIN CATCH
+			SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
 
-	IF @hasNotify = 1
-	BEGIN
-		--SEND notify
-		EXEC [dbo].[NAP_Admin_SendNotify_Bitcoin]
-			@matchid		= @matchid
-			,@notifyAction	= @ActionId
-			,@ErrCode 		= @ErrCode OUTPUT
-			,@ErrMsg  		= @ErrMsg   OUTPUT
+			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
+				,@Matchid = @matchid
+				,@ActionID = @ActionID
+				,@Remark = @Remark
+				,@IP = @IP
+		END CATCH
 	END
+
 END
 GO

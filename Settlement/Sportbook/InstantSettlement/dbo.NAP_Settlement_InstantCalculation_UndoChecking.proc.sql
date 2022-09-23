@@ -30,6 +30,7 @@ BEGIN
 		,@hScore			INT
 		,@aScore			INT
 		,@FirstGoalValue	VARCHAR(1)
+		,@betstatus			NVARCHAR(50)
 		
 	
 	SELECT @ErrCode			= 0
@@ -39,6 +40,7 @@ BEGIN
 		@evenstatus 			= m.eventstatus
 		, @livehomescore		= m.livehomescore
 		, @liveawayscore		= m.liveawayscore
+		, @betstatus			= m.betstatus
 	FROM dbo.match m WITH(NOLOCK)
 	WHERE m.matchid = @MatchId
 		--AND m.evenstatus = 'running'
@@ -145,7 +147,7 @@ BEGIN
 		,@IsHT  		AS IsHT
 		,@InstantKey	AS InstantKey
 		,ISNULL(@FirstGoalValue,'') AS FirstGoalValue
-	
+		,@betstatus		AS betstatus
 	RETURN
 END
 GO

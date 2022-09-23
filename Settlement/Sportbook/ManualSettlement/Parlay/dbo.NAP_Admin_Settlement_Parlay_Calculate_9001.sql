@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Parlay_Calculate_9001] (
 	, @Mode 			VARCHAR(20)
 	, @sportType		SMALLINT
 	, @resultDetail		VARCHAR(MAX) = NULL
+	, @IsCentral		BIT = 0
 	, @ErrCode 			INT = 0 OUTPUT
 	, @ErrMsg 			NVARCHAR(200) = '' OUTPUT
 	, @ticketCount		INT OUTPUT
@@ -23,6 +24,7 @@ AS
 			- 20200701@Kathy: Incorporate New Bet Types of Basketball - Phase 2 [Redmine:#135846]
 			- 20200721@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 			- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
+			- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's Explanation:		
 		
@@ -188,6 +190,7 @@ BEGIN
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 			CROSS APPLY dbo.f_Set_Calculate_modds(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, NULL) m
 		WHERE bm.matchid = @matchid
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND bm.statusID NOT IN (101)
 	END
 	ELSE IF @Mode = 'REFUND' AND @IsExistDetermined = 0
@@ -198,6 +201,7 @@ BEGIN
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 		WHERE bm.matchid = @matchid
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND statusID NOT IN (103, 101)
 	END
 	ELSE IF @Mode = 'REFUND' AND @IsExistDetermined = 1
@@ -218,6 +222,7 @@ BEGIN
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 			CROSS APPLY dbo.f_Set_SDT_CalModds_Early(rs.pfID, bm.betteam, bm.hdp1, bm.hdp2, rs.HomeValue, rs.AwayValue, bm.livehomescore, bm.liveawayscore, @homeRound, @awayRound) m
 		WHERE bm.matchid = @matchid
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND bm.statusID NOT IN (101)
 			AND rs.IsDetermined = 1
 
@@ -226,6 +231,7 @@ BEGIN
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 		WHERE bm.matchid = @matchid
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND statusID NOT IN (103, 101)
 			AND rs.IsDetermined = 0
 
@@ -238,6 +244,7 @@ BEGIN
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN @tempResultDetail rs ON rs.Bettype = bm.Bettype AND (rs.Betid = '0' OR rs.Betid = bm.betcheck)
 		WHERE bm.matchid = @matchid
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND statusID NOT IN (101, 1, 0)
 	END
 	
@@ -250,6 +257,7 @@ BEGIN
 				INNER JOIN dbo.bettrans b WITH(NOLOCK)
 					ON mt.TransId = b.transid
 			WHERE	mt.MatchId = @matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.matchid = 29
 		)
 		UPDATE r 

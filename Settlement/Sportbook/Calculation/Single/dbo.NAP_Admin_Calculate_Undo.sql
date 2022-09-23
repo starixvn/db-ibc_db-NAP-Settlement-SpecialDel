@@ -1,8 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo] 
 	 @matchid		INT
-	,@strBettypes	VARCHAR(MAX)	= NULL
-	,@SelectedQuarter VARCHAR(50)	= NULL
+	,@strBettypes	VARCHAR(MAX)	= NULL	
 AS
 /*
 	Created: Kathy
@@ -38,6 +37,8 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		
 		
 	Param's Explanation:
 			• @matchid: matchid of match to be unsettled 
@@ -47,9 +48,13 @@ BEGIN
 	
 	-- CHECK SERVER BEFORE UNDO
 	DECLARE @ServerName		SYSNAME 
-			,@AllowUndo	BIT
+			,@AllowUndo		BIT
+			,@IsSiteDB	BIT  = 0
 
 	SET @ServerName = @@SERVERNAME
+	
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -62,8 +67,7 @@ BEGIN
 	END
 	-- END CHECK
 
-	DECLARE	@xml					XML
-		
+	DECLARE	@xml					XML		
 			,@BatchCount			INT
 			,@BatchNo				INT
 			,@MinCustId				INT
@@ -77,8 +81,18 @@ BEGIN
 			,@posOdds				INT
 			,@posComma				INT
 			,@IsUpd_Void			BIT = 0
-			,@RepUpdateTime			DATETIME2
-
+			,@FcUpdateTime			DATETIME2
+			,@transInfo	XML
+	
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost TINYINT
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+			,FcUpdateTime DATETIME2
+		)
+		
 	DECLARE @tblBettypes TABLE (bettype SMALLINT,GroupName VARCHAR(50), GroupId SMALLINT)
 
 	DECLARE @tmpBatch AS TABLE (
@@ -129,6 +143,7 @@ BEGIN
 					ON	b.bettype = t.bettype
 			WHERE	matchid = @matchid
 					AND	b.statusID NOT IN (101)  ---('reject')
+					AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 		)b
 		CROSS APPLY (	
 			SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -141,6 +156,8 @@ BEGIN
 		
 	WHILE @BatchNo > 0
 	BEGIN
+		DELETE FROM @tmpTransInfo
+
 		SELECT	@MinCustId = MAX(MinCustId)
 				,@MaxCustId = MAX(MaxCustId)
 				,@MinTransId = MAX(MinTransId)
@@ -150,7 +167,7 @@ BEGIN
 		FROM	@tmpBatch
 		WHERE	BatchNo = @BatchNo
 
-		SET @RepUpdateTime = SYSDATETIME()
+		SET @FcUpdateTime = SYSDATETIME()
 
 		UPDATE	b
 			SET 
@@ -197,7 +214,22 @@ BEGIN
 				,acomm = 0
 				,scomm = 0
 				,statuswinlost = NULL
-				,RepUpdateTime = CASE WHEN b.statusid = 0 THEN b.RepUpdateTime ELSE @RepUpdateTime END
+				,FcUpdateTime = CASE WHEN b.statusid = 0 THEN b.FcUpdateTime ELSE @FcUpdateTime END
+		OUTPUT	inserted.transid
+				,inserted.modds, inserted.odds, inserted.oddsspread
+				,Inserted.Statuswinlost
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben	
+				,deleted.winlost ,deleted.statusid
+				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
+			INTO @tmpTransInfo (
+				transId
+				,modds, odds, oddsspread, statuswinlost,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost  ,bef_statusid 
+				,FcUpdateTime
+			)
 		FROM	dbo.bettrans b WITH (ROWLOCK)
 			INNER JOIN @tmpBatch c
 				ON	c.BatchNo = @BatchNo
@@ -228,15 +260,39 @@ BEGIN
 							 WHEN b.statusID NOT IN (0, 1) THEN 1
 							ELSE 0 END
 							
-				AND i.IsCalculated = 1
-				AND 1 = CASE -- basketball
-							WHEN @SelectedQuarter IS NULL THEN 1
-							WHEN @SelectedQuarter LIKE '%' + t.GroupName + '%' THEN 1
-							WHEN t.GroupId = 10 AND @SelectedQuarter LIKE '%' + LEFT(CAST(b.betid AS VARCHAR),3) + '%' THEN 1
-							ELSE 0
-							END		
-				AND ISNULL(b.betdaqid,0) <> - 2
-			
+				AND i.IsCalculated = 1				
+				AND ISNULL(b.betdaqid,0) <> - 2	
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+		
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			SET @transInfo = (
+				SELECT	transId AS '@t'
+						,modds AS '@m'	
+						,odds AS '@o'
+						,oddsspread AS '@os'
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
+						,WinLost AS '@w' 
+						,aWinLost AS '@aw' 
+						,mWinLost AS '@mw' 
+						,sWinLost AS '@sw' 
+						,PlayerComm AS '@pc' 
+						,Comm AS '@c' 
+						,aComm AS '@ac' 
+						,sComm AS '@sc' 
+						,Status AS '@s' 
+						,StatusID AS '@sid' 
+						,ruben AS '@r'		
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
+						,FcUpdateTime AS '@rut'
+				FROM	@tmpTransInfo
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			SELECT 'Settlement', 'Undo', 'bettrans', @MatchId, @transInfo, 'UNDO', 's'
+		END
 		SET @BatchNo = @BatchNo - 1
 
 		WAITFOR DELAY '00:00:00:010'

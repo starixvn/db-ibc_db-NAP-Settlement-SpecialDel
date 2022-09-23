@@ -24,7 +24,8 @@ AS
 		- 20210414@Kathy: Add New DB Server Name for AWS [Redmine:#149852]
 		- 20211130@Kathy: New cashout model [Redmine:#164838]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
-		
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+
     Param's Explanation:
         
 */
@@ -35,8 +36,13 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
+			,@transInfo			XML
+			,@IsSiteDB			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -64,7 +70,17 @@ BEGIN
 	CREATE TABLE #InstantTicket_Input (transid BIGINT, modds MONEY, actual_stake MONEY, bettype SMALLINT, srecommend INT, isCN88 BIT, isMajorGroup BIT)		
 	
 	-- This table to store data from dbo.deleted WHEN UPDATE BETTRANS
-	DECLARE @instantTicket_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT)
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,custid INT, bef_winlost MONEY, bef_statusid TINYINT
+			,bef_actual_stake MONEY 
+			,bef_playercomm MONEY
+			,bef_betdaqid  BIGINT
+		)
+	--DECLARE @instantTicket_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY,playercomm MONEY,betdaqid BIGINT)
 	
 	SET @xmlInstantTicket = CONVERT(XML, @strTransIds)
 	
@@ -95,6 +111,7 @@ BEGIN
 						ON tmp.bettype = f.BetType
 
 		IF @@SERVERNAME IN ('DBTRANS','DB230','DB206','TESTDBTRANS','SITDBTRANS', 'DBBAL', 'SITDBAWS', 'SITDBBAL')
+			OR @IsSiteDB = 1
 		BEGIN
 			SET @settlementTime = GETDATE();
 
@@ -191,13 +208,28 @@ BEGIN
 						WHEN t.modds IS NULL THEN ruben
 						ELSE 1
 					END
-				OUTPUT deleted.Transid,
-						deleted.custid,  
-						deleted.winlost,  
-						deleted.actual_stake, 
-						deleted.playercomm,
-						deleted.betdaqid  
-				INTO @instantTicket_beforeUpd (transid,custid, winlost, actual_stake,playercomm,betdaqid )
+			OUTPUT	inserted.transid
+					,inserted.modds
+					,inserted.Statuswinlost
+					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+					,inserted.Status,inserted.StatusID,inserted.ruben	
+					,deleted.winlost,deleted.statusid
+					,deleted.actual_stake
+					,deleted.playercomm
+					,deleted.betdaqid  
+					,deleted.custid
+			INTO @tmpTransInfo (
+				transId
+				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
+				,bef_actual_stake
+				,bef_playercomm
+				,bef_betdaqid
+				,custid
+				)	
 			FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN #InstantTicket_Input t ON b.transid = t.transid
 				OUTER APPLY(
@@ -207,32 +239,58 @@ BEGIN
 				)mt
 			WHERE	mt.TransId IS NULL
 					AND ISNULL(b.betdaqid,0) <> -2
-
 			OPTION(MAXDOP 1)
-			
+
 			-- Process for cashout tickets make change Balance before
 			SET @strTransCashout = ISNULL(CAST((SELECT t,c,b,s
 												FROM
 												(SELECT b.transid AS t
 														, b.custid AS c
-														, b.winlost-b.actual_stake + b.playercomm as b
+														, b.bef_winlost-b.bef_actual_stake + b.playercomm as b
 														, 1  AS 's'
-												FROM @instantTicket_beforeUpd b
+												FROM @tmpTransInfo b
 													INNER JOIN #InstantTicket_Input t ON b.transid = t.transid
-												WHERE 	b.betdaqid = 0 AND b.actual_stake <> t.actual_stake
+												WHERE 	b.bef_betdaqid = 0 AND b.bef_actual_stake <> t.actual_stake
 												UNION ALL
 												SELECT  t.transid AS t
 														,0 AS c
 														,0 AS b
 														,0 AS 's'
 												FROM 	#InstantTicket_Input t
-													LEFT JOIN @instantTicket_beforeUpd b 
+													LEFT JOIN @tmpTransInfo b 
 														ON t.transid = b.transid
 												WHERE b.transid IS NULL
 											)b
 												FOR XML AUTO) AS VARCHAR(MAX)
 										),'')
 				
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'				
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'	
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateInstant', 'bettrans', @MatchId, @transInfo, 'CAL', 's')		
+			END	
 		END
 		ELSE
 		BEGIN
@@ -341,8 +399,8 @@ BEGIN
 				)mt
 			WHERE	mt.TransId IS NULL
 					AND ISNULL(b.betdaqid,0) <> -2
+			OPTION(MAXDOP 1)
 
-				OPTION(MAXDOP 1)
 		END
 	END
 	
@@ -362,11 +420,49 @@ BEGIN
 			,acomm 		= 0
 			,scomm 		= 0
 			,statuswinlost = NULL
+		OUTPUT	inserted.transid
+				,inserted.statuswinlost
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben
+				,deleted.winlost ,deleted.statusid
+			INTO @tmpTransInfo (
+				transId
+				,statuswinlost,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
+				,bef_winlost ,bef_statusid 
+			)
 		FROM dbo.bettrans b WITH (ROWLOCK, UPDLOCK)
 		INNER JOIN #InstantTicket_Input t
 			ON b.transid = t.transid
 			
 		OPTION(MAXDOP 1)
+
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			SET @transInfo = (
+				SELECT	transId AS '@t'
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl' 
+						,WinLost AS '@w' 
+						,aWinLost AS '@aw' 
+						,mWinLost AS '@mw' 
+						,sWinLost AS '@sw' 
+						,PlayerComm AS '@pc' 
+						,Comm AS '@c' 
+						,aComm AS '@ac' 
+						,sComm AS '@sc' 
+						,Status AS '@s' 
+						,StatusID AS '@sid'	
+						,ruben AS '@r'
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
+				FROM	@tmpTransInfo
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'UndoInstSoccer', 'bettrans', @MatchId, @transInfo, 'UNDO', 's')		
+		END	
 	END
 	
 	DROP TABLE #InstantTicket_Input;

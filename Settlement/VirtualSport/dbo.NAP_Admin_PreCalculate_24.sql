@@ -2,7 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_PreCalculate_24]
 	@matchid int,
 	@bettype smallint,
-	@scorediff smallmoney
+	@scorediff smallmoney,
+	@IsCentral	BIT = 0
 AS
 /*
 	Created by: Kathy
@@ -15,9 +16,10 @@ AS
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]	
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
-
-SET NOCOUNT ON
+BEGIN
+	SET NOCOUNT ON
 	DECLARE @IgnoreList varchar(200)
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'
 
@@ -52,6 +54,7 @@ SET NOCOUNT ON
 	WHERE matchid = @matchid 
 		AND bettype = @bettype 
 		AND statusID NOT IN (101,102) --void/reject
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 		
 	IF @@ROWCOUNT = 0 RETURN
 	-----------------		
@@ -175,42 +178,11 @@ SET NOCOUNT ON
 		) 
 		SELECT @_sXML = CONVERT(varchar(max), @_xml)
 		
-		EXEC dbo.Bet_ExecRep_05 @IgnoreList, 1, @_sXML	
-		
-		----- LAS settlement 
-		--SELECT @LASCommand = 'EXEC [dbo].[Admin_Calculate_VS_24] @_sXML = ''' + @_sXML + ''''
-		--		,@createdDate = GETDATE()
-
-		--BEGIN TRY
-		--	EXEC DBLAS.LASDB.[dbo].[Las_GeneratingSettlementCommand] @SPName = 'Admin_Calculate_VS_24'
-		--		,@SQLCommand = @LASCommand
-		--		,@CreatedDate = @createdDate
-		--		,@StatusID = 0 -- waiting
-		--		,@MatchID = @matchid
-		--		,@Bettype = NULL
-		--		,@Status = 'waiting'
-		--		,@BetCount = NULL
-		--END TRY
-		--BEGIN CATCH			
-		--	SELECT @Remark = @Remark + CAST(transid as varchar(20)) + ','
-		--	FROM @subtable
-
-		--	SET @Remark = SUBSTRING(@Remark, 1, LEN(@Remark)-1)
-
-		--	BEGIN TRY			
-		--		EXEC DBLOG.bodb_CustomerLog.dbo.LAS_WriteLog_UserLog_RunSP
-		--						@UserID = NULL, 
-		--						@Matchid = @matchid, 
-		--						@ActionID = 40021, 
-		--						@Remark = @Remark
-		--	END TRY
-		--	BEGIN CATCH
-		--		EXEC bodb_CustomerLog.dbo.LAS_WriteLog_UserLog_RunSP
-		--						@UserID = NULL, 
-		--						@Matchid = @matchid, 
-		--						@ActionID = 40021, 
-		--						@Remark = @Remark
-		--	END CATCH
-		--END CATCH 			 				
+		EXEC dbo.Bet_ExecRep_05 
+			@IgnoreList = @IgnoreList
+			,@updatetype = 1
+			,@_sXML = @_sXML
+			,@Action = 'CAL'
+			,@matchid = @matchid	 				
 	END		
-	-------------------------
+END

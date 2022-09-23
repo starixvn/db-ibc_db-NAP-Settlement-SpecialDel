@@ -21,6 +21,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220421@Louisa: Fix issue duplicate in MERGE statement [Redmine:#168346]
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 
 	Param's explanation:  
 		
@@ -41,11 +42,15 @@ BEGIN
 		,@strResourceIds	VARCHAR(MAX)
 		,@CheckDate			VARCHAR(10)
 		,@SqlCommand		VARCHAR(MAX)
+		,@IsCentral			BIT
 
 	SET @StartTime = GETDATE()
 	SET @n = 2147483647
 	SET @CheckDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -2, GETDATE()), 102)
 		
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
+
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpBettypeStatus TABLE(
@@ -58,9 +63,6 @@ BEGIN
 		,isRunningParlay	BIT DEFAULT(0)
 		,isWaitingParlay	BIT DEFAULT(0)
 	)
-
-	
-
 
 	DECLARE @tmpMatchIds TABLE (
 		MatchId							INT
@@ -86,11 +88,11 @@ BEGIN
 		,suspenderfulltime				NVARCHAR(50)
 		
 		
-		,IsExistEarlyBettypesSingle		BIT DEFAULT (0)
+		,IsExistEarlyBettypes			BIT DEFAULT (0)
 		,IsExistEarlyBettypesParlay		BIT DEFAULT (0)
-		,IsRunningEarlyBettypesSingle	BIT DEFAULT(0)
+		,IsRunningEarlyBettypes			BIT DEFAULT(0)
 		,IsRunningEarlyBettypesParlay	BIT DEFAULT(0)
-		,IsWaitingEarlyBettypesSingle	BIT DEFAULT(0)
+		,IsWaitingEarlyBettypes			BIT DEFAULT(0)
 		,IsWaitingEarlyBettypesParlay	BIT DEFAULT(0)
 		,IsExistMarkedTicket			BIT DEFAULT(0)
 		,IsExistMarkedTicketParlay		BIT DEFAULT(0)
@@ -116,8 +118,6 @@ BEGIN
 		SELECT f.[value] from STRING_SPLIT(@MatchIds, ',') f
 	END
 
-	
-	
 	---- Match Auto
 	SET @remoteQuery = 'SELECT  r.matchid, MAX(r.StatusId) AS StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
@@ -283,6 +283,7 @@ BEGIN
 					,0 AS isExistParlay
 			FROM	dbo.bettrans b WITH(NOLOCK)
 			WHERE	b.matchid = m.matchid
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND b.statusID NOT IN(101, 102)
 					AND b.bettype BETWEEN @minBettype AND @maxBettype
 			GROUP BY b.matchid, b.bettype
@@ -296,6 +297,7 @@ BEGIN
 					,1 AS isExistParlay
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 			WHERE	bm.matchid = m.matchid
+					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (101, 102)
 					AND bm.bettype BETWEEN @minBettype AND @maxBettype
 			GROUP BY bm.matchid, bm.bettype
@@ -306,11 +308,11 @@ BEGIN
 	OPTION(OPTIMIZE FOR (@n = 1))
 
 	UPDATE m
-		SET  IsExistEarlyBettypesSingle = b.isExistSingle
+		SET  IsExistEarlyBettypes = b.isExistSingle
 			,IsExistEarlyBettypesParlay = b.isExistParlay
-			,IsRunningEarlyBettypesSingle = b.isRunningSingle
+			,IsRunningEarlyBettypes = b.isRunningSingle
 			,IsRunningEarlyBettypesParlay = b.isRunningParlay
-			,IsWaitingEarlyBettypesSingle = b.isWaitingSingle
+			,IsWaitingEarlyBettypes = b.isWaitingSingle
 			,IsWaitingEarlyBettypesParlay = b.isWaitingParlay
 	FROM	@tmpMatchIds m 
 		INNER JOIN @tmpBettypeStatus b
@@ -396,6 +398,7 @@ BEGIN
 							INNER JOIN #tmpAllParentChildMatch tmp 
 								ON	b.MatchId = tmp.MatchId
 						WHERE	b.matchid = m.MatchId
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 								AND b.statusID = 0
 								AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
 								AND b.bettype <> 38 -- BetBuilder
@@ -515,15 +518,15 @@ BEGIN
 			,tmp.settlementstatus
 			,tmp.suspenderhalftime
 			,tmp.suspenderfulltime
-			,CASE
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsExistEarlyBettypesParlay = 0 AND (tmp.childmatchtype = 202 OR me.MatchId IS NOT NULL ) THEN 'No Ticket'
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsExistEarlyBettypesParlay = 0 THEN 'N/A'
-				WHEN tmp.IsRunningEarlyBettypesSingle + (CASE WHEN tmp.IsMergedParlay = 1 THEN tmp.IsRunningEarlyBettypesParlay ELSE 0 END) > 0 THEN 'Running'
-				WHEN tmp.IsWaitingEarlyBettypesSingle + (CASE WHEN tmp.IsMergedParlay = 1 THEN tmp.IsWaitingEarlyBettypesSingle ELSE 0 END) > 0 THEN 'Waiting'
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsRunningEarlyBettypesParlay = 1 THEN 'Parlay Running'
-				WHEN tmp.IsExistEarlyBettypesSingle = 0 AND tmp.IsWaitingEarlyBettypesParlay = 1 THEN 'Parlay Waiting'
-				ELSE 'Completed'
-			END AS EarlySettleStatus
+			,tmp.IsExistEarlyBettypes
+			,tmp.IsExistEarlyBettypesParlay
+			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
+			,tmp.IsRunningEarlyBettypes
+			,tmp.IsMergedParlay
+			,tmp.IsRunningEarlyBettypesParlay
+			,tmp.IsRunningEarlyBettypesParlay
+			,tmp.IsWaitingEarlyBettypes
+			,tmp.IsWaitingEarlyBettypesParlay
 			,tmp.IsExistRunningTicket
 			,tmp.IsExistRunningTicketParlay
 			,tmp.IsExistMarkedTicket
@@ -533,16 +536,6 @@ BEGIN
 	FROM	@tmpMatchIds tmp
 		LEFT JOIN @tmpMatchEsport me
 			ON tmp.MatchId = me.MatchId
-
-
-	SET @MatchIds = ''    
-	SELECT @MatchIds = @MatchIds +  ',' + CAST(matchid AS VARCHAR(20))
-	FROM @tmpMatchIds
-
-	SET @MatchIds = SUBSTRING(@MatchIds, 2, LEN(@MatchIds))
-	    
-	EXEC DBPRO.bodb02.dbo.NAP_Set_ResultDetailSel
-		@matchidList = @MatchIds
 
 	DROP TABLE #tmpMarkedTransaction
 

@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="Dot_Member" viewers="vnteam" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar_MP] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar_MP] 
 	@AdminId			INT
 	,@MatchId			INT
 	,@Action			VARCHAR(10)		= 'CAL'
@@ -15,6 +15,7 @@ AS
 	Revisions:
 		- 20160606@Bobby: Initialize
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		
 	Param's Explanation:
  
@@ -35,8 +36,13 @@ BEGIN
 		, @start				DATETIME
 		, @stop					DATETIME
 		, @avaiableProcess		BIT
+		, @IsCentral			BIT  = 0
+	
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 		
 	DECLARE @tempRefno			TABLE (refno BIGINT)
+	
 	
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
@@ -74,6 +80,7 @@ BEGIN
 						AND f.sportType = @sportType
 				)
 		AND chk.refno IS NULL
+		AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 		
 	IF (@@ROWCOUNT = 0) RETURN
 	
@@ -129,53 +136,37 @@ BEGIN
 			,@ErrMsg			= @ErrMsg OUTPUT
 	END	
 	
-	IF(@ErrCode > 0) RETURN
-	
-	----------------------------------------------------------------------------------------------------------------------------------------
-	BEGIN --BEGIN: UPDATE match_remark ----------------------------------	
-		IF @Action IN ('CAL', 'REFUND') -- for cal/refund
-		BEGIN
-			DECLARE @command varchar(5)
-			SET @command = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
-
-			EXEC DBPRO.BODB02.dbo.NAP_UpdateMatch_Remark @matchid = @matchid
-				,@command = @command
-		END
-
-		--RE-USE old parlay
-		EXEC DBPRO.BODB02.dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Parlay'
-			,@Matchid = @matchid
-			,@creator = @AdminId
-			
-	END --END: UPDATE match_remark ----------------------------------	
+	IF(@ErrCode > 0) 
+		RETURN	
 	
 	--RELEASE process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@IsExistParlayVSBetradar	= 1
 		,@IsReleased				= 1
 		
-	----------------------------------------------------------------------------------------------------------------------------------------
-	BEGIN --BEGIN: WRITE LOG ----------------------------------		
-		DECLARE @Remark VARCHAR(200)
+	--BEGIN: WRITE LOG ----------------------------------		
+	DECLARE @Remark VARCHAR(200)
 		
-		SET @stop = CURRENT_TIMESTAMP
+	SET @stop = CURRENT_TIMESTAMP
 
-		SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+	SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 		
-		EXEC dbo.Logfile_V2 
-			@UserID = @AdminId
-			,@Doing = @Remark
-			,@extend = @MatchId
+	EXEC dbo.Logfile_V2 
+		@UserID = @AdminId
+		,@Doing = @Remark
+		,@extend = @MatchId
 			
-		SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
+	SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 		
-		--RESET scores values
-		SELECT @fth = NULL
-			,@fta 	= NULL
-			,@hth 	= NULL
-			,@hta	= NULL
-		WHERE @Action = 'REFUND'
+	--RESET scores values
+	SELECT @fth = NULL
+		,@fta 	= NULL
+		,@hth 	= NULL
+		,@hta	= NULL
+	WHERE @Action = 'REFUND'
 		
+	IF @IsCentral = 1
+	BEGIN
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
 				,@Matchid = @matchid
@@ -205,7 +196,8 @@ BEGIN
 				,@Remark = @Remark
 				,@IP = @IP
 		END CATCH
-	END --END: WRITE LOG ----------------------------------
+	END
+	--END: WRITE LOG ----------------------------------
 	
 	RETURN
 END

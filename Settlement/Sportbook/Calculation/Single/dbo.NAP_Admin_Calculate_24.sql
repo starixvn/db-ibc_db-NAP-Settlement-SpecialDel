@@ -34,17 +34,22 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20191112@Sol: Incorporate PHAIO 5 [Redmine:#121681]
-
+		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@transInfo			XML
+			,@IsSiteDB			BIT = 0
 
     SET @ServerName = @@SERVERNAME
 
 	IF @betcount = 0 AND @ServerName NOT LIKE N'DBIOM%' RETURN
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
@@ -73,7 +78,14 @@ BEGIN
 		,@TransIdOfMinCust		BIGINT
 		,@TransIdOfMaxCust		BIGINT
 		
-
+	DECLARE @tmpTransInfo TABLE (transId BIGINT
+			,modds MONEY, statuswinlost TINYINT,SettlementTime DATETIME
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+			,bef_winlost MONEY ,bef_statusid TINYINT
+		)
+		
 	DECLARE @tmpBatch AS TABLE (
 		BatchNo					INT
 		,CustId					INT
@@ -130,6 +142,7 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 THEN 1
 								 ELSE 0
 							END
+						AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
 			)b
 			CROSS APPLY (	
 				SELECT	((b.rn - 1) /@BatchCount) + 1 AS BatchNo
@@ -142,6 +155,8 @@ BEGIN
 			
 		WHILE @BatchNo > 0
 		BEGIN
+			DELETE FROM @tmpTransInfo
+
 			SELECT	@MinCustId = MAX(MinCustId)
 					,@MaxCustId = MAX(MaxCustId)
 					,@MinTransId = MAX(MinTransId)
@@ -152,7 +167,7 @@ BEGIN
 			WHERE	BatchNo = @BatchNo
 			
 			SET @settlementTime = GETDATE();
-
+			
 			UPDATE b
 			SET @modds = CASE
 					WHEN @bettype = 449 THEN
@@ -381,7 +396,19 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN ruben 
 							ELSE 1
 						END
-								
+			OUTPUT	inserted.transid
+				,inserted.modds, inserted.statuswinlost
+				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben
+				,deleted.winlost ,deleted.statusid		
+			INTO @tmpTransInfo (
+				transId
+				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID
+				,ruben,bef_winlost ,bef_statusid 
+			)			
 			FROM	@tmpBatch c
 				INNER JOIN dbo.bettrans b
 					ON	c.BatchNo = @BatchNo
@@ -407,7 +434,35 @@ BEGIN
 						 WHEN @IsReSettledTickets = 1 THEN 1
 						 ELSE 0
 					END
-				
+				AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+			
+			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+			BEGIN
+				SET @transInfo = (
+					SELECT	transId AS '@t'
+							,modds AS '@m'				
+							,statuswinlost AS '@statuswl' 
+							,SettlementTime AS '@st' 
+							,WinLost AS '@w' 
+							,aWinLost AS '@aw' 
+							,mWinLost AS '@mw' 
+							,sWinLost AS '@sw' 
+							,PlayerComm AS '@pc' 
+							,Comm AS '@c' 
+							,aComm AS '@ac' 
+							,sComm AS '@sc' 
+							,Status AS '@s' 
+							,StatusID AS '@sid' 
+							,ruben AS '@r'
+							,bef_winlost AS '@bef_w' 
+							,bef_statusid AS '@bef_sid' 
+					FROM	@tmpTransInfo
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
+			END
 					
 			SET @BatchNo = @BatchNo - 1
 
@@ -415,7 +470,9 @@ BEGIN
 		END				
 	END
 	ELSE
-	BEGIN -- settle determined tickets
+	BEGIN -- settle determined tickets	
+		DELETE FROM @tmpTransInfo
+
 		SET @settlementTime = GETDATE();
 
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
@@ -587,7 +644,19 @@ BEGIN
 							WHEN @IsUpd_Void = 0 THEN ruben 
 							ELSE CASE WHEN @modds IS NULL THEN ruben ELSE 1 END
 						END
-						
+		OUTPUT	inserted.transid
+				,inserted.modds, inserted.statuswinlost
+				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+				,inserted.Status,inserted.StatusID,inserted.ruben
+				,deleted.winlost ,deleted.statusid		
+			INTO @tmpTransInfo (
+				transId
+				,modds, statuswinlost,SettlementTime,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID
+				,ruben,bef_winlost ,bef_statusid 
+			)					
 		WHERE matchid = @matchid AND bettype = @bettype 
 			--status NOT IN ('REJECT')
 			AND statusID NOT IN (101)
@@ -600,7 +669,36 @@ BEGIN
                         WHEN @IsSettleAbandonedMatchIBC = 1 AND (custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND recommend <> 1688156) THEN 1
                         ELSE 0
                     END
-                            
+			AND SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+        
+		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			SET @transInfo = (
+				SELECT	transId AS '@t'
+						,modds AS '@m'				
+						,statuswinlost AS '@statuswl' 
+						,SettlementTime AS '@st' 
+						,WinLost AS '@w' 
+						,aWinLost AS '@aw' 
+						,mWinLost AS '@mw' 
+						,sWinLost AS '@sw' 
+						,PlayerComm AS '@pc' 
+						,Comm AS '@c' 
+						,aComm AS '@ac' 
+						,sComm AS '@sc' 
+						,Status AS '@s' 
+						,StatusID AS '@sid' 
+						,ruben AS '@r'	
+						,bef_winlost AS '@bef_w' 
+						,bef_statusid AS '@bef_sid' 
+				FROM	@tmpTransInfo
+				FOR XML PATH('r'),ROOT('root'), TYPE
+			)
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+			VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')		
+		END	
+
 	END		
 END
 GO

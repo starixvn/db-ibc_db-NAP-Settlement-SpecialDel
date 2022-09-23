@@ -10,7 +10,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
     @HTAway                     SMALLINT = NULL,
     @BetStatus                  NVARCHAR(50)= NULL,
     @GoalRecord                 VARCHAR(50) = NULL,
-    @SelectedQuarter            VARCHAR(50) = NULL,
     @Action                     VARCHAR(10)         = NULL,
     @FTDone                     BIT = 0,
     @HTDone                     BIT = 0,
@@ -18,7 +17,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
 	@Creator 					INT = 0,
 	@IsFinalRound               BIT = NULL,
 	@IsHTRound					BIT = 0,
-	@IsMovedMatch				BIT = 0
+	@IsMovedMatch				BIT = 0,
+	@HTBetStatus				NVARCHAR(50) = NULL,
+	@FTBetStatus				NVARCHAR(50) = NULL
 )
 AS
 /*
@@ -67,6 +68,8 @@ AS
 		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
+		- 20220719@Louisa: Update match.multiple = 1 before calcualte/refund for VSBetradar [Redmine:#175251]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251] 
 
     Parameters Explanation:
 
@@ -82,31 +85,23 @@ BEGIN
 
     SET @BetStatus = ISNULL(@BetStatus, N'')
 
-	IF @IsMovedMatch = 0
-	BEGIN
-		SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
-		FROM	dbo.match m WITH(NOLOCK)
-		WHERE	m.matchid = @MatchID
+	SELECT	@ParentMatchId = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULl AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
+			,@sporttype = m.sporttype
+	FROM	dbo.match m WITH(NOLOCK)
+	WHERE	m.matchid = @MatchID
 
-		IF @ParentMatchId IS NOT NULL -- child match of cricket
-			RETURN
-	END
+	IF @IsMovedMatch = 0 AND @ParentMatchId IS NOT NULL -- child match of cricket
+		RETURN
 
     IF @Command = 'NAP_Admin_Settlement_1-UNDO'
     BEGIN
         UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-		SET  eventstatus	= CASE WHEN (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN eventstatus 
-								   ELSE 'running' END 
-			,finalhomescore = CASE WHEN (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN finalhomescore
-								   ELSE NULL END 
-			,finalawayscore = CASE WHEN (sporttype = 2 AND @SelectedQuarter NOT LIKE '%FT%') THEN finalawayscore
-								   ELSE NULL END 
-			,hthomescore	= CASE WHEN Sporttype = 2 AND @SelectedQuarter NOT LIKE '%1H%' THEN hthomescore
-									ELSE NULL END
-			,htawayscore	= CASE WHEN Sporttype = 2 AND @SelectedQuarter NOT LIKE '%1H%' THEN htawayscore
-									ELSE NULL END
-			,betstatus		= CASE WHEN (sporttype = 2) THEN @BetStatus
-								   ELSE N'' END 
+		SET  eventstatus	= 'running'
+			,finalhomescore = NULL 
+			,finalawayscore = NULL
+			,hthomescore	= NULL
+			,htawayscore	= NULL
+			,betstatus		= N''
 			,GoalRecord		= ''
 			,changetime		= GETDATE(), settleTime = GETDATE()
 		WHERE matchid = @MatchID-- and eventstatus = 'completed'
@@ -123,9 +118,9 @@ BEGIN
             goalrecord = CASE WHEN @goalrecord IS NULL OR @goalrecord = '' THEN goalrecord
                               WHEN @action = 'CAL-HT' AND ISNULL(GoalRecord,'') <> '' AND CHARINDEX(';',GoalRecord) > 0 THEN REPLACE(GoalRecord,LEFT(GoalRecord,CHARINDEX(';',GoalRecord)),(LEFT(@goalrecord,CHARINDEX(';',@goalrecord)))) -- only update HT part
                               ELSE @goalrecord END,
-            eventstatus = CASE	WHEN @action = 'CAL' AND Sporttype NOT IN (2)		THEN N'completed'
-								WHEN @action = 'CAL' AND (sporttype = 2 AND @SelectedQuarter LIKE '%FT%') THEN N'completed'
-								WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
+            eventstatus = CASE	
+							WHEN @action = 'CAL' THEN N'completed'
+							WHEN @action = 'CAL-FT' AND @HTDone = 1 THEN N'completed'
 							ELSE eventstatus END,
             changetime = GETDATE(),
             settleTime = CASE
@@ -147,54 +142,17 @@ BEGIN
             SET @betstatus = ''
         END
 
-        IF @sporttype = 2
-        BEGIN
-            UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
-                SET eventstatus = CASE
-                                    WHEN @SelectedQuarter LIKE '%FT%' THEN N'Completed'
-                                    ELSE eventstatus
-                                END
-                    ,ruben = CASE
-                                WHEN @SelectedQuarter LIKE '%FT%' THEN 1
-                                ELSE ruben
-                            END
-                    ,finalhomescore = CASE
-                                        WHEN @SelectedQuarter LIKE '%FT%' THEN 0
-                                        ELSE finalhomescore
+        UPDATE match WITH(ROWLOCK,UPDLOCK)
+        SET eventstatus='Completed', ruben=1, finalhomescore=0, finalawayscore=0, hthomescore=0, htawayscore=0
+            ,betstatus = 'Refund;' + CASE  WHEN CHARINDEX('Refund;',@betstatus) > 0 THEN REPLACE(@betstatus,'Refund;','')
+                                        WHEN CHARINDEX('Refund FT;',@betstatus) > 0 THEN REPLACE(@betstatus,'Refund FT;','')
+                                        WHEN CHARINDEX('Refund HT;',@betstatus)>0 THEN REPLACE(@betstatus,'Refund HT;','')
+                                        ELSE @betstatus
                                     END
-                    ,finalawayscore = CASE
-                                        WHEN @SelectedQuarter LIKE '%FT%' THEN 0
-                                        ELSE finalawayscore
-                                    END
-                    ,hthomescore = CASE
-                                        WHEN @SelectedQuarter LIKE '%1H%' THEN 0
-                                        ELSE hthomescore
-                                    END
-                    ,htawayscore = CASE
-                                        WHEN @SelectedQuarter LIKE '%1H%' THEN 0
-                                        ELSE htawayscore
-                                    END
-                    ,betstatus = CASE
-                                        WHEN @SelectedQuarter LIKE '%FT%' THEN 'Refund;'
-                                        ELSE ''
-                                    END
-                    ,changetime = GETDATE()
-                    ,settletime = GETDATE()
-            WHERE   matchid = @matchid
-        END
-        ELSE
-        BEGIN
-            UPDATE match WITH(ROWLOCK,UPDLOCK)
-            SET eventstatus='Completed', ruben=1, finalhomescore=0, finalawayscore=0, hthomescore=0, htawayscore=0
-                ,betstatus = 'Refund;' + CASE  WHEN CHARINDEX('Refund;',@betstatus) > 0 THEN REPLACE(@betstatus,'Refund;','')
-                                            WHEN CHARINDEX('Refund FT;',@betstatus) > 0 THEN REPLACE(@betstatus,'Refund FT;','')
-                                            WHEN CHARINDEX('Refund HT;',@betstatus)>0 THEN REPLACE(@betstatus,'Refund HT;','')
-                                            ELSE @betstatus
-                                        END
-                ,GoalRecord =''
-                ,changetime = GETDATE(), settleTime = GETDATE()
-            WHERE matchid=@MatchID
-        END
+            ,GoalRecord =''
+            ,changetime = GETDATE(), settleTime = GETDATE()
+        WHERE matchid=@MatchID
+       
     END
     IF @Command = 'NAP_Admin_Settlement_Refund-All-Abandoned'
     BEGIN
@@ -309,72 +267,7 @@ BEGIN
     BEGIN
         UPDATE match WITH(ROWLOCK,UPDLOCK) SET multiple=multiple, changetime = GETDATE() WHERE matchid=@MatchID
     END
-    IF @Command = 'NAP_Admin_Settlement_135'
-    BEGIN
-        UPDATE dbo.match with(ROWLOCK, UPDLOCK)
-        SET betstatus = CASE WHEN CHARINDEX('PS:',betstatus) > 0 THEN STUFF(betstatus, CHARINDEX('PS:',betstatus),5,@betstatus) -- PS:Y/N;
-                             ELSE RTRIM(ISNULL(betstatus,''))  + @betstatus
-                        END
-            ,changetime = GETDATE()
-            --,settletime = GETDATE()
-        WHERE matchid = @matchid
-    END
-    IF @Command = 'NAP_Admin_Settlement_s161-Refund'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET betstatus = 'Refund',
-            eventstatus = 'Completed', changetime = CURRENT_TIMESTAMP, settleTime = CURRENT_TIMESTAMP
-        WHERE matchid=@MatchID
-    END
-    IF @Command = 'NAP_Admin_Settlement_s161-Refund_FT'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET eventstatus = 'Completed',
-            betstatus = 'Refund FT',
-            changetime = CURRENT_TIMESTAMP
 
-        WHERE matchid=@MatchID
-    END
-    IF @Command = 'NAP_Admin_Settlement_s161-CAL'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET
-            betstatus = '',
-            eventstatus = 'Completed',
-            changetime = CURRENT_TIMESTAMP,
-            settleTime = CURRENT_TIMESTAMP
-        WHERE matchid = @MatchID
-    END
-    IF @Command = 'NAP_Admin_Settlement_s162-Refund'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET betstatus = 'Refund',
-            eventstatus = 'Completed', changetime = CURRENT_TIMESTAMP, settleTime = CURRENT_TIMESTAMP
-        WHERE matchid=@MatchID
-    END
-    IF @Command = 'NAP_Admin_Settlement_s162-CAL'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET
-            eventstatus = 'Completed',
-            changetime = CURRENT_TIMESTAMP,
-            settleTime = CURRENT_TIMESTAMP
-        WHERE matchid = @MatchID
-    END
-    IF @Command = 'NAP_Admin_Settlement_s162-1102-CAL'
-    BEGIN
-        select @BetStatus = Resource_en from RefResource with (rowlock)
-        where refid ='RouNumProperty' and
-        resourceid in (select Finalhomescore from  match with (rowlock) where matchid = @MatchID)
-
-        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
-        SET
-            betstatus = @BetStatus,
-            eventstatus = 'Completed',
-            changetime = CURRENT_TIMESTAMP,
-            settleTime = CURRENT_TIMESTAMP
-        WHERE matchid = @MatchID
-    END
     IF @Command = 'NAP_Admin_Settlement_SS-CAL'
     BEGIN
         UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
@@ -416,31 +309,8 @@ BEGIN
             changetime = CURRENT_TIMESTAMP
         WHERE EventID = @MatchID
     END
-    IF @Command = 'NAP_Admin_Settlement_VS_180-CAL'
-    BEGIN
-        UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
-            SET finalhomescore = @fthome
-                ,finalawayscore = @ftaway
-                ,eventstatus = 'Completed'
-                ,changetime = CURRENT_TIMESTAMP
-                ,settletime = CURRENT_TIMESTAMP
-        WHERE   matchid = @matchid
-    END
-    IF @Command = 'NAP_Admin_Settlement_VS_180-REFUND'
-    BEGIN
-        UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
-            SET eventstatus = 'Completed'
-                ,betstatus = 'Refund'
-                ,changetime = CURRENT_TIMESTAMP
-                ,settletime = CURRENT_TIMESTAMP
-                ,finalhomescore=0
-                ,finalawayscore=0
-        WHERE   matchid = @matchid
-    END
-    IF (
-        @Command = 'NAP_Admin_Settlement_1-InstantCalculation'
-        OR @Command = 'NAP_Admin_Settlement_1_InstantCalculation-Undo'
-    )
+   
+    IF @Command = 'instant'
     BEGIN
 
         SET @betstatus = ISNULL(@betstatus, '')
@@ -457,21 +327,8 @@ BEGIN
             WHERE matchid   = @MatchID
         END
     END
-    --BEGIN: 77720 - Implement BetRadar VS
-    IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-CAL'
-    BEGIN
-        UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
-            SET finalhomescore = @fthome
-                ,finalawayscore = @ftaway
-                ,hthomescore = @hthome
-                ,htawayscore = @htaway
-                ,eventstatus = 'Completed'
-                ,betstatus = ''
-                ,changetime = CURRENT_TIMESTAMP
-                ,settletime = CURRENT_TIMESTAMP
-        WHERE   matchid = @matchid
-    END
-    IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
+
+	IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
     BEGIN
         UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
             SET eventstatus = 'Completed'
@@ -484,26 +341,41 @@ BEGIN
                 ,htawayscore = 0
         WHERE   matchid = @matchid
     END
-    --END: 77720
-	
-     IF @Command = 'profile_bingoball'
+
+    IF @Command = 'completed'
     BEGIN	
-		IF @action = 'REFUND'
-       		SELECT @eventstatus        = N'completed'
-                   ,@betstatus         = N'refund'
-                   
-        IF @action = 'CAL'
-        	SELECT @eventstatus		   = N'completed'
-        		   ,@betstatus         = N''
-        		   
+		SET @eventstatus = N'completed'
+
+		IF @action LIKE 'REFUND%'
+		BEGIN
+       		SELECT @betstatus = CASE 
+									WHEN @Action = 'REFUND' THEN N'Refund'
+									WHEN @Action = 'REFUND-FT' THEN N'Refund FT'
+									ELSE ''
+								END
+
+			IF @sporttype = 180
+				SELECT	@fthome = 0
+						,@ftaway = 0
+			ELSE IF @Sporttype BETWEEN 190 AND 197
+				SELECT	@fthome = 0
+						,@ftaway = 0
+						,@HTHome = 0
+						,@HTAway = 0
+    	 END
+		 
         UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET eventstatus     = COALESCE(@eventstatus, eventstatus)
-                ,betstatus      = COALESCE(@betstatus, '')
+                ,betstatus      = COALESCE(@betstatus, betstatus)
+				,finalhomescore	= COALESCE(@fthome, finalhomescore)
+				,finalawayscore	= COALESCE(@ftaway, finalawayscore)
+				,hthomescore	= COALESCE(@hthome, hthomescore)
+				,htawayscore	= COALESCE(@htaway, htawayscore)
                 ,changetime     = GETDATE()
                 ,settletime     = GETDATE()
+				,multiple		= CASE WHEN @Sporttype BETWEEN 190 AND 197 THEN 1 ELSE multiple END
         WHERE   matchid = @matchid
     END
-
 
     IF @Command = 'profile'
     BEGIN
