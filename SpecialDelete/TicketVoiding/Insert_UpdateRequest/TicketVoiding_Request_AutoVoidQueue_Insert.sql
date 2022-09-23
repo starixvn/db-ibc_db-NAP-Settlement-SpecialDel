@@ -6,7 +6,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Insert]
    ,@MatchId				INT
    ,@ActionID				TINYINT = NULL
    ,@FilterBy				TINYINT = NULL
-   ,@TransIds				VARCHAR(MAX) = NULL
    ,@BroadcastSessionId		VARCHAR(100)
 )
 AS
@@ -19,37 +18,13 @@ AS
 	Revisions: 
 		- 20220808@July: Create new SP - Insert auto void queue [Redmine: #175412]
 		- 20220922@Max: Fix Issue insert queue - [Redmine: #175412 ]
+		- 20220923@July: Fix case auto void wininng insert all server for slow settle site [Redmine: #175412]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member), 13 - Abnormal account
-		+ @TransIds: apply for issuetype (11,15)
 */
 BEGIN
 	SET NOCOUNT ON
-
-	DECLARE @IsCalQueue			 BIT = 0
-		   ,@IsTransidProcessed  BIT = 0
-		   ,@SiteDBGroupID		 SMALLINT = 0 
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
-	CREATE TABLE #tmpTransId (transid BIGINT, statusid INT, statuswinlost TINYINT)
-
-	IF @TransIds IS NOT NULL AND @ActionID = 1
-	BEGIN
-		INSERT INTO #tmpTransId (transid, statusid, statuswinlost)
-		SELECT DISTINCT t.value, b.statusID, b.statuswinlost
-		FROM dbo.bettrans b WITH (NOLOCK) 
-			INNER JOIN STRING_SPLIT(@TransIds, ',') t ON b.TransId = CAST(t.value AS BIGINT)
-		WHERE b.SiteDBGroupID = @SiteDBGroupID
-
-		SET @IsCalQueue = ( SELECT TOP (1) 1
-									FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-									WHERE StatusId IN (1,2,4) AND RequestId = 0
-									AND matchid = @MatchId
-								)
-		IF EXISTS (SELECT TOP (1) 1 FROM #tmpTransId WHERE statusid = 0 AND statuswinlost IS NOT NULL)
-				SET @IsTransidProcessed = 1
-	END
 
 	IF @IssueTypeId = 13 
 	BEGIN
@@ -59,7 +34,7 @@ BEGIN
 	ELSE IF @IssueTypeId IN (11,15)
 	BEGIN
 		-- Insert queue for auto void
-		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @FilterBy IS NULL AND @IsCalQueue = 1) --AND @IsTransidProcessed = 1)
+		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @FilterBy IS NULL)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
 			SELECT @RequestId
@@ -76,6 +51,5 @@ BEGIN
 		END
 	END
 
-	DROP TABLE #tmpTransId
 END
 GO
