@@ -9,16 +9,19 @@ AS
 	
 	Revisions:
 		- 20211111@Kathy: Get all matches being locked on replicated servers [Redmine:#164162]
+		- 20220913@Louisa: get more info [RedmineId:#177711]
 
 */
 BEGIN
 	SET NOCOUNT ON
 	DECLARE @checktime DATETIME2
+			,@ServerName VARCHAR(100) 
 
 	DECLARE @tmpMatchLocked TABLE (MatchId INT, SessionId BIGINT)
 	DECLARE @tmpErrorMessage TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
+	SET @ServerName = @@SERVERNAME
 
 	INSERT INTO @tmpMatchLocked(MatchId, SessionId)
 	SELECT	MatchId, SessionId
@@ -63,7 +66,8 @@ BEGIN
 	FROM	cteErrorMessage c
 	GROUP BY c.SessionId
 
-	SELECT	m.MatchId
+	SELECT	@ServerName AS ServerName
+			,m.MatchId
 			,ISNULL(e.SessionId,t.SessionId) as SessionId
 			,e.CreatedTime AS CreatedTime
 			,h.teamname AS HomeTeam

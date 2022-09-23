@@ -8,6 +8,7 @@ AS
 	
 	Revisions:
 		- 20210830@Louisa: Get data from dbo.SystemSettings [Redmineid:#160738]
+		- 20220913@Louisa: Get more info [RedmineId:#177711]
 
 	Param's Explanation: 
 
@@ -15,7 +16,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT ss.VID
+	SELECT	@@SERVERNAME AS ServerName
+		, ss.VID
 		 , ss.VName
 		 , ss.VValue
 	FROM dbo.SystemSettings ss WITH(NOLOCK)
