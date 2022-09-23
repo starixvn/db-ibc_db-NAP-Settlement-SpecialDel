@@ -14,6 +14,7 @@ AS
 		- 20200803@July : Get list Sporttype and LeagueId [Redmine:#138475]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20220923@Kathy: Scale Out BetTrans - get running ticket [Redmine:#175251]
 
 	Param's Explanation: 
 		@SettleType = BBD: BetBuilder
@@ -61,6 +62,7 @@ BEGIN
 	AS (
 		SELECT	bt.matchid
 				,COUNT (*) AS totalTicket
+				,SUM(CASE WHEN statusID = 0 THEN 1 ELSE 0 END) AS totalTicketsRunning
 		FROM	@tmpMatchInQueue q
 			INNER JOIN dbo.bettrans bt WITH (NOLOCK)
 				ON q.MatchId = bt.matchid
@@ -75,6 +77,7 @@ BEGIN
 			,m.eventStatus
 			,m.autoSetting
 			,ISNULL(b.totalTicket,0) AS totalTickets
+			,ISNULL(b.totalTicketsRunning,0) AS totalTicketsRunning
 			,q.QueueStatus
 			,m.sporttype
 	FROM	@tmpMatchInQueue q
