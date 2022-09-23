@@ -1,9 +1,7 @@
 -----------STEP 1: ALTER SP ExecRep on DBTRANS ------------------------------------------
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
-(
-	
-)
+AS
 /*
 	Created by: 20220923@Victoria
     Task: Delete unused test data of BetRadar
@@ -13,10 +11,8 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 		- 20220923@Victoria: Delete unused test data of BetRadar [Redmineid:#178134] 
 
 */	
-AS
-BEGIN
 
-	USE bodb02
+BEGIN
 
 	DELETE b
 	FROM bettransm b WITH (ROWLOCK)
