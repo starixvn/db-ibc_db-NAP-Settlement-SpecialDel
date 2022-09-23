@@ -1,9 +1,9 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 
 /*
     Created by: 20220923@Victoria
     Task: Delete unused test data of BetRadar
-    DB: DBTXN-bodb02
+    DB: DBSIG-bodb02
 
 	 Revisions:
 		- 20220923@Victoria: Delete unused test data of BetRadar [Redmineid:#178134] 
