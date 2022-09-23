@@ -18,6 +18,7 @@ AS
 	
 	Revisions: 
 		- 20220808@July: Create new SP - Insert auto void queue [Redmine: #175412]
+		- 20220922@Max: Fix Issue insert queue - [Redmine: #175412 ]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member), 13 - Abnormal account
@@ -58,7 +59,7 @@ BEGIN
 	ELSE IF @IssueTypeId IN (11,15)
 	BEGIN
 		-- Insert queue for auto void
-		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @FilterBy IS NULL AND @IsCalQueue = 1 AND @IsTransidProcessed = 1)
+		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @FilterBy IS NULL AND @IsCalQueue = 1) --AND @IsTransidProcessed = 1)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue(RequestId, MatchId, [Action], StatusId, UserId, Starttime, IP, sporttype, BroadcastSessionId)
 			SELECT @RequestId
