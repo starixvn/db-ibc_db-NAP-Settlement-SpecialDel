@@ -34,7 +34,7 @@ AS
 	Param's explanation:
 		Version 1: Only use for Void Ticket via TVS
 			- @transIds = '<root>
-							<r transid="104730774034" match="432934573" betid="1" isMG="1" betdaqid="100"/>
+							<r transid="104730774034" translogid="432934573" betid="1" isMG="1" actual_stake="100"/>
 							<r transid="104729373985" />
 						</root>'
 						isMG: metric gaming ticket
@@ -58,13 +58,10 @@ BEGIN
 			,@transid BIGINT
 			,@matchid INT
 			,@IsEnableServiceBroker BIT -- server is using service broker or not
-			,@FcUpdateTime	 DATETIME2
-			,@IsSiteDB	BIT 
-			,@transInfo XML 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			,@RepUpdateTime DATETIME2
 		SET @IsSiteDB = 1
 	
-	DECLARE @tmpTrans TABLE (TransID BIGINT, BetId BIGINT, betdaqid BIGINT) 
+	DECLARE @tmpTrans TABLE (TransID BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, actual_stake MONEY, betdaqid BIGINT) 
 	DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
 	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, betdaqid BIGINT, Bonusid INT, WalletType TINYINT, status VARCHAR(20))
 
@@ -117,7 +114,6 @@ BEGIN
 			FROM	@xml.nodes('/root/r') AS T(C)
 			OPTION (OPTIMIZE FOR (@xml = NULL ))
 
-
 			IF @ActionType = 1
 			BEGIN
 				INSERT INTO dbo.MarkedTransaction
@@ -137,10 +133,6 @@ BEGIN
 					CURRENT_TIMESTAMP,
 					t.MarkType
 				FROM @tmpTrans_SB t;
-						SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', @matchid, @transInfo 
-					END
-				END
-		
 			END
 			ELSE IF @ActionType = 2
 			BEGIN
@@ -152,9 +144,12 @@ BEGIN
 	END
     ELSE
 	BEGIN
-		INSERT INTO @tmpTrans(TransID, BetId, betdaqid)
+		INSERT INTO @tmpTrans(TransID, TranslogId, BetId, IsMG, actual_stake, betdaqid)
 		SELECT	T.C.value('./@transid', 'bigint')
+				,T.C.value('./@translogid', 'bigint')
 				,T.C.value('./@betid', 'bigint')
+				,T.C.value('./@isMG', 'bit')
+				,T.C.value('./@actual_stake', 'money')
 				,T.C.value('./@betdaqid', 'bigint')
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
@@ -164,11 +159,12 @@ BEGIN
 			SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
 			SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
 			SET @Sporttype = (SELECT TOP 1 sporttype FROM dbo.match m WITH (NOLOCK) WHERE m.matchid = @matchid)
-			SET @FcUpdateTime = SYSDATETIME()
+			SET @RepUpdateTime = SYSDATETIME()
 
 			UPDATE	b
-			SET @actual_stake = b.actual_stake
+			SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
 				,winlost = @actual_stake
+				,actual_stake = @actual_stake
 				,ruben = 1
 				,creator = @UserId
 				,awinlost = 0
@@ -182,7 +178,7 @@ BEGIN
 				,status = 'VOID'
 				,betid = t.BetId
 				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalMixParlay = 0 THEN 1 ELSE 2 END,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
-				,FcUpdateTime  = @FcUpdateTime
+				,RepUpdateTime  = @RepUpdateTime
 					OUTPUT deleted.Transid,
 						deleted.custid,  
 						deleted.winlost,  
@@ -196,37 +192,9 @@ BEGIN
 			FROM	@tmpTrans t
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
-			WHERE b.statusID NOT IN (102)
-
-			SET @transInfo = (
-			SELECT	t.transId AS '@t'
-					, b.winlost AS '@w'
-					, b.ruben AS '@r'
-					, b.creator AS '@cr'
-					, b.awinlost AS '@aw'
-					, b.mwinlost AS '@mw'
-					, b.swinlost AS '@sw'
-					, b.playercomm AS '@pc'
-					, b.comm AS '@c'
-					, b.acomm AS '@ac'
-					, b.scomm AS '@sc'
-					, b.statusID AS '@sid'
-					, b.status AS '@s'
-					, b.betid AS '@bid'
-					, b.ExtraInfo AS '@ex'
-					, b.FcUpdateTime AS '@rut'
-			FROM	@tmpTrans t 
-				INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
-				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			WHERE b.statusID NOT IN (102)	
 
 			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
-			END
-
-
 			-- Process for cashout tickets make change Balance before
 			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
 														, b.custid AS c
@@ -248,12 +216,9 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
-			SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
-			SET @FcUpdateTime = SYSDATETIME()
-
+			SET @RepUpdateTime = SYSDATETIME()
 			UPDATE	b
-			SET @actual_stake = b.actual_stake
+			SET @actual_stake = CASE WHEN t.IsMG = 1 THEN t.actual_stake ELSE  b.actual_stake END
 				,winlost = @actual_stake
 				,actual_stake = @actual_stake
 				,ruben = 1
@@ -268,7 +233,7 @@ BEGIN
 				,statusID = 102
 				,status = 'VOID'
 				,betid = t.BetId
-				,FcUpdateTime  = @FcUpdateTime
+				,RepUpdateTime  = @RepUpdateTime
 					OUTPUT deleted.Transid,
 						deleted.custid,  
 						deleted.winlost,  
@@ -283,34 +248,8 @@ BEGIN
 				INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
 					ON  t.transid = b.transid
 			WHERE b.statusID NOT IN (102)	
-
-			SET @transInfo = (
-			SELECT	t.transId AS '@t'
-					, b.winlost AS '@w'
-					, b.ruben AS '@r'
-					, b.creator AS '@cr'
-					, b.awinlost AS '@aw'
-					, b.mwinlost AS '@mw'
-					, b.swinlost AS '@sw'
-					, b.playercomm AS '@pc'
-					, b.comm AS '@c'
-					, b.acomm AS '@ac'
-					, b.scomm AS '@sc'
-					, b.statusID AS '@sid'
-					, b.status AS '@s'
-					, b.betid AS '@bid'
-					, b.FcUpdateTime AS '@rut'
-			FROM	@tmpTrans t 
-				INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
-				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			FOR XML PATH('r'),ROOT('root'), TYPE)
-
-			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> 0
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
-			END
 			
+			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> 0
 			-- Process for cashout tickets make change Balance before
 			SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
 														, b.custid AS c
@@ -328,6 +267,20 @@ BEGIN
 													AND ISNULL(t.betdaqid, 0) <> -2
 												FOR XML AUTO) AS VARCHAR(MAX)
 										),'')
+			
+		END
+				
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t WHERE t.IsMG = 1)
+		BEGIN
+			UPDATE	tl 
+				SET status = 'VOID'
+					,statusID = 102
+					,creator = @UserId
+					,custom3 = ISNULL(tl.custom3, t.betid)
+			FROM	@tmpTrans t	
+				INNER JOIN dbo.translog tl WITH(ROWLOCK, UPDLOCK)
+					ON	t.TranslogId = tl.translogid
+			WHERE tl.statusID NOT IN (102)	
 			
 		END
 	END

@@ -59,6 +59,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
+		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -90,6 +91,8 @@ BEGIN
 	SET NOCOUNT ON  
 
 	DECLARE @ValueDefault SMALLMONEY = 9999.00
+		   ,@SiteDBGroupID SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #tblBetType
 	(
@@ -109,7 +112,7 @@ BEGIN
 
 	CREATE TABLE #ParlayDelete (
 		transid					BIGINT 
-        ,ChoiceTransID			BIGINT 
+        ,SubTransId			    BIGINT 
         ,Refno					BIGINT  
         ,UserName				VARCHAR(30)		
         ,CustId					INT  
@@ -117,44 +120,41 @@ BEGIN
         ,Creator				VARCHAR(30)
         ,Stake					MONEY  
         ,WinLost				MONEY 
-        ,Odds					MONEY 
+        ,Odds					SMALLMONEY 
         ,OddsType				TINYINT  
 		,BetType				SMALLINT
         ,Status					NVARCHAR(10)
-		,ChoiceStatus			NVARCHAR(10)
-        ,spositiontaking		SMALLMONEY  
-        ,mpositiontaking		SMALLMONEY  
-        ,apositiontaking		SMALLMONEY  
+		,SubStatus			    NVARCHAR(10)
         ,Currency				TINYINT
         ,CurrencyName			VARCHAR(30) 
         ,mrecommend				INT     
 		,recommend				INT     
         ,IsDeposit				BIT  
-        ,ChoiceBetType			INT  
-        ,ChoiceHomeID			INT 
-        ,ChoiceAwayID			INT 
-        ,ChoiceHdp1				SMALLMONEY
-        ,ChoiceHdp2				SMALLMONEY
+        ,SubBetType			    INT  
+        ,SubHomeID			    INT 
+        ,SubAwayId			    INT 
+        ,SubHdp1				SMALLMONEY
+        ,SubHdp2				SMALLMONEY
         ,hdp1					SMALLMONEY
         ,hdp2					SMALLMONEY
-        ,ChoiceOdds				MONEY
-        ,ChoiceBetTeam			NVARCHAR(20)
+        ,SubOdds				SMALLMONEY
+        ,SubBetTeam			    NVARCHAR(20)
 		,BetTeam				NVARCHAR(20)
-        ,ChoiceLiveHomeScore	SMALLINT
-        ,ChoiceLiveAwayScore	SMALLINT
-        ,ChoiceLiveIndicator	BIT
-        ,ChoiceLeagueId			INT
-        ,ChoiceSportType 		SMALLINT
+        ,SubLiveHomeScore	    SMALLINT
+        ,SubLiveAwayScore	    SMALLINT
+        ,SubLiveIndicator	    BIT
+        ,SubLeagueId			INT
+        ,SubSportType 		    SMALLINT
         ,ChoiceIsNeutral 		BIT  
         ,ChoiceMatchId			INT  
         ,ChoiceMatchCode		NVARCHAR(50)  
-        ,ChoiceBetCheck			NVARCHAR(50)
+        ,SubBetCheck			NVARCHAR(50)
         ,betcheck				NVARCHAR(50)
-        ,modds					MONEY
+        ,modds					SMALLMONEY
         ,transdesc				NVARCHAR(1000)
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
-        ,OddsId					INT
+        ,SubOddsId				INT
 	   )
                   
 	CREATE TABLE #Ref (--id INT identity(1,1) primary key clustered   
@@ -163,7 +163,7 @@ BEGIN
       ,Bettype			INT  
       ,hdp1 			SMALLMONEY  
       ,hdp2 			SMALLMONEY  
-      ,odds 			MONEY  
+      ,odds 			SMALLMONEY  
       ,betteam			NVARCHAR(20)  
       ,livehomescore 	SMALLINT  
       ,liveawayscore 	SMALLINT  
@@ -277,7 +277,7 @@ BEGIN
 	  ,b.transdesc
 	  ,b.OddsId
 	 FROM dbo.bettransm AS b WITH(NOLOCK)		  
-	 WHERE	matchid=@MatchID    
+	 WHERE	matchid=@MatchID AND b.SiteDBGroupID = @SiteDBGroupID
 			AND CASE WHEN @Type = 2 THEN @Type ELSE b.liveindicator END = @Type
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @Type = 1 THEN @LiveHomeScore ELSE livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @Type = 1 THEN @LiveAwayScore ELSE liveawayscore END
@@ -285,10 +285,7 @@ BEGIN
 								AND	CASE WHEN @ToTransdate IS NOT NULL THEN @ToTransdate ELSE b.transdate END 
 		    AND b.statusID NOT IN (101, 102)  -- reject, void
 		    AND b.betfrom <> 'p'
-		    AND EXISTS (SELECT TOP 1 1
-						FROM #tblBetType s
-						WHERE b.bettype = s.Id)
-	OPTION (maxrecursion 0)		    
+		    AND EXISTS (SELECT TOP 1 1 FROM #tblBetType s WHERE b.bettype = s.Id)
 
 	CREATE CLUSTERED INDEX cl_Ref_refno ON #Ref(refno)  
 	CREATE NONCLUSTERED INDEX nl_Ref_StatusID ON #Ref(StatusID)  
@@ -369,14 +366,8 @@ BEGIN
 					
 	DELETE s
 	FROM #Ref s		 
-	WHERE NOT EXISTS (SELECT TOP 1 1
-					  FROM #tblBetType tp
-					  WHERE tp.Id = s.bettype
-					    AND CASE
-								WHEN tp.Goal = 100 THEN 1
-								WHEN ISNULL(s.betcheck, 0) = tp.Goal THEN 1			
-								ELSE 0
-							END = 1)
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE tp.Id = s.bettype AND (tp.Goal = 100 OR ISNULL(s.betcheck, 0) = tp.Goal))		
 
 	DELETE s
 	FROM  #Ref s
@@ -401,39 +392,81 @@ BEGIN
 	
 	END
 
-	INSERT INTO #ParlayDelete  
+	INSERT INTO #ParlayDelete(
+		transid	
+		,SubTransId			
+        ,Refno					
+        ,UserName					
+        ,CustId					
+        ,TransDate				
+        ,Creator				
+        ,Stake					
+        ,WinLost				
+        ,Odds					
+        ,OddsType				
+		,BetType				
+        ,Status					
+		,SubStatus			
+        ,Currency				
+        ,CurrencyName			
+        ,mrecommend				
+		,recommend				
+        ,IsDeposit				
+        ,SubBetType			
+        ,SubHomeID			    
+        ,SubAwayId			    
+        ,SubHdp1				
+        ,SubHdp2				
+        ,hdp1					
+        ,hdp2					
+        ,SubOdds				
+        ,SubBetTeam			
+		,BetTeam				
+        ,SubLiveHomeScore	    
+        ,SubLiveAwayScore	    
+        ,SubLiveIndicator	    
+        ,SubLeagueId			
+        ,SubSportType 		
+        ,ChoiceIsNeutral 		
+        ,ChoiceMatchId			
+        ,ChoiceMatchCode		  
+        ,SubBetCheck			
+        ,betcheck				
+        ,modds					
+        ,transdesc				
+		,ExtraInfo				
+		,ActualStake			
+        ,SubOddsId					
+	   )
 	SELECT   
 	b.transid,  
-	r.transid AS ChoiceTransID,  
+	r.transid AS SubTransId,  
 	r.refno,  
 	b.username,	
 	b.custid,  
 	b.transdate,     
 	cr.username as Creator,   
-	b.stake, --as StakePositiontaking,  
+	b.stake, 
 	b.winlost-b.actual_stake AS WinLost,  
 	b.odds,     
 	b.OddsType,
 	b.bettype,   
 	b.status,  
-	r.status,
-	b.spositiontaking,  
-	b.mpositiontaking,  
-	b.apositiontaking,      
+	r.status AS SubStatus,
 	b.currency,   
 	b.CurrencyName,  
 	b.mrecommend,     
 	b.recommend,
 	CASE WHEN b.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) then 1 ELSE 0 END as IsDeposit
-	,r.bettype AS ChoiceBetType  
+	,r.bettype AS SubBetType  
 	,m.homeid  
 	,m.awayid  
-	,r.hdp1 AS ChoiceHandicap1  
-	,r.hdp2 AS ChoiceHandicap2  
-   ,b.hdp1
-   ,b.hdp2
-	,r.odds AS ChoiceOdds  
-	,r.betteam  
+	,r.hdp1 AS SubHdp1  
+	,r.hdp2 AS SubHdp2  
+    ,b.hdp1
+    ,b.hdp2
+	,r.odds AS SubOdds  
+	,r.betteam AS SubBetTeam    
 	,b.betteam
 	,r.livehomescore  
 	,r.liveawayscore  
@@ -443,60 +476,61 @@ BEGIN
 	,m.isNeutral  
 	,m.matchID  
 	,m.matchCode  
-   ,r.betcheck AS ChoiceBetCheck
-   ,b.betcheck
+    ,r.betcheck AS SubBetCheck
+    ,b.betcheck
 	,b.modds
 	,r.transdesc
 	,b.ExtraInfo
 	,b.actual_stake AS ActualStake
 	,r.OddsId
 	FROM #Bettypes_Parlay t
-	INNER JOIN dbo.bettrans AS b with (NOLOCK) ON t.BetType = b.matchid
+	INNER JOIN dbo.bettrans AS b with (NOLOCK) ON t.BetType = b.matchid AND b.SiteDBGroupID = @SiteDBGroupID
 	INNER JOIN #Ref AS r WITH(NOLOCK) ON b.refno=r.refno
 	INNER JOIN dbo.match AS m WITH(NOLOCK) ON m.matchid=@MatchID  
 	INNER JOIN custDB.dbo.customer AS cr with (NOLOCK) ON cr.custid = b.creator	
 	
-	SELECT   T.transid				AS TransId 
-			,T.ChoiceTransID		AS SubTransId 
-			,T.Refno				AS RefNo 
-			,T.UserName				AS UserName  			
-			,T.TransDate			AS TransDate 
-			,T.Creator				AS Creator 
-			,T.Stake				AS Stake 
-			,T.WinLost				AS WinLost 
-			,T.Odds					AS Odds 			
-			,T.BetType				AS BetType 
-			,T.Status				AS Status 
-			,T.ChoiceStatus			AS SubStatus  			
+	SELECT   T.transid		
+			,T.SubTransId 
+			,T.Refno	 
+			,T.UserName					
+			,T.TransDate	 
+			,T.Creator		
+			,T.Stake	
+			,T.WinLost		
+			,T.Odds							
+			,T.BetType			
+			,T.Status			
+			,T.SubStatus  			
 			,T.CurrencyName			AS CurrencyCode 			
-			,T.ChoiceBetType		AS SubBetType 
-			,T.ChoiceHomeID			AS SubHomeId  
-			,T.ChoiceAwayID			AS SubAwayId    
-			,T.ChoiceHdp1			AS SubHdp1 
-			,T.ChoiceHdp2			AS SubHdp2 
-			,T.hdp1					AS Hdp1 
-			,T.hdp2					AS Hdp2 
-			,T.ChoiceOdds			AS SubOdds 
-			,T.ChoiceBetTeam		AS SubBetTeam 
-			,T.BetTeam				AS BetTeam 
-			,T.ChoiceLiveHomeScore	AS SubLiveHomeScore  
-			,T.ChoiceLiveAwayScore	AS SubLiveAwayScore  
-			,T.ChoiceLiveIndicator	AS SubLiveIndicator 
-			,T.ChoiceLeagueId		AS SubLeagueId 
-			,T.ChoiceSportType 		AS SubSportType 	
+			,T.SubBetType 
+			,T.SubHomeId  
+			,T.SubAwayId    
+			,T.SubHdp1 
+			,T.SubHdp2 
+			,T.hdp1		
+			,T.hdp2		
+			,T.SubOdds 
+			,T.SubBetTeam 
+			,T.BetTeam
+			,T.SubLiveHomeScore  
+			,T.SubLiveAwayScore  
+			,T.SubLiveIndicator 
+			,T.SubLeagueId 
+			,T.SubSportType 	
 			,T.ChoiceIsNeutral		AS IsNeutral		
-			,T.ChoiceBetCheck		AS SubBetCheck 
-			,T.betcheck				AS BetCheck 
+			,T.SubBetCheck 
+			,T.betcheck		
 			,T.modds				AS MasterOdds 
-			,T.transdesc			AS TransDesc 
-			,T.[Group]				AS GroupName
+			,T.transdesc		
+			,T.GroupName
 			,T.ExtraInfo
 			,T.ActualStake
-			,T.OddsId				AS SubOddsId
+			,T.SubOddsId
+			,@SiteDBGroupID AS SiteDBGroupID
 	FROM
 	(	
 		--0. For Credit bets  
-		SELECT *, [Group]='Credit'   
+		SELECT *, GroupName='Credit'   
 		FROM #ParlayDelete
 		WHERE IsDeposit = 0  
 		AND custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
@@ -506,7 +540,7 @@ BEGIN
 		AND custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102		
 		UNION ALL
 		--1. For Deposit bets  
-		SELECT * ,[Group]='Deposit'  
+		SELECT * ,GroupName='Deposit'  
 		FROM #ParlayDelete   
 		WHERE IsDeposit = 1  
 		AND custid NOT IN (SELECT CustID FROM [f_GetBetDaqCustomer] (1))    
@@ -516,18 +550,17 @@ BEGIN
 		AND custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102		 
 		UNION ALL
 		-- 2: For Betfair 
-		SELECT *, [Group] = 'BetFair'
+		SELECT *, GroupName = 'BetFair'
 		FROM #ParlayDelete
 		WHERE custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102
 	) AS T
 	ORDER BY CASE
-				WHEN T.[Group]='Credit' THEN 0
-				WHEN T.[Group]='Deposit' THEN 1
-				WHEN T.[Group]='BetFair' THEN 2
+				WHEN T.GroupName='Credit' THEN 0
+				WHEN T.GroupName='Deposit' THEN 1
+				WHEN T.GroupName='BetFair' THEN 2
 				ELSE 3
 			 END ASC
 		   , T.IsDeposit DESC, T.transid  
-
 
 	DROP TABLE #ParlayDelete  
 	DROP TABLE #Ref  

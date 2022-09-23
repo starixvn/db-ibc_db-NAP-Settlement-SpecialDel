@@ -3,10 +3,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Update]
 (
 	@Matches  XML           = NULL,
     @UserId   INT           = 0,
-    @Username NVARCHAR(100) = N'',
-    @IP       VARCHAR(15)   = NULL,
-    @ErrMsg   NVARCHAR(200) = '' OUTPUT,
-    @ErrCode  INT           = 0 OUTPUT
+    @IP       VARCHAR(15)   = NULL
 )
 AS
 /*
@@ -22,9 +19,10 @@ AS
 		- 20200609@Charles: Remove notify when mark/unmark tickets [131865]
 		- 20210709@Max: [TVS] Tuning SP mark/unmark tickets [Redmine: #157930]
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
-		
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Explanation's Param:
-	@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
+		@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -40,7 +38,6 @@ BEGIN
 			SET @sqlCommand = 'EXEC dbo.Nap_SpecialDelete_AllMarkedTicketsSummary_Update '
 				+ CASE WHEN @Matches IS NULL THEN '' ELSE '@Matches = ''' + CONVERT(NVARCHAR(4000), @Matches) + '''' END
 				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(100), @UserName) + '''' END
 				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
@@ -55,6 +52,10 @@ BEGIN
 		   ,@totalParlay		INT = 0
 		   ,@Row_SD				INT = 0
 		   ,@Row_Refno			INT = 0
+		   ,@ErrMsg				NVARCHAR(200) = ''
+		   ,@ErrCode			INT = 0 
+		   ,@SiteDBGroupID		SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
@@ -111,7 +112,7 @@ BEGIN
 		INNER JOIN #Match t ON t.MatchId = m.MatchId
 								AND t.UserId = m.UserId
 								AND m.CreatedDate = t.CreatedDate
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.transid
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = m.transid AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	-- Check Lock Match
 	DECLARE @avaiableProcess BIT
@@ -154,10 +155,7 @@ BEGIN
 		@LockName = 'ParlayRefno'
 		,@ThreadHold = @ThreadHold OUTPUT
 
-	INSERT INTO #tblMatchProcess (
-		MatchId
-		,KeyID
-		)
+	INSERT INTO #tblMatchProcess (MatchId, KeyID)
 	SELECT DISTINCT MatchId
 		,CASE 
 			WHEN f.GroupId IS NULL THEN 1 --SB
@@ -193,6 +191,7 @@ BEGIN
 
 			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 			BEGIN
+				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 				RETURN;
 			END;
 		END
@@ -210,6 +209,8 @@ BEGIN
 			
 			IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 			BEGIN
+				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
+
 				-- releasing single process
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistMatch = @IsExistSingle,
@@ -237,6 +238,7 @@ BEGIN
 
 		IF (@ErrCode <> 0 OR @avaiableProcess = 0)
 		BEGIN
+			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 			RETURN;
 		END;
 	END
@@ -352,7 +354,13 @@ BEGIN
 				@IsReleased = 1;
 		END
 	END
-	
+
+	------------------------------------------------------------------------------
+	--1. Table return error code/ msg
+	SELECT @ErrCode AS ErrorCode
+		 , @ErrMsg AS ErrorMsg
+ 
+	--2. Table get match info
 	SELECT b.MatchId
 		,m.HomeId
 		,m.AwayId
@@ -385,10 +393,7 @@ BEGIN
 					,TYPE
 				) AS VARCHAR(MAX));
 
-	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog
-		,@functionName = 'TicketVoiding'
-		,@MessageType = 'MessageType_TicketVoiding_Log';
-
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log';
 
 	-- Write useraction log	
 	BEGIN TRY

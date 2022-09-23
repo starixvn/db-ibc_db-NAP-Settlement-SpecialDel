@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_CheckAbnormalBet] @MatchId BIGINT
-	,@TransIds VARCHAR(MAX) = NULL
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_CheckAbnormalBet] 
+	 @MatchId	BIGINT
+	,@TransIds	VARCHAR(MAX) = ''
 AS
 /*  
 	Created by: Raymond.Le  
@@ -14,6 +15,7 @@ AS
 		- 20190730@Raymond.Le: Incorporate BetBuilder [Redmine: #106898] 
 		- 20210705@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -28,7 +30,8 @@ BEGIN
 		   ,@InvalidMatchId VARCHAR(200) = '' 
 		   ,@MovebetDate DATETIME
 		   ,@MatchDate DATETIME
-	
+		   ,@SiteDBGroupID SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 
 	SELECT @MatchDate = eventdate
@@ -98,6 +101,7 @@ BEGIN
 		AND b.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 		AND b.bettype NOT IN (38) -- Bet Builder
 		AND b.statusID NOT IN (101, 102)
+		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	IF @MatchDate <= @MovebetDate
 	BEGIN
@@ -117,7 +121,7 @@ BEGIN
 			OUTER APPLY (
 				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
 				FROM dbo.bettrans14 WITH (NOLOCK)
-				WHERE transid = TEMP.transid
+				WHERE transid = TEMP.transid AND SiteDBGroupID = @SiteDBGroupID
 				UNION ALL
 				SELECT TOP 1 CAST(1 AS BIT) AS isMoved
 				FROM @tmpTransIdMoveBet m  
@@ -159,6 +163,5 @@ BEGIN
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
 
 	DROP TABLE #transIdTemp
-
 	DROP TABLE #validTransId
 END

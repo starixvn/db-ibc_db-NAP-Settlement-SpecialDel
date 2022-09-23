@@ -1,23 +1,17 @@
-﻿
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-
-ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Select] @Status          SMALLINT     = 0,
-                                                             @SearchBy        SMALLINT     = 0,
-                                                             @MatchId         INT          = 0,
-                                                             @FromTransId     BIGINT       = 0,
-                                                             @ToTransId       BIGINT       = 0,
-                                                             @Duration        XML          = NULL,
-                                                             @LiveIndicator   INT          = 0,
-                                                             @LiveHomeScore   SMALLINT     = NULL,
-                                                             @LiveAwayScore   SMALLINT     = NULL,
-                                                             @CurrencyIDs     VARCHAR(MAX) = NULL,
-                                                             @LicenseeNames   VARCHAR(MAX) = NULL,
-                                                             @BetTypes        XML          = NULL,
-                                                             @TransIds        VARCHAR(MAX) = NULL,
-                                                             @Bet             VARCHAR(10)  = 'All',
-                                                             @InvalidTransIds VARCHAR(MAX) = '' OUTPUT,
-                                                             @MovedTransIds   VARCHAR(MAX) = '' OUTPUT,
-                                                             @MarkedTransIds  VARCHAR(MAX) = '' OUTPUT
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkTickets_Select] 
+	@Status          SMALLINT     = 0,
+    @SearchBy        SMALLINT     = 0,
+    @MatchId         INT          = 0,
+    @Duration        XML          = NULL,
+    @LiveIndicator   INT          = 0,
+    @LiveHomeScore   SMALLINT     = NULL,
+    @LiveAwayScore   SMALLINT     = NULL,
+    @CurrencyIDs     VARCHAR(MAX) = NULL,
+    @LicenseeNames   VARCHAR(MAX) = NULL,
+    @BetTypes        XML          = NULL,
+    @TransIds        VARCHAR(MAX) = NULL,
+    @Bet             VARCHAR(10)  = 'All'
 AS
 
 /*
@@ -37,6 +31,7 @@ AS
 	Revisions:
 		- 20190325@Alan: - Mark Ticket for Settlement Exclusion [108826]
         - 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 */
 
          BEGIN
@@ -47,8 +42,6 @@ AS
                          BEGIN -- Select UnMarked Tickets By MatchId
                              EXEC [dbo].[Nap_SpecialDelete_UnMarkedTickets_MatchId_Select]
                                   @MatchId = @MatchId,
-                                  @FromTransId = @FromTransId,
-                                  @ToTransId = @ToTransId,
                                   @Duration = @Duration,
                                   @LiveIndicator = @LiveIndicator,
                                   @LiveHomeScore = @LiveHomeScore,
@@ -61,10 +54,7 @@ AS
                          ELSE
                          BEGIN -- Select UnMarked Tickets By BetIds;
                              EXEC [dbo].[Nap_SpecialDelete_UnMarkedTickets_BetIds_Select]
-                                  @TransIds = @TransIds,
-                                  @InvalidTransIds = @InvalidTransIds OUTPUT,
-                                  @MovedTransIds = @MovedTransIds OUTPUT,
-                                  @MarkedTransIds = @MarkedTransIds OUTPUT;
+                                  @TransIds = @TransIds
                          END;
                  END;
                  ELSE
@@ -73,8 +63,6 @@ AS
                          BEGIN -- Select Marked Tickets By MatchId
                              EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select]
                                   @MatchId = @MatchId,
-                                  @FromTransId = @FromTransId,
-                                  @ToTransId = @ToTransId,
                                   @Duration = @Duration,
                                   @LiveIndicator = @LiveIndicator,
                                   @LiveHomeScore = @LiveHomeScore,
@@ -87,8 +75,7 @@ AS
                          ELSE
                          BEGIN -- Select Marked Tickets By BetIds;
                              EXEC [dbo].[Nap_SpecialDelete_MarkedTickets_BetIds_Select]
-                                  @TransIds = @TransIds,
-                                  @InvalidTransIds = @InvalidTransIds OUTPUT;
+                                  @TransIds = @TransIds
                          END;
                  END;
              SET NOCOUNT OFF;

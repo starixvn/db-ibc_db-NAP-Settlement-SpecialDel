@@ -2,16 +2,12 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
 (
 	@Matchid		 INT,
+	@TransIds		 VARCHAR(MAX) ='',
 	@Bettype		 SMALLINT,
 	@MarkedBy		 INT,
 	@Betid			 BIGINT = NULL,
 	@UserId          INT           = 0,
-    @Username        NVARCHAR(100) = '',
-    @IP              VARCHAR(15)   = NULL,
-    @ErrMsg          NVARCHAR(200) = '' OUTPUT,
-    @ErrCode         INT           = 0 OUTPUT,
-	@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT,
-	@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
+    @IP              VARCHAR(15)   = NULL
 )
 AS
 /*	Created by: Max
@@ -35,60 +31,42 @@ AS
 		- 20210329@Max: TVS - Correct Ticket on DBTP [Redmine: #151954]
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
-		
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+
 	Param's explanation:	
 		
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @UnmarkTransids VARCHAR(MAX)  = '', @ResettleTransids VARCHAR(MAX) = '' 
+	DECLARE @UnmarkTransids		VARCHAR(MAX)  = ''
+	      , @ResettleTransids	VARCHAR(MAX) = '' 
+		  , @ErrMsg				NVARCHAR(200) = ''
+          , @ErrCode			INT   = 0
+	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
 
-	DECLARE @query NVARCHAR(MAX) = ''
-	, @ExecuteSQL NVARCHAR(MAX) = ''
-	, @IsActiveVoidWinning BIT = 0
+	DECLARE @IsCalQueue	BIT = 0
+		   ,@SiteDBGroupID	SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @avaiableProcess BIT
-			,@isExistMatch BIT
-			,@Sporttype    SMALLINT
-			,@IsCalQueue		BIT = 0
-			,@isExistFM2				BIT = 0
-			
-			
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
+	DECLARE @tmpError TABLE (ErrorCode INT, ErrorMsg NVARCHAR(200), NegativeBalanceUsers VARCHAR(MAX))
 
-	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, isFinish INT, IsMixParlay BIT DEFAULT(0))
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, IsMixParlay BIT DEFAULT(0), isFinish INT)
 	
-	--Step 1: Insert table TicketVoiding_AutoUnmarkSetting
-	INSERT INTO dbo.TicketVoiding_AutoUnmarkSetting (Matchid, Bettype, IsConfirm, CreatedDate, UserId, MarkedBy, betid)
-	VALUES(@Matchid, @Bettype, 1, GETDATE(), @UserId, @MarkedBy, @Betid)
-
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
 	CREATE TABLE #ValidRequestTransId (TransId BIGINT)
-	CREATE TABLE #ProblemAccount_tmp (CustID INT)
-	
 	INSERT INTO #inputRequestTransId (TransId)
-	SELECT  rd.transid
-	FROM dbo.TicketVoiding_RequestDetailTicket_Single rd WITH (NOLOCK) 
-	WHERE rd.IssueTypeId = 11 AND rd.MatchId = @MatchId
-	
+	SELECT value
+	FROM STRING_SPLIT(@TransIds, ',')
+	WHERE value <> ''
+
 	INSERT INTO #ValidRequestTransId (TransId)	
 	SELECT t.TransId
 	FROM #inputRequestTransId t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.TransId = b.transid
-	WHERE b.bettype = @Bettype
-
-	-- get all transid that not belong to any abnormal request
-	SELECT  @query = N''		
-	SELECT	@query = @query + N'SELECT Custid 
-								FROM dbo.ProblemAccount WITH (NOLOCK)	
-								WHERE Actionid = 2 and SubIssueTypeId = 38'
-	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-
-	INSERT INTO #ProblemAccount_tmp (CustID)
-	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+	WHERE b.bettype = @Bettype AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- get list transid to unmark
 	INSERT INTO #tmpTransid_unmark (
@@ -100,20 +78,12 @@ BEGIN
 		,b.statuswinlost
 		,0
 	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = mt.MatchId
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = mt.MatchId AND b.SiteDBGroupID = @SiteDBGroupID
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
-		AND mt.TransId NOT IN (
-			SELECT transid
-			FROM #ValidRequestTransId
-			)
-		AND NOT EXISTS (
-			SELECT TOP 1 1
-			FROM #ProblemAccount_tmp t
-			WHERE t.custid = b.custid
-			)
+		AND mt.TransId NOT IN (SELECT transid FROM #ValidRequestTransId)
 		AND b.statusID IN (0, 1)
 		AND (
 			@Betid IS NULL
@@ -122,14 +92,13 @@ BEGIN
 				AND b.betid = @Betid
 				)
 			)
-
 	UNION
 	SELECT bm.TransId
 		,NULL
 		,1
 	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = 29
-		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = mt.MatchId
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = 29 AND b.SiteDBGroupID = @SiteDBGroupID
+		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = mt.MatchId AND bm.SiteDBGroupID = b.SiteDBGroupID
 	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
@@ -145,38 +114,16 @@ BEGIN
 	
 	IF NOT EXISTS (SELECT TOP (1) 1 FROM #tmpTransid_unmark)
 	BEGIN
-		SELECT	@ErrCode = 100
+		SELECT	@ErrCode = 111
 				,@ErrMsg = 'The confirmation is updated successfully. But there is no ticket affected by this action as the remaining marked tickets have to wait for the event result.'
-		RETURN
-	END
-	
-	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT	@matchid AS matchid
-			,CASE 
-				WHEN @Bettype NOT IN (228,229) THEN 1
-				WHEN @Bettype IN (228,229) THEN 7 
-			END AS KeyId
-	
-	SELECT	@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
-		,@isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
-	FROM	#tblMatchProcess
-			
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = 1
-		,@isExistFM2 = @isExistFM2
-		, @avaiableProcess = @avaiableProcess OUTPUT
-		, @ErrCode = @ErrCode OUTPUT
-		, @ErrMsg = @ErrMsg OUTPUT
 		
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
-	BEGIN		
+		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		RETURN
 	END
 	
 	SET @IsCalQueue = ( SELECT TOP (1) 1
 							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
 							WHERE matchid = @MatchId AND RequestId = 0
-								--AND StatusId IN (1,2,4) 
 						)
 	WHILE (1 = 1)
 	BEGIN
@@ -209,13 +156,12 @@ BEGIN
 								), 1,1,'')
 								
 			--Step 3: Unmark
-			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update @TransIds = @UnmarkTransids
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg)
+			EXEC dbo.Nap_SpecialDelete_MarkedTickets_Update 
+				 @TransIds = @UnmarkTransids
 				,@UserId = @UserId
-				,@Username = @Username
 				,@IP = @IP
-				,@IsLockMatch = 0
-				,@ErrMsg = @ErrMsg OUTPUT
-				,@ErrCode = @ErrCode OUTPUT;
+				,@LogActionId = 90501
 
 			--Step 4: resettle ticket
 			IF @ResettleTransids <> '' AND @IsCalQueue = 1 
@@ -225,27 +171,33 @@ BEGIN
 							@TransIds = @ResettleTransids,
 							@UserId  = @UserId,
 							@IP = @IP,
-							@FailedTransIds = @FailedTransIds OUTPUT,
 							@ErrMsg = @ErrMsg OUTPUT,
 							@ErrCode = @ErrCode OUTPUT,
 							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			END	
-			
+			IF @ErrCode <> 0 OR ISNULL(@NegativeBalanceUsers,'') <> ''
+			BEGIN
+				INSERT INTO @tmpError (ErrorCode, ErrorMsg, NegativeBalanceUsers)
+				SELECT @ErrCode, @ErrMsg, @NegativeBalanceUsers
+			END
 		END TRY
 		BEGIN CATCH
-			SELECT @ErrCode = ERROR_NUMBER()
-				, @ErrMsg = ERROR_MESSAGE()
+			INSERT INTO @tmpError (ErrorCode, ErrorMsg)
+			SELECT ERROR_NUMBER(), ERROR_MESSAGE()
 		END CATCH
 	END
 
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@isExistMatch = @isExistMatch
-		,@isExistFM2 = @isExistFM2
-		,@IsReleased = 1
+	------------------------------------------------------------------------------
+	--1. Table error code/msg transid
+	SELECT TOP 1 ErrorCode, ErrorMsg, NegativeBalanceUsers
+	FROM @tmpError
+	ORDER BY 
+		CASE WHEN ErrorCode <> 0 THEN '1'
+			 WHEN ISNULL(NegativeBalanceUsers,'') <> ''  THEN '2'
+			 ELSE '3'
+		END
 
-	DROP TABLE #ValidRequestTransId
 	DROP TABLE #inputRequestTransId
-	DROP TABLE #tblMatchProcess
+	DROP TABLE #ValidRequestTransId
 	DROP TABLE #tmpTransid_unmark
-	DROP TABLE #ProblemAccount_tmp	
 END

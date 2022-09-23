@@ -13,19 +13,26 @@ AS
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:		
 		
 */
 BEGIN
 	SET NOCOUNT ON	
-	
+	DECLARE @SiteDBGroupID	SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 	CREATE TABLE #tblBettype (bettype SMALLINT PRIMARY KEY) 
-	
 	INSERT INTO #tblBettype(bettype)
 	SELECT  value
 	FROM	STRING_SPLIT(@BetTypes, ',')
-		
+	
+	------------------------------------------------------------------------------
+	--1. Table invald transid
+	SELECT '' AS InvalidTransIds
+
+	--2. Table get tickets
 	SELECT  b.Stake
 		   ,m.AwayId
 		   ,b.BetCheck
@@ -53,7 +60,6 @@ BEGIN
 		   ,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 		   ,m.leagueid
 		   ,b.modds
-           
 		   ,bm.Status AS SubStatus
 		   ,bm.TransId AS SubTransId
 		   ,bm.BetCheck AS SubBetCheck
@@ -64,6 +70,7 @@ BEGIN
 		   ,bm.Odds AS SubOdds	
 		   ,bm.transdesc AS SubTransdesc
 		   ,m.matchcode	   
+		   ,@SiteDBGroupID AS SiteDBGroupID
 	FROM bettrans b WITH (NOLOCK) 
 		 INNER JOIN dbo.bettransm bm WITH (NOLOCK)
 				 ON b.refno = bm.refno 
@@ -96,6 +103,7 @@ BEGIN
 	  AND bm.matchid = @MatchId
 	  AND b.statusID NOT IN (101, 102) -- reject, void	
 	  AND bm.statusID NOT IN (101, 102) -- reject, void	
+	  AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = b.SiteDBGroupID
 	ORDER BY CASE
 				WHEN T2.GroupName = 'Credit'  THEN 0
 				WHEN T2.GroupName = 'Deposit' THEN 1				

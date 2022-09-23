@@ -2,11 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSingleVSBetRadar_Upd]			
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
-    @IP							VARCHAR(15),    
-    @CompletedMatchIds			VARCHAR(MAX)	= '' OUTPUT,     
-    @NegativeBalanceUsers		VARCHAR(MAX)	= '' OUTPUT,
-    @ErrMsg						NVARCHAR(200)	= '' OUTPUT,
-    @ErrCode					INT				= 0	 OUTPUT
+    @IP							VARCHAR(15)
 AS
 /*  
 	Created by: Kent  
@@ -20,6 +16,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -54,6 +51,16 @@ BEGIN
 		  , @_sXML					VARCHAR(MAX)  = ''
 		  , @TicketInfos_Recal 		VARCHAR(MAX) = ''
 		  , @TicketInfos_Refund 	VARCHAR(MAX) = ''
+		  , @CompletedMatchIds   VARCHAR(MAX)	= ''
+		  , @NegativeBalanceUsers		VARCHAR(MAX)	= '' 
+		  , @ErrMsg						NVARCHAR(200)	= ''
+		  , @ErrCode					INT				= 0	
+		  , @SiteDBGroupID		SMALLINT
+		  , @transInfo XML 
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  
 	
@@ -72,7 +79,7 @@ BEGIN
 		IsLiveIndicator		BIT,
 		LiveAwayScore		SMALLINT,
 		LiveHomeScore		SMALLINT,
-		Odds				MONEY,
+		Odds				SMALLMONEY,
 		OddsType			INT,
 		RefNo				BIGINT,
 		SportType			SMALLINT,
@@ -102,10 +109,10 @@ BEGIN
 		SubBetType			SMALLINT,
 		SubHdp1				SMALLMONEY,
 		SubHdp2				SMALLMONEY,
-		SubOdds				MONEY,
+		SubOdds				SMALLMONEY,
 		SubCustId			INT,
 		SubTransdesc		NVARCHAR(2000),		
-		BetFrom				NVARCHAR(1),
+		BetFrom				NVARCHAR(3),
 		matchid				INT,
 		[Action]			VARCHAR(100),
 		TicketType			TINYINT -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181
@@ -165,6 +172,11 @@ BEGIN
 		IF @@ROWCOUNT = 0
 		BEGIN
 			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
+
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@CompletedMatchIds AS CompletedMatchIds
 			
 			RETURN
 		END				 
@@ -286,6 +298,7 @@ BEGIN
 				OR m.sporttype IN (180, 186) -- Inspired VS 180
 			  )
 		  AND z.bettype NOT IN (2799)
+		  AND z.SiteDBGroupID = @SiteDBGroupID
 		  
 		SET @cnt_Ticket = @cnt_Ticket + @@ROWCOUNT	
 		
@@ -398,13 +411,19 @@ BEGIN
 					 ON r.EventID = o.EventID						 
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
-		  AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181			  
+		  AND r.sporttype BETWEEN 181 AND 185 -- Inspired VS 181	
+		  AND z.SiteDBGroupID = @SiteDBGroupID
 		  
 		SET @cnt_Ticket = @cnt_Ticket + @@ROWCOUNT		  			  			
 			
 		IF @cnt_Ticket = 0
 		BEGIN
 			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'	
+
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@CompletedMatchIds AS CompletedMatchIds
 			
 			RETURN
 		END				
@@ -413,8 +432,13 @@ BEGIN
 		
 		IF EXISTS ( SELECT TOP 1 1 FROM #RecoverBet WHERE eventdate <= @Movebetdate )
 		BEGIN
-			SELECT @ErrCode = 102
+			SELECT @ErrCode = 112
 				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@CompletedMatchIds AS CompletedMatchIds
 
 			RETURN	
 		END
@@ -444,7 +468,14 @@ BEGIN
 			, @ErrMsg					= @ErrMsg OUTPUT																		
 		
 		IF @ErrCode <> 0 OR @avaiableProcess = 0
-			RETURN	
+		BEGIN
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@CompletedMatchIds AS CompletedMatchIds
+
+			RETURN
+		END
 						
 		--> update [Action] to do on each searched tickets
 		UPDATE #RecoverBet
@@ -695,12 +726,45 @@ BEGIN
 		
 		--> Delete zzzbettrans
 		DELETE z
+			OUTPUT deleted.transid, deleted.matchid, deleted.transdate, deleted.comstatus
+			INTO @tmpTransInfo (transid, matchid, transdate, comstatus)
 		FROM zzzbettrans z WITH(ROWLOCK, UPDLOCK)
 			 INNER JOIN #RecoverBet t 
 					 ON	z.transid = t.transid
 						AND z.custid = t.custid
 						AND z.matchid = t.matchid
 						AND z.bettype = t.bettype
+
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId 
+				FROM @tmpMatchidInfo m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				SET @TransInfo = (
+				SELECT	matchid AS '@mid'
+						, transId AS '@t'
+						, transdate AS '@td'
+						, comstatus AS '@cst'
+				FROM	@tmpTransInfo WHERE matchid = @MatchId 
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			END
+
+			DELETE FROM @tmpTransInfo
+			DELETE FROM @tmpMatchidInfo
+
+		END
 		
 		--> Release Concurrency process
 		EXEC dbo.NAP_Admin_CheckingProcess
@@ -786,6 +850,12 @@ BEGIN
 		
 		--> Return data to web	
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+
+		--1. Return table validate
+		SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@CompletedMatchIds AS CompletedMatchIds
 				
 		SELECT  r.Stake,
 				r.AwayId,
@@ -874,7 +944,12 @@ BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				  @IsExistVS				= 1
 				, @isExistMatch				= 1
-				, @IsReleased				= 1		
+				, @IsReleased				= 1	
+		
+		SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@CompletedMatchIds AS CompletedMatchIds
 	END CATCH		
 	
 	SET NOCOUNT OFF	

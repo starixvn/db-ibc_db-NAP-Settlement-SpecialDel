@@ -1,13 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Sel]
 	@SearchBy		 VARCHAR(100),
-	
 	@MatchId		 INT = 0,
 	@BetTypes		 VARCHAR(MAX) = '',
-	
-	@SubTransIds	 VARCHAR(MAX) = '',
-	
-	@InvalidTransIds VARCHAR(MAX) = '' OUTPUT
+	@SubTransIds	 VARCHAR(MAX) = ''
 AS
 /*  
 	Created by: Kent
@@ -19,6 +15,7 @@ AS
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]	
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]		
+		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:			
 		- @SearchBy:		
@@ -30,16 +27,13 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SET @InvalidTransIds = ''
-	
 	IF @SearchBy = 'MatchId'
 		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Sel]
 			@MatchId = @MatchId,
 			@BetTypes = @BetTypes	  
 	ELSE IF @SearchBy = 'SubTransIds'
 		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Sel]
-			@SubTransIds = @SubTransIds,	
-			@InvalidTransIds = @InvalidTransIds OUTPUT			
+			@SubTransIds = @SubTransIds
 	
 	SET NOCOUNT OFF		
 END

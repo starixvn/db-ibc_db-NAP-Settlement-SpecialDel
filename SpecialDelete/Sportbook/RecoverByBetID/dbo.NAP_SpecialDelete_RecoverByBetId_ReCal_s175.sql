@@ -15,6 +15,7 @@ AS
 		- 20210908@July: Integrate Bitcoin Re-cal match - [Redmine:#159714]
 		- 20210930@July: Change the source balance (balancetype = 4) of Bitcoin product [Redmine: #162474]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 		@TransIds: Maxbet 1000 tickets
@@ -26,6 +27,8 @@ BEGIN
 	DECLARE @strTransIds			VARCHAR(MAX)
 			,@Bettype				SMALLINT = 7901
 			,@GameResult			VARCHAR(50)	= ''
+			,@SiteDBGroupID			SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpTransIDResettle TABLE (TransId BIGINT)	
 
@@ -58,6 +61,7 @@ BEGIN
 		WHERE	b.matchid = @MatchId
 				AND b.bettype = @bettype
 				AND b.statusID NOT IN (101,102)
+				AND b.SiteDBGroupID = @SiteDBGroupID
 			 
 		INSERT INTO #BalanceBefore(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT	custid
@@ -73,6 +77,7 @@ BEGIN
 				ON bt.transid = t.transid
 		WHERE	bt.matchid = @matchid
 				AND bt.bettype = @bettype
+				AND bt.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY custid, winlostdate, bettype		
 
 		--filter selectedRID by current Profile and BetType
@@ -101,6 +106,7 @@ BEGIN
 				ON bt.transid = t.transid
 		WHERE matchid = @matchid 
 				AND bt.bettype = @bettype
+				AND bt.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY custid, winlostdate, bettype
 		
 		INSERT INTO #Balance

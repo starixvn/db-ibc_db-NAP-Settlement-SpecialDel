@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelRecoverParlayBet_Sub] 
 	@BetType		VARCHAR(20) = 'all'
-	,@MatchId		BIGINT			= 0	
+	,@MatchId		INT			= 0	
 	,@TransIds		VARCHAR(MAX)	= ''
 AS
 /*
@@ -16,6 +16,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:			
 			- @BetType:
@@ -29,7 +30,7 @@ BEGIN
 	DECLARE @tblRecoverBet TABLE (
 		SubTransID				BIGINT		 
 		,SubBetCheck			NVARCHAR(50)
-		,SubOdds				MONEY   
+		,SubOdds				SMALLMONEY   
 		,SubBetTeam				NVARCHAR(20)  
 		,SubBetType				INT  
 		,SubHdp1				SMALLMONEY   
@@ -57,7 +58,7 @@ BEGIN
 		,betid					BIGINT 
 		,BetTeam				NVARCHAR(20)		
 		,Stake					MONEY
-		,Odds					MONEY		
+		,Odds					SMALLMONEY		
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY		 
 		,betcheck				NVARCHAR(50)
@@ -66,9 +67,11 @@ BEGIN
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
-	DECLARE @MovebetDate DATETIME
+	DECLARE @MovebetDate		DATETIME
+		   ,@SiteDBGroupID		SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	INSERT INTO @tblTransIds
+	INSERT INTO @tblTransIds(transid)
 	SELECT ss.value
 	FROM STRING_SPLIT(@TransIds, ',') ss				
 	
@@ -147,9 +150,9 @@ BEGIN
 			,b.actual_stake AS ActualStake		
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
-				ON t.transid = b.transid			   
+				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		   
 		INNER JOIN bettransm bm WITH (NOLOCK)
-				ON b.refno = bm.refno				
+				ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID				
 		INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	m.matchid = bm.matchid			   
 	WHERE	bm.matchid = @MatchId
@@ -207,7 +210,8 @@ BEGIN
 			 ,t.hdp2     			 
 			 ,t.betcheck
 			 ,t.ExtraInfo
-			 ,t.ActualStake		   
+			 ,t.ActualStake
+			 ,@SiteDBGroupID AS SiteDBGroupID
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID
@@ -270,15 +274,15 @@ BEGIN
 	FROM InvalidTransID t
 		 LEFT JOIN bettrans b WITH(NOLOCK)
 				ON t.transid = b.transid
-				   AND b.bettype = 29
+				   AND b.bettype = 29 AND b.SiteDBGroupID = @SiteDBGroupID
 		 LEFT JOIN bettransm bm WITH (NOLOCK)
-				ON b.refno = bm.refno
+				ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID
 				   AND bm.matchid = @MatchId
 		 LEFT JOIN bettrans14 b14 WITH(NOLOCK)
-				ON t.transid = b14.transid
+				ON t.transid = b14.transid AND b14.SiteDBGroupID = @SiteDBGroupID
 		 LEFT JOIN bettransm14 bm14 WITH(NOLOCK)
 				ON ISNULL(b.refno, b14.refno) = bm14.refno
-				   AND bm14.matchid = @MatchId
+				   AND bm14.matchid = @MatchId AND bm14.SiteDBGroupID = b14.SiteDBGroupID
 		 LEFT JOIN @tmpTransIdMoveBet m
 				ON t.transid = m.transid		
 END

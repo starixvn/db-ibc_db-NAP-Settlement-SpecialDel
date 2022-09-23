@@ -33,6 +33,7 @@ AS;
 		- 20210827@Max: [TVS] Support Outright on Void By Currency [Redmine: #159540]
 		- 20211207@July: Implement New Cash Out Model [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -57,6 +58,9 @@ BEGIN
 		,@HomeId			INT
 		,@IsNeutral			BIT
 		,@SportType			SMALLINT
+		,@SiteDBGroupID		SMALLINT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	IF @IsOutright = 0 
 	BEGIN
@@ -97,7 +101,7 @@ BEGIN
         IsSecondAcceptFlag    BIT,
         LiveAwayScore         SMALLINT,
         LiveHomeScore         SMALLINT,
-        Odds                  MONEY,
+        Odds                  SMALLMONEY,
         Oddsspread            MONEY,
         IsMixParlay           BIT,
         OddsType              INT,
@@ -125,27 +129,17 @@ BEGIN
         SubBetType            SMALLINT,
         SubHdp1               SMALLMONEY,
         SubHdp2               SMALLMONEY,
-        SubOdds               MONEY,
+        SubOdds               SMALLMONEY,
         SubStatus             NVARCHAR(10),
 		ActualStake			  MONEY,
 		IsMarked			  BIT DEFAULT(0),
-		IsCricket			  BIT DEFAULT(0)
+		IsCricket			  BIT DEFAULT(0),
+		SiteDBGroupID		SMALLINT
 
    );
-
-   CREATE TABLE #tmpRefCodeSummary(
-		RefCode  BIGINT,
-		custid   INT,
-		bettype  SMALLINT,
-		transid  BIGINT,
-		IsMarked BIT
-    );
-
-	CREATE INDEX IX_SpecialDeleteBets_RefCode ON #SpecialDeleteBets(RefCode)			
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 				
-	DECLARE @t_LicenseeNames TABLE(LicenseeName VARCHAR(100), GroupName VARCHAR(10))	
-	DECLARE @t_UIRepresentativeLicenseeGroupNames TABLE (GroupName VARCHAR(10))	
+	DECLARE @t_LicenseeNames TABLE(LicenseeName VARCHAR(100), GroupName VARCHAR(100))	
+	DECLARE @t_UIRepresentativeLicenseeGroupNames TABLE (GroupName VARCHAR(100))	
 	
 	DECLARE @t_exchanges TABLE(exchangeid INT, currency NVARCHAR(50))
 	
@@ -244,7 +238,8 @@ BEGIN
 					SubHdp2,
 					SubOdds,
 					SubStatus,
-					ActualStake
+					ActualStake,
+					SiteDBGroupID
 				)
 		SELECT 	b.transid AS GroupID,
 				b.Stake,
@@ -293,7 +288,8 @@ BEGIN
 				NULL AS SubHdp2,
 				NULL AS SubOdds,
 				b.status AS SubStatus,
-				b.actual_stake AS ActualStake
+				b.actual_stake AS ActualStake,
+				b.SiteDBGroupID
 		FROM bettrans b WITH (NOLOCK)
 			 INNER JOIN @t_exchanges te
 					 ON b.currency = te.exchangeid -- filter for @CurrencyCodes			 
@@ -314,142 +310,7 @@ BEGIN
 			AND b.custid NOT IN (50057,103873,879241,78761,851668,878902) -- For Special bets: betdaq
 			AND b.recommend NOT IN (11196380, 13423967) -- Foobet (Email to IT support, Foobet list), OneExchange (Email to IT support)			
 			AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
-		
-		IF @SearchSingle = 1
-		BEGIN
-			-- update MainTransId
-			IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE RefCode IS NOT NULL)
-			BEGIN
-				UPDATE sub
-				SET MainTransId = main.transid
-				FROM #SpecialDeleteBets main
-					 INNER JOIN #SpecialDeleteBets sub
-							 ON main.RefCode = sub.RefCode
-								AND main.transid <> sub.transid	
-								AND main.custid = sub.custid
-								AND main.bettype = sub.bettype
-				WHERE main.WalletType = 1
-		  
-				-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets
-				INSERT INTO #tmpRefCodeSummary(RefCode, custid, bettype,transid)
-				SELECT RefCode, custid, bettype
-					 , MAX(transid) AS transid
-				FROM #SpecialDeleteBets
-				WHERE	RefCode IS NOT NULL
-				GROUP BY RefCode, custid, bettype
-				HAVING COUNT(*) = 1
-		
-				IF @@ROWCOUNT > 0
-				BEGIN
-					INSERT INTO #SpecialDeleteBets(
-								GroupID,
-								Stake,
-								BetCheck,
-								BetId,
-								BetTeam,
-								BetType,
-								CurrencyCode,
-								Creator,					
-								Hdp1,
-								Hdp2,
-								IsLiveIndicator,
-								IsSecondAcceptFlag,
-								LiveAwayScore,
-								LiveHomeScore,
-								Odds,
-								IsMixParlay,
-								OddsType,
-								RefNo,
-								Status,
-								TransDate,
-								TransDesc,
-								TransId,
-								UserName,
-								NetWinLost,
-								srecommend,
-								GroupName,
-								betdaqid,
-								ExtraInfo,
-								IsCashOut,
-								custid,
-								WalletType,
-								RefCode,
-								BonusID,
-								MainTransId,					
-								SubTransId,
-								SubBetCheck,
-								SubBetTeam,
-								SubBetType,
-								SubHdp1,
-								SubHdp2,
-								SubOdds,
-								SubStatus,
-								ActualStake	
-							)
-					SELECT 	b.transid AS GroupID,
-							b.Stake,
-							b.BetCheck,
-							b.BetId,
-							b.BetTeam,
-							b.BetType,
-							te.currency AS CurrencyCode,
-							b.Creator,				
-							b.Hdp1,
-							b.Hdp2,
-							b.LiveIndicator AS IsLiveIndicator,
-							b.SecAcceptFlag AS IsSecondAcceptFlag,
-							b.LiveAwayScore,
-							b.LiveHomeScore,
-							b.Odds,
-							0 AS IsMixParlay,
-							b.OddsType,
-							b.RefNo,
-							CASE 
-								WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP 
-									THEN 'waiting'
-								ELSE b.status 
-							END AS STATUS,
-							b.TransDate,
-							b.TransDesc,
-							b.TransId,
-							b.UserName,
-							b.WinLost - b.actual_stake AS NetWinLost,
-							b.srecommend,
-							tl.GroupName AS GroupName,
-							b.betdaqid,	
-							b.ExtraInfo,
-							CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut,				
-							b.custid,
-							b.WalletType,
-							b.RefCode,
-							b.BonusID,
-							t.transid AS MainTransId,			
-							b.TransId AS SubTransId,
-							NULL AS SubBetCheck,
-							NULL AS SubBetTeam,
-							NULL AS SubBetType,
-							NULL AS SubHdp1,
-							NULL AS SubHdp2,
-							NULL AS SubOdds,
-							b.status AS SubStatus,
-							b.actual_stake AS ActualStake
-					FROM #tmpRefCodeSummary t
-						 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-								 ON b.RefCode = t.RefCode
-									AND b.transid <> t.transid
-									AND b.matchid = @MatchId
-									AND b.custid = t.custid
-									AND b.bettype = t.bettype
-						 INNER JOIN @t_exchanges te
-								 ON b.currency = te.exchangeid 			 
-						 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-								 ON b.recommend = c.custid
-						 INNER JOIN @t_LicenseeNames tl
-								 ON tl.LicenseeName = c.site
-					WHERE b.statusID NOT IN (101, 102, 103) -- reject, void, refund
-				END  	  																					
-			END
-		END
+			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 	
 	--> parlay
@@ -492,7 +353,8 @@ BEGIN
 				SubOdds,
 				SubStatus,
 				ExtraInfo,
-				ActualStake	
+				ActualStake,
+				SiteDBGroupID
 			)
 		SELECT  main.Stake,
 				main.BetCheck,
@@ -530,7 +392,8 @@ BEGIN
 				sub.odds AS SubOdds,
 				sub.status AS SubStatus,
 				main.ExtraInfo,
-				main.actual_stake AS ActualStake
+				main.actual_stake AS ActualStake,
+				main.SiteDBGroupID
 		FROM	dbo.bettransm sub WITH (NOLOCK)	
 			 INNER HASH JOIN bettrans main WITH (NOLOCK)
 					 ON main.refno = sub.refno
@@ -551,6 +414,7 @@ BEGIN
 			AND main.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 			AND main.custid NOT IN (50057,103873,879241,78761,851668,878902) -- For Special bets: betdaq
 			AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
+			AND main.SiteDBGroupID = @SiteDBGroupID
 	END
 
 	UPDATE s
@@ -613,7 +477,8 @@ BEGIN
 		@SettlementStatus AS SettlementStatus,
 		s.IsMarked,
 		@GlobalShowTime AS GlobalShowTime,
-		s.ActualStake
+		s.ActualStake,
+		s.SiteDBGroupID
 	FROM #SpecialDeleteBets s	
 	ORDER BY CASE
 				WHEN s.GroupName = @cn88_Name THEN 1
@@ -627,7 +492,6 @@ BEGIN
 		   , CASE WHEN s.BonusID IS NOT NULL THEN CASE WHEN s.MainTransId IS NULL THEN 1 ELSE 2 END ELSE s.transid END							 
 	
 	DROP TABLE #SpecialDeleteBets
-	DROP TABLE #tmpRefCodeSummary
 
 	SET NOCOUNT OFF
 END

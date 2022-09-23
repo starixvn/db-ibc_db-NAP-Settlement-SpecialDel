@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Sel]
-	@SubTransIds	 VARCHAR(MAX),
-	@InvalidTransIds VARCHAR(MAX) = '' OUTPUT
+	@SubTransIds	 VARCHAR(MAX)
 AS
 /*  
 	Created by: Kent
@@ -15,15 +14,19 @@ AS
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
-				
+		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		
 	Param's Explanation:		
 		- @SubTransIds : TransIds of sub parlay tickets
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @SubTickets_Count INT
-		   ,@Movebetdate	  DATETIME
+	DECLARE @SubTickets_Count	INT = 0
+		   ,@Movebetdate		DATETIME
+		   ,@InvalidTransIds	VARCHAR(MAX) = '' 
+		   ,@SiteDBGroupID		SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #tblSubTransIds (SubTransId BIGINT PRIMARY KEY)
 	
@@ -84,9 +87,6 @@ BEGIN
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
-	SELECT @InvalidTransIds = ''
-		 , @SubTickets_Count = 0
-	
 	--> parse @SubTransIds
 	INSERT INTO #tblSubTransIds(SubTransId)
 	SELECT  DISTINCT value
@@ -119,10 +119,10 @@ BEGIN
 		  ,bm.custid
 		  ,bm.matchid			
 	FROM #tblSubTransIds t
-		 INNER JOIN dbo.bettransm bm WITH (NOLOCK)
-				 ON t.SubTransId = bm.transid
+		 INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON t.SubTransId = bm.transid
 	WHERE bm.statusID NOT IN (101, 102) -- reject, void	
-	
+		AND bm.SiteDBGroupID = @SiteDBGroupID
+
 	SET @SubTickets_Count = @@ROWCOUNT				
 	
 	-- get main info for all searched sub tickets
@@ -151,7 +151,6 @@ BEGIN
            ,recommend
            ,mrecommend
            ,srecommend
-           
            ,SubStatus
            ,SubTransId
            ,SubBetCheck
@@ -188,7 +187,6 @@ BEGIN
 		  ,b.recommend
 		  ,b.mrecommend
 		  ,b.srecommend		  
-           
 		  ,bm.Status AS SubStatus
 		  ,bm.TransId AS SubTransId
 		  ,bm.BetCheck AS SubBetCheck
@@ -208,6 +206,7 @@ BEGIN
 	WHERE b.matchid = 2799
 	  AND b.bettype = 2799	  
 	  AND b.statusID NOT IN (101, 102) -- reject, void	
+	  AND b.SiteDBGroupID = @SiteDBGroupID
 	OPTION(OPTIMIZE FOR (@SubTickets_Count = 1))			    	  								 	
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE Winlostdate <= @MovebetDate)
@@ -215,6 +214,15 @@ BEGIN
 		DELETE FROM #tmpResult WHERE Winlostdate <= @MovebetDate
 	END
 
+	------------------------------------------------------------------------------
+	--1. Table invald transid
+	SELECT @InvalidTransIds = @InvalidTransIds + CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + CAST(SubTransId AS VARCHAR(50))
+	FROM #tblSubTransIds
+	WHERE SubTransId NOT IN (SELECT SubTransId FROM #tmpResult)			
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+
+	--2. Table get tickets
 	SELECT  t.Stake
 		   ,m.AwayId
 		   ,t.BetCheck
@@ -242,7 +250,6 @@ BEGIN
 		   ,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 		   ,m.leagueid
 		   ,t.modds
-           
 		   ,t.SubStatus
 		   ,t.SubTransId
 		   ,t.SubBetCheck
@@ -253,6 +260,7 @@ BEGIN
 		   ,t.SubOdds	
 		   ,t.SubTransdesc	
 		   ,m.matchcode   
+		   ,@SiteDBGroupID AS SiteDBGroupID
 	FROM #tmpResult t					
 		 INNER JOIN match m WITH (NOLOCK)
 				 ON t.matchid = m.matchid		
@@ -282,13 +290,6 @@ BEGIN
 				ELSE 2				
 			 END ASC 
 			 
-	--> build @InvalidTransIds
-	SELECT @InvalidTransIds = @InvalidTransIds
-							  + CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END
-							  + CAST(SubTransId AS VARCHAR(100))
-	FROM #tblSubTransIds
-	WHERE SubTransId NOT IN (SELECT SubTransId FROM #tmpResult)			  
-	
 	SET NOCOUNT OFF		
 END
 GO

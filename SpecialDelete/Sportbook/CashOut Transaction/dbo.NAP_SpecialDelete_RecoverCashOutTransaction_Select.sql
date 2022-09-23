@@ -1,13 +1,7 @@
  /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Select]
 (
-	 @Option			BIT				= 0
-	,@MatchId			INT				= 0
-	,@FromTransId		BIGINT			= 0
-	,@ToTransId			BIGINT			= 0
-	,@TransIds			VARCHAR(MAX)	= ''
-	,@InvalidTransIds	VARCHAR(MAX)	= '' OUTPUT
-	,@MovedTransIds		VARCHAR(MAX)	= '' OUTPUT	
+	@TransIds			VARCHAR(MAX)	= ''
 )
 AS
 /*
@@ -24,15 +18,22 @@ AS
 		- 20210812@July: Add metadata [Redmine: #157970] 
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Explanation's Param:
-		@Option: 0 - by MatchId
+		@Option: 0 - by MatchId - removed
 				 1 - by BetId(s)
 
 
 */
 BEGIN	
 	SET NOCOUNT ON
+
+	DECLARE @InvalidTransIds	VARCHAR(MAX)	= '' 
+		,@MovedTransIds		VARCHAR(MAX)	= '' 	
+		,@SiteDBGroupID		SMALLINT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	
 	CREATE TABLE #SpecialDeleteBets (	
 		BetId				BIGINT,
@@ -40,7 +41,7 @@ BEGIN
 		BetType				SMALLINT,
 		BetTeam				NVARCHAR(10),
 		Stake				MONEY,
-		Odds				MONEY,
+		Odds				SMALLMONEY,
 		OddsType			INT,		
 		Hdp1				SMALLMONEY,
 		Hdp2				SMALLMONEY,		
@@ -56,7 +57,7 @@ BEGIN
 		BetdaqId			BIGINT,
 		custid				INT,
 		recommend			INT,
-		betfrom				NVARCHAR(1),		
+		betfrom				NVARCHAR(3),		
 		WinLost				MONEY,
 		Status				NVARCHAR(10),		
 		HomeId				INT,
@@ -66,7 +67,8 @@ BEGIN
 		IsNeutral			BIT,
 		MatchCode			NVARCHAR(50),
 		EventDate			DATETIME	,
-		ActualStake			MONEY
+		ActualStake			MONEY,
+		SiteDBGroupID		SMALLINT
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
@@ -77,28 +79,16 @@ BEGIN
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 	
-	IF @Option = 0
-	BEGIN
-		INSERT INTO #tmpKeyId (KeyId)
-		SELECT MAX(z.keyid)
-		FROM zzzbettrans z WITH (NOLOCK)
-		WHERE z.transid BETWEEN @FromTransId AND @ToTransId
-			AND z.comstatus = 'CO'
-		GROUP BY z.transid
-	END
-	ELSE IF @Option = 1
-	BEGIN
-		INSERT INTO #tblTransIds (transid)
-		SELECT	t.value
-		FROM STRING_SPLIT(@TransIds, ',') t			
+	INSERT INTO #tblTransIds (transid)
+	SELECT	t.value
+	FROM STRING_SPLIT(@TransIds, ',') t			
 
-		INSERT INTO #tmpKeyId (KeyId)
-		SELECT MAX(z.keyid)
-		FROM zzzbettrans z WITH (NOLOCK)
-		WHERE	z.transid IN (SELECT transid FROM #tblTransIds)							
-			AND z.comstatus = 'CO'
-		GROUP BY z.transid
-	END
+	INSERT INTO #tmpKeyId (KeyId)
+	SELECT MAX(z.keyid)
+	FROM zzzbettrans z WITH (NOLOCK)
+	WHERE	z.transid IN (SELECT transid FROM #tblTransIds)							
+		AND z.comstatus = 'CO'
+	GROUP BY z.transid
 	
 	INSERT INTO #SpecialDeleteBets(
 					BetId,
@@ -132,7 +122,8 @@ BEGIN
 					IsNeutral,
 					MatchCode,
 					EventDate,
-					ActualStake
+					ActualStake,
+					SiteDBGroupID
 				)
 	SELECT 
 			sub.BetId,
@@ -166,7 +157,8 @@ BEGIN
 			ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral,
 			m.MatchCode,
 			m.EventDate,
-			sub.actual_stake AS ActualStake
+			sub.actual_stake AS ActualStake,
+			sub.SiteDBGroupID
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 		INNER JOIN #tmpKeyId t ON t.KeyId = z.keyid
 		INNER JOIN dbo.bettrans sub WITH(NOLOCK)
@@ -176,20 +168,57 @@ BEGIN
 				AND z.custid = sub.custid			
 		INNER JOIN dbo.match m WITH(NOLOCK)
 			ON m.matchid = z.matchid
-	WHERE	sub.matchid = CASE WHEN @Option = 0 THEN @MatchId ELSE sub.matchid END
-		AND sub.betdaqid = -1
+	WHERE	sub.betdaqid = -1
+		AND sub.SiteDBGroupID = @SiteDBGroupID
 				
-	IF (@Option = 1)
+	IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @MovebetDate)
 	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE EventDate <= @MovebetDate)
-		BEGIN
-			DELETE 
-			FROM #SpecialDeleteBets
-				OUTPUT	DELETED.TransId
-				INTO @tmpTransIdMoveBet (TransId)
-			WHERE EventDate <= @MovebetDate
-		END	
-	END						
+		DELETE 
+		FROM #SpecialDeleteBets
+			OUTPUT	DELETED.TransId
+			INTO @tmpTransIdMoveBet (TransId)
+		WHERE EventDate <= @MovebetDate
+	END	
+	
+	-- invalid trans		
+	SELECT @InvalidTransIds = '', @MovedTransIds = ''
+	;WITH t_invalid AS
+	(
+		SELECT	t.transid
+				,CASE 
+					WHEN EXISTS (
+									SELECT TOP 1 1 
+									FROM dbo.bettrans14 b14 WITH(NOLOCK) 
+									WHERE b14.transid = t.transid
+
+									UNION ALL
+									SELECT TOP 1 1 
+									FROM @tmpTransIdMoveBet m
+									WHERE m.transid = t.transid)
+						THEN 1
+					ELSE 0 
+					END AS isMoved					
+		FROM	#tblTransIds t
+		WHERE	t.transid NOT IN (SELECT transid FROM #SpecialDeleteBets)
+	)
+	SELECT @InvalidTransIds = @InvalidTransIds +
+								CASE
+									WHEN isMoved = 0
+										THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
+												CAST(transid AS VARCHAR(100))
+									ELSE ''
+								END								  
+			, @MovedTransIds = @MovedTransIds +
+							CASE
+								WHEN isMoved = 1
+										THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
+												CAST(transid AS VARCHAR(100))
+								ELSE ''
+							END
+	FROM t_invalid
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+		, @MovedTransIds AS MovedTransIds
 					
 	SELECT	d.BetId,
 			d.TransId,
@@ -219,49 +248,12 @@ BEGIN
 			d.SportTypeId,
 			d.IsNeutral,
 			d.MatchCode,
-			d.ActualStake
+			d.ActualStake,
+			d.SiteDBGroupID
 	FROM #SpecialDeleteBets d
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 				 ON d.recommend = c.custid		 	
 	ORDER BY c.site ASC, d.TransId ASC				
-	
-	-- invalid trans		
-	SELECT @InvalidTransIds = '', @MovedTransIds = ''
-	IF (@Option = 1)	
-		WITH t_invalid AS
-		(
-			SELECT	t.transid
-					,CASE 
-						WHEN EXISTS (
-									 SELECT TOP 1 1 
-									 FROM dbo.bettrans14 b14 WITH(NOLOCK) 
-									 WHERE b14.transid = t.transid
-
-									 UNION ALL
-									 SELECT TOP 1 1 
-									 FROM @tmpTransIdMoveBet m
-									 WHERE m.transid = t.transid)
-							THEN 1
-						ELSE 0 
-					 END AS isMoved					
-			FROM	#tblTransIds t
-			WHERE	t.transid NOT IN (SELECT transid FROM #SpecialDeleteBets)
-		)
-		SELECT @InvalidTransIds = @InvalidTransIds +
-								  CASE
-									  WHEN isMoved = 0
-											THEN CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
-									  ELSE ''
-								  END								  
-			 , @MovedTransIds = @MovedTransIds +
-								CASE
-									WHEN isMoved = 1
-											THEN CASE WHEN @MovedTransIds <> '' THEN ',' ELSE '' END + 
-												 CAST(transid AS VARCHAR(100))
-									ELSE ''
-								END
-		FROM t_invalid
 	
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #tblTransIds

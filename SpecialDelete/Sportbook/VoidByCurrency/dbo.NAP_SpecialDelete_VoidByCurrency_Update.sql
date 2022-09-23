@@ -11,10 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 	@Reason				NVARCHAR(500) = '',  
 	@ReasonSC			NVARCHAR(500) = '',
 	@IP					VARCHAR(15)  = '',
-	@IsOutright			BIT = 0,
-	@ErrorMsg			NVARCHAR(200) = '' OUTPUT,  
-	@ErrorCode			INT  = 0  OUTPUT,
-	@NegativeBalanceUsers	VARCHAR(MAX)	= ''	OUTPUT
+	@IsOutright			BIT = 0
 )
 AS
 /*
@@ -65,11 +62,21 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @ErrorMsg	NVARCHAR(200) = ''
+		,@ErrorCode			INT  = 0 
+		,@NegativeBalanceUsers	VARCHAR(MAX)	= ''
+		,@SiteDBGroupID		SMALLINT
+		,@transInfo XML 
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
 	
 	-- Write useraction log 
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
@@ -115,7 +122,7 @@ BEGIN
 		   ,@HomeId				INT
 		   ,@AwayId				INT
 		   ,@IsNeutral		BIT
-		   ,@RepUpdateTime DATETIME2
+		   ,@FCUpdateTime DATETIME2
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 
@@ -153,6 +160,11 @@ BEGIN
 	BEGIN
 		SELECT @ErrorCode = 99
 		     , @ErrorMsg = 'Match is under Movebet process, could not void ticket.'
+
+		SELECT @ErrorCode AS ErrorCode
+			,@ErrorMsg AS ErrorMsg
+			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
 
 		RETURN	
 	END	
@@ -209,7 +221,7 @@ BEGIN
 			IsNeutral			BIT,			
 			LiveAwayScore		SMALLINT,
 			LiveHomeScore		SMALLINT,
-			Odds				MONEY,			
+			Odds				SMALLMONEY,			
 			Oddsspread 			MONEY,
 			OddsType			INT,
 			RefNo				BIGINT,
@@ -221,7 +233,7 @@ BEGIN
 			UserName			VARCHAR(30),
 			NetWinLost			MONEY,
 			site				VARCHAR(10),
-			betfrom				NVARCHAR(1),
+			betfrom				NVARCHAR(3),
 			srecommend			INT,
 			mrecommend			INT,
 			recommend			INT,
@@ -244,24 +256,15 @@ BEGIN
 			SubBetType			SMALLINT,
 			SubHdp1				SMALLMONEY,
 			SubHdp2				SMALLMONEY,
-			SubOdds				MONEY,
+			SubOdds				SMALLMONEY,
 			SubStatus			NVARCHAR(10),
-			ruben				TINYINT
+			ruben				TINYINT,
+			SiteDBGroupId		SMALLINT
 	)	
-
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
 	
 	SELECT * INTO #SpecialDeleteBets_Single FROM #SpecialDeleteBets WHERE 1 = 0	
 	CREATE CLUSTERED INDEX IDX_SpecialDeleteBets_Single_betdaqid_transid ON #SpecialDeleteBets_Single(betdaqid, transid)
 	CREATE INDEX IDX_SpecialDeleteBets_Single_BetType_custid_balance ON #SpecialDeleteBets_Single(BetType, custid, balance)	INCLUDE(transid)
-	
-	CREATE INDEX IDX_SpecialDeleteBets_Single_RefCode ON #SpecialDeleteBets_Single(RefCode)		
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)	
 
 	SELECT * INTO #SpecialDeleteBets_Parlay FROM #SpecialDeleteBets WHERE 1 = 0
 	CREATE INDEX IDX_SpecialDeleteBets_Parlay_custid_balance ON #SpecialDeleteBets_Parlay(custid, balance) INCLUDE(transid)
@@ -341,9 +344,14 @@ BEGIN
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @UserPassword AND custid = @userId AND roleid >=5)
     BEGIN
         SELECT @ErrorMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
-                ,@ErrorCode = 101  
+                ,@ErrorCode = 113  
                 
-        EXEC [dbo].[WriteLog_UserLog] @UserID = @UserID ,@Doing = @LogData                
+        EXEC [dbo].[WriteLog_UserLog] @UserID = @UserID ,@Doing = @LogData   
+		
+		SELECT @ErrorCode AS ErrorCode
+			,@ErrorMsg AS ErrorMsg
+			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
         
         RETURN
     END
@@ -351,7 +359,12 @@ BEGIN
 	IF NOT EXISTS (SELECT TOP 1 1
 				   FROM @tblTransIds)
 	BEGIN		
-		SELECT @ErrorCode = 99, @ErrorMsg = 'No ticket found.'						
+		SELECT @ErrorCode = 99, @ErrorMsg = 'No ticket found.'			
+		
+		SELECT @ErrorCode AS ErrorCode
+			,@ErrorMsg AS ErrorMsg
+			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
 		
 		RETURN
 	END
@@ -446,7 +459,8 @@ BEGIN
 						SubHdp1,
 						SubHdp2,
 						SubOdds,
-						SubStatus		
+						SubStatus,
+						SiteDBGroupId
 					)
 			SELECT 	b.transid AS GroupID,
 					b.Stake,
@@ -499,7 +513,8 @@ BEGIN
 					NULL AS SubHdp1,
 					NULL AS SubHdp2,
 					NULL AS SubOdds,
-					NULL AS SubStatus
+					NULL AS SubStatus,
+					b.SiteDBGroupID
 			FROM @tblTransIds t
 				 INNER JOIN bettrans b WITH (NOLOCK)
 						 ON t.transid = b.transid
@@ -519,144 +534,10 @@ BEGIN
 				AND b.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
 				AND b.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 				AND b.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
-				AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)									
+				AND b.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)		
+				AND b.SiteDBGroupID = @SiteDBGroupID
 		
-			SET @CountSingle = @@ROWCOUNT						
-			
-			-- Insert more bonus or cash ticket in case only one ticket appears in #SpecialDeleteBets			
-			INSERT INTO #tmpRefCodeSummary (RefCode, custid, bettype, transid)
-			SELECT RefCode, custid, bettype, MAX(transid)
-			FROM #SpecialDeleteBets_Single
-			WHERE RefCode IS NOT NULL		
-			GROUP BY RefCode, custid, bettype
-			HAVING COUNT(*) = 1
-
-			IF @@ROWCOUNT > 0
-			BEGIN			
-				INSERT INTO #SpecialDeleteBets_Single(
-							GroupID,
-							Stake,
-							AwayId,
-							BetCheck,
-							BetId,
-							BetTeam,
-							BetType,
-							Currency,
-							CurrencyCode,
-							Creator,						
-							Hdp1,
-							Hdp2,
-							HomeId,
-							IsLiveIndicator,
-							IsNeutral,						
-							LiveAwayScore,
-							LiveHomeScore,
-							Odds,						
-							OddsType,
-							RefNo,
-							SportType,
-							Status,
-							TransDate,
-							TransDesc,
-							TransId,
-							UserName,
-							NetWinLost,
-							site,
-							betfrom,
-							srecommend,
-							mrecommend,
-							recommend,
-							custid,
-							balance,
-							betdaqid,
-							ExtraInfo,
-							IsCashOut,
-							awinlost,
-							matchid,
-							WalletType,
-							RefCode,
-							BonusID,
-							MainTransId,
-							ActualStake,
-							SubTransId,
-							SubBetCheck,
-							SubBetTeam,
-							SubBetType,
-							SubHdp1,
-							SubHdp2,
-							SubOdds,
-							SubStatus
-						)
-				SELECT 	b.transid AS GroupID,
-						b.Stake,
-						@AwayId,
-						b.BetCheck,
-						b.BetId,
-						b.BetTeam,
-						b.BetType,
-						b.currency,
-						te.currency AS CurrencyCode,
-						b.Creator,					
-						b.Hdp1,
-						b.Hdp2,
-						@HomeId,
-						b.LiveIndicator AS IsLiveIndicator,
-						@IsNeutral,					
-						b.LiveAwayScore,
-						b.LiveHomeScore,
-						b.Odds,					
-						b.OddsType,
-						b.RefNo,
-						@Sporttype,
-						b.status AS STATUS,
-						b.TransDate,
-						b.TransDesc,
-						b.TransId,
-						b.UserName,
-						b.WinLost - b.actual_stake AS NetWinLost,
-						c.site,
-						b.betfrom,
-						b.srecommend,
-						b.mrecommend,
-						b.recommend,
-						b.custid,
-						b.winlost - b.actual_stake + b.playercomm AS balance,
-						b.betdaqid,
-						b.ExtraInfo,
-						CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut,
-						b.awinlost,
-						b.matchid,
-						b.WalletType,
-						b.RefCode,
-						b.BonusID,
-						r.transid AS MainTransId,
-						b.actual_stake AS ActualStake,
-						b.TransId AS SubTransId,
-						NULL AS SubBetCheck,
-						NULL AS SubBetTeam,
-						NULL AS SubBetType,
-						NULL AS SubHdp1,
-						NULL AS SubHdp2,
-						NULL AS SubOdds,
-						NULL AS SubStatus
-				FROM #tmpRefCodeSummary r
-					 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-							 ON b.RefCode = r.RefCode
-								AND b.transid <> r.transid
-								AND b.matchid = @MatchId
-								AND b.custid = r.custid
-								AND b.bettype = r.bettype
-					 INNER JOIN #t_exchanges te WITH (NOLOCK)
-						 ON b.currency = te.exchangeid 			 
-					 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
-							 ON b.recommend = c.custid
-					 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
-							 ON tl.LicenseeName = c.site
-				WHERE b.statusID NOT IN (101,102,103) -- reject, void, refund
-			END
-			
-			SET @CountSingle = @CountSingle + @@ROWCOUNT									
-					
+			SET @CountSingle = @@ROWCOUNT																
 		END
 		
 		--> Get parlay tickets	
@@ -708,7 +589,8 @@ BEGIN
 						SubStatus,
 						ExtraInfo,
 						ActualStake,
-						ruben
+						ruben,
+						SiteDBGroupId
 					)
 			SELECT  main.Stake,
 					@AwayId,
@@ -756,7 +638,8 @@ BEGIN
 					sub.status AS SubStatus,
 					main.ExtraInfo,
 					main.actual_stake AS ActualStake,
-					main.ruben
+					main.ruben,
+					main.SiteDBGroupID
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
@@ -778,6 +661,7 @@ BEGIN
 				AND main.recommend NOT IN (13423967) -- OneExchange (Email to IT support)
 				AND main.custid NOT IN (SELECT CustID FROM  [f_GetBetDaqCustomer] (1)) -- For Special bets: betdaq
 				AND main.mrecommend NOT IN (105181, 118473, 105183) -- For member of master: MHCEU (105181), MHCRM (118473), MHCUS(105183)
+				AND main.SiteDBGroupID = @SiteDBGroupID
 			
 			SET @CountParlay = @@ROWCOUNT	
 
@@ -788,6 +672,12 @@ BEGIN
 		BEGIN			
 			SELECT @ErrorCode = 99
 				 , @ErrorMsg = 'No ticket found.'
+
+			SELECT @ErrorCode AS ErrorCode
+			,@ErrorMsg AS ErrorMsg
+			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
+
 			RETURN
 		END
 		ELSE
@@ -852,6 +742,11 @@ BEGIN
 					
 					IF(@ErrorCode <> 0 OR @avaiableProcess = 0) 
 					BEGIN
+						SELECT @ErrorCode AS ErrorCode
+							,@ErrorMsg AS ErrorMsg
+							,@NegativeBalanceUsers AS NegativeBalanceUsers
+							,@SiteDBGroupID AS SiteDBGroupID
+
 						RETURN		
 					END	 
 				END
@@ -877,6 +772,11 @@ BEGIN
 							,@isExistFM2	= @isExistFM2
 							,@isExistOutright = @isExistOutright
 							,@IsReleased	= 1	
+
+						SELECT @ErrorCode AS ErrorCode
+							,@ErrorMsg AS ErrorMsg
+							,@NegativeBalanceUsers AS NegativeBalanceUsers
+							,@SiteDBGroupID AS SiteDBGroupID
 										
 						RETURN		
 					END
@@ -899,7 +799,12 @@ BEGIN
 					, @ErrMsg			= @ErrorMsg OUTPUT
 
 				IF(@ErrorCode <> 0 OR @AvaiableProcess = 0) 
-				BEGIN				
+				BEGIN
+					SELECT @ErrorCode AS ErrorCode
+						,@ErrorMsg AS ErrorMsg
+						,@NegativeBalanceUsers AS NegativeBalanceUsers
+						,@SiteDBGroupID AS SiteDBGroupID
+
 					RETURN
 				END
 			END	
@@ -959,6 +864,11 @@ BEGIN
 
 				END
 
+				SELECT @ErrorCode AS ErrorCode
+						,@ErrorMsg AS ErrorMsg
+						,@NegativeBalanceUsers AS NegativeBalanceUsers
+						,@SiteDBGroupID AS SiteDBGroupID
+
 				RETURN;
 			END
 		END
@@ -992,11 +902,11 @@ BEGIN
 						winlost,livehomescore,liveawayscore,liveindicator,betteam,creator, refno, 
 						winlostdate,betfrom,
 						betcheck,
-						checktime,matchid, bettype)
+						checktime,matchid, bettype, RepUpdateTime, SiteDBGroupID)
 			SELECT  main.transid, main.custid, CURRENT_TIMESTAMP, main.oddsid, main.hdp1, main.hdp2, main.odds, main.stake, main.status, 
 					main.winlost, main.livehomescore, main.liveawayscore, main.liveindicator, main.betteam, main.creator , main.refno, 
 					main.winlostdate, main.betfrom, main.betcheck,
-					main.checktime, main.matchid, main.bettype
+					main.checktime, main.matchid, main.bettype, SYSDATETIME(), main.SiteDBGroupID
 			FROM #SpecialDeleteBets_Single tmpmain
 				 INNER JOIN dbo.bettrans main WITH (nolock)
 						 ON tmpmain.transid = main.transid
@@ -1008,11 +918,11 @@ BEGIN
 			-- BackUp bettransm tickets into zzzbettrans  
 			INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 					winlost, livehomescore, liveawayscore, liveindicator, betteam, creator , refno,   
-					winlostdate, betfrom, betcheck, checktime, matchid, bettype
+					winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime, SiteDBGroupID
 			)  
 			SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,  
 					b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,  
-					b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype  
+					b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, SYSDATETIME(), b.SiteDBGroupID
 			FROM #SpecialDeleteBets_Parlay AS r 	  
 				INNER JOIN dbo.bettransm AS b WITH (nolock)
 					ON	r.SubTransId = b.transid			 
@@ -1020,10 +930,10 @@ BEGIN
 			--BackUp tickets of bettransm  
 			INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 					 winlost, livehomescore, liveawayscore, liveINdicator, betteam, creator , refno,   
-					 winlostdate, betfrom, betcheck, checktime, matchid, bettype)  
+					 winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime, SiteDBGroupID)  
 			SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,   
 					b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
-					b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype  
+					b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, SYSDATETIME(), b.SiteDBGroupID
 			FROM #SpecialDeleteBets_Parlay AS r	 
 				INNER JOIN dbo.bettransm AS b WITH (nolock)  
 					ON	r.SubTransId=b.transid						
@@ -1034,7 +944,7 @@ BEGIN
 		IF @CountSingle > 0
 		BEGIN
 			-- update status for normal ticket
-			SET @RepUpdateTime = SYSDATETIME()
+			SET @FCUpdateTime = SYSDATETIME()
 			UPDATE	main
 				SET winlost		= main.actual_stake
 					,ruben			= 1
@@ -1049,7 +959,7 @@ BEGIN
 					,scomm			= 0
 					,statusID		= 102       
 					,status			= 'VOID'
-					,RepUpdateTime = @RepUpdateTime
+					,FcUpdateTime = @FCUpdateTime
 						OUTPUT deleted.Transid,
 						deleted.custid,  
 						deleted.winlost,
@@ -1065,6 +975,34 @@ BEGIN
 				INNER JOIN #SpecialDeleteBets_Single tmpmain
 					ON	main.transid = tmpmain.transid					
 						AND main.matchid = @matchid	
+
+			SET @transInfo = (
+				SELECT	t.transId AS '@t'
+						, b.winlost AS '@w'
+						, b.ruben AS '@r'
+						, b.creator AS '@cr'
+						, b.awinlost AS '@aw'
+						, b.mwinlost AS '@mw'
+						, b.swinlost AS '@sw'
+						, b.playercomm AS '@pc'
+						, b.comm AS '@c'
+						, b.acomm AS '@ac'
+						, b.scomm AS '@sc'
+						, b.statusID AS '@sid'
+						, b.status AS '@s'
+						, b.betid AS '@bid'
+						, b.ExtraInfo AS '@ex'
+						, b.FcUpdateTime AS '@rut'
+				FROM	#SpecialDeleteBets_Single t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+		
+			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo
+			END
 		END	
 		
 		-------> Capture before balance		
@@ -1138,10 +1076,27 @@ BEGIN
 			UPDATE z
 			SET z.status = t.status
 				, z.winlost = t.winlost
+				OUTPUT deleted.matchid, deleted.transid, t.status, t.winlost
+				INTO @tmpTransInfo (matchid, transid, STATUS, winlost)
 			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
 			WHERE z.status <> t.status
 				AND t.betdaqid = -2
+
+			SET @transInfo = NULL
+			SET @transInfo = (
+					SELECT	transId AS '@t'
+							, matchid AS '@mid'
+							, STATUS AS '@s'
+							, winlost AS '@w'
+					FROM	@tmpTransInfo WHERE matchid = @MatchId 
+					FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'VoidCurrency', 'zzzbettrans', 'U', @matchid, @transInfo 
+			END
 		END
 
 		--> update status for parlay
@@ -1207,21 +1162,6 @@ BEGIN
 				,@strXML	= @refnos_29  -- main transid + refno: refno|transid,refno|transid...
 				,@mode		= '29' 
 		END	
-		
-		--> re-calculate Cricket - charge comm			
-		IF EXISTS (SELECT TOP 1 1
-				   FROM #t_CustID_501)
-		BEGIN
-			DECLARE @CustIds VARCHAR(MAX)
-			
-			SET @CustIds = STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
-								  FROM #t_CustID_501								  
-								  FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
-									
-			EXEC dbo.NAP_Admin_Calculate_500 @MatchId	= @MatchID
-						, @Action = 'VOID'
-						, @CustIds = @CustIds									
-		END
 		
 		-------> Capture after balance		
 		INSERT INTO @tblAfterBalance (matchid
@@ -1379,6 +1319,12 @@ BEGIN
 		-------> Data for sending mail
 		DECLARE @IsITAdmin BIT = 0
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
+
+		--1. Return table validate
+		SELECT @ErrorCode AS ErrorCode
+				,@ErrorMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@SiteDBGroupID AS SiteDBGroupID
 		
 		SELECT  s.Stake,				
 				s.BetCheck,
@@ -1456,6 +1402,7 @@ BEGIN
 				END AS IsItSupport,
 				CASE WHEN dc.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 				,@sporttype AS SportTypeId
+				,s.SiteDBGroupId
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL
@@ -1516,6 +1463,11 @@ BEGIN
 		SELECT @ErrorCode = 100,
 				@ErrorMsg = @GeneralErrMsg
 
+		SELECT @ErrorCode AS ErrorCode
+			,@ErrorMsg AS ErrorMsg
+			,@NegativeBalanceUsers AS NegativeBalanceUsers
+			,@SiteDBGroupID AS SiteDBGroupID
+
 		RETURN				
 	END CATCH		
 	
@@ -1535,7 +1487,6 @@ BEGIN
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #SpecialDeleteBets_Single
 	DROP TABLE #SpecialDeleteBets_Parlay
-	DROP TABLE #tmpRefCodeSummary
 	DROP TABLE #t_CustID_501  
 	DROP TABLE #t_LicenseeNames 
 	DROP TABLE #t_UIRepresentativeLicenseeGroupNames

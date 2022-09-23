@@ -1,13 +1,13 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BettransSelSpecialDel_NumberGame] 
-	@Option BIT = 0
-	,@MatchID INT
-	,@FromTransId BIGINT = NULL
-	,@ToTransId BIGINT = NULL
-	,@BetTypes VARCHAR(100) = ''
-	,@BallSequence VARCHAR(200)	= ''	
-	,@TransIds VARCHAR(4000) = NULL
-	,@InvalidTransIds VARCHAR(MAX) = '' OUTPUT	
+	@Option			BIT = 0
+	,@MatchID		INT
+	,@FromTransdate DATETIME = NULL
+	,@ToTransdate	DATETIME = NULL
+	,@BetTypes		VARCHAR(100) = ''
+	,@BallSequence	VARCHAR(200)	= ''	
+	,@TransIds		VARCHAR(4000) = NULL
+		
 AS
 /*  
 
@@ -28,6 +28,7 @@ AS
 		- 20181121@Alan: Incorporate Happy 5 into Number Game [102845]
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:
 			- @Opition: 
@@ -39,52 +40,51 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @today SMALLDATETIME
-
+	DECLARE @today				SMALLDATETIME
+			,@InvalidTransIds	VARCHAR(MAX) = '' 
+			,@SiteDBGroupID		SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	SET @today = CONVERT(NVARCHAR(10), CURRENT_TIMESTAMP, 120)
 
 	CREATE TABLE #SpecialDeleteBets (
-		transid BIGINT
-		,custid INT
-		,username VARCHAR(30)
-		,username2 NVARCHAR(50)
-		,odds MONEY
-		,OddsType INT
-		,transdate DATETIME
-		,bettype SMALLINT
-		,betfrom NVARCHAR(1)
-		,betteam NVARCHAR(10)
-		,hdp1 SMALLMONEY
-		,hdp2 SMALLMONEY
+		transid			BIGINT
+		,custid			INT
+		,username		VARCHAR(30)
+		,username2		NVARCHAR(50)
+		,odds			SMALLMONEY
+		,OddsType		INT
+		,transdate		DATETIME
+		,bettype		SMALLINT
+		,betfrom		NVARCHAR(3)
+		,betteam		NVARCHAR(10)
+		,hdp1			SMALLMONEY
+		,hdp2			SMALLMONEY
 		,IsLiveIndicator BIT
-		,livehomescore SMALLINT
-		,liveawayscore SMALLINT
-		,creator VARCHAR(30)
-		,stake MONEY
-		,winlost MONEY
-		,comm MONEY
-		,CurrencyName NVARCHAR(50)
-		,IsDeposit BIT
-		,SITE VARCHAR(10)
-		,STATUS NVARCHAR(10)
-		,mrecommend INT
-		,recommend INT
-		,betid BIGINT
-		,MatchCode NVARCHAR(50)
-		,ShowTime  NVARCHAR(50)
-		,BallSequence TINYINT
-		,SportTypeId INT
+		,livehomescore	SMALLINT
+		,liveawayscore	SMALLINT
+		,creator		VARCHAR(30)
+		,stake			MONEY
+		,winlost		MONEY
+		,comm			MONEY
+		,CurrencyName	NVARCHAR(50)
+		,IsDeposit		BIT
+		,SITE			VARCHAR(10)
+		,STATUS			NVARCHAR(10)
+		,mrecommend		INT
+		,recommend		INT
+		,betid			BIGINT
+		,MatchCode		NVARCHAR(50)
+		,ShowTime		NVARCHAR(50)
+		,BallSequence	TINYINT
+		,SportTypeId	INT
 	)
 
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
 	
-	CREATE TABLE #TmpBallSequence (	
-		Seq	TINYINT
-	)
-	
+	CREATE TABLE #TmpBallSequence (Seq TINYINT)
 	INSERT INTO #TmpBallSequence(Seq)
 	SELECT  value
-	FROM	STRING_SPLIT(@BallSequence, ',')
+	FROM STRING_SPLIT(@BallSequence, ',')
 
 	IF @Option = 0
 	BEGIN 
@@ -137,10 +137,10 @@ BEGIN
 				INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON b.custid = c.custid
 				INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid						
 			WHERE b.matchid = @matchid 
-				AND ((@FromTransId IS NULL AND @ToTransId IS NULL) OR (b.transid BETWEEN @FromTransId AND @ToTransId)) 
+				AND b.transdate BETWEEN @FromTransdate AND @ToTransdate
 				AND statusID NOT IN (101, 102, 121) ---- Void, Reject, 121: dummy ticket
-				AND winlostdate = @today AND m.eventdate = @today 
-				AND b.bettype IN (SELECT CONVERT(INT,value) FROM	STRING_SPLIT(@BetTypes, ','))
+				AND b.bettype IN (SELECT CONVERT(SMALLINT,value) FROM STRING_SPLIT(@BetTypes, ','))
+				AND b.SiteDBGroupID = @SiteDBGroupID
 		END
 
 		-- Select Number Game
@@ -196,18 +196,16 @@ BEGIN
 							WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 							) AS BS_tmp							
 			WHERE b.matchid = @matchid 
-				AND ((@FromTransId IS NULL AND @ToTransId IS NULL) OR (b.transid BETWEEN @FromTransId AND @ToTransId)) 
+				AND b.transdate BETWEEN @FromTransdate AND @ToTransdate
 				AND statusID NOT IN (101, 102, 121) ---- Void, Reject, 121: dummy ticket
-				AND winlostdate = @today AND m.eventdate = @today 
-				AND b.bettype IN (SELECT CONVERT(INT,value) FROM STRING_SPLIT(@BetTypes, ','))			
-				AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)
-					-- Filter for BallSequence
+				AND b.bettype IN (SELECT CONVERT(SMALLINT,value) FROM STRING_SPLIT(@BetTypes, ','))			
+				AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)-- Filter for BallSequence
+				AND b.SiteDBGroupID = @SiteDBGroupID
 		END
 	END
-	
 	ELSE -- @Option = 1
 	BEGIN
-		INSERT INTO @tblTransIds
+		INSERT INTO @tblTransIds(transid)
 		SELECT DISTINCT (s.value)
 		FROM STRING_SPLIT(isnull(@TransIds, 0), ',') s
 		
@@ -264,25 +262,22 @@ BEGIN
 		WHERE b.transid IN (SELECT [@tblTransIds].transid FROM @tblTransIds ) 
 			AND statusID NOT IN (101, 102, 121) ---- Void, Reject, 121: dummy ticket
 			AND winlostdate = @today AND m.eventdate = @today AND m.sporttype IN (161, 164)
+			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 
-	--- invalid trans info
-	SET @InvalidTransIds = ''
+	------------------------------------------------------------------------------	/* --1. Table invald/moved transid	*/
 	IF @Option = 0
-		SELECT @InvalidTransIds = @InvalidTransIds + 
-								  CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END +
-								  CAST(t.transid AS VARCHAR(100))
+		SELECT '' AS InvalidTransIds
+	ELSE IF @Option = 1
+	BEGIN
+		SELECT @InvalidTransIds = @InvalidTransIds + CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END + CAST(t.transid AS VARCHAR(50))
 		FROM @tblTransIds t
-	ELSE -- @Option = 1
-		SELECT @InvalidTransIds = @InvalidTransIds + 
-								  CASE WHEN @InvalidTransIds <> '' THEN ',' ELSE '' END +
-								  CAST(t.transid AS VARCHAR(100))
-		FROM @tblTransIds t
-		WHERE t.transid NOT IN (
-				SELECT r.transid
-				FROM #SpecialDeleteBets r
-				)
+		WHERE t.transid NOT IN (SELECT r.transid FROM #SpecialDeleteBets r)
 
+		SELECT @InvalidTransIds AS InvalidTransIds
+	END
+	
+	/* --2. Table get tickets */
 	--0. For Normal bets  
 	SELECT transid
 		,username
@@ -310,6 +305,7 @@ BEGIN
 		,BallSequence
 		,'Credit' AS GroupName
 		,SportTypeId
+		,@SiteDBGroupID AS SiteDBGroupID
 	FROM #SpecialDeleteBets WITH (NOLOCK)
 	WHERE custid NOT IN (
 			SELECT CustID
@@ -343,6 +339,7 @@ BEGIN
 		,BallSequence
 		,'Deposit' AS GroupName
 		,SportTypeId
+		,@SiteDBGroupID AS SiteDBGroupID
 	FROM #SpecialDeleteBets s WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
 	WHERE c.custid NOT IN (

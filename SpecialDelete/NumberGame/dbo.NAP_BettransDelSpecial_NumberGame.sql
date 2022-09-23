@@ -2,8 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_BettransDelSpecial_NumberGame] 
 	@Option			BIT = 0
 	,@MatchId		INT
-	,@FromTransId	BIGINT = NULL
-	,@ToTransId		BIGINT = NULL
+	,@FromTransDate	DATETIME = NULL
+	,@ToTransDate	DATETIME = NULL
 	,@BetTypes		VARCHAR(100) = ''
 	,@BallSequence	VARCHAR(200)	= ''
 	,@TransIds		VARCHAR(MAX) = ''
@@ -13,8 +13,6 @@ ALTER PROCEDURE [dbo].[NAP_BettransDelSpecial_NumberGame]
 	,@IP			VARCHAR(15) = ''
 	,@reason		NVARCHAR(500) = ''
 	,@ReasonSC		NVARCHAR(500)	= ''
-	,@ErrMsg		NVARCHAR(200) = '' OUTPUT
-	,@ErrCode		INT = 0 OUTPUT
 AS
 /*
 	Created by: Kathy
@@ -42,6 +40,7 @@ AS
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		
 	Param's Explanation: 
 		- @Opition: 
@@ -56,6 +55,20 @@ BEGIN
 		, @Remark 			VARCHAR(500)
 		, @avaiableProcess 	BIT = 0
 		, @spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+		, @ErrMsg					NVARCHAR(200)	= ''
+		, @ErrCode				INT				= 0	
+		, @SiteDBGroupID		SMALLINT
+		, @transInfo			XML
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	DECLARE @tmpTransInfo TABLE (transId BIGINT, matchId INT
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,statusID TINYINT, status NVARCHAR(20), ruben TINYINT
+			,creator INT
+			)
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 
 	IF NOT EXISTS (
 			SELECT 1
@@ -64,7 +77,7 @@ BEGIN
 			)
 	BEGIN
 		SELECT @LogData = CASE 
-				WHEN @Option = 0 THEN 'fail to void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(20), @FromTransId) + ' to ' + CONVERT(VARCHAR(20), @ToTransId) + ' reason: ' + @reason
+				WHEN @Option = 0 THEN 'fail to void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(30), @FromTransDate, 121) + ' to ' + CONVERT(VARCHAR(30), @ToTransDate, 121) + ' reason: ' + @reason
 				ELSE 'fail to void bet for BetId(s): ' + CASE 
 						WHEN @TransIds IS NULL THEN ''
 						ELSE @TransIds + ','
@@ -75,7 +88,10 @@ BEGIN
 			,@Doing = @LogData
 
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'
-			,@ErrCode = 102
+			,@ErrCode = 113
+
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
 
 		RETURN
 	END
@@ -96,8 +112,11 @@ BEGIN
 	END TRY
 
 	BEGIN CATCH
-		SELECT @ErrCode = 101
+		SELECT @ErrCode = 114
 			,@ErrMsg = 'Invalid TransIds ' + ERROR_MESSAGE()
+
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
 		RETURN
 	END CATCH
 	
@@ -138,8 +157,11 @@ BEGIN
 
 	IF @max_seq = 0
 	BEGIN
-		SELECT @ErrCode = 101
+		SELECT @ErrCode = 114
 			,@ErrMsg = 'Invalid TransIds'
+
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
 
 		RETURN
 	END
@@ -152,8 +174,11 @@ BEGIN
 		)
 	)
 	BEGIN
-		SELECT @ErrCode = 102
+		SELECT @ErrCode = 115
 			,@ErrMsg = 'You are only allowed to void today tickets.'
+
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
 
 		RETURN
 	END
@@ -173,8 +198,13 @@ BEGIN
 		, @ErrMsg			= @ErrMsg OUTPUT
 
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
+	BEGIN
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
+
 		RETURN
-		
+	END	
+
 	----################ End of check concurrent running #####################----
 	CREATE TABLE #BetDelete (
 		transid BIGINT
@@ -182,14 +212,14 @@ BEGIN
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
-		,odds MONEY
+		,odds SMALLMONEY
 		,oddstype TINYINT
 		,transdate DATETIME
 		,bettype INT
 		,betteam NVARCHAR(20)
 		,hdp1 SMALLMONEY
 		,hdp2 SMALLMONEY
-		,betfrom NVARCHAR(2)
+		,betfrom NVARCHAR(3)
 		,stake MONEY
 		,winlost MONEY
 		,comm MONEY
@@ -267,11 +297,12 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid			
 		WHERE	b.matchid = @MatchId 
-				AND ((b.transid BETWEEN @FromTransId AND @ToTransId) OR (@FromTransId IS NULL AND @ToTransId IS NULL)) 
+				AND b.transdate BETWEEN @FromTransDate AND @ToTransDate
 				AND b.bettype IN (SELECT CONVERT(INT, value) FROM STRING_SPLIT(ISNULL(@BetTypes, ''), ','))
 				AND winlostdate = @today 
 				AND statusID NOT IN (101, 102, 121) 
 				AND b.transid IN ( SELECT t1.transid FROM #tblTransId t1 WITH (NOLOCK) )
+				AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 	ELSE
 	BEGIN
@@ -341,7 +372,7 @@ BEGIN
 					(
 					@Option = 0 
 						AND b.matchid = @MatchId 
-						AND ((b.transid BETWEEN @FromTransId AND @ToTransId) OR (@FromTransId IS NULL AND @ToTransId IS NULL)) 
+						AND b.transdate BETWEEN @FromTransDate AND @ToTransDate
 						AND b.bettype IN (SELECT CONVERT(INT, value) 
 										  FROM STRING_SPLIT(ISNULL(@BetTypes, ''), ','))
 						AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence)						
@@ -351,6 +382,7 @@ BEGIN
 				AND winlostdate = @today 
 				AND statusID NOT IN (101, 102, 121) 
 				AND b.transid IN ( SELECT t1.transid FROM #tblTransId t1 WITH (NOLOCK) )
+				AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 
 	--check no data
@@ -358,6 +390,9 @@ BEGIN
 	BEGIN
 		SELECT @ErrCode = 99
 		, @ErrMsg 		= 'No ticket found.'
+
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
 	END
 	ELSE
 	BEGIN
@@ -385,6 +420,8 @@ BEGIN
 			,checktime
 			,matchid
 			,bettype
+			,RepUpdateTime
+			,SiteDBGroupID
 			)
 		SELECT transid
 			,custid
@@ -408,6 +445,8 @@ BEGIN
 			,checktime
 			,matchid
 			,bettype
+			,SYSDATETIME()
+			,b.SiteDBGroupID
 		FROM bettrans b WITH (NOLOCK)
 		WHERE b.transid IN (
 				SELECT transid
@@ -470,10 +509,49 @@ BEGIN
 			,acomm = 0
 			,scomm = 0
 			,statusID = 102
+			OUTPUT inserted.TransId, inserted.matchid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.awinlost, inserted.mwinlost, inserted.swinlost
+				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID
+			INTO @tmpTransInfo (transId, matchId, WinLost, ruben, status, creator, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID)
 		WHERE transid IN (
 				SELECT transid
 				FROM #BetDelete
 				)
+		
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId 
+				FROM @tmpMatchidInfo m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				SET @transInfo = (
+				SELECT	b.transId AS '@t'
+						, b.winlost AS '@w'
+						, b.ruben AS '@r'
+						, b.creator AS '@cr'
+						, b.awinlost AS '@aw'
+						, b.mwinlost AS '@mw'
+						, b.swinlost AS '@sw'
+						, b.playercomm AS '@pc'
+						, b.comm AS '@c'
+						, b.acomm AS '@ac'
+						, b.scomm AS '@sc'
+						, b.statusID AS '@sid'
+						, b.status AS '@s'
+				FROM	@tmpTransInfo b WHERE matchid = @MatchId
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+		
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'VoidNumberGame', 'bettrans', 'U', @MatchId, @transInfo
+			END
+		END
 
 		--Get data after update
 		INSERT INTO #AfterUpd (
@@ -612,8 +690,8 @@ BEGIN
 		-------------------------------------------------------
 		
 		SELECT @LogData = CASE 
-				WHEN @Option = 0 THEN 'void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(20), @FromTransId) 
-										+ ' to ' + CONVERT(VARCHAR(20), @ToTransId) + ' reason: ' + @Reason + ' - ' + @ReasonSC
+				WHEN @Option = 0 THEN 'void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(30), @FromTransDate, 121) 
+										+ ' to ' + CONVERT(VARCHAR(30), @ToTransDate, 121) + ' reason: ' + @Reason + ' - ' + @ReasonSC
 				ELSE 'void bet for BetId(s): ' + CASE 
 						WHEN @TransIds IS NULL THEN ''
 						ELSE @TransIds + ','
@@ -630,6 +708,10 @@ BEGIN
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 		
 		CREATE TABLE #CTE_CustInfo (CustId INT, UserName VARCHAR(30), Username2 VARCHAR(50), Site VARCHAR(10))
+
+		--1. Return table validate
+		SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
 
 		;WITH CTE_CustIdAll AS (
 			SELECT DISTINCT t.custid

@@ -25,10 +25,10 @@ AS
   - 20161013@Kathy: Add NG2 [Redmine:#63211]
   - 20170309@Kent: Integrate Cash-out [Redmine:#72059]
   - 20190228@Alan: Implement Bet Builder - [106898]
-  
+  - 20220909@July: Change function STRING_SPLIT & remove code Metric Gaming [Redmine: #175412]
+
 Explanation's Param:  
 	- @ProductIds: [1-99]
-		+ 1001: Metric Gaming (hard-code)
 		+ 1002: Bet Builder
 */
 BEGIN
@@ -36,7 +36,6 @@ BEGIN
 	
 	DECLARE @invalidTransId 	VARCHAR(MAX)
 		,@balanUpDate			SMALLDATETIME
-		,@MG_ProductId			INT = 1001
 		,@BetBuilder_ProductId	INT = 1002
 
 	CREATE TABLE #transIdList 	( transid 	BIGINT)
@@ -56,7 +55,7 @@ BEGIN
 		, recommend INT
 		, mrecommend INT
 		, srecommend INT
-		, betfrom NVARCHAR(1)
+		, betfrom NVARCHAR(3)
 	)
 	
 	-- set balanUpDate
@@ -65,13 +64,13 @@ BEGIN
 	
 	-- insert trans Id list
 	INSERT INTO #transIdList(transid)
-	SELECT DISTINCT (CONVERT(BIGINT, val))
-	FROM dbo.strSplit(@TransIds, ',')
+	SELECT DISTINCT (CONVERT(BIGINT, value))
+	FROM STRING_SPLIT(@TransIds, ',')
 	
 	--Insert product list
 	INSERT INTO #productIdList(ProductId)
-	SELECT DISTINCT (CONVERT(INT, val))
-	FROM dbo.strSplit(@ProductIds, ',')
+	SELECT DISTINCT (CONVERT(INT, value))
+	FROM STRING_SPLIT(@ProductIds, ',')
 		
 	-- Gather BettypeMatrix
 	INSERT INTO #productBettype (ProductId, Bettype, SubProduct)
@@ -79,17 +78,8 @@ BEGIN
 	FROM dbo.SportBettypeMatrix sb (NOLOCK)
 		INNER JOIN #productIdList p ON sb.ProductId = p.ProductId		
 	WHERE sb.SubProduct NOT IN ('MG-SuperLive') 
-		AND sb.Bettype 	NOT IN (901, 902, 903, 904, 911, 912, 913, 914, 500, 38)
+		AND sb.Bettype 	NOT IN (500, 38)
 	
-	-- Check metric gaming
-	IF(EXISTS (SELECT 1 FROM #productIdList	WHERE ProductId = @MG_ProductId))
-	BEGIN
-		INSERT INTO #productBettype (ProductId, Bettype, SubProduct)
-		SELECT DISTINCT @MG_ProductId AS ProductId, sb.Bettype, sb.SubProduct
-		FROM dbo.SportBettypeMatrix sb (NOLOCK)
-		WHERE sb.SubProduct IN ('MG-SuperLive') 	
-	END
-
 	-- Check Bet Builder
 	IF(EXISTS (SELECT 1 FROM #productIdList WHERE ProductId = @BetBuilder_ProductId))
 	BEGIN

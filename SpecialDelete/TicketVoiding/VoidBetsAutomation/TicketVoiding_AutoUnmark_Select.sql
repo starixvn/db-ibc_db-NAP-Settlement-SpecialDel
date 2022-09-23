@@ -1,16 +1,13 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Select]
 (
-	@MatchId		VARCHAR(50)		= ''
-	,@Sporttype		VARCHAR(MAX)	= ''
-	,@IsExcludeTest BIT				= 1
-	,@MarkedBy		INT				= 0
+	@TransInfo			  XML = NULL	
 )
 AS
 /*	Created by: Max
 	Date 20200212
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20200212@Max: Create new SP [Redmine: #128359]
@@ -29,146 +26,115 @@ AS
 		- 20211125@July: Change length match [Redmine: #161337]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
+		- 20220831@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's explanation:	
-	
+		@TransInfo: <root><r mid="0" t="1" btype ="" us="" crdate="" mt="" bid=""/></root>
 */
 BEGIN
 	SET NOCOUNT ON
 	
 	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid NVARCHAR(100))
-	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT, bettype SMALLINT, MarkType TINYINT, betid NVARCHAR(100))
+	CREATE TABLE #tmpTransInfo(
+	   matchid INT
+	  ,transid BIGINT 
+	  ,bettype SMALLINT
+	  ,UserId INT
+	  ,CreatedDate DATETIME
+	  ,MarkType INT
+	  ,betid NVARCHAR(100)
+	)
+	INSERT INTO #tmpTransInfo( 
+		    matchid 
+	       ,transid
+		   ,bettype
+		   ,UserId
+		   ,CreatedDate
+		   ,MarkType
+		   ,betid
+	)
+	SELECT t.c.value('@mid','INT') AS matchid	
+		,t.c.value('@t','BIGINT') AS transid
+		,t.c.value('@btype','SMALLINT') AS bettype
+		,t.c.value('@us','INT') AS UserId
+		,t.c.value('@crdate','DATETIME') AS CreatedDate
+		,t.c.value('@mt','INT') AS MarkType
+		,CASE WHEN t.c.value('@bid','NVARCHAR(100)') ='' THEN NULL ELSE t.c.value('@bid','NVARCHAR(100)') END AS betid
+	FROM @TransInfo.nodes('root/r') t(c)	
+	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
 
-	DECLARE @Sporttypes AS TABLE (sporttype SMALLINT)
+	INSERT INTO #MarkedTransaction_tmp (
+		MatchId
+		,bettype
+		,UserId
+		,MarkedTrans
+		,CreateDate
+		,MarkType
+		,betid
+		)
+	SELECT f.MatchId
+		,f.bettype
+		,f.UserId
+		,COUNT(f.TransId) AS MarkedTrans
+		,MAX(f.CreatedDate) AS CreatedDate
+		,f.MarkType
+		,f.BetId
+	FROM #tmpTransInfo AS f
+	GROUP BY f.MatchId
+		,f.bettype
+		,f.UserId
+		,f.MarkType
+		,f.BetId
 
-	IF LEN(@MatchId) <= 10
-	BEGIN
-		INSERT INTO @Sporttypes (sporttype)
-		SELECT DISTINCT value AS sporttype
-		FROM STRING_SPLIT(@Sporttype, ',')
-
-		INSERT INTO #tmp_TransId (transid, matchid, userid, createddate, refno, statusID, bettype, MarkType, betid)
-		SELECT mt.TransId
-			,mt.MatchId
-			,mt.UserId
-			,mt.CreatedDate
-			,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL END AS refno
-			,b.statusID
-			,CASE WHEN b.matchid = 29 THEN NULL ELSE b.bettype END AS bettype
-			,CASE WHEN mt.MarkType = 2 THEN 2 ELSE 0 END AS MarkType
-			,CASE WHEN b.matchid = 29 THEN NULL ELSE CONVERT(NVARCHAR(100), b.betid) END AS betid 
-		FROM dbo.MarkedTransaction mt WITH (NOLOCK)
-			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid 
-			INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
-			INNER JOIN @Sporttypes s ON s.sporttype = m.sporttype
-			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
-		WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
-			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
-			AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
-			AND m.sporttype <= 99
-			AND 1 = CASE WHEN b.matchid <> 29 AND b.statusID IN (101,102) THEN 0 ELSE 1 END
-			
-		;WITH CTE_FilterByTicketStatus
-		AS (
-			SELECT f.TransId
-				,f.MatchId
-				,f.bettype
-				,f.UserId
-				,f.CreatedDate
-				,f.MarkType
-				,f.betid 
-			FROM #tmp_TransId AS f
-			WHERE f.refno IS NULL
-
-			UNION ALL
-			
-			SELECT f.TransId
-				,f.MatchId
-				,m.bettype
-				,f.UserId
-				,f.CreatedDate
-				,f.MarkType
-				,m.betcheck as betid
-			FROM #tmp_TransId AS f
-				INNER JOIN bettransm AS m WITH (NOLOCK, INDEX = IX_refno) ON f.matchid = m.matchid AND f.refno = m.refno
-			WHERE m.statusID NOT IN (101, 102)
-														
-			)
-		INSERT INTO #MarkedTransaction_tmp (
-			MatchId
-			,bettype
-			,UserId
-			,MarkedTrans
-			,CreateDate
-			,MarkType
-			,betid
-			)
-		SELECT f.MatchId
-			,f.bettype
-			,f.UserId
-			,COUNT(f.TransId) AS MarkedTrans
-			,MAX(f.CreatedDate) AS CreatedDate
-			,f.MarkType
-			,f.BetId
-		FROM CTE_FilterByTicketStatus AS f
-		GROUP BY f.MatchId
-			,f.bettype
-			,f.UserId
-			,f.MarkType
-			,f.BetId
-
-		---------------
-		SELECT mt.MatchId
-			, m.kickofftime
-			, m.homeid
-			, m.awayid
-			, ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-') AS 'HTScore'
-			, ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-') AS 'FTScore'
-			, mt.bettype
-			, mt.MarkedTrans
-			, mt.UserId
-			, c.username AS MarkedBy
-			, m.sporttype
-			, CASE WHEN ta_tmp.IsCheck IS NULL OR ta_tmp.IsCheck = 1 THEN 0 --isCheck = 1 --> enable confirm
-				   ELSE 1 END AS IsConfirm
-			, mt.MarkType
-			, mt.betid
-		FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
-			INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
-			OUTER APPLY (
-								SELECT TOP 1 m.hthomescore, m.htawayscore
-								FROM dbo.match_remark mr WITH (NOLOCK)
-								WHERE IsHTCal = 1 
-									AND mr.matchid = m.matchid			
-							)rdHT
-			OUTER APPLY (
-						SELECT TOP 1 m.finalhomescore, m.finalawayscore
-						FROM dbo.match_remark mr WITH (NOLOCK)
-						WHERE mr.calculate = 1 
-							AND mr.matchid = m.matchid			
-					)rdFT
-			OUTER APPLY (
-					SELECT TOP 1 CASE WHEN  mt.CreateDate > t.CreatedDate THEN 1
-									ELSE 0 
-								END AS IsCheck
-					FROM TicketVoiding_AutoUnmarkSetting t WITH (NOLOCK)
-					WHERE t.Matchid = mt.MatchId
-						AND t.Bettype = mt.bettype
-						AND t.MarkedBy = mt.UserId
-						AND CONVERT(NVARCHAR(100),ISNULL(t.betid, 0)) = ISNULL(mt.betid, 0)
-					ORDER BY t.CreatedDate DESC
-				)ta_tmp		
-			INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
-			INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId	
-		ORDER BY m.kickofftime
-			, mt.MatchId
-			, mt.MarkType 
-			, mt.bettype
-			, f.GroupName
-			, ISNULL(ta_tmp.IsCheck, 1) DESC
-	END
-	ELSE RETURN
+	SELECT mt.MatchId
+		, m.kickofftime
+		, m.homeid
+		, m.awayid
+		, ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-') AS 'HTScore'
+		, ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-') AS 'FTScore'
+		, mt.bettype
+		, mt.MarkedTrans
+		, mt.UserId
+		, c.username AS MarkedBy
+		, m.sporttype
+		, CASE WHEN ta_tmp.IsCheck IS NULL OR ta_tmp.IsCheck = 1 THEN 0 --isCheck = 1 --> enable confirm
+				ELSE 1 END AS IsConfirm
+		, mt.MarkType
+		, mt.betid
+	FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
+		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
+		OUTER APPLY (
+							SELECT TOP 1 m.hthomescore, m.htawayscore
+							FROM dbo.match_remark mr WITH (NOLOCK)
+							WHERE IsHTCal = 1 
+								AND mr.matchid = m.matchid			
+						)rdHT
+		OUTER APPLY (
+					SELECT TOP 1 m.finalhomescore, m.finalawayscore
+					FROM dbo.match_remark mr WITH (NOLOCK)
+					WHERE mr.calculate = 1 
+						AND mr.matchid = m.matchid			
+				)rdFT
+		OUTER APPLY (
+				SELECT TOP 1 CASE WHEN  mt.CreateDate > t.CreatedDate THEN 1
+								ELSE 0 
+							END AS IsCheck
+				FROM TicketVoiding_AutoUnmarkSetting t WITH (NOLOCK)
+				WHERE t.Matchid = mt.MatchId
+					AND t.Bettype = mt.bettype
+					AND t.MarkedBy = mt.UserId
+					AND CONVERT(NVARCHAR(100),ISNULL(t.betid, 0)) = ISNULL(mt.betid, 0)
+				ORDER BY t.CreatedDate DESC
+			)ta_tmp		
+		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = mt.bettype
+		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = mt.UserId	
+	ORDER BY m.kickofftime
+		, mt.MatchId
+		, mt.MarkType 
+		, mt.bettype
+		, f.GroupName
+		, ISNULL(ta_tmp.IsCheck, 1) DESC
 
 	DROP TABLE #MarkedTransaction_tmp
-	DROP TABLE #tmp_TransId
+	DROP TABLE #tmpTransInfo
 END

@@ -19,18 +19,22 @@ AS
 		- 20201105@Charles: Fix show liveindicator for subparlay [143091]
 		- 20210707@Max: [TVS] Tuning SP mark/unmark tickets [Redmine: #157930]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Explanation's Param:
 */
 BEGIN
-SET NOCOUNT ON
+	SET NOCOUNT ON
+	DECLARE @SiteDBGroupID		SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 	CREATE TABLE #Tickets
              (GroupID         BIGINT,
               transid         BIGINT,
               custid          INT,
               username        VARCHAR(50),
               oddsspread      MONEY,
-              odds            MONEY,
+              odds            SMALLMONEY,
               OddsType        INT,
               transdate       DATETIME,
               bettype         SMALLINT,
@@ -66,7 +70,7 @@ SET NOCOUNT ON
               SubBetType      SMALLINT DEFAULT(0),
               SubHdp1         SMALLMONEY,
               SubHdp2         SMALLMONEY,
-              SubOdds         MONEY
+              SubOdds         SMALLMONEY
              );
 	-- get single tickets
 	INSERT INTO #Tickets (
@@ -143,7 +147,8 @@ SET NOCOUNT ON
 		AND b.MatchId = @MatchId 
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
-	
+		AND b.SiteDBGroupID = @SiteDBGroupID
+
 	-- get subparlay tickets
 	INSERT INTO #Tickets (
 			GroupID
@@ -232,117 +237,18 @@ SET NOCOUNT ON
 		AND bm.matchid = @MatchId
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
-
-	CREATE TABLE #tmpRefCodeSummary (
-		 RefCode	BIGINT
-		 ,custid	INT
-		 ,matchid	INT
-		 ,bettype	SMALLINT
-		 ,transid	BIGINT
-	)
-	CREATE INDEX IX_Data_RefCode ON #Tickets(RefCode)
-	CREATE INDEX IX_tmpRefCodeSummary_Refcode ON #tmpRefCodeSummary (RefCode)
-
-	-- update MainTransId
-	IF EXISTS (SELECT TOP (1) 1 FROM #Tickets WHERE refno IS NOT NULL)
-	BEGIN
-		UPDATE sub
-		SET MainTransId = main.transid
-		FROM #Tickets main
-			 INNER JOIN #Tickets sub
-					 ON main.RefCode = sub.RefCode	
-						AND main.transid <> sub.transid					
-						AND main.custid = sub.custid
-						AND main.matchid = sub.matchid
-						AND main.bettype = sub.bettype											
-		WHERE main.WalletType = 1			
-	  
-		-- Insert more bonus or cash ticket in case only one ticket appears in #Tickets	
-		INSERT INTO #tmpRefCodeSummary (RefCode, custid, matchid, bettype, transid)
-		SELECT RefCode, custid, matchid, bettype, MAX(transid) AS transid
-		FROM #Tickets
-		WHERE	RefCode IS NOT NULL
-		GROUP BY RefCode, custid, matchid, bettype
-		HAVING COUNT(*) = 1
-		
-		IF @@ROWCOUNT > 0
-		BEGIN
-			INSERT INTO #Tickets (
-					GroupID
-					,bettype
-					,transid
-					,betid
-					,refno
-					,hdp1
-					,hdp2
-					,odds
-					,OddsType
-					,STATUS
-					,stake
-					,transdate
-					,betteam
-					,betcheck
-					,IsLiveIndicator
-					,custid
-					,livehomescore
-					,liveawayscore
-					,matchid
-					,winlost
-					,TransDesc
-					,betdaqid
-					,username
-					,srecommend
-					,recommend
-					,ExtraInfo
-					,WalletType
-					,RefCode
-					,BonusID
-					,MainTransId
-				)
-				SELECT	
-					b.refno AS GroupId
-					,b.bettype
-					,b.transid
-					,isnull(b.BetID, 0) AS BetID
-					,b.refno			
-					,b.hdp1
-					,b.hdp2
-					,b.odds
-					,b.OddsType
-					,CASE WHEN b.STATUS = 'running'
-							AND IsNull(b.SecAcceptFlag, 0) = 1
-							AND IsNull(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-						ELSE b.STATUS END AS STATUS
-					,b.stake
-					,b.transdate
-					,b.betteam
-					,b.betcheck
-					,b.liveindicator
-					,b.custid
-					,b.livehomescore
-					,b.liveawayscore
-					,b.matchid
-					,(b.winlost - b.actual_stake) winlost
-					,b.transdesc
-					,b.betdaqid
-					,b.username
-					,b.srecommend
-					,b.recommend
-					,b.ExtraInfo
-					,b.WalletType
-					,b.RefCode
-					,b.BonusID
-					,t.transid AS MainTransId	
-			FROM #tmpRefCodeSummary t
-				 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-						 ON b.RefCode = t.RefCode
-							AND b.transid <> t.transid
-							AND b.custid = t.custid
-							AND b.matchid = t.matchid
-							AND b.bettype = t.bettype
-			WHERE b.statusID IN (0, 1)
-		END
-	END
+		AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
+	
+	UPDATE sub
+	SET MainTransId = main.transid
+	FROM #Tickets main
+			INNER JOIN #Tickets sub
+					ON main.RefCode = sub.RefCode	
+					AND main.transid <> sub.transid					
+					AND main.custid = sub.custid
+					AND main.matchid = sub.matchid
+					AND main.bettype = sub.bettype											
+	WHERE main.WalletType = 1		
 
 	-- Group Name By Licensee
 	BEGIN
@@ -430,7 +336,8 @@ SET NOCOUNT ON
 		b.SubBettype,
 		b.SubHdp1,
 		b.SubHdp2,
-		b.SubOdds
+		b.SubOdds,
+		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
@@ -457,10 +364,10 @@ SET NOCOUNT ON
 				ELSE 2 END ELSE b.transid END
 
 				
-  DROP TABLE #Tickets
-  DROP TABLE #tmpRefCodeSummary
-  DROP TABLE #t_LicenseeNames
-  DROP TABLE #t_UIRepresentativeLicenseeGroupNames
-SET NOCOUNT OFF
+	DROP TABLE #Tickets
+	DROP TABLE #t_LicenseeNames
+	DROP TABLE #t_UIRepresentativeLicenseeGroupNames
+
+	SET NOCOUNT OFF
 END
 GO

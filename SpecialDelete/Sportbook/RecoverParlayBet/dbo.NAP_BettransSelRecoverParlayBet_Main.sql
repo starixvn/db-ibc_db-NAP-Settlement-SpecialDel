@@ -16,6 +16,7 @@ AS
 		- 20201126@Charles: God of fortune [Redmine: #146053]
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	Param's Explanation:			
 			- @BetType:
@@ -43,7 +44,7 @@ BEGIN
 		,livehomescore			SMALLINT 
 		,liveawayscore			SMALLINT 
 		,Stake					MONEY
-		,Odds					MONEY		
+		,Odds					SMALLMONEY		
 		,hdp1					SMALLMONEY
 		,hdp2					SMALLMONEY						
 		,betcheck				NVARCHAR(50)
@@ -54,9 +55,11 @@ BEGIN
 	)	
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
-	DECLARE @MovebetDate DATETIME
+	DECLARE @MovebetDate		DATETIME
+		   ,@SiteDBGroupID		SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	INSERT INTO @tblTransIds
+	INSERT INTO @tblTransIds(transid)
 	SELECT ss.value
 	FROM STRING_SPLIT(@TransIds, ',') ss				
 			
@@ -112,12 +115,12 @@ BEGIN
 			,b.winlostdate
 	FROM @tblTransIds t
 		 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-				ON t.transid = b.transid	
+				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID	
 		 INNER JOIN dbo.zzzbettrans z WITH (NOLOCK)
 				ON	z.transid = b.transid
 				AND z.matchid = b.matchid
 				AND z.custid = b.custid	
-				AND z.bettype = b.bettype
+				AND z.bettype = b.bettype  AND z.SiteDBGroupID = b.SiteDBGroupID	
 	WHERE b.bettype = 29	
 		AND b.statusid = 102
 		AND (b.betfrom IS NULL OR b.betfrom <> 'p')
@@ -159,6 +162,7 @@ BEGIN
 			 ,t.transdesc
 			 ,t.ExtraInfo
 			 ,t.ActualStake   
+			 ,@SiteDBGroupID AS SiteDBGroupID
 	FROM @tblRecoverBet t
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 			   ON t.custid = f.CustID
@@ -192,7 +196,7 @@ BEGIN
 			WHEN t.transid IN (
 					SELECT b14.transid
 					FROM dbo.bettrans14 b14 WITH (NOLOCK)
-					WHERE b14.transid = t.transid
+					WHERE b14.transid = t.transid AND b14.SiteDBGroupID = @SiteDBGroupID
 					) THEN CAST(1 AS BIT)
 			WHEN t.transid IN (
 					SELECT m.transid

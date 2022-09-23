@@ -14,10 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]
 	, @Ip					VARCHAR(15)		= ''
 	, @Reason				NVARCHAR(500)	=''
 	, @ReasonSC				NVARCHAR(500)	=''
-	, @Language				NVARCHAR(2)		= 'E'
-	, @NegativeBalanceUsers	VARCHAR(MAX)	= '' OUTPUT
-	, @ErrMsg				NVARCHAR(200)	= '' OUTPUT
-	, @ErrCode				INT				= 0  OUTPUT       
+	, @Language				NVARCHAR(2)		= 'E'    
 AS 
 /*  
 	 Created by: Paul  
@@ -52,6 +49,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
+		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -80,6 +78,12 @@ BEGIN
 			,@ValueDefault		SMALLMONEY = 9999.00
 			,@Movebetdate		DATETIME
 			,@Eventdate			DATETIME
+			,@NegativeBalanceUsers	VARCHAR(MAX)	= '' 
+			,@ErrMsg				NVARCHAR(200)	= '' 
+			,@ErrCode				INT				= 0  
+			,@SiteDBGroupID		SMALLINT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	
@@ -112,11 +116,11 @@ BEGIN
 		  srecommend	INT,   
 		  mrecommend	INT,   
 		  recommend		INT,   
-		  betfrom		NVARCHAR(1),   
+		  betfrom		NVARCHAR(3),   
 		  bettype		SMALLINT,   
 		  hdp1			SMALLMONEY,   
 		  hdp2			SMALLMONEY,   
-		  odds			MONEY,   
+		  odds			SMALLMONEY,   
 		  betteam		NVARCHAR(20),   
 		  livehomescore SMALLINT,  
 		  liveawayscore SMALLINT,   
@@ -148,7 +152,11 @@ BEGIN
 			@UserId = @UserId  
 			,@Doing = @LogData  
 	  
-		SELECT @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!', @ErrCode = 101	    		
+		SELECT @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!', @ErrCode = 113	   
+		
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @NegativeBalanceUsers AS NegativeBalanceUsers
 		
 		RETURN  
 	END  
@@ -161,6 +169,10 @@ BEGIN
 	BEGIN
 		SELECT @ErrCode = 99
 		     , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @NegativeBalanceUsers AS NegativeBalanceUsers
 
 		RETURN	
 	END	
@@ -249,8 +261,12 @@ BEGIN
 		SET @CountSubTransId = @@ROWCOUNT
 	END TRY  
 	BEGIN CATCH  
-		SELECT @ErrCode = 102  
-		, @ErrMsg = 'Invalid TransIds.'		 		
+		SELECT @ErrCode = 114  
+		, @ErrMsg = 'Invalid TransIds.'	
+		
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @NegativeBalanceUsers AS NegativeBalanceUsers
 		
 		RETURN  
 	END CATCH    
@@ -290,6 +306,10 @@ BEGIN
   
 	IF(@ErrCode <> 0 OR @avaiableProcess = 0) 
 	BEGIN	
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @NegativeBalanceUsers AS NegativeBalanceUsers
+
 		RETURN  
 	END
     
@@ -316,6 +336,11 @@ BEGIN
 				 @isExistParlay  = 1  
 				,@IsReleased     = 1	
 		END
+
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @NegativeBalanceUsers AS NegativeBalanceUsers
+
 		RETURN;
 	END
 
@@ -356,6 +381,7 @@ BEGIN
 							    AND CASE WHEN @ToTransdate IS NOT NULL THEN @ToTransdate ELSE b.transdate END   
 			AND b.statusID NOT IN (101, 102)
 			AND b.betfrom <> 'p'
+			AND b.SiteDBGroupID = @SiteDBGroupID
 	OPTION (OPTIMIZE FOR (@CountSubTransId = 1))			  
    
 	CREATE CLUSTERED INDEX cl_Ref_refno ON #BetDelete(refno)  
@@ -511,7 +537,11 @@ BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess  
 				 @isExistParlay  = 1  
 				,@IsReleased     = 1	
-		END							
+		END	
+		
+		SELECT @ErrCode AS ErrorCode
+			, @ErrMsg AS ErrorMsg
+			, @NegativeBalanceUsers AS NegativeBalanceUsers
 	END  
 	ELSE  
 	BEGIN  
@@ -532,11 +562,11 @@ BEGIN
 		-- BackUp bettransm tickets into zzzbettrans  
 		INSERT INTO zzzbettrans (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 				winlost, livehomescore, liveawayscore, liveindicator, betteam, creator , refno,   
-				winlostdate, betfrom, betcheck, checktime, matchid, bettype
+				winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime, SiteDBGroupID
 		)  
 		SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,  
 				b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,  
-				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype  
+				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, SYSDATETIME(), b.SiteDBGroupID
 		FROM	dbo.bettransm AS b WITH (nolock)  
 			INNER JOIN #BetDelete AS r 
 				ON	r.transid=b.transid   
@@ -544,10 +574,10 @@ BEGIN
 		--BackUp tickets of bettransm  
 		INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
 				 winlost, livehomescore, liveawayscore, liveINdicator, betteam, creator , refno,   
-				 winlostdate, betfrom, betcheck, checktime, matchid, bettype)  
+				 winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime, SiteDBGroupID)  
 		SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,   
 				b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
-				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype  
+				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, SYSDATETIME(), b.SiteDBGroupID 
 		FROM	dbo.bettransm AS b WITH (nolock)  
 			INNER JOIN #BetDelete AS r 
 				ON	r.transid=b.transid   
@@ -674,6 +704,10 @@ BEGIN
 			BEGIN CATCH   
 				SELECT @ErrCode = 101  
 				 , @ErrMsg = ERROR_MESSAGE()  
+
+				 SELECT @ErrCode AS ErrorCode
+					, @ErrMsg AS ErrorMsg
+					, @NegativeBalanceUsers AS NegativeBalanceUsers
 			END CATCH  
 		 
 			--Insert Max Payout Queue
@@ -760,6 +794,10 @@ BEGIN
 		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData  
 		 
 		--after delete, return all deleted tickets with additional information for mailing  
+		SELECT @ErrCode AS ErrorCode
+					, @ErrMsg AS ErrorMsg
+					, @NegativeBalanceUsers AS NegativeBalanceUsers
+
 		-- Return Match Info
 		BEGIN  
 			SELECT MATCH.homeid,  
@@ -853,6 +891,7 @@ BEGIN
 				,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit  
 				,@isITAdmin AS IsITSupport 
 				,CURRENT_TIMESTAMP AS [DateTime] 
+				,b.SiteDBGroupID
 		FROM #BetDelete AS r WITH(NOLOCK)   	 
 			INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 				ON	b.custid = r.custid AND b.refno = r.refno  

@@ -11,6 +11,7 @@ AS
     Revisions:      
         - 20191029@Charles: Badminton AIO - [120325]
         - 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		
     Param's Explanation:  
     @Mode:   
@@ -20,7 +21,7 @@ AS
          3: TicketListing  
          4: Mix Parlay   
          5: Virtual sports  
-		 6: Lucky 3
+		 6: Lucky 3 (Not used)
 		 7: Bull fighting
 		 8: Bet Builder
          9: Mark Ticket
@@ -28,9 +29,10 @@ AS
 BEGIN
     SET NOCOUNT ON
 	
-    CREATE TABLE #TmpBettype (
-        bettype     SMALLINT
-    )
+	DECLARE @SiteDBGroupID SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+    CREATE TABLE #TmpBettype (bettype SMALLINT)
 
     -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , 9: Mark Ticket  
     IF @Mode IN (0, 2, 3, 9)
@@ -40,27 +42,23 @@ BEGIN
         IF @Mode IN (0,3,9)
         BEGIN
             INSERT INTO #TmpBettype(bettype)
-        SELECT bettype
-        FROM dbo.bettrans WITH(NOLOCK)
-        WHERE matchid = @MatchId
-            AND bettype NOT IN (10,29,38,500)
-            AND bettype NOT BETWEEN 801 AND 806
-            AND bettype < 19000
-            AND bettype NOT BETWEEN 901 AND 904
-        GROUP BY bettype
+			SELECT bettype
+			FROM dbo.bettrans WITH(NOLOCK)
+			WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
+				AND bettype NOT IN (10,29,38,500)
+				AND bettype < 19000
+			GROUP BY bettype
         END
         
         IF @Mode = 2
         BEGIN
             INSERT INTO #TmpBettype(bettype)
-        SELECT bettype
-        FROM dbo.bettrans WITH(NOLOCK)
-        WHERE matchid = @MatchId
-            AND bettype NOT IN (10,29,500)
-            AND bettype NOT BETWEEN 801 AND 806
-            AND bettype < 19000
-            AND bettype NOT BETWEEN 901 AND 904
-        GROUP BY bettype
+			SELECT bettype
+			FROM dbo.bettrans WITH(NOLOCK)
+			WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
+				AND bettype NOT IN (10,29,500)
+				AND bettype < 19000
+			GROUP BY bettype
         END
 
         -- bettransm
@@ -69,12 +67,11 @@ BEGIN
             INSERT INTO #TmpBettype(bettype)
             SELECT bt.bettype
             FROM dbo.bettransm bt WITH(NOLOCK)
-            WHERE bt.matchid = @MatchId AND NOT EXISTS(SELECT TOP 1 1
+            WHERE bt.matchid = @MatchId AND bt.SiteDBGroupID = @SiteDBGroupID
+			AND NOT EXISTS(SELECT TOP 1 1
                 FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
                 AND bt.bettype NOT IN (10,29,38,500)
-                AND bt.bettype NOT BETWEEN 801 AND 806
                 AND bt.bettype < 19000
-                AND bt.bettype NOT BETWEEN 901 AND 904
             GROUP BY bt.bettype
         END
     END
@@ -85,12 +82,10 @@ BEGIN
         INSERT INTO #TmpBettype(bettype)
         SELECT bettype
         FROM dbo.bettransm WITH(NOLOCK)
-        WHERE matchid = @MatchId
+        WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
             AND bettype NOT IN (10,29,38,500)
             AND bettype NOT BETWEEN 221 AND 227
-            AND bettype NOT BETWEEN 801 AND 806
             AND bettype < 19000
-            AND bettype NOT BETWEEN 901 AND 904
         GROUP BY bettype
 	END
 
