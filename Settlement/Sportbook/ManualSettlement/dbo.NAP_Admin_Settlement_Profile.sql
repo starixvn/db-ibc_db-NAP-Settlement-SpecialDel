@@ -60,6 +60,7 @@ AS
 		- 20220512@Louisa: Auto settle and Auto refund Badminton [Redmine:#171676]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20220922@Kathy: Scale Out BetTrans - fixbug [Redmine:#175251]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -301,16 +302,12 @@ BEGIN
 					@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
 			FROM 
 				(
-					SELECT ResourceID, HomeValue, AwayValue
-					FROM @tmpResourcesWeb
-					UNION
 					SELECT	ResourceID, HomeValue, AwayValue
 					FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(ROWLOCK)
 					WHERE	MatchID = @MatchID 
 							AND ResourceID IN ('01','02','03','04','05')
 							AND SettlementStatusID = 4
 							AND ResultStatusID = 5
-							AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpResourcesWeb t WHERE t.ResourceID = r.ResourceID )
 				) t
 		END
 		
