@@ -23,8 +23,6 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
-	DECLARE 	@matchdate		SMALLDATETIME
-			,@strTransIds	VARCHAR(MAX)
 	BEGIN TRY
 		/* Sync for some tables when void bettrans14: bettrans14, Transfer, TicketVoiding_RoutineTasks */
 		IF @TableName IN ('Transfer', 'TicketVoiding_RoutineTasks') AND @Action = 'I'
@@ -51,7 +49,7 @@ BEGIN
 		/*---------------------------------------------------------------------------------------------*/
 		ELSE
 		BEGIN
-			EXEC dbo.ExecRep_NAP_Admin_04 
+			EXEC dbo.Bet_ExecRep_NAP_Admin_01 
 					@TransInfo = @TransInfo
 					,@TableName = @TableName
 					,@Action = @Action
