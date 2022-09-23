@@ -75,7 +75,7 @@ BEGIN
 			,m.SettlementStatus 
 			,m.betStatus
 			,m.eventStatus
-			,m.autoSetting
+			,ISNULL(m.autoSetting, leg.autoSetting) AS autoSetting
 			,ISNULL(b.totalTicket,0) AS totalTickets
 			,ISNULL(b.totalTicketsRunning,0) AS totalTicketsRunning
 			,q.QueueStatus
@@ -83,6 +83,8 @@ BEGIN
 	FROM	@tmpMatchInQueue q
 		INNER JOIN dbo.[match] m WITH (NOLOCK) 
 			ON m.matchid = q.matchid
+		INNER JOIN dbo.League leg WITH(NOLOCK) 
+			ON m.leagueid = leg.leagueid
 		INNER JOIN STRING_SPLIT(@SportTypes, ',') st
 			ON	m.SportType =st.value
 		INNER JOIN STRING_SPLIT(@LeagueIds, ',') l    
