@@ -342,6 +342,31 @@ BEGIN
         WHERE   matchid = @matchid
     END
 
+	---Virtual soccer/tennis
+	IF @Command = 'NAP_Admin_Settlement_VS_180-CAL'
+    BEGIN
+        UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
+            SET finalhomescore = @fthome
+                ,finalawayscore = @ftaway
+                ,eventstatus = 'Completed'
+                ,changetime = CURRENT_TIMESTAMP
+                ,settletime = CURRENT_TIMESTAMP
+        WHERE   matchid = @matchid
+    END
+
+	IF @Command = 'NAP_Admin_Settlement_VS_180-REFUND'
+    BEGIN
+        UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
+            SET eventstatus = 'Completed'
+                ,betstatus = 'Refund'
+                ,changetime = CURRENT_TIMESTAMP
+                ,settletime = CURRENT_TIMESTAMP
+                ,finalhomescore=0
+                ,finalawayscore=0
+        WHERE   matchid = @matchid
+    END
+	---/End Virtual soccer/tennis
+
     IF @Command = 'completed'
     BEGIN	
 		SET @eventstatus = N'completed'
