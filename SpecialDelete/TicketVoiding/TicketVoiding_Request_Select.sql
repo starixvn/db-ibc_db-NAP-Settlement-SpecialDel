@@ -41,6 +41,7 @@ AS
 		- 20220525@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
+		- 20220601@July: TVS - Wrong HDP affects to PH bet types [Redmine: #170771]
 
 	Param's explanation:	
 	
@@ -114,6 +115,7 @@ BEGIN
 				,rd.SubIssueTypeId
 				,m.IsNeutral
 				,m.matchcode
+				,CASE WHEN @IssueTypeId IN (4,5) THEN rd.TransIds ELSE NULL END AS PoolHouseUncheckBetTypes
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
