@@ -452,6 +452,7 @@ BEGIN
 					@matchid			= @matchid
 					,@command			= 'U'
 					,@IsFinalRound		= @existsFinalRound
+					,@IsHTRound			= @existsHTRound
 			END
 			ELSE IF @existsHTRound = 1
 			BEGIN

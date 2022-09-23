@@ -65,7 +65,7 @@ BEGIN
 	ELSE IF @Action = 'REFUND'
 	BEGIN
 		EXEC dbo.NAP_Admin_Match_Update 
-			@Command	= 'completed'
+			@Command	= 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
 			,@MatchID	= @matchid
 			,@creator	= @AdminId
 		

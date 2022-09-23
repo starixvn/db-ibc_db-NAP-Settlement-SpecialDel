@@ -69,6 +69,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20220719@Louisa: Update match.multiple = 1 before calcualte/refund for VSBetradar [Redmine:#175251]
+		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251] 
 
     Parameters Explanation:
 
@@ -327,6 +328,20 @@ BEGIN
         END
     END
 
+	IF @Command = 'NAP_Admin_Settlement_VS_BetRadar-REFUND'
+    BEGIN
+        UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
+            SET eventstatus = 'Completed'
+                ,betstatus = 'Refund'
+                ,changetime = CURRENT_TIMESTAMP
+                ,settletime = CURRENT_TIMESTAMP
+                ,finalhomescore=0
+                ,finalawayscore=0
+                ,hthomescore = 0
+                ,htawayscore = 0
+        WHERE   matchid = @matchid
+    END
+
     IF @Command = 'completed'
     BEGIN	
 		SET @eventstatus = N'completed'
@@ -351,7 +366,7 @@ BEGIN
 		 
         UPDATE  dbo.match WITH(ROWLOCK, UPDLOCK)
             SET eventstatus     = COALESCE(@eventstatus, eventstatus)
-                ,betstatus      = COALESCE(@betstatus, '')
+                ,betstatus      = COALESCE(@betstatus, betstatus)
 				,finalhomescore	= COALESCE(@fthome, finalhomescore)
 				,finalawayscore	= COALESCE(@ftaway, finalawayscore)
 				,hthomescore	= COALESCE(@hthome, hthomescore)
