@@ -71,6 +71,7 @@ AS
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20220924@Kathy: Scale Out BetTrans - wrong order when chosing @FilterOver [Redmine:#175251]
 
       
  Param explanation:  
@@ -831,63 +832,116 @@ BEGIN
 		WHERE	1 = CASE WHEN ISNULL(IsExistRunningTicket,0) > 0 OR ISNULL(IsExistRunningTicketParlay,0) > 0 THEN 0 ELSE 1 END
 	END
 
-	SELECT	m.HalfTimeHomeScore
-			,m.HalfTimeAwayScore
-			,m.IsCalculated
-			,m.IsMultiCaled
-			,m.IsRefund
-			,m.IsCalRefund
-			,m.matchid
-			,m.leagueid
-			,m.homeid
-			,m.awayid
-			,m.matchcode
-			,m.kickofftime
-			,m.finalhomescore
-			,m.finalawayscore
-			,m.betstatus
-			,m.eventstatus
-			,m.sporttype
-			,m.IsNeutral
-			,m.eventdate
-			,m.goalrecord
-			,m.suspenderHalfTime
-			,m.suspenderFullTime
-			,m.IsHalfTimeCal
-			,m.calculate
-			,m.SettlementStatus
-			,m.IsExistFGLG
-			,m.IsExistHTFGLG
-			,m.AutoSetting
-			,t.IsCalculatingSingle
-			,t.IsCalculatingMP
-			,m.IsExistFastMarket
-			,m.IsExistFastMarketResult
-			,m.IsRunningFastMarket
-			,m.IsExistEarlyBettypes
-			,m.ChildMatchType
-			,m.IsRunningEarlyBettypes
-			,m.IsWaitingEarlyBettypes
-			,m.IsExistRunningTicket
-			,m.IsExistRunningTicketParlay
-			,m.IsExistMarkedTicket
-			,m.IsExistMarkedTicketParlay
-			,m.EventStatusReason
-	FROM	#matchList m
-			LEFT JOIN #tempmatch t 
-				ON	t.matchid = m.matchid				
-	ORDER BY CASE 
-				WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
-				ELSE 0 
-			END
-		, m.eventdate
-		, m.kickofftime
-		, m.sporttype
-		, m.leagueid
-		, m.matchid
-		, m.betstatus
-		, m.matchcode			
-	
+	IF @FilterOver > 0
+	BEGIN
+		SELECT	m.HalfTimeHomeScore
+				,m.HalfTimeAwayScore
+				,m.IsCalculated
+				,m.IsMultiCaled
+				,m.IsRefund
+				,m.IsCalRefund
+				,m.matchid
+				,m.leagueid
+				,m.homeid
+				,m.awayid
+				,m.matchcode
+				,m.kickofftime
+				,m.finalhomescore
+				,m.finalawayscore
+				,m.betstatus
+				,m.eventstatus
+				,m.sporttype
+				,m.IsNeutral
+				,m.eventdate
+				,m.goalrecord
+				,m.suspenderHalfTime
+				,m.suspenderFullTime
+				,m.IsHalfTimeCal
+				,m.calculate
+				,m.SettlementStatus
+				,m.IsExistFGLG
+				,m.IsExistHTFGLG
+				,m.AutoSetting
+				,t.IsCalculatingSingle
+				,t.IsCalculatingMP
+				,m.IsExistFastMarket
+				,m.IsExistFastMarketResult
+				,m.IsRunningFastMarket
+				,m.IsExistEarlyBettypes
+				,m.ChildMatchType
+				,m.IsRunningEarlyBettypes
+				,m.IsWaitingEarlyBettypes
+				,m.IsExistRunningTicket
+				,m.IsExistRunningTicketParlay
+				,m.IsExistMarkedTicket
+				,m.IsExistMarkedTicketParlay
+				,m.EventStatusReason
+		FROM	#matchList m
+				LEFT JOIN #tempmatch t 
+					ON	t.matchid = m.matchid				
+		ORDER BY m.eventstatus
+			, m.matchcode			
+	END
+	ELSE
+	BEGIN
+			SELECT	m.HalfTimeHomeScore
+				,m.HalfTimeAwayScore
+				,m.IsCalculated
+				,m.IsMultiCaled
+				,m.IsRefund
+				,m.IsCalRefund
+				,m.matchid
+				,m.leagueid
+				,m.homeid
+				,m.awayid
+				,m.matchcode
+				,m.kickofftime
+				,m.finalhomescore
+				,m.finalawayscore
+				,m.betstatus
+				,m.eventstatus
+				,m.sporttype
+				,m.IsNeutral
+				,m.eventdate
+				,m.goalrecord
+				,m.suspenderHalfTime
+				,m.suspenderFullTime
+				,m.IsHalfTimeCal
+				,m.calculate
+				,m.SettlementStatus
+				,m.IsExistFGLG
+				,m.IsExistHTFGLG
+				,m.AutoSetting
+				,t.IsCalculatingSingle
+				,t.IsCalculatingMP
+				,m.IsExistFastMarket
+				,m.IsExistFastMarketResult
+				,m.IsRunningFastMarket
+				,m.IsExistEarlyBettypes
+				,m.ChildMatchType
+				,m.IsRunningEarlyBettypes
+				,m.IsWaitingEarlyBettypes
+				,m.IsExistRunningTicket
+				,m.IsExistRunningTicketParlay
+				,m.IsExistMarkedTicket
+				,m.IsExistMarkedTicketParlay
+				,m.EventStatusReason
+		FROM	#matchList m
+				LEFT JOIN #tempmatch t 
+					ON	t.matchid = m.matchid				
+		ORDER BY CASE 
+					WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
+					ELSE 0 
+				END
+			, m.eventdate
+			, m.kickofftime
+			, m.sporttype
+			, m.leagueid
+			, m.matchid
+			, m.betstatus
+			, m.matchcode	
+	END
+
 	SET @EndTime = GETDATE()
 	
 	IF DATEDIFF(MILLISECOND,@StartTime, @EndTime) > 10000
