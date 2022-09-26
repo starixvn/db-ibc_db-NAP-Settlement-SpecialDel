@@ -28,7 +28,8 @@ AS
     Revisions: 
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-    
+		- 20220926@Louisa: remove NAP_Set_SettlementStatusChecking (already checked before settle by web) [Redmine:#178120]
+
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
 				bit[1]: Is Settlement for Betdaq ticket of Abandoned/postponed match or not
@@ -194,17 +195,6 @@ BEGIN
 		,@ErrMsg	= @ErrMsg OUTPUT
 
 	IF ISNULL(@ErrCode,0) <> 0	    
-		RETURN
-
-	EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-		@MatchId	= @matchid
-		,@Action	= @Action
-		,@IsAutoRefund = @IsAuto
-		,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-		,@ErrCode	= @ErrCode	OUTPUT
-		,@ErrMsg	= @ErrMsg	OUTPUT
-
-	IF @ErrCode > 0
 		RETURN
 
 	IF @IsAuto = 1
