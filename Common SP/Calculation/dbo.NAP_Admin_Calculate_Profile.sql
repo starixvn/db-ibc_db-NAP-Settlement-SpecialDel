@@ -402,7 +402,7 @@ BEGIN
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
-							,CASE WHEN modds IS NULL THEN '' ELSE CAST(modds AS VARCHAR(11) ) END AS '@m'
+							,CASE WHEN modds IS NOT NULL THEN CAST(CAST(modds AS DECIMAL(10,4)) AS VARCHAR(11) ) ELSE ''  END AS '@m'
 							,odds AS '@o'
 							,oddsspread AS '@os' 
 							,SettlementTime AS '@st' 
