@@ -53,7 +53,7 @@ BEGIN
 						
 	-- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess (matchid, KeyID)
-	SELECT	@matchid AS matchid, 8 AS KeyID
+	SELECT	@matchid AS matchid, 1 AS KeyID
 	----------------------------------------------------------------------------------------------	
 	
 	--check settlement process
