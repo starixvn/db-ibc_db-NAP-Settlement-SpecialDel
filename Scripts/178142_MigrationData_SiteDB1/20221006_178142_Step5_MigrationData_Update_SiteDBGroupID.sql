@@ -318,6 +318,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 -- Only update for tickets created before migration on 22/09/2022
+INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
 	INNER JOIN SiteDBtmp.dbo.bettransm14_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
