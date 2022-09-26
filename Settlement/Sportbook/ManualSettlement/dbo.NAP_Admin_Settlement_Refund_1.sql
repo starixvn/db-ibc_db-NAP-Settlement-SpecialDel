@@ -195,20 +195,6 @@ BEGIN
 
 	IF ISNULL(@ErrCode,0) <> 0	    
 		RETURN
-	
-	IF @betstatus  NOT LIKE '%Refund%'
-	BEGIN
-		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
-			@MatchId	= @matchid
-			,@Action	= @Action
-			,@IsAutoRefund = @IsAuto
-			,@IsSettleAbandonedMatchIBC = @IsSettleAbandonedMatchIBC
-			,@ErrCode	= @ErrCode	OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
-
-		IF @ErrCode > 0
-			RETURN
-	END
 
 	IF @IsAuto = 1
 	BEGIN
