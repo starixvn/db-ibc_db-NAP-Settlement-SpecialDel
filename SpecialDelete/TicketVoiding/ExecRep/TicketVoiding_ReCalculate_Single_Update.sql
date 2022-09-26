@@ -115,7 +115,7 @@ BEGIN
         INNER LOOP JOIN dbo.bettrans b  WITH (NOLOCK) ON b.transid = t.transid
         LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
     WHERE b.statuswinlost IS NOT NULL
-        AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+        AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
          
     -- update if bettype belongs to the CN88 site or not
     UPDATE tmp
@@ -340,7 +340,7 @@ BEGIN
         )
     FROM @tempTrans sr
         INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
-    WHERE b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN SiteDBGroupID ELSE 0 END
+    WHERE b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 
     IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
     BEGIN
