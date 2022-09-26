@@ -212,85 +212,85 @@ CREATE TABLE #tmp_batch (transid BIGINT PRIMARY KEY)
 INSERT INTO #tmp_bettrans_scaleout (transid)
 SELECT transid
 FROM bettrans b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettrans14
 INSERT INTO #tmp_bettrans14_scaleout (transid)
 SELECT transid
 FROM bettrans14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettransm
 INSERT INTO #tmp_bettransm_scaleout (transid)
 SELECT transid
 FROM bettransm b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettransm14
 INSERT INTO #tmp_bettransm14_scaleout (transid)
 SELECT transid
 FROM bettransm14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 	
 -- bettransLC
 INSERT INTO #tmp_bettransLC_scaleout (transid)
 SELECT transid
 FROM bettransLC b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettransLC14
 INSERT INTO #tmp_bettransLC14_scaleout (transid)
 SELECT transid
 FROM bettransLC14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettransRnG
 INSERT INTO #tmp_bettransRnG_scaleout (transid)
 SELECT transid
 FROM bettransRnG b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettransRnG14
 INSERT INTO #tmp_bettransRnG14_scaleout (transid)
 SELECT transid
 FROM bettransRnG14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettransG
 INSERT INTO #tmp_bettransG_scaleout (transid)
 SELECT transid
 FROM bettransG b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- bettransG14
 INSERT INTO #tmp_bettransG14_scaleout (transid)
 SELECT transid
 FROM bettransG14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- translog
 INSERT INTO #tmp_translog_scaleout (transid)
 SELECT translogid
 FROM translog b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- translog14
 INSERT INTO #tmp_translog14_scaleout (transid)
 SELECT translogid
 FROM translog14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- zzzbettrans
 INSERT INTO #tmp_zzzbettrans_scaleout (transid)
 SELECT b.transid
 FROM zzzbettrans b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- zzzbettransm
 INSERT INTO #tmp_zzzbettransm_scaleout (transid)
 SELECT b.transid
 FROM zzzbettransm b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 
 -- TicketVoiding_RequestDetailTicket_Single
 -- Only update for tickets created before migration on 22/09/2022
@@ -1037,75 +1037,75 @@ END
 --bettrans
 SELECT transid
 FROM bettrans b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettrans14
 SELECT transid
 FROM bettrans14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettransm
 SELECT transid
 FROM bettransm b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettransm14
 SELECT transid
 FROM bettransm14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 	
 -- bettransLC
 SELECT transid
 FROM bettransLC b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettransLC14
 SELECT transid
 FROM bettransLC14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettransRnG
 SELECT transid
 FROM bettransRnG b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettransRnG14
 SELECT transid
 FROM bettransRnG14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettransG
 SELECT transid
 FROM bettransG b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- bettransG14
 SELECT transid
 FROM bettransG14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- translog
 SELECT translogid
 FROM translog b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 -- translog14
 SELECT translogid
 FROM translog14 b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 
 --zzzbettrans
 SELECT transid
 FROM zzzbettrans b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 
 --zzzbettransm
 SELECT b.transid
 FROM zzzbettransm b WITH (NOLOCK)
-	INNER JOIN cust_20221006 s ON s.custid = b.custid
+	INNER JOIN SiteDBtmp.dbo.cust_20221006 s ON s.custid = b.custid
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_Single
