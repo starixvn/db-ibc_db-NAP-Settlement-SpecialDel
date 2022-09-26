@@ -22,7 +22,7 @@ AS
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-		
+		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
 
 	Param's Explanation:  
 		   
@@ -402,7 +402,7 @@ BEGIN
 			BEGIN
 				SET @transInfo = (
 					SELECT	transId AS '@t'
-							,modds AS '@m'
+							,CASE WHEN modds IS NOT NULL THEN CAST(CAST(modds AS DECIMAL(10,4)) AS VARCHAR(11) ) ELSE ''  END AS '@m'
 							,odds AS '@o'
 							,oddsspread AS '@os' 
 							,SettlementTime AS '@st' 
