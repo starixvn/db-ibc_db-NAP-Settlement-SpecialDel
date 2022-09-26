@@ -7,12 +7,12 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 	, @tablename VARCHAR(200) = ''
 )
 /*
-	Created by: 20220811@Helen
-	Task: execRep SP for Settlement [Redmine:#176350]
+	Created by: 20220926@Victoria
+	Task: execRep SP for Settlement [Redmine:#178142]
 	DB: DBCTG-bodb02
 	
 	Revisions:
-		- 	20220811@Helen: update sitedbgroupid [Redmine:#176350]
+		- 	20220926@Victoria: update sitedbgroupid [Redmine:#178142]
 
 	Param's Explanation:
 	

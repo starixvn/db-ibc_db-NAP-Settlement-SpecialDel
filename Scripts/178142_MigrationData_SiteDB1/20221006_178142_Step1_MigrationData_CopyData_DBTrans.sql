@@ -570,7 +570,7 @@
 		INNER JOIN cust_20221006 tmp ON tmp.custid = tcb.custid
 
 	------------------------------------------------
-	--DROP TABLE cust_20221006
+	--DROP TABLE #tmp_cust
 	DROP TABLE #tmp_refno
 
 	
