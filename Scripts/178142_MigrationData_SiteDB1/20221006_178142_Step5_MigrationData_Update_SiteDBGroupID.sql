@@ -321,7 +321,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDBtmp.dbo.bettransm14_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDBtmp.dbo.bettransm14_20221006 s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 ---------------------- param declare to process data -----
@@ -1112,25 +1112,25 @@ WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 --TicketVoiding_RequestDetailTicket_Single
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDBtmp.dbo.bettrans_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDBtmp.dbo.bettrans_20221006 s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_Single
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDBtmp.dbo.bettrans14_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDBtmp.dbo.bettrans14_20221006 s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDBtmp.dbo.bettransm_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDBtmp.dbo.bettransm_20221006 s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDBtmp.dbo.bettransm14_20220922 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDBtmp.dbo.bettransm14_20221006 s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 */
