@@ -36,7 +36,7 @@ BEGIN
 
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
-		,modds VARCHAR(10), odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
+		,modds VARCHAR(11), odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcUpdateTime DATETIME2, creator INT
@@ -147,7 +147,7 @@ BEGIN
 					,T.C.value('./@mid', 'INT') AS matchid
 					,T.C.value('./@wld', 'SMALLDATETIME') AS winlostdate
 					,T.C.value('./@bdaq', 'VARCHAR(50)') AS betdaqid
-					,T.C.value('./@m', 'VARCHAR(10)') AS modds
+					,T.C.value('./@m', 'VARCHAR(11)') AS modds
 					,T.C.value('./@o', 'SMALLMONEY') AS odds
 					,T.C.value('./@oid', 'INT') AS oddsid
 					,T.C.value('./@os', 'VARCHAR(20)') AS oddsspread
