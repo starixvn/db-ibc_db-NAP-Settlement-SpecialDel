@@ -15,7 +15,8 @@ AS
 
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-		
+		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
+
 	Param's Explanation:  
 		   
 */
@@ -35,7 +36,7 @@ BEGIN
 
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
-		,modds MONEY, odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
+		,modds VARCHAR(10), odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT,FcUpdateTime DATETIME2, creator INT
@@ -146,7 +147,7 @@ BEGIN
 					,T.C.value('./@mid', 'INT') AS matchid
 					,T.C.value('./@wld', 'SMALLDATETIME') AS winlostdate
 					,T.C.value('./@bdaq', 'VARCHAR(50)') AS betdaqid
-					,T.C.value('./@m', 'MONEY') AS modds
+					,T.C.value('./@m', 'VARCHAR(10)') AS modds
 					,T.C.value('./@o', 'SMALLMONEY') AS odds
 					,T.C.value('./@oid', 'INT') AS oddsid
 					,T.C.value('./@os', 'VARCHAR(20)') AS oddsspread
@@ -184,7 +185,10 @@ BEGIN
 						matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
 						,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
 						,betdaqid = CASE WHEN t.betdaqid IS NULL THEN b.betdaqid ELSE CAST(t.betdaqid AS BIGINT) END
-						,modds = CASE WHEN t.modds IS NULL THEN b.modds ELSE t.modds END
+						,modds = CASE WHEN t.modds IS NULL THEN b.modds 
+										WHEN t.modds = '' THEN NULL
+										ELSE CAST(t.modds AS SMALLMONEY ) 
+								 END
 						,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
 						,oddsid = CASE WHEN t.oddsid IS NULL THEN b.oddsid ELSE t.oddsid END
 						,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE CAST(t.oddsspread AS MONEY) END  	
