@@ -19,6 +19,7 @@ ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	,@SelectedSelection	VARCHAR(MAX)	= NULL -- BB
 	,@IsDirectly		BIT				= 0
 	,@IsAuto			BIT				= 0
+	,@IsHTTicketSettled BIT				= 0
 	,@AdminId			INT
 AS
 /*
@@ -27,6 +28,7 @@ AS
 
     Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20220927@Kathy: Check HTDone [Redmine:#178120]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
@@ -99,9 +101,7 @@ BEGIN
 	END
 	ELSE IF @IsSettleByProfile = 0
 	BEGIN			
-		SELECT	@HTDone = IsHTCal 
-		FROM	dbo.match_remark WITH(NOLOCK)
-		WHERE	matchid = @matchid
+		SELECT	@HTDone = @IsHTTicketSettled
 	END
 
 	IF  @IsSettleByProfile = 1 AND @SelectedResources IS NOT NULL

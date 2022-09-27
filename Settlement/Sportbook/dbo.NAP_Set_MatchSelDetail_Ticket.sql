@@ -9,6 +9,7 @@ AS
  
     Revisions:            
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20220927@Kathy: Check HTDone [Redmine:#178120]
 
 */
 BEGIN
@@ -171,7 +172,7 @@ BEGIN
 		LEFT JOIN @tmpBettypes f
 			ON b.bettype = f.BetType
 
-    IF @IsRefundPage = 0 -- Calculate page
+    --IF @IsRefundPage = 0 -- Calculate page
     BEGIN			
         -- check match status
 		INSERT INTO @status (GroupId, betCount, betRunningCount, betSettledCount, betMarkedCount, betWaitingCount
