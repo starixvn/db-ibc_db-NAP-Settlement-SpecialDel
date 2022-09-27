@@ -9,20 +9,24 @@
 		- 20220926@Victoria: Enable Trigger for bettransX tables [Redmineid:#178145] 
 */
 
-	ENABLE TRIGGER ALL ON bettrans
+	ENABLE TRIGGER [dbo].[Bettrans_After_Insert] ON [dbo].[bettrans]
 	GO
-	ENABLE TRIGGER ALL ON bettransG
+	ENABLE TRIGGER [dbo].[Bettrans_After_Update] ON [dbo].[bettrans]
 	GO
-	ENABLE TRIGGER ALL ON BettransInfo
+	ENABLE TRIGGER [dbo].[bettransLC_After_Insert] ON [dbo].[bettransLC]
 	GO
-	ENABLE TRIGGER ALL ON bettransLC
+	ENABLE TRIGGER [dbo].[bettransLC_After_Update] ON [dbo].[bettransLC]
 	GO
-	ENABLE TRIGGER ALL ON bettransm
+	ENABLE TRIGGER [dbo].[BettransRNG_After_Insert] ON [dbo].[bettransRnG]
 	GO
-	ENABLE TRIGGER ALL ON bettransRnG
+	ENABLE TRIGGER [dbo].[BettransRNG_After_Update] ON [dbo].[bettransRnG]
 	GO
-	ENABLE TRIGGER ALL ON translog
+	ENABLE TRIGGER [dbo].[TransLog_After_Insert] ON [dbo].[translog]
 	GO
-	ENABLE TRIGGER ALL ON balanceTable_tmp
+	ENABLE TRIGGER [dbo].[TransLog_After_Update] ON [dbo].[translog]
+	GO
+	ENABLE TRIGGER [dbo].[Transfer_After_Insert] ON [dbo].[Transfer]
+	GO
+	ENABLE TRIGGER [dbo].[Transfer_After_Update] ON [dbo].[Transfer]
 	GO
 

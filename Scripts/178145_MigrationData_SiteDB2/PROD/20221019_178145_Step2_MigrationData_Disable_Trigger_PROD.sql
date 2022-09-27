@@ -9,20 +9,23 @@
 		- 20220926@Victoria: Disable Trigger for bettransX tables [Redmineid:#178145] 
 */
 
-	DISABLE TRIGGER ALL ON bettrans
+	DISABLE TRIGGER [dbo].[Bettrans_After_Insert] ON [dbo].[bettrans]
 	GO
-	DISABLE TRIGGER ALL ON bettransG
+	DISABLE TRIGGER [dbo].[Bettrans_After_Update] ON [dbo].[bettrans]
 	GO
-	DISABLE TRIGGER ALL ON BettransInfo
+	DISABLE TRIGGER [dbo].[bettransLC_After_Insert] ON [dbo].[bettransLC]
 	GO
-	DISABLE TRIGGER ALL ON bettransLC
+	DISABLE TRIGGER [dbo].[bettransLC_After_Update] ON [dbo].[bettransLC]
 	GO
-	DISABLE TRIGGER ALL ON bettransm
+	DISABLE TRIGGER [dbo].[BettransRNG_After_Insert] ON [dbo].[bettransRnG]
 	GO
-	DISABLE TRIGGER ALL ON bettransRnG
+	DISABLE TRIGGER [dbo].[BettransRNG_After_Update] ON [dbo].[bettransRnG]
 	GO
-	DISABLE TRIGGER ALL ON translog
+	DISABLE TRIGGER [dbo].[TransLog_After_Insert] ON [dbo].[translog]
 	GO
-	DISABLE TRIGGER ALL ON balanceTable_tmp
+	DISABLE TRIGGER [dbo].[TransLog_After_Update] ON [dbo].[translog]
 	GO
-
+	DISABLE TRIGGER [dbo].[Transfer_After_Insert] ON [dbo].[Transfer]
+	GO
+	DISABLE TRIGGER [dbo].[Transfer_After_Update] ON [dbo].[Transfer]
+	GO
