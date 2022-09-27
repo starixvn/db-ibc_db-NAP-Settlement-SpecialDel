@@ -18,6 +18,7 @@ AS
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -501,7 +502,6 @@ BEGIN
 	/**********************************************   *************************************************************/
 	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY)
 	DECLARE @TransIds_tmp VARCHAR(MAX) = ''
-		, @IssueTypeId INT = 0
 
 	-- STEP 2 : Update bettrans/translog
 	-- 2.1. Update bettrans	for normal ticket
@@ -535,7 +535,7 @@ BEGIN
 		EXEC dbo.TicketVoiding_Admin_VoidingTransId
 			@TransIds = @TransIds_tmp,
 			@UserId = 10278938, --StarixIT
-			@IssueTypeId = @IssueTypeId
+			@IssueTypeId = -1
 
 		SET @TransIds_tmp = ''
 

@@ -31,6 +31,7 @@ AS
         - 20211124@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
         - 20211214@July: Remove code CashOut [Redmine: #165097]
         - 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
 
     Param's explanation:
         Version 1: Only use for Void Ticket via TVS
@@ -357,7 +358,7 @@ BEGIN
                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
             FOR XML PATH('r'),ROOT('root'), TYPE)
 
-            IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> 0
+            IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
             BEGIN
                 INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
                 SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
