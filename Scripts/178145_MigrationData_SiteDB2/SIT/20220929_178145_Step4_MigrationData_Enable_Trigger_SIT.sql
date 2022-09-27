@@ -25,8 +25,4 @@
 	GO
 	ENABLE TRIGGER [dbo].[TransLog_After_Update] ON [dbo].[translog]
 	GO
-	ENABLE TRIGGER [dbo].[Transfer_After_Insert] ON [dbo].[Transfer]
-	GO
-	ENABLE TRIGGER [dbo].[Transfer_After_Update] ON [dbo].[Transfer]
-	GO
 

@@ -25,7 +25,3 @@
 	GO
 	DISABLE TRIGGER [dbo].[TransLog_After_Update] ON [dbo].[translog]
 	GO
-	DISABLE TRIGGER [dbo].[Transfer_After_Insert] ON [dbo].[Transfer]
-	GO
-	DISABLE TRIGGER [dbo].[Transfer_After_Update] ON [dbo].[Transfer]
-	GO
