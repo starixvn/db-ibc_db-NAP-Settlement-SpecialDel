@@ -18,6 +18,7 @@ AS
 		- 20220110@Kathy: Apply service broker when calculate ticket [Redmine:#167251]
 		- 20220808@Max: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220922@Helen: fix issue [Redmine: #175412]
+		- 20220926@Max: Enhance code logic [Redmine: #175412]
 		
 	Param's explanation:	
 		
@@ -34,9 +35,6 @@ BEGIN
             ,@transInfo             XML
             ,@IsSiteDB              BIT
             ,@matchId               INT
-            ,@SiteDBGroupID SMALLINT = 0 
-
-    --SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
     SET @ServerName = @@SERVERNAME
 
@@ -61,7 +59,6 @@ BEGIN
     IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
     BEGIN
         SET @IsSiteDB = 1
-        SET @SiteDBGroupID = 1
     END
     -----------------------CHECK SERVER-----------------------------------------
 
@@ -118,7 +115,7 @@ BEGIN
         INNER LOOP JOIN dbo.bettrans b  WITH (NOLOCK) ON b.transid = t.transid
         LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
     WHERE b.statuswinlost IS NOT NULL
-        AND b.SiteDBGroupID = @SiteDBGroupID
+        AND b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
          
     -- update if bettype belongs to the CN88 site or not
     UPDATE tmp
@@ -343,7 +340,7 @@ BEGIN
         )
     FROM @tempTrans sr
         INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
-    WHERE b.SiteDBGroupID = @SiteDBGroupID
+    WHERE b.SiteDBGroupID = CASE WHEN @IsSiteDB = 1 THEN b.SiteDBGroupID ELSE 0 END
 
     IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
     BEGIN

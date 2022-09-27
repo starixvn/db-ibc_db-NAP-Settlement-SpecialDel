@@ -9,6 +9,7 @@ AS
 	DB: DBTrans.bodb02
 	Revision:
 		- 20211216@July: Update column RepUpdateTime when Void/Recover - [Redmine: #164236]
+		- 20220926@Max: Change code for scale out dbtrans [Redmine: #175412]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -52,10 +53,10 @@ BEGIN
 				BREAK
 
 			UPDATE b
-			SET winlost = actual_stake, ruben = 1, statuswinlost = 6, status = 'Void', statusid = 102
+			SET winlost = actual_stake, ruben = 1, statuswinlost = 6, status = 'VOID', statusid = 102
 				, awinlost = 0, mwinlost = 0, swinlost = 0, playercomm = 0, comm  = 0, acomm = 0
 				, scomm = 0, transdesc = '[Waiting-AutoVoid]' + transdesc
-				, RepUpdateTime = SYSDATETIME()
+				, FcUpdateTime = SYSDATETIME()
 			FROM @__transIdsTmp t
 				INNER JOIN dbo.bettrans b WITH (ROWLOCK, UPDLOCK) ON t.TransId = b.transid
 			OPTION (FORCE ORDER) --hint for case bad plan
