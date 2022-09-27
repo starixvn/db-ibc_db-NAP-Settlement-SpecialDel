@@ -256,7 +256,7 @@
 	--bodb02.dbo.zzzbettrans
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
+			z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
 	INTO zzzbettrans_20220929_SIT
 	FROM bodb02.dbo.zzzbettrans z WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = z.custid
@@ -264,7 +264,7 @@
 	--bodb02.dbo.zzzbettransm
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
+			z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
 	INTO zzzbettransm_20220929_SIT
 	FROM bodb02.dbo.zzzbettransm z WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = z.custid
@@ -551,7 +551,7 @@
 
 	--16. bodb02.dbo.Task_Cust_BalanceProblem1
 	--There is no index on custid for table Task_Cust_BalanceProblem1, has only an index on keyID
-	SELECT tcb.[keyID], tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
+	SELECT tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
 	INTO Task_Cust_BalanceProblem1_20220929_SIT 
 	FROM bodb02.dbo.Task_Cust_BalanceProblem1 tcb WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = tcb.custid

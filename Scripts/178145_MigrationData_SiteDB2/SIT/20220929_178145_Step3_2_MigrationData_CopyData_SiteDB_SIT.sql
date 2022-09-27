@@ -75,7 +75,7 @@
 								[matchid], [recommend], [mrecommend], [ruben], [betid], [statuswinlost], [modds], [bettype], [betdaqid], [actual_stake], [currency], 
 								[ip], [transdesc], [sdiscount], [scomm], [spositiontaking], [swinlost], [srecommend], [Username], [CurrencyName], [virtualrate], [oddstype], 
 								[statusID], [currency2], [balance], [SecAcceptFlag], [transid2], [recommdate], [ExtraInfo], [WalletType], [BonusID], [RefCode], [SettlementTime],
-								[epositiontaking], [ReasonID], [sort], [BetSiteID], [RepUpdateTime], b.[RepDstUpdateTime], [SiteDBGroupID], [FcUpdateTime])
+								[epositiontaking], [ReasonID], [sort], [BetSiteID], [RepUpdateTime], [RepDstUpdateTime], [SiteDBGroupID], [FcUpdateTime])
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], b.[odds], b.[stake], b.[status], b.[winlost], b.[awinlost], b.[mwinlost], b.[playercomm], b.[comm], 
 			b.[acomm], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[playerdiscount], b.[discount], b.[adiscount], b.[livehomescore], b.[liveawayscore], 
 			b.[liveindicator], b.[betteam], b.[creator], b.[refno], b.[comstatus], b.[winlostdate], b.[betfrom], b.[betcheck], b.[checktime], b.[oddsspread], b.[actualrate], 
@@ -261,30 +261,30 @@
 	FROM DBCTG.SiteDB2tmp.dbo.BetParlayResult_20220929_SIT bpr WITH (NOLOCK)
 
 	--zzzbettrans
-	SET IDENTITY_INSERT zzzbettrans ON
+	--SET IDENTITY_INSERT zzzbettrans ON
 
 	INSERT INTO dbo.zzzbettrans	([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 								[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [matchid], [bettype], 
-								[keyid], [VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
+								[VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
+			z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
 	FROM DBCTG.SiteDB2tmp.dbo.zzzbettrans_20220929_SIT z WITH (NOLOCK)
 
-	SET IDENTITY_INSERT zzzbettrans OFF	
+	--SET IDENTITY_INSERT zzzbettrans OFF	
 
 	--zzzbettransm
-	SET IDENTITY_INSERT zzzbettransm ON
+	--SET IDENTITY_INSERT zzzbettransm ON
 
 	INSERT INTO dbo.zzzbettransm (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 									[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [matchid], [bettype], 
-									[keyid], [VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
+									[VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
+			z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
 	FROM DBCTG.SiteDB2tmp.dbo.zzzbettransm_20220929_SIT z WITH (NOLOCK)
 
-	SET IDENTITY_INSERT zzzbettransm OFF
+	--SET IDENTITY_INSERT zzzbettransm OFF
 
 	--Transfer
 	INSERT INTO dbo.Transfer	([TransId], [CustId], [TransDate], [WinlostDate], [Bettype], [Stake], [Actual_Stake], [Winlost], [AWinlost], [MWinlost], [SWinlost], [PlayerComm], 
@@ -588,10 +588,10 @@
 
 	--16. bodb02.dbo.Task_Cust_BalanceProblem1
 	--There is no index on custid for table Task_Cust_BalanceProblem1, has only an index on keyID
-	SET IDENTITY_INSERT Task_Cust_BalanceProblem1 ON
+	--SET IDENTITY_INSERT Task_Cust_BalanceProblem1 ON
 
-	INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([keyID], [UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
-	SELECT tcb.[keyID], tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
+	INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
+	SELECT tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
 	FROM DBCTG.SiteDB2tmp.dbo.Task_Cust_BalanceProblem1_20220929_SIT tcb WITH (NOLOCK)
 
-	SET IDENTITY_INSERT Task_Cust_BalanceProblem1 OFF
+	--SET IDENTITY_INSERT Task_Cust_BalanceProblem1 OFF

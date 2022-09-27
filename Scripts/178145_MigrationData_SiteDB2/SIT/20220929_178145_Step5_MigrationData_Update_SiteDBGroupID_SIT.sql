@@ -179,27 +179,27 @@ GO
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE TABLE #tmp_cust_scaleout (custid INT PRIMARY KEY)
 
-CREATE TABLE #tmp_bettrans_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettrans14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransm_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransm14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_bettrans_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettrans14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransm_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransm14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
 
-CREATE TABLE #tmp_bettransLC_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransLC14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransRnG_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransRnG14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_bettransLC_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransLC14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransRnG_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransRnG14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
-CREATE TABLE #tmp_bettransG_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransG14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_translog_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_translog14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_bettransG_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransG14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_translog_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_translog14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
-CREATE TABLE #tmp_zzzbettrans_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_zzzbettransm_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_zzzbettrans_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_zzzbettransm_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
-CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_Single (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_Single (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_SubParlay (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
 CREATE TABLE #tmp_batch (transid BIGINT PRIMARY KEY)
 --------------------------------------------------------------
