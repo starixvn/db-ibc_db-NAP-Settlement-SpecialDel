@@ -380,7 +380,7 @@
 	SELECT bon.[ExecID], bon.[LogDate], bon.[ExecDate], bon.[CustID], bon.[MatchID], bon.[BonusID], bon.[StatusID], bon.[Amount], bon.[isTransferred]
 	INTO [BonusAdjustmentTransfer_20221006]
 	FROM bodb02.dbo.BonusAdjustmentTransfer bon WITH (NOLOCK)
-		INNER JOIN cust_sitedb2_20221006 tmp ON tmp.custid = bon.custid
+		INNER JOIN cust_sitedb2_20221006 tmp WITH (NOLOCK) ON tmp.custid = bon.custid
 
 	--3. bodb02.dbo.BonusTrans
 	SELECT  bon.[BonusTransId], bon.[CustID], bon.[Recommend], bon.[Mrecommend], bon.[Srecommend], bon.[Amount], bon.[StatusId], bon.[Creator], bon.[CreatedDate], 
@@ -488,7 +488,7 @@
 	SELECT bd.[rn], bd.[custid], bd.[Balance]
 	INTO BalDebitCasinoPending_20221006
 	FROM bodb02.dbo.BalDebitCasinoPending bd WITH (NOLOCK)
-		INNER JOIN cust_sitedb2_20221006 tmp ON tmp.custid = bd.custid
+		INNER JOIN cust_sitedb2_20221006 tmp WITH (NOLOCK) ON tmp.custid = bd.custid
 
 	--7.  bodb02.dbo.BalDebitOthersPending
 	--There is no index on custid for table BalDebitOthersPending, has only an index on rn
@@ -547,7 +547,7 @@
 	SELECT	tce.[custid], tce.[Remark]
 	INTO Task_Cust_CheckBalance_Exception_20221006
 	FROM bodb02.dbo.Task_Cust_CheckBalance_Exception tce WITH (NOLOCK)
-		INNER JOIN cust_sitedb2_20221006 tmp ON tmp.custid = tce.custid
+		INNER JOIN cust_sitedb2_20221006 tmp WITH (NOLOCK) ON tmp.custid = tce.custid
 
 	--16. bodb02.dbo.Task_Cust_BalanceProblem1
 	--There is no index on custid for table Task_Cust_BalanceProblem1, has only an index on keyID

@@ -67,6 +67,32 @@ USE bodb02
 GO
 ---------------------hey pontus dep trai -> run sitedb01 nhe------------------------------------
 -- Group 1: bettrans14, bettransm14, BetParlayDetail
+
+-----------bettrans14
+--//drop
+DROP INDEX [bettrans1423] ON [dbo].[bettrans14]
+GO
+DROP INDEX [IX_matchid_refno] ON [dbo].[bettrans14]
+GO
+ALTER TABLE [dbo].[bettrans14] DROP CONSTRAINT [PK_bettrans14]
+GO
+DROP INDEX [IX_bettrans14] ON [dbo].[bettrans14] WITH ( ONLINE = OFF )
+GO
+
+-----------------bettransm14
+--//drop
+ALTER TABLE [dbo].[bettransm14] DROP CONSTRAINT [PK_bettransm14]
+GO
+DROP INDEX [IX_bettransm14] ON [dbo].[bettransm14] WITH ( ONLINE = OFF )
+GO
+
+-----------------BetParlayDetail
+--//drop
+DROP INDEX [IX_transid] ON [dbo].[BetParlayDetail]
+GO
+DROP INDEX [CIX_RefNo_Serial] ON [dbo].[BetParlayDetail] WITH ( ONLINE = OFF )
+GO
+
 ------------------------------------------------
 /*******************Bet Tickets Tables**********************/
 --bettrans14
@@ -107,3 +133,74 @@ INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [s
 SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
 		bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
 FROM SiteDBtmp.dbo.BetParlayDetail_20221006 bpd WITH (NOLOCK)
+
+GO
+
+--//create
+CREATE CLUSTERED INDEX [CIX_RefNo_Serial] ON [dbo].[BetParlayDetail]
+(
+	[RefNo] ASC,
+	[Serial] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM_table]
+GO
+
+CREATE NONCLUSTERED INDEX [IX_transid] ON [dbo].[BetParlayDetail]
+(
+	[transid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM_index]
+GO
+
+
+--//create
+CREATE CLUSTERED INDEX [IX_bettrans14] ON [dbo].[bettrans14]
+(
+	[winlostdate] ASC,
+	[custid] ASC,
+	[matchid] ASC,
+	[bettype] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_table]
+GO
+
+ALTER TABLE [dbo].[bettrans14] ADD  CONSTRAINT [PK_bettrans14] PRIMARY KEY NONCLUSTERED 
+(
+	[transid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_index]
+GO
+CREATE NONCLUSTERED INDEX [IX_matchid_refno] ON [dbo].[bettrans14]
+(
+	[matchid] ASC,
+	[refno] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_index]
+GO
+
+CREATE NONCLUSTERED INDEX [bettrans1423] ON [dbo].[bettrans14]
+(
+	[custid] ASC,
+	[matchid] ASC,
+	[ruben] ASC,
+	[bettype] ASC,
+	[winlost] ASC,
+	[awinlost] ASC,
+	[mwinlost] ASC,
+	[actual_stake] ASC,
+	[currency] ASC,
+	[scomm] ASC,
+	[swinlost] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_index]
+GO
+
+--//create
+CREATE CLUSTERED INDEX [IX_bettransm14] ON [dbo].[bettransm14]
+(
+	[refno] ASC,
+	[custid] ASC,
+	[matchid] ASC,
+	[oddsid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM14_table]
+GO
+
+ALTER TABLE [dbo].[bettransm14] ADD  CONSTRAINT [PK_bettransm14] PRIMARY KEY NONCLUSTERED 
+(
+	[transid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM14_index]
+GO
