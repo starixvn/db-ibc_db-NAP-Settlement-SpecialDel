@@ -16,6 +16,7 @@ AS
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
+		- 20220928@July: Fix issue update column winlost dbo.bettransm [Redmine:178332]
 
 	Param's Explanation:  
 		   
@@ -257,6 +258,7 @@ BEGIN
 										WHEN t.winlostdate = '' THEN NULL
 										ELSE t.winlostdate
 									END
+					,WinLost = CASE WHEN t.WinLost IS NULL THEN bm.winlost ELSE t.WinLost END
 					,[status] = CASE WHEN t.Status IS NULL THEN bm.status ELSE t.Status END
 					,statusID = CASE WHEN t.StatusID IS NULL THEN bm.statusID ELSE t.StatusID END								
 					,statuswinlost = CASE 
