@@ -2,7 +2,7 @@
 
 /*
     Created by: 20220927@Victoria
-    Task: Data Migration for SiteDB - Truncate table for Existing Licensees
+    Task: Data Migration for SiteDB - Truncate table for Existing Licensees - SIT - ON SITEDB02
     DB: DBSIG-bodb02
 
 	 Revisions:

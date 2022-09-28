@@ -2,7 +2,7 @@
 
 /*
     Created by: 20220926@Victoria
-    Task: Data Migration - Enable Trigger
+    Task: Data Migration - Enable Trigger - SIT - ON SITEDB02
     DB: DBSIG-bodb02
 
 	 Revisions:

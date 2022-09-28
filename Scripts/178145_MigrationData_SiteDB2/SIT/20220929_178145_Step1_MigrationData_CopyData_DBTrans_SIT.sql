@@ -2,7 +2,7 @@
 
 /*
     Created by: 20220926@Victoria
-    Task: Data Migration - Test Licensee
+    Task: Data Migration - Test Licensee - SIT
     DB: DBCTG-SiteDB2tmp
 
 	 Revisions:

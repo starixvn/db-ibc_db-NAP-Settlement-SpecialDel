@@ -2,7 +2,7 @@
 
 /*
     Created by: 20220927@Victoria
-    Task: Data Migration for SiteDB - Existing Licensee
+    Task: Data Migration for SiteDB - Existing Licensee - SIT - ON SITEDB02
     DB: DBSIG-IntgTransDB
 
 	 Revisions:
