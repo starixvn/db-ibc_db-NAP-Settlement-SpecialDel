@@ -298,7 +298,7 @@ FROM zzzbettransm b WITH (NOLOCK)
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
 SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 -- TicketVoiding_RequestDetailTicket_Single
@@ -306,7 +306,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
 SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans14_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans14_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 -- TicketVoiding_RequestDetailTicket_SubParlay
@@ -314,7 +314,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
 SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
@@ -322,7 +322,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
 SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm14_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm14_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 ---------------------- param declare to process data -----
@@ -346,8 +346,6 @@ BEGIN
 	SET @StopRow = @Threshold
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -360,7 +358,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -389,9 +387,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -403,7 +399,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -432,8 +428,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -446,7 +440,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -475,9 +469,6 @@ BEGIN
 	WHILE (1 = 1)
 	BEGIN
 	
-		PRINT @StartRow
-		PRINT @StopRow
-		
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -489,7 +480,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -520,9 +511,6 @@ BEGIN
 	WHILE (1 = 1)
 	BEGIN
 	
-		PRINT @StartRow
-		PRINT @StopRow
-		
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -534,7 +522,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -563,10 +551,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -578,7 +563,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -607,10 +592,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -622,7 +604,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -651,9 +633,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -666,7 +645,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -696,9 +675,6 @@ BEGIN
 	WHILE (1 = 1)
 	BEGIN
 	
-		PRINT @StartRow
-		PRINT @StopRow
-		
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -710,7 +686,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -738,10 +714,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -753,7 +726,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -781,10 +754,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -796,7 +766,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -824,10 +794,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -839,7 +806,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -868,10 +835,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -883,7 +847,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -912,10 +876,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -927,7 +888,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -956,10 +917,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -971,7 +929,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -1000,9 +958,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -1015,7 +970,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -1113,25 +1068,25 @@ WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 --TicketVoiding_RequestDetailTicket_Single
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_Single
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans14_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans14_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm14_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm14_20220929_SIT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 */
