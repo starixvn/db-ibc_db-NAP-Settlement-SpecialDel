@@ -309,36 +309,36 @@ FROM zzzbettransm b WITH (NOLOCK)
 -- TicketVoiding_RequestDetailTicket_Single
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN bettrans s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN bettrans s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 -- TicketVoiding_RequestDetailTicket_Single
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN bettrans14 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN bettrans14 s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 -- TicketVoiding_RequestDetailTicket_SubParlay
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN bettransm s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN bettransm s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN bettransm14 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN bettransm14 s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
