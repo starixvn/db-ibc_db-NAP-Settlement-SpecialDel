@@ -476,7 +476,7 @@ FROM SiteDBtmp.dbo.NetPositionTrans_20221006 npt WITH (NOLOCK)
 INSERT INTO [dbo].[Task_Cust_CheckBalance_Exception] ([custid], [Remark])
 SELECT	tce.[custid], tce.[Remark]
 FROM SiteDBtmp.dbo.Task_Cust_CheckBalance_Exception_20221006 tce WITH (NOLOCK)
-AND NOT EXISTS (SELECT TOP (1) 1 FROM [Task_Cust_CheckBalance_Exception] a WITH (NOLOCK) WHERE a.custid = tce.custid)
+WHERE NOT EXISTS (SELECT TOP (1) 1 FROM [Task_Cust_CheckBalance_Exception] a WITH (NOLOCK) WHERE a.custid = tce.custid)
 
 --16. bodb02.dbo.Task_Cust_BalanceProblem1
 --There is no index on custid for table Task_Cust_BalanceProblem1, has only an index on keyID
