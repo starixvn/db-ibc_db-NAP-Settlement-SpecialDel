@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 
 
 /*
@@ -39,7 +39,6 @@ BEGIN
 			
 END
 GO
------------STEP 2: NEED TO RUN ON DBTRANS ONLY ------------------------------------------
-/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 
+-----------STEP 2: NEED TO RUN ON DBTRANS ONLY ------------------------------------------
 EXEC Bet_ExecRep14_00
