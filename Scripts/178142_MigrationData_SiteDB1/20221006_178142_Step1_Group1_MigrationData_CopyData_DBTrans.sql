@@ -93,6 +93,12 @@ INTO bettrans14_20221006
 FROM bodb02.dbo.bettrans14 b WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
+--bodb02.dbo.BettransInfo14
+SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
+INTO BettransInfo14_20221006
+FROM bodb02.dbo.BettransInfo14 binfo WITH (NOLOCK)
+	INNER JOIN dbo.bettrans14_20221006 b WITH (NOLOCK) ON binfo.transid = b.transid 
+
 --bodb02.dbo.bettransm14
 SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[hdp2], bm.[odds], bm.[stake], bm.[status], bm.[winlost], bm.[livehomescore], bm.[liveawayscore], 
 		bm.[liveindicator], bm.[betteam], bm.[creator], bm.[refno], bm.[comstatus], bm.[winlostdate], bm.[betfrom], bm.[betcheck], bm.[checktime], bm.[oddsspread], 
