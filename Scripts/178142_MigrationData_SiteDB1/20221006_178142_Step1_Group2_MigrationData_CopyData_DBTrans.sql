@@ -72,12 +72,6 @@ DECLARE @debug_message VARCHAR(500)
 	
 SET @SiteDBGroupID = 1
 
-CREATE TABLE #tmp_refno
-(
-	refno BIGINT PRIMARY KEY
-)
-
-------------------------------------------------
 /*******************Bet Tickets Tables**********************/
 --bodb02_tmp.dbo.bettrans
 SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], b.[odds], b.[stake], b.[status], b.[winlost], b.[awinlost], b.[mwinlost], b.[playercomm], b.[comm], 
@@ -132,6 +126,6 @@ FROM bodb02_tmp.dbo.TransferInfo b WITH (NOLOCK)
 
 ------------------------------------------------
 --DROP TABLE #tmp_cust
-DROP TABLE #tmp_refno
+
 
 	
