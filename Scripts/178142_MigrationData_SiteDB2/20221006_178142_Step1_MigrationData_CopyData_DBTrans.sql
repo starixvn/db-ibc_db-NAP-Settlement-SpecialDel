@@ -315,13 +315,13 @@
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalCreditTransfer_20221006]
 	FROM bodb02.dbo.BalCreditTransfer bal WITH (NOLOCK)
-		INNER JOIN cust_sitedb2_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_sitedb2_20221006 tmp  WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--5. bodb02.dbo.BalDebitCasino
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalDebitCasino_20221006]
 	FROM bodb02.dbo.BalDebitCasino bal WITH (NOLOCK)
-		INNER JOIN cust_sitedb2_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_sitedb2_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--6. bodb02.dbo.BalDebitOthers
 	SELECT bal.[custid], bal.[Balance]
