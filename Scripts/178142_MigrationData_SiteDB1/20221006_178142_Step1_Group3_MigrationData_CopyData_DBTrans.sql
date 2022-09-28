@@ -98,18 +98,6 @@ INTO bettransG14_20221006
 FROM bodb02.dbo.bettransG14 b WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
---bodb02.dbo.BettransInfo
-SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
-INTO BettransInfo_20221006
-FROM bodb02.dbo.BettransInfo binfo WITH (NOLOCK)
-	INNER JOIN dbo.bettrans_20221006 b WITH (NOLOCK) ON b.transid = binfo.transid
-
---bodb02.dbo.BettransInfo14
-SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
-INTO BettransInfo14_20221006
-FROM bodb02.dbo.BettransInfo14 binfo WITH (NOLOCK)
-	INNER JOIN dbo.bettrans14_20221006 b WITH (NOLOCK) ON binfo.transid = b.transid 
-
 --bodb02.dbo.bettransLC
 SELECT  b.[transid], b.[custid], b.[transdate], b.[odds], b.[stake], b.[status], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[spositiontaking], 
 		b.[playerdiscount], b.[discount], b.[adiscount], b.[sdiscount], b.[creator], b.[winlostdate], b.[betfrom], b.[virtualrate], b.[actualrate], b.[actual_stake], 
@@ -205,19 +193,6 @@ INTO zzzbettransm_20221006
 FROM bodb02.dbo.zzzbettransm z WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = z.custid
 
---bodb02.dbo.Transfer_Coll
-SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
-		b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP], b.[RepUpdateTime]
-INTO Transfer_Coll_20221006
-FROM bodb02.dbo.Transfer_Coll b WITH (NOLOCK)
-	INNER JOIN dbo.Transfer_20221006 b1 WITH (NOLOCK) ON b1.TransID = b.TransID
-
---bodb02.dbo.TransferInfo
-SELECT  b.[TransId], b.[APositiontaking], b.[MPositiontaking], b.[SPositiontaking], b.[EPositiontaking], b.[PlayerDiscount], b.[Discount], b.[ADiscount], b.[SDiscount], 
-		b.[WalletType], b.[BonusID], b.[Amount], b.[CheckerId], b.[CheckerName], b.[IsCollection], b.[IsDel], b.[RepUpdateTime]
-INTO TransferInfo_20221006
-FROM bodb02.dbo.TransferInfo b WITH (NOLOCK)
-	INNER JOIN dbo.Transfer_20221006 b1 WITH (NOLOCK) ON b1.TransID = b.TransID
 
 /********************Tables Balance*************************/
 
@@ -356,12 +331,6 @@ INTO [CustLimitBetHistory_LIC_20221006]
 FROM bodb02.dbo.CustLimitBetHistory_LIC clbh WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = clbh.custid
 
---10. bodb02.dbo.Task_bettrans14_IP2Country
-SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
-INTO [Task_bettrans14_IP2Country_20221006]
-FROM bodb02.dbo.Task_bettrans14_IP2Country tbip WITH (NOLOCK)
-	INNER JOIN dbo.bettrans14_20221006 b WITH (NOLOCK) ON b.transid = tbip.transid
-		
 --11. bodb02.dbo.Task_bettransLC14_IP2Country
 SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
 INTO [Task_bettransLC14_IP2Country_20221006]

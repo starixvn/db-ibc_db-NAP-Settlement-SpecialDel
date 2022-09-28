@@ -66,7 +66,7 @@
 
 USE SiteDBtmp
 GO
--- Group 2: bettrans, transfer, bettransm
+-- Group 2: bettrans, transfer, bettransm, BettransInfo, Transfer_Coll, TransferInfo
 DECLARE @SiteDBGroupID SMALLINT
 DECLARE @debug_message VARCHAR(500)
 	
@@ -91,7 +91,6 @@ INTO bettrans_20221006
 FROM bodb02.dbo.bettrans b WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
-	
 --bodb02.dbo.BettransInfo
 SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
 INTO BettransInfo_20221006
@@ -116,7 +115,21 @@ SELECT  b.[TransId], b.[CustId], b.[TransDate], b.[WinlostDate], b.[Bettype], b.
 INTO Transfer_20221006
 FROM bodb02.dbo.Transfer b WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
-	
+
+--bodb02.dbo.Transfer_Coll
+SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
+		b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP], b.[RepUpdateTime]
+INTO Transfer_Coll_20221006
+FROM bodb02.dbo.Transfer_Coll b WITH (NOLOCK)
+	INNER JOIN dbo.Transfer_20221006 b1 WITH (NOLOCK) ON b1.TransID = b.TransID
+
+--bodb02.dbo.TransferInfo
+SELECT  b.[TransId], b.[APositiontaking], b.[MPositiontaking], b.[SPositiontaking], b.[EPositiontaking], b.[PlayerDiscount], b.[Discount], b.[ADiscount], b.[SDiscount], 
+		b.[WalletType], b.[BonusID], b.[Amount], b.[CheckerId], b.[CheckerName], b.[IsCollection], b.[IsDel], b.[RepUpdateTime]
+INTO TransferInfo_20221006
+FROM bodb02.dbo.TransferInfo b WITH (NOLOCK)
+	INNER JOIN dbo.Transfer_20221006 b1 WITH (NOLOCK) ON b1.TransID = b.TransID	
+
 ------------------------------------------------
 --DROP TABLE #tmp_cust
 DROP TABLE #tmp_refno

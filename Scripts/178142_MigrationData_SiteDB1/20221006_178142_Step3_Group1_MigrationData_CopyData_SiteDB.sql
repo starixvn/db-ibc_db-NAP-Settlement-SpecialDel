@@ -66,8 +66,7 @@
 USE bodb02
 GO
 ---------------------hey pontus dep trai -> run sitedb01 nhe------------------------------------
--- Group 1: bettrans14, bettransm14, BetParlayDetail
-
+-- Group 1: bettrans14, bettransm14, BetParlayDetail, BettransInfo14, Task_bettrans14_IP2Country
 -----------bettrans14
 --//drop
 DROP INDEX [bettrans1423] ON [dbo].[bettrans14]
@@ -95,6 +94,16 @@ GO
 
 ------------------------------------------------
 /*******************Bet Tickets Tables**********************/
+--BettransInfo14
+INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
+SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
+FROM SiteDBtmp.dbo.BettransInfo14_20221006 binfo WITH (NOLOCK)
+
+--10. dbo.Task_bettrans14_IP2Country
+INSERT INTO [dbo].[Task_bettrans14_IP2Country] ([transid], [winlostdate], [CountryShort], [IPArchive])
+SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+FROM SiteDBtmp.dbo.Task_bettrans14_IP2Country_20221006 tbip WITH (NOLOCK)
+
 --bettrans14
 INSERT INTO dbo.bettrans14 ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], 
 							[comm], [acomm], [apositiontaking], [mpositiontaking], [tpositiontaking], [playerdiscount], [discount], [adiscount], [livehomescore], 

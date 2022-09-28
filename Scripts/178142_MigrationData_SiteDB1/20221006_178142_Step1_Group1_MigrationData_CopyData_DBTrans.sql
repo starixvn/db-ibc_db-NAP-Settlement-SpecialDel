@@ -67,7 +67,7 @@
 USE SiteDBtmp
 GO
 
--- Group 1: bettrans14, bettransm14, BetParlayDetail
+-- Group 1: bettrans14, bettransm14, BetParlayDetail, BettransInfo14, Task_bettrans14_IP2Country
 
 DECLARE @SiteDBGroupID SMALLINT
 DECLARE @debug_message VARCHAR(500)
@@ -129,6 +129,11 @@ INTO BetParlayDetail_20221006
 FROM bodb02.dbo.BetParlayDetail bpd WITH (NOLOCK)
 	INNER JOIN #tmp_refno tmp ON tmp.refno = bpd.refno
 
+--10. bodb02.dbo.Task_bettrans14_IP2Country
+SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
+INTO [Task_bettrans14_IP2Country_20221006]
+FROM bodb02.dbo.Task_bettrans14_IP2Country tbip WITH (NOLOCK)
+	INNER JOIN dbo.bettrans14_20221006 b WITH (NOLOCK) ON b.transid = tbip.transid
 ------------------------------------------------
 --DROP TABLE #tmp_cust
 DROP TABLE #tmp_refno

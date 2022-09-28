@@ -66,8 +66,7 @@
 USE bodb02
 GO
 ---------------------hey pontus dep trai -> run sitedb01 nhe------------------------------------
--- Group 2: bettrans, transfer, bettransm
-
+-- Group 2: bettrans, transfer, bettransm, BettransInfo, Transfer_Coll, TransferInfo
 ------------bettrans
 --//drop
 DROP INDEX [IX_custid] ON [dbo].[bettrans]
@@ -115,6 +114,26 @@ GO
 
 ------------------------------------------------
 /*******************Bet Tickets Tables**********************/
+--TransferInfo
+INSERT INTO dbo.TransferInfo	([TransId], [APositiontaking], [MPositiontaking], [SPositiontaking], [EPositiontaking], [PlayerDiscount], [Discount], [ADiscount], [SDiscount], 
+								[WalletType], [BonusID], [Amount], [CheckerId], [CheckerName], [IsCollection], [IsDel], [RepUpdateTime])
+SELECT  b.[TransId], b.[APositiontaking], b.[MPositiontaking], b.[SPositiontaking], b.[EPositiontaking], b.[PlayerDiscount], b.[Discount], b.[ADiscount], b.[SDiscount], 
+		b.[WalletType], b.[BonusID], b.[Amount], b.[CheckerId], b.[CheckerName], b.[IsCollection], b.[IsDel], b.[RepUpdateTime]
+FROM SiteDBtmp.dbo.TransferInfo_20221006 b WITH (NOLOCK)
+
+--BettransInfo
+INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
+SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
+FROM SiteDBtmp.dbo.BettransInfo_20221006 binfo WITH (NOLOCK)
+
+--Transfer_Coll
+INSERT INTO dbo.Transfer_Coll	([CustId], [WinlostDate], [TransDate], [Bettype], [Debit], [Credit], [Currency], [ActualRate], [TransID], [RefNo], [Username], 
+								[Recommend], [MRecommend], [SRecommend], [Creator], [TransDesc], [IP], [RepUpdateTime])
+SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
+		b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP], b.[RepUpdateTime]
+FROM SiteDBtmp.dbo.Transfer_Coll_20221006 b WITH (NOLOCK)
+
+
 --bettrans
 INSERT INTO dbo.bettrans (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], [comm], 
 							[acomm], [apositiontaking], [mpositiontaking], [tpositiontaking], [playerdiscount], [discount], [adiscount], [livehomescore], [liveawayscore], 
