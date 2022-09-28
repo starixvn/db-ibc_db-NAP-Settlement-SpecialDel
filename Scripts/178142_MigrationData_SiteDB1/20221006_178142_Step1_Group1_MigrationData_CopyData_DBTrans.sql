@@ -8,59 +8,59 @@
 	 Revisions:
 		- 20220926@Victoria: SELECT data INTO new tables for the following tables [Redmineid:#178142] 
 							 Bet tickets tables:
-								1.  bodb02.dbo.bettrans				2.  bodb02.dbo.bettrans14
-								3.  bodb02.dbo.bettransG			4.  bodb02.dbo.bettransG14
-								5.  bodb02.dbo.BettransInfo			6.  bodb02.dbo.BettransInfo14
-								7.  bodb02.dbo.bettransLC			8.  bodb02.dbo.bettransLC14
-								9.  bodb02.dbo.bettransm			10. bodb02.dbo.bettransm14
-								11. bodb02.dbo.bettransRnG			12. bodb02.dbo.bettransRnG14
-								13. bodb02.dbo.translog				14. bodb02.dbo.translog14
-								15. bodb02.dbo.zzzbettrans			16. bodb02.dbo.zzzbettransm
-								17. bodb02.dbo.Transfer				18. bodb02.dbo.Transfer_Coll		19. bodb02.dbo.TransferInfo
-								20. bodb02.dbo.BetParlayDetail		21. bodb02.dbo.BetParlayResult
+								1.  bodb02_tmp.dbo.bettrans				2.  bodb02_tmp.dbo.bettrans14
+								3.  bodb02_tmp.dbo.bettransG			4.  bodb02_tmp.dbo.bettransG14
+								5.  bodb02_tmp.dbo.BettransInfo			6.  bodb02_tmp.dbo.BettransInfo14
+								7.  bodb02_tmp.dbo.bettransLC			8.  bodb02_tmp.dbo.bettransLC14
+								9.  bodb02_tmp.dbo.bettransm			10. bodb02_tmp.dbo.bettransm14
+								11. bodb02_tmp.dbo.bettransRnG			12. bodb02_tmp.dbo.bettransRnG14
+								13. bodb02_tmp.dbo.translog				14. bodb02_tmp.dbo.translog14
+								15. bodb02_tmp.dbo.zzzbettrans			16. bodb02_tmp.dbo.zzzbettransm
+								17. bodb02_tmp.dbo.Transfer				18. bodb02_tmp.dbo.Transfer_Coll		19. bodb02_tmp.dbo.TransferInfo
+								20. bodb02_tmp.dbo.BetParlayDetail		21. bodb02_tmp.dbo.BetParlayResult
 							 Tables balance:
-								1.  bodb02.dbo.BalCreditCasino
-								2.  bodb02.dbo.BalCreditOthers
-								3.  bodb02.dbo.BalCreditSports
-								4.  bodb02.dbo.BalCreditTransfer
-								5.  bodb02.dbo.BalDebitCasino
-								6.  bodb02.dbo.BalDebitOthers
-								7.  bodb02.dbo.BalDebitSports
-								8.  bodb02.dbo.BalDebitTransfer
-								9.  bodb02.dbo.BalNetPosition
-								10. bodb02.dbo.balanceTable
-								11. bodb02.dbo.balanceTable_tmp
-								12. bodb02.dbo.BalanceTable_tmp_cal
+								1.  bodb02_tmp.dbo.BalCreditCasino
+								2.  bodb02_tmp.dbo.BalCreditOthers
+								3.  bodb02_tmp.dbo.BalCreditSports
+								4.  bodb02_tmp.dbo.BalCreditTransfer
+								5.  bodb02_tmp.dbo.BalDebitCasino
+								6.  bodb02_tmp.dbo.BalDebitOthers
+								7.  bodb02_tmp.dbo.BalDebitSports
+								8.  bodb02_tmp.dbo.BalDebitTransfer
+								9.  bodb02_tmp.dbo.BalNetPosition
+								10. bodb02_tmp.dbo.balanceTable
+								11. bodb02_tmp.dbo.balanceTable_tmp
+								12. bodb02_tmp.dbo.BalanceTable_tmp_cal
 							 Other tables:
-								1.  bodb02.dbo.Bonus_sum_winloss
-								2.  bodb02.dbo.BonusAdjustmentTransfer
-								3.  bodb02.dbo.BonusTrans
-								4.  bodb02.dbo.BonusWalletCredit
-								5.  bodb02.dbo.BonusWalletDebit
-								6.  bodb02.dbo.BonusWalletPending
-								7.  bodb02.dbo.CashOutSelling
-								8.  bodb02.dbo.CustLimitBet_LIC
-								9.  bodb02.dbo.CustLimitBetHistory_LIC
-								10. bodb02.dbo.Task_bettrans14_IP2Country
-								11. bodb02.dbo.Task_bettransLC14_IP2Country
-								12. bodb02.dbo.Task_bettransRNG14_IP2Country
+								1.  bodb02_tmp.dbo.Bonus_sum_winloss
+								2.  bodb02_tmp.dbo.BonusAdjustmentTransfer
+								3.  bodb02_tmp.dbo.BonusTrans
+								4.  bodb02_tmp.dbo.BonusWalletCredit
+								5.  bodb02_tmp.dbo.BonusWalletDebit
+								6.  bodb02_tmp.dbo.BonusWalletPending
+								7.  bodb02_tmp.dbo.CashOutSelling
+								8.  bodb02_tmp.dbo.CustLimitBet_LIC
+								9.  bodb02_tmp.dbo.CustLimitBetHistory_LIC
+								10. bodb02_tmp.dbo.Task_bettrans14_IP2Country
+								11. bodb02_tmp.dbo.Task_bettransLC14_IP2Country
+								12. bodb02_tmp.dbo.Task_bettransRNG14_IP2Country
 							 TW Tables list:
-								1.  bodb02.dbo.BalancePendingCreditGame
-								2.  bodb02.dbo.BalancePendingDebitGame
-								3.  bodb02.dbo.BalCreditCasinoPending
-								4.  bodb02.dbo.BalCreditOthersPending
-								5.  bodb02.dbo.BalCreditSportsPending
-								6.  bodb02.dbo.BalDebitCasinoPending
-								7.  bodb02.dbo.BalDebitOthersPending
-								8.  bodb02.dbo.BalDebitSportsPending
-								9.  bodb02.dbo.Intg_GameRoundBetStake
-								10. bodb02.dbo.LastBetTime
-								11. bodb02.dbo.LastBetTime_Agent
-								12. bodb02.dbo.MarkedTransaction
-								13. bodb02.dbo.NetPositionCalculationLog
-								14. bodb02.dbo.NetPositionTrans
-								15. bodb02.dbo.Task_Cust_CheckBalance_Exception
-								16. bodb02.dbo.Task_Cust_BalanceProblem1
+								1.  bodb02_tmp.dbo.BalancePendingCreditGame
+								2.  bodb02_tmp.dbo.BalancePendingDebitGame
+								3.  bodb02_tmp.dbo.BalCreditCasinoPending
+								4.  bodb02_tmp.dbo.BalCreditOthersPending
+								5.  bodb02_tmp.dbo.BalCreditSportsPending
+								6.  bodb02_tmp.dbo.BalDebitCasinoPending
+								7.  bodb02_tmp.dbo.BalDebitOthersPending
+								8.  bodb02_tmp.dbo.BalDebitSportsPending
+								9.  bodb02_tmp.dbo.Intg_GameRoundBetStake
+								10. bodb02_tmp.dbo.LastBetTime
+								11. bodb02_tmp.dbo.LastBetTime_Agent
+								12. bodb02_tmp.dbo.MarkedTransaction
+								13. bodb02_tmp.dbo.NetPositionCalculationLog
+								14. bodb02_tmp.dbo.NetPositionTrans
+								15. bodb02_tmp.dbo.Task_Cust_CheckBalance_Exception
+								16. bodb02_tmp.dbo.Task_Cust_BalanceProblem1
 								
 */
 
@@ -81,7 +81,7 @@ CREATE TABLE #tmp_refno
 
 ------------------------------------------------
 /*******************Bet Tickets Tables**********************/
---bodb02.dbo.bettrans14
+--bodb02_tmp.dbo.bettrans14
 SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], b.[odds], b.[stake], b.[status], b.[winlost], b.[awinlost], b.[mwinlost], b.[playercomm], 
 		b.[comm], b.[acomm], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[playerdiscount], b.[discount], b.[adiscount], b.[livehomescore], 
 		b.[liveawayscore], b.[liveindicator], b.[betteam], b.[creator], b.[refno], b.[comstatus], b.[winlostdate], b.[betfrom], b.[betcheck], b.[checktime], b.[oddsspread], 
@@ -90,16 +90,16 @@ SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], 
 		b.[CurrencyName], b.[oddstype], b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], 
 		b.[RefCode], b.[SettlementTime], b.[epositiontaking], b.[ReasonID], b.[sort], @SiteDBGroupID SiteDBGroupID
 INTO bettrans14_20221006
-FROM bodb02.dbo.bettrans14 b WITH (NOLOCK)
+FROM bodb02_tmp.dbo.bettrans14 b WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
---bodb02.dbo.BettransInfo14
+--bodb02_tmp.dbo.BettransInfo14
 SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
 INTO BettransInfo14_20221006
-FROM bodb02.dbo.BettransInfo14 binfo WITH (NOLOCK)
+FROM bodb02_tmp.dbo.BettransInfo14 binfo WITH (NOLOCK)
 	INNER JOIN dbo.bettrans14_20221006 b WITH (NOLOCK) ON binfo.transid = b.transid 
 
---bodb02.dbo.bettransm14
+--bodb02_tmp.dbo.bettransm14
 SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[hdp2], bm.[odds], bm.[stake], bm.[status], bm.[winlost], bm.[livehomescore], bm.[liveawayscore], 
 		bm.[liveindicator], bm.[betteam], bm.[creator], bm.[refno], bm.[comstatus], bm.[winlostdate], bm.[betfrom], bm.[betcheck], bm.[checktime], bm.[oddsspread], 
 		bm.[apositiontaking], bm.[mpositiontaking], bm.[tpositiontaking], bm.[awinlost], bm.[mwinlost], bm.[playerdiscount], bm.[discount], bm.[adiscount], 
@@ -107,13 +107,13 @@ SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[h
 		bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], 
 		bm.[LiveBetAcceptTime], bm.[ReasonIDm], @SiteDBGroupID SiteDBGroupID
 INTO bettransm14_20221006
-FROM bodb02.dbo.bettransm14 bm WITH (NOLOCK)
+FROM bodb02_tmp.dbo.bettransm14 bm WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bm.custid
 
 --#tmp_refno
 INSERT INTO #tmp_refno (refno)
 SELECT DISTINCT b.refno
-FROM bodb02.dbo.bettrans b WITH (NOLOCK)
+FROM bodb02_tmp.dbo.bettrans b WITH (NOLOCK)
 	INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 WHERE bettype = 29 AND matchid = 29
 
@@ -122,17 +122,17 @@ SELECT DISTINCT refno
 FROM dbo.bettrans14_20221006  WITH (NOLOCK)
 WHERE bettype = 29 AND matchid = 29
 	
---bodb02.dbo.BetParlayDetail
+--bodb02_tmp.dbo.BetParlayDetail
 SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
 		bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
 INTO BetParlayDetail_20221006
-FROM bodb02.dbo.BetParlayDetail bpd WITH (NOLOCK)
+FROM bodb02_tmp.dbo.BetParlayDetail bpd WITH (NOLOCK)
 	INNER JOIN #tmp_refno tmp ON tmp.refno = bpd.refno
 
---10. bodb02.dbo.Task_bettrans14_IP2Country
+--10. bodb02_tmp.dbo.Task_bettrans14_IP2Country
 SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
 INTO [Task_bettrans14_IP2Country_20221006]
-FROM bodb02.dbo.Task_bettrans14_IP2Country tbip WITH (NOLOCK)
+FROM bodb02_tmp.dbo.Task_bettrans14_IP2Country tbip WITH (NOLOCK)
 	INNER JOIN dbo.bettrans14_20221006 b WITH (NOLOCK) ON b.transid = tbip.transid
 ------------------------------------------------
 --DROP TABLE #tmp_cust
