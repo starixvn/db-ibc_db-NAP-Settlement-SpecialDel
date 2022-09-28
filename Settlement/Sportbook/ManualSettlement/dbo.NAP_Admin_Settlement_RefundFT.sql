@@ -57,6 +57,7 @@ AS
 		- 20211130@Kathy: New cashout model [Redmine:#164838]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 202209289@Kathy: Scale Out BetTrans - missing write log [Redmine:#175251]
 		
     Param's Explanation:
     • @matchid: matchid of match to Refund HT
@@ -76,8 +77,7 @@ BEGIN
 			,@ActionID  			INT
 			,@start     			DATETIME
 			,@stop      			DATETIME		
-			,@sporttype     		SMALLINT		
-			,@RowCount				INT			
+			,@sporttype     		SMALLINT			
 			,@strRefundBettypes		VARCHAR(MAX)					
             ,@avaiableProcess		BIT		
 			,@Action				VARCHAR(20)			
@@ -248,9 +248,13 @@ BEGIN
     
     SELECT @stop = CURRENT_TIMESTAMP
 
-    IF @RowCount > 0 
     BEGIN
-        DECLARE @LogData NVARCHAR(300)
+        DECLARE @LogData			NVARCHAR(300)
+				,@hthomescore		INT
+				,@htawayscore       INT
+				,@finalhomescore	INT
+				,@finalawayscore	INT
+				,@goalrecord        VARCHAR(50)
 
         SELECT @LogData = 'NAP: Calculate (Refund FT) for matchid:' 
                             + CAST(@matchid AS NVARCHAR(10)) 
@@ -264,15 +268,25 @@ BEGIN
 		BEGIN			
 			SELECT @Remark = 'NAP: Duration=' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;'
 			
+			SELECT @hthomescore 	= hthomescore
+				,@htawayscore    	= htawayscore
+				,@goalrecord    	= goalrecord
+				,@betstatus        	= betstatus
+				,@finalhomescore    = finalhomescore
+				,@finalawayscore    = finalawayscore
+			FROM DBPRO.BODB02.dbo.match WITH (NOLOCK)
+			WHERE matchid = @matchid
+
 			BEGIN TRY
 				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
 					@UserID             = @adminid
 					,@Matchid           = @matchid
 					,@ActionID          = @ActionID
-					,@finalhomescore    = 0
-					,@finalawayscore    = 0
-					,@hthomescore       = 0
-					,@htawayscore       = 0				
+					,@finalhomescore    = @finalhomescore
+					,@finalawayscore    = @finalawayscore
+					,@hthomescore       = @hthomescore
+					,@htawayscore       = @htawayscore		
+					,@GoalRecord        = @goalrecord
 					,@betstatus         = @betstatus
 					,@Remark            = @Remark
 					,@IP                = @IP
@@ -285,10 +299,11 @@ BEGIN
 					@UserID             = @adminid
 					,@Matchid           = @matchid
 					,@ActionID          = @ActionID
-					,@finalhomescore    = 0
-					,@finalawayscore    = 0
-					,@hthomescore       = 0
-					,@htawayscore       = 0				
+					,@finalhomescore    = @finalhomescore
+					,@finalawayscore    = @finalawayscore
+					,@hthomescore       = @hthomescore
+					,@htawayscore       = @htawayscore		
+					,@GoalRecord        = @goalrecord
 					,@betstatus         = @betstatus
 					,@Remark            = @Remark
 					,@IP                = @IP
