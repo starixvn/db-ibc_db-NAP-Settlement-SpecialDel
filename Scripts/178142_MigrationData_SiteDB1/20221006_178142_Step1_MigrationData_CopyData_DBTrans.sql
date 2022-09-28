@@ -112,7 +112,7 @@
 			b.[epositiontaking], b.[ReasonID], b.[sort], b.[BetSiteID], b.[RepUpdateTime], b.[RepDstUpdateTime], @SiteDBGroupID SiteDBGroupID, b.[FcUpdateTime]
 	INTO bettrans_20221006
 	FROM bodb02.dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.bettrans14
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], b.[odds], b.[stake], b.[status], b.[winlost], b.[awinlost], b.[mwinlost], b.[playercomm], 
@@ -124,7 +124,7 @@
 			b.[RefCode], b.[SettlementTime], b.[epositiontaking], b.[ReasonID], b.[sort], @SiteDBGroupID SiteDBGroupID
 	INTO bettrans14_20221006
 	FROM bodb02.dbo.bettrans14 b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.bettransG
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[odds], b.[stake], b.[status], b.[winlost], b.[betteam], b.[creator], b.[refno], b.[winlostdate], b.[betfrom], 
@@ -134,7 +134,7 @@
 			@SiteDBGroupID SiteDBGroupID , b.[RepUpdateTime]
 	INTO bettransG_20221006
 	FROM bodb02.dbo.bettransG b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.bettransG14
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[odds], b.[stake], b.[status], b.[winlost], b.[betteam], b.[creator], b.[refno], b.[winlostdate], b.[betfrom], 
@@ -144,7 +144,7 @@
 			@SiteDBGroupID SiteDBGroupID
 	INTO bettransG14_20221006
 	FROM bodb02.dbo.bettransG14 b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.BettransInfo
 	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
@@ -166,7 +166,7 @@
 			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[SiteID], b.[epositiontaking], @SiteDBGroupID SiteDBGroupID , b.[RepUpdateTime]
 	INTO bettransLC_20221006
 	FROM bodb02.dbo.bettransLC b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.bettransLC14
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[odds], b.[stake], b.[status], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[spositiontaking], 
@@ -176,7 +176,7 @@
 			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[epositiontaking], b.[SiteID], @SiteDBGroupID SiteDBGroupID
 	INTO bettransLC14_20221006
 	FROM bodb02.dbo.bettransLC14 b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.bettransRnG
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[odds], b.[stake], b.[status], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[spositiontaking], 
@@ -187,7 +187,7 @@
 			b.[epositiontaking], @SiteDBGroupID SiteDBGroupID, b.[RepUpdateTime]
 	INTO bettransRnG_20221006
 	FROM bodb02.dbo.bettransRnG b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.bettransRnG14
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[odds], b.[stake], b.[status], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[spositiontaking], 
@@ -198,7 +198,7 @@
 			b.[epositiontaking], @SiteDBGroupID SiteDBGroupID
 	INTO bettransRnG14_20221006
 	FROM bodb02.dbo.bettransRnG14 b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.translog
 	SELECT  b.[translogid], b.[custid], b.[transdate], b.[odds], b.[stake], b.[status], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[spositiontaking], 
@@ -208,7 +208,7 @@
 			b.[epositiontaking], @SiteDBGroupID SiteDBGroupID, b.[LicenseeTransId], b.[RepUpdateTime]
 	INTO translog_20221006
 	FROM bodb02.dbo.translog b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.translog14
 	SELECT  b.[translogid], b.[custid], b.[transdate], b.[odds], b.[stake], b.[status], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[spositiontaking], 
@@ -217,7 +217,7 @@
 			b.[eventID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[custom1], b.[custom2], b.[custom3], b.[LiveIndicator], @SiteDBGroupID SiteDBGroupID
 	INTO translog14_20221006
 	FROM bodb02.dbo.translog14 b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	
 	--bodb02.dbo.bettransm
@@ -229,7 +229,7 @@
 			bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
 	INTO bettransm_20221006
 	FROM bodb02.dbo.bettransm bm WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bm.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bm.custid
 
 	--bodb02.dbo.bettransm14
 	SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[hdp2], bm.[odds], bm.[stake], bm.[status], bm.[winlost], bm.[livehomescore], bm.[liveawayscore], 
@@ -240,7 +240,7 @@
 			bm.[LiveBetAcceptTime], bm.[ReasonIDm], @SiteDBGroupID SiteDBGroupID
 	INTO bettransm14_20221006
 	FROM bodb02.dbo.bettransm14 bm WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bm.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bm.custid
 
 	--#tmp_refno
 	INSERT INTO #tmp_refno (refno)
@@ -272,7 +272,7 @@
 			z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
 	INTO zzzbettrans_20221006
 	FROM bodb02.dbo.zzzbettrans z WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = z.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = z.custid
 		
 	--bodb02.dbo.zzzbettransm
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
@@ -280,7 +280,7 @@
 			z.[VoidingHistoryId], z.[RepUpdateTime], @SiteDBGroupID SiteDBGroupID
 	INTO zzzbettransm_20221006
 	FROM bodb02.dbo.zzzbettransm z WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = z.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = z.custid
 
 	--bodb02.dbo.Transfer
 	SELECT  b.[TransId], b.[CustId], b.[TransDate], b.[WinlostDate], b.[Bettype], b.[Stake], b.[Actual_Stake], b.[Winlost], b.[AWinlost], b.[MWinlost], b.[SWinlost], b.[PlayerComm], 
@@ -288,7 +288,7 @@
 			b.[ActualRate], b.[Creator], b.[Balance], b.[IP], b.[CheckTime], b.[SerialNo], b.[RepUpdateTime]
 	INTO Transfer_20221006
 	FROM bodb02.dbo.Transfer b WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = b.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 	--bodb02.dbo.Transfer_Coll
 	SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
@@ -310,19 +310,19 @@
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalCreditCasino_20221006]
 	FROM bodb02.dbo.BalCreditCasino bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--2. bodb02.dbo.BalCreditOthers
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalCreditOthers_20221006]
 	FROM bodb02.dbo.BalCreditOthers bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--3. bodb02.dbo.BalCreditSports
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalCreditSports_20221006]
 	FROM bodb02.dbo.BalCreditSports bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--4. BalCreditTransfer
 	SELECT bal.[custid], bal.[Balance]
@@ -340,53 +340,53 @@
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalDebitOthers_20221006]
 	FROM bodb02.dbo.BalDebitOthers bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--7. bodb02.dbo.BalDebitSports
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalDebitSports_20221006]
 	FROM bodb02.dbo.BalDebitSports bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--8. bodb02.dbo.BalDebitTransfer
 	SELECT bal.[custid], bal.[Balance]
 	INTO [BalDebitTransfer_20221006]
 	FROM bodb02.dbo.BalDebitTransfer bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--9. bodb02.dbo.BalNetPosition
 	SELECT bal.[CustID], bal.[MatchID], bal.[Bettype], bal.[Debit], bal.[Credit], bal.[CreatedDate], bal.[ModifiedDate]
 	INTO [BalNetPosition_20221006]
 	FROM bodb02.dbo.BalNetPosition bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--10. bodb02.dbo.balanceTable
 	SELECT  bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
 			bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
 	INTO [balanceTable_20221006]
 	FROM bodb02.dbo.balanceTable bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--11. bodb02.dbo.balanceTable_tmp
 	SELECT  bal.[winlostdate], bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
 			bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
 	INTO [balanceTable_tmp_20221006]
 	FROM bodb02.dbo.balanceTable_tmp bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	--12. bodb02.dbo.BalanceTable_tmp_cal
 	SELECT	bal.[dow], bal.[roleid], bal.[custid], bal.[recommend], bal.[mrecommend], bal.[srecommend], 
 			bal.[amt1], bal.[tcnt1], bal.[amt2], bal.[tcnt2], bal.[amt3], bal.[tcnt3], bal.[amt4], bal.[tcnt4]
 	INTO [BalanceTable_tmp_cal_20221006]
 	FROM bodb02.dbo.BalanceTable_tmp_cal bal WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bal.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bal.custid
 
 	/*******************Other Tables**********************/
 	--1. bodb02.dbo.Bonus_sum_winloss
 	SELECT bon.[CustId], bon.[BonusId], bon.[winlostdate], bon.[Amount]
 	INTO [Bonus_sum_winloss_20221006]
 	FROM bodb02.dbo.Bonus_sum_winloss bon WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bon.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bon.custid
 
 	--2. bodb02.dbo.BonusAdjustmentTransfer
 	-- There is no index on custid for table BonusAdjustmentTransfer, has only an index on ExecID
@@ -400,26 +400,26 @@
 			bon.[PaymentDate], bon.[IsComplained]
 	INTO [BonusTrans_20221006]
 	FROM bodb02.dbo.BonusTrans bon WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bon.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bon.custid
 
 	--4. bodb02.dbo.BonusWalletCredit
 	SELECT  bon.[CustID], bon.[BonusID], bon.[StatusID], bon.[initBonus], bon.[LockedAmt], bon.[Amount]
 	INTO [BonusWalletCredit_20221006]
 	FROM bodb02.dbo.BonusWalletCredit bon WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bon.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bon.custid
 
 	--5. bodb02.dbo.BonusWalletDebit
 	SELECT  bon.[CustID], bon.[BonusID], bon.[Amount]
 	INTO [BonusWalletDebit_20221006]
 	FROM bodb02.dbo.BonusWalletDebit bon WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bon.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bon.custid
 
 	--6. bodb02.dbo.BonusWalletPending
 	-- There is no index on custid for table BonusWalletPending, has only an index on Rn
 	SELECT  bon.[Rn], bon.[CustID], bon.[BonusID], bon.[Amount]
 	INTO [BonusWalletPending_20221006]
 	FROM bodb02.dbo.BonusWalletPending bon WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bon.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bon.custid
 
 	--7. bodb02.dbo.CashOutSelling
 	-- There is no index on custid for table CashOutSelling, has only an index on TransID
@@ -427,19 +427,19 @@
 			cosell.[CreateDate], cosell.[ChangeDate], cosell.[IsTest], cosell.[VirtualRate], cosell.[CashOutExtraInfo]
 	INTO [CashOutSelling_20221006]
 	FROM bodb02.dbo.CashOutSelling cosell WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = cosell.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = cosell.custid
 
 	--8. bodb02.dbo.CustLimitBet_LIC
 	SELECT	clb.[Matchid], clb.[CustID], clb.[AccumTurnover], clb.[AccumPayout], clb.[EventTypeID], clb.[LastQueueID], clb.[ModifiedDate]
 	INTO [CustLimitBet_LIC_20221006]
 	FROM bodb02.dbo.CustLimitBet_LIC clb WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = clb.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = clb.custid
 
 	--9. bodb02.dbo.CustLimitBetHistory_LIC
 	SELECT	clbh.[Matchid], clbh.[CustID], clbh.[Transid], clbh.[TurnoverAdjust], clbh.[PayoutAdjust], clbh.[EventTypeID], clbh.[CreatedDate]
 	INTO [CustLimitBetHistory_LIC_20221006]
 	FROM bodb02.dbo.CustLimitBetHistory_LIC clbh WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = clbh.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = clbh.custid
 
 	--10. bodb02.dbo.Task_bettrans14_IP2Country
 	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
@@ -466,35 +466,35 @@
 	SELECT bc.[rn], bc.[custid], bc.[winlostdate], bc.[Balance], bc.[bettype], bc.[GameTypeID]
 	INTO BalancePendingCreditGame_20221006
 	FROM bodb02.dbo.BalancePendingCreditGame bc WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bc.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bc.custid
 
 	--2.  bodb02.dbo.BalancePendingDebitGame
 	--There is no index on custid for table BalancePendingDebitGame, has only an index on rn
 	SELECT bd.[rn], bd.[custid], bd.[winlostdate], bd.[Balance], bd.[bettype], bd.[GameTypeID]
 	INTO BalancePendingDebitGame_20221006
 	FROM bodb02.dbo.BalancePendingDebitGame bd WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bd.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bd.custid
 
 	--3.  bodb02.dbo.BalCreditCasinoPending
 	--There is no index on custid for table BalCreditCasinoPending, has only an index on rn
 	SELECT bc.[rn], bc.[custid], bc.[Balance]
 	INTO BalCreditCasinoPending_20221006
 	FROM bodb02.dbo.BalCreditCasinoPending bc WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bc.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bc.custid
 
 	--4.  bodb02.dbo.BalCreditOthersPending
 	--There is no index on custid for table BalCreditOthersPending, has only an index on rn
 	SELECT bc.[rn], bc.[custid], bc.[Balance]
 	INTO BalCreditOthersPending_20221006
 	FROM bodb02.dbo.BalCreditOthersPending bc WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bc.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bc.custid
 
 	--5.  bodb02.dbo.BalCreditSportsPending
 	--There is no index on custid for table BalCreditSportsPending, has only an index on rn
 	SELECT bc.[rn], bc.[custid], bc.[Balance]
 	INTO BalCreditSportsPending_20221006
 	FROM bodb02.dbo.BalCreditSportsPending bc WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bc.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bc.custid
 
 	--6.  bodb02.dbo.BalDebitCasinoPending
 	--There is no index on custid for table BalDebitCasinoPending, has only an index on rn
@@ -508,53 +508,53 @@
 	SELECT bd.[rn], bd.[custid], bd.[Balance]
 	INTO BalDebitOthersPending_20221006
 	FROM bodb02.dbo.BalDebitOthersPending bd WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bd.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bd.custid
 
 	--8.  bodb02.dbo.BalDebitSportsPending
 	--There is no index on custid for table BalDebitSportsPending, has only an index on rn
 	SELECT bd.[rn], bd.[custid], bd.[Balance]
 	INTO BalDebitSportsPending_20221006
 	FROM bodb02.dbo.BalDebitSportsPending bd WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = bd.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = bd.custid
 
 	--9. bodb02.dbo.Intg_GameRoundBetStake
 	--There is no index on custid for table Intg_GameRoundBetStake
 	SELECT igr.[VendorId], igr.[BetId], igr.[GameRound], igr.[GameType], igr.[BetChoice], igr.[CustId], igr.[Stake], igr.[CreateDate]
 	INTO Intg_GameRoundBetStake_20221006
 	FROM bodb02.dbo.Intg_GameRoundBetStake igr WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = igr.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = igr.custid
 
 	--10. bodb02.dbo.LastBetTime
 	SELECT lb.[custid], lb.[transdate]
 	INTO LastBetTime_20221006
 	FROM bodb02.dbo.LastBetTime lb WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = lb.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = lb.custid
 
 	--11. bodb02.dbo.LastBetTime_Agent
 	SELECT lba.[CustID], lba.[MatchID], lba.[BetType], lba.[CustomerClass], lba.[Platform], lba.[TransDate]
 	INTO LastBetTime_Agent_20221006
 	FROM bodb02.dbo.LastBetTime_Agent lba WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = lba.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = lba.custid
 
 	--12. bodb02.dbo.MarkedTransaction
 	SELECT mt.[TransId], mt.[MatchId], mt.[CustId], mt.[bettype], mt.[UserId], mt.[CreatedDate], mt.[MarkType]
 	INTO MarkedTransaction_20221006
 	FROM bodb02.dbo.MarkedTransaction mt WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = mt.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = mt.custid
 
 	--13. bodb02.dbo.NetPositionCalculationLog
 	SELECT	npcl.[NPCalculationLogID], npcl.[CustID], npcl.[MatchID], npcl.[Bettype], npcl.[AccumNPDebit], npcl.[AccumNPCredit], npcl.[NPAdjust], 
 			npcl.[IsLatest], npcl.[CreatedDate], npcl.[ModifiedDate]
 	INTO NetPositionCalculationLog_20221006
 	FROM bodb02.dbo.NetPositionCalculationLog npcl WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = npcl.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = npcl.custid
 
 	--14. bodb02.dbo.NetPositionTrans
 	SELECT	npt.[TransID], npt.[CustID], npt.[MatchID], npt.[Bettype], npt.[Actual_stake], npt.[Payout1], npt.[Payoutx], npt.[Payout2], npt.[SyncStatus], 
 			npt.[isSettled], npt.[CreatedDate], npt.[ModifiedDate]
 	INTO NetPositionTrans_20221006
 	FROM bodb02.dbo.NetPositionTrans npt WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = npt.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = npt.custid
 
 	--15. bodb02.dbo.Task_Cust_CheckBalance_Exception
 	SELECT	tce.[custid], tce.[Remark]
@@ -567,7 +567,7 @@
 	SELECT tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
 	INTO Task_Cust_BalanceProblem1_20221006 
 	FROM bodb02.dbo.Task_Cust_BalanceProblem1 tcb WITH (NOLOCK)
-		INNER JOIN cust_20221006 tmp ON tmp.custid = tcb.custid
+		INNER JOIN cust_20221006 tmp WITH (NOLOCK) ON tmp.custid = tcb.custid
 
 	------------------------------------------------
 	--DROP TABLE #tmp_cust

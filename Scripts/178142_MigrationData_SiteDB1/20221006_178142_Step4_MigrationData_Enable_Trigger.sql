@@ -8,7 +8,7 @@
 	 Revisions:
 		- 20220926@Victoria: Enable Trigger for bettransX tables [Redmineid:#178142] 
 */
-
+---------------------hey pontus dep trai -> run sitedb01 nhe------------------------------------
 	ENABLE TRIGGER [dbo].[Bettrans_After_Insert] ON [dbo].[bettrans]
 	GO
 	ENABLE TRIGGER [dbo].[Bettrans_After_Update] ON [dbo].[bettrans]
