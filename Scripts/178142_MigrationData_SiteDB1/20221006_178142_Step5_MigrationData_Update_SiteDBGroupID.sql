@@ -33,6 +33,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 */	
 AS
 BEGIN
+	SET NOCOUNT ON
 
 	DECLARE @transidXML XML
 	DECLARE @tempTrans TABLE (TransID BIGINT PRIMARY KEY)
@@ -363,9 +364,7 @@ BEGIN
 	SET @StopRow = @Threshold
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -377,7 +376,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -406,9 +405,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -420,7 +417,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -449,9 +446,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -463,7 +458,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -491,10 +486,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -506,7 +498,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -536,10 +528,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -551,7 +540,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -580,10 +569,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -595,7 +581,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -624,10 +610,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -639,7 +622,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -668,10 +651,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -683,7 +663,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -712,10 +692,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -727,7 +704,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -755,10 +732,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -770,7 +744,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -798,9 +772,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -813,7 +784,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -841,9 +812,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -856,7 +824,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -885,9 +853,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -900,7 +865,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -929,10 +894,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -944,7 +906,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -973,10 +935,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -988,7 +947,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -1017,10 +976,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -1032,7 +988,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
