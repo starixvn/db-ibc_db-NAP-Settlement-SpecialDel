@@ -83,14 +83,16 @@
 	/*****************Tables need to join with bettransXXX tables************************/
 	--#tmp_refno
 	INSERT INTO #tmp_refno (refno)
-	SELECT DISTINCT refno
-	FROM dbo.bettrans WITH (NOLOCK)
-	WHERE bettype = 29 AND matchid = 29
+	SELECT DISTINCT b.refno
+	FROM dbo.bettrans b WITH (NOLOCK)
+		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
+	WHERE b.bettype = 29 AND b.matchid = 29
 
 	INSERT INTO #tmp_refno (refno)
-	SELECT DISTINCT refno
-	FROM dbo.bettrans14  WITH (NOLOCK)
-	WHERE bettype = 29 AND matchid = 29
+	SELECT DISTINCT b.refno
+	FROM dbo.bettrans14 b WITH (NOLOCK)
+		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
+	WHERE b.bettype = 29 AND b.matchid = 29
 
 	/* Bet Tickets */
 	--5.  bodb02.dbo.BettransInfo	
