@@ -33,6 +33,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 */	
 AS
 BEGIN
+	SET NOCOUNT ON
 
 	DECLARE @transidXML XML
 	DECLARE @tempTrans TABLE (TransID BIGINT PRIMARY KEY)
@@ -295,7 +296,7 @@ FROM zzzbettransm b WITH (NOLOCK)
 -- TicketVoiding_RequestDetailTicket_Single
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
 	INNER JOIN SiteDB2tmp.dbo.bettrans_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
@@ -303,7 +304,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 -- TicketVoiding_RequestDetailTicket_Single
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
 	INNER JOIN SiteDB2tmp.dbo.bettrans14_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
@@ -311,7 +312,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 -- TicketVoiding_RequestDetailTicket_SubParlay
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
 	INNER JOIN SiteDB2tmp.dbo.bettransm_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
@@ -319,7 +320,7 @@ WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 --TicketVoiding_RequestDetailTicket_SubParlay
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
 	INNER JOIN SiteDB2tmp.dbo.bettransm14_20220929_SIT s ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
