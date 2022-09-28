@@ -107,6 +107,18 @@
 		INNER JOIN bettrans14 b WITH (NOLOCK) ON b.TransId = binfo.transid
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
+	--18. bodb02.dbo.Transfer_Coll
+	DELETE tc
+	FROM dbo.Transfer_Coll tc WITH (ROWLOCK)
+		INNER JOIN dbo.Transfer b WITH (NOLOCK) ON b.TransId = tc.TransID
+		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
+
+	--19. bodb02.dbo.TransferInfo
+	DELETE tc
+	FROM dbo.TransferInfo tc WITH (ROWLOCK)
+		INNER JOIN dbo.Transfer b WITH (NOLOCK) ON b.TransId = tc.TransID
+		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
+
 	--20. bodb02.dbo.BetParlayDetail	
 	DELETE b
 	FROM dbo.BetParlayDetail b WITH (ROWLOCK)
@@ -206,18 +218,6 @@
 	--16. bodb02.dbo.zzzbettransm
 	DELETE b
 	FROM dbo.zzzbettransm b WITH (ROWLOCK)
-		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
-
-	--18. bodb02.dbo.Transfer_Coll
-	DELETE tc
-	FROM dbo.Transfer_Coll tc WITH (ROWLOCK)
-		INNER JOIN dbo.Transfer b WITH (NOLOCK) ON b.TransId = tc.TransID
-		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
-
-	--19. bodb02.dbo.TransferInfo
-	DELETE tc
-	FROM dbo.TransferInfo tc WITH (ROWLOCK)
-		INNER JOIN dbo.Transfer b WITH (NOLOCK) ON b.TransId = tc.TransID
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
 
 	--17. bodb02.dbo.Transfer
