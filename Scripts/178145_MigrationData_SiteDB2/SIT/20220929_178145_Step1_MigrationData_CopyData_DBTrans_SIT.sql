@@ -276,6 +276,12 @@
 	INTO Transfer_20220929_SIT
 	FROM bodb02.dbo.Transfer b WITH (NOLOCK)
 		INNER JOIN #tmp_cust tmp ON tmp.custid = b.custid
+	UNION ALL
+	SELECT  b.[TransId], b.[CustId], b.[TransDate], b.[WinlostDate], b.[Bettype], b.[Stake], b.[Actual_Stake], b.[Winlost], b.[AWinlost], b.[MWinlost], b.[SWinlost], b.[PlayerComm], 
+			b.[Comm], b.[AComm], b.[SComm], b.[StatusId], b.[RefNo], b.[TransDesc], b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Username], b.[Currency], b.[CurrencyName], 
+			b.[ActualRate], b.[Creator], b.[Balance], b.[IP], b.[CheckTime], b.[SerialNo], b.[RepUpdateTime]
+	FROM dbo.Transfer b WITH (NOLOCK)
+	WHERE b.CustId = 3 AND b.Bettype = 20000
 
 	--bodb02.dbo.Transfer_Coll
 	SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
