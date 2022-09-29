@@ -15,7 +15,8 @@ AS
 		- 20210514@Kathy: Set waiting time for SP [Redmine:#153155]
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
-		 20220719@Louisa: Check SP under deployment [Redmine:#175251]
+		- 20220719@Louisa: Check SP under deployment [Redmine:#175251]
+		- 20220929@Louisa: Add VS Betrader, Betbuider, Auto Payout, Auto Refund [Redmine:#XXX]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -62,6 +63,26 @@ BEGIN
 	UNION ALL
 	SELECT 'Dot_Admin_SettleOutright_Trans', @WaitingTime, 0	
 	
+	--VS Betradar
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_VS_BetRadar_Push', @WaitingTime, 0	
+
+	--Betbuilder
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_BetBuilder_Push', @WaitingTime, 0
+
+	--Auto Payout
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_1_AutoPayout_Push', @WaitingTime, 0
+
+	--Auto Inst 
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_1_InstantCalculation_Push', @WaitingTime, 0
+
+	--Auto refund 
+	UNION ALL
+	SELECT 'NAP_Admin_Settlement_Refund_1_Push', @WaitingTime, 0
+		
 	
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
