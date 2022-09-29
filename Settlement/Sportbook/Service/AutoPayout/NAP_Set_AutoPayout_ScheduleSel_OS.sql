@@ -45,5 +45,6 @@ BEGIN
 	FROM @tmpMatchAuto tmp
 	WHERE tmp.Ranking = 1
 
+
 END
 GO
