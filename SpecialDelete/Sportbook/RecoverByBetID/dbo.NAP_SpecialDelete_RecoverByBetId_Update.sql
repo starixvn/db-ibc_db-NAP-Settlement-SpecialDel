@@ -17,6 +17,7 @@ AS
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans - Support NumberGame [Redmine: #175412]
+		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 
 	Param's Explanation:	
 */
@@ -110,7 +111,7 @@ BEGIN
 
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
 
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost MONEY, stake MONEY, statusID TINYINT, creator INT, transdate DATETIME, comstatus NVARCHAR(40))
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost TINYINT, stake MONEY, statusID TINYINT, creator INT, transdate DATETIME, comstatus NVARCHAR(40))
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
@@ -404,7 +405,7 @@ BEGIN
 		STATUS = 'running',
 		statusID = 0,
 		creator = r.creator
-	OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, '', inserted.status, inserted.statusID, inserted.creator
+	OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, inserted.statuswinlost, inserted.status, inserted.statusID, inserted.creator
 	INTO @tmpTransInfo (matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator) 
 	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #RecoverBet r ON b.transid = r.transid
@@ -429,7 +430,7 @@ BEGIN
 					, STATUS AS '@s'
 					, winlost AS '@w'
 					, ruben AS '@r'
-					, statuswinlost AS '@statuswl'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
 					, statusID AS '@sid'
 					, creator AS '@cr'
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 

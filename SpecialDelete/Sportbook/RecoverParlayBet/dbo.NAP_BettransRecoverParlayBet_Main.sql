@@ -27,6 +27,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -70,7 +71,7 @@ BEGIN
 			  matchid INT, transid BIGINT, status NVARCHAR(10) , statusID TINYINT, ruben TINYINT, modds SMALLMONEY
 			, winlost MONEY, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-			, statuswinlost MONEY, creator INT, ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
+			, statuswinlost TINYINT, creator INT, ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
 			, transdate DATETIME, comstatus NVARCHAR(40)
 			)
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
@@ -260,7 +261,7 @@ BEGIN
 		OUTPUT deleted.matchid, deleted.TransId, inserted.status, inserted.statusID, inserted.ruben, inserted.modds
 			, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost
 			, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm
-			, '', inserted.creator, inserted.ExtraInfo, inserted.FcUpdateTime
+			, inserted.statuswinlost, inserted.creator, inserted.ExtraInfo, inserted.FcUpdateTime
 		INTO @tmpTransInfo(matchid, transid, status, statusID, ruben, modds, winlost, aWinLost, mWinLost, sWinLost
 							,PlayerComm, Comm, aComm, sComm, statuswinlost, creator, ExtraInfo, FcUpdateTime)
 		FROM dbo.bettrans b
@@ -295,7 +296,7 @@ BEGIN
 						, comm AS '@c'
 						, acomm AS '@ac'
 						, scomm AS '@sc'
-					    , statuswinlost AS '@statuswl'
+					    , CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
 					    , creator AS '@cr'
 					    , ExtraInfo AS '@ex'
 					    , FcUpdateTime AS '@rut'

@@ -67,6 +67,7 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 
 	Param's Explanation:
 */
@@ -148,7 +149,7 @@ BEGIN
 	CREATE TABLE #t_match_completed(inputtransid BIGINT, custid INT, transdate DATETIME, odds SMALLMONEY, stake MONEY, winlost MONEY, status NVARCHAR(10))
 	
 	DECLARE @tmpTransInfo TABLE(
-			  matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost MONEY, stake MONEY
+			  matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost TINYINT, stake MONEY
 			, statusID TINYINT, creator INT, actual_stake MONEY, odds SMALLMONEY, oddsspread MONEY, transdesc NVARCHAR(2000), ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
 			, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
@@ -472,7 +473,7 @@ BEGIN
 		,transdesc = main.transdesc
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
 		,FcUpdateTime  = SYSDATETIME()
-	OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.winlost, inserted.ruben, ''
+	OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.winlost, inserted.ruben, inserted.statuswinlost
 			, inserted.statusID, inserted.creator, inserted.actual_stake, inserted.odds, inserted.transdesc, inserted.ExtraInfo, inserted.FcUpdateTime
 	INTO @tmpTransInfo (matchid, transid, status, winlost, ruben, statuswinlost, statusID, creator, actual_stake, odds, transdesc, ExtraInfo, FcUpdateTime)
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
@@ -500,7 +501,7 @@ BEGIN
 					, STATUS AS '@s'
 					, winlost AS '@w'
 					, ruben AS '@r'
-					, statuswinlost AS '@statuswl'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
 					, statusID AS '@sid'
 					, creator AS '@cr'
 					, actual_stake AS '@astake'
@@ -723,7 +724,7 @@ BEGIN
 		,oddsspread = bc.score
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
 		,FcUpdateTime  = SYSDATETIME()
-	OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.winlost, inserted.ruben, ''
+	OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.winlost, inserted.ruben, inserted.statuswinlost
 			, inserted.statusID, inserted.creator, inserted.odds, inserted.oddsspread, inserted.ExtraInfo, inserted.FcUpdateTime
 	INTO @tmpTransInfo (matchid, transid, status, winlost, ruben, statuswinlost, statusID, creator, odds, oddsspread, ExtraInfo, FcUpdateTime)
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
@@ -750,7 +751,7 @@ BEGIN
 					, STATUS AS '@s'
 					, winlost AS '@w'
 					, ruben AS '@r'
-					, statuswinlost AS '@statuswl'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
 					, statusID AS '@sid'
 					, creator AS '@cr'
 					, odds AS '@o'
