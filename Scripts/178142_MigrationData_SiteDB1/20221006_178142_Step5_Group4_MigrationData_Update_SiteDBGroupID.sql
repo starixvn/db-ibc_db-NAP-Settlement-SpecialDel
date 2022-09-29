@@ -83,13 +83,13 @@ FROM translog14 b WITH (NOLOCK)
 
 -- zzzbettrans
 INSERT INTO #tmp_zzzbettrans_scaleout (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM zzzbettrans b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
 -- zzzbettransm
 INSERT INTO #tmp_zzzbettransm_scaleout (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM zzzbettransm b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
