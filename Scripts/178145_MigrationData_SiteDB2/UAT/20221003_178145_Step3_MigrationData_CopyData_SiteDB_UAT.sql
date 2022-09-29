@@ -2,65 +2,65 @@
 
 /*
     Created by: 2022926@Victoria
-    Task: Data Migration - Test Licensee
+    Task: Data Migration - Test Licensee - UAT - ON SITEDB02
     DB: DBSIG-bodb02
 
 	 Revisions:
 		- 20220926@Victoria: INSERT from the copy all data of the following tables [Redmineid:#178145] 
 							 Bet tickets tables:
-								1.  DBCTG.SiteDB2tmp.dbo.bettrans_20220929_UAT				2.  DBCTG.SiteDB2tmp.dbo.bettrans14_20220929_UAT
-								3.  DBCTG.SiteDB2tmp.dbo.bettransG_20220929_UAT				4.  DBCTG.SiteDB2tmp.dbo.bettransG14_20220929_UAT
-								5.  DBCTG.SiteDB2tmp.dbo.BettransInfo_20220929_UAT			6.  DBCTG.SiteDB2tmp.dbo.BettransInfo14_20220929_UAT
-								7.  DBCTG.SiteDB2tmp.dbo.bettransLC_20220929_UAT				8.  DBCTG.SiteDB2tmp.dbo.bettransLC14_20220929_UAT
-								9.  DBCTG.SiteDB2tmp.dbo.bettransm_20220929_UAT				10. DBCTG.SiteDB2tmp.dbo.bettransm14_20220929_UAT
-								11. DBCTG.SiteDB2tmp.dbo.bettransRnG_20220929_UAT			12. DBCTG.SiteDB2tmp.dbo.bettransRnG14_20220929_UAT
-								13. DBCTG.SiteDB2tmp.dbo.translog_20220929_UAT				14. DBCTG.SiteDB2tmp.dbo.translog14_20220929_UAT
-								15. DBCTG.SiteDB2tmp.dbo.zzzbettrans_20220929_UAT			16. DBCTG.SiteDB2tmp.dbo.zzzbettransm_20220929_UAT
-								17. DBCTG.SiteDB2tmp.dbo.Transfer_20220929_UAT				18. DBCTG.SiteDB2tmp.dbo.Transfer_Coll_20220929_UAT		19. DBCTG.SiteDB2tmp.dbo.TransferInfo_20220929_UAT
-								20. DBCTG.SiteDB2tmp.dbo.BetParlayDetail_20220929_UAT		21. DBCTG.SiteDB2tmp.dbo.BetParlayResult_20220929_UAT
+								1.  DBCTG.SiteDB2tmp.dbo.bettrans_20221003_UAT				2.  DBCTG.SiteDB2tmp.dbo.bettrans14_20221003_UAT
+								3.  DBCTG.SiteDB2tmp.dbo.bettransG_20221003_UAT				4.  DBCTG.SiteDB2tmp.dbo.bettransG14_20221003_UAT
+								5.  DBCTG.SiteDB2tmp.dbo.BettransInfo_20221003_UAT			6.  DBCTG.SiteDB2tmp.dbo.BettransInfo14_20221003_UAT
+								7.  DBCTG.SiteDB2tmp.dbo.bettransLC_20221003_UAT				8.  DBCTG.SiteDB2tmp.dbo.bettransLC14_20221003_UAT
+								9.  DBCTG.SiteDB2tmp.dbo.bettransm_20221003_UAT				10. DBCTG.SiteDB2tmp.dbo.bettransm14_20221003_UAT
+								11. DBCTG.SiteDB2tmp.dbo.bettransRnG_20221003_UAT			12. DBCTG.SiteDB2tmp.dbo.bettransRnG14_20221003_UAT
+								13. DBCTG.SiteDB2tmp.dbo.translog_20221003_UAT				14. DBCTG.SiteDB2tmp.dbo.translog14_20221003_UAT
+								15. DBCTG.SiteDB2tmp.dbo.zzzbettrans_20221003_UAT			16. DBCTG.SiteDB2tmp.dbo.zzzbettransm_20221003_UAT
+								17. DBCTG.SiteDB2tmp.dbo.Transfer_20221003_UAT				18. DBCTG.SiteDB2tmp.dbo.Transfer_Coll_20221003_UAT		19. DBCTG.SiteDB2tmp.dbo.TransferInfo_20221003_UAT
+								20. DBCTG.SiteDB2tmp.dbo.BetParlayDetail_20221003_UAT		21. DBCTG.SiteDB2tmp.dbo.BetParlayResult_20221003_UAT
 							 Tables balance:
-								1.  DBCTG.SiteDB2tmp.dbo.BalCreditCasino_20220929_UAT
-								2.  DBCTG.SiteDB2tmp.dbo.BalCreditOthers_20220929_UAT
-								3.  DBCTG.SiteDB2tmp.dbo.BalCreditSports_20220929_UAT
-								4.  DBCTG.SiteDB2tmp.dbo.BalCreditTransfer_20220929_UAT
-								5.  DBCTG.SiteDB2tmp.dbo.BalDebitCasino_20220929_UAT
-								6.  DBCTG.SiteDB2tmp.dbo.BalDebitOthers_20220929_UAT
-								7.  DBCTG.SiteDB2tmp.dbo.BalDebitSports_20220929_UAT
-								8.  DBCTG.SiteDB2tmp.dbo.BalDebitTransfer_20220929_UAT
-								9.  DBCTG.SiteDB2tmp.dbo.BalNetPosition_20220929_UAT
-								10. DBCTG.SiteDB2tmp.dbo.balanceTable_20220929_UAT
-								11. DBCTG.SiteDB2tmp.dbo.balanceTable_tmp_20220929_UAT
-								12. DBCTG.SiteDB2tmp.dbo.BalanceTable_tmp_cal_20220929_UAT
+								1.  DBCTG.SiteDB2tmp.dbo.BalCreditCasino_20221003_UAT
+								2.  DBCTG.SiteDB2tmp.dbo.BalCreditOthers_20221003_UAT
+								3.  DBCTG.SiteDB2tmp.dbo.BalCreditSports_20221003_UAT
+								4.  DBCTG.SiteDB2tmp.dbo.BalCreditTransfer_20221003_UAT
+								5.  DBCTG.SiteDB2tmp.dbo.BalDebitCasino_20221003_UAT
+								6.  DBCTG.SiteDB2tmp.dbo.BalDebitOthers_20221003_UAT
+								7.  DBCTG.SiteDB2tmp.dbo.BalDebitSports_20221003_UAT
+								8.  DBCTG.SiteDB2tmp.dbo.BalDebitTransfer_20221003_UAT
+								9.  DBCTG.SiteDB2tmp.dbo.BalNetPosition_20221003_UAT
+								10. DBCTG.SiteDB2tmp.dbo.balanceTable_20221003_UAT
+								11. DBCTG.SiteDB2tmp.dbo.balanceTable_tmp_20221003_UAT
+								12. DBCTG.SiteDB2tmp.dbo.BalanceTable_tmp_cal_20221003_UAT
 							 Other tables:
-								1.  DBCTG.SiteDB2tmp.dbo.Bonus_sum_winloss_20220929_UAT
-								2.  DBCTG.SiteDB2tmp.dbo.BonusAdjustmentTransfer_20220929_UAT
-								3.  DBCTG.SiteDB2tmp.dbo.BonusTrans_20220929_UAT
-								4.  DBCTG.SiteDB2tmp.dbo.BonusWalletCredit_20220929_UAT
-								5.  DBCTG.SiteDB2tmp.dbo.BonusWalletDebit_20220929_UAT
-								6.  DBCTG.SiteDB2tmp.dbo.BonusWalletPending_20220929_UAT
-								7.  DBCTG.SiteDB2tmp.dbo.CashOutSelling_20220929_UAT
-								8.  DBCTG.SiteDB2tmp.dbo.CustLimitBet_LIC_20220929_UAT
-								9.  DBCTG.SiteDB2tmp.dbo.CustLimitBetHistory_LIC_20220929_UAT
-								10. DBCTG.SiteDB2tmp.dbo.Task_bettrans14_IP2Country_20220929_UAT
-								11. DBCTG.SiteDB2tmp.dbo.Task_bettransLC14_IP2Country_20220929_UAT
-								12. DBCTG.SiteDB2tmp.dbo.Task_bettransRNG14_IP2Country_20220929_UAT
+								1.  DBCTG.SiteDB2tmp.dbo.Bonus_sum_winloss_20221003_UAT
+								2.  DBCTG.SiteDB2tmp.dbo.BonusAdjustmentTransfer_20221003_UAT
+								3.  DBCTG.SiteDB2tmp.dbo.BonusTrans_20221003_UAT
+								4.  DBCTG.SiteDB2tmp.dbo.BonusWalletCredit_20221003_UAT
+								5.  DBCTG.SiteDB2tmp.dbo.BonusWalletDebit_20221003_UAT
+								6.  DBCTG.SiteDB2tmp.dbo.BonusWalletPending_20221003_UAT
+								7.  DBCTG.SiteDB2tmp.dbo.CashOutSelling_20221003_UAT
+								8.  DBCTG.SiteDB2tmp.dbo.CustLimitBet_LIC_20221003_UAT
+								9.  DBCTG.SiteDB2tmp.dbo.CustLimitBetHistory_LIC_20221003_UAT
+								10. DBCTG.SiteDB2tmp.dbo.Task_bettrans14_IP2Country_20221003_UAT
+								11. DBCTG.SiteDB2tmp.dbo.Task_bettransLC14_IP2Country_20221003_UAT
+								12. DBCTG.SiteDB2tmp.dbo.Task_bettransRNG14_IP2Country_20221003_UAT
 							 TW Tables list:
-								1.  DBCTG.SiteDB2tmp.dbo.BalancePendingCreditGame_20220929_UAT
-								2.  DBCTG.SiteDB2tmp.dbo.BalancePendingDebitGame_20220929_UAT
-								3.  DBCTG.SiteDB2tmp.dbo.BalCreditCasinoPending_20220929_UAT
-								4.  DBCTG.SiteDB2tmp.dbo.BalCreditOthersPending_20220929_UAT
-								5.  DBCTG.SiteDB2tmp.dbo.BalCreditSportsPending_20220929_UAT
-								6.  DBCTG.SiteDB2tmp.dbo.BalDebitCasinoPending_20220929_UAT
-								7.  DBCTG.SiteDB2tmp.dbo.BalDebitOthersPending_20220929_UAT
-								8.  DBCTG.SiteDB2tmp.dbo.BalDebitSportsPending_20220929_UAT
-								9.  DBCTG.SiteDB2tmp.dbo.Intg_GameRoundBetStake_20220929_UAT
-								10. DBCTG.SiteDB2tmp.dbo.LastBetTime_20220929_UAT
-								11. DBCTG.SiteDB2tmp.dbo.LastBetTime_Agent_20220929_UAT
-								12. DBCTG.SiteDB2tmp.dbo.MarkedTransaction_20220929_UAT
-								13. DBCTG.SiteDB2tmp.dbo.NetPositionCalculationLog_20220929_UAT
-								14. DBCTG.SiteDB2tmp.dbo.NetPositionTrans_20220929_UAT
-								15. DBCTG.SiteDB2tmp.dbo.Task_Cust_CheckBalance_Exception_20220929_UAT
-								16. DBCTG.SiteDB2tmp.dbo.Task_Cust_BalanceProblem1_20220929_UAT
+								1.  DBCTG.SiteDB2tmp.dbo.BalancePendingCreditGame_20221003_UAT
+								2.  DBCTG.SiteDB2tmp.dbo.BalancePendingDebitGame_20221003_UAT
+								3.  DBCTG.SiteDB2tmp.dbo.BalCreditCasinoPending_20221003_UAT
+								4.  DBCTG.SiteDB2tmp.dbo.BalCreditOthersPending_20221003_UAT
+								5.  DBCTG.SiteDB2tmp.dbo.BalCreditSportsPending_20221003_UAT
+								6.  DBCTG.SiteDB2tmp.dbo.BalDebitCasinoPending_20221003_UAT
+								7.  DBCTG.SiteDB2tmp.dbo.BalDebitOthersPending_20221003_UAT
+								8.  DBCTG.SiteDB2tmp.dbo.BalDebitSportsPending_20221003_UAT
+								9.  DBCTG.SiteDB2tmp.dbo.Intg_GameRoundBetStake_20221003_UAT
+								10. DBCTG.SiteDB2tmp.dbo.LastBetTime_20221003_UAT
+								11. DBCTG.SiteDB2tmp.dbo.LastBetTime_Agent_20221003_UAT
+								12. DBCTG.SiteDB2tmp.dbo.MarkedTransaction_20221003_UAT
+								13. DBCTG.SiteDB2tmp.dbo.NetPositionCalculationLog_20221003_UAT
+								14. DBCTG.SiteDB2tmp.dbo.NetPositionTrans_20221003_UAT
+								15. DBCTG.SiteDB2tmp.dbo.Task_Cust_CheckBalance_Exception_20221003_UAT
+								16. DBCTG.SiteDB2tmp.dbo.Task_Cust_BalanceProblem1_20221003_UAT
 */
 
 	USE bodb02
@@ -75,7 +75,7 @@
 								[matchid], [recommend], [mrecommend], [ruben], [betid], [statuswinlost], [modds], [bettype], [betdaqid], [actual_stake], [currency], 
 								[ip], [transdesc], [sdiscount], [scomm], [spositiontaking], [swinlost], [srecommend], [Username], [CurrencyName], [virtualrate], [oddstype], 
 								[statusID], [currency2], [balance], [SecAcceptFlag], [transid2], [recommdate], [ExtraInfo], [WalletType], [BonusID], [RefCode], [SettlementTime],
-								[epositiontaking], [ReasonID], [sort], [BetSiteID], [RepUpdateTime], b.[RepDstUpdateTime], [SiteDBGroupID], [FcUpdateTime])
+								[epositiontaking], [ReasonID], [sort], [BetSiteID], [RepUpdateTime], [RepDstUpdateTime], [SiteDBGroupID], [FcUpdateTime])
 	SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], b.[odds], b.[stake], b.[status], b.[winlost], b.[awinlost], b.[mwinlost], b.[playercomm], b.[comm], 
 			b.[acomm], b.[apositiontaking], b.[mpositiontaking], b.[tpositiontaking], b.[playerdiscount], b.[discount], b.[adiscount], b.[livehomescore], b.[liveawayscore], 
 			b.[liveindicator], b.[betteam], b.[creator], b.[refno], b.[comstatus], b.[winlostdate], b.[betfrom], b.[betcheck], b.[checktime], b.[oddsspread], b.[actualrate], 
@@ -83,7 +83,7 @@
 			b.[ip], b.[transdesc], b.[sdiscount], b.[scomm], b.[spositiontaking], b.[swinlost], b.[srecommend], b.[Username], b.[CurrencyName], b.[virtualrate], b.[oddstype], 
 			b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], b.[RefCode], b.[SettlementTime],
 			b.[epositiontaking], b.[ReasonID], b.[sort], b.[BetSiteID], b.[RepUpdateTime], b.[RepDstUpdateTime], b.[SiteDBGroupID], b.[FcUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.bettrans_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettrans_20221003_UAT b WITH (NOLOCK)
 
 	--bettrans14
 	INSERT INTO dbo.bettrans14 ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], 
@@ -100,7 +100,7 @@
 			b.[actual_stake], b.[currency], b.[ip], b.[transdesc], b.[sdiscount], b.[scomm], b.[spositiontaking], b.[swinlost], b.[srecommend], b.[virtualrate], b.[Username], 
 			b.[CurrencyName], b.[oddstype], b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], 
 			b.[RefCode], b.[SettlementTime], b.[epositiontaking], b.[ReasonID], b.[sort], b.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.bettrans14_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettrans14_20221003_UAT b WITH (NOLOCK)
 
 	--bettransG
 	INSERT INTO dbo.bettransG (	[transid], [custid], [transdate], [oddsid], [odds], [stake], [status], [winlost], [betteam], [creator], [refno], [winlostdate], [betfrom], 
@@ -113,7 +113,7 @@
 			b.[playercomm], b.[comm], b.[acomm], b.[actualrate], b.[matchid], b.[matchdate], b.[statuswinlost], b.[ruben], b.[bettype], b.[spositiontaking], b.[swinlost], 
 			b.[sdiscount], b.[scomm], b.[statusID], b.[virtualrate], b.[SiteID], b.[transdesc], b.[BetID3rd], b.[epositiontaking], b.[actual_stake], b.[netstake], 
 			b.[SiteDBGroupID] , b.[RepUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransG_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransG_20221003_UAT b WITH (NOLOCK)
 
 	--bettransG14
 	INSERT INTO dbo.bettransG14 ([transid], [custid], [transdate], [oddsid], [odds], [stake], [status], [winlost], [betteam], [creator], [refno], [winlostdate], [betfrom], 
@@ -126,17 +126,17 @@
 			b.[playercomm], b.[comm], b.[acomm], b.[actualrate], b.[matchid], b.[matchdate], b.[statuswinlost], b.[ruben], b.[bettype], b.[spositiontaking], b.[swinlost], 
 			b.[sdiscount], b.[scomm], b.[statusID], b.[virtualrate], b.[SiteID], b.[transdesc], b.[BetID3rd], b.[epositiontaking], b.[actual_stake], b.[netstake], 
 			b.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransG14_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransG14_20221003_UAT b WITH (NOLOCK)
 
 	--BettransInfo
 	INSERT INTO dbo.BettransInfo ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
 	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[RepUpdateTime], binfo.[ThirdTransID]
-	FROM DBCTG.SiteDB2tmp.dbo.BettransInfo_20220929_UAT binfo WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BettransInfo_20221003_UAT binfo WITH (NOLOCK)
 
 	--BettransInfo14
 	INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
 	SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
-	FROM DBCTG.SiteDB2tmp.dbo.BettransInfo14_20220929_UAT binfo WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BettransInfo14_20221003_UAT binfo WITH (NOLOCK)
 
 	--bettransLC
 	INSERT INTO dbo.bettransLC ([transid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -149,7 +149,7 @@
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], 
 			b.[gameID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], b.[acomm], 
 			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[SiteID], b.[epositiontaking], b.[SiteDBGroupID] , b.[RepUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransLC_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransLC_20221003_UAT b WITH (NOLOCK)
 
 	--bettransLC14
 	INSERT INTO dbo.bettransLC14	([transid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -162,7 +162,7 @@
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], 
 			b.[gameID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], b.[acomm], 
 			b.[scomm], b.[Transdate3rd], b.[NetStake], b.[epositiontaking], b.[SiteID], b.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransLC14_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransLC14_20221003_UAT b WITH (NOLOCK)
 
 	--bettransRnG
 	INSERT INTO dbo.bettransRnG ([transid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -177,7 +177,7 @@
 			b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], b.[acomm], b.[scomm], 
 			b.[Transdate3rd], b.[SiteID], b.[Additional], b.[JackpotInfo], b.[RefNo2], b.[ContributionRate], b.[BetStake], b.[ContributionStake3rd], 
 			b.[epositiontaking], b.[SiteDBGroupID], b.[RepUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransRnG_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransRnG_20221003_UAT b WITH (NOLOCK)
 
 	--bettransRnG14
 	INSERT INTO dbo.bettransRnG14 ([transid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -192,7 +192,7 @@
 			b.[gameID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[RefNo], b.[IsSum], b.[winlost], b.[awinlost], b.[mwinlost], b.[swinlost], b.[playercomm], b.[comm], 
 			b.[acomm], b.[scomm], b.[Transdate3rd], b.[Additional], b.[Siteid], b.[JackpotInfo], b.[RefNo2], b.[ContributionRate], b.[BetStake], b.[ContributionStake3rd], 
 			b.[epositiontaking], b.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransRnG14_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransRnG14_20221003_UAT b WITH (NOLOCK)
 
 	--translog
 	INSERT INTO dbo.translog	([translogid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -205,7 +205,7 @@
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], 
 			b.[gameID], b.[eventID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[custom1], b.[custom2], b.[custom3], b.[LiveIndicator], b.[checkCount], b.[SiteId], 
 			b.[epositiontaking], b.[SiteDBGroupID], b.[LicenseeTransId], b.[RepUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.translog_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.translog_20221003_UAT b WITH (NOLOCK)
 
 	--translog14
 	INSERT INTO dbo.translog14	([translogid], [custid], [transdate], [odds], [stake], [status], [apositiontaking], [mpositiontaking], [tpositiontaking], [spositiontaking], 
@@ -216,7 +216,7 @@
 			b.[playerdiscount], b.[discount], b.[adiscount], b.[sdiscount], b.[creator], b.[winlostdate], b.[betfrom], b.[virtualrate], b.[actualrate], b.[actual_stake], 
 			b.[currency], b.[CurrencyName], b.[recommend], b.[mrecommend], b.[srecommend], b.[ip], b.[statusID], b.[balance], b.[Username], b.[transdesc], b.[productID], b.[gameID], 
 			b.[eventID], b.[vendorID], b.[GameId3rd], b.[TranId3rd], b.[custom1], b.[custom2], b.[custom3], b.[LiveIndicator], b.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.translog14_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.translog14_20221003_UAT b WITH (NOLOCK)
 
 	
 	--bettransm
@@ -231,7 +231,7 @@
 			bm.[mpositiontaking], bm.[tpositiontaking], bm.[awinlost], bm.[mwinlost], bm.[playerdiscount], bm.[discount], bm.[adiscount], bm.[playercomm], bm.[comm], bm.[acomm], 
 			bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], 
 			bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[RepUpdateTime], bm.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransm_20220929_UAT bm WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransm_20221003_UAT bm WITH (NOLOCK)
 
 	--bettransm14
 	INSERT INTO dbo.bettransm14		([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
@@ -246,45 +246,45 @@
 			bm.[playercomm], bm.[comm], bm.[acomm], bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], 
 			bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], 
 			bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.bettransm14_20220929_UAT bm WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.bettransm14_20221003_UAT bm WITH (NOLOCK)
 	
    --BetParlayDetail
    INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
 									[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
 	SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
 			bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
-	FROM DBCTG.SiteDB2tmp.dbo.BetParlayDetail_20220929_UAT bpd WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BetParlayDetail_20221003_UAT bpd WITH (NOLOCK)
 
 	--BetParlayResult
 	INSERT INTO dbo.BetParlayResult ([RefNo], [Serial], [transid], [winlostdate], [statusid], [stake], [Odds], [mOdds], [winlost], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm])
 	SELECT	bpr.[RefNo], bpr.[Serial], bpr.[transid], bpr.[winlostdate], bpr.[statusid], bpr.[stake], bpr.[Odds], bpr.[mOdds], bpr.[winlost], bpr.[awinlost], bpr.[mwinlost], bpr.[swinlost], bpr.[playercomm], bpr.[comm], bpr.[acomm], bpr.[scomm]
-	FROM DBCTG.SiteDB2tmp.dbo.BetParlayResult_20220929_UAT bpr WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BetParlayResult_20221003_UAT bpr WITH (NOLOCK)
 
 	--zzzbettrans
-	SET IDENTITY_INSERT zzzbettrans ON
+	--SET IDENTITY_INSERT zzzbettrans ON
 
 	INSERT INTO dbo.zzzbettrans	([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 								[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [matchid], [bettype], 
-								[keyid], [VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
+								[VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.zzzbettrans_20220929_UAT z WITH (NOLOCK)
+			z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
+	FROM DBCTG.SiteDB2tmp.dbo.zzzbettrans_20221003_UAT z WITH (NOLOCK)
 
-	SET IDENTITY_INSERT zzzbettrans OFF	
+	--SET IDENTITY_INSERT zzzbettrans OFF	
 
 	--zzzbettransm
-	SET IDENTITY_INSERT zzzbettransm ON
+	--SET IDENTITY_INSERT zzzbettransm ON
 
 	INSERT INTO dbo.zzzbettransm (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 									[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [matchid], [bettype], 
-									[keyid], [VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
+									[VoidingHistoryId], [RepUpdateTime], [SiteDBGroupID])
 	SELECT  z.[transid], z.[custid], z.[transdate], z.[oddsid], z.[hdp1], z.[hdp2], z.[odds], z.[stake], z.[status], z.[winlost], z.[livehomescore], z.[liveawayscore], 
 			z.[liveindicator], z.[betteam], z.[creator], z.[refno], z.[comstatus], z.[winlostdate], z.[betfrom], z.[betcheck], z.[checktime], z.[matchid], z.[bettype], 
-			z.[keyid], z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
-	FROM DBCTG.SiteDB2tmp.dbo.zzzbettransm_20220929_UAT z WITH (NOLOCK)
+			z.[VoidingHistoryId], z.[RepUpdateTime], z.[SiteDBGroupID]
+	FROM DBCTG.SiteDB2tmp.dbo.zzzbettransm_20221003_UAT z WITH (NOLOCK)
 
-	SET IDENTITY_INSERT zzzbettransm OFF
+	--SET IDENTITY_INSERT zzzbettransm OFF
 
 	--Transfer
 	INSERT INTO dbo.Transfer	([TransId], [CustId], [TransDate], [WinlostDate], [Bettype], [Stake], [Actual_Stake], [Winlost], [AWinlost], [MWinlost], [SWinlost], [PlayerComm], 
@@ -293,7 +293,7 @@
 	SELECT  b.[TransId], b.[CustId], b.[TransDate], b.[WinlostDate], b.[Bettype], b.[Stake], b.[Actual_Stake], b.[Winlost], b.[AWinlost], b.[MWinlost], b.[SWinlost], b.[PlayerComm], 
 			b.[Comm], b.[AComm], b.[SComm], b.[StatusId], b.[RefNo], b.[TransDesc], b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Username], b.[Currency], b.[CurrencyName], 
 			b.[ActualRate], b.[Creator], b.[Balance], b.[IP], b.[CheckTime], b.[SerialNo], b.[RepUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.Transfer_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Transfer_20221003_UAT b WITH (NOLOCK)
 
 	
 	--Transfer_Coll
@@ -301,60 +301,60 @@
 									[Recommend], [MRecommend], [SRecommend], [Creator], [TransDesc], [IP], [RepUpdateTime])
 	SELECT  b.[CustId], b.[WinlostDate], b.[TransDate], b.[Bettype], b.[Debit], b.[Credit], b.[Currency], b.[ActualRate], b.[TransID], b.[RefNo], b.[Username], 
 			b.[Recommend], b.[MRecommend], b.[SRecommend], b.[Creator], b.[TransDesc], b.[IP], b.[RepUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.Transfer_Coll_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Transfer_Coll_20221003_UAT b WITH (NOLOCK)
 
 	--TransferInfo
 	INSERT INTO dbo.TransferInfo	([TransId], [APositiontaking], [MPositiontaking], [SPositiontaking], [EPositiontaking], [PlayerDiscount], [Discount], [ADiscount], [SDiscount], 
 									[WalletType], [BonusID], [Amount], [CheckerId], [CheckerName], [IsCollection], [IsDel], [RepUpdateTime])
 	SELECT  b.[TransId], b.[APositiontaking], b.[MPositiontaking], b.[SPositiontaking], b.[EPositiontaking], b.[PlayerDiscount], b.[Discount], b.[ADiscount], b.[SDiscount], 
 			b.[WalletType], b.[BonusID], b.[Amount], b.[CheckerId], b.[CheckerName], b.[IsCollection], b.[IsDel], b.[RepUpdateTime]
-	FROM DBCTG.SiteDB2tmp.dbo.TransferInfo_20220929_UAT b WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.TransferInfo_20221003_UAT b WITH (NOLOCK)
 
 	/********************Tables Balance*************************/
 	--1. BalCreditCasino
 	INSERT INTO [dbo].[BalCreditCasino] ([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalCreditCasino_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalCreditCasino_20221003_UAT bal WITH (NOLOCK)
 
 	--2. BalCreditOthers
 	INSERT INTO [dbo].[BalCreditOthers] ([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalCreditOthers_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalCreditOthers_20221003_UAT bal WITH (NOLOCK)
 
 	--3. BalCreditSports
 	INSERT INTO [dbo].[BalCreditSports] ([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalCreditSports_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalCreditSports_20221003_UAT bal WITH (NOLOCK)
 
 	--4. BalCreditTransfer
 	INSERT INTO  [dbo].[BalCreditTransfer]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalCreditTransfer_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalCreditTransfer_20221003_UAT bal WITH (NOLOCK)
 
 	--5. BalDebitCasino
 	INSERT INTO  [dbo].[BalDebitCasino]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalDebitCasino_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalDebitCasino_20221003_UAT bal WITH (NOLOCK)
 
 	--6. BalDebitOthers
 	INSERT INTO [dbo].[BalDebitOthers]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalDebitOthers_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalDebitOthers_20221003_UAT bal WITH (NOLOCK)
 
 	--7. BalDebitSports
 	INSERT INTO [dbo].[BalDebitSports]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalDebitSports_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalDebitSports_20221003_UAT bal WITH (NOLOCK)
 
 	--8. BalDebitTransfer
 	INSERT INTO [dbo].[BalDebitTransfer]([custid], [Balance])
 	SELECT bal.[custid], bal.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalDebitTransfer_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalDebitTransfer_20221003_UAT bal WITH (NOLOCK)
 
 	--9. BalNetPosition
 	INSERT INTO [dbo].[BalNetPosition]([CustID], [MatchID], [Bettype], [Debit], [Credit], [CreatedDate], [ModifiedDate])
 	SELECT bal.[CustID], bal.[MatchID], bal.[Bettype], bal.[Debit], bal.[Credit], bal.[CreatedDate], bal.[ModifiedDate]
-	FROM DBCTG.SiteDB2tmp.dbo.BalNetPosition_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalNetPosition_20221003_UAT bal WITH (NOLOCK)
 
 	--10. balanceTable
 	--There is no index for table balanceTable
@@ -362,14 +362,14 @@
 										[srecommend], [currency], [UserName], [CurrencyName], [actualrate], [TicketCount], [balTicketCount])
 	SELECT  bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
 			bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
-	FROM DBCTG.SiteDB2tmp.dbo.balanceTable_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.balanceTable_20221003_UAT bal WITH (NOLOCK)
 
 	--11. balanceTable_tmp
 	INSERT INTO [dbo].[balanceTable_tmp](	[winlostdate], [custid], [roleid], [amount], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm], [recommend], [mrecommend], 
 											[srecommend], [currency], [UserName], [CurrencyName], [actualrate], [TicketCount], [balTicketCount])
 	SELECT  bal.[winlostdate], bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
 			bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
-	FROM DBCTG.SiteDB2tmp.dbo.balanceTable_tmp_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.balanceTable_tmp_20221003_UAT bal WITH (NOLOCK)
 
 	--12. BalanceTable_tmp_cal
 	--There is no index for table balanceTable
@@ -377,14 +377,14 @@
 												[amt1], [tcnt1], [amt2], [tcnt2], [amt3], [tcnt3], [amt4], [tcnt4])
 	SELECT	bal.[dow], bal.[roleid], bal.[custid], bal.[recommend], bal.[mrecommend], bal.[srecommend], 
 			bal.[amt1], bal.[tcnt1], bal.[amt2], bal.[tcnt2], bal.[amt3], bal.[tcnt3], bal.[amt4], bal.[tcnt4]
-	FROM DBCTG.SiteDB2tmp.dbo.BalanceTable_tmp_cal_20220929_UAT bal WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalanceTable_tmp_cal_20221003_UAT bal WITH (NOLOCK)
 
 	/*******************Other Tables**********************/
 
 	--1. Bonus_sum_winloss
 	INSERT INTO [dbo].[Bonus_sum_winloss] ([CustId], [BonusId], [winlostdate], [Amount])
 	SELECT bon.[CustId], bon.[BonusId], bon.[winlostdate], bon.[Amount]
-	FROM DBCTG.SiteDB2tmp.dbo.Bonus_sum_winloss_20220929_UAT bon WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Bonus_sum_winloss_20221003_UAT bon WITH (NOLOCK)
 
 	--2. BonusAdjustmentTransfer
 	-- There is no index on custid for table BonusAdjustmentTransfer, has only an index on ExecID
@@ -392,7 +392,7 @@
 
 	INSERT INTO [dbo].[BonusAdjustmentTransfer] ([ExecID], [LogDate], [ExecDate], [CustID], [MatchID], [BonusID], [StatusID], [Amount], [isTransferred])
 	SELECT bon.[ExecID], bon.[LogDate], bon.[ExecDate], bon.[CustID], bon.[MatchID], bon.[BonusID], bon.[StatusID], bon.[Amount], bon.[isTransferred]
-	FROM DBCTG.SiteDB2tmp.dbo.BonusAdjustmentTransfer_20220929_UAT bon WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BonusAdjustmentTransfer_20221003_UAT bon WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BonusAdjustmentTransfer OFF
 
@@ -403,19 +403,19 @@
 									[PaymentDate], [IsComplained])
 	SELECT  bon.[BonusTransId], bon.[CustID], bon.[Recommend], bon.[Mrecommend], bon.[Srecommend], bon.[Amount], bon.[StatusId], bon.[Creator], bon.[CreatedDate], 
 			bon.[PaymentDate], bon.[IsComplained]
-	FROM DBCTG.SiteDB2tmp.dbo.BonusTrans_20220929_UAT bon WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BonusTrans_20221003_UAT bon WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BonusTrans OFF
 
 	--4. BonusWalletCredit
 	INSERT INTO [dbo].[BonusWalletCredit] ([CustID], [BonusID], [StatusID], [initBonus], [LockedAmt], [Amount])
 	SELECT  bon.[CustID], bon.[BonusID], bon.[StatusID], bon.[initBonus], bon.[LockedAmt], bon.[Amount]
-	FROM DBCTG.SiteDB2tmp.dbo.BonusWalletCredit_20220929_UAT bon WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BonusWalletCredit_20221003_UAT bon WITH (NOLOCK)
 
 	--5. BonusWalletDebit
 	INSERT INTO [dbo].[BonusWalletDebit] ([CustID], [BonusID], [Amount])
 	SELECT  bon.[CustID], bon.[BonusID], bon.[Amount]
-	FROM DBCTG.SiteDB2tmp.dbo.BonusWalletDebit_20220929_UAT bon WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BonusWalletDebit_20221003_UAT bon WITH (NOLOCK)
 
 	--6. BonusWalletPending
 	-- There is no index on custid for table BonusWalletPending, has only an index on Rn
@@ -423,7 +423,7 @@
 
 	INSERT INTO [dbo].[BonusWalletPending] ([Rn], [CustID], [BonusID], [Amount])
 	SELECT  bon.[Rn], bon.[CustID], bon.[BonusID], bon.[Amount]
-	FROM DBCTG.SiteDB2tmp.dbo.BonusWalletPending_20220929_UAT bon WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BonusWalletPending_20221003_UAT bon WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BonusWalletPending OFF
 
@@ -433,32 +433,32 @@
 										[CreateDate], [ChangeDate], [IsTest], [VirtualRate], [CashOutExtraInfo])
 	SELECT	cosell.[TransID], cosell.[MatchID], cosell.[Bettype], cosell.[Custid], cosell.[CashOutStatus], cosell.[Winlost], cosell.[PriceInfo], cosell.[CheckTime], 
 			cosell.[CreateDate], cosell.[ChangeDate], cosell.[IsTest], cosell.[VirtualRate], cosell.[CashOutExtraInfo]
-	FROM DBCTG.SiteDB2tmp.dbo.CashOutSelling_20220929_UAT cosell WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.CashOutSelling_20221003_UAT cosell WITH (NOLOCK)
 
 	--8. CustLimitBet_LIC
 	INSERT INTO [dbo].[CustLimitBet_LIC] ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
 	SELECT	clb.[Matchid], clb.[CustID], clb.[AccumTurnover], clb.[AccumPayout], clb.[EventTypeID], clb.[LastQueueID], clb.[ModifiedDate]
-	FROM DBCTG.SiteDB2tmp.dbo.CustLimitBet_LIC_20220929_UAT clb WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.CustLimitBet_LIC_20221003_UAT clb WITH (NOLOCK)
 
 	--9. CustLimitBetHistory_LIC
 	INSERT INTO [dbo].[CustLimitBetHistory_LIC] ([Matchid], [CustID], [Transid], [TurnoverAdjust], [PayoutAdjust], [EventTypeID], [CreatedDate])
 	SELECT	clbh.[Matchid], clbh.[CustID], clbh.[Transid], clbh.[TurnoverAdjust], clbh.[PayoutAdjust], clbh.[EventTypeID], clbh.[CreatedDate]
-	FROM DBCTG.SiteDB2tmp.dbo.CustLimitBetHistory_LIC_20220929_UAT clbh WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.CustLimitBetHistory_LIC_20221003_UAT clbh WITH (NOLOCK)
 
 	--10. dbo.Task_bettrans14_IP2Country
 	INSERT INTO [dbo].[Task_bettrans14_IP2Country] ([transid], [winlostdate], [CountryShort], [IPArchive])
 	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
-	FROM DBCTG.SiteDB2tmp.dbo.Task_bettrans14_IP2Country_20220929_UAT tbip WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Task_bettrans14_IP2Country_20221003_UAT tbip WITH (NOLOCK)
 		
 	--11. dbo.Task_bettransLC14_IP2Country
 	INSERT INTO [dbo].[Task_bettransLC14_IP2Country] ([transid], [winlostdate], [CountryShort], [IPArchive])
 	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
-	FROM DBCTG.SiteDB2tmp.dbo.Task_bettransLC14_IP2Country_20220929_UAT tbip WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Task_bettransLC14_IP2Country_20221003_UAT tbip WITH (NOLOCK)
 
 	--12. dbo.Task_bettransRNG14_IP2Country
 	INSERT INTO [dbo].[Task_bettransRNG14_IP2Country] ([transid], [winlostdate], [CountryShort], [IPArchive])
 	SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
-	FROM DBCTG.SiteDB2tmp.dbo.Task_bettransRNG14_IP2Country_20220929_UAT tbip WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Task_bettransRNG14_IP2Country_20221003_UAT tbip WITH (NOLOCK)
 
 	/*******************Other tables - TW list**********************/
 
@@ -468,7 +468,7 @@
 
 	INSERT INTO [dbo].[BalancePendingCreditGame] ([rn], [custid], [winlostdate], [Balance], [bettype], [GameTypeID])
 	SELECT bc.[rn], bc.[custid], bc.[winlostdate], bc.[Balance], bc.[bettype], bc.[GameTypeID]
-	FROM DBCTG.SiteDB2tmp.dbo.BalancePendingCreditGame_20220929_UAT bc WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalancePendingCreditGame_20221003_UAT bc WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalancePendingCreditGame OFF
 
@@ -478,7 +478,7 @@
 
 	INSERT INTO [dbo].[BalancePendingDebitGame] ([rn], [custid], [winlostdate], [Balance], [bettype], [GameTypeID])
 	SELECT bd.[rn], bd.[custid], bd.[winlostdate], bd.[Balance], bd.[bettype], bd.[GameTypeID]
-	FROM DBCTG.SiteDB2tmp.dbo.BalancePendingDebitGame_20220929_UAT bd WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalancePendingDebitGame_20221003_UAT bd WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalancePendingDebitGame OFF
 
@@ -488,7 +488,7 @@
 
 	INSERT INTO [dbo].[BalCreditCasinoPending] ([rn], [custid], [Balance])
 	SELECT bc.[rn], bc.[custid], bc.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalCreditCasinoPending_20220929_UAT bc WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalCreditCasinoPending_20221003_UAT bc WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalCreditCasinoPending OFF
 
@@ -498,7 +498,7 @@
 
 	INSERT INTO [dbo].[BalCreditOthersPending] ([rn], [custid], [Balance])
 	SELECT bc.[rn], bc.[custid], bc.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalCreditOthersPending_20220929_UAT bc WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalCreditOthersPending_20221003_UAT bc WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalCreditOthersPending OFF
 
@@ -508,7 +508,7 @@
 
 	INSERT INTO [dbo].[BalCreditSportsPending] ([rn], [custid], [Balance])
 	SELECT bc.[rn], bc.[custid], bc.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalCreditSportsPending_20220929_UAT bc WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalCreditSportsPending_20221003_UAT bc WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalCreditSportsPending OFF
 
@@ -518,7 +518,7 @@
 
 	INSERT INTO [dbo].[BalDebitCasinoPending] ([rn], [custid], [Balance])
 	SELECT bd.[rn], bd.[custid], bd.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalDebitCasinoPending_20220929_UAT bd WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalDebitCasinoPending_20221003_UAT bd WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalDebitCasinoPending OFF
 
@@ -528,7 +528,7 @@
 
 	INSERT INTO [dbo].[BalDebitOthersPending] ([rn], [custid], [Balance])
 	SELECT bd.[rn], bd.[custid], bd.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalDebitOthersPending_20220929_UAT bd WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalDebitOthersPending_20221003_UAT bd WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalDebitOthersPending OFF
 
@@ -538,7 +538,7 @@
 
 	INSERT INTO [dbo].[BalDebitSportsPending] ([rn], [custid], [Balance])
 	SELECT bd.[rn], bd.[custid], bd.[Balance]
-	FROM DBCTG.SiteDB2tmp.dbo.BalDebitSportsPending_20220929_UAT bd WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.BalDebitSportsPending_20221003_UAT bd WITH (NOLOCK)
 
 	SET IDENTITY_INSERT BalDebitSportsPending OFF
 
@@ -546,22 +546,22 @@
 	--There is no index on custid for table Intg_GameRoundBetStake
 	INSERT INTO [dbo].[Intg_GameRoundBetStake] ([VendorId], [BetId], [GameRound], [GameType], [BetChoice], [CustId], [Stake], [CreateDate])
 	SELECT igr.[VendorId], igr.[BetId], igr.[GameRound], igr.[GameType], igr.[BetChoice], igr.[CustId], igr.[Stake], igr.[CreateDate]
-	FROM DBCTG.SiteDB2tmp.dbo.Intg_GameRoundBetStake_20220929_UAT igr WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Intg_GameRoundBetStake_20221003_UAT igr WITH (NOLOCK)
 
 	--10. dbo.LastBetTime
 	INSERT INTO [dbo].[LastBetTime] ([custid], [transdate])
 	SELECT lb.[custid], lb.[transdate]
-	FROM DBCTG.SiteDB2tmp.dbo.LastBetTime_20220929_UAT lb WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.LastBetTime_20221003_UAT lb WITH (NOLOCK)
 
 	--11. dbo.LastBetTime_Agent
 	INSERT INTO [dbo].[LastBetTime_Agent] ([CustID], [MatchID], [BetType], [CustomerClass], [Platform], [TransDate])
 	SELECT lba.[CustID], lba.[MatchID], lba.[BetType], lba.[CustomerClass], lba.[Platform], lba.[TransDate]
-	FROM DBCTG.SiteDB2tmp.dbo.LastBetTime_Agent_20220929_UAT lba WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.LastBetTime_Agent_20221003_UAT lba WITH (NOLOCK)
 
 	--12. dbo.MarkedTransaction
 	INSERT INTO [dbo].[MarkedTransaction] ([TransId], [MatchId], [CustId], [bettype], [UserId], [CreatedDate], [MarkType])
 	SELECT mt.[TransId], mt.[MatchId], mt.[CustId], mt.[bettype], mt.[UserId], mt.[CreatedDate], mt.[MarkType]
-	FROM DBCTG.SiteDB2tmp.dbo.MarkedTransaction_20220929_UAT mt WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.MarkedTransaction_20221003_UAT mt WITH (NOLOCK)
 
 	--13. dbo.NetPositionCalculationLog
 	SET IDENTITY_INSERT NetPositionCalculationLog ON
@@ -570,7 +570,7 @@
 													[IsLatest], [CreatedDate], [ModifiedDate])
 	SELECT	npcl.[NPCalculationLogID], npcl.[CustID], npcl.[MatchID], npcl.[Bettype], npcl.[AccumNPDebit], npcl.[AccumNPCredit], npcl.[NPAdjust], 
 			npcl.[IsLatest], npcl.[CreatedDate], npcl.[ModifiedDate]
-	FROM DBCTG.SiteDB2tmp.dbo.NetPositionCalculationLog_20220929_UAT npcl WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.NetPositionCalculationLog_20221003_UAT npcl WITH (NOLOCK)
 
 	SET IDENTITY_INSERT NetPositionCalculationLog OFF
 
@@ -579,19 +579,19 @@
 											[isSettled], [CreatedDate], [ModifiedDate])
 	SELECT	npt.[TransID], npt.[CustID], npt.[MatchID], npt.[Bettype], npt.[Actual_stake], npt.[Payout1], npt.[Payoutx], npt.[Payout2], npt.[SyncStatus], 
 			npt.[isSettled], npt.[CreatedDate], npt.[ModifiedDate]
-	FROM DBCTG.SiteDB2tmp.dbo.NetPositionTrans_20220929_UAT npt WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.NetPositionTrans_20221003_UAT npt WITH (NOLOCK)
 
 	--15. dbo.Task_Cust_CheckBalance_Exception
 	INSERT INTO [dbo].[Task_Cust_CheckBalance_Exception] ([custid], [Remark])
 	SELECT	tce.[custid], tce.[Remark]
-	FROM DBCTG.SiteDB2tmp.dbo.Task_Cust_CheckBalance_Exception_20220929_UAT tce WITH (NOLOCK)
+	FROM DBCTG.SiteDB2tmp.dbo.Task_Cust_CheckBalance_Exception_20221003_UAT tce WITH (NOLOCK)
 
 	--16. bodb02.dbo.Task_Cust_BalanceProblem1
 	--There is no index on custid for table Task_Cust_BalanceProblem1, has only an index on keyID
-	SET IDENTITY_INSERT Task_Cust_BalanceProblem1 ON
+	--SET IDENTITY_INSERT Task_Cust_BalanceProblem1 ON
 
-	INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([keyID], [UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
-	SELECT tcb.[keyID], tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
-	FROM DBCTG.SiteDB2tmp.dbo.Task_Cust_BalanceProblem1_20220929_UAT tcb WITH (NOLOCK)
+	INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
+	SELECT tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFixed], tcb.[Remark]
+	FROM DBCTG.SiteDB2tmp.dbo.Task_Cust_BalanceProblem1_20221003_UAT tcb WITH (NOLOCK)
 
-	SET IDENTITY_INSERT Task_Cust_BalanceProblem1 OFF
+	--SET IDENTITY_INSERT Task_Cust_BalanceProblem1 OFF

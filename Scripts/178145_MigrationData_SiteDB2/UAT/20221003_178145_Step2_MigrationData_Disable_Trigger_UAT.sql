@@ -2,7 +2,7 @@
 
 /*
     Created by: 20220926@Victoria
-    Task: Data Migration - Disable Trigger
+    Task: Data Migration - Disable Trigger - UAT - ON SITEDB02
     DB: DBSIG-bodb02
 
 	 Revisions:
@@ -24,8 +24,4 @@
 	DISABLE TRIGGER [dbo].[TransLog_After_Insert] ON [dbo].[translog]
 	GO
 	DISABLE TRIGGER [dbo].[TransLog_After_Update] ON [dbo].[translog]
-	GO
-	DISABLE TRIGGER [dbo].[Transfer_After_Insert] ON [dbo].[Transfer]
-	GO
-	DISABLE TRIGGER [dbo].[Transfer_After_Update] ON [dbo].[Transfer]
 	GO

@@ -33,6 +33,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_09]
 */	
 AS
 BEGIN
+	SET NOCOUNT ON
 
 	DECLARE @transidXML XML
 	DECLARE @tempTrans TABLE (TransID BIGINT PRIMARY KEY)
@@ -179,27 +180,27 @@ GO
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE TABLE #tmp_cust_scaleout (custid INT PRIMARY KEY)
 
-CREATE TABLE #tmp_bettrans_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettrans14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransm_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransm14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_bettrans_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettrans14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransm_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransm14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
 
-CREATE TABLE #tmp_bettransLC_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransLC14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransRnG_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransRnG14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_bettransLC_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransLC14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransRnG_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransRnG14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
-CREATE TABLE #tmp_bettransG_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_bettransG14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_translog_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_translog14_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_bettransG_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettransG14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_translog_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_translog14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
-CREATE TABLE #tmp_zzzbettrans_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_zzzbettransm_scaleout (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_zzzbettrans_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_zzzbettransm_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
-CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_Single (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
-CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid BIGINT PRIMARY KEY, rid INT IDENTITY (1,1) )
+CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_Single (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_SubParlay (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
 CREATE TABLE #tmp_batch (transid BIGINT PRIMARY KEY)
 --------------------------------------------------------------
@@ -282,46 +283,46 @@ FROM translog14 b WITH (NOLOCK)
 
 -- zzzbettrans
 INSERT INTO #tmp_zzzbettrans_scaleout (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM zzzbettrans b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
 -- zzzbettransm
 INSERT INTO #tmp_zzzbettransm_scaleout (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM zzzbettransm b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
 -- TicketVoiding_RequestDetailTicket_Single
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 -- TicketVoiding_RequestDetailTicket_Single
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans14_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 -- TicketVoiding_RequestDetailTicket_SubParlay
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 -- Only update for tickets created before migration on 22/09/2022
 INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT b.transid
+SELECT DISTINCT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm14_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 ---------------------- param declare to process data -----
@@ -345,9 +346,6 @@ BEGIN
 	SET @StopRow = @Threshold
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
-		
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -359,7 +357,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -388,9 +386,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -402,7 +398,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -431,9 +427,7 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-		PRINT @StartRow
-		PRINT @StopRow
-		
+
 		TRUNCATE TABLE #tmp_batch
 
 		DELETE R
@@ -445,7 +439,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -473,9 +467,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -488,7 +479,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -518,9 +509,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -533,7 +521,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -562,9 +550,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -577,7 +562,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -606,9 +591,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -621,7 +603,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -650,9 +632,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -665,7 +644,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -694,9 +673,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -709,7 +685,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -737,9 +713,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -752,7 +725,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -780,9 +753,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -795,7 +765,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -823,9 +793,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -838,7 +805,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -867,9 +834,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -882,7 +846,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -911,9 +875,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -926,7 +887,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -955,9 +916,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -970,7 +928,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -999,9 +957,6 @@ BEGIN
 
 	WHILE (1 = 1)
 	BEGIN
-	
-		PRINT @StartRow
-		PRINT @StopRow
 		
 		TRUNCATE TABLE #tmp_batch
 
@@ -1014,7 +969,7 @@ BEGIN
 		IF @@ROWCOUNT = 0 
 			BREAK
 
-		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
 		SET @transIds = (SELECT transid AS t
@@ -1112,25 +1067,25 @@ WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 --TicketVoiding_RequestDetailTicket_Single
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_Single
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans14_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettrans14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_SubParlay
 SELECT b.transid
 FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm14_20220929_UAT s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN SiteDB2tmp.dbo.bettransm14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
 WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
 
 */
