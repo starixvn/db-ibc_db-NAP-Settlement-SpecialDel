@@ -5,8 +5,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_ManageVoidServices_VoidingHistory_Select]
 )
 AS
 /*	
-	Created by: July
-	Date 20220927
+	Created by: 20220927@July
 	Task: [TVS] Manage Void Service - Support web [Redmine: #178172]
 	DB: DBCTG/bodb02
 	
