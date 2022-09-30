@@ -52,20 +52,20 @@ BEGIN
 		FROM	dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
-		
-	IF (@tablename = 'bettransm' AND OBJECT_ID(N'dbo.bettransm') is not null)
-	BEGIN
-		UPDATE b
-			SET SiteDBGroupID = @SiteDBGroupID
-		FROM	dbo.bettransm b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tempTrans t ON b.transid = t.TransId
-	END
 
 	IF (@tablename = 'bettrans14' AND OBJECT_ID(N'dbo.bettrans14') is not null)
 	BEGIN
 		UPDATE b
 			SET SiteDBGroupID = @SiteDBGroupID
 		FROM	dbo.bettrans14 b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tempTrans t ON b.transid = t.TransId
+	END
+		
+	IF (@tablename = 'bettransm' AND OBJECT_ID(N'dbo.bettransm') is not null)
+	BEGIN
+		UPDATE b
+			SET SiteDBGroupID = @SiteDBGroupID
+		FROM	dbo.bettransm b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
 
@@ -84,6 +84,14 @@ BEGIN
 		FROM	dbo.bettransRnG b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
+
+	IF (@tablename = 'bettransRnG14' AND OBJECT_ID(N'dbo.bettransRnG14') is not null)
+	BEGIN
+		UPDATE b
+			SET SiteDBGroupID = @SiteDBGroupID
+		FROM	dbo.bettransRnG14 b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tempTrans t ON b.transid = t.TransId
+	END
 	
 	IF (@tablename = 'Translog' AND OBJECT_ID(N'dbo.Translog') is not null)
 	BEGIN
@@ -91,30 +99,6 @@ BEGIN
 			SET SiteDBGroupID = @SiteDBGroupID
 		FROM	dbo.Translog b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tempTrans t ON b.translogid = t.TransId
-	END
-
-	IF (@tablename = 'BettransLC' AND OBJECT_ID(N'dbo.BettransLC') is not null)
-	BEGIN
-		UPDATE b
-			SET SiteDBGroupID = @SiteDBGroupID
-		FROM	dbo.BettransLC b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tempTrans t ON b.transid = t.TransId
-	END
-	
-	IF (@tablename = 'bettransG' AND OBJECT_ID(N'dbo.bettransG') is not null)
-	BEGIN
-		UPDATE b
-			SET SiteDBGroupID = @SiteDBGroupID
-		FROM	dbo.bettransG b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tempTrans t ON b.transid = t.TransId
-	END
-	
-	IF (@tablename = 'bettransRnG14' AND OBJECT_ID(N'dbo.bettransRnG14') is not null)
-	BEGIN
-		UPDATE b
-			SET SiteDBGroupID = @SiteDBGroupID
-		FROM	dbo.bettransRnG14 b WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
 
 	IF (@tablename = 'Translog14' AND OBJECT_ID(N'dbo.Translog14') is not null)
@@ -125,11 +109,27 @@ BEGIN
 			INNER JOIN @tempTrans t ON b.translogid = t.TransId
 	END
 
+	IF (@tablename = 'BettransLC' AND OBJECT_ID(N'dbo.BettransLC') is not null)
+	BEGIN
+		UPDATE b
+			SET SiteDBGroupID = @SiteDBGroupID
+		FROM	dbo.BettransLC b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tempTrans t ON b.transid = t.TransId
+	END
+
 	IF (@tablename = 'BettransLC14' AND OBJECT_ID(N'dbo.BettransLC14') is not null)
 	BEGIN
 		UPDATE b
 			SET SiteDBGroupID = @SiteDBGroupID
 		FROM	dbo.BettransLC14 b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN @tempTrans t ON b.transid = t.TransId
+	END
+	
+	IF (@tablename = 'bettransG' AND OBJECT_ID(N'dbo.bettransG') is not null)
+	BEGIN
+		UPDATE b
+			SET SiteDBGroupID = @SiteDBGroupID
+		FROM	dbo.bettransG b WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN @tempTrans t ON b.transid = t.TransId
 	END
 
@@ -178,154 +178,40 @@ END
 GO
 -----------STEP 2: NEED TO RUN ON DBTRANS ONLY - UPDATE sitedbgroupid for scale out licensee at DBTRANS & ALL SubDB ------------------------------------------
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+
 CREATE TABLE #tmp_cust_scaleout (custid INT PRIMARY KEY)
 
-CREATE TABLE #tmp_bettrans_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_bettrans14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_bettransm_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_bettransm14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_bettrans (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
 
-
-CREATE TABLE #tmp_bettransLC_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_bettransLC14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_bettransRnG_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_bettransRnG14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-
-CREATE TABLE #tmp_bettransG_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_bettransG14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_translog_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_translog14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-
-CREATE TABLE #tmp_zzzbettrans_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_zzzbettransm_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-
-CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_Single (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
-CREATE TABLE #tmp_TicketVoiding_RequestDetailTicket_SubParlay (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+CREATE TABLE #tmp_table_list (rid INT IDENTITY (1,1) PRIMARY KEY, tablename VARCHAR(200))
 
 CREATE TABLE #tmp_batch (transid BIGINT PRIMARY KEY)
 --------------------------------------------------------------
+INSERT INTO #tmp_table_list (tablename)
+VALUES	  ('bettrans')
+		, ( 'bettrans14')
+		, ('bettransm')
+		, ('bettransm14')
+		, ('bettransRnG')
+		, ('bettransRnG14')
+		, ('Translog')
+		, ('Translog14')
+		, ('BettransLC')
+		, ('BettransLC14')
+		, ('bettransG')
+		, ('bettransG14')
+		, ('zzzbettrans')
+		, ('zzzbettransm')
+		, ('TicketVoiding_RequestDetailTicket_Single')
+		, ('TicketVoiding_RequestDetailTicket_SubParlay')
+
+-----------------------------------------------------------
 INSERT INTO #tmp_cust_scaleout (custid)
 SELECT DISTINCT custid
 FROM CustDB.dbo.Customer WITH (NOLOCK)
 WHERE site IN ('Golden88')
--------------------DATA PREPARATION --------------------------
--- bettrans
-INSERT INTO #tmp_bettrans_scaleout (transid)
-SELECT transid
-FROM bettrans b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+-------------------------------------------------------------
 
--- bettrans14
-INSERT INTO #tmp_bettrans14_scaleout (transid)
-SELECT transid
-FROM bettrans14 b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- bettransm
-INSERT INTO #tmp_bettransm_scaleout (transid)
-SELECT transid
-FROM bettransm b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- bettransm14
-INSERT INTO #tmp_bettransm14_scaleout (transid)
-SELECT transid
-FROM bettransm14 b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-	
--- bettransLC
-INSERT INTO #tmp_bettransLC_scaleout (transid)
-SELECT transid
-FROM bettransLC b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- bettransLC14
-INSERT INTO #tmp_bettransLC14_scaleout (transid)
-SELECT transid
-FROM bettransLC14 b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- bettransRnG
-INSERT INTO #tmp_bettransRnG_scaleout (transid)
-SELECT transid
-FROM bettransRnG b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- bettransRnG14
-INSERT INTO #tmp_bettransRnG14_scaleout (transid)
-SELECT transid
-FROM bettransRnG14 b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- bettransG
-INSERT INTO #tmp_bettransG_scaleout (transid)
-SELECT transid
-FROM bettransG b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- bettransG14
-INSERT INTO #tmp_bettransG14_scaleout (transid)
-SELECT transid
-FROM bettransG14 b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- translog
-INSERT INTO #tmp_translog_scaleout (transid)
-SELECT translogid
-FROM translog b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- translog14
-INSERT INTO #tmp_translog14_scaleout (transid)
-SELECT translogid
-FROM translog14 b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- zzzbettrans
-INSERT INTO #tmp_zzzbettrans_scaleout (transid)
-SELECT DISTINCT b.transid
-FROM zzzbettrans b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- zzzbettransm
-INSERT INTO #tmp_zzzbettransm_scaleout (transid)
-SELECT DISTINCT b.transid
-FROM zzzbettransm b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
-
--- TicketVoiding_RequestDetailTicket_Single
--- Only update for tickets created before migration on 22/09/2022
-INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT DISTINCT b.transid
-FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
-
--- TicketVoiding_RequestDetailTicket_Single
--- Only update for tickets created before migration on 22/09/2022
-INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_Single (transid)
-SELECT DISTINCT b.transid
-FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
-
--- TicketVoiding_RequestDetailTicket_SubParlay
--- Only update for tickets created before migration on 22/09/2022
-INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT DISTINCT b.transid
-FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
-
---TicketVoiding_RequestDetailTicket_SubParlay
--- Only update for tickets created before migration on 22/09/2022
-INSERT INTO #tmp_TicketVoiding_RequestDetailTicket_SubParlay (transid)
-SELECT DISTINCT b.transid
-FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
-
----------------------- param declare to process data -----
 DECLARE @StartRow INT = 1
 	, @StopRow INT 
 	, @MaxRow INT 
@@ -333,659 +219,133 @@ DECLARE @StartRow INT = 1
 	, @tablename VARCHAR (200)
 	, @transIds VARCHAR (MAX) = ''
 	, @siteDBGroupID SMALLINT = 2
+	, @rid_table INT = 1
+	, @max_rid_table INT
+	, @query NVARCHAR (max)
 
 DECLARE @debug_message VARCHAR(500)
 
------- 1. bettrans - #tmp_bettrans_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettrans_scaleout)
+SELECT @max_rid_table = MAX(rid) FROM #tmp_table_list
+
+WHILE (@rid_table <= @max_rid_table)
 BEGIN
-	SET @tablename = 'bettrans'
-	SET @StartRow = 1		
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettrans_scaleout)
-	-- SET for first batch
-	SET @StopRow = @Threshold
-	WHILE (1 = 1)
+	SELECT @tablename = tablename FROM #tmp_table_list WHERE rid = @rid_table
+
+	SET  @query = CASE	@tablename	WHEN  'bettrans' THEN	'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettrans b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettrans14' THEN	'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettrans14 b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransm' THEN	'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransm b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransm14' THEN 'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransm14 b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransLC' THEN 'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransLC b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransLC14' THEN 'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransLC14 b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransRnG' THEN 'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransRnG b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransRnG14' THEN 'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransRnG14 b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransG' THEN   'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransG b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'bettransG14' THEN   'INSERT INTO #tmp_bettrans (transid) 
+																SELECT b.transid 
+																FROM bettransG14 b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'zzzbettrans' THEN   'INSERT INTO #tmp_bettrans (transid) 
+																SELECT DISTINCT b.transid 
+																FROM zzzbettrans b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'zzzbettransm' THEN   'INSERT INTO #tmp_bettrans (transid) 
+																SELECT DISTINCT b.transid 
+																FROM zzzbettransm b WITH (NOLOCK)
+																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'TicketVoiding_RequestDetailTicket_Single' THEN  'INSERT INTO #tmp_bettrans (transid) 
+																							SELECT DISTINCT tsingle.transid 
+																							FROM TicketVoiding_RequestDetailTicket_Single tsingle WITH (NOLOCK)
+																								INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = tsingle.transid
+																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+																							INSERT INTO #tmp_bettrans (transid) 
+																							SELECT DISTINCT tsingle.transid 
+																							FROM TicketVoiding_RequestDetailTicket_Single tsingle WITH (NOLOCK)
+																								INNER JOIN bettrans14 b WITH (NOLOCK) ON b.transid = tsingle.transid
+																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'TicketVoiding_RequestDetailTicket_SubParlay' THEN  'INSERT INTO #tmp_bettrans (transid) 
+																							SELECT DISTINCT tparlay.transid 
+																							FROM TicketVoiding_RequestDetailTicket_SubParlay tparlay WITH (NOLOCK)
+																								INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = tparlay.transid
+																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+																							INSERT INTO #tmp_bettrans (transid) 
+																							SELECT DISTINCT tparlay.transid 
+																							FROM TicketVoiding_RequestDetailTicket_SubParlay tparlay WITH (NOLOCK)
+																								INNER JOIN bettrans14 b WITH (NOLOCK) ON b.transid = tparlay.transid
+																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+					END
+
+	EXEC sys.sp_executesql @query
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettrans) 
 	BEGIN
-		TRUNCATE TABLE #tmp_batch
+		SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettrans)
+			
+		SET @StartRow = 1		
+		-- SET for first batch
+		SET @StopRow = @Threshold 
+		WHILE (1 = 1)
+		BEGIN
+			TRUNCATE TABLE #tmp_batch
 
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettrans_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
+			DELETE R
+			OUTPUT DELETED.transid
+			INTO #tmp_batch (transid)		
+			FROM #tmp_bettrans R
+			WHERE rid BETWEEN @StartRow AND @StopRow
 	
-		IF @@ROWCOUNT = 0 
-			BREAK
+			IF @@ROWCOUNT = 0 
+				BREAK
 
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
+			SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
+			RAISERROR (@debug_message, 0, 1) WITH NOWAIT
 
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch 
-						FOR XML RAW ('r'), ROOT ('root'))
+			SET @transIds = (SELECT transid AS t
+							FROM #tmp_batch 
+							FOR XML RAW ('r'), ROOT ('root'))
 
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
+			EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
 
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
+			WAITFOR DELAY '00:00:00.010' --optional
+			TRUNCATE TABLE #tmp_batch
 
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
+			SET @StartRow = @StopRow + 1
+			SET @StopRow = @StopRow + @Threshold
 
-		IF @StartRow > @MaxRow BREAK
+			IF @StartRow > @MaxRow BREAK
 
+		END
 	END
-END
------- 2. bettrans14 - #tmp_bettrans14_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettrans14_scaleout)
-BEGIN 
-	SET @tablename = 'bettrans14'
-	SET @StartRow = 1		
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettrans14_scaleout)
-	SET @StopRow = @Threshold
 
-	WHILE (1 = 1)
-	BEGIN
+	TRUNCATE TABLE #tmp_bettrans
+	SET @rid_table = @rid_table + 1
 
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettrans14_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-
-	END
-END
------- 3. bettransm - #tmp_bettransm_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransm_scaleout)
-BEGIN
-	SET @tablename = 'bettransm'
-	SET @StartRow = 1		
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransm_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransm_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
------- 4. bettransm14 - #tmp_bettransm14_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransm14_scaleout)
-BEGIN 
-	SET @tablename = 'bettransm14'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransm14_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransm14_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch 
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
----------------------new -----------------
------- 5. bettransLC - #tmp_bettransLC_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransLC_scaleout)
-BEGIN 
-	SET @tablename = 'bettransLC'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransLC_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransLC_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch 
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
------- 6. bettransLC14 - #tmp_bettransLC14_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransLC14_scaleout)
-BEGIN 
-	SET @tablename = 'bettransLC14'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransLC14_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransLC14_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch 
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
------- 7. bettransRnG - #tmp_bettransRnG_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransRnG_scaleout)
-BEGIN 
-	SET @tablename = 'bettransRnG'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransRnG_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransRnG_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
------- 8. bettransRnG14 - #tmp_bettransRnG14_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransRnG14_scaleout)
-BEGIN 
-	SET @tablename = 'bettransRnG14'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransRnG14_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransRnG14_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch 
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
------- 9. bettransG - #tmp_bettransG_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransG_scaleout)
-BEGIN 
-	SET @tablename = 'bettransG'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransG_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransG_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch 
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
------- 10. bettransG14 - #tmp_bettransG14_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettransG14_scaleout)
-BEGIN 
-	SET @tablename = 'bettransG14'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettransG14_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_bettransG14_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
------- 11. translog - #tmp_translog_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_translog_scaleout)
-BEGIN 
-	SET @tablename = 'translog'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_translog_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_translog_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
------- 12. translog14 - #tmp_translog14_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_translog14_scaleout)
-BEGIN 
-	SET @tablename = 'translog14'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_translog14_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_translog14_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
------- 13. zzzbettrans - #tmp_zzzbettrans_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_zzzbettrans_scaleout)
-BEGIN 
-	SET @tablename = 'zzzbettrans'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_zzzbettrans_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_zzzbettrans_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
------- 14. zzzbettransm - #tmp_zzzbettransm_scaleout ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_zzzbettransm_scaleout)
-BEGIN 
-	SET @tablename = 'zzzbettransm'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_zzzbettransm_scaleout)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_zzzbettransm_scaleout R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
------- 15. TicketVoiding_RequestDetailTicket_Single - #tmp_TicketVoiding_RequestDetailTicket_Single ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_TicketVoiding_RequestDetailTicket_Single)
-BEGIN 
-	SET @tablename = 'TicketVoiding_RequestDetailTicket_Single'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_TicketVoiding_RequestDetailTicket_Single)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_TicketVoiding_RequestDetailTicket_Single R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
-END
-
-------16. TicketVoiding_RequestDetailTicket_SubParlay - #tmp_TicketVoiding_RequestDetailTicket_SubParlay ------------
-IF EXISTS (SELECT TOP 1 1 FROM #tmp_TicketVoiding_RequestDetailTicket_SubParlay)
-BEGIN 
-	SET @tablename = 'TicketVoiding_RequestDetailTicket_SubParlay'
-	SET @StartRow = 1	
-	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_TicketVoiding_RequestDetailTicket_SubParlay)
-	SET @StopRow = @Threshold
-
-	WHILE (1 = 1)
-	BEGIN
-		
-		TRUNCATE TABLE #tmp_batch
-
-		DELETE R
-		OUTPUT DELETED.transid
-		INTO #tmp_batch (transid)		
-		FROM #tmp_TicketVoiding_RequestDetailTicket_SubParlay R
-		WHERE rid BETWEEN @StartRow AND @StopRow
-	
-		IF @@ROWCOUNT = 0 
-			BREAK
-
-		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
-		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
-
-		SET @transIds = (SELECT transid AS t
-						FROM #tmp_batch
-						FOR XML RAW ('r'), ROOT ('root'))
-
-		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
-
-		WAITFOR DELAY '00:00:00.010' --optional
-		TRUNCATE TABLE #tmp_batch
-
-		SET @StartRow = @StopRow + 1
-		SET @StopRow = @StopRow + @Threshold
-
-		IF @StartRow > @MaxRow BREAK
-	END
 END
 
 /*
@@ -1065,29 +425,31 @@ FROM zzzbettransm b WITH (NOLOCK)
 WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
 
 --TicketVoiding_RequestDetailTicket_Single
-SELECT b.transid
-FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
+SELECT tsingle.transid 
+FROM TicketVoiding_RequestDetailTicket_Single tsingle WITH (NOLOCK)
+	INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = tsingle.transid
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
---TicketVoiding_RequestDetailTicket_Single
-SELECT b.transid
-FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettrans14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
-
---TicketVoiding_RequestDetailTicket_SubParlay
-SELECT b.transid
-FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
+SELECT tsingle.transid 
+FROM TicketVoiding_RequestDetailTicket_Single tsingle WITH (NOLOCK)
+	INNER JOIN bettrans14 b WITH (NOLOCK) ON b.transid = tsingle.transid
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
 --TicketVoiding_RequestDetailTicket_SubParlay
-SELECT b.transid
-FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
-	INNER JOIN SiteDB2tmp.dbo.bettransm14_20221003_UAT s WITH (NOLOCK) ON s.transid = b.transid AND s.matchid = b.MatchId
-WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
+SELECT tparlay.transid 
+FROM TicketVoiding_RequestDetailTicket_SubParlay tparlay WITH (NOLOCK)
+	INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = tparlay.transid
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+
+SELECT tparlay.transid 
+FROM TicketVoiding_RequestDetailTicket_SubParlay tparlay WITH (NOLOCK)
+	INNER JOIN bettrans14 b WITH (NOLOCK) ON b.transid = tparlay.transid
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
 
 */
 
+--DROP TABLE #tmp_batch
+--DROP TABLE #tmp_bettrans
+--DROP TABLE #tmp_table_list
+--DROP TABLE #tmp_cust_scaleout
 
