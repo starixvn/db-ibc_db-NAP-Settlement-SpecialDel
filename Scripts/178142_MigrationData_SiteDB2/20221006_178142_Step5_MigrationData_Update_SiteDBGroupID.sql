@@ -207,7 +207,7 @@ CREATE TABLE #tmp_batch (transid BIGINT PRIMARY KEY)
 INSERT INTO #tmp_cust_scaleout (custid)
 SELECT DISTINCT custid
 FROM CustDB.dbo.Customer WITH (NOLOCK)
-WHERE site IN ('OneSports', '9club', 'X2Dynamic')
+WHERE site IN ('OneSports', '9club', 'X2Dynamic', 'Macaubet')
 
 -------------------DATA PREPARATION --------------------------
 -- bettrans

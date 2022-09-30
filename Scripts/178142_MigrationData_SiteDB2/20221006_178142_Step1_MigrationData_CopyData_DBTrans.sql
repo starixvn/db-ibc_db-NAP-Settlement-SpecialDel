@@ -86,7 +86,7 @@
 	INSERT INTO cust_sitedb2_20221006 (custid)
 	SELECT DISTINCT custid
 	FROM CustDB.dbo.Customer WITH (NOLOCK)
-	WHERE site IN	('OneSports', '9club', 'X2Dynamic')
+	WHERE site IN	('OneSports', '9club', 'X2Dynamic', 'Macaubet')
 	------------------------------------------------
 	/*******************Bet Tickets Tables**********************/
 	--bodb02.dbo.bettrans
