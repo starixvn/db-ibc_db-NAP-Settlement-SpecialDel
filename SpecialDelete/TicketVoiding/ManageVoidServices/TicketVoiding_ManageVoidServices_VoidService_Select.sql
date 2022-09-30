@@ -1,7 +1,8 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_ManageVoidServices_VoidService_Select]
 (
-	@BroadcastSessionId		VARCHAR(100)
+	@BroadcastSessionId		VARCHAR(100) = NULL
+   ,@RequestId				INT = NULL
 )
 AS
 /*	
@@ -18,19 +19,36 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT Id
-		  ,BroadcastSessionId
-		  ,SiteDBGroupID
-		  ,RequestId
-		  ,VoidingHistoryId
-		  ,StatusId
-		  ,IsAutoVoid
-		  ,MatchId
-		  ,CreatedDate
-		  ,ModifiedDate
-	FROM dbo.TicketVoiding_Void_Service q WITH(NOLOCK)
-	WHERE BroadcastSessionId = @BroadcastSessionId
-
+	IF @BroadcastSessionId IS NOT NULL
+	BEGIN
+		SELECT Id
+			  ,BroadcastSessionId
+			  ,SiteDBGroupID
+			  ,RequestId
+			  ,VoidingHistoryId
+			  ,StatusId
+			  ,IsAutoVoid
+			  ,MatchId
+			  ,CreatedDate
+			  ,ModifiedDate
+		FROM dbo.TicketVoiding_Void_Service q WITH(NOLOCK)
+		WHERE BroadcastSessionId = @BroadcastSessionId
+	END
+	ELSE IF @RequestId IS NOT NULL
+	BEGIN
+		SELECT Id
+			  ,BroadcastSessionId
+			  ,SiteDBGroupID
+			  ,RequestId
+			  ,VoidingHistoryId
+			  ,StatusId
+			  ,IsAutoVoid
+			  ,MatchId
+			  ,CreatedDate
+			  ,ModifiedDate
+		FROM dbo.TicketVoiding_Void_Service q WITH(NOLOCK)
+		WHERE RequestId = @RequestId
+	END
 END		
 GO
 
