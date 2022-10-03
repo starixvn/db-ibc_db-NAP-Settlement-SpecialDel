@@ -13,6 +13,7 @@ AS
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220823@Max: Remove Temp Code - [Redmine: #169407]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
+		- 20221003@Victiria: Add more email to @Recipients [Redemine: #178536]
 
 	Param's explanation:		
 		
@@ -35,7 +36,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com'
+		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com;qa@starixvn.com'
 	END
 		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
