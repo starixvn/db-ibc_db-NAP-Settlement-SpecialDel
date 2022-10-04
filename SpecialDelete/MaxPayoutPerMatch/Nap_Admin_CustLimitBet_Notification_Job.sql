@@ -13,7 +13,7 @@ AS
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220823@Max: Remove Temp Code - [Redmine: #169407]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
-		- 20221003@Victiria: Add more email to @Recipients [Redemine: #178536]
+		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 
 	Param's explanation:		
 		
