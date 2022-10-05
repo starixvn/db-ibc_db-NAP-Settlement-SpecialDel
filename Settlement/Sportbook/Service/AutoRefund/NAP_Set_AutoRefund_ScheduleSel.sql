@@ -17,12 +17,14 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @procName SYSNAME	= OBJECT_NAME(@@procid)
+			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting BIT = 0
 	
 	DECLARE  @returntable TABLE (MatchId INT, leagueid INT, TypeId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
 		,@IsWaiting = @IsWaiting OUTPUT
 
 	IF ISNULL(@IsWaiting,0) = 1

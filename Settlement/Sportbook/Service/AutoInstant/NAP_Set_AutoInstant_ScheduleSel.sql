@@ -27,12 +27,14 @@ BEGIN
 			,@todate		DATETIME
 			,@checktime		DATETIME
 			,@procName		SYSNAME	= OBJECT_NAME(@@procid)
+			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT = 0
 	
 	DECLARE  @returntable TABLE (MatchID INT, TypeID TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), CreatedDate DATETIME, InstantKey INT, LeagueId INT, ChildMatchType TINYINT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
 		,@IsWaiting = @IsWaiting OUTPUT
 
 	IF ISNULL(@IsWaiting,0) = 1
