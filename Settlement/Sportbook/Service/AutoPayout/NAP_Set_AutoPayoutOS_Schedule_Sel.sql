@@ -14,6 +14,7 @@ AS
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
+		- 20220929@Louisa: check deployment flag [Redmine:#175251]
 */
 BEGIN
 	
@@ -22,6 +23,8 @@ BEGIN
 	DECLARE @checkTime DATETIME =  CAST( DATEADD(SECOND, -30, GETDATE() ) AS DATETIME)
 			,@n INT
 			,@ExternalResultTable TINYINT = 0
+			,@procName		SYSNAME	= OBJECT_NAME(@@procid)
+			,@IsWaiting		BIT = 0
 
 	DECLARE @tmpLatestResult TABLE (matchid INT, leagueid INT, SettlementStatus INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) , Ranking INT , IsFinal BIT )
 	SET @n = 2147483647
@@ -45,6 +48,24 @@ BEGIN
 		,Ranking		INT
 	)
 
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@IsWaiting = @IsWaiting OUTPUT
+
+	IF ISNULL(@IsWaiting,0) = 1
+	BEGIN
+		--not return data if in deployment progress
+		SELECT matchid
+			, @Sporttype AS sporttype
+			, leagueid
+			, SettlementStatus
+			, ResourceId
+			, HomeValue
+			, AwayValue
+		FROM #MatchInfo m
+
+		RETURN
+	END
 
 	IF @Sporttype =  50
 	BEGIN

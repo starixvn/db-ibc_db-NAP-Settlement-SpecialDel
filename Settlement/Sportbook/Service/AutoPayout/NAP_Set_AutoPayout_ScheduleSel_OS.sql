@@ -12,6 +12,7 @@ AS
 		- 20220216@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220309@Louisa: Return more info [Redmine:#168346]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20220929@Louisa: check deployment flag [Redmine:#175251]
 
 	Param's Explanation:
  
@@ -19,7 +20,23 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @procName		SYSNAME	= OBJECT_NAME(@@procid)
+			,@IsWaiting		BIT = 0
+
 	DECLARE @tmpMatchAuto TABLE	(	MatchId INT, sporttype SMALLINT, SourceId SMALLINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), SettlementStatus TINYINT, leagueid INT, Ranking INT	)
+
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@IsWaiting = @IsWaiting OUTPUT
+
+	IF ISNULL(@IsWaiting,0) = 1
+	BEGIN
+		--not return data if in deployment progress
+		SELECT tmp.MatchId, tmp.sporttype, tmp.SourceId, 2 AS TypeId, tmp.HomeValue, tmp.AwayValue, tmp.SettlementStatus, tmp.leagueid
+		FROM @tmpMatchAuto tmp
+
+		RETURN
+	END
 
 	INSERT INTO @tmpMatchAuto(	MatchId, sporttype, SourceId, HomeValue, AwayValue, SettlementStatus, leagueid, Ranking)
 	SELECT r.MatchId, m.sporttype, r.SourceId, r.HomeValue, r.AwayValue, m.SettlementStatus, m.leagueid

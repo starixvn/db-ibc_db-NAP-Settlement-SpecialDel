@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_SPDeploymentInfo
 	@SPName			SYSNAME
 	,@WaitingTime	VARCHAR(10) 	OUTPUT
@@ -16,7 +16,7 @@ AS
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Check SP under deployment [Redmine:#175251]
-		- 20220929@Louisa: Add VS Betrader, Betbuider, Auto Payout, Auto Refund [Redmine:#XXX]
+		- 20220929@Louisa: Add VS Betrader, Betbuider, Auto settle, SP get log service sync sitedb [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -71,18 +71,30 @@ BEGIN
 	UNION ALL
 	SELECT 'NAP_Admin_Settlement_BetBuilder_Push', @WaitingTime, 0
 
-	--Auto Payout
+	--Auto Payout tennis
 	UNION ALL
-	SELECT 'NAP_Admin_Settlement_1_AutoPayout_Push', @WaitingTime, 0
+	SELECT 'NAP_Set_AutoPayout_ScheduleSel_OS', @WaitingTime, 0
+
+	--Auto Payout virtual cricket
+	UNION ALL
+	SELECT 'NAP_Set_AutoPayoutOS_Schedule_Sel', @WaitingTime, 0
+
+	--Auto Payout soccer
+	UNION ALL
+	SELECT 'NAP_Set_AutoPayout_ScheduleSel', @WaitingTime, 0
 
 	--Auto Inst 
 	UNION ALL
-	SELECT 'NAP_Admin_Settlement_1_InstantCalculation_Push', @WaitingTime, 0
+	SELECT 'NAP_Set_AutoInstant_ScheduleSel', @WaitingTime, 0
 
 	--Auto refund 
 	UNION ALL
-	SELECT 'NAP_Admin_Settlement_Refund_1_Push', @WaitingTime, 0
-		
+	SELECT 'NAP_Set_AutoRefund_ScheduleSel', @WaitingTime, 0
+	
+	--service sync ticket from sitedb to centraldb
+	UNION ALL
+	SELECT 'SiteDB_NAP_SettlementService_CalculationLogSel', @WaitingTime, 0
+	
 	
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting

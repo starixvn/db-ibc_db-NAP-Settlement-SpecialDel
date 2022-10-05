@@ -15,7 +15,7 @@ AS
 		- 20191209@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
-		
+		- 20220929@Louisa: check deployment flag [Redmine:#175251]
 */
 
 BEGIN
@@ -26,12 +26,30 @@ BEGIN
 			,@fromdate		DATETIME
 			,@todate		DATETIME
 			,@checktime		DATETIME
+			,@procName		SYSNAME	= OBJECT_NAME(@@procid)
+			,@IsWaiting		BIT = 0
+	
+	DECLARE  @returntable TABLE (MatchID INT, TypeID TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), CreatedDate DATETIME, InstantKey INT, LeagueId INT, ChildMatchType TINYINT)
+
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@IsWaiting = @IsWaiting OUTPUT
+
+	IF ISNULL(@IsWaiting,0) = 1
+	BEGIN
+		--not return data if in deployment progress
+		SELECT MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType
+		FROM @returntable
+
+		RETURN
+	END
 
 	SET @currentdate = CAST(GETDATE() AS DATE)
 	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
 			,@todate = DATEADD(DAY,1,@currentdate)
 			,@checktime = DATEADD(HOUR, 3, GETDATE())
 
+	INSERT INTO @returntable (MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType)
     SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId, m.ChildMatchType    
     FROM dbo.ProviderResultDetail d WITH (NOLOCK)
 	    INNER JOIN dbo.Match m WITH (NOLOCK)
@@ -83,7 +101,10 @@ BEGIN
 				    AND a.SourceID IN (100, 5) -- sourceID: 100 manual instant, sourceID: 5 auto cal for soccerway result
 				    AND a.CalculationType BETWEEN 100 AND 199 -- Cal instant
 				    AND a.ModifiedDate > d.CreatedDate)
-    ORDER BY d.CreatedDate
+
+	SELECT MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType
+	FROM @returntable
+	ORDER BY CreatedDate
 
 END
 GO
