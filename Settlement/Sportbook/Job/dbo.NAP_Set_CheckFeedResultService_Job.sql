@@ -16,6 +16,7 @@ AS
 		- 20210701@Louisa: Add sean.lee@onelab.tw [Redmine:#100002]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220512@Louisa: Add recipient [Redmine:#172713]
+		- 20221004@Victoria: Remove Test League out of provider result monitor job [Redmine: #178705]
 */
 BEGIN
 
@@ -64,11 +65,13 @@ BEGIN
 	
 	IF EXISTS(SELECT TOP 1 1 FROM @tblCheckResult WHERE SourceID = 1 )
 	BEGIN
-		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	FROM dbo.Match m WITH(NOLOCK) 
-									WHERE m.sporttype =1
-										 AND ISNULL(m.IsDeleted,0) = 0
-									 	 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
-										 AND m.AutoSetting & 1 = 1 FOR XML PATH('tr'), TYPE )) 
+		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	
+												FROM dbo.Match m WITH(NOLOCK) 
+													INNER JOIN league l WITH (NOLOCK) ON l.leagueid = m.leagueid AND l.isTest = 0
+												WHERE m.sporttype =1
+													 AND ISNULL(m.IsDeleted,0) = 0
+									 				 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
+													 AND m.AutoSetting & 1 = 1 FOR XML PATH('tr'), TYPE )) 
 		IF ISNULL(@MatchIDs,'') <> ''
 		BEGIN
 			SET @ProviderName = 'SBO'
@@ -91,11 +94,13 @@ BEGIN
 
 	IF EXISTS(SELECT TOP 1 1 FROM @tblCheckResult WHERE SourceID = 5 )
 	BEGIN
-		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	FROM dbo.Match m WITH(NOLOCK) 
-									WHERE m.sporttype =1
-										 AND ISNULL(m.IsDeleted,0) = 0
-									 	 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
-										 AND m.AutoSetting & 2 = 2 FOR XML PATH('tr'), TYPE )) 
+		SET @MatchIDs =  CONVERT(VARCHAR(MAX),(SELECT TOP 100 m.matchid AS 'td'	
+												FROM dbo.Match m WITH(NOLOCK)
+													INNER JOIN league l WITH (NOLOCK) ON l.leagueid = m.leagueid AND l.isTest = 0
+												WHERE m.sporttype =1
+													 AND ISNULL(m.IsDeleted,0) = 0
+									 				 AND DATEDIFF(MINUTE, m.Kickofftime, GETDATE() ) BETWEEN 60 AND 180
+													 AND m.AutoSetting & 2 = 2 FOR XML PATH('tr'), TYPE )) 
 		IF ISNULL(@MatchIDs,'') <> ''
 		BEGIN
 			SET @ProviderName = 'Soccerway'
