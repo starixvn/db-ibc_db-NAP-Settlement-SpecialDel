@@ -27,7 +27,7 @@ AS
 		- 20220205@Kathy: performance tunning [Redmine:#169814]
 		- 20220531@Kathy: performance tunning [Redmine:#173456]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-		
+		- 20221004@Kathy: Prevent duplicate data if re-run SP in case of deadlock [Redmine:#178542]
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
 		+ @matchdate eventdate of the match
@@ -94,7 +94,8 @@ BEGIN
 		,adiscount decimal(9, 8)
 		,sdiscount decimal(9, 8)
 		,comstatus nvarchar(20)
-		,inserted bit -- row has been inserted into betParlayResult/betParlayDetail
+		,insertedDetail bit default(0) -- row has been inserted into betParlayDetail
+		,insertedResult bit default(0)-- row has been inserted into betParlayResult
 		,eventdate SMALLDATETIME -- max(eventdate) - using for set winlostdate of running ticket
 		,selection_cnt tinyint NOT NULL ---- number of selections (bettransM count)
 		,oddsspread	money
@@ -117,7 +118,7 @@ BEGIN
 			,selection_cnt
 			,bitmapR
 			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
-			,adiscount, sdiscount, comstatus, inserted
+			,adiscount, sdiscount, comstatus
 			,oddsspread, actual_stake
 		)
 		SELECT	[transid], [refno], [stake]
@@ -130,7 +131,7 @@ BEGIN
 					ELSE CAST(hdp2/2 AS INT)  -- Old format
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
-				,adiscount, sdiscount, comstatus, 0
+				,adiscount, sdiscount, comstatus
 				,ISNULL(oddsspread, 0), actual_stake
 		FROM	dbo.bettrans WITH(NOLOCK)
 		WHERE	transid IN (SELECT transid FROM @transIDs)
@@ -157,9 +158,9 @@ BEGIN
 		CREATE UNIQUE CLUSTERED INDEX CIX_tempBettrans_refno ON #temp_bettrans (refno)
 
 		UPDATE t
-			SET inserted = 1
+			SET insertedDetail = 1
 		FROM #temp_bettrans t
-		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayResult r WITH (NOLOCK) WHERE t.refno = r.refno)			
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayDetail r WITH (NOLOCK) WHERE t.refno = r.refno)			
 		
 		INSERT INTO #tmpSource(refno, transid, winlostdate, statuswinlost, statusId, matchid
 			,bettype, odds, betteam, hdp1, hdp2, livehomescore
@@ -183,7 +184,7 @@ BEGIN
 					WHERE	bm.matchid = m.matchid
 							AND m.sporttype BETWEEN 1 AND 99											
 				) m
-		WHERE	b.inserted = 0 
+		WHERE	b.insertedDetail = 0 
 	
 		INSERT INTO #tmpSetStake (Refno, RN, SetStake)
 		SELECT	refno, RN, SetStake
@@ -203,6 +204,11 @@ BEGIN
 			INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
 			INNER JOIN #tmpSetStake ps ON ps.refno = p.refno AND ps.RN = rc.R
 				
+		UPDATE t
+			SET insertedResult = 1
+		FROM #temp_bettrans t
+		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayResult r WITH (NOLOCK) WHERE t.refno = r.refno)		
+
 		INSERT INTO dbo.BetParlayResult (
 			RefNo, Serial, transid, winlostdate, statusid, Stake
 			,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
@@ -213,7 +219,7 @@ BEGIN
 			,0, 0, 0, 0
 		FROM #temp_bettrans b
 			INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
-		WHERE b.inserted = 0 -- only insert the row not yet insert to that table
+		WHERE b.insertedResult = 0 -- only insert the row not yet insert to that table
 		
 	END
 	-----------------------
