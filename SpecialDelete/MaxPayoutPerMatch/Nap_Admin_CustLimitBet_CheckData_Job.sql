@@ -24,14 +24,14 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @SiteDBGroupID SMALLINT,
-			@transId VARCHAR(MAX)
+			@transIds VARCHAR(MAX)
 
 	SET @ErrorMessage = ''
 	
 	SET @StartTime   = DATEADD(MINUTE,-35,GETDATE())
 	SET @EndTime   = DATEADD(MINUTE, -2,GETDATE())
 
-	SET @transId = ''
+	SET @transIds = ''
 
 	CREATE TABLE #RunningMatch (matchid INT PRIMARY KEY, sporttype SMALLINT)
 	CREATE TABLE #NonSBRunningMatch (matchid INT PRIMARY KEY)
@@ -82,120 +82,126 @@ BEGIN
 	
 	-----------------------------------------------------History table is missing data--------------------------------------------------------------------
 	--789y
-	SELECT TOP (100) @transId = @transId + ',' + CAST(b.transId AS VARCHAR)
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
-		INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
-	WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
-		AND NOT EXISTS(SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
-		AND b.transdate BETWEEN @StartTime AND @EndTime
-		--AND ci.currency NOT IN (20,72)
-		AND b.statusID NOT IN (101, 0)
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) b.transId
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
+		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
+			AND NOT EXISTS(SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+			AND b.transdate BETWEEN @StartTime AND @EndTime
+			--AND ci.currency NOT IN (20,72)
+			AND b.statusID NOT IN (101, 0)
+			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
 
-	IF @transId <> ''
+	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @transId = SUBSTRING(@transId, 2, LEN(@transId) - 1)
-		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transId
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transIds
 	END
 	
 	--MBC
-	SET @transId = ''
-	SELECT TOP (100) @transId = @transId + ',' + CAST(b.transId AS VARCHAR)
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
-		INNER JOIN #RunningMatch m ON b.matchid = m.matchid
-	WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
-		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
-		AND b.transdate BETWEEN @StartTime AND @EndTime
-		--AND ci.currency NOT IN (20,72)
-		AND b.statusID NOT IN (101, 0)
-		AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	SET @transIds = ''
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) b.transId
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+			INNER JOIN #RunningMatch m ON b.matchid = m.matchid
+		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
+			AND b.transdate BETWEEN @StartTime AND @EndTime
+			--AND ci.currency NOT IN (20,72)
+			AND b.statusID NOT IN (101, 0)
+			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
+			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
 	
-	IF @transId <> ''
+	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @transId = SUBSTRING(@transId, 2, LEN(@transId) - 1)
-		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transId
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transIds
 	END
 
 	--LIC
-	SET @transId = ''
-	SELECT TOP (100) @transId = @transId + ',' + CAST(b.transId AS VARCHAR)
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #RunningMatch m ON b.matchid = m.matchid
-	WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
-		AND NOT EXISTS (SELECT TOP 1 1 
-						FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
-						WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
-						)
-		AND b.transdate BETWEEN @StartTime AND @EndTime
-		AND b.statusID NOT IN (101, 0)
-		AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend )
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	SET @transIds = ''
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) b.transId
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN #RunningMatch m ON b.matchid = m.matchid
+		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
+			AND NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
+							WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
+							)
+			AND b.transdate BETWEEN @StartTime AND @EndTime
+			AND b.statusID NOT IN (101, 0)
+			AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend )
+			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
 
-	IF @transId <> ''
+	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @transId = SUBSTRING(@transId, 2, LEN(@transId) - 1)
-		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_LIC table is missing data. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transId
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_LIC table is missing data. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transIds
 	END
 
 	--789y
-	SET @transId = ''
-	SELECT TOP (100) @transId = @transId + ',' + CAST(b.transId AS VARCHAR)
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-		INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
-	WHERE B.bettype = 10
-		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
-		AND b.transdate BETWEEN @StartTime AND @EndTime
-		--AND ci.currency NOT IN (20,72)
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	SET @transIds = ''
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) b.transId
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
+			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+		WHERE B.bettype = 10
+			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
+			AND b.transdate BETWEEN @StartTime AND @EndTime
+			--AND ci.currency NOT IN (20,72)
+			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
 
-	IF @transId <> ''
+	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @transId = SUBSTRING(@transId, 2, LEN(@transId) - 1)
-		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transId
+		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transIds
 	END
 	
 	--MBC
-	SET @transId = ''
-	SELECT TOP (100) @transId = @transId + ',' + CAST(b.transId AS VARCHAR)
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-		INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
-	WHERE B.bettype = 10
-		AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
-		AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
-		AND b.transdate BETWEEN @StartTime AND @EndTime
-		--AND ci.currency NOT IN (20,72)
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	SET @transIds = ''
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) b.transId
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
+			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+		WHERE B.bettype = 10
+			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
+			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
+			AND b.transdate BETWEEN @StartTime AND @EndTime
+			--AND ci.currency NOT IN (20,72)
+			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
 
-	IF @transId <> ''
+	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @transId = SUBSTRING(@transId, 2, LEN(@transId) - 1)
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transId
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transIds
 	END
 
 	--LIC
-	SET @transId = ''
-	SELECT TOP (100) @transId = @transId + ',' + CAST(b.transId AS VARCHAR)
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-	WHERE B.bettype = 10
-		AND NOT EXISTS (SELECT TOP 1 1 
-						FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
-						WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
-						)
-		AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
-		AND b.transdate BETWEEN @StartTime AND @EndTime
-		--AND ci.currency NOT IN (20,72)
-		AND b.SiteDBGroupID = @SiteDBGroupID
+	SET @transIds = ''
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) b.transId
+		FROM dbo.bettrans b WITH (NOLOCK)
+			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
+		WHERE B.bettype = 10
+			AND NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
+							WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
+							)
+			AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
+			AND b.transdate BETWEEN @StartTime AND @EndTime
+			--AND ci.currency NOT IN (20,72)
+			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
 
-	IF @transId <> ''
+	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @transId = SUBSTRING(@transId, 2, LEN(@transId) - 1)
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_LIC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transId
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_LIC table is missing data which EventTypeID = 2. '  + CHAR(13) + CHAR(10) + '. Top 100 transId(s): ' + @transIds
 	END
 
 	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
@@ -228,17 +234,18 @@ BEGIN
 			AND b.transdate BETWEEN @StartTime AND @EndTime
 			AND b.SiteDBGroupID = @SiteDBGroupID
 
-	SET @transId = ''
-	SELECT TOP (100) @transId = @transId + ',' + CAST(T.transId AS VARCHAR)
-	FROM #TempReject T
-	WHERE NOT EXISTS (SELECT TOP 1 1 
-						FROM dbo.CustLimitBetQueue Q with (nolock)
-						WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%')
+	SET @transIds = ''
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) T.transId
+		FROM #TempReject T
+		WHERE NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustLimitBetQueue Q with (nolock)
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%')) AS tmp
 
-	IF @transId <> ''
+	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @transId = SUBSTRING(@transId, 2, LEN(@transId) - 1)
-		SET @ErrorMessage = @ErrorMessage + CHAR(13) + CHAR(10) + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Top 100 transId(s): ' + @transId
+		SET @ErrorMessage = @ErrorMessage + CHAR(13) + CHAR(10) + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Top 100 transId(s): ' + @transIds
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
