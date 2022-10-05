@@ -39,7 +39,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com;qa@starixvn.com'
+		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com;qa@starixvn.com;kaka.huynh@starixvn.com;jane.dinh@starixvn.com;neil.dao@starixvn.com;tommy.nguyen@starixvn.com'
 	END
 	
 
