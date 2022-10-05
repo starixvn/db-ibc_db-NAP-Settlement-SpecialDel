@@ -21,7 +21,7 @@ AS
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
-		- 20220929@Louisa: check deployment flag [Redmine:#175251]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 
 	Param's Explanation:
  

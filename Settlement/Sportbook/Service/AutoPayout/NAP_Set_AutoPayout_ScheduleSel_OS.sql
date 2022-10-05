@@ -12,7 +12,7 @@ AS
 		- 20220216@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220309@Louisa: Return more info [Redmine:#168346]
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
-		- 20220929@Louisa: check deployment flag [Redmine:#175251]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 
 	Param's Explanation:
  

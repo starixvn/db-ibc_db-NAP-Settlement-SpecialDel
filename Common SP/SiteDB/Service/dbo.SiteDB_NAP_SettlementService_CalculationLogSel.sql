@@ -8,7 +8,7 @@ AS
 	
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-		- 20220929@Louisa: check deployment flag [Redmine:#175251]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 
 	Param's Explanation:  
 		   

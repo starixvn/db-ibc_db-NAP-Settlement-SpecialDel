@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoInstant_ScheduleSel
 
 AS
@@ -15,7 +15,7 @@ AS
 		- 20191209@Max: Instant Settlement for Corner Bettype [Redmine:#124951]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
-		- 20220929@Louisa: check deployment flag [Redmine:#175251]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 */
 
 BEGIN

@@ -16,7 +16,7 @@ AS
 		- 20210810@Kathy: Incorporate Bitcoin  [Redmine:#159714]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Check SP under deployment [Redmine:#175251]
-		- 20220929@Louisa: Add VS Betrader, Betbuider, Auto settle, SP get log service sync sitedb [Redmine:#175251]
+		- 20220929@Louisa: Add VS Betrader, Betbuider, Auto settle, SP get log service sync sitedb [Redmine:#178765]
 */
 BEGIN
 	SET NOCOUNT ON

@@ -10,7 +10,7 @@ AS
 		- 20201216@Louisa: Get ET & PEN match for Auto Refund Service [Redmine:#145597]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220512@Louisa: Auto Refund for Badminton [Redmine:#171676]
-		- 20220929@Louisa: check deployment flag [Redmine:#175251]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 */
 BEGIN
 	

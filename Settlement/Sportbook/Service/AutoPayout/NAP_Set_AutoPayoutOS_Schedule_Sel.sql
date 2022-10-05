@@ -14,7 +14,7 @@ AS
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
-		- 20220929@Louisa: check deployment flag [Redmine:#175251]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 */
 BEGIN
 	
