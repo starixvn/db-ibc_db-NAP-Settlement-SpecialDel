@@ -121,6 +121,7 @@ AS
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221005@Max: Special Delete - Void parlay ticket cause replication latency on DB052,DB053,DB061 [Redmine: #178736]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -936,6 +937,7 @@ BEGIN
 				,OddsId
 				,SiteDBGroupId
 				,FilterOdds
+				,statusID
 			)
 			SELECT
 				b.transid,
@@ -993,6 +995,7 @@ BEGIN
 				bm.SubOddsId
 				,bm.SiteDBGroupId
 				,bm.SubOdds AS FilterOdds
+				,b.statusID
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
 		END
