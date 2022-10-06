@@ -9,6 +9,7 @@ AS
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220823@Max: Remove Temp Code - [Redmine: #169407]
+		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 	
 	Param's explanation:		
 		
@@ -78,10 +79,19 @@ BEGIN
 
 	--SEND NOTIFICATION FOR LIST QUEUES RETRY
 	--For PROD EVN
-	SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;susan.le@starixvn.com'
+	--SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;susan.le@starixvn.com'
 
 	--For local Testing, input email need to test
 	--SET @Recipients = 'max.tran@starixvn.com;susan.le@starixvn.com'
+
+	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
+	BEGIN
+		SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;susan.le@starixvn.com'
+	END
+	ELSE
+	BEGIN
+		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com;qa@starixvn.com;kaka.huynh@starixvn.com;jane.dinh@starixvn.com;neil.dao@starixvn.com;tommy.nguyen@starixvn.com'
+	END
 
 	SELECT @List_QueueRetry_Success = ISNULL(STUFF((SELECT DISTINCT TOP 10 ',' + CAST(tmp.QueueID  AS VARCHAR(50))
 												FROM #CustLimitBet_QueueRetry tmp

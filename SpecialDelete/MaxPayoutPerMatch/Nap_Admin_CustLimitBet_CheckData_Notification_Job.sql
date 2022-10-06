@@ -12,6 +12,7 @@ AS
 		- 20220530@Tina: Cannot send notification via Letstalk [Redmine: #173376]
 		- 20220607@Tina: remove some email of @Recipients on production environment
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
+		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 
 	Param's explanation:		
 		
@@ -38,7 +39,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com'
+		SET @Recipients = 'dba_local@starixvn.com;starixqa@starixvn.com;qa@starixvn.com;kaka.huynh@starixvn.com;jane.dinh@starixvn.com;neil.dao@starixvn.com;tommy.nguyen@starixvn.com'
 	END
 	
 

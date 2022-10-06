@@ -20,6 +20,7 @@ AS
 		- 20211012@Max: Exclude deposit ticket for Reject case, remove code reject outright [Redmine: #158073]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
+		- 20221003@Victoria: Max Payout - Only retrieve ticket for each site base on site setting configuration [Redmine: #178536]
 	
 	Param's explanation:	
 		
@@ -32,7 +33,9 @@ BEGIN
 		,@RejectTime	DATETIME
 		,@InvalidTransIds	VARCHAR(200) = ''
 		,@Creator		INT
+		,@SiteDBGroupID SMALLINT
 
+	SET @SiteDBGroupID = dbo.f_Get_SiteDBGroupID() 
 
 	CREATE TABLE #CustLimitBet_tmp (
 			MatchId	INT
@@ -101,6 +104,7 @@ BEGIN
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 				LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 			WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
+				AND b.SiteDBGroupID = @SiteDBGroupID
 				AND b.matchid = @MatchId
 				AND b.checktime = @RejectTime
 				AND b.statusID = 101
@@ -118,6 +122,7 @@ BEGIN
 				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 				LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 			WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
+				AND b.SiteDBGroupID = @SiteDBGroupID
 				AND b.matchid = 29
 				AND b.checktime = @RejectTime
 				AND b.statusID = 101
