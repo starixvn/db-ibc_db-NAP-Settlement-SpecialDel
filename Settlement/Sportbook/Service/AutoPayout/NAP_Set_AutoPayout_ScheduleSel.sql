@@ -21,6 +21,7 @@ AS
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 
 	Param's Explanation:
  
@@ -32,6 +33,9 @@ BEGIN
 			,@fromdate		DATETIME
 			,@todate		DATETIME
 			,@checktime		DATETIME
+			,@procName		SYSNAME	= OBJECT_NAME(@@procid)
+			,@WaitingTime	VARCHAR(10)
+			,@IsWaiting		BIT = 0
 
 	SET @currentdate = CAST(GETDATE() AS DATE)
 	SELECT	@fromdate = DATEADD(DAY,-1,@currentdate)
@@ -44,6 +48,23 @@ BEGIN
 									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, 
 									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT
 								)
+
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+
+	IF ISNULL(@IsWaiting,0) = 1
+	BEGIN
+		--not return data if in deployment progress
+		SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
+			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
+			, AutoSetting, ChildLeagueType, MainType
+		FROM @tmpMatchAuto
+
+		RETURN
+	END
+	
 
 	INSERT INTO @tmpMatchAuto (
 								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed

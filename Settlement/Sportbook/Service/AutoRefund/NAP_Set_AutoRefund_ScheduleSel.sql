@@ -10,13 +10,36 @@ AS
 		- 20201216@Louisa: Get ET & PEN match for Auto Refund Service [Redmine:#145597]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220512@Louisa: Auto Refund for Badminton [Redmine:#171676]
+		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 */
 BEGIN
 	
 	SET NOCOUNT ON
 
+	DECLARE @procName SYSNAME	= OBJECT_NAME(@@procid)
+			,@WaitingTime	VARCHAR(10)
+			,@IsWaiting BIT = 0
+	
+	DECLARE  @returntable TABLE (MatchId INT, leagueid INT, TypeId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT)
+
+	EXEC dbo.NAP_Set_SPDeploymentInfo 
+		@SPName = @procName
+		,@WaitingTime = @WaitingTime OUTPUT
+		,@IsWaiting = @IsWaiting OUTPUT
+
+	IF ISNULL(@IsWaiting,0) = 1
+	BEGIN
+		--not return data if in deployment progress
+		SELECT MatchId, leagueid, TypeId, ResourceId, ResultStatusID
+		FROM @returntable
+
+		RETURN
+	END
+
+
 	IF @sporttype = 1
 	BEGIN
+		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID)
 		SELECT ar.MatchId
 			 , m.leagueid
 			 , ar.TypeId
@@ -33,6 +56,7 @@ BEGIN
 
 	ELSE
 	BEGIN
+		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID)
 		SELECT ar.MatchId
 			 , m.leagueid
 			 , ar.TypeId
@@ -48,6 +72,9 @@ BEGIN
 			AND ar.StatusId = 0
 			AND ar.TypeId = 1
 	END
+
+	SELECT MatchId, leagueid, TypeId, ResourceId, ResultStatusID
+	FROM @returntable
 
 END
 GO
