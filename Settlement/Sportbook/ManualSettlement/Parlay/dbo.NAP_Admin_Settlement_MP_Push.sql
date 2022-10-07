@@ -51,6 +51,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221006@Louisa: Fix Issue BroacastSessionId [Redmine:#178830]
 		
 	Param's Explanation:		
 		
@@ -147,7 +148,7 @@ BEGIN
 		ELSE
 		BEGIN		
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, Sporttype, BroadcastSessionId)
-			SELECT matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @action, sporttype, @BroadcastSessionId
+			SELECT matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @action, sporttype, @BroadcastSessionId + CAST(matchid AS VARCHAR(20) )
 			FROM #Match
 		END
 	END
