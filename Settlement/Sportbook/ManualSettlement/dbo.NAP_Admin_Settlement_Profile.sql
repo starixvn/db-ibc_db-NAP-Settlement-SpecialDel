@@ -61,6 +61,7 @@ AS
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220922@Kathy: Scale Out BetTrans - fixbug [Redmine:#175251]
+		- 20221007@Louisa: Insert into 
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -917,7 +918,13 @@ BEGIN
 			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
 	END
-	ELSE IF @IsCentral = 1
+	ELSE
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
+		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
+	END
+
+	IF @IsCentral = 1
 	BEGIN
 			IF @Action = 'REFUND'
 			BEGIN
