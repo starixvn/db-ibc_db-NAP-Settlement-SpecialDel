@@ -194,10 +194,10 @@ VALUES	  ('bettrans')
 		, ('bettransm14')
 		, ('bettransRnG')
 		, ('bettransRnG14')
-		, ('Translog')
-		, ('Translog14')
-		, ('BettransLC')
-		, ('BettransLC14')
+		, ('translog')
+		, ('translog14')
+		, ('bettransLC')
+		, ('bettransLC14')
 		, ('bettransG')
 		, ('bettransG14')
 		, ('zzzbettrans')
@@ -263,6 +263,14 @@ BEGIN
 																SELECT b.transid 
 																FROM bettransRnG14 b WITH (NOLOCK)
 																	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'translog' THEN 'INSERT INTO #tmp_bettrans (transid)
+														   SELECT b.translogid
+														   FROM translog b WITH (NOLOCK)
+																INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+									WHEN  'translog14' THEN 'INSERT INTO #tmp_bettrans (transid)
+														     SELECT b.translogid
+														     FROM translog14 b WITH (NOLOCK)
+																INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
 									WHEN  'bettransG' THEN   'INSERT INTO #tmp_bettrans (transid) 
 																SELECT b.transid 
 																FROM bettransG b WITH (NOLOCK)
@@ -282,23 +290,27 @@ BEGIN
 									WHEN  'TicketVoiding_RequestDetailTicket_Single' THEN  'INSERT INTO #tmp_bettrans (transid) 
 																							SELECT DISTINCT tsingle.transid 
 																							FROM TicketVoiding_RequestDetailTicket_Single tsingle WITH (NOLOCK)
-																								INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = tsingle.transid
+																								INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = tsingle.transid AND b.matchid = tsingle.matchid
 																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+																							WHERE tsingle.SiteDBGroupID = 0 OR tsingle.SiteDBGroupID IS NULL
 																							INSERT INTO #tmp_bettrans (transid) 
 																							SELECT DISTINCT tsingle.transid 
 																							FROM TicketVoiding_RequestDetailTicket_Single tsingle WITH (NOLOCK)
-																								INNER JOIN bettrans14 b WITH (NOLOCK) ON b.transid = tsingle.transid
-																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+																								INNER JOIN bettrans14 b WITH (NOLOCK) ON b.transid = tsingle.transid AND b.matchid = tsingle.matchid
+																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+																							WHERE tsingle.SiteDBGroupID = 0 OR tsingle.SiteDBGroupID IS NULL'
 									WHEN  'TicketVoiding_RequestDetailTicket_SubParlay' THEN  'INSERT INTO #tmp_bettrans (transid) 
 																							SELECT DISTINCT tparlay.transid 
 																							FROM TicketVoiding_RequestDetailTicket_SubParlay tparlay WITH (NOLOCK)
-																								INNER JOIN bettrans b WITH (NOLOCK) ON b.transid = tparlay.transid
+																								INNER JOIN bettransm b WITH (NOLOCK) ON b.transid = tparlay.transid AND b.matchid = tparlay.matchid
 																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+																							WHERE tparlay.SiteDBGroupID = 0 OR tparlay.SiteDBGroupID IS NULL
 																							INSERT INTO #tmp_bettrans (transid) 
 																							SELECT DISTINCT tparlay.transid 
 																							FROM TicketVoiding_RequestDetailTicket_SubParlay tparlay WITH (NOLOCK)
-																								INNER JOIN bettrans14 b WITH (NOLOCK) ON b.transid = tparlay.transid
-																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid'
+																								INNER JOIN bettransm14 b WITH (NOLOCK) ON b.transid = tparlay.transid AND b.matchid = tparlay.matchid
+																								INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+																							WHERE tparlay.SiteDBGroupID = 0 OR tparlay.SiteDBGroupID IS NULL'
 					END
 
 	EXEC sys.sp_executesql @query
