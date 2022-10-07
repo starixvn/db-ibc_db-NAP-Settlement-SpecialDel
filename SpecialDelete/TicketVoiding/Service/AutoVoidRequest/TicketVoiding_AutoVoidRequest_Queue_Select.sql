@@ -11,7 +11,8 @@ AS
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20220727@Max: Create new SP [Redmine:#175412]a
+		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20221007@Max: [TVS] Tuning SP of Auto Void Queue picking [Redmine: #178869]
 
 	Param's explanation:
 */
@@ -24,9 +25,6 @@ BEGIN
 		  ,@Min_QueueId = MIN(q.QueueId)
 	FROM TicketVoiding_AutoVoidRequest_Queue q WITH (NOLOCK)
 	WHERE q.StatusId IN (0)
-		
-	IF EXISTS(SELECT TOP 1 1 FROM dbo.TicketVoiding_AutoVoidRequest_Queue WHERE StatusId = 1)
-		RETURN
 
 	IF @BroadcastSessionId IS NOT NULL
 	BEGIN
