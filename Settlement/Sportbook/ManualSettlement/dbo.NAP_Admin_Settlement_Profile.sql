@@ -61,7 +61,7 @@ AS
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220922@Kathy: Scale Out BetTrans - fixbug [Redmine:#175251]
-		- 20221007@Louisa: Insert into 
+		- 20221006@Louisa: Always insert BroacastSessionId into TicketVoiding_AutoVoidRequest_Queue [Redmine:#178830]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
