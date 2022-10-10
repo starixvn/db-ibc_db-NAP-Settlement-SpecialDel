@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
+		- 20221010@Louisa: get log which is inserted 1 second before [Redmine:#178880]
 
 	Param's Explanation:  
 		   
@@ -66,6 +67,7 @@ BEGIN
 				,@TicketType = TicketType
 		FROM	dbo.SiteDB_SettlementService_CalculationLog WITH(NOLOCK)
 		WHERE	LogId > @LastLogId
+			AND DATEDIFF(SECOND, LogDate, GETDATE() ) >= 1
 		ORDER BY LogId
 		
 		SET @RowCount = @@ROWCOUNT
