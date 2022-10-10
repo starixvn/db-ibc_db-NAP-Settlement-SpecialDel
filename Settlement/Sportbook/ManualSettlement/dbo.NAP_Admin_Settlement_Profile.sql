@@ -62,6 +62,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220922@Kathy: Scale Out BetTrans - fixbug [Redmine:#175251]
 		- 20221006@Louisa: Always insert BroacastSessionId into TicketVoiding_AutoVoidRequest_Queue [Redmine:#178830]
+		- 20221010@louisa: not insert [TicketVoiding_AutoVoidRequest_Queue] if BroacastSessionId null [Redmine:#178830]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -919,7 +920,7 @@ BEGIN
 		END
 	END
 
-	ELSE IF @Action NOT LIKE 'UNDO%'
+	ELSE IF @Action NOT LIKE 'UNDO%' AND ISNULL(@BroadcastSessionId,'') <> ''
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
 		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
