@@ -10,6 +10,7 @@ CREATE PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar_Push]
     ,@IP                VARCHAR(50)     = ''
     ,@IsAuto            BIT             = 1
     ,@ResourceResult    VARCHAR(MAX)    = ''
+	,@notifyFlag		TINYINT			= 0
     ,@ErrCode           INT             = 0     OUTPUT
     ,@ErrMsg            NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -22,6 +23,7 @@ AS
         - 20160606@Bobby: Initialize
         - 20180214@Helen: Integrate VSBR 2 - Basketball - [Redmine:90154]
         - 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20220928@Kathy: Update Send Mail Notification Rule for VS BetRadar [Redmine:#178262]
 
     Param's Explanation:
         - @Hth: Total score which home team scored in Half Time(HT)
@@ -52,10 +54,7 @@ BEGIN
         , @Remark           VARCHAR(200)
         , @KeyId            INT
         , @recipients       VARCHAR(250) 
-        --notification presenter
-        , @notifyFlag       TINYINT
-        , @hasNotify        BIT = 0
-        --, @hasUpdated     BIT = 0
+      
         , @hasParlay        BIT = 0     
         , @xml              XML
         , @IsCentral        BIT  = 0
@@ -72,9 +71,7 @@ BEGIN
     SELECT @ActionID            = CASE @Action
                                     WHEN 'CAL'      THEN 187
                                     WHEN 'REFUND'   THEN 188
-                                END
-            , @hasNotify        = CASE WHEN @ActionID = 188 THEN 1 ELSE 0 END -- check REFUND action
-                        
+                                END         
     SELECT TOP 1 
             @sportType      = sportType
             , @matchcode    = matchcode
@@ -110,7 +107,7 @@ BEGIN
                                     WHEN @IsCentral = 0 AND bm.SiteDBGroupId <> 0 THEN 1
                                     ELSE 0
                                 END)
-            ,@IsExistParlayAllSite = 1
+            ,@IsExistParlayAllSite = COUNT(1)
     FROM    dbo.bettransm bm WITH(ROWLOCK)
     WHERE   matchid = @matchid
         AND EXISTS (
@@ -120,38 +117,13 @@ BEGIN
                             AND f.sportType = @sportType
                 )
         AND bm.statusID NOT IN (1, 101)
-        AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-        
-    -- DO re-check for re-setle action
-    --IF(@hasNotify = 0 AND @ActionID = 187) 
-    --BEGIN
-    --    SELECT TOP(1) @hasNotify = 1
-    --    FROM    DBPRO.BODB02.dbo.match_remark mr WITH(NOLOCK)
-    --    WHERE   mr.matchid = @matchid
-    --            AND (
-    --                mr.calculate    = 1 --settled already
-    --                OR mr.calrefund = 1 --refund already
-    --            )
-    --END
-    
+        --AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+           
     --CHECK for including parlay or NOT
-    IF(@hasNotify = 1 AND @IsExistParlayAllSite = 1)
+    IF(@notifyFlag & 8 > 0 AND @IsExistParlayAllSite = 0)
     BEGIN
-        SELECT TOP(1) @hasParlay = CAST(1 AS BIT)
-        FROM    DBPRO.BODB02.dbo.match_remark mr WITH(NOLOCK)
-        WHERE   mr.matchid = @matchid
-                AND 1 = CASE 
-                            WHEN @ActionId = 187 AND (multiple = 1 OR refund = 1) THEN 1 -- Parlay has calculated or refund one time at least
-                            WHEN @ActionId = 188 THEN 1 -- Parlay refund any times
-                            ELSE 0
-                        END                     
+		SET @notifyFlag = @notifyFlag ^ 8                 
     END
-
-    --SET notifyFlag values
-    SET @notifyFlag = CASE  
-                        WHEN @IsCentral = 1 THEN POWER(2*ISNULL(@hasNotify,0),1)  + POWER(2*ISNULL(@hasParlay,0),3) 
-                        ELSE 0
-                    END
     
     SELECT  @ErrCode        = 0
             ,@ErrMsg        = ''
