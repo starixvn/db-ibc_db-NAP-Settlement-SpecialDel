@@ -767,11 +767,9 @@ BEGIN
 				,'Credit' AS LicenseeName
 				,0 
 			FROM #TmpBettrans b 
-			WHERE b.srecommend NOT IN( SELECT custid
-					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-					   UNION
-					   SELECT custid
-					   FROM dbo.CS_CustSuper WITH (NOLOCK))
+			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+			LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+			WHERE ds.custid IS NULL AND cs.CustId IS NULL
 			 GROUP BY b.bettype
 				,b.liveindicator
 		  END
@@ -817,11 +815,9 @@ BEGIN
 				FROM bettransm bm WITH (NOLOCK)
 					INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 					INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
-					WHERE b.srecommend NOT IN( SELECT custid
-							FROM dbo.Dep_CustSuper WITH (NOLOCK)
-							UNION
-							SELECT custid
-							FROM dbo.CS_CustSuper WITH (NOLOCK))
+					LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+					LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+					WHERE ds.custid IS NULL AND cs.CustId IS NULL
 					AND bm.matchid = @MatchId 
 					AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
 					AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
@@ -908,11 +904,9 @@ BEGIN
 				,0
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				WHERE b.srecommend NOT IN( SELECT custid
-					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-					   UNION
-					   SELECT custid
-					   FROM dbo.CS_CustSuper WITH (NOLOCK))
+				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+			WHERE ds.custid IS NULL AND cs.CustId IS NULL
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
