@@ -67,6 +67,31 @@ USE bodb02
 GO
 ---------------------hey pontus dep trai -> run sitedb02 nhe------------------------------------
 -- Group 3: all but not (bettrans14, bettransm14, BetParlayDetail, BettransInfo14, Task_bettrans14_IP2Country,bettrans, transfer, bettransm, BettransInfo, Transfer_Coll, TransferInfo)
+---------bettransRNG
+--//drop
+DROP INDEX [IX_tstamp] ON [dbo].[bettransRnG]
+GO
+DROP INDEX [IX_tranid3rd] ON [dbo].[bettransRnG]
+GO
+DROP INDEX [IX_refno] ON [dbo].[bettransRnG]
+GO
+DROP INDEX [IX_recommend] ON [dbo].[bettransRnG]
+GO
+DROP INDEX [IX_ProductID_Issum_StatuaID] ON [dbo].[bettransRnG]
+GO
+DROP INDEX [IX_custid] ON [dbo].[bettransRnG]
+GO
+ALTER TABLE [dbo].[bettransRnG] DROP CONSTRAINT [PK_bettransRnG] WITH ( ONLINE = OFF )
+GO
+
+---------bettransRNG14
+DROP INDEX [IX_Winlostdate] ON [dbo].[bettransRnG14]
+GO
+DROP INDEX [IX_custid] ON [dbo].[bettransRnG14]
+GO
+ALTER TABLE [dbo].[bettransRnG14] DROP CONSTRAINT [PK_bettransRnG14] WITH ( ONLINE = OFF )
+GO
+
 ------------------------------------------------
 /*******************Bet Tickets Tables**********************/
 --bettransG
@@ -487,3 +512,68 @@ SELECT tcb.[UserName], tcb.[custid], tcb.[DiffBalance], tcb.[LogDate], tcb.[IsFi
 FROM SiteDB02tmp.dbo.Task_Cust_BalanceProblem1_20221006 tcb WITH (NOLOCK)
 
 --SET IDENTITY_INSERT Task_Cust_BalanceProblem1 OFF
+
+--//create
+---------bettransRNG
+ALTER TABLE [dbo].[bettransRnG] ADD  CONSTRAINT [PK_bettransRnG] PRIMARY KEY CLUSTERED 
+(
+	[transid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG_table]
+GO
+CREATE NONCLUSTERED INDEX [IX_custid] ON [dbo].[bettransRnG]
+(
+	[custid] ASC,
+	[IsSum] ASC,
+	[GameId3rd] ASC
+)
+INCLUDE([actual_stake],[transdate],[statusID]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG_index]
+GO
+CREATE NONCLUSTERED INDEX [IX_ProductID_Issum_StatuaID] ON [dbo].[bettransRnG]
+(
+	[productID] ASC,
+	[IsSum] ASC,
+	[statusID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG_index]
+GO
+CREATE NONCLUSTERED INDEX [IX_recommend] ON [dbo].[bettransRnG]
+(
+	[recommend] ASC,
+	[winlostdate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG_index]
+GO
+CREATE NONCLUSTERED INDEX [IX_refno] ON [dbo].[bettransRnG]
+(
+	[RefNo] ASC
+)
+INCLUDE([apositiontaking],[mpositiontaking],[spositiontaking],[tpositiontaking],[playerdiscount],[discount],[adiscount],[sdiscount]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG_index]
+GO
+
+SET ANSI_PADDING ON
+GO
+CREATE NONCLUSTERED INDEX [IX_tranid3rd] ON [dbo].[bettransRnG]
+(
+	[TranId3rd] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG_index]
+GO
+CREATE NONCLUSTERED INDEX [IX_tstamp] ON [dbo].[bettransRnG]
+(
+	[tstamp] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG_index]
+GO
+
+---------bettransRNG14
+ALTER TABLE [dbo].[bettransRnG14] ADD  CONSTRAINT [PK_bettransRnG14] PRIMARY KEY CLUSTERED 
+(
+	[transid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG14_table]
+GO
+CREATE NONCLUSTERED INDEX [IX_custid] ON [dbo].[bettransRnG14]
+(
+	[custid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG14_index]
+GO
+CREATE NONCLUSTERED INDEX [IX_Winlostdate] ON [dbo].[bettransRnG14]
+(
+	[winlostdate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [bettransRnG14_index]
+GO
