@@ -29,6 +29,7 @@ AS
     Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220927@Kathy: Check HTDone [Redmine:#178120]
+		- 20221011@Kathy: fix issue basketball - do not upd match_remark.IsHTCal
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
@@ -351,20 +352,20 @@ BEGIN
 					,@IsFinalRound			= @existsFinalRound
 					,@IsHTRound				= @existsHTRound
 					,@BetStatus				= @BetStatus
+			
+			IF @existsHTRound = 1
+			BEGIN				 
+				EXEC dbo.NAP_updateMatch_remark 
+						@matchid    = @matchid
+						,@command    = 'H'
+			END
 
 			IF  @existsFinalRound = 1
 			BEGIN				 
 				EXEC dbo.NAP_updateMatch_remark
 							@matchid				= @matchid
 							,@command				= 'C'
-			END
-
-			ELSE IF @existsHTRound = 1
-			BEGIN				 
-				EXEC dbo.NAP_updateMatch_remark 
-						@matchid    = @matchid
-						,@command    = 'H'
-			END
+			END			
 
 			EXEC dbo.NAP_Admin_Result_Update_9001
 				@action					= 'CAL'
@@ -446,6 +447,14 @@ BEGIN
 				,@IsHTRound			= @existsHTRound
 				,@BetStatus			= @BetStatus
 			
+			IF @existsHTRound = 1
+			BEGIN
+				EXEC dbo.NAP_updateMatch_remark
+					@matchid			= @matchid
+					,@command			= 'U'							
+					,@IsHTRound			= @existsHTRound
+			END
+
 			IF @existsFinalRound = 1
 			BEGIN
 				EXEC dbo.NAP_updateMatch_remark
@@ -454,14 +463,7 @@ BEGIN
 					,@IsFinalRound		= @existsFinalRound
 					,@IsHTRound			= @existsHTRound
 			END
-			ELSE IF @existsHTRound = 1
-			BEGIN
-				EXEC dbo.NAP_updateMatch_remark
-					@matchid			= @matchid
-					,@command			= 'U'							
-					,@IsHTRound			= @existsHTRound
-			END
-
+			
 			EXEC dbo.NAP_Admin_Result_Update_9001
 				@action  			= 'UNDO'
 				,@matchid 			= @MatchId
