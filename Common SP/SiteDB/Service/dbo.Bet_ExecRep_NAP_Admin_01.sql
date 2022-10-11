@@ -18,6 +18,7 @@ AS
 		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
 		- 20220928@July: Fix issue update column winlost dbo.bettransm [Redmine:178332]
 		- 20221003@Kathy: Retry if deadlock occurs [Redmine:#178542]
+		- 20221008@Patrick: Check transId before insert markedtransaction 
 
 	Param's Explanation:  
 		   
@@ -343,8 +344,13 @@ BEGIN
 						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
 
 						INSERT INTO dbo.MarkedTransaction (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
-						SELECT TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType
-						FROM @tmpTransId
+						SELECT 	TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType
+						FROM 	@tmpTransId t 
+						WHERE 	NOT EXISTS (SELECT 	TOP 1 1 
+											FROM 	dbo.MarkedTransaction m WITH(NOLOCK) 
+											WHERE 	m.TransId = t.transId 
+													AND m.MatchId = t.matchid
+									)
 					END
 					ELSE IF @Action = 'D'
 					BEGIN
