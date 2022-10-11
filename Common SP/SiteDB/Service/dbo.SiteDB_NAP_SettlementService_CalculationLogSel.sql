@@ -55,8 +55,10 @@ BEGIN
 			,@LastStatusId = StatusId		
 	FROM	dbo.SiteDB_SettlementService_LastLog WITH(NOLOCK)
 	ORDER BY LogId DESC
+
+	SET @RowCount = @@ROWCOUNT
 	
-	IF @LastStatusId = 2 
+	IF @LastStatusId = 2 OR @RowCount = 0 ---the last time is done successfully or the first time running 
 	BEGIN
 		SELECT	TOP 1 @LogId = LogId
 				,@TransInfo = TransInfo
@@ -66,7 +68,7 @@ BEGIN
 				,@SettlementAction = SettlementAction
 				,@TicketType = TicketType
 		FROM	dbo.SiteDB_SettlementService_CalculationLog WITH(NOLOCK)
-		WHERE	LogId > @LastLogId
+		WHERE	LogId > ISNULL(@LastLogId,0)
 			AND DATEDIFF(SECOND, LogDate, GETDATE() ) >= 1
 		ORDER BY LogId
 		
