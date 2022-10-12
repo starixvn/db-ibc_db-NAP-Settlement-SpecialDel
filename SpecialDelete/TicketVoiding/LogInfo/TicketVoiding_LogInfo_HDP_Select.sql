@@ -343,7 +343,7 @@ BEGIN
 			,SubIssueTypeId
 			,GroupName
 		)
-	SELECT  b.transid
+	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -412,7 +412,7 @@ BEGIN
 				,SubIssueTypeId
 				,GroupName
 			)
-		SELECT  b.transid
+		SELECT  DISTINCT b.transid
 				,b.Subtransid 
 				,b.refno
 				,b.custid				

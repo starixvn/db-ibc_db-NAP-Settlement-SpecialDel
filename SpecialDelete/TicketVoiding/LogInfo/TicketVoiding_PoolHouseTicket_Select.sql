@@ -506,18 +506,18 @@ BEGIN
 		DELETE b
 		FROM #TVSTicketBets b
 		OUTER APPLY (
-						SELECT TOP (1) transid
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-						WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
+					SELECT TOP (1) transid
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+					WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
 					) ts
 		WHERE b.transid = b.SubTransid AND ts.TransId IS NULL
 
 		DELETE sub
 		FROM #TVSTicketBets sub
 		OUTER APPLY (
-						SELECT TOP (1) transid
-						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
-						WHERE transid = sub.SubTransid AND matchid = sub.matchid AND RequestId = @RequestId
+					SELECT TOP (1) transid
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
+					WHERE transid = sub.SubTransid AND matchid = sub.matchid AND RequestId = @RequestId
 				) ts
 		WHERE sub.IsMixParlay = 1 AND ts.transid IS NULL
 
