@@ -55,10 +55,8 @@ BEGIN
 			,@LastStatusId = StatusId		
 	FROM	dbo.SiteDB_SettlementService_LastLog WITH(NOLOCK)
 	ORDER BY LogId DESC
-
-	SET @RowCount = @@ROWCOUNT
 	
-	IF @LastStatusId = 2 OR @RowCount = 0 ---the last time is done successfully or the first time running 
+	IF @LastStatusId = 2 OR @LastLogId IS NULL ---the last time is done successfully or the first time running 
 	BEGIN
 		SELECT	TOP 1 @LogId = LogId
 				,@TransInfo = TransInfo
