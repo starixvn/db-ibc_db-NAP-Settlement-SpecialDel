@@ -9,6 +9,7 @@ AS
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
+		- 20221010@Louisa: get log which is inserted 1 second before [Redmine:#178880]
 
 	Param's Explanation:  
 		   
@@ -22,7 +23,7 @@ BEGIN
 			,@TransInfo XML
 			,@TableName VARCHAR(128)
 			,@MatchId INT
-			,@RowCount INT
+			,@RowCount INT = 0
 			,@Action VARCHAR(1)
 			,@SettlementAction VARCHAR(20)
 			,@TicketType VARCHAR(1)
@@ -45,7 +46,7 @@ BEGIN
 				,@Action AS Action
 				,@SettlementAction AS SettlementAction
 				,@TicketType AS TicketType
-		WHERE ISNULL(@RowCount,0) = 1
+		WHERE 1 = 0
 		
 		RETURN
 	END
@@ -55,7 +56,7 @@ BEGIN
 	FROM	dbo.SiteDB_SettlementService_LastLog WITH(NOLOCK)
 	ORDER BY LogId DESC
 	
-	IF @LastStatusId = 2 
+	IF @LastStatusId = 2 OR @LastLogId IS NULL ---the last time is done successfully or the first time running 
 	BEGIN
 		SELECT	TOP 1 @LogId = LogId
 				,@TransInfo = TransInfo
@@ -65,7 +66,8 @@ BEGIN
 				,@SettlementAction = SettlementAction
 				,@TicketType = TicketType
 		FROM	dbo.SiteDB_SettlementService_CalculationLog WITH(NOLOCK)
-		WHERE	LogId > @LastLogId
+		WHERE	LogId > ISNULL(@LastLogId,0)
+			AND DATEDIFF(SECOND, LogDate, GETDATE() ) >= 1
 		ORDER BY LogId
 		
 		SET @RowCount = @@ROWCOUNT

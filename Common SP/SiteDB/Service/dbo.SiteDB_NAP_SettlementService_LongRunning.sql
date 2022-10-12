@@ -7,6 +7,7 @@ AS
 
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Louisa: Alert if data is pending [Redmine:#175251]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -16,10 +17,11 @@ BEGIN
 			,@StatusId TINYINT
 			,@StartTime DATETIME2
 			,@StartTimeValidation DATETIME2
+			,@PendingLogId	BIGINT
 
 	SET @ErrorMessage = ''
 
-	SELECT	@LogId = LogId
+	SELECT	TOP (1) @LogId = LogId
 			,@StatusId = StatusId
 			,@StartTimeValidation = StartTimeValidation
 			,@StartTime = Starttime
@@ -27,7 +29,16 @@ BEGIN
 	ORDER BY LogId DESC
 
 	IF @StatusId = 2
+	BEGIN
+		SELECT @PendingLogId  =  ( SELECT TOP 1 l.LogId
+									FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
+									WHERE l.LogId > @LogId
+										AND DATEDIFF(SECOND, l.LogDate, GETDATE()) >=60
+									ORDER BY l.LogId
+								)
+		IF ISNULL(@PendingLogId,0) = 0
 		RETURN
+	END
 
 	IF @StatusId = 3 
 		SET @ErrorMessage = 'Hey guys, process sync data for SiteDB (' + @@SERVERNAME + ') got error (table SiteDB_SettlementService_LastLog). Please check!!!'
@@ -35,7 +46,9 @@ BEGIN
 		SET @ErrorMessage = 'Hey guys, process sync data for SiteDB (' + @@SERVERNAME + ') got validation failed (table SiteDB_SettlementService_LastLog). Please check!!!'
 	ELSE IF @StatusId = 1 AND DATEDIFF(MINUTE,@StartTime, GETDATE()) > 1
 		SET @ErrorMessage = 'Hey guys, the item on process sync data for SiteDB (' + @@SERVERNAME + ') has been running for too long (table SiteDB_SettlementService_LastLog). Please check!!!'
-
+	ELSE IF @PendingLogId > 0
+		SET @ErrorMessage = 'Hey guys, the item on process sync data for SiteDB (' + @@SERVERNAME + ') is pending since LogId = '+CAST(@PendingLogId AS VARCHAR(20) )+' (table SiteDB_SettlementService_CalculationLog). Please check!!!'
+	
 	IF @ErrorMessage <> ''
 	BEGIN
 		execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
