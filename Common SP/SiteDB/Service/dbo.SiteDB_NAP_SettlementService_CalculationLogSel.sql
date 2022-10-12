@@ -23,7 +23,7 @@ BEGIN
 			,@TransInfo XML
 			,@TableName VARCHAR(128)
 			,@MatchId INT
-			,@RowCount INT
+			,@RowCount INT = 0
 			,@Action VARCHAR(1)
 			,@SettlementAction VARCHAR(20)
 			,@TicketType VARCHAR(1)
@@ -46,7 +46,7 @@ BEGIN
 				,@Action AS Action
 				,@SettlementAction AS SettlementAction
 				,@TicketType AS TicketType
-		WHERE ISNULL(@RowCount,0) = 1
+		WHERE 1 = 0
 		
 		RETURN
 	END
