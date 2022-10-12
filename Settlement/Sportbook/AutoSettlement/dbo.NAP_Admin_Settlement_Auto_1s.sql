@@ -41,6 +41,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221006@Louisa: Always insert BroacastSessionId into TicketVoiding_AutoVoidRequest_Queue [Redmine:#178830]
 		- 20221010@louisa: not insert [TicketVoiding_AutoVoidRequest_Queue] if BroacastSessionId null [Redmine:#178830]
+		- 20221010@Kathy: Wrong status for bettype 391,386 when refund SDT with any round [Redmine:#178935]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -362,16 +363,12 @@ BEGIN
 			@awayRound = ISNULL(RIGHT(MAX(CASE WHEN ResourceID LIKE '3810[12345]' THEN ResourceID END),1),0) 
 		FROM 
 		(
-			SELECT t.ResourceID
-			FROM @tmpSelectedRID t
-			UNION 
 			SELECT	r.ResourceId
 			FROM	DBPRO.BODB02.dbo.ResultDetail r WITH(NOLOCK)
 			WHERE	MatchID = @MatchID 
 					AND ResourceID LIKE '38[12]0[12345]'
 					AND SettlementStatusID = 4
 					AND ResultStatusID = 5
-					AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID t WHERE t.ResourceID = r.ResourceId)
 		)t
 
 		INSERT INTO #tmpTransID(TransID, modds, oddstype, IsMarked, srecommend, bettype)

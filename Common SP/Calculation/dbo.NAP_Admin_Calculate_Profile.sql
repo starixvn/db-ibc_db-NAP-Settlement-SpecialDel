@@ -23,6 +23,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
+		- 20221010@Kathy: Do not upd odds, oddsspread of bettype 468 if refund [Redmine:#178941]
 
 	Param's Explanation:  
 		   
@@ -147,9 +148,12 @@ BEGIN
 				----------------------------------------------------------------------------------------------------------------
 				,@IsUpd_Void = CASE WHEN b.statusID = 102 OR @IsMarked = 1 THEN 0 ELSE 1 END
 				,modds = @modds
-				,odds = CASE WHEN b.bettype IN (468, 469) THEN @odds ELSE b.odds END
-				,oddsspread = CASE WHEN b.bettype IN (468, 469) THEN t.ScoreBoxScore ELSE b.oddsspread END
-				
+				,odds = CASE 
+							WHEN b.bettype IN (468, 469) AND @modds IS NOT NULL THEN @odds 
+							ELSE b.odds END
+				,oddsspread = CASE 
+								WHEN b.bettype IN (468, 469)  AND @modds IS NOT NULL THEN t.ScoreBoxScore 
+								ELSE b.oddsspread END				
 				,statuswinlost = CASE WHEN @modds > 0.25 THEN 2
 										WHEN @modds = 0.25 THEN 1 
 										WHEN @modds = 0 AND b.oddstype <> 6 THEN 0 
@@ -590,9 +594,12 @@ BEGIN
 				----------------------------------------------------------------------------------------------------------------
 				,@IsUpd_Void = CASE WHEN b.statusID = 102 OR @IsMarked = 1 THEN 0 ELSE 1 END
 				,modds = @modds
-				,odds = CASE WHEN b.bettype IN (468, 469) THEN @odds ELSE b.odds END
-				,oddsspread = CASE WHEN b.bettype IN (468, 469) THEN t.ScoreBoxScore ELSE b.oddsspread END
-				
+				,odds = CASE 
+							WHEN b.bettype IN (468, 469) AND @modds IS NOT NULL THEN @odds 
+							ELSE b.odds END
+				,oddsspread = CASE 
+								WHEN b.bettype IN (468, 469)  AND @modds IS NOT NULL THEN t.ScoreBoxScore 
+								ELSE b.oddsspread END
 				,statuswinlost = CASE WHEN @modds > 0.25 THEN 2
 										WHEN @modds = 0.25 THEN 1 
 										WHEN @modds = 0 AND b.oddstype <> 6 THEN 0 
