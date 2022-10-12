@@ -35,7 +35,7 @@ AS
 		- 20220328@Louisa: Add more result for bettype 9133 [Redmine:#170532]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220629@Louisa: Volleyball AIO ( 27 bettype ) [Redmineid:#173862]
-
+		- 20221011@Louisa: Arithmetic OverFLow when  settle bettype 9115,9116,9117,9118,9119,9120 [Redmine:#178978]
 */
 RETURN
 (
@@ -531,19 +531,19 @@ RETURN
 					WHEN @pfID = 3904 THEN CASE WHEN @HomeValue = 'N' THEN 0
 												ELSE (CAST(@HomeValue AS SMALLMONEY) - @hdp1) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2)
 										   END
-					WHEN @pfID = 9116 THEN (CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000) - (CAST(@AwayValue AS SMALLMONEY) - @hdp2 * 1000)
-					WHEN @pfID = 2 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY)) % 2
+					WHEN @pfID = 9116 THEN (CAST(@HomeValue AS MONEY) - @hdp1 * 1000) - (CAST(@AwayValue AS MONEY) - @hdp2 * 1000)
+					WHEN @pfID = 2 THEN (CAST(@HomeValue AS MONEY) + CAST(@AwayValue AS MONEY)) % 2
 					
 					--Over/Under
 					WHEN @pfID IN (3, 9448) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
 					WHEN @pfID = 3905 THEN CASE WHEN @HomeValue = 'N' THEN 0
 													ELSE (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)
 												END
-					WHEN @pfID = 9117 THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000)
-					WHEN @pfID = 9118 THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 * 1000
-					WHEN @pfID = 9119 THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1 * 1000
+					WHEN @pfID = 9117 THEN (CAST(@HomeValue AS MONEY) + CAST(@AwayValue AS MONEY) - @hdp1 * 1000)
+					WHEN @pfID = 9118 THEN CAST(@HomeValue AS MONEY) - @hdp1 * 1000
+					WHEN @pfID = 9119 THEN CAST(@AwayValue AS MONEY) - @hdp1 * 1000
 					
-					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911) THEN CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
+					WHEN @pfID IN (20,711, 608, 614, 5, 24, 3911) THEN CAST(@HomeValue AS MONEY) - CAST(@AwayValue AS MONEY)
 
 					WHEN @pfID = 3915 THEN CASE WHEN @HomeValue = 'N' THEN 99
 												ELSE CAST(@HomeValue AS SMALLMONEY) - CAST(@AwayValue AS SMALLMONEY)
