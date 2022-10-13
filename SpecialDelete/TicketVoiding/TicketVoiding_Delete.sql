@@ -17,7 +17,7 @@ BEGIN
 	CREATE TABLE #requestid_tmp (RequestId INT)
 
 	DECLARE @Archive_Date DATETIME
-	SELECT @Archive_Date = DATEADD(MONTH, -3, GETDATE())
+	SELECT @Archive_Date = DATEADD(MONTH, -2, GETDATE())
 
 	IF OBJECT_ID('TicketVoiding_AutoVoidRequest_Queue','U') IS NOT NULL
 	BEGIN

@@ -3,7 +3,7 @@
 	Created: 20221003@Max
     Task: [TVS] Enhance archive process of TVS data regarding the Scale Out DB project - [Redmine: #178234]
 
-	DB: DBTXN/msdb - Add one more step on the job bodb02: NAP Task delete settled match in queue, calling SP
+	DB: DBSIG/msdb - DBCTG/msdb - Add one more step on the job bodb02: NAP Task delete settled match in queue, calling SP
 */
 USE [msdb]
 GO
