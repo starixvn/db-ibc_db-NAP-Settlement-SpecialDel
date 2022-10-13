@@ -87,7 +87,8 @@ BEGIN
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	
+	DECLARE @tmpMatchId AS TABLE (MatchId INT)
+
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
@@ -211,11 +212,13 @@ BEGIN
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
-		SELECT NULL AS MatchId
+		SELECT MatchId FROM @tmpMatchId
 
 		SET @InvalidTransIds = @TransIds
 		SELECT @InvalidTransIds AS InvalidTransIds
-		SELECT NULL AS UnmarkTransIds
+
+		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
+
 		SELECT matchid FROM #tmpTransInfo
 		RETURN;
 	END
@@ -232,12 +235,12 @@ BEGIN
 	
 		IF @MatchId IS NULL
 		BEGIN
-			SELECT NULL AS MatchId
+			SELECT MatchId FROM @tmpMatchId
 
 			SET @InvalidTransIds = @TransIds
 			SELECT  @InvalidTransIds AS InvalidTransIds
 
-			SELECT NULL AS UnmarkTransIds
+			SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
 			DELETE FROM #tmpTransInfo
 			SELECT matchid FROM #tmpTransInfo
@@ -262,7 +265,7 @@ BEGIN
 				SET @InvalidMatchId = @MatchId
 				SELECT @InvalidMatchId AS InvalidMatchId
 
-				SELECT NULL AS UnmarkTransIds
+				SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
 				DELETE FROM #tmpTransInfo
 				SELECT matchid FROM #tmpTransInfo
