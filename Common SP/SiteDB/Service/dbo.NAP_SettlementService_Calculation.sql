@@ -13,6 +13,8 @@ ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	,@TicketType		VARCHAR(1)		= NULL
 	,@TotalQueue		INT				= 0
 	,@SettlementProcessingId BIGINT		= 0
+	,@Is3rd				BIT				= 0
+	,@SiteDB			SMALLINT		= 1
 	,@ErrCode			INT				= 0	 OUTPUT
 	,@ErrMsg			VARCHAR(300)	= '' OUTPUT
 AS
@@ -23,6 +25,7 @@ AS
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20230111@Kathy: Skip validate ticket count [Redmine:#182763]
 
@@ -336,6 +339,8 @@ BEGIN
 					,@TicketType = @TicketType
 					,@TotalQueue = @TotalQueue
 					,@SettlementProcessingId = @SettlementProcessingId
+					,@Is3rd = @Is3rd
+					,@SiteDB = @SiteDB
 		END
 	END TRY
 	BEGIN CATCH

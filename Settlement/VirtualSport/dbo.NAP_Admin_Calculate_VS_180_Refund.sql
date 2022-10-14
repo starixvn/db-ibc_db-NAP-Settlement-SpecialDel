@@ -12,7 +12,8 @@ AS
 	
 	Param's Explanation:
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]    
- 
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		
 */
 BEGIN
 	SET NOCOUNT ON
@@ -67,7 +68,10 @@ BEGIN
 		
 		SELECT @rowcnt = @@ROWCOUNT
 
-		IF @IsCentral = 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @IsCentral = 0 
+			AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
+			AND OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+			AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL
 		BEGIN
 			SET @transInfo = (
 				SELECT	transId AS '@t'	
@@ -89,8 +93,17 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'RefundVS', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'RefundVS'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@transinfo = @transinfo
+				,@SettlementAction = 'REFUND'
+				,@TicketType = 's'
+				,@EventTable = 1
+				,@Is3rd = 1
+			
 		END
 
 		IF @rowcnt < 10000

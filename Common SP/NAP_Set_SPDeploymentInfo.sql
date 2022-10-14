@@ -17,6 +17,7 @@ AS
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Check SP under deployment [Redmine:#175251]
 		- 20220929@Louisa: Add VS Betrader, Betbuider, Auto settle, SP get log service sync sitedb [Redmine:#178765]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -94,6 +95,8 @@ BEGIN
 	--service sync ticket from sitedb to centraldb
 	UNION ALL
 	SELECT 'SiteDB_NAP_SettlementService_CalculationLogSel', @WaitingTime, 0
+	UNION ALL
+	SELECT 'SiteDB_NAP_SettlementService_CalculationLog_3rdSel', @WaitingTime, 0
 	
 	
 	SELECT @WaitingTime = WaitingTime

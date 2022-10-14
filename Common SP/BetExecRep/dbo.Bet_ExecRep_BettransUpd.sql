@@ -16,6 +16,7 @@ AS
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -38,7 +39,7 @@ BEGIN
 			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 	
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL
 		SET @IsSiteDB = 1
 
 	SET @ServerName = @@SERVERNAME
@@ -195,8 +196,17 @@ BEGIN
 
 		SELECT @matchid = (SELECT TOP 1 matchid FROM @sourceTicket)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, MatchId, SettlementAction, TicketType)
-		VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @transInfo, @matchid, @Action, @TicketType)		--cal or refund
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			@SystemName = 'Settlement' 
+			,@FunctionName = 'CalculateVSBetRadar'
+			,@TableName = 'bettrans'
+			,@MatchId = @MatchId
+			,@transinfo = @transinfo
+			,@SettlementAction = @Action
+			,@TicketType = @TicketType
+			,@EventTable = 1
+			,@Is3rd = 1
+		
 	END
 END
 GO

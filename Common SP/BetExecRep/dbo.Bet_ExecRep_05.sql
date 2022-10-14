@@ -28,6 +28,8 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221019@Kathy: allow settlement action by using NAP_Set_ServerAction [Redmine:#179274]
 		- 20221109@Louisa: log more inf into [SiteDB_SettlementService_CalculationLog] for virtual sport [Redmine:#178694]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		
 		
 	Param: 
 		+ @updatetype: 
@@ -71,7 +73,7 @@ BEGIN
 
 	END
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL
 		SET @IsSiteDB = 1
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -163,8 +165,16 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, SettlementAction, TicketType, TransInfo)
-			VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @matchid, @Action, 's', @transInfo)	
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'CalculateNonSport'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@transinfo = @transinfo
+				,@SettlementAction = 'CAL'
+				,@TicketType = 's'
+				,@EventTable = 1
+				,@Is3rd = 1
 		END
 	END		
 	ELSE IF @updatetype = 2 --bettransm (for virtual racing) 
@@ -369,8 +379,18 @@ BEGIN
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, SettlementAction, TicketType, TransInfo)
-				VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @MatchId, @Action, 's', @transInfo)	
+
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'CalculateNonSport'
+					,@TableName = 'bettrans'
+					,@MatchId = @MatchId
+					,@transinfo = @transinfo
+					,@SettlementAction = 'REFUND'
+					,@TicketType = 's'
+					,@EventTable = 1
+					,@Is3rd = 1
+					
 			END
 		END
 		ELSE
@@ -423,8 +443,18 @@ BEGIN
 					FROM	@tmpTransInfo
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, SettlementAction, TicketType, TransInfo)
-				VALUES ('Settlement', 'CalculateNonSport', 'bettrans', @MatchId, @Action, 's', @transInfo)	
+				
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'CalculateNonSport'
+					,@TableName = 'bettrans'
+					,@MatchId = @MatchId
+					,@transinfo = @transinfo
+					,@SettlementAction = 'REFUND'
+					,@TicketType = 's'
+					,@EventTable = 1
+					,@Is3rd = 1
+				
 			END
 		END		
 	END
@@ -483,8 +513,17 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'CalculateVSBetRadar', 'bettransm', @matchid, @transInfo, @Action, 'p')	
+
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'CalculateVSBetRadar'
+				,@TableName = 'bettransm'
+				,@MatchId = @MatchId
+				,@transinfo = @transinfo
+				,@SettlementAction = @Action
+				,@TicketType = 'p'
+				,@EventTable = 1
+				,@Is3rd = 1	
 		END
 
 	END
@@ -529,8 +568,15 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, SettlementAction, TransInfo)
-			VALUES ('Settlement', 'RecoverNonSport', 'bettrans', @Action, @transInfo)	
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'RecoverVSBetRadar'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@transinfo = @transinfo
+				,@EventTable = 1
+				,@Is3rd = 1
+			
 		END
 	END
 	ELSE IF @updatetype = 7 -- outright settlement
@@ -614,8 +660,18 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR XML PATH('r'),ROOT('root'), TYPE
 			)
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'CalculateNonSport', 'bettrans',@matchid, @transInfo, @Action, 's')	
+			
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'CalculateNonSport'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@transinfo = @transinfo
+				,@SettlementAction = @Action
+				,@TicketType = 's'
+				,@EventTable = 2
+				,@Is3rd = 1
+				
 		END
 
 	END

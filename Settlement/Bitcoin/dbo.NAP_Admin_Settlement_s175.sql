@@ -20,6 +20,7 @@ AS
 		- 20210930@Kathy: Change BalanceType  [Redmine:#159714]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -163,6 +164,8 @@ BEGIN
 				@matchid			 = @matchid
 			   ,@action				 = @action
 			   ,@strTransIds		 = @strTransIds
+			   ,@EventTable			 = 3 -- match3rd
+			   ,@IsNonSports		 = 1 
 		END	
 	END TRY
 	BEGIN CATCH

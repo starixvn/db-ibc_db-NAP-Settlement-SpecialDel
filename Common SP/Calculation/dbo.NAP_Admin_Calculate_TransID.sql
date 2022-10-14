@@ -2,7 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	@transIds		   VARCHAR(MAX)	
 	,@MatchId			INT = 0
-	
+	,@EventTable		TINYINT = 1 -- match
+	,@Is3rd		BIT =  0
 AS
 /*
 	Created by: 20180801@Vicky
@@ -20,6 +21,7 @@ AS
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220128@Kathy: Cricket AIO Phase 2 [Redmine:#166335]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		
 	Param's Explanation:  
 		   
@@ -53,7 +55,7 @@ BEGIN
 
 	END
 	
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL
 		SET @IsSiteDB = 1
 		
 	-----------------------CHECK SERVER-----------------------------------------
@@ -321,10 +323,17 @@ BEGIN
 			FROM	@tmpTransInfo
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			@SystemName = 'Settlement' 
+			,@FunctionName = 'CalculateOtherSport'
+			,@TableName = 'bettrans'
+			,@MatchId = @MatchId
+			,@transinfo = @transinfo
+			,@SettlementAction = 'CAL'
+			,@TicketType = 's'
+			,@EventTable = @EventTable
+			,@Is3rd = @Is3rd
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')		
-			
 	END
 
 	RETURN

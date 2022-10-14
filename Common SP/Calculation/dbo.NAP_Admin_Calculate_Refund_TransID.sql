@@ -2,6 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Refund_TransID]
 	@transIds			VARCHAR(MAX)
 	,@MatchId			INT = 0
+	,@EventTable		TINYINT = 1 -- match
+	,@IsNonSports		BIT =  0
 
 AS
 /*  Created by: Vicky
@@ -16,6 +18,7 @@ AS
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 
 	Param's Explanation:
 			@transIds = '<root>
@@ -43,8 +46,9 @@ BEGIN
 			RETURN
 	END
 	
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL
 		SET @IsSiteDB = 1
+
 	-----------------------CHECK SERVER-----------------------------------------
 	
 	DECLARE @tempTrans TABLE (TransID BIGINT)
@@ -147,8 +151,16 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')		
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			@SystemName = 'Settlement' 
+			,@FunctionName = 'RefundOtherSport'
+			,@TableName = 'bettrans'
+			,@MatchId = @MatchId
+			,@transinfo = @transinfo
+			,@SettlementAction = 'REFUND'
+			,@TicketType = 's'
+			,@EventTable = @EventTable
+			,@IsNonSports = @IsNonSports
 	END
 END
 GO

@@ -14,6 +14,8 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01]
 
 	,@RunOnServer VARCHAR(100)= NULL
 	,@SettlementProcessingId BIGINT = NULL	
+	,@Is3rd 	BIT =  0
+	,@SiteDB	 SMALLINT = 1
 	,@CalledByBrokerService	BIT = 0
 AS
 /*
@@ -27,6 +29,7 @@ AS
 		- 20221003@Kathy: Retry if deadlock occurs [Redmine:#178542]
 		- 20221008@Patrick: Check transId before insert markedtransaction
 		- 20221019@Kathy: Set @ServerName [Redmine:#179274]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 		- 20221025@Louisa: CHeck NULL value for @TransInfo, @TransInfoJson [Redmine:#179449]
@@ -44,6 +47,8 @@ BEGIN
 			,@strTransIds	VARCHAR(MAX)
 			,@sMessage		NVARCHAR(MAX)
 			,@IsEnableServiceBroker BIT
+			,@MessageType	VARCHAR(200)
+			,@MessageTypePattern VARCHAR(50)
 			
 			,@AllowUndo		BIT
 			,@AllowRefund	BIT
@@ -179,8 +184,20 @@ BEGIN
 													WHEN @RunOnServer IS NULL THEN 'NULL'
 													ELSE '''' + @RunOnServer + ''''
 													END 							
+							+ ',@EventTable = ' + CASE
+													WHEN @EventTable IS NULL THEN '0'
+													ELSE CAST(@EventTable AS VARCHAR(3))
+													END 
+							+ ',@Is3rd = ' + CASE
+													WHEN @Is3rd IS NULL THEN '0'
+													ELSE CAST(@Is3rd AS VARCHAR(3))
+													END 
 							+ ',@CalledByBrokerService = 1'
 		
+		SET @MessageTypePattern = CASE WHEN @Is3rd = 1 THEN 'bet_SiteDB_3rd_msg_type_' ELSE 'bet_SiteDB_msg_type_' END
+
+		SET @MessageType = @MessageTypePattern + CASE WHEN  @SiteDB < 10 THEN '0' + CAST(@SiteDB AS VARCHAR(1)) ELSE CAST(@SiteDB AS VARCHAR(20)) END
+
 			EXEC dbo.SSB_Send_Message 
 				@MessageContent = @sMessage
 				,@FunctionName = 'settlement'
