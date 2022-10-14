@@ -51,7 +51,7 @@ BEGIN
 			,VoidToTime				DATETIME
 			,LiveScores				NVARCHAR(300)
 			,SubIssueTypeId			SMALLINT
-			,WrongHDP				VARCHAR(200)
+			,WrongHDP				VARCHAR(MAX)
 			)
 
 	CREATE TABLE #tmpTransInfo(

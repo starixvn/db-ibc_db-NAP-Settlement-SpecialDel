@@ -94,7 +94,16 @@ BEGIN
 		,IsLinkGroup1X2			BIT DEFAULT(0)
 		,IsLinkGroupAIO			BIT DEFAULT(0)
 	)
-	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, LiveGameEarlyCashOutCount INT, LiveGameEarlySettleCount INT, PoolHouseCashOutCount INT, PoolHouseSettleCount INT, PoolHouseInstantlySettleCount INT)
+	CREATE TABLE #logInfoVoidPage (
+		RequestId						INT
+		,MatchId						INT
+		,LiveGameEarlyCashOutCount		INT
+		,LiveGameEarlySettleCount		INT
+		,PoolHouseCashOutCount			INT
+		,PoolHouseSettleCount			INT
+		,PoolHouseInstantlySettleCount	INT
+	)
+
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT 
@@ -160,6 +169,9 @@ BEGIN
 			,MatchId                 INT
 			,IsPoolHouseAffected	 BIT DEFAULT(0)
 		)
+	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+
 	SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
 	INSERT INTO #FilterInfo( 
 			MatchID				
@@ -484,6 +496,11 @@ BEGIN
 			FROM @Validation v
 			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
 		END
+
+		--Remove Transid exists in other request
+		DELETE FROM #TVSTicketBets 
+		WHERE EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = SubTransid)
+		
 	END
 
 	/*Remove Transid poolhouse uncheck bettype*/
@@ -498,7 +515,6 @@ BEGIN
 					WHERE b.Subbettype = CAST (value AS SMALLINT)		
 				)xPH
 		WHERE d.IsMainMatch = 'true' AND GroupName = 'PH'
-		AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest t WHERE b.matchid = t.MatchId AND b.SubTransid = t.TransId)
 		
 	   IF @@ROWCOUNT <> 0 
 	   BEGIN
@@ -525,12 +541,9 @@ BEGIN
 		,COUNT(CASE WHEN b.transid <> b.SubTransid AND b.IsMixParlay = 1 THEN b.transid ELSE NULL END) AS PoolHouseMainParlayCount
 	FROM #TVSTicketBets b
 		LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
-		LEFT JOIN #TransidInRequest tmp ON tmp.TransId = b.SubTransid 
-	WHERE tmp.TransId IS NULL
 	GROUP BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)), b.matchid
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ASC
 
-	
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
 				 ,v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE l.IsPoolHouseAffected END
 	FROM @Validation v
@@ -580,22 +593,22 @@ BEGIN
 		--Check score for void message
 		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
 		BEGIN
-				INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-				SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
-				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
-					INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0
-				WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
+			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
+			SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
+				INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0
+			WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
 		END
 
 		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
 		BEGIN
-				INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
-				SELECT s.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
-				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-					INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 1
-					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype			
-				WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
+			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
+			SELECT s.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
+			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
+				INNER JOIN #tmpTransInfo b ON b.Subtransid = s.TransId AND b.IsMixParlay = 1
+				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.Subbettype			
+			WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
 		END
 
 		IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
@@ -607,7 +620,7 @@ BEGIN
 			WHERE rd.RequestId = @RequestId
 		END
 
-		-- 3. Loginfo Table
+		-- 3. Loginfo table
 		SELECT rd.MatchId
 			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
 			,rd.VoidFromTime
@@ -638,10 +651,10 @@ BEGIN
 			)sm(ScoreOfMatch)
 		WHERE rd.RequestId = @RequestId
 
-		-- 4. Unmark table
-		SELECT NULL AS UnmarkTransIds
+		-- 4. Unmark table (No need -> return table)
+		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 		
-		-- 5. Transinfo table (No need return data)
+		-- 5. Transinfo table (No need -> return table)
 		SELECT @TransInfoJson AS TransInfoJson
 
 		RETURN;
@@ -681,14 +694,13 @@ BEGIN
 			FROM #TransidInRequest 
 		END
 			
-		-- 3. Loginfo Table
-		DELETE #logInfo
-		SELECT MatchId FROM #logInfo
+		-- 3. Loginfo table (No need -> return table)
+		SELECT MatchId FROM #logInfo WHERE Matchid IS NULL
 
-		-- 4. Unmark table
-		SELECT NULL AS UnmarkTransIds
+		-- 4. Unmark table (No need -> return table)
+		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 		
-		-- 5. Transinfo table
+		-- 5. Transinfo table (No need -> return table)
 		SELECT @TransInfoJson AS TransInfoJson
 
 		RETURN;
@@ -697,23 +709,10 @@ BEGIN
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		--Mark ticket when add request
-		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
-											FROM #TVSTicketBets tp   
-											WHERE tp.IsMixParlay = 0 AND tp.StatusId IN (0,1)
-											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)-- exist in # request
-											FOR XML PATH('')), 1,1,'')
-										,'')
-
-		IF @MarkTransIds <> ''
-				SET @MarkTransIds = @MarkTransIds + ','
-
-		SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50)) 
-											FROM #TVSTicketBets tp   
-											WHERE tp.IsMixParlay = 1 AND tp.SubStatusId IN (0,1)
-											AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
-											FOR XML PATH('')), 1,1,'')
-										,'')
-
+		INSERT INTO @tmpMarkTransId (TransId)
+		SELECT tp.SubTransid
+		FROM #TVSTicketBets tp
+		WHERE tp.SubStatusId IN (0,1)
 	END
 	ELSE IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
@@ -722,85 +721,58 @@ BEGIN
 		IF @ActionId <> 2 AND @OldActionId <> 2
 		BEGIN
 			--Edit request filter on UI -> unmark ticket 
-			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-												LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.transid AND tp.IsMixParlay = 0
-												LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
-											WHERE tp.TransId IS NULL AND tr.TransId is NULL
-												AND rdt.RequestId = @RequestId
-											FOR XML PATH('')), 1,1,'')
-										,'')
-
-			IF @UnmarkTransIds <> ''
-				SET @UnmarkTransIds = @UnmarkTransIds + ','
-
-			SELECT @UnmarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
-											 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
-													LEFT JOIN #TVSTicketBets tp ON rdt.TransId=tp.SubTransid AND tp.IsMixParlay = 1
-													LEFT JOIN #TransidInRequest tr on tr.TransId = rdt.TransId
-											  WHERE tp.SubTransid IS NULL AND tr.TransId IS NULL
-													  AND rdt.RequestId=@RequestId
-											  FOR XML PATH('')
-											), 1,1,'')
-										,'')
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT um.TransId
+			FROM (
+					SELECT s.TransId
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+					WHERE s.RequestId = @RequestId
+					UNION ALL
+					SELECT p.TransId
+					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay p WITH(NOLOCK)
+					WHERE p.RequestId = @RequestId
+				)um
+				LEFT JOIN #TVSTicketBets tp ON um.TransId = tp.SubTransid 
+			WHERE tp.TransId IS NULL 
 
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50))
-											FROM #TVSTicketBets tp
-												LEFT JOIN #TransidInRequest tr on tr.TransId = tp.transid
-											WHERE tp.IsMixParlay = 0 AND tr.TransId IS NULL AND tp.StatusId IN (0,1)
-											FOR XML PATH('')), 1, 1, '')
-									, '')
-
-			IF @MarkTransIds <> ''
-				SET @MarkTransIds = @MarkTransIds + ','
-
-			SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50))
-											FROM #TVSTicketBets tp
-												LEFT JOIN #TransidInRequest tr on tr.TransId = tp.SubTransid
-											WHERE tp.IsMixParlay = 1 AND tr.TransId IS NULL AND tp.SubStatusId IN (0,1)
-											FOR XML PATH('')), 1, 1, '')
-									, '')
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT tp.SubTransid
+			FROM #TVSTicketBets tp
+			WHERE tp.SubStatusId IN (0,1)
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
 			--Mark ticket when add request
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(tp.transid AS VARCHAR(50)) 
-												FROM #TVSTicketBets tp   
-												WHERE tp.IsMixParlay = 0 AND tp.StatusId IN (0,1)
-												AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.TransId)-- exist in # request
-												FOR XML PATH('')), 1,1,'')
-											,'')
-
-			IF @MarkTransIds <> ''
-					SET @MarkTransIds = @MarkTransIds + ','
-
-			SELECT @MarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(tp.SubTransid AS VARCHAR(50)) 
-												FROM #TVSTicketBets tp   
-												WHERE tp.IsMixParlay = 1 AND tp.SubStatusId IN (0,1)
-												AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = tp.SubTransid)-- exist in # request
-												FOR XML PATH('')), 1,1,'')
-											,'')
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT tp.SubTransid
+			FROM #TVSTicketBets tp
+			WHERE tp.SubStatusId IN (0,1)
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId -- Take note
 		BEGIN
-			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE rdt.RequestId = @RequestId
-											FOR XML PATH('')), 1,1,'')
-										,'')
-			IF @UnmarkTransIds <> ''
-				SET @UnmarkTransIds = @UnmarkTransIds + ','
-			
-			SELECT @UnmarkTransIds += ISNULL(STUFF((SELECT ',' + CAST(rdt.transid AS VARCHAR(50)) 
-											 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rdt WITH(NOLOCK)
-											  WHERE rdt.RequestId=@RequestId
-											  FOR XML PATH('')
-											), 1,1,'')
-										,'')
+			--Unmark ticket 
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT s.TransId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
+			WHERE s.RequestId = @RequestId
+			UNION ALL
+			SELECT p.TransId
+			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay p WITH(NOLOCK)
+			WHERE p.RequestId = @RequestId
 		END
 
 	END
+	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpUnmarkTransId
+											FOR XML PATH('')), 1,1,'')
+											,'')
+
+	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+										FROM @tmpMarkTransId
+										FOR XML PATH('')), 1,1,'')
+										,'')
+
 	/*****************Return table **************************/
 	-- 1. Validate table
 	SELECT MatchId
@@ -851,7 +823,7 @@ BEGIN
 					)w (scores) 
 	GROUP BY MatchId, w.scores
 
-	-- 4. List ticket unmark/mark   (if any)
+	-- 4. List ticket unmark/mark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 	      ,@MarkTransIds AS MarkTransIds
 
@@ -866,7 +838,6 @@ BEGIN
 		,b.SiteDBGroupID AS 'sitedb'
 	FROM #TVSTicketBets t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 	FOR JSON PATH))
 	
 	SELECT @TransInfoJson AS TransInfoJson
