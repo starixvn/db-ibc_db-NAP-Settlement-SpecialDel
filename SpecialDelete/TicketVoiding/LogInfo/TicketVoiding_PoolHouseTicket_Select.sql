@@ -343,7 +343,9 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN f.GroupMatch = 0 THEN '1X2' ELSE 'AIO' END AS GroupName
+			,CASE WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 THEN '1X2' 
+				  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 THEN '1H 1X2'
+			      ELSE 'AIO' END AS GroupName
 			,b.statusID
 			,b.modds
 			,b.ExtraInfo
@@ -442,13 +444,15 @@ BEGIN
 					,b.actual_stake AS ActualStake
 					,@MatchId
 					,CASE WHEN (@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7) THEN 'HDP'
-						  WHEN f.GroupMatch = 0 THEN '1X2' WHEN f.GroupMatch <> 0 THEN 'AIO'	 
+						  WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 THEN '1X2' 
+						  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 THEN '1H 1X2'
+						  ELSE 'AIO'	 
 					 END AS GroupName
 					,b.SubstatusID
 					,b.ExtraInfo
 					,b.winlostdate
 		  FROM #tmpTransInfo b
-		  OUTER APPLY (
+				OUTER APPLY (
 					SELECT DISTINCT value AS HomeFavorite
 					FROM STRING_SPLIT(@HomeFavorite, '&')
 					WHERE value <> ''				
@@ -526,9 +530,11 @@ BEGIN
 	--Return all bettype tickets
 	SELECT DISTINCT s.SubBetType AS Id
 		, b.typenamee AS Name
-		, CASE WHEN s.GroupName IN ('1X2', 'HDP') THEN '1X2' ELSE 'AIO' END GroupName
+		, CASE WHEN @IssueTypeId IN (4) AND s.GroupName IN ('1X2', 'HDP') THEN '1X2' 
+			   WHEN @IssueTypeId IN (5) AND s.GroupName IN ('1H 1X2', 'HDP') THEN '1H 1X2' 
+		  ELSE 'AIO' END GroupName
 	FROM #TVSTicketBets s
-		INNER JOIN bettype b WITH(NOLOCK) ON s.SubBetType = b.typeid 
+		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.SubBetType = b.typeid 
 
 	--Return all PH tickets
 	SELECT s.transid
@@ -587,7 +593,7 @@ BEGIN
 		INNER JOIN dbo.match m WITH(NOLOCK) ON s.matchid = m.matchid
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
-	ORDER BY CASE WHEN s.GroupName = '1X2' AND s.transid = s.SubTransid THEN 1
+	ORDER BY CASE WHEN s.GroupName IN ('1X2', '1H 1X2') AND s.transid = s.SubTransid THEN 1
 				  WHEN s.GroupName = 'AIO' AND s.transid = s.SubTransid THEN 2
 				  WHEN s.IsMixParlay = 1 THEN 3 END
 			, ISNULL(s.MainTransId, s.transid)
