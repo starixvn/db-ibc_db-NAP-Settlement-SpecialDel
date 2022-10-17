@@ -48,6 +48,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
+		- 20221007@July: TVS - Abnormalbet - No need to send Letstalk message if the request has UUS ticket [Redmine: #178321]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -70,6 +71,7 @@ BEGIN
 			,@query						 NVARCHAR(MAX) = ''
 			,@ExecuteSQL				 NVARCHAR(MAX) = ''
 			,@IsHasWarningRemovedTickets BIT=0
+			,@IsHasUUSTickets			 BIT=0
 			,@OldActionId				 TINYINT
 			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
@@ -85,7 +87,8 @@ BEGIN
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	
+	DECLARE @tmpMatchId AS TABLE (MatchId INT)
+
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
@@ -122,6 +125,7 @@ BEGIN
 		,refno			BIGINT
 		,betteam		NVARCHAR(10)
 		,SubMatchIdList	VARCHAR(2000)
+		,CurrencyName	NVARCHAR(50)
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
@@ -149,6 +153,7 @@ BEGIN
 	  ,recommend INT
 	  ,mrecommend INT
 	  ,srecommend INT
+	  ,CurrencyName NVARCHAR(50)
 	  ,statuswinlost TINYINT
 	  ,SubMatchIdList VARCHAR(2000)
 	  ,IsMoved14 BIT
@@ -172,6 +177,7 @@ BEGIN
 		  ,recommend 
 		  ,mrecommend
 		  ,srecommend
+		  ,CurrencyName
 		  ,statuswinlost
 		  ,SubMatchIdList
 		  ,IsMoved14
@@ -195,6 +201,7 @@ BEGIN
 			,t.c.value('@re','INT') AS recommend
 			,t.c.value('@mre','INT') AS mrecommend
 			,t.c.value('@sre','INT') AS srecommend
+			,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
 			,t.c.value('@IsM','BIT') AS IsMoved14
@@ -205,11 +212,13 @@ BEGIN
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
-		SELECT NULL AS MatchId
+		SELECT MatchId FROM @tmpMatchId
 
 		SET @InvalidTransIds = @TransIds
 		SELECT @InvalidTransIds AS InvalidTransIds
-		SELECT NULL AS UnmarkTransIds
+
+		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
+
 		SELECT matchid FROM #tmpTransInfo
 		RETURN;
 	END
@@ -226,12 +235,12 @@ BEGIN
 	
 		IF @MatchId IS NULL
 		BEGIN
-			SELECT NULL AS MatchId
+			SELECT MatchId FROM @tmpMatchId
 
 			SET @InvalidTransIds = @TransIds
 			SELECT  @InvalidTransIds AS InvalidTransIds
 
-			SELECT NULL AS UnmarkTransIds
+			SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
 			DELETE FROM #tmpTransInfo
 			SELECT matchid FROM #tmpTransInfo
@@ -256,7 +265,7 @@ BEGIN
 				SET @InvalidMatchId = @MatchId
 				SELECT @InvalidMatchId AS InvalidMatchId
 
-				SELECT NULL AS UnmarkTransIds
+				SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
 				DELETE FROM #tmpTransInfo
 				SELECT matchid FROM #tmpTransInfo
@@ -292,6 +301,7 @@ BEGIN
 		,refno
 		,betteam
 		,SubMatchIdList
+		,CurrencyName
 		)
 	SELECT b.transid
 		,CASE WHEN b.matchid = @MatchId THEN 1 ELSE 0 END
@@ -310,6 +320,7 @@ BEGIN
 		,b.refno
 		,b.betteam
 		,SubMatchIdList
+		,CurrencyName
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
@@ -426,6 +437,7 @@ BEGIN
 										WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29)
 										FOR XML PATH('')), 1, 1, '')
 										, '')
+	SET @IsHasUUSTickets = ISNULL((SELECT TOP 1 1 FROM #validTransId WHERE CurrencyName = 'UUS'),0)
 
 	IF @ActionId <> 2
 	BEGIN
@@ -668,7 +680,8 @@ BEGIN
 			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
-	
+			,@IsHasUUSTickets AS IsHasUUSTickets
+
 	--3. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@RemoveTransids AS RemoveTransids -- Ticket remove -> re-cal
