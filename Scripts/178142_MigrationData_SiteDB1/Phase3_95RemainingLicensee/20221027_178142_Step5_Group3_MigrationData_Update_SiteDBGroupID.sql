@@ -1,0 +1,182 @@
+
+-----------STEP 2: NEED TO RUN ON DBTRANS ONLY - UPDATE sitedbgroupid for scale out licensee at DBTRANS & ALL SubDB ------------------------------------------
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+CREATE TABLE #tmp_cust_scaleout (custid INT PRIMARY KEY)
+
+CREATE TABLE #tmp_bettrans14_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
+
+CREATE TABLE #tmp_batch (transid BIGINT PRIMARY KEY)
+--------------------------------------------------------------
+INSERT INTO #tmp_cust_scaleout (custid)
+SELECT DISTINCT custid
+FROM CustDB.dbo.Customer WITH (NOLOCK)
+WHERE site IN	('NLDSports','XmenSW','OCMSS','LIGAWLHKB','DTGJZ','TXJT','3star88','ECLBET','Mybet88','WINCLUB88','INSERTGAME','Alphalota','Barcelo9','Aladdin99','BVCLLC','Jiuyou','Yintai','Letian','WRServices','Xiaoxiang','YakaGaming','5ATech','IGSW','HBPT','TSLA','WRSeamless','TYgaming','KSTECH2','De365','UGaming','0sServices','ZhiFeng019','mbxusdt','GoldenF2','ZhiFeng173','UNOGAMING','ZTech','XLMEDIA','AEUGSW','24aviaCV','ACsports','FLCSW','GoldenFCV','HaHaGaming','HOroyal','IDNSPORT','IDNUPVND','JDJDAPI','JUNBOVN','KzingP88','KZSW','MultiSL88','OXPLAY','SGM88','STEBBCBI','TYgamingSW','WSlots','yuanbaoCV','ZF133FIN2','ZF215CNY','ZF267SW','ZF271SW','ZFRT155new','ZFRT159','ZFRT175','ZFRT179','ZFRT219','ZFRT240','ZFRT242','ZFRT259','ZFRT263','ZFRT80GPGT','ZhiFeng041','ZhiFeng050','ZhiFeng051','ZhiFeng094','ZhiFeng107','ZhiFeng116','ZhiFeng132','ZhiFeng168','ZhiFeng176','ZhiFeng200','ZhiFeng204','ZhiFeng221','ZhiFeng223','ZhiFeng228','ZhiFeng242','ZhiFeng248','ZhiFeng253','ZhiFeng255','ZhiFeng262','ZhiFeng266','ZhiFeng267','ZhiFeng271','ZhiFeng030')
+
+-------------------DATA PREPARATION --------------------------
+-- bettrans14
+INSERT INTO #tmp_bettrans14_scaleout (transid)
+SELECT transid
+FROM bettrans14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+
+---------------------- param declare to process data -----
+DECLARE @StartRow INT = 1
+	, @StopRow INT 
+	, @MaxRow INT 
+	, @Threshold INT = 2000 -- the number of each batch
+	, @tablename VARCHAR (200)
+	, @transIds VARCHAR (MAX) = ''
+	, @siteDBGroupID SMALLINT = 1
+
+DECLARE @debug_message VARCHAR(500)
+
+------ 2. bettrans14 - #tmp_bettrans14_scaleout ------------
+IF EXISTS (SELECT TOP 1 1 FROM #tmp_bettrans14_scaleout)
+BEGIN 
+	SET @tablename = 'bettrans14'
+	SET @StartRow = 1		
+	SET @MaxRow = (SELECT MAX(rid) FROM #tmp_bettrans14_scaleout)
+	SET @StopRow = @Threshold
+
+	WHILE (1 = 1)
+	BEGIN
+
+		TRUNCATE TABLE #tmp_batch
+
+		DELETE R
+		OUTPUT DELETED.transid
+		INTO #tmp_batch (transid)		
+		FROM #tmp_bettrans14_scaleout R
+		WHERE rid BETWEEN @StartRow AND @StopRow
+	
+		IF @@ROWCOUNT = 0 
+			BREAK
+
+		SET @debug_message = @tablename + ' StartRow: ' + CAST(@StartRow AS VARCHAR)  + ' StopRow: ' + CAST(@StopRow AS VARCHAR(50)) + ' ' + CONVERT(VARCHAR(50), GETDATE(), 121)			
+		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
+
+		SET @transIds = (SELECT transid AS t
+						FROM #tmp_batch
+						FOR XML RAW ('r'), ROOT ('root'))
+
+		EXEC ExecRep_NAP_Admin_09 @transIds = @transIds, @SiteDBGroupID = @siteDBGroupID, @tablename = @tablename
+
+		WAITFOR DELAY '00:00:00.010' --optional
+		TRUNCATE TABLE #tmp_batch
+
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+
+		IF @StartRow > @MaxRow BREAK
+
+	END
+END
+
+
+/*
+------------ CHECKING DATA AFTER RUN SCRIPT -----------------------
+--bettrans
+SELECT transid
+FROM bettrans b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettrans14
+SELECT transid
+FROM bettrans14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettransm
+SELECT transid
+FROM bettransm b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettransm14
+SELECT transid
+FROM bettransm14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+	
+-- bettransLC
+SELECT transid
+FROM bettransLC b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettransLC14
+SELECT transid
+FROM bettransLC14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettransRnG
+SELECT transid
+FROM bettransRnG b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettransRnG14
+SELECT transid
+FROM bettransRnG14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettransG
+SELECT transid
+FROM bettransG b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- bettransG14
+SELECT transid
+FROM bettransG14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- translog
+SELECT translogid
+FROM translog b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+-- translog14
+SELECT translogid
+FROM translog14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+
+--zzzbettrans
+SELECT transid
+FROM zzzbettrans b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+
+--zzzbettransm
+SELECT b.transid
+FROM zzzbettransm b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout s ON s.custid = b.custid
+WHERE SiteDBGroupID = 0 OR SiteDBGroupID IS NULL
+
+--TicketVoiding_RequestDetailTicket_Single
+SELECT b.transid
+FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
+	INNER JOIN bettrans s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
+WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
+
+--TicketVoiding_RequestDetailTicket_Single
+SELECT b.transid
+FROM TicketVoiding_RequestDetailTicket_Single b WITH (NOLOCK)
+	INNER JOIN bettrans14 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
+WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
+
+--TicketVoiding_RequestDetailTicket_SubParlay
+SELECT b.transid
+FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
+	INNER JOIN bettransm s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
+WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
+
+--TicketVoiding_RequestDetailTicket_SubParlay
+SELECT b.transid
+FROM TicketVoiding_RequestDetailTicket_SubParlay b WITH (NOLOCK)
+	INNER JOIN bettransm14 s ON s.transid = b.transid AND s.matchid = b.MatchId
+	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = s.custid
+WHERE b.SiteDBGroupID = 0 OR b.SiteDBGroupID IS NULL
+
+*/
+
+
