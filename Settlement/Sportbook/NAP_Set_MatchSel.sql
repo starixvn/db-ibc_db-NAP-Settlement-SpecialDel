@@ -95,18 +95,20 @@ BEGIN
 		@matchid INT
 		,@StartTime DATETIME
 		,@EndTime	DATETIME
-		,@SqlCommand VARCHAR(MAX)	
-		,@matchidList VARCHAR(MAX) = ''
+		,@SqlCommand VARCHAR(MAX)
 		,@IsCentral			BIT = 0
 		,@Matchid_tmp		INT = 1
-		,@IsMergedParlay	BIT
-		,@ProcName			SYSNAME = OBJECT_NAME(@@procid)
+		,@IsMergedParlay	BIT = 0
+		,@ProcName			SYSNAME = OBJECT_NAME(@@procid)		
+		,@n					INT = 2147483647
 
 	DECLARE @tmpLeagueID	 TABLE ( LeagueId INT )
 	DECLARE @tmpMatchStatus  TABLE ( MatchStatus TINYINT )
 	DECLARE @tmpHoldStatus	 TABLE ( HoldStatus TINYINT )
 
-	CREATE TABLE #temp_match_parlay (transid BIGINT, matchid INT, refno BIGINT, IsMergedParlay BIT DEFAULT(0))
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
+	
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	
 	CREATE TABLE #tempmatch (matchid INT, IsCalculatingSingle INT, IsCalculatingMP INT)
 	
@@ -390,9 +392,6 @@ BEGIN
 										END > 0
 								)
 	END
-
-	DECLARE @strBettypesParlay	VARCHAR (MAX)		
-		,@n						INT = 2147483647
 	
 	INSERT INTO #tmpBettypes (bettype, groupid, IsFGLG, IsEarly)
 	SELECT	BetType, f.GroupId, f.IsFGLG, ISNULL(e.IsEarly, 0)
@@ -562,6 +561,7 @@ BEGIN
 				GROUP BY r.MatchId
 			)r
 		
+		---filter by Early Over
 		IF @FilterOver = 1 
 		BEGIN
 			DELETE m
@@ -573,7 +573,8 @@ BEGIN
 						END
 		
 		END
-
+		
+		--filter by matches have FastMarket
 		IF @MatchType = 3
 		BEGIN
 			DELETE FROM	#matchList WHERE IsExistFastMarket = 0 AND IsExistFastMarketResult = 0
@@ -634,10 +635,6 @@ BEGIN
 		, pl.IsCalculating IsCalculatingMP
 	from SingleTicket sg
 		full outer join ParlayTicket pl on sg.matchid = pl.matchid 
-
-	
-	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0))
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
@@ -845,5 +842,11 @@ BEGIN
 		INSERT INTO SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
 		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime
 	END
+
+	DROP TABLE #BettypeExtraStatus
+	DROP TABLE #matchList
+	DROP TABLE #tempmatch
+	DROP TABLE #tmpBettypes
+	DROP TABLE #tmpMarkedTransaction
 END
 GO
