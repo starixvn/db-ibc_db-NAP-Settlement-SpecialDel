@@ -14,6 +14,7 @@ AS
 		- 20151210@Patrick: Database - Change datatype [Redmine: #48660]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
+		- 20221012@Louisa: Enhancement [Redmine:#178551]
 
 	Param's Explanation:
 		
@@ -71,21 +72,14 @@ begin
 end 
 else 
 begin 
-	select DISTINCT league.leagueid, leaguename, match.sporttype
-	from match with (nolock)
-		inner join league with (nolock) on match.leagueid = league.leagueid
-	where match.eventdate between @FromDate and @ToDate
-		and match.sporttype = @sporttype
-		and ISNULL(match.IsDeleted,0) = 0
+	select DISTINCT l.leagueid, l.leaguename, m.sporttype
+	from match m with (nolock)
+		inner join league l with (nolock) on m.leagueid = l.leagueid
+	where m.eventdate between @FromDate and @ToDate
+		and m.sporttype = @sporttype
+		and ISNULL(m.IsDeleted,0) = 0
+		and l.LeagueGroupID not in (112, 113) --exclude Pingoal soccer, Pingoal basketball
 	order by leaguename
 end
 
 GO
-
-GRANT EXECUTE ON [NAP_Set_LeagueSel] TO [bodbAdminNet] AS [dbo]
-GO
-
-GRANT VIEW DEFINITION ON [NAP_Set_LeagueSel] TO [vnteam] AS [dbo]
-GO
-
-
