@@ -902,16 +902,24 @@ BEGIN
 				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 			END
 		END
-		ELSE IF @IsCentral = 1
+		ELSE
 		BEGIN
-			IF @IsAuto = 1
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
+			SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
+
+			IF @IsCentral = 1
 			BEGIN
-				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-					@MatchId = @matchid 
-					, @TypeId  = 10
-					, @StatusId = 2
+				IF @IsAuto = 1
+				BEGIN
+					EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
+						@MatchId = @matchid 
+						, @TypeId  = 10
+						, @StatusId = 2
+				END
 			END
 		END
+		
+		
 
 		IF @matchcode not like '%Hedge%'
 		BEGIN 
