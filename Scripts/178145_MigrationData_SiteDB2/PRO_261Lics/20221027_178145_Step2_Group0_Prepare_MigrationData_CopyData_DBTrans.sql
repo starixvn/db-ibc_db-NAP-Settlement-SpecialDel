@@ -3,7 +3,7 @@
 /*
     Created by: 20220926@Victoria
     Task: Data Migration - Real Licensee - PRO - SITEDB02
-    DB: DBCTG-SiteDB02tmp
+    DB: DBSIG-SiteDB02tmp
 
 	 Revisions:
 		- 20220926@Victoria: SELECT data INTO new tables for CustDB.dbo.Customer [Redmineid:#178145] 
