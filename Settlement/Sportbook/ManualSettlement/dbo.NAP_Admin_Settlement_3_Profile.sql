@@ -33,7 +33,8 @@ AS
 	   - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 	   - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-
+	   - 20221019@Louisa: insert BroadcastSessionId into queue auto void for all Action [Redmine:#]
+	   
 */
 BEGIN
     SET NOCOUNT ON;
@@ -856,7 +857,7 @@ BEGIN
 			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
 	END
-	ELSE IF @Action IN ('CAL', 'CAL-FT') --AND @IsCentral = 1
+	ELSE
 	BEGIN
 		--UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
 		--	SET StatusId = 0, Starttime = GETDATE()
