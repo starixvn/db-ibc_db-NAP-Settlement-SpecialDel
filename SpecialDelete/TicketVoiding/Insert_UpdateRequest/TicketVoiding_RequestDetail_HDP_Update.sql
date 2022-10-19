@@ -32,9 +32,11 @@ BEGIN
 			,@SB_Error			 BIT = 0
 			,@LogDataContent	 NVARCHAR(MAX)
 
-	DECLARE	 @WrongHDPInfoXML		  XML = NULL	
-			,@SingleCount			INT
-		    ,@MainParlayCount		INT
+	DECLARE	 @WrongHDPInfoXML	 XML = NULL	
+			,@SingleCount		 INT
+		    ,@MainParlayCount	 INT
+			,@PHBettypes		 VARCHAR(MAX) =''
+			,@MainMatchId		 INT
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -114,13 +116,29 @@ BEGIN
 					THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') 
 				  ELSE '' END 
 				    + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
-				    + '" IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
+				    + CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' THEN '" />'
+						   ELSE 
+					 '" IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
 				    + '" IsLinkGroupAIO="' + CAST(t.c.value('@IsLinkGroupAIO','BIT') AS VARCHAR(10))
-				    + '" PoolHouseUncheckBetTypes="' + t.c.value('@PoolHouseUncheckBetTypes','VARCHAR(500)') + '" />'	  
+				    + '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') + '" />'
+						 END
 			AS WrongHDP
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 	
+	SELECT @MainMatchId = MatchID FROM #tblGetLogInfo WHERE WrongHDP LIKE '%IsMainMatch="true"%' AND WrongHDP LIKE '%PoolHouseCheckedBetTypes="ALL"%'
+	IF @MainMatchId IS NOT NULL
+	BEGIN
+		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(bettype AS VARCHAR(10))
+									  FROM #tmpTransInfo 
+									  WHERE matchid = @MainMatchId
+									  FOR XML PATH ('')
+								),1,1,'')
+		UPDATE #tblGetLogInfo
+		SET WrongHDP = SUBSTRING(WrongHDP,0, LEN(WrongHDP) - 6)  + @PHBettypes+ '" />'
+		WHERE MatchID = @MainMatchId
+	END
+
 	IF @IsEditRequest = 1
 	BEGIN
 		DELETE rd

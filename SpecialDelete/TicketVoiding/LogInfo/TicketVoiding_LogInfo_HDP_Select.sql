@@ -24,7 +24,7 @@ AS
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseUncheckBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = ""/></root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" IsFetchNewPHData = "" /></root>
 
 */
 BEGIN
@@ -36,6 +36,9 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 	 		,@OldActionId			  TINYINT
+			,@PHBettypes			  VARCHAR(MAX) =''
+			,@MainMatchId			  INT
+			,@IsFetchNewPHData		  BIT
 	
 	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
@@ -89,10 +92,11 @@ BEGIN
 		,HomeFavorite			VARCHAR(50)
 		,AwayFavorite			VARCHAR(50)
 		,HdpValue				VARCHAR(50)
-		,PoolHouseUncheckBetTypes VARCHAR(500)
+		,PoolHouseCheckedBetTypes VARCHAR(MAX)
 		,IsMainMatch			VARCHAR(10)
 		,IsLinkGroup1X2			BIT DEFAULT(0)
 		,IsLinkGroupAIO			BIT DEFAULT(0)
+		,IsFetchNewPHData		BIT DEFAULT(0) -- Get ticket button Save Details PH (0-bettrans || 1-ticket request)
 	)
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
@@ -181,10 +185,11 @@ BEGIN
 			,AwayFavorite
 			,HdpValue
 			,SubIssueTypeId
-			,PoolHouseUncheckBetTypes
+			,PoolHouseCheckedBetTypes
 			,IsMainMatch
 			,IsLinkGroup1X2
 			,IsLinkGroupAIO
+			,IsFetchNewPHData
 		)
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
@@ -193,10 +198,11 @@ BEGIN
 			,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
 			,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,t.c.value('@PoolHouseUncheckBetTypes','VARCHAR(500)') AS PoolHouseUncheckBetTypes
+			,t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') AS PoolHouseCheckedBetTypes
 			,t.c.value('@IsMainMatch','VARCHAR(10)') AS IsMainMatch
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
+			,t.c.value('@IsFetchNewPHData','BIT') AS IsFetchNewPHData
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 
@@ -503,26 +509,40 @@ BEGIN
 		
 	END
 
-	/*Remove Transid poolhouse uncheck bettype*/
-	IF EXISTS ( SELECT TOP 1 1 FROM #FilterInfo WHERE IsMainMatch = 'true' AND ISNULL(PoolHouseUncheckBetTypes,'') <> '')
+	SELECT @MainMatchId = CASE WHEN PoolHouseCheckedBetTypes = 'ALL' THEN MatchId ELSE NULL END
+	       ,@IsFetchNewPHData = IsFetchNewPHData
+	FROM #FilterInfo 
+	WHERE IsMainMatch = 'true' 
+
+	IF @MainMatchId IS NOT NULL
+	BEGIN
+		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(bettype AS VARCHAR(10))
+									  FROM #TVSTicketBets 
+									  WHERE matchid = @MainMatchId
+									  FOR XML PATH ('')
+								),1,1,'')
+		UPDATE #FilterInfo
+		SET PoolHouseCheckedBetTypes = @PHBettypes
+		WHERE MatchID = @MainMatchId
+	END
+
+	/*Remove Transid poolhouse bettype un-check*/
+	IF EXISTS ( SELECT TOP 1 1 FROM #FilterInfo WHERE IsMainMatch = 'true' AND ISNULL(PoolHouseCheckedBetTypes,'') <> '')
 	BEGIN
 		DELETE b
 		FROM #TVSTicketBets b
 			INNER JOIN #FilterInfo d ON b.matchid = d.MatchId
-			CROSS APPLY (
+			OUTER APPLY (
 					SELECT value AS bettype
-					FROM STRING_SPLIT(d.PoolHouseUncheckBetTypes, ',')
+					FROM STRING_SPLIT(d.PoolHouseCheckedBetTypes, ',')
 					WHERE b.Subbettype = CAST (value AS SMALLINT)		
 				)xPH
-		WHERE d.IsMainMatch = 'true' AND GroupName = 'PH'
+		WHERE d.IsMainMatch = 'true' AND GroupName = 'PH' AND xPH.bettype IS NULL
 		
-	   IF @@ROWCOUNT <> 0 
-	   BEGIN
-			UPDATE v SET v.IsPoolHouseAffected = 1
-			FROM @Validation v
-				INNER JOIN #FilterInfo d ON v.matchid = d.MatchId
-			WHERE d.IsMainMatch = 'true'
-	   END
+		UPDATE v SET v.IsPoolHouseAffected = 1
+		FROM @Validation v
+			INNER JOIN #FilterInfo d ON v.matchid = d.MatchId
+		WHERE d.IsMainMatch = 'true'
 	END
 
 	--Data Section
@@ -628,11 +648,11 @@ BEGIN
 			,SUBSTRING(rd.IssueDetail, CHARINDEX('LiveGameEarlySingleCount:',rd.IssueDetail) + LEN('LiveGameEarlySingleCount:'), CHARINDEX(';PoolHouseSingleCount:',rd.IssueDetail) - (CHARINDEX('LiveGameEarlySingleCount:',rd.IssueDetail) + LEN('LiveGameEarlySingleCount:'))) AS LiveGameEarlySingleCount
 			,t.LiveGameEarlyCashOutCount
 			,t.LiveGameEarlySettleCount
-			,SUBSTRING(rd.IssueDetail,CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',rd.IssueDetail) - ( CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail)+ LEN('PoolHouseSingleCount:'))) AS PoolHouseSingleCount
-			,t.PoolHouseCashOutCount
-			,t.PoolHouseSettleCount
-			,t.PoolHouseInstantlySettleCount
-			,rd.MainParlayCount AS PoolHouseMainParlayCount
+			,CASE WHEN @IsFetchNewPHData = 1 THEN SUBSTRING(rd.IssueDetail,CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',rd.IssueDetail) - ( CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail)+ LEN('PoolHouseSingleCount:'))) ELSE li.PoolHouseSingleCount END AS PoolHouseSingleCount
+			,CASE WHEN @IsFetchNewPHData = 1 THEN t.PoolHouseCashOutCount ELSE li.PoolHouseCashOutCount END AS PoolHouseCashOutCount
+			,CASE WHEN @IsFetchNewPHData = 1 THEN t.PoolHouseSettleCount ELSE li.PoolHouseSettleCount END AS PoolHouseSettleCount
+			,CASE WHEN @IsFetchNewPHData = 1 THEN t.PoolHouseInstantlySettleCount ELSE li.PoolHouseInstantlySettleCount END AS PoolHouseInstantlySettleCount
+			,CASE WHEN @IsFetchNewPHData = 1 THEN rd.MainParlayCount ELSE li.PoolHouseMainParlayCount END AS PoolHouseMainParlayCount
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
@@ -649,6 +669,7 @@ BEGIN
 				WHERE l.MatchId = rd.MatchId
 				FOR XML PATH('')
 			)sm(ScoreOfMatch)
+			LEFT JOIN #logInfo li ON li.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId
 
 		-- 4. Unmark table (No need -> return table)
