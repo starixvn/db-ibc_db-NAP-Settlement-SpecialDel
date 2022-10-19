@@ -10,7 +10,7 @@ GO
 
 UPDATE rd WITH (ROWLOCK,UPDLOCK)
 SET rd.IssueDetail = rd.IssueDetail + ';LiveGameEarlySingleCount:' +  CAST(rd.SingleCount AS VARCHAR(20)) + ';PoolHouseSingleCount:0;PoolHouseMainParlayCount:' +  CAST(rd.MainParlayCount AS VARCHAR(20))
-   ,rd.TransIds = SUBSTRING(rd.TransIds,0, LEN(rd.TransIds) - 1) +'PoolHouseUncheckBetTypes: />'
+   ,rd.TransIds = SUBSTRING(rd.TransIds,0, LEN(rd.TransIds) - 1) +'IsLinkGroup1X2="0" IsLinkGroupAIO="0" PoolHouseCheckedBetTypes="" />'
 FROM dbo.TicketVoiding_RequestDetail_bk rd
 	INNER JOIN dbo.TicketVoiding_Request_bk r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 WHERE r.IssueTypeId IN (4,5)

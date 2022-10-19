@@ -115,7 +115,7 @@ BEGIN
 				,rd.SubIssueTypeId
 				,m.IsNeutral
 				,m.matchcode
-				,CASE WHEN @IssueTypeId IN (4,5) THEN rd.TransIds ELSE NULL END AS PoolHouseUncheckBetTypes
+				,CASE WHEN @IssueTypeId IN (4,5) THEN rd.TransIds ELSE NULL END AS PoolHouseCheckedBetTypes
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
