@@ -26,6 +26,7 @@ AS
 		- 20210118@Louisa: Change Instant Name of DB054 - DB054C2\DB054 [Redmine:#148785]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221019@Kathy: allow settlement action by using NAP_Set_ServerAction [Redmine:#179274]
 		
 	Param: 
 		+ @updatetype: 
@@ -40,17 +41,34 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	IF @updatetype <> 7
+	DECLARE @_xml				XML
+			,@transInfo			XML
+			,@IsSiteDB			BIT = 0
+			,@AllowCalculation	BIT
+			,@AllowRefund 		BIT
+			,@AllowUndo 		BIT
+			,@ServerName		SYSNAME
+			
+	SET @ServerName = @@SERVERNAME
+	
+	IF OBJECT_ID('NAP_Set_ServerAction', 'P') IS NOT NULL
 	BEGIN
-		SET @IgnoreList = 'DB054,DB054C2\DB054,DB04,DB042,DB043,DB044,DB055,SITDB055'
+		EXEC [dbo].[NAP_Set_ServerAction]
+			@ServerName			= @ServerName
+			,@AllowCalculation	= @AllowCalculation	OUTPUT
+			,@AllowRefund		= @AllowRefund OUTPUT
+			,@AllowUndo			= @AllowUndo OUTPUT
+			
+		IF @AllowCalculation = 0 AND @Action = 'CAL'
+			RETURN
+			
+		IF @AllowRefund = 0 AND @Action = 'REFUND' 
+			RETURN
+			
+		IF @AllowUndo = 0 AND @Action = 'UNDO' 
+			RETURN
+
 	END
-	
-	IF EXISTS (SELECT TOP 1 1 from STRING_SPLIT(ISNULL(@IgnoreList,''), ',') WHERE value = @@SERVERNAME) RETURN
-	
-	
-	DECLARE @_xml XML
-			,@transInfo	XML
-			,@IsSiteDB	BIT = 0
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
 		SET @IsSiteDB = 1

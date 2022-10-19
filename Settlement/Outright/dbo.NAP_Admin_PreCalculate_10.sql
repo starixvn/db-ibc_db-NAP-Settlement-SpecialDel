@@ -21,7 +21,7 @@ AS
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
-
+		- 20221019@Kathy: allow settlement action by using NAP_Set_ServerAction [Redmine:#179274]
 	Param's Explanation:
 
 */
@@ -37,11 +37,6 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	IF @Action='UNDO'
-		SET @IgnoreList = 'DB04,DB043,DB044,SITDB04,SITDB043,SITDB044,DB04ADMIN1,DB04ADMIN2'
-	ELSE
-		SET @IgnoreList = 'DB054,DB054C2\DB054,DB04,DB042,DB043,DB044,DB04ADMIN1,DB04ADMIN2,DB233\SQLSERVER2008R2,TESTDB055,DB232\SQLSERVER2008R2,SITDB04,SITDB042,SITDB043,SITDB044,SITDB055,DB055'
-	
 	DECLARE @_xml XML, @_sXML VARCHAR(MAX)
 		,@createdDate DATETIME
 
