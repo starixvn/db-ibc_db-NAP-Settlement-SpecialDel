@@ -62,6 +62,7 @@ BEGIN
 		  ,Subtransid BIGINT
 		  ,custid	INT	
 		  ,bettype SMALLINT
+		  ,Subbettype SMALLINT
 		  ,betid BIGINT
 		  ,IsMixParlay BIT
 		  ,SiteDBGroupID SMALLINT
@@ -72,6 +73,7 @@ BEGIN
 		  ,Subtransid
 		  ,custid	
 		  ,bettype
+		  ,Subbettype
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
@@ -80,6 +82,7 @@ BEGIN
 	FROM OPENJSON(@Decompress_TransInfoJson) 
 	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
+			,t.c.value('@s_btype','SMALLINT') AS Subbettype
 
 	SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
 	INSERT INTO #tblGetLogInfo( 
@@ -129,7 +132,7 @@ BEGIN
 	SELECT @MainMatchId = MatchID FROM #tblGetLogInfo WHERE WrongHDP LIKE '%IsMainMatch="true"%' AND WrongHDP LIKE '%PoolHouseCheckedBetTypes="ALL"%'
 	IF @MainMatchId IS NOT NULL
 	BEGIN
-		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(bettype AS VARCHAR(10))
+		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
 									  FROM #tmpTransInfo 
 									  WHERE matchid = @MainMatchId
 									  FOR XML PATH ('')

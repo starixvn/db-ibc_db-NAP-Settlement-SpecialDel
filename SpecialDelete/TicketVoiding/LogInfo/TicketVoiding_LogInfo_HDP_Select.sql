@@ -39,6 +39,7 @@ BEGIN
 			,@PHBettypes			  VARCHAR(MAX) =''
 			,@MainMatchId			  INT
 			,@IsShowPHOnly			  BIT
+			,@PoolHouseCheckedBetTypes VARCHAR(MAX) = ''
 	
 	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
@@ -513,6 +514,7 @@ BEGIN
 
 	SELECT @MainMatchId = CASE WHEN PoolHouseCheckedBetTypes = 'ALL' THEN MatchId ELSE NULL END
 	       ,@IsShowPHOnly = IsShowPHOnly
+		   ,@PoolHouseCheckedBetTypes = PoolHouseCheckedBetTypes
 	FROM #FilterInfo 
 	WHERE IsMainMatch = 'true' 
 
@@ -529,18 +531,21 @@ BEGIN
 	END
 
 	/*Remove Transid poolhouse bettype un-check*/
-	IF EXISTS ( SELECT TOP 1 1 FROM #FilterInfo WHERE IsMainMatch = 'true' AND ISNULL(PoolHouseCheckedBetTypes,'') <> '')
-	BEGIN
-		DELETE b
-		FROM #TVSTicketBets b
-			INNER JOIN #FilterInfo d ON b.matchid = d.MatchId
-			OUTER APPLY (
-					SELECT value AS bettype
-					FROM STRING_SPLIT(d.PoolHouseCheckedBetTypes, ',')
-					WHERE b.Subbettype = CAST (value AS SMALLINT)		
-				)xPH
-		WHERE d.IsMainMatch = 'true' AND GroupName = 'PH' AND xPH.bettype IS NULL
+	DELETE b
+	FROM #TVSTicketBets b
+		INNER JOIN #FilterInfo d ON b.matchid = d.MatchId
+		OUTER APPLY (
+				SELECT value AS bettype
+				FROM STRING_SPLIT(d.PoolHouseCheckedBetTypes, ',')
+				WHERE b.Subbettype = CAST (value AS SMALLINT)		
+			)xPH
+	WHERE d.IsMainMatch = 'true' AND GroupName = 'PH' 
+	   AND 1 = CASE WHEN ISNULL(@PoolHouseCheckedBetTypes,'') <> '' AND xPH.bettype IS NULL THEN 1
+					WHEN ISNULL(@PoolHouseCheckedBetTypes,'') = '' THEN 1
+					ELSE 0 END
 		
+	IF @@ROWCOUNT <> 0
+	BEGIN
 		UPDATE v SET v.IsPoolHouseAffected = 1
 		FROM @Validation v
 			INNER JOIN #FilterInfo d ON v.matchid = d.MatchId
