@@ -15,19 +15,19 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @LastLogID BIGINT
+	DECLARE @LastLogId BIGINT
 			,@StatusId TINYINT
 
 	SELECT TOP 1 
-		@LastLogID = ll.LogId
+		@LastLogId = ll.LogId
 		,@StatusId = ll.StatusId
 	FROM dbo.SiteDB_SettlementService_LastLog ll WITH(NOLOCK)
 	ORDER BY ll.LogId DESC
 
 	SELECT @@SERVERNAME AS ServerName
-		   ,@LastLogID  AS LastLogID
+		   ,@LastLogID  AS LastLogId
 		   ,@StatusId	AS LastStatusId
-		   , COUNT(l.LogID) AS cnt_Waiting
+		   , COUNT(l.LogID) AS WaitingCount
 	FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
 	WHERE l.LogId > @LastLogID
 END
