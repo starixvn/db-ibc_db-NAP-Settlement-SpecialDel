@@ -520,7 +520,7 @@ BEGIN
 
 	IF @MainMatchId IS NOT NULL
 	BEGIN
-		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(bettype AS VARCHAR(10))
+		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
 									  FROM #TVSTicketBets 
 									  WHERE matchid = @MainMatchId
 									  FOR XML PATH ('')
