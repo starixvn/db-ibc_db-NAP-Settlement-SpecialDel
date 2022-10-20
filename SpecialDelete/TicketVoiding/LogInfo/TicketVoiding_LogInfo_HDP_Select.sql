@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_HDP_Select]
 (	
 	 @RequestId			  INT = 0
@@ -25,6 +25,12 @@ AS
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" IsShowPHOnly = "" /></root>
+	         (*) PoolHouseCheckedBetTypes   : ALL - (all bettype của ticket)
+											 '1,2,3' - (bettype selected)
+											 -1 - (no bettype affected)
+											 '' - (uncheck all bettype PH)
+			 (*) IsShowPHOnly = 0 Case add + save || Case Edit unchecked bettype -> check (bettrans filter) of tickets request 
+							  = 1 check ticket request
 
 */
 BEGIN
@@ -585,6 +591,14 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
+		/*Support case uncheck bettype PH -> still show PH count = 0*/
+		UPDATE v
+		SET v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE 1 END
+		FROM @Validation v
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
+		WHERE rd.RequestId = @RequestId
+			AND rd.TransIds LIKE '%IsMainMatch="true"%' AND rd.TransIds LIKE '%PoolHouseCheckedBetTypes=""%'
+
 		-- 1. Validate table
 		SELECT MatchId
 			, IsInValidTotalTickets
