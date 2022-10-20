@@ -33,7 +33,7 @@ AS
 	   - 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 	   - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-	   - 20221019@Louisa: insert BroadcastSessionId into queue auto void for all Action [Redmine:#]
+	   - 20221019@Louisa: insert BroadcastSessionId into queue auto void for all Action [Redmine:#179361]
 	   
 */
 BEGIN

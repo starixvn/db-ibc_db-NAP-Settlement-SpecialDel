@@ -29,6 +29,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220926@Louisa: remove NAP_Set_SettlementStatusChecking (already checked before settle by web) [Redmine:#178120]
+		- 20221019@Louisa: insert BroadcastSessionId into queue auto void in case not exists ticket parlay [Redmine:#179361]
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
