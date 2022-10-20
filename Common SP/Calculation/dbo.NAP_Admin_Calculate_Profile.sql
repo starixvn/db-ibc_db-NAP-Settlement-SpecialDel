@@ -24,7 +24,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
 		- 20221010@Kathy: Do not upd odds, oddsspread of bettype 468 if refund [Redmine:#178941]
-
+		- 20221019@Kathy: Add ActionId [Redmine:#179274]
 	Param's Explanation:  
 		   
 		@transIds = '<root>
@@ -46,7 +46,7 @@ BEGIN
 			
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
 	SET @Action = CASE 
-					WHEN @ActionID BETWEEN 100 AND 102 THEN 'CAL' 
+					WHEN @ActionID BETWEEN 100 AND 102 OR @ActionId IN (157,158) THEN 'CAL' 
 					WHEN @ActionID BETWEEN 109 AND 111 THEN 'REFUND'
 				END
 				

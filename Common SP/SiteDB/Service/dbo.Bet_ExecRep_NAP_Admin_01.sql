@@ -18,7 +18,8 @@ AS
 		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
 		- 20220928@July: Fix issue update column winlost dbo.bettransm [Redmine:178332]
 		- 20221003@Kathy: Retry if deadlock occurs [Redmine:#178542]
-		- 20221008@Patrick: Check transId before insert markedtransaction 
+		- 20221008@Patrick: Check transId before insert markedtransaction
+		- 20221019@Kathy: Set @ServerName [Redmine:#179274]
 
 	Param's Explanation:  
 		   
@@ -59,6 +60,7 @@ BEGIN
 	)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
+	SET @ServerName = @@SERVERNAME
 
 	IF @RunOnServer <> @@SERVERNAME
 	BEGIN
