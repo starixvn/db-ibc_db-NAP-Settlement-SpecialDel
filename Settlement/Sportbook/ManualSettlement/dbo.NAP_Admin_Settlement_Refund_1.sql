@@ -29,6 +29,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220926@Louisa: remove NAP_Set_SettlementStatusChecking (already checked before settle by web) [Redmine:#178120]
+		- 20221019@Louisa: insert BroadcastSessionId into queue auto void in case not exists ticket parlay [Redmine:#179361]
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -902,16 +903,24 @@ BEGIN
 				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 			END
 		END
-		ELSE IF @IsCentral = 1
+		ELSE
 		BEGIN
-			IF @IsAuto = 1
+			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
+			SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
+
+			IF @IsCentral = 1
 			BEGIN
-				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-					@MatchId = @matchid 
-					, @TypeId  = 10
-					, @StatusId = 2
+				IF @IsAuto = 1
+				BEGIN
+					EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
+						@MatchId = @matchid 
+						, @TypeId  = 10
+						, @StatusId = 2
+				END
 			END
 		END
+		
+		
 
 		IF @matchcode not like '%Hedge%'
 		BEGIN 
