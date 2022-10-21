@@ -384,7 +384,7 @@ BEGIN
 											WHEN ms.MatchStatus = 1 AND m.eventstatus = 'closed' THEN 1
 											WHEN ms.MatchStatus = 2 AND m.eventstatus = 'running' THEN 1
 											WHEN ms.MatchStatus = 3 AND m.eventstatus = 'Internal' THEN 1
-											WHEN ms.MatchStatus = 4 AND m.eventstatus = 'Posponed' THEN 1
+											WHEN ms.MatchStatus = 4 AND m.eventstatus = 'Postponed' THEN 1
 											WHEN ms.MatchStatus = 9 AND m.eventstatus = 'Completed' THEN 1
 											WHEN ms.MatchStatus = 11 AND m.eventstatus ='Completed' AND m.betstatus LIKE 'Abandoned%' THEN 1
 											WHEN ms.MatchStatus = 5 AND ISNULL(m.eventstatusreason,0) = 1 THEN 1 --Irregular Time 1H
@@ -395,7 +395,7 @@ BEGIN
 										END > 0
 								)
 	END
-	
+
 	IF @FilterOver IN ( 2, 3, 4 )
 	BEGIN
 		DELETE	m
@@ -486,7 +486,7 @@ BEGIN
 	SELECT m.matchid, chk.bettype, chk.betid, chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, chk.GroupId,chk.IsFGLG, chk.IsEarly
 	FROM (
 		SELECT TOP (@n) MatchId FROM #matchList
-		WHERE IsExistTicket = 0
+		WHERE IsExistTicket = 1
 	) AS m
 		CROSS APPLY 
 		(
@@ -514,7 +514,7 @@ BEGIN
 	SELECT m.matchid, chk.bettype, chk.betcheck, chk.Bet_cnt, chk.IsRunning,chk.Waiting_cnt, 1, chk.GroupId, chk.IsEarly
 	FROM (
 		SELECT TOP (@n) MatchId FROM #matchList
-		WHERE IsExistTicket = 0
+		WHERE IsExistTicket = 1
 	) AS m
 		CROSS APPLY 
 		(
@@ -644,7 +644,6 @@ BEGIN
 			FROM	#matchList m
 			WHERE	1 = CASE 
 							WHEN m.IsExistEarlyResultConfirmed = 1  THEN 0 -- resource confirmed + exists running ticket
-							WHEN m.eventstatus = 'completed' AND m.IsRunningEarlyBettypes = 1 THEN 0 -- completed but running early bettype
 							ELSE 1
 						END
 		
@@ -656,6 +655,7 @@ BEGIN
 			DELETE FROM	#matchList WHERE IsExistFastMarket = 0 AND IsExistFastMarketResult = 0
 		END
 	END
+
 
 	;WITH cteTicket
 	AS (
