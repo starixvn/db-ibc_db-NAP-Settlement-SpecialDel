@@ -596,12 +596,12 @@ BEGIN
  
 	IF @MatchType = 3
 	BEGIN
-		DELETE FROM	#matchList WHERE IsExistFastMarket = 0 AND IsExistFastMarketResult = 0
+		DELETE FROM	#matchList WHERE ISNULL(IsExistFastMarket,0) = 0 AND ISNULL(IsExistFastMarketResult,0) = 0
 	END
 
 	IF @FilterOver = 1
 	BEGIN
-		DELETE FROM	#matchList WHERE IsRunningEarlyBettypes = 0
+		DELETE FROM	#matchList WHERE ISNULL(IsRunningEarlyBettypes,0) = 0
 
 		;WITH cteEarlyResourceIds
 		AS (
@@ -634,7 +634,7 @@ BEGIN
 
 		DELETE m
 		FROM	#matchList m
-		WHERE	m.IsExistEarlyResultConfirmed = 0
+		WHERE	ISNULL(m.IsExistEarlyResultConfirmed,0) = 0
 		
 	END
 
@@ -678,9 +678,9 @@ BEGIN
 	BEGIN
 		DELETE	m
 		FROM	#matchList m
-		WHERE m.isRunningSingle = 0 AND m.isRunningParlay = 0
+		WHERE ISNULL(m.isRunningSingle,0) = 0 AND ISNULL(m.isRunningParlay,0) = 0
 	END
-
+	
 	;WITH SingleTicket AS
 	(
 		SELECT	matchid, min(IsCalculating)  IsCalculating
@@ -769,8 +769,8 @@ BEGIN
 		UPDATE #matchList
 		SET IsExistRunningTicket = 1
 		WHERE eventstatus = 'Completed' 
-			AND IsRunningSingle = 1
-			AND IsExistMarkedTicket = 0
+			AND ISNULL(IsRunningSingle,0) = 1
+			AND ISNULL(IsExistMarkedTicket,0) = 0
 
 		UPDATE	#matchList
 		SET IsExistRunningTicket = CASE WHEN IsExistRunningTicket = 0 AND @IsMergedParlay = 1 THEN 1 
@@ -778,8 +778,8 @@ BEGIN
 										END
 			,IsExistRunningTicketParlay = IsExistRunningTicketParlay
 		WHERE eventstatus = 'Completed'
-			AND IsExistMarkedTicketParlay = 0
-			AND IsRunningParlay = 1
+			AND ISNULL(IsExistMarkedTicketParlay,0) = 0
+			AND ISNULL(IsRunningParlay,0) = 1
 	END
 	
 	IF @FilterOver > 0
