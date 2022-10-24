@@ -49,6 +49,7 @@ AS
 		- 20220414@Max: [TVS] Support AB Exclusion by sub issue type [Redmine: #170771]
 		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221007@July: TVS - Abnormalbet - No need to send Letstalk message if the request has UUS ticket [Redmine: #178321]
+		- 20221021@July: TVS - WRONG check validation for transid 14 [Redmine: #179479]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -60,7 +61,6 @@ BEGIN
 	DECLARE @InvalidTransIds			 VARCHAR(MAX) = ''
 			,@MovedTransIds				 VARCHAR(MAX) = ''
 			,@DifferentMatchTransIds     VARCHAR(MAX) = '' 
-			,@InvalidMatchId		     VARCHAR(200) = ''
 			,@SettledTransIds			 VARCHAR(MAX) = ''
 			,@UnsupportedTransids		 VARCHAR(MAX) = ''
 			,@ExistingReqTransIds		 VARCHAR(MAX) = ''
@@ -80,14 +80,12 @@ BEGIN
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 	
-	DECLARE @homeid INT, @awayid INT, @leagueid INT, @sporttype SMALLINT, @matchcode NVARCHAR(50)
-
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpMatchId AS TABLE (MatchId INT)
+	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -204,7 +202,7 @@ BEGIN
 			,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
 			,t.c.value('@statuswl','TINYINT') AS statuswinlost
 			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
-			,t.c.value('@IsM','BIT') AS IsMoved14
+			,t.c.value('@isM','BIT') AS IsMoved14
 			,t.c.value('@isP','BIT') AS IsMixParlay
 			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
 	FROM @TransInfo.nodes('root/r') t(c)
@@ -242,46 +240,22 @@ BEGIN
 
 			SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
-			DELETE FROM #tmpTransInfo
-			SELECT matchid FROM #tmpTransInfo
+			SELECT matchid FROM #tmpTransInfo WHERE matchid IS NULL
 			RETURN;
 		END
-		ELSE
-		BEGIN
-			-- check valid match id
-			IF NOT EXISTS (SELECT TOP 1 1
-							FROM dbo.match AS m WITH (NOLOCK)
-							WHERE m.matchid = @MatchId
-								AND EXISTS (
-									SELECT TOP 1 1
-									FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
-									WHERE bm.ProductID = 1
-										AND bm.SportType = m.sporttype
-									)
-							)	
-			BEGIN
-				SELECT @MatchId AS MatchId
 
-				SET @InvalidMatchId = @MatchId
-				SELECT @InvalidMatchId AS InvalidMatchId
-
-				SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
-
-				DELETE FROM #tmpTransInfo
-				SELECT matchid FROM #tmpTransInfo
-				RETURN;
-			END
-		END
+		INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
+		SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode
+		FROM dbo.match WITH(NOLOCK) 
+		WHERE matchid = @MatchId
 	END
-
-	SELECT @homeid = m.homeid
-		  ,@awayid = m.awayid
-	      ,@leagueid = m.leagueid
-		  ,@sporttype = m.sporttype
-	      ,@matchcode = m.matchcode
-	FROM dbo.match m WITH(NOLOCK) 
-	WHERE m.matchid = @MatchId
-
+	ELSE IF @FilterBy =1
+	BEGIN
+		SET @MatchId = 29
+		INSERT INTO @tmpMatchId (MatchId)
+		SELECT @MatchId
+	END
+	 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
 		transid
@@ -311,8 +285,8 @@ BEGIN
 		,b.livehomescore
 		,b.liveawayscore
 		,b.liveindicator
-		,CASE WHEN @FilterBy = 1 THEN 29 ELSE @MatchId END
-		,@sporttype
+		,m.matchid
+		,m.sporttype
 		,b.betfrom
 		,b.recommend
 		,b.mrecommend
@@ -323,9 +297,11 @@ BEGIN
 		,CurrencyName
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
+		LEFT JOIN @tmpMatchId m ON b.matchid = b.matchid
 	WHERE 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
+		AND b.IsMoved14 = 0
 
 	-- get unsuppored transid
 	INSERT #UnsupportedTransids (transid)
@@ -656,18 +632,12 @@ BEGIN
 	END
 
 	/*****************Return table **************************/
-	IF @FilterBy = 1 SET @MatchId = 29
 	--1. Info match table
-	SELECT  @matchid AS matchid
-	, @homeid AS homeid 
-	, @awayid AS awayid
-	, @leagueid	AS leagueid
-	, @sporttype AS sporttype
-	, @matchcode AS matchcode
-	
+	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode
+	FROM @tmpMatchId
+		
 	--2. Validate Table
-	SELECT @InvalidMatchId AS InvalidMatchId
-			,@MovedTransIds AS MovedTransIds
+	SELECT   @MovedTransIds AS MovedTransIds
 			,@DifferentMatchTransIds AS DifferentMatchTransIds
 			,@InvalidTransIds AS InvalidTransIds
 			,@SettledTransIds AS SettledTransIds
