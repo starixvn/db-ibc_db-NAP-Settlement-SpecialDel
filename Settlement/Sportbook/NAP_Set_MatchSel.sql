@@ -167,6 +167,7 @@ BEGIN
 		,IsExistTicket		BIT DEFAULT(0)
 		,IsRunningSingle	BIT DEFAULT(0)
 		,IsRunningParlay	BIT DEFAULT(0)
+		,OfferLive			BIT			
 		)
 
 	SET @StartTime = GETDATE()
@@ -198,7 +199,7 @@ BEGIN
 			,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
 			,SettlementStatus 
 			,IsExistFGLG ,IsExistHTFGLG ,AutoSetting
-			,ChildMatchType, IsMergedParlay, EventStatusReason
+			,ChildMatchType, IsMergedParlay, EventStatusReason, OfferLive
 		)
 		SELECT 
 			m.hthomescore
@@ -247,6 +248,7 @@ BEGIN
 			,m.ChildMatchType
 			,@IsMergedParlay AS IsMergedParlay
 			,m.EventStatusReason
+			,mr.OfferLive
 		FROM dbo.match m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
@@ -272,7 +274,7 @@ BEGIN
 			,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
 			,SettlementStatus 
 			,IsExistFGLG ,IsExistHTFGLG ,AutoSetting 
-			,ChildMatchType, IsMergedParlay, EventStatusReason
+			,ChildMatchType, IsMergedParlay, EventStatusReason, OfferLive
 		)
 		SELECT 
 			m.hthomescore
@@ -320,7 +322,8 @@ BEGIN
 			,ISNULL(ISNULL(m.AutoSetting,l.AutoSetting), 0) AS AutoSetting
 			,m.ChildMatchType
 			,@IsMergedParlay AS IsMergedParlay
-			,m.EventStatusReason			
+			,m.EventStatusReason
+			,mr.OfferLive
 			FROM dbo.match m WITH (NOLOCK)
 				INNER JOIN dbo.match_remark mr WITH (NOLOCK) ON m.matchid = mr.matchid
 				INNER JOIN  dbo.League l WITH(NOLOCK) ON m.leagueid = l.leagueid
@@ -793,6 +796,7 @@ BEGIN
 				,m.IsExistMarkedTicket
 				,m.IsExistMarkedTicketParlay
 				,m.EventStatusReason
+				,m.OfferLive
 		FROM	#matchList m
 				LEFT JOIN #tempmatch t 
 					ON	t.matchid = m.matchid				
@@ -843,6 +847,7 @@ BEGIN
 				,m.IsExistMarkedTicket
 				,m.IsExistMarkedTicketParlay
 				,m.EventStatusReason
+				,m.OfferLive
 		FROM	#matchList m
 				LEFT JOIN #tempmatch t 
 					ON	t.matchid = m.matchid				
