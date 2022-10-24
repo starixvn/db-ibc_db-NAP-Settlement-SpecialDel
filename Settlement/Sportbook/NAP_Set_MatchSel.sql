@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_MatchSel_louisa] 
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSel] 
 	@FromDate		DATETIME
 	,@ToDate		DATETIME
 	,@SportType		SMALLINT		= 1
