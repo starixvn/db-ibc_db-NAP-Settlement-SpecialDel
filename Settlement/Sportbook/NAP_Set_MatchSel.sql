@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Set_MatchSel_louisa] 
+ALTER PROCEDURE [dbo].[NAP_Set_MatchSel] 
 	@FromDate		DATETIME
 	,@ToDate		DATETIME
 	,@SportType		SMALLINT		= 1
@@ -118,7 +118,7 @@ BEGIN
 	
 	CREATE TABLE #tmpBettypes (bettype SMALLINT, groupid SMALLINT, IsFGLG BIT, IsEarly BIT)
 
-	CREATE TABLE #BettypeExtraStatus(matchid INT, bettype SMALLINT, betid NVARCHAR(50), Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT, IsVoidReject	BIT)
+	CREATE TABLE #BettypeExtraStatus(matchid INT, bettype SMALLINT, betid NVARCHAR(50), Bet_cnt INT, isRunning BIT,Waiting_cnt INT, IsParLay BIT DEFAULT(0), GroupId TINYINT, IsFGLG BIT, IsEarly BIT)
 
 	CREATE TABLE #matchList (
 		HalfTimeHomeScore INT
@@ -150,24 +150,23 @@ BEGIN
 		,IsExistFGLG BIT
 		,IsExistHTFGLG BIT
 		,AutoSetting TINYINT		
-		,IsExistFastMarket BIT
-		,IsRunningFastMarket BIT		
-		,IsExistFastMarketResult BIT
-		,IsExistEarlyResultConfirmed BIT
-		,IsExistEarlyBettypes BIT
-		,IsRunningEarlyBettypes BIT
-		,IsWaitingEarlyBettypes BIT
-		,IsExistRunningTicket BIT
-		,IsExistRunningTicketParlay BIT
-		,IsExistMarkedTicket BIT
-		,IsExistMarkedTicketParlay BIT
+		,IsExistFastMarket			BIT DEFAULT(0)
+		,IsRunningFastMarket		BIT DEFAULT(0)		
+		,IsExistFastMarketResult	BIT DEFAULT(0)
+		,IsExistEarlyResultConfirmed BIT DEFAULT(0)
+		,IsExistEarlyBettypes		BIT DEFAULT(0)
+		,IsRunningEarlyBettypes		BIT DEFAULT(0)
+		,IsWaitingEarlyBettypes		BIT DEFAULT(0)
+		,IsExistRunningTicket		BIT DEFAULT(0)
+		,IsExistRunningTicketParlay BIT DEFAULT(0)
+		,IsExistMarkedTicket		BIT DEFAULT(0) 
+		,IsExistMarkedTicketParlay  BIT DEFAULT(0)
 		,ChildMatchType TINYINT
 		,IsMergedParlay BIT DEFAULT(0)
 		,EventStatusReason TINYINT
-		,IsExistTicket BIT DEFAULT(0)
-		,IsRunningSingle	BIT
-		,IsRunningParlay	BIT
-		,IsVoidReject		BIT
+		,IsExistTicket		BIT DEFAULT(0)
+		,IsRunningSingle	BIT DEFAULT(0)
+		,IsRunningParlay	BIT DEFAULT(0)
 		)
 
 	SET @StartTime = GETDATE()
@@ -198,12 +197,7 @@ BEGIN
 		INSERT INTO #matchList (HalfTimeHomeScore,HalfTimeAwayScore ,IsCalculated ,IsMultiCaled ,IsRefund ,IsCalRefund ,matchid ,leagueid , LeagueGroupID, homeid ,awayid ,matchcode ,kickofftime ,finalhomescore ,finalawayscore 
 			,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
 			,SettlementStatus 
-			,IsExistFGLG ,IsExistHTFGLG ,AutoSetting 
-			,IsExistFastMarket,IsRunningFastMarket 
-			,IsExistFastMarketResult
-			,IsExistEarlyResultConfirmed
-			,IsExistEarlyBettypes,IsRunningEarlyBettypes, IsWaitingEarlyBettypes
-			,IsExistRunningTicket, IsExistRunningTicketParlay, IsExistMarkedTicket, IsExistMarkedTicketParlay
+			,IsExistFGLG ,IsExistHTFGLG ,AutoSetting
 			,ChildMatchType, IsMergedParlay, EventStatusReason
 		)
 		SELECT 
@@ -249,18 +243,7 @@ BEGIN
 			,ISNULL(m.SettlementStatus, 0) AS SettlementStatus
 			,0 AS IsExistFGLG
 			,0 AS IsExistHTFGLG
-			,ISNULL(m.AutoSetting, 0) AS AutoSetting
-			,0 AS IsExistFastMarket
-			,0 AS IsRunningFastMarket
-			,0 AS IsExistFastMarketResult
-			,0 AS IsExistEarlyResultConfirmed
-			,0 AS IsExistEarlyBettypes
-			,0 AS IsRunningEarlyBettypes
-			,0 AS IsWaitingEarlyBettype
-			,0 AS IsExistRunningTicket
-			,0 AS IsExistRunningTicketParlay
-			,0 AS IsExistMarkedTicket
-			,0 AS IsExistMarkedTicketParlay
+			,ISNULL(ISNULL(m.AutoSetting,l.AutoSetting), 0) AS AutoSetting
 			,m.ChildMatchType
 			,@IsMergedParlay AS IsMergedParlay
 			,m.EventStatusReason
@@ -289,11 +272,6 @@ BEGIN
 			,betstatus 	,eventstatus,sporttype ,IsNeutral ,eventdate ,goalrecord ,suspenderHalfTime,suspenderFullTime 	,IsHalfTimeCal ,calculate 
 			,SettlementStatus 
 			,IsExistFGLG ,IsExistHTFGLG ,AutoSetting 
-			,IsExistFastMarket,IsRunningFastMarket 
-			,IsExistFastMarketResult
-			,IsExistEarlyResultConfirmed
-			,IsExistEarlyBettypes,IsRunningEarlyBettypes, IsWaitingEarlyBettypes
-			,IsExistRunningTicket, IsExistRunningTicketParlay, IsExistMarkedTicket, IsExistMarkedTicketParlay
 			,ChildMatchType, IsMergedParlay, EventStatusReason
 		)
 		SELECT 
@@ -340,17 +318,6 @@ BEGIN
 			,0 AS IsExistFGLG
 			,0 AS IsExistHTFGLG
 			,ISNULL(ISNULL(m.AutoSetting,l.AutoSetting), 0) AS AutoSetting
-			,0 AS IsExistFastMarket
-			,0 AS IsRunningFastMarket
-			,0 AS IsExistFastMarketResult
-			,0 AS IsExistEarlyResultConfirmed
-			,0 AS IsExistEarlyBettypes
-			,0 AS IsRunningEarlyBettypes
-			,0 AS IsWaitingEarlyBettype
-			,0 AS IsExistRunningTicket
-			,0 AS IsExistRunningTicketParlay
-			,0 AS IsExistMarkedTicket
-			,0 AS IsExistMarkedTicketParlay
 			,m.ChildMatchType
 			,@IsMergedParlay AS IsMergedParlay
 			,m.EventStatusReason			
