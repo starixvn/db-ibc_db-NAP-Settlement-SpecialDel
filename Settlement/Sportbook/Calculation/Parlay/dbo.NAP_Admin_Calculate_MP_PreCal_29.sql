@@ -28,6 +28,8 @@ AS
 		- 20220531@Kathy: performance tunning [Redmine:#173456]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221004@Kathy: Prevent duplicate data if re-run SP in case of deadlock [Redmine:#178542]
+		- 20221026@Helen: resolve deadlock [Redmine:#179541]
+
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
 		+ @matchdate eventdate of the match
@@ -191,7 +193,7 @@ BEGIN
 		FROM	#tmpSource
 		WHERE	SetStake > 0
 
-		INSERT INTO dbo.BetParlayDetail (
+		INSERT INTO dbo.BetParlayDetail WITH(TABLOCK) (
 			RefNo, Serial, transid, winlostdate, statuswinlost, statusid
 			,matchid, bettype, stake, odds, betteam, hdp1
 			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc

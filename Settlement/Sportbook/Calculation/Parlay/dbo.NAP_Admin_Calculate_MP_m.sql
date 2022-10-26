@@ -55,7 +55,8 @@ AS
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-		
+		- 20221026@Helen: resolve deadlock [Redmine:#179541]
+
     Param's Explanation:
        
 */
@@ -200,7 +201,7 @@ BEGIN
                 ,statusID = 103
 			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
 			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
                 INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
@@ -246,7 +247,7 @@ BEGIN
                 ,statusID = 103
 			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
 			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
                 INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
@@ -293,7 +294,7 @@ BEGIN
 					,statusID = 103
 			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
 			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
                 INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
@@ -326,7 +327,7 @@ BEGIN
                 AND statusID NOT IN (101, 102) 
                 AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
 
-            UPDATE dbo.BetParlayDetail WITH(ROWLOCK, UPDLOCK)
+            UPDATE dbo.BetParlayDetail WITH(TABLOCK)
             SET statuswinlost = 0
                 ,statusID = 102
                 ,winlostdate = @matchdate
@@ -361,7 +362,7 @@ BEGIN
                     AND statusID = 102
                     AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)                
         
-            UPDATE    dbo.BetParlayDetail WITH(ROWLOCK, UPDLOCK)
+            UPDATE    dbo.BetParlayDetail WITH(TABLOCK)
                 SET winlostdate = NULL
                     ,statuswinlost = NULL
                     ,statusid = 0
@@ -404,7 +405,7 @@ BEGIN
                 ,statusID = 0
 			OUTPUT inserted.transid, inserted.statuswinlost , inserted.statusid
 			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
                 INNER JOIN @tmpOutputBettransm r
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno 

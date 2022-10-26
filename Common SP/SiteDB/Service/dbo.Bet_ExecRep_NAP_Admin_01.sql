@@ -20,6 +20,7 @@ AS
 		- 20221003@Kathy: Retry if deadlock occurs [Redmine:#178542]
 		- 20221008@Patrick: Check transId before insert markedtransaction
 		- 20221019@Kathy: Set @ServerName [Redmine:#179274]
+		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 
 	Param's Explanation:  
 		   
@@ -326,7 +327,7 @@ BEGIN
 												ELSE CAST(t.statuswinlost AS TINYINT)
 											END		
 					FROM   @tmpTransId t
-						INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+						INNER JOIN dbo.BetParlayDetail pd WITH(TABLOCK)
 							ON  pd.transid = t.transid
 					--OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 				END

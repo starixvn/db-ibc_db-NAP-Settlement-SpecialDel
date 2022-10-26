@@ -19,6 +19,7 @@ AS
 		- 20200511@Kathy: Remove tennis code [Redmine:#129316]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 
     Param's Explanation:
         
@@ -105,7 +106,7 @@ BEGIN
 		SET winlostdate 	= @matchdate
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
-		FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+		FROM dbo.BetParlayDetail pd WITH(TABLOCK)
 			INNER JOIN #parlayOutput r
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
@@ -175,7 +176,7 @@ BEGIN
 		SET winlostdate 	= @matchdate
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
-		FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
+		FROM dbo.BetParlayDetail pd  WITH(TABLOCK)
 			INNER JOIN #parlayOutput r
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
@@ -215,7 +216,7 @@ BEGIN
 	    UPDATE pd
 	    SET statuswinlost   = NULL
 	        ,statusID       = 0
-	    FROM dbo.BetParlayDetail pd WITH (ROWLOCK, UPDLOCK)
+	    FROM dbo.BetParlayDetail pd WITH(TABLOCK)
 	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
 	    WHERE r.statusid NOT IN (102) 
 	END
