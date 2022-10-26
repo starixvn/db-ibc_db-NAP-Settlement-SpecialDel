@@ -52,6 +52,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221026@July: TVS - VAR message [Redmine: #178088]
 
 	Param's explanation:	
 		@Status: 
@@ -505,6 +506,16 @@ BEGIN
 			AND ((r.UserId = @CreatedBy) OR @CreatedBy = 0)
 	END
 
+	UPDATE t
+	SET t.TransIds = rd.TransIds
+	FROM #tmpResult t 
+		CROSS APPLY (
+				SELECT TOP (1) rd.TransIds
+				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				WHERE t.Requestid = rd.RequestId
+			)rd
+	WHERE t.IssueTypeId = 3
+
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId)
 	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, t.MatchId
 	FROM	#tmpResult t
@@ -558,6 +569,7 @@ BEGIN
 			,t.TotalUserName --no.of accounts
 			,t.WrongScores
 			,mr.SettlementStatus
+			,CASE WHEN t.IssueTypeId IN (1,10,3) THEN t.TransIds ELSE NULL END AS IsCheckedVar
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
