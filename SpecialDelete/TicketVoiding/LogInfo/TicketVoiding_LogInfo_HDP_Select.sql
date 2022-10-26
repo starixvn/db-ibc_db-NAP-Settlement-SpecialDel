@@ -682,7 +682,7 @@ BEGIN
 		IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
 		BEGIN
 			INSERT INTO @tblScoreMessage (MatchId, ScoreOfMatch) 
-			SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
+			SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(10)) + '-' + CAST(m.liveawayscore AS VARCHAR(10))
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
 			WHERE rd.RequestId = @RequestId
