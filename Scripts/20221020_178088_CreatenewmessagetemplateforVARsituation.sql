@@ -1,12 +1,14 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 /*
     Created: 20221020@July
 	Task: [TVS] Create new message template for VAR situation - [Redmine: #178088]
-	DB: DBTXN-bodb02
+	DB: DBCTG-bodb02
 */
 
 USE bodb02
 GO
+--Add column IsVAR into dbo.TicketVoiding_MessageTemplateSetting
+ALTER TABLE dbo.TicketVoiding_MessageTemplateSetting ADD IsCheckedVar BIT
 
 INSERT INTO dbo.TicketVoiding_MessageTemplate(TemplateId,MsgEnglish, MsgChineseTraditional, MsgChineseSimplified, MsgChineseNewSimplified)
 VALUES(
@@ -98,135 +100,69 @@ VALUES(
 )
 GO
 
-
 SET IDENTITY_INSERT dbo.TicketVoiding_SubIssueType ON
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Main Booking - Home - NO VAR' WHERE SubIssueTypeId = 3
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (111, 1,'Main Booking - Away - NO VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (112, 1,'Goal - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (113, 1,'Goal - Home - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (114, 1,'Goal - Away - VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (115, 1,'Pen Goal/VAR Pen Goal - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (116, 1,'Pen Goal/VAR Pen Goal - Home - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (117, 1,'Pen Goal/VAR Pen Goal - Away - VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (118, 1,'BET/FC Pen Goal/Goal - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (119, 1,'BET/FC Pen Goal/Goal - Home - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (120, 1,'BET/FC Pen Goal/Goal - Away - VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (121, 1,'Red Card/VAR Red Card - Home - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (122, 1,'Red Card/VAR Red Card - Away - VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (123, 1,'2YC (Red card) - Home - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (124, 1,'2YC (Red card) - Away - VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (125, 1,'Betradar/FC Red card - Home - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (126, 1,'Betradar/FC Red card - Away - VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (127, 1,'Main Booking - Home - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (128, 1,'Main Booking - Away - VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (129, 1,'Goal/PEN (1st & 2nd mark) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (130, 1,'Goal/PEN (1st & 2nd mark) - Home  - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (131, 1,'Goal/PEN (1st & 2nd mark) - Away - VAR')
-
---Red Card - Sub VAR
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (132, 1,'No Indication Home RC - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (133, 1,'No Indication Away RC - VAR')
+UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Main Booking - Home' WHERE SubIssueTypeId = 3
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (111, 1,'Main Booking - Away')
 
 --Wrong score - Sub VAR
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Home Goal (No Onwards) - NO VAR' WHERE SubIssueTypeId = 7
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Home Goal (Onwards) - NO VAR' WHERE SubIssueTypeId = 35
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Away Goal (No Onwards) - NO VAR' WHERE SubIssueTypeId = 94
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Away Goal (Onwards) - NO VAR' WHERE SubIssueTypeId = 95
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Wrong Indication Goal (No Onwards) - NO VAR' WHERE SubIssueTypeId = 96
-UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Wrong Indication Goal (Onwards) - NO VAR' WHERE SubIssueTypeId = 97
+UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Home Goal (No Onwards)' WHERE SubIssueTypeId = 7
+UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Home Goal (Onwards)' WHERE SubIssueTypeId = 35
+UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Away Goal (No Onwards)' WHERE SubIssueTypeId = 94
+UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'No Indication Away Goal (Onwards)' WHERE SubIssueTypeId = 95
+UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Wrong Indication Goal (No Onwards)' WHERE SubIssueTypeId = 96
+UPDATE dbo.TicketVoiding_SubIssueType SET SubIssueTypeName = 'Wrong Indication Goal (Onwards)' WHERE SubIssueTypeId = 97
 
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (134, 3,'No Indication Home Booking (No Onwards) - NO VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (135, 3,'No Indication Home Booking (Onwards) - NO VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (136, 3,'No Indication Away Booking (No Onwards) - NO VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (137, 3,'No Indication Away Booking (Onwards) - NO VAR')
-
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (138, 3,'No Indication Home Goal (No Onwards) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (139, 3,'No Indication Home Goal (Onwards) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (140, 3,'No Indication Away Goal (No Onwards) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (141, 3,'No Indication Away Goal (Onwards) - VAR' )
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (142, 3,'Wrong Indication Goal (No Onwards) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (143, 3,'Wrong Indication Goal (Onwards) - VAR' )
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (144, 3,'No Indication Home Booking (No Onwards) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (145, 3,'No Indication Home Booking (Onwards) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (146, 3,'No Indication Away Booking (No Onwards) - VAR')
-INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (147, 3,'No Indication Away Booking (Onwards) - VAR')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (112, 3,'No Indication Home Booking (No Onwards)')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (113, 3,'No Indication Home Booking (Onwards)')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (114, 3,'No Indication Away Booking (No Onwards)')
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (115, 3,'No Indication Away Booking (Onwards)')
 
 SET IDENTITY_INSERT dbo.TicketVoiding_SubIssueType OFF
 GO
 
 INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId, Sporttype, SubIssueTypeId) 
 VALUES (3,1,111) --Main Booking - Away
---VAR message setting
-,(51,1,112)
-,(51,1,113)
-,(51,1,114)
-,(51,1,115)
-,(51,1,116)
-,(51,1,117)
-,(51,1,118)
-,(51,1,119)
-,(51,1,120)
+,(7,1,112)
+,(36,1,113)
+,(7,1,114)
+,(36,1,115)
 
-,(52,1,121)
-,(53,1,122)
-,(52,1,123)
-,(53,1,124)
-,(52,1,125)
-,(53,1,126)
-,(54,1,127)
-,(55,1,128)
-,(51,1,129)
-,(51,1,130)
-,(51,1,131)
-/*Red Card*/
-,(56,1,132)
-,(57,1,133)
-/*Wrong Score*/
-,(58,1,133)
-,(7,1,134)
-,(36,1,135)
-,(7,1,136)
-,(36,1,137)
+--VAR setting
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId, Sporttype, SubIssueTypeId, IsCheckedVar) 
+VALUES 
+--Danger Accepted
+ (51,1,1,1)
+,(51,1,55,1)
+,(51,1,56,1)
+,(51,1,57,1)
+,(51,1,58,1)
+,(51,1,59,1)
+,(51,1,60,1)
+,(51,1,61,1)
+,(51,1,62,1)
+,(52,1,4,1)
+,(53,1,5,1)
+,(52,1,63,1)
+,(53,1,64,1)
+,(52,1,65,1)
+,(53,1,66,1)
+,(54,1,3,1)
+,(55,1,111,1)
+,(51,1,75,1)
+,(51,1,76,1)
+,(51,1,77,1)
+--Red Card
+,(56,1,15,1)
+,(57,1,16,1)
+--Wrong Score
+,(58,1,7,1)
+,(58,1,35,1)
+,(58,1,94,1)
+,(58,1,95,1)
+,(59,1,112,1)
+,(59,1,113,1)
+,(60,1,114,1)
+,(60,1,115,1)
+,(61,1,96,1)
+,(61,1,97,1)
 
-,(58,1,138)
-,(58,1,139)
-,(58,1,140)
-,(58,1,141)
-,(59,1,142)
-,(59,1,143)
-,(60,1,144)
-,(60,1,145)
-,(61,1,146)
-,(61,1,147)
-
-SELECT * FROM TicketVoiding_SubIssueType where IssueTypeId = 3
-
-
-SELECT s.SubIssueTypeId,s.SubIssueTypeName,ms.TemplateId,m.MsgEnglish 
-FROM TicketVoiding_MessageTemplateSetting ms
-inner join TicketVoiding_MessageTemplate m on ms.TemplateId = m.TemplateId
-inner join dbo.TicketVoiding_SubIssueType s on ms.SubIssueTypeId = s.SubIssueTypeId
-where IssueTypeId = 3 and ms.TemplateId <> 9999
-and s.SubIssueTypeId in (1,55,56,59,57,58,62,60,61,4,5,63,64,65,66,3,77,75,76)
-order by SubIssueTypeId asc, SubIssueTypeName asc
-
-SELECT * FROM TicketVoiding_IssueType
-SELECT * FROM TicketVoiding_SubIssueType where IssueTypeId = 1 and SubIssueTypeName like '%PEN%'
-SELECT * from TicketVoiding_MessageTemplate   
-select * from TicketVoiding_MessageTemplateSetting where SubIssueTypeId =3
-
-select transdesc,betteam, betid,* from dbo.bettrans where matchid = 70048097 and transid = 41239885134168183
-select transdesc,betteam, betcheck,* from dbo.bettransm where matchid = 70048097
-
-
-select  transids, IssueDetail  from dbo.ticketvoiding_requestdetail
-where IssueDetail is not null
-order by id desc

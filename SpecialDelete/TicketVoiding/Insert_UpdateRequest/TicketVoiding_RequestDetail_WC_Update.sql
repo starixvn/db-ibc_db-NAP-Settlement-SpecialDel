@@ -18,6 +18,7 @@ AS
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype Wrong score [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20221125@July: TVS - VAR message [Redmine: #178088]
 
 	Param's explanation:
 */
@@ -117,8 +118,10 @@ BEGIN
 			,t.c.value('@LiveAwayScore','INT') AS LiveAwayScore
 			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' + t.c.value('@ActualScore','VARCHAR(50)') AS ActualScore
 			,t.c.value('@SubIssueTypeId','INT') AS SubIssueTypeId
-			,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') 
-					+ '" SA="' + t.c.value('@SATime','VARCHAR(10)') + + '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(20)') + '" />' AS TypeAccept
+			,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') + '" SA="' + t.c.value('@SATime','VARCHAR(10)') + 
+			+ '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(20)') 
+			+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
+			+ '" />' AS TypeAccept
 	FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
 

@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20211013@Max: Create new SP [Redmine: #155792]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20221025@July: TVS - VAR message [Redmine: #178088]
 
 	Param's explanation:
 		
@@ -45,7 +46,7 @@ BEGIN
 						AND SubType BETWEEN 2100 AND 2199
 			)mr
 	END
-	ELSE IF @MainSubIssueTypeId = 3 --Main Booking
+	ELSE IF @MainSubIssueTypeId IN (3,111) --Main Booking Home/Away
 	BEGIN
 		SELECT m.MatchId
 			,CASE WHEN mr.matchid IS NOT NULL THEN 72 --Next Booking
