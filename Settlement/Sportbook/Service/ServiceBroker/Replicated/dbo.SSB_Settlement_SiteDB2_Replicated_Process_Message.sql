@@ -1,0 +1,59 @@
+USE [bodb02]
+GO
+/*<info serverAlias="SBSETTLE-bodb02, DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
+ALTER PROC [dbo].[SSB_Settlement_SiteDB2_Replicated_Process_Message]
+as
+/*  
+	Created: Patrick@20221025
+	Task: Process message
+	DB: SBSETTLE-bodb02, DBBAL-bodb02
+	Revisions:  
+		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
+*/
+begin
+	set nocount on
+	declare @__conversationHandle uniqueidentifier, @__messageType varchar(200), @__messageBody nvarchar(max)
+		, @__messageId varchar(200), @__errmsg varchar(1024), @__errCode int
+		, @__startTime datetime2, @__endtime datetime2
+
+	while 1 = 1
+	begin
+		waitfor (receive top(1) @__conversationHandle = conversation_handle
+				, @__messageType = message_type_name
+				, @__messageBody = message_body
+			from dbo.sitedb2_bet_settle_queue
+		), timeout 100
+
+		if @@rowcount = 0
+			return
+
+		--set deadlock_priority high
+		begin try
+			
+			exec (@__messageBody)
+
+		end try
+		begin catch
+			select @__errmsg = error_message()
+			alter queue sitedb2_bet_settle_queue with status = off
+		end catch
+		
+		--set deadlock_priority normal
+
+		declare @__messageBodyTemp nvarchar(max)
+		select @__messageBodyTemp = @__messageBody
+			, @__endtime = sysdatetime()
+
+		exec dbo.SSB_Settlement_WriteLogs @MessageId = @__messageId
+			, @MessageType			= @__messageType
+			, @MessageBody			= @__messageBodyTemp
+			, @StartTime			= @__startTime
+			, @EndTime				= @__endtime
+			, @SessionId			= null
+			, @ErrorMessage			= @__errmsg
+			, @ConversationHandle	= @__conversationHandle
+			, @QueueNo				= 1
+			, @SiteDBGroupId		= null
+
+	end
+end
