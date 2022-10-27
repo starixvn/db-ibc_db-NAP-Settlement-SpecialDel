@@ -15,6 +15,7 @@ as
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 */
 begin
+	set nocount on
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo varchar(max)
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
