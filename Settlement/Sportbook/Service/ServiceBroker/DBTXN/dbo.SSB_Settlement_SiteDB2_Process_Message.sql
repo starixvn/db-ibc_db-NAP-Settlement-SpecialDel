@@ -12,8 +12,8 @@ as
 */
 begin
 	set nocount on
-	declare @__conversationHandle uniqueidentifier, @__messageType varchar(200), @__messageBody nvarchar(max)
-		, @__messageId varchar(200)
+	declare @__conversationHandle uniqueidentifier, @__messageType varchar(200)
+		, @__messageBody nvarchar(max), @__messageId varchar(200)
 
 	while 1 = 1
 	begin
@@ -28,8 +28,7 @@ begin
 
 		set @__messageId = newid()
 
-		exec dbo.SSB_Settlement_SiteDB_Execute_Message
-			@ConversationHandle = @__conversationHandle
+		exec dbo.SSB_Settlement_SiteDB_Execute_Message @ConversationHandle = @__conversationHandle
 			, @MessageBody = @__messageBody
 			, @MessageType = @__messageType
 			, @MessageId = @__messageId

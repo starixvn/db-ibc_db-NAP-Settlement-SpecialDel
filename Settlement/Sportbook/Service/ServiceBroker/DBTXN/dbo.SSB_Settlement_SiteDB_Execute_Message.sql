@@ -14,8 +14,7 @@ as
 */
 begin
 	set nocount on
-	declare @__conversationHandle uniqueidentifier, @__messageType varchar(200), @__messageBody nvarchar(max)
-		, @__errmsg varchar(1024), @__errCode int, @__transInfo nvarchar(max)
+	declare @__errmsg varchar(1024), @__errCode int, @__transInfo nvarchar(max)
 		, @__params xml, @__tableName varchar(200), @__matchId int
 		, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__startTime datetime2, @__endtime datetime2
@@ -31,7 +30,7 @@ begin
 			,@__action = T.C.value('@Action','varchar(1)')
 			,@__settlementAction = T.C.value('@SettlementAction','varchar(20)')
 			,@__ticketType = T.C.value('@TicketType','varchar(1)')
-			,@__transInfo = T.C.value('@TransInfo','varchar(max)')
+			,@__transInfo = T.C.value('@TransInfo','nvarchar(max)')
 			,@__siteDBGroupId = T.C.value('@SiteDBGroupId','smallint')
 			,@__sessionId = T.C.value('@SessionId','bigint')
 			,@__totalQueue = T.C.value('@TotalQueue','int')
@@ -63,7 +62,7 @@ begin
 			+ case when @__tableName is not null then ',@TableName=''' + @__tableName + '''' else '' end
 			+ case when @__matchId is not null then ',@MatchId=' + cast(@__matchId as varchar(20)) else '' end
 			+ case when @__action is not null then ',@Action=''' + @__action + '''' else '' end
-			+ case when @__transInfo is not null then ',@SettlementAction=''' + @__settlementAction + '''' else '' end
+			+ case when @__settlementAction is not null then ',@SettlementAction=''' + @__settlementAction + '''' else '' end
 			+ case when @__ticketType is not null then ',@TicketType=''' + @__ticketType + '''' else '' end
 			+ case when @__totalQueue is not null then ',@TotalQueue=' + cast(@__totalQueue as varchar(50)) + '' else '' end
 			+ case when @__siteDBGroupId is not null then ',@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(50)) + '' else '' end
@@ -71,13 +70,13 @@ begin
 		, @__endtime = sysdatetime()
 
 	exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
-		, @MessageType			= @__messageType
+		, @MessageType			= @MessageType
 		, @MessageBody			= @__messageBodyTemp
 		, @StartTime			= @__startTime
 		, @EndTime				= @__endtime
 		, @SessionId			= @__sessionId
 		, @ErrorMessage			= @__errmsg
-		, @ConversationHandle	= @__conversationHandle
+		, @ConversationHandle	= @ConversationHandle
 		, @QueueNo				= 0
 		, @SiteDBGroupId		= @__siteDBGroupId
 end
