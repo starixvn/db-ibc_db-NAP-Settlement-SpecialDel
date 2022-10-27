@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_BettransDelSpecialDel_EarlyKO_xtest]   
+ALTER PROCEDURE [dbo].[NAP_BettransDelSpecialDel_EarlyKO]   
 	 @MatchId			INT  
 	,@KickOffDate		DATETIME  
 	,@BetTypes			XML			 = NULL  	
