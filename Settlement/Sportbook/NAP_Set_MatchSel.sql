@@ -566,7 +566,7 @@ BEGIN
  
 	IF @MatchType = 3
 	BEGIN
-		DELETE FROM	#matchList WHERE ISNULL(IsExistFastMarket,0) = 0 AND ISNULL(IsExistFastMarketResult,0) = 0
+		DELETE FROM	#matchList WHERE ISNULL(IsExistFastMarket,0) = 0
 	END
 
 	IF @FilterOver = 1
