@@ -18,6 +18,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans - Support NumberGame [Redmine: #175412]
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:	
 */
@@ -63,7 +64,8 @@ BEGIN
 		BetFrom			NVARCHAR(3),
 		creator			INT,
 		matchid			INT,
-		EndTime			DATETIME
+		EndTime			DATETIME,
+		IsMatch3rd		BIT DEFAULT(0)
 	);
 
 	CREATE TABLE #TempBet (
@@ -87,7 +89,8 @@ BEGIN
 		Currency		TINYINT,
 		transdate		DATETIME,
 		eventdate		DATETIME,
-		EndTime			DATETIME
+		EndTime			DATETIME,
+		IsMatch3rd		BIT DEFAULT(0)
 	);
 
 	CREATE TABLE #TempBettrans (
@@ -111,8 +114,8 @@ BEGIN
 
 	CREATE TABLE #SupportedSports (SportType SMALLINT);
 
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost TINYINT, stake MONEY, statusID TINYINT, creator INT, transdate DATETIME, comstatus NVARCHAR(40))
-	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost TINYINT, stake MONEY, statusID TINYINT, creator INT, transdate DATETIME, comstatus NVARCHAR(40), IsMatch3rd BIT DEFAULT(0))
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsMatch3rd	BIT DEFAULT(0), IsFinish BIT)
 	DECLARE @BeforeRecover 	TVP_BalanceChange,
 			@AfterRecover 	TVP_BalanceChange;
 
@@ -129,7 +132,8 @@ BEGIN
 			@ResettleTransIds	  VARCHAR(MAX) = '',
 			@Action				  VARCHAR(20),
 			@TransInfo			  XML,
-			@SiteDBGroupID        SMALLINT = 0
+			@SiteDBGroupID        SMALLINT = 0,
+			@IsMatch3rd			  BIT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	--Get Movebetdate
@@ -198,7 +202,8 @@ BEGIN
 			sporttype,
 			transdate,
 			eventdate,
-			EndTime
+			EndTime,
+			IsMatch3rd
 		)
 		------159948 - Support Bitcoin
 		SELECT	b.custid,
@@ -220,7 +225,8 @@ BEGIN
 				m.sporttype,
 				b.transdate,
 				m.eventdate,
-				m.EndTime
+				m.EndTime,
+				0 AS IsMatch3rd
 		FROM #TempBettrans b
 			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
 		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype)
@@ -245,7 +251,8 @@ BEGIN
 				m.sporttype,
 				b.transdate,
 				m.eventdate,
-				NULL AS EndTime
+				NULL AS EndTime,
+				1 AS IsMatch3rd
 		FROM #TempBettrans b
 			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype);
@@ -308,7 +315,8 @@ BEGIN
 		BetFrom,
 		creator,
 		matchid,
-		EndTime
+		EndTime,
+		IsMatch3rd
 	)
 	SELECT	z.transid,
 			z.refno,
@@ -342,7 +350,8 @@ BEGIN
 			z.betfrom,
 			z.creator,
 			b.matchid,
-			b.EndTime
+			b.EndTime,
+			b.IsMatch3rd
 	FROM dbo.zzzbettrans z WITH(NOLOCK)
 		INNER JOIN #TempBet b 
 			ON z.transid = b.transid
@@ -405,21 +414,21 @@ BEGIN
 		STATUS = 'running',
 		statusID = 0,
 		creator = r.creator
-	OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, inserted.statuswinlost, inserted.status, inserted.statusID, inserted.creator
-	INTO @tmpTransInfo (matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator) 
+	OUTPUT deleted.matchid, deleted.TransId, inserted.winlost, inserted.ruben, inserted.statuswinlost, inserted.status, inserted.statusID, inserted.creator, r.IsMatch3rd
+	INTO @tmpTransInfo (matchid, transid, winlost, ruben, statuswinlost, status, statusID, creator, IsMatch3rd) 
 	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #RecoverBet r ON b.transid = r.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo )
 	BEGIN
-		INSERT INTO @tmpMatchidInfo (MatchId)
-		SELECT DISTINCT MatchId FROM @tmpTransInfo
+		INSERT INTO @tmpMatchidInfo (MatchId, IsMatch3rd)
+		SELECT DISTINCT MatchId, IsMatch3rd FROM @tmpTransInfo
 
 		WHILE (1=1)
 		BEGIN
 			UPDATE TOP(1)m
-			SET IsFinish = 1, @matchid = MatchId 
+			SET IsFinish = 1, @matchid = MatchId , @IsMatch3rd = m.IsMatch3rd
 			FROM @tmpMatchidInfo m
 			WHERE IsFinish IS NULL
 
@@ -436,8 +445,8 @@ BEGIN
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @TransInfo 
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+			SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @TransInfo, 's', CASE WHEN @IsMatch3rd = 0 THEN 1 ELSE 3 END
 		END
 
 		DELETE FROM @tmpTransInfo
@@ -469,13 +478,13 @@ BEGIN
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
-		INSERT INTO @tmpMatchidInfo (MatchId)
-		SELECT DISTINCT MatchId FROM @tmpTransInfo
+		INSERT INTO @tmpMatchidInfo (MatchId, IsMatch3rd)
+		SELECT DISTINCT MatchId, IsMatch3rd FROM @tmpTransInfo
 
 		WHILE (1=1)
 		BEGIN
 			UPDATE TOP(1)m
-			SET IsFinish = 1, @matchid = MatchId 
+			SET IsFinish = 1, @matchid = MatchId, @isExistMatch3rd = m.IsMatch3rd
 			FROM @tmpMatchidInfo m
 			WHERE IsFinish IS NULL
 
@@ -488,8 +497,8 @@ BEGIN
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+			SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', CASE WHEN @IsMatch3rd = 0 THEN 1 ELSE 3 END
 		END
 
 		DELETE FROM @tmpTransInfo

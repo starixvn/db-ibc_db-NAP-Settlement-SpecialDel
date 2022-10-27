@@ -18,6 +18,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 				
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -416,8 +417,8 @@ BEGIN
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverVS', 'zzzbettransm', 'D', @matchid, @TransInfo 
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+			SELECT 'TVS', 'RecoverVS', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p', 1
 		END
 			
 		--> Release Concurrency process

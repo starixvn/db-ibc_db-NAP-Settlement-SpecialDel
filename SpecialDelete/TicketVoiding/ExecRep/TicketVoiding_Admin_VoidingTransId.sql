@@ -32,6 +32,7 @@ AS
         - 20211214@July: Remove code CashOut [Redmine: #165097]
         - 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
     Param's explanation:
         Version 1: Only use for Void Ticket via TVS
@@ -62,7 +63,8 @@ BEGIN
             ,@IsEnableServiceBroker BIT -- server is using service broker or not
             ,@FcUpdateTime   DATETIME2
             ,@IsSiteDB  BIT 
-            ,@transInfo XML 
+            ,@transInfo XML = ''
+			,@transInfo3rd XML = ''
             ,@CreatedDate DATETIME 
 
     IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -70,8 +72,8 @@ BEGIN
 
     DECLARE @tmpTrans TABLE (TransID BIGINT, BetId BIGINT, betdaqid BIGINT) 
     DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
-    DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, betdaqid BIGINT, Bonusid INT, WalletType TINYINT, status VARCHAR(20))
-    DECLARE @tmpMatchId TABLE (matchId INT, IsFinish BIT)
+    DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, betdaqid BIGINT, Bonusid INT, WalletType TINYINT, status VARCHAR(20), matchid INT)
+    DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
 
 
     SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -271,12 +273,42 @@ BEGIN
             FROM    @tmpTrans t 
                 INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+			WHERE b.bettype NOT IN (10, 38)
             FOR XML PATH('r'),ROOT('root'), TYPE)
 
-            IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
+			SET @transInfo3rd = (
+            SELECT  t.transId AS '@t'
+                    , b.winlost AS '@w'
+                    , b.ruben AS '@r'
+                    , b.creator AS '@cr'
+                    , b.awinlost AS '@aw'
+                    , b.mwinlost AS '@mw'
+                    , b.swinlost AS '@sw'
+                    , b.playercomm AS '@pc'
+                    , b.comm AS '@c'
+                    , b.acomm AS '@ac'
+                    , b.scomm AS '@sc'
+                    , b.statusID AS '@sid'
+                    , b.status AS '@s'
+                    , b.betid AS '@bid'
+                    , b.ExtraInfo AS '@ex'
+                    , b.FcUpdateTime AS '@rut'
+            FROM    @tmpTrans t 
+                INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+                INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+			WHERE b.bettype IN (10, 38)
+            FOR XML PATH('r'),ROOT('root'), TYPE)
+
+            IF @IsSiteDB = 1 AND @transInfo <> ''
             BEGIN
                 INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
                 SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+            END
+
+			IF @IsSiteDB = 1 AND @transInfo3rd <> ''
+            BEGIN
+                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
             END
 
 
@@ -337,33 +369,93 @@ BEGIN
                     ON  t.transid = b.transid
             WHERE b.statusID NOT IN (102)   
 
-            SET @transInfo = (
-            SELECT  t.transId AS '@t'
-                    , b.winlost AS '@w'
-                    , b.ruben AS '@r'
-                    , b.creator AS '@cr'
-                    , b.awinlost AS '@aw'
-                    , b.mwinlost AS '@mw'
-                    , b.swinlost AS '@sw'
-                    , b.playercomm AS '@pc'
-                    , b.comm AS '@c'
-                    , b.acomm AS '@ac'
-                    , b.scomm AS '@sc'
-                    , b.statusID AS '@sid'
-                    , b.status AS '@s'
-                    , b.betid AS '@bid'
-                    , b.FcUpdateTime AS '@rut'
-            FROM    @tmpTrans t 
-                INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
-                INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-            FOR XML PATH('r'),ROOT('root'), TYPE)
+            INSERT INTO @tmpMatchId (MatchId, Sporttype)
+			SELECT DISTINCT b.MatchId 
+			FROM @tmpTrans_beforeUpd b
+				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 
-            IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
-            BEGIN
-                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
-            END
-            
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId, @Sporttype = m.Sporttype
+				FROM @tmpMatchId m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				SET @transInfo = (
+				SELECT  t.transId AS '@t'
+						, b.winlost AS '@w'
+						, b.ruben AS '@r'
+						, b.creator AS '@cr'
+						, b.awinlost AS '@aw'
+						, b.mwinlost AS '@mw'
+						, b.swinlost AS '@sw'
+						, b.playercomm AS '@pc'
+						, b.comm AS '@c'
+						, b.acomm AS '@ac'
+						, b.scomm AS '@sc'
+						, b.statusID AS '@sid'
+						, b.status AS '@s'
+						, b.betid AS '@bid'
+						, b.FcUpdateTime AS '@rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE tp.matchid = @matchid
+					AND 1 = CASE WHEN (b.bettype IN (10, 38)
+									OR @Sporttype BETWEEN 180 AND 186 
+									OR @Sporttype BETWEEN 190 AND 197
+									OR @Sporttype IN (175, 161, 199)
+									)
+								THEN 0 ELSE 1 END
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				SET @transInfo3rd = (
+				SELECT  t.transId AS '@t'
+						, b.winlost AS '@w'
+						, b.ruben AS '@r'
+						, b.creator AS '@cr'
+						, b.awinlost AS '@aw'
+						, b.mwinlost AS '@mw'
+						, b.swinlost AS '@sw'
+						, b.playercomm AS '@pc'
+						, b.comm AS '@c'
+						, b.acomm AS '@ac'
+						, b.scomm AS '@sc'
+						, b.statusID AS '@sid'
+						, b.status AS '@s'
+						, b.betid AS '@bid'
+						, b.FcUpdateTime AS '@rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE tp.matchid = @matchid
+					AND 1 = CASE WHEN (b.bettype IN (10, 38)
+									OR @Sporttype BETWEEN 180 AND 186 
+									OR @Sporttype BETWEEN 190 AND 197
+									OR @Sporttype IN (175, 161, 199)
+									)
+								THEN 1 ELSE 0 END
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+				IF @IsSiteDB = 1 AND @transInfo <> '' AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+				END
+
+				IF @IsSiteDB = 1 AND @transInfo3rd <> '' AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
+				END
+			END
+
+			DELETE FROM @tmpMatchId
+			SET @TransInfo = ''
+			SET @TransInfo3rd = ''
+			
             -- Process for cashout tickets make change Balance before
             SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t
                                                         , b.custid AS c

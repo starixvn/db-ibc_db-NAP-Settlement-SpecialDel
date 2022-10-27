@@ -63,6 +63,7 @@ AS
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
 */
@@ -73,7 +74,8 @@ BEGIN
 		,@ErrorCode			INT  = 0 
 		,@NegativeBalanceUsers	VARCHAR(MAX)	= ''
 		,@SiteDBGroupID		SMALLINT
-		,@transInfo XML 
+		,@transInfo XML = ''
+		,@transInfo3rd XML = ''
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -996,12 +998,41 @@ BEGIN
 				FROM	#SpecialDeleteBets_Single t 
 					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE t.BetType NOT IN (10, 3)
+				FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			SET @transInfo3rd = (
+				SELECT	t.transId AS '@t'
+						, b.winlost AS '@w'
+						, b.ruben AS '@r'
+						, b.creator AS '@cr'
+						, b.awinlost AS '@aw'
+						, b.mwinlost AS '@mw'
+						, b.swinlost AS '@sw'
+						, b.playercomm AS '@pc'
+						, b.comm AS '@c'
+						, b.acomm AS '@ac'
+						, b.scomm AS '@sc'
+						, b.statusID AS '@sid'
+						, b.status AS '@s'
+						, b.betid AS '@bid'
+						, b.ExtraInfo AS '@ex'
+						, b.FcUpdateTime AS '@rut'
+				FROM	#SpecialDeleteBets_Single t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE t.BetType IN (10, 3)
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 		
-			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+			IF @SiteDBGroupID <> 0 AND @transInfo <> ''
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo
+			END
+			IF @SiteDBGroupID <> 0 AND @transInfo3rd <> ''
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
 			END
 		END	
 		

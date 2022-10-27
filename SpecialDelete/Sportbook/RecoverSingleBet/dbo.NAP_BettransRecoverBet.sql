@@ -68,6 +68,7 @@ AS
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
 */
@@ -82,7 +83,8 @@ BEGIN
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
 			,@SiteDBGroupID     SMALLINT = 0
-			,@TransInfo			XML
+			,@TransInfo			XML = ''
+			,@TransInfo3rd		XML = ''
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
@@ -154,6 +156,7 @@ BEGIN
 			, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			, transdate DATETIME, comstatus NVARCHAR(40)
+			, bettype SMALLINT
 			)
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 	DECLARE @matchid INT
@@ -474,8 +477,8 @@ BEGIN
 		,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',main.ExtraInfo,t.SportType, main.bettype)
 		,FcUpdateTime  = SYSDATETIME()
 	OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.winlost, inserted.ruben, inserted.statuswinlost
-			, inserted.statusID, inserted.creator, inserted.actual_stake, inserted.odds, inserted.transdesc, inserted.ExtraInfo, inserted.FcUpdateTime
-	INTO @tmpTransInfo (matchid, transid, status, winlost, ruben, statuswinlost, statusID, creator, actual_stake, odds, transdesc, ExtraInfo, FcUpdateTime)
+			, inserted.statusID, inserted.creator, inserted.actual_stake, inserted.odds, inserted.transdesc, inserted.ExtraInfo, inserted.FcUpdateTime, t.bettype
+	INTO @tmpTransInfo (matchid, transid, status, winlost, ruben, statuswinlost, statusID, creator, actual_stake, odds, transdesc, ExtraInfo, FcUpdateTime, bettype)
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 	WHERE t.bettype NOT IN (468, 469)
@@ -509,15 +512,45 @@ BEGIN
 					, transdesc AS '@tdesc'
 					, ExtraInfo AS '@ex'
 					, FcUpdateTime AS '@rut'
-			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FROM	@tmpTransInfo 
+			WHERE matchid = @MatchId AND bettype NOT IN (10, 38)
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo 
+			--Betbuilder, Outright
+			SET @TransInfo3rd = (
+			SELECT	matchid AS '@mid'
+					, transId AS '@t'
+					, STATUS AS '@s'
+					, winlost AS '@w'
+					, ruben AS '@r'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
+					, statusID AS '@sid'
+					, creator AS '@cr'
+					, actual_stake AS '@astake'
+					, odds AS '@o'
+					, transdesc AS '@tdesc'
+					, ExtraInfo AS '@ex'
+					, FcUpdateTime AS '@rut'
+			FROM	@tmpTransInfo 
+			WHERE matchid = @MatchId AND bettype IN (10, 38)
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			IF @TransInfo <> ''
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo
+			END
+			IF @TransInfo3rd <> ''
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo3rd, 's', 1
+			END
 		END
 
 		DELETE FROM @tmpTransInfo
 		DELETE FROM @tmpMatchidInfo
+		SET @TransInfo = ''
+		SET @TransInfo3rd = ''
 	END
 
 	--Update CashOutSelling for new CO Model
@@ -654,11 +687,13 @@ BEGIN
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo 
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo
 			END
 
 			DELETE FROM @tmpMatchidInfo
 			DELETE FROM @tmpTransInfo
+			SET @TransInfo = ''
+			SET @TransInfo3rd = ''
 		END
 
 		--Update CO Selling
@@ -762,11 +797,13 @@ BEGIN
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo 
+			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo
 		END
 
 		DELETE FROM @tmpTransInfo
 		DELETE FROM @tmpMatchidInfo
+		SET @TransInfo = ''
+		SET @TransInfo3rd = ''
 	END
 
 	-- Re-Cal Bet Builder
@@ -903,15 +940,35 @@ BEGIN
 					, transId AS '@t'
 					, transdate AS '@td'
 					, comstatus AS '@cst'
-			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FROM	@tmpTransInfo 
+			WHERE matchid = @MatchId AND bettype NOT IN (10, 38)
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			SET @TransInfo3rd= (
+			SELECT	matchid AS '@mid'
+					, transId AS '@t'
+					, transdate AS '@td'
+					, comstatus AS '@cst'
+			FROM	@tmpTransInfo 
+			WHERE matchid = @MatchId AND bettype IN (10, 38)
+			FOR XML PATH('r'),ROOT('root'), TYPE)
+
+			IF @TransInfo <> ''
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo
+			END
+			IF @TransInfo3rd <> ''
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', 1
+			END
 		END
 
 		DELETE FROM @tmpTransInfo
 		DELETE FROM @tmpMatchidInfo
+		SET @TransInfo = ''
+		SET @TransInfo3rd = ''
 	END
 	
 	------ release data of TempVariableNumBer table

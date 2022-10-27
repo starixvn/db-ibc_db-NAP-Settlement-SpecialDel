@@ -17,6 +17,7 @@ AS
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -757,8 +758,8 @@ BEGIN
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', 1
 			END
 
 			DELETE FROM @tmpTransInfo

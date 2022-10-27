@@ -41,6 +41,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's Explanation: 
 		- @Opition: 
@@ -548,8 +549,8 @@ BEGIN
 				FROM	@tmpTransInfo b WHERE matchid = @MatchId
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 		
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'VoidNumberGame', 'bettrans', 'U', @MatchId, @transInfo
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				SELECT 'TVS', 'VoidNumberGame', 'bettrans', 'U', @MatchId, @transInfo, 's', 1
 			END
 		END
 
