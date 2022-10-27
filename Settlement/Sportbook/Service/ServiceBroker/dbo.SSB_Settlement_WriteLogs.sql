@@ -11,7 +11,7 @@ ALTER procedure [dbo].[SSB_Settlement_WriteLogs] @MessageId varchar(128)
 	, @ConversationHandle varchar(128) = ''
 	, @QueueNo tinyint = null
 	, @AffectedTicket int = null
-	, @SiteDBGroupId smallint = null
+	, @SiteDBGroupId smallint = 0
 as
 /*  Created: Patrick@20210801
 	Task: Write logs

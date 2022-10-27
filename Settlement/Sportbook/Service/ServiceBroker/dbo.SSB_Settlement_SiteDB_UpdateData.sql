@@ -64,7 +64,7 @@ begin
 
 					--wait for dbtrans send exec command via replication ==> default 100ms
 					select @__delayTime = dbo.f_Settlement_GetDelayTime('Rep_Wait_Send_Exec')
-					waitfor delay @__delayTime -- waitfor dbtrans send exec command via replication
+					waitfor delay @__delayTime -- sitedb - waitfor sync logs / replication insert data
 				end
 
 				break
@@ -111,7 +111,7 @@ begin
 
 		--waitfor on each batch exec ==> default 001ms
 		select @__delayTime = dbo.f_Settlement_GetDelayTime('Wait_Exec_Each_Batch')
-		waitfor delay @__delayTime -- delay between batches updated
+		waitfor delay @__delayTime -- sitedb - delay between batches updated
 	
 	end
 
