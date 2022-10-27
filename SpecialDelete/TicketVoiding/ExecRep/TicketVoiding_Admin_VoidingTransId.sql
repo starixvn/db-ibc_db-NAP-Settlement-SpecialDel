@@ -370,7 +370,7 @@ BEGIN
             WHERE b.statusID NOT IN (102)   
 
             INSERT INTO @tmpMatchId (MatchId, Sporttype)
-			SELECT DISTINCT b.MatchId 
+			SELECT DISTINCT b.MatchId, m.sporttype
 			FROM @tmpTrans_beforeUpd b
 				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 
