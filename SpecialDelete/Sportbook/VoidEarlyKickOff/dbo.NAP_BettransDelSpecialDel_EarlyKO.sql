@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_BettransDelSpecialDel_EarlyKO]   
+ALTER PROCEDURE [dbo].[NAP_BettransDelSpecialDel_EarlyKO_xtest]   
 	 @MatchId			INT  
 	,@KickOffDate		DATETIME  
 	,@BetTypes			XML			 = NULL  	
@@ -174,8 +174,8 @@ BEGIN
 			,@ErrMsg			NVARCHAR(200)	= ''
 			,@ErrCode			INT				= 0	  
 			,@SiteDBGroupID		SMALLINT
-			,@transInfo			XML = ''
-			,@transInfo3rd		XML = ''
+			,@transInfo			XML
+			,@transInfo3rd		XML
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -1307,12 +1307,12 @@ BEGIN
 			WHERE t.Bettype IN (38)
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 		
-		IF @SiteDBGroupID <> 0 AND @transInfo <> ''
+		IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 			SELECT 'TVS', 'VoidEKO', 'bettrans', 'U', @matchid, @transInfo
 		END
-		IF @SiteDBGroupID <> 0 AND @transInfo3rd <> ''
+		IF @SiteDBGroupID <> 0 AND @transInfo3rd IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
 			SELECT 'TVS', 'VoidEKO', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1

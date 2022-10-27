@@ -40,8 +40,8 @@ BEGIN
 			,@IsAbnormalBet		TINYINT
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT 
-			,@transInfo			XML = ''
-			,@transInfo3rd			XML = ''
+			,@transInfo			XML
+			,@transInfo3rd			XML
 			,@SitedbgroupId				INT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -400,12 +400,12 @@ BEGIN
 			WHERE b.bettype IN (10)
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			IF @transInfo <> ''
+			IF @transInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo
 			END
-			IF @transInfo3rd <> ''
+			IF @transInfo3rd IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
 				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, 's', 1

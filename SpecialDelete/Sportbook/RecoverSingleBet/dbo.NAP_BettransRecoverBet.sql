@@ -83,8 +83,8 @@ BEGIN
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
 			,@SiteDBGroupID     SMALLINT = 0
-			,@TransInfo			XML = ''
-			,@TransInfo3rd		XML = ''
+			,@TransInfo			XML
+			,@TransInfo3rd		XML
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
@@ -535,12 +535,12 @@ BEGIN
 			WHERE matchid = @MatchId AND bettype IN (10, 38)
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			IF @TransInfo <> ''
+			IF @TransInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo
 			END
-			IF @TransInfo3rd <> ''
+			IF @TransInfo3rd IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
 				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo3rd, 's', 1
@@ -953,12 +953,12 @@ BEGIN
 			WHERE matchid = @MatchId AND bettype IN (10, 38)
 			FOR XML PATH('r'),ROOT('root'), TYPE)
 
-			IF @TransInfo <> ''
+			IF @TransInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo
 			END
-			IF @TransInfo3rd <> ''
+			IF @TransInfo3rd IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
 				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', 1

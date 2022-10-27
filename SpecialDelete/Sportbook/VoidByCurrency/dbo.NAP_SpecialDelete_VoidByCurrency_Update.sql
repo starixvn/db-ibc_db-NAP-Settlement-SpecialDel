@@ -74,8 +74,8 @@ BEGIN
 		,@ErrorCode			INT  = 0 
 		,@NegativeBalanceUsers	VARCHAR(MAX)	= ''
 		,@SiteDBGroupID		SMALLINT
-		,@transInfo XML = ''
-		,@transInfo3rd XML = ''
+		,@transInfo XML
+		,@transInfo3rd XML
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -1024,12 +1024,12 @@ BEGIN
 				WHERE t.BetType IN (10, 3)
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 		
-			IF @SiteDBGroupID <> 0 AND @transInfo <> ''
+			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo
 			END
-			IF @SiteDBGroupID <> 0 AND @transInfo3rd <> ''
+			IF @SiteDBGroupID <> 0 AND @transInfo3rd IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
 				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1

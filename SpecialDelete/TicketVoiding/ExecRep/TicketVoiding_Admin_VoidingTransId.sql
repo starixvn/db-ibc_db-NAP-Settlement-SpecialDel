@@ -63,8 +63,8 @@ BEGIN
             ,@IsEnableServiceBroker BIT -- server is using service broker or not
             ,@FcUpdateTime   DATETIME2
             ,@IsSiteDB  BIT 
-            ,@transInfo XML = ''
-			,@transInfo3rd XML = ''
+            ,@transInfo XML
+			,@transInfo3rd XML
             ,@CreatedDate DATETIME 
 
     IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -299,13 +299,13 @@ BEGIN
 			WHERE b.bettype IN (10, 38)
             FOR XML PATH('r'),ROOT('root'), TYPE)
 
-            IF @IsSiteDB = 1 AND @transInfo <> ''
+            IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
             BEGIN
                 INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
                 SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
             END
 
-			IF @IsSiteDB = 1 AND @transInfo3rd <> ''
+			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
             BEGIN
                 INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
                 SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
@@ -439,13 +439,13 @@ BEGIN
 								THEN 1 ELSE 0 END
 				FOR XML PATH('r'),ROOT('root'), TYPE)
 
-				IF @IsSiteDB = 1 AND @transInfo <> '' AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
 					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
 				END
 
-				IF @IsSiteDB = 1 AND @transInfo3rd <> '' AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
 					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
