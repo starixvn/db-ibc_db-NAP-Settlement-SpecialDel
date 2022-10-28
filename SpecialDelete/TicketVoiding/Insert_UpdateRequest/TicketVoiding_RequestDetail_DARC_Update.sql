@@ -54,7 +54,7 @@ BEGIN
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
-			,TypeAccept				VARCHAR(50)
+			,TypeAccept				VARCHAR(300)
 			,SubIssueTypeId			SMALLINT
 			)
 

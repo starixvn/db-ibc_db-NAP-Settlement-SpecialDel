@@ -55,7 +55,7 @@ BEGIN
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
-			,TypeAccept				VARCHAR(50)
+			,TypeAccept				VARCHAR(300)
 			,SubIssueTypeId			SMALLINT
 			)
 	CREATE TABLE #TVSTicketBets (MatchId INT, TransId BIGINT, SubTransId BIGINT, VoidFromTime DATETIME, VoidToTime DATETIME, bettype SMALLINT, betid BIGINT, CustId INT, IsMixParlay BIT, SiteDBGroupID SMALLINT)
