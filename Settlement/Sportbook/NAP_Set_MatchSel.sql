@@ -182,7 +182,8 @@ BEGIN
 	-- if entering matcode, ignore other params (excep FromDate, ToDate, sport type)
 	IF (@matchcode <> '')
 	BEGIN
-		SELECT @FilterOver = 0	 
+		SELECT @FilterOver = 0	
+			  ,@MatchType   = 0
 
 		BEGIN TRY
 			SET @matchid = CASE 
