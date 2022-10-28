@@ -455,7 +455,7 @@ BEGIN
 			,t.TotalUserName --no.of accounts
 			,t.WrongScores
 			,mr.SettlementStatus
-			,CASE WHEN t.IssueTypeId IN (1,10,3) THEN t.TransIds ELSE NULL END AS IsCheckedVar
+			,CASE WHEN t.IssueTypeId IN (1,10,3) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 	FROM	#tmpResult t
 		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
