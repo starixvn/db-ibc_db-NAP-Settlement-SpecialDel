@@ -28,6 +28,8 @@ AS
 		- 20220531@Kathy: performance tunning [Redmine:#173456]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221004@Kathy: Prevent duplicate data if re-run SP in case of deadlock [Redmine:#178542]
+		- 20221026@Helen: resolve deadlock [Redmine:#179541]
+
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
 		+ @matchdate eventdate of the match
@@ -153,7 +155,6 @@ BEGIN
 		FROM	cteDuplicateTransId
 		WHERE	rn > 1
 
-
 		-- Create index after remove duplicate rows
 		CREATE UNIQUE CLUSTERED INDEX CIX_tempBettrans_refno ON #temp_bettrans (refno)
 
@@ -161,7 +162,7 @@ BEGIN
 			SET insertedDetail = 1
 		FROM #temp_bettrans t
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayDetail r WITH (NOLOCK) WHERE t.refno = r.refno)			
-		
+
 		INSERT INTO #tmpSource(refno, transid, winlostdate, statuswinlost, statusId, matchid
 			,bettype, odds, betteam, hdp1, hdp2, livehomescore
 			,liveawayscore, liveindicator, betcheck, selection_cnt, bitmapR, SetStake, transdesc
@@ -185,25 +186,30 @@ BEGIN
 							AND m.sporttype BETWEEN 1 AND 99											
 				) m
 		WHERE	b.insertedDetail = 0 
-	
-		INSERT INTO #tmpSetStake (Refno, RN, SetStake)
-		SELECT	refno, RN, SetStake
-		FROM	#tmpSource
-		WHERE	SetStake > 0
 
-		INSERT INTO dbo.BetParlayDetail (
-			RefNo, Serial, transid, winlostdate, statuswinlost, statusid
-			,matchid, bettype, stake, odds, betteam, hdp1
-			,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
-		)
-		SELECT p.RefNo, rc.Serial, p.transid, p.winlostdate, p.statuswinlost, p.statusid
-			,p.matchid, p.bettype, ps.SetStake, p.odds, p.betteam, p.hdp1
-			,p.hdp2, p.livehomescore, p.liveawayscore, p.liveindicator, p.betcheck, p.transdesc
-		FROM	#tmpSource p
-			INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
-			INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
-			INNER JOIN #tmpSetStake ps ON ps.refno = p.refno AND ps.RN = rc.R
-				
+		IF @@ROWCOUNT > 0
+		BEGIN
+			
+			INSERT INTO #tmpSetStake (Refno, RN, SetStake)
+			SELECT	refno, RN, SetStake
+			FROM	#tmpSource
+			WHERE	SetStake > 0
+
+			INSERT INTO dbo.BetParlayDetail WITH (TABLOCK) (
+				RefNo, Serial, transid, winlostdate, statuswinlost, statusid
+				,matchid, bettype, stake, odds, betteam, hdp1
+				,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+			)
+			SELECT p.RefNo, rc.Serial, p.transid, p.winlostdate, p.statuswinlost, p.statusid
+				,p.matchid, p.bettype, ps.SetStake, p.odds, p.betteam, p.hdp1
+				,p.hdp2, p.livehomescore, p.liveawayscore, p.liveindicator, p.betcheck, p.transdesc
+			FROM	#tmpSource p
+				INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
+				INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
+				INNER JOIN #tmpSetStake ps ON ps.refno = p.refno AND ps.RN = rc.R
+		
+		END
+
 		UPDATE t
 			SET insertedResult = 1
 		FROM #temp_bettrans t
