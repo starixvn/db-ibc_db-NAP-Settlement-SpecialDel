@@ -1,6 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 	
-	@TransInfo	XML
+	@TransInfo		XML				= NULL
+	,@TransInfoJson	VARCHAR(MAX)	= NULL
 	,@TableName VARCHAR(128)
 	,@Action	VARCHAR(1)	= 'U'
 	,@MatchId	INT			= 0
@@ -21,6 +22,7 @@ AS
 		- 20221008@Patrick: Check transId before insert markedtransaction
 		- 20221019@Kathy: Set @ServerName [Redmine:#179274]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
+		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 
 	Param's Explanation:  
 		   
@@ -116,6 +118,7 @@ BEGIN
     BEGIN
 		SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
 							+ ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + ''''
+							+ ',@TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + ''''
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
 													ELSE '''' + @TableName + ''''
@@ -158,45 +161,121 @@ BEGIN
 
 				IF @tablename = 'bettrans'
 				BEGIN
-					INSERT INTO @tmpTransId (TransID
+					IF @TransInfo IS NOT NULL
+					BEGIN
+						INSERT INTO @tmpTransId (TransID
+							,matchid, winlostdate, betdaqid
+							,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
+							,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
+							, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo		
+							,virtualrate	 
+						)
+						SELECT	T.C.value('./@t', 'bigint') AS transid
+								,T.C.value('./@mid', 'INT') AS matchid
+								,T.C.value('./@wld', 'SMALLDATETIME') AS winlostdate
+								,T.C.value('./@bdaq', 'VARCHAR(50)') AS betdaqid
+								,T.C.value('./@m', 'VARCHAR(11)') AS modds
+								,T.C.value('./@o', 'SMALLMONEY') AS odds
+								,T.C.value('./@oid', 'INT') AS oddsid
+								,T.C.value('./@os', 'VARCHAR(20)') AS oddsspread
+								,T.C.value('./@statuswl', 'VARCHAR(1)') AS statuswinlost
+								,T.C.value('./@st', 'DATETIME') AS SettlementTime
+								,T.C.value('./@w', 'MONEY') AS WinLost
+								,T.C.value('./@aw', 'MONEY') AS aWinLost
+								,T.C.value('./@mw', 'MONEY') AS mWinLost
+								,T.C.value('./@sw', 'MONEY') AS sWinLost
+								,T.C.value('./@pc', 'MONEY') AS PlayerComm
+								,T.C.value('./@c', 'MONEY') AS Comm 
+								,T.C.value('./@ac', 'MONEY') AS aComm
+								,T.C.value('./@sc', 'MONEY') AS sComm
+								,T.C.value('./@s', 'NVARCHAR(10)')	AS [Status]
+								,T.C.value('./@sid', 'TINYINT')		AS StatusID
+								,T.C.value('./@r', 'TINYINT')		AS ruben
+								,T.C.value('./@rut', 'DATETIME2')	AS FcUpdateTime	
+								,T.C.value('./@hdp1', 'SMALLMONEY') AS hdp1
+								,T.C.value('./@hdp2', 'SMALLMONEY') AS hdp2
+								,T.C.value('./@lh', 'SMALLINT') AS livehomescore
+								,T.C.value('./@la', 'SMALLINT') AS liveawayscore
+								,T.C.value('./@cr', 'INT') AS creator
+								,T.C.value('./@bid', 'VARCHAR(50)') AS betid
+								,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo	  
+								,T.C.value('./@v', 'FLOAT') AS virtualrate
+						FROM	@transInfo.nodes('/root/r') AS T(C)
+						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+					END
+					ELSE
+					BEGIN
+						INSERT INTO @tmpTransId (TransID
 						,matchid, winlostdate, betdaqid
 						,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
 						,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
 						, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo		
 						,virtualrate	 
-					)
-					SELECT	T.C.value('./@t', 'bigint') AS transid
-							,T.C.value('./@mid', 'INT') AS matchid
-							,T.C.value('./@wld', 'SMALLDATETIME') AS winlostdate
-							,T.C.value('./@bdaq', 'VARCHAR(50)') AS betdaqid
-							,T.C.value('./@m', 'VARCHAR(11)') AS modds
-							,T.C.value('./@o', 'SMALLMONEY') AS odds
-							,T.C.value('./@oid', 'INT') AS oddsid
-							,T.C.value('./@os', 'VARCHAR(20)') AS oddsspread
-							,T.C.value('./@statuswl', 'VARCHAR(1)') AS statuswinlost
-							,T.C.value('./@st', 'DATETIME') AS SettlementTime
-							,T.C.value('./@w', 'MONEY') AS WinLost
-							,T.C.value('./@aw', 'MONEY') AS aWinLost
-							,T.C.value('./@mw', 'MONEY') AS mWinLost
-							,T.C.value('./@sw', 'MONEY') AS sWinLost
-							,T.C.value('./@pc', 'MONEY') AS PlayerComm
-							,T.C.value('./@c', 'MONEY') AS Comm 
-							,T.C.value('./@ac', 'MONEY') AS aComm
-							,T.C.value('./@sc', 'MONEY') AS sComm
-							,T.C.value('./@s', 'NVARCHAR(10)')	AS [Status]
-							,T.C.value('./@sid', 'TINYINT')		AS StatusID
-							,T.C.value('./@r', 'TINYINT')		AS ruben
-							,T.C.value('./@rut', 'DATETIME2')	AS FcUpdateTime	
-							,T.C.value('./@hdp1', 'SMALLMONEY') AS hdp1
-							,T.C.value('./@hdp2', 'SMALLMONEY') AS hdp2
-							,T.C.value('./@lh', 'SMALLINT') AS livehomescore
-							,T.C.value('./@la', 'SMALLINT') AS liveawayscore
-							,T.C.value('./@cr', 'INT') AS creator
-							,T.C.value('./@bid', 'VARCHAR(50)') AS betid
-							,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo	  
-							,T.C.value('./@v', 'FLOAT') AS virtualrate
-					FROM	@transInfo.nodes('/root/r') AS T(C)
-					OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+						)
+						SELECT	 t		AS transid
+								,mid	AS matchid
+								,wld	AS winlostdate
+								,bdaq	AS betdaqid
+								,m		AS modds
+								,o		AS odds
+								,oid	AS oddsid
+								,os		AS oddsspread
+								,statuswl AS statuswinlost
+								,st		AS SettlementTime
+								,w		AS WinLost
+								,aw		AS aWinLost
+								,mw		AS mWinLost
+								,sw		AS sWinLost
+								,pc		AS PlayerComm
+								,c		AS Comm 
+								,ac		AS aComm
+								,sc		AS sComm
+								,s		AS [Status]
+								,sid	AS StatusID
+								,r		AS ruben
+								,rut 	AS FcUpdateTime	
+								,hdp1	AS hdp1
+								,hdp2	AS hdp2
+								,lh AS livehomescore
+								,la AS liveawayscore
+								,cr  AS creator
+								,bid AS betid
+								,ex AS ExtraInfo	  
+								,v AS virtualrate
+						FROM	OPENJSON ( @transInfoJson ) WITH
+						(
+							 t  BIGINT 
+							,mid  INT 
+							,wld SMALLDATETIME 
+							,bdaq VARCHAR(50) 
+							,m VARCHAR(11) 
+							,o SMALLMONEY 
+							,oid INT 
+							,os VARCHAR(20) 
+							,statuswl VARCHAR(1) 
+							,st DATETIME 
+							,w MONEY   
+							,aw MONEY 
+							,mw MONEY 
+							,sw MONEY 
+							,pc MONEY 
+							,c  MONEY 
+							,ac MONEY 
+							,sc MONEY 
+							,s NVARCHAR(10) 
+							,sid TINYINT 
+							,r TINYINT 
+							,rut DATETIME2 
+							,hdp1 SMALLMONEY 
+							,hdp2 SMALLMONEY 
+							,lh SMALLINT 
+							,la SMALLINT 
+							,cr INT 
+							,bid VARCHAR(50) 
+							,ex VARCHAR(1000)   
+							,v FLOAT 
+						)
+					END
 
 					SET @batchNo = @@ROWCOUNT
 
@@ -294,8 +373,7 @@ BEGIN
 							,creator = CASE WHEN t.creator IS NULL THEN bm.creator ELSE t.creator END
 					FROM	@tmptransid t
 						INNER JOIN dbo.bettransm bm WITH (ROWLOCK, UPDLOCK)
-							ON	bm.transid = t.transid
-					--OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+							ON	bm.transid = t.transid 
 				END
 				ELSE IF @TableName = 'BetParlayDetail'
 				BEGIN
@@ -329,7 +407,6 @@ BEGIN
 					FROM   @tmpTransId t
 						INNER JOIN dbo.BetParlayDetail pd WITH(TABLOCK)
 							ON  pd.transid = t.transid
-					--OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 				END
 				ELSE IF @TableName = 'MarkedTransaction'
 				BEGIN
@@ -359,10 +436,10 @@ BEGIN
 					BEGIN
 						INSERT INTO @tmpTransId (TransID ,matchid)
 						SELECT	T.C.value('./@t', 'bigint') AS transid
-							   ,T.C.value('./@mid', 'INT') AS matchid
+								,T.C.value('./@mid', 'INT') AS matchid
 						FROM	@transInfo.nodes('/root/r') AS T(C)
 						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
-
+						
 						DELETE m 
 						FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
 							INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
@@ -393,12 +470,12 @@ BEGIN
 					BEGIN
 						INSERT INTO @tmpTransId (TransID ,matchid, transdate, comstatus)
 						SELECT	T.C.value('./@t', 'bigint') AS transid
-							   ,T.C.value('./@mid', 'INT') AS matchid
-							   ,T.C.value('./@td', 'datetime') AS transdate
+								,T.C.value('./@mid', 'INT') AS matchid
+								,T.C.value('./@td', 'datetime') AS transdate
 								,T.C.value('./@cst', 'nvarchar(40)') AS comstatus
 						FROM	@transInfo.nodes('/root/r') AS T(C)
 						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
-
+						
 						DELETE m 
 						FROM dbo.zzzbettrans m WITH (ROWLOCK, UPDLOCK)
 							INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId 
@@ -415,7 +492,7 @@ BEGIN
 							,T.C.value('./@mid', 'INT') AS matchid
 						FROM	@transInfo.nodes('/root/r') AS T(C)	
 						OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
-
+						
 						SET @batchNo = @@ROWCOUNT
 
 						UPDATE TOP (@batchNo)  b
@@ -431,7 +508,7 @@ BEGIN
 							   ,T.C.value('./@mid', 'INT') AS matchid
 						FROM	@transInfo.nodes('/root/r') AS T(C)	
 						OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
-
+						
 						DELETE bm 
 						FROM dbo.zzzbettransm bm WITH (ROWLOCK, UPDLOCK)
 							INNER JOIN @tmpTransId t ON t.TransId = bm.TransId AND t.MatchId = bm.MatchId
@@ -441,6 +518,7 @@ BEGIN
 				BEGIN
 					SET @matchdate = NULL
 					SET @strTransIds = NULL
+
 
 					SELECT  @matchdate = T.C.value('@wld', 'SMALLDATETIME') 
 							,@strTransIds = T.C.value('@strTransId', 'VARCHAR(MAX)') 
