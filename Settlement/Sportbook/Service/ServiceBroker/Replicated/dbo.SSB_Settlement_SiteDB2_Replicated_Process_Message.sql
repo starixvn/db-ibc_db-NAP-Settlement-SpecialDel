@@ -13,7 +13,7 @@ as
 begin
 	set nocount on
 	declare @__conversationHandle uniqueidentifier, @__messageType varchar(200), @__messageBody nvarchar(max)
-		, @__messageId varchar(200), @__errmsg varchar(1024), @__errCode int
+		, @__messageId varchar(200), @__errmsg varchar(1024)
 		, @__startTime datetime2, @__endtime datetime2
 
 	while 1 = 1
@@ -29,7 +29,7 @@ begin
 
 		--set deadlock_priority high
 		begin try
-			
+			select @__messageId = newid(), @__errmsg = '', @__startTime = sysdatetime()
 			exec (@__messageBody)
 
 		end try
@@ -40,20 +40,18 @@ begin
 		
 		--set deadlock_priority normal
 
-		declare @__messageBodyTemp nvarchar(max)
-		select @__messageBodyTemp = @__messageBody
-			, @__endtime = sysdatetime()
+		select @__endtime = sysdatetime()
 
 		exec dbo.SSB_Settlement_WriteLogs @MessageId = @__messageId
 			, @MessageType			= @__messageType
-			, @MessageBody			= @__messageBodyTemp
+			, @MessageBody			= @__messageBody
 			, @StartTime			= @__startTime
 			, @EndTime				= @__endtime
 			, @SessionId			= null
 			, @ErrorMessage			= @__errmsg
 			, @ConversationHandle	= @__conversationHandle
-			, @QueueNo				= 1
-			, @SiteDBGroupId		= null
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 2
 
 	end
 end

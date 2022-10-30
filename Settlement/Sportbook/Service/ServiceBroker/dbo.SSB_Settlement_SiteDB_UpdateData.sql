@@ -16,7 +16,7 @@ as
 */
 begin
 	set nocount on
-	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo varchar(max)
+	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo nvarchar(max)
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
 
@@ -25,7 +25,7 @@ begin
 
 	while 1 = 1
 	begin
-		select @__strTransInfo = '', @__processingId = 0, @__siteDBGroupId = null
+		select @__strTransInfo = '', @__processingId = 0
 			, @__messageTypeNew = null, @__startTime = sysdatetime()
 
 		update top(1) s

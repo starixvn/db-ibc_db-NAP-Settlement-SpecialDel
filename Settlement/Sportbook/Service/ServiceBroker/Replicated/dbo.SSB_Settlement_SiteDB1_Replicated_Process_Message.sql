@@ -1,19 +1,19 @@
 USE [bodb02]
 GO
-/*<info serverAlias="SBSETTLE-bodb02,DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="SBSETTLE-bodb02, DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROC [dbo].[SSB_Settlement_SiteDB1_Replicated_Process_Message]
 as
 /*  
 	Created: Patrick@20221025
 	Task: Process message
-	DB: SBSETTLE-bodb02,DBBAL-bodb02
+	DB: SBSETTLE-bodb02, DBBAL-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 */
 begin
 	set nocount on
 	declare @__conversationHandle uniqueidentifier, @__messageType varchar(200), @__messageBody nvarchar(max)
-		, @__messageId varchar(200), @__errmsg varchar(1024), @__errCode int
+		, @__messageId varchar(200), @__errmsg varchar(1024)
 		, @__startTime datetime2, @__endtime datetime2
 
 	while 1 = 1
@@ -29,7 +29,7 @@ begin
 
 		--set deadlock_priority high
 		begin try
-			
+			select @__messageId = newid(), @__errmsg = '', @__startTime = sysdatetime()
 			exec (@__messageBody)
 
 		end try
@@ -40,20 +40,18 @@ begin
 		
 		--set deadlock_priority normal
 
-		declare @__messageBodyTemp nvarchar(max)
-		select @__messageBodyTemp = @__messageBody
-			, @__endtime = sysdatetime()
+		select @__endtime = sysdatetime()
 
 		exec dbo.SSB_Settlement_WriteLogs @MessageId = @__messageId
 			, @MessageType			= @__messageType
-			, @MessageBody			= @__messageBodyTemp
+			, @MessageBody			= @__messageBody
 			, @StartTime			= @__startTime
 			, @EndTime				= @__endtime
 			, @SessionId			= null
 			, @ErrorMessage			= @__errmsg
 			, @ConversationHandle	= @__conversationHandle
-			, @QueueNo				= 1
-			, @SiteDBGroupId		= null
+			, @QueueNo				= 0
+			, @SiteDBGroupId		= 1
 
 	end
 end
