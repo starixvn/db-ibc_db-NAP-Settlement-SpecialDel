@@ -1,7 +1,9 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
-	@TransInfo			XML				= NULL
-	,@TransInfoJson		VARCHAR(MAX)	= NULL
+	@SiteDBGroupId		SMALLINT
+	,@SessionId			BIGINT			= NULL
+	,@MessageType		VARCHAR(200)
+	,@TransInfo			VARCHAR(MAX)	= NULL
 	,@TableName			VARCHAR(128) 
 	,@MatchId			INT				= 0
 	,@Action			VARCHAR(1)		= 'U'
@@ -13,11 +15,11 @@ AS
 /*
 	Created by: 20201123@Kathy
 	Task: Settlement  
-	DB: DBTRANS.BODB02
 	
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
+		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 
 	Param's Explanation:  
 		   
@@ -52,11 +54,13 @@ BEGIN
 		ELSE
 		BEGIN
 			EXEC dbo.Bet_ExecRep_NAP_Admin_01 
-					@TransInfo = @TransInfo
-					,@TransInfoJson = @TransInfoJson 
+					@SiteDBGroupId = @SiteDBGroupId
+					,@SessionId = @SessionId
+					,@MessageType = @MessageType
+					,@TransInfo = @TransInfo
 					,@TableName = @TableName
-					,@Action = @Action
 					,@MatchId = @MatchId
+					,@Action = @Action					
 					,@SettlementAction = @SettlementAction
 					,@TicketType = @TicketType
 		END

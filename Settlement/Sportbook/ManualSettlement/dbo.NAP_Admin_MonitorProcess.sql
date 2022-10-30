@@ -23,6 +23,7 @@ AS
 		  - 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		  - 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		  - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		  - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 
 	Param's Explanation:  
 	
@@ -113,6 +114,17 @@ BEGIN
 	FROM	dbo.SettlementBettypeResult WITH(ROWLOCK, UPDLOCK)
 	WHERE	matchid = @MatchId
 			AND SessionId = @SessionId
+
+	IF @IsCentral = 0 AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL 
+	BEGIN
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
+			@SystemName		= 'Settlement'
+			,@FunctionName	= 'CalculateSoccer'
+			,@TableName		= 'SiteDB_SettlementLock'
+			,@Action		= 'D'
+			,@MatchId		= @matchid
+			,@SessionId		= @SessionId
+	END
 
 	EXEC dbo.NAP_Admin_Calculate_Main @mode = 'ReleaseMatch'
 		,@IsSettingByProfile = 1

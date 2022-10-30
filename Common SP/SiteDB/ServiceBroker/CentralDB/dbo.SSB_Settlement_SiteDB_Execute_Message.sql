@@ -30,20 +30,23 @@ begin
 			,@__action = T.C.value('@Action','varchar(1)')
 			,@__settlementAction = T.C.value('@SettlementAction','varchar(20)')
 			,@__ticketType = T.C.value('@TicketType','varchar(1)')
-			,@__transInfo = T.C.value('@TransInfo','nvarchar(max)')
+			,@__transInfo = T.C.value('@TransInfo','varchar(max)')
 			,@__siteDBGroupId = T.C.value('@SiteDBGroupId','smallint')
 			,@__sessionId = T.C.value('@SessionId','bigint')
 			,@__totalQueue = T.C.value('@TotalQueue','int')
 		from @__params.nodes('/root/r') as T(C)
 
-		exec dbo.NAP_SettlementService_Calculation @TransInfo = @__transInfo
+		exec dbo.NAP_SettlementService_Calculation 
+			@SiteDBGroupId					= @__siteDBGroupId
+			,@SessionId						= @__sessionId
+			,@MessageType					= @MessageType
+			,@TransInfo						= @__transInfo
 			,@TableName						= @__tableName
 			,@MatchId						= @__matchId
 			,@Action						= @__action
 			,@SettlementAction				= @__settlementAction
 			,@TicketType					= @__ticketType
-			,@SiteDBGroupId					= @__siteDBGroupId
-			,@SessionId						= @__sessionId
+			
 			,@TotalQueue					= @__totalQueue	
 			,@ErrCode						= @__errCode output
 			,@ErrMsg						= @__errmsg output

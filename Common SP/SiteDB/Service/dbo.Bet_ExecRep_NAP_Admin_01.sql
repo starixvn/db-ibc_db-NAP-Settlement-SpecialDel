@@ -1,13 +1,19 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 	
-	@TransInfo		XML				= NULL
-	,@TransInfoJson	VARCHAR(MAX)	= NULL
+ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 
+	@SiteDBGroupId SMALLINT
+	,@SessionId BIGINT = NULL
+	,@MessageType VARCHAR(200)
+	,@TransInfo	VARCHAR(MAX) = NULL
+	,@TransInfoJson VARCHAR(MAX) = NULL
 	,@TableName VARCHAR(128)
-	,@Action	VARCHAR(1)	= 'U'
 	,@MatchId	INT			= 0
-	,@TicketType VARCHAR(1) = NULL
+	,@Action	VARCHAR(1)	= 'U'
 	,@SettlementAction VARCHAR(20) = NULL
+	,@TicketType VARCHAR(1) = NULL
+	,@TotalQueue INT = 0
+
 	,@RunOnServer VARCHAR(100)= NULL
+	,@SettlementProcessingId BIGINT = NULL	
 	,@CalledByBrokerService	BIT = 0
 AS
 /*
@@ -47,7 +53,13 @@ BEGIN
 			,@TryCount	TINYINT
 			,@errcode INT
 			,@errmsg VARCHAR(1024)
-		
+			,@SiteDB_TotalQueue INT
+
+			,@cnt_sitedb INT
+			,@cnt_central INT
+			,@IsPassed BIT 
+			,@StartTimeValidation DATETIME2
+
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
 		,modds VARCHAR(11), odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
@@ -115,12 +127,32 @@ BEGIN
 
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+		,@SiteDB_TotalQueue = @SiteDB_TotalQueue OUTPUT
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
-		SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
+		IF ISNULL(@SettlementProcessingId,0) <> 0 AND @TableName = 'bettrans'
+		BEGIN
+			IF OBJECT_ID('SiteDB_SettlementProcessing', 'U') IS NOT NULL
+			BEGIN
+				DECLARE @MessageTypeNew VARCHAR(200) 
+					,@QueueNoNew INT 
+			
+				SET @QueueNoNew = @SettlementProcessingId%@SiteDB_TotalQueue 
+									+ CASE WHEN @SettlementProcessingId%@SiteDB_TotalQueue = 0 THEN @SiteDB_TotalQueue ELSE 0 END
+
+				SET @MessageTypeNew = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0' + CAST(@QueueNoNew AS VARCHAR)
+			
+				INSERT INTO dbo.SiteDB_SettlementProcessing (SiteDBGroupId, SessionId, TransInfo, MessageType)
+				SELECT @SiteDBGroupId, @SessionId, @TransInfoJson, @MessageTypeNew
+			END
+		END
+		ELSE
+		BEGIN
+			SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
 							+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
 							+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
+							+ ',@MessageType = ' +  '''' + @MessageType + ''''
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
 													ELSE '''' + @TableName + ''''
@@ -129,24 +161,26 @@ BEGIN
 													WHEN @Action IS NULL THEN 'NULL'
 													ELSE '''' + @Action + ''''
 													END 
-							+ ',@TicketType = ' + CASE
-													WHEN @TicketType IS NULL THEN 'NULL'
-													ELSE '''' + @TicketType + ''''
-													END 														
 							+ ',@SettlementAction = ' + CASE
 													WHEN @SettlementAction IS NULL THEN 'NULL'
 													ELSE '''' + @SettlementAction + ''''
 													END 
+							+ ',@TicketType = ' + CASE
+													WHEN @TicketType IS NULL THEN 'NULL'
+													ELSE '''' + @TicketType + ''''
+													END 
+							+ ',@TotalQueue = ' +  CONVERT(VARCHAR(20), @SiteDB_TotalQueue) 
 							+ ',@RunOnServer = ' + CASE
 													WHEN @RunOnServer IS NULL THEN 'NULL'
 													ELSE '''' + @RunOnServer + ''''
-													END 
+													END 							
 							+ ',@CalledByBrokerService = 1'
 		
-		EXEC dbo.SSB_Send_Message 
-			@MessageContent = @sMessage
-			,@FunctionName = 'settlement'
-			,@MessageType = 'bet_SiteDB_msg_type_01'
+			EXEC dbo.SSB_Send_Message 
+				@MessageContent = @sMessage
+				,@FunctionName = 'settlement'
+				,@MessageType = @MessageType
+		END
 	END
 	ELSE
 	BEGIN
@@ -161,7 +195,15 @@ BEGIN
 
 				DELETE @tmpTransId
 
-				IF @tablename = 'bettrans'
+				IF @TableName = 'SiteDB_SettlementLock' AND OBJECT_ID('SiteDB_SettlementLock', 'U') IS NOT NULL
+				BEGIN
+					EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
+						,@SiteDBGroupId = @SiteDBGroupId
+						,@MatchId = @MatchId
+						,@SessionId = @SessionId
+						,@TotalQueue = @TotalQueue
+				END
+				ELSE IF @tablename = 'bettrans'
 				BEGIN
 					IF @TransInfo IS NOT NULL
 					BEGIN
@@ -279,7 +321,39 @@ BEGIN
 						)
 					END
 
-					SET @batchNo = @@ROWCOUNT
+					SET @cnt_sitedb = @@ROWCOUNT
+
+					SET @StartTimeValidation = SYSDATETIME()
+
+					WHILE @IsPassed = 0
+					BEGIN
+						SELECT @cnt_central = COUNT(1)
+						FROM	@tmpTransId t
+						WHERE	EXISTS (SELECT TOP 1 1 
+										FROM dbo.bettrans b WITH(NOLOCK) 
+										WHERE b.transid = t.TransId
+								)
+
+						IF @cnt_sitedb = @cnt_central
+						BEGIN
+							SET @IsPassed = 1
+
+							BREAK
+						END
+						ELSE IF DATEDIFF(MINUTE,@StartTimeValidation,SYSDATETIME()) > 10
+						BEGIN
+							SELECT	@errcode = 100
+									,@errmsg = 'Failed to validate ticket between CentralDB and SiteDB'
+
+							RETURN
+						END
+						ELSE
+						BEGIN
+							WAITFOR DELAY '00:00:00.500' -- wait for validating ticket between central and sitedb
+
+							CONTINUE
+						END
+					END
 
 					IF @Action = 'U'
 					BEGIN
@@ -325,6 +399,12 @@ BEGIN
 							INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 								ON  t.transid = b.transid 
 						OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+
+						IF OBJECT_ID('SiteDB_SettlementProcessing', 'U') IS NOT NULL
+							DELETE 
+							FROM	dbo.SiteDB_SettlementProcessing 
+							WHERE	SettlementProcessingid = @SettlementProcessingid
+
 					END			
 				END
 				ELSE IF @TableName = 'bettransm'

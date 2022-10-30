@@ -9,6 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Profile]
 	,@IsMarked BIT
 	,@OddsType SMALLINT
 	,@ActionId INT = 0
+	,@SessionId BIGINT = 0
 	,@ErrMessage VARCHAR(300) = '' OUTPUT
 AS
 /*
@@ -26,6 +27,7 @@ AS
 		- 20221010@Kathy: Do not upd odds, oddsspread of bettype 468 if refund [Redmine:#178941]
 		- 20221019@Kathy: Add ActionId [Redmine:#179274]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
+		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 
 	Param's Explanation:  
 		   
@@ -122,7 +124,8 @@ BEGIN
 		SET @OddsType = 0
 	END
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
+			AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL 
 		SET @IsSiteDB = 1
 
 	SET @settlementTime = GETDATE()	
@@ -429,11 +432,20 @@ BEGIN
 							,bef_statusid AS 'bef_sid' 
 					
 					FROM	@tmpBalanceChanged
-					 FOR JSON AUTO
+					FOR JSON AUTO
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfoJson, SettlementAction, TicketType)
-				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @matchid, @transInfo, @Action, 's')	
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
+					@SystemName		= 'Settlement'
+					,@FunctionName	= 'Calculate-RefundSoccer'
+					,@TableName		= 'SiteDB_SettlementProcessing'
+					,@MatchId		= @MatchId 
+					,@Action		= 'I'
+					,@TicketType	= 's'
+					,@SettlementAction = @Action
+					,@SessionId		= @SessionId
+					,@IsParallel	= 1
+					,@transInfo		= @transInfo
 			END
 
 			-- balance

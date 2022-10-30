@@ -1,6 +1,6 @@
 /*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogSel]
-	
+	@BatchNo INT = 1
 AS
 /*
 	Created by: 20201123@Kathy
@@ -11,6 +11,7 @@ AS
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 20221010@Louisa: get log which is inserted 1 second before [Redmine:#178880]
 		- 20221025@Louisa: Use JSon log format for soccer [Redmine:#179449]
+		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [Redmine:#178694]
 
 	Param's Explanation:  
 		   
@@ -29,6 +30,8 @@ BEGIN
 			,@Action VARCHAR(1)
 			,@SettlementAction VARCHAR(20)
 			,@TicketType VARCHAR(1)
+			,@SessionId BIGINT
+			,@IsParallel BIT
 			,@procName SYSNAME	= OBJECT_NAME(@@procid)
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting BIT = 0
@@ -61,30 +64,34 @@ BEGIN
 	
 	IF @LastStatusId = 2 OR @LastLogId IS NULL ---the last time is done successfully or the first time running 
 	BEGIN
-		SELECT	TOP 1 @LogId = LogId
-				,@TransInfo = TransInfo
-				,@TransInfoJson = TransInfoJson
-				,@TableName = TableName
-				,@MatchId = MatchId
-				,@Action = Action
-				,@SettlementAction = SettlementAction
-				,@TicketType = TicketType
+		SELECT	TOP (@BatchNo) LogId
+				,TransInfo
+				,TransInfoJson
+				,TableName
+				,MatchId
+				,Action
+				,SettlementAction
+				,TicketType
+				,SessionId
+				,IsParallel
 		FROM	dbo.SiteDB_SettlementService_CalculationLog WITH(NOLOCK)
 		WHERE	LogId > ISNULL(@LastLogId,0)
 			AND DATEDIFF(SECOND, LogDate, GETDATE() ) >= 1
 		ORDER BY LogId
-		
-		SET @RowCount = @@ROWCOUNT
 	END
-
-	SELECT	@LogId AS LogId
-			,@TransInfo AS TransInfo
-			,@TransInfoJson AS TransInfoJson
-			,@TableName AS TableName
-			,@MatchId AS MatchId
-			,@Action AS Action
-			,@SettlementAction AS SettlementAction
-			,@TicketType AS TicketType
-	WHERE @RowCount = 1
+	ELSE
+	BEGIN
+		SELECT	@LogId AS LogId
+				,@TransInfo AS TransInfo
+				,@TransInfoJson AS TransInfoJson
+				,@TableName AS TableName
+				,@MatchId AS MatchId
+				,@Action AS Action
+				,@SettlementAction AS SettlementAction
+				,@TicketType AS TicketType
+				,@SessionId AS SessionId
+				,@IsParallel AS IsParallel
+		WHERE 1 = 0
+	END
 END
 GO

@@ -5,6 +5,7 @@ ALTER PROCEDURE dbo.NAP_Set_ServerInfo
 	,@TotalQueue INT = 0 OUTPUT
 	,@Environment VARCHAR(50) = '' OUTPUT
 	,@IsCentral BIT = 0 OUTPUT
+	,@SiteDB_TotalQueue INT = 0 OUTPUT
 AS
 /*
     Created: 20200825@Kathy
@@ -32,11 +33,12 @@ BEGIN
         , TotalQueue INT
         , Environment VARCHAR(50)
         , IsCentral BIT DEFAULT(0)
+		, SiteDB_TotalQueue INT
         )
 
     SET @ServerName = @@SERVERNAME
 
-    INSERT INTO @tmpServerInfo(ServerName, ServerAlias, IsEnableServiceBroker, TotalQueue, Environment, IsCentral)
+    INSERT INTO @tmpServerInfo(ServerName, ServerAlias, IsEnableServiceBroker, TotalQueue, Environment, IsCentral, SiteDB_TotalQueue)
     -- local dev
     SELECT 'DEVDB053', 'DBEXT', 1, 4, 'Local',0
     UNION ALL

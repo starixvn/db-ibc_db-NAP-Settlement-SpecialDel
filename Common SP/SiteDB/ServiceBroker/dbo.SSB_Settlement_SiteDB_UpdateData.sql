@@ -18,6 +18,7 @@ begin
 	set nocount on
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo nvarchar(max)
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint
+		, @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
 
 	select @__siteDBGroupId = substring(@MessageBody, 0, charindex('^', @MessageBody, 0))
@@ -32,6 +33,8 @@ begin
 		set StatusId = 1
 			, @__strTransInfo = s.TransInfo
 			, @__processingId = s.Id
+			, @__settlementAction = s.SettlementAction
+			, @__ticketType = s.TicketType
 		from dbo.SiteDB_SettlementProcessing s with(readpast)
 		where s.sessionId = @__sessionId
 			and s.MessageType = @MessageType
@@ -45,6 +48,8 @@ begin
 			set StatusId = 1
 				, @__strTransInfo = s.TransInfo
 				, @__processingId = s.Id
+				, @__settlementAction = s.SettlementAction
+				, @__ticketType = s.TicketType
 			from dbo.SiteDB_SettlementProcessing s with(readpast)
 			where s.sessionId = @__sessionId
 				and s.siteDBGroupId = @__siteDBGroupId
@@ -75,12 +80,14 @@ begin
 		set deadlock_priority high
 		select @__errmsg = ''
 		begin try
-			exec dbo.Bet_ExecRep_NAP_Admin_01 @TransInfo = @__strTransInfo
-				, @TableName					= 'bettrans'
-				, @Action						= 'U'
-				, @SettlementProcessingId		= @__processingId
+			exec dbo.Bet_ExecRep_NAP_Admin_01 
+				@SiteDBGroupId					= @__siteDBGroupId
 				, @SessionId					= @__sessionId
-				, @SiteDBGroupId				= @__siteDBGroupId
+				, @TransInfoJson				= @__strTransInfo
+				, @TableName					= 'bettrans'
+				, @SettlementAction				= @__settlementAction
+				, @TicketType					= @__ticketType
+				, @SettlementProcessingId		= @__processingId				
 				, @ErrMessage					= @__errmsg output
 
 		end try
@@ -91,13 +98,16 @@ begin
 		set deadlock_priority normal
 
 		declare @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128)
-		select @__messageBodyTemp = 'exec dbo.Bet_ExecRep_NAP_Admin_01 '
-				+ case when @__strTransInfo is not null then ',@TransInfo=''' + @__strTransInfo + '''' else '' end
-				+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
-				+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
-				+ case when @__siteDBGroupId is not null then ',@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20)) else '' end
-			, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
-			, @__endtime = sysdatetime()
+		select	@__messageBodyTemp = 'exec dbo.Bet_ExecRep_NAP_Admin_01 '
+									+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
+									+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
+									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + @__strTransInfo + '''' else '' end
+									+ '@TableName=''bettrans'''
+									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
+									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
+									+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
+				, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
+				, @__endtime = sysdatetime()
 
 		exec dbo.SSB_Settlement_WriteLogs @MessageId = @MessageId
 			, @MessageType			= @__messageTypeTemp
