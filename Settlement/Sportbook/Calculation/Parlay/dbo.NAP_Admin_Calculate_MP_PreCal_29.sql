@@ -61,7 +61,7 @@ BEGIN
 	DECLARE @StartRow INT = 1
 			, @StopRow INT 
 			, @MaxRow INT = 1 -- Keep the total row of your data
-			, @Threshold INT = 3000 -- the number of each batch
+			, @Threshold INT = 5 --- 3000 -- the number of each batch
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
