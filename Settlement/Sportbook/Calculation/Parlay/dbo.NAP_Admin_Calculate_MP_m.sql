@@ -76,7 +76,7 @@ BEGIN
 	DECLARE @tmpOutputBettransm TABLE (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, refno BIGINT
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
-	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
+	DECLARE @tmpOutputBetParlayDetail TABLE (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
 	DECLARE @tmpOutputBettransmVoidRecover TABLE (transid BIGINT, winlost MONEY
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)
@@ -2318,7 +2318,46 @@ BEGIN
 					END
 					,'p'
 			WHERE @transInfo IS NOT NULL
-				
+			
+			-- process by batch to insert for sync server
+			SET @MaxRow = (SELECT MAX(ID) FROM @tmpOutputBetParlayDetail)
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+
+			-- SET for first batch
+			SET @StopRow = @Threshold
+			WHILE (1 = 1)
+			BEGIN
+
+					SET @betparlaydetailinfo = (
+					SELECT	DISTINCT transId AS '@t'						
+							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
+							,StatusId AS '@sid'
+					FROM	@tmpOutputBetParlayDetail
+					WHERE ID BETWEEN @StartRow AND @StopRow
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
+						,CASE 
+							WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+							WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+						END
+						,'p'
+				WHERE	@betparlaydetailinfo IS NOT NULL
+
+				IF @StopRow = @MaxRow BREAK
+
+				SET @StartRow = @StopRow + 1
+				SET @StopRow = @StopRow + @Threshold
+
+				IF @StopRow >= @MaxRow
+					SET @StopRow = @MaxRow
+			END
+			/*
 			SET @betparlaydetailinfo = (
 				SELECT	DISTINCT transId AS '@t'						
 						,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
@@ -2336,6 +2375,7 @@ BEGIN
 					END
 					,'p'
 			WHERE	@betparlaydetailinfo IS NOT NULL
+			*/
 		END
     END -- while
 END -- end SP
