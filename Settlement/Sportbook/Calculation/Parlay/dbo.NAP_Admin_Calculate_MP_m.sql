@@ -428,7 +428,7 @@ BEGIN
                 AND statusID NOT IN (101, 102) 
                 AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
 
-            UPDATE dbo.BetParlayDetail WITH(TABLOCK)
+            UPDATE dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
             SET statuswinlost = 0
                 ,statusID = 102
                 ,winlostdate = @matchdate
@@ -463,7 +463,7 @@ BEGIN
                     AND statusID = 102
                     AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)                
         
-            UPDATE    dbo.BetParlayDetail WITH(TABLOCK)
+            UPDATE    dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
                 SET winlostdate = NULL
                     ,statuswinlost = NULL
                     ,statusid = 0
