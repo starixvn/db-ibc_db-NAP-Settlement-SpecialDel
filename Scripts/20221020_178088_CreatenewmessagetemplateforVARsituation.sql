@@ -7,9 +7,6 @@
 
 USE bodb02
 GO
---Add column IsVAR into dbo.TicketVoiding_MessageTemplateSetting
-ALTER TABLE dbo.TicketVoiding_MessageTemplateSetting ADD IsCheckedVar BIT
-
 INSERT INTO dbo.TicketVoiding_MessageTemplate(TemplateId,MsgEnglish, MsgChineseTraditional, MsgChineseSimplified, MsgChineseNewSimplified)
 VALUES(
  51
