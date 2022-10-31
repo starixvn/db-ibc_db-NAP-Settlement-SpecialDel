@@ -71,6 +71,7 @@ AS
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220828@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221006@July: Ticket Listing - Support Advance Mode for Tennis(5) & Volleyball(6) [Redmine: #176611]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -485,7 +486,7 @@ BEGIN
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
 		
-		IF @SportType IN (43,50) -- E-Sports, Cricket
+		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
 		BEGIN
 			DELETE b
 			FROM  @TmpBettransList b
@@ -669,9 +670,9 @@ BEGIN
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType NOT IN (43,50) 
+			WHERE @SportType NOT IN (43,50,5,6) 
 			OR (
-					@SportType IN (43,50) 
+					@SportType IN (43,50,5,6) 
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd 
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
@@ -766,11 +767,9 @@ BEGIN
 				,'Credit' AS LicenseeName
 				,0 
 			FROM #TmpBettrans b 
-			WHERE b.srecommend NOT IN( SELECT custid
-					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-					   UNION
-					   SELECT custid
-					   FROM dbo.CS_CustSuper WITH (NOLOCK))
+			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+			LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+			WHERE ds.custid IS NULL AND cs.CustId IS NULL
 			 GROUP BY b.bettype
 				,b.liveindicator
 		  END
@@ -816,11 +815,9 @@ BEGIN
 				FROM bettransm bm WITH (NOLOCK)
 					INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 					INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
-					WHERE b.srecommend NOT IN( SELECT custid
-							FROM dbo.Dep_CustSuper WITH (NOLOCK)
-							UNION
-							SELECT custid
-							FROM dbo.CS_CustSuper WITH (NOLOCK))
+					LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+					LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+					WHERE ds.custid IS NULL AND cs.CustId IS NULL
 					AND bm.matchid = @MatchId 
 					AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
 					AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
@@ -857,9 +854,9 @@ BEGIN
 				,'Credit' AS LicenseeName
 				,0
 			FROM CTE_ParlayTickets AS t
-			WHERE @SportType NOT IN (43,50) 
+			WHERE @SportType NOT IN (43,50,5,6) 
 			OR (
-				  @SportType IN (43,50) 
+				  @SportType IN (43,50,5,6) 
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
@@ -907,11 +904,9 @@ BEGIN
 				,0
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
-				WHERE b.srecommend NOT IN( SELECT custid
-					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-					   UNION
-					   SELECT custid
-					   FROM dbo.CS_CustSuper WITH (NOLOCK))
+				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+			WHERE ds.custid IS NULL AND cs.CustId IS NULL
 				AND bm.matchid = @MatchId
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
@@ -1055,9 +1050,9 @@ BEGIN
 		  ,CASE WHEN t.site IS NULL AND t.CustId IS NULL THEN 'Credit' ELSE t.site END AS LicenseeName
 		  ,t.IsChinaView
 		  FROM CTE_ParlayTickets AS t
-		 WHERE @SportType NOT IN (43,50) 
+		 WHERE @SportType NOT IN (43,50,5,6) 
 			OR (
-				  @SportType IN (43,50) 
+				  @SportType IN (43,50,5,6) 
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
 					WHERE bd.Id = t.FilterBettype AND (bd.BetTeam = 'All' OR t.FilterBetTeam = bd.BetTeam ))
 				AND EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd

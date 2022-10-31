@@ -77,6 +77,7 @@ AS;
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220828@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221006@July: Ticket Listing - Support Advance Mode for Tennis(5) & Volleyball(6) [Redmine: #176611]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -655,11 +656,9 @@ BEGIN
 					FROM	bettrans b WITH (NOLOCK) 
 					    INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 						INNER JOIN  match m WITH (NOLOCK) on b.matchid = m.matchid
-					WHERE	b.srecommend NOT IN (SELECT custid
-							   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-							   UNION
-							   SELECT custid
-							   FROM dbo.CS_CustSuper WITH (NOLOCK))
+						LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+						LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+					WHERE	ds.custid IS NULL AND cs.CustId IS NULL
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
@@ -711,11 +710,9 @@ BEGIN
 									FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
 									WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 									) AS BS_tmp								
-					WHERE	b.srecommend NOT IN ( SELECT custid
-							   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-							   UNION
-							   SELECT custid
-							   FROM dbo.CS_CustSuper WITH (NOLOCK))
+						LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+						LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+					WHERE	ds.custid IS NULL AND cs.CustId IS NULL
 							AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 							AND b.matchid = @MatchId
 							AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
@@ -788,11 +785,9 @@ BEGIN
 													ELSE 'match' 
 											    END = m.matchtype
 				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK) ON b.transid = mt.TransId
-				WHERE b.srecommend NOT IN ( SELECT custid
-					   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-					   UNION
-					   SELECT custid
-					   FROM dbo.CS_CustSuper WITH (NOLOCK))
+				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+				WHERE	ds.custid IS NULL AND cs.CustId IS NULL
 					AND b.statusID NOT IN (101,102, 121) --- ('Void', 'Reject', 'Dummy')
 					AND b.matchid = @MatchId
 					AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -1008,7 +1003,7 @@ BEGIN
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
 		
-		IF @SportType IN (43,50) -- E-Sports, Cricket
+		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
 		BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
@@ -1248,11 +1243,9 @@ BEGIN
 			INNER HASH JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
-			WHERE b.srecommend NOT IN ( SELECT custid
-							   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-							   UNION
-							   SELECT custid
-							   FROM dbo.CS_CustSuper WITH (NOLOCK))
+			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+			LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+			WHERE	ds.custid IS NULL AND cs.CustId IS NULL
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
@@ -1367,7 +1360,7 @@ BEGIN
 																										WHERE bm.betcheck LIKE q.Id + '%'))) 
 		END 	
 		
-		IF @SportType IN (43,50) -- E-Sports, Cricket
+		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
 		BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
@@ -1578,11 +1571,9 @@ BEGIN
 			FROM	Bettrans b WITH (NOLOCK) 
 			INNER HASH JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno
 			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
-			WHERE b.srecommend NOT IN ( SELECT custid
-							   FROM dbo.Dep_CustSuper WITH (NOLOCK)
-							   UNION
-							   SELECT custid
-							   FROM dbo.CS_CustSuper WITH (NOLOCK))
+			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
+			LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
+			WHERE ds.custid IS NULL AND cs.CustId IS NULL
 				AND b.statusID NOT IN (101,102) --('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
