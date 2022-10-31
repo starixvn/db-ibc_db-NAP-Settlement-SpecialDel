@@ -73,7 +73,7 @@ BEGIN
 			,@IsSiteDB BIT = 0
 			,@FunctionName VARCHAR(100)
 
-	DECLARE @tmpOutputBettransm TABLE (ID INT PRIMARY KEY,transid BIGINT, refno BIGINT
+	DECLARE @tmpOutputBettransm TABLE (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, refno BIGINT
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
 	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
