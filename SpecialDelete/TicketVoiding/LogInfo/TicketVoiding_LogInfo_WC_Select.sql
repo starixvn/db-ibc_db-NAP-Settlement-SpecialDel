@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_LogInfo_WC_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_WC_Select]
 (	
 	 @RequestId			  INT = 0
 	,@ActionId			  INT = 5
@@ -17,6 +17,7 @@ AS
 	
 	Revisions: 
 		- 20220808@July: Create new SP - Refactor code issue type Wrong score [Redmine: #175412]
+		- 20220808@July: HF- Request only sub parlay ticket get wrong score show for template message [Redmine: #179752]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -752,15 +753,15 @@ BEGIN
 					INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
 					SELECT s.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
 					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
-						INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 1
-						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype			
+						INNER JOIN #tmpTransInfo b ON b.Subtransid = s.TransId AND b.IsMixParlay = 1
+						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.Subbettype			
 					WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
 			END
 
 			IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
 			BEGIN
 				INSERT INTO @tblScoreMessage (MatchId, ScoreOfMatch) 
-				SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(2)) + '-' + CAST(m.liveawayscore AS VARCHAR(2))
+				SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(10)) + '-' + CAST(m.liveawayscore AS VARCHAR(10))
 				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
 				WHERE rd.RequestId = @RequestId
