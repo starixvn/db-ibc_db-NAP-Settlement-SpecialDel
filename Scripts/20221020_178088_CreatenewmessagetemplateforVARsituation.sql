@@ -177,4 +177,10 @@ VALUES
 ,(61,1,97,1)
 
 INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype, SubIssueTypeId, ReasonEnglish, ReasonChineseSimplified)
-VALUES (1,116,'First penalty kick had been taken',N'点球赛已开踢')
+VALUES 
+(1,111,'Danger Accept In Booking',N'有罚牌的危险时段中误被接受')
+,(1,112,'Wrong Score',N'比分显示错误')
+,(1,113,'Wrong Score',N'比分显示错误')
+,(1,114,'Wrong Score',N'比分显示错误')
+,(1,115,'Wrong Score',N'比分显示错误')
+,(1,116,'First penalty kick had been taken',N'点球赛已开踢')
