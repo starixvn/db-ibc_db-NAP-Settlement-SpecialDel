@@ -98,6 +98,14 @@ VALUES(
 ,N'请注意:[{{Sport type}}] 由于官方在视频助理裁判 (VAR) 审查后判定进球无效, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange}}{{Score}}只作废受影响的注单. 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 ,N'请注意:[{{Sport type}}] 由于官方在视频助理裁判 (VAR) 审查后判定进球无效, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange}}{{Score}}只作废受影响的注单. 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
 )
+INSERT INTO dbo.TicketVoiding_MessageTemplate(TemplateId,MsgEnglish, MsgChineseTraditional, MsgChineseSimplified, MsgChineseNewSimplified)
+VALUES(
+ 62
+,N'Attn:[{{Sport type}}] Due to the first penalty kick had been taken, match between "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], bet ID: "@@" {{PlacedFromTimeRange_NC}}which affected are considered VOID. Parlay counted as one (1). {{CheckStatement}}Sorry for the inconvenience caused!'
+,N'請注意:[{{Sport type}}] 由于点球赛已开踢, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注單: "@@" {{PlacedFromTimeRange_NC}}只作廢受影響的注單. 串關以(1)計算. {{CheckStatement}}不便之處 敬請見諒!'
+,N'请注意:[{{Sport type}}] 由于点球赛已开踢, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange_NC}}只作废受影响的注单. 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+,N'请注意:[{{Sport type}}] 由于点球赛已开踢, "{{Home team name}} -vs- {{Away team name}}" [{{League name}} - {{Event Date}}{{Event type}}], 注单: "@@" {{PlacedFromTimeRange_NC}}只作废受影响的注单. 串关以(1)计算. {{CheckStatement}}不便之处 敬请见谅!'
+)
 GO
 
 SET IDENTITY_INSERT dbo.TicketVoiding_SubIssueType ON
@@ -116,7 +124,8 @@ INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssu
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (113, 3,'No Indication Home Booking (Onwards)')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (114, 3,'No Indication Away Booking (No Onwards)')
 INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (115, 3,'No Indication Away Booking (Onwards)')
-
+--Danger accept
+INSERT INTO dbo.TicketVoiding_SubIssueType (SubIssueTypeId, IssueTypeId, SubIssueTypeName) VALUES (116, 1,'Penalty Shootout (Virtual)')
 SET IDENTITY_INSERT dbo.TicketVoiding_SubIssueType OFF
 GO
 
@@ -126,6 +135,7 @@ VALUES (3,1,111) --Main Booking - Away
 ,(36,1,113)
 ,(7,1,114)
 ,(36,1,115)
+,(62,1,116)--Penalty Shootout (Virtual)
 
 --VAR setting
 INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId, Sporttype, SubIssueTypeId, IsCheckedVar) 
@@ -166,3 +176,5 @@ VALUES
 ,(61,1,96,1)
 ,(61,1,97,1)
 
+INSERT INTO dbo.TicketVoiding_ReasonTemplate (Sporttype, SubIssueTypeId, ReasonEnglish, ReasonChineseSimplified)
+VALUES (1,116,'First penalty kick had been taken',N'点球赛已开踢')
