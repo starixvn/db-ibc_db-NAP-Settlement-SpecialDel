@@ -406,7 +406,7 @@ BEGIN
 												ELSE CAST(t.statuswinlost AS TINYINT)
 											END		
 					FROM   @tmpTransId t
-						INNER JOIN dbo.BetParlayDetail pd WITH(TABLOCK)
+						INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
 							ON  pd.transid = t.transid
 				END
 				ELSE IF @TableName = 'MarkedTransaction'

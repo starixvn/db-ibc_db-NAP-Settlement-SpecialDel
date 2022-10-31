@@ -56,6 +56,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
+		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 
     Param's Explanation:
        
@@ -72,7 +73,7 @@ BEGIN
 			,@IsSiteDB BIT = 0
 			,@FunctionName VARCHAR(100)
 
-	DECLARE @tmpOutputBettransm TABLE (transid BIGINT, refno BIGINT
+	DECLARE @tmpOutputBettransm TABLE (ID INT PRIMARY KEY,transid BIGINT, refno BIGINT
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
 	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
@@ -80,7 +81,12 @@ BEGIN
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)
 	DECLARE @tmpTransIdsVoidRecover TABLE (transid BIGINT)
-		 	
+	
+	------ process by batch for betparlaydetail
+	DECLARE @StartRow INT = 1
+			, @StopRow INT 
+			, @MaxRow INT = 1 -- Keep the total row of your data
+			, @Threshold INT = 3000 -- the number of each batch
             
 	SET @ServerName = @@SERVERNAME
 
@@ -195,6 +201,38 @@ BEGIN
                 AND statusID NOT IN (101)
 				AND t.groupId <> 8 -- Early Soccer						
 			
+			SET @MaxRow = (SELECT MAX(ID) FROM @tmpOutputBettransm)
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+
+			-- SET for first batch
+			SET @StopRow = @Threshold
+			WHILE (1 = 1)
+			BEGIN
+					UPDATE pd
+						SET winlostdate = @matchdate
+							,statuswinlost = 0
+							,statusID = 103
+						OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+						INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+						FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+							INNER JOIN @tmpOutputBettransm r
+								ON    pd.transid = r.transid
+									AND pd.RefNo = r.refno
+						 WHERE pd.statusid NOT IN (102)
+								AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+
+			/*
             UPDATE pd
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
@@ -206,6 +244,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
              WHERE pd.statusid NOT IN (102)
+			 */
         END --@doing = 'REFUND'
     
         -- ===================================================
@@ -241,7 +280,37 @@ BEGIN
 					AND t.groupId NOT IN (1,3,5,8)
 					AND statusID NOT IN (101)
 				
-            UPDATE pd
+            -- update by batch for betparlaydetail
+			SET @MaxRow = (SELECT MAX(ID) FROM @tmpOutputBettransm)
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (1 = 1)
+			BEGIN
+					UPDATE pd
+						SET winlostdate = @matchdate
+							,statuswinlost = 0
+							,statusID = 103
+						OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+						INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+						FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+							INNER JOIN @tmpOutputBettransm r
+								ON    pd.transid = r.transid
+									AND pd.RefNo = r.refno
+						WHERE pd.statusid NOT IN (102)
+								AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+		   /*
+		   UPDATE pd
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
                 ,statusID = 103
@@ -252,6 +321,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
             WHERE pd.statusid NOT IN (102)
+			*/
         END --@doing = 'REFUND-FT'
 
         IF @doing = 'REFUND-HT'
@@ -288,6 +358,36 @@ BEGIN
 					AND statusID NOT IN (101)
 			OPTION (FORCE ORDER)
 			
+			-- update by batch for betparlaydetail
+			SET @MaxRow = (SELECT MAX(ID) FROM @tmpOutputBettransm)
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (1 = 1)
+			BEGIN
+					UPDATE pd
+						SET winlostdate = @matchdate
+							,statuswinlost = 0
+							,statusID = 103
+					OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+					INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+					FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+						INNER JOIN @tmpOutputBettransm r
+							ON    pd.transid = r.transid
+								AND pd.RefNo = r.refno
+					WHERE pd.statusid NOT IN (102) 
+							AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+			/*
             UPDATE pd
 				SET winlostdate = @matchdate
 					,statuswinlost = 0
@@ -299,6 +399,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
             WHERE pd.statusid NOT IN (102) 
+			*/
         END -- @doing = 'REFUND-HT'
     
         -- ===================================================
@@ -399,7 +500,36 @@ BEGIN
                 AND statusID NOT IN (101, 1)
 				AND t.groupId <> 8 -- Early Soccer
 			OPTION (FORCE ORDER)			
-					
+			
+			-- update by batch for betparlaydetail
+			SET @MaxRow = (SELECT MAX(ID) FROM @tmpOutputBettransm)
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (1 = 1)
+			BEGIN
+					UPDATE pd
+						SET statuswinlost = NULL 
+							,statusID = 0
+						OUTPUT inserted.transid, inserted.statuswinlost , inserted.statusid
+						INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId)
+						FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+							INNER JOIN @tmpOutputBettransm r
+								ON    pd.transid = r.transid
+									AND pd.RefNo = r.refno 
+						WHERE pd.statusid NOT IN (102) 
+							AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+			/*
             UPDATE pd
             SET statuswinlost = NULL 
                 ,statusID = 0
@@ -410,6 +540,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno 
             WHERE pd.statusid NOT IN (102) 
+			*/
         END --@doing = 'UNDO'
         -- ===================================================
         
