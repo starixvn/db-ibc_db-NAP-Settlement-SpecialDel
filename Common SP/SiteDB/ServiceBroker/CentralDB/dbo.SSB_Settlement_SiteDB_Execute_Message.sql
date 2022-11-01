@@ -54,8 +54,20 @@ begin
 	end try
 	begin catch
 		select @__errmsg = error_message()
-		alter queue sitedb1_bet_settle_queue with status = off
 	end catch
+
+	--if got error then disable Queue as well
+	if isnull(@__errmsg, '') <> ''
+	begin
+		if @MessageType = 'sitedb1_bet_settle_msg_type'
+		begin
+			alter queue sitedb1_bet_settle_queue with status = off
+		end
+		else if @MessageType = 'sitedb2_bet_settle_msg_type'
+		begin
+			alter queue sitedb2_bet_settle_queue with status = off
+		end
+	end
 		
 	--set deadlock_priority normal
 

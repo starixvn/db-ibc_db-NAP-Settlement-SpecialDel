@@ -35,9 +35,14 @@ begin
 		end try
 		begin catch
 			select @__errmsg = error_message()
-			alter queue sitedb2_bet_settle_queue with status = off
 		end catch
 		
+		--if got error then disable Queue as well
+		if isnull(@__errmsg, '') <> ''
+		begin
+			alter queue sitedb2_bet_settle_queue with status = off
+		end
+
 		--set deadlock_priority normal
 
 		select @__endtime = sysdatetime()

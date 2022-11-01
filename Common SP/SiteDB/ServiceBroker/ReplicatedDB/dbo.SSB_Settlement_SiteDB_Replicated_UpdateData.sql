@@ -1,7 +1,7 @@
 USE [bodb02]
 GO
-/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02,DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
-CREATE PROC [dbo].[SSB_Settlement_SiteDB_UpdateData] 
+/*<info serverAlias="SBSETTLE-bodb02,DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
+CREATE PROC dbo.SSB_Settlement_SiteDB_Replicated_UpdateData
 	@ConversationHandle uniqueidentifier
 	, @MessageType varchar(200)
 	, @MessageBody nvarchar(max)
@@ -10,7 +10,7 @@ CREATE PROC [dbo].[SSB_Settlement_SiteDB_UpdateData]
 as
 /*  Created: Patrick@20210801
 	Task: Pick conversation
-	DB: DBCTG-bodb02, SBSETTLE-bodb02, DBBAL-bodb02
+	DB: SBSETTLE-bodb02, DBBAL-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 */
