@@ -445,7 +445,7 @@ BEGIN
 					,@SettlementAction = @Action
 					,@SessionId		= @SessionId
 					,@IsParallel	= 1
-					,@transInfo		= @transInfo
+					,@transInfoJson		= @transInfo
 			END
 
 			-- balance

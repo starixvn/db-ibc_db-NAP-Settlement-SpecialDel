@@ -85,7 +85,7 @@ begin
 				@SiteDBGroupId						= @__siteDBGroupId
 				,@SessionId							= @__sessionId
 				,@MessageType						= ''
-				,@TransInfo							= @__strTransInfo
+				,@TransInfoJson						= @__strTransInfo
 				,@TableName							= 'bettrans'
 				,@MatchId							= 0
 				,@Action							= 'U'
@@ -107,7 +107,7 @@ begin
 									+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
 									+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
 									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + @__strTransInfo + '''' else '' end
-									+ '@TableName=''bettrans'''
+									+ ',@TableName=''bettrans'''
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
 									+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end

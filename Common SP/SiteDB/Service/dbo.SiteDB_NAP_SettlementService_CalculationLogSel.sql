@@ -1,6 +1,6 @@
 /*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogSel]
-	@BatchNo INT = 1
+	@BatchNo INT = 100
 AS
 /*
 	Created by: 20201123@Kathy

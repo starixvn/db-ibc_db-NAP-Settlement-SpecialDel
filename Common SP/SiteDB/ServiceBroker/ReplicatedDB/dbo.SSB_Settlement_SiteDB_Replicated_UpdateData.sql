@@ -87,8 +87,8 @@ begin
 				, @TableName					= 'bettrans'
 				, @SettlementAction				= @__settlementAction
 				, @TicketType					= @__ticketType
-				, @SettlementProcessingId		= @__processingId				
-				, @ErrMessage					= @__errmsg output
+				, @SettlementProcessingId		= @__processingId	
+				, @CalledByBrokerService 		= 1				
 
 		end try
 		begin catch
@@ -102,7 +102,7 @@ begin
 									+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
 									+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
 									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + @__strTransInfo + '''' else '' end
-									+ '@TableName=''bettrans'''
+									+ ',@TableName=''bettrans'''
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
 									+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
