@@ -4,8 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Select]
 	@RequestId		INT
 )
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: view request [Redmine:#90155]
 	DB: DBCTG/bodb02
 	

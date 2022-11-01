@@ -2,8 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_MessageTemplate_Settings_Select]
 	  
 AS
-/*	Created by:: Alan
-	Date 20181113
+/*	Created by:: 20181113@Alan
 	Task: #101083 - Support Message Template
 	DB: DBCTG.bodb02
 	

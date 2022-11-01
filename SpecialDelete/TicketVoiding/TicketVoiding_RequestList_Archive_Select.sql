@@ -11,8 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 	,@CreatedBy		INT				= 0
 )
 AS
-/*	Created by: Zane
-	Date 20200811
+/*	Created by: 20200811@Zane
 	Task: Edit SP for new change of Archive process [Redmine:#139208]
 	DB: DBARC/bodb_Archive
 	
