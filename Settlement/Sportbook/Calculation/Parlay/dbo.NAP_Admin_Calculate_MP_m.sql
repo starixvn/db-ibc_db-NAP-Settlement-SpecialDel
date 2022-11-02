@@ -214,7 +214,7 @@ BEGIN
 				SET @Threshold = @MaxRow
 
 			-- SET for first batch
-			SET @StopRow = @Threshold
+			SELECT @StartRow = 1, @StopRow = @Threshold
 			WHILE (1 = 1)
 			BEGIN
 					UPDATE pd
@@ -2333,7 +2333,7 @@ BEGIN
 				SET @Threshold = @MaxRow
 
 			-- SET for first batch
-			SET @StopRow = @Threshold
+			SELECT @StartRow = 1, @StopRow = @Threshold
 			WHILE (1 = 1)
 			BEGIN
 
