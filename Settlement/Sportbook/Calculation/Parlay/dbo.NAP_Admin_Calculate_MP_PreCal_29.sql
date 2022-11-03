@@ -242,7 +242,7 @@ BEGIN
 
 			-- SET for first batch
 			SET @StopRow = @Threshold
-			WHILE (1 = 1)
+			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
 					INSERT INTO dbo.BetParlayDetail WITH (ROWLOCK)
 					(

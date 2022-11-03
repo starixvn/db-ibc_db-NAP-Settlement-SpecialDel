@@ -215,8 +215,9 @@ BEGIN
 
 			-- SET for first batch
 			SELECT @StartRow = 1, @StopRow = @Threshold
-			WHILE (1 = 1)
+			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
+					
 					UPDATE pd
 						SET winlostdate = @matchdate
 							,statuswinlost = 0
@@ -293,7 +294,7 @@ BEGIN
 				SET @Threshold = @MaxRow
 			-- SET for first batch
 			SELECT @StartRow = 1, @StopRow = @Threshold
-			WHILE (1 = 1)
+			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
 					UPDATE pd
 						SET winlostdate = @matchdate
@@ -371,7 +372,7 @@ BEGIN
 				SET @Threshold = @MaxRow
 			-- SET for first batch
 			SELECT @StartRow = 1, @StopRow = @Threshold
-			WHILE (1 = 1)
+			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
 					UPDATE pd
 						SET winlostdate = @matchdate
@@ -514,7 +515,7 @@ BEGIN
 				SET @Threshold = @MaxRow
 			-- SET for first batch
 			SELECT @StartRow = 1, @StopRow = @Threshold
-			WHILE (1 = 1)
+			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
 					UPDATE pd
 						SET statuswinlost = NULL 
@@ -2334,7 +2335,7 @@ BEGIN
 
 			-- SET for first batch
 			SELECT @StartRow = 1, @StopRow = @Threshold
-			WHILE (1 = 1)
+			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
 
 					SET @betparlaydetailinfo = (
