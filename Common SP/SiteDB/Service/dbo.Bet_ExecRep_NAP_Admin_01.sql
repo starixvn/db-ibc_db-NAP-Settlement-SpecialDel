@@ -23,6 +23,7 @@ AS
 		- 20221019@Kathy: Set @ServerName [Redmine:#179274]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
+		- 20221025@Louisa: CHeck NULL value for @TransInfo, @TransInfoJson [Redmine:#179449]
 
 	Param's Explanation:  
 		   
@@ -117,8 +118,8 @@ BEGIN
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
 		SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
-							+ ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + ''''
-							+ ',@TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + ''''
+							+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
+							+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
 													ELSE '''' + @TableName + ''''
