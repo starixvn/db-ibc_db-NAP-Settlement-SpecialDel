@@ -24,6 +24,7 @@ AS
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 		- 20221025@Louisa: CHeck NULL value for @TransInfo, @TransInfoJson [Redmine:#179449]
+		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 
 	Param's Explanation:  
 		   
