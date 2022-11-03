@@ -103,7 +103,7 @@ begin
 		set deadlock_priority normal
 
 		declare @__messageBodyTemp nvarchar(max), @__messageTypeTemp varchar(128)
-		select	@__messageBodyTemp = 'exec dbo.Bet_ExecRep_NAP_Admin_01 '
+		select	@__messageBodyTemp = 'exec dbo.NAP_SettlementService_Calculation '
 									+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
 									+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
 									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + @__strTransInfo + '''' else '' end
