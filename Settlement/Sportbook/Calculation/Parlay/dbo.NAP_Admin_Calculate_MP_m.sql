@@ -209,6 +209,7 @@ BEGIN
 				AND t.groupId <> 8 -- Early Soccer						
 			
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 5 --2000
 
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
@@ -290,6 +291,8 @@ BEGIN
 				
             -- update by batch for betparlaydetail
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 5 --2000
+
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
 			-- SET for first batch
@@ -368,6 +371,8 @@ BEGIN
 			
 			-- update by batch for betparlaydetail
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 5 ---2000
+
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
 			-- SET for first batch
@@ -511,6 +516,8 @@ BEGIN
 			
 			-- update by batch for betparlaydetail
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 5 ----2000
+
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
 			-- SET for first batch
@@ -2329,6 +2336,7 @@ BEGIN
 			
 			-- process by batch to insert for sync server
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBetParlayDetail)
+			SET @Threshold = 5 ---- 2000
 
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
