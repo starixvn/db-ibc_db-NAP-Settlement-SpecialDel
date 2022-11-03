@@ -1,6 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	@TransInfo			XML				= NULL
+	,@TransInfoJson		VARCHAR(MAX)	= NULL
 	,@TableName			VARCHAR(128) 
 	,@MatchId			INT				= 0
 	,@Action			VARCHAR(1)		= 'U'
@@ -16,6 +17,7 @@ AS
 	
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 
 	Param's Explanation:  
 		   
@@ -51,6 +53,7 @@ BEGIN
 		BEGIN
 			EXEC dbo.Bet_ExecRep_NAP_Admin_01 
 					@TransInfo = @TransInfo
+					,@TransInfoJson = @TransInfoJson 
 					,@TableName = @TableName
 					,@Action = @Action
 					,@MatchId = @MatchId

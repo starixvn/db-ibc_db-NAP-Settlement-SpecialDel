@@ -1,6 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_Validation]
 	@TransInfo XML = NULL
+	,@TransInfoJson	VARCHAR(MAX) = NULL
 	,@TableName VARCHAR(128)
 	,@IsPassed BIT = 0 OUTPUT
 AS
@@ -10,6 +11,7 @@ AS
 	
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221025@Louisa: Use JSon log format for soccer [Redmine:#179449]
 
 	Param's Explanation:  
 		   
@@ -26,11 +28,19 @@ BEGIN
 
 	DECLARE @tmpTransId TABLE (TransId BIGINT)
 
-	INSERT INTO @tmpTransId(TransId)
-	SELECT	T.C.value('./@t', 'bigint') AS transid
-	FROM	@TransInfo.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@transInfo = NULL ))
-	
+	IF @TransInfo IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpTransId(TransId)
+		SELECT	T.C.value('./@t', 'bigint') AS transid
+		FROM	@TransInfo.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+	END
+	ELSE
+	BEGIN
+		INSERT INTO @tmpTransId(TransId)
+		SELECT t FROM OPENJSON(@TransInfoJson) WITH ( t BIGINT)
+	END
+
 	SET @cnt_sitedb = @@ROWCOUNT
 
 	IF @TableName = 'bettrans'

@@ -25,6 +25,8 @@ AS
 		- 20220926@Louisa: Fix issue cannot syn modds NULL from SiteDB to CentralDB [Redmine:178189]
 		- 20221010@Kathy: Do not upd odds, oddsspread of bettype 468 if refund [Redmine:#178941]
 		- 20221019@Kathy: Add ActionId [Redmine:#179274]
+		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
+
 	Param's Explanation:  
 		   
 		@transIds = '<root>
@@ -84,7 +86,7 @@ BEGIN
 			,@StepDone			VARCHAR(300) = 'Done update'
 			,@FcUpdateTime		DATETIME2
 			
-			,@transInfo		XML
+			,@transInfo		VARCHAR(MAX)
 			,@IsSiteDB		BIT = 0
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
@@ -405,32 +407,32 @@ BEGIN
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged )
 			BEGIN
 				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,CASE WHEN modds IS NOT NULL THEN CAST(CAST(modds AS DECIMAL(10,4)) AS VARCHAR(11) ) ELSE ''  END AS '@m'
-							,odds AS '@o'
-							,oddsspread AS '@os' 
-							,SettlementTime AS '@st' 
-							,WinLost AS '@w' 
-							,aWinLost AS '@aw' 
-							,mWinLost AS '@mw' 
-							,sWinLost AS '@sw' 
-							,statuswinlost AS '@statuswl' 
-							,PlayerComm AS '@pc' 
-							,Comm AS '@c' 
-							,aComm AS '@ac' 
-							,sComm AS '@sc' 
-							,Status AS '@s' 
-							,StatusID AS '@sid' 
-							,ruben AS '@r' 
-							,FcUpdateTime AS '@rut' 
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
+					SELECT	transId AS 't'
+							,CASE WHEN modds IS NOT NULL THEN CAST(CAST(modds AS DECIMAL(10,4)) AS VARCHAR(11) ) ELSE ''  END AS 'm'
+							,odds AS 'o'
+							,oddsspread AS 'os' 
+							,SettlementTime AS 'st' 
+							,WinLost AS 'w' 
+							,aWinLost AS 'aw' 
+							,mWinLost AS 'mw' 
+							,sWinLost AS 'sw' 
+							,statuswinlost AS 'statuswl' 
+							,PlayerComm AS 'pc' 
+							,Comm AS 'c' 
+							,aComm AS 'ac' 
+							,sComm AS 'sc' 
+							,Status AS 's' 
+							,StatusID AS 'sid' 
+							,ruben AS 'r' 
+							,FcUpdateTime AS 'rut' 
+							,bef_winlost AS 'bef_w' 
+							,bef_statusid AS 'bef_sid' 
 					
 					FROM	@tmpBalanceChanged
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					 FOR JSON AUTO
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfoJson, SettlementAction, TicketType)
 				VALUES ('Settlement', 'CalculateSoccer', 'bettrans', @matchid, @transInfo, @Action, 's')	
 			END
 

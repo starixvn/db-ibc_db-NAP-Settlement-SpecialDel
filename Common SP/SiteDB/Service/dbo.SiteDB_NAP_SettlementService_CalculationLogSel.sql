@@ -10,6 +10,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 20221010@Louisa: get log which is inserted 1 second before [Redmine:#178880]
+		- 20221025@Louisa: Use JSon log format for soccer [Redmine:#179449]
 
 	Param's Explanation:  
 		   
@@ -21,6 +22,7 @@ BEGIN
 			,@LastStatusId TINYINT			
 			,@LogId BIGINT
 			,@TransInfo XML
+			,@TransInfoJson VARCHAR(MAX)
 			,@TableName VARCHAR(128)
 			,@MatchId INT
 			,@RowCount INT = 0
@@ -41,6 +43,7 @@ BEGIN
 		--not return data if in deployment progress
 		SELECT	@LogId AS LogId
 				,@TransInfo AS TransInfo
+				,@TransInfoJson AS TransInfoJson
 				,@TableName AS TableName
 				,@MatchId AS MatchId
 				,@Action AS Action
@@ -60,6 +63,7 @@ BEGIN
 	BEGIN
 		SELECT	TOP 1 @LogId = LogId
 				,@TransInfo = TransInfo
+				,@TransInfoJson = TransInfoJson
 				,@TableName = TableName
 				,@MatchId = MatchId
 				,@Action = Action
@@ -75,6 +79,7 @@ BEGIN
 
 	SELECT	@LogId AS LogId
 			,@TransInfo AS TransInfo
+			,@TransInfoJson AS TransInfoJson
 			,@TableName AS TableName
 			,@MatchId AS MatchId
 			,@Action AS Action
