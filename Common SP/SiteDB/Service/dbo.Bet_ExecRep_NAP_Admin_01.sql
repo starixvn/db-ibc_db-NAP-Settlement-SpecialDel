@@ -24,6 +24,7 @@ AS
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 		- 20221025@Louisa: CHeck NULL value for @TransInfo, @TransInfoJson [Redmine:#179449]
+		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 
 	Param's Explanation:  
 		   
@@ -406,7 +407,7 @@ BEGIN
 												ELSE CAST(t.statuswinlost AS TINYINT)
 											END		
 					FROM   @tmpTransId t
-						INNER JOIN dbo.BetParlayDetail pd WITH(TABLOCK)
+						INNER JOIN dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
 							ON  pd.transid = t.transid
 				END
 				ELSE IF @TableName = 'MarkedTransaction'

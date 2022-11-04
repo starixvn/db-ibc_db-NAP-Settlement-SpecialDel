@@ -56,6 +56,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
+		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 
     Param's Explanation:
        
@@ -72,15 +73,27 @@ BEGIN
 			,@IsSiteDB BIT = 0
 			,@FunctionName VARCHAR(100)
 
-	DECLARE @tmpOutputBettransm TABLE (transid BIGINT, refno BIGINT
+	--DECLARE @tmpOutputBettransm TABLE (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, refno BIGINT
+	--	,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
+	--	,statuswinlost TINYINT, winlostdate SMALLDATETIME)
+	--DECLARE @tmpOutputBetParlayDetail TABLE (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)  
+	
+	CREATE TABLE #tmpOutputBettransm (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, refno BIGINT
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
-	DECLARE @tmpOutputBetParlayDetail TABLE (transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)   
+	
+	CREATE TABLE #tmpOutputBetParlayDetail (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)
+	
 	DECLARE @tmpOutputBettransmVoidRecover TABLE (transid BIGINT, winlost MONEY
 		,status VARCHAR(10), statusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, creator INT, winlostdate SMALLDATETIME)
 	DECLARE @tmpTransIdsVoidRecover TABLE (transid BIGINT)
-		 	
+	
+	------ process by batch for betparlaydetail
+	DECLARE @StartRow INT = 1
+			, @StopRow INT 
+			, @MaxRow INT = 1 -- Keep the total row of your data
+			, @Threshold INT = 2000 -- the number of each batch
             
 	SET @ServerName = @@SERVERNAME
 
@@ -145,8 +158,8 @@ BEGIN
     BEGIN        
         SET @doing = CASE @doing WHEN @priorAction THEN @action ELSE COALESCE(@priorAction, @action) END
 		
-		DELETE FROM @tmpOutputBettransm
-		DELETE FROM @tmpOutputBetParlayDetail
+		TRUNCATE TABLE #tmpOutputBettransm
+		TRUNCATE TABLE #tmpOutputBetParlayDetail
 		DELETE FROM @tmpTransIdsVoidRecover
 		DELETE FROM @tmpOutputBettransmVoidRecover
 
@@ -183,7 +196,7 @@ BEGIN
 							END
 								
             OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
-			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
+			INTO #tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK) 
 				INNER JOIN @tblBettypes t
 					ON bm.bettype = t.bettype
@@ -195,6 +208,40 @@ BEGIN
                 AND statusID NOT IN (101)
 				AND t.groupId <> 8 -- Early Soccer						
 			
+			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 2000
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (@MaxRow IS NOT NULL)
+			BEGIN
+					
+					UPDATE pd
+						SET winlostdate = @matchdate
+							,statuswinlost = 0
+							,statusID = 103
+						OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+						INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+						FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+							INNER JOIN #tmpOutputBettransm r
+								ON    pd.transid = r.transid
+									AND pd.RefNo = r.refno
+						 WHERE pd.statusid NOT IN (102)
+								AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+
+			/*
             UPDATE pd
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
@@ -206,6 +253,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
              WHERE pd.statusid NOT IN (102)
+			 */
         END --@doing = 'REFUND'
     
         -- ===================================================
@@ -232,7 +280,7 @@ BEGIN
 									ELSE 103
 								END								
             OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
-			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
+			INTO #tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON bm.bettype = t.bettype
@@ -241,7 +289,39 @@ BEGIN
 					AND t.groupId NOT IN (1,3,5,8)
 					AND statusID NOT IN (101)
 				
-            UPDATE pd
+            -- update by batch for betparlaydetail
+			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 2000
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (@MaxRow IS NOT NULL)
+			BEGIN
+					UPDATE pd
+						SET winlostdate = @matchdate
+							,statuswinlost = 0
+							,statusID = 103
+						OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+						INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+						FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+							INNER JOIN #tmpOutputBettransm r
+								ON    pd.transid = r.transid
+									AND pd.RefNo = r.refno
+						WHERE pd.statusid NOT IN (102)
+								AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+		   /*
+		   UPDATE pd
             SET winlostdate = @matchdate
                 ,statuswinlost = 0
                 ,statusID = 103
@@ -252,6 +332,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
             WHERE pd.statusid NOT IN (102)
+			*/
         END --@doing = 'REFUND-FT'
 
         IF @doing = 'REFUND-HT'
@@ -278,7 +359,7 @@ BEGIN
 									ELSE 103
 								END								
             OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
-			INTO @tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
+			INTO #tmpOutputBettransm(transid, refno, status, StatusId, ruben, statuswinlost, winlostdate)
             FROM	@tblBettypes t
 				INNER JOIN dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 					ON	bm.bettype = t.bettype
@@ -288,6 +369,38 @@ BEGIN
 					AND statusID NOT IN (101)
 			OPTION (FORCE ORDER)
 			
+			-- update by batch for betparlaydetail
+			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 2000
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (@MaxRow IS NOT NULL)
+			BEGIN
+					UPDATE pd
+						SET winlostdate = @matchdate
+							,statuswinlost = 0
+							,statusID = 103
+					OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
+					INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+					FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+						INNER JOIN #tmpOutputBettransm r
+							ON    pd.transid = r.transid
+								AND pd.RefNo = r.refno
+					WHERE pd.statusid NOT IN (102) 
+							AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+			/*
             UPDATE pd
 				SET winlostdate = @matchdate
 					,statuswinlost = 0
@@ -299,6 +412,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno
             WHERE pd.statusid NOT IN (102) 
+			*/
         END -- @doing = 'REFUND-HT'
     
         -- ===================================================
@@ -327,12 +441,12 @@ BEGIN
                 AND statusID NOT IN (101, 102) 
                 AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
 
-            UPDATE dbo.BetParlayDetail WITH(TABLOCK)
+            UPDATE dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
             SET statuswinlost = 0
                 ,statusID = 102
                 ,winlostdate = @matchdate
 			OUTPUT inserted.transid, inserted.statuswinlost, inserted.statusid, inserted.winlostdate
-			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
+			INTO #tmpOutputBetParlayDetail(transid, statuswinlost, StatusId, winlostdate)
             WHERE matchid = @matchid 
                 AND statusID NOT IN (101, 102) 
                 AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
@@ -362,12 +476,12 @@ BEGIN
                     AND statusID = 102
                     AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)                
         
-            UPDATE    dbo.BetParlayDetail WITH(TABLOCK)
+            UPDATE    dbo.BetParlayDetail WITH(ROWLOCK,UPDLOCK)
                 SET winlostdate = NULL
                     ,statuswinlost = NULL
                     ,statusid = 0
 			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
-			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
+			INTO #tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
             WHERE    matchid = @matchid 
                     AND statusID = 102
                     AND transid IN (SELECT transid FROM @tmpTransIdsVoidRecover)
@@ -387,7 +501,7 @@ BEGIN
                 ,statusID = CASE WHEN @IsUpd_Void = 0 THEN statusID ELSE 0 END
             OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben
 					,Inserted.Statuswinlost
-			INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost)
+			INTO #tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost)
             FROM    @tblBettypes t
 				INNER LOOP JOIN dbo.bettransm bm
 					ON	bm.bettype = t.bettype
@@ -399,7 +513,38 @@ BEGIN
                 AND statusID NOT IN (101, 1)
 				AND t.groupId <> 8 -- Early Soccer
 			OPTION (FORCE ORDER)			
-					
+			
+			-- update by batch for betparlaydetail
+			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
+			SET @Threshold = 2000
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (@MaxRow IS NOT NULL)
+			BEGIN
+					UPDATE pd
+						SET statuswinlost = NULL 
+							,statusID = 0
+						OUTPUT inserted.transid, inserted.statuswinlost , inserted.statusid
+						INTO #tmpOutputBetParlayDetail(transid, statuswinlost, StatusId)
+						FROM dbo.BetParlayDetail pd WITH(ROWLOCK,UPDLOCK)
+							INNER JOIN #tmpOutputBettransm r
+								ON    pd.transid = r.transid
+									AND pd.RefNo = r.refno 
+						WHERE pd.statusid NOT IN (102) 
+							AND ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
+			/*
             UPDATE pd
             SET statuswinlost = NULL 
                 ,statusID = 0
@@ -410,6 +555,7 @@ BEGIN
                     ON    pd.transid = r.transid
                         AND pd.RefNo = r.refno 
             WHERE pd.statusid NOT IN (102) 
+			*/
         END --@doing = 'UNDO'
         -- ===================================================
         
@@ -2016,8 +2162,8 @@ BEGIN
 			WHILE (1 = 1)
 			BEGIN				
 				DELETE FROM	@tmptransid	
-				DELETE FROM @tmpOutputBettransm
-				DELETE FROM @tmpOutputBetParlayDetail
+				TRUNCATE TABLE #tmpOutputBettransm
+				TRUNCATE TABLE #tmpOutputBetParlayDetail
 				
 				DELETE TOP (2000 )
 				FROM #Result
@@ -2071,7 +2217,7 @@ BEGIN
 											ELSE 0 -- DRAW
 										END		
 				OUTPUT INSERTED.transid, INSERTED.refno, inserted.status, inserted.statusID, inserted.ruben, inserted.statuswinlost, inserted.winlostdate
-				INTO @tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost, winlostdate)
+				INTO #tmpOutputBettransm(transid, refno, status, statusid, ruben, statuswinlost, winlostdate)
 				FROM	dbo.bettransm bm 
 					INNER JOIN @tmptransid t
 						ON	bm.transid = t.transid
@@ -2096,7 +2242,7 @@ BEGIN
 											ELSE 0 -- DRAW
 										END
 				OUTPUT INSERTED.transid, inserted.statuswinlost, inserted.statusID, inserted.winlostdate
-				INTO @tmpOutputBetParlayDetail(transid, statuswinlost, statusid, winlostdate)
+				INTO #tmpOutputBetParlayDetail(transid, statuswinlost, statusid, winlostdate)
 				FROM    dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 					INNER JOIN @tmptransid t ON  pd.transid = t.transid
 				WHERE pd.statusid NOT IN (102)	
@@ -2111,7 +2257,7 @@ BEGIN
 									,StatusID AS '@sid' 
 									,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
 									,ruben AS '@r' -- ruben	
-							FROM	@tmpOutputBettransm
+							FROM	#tmpOutputBettransm
 							FOR XML PATH('r'),ROOT('root'), TYPE
 						)
 
@@ -2130,7 +2276,7 @@ BEGIN
 								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
 								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
 								,StatusId AS '@sid'
-						FROM	@tmpOutputBetParlayDetail
+						FROM	#tmpOutputBetParlayDetail
 						FOR XML PATH('r'),ROOT('root'), TYPE
 					)
 
@@ -2173,7 +2319,7 @@ BEGIN
 							,StatusID AS '@sid' 
 							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
 							,ruben AS '@r' -- ruben	
-					FROM	@tmpOutputBettransm
+					FROM	#tmpOutputBettransm
 					FOR XML PATH('r'),ROOT('root'), TYPE
 				)
 			END
@@ -2187,7 +2333,47 @@ BEGIN
 					END
 					,'p'
 			WHERE @transInfo IS NOT NULL
-				
+			
+			-- process by batch to insert for sync server
+			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBetParlayDetail)
+			SET @Threshold = 2000
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+
+			-- SET for first batch
+			SELECT @StartRow = 1, @StopRow = @Threshold
+			WHILE (@MaxRow IS NOT NULL)
+			BEGIN
+
+					SET @betparlaydetailinfo = (
+					SELECT	DISTINCT transId AS '@t'						
+							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
+							,StatusId AS '@sid'
+					FROM	#tmpOutputBetParlayDetail
+					WHERE ID BETWEEN @StartRow AND @StopRow
+					FOR XML PATH('r'),ROOT('root'), TYPE
+				)
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+				SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
+						,CASE 
+							WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
+							WHEN @doing IN ('CAL', 'UNDO') THEN @doing
+						END
+						,'p'
+				WHERE	@betparlaydetailinfo IS NOT NULL
+
+				IF @StopRow = @MaxRow BREAK
+
+				SET @StartRow = @StopRow + 1
+				SET @StopRow = @StopRow + @Threshold
+
+				IF @StopRow >= @MaxRow
+					SET @StopRow = @MaxRow
+			END
+			/*
 			SET @betparlaydetailinfo = (
 				SELECT	DISTINCT transId AS '@t'						
 						,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
@@ -2205,6 +2391,7 @@ BEGIN
 					END
 					,'p'
 			WHERE	@betparlaydetailinfo IS NOT NULL
+			*/
 		END
     END -- while
 END -- end SP

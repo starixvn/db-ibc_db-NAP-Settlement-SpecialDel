@@ -29,6 +29,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221004@Kathy: Prevent duplicate data if re-run SP in case of deadlock [Redmine:#178542]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
+		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -55,6 +56,12 @@ BEGIN
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
 			,@IsSiteDB	BIT = 0
+	
+	------ insert by batch for betparlaydetail
+	DECLARE @StartRow INT = 1
+			, @StopRow INT 
+			, @MaxRow INT = 1 -- Keep the total row of your data
+			, @Threshold INT = 3000 -- the number of each batch
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
@@ -113,6 +120,28 @@ BEGIN
 	
 	CREATE TABLE #tmpSetStake (Refno BIGINT, RN INT, SetStake MONEY)
 	CREATE CLUSTERED INDEX CIX_tmpSetStake_refno ON #tmpSetStake (refno)
+
+	CREATE TABLE #BetParlayDetail_pre(
+		ID INT IDENTITY (1,1) PRIMARY KEY,
+		[RefNo] [bigint] NULL,
+		[Serial] [int] NULL,
+		[transid] [bigint] NULL,
+		[winlostdate] [smalldatetime] NULL,
+		[statuswinlost] [tinyint] NULL,
+		[statusid] [tinyint] NULL,
+		[matchid] [int] NULL,
+		[bettype] [smallint] NULL,
+		[stake] [money] NULL,
+		[odds] [smallmoney] NULL,
+		[betteam] [nvarchar](10) NULL,
+		[hdp1] [smallmoney] NULL,
+		[hdp2] [smallmoney] NULL,
+		[livehomescore] [smallint] NULL,
+		[liveawayscore] [smallint] NULL,
+		[liveindicator] [bit] NULL,
+		[betcheck] [nvarchar](50) NULL,
+		[transdesc] [nvarchar](2000) NULL
+	) 
 
 	BEGIN
 		INSERT INTO #temp_bettrans (
@@ -195,11 +224,9 @@ BEGIN
 			FROM	#tmpSource
 			WHERE	SetStake > 0
 
-			INSERT INTO dbo.BetParlayDetail WITH (TABLOCK) (
-				RefNo, Serial, transid, winlostdate, statuswinlost, statusid
+			INSERT INTO #BetParlayDetail_pre (RefNo, Serial, transid, winlostdate, statuswinlost, statusid
 				,matchid, bettype, stake, odds, betteam, hdp1
-				,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
-			)
+				,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc)
 			SELECT p.RefNo, rc.Serial, p.transid, p.winlostdate, p.statuswinlost, p.statusid
 				,p.matchid, p.bettype, ps.SetStake, p.odds, p.betteam, p.hdp1
 				,p.hdp2, p.livehomescore, p.liveawayscore, p.liveindicator, p.betcheck, p.transdesc
@@ -208,6 +235,35 @@ BEGIN
 				INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
 				INNER JOIN #tmpSetStake ps ON ps.refno = p.refno AND ps.RN = rc.R
 		
+			SET @MaxRow = (SELECT MAX(ID) FROM #BetParlayDetail_pre)
+
+			IF @Threshold >= @MaxRow
+				SET @Threshold = @MaxRow
+
+			-- SET for first batch
+			SET @StopRow = @Threshold
+			WHILE (@MaxRow IS NOT NULL)
+			BEGIN
+					INSERT INTO dbo.BetParlayDetail WITH (ROWLOCK)
+					(
+						RefNo, Serial, transid, winlostdate, statuswinlost, statusid
+						,matchid, bettype, stake, odds, betteam, hdp1
+						,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+					)
+					SELECT RefNo, Serial, transid, winlostdate, statuswinlost, statusid
+						,matchid, bettype, stake, odds, betteam, hdp1
+						,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+					FROM #BetParlayDetail_pre
+					WHERE ID BETWEEN @StartRow AND @StopRow
+
+					IF @StopRow = @MaxRow BREAK
+
+					SET @StartRow = @StopRow + 1
+					SET @StopRow = @StopRow + @Threshold
+
+					IF @StopRow >= @MaxRow
+						SET @StopRow = @MaxRow
+			END
 		END
 
 		UPDATE t
@@ -411,5 +467,6 @@ BEGIN
 		WHERE @TransInfo IS NOT NULL
 			
 	END
+
 END -- end SP
 GO
