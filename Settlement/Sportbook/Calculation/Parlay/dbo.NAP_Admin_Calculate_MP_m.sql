@@ -93,7 +93,7 @@ BEGIN
 	DECLARE @StartRow INT = 1
 			, @StopRow INT 
 			, @MaxRow INT = 1 -- Keep the total row of your data
-			, @Threshold INT = 5 ---2000 -- the number of each batch
+			, @Threshold INT = 2000 -- the number of each batch
             
 	SET @ServerName = @@SERVERNAME
 
@@ -209,7 +209,7 @@ BEGIN
 				AND t.groupId <> 8 -- Early Soccer						
 			
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
-			SET @Threshold = 5 --2000
+			SET @Threshold = 2000
 
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
@@ -291,7 +291,7 @@ BEGIN
 				
             -- update by batch for betparlaydetail
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
-			SET @Threshold = 5 --2000
+			SET @Threshold = 2000
 
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
@@ -371,7 +371,7 @@ BEGIN
 			
 			-- update by batch for betparlaydetail
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
-			SET @Threshold = 5 ---2000
+			SET @Threshold = 2000
 
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
@@ -516,7 +516,7 @@ BEGIN
 			
 			-- update by batch for betparlaydetail
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBettransm)
-			SET @Threshold = 5 ----2000
+			SET @Threshold = 2000
 
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
@@ -2336,7 +2336,7 @@ BEGIN
 			
 			-- process by batch to insert for sync server
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBetParlayDetail)
-			SET @Threshold = 5 ---- 2000
+			SET @Threshold = 2000
 
 			IF @Threshold >= @MaxRow
 				SET @Threshold = @MaxRow
