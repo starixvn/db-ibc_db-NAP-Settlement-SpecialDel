@@ -114,6 +114,8 @@ BEGIN
 	
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	
+	CREATE TABLE #temp_match_parlay (transid BIGINT, matchid INT, refno BIGINT, IsMergedParlay BIT DEFAULT(0))
+
 	CREATE TABLE #tempmatch (matchid INT, IsCalculatingSingle INT, IsCalculatingMP INT)
 	
 	CREATE TABLE #tmpBettypes (bettype SMALLINT, groupid SMALLINT, IsFGLG BIT, IsEarly BIT)
@@ -735,22 +737,78 @@ BEGIN
 				ON m.matchid = t.MatchId
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #matchList WHERE eventstatus = 'Completed')
+	IF EXISTS (SELECT TOP 1 1 FROM #matchList WHERE eventstatus = 'Completed' AND ISNULL(IsRunningSingle,0) = 1 ) --blinking in red-pink on GUI
 	BEGIN
-		UPDATE #matchList
-		SET IsExistRunningTicket = 1
-		WHERE eventstatus = 'Completed' 
-			AND ISNULL(IsRunningSingle,0) = 1
-			AND ISNULL(IsExistMarkedTicket,0) = 0
+		UPDATE m 
+			SET IsExistRunningTicket = t.IsExistRunningTicket
+		FROM	#matchList m
+			CROSS APPLY ( SELECT 1 AS IsExistRunningTicket FROM 
+								(	SELECT	b.transid, m.MatchId
+									FROM	dbo.bettrans b WITH(NOLOCK)
+									WHERE	b.matchid = m.MatchId
+											AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+											AND b.statusID = 0
+											AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
+											AND b.bettype <> 38 -- BetBuilder
+								) b
+								OUTER APPLY (
+									SELECT TOP 1 mt.transId
+									FROM	#tmpMarkedTransaction mt 
+									WHERE	b.transid = mt.TransId
+											AND b.MatchId = mt.matchId
+								)mt
+							WHERE mt.transId IS NULL
+							GROUP BY b.matchid
+							) t
+				WHERE	m.eventstatus = 'Completed' 
+					AND ISNULL(m.IsRunningSingle,0) = 1 
+	END
 
-		UPDATE	#matchList
-		SET IsExistRunningTicket = CASE WHEN IsExistRunningTicket = 0 AND @IsMergedParlay = 1 THEN 1 
-										ELSE IsExistRunningTicket 
-										END
-			,IsExistRunningTicketParlay = IsExistRunningTicketParlay
-		WHERE eventstatus = 'Completed'
-			AND ISNULL(IsExistMarkedTicketParlay,0) = 0
+	IF EXISTS (SELECT TOP 1 1 FROM #matchList WHERE eventstatus = 'Completed' AND ISNULL(IsRunningParlay,0) = 1  ) --blinking in red-pink on GUI
+	BEGIN
+		INSERT INTO #temp_match_parlay (transid, matchid, refno, IsMergedParlay)
+		SELECT	0, m.MatchId, bm.refno, m.IsMergedParlay
+		FROM #matchList m
+			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
+		WHERE	m.eventstatus = 'Completed' 
+				AND ISNULL(m.IsRunningParlay,0) = 1 
+				AND bm.statusID = 0
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+				AND 1 = CASE 
+							WHEN m.IsExistRunningTicket = 0
+									AND m.IsMergedParlay = 1 THEN 1
+							WHEN m.IsMergedParlay = 0 THEN 1
+						END
+
+		UPDATE   t
+			SET transid = b.transid
+		FROM   #temp_match_parlay  t
+			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND b.refno = t.Refno
+
+		UPDATE	m 
+				SET IsExistRunningTicket = CASE WHEN m.IsExistRunningTicket = 0 AND t.IsMergedParlay = 1 THEN t.IsExistRunningTicketParlay ELSE m.IsExistRunningTicket END
+					,IsExistRunningTicketParlay = t.IsExistRunningTicketParlay
+			FROM	#matchList m
+					CROSS APPLY (
+								SELECT	1 AS IsExistRunningTicketParlay
+										,MAX(CASE WHEN b.IsMergedParlay = 1 THEN 1 ELSE 0 END) AS IsMergedParlay
+								FROM (
+										SELECT	transid, MatchId, p.IsMergedParlay
+										FROM	#temp_match_parlay p
+										WHERE p.matchid = m.MatchId
+									) b
+									OUTER APPLY (
+										SELECT TOP 1 mt.transId
+										FROM	#tmpMarkedTransaction mt 
+										WHERE	b.transid = mt.TransId
+												AND b.MatchId = mt.matchId
+									)mt
+									WHERE	mt.transId IS NULL
+									GROUP BY b.matchid
+								) t
+		WHERE m.eventstatus = 'Completed'
 			AND ISNULL(IsRunningParlay,0) = 1
+
 	END
 	
 	IF @FilterOver > 0
@@ -890,5 +948,6 @@ BEGIN
 	DROP TABLE #tempmatch
 	DROP TABLE #tmpBettypes
 	DROP TABLE #tmpMarkedTransaction
+	DROP TABLE #temp_match_parlay
 END
 GO
