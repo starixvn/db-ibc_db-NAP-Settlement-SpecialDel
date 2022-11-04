@@ -28,7 +28,7 @@ BEGIN
 		,AwayId				INT
 		,IsNeutral			BIT
 		,FilterBy			INT
-		,RequestExtraInfo	VARCHAR(MAX)
+		--,RequestExtraInfo	VARCHAR(MAX)
 		,StartVoidTime		DATETIME
 		,IssueTypeName		VARCHAR(100)
 		,SubIssueTypeName	VARCHAR(100)
@@ -42,7 +42,7 @@ BEGIN
 		,HomeId
 		,AwayId
 		,FilterBy 
-		,RequestExtraInfo
+		--,RequestExtraInfo
 		,StartVoidTime 
 		,IssueTypeName
 		,SubIssueTypeName 
@@ -54,7 +54,7 @@ BEGIN
 		,rd.HomeId
 		,rd.AwayId
 		,rd.FilterBy
-		,rd.TransIds AS RequestExtraInfo
+		--,rd.TransIds AS RequestExtraInfo
 		,rd.VoidFromTime AS StartVoidTime
 		,i.IssueTypeName
 		,s.SubIssueTypeName
@@ -87,7 +87,7 @@ BEGIN
 		  ,KickOffTime
 		  ,IsNeutral 
 		  ,FilterBy 
-		  ,RequestExtraInfo
+		  --,RequestExtraInfo
 		  ,StartVoidTime 
 		  ,IssueTypeName
 		  ,SubIssueTypeName 
