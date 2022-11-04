@@ -1,7 +1,7 @@
 CREATE TYPE [dbo].[TVP_SiteDB_CalculationLog] AS TABLE(
 	[LogId] [bigint] NOT NULL,
 	[TransInfo] xml NULL,
-	[TransInfoJson] [varchar](max) NULL,
+	[TransInfoJson] [varbinary](max) NULL,
 	[TableName] [varchar](128) NULL,
 	[MatchId] [int] NULL,
 	[Action] [varchar](1) NULL,
@@ -11,3 +11,7 @@ CREATE TYPE [dbo].[TVP_SiteDB_CalculationLog] AS TABLE(
 	[IsParallel] [bit] NULL
 )
 GO
+
+GRANT EXEC ON TYPE::[dbo].[TVP_SiteDB_CalculationLog] TO [bodbadminnet] 
+
+

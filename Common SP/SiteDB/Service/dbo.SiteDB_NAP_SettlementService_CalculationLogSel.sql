@@ -23,7 +23,7 @@ BEGIN
 			,@LastStatusId TINYINT			
 			,@LogId BIGINT
 			,@TransInfo XML
-			,@TransInfoJson VARCHAR(MAX)
+			,@TransInfoJson VARBINARY(MAX)
 			,@TableName VARCHAR(128)
 			,@MatchId INT
 			,@RowCount INT = 0
@@ -52,6 +52,8 @@ BEGIN
 				,@Action AS Action
 				,@SettlementAction AS SettlementAction
 				,@TicketType AS TicketType
+				,@SessionId AS SessionId
+				,@IsParallel AS IsParallel
 		WHERE 1 = 0
 		
 		RETURN

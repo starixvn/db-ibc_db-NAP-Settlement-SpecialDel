@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	,@SessionId			BIGINT			= NULL
 	,@MessageType		VARCHAR(200)
 	,@TransInfo			XML				= NULL
-	,@TransInfoJson		VARCHAR(MAX)	= NULL
+	,@TransInfoJson		VARBINARY(MAX)	= NULL
 
 	,@TableName			VARCHAR(128) 
 	,@MatchId			INT				= 0

@@ -88,7 +88,7 @@ BEGIN
 			,@StepDone			VARCHAR(300) = 'Done update'
 			,@FcUpdateTime		DATETIME2
 			
-			,@transInfo		VARCHAR(MAX)
+			,@transInfo		VARBINARY(MAX)
 			,@IsSiteDB		BIT = 0
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
@@ -409,7 +409,7 @@ BEGIN
 
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged )
 			BEGIN
-				SET @transInfo = (
+				SET @transInfo = COMPRESS((
 					SELECT	transId AS 't'
 							,CASE WHEN modds IS NOT NULL THEN CAST(CAST(modds AS DECIMAL(10,4)) AS VARCHAR(11) ) ELSE ''  END AS 'm'
 							,odds AS 'o'
@@ -433,7 +433,7 @@ BEGIN
 					
 					FROM	@tmpBalanceChanged
 					FOR JSON AUTO
-				)
+				))
 
 				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 					@SystemName		= 'Settlement'

@@ -16,7 +16,7 @@ as
 */
 begin
 	set nocount on
-	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo nvarchar(max)
+	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo varbinary(max)
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint
 		, @__settlementAction varchar(20), @__ticketType varchar(1), @__errorCode INT
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
@@ -26,7 +26,7 @@ begin
 
 	while 1 = 1
 	begin
-		select @__strTransInfo = '', @__processingId = 0
+		select @__strTransInfo = NULL, @__processingId = 0
 			, @__messageTypeNew = null, @__startTime = sysdatetime()
 
 		update top(1) s
@@ -106,7 +106,7 @@ begin
 		select	@__messageBodyTemp = 'exec dbo.NAP_SettlementService_Calculation '
 									+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
 									+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
-									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + @__strTransInfo + '''' else '' end
+									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + cast(@__strTransInfo AS nvarchar(max)) + '''' else '' end
 									+ ',@TableName=''bettrans'''
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end

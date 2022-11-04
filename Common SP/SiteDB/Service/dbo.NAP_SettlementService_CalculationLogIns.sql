@@ -61,6 +61,7 @@ BEGIN
 				,s.TicketType
 		FROM	@SiteDBCalculationLog s
 		WHERE	s.IsParallel = 1
+		ORDER BY s.LogId
 	END
 	
 	IF @MaxLogId > 0 -- run commands in sequence

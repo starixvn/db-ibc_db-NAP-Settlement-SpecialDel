@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogIns]
 	,@Action VARCHAR(1) = 'U'
 	,@MatchId INT = 0
 	,@TransInfo XML = NULL
-	,@TransInfoJson VARCHAR(MAX) = NULL
+	,@TransInfoJson VARBINARY(MAX) = NULL
 	,@SettlementAction VARCHAR(20) = NULL
 	,@TicketType VARCHAR(1) = NULL
 	,@SessionId BIGINT = 0

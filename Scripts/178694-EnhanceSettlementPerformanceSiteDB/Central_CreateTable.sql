@@ -9,7 +9,7 @@ CREATE TABLE [dbo].[SiteDB_SettlementProcessing](
 	[MessageType] [varchar](200) NULL,
 	[SettlementAction] [varchar](20) NULL,
 	[TicketType] [varchar](1) NULL,
-	[TransInfo] [varchar](max) NULL,
+	[TransInfo] [varbinary](max) NULL,
 	[StatusId] [tinyint] NULL,
  CONSTRAINT [PK_SiteDB_SettlementProcessing] PRIMARY KEY NONCLUSTERED 
 (
