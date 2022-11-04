@@ -19,6 +19,7 @@ AS
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20221017@Kathy: Remove email yikhun.chiu@onelab.tw, add carrie.chen@onelabe.tw [Redmine:#179106]
+		- 20221104@Louisa: Update email address from carrie.chen@onelabe.tw to carrie.chen@onelab.tw [Redmine:#]
 	Columns Explanation:    
     
     Notes: TW Team can change function and not notify VNTeam, please ALWAYS check Code Pro before modify function
@@ -69,7 +70,7 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw'
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
 			, 'qa@starixvn.com'
 			, 'qa@starixvn.com'
 			, 'SITDBTRANS'
@@ -77,7 +78,7 @@ RETURN (
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw'
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
 			, 'qa@starixvn.com'
 			, 'qa@starixvn.com'
 			, 'SITDBGRP01N1'
@@ -85,7 +86,7 @@ RETURN (
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw'
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
 			, 'qa@starixvn.com'
 			, 'qa@starixvn.com'
 			, 'SITDBGRP01N2'
@@ -94,24 +95,24 @@ RETURN (
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'lena.huynh@starixvn.com;it@starixvn.com;dbaadmin@starixvn.com'
-			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw' --credit
-			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw' --deposit
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBTRANS'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'lena.huynh@starixvn.com;it@starixvn.com;dbaadmin@starixvn.com'
-			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw' --credit
-			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw' --deposit
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBGRP01N1'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
 			, 'lena.huynh@starixvn.com;it@starixvn.com;dbaadmin@starixvn.com'
-			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw' --credit
-			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw' --deposit
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBGRP01N2'
 			, 'PROD'
 		
@@ -145,37 +146,37 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw', '', ''
+			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'SITDBTRANS'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw', '', ''
+			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'SITDBGRP01N1'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw', '', ''
+			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'SITDBGRP01N2'
 			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw', '', ''
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBTRANS'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw', '', ''
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBGRP01N1'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelabe.tw;sobi.chen@onelab.tw', '', ''
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBGRP01N2'
 			, 'PROD'
 			
