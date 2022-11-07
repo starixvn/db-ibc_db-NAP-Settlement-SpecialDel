@@ -26,7 +26,7 @@ begin
 
 	while 1 = 1
 	begin
-		select @__strTransInfo = '', @__processingId = 0
+		select @__strTransInfo = NULL, @__processingId = 0
 			, @__messageTypeNew = null, @__startTime = sysdatetime()
 
 		update top(1) s

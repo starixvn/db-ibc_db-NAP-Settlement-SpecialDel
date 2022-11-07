@@ -90,6 +90,7 @@ BEGIN
 			
 			,@transInfo		VARBINARY(MAX)
 			,@IsSiteDB		BIT = 0
+			,@FunctionName	VARCHAR(50)
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
 	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT
@@ -435,9 +436,11 @@ BEGIN
 					FOR JSON AUTO
 				))
 
+				SET @FunctionName = CASE WHEN @Action = 'REFUND' THEN 'RefundSoccer' ELSE 'CalculateSoccer' END
+				
 				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 					@SystemName		= 'Settlement'
-					,@FunctionName	= 'Calculate-RefundSoccer'
+					,@FunctionName	= @FunctionName
 					,@TableName		= 'SiteDB_SettlementProcessing'
 					,@MatchId		= @MatchId 
 					,@Action		= 'I'
