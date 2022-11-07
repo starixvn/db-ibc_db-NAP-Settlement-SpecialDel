@@ -119,7 +119,7 @@ BEGIN
 						BEGIN
 							INSERT INTO @tmpTransId (TransID)
 							SELECT	t
-							FROM	OPENJSON(@TransInfoJson) WITH (t BIGINT)
+							FROM	OPENJSON(DECOMPRESS(@TransInfoJson)) WITH (t BIGINT)
 
 							SET @cnt_sitedb = @@ROWCOUNT
 						END 
