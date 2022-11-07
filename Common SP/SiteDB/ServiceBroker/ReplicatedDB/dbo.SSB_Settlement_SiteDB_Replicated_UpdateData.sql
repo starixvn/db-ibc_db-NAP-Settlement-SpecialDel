@@ -16,7 +16,7 @@ as
 */
 begin
 	set nocount on
-	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo nvarchar(max)
+	declare @__startTime datetime2, @__sessionId bigint, @__strTransInfo varbinary(max)
 		, @__processingId bigint, @__delayTime varchar(50), @__siteDBGroupId smallint
 		, @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
@@ -101,7 +101,7 @@ begin
 		select	@__messageBodyTemp = 'exec dbo.Bet_ExecRep_NAP_Admin_01 '
 									+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
 									+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
-									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + @__strTransInfo + '''' else '' end
+									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + cast(@__strTransInfo as nvarchar(max)) + '''' else '' end
 									+ ',@TableName=''bettrans'''
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
