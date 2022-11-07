@@ -122,7 +122,7 @@ begin
 			, @SiteDBGroupId		= @__siteDBGroupId
 
 		--waitfor on each batch exec ==> default 001ms
-		select @__delayTime = dbo.f_Settlement_GetDelayTime('Wait_Exec_Each_Batch')
+		select @__delayTime = dbo.f_Settlement_GetDelayTime('SiteDB_Wait_Exec_Each_Batch')
 		waitfor delay @__delayTime -- sitedb - delay between batches updated
 	
 	end

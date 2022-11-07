@@ -68,6 +68,40 @@ BEGIN
 					,@Action = @Action
 		END
 		/*---------------------------------------------------------------------------------------------*/
+		ELSE IF @TableName = 'SiteDB_SettlementLock'
+			AND OBJECT_ID('SiteDB_SettlementLock', 'U') IS NOT NULL			
+		BEGIN
+			IF @Action = 'I'
+			BEGIN
+				EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
+					,@SiteDBGroupId = @SiteDBGroupId
+					,@MatchId = @MatchId
+					,@SessionId = @SessionId
+					,@TotalQueue = @TotalQueue
+			END
+			ELSE IF @Action = 'D'
+			BEGIN
+				WHILE 1=1
+				BEGIN
+					IF EXISTS (SELECT	TOP 1 1 
+								FROM	dbo.SiteDB_SettlementProcessing 
+								WHERE	SiteDBGroupId = @SiteDBGroupId
+										AND SessionId = @SessionId
+					)
+						WAITFOR DELAY '00:00:00.005' -- wait for release match
+					ELSE
+					BEGIN
+						EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
+							,@SiteDBGroupId = @SiteDBGroupId
+							,@MatchId = @MatchId
+							,@SessionId = @SessionId
+							,@TotalQueue = @TotalQueue
+
+						BREAK
+					END
+				END
+			END
+		END
 		ELSE
 		BEGIN
 			IF @TableName IN ('bettrans', 'bettransm')
