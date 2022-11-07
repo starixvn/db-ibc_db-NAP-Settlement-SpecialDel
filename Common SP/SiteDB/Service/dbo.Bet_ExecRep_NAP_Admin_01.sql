@@ -203,7 +203,7 @@ BEGIN
 				BEGIN
 					IF @TransInfoJson IS NOT NULL
 					BEGIN
-						SET @Decompress_TransInfoJson = DECOMPRESS(@TransInfoJson)
+						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 						INSERT INTO @tmpTransId (TransID,modds,odds,oddsspread,statuswinlost,SettlementTime
 							,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben)
