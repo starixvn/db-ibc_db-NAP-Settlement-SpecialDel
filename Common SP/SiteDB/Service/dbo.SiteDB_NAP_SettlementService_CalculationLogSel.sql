@@ -1,6 +1,6 @@
 /*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogSel]
-	@BatchNo INT = 100
+	@batch INT = 100
 AS
 /*
 	Created by: 20201123@Kathy
@@ -11,7 +11,7 @@ AS
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 20221010@Louisa: get log which is inserted 1 second before [Redmine:#178880]
 		- 20221025@Louisa: Use JSon log format for soccer [Redmine:#179449]
-		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [Redmine:#178694]
+		- 20221101@Louisa: allow run parallell [Redmine#178694]
 
 	Param's Explanation:  
 		   
@@ -66,7 +66,7 @@ BEGIN
 	
 	IF @LastStatusId = 2 OR @LastLogId IS NULL ---the last time is done successfully or the first time running 
 	BEGIN
-		SELECT	TOP (@BatchNo) LogId
+		SELECT	TOP (@batch) LogId
 				,TransInfo
 				,TransInfoJson
 				,TableName
