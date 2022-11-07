@@ -106,6 +106,7 @@ begin
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
 									+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
+									+ '@CalledByBrokerService=1'
 				, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
 				, @__endtime = sysdatetime()
 
