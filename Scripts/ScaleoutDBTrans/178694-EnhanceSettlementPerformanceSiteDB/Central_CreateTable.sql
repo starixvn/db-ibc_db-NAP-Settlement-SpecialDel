@@ -2,7 +2,18 @@
 USE [bodb02]
 GO
 
-----1
+CREATE TABLE [dbo].[SiteDB_SettlementLock](
+	[MatchId] [int] NULL,
+	[SiteDBGroupId] [smallint] NULL,
+	[SessionId] [bigint] NOT NULL,
+	[CreatedTime] [datetime] NULL
+) ON [DATA]
+GO
+
+ALTER TABLE [dbo].[SiteDB_SettlementLock] ADD  CONSTRAINT [DF_SiteDB_SettlementLock_CreatedTime]  DEFAULT (getdate()) FOR [CreatedTime]
+GO
+
+
 CREATE TABLE [dbo].[SiteDB_SettlementProcessing](
 	[Id] [bigint] IDENTITY(1,1) NOT NULL,
 	[SiteDBGroupId] [smallint] NOT NULL,
