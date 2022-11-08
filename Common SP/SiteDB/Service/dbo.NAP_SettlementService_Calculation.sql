@@ -73,10 +73,13 @@ BEGIN
 		BEGIN
 			IF @Action = 'I'
 			BEGIN
-				EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
-					,@SiteDBGroupId = @SiteDBGroupId
-					,@MatchId = @MatchId
+				EXEC dbo.Bet_ExecRep_NAP_Admin_01 
+					@SiteDBGroupId = @SiteDBGroupId
 					,@SessionId = @SessionId
+					,@MessageType = @MessageType
+					,@TableName = @TableName
+					,@MatchId = @MatchId
+					,@Action = @Action			
 					,@TotalQueue = @TotalQueue
 			END
 			ELSE IF @Action = 'D'
@@ -91,10 +94,13 @@ BEGIN
 						WAITFOR DELAY '00:00:00.005' -- wait for release match
 					ELSE
 					BEGIN
-						EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
-							,@SiteDBGroupId = @SiteDBGroupId
-							,@MatchId = @MatchId
+						EXEC dbo.Bet_ExecRep_NAP_Admin_01 
+							@SiteDBGroupId = @SiteDBGroupId
 							,@SessionId = @SessionId
+							,@MessageType = @MessageType
+							,@TableName = @TableName
+							,@MatchId = @MatchId
+							,@Action = @Action			
 							,@TotalQueue = @TotalQueue
 
 						BREAK
