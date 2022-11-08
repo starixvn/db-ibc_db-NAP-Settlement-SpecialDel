@@ -14,46 +14,162 @@
 USE bodb02
 GO
 ------------------------------------------------
-/*********UPDATE DATA IF ALREADY EXISTS****************/
 --CustLimitBet_LIC
-UPDATE main
-SET [Matchid]=clb.[Matchid],[AccumTurnover]=clb.[AccumTurnover],[AccumPayout]=clb.[AccumPayout],[EventTypeID]=clb.[EventTypeID],
-	[LastQueueID]=clb.[LastQueueID],[ModifiedDate]=clb.[ModifiedDate]
-FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBet_LIC_Copy clb WITH (NOLOCK)
-	INNER JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON main.CustID = clb.CustID AND main.Matchid = clb.Matchid AND main.EventTypeID = clb.EventTypeID 
+------ info for deployer
+DECLARE @StartRow INT 
+		, @StopRow INT 
+		, @MaxRow INT  -- Keep the total row of your data
+		, @Threshold INT  -- the number of each batch
 
---CustLimitBetHistory_LIC
-UPDATE main
-SET	[Matchid]=clbh.[Matchid],[Transid]=clbh.[Transid],[TurnoverAdjust]=clbh.[TurnoverAdjust],[PayoutAdjust]=clbh.[PayoutAdjust],
-	[EventTypeID]=clbh.[EventTypeID],[CreatedDate]=clbh.[CreatedDate],
-FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBetHistory_LIC_Copy clbh WITH (NOLOCK)
-	INNER JOIN [dbo].[CustLimitBetHistory_LIC] main WITH (NOLOCK) ON main.CustID = clb.CustID AND main.Transid = clb.Transid AND main.EventTypeID = clb.EventTypeID 
+CREATE TABLE #CustLimitBet_LIC(
+	[Matchid] [int] NOT NULL,
+	[CustID] [int] NOT NULL,
+	[AccumTurnover] [money] NOT NULL,
+	[AccumPayout] [money] NOT NULL,
+	[EventTypeID] [tinyint] NOT NULL,
+	[LastQueueID] [bigint] NOT NULL,
+	[ModifiedDate] [datetime] NOT NULL
+)
 
-/*********INSERT DATA IF NOT EXISTS****************/
---CustLimitBet_LIC
-INSERT INTO [dbo].[CustLimitBet_LIC] ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
-SELECT	clb.[Matchid], clb.[CustID], clb.[AccumTurnover], clb.[AccumPayout], clb.[EventTypeID], clb.[LastQueueID], clb.[ModifiedDate]
-FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBet_LIC_Copy clb WITH (NOLOCK)
-	LEFT JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON main.CustID = clb.CustID AND main.Matchid = clb.Matchid AND main.EventTypeID = clb.EventTypeID 
-WHERE main.CustID IS NULL AND main.Matchid IS NULL AND main.EventTypeID IS NULL
+CREATE TABLE #CustLimitBet_LIC_update(
+	[Matchid] [int] NOT NULL,
+	[CustID] [int] NOT NULL,
+	[AccumTurnover] [money] NOT NULL,
+	[AccumPayout] [money] NOT NULL,
+	[EventTypeID] [tinyint] NOT NULL,
+	[LastQueueID] [bigint] NOT NULL,
+	[ModifiedDate] [datetime] NOT NULL,
+	rid INT IDENTITY (1,1) PRIMARY KEY
+)
 
---CustLimitBetHistory_LIC
-INSERT INTO [dbo].[CustLimitBetHistory_LIC] ([Matchid], [CustID], [Transid], [TurnoverAdjust], [PayoutAdjust], [EventTypeID], [CreatedDate])
+CREATE TABLE #CustLimitBet_LIC_insert(
+	[Matchid] [int] NOT NULL,
+	[CustID] [int] NOT NULL,
+	[AccumTurnover] [money] NOT NULL,
+	[AccumPayout] [money] NOT NULL,
+	[EventTypeID] [tinyint] NOT NULL,
+	[LastQueueID] [bigint] NOT NULL,
+	[ModifiedDate] [datetime] NOT NULL,
+	rid INT IDENTITY (1,1) PRIMARY KEY
+)
+
+INSERT INTO #CustLimitBet_LIC ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
+SELECT [Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate]
+FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBet_LIC_Copy WITH (NOLOCK)
+
+INSERT INTO #CustLimitBet_LIC_update ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
+SELECT b.[Matchid], b.[CustID], b.[AccumTurnover], b.[AccumPayout], b.[EventTypeID], b.[LastQueueID], b.[ModifiedDate]
+FROM #CustLimitBet_LIC b
+	INNER JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = b.EventTypeID
+
+INSERT INTO #CustLimitBet_LIC_insert ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
+SELECT b.[Matchid], b.[CustID], b.[AccumTurnover], b.[AccumPayout], b.[EventTypeID], b.[LastQueueID], b.[ModifiedDate]
+FROM #CustLimitBet_LIC b
+	LEFT JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = b.EventTypeID
+WHERE main.custid IS NULL
+
+-- START to update first
+DECLARE @debug_message VARCHAR(500)
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+	
+	UPDATE main
+		SET [Matchid]=b.[Matchid],[AccumTurnover]=b.[AccumTurnover],[AccumPayout]=b.[AccumPayout],[EventTypeID]=b.[EventTypeID],
+			[LastQueueID]=b.[LastQueueID],[ModifiedDate]=b.[ModifiedDate]
+	FROM  [dbo].[CustLimitBet_LIC] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #CustLimitBet_LIC_update b ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = b.EventTypeID
+	WHERE b.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #CustLimitBet_LIC_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[CustLimitBet_LIC] ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
+	SELECT	b.[Matchid], b.[CustID], b.[AccumTurnover], b.[AccumPayout], b.[EventTypeID], b.[LastQueueID], b.[ModifiedDate]
+	FROM #CustLimitBet_LIC_insert b WITH (NOLOCK)
+	WHERE b.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+----------2. CustLimitBetHistory_LIC
+CREATE TABLE #CustLimitBetHistory_LIC(
+	[Matchid] [int] NOT NULL,
+	[CustID] [int] NOT NULL,
+	[Transid] [bigint] NOT NULL,
+	[TurnoverAdjust] [money] NOT NULL,
+	[PayoutAdjust] [money] NOT NULL,
+	[EventTypeID] [tinyint] NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	rid INT IDENTITY (1,1) PRIMARY KEY
+)
+
+INSERT INTO #CustLimitBetHistory_LIC ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
 SELECT	clbh.[Matchid], clbh.[CustID], clbh.[Transid], clbh.[TurnoverAdjust], clbh.[PayoutAdjust], clbh.[EventTypeID], clbh.[CreatedDate]
 FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBetHistory_LIC_Copy clbh WITH (NOLOCK)
-	LEFT JOIN [dbo].[CustLimitBetHistory_LIC] main WITH (NOLOCK) ON main.CustID = clb.CustID AND main.Transid = clb.Transid AND main.EventTypeID = clb.EventTypeID 
-WHERE main.CustID IS NULL AND main.Transid IS NULL AND main.EventTypeID IS NULL
+
+-- START to insert ONLY
+SET @MaxRow = (SELECT MAX(rid) FROM #CustLimitBetHistory_LIC)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+	
+	INSERT INTO [dbo].[CustLimitBetHistory_LIC] ([Matchid], [CustID], [Transid], [TurnoverAdjust], [PayoutAdjust], [EventTypeID], [CreatedDate])
+	SELECT	clbh.[Matchid], clbh.[CustID], clbh.[Transid], clbh.[TurnoverAdjust], clbh.[PayoutAdjust], clbh.[EventTypeID], clbh.[CreatedDate]
+	FROM #CustLimitBetHistory_LIC clbh
+	WHERE clbh.rid BETWEEN @StartRow AND @StopRow 
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
 
 --CustLimitBet_QueueRetry
-INSERT INTO [dbo].[CustLimitBet_QueueRetry] ([TransId], [Sitetype], [MainQueueId], [StatusId], [Createddate], [Trycount])
-SELECT	q.[TransId], q.[Sitetype], q.[MainQueueId], q.[StatusId], q.[Createddate], q.[Trycount]
+INSERT INTO CustLimitBet_QueueRetry ([TransId], [Sitetype], [MainQueueId], [StatusId], [Createddate], [Trycount])
+SELECT [TransId], [Sitetype], [MainQueueId], [StatusId], [Createddate], [Trycount]
 FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBet_QueueRetry_Copy q WITH (NOLOCK)
-	LEFT JOIN [dbo].[CustLimitBet_QueueRetry] main WITH (NOLOCK) ON main.TransId = q.TransId
-WHERE main.TransId IS NULL
 
 --CustLimitBetQueue
 INSERT INTO [dbo].[CustLimitBetQueue] ([Matchid], [CustID], [EventTypeID], [Transids], [ActionID], [Statusid], [CreatedDate], [ExecTime], [Duration], [ErrMsg])
 SELECT	q.[Matchid], q.[CustID], q.[EventTypeID], q.[Transids], q.[ActionID], q.[Statusid], q.[CreatedDate], q.[ExecTime], q.[Duration], q.[ErrMsg]
 FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBetQueue_Copy q WITH (NOLOCK)
-	LEFT JOIN [dbo].[CustLimitBetQueue] main WITH (NOLOCK) ON main.Transids = q.Transids
-WHERE main.Transids IS NULL
+
