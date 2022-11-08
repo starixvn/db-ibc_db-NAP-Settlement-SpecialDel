@@ -458,4 +458,16 @@ FROM bodb02.dbo.Task_Cust_BalanceProblem1 tcb WITH (NOLOCK)
 --DROP TABLE #tmp_cust
 DROP TABLE #tmp_refno
 
-	
+--------------------------
+--17. bodb02.dbo.CustLimitBet_QueueRetry
+SELECT q.[TransId], q.[Sitetype], q.[MainQueueId], q.[StatusId], q.[Createddate], q.[Trycount]
+INTO CustLimitBet_QueueRetry_Copy
+FROM bodb02.dbo.CustLimitBet_QueueRetry q WITH (NOLOCK)
+	INNER JOIN bettrans_Copy tmp WITH (NOLOCK) ON tmp.TransId = tcb.TransId
+WHERE q.StatusId = 0
+
+--18. bodb02.dbo.CustLimitBetQueue
+SELECT q.[Matchid], q.[CustID], q.[EventTypeID], q.[Transids], q.[ActionID], q.[Statusid], q.[CreatedDate], q.[ExecTime], q.[Duration], q.[ErrMsg]
+INTO CustLimitBetQueue_Copy
+FROM bodb02.dbo.CustLimitBetQueue q WITH (NOLOCK)
+WHERE q.Statusid = 0
