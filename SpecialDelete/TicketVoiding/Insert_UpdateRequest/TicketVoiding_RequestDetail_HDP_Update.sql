@@ -119,12 +119,16 @@ BEGIN
 					THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') 
 				  ELSE '' END 
 				    + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
-				    + CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' THEN '" />'
-						   ELSE 
-					 '" IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
-				    + '" IsLinkGroupAIO="' + CAST(t.c.value('@IsLinkGroupAIO','BIT') AS VARCHAR(10))
-				    + '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') + '" />'
-						 END
+				    + CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
+						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 
+						     + '" />'
+					  ELSE 
+							 '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10))
+							+ '" IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
+							+ '" IsLinkGroupAIO="' + CAST(t.c.value('@IsLinkGroupAIO','BIT') AS VARCHAR(10))
+							+ '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') 
+							+ '" />'
+					 END
 			AS WrongHDP
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))

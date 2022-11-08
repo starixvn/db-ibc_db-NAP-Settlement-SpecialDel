@@ -24,7 +24,7 @@ AS
 
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" IsShowPHOnly = "" /></root>
+			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" IsShowPHOnly = "" LiveIndicator =""/></root>
 	         (*) PoolHouseCheckedBetTypes   : ALL - (all bettype của ticket)
 											 '1,2,3' - (bettype selected)
 											 -1 - (no bettype affected)
@@ -104,6 +104,7 @@ BEGIN
 		,IsLinkGroup1X2			BIT DEFAULT(0)
 		,IsLinkGroupAIO			BIT DEFAULT(0)
 		,IsShowPHOnly			BIT DEFAULT(0) -- Get ticket button Save Details PH (1)
+		,LiveIndicator			BIT DEFAULT(0)
 	)
 	CREATE TABLE #logInfoVoidPage (
 		RequestId						INT
@@ -199,6 +200,7 @@ BEGIN
 			,IsLinkGroup1X2
 			,IsLinkGroupAIO
 			,IsShowPHOnly
+			,LiveIndicator
 		)
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
@@ -212,6 +214,7 @@ BEGIN
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@IsShowPHOnly','BIT') AS IsShowPHOnly
+			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 
@@ -408,6 +411,7 @@ BEGIN
 		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
 	WHERE b.betfrom <> 'P'  
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+		AND b.liveindicator = d.LiveIndicator AND b.IsMixParlay = 0
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
@@ -476,6 +480,7 @@ BEGIN
 						WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
 				AND b.Subbetfrom <> 'P'
+				AND b.Subliveindicator = d.LiveIndicator
 				AND b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND d.IsMainMatch = 'true'
 				AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND d.SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND d.HomeFavorite IS NOT NULL THEN 1
@@ -650,12 +655,13 @@ BEGIN
 			WHERE s.RequestId = @RequestId AND b.StatusId IN (111, 112, 113)
 			GROUP BY b.matchid
 
-			UPDATE l
-			SET PoolHouseMainParlayCount = COUNT(s.transid)
+			SELECT @MainParlayCount = COUNT(s.transid)
 			FROM #logInfoVoidPage l
 				INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) ON l.MatchId = s.MatchId AND l.RequestId = s.RequestId
 				INNER JOIN #TVSTicketBets b ON b.Subtransid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 1
 			WHERE s.RequestId = @RequestId
+			
+			UPDATE #logInfoVoidPage SET PoolHouseMainParlayCount = @MainParlayCount
 		END
 
 		--Check score for void message

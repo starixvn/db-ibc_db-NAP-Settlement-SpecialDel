@@ -14,6 +14,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 	,@HdpValue			  VARCHAR(50) = NULL
 	,@IsLinkGroup1X2	  BIT = 0
 	,@IsLinkGroupAIO	  BIT = 0
+	,@LiveIndicator		  BIT = 0
 	,@TransInfo		      XML = NULL
 )
 AS
@@ -359,6 +360,7 @@ BEGIN
 									 WHEN @IsLinkGroupAIO = 1 AND f.GroupMatch <> 0 THEN 1 ELSE 0 END
 					)f
 	WHERE b.matchid = @MatchId AND b.betfrom <> 'P'  
+		AND b.liveindicator = @LiveIndicator
 		AND b.IsMixParlay = 0
 		AND b.transdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
@@ -472,6 +474,7 @@ BEGIN
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
 				AND b.Subbetfrom <> 'P'
+				AND b.Subliveindicator = @LiveIndicator
 				AND b.IsMixParlay = 1
 				AND b.Subtransdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
 				AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND @HomeFavorite IS NOT NULL THEN 1
