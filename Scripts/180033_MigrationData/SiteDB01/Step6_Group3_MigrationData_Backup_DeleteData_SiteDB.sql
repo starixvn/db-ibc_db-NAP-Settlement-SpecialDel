@@ -1131,8 +1131,10 @@ BEGIN
 	IF @StopRow = @MaxRow BREAK
 
 	WAITFOR DELAY '00:00:00.010' --optional
+
 	SET @StartRow = @StopRow + 1
 	SET @StopRow = @StopRow + @Threshold
+	
 	IF @StopRow >= @MaxRow
 		SET @StopRow = @MaxRow
 END

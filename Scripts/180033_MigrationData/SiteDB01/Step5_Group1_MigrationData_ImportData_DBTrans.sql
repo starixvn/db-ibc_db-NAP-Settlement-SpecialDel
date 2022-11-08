@@ -8,179 +8,681 @@
 	 Revisions:
 		- 20221107@Victoria: INSERT from the copy all data of the following tables [Redmineid:#180033] 
 							 BalCreditCasino,BalCreditOthers,BalCreditSports,BalCreditTransfer,BalDebitCasino,BalDebitOthers,BalDebitSports,
-							 BalDebitTransfer,BalNetPosition,balanceTable,balanceTable_tmp,BalanceTable_tmp_cal
+							 BalDebitTransfer,BalNetPosition
 */
 
 USE bodb02
 GO
 ------------------------------------------------
-/*********UPDATE DATA IF ALREADY EXISTS****************/
+------ info for deployer
+DECLARE @StartRow INT 
+		, @StopRow INT 
+		, @MaxRow INT  -- Keep the total row of your data
+		, @Threshold INT  -- the number of each batch
+		, @batch INT = 2000
+
 --BalCreditCasino
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalCreditCasino] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalCreditCasino_Copy bal ON main.custid = bal.custid
+CREATE TABLE #Bal_tmp (custid INT,Balance MONEY)
+CREATE TABLE #Bal_tmp_insert (custid INT,Balance MONEY, rid INT IDENTITY (1,1) PRIMARY KEY)
+CREATE TABLE #Bal_tmp_update (custid INT,Balance MONEY, rid INT IDENTITY (1,1) PRIMARY KEY)
 
---BalCreditOthers
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalCreditOthers] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalCreditOthers_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditCasino_Copy WITH (NOLOCK)
 
---BalCreditSports
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalCreditSports] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalCreditSports_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalCreditCasino] main WITH (NOLOCK) ON b.custid = main.custid
 
---BalCreditTransfer
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalCreditTransfer] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalCreditTransfer_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
---BalDebitCasino
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalDebitCasino] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalDebitCasino_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
---BalDebitOthers
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalDebitOthers] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalDebitOthers_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
---BalDebitSports
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalDebitSports] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalDebitSports_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
---BalDebitTransfer
-UPDATE main
-SET [Balance] = bal.[Balance]
-FROM [dbo].[BalDebitTransfer] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalDebitTransfer_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
---BalNetPosition
-UPDATE main
-SET [MatchID]=bal.[MatchID],[Bettype]=bal.[Bettype],[Debit]=bal.[Debit],[Credit]=bal.[Credit],[CreatedDate]=bal.[CreatedDate],[ModifiedDate]=bal.[ModifiedDate]
-FROM [dbo].[BalNetPosition] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalNetPosition_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
---balanceTable
-UPDATE main
-SET [roleid]=bal.[roleid],[amount]=bal.[amount],[awinlost]=bal.[awinlost],[mwinlost]=bal.[mwinlost],[swinlost]=bal.[swinlost],[playercomm]=bal.[playercomm],[comm]=bal.[comm],
-	[acomm]=bal.[acomm],[scomm]=bal.[scomm],[recommend]=bal.[recommend],[mrecommend]=bal.[mrecommend],[srecommend]=bal.[srecommend],[currency]=bal.[currency],
-	[UserName]=bal.[UserName],[CurrencyName]=bal.[CurrencyName],[actualrate]=bal.[actualrate],[TicketCount]=bal.[TicketCount],[balTicketCount]=bal.[balTicketCount]
-FROM [dbo].[balanceTable] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.balanceTable_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
---balanceTable_tmp
-UPDATE main
-SET [roleid]=bal.[roleid],[amount]=bal.[amount],[awinlost]=bal.[awinlost],[mwinlost]=bal.[mwinlost],[swinlost]=bal.[swinlost],[playercomm]=bal.[playercomm],[comm]=bal.[comm],
-	[acomm]=bal.[acomm],[scomm]=bal.[scomm],[recommend]=bal.[recommend],[mrecommend]=bal.[mrecommend],[srecommend]=bal.[srecommend],[currency]=bal.[currency],
-	[UserName]=bal.[UserName],[CurrencyName]=bal.[CurrencyName],[actualrate]=bal.[actualrate],[TicketCount]=bal.[TicketCount],[balTicketCount]=bal.[balTicketCount]
-FROM [dbo].[balanceTable_tmp] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.balanceTable_tmp_Copy bal WITH (NOLOCK) ON main.custid = bal.custid AND main.winlostdate = bal.winlostdate
-
---BalanceTable_tmp_cal
-UPDATE main
-SET [dow]=bal.[dow],[roleid]=bal.[roleid],[recommend]=bal.[recommend],[mrecommend]=bal.[mrecommend],[srecommend]=bal.[srecommend],
-	[amt1]=bal.[amt1],[tcnt1]=bal.[tcnt1],[amt2]=bal.[amt2],[tcnt2]=bal.[tcnt2],[amt3]=bal.[amt3],[tcnt3]=bal.[tcnt3],[amt4]=bal.[amt4],[tcnt4]=bal.[tcnt4]
-FROM [dbo].[BalanceTable_tmp_cal] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN DBSIG01.SiteDB01tmp.dbo.BalanceTable_tmp_cal_Copy bal WITH (NOLOCK) ON main.custid = bal.custid
-
-/*********INSERT DATA IF NOT EXISTS****************/
---1. BalCreditCasino
-INSERT INTO [dbo].[BalCreditCasino] ([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditCasino_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalCreditCasino] main WITH (NOLOCK) ON main.custid = bal.custid
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalCreditCasino] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---2. BalCreditOthers
-INSERT INTO [dbo].[BalCreditOthers] ([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditOthers_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalCreditOthers] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+DECLARE @debug_message VARCHAR(500)
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalCreditCasino] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	--1. BalCreditCasino
+	INSERT INTO [dbo].[BalCreditCasino] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+---------2. BalCreditOthers 
+TRUNCATE TABLE #Bal_tmp
+TRUNCATE TABLE #Bal_tmp_update
+TRUNCATE TABLE #Bal_tmp_insert
+
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditOthers_Copy WITH (NOLOCK)
+
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalCreditOthers] main WITH (NOLOCK) ON b.custid = main.custid
+
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalCreditOthers] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---3. BalCreditSports
-INSERT INTO [dbo].[BalCreditSports] ([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditSports_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalCreditSports] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalCreditOthers] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalCreditOthers] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+------------3. BalCreditSports
+TRUNCATE TABLE #Bal_tmp
+TRUNCATE TABLE #Bal_tmp_update
+TRUNCATE TABLE #Bal_tmp_insert
+
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditSports_Copy WITH (NOLOCK)
+
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalCreditSports] main WITH (NOLOCK) ON b.custid = main.custid
+
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalCreditSports] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---4. BalCreditTransfer
-INSERT INTO  [dbo].[BalCreditTransfer]([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditTransfer_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalCreditTransfer] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalCreditSports] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalCreditSports] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+----------4. BalCreditTransfer
+TRUNCATE TABLE #Bal_tmp
+TRUNCATE TABLE #Bal_tmp_update
+TRUNCATE TABLE #Bal_tmp_insert
+
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditTransfer_Copy WITH (NOLOCK)
+
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalCreditTransfer] main WITH (NOLOCK) ON b.custid = main.custid
+
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalCreditTransfer] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---5. BalDebitCasino
-INSERT INTO  [dbo].[BalDebitCasino]([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitCasino_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalDebitCasino] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalCreditTransfer] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalCreditTransfer] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+----------------5. BalDebitCasino
+TRUNCATE TABLE #Bal_tmp
+TRUNCATE TABLE #Bal_tmp_update
+TRUNCATE TABLE #Bal_tmp_insert
+
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitCasino_Copy WITH (NOLOCK)
+
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalDebitCasino] main WITH (NOLOCK) ON b.custid = main.custid
+
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalDebitCasino] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---6. BalDebitOthers
-INSERT INTO [dbo].[BalDebitOthers]([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitOthers_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalDebitOthers] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalDebitCasino] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalDebitCasino] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+-----------6.BalDebitOthers
+TRUNCATE TABLE #Bal_tmp
+TRUNCATE TABLE #Bal_tmp_update
+TRUNCATE TABLE #Bal_tmp_insert
+
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitOthers_Copy WITH (NOLOCK)
+
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalDebitOthers] main WITH (NOLOCK) ON b.custid = main.custid
+
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalDebitOthers] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---7. BalDebitSports
-INSERT INTO [dbo].[BalDebitSports]([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSports_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalDebitSports] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalDebitOthers] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalDebitOthers] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+--------7.BalDebitSports
+TRUNCATE TABLE #Bal_tmp
+TRUNCATE TABLE #Bal_tmp_update
+TRUNCATE TABLE #Bal_tmp_insert
+
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSports_Copy WITH (NOLOCK)
+
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalDebitSports] main WITH (NOLOCK) ON b.custid = main.custid
+
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalDebitSports] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---8. BalDebitTransfer
-INSERT INTO [dbo].[BalDebitTransfer]([custid], [Balance])
-SELECT bal.[custid], bal.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitTransfer_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalDebitTransfer] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalDebitSports] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalDebitSports] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+
+----- 8.BalDebitTransfer
+TRUNCATE TABLE #Bal_tmp
+TRUNCATE TABLE #Bal_tmp_update
+TRUNCATE TABLE #Bal_tmp_insert
+
+INSERT INTO #Bal_tmp (custid, Balance)
+SELECT custid, Balance
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitTransfer_Copy WITH (NOLOCK)
+
+INSERT INTO #Bal_tmp_update (custid,Balance)
+SELECT b.custid, b.Balance 
+FROM #Bal_tmp b
+	INNER JOIN [dbo].[BalDebitTransfer] main WITH (NOLOCK) ON b.custid = main.custid
+
+INSERT INTO #Bal_tmp_insert (custid,Balance)
+SELECT b.custid, b.Balance
+FROM #Bal_tmp b
+	LEFT JOIN [dbo].[BalDebitTransfer] main WITH (NOLOCK) ON b.custid = main.custid
 WHERE main.custid IS NULL
 
---9. BalNetPosition
-INSERT INTO [dbo].[BalNetPosition]([CustID], [MatchID], [Bettype], [Debit], [Credit], [CreatedDate], [ModifiedDate])
-SELECT bal.[CustID], bal.[MatchID], bal.[Bettype], bal.[Debit], bal.[Credit], bal.[CreatedDate], bal.[ModifiedDate]
-FROM DBSIG01.SiteDB01tmp.dbo.BalNetPosition_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalNetPosition] main WITH (NOLOCK) ON main.custid = bal.custid
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	UPDATE main
+		SET [Balance] = bal.[Balance]
+	FROM [dbo].[BalDebitTransfer] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #Bal_tmp_update bal ON bal.custid = main.custid
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalDebitTransfer] ([custid], [Balance])
+	SELECT bal.[custid], bal.[Balance]
+	FROM #Bal_tmp_insert bal WITH (NOLOCK)
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+---------- 9.BalNetPosition
+
+CREATE TABLE #BalNetPosition(
+	[CustID] [int] NOT NULL,
+	[MatchID] [int] NOT NULL,
+	[Bettype] [smallint] NOT NULL,
+	[Credit] [money] NOT NULL,
+	[Debit] [money] NOT NULL,
+	[CreatedDate] [datetime] NOT NULL,
+	[ModifiedDate] [datetime] NOT NULL
+ )
+
+CREATE TABLE #BalNetPosition_insert ([CustID] [int],[MatchID] [int],[Bettype] [smallint], rid INT IDENTITY (1,1) PRIMARY KEY)
+CREATE TABLE #BalNetPosition_update ([CustID] [int],[MatchID] [int],[Bettype] [smallint], rid INT IDENTITY (1,1) PRIMARY KEY)
+
+INSERT INTO #BalNetPosition ([CustID], [MatchID], [Bettype], [Credit], [Debit], [CreatedDate], [ModifiedDate])
+SELECT [CustID], [MatchID], [Bettype], [Credit], [Debit], [CreatedDate], [ModifiedDate]
+FROM DBSIG01.SiteDB01tmp.dbo.BalNetPosition_Copy WITH (NOLOCK)
+
+INSERT INTO #BalNetPosition_update ([CustID], [MatchID], [Bettype])
+SELECT b.[CustID], b.[MatchID], b.[Bettype]
+FROM #BalNetPosition b
+	INNER JOIN [dbo].[BalNetPosition] main WITH (NOLOCK) ON b.custid = main.custid 
+				AND b.MatchID = main.MatchID 
+				AND b.Bettype = main.Bettype
+
+INSERT INTO #BalNetPosition_insert ([CustID], [MatchID], [Bettype])
+SELECT b.[CustID], b.[MatchID], b.[Bettype]
+FROM #BalNetPosition b
+	LEFT JOIN [dbo].[BalNetPosition] main WITH (NOLOCK) ON b.custid = main.custid 
+				AND b.MatchID = main.MatchID 
+				AND b.Bettype = main.Bettype
 WHERE main.custid IS NULL
 
---10. balanceTable
---There is no index for table balanceTable
-INSERT INTO [dbo].[balanceTable](	[custid], [roleid], [amount], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm], [recommend], [mrecommend], 
-									[srecommend], [currency], [UserName], [CurrencyName], [actualrate], [TicketCount], [balTicketCount])
-SELECT  bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
-		bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
-FROM DBSIG01.SiteDB01tmp.dbo.balanceTable_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[balanceTable] main WITH (NOLOCK) ON main.custid = bal.custid
-WHERE main.custid IS NULL
+-- START to update first
+SET @MaxRow = (SELECT MAX(rid) FROM #BalNetPosition_update)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
 
---11. balanceTable_tmp
-INSERT INTO [dbo].[balanceTable_tmp](	[winlostdate], [custid], [roleid], [amount], [awinlost], [mwinlost], [swinlost], [playercomm], [comm], [acomm], [scomm], [recommend], [mrecommend], 
-										[srecommend], [currency], [UserName], [CurrencyName], [actualrate], [TicketCount], [balTicketCount])
-SELECT  bal.[winlostdate], bal.[custid], bal.[roleid], bal.[amount], bal.[awinlost], bal.[mwinlost], bal.[swinlost], bal.[playercomm], bal.[comm], bal.[acomm], bal.[scomm], bal.[recommend], bal.[mrecommend], 
-		bal.[srecommend], bal.[currency], bal.[UserName], bal.[CurrencyName], bal.[actualrate], bal.[TicketCount], bal.[balTicketCount]
-FROM DBSIG01.SiteDB01tmp.dbo.balanceTable_tmp_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[balanceTable_tmp] main WITH (NOLOCK) ON main.custid = bal.custid AND main.winlostdate = bal.winlostdate
-WHERE main.custid IS NULL AND main.winlostdate IS NULL
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+	
+	UPDATE main
+		SET [MatchID]=bal.[MatchID],[Bettype]=bal.[Bettype],[Debit]=bal.[Debit],[Credit]=bal.[Credit],[CreatedDate]=bal.[CreatedDate],[ModifiedDate]=bal.[ModifiedDate]
+	FROM [dbo].[BalNetPosition] main WITH (UPDLOCK,ROWLOCK)
+		INNER JOIN #BalNetPosition_update bal ON bal.custid = main.custid AND bal.MatchID = main.MatchID AND bal.Bettype = main.Bettype
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
 
---12. BalanceTable_tmp_cal
---There is no index for table balanceTable
-INSERT INTO [dbo].[BalanceTable_tmp_cal] (	[dow], [roleid], [custid], [recommend], [mrecommend], [srecommend], 
-											[amt1], [tcnt1], [amt2], [tcnt2], [amt3], [tcnt3], [amt4], [tcnt4])
-SELECT	bal.[dow], bal.[roleid], bal.[custid], bal.[recommend], bal.[mrecommend], bal.[srecommend], 
-		bal.[amt1], bal.[tcnt1], bal.[amt2], bal.[tcnt2], bal.[amt3], bal.[tcnt3], bal.[amt4], bal.[tcnt4]
-FROM DBSIG01.SiteDB01tmp.dbo.BalanceTable_tmp_cal_Copy bal WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalanceTable_tmp_cal] main WITH (NOLOCK) ON main.custid = bal.custid
-WHERE main.custid IS NULL
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
+-- START to insert 
+SET @MaxRow = (SELECT MAX(rid) FROM #BalNetPosition_insert)
+SET @Threshold = 2000
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+-- SET for first batch
+SELECT @StartRow = 1, @StopRow = @Threshold
+
+WHILE (@MaxRow IS NOT NULL)
+BEGIN
+
+	INSERT INTO [dbo].[BalNetPosition] ([CustID], [MatchID], [Bettype], [Debit], [Credit], [CreatedDate], [ModifiedDate])
+	SELECT bal.[CustID], bal.[MatchID], bal.[Bettype], main.[Debit], main.[Credit], main.[CreatedDate], main.[ModifiedDate]
+	FROM #BalNetPosition_insert bal
+		INNER JOIN #BalNetPosition main ON bal.custid = main.custid AND bal.MatchID = main.MatchID AND bal.Bettype = main.Bettype
+	WHERE bal.rid BETWEEN @StartRow AND @StopRow
+
+	IF @StopRow = @MaxRow BREAK
+
+	WAITFOR DELAY '00:00:00.010' --optional
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @Threshold
+	IF @StopRow >= @MaxRow
+		SET @StopRow = @MaxRow
+
+END
