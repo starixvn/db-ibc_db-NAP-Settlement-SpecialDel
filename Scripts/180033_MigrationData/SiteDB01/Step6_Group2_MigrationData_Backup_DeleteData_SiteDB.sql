@@ -17,36 +17,36 @@ GO
 ------------------------------------------------
 /*****************Copy Stucture of Tables************************/
 SELECT TOP 1 *
-INTO bettrans_20221115
+INTO bettrans_delete
 FROM bodb02.dbo.bettrans b WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO BettransInfo_20221115
+INTO BettransInfo_delete
 FROM bodb02.dbo.BettransInfo binfo WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO bettransm_20221115
+INTO bettransm_delete
 FROM bodb02.dbo.bettransm bm WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO Transfer_20221115
+INTO Transfer_delete
 FROM bodb02.dbo.Transfer b WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO Transfer_Coll_20221115
+INTO Transfer_Coll_delete
 FROM bodb02.dbo.Transfer_Coll b WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO TransferInfo_20221115
+INTO TransferInfo_delete
 FROM bodb02.dbo.TransferInfo b WITH (NOLOCK)
 
 /*****************Truncate Table************************/
-TRUNCATE TABLE bettrans_20221115
-TRUNCATE TABLE BettransInfo_20221115
-TRUNCATE TABLE bettransm_20221115
-TRUNCATE TABLE Transfer_20221115
-TRUNCATE TABLE Transfer_Coll_20221115
-TRUNCATE TABLE TransferInfo_20221115
+TRUNCATE TABLE bettrans_delete
+TRUNCATE TABLE BettransInfo_delete
+TRUNCATE TABLE bettransm_delete
+TRUNCATE TABLE Transfer_delete
+TRUNCATE TABLE Transfer_Coll_delete
+TRUNCATE TABLE TransferInfo_delete
 
 /*******************BACKUP & DELETE Data**********************/
 --bodb02.dbo.bettrans
@@ -58,7 +58,7 @@ OUTPUT  deleted.[transid], deleted.[custid], deleted.[transdate], deleted.[oddsi
 		deleted.[ip], deleted.[transdesc], deleted.[sdiscount], deleted.[scomm], deleted.[spositiontaking], deleted.[swinlost], deleted.[srecommend], deleted.[Username], deleted.[CurrencyName], deleted.[virtualrate], deleted.[oddstype], 
 		deleted.[statusID], deleted.[currency2], deleted.[balance], deleted.[SecAcceptFlag], deleted.[transid2], deleted.[recommdate], deleted.[ExtraInfo], deleted.[WalletType], deleted.[BonusID], deleted.[RefCode], deleted.[SettlementTime],
 		deleted.[epositiontaking], deleted.[ReasonID], deleted.[sort], deleted.[BetSiteID], deleted.[RepUpdateTime], deleted.[RepDstUpdateTime], deleted.[SiteDBGroupID], deleted.[FcUpdateTime]
-INTO bettrans_20221115 ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], [comm], 
+INTO bettrans_delete ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], [comm], 
 						[acomm], [apositiontaking], [mpositiontaking], [tpositiontaking], [playerdiscount], [discount], [adiscount], [livehomescore], [liveawayscore], 
 						[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [actualrate], 
 						[matchid], [recommend], [mrecommend], [ruben], [betid], [statuswinlost], [modds], [bettype], [betdaqid], [actual_stake], [currency], 
@@ -71,9 +71,9 @@ FROM bodb02.dbo.bettrans b WITH (ROWLOCK)
 --bodb02.dbo.BettransInfo
 DELETE binfo
 OUTPUT deleted.[transid], deleted.[SecAcceptTime], deleted.[LiveBetAcceptTime], deleted.[OriginalOdds], deleted.[RepUpdateTime], deleted.[ThirdTransID]
-INTO BettransInfo_20221115 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
+INTO BettransInfo_delete ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
 FROM bodb02.dbo.BettransInfo binfo WITH (ROWLOCK)
-	INNER JOIN dbo.bettrans_20221115 b WITH (NOLOCK) ON b.transid = binfo.transid
+	INNER JOIN dbo.bettrans_delete b WITH (NOLOCK) ON b.transid = binfo.transid
 
 --bodb02.dbo.bettransm
 DELETE bm
@@ -82,7 +82,7 @@ OUTPUT  deleted.[transid], deleted.[custid], deleted.[transdate], deleted.[oddsi
 		deleted.[mpositiontaking], deleted.[tpositiontaking], deleted.[awinlost], deleted.[mwinlost], deleted.[playerdiscount], deleted.[discount], deleted.[adiscount], deleted.[playercomm], deleted.[comm], deleted.[acomm], 
 		deleted.[actualrate], deleted.[matchid], deleted.[matchdate], deleted.[finalodds], deleted.[isfinish], deleted.[statuswinlost], deleted.[ruben], deleted.[bettype], deleted.[spositiontaking], deleted.[swinlost], deleted.[sdiscount], 
 		deleted.[scomm], deleted.[statusID], deleted.[recommdate], deleted.[transdesc], deleted.[SecAcceptFlag], deleted.[SecAcceptTime], deleted.[LiveBetAcceptTime], deleted.[ReasonIDm], deleted.[RepUpdateTime], deleted.[SiteDBGroupID]
-INTO bettransm_20221115 (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
+INTO bettransm_delete (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 							[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], 
 							[mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], [playercomm], [comm], [acomm], 
 							[actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], [spositiontaking], [swinlost], [sdiscount], 
@@ -95,7 +95,7 @@ DELETE b
 OUTPUT  deleted.[TransId], deleted.[CustId], deleted.[TransDate], deleted.[WinlostDate], deleted.[Bettype], deleted.[Stake], deleted.[Actual_Stake], deleted.[Winlost], deleted.[AWinlost], deleted.[MWinlost], deleted.[SWinlost], deleted.[PlayerComm], 
 		deleted.[Comm], deleted.[AComm], deleted.[SComm], deleted.[StatusId], deleted.[RefNo], deleted.[TransDesc], deleted.[Recommend], deleted.[MRecommend], deleted.[SRecommend], deleted.[Username], deleted.[Currency], deleted.[CurrencyName], 
 		deleted.[ActualRate], deleted.[Creator], deleted.[Balance], deleted.[IP], deleted.[CheckTime], deleted.[SerialNo], deleted.[RepUpdateTime]
-INTO Transfer_20221115 ([TransId], [CustId], [TransDate], [WinlostDate], [Bettype], [Stake], [Actual_Stake], [Winlost], [AWinlost], [MWinlost], [SWinlost], [PlayerComm], 
+INTO Transfer_delete ([TransId], [CustId], [TransDate], [WinlostDate], [Bettype], [Stake], [Actual_Stake], [Winlost], [AWinlost], [MWinlost], [SWinlost], [PlayerComm], 
 						[Comm], [AComm], [SComm], [StatusId], [RefNo], [TransDesc], [Recommend], [MRecommend], [SRecommend], [Username], [Currency], [CurrencyName], 
 						[ActualRate], [Creator], [Balance], [IP], [CheckTime], [SerialNo], [RepUpdateTime])
 FROM bodb02.dbo.Transfer b WITH (ROWLOCK)
@@ -105,16 +105,16 @@ FROM bodb02.dbo.Transfer b WITH (ROWLOCK)
 DELETE b
 OUTPUT  deleted.[CustId], deleted.[WinlostDate], deleted.[TransDate], deleted.[Bettype], deleted.[Debit], deleted.[Credit], deleted.[Currency], deleted.[ActualRate], deleted.[TransID], deleted.[RefNo], deleted.[Username], 
 		deleted.[Recommend], deleted.[MRecommend], deleted.[SRecommend], deleted.[Creator], deleted.[TransDesc], deleted.[IP], deleted.[RepUpdateTime]
-INTO Transfer_Coll_20221115 (	[CustId], [WinlostDate], [TransDate], [Bettype], [Debit], [Credit], [Currency], [ActualRate], [TransID], [RefNo], [Username], 
+INTO Transfer_Coll_delete (	[CustId], [WinlostDate], [TransDate], [Bettype], [Debit], [Credit], [Currency], [ActualRate], [TransID], [RefNo], [Username], 
 								[Recommend], [MRecommend], [SRecommend], [Creator], [TransDesc], [IP], [RepUpdateTime])
 FROM bodb02.dbo.Transfer_Coll b WITH (ROWLOCK)
-	INNER JOIN dbo.Transfer_20221115 b1 WITH (NOLOCK) ON b1.TransID = b.TransID
+	INNER JOIN dbo.Transfer_delete b1 WITH (NOLOCK) ON b1.TransID = b.TransID
 
 --bodb02.dbo.TransferInfo
 DELETE b
 OUTPUT	deleted.[TransId], deleted.[APositiontaking], deleted.[MPositiontaking], deleted.[SPositiontaking], deleted.[EPositiontaking], deleted.[PlayerDiscount], deleted.[Discount], deleted.[ADiscount], deleted.[SDiscount], 
 		deleted.[WalletType], deleted.[BonusID], deleted.[Amount], deleted.[CheckerId], deleted.[CheckerName], deleted.[IsCollection], deleted.[IsDel], deleted.[RepUpdateTime] 
-INTO TransferInfo_20221115 ([TransId], [APositiontaking], [MPositiontaking], [SPositiontaking], [EPositiontaking], [PlayerDiscount], [Discount], [ADiscount], [SDiscount], 
+INTO TransferInfo_delete ([TransId], [APositiontaking], [MPositiontaking], [SPositiontaking], [EPositiontaking], [PlayerDiscount], [Discount], [ADiscount], [SDiscount], 
 							[WalletType], [BonusID], [Amount], [CheckerId], [CheckerName], [IsCollection], [IsDel], [RepUpdateTime])
 FROM bodb02.dbo.TransferInfo b WITH (ROWLOCK)
-	INNER JOIN dbo.Transfer_20221115 b1 WITH (NOLOCK) ON b1.TransID = b.TransID	
+	INNER JOIN dbo.Transfer_delete b1 WITH (NOLOCK) ON b1.TransID = b.TransID	

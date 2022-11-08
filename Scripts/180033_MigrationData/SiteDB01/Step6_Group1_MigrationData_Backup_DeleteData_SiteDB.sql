@@ -16,31 +16,31 @@ GO
 ------------------------------------------------
 /*****************Copy Stucture of Tables************************/
 SELECT TOP 1 *
-INTO bettrans14_20221115
+INTO bettrans14_delete
 FROM bodb02.dbo.bettrans14 b WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO BettransInfo14_20221115
+INTO BettransInfo14_delete
 FROM bodb02.dbo.BettransInfo14 binfo WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO bettransm14_20221115
+INTO bettransm14_delete
 FROM bodb02.dbo.bettransm14 bm WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO BetParlayDetail_20221115
+INTO BetParlayDetail_delete
 FROM bodb02.dbo.BetParlayDetail bpd WITH (NOLOCK)
 
 SELECT TOP 1 *
-INTO Task_bettrans14_IP2Country_20221115
+INTO Task_bettrans14_IP2Country_delete
 FROM bodb02.dbo.Task_bettrans14_IP2Country tbip WITH (NOLOCK)
 
 /*****************Truncate Table************************/
-TRUNCATE TABLE bettrans14_20221115
-TRUNCATE TABLE BettransInfo14_20221115
-TRUNCATE TABLE bettransm14_20221115
-TRUNCATE TABLE BetParlayDetail_20221115
-TRUNCATE TABLE Task_bettrans14_IP2Country_20221115
+TRUNCATE TABLE bettrans14_delete
+TRUNCATE TABLE BettransInfo14_delete
+TRUNCATE TABLE bettransm14_delete
+TRUNCATE TABLE BetParlayDetail_delete
+TRUNCATE TABLE Task_bettrans14_IP2Country_delete
 
 /*******************BACKUP & DELETE Data**********************/
 --bodb02.dbo.bettrans14
@@ -52,7 +52,7 @@ OUTPUT  deleted.[transid], deleted.[custid], deleted.[transdate], deleted.[oddsi
 		deleted.[actual_stake], deleted.[currency], deleted.[ip], deleted.[transdesc], deleted.[sdiscount], deleted.[scomm], deleted.[spositiontaking], deleted.[swinlost], deleted.[srecommend], deleted.[virtualrate], deleted.[Username], 
 		deleted.[CurrencyName], deleted.[oddstype], deleted.[statusID], deleted.[currency2], deleted.[balance], deleted.[SecAcceptFlag], deleted.[transid2], deleted.[recommdate], deleted.[ExtraInfo], deleted.[WalletType], deleted.[BonusID], 
 		deleted.[RefCode], deleted.[SettlementTime], deleted.[epositiontaking], deleted.[ReasonID], deleted.[sort], deleted.[SiteDBGroupID]
-INTO bettrans14_20221115 (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], 
+INTO bettrans14_delete (	[transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], 
 							[comm], [acomm], [apositiontaking], [mpositiontaking], [tpositiontaking], [playerdiscount], [discount], [adiscount], [livehomescore], 
 							[liveawayscore], [liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], 
 							[actualrate], [matchid], [recommend], [mrecommend], [ruben], [betid], [statuswinlost], [modds], [bettype], [betdaqid], 
@@ -65,9 +65,9 @@ FROM bodb02.dbo.bettrans14 b WITH (ROWLOCK)
 --bodb02.dbo.BettransInfo14
 DELETE binfo
 OUTPUT deleted.[transid], deleted.[SecAcceptTime], deleted.[LiveBetAcceptTime], deleted.[OriginalOdds], deleted.[ThirdTransID]
-INTO BettransInfo14_20221115 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
+INTO BettransInfo14_delete ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
 FROM bodb02.dbo.BettransInfo14 binfo WITH (ROWLOCK)
-	INNER JOIN dbo.bettrans14_20221115 b WITH (NOLOCK) ON binfo.transid = b.transid 
+	INNER JOIN dbo.bettrans14_delete b WITH (NOLOCK) ON binfo.transid = b.transid 
 
 --bodb02.dbo.bettransm14
 DELETE bm
@@ -77,7 +77,7 @@ OUTPUT  deleted.[transid], deleted.[custid], deleted.[transdate], deleted.[oddsi
 		deleted.[playercomm], deleted.[comm], deleted.[acomm], deleted.[actualrate], deleted.[matchid], deleted.[matchdate], deleted.[finalodds], deleted.[isfinish], deleted.[statuswinlost], deleted.[ruben], deleted.[bettype], 
 		deleted.[spositiontaking], deleted.[swinlost], deleted.[sdiscount], deleted.[scomm], deleted.[statusID], deleted.[recommdate], deleted.[transdesc], deleted.[SecAcceptFlag], deleted.[SecAcceptTime], 
 		deleted.[LiveBetAcceptTime], deleted.[ReasonIDm], deleted.[SiteDBGroupID]
-INTO bettransm14_20221115 ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
+INTO bettransm14_delete ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
 							[liveindicator], [betteam], [creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], 
 							[apositiontaking], [mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], 
 							[playercomm], [comm], [acomm], [actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], 
@@ -90,17 +90,17 @@ FROM bodb02.dbo.bettransm14 bm WITH (ROWLOCK)
 DELETE bpd
 OUTPUT	deleted.[RefNo], deleted.[Serial], deleted.[transid], deleted.[winlostdate], deleted.[statuswinlost], deleted.[statusid], deleted.[matchid], deleted.[bettype], deleted.[stake], deleted.[odds], deleted.[betteam], deleted.[hdp1], deleted.[hdp2], 
 		deleted.[livehomescore], deleted.[liveawayscore], deleted.[liveindicator], deleted.[betcheck], deleted.[transdesc]
-INTO BetParlayDetail_20221115 (	[RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
+INTO BetParlayDetail_delete (	[RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
 								[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
 FROM bodb02.dbo.BetParlayDetail bpd WITH (ROWLOCK)
-	INNER JOIN refno_20221115 tmp WITH (NOLOCK) ON tmp.refno = bpd.refno
+	INNER JOIN refno_delete tmp WITH (NOLOCK) ON tmp.refno = bpd.refno
 
 --bodb02.dbo.Task_bettrans14_IP2Country
 DELETE tbip
 OUTPUT	deleted.[transid], deleted.[winlostdate], deleted.[CountryShort], deleted.[IPArchive]
-INTO [Task_bettrans14_IP2Country_20221115] ([transid], [winlostdate], [CountryShort], [IPArchive])
+INTO [Task_bettrans14_IP2Country_delete] ([transid], [winlostdate], [CountryShort], [IPArchive])
 FROM bodb02.dbo.Task_bettrans14_IP2Country tbip WITH (ROWLOCK)
-	INNER JOIN dbo.bettrans14_20221115 b WITH (NOLOCK) ON b.transid = tbip.transid
+	INNER JOIN dbo.bettrans14_delete b WITH (NOLOCK) ON b.transid = tbip.transid
 
 
 	

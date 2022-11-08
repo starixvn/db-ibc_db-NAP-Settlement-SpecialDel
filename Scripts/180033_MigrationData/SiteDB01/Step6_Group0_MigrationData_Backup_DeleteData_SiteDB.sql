@@ -14,21 +14,21 @@
 USE SiteDB01tmp
 GO
 
-CREATE TABLE refno_20221115
+CREATE TABLE refno_delete
 (
 	refno BIGINT PRIMARY KEY
 )
 
 ------------------------------------------------
 
-INSERT INTO refno_20221115 (refno)
+INSERT INTO refno_delete (refno)
 SELECT DISTINCT b.refno
 FROM bodb02.dbo.bettrans b WITH (NOLOCK)
-	INNER JOIN cust_20221115 tmp WITH (NOLOCK) ON tmp.custid = b.custid
+	INNER JOIN cust_Copy tmp WITH (NOLOCK) ON tmp.custid = b.custid
 WHERE b.bettype = 29 AND b.matchid = 29
 
-INSERT INTO refno_20221115 (refno)
+INSERT INTO refno_delete (refno)
 SELECT DISTINCT b.refno
 FROM bodb02.dbo.bettrans14 b WITH (NOLOCK)
-	INNER JOIN cust_20221115 tmp WITH (NOLOCK) ON tmp.custid = b.custid
+	INNER JOIN cust_Copy tmp WITH (NOLOCK) ON tmp.custid = b.custid
 WHERE b.bettype = 29 AND b.matchid = 29
