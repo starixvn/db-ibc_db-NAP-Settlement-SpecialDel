@@ -66,7 +66,7 @@ INTO bettrans_20221115 ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp
 						[statusID], [currency2], [balance], [SecAcceptFlag], [transid2], [recommdate], [ExtraInfo], [WalletType], [BonusID], [RefCode], [SettlementTime],
 						[epositiontaking], [ReasonID], [sort], [BetSiteID], [RepUpdateTime], [RepDstUpdateTime], [SiteDBGroupID], [FcUpdateTime])
 FROM bodb02.dbo.bettrans b WITH (ROWLOCK)
-	INNER JOIN cust_20221115 tmp WITH (NOLOCK) ON tmp.custid = b.custid
+	INNER JOIN cust_Copy tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 --bodb02.dbo.BettransInfo
 DELETE binfo
@@ -88,7 +88,7 @@ INTO bettransm_20221115 (	[transid], [custid], [transdate], [oddsid], [hdp1], [h
 							[actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], [spositiontaking], [swinlost], [sdiscount], 
 							[scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], [LiveBetAcceptTime], [ReasonIDm], [RepUpdateTime], [SiteDBGroupID])
 FROM bodb02.dbo.bettransm bm WITH (ROWLOCK)
-	INNER JOIN cust_20221115 tmp WITH (NOLOCK) ON tmp.custid = bm.custid
+	INNER JOIN cust_Copy tmp WITH (NOLOCK) ON tmp.custid = bm.custid
 
 --bodb02.dbo.Transfer
 DELETE b
@@ -99,7 +99,7 @@ INTO Transfer_20221115 ([TransId], [CustId], [TransDate], [WinlostDate], [Bettyp
 						[Comm], [AComm], [SComm], [StatusId], [RefNo], [TransDesc], [Recommend], [MRecommend], [SRecommend], [Username], [Currency], [CurrencyName], 
 						[ActualRate], [Creator], [Balance], [IP], [CheckTime], [SerialNo], [RepUpdateTime])
 FROM bodb02.dbo.Transfer b WITH (ROWLOCK)
-	INNER JOIN cust_20221115 tmp WITH (NOLOCK) ON tmp.custid = b.custid
+	INNER JOIN cust_Copy tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 --bodb02.dbo.Transfer_Coll
 DELETE b

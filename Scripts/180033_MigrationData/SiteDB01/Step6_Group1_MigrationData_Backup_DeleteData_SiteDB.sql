@@ -60,7 +60,7 @@ INTO bettrans14_20221115 (	[transid], [custid], [transdate], [oddsid], [hdp1], [
 							[CurrencyName], [oddstype], [statusID], [currency2], [balance], [SecAcceptFlag], [transid2], [recommdate], [ExtraInfo], [WalletType], [BonusID], 
 							[RefCode], [SettlementTime], [epositiontaking], [ReasonID], [sort], [SiteDBGroupID])
 FROM bodb02.dbo.bettrans14 b WITH (ROWLOCK)
-	INNER JOIN cust_20221115 tmp WITH (NOLOCK) ON tmp.custid = b.custid
+	INNER JOIN cust_Copy tmp WITH (NOLOCK) ON tmp.custid = b.custid
 
 --bodb02.dbo.BettransInfo14
 DELETE binfo
@@ -84,7 +84,7 @@ INTO bettransm14_20221115 ([transid], [custid], [transdate], [oddsid], [hdp1], [
 							[spositiontaking], [swinlost], [sdiscount], [scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], 
 							[LiveBetAcceptTime], [ReasonIDm], [SiteDBGroupID])
 FROM bodb02.dbo.bettransm14 bm WITH (ROWLOCK)
-	INNER JOIN cust_20221115 tmp WITH (NOLOCK) ON tmp.custid = bm.custid
+	INNER JOIN cust_Copy tmp WITH (NOLOCK) ON tmp.custid = bm.custid
 	
 --bodb02.dbo.BetParlayDetail
 DELETE bpd

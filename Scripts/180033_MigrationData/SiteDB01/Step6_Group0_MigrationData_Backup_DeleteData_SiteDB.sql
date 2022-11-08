@@ -14,21 +14,12 @@
 USE SiteDB01tmp
 GO
 
-CREATE TABLE cust_20221115
-(
-	custid INT PRIMARY KEY
-)
-
 CREATE TABLE refno_20221115
 (
 	refno BIGINT PRIMARY KEY
 )
 
 ------------------------------------------------
-INSERT INTO cust_20221115 (custid)
-SELECT DISTINCT custid
-FROM CustDB.dbo.Customer WITH (NOLOCK)
-WHERE site IN	('Betway')
 
 INSERT INTO refno_20221115 (refno)
 SELECT DISTINCT b.refno
