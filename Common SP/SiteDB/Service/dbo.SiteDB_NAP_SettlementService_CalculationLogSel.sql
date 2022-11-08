@@ -1,6 +1,6 @@
 /*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogSel]
-	@batch INT = 100
+	@batch INT
 AS
 /*
 	Created by: 20201123@Kathy
@@ -19,6 +19,9 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
+	IF @batch IS NULL
+	SET @batch = 0
+
 	DECLARE @LastLogId		BIGINT
 			,@LastStatusId	TINYINT			
 			,@LogId			BIGINT
@@ -78,21 +81,18 @@ BEGIN
 			AND DATEDIFF(SECOND, LogDate, GETDATE() ) >= 1
 		ORDER BY LogId
 
-		IF @@ROWCOUNT > 0
-
-		SELECT	TOP (@batch) LogId
-				,TransInfo
-				,TransInfoJson
-				,TableName
-				,MatchId
-				,Action
-				,SettlementAction
-				,TicketType
-				,SessionId
-				,IsParallel
-		FROM	dbo.SiteDB_SettlementService_CalculationLog WITH(NOLOCK)
-		WHERE	LogId > ISNULL(@LastLogId,0)
-			AND DATEDIFF(SECOND, LogDate, GETDATE() ) >= 1
+		SELECT	TOP (@batch) l.LogId
+				,l.TransInfo
+				,l.TransInfoJson
+				,l.TableName
+				,l.MatchId
+				,l.Action
+				,l.SettlementAction
+				,l.TicketType
+				,l.SessionId
+				,l.IsParallel
+		FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
+			INNER JOIN @tmpInsertedLogIds tmp ON l.LogId = tmp.LogId
 		ORDER BY LogId
 
 	END

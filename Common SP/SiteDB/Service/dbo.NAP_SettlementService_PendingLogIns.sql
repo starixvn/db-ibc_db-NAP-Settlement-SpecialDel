@@ -63,8 +63,9 @@ BEGIN
 		,l.SessionId
 		,l.IsParallel
 	FROM @SiteDBCalculationLog l
-		LEFT JOIN dbo.SiteDB_SettlementProcessing_History h WITH(NOLOCK)
+		LEFT JOIN dbo.SiteDB_SettlementService_CalculationLog_History h WITH(NOLOCK)
 			ON l.LogId = h.LogId
+				AND h.SiteDBGroupId = @SiteDBGroupId
 	WHERE h.LogId IS NULL
 
 	IF @@ROWCOUNT = 0
@@ -94,7 +95,7 @@ BEGIN
 		WHERE	s.IsParallel = 1
 		ORDER BY s.LogId
 
-		INSERT INTO  dbo.SiteDB_SettlementProcessing_History (LogId, SiteDBGroupId)
+		INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId)
 		SELECT s.LogId, @SiteDBGroupId 
 		FROM	@SiteDBPendingLog s
 		WHERE	s.IsParallel = 1
@@ -143,7 +144,7 @@ BEGIN
 
 			SET @LogId = @CurrentLogId
 
-			INSERT INTO  dbo.SiteDB_SettlementProcessing_History (LogId, SiteDBGroupId)
+			INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId)
 			SELECT @LogId, @SiteDBGroupId 
 		END
 	END	

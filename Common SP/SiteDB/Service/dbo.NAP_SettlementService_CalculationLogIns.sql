@@ -62,6 +62,11 @@ BEGIN
 		FROM	@SiteDBCalculationLog s
 		WHERE	s.IsParallel = 1
 		ORDER BY s.LogId
+
+		INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId)
+		SELECT s.LogId, @SiteDBGroupId 
+		FROM	@SiteDBCalculationLog s
+		WHERE	s.IsParallel = 1
 	END
 	
 	IF @MaxLogId > 0 -- run commands in sequence
@@ -106,6 +111,9 @@ BEGIN
 				,@MessageType = @MessageType
 
 			SET @LogId = @CurrentLogId
+
+			INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId)
+			SELECT @LogId, @SiteDBGroupId 
 		END
 	END	
 END

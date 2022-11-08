@@ -2,6 +2,7 @@
 USE [bodb02]
 GO
 
+----1
 CREATE TABLE [dbo].[SiteDB_SettlementProcessing](
 	[Id] [bigint] IDENTITY(1,1) NOT NULL,
 	[SiteDBGroupId] [smallint] NOT NULL,
@@ -21,5 +22,27 @@ GO
 ALTER TABLE [dbo].[SiteDB_SettlementProcessing] ADD  CONSTRAINT [DF_SiteDB_SettlementProcessing_StatusId]  DEFAULT ((0)) FOR [StatusId]
 GO
 
+----2
+CREATE TABLE [dbo].[SiteDB_SettlementService_CalculationLog_History](
+	[LogId]			[bigint] NOT NULL,
+	[SiteDBGroupId] [smallint],
+	[LogDate]		[DATETIME2]
+ )
+ ON [DATA]
+GO
 
---drop table [SiteDB_SettlementProcessing]
+CREATE NONCLUSTERED INDEX [IX_SiteDB_SettlementService_CalculationLog_History_LogIdSiteDBGroupId] ON [dbo].[SiteDB_SettlementService_CalculationLog_History]
+(
+	LogId
+	,SiteDBGroupId
+)
+ON [DATA]
+GO
+
+CREATE CLUSTERED INDEX [CIX_SiteDB_SettlementService_CalculationLog_History_LogDate] ON [dbo].[SiteDB_SettlementService_CalculationLog_History]
+(
+	LogDate
+)
+ON [DATA]
+GO
+
