@@ -7,3 +7,6 @@ GO
 
 ALTER TABLE dbo.SiteDB_SettlementService_CalculationLog ADD IsParallel BIT CONSTRAINT DF_SiteDB_SettlementService_CalculationLog_IsParallel DEFAULT(0) 
 
+
+ALTER TABLE dbo.SSB_SettlementLogs 
+	ADD SiteDBGroupId SMALLINT CONSTRAINT [DF_SSB_SettlementLogs_SiteDBGroupId]  DEFAULT (0) 

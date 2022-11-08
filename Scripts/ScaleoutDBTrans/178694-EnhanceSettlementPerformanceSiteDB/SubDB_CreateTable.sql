@@ -32,3 +32,7 @@ GO
 
 ALTER TABLE [dbo].[SiteDB_SettlementProcessing] ADD  CONSTRAINT [DF_SiteDB_SettlementProcessing_StatusId]  DEFAULT ((0)) FOR [StatusId]
 GO
+
+
+ALTER TABLE dbo.SSB_SettlementLogs 
+	ADD SiteDBGroupId SMALLINT CONSTRAINT [DF_SSB_SettlementLogs_SiteDBGroupId]  DEFAULT (0) 
