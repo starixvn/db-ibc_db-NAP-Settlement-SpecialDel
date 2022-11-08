@@ -75,7 +75,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	DELETE TOP (@batch) b
+	DELETE  b
 	OUTPUT  deleted.[transid], deleted.[custid], deleted.[transdate], deleted.[oddsid], deleted.[hdp1], deleted.[hdp2], deleted.[odds], deleted.[stake], deleted.[status], deleted.[winlost], deleted.[awinlost], deleted.[mwinlost], deleted.[playercomm], deleted.[comm], 
 			deleted.[acomm], deleted.[apositiontaking], deleted.[mpositiontaking], deleted.[tpositiontaking], deleted.[playerdiscount], deleted.[discount], deleted.[adiscount], deleted.[livehomescore], deleted.[liveawayscore], 
 			deleted.[liveindicator], deleted.[betteam], deleted.[creator], deleted.[refno], deleted.[comstatus], deleted.[winlostdate], deleted.[betfrom], deleted.[betcheck], deleted.[checktime], deleted.[oddsspread], deleted.[actualrate], 
@@ -122,7 +122,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
 
-	DELETE TOP (@batch) binfo
+	DELETE  binfo
 	OUTPUT deleted.[transid], deleted.[SecAcceptTime], deleted.[LiveBetAcceptTime], deleted.[OriginalOdds], deleted.[RepUpdateTime], deleted.[ThirdTransID]
 	INTO BettransInfo_delete ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [RepUpdateTime], [ThirdTransID])
 	FROM bodb02.dbo.BettransInfo binfo WITH (ROWLOCK)
@@ -154,7 +154,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	DELETE TOP (@batch) bm
+	DELETE  bm
 	OUTPUT  deleted.[transid], deleted.[custid], deleted.[transdate], deleted.[oddsid], deleted.[hdp1], deleted.[hdp2], deleted.[odds], deleted.[stake], deleted.[status], deleted.[winlost], deleted.[livehomescore], deleted.[liveawayscore], 
 			deleted.[liveindicator], deleted.[betteam], deleted.[creator], deleted.[refno], deleted.[comstatus], deleted.[winlostdate], deleted.[betfrom], deleted.[betcheck], deleted.[checktime], deleted.[oddsspread], deleted.[apositiontaking], 
 			deleted.[mpositiontaking], deleted.[tpositiontaking], deleted.[awinlost], deleted.[mwinlost], deleted.[playerdiscount], deleted.[discount], deleted.[adiscount], deleted.[playercomm], deleted.[comm], deleted.[acomm], 
@@ -195,7 +195,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	DELETE TOP (@batch) b
+	DELETE  b
 	OUTPUT  deleted.[TransId], deleted.[CustId], deleted.[TransDate], deleted.[WinlostDate], deleted.[Bettype], deleted.[Stake], deleted.[Actual_Stake], deleted.[Winlost], deleted.[AWinlost], deleted.[MWinlost], deleted.[SWinlost], deleted.[PlayerComm], 
 			deleted.[Comm], deleted.[AComm], deleted.[SComm], deleted.[StatusId], deleted.[RefNo], deleted.[TransDesc], deleted.[Recommend], deleted.[MRecommend], deleted.[SRecommend], deleted.[Username], deleted.[Currency], deleted.[CurrencyName], 
 			deleted.[ActualRate], deleted.[Creator], deleted.[Balance], deleted.[IP], deleted.[CheckTime], deleted.[SerialNo], deleted.[RepUpdateTime]
@@ -231,7 +231,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	DELETE TOP (@batch) b
+	DELETE  b
 	OUTPUT  deleted.[CustId], deleted.[WinlostDate], deleted.[TransDate], deleted.[Bettype], deleted.[Debit], deleted.[Credit], deleted.[Currency], deleted.[ActualRate], deleted.[TransID], deleted.[RefNo], deleted.[Username], 
 			deleted.[Recommend], deleted.[MRecommend], deleted.[SRecommend], deleted.[Creator], deleted.[TransDesc], deleted.[IP], deleted.[RepUpdateTime]
 	INTO Transfer_Coll_delete (	[CustId], [WinlostDate], [TransDate], [Bettype], [Debit], [Credit], [Currency], [ActualRate], [TransID], [RefNo], [Username], 
@@ -266,7 +266,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	DELETE TOP (@batch) b
+	DELETE  b
 	OUTPUT	deleted.[TransId], deleted.[APositiontaking], deleted.[MPositiontaking], deleted.[SPositiontaking], deleted.[EPositiontaking], deleted.[PlayerDiscount], deleted.[Discount], deleted.[ADiscount], deleted.[SDiscount], 
 			deleted.[WalletType], deleted.[BonusID], deleted.[Amount], deleted.[CheckerId], deleted.[CheckerName], deleted.[IsCollection], deleted.[IsDel], deleted.[RepUpdateTime] 
 	INTO TransferInfo_delete ([TransId], [APositiontaking], [MPositiontaking], [SPositiontaking], [EPositiontaking], [PlayerDiscount], [Discount], [ADiscount], [SDiscount], 
