@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestInfo_Copy]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestInfo_Copy]
 (
 	 @RequestId		INT				= NULL
 	,@MatchId		INT				= NULL
@@ -11,7 +11,8 @@ AS
 	
 	Revisions: 
 		- 20221024@July: Create new SP [Redmine:#179332]
-		
+		- 20221108@July: Change value KickOffTime to GlobalShowTime (GMT+8) [Redmine:#179332]
+
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
 	
@@ -19,14 +20,16 @@ AS
 		
 */
 BEGIN
+	
+	DECLARE @IsNeutral BIT
+		  , @GlobalShowTime SMALLDATETIME
+
 	DECLARE @tmpRequestInfo TABLE (
 		 RequestId			INT
 		,MatchId			INT
-		,KickOffTime		DATETIME
 		,LeagueId			INT
 		,HomeId				INT
 		,AwayId				INT
-		,IsNeutral			BIT
 		,FilterBy			INT
 		--,RequestExtraInfo	VARCHAR(MAX)
 		,StartVoidTime		DATETIME
@@ -66,26 +69,26 @@ BEGIN
 	   AND rd.MatchId = @MatchId
 	ORDER BY rd.VoidFromTime ASC
 
-	UPDATE ri
-	SET IsNeutral = m.IsNeutral
-	   ,KickOffTime = m.kickofftime
+	SELECT @IsNeutral = MAX(CASE WHEN m.IsNeutral = 1 THEN 1 ELSE 0 END)
+	     , @GlobalShowTime = MAX(m.GlobalShowTime)
 	FROM @tmpRequestInfo ri
-		INNER JOIN (
-					SELECT m.matchid, m.IsNeutral, m.kickofftime
+		CROSS APPLY (
+					SELECT m.matchid, m.IsNeutral, m.GlobalShowTime
 					FROM dbo.match m WITH(NOLOCK)
+					WHERE ri.MatchId = m.matchid
 					UNION
-					SELECT m14.matchid, m14.IsNeutral, m14.kickofftime
+					SELECT m14.matchid, m14.IsNeutral, m14.GlobalShowTime
 					FROM dbo.match14 m14 WITH(NOLOCK)
-					) m
-			ON ri.MatchId = m.matchid
+					WHERE ri.MatchId = m14.matchid
+		) m
 
 	SELECT RequestId 
 		  ,MatchId 
 		  ,LeagueId 
 		  ,HomeId 
 		  ,AwayId 
-		  ,KickOffTime
-		  ,IsNeutral 
+		  ,@GlobalShowTime AS KickOffTime
+		  ,@IsNeutral AS IsNeutral
 		  ,FilterBy 
 		  --,RequestExtraInfo
 		  ,StartVoidTime 
