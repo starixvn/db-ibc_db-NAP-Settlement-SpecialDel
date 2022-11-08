@@ -146,6 +146,7 @@ BEGIN
 		ELSE
 		BEGIN
 			SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
+							+ ',@SiteDBGroupId = ' + CAST(@SiteDBGroupId AS VARCHAR) 
 							+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
 							+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 							+ ',@MessageType = ' +  '''' + @MessageType + ''''
