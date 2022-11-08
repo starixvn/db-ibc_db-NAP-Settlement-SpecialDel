@@ -534,6 +534,9 @@ BEGIN
 		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
 									  FROM #TVSTicketBets 
 									  WHERE matchid = @MainMatchId
+									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 4 AND Subbettype <> 1)OR (@IssueTypeId = 5 AND Subbettype <> 7)) THEN 1
+												   WHEN IsMixParlay = 1 THEN 1
+												   ELSE 0 END
 									  FOR XML PATH ('')
 								),1,1,'')
 		UPDATE #FilterInfo
