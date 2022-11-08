@@ -11,158 +11,666 @@
 							 BalancePendingCreditGame,BalancePendingDebitGame,BalCreditCasinoPending,BalCreditOthersPending,
 							 BalCreditSportsPending,BalDebitCasinoPending,BalDebitOthersPending,BalDebitSportsPending,Intg_GameRoundBetStake,
 							 LastBetTime,LastBetTime_Agent,MarkedTransaction,NetPositionCalculationLog,
-							 NetPositionTrans
+							 NetPositionTrans,Task_Cust_CheckBalance_Exception,Task_Cust_BalanceProblem1
 */
 
 USE bodb02
 GO
 ------------------------------------------------
-/*********UPDATE DATA IF ALREADY EXISTS****************/
-
-
-/*********INSERT DATA IF NOT EXISTS****************/
 --Bonus_sum_winloss
-INSERT INTO [dbo].[Bonus_sum_winloss] ([CustId], [BonusId], [winlostdate], [Amount])
-SELECT bon.[CustId], bon.[BonusId], bon.[winlostdate], bon.[Amount]
+SELECT *
+INTO #Bonus_sum_winloss_tmp
 FROM DBSIG01.SiteDB01tmp.dbo.Bonus_sum_winloss_Copy bon WITH (NOLOCK)
-	LEFT JOIN [dbo].[Bonus_sum_winloss] main WITH (NOLOCK) ON main.CustId = bon.CustId
-WHERE main.CustId IS NULL
 
+SELECT tmp.*
+INTO #Bonus_sum_winloss_tmp_update
+FROM #Bonus_sum_winloss_tmp tmp
+	INNER JOIN [dbo].[Bonus_sum_winloss] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+
+SELECT tmp.*
+INTO #Bonus_sum_winloss_tmp_insert
+FROM #Bonus_sum_winloss_tmp tmp
+	LEFT JOIN [dbo].[Bonus_sum_winloss] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+WHERE main.CustId IS NULL AND main.BonusId IS NULL 
+
+UPDATE main
+SET [Amount]=tmp.[Amount], [winlostdate] = tmp.[winlostdate]
+FROM [dbo].[Bonus_sum_winloss] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #Bonus_sum_winloss_tmp_update tmp ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+
+INSERT INTO [dbo].[Bonus_sum_winloss] ([CustId], [BonusId], [winlostdate], [Amount])
+SELECT tmp.[CustId], tmp.[BonusId], tmp.[winlostdate], tmp.[Amount]
+FROM #Bonus_sum_winloss_tmp_insert tmp 
+
+--DROP TABLE #Bonus_sum_winloss_tmp
+--DROP TABLE #Bonus_sum_winloss_tmp_update
+--DROP TABLE #Bonus_sum_winloss_tmp_insert
+
+------------------------------------------------
 --BonusAdjustmentTransfer
-INSERT INTO [dbo].[BonusAdjustmentTransfer] ([LogDate], [ExecDate], [CustID], [MatchID], [BonusID], [StatusID], [Amount], [isTransferred])
-SELECT bon.[LogDate], bon.[ExecDate], bon.[CustID], bon.[MatchID], bon.[BonusID], bon.[StatusID], bon.[Amount], bon.[isTransferred]
+SELECT *
+INTO #BonusAdjustmentTransfer_tmp
 FROM DBSIG01.SiteDB01tmp.dbo.BonusAdjustmentTransfer_Copy bon WITH (NOLOCK)
-	LEFT JOIN [dbo].[BonusAdjustmentTransfer] main WITH (NOLOCK) ON main.CustId = bon.CustId
-WHERE main.CustId IS NULL
 
+SELECT tmp.*
+INTO #BonusAdjustmentTransfer_tmp_update
+FROM #BonusAdjustmentTransfer_tmp tmp
+	INNER JOIN [dbo].[BonusAdjustmentTransfer] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+
+SELECT tmp.*
+INTO #BonusAdjustmentTransfer_tmp_insert
+FROM #BonusAdjustmentTransfer_tmp tmp
+	LEFT JOIN [dbo].[BonusAdjustmentTransfer] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+WHERE main.CustID IS NULL
+
+UPDATE main
+SET [LogDate]=tmp.[LogDate],[ExecDate]=tmp.[ExecDate],[MatchID]=tmp.[MatchID],
+	[BonusID]=tmp.[BonusID],[StatusID]=tmp.[StatusID],[Amount]=tmp.[Amount],[isTransferred]=tmp.[isTransferred]
+FROM [dbo].[BonusAdjustmentTransfer] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BonusAdjustmentTransfer_tmp_update tmp ON main.CustID = tmp.CustID
+
+INSERT INTO [dbo].[BonusAdjustmentTransfer] ([LogDate], [ExecDate], [CustID], [MatchID], [BonusID], [StatusID], [Amount], [isTransferred])
+SELECT tmp.[LogDate], tmp.[ExecDate], tmp.[CustID], tmp.[MatchID], tmp.[BonusID], tmp.[StatusID], tmp.[Amount], tmp.[isTransferred]
+FROM #BonusAdjustmentTransfer_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #BonusAdjustmentTransfer_tmp
+--DROP TABLE #BonusAdjustmentTransfer_tmp_update
+--DROP TABLE #BonusAdjustmentTransfer_tmp_insert
+
+------------------------------------------------
 --BonusTrans
-INSERT INTO [dbo].[BonusTrans] ([CustID], [Recommend], [Mrecommend], [Srecommend], [Amount], [StatusId], [Creator], [CreatedDate], 
-								[PaymentDate], [IsComplained])
-SELECT  bon.[CustID], bon.[Recommend], bon.[Mrecommend], bon.[Srecommend], bon.[Amount], bon.[StatusId], bon.[Creator], bon.[CreatedDate], 
-		bon.[PaymentDate], bon.[IsComplained]
+SELECT *
+INTO #BonusTrans_tmp
 FROM DBSIG01.SiteDB01tmp.dbo.BonusTrans_Copy bon WITH (NOLOCK)
-	LEFT JOIN [dbo].[BonusTrans] main WITH (NOLOCK) ON main.CustId = bon.CustId
-WHERE main.CustId IS NULL
 
+SELECT tmp.*
+INTO #BonusTrans_tmp_update
+FROM #BonusTrans_tmp tmp
+	INNER JOIN [dbo].[BonusTrans] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+
+SELECT tmp.*
+INTO #BonusTrans_tmp_insert
+FROM #BonusTrans_tmp tmp
+	LEFT JOIN [dbo].[BonusTrans] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+WHERE main.CustID IS NULL
+
+UPDATE main
+SET [Recommend]=tmp.[Recommend],[Mrecommend]=tmp.[Mrecommend],[Srecommend]=tmp.[Srecommend],[Amount]=tmp.[Amount],
+	[StatusId]=tmp.[StatusId],[Creator]=tmp.[Creator],[CreatedDate]=tmp.[CreatedDate],[PaymentDate]=tmp.[PaymentDate],[IsComplained]=tmp.[IsComplained]
+FROM [dbo].[BonusTrans] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BonusTrans_tmp_update tmp ON main.CustID = tmp.CustID
+
+INSERT INTO [dbo].[BonusTrans] ([CustID], [Recommend], [Mrecommend], [Srecommend], [Amount], [StatusId], [Creator], [CreatedDate], [PaymentDate], [IsComplained])
+SELECT tmp.[CustID], tmp.[Recommend], tmp.[Mrecommend], tmp.[Srecommend], tmp.[Amount], tmp.[StatusId], tmp.[Creator], tmp.[CreatedDate], tmp.[PaymentDate], tmp.[IsComplained]
+FROM #BonusTrans_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #BonusTrans_tmp
+--DROP TABLE #BonusTrans_tmp_update
+--DROP TABLE #BonusTrans_tmp_insert
+
+------------------------------------------------
 --BonusWalletCredit
-INSERT INTO [dbo].[BonusWalletCredit] ([CustID], [BonusID], [StatusID], [initBonus], [LockedAmt], [Amount])
-SELECT  bon.[CustID], bon.[BonusID], bon.[StatusID], bon.[initBonus], bon.[LockedAmt], bon.[Amount]
+SELECT *
+INTO #BonusWalletCredit_tmp
 FROM DBSIG01.SiteDB01tmp.dbo.BonusWalletCredit_Copy bon WITH (NOLOCK)
-	LEFT JOIN [dbo].[BonusWalletCredit] main WITH (NOLOCK) ON main.CustId = bon.CustId
-WHERE main.CustId IS NULL
 
+SELECT tmp.*
+INTO #BonusWalletCredit_tmp_update
+FROM #BonusWalletCredit_tmp tmp
+	INNER JOIN [dbo].[BonusWalletCredit] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+
+SELECT tmp.*
+INTO #BonusWalletCredit_tmp_insert
+FROM #BonusWalletCredit_tmp tmp
+	LEFT JOIN [dbo].[BonusWalletCredit] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+WHERE main.CustId IS NULL AND main.BonusId IS NULL 
+
+UPDATE main
+SET [initBonus]=tmp.[initBonus],[LockedAmt]=tmp.[LockedAmt],[Amount]=tmp.[Amount],[StatusID] = tmp.[StatusID]
+FROM [dbo].[BonusWalletCredit] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BonusWalletCredit_tmp_update tmp ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+
+INSERT INTO [dbo].[BonusWalletCredit] ([CustID], [BonusID], [StatusID], [initBonus], [LockedAmt], [Amount])
+SELECT tmp.[CustID], tmp.[BonusID], tmp.[StatusID], tmp.[initBonus], tmp.[LockedAmt], tmp.[Amount]
+FROM #BonusWalletCredit_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #BonusWalletCredit_tmp
+--DROP TABLE #BonusWalletCredit_tmp_update
+--DROP TABLE #BonusWalletCredit_tmp_insert
+
+------------------------------------------------
 --BonusWalletDebit
-INSERT INTO [dbo].[BonusWalletDebit] ([CustID], [BonusID], [Amount])
-SELECT  bon.[CustID], bon.[BonusID], bon.[Amount]
+SELECT *
+INTO #BonusWalletDebit_tmp
 FROM DBSIG01.SiteDB01tmp.dbo.BonusWalletDebit_Copy bon WITH (NOLOCK)
-	LEFT JOIN [dbo].[BonusWalletDebit] main WITH (NOLOCK) ON main.CustId = bon.CustId
-WHERE main.CustId IS NULL
 
+SELECT tmp.*
+INTO #BonusWalletDebit_tmp_update
+FROM #BonusWalletDebit_tmp tmp
+	INNER JOIN [dbo].[BonusWalletDebit] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+
+SELECT tmp.*
+INTO #BonusWalletDebit_tmp_insert
+FROM #BonusWalletDebit_tmp tmp
+	LEFT JOIN [dbo].[BonusWalletDebit] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+WHERE main.CustId IS NULL AND main.BonusId IS NULL 
+
+UPDATE main
+SET [Amount]=tmp.[Amount]
+FROM [dbo].[BonusWalletDebit] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BonusWalletDebit_tmp_update tmp ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+
+INSERT INTO [dbo].[BonusWalletDebit] ([CustID], [BonusID], [Amount])
+SELECT tmp.[CustID], tmp.[BonusID], tmp.[Amount]
+FROM #BonusWalletDebit_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #BonusWalletDebit_tmp
+--DROP TABLE #BonusWalletDebit_tmp_update
+--DROP TABLE #BonusWalletDebit_tmp_insert
+
+------------------------------------------------
 --BonusWalletPending
-INSERT INTO [dbo].[BonusWalletPending] ([CustID], [BonusID], [Amount])
-SELECT  bon.[CustID], bon.[BonusID], bon.[Amount]
+SELECT *
+INTO #BonusWalletPending_tmp
 FROM DBSIG01.SiteDB01tmp.dbo.BonusWalletPending_Copy bon WITH (NOLOCK)
-	LEFT JOIN [dbo].[BonusWalletPending] main WITH (NOLOCK) ON main.CustId = bon.CustId
-WHERE main.CustId IS NULL
 
+SELECT tmp.*
+INTO #BonusWalletPending_tmp_update
+FROM #BonusWalletPending_tmp tmp
+	INNER JOIN [dbo].[BonusWalletPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BonusWalletPending_tmp_insert
+FROM #BonusWalletPending_tmp tmp
+	LEFT JOIN [dbo].[BonusWalletPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [BonusID]=tmp.[BonusID],[Amount]=tmp.[Amount]
+FROM [dbo].[BonusWalletPending] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BonusWalletPending_tmp_update tmp ON main.CustID = tmp.CustID 
+
+INSERT INTO [dbo].[BonusWalletPending] ([CustID], [BonusID], [Amount])
+SELECT tmp.[CustID], tmp.[BonusID], tmp.[Amount]
+FROM #BonusWalletPending_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #BonusWalletPending_tmp
+--DROP TABLE #BonusWalletPending_tmp_update
+--DROP TABLE #BonusWalletPending_tmp_insert
+
+------------------------------------------------
 --BalancePendingCreditGame
+SELECT *
+INTO #BalancePendingCreditGame_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingCreditGame_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalancePendingCreditGame_tmp_update
+FROM #BalancePendingCreditGame_tmp tmp
+	INNER JOIN [dbo].[BalancePendingCreditGame] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalancePendingCreditGame_tmp_insert
+FROM #BalancePendingCreditGame_tmp tmp
+	LEFT JOIN [dbo].[BalancePendingCreditGame] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [winlostdate]=tmp.[winlostdate],[Balance]=tmp.[Balance],[bettype]=tmp.[bettype],[GameTypeID]=tmp.[GameTypeID]
+FROM [dbo].[BalancePendingCreditGame] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalancePendingCreditGame_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalancePendingCreditGame] ([custid], [winlostdate], [Balance], [bettype], [GameTypeID])
-SELECT bc.[custid], bc.[winlostdate], bc.[Balance], bc.[bettype], bc.[GameTypeID]
-FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingCreditGame_Copy bc WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalancePendingCreditGame] main WITH (NOLOCK) ON main.CustId = bc.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[winlostdate],tmp.[Balance],tmp.[bettype],tmp.[GameTypeID]
+FROM #BalancePendingCreditGame_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalancePendingCreditGame_tmp
+--DROP TABLE #BalancePendingCreditGame_tmp_update
+--DROP TABLE #BalancePendingCreditGame_tmp_insert
+
+------------------------------------------------
 --BalancePendingDebitGame
+SELECT *
+INTO #BalancePendingDebitGame_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingDebitGame_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalancePendingDebitGame_tmp_update
+FROM #BalancePendingDebitGame_tmp tmp
+	INNER JOIN [dbo].[BalancePendingDebitGame] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalancePendingDebitGame_tmp_insert
+FROM #BalancePendingDebitGame_tmp tmp
+	LEFT JOIN [dbo].[BalancePendingDebitGame] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [winlostdate]=tmp.[winlostdate],[Balance]=tmp.[Balance],[bettype]=tmp.[bettype],[GameTypeID]=tmp.[GameTypeID]
+FROM [dbo].[BalancePendingDebitGame] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalancePendingDebitGame_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalancePendingDebitGame] ([custid], [winlostdate], [Balance], [bettype], [GameTypeID])
-SELECT bd.[custid], bd.[winlostdate], bd.[Balance], bd.[bettype], bd.[GameTypeID]
-FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingDebitGame_Copy bd WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalancePendingDebitGame] main WITH (NOLOCK) ON main.CustId = bd.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[winlostdate],tmp.[Balance],tmp.[bettype],tmp.[GameTypeID]
+FROM #BalancePendingDebitGame_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalancePendingDebitGame_tmp
+--DROP TABLE #BalancePendingDebitGame_tmp_update
+--DROP TABLE #BalancePendingDebitGame_tmp_insert
+
+------------------------------------------------
 --BalCreditCasinoPending
+SELECT *
+INTO #BalCreditCasinoPending_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditCasinoPending_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalCreditCasinoPending_tmp_update
+FROM #BalCreditCasinoPending_tmp tmp
+	INNER JOIN [dbo].[BalCreditCasinoPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalCreditCasinoPending_tmp_insert
+FROM #BalCreditCasinoPending_tmp tmp
+	LEFT JOIN [dbo].[BalCreditCasinoPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [Balance]=tmp.[Balance]
+FROM [dbo].[BalCreditCasinoPending] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalCreditCasinoPending_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalCreditCasinoPending] ([custid], [Balance])
-SELECT bc.[custid], bc.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditCasinoPending_Copy bc WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalCreditCasinoPending] main WITH (NOLOCK) ON main.CustId = bc.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[Balance]
+FROM #BalCreditCasinoPending_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalCreditCasinoPending_tmp
+--DROP TABLE #BalCreditCasinoPending_tmp_update
+--DROP TABLE #BalCreditCasinoPending_tmp_insert
+
+------------------------------------------------
 --BalCreditOthersPending
+SELECT *
+INTO #BalCreditOthersPending_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditOthersPending_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalCreditOthersPending_tmp_update
+FROM #BalCreditOthersPending_tmp tmp
+	INNER JOIN [dbo].[BalCreditOthersPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalCreditOthersPending_tmp_insert
+FROM #BalCreditOthersPending_tmp tmp
+	LEFT JOIN [dbo].[BalCreditOthersPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [Balance]=tmp.[Balance]
+FROM [dbo].[BalCreditOthersPending] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalCreditOthersPending_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalCreditOthersPending] ([custid], [Balance])
-SELECT bc.[custid], bc.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditOthersPending_Copy bc WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalCreditOthersPending] main WITH (NOLOCK) ON main.CustId = bc.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[Balance]
+FROM #BalCreditOthersPending_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalCreditOthersPending_tmp
+--DROP TABLE #BalCreditOthersPending_tmp_update
+--DROP TABLE #BalCreditOthersPending_tmp_insert
+
+------------------------------------------------
 --BalCreditSportsPending
+SELECT *
+INTO #BalCreditSportsPending_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditSportsPending_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalCreditSportsPending_tmp_update
+FROM #BalCreditSportsPending_tmp tmp
+	INNER JOIN [dbo].[BalCreditSportsPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalCreditSportsPending_tmp_insert
+FROM #BalCreditSportsPending_tmp tmp
+	LEFT JOIN [dbo].[BalCreditSportsPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [Balance]=tmp.[Balance]
+FROM [dbo].[BalCreditSportsPending] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalCreditSportsPending_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalCreditSportsPending] ([custid], [Balance])
-SELECT bc.[custid], bc.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditSportsPending_Copy bc WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalCreditSportsPending] main WITH (NOLOCK) ON main.CustId = bc.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[Balance]
+FROM #BalCreditSportsPending_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalCreditSportsPending_tmp
+--DROP TABLE #BalCreditSportsPending_tmp_update
+--DROP TABLE #BalCreditSportsPending_tmp_insert
+
+------------------------------------------------
 --BalDebitCasinoPending
+SELECT *
+INTO #BalDebitCasinoPending_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitCasinoPending_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalDebitCasinoPending_tmp_update
+FROM #BalDebitCasinoPending_tmp tmp
+	INNER JOIN [dbo].[BalDebitCasinoPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalDebitCasinoPending_tmp_insert
+FROM #BalDebitCasinoPending_tmp tmp
+	LEFT JOIN [dbo].[BalDebitCasinoPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [Balance]=tmp.[Balance]
+FROM [dbo].[BalDebitCasinoPending] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalDebitCasinoPending_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalDebitCasinoPending] ([custid], [Balance])
-SELECT bd.[custid], bd.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitCasinoPending_Copy bd WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalDebitCasinoPending] main WITH (NOLOCK) ON main.CustId = bd.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[Balance]
+FROM #BalDebitCasinoPending_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalDebitCasinoPending_tmp
+--DROP TABLE #BalDebitCasinoPending_tmp_update
+--DROP TABLE #BalDebitCasinoPending_tmp_insert
+
+------------------------------------------------
 --BalDebitOthersPending
+SELECT *
+INTO #BalDebitOthersPending_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitOthersPending_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalDebitOthersPending_tmp_update
+FROM #BalDebitOthersPending_tmp tmp
+	INNER JOIN [dbo].[BalDebitOthersPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalDebitOthersPending_tmp_insert
+FROM #BalDebitOthersPending_tmp tmp
+	LEFT JOIN [dbo].[BalDebitOthersPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [Balance]=tmp.[Balance]
+FROM [dbo].[BalDebitOthersPending] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalDebitOthersPending_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalDebitOthersPending] ([custid], [Balance])
-SELECT bd.[custid], bd.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitOthersPending_Copy bd WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalDebitOthersPending] main WITH (NOLOCK) ON main.CustId = bd.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[Balance]
+FROM #BalDebitOthersPending_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalDebitOthersPending_tmp
+--DROP TABLE #BalDebitOthersPending_tmp_update
+--DROP TABLE #BalDebitOthersPending_tmp_insert
+
+------------------------------------------------
 --BalDebitSportsPending
+SELECT *
+INTO #BalDebitSportsPending_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSportsPending_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #BalDebitSportsPending_tmp_update
+FROM #BalDebitSportsPending_tmp tmp
+	INNER JOIN [dbo].[BalDebitSportsPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+
+SELECT tmp.*
+INTO #BalDebitSportsPending_tmp_insert
+FROM #BalDebitSportsPending_tmp tmp
+	LEFT JOIN [dbo].[BalDebitSportsPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
+WHERE main.CustID IS NULL 
+
+UPDATE main
+SET [Balance]=tmp.[Balance]
+FROM [dbo].[BalDebitSportsPending] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #BalDebitSportsPending_tmp_update tmp ON main.CustID = tmp.CustID 
+
 INSERT INTO [dbo].[BalDebitSportsPending] ([custid], [Balance])
-SELECT bd.[custid], bd.[Balance]
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSportsPending_Copy bd WITH (NOLOCK)
-	LEFT JOIN [dbo].[BalDebitSportsPending] main WITH (NOLOCK) ON main.CustId = bd.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[Balance]
+FROM #BalDebitSportsPending_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #BalDebitSportsPending_tmp
+--DROP TABLE #BalDebitSportsPending_tmp_update
+--DROP TABLE #BalDebitSportsPending_tmp_insert
+------------------------------------------------
 --Intg_GameRoundBetStake
+SELECT *
+INTO #Intg_GameRoundBetStake_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.Intg_GameRoundBetStake_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #Intg_GameRoundBetStake_tmp_update
+FROM #Intg_GameRoundBetStake_tmp tmp
+	INNER JOIN [dbo].[Intg_GameRoundBetStake] main WITH (NOLOCK) ON main.VendorId = tmp.VendorId AND main.BetId = tmp.BetId AND main.GameRound = tmp.GameRound 
+
+SELECT tmp.*
+INTO #Intg_GameRoundBetStake_tmp_insert
+FROM #Intg_GameRoundBetStake_tmp tmp
+	LEFT JOIN [dbo].[Intg_GameRoundBetStake] main WITH (NOLOCK) ON main.VendorId = tmp.VendorId AND main.BetId = tmp.BetId AND main.GameRound = tmp.GameRound  
+WHERE main.VendorId IS NULL AND main.BetId IS NULL AND main.GameRound IS NULL
+
+UPDATE main
+SET [VendorId]=tmp.[VendorId],[BetId]=tmp.[BetId],[GameRound]=tmp.[GameRound],[GameType]=tmp.[GameType],[BetChoice]=tmp.[BetChoice],[CustId]=tmp.[CustId],[Stake]=tmp.[Stake],[CreateDate]=tmp.[CreateDate]
+FROM [dbo].[Intg_GameRoundBetStake] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #Intg_GameRoundBetStake_tmp_update tmp ON main.VendorId = tmp.VendorId AND main.BetId = tmp.BetId AND main.GameRound = tmp.GameRound  
+
 INSERT INTO [dbo].[Intg_GameRoundBetStake] ([VendorId], [BetId], [GameRound], [GameType], [BetChoice], [CustId], [Stake], [CreateDate])
-SELECT igr.[VendorId], igr.[BetId], igr.[GameRound], igr.[GameType], igr.[BetChoice], igr.[CustId], igr.[Stake], igr.[CreateDate]
-FROM DBSIG01.SiteDB01tmp.dbo.Intg_GameRoundBetStake_Copy igr WITH (NOLOCK)
-	LEFT JOIN [dbo].[Intg_GameRoundBetStake] main WITH (NOLOCK) ON main.CustId = igr.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[VendorId], tmp.[BetId], tmp.[GameRound], tmp.[GameType], tmp.[BetChoice], tmp.[CustId], tmp.[Stake], tmp.[CreateDate]
+FROM #Intg_GameRoundBetStake_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #Intg_GameRoundBetStake_tmp
+--DROP TABLE #Intg_GameRoundBetStake_tmp_update
+--DROP TABLE #Intg_GameRoundBetStake_tmp_insert
+
+------------------------------------------------
 --LastBetTime
+SELECT *
+INTO #LastBetTime_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.LastBetTime_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #LastBetTime_tmp_update
+FROM #LastBetTime_tmp tmp
+	INNER JOIN [dbo].[LastBetTime] main WITH (NOLOCK) ON main.custid = tmp.custid
+
+SELECT tmp.*
+INTO #LastBetTime_tmp_insert
+FROM #LastBetTime_tmp tmp
+	LEFT JOIN [dbo].[LastBetTime] main WITH (NOLOCK) ON main.custid = tmp.custid
+WHERE main.custid IS NULL 
+
+UPDATE main
+SET [transdate]=tmp.[transdate]
+FROM [dbo].[LastBetTime] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #LastBetTime_tmp_update tmp ON main.custid = tmp.custid
+
 INSERT INTO [dbo].[LastBetTime] ([custid], [transdate])
-SELECT lb.[custid], lb.[transdate]
-FROM DBSIG01.SiteDB01tmp.dbo.LastBetTime_Copy lb WITH (NOLOCK)
-	LEFT JOIN [dbo].[LastBetTime] main WITH (NOLOCK) ON main.CustId = lb.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[custid],tmp.[transdate]
+FROM #LastBetTime_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #LastBetTime_tmp
+--DROP TABLE #LastBetTime_tmp_update
+--DROP TABLE #LastBetTime_tmp_insert
+
+------------------------------------------------
 --LastBetTime_Agent
+SELECT *
+INTO #LastBetTime_Agent_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.LastBetTime_Agent_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #LastBetTime_Agent_tmp_update
+FROM #LastBetTime_Agent_tmp tmp
+	INNER JOIN [dbo].[LastBetTime_Agent] main WITH (NOLOCK) ON main.custid = tmp.custid
+
+SELECT tmp.*
+INTO #LastBetTime_Agent_tmp_insert
+FROM #LastBetTime_Agent_tmp tmp
+	LEFT JOIN [dbo].[LastBetTime_Agent] main WITH (NOLOCK) ON main.custid = tmp.custid
+WHERE main.custid IS NULL 
+
+UPDATE main
+SET [MatchID]=tmp.[MatchID],[BetType]=tmp.[BetType],[CustomerClass]=tmp.[CustomerClass],[Platform]=tmp.[Platform],[TransDate]=tmp.[TransDate]
+FROM [dbo].[LastBetTime_Agent] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #LastBetTime_Agent_tmp_update tmp ON main.custid = tmp.custid
+
 INSERT INTO [dbo].[LastBetTime_Agent] ([CustID], [MatchID], [BetType], [CustomerClass], [Platform], [TransDate])
-SELECT lba.[CustID], lba.[MatchID], lba.[BetType], lba.[CustomerClass], lba.[Platform], lba.[TransDate]
-FROM DBSIG01.SiteDB01tmp.dbo.LastBetTime_Agent_Copy lba WITH (NOLOCK)
-	LEFT JOIN [dbo].[LastBetTime_Agent] main WITH (NOLOCK) ON main.CustId = lba.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[CustID], tmp.[MatchID], tmp.[BetType], tmp.[CustomerClass], tmp.[Platform], tmp.[TransDate]
+FROM #LastBetTime_Agent_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #LastBetTime_Agent_tmp
+--DROP TABLE #LastBetTime_Agent_tmp_update
+--DROP TABLE #LastBetTime_Agent_tmp_insert
+
+------------------------------------------------
 --MarkedTransaction
+SELECT *
+INTO #MarkedTransaction_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.MarkedTransaction_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #MarkedTransaction_tmp_update
+FROM #MarkedTransaction_tmp tmp
+	INNER JOIN [dbo].[MarkedTransaction] main WITH (NOLOCK) ON main.TransId = tmp.TransId AND main.MatchId = tmp.MatchId
+
+SELECT tmp.*
+INTO #MarkedTransaction_tmp_insert
+FROM #MarkedTransaction_tmp tmp
+	LEFT JOIN [dbo].[MarkedTransaction] main WITH (NOLOCK) ON main.TransId = tmp.TransId AND main.MatchId = tmp.MatchId
+WHERE main.TransId IS NULL AND main.MatchId IS NULL
+
+UPDATE main
+SET [CustId]=tmp.[CustId],[bettype]=tmp.[bettype],[UserId]=tmp.[UserId],[CreatedDate]=tmp.[CreatedDate],[MarkType]=tmp.[MarkType]
+FROM [dbo].[MarkedTransaction] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #MarkedTransaction_tmp_update tmp ON main.TransId = tmp.TransId AND main.MatchId = tmp.MatchId
+
 INSERT INTO [dbo].[MarkedTransaction] ([TransId], [MatchId], [CustId], [bettype], [UserId], [CreatedDate], [MarkType])
-SELECT mt.[TransId], mt.[MatchId], mt.[CustId], mt.[bettype], mt.[UserId], mt.[CreatedDate], mt.[MarkType]
-FROM DBSIG01.SiteDB01tmp.dbo.MarkedTransaction_Copy mt WITH (NOLOCK)
-	LEFT JOIN [dbo].[MarkedTransaction] main WITH (NOLOCK) ON main.CustId = mt.CustId
-WHERE main.CustId IS NULL
+SELECT tmp.[TransId], tmp.[MatchId], tmp.[CustId], tmp.[bettype], tmp.[UserId], tmp.[CreatedDate], tmp.[MarkType]
+FROM #MarkedTransaction_tmp_insert tmp WITH (NOLOCK)
 
+--DROP TABLE #MarkedTransaction_tmp
+--DROP TABLE #MarkedTransaction_tmp_update
+--DROP TABLE #MarkedTransaction_tmp_insert
+
+------------------------------------------------
 --NetPositionCalculationLog
-INSERT INTO [dbo].[NetPositionCalculationLog] (	[CustID], [MatchID], [Bettype], [AccumNPDebit], [AccumNPCredit], [NPAdjust], 
-												[IsLatest], [CreatedDate], [ModifiedDate])
-SELECT	npcl.[CustID], npcl.[MatchID], npcl.[Bettype], npcl.[AccumNPDebit], npcl.[AccumNPCredit], npcl.[NPAdjust], 
-		npcl.[IsLatest], npcl.[CreatedDate], npcl.[ModifiedDate]
-FROM DBSIG01.SiteDB01tmp.dbo.NetPositionCalculationLog_Copy npcl WITH (NOLOCK)
-	LEFT JOIN [dbo].[NetPositionCalculationLog] main WITH (NOLOCK) ON main.CustId = npcl.CustId
-WHERE main.CustId IS NULL
+SELECT *
+INTO #NetPositionCalculationLog_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.NetPositionCalculationLog_Copy bon WITH (NOLOCK)
 
+SELECT tmp.*
+INTO #NetPositionCalculationLog_tmp_update
+FROM #NetPositionCalculationLog_tmp tmp
+	INNER JOIN [dbo].[NetPositionCalculationLog] main WITH (NOLOCK) ON main.NPCalculationLogID = tmp.NPCalculationLogID
+
+SELECT tmp.*
+INTO #NetPositionCalculationLog_tmp_insert
+FROM #NetPositionCalculationLog_tmp tmp
+	LEFT JOIN [dbo].[NetPositionCalculationLog] main WITH (NOLOCK) ON main.NPCalculationLogID = tmp.NPCalculationLogID
+WHERE main.NPCalculationLogID IS NULL
+
+UPDATE main
+SET [CustID]=tmp.[CustID],[MatchID]=tmp.[MatchID],[Bettype]=tmp.[Bettype],[AccumNPDebit]=tmp.[AccumNPDebit],[AccumNPCredit]=tmp.[AccumNPCredit],[NPAdjust]=tmp.[NPAdjust],[IsLatest]=tmp.[IsLatest],[CreatedDate]=tmp.[CreatedDate],[ModifiedDate]=tmp.[ModifiedDate]
+FROM [dbo].[NetPositionCalculationLog] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #NetPositionCalculationLog_tmp_update tmp ON main.NPCalculationLogID = tmp.NPCalculationLogID
+
+INSERT INTO [dbo].[NetPositionCalculationLog] ([CustID], [MatchID], [Bettype], [AccumNPDebit], [AccumNPCredit], [NPAdjust], [IsLatest], [CreatedDate], [ModifiedDate])
+SELECT tmp.[CustID], tmp.[MatchID], tmp.[Bettype], tmp.[AccumNPDebit], tmp.[AccumNPCredit], tmp.[NPAdjust], tmp.[IsLatest], tmp.[CreatedDate], tmp.[ModifiedDate]
+FROM #NetPositionCalculationLog_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #NetPositionCalculationLog_tmp
+--DROP TABLE #NetPositionCalculationLog_tmp_update
+--DROP TABLE #NetPositionCalculationLog_tmp_insert
+------------------------------------------------
 --NetPositionTrans
-INSERT INTO [dbo].[NetPositionTrans] (	[TransID], [CustID], [MatchID], [Bettype], [Actual_stake], [Payout1], [Payoutx], [Payout2], [SyncStatus], 
-										[isSettled], [CreatedDate], [ModifiedDate])
-SELECT	npt.[TransID], npt.[CustID], npt.[MatchID], npt.[Bettype], npt.[Actual_stake], npt.[Payout1], npt.[Payoutx], npt.[Payout2], npt.[SyncStatus], 
-		npt.[isSettled], npt.[CreatedDate], npt.[ModifiedDate]
-FROM DBSIG01.SiteDB01tmp.dbo.NetPositionTrans_Copy npt WITH (NOLOCK)
-	LEFT JOIN [dbo].[NetPositionTrans] main WITH (NOLOCK) ON main.CustId = npt.CustId
-WHERE main.CustId IS NULL
+SELECT *
+INTO #NetPositionTrans_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.NetPositionTrans_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #NetPositionTrans_tmp_update
+FROM #NetPositionTrans_tmp tmp
+	INNER JOIN [dbo].[NetPositionTrans] main WITH (NOLOCK) ON main.TransID = tmp.TransID
+
+SELECT tmp.*
+INTO #NetPositionTrans_tmp_insert
+FROM #NetPositionTrans_tmp tmp
+	LEFT JOIN [dbo].[NetPositionTrans] main WITH (NOLOCK) ON main.TransID = tmp.TransID
+WHERE main.TransID IS NULL
+
+UPDATE main
+SET [CustID]=tmp.[CustID],[MatchID]=tmp.[MatchID],[Bettype]=tmp.[Bettype],[Actual_stake]=tmp.[Actual_stake],[Payout1]=tmp.[Payout1],[Payoutx]=tmp.[Payoutx],[Payout2]=tmp.[Payout2],[SyncStatus]=tmp.[SyncStatus],[isSettled]=tmp.[isSettled],[CreatedDate]=tmp.[CreatedDate],[ModifiedDate]=tmp.[ModifiedDate]
+FROM [dbo].[NetPositionTrans] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #NetPositionTrans_tmp_update tmp ON main.TransID = tmp.TransID
+
+INSERT INTO [dbo].[NetPositionTrans] ([TransID], [CustID], [MatchID], [Bettype], [Actual_stake], [Payout1], [Payoutx], [Payout2], [SyncStatus], [isSettled], [CreatedDate], [ModifiedDate])
+SELECT tmp.[TransID], tmp.[CustID], tmp.[MatchID], tmp.[Bettype], tmp.[Actual_stake], tmp.[Payout1], tmp.[Payoutx], tmp.[Payout2], tmp.[SyncStatus], tmp.[isSettled], tmp.[CreatedDate], tmp.[ModifiedDate]
+FROM #NetPositionTrans_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #NetPositionTrans_tmp
+--DROP TABLE #NetPositionTrans_tmp_update
+--DROP TABLE #NetPositionTrans_tmp_insert
+------------------------------------------------
+--Task_Cust_CheckBalance_Exception
+SELECT *
+INTO #Task_Cust_CheckBalance_Exception_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.Task_Cust_CheckBalance_Exception_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #Task_Cust_CheckBalance_Exception_tmp_update
+FROM #Task_Cust_CheckBalance_Exception_tmp tmp
+	INNER JOIN [dbo].[Task_Cust_CheckBalance_Exception] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+
+SELECT tmp.*
+INTO #Task_Cust_CheckBalance_Exception_tmp_insert
+FROM #Task_Cust_CheckBalance_Exception_tmp tmp
+	LEFT JOIN [dbo].[Task_Cust_CheckBalance_Exception] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+WHERE main.CustID IS NULL
+
+UPDATE main
+SET [custid] = tmp.[custid], [Remark] = tmp.[Remark]
+FROM [dbo].[Task_Cust_CheckBalance_Exception] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #Task_Cust_CheckBalance_Exception_tmp_update tmp ON main.CustID = tmp.CustID
+
+INSERT INTO [dbo].[Task_Cust_CheckBalance_Exception] ([custid], [Remark])
+SELECT tmp.[custid], tmp.[Remark]
+FROM #Task_Cust_CheckBalance_Exception_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #Task_Cust_CheckBalance_Exception_tmp
+--DROP TABLE #Task_Cust_CheckBalance_Exception_tmp_update
+--DROP TABLE #Task_Cust_CheckBalance_Exception_tmp_insert
+
+------------------------------------------------
+--Task_Cust_BalanceProblem1
+SELECT *
+INTO #Task_Cust_BalanceProblem1_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.Task_Cust_BalanceProblem1_Copy bon WITH (NOLOCK)
+
+SELECT tmp.*
+INTO #Task_Cust_BalanceProblem1_tmp_update
+FROM #Task_Cust_BalanceProblem1_tmp tmp
+	INNER JOIN [dbo].[Task_Cust_BalanceProblem1] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+
+SELECT tmp.*
+INTO #Task_Cust_BalanceProblem1_tmp_insert
+FROM #Task_Cust_BalanceProblem1_tmp tmp
+	LEFT JOIN [dbo].[Task_Cust_BalanceProblem1] main WITH (NOLOCK) ON main.CustID = tmp.CustID
+WHERE main.CustID IS NULL
+
+UPDATE main
+SET [UserName]=tmp.[UserName],[DiffBalance]=tmp.[DiffBalance],[LogDate]=tmp.[LogDate],[IsFixed]=tmp.[IsFixed],[Remark]=tmp.[Remark]
+FROM [dbo].[Task_Cust_BalanceProblem1] main WITH (UPDLOCK,ROWLOCK)
+	INNER JOIN #Task_Cust_BalanceProblem1_tmp_update tmp ON main.CustID = tmp.CustID
+
+INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
+SELECT tmp.[UserName], tmp.[custid], tmp.[DiffBalance], tmp.[LogDate], tmp.[IsFixed], tmp.[Remark]
+FROM #Task_Cust_BalanceProblem1_tmp_insert tmp WITH (NOLOCK)
+
+--DROP TABLE #Task_Cust_BalanceProblem1_tmp
+--DROP TABLE #Task_Cust_BalanceProblem1_tmp_update
+--DROP TABLE #Task_Cust_BalanceProblem1_tmp_insert
