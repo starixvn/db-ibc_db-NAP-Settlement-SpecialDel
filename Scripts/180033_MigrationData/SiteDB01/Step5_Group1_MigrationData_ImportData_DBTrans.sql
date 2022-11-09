@@ -619,7 +619,7 @@ INSERT INTO #BalNetPosition ([CustID], [MatchID], [Bettype], [Credit], [Debit], 
 SELECT [CustID], [MatchID], [Bettype], [Credit], [Debit], [CreatedDate], [ModifiedDate]
 FROM DBSIG01.SiteDB01tmp.dbo.BalNetPosition_Copy WITH (NOLOCK)
 
-INSERT INTO #BalNetPosition_update ([CustID], [MatchID], [Bettype])
+INSERT INTO #BalNetPosition_update ([CustID], [MatchID], [Bettype], [Debit], [Credit], [CreatedDate], [ModifiedDate])
 SELECT b.[CustID], b.[MatchID], b.[Bettype], b.[Debit],b.[Credit],b.[CreatedDate],b.[ModifiedDate]
 FROM #BalNetPosition b
 	INNER JOIN [dbo].[BalNetPosition] main WITH (NOLOCK) ON b.custid = main.custid 
