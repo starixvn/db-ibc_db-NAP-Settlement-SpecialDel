@@ -70,7 +70,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 DECLARE @debug_message VARCHAR(500)
-SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
+SET @MaxRow = (SELECT MAX(rid) FROM #CustLimitBet_LIC_update)
 SET @Threshold = 2000
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
