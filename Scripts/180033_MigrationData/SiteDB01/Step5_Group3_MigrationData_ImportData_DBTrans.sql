@@ -170,62 +170,18 @@ FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSportsPending_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --NetPositionCalculationLog
-SELECT *
-INTO #NetPositionCalculationLog_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.NetPositionCalculationLog_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #NetPositionCalculationLog_tmp_update
-FROM #NetPositionCalculationLog_tmp tmp
-	INNER JOIN [dbo].[NetPositionCalculationLog] main WITH (NOLOCK) ON main.NPCalculationLogID = tmp.NPCalculationLogID
-
-SELECT tmp.*
-INTO #NetPositionCalculationLog_tmp_insert
-FROM #NetPositionCalculationLog_tmp tmp
-	LEFT JOIN [dbo].[NetPositionCalculationLog] main WITH (NOLOCK) ON main.NPCalculationLogID = tmp.NPCalculationLogID
-WHERE main.NPCalculationLogID IS NULL
-
-UPDATE main
-SET [CustID]=tmp.[CustID],[MatchID]=tmp.[MatchID],[Bettype]=tmp.[Bettype],[AccumNPDebit]=tmp.[AccumNPDebit],[AccumNPCredit]=tmp.[AccumNPCredit],[NPAdjust]=tmp.[NPAdjust],[IsLatest]=tmp.[IsLatest],[CreatedDate]=tmp.[CreatedDate],[ModifiedDate]=tmp.[ModifiedDate]
-FROM [dbo].[NetPositionCalculationLog] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN #NetPositionCalculationLog_tmp_update tmp ON main.NPCalculationLogID = tmp.NPCalculationLogID
 
 INSERT INTO [dbo].[NetPositionCalculationLog] ([CustID], [MatchID], [Bettype], [AccumNPDebit], [AccumNPCredit], [NPAdjust], [IsLatest], [CreatedDate], [ModifiedDate])
 SELECT tmp.[CustID], tmp.[MatchID], tmp.[Bettype], tmp.[AccumNPDebit], tmp.[AccumNPCredit], tmp.[NPAdjust], tmp.[IsLatest], tmp.[CreatedDate], tmp.[ModifiedDate]
-FROM #NetPositionCalculationLog_tmp_insert tmp
+FROM DBSIG01.SiteDB01tmp.dbo.NetPositionCalculationLog_Copy tmp WITH (NOLOCK)
 
---DROP TABLE #NetPositionCalculationLog_tmp
---DROP TABLE #NetPositionCalculationLog_tmp_update
---DROP TABLE #NetPositionCalculationLog_tmp_insert
 ------------------------------------------------
 --NetPositionTrans
-SELECT *
-INTO #NetPositionTrans_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.NetPositionTrans_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #NetPositionTrans_tmp_update
-FROM #NetPositionTrans_tmp tmp
-	INNER JOIN [dbo].[NetPositionTrans] main WITH (NOLOCK) ON main.TransID = tmp.TransID
-
-SELECT tmp.*
-INTO #NetPositionTrans_tmp_insert
-FROM #NetPositionTrans_tmp tmp
-	LEFT JOIN [dbo].[NetPositionTrans] main WITH (NOLOCK) ON main.TransID = tmp.TransID
-WHERE main.TransID IS NULL
-
-UPDATE main
-SET [CustID]=tmp.[CustID],[MatchID]=tmp.[MatchID],[Bettype]=tmp.[Bettype],[Actual_stake]=tmp.[Actual_stake],[Payout1]=tmp.[Payout1],[Payoutx]=tmp.[Payoutx],[Payout2]=tmp.[Payout2],[SyncStatus]=tmp.[SyncStatus],[isSettled]=tmp.[isSettled],[CreatedDate]=tmp.[CreatedDate],[ModifiedDate]=tmp.[ModifiedDate]
-FROM [dbo].[NetPositionTrans] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN #NetPositionTrans_tmp_update tmp ON main.TransID = tmp.TransID
 
 INSERT INTO [dbo].[NetPositionTrans] ([TransID], [CustID], [MatchID], [Bettype], [Actual_stake], [Payout1], [Payoutx], [Payout2], [SyncStatus], [isSettled], [CreatedDate], [ModifiedDate])
 SELECT tmp.[TransID], tmp.[CustID], tmp.[MatchID], tmp.[Bettype], tmp.[Actual_stake], tmp.[Payout1], tmp.[Payoutx], tmp.[Payout2], tmp.[SyncStatus], tmp.[isSettled], tmp.[CreatedDate], tmp.[ModifiedDate]
-FROM #NetPositionTrans_tmp_insert tmp
+FROM DBSIG01.SiteDB01tmp.dbo.NetPositionTrans_Copy tmp WITH (NOLOCK)
 
---DROP TABLE #NetPositionTrans_tmp
---DROP TABLE #NetPositionTrans_tmp_update
---DROP TABLE #NetPositionTrans_tmp_insert
 ------------------------------------------------
 --Task_Cust_CheckBalance_Exception
 SELECT *
