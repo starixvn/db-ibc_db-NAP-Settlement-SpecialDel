@@ -133,7 +133,7 @@ CREATE TABLE #CustLimitBetHistory_LIC(
 	rid INT IDENTITY (1,1) PRIMARY KEY
 )
 
-INSERT INTO #CustLimitBetHistory_LIC ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
+INSERT INTO #CustLimitBetHistory_LIC ([Matchid], [CustID], [Transid], [TurnoverAdjust], [PayoutAdjust], [EventTypeID], [CreatedDate])
 SELECT	clbh.[Matchid], clbh.[CustID], clbh.[Transid], clbh.[TurnoverAdjust], clbh.[PayoutAdjust], clbh.[EventTypeID], clbh.[CreatedDate]
 FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBetHistory_LIC_Copy clbh WITH (NOLOCK)
 
@@ -165,7 +165,7 @@ END
 
 --CustLimitBet_QueueRetry
 INSERT INTO CustLimitBet_QueueRetry ([TransId], [Sitetype], [MainQueueId], [StatusId], [Createddate], [Trycount])
-SELECT [TransId], [Sitetype], [MainQueueId], [StatusId], [Createddate], [Trycount]
+SELECT q.[TransId], q.[Sitetype], q.[MainQueueId], q.[StatusId], q.[Createddate], q.[Trycount]
 FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBet_QueueRetry_Copy q WITH (NOLOCK)
 
 --CustLimitBetQueue
