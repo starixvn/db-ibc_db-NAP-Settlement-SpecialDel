@@ -5,7 +5,7 @@ ALTER PROC [dbo].[SSB_Settlement_SiteDB1_Replicated_Process_Message_02]
 as
 /*  Created: Patrick@20221025
 	Task: Process message
-	DB: DBCTG-bodb02, SBSETTLE-bodb02, DBBAL-bodb02
+	DB: SBSETTLE-bodb02, DBBAL-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 */
