@@ -26,6 +26,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221103@Helen: SP Enhancement [Redmine:#180092]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -52,7 +53,10 @@ BEGIN
 		, @SSBCommand		NVARCHAR(MAX)
 		, @IsRunBySSB		BIT
 		, @BroadcastSessionId VARCHAR(50)
-
+	
+	DECLARE @date DATETIME
+	SET @date = DATEADD (MINUTE, -5, GETDATE())
+	
 	SELECT	@ErrCode = 0
 			,@ErrMsg = ''
 			,@SSBStatus = 0
@@ -119,11 +123,10 @@ BEGIN
 	ELSE
 	BEGIN
 		SELECT @ErrCode = 0, @ErrMsg = ''
-
 		--Get sporttype of previous calculated match
 		SELECT TOP 1 @pre_Sporttype = SportType
 		FROM dbo.Single_Calculate_Queue WITH (NOLOCK)
-		WHERE IsCalculating IN (2, 3)
+		WHERE IsCalculating IN (2, 3) AND starttime>= @date
 		ORDER BY execTime DESC
 
 		--Giving priority to calcualate the match which has sporttype <> previous calculated match
