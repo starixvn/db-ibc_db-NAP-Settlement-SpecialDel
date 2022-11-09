@@ -9,7 +9,7 @@
 		- 20221107@Victoria: INSERT from the copy all data of the following tables [Redmineid:#180033] 
 							 Bonus_sum_winloss,BonusWalletCredit,BonusWalletDebit,BonusWalletPending,
 							 BalancePendingCreditGame,BalancePendingDebitGame,BalCreditCasinoPending,BalCreditOthersPending,
-							 BalCreditSportsPending,BalDebitCasinoPending,BalDebitOthersPending,BalDebitSportsPending,MarkedTransaction,NetPositionCalculationLog,
+							 BalCreditSportsPending,BalDebitCasinoPending,BalDebitOthersPending,BalDebitSportsPending,NetPositionCalculationLog,
 							 NetPositionTrans,Task_Cust_CheckBalance_Exception,Task_Cust_BalanceProblem1
 */
 
@@ -167,55 +167,6 @@ FROM DBSIG01.SiteDB01tmp.dbo.BalDebitOthersPending_Copy tmp WITH (NOLOCK)
 INSERT INTO [dbo].[BalDebitSportsPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
 FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSportsPending_Copy tmp WITH (NOLOCK)
-------------------------------------------------
---MarkedTransaction
-
-CREATE TABLE #MarkedTransaction_tmp(
-	[TransId] [bigint] NOT NULL,
-	[MatchId] [int] NOT NULL,
-	[CustId] [int] NOT NULL,
-	[bettype] [smallint] NOT NULL,
-	[UserId] [int] NOT NULL,
-	[CreatedDate] [datetime] NULL,
-	[MarkType] [tinyint] NULL,
-	rid INT IDENTITY (1,1) PRIMARY KEY
-)
-
-INSERT INTO #MarkedTransaction_tmp ([TransId], [MatchId], [CustId], [bettype], [UserId], [CreatedDate], [MarkType])
-SELECT bon.[TransId], bon.[MatchId], bon.[CustId], bon.[bettype], bon.[UserId], bon.[CreatedDate], bon.[MarkType]
-FROM DBSIG01.SiteDB01tmp.dbo.MarkedTransaction_Copy bon WITH (NOLOCK)
-
--- START to insert ONLY
-DECLARE @StartRow INT 
-		, @StopRow INT 
-		, @MaxRow INT  -- Keep the total row of your data
-		, @Threshold INT  -- the number of each batch
-SET @MaxRow = (SELECT MAX(rid) FROM #MarkedTransaction_tmp)
-SET @Threshold = 2000
-IF @Threshold >= @MaxRow
-	SET @Threshold = @MaxRow
--- SET for first batch
-SELECT @StartRow = 1, @StopRow = @Threshold
-
-WHILE (@MaxRow IS NOT NULL)
-BEGIN
-	
-	INSERT INTO [dbo].[MarkedTransaction] ([TransId], [MatchId], [CustId], [bettype], [UserId], [CreatedDate], [MarkType])
-	SELECT tmp.[TransId], tmp.[MatchId], tmp.[CustId], tmp.[bettype], tmp.[UserId], tmp.[CreatedDate], tmp.[MarkType]
-	FROM #MarkedTransaction_tmp tmp
-	WHERE tmp.rid BETWEEN @StartRow AND @StopRow 
-
-	IF @StopRow = @MaxRow BREAK
-
-	WAITFOR DELAY '00:00:00.010' --optional
-	SET @StartRow = @StopRow + 1
-	SET @StopRow = @StopRow + @Threshold
-	IF @StopRow >= @MaxRow
-		SET @StopRow = @MaxRow
-
-END
-
---DROP TABLE #MarkedTransaction_tmp
 
 ------------------------------------------------
 --NetPositionCalculationLog

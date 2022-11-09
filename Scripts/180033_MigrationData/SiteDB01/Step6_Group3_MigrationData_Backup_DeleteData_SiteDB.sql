@@ -232,6 +232,7 @@ TRUNCATE TABLE bettransRnG_delete
 TRUNCATE TABLE bettransRnG14_delete
 TRUNCATE TABLE translog_delete
 TRUNCATE TABLE translog14_delete
+TRUNCATE TABLE BetParlayResult_delete
 TRUNCATE TABLE zzzbettrans_delete
 TRUNCATE TABLE zzzbettransm_delete
 ------------------------------------------------------
@@ -825,7 +826,7 @@ TRUNCATE TABLE #TempBatch
 INSERT INTO #TempBatch (transid)
 SELECT DISTINCT clbh.transid
 FROM bodb02.dbo.CustLimitBetHistory_LIC clbh WITH (NOLOCK)
-	INNER JOIN cust_migration tmp WITH (NOLOCK) ON tmp.custid = cosell.custid
+	INNER JOIN cust_migration tmp WITH (NOLOCK) ON tmp.custid = clbh.custid
 
 SET @MaxRow = (SELECT MAX(rid) FROM #TempBatch)
 SET @Threshold = 2000
