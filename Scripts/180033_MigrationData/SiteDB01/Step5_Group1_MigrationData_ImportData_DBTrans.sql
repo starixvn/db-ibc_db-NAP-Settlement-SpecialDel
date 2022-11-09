@@ -613,14 +613,14 @@ CREATE TABLE #BalNetPosition(
  )
 
 CREATE TABLE #BalNetPosition_insert ([CustID] [int],[MatchID] [int],[Bettype] [smallint], rid INT IDENTITY (1,1) PRIMARY KEY)
-CREATE TABLE #BalNetPosition_update ([CustID] [int],[MatchID] [int],[Bettype] [smallint], rid INT IDENTITY (1,1) PRIMARY KEY)
+CREATE TABLE #BalNetPosition_update ([CustID] [int],[MatchID] [int],[Bettype] [smallint],[Credit] [money],[Debit] [money],[CreatedDate] [datetime],[ModifiedDate] [datetime], rid INT IDENTITY (1,1) PRIMARY KEY)
 
 INSERT INTO #BalNetPosition ([CustID], [MatchID], [Bettype], [Credit], [Debit], [CreatedDate], [ModifiedDate])
 SELECT [CustID], [MatchID], [Bettype], [Credit], [Debit], [CreatedDate], [ModifiedDate]
 FROM DBSIG01.SiteDB01tmp.dbo.BalNetPosition_Copy WITH (NOLOCK)
 
 INSERT INTO #BalNetPosition_update ([CustID], [MatchID], [Bettype])
-SELECT b.[CustID], b.[MatchID], b.[Bettype]
+SELECT b.[CustID], b.[MatchID], b.[Bettype], b.[Debit],b.[Credit],b.[CreatedDate],b.[ModifiedDate]
 FROM #BalNetPosition b
 	INNER JOIN [dbo].[BalNetPosition] main WITH (NOLOCK) ON b.custid = main.custid 
 				AND b.MatchID = main.MatchID 
