@@ -179,7 +179,7 @@ SELECT DISTINCT bpd.RefNo, bpd.Serial, transid
 FROM bodb02.dbo.BetParlayDetail bpd WITH (NOLOCK)
 		INNER JOIN refno_delete tmp WITH (NOLOCK) ON tmp.refno = bpd.refno
 
-SET @MaxRow = (SELECT MAX(rid) FROM #TempBatch)
+SET @MaxRow = (SELECT MAX(rid) FROM #BetParlayDetail_tmp)
 SET @Threshold = 2000
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow

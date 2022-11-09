@@ -19,7 +19,7 @@ DECLARE @StartRow INT
 		, @StopRow INT 
 		, @MaxRow INT  -- Keep the total row of your data
 		, @Threshold INT  -- the number of each batch
-		, @batch INT = 2000
+		--, @batch INT = 2000
 
 --BalCreditCasino
 CREATE TABLE #Bal_tmp (custid INT,Balance MONEY)
@@ -44,7 +44,7 @@ WHERE main.custid IS NULL
 -- START to update first
 DECLARE @debug_message VARCHAR(500)
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -70,7 +70,7 @@ BEGIN
 END
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -117,7 +117,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -144,7 +144,7 @@ END
 
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -190,7 +190,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -217,7 +217,7 @@ END
 
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -263,7 +263,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -290,7 +290,7 @@ END
 
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -335,7 +335,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -361,7 +361,7 @@ BEGIN
 END
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -407,7 +407,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -433,7 +433,7 @@ BEGIN
 END
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -479,7 +479,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -505,7 +505,7 @@ BEGIN
 END
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -551,7 +551,7 @@ WHERE main.custid IS NULL
 
 -- START to update first
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_update)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
@@ -577,7 +577,7 @@ BEGIN
 END
 -- START to insert 
 SET @MaxRow = (SELECT MAX(rid) FROM #Bal_tmp_insert)
-SET @Threshold = 2000
+SET @Threshold = 100
 IF @Threshold >= @MaxRow
 	SET @Threshold = @MaxRow
 -- SET for first batch
