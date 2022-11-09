@@ -101,12 +101,12 @@ begin
 		select	@__messageBodyTemp = 'exec dbo.Bet_ExecRep_NAP_Admin_01 '
 									+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(20))
 									+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
-									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + convert(nvarchar(max), @__strTransInfo, 1) + '''' else '' end
 									+ ',@TableName=''bettrans'''
 									+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 									+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
 									+ case when @__processingId is not null then ',@SettlementProcessingId=' + cast(@__processingId as varchar(20)) else '' end
 									+ '@CalledByBrokerService=1'
+									+ case when @__strTransInfo is not null then ',@TransInfoJson=''' + convert(nvarchar(max), @__strTransInfo, 1) + '''' else '' end
 				, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
 				, @__endtime = sysdatetime()
 

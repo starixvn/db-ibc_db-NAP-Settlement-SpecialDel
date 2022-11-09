@@ -75,13 +75,13 @@ begin
 	select @__messageBodyTemp = 'exec dbo.NAP_SettlementService_Calculation '
 			+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(50))
 			+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(50)) + '' else '' end
-			+ case when @__transInfo is not null then ',@TransInfo=''' + @__transInfo + '''' else '' end
 			+ case when @__tableName is not null then ',@TableName=''' + @__tableName + '''' else '' end
 			+ case when @__matchId is not null then ',@MatchId=' + cast(@__matchId as varchar(20)) else '' end
 			+ case when @__action is not null then ',@Action=''' + @__action + '''' else '' end
 			+ case when @__settlementAction is not null then ',@SettlementAction=''' + @__settlementAction + '''' else '' end
 			+ case when @__ticketType is not null then ',@TicketType=''' + @__ticketType + '''' else '' end
 			+ case when @__totalQueue is not null then ',@TotalQueue=' + cast(@__totalQueue as varchar(50)) + '' else '' end
+			+ case when @__transInfo is not null then ',@TransInfo=''' + @__transInfo + '''' else '' end
 			
 		, @__endtime = sysdatetime()
 
