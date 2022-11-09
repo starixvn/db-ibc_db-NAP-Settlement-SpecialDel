@@ -7,7 +7,7 @@
 
 	 Revisions:
 		- 20221107@Victoria: INSERT from the copy all data of the following tables [Redmineid:#180033] 
-							 Bonus_sum_winloss,BonusAdjustmentTransfer,BonusTrans,BonusWalletCredit,BonusWalletDebit,BonusWalletPending,
+							 Bonus_sum_winloss,BonusWalletCredit,BonusWalletDebit,BonusWalletPending,
 							 BalancePendingCreditGame,BalancePendingDebitGame,BalCreditCasinoPending,BalCreditOthersPending,
 							 BalCreditSportsPending,BalDebitCasinoPending,BalDebitOthersPending,BalDebitSportsPending,MarkedTransaction,NetPositionCalculationLog,
 							 NetPositionTrans,Task_Cust_CheckBalance_Exception,Task_Cust_BalanceProblem1
@@ -44,68 +44,6 @@ FROM #Bonus_sum_winloss_tmp_insert tmp
 --DROP TABLE #Bonus_sum_winloss_tmp
 --DROP TABLE #Bonus_sum_winloss_tmp_update
 --DROP TABLE #Bonus_sum_winloss_tmp_insert
-
-------------------------------------------------
---BonusAdjustmentTransfer
-SELECT *
-INTO #BonusAdjustmentTransfer_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BonusAdjustmentTransfer_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BonusAdjustmentTransfer_tmp_update
-FROM #BonusAdjustmentTransfer_tmp tmp
-	INNER JOIN [dbo].[BonusAdjustmentTransfer] main WITH (NOLOCK) ON main.CustID = tmp.CustID
-
-SELECT tmp.*
-INTO #BonusAdjustmentTransfer_tmp_insert
-FROM #BonusAdjustmentTransfer_tmp tmp
-	LEFT JOIN [dbo].[BonusAdjustmentTransfer] main WITH (NOLOCK) ON main.CustID = tmp.CustID
-WHERE main.CustID IS NULL
-
-UPDATE main
-SET [LogDate]=tmp.[LogDate],[ExecDate]=tmp.[ExecDate],[MatchID]=tmp.[MatchID],
-	[BonusID]=tmp.[BonusID],[StatusID]=tmp.[StatusID],[Amount]=tmp.[Amount],[isTransferred]=tmp.[isTransferred]
-FROM [dbo].[BonusAdjustmentTransfer] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN #BonusAdjustmentTransfer_tmp_update tmp ON main.CustID = tmp.CustID
-
-INSERT INTO [dbo].[BonusAdjustmentTransfer] ([LogDate], [ExecDate], [CustID], [MatchID], [BonusID], [StatusID], [Amount], [isTransferred])
-SELECT tmp.[LogDate], tmp.[ExecDate], tmp.[CustID], tmp.[MatchID], tmp.[BonusID], tmp.[StatusID], tmp.[Amount], tmp.[isTransferred]
-FROM #BonusAdjustmentTransfer_tmp_insert tmp
-
---DROP TABLE #BonusAdjustmentTransfer_tmp
---DROP TABLE #BonusAdjustmentTransfer_tmp_update
---DROP TABLE #BonusAdjustmentTransfer_tmp_insert
-
-------------------------------------------------
---BonusTrans
-SELECT *
-INTO #BonusTrans_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BonusTrans_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BonusTrans_tmp_update
-FROM #BonusTrans_tmp tmp
-	INNER JOIN [dbo].[BonusTrans] main WITH (NOLOCK) ON main.CustID = tmp.CustID
-
-SELECT tmp.*
-INTO #BonusTrans_tmp_insert
-FROM #BonusTrans_tmp tmp
-	LEFT JOIN [dbo].[BonusTrans] main WITH (NOLOCK) ON main.CustID = tmp.CustID
-WHERE main.CustID IS NULL
-
-UPDATE main
-SET [Recommend]=tmp.[Recommend],[Mrecommend]=tmp.[Mrecommend],[Srecommend]=tmp.[Srecommend],[Amount]=tmp.[Amount],
-	[StatusId]=tmp.[StatusId],[Creator]=tmp.[Creator],[CreatedDate]=tmp.[CreatedDate],[PaymentDate]=tmp.[PaymentDate],[IsComplained]=tmp.[IsComplained]
-FROM [dbo].[BonusTrans] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN #BonusTrans_tmp_update tmp ON main.CustID = tmp.CustID
-
-INSERT INTO [dbo].[BonusTrans] ([CustID], [Recommend], [Mrecommend], [Srecommend], [Amount], [StatusId], [Creator], [CreatedDate], [PaymentDate], [IsComplained])
-SELECT tmp.[CustID], tmp.[Recommend], tmp.[Mrecommend], tmp.[Srecommend], tmp.[Amount], tmp.[StatusId], tmp.[Creator], tmp.[CreatedDate], tmp.[PaymentDate], tmp.[IsComplained]
-FROM #BonusTrans_tmp_insert tmp
-
---DROP TABLE #BonusTrans_tmp
---DROP TABLE #BonusTrans_tmp_update
---DROP TABLE #BonusTrans_tmp_insert
 
 ------------------------------------------------
 --BonusWalletCredit
