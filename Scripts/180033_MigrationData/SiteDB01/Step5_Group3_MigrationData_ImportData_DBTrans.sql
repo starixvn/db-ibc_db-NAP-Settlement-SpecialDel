@@ -214,30 +214,7 @@ FROM #Task_Cust_CheckBalance_Exception_tmp_insert tmp
 
 ------------------------------------------------
 --Task_Cust_BalanceProblem1
-SELECT *
-INTO #Task_Cust_BalanceProblem1_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.Task_Cust_BalanceProblem1_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #Task_Cust_BalanceProblem1_tmp_update
-FROM #Task_Cust_BalanceProblem1_tmp tmp
-	INNER JOIN [dbo].[Task_Cust_BalanceProblem1] main WITH (NOLOCK) ON main.CustID = tmp.CustID
-
-SELECT tmp.*
-INTO #Task_Cust_BalanceProblem1_tmp_insert
-FROM #Task_Cust_BalanceProblem1_tmp tmp
-	LEFT JOIN [dbo].[Task_Cust_BalanceProblem1] main WITH (NOLOCK) ON main.CustID = tmp.CustID
-WHERE main.CustID IS NULL
-
-UPDATE main
-SET [UserName]=tmp.[UserName],[DiffBalance]=tmp.[DiffBalance],[LogDate]=tmp.[LogDate],[IsFixed]=tmp.[IsFixed],[Remark]=tmp.[Remark]
-FROM [dbo].[Task_Cust_BalanceProblem1] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN #Task_Cust_BalanceProblem1_tmp_update tmp ON main.CustID = tmp.CustID
 
 INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
 SELECT tmp.[UserName], tmp.[custid], tmp.[DiffBalance], tmp.[LogDate], tmp.[IsFixed], tmp.[Remark]
-FROM #Task_Cust_BalanceProblem1_tmp_insert tmp
-
---DROP TABLE #Task_Cust_BalanceProblem1_tmp
---DROP TABLE #Task_Cust_BalanceProblem1_tmp_update
---DROP TABLE #Task_Cust_BalanceProblem1_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.Task_Cust_BalanceProblem1_Copy tmp WITH (NOLOCK)
