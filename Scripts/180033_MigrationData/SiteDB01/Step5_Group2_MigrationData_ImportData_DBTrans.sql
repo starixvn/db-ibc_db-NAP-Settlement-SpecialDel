@@ -60,12 +60,12 @@ FROM DBSIG01.SiteDB01tmp.dbo.CustLimitBet_LIC_Copy WITH (NOLOCK)
 INSERT INTO #CustLimitBet_LIC_update ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
 SELECT b.[Matchid], b.[CustID], b.[AccumTurnover], b.[AccumPayout], b.[EventTypeID], b.[LastQueueID], b.[ModifiedDate]
 FROM #CustLimitBet_LIC b
-	INNER JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = b.EventTypeID
+	INNER JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = main.EventTypeID
 
 INSERT INTO #CustLimitBet_LIC_insert ([Matchid], [CustID], [AccumTurnover], [AccumPayout], [EventTypeID], [LastQueueID], [ModifiedDate])
 SELECT b.[Matchid], b.[CustID], b.[AccumTurnover], b.[AccumPayout], b.[EventTypeID], b.[LastQueueID], b.[ModifiedDate]
 FROM #CustLimitBet_LIC b
-	LEFT JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = b.EventTypeID
+	LEFT JOIN [dbo].[CustLimitBet_LIC] main WITH (NOLOCK) ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = main.EventTypeID
 WHERE main.custid IS NULL
 
 -- START to update first
@@ -84,7 +84,7 @@ BEGIN
 		SET [Matchid]=b.[Matchid],[AccumTurnover]=b.[AccumTurnover],[AccumPayout]=b.[AccumPayout],[EventTypeID]=b.[EventTypeID],
 			[LastQueueID]=b.[LastQueueID],[ModifiedDate]=b.[ModifiedDate]
 	FROM  [dbo].[CustLimitBet_LIC] main WITH (UPDLOCK,ROWLOCK)
-		INNER JOIN #CustLimitBet_LIC_update b ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = b.EventTypeID
+		INNER JOIN #CustLimitBet_LIC_update b ON b.custid = main.custid AND b.Matchid = main.Matchid AND b.EventTypeID = main.EventTypeID
 	WHERE b.rid BETWEEN @StartRow AND @StopRow
 
 	IF @StopRow = @MaxRow BREAK
