@@ -169,177 +169,66 @@ FROM #BonusWalletDebit_tmp_insert tmp
 
 ------------------------------------------------
 --BonusWalletPending
-SELECT *
-INTO #BonusWalletPending_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BonusWalletPending_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BonusWalletPending_tmp_insert
-FROM #BonusWalletPending_tmp tmp
-	LEFT JOIN [dbo].[BonusWalletPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BonusWalletPending] ([CustID], [BonusID], [Amount])
 SELECT tmp.[CustID], tmp.[BonusID], tmp.[Amount]
-FROM #BonusWalletPending_tmp_insert tmp
-
---DROP TABLE #BonusWalletPending_tmp
---DROP TABLE #BonusWalletPending_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BonusWalletPending_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --BalancePendingCreditGame
-SELECT *
-INTO #BalancePendingCreditGame_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingCreditGame_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BalancePendingCreditGame_tmp_insert
-FROM #BalancePendingCreditGame_tmp tmp
-	LEFT JOIN [dbo].[BalancePendingCreditGame] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalancePendingCreditGame] ([custid], [winlostdate], [Balance], [bettype], [GameTypeID])
 SELECT tmp.[custid],tmp.[winlostdate],tmp.[Balance],tmp.[bettype],tmp.[GameTypeID]
-FROM #BalancePendingCreditGame_tmp_insert tmp
-
---DROP TABLE #BalancePendingCreditGame_tmp
---DROP TABLE #BalancePendingCreditGame_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingCreditGame_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --BalancePendingDebitGame
-SELECT *
-INTO #BalancePendingDebitGame_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingDebitGame_Copy bon WITH (NOLOCK) 
-
-SELECT tmp.*
-INTO #BalancePendingDebitGame_tmp_insert
-FROM #BalancePendingDebitGame_tmp tmp
-	LEFT JOIN [dbo].[BalancePendingDebitGame] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL 
 
 INSERT INTO [dbo].[BalancePendingDebitGame] ([custid], [winlostdate], [Balance], [bettype], [GameTypeID])
 SELECT tmp.[custid],tmp.[winlostdate],tmp.[Balance],tmp.[bettype],tmp.[GameTypeID]
-FROM #BalancePendingDebitGame_tmp_insert tmp
-
---DROP TABLE #BalancePendingDebitGame_tmp
---DROP TABLE #BalancePendingDebitGame_tmp_update
---DROP TABLE #BalancePendingDebitGame_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalancePendingDebitGame_Copy tmp WITH (NOLOCK) 
 
 ------------------------------------------------
 --BalCreditCasinoPending
-SELECT *
-INTO #BalCreditCasinoPending_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditCasinoPending_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BalCreditCasinoPending_tmp_insert
-FROM #BalCreditCasinoPending_tmp tmp
-	LEFT JOIN [dbo].[BalCreditCasinoPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL 
 
 INSERT INTO [dbo].[BalCreditCasinoPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalCreditCasinoPending_tmp_insert tmp
-
---DROP TABLE #BalCreditCasinoPending_tmp
---DROP TABLE #BalCreditCasinoPending_tmp_update
---DROP TABLE #BalCreditCasinoPending_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditCasinoPending_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --BalCreditOthersPending
-SELECT *
-INTO #BalCreditOthersPending_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditOthersPending_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BalCreditOthersPending_tmp_insert
-FROM #BalCreditOthersPending_tmp tmp
-	LEFT JOIN [dbo].[BalCreditOthersPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL 
 
 INSERT INTO [dbo].[BalCreditOthersPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalCreditOthersPending_tmp_insert tmp
-
---DROP TABLE #BalCreditOthersPending_tmp
---DROP TABLE #BalCreditOthersPending_tmp_update
---DROP TABLE #BalCreditOthersPending_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditOthersPending_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --BalCreditSportsPending
-SELECT *
-INTO #BalCreditSportsPending_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalCreditSportsPending_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BalCreditSportsPending_tmp_insert
-FROM #BalCreditSportsPending_tmp tmp
-	LEFT JOIN [dbo].[BalCreditSportsPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL 
 
 INSERT INTO [dbo].[BalCreditSportsPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalCreditSportsPending_tmp_insert tmp
-
---DROP TABLE #BalCreditSportsPending_tmp
---DROP TABLE #BalCreditSportsPending_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalCreditSportsPending_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --BalDebitCasinoPending
-SELECT *
-INTO #BalDebitCasinoPending_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitCasinoPending_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BalDebitCasinoPending_tmp_insert
-FROM #BalDebitCasinoPending_tmp tmp
-	LEFT JOIN [dbo].[BalDebitCasinoPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL 
 
 INSERT INTO [dbo].[BalDebitCasinoPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalDebitCasinoPending_tmp_insert tmp
-
---DROP TABLE #BalDebitCasinoPending_tmp
---DROP TABLE #BalDebitCasinoPending_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitCasinoPending_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --BalDebitOthersPending
-SELECT *
-INTO #BalDebitOthersPending_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitOthersPending_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BalDebitOthersPending_tmp_insert
-FROM #BalDebitOthersPending_tmp tmp
-	LEFT JOIN [dbo].[BalDebitOthersPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL 
 
 INSERT INTO [dbo].[BalDebitOthersPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalDebitOthersPending_tmp_insert tmp
-
---DROP TABLE #BalDebitOthersPending_tmp
---DROP TABLE #BalDebitOthersPending_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitOthersPending_Copy tmp WITH (NOLOCK)
 
 ------------------------------------------------
 --BalDebitSportsPending
-SELECT *
-INTO #BalDebitSportsPending_tmp
-FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSportsPending_Copy bon WITH (NOLOCK)
-
-SELECT tmp.*
-INTO #BalDebitSportsPending_tmp_insert
-FROM #BalDebitSportsPending_tmp tmp
-	LEFT JOIN [dbo].[BalDebitSportsPending] main WITH (NOLOCK) ON main.CustID = tmp.CustID 
-WHERE main.CustID IS NULL 
 
 INSERT INTO [dbo].[BalDebitSportsPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalDebitSportsPending_tmp_insert tmp
-
---DROP TABLE #BalDebitSportsPending_tmp
---DROP TABLE #BalDebitSportsPending_tmp_insert
+FROM DBSIG01.SiteDB01tmp.dbo.BalDebitSportsPending_Copy tmp WITH (NOLOCK)
 ------------------------------------------------
 --MarkedTransaction
 
