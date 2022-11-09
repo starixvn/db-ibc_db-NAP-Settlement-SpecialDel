@@ -70,7 +70,7 @@ FROM [dbo].[BonusAdjustmentTransfer] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[BonusAdjustmentTransfer] ([LogDate], [ExecDate], [CustID], [MatchID], [BonusID], [StatusID], [Amount], [isTransferred])
 SELECT tmp.[LogDate], tmp.[ExecDate], tmp.[CustID], tmp.[MatchID], tmp.[BonusID], tmp.[StatusID], tmp.[Amount], tmp.[isTransferred]
-FROM #BonusAdjustmentTransfer_tmp_insert tmp WITH (NOLOCK)
+FROM #BonusAdjustmentTransfer_tmp_insert tmp
 
 --DROP TABLE #BonusAdjustmentTransfer_tmp
 --DROP TABLE #BonusAdjustmentTransfer_tmp_update
@@ -101,7 +101,7 @@ FROM [dbo].[BonusTrans] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[BonusTrans] ([CustID], [Recommend], [Mrecommend], [Srecommend], [Amount], [StatusId], [Creator], [CreatedDate], [PaymentDate], [IsComplained])
 SELECT tmp.[CustID], tmp.[Recommend], tmp.[Mrecommend], tmp.[Srecommend], tmp.[Amount], tmp.[StatusId], tmp.[Creator], tmp.[CreatedDate], tmp.[PaymentDate], tmp.[IsComplained]
-FROM #BonusTrans_tmp_insert tmp WITH (NOLOCK)
+FROM #BonusTrans_tmp_insert tmp
 
 --DROP TABLE #BonusTrans_tmp
 --DROP TABLE #BonusTrans_tmp_update
@@ -131,7 +131,7 @@ FROM [dbo].[BonusWalletCredit] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[BonusWalletCredit] ([CustID], [BonusID], [StatusID], [initBonus], [LockedAmt], [Amount])
 SELECT tmp.[CustID], tmp.[BonusID], tmp.[StatusID], tmp.[initBonus], tmp.[LockedAmt], tmp.[Amount]
-FROM #BonusWalletCredit_tmp_insert tmp WITH (NOLOCK)
+FROM #BonusWalletCredit_tmp_insert tmp
 
 --DROP TABLE #BonusWalletCredit_tmp
 --DROP TABLE #BonusWalletCredit_tmp_update
@@ -161,7 +161,7 @@ FROM [dbo].[BonusWalletDebit] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[BonusWalletDebit] ([CustID], [BonusID], [Amount])
 SELECT tmp.[CustID], tmp.[BonusID], tmp.[Amount]
-FROM #BonusWalletDebit_tmp_insert tmp WITH (NOLOCK)
+FROM #BonusWalletDebit_tmp_insert tmp
 
 --DROP TABLE #BonusWalletDebit_tmp
 --DROP TABLE #BonusWalletDebit_tmp_update
@@ -181,7 +181,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BonusWalletPending] ([CustID], [BonusID], [Amount])
 SELECT tmp.[CustID], tmp.[BonusID], tmp.[Amount]
-FROM #BonusWalletPending_tmp_insert tmp WITH (NOLOCK)
+FROM #BonusWalletPending_tmp_insert tmp
 
 --DROP TABLE #BonusWalletPending_tmp
 --DROP TABLE #BonusWalletPending_tmp_insert
@@ -200,7 +200,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalancePendingCreditGame] ([custid], [winlostdate], [Balance], [bettype], [GameTypeID])
 SELECT tmp.[custid],tmp.[winlostdate],tmp.[Balance],tmp.[bettype],tmp.[GameTypeID]
-FROM #BalancePendingCreditGame_tmp_insert tmp WITH (NOLOCK)
+FROM #BalancePendingCreditGame_tmp_insert tmp
 
 --DROP TABLE #BalancePendingCreditGame_tmp
 --DROP TABLE #BalancePendingCreditGame_tmp_insert
@@ -219,7 +219,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalancePendingDebitGame] ([custid], [winlostdate], [Balance], [bettype], [GameTypeID])
 SELECT tmp.[custid],tmp.[winlostdate],tmp.[Balance],tmp.[bettype],tmp.[GameTypeID]
-FROM #BalancePendingDebitGame_tmp_insert tmp WITH (NOLOCK)
+FROM #BalancePendingDebitGame_tmp_insert tmp
 
 --DROP TABLE #BalancePendingDebitGame_tmp
 --DROP TABLE #BalancePendingDebitGame_tmp_update
@@ -239,7 +239,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalCreditCasinoPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalCreditCasinoPending_tmp_insert tmp WITH (NOLOCK)
+FROM #BalCreditCasinoPending_tmp_insert tmp
 
 --DROP TABLE #BalCreditCasinoPending_tmp
 --DROP TABLE #BalCreditCasinoPending_tmp_update
@@ -259,7 +259,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalCreditOthersPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalCreditOthersPending_tmp_insert tmp WITH (NOLOCK)
+FROM #BalCreditOthersPending_tmp_insert tmp
 
 --DROP TABLE #BalCreditOthersPending_tmp
 --DROP TABLE #BalCreditOthersPending_tmp_update
@@ -279,7 +279,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalCreditSportsPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalCreditSportsPending_tmp_insert tmp WITH (NOLOCK)
+FROM #BalCreditSportsPending_tmp_insert tmp
 
 --DROP TABLE #BalCreditSportsPending_tmp
 --DROP TABLE #BalCreditSportsPending_tmp_insert
@@ -298,7 +298,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalDebitCasinoPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalDebitCasinoPending_tmp_insert tmp WITH (NOLOCK)
+FROM #BalDebitCasinoPending_tmp_insert tmp
 
 --DROP TABLE #BalDebitCasinoPending_tmp
 --DROP TABLE #BalDebitCasinoPending_tmp_insert
@@ -317,7 +317,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalDebitOthersPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalDebitOthersPending_tmp_insert tmp WITH (NOLOCK)
+FROM #BalDebitOthersPending_tmp_insert tmp
 
 --DROP TABLE #BalDebitOthersPending_tmp
 --DROP TABLE #BalDebitOthersPending_tmp_insert
@@ -336,7 +336,7 @@ WHERE main.CustID IS NULL
 
 INSERT INTO [dbo].[BalDebitSportsPending] ([custid], [Balance])
 SELECT tmp.[custid],tmp.[Balance]
-FROM #BalDebitSportsPending_tmp_insert tmp WITH (NOLOCK)
+FROM #BalDebitSportsPending_tmp_insert tmp
 
 --DROP TABLE #BalDebitSportsPending_tmp
 --DROP TABLE #BalDebitSportsPending_tmp_insert
@@ -375,7 +375,7 @@ BEGIN
 	
 	INSERT INTO [dbo].[MarkedTransaction] ([TransId], [MatchId], [CustId], [bettype], [UserId], [CreatedDate], [MarkType])
 	SELECT tmp.[TransId], tmp.[MatchId], tmp.[CustId], tmp.[bettype], tmp.[UserId], tmp.[CreatedDate], tmp.[MarkType]
-	FROM #MarkedTransaction_tmp tmp WITH (NOLOCK)
+	FROM #MarkedTransaction_tmp tmp
 	WHERE tmp.rid BETWEEN @StartRow AND @StopRow 
 
 	IF @StopRow = @MaxRow BREAK
@@ -414,7 +414,7 @@ FROM [dbo].[NetPositionCalculationLog] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[NetPositionCalculationLog] ([CustID], [MatchID], [Bettype], [AccumNPDebit], [AccumNPCredit], [NPAdjust], [IsLatest], [CreatedDate], [ModifiedDate])
 SELECT tmp.[CustID], tmp.[MatchID], tmp.[Bettype], tmp.[AccumNPDebit], tmp.[AccumNPCredit], tmp.[NPAdjust], tmp.[IsLatest], tmp.[CreatedDate], tmp.[ModifiedDate]
-FROM #NetPositionCalculationLog_tmp_insert tmp WITH (NOLOCK)
+FROM #NetPositionCalculationLog_tmp_insert tmp
 
 --DROP TABLE #NetPositionCalculationLog_tmp
 --DROP TABLE #NetPositionCalculationLog_tmp_update
@@ -443,7 +443,7 @@ FROM [dbo].[NetPositionTrans] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[NetPositionTrans] ([TransID], [CustID], [MatchID], [Bettype], [Actual_stake], [Payout1], [Payoutx], [Payout2], [SyncStatus], [isSettled], [CreatedDate], [ModifiedDate])
 SELECT tmp.[TransID], tmp.[CustID], tmp.[MatchID], tmp.[Bettype], tmp.[Actual_stake], tmp.[Payout1], tmp.[Payoutx], tmp.[Payout2], tmp.[SyncStatus], tmp.[isSettled], tmp.[CreatedDate], tmp.[ModifiedDate]
-FROM #NetPositionTrans_tmp_insert tmp WITH (NOLOCK)
+FROM #NetPositionTrans_tmp_insert tmp
 
 --DROP TABLE #NetPositionTrans_tmp
 --DROP TABLE #NetPositionTrans_tmp_update
@@ -472,7 +472,7 @@ FROM [dbo].[Task_Cust_CheckBalance_Exception] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[Task_Cust_CheckBalance_Exception] ([custid], [Remark])
 SELECT tmp.[custid], tmp.[Remark]
-FROM #Task_Cust_CheckBalance_Exception_tmp_insert tmp WITH (NOLOCK)
+FROM #Task_Cust_CheckBalance_Exception_tmp_insert tmp
 
 --DROP TABLE #Task_Cust_CheckBalance_Exception_tmp
 --DROP TABLE #Task_Cust_CheckBalance_Exception_tmp_update
@@ -502,7 +502,7 @@ FROM [dbo].[Task_Cust_BalanceProblem1] main WITH (UPDLOCK,ROWLOCK)
 
 INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
 SELECT tmp.[UserName], tmp.[custid], tmp.[DiffBalance], tmp.[LogDate], tmp.[IsFixed], tmp.[Remark]
-FROM #Task_Cust_BalanceProblem1_tmp_insert tmp WITH (NOLOCK)
+FROM #Task_Cust_BalanceProblem1_tmp_insert tmp
 
 --DROP TABLE #Task_Cust_BalanceProblem1_tmp
 --DROP TABLE #Task_Cust_BalanceProblem1_tmp_update
