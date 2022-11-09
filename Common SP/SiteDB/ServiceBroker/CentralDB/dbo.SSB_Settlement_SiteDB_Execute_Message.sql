@@ -76,6 +76,7 @@ begin
 			+ '@SiteDBGroupId=' + cast(@__siteDBGroupId as varchar(50))
 			+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(50)) + '' else '' end
 			+ case when @__tableName is not null then ',@TableName=''' + @__tableName + '''' else '' end
+			+ case when @MessageType is not null then ',@MessageType=''' + @MessageType + '''' else '' end
 			+ case when @__matchId is not null then ',@MatchId=' + cast(@__matchId as varchar(20)) else '' end
 			+ case when @__action is not null then ',@Action=''' + @__action + '''' else '' end
 			+ case when @__settlementAction is not null then ',@SettlementAction=''' + @__settlementAction + '''' else '' end
