@@ -1,3 +1,4 @@
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 CREATE TYPE [dbo].[TVP_SiteDB_CalculationLog] AS TABLE(
 	[LogId] [bigint] NOT NULL,
 	[TransInfo] xml NULL,

@@ -15,6 +15,7 @@ AS
 		- 20181030@Kathy: Change CIX on DB052 [Redmine:#103985]
 		- 20190221@Kathy: Do not settle ticket on DB04x [Redmine:#108362]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221109@Louisa: log more info [Redmine:#178694]
 		
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -36,7 +37,7 @@ BEGIN
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
-		
+	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL
 		SET @IsSiteDB = 1
 
@@ -191,6 +192,8 @@ BEGIN
 			FROM	@tmpTransInfo
 			FOR XML PATH('r'),ROOT('root'), TYPE
 		)
+
+		SELECT @matchid = (SELECT TOP 1 matchid FROM @sourceTicket)
 
 		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, TransInfo, MatchId, SettlementAction, TicketType)
 		VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @transInfo, @matchid, @Action, @TicketType)		--cal or refund
