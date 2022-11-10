@@ -16,6 +16,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221109@Louisa: log more info [Redmine:#178694]
 
 	Param's Explanation:
 		
@@ -89,7 +90,7 @@ BEGIN
 									) 
 								)
 								
-		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = 'p'
+		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = 's'
 			
 	END TRY
 	BEGIN CATCH
