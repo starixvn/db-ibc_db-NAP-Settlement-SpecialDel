@@ -301,6 +301,7 @@ BEGIN
 				,@Action		= 'CAL'
 				,@matchid		= @matchid
 				,@CWLBettype	= @CWLBettype
+				,@TicketType	= 'p'
 				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT

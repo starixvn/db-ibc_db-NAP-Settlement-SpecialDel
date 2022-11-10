@@ -415,6 +415,7 @@ BEGIN
 					,@matchid		= @matchid
 					,@Action		= 'CAL'
 					,@CWLBettype	= @CWLBettype
+					,@TicketType	= 's'
 					,@balanceUpd 	= @balanceUpd OUTPUT
 					,@ErrCode 		= @ErrCode OUTPUT
 					,@ErrMsg 		= @ErrMsg OUTPUT

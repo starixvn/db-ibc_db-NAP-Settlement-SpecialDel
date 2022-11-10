@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans]
 	,@matchid			INT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	,@TicketType		VARCHAR(1)		= 's'
 AS
 /*
 	Created: 20160606@Bobby
@@ -25,13 +26,7 @@ BEGIN
 	SET NOCOUNT ON 
 	
 	DECLARE @strBetTicket		VARCHAR(MAX)
-		, @TicketType			VARCHAR(1)
 
-	IF @matchid  =  2799 
-		SELECT @TicketType = 'p' --main parlay
-	ELSE 
-		SELECT @TicketType = 's'
-	
 	--Tracing company winlimit control
 	CREATE TABLE #BalanceCWLBefore (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
 	CREATE TABLE #BalanceCWLAfter (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)

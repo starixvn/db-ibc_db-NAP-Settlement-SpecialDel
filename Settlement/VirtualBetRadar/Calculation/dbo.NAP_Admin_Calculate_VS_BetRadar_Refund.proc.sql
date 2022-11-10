@@ -22,6 +22,7 @@ AS
 		- 20180214@Helen: Integrate VSBR 2 - Basketball - [Redmine:90154]
 		- 20220217@Kathy: Do not cal/refund if there is no ticket [Redmine:#168702]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221109@Louisa: log more info [Redmine:#178694]
 		
 	Param's Explanation:
 		• @Mode:
@@ -151,6 +152,7 @@ BEGIN
 				,@MatchId		= @MatchId
 				,@Action		= 'REFUND'
 				,@CWLBettype	= @CWLBettype
+				,@TicketType	= 's'
 				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT
