@@ -13,6 +13,13 @@ GO
 ALTER TABLE [dbo].[SiteDB_SettlementLock] ADD  CONSTRAINT [DF_SiteDB_SettlementLock_CreatedTime]  DEFAULT (getdate()) FOR [CreatedTime]
 GO
 
+CREATE CLUSTERED INDEX [CIX_SiteDB_SettlementLock_SessionId_SiteDBGroupId] ON [dbo].[SiteDB_SettlementLock]
+(
+	[SessionId] ASC,
+	[SiteDBGroupId] ASC
+)ON [DATA]
+GO
+
 
 CREATE TABLE [dbo].[SiteDB_SettlementProcessing](
 	[Id] [bigint] IDENTITY(1,1) NOT NULL,
@@ -31,6 +38,14 @@ CREATE TABLE [dbo].[SiteDB_SettlementProcessing](
 GO
 
 ALTER TABLE [dbo].[SiteDB_SettlementProcessing] ADD  CONSTRAINT [DF_SiteDB_SettlementProcessing_StatusId]  DEFAULT ((0)) FOR [StatusId]
+GO
+
+CREATE CLUSTERED INDEX [CIX_SiteDB_SettlementProcessing_SessionId_SiteDBGroupId_MessageType] ON [dbo].[SiteDB_SettlementProcessing]
+(
+	[SessionId] ASC,
+	[SiteDBGroupId] ASC,
+	[MessageType] ASC
+) ON [DATA]
 GO
 
 ----2
