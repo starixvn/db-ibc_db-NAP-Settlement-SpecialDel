@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary] 
 	 @MatchId						INT
 	,@LicenseeId					INT
@@ -16,12 +16,13 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary]
 	,@SingleOrSubParlay				VARCHAR(20)	    = 'All'
 	,@SelectionType					VARCHAR(200)    = ''
 	,@IsReSettled					BIT				= 0
+	,@AffectTickets					XML				= NULL
 		
 AS
 /*	Created by: Elodie
 	Date: 20130606
 	Task: Show Tickets Listing for NAP system
-	DB: DBBAH/bodb02
+	DB: DBACC/bodb02
 	Original: Acc_Rpt_TicketListing
 	
 	Revisions:	
@@ -72,6 +73,7 @@ AS
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220828@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221006@July: Ticket Listing - Support Advance Mode for Tennis(5) & Volleyball(6) [Redmine: #176611]
+		- 20221110@Max: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -123,6 +125,8 @@ AS
 	 + 'All'
 	 + 'Single'
 	 + 'SubParlay'
+
+	- @AffectTickets: <root><r tid="1010509175087955968,1010509175087955968,..." /></root>
       
     Example:	declare @p12 int
 				set @p12=0
@@ -154,45 +158,13 @@ BEGIN
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
-	CREATE TABLE #tblSettlementHistory (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, CreatedDate DATETIME , BalanceChanged MONEY, Rownumber INT, RN_settle INT)
-	CREATE CLUSTERED INDEX IDX_tblSettlementHistory_transid ON #tblSettlementHistory (transid)
 
-	IF (@IsReSettled = 1)
+	IF (@IsReSettled = 1 AND @AffectTickets IS NOT NULL)
 	BEGIN 
-		IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.settlementhistory WITH(NOLOCK) WHERE MatchId = @MatchId)
-		BEGIN
-			INSERT INTO #tblSettlementHistory (transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged, Rownumber, RN_settle)
-			SELECT transid, winlost, StatusId, SettlementType, CreatedDate, BalanceChanged
-					, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CreatedDate DESC) Rownumber
-					, CASE WHEN SettlementType <> 0 THEN ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CASE WHEN SettlementType <> 0 THEN 1 ELSE 0 END DESC, CreatedDate DESC) ELSE 0 END AS RN_settle
-			FROM bodb02.dbo.settlementhistory WITH(NOLOCK) 
-			WHERE Matchid = @MatchId
-
-			INSERT INTO #tmpAffectTickets(Transid)
-			SELECT bt.transid
-			FROM #tblSettlementHistory bt
-			OUTER APPLY ( 
-				SELECT  bt1.SettlementType, bt1.Rownumber --get settle before
-				FROM #tblsettlementhistory bt1 
-				WHERE  bt.transid = bt1.transid
-						AND bt1.RN_settle = 2 
-			)bt1 
-			OUTER APPLY ( 
-				SELECT  bt2.SettlementType, SUM(bt2.BalanceChanged) sumbalance 
-				FROM #tblsettlementhistory bt2
-				WHERE  bt.transid = bt2.transid
-					   AND 1 = CASE WHEN bt1.Rownumber IS NOT NULL AND  bt2.Rownumber > 1 and bt2.Rownumber < bt1.Rownumber THEN 1
-									WHEN bt1.Rownumber IS NULL AND bt2.Rownumber > 1 THEN 1
-									ELSE 0  
-								END
-				GROUP BY bt2.SettlementType
-			)bt2
-			WHERE bt.Rownumber = 1 
-			AND 1 = CASE WHEN bt.SettlementType = 3 THEN 1 
-						 WHEN bt.SettlementType = 2 AND bt.BalanceChanged + bt2.sumbalance <> 0 THEN 1
-						 ELSE 0
-					END
-		END
+		INSERT INTO #tmpAffectTickets(Transid)
+		SELECT t.c.value('@tid','BIGINT') AS Transid
+		FROM @AffectTickets.nodes('/root/r') AS T(C)
+		OPTION (OPTIMIZE FOR (@AffectTickets = NULL ))
 	END
 
 	DECLARE @tmpBettransList TABLE (
@@ -1162,6 +1134,5 @@ BEGIN
 	DROP TABLE #tblBetType
 	DROP TABLE #tblBetType_Detail
 	DROP TABLE #tmpSelectionType
-	DROP TABLE #tblSettlementHistory
 	DROP TABLE #tmpAffectTickets
 END
