@@ -286,7 +286,7 @@ DECLARE @StartRow INT
 		, @StopRow INT 
 		, @MaxRow INT  -- Keep the total row of your data
 		, @Threshold INT  -- the number of each batch
-		, @batch INT = 2000
+		--, @batch INT = 2000
 
 DECLARE @debug_message VARCHAR(500)
 
@@ -769,7 +769,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
-	DELETE TOP (@batch) tbip
+	DELETE tbip
 	OUTPUT	deleted.[transid], deleted.[winlostdate], deleted.[CountryShort], deleted.[IPArchive]
 	INTO [Task_bettransRNG14_IP2Country_delete] ([transid], [winlostdate], [CountryShort], [IPArchive])
 	FROM bodb02.dbo.Task_bettransRNG14_IP2Country tbip WITH (ROWLOCK)
@@ -838,7 +838,7 @@ SELECT @StartRow = 1, @StopRow = @Threshold
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
 	
-	DELETE TOP (@batch) clbh
+	DELETE clbh
 	OUTPUT	deleted.[Matchid], deleted.[CustID], deleted.[Transid], deleted.[TurnoverAdjust], deleted.[PayoutAdjust], deleted.[EventTypeID], deleted.[CreatedDate]
 	INTO [CustLimitBetHistory_LIC_delete] ([Matchid], [CustID], [Transid], [TurnoverAdjust], [PayoutAdjust], [EventTypeID], [CreatedDate])
 	FROM bodb02.dbo.CustLimitBetHistory_LIC clbh WITH (ROWLOCK)
