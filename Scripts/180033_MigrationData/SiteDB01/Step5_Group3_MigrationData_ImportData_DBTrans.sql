@@ -215,6 +215,19 @@ FROM #Task_Cust_CheckBalance_Exception_tmp_insert tmp
 ------------------------------------------------
 --Task_Cust_BalanceProblem1
 
+SELECT *
+INTO #Task_Cust_BalanceProblem1_tmp
+FROM DBSIG01.SiteDB01tmp.dbo.Task_Cust_BalanceProblem1_Copy WITH (NOLOCK)
+
+SELECT tmp.* 
+INTO #Task_Cust_BalanceProblem1_tmp_insert
+FROM #Task_Cust_BalanceProblem1_tmp tmp
+	LEFT JOIN [dbo].[Task_Cust_BalanceProblem1] main WITH (NOLOCK) ON main.custid = tmp.custid AND main.LogDate = tmp.LogDate
+WHERE main.custid IS NULL
+
 INSERT INTO [dbo].[Task_Cust_BalanceProblem1] ([UserName], [custid], [DiffBalance], [LogDate], [IsFixed], [Remark])
 SELECT tmp.[UserName], tmp.[custid], tmp.[DiffBalance], tmp.[LogDate], tmp.[IsFixed], tmp.[Remark]
-FROM DBSIG01.SiteDB01tmp.dbo.Task_Cust_BalanceProblem1_Copy tmp WITH (NOLOCK)
+FROM #Task_Cust_BalanceProblem1_tmp_insert tmp
+
+--DROP TABLE #Task_Cust_BalanceProblem1_tmp
+--DROP TABLE #Task_Cust_BalanceProblem1_tmp_insert
