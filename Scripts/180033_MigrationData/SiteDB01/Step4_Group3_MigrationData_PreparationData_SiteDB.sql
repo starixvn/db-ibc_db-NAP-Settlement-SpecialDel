@@ -463,7 +463,7 @@ DROP TABLE #tmp_refno
 SELECT q.[TransId], q.[Sitetype], q.[MainQueueId], q.[StatusId], q.[Createddate], q.[Trycount]
 INTO CustLimitBet_QueueRetry_Copy
 FROM bodb02.dbo.CustLimitBet_QueueRetry q WITH (NOLOCK)
-	INNER JOIN bettrans_Copy tmp WITH (NOLOCK) ON tmp.TransId = tcb.TransId
+	INNER JOIN bettrans_Copy tmp WITH (NOLOCK) ON tmp.TransId = q.TransId
 WHERE q.StatusId = 0
 
 --18. bodb02.dbo.CustLimitBetQueue
