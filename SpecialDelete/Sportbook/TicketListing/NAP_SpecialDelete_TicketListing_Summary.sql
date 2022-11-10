@@ -126,7 +126,7 @@ AS
 	 + 'Single'
 	 + 'SubParlay'
 
-	- @AffectTickets: <root><r tid="1010509175087955968,1010509175087955968,..." /></root>
+	- @AffectTickets: <root><r tid="1010509175087955968" /><r tid="1010509175087955968" />...</root>
       
     Example:	declare @p12 int
 				set @p12=0

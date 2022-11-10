@@ -130,7 +130,7 @@ AS;
 	 + 'Single'
 	 + 'SubParlay' 
 	 
-	- @AffectTickets: <root><r tid="1010509175087955968,1010509175087955968,..." /></root>
+	- @AffectTickets: <root><r tid="1010509175087955968" /><r tid="1010509175087955968" />...</root>
      
    Example:    exec NAP_Rpt_TicketsListingDetail @MatchId=4626986,@LicenseeName='IBC',@BetTypes='1101,1102',@BetTypesLive='',@LiveType=0,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=2,@SecondAcceptFlag=0
 	
