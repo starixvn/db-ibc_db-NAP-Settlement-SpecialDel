@@ -123,11 +123,23 @@ BEGIN
 					BEGIN
 						IF @cnt_sitedb = 0
 						BEGIN
-							INSERT INTO @tmpTransId (TransID)
-							SELECT	t
-							FROM	OPENJSON(DECOMPRESS(@TransInfoJson)) WITH (t BIGINT)
-
-							SET @cnt_sitedb = @@ROWCOUNT
+							IF @TransInfoJson IS NOT NULL
+							BEGIN
+								INSERT INTO @tmpTransId (TransID)
+								SELECT	t
+								FROM	OPENJSON(DECOMPRESS(@TransInfoJson)) WITH (t BIGINT)
+								
+								SET @cnt_sitedb = @@ROWCOUNT
+							END
+							ELSE
+							BEGIN
+								INSERT INTO @tmpTransId (TransID)
+								SELECT	T.C.value('./@t', 'bigint') AS transid	
+								FROM	@TransInfo.nodes('/root/r') AS T(C)
+								OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+									
+								SET @cnt_sitedb = @@ROWCOUNT
+							END							
 						END 
 
 						SELECT @cnt_central = COUNT(1)
