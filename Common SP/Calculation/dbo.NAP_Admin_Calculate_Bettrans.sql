@@ -25,6 +25,12 @@ BEGIN
 	SET NOCOUNT ON 
 	
 	DECLARE @strBetTicket		VARCHAR(MAX)
+		, @TicketType			VARCHAR(1)
+
+	IF @matchid  =  2799 
+		SELECT @TicketType = 'p' --main parlay
+	ELSE 
+		SELECT @TicketType = 's'
 	
 	--Tracing company winlimit control
 	CREATE TABLE #BalanceCWLBefore (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
@@ -90,7 +96,7 @@ BEGIN
 									) 
 								)
 								
-		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = 's'
+		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = @TicketType
 			
 	END TRY
 	BEGIN CATCH
