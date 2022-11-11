@@ -2,5 +2,5 @@
 USE bodb02
 GO
 
-ALTER TABLE dbo.SiteDB_SettlementService_CalculationLog ADD TransInfoJson VARBINARY 
+ALTER TABLE dbo.SiteDB_SettlementService_CalculationLog ADD TransInfoJson VARBINARY(MAX)
 GO
