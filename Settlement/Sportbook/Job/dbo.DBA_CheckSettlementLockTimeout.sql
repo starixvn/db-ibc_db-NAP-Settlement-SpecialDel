@@ -94,12 +94,18 @@ BEGIN
 			EXEC dbo.SSB_Settlement_SendEmail @Recipients = ''--get email address by enviroment
 					,@Subject = @SubjectMessage
 					,@MessageBody = @TableHTML
+			
+			IF @@SERVERNAME LIKE 'TEST%' OR @@SERVERNAME LIKE 'DEV%' OR @@SERVERNAME LIKE 'DB-61%' OR @@SERVERNAME LIKE 'DB-60%'
+			RETURN
 
-			EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
-				, @JobId = NULL
-				, @JobName = N'bodb02: Check Settlement status'
-				, @Message = @SubjectMessage
-				, @CaseId = 1;			
+			ELSE
+			BEGIN
+				EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+					, @JobId = NULL
+					, @JobName = N'bodb02: Check Settlement status'
+					, @Message = @SubjectMessage
+					, @CaseId = 1;		
+			END
 		END
 	END
 END
