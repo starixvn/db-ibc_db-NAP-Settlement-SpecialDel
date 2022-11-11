@@ -63,8 +63,8 @@ BEGIN
 		WHERE	s.IsParallel = 1
 		ORDER BY s.LogId
 
-		INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId)
-		SELECT s.LogId, @SiteDBGroupId 
+		INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId, LogDate)
+		SELECT s.LogId, @SiteDBGroupId, SYSDATETIME()
 		FROM	@SiteDBCalculationLog s
 		WHERE	s.IsParallel = 1
 	END
@@ -112,8 +112,8 @@ BEGIN
 
 			SET @LogId = @CurrentLogId
 
-			INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId)
-			SELECT @LogId, @SiteDBGroupId 
+			INSERT INTO  dbo.SiteDB_SettlementService_CalculationLog_History (LogId, SiteDBGroupId, LogDate)
+			SELECT @LogId, @SiteDBGroupId, SYSDATETIME()
 		END
 	END	
 END
