@@ -599,13 +599,13 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
-		/*Support case uncheck bettype PH -> still show PH count = 0*/
+		/*Support case uncheck bettype PH -> still show PH count = 0 & case voided*/
 		UPDATE v
 		SET v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE 1 END
 		FROM @Validation v
 		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId
-			AND rd.TransIds LIKE '%IsMainMatch="true"%' AND rd.TransIds LIKE '%PoolHouseCheckedBetTypes=""%'
+			AND rd.TransIds LIKE '%IsMainMatch="true"%' AND rd.TransIds NOT LIKE '%PoolHouseCheckedBetTypes="-1"%'
 
 		-- 1. Validate table
 		SELECT MatchId

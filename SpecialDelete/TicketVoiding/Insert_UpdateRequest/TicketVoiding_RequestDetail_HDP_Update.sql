@@ -82,7 +82,6 @@ BEGIN
 	FROM OPENJSON(@Decompress_TransInfoJson) 
 	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
-			,t.c.value('@s_btype','SMALLINT') AS Subbettype
 
 	SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
 	INSERT INTO #tblGetLogInfo( 
