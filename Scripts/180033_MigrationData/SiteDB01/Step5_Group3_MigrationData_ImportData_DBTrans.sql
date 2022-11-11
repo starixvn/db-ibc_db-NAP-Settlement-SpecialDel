@@ -24,18 +24,18 @@ FROM DBSIG01.SiteDB01tmp.dbo.Bonus_sum_winloss_Copy bon WITH (NOLOCK)
 SELECT tmp.*
 INTO #Bonus_sum_winloss_tmp_update
 FROM #Bonus_sum_winloss_tmp tmp
-	INNER JOIN [dbo].[Bonus_sum_winloss] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+	INNER JOIN [dbo].[Bonus_sum_winloss] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId AND main.winlostdate = tmp.winlostdate
 
 SELECT tmp.*
 INTO #Bonus_sum_winloss_tmp_insert
 FROM #Bonus_sum_winloss_tmp tmp
-	LEFT JOIN [dbo].[Bonus_sum_winloss] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
-WHERE main.CustId IS NULL AND main.BonusId IS NULL 
+	LEFT JOIN [dbo].[Bonus_sum_winloss] main WITH (NOLOCK) ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId AND main.winlostdate = tmp.winlostdate
+WHERE main.CustId IS NULL --AND main.BonusId IS NULL 
 
 UPDATE main
 SET [Amount]=tmp.[Amount], [winlostdate] = tmp.[winlostdate]
 FROM [dbo].[Bonus_sum_winloss] main WITH (UPDLOCK,ROWLOCK)
-	INNER JOIN #Bonus_sum_winloss_tmp_update tmp ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId 
+	INNER JOIN #Bonus_sum_winloss_tmp_update tmp ON main.CustId = tmp.CustId AND main.BonusId = tmp.BonusId AND main.winlostdate = tmp.winlostdate
 
 INSERT INTO [dbo].[Bonus_sum_winloss] ([CustId], [BonusId], [winlostdate], [Amount])
 SELECT tmp.[CustId], tmp.[BonusId], tmp.[winlostdate], tmp.[Amount]

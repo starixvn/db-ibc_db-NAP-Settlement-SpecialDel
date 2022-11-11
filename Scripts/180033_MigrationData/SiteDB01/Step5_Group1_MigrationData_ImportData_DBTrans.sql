@@ -646,7 +646,7 @@ WHILE (@MaxRow IS NOT NULL)
 BEGIN
 	
 	UPDATE main
-		SET [MatchID]=bal.[MatchID],[Bettype]=bal.[Bettype],[Debit]=bal.[Debit],[Credit]=bal.[Credit],[CreatedDate]=bal.[CreatedDate],[ModifiedDate]=bal.[ModifiedDate]
+		SET [Debit]=bal.[Debit],[Credit]=bal.[Credit],[CreatedDate]=bal.[CreatedDate],[ModifiedDate]=bal.[ModifiedDate]
 	FROM [dbo].[BalNetPosition] main WITH (UPDLOCK,ROWLOCK)
 		INNER JOIN #BalNetPosition_update bal ON bal.custid = main.custid AND bal.MatchID = main.MatchID AND bal.Bettype = main.Bettype
 	WHERE bal.rid BETWEEN @StartRow AND @StopRow
