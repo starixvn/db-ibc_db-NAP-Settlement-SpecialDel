@@ -13,8 +13,6 @@
 								bettransG
 								translog
 								bettransm
-								zzzbettrans
-								zzzbettransm
 								BetParlayDetail
 								BetParlayResult
 								
@@ -329,81 +327,6 @@ FROM	DBSIG01.SiteDB01tmp.dbo.bettransm_delete b WITH (NOLOCK)
 	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
 GROUP BY	TransId
 
-
-------zzzbettrans
-CREATE TABLE #tmp_DBTrans_zzzbettrans
-(
-	TransId BIGINT PRIMARY KEY,
-	TotalCheckSumAgg BIGINT
-)
-
-CREATE TABLE #tmp_SiteDB_zzzbettrans
-(
-	TransId BIGINT PRIMARY KEY,
-	TotalCheckSumAgg BIGINT
-)
-
-INSERT INTO #tmp_DBTrans_zzzbettrans
-(
-		TransId,
-		TotalCheckSumAgg
-)
-SELECT	TransId,
-		CHECKSUM_AGG(CHECKSUM(	[transid],b.[custid],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],
-								[liveindicator],[betteam],[creator],[refno],[comstatus],[betfrom],[betcheck],[matchid],[bettype])) AS TotalCheckSumAgg
-FROM	dbo.zzzbettrans b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-GROUP BY	TransId
-
-INSERT INTO #tmp_SiteDB_zzzbettrans
-(
-		TransId,
-		TotalCheckSumAgg
-)
-SELECT	TransId,
-		CHECKSUM_AGG(CHECKSUM(	[transid],b.[custid],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],
-								[liveindicator],[betteam],[creator],[refno],[comstatus],[betfrom],[betcheck],[matchid],[bettype])) AS TotalCheckSumAgg
-FROM	DBSIG01.SiteDB01tmp.dbo.zzzbettrans_delete b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-GROUP BY	TransId
-
-------zzzbettransm
-CREATE TABLE #tmp_DBTrans_zzzbettransm
-(
-	TransId BIGINT PRIMARY KEY,
-	TotalCheckSumAgg BIGINT
-)
-
-CREATE TABLE #tmp_SiteDB_zzzbettransm
-(
-	TransId BIGINT PRIMARY KEY,
-	TotalCheckSumAgg BIGINT
-)
-
-INSERT INTO #tmp_DBTrans_zzzbettransm
-(
-		TransId,
-		TotalCheckSumAgg
-)
-SELECT	TransId,
-		CHECKSUM_AGG(CHECKSUM(	[transid],b.[custid],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],
-								[betteam],[creator],[refno],[comstatus],[betfrom],[betcheck],[matchid],[bettype])) AS TotalCheckSumAgg
-FROM	dbo.zzzbettransm b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-GROUP BY	TransId
-
-INSERT INTO #tmp_SiteDB_zzzbettransm
-(
-		TransId,
-		TotalCheckSumAgg
-)
-SELECT	TransId,
-		CHECKSUM_AGG(CHECKSUM(	[transid],b.[custid],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],
-								[betteam],[creator],[refno],[comstatus],[betfrom],[betcheck],[matchid],[bettype])) AS TotalCheckSumAgg
-FROM	DBSIG01.SiteDB01tmp.dbo.zzzbettransm_delete b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-GROUP BY	TransId
-
 ------BetParlayDetail
 CREATE TABLE #tmp_DBTrans_BetParlayDetail
 (
@@ -424,7 +347,7 @@ INSERT INTO #tmp_DBTrans_BetParlayDetail
 )
 SELECT	b.refno,
 		CHECKSUM_AGG(CHECKSUM(b.[RefNo],[Serial],[transid],[statuswinlost],[statusid],[matchid],[bettype],[stake],[odds],[betteam],[hdp1],[hdp2],
-								[livehomescore],[liveawayscore],[liveindicator],[betcheck],[transdesc],[PriceMultiplier])) AS TotalCheckSumAgg
+								[livehomescore],[liveawayscore],[liveindicator],[betcheck],[transdesc])) AS TotalCheckSumAgg
 FROM	dbo.BetParlayDetail b WITH (NOLOCK)
 	INNER JOIN #tmp_refno_DBTrans tmp ON tmp.refno = b.refno
 GROUP BY	b.refno
@@ -436,7 +359,7 @@ INSERT INTO #tmp_SiteDB_BetParlayDetail
 )
 SELECT	b.refno,
 		CHECKSUM_AGG(CHECKSUM(b.[RefNo],[Serial],[transid],[statuswinlost],[statusid],[matchid],[bettype],[stake],[odds],[betteam],[hdp1],[hdp2],
-								[livehomescore],[liveawayscore],[liveindicator],[betcheck],[transdesc],[PriceMultiplier])) AS TotalCheckSumAgg
+								[livehomescore],[liveawayscore],[liveindicator],[betcheck],[transdesc])) AS TotalCheckSumAgg
 FROM	DBSIG01.SiteDB01tmp.dbo.BetParlayDetail_delete b WITH (NOLOCK)
 	INNER JOIN #tmp_refno_DBTrans tmp ON tmp.refno = b.refno
 GROUP BY	b.refno
@@ -461,7 +384,7 @@ INSERT INTO #tmp_DBTrans_BetParlayResult
 )
 SELECT	b.refno,
 		CHECKSUM_AGG(CHECKSUM(	b.[RefNo],[Serial],[transid],[statusid],[stake],[Odds],[mOdds],[winlost],[awinlost],[mwinlost],
-								[swinlost],[playercomm],[comm],[acomm],[scomm],[PriceMultiplier])) AS TotalCheckSumAgg
+								[swinlost],[playercomm],[comm],[acomm],[scomm])) AS TotalCheckSumAgg
 FROM	dbo.BetParlayResult b WITH (NOLOCK)
 	INNER JOIN #tmp_refno_DBTrans tmp ON tmp.refno = b.refno
 GROUP BY	b.refno
@@ -473,7 +396,7 @@ INSERT INTO #tmp_SiteDB_BetParlayResult
 )
 SELECT	b.refno,
 		CHECKSUM_AGG(CHECKSUM(	b.[RefNo],[Serial],[transid],[statusid],[stake],[Odds],[mOdds],[winlost],[awinlost],[mwinlost],
-								[swinlost],[playercomm],[comm],[acomm],[scomm],[PriceMultiplier])) AS TotalCheckSumAgg
+								[swinlost],[playercomm],[comm],[acomm],[scomm])) AS TotalCheckSumAgg
 FROM	DBSIG01.SiteDB01tmp.dbo.BetParlayResult_delete b WITH (NOLOCK)
 	INNER JOIN #tmp_refno_DBTrans tmp ON tmp.refno = b.refno
 GROUP BY	b.refno
@@ -510,16 +433,6 @@ FROM #tmp_DBTrans_bettransm tmp1
 	INNER JOIN #tmp_SiteDB_bettransm tmp2 ON tmp2.TransId = tmp1.TransId
 WHERE tmp1.TotalCheckSumAgg <> tmp2.TotalCheckSumAgg
 UNION ALL
-SELECT 'zzzbettrans' AS TableName,*
-FROM #tmp_DBTrans_zzzbettrans tmp1 
-	INNER JOIN #tmp_SiteDB_zzzbettrans tmp2 ON tmp2.TransId = tmp1.TransId
-WHERE tmp1.TotalCheckSumAgg <> tmp2.TotalCheckSumAgg
-UNION ALL
-SELECT 'zzzbettransm' AS TableName,*
-FROM #tmp_DBTrans_zzzbettransm tmp1 
-	INNER JOIN #tmp_SiteDB_zzzbettransm tmp2 ON tmp2.TransId = tmp1.TransId
-WHERE tmp1.TotalCheckSumAgg <> tmp2.TotalCheckSumAgg
-UNION ALL
 SELECT 'BetParlayDetail' AS TableName,*
 FROM #tmp_DBTrans_BetParlayDetail tmp1 
 	INNER JOIN #tmp_SiteDB_BetParlayDetail tmp2 ON tmp2.TransId = tmp1.TransId
@@ -541,8 +454,6 @@ DROP TABLE #tmp_DBTrans_bettransLC
 DROP TABLE #tmp_DBTrans_bettransG
 DROP TABLE #tmp_DBTrans_translog
 DROP TABLE #tmp_DBTrans_bettransm
-DROP TABLE #tmp_DBTrans_zzzbettrans
-DROP TABLE #tmp_DBTrans_zzzbettransm
 DROP TABLE #tmp_DBTrans_BetParlayDetail
 DROP TABLE #tmp_DBTrans_BetParlayResult
 
@@ -553,7 +464,5 @@ DROP TABLE #tmp_SiteDB_bettransLC
 DROP TABLE #tmp_SiteDB_bettransG
 DROP TABLE #tmp_SiteDB_translog
 DROP TABLE #tmp_SiteDB_bettransm
-DROP TABLE #tmp_SiteDB_zzzbettrans
-DROP TABLE #tmp_SiteDB_zzzbettransm
 DROP TABLE #tmp_SiteDB_BetParlayDetail
 DROP TABLE #tmp_SiteDB_BetParlayResult

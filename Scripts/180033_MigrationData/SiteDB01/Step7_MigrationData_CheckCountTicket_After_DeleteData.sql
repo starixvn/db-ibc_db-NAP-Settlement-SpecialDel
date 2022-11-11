@@ -7,22 +7,23 @@
 
 	 Revisions:
 		- 20221110@Victoria: Check TicketCount of bet ticket tables [Redmineid:#180033] 
-							bettrans
-							bettrans14
-							bettransRnG
-							bettransRnG14
-							bettransLC
-							bettransLC14
-							bettransG
-							bettransG14
-							translog
-							translog14
-							bettransm
-							bettransm14
-							zzzbettrans
-							zzzbettransm
-							BetParlayDetail
-							BetParlayResult
+								bettrans
+								bettrans14
+								bettransRnG
+								bettransRnG14
+								bettransLC
+								bettransLC14
+								bettransG
+								bettransG14
+								translog
+								translog14
+								bettransm
+								bettransm14
+								BetParlayDetail
+								BetParlayResult
+							Check 'Void' tickets but they are not being exists in the following tables: 
+								zzzbettrans
+								zzzbettransm
 								
 */
 
@@ -148,16 +149,6 @@ SELECT	'bettransm14' AS TableName,
 FROM dbo.bettransm14 b WITH (NOLOCK) 
 	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
 UNION ALL
-SELECT	'zzzbettrans' AS TableName,
-		COUNT(1) AS TicketCount
-FROM dbo.zzzbettrans b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-UNION ALL
-SELECT	'zzzbettransm' AS TableName,
-		COUNT(1) AS TicketCount
-FROM dbo.zzzbettransm b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-UNION ALL
 SELECT	'BetParlayDetail' AS TableName,
 		COUNT(1) AS TicketCount
 FROM dbo.BetParlayDetail b WITH (NOLOCK)
@@ -234,16 +225,6 @@ SELECT	'bettransm14' AS TableName,
 FROM DBSIG01.SiteDB01tmp.dbo.bettransm14_delete b WITH (NOLOCK) 
 	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
 UNION ALL
-SELECT	'zzzbettrans' AS TableName,
-		COUNT(1) AS TicketCount
-FROM DBSIG01.SiteDB01tmp.dbo.zzzbettrans_delete b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-UNION ALL
-SELECT	'zzzbettransm' AS TableName,
-		COUNT(1) AS TicketCount
-FROM DBSIG01.SiteDB01tmp.dbo.zzzbettransm_delete b WITH (NOLOCK)
-	INNER JOIN #tmp_cust_scaleout tmp ON tmp.custid = b.custid
-UNION ALL
 SELECT	'BetParlayDetail' AS TableName,
 		COUNT(1) AS TicketCount
 FROM DBSIG01.SiteDB01tmp.dbo.BetParlayDetail_delete b WITH (NOLOCK)
@@ -255,10 +236,57 @@ FROM DBSIG01.SiteDB01tmp.dbo.BetParlayResult_delete b WITH (NOLOCK)
 	INNER JOIN #tmp_refno_DBTrans tmp ON tmp.refno = b.refno
 
 -----------------------------------
+/**********Check 'Void' tickets but they are not being exists in zzzbettrans and zzzbettransm*********/
+
+CREATE TABLE #tmp_zzzbettrans_DBTrans
+(
+	transid BIGINT PRIMARY KEY
+)
+
+CREATE TABLE #tmp_zzzbettransm_DBTrans
+(
+	transid BIGINT PRIMARY KEY
+)
+
+INSERT INTO #tmp_zzzbettrans_DBTrans (transid)
+SELECT DISTINCT b.transid
+FROM dbo.bettrans b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout tmp WITH (NOLOCK) ON tmp.custid = b.custid
+WHERE b.statusID = 102
+
+INSERT INTO #tmp_zzzbettrans_DBTrans (transid)
+SELECT DISTINCT b.transid
+FROM dbo.bettrans14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout tmp WITH (NOLOCK) ON tmp.custid = b.custid
+WHERE b.statusID = 102
+
+INSERT INTO #tmp_zzzbettransm_DBTrans (transid)
+SELECT DISTINCT b.transid
+FROM dbo.bettransm b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout tmp WITH (NOLOCK) ON tmp.custid = b.custid
+WHERE b.statusID = 102
+
+INSERT INTO #tmp_zzzbettransm_DBTrans (transid)
+SELECT DISTINCT b.transid
+FROM dbo.bettransm14 b WITH (NOLOCK)
+	INNER JOIN #tmp_cust_scaleout tmp WITH (NOLOCK) ON tmp.custid = b.custid
+WHERE b.statusID = 102
+
+-----------------------------------
 SELECT *
 FROM #tmp_betticketcheckcount_DBTrans tmp1 
 	INNER JOIN #tmp_betticketcheckcount_SiteDB tmp2 ON tmp2.TableName = tmp1.TableName
 WHERE tmp1.TicketCount <> tmp2.TicketCount
+
+SELECT tmp.*
+FROM #tmp_zzzbettrans_DBTrans tmp 
+	LEFT JOIN zzzbettrans b WITH (NOLOCK) ON b.transid = tmp.transid
+WHERE b.transid IS NULL
+UNION ALL
+SELECT tmp.*
+FROM #tmp_zzzbettransm_DBTrans tmp 
+	LEFT JOIN zzzbettransm b WITH (NOLOCK) ON b.transid = tmp.transid
+WHERE b.transid IS NULL
 
 -----------------------------------
 DROP TABLE #tmp_cust_scaleout
@@ -268,3 +296,6 @@ DROP TABLE #tmp_betticketcheckcount_DBTrans
 
 DROP TABLE #tmp_refno_SiteDB
 DROP TABLE #tmp_betticketcheckcount_SiteDB
+
+DROP TABLE #tmp_zzzbettrans_DBTrans
+DROP TABLE #tmp_zzzbettransm_DBTrans
