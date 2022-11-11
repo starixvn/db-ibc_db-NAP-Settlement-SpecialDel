@@ -90,7 +90,7 @@ BEGIN
 				,l.SettlementAction
 				,l.TicketType
 				,l.SessionId
-				,l.IsParallel
+				,ISNULL(l.IsParallel,0) AS IsParallel
 		FROM	dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
 			INNER JOIN @tmpInsertedLogIds tmp ON l.LogId = tmp.LogId
 		ORDER BY LogId
@@ -113,6 +113,3 @@ BEGIN
 END
 GO
 
---grant exec on SiteDB_NAP_SettlementService_CalculationLogSel_xtest to bodbAdminNet
-
----exec SiteDB_NAP_SettlementService_CalculationLogSel_xtest @batch  = 100
