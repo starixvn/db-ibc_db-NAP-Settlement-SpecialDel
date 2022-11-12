@@ -16,7 +16,9 @@ BEGIN
 
 	DECLARE		@SubjectMessage VARCHAR(300)=''
 				,@TableHTML VARCHAR(MAX)=''
+				,@__serverName VARCHAR(200)
 
+	SET @__serverName = @@SERVERNAME
 	DECLARE @tmpSettlementLock TABLE (MatchId INT, SessionId BIGINT, CreatedTime DATETIME)
 	DECLARE @tmpSiteDB_SettlementLock TABLE (SiteDBGroupId SMALLINT, MatchId INT, SessionId BIGINT, CreatedTime DATETIME)
 
@@ -53,7 +55,7 @@ BEGIN
 						,@Subject = @SubjectMessage
 						,@MessageBody = @TableHTML
 
-				EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+				EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @__serverName
 					, @JobId = NULL
 					, @JobName = N'bodb02: Check Settlement status'
 					, @Message = @SubjectMessage
@@ -95,17 +97,11 @@ BEGIN
 					,@Subject = @SubjectMessage
 					,@MessageBody = @TableHTML
 			
-			IF @@SERVERNAME LIKE 'TEST%' OR @@SERVERNAME LIKE 'DEV%' OR @@SERVERNAME LIKE 'DB-61%' OR @@SERVERNAME LIKE 'DB-60%'
-			RETURN
-
-			ELSE
-			BEGIN
-				EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+			EXEC	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @__serverName
 					, @JobId = NULL
 					, @JobName = N'bodb02: Check Settlement status'
 					, @Message = @SubjectMessage
-					, @CaseId = 1;		
-			END
+					, @CaseId = 1;
 		END
 	END
 END
