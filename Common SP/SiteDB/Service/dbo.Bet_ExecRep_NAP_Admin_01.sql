@@ -49,6 +49,7 @@ BEGIN
 			,@AllowRefund	BIT
 			,@AllowCalculation		BIT
 			,@ServerName	SYSNAME
+			,@SiteDB_RunSettlement BIT
 
 			,@maxTryCount TINYINT
 			,@TryCount	TINYINT
@@ -75,6 +76,7 @@ BEGIN
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 	SET @ServerName = @@SERVERNAME
+	SET @SiteDB_RunSettlement = 1
 
 	IF @RunOnServer <> @@SERVERNAME
 	BEGIN
@@ -125,6 +127,10 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 		,@SiteDB_TotalQueue = @SiteDB_TotalQueue OUTPUT
+		,@SiteDB_RunSettlement = @SiteDB_RunSettlement OUTPUT
+
+	IF @SiteDB_RunSettlement = 0
+		RETURN
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
