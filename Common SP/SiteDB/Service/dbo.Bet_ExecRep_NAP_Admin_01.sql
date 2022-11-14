@@ -140,8 +140,8 @@ BEGIN
 
 				SET @MessageTypeNew = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0' + CAST(@QueueNoNew AS VARCHAR)
 			
-				INSERT INTO dbo.SiteDB_SettlementProcessing (SiteDBGroupId, SessionId, TransInfo, MessageType)
-				SELECT @SiteDBGroupId, @SessionId, @TransInfoJson, @MessageTypeNew
+				INSERT INTO dbo.SiteDB_SettlementProcessing (SiteDBGroupId, SessionId, TransInfo, MessageType, SettlementAction, TicketType)
+				SELECT @SiteDBGroupId, @SessionId, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType
 			END
 		END
 		ELSE

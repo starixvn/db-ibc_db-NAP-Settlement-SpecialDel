@@ -6,6 +6,7 @@ ALTER PROCEDURE dbo.NAP_Set_ServerInfo
 	,@Environment VARCHAR(50) = '' OUTPUT
 	,@IsCentral BIT = 0 OUTPUT
 	,@SiteDB_TotalQueue INT = 0 OUTPUT
+	,@SiteDB_RunSettlement BIT = 1 OUTPUT
 AS
 /*
     Created: 20200825@Kathy
@@ -21,12 +22,13 @@ AS
         - 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
         - 20220606@Kathy: Adjust number of execution service from 6 to 8 [Redmine:#173205]
         - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [Redmine:#180225]
 */
 BEGIN
     SET NOCOUNT ON
 
     DECLARE @ServerName SYSNAME 
-            
+			
     DECLARE @tmpServerInfo TABLE (ServerName SYSNAME
         , ServerAlias VARCHAR(50)
         , IsEnableServiceBroker BIT DEFAULT(0)
@@ -37,6 +39,7 @@ BEGIN
         )
 
     SET @ServerName = @@SERVERNAME
+	SET @SiteDB_RunSettlement = 1
 
     INSERT INTO @tmpServerInfo(ServerName, ServerAlias, IsEnableServiceBroker, TotalQueue, Environment, IsCentral, SiteDB_TotalQueue)
     -- local dev
@@ -45,6 +48,8 @@ BEGIN
     SELECT 'DB-61\DEVDB053', 'DBEXT', 1, 4, 'Local',0, 4
     UNION ALL
     SELECT 'DB232', 'DBACC', 1, 4, 'Local',0, 4
+	UNION ALL
+    SELECT 'DEVDB061', 'DBACC', 1, 4, 'Local',0, 4
     UNION ALL
     SELECT 'devdb055', 'DBBOF', 1, 6, 'Local',0, 4
     UNION ALL
@@ -72,7 +77,11 @@ BEGIN
     UNION ALL
     SELECT 'TESTDBTRANS', 'DBTXN', 0, 8, 'Local',1, 4
 
-    UNION ALL -- SIT
+	UNION ALL -- SIT
+    SELECT 'SITDB05', 'DBBAH', 0, 0, 'SIT',0, 0
+	UNION ALL 
+    SELECT 'SITDB05BK1', 'DBBAH', 0, 0, 'SIT',0, 0
+    UNION ALL 
     SELECT 'SITDB052', 'DBEXT', 1, 8, 'SIT',0, 4
     UNION ALL
     SELECT 'SITDB053', 'DBAGE', 1, 8, 'SIT',0, 4
@@ -86,8 +95,12 @@ BEGIN
     SELECT 'SITDBBAL', 'DBBAL', 1, 8, 'SIT',0, 4
     UNION ALL
     SELECT 'SITDBTRANS', 'DBTXN', 0, 8, 'SIT',1, 4
-    
-    UNION ALL -- PROD
+	
+	UNION ALL -- PROD
+    SELECT 'DB05', 'DBBAH', 0, 0, 'PROD',0, 0
+	UNION ALL 
+    SELECT 'DB05BK1', 'DBBAH', 0, 0, 'PROD',0, 0
+    UNION ALL 
     SELECT 'DB052', 'DBEXT', 1, 8, 'PROD',0, 4
     UNION ALL
     SELECT 'DB053', 'DBAGE', 1, 8, 'PROD',0, 4
@@ -134,6 +147,9 @@ BEGIN
     SET @Environment = ISNULL(@Environment, '')
     SET @IsCentral = ISNULL(@IsCentral,0)
 	SET @SiteDB_TotalQueue = ISNULL(@SiteDB_TotalQueue,0)
+
+	IF @ServerAlias = 'DBBAH'
+		SET @SiteDB_RunSettlement = 0
 
 END
 GO
