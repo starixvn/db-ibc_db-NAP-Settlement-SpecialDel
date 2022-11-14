@@ -10,7 +10,7 @@ AS
 	Revisions:
 		- 20211111@Kathy: Get all matches being locked on replicated servers [Redmine:#164162]
 		- 20220913@Louisa: get more info [RedmineId:#177711]
-
+		- 20220927@Louisa: get more info [RedmineId:#177711]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -18,10 +18,38 @@ BEGIN
 			,@ServerName VARCHAR(100) 
 
 	DECLARE @tmpMatchLocked TABLE (MatchId INT, SessionId BIGINT)
-	DECLARE @tmpErrorMessage TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
+	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
+	DECLARE @tmpReturnTable TABLE 
+	(	MatchId INT
+		,SessionId BIGINT
+		,MessageId VARCHAR(128)
+		,ErrorMessage VARCHAR(200)
+		,CreatedTime DATETIME2
+		,HomeTeam NVARCHAR(200)
+		,AwayTeam  NVARCHAR(200)
+		,SportName  NVARCHAR(100)
+		,TotalSettlementProcessing INT
+	)
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
+
+	IF ISNULL(@MatchId,0) = 0
+	BEGIN
+		INSERT INTO @tmpReturnTable  
+		(	MessageId 
+			,ErrorMessage 
+			,CreatedTime 
+		)
+		SELECT	MessageId
+				,s.ErrorMessage AS ErrorMessage
+				,s.Starttime AS CreatedTime
+		FROM dbo.SSB_SettlementLogs s WITH(NOLOCK)
+		WHERE	ISNULL(s.ErrorMessage,'') <> ''
+					AND s.Resolved = 0
+					AND s.StartTime >= @checktime
+					AND s.SessionId IS NULL
+	END
 
 	INSERT INTO @tmpMatchLocked(MatchId, SessionId)
 	SELECT	MatchId, SessionId
@@ -48,12 +76,13 @@ BEGIN
 		FROM	cteErrorMessage c
 		GROUP BY c.SessionId
 	END
-	
+
 	;WITH cteErrorMessage
 	AS (
 		SELECT	s.SessionId, s.ErrorMessage, MIN(s.StartTime) AS CreatedTime
 		FROM	dbo.SSB_SettlementLogs s WITH(NOLOCK)
-		WHERE	ISNULL(ErrorMessage,'') <> ''
+		WHERE	SessionID IS NOT NULL
+				AND ISNULL(ErrorMessage,'') <> ''
 				AND Resolved = 0
 				AND StartTime > @checktime
 				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatchLocked t WHERE t.SessionId = s.SessionId)
@@ -66,8 +95,20 @@ BEGIN
 	FROM	cteErrorMessage c
 	GROUP BY c.SessionId
 
-	SELECT	@ServerName AS ServerName
-			,m.MatchId
+
+	INSERT INTO  @tmpReturnTable
+	(	MatchId 
+		,MessageId
+		,SessionId  
+		,CreatedTime  
+		,HomeTeam  
+		,AwayTeam   
+		,SportName  
+		,ErrorMessage 
+		,TotalSettlementProcessing  
+	)
+	SELECT	m.MatchId
+			,e.MessageId
 			,ISNULL(e.SessionId,t.SessionId) as SessionId
 			,e.CreatedTime AS CreatedTime
 			,h.teamname AS HomeTeam
@@ -91,5 +132,18 @@ BEGIN
 			ON a.teamid = m.awayid
 		LEFT JOIN dbo.Sports s WITH(NOLOCK)
 			ON s.SportType = m.sporttype
+
+
+	SELECT	@ServerName AS ServerName
+			,MatchId 
+			,SessionId 
+			,MessageId 
+			,ErrorMessage 
+			,CreatedTime  
+			,HomeTeam  
+			,AwayTeam   
+			,SportName  
+			,TotalSettlementProcessing 
+	FROM @tmpReturnTable
 END
 GO
