@@ -1,11 +1,11 @@
 USE [bodb02]
 GO
-/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02, DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROC [dbo].[SSB_Settlement_SiteDB2_Process_Message_01]
 as
 /*  Created: Patrick@20221025
 	Task: Process message
-	DB: DBCTG-bodb02, SBSETTLE-bodb02, DBBAL-bodb02
+	DB: DBCTG-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 */
