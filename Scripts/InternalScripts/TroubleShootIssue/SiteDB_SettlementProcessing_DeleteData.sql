@@ -1,4 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+-- RUN ON DBTRANS/bodb02
 DECLARE @session_id BIGINT, @sitedbgroupid smallint
 
 -- GET session in progress
@@ -22,7 +23,7 @@ WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid
 
 */
 
-IF EXISTS (SELECT TOP 1 * FROM SiteDB_SettlementProcessing WITH (NOLOCK) WHERE SessionId= @session_id )
+IF EXISTS (SELECT TOP 1 1 FROM SiteDB_SettlementProcessing WITH (NOLOCK) WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid)
 BEGIN
 	-- backup before delete
 	SELECT  * 
@@ -30,7 +31,7 @@ BEGIN
 	FROM SiteDB_SettlementProcessing WITH (NOLOCK) 
 	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid
 	
-	DELETE P
+	DELETE p
 	FROM SiteDB_SettlementProcessing p 
 	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid
 END
