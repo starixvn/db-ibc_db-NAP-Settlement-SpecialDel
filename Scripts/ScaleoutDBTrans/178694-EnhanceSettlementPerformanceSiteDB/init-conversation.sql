@@ -6,12 +6,12 @@ go
 select * from sb.ConversationCount
 
 insert into sb.ConversationCount(functionName, ContractName, Cnt)
-values('settlement', 'sitedb1_bet_settle_contract', 4)
+values('settlement', 'sitedb1_bet_settle_contract', 1)
 	, ('settlement', 'sitedb1_bet_settle_contract_01', 4)
 	, ('settlement', 'sitedb1_bet_settle_contract_02', 4)
 	, ('settlement', 'sitedb1_bet_settle_contract_03', 4)
 	, ('settlement', 'sitedb1_bet_settle_contract_04', 4)
-	, ('settlement', 'sitedb2_bet_settle_contract', 4)
+	, ('settlement', 'sitedb2_bet_settle_contract', 1)
 	, ('settlement', 'sitedb2_bet_settle_contract_01', 4)
 	, ('settlement', 'sitedb2_bet_settle_contract_02', 4)
 	, ('settlement', 'sitedb2_bet_settle_contract_03', 4)
@@ -37,7 +37,7 @@ exec [sb].[DBA_ConversationManagement]
 	, @contractName = 'sitedb1_bet_settle_contract'		  
 	, @fromService = 'sitedb1_bet_settle_receive_service'
 	, @toService = 'sitedb1_bet_settle_send_service'
-	, @coversation_number = 4
+	, @coversation_number = 1
 	, @mode = 'Reset'
 
 exec [sb].[DBA_ConversationManagement] 
@@ -78,7 +78,7 @@ exec [sb].[DBA_ConversationManagement]
 	, @contractName = 'sitedb2_bet_settle_contract'		  
 	, @fromService = 'sitedb2_bet_settle_receive_service'
 	, @toService = 'sitedb2_bet_settle_send_service'
-	, @coversation_number = 4
+	, @coversation_number = 1
 	, @mode = 'Reset'
 
 exec [sb].[DBA_ConversationManagement] 
