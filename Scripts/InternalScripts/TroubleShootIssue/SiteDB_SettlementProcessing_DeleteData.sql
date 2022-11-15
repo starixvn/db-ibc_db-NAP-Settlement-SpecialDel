@@ -23,16 +23,17 @@ WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid
 
 */
 
-IF EXISTS (SELECT TOP 1 1 FROM SiteDB_SettlementProcessing WITH (NOLOCK) WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid)
+IF EXISTS (SELECT TOP 1 1 FROM SiteDB_SettlementProcessing WITH (NOLOCK) WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid AND StatusID = 3)
 BEGIN
 	-- backup before delete
 	SELECT  * 
 	INTO #temp_SiteDB_SettlementProcessing
 	FROM SiteDB_SettlementProcessing WITH (NOLOCK) 
-	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid
+	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid 
 	
 	DELETE p
 	FROM SiteDB_SettlementProcessing p 
-	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid
+	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid 
+		AND StatusID = 3 -- IN CASE need to delete all, can rem this filter
 END
 
