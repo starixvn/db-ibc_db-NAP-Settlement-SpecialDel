@@ -207,7 +207,8 @@ BEGIN
 								SET @WaringStartTime = SYSDATETIME()
 
 								EXEC dbo.SSB_Settlement_WriteLogs 
-									@MessageType		= @MessageType
+									@MessageId			= 1
+									,@MessageType		= @MessageType
 									,@MessageBody		= @MessageBody
 									,@StartTime			= @StartTimeValidation
 									,@EndTime			= @WaringStartTime
