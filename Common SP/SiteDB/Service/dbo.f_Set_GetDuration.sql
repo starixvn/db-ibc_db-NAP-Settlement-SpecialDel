@@ -14,7 +14,9 @@ returns int -- second
 as
 begin
 	return (select case 
-						when @KeyId = 'CompareTicketCentralSiteDB' then 1800  
+						when @KeyId = 'CompareTicketCentralSiteDB' then 1800
+						when @KeyId = 'CompareTicketCentralSiteDB_Warning' then 180
+						when @KeyId = 'CompareTicketCentralSiteDB_Log' then 60						
 						else 60
 					end)
 end

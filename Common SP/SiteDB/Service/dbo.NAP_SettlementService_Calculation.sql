@@ -37,6 +37,11 @@ BEGIN
 			,@StartTimeValidation	DATETIME2
 			,@DelayTime				VARCHAR(50)
 			,@Duration				INT
+			,@WarningDuration		INT
+			,@LogDuration			INT
+			,@WaringStartTime		DATETIME2
+			,@Decompress_TransInfoJson	NVARCHAR(MAX)
+			,@MessageBody			NVARCHAR(MAX)
 
 	DECLARE @tmpTransId TABLE (TransId BIGINT)
 
@@ -115,7 +120,20 @@ BEGIN
 				SELECT	@IsPassed = 0 
 						,@DelayTime = dbo.f_Settlement_GetDelayTime('Wait_CompareTicket')
 						,@Duration = dbo.f_Set_GetDuration('CompareTicketCentralSiteDB')
+						,@WarningDuration = dbo.f_Set_GetDuration('CompareTicketCentralSiteDB_Warning')
+						,@LogDuration = dbo.f_Set_GetDuration('CompareTicketCentralSiteDB_Log')
 						,@StartTimeValidation = SYSDATETIME()
+						,@WaringStartTime = SYSDATETIME()
+
+				IF @TransInfoJson IS NOT NULL
+				BEGIN
+					SET @Decompress_TransInfoJson = DECOMPRESS(@TransInfoJson)
+					SET @MessageBody = @Decompress_TransInfoJson
+				END
+				ELSE IF @TransInfo IS NOT NULL
+				BEGIN
+					SET @MessageBody = CAST(@TransInfo AS VARCHAR(MAX))
+				END
 
 				WHILE (@IsPassed = 0)
 				BEGIN
@@ -127,7 +145,7 @@ BEGIN
 							BEGIN
 								INSERT INTO @tmpTransId (TransID)
 								SELECT	t
-								FROM	OPENJSON(DECOMPRESS(@TransInfoJson)) WITH (t BIGINT)
+								FROM	OPENJSON(@Decompress_TransInfoJson) WITH (t BIGINT)
 								
 								SET @cnt_sitedb = @@ROWCOUNT
 							END
@@ -183,6 +201,23 @@ BEGIN
 					END
 					ELSE
 					BEGIN
+						IF DATEDIFF(SECOND,@StartTimeValidation,SYSDATETIME()) > @WarningDuration
+							IF DATEDIFF(SECOND,@WaringStartTime,SYSDATETIME()) > @LogDuration 
+							BEGIN
+								SET @WaringStartTime = SYSDATETIME()
+
+								EXEC dbo.SSB_Settlement_WriteLogs 
+									@MessageType		= @MessageType
+									,@MessageBody		= @MessageBody
+									,@StartTime			= @StartTimeValidation
+									,@EndTime			= @WaringStartTime
+									,@SessionId			= @SessionId
+									,@ErrorMessage		= 'Warning: There are some tickets at SiteDB not exists on CentralDB.'
+									,@ConversationHandle= NULL
+									,@QueueNo			= NULL
+									,@SiteDBGroupId		= @SiteDBGroupId								
+							END
+
 						WAITFOR DELAY @DelayTime -- wait for comparing ticket between central and sitedb
 						
 						CONTINUE
