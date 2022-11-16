@@ -22,19 +22,42 @@ FROM SiteDB_SettlementLock WITH (NOLOCK)
 WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid
 
 */
+-- backup before delete
+SELECT  * 
+INTO #temp_SiteDB_SettlementProcessing
+FROM SiteDB_SettlementProcessing WITH (NOLOCK) 
+WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid 
 
+--- delete status = 3
 IF EXISTS (SELECT TOP 1 1 FROM SiteDB_SettlementProcessing WITH (NOLOCK) WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid AND StatusID = 3)
 BEGIN
-	-- backup before delete
-	SELECT  * 
-	INTO #temp_SiteDB_SettlementProcessing
-	FROM SiteDB_SettlementProcessing WITH (NOLOCK) 
-	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid 
 	
 	DELETE p
 	FROM SiteDB_SettlementProcessing p 
 	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid 
 		AND StatusID = 3 -- IN CASE need to delete all, can rem this filter
+END
+
+--- delete status = 1
+IF EXISTS (SELECT TOP 1 1 FROM SiteDB_SettlementProcessing WITH (NOLOCK) WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid AND StatusID = 1)
+BEGIN
+	
+	DELETE p
+	FROM SiteDB_SettlementProcessing p 
+	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid 
+		AND StatusID = 1 -- IN CASE need to delete all, can rem this filter
+END
+
+-- in case can retry, then update statusid = 0
+
+IF EXISTS (SELECT TOP 1 1 FROM SiteDB_SettlementProcessing WITH (NOLOCK) WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid AND StatusID IN (1,3))
+BEGIN
+	
+	UPDATE p
+		SET StatusID = 0
+	FROM SiteDB_SettlementProcessing p WITH (ROWLOCK,UPDLOCK) 
+	WHERE SessionId = @session_id AND SiteDBGroupId = @sitedbgroupid 
+		AND StatusID IN (1,3) 
 END
 
 /*
