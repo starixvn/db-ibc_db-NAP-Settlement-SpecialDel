@@ -156,6 +156,7 @@ AS
 		- 20220309@Kathy: Remove code old Cashout model [Redmine:#169643]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 
     Param's Explanation:
         @action             @mode
@@ -351,6 +352,7 @@ BEGIN
 					,@ServerAlias = @ServerAlias
 					,@SettlementProcessingId = @SettlementProcessingId
 					,@ActionId = @ActionId		
+					,@SessionId = @SessionId
 					,@ErrMessage = @ErrMessage OUTPUT 
 			END
 			ELSE

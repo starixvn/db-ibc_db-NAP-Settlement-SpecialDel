@@ -30,6 +30,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220926@Louisa: remove NAP_Set_SettlementStatusChecking (already checked before settle by web) [Redmine:#178120]
 		- 20221019@Louisa: insert BroadcastSessionId into queue auto void in case not exists ticket parlay [Redmine:#179361]
+		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -608,6 +609,17 @@ BEGIN
 			,@IsSettingByProfile = 1
 			,@SessionId = @SessionId	
 	
+		IF @IsCentral = 0 AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL 
+		BEGIN
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
+				@SystemName		= 'Settlement'
+				,@FunctionName	= 'RefundSoccer'
+				,@TableName		= 'SiteDB_SettlementLock'
+				,@Action		= 'I'
+				,@MatchId		= @matchid
+				,@SessionId		= @SessionId
+		END
+
 		IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT_' 
 			OR @RunPrepareDataBySSB = 0
 		BEGIN

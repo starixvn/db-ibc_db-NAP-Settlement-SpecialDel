@@ -19,6 +19,7 @@ AS
 	    - 20210706@Louisa: Letstalk message [Redmine:#157540]
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20211028@Kathy: Remove log on table SSB_SettlementLogs [Redmine:#159486]
+		- 20221026@Kathy: Remove log on table SiteDB_SettlementService_CalculationLog_History [178694]
 
 	 Param's Explanation:  
     
@@ -198,6 +199,18 @@ BEGIN
 
 		IF @@ROWCOUNT = 0
 			BREAK
+	END
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog_History','U') IS NOT NULL
+	BEGIN
+		WHILE(1=1)
+		BEGIN
+			DELETE TOP(2000) FROM dbo.SiteDB_SettlementService_CalculationLog_History WITH(ROWLOCK)
+			WHERE LogDate <= @8DaysBefore
+
+			IF @@ROWCOUNT = 0
+				BREAK
+		END
 	END
 END  
 GO

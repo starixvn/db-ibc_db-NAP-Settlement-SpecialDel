@@ -1,13 +1,19 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 	
-	@TransInfo		XML				= NULL
-	,@TransInfoJson	VARCHAR(MAX)	= NULL
+ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 
+	@SiteDBGroupId SMALLINT
+	,@SessionId BIGINT = NULL
+	,@MessageType VARCHAR(200) = ''
+	,@TransInfo	XML = NULL
+	,@TransInfoJson VARBINARY(MAX) = NULL
 	,@TableName VARCHAR(128)
-	,@Action	VARCHAR(1)	= 'U'
 	,@MatchId	INT			= 0
-	,@TicketType VARCHAR(1) = NULL
+	,@Action	VARCHAR(1)	= 'U'
 	,@SettlementAction VARCHAR(20) = NULL
+	,@TicketType VARCHAR(1) = NULL
+	,@TotalQueue INT = 0
+
 	,@RunOnServer VARCHAR(100)= NULL
+	,@SettlementProcessingId BIGINT = NULL	
 	,@CalledByBrokerService	BIT = 0
 AS
 /*
@@ -25,6 +31,7 @@ AS
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 		- 20221025@Louisa: CHeck NULL value for @TransInfo, @TransInfoJson [Redmine:#179449]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
+		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 
 	Param's Explanation:  
 		   
@@ -37,7 +44,7 @@ BEGIN
 			,@strTransIds	VARCHAR(MAX)
 			,@sMessage		NVARCHAR(MAX)
 			,@IsEnableServiceBroker BIT
-
+			
 			,@AllowUndo		BIT
 			,@AllowRefund	BIT
 			,@AllowCalculation		BIT
@@ -47,7 +54,9 @@ BEGIN
 			,@TryCount	TINYINT
 			,@errcode INT
 			,@errmsg VARCHAR(1024)
-		
+			,@SiteDB_TotalQueue INT
+			,@Decompress_TransInfoJson NVARCHAR(MAX)
+
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
 		,modds VARCHAR(11), odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
@@ -115,12 +124,34 @@ BEGIN
 
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
+		,@SiteDB_TotalQueue = @SiteDB_TotalQueue OUTPUT
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
-		SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
+		IF ISNULL(@SettlementProcessingId,0) <> 0 AND @TableName = 'bettrans'
+		BEGIN
+			IF OBJECT_ID('SiteDB_SettlementProcessing', 'U') IS NOT NULL
+			BEGIN
+				DECLARE @MessageTypeNew VARCHAR(200) 
+					,@QueueNoNew INT 
+			
+				SET @QueueNoNew = @SettlementProcessingId%@SiteDB_TotalQueue 
+									+ CASE WHEN @SettlementProcessingId%@SiteDB_TotalQueue = 0 THEN @SiteDB_TotalQueue ELSE 0 END
+
+				SET @MessageTypeNew = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_0' + CAST(@QueueNoNew AS VARCHAR)
+			
+				INSERT INTO dbo.SiteDB_SettlementProcessing (SiteDBGroupId, SessionId, TransInfo, MessageType, SettlementAction, TicketType)
+				SELECT @SiteDBGroupId, @SessionId, @TransInfoJson, @MessageTypeNew, @SettlementAction, @TicketType
+			END
+		END
+		ELSE
+		BEGIN
+			SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
+							+ CASE WHEN @SessionId IS NULL THEN '' ELSE ',@SessionId =' + CAST(@SessionId AS VARCHAR(20) ) END
+							+ ',@SiteDBGroupId = ' + CAST(@SiteDBGroupId AS VARCHAR) 
 							+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
 							+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
+							+ ',@MessageType = ' +  '''' + @MessageType + ''''
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
 													ELSE '''' + @TableName + ''''
@@ -129,30 +160,32 @@ BEGIN
 													WHEN @Action IS NULL THEN 'NULL'
 													ELSE '''' + @Action + ''''
 													END 
-							+ ',@TicketType = ' + CASE
-													WHEN @TicketType IS NULL THEN 'NULL'
-													ELSE '''' + @TicketType + ''''
-													END 														
 							+ ',@SettlementAction = ' + CASE
 													WHEN @SettlementAction IS NULL THEN 'NULL'
 													ELSE '''' + @SettlementAction + ''''
 													END 
+							+ ',@TicketType = ' + CASE
+													WHEN @TicketType IS NULL THEN 'NULL'
+													ELSE '''' + @TicketType + ''''
+													END 
+							+ ',@TotalQueue = ' +  CONVERT(VARCHAR(20), @SiteDB_TotalQueue) 
 							+ ',@RunOnServer = ' + CASE
 													WHEN @RunOnServer IS NULL THEN 'NULL'
 													ELSE '''' + @RunOnServer + ''''
-													END 
+													END 							
 							+ ',@CalledByBrokerService = 1'
 		
-		EXEC dbo.SSB_Send_Message 
-			@MessageContent = @sMessage
-			,@FunctionName = 'settlement'
-			,@MessageType = 'bet_SiteDB_msg_type_01'
+			EXEC dbo.SSB_Send_Message 
+				@MessageContent = @sMessage
+				,@FunctionName = 'settlement'
+				,@MessageType = @MessageType
+		END
 	END
 	ELSE
 	BEGIN
 		SET @maxTryCount = 5	
 		SET @TryCount = 0
-
+				
 		WHILE (1=1)
 		BEGIN
 			BEGIN TRY	
@@ -161,9 +194,86 @@ BEGIN
 
 				DELETE @tmpTransId
 
-				IF @tablename = 'bettrans'
+				IF @TableName = 'SiteDB_SettlementLock' AND OBJECT_ID('SiteDB_SettlementLock', 'U') IS NOT NULL
 				BEGIN
-					IF @TransInfo IS NOT NULL
+					EXEC dbo.ExecRep_NAP_Admin_04 @Action = @Action
+						,@SiteDBGroupId = @SiteDBGroupId
+						,@MatchId = @MatchId
+						,@SessionId = @SessionId
+						,@TotalQueue = @TotalQueue
+				END
+				ELSE IF @tablename = 'bettrans'
+				BEGIN
+					IF @TransInfoJson IS NOT NULL
+					BEGIN
+						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+						INSERT INTO @tmpTransId (TransID,modds,odds,oddsspread,statuswinlost,SettlementTime
+							,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, Status, StatusID, ruben)
+						SELECT *
+							FROM OPENJSON(@Decompress_TransInfoJson)
+							WITH (
+							t   BIGINT
+							,m  VARCHAR(11)
+							,o  SMALLMONEY	
+							,os  VARCHAR(20)
+							,statuswl  VARCHAR(1)
+							,st  DATETIME
+							,w  MONEY
+							,aw  MONEY
+							,mw  MONEY
+							,sw  MONEY
+							,pc  MONEY
+							,c  MONEY
+							,ac  MONEY
+							,sc  MONEY
+							,s  NVARCHAR(10)
+							,sid  TINYINT
+							,r  TINYINT
+						)
+
+						SET @batchNo = @@ROWCOUNT
+
+						IF @Action = 'U'
+						BEGIN
+							UPDATE TOP (@batchNo) b
+								SET
+									modds = CASE WHEN t.modds IS NULL THEN b.modds 
+													WHEN t.modds = '' THEN NULL
+													ELSE CAST(t.modds AS SMALLMONEY ) 
+											 END
+									,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
+									,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE CAST(t.oddsspread AS MONEY) END  	
+									,statuswinlost = CASE 
+														WHEN t.statuswinlost IS NULL THEN b.statuswinlost
+														WHEN t.statuswinlost = '' THEN NULL
+														ELSE CAST(t.statuswinlost AS TINYINT)
+													END
+									,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
+									,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+									,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
+									,mWinLost = CASE WHEN t.mWinLost IS NULL THEN b.mwinlost ELSE t.mWinLost END
+									,sWinLost = CASE WHEN t.sWinLost IS NULL THEN b.swinlost ELSE t.sWinLost END
+									,PlayerComm = CASE WHEN t.PlayerComm IS NULL THEN b.playercomm ELSE t.PlayerComm END
+									,Comm = CASE WHEN t.Comm IS NULL THEN b.comm ELSE t.Comm END					
+									,aComm = CASE WHEN t.aComm IS NULL THEN b.acomm  ELSE t.aComm END					
+									,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
+									,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
+									,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
+									,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END									
+							FROM @tmpTransId t
+								INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
+									ON  t.transid = b.transid 
+							OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+
+							IF ISNULL(@SettlementProcessingId,0) <> 0 AND OBJECT_ID('SiteDB_SettlementProcessing', 'U') IS NOT NULL
+								DELETE 
+								FROM	dbo.SiteDB_SettlementProcessing 
+								WHERE	Id = @SettlementProcessingid
+
+						END		
+					END
+					ELSE 
 					BEGIN
 						INSERT INTO @tmpTransId (TransID
 							,matchid, winlostdate, betdaqid
@@ -204,128 +314,55 @@ BEGIN
 								,T.C.value('./@v', 'FLOAT') AS virtualrate
 						FROM	@transInfo.nodes('/root/r') AS T(C)
 						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
-					END
-					ELSE
-					BEGIN
-						INSERT INTO @tmpTransId (TransID
-						,matchid, winlostdate, betdaqid
-						,modds, odds, oddsid, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
-						,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben,FcUpdateTime
-						, hdp1 , hdp2 , livehomescore , liveawayscore , creator, betid, ExtraInfo		
-						,virtualrate	 
-						)
-						SELECT	 t		AS transid
-								,mid	AS matchid
-								,wld	AS winlostdate
-								,bdaq	AS betdaqid
-								,m		AS modds
-								,o		AS odds
-								,oid	AS oddsid
-								,os		AS oddsspread
-								,statuswl AS statuswinlost
-								,st		AS SettlementTime
-								,w		AS WinLost
-								,aw		AS aWinLost
-								,mw		AS mWinLost
-								,sw		AS sWinLost
-								,pc		AS PlayerComm
-								,c		AS Comm 
-								,ac		AS aComm
-								,sc		AS sComm
-								,s		AS [Status]
-								,sid	AS StatusID
-								,r		AS ruben
-								,rut 	AS FcUpdateTime	
-								,hdp1	AS hdp1
-								,hdp2	AS hdp2
-								,lh AS livehomescore
-								,la AS liveawayscore
-								,cr  AS creator
-								,bid AS betid
-								,ex AS ExtraInfo	  
-								,v AS virtualrate
-						FROM	OPENJSON ( @transInfoJson ) WITH
-						(
-							 t  BIGINT 
-							,mid  INT 
-							,wld SMALLDATETIME 
-							,bdaq VARCHAR(50) 
-							,m VARCHAR(11) 
-							,o SMALLMONEY 
-							,oid INT 
-							,os VARCHAR(20) 
-							,statuswl VARCHAR(1) 
-							,st DATETIME 
-							,w MONEY   
-							,aw MONEY 
-							,mw MONEY 
-							,sw MONEY 
-							,pc MONEY 
-							,c  MONEY 
-							,ac MONEY 
-							,sc MONEY 
-							,s NVARCHAR(10) 
-							,sid TINYINT 
-							,r TINYINT 
-							,rut DATETIME2 
-							,hdp1 SMALLMONEY 
-							,hdp2 SMALLMONEY 
-							,lh SMALLINT 
-							,la SMALLINT 
-							,cr INT 
-							,bid VARCHAR(50) 
-							,ex VARCHAR(1000)   
-							,v FLOAT 
-						)
-					END
 
-					SET @batchNo = @@ROWCOUNT
+						SET @batchNo = @@ROWCOUNT
 
-					IF @Action = 'U'
-					BEGIN
-						UPDATE TOP (@batchNo) b
-							SET
-								matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
-								,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
-								,betdaqid = CASE WHEN t.betdaqid IS NULL THEN b.betdaqid ELSE CAST(t.betdaqid AS BIGINT) END
-								,modds = CASE WHEN t.modds IS NULL THEN b.modds 
-												WHEN t.modds = '' THEN NULL
-												ELSE CAST(t.modds AS SMALLMONEY ) 
-										 END
-								,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
-								,oddsid = CASE WHEN t.oddsid IS NULL THEN b.oddsid ELSE t.oddsid END
-								,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE CAST(t.oddsspread AS MONEY) END  	
-								,statuswinlost = CASE 
-													WHEN t.statuswinlost IS NULL THEN b.statuswinlost
-													WHEN t.statuswinlost = '' THEN NULL
-													ELSE CAST(t.statuswinlost AS TINYINT)
-												END
-								,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
-								,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
-								,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
-								,mWinLost = CASE WHEN t.mWinLost IS NULL THEN b.mwinlost ELSE t.mWinLost END
-								,sWinLost = CASE WHEN t.sWinLost IS NULL THEN b.swinlost ELSE t.sWinLost END
-								,PlayerComm = CASE WHEN t.PlayerComm IS NULL THEN b.playercomm ELSE t.PlayerComm END
-								,Comm = CASE WHEN t.Comm IS NULL THEN b.comm ELSE t.Comm END					
-								,aComm = CASE WHEN t.aComm IS NULL THEN b.acomm  ELSE t.aComm END					
-								,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
-								,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
-								,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
-								,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END
-								,FcUpdateTime = CASE WHEN t.FcUpdateTime IS NULL THEN b.FcUpdateTime ELSE SYSDATETIME() END
-								,hdp1 = CASE WHEN t.hdp1 IS NULL THEN b.hdp1 ELSE t.hdp1 END					
-								,hdp2 = CASE WHEN t.hdp2 IS NULL THEN b.hdp2  ELSE t.hdp2 END					
-								,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					
-								,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN b.liveawayscore ELSE t.liveawayscore END									
-								,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
-								,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE CAST(t.betid AS BIGINT) END
-								,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
-								,virtualrate = CASE WHEN t.virtualrate IS NULL THEN b.virtualrate ELSE t.virtualrate END
-						FROM @tmpTransId t
-							INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
-								ON  t.transid = b.transid 
-						OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
-					END			
+						IF @Action = 'U'
+						BEGIN
+							UPDATE TOP (@batchNo) b
+								SET
+									matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
+									,winlostdate = CASE WHEN t.winlostdate IS NULL THEN b.winlostdate ELSE t.winlostdate END
+									,betdaqid = CASE WHEN t.betdaqid IS NULL THEN b.betdaqid ELSE CAST(t.betdaqid AS BIGINT) END
+									,modds = CASE WHEN t.modds IS NULL THEN b.modds 
+													WHEN t.modds = '' THEN NULL
+													ELSE CAST(t.modds AS SMALLMONEY ) 
+											 END
+									,odds = CASE WHEN t.odds IS NULL THEN b.odds ELSE t.odds END
+									,oddsid = CASE WHEN t.oddsid IS NULL THEN b.oddsid ELSE t.oddsid END
+									,oddsspread = CASE WHEN t.oddsspread IS NULL THEN b.oddsspread ELSE CAST(t.oddsspread AS MONEY) END  	
+									,statuswinlost = CASE 
+														WHEN t.statuswinlost IS NULL THEN b.statuswinlost
+														WHEN t.statuswinlost = '' THEN NULL
+														ELSE CAST(t.statuswinlost AS TINYINT)
+													END
+									,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END						
+									,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+									,aWinLost = CASE WHEN t.aWinLost IS NULL THEN b.awinlost ELSE t.aWinLost END			
+									,mWinLost = CASE WHEN t.mWinLost IS NULL THEN b.mwinlost ELSE t.mWinLost END
+									,sWinLost = CASE WHEN t.sWinLost IS NULL THEN b.swinlost ELSE t.sWinLost END
+									,PlayerComm = CASE WHEN t.PlayerComm IS NULL THEN b.playercomm ELSE t.PlayerComm END
+									,Comm = CASE WHEN t.Comm IS NULL THEN b.comm ELSE t.Comm END					
+									,aComm = CASE WHEN t.aComm IS NULL THEN b.acomm  ELSE t.aComm END					
+									,sComm = CASE WHEN t.sComm IS NULL THEN b.scomm ELSE t.sComm END					
+									,Status = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
+									,StatusID = CASE WHEN t.StatusID IS NULL THEN b.statusID ELSE t.StatusID END
+									,ruben= CASE WHEN t.ruben IS NULL THEN b.ruben ELSE t.ruben END
+									,FcUpdateTime = CASE WHEN t.FcUpdateTime IS NULL THEN b.FcUpdateTime ELSE SYSDATETIME() END
+									,hdp1 = CASE WHEN t.hdp1 IS NULL THEN b.hdp1 ELSE t.hdp1 END					
+									,hdp2 = CASE WHEN t.hdp2 IS NULL THEN b.hdp2  ELSE t.hdp2 END					
+									,livehomescore = CASE WHEN t.livehomescore IS NULL THEN b.livehomescore ELSE t.livehomescore END					
+									,liveawayscore = CASE WHEN t.liveawayscore IS NULL THEN b.liveawayscore ELSE t.liveawayscore END									
+									,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
+									,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE CAST(t.betid AS BIGINT) END
+									,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
+									,virtualrate = CASE WHEN t.virtualrate IS NULL THEN b.virtualrate ELSE t.virtualrate END
+							FROM @tmpTransId t
+								INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
+									ON  t.transid = b.transid 
+							OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
+						END	
+					END		
 				END
 				ELSE IF @TableName = 'bettransm'
 				BEGIN
@@ -347,8 +384,8 @@ BEGIN
 							,T.C.value('./@lh', 'SMALLINT') AS livehomescore
 							,T.C.value('./@la', 'SMALLINT') AS liveawayscore	
 							,T.C.value('./@cr', 'INT') AS Creator
-					FROM	@transInfo.nodes('/root/r') AS T(C)
-					OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+					FROM	@TransInfo.nodes('/root/r') AS T(C)
+					OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 
 					SET @batchNo = @@ROWCOUNT
 
@@ -390,8 +427,8 @@ BEGIN
 							END AS winlostdate
 							,T.C.value('./@statuswl', 'VARCHAR(1)')				
 							,T.C.value('./@sid', 'TINYINT') AS StatusID									
-					FROM	@transInfo.nodes('/root/r') AS T(C)
-					OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+					FROM	@TransInfo.nodes('/root/r') AS T(C)
+					OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 
 					UPDATE pd 
 					SET matchid = CASE WHEN t.matchid IS NULL THEN pd.matchid ELSE t.matchid END
@@ -422,8 +459,8 @@ BEGIN
 								,T.C.value('./@us', 'INT') AS userid	
 								,T.C.value('./@crdate', 'DATETIME') AS CreatedDate
 								,T.C.value('./@mt', 'TINYINT') AS MarkType		
-						FROM	@transInfo.nodes('/root/r') AS T(C)
-						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+						FROM	@TransInfo.nodes('/root/r') AS T(C)
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 
 						INSERT INTO dbo.MarkedTransaction (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
 						SELECT 	TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType
@@ -439,8 +476,8 @@ BEGIN
 						INSERT INTO @tmpTransId (TransID ,matchid)
 						SELECT	T.C.value('./@t', 'bigint') AS transid
 								,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@transInfo.nodes('/root/r') AS T(C)
-						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+						FROM	@TransInfo.nodes('/root/r') AS T(C)
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 						
 						DELETE m 
 						FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
@@ -456,8 +493,8 @@ BEGIN
 							,T.C.value('./@mid', 'INT') AS matchid	
 							,T.C.value('./@s', 'NVARCHAR(10)') AS Status	
 							,T.C.value('./@w', 'MONEY') AS WinLost	
-						FROM	@transInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+						FROM	@TransInfo.nodes('/root/r') AS T(C)	
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
 
 						SET @batchNo = @@ROWCOUNT
 
@@ -475,8 +512,8 @@ BEGIN
 								,T.C.value('./@mid', 'INT') AS matchid
 								,T.C.value('./@td', 'datetime') AS transdate
 								,T.C.value('./@cst', 'nvarchar(40)') AS comstatus
-						FROM	@transInfo.nodes('/root/r') AS T(C)
-						OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+						FROM	@TransInfo.nodes('/root/r') AS T(C)
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
 						
 						DELETE m 
 						FROM dbo.zzzbettrans m WITH (ROWLOCK, UPDLOCK)
@@ -492,8 +529,8 @@ BEGIN
 						INSERT INTO @tmpTransId (TransID ,matchid)
 						SELECT	T.C.value('./@t', 'bigint') AS transid	
 							,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@transInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+						FROM	@TransInfo.nodes('/root/r') AS T(C)	
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
 						
 						SET @batchNo = @@ROWCOUNT
 
@@ -508,8 +545,8 @@ BEGIN
 						INSERT INTO @tmpTransId (TransID ,matchid)
 						SELECT	T.C.value('./@t', 'BIGINT') AS transid	
 							   ,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@transInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+						FROM	@TransInfo.nodes('/root/r') AS T(C)	
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
 						
 						DELETE bm 
 						FROM dbo.zzzbettransm bm WITH (ROWLOCK, UPDLOCK)
@@ -538,8 +575,8 @@ BEGIN
 						INSERT INTO @tmpTransId (TransID ,matchid)
 						SELECT	T.C.value('./@t', 'bigint') AS transid	
 							,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@transInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+						FROM	@TransInfo.nodes('/root/r') AS T(C)	
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
 
 						SET @batchNo = @@ROWCOUNT
 
@@ -565,6 +602,11 @@ BEGIN
 				IF @errcode = 1205 AND @TryCount < @maxTryCount
 					CONTINUE
 
+				IF ISNULL(@SettlementProcessingId,0) <> 0 AND OBJECT_ID('SiteDB_SettlementProcessing', 'U') IS NOT NULL
+					UPDATE s	
+						SET StatusId = 3
+					FROM	dbo.SiteDB_SettlementProcessing s
+					WHERE	Id = @SettlementProcessingid 
 				RAISERROR (@errmsg, -- Message text.
 					16, -- Severity.
 					1 -- State.

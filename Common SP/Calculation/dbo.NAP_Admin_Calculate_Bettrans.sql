@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans]
 	,@matchid			INT				= 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
+	,@TicketType		VARCHAR(1)		= 's'
 AS
 /*
 	Created: 20160606@Bobby
@@ -16,6 +17,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221109@Louisa: log more info [Redmine:#178694]
 
 	Param's Explanation:
 		
@@ -24,7 +26,7 @@ BEGIN
 	SET NOCOUNT ON 
 	
 	DECLARE @strBetTicket		VARCHAR(MAX)
-	
+
 	--Tracing company winlimit control
 	CREATE TABLE #BalanceCWLBefore (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
 	CREATE TABLE #BalanceCWLAfter (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
@@ -89,7 +91,7 @@ BEGIN
 									) 
 								)
 								
-		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = 'p'
+		EXEC dbo.Bet_ExecRep_BettransUpd @BetTickets = @strBetTicket, @matchid = @matchid, @Action = @Action, @TicketType = @TicketType
 			
 	END TRY
 	BEGIN CATCH

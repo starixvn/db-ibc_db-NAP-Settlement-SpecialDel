@@ -27,6 +27,7 @@ AS
 		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221109@Louisa: log more info [Redmine:#178694]
 
 	Param's Explanation:
 		- ? @Mode:
@@ -414,6 +415,7 @@ BEGIN
 					,@matchid		= @matchid
 					,@Action		= 'CAL'
 					,@CWLBettype	= @CWLBettype
+					,@TicketType	= 's'
 					,@balanceUpd 	= @balanceUpd OUTPUT
 					,@ErrCode 		= @ErrCode OUTPUT
 					,@ErrMsg 		= @ErrMsg OUTPUT

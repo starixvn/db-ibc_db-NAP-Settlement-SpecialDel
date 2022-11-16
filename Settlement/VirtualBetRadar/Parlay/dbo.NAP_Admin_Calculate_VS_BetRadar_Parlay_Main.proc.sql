@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main] 
 	@matchid		INT
 	,@strRefnos		VARCHAR(MAX)
@@ -19,6 +19,7 @@ AS
 		- 20180214@Helen: Integrate VSBR 2 - Basketball - [Redmine:90154]
 		- 20190604@Helen: User-Defined Aggregate SQL Function for Parlay Calculation [Redmine:#114391]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221109@Louisa: log more info [Redmine:#178694]
 		
 	Param's Explanation:
 	
@@ -298,7 +299,9 @@ BEGIN
 			EXEC dbo.NAP_Admin_Calculate_Bettrans
 				@BetTickets		= @BetTickets
 				,@Action		= 'CAL'
+				,@matchid		= @matchid
 				,@CWLBettype	= @CWLBettype
+				,@TicketType	= 'p'
 				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT

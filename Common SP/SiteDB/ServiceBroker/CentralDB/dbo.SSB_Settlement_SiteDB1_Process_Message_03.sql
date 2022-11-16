@@ -1,11 +1,13 @@
-/*<info serverAlias="SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
-create procedure dbo.SSB_Replicated_SyncSiteDB_Process
+USE [bodb02]
+GO
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+ALTER PROC [dbo].[SSB_Settlement_SiteDB1_Process_Message_03]
 as
-/*  Created: Kathy@20220827
-	Task: Pick conversation
-	DB: SBSETTLE-bodb02,DBBAL-bodb02
+/*  Created: Patrick@20221025
+	Task: Process message
+	DB: DBCTG-bodb0
 	Revisions:  
-		- 20220827@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
 */
 begin
 	set nocount on
@@ -17,18 +19,18 @@ begin
 		waitfor (receive top(1) @__conversationHandle = conversation_handle
 				, @__messageType = message_type_name
 				, @__messageBody = message_body
-			from dbo.bet_SiteDB_queue_01
+			from dbo.sitedb1_bet_settle_queue_03
 		), timeout 100
 
 		if @@rowcount = 0
 			return
 
 		select @__messageId = newid()
-		exec dbo.SSB_Replicated_SyncSiteDB_UpdateData @ConversationHandle = @__conversationHandle
+		exec dbo.SSB_Settlement_SiteDB_UpdateData @ConversationHandle = @__conversationHandle
 			, @MessageType = @__messageType
 			, @MessageBody = @__messageBody
 			, @MessageId = @__messageId
+			, @QueueNo = 3
 
 	end
 end
-go
