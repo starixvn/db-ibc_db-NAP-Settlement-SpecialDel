@@ -4,8 +4,10 @@
 USE bodb02
 GO
 
-DECLARE @transid VARCHAR(MAX) = ''
+DECLARE @transid VARCHAR(MAX) = '', @TableName VARCHAR(200)
 
+SET @transid = XXX
+SET @TableName = XXXX -- bettrans or bettransm
 --should define primary key for the temporary tables
 CREATE TABLE #Result(
 	id [int] IDENTITY (1,1) PRIMARY KEY,
@@ -38,11 +40,25 @@ BEGIN
 		PRINT @StopRow
 	
 	-- YOUR CODE PROCESS FOR DATA FROM @StartRow & @StopRow
-		UPDATE b
-			SET RepUpdateTime = GETDATE()
-		FROM bettrans b WITH (ROWLOCK,UPDLOCK)
-			INNER JOIN #Result r ON r.Transid = b.TransId
-		WHERE ID BETWEEN @StartRow AND @StopRow
+		IF @TableName = 'bettrans'
+		BEGIN
+			UPDATE b
+				SET RepUpdateTime = GETDATE()
+			FROM bettrans b WITH (ROWLOCK,UPDLOCK)
+				INNER JOIN #Result r ON r.Transid = b.TransId
+			WHERE ID BETWEEN @StartRow AND @StopRow
+		END
+		
+		ELSE IF @TableName = 'bettransm'
+		BEGIN
+			UPDATE b
+				SET RepUpdateTime = GETDATE()
+			FROM bettransm b WITH (ROWLOCK,UPDLOCK)
+				INNER JOIN #Result r ON r.Transid = b.TransId
+			WHERE ID BETWEEN @StartRow AND @StopRow
+		END
+		ELSE
+			BREAK
 
 		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
 		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
