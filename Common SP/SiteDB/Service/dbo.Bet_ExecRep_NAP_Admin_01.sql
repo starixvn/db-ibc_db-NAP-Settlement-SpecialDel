@@ -32,7 +32,7 @@ AS
 		- 20221025@Louisa: CHeck NULL value for @TransInfo, @TransInfoJson [Redmine:#179449]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
-
+		- 20221117@Kathy: No settlement on DB05 [Redmine:#180225]
 	Param's Explanation:  
 		   
 */
