@@ -32,7 +32,7 @@ AS
 		- 20221025@Louisa: CHeck NULL value for @TransInfo, @TransInfoJson [Redmine:#179449]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
-
+		- 20221117@Kathy: No settlement on DB05 [Redmine:#180225]
 	Param's Explanation:  
 		   
 */
@@ -49,6 +49,7 @@ BEGIN
 			,@AllowRefund	BIT
 			,@AllowCalculation		BIT
 			,@ServerName	SYSNAME
+			,@SiteDB_RunSettlement BIT
 
 			,@maxTryCount TINYINT
 			,@TryCount	TINYINT
@@ -75,6 +76,7 @@ BEGIN
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
 	SET @ServerName = @@SERVERNAME
+	SET @SiteDB_RunSettlement = 1
 
 	IF @RunOnServer <> @@SERVERNAME
 	BEGIN
@@ -125,6 +127,10 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo 
 		@IsEnableServiceBroker = @IsEnableServiceBroker OUTPUT
 		,@SiteDB_TotalQueue = @SiteDB_TotalQueue OUTPUT
+		,@SiteDB_RunSettlement = @SiteDB_RunSettlement OUTPUT
+
+	IF @SiteDB_RunSettlement = 0
+		RETURN
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
