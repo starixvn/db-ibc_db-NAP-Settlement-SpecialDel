@@ -11,6 +11,7 @@ AS
 		- 20210920@Louisa:  Linked result for Fantasy match [Redmine:#161268]
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393]
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
+		- 20221122@Louisa: Add Fantasy league 125351 [Redmine:#180306]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -52,7 +53,7 @@ BEGIN
 	) pv
 	
 
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN ( 16371,	65550, 89611 )) --- Fantasy League
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN ( 16371,65550, 89611,125351 )) --- Fantasy League
 	BEGIN
 		INSERT INTO @tmpRelatedMatchIds ( MatchId )
 		SELECT f.value FROM STRING_SPLIT ( @fantasy, ',' ) f
