@@ -72,7 +72,8 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220924@Kathy: Scale Out BetTrans - wrong order when chosing @FilterOver [Redmine:#175251]
 		- 20221012@Louisa: Enhancement [Redmine:#178551]
-		
+		- 20221021@Louisa: Remove order [Redmine:#180306]
+
  Param explanation: 
 	@LeagueIDs  : '0' :all  
 	@MatchStatus: 0:all/none,  1:close, 2:running 3:internal, 4:posponed, 5:IrregularTime 1H, 6:IrregularTime, 7:Wrong TeamName, 8:Suspended,	9:Completed, 10:refund 11-Abandoned
@@ -379,7 +380,7 @@ BEGIN
 											WHEN ms.MatchStatus = 2 AND m.eventstatus = 'running' THEN 1
 											WHEN ms.MatchStatus = 3 AND m.eventstatus = 'Internal' THEN 1
 											WHEN ms.MatchStatus = 4 AND m.eventstatus = 'Postponed' THEN 1
-											WHEN ms.MatchStatus = 9 AND m.eventstatus = 'Completed' THEN 1
+											WHEN ms.MatchStatus = 9 AND m.eventstatus = 'Completed' AND m.betstatus NOT LIKE 'Refund%' AND m.betstatus NOT LIKE 'Abandoned%' THEN 1
 											WHEN ms.MatchStatus = 10 AND m.betstatus LIKE 'Refund%' THEN 1
 											WHEN ms.MatchStatus = 11 AND m.eventstatus ='Completed' AND m.betstatus LIKE 'Abandoned%' THEN 1
 											WHEN ms.MatchStatus = 5 AND ISNULL(m.eventstatusreason,0) = 1 THEN 1 --Irregular Time 1H
@@ -858,9 +859,7 @@ BEGIN
 				,m.OfferLive
 		FROM	#matchList m
 				LEFT JOIN #tempmatch t 
-					ON	t.matchid = m.matchid				
-		ORDER BY m.eventstatus
-			, m.matchcode			
+					ON	t.matchid = m.matchid		
 	END
 	ELSE
 	BEGIN
@@ -910,17 +909,6 @@ BEGIN
 		FROM	#matchList m
 				LEFT JOIN #tempmatch t 
 					ON	t.matchid = m.matchid				
-		ORDER BY CASE 
-					WHEN m.eventstatus = 'completed' AND m.IsExistMarkedTicket = 0 AND m.IsExistRunningTicket = 0 THEN 1 
-					ELSE 0 
-				END
-			, m.eventdate
-			, m.kickofftime
-			, m.sporttype
-			, m.leagueid
-			, m.matchid
-			, m.betstatus
-			, m.matchcode	
 	END
 
 	SET @EndTime = GETDATE()
