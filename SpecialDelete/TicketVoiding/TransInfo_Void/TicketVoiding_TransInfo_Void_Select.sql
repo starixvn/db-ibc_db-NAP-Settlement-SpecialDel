@@ -394,6 +394,7 @@ BEGIN
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 			AND d.IsMixParlay = 1
+	END
 			
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
