@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select_UAT1]
+ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 (	
 	 @RequestId			  INT = 0
 	,@UserID			  INT
