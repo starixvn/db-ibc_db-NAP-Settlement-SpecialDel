@@ -3,7 +3,7 @@
 USE bodb02
 GO
 update top (22) dbo.bettrans with(updlock, rowlock) 
-	set RepUpdateTime = sysdatetime()
+	set RepUpdateTime = SYSDATETIME()
 	where transid in (53994516377501882
 				,53994516377501951
 				,53994520672469208
