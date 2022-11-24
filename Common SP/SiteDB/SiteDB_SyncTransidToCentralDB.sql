@@ -65,7 +65,7 @@ BEGIN
 		
 	DECLARE @debug_message VARCHAR(500)
 	SET @MaxRow = (SELECT MAX(ID) FROM #Result)
-	SET @Threshold = 1000
+	SET @Threshold = 500
 
 	IF @Threshold >= @MaxRow
 		SET @Threshold = @MaxRow
@@ -104,7 +104,7 @@ BEGIN
 		
 			IF @StopRow = @MaxRow BREAK
 
-			WAITFOR DELAY '00:00:00.020' --optional
+			WAITFOR DELAY '00:00:03.000' --optional
 
 			SET @StartRow = @StopRow + 1
 			SET @StopRow = @StopRow + @Threshold
@@ -116,3 +116,4 @@ BEGIN
 
 	DROP TABLE #Result
 END
+
