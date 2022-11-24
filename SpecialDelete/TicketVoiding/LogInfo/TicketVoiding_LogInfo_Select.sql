@@ -66,18 +66,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's explanation:
-		+ @WrongScoreInfo:
-		<root>
-			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" ScoreId='3966607' FilterBy="" />
-		</root>
-		+ @DangerAcceptedInfo, @RedCardInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/></root>
-		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/></root>
-		+ @WrongOUInfo, @Wrong1stOUInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" WrongMarket ="" SubIssueTypeId=""/></root>
-
-		(Filterby 0: By BetID, 1: By Transdate, 2: By Checktime, 4: Filter by Transdate & Checktime)
+		
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -105,9 +94,9 @@ BEGIN
 					+ CASE WHEN @Wrong1stHDPInfo IS NULL THEN '' ELSE ',@Wrong1stHDPInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stHDPInfo) + '''' END
 					+ CASE WHEN @WrongOUInfo IS NULL THEN '' ELSE ',@WrongOUInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOUInfo) + '''' END
 					+ CASE WHEN @Wrong1stOUInfo IS NULL THEN '' ELSE ',@Wrong1stOUInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stOUInfo) + '''' END
-					+ CASE WHEN @TransInfoJson0 IS NULL THEN '' ELSE ',@TransInfo = ''' + CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX)) + '''' END
-					+ CASE WHEN @TransInfoJson1 IS NULL THEN '' ELSE ',@TransInfo = ''' + CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX)) + '''' END
-					+ CASE WHEN @TransInfoJson2 IS NULL THEN '' ELSE ',@TransInfo = ''' + CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX)) + '''' END
+					+ CASE WHEN @TransInfoJson0 IS NULL THEN '' ELSE ',@TransInfoJson0 = ''' + @TransInfoJson0 + '''' END
+					+ CASE WHEN @TransInfoJson1 IS NULL THEN '' ELSE ',@TransInfoJson1 = ''' + @TransInfoJson1 + '''' END
+					+ CASE WHEN @TransInfoJson2 IS NULL THEN '' ELSE ',@TransInfoJson2 = ''' + @TransInfoJson2 + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
