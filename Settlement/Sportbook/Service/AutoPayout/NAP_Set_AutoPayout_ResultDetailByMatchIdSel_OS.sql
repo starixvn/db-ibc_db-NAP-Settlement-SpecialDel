@@ -13,6 +13,7 @@ AS
 		- 20211206@Louisa: Enhancemant Table Tennis [Redmine:#165659]
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
+		- 20221124@Louisa: Do not get data if FT score of Table Tennis is null [Redmine:#180306]
 
 	Param's Explanation:
  
@@ -31,6 +32,8 @@ BEGIN
 				ON m.matchid = mr.matchid
 		WHERE m.matchid = @MatchId
 			AND mr.ConfirmFT > 0
+			AND m.finalhomescore IS NOT NULL
+			AND m.finalawayscore IS NOT NULL
 	END
 
 	ELSE IF @SportType IN ( 6,9)
