@@ -25,11 +25,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@Wrong1stHDPInfo		VARCHAR(MAX)  = NULL
 	,@WrongOUInfo		    VARCHAR(MAX)  = NULL
 	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
-	,@TransInfo		        XML  = NULL
+	,@TransInfoJson			VARBINARY(MAX) = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: insert new request [Redmine:#90155]
 	DB: DBCTG/bodb02
 	
@@ -54,21 +53,12 @@ AS
 		- 20220401@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 	    - 20220610@July: TVS - Some minor enhancements  [Redmine: #173229]
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
 						 2 - Suspender
 			Example: <r OperatorId="232093" Type="1" /><r OperatorId="5045342" Type="2" />
-		+ @WrongScoreInfo: 
-			<root><r RequestId="" MatchId="" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1" VoidFromTime="" VoidToTime="" LiveHomeScore ="" LiveAwayScore="" LiveScores=""/></root>
-		+ @DangerAcceptInfo, @RedCardInfo:
-			<root><r MatchId="" SubIssueTypeId="1" FilterFromTransTime="1" FilterToTransTime ="2" SingleCount="5" MainParlayCount="1"  VoidFromTime="" VoidToTime="" TypeAccept="AA=''0'' SA=''3'' PA=''9'' IsMainMatch=''1''" LiveScores="" FilterBy="1"/></root>
-		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" SingleCount="5" MainParlayCount="1" VoidFromTime="" VoidToTime="" HomeFavorite ="" AwayFavorite ="" ActualMarket ="" HDPValue = "" IsMainMatch ="" SubIssueTypeId=""/></root>
-		+ @WrongOUInfo, @Wrong1stOUInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" SingleCount="5" MainParlayCount="1" VoidFromTime="" VoidToTime="" WrongMarket ="" IsMainMatch =""/></root>
-		+ @AbnormalAccountInfo:
-			<root><r Usernames="" ProductIds="1" StatusIds ="" FromDate ="" ToDate = ""/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -96,7 +86,7 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@DARCInfo		 = @DangerAcceptedInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (3)
@@ -107,7 +97,7 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@WrongScoreInfo = @WrongScoreInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest	
 	END
 	ELSE IF @IssueTypeId IN (4)
@@ -118,7 +108,7 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@WrongHDPInfo	 = @WrongHDPInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson	
 				,@IsEditRequest	 = @IsEditRequest	
 	END
 	ELSE IF @IssueTypeId IN (5)
@@ -129,7 +119,7 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@WrongHDPInfo	 = @Wrong1stHDPInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (6)
@@ -140,7 +130,7 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@WrongOUInfo	 = @WrongOUInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (7)
@@ -151,7 +141,7 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@WrongOUInfo	 = @Wrong1stOUInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (8,9)
@@ -163,7 +153,7 @@ BEGIN
 				,@IP			 = @IP			
 				,@SubIssueTypeId = @SubIssueTypeId
 				,@KickOffInfo	 = @KickOffInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson	
 				,@IsEditRequest	 = @IsEditRequest	
 	END
 	ELSE IF @IssueTypeId IN (10)
@@ -174,7 +164,7 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@DARCInfo		 = @RedCardInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (11,15)
@@ -189,7 +179,7 @@ BEGIN
 				,@ActionId		 = @ActionId		
 				,@FilterBy		 = @FilterBy		
 				,@SubIssueTypeId = @SubIssueTypeId
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (13) 
@@ -202,7 +192,7 @@ BEGIN
 				,@ActionId		 = @ActionId
 				,@SubIssueTypeId = @SubIssueTypeId
 				,@AbnormalAccountInfo = @AbnormalAccountInfo
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest
 	END
 	ELSE IF @IssueTypeId IN (17)
@@ -215,7 +205,7 @@ BEGIN
 				,@IP			 = @IP			
 				,@FilterBy		 = @FilterBy		
 				,@SubIssueTypeId = @SubIssueTypeId
-				,@TransInfo		 = @TransInfo		
+				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
 	END
 

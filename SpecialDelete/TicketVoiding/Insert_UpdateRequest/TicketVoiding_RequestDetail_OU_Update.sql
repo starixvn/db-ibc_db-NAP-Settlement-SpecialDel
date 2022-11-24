@@ -1,23 +1,23 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_OU_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_OU_Update]
 (
 	@RequestId				INT
 	,@IssueTypeId			TINYINT		= NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@WrongOUInfo		    VARCHAR(MAX) = NULL
-	,@TransInfo				XML  = NULL
+	,@TransInfoJson			VARBINARY(MAX) = NULL
 	,@IsEditRequest			INT = 0
 )
 AS
 /*	
-	Created by: July
-	Date 20220808
+	Created by: 20220808@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype wrong OU & wrong 1st OU [Redmine: #175412]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's explanation:
 		+ @IssueTypeId : 6 - Wrong OU, 7 - Wrong 1st OU
@@ -35,6 +35,10 @@ BEGIN
 	DECLARE	@WrongOUInfoXML		  XML = NULL	
 			,@SingleCount			INT
 		    ,@MainParlayCount		INT
+
+	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
+
+	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
@@ -70,16 +74,10 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT t.c.value('@mid','INT') AS matchid
-			,t.c.value('@t','BIGINT') AS transid
-			,t.c.value('@s_t','BIGINT') AS Subtransid
-			,t.c.value('@c','INT') AS custid
-			,t.c.value('@btype','SMALLINT') AS bettype
-			,t.c.value('@bid','BIGINT') AS betid
-			,t.c.value('@isP','BIT') AS IsMixParlay
-			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson) 
+	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+	) tbl
 
 	SET @WrongOUInfoXML = CONVERT(XML, @WrongOUInfo)
 	INSERT INTO #tblGetLogInfo( 
