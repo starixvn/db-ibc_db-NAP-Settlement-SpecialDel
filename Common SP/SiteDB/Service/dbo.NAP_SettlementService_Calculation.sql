@@ -149,6 +149,7 @@ BEGIN
 					SET @MessageBody = CAST(@TransInfo AS VARCHAR(MAX))
 				END
 
+				select @Decompress_TransInfoJson, @TransInfoJson
 				WHILE (@IsPassed = 0)
 				BEGIN
 					IF @TableName = 'bettrans'
@@ -198,12 +199,24 @@ BEGIN
 					BEGIN
 						IF @cnt_sitedb = 0
 						BEGIN
-							INSERT INTO @tmpTransId (TransID)
-							SELECT	T.C.value('./@t', 'bigint') AS transid
-							FROM	@TransInfo.nodes('/root/r') AS T(C)
-
-							SET @cnt_sitedb = @@ROWCOUNT
-						END
+							IF @TransInfoJson IS NOT NULL
+							BEGIN
+								INSERT INTO @tmpTransId (TransID)
+								SELECT	t
+								FROM	OPENJSON(@Decompress_TransInfoJson) WITH (t BIGINT)
+								
+								SET @cnt_sitedb = @@ROWCOUNT
+							END
+							ELSE
+							BEGIN
+								INSERT INTO @tmpTransId (TransID)
+								SELECT	T.C.value('./@t', 'bigint') AS transid	
+								FROM	@TransInfo.nodes('/root/r') AS T(C)
+								OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+									
+								SET @cnt_sitedb = @@ROWCOUNT
+							END							
+						END 
 
 						SELECT @cnt_central = COUNT(1)
 						FROM	@tmpTransId t

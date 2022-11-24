@@ -23,8 +23,7 @@ BEGIN
 			,@3rd_ErrorMessage varchar(400)
 			,@3rd_LogId BIGINT
 			,@3rd_StatusId TINYINT
-			,@3rd_StartTime DATETIME2
-			,@3rd_StartTimeValidation DATETIME2
+			,@3rd_StartTime DATETIME2		
 			,@3rd_PendingLogId	BIGINT
 
 	-- check SB
@@ -71,8 +70,7 @@ BEGIN
 		SET @3rd_ErrorMessage = ''
 
 		SELECT	TOP (1) @3rd_LogId = LogId
-				,@3rd_StatusId = StatusId
-				,@3rd_StartTimeValidation = StartTimeValidation
+				,@3rd_StatusId = StatusId				
 				,@3rd_StartTime = Starttime
 		FROM	dbo.SiteDB_SettlementService_LastLog_3rd WITH(NOLOCK)
 		ORDER BY LogId DESC
@@ -91,9 +89,7 @@ BEGIN
 		END
 
 		IF @3rd_StatusId = 3 
-			SET @3rd_ErrorMessage = 'Hey guys, process sync data for SiteDB (' + @@SERVERNAME + ') got error (table SiteDB_SettlementService_LastLog_3rd). Please check!!!'
-		ELSE IF @3rd_StatusId = 0 AND DATEDIFF(MINUTE,@3rd_StartTimeValidation, GETDATE()) > 3
-			SET @3rd_ErrorMessage = 'Hey guys, process sync data for SiteDB (' + @@SERVERNAME + ') got validation failed (table SiteDB_SettlementService_LastLog_3rd). Please check!!!'
+			SET @3rd_ErrorMessage = 'Hey guys, process sync data for SiteDB (' + @@SERVERNAME + ') got error (table SiteDB_SettlementService_LastLog_3rd). Please check!!!'		
 		ELSE IF @3rd_StatusId = 1 AND DATEDIFF(MINUTE,@3rd_StartTime, GETDATE()) > 1
 			SET @3rd_ErrorMessage = 'Hey guys, the item on process sync data for SiteDB (' + @@SERVERNAME + ') has been running for too long (table SiteDB_SettlementService_LastLog_3rd). Please check!!!'
 	

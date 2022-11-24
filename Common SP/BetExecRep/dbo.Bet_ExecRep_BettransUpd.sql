@@ -28,7 +28,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
-			,@transInfo	XML
+			,@transInfoJson	VARCHAR(MAX)
 			,@IsSiteDB	BIT = 0
 			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -39,7 +39,7 @@ BEGIN
 			,bef_winlost MONEY ,bef_statusid TINYINT
 		)
 	
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL 
 		SET @IsSiteDB = 1
 
 	SET @ServerName = @@SERVERNAME
@@ -172,41 +172,40 @@ BEGIN
 	
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
-		SET @transInfo = (
-			SELECT	transId AS '@t'	
-					,modds AS '@m'
-					,statuswinlost AS '@statuswl' 
-					,winlostdate AS '@wld'
-					,WinLost AS '@w' 
-					,aWinLost AS '@aw' 
-					,mWinLost AS '@mw' 
-					,sWinLost AS '@sw' 
-					,PlayerComm AS '@pc' 
-					,Comm AS '@c' 
-					,aComm AS '@ac' 
-					,sComm AS '@sc' 
-					,Status AS '@s' 
-					,StatusID AS '@sid' 
-					,ruben AS '@r' 
-					,bef_winlost AS '@bef_w' 
-					,bef_statusid AS '@bef_sid' 				
+		SET @transInfoJson = (
+			SELECT	transId AS 't'	
+					,modds AS 'm'
+					,statuswinlost AS 'statuswl' 
+					,winlostdate AS 'wld'
+					,WinLost AS 'w' 
+					,aWinLost AS 'aw' 
+					,mWinLost AS 'mw' 
+					,sWinLost AS 'sw' 
+					,PlayerComm AS 'pc' 
+					,Comm AS 'c' 
+					,aComm AS 'ac' 
+					,sComm AS 'sc' 
+					,Status AS 's' 
+					,StatusID AS 'sid' 
+					,ruben AS 'r' 
+					,bef_winlost AS 'bef_w' 
+					,bef_statusid AS 'bef_sid' 				
 			FROM	@tmpTransInfo
-			FOR XML PATH('r'),ROOT('root'), TYPE
+			FOR JSON AUTO
 		)
 
 		SELECT @matchid = (SELECT TOP 1 matchid FROM @sourceTicket)
 
-		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 			@SystemName = 'Settlement' 
 			,@FunctionName = 'CalculateVSBetRadar'
 			,@TableName = 'bettrans'
 			,@MatchId = @MatchId
-			,@transinfo = @transinfo
+			,@transinfoJson = @transinfoJson
 			,@SettlementAction = @Action
 			,@TicketType = @TicketType
 			,@EventTable = 1
-			,@Is3rd = 1
-		
+			
 	END
 END
 GO

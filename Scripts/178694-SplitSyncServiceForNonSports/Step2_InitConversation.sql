@@ -1,44 +1,35 @@
-/*<info serverAlias="SBSETTLE-bodb02" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
-USE bodb02
-GO
+/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02,DBBAL-bodb02"></info>*/
 
--- sitedb1: 3rd
-INSERT INTO sb.ConfigurationReferenceDetail (FunctionName, ContractName, MessageType, MinConversation, MaxConversation)
-VALUES ('settlement', 'bet_SiteDB_3rd_contract_01', 'bet_SiteDB_3rd_msg_type_01', 5, 20)
+use bodb02
+go
 
+select * from sb.ConversationCount
+
+insert into sb.ConversationCount(functionName, ContractName, Cnt)
+values('settlement', 'sitedb1_bet_settle_contract_3rd', 1)
+	, ('settlement', 'sitedb2_bet_settle_contract_3rd', 1)
+
+select * from sb.ConfigurationReferenceDetail
+
+insert into sb.ConfigurationReferenceDetail(FunctionName, ContractName, MessageType, MinConversation, MaxConversation)
+values('settlement', 'sitedb1_bet_settle_contract_3rd', 'sitedb1_bet_settle_msg_type_3rd', 0, 10)
+	, ('settlement', 'sitedb2_bet_settle_contract_3rd', 'sitedb2_bet_settle_msg_type_3rd', 0, 10)
+
+--//site1
 exec [sb].[DBA_ConversationManagement] 
 	  @functionName = 'settlement'
-	, @contractName = 'bet_SiteDB_3rd_contract_01'		  
-	, @fromService = 'bet_SiteDB_3rd_send_service_01'
-	, @toService = 'bet_SiteDB_3rd_receive_service_01'
-	, @coversation_number = 4
+	, @contractName = 'sitedb1_bet_settle_contract_3rd'		  
+	, @fromService = 'sitedb1_bet_settle_receive_service_3rd'
+	, @toService = 'sitedb1_bet_settle_send_service_3rd'
+	, @coversation_number = 1
 	, @mode = 'Reset'
 
 
--- sitedb2: 3rd
-INSERT INTO sb.ConfigurationReferenceDetail (FunctionName, ContractName, MessageType, MinConversation, MaxConversation)
-VALUES ('settlement', 'bet_SiteDB_3rd_contract_02', 'bet_SiteDB_3rd_msg_type_02', 5, 20)
-
+--//site2
 exec [sb].[DBA_ConversationManagement] 
 	  @functionName = 'settlement'
-	, @contractName = 'bet_SiteDB_3rd_contract_02'		  
-	, @fromService = 'bet_SiteDB_3rd_send_service_02'
-	, @toService = 'bet_SiteDB_3rd_receive_service_02'
-	, @coversation_number = 4
+	, @contractName = 'sitedb2_bet_settle_contract_3rd'		  
+	, @fromService = 'sitedb2_bet_settle_receive_service_3rd'
+	, @toService = 'sitedb2_bet_settle_send_service_3rd'
+	, @coversation_number = 1
 	, @mode = 'Reset'
-
-
--- sitedb2: SB
-INSERT INTO sb.ConfigurationReferenceDetail (FunctionName, ContractName, MessageType, MinConversation, MaxConversation)
-VALUES ('settlement', 'bet_SiteDB_contract_02', 'bet_SiteDB_msg_type_02', 5, 20)
-
-exec [sb].[DBA_ConversationManagement] 
-	  @functionName = 'settlement'
-	, @contractName = 'bet_SiteDB_contract_02'		  
-	, @fromService = 'bet_SiteDB_send_service_02'
-	, @toService = 'bet_SiteDB_receive_service_02'
-	, @coversation_number = 4
-	, @mode = 'Reset'
-
-GO
-

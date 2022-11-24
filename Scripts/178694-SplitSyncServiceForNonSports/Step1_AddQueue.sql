@@ -1,33 +1,29 @@
-/*<info serverAlias="SBSETTLE-bodb02" executers="" selecters="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02,DBBAL-bodb02"></info>*/
 
-use bodb02
-go
--- sitedb1: 3rd
-create message type bet_SiteDB_3rd_msg_type_01 validation = none
-create contract bet_SiteDB_3rd_contract_01(bet_SiteDB_3rd_msg_type_01 sent by any)
-create queue dbo.bet_SiteDB_3rd_queue_01 with status = on, retention = off
-	--, activation (status = on, procedure_name = '', max_queue_readers = 10, execute as N'dbo')
-	, poison_message_handling (status = on) on [serviceBroker]
-create service bet_SiteDB_3rd_send_service_01 on queue bet_SiteDB_3rd_queue_01(bet_SiteDB_3rd_contract_01)
-create service bet_SiteDB_3rd_receive_service_01 on queue bet_SiteDB_3rd_queue_01(bet_SiteDB_3rd_contract_01)
+--for ssb
+CREATE MESSAGE TYPE [sitedb1_bet_settle_msg_type_3rd] VALIDATION = NONE
+GO
+CREATE MESSAGE TYPE [sitedb2_bet_settle_msg_type_3rd] VALIDATION = NONE
+GO
 
 
--- sitedb2: 3rd
-create message type bet_SiteDB_3rd_msg_type_02 validation = none
-create contract bet_SiteDB_3rd_contract_02(bet_SiteDB_3rd_msg_type_02 sent by any)
-create queue dbo.bet_SiteDB_3rd_queue_02 with status = on, retention = off
-	--, activation (status = on, procedure_name = '', max_queue_readers = 10, execute as N'dbo')
-	, poison_message_handling (status = on) on [serviceBroker]
-create service bet_SiteDB_3rd_send_service_02 on queue bet_SiteDB_3rd_queue_02(bet_SiteDB_3rd_contract_02)
-create service bet_SiteDB_3rd_receive_service_02 on queue bet_SiteDB_3rd_queue_02(bet_SiteDB_3rd_contract_02)
+CREATE CONTRACT [sitedb1_bet_settle_contract_3rd] ([sitedb1_bet_settle_msg_type_3rd] SENT BY ANY)
+GO
 
+CREATE CONTRACT [sitedb2_bet_settle_contract_3rd] ([sitedb2_bet_settle_msg_type_3rd] SENT BY ANY)
+GO
 
--- sitedb2: SB
-create message type bet_SiteDB_msg_type_02 validation = none
-create contract bet_SiteDB_contract_02(bet_SiteDB_msg_type_02 sent by any)
-create queue dbo.bet_SiteDB_queue_02 with status = on, retention = off
-	--, activation (status = on, procedure_name = '', max_queue_readers = 10, execute as N'dbo')
-	, poison_message_handling (status = on) on [serviceBroker]
-create service bet_SiteDB_send_service_02 on queue bet_SiteDB_queue_02(bet_SiteDB_contract_02)
-create service bet_SiteDB_receive_service_02 on queue bet_SiteDB_queue_02(bet_SiteDB_contract_02)
+CREATE QUEUE sitedb1_bet_settle_queue_3rd WITH STATUS = ON , RETENTION = OFF ON [DATA] 
+GO
+GO
+CREATE QUEUE [dbo].[sitedb2_bet_settle_queue_3rd] WITH STATUS = ON , RETENTION = OFF ON [DATA] 
+GO
+
+CREATE SERVICE [sitedb1_bet_settle_receive_service_3rd]  ON QUEUE [dbo].[sitedb1_bet_settle_queue_3rd] ([sitedb1_bet_settle_contract_3rd])
+GO
+CREATE SERVICE [sitedb2_bet_settle_receive_service_3rd]  ON QUEUE [dbo].[sitedb2_bet_settle_queue_3rd] ([sitedb2_bet_settle_contract_3rd])
+GO
+CREATE SERVICE [sitedb1_bet_settle_send_service_3rd]  ON QUEUE [dbo].[sitedb1_bet_settle_queue_3rd] ([sitedb1_bet_settle_contract_3rd])
+GO
+CREATE SERVICE [sitedb2_bet_settle_send_service_3rd]  ON QUEUE [dbo].[sitedb2_bet_settle_queue_3rd] ([sitedb2_bet_settle_contract_3rd])
 GO

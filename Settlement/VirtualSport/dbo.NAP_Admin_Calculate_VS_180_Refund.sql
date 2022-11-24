@@ -18,7 +18,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @transInfo	XML
+	DECLARE @TransInfoJson	VARCHAR(MAX)
 			,@rowcnt INT = 0
 
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -70,35 +70,34 @@ BEGIN
 
 		IF @IsCentral = 0 
 			AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
-			AND OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-			AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL
+			AND OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL 
 		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'	
-						,statuswinlost AS '@statuswl' 
-						,WinLost AS '@w' 
-						,aWinLost AS '@aw' 
-						,mWinLost AS '@mw' 
-						,sWinLost AS '@sw' 
-						,PlayerComm AS '@pc' 
-						,Comm AS '@c' 
-						,aComm AS '@ac' 
-						,sComm AS '@sc' 
-						,Status AS '@s' 
-						,StatusID AS '@sid' 
-						,ruben AS '@r' 
-						,bef_winlost AS '@bef_w' 
-						,bef_statusid AS '@bef_sid' 				
+			SET @TransInfoJson = (
+				SELECT	transId AS 't'	
+						,statuswinlost AS 'statuswl' 
+						,WinLost AS 'w' 
+						,aWinLost AS 'aw' 
+						,mWinLost AS 'mw' 
+						,sWinLost AS 'sw' 
+						,PlayerComm AS 'pc' 
+						,Comm AS 'c' 
+						,aComm AS 'ac' 
+						,sComm AS 'sc' 
+						,Status AS 's' 
+						,StatusID AS 'sid' 
+						,ruben AS 'r' 
+						,bef_winlost AS 'bef_w' 
+						,bef_statusid AS 'bef_sid' 				
 				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
+				FOR JSON AUTO
 			)
 
-			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'RefundVS'
 				,@TableName = 'bettrans'
 				,@MatchId = @MatchId
-				,@transinfo = @transinfo
+				,@TransInfoJson = @TransInfoJson
 				,@SettlementAction = 'REFUND'
 				,@TicketType = 's'
 				,@EventTable = 1
