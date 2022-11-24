@@ -88,6 +88,14 @@ BEGIN
 			,@IsCompletedWithRunningTicket	BIT = 0 --match completed but exists running ticket
 			,@AutoValue			TINYINT
 			,@IsCentral			BIT
+			
+			---start session for test
+			declare @StartTime datetime = getdate ()
+					,@ProcName SYSNAME = OBJECT_NAME(@@procid)	
+					, @EndTime datetime
+					, @SqlCommand VARCHAR(MAX) = ''
+
+			---end
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
 	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, IsMergedParlay BIT)
@@ -1030,6 +1038,27 @@ BEGIN
 			ON	m.matchid = q.MatchId
 		LEFT JOIN @tmpMatchEsport me
 			ON	m.matchid = me.MatchId
+
+
+	---start session for test
+		select @EndTime = getdate()
+		BEGIN
+		SET @SqlCommand = 'EXEC '+@ProcName+ ' @FromDate =''' + CONVERT(VARCHAR(20), @FromDate) + ''''
+										   + ', @ToDate = ''' + CONVERT(VARCHAR(20), @ToDate) + ''''
+										   + ', @MatchStatus =''' + CONVERT(VARCHAR(50), @MatchStatus) + ''''	 
+										   + ', @OverStatus =''' + CONVERT(VARCHAR(50), @OverStatus)   + ''''	
+										   + ', @HoldStatus	 = '''+ CONVERT(VARCHAR(50), @HoldStatus	)+ ''''	 
+										   + ', @MatchCode =''' + ISNULL(@MatchCode, '') + '''' 
+										   + ', @Sporttypes	 = '''+ CONVERT(VARCHAR(50), @Sporttypes	)+ ''''	 
+										   + ', @LeagueIds	 = '''+ CONVERT(VARCHAR(50), @LeagueIds)  + ''''	
+										   + ', @AutoSetting = '''+ CONVERT(VARCHAR(50), @AutoSetting)	 + ''''			 
+										   + ', @Page		 = '+ CONVERT(VARCHAR(10), @Page	)	
+										   + ', @IsIncludeTest  = '+ CONVERT(VARCHAR(10), @IsIncludeTest )
+ 	
+		INSERT INTO SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
+		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime
+	END
+	---end
 	
 END
 
