@@ -1,14 +1,16 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 (
-	 @UserNames	    NVARCHAR(MAX) = ''
-	,@RequestId	    INT = 0
-	,@ActionId	    INT = 0
-	,@ProductIds    VARCHAR(50)  = NULL
-	,@StatusIds	    VARCHAR(50)  = NULL
-	,@FromDate	    DATETIME     = NULL
-    ,@ToDate	    DATETIME     = NULL
-	,@TransInfo	    XML = NULL
+	 @UserNames			NVARCHAR(MAX) = ''
+	,@RequestId			INT = 0
+	,@ActionId			INT = 0
+	,@ProductIds		VARCHAR(50)  = NULL
+	,@StatusIds			VARCHAR(50)  = NULL
+	,@FromDate			DATETIME     = NULL
+    ,@ToDate			DATETIME     = NULL
+	,@TransInfoJson0	VARBINARY(MAX) = NULL
+	,@TransInfoJson1	VARBINARY(MAX) = NULL
+	,@TransInfoJson2	VARBINARY(MAX) = NULL
 )
 AS
 /*
@@ -30,6 +32,7 @@ AS
 		- 20220420@July: TVS - Abnormal Account - Phase 2 [Redmine: #170772]
 		- 20220610@July: TVS - Check valid count SMA/member  [Redmine: #173229]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's Explanation:
 */
@@ -56,6 +59,15 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
+
+	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
+	       ,@TransInfoJson			   VARBINARY(MAX) = NULL
+			
+	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
@@ -100,7 +112,8 @@ BEGIN
 		SELECT @InvalidUserName AS InvalidUserName
 			
 		SELECT NULL AS UnmarkTransIds
-		SELECT matchid FROM #tmpTransInfo
+
+		SELECT @TransInfoJson AS TransInfoJson
 
 		RETURN;
 	END
@@ -113,24 +126,32 @@ BEGIN
 		  ,bettype
 		  ,betid
 		  ,statusID
-		  ,winlostdate
 		  ,recommend
+		  ,winlostdate
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT t.c.value('@mid','INT') AS matchid
-			,t.c.value('@t','BIGINT') AS transid
-			,t.c.value('@ref','BIGINT') AS refno
-			,t.c.value('@c','INT') AS custid
-			,t.c.value('@btype','SMALLINT') AS bettype
-			,t.c.value('@bid','BIGINT') AS betid
-			,t.c.value('@sid','TINYINT') AS statusID
-			,t.c.value('@wld','SMALLDATETIME') AS winlostdate
-			,t.c.value('@re','INT') AS recommend
-			,t.c.value('@isP','BIT') AS IsMixParlay
-			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+	/*0:Central*/
+	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
+		  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson0) 
+	WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
+		 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
+	) tbl0
+	UNION ALL /*1: Sitedb1*/
+	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
+		  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson1) 
+	WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
+		 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
+	) tbl1
+	UNION ALL /*2: Sitedb2*/
+	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
+		  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson2) 
+	WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
+		 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
+	) tbl2
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
@@ -173,8 +194,8 @@ BEGIN
 
 		SELECT NULL AS UnmarkTransIds
 		
-		DELETE FROM #tmpTransInfo
-		SELECT matchid FROM #tmpTransInfo
+		SELECT @TransInfoJson AS TransInfoJson
+
 		RETURN;
 	END
 
@@ -409,17 +430,19 @@ BEGIN
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 		  ,@MarkTransIds AS MarkTransIds
 
-	--3. Transinfo table
-	SELECT DISTINCT 
-			t.matchid
-		    ,t.transid
-			,b.custid
-			,b.bettype 
-			,b.betid 
-			,b.IsMixParlay 
-			,b.SiteDBGroupID
+	--3. List TransinfoJson
+	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+		,t.transid AS 't'
+		,b.custid AS  'c'           
+		,b.bettype AS 'btype'
+		,b.betid AS 'bid'
+		,b.IsMixParlay AS 'isP'
+		,b.SiteDBGroupID AS 'sitedb'
 	FROM #transIdTemp t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	FOR JSON AUTO))
+	
+	SELECT @TransInfoJson AS TransInfoJson
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1

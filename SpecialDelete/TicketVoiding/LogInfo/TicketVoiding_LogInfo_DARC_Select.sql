@@ -6,18 +6,20 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_DARC_Select]
 	,@ActionId			  INT = 5
 	,@IsShowLogOnly		  BIT = 0
 	,@DARCInfo			  VARCHAR(MAX) = NULL
-	,@TransInfo		      XML = NULL
+	,@TransInfoJson0	  VARBINARY(MAX) = NULL
+	,@TransInfoJson1	  VARBINARY(MAX) = NULL
+	,@TransInfoJson2	  VARBINARY(MAX) = NULL
 )
 AS
 /*	
-	Created by: July
-	Date 20220808
+	Created by: 20220808@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220808@July: Create new SP - Refactor code issue type Danger Accept & Red card [Redmine: #175412]
 		- 20220808@July: HF- Request only sub parlay ticket get wrong score show for template message [Redmine: #179752]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -45,6 +47,15 @@ BEGIN
 		   ,@AATime					TINYINT	= 0 
 		   ,@PATime					TINYINT	= 0
 		   ,@SATime					TINYINT	= 0
+	
+	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
+		   ,@TransInfoJson			   VARBINARY(MAX) = NULL
+
+	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -152,12 +163,12 @@ BEGIN
 	  ,winlostdate SMALLDATETIME
 	  ,modds SMALLMONEY
 	  ,statuswinlost TINYINT
+      ,IsMixParlay BIT
+	  ,SiteDBGroupID SMALLINT
 	  ,LiveBetAcceptTime SMALLINT
 	  ,SecAcceptTime TINYINT
 	  ,SubLiveBetAcceptTime SMALLINT
 	  ,SubSecAcceptTime TINYINT
-      ,IsMixParlay BIT
-	  ,SiteDBGroupID SMALLINT
 	)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
@@ -237,75 +248,64 @@ BEGIN
 	       ,winlostdate 
 	       ,modds 
 	       ,statuswinlost 
-	       ,LiveBetAcceptTime 
+           ,IsMixParlay 
+	       ,SiteDBGroupID 
+		   ,LiveBetAcceptTime 
 	       ,SecAcceptTime 
 	       ,SubLiveBetAcceptTime 
 	       ,SubSecAcceptTime 
-           ,IsMixParlay 
-	       ,SiteDBGroupID 
 	)
-	SELECT t.c.value('@mid','INT') AS matchid	
-		,t.c.value('@t','BIGINT') AS transid
-		,t.c.value('@s_t','BIGINT') AS Subtransid
-		,t.c.value('@ref','BIGINT') AS refno
-		,t.c.value('@c','INT') AS custid
-		,t.c.value('@hdp1','SMALLMONEY') AS hdp1
-		,t.c.value('@hdp2','SMALLMONEY') AS hdp2
-		,t.c.value('@lh','SMALLINT') AS livehomescore
-		,t.c.value('@la','SMALLINT') AS liveawayscore
-		,t.c.value('@li','BIT') AS liveindicator
-		,t.c.value('@o','SMALLMONEY') AS odds
-		,t.c.value('@os','MONEY') AS oddsspread
-		,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
-		,t.c.value('@btype','SMALLINT') AS bettype
-		,t.c.value('@bteam','NVARCHAR(10)') AS betteam
-		,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
-		,t.c.value('@s','NVARCHAR(10)') AS Status
-		,t.c.value('@tdate','DATETIME') AS transdate
-		,CASE WHEN t.c.value('@checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@checkt','DATETIME') END AS checktime
-		,t.c.value('@bid','BIGINT') AS betid
-		,t.c.value('@tdes','NVARCHAR(1000)') AS Transdesc
-		,t.c.value('@sid','TINYINT') AS statusID
-		,t.c.value('@s_c','INT') AS Subcustid
-		,t.c.value('@s_hdp1','SMALLMONEY') AS Subhdp1
-		,t.c.value('@s_hdp2','SMALLMONEY') AS Subhdp2
-		,t.c.value('@s_lh','SMALLINT') AS Sublivehomescore
-		,t.c.value('@s_la','SMALLINT') AS Subliveawayscore
-		,t.c.value('@s_li','BIT') AS Subliveindicator
-		,t.c.value('@s_o','SMALLMONEY') AS Subodds
-		,t.c.value('@s_os','MONEY') AS Suboddsspread
-		,t.c.value('@s_bfr','NVARCHAR(3)') AS Subbetfrom
-		,t.c.value('@s_btype','SMALLINT') AS Subbettype
-		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
-		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
-		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
-		,CASE WHEN t.c.value('@s_checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@s_checkt','DATETIME') END AS Subchecktime
-		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
-		,t.c.value('@s_sid', 'TINYINT') AS SubstatusID
-		,t.c.value('@sre','INT') AS srecommend
-		,t.c.value('@mre','INT') AS mrecommend
-		,t.c.value('@re','INT') AS recommend
-		,t.c.value('@cr','INT') AS creator
-		,t.c.value('@stake','MONEY') AS stake
-		,t.c.value('@ost','TINYINT') AS oddstype
-		,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
-		,t.c.value('@bdaq','BIGINT') AS betdaqid
-		,t.c.value('@ex','VARCHAR(1000)') AS ExtraInfo
-		,t.c.value('@bo','INT') AS BonusID
-		,t.c.value('@w','MONEY') AS winlost
-		,t.c.value('@acstake','MONEY') AS actual_stake
-		,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
-		,t.c.value('@m', 'SMALLMONEY') AS modds
-		,t.c.value('@statuswl', 'TINYINT') AS statuswinlost
-		,t.c.value('@lbat', 'SMALLINT') AS LiveBetAcceptTime
-		,t.c.value('@sat', 'TINYINT') AS SecAcceptTime
-		,t.c.value('@s_lbat', 'SMALLINT') AS SubLiveBetAcceptTime
-		,t.c.value('@s_sat', 'TINYINT') AS SubSecAcceptTime
-		,t.c.value('@isP','BIT') AS IsMixParlay
-		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)	
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+	/*0:Central*/
+	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
+		  ,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,bid
+		  ,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
+		  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
+		  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
+          ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
+		  ,lbat ,sat ,s_lbat ,s_sat
+	FROM OPENJSON(@Decompress_TransInfoJson0) 
+	WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+		 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
+		 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+		 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
+		 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
+		 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT
+	) tbl0
+	UNION ALL /*1: Sitedb1*/
+	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
+		  ,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,bid
+		  ,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
+		  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
+		  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
+          ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
+		  ,lbat ,sat ,s_lbat ,s_sat
+	FROM OPENJSON(@Decompress_TransInfoJson1) 
+	WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+		 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
+		 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+		 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
+		 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
+		 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT
+	) tbl1
+	UNION ALL /*2: Sitedb2*/
+	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
+		  ,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,bid
+		  ,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
+		  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
+		  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
+          ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
+		  ,lbat ,sat ,s_lbat ,s_sat 
+	FROM OPENJSON(@Decompress_TransInfoJson2) 
+	WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+		 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
+		 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+		 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
+		 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
+		 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT 
+	) tbl2
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -542,7 +542,7 @@ BEGIN
 				,CASE 
 						WHEN b.Subchecktime IS NULL THEN 1 --Auto Accept
 						ELSE CASE 
-									WHEN b.Subchecktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.Subtransdate) THEN 2 --Second Accept
+									WHEN b.Subchecktime = DATEADD(SECOND,ISNULL(b.SubLiveBetAcceptTime,0) + ISNULL(b.SubSecAcceptTime,0), b.Subtransdate) THEN 2 --Second Accept
 									ELSE 3 --Pending Accept
 								END
 					END AS accepttype
@@ -733,8 +733,7 @@ BEGIN
 		SELECT NULL AS UnmarkTransIds
 		
 		-- 5. Transinfo table (No need return data)
-		DELETE #tmpTransInfo
-		SELECT Matchid FROM #tmpTransInfo
+		SELECT @TransInfoJson AS TransInfoJson
 
 		RETURN;
 	END
@@ -779,8 +778,7 @@ BEGIN
 		SELECT NULL AS UnmarkTransIds
 		
 		-- 5. Transinfo table
-		DELETE #tmpTransInfo
-		SELECT Matchid FROM #tmpTransInfo
+		SELECT @TransInfoJson AS TransInfoJson
 
 		RETURN;
 	END
@@ -972,26 +970,26 @@ BEGIN
 												)
 			) AS h
 
-	-- 4. List ticket unmark/mark   (if any)
+	-- 4. List ticket unmark/mark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
 	      ,@MarkTransIds AS MarkTransIds
 
 	-- 5. Transinfo table
-	SELECT  t.matchid
-		    ,t.transid
-			,t.Subtransid
-			,t.refno
-			,b.custid 
-			,b.bettype 
-			,b.betid 
-			,b.statusID 
-			,b.Subcustid 
-			,b.Subbettype
-			,b.IsMixParlay 
-			,b.SiteDBGroupID 
+	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+		,t.transid AS 't'
+		,t.Subtransid  AS 's_t'
+		,b.refno AS 'ref'
+		,b.custid AS  'c'           
+		,b.bettype AS 'btype'
+		,b.betid AS 'bid'
+		,b.IsMixParlay AS 'isP'
+		,b.SiteDBGroupID AS 'sitedb'
 	FROM #TVSTicketBets t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
+	FOR JSON AUTO))
+	
+	SELECT @TransInfoJson AS TransInfoJson
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
