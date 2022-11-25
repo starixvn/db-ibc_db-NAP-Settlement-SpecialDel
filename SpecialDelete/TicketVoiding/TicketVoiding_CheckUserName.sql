@@ -440,7 +440,7 @@ BEGIN
 		,b.SiteDBGroupID AS 'sitedb'
 	FROM #transIdTemp t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR JSON AUTO))
+	FOR JSON PATH))
 	
 	SELECT @TransInfoJson AS TransInfoJson
 

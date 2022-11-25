@@ -718,7 +718,7 @@ BEGIN
 	FROM #TVSTicketBets t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
-	FOR JSON AUTO))
+	FOR JSON PATH))
 	
 	SELECT @TransInfoJson AS TransInfoJson
 
