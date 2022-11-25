@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Void_Select]
 (
 	@SingleTransIds  VARCHAR(MAX) = NULL
 	,@ParlayTransIds  VARCHAR(MAX) = NULL
+	,@MatchId		INT = NULL
 )
 AS
 /*	
@@ -248,6 +249,7 @@ BEGIN
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND d.IsMixParlay = 0
+		AND (b.matchid = @MatchId OR @MatchId IS NULL)
 	
 	--Search sub-parlay
 	IF EXISTS (
@@ -394,6 +396,7 @@ BEGIN
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 			AND d.IsMixParlay = 1
+			AND (b.matchid = @MatchId OR @MatchId IS NULL)
 	END
 			
 	--RETURN DATA

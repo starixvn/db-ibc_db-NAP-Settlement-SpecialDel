@@ -20,11 +20,11 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	SELECT s.TransId, s.SiteDBGroupID
+	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
 
-	SELECT s.TransId, s.SiteDBGroupID
+	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
 	WHERE s.RequestId = @RequestId
 END
