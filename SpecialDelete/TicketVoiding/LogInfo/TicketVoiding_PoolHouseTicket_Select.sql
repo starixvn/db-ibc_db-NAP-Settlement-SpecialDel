@@ -15,7 +15,9 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 	,@IsLinkGroup1X2	  BIT = 0
 	,@IsLinkGroupAIO	  BIT = 0
 	,@LiveIndicator		  BIT = 0
-	,@TransInfo		      XML = NULL
+	,@TransInfoJson0	  VARBINARY(MAX) = NULL
+	,@TransInfoJson1	  VARBINARY(MAX) = NULL
+	,@TransInfoJson2	  VARBINARY(MAX) = NULL
 )
 AS
 /*	
@@ -32,6 +34,14 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
+
+	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
 
 	CREATE TABLE #TVSTicketBets (
         transid               BIGINT,
@@ -126,8 +136,6 @@ BEGIN
 	  ,mrecommend			INT
 	  ,recommend			INT
       ,creator				INT
-	  ,WalletType			TINYINT
-	  ,RefCode				BIGINT
 	  ,stake				MONEY
 	  ,oddstype				TINYINT
 	  ,CurrencyName			NVARCHAR(50)
@@ -141,6 +149,8 @@ BEGIN
 	  ,statuswinlost		TINYINT
       ,IsMixParlay			BIT
 	  ,SiteDBGroupID		SMALLINT
+	  ,WalletType			TINYINT
+	  ,RefCode				BIGINT
 	)
 
 	INSERT INTO #tmpTransInfo( 
@@ -187,8 +197,6 @@ BEGIN
 	    ,mrecommend 
 	    ,recommend 
         ,creator 
-	    ,WalletType 
-	    ,RefCode 
 		,stake 
 	    ,oddstype 
 	    ,CurrencyName 
@@ -202,67 +210,60 @@ BEGIN
 	    ,statuswinlost 
         ,IsMixParlay 
 	    ,SiteDBGroupID 
+		,WalletType 
+	    ,RefCode 
 	)
-	SELECT t.c.value('@mid','INT') AS matchid	
-		,t.c.value('@t','BIGINT') AS transid
-		,t.c.value('@s_t','BIGINT') AS Subtransid
-		,t.c.value('@ref','BIGINT') AS refno
-		,t.c.value('@c','INT') AS custid
-		,t.c.value('@hdp1','SMALLMONEY') AS hdp1
-		,t.c.value('@hdp2','SMALLMONEY') AS hdp2
-		,t.c.value('@lh','SMALLINT') AS livehomescore
-		,t.c.value('@la','SMALLINT') AS liveawayscore
-		,t.c.value('@li','BIT') AS liveindicator
-		,t.c.value('@o','SMALLMONEY') AS odds
-		,t.c.value('@os','MONEY') AS oddsspread
-		,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
-		,t.c.value('@btype','SMALLINT') AS bettype
-		,t.c.value('@bteam','NVARCHAR(10)') AS betteam
-		,t.c.value('@bcheck','NVARCHAR(50)') AS betcheck
-		,t.c.value('@s','NVARCHAR(10)') AS Status
-		,t.c.value('@tdate','DATETIME') AS transdate
-		,CASE WHEN t.c.value('@checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@checkt','DATETIME') END AS checktime
-		,t.c.value('@bid','BIGINT') AS betid
-		,t.c.value('@tdes','NVARCHAR(1000)') AS Transdesc
-		,t.c.value('@sid','TINYINT') AS statusID
-		,t.c.value('@s_c','INT') AS Subcustid
-		,t.c.value('@s_hdp1','SMALLMONEY') AS Subhdp1
-		,t.c.value('@s_hdp2','SMALLMONEY') AS Subhdp2
-		,t.c.value('@s_lh','SMALLINT') AS Sublivehomescore
-		,t.c.value('@s_la','SMALLINT') AS Subliveawayscore
-		,t.c.value('@s_li','BIT') AS Subliveindicator
-		,t.c.value('@s_o','SMALLMONEY') AS Subodds
-		,t.c.value('@s_os','MONEY') AS Suboddsspread
-		,t.c.value('@s_bfr','NVARCHAR(3)') AS Subbetfrom
-		,t.c.value('@s_btype','SMALLINT') AS Subbettype
-		,t.c.value('@s_bteam','NVARCHAR(10)') AS Subbetteam
-		,t.c.value('@s_bcheck','NVARCHAR(50)') AS Subbetcheck
-		,t.c.value('@s_s','NVARCHAR(10)') AS SubStatus
-		,t.c.value('@s_tdate','DATETIME') AS Subtransdate
-		,CASE WHEN t.c.value('@s_checkt','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@s_checkt','DATETIME') END AS Subchecktime
-		,t.c.value('@s_tdes','NVARCHAR(1000)') AS SubTransdesc
-		,t.c.value('@s_sid', 'TINYINT') AS SubstatusID
-		,t.c.value('@sre','INT') AS srecommend
-		,t.c.value('@mre','INT') AS mrecommend
-		,t.c.value('@re','INT') AS recommend
-		,t.c.value('@cr','INT') AS creator
-		,t.c.value('@wt','TINYINT') AS WalletType
-		,t.c.value('@refc','BIGINT') AS RefCode
-		,t.c.value('@stake','MONEY') AS stake
-		,t.c.value('@ost','TINYINT') AS oddstype
-		,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
-		,t.c.value('@bdaq','BIGINT') AS betdaqid
-		,t.c.value('@ex','VARCHAR(1000)') AS ExtraInfo
-		,t.c.value('@bo','INT') AS BonusID
-		,t.c.value('@w','MONEY') AS winlost
-		,t.c.value('@acstake','MONEY') AS actual_stake
-		,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
-		,t.c.value('@m', 'SMALLMONEY') AS modds
-		,t.c.value('@statuswl', 'TINYINT') AS statuswinlost
-		,t.c.value('@isP','BIT') AS IsMixParlay
-		,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)	
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+	/*0:Central*/
+	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
+		  ,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,bid
+		  ,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
+		  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
+		  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
+          ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
+		  ,wt ,refc
+	FROM OPENJSON(@Decompress_TransInfoJson0) 
+	WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+		 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
+		 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+		 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
+		 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
+		 ,wt TINYINT ,refc BIGINT
+	) tbl0
+	UNION ALL /*1: Sitedb1*/
+	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
+		  ,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,bid
+		  ,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
+		  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
+		  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
+          ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
+		  ,wt ,refc
+	FROM OPENJSON(@Decompress_TransInfoJson1) 
+	WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+		 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
+		 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+		 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
+		 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
+		 ,wt TINYINT ,refc BIGINT
+	) tbl1
+	UNION ALL /*2: Sitedb2*/
+	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
+		  ,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,bid
+		  ,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
+		  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
+		  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
+          ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
+		  ,wt ,refc
+	FROM OPENJSON(@Decompress_TransInfoJson2) 
+	WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+		 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
+		 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+		 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
+		 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
+		 ,wt TINYINT ,refc BIGINT
+	) tbl2
 
 	INSERT INTO #TVSTicketBets(
 			transid		

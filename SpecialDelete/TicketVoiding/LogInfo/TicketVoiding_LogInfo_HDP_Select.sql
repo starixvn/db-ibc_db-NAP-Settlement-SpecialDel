@@ -911,6 +911,7 @@ BEGIN
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
 		,b.betid AS 'bid'
+		,b.Subbettype AS 's_btype'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
 	FROM #TVSTicketBets t
