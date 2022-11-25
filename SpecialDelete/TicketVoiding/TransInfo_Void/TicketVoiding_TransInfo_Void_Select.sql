@@ -396,7 +396,7 @@ BEGIN
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 			AND d.IsMixParlay = 1
-			AND (b.matchid = @MatchId OR @MatchId IS NULL)
+			AND (sub.matchid = @MatchId OR @MatchId IS NULL)
 	END
 			
 	--RETURN DATA
