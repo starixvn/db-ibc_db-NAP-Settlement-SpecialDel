@@ -1,1 +1,1 @@
-SpecialDelete\TicketVoiding\LogInfo\TicketVoiding_LogInfo_Select.sql
+SpecialDelete\TicketVoiding\TransInfo\TicketVoiding_TransInfo_Select.sql

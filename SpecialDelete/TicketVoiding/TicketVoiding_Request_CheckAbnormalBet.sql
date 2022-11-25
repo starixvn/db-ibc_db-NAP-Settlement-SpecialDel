@@ -1,18 +1,19 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 (
-	 @TransIds	VARCHAR(MAX) = NULL
-	,@RequestId INT = 0
-	,@ActionId	TINYINT	= 0
-	,@FilterBy	TINYINT	= NULL
-	,@SubIssueTypeId TINYINT	= NULL
-	,@TransInfo	XML = NULL
-	,@IsRemoveCustomerClass1 BIT = 0
+	 @TransIds					VARCHAR(MAX) = NULL
+	,@RequestId					INT = 0
+	,@ActionId					TINYINT	= 0
+	,@FilterBy					TINYINT	= NULL
+	,@SubIssueTypeId			TINYINT	= NULL
+	,@IsRemoveCustomerClass1	BIT = 0
+	,@TransInfoJson0			VARBINARY(MAX) = NULL
+	,@TransInfoJson1			VARBINARY(MAX) = NULL
+	,@TransInfoJson2			VARBINARY(MAX) = NULL
 )
 AS
 /*  
-	Created by: Raymond.Le  
-	Date: 20190625
+	Created by: 20190625@Raymond.Le  
 	Task: Validate matchId, betId of Abnormal bet
 	DB: DBCTG/bodb02   
 	Original:      
@@ -50,6 +51,7 @@ AS
 		- 20220727@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221007@July: TVS - Abnormalbet - No need to send Letstalk message if the request has UUS ticket [Redmine: #178321]
 		- 20221021@July: TVS - WRONG check validation for transid 14 [Redmine: #179479]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -80,6 +82,15 @@ BEGIN
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 	
+	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
+		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
+	       ,@TransInfoJson			   VARBINARY(MAX) = NULL
+	
+	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
+
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
@@ -94,8 +105,6 @@ BEGIN
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-
-	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 
 	CREATE TABLE #inputTransid (transid BIGINT PRIMARY KEY)
 	INSERT INTO #inputTransid (transid)
@@ -137,20 +146,19 @@ BEGIN
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT
+      ,refno BIGINT
 	  ,custid	INT	
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
       ,liveindicator BIT
-      ,betteam NVARCHAR(10)
-      ,refno BIGINT
-      ,bettype SMALLINT
-      ,betid BIGINT
-	  ,betdaqid BIGINT
-      ,statusID TINYINT
       ,betfrom NVARCHAR(3)
-	  ,recommend INT
-	  ,mrecommend INT
+      ,bettype SMALLINT
+	  ,betteam NVARCHAR(10)
+      ,betid BIGINT
+      ,statusID TINYINT
 	  ,srecommend INT
+	  ,mrecommend INT
+	  ,recommend INT
 	  ,CurrencyName NVARCHAR(50)
 	  ,statuswinlost TINYINT
 	  ,SubMatchIdList VARCHAR(2000)
@@ -166,47 +174,48 @@ BEGIN
 		  ,livehomescore 
 		  ,liveawayscore 
 		  ,liveindicator 
-		  ,betteam
-		  ,bettype
-		  ,betid
-		  ,betdaqid 
 		  ,betfrom
+		  ,bettype
+		  ,betteam
+		  ,betid
 		  ,statusID
-		  ,recommend 
-		  ,mrecommend
 		  ,srecommend
+		  ,mrecommend
+		  ,recommend 
 		  ,CurrencyName
 		  ,statuswinlost
 		  ,SubMatchIdList
 		  ,IsMoved14
 		  ,IsMixParlay
 		  ,SiteDBGroupID
-
 		)
-	SELECT t.c.value('@mid','INT') AS matchid
-			,t.c.value('@t','BIGINT') AS transid
-			,t.c.value('@ref','BIGINT') AS refno
-			,t.c.value('@c','INT') AS custid
-			,t.c.value('@lh','SMALLINT') AS livehomescore
-			,t.c.value('@la','SMALLINT') AS liveawayscore
-			,t.c.value('@li','BIT') AS liveindicator
-			,t.c.value('@bteam','NVARCHAR(10)') AS betteam
-			,t.c.value('@btype','SMALLINT') AS bettype
-			,t.c.value('@bid','BIGINT') AS betid
-			,t.c.value('@bdaq','BIGINT') AS betdaqid
-			,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
-			,t.c.value('@sid','TINYINT') AS statusID
-			,t.c.value('@re','INT') AS recommend
-			,t.c.value('@mre','INT') AS mrecommend
-			,t.c.value('@sre','INT') AS srecommend
-			,t.c.value('@curr','NVARCHAR(50)') AS CurrencyName
-			,t.c.value('@statuswl','TINYINT') AS statuswinlost
-			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
-			,t.c.value('@isM','BIT') AS IsMoved14
-			,t.c.value('@isP','BIT') AS IsMixParlay
-			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+	/*0:Central*/
+	SELECT mid ,t ,ref ,c ,lh ,la ,li
+		  ,bfr ,btype ,bteam ,bid ,sid 
+		  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson0) 
+	WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
+		 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT
+	) tbl0
+	UNION ALL /*1: Sitedb1*/
+	SELECT mid ,t ,ref ,c ,lh ,la ,li
+		  ,bfr ,btype ,bteam ,bid ,sid 
+		  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson1) 
+	WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
+		 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT
+	) tbl1
+	UNION ALL /*2: Sitedb2*/
+	SELECT mid ,t ,ref ,c ,lh ,la ,li
+		  ,bfr ,btype ,bteam ,bid ,sid 
+		  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson2) 
+	WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
+	     ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
+		 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT
+	) tbl2
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
@@ -217,7 +226,7 @@ BEGIN
 
 		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
-		SELECT matchid FROM #tmpTransInfo
+		SELECT @TransInfoJson AS TransInfoJson
 		RETURN;
 	END
 
@@ -240,7 +249,7 @@ BEGIN
 
 			SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
-			SELECT matchid FROM #tmpTransInfo WHERE matchid IS NULL
+			SELECT @TransInfoJson AS TransInfoJson
 			RETURN;
 		END
 
@@ -658,20 +667,23 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	--4. Transinfo table
-	SELECT t.matchid 
-		    ,t.transid 
-			,b.refno
-			,b.custid 
-			,b.bettype 
-			,t.statusID 
-			,b.betteam 
-			,b.betid 
-			,b.statuswinlost 
-			,b.IsMixParlay 
-			,b.SiteDBGroupID
-			,t.SubMatchIdList
+	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+		,t.transid AS 't'
+		,b.refno AS 'ref'
+		,b.custid AS  'c'           
+		,b.bettype AS 'btype'
+		,t.statusID AS 'sid'
+		,b.betteam AS 'bteam'
+		,b.betid AS 'bid'
+		,b.statuswinlost AS 'statuswl'
+		,b.IsMixParlay AS 'isP'
+		,b.SiteDBGroupID AS 'sitedb'
+		,t.SubMatchIdList AS 's_mid'
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	FOR JSON PATH))
+	
+	SELECT @TransInfoJson AS TransInfoJson
 
 	DROP TABLE #inputTransid
 	DROP TABLE #validTransId

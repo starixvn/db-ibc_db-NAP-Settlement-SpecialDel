@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_AB_Update]
+ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_AB_Update]
 (
 	@RequestId				INT
 	,@MatchId				INT = 0
@@ -11,18 +11,18 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RequestDetail_AB_Update]
 	,@OldActionId			TINYINT = NULL
 	,@FilterBy				TINYINT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
-	,@TransInfo				XML  = NULL
+	,@TransInfoJson			VARBINARY(MAX) = NULL
 	,@IsEditRequest			INT = 0
 )
 AS
 /*	
-	Created by: July
-	Date 20220808
+	Created by: 20220808@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype Abnormal bet & AB(real member) [Redmine: #175412]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member)
@@ -44,19 +44,23 @@ BEGIN
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
 			,@RequestDetailId	 INT
 
+	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
+
+	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tmpMatchId (Submatchid INT, Maintransid BIGINT)
 
 	CREATE TABLE #tmpTransInfo(
-	   matchid INT
-	  ,transid BIGINT
-	  ,custid	INT	
-      ,bettype SMALLINT
-	  ,betteam NVARCHAR(10)
-      ,betid BIGINT
+	   matchid			INT
+	  ,transid			BIGINT
+	  ,custid			INT	
+      ,bettype			SMALLINT
+	  ,betteam			NVARCHAR(10)
+      ,betid			BIGINT
 	  ,SubMatchIdList	VARCHAR(2000)
-	  ,IsMixParlay BIT
-	  ,SiteDBGroupID SMALLINT
+	  ,IsMixParlay		BIT
+	  ,SiteDBGroupID	SMALLINT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
@@ -69,17 +73,10 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT t.c.value('@mid','INT') AS matchid
-			,t.c.value('@t','BIGINT') AS transid
-			,t.c.value('@c','INT') AS custid
-			,t.c.value('@btype','SMALLINT') AS bettype
-			,t.c.value('@bteam','NVARCHAR(10)') AS betteam
-			,t.c.value('@bid','BIGINT') AS betid
-			,t.c.value('@s_mid','VARCHAR(2000)') AS SubMatchIdList
-			,t.c.value('@isP','BIT') AS IsMixParlay
-			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+	SELECT mid ,t ,c ,btype ,bteam ,bid ,s_mid ,isP ,sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson) 
+	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT,s_mid VARCHAR(2000) ,isP BIT ,sitedb SMALLINT
+	) tbl
 
 	-- get match info
 	SELECT	@LeagueId = leagueid

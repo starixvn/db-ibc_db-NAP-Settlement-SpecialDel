@@ -2,7 +2,9 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
-	,@TransInfo		    XML  = NULL
+	,@TransInfoJson0 VARBINARY(MAX) = NULL
+	,@TransInfoJson1 VARBINARY(MAX) = NULL
+	,@TransInfoJson2 VARBINARY(MAX) = NULL
 )
 AS
 /*  
@@ -15,6 +17,7 @@ AS
 		- 20211123@July: Create new SP [Redmine: #140180]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 
 	Param's Explanation:
 */
@@ -25,6 +28,9 @@ BEGIN
 		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		   ,@before_movebetday				DATETIME
 	       ,@MovebetDate					DATETIME
+		   ,@Decompress_TransInfoJson0 NVARCHAR(MAX)
+			,@Decompress_TransInfoJson1 NVARCHAR(MAX)
+			,@Decompress_TransInfoJson2 NVARCHAR(MAX)
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -65,6 +71,11 @@ BEGIN
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	)
+
+	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
+
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
@@ -79,20 +90,20 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT t.c.value('@mid','INT') AS matchid
-			,t.c.value('@t','BIGINT') AS transid
-			,t.c.value('@ref','BIGINT') AS refno
-			,t.c.value('@c','INT') AS custid
-			,t.c.value('@btype','SMALLINT') AS bettype
-			,t.c.value('@bid','BIGINT') AS betid
-			,t.c.value('@bdaq','BIGINT') AS betdaqid
-			,t.c.value('@bfr','NVARCHAR(3)') AS betfrom
-			,t.c.value('@sid','TINYINT') AS statusID
-			,CASE WHEN t.c.value('@wld','SMALLDATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@wld','SMALLDATETIME') END AS winlostdate
-			,t.c.value('@isP','BIT') AS IsMixParlay
-			,t.c.value('@sitedb','SMALLINT') AS SiteDBGroupID
-	FROM @TransInfo.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@TransInfo = NULL))
+	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson0) 
+		WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
+			, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT) tbl
+	UNION ALL
+	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson1) 
+		WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
+			, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT) tbl
+	UNION ALL
+	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
+	FROM OPENJSON(@Decompress_TransInfoJson2) 
+		WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
+			, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT) tbl
 
 	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 

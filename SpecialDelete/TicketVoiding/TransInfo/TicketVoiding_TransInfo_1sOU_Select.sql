@@ -13,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 
 	Param's explanation:	
 		- @Wrong1stOUInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -22,6 +23,10 @@ BEGIN
 	SET NOCOUNT ON	
 
 	DECLARE @Wrong1stOUXML XML
+		,@TransInfoJson VARBINARY(MAX)
+		,@SiteDBGroupID TINYINT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #FilterInfo (
 		 MatchId				INT
@@ -387,69 +392,71 @@ BEGIN
 	END 
 			
 	--RETURN DATA
-	SELECT matchid 
-		,transid
-		,Subtransid 
-		,custid                
-		,transdate 
-		,checktime 
-		,hdp1 
-		,hdp2 
-		,livehomescore 
-		,liveawayscore 
-		,liveindicator 
-		,betteam 
-		,creator 
-		,refno 
-		,betid 
-		,bettype 
-		,betdaqid 
-		,betfrom 
-		,statusID 
-		,WalletType 
-		,RefCode 
-		,LiveBetAcceptTime 
-		,SecAcceptTime 
-		,Subcustid         
-		,Sublivehomescore 
-		,Subliveawayscore 
-		,Subhdp1 
-		,Subhdp2 
-		,Subbetfrom 
-		,Subbettype 
-		,SubstatusID 
-		,Subtransdate 
-		,Subchecktime 
-		,Subliveindicator 
-		,SubLiveBetAcceptTime 
-		,SubSecAcceptTime 
-		,recommend 
-		,mrecommend 
-		,srecommend 
-		,statuswinlost 
-		,IsMixParlay 
-		,IsMoved14 
-		,odds 
-		,Subodds 
-		,oddsspread 
-		,oddstype 
-		,betcheck 
-		,Subbetcheck 
-		,stake 
-		,CurrencyName 
-		,Transdesc 
-		,ExtraInfo 
-		,BonusID 
-		,winlost        
-		,actual_stake 
-		,Status
-		,SubStatus 
-		,Subbetteam  
-		,Suboddsspread 
-		,SubTransdesc  
-		,modds 
-		,SiteDBGroupID
+	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
+		,transid AS 't'
+		,Subtransid AS 's_t'
+		,custid    AS  'c'           
+		,transdate AS 'tdate'
+		,checktime AS 'checkt'
+		,hdp1 AS 'hdp1'
+		,hdp2 AS 'hdp2'
+		,livehomescore AS 'lh'
+		,liveawayscore AS 'la'
+		,liveindicator AS 'li'
+		,betteam AS 'bteam'
+		,creator AS 'cr'
+		,refno AS 'ref'
+		,betid AS 'bid'
+		,bettype AS 'btype'
+		,betdaqid AS 'bdaq'
+		,betfrom AS 'bfr'
+		,statusID AS 'sid'
+		,WalletType AS 'wt'
+		,RefCode AS 'refc'
+		,LiveBetAcceptTime AS 'lbat'
+		,SecAcceptTime AS 'sat'
+		,Subcustid    AS     's_c' 
+		,Sublivehomescore AS 's_lh'
+		,Subliveawayscore AS 's_la'
+		,Subhdp1 AS 's_hdp1'
+		,Subhdp2 AS 's_hdp2'
+		,Subbetfrom AS 's_bfr'
+		,Subbettype AS 's_btype'
+		,SubstatusID AS 's_sid'
+		,Subtransdate AS 's_tdate'
+		,Subchecktime AS 's_checkt'
+		,Subliveindicator AS 's_li'
+		,SubLiveBetAcceptTime AS 's_lbat'
+		,SubSecAcceptTime AS 's_sat'
+		,recommend AS 're'
+		,mrecommend AS 'mre'
+		,srecommend AS 'sre'
+		,statuswinlost AS 'statuswl'
+		,IsMixParlay AS 'isP'
+		,odds AS 'o'
+		,Subodds AS 's_o'
+		,oddsspread AS 'os'
+		,oddstype AS 'ost'
+		,betcheck AS 'bcheck'
+		,Subbetcheck AS 's_bcheck'
+		,stake AS 'stake'
+		,CurrencyName AS 'curr'
+		,Transdesc AS 'tdes'
+		,ExtraInfo AS 'ex'
+		,BonusID AS 'bo'
+		,winlost    AS 'w'    
+		,actual_stake AS 'acstake'
+		,Status AS 's' 
+		,SubStatus AS 's_s'
+		,Subbetteam  AS 's_bteam'
+		,Suboddsspread AS 's_os'
+		,SubTransdesc  AS 's_tdes'
+		,modds AS 'm'
+		,SiteDBGroupID AS 'sitedb'
 	FROM #TransInfo
+	FOR JSON AUTO))
+
+	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
 	
 	DROP TABLE #TransInfo
 	DROP TABLE #FilterInfo

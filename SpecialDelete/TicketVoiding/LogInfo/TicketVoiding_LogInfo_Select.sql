@@ -15,12 +15,13 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL	
-	,@TransInfo			  XML = NULL	
+	,@TransInfoJson0	  VARBINARY(MAX) = NULL
+	,@TransInfoJson1	  VARBINARY(MAX) = NULL
+	,@TransInfoJson2	  VARBINARY(MAX) = NULL
 )
 AS
 /*	
-	Created by: Max
-	Date 20200701
+	Created by: 20200701@Max
 	Task: [TVS] Danger Accept Bets Issue Type [Redmine: #111573]
 	DB: DBCTG/bodb02
 	
@@ -62,20 +63,10 @@ AS
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220627@July: TVS - Remove invalid column [Redmine: #174122]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 
 	Param's explanation:
-		+ @WrongScoreInfo:
-		<root>
-			<r LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" ScoreId='3966607' FilterBy="" />
-		</root>
-		+ @DangerAcceptedInfo, @RedCardInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId=""/></root>
-		+ @WrongHDPInfo, @Wrong1stHDPInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId=""/></root>
-		+ @WrongOUInfo, @Wrong1stOUInfo:
-			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterFromBetId ="" FilterToBetId = "" FilterBy="" WrongMarket ="" SubIssueTypeId=""/></root>
-
-		(Filterby 0: By BetID, 1: By Transdate, 2: By Checktime, 4: Filter by Transdate & Checktime)
+		
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -103,7 +94,9 @@ BEGIN
 					+ CASE WHEN @Wrong1stHDPInfo IS NULL THEN '' ELSE ',@Wrong1stHDPInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stHDPInfo) + '''' END
 					+ CASE WHEN @WrongOUInfo IS NULL THEN '' ELSE ',@WrongOUInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOUInfo) + '''' END
 					+ CASE WHEN @Wrong1stOUInfo IS NULL THEN '' ELSE ',@Wrong1stOUInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stOUInfo) + '''' END
-					+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
+					+ CASE WHEN @TransInfoJson0 IS NULL THEN '' ELSE ',@TransInfoJson0 = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson0, 1) + '''' END
+					+ CASE WHEN @TransInfoJson1 IS NULL THEN '' ELSE ',@TransInfoJson1 = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson1, 1) + '''' END
+					+ CASE WHEN @TransInfoJson2 IS NULL THEN '' ELSE ',@TransInfoJson2 = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson2, 1) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
@@ -120,7 +113,9 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @DangerAcceptedInfo
-			,@TransInfo		       = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 	ELSE IF @IssueTypeId = 3 --Wrong score
 	BEGIN
@@ -130,7 +125,9 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongScoreInfo	   = @WrongScoreInfo
-			,@TransInfo		       = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 	ELSE IF @IssueTypeId = 4 --Wrong HDP
 	BEGIN
@@ -140,7 +137,9 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongHDPInfo		   = @WrongHDPInfo
-			,@TransInfo		       = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 	ELSE IF @IssueTypeId = 5 --Wrong 1st HDP
 	BEGIN
@@ -150,7 +149,9 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongHDPInfo		   = @Wrong1stHDPInfo
-			,@TransInfo		       = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 	ELSE IF @IssueTypeId = 6 --Wrong OU
 	BEGIN
@@ -160,7 +161,9 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongOUInfo		   = @WrongOUInfo
-			,@TransInfo		       = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 	ELSE IF @IssueTypeId = 7 --Wrong 1st OU
 	BEGIN
@@ -170,7 +173,9 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOUInfo		   = @Wrong1stOUInfo
-			,@TransInfo		       = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO
 	BEGIN
@@ -179,7 +184,9 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@KickOffInfo		   = @KickOffInfo
-			,@TransInfo			   = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 	ELSE IF @IssueTypeId = 10 --Red card
 	BEGIN
@@ -189,7 +196,9 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @RedCardInfo
-			,@TransInfo			   = @TransInfo
+			,@TransInfoJson0	   = @TransInfoJson0
+			,@TransInfoJson1	   = @TransInfoJson1
+			,@TransInfoJson2	   = @TransInfoJson2
 	END
 
 	-- Write useraction log	
