@@ -20,6 +20,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
+		- 20221128@Louisa: Do not check match.eventstatus when turn on/off Instant setting [Redmine:#180939]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -81,7 +82,6 @@ BEGIN
 		WHERE matchid = @MatchId 
 			AND 1 = CASE 
 					WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
-					WHEN @AutoType = 2 AND eventstatus NOT IN ('running', 'closed', 'Refund HT') THEN 1
 					ELSE 0 
 				END
 	)

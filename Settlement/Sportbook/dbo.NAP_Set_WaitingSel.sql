@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @SportType 	SMALLINT = 0
-	, @LeagueId 	INT = 0 -- 0 for ALL Leagues
+	, @LeagueIds 	VARCHAR(MAX) = '0' -- 0 for ALL Leagues
 AS
 /*
 	Created: 20140103@Kathy
@@ -49,6 +49,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221021@Louisa: Enhancement [Redmine:#180306]
 
 	Param's explanation:  
 		
@@ -63,11 +64,15 @@ BEGIN
 
 	SET @StartTime = GETDATE()
 
-	SELECT @MatchCode = ISNULL(@MatchCode, ''), @LeagueId = ISNULL(@LeagueID, 0), @SportType = ISNULL(@SportType, 0)
+	SELECT @MatchCode = ISNULL(@MatchCode, '')
+			,@LeagueIds = ISNULL(@LeagueIDs, '0')
+			,@SportType = ISNULL(@SportType, 0)
 
 	IF ISNUMERIC(@MatchCode) = 1
 		SET @matchid = CAST(@MatchCode AS INT)
 	
+	DECLARE @tmpLeagueID	 TABLE ( LeagueId INT )
+
 	DECLARE @TempMatch TABLE (
 		MatchId				INT
 		,leagueid			INT
@@ -124,14 +129,16 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
+	INSERT INTO @tmpLeagueID ( LeagueId )
+	SELECT Value FROM string_split(@LeagueIDs, ',' )
+
 	;WITH SingleTicket AS (
 		SELECT matchid, sporttype, MIN(IsCalculating) AS IsCalculating
 		FROM dbo.Single_Calculate_Queue s WITH(NOLOCK)
 		WHERE (Starttime > DATEADD(MINUTE, -10, GETDATE()) 
 				OR s.IsCalculating IN (0,1)
 			) 
-			AND (sporttype = @sporttype OR @sporttype = 0)
-			AND (leagueid = @leagueid OR @leagueId = 0)
+			AND s.sporttype = @sporttype
 		GROUP BY matchid, SportType
 	), ParlayTicket AS (
 		SELECT p.matchid, m.sporttype
@@ -143,8 +150,7 @@ BEGIN
 		WHERE (p.Starttime > DATEADD(MINUTE, -10, GETDATE()) 
 				OR p.IsCalculating IN (0,1) 
 			) 
-			AND (m.sporttype = @sporttype OR @sporttype = 0)
-			AND (m.leagueid = @leagueid OR @leagueId = 0)
+			AND p.sporttype = @sporttype
 		GROUP BY p.matchid, m.sporttype
 	)
 	
@@ -174,7 +180,7 @@ BEGIN
 		,EventStatusReason
 	)
 	SELECT m.MatchId
-		,leagueid			
+		,m.leagueid			
 		,homeid				
 		,awayid				
 		,matchcode			
@@ -206,13 +212,13 @@ BEGIN
 		FROM SingleTicket sg
 			FULL OUTER JOIN ParlayTicket pl ON sg.matchid = pl.matchid
 	) q
-		INNER JOIN dbo.Match m WITH(NOLOCK) ON	q.MatchId = m.matchid
+		INNER JOIN dbo.Match m WITH(NOLOCK) ON	q.MatchId = m.matchid	
+		INNER JOIN @tmpLeagueID tmp ON tmp.LeagueId = 0 OR tmp.LeagueId = m.LeagueID
 		OUTER APPLY(
 			SELECT	s.IsMergedParlay
 			FROM	dbo.SettlementResultTableSetting s WITH(NOLOCK) WHERE s.Sporttype = @SportType
 		)f
 	WHERE m.sporttype = @sporttype
-		AND (@LeagueId = 0 OR m.leagueid = @LeagueId)
 		AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode))
 		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	
@@ -530,7 +536,7 @@ BEGIN
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 5000
 	BEGIN
-		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel @MatchCode =''' + ISNULL(@MatchCode,'') + ''', @SportType = ' + CONVERT(VARCHAR(10),@SportType) + ', @LeagueId =' + CONVERT(VARCHAR(10),@LeagueId)
+		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel @MatchCode =''' + ISNULL(@MatchCode,'') + ''', @SportType = ' + CONVERT(VARCHAR(10),@SportType) + ', @LeagueIds =' + @LeagueIds
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
 		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime
 	END
