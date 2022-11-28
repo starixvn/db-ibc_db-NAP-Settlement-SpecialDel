@@ -82,7 +82,6 @@ BEGIN
 		WHERE matchid = @MatchId 
 			AND 1 = CASE 
 					WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
-					WHEN @AutoType = 2 THEN 1
 					ELSE 0 
 				END
 	)
