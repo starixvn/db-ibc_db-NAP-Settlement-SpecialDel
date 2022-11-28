@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
 	, @SportType 	SMALLINT = 0
-	, @LeagueIds 	VARCHAR(MAX) = 0 -- 0 for ALL Leagues
+	, @LeagueIds 	VARCHAR(MAX) = '0' -- 0 for ALL Leagues
 AS
 /*
 	Created: 20140103@Kathy
