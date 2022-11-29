@@ -1,6 +1,5 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_MatchOtherSportsSel
---declare	
 	@FromDate		DATETIME
 	,@ToDate		DATETIME
 	,@MatchStatus	VARCHAR(MAX)	= '0'
@@ -13,7 +12,7 @@ ALTER PROCEDURE dbo.NAP_Set_MatchOtherSportsSel
 	,@AutoSetting	VARCHAR(10)		= ''
 	,@Page			TINYINT			= 0
 	,@MatchType		VARCHAR(MAX)	= '0'
---AS
+AS
 /*  
 	 Created by: Kathy
 	 Date: 20200528
@@ -632,8 +631,6 @@ BEGIN
 							and (IsEarly = 3 OR (IsEarly = 4 AND b.statusid = 0))
 						) AS tmp
 		WHERE m.IsEarly IN (3,4)	
-		
-		--create index ix_tmp on @tmpMatchOverStatus (matchid)	
 
 		INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
 		SELECT DISTINCT m1.matchid, 1
@@ -660,9 +657,7 @@ BEGIN
 							AND b.statusId IN ( 0, 101, 102)
 							and (IsEarly = 3 OR (IsEarly = 4 AND b.statusid = 0))
 						) AS tmp
-		WHERE m.IsEarly IN (3,4)	
-		
-		--create index ix_tmp on @tmpMatchOverStatus (matchid)	
+		WHERE m.IsEarly IN (3,4)		
 
 		INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
 		SELECT DISTINCT m1.matchid, 1
@@ -957,7 +952,7 @@ BEGIN
 				,@strEarlyBettypes = ''
 				,@remoteQuery = ''
 				,@strResourceId = ''
-		
+
 		SELECT @strEarlyBettypes = @strEarlyBettypes + CAST(bettype AS VARCHAR(20)) + ','
 		FROM	dbo.f_Set_GetEarlyBettypes()
 
