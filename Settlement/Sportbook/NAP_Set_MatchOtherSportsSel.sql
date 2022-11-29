@@ -43,6 +43,7 @@ AS
 			- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 			- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 			- 20221021@Louisa: Enhancement [Redmine:#180306]
+			- 20221021@Louisa: hint index [Redmine:#1181002]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -793,6 +794,7 @@ BEGIN
 		)t
 			ON m.matchid = t.ParentId
 	WHERE t.IsRunningBettypeSingle = 1
+	OPTION (RECOMPILE )
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
