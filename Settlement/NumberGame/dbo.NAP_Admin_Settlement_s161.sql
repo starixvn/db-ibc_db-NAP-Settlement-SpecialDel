@@ -27,6 +27,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221130@Kathy: Using index hint on bettrans [Redmine:#181058]
 		
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
@@ -96,7 +97,7 @@ BEGIN
 	BEGIN
 		-- waiting for releasing lock on bettrans table
 		SELECT @MaxTransID = MAX(b.transid)
-		FROM dbo.bettrans b WITH(ROWLOCK)
+		FROM dbo.bettrans b WITH(ROWLOCK,INDEX = CIX_matchid_bettype)
 		WHERE b.matchid = @MatchId
 			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
@@ -104,7 +105,7 @@ BEGIN
 	END
 
 	SELECT @MaxTransID = MAX(b.transid)
-	FROM dbo.bettrans b WITH(NOLOCK)
+	FROM dbo.bettrans b WITH(NOLOCK,INDEX = CIX_matchid_bettype)
 	WHERE b.matchid = @MatchId
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
