@@ -521,8 +521,7 @@ BEGIN
 								WHEN m.sporttype = 18 AND DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 20 THEN 1
 								WHEN DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 THEN 1
 								ELSE 0
-							END
-			
+							END			
 		END
 
 		--- Matches have ResourceIds were confirmed
@@ -620,62 +619,108 @@ BEGIN
 			WHERE 	m.eventstatus = 'Completed'
 		END
 
-		INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
-		SELECT m.matchid, 0
-		FROM @tmpMatchOverStatus m
-			CROSS APPLY (SELECT TOP 1 1 valid
-						FROM bettrans b with (nolock)
-						WHERE m.matchid = b.matchid
-							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-							AND b.statusId IN ( 0, 101, 102)
-							and (IsEarly = 3 OR (IsEarly = 4 AND b.statusid = 0))
-						) AS tmp
-		WHERE m.IsEarly IN (3,4)	
+		DELETE m
+		FROM #tmpMatchIds m
+			WHERE m.matchid NOT IN (SELECT DISTINCT matchid FROM @tmpMatchOverStatus)
 
-		INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
-		SELECT DISTINCT m1.matchid, 1
-		FROM (SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE IsEarly = 1) m1	
-			CROSS APPLY (SELECT TOP 1 1 valid
-						FROM bettrans b with (nolock)
-							INNER JOIN @tmpMatchOverStatus m ON m.matchid = b.matchid
-						WHERE m1.matchid = b.matchid
-							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-							AND b.statusId = 0
-							AND b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) 
-							AND m.IsEarly = 1 
-						) AS tmp
+		IF @IsOverEarly = 1
+		BEGIN
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT DISTINCT m1.matchid
+			FROM (SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE IsEarly = 1) m1	
+				CROSS APPLY (SELECT TOP 1 1 valid
+							FROM bettrans b with (nolock)
+								INNER JOIN @tmpMatchOverStatus m ON m.matchid = b.matchid
+							WHERE m1.matchid = b.matchid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								AND b.statusId = 0
+								AND b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) 
+								AND m.IsEarly = 1 
+							) AS tmp
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT DISTINCT m1.matchid
+			FROM (SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE IsEarly = 1) m1	
+				CROSS APPLY (SELECT TOP 1 1 valid
+							FROM bettransm b with (nolock)
+								INNER JOIN @tmpMatchOverStatus m ON m.matchid = b.matchid
+							WHERE m1.matchid = b.matchid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								AND b.statusId = 0
+								AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) 
+								AND m.IsEarly = 1 
+							) AS tmp
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1 WHERE matchid IN (SELECT DISTINCT matchid FROM @CheckingDisplay)
+		END
+
+		IF (@IsOver = 1 OR @IsCompletedWithRunningTicket = 1)
+		BEGIN
+			INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
+			SELECT m.matchid, 0
+			FROM @tmpMatchOverStatus m
+				CROSS APPLY (SELECT TOP 1 1 valid
+							FROM bettrans b with (nolock)
+							WHERE m.matchid = b.matchid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								AND b.statusId IN ( 0, 101, 102)
+								and (IsEarly = 3 OR (IsEarly = 4 AND b.statusid = 0))
+							) AS tmp
+			WHERE m.IsEarly IN (3,4)	
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
+			SELECT m.matchid, 0
+			FROM @tmpMatchOverStatus m
+				CROSS APPLY (SELECT TOP 1 1 valid
+							FROM bettransm b with (nolock)
+							WHERE m.matchid = b.matchid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								AND b.statusId IN ( 0, 101, 102)
+								and (IsEarly = 3 OR (IsEarly = 4 AND b.statusid = 0))
+							) AS tmp
+			WHERE m.IsEarly IN (3,4)
+		END
+
+		IF @IsMainOver = 1
+		BEGIN
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT DISTINCT m1.matchid
+			FROM (SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE IsEarly = 2) m1	
+				CROSS APPLY (SELECT TOP 1 1 valid
+							FROM bettrans b with (nolock)
+								INNER JOIN @tmpMatchOverStatus m ON m.matchid = b.matchid
+							WHERE m1.matchid = b.matchid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								AND b.statusId IN ( 0, 101, 102)
+								AND b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) 
+								AND m.IsEarly = 2 
+							) AS tmp
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT DISTINCT m1.matchid
+			FROM (SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE IsEarly = 2) m1	
+				CROSS APPLY (SELECT TOP 1 1 valid
+							FROM bettransm b with (nolock)
+								INNER JOIN @tmpMatchOverStatus m ON m.matchid = b.matchid
+							WHERE m1.matchid = b.matchid
+								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								AND b.statusId IN ( 0, 101, 102)
+								AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) 
+								AND m.IsEarly = 2 
+							) AS tmp
 			
-		DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay WHERE IsPassEarly = 1)
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
 
-		INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
-		SELECT m.matchid, 0
-		FROM @tmpMatchOverStatus m
-			CROSS APPLY (SELECT TOP 1 1 valid
-						FROM bettransm b with (nolock)
-						WHERE m.matchid = b.matchid
-							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-							AND b.statusId IN ( 0, 101, 102)
-							and (IsEarly = 3 OR (IsEarly = 4 AND b.statusid = 0))
-						) AS tmp
-		WHERE m.IsEarly IN (3,4)		
+		END
 
-		INSERT INTO @CheckingDisplay ( matchid, IsPassEarly)
-		SELECT DISTINCT m1.matchid, 1
-		FROM (SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE IsEarly = 1) m1	
-			CROSS APPLY (SELECT TOP 1 1 valid
-						FROM bettransm b with (nolock)
-							INNER JOIN @tmpMatchOverStatus m ON m.matchid = b.matchid
-						WHERE m1.matchid = b.matchid
-							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-							AND b.statusId = 0
-							AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) 
-							AND m.IsEarly = 1 
-						) AS tmp
-
-		DELETE FROM #tmpMatchIds 
-		WHERE matchid NOT IN (SELECT DISTINCT matchid FROM @CheckingDisplay)
-
-		UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1 WHERE matchid IN (SELECT DISTINCT matchid FROM @CheckingDisplay WHERE IsPassEarly = 1)
+		DELETE FROM #tmpMatchIds WHERE matchid NOT IN (SELECT matchid FROM @CheckingDisplay)
 	END
 
 	;WITH singlequeue 
@@ -786,7 +831,7 @@ BEGIN
 		CROSS APPLY (
 						SELECT	TOP 1 1 AS IsRunningBettypeSingle
 						FROM  #tmpAllParentChildMatch tmp
-							INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK, INDEX (CIX_Matchid_bettype),FORCESEEK)	ON tmp.MatchId = b.matchid
+							INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK)	ON tmp.MatchId = b.matchid
 							LEFT JOIN dbo.f_Set_GetEarlyBettypes() e ON	b.bettype = e.bettype 
 							WHERE	m.matchid = b.matchid
 								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
@@ -870,7 +915,7 @@ BEGIN
 					CROSS APPLY (
 								SELECT	TOP 1 1 AS IsExistRunningTicket
 								FROM	#tmpAllParentChildMatch tmp
-									INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK, INDEX (CIX_Matchid_bettype),FORCESEEK)	ON tmp.MatchId = b.matchid AND eventstatus = 'completed'
+									INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK)	ON tmp.MatchId = b.matchid AND eventstatus = 'completed'
 									OUTER APPLY (
 													SELECT TOP 1 mt.transId
 													FROM	#tmpMarkedTransaction mt 
