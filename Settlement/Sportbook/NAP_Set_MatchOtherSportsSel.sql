@@ -1000,15 +1000,17 @@ BEGIN
 		SELECT @strMatchIds = ''
 				,@strEarlyBettypes = ''
 				,@remoteQuery = ''
-				,@strResourceId = ''
 
 		SELECT @strEarlyBettypes = @strEarlyBettypes + CAST(bettype AS VARCHAR(20)) + ','
 		FROM	dbo.f_Set_GetEarlyBettypes()
 
-		SELECT @strMatchIds = STRING_AGG(MatchId, ',') 
+		SELECT @strMatchIds = @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
 		FROM	#tmpMatchIds
 		WHERE	sporttype = 43
-				
+
+		SELECT	@strEarlyBettypes = LEFT(@strEarlyBettypes,LEN(@strEarlyBettypes) - 1)
+				,@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
+		
 		SET @remoteQuery = 'SELECT	DISTINCT o.matchid 
 							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
 							WHERE	o.matchid IN (' + @strMatchIds + ')
