@@ -637,6 +637,7 @@ BEGIN
 								AND b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) 
 								AND m.IsEarly = 1 
 							) AS tmp
+
 			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
 
 			INSERT INTO @CheckingDisplay ( matchid)
@@ -684,6 +685,9 @@ BEGIN
 								and (IsEarly = 3 OR (IsEarly = 4 AND b.statusid = 0))
 							) AS tmp
 			WHERE m.IsEarly IN (3,4)
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
 		END
 
 		IF @IsMainOver = 1
