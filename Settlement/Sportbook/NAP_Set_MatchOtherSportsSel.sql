@@ -842,7 +842,8 @@ BEGIN
 								AND statusID = 0
 								AND e.bettype IS NULL
 								AND tmp.ParentId = m.MatchId 
-						) b 	
+						) b 
+	OPTION (MAXDOP 1)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
