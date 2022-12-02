@@ -835,7 +835,7 @@ BEGIN
 		CROSS APPLY (
 						SELECT	TOP 1 1 AS IsRunningBettypeSingle
 						FROM  #tmpAllParentChildMatch tmp
-							INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK)	ON tmp.MatchId = b.matchid
+							INNER JOIN dbo.bettrans b WITH (NOLOCK)	ON tmp.MatchId = b.matchid
 							LEFT JOIN dbo.f_Set_GetEarlyBettypes() e ON	b.bettype = e.bettype 
 							WHERE	m.matchid = b.matchid
 								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
