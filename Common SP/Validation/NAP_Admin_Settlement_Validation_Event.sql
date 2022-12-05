@@ -25,6 +25,7 @@ AS
 	Revisions:
 		- 20220719@Louisa: Validation event before settle  [Redmine:#175251]
 		- 20221201@Louisa: PinGoal ESports [Redmine:#180808]
+		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -298,8 +299,7 @@ BEGIN
 	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%'
 	BEGIN
 		IF  @SPName = 'NAP_Admin_Settlement_Profile_Push'
-				AND ISNULL(@LeagueGroupId,0) <> 42 
-				AND @sporttype = 50 --Auto Settle Cricket
+			AND (	(ISNULL(@LeagueGroupId,0) <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
 		BEGIN
 			SELECT	 @ErrCode	= 1001052
 					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'

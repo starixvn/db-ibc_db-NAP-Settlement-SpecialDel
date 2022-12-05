@@ -15,12 +15,13 @@ AS
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
+		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 */
 BEGIN
 	
 	SET NOCOUNT ON
 
-	DECLARE @checkTime DATETIME =  CAST( DATEADD(SECOND, -30, GETDATE() ) AS DATETIME)
+	DECLARE @checkTime TINYINT = 30
 			,@n INT
 			,@ExternalResultTable TINYINT = 0
 			,@procName		SYSNAME	= OBJECT_NAME(@@procid)
@@ -68,7 +69,7 @@ BEGIN
 
 		RETURN
 	END
-
+	
 	IF @Sporttype =  50
 	BEGIN
 		INSERT INTO #MatchInfo  ( MatchId, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
@@ -79,6 +80,12 @@ BEGIN
 				, r.HomeValue
 				, r.AwayValue
 		FROM dbo.match m WITH(NOLOCK)
+			OUTER APPLY(
+							SELECT TOP 1 ss.WaitingTime
+							FROM	dbo.SettlementSetting ss WITH (NOLOCK)
+							WHERE	ss.LeagueId = m.leagueid
+									AND ss.AutoType = 1 -- Direct Auto Payout
+						) ss
 			CROSS APPLY (
 				SELECT TOP (@n) r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
 				FROM	dbo.ResultDetailOS r WITH(NOLOCK)
@@ -86,10 +93,10 @@ BEGIN
 						AND r.ResultStatusID = 3
 						AND ISNULL(r.ResultSetting,0) & 1  = 0
 						AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0 ELSE 1 END
-						AND r.CreateDate <= @checkTime
+						AND r.LastModifyDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,@checkTime), GETDATE() )
+						AND r.ResourceID NOT IN ( SELECT f.ResourceId FROM f_Set_MajorRound (@Sporttype ) f )
+
 			) r
-			INNER JOIN dbo.League l WITH(NOLOCK)
-				ON m.leagueid = l.leagueid
 			OUTER APPLY (	SELECT os.MatchId, os.ResourceId,  MIN(os.StatusId) AS MinStatusId
 							FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 							WHERE os.MatchId = r.matchid
@@ -98,7 +105,6 @@ BEGIN
 						) os			
 		WHERE m.sporttype = @Sporttype
 			AND ISNULL(m.AutoSetting,0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
-			AND l.LeagueGroupID = 42				--Virtual Cricket
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND os.MinStatusId IS NULL -- ResourceId has never been run before
 			
