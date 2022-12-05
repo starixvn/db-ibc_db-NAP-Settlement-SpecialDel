@@ -20,6 +20,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20211028@Kathy: Remove log on table SSB_SettlementLogs [Redmine:#159486]
 		- 20221026@Kathy: Remove log on table SiteDB_SettlementService_CalculationLog_History [178694]
+		- 20221128@Kathy: Move table single/parlay queue_bk to bodb_CustomerLog_Archive [Redmine:#180941]
 
 	 Param's Explanation:  
     
@@ -61,7 +62,7 @@ BEGIN
 		FROM	@tmpParlayKeyId
 
 	 -- backup data on DBLOG
-	 EXEC DBLOG.bodb_CustomerLog.dbo.NAP_Set_QueueSBBackup
+	 EXEC DBLOG.bodb_CustomerLog_Archive.dbo.NAP_Set_QueueSBBackup
 		  @SingleKeyIds = @SingleKeyIds
 		  ,@ParlayKeyIds = @ParlayKeyIds
 
