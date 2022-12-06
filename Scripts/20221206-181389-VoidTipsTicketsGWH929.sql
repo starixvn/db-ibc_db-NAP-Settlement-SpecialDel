@@ -202,11 +202,7 @@ BEGIN
 	)
 	SELECT matchid
 		 , custid
-		 , CASE 
-				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype = 162 THEN 3 -- Casino
-				ELSE 4  -- Others
-		   END AS balanceType
+		 , 4  -- Others
 		 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
 		 , ISNULL(WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
 		 , SUM(winlost - actual_stake + playercomm) AS balance
@@ -284,11 +280,7 @@ BEGIN
 		)
 	SELECT matchid	
 		 , custid
-		 , CASE 
-				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
-				WHEN tmp.sporttype = 162 THEN 3 -- Casino
-				ELSE 4  -- Others
-		   END AS balanceType
+		 , 4  -- Others
 		 , CASE WHEN BonusID > 0 AND WalletType = 1 THEN BonusID ELSE 0 END AS BonusID
 		 , ISNULL(WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
 		 , SUM(winlost - actual_stake + playercomm) balance
