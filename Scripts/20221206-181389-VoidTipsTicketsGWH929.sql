@@ -229,8 +229,7 @@ BEGIN
 
 
 	/**********************************************   *************************************************************/
-	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY)
-	DECLARE @TransIds_tmp VARCHAR(MAX) = ''
+	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT)
 
 	-- STEP 2 : Update bettrans/translog
 	-- 2.1. Update bettrans	for normal ticket
@@ -241,32 +240,31 @@ BEGIN
 		UPDATE TOP(2000) t
 			SET IsFinish = 1
 		OUTPUT  DELETED.transid
-			   ,NULL
-			   ,DELETED.BetID
-			   ,0 AS IsMetricGaming
-			   ,DELETED.actual_stake
-		INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake)
+		INTO @tmpTransIDBatch (TransId)
 		FROM #BetDelete t
 		WHERE IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
-		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@transid'
-											   ,m.TranslogId AS '@translogid'
-											   ,m.BetId AS '@betid'
-											   ,m.IsMG AS '@isMG'
-											   ,0 AS '@actual_stake'
-									FROM @tmpTransIDBatch m
-									FOR XML PATH('r')
-										,ROOT('root')
-								) AS VARCHAR(MAX));
 
-		EXEC dbo.TicketVoiding_Admin_VoidingTransId
-			@TransIds = @TransIds_tmp,
-			@UserId = 10278938, --StarixIT
-			@IssueTypeId = -1
-
-		SET @TransIds_tmp = ''
-
+		UPDATE	main
+			SET winlost		= main.actual_stake
+				,ruben			= 1
+				--,statuswinlost	= 6
+				,creator		= 10278938
+				,awinlost		= 0
+				,mwinlost		= 0
+				,swinlost		= 0
+				,playercomm		= 0
+				,comm			= 0
+				,acomm			= 0
+				,scomm			= 0
+				,statusID		= 102       
+				,status			= 'VOID'
+				,FcUpdateTime  = SYSDATETIME()
+				,RepUpdateTime = SYSDATETIME()
+		FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN @tmpTransIDBatch tmpmain 
+				ON	main.transid = tmpmain.transid 
 	END	
 
 	--capture balance after
