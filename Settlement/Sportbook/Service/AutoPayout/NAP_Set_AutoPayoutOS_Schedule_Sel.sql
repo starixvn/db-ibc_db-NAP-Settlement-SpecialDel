@@ -80,11 +80,13 @@ BEGIN
 				, r.HomeValue
 				, r.AwayValue
 		FROM dbo.match m WITH(NOLOCK)
+			INNER JOIN dbo.League l WITH(NOLOCK)
+				ON m.leagueid = l.leagueid
 			OUTER APPLY(
 							SELECT TOP 1 ss.WaitingTime
 							FROM	dbo.SettlementSetting ss WITH (NOLOCK)
 							WHERE	ss.LeagueId = m.leagueid
-									AND ss.AutoType = 1 -- Direct Auto Payout
+									AND ss.AutoType = 1 -- Auto Payout
 						) ss
 			CROSS APPLY (
 				SELECT TOP (@n) r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
@@ -94,20 +96,42 @@ BEGIN
 						AND ISNULL(r.ResultSetting,0) & 1  = 0
 						AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0 ELSE 1 END
 						AND r.LastModifyDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,@checkTime), GETDATE() )
-						AND r.ResourceID NOT IN ( SELECT f.ResourceId FROM f_Set_MajorRound (@Sporttype ) f )
-
+						AND 1 = CASE WHEN l.LeagueGroupID = 42 THEN 1 --Virtual Cricket
+									 WHEN l.LeagueGroupID <> 42
+											AND ( 	r.ResourceID LIKE '94101___'
+													OR r.ResourceID LIKE '94102___'
+													OR r.ResourceID LIKE '94221_____'
+													OR r.ResourceID LIKE '94281___'
+													OR r.ResourceID LIKE '94282___'
+													OR r.ResourceID LIKE '94341___'
+													OR r.ResourceID LIKE '94342___'
+													OR r.ResourceID LIKE '94841___'
+													OR r.ResourceID LIKE '94842___'
+													OR r.ResourceID LIKE '94901_____'
+													OR r.ResourceID LIKE '96161___'
+													OR r.ResourceID LIKE '96241___'
+													OR r.ResourceID LIKE '96242___'
+													OR r.ResourceID LIKE '96301___'
+													OR r.ResourceID LIKE '96302___'
+													OR r.ResourceID LIKE '96361___'
+													OR r.ResourceID LIKE '96362___'
+												)
+											THEN 1
+									 ELSE 0
+									 END	
+						
 			) r
 			OUTER APPLY (	SELECT os.MatchId, os.ResourceId,  MIN(os.StatusId) AS MinStatusId
 							FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 							WHERE os.MatchId = r.matchid
 								AND os.ResourceId = r.ResourceID 
 							GROUP BY os.MatchId, os.ResourceId
-						) os			
+						) os
 		WHERE m.sporttype = @Sporttype
-			AND ISNULL(m.AutoSetting,0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
+			AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND os.MinStatusId IS NULL -- ResourceId has never been run before
-			
+					
 	END
 
 	ELSE
