@@ -19,7 +19,7 @@ AS
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20221017@Kathy: Remove email yikhun.chiu@onelab.tw, add carrie.chen@onelabe.tw [Redmine:#179106]
-		- 20221104@Louisa: Update email address from carrie.chen@onelabe.tw to carrie.chen@onelab.tw [Redmine:#]
+		- 20221104@Louisa: Update email address from carrie.chen@onelabe.tw to carrie.chen@onelab.tw [Redmine:#179106]
 	Columns Explanation:    
     
     Notes: TW Team can change function and not notify VNTeam, please ALWAYS check Code Pro before modify function
