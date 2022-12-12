@@ -33,6 +33,7 @@ AS
 		- 20220610@July: TVS - Check valid count SMA/member  [Redmine: #173229]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
 
 	Param's Explanation:
 */
@@ -265,7 +266,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
 			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
 			OUTER APPLY (
@@ -303,7 +304,7 @@ BEGIN
 				FROM dbo.match m WITH (NOLOCK)
 					INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 				WHERE m.matchid = b.matchid
-					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122)
+					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
 			OUTER APPLY (
 				SELECT TOP 1 m.sporttype 
