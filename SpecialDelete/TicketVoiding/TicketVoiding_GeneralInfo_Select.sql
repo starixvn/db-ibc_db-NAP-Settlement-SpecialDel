@@ -147,24 +147,27 @@ BEGIN
 
 	SELECT DISTINCT
 		@RequestId AS RequestId
-		,Homeid
-		,Awayid
-		,leagueid 
-		,KickOffTime
-		,DecidedBy
-		,RequestedBy
+		,t.Homeid
+		,t.Awayid
+		,t.Leagueid 
+		,t.KickOffTime
+		,t.DecidedBy
+		,v.Username AS RequestedBy
 		,@NegativeBalanceUsers AS NegativeBalanceUsers
 		,@VoidingHistoryIds AS VoidingHistoryIds
-	FROM #tmpMatch 
+	FROM #tmpMatch t
+		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
+			ON t.RequestedBy = v.CustId
 
 	SELECT DISTINCT
-		s.VoidedBy
+		v.Username AS VoidedBy
 		,CASE WHEN m.ActionId IN (1,4,6,7) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
 		,CASE WHEN m.ActionId IN (1,4,6,7) THEN msg.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
-	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId --AND cm.VoidingHistoryId = s.VoidingHistoryId
+	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId
+	LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
 
 	SELECT  Message
 		  ,Type
