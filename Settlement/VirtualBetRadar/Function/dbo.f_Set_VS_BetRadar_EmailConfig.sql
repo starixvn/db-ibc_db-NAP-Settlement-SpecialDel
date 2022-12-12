@@ -91,6 +91,22 @@ RETURN (
 			, 'qa@starixvn.com'
 			, 'SITDBGRP01N2'
 			, 'SIT'
+		
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
+			, 'qa@starixvn.com'
+			, 'qa@starixvn.com'
+			, 'SITDBGRP02N1'
+			, 'SIT'
+			
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw'
+			, 'qa@starixvn.com'
+			, 'qa@starixvn.com'
+			, 'SITDBGRP02N2'
+			, 'SIT'
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
@@ -114,6 +130,22 @@ RETURN (
 			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
 			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBGRP01N2'
+			, 'PROD'
+			
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixvn.com;it@starixvn.com;dbaadmin@starixvn.com'
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
+			, 'DBGRP02N1'
+			, 'PROD'
+			
+		UNION ALL 
+		SELECT 'NOTIFY'
+			, 'lena.huynh@starixvn.com;it@starixvn.com;dbaadmin@starixvn.com'
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
+			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
+			, 'DBGRP02N2'
 			, 'PROD'
 		
 		/*----------------------
@@ -164,6 +196,19 @@ RETURN (
 			
 		UNION ALL 
 		SELECT 'ERROR'
+			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'SITDBGRP02N1'
+			, 'SIT'
+
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'qa@starixvn.com;lena.huynh@starixvn.com;eric.fu@onelab.tw;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'SITDBGRP02N2'
+			, 'SIT'
+		
+			
+		UNION ALL 
+		SELECT 'ERROR'
 			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBTRANS'
 			, 'PROD'
@@ -178,6 +223,18 @@ RETURN (
 		SELECT 'ERROR'
 			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
 			, 'DBGRP01N2'
+			, 'PROD'
+			
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'DBGRP02N1'
+			, 'PROD'
+			
+		UNION ALL 
+		SELECT 'ERROR'
+			, 'lena.huynh@starixvn.com;eric.fu@onelab.tw;IT@cardiff-service.com;rdadmin@onelab.tw;IT@starixvn.com;dbaadmin@starixvn.com;ariel.lin@onelab.tw;aaron.wang@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw', '', ''
+			, 'DBGRP02N2'
 			, 'PROD'
 			
 	) AS vs
