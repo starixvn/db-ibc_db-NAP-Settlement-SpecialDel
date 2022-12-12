@@ -5,9 +5,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_GeneralInfo_Select]
 	,@MatchId   INT = 0
 )
 AS
-	/*	Created by: 20201207@July
+/*	Created by: 20201207@July
 	Task: Optimize Voiding Workflow - General info delete bet check [Redmine:#145719]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 
 	Revisions: 
 		- 20201207@July: Create new SP [Redmine:#145719]
@@ -15,6 +15,7 @@ AS
 		- 20210305@July: TVS - Auto void before KO time - [Redmine: #150522] 
 		- 20211202@Max: [TVS] Implement function allow to void bettrans14 [Redmine:#140180]
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221207@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:
 		
@@ -26,6 +27,8 @@ BEGIN
 			,@xmlVoidData		XML = NULL
 			,@xmlVoidResults	XML = NULL
 			,@cnt_matchid		INT = 0
+			,@NegativeBalanceUsers VARCHAR(MAX) = ''
+			,@VoidingHistoryIds VARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpMatch 
 	(
@@ -46,8 +49,9 @@ BEGIN
 		,VoidData XML
 		,VoidedBy INT
 		,VoidResults XML
-		,VoidedTime DATETIME
 		,MatchId INT
+		,NegativeBalanceUsers VARCHAR(MAX)
+		,MessageId INT
 		,IsFinish BIT
 	)
 
@@ -62,18 +66,17 @@ BEGIN
 			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.leagueid END
 			,r.UserId
 			,r.DecidedBy
-			,rd.kickofftime
+			,m.kickofftime
 			,r.ActionId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId IN (0,29))
 	
-	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, VoidedTime, VoidData) 
+	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, VoidData) 
 	SELECT	 vh.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId AS VoidedBy
-			,vh.CreatedDate
 			,vh.VoidData
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
@@ -87,6 +90,8 @@ BEGIN
 		UPDATE vh
 		SET vh.VoidResults = s.VoidResults
 		   ,vh.matchid = s.matchID
+		   ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
+		   ,vh.MessageId = s.MessageId
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
 		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
@@ -96,6 +101,8 @@ BEGIN
 		UPDATE vh
 		SET vh.VoidResults = s.VoidResults
 			,vh.matchid = s.matchid
+		    ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
+		    ,vh.MessageId = s.MessageId
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
 		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
@@ -103,6 +110,11 @@ BEGIN
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
 
+	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + NegativeBalanceUsers
+									FROM #tmpVoidingHistory 
+									FOR XML PATH ('')
+									),1,1,'')
+	
 	WHILE (1=1)
 	BEGIN
 		UPDATE TOP(1) t
@@ -115,6 +127,8 @@ BEGIN
 
 		IF @@ROWCOUNT = 0 BREAK
 
+		SET @VoidingHistoryIds += CASE WHEN @VoidingHistoryIds = '' THEN '' ELSE ',' END + CAST (@VoidingHistoryId AS VARCHAR(100))
+
 		INSERT INTO @tmpContentMessage (RequestId,VoidingHistoryId, ContentChineseSimplified,ContentEnglish)
 		SELECT  @RequestId
 				, @VoidingHistoryId
@@ -123,44 +137,36 @@ BEGIN
 		FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
 		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
 
-		INSERT INTO @tmpVoidResults (VoidingHistoryId, Message, Type)
-		SELECT  @VoidingHistoryId
-				,T.C.value('@Message', 'VARCHAR(MAX)') AS Message
+		INSERT INTO @tmpVoidResults ( VoidingHistoryId, Message, Type)
+		SELECT  @VoidingHistoryId,
+				T.C.value('@Message', 'VARCHAR(MAX)') AS Message
 				,T.C.value('@Type', 'INT') AS Type
 		FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
 		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
 	END
 
 	SELECT DISTINCT
-		 s.VoidingHistoryId
-		,s.VoidedTime
-		,m.Homeid
-		,m.Awayid
-		,m.leagueid 
-		,m.KickOffTime
-		,m.DecidedBy
-		,m.RequestedBy
-		,s.VoidedBy
-		,CASE WHEN m.ActionId IN (1,4,6,7) THEN sv.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
-		,CASE WHEN m.ActionId IN (1,4,6,7) THEN sv.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
-		,sv.NegativeBalanceUsers
+		@RequestId AS RequestId
+		,Homeid
+		,Awayid
+		,leagueid 
+		,KickOffTime
+		,DecidedBy
+		,RequestedBy
+		,@NegativeBalanceUsers AS NegativeBalanceUsers
+		,@VoidingHistoryIds AS VoidingHistoryIds
+	FROM #tmpMatch 
+
+	SELECT DISTINCT
+		s.VoidedBy
+		,CASE WHEN m.ActionId IN (1,4,6,7) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
+		,CASE WHEN m.ActionId IN (1,4,6,7) THEN msg.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
-	OUTER APPLY( 
-				SELECT sv.NegativeBalanceUsers, msg.Content_en, msg.Content_cs
-				FROM dbo.Ticketvoiding_VoidBetAutomation_Service sv WITH (NOLOCK) 
-				OUTER APPLY (
-						SELECT  msg.Content_en, msg.Content_cs
-						FROM DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) 
-						WHERE sv.MessageId = msg.MessageId
-					)msg
-				WHERE s.RequestId = sv.RequestID AND s.VoidingHistoryId = sv.VoidingHistoryId
-					AND sv.RequestID = @RequestId
-			)sv
-	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
+	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
+	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId --AND cm.VoidingHistoryId = s.VoidingHistoryId
 
-	SELECT VoidingHistoryId
-		  ,Message
+	SELECT  Message
 		  ,Type
 	FROM @tmpVoidResults
 

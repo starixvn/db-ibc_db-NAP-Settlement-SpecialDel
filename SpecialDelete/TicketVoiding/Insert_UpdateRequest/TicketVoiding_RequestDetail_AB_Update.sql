@@ -23,6 +23,7 @@ AS
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype Abnormal bet & AB(real member) [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20221206@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member)
@@ -58,7 +59,6 @@ BEGIN
       ,bettype			SMALLINT
 	  ,betteam			NVARCHAR(10)
       ,betid			BIGINT
-	  ,SubMatchIdList	VARCHAR(2000)
 	  ,IsMixParlay		BIT
 	  ,SiteDBGroupID	SMALLINT
 	)
@@ -69,13 +69,12 @@ BEGIN
 		  ,bettype
 		  ,betteam
 		  ,betid
-		  ,SubMatchIdList
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid ,t ,c ,btype ,bteam ,bid ,s_mid ,isP ,sitedb
+	SELECT mid ,t ,c ,btype ,bteam ,bid ,isP ,sitedb
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT,s_mid VARCHAR(2000) ,isP BIT ,sitedb SMALLINT
+	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
 
 	-- get match info
@@ -138,57 +137,6 @@ BEGIN
 	BEGIN
 		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single 
 		WHERE RequestId = @RequestId
-	END
-
-	-- Abnormal Bet - Mixparlay ticket
-	IF @IssueTypeId = 11 AND @FilterBy = 1
-	BEGIN
-		INSERT INTO #tmpMatchId (Submatchid, Maintransid)
-		SELECT s.submatchId, t.transid AS maintransid
-		FROM #transIdTemp t
-			INNER JOIN #tmpTransInfo b ON t.transid = b.transid
-			CROSS APPLY (
-							SELECT value AS submatchId
-							FROM STRING_SPLIT (b.SubMatchIdList,',')
-					)s
-		IF @ActionId = 1
-		BEGIN
-			IF @IsEditRequest = 0 --Insert
-			BEGIN
-				INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
-				SELECT @RequestId, Submatchid, maintransid
-				FROM #tmpMatchId 
-			END
-			ELSE IF @IsEditRequest = 1 --Edit
-			BEGIN
-				IF @ActionId = @OldActionId
-				BEGIN
-					--Remove ticket
-					DELETE m
-					FROM  dbo.TicketVoiding_RequestDetail_MixParlay m 
-						LEFT JOIN #tmpMatchId t ON m.MatchId = t.Submatchid AND m.MainTransId = t.Maintransid
-					WHERE RequestId = @RequestId AND t.Submatchid IS NULL
-			
-					--Insert new ticket
-					INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
-					SELECT @RequestId, t.Submatchid, t.maintransid
-					FROM #tmpMatchId t
-						LEFT JOIN dbo.TicketVoiding_RequestDetail_MixParlay m ON m.RequestId = @RequestId AND t.Submatchid = m.MatchId AND t.Maintransid = m.MainTransId
-					WHERE m.MatchId IS NULL
-				END
-				ELSE IF @ActionId <> @OldActionId
-				BEGIN
-					INSERT INTO dbo.TicketVoiding_RequestDetail_MixParlay(RequestId, MatchId, MainTransId)
-					SELECT @RequestId, Submatchid, maintransid
-					FROM #tmpMatchId 
-				END
-			END
-		END
-		ELSE IF @ActionId <> 1 AND @OldActionId = 1
-		BEGIN
-			DELETE FROM dbo.TicketVoiding_RequestDetail_MixParlay 
-			WHERE RequestId = @RequestId
-		END
 	END
 
 	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
