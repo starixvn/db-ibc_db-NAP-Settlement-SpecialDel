@@ -15,9 +15,8 @@ CREATE TABLE [dbo].[TicketVoiding_AutoVoidQueue](
 	[Action] [varchar](100) NULL,
 	[StatusId] [tinyint] NULL,
 	[UserId] [int] NULL,
-	[Starttime] [datetime] NULL,
-	[Exectime] [datetime] NULL,
-	[Duration] [int] NULL,
+	[CreatedDate] [datetime] NULL,
+	[ModifiedDate] [datetime] NULL,
 	[IP] [varchar](50) NULL,
 	[ErrMsg] [varchar](300) NULL,
  CONSTRAINT [TicketVoiding_AutoVoidQueue_QueueId] PRIMARY KEY NONCLUSTERED 
@@ -27,8 +26,8 @@ CREATE TABLE [dbo].[TicketVoiding_AutoVoidQueue](
 ) ON [DATA]
 GO
 
-ALTER TABLE [dbo].[TicketVoiding_AutoVoidQueue] ADD  CONSTRAINT [DF_TicketVoiding_AutoVoidQueue_Starttime]  DEFAULT (GETDATE()) FOR [Starttime]
+ALTER TABLE [dbo].[TicketVoiding_AutoVoidQueue] ADD  CONSTRAINT [DF_TicketVoiding_AutoVoidQueue_CreatedDate]  DEFAULT (GETDATE()) FOR [CreatedDate]
 GO
 
-ALTER TABLE [dbo].[TicketVoiding_AutoVoidQueue] ADD  CONSTRAINT [DF_TicketVoiding_AutoVoidQueue_Duration]  DEFAULT ((0)) FOR [Duration]
+ALTER TABLE [dbo].[TicketVoiding_AutoVoidQueue] ADD  CONSTRAINT [DF_TicketVoiding_AutoVoidQueue_ModifiedDate]  DEFAULT (GETDATE()) FOR [ModifiedDate]
 GO
