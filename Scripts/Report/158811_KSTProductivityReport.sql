@@ -23,7 +23,7 @@ GO
 
 	 *** Scope: SportBook
 	 *** Exclude: hedge match, child match of Cricket Test Match, test match
-	 *** Exclude : result of FastMarkets, Time Machine, Goal Record
+	 *** Exclude : result of FastMarkets, Time Machine, Goal Record, Pingoal
 */
 
 
