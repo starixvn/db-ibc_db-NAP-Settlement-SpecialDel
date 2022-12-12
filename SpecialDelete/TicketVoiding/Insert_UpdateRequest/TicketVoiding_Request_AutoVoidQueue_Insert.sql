@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Insert]
    ,@IssueTypeId			TINYINT	= NULL
    ,@MatchId				INT
    ,@ActionID				TINYINT = NULL
-   ,@FilterBy				TINYINT = NULL
 )
 AS
 /*	
@@ -33,13 +32,12 @@ BEGIN
 	ELSE IF @IssueTypeId IN (11,15)
 	BEGIN
 		-- Insert queue for auto void
-		IF @ActionId IN (4,6,7,8) OR (@ActionID = 1 AND @FilterBy IS NULL)
+		IF @ActionId IN (4,6,7,8)
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestId, MatchId, [Action], StatusId, UserId, IP)
 			SELECT @RequestId
 					, @MatchId
-					, CASE WHEN @ActionId = 1 THEN 'AddRequest' 
-						   WHEN @ActionId = 4 THEN 'VoidInstant'
+					, CASE WHEN @ActionId = 4 THEN 'VoidInstant'
 						   WHEN @ActionId = 6 THEN 'VoidInstant5m'
 						   WHEN @ActionId = 7 THEN 'VoidInstant10m' 
 						   WHEN @ActionId = 8 THEN 'VoidInstantNopolicy'

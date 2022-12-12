@@ -110,8 +110,12 @@ BEGIN
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
 
-	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + NegativeBalanceUsers
-									FROM #tmpVoidingHistory 
+	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + a.users
+									FROM #tmpVoidingHistory t
+										CROSS APPLY (
+											SELECT value AS users FROM STRING_SPLIT(t.NegativeBalanceUsers, ',') 
+										)a
+									WHERE ISNULL(t.NegativeBalanceUsers,'') <> ''
 									FOR XML PATH ('')
 									),1,1,'')
 	
@@ -169,7 +173,7 @@ BEGIN
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
 	LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
 
-	SELECT  Message
+	SELECT DISTINCT Message
 		  ,Type
 	FROM @tmpVoidResults
 
