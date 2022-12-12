@@ -166,7 +166,7 @@ BEGIN
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
-	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId
+	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
 	LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
 
 	SELECT  Message
