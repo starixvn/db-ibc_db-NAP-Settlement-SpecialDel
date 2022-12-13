@@ -15,6 +15,7 @@ AS
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		- 20220706@Louisa: Fix cannot get resultdetail Badminton [Redmine:#171261]
+		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 
 	Parameters Explanation:    
 	
@@ -48,18 +49,6 @@ BEGIN
 		, @ParentId = ParentId
 		,@MainType = MainType
 	FROM @tmpMatch_Info
-
-	IF @sporttype = 9
-	BEGIN
-		INSERT INTO @tmpResult_Info ( matchid, ResourceId, ResultStatusId )
-		SELECT 	r.MatchID
-				,r.ResourceId
-				,ResultStatusId
-		FROM dbo.ResultDetailOS r (NOLOCK)
-			CROSS APPLY ( SELECT f.ResourceID FROM dbo.f_Set_MajorRound(@sporttype) f	
-    					  WHERE r.ResourceID = f.ResourceID) f		
-		WHERE	r.matchid = @matchid
-	END
 
 	IF @sporttype = 1 AND @ParentId  IS NOT NULL AND ISNULL(@MainType,0) = 33 ---Main match and corner match
 	BEGIN

@@ -11,6 +11,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220512@Louisa: Auto Refund for Badminton [Redmine:#171676]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
+		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 */
 BEGIN
 	
@@ -20,7 +21,7 @@ BEGIN
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting BIT = 0
 	
-	DECLARE  @returntable TABLE (MatchId INT, leagueid INT, TypeId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT)
+	DECLARE  @returntable TABLE (MatchId INT, leagueid INT, TypeId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT, SettlementStatusId TINYINT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @procName
@@ -56,16 +57,17 @@ BEGIN
 
 	ELSE
 	BEGIN
-		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID)
+		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId)
 		SELECT ar.MatchId
 			 , m.leagueid
 			 , ar.TypeId
 			 , ar.ResourceId
 			 ,ISNULL(r.ResultStatusID, 0) AS  ResultStatusID
+			 ,ISNULL(r.SettlementStatusID,0) AS SettlementStatusID
 		FROM dbo.AutoRefundResultOS ar WITH(NOLOCK)
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON m.matchid = ar.matchid
-			OUTER APPLY (	SELECT r.ResultStatusID FROM dbo.ResultDetailOS r (NOLOCK)
+			OUTER APPLY (	SELECT r.ResultStatusID, r.SettlementStatusID FROM dbo.ResultDetailOS r (NOLOCK)
 							WHERE  ar.MatchId = r.MatchId AND ar.ResourceId = r.ResourceId
 						) r
 		WHERE m.sporttype = @sporttype
@@ -73,7 +75,7 @@ BEGIN
 			AND ar.TypeId = 1
 	END
 
-	SELECT MatchId, leagueid, TypeId, ResourceId, ResultStatusID
+	SELECT MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId
 	FROM @returntable
 
 END
