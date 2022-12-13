@@ -39,7 +39,6 @@ BEGIN
 			,@LeagueId			 INT = 0
 			,@HomeId			 INT = 0
 			,@AwayId			 INT = 0
-			,@Sporttype 		 SMALLINT = 0
 			,@OldSubIssueTypeId  SMALLINT
 			,@OldMatchId		 INT
 			,@OldTransIds 		 VARCHAR(MAX) = NULL
@@ -50,7 +49,6 @@ BEGIN
 	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
-	CREATE TABLE #tmpMatchId (Submatchid INT, Maintransid BIGINT)
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid			INT
@@ -81,7 +79,6 @@ BEGIN
 	SELECT	@LeagueId = leagueid
 			,@HomeId = homeid
 			,@AwayId = awayid
-			,@Sporttype = sporttype
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @MatchId
 
@@ -189,6 +186,5 @@ BEGIN
 	
 	DROP TABLE #transIdTemp
 	DROP TABLE #tmpTransInfo
-	DROP TABLE #tmpMatchId
 END
 GO
