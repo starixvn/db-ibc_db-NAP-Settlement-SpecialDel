@@ -1,5 +1,5 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Ticket_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Ticket_Select_UAT1]
 (
 	@SiteDBGroupID	SMALLINT = NULL
 	,@MatchId		INT = 0
@@ -70,7 +70,7 @@ BEGIN
 	BEGIN
 		--Single
 		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rds.MatchId
