@@ -22,6 +22,8 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+
 
 	Param's explanation:	
 		
@@ -149,7 +151,7 @@ BEGIN
 		LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 	WHERE q.QueueId = @QueueId 
 	
-	SELECT q.QueueId, q.StatusId, q.ErrMsg AS [Message], q.UserId, c.username
+	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers, q.ErrMsg AS [Message], q.UserId, c.username
 	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 	WHERE q.QueueId = @QueueId

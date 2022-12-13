@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Update]
 	,@StatusId INT = NULL
 	,@ErrMsg VARCHAR(1000) = NULL
 	,@IsUpdateStartTime BIT = 0
-	,@BroadcastsessionId VARCHAR(100) = NULL
 )
 AS
 /*	
@@ -16,6 +15,7 @@ AS
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:
 */
@@ -24,10 +24,9 @@ BEGIN
 
 	UPDATE q SET 
 		q.StatusId = ISNULL(@StatusId, q.StatusId)
-		,q.Starttime = CASE WHEN @IsUpdateStartTime = 1 THEN GETDATE() ELSE q.Starttime END
-		,q.BroadcastSessionId = ISNULL(@BroadcastsessionId, q.BroadcastSessionId)
+		,q.CreatedDate = CASE WHEN @IsUpdateStartTime = 1 THEN GETDATE() ELSE q.CreatedDate END
 		,q.ErrMsg = @ErrMsg		
-	FROM dbo.TicketVoiding_AutoVoidRequest_Queue q WITH (ROWLOCK, UPDLOCK)
+	FROM dbo.TicketVoiding_AutoVoidQueue q WITH (ROWLOCK, UPDLOCK)
 	WHERE q.QueueId = @QueueId	
 
 END		

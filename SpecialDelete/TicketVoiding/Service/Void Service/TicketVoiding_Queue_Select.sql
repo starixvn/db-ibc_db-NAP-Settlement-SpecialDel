@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:
 */
@@ -47,7 +48,6 @@ BEGIN
 					,IP
 					,@VoidingHistoryId AS VoidingHistoryId
 					,StatusId
-					,IssueTypeId
 					,NegativeBalanceUsers
 			FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
 			WHERE	VoidingHistoryId = @VoidingHistoryId
@@ -64,7 +64,6 @@ BEGIN
 					,IP
 					,@VoidingHistoryId AS VoidingHistoryId
 					,StatusId
-					,IssueTypeId
 					,NegativeBalanceUsers
 			FROM	dbo.TicketVoiding_Queue WITH(NOLOCK)
 			WHERE	VoidingHistoryId = @VoidingHistoryId

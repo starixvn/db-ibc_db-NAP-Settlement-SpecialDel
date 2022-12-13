@@ -4,8 +4,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 	@VoidingHistoryId	INT
 	,@RequestId			INT
 	,@IssueTypeId		TINYINT
-	,@SingleTicketsXML	XML = NULL
-	,@ParlayTicketsXML	XML = NULL
+	,@SingleTicketsJSON	VARCHAR(MAX) = NULL
+	,@ParlayTicketsJSON	VARCHAR(MAX) = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)
 )
@@ -21,6 +21,7 @@ AS
 		- 20210209@Kathy: insert queue slowly with abnormal account issue type [Redmine:#150199]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:	
 		
@@ -40,23 +41,20 @@ BEGIN
 	DECLARE @tmpMatchId AS TABLE (ID INT IDENTITY(1,1), MatchId INT)
 	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT)
 
-	IF @SingleTicketsXML IS NOT NULL
+	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
 		INSERT INTO #tmpInputTransId (TransId, MatchId)
-		SELECT t.c.value('@tid','BIGINT') AS TransId
-				,t.c.value('@mid','INT') AS MatchId
-		FROM @SingleTicketsXML.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@SingleTicketsXML = NULL)) 
+		SELECT tbl.TransId, tbl.MatchId 
+		FROM OPENJSON(@SingleTicketsJSON)
+			WITH (MatchId INT, TransId BIGINT) tbl
 	END
 
-	IF @ParlayTicketsXML IS NOT NULL
+	IF @ParlayTicketsJSON IS NOT NULL
 	BEGIN
 		INSERT INTO #tmpInputTransId (TransId, MatchId, IsMixParlay)
-		SELECT t.c.value('@tid','BIGINT') AS TransId
-				,t.c.value('@mid','INT') AS MatchId
-				,1 AS IsMixParlay
-		FROM @ParlayTicketsXML.nodes('root/r') t(c)
-		OPTION (OPTIMIZE FOR (@ParlayTicketsXML = NULL)) 
+		SELECT tbl.TransId, tbl.MatchId, 1
+		FROM OPENJSON(@ParlayTicketsJSON)
+			WITH (MatchId INT, TransId BIGINT) tbl
 	END
 
 	INSERT INTO @tmpMatchId (MatchId)
