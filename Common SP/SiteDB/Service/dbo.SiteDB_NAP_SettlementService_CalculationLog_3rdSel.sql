@@ -54,7 +54,7 @@ BEGIN
 		
 		RETURN
 	END
-
+	
 	SELECT TOP (1) @LastLogId = LogId 
 			,@LastStatusId = StatusId		
 	FROM	dbo.SiteDB_SettlementService_LastLog_3rd WITH(NOLOCK)
@@ -62,10 +62,10 @@ BEGIN
 
 	SET @LastLogId = ISNULL(@LastLogId,0)
 	
-	IF @LastStatusId = 2 OR @LastLogId IS NULL ---the last time is done successfully or the first time running 
+	IF @LastStatusId = 2 OR @LastLogId = 0 ---the last time is done successfully or the first time running 
 	BEGIN
 		SET @LogDate = DATEADD(SECOND, -1, SYSDATETIME())
-
+		
 		INSERT INTO dbo.SiteDB_SettlementService_LastLog_3rd(LogId,StatusId,Starttime)		
 		OUTPUT INSERTED.LogId
 		INTO @tmpInsertedLogIds (LogId)

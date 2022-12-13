@@ -18,7 +18,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @TransInfoJson	VARCHAR(MAX)
+	DECLARE @TransInfoJson	NVARCHAR(MAX)
 			,@rowcnt INT = 0
 
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -101,7 +101,6 @@ BEGIN
 				,@SettlementAction = 'REFUND'
 				,@TicketType = 's'
 				,@EventTable = 1
-				,@Is3rd = 1
 			
 		END
 

@@ -19,6 +19,7 @@ AS
 		- 20191003@Sol: Support live score with bettype 468 [Redmine:#121337]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 		
 	Param's Explanation:
 */
@@ -27,7 +28,7 @@ BEGIN
 
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@transInfo			XML
+			,@transInfoJson		NVARCHAR(MAX)
 			,@IsSiteDB			BIT =  0
 			
 	SET @ServerName = @@SERVERNAME
@@ -336,32 +337,37 @@ BEGIN
 			
 			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,modds AS '@m'
-							,odds AS '@o'
-							,oddsspread AS '@os'
-							,statuswinlost AS '@statuswl' 
-							,SettlementTime AS '@st' 
-							,WinLost AS '@w' 
-							,aWinLost AS '@aw' 
-							,mWinLost AS '@mw' 
-							,sWinLost AS '@sw' 
-							,PlayerComm AS '@pc' 
-							,Comm AS '@c' 
-							,aComm AS '@ac' 
-							,sComm AS '@sc' 
-							,Status AS '@s' 
-							,StatusID AS '@sid' 
-							,ruben AS '@r'	
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid'
+				SET @transInfoJson = (
+					SELECT	transId AS 't'
+							,modds AS 'm'
+							,odds AS 'o'
+							,oddsspread AS 'os'
+							,statuswinlost AS 'statuswl' 
+							,SettlementTime AS 'st' 
+							,WinLost AS 'w' 
+							,aWinLost AS 'aw' 
+							,mWinLost AS 'mw' 
+							,sWinLost AS 'sw' 
+							,PlayerComm AS 'pc' 
+							,Comm AS 'c' 
+							,aComm AS 'ac' 
+							,sComm AS 'sc' 
+							,Status AS 's' 
+							,StatusID AS 'sid' 
+							,ruben AS 'r'	
+							,bef_winlost AS 'bef_w' 
+							,bef_statusid AS 'bef_sid'
 					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'CalculateOtherSport'
+					,@TableName = 'bettrans'
+					,@MatchId = @MatchId
+					,@TransInfoJson = @TransInfoJson
+					,@SettlementAction = 'CAL'
+					,@TicketType = 's'	
 				
 			END
 
@@ -569,7 +575,7 @@ BEGIN
 			
 			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
-				SET @transInfo = (
+				SET @transInfoJson = (
 					SELECT	transId AS '@t'
 							,modds AS '@m'
 							,odds AS '@o'
@@ -590,12 +596,17 @@ BEGIN
 							,bef_winlost AS '@bef_w' 
 							,bef_statusid AS '@bef_sid' 
 					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'CalculateOtherSport'
+					,@TableName = 'bettrans'
+					,@MatchId = @MatchId
+					,@TransInfoJson = @TransInfoJson
+					,@SettlementAction = 'CAL'
+					,@TicketType = 's'	
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
-				
 			END
 
 			SET @BatchNo = @BatchNo - 1

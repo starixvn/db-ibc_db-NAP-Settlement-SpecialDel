@@ -149,7 +149,6 @@ BEGIN
 					SET @MessageBody = CAST(@TransInfo AS VARCHAR(MAX))
 				END
 
-				select @Decompress_TransInfoJson, @TransInfoJson
 				WHILE (@IsPassed = 0)
 				BEGIN
 					IF @TableName = 'bettrans'

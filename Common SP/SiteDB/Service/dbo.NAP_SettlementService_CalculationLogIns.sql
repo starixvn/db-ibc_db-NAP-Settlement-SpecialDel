@@ -17,6 +17,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @TransInfo			XML
+			,@TransInfoJson		VARBINARY(MAX)
 			,@Action			VARCHAR(1)
 			,@TableName			VARCHAR(128)
 			,@MatchId			INT
@@ -26,6 +27,7 @@ BEGIN
 
 			,@xmlCommand		VARCHAR(MAX)
 			,@MessageType		VARCHAR(200)
+			,@MessageTypeParlay	VARCHAR(200)
 
 			,@IsExistsParallel	BIT
 			,@MaxLogId			BIGINT
@@ -73,11 +75,13 @@ BEGIN
 	BEGIN
 		SET @LogId = 0
 		SET @MessageType = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type'
+		SET @MessageTypeParlay = 'sitedb' + CAST(@SiteDBGroupId AS VARCHAR) + '_bet_settle_msg_type_parlay'
 
 		WHILE (1=1)
 		BEGIN
 			SELECT	TOP 1 @CurrentLogId = s.LogId
 					,@TransInfo = s.TransInfo
+					,@TransInfoJson = s.TransInfoJson
 					,@TableName = s.TableName
 					,@MatchId = s.MatchId
 					,@Action = s.Action
@@ -92,8 +96,9 @@ BEGIN
 			IF @@ROWCOUNT = 0
 				BREAK
 
+			
 			SET @xmlCommand = CAST((
-					SELECT CAST(@TransInfo AS VARCHAR(MAX)) AS '@TransInfo'	
+					SELECT	CAST(@TransInfo AS VARCHAR(MAX)) AS '@TransInfo'
 							,@TableName AS '@TableName'
 							,@MatchId AS '@MatchId'
 							,@Action AS '@Action'
@@ -102,13 +107,20 @@ BEGIN
 							,@SiteDBGroupId AS '@SiteDBGroupId'
 							,@SessionId AS '@SessionId'
 							,@SiteDB_ExecDataQueueSize AS '@TotalQueue'
+							,CONVERT(nvarchar(max), @TransInfoJson, 1) AS '@TransInfoJson'	
 					FOR XML PATH ('r'), ROOT ('root'), TYPE)
 				AS VARCHAR(MAX))
 				
-			EXEC dbo.SSB_Send_Message 
-				@MessageContent = @xmlCommand
-				,@FunctionName = 'settlement'
-				,@MessageType = @MessageType
+			IF @TicketType = 'p'
+				EXEC dbo.SSB_Send_Message 
+					@MessageContent = @xmlCommand
+					,@FunctionName = 'settlement'
+					,@MessageType = @MessageTypeParlay
+			ELSE
+				EXEC dbo.SSB_Send_Message 
+					@MessageContent = @xmlCommand
+					,@FunctionName = 'settlement'
+					,@MessageType = @MessageType
 
 			SET @LogId = @CurrentLogId
 

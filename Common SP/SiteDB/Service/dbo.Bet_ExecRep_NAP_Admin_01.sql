@@ -48,7 +48,6 @@ BEGIN
 			,@strTransIds	VARCHAR(MAX)
 			,@sMessage		NVARCHAR(MAX)
 			,@IsEnableServiceBroker BIT
-			,@MessageTypePattern VARCHAR(50)
 			
 			,@AllowUndo		BIT
 			,@AllowRefund	BIT
@@ -160,8 +159,6 @@ BEGIN
 			SET @sMessage = 'EXEC dbo.Bet_ExecRep_NAP_Admin_01 @matchid = ' + CONVERT(NVARCHAR(50), ISNULL(@matchid,0)) 
 							+ CASE WHEN @SessionId IS NULL THEN '' ELSE ',@SessionId =' + CAST(@SessionId AS VARCHAR(20) ) END
 							+ ',@SiteDBGroupId = ' + CAST(@SiteDBGroupId AS VARCHAR) 
-							+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
-							+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 							+ ',@MessageType = ' +  '''' + @MessageType + ''''
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
@@ -188,12 +185,10 @@ BEGIN
 													WHEN @Is3rd IS NULL THEN '0'
 													ELSE CAST(@Is3rd AS VARCHAR(3))
 													END 
+							+ CASE WHEN @TransInfo IS NULL THEN '' ELSE ',@TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + '''' END
+							+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = '  + CONVERT(NVARCHAR(max), @TransInfoJson, 1)  END
 							+ ',@CalledByBrokerService = 1'
 		
-		SET @MessageTypePattern = CASE WHEN @Is3rd = 1 THEN 'bet_SiteDB_3rd_msg_type_' ELSE 'bet_SiteDB_msg_type_' END
-
-		SET @MessageType = @MessageTypePattern + CASE WHEN  @SiteDB < 10 THEN '0' + CAST(@SiteDB AS VARCHAR(1)) ELSE CAST(@SiteDB AS VARCHAR(20)) END
-
 			EXEC dbo.SSB_Send_Message 
 				@MessageContent = @sMessage
 				,@FunctionName = 'settlement'

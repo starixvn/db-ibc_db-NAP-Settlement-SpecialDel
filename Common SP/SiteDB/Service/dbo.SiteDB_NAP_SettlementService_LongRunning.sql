@@ -56,13 +56,15 @@ BEGIN
 		ELSE IF @StatusId = 1 AND DATEDIFF(MINUTE,@StartTime, GETDATE()) > 1
 			SET @ErrorMessage = 'Hey guys, the item on process sync data for SiteDB (' + @@SERVERNAME + ') has been running for too long (table SiteDB_SettlementService_LastLog). Please check!!!'
 		
-		--IF @ErrorMessage <> ''
-		--BEGIN
-		--	execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
-		--		, @JobId = NULL, @JobName = N'vndba:Check slowly running or failed processes'
-		--		, @Message = @ErrorMessage
-		--		, @CaseId = 1;
-		--END
+		/*
+		IF @ErrorMessage <> ''
+		BEGIN
+			execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+				, @JobId = NULL, @JobName = N'vndba:Check slowly running or failed processes'
+				, @Message = @ErrorMessage
+				, @CaseId = 1;
+		END
+		*/
 	END
 
 	-- check 3rd
@@ -87,19 +89,21 @@ BEGIN
 				SET @3rd_ErrorMessage = 'Hey guys, the item on process sync data for SiteDB (' + @@SERVERNAME + ') is pending since LogId = '+CAST(@3rd_PendingLogId AS VARCHAR(20) )+' (table SiteDB_SettlementService_CalculationLog_3rd). Please check!!!'
 	
 		END
-
+		
+		/*
 		IF @3rd_StatusId = 3 
 			SET @3rd_ErrorMessage = 'Hey guys, process sync data for SiteDB (' + @@SERVERNAME + ') got error (table SiteDB_SettlementService_LastLog_3rd). Please check!!!'		
 		ELSE IF @3rd_StatusId = 1 AND DATEDIFF(MINUTE,@3rd_StartTime, GETDATE()) > 1
 			SET @3rd_ErrorMessage = 'Hey guys, the item on process sync data for SiteDB (' + @@SERVERNAME + ') has been running for too long (table SiteDB_SettlementService_LastLog_3rd). Please check!!!'
 	
-		--IF @3rd_ErrorMessage <> ''
-		--BEGIN
-		--	execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
-		--		, @JobId = NULL, @JobName = N'vndba:Check slowly running or failed processes'
-		--		, @Message = @ErrorMessage
-		--		, @CaseId = 1;
-		--END
+		IF @3rd_ErrorMessage <> ''
+		BEGIN
+			execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
+				, @JobId = NULL, @JobName = N'vndba:Check slowly running or failed processes'
+				, @Message = @ErrorMessage
+				, @CaseId = 1;
+		END
+		*/
 	END
 
 	

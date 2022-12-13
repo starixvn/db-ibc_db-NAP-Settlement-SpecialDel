@@ -24,7 +24,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, SettlementAction, TicketType, EventTable)
-	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, COMPRESS(@TransInfoJson), @SettlementAction, 's', @EventTable)	
+	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, COMPRESS(@TransInfoJson), @SettlementAction, @TicketType, @EventTable)	
 
 END
 GO

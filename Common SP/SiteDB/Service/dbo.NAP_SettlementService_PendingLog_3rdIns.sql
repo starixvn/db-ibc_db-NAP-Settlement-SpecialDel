@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SettlementService_PendingLog_3rdIns]
 	@SiteDBGroupId SMALLINT
-	,@SiteDBCalculationLog_3rd TVP_SiteDB_CalculationLog READONLY
+	,@SiteDBCalculationLog_3rd TVP_SiteDB_CalculationLog_3rd READONLY
 AS
 /*
 	Created by: 20221011@Kathy
@@ -16,7 +16,7 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
-	DECLARE @SiteDBPendingCalculationLog_3rd TVP_SiteDB_CalculationLog
+	DECLARE @SiteDBPendingCalculationLog_3rd TVP_SiteDB_CalculationLog_3rd
 
 	INSERT INTO @SiteDBPendingCalculationLog_3rd 
 	(	LogId

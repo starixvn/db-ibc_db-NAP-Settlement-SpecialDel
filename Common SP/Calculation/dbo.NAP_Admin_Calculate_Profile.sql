@@ -28,6 +28,7 @@ AS
 		- 20221019@Kathy: Add ActionId [Redmine:#179274]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
 	Param's Explanation:  
 		   
@@ -88,7 +89,7 @@ BEGIN
 			,@StepDone			VARCHAR(300) = 'Done update'
 			,@FcUpdateTime		DATETIME2
 			
-			,@transInfo		VARBINARY(MAX)
+			,@transInfo		NVARCHAR(MAX)
 			,@IsSiteDB		BIT = 0
 			,@FunctionName	VARCHAR(50)
 	
@@ -410,7 +411,7 @@ BEGIN
 
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged )
 			BEGIN
-				SET @transInfo = COMPRESS((
+				SET @transInfo = (
 					SELECT	transId AS 't'
 							,CASE WHEN modds IS NOT NULL THEN CAST(CAST(modds AS DECIMAL(10,4)) AS VARCHAR(11) ) ELSE ''  END AS 'm'
 							,odds AS 'o'
@@ -434,7 +435,7 @@ BEGIN
 					
 					FROM	@tmpBalanceChanged
 					FOR JSON AUTO
-				))
+				)
 
 				SET @FunctionName = CASE WHEN @Action = 'REFUND' THEN 'RefundSoccer' ELSE 'CalculateSoccer' END
 				

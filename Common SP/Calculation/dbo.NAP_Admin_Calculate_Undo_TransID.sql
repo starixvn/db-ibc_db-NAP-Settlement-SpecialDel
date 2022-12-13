@@ -64,8 +64,7 @@ BEGIN
 	)
 	DECLARE @handle			INT
 			,@IsUpd_Void	BIT = 0
-			,@transinfo		XML	
-			,@transinfoJson VARCHAR(MAX)
+			,@transinfoJson NVARCHAR(MAX)
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
@@ -129,9 +128,7 @@ BEGIN
 		
 	IF @IsSiteDB = 1 AND EXISTS( SELECT TOP 1 1 FROM @tmpTransInfo )
 	BEGIN
-		IF @Is3rd = 1
-		BEGIN
-			SET @transinfoJson = (
+		SET @transinfoJson = (
 				SELECT	transId AS 't'	
 						,odds AS 'o' 
 						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl' 					
@@ -155,6 +152,8 @@ BEGIN
 				FOR JSON AUTO
 			)
 
+		IF @Is3rd = 1
+		BEGIN
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'UndoOtherSport'
@@ -167,36 +166,12 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'	
-						,odds AS '@o' 
-						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl' 					
-						,WinLost AS '@w' 
-						,aWinLost AS '@aw' 
-						,mWinLost AS '@mw' 
-						,sWinLost AS '@sw' 
-						,PlayerComm AS '@pc' 
-						,Comm AS '@c' 
-						,aComm AS '@ac' 
-						,sComm AS '@sc' 
-						,Status AS '@s' 
-						,StatusID AS '@sid' 
-						,ruben AS '@r' 
-						,FcUpdateTime AS '@rut' 
-
-						,bef_winlost AS '@bef_w' 
-						,bef_statusid AS '@bef_sid' 
-					
-				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-			)
-
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'UndoOtherSport'
 				,@TableName = 'bettrans'
 				,@MatchId = @MatchId
-				,@transinfo = @transinfo
+				,@transinfoJson = @transinfoJson
 				,@SettlementAction = 'UNDO'
 				,@TicketType = 's'
 		END

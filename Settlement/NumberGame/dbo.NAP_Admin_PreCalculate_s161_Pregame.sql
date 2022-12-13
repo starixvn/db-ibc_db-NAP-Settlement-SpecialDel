@@ -78,6 +78,7 @@ BEGIN
 				@matchid			 = @matchid
 			   ,@action				 = 'CAL'
 			   ,@strTransIds		 = @strTransIds
+			   ,@Is3rd				 = 1
 			   
 	END
 

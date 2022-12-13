@@ -217,6 +217,7 @@ BEGIN
 				@matchid			 = @matchid
 			   ,@action				 = @action
 			   ,@strTransIds		 = @strTransIds
+			   ,@Is3rd				 = 1
 		END
 
 		------END UPDATE BETTRANS-----------------------------------------------

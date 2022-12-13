@@ -1,5 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02,SBSETTLE-bodb02,DBBAL-bodb02"></info>*/
-
+USE bodb02
+go
 --for ssb
 CREATE MESSAGE TYPE [sitedb1_bet_settle_msg_type_3rd] VALIDATION = NONE
 GO
@@ -27,3 +28,5 @@ CREATE SERVICE [sitedb1_bet_settle_send_service_3rd]  ON QUEUE [dbo].[sitedb1_be
 GO
 CREATE SERVICE [sitedb2_bet_settle_send_service_3rd]  ON QUEUE [dbo].[sitedb2_bet_settle_queue_3rd] ([sitedb2_bet_settle_contract_3rd])
 GO
+
+

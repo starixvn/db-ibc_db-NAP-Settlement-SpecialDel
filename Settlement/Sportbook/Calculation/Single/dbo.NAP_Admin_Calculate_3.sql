@@ -60,6 +60,7 @@ AS
 		- 20200921@Louisa: Implement for Myanmar odds (apply bettype 1,3,7,8 remove 301->304) [Redmine:#141824]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 		
     Param's Explanation:
         + @IsSettleAbandonedMatch: Settle determined tickets for Abandoned/Postponed Match
@@ -73,7 +74,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@transInfo			XML
+			,@transInfoJson		NVARCHAR(MAX)
 			,@IsSiteDB	BIT = 0
 
 	SET @ServerName = @@SERVERNAME
@@ -409,30 +410,35 @@ BEGIN
 
 			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,modds AS '@m'				
-							,statuswinlost AS '@statuswl' 
-							,SettlementTime AS '@st' 
-							,WinLost AS '@w' 
-							,aWinLost AS '@aw' 
-							,mWinLost AS '@mw' 
-							,sWinLost AS '@sw' 
-							,PlayerComm AS '@pc' 
-							,Comm AS '@c' 
-							,aComm AS '@ac' 
-							,sComm AS '@sc' 
-							,Status AS '@s' 
-							,StatusID AS '@sid' 
-							,ruben AS '@r'	
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
+				SET @transInfoJson = (
+					SELECT	transId AS 't'
+							,modds AS 'm'				
+							,statuswinlost AS 'statuswl' 
+							,SettlementTime AS 'st' 
+							,WinLost AS 'w' 
+							,aWinLost AS 'aw' 
+							,mWinLost AS 'mw' 
+							,sWinLost AS 'sw' 
+							,PlayerComm AS 'pc' 
+							,Comm AS 'c' 
+							,aComm AS 'ac' 
+							,sComm AS 'sc' 
+							,Status AS 's' 
+							,StatusID AS 'sid' 
+							,ruben AS 'r'	
+							,bef_winlost AS 'bef_w' 
+							,bef_statusid AS 'bef_sid' 
 					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')		
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'CalculateOtherSport'
+					,@TableName = 'bettrans'
+					,@MatchId = @MatchId
+					,@TransInfoJson = @TransInfoJson
+					,@SettlementAction = 'CAL'
+					,@TicketType = 's'		
 				
 			END	
 		END 
@@ -778,30 +784,35 @@ BEGIN
 
 			IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,modds AS '@m'				
-							,statuswinlost AS '@statuswl' 
-							,SettlementTime AS '@st' 
-							,WinLost AS '@w' 
-							,aWinLost AS '@aw' 
-							,mWinLost AS '@mw' 
-							,sWinLost AS '@sw' 
-							,PlayerComm AS '@pc' 
-							,Comm AS '@c' 
-							,aComm AS '@ac' 
-							,sComm AS '@sc' 
-							,Status AS '@s' 
-							,StatusID AS '@sid' 
-							,ruben AS '@r'
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
+				SET @transInfoJson = (
+					SELECT	transId AS 't'
+							,modds AS 'm'				
+							,statuswinlost AS 'statuswl' 
+							,SettlementTime AS 'st' 
+							,WinLost AS 'w' 
+							,aWinLost AS 'aw' 
+							,mWinLost AS 'mw' 
+							,sWinLost AS 'sw' 
+							,PlayerComm AS 'pc' 
+							,Comm AS 'c' 
+							,aComm AS 'ac' 
+							,sComm AS 'sc' 
+							,Status AS 's' 
+							,StatusID AS 'sid' 
+							,ruben AS 'r'
+							,bef_winlost AS 'bef_w' 
+							,bef_statusid AS 'bef_sid' 
 					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-				VALUES ('Settlement', 'CalculateOtherSport', 'bettrans', @MatchId, @transInfo, 'CAL', 's')	
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'CalculateOtherSport'
+					,@TableName = 'bettrans'
+					,@MatchId = @MatchId
+					,@TransInfoJson = @TransInfoJson
+					,@SettlementAction = 'CAL'
+					,@TicketType = 's'	
 				
 			END	
 

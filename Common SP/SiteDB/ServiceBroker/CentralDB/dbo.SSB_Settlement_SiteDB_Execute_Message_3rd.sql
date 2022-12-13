@@ -45,6 +45,7 @@ begin
 			,@Action						= @__action
 			,@SettlementAction				= @__settlementAction
 			,@TicketType					= @__ticketType
+			,@Is3rd							= 1
 			
 			,@ErrCode						= @__errCode output
 			,@ErrMsg						= @__errmsg output
@@ -59,11 +60,11 @@ begin
 	begin
 		if @MessageType = 'sitedb1_bet_settle_msg_type_3rd'
 		begin
-			alter queue sitedb1_bet_settle_queue with status = off
+			alter queue sitedb1_bet_settle_queue_3rd with status = off
 		end
 		else if @MessageType = 'sitedb2_bet_settle_msg_type_3rd'
 		begin
-			alter queue sitedb2_bet_settle_queue with status = off
+			alter queue sitedb2_bet_settle_queue_3rd with status = off
 		end
 	end
 		

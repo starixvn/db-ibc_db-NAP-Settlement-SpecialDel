@@ -81,8 +81,7 @@ BEGIN
 			,@stake				MONEY
 			,@statusId			TINYINT
 			,@IsUpd_Void		BIT = 0
-			,@transInfo			XML
-			,@transInfoJson		VARCHAR(MAX)
+			,@transInfoJson		NVARCHAR(MAX)
 			
 	DECLARE @settlementTime DATETIME
 
@@ -301,9 +300,7 @@ BEGIN
 
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
-		IF @Is3rd = 1
-		BEGIN
-			SET @transInfoJson = (
+		SET @transInfoJson = (
 				SELECT	transId AS 't'
 						,modds AS 'm'
 						,odds AS 'o'				
@@ -326,6 +323,9 @@ BEGIN
 				FROM	@tmpTransInfo
 				FOR JSON AUTO
 			)
+
+		IF @Is3rd = 1
+		BEGIN			
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'CalculateOtherSport'
@@ -338,36 +338,12 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'
-						,modds AS '@m'
-						,odds AS '@o'				
-						,statuswinlost AS '@statuswl' 
-						,SettlementTime AS '@st' 
-						,WinLost AS '@w' 
-						,aWinLost AS '@aw' 
-						,mWinLost AS '@mw' 
-						,sWinLost AS '@sw' 
-						,PlayerComm AS '@pc' 
-						,Comm AS '@c' 
-						,aComm AS '@ac' 
-						,sComm AS '@sc' 
-						,Status AS '@s' 
-						,StatusID AS '@sid' 
-						,ruben AS '@r' 
-						,bef_winlost AS '@bef_w' 
-						,bef_statusid AS '@bef_sid' 
-					
-				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
-			)
-
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'CalculateOtherSport'
 				,@TableName = 'bettrans'
 				,@MatchId = @MatchId
-				,@transinfo = @transinfo
+				,@TransInfoJson = @TransInfoJson
 				,@SettlementAction = 'CAL'
 				,@TicketType = 's'
 

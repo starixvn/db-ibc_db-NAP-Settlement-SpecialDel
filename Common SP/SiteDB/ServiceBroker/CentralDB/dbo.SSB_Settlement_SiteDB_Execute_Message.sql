@@ -11,10 +11,11 @@ as
 	DB: DBCTG-bodb02
 	Revisions:  
 		- 20221025@Patrick: Run parallels for sync logs [Redmine:#178694]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 */
 begin
 	set nocount on
-	declare @__errmsg varchar(1024), @__errCode int, @__transInfo nvarchar(max)
+	declare @__errmsg varchar(1024), @__errCode int, @__transInfo nvarchar(max), @__transinfoJson varbinary(max)
 		, @__params xml, @__tableName varchar(200), @__matchId int
 		, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
 		, @__startTime datetime2, @__endtime datetime2
@@ -34,6 +35,7 @@ begin
 			,@__siteDBGroupId = T.C.value('@SiteDBGroupId','smallint')
 			,@__sessionId = T.C.value('@SessionId','bigint')
 			,@__totalQueue = T.C.value('@TotalQueue','int')
+			,@__transinfoJson = convert( varbinary(max), T.C.value('@TransInfoJson','varchar(max)'),1)
 		from @__params.nodes('/root/r') as T(C)
 
 		exec dbo.NAP_SettlementService_Calculation 
@@ -41,6 +43,7 @@ begin
 			,@SessionId						= @__sessionId
 			,@MessageType					= @MessageType
 			,@TransInfo						= @__transInfo
+			,@TransInfoJson					= @__transinfoJson
 			,@TableName						= @__tableName
 			,@MatchId						= @__matchId
 			,@Action						= @__action
@@ -67,6 +70,14 @@ begin
 		begin
 			alter queue sitedb2_bet_settle_queue with status = off
 		end
+		else if @MessageType = 'sitedb1_bet_settle_msg_type_parlay'
+		begin
+			alter queue sitedb1_bet_settle_queue_parlay with status = off
+		end
+		else if @MessageType = 'sitedb2_bet_settle_msg_type_parlay'
+		begin
+			alter queue sitedb2_bet_settle_queue_parlay with status = off
+		end
 	end
 		
 	--set deadlock_priority normal
@@ -83,6 +94,7 @@ begin
 			+ case when @__ticketType is not null then ',@TicketType=''' + @__ticketType + '''' else '' end
 			+ case when @__totalQueue is not null then ',@TotalQueue=' + cast(@__totalQueue as varchar(50)) + '' else '' end
 			+ case when @__transInfo is not null then ',@TransInfo=''' + @__transInfo + '''' else '' end
+			+ case when @__transInfoJson is not null then ',@TransInfoJson=''' + CONVERT(nvarchar(max), @__transInfoJson, 1) + '''' else '' end
 			
 		, @__endtime = sysdatetime()
 

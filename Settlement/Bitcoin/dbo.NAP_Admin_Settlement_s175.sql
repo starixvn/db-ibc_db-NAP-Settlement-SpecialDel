@@ -165,7 +165,7 @@ BEGIN
 			   ,@action				 = @action
 			   ,@strTransIds		 = @strTransIds
 			   ,@EventTable			 = 3 -- match3rd
-			   ,@IsNonSports		 = 1 
+			   ,@Is3rd				 = 1 
 		END	
 	END TRY
 	BEGIN CATCH

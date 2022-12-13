@@ -66,6 +66,7 @@ BEGIN
 				@matchid			 = @matchid
 			   ,@action				 = 'REFUND'
 			   ,@strTransIds		 = @strTransIds
+			   ,@Is3rd				 = 1
 	END
 	
 	DROP TABLE #TempData_NG_Refund

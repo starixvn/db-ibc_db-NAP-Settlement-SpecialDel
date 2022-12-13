@@ -28,7 +28,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
-			,@transInfoJson	VARCHAR(MAX)
+			,@transInfoJson	NVARCHAR(MAX)
 			,@IsSiteDB	BIT = 0
 			
 	DECLARE @tmpTransInfo TABLE (transId BIGINT

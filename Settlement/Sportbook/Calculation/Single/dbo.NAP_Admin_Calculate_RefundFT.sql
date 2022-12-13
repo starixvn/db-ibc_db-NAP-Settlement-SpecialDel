@@ -48,6 +48,7 @@ AS
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 		
     Param's Explanation:
         @IsRefundHT: Indicate whether or not match has been refunded HT
@@ -89,7 +90,7 @@ BEGIN
 			,@TransIdOfMaxCust		BIGINT		
 			,@IsUpd_Void			BIT = 0
 			,@FcUpdateTime			DATETIME2
-			,@transInfo	XML
+			,@transInfoJson			NVARCHAR(MAX)
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,statuswinlost TINYINT,SettlementTime DATETIME
@@ -261,31 +262,36 @@ BEGIN
 		
 		IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'
-						,SettlementTime AS '@st' 
-						,WinLost AS '@w' 
-						,aWinLost AS '@aw' 
-						,mWinLost AS '@mw' 
-						,sWinLost AS '@sw' 
-						,PlayerComm AS '@pc' 
-						,Comm AS '@c' 
-						,aComm AS '@ac' 
-						,sComm AS '@sc' 
-						,Status AS '@s' 
-						,StatusID AS '@sid'
-						,ruben AS '@r'
-						,statuswinlost AS '@statuswl' 
-						,bef_winlost AS '@bef_w' 
-						,bef_statusid AS '@bef_sid' 
-						,FcUpdateTime AS '@rut'
+			SET @transInfoJson = (
+				SELECT	transId AS 't'
+						,SettlementTime AS 'st' 
+						,WinLost AS 'w' 
+						,aWinLost AS 'aw' 
+						,mWinLost AS 'mw' 
+						,sWinLost AS 'sw' 
+						,PlayerComm AS 'pc' 
+						,Comm AS 'c' 
+						,aComm AS 'ac' 
+						,sComm AS 'sc' 
+						,Status AS 's' 
+						,StatusID AS 'sid'
+						,ruben AS 'r'
+						,statuswinlost AS 'statuswl' 
+						,bef_winlost AS 'bef_w' 
+						,bef_statusid AS 'bef_sid' 
+						,FcUpdateTime AS 'rut'
 				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
+				FOR JSON AUTO
 			)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'RefundOtherSport', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
-			
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'RefundOtherSport'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @TransInfoJson
+				,@SettlementAction = 'REFUND'
+				,@TicketType = 's'
 		END
 
 		SET @BatchNo = @BatchNo - 1
