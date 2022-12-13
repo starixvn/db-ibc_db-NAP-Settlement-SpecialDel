@@ -4,8 +4,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 	@VoidingHistoryId	INT
 	,@RequestId			INT
 	,@IssueTypeId		TINYINT
-	,@SingleTicketsJSON	VARCHAR(MAX) = NULL
-	,@ParlayTicketsJSON	VARCHAR(MAX) = NULL
+	,@SingleTicketsJSON	NVARCHAR(MAX) = NULL
+	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)
 )

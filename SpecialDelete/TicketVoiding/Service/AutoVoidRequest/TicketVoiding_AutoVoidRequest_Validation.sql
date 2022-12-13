@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Validation]
 (
-	@SingleTicketsJSON	XML = NULL
-	,@ParlayTicketsJSON	XML = NULL
+	@SingleTicketsJSON	NVARCHAR(MAX) = NULL
+	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
 )
 AS
 /*	

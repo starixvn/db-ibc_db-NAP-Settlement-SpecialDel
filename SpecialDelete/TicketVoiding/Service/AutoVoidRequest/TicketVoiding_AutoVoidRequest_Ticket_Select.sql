@@ -2,8 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Ticket_Select]
 (
 	@SiteDBGroupID	SMALLINT = NULL
-	,@MatchId		INT = 0
-	,@Action		VARCHAR(50) = NULL
 	,@RequestId		INT = 0
 
 )
@@ -26,7 +24,7 @@ BEGIN
 	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT)
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT)
 
-	IF @RequestId > 0 AND @Action IS NULL AND EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Request r WITH (NOLOCK) WHERE r.RequestId = @RequestId AND r.ActionId NOT IN (2,3,5))
+	IF @RequestId > 0
 	BEGIN
 		--Single
 		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
@@ -44,28 +42,6 @@ BEGIN
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
 	END
-	ELSE IF @Action = 'CAL'
-	BEGIN
-		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
-		WHERE rds.RequestId = @RequestId
-			AND rds.SiteDBGroupID = @SiteDBGroupID
-			AND rds.MatchId <> 29
-			AND r.ActionId NOT IN (2,3,5)
-		
-		--Main parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
-		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
-		WHERE rds.RequestId = @RequestId
-			AND rds.SiteDBGroupID = @SiteDBGroupID
-			AND rds.MatchId = 29
-			AND r.ActionId NOT IN (2,3,5)
-	END
 	ELSE
 	BEGIN
 		--Single
@@ -74,9 +50,7 @@ BEGIN
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rds.MatchId
-		WHERE rds.MatchId = @MatchId
-			AND rds.SiteDBGroupID = @SiteDBGroupID
-			AND rds.MatchId <> 29
+		WHERE rds.MatchId <> 29
 			AND r.ActionId = 1
 			AND rds.IsProcessed IS NULL
 			AND r.CreatedDate >= m.GlobalShowTime
