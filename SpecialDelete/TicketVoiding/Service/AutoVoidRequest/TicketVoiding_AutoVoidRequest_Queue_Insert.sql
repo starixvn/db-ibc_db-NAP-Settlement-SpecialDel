@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Insert]
 (
 	@RequestId INT
-	,@MatchId INT
 	,@StatusId TINYINT
 	,@Action	VARCHAR(50)
 	,@UserId INT = 0
@@ -25,7 +24,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestId, MatchId, [Action], StatusId, UserId, CreatedDate, IP)
-	SELECT @RequestId, @MatchId, @Action, @StatusId, @UserId, GETDATE(), @IP
+	SELECT @RequestId, 0, @Action, @StatusId, @UserId, GETDATE(), @IP
 
 END		
 GO

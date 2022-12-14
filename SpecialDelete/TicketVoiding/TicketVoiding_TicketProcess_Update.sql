@@ -46,7 +46,7 @@ BEGIN
 		DELETE @tmpTransIdBatch
 
 		DELETE TOP(2000) s OUTPUT deleted.TransId, deleted.RequestId INTO @tmpTransIdBatch(TransId, RequestId)
-		FROM #tmpInputTransId_Parlay s
+		FROM #tmpInputTransId_Single s
 
 		IF @@ROWCOUNT = 0
 			BREAK
