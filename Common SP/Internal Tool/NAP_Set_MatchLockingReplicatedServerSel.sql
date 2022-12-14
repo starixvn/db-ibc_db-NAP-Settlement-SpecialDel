@@ -11,6 +11,8 @@ AS
 		- 20211111@Kathy: Get all matches being locked on replicated servers [Redmine:#164162]
 		- 20220913@Louisa: get more info [RedmineId:#177711]
 		- 20220927@Louisa: get more info [RedmineId:#177711]
+		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -49,6 +51,7 @@ BEGIN
 					AND s.Resolved = 0
 					AND s.StartTime >= @checktime
 					AND s.SessionId IS NULL
+					AND MessageType NOT LIKE 'Sitedb%'
 	END
 
 	INSERT INTO @tmpMatchLocked(MatchId, SessionId)
@@ -67,6 +70,7 @@ BEGIN
 			WHERE	ISNULL(s.ErrorMessage,'') <> ''
 					AND s.Resolved = 0
 					AND s.StartTime >= @checktime
+					AND MessageType NOT LIKE 'Sitedb%'
 			GROUP BY s.SessionId, s.ErrorMessage
 		)
 		INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime)
@@ -86,6 +90,7 @@ BEGIN
 				AND Resolved = 0
 				AND StartTime > @checktime
 				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatchLocked t WHERE t.SessionId = s.SessionId)
+				AND MessageType NOT LIKE 'Sitedb%'
 		GROUP BY s.SessionId, s.ErrorMessage
 	)
 	INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime)

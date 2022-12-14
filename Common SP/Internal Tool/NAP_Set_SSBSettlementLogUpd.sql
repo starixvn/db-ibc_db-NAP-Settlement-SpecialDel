@@ -2,7 +2,8 @@
 ALTER PROCEDURE dbo.NAP_Set_SSBSettlementLogUpd
 	@SessionId BIGINT = 0
 	,@MessageId VARCHAR(128) = ''
-	,@Starttime DATETIME2
+	,@StartTime DATETIME2
+	,@SiteDBGroupId SMALLINT = 0
 AS
 /*
 	Created by: 20211111@Kathy
@@ -12,6 +13,7 @@ AS
 	Revisions:
 		- 20211111@Kathy: Update SSBSettlementLogs [Redmine:#164162]
 		- 20220913@Louisa: Delete by @MessageId [RedmineId:#177711]
+		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -25,6 +27,7 @@ BEGIN
 				AND s.starttime >= @Starttime
 				AND ISNULL(ErrorMessage,'') <> ''
 				AND Resolved = 0
+				AND s.SiteDBGroupId = @SiteDBGroupId
 	END
 
 	ELSE IF ISNULL(@MessageId, '') <> ''

@@ -10,6 +10,10 @@ AS
 	Revisions:
 		- 20211111@Kathy: Get all ssb error message [Redmine:#164162]
 		- 20220913@Louisa: Get more info [RedmineId:#177711]
+		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
+
+	Param's Explanation:
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -17,7 +21,7 @@ BEGIN
 	DECLARE @checktime DATETIME2
 			,@ServerName VARCHAR(100)
 
-	DECLARE @tmpErrorMessage TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
+	DECLARE @tmpErrorMessage TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2 )
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
@@ -29,9 +33,11 @@ BEGIN
 		WHERE	ISNULL(ErrorMessage,'') <> ''
 				AND Resolved = 0
 				AND StartTime > @checktime 
-		GROUP BY SessionId, ErrorMessage
+				AND MessageType NOT LIKE 'Sitedb%'
+		GROUP BY SessionId
+				, ErrorMessage
 	)
-	INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime)
+	INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime )
 	SELECT	c.SessionId
 			,(SELECT s.ErrorMessage + ' \n ' FROM cteErrorMessage s WHERE s.SessionId = c.SessionId FOR XML PATH('')) AS ErrorMessage
 			,MIN(c.CreatedTime)
