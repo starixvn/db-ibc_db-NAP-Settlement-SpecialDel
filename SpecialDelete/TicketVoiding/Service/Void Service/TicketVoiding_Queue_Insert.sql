@@ -3,7 +3,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 (
 	@VoidingHistoryId	INT
 	,@RequestId			INT
-	,@IssueTypeId		TINYINT
 	,@SingleTicketsJSON	NVARCHAR(MAX) = NULL
 	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
 	,@UserId			INT
@@ -102,7 +101,6 @@ BEGIN
 						,Ip
 						,VoidingTypeId
 						,TotalTicket
-						,IssueTypeId
 					)
 					SELECT	@RequestId
 							,@MatchId
@@ -113,7 +111,6 @@ BEGIN
 							,@IP
 							,1
 							,@TotalTicket
-							,@IssueTypeId
 				END
 			END
 		END
@@ -152,7 +149,6 @@ BEGIN
 						,Ip
 						,VoidingTypeId
 						,TotalTicket
-						,IssueTypeId
 					)
 					SELECT	@RequestId
 							,@MatchId
@@ -163,7 +159,6 @@ BEGIN
 							,@IP
 							,2
 							,@TotalTicket
-							,@IssueTypeId
 				END
 			END
 		END
