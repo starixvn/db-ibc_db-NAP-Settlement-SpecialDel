@@ -18,6 +18,7 @@ AS
 			- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 			- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 			- 20221021@Louisa: Not get Pingoal basketball [Redmine:#178551]
+			- 20221201@Louisa: Pingoal Esports [Redmine:#180808]
 
 	 Param explanation:
 			@Page:
@@ -41,6 +42,7 @@ BEGIN
 	WHERE	m.eventdate BETWEEN @FromDate AND @ToDate
 		AND 1 = CASE WHEN @Page = 1 AND m.sporttype = 50 AND l.LeagueGroupID = 42 THEN 0 --  Saba Virtual Cricket
 					 WHEN m.sporttype = 2 AND l.LeagueGroupID = 122 THEN 0  -- Pingoal basketball
+					 WHEN m.sporttype = 43 AND l.LeagueGroupID = 151 THEN 0  -- Pingoal ESports
 				ELSE 1 END
 		AND ISNULL(m.IsDeleted,0) = 0
 	GROUP BY s.SportType, m.leagueid

@@ -44,6 +44,7 @@ AS
 			- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 			- 20221021@Louisa: Enhancement [Redmine:#180306]
 			- 20221021@Louisa: hint index [Redmine:#1181002]
+			- 20221201@Louisa: Pingoal Esports [Redmine:#180808]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -453,6 +454,7 @@ BEGIN
 				)os	
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate	
 				AND 1 = CASE WHEN  m.sporttype = 2 AND ISNULL(l.LeagueGroupID,0) = 122 THEN 0 -- Pingoal basketball
+							 WHEN  m.sporttype = 43 AND ISNULL(l.LeagueGroupID,0) = 151 THEN 0 -- Pingoal ESports
 							ELSE 1 
 							END
 				AND ISNULL(m.IsDeleted,0) = 0

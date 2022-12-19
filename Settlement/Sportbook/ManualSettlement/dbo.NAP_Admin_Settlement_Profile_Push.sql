@@ -44,6 +44,7 @@ AS
 		- 20220414@Louisa: write log for @RefResultStatus [Redmine:#169958]
 		- 20220512@Louisa: Auto settle and Auto refund Badminton [Redmine:#171676]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221201@Louisa: PinGoal Esports[Redmine:#180808]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -118,7 +119,7 @@ BEGIN
   	END
 	
 	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
-		OR ( @IsAuto = 1 AND @sporttype IN (1,2) ) -- product PinGoal will be executed directly instead of pushing in queue
+		OR ( @IsAuto = 1 AND @sporttype IN (1,2,43) ) -- product PinGoal will be executed directly instead of pushing in queue
 	BEGIN
 		BEGIN TRY
 			EXEC sys.sp_executesql @sqlCommand

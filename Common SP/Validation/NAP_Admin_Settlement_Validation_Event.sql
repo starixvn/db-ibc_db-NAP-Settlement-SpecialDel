@@ -24,6 +24,7 @@ AS
 	
 	Revisions:
 		- 20220719@Louisa: Validation event before settle  [Redmine:#175251]
+		- 20221201@Louisa: PinGoal ESports [Redmine:#180808]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -108,7 +109,11 @@ BEGIN
 	SELECT @IsHoldChecking = 1
 
 	--SOP Refund (confirm refund on ResourceID )
-	IF ( @Sporttype IN (5, 43, 6, 45, 9, 2, 50) AND ISNULL(@LeagueGroupID,0) <> 122 AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%' ) )
+	IF  (	@Sporttype IN (5, 6, 45, 9, 50) 
+			OR  ( @SportType = 2 AND ISNULL(@LeagueGroupID,0) <> 122 )
+			OR  ( @SportType = 43 AND ISNULL(@LeagueGroupID,0) <> 151 )
+		)
+		AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%')
 	BEGIN
 		SELECT @IsResultSettingChecking = 1
 	END
@@ -293,10 +298,8 @@ BEGIN
 	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%'
 	BEGIN
 		IF  @SPName = 'NAP_Admin_Settlement_Profile_Push'
-			AND (	(ISNULL(@LeagueGroupId,0) <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
-						OR (ISNULL(@LeagueGroupId,0) <> 42 AND @sporttype = 50 ) --Auto Settle Cricket
-						OR (ISNULL(@LeagueGroupId,0) <> 122 AND @sporttype = 2) -- Auto settle pingoal basketball
-				)
+				AND ISNULL(@LeagueGroupId,0) <> 42 
+				AND @sporttype = 50 --Auto Settle Cricket
 		BEGIN
 			SELECT	 @ErrCode	= 1001052
 					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
