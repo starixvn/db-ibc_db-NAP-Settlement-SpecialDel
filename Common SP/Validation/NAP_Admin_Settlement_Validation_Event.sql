@@ -298,14 +298,6 @@ BEGIN
 		
 	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%'
 	BEGIN
-		IF  @SPName = 'NAP_Admin_Settlement_Profile_Push'
-			AND (	(ISNULL(@LeagueGroupId,0) <> 113 AND @sporttype = 1 ) -- Auto Settle Pingoal soccer
-		BEGIN
-			SELECT	 @ErrCode	= 1001052
-					,@ErrMsg	= 'The auto-settlement failed due to wrong league group.'
-			RETURN
-		END
-
 		--Auto payout soccer
 		--NAP_Admin_Settlement_1_AutoPayout_Push.
 		IF @SportType = 1 AND @Action LIKE 'CAL%' AND ISNULL(@LeagueGroupId,0) <> 113
