@@ -45,6 +45,7 @@ AS
 			- 20221021@Louisa: Enhancement [Redmine:#180306]
 			- 20221021@Louisa: hint index [Redmine:#1181002]
 			- 20221201@Louisa: Pingoal Esports [Redmine:#180808]
+			- 20221205@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -1019,8 +1020,7 @@ BEGIN
 			,m.IsRunningEarlyBettypes
 			,m.IsRunningEarlyBettypesParlay
 			,m.IsWaitingEarlyBettypes
-			,m.IsWaitingEarlyBettypesParlay
-			
+			,m.IsWaitingEarlyBettypesParlay			
 			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
 			,m.IsExistRunningTicketParlay
 			,m.IsExistMarkedTicket
@@ -1029,11 +1029,19 @@ BEGIN
 			,m.AutoPayoutStatus
 			,m.BestOfMap
 			,m.OfferLive
+			,ISNULL(s.WaitingTime, 30) AS AutoWaitingTime
 	FROM	#tmpMatchIds m
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
 		LEFT JOIN @tmpMatchEsport me
 			ON	m.matchid = me.MatchId
+		OUTER APPLY (
+			SELECT TOP 1 ss.WaitingTime
+			FROM	DBPRO.bodb02.dbo.SettlementSetting ss WITH (NOLOCK)
+			WHERE	ss.LeagueId = m.leagueid
+					AND AutoType = 1
+					AND m.sporttype = 50
+		)s
 	
 END
 
