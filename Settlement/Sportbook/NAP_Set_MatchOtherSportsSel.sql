@@ -47,6 +47,7 @@ AS
 			- 20221201@Louisa: Pingoal Esports [Redmine:#180808]
 			- 20221205@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 			- 20221129@Louisa: Change Filter OverStatus and Tuning SP [Redmine:#181002]
+			- 20221226@Louisa: Fix bug [Redmine:#181002]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -582,9 +583,13 @@ BEGIN
 
 			INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
 			SELECT DISTINCT r.matchid , 2
-			FROM #ConfirmedResources r
-				LEFT JOIN @tmpMatchOverStatus m	ON r.MatchId =  m.MatchId
-			WHERE m.MatchId IS NULL
+			FROM #tmpMatchIds m
+				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
+			WHERE sp.sporttype = m.sporttype
+				AND sp.SettleType = 'MNL'
+				AND m.eventstatus IN ( 'running', 'closed')
+
 
 			--confirmed HT, FT on sportype not settle by Profile
 			IF @IsMainOver = 1
