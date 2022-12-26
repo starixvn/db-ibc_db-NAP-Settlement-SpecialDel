@@ -12,8 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Select]
 
 )
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: view request [Redmine:#90155]
 	DB: DBCTG/bodb02
 	
@@ -52,6 +51,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221026@July: TVS - VAR message [Redmine: #178088]
 
 	Param's explanation:	
 		@Status: 
@@ -160,28 +160,30 @@ BEGIN
 
 			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
 						FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-							INNER JOIN 	(
+							CROSS APPLY	(
 										 SELECT o.orid, o.eventdate
 										 FROM	dbo.outright o WITH(NOLOCK)
+										 WHERE rd.MatchId = o.orid
 										 UNION
 										 SELECT	o14.orid, o14.eventdate
 										 FROM	dbo.outright14 o14 WITH(NOLOCK)
+										 WHERE rd.MatchId = o14.orid
 										)o 
-								ON rd.MatchId = o.orid
 						WHERE rd.RequestId = @RequestId
 						)
 			BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId, MIN(o.eventdate)
 				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				INNER JOIN(
+				CROSS APPLY(
 							SELECT o.orid, o.eventdate
 							FROM	dbo.outright o WITH(NOLOCK)
+							WHERE rd.MatchId = o.orid
 							UNION ALL
 							SELECT	o14.orid, o14.eventdate
 							FROM	dbo.outright14 o14 WITH(NOLOCK)
+							WHERE rd.MatchId = o14.orid
 						  )o 
-					ON rd.MatchId = o.orid
 				WHERE rd.RequestId = @RequestId
 				GROUP BY rd.RequestId			   
 			END
@@ -190,14 +192,15 @@ BEGIN
 		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
 		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		INNER JOIN (
+		CROSS APPLY (
 					SELECT m.matchid, m.eventdate
 					FROM	dbo.match m WITH(NOLOCK)
+					WHERE rd.MatchId = m.matchid
 					UNION ALL
 					SELECT	m14.MatchId, m14.eventdate
 					FROM	dbo.match14 m14 WITH(NOLOCK)
+					WHERE rd.MatchId = m14.matchid
 					) m
-			ON rd.MatchId = m.matchid
 		WHERE rd.RequestId = @RequestId
 		GROUP BY rd.RequestId
 	END
@@ -232,29 +235,30 @@ BEGIN
 
 			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
 						FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-							INNER JOIN 	(
+							CROSS APPLY (
 										 SELECT o.orid, o.eventdate
 										 FROM	dbo.outright o WITH(NOLOCK)
+										 WHERE rd.MatchId = o.orid
 										 UNION
 										 SELECT	o14.orid, o14.eventdate
 										 FROM	dbo.outright14 o14 WITH(NOLOCK)
+										 WHERE rd.MatchId = o14.orid
 										)o 
-								ON rd.MatchId = o.orid
 						WHERE rd.MatchId = @MatchId
 						)
 			BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId, MIN(o.eventdate)
 				FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-				INNER JOIN(
+				CROSS APPLY(
 							SELECT o.orid, o.eventdate
 							FROM	dbo.outright o WITH(NOLOCK)
+							WHERE rd.MatchId = o.orid
 							UNION ALL
 							SELECT	o14.orid, o14.eventdate
 							FROM	dbo.outright14 o14 WITH(NOLOCK)
-						  )o 
-					ON rd.MatchId = o.orid
-			
+							WHERE rd.MatchId = o14.orid
+						 )o 
 				WHERE rd.MatchId = @MatchId
 				GROUP BY rd.RequestId
 			END
@@ -263,15 +267,15 @@ BEGIN
 		INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 		SELECT rd.RequestId, MIN(m.eventdate)
 		FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-		INNER JOIN (
+		CROSS APPLY (
 					SELECT m.matchid, m.eventdate
 					FROM	dbo.match m WITH(NOLOCK)
+					WHERE rd.MatchId = m.matchid
 					UNION
 					SELECT	m14.MatchId, m14.eventdate
 					FROM	dbo.match14 m14 WITH(NOLOCK)
+					WHERE rd.MatchId = m14.matchid
 					) m
-			ON rd.MatchId = m.matchid
-		
 		WHERE rd.MatchId = @MatchId 
 		GROUP BY rd.RequestId
 		
@@ -306,30 +310,31 @@ BEGIN
 
 			IF EXISTS ( SELECT TOP 1 rd.RequestId, o.eventdate
 						FROM TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-							INNER JOIN 	(
+							CROSS APPLY (
 										 SELECT o.orid, o.eventdate
 										 FROM	dbo.outright o WITH(NOLOCK)
+										 WHERE rd.MatchId = o.orid
 										 UNION
 										 SELECT	o14.orid, o14.eventdate
 										 FROM	dbo.outright14 o14 WITH(NOLOCK)
+										 WHERE rd.MatchId = o14.orid
 										)o 
-								ON rd.MatchId = o.orid
 							INNER JOIN @tmpRequest r ON rd.RequestId = r.RequestId
-						
 						)
 			BEGIN
 				INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 				SELECT  rd.RequestId, MIN(o.eventdate)
 				FROM @tmpRequest r
 					INNER JOIN TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = r.RequestId
-					INNER JOIN(
+					CROSS APPLY(
 								SELECT o.orid, o.eventdate
 								FROM	dbo.outright o WITH(NOLOCK)
+								WHERE rd.MatchId = o.orid
 								UNION
 								SELECT	o14.orid, o14.eventdate
 								FROM	dbo.outright14 o14 WITH(NOLOCK)
+								WHERE rd.MatchId = o14.orid
 							  )o 
-						ON rd.MatchId = o.orid
 				GROUP BY rd.RequestId
 			END
 		END
@@ -338,14 +343,15 @@ BEGIN
 		SELECT rd.RequestId, MIN(m.eventdate)
 		FROM @tmpRequest r
 			INNER JOIN TicketVoiding_RequestDetail rd WITH(NOLOCK) ON rd.RequestId = r.RequestId
-			INNER JOIN (
+			CROSS APPLY (
 						SELECT m.matchid, m.eventdate
 						FROM	dbo.match m WITH(NOLOCK)
+						WHERE rd.MatchId = m.matchid
 						UNION
 						SELECT	m14.MatchId, m14.eventdate
 						FROM	dbo.match14 m14 WITH(NOLOCK)
+						WHERE rd.MatchId = m14.matchid
 						) m
-			ON rd.MatchId = m.matchid
 		GROUP BY rd.RequestId
 	END
 	----------------------------- End of EventDate Processing ------------------------------
@@ -505,6 +511,16 @@ BEGIN
 			AND ((r.UserId = @CreatedBy) OR @CreatedBy = 0)
 	END
 
+	UPDATE t
+	SET t.TransIds = rd.TransIds
+	FROM #tmpResult t 
+		CROSS APPLY (
+				SELECT TOP (1) rd.TransIds
+				FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
+				WHERE t.Requestid = rd.RequestId
+			)rd
+	WHERE t.IssueTypeId = 3
+
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId, MatchId)
 	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId, t.MatchId
 	FROM	#tmpResult t
@@ -558,6 +574,7 @@ BEGIN
 			,t.TotalUserName --no.of accounts
 			,t.WrongScores
 			,mr.SettlementStatus
+			,CASE WHEN t.IssueTypeId IN (1,10,3) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId

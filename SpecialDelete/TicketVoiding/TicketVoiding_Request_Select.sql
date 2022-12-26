@@ -4,8 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Select]
 	@RequestId		INT
 )
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: view request [Redmine:#90155]
 	DB: DBCTG/bodb02
 	
@@ -41,6 +40,7 @@ AS
 		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20220525@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
+		- 20221026@July: TVS - VAR message [Redmine: #178088]
 
 	Param's explanation:	
 	
@@ -106,7 +106,7 @@ BEGIN
 				,rd.FilterFromTransTime
 				,rd.FilterToTransTime
 				,rd.FilterBy
-				,rd.TransIds AS SettingTime
+				,rd.TransIds AS RequestExtraInfo
 				,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS WrongScore
 				,CASE WHEN @IssueTypeId = 3 THEN SUBSTRING(rd.IssueDetail, CHARINDEX(';Act:',rd.IssueDetail) + 5, LEN(rd.IssueDetail)) ELSE NULL END AS ActualScore
 				,rd.VoidFromTime

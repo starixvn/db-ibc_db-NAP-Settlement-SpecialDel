@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_SubIssueType_AutoSelect]
 (	
 	@MainSubIssueTypeId		TINYINT
@@ -6,14 +6,12 @@ ALTER PROCEDURE [dbo].[TicketVoiding_SubIssueType_AutoSelect]
 )
 AS
 /*	
-	Created by: Max
-	Date 20211013
-	Task: [TVS] Danger Accept Enhancement - Phase 10 [Redmine: #155792]
-	DB: DBTXN/bodb02
+	Created by: 20221025@July
+	Task: TVS - VAR message [Redmine: #178088]
+	DB: DBPRO/bodb02
 	
 	Revisions: 
-		- 20211013@Max: Create new SP [Redmine: #155792]
-		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20221025@July: Create new SP - Change config DBTXN -> DBPRO [Redmine: #178088]
 
 	Param's explanation:
 		
@@ -45,7 +43,7 @@ BEGIN
 						AND SubType BETWEEN 2100 AND 2199
 			)mr
 	END
-	ELSE IF @MainSubIssueTypeId = 3 --Main Booking
+	ELSE IF @MainSubIssueTypeId IN (3,111) --Main Booking Home/Away
 	BEGIN
 		SELECT m.MatchId
 			,CASE WHEN mr.matchid IS NOT NULL THEN 72 --Next Booking

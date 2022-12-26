@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20221024@July: Create new SP [Redmine:#179332]
 		- 20221108@July: Change value KickOffTime to GlobalShowTime (GMT+8) [Redmine:#179332]
+		- 20221111@July: TVS - VAR message [Redmine: #178088]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -31,7 +32,7 @@ BEGIN
 		,HomeId				INT
 		,AwayId				INT
 		,FilterBy			INT
-		--,RequestExtraInfo	VARCHAR(MAX)
+		,RequestExtraInfo	VARCHAR(MAX)
 		,StartVoidTime		DATETIME
 		,IssueTypeName		VARCHAR(100)
 		,SubIssueTypeName	VARCHAR(100)
@@ -45,7 +46,7 @@ BEGIN
 		,HomeId
 		,AwayId
 		,FilterBy 
-		--,RequestExtraInfo
+		,RequestExtraInfo
 		,StartVoidTime 
 		,IssueTypeName
 		,SubIssueTypeName 
@@ -57,7 +58,7 @@ BEGIN
 		,rd.HomeId
 		,rd.AwayId
 		,rd.FilterBy
-		--,rd.TransIds AS RequestExtraInfo
+		,rd.TransIds AS RequestExtraInfo
 		,rd.VoidFromTime AS StartVoidTime
 		,i.IssueTypeName
 		,s.SubIssueTypeName
@@ -90,7 +91,7 @@ BEGIN
 		  ,@GlobalShowTime AS KickOffTime
 		  ,@IsNeutral AS IsNeutral
 		  ,FilterBy 
-		  --,RequestExtraInfo
+		  ,RequestExtraInfo
 		  ,StartVoidTime 
 		  ,IssueTypeName
 		  ,SubIssueTypeName 

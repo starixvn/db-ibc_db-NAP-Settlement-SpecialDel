@@ -11,8 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestList_Archive_Select]
 	,@CreatedBy		INT				= 0
 )
 AS
-/*	Created by: Zane
-	Date 20200811
+/*	Created by: 20200811@Zane
 	Task: Edit SP for new change of Archive process [Redmine:#139208]
 	DB: DBARC/bodb_Archive
 	
@@ -35,6 +34,7 @@ AS
 		- 20220225@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221026@July: TVS - VAR message [Redmine: #178088]
 
 	Param's explanation:	
 		@Status: 
@@ -340,6 +340,16 @@ BEGIN
 			AND ((r.UserId = @CreatedBy) OR @CreatedBy = 0)
 	END
 
+	UPDATE t
+	SET t.TransIds = rd.TransIds
+	FROM #tmpResult t 
+		CROSS APPLY (
+				SELECT TOP (1) rd.TransIds
+				FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
+				WHERE t.Requestid = rd.RequestId
+			)rd
+	WHERE t.IssueTypeId = 3
+
 	INSERT INTO @tmpMatchVoidingHistory (RequestId, VoidingHistoryId, VoidedBy, IssueTypeId)
 	SELECT DISTINCT	vh.RequestId, vh.VoidingHistoryId, vh.UserId, t.IssueTypeId
 	FROM	#tmpResult t
@@ -359,7 +369,7 @@ BEGIN
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
 		
-	-- single + cash out ticket	
+	-- single ticket	
 	UPDATE vh 
 		SET TotalSingle = t.TotalVoidedSingle
 			,MatchId = t.matchid
@@ -444,6 +454,7 @@ BEGIN
 			,t.TotalUserName --no.of accounts
 			,t.WrongScores
 			,mr.SettlementStatus
+			,CASE WHEN t.IssueTypeId IN (1,10,3) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 	FROM	#tmpResult t
 		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
