@@ -73,6 +73,7 @@ AS
 		- 20220924@Kathy: Scale Out BetTrans - wrong order when chosing @FilterOver [Redmine:#175251]
 		- 20221012@Louisa: Enhancement [Redmine:#178551]
 		- 20221021@Louisa: Remove order [Redmine:#180306]
+		- 20221214@Louisa: Fix bug [Redmine:#181598]
 
  Param explanation: 
 	@LeagueIDs  : '0' :all  
@@ -400,6 +401,7 @@ BEGIN
 				ON b.matchid = m.matchid
 		WHERE b.bettype <> 38
 			AND b.bettype NOT BETWEEN 911 AND 920 --cashout tickets
+			AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 		GROUP BY  b.matchid
 	)
 	UPDATE m 
@@ -417,6 +419,7 @@ BEGIN
 		WHERE b.bettype <> 38
 			AND b.bettype NOT BETWEEN 911 AND 920 --cashout tickets
 			AND ISNULL(IsExistTicket,0) = 0
+			AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 		GROUP BY  b.matchid
 	)
 	UPDATE m 
@@ -622,6 +625,7 @@ BEGIN
 			AND b.bettype NOT BETWEEN 911 AND 920--cashout tickets
 			AND b.statusID = 0
 			AND m.IsRunningSingle = 0
+			AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 		GROUP BY  b.matchid
 	)
 	UPDATE m 
@@ -640,6 +644,7 @@ BEGIN
 			AND b.bettype NOT BETWEEN 911 AND 920 --cashout tickets
 			AND b.statusID = 0
 			AND m.IsRunningParlay = 0
+			AND b.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupId END
 		GROUP BY  b.matchid
 	)
 	UPDATE m 
@@ -812,104 +817,52 @@ BEGIN
 
 	END
 	
-	IF @FilterOver > 0
-	BEGIN
-		SELECT	m.HalfTimeHomeScore
-				,m.HalfTimeAwayScore
-				,m.IsCalculated
-				,m.IsMultiCaled
-				,m.IsRefund
-				,m.IsCalRefund
-				,m.matchid
-				,m.leagueid
-				,m.homeid
-				,m.awayid
-				,m.matchcode
-				,m.kickofftime
-				,m.finalhomescore
-				,m.finalawayscore
-				,m.betstatus
-				,m.eventstatus
-				,m.sporttype
-				,m.IsNeutral
-				,m.eventdate
-				,m.goalrecord
-				,m.suspenderHalfTime
-				,m.suspenderFullTime
-				,m.IsHalfTimeCal
-				,m.calculate
-				,m.SettlementStatus
-				,m.IsExistFGLG
-				,m.IsExistHTFGLG
-				,m.AutoSetting
-				,t.IsCalculatingSingle
-				,t.IsCalculatingMP
-				,m.IsExistFastMarket
-				,m.IsExistFastMarketResult
-				,m.IsRunningFastMarket
-				,m.IsExistEarlyBettypes
-				,m.ChildMatchType
-				,m.IsRunningEarlyBettypes
-				,m.IsWaitingEarlyBettypes
-				,m.IsExistRunningTicket
-				,m.IsExistRunningTicketParlay
-				,m.IsExistMarkedTicket
-				,m.IsExistMarkedTicketParlay
-				,m.EventStatusReason
-				,m.OfferLive
-		FROM	#matchList m
-				LEFT JOIN #tempmatch t 
-					ON	t.matchid = m.matchid		
-	END
-	ELSE
-	BEGIN
-			SELECT	m.HalfTimeHomeScore
-				,m.HalfTimeAwayScore
-				,m.IsCalculated
-				,m.IsMultiCaled
-				,m.IsRefund
-				,m.IsCalRefund
-				,m.matchid
-				,m.leagueid
-				,m.homeid
-				,m.awayid
-				,m.matchcode
-				,m.kickofftime
-				,m.finalhomescore
-				,m.finalawayscore
-				,m.betstatus
-				,m.eventstatus
-				,m.sporttype
-				,m.IsNeutral
-				,m.eventdate
-				,m.goalrecord
-				,m.suspenderHalfTime
-				,m.suspenderFullTime
-				,m.IsHalfTimeCal
-				,m.calculate
-				,m.SettlementStatus
-				,m.IsExistFGLG
-				,m.IsExistHTFGLG
-				,m.AutoSetting
-				,t.IsCalculatingSingle
-				,t.IsCalculatingMP
-				,m.IsExistFastMarket
-				,m.IsExistFastMarketResult
-				,m.IsRunningFastMarket
-				,m.IsExistEarlyBettypes
-				,m.ChildMatchType
-				,m.IsRunningEarlyBettypes
-				,m.IsWaitingEarlyBettypes
-				,m.IsExistRunningTicket
-				,m.IsExistRunningTicketParlay
-				,m.IsExistMarkedTicket
-				,m.IsExistMarkedTicketParlay
-				,m.EventStatusReason
-				,m.OfferLive
-		FROM	#matchList m
-				LEFT JOIN #tempmatch t 
-					ON	t.matchid = m.matchid				
-	END
+	SELECT	m.HalfTimeHomeScore
+		,m.HalfTimeAwayScore
+		,m.IsCalculated
+		,m.IsMultiCaled
+		,m.IsRefund
+		,m.IsCalRefund
+		,m.matchid
+		,m.leagueid
+		,m.homeid
+		,m.awayid
+		,m.matchcode
+		,m.kickofftime
+		,m.finalhomescore
+		,m.finalawayscore
+		,m.betstatus
+		,m.eventstatus
+		,m.sporttype
+		,m.IsNeutral
+		,m.eventdate
+		,m.goalrecord
+		,m.suspenderHalfTime
+		,m.suspenderFullTime
+		,m.IsHalfTimeCal
+		,m.calculate
+		,m.SettlementStatus
+		,m.IsExistFGLG
+		,m.IsExistHTFGLG
+		,m.AutoSetting
+		,t.IsCalculatingSingle
+		,t.IsCalculatingMP
+		,m.IsExistFastMarket
+		,m.IsExistFastMarketResult
+		,m.IsRunningFastMarket
+		,m.IsExistEarlyBettypes
+		,m.ChildMatchType
+		,m.IsRunningEarlyBettypes
+		,m.IsWaitingEarlyBettypes
+		,m.IsExistRunningTicket
+		,m.IsExistRunningTicketParlay
+		,m.IsExistMarkedTicket
+		,m.IsExistMarkedTicketParlay
+		,m.EventStatusReason
+		,m.OfferLive
+	FROM	#matchList m
+		LEFT JOIN #tempmatch t 
+			ON	t.matchid = m.matchid				
 
 	SET @EndTime = GETDATE()
 	

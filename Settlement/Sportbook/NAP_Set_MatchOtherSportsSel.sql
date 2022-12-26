@@ -46,6 +46,7 @@ AS
 			- 20221021@Louisa: hint index [Redmine:#1181002]
 			- 20221201@Louisa: Pingoal Esports [Redmine:#180808]
 			- 20221205@Louisa: Auto Payout Real Cricket [Redmine:#181137]
+			- 20221129@Louisa: Change Filter OverStatus and Tuning SP [Redmine:#181002]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -100,9 +101,9 @@ BEGIN
 	DECLARE @tmpQueueStatus TABLE (MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsExistMarkedTicketParlay BIT DEFAULT(0), IsDisplay BIT DEFAULT(0) )
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
-	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0) )
+	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), OverStatus INT DEFAULT(0) )
 	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0) )
-	DECLARE @CheckingDisplay TABLE ( matchid INT, IsDisplay INT, IsPassEarly INT )
+	DECLARE @CheckingDisplay TABLE ( matchid INT)
 
 	DECLARE @tmpEarlyBettypeStatus TABLE(
 		MatchId				INT
@@ -176,9 +177,10 @@ BEGIN
 		,OfferLive						BIT
 	)
 
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
 	
-	CREATE TABLE #tmpAllParentChildMatch (MatchId INT, ParentId INT, IsMergedParlay	BIT DEFAULT(0))
+	CREATE TABLE #tmpAllParentChildMatch (MatchId INT PRIMARY KEY, ParentId INT, IsMergedParlay	BIT DEFAULT(0), eventstatus NVARCHAR(50))
+	CREATE INDEX CIX_tmp_ParentId ON #tmpAllParentChildMatch(ParentId)
 
 	SET @n = 2147483647
 	
@@ -313,7 +315,7 @@ BEGIN
 				,mr.refund
 				,mr.calrefund
 				,mr.IsHTCal
-				,ISNULL(ap.StatusId, os.StatusId)
+				,ap.StatusId
 				,mr.isPending
 				,s.IsMergedParlay
 				,mr.BestOfMap
@@ -331,17 +333,10 @@ BEGIN
 							SELECT ROW_NUMBER() OVER(PARTITION BY ap.matchid ORDER BY ap.CreatedDate DESC) AS rn, ap.MatchId, ap.StatusId
 							FROM DBPRO.bodb02.dbo.AutoPayoutResult ap WITH (NOLOCK)
 							WHERE ap.matchid = m.matchid
+								AND m.sporttype NOT IN ( 6, 9, 50 )
 							) r
 						WHERE r.rn = 1
-				)ap
-			OUTER APPLY (
-					SELECT TOP 1 r.matchid, r.StatusId
-					FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
-					WHERE r.matchid = m.matchid
-						AND m.sporttype IN ( 6, 9, 50 )
-					ORDER BY r.StatusId DESC
-				)os
-			
+				)ap			
 		WHERE	(m.matchid = @MatchId OR m.matchcode LIKE + '%' + @MatchCode + '%')
 				AND m.eventdate BETWEEN @FromDate AND @ToDate
 				AND 1 = CASE m.sporttype WHEN 50 THEN CASE  WHEN ( ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL ) THEN 0
@@ -351,6 +346,17 @@ BEGIN
 						ELSE 1 
 						END
 				AND ISNULL(m.IsDeleted,0) = 0
+
+		UPDATE m
+		SET AutoPayoutStatus = ISNULL(m.AutoPayoutStatus, os.StatusId)
+		from #tmpMatchIds m
+			CROSS APPLY (
+						SELECT TOP 1 r.matchid, r.StatusId
+						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
+						WHERE r.matchid = m.matchid
+						ORDER BY r.StatusId DESC
+					)os
+		WHERE sporttype in ( 6, 9, 50 )
 
 	END
 	ELSE
@@ -421,7 +427,7 @@ BEGIN
 				,mr.IsHTCal
 				,ISNULL(mr.ConfirmFT,0)
 				,ISNULL(mr.ConfirmHT,0)
-				,ISNULL(ap.StatusId, os.StatusId)
+				,ap.StatusId
 				,mr.isPending
 				,s.IsMergedParlay
 				,mr.BestOfMap
@@ -446,13 +452,6 @@ BEGIN
 						) r
 					WHERE r.rn = 1
 				)ap
-			OUTER APPLY (
-					SELECT TOP 1 r.matchid, r.StatusId
-					FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
-					WHERE r.matchid = m.matchid
-						AND m.sporttype IN ( 6, 9, 50 )
-					ORDER BY r.StatusId DESC
-				)os	
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate	
 				AND 1 = CASE WHEN  m.sporttype = 2 AND ISNULL(l.LeagueGroupID,0) = 122 THEN 0 -- Pingoal basketball
 							 WHEN  m.sporttype = 43 AND ISNULL(l.LeagueGroupID,0) = 151 THEN 0 -- Pingoal ESports
@@ -494,6 +493,17 @@ BEGIN
 									END > 0 
 							)
 
+		UPDATE m
+		SET AutoPayoutStatus = ISNULL(m.AutoPayoutStatus, os.StatusId)
+		from #tmpMatchIds m
+			CROSS APPLY (
+						SELECT TOP 1 r.matchid, r.StatusId
+						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
+						WHERE r.matchid = m.matchid
+						ORDER BY r.StatusId DESC
+					)os
+		WHERE sporttype in ( 6, 9, 50 )
+
 	END	
 	
 	--- Filter by Over Status
@@ -502,7 +512,7 @@ BEGIN
 		
 		IF @IsOver = 1
 		BEGIN
-			INSERT INTO @tmpMatchOverStatus (matchid, IsEarly)
+			INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
 			SELECT m.MatchId, 3
 			FROM #tmpMatchIds m
 			WHERE 	ISNULL(m.IsCalculated,0) = 0 
@@ -512,8 +522,7 @@ BEGIN
 								WHEN m.sporttype = 18 AND DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 20 THEN 1
 								WHEN DATEDIFF (MINUTE,  m.kickofftime, GETDATE() ) > 30 THEN 1
 								ELSE 0
-							END
-			
+							END			
 		END
 
 		--- Matches have ResourceIds were confirmed
@@ -563,28 +572,25 @@ BEGIN
 			INSERT INTO #ConfirmedResources ( MatchId, ResourceId )
 			EXECUTE	sys.sp_executesql @remoteQuery
 
-			INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, IsEarly)
-			SELECT m.matchid,sp.bettype, sp.betid
-				 , CASE sp.SettleType WHEN 'EAR' THEN 1 ELSE 2 END
+			INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, OverStatus)
+			SELECT m.matchid,sp.bettype, sp.betid, 1
 			FROM #tmpMatchIds m
 				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
 				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
 			WHERE sp.sporttype = m.sporttype
+				AND sp.SettleType = 'EAR'
 
-			INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, IsEarly)
-			SELECT m.matchid, sp.bettype, sp.betid
-				 , CASE sp.SettleType WHEN 'EAR' THEN 1 ELSE 2 END
-			FROM #tmpMatchIds m
-				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
-				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.ResourceId =  sp.RefResourceId
-			WHERE sp.sporttype = m.sporttype
-				AND sp.RefResourceId IS NOT NULL
+			INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
+			SELECT DISTINCT r.matchid , 2
+			FROM #ConfirmedResources r
+				LEFT JOIN @tmpMatchOverStatus m	ON r.MatchId =  m.MatchId
+			WHERE m.MatchId IS NULL
 
 			--confirmed HT, FT on sportype not settle by Profile
 			IF @IsMainOver = 1
 			BEGIN
-				INSERT INTO @tmpMatchOverStatus (matchid, bettype, betid, IsEarly)
-				SELECT m.MatchId, gb.Bettype, 0, 2
+				INSERT INTO @tmpMatchOverStatus (matchid,  OverStatus)
+				SELECT m.MatchId, 2
 				FROM #tmpMatchIds m
 					CROSS APPLY (	SELECT gb.BetType 
 									FROM [dbo].[f_Set_GetGroupBettypes]() gb
@@ -598,77 +604,122 @@ BEGIN
 											END
 								ELSE 0
 								END
-					AND NOT EXISTS (SELECT TOP 1 1 FROM [dbo].[f_Set_SettingByProfile] (m.sporttype)	)
+					AND NOT EXISTS (	SELECT TOP 1 1 
+										FROM dbo.SettlementResultTableSetting s WITH(NOLOCK) 
+										WHERE  s.Sporttype = m.sporttype
+									)
 			END
 
 		END
 
 		IF @IsCompletedWithRunningTicket = 1
 		BEGIN
-			INSERT INTO @tmpMatchOverStatus (matchid, IsEarly)
+			INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
 			SELECT m.MatchId, 4
 			FROM #tmpMatchIds m
 			WHERE 	m.eventstatus = 'Completed'
 		END
 
-		INSERT INTO @CheckingDisplay ( matchid, IsDisplay, IsPassEarly)
-		SELECT m.matchid
-			,CASE WHEN bt.transid IS NOT NULL 
-						THEN 1
-						ELSE 0 END AS IsDisplay
-			,CASE WHEN bt.IsPassEarly IS NOT NULL THEN IsPassEarly ELSE 0 END  AS IsPassEarly
-		FROM @tmpMatchOverStatus m
-		CROSS APPLY (
-			SELECT TOP 1 b.transid
-					,CASE WHEN b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) AND m.IsEarly = 1 AND b.StatusId = 0 THEN 1
-							ELSE 0
-						END AS IsPassEarly
-			FROM dbo.bettrans b WITH(NOLOCK)
-			WHERE b.matchid = m.matchid
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-				AND b.statusId IN ( 0, 101, 102)
-				AND 1 = CASE WHEN m.IsEarly = 3 THEN 1  --filter by [Over]
-							 WHEN m.IsEarly = 4 AND b.statusID = 0 THEN 1 --filter by [Completed with running ticket]
-							 WHEN b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) THEN CASE WHEN m.IsEarly = 1 AND b.StatusId = 0 THEN 1 --filter by [Early Over]
-																											WHEN m.IsEarly = 2 THEN 1 --filter by [Main Over]
-																											ELSE 0
-																											END
-							ELSE 0
-						END ) bt
-		 
-		DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay WHERE IsDisplay  = 1 AND IsPassEarly = 1)
+		DELETE m
+		FROM #tmpMatchIds m
+			WHERE m.matchid NOT IN (SELECT DISTINCT matchid FROM @tmpMatchOverStatus)
 
-		INSERT INTO @CheckingDisplay ( matchid, IsDisplay, IsPassEarly)
-		SELECT m.matchid
-			,CASE WHEN bt.transid IS NOT NULL 
-						THEN 1
-						ELSE 0 END AS IsDisplay
-			,CASE WHEN bt.IsPassEarly IS NOT NULL THEN IsPassEarly ELSE 0 END  AS IsPassEarly
-		FROM @tmpMatchOverStatus m
-		CROSS APPLY (
-			SELECT	TOP 1  bm.transid
-						,CASE WHEN bm.bettype = m.bettype AND (bm.betcheck = 0 OR bm.betcheck = m.betid ) AND m.IsEarly = 1 AND bm.StatusId = 0 THEN 1
-								ELSE 0
-						END AS IsPassEarly
-			FROM dbo.bettransm bm WITH(NOLOCK)
-			WHERE bm.matchid = m.matchid
-				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-				AND bm.statusId IN ( 0, 101, 102)
-				AND 1 = CASE WHEN m.IsEarly = 3 THEN 1  --filter by [Over]
-							 WHEN m.IsEarly = 4 AND bm.statusID = 0 THEN 1
-							 WHEN bm.bettype = m.bettype AND (bm.betcheck = 0 OR bm.betcheck = m.betid ) THEN CASE WHEN m.IsEarly = 1 AND bm.StatusId = 0 THEN 1 --filter by [Early Over]
-																													 WHEN m.IsEarly = 2 THEN 1
-																													 ELSE 0
-																													 END
-							ELSE 0
-						END
-		) bt
+		IF @IsOverEarly = 1
+		BEGIN
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT DISTINCT m1.matchid
+			FROM (	SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE OverStatus = 1 ) m1	
+					CROSS APPLY (	SELECT TOP 1 1 valid
+									FROM bettrans b WITH (nolock)
+										INNER JOIN @tmpMatchOverStatus m 
+											ON m.matchid = b.matchid
+									WHERE m1.matchid = b.matchid
+										AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+										AND b.statusId = 0
+										AND b.bettype = m.bettype AND (b.betID = 0 OR b.betid = m.betid ) 
+										AND m.OverStatus = 1 
+									) AS tmp
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT DISTINCT m1.matchid
+			FROM (	SELECT DISTINCT matchid FROM @tmpMatchOverStatus  WHERE OverStatus = 1) m1	
+					CROSS APPLY (	SELECT TOP 1 1 valid
+									FROM bettransm b WITH (nolock)
+										INNER JOIN @tmpMatchOverStatus m ON m.matchid = b.matchid
+									WHERE m1.matchid = b.matchid
+										AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+										AND b.statusId = 0
+										AND b.bettype = m.bettype AND (b.betcheck = 0 OR b.betcheck = m.betid ) 
+										AND m.OverStatus = 1 
+									) AS tmp
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1 WHERE matchid IN (SELECT DISTINCT matchid FROM @CheckingDisplay)
+		END
+
+		IF ( @IsOver = 1 OR @IsMainOver = 1 )
+		BEGIN
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT m.matchid
+			FROM @tmpMatchOverStatus m
+				CROSS APPLY (	SELECT TOP 1 1 valid
+								FROM bettrans b with (nolock)
+								WHERE m.matchid = b.matchid
+									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								) AS tmp
+			WHERE m.OverStatus IN (2,3) 
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT m.matchid
+			FROM @tmpMatchOverStatus m
+				CROSS APPLY (	SELECT TOP 1 1 valid
+								FROM bettransm b with (nolock)
+								WHERE m.matchid = b.matchid
+									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								) AS tmp
+			WHERE m.OverStatus IN (2,3) 
 			
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
 
-		DELETE FROM #tmpMatchIds 
-		WHERE matchid NOT IN (SELECT DISTINCT matchid FROM @CheckingDisplay WHERE IsDisplay = 1)
+		END
 
-		UPDATE #tmpMatchIds SET IsExistsConfirmedEarly = 1 WHERE matchid IN (SELECT DISTINCT matchid FROM @CheckingDisplay WHERE IsPassEarly = 1)
+		IF @IsCompletedWithRunningTicket = 1
+		BEGIN
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT m.matchid
+			FROM @tmpMatchOverStatus m
+				CROSS APPLY (	SELECT TOP 1 1 valid
+								FROM bettrans b with (nolock)
+								WHERE m.matchid = b.matchid
+									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+									AND b.statusId = 0
+								) AS tmp
+			WHERE m.OverStatus = 4
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+			INSERT INTO @CheckingDisplay ( matchid)
+			SELECT m.matchid
+			FROM @tmpMatchOverStatus m
+				CROSS APPLY (	SELECT TOP 1 1 valid
+								FROM bettransm b with (nolock)
+								WHERE m.matchid = b.matchid
+									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+									AND b.statusId = 0
+								) AS tmp
+			WHERE m.OverStatus = 4
+
+			DELETE FROM @tmpMatchOverStatus  WHERE Matchid IN (	SELECT matchid FROM @CheckingDisplay)
+
+		END
+
+		DELETE FROM #tmpMatchIds WHERE matchid NOT IN (SELECT matchid FROM @CheckingDisplay)
+
 	END
 
 	;WITH singlequeue 
@@ -696,13 +747,13 @@ BEGIN
 		FULL OUTER JOIN parlayqueue p
 			ON	s.matchid = p.matchid
 	
-	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay)
-	SELECT m.matchid, m.matchid, m.IsMergedParlay FROM #tmpMatchIds m
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
+	SELECT m.matchid, m.matchid, m.IsMergedParlay, m.eventstatus FROM #tmpMatchIds m
 
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype = 50 AND ISNULL(childmatchtype,0) <> 200 )
 	BEGIN
-		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay)
-		SELECT	m.matchid, m.ParentId, t.IsMergedParlay
+		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
+		SELECT	m.matchid, m.ParentId, t.IsMergedParlay, t.eventstatus
 		FROM	#tmpMatchIds t
 			CROSS APPLY (
 				SELECT	m.matchid, m.ParentId
@@ -774,30 +825,21 @@ BEGIN
 			ON m.matchid = b.MatchId
 	
 	UPDATE m
-	SET IsExistRunningBettypeSingle = 1
+		SET IsExistRunningBettypeSingle = 1
 	FROM	#tmpMatchIds m
-		INNER JOIN (
-			SELECT	m.ParentId
-					,MAX(b.IsRunningBettypeSingle) AS IsRunningBettypeSingle
-			FROM  #tmpAllParentChildMatch m
-			CROSS APPLY (
-				SELECT	b.bettype
-						,MAX(CASE WHEN b.statusID = 0 THEN 1 ELSE 0 END) AS IsRunningBettypeSingle
-				FROM	dbo.bettrans b WITH(NOLOCK)
-				WHERE	m.matchid = b.matchid
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-				GROUP BY b.bettype
-			) b
-			INNER JOIN dbo.f_Set_GetGroupBettypes() f
-				ON	b.bettype = f.BetType
-			LEFT JOIN dbo.f_Set_GetEarlyBettypes() e
-				ON	b.bettype = e.bettype
-			WHERE	e.bettype IS NULL
-			GROUP BY m.ParentId
-		)t
-			ON m.matchid = t.ParentId
-	WHERE t.IsRunningBettypeSingle = 1
-	OPTION (RECOMPILE )
+		CROSS APPLY (
+						SELECT	TOP 1 1 AS IsRunningBettypeSingle
+						FROM  #tmpAllParentChildMatch tmp
+							INNER JOIN dbo.bettrans b WITH (NOLOCK)	
+								ON tmp.MatchId = b.matchid
+							LEFT JOIN dbo.f_Set_GetEarlyBettypes() e 
+								ON	b.bettype = e.bettype 
+							WHERE	b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+								AND statusID = 0
+								AND e.bettype IS NULL
+								AND tmp.ParentId = m.MatchId 
+						) b 
+	OPTION (MAXDOP 1)
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
@@ -858,7 +900,7 @@ BEGIN
 				ON m.matchid = t.MatchId
 	END
 	
-	DECLARE @tmpMatchCompleted TABLE (MatchId INT, IsExistRunningTicket BIT DEFAULT (0), IsExistRunningTicketParlay BIT DEFAULT(0))
+	DECLARE @tmpMatchCompleted TABLE (MatchId INT PRIMARY KEY, IsExistRunningTicket BIT DEFAULT (0), IsExistRunningTicketParlay BIT DEFAULT(0))
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
 	SELECT	m.matchid
@@ -868,32 +910,27 @@ BEGIN
 	IF @@ROWCOUNT <> 0
 	BEGIN
 		-- single
-		UPDATE m 
-			SET IsExistRunningTicket = t.IsExistRunningTicket
-		FROM	@tmpMatchCompleted m
-			CROSS APPLY (
-				SELECT 1 AS IsExistRunningTicket
-				FROM (
-						SELECT	tmp.ParentId, b.transid, tmp.MatchId
-						FROM	dbo.bettrans b WITH(NOLOCK)
-							INNER JOIN #tmpAllParentChildMatch tmp
-								ON	b.MatchId = tmp.MatchId
-						WHERE	b.matchid = m.MatchId
-								AND b.statusID = 0
-								AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
-								AND b.bettype <> 38 -- BetBuilder
-								AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-					) b
-					OUTER APPLY (
-						SELECT TOP 1 mt.transId
-						FROM	#tmpMarkedTransaction mt 
-						WHERE	b.transid = mt.TransId
-								AND b.MatchId  = mt.matchId
-					)mt
-				WHERE	mt.transId IS NULL
-				GROUP BY b.ParentId
-			) t
-
+		UPDATE m
+ 			SET IsExistRunningTicket = 1
+ 		FROM	@tmpMatchCompleted m
+ 					CROSS APPLY (
+ 								SELECT	TOP 1 1 AS IsExistRunningTicket
+ 								FROM	#tmpAllParentChildMatch tmp
+ 									INNER LOOP JOIN dbo.bettrans b WITH (NOLOCK)	ON tmp.MatchId = b.matchid AND eventstatus = 'completed'
+									OUTER APPLY (
+ 													SELECT TOP 1 mt.transId
+ 													FROM	#tmpMarkedTransaction mt 
+ 													WHERE	b.transid = mt.TransId
+ 															AND b.MatchId  = mt.matchId
+ 		 										)mt
+ 								WHERE tmp.ParentId = m.MatchId
+									AND b.statusID = 0
+ 									AND b.bettype NOT BETWEEN 801 AND 806 -- Metric Gaming
+ 									AND b.bettype <> 38 -- BetBuilder
+ 									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+ 									AND mt.transId IS NULL
+ 										
+ 								) b 
 		-- parlay
 		INSERT INTO #temp_match_parlay (ParentID, transid, matchid, refno, IsMergedParlay)
 		SELECT	tmp.ParentId, 0, tmp.MatchId, bm.refno, tmp.IsMergedParlay
@@ -959,8 +996,7 @@ BEGIN
 		SELECT @strMatchIds = ''
 				,@strEarlyBettypes = ''
 				,@remoteQuery = ''
-				,@strResourceId = ''
-		
+
 		SELECT @strEarlyBettypes = @strEarlyBettypes + CAST(bettype AS VARCHAR(20)) + ','
 		FROM	dbo.f_Set_GetEarlyBettypes()
 
@@ -968,13 +1004,9 @@ BEGIN
 		FROM	#tmpMatchIds
 		WHERE	sporttype = 43
 
-		SELECT @strResourceId = @strResourceId + '''' + f.ResourceID + '''' + ','
-		FROM	dbo.f_Set_MajorRound (43) f
-		
 		SELECT	@strEarlyBettypes = LEFT(@strEarlyBettypes,LEN(@strEarlyBettypes) - 1)
 				,@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
-				,@strResourceId = LEFT(@strResourceId, LEN(@strResourceId) - 1)
-				
+		
 		SET @remoteQuery = 'SELECT	DISTINCT o.matchid 
 							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
 							WHERE	o.matchid IN (' + @strMatchIds + ')
@@ -1043,6 +1075,12 @@ BEGIN
 					AND m.sporttype = 50
 		)s
 	
+	drop table #ConfirmedResources
+	drop table #temp_match_parlay
+	drop table #tmpAllParentChildMatch
+	drop table #tmpMarkedTransaction
+	drop table #tmpMatchIds
+
 END
 
 GO
