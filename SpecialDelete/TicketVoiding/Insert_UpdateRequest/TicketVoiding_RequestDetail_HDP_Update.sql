@@ -18,6 +18,7 @@ AS
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype wrong HDP & wrong 1st HDP [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20221125@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 
 	Param's explanation:
 		+ @IssueTypeId : 4 - Wrong HDP, 5 - Wrong 1st HDP
@@ -31,9 +32,11 @@ BEGIN
 			,@SB_Error			 BIT = 0
 			,@LogDataContent	 NVARCHAR(MAX)
 
-	DECLARE	 @WrongHDPInfoXML		  XML = NULL	
-			,@SingleCount			INT
-		    ,@MainParlayCount		INT
+	DECLARE	 @WrongHDPInfoXML	 XML = NULL	
+			,@SingleCount		 INT
+		    ,@MainParlayCount	 INT
+			,@PHBettypes		 VARCHAR(MAX) =''
+			,@MainMatchId		 INT
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -50,7 +53,7 @@ BEGIN
 			,VoidToTime				DATETIME
 			,LiveScores				NVARCHAR(300)
 			,SubIssueTypeId			SMALLINT
-			,WrongHDP				VARCHAR(200)
+			,WrongHDP				VARCHAR(MAX)
 			)
 
 	CREATE TABLE #tmpTransInfo(
@@ -59,6 +62,7 @@ BEGIN
 		  ,Subtransid BIGINT
 		  ,custid	INT	
 		  ,bettype SMALLINT
+		  ,Subbettype SMALLINT
 		  ,betid BIGINT
 		  ,IsMixParlay BIT
 		  ,SiteDBGroupID SMALLINT
@@ -69,13 +73,14 @@ BEGIN
 		  ,Subtransid
 		  ,custid	
 		  ,bettype
+		  ,Subbettype
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+	SELECT mid ,t ,s_t ,c ,btype ,s_btype ,bid ,isP ,sitedb
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,s_btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
 
 	SET @WrongHDPInfoXML = CONVERT(XML, @WrongHDPInfo)
@@ -96,24 +101,53 @@ BEGIN
 			,t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
 			,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-			,t.c.value('@SingleCount','INT') AS SingleCount
-			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
+			,t.c.value('@LiveGameEarlySingleCount','INT') + t.c.value('@PoolHouseSingleCount','INT') AS SingleCount
+			,t.c.value('@PoolHouseMainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
+			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' 
+					 + ';LiveGameEarlySingleCount:' + CAST(t.c.value('@LiveGameEarlySingleCount','INT') AS VARCHAR(50))
+					 + ';PoolHouseSingleCount:' + CAST(t.c.value('@PoolHouseSingleCount','INT') AS VARCHAR(50))
+					 + ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') 
-										+ '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
-										+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
-					WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' THEN '<r AwayFavorite="' + REPLACE(t.c.value('@AwayFavorite','VARCHAR(50)') , '&', '&amp;') 
-										+ '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
-										+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') + '" />'
-					WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23,24,25) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(50)') + '" />'
-					
-					ELSE '' END AS WrongHDP
+			,CASE WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') <> '' 
+					THEN '<r HomeFavorite="' + REPLACE(t.c.value('@HomeFavorite','VARCHAR(50)') , '&', '&amp;') + '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
+				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (8,9) AND ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') <> '' 
+					THEN '<r AwayFavorite="' + REPLACE(t.c.value('@AwayFavorite','VARCHAR(50)') , '&', '&amp;') + '" ActualMarket="'+ REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(t.c.value('@ActualMarket','VARCHAR(50)'),'&','&amp;'),'"','&quot;') ,'''','&apos;'),'<','&lt;'),'>','&gt;') --Replace special character -> web parse show edit
+				  WHEN t.c.value('@SubIssueTypeId','SMALLINT') IN (22,23,24,25) AND ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') <> '' 
+					THEN '<r HdpValue="' + REPLACE(t.c.value('@HdpValue','VARCHAR(50)') , '&', '&amp;') 
+				  ELSE '' END 
+				    + '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
+				    + CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
+						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 
+						     + '" />'
+					  ELSE 
+							 '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10))
+							+ '" IsLinkGroup1X2="' + CAST(t.c.value('@IsLinkGroup1X2','BIT') AS VARCHAR(10))
+							+ '" IsLinkGroupAIO="' + CAST(t.c.value('@IsLinkGroupAIO','BIT') AS VARCHAR(10))
+							+ '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') 
+							+ '" />'
+					 END
+			AS WrongHDP
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
 	
+	SELECT @MainMatchId = MatchID FROM #tblGetLogInfo WHERE WrongHDP LIKE '%IsMainMatch="true"%' AND WrongHDP LIKE '%PoolHouseCheckedBetTypes="ALL"%'
+	IF @MainMatchId IS NOT NULL
+	BEGIN
+		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
+									  FROM #tmpTransInfo 
+									  WHERE matchid = @MainMatchId
+									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 4 AND Subbettype <> 1)OR (@IssueTypeId = 5 AND Subbettype <> 7)) THEN 1
+												   WHEN IsMixParlay = 1 THEN 1
+												   ELSE 0 END
+									  FOR XML PATH ('')
+								),1,1,'')
+		UPDATE #tblGetLogInfo
+		SET WrongHDP = SUBSTRING(WrongHDP,0, LEN(WrongHDP) - 6)  + @PHBettypes+ '" />'
+		WHERE MatchID = @MainMatchId
+	END
+
 	IF @IsEditRequest = 1
 	BEGIN
 		DELETE rd
