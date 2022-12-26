@@ -13,43 +13,18 @@
 	
 USE bodb02
 GO
--- Group 1: bettrans14, bettransm14, BetParlayDetail, BettransInfo14, Task_bettrans14_IP2Country
------------bettrans14
---//drop
-DROP INDEX [bettrans1423] ON [dbo].[bettrans14]
-GO
-DROP INDEX [IX_matchid_refno] ON [dbo].[bettrans14]
-GO
-ALTER TABLE [dbo].[bettrans14] DROP CONSTRAINT [PK_bettrans14]
-GO
-DROP INDEX [IX_bettrans14] ON [dbo].[bettrans14] WITH ( ONLINE = OFF )
-GO
-
------------------bettransm14
---//drop
-ALTER TABLE [dbo].[bettransm14] DROP CONSTRAINT [PK_bettransm14]
-GO
-DROP INDEX [IX_bettransm14] ON [dbo].[bettransm14] WITH ( ONLINE = OFF )
-GO
-
------------------BetParlayDetail
---//drop
-DROP INDEX [IX_transid] ON [dbo].[BetParlayDetail]
-GO
-DROP INDEX [CIX_RefNo_Serial] ON [dbo].[BetParlayDetail] WITH ( ONLINE = OFF )
-GO
 
 ------------------------------------------------
 /*******************Bet Tickets Tables**********************/
 --BettransInfo14
 INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
 SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
-FROM SiteDB01tmp.dbo.BettransInfo14_20221229 binfo WITH (NOLOCK)
+FROM SiteDBtmp.dbo.BettransInfo14_20221229 binfo WITH (NOLOCK)
 
 --10. dbo.Task_bettrans14_IP2Country
 INSERT INTO [dbo].[Task_bettrans14_IP2Country] ([transid], [winlostdate], [CountryShort], [IPArchive])
 SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
-FROM SiteDB01tmp.dbo.Task_bettrans14_IP2Country_20221229 tbip WITH (NOLOCK)
+FROM SiteDBtmp.dbo.Task_bettrans14_IP2Country_20221229 tbip WITH (NOLOCK)
 
 --bettrans14
 INSERT INTO dbo.bettrans14 ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], 
@@ -66,7 +41,7 @@ SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], 
 		b.[actual_stake], b.[currency], b.[ip], b.[transdesc], b.[sdiscount], b.[scomm], b.[spositiontaking], b.[swinlost], b.[srecommend], b.[virtualrate], b.[Username], 
 		b.[CurrencyName], b.[oddstype], b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], 
 		b.[RefCode], b.[SettlementTime], b.[epositiontaking], b.[ReasonID], b.[sort], b.[SiteDBGroupID]
-FROM SiteDB01tmp.dbo.bettrans14_20221229 b WITH (NOLOCK)
+FROM SiteDBtmp.dbo.bettrans14_20221229 b WITH (NOLOCK)
 
 --bettransm14
 INSERT INTO dbo.bettransm14		([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
@@ -81,82 +56,13 @@ SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[h
 		bm.[playercomm], bm.[comm], bm.[acomm], bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], 
 		bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], 
 		bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[SiteDBGroupID]
-FROM SiteDB01tmp.dbo.bettransm14_20221229 bm WITH (NOLOCK)
+FROM SiteDBtmp.dbo.bettransm14_20221229 bm WITH (NOLOCK)
 	
 --BetParlayDetail
 INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
 								[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
 SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
 		bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
-FROM SiteDB01tmp.dbo.BetParlayDetail_20221229 bpd WITH (NOLOCK)
-
-GO
-
---//create
-CREATE CLUSTERED INDEX [CIX_RefNo_Serial] ON [dbo].[BetParlayDetail]
-(
-	[RefNo] ASC,
-	[Serial] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM_table]
-GO
-
-CREATE NONCLUSTERED INDEX [IX_transid] ON [dbo].[BetParlayDetail]
-(
-	[transid] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM_index]
-GO
+FROM SiteDBtmp.dbo.BetParlayDetail_20221229 bpd WITH (NOLOCK)
 
 
---//create
-CREATE CLUSTERED INDEX [IX_bettrans14] ON [dbo].[bettrans14]
-(
-	[winlostdate] ASC,
-	[custid] ASC,
-	[matchid] ASC,
-	[bettype] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_table]
-GO
-
-ALTER TABLE [dbo].[bettrans14] ADD  CONSTRAINT [PK_bettrans14] PRIMARY KEY NONCLUSTERED 
-(
-	[transid] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_index]
-GO
-CREATE NONCLUSTERED INDEX [IX_matchid_refno] ON [dbo].[bettrans14]
-(
-	[matchid] ASC,
-	[refno] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_index]
-GO
-
-CREATE NONCLUSTERED INDEX [bettrans1423] ON [dbo].[bettrans14]
-(
-	[custid] ASC,
-	[matchid] ASC,
-	[ruben] ASC,
-	[bettype] ASC,
-	[winlost] ASC,
-	[awinlost] ASC,
-	[mwinlost] ASC,
-	[actual_stake] ASC,
-	[currency] ASC,
-	[scomm] ASC,
-	[swinlost] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [Bettrans14_index]
-GO
-
---//create
-CREATE CLUSTERED INDEX [IX_bettransm14] ON [dbo].[bettransm14]
-(
-	[refno] ASC,
-	[custid] ASC,
-	[matchid] ASC,
-	[oddsid] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM14_table]
-GO
-
-ALTER TABLE [dbo].[bettransm14] ADD  CONSTRAINT [PK_bettransm14] PRIMARY KEY NONCLUSTERED 
-(
-	[transid] ASC
-)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, FILLFACTOR = 90, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [BettransM14_index]
-GO

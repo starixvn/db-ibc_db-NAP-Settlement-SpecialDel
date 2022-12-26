@@ -1,9 +1,9 @@
-/*<info serverAlias="DBSIG-SiteDB01tmp" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-SiteDBtmp" executers="" viewers="" isFunction="0"></info>*/
 
 /*
     Created by: 20221229@July
     Task: Data Migration - Real Licensee - PRO - SITEDB01
-    DB: DBCTG-SiteDB01tmp
+    DB: DBCTG-SiteDBtmp
 
 	Revisions:
 		- 20221229@July: SELECT data INTO new tables for the following tables [Redmineid:#181575] 
@@ -12,7 +12,7 @@
 
 */
 
-USE SiteDB01tmp
+USE SiteDBtmp
 GO
 
 DECLARE @SiteDBGroupID SMALLINT
