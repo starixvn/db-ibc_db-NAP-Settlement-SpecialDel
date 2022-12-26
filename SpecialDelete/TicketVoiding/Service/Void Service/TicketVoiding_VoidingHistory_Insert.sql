@@ -2,6 +2,8 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 (
 	@RequestId				INT= 0
+	,@SiteDBGroupID			SMALLINT = NULL
+	,@BroadcastSessionId	VARCHAR(100) = NULL
 	,@VoidData				XML = NULL
 	,@UserId				INT = 0
 )
@@ -27,14 +29,19 @@ BEGIN
 
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
 
-	INSERT INTO dbo.TicketVoiding_VoidingHistory (
-					RequestId
-					,UserId
-					,StatusId
-					,VoidData
-			)
-		OUTPUT inserted.VoidingHistoryId, inserted.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
-	SELECT @RequestId, @UserId, 1, @VoidData
+	IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) 
+					WHERE v.RequestId = @RequestId AND v.SiteDBGroupID = @SiteDBGroupID AND v.BroadcastSessionId = @BroadcastSessionId
+				)
+	BEGIN
+		INSERT INTO dbo.TicketVoiding_VoidingHistory (
+						RequestId
+						,UserId
+						,StatusId
+						,VoidData
+				)
+			OUTPUT inserted.VoidingHistoryId, inserted.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
+		SELECT @RequestId, @UserId, 1, @VoidData
+	END
 
 	SELECT VoidingHistoryId, RequestId
 	FROM @VoidingHistory_tmp
