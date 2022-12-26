@@ -609,9 +609,10 @@ BEGIN
 											END
 								ELSE 0
 								END
-					AND NOT EXISTS (	SELECT TOP 1 1 
+					AND EXISTS (	SELECT TOP 1 1 
 										FROM dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 										WHERE  s.Sporttype = m.sporttype
+											AND s.IsSettleByProfile = 0
 									)
 			END
 
