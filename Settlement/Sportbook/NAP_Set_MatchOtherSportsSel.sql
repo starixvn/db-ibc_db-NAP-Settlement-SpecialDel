@@ -588,7 +588,7 @@ BEGIN
 				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
 			WHERE sp.sporttype = m.sporttype
 				AND sp.SettleType = 'MNL'
-				AND m.eventstatus IN ( 'running', 'closed')
+				AND m.eventstatus <> 'Completed'
 
 
 			--confirmed HT, FT on sportype not settle by Profile
@@ -603,7 +603,7 @@ BEGIN
 										OR (gb.GroupId = 2 AND m.ConfirmFT > 0) 
 								) gb
 				WHERE m.matchid NOT IN (SELECT matchid FROM @tmpMatchOverStatus)
-					AND 1 = CASE WHEN m.eventstatus IN ( 'running', 'closed')
+					AND 1 = CASE WHEN m.eventstatus <> 'Completed'
 								 THEN CASE  WHEN m.ConfirmFT > 0 THEN 1
 											WHEN m.ConfirmHT > 0 AND ISNULL(m.IsHalfTimeCal,0) = 0 THEN 1
 											END
