@@ -47,6 +47,7 @@ AS
 			- 20221201@Louisa: Pingoal Esports [Redmine:#180808]
 			- 20221205@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 			- 20221129@Louisa: Change Filter OverStatus and Tuning SP [Redmine:#181002]
+			- 20221226@Louisa: Fix bug [Redmine:#182009]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -582,9 +583,13 @@ BEGIN
 
 			INSERT INTO @tmpMatchOverStatus (matchid, OverStatus)
 			SELECT DISTINCT r.matchid , 2
-			FROM #ConfirmedResources r
-				LEFT JOIN @tmpMatchOverStatus m	ON r.MatchId =  m.MatchId
-			WHERE m.MatchId IS NULL
+			FROM #tmpMatchIds m
+				INNER JOIN #ConfirmedResources r ON r.matchId = m.matchid
+				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)	ON r.resourceid = sp.resourceid
+			WHERE sp.sporttype = m.sporttype
+				AND sp.SettleType = 'MNL'
+				AND m.eventstatus <> 'Completed'
+
 
 			--confirmed HT, FT on sportype not settle by Profile
 			IF @IsMainOver = 1
@@ -598,15 +603,16 @@ BEGIN
 										OR (gb.GroupId = 2 AND m.ConfirmFT > 0) 
 								) gb
 				WHERE m.matchid NOT IN (SELECT matchid FROM @tmpMatchOverStatus)
-					AND 1 = CASE WHEN m.eventstatus IN ( 'running', 'closed')
+					AND 1 = CASE WHEN m.eventstatus <> 'Completed'
 								 THEN CASE  WHEN m.ConfirmFT > 0 THEN 1
 											WHEN m.ConfirmHT > 0 AND ISNULL(m.IsHalfTimeCal,0) = 0 THEN 1
 											END
 								ELSE 0
 								END
-					AND NOT EXISTS (	SELECT TOP 1 1 
+					AND EXISTS (	SELECT TOP 1 1 
 										FROM dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 										WHERE  s.Sporttype = m.sporttype
+											AND s.IsSettleByProfile = 0
 									)
 			END
 
