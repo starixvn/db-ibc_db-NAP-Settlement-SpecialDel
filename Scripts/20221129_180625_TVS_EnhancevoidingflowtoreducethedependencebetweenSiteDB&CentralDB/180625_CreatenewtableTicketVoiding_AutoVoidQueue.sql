@@ -19,6 +19,7 @@ CREATE TABLE [dbo].[TicketVoiding_AutoVoidQueue](
 	[ModifiedDate] [datetime] NULL,
 	[IP] [varchar](50) NULL,
 	[ErrMsg] [varchar](300) NULL,
+	[BroadcastSessionId] [VARCHAR](100) NULL
  CONSTRAINT [TicketVoiding_AutoVoidQueue_QueueId] PRIMARY KEY NONCLUSTERED 
 (
 	[QueueId] ASC

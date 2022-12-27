@@ -110,10 +110,10 @@ BEGIN
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
 
-	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + a.users
+	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + a.NegativeBalanceUser
 									FROM #tmpVoidingHistory t
 										CROSS APPLY (
-											SELECT value AS users FROM STRING_SPLIT(t.NegativeBalanceUsers, ',') 
+											SELECT value AS NegativeBalanceUser FROM STRING_SPLIT(t.NegativeBalanceUsers, ',') 
 										)a
 									WHERE ISNULL(t.NegativeBalanceUsers,'') <> ''
 									FOR XML PATH ('')
