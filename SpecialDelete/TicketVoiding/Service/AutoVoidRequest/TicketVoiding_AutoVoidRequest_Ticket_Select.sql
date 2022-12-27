@@ -33,6 +33,7 @@ BEGIN
 		WHERE rds.RequestId = @RequestId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId <> 29
+			AND rds.IsProcessed IS NULL
 
 		--Main parlay
 		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
@@ -41,6 +42,7 @@ BEGIN
 		WHERE rds.RequestId = @RequestId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
+			AND rds.IsProcessed IS NULL
 	END
 	ELSE
 	BEGIN
