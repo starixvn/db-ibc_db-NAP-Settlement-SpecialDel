@@ -1,9 +1,9 @@
-/*<info serverAlias="DBSIG-SiteDBtmp" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-SiteDBtmp" executers="" viewers="" isFunction="0"></info>*/
 
 /*
     Created by: 20221229@July
     Task: Data Migration - Real Licensee - PRO - SITEDB01
-    DB: DBSIG-SiteDBtmp
+    DB: DBCTG-SiteDBtmp
 
 	 Revisions:
 		- 20221229@July: SELECT data INTO new tables for CustDB.dbo.Customer [Redmineid:#181575] 

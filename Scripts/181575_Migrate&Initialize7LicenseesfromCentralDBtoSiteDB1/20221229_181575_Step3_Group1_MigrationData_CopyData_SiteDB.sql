@@ -19,12 +19,12 @@ GO
 --BettransInfo14
 INSERT INTO dbo.BettransInfo14 ([transid], [SecAcceptTime], [LiveBetAcceptTime], [OriginalOdds], [ThirdTransID])
 SELECT binfo.[transid], binfo.[SecAcceptTime], binfo.[LiveBetAcceptTime], binfo.[OriginalOdds], binfo.[ThirdTransID]
-FROM SiteDBtmp.dbo.BettransInfo14_20221229 binfo WITH (NOLOCK)
+FROM DBCTG.SiteDBtmp.dbo.BettransInfo14_20221229 binfo WITH (NOLOCK)
 
 --10. dbo.Task_bettrans14_IP2Country
 INSERT INTO [dbo].[Task_bettrans14_IP2Country] ([transid], [winlostdate], [CountryShort], [IPArchive])
 SELECT	tbip.[transid], tbip.[winlostdate], tbip.[CountryShort], tbip.[IPArchive]
-FROM SiteDBtmp.dbo.Task_bettrans14_IP2Country_20221229 tbip WITH (NOLOCK)
+FROM DBCTG.SiteDBtmp.dbo.Task_bettrans14_IP2Country_20221229 tbip WITH (NOLOCK)
 
 --bettrans14
 INSERT INTO dbo.bettrans14 ([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [awinlost], [mwinlost], [playercomm], 
@@ -41,7 +41,7 @@ SELECT  b.[transid], b.[custid], b.[transdate], b.[oddsid], b.[hdp1], b.[hdp2], 
 		b.[actual_stake], b.[currency], b.[ip], b.[transdesc], b.[sdiscount], b.[scomm], b.[spositiontaking], b.[swinlost], b.[srecommend], b.[virtualrate], b.[Username], 
 		b.[CurrencyName], b.[oddstype], b.[statusID], b.[currency2], b.[balance], b.[SecAcceptFlag], b.[transid2], b.[recommdate], b.[ExtraInfo], b.[WalletType], b.[BonusID], 
 		b.[RefCode], b.[SettlementTime], b.[epositiontaking], b.[ReasonID], b.[sort], b.[SiteDBGroupID]
-FROM SiteDBtmp.dbo.bettrans14_20221229 b WITH (NOLOCK)
+FROM DBCTG.SiteDBtmp.dbo.bettrans14_20221229 b WITH (NOLOCK)
 
 --bettransm14
 INSERT INTO dbo.bettransm14		([transid], [custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], 
@@ -56,13 +56,13 @@ SELECT  bm.[transid], bm.[custid], bm.[transdate], bm.[oddsid], bm.[hdp1], bm.[h
 		bm.[playercomm], bm.[comm], bm.[acomm], bm.[actualrate], bm.[matchid], bm.[matchdate], bm.[finalodds], bm.[isfinish], bm.[statuswinlost], bm.[ruben], bm.[bettype], 
 		bm.[spositiontaking], bm.[swinlost], bm.[sdiscount], bm.[scomm], bm.[statusID], bm.[recommdate], bm.[transdesc], bm.[SecAcceptFlag], bm.[SecAcceptTime], 
 		bm.[LiveBetAcceptTime], bm.[ReasonIDm], bm.[SiteDBGroupID]
-FROM SiteDBtmp.dbo.bettransm14_20221229 bm WITH (NOLOCK)
+FROM DBCTG.SiteDBtmp.dbo.bettransm14_20221229 bm WITH (NOLOCK)
 	
 --BetParlayDetail
 INSERT INTO dbo.BetParlayDetail ([RefNo], [Serial], [transid], [winlostdate], [statuswinlost], [statusid], [matchid], [bettype], [stake], [odds], [betteam], [hdp1], [hdp2], 
 								[livehomescore], [liveawayscore], [liveindicator], [betcheck], [transdesc])
 SELECT	bpd.[RefNo], bpd.[Serial], bpd.[transid], bpd.[winlostdate], bpd.[statuswinlost], bpd.[statusid], bpd.[matchid], bpd.[bettype], bpd.[stake], bpd.[odds], bpd.[betteam], bpd.[hdp1], bpd.[hdp2], 
 		bpd.[livehomescore], bpd.[liveawayscore], bpd.[liveindicator], bpd.[betcheck], bpd.[transdesc]
-FROM SiteDBtmp.dbo.BetParlayDetail_20221229 bpd WITH (NOLOCK)
+FROM DBCTG.SiteDBtmp.dbo.BetParlayDetail_20221229 bpd WITH (NOLOCK)
 
 
