@@ -1,2 +1,3 @@
 Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
 Common SP\Validation\NAP_Admin_Settlement_Validation_Event.sql
+Settlement\Sportbook\dbo.NAP_Admin_MatchInfoUpd.sql
