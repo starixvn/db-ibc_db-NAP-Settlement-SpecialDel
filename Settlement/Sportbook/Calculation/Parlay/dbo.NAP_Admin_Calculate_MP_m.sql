@@ -57,6 +57,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
+		- 20221228@Kathy: Action UNDO match causes the sub ticket bettransm.winlostdate NULL on centralDB [Redmine:#182078]
 
     Param's Explanation:
        
@@ -2311,17 +2312,29 @@ BEGIN
 			END
 			ELSE
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'		
-							,refno AS '@ref'
-							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-							,Status AS '@s' 
-							,StatusID AS '@sid' 
-							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
-							,ruben AS '@r' -- ruben	
-					FROM	#tmpOutputBettransm
-					FOR XML PATH('r'),ROOT('root'), TYPE
-				)
+				IF @doing = 'UNDO'
+					SET @transInfo = (
+						SELECT	transId AS '@t'		
+								,refno AS '@ref'
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
+								,Status AS '@s' 
+								,StatusID AS '@sid' 
+								,ruben AS '@r' -- ruben	
+						FROM	#tmpOutputBettransm
+						FOR XML PATH('r'),ROOT('root'), TYPE
+					)
+				ELSE
+					SET @transInfo = (
+						SELECT	transId AS '@t'		
+								,refno AS '@ref'
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
+								,Status AS '@s' 
+								,StatusID AS '@sid' 
+								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
+								,ruben AS '@r' -- ruben	
+						FROM	#tmpOutputBettransm
+						FOR XML PATH('r'),ROOT('root'), TYPE
+					)
 			END
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)

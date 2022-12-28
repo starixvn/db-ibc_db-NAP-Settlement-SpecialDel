@@ -23,7 +23,8 @@ AS
 		- 20170901@Kathy: Settle parlay tickets of tennis in case of they have result [Redmine:#82122]
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - Update statuswinlost for VOID Tickets [Redmine:115377]
 		- 20190813@Helen: Remove vnteam in metadata
-		
+		- 20221228@Kathy: Exclude ticket sitedb when settling on central [Redmine:#180639]
+
 	Param's Explanation:		
 		- @Mode: ['REFUND', 'REFUND-HT','REFUND-FT']
 */
@@ -42,6 +43,10 @@ BEGIN
 			,@xmlbb XML
 			,@tennis_SelectedSetREFUND VARCHAR(50)
 			,@xmlss XML
+			,@IsCentral	BIT = 0
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 	
 	IF @resultDetail_bb IS NOT NULL
 	BEGIN
@@ -178,6 +183,7 @@ BEGIN
 		) res
 	WHERE bm.matchid 	= @matchid
 		AND bm.statusID NOT IN (101)
+		AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END 
 		AND 1 = CASE
 					WHEN @resultDetail_bb IS NULL THEN 1
 					WHEN t.isEarly = 1 THEN CASE
@@ -250,6 +256,4 @@ BEGIN
 	DROP TABLE #refundBettypes
 	RETURN
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Settlement_Parlay_Refund] TO [bodbAdminNet]
 GO
