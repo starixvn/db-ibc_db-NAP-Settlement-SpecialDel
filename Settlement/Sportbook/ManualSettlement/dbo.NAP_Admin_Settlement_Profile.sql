@@ -809,11 +809,16 @@ BEGIN
 				,@RowCount		 = @IsExistAR OUTPUT
 		END
 
-		SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
-									WHEN @IsAuto = 1 AND @Action ='CAL' THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
-																WHEN @sportType IN ( 6, 9 ) THEN 'NAP: Auto Payout: SBO'				
-																ELSE '' END
-									ELSE ''
+		SELECT @ResultRemarkLog =  CASE 
+										WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
+										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
+											THEN CASE 
+													WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
+													WHEN @sportType IN ( 6, 9 ) AND @Action = 'CAL' THEN 'NAP: Auto Payout: SBO'
+													WHEN @sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR' THEN 'NAP: Auto Payout: Direct'
+													ELSE '' 
+												END
+										ELSE ''
 									END
 			 
 								+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 

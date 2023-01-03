@@ -17,6 +17,7 @@ AS
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
+		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 
 	Param's Explanation:
@@ -158,7 +159,7 @@ BEGIN
 							GROUP BY os.MatchId, os.ResourceId
 						) os
 		WHERE m.sporttype = @Sporttype
-			AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
+			AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 16 > 0
 			AND ISNULL(m.SettlementStatus,0) & 87 = 0
 			AND os.MinStatusId IS NULL -- ResourceId has never been run before
 					
@@ -182,7 +183,7 @@ BEGIN
 								SELECT TOP 1 ss.WaitingTime
 								FROM	dbo.SettlementSetting ss WITH (NOLOCK)
 								WHERE	ss.LeagueId = m.leagueid
-										AND ss.AutoType = 1 -- Auto Payout
+										AND ss.AutoType = 5 -- direct Auto Payout
 							) ss
 				CROSS APPLY (
 					SELECT TOP (@n) r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
@@ -199,10 +200,12 @@ BEGIN
 									AND os.ResourceId = r.ResourceID 
 								GROUP BY os.MatchId, os.ResourceId
 							) os
+				OUTER APPLY ( SELECT ResourceID FROM f_Set_MajorRound (@sporttype)  f WHERE r.ResourceId = f.ResourceID) f
 			WHERE m.sporttype = @Sporttype
 				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & @AutoSetting > 0
 				AND ISNULL(m.SettlementStatus,0) & 87 = 0
 				AND os.MinStatusId IS NULL -- ResourceId has never been run before
+				AND f.ResourceID IS NULL -- EARLY result
 		END
 		ELSE
 		BEGIN
@@ -218,7 +221,7 @@ BEGIN
 					INNER JOIN dbo.ProviderExternalResultDetail r WITH(NOLOCK)
 						ON m.matchid = r.MatchId				
 				WHERE m.sporttype = @Sporttype
-				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 17 = 1
+				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 1 = 1
 					AND ISNULL(m.SettlementStatus,0) & 87 = 0
 					AND m.eventstatus = 'running'
 					AND ISNULL(m.IsDeleted,0) = 0
@@ -238,27 +241,22 @@ BEGIN
 					INNER JOIN dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
 						ON m.matchid = ex.MatchId
 					CROSS APPLY ( SELECT ResourceID FROM f_Set_MajorRound (@sporttype)  f WHERE ex.ResourceId = f.ResourceID) f
-					OUTER APPLY ( SELECT r.ResourceId FROM dbo.ResultDetailOS r (NOLOCK)
-									WHERE r.ResourceID = ex.ResourceId
-										AND r.MatchID = ex.MatchId
-										AND r.ResultStatusID IN ( 2, 4, 5 ) --settled result
-								) ro
 				WHERE m.sporttype = @Sporttype
-				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
+				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 1 = 1	--Turn on bit[1] and turn off bit[5]
 					AND ISNULL(m.SettlementStatus,0) & 87 = 0
 					AND m.eventstatus = 'running'
 					AND ISNULL(m.IsDeleted,0) = 0
-					AND ex.SourceId = 1 --SBO
-					AND ro.ResourceID IS NULL
+					AND ex.SourceId = 1 --SBO					
 
 			END
 
 			INSERT INTO #MatchInfo ( matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)
 			SELECT r.matchid, r.leagueid, r.SettlementStatus, r.ResourceId, r.HomeValue, r.AwayValue				
 			FROM @tmpLatestResult r
-				OUTER APPLY (	SELECT TOP 1 os.MatchId
-								FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
-								WHERE os.MatchId = r.matchid			
+				OUTER APPLY (	SELECT	TOP 1 os.MatchId
+								FROM	dbo.AutoPayoutResultOS os WITH(NOLOCK)
+								WHERE	os.MatchId = r.matchid		
+										AND os.ResourceId IN (SELECT f.ResourceID FROM dbo.f_Set_MajorRound(@Sporttype) f)
 							) os				
 			WHERE Ranking = 1 --Latest
 				AND r.IsFinal = 1 --exist FT

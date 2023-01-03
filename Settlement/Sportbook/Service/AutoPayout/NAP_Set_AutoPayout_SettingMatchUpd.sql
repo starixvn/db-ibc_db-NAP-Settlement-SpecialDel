@@ -21,6 +21,7 @@ AS
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20221128@Louisa: Do not check match.eventstatus when turn on/off Instant setting [Redmine:#180939]
+		- 20230103@Kathy: Support ON bit 1 & 5 for other sport [Redmine:#181458]    
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -38,6 +39,7 @@ BEGIN
 		, @Remark 				VARCHAR(1024)
 		, @LeagueId 			INT
 		, @actionLogId			INT
+		, @Sporttype			SMALLINT
 	
 	SELECT	@StarTime 			= GETDATE()
 			,@actionLogId = CASE 
@@ -51,6 +53,7 @@ BEGIN
 	
 	SELECT	@AutoSetting = AutoSetting
 			,@LeagueId = leagueid
+			,@Sporttype = sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
 	
@@ -67,13 +70,14 @@ BEGIN
 							END
 
 	-- turn off bit 1 or 5
-	SELECT @AutoSetting =
-							CASE WHEN @AutoType IN (1, 5) THEN 
-																CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
-																	ELSE @AutoSetting & 238
-																END
-								ELSE @AutoSetting 
-							END
+	IF @Sporttype = 1
+		SELECT @AutoSetting =
+								CASE WHEN @AutoType IN (1, 5) THEN 
+																	CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
+																		ELSE @AutoSetting & 238
+																	END
+									ELSE @AutoSetting 
+								END
 
 	--check match <> running
 	IF EXISTS (
