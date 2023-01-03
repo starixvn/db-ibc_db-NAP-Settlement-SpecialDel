@@ -1,5 +1,4 @@
-
-    /*<info serverAlias="DBARC-bodb_Archive" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBARC-bodb_Archive" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20221129@July
 	Task: Drop column un-used  [Redmine:#180625]  
