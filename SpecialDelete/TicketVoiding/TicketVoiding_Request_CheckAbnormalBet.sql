@@ -193,7 +193,7 @@ BEGIN
 				SELECT mid ,t ,ref ,c ,lh ,la ,li
 					  ,bfr ,btype ,bteam ,bid ,sid 
 					  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
-				FROM OPENJSON(@Decompress_TransInfoJson0) 
+				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
 					 ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
 					 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT

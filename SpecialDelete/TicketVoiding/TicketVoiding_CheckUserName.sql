@@ -128,7 +128,7 @@ BEGIN
 		CROSS APPLY (
 				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
 					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
-				FROM OPENJSON(@Decompress_TransInfoJson0) 
+				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
 					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
 				)

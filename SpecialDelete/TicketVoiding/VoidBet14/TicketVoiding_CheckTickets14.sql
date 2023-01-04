@@ -89,7 +89,7 @@ BEGIN
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
-				FROM OPENJSON(@Decompress_TransInfoJson0) 
+				FROM OPENJSON(t.Decompress_TransInfoJson) 
 					WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
 						, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT)
 		) tbl

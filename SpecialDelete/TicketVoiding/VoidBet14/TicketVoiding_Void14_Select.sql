@@ -169,7 +169,7 @@ BEGIN
 						, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
 						, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
 						, acstake, wld, m, isP, sitedb
-				FROM OPENJSON(@Decompress_TransInfoJson0) 
+				FROM OPENJSON(t.Decompress_TransInfoJson) 
 					WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
 						, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
 						, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
