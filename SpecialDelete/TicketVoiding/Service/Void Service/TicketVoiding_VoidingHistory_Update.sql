@@ -35,7 +35,7 @@ BEGIN
 			,MinWinlostdate = ISNULL(@MinWinLostDate, MinWinlostdate)
 			,MaxWinlostdate = ISNULL(@MaxWinLostDate, MaxWinlostdate)
 			,ModifiedDate = GETDATE()
-			,MessageHash = ISNULL(@MessageHash, MessageHash)
+			--,MessageHash = ISNULL(@MessageHash, MessageHash)
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 END
 GO
