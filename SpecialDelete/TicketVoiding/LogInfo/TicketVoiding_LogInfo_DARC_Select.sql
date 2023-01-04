@@ -49,7 +49,6 @@ BEGIN
 		   ,@PATime					TINYINT	= 0
 		   ,@SATime					TINYINT	= 0
 		   ,@TransInfoJson_Output	VARBINARY(MAX) = NULL
-
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
 			SubTransid            BIGINT,

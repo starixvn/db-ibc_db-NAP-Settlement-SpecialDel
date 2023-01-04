@@ -59,7 +59,6 @@ BEGIN
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
-
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)

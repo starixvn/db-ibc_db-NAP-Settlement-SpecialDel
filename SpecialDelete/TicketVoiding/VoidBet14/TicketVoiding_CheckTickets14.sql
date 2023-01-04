@@ -90,6 +90,7 @@ BEGIN
 						, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT)
 		) tbl
 	WHERE f.value <> ''
+		) tbl
 
 	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 

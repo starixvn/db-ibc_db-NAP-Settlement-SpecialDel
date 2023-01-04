@@ -89,7 +89,6 @@ BEGIN
 			,@ListBetteam 				 VARCHAR(MAX) =''
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 
-
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
