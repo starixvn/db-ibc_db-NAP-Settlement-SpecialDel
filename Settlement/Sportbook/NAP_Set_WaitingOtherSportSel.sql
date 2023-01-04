@@ -22,6 +22,7 @@ AS
 		- 20220421@Louisa: Fix issue duplicate in MERGE statement [Redmine:#168346]
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230104@Kathy: get sitedbgroupid 
 
 	Param's explanation:  
 		
@@ -421,6 +422,7 @@ BEGIN
 			INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON m.MatchId = bm.matchid
 			INNER JOIN #tmpAllParentChildMatch tmp	ON	bm.matchid = tmp.MatchId
 		WHERE	bm.statusID = 0
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 			AND 1 = CASE 
 						WHEN m.IsExistRunningTicket = 0
 								AND tmp.IsMergedParlay = 1 THEN 1
