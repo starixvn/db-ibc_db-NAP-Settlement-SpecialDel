@@ -15,6 +15,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's explanation:	
@@ -421,7 +422,7 @@ BEGIN
 	FROM #TransInfo
 	FOR JSON AUTO))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 	DROP TABLE #InputUsernameList

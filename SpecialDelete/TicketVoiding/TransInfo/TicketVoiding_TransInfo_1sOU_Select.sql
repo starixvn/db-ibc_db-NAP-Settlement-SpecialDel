@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		- @Wrong1stOUInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -456,7 +457,7 @@ BEGIN
 	FROM #TransInfo
 	FOR JSON AUTO))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 	DROP TABLE #FilterInfo

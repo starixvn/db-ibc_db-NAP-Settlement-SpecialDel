@@ -13,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's explanation:	
@@ -304,7 +305,7 @@ BEGIN
 	FROM #TransInfo
 	FOR JSON AUTO))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 END

@@ -8,9 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@SubIssueTypeId			TINYINT	= NULL
 	,@IsRemoveCustomerClass201	BIT = 0
 	,@IsRemoveCustomerClass4K	BIT = 0
-	,@TransInfoJson0			VARBINARY(MAX) = NULL
-	,@TransInfoJson1			VARBINARY(MAX) = NULL
-	,@TransInfoJson2			VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 )
 AS
 /*  
@@ -55,6 +53,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230110@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
 		- 20230116@July: [TVS] Exclude Customer Class = 4000 & Change CC=1 to CC=201 [Redmine: #182804]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -87,15 +86,6 @@ BEGIN
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 			,@ListBettype 				 VARCHAR(MAX) =''
 			,@ListBetteam 				 VARCHAR(MAX) =''
-
-	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
-		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
-		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
-	       ,@TransInfoJson			   VARBINARY(MAX) = NULL
-	
-	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -194,33 +184,21 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	/*0:Central*/
 	SELECT mid ,t ,ref ,c ,lh ,la ,li
-		  ,bfr ,btype ,bteam ,bid ,sid 
-		  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson0) 
-	WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
-	     ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
-		 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT
-	) tbl0
-	UNION ALL /*1: Sitedb1*/
-	SELECT mid ,t ,ref ,c ,lh ,la ,li
-		  ,bfr ,btype ,bteam ,bid ,sid 
-		  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson1) 
-	WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
-	     ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
-		 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT
-	) tbl1
-	UNION ALL /*2: Sitedb2*/
-	SELECT mid ,t ,ref ,c ,lh ,la ,li
-		  ,bfr ,btype ,bteam ,bid ,sid 
-		  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson2) 
-	WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
-	     ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
-		 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT
-	) tbl2
+		,bfr ,btype ,bteam ,bid ,sid 
+		,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
+	FROM string_split(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+				SELECT mid ,t ,ref ,c ,lh ,la ,li
+					  ,bfr ,btype ,bteam ,bid ,sid 
+					  ,sre ,mre ,re ,curr ,statuswl ,s_mid ,isM ,isP ,sitedb
+				FROM OPENJSON(@Decompress_TransInfoJson0) 
+				WITH( mid INT, t BIGINT, ref BIGINT, c INT, lh SMALLINT, la SMALLINT ,li BIT 
+					 ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,sid TINYINT 
+					 ,sre INT ,mre INT ,re INT ,curr NVARCHAR(50) ,statuswl TINYINT ,s_mid VARCHAR(2000) ,isM BIT ,isP BIT ,sitedb SMALLINT
+				)
+		) tbl
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN

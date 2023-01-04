@@ -15,9 +15,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL	
-	,@TransInfoJson0	  VARBINARY(MAX) = NULL
-	,@TransInfoJson1	  VARBINARY(MAX) = NULL
-	,@TransInfoJson2	  VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -64,6 +62,7 @@ AS
 		- 20220627@July: TVS - Remove invalid column [Redmine: #174122]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:
 		
@@ -94,9 +93,7 @@ BEGIN
 					+ CASE WHEN @Wrong1stHDPInfo IS NULL THEN '' ELSE ',@Wrong1stHDPInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stHDPInfo) + '''' END
 					+ CASE WHEN @WrongOUInfo IS NULL THEN '' ELSE ',@WrongOUInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOUInfo) + '''' END
 					+ CASE WHEN @Wrong1stOUInfo IS NULL THEN '' ELSE ',@Wrong1stOUInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stOUInfo) + '''' END
-					+ CASE WHEN @TransInfoJson0 IS NULL THEN '' ELSE ',@TransInfoJson0 = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson0, 1) + '''' END
-					+ CASE WHEN @TransInfoJson1 IS NULL THEN '' ELSE ',@TransInfoJson1 = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson1, 1) + '''' END
-					+ CASE WHEN @TransInfoJson2 IS NULL THEN '' ELSE ',@TransInfoJson2 = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson2, 1) + '''' END
+					+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson0 = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),@SubmittedDate)
@@ -113,9 +110,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @DangerAcceptedInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 3 --Wrong score
 	BEGIN
@@ -125,9 +120,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongScoreInfo	   = @WrongScoreInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 4 --Wrong HDP
 	BEGIN
@@ -137,9 +130,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongHDPInfo		   = @WrongHDPInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 5 --Wrong 1st HDP
 	BEGIN
@@ -149,9 +140,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongHDPInfo		   = @Wrong1stHDPInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 6 --Wrong OU
 	BEGIN
@@ -161,9 +150,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@WrongOUInfo		   = @WrongOUInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 7 --Wrong 1st OU
 	BEGIN
@@ -173,9 +160,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@WrongOUInfo		   = @Wrong1stOUInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId IN (8,9) --EKO,WKO
 	BEGIN
@@ -184,9 +169,7 @@ BEGIN
 			,@ActionId			   = @ActionId
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@KickOffInfo		   = @KickOffInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 	ELSE IF @IssueTypeId = 10 --Red card
 	BEGIN
@@ -196,9 +179,7 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @RedCardInfo
-			,@TransInfoJson0	   = @TransInfoJson0
-			,@TransInfoJson1	   = @TransInfoJson1
-			,@TransInfoJson2	   = @TransInfoJson2
+			,@TransInfoJson		   = @TransInfoJson
 	END
 
 	-- Write useraction log	

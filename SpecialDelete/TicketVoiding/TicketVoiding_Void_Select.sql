@@ -7,9 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
 	,@BetTypes			XML = NULL
 	,@LiveHomeScore		SMALLINT = NULL
 	,@LiveAwayScore		SMALLINT = NULL
-	,@TransInfoJson0 VARBINARY(MAX) = NULL
-	,@TransInfoJson1 VARBINARY(MAX) = NULL
-	,@TransInfoJson2 VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -45,6 +43,7 @@ AS
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:	
 		
@@ -166,9 +165,6 @@ BEGIN
 	DECLARE @SettledType VARCHAR(100) = 'All'
 		   ,@StatusIds	 VARCHAR(50) =''
 		   ,@FilterBy	 TINYINT = NULL
-		   ,@Decompress_TransInfoJson0 NVARCHAR(MAX)
-		,@Decompress_TransInfoJson1 NVARCHAR(MAX)
-		,@Decompress_TransInfoJson2 NVARCHAR(MAX)
 	
 	CREATE TABLE #tmpTransInfo(
 			   matchid INT
@@ -228,10 +224,6 @@ BEGIN
 			  ,IsMixParlay BIT
 			  ,SiteDBGroupID SMALLINT
 			)
-	
-	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
 
 	INSERT INTO #tmpTransInfo( 
 		    matchid,transid,Subtransid ,refno ,custid,hdp1,hdp2 ,livehomescore ,liveawayscore,liveindicator,odds,oddsid,oddsspread 
@@ -242,48 +234,28 @@ BEGIN
 	       ,actual_stake ,winlostdate,modds ,IsMixParlay ,SiteDBGroupID 
 		)
 	SELECT mid, t, s_t, ref, c, hdp1, hdp2, lh, la, li, o, oid, os
-			, bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid
-			, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
-			, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
-			, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
-			, acstake, wld, m, isP, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson0) 
-		WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
-			, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
-			, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
-			, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
-			, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
-			, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
-		) tbl
-	UNION ALL
-	SELECT mid, t, s_t, ref, c, hdp1, hdp2, lh, la, li, o, oid, os
-			, bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid
-			, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
-			, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
-			, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
-			, acstake, wld, m, isP, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson1) 
-		WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
-			, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
-			, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
-			, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
-			, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
-			, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
-		) tbl
-	UNION ALL
-	SELECT mid, t, s_t, ref, c, hdp1, hdp2, lh, la, li, o, oid, os
-			, bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid
-			, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
-			, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
-			, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
-			, acstake, wld, m, isP, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson2) 
-		WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
-			, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
-			, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
-			, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
-			, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
-			, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
+		, bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid
+		, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
+		, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
+		, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
+		, acstake, wld, m, isP, sitedb
+	FROM string_split(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+				SELECT mid, t, s_t, ref, c, hdp1, hdp2, lh, la, li, o, oid, os
+						, bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid
+						, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
+						, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
+						, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
+						, acstake, wld, m, isP, sitedb
+				FROM OPENJSON(@Decompress_TransInfoJson0) 
+				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
+					, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
+					, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
+					, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
+					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
+					, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
+				)
 		) tbl
 
 	IF @IssueTypeId IN (11,15) --11: AbnormalBet, 15: AB(RealMember)

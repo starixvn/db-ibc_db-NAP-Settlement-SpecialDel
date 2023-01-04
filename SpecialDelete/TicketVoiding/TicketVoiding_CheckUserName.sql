@@ -8,9 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 	,@StatusIds			VARCHAR(50)  = NULL
 	,@FromDate			DATETIME     = NULL
     ,@ToDate			DATETIME     = NULL
-	,@TransInfoJson0	VARBINARY(MAX) = NULL
-	,@TransInfoJson1	VARBINARY(MAX) = NULL
-	,@TransInfoJson2	VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 )
 AS
 /*
@@ -34,6 +32,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
@@ -59,15 +58,6 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
-
-	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
-		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
-		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
-	       ,@TransInfoJson			   VARBINARY(MAX) = NULL
-			
-	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
@@ -131,27 +121,18 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	/*0:Central*/
 	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
-		  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson0) 
-	WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
-		 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
-	) tbl0
-	UNION ALL /*1: Sitedb1*/
-	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
-		  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson1) 
-	WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
-		 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
-	) tbl1
-	UNION ALL /*2: Sitedb2*/
-	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
-		  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson2) 
-	WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
-		 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
-	) tbl2
+		,wld ,isP ,sitedb
+	FROM string_split(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
+					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
+				FROM OPENJSON(@Decompress_TransInfoJson0) 
+				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
+					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
+				)
+		) tbl
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT

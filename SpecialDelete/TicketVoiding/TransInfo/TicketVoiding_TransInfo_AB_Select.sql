@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		- @AbnormalBetTransIds: '12343091763609600,12343108943478784'
@@ -456,7 +457,7 @@ BEGIN
 	FROM #TransInfo
 	FOR JSON AUTO))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 END

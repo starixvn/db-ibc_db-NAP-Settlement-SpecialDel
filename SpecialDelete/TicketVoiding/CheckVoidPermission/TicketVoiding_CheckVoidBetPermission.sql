@@ -1,8 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission] 
-	 @TransInfoJson0					VARBINARY(MAX) = NULL
-	,@TransInfoJson1					VARBINARY(MAX) = NULL
-	,@TransInfoJson2					VARBINARY(MAX) = NULL
+	 @TransInfoJson					VARCHAR(MAX) = NULL
 	,@IsCashOutAsUnSettledTicket		BIT = 0
 	,@MatchId							INT = NULL
 	,@IsHostVoidSettledTickets			BIT = 0
@@ -20,6 +18,7 @@ AS
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -36,9 +35,6 @@ BEGIN
 			,@IsExistsSettledTickets BIT = 0
 			,@IsExistsInstantlySettledTickets BIT = 0
 			,@IsExistsSettledCashOutTickets BIT = 0
-			,@Decompress_TransInfoJson0 NVARCHAR(MAX)
-			,@Decompress_TransInfoJson1 NVARCHAR(MAX)
-			,@Decompress_TransInfoJson2 NVARCHAR(MAX)
 
 	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY)
 
@@ -57,10 +53,6 @@ BEGIN
 		,SiteDBGroupID SMALLINT
 	)
 
-	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
-
 	INSERT INTO #tmpTransInfo( 
 		 matchid 
 		,transid
@@ -74,18 +66,12 @@ BEGIN
 		,SiteDBGroupID
 		)
 	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson0) 
-		WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT
-		) tbl
-	UNION ALL
-	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson1) 
-		WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT
-		) tbl
-	UNION ALL
-	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson2) 
-		WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT
+	FROM string_split(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+				SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb
+				FROM OPENJSON(t.Decompress_TransInfoJson) 
+				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT)
 		) tbl
 
 	-- Instant Settlement declaration
