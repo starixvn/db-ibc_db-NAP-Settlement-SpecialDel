@@ -86,6 +86,8 @@ BEGIN
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 			,@ListBettype 				 VARCHAR(MAX) =''
 			,@ListBetteam 				 VARCHAR(MAX) =''
+			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
+
 
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -209,7 +211,7 @@ BEGIN
 
 		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
-		SELECT @TransInfoJson AS TransInfoJson
+		SELECT @TransInfoJson_Output AS TransInfoJson
 		RETURN;
 	END
 
@@ -232,7 +234,7 @@ BEGIN
 
 			SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 
-			SELECT @TransInfoJson AS TransInfoJson
+			SELECT @TransInfoJson_Output AS TransInfoJson
 			RETURN;
 		END
 
@@ -654,7 +656,7 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	--4. Transinfo table
-	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,b.refno AS 'ref'
 		,b.custid AS  'c'           
@@ -670,7 +672,8 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
-	SELECT @TransInfoJson AS TransInfoJson
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+
 
 	DROP TABLE #inputTransid
 	DROP TABLE #validTransId

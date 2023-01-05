@@ -58,6 +58,7 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
+			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
@@ -103,7 +104,7 @@ BEGIN
 			
 		SELECT NULL AS UnmarkTransIds
 
-		SELECT @TransInfoJson AS TransInfoJson
+		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -173,7 +174,7 @@ BEGIN
 
 		SELECT NULL AS UnmarkTransIds
 		
-		SELECT @TransInfoJson AS TransInfoJson
+		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -410,7 +411,7 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	--3. List TransinfoJson
-	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
@@ -421,7 +422,7 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
-	SELECT @TransInfoJson AS TransInfoJson
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1

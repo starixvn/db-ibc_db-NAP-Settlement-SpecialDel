@@ -36,6 +36,7 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
 			,@OldActionId			  TINYINT
+			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 
 	DECLARE	 @WrongScoreInfoXML		  XML = NULL
 			,@MinAccept				  TINYINT = 0	
@@ -729,7 +730,7 @@ BEGIN
 		SELECT NULL AS UnmarkTransIds
 		
 		-- 5. Transinfo table (No need return data)
-		SELECT @TransInfoJson AS TransInfoJson
+		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -776,7 +777,7 @@ BEGIN
 			SELECT NULL AS UnmarkTransIds
 		
 			-- 5. Transinfo table
-			SELECT @TransInfoJson AS TransInfoJson
+			SELECT @TransInfoJson_Output AS TransInfoJson
 
 		END
 		ELSE 
@@ -815,7 +816,7 @@ BEGIN
 			SELECT NULL AS UnmarkTransIds
 
 			-- 5. TransInfo table
-			SELECT @TransInfoJson AS TransInfoJson
+			SELECT @TransInfoJson_Output AS TransInfoJson
 		END
 
 		RETURN;
@@ -1075,7 +1076,7 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	-- 5. Transinfo table
-	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,t.Subtransid  AS 's_t'
 		,b.custid AS  'c'           
@@ -1090,7 +1091,7 @@ BEGIN
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 	FOR JSON PATH))
 	
-	SELECT @TransInfoJson AS TransInfoJson
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

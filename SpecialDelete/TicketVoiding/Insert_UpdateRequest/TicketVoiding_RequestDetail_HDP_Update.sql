@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_HDP_Update]
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@WrongHDPInfo			VARCHAR(MAX) = NULL
-	,@TransInfoJson			VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 	,@IsEditRequest			INT = 0 
 )
 AS
@@ -19,6 +19,7 @@ AS
 		- 20220808@July: Create new SP - Split code issuetype wrong HDP & wrong 1st HDP [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20221125@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:
 		+ @IssueTypeId : 4 - Wrong HDP, 5 - Wrong 1st HDP
@@ -40,7 +41,7 @@ BEGIN
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT

@@ -45,6 +45,7 @@ BEGIN
 			,@MainMatchId			  INT
 			,@IsShowPHOnly			  BIT
 			,@PoolHouseCheckedBetTypes VARCHAR(MAX) = ''
+			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -701,7 +702,7 @@ BEGIN
 		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 		
 		-- 5. Transinfo table (No need -> return table)
-		SELECT @TransInfoJson AS TransInfoJson
+		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -747,7 +748,7 @@ BEGIN
 		SELECT TransId AS UnmarkTransIds FROM @tmpUnmarkTransId
 		
 		-- 5. Transinfo table (No need -> return table)
-		SELECT @TransInfoJson AS TransInfoJson
+		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -874,7 +875,7 @@ BEGIN
 	      ,@MarkTransIds AS MarkTransIds
 
 	-- 5. Transinfo table
-	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,t.Subtransid  AS 's_t'
 		,b.custid AS  'c'           
@@ -887,7 +888,7 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
-	SELECT @TransInfoJson AS TransInfoJson
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

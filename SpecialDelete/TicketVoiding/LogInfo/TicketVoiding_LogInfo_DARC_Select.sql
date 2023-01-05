@@ -48,6 +48,7 @@ BEGIN
 		   ,@AATime					TINYINT	= 0 
 		   ,@PATime					TINYINT	= 0
 		   ,@SATime					TINYINT	= 0
+		   ,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -756,7 +757,7 @@ BEGIN
 		SELECT NULL AS UnmarkTransIds
 		
 		-- 5. Transinfo table
-		SELECT @TransInfoJson AS TransInfoJson
+		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -953,7 +954,7 @@ BEGIN
 	      ,@MarkTransIds AS MarkTransIds
 
 	-- 5. Transinfo table
-	SET @TransInfoJson = COMPRESS((SELECT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,t.Subtransid  AS 's_t'
 		,b.refno AS 'ref'
@@ -967,7 +968,7 @@ BEGIN
 	WHERE NOT EXISTS (SELECT 1 FROM #TransidInRequest r WHERE r.TransId = t.SubTransid)
 	FOR JSON PATH))
 	
-	SELECT @TransInfoJson AS TransInfoJson
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest

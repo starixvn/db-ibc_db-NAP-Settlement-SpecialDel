@@ -29,7 +29,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@WrongOUInfo		    VARCHAR(MAX)  = NULL
 	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
 	,@IsVoided				BIT			  = 0
-	,@TransInfoJson			VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX)  = NULL
 )
 AS
 /*	Created by: 20181212@Kathy
@@ -63,6 +63,7 @@ AS
 		- 20220610@July: TVS - Some minor enhancements  [Redmine: #173229]
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader

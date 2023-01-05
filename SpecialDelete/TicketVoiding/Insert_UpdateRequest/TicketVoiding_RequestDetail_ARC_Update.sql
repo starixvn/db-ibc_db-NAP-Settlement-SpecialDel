@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_ARC_Update]
 	,@IP					VARCHAR(50)	= NULL
 	,@FilterBy				TINYINT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
-	,@TransInfoJson			VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 	,@IsEditRequest			INT
 )
 AS
@@ -20,6 +20,7 @@ AS
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype Archived ticket [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:
 */
@@ -35,7 +36,7 @@ BEGIN
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match

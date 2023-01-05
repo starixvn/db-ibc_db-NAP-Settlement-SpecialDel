@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_ACC_Update]
 	,@ActionId				TINYINT
 	,@SubIssueTypeId		TINYINT = NULL
 	,@AbnormalAccountInfo	NVARCHAR(MAX) = NULL
-	,@TransInfoJson			VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 	,@IsEditRequest			INT = 0
 )
 AS
@@ -20,6 +20,7 @@ AS
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype Abnormal account [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:
 */
@@ -48,7 +49,7 @@ BEGIN
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
 	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
