@@ -44,7 +44,7 @@ BEGIN
 	ELSE IF @Mode = 2 -- get requests will run Lettalk
 	BEGIN
 		DECLARE @tmpResult TABLE (RequestID INT, VoidingHistoryId INT, statusID TINYINT, matchID INT, BroadcastSessionId VARCHAR(100), IsInsert BIT, cnt INT)
-		DECLARE @min_RequestId INT;
+		DECLARE @min_RequestId INT, @IsAutoVoid BIT
 		
 		INSERT INTO @tmpResult (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, IsInsert)
 		SELECT DISTINCT 
@@ -77,13 +77,16 @@ BEGIN
 		SELECT @min_RequestId =  MIN(RequestID)
 		FROM @tmpResult 
 
-		SELECT  RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, IsInsert
+		SELECT @IsAutoVoid = CASE WHEN ActionId IN (1,4,6,7,8) THEN 1 ELSE 0 END
+		FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @min_RequestId
+
+		SELECT  RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, IsInsert, @IsAutoVoid AS IsAutoVoid
 		FROM @tmpResult t
 			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
 						  FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 						  WHERE t.RequestID = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
 						  GROUP BY BroadcastSessionId
 					)a
-		where t.cnt = a.cnt AND t.RequestID = @min_RequestId
+		WHERE t.cnt = a.cnt AND t.RequestID = @min_RequestId
 	END
 END
