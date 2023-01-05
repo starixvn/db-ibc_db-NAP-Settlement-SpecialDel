@@ -178,6 +178,7 @@ BEGIN
 						, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
 					)
 		) tbl
+	WHERE f.value <> ''
 
 	INSERT INTO #TVSTicketBets(
 			GroupID			

@@ -73,6 +73,7 @@ BEGIN
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT)
 		) tbl
+	WHERE f.value <> ''
 
 	-- Instant Settlement declaration
 	DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'

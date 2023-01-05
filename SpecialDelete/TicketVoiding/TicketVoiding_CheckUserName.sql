@@ -134,6 +134,7 @@ BEGIN
 					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
 				)
 		) tbl
+	WHERE f.value <> ''
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT

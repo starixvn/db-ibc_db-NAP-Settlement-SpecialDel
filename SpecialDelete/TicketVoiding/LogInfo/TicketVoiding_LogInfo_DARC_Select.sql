@@ -276,6 +276,7 @@ BEGIN
 					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT
 				)
 		) tbl
+	WHERE f.value <> ''
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'

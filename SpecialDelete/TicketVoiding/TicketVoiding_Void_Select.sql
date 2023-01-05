@@ -257,6 +257,7 @@ BEGIN
 					, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
 				)
 		) tbl
+	WHERE f.value <> ''
 
 	IF @IssueTypeId IN (11,15) --11: AbnormalBet, 15: AB(RealMember)
 	BEGIN

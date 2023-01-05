@@ -321,6 +321,7 @@ BEGIN
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
 				)
 		) tbl
+	WHERE f.value <> ''
 
 	--Init Validation
 	INSERT INTO @Validation (MatchId)

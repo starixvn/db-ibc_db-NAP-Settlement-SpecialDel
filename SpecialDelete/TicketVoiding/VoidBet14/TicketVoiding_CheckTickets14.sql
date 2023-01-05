@@ -93,6 +93,7 @@ BEGIN
 					WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
 						, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT)
 		) tbl
+	WHERE f.value <> ''
 
 	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 

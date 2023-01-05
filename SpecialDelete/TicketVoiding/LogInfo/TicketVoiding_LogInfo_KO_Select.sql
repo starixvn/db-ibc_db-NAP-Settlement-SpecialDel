@@ -206,6 +206,7 @@ BEGIN
 					 ,wt TINYINT ,refc BIGINT
 				)
 		) tbl
+	WHERE f.value <> ''
 
 	INSERT INTO #TVSTicketBets(
 			transid		
