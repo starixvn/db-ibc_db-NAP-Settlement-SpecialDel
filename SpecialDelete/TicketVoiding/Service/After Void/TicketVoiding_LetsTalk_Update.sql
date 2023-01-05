@@ -28,7 +28,7 @@ BEGIN
 	ELSE IF @Mode = 2
 	BEGIN
 		UPDATE dbo.TicketVoiding_Letstalk 
-		SET StatusId = @StatusId
+		SET StatusId = @StatusId, ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND BroadcastSessionID = @BroadcastSessionID
 	END
 END

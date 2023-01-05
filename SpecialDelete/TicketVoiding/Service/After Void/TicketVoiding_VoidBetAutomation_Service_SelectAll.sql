@@ -36,28 +36,54 @@ BEGIN
 			, vb.IsUpdatedVoidingHistory
 			, vb.IsSentEmail
 			, vb.IsSentLetsTalk
-		FROM dbo.Ticketvoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
+		FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId
 		WHERE vb.statusID = 1
 		ORDER BY vb.createdDate ASC
 	END
 	ELSE IF @Mode = 2 -- get requests will run Lettalk
 	BEGIN
+		DECLARE @tmpResult TABLE (RequestID INT, VoidingHistoryId INT, statusID TINYINT, matchID INT, BroadcastSessionId VARCHAR(100), IsInsert BIT, cnt INT)
+		DECLARE @min_RequestId INT;
+		
+		INSERT INTO @tmpResult (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, IsInsert)
 		SELECT DISTINCT 
-			  vb.RequestID
-			, vh.VoidingHistoryId
-			, vb.statusID
-			, vb.matchID
-			, vh.BroadcastSessionId
-			, CASE WHEN lt.RequestID IS NULL THEN 1 --Insert
-				  WHEN lt.RequestID IS NOT NULL AND lt.statusID = 1 THEN 0 --Update
-			  END AS IsInsert 
-		FROM dbo.Ticketvoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vh.StatusId = 2
-			LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vb.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
-		WHERE vb.statusID = 2 AND vh.BroadcastSessionId IS NOT NULL
-		AND 1 = CASE WHEN lt.RequestID IS NULL THEN 1
-					 WHEN lt.RequestID IS NOT NULL AND lt.statusID = 1 THEN 1
-					 ELSE 0 END
+			  	vb.RequestID
+				, vh.VoidingHistoryId
+				, vb.statusID
+				, vb.matchID
+				, vh.BroadcastSessionId
+				,CASE WHEN lt.BroadcastSessionId IS NULL  THEN 1 --Insert
+					  WHEN lt.BroadcastSessionId IS NOT NULL AND lt.statusID = 1 THEN 0--Update
+					 END AS IsInsert 
+		FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
+		LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
+		INNER JOIN dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK) ON vh.VoidingHistoryId = vb.VoidingHistoryId
+		WHERE  vh.BroadcastSessionId IS NOT NULL AND vh.StatusId = 2 AND vb.statusID = 2
+		AND 1 = CASE WHEN lt.BroadcastSessionId IS NULL  THEN 1
+					 WHEN lt.BroadcastSessionId IS NOT NULL AND lt.statusID = 1 THEN 1
+					ELSE 0 END
+					
+		UPDATE t1
+		SET cnt = t2.cnt_BroadcastSessionId
+		FROM @tmpResult t1
+		 CROSS APPLY (
+			SELECT COUNT (BroadcastSessionId) cnt_BroadcastSessionId
+			FROM @tmpResult t2
+			WHERE t1.BroadcastSessionId = t2.BroadcastSessionId
+			GROUP BY BroadcastSessionId
+			)t2
+
+		SELECT @min_RequestId =  MIN(RequestID)
+		FROM @tmpResult 
+
+		SELECT  RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, IsInsert
+		FROM @tmpResult t
+			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
+						  FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+						  WHERE t.RequestID = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
+						  GROUP BY BroadcastSessionId
+					)a
+		where t.cnt = a.cnt AND t.RequestID = @min_RequestId
 	END
 END
