@@ -1,7 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 (
-	@SessionId 						INT = NULL,
 	@UpdateType						INT,
 	@StatusId						INT = NULL,
 	@RequestId						INT = NULL,
@@ -18,8 +17,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 	@VoidResults					XML = NULL
 )
 AS
-/*	Created by: Max
-	Date 20200212
+/*	Created by: 20200212@Max
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
 	DB: DBCTG/bodb02
 	
@@ -27,13 +25,12 @@ AS
 		- 20200215@Max: Create new SP [Redmine: #128359]
 		- 20201203@Charles: Optimize Voiding Workflow [Redmine: #145719]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	
+		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		
 	Param's explanation:
 	- @UpdateType:
 			   1: Update status by VoidingHistory
-			   2: Update status by session
 			   3: Update MessageId by VoidingHistory
-			   4: Update MessageId by Session
 			   5: Update after void step
 			   6: Update all after void steps
 			   7: Update Emails Result By VoidingHistory
@@ -48,26 +45,12 @@ BEGIN
 			,ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
-	ELSE IF @UpdateType = 2
-	BEGIN
-		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET statusID = @StatusId
-			,ModifiedDate = GETDATE()
-		WHERE SessionID = @SessionId
-	END
 	ELSE IF @UpdateType = 3
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET MessageId = @MessageId
 			,ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
-	END
-	ELSE IF @UpdateType = 4
-	BEGIN
-		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET MessageId = @MessageId
-			,ModifiedDate = GETDATE()
-		WHERE SessionID = @SessionId
 	END
 	ELSE IF @UpdateType = 5
 	BEGIN
