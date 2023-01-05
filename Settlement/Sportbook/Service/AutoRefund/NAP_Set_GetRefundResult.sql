@@ -13,6 +13,7 @@ AS
 
 	Revisions:
 		- 20220512@Louisa: Initial [Redmine:#171676]
+		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 
 	Param's explaination: 
 		- @TypeId:  1 - Auto refund single or sporttype apply merge single + parlay
@@ -31,11 +32,9 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @handle INT
+		
 	DECLARE @tmpCalculateResources TABLE(ResourceId VARCHAR(20) )
 	DECLARE @tmpResourceAutoRefund TABLE ( ResourceId VARCHAR(20) , bettype SMALLINT, betid BIGINT, IsExistsTicket BIT )
-
-	IF @Sporttype <> 9
-	RETURN
 
 	IF ISNULL(@CalculateResources, '') = '' 
 		RETURN
@@ -53,9 +52,9 @@ BEGIN
 	FROM dbo.SettlementSpecialBettypeProfile sp (NOLOCK)
 		LEFT JOIN @tmpCalculateResources r ON sp.ResourceID = r.ResourceId
 	WHERE sp.SportType = @sportType
-		AND sp.SettleType ='MNL'
-		AND sp.GroupType <> 'FT'
+		AND sp.SettleType = 'MNL'
 		AND r.ResourceID IS NULL
+		AND EXISTS (SELECT TOP 1 1 FROM f_Set_MajorRound(@Sporttype) f WHERE f.GroupType = 'SP' AND (f.ResourceID = sp.ResourceID OR f.ResourceID = sp.RefResourceId))
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM @tmpResourceAutoRefund)
 		RETURN

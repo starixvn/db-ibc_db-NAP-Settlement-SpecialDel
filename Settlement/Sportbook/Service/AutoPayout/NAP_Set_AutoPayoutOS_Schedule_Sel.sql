@@ -16,6 +16,7 @@ AS
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
+		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 */
 BEGIN
 	
@@ -172,7 +173,7 @@ BEGIN
 				INNER JOIN dbo.ProviderExternalResultDetail r WITH(NOLOCK)
 					ON m.matchid = r.MatchId				
 			WHERE m.sporttype = @Sporttype
-				AND ISNULL(m.AutoSetting,0) & 17 = 1 ---Turn on bit[1] and turn off bit[5]
+				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 17 = 1
 				AND ISNULL(m.SettlementStatus,0) & 87 = 0
 				AND m.eventstatus = 'running'
 				AND ISNULL(m.IsDeleted,0) = 0
@@ -192,19 +193,12 @@ BEGIN
 				INNER JOIN dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
 					ON m.matchid = ex.MatchId
 				CROSS APPLY ( SELECT ResourceID FROM f_Set_MajorRound (@sporttype)  f WHERE ex.ResourceId = f.ResourceID) f
-				OUTER APPLY ( SELECT r.ResourceId FROM dbo.ResultDetailOS r (NOLOCK)
-								WHERE r.ResourceID = ex.ResourceId
-									AND r.MatchID = ex.MatchId
-									AND r.ResultStatusID IN ( 2, 4, 5 ) --settled result
-							) ro
 			WHERE m.sporttype = @Sporttype
-				AND ISNULL(m.AutoSetting,0) & 17 = 1 ---Turn on bit[1] and turn off bit[5]
+				AND ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 17 = 1	--Turn on bit[1] and turn off bit[5]
 				AND ISNULL(m.SettlementStatus,0) & 87 = 0
 				AND m.eventstatus = 'running'
 				AND ISNULL(m.IsDeleted,0) = 0
 				AND ex.SourceId = 1 --SBO
-				AND ro.ResourceID IS NULL
-
 		END
 
 		INSERT INTO #MatchInfo ( matchid, leagueid, SettlementStatus, ResourceId, HomeValue, AwayValue)

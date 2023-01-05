@@ -5,6 +5,7 @@ ALTER PROCEDURE NAP_Set_AutoRefundOS_ResultUpd
  ,@StatusId		 TINYINT  		
  ,@ResourceIds	 VARCHAR(500)
  ,@Remark		 VARCHAR(1000)  = NULL
+ ,@TryCount		 TINYINT = 0
 AS
 
 /*
@@ -14,7 +15,8 @@ AS
 
 	Revisions:
 		- 20220512@Louisa: Initial 
-
+		- 20230104@Kathy: Add @trycount [Redmine:#181458]
+		
 	Param's explaination:
 		@ResourceIds = '0103,0104,0105'
 */
@@ -26,10 +28,7 @@ BEGIN
 		UPDATE r
 			SET 
 				StatusId	=  @StatusId
-				,TryCount	=	CASE  
-									WHEN ISNULL(@Remark,'') <> '' AND @TypeId = 1
-									THEN TryCount + 1 ELSE TryCount 
-								END			
+				,TryCount	= @TryCount			
 				,ModifiedDate	= GETDATE()
 				,Remark			= COALESCE(@Remark, Remark)
 		FROM dbo.AutoRefundResultOS r WITH(ROWLOCK,UPDLOCK)

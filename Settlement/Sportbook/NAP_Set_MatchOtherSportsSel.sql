@@ -48,6 +48,7 @@ AS
 			- 20221205@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 			- 20221129@Louisa: Change Filter OverStatus and Tuning SP [Redmine:#181002]
 			- 20221226@Louisa: Fix bug [Redmine:#182009]
+			- 20230104@Kathy: duplicate matchid in #tmpAllParentChildMatch
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -753,13 +754,10 @@ BEGIN
 		FULL OUTER JOIN parlayqueue p
 			ON	s.matchid = p.matchid
 	
-	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
-	SELECT m.matchid, m.matchid, m.IsMergedParlay, m.eventstatus FROM #tmpMatchIds m
-
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype = 50 AND ISNULL(childmatchtype,0) <> 200 )
 	BEGIN
 		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
-		SELECT	m.matchid, m.ParentId, t.IsMergedParlay, t.eventstatus
+		SELECT	DISTINCT m.matchid, m.ParentId, t.IsMergedParlay, t.eventstatus
 		FROM	#tmpMatchIds t
 			CROSS APPLY (
 				SELECT	m.matchid, m.ParentId
@@ -769,6 +767,12 @@ BEGIN
 						AND m.ParentID = t.matchid
 			)m
 	END
+
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
+	SELECT DISTINCT m.matchid, m.matchid, m.IsMergedParlay, m.eventstatus 
+	FROM #tmpMatchIds m
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpAllParentChildMatch p WHERE p.MatchId = m.matchid)
+	
 
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)

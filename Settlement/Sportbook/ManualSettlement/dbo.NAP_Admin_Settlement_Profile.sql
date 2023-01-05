@@ -63,7 +63,8 @@ AS
 		- 20220922@Kathy: Scale Out BetTrans - fixbug [Redmine:#175251]
 		- 20221006@Louisa: Always insert BroacastSessionId into TicketVoiding_AutoVoidRequest_Queue [Redmine:#178830]
 		- 20221010@louisa: not insert [TicketVoiding_AutoVoidRequest_Queue] if BroacastSessionId null [Redmine:#178830]
-		
+		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
 									<Resource Id="M1" Home="1" Away="3" />
@@ -122,6 +123,7 @@ BEGIN
 			,@LockedByRefno		BIT = 0
 			,@ResourceRefund	VARCHAR(100) = ''
 			,@IsCentral			BIT = 0	
+			,@IsExistAR			BIT = 0
 			
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -761,7 +763,7 @@ BEGIN
 					AND sp.SportType =50 )
 		END
 
-	IF @sportType = 45 ---for Log Only
+		IF @sportType = 45 ---for Log Only
 		BEGIN
 			INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName )
 			SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
@@ -782,8 +784,7 @@ BEGIN
   			) AS tbl1
 		ORDER BY OrdNo
 
-		--Log Auto Refund for Badminton
-	IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN ( 6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL' AND ResourceID = '00'	AND HomeValue <> AwayValue 	)
+		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN ( 6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL')
 		BEGIN
 			EXEC dbo.NAP_Set_GetRefundResult
 				@MatchId		= @MatchID
@@ -792,46 +793,59 @@ BEGIN
 				,@ResourceRefund = @ResourceRefund OUTPUT
 		END
 
+		IF @Action = 'REFUND' AND @IsAuto = 1
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
+				@MatchId = @matchid
+				, @StatusId = 2
+				, @ResourceIds  = @ResourceIds
+		END
+		ELSE IF ISNULL(@ResourceRefund, '')  <> ''
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
+				@MatchId		 = @MatchID
+				,@ResourceIds	 = @ResourceRefund
+				,@RowCount		 = @IsExistAR OUTPUT
+		END
+
 		SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
-										WHEN @IsAuto = 1 AND @Action ='CAL' THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
-																   WHEN @sportType IN ( 6, 9 ) THEN 'NAP: Auto Payout: SBO'				
-																   ELSE '' END
-										ELSE ''
-										END
+									WHEN @IsAuto = 1 AND @Action ='CAL' THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
+																WHEN @sportType IN ( 6, 9 ) THEN 'NAP: Auto Payout: SBO'				
+																ELSE '' END
+									ELSE ''
+									END
 			 
-									+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
-										ELSE ' Selected:' 
-										END 
-									+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-									+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
-											WHEN @sportType = 9 AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CASE WHEN ISNULL(@ResourceRefund,'') <> '' THEN '1' ELSE '0' END  
-											ELSE '' 
-											END
-	
-	
+								+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
+									ELSE ' Selected:' 
+									END 
+								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
+								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
+										WHEN @sportType IN (6,9) AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CAST(@IsExistAR AS VARCHAR(1))
+										ELSE '' 
+										END
 						   
 		SELECT @Remark = @ResultRemarkLog + '<br/> '
-							+ CASE
-							WHEN @sportType IN ( 2, 5, 43 ) OR ( @sportType IN ( 6, 9, 50 ) AND @IsAuto = 0) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
-								ELSE ''
-							END
-							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
-							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
-							+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-							+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-							+ CASE @RefResultStatus WHEN 1 THEN ' confirmed/provider:no'
-													WHEN 2 THEN ' value consistency:no'
-													ELSE ''
-													END
+						+ CASE
+						WHEN @sportType IN ( 2, 5, 43 ) OR ( @sportType IN ( 6, 9, 50 ) AND @IsAuto = 0) THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
+							ELSE ''
+						END
+						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
+						+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
+						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
+						+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
+						+ CASE @RefResultStatus WHEN 1 THEN ' confirmed/provider:no'
+												WHEN 2 THEN ' value consistency:no'
+												ELSE ''
+												END
 	
 		IF @ParentMatchId IS NOT NULL ---Cricket
-		BEGIN
-				SELECT  @matchLog =  @ParentMatchId
-					,@fth	= finalhomescore
-					,@fta	= finalawayscore
-  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  			WHERE   matchid = @ParentMatchId
-		END
+	BEGIN
+			SELECT  @matchLog =  @ParentMatchId
+				,@fth	= finalhomescore
+				,@fta	= finalawayscore
+  		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  		WHERE   matchid = @ParentMatchId
+	END
 
 		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
 		BEGIN
@@ -924,24 +938,6 @@ BEGIN
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
 		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
-	END
-
-	IF @IsCentral = 1
-	BEGIN
-			IF @Action = 'REFUND'
-			BEGIN
-				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultUpd
-						  @MatchId = @matchid
-						, @StatusId = 2
-						, @ResourceIds  = @ResourceIds
-			END
-
-			ELSE IF ISNULL(@ResourceRefund, '')  <> ''
-			BEGIN
-				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefundOS_ResultIns
-						@MatchId		 = @MatchID
-						,@ResourceIds	 = @ResourceRefund
-			END
 	END
 END
 GO

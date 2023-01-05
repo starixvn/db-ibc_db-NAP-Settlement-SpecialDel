@@ -23,6 +23,7 @@ AS
 		- 20220512@Louisa: Auto Refund for Badminton [Redmine:#171676]
 		- 20220629@Louisa: Change rule confirm Refund: confirm [Redmineid:#173862]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
+		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -51,7 +52,7 @@ BEGIN
 	IF @SelectedResources = '' 
 		OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50) --- sports not apply S.O.P Refund
 		OR ( @ChildMatchType = 200 AND @Sporttype = 50 ) --child match of CRICKET TEST MATCH
-		OR (@Action = 'REFUND' AND @IsAuto = 1 AND @Sporttype = 9 ) --Auto Refund Badminton
+		OR (@Action = 'REFUND' AND @IsAuto = 1 AND @Sporttype IN(6,9) ) --Auto Refund Badminton
 	RETURN
 
 	SELECT @ResultTable = r.ResultTable
