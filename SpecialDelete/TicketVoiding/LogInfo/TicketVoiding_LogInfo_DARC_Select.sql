@@ -21,6 +21,7 @@ AS
 		- 20220808@July: HF- Request only sub parlay ticket get wrong score show for template message [Redmine: #179752]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230116@July: HF - Edit Request: Log Info has the difference between START TIME void and MIM TIME highlight [Redmine: #182910]
+		- 20230120@July: Add 1X2 bet type to detect Red Card - Replacement of sent-off player [Redmine: #182394]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -566,14 +567,14 @@ BEGIN
 
 	IF @IssueTypeId = 10 --Red Card issue type 
 	BEGIN
-		--User selects the "Replacement of Sent-Off player" subtype -> When the system searches ticket, it will get from a ticket that has "Handicap/1H Handicap" bet type.
+		--User selects the "Replacement of Sent-Off player" subtype -> When the system searches ticket, it will get from a ticket that has "Handicap(1)/1H Handicap(7)/1H 1X2(5)/FT 1X2(15)" bet type.
 		DECLARE @MinTimeHDP DATETIME
 		SELECT @MinTimeHDP = MIN (CASE WHEN b.FilterBy = 1 THEN b.transdate 
 										WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
 										WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 									END)
 		FROM #TVSTicketBets b
-		WHERE b.SubIssueTypeId = 21 AND b.bettype IN (1,7)
+		WHERE b.SubIssueTypeId = 21 AND b.bettype IN (1,7,5,15)
 			
 		IF @MinTimeHDP IS NULL
 		BEGIN
