@@ -39,9 +39,10 @@ BEGIN
 						,StatusId
 						,VoidData
 						,BroadcastSessionId
+						,SiteDBGroupID
 				)
 			OUTPUT inserted.VoidingHistoryId, inserted.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
-		SELECT @RequestId, @UserId, 1, @VoidData, @BroadcastSessionId
+		SELECT @RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
 	END
 
 	SELECT VoidingHistoryId, RequestId
