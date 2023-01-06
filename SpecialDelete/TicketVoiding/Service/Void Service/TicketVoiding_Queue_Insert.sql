@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)
-	,@IssueTypeId		INT = 0
+	,@IssueTypeId		INT = NULL
 )
 AS
 /*	Created by: Kathy
