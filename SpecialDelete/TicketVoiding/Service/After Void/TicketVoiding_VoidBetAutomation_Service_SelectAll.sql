@@ -36,6 +36,7 @@ BEGIN
 			, vb.IsUpdatedVoidingHistory
 			, vb.IsSentEmail
 			, vb.IsSentLetsTalk
+			, vh.SiteDBGroupID
 		FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId
 		WHERE vb.statusID = 1
@@ -43,18 +44,19 @@ BEGIN
 	END
 	ELSE IF @Mode = 2 -- get requests will run Lettalk
 	BEGIN
-		DECLARE @tmpResult TABLE (RequestID INT, VoidingHistoryId INT, statusID TINYINT, matchID INT, BroadcastSessionId VARCHAR(100), IsInsert BIT, cnt INT)
+		DECLARE @tmpResult TABLE (RequestID INT, VoidingHistoryId INT, statusID TINYINT, matchID INT, BroadcastSessionId VARCHAR(100) ,SiteDBGroupID SMALLINT, IsInsert BIT, cnt INT)
 		DECLARE @min_RequestId INT, @IsAutoVoid BIT
 		
-		INSERT INTO @tmpResult (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, IsInsert)
+		INSERT INTO @tmpResult (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, SiteDBGroupID, IsInsert)
 		SELECT DISTINCT 
 			  	vb.RequestID
 				, vh.VoidingHistoryId
 				, vb.statusID
 				, vb.matchID
 				, vh.BroadcastSessionId
-				,CASE WHEN lt.BroadcastSessionId IS NULL  THEN 1 --Insert
-					  WHEN lt.BroadcastSessionId IS NOT NULL AND lt.statusID = 1 THEN 0--Update
+				, vh.SiteDBGroupID
+				, CASE WHEN lt.BroadcastSessionId IS NULL  THEN 1 --Insert
+					   WHEN lt.BroadcastSessionId IS NOT NULL AND lt.statusID = 1 THEN 0--Update
 					 END AS IsInsert 
 		FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
 		LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
@@ -80,7 +82,7 @@ BEGIN
 		SELECT @IsAutoVoid = CASE WHEN ActionId IN (1,4,6,7,8) THEN 1 ELSE 0 END
 		FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @min_RequestId
 
-		SELECT  RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, IsInsert, @IsAutoVoid AS IsAutoVoid
+		SELECT  RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, SiteDBGroupID, IsInsert, @IsAutoVoid AS IsAutoVoid
 		FROM @tmpResult t
 			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
 						  FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
