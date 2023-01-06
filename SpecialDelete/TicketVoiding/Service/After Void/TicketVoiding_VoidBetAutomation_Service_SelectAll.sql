@@ -38,7 +38,7 @@ BEGIN
 			, vb.IsSentLetsTalk
 			, vh.SiteDBGroupID
 		FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId
+			INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
 		WHERE vb.statusID = 1
 		ORDER BY vb.createdDate ASC
 	END
