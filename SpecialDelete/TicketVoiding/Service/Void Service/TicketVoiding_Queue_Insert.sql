@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)
+	,@IssueTypeId		INT = 0
 )
 AS
 /*	Created by: Kathy
@@ -101,6 +102,7 @@ BEGIN
 						,Ip
 						,VoidingTypeId
 						,TotalTicket
+						,IssueTypeId
 					)
 					SELECT	@RequestId
 							,@MatchId
@@ -111,6 +113,7 @@ BEGIN
 							,@IP
 							,1
 							,@TotalTicket
+							,@IssueTypeId
 				END
 			END
 		END
@@ -149,6 +152,7 @@ BEGIN
 						,Ip
 						,VoidingTypeId
 						,TotalTicket
+						,IssueTypeId
 					)
 					SELECT	@RequestId
 							,@MatchId
@@ -159,6 +163,7 @@ BEGIN
 							,@IP
 							,2
 							,@TotalTicket
+							,@IssueTypeId
 				END
 			END
 		END
