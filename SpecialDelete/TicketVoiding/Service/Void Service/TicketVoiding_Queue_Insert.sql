@@ -7,7 +7,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
 	,@UserId			INT
 	,@IP				VARCHAR(50)
-	,@IssueTypeId		INT = NULL
 )
 AS
 /*	Created by: Kathy
@@ -34,32 +33,34 @@ BEGIN
 		, @TransIds VARCHAR(MAX)
 		, @start INT = 1
 		, @end INT
-
+		, @IssueTypeId		INT = NULL
 	
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, MatchId INT, IsMixParlay BIT DEFAULT(0))
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, MatchId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId INT)
 
 	DECLARE @tmpMatchId AS TABLE (ID INT IDENTITY(1,1), MatchId INT)
 	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT)
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, MatchId)
-		SELECT tbl.TransId, tbl.MatchId 
+		INSERT INTO #tmpInputTransId (TransId, MatchId, IssueTypeId)
+		SELECT tbl.TransId, tbl.MatchId, tbl.IssueTypeId
 		FROM OPENJSON(@SingleTicketsJSON)
-			WITH (MatchId INT, TransId BIGINT) tbl
+			WITH (MatchId INT, TransId BIGINT, IssueTypeId INT) tbl
 	END
 
 	IF @ParlayTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, MatchId, IsMixParlay)
-		SELECT tbl.TransId, tbl.MatchId, 1
+		INSERT INTO #tmpInputTransId (TransId, MatchId, IsMixParlay, IssueTypeId)
+		SELECT tbl.TransId, tbl.MatchId, 1, tbl.IssueTypeId
 		FROM OPENJSON(@ParlayTicketsJSON)
-			WITH (MatchId INT, TransId BIGINT) tbl
+			WITH (MatchId INT, TransId BIGINT, IssueTypeId INT) tbl
 	END
 
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT DISTINCT t.MatchId
 	FROM #tmpInputTransId t
+
+	SET @IssueTypeId = (SELECT TOP(1) t.IssueTypeId FROM #tmpInputTransId t)
 
 	SET @end = (SELECT MAX(ID) FROM @tmpMatchId)
 	WHILE (@start <= @end)
