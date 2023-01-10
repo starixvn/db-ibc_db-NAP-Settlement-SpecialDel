@@ -52,6 +52,7 @@ AS
 		- 20221007@July: TVS - Abnormalbet - No need to send Letstalk message if the request has UUS ticket [Redmine: #178321]
 		- 20221021@July: TVS - WRONG check validation for transid 14 [Redmine: #179479]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230110@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -81,7 +82,9 @@ BEGIN
 			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
-	
+			,@ListBettype 				 VARCHAR(MAX) =''
+			,@ListBetteam 				 VARCHAR(MAX) =''
+
 	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
@@ -424,6 +427,18 @@ BEGIN
 										, '')
 	SET @IsHasUUSTickets = ISNULL((SELECT TOP 1 1 FROM #validTransId WHERE CurrencyName = 'UUS'),0)
 
+	SET @ListBettype = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(b.typenamee AS VARCHAR(100))
+										FROM #validTransId AS v
+										INNER JOIN dbo.bettype b WITH(NOLOCK) ON v.bettype = b.typeid
+										WHERE v.bettype <> 29
+										FOR XML PATH('')), 1, 1, '')
+										, '')
+
+	SET @ListBetteam = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(v.betteam AS VARCHAR(100))
+										FROM #validTransId AS v
+										WHERE v.bettype <> 29
+										FOR XML PATH('')), 1, 1, '')
+										, '')
 	IF @ActionId <> 2
 	BEGIN
 		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -660,6 +675,8 @@ BEGIN
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 			,@IsHasUUSTickets AS IsHasUUSTickets
+			,@ListBettype AS ListBettype
+			,@ListBetteam AS ListBetteam
 
 	--3. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
