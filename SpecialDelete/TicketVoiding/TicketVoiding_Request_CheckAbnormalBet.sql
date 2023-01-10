@@ -126,7 +126,6 @@ BEGIN
 		,recommend		INT
 		,mrecommend		INT
 		,srecommend		INT
-		,refno			BIGINT
 		,betteam		NVARCHAR(10)
 		,SubMatchIdList	VARCHAR(2000)
 		,CurrencyName	NVARCHAR(50)
@@ -267,7 +266,6 @@ BEGIN
 		,recommend
 		,mrecommend
 		,srecommend
-		,refno
 		,betteam
 		,SubMatchIdList
 		,CurrencyName
@@ -286,7 +284,6 @@ BEGIN
 		,b.recommend
 		,b.mrecommend
 		,b.srecommend
-		,b.refno
 		,b.betteam
 		,SubMatchIdList
 		,CurrencyName
@@ -659,16 +656,12 @@ BEGIN
 	--4. Transinfo table
 	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
-		,b.refno AS 'ref'
 		,b.custid AS  'c'           
 		,b.bettype AS 'btype'
-		,t.statusID AS 'sid'
 		,b.betteam AS 'bteam'
 		,b.betid AS 'bid'
-		,b.statuswinlost AS 'statuswl'
 		,b.IsMixParlay AS 'isP'
 		,b.SiteDBGroupID AS 'sitedb'
-		,t.SubMatchIdList AS 's_mid'
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
