@@ -73,11 +73,15 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@TotalCommands					INT			= NULL
 	,@SessionId						BIGINT		 = NULL
 	,@MessageType					VARCHAR(200) = NULL
-	,@oddstype						SMALLINT = NULL
-	,@ismarked						BIT = NULL
-	,@modds							MONEY = NULL
+	,@oddstype						SMALLINT	= NULL
+	,@ismarked						BIT			= NULL
+	,@modds							MONEY		= NULL
 	,@ErrMessage					VARCHAR(300) = '' OUTPUT
-	,@EventDate						DATETIME = NULL
+	,@EventDate						DATETIME	 = NULL
+	,@Deadheat						FLOAT		 = 1 
+	,@LeagueID						INT
+	,@Status						VARCHAR(10)	 = NULL 
+	,@ErrCode						INT			 = 0  OUTPUT
 AS
 /*
     Created: Viet
@@ -157,6 +161,7 @@ AS
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 
     Param's Explanation:
         @action             @mode
@@ -313,9 +318,12 @@ BEGIN
 			+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
 			+ CASE WHEN @MessageType IS NULL THEN '' ELSE ',@MessageType = ' + '''' + @MessageType + '''' END
 			+ CASE WHEN @EventDate IS NULL THEN '' ELSE ',@EventDate = ' + '''' + CONVERT(VARCHAR(20),@EventDate) + '''' END
+			+ CASE WHEN @Deadheat IS NULL THEN '' ELSE ',@Deadheat = ' + '''' + CONVERT(VARCHAR(50),@Deadheat) + '''' END
+			+ CASE WHEN @LeagueID IS NULL THEN '' ELSE ',@LeagueID = ' + '''' + CONVERT(VARCHAR(50),@LeagueID) + '''' END
+			+ CASE WHEN @Status IS NULL THEN '' ELSE ',@Status = ' + '''' + @Status + '''' END
 			
             + ',@CalledByBrokerService = 1'
-			
+
 			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
 				,@toService = N'//Service/Calculation_receive'
 				,@onContract = N'//Contract/Calculation'
@@ -354,6 +362,21 @@ BEGIN
 					,@ActionId = @ActionId		
 					,@SessionId = @SessionId
 					,@ErrMessage = @ErrMessage OUTPUT 
+			END
+			ELSE IF @mode = 'Outright'
+			BEGIN
+				EXEC dbo.ExecRep_NAP_Admin_10 
+							 @TransIDs = @strTransIds
+							,@MatchID = @MatchID
+							,@LeagueID = @LeagueID
+							,@Status = @Status
+							,@Action = @Action
+							,@Deadheat = @Deadheat
+							,@Winlostdate = @EventDate
+							,@UserID =  @CustId
+
+							,@ErrCode = @ErrCode OUTPUT
+							,@ErrMsg = @ErrMessage OUTPUT
 			END
 			ELSE
 			BEGIN
