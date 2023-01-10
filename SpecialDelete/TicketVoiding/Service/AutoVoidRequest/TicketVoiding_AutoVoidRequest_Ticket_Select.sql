@@ -30,19 +30,25 @@ BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
 		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			LEFT JOIN dbo.TicketVoiding_VoidedTransaction v WITH (NOLOCK) ON v.TransId = rds.TransId
 		WHERE rds.RequestId = @RequestId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId <> 29
-			AND rds.IsProcessed IS NULL
+			AND 1 = CASE WHEN rds.IsProcessed IS NULL THEN 1
+						WHEN rds.IsProcessed = 1 AND v.TransId IS NULL THEN 1
+					ELSE 0 END
 
 		--Main parlay
 		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
 		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			LEFT JOIN dbo.TicketVoiding_VoidedTransaction v WITH (NOLOCK) ON v.TransId = rds.TransId
 		WHERE rds.RequestId = @RequestId
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
-			AND rds.IsProcessed IS NULL
+			AND 1 = CASE WHEN rds.IsProcessed IS NULL THEN 1
+						WHEN rds.IsProcessed = 1 AND v.TransId IS NULL THEN 1
+					ELSE 0 END
 	END
 	ELSE
 	BEGIN

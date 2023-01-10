@@ -29,7 +29,7 @@ BEGIN
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 	WHERE StatusId IN (0)
 		AND 1 = CASE WHEN q.Action = 'CAL' AND DATEADD(SECOND,180,CreatedDate) <= GETDATE() THEN 1  --Settletment signal
-					WHEN q.Action IN ('AddRequest','VoidInstant','VoidInstantNopolicy') THEN 1 --Void Instant Abnormal Bet, AB, AA
+					WHEN q.Action IN ('VoidInstant','VoidInstantNopolicy') THEN 1 --Void Instant Abnormal Bet, AB, AA
 					WHEN q.Action IN ('VoidInstant5m','VoidInstant10m') AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 0 THEN 1 --AB
 					WHEN q.Action = 'VoidInstant5m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 5 THEN 1 --AB
 					WHEN q.Action = 'VoidInstant10m' AND DATEDIFF(MINUTE, GETDATE(), m.GlobalShowTime) <= 10 THEN 1 --AB
