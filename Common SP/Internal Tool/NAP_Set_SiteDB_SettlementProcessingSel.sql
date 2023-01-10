@@ -37,12 +37,7 @@ BEGIN
 	
 	INSERT INTO @tmpSSB_SettlementLogs ( SessionId, ErrorMessage, CreatedTime, SiteDBGroupId)
 	SELECT	l.SessionId
-			, STUFF (    
-							(	SELECT  ','+ ErrorMessage FROM cteErrorMessage					   
-								FOR XML PATH('') 
-							)
-						,1,1, ''
-					) AS ErrorMessage	
+			,(SELECT s.ErrorMessage + ' \n ' FROM cteErrorMessage s WHERE s.SessionId = l.SessionId FOR XML PATH('')) AS ErrorMessage	
 			,MIN(l.Starttime) AS CreatedTime
 			,ISNULL(l.SiteDBGroupId,0) AS SiteDBGroupId
 	FROM	dbo.SSB_SettlementLogs l WITH(NOLOCK)
