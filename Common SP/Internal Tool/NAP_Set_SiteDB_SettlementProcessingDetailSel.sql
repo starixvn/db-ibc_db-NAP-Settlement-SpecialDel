@@ -6,7 +6,7 @@ AS
 /*
 	Created by: 20221122@Louisa
 	Task: Tool support after release Scaleout [RedmineId:#180746]
-	DB: DBTXN/bodb02
+	DB: DBCTG-bodb02,SBSETTLE-bodb02
 	
 	Revisions:
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
