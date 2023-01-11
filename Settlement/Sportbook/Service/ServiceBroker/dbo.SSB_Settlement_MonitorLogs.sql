@@ -13,18 +13,18 @@ begin
 	declare @__errorMessage varchar(512), @__errorMessageTemp varchar(512), @__fromDate datetime2, @__errorStartTime datetime2
 	declare @__errorMessages table(messageId varchar(128), startTime datetime2, endTime datetime2, errorMessage varchar(255))
 	declare @__serverName varchar(100)
-			,@JobName  nvarchar(100)
+			,@__JobName  nvarchar(100)
 
 	select @__fromDate = dateadd(minute, -@MonitorDurationWithInMin, sysdatetime())
 	select @__serverName =  @@SERVERNAME
 
 	if @__serverName = 'DBTRANS' OR @__serverName LIKE 'DBGRP%'
 	begin
-		set @JobName = 'vndba:Check slowly running or failed processes'
+		set @__JobName = 'vndba:Check slowly running or failed processes'
 	end
 	else
 	begin
-		set @JobName = N'bodb02: Check Settlement status'
+		set @__JobName = N'bodb02: Check Settlement status'
 	end
 
 	insert into @__errorMessages(messageId, startTime, endTime, errorMessage)
@@ -93,7 +93,7 @@ begin
 		set @__errorMessageTemp = 'Hey guys, Settlement got errors at ['+convert(varchar(50), @__errorStartTime, 121)+'] on [' + @@servername + ']. Please check logs at dbo.SSB_SettlementLogs table!!! Err: ' + isnull(@__errorMessage, '???')
 		execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 			, @JobId = NULL
-			, @JobName = @JobName
+			, @JobName = @__JobName
 			, @Message = @__errorMessageTemp
 			, @CaseId = 1;
 	
