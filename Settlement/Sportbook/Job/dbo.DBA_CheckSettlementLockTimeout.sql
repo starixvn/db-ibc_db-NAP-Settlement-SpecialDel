@@ -10,7 +10,7 @@ AS
 	Revision
 		- 20211028@Kathy: Check settlement lock [Redmine:#158477]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
-		- 20221122@Louisa: Update format email [Redmine:#100002]
+		- 20221122@Louisa: Update format email [Redmine:#182771]
 */
 BEGIN
 	SET NOCOUNT ON;
