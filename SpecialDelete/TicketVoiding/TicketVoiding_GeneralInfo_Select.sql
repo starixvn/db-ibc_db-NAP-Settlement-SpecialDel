@@ -165,8 +165,8 @@ BEGIN
 
 	SELECT DISTINCT
 		v.Username AS VoidedBy
-		,CASE WHEN m.ActionId IN (1,4,6,7) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
-		,CASE WHEN m.ActionId IN (1,4,6,7) THEN msg.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
+		,CASE WHEN m.ActionId IN (1,4,6,7,8) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
+		,CASE WHEN m.ActionId IN (1,4,6,7,8) THEN msg.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
