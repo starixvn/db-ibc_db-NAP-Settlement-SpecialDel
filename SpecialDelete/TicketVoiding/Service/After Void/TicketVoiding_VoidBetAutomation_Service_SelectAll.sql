@@ -19,28 +19,55 @@ BEGIN
 	
 	IF @Mode = 1  -- get request will run after void
 	BEGIN
-		SELECT TOP 1 
-			  vb.RequestID
-			, vb.VoidingHistoryId
-			, vb.statusID
-			, vb.matchID
-			, vh.BroadcastSessionId 
-			, vb.NegativeBalanceUsers
-			, vb.IsAutoVoid
-			, vb.IsRunExternalService
-			, vb.MessageId
-			, vb.ReasonId
-			, vb.IsSentBatchMessage
-			, vb.IsSentMessageToAdminSite
-			, vb.IsInsertedVoidedTransaction
-			, vb.IsUpdatedVoidingHistory
-			, vb.IsSentEmail
-			, vb.IsSentLetsTalk
-			, vh.SiteDBGroupID
-		FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
-			INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
-		WHERE vb.statusID = 1
-		ORDER BY vb.createdDate ASC
+		SELECT t.RequestID
+				, t.VoidingHistoryId
+				, t.statusID
+				, t.matchID
+				, t.BroadcastSessionId 
+				, t.NegativeBalanceUsers
+				, t.IsAutoVoid
+				, t.IsRunExternalService
+				, t.MessageId
+				, t.ReasonId
+				, t.IsSentBatchMessage
+				, t.IsSentMessageToAdminSite
+				, t.IsInsertedVoidedTransaction
+				, t.IsUpdatedVoidingHistory
+				, t.IsSentEmail
+				, t.IsSentLetsTalk
+				, t.SiteDBGroupID
+				, CASE WHEN v.cnt = 1 THEN 1 ELSE 0 END AS IsLastedInRequest
+		FROM 
+		(
+			SELECT TOP 1 
+				  vb.RequestID
+				, vb.VoidingHistoryId
+				, vb.statusID
+				, vb.matchID
+				, vh.BroadcastSessionId 
+				, vb.NegativeBalanceUsers
+				, vb.IsAutoVoid
+				, vb.IsRunExternalService
+				, vb.MessageId
+				, vb.ReasonId
+				, vb.IsSentBatchMessage
+				, vb.IsSentMessageToAdminSite
+				, vb.IsInsertedVoidedTransaction
+				, vb.IsUpdatedVoidingHistory
+				, vb.IsSentEmail
+				, vb.IsSentLetsTalk
+				, vh.SiteDBGroupID
+			FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
+				INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
+			WHERE vb.statusID = 1
+			ORDER BY vb.createdDate ASC
+		)t
+		OUTER APPLY (
+			SELECT COUNT(1) AS cnt
+			FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+			WHERE vh.BroadcastSessionId = t.BroadcastSessionId
+				AND vh.StatusId = 1
+		)v
 	END
 	ELSE IF @Mode = 2 -- get requests will run Lettalk
 	BEGIN
