@@ -21,6 +21,7 @@ AS
 		- 20220808@July: HF- Request only sub parlay ticket get wrong score show for template message [Redmine: #179752]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230116@July: HF - Edit Request: Log Info has the difference between START TIME void and MIM TIME highlight [Redmine: #182910]
+		- 20230112@July: Wrong Score - No need to exclude Home/Away bet types [Redmine: #182805]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -32,10 +33,6 @@ BEGIN
 
 	DECLARE  @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-			,@MatchProcessXML		  XML = NULL
-			,@MatchParlayProcessXML	  XML = NULL
-			,@TotalRefnoParlay		  INT = 0
-			,@ThreadHold			  INT = 0
 			,@FilterBy				  TINYINT = 0
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
@@ -52,7 +49,6 @@ BEGIN
 		    ,@SATime				  TINYINT = 0
 			,@ScoreId				  INT = NULL
 			,@MatchId				  INT = 0
-			,@SubIssueTypeId		  INT 
 
 	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
@@ -179,7 +175,6 @@ BEGIN
 	)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
@@ -207,7 +202,6 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 
 	SELECT TOP (1) @FilterBy = FilterBy 
-				 , @SubIssueTypeId = SubIssueTypeId
 				 , @MatchId = MatchId 
 	FROM #FilterInfo
 	
@@ -441,9 +435,6 @@ BEGIN
 			)act
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			WHERE act.FromDate BETWEEN @VoidFromTime AND @FilterToTransTime
-				AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
-								WHERE f.bettype = b.bettype AND f.SubIssueTypeId = @SubIssueTypeId AND f.IssueTypeId = @IssueTypeId)
 				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							 ELSE 0 END
@@ -512,11 +503,6 @@ BEGIN
 						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
 					   ELSE 0 END 
-			AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
-								WHERE f.bettype = b.bettype 
-									AND f.SubIssueTypeId = @SubIssueTypeId
-									AND f.IssueTypeId = @IssueTypeId)
 				
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo bm  WHERE bm.IsMixParlay = 1)
@@ -575,11 +561,6 @@ BEGIN
 						     WHEN @FilterBy = 2 AND ISNULL(b.Subchecktime, b.Subtransdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						     WHEN @FilterBy = 4 AND ((b.Subchecktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime)) THEN 1
 							ELSE 0 END 
-				AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
-								WHERE f.bettype = b.Subbettype
-									AND f.SubIssueTypeId = @SubIssueTypeId
-									AND f.IssueTypeId = @IssueTypeId)
 	END
 
 	/*Get Transid in Request of range Transid*/
