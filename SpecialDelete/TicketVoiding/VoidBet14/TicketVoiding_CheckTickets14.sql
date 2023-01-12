@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson		VARCHAR(MAX) = NULL
 )
 AS
 /*  
@@ -29,6 +29,7 @@ BEGIN
 		,@before_movebetday				DATETIME
 	    ,@MovebetDate					DATETIME
 		,@TransInfoJson	VARBINARY(MAX) = NULL
+		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -85,7 +86,7 @@ BEGIN
 		  ,SiteDBGroupID
 		)
 	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
-	FROM string_split(@TransInfoJson, ',') f
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
@@ -167,11 +168,9 @@ BEGIN
 		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 
 	-- 2. Transinfo table
-	SET @TransInfoJson = COMPRESS((SELECT DISTINCT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
-		,b.refno AS 'ref'
 		,b.custid AS  'c' 
-		,t.statusID AS 'sid'
 		,b.bettype AS 'btype'
 		,b.betid AS 'bid'
 		,b.IsMixParlay AS 'isP'
@@ -179,8 +178,9 @@ BEGIN
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
+	
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
-	SELECT @TransInfoJson AS TransInfoJson
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
