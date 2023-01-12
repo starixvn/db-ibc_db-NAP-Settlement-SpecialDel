@@ -17,7 +17,7 @@ BEGIN
 	DECLARE @checkLocktime DATETIME2
 			,@ServerName VARCHAR(100) 
 
-	SET @checkLocktime = DATEADD(MINUTE,-3,SYSDATETIME())
+	SET @checkLocktime = DATEADD(MINUTE,-5,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
 
 	SELECT	@ServerName AS ServerName

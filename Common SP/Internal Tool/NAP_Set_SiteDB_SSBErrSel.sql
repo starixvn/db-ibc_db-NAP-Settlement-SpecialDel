@@ -39,9 +39,7 @@ BEGIN
 			,SiteDBGroupId 
 		)
 		SELECT	s.SessionId
-				,CASE WHEN s.SessionId > 0 THEN ''
-						ELSE s.MessageId
-						END AS MessageId
+				,s.MessageId
 				,s.ErrorMessage
 				,s.Starttime
 				,SiteDBGroupId
@@ -50,14 +48,26 @@ BEGIN
 				AND s.Resolved = 0
 				AND MessageType LIKE 'Sitedb%'
 		 		AND s.StartTime >= @checktime
-
+ 
 	SELECT	@ServerName AS ServerName
 			,c.SessionId
-			,c.MessageId 
+			,'' AS MessageId 
 			,(SELECT ErrorMessage + '\n' FROM @tmpReturnTable s WHERE s.SessionId = c.SessionId FOR XML PATH('')) AS ErrorMessage
 			,MIN(c.CreatedTime) AS CreatedTime
 			,c.SiteDBGroupId
 	FROM @tmpReturnTable c
+	WHERE c.SessionId > 0
+	GROUP BY c.SessionId,c.SiteDBGroupId 
+	
+	UNION ALL
+	SELECT	@ServerName AS ServerName
+			,c.SessionId
+			,c.MessageId 
+			,(SELECT ErrorMessage + '\n' FROM @tmpReturnTable s WHERE s.MessageId = c.MessageId FOR XML PATH('')) AS ErrorMessage
+			,MIN(c.CreatedTime) AS CreatedTime
+			,c.SiteDBGroupId
+	FROM @tmpReturnTable c
+	WHERE ISNULL(c.sessionid,0) = 0
 	GROUP BY c.SessionId,c.MessageId,c.SiteDBGroupId 
 END
 GO
