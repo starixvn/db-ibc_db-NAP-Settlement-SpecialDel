@@ -35,8 +35,8 @@ BEGIN
 			INNER JOIN dbo.League AS l WITH (NOLOCK) ON l.leagueid = o.leagueid
 	WHERE	o.leagueID = @LeagueID 	
 			AND 1 = CASE WHEN @StatusID = 0 THEN 1
-						 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','ClosedPrice','Internal', 'Suspend') THEN 1
-						 WHEN @StatusID = 2 AND o.oddsstatus IN ('Running','Closed','ClosedPrice','Internal', 'Suspend', 'Completed') THEN 1
+						 WHEN @StatusID = 1 AND o.oddsstatus IN ('Running','Closed','Internal') THEN 1
+						 WHEN @StatusID = 2 AND o.oddsstatus IN ('Running','Closed','Internal', 'Completed') THEN 1
 						 WHEN @StatusID = 3 AND o.oddsstatus = 'Completed'	THEN 1	
 						 WHEN @StatusID = 4 AND o.oddsstatus = 'Completed' AND o.status = 'WON' THEN 1
 						 ELSE 0
@@ -44,6 +44,3 @@ BEGIN
 			AND ISNULL(o.IsDeleted,0) = 0
 	ORDER BY o.[teamid] ASC; 
 END
-GO
-GRANT EXECUTE ON [dbo].[NAP_Set_OutrightSelInfoByLeagueID] TO [bodbAdminNet]
-GO

@@ -79,7 +79,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@ErrMessage					VARCHAR(300) = '' OUTPUT
 	,@EventDate						DATETIME	 = NULL
 	,@Deadheat						FLOAT		 = 1 
-	,@LeagueID						INT
 	,@Status						VARCHAR(10)	 = NULL 
 	,@ErrCode						INT			 = 0  OUTPUT
 AS
@@ -318,8 +317,7 @@ BEGIN
 			+ CASE WHEN @ActionId IS NULL THEN '' ELSE ',@ActionId = ' + CONVERT(NVARCHAR(50), @ActionId) END
 			+ CASE WHEN @MessageType IS NULL THEN '' ELSE ',@MessageType = ' + '''' + @MessageType + '''' END
 			+ CASE WHEN @EventDate IS NULL THEN '' ELSE ',@EventDate = ' + '''' + CONVERT(VARCHAR(20),@EventDate) + '''' END
-			+ CASE WHEN @Deadheat IS NULL THEN '' ELSE ',@Deadheat = ' + '''' + CONVERT(VARCHAR(50),@Deadheat) + '''' END
-			+ CASE WHEN @LeagueID IS NULL THEN '' ELSE ',@LeagueID = ' + '''' + CONVERT(VARCHAR(50),@LeagueID) + '''' END
+			+ CASE WHEN @Deadheat IS NULL THEN '' ELSE ',@Deadheat = ' + CONVERT(VARCHAR(50),@Deadheat) END
 			+ CASE WHEN @Status IS NULL THEN '' ELSE ',@Status = ' + '''' + @Status + '''' END
 			
             + ',@CalledByBrokerService = 1'
@@ -368,12 +366,10 @@ BEGIN
 				EXEC dbo.ExecRep_NAP_Admin_10 
 							 @TransIDs = @strTransIds
 							,@MatchID = @MatchID
-							,@LeagueID = @LeagueID
 							,@Status = @Status
 							,@Action = @Action
 							,@Deadheat = @Deadheat
 							,@Winlostdate = @EventDate
-							,@UserID =  @CustId
 
 							,@ErrCode = @ErrCode OUTPUT
 							,@ErrMsg = @ErrMessage OUTPUT

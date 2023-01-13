@@ -109,14 +109,12 @@ BEGIN
 		EXEC dbo.NAP_Admin_Calculate_Main 
 			 @StrTransIds = @StrTranIDs
 			,@Matchid = @MatchID
-			,@LeagueID = @LeagueID
 			,@Status = @Status
 			,@Action = @Action
 			,@Deadheat = @Deadheat
 			,@EventDate  = @EventDate
 			,@IsSettingByProfile = 1
 			,@Mode = 'Outright'
-			,@CustId = @UserID
 
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMessage = @ErrMsg OUTPUT

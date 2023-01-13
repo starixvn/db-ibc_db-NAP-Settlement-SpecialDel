@@ -124,6 +124,3 @@ BEGIN
 			,@Remark = @Remark
 	END CATCH
 END 
-GO
-GRANT EXECUTE ON [dbo].[NAP_Admin_Outright_Update] TO [bodbAdminNet] 
-GO 

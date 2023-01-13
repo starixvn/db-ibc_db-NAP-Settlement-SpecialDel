@@ -2,24 +2,22 @@
 CREATE PROCEDURE [dbo].[ExecRep_NAP_Admin_10]
 	 @TransIDs		VARCHAR(MAX)	= ''
 	,@MatchID		INT
-	,@LeagueID		INT
 	,@Status		VARCHAR(10)		= NULL 
 	,@Action		VARCHAR(10)		='CAL'	
 	,@Deadheat		FLOAT			= 1 
-	,@Winlostdate   DATETIME		= NULL
-	,@UserID		INT				
+	,@Winlostdate   DATETIME		= NULL	
 
 	,@ErrCode		INT				= 0  OUTPUT
 	,@ErrMsg		VARCHAR(300)	= '' OUTPUT
 AS
 /*     
-	 Created: 20220603@Sol  
-	 Task: Database - Sync-up Standby Server data - [Redmine:167261]  
+	 Created: 20220603@Aries  
+	 Task:  Settlement Outright 
 	 Database: DBTXN-bodb02  
    
 	 Revision:  
-	  - 20220603@Sol: Database - Sync-up Standby Server data - [Redmine:167261]  
-	  - 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+	  - 20230109@Aries:  Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+	  
     
 	 Param's Explanation:  
 
@@ -79,9 +77,6 @@ BEGIN
 			INTO @tmpBalanceChanged (CustId, Balance)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid 
-			WHERE b.statusID NOT IN (101, 102)
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-				
 		END 
 		ELSE IF @Action = 'CAL' AND @Status = 'WON'
 		BEGIN
@@ -107,8 +102,6 @@ BEGIN
 			INTO @tmpBalanceChanged (CustId, Balance)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid
-			WHERE b.statusID NOT IN (101, 102)
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			
 		END
 		ELSE IF @Action = 'CAL' AND @Status = 'LOSE'
@@ -135,8 +128,6 @@ BEGIN
 			INTO @tmpBalanceChanged (CustId, Balance)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid
-			WHERE b.statusID NOT IN (101, 102)
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 		ELSE IF @Action = 'CAL' AND @Status = 'REFUND'
 		BEGIN
@@ -159,8 +150,6 @@ BEGIN
 			INTO @tmpBalanceChanged (CustId, Balance)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid
-			WHERE b.statusID NOT IN (101, 102)
-				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		END
 	
 		IF @IsCentral = 1 OR @IsSiteDB = 1
@@ -187,7 +176,7 @@ BEGIN
 				SELECT	 GETDATE()
 						,@MatchID
 						,@ActionId 
-						,1 AS GroupID 
+						,3 AS GroupID 
 						,bal.CustID
 						,SUM(bal.Balance)
 						,0
