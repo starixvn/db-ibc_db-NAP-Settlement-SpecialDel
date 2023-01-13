@@ -2,7 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Set_SiteDBServiceLog_Checking
 	@LogIds			VARCHAR(500)
 	,@SiteDBGroupId SMALLINT
-	,@IsPass		BIT  = 0 OUTPUT
+	,@IsPass		BIT  = 1 OUTPUT
 AS
 /*
 	Created:20221122@Louisa
@@ -18,20 +18,21 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @CheckDate DATETIME =  DATEADD ( HOUR, - 1, GETDATE() )
-	;WITH cte_LogId (LogId )
-	AS 
-	(
-		SELECT DISTINCT Value FROM string_split(@LogIds, ',')
-	)
+	DECLARE @tblLogId TABLE (LogId BIGINT )
 
-	SELECT @IsPass =  (		SELECT TOP 1  1
-							FROM cte_LogId l  
+	INSERT INTO @tblLogId SELECT DISTINCT Value FROM string_split(@LogIds, ',')
+
+	 IF EXISTS  (		SELECT TOP 1  1
+							FROM @tblLogId l  
 								LEFT JOIN dbo.SiteDB_SettlementService_CalculationLog_History h WITH(NOLOCK) 
 									ON h.LogId = l.LogId
 									AND @SiteDBGroupId = h.SiteDBGroupId
 									AND h.LogDate  > @CheckDate
 							WHERE h.LogId IS NULL
 						)
+	BEGIN
+		SET @IsPass  = 0
+	END
 
 END
 GO
