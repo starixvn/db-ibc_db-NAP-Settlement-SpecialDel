@@ -25,8 +25,9 @@ BEGIN
 	)
 
 	SELECT @IsPass =  (		SELECT TOP 1  1
-							FROM dbo.SiteDB_SettlementService_CalculationLog_History h WITH(NOLOCK)
-								LEFT JOIN cte_LogId l ON h.LogId = l.LogId
+							FROM cte_LogId l  
+								LEFT JOIN dbo.SiteDB_SettlementService_CalculationLog_History h WITH(NOLOCK) 
+									ON h.LogId = l.LogId
 									AND @SiteDBGroupId = h.SiteDBGroupId
 									AND h.LogDate  > @CheckDate
 							WHERE h.LogId IS NULL
