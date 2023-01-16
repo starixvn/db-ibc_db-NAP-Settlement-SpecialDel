@@ -24,7 +24,7 @@ BEGIN
 	FROM TicketVoiding_AutoVoidQueue q WITH (NOLOCK)
 	WHERE q.StatusId IN (0)
 
-	SELECT TOP(1) q.QueueId, q.matchid, q.RequestIds, q.Action, q.StatusId, BroadcastSessionId
+	SELECT TOP(1) q.QueueId, q.MatchId, q.RequestIds, q.Action, q.StatusId, q.BroadcastSessionId
 	FROM dbo.TicketVoiding_AutoVoidQueue q WITH(NOLOCK)
 		LEFT JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 	WHERE StatusId IN (0)

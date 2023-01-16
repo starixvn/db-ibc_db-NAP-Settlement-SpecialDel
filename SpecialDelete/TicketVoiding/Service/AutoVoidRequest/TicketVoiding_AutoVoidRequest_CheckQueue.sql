@@ -39,7 +39,6 @@ BEGIN
 	--Remove request has already exists waiting in queue
 	DELETE t
 	FROM #tmpInputTransId t
-		INNER JOIN dbo.TicketVoiding_AutoVoidQueue q WITH (NOLOCK) ON q.RequestId = t.RequestId 
 		CROSS APPLY (
 			SELECT q.Action, q.StatusId
 			FROM dbo.TicketVoiding_AutoVoidQueue q WITH (NOLOCK) 
