@@ -27,8 +27,8 @@ BEGIN
 	IF @RequestId > 0
 	BEGIN
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			LEFT JOIN dbo.TicketVoiding_VoidedTransaction v WITH (NOLOCK) ON v.TransId = rds.TransId
 		WHERE rds.RequestId = @RequestId
@@ -39,8 +39,8 @@ BEGIN
 					ELSE 0 END
 
 		--Main parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			LEFT JOIN dbo.TicketVoiding_VoidedTransaction v WITH (NOLOCK) ON v.TransId = rds.TransId
 		WHERE rds.RequestId = @RequestId

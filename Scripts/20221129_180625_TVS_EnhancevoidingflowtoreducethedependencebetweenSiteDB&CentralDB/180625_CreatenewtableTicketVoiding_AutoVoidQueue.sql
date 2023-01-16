@@ -14,10 +14,8 @@ CREATE TABLE [dbo].[TicketVoiding_AutoVoidQueue](
 	[MatchId] [int] NOT NULL,
 	[Action] [varchar](100) NULL,
 	[StatusId] [tinyint] NULL,
-	[UserId] [int] NULL,
 	[CreatedDate] [datetime] NULL,
 	[ModifiedDate] [datetime] NULL,
-	[IP] [varchar](50) NULL,
 	[ErrMsg] [varchar](300) NULL,
 	[BroadcastSessionId] [VARCHAR](100) NULL
  CONSTRAINT [TicketVoiding_AutoVoidQueue_QueueId] PRIMARY KEY CLUSTERED 

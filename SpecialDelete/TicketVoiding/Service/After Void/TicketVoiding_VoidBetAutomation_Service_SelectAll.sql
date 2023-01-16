@@ -16,65 +16,127 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE @BroadcastSessionId VARCHAR(100)
 	
 	IF @Mode = 1  -- get request will run after void
 	BEGIN
-		SELECT t.RequestID
-				, t.VoidingHistoryId
-				, t.statusID
-				, t.matchID
-				, t.BroadcastSessionId 
-				, t.NegativeBalanceUsers
-				, t.IsAutoVoid
-				, t.IsRunExternalService
-				, t.MessageId
-				, t.ReasonId
-				, t.IsSentBatchMessage
-				, t.IsSentMessageToAdminSite
-				, t.IsInsertedVoidedTransaction
-				, t.IsUpdatedVoidingHistory
-				, t.IsSentEmail
-				, t.IsSentLetsTalk
-				, t.SiteDBGroupID
-				, CASE WHEN v.cnt = 1 THEN 1 ELSE 0 END AS IsLastedInRequest
-		FROM 
+		DECLARE @xmlVoidResults XML = NULL
+			  , @VoidingHistoryId INT
+
+		DECLARE @tmpResultAfterVoid TABLE (
+			RequestID INT
+			,VoidingHistoryId INT
+			,statusID INT
+			,matchID INT
+			,BroadcastSessionId VARCHAR(100)
+			,NegativeBalanceUsers VARCHAR(100)
+			,IsAutoVoid BIT
+			,IsRunExternalService BIT
+			,MessageId INT
+			,ReasonId INT
+			,IsSentBatchMessage BIT
+			,IsSentMessageToAdminSite BIT
+			,IsInsertedVoidedTransaction BIT
+			,IsUpdatedVoidingHistory BIT
+			,IsSentEmail BIT
+			,IsSentLetsTalk BIT
+			,SiteDBGroupID SMALLINT
+		)
+		DECLARE @tmpVoidingHistory_Service TABLE
 		(
-			SELECT TOP 1 
-				  vb.RequestID
-				, vb.VoidingHistoryId
-				, vb.statusID
-				, vb.matchID
-				, vh.BroadcastSessionId 
-				, vb.NegativeBalanceUsers
-				, vb.IsAutoVoid
-				, vb.IsRunExternalService
-				, vb.MessageId
-				, vb.ReasonId
-				, vb.IsSentBatchMessage
-				, vb.IsSentMessageToAdminSite
-				, vb.IsInsertedVoidedTransaction
-				, vb.IsUpdatedVoidingHistory
-				, vb.IsSentEmail
-				, vb.IsSentLetsTalk
-				, vh.SiteDBGroupID
-			FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
-				INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
-			WHERE vb.statusID = 1
-			ORDER BY vb.createdDate ASC
-		)t
-		OUTER APPLY (
-			SELECT COUNT(1) AS cnt
-			FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-			WHERE vh.BroadcastSessionId = t.BroadcastSessionId
-				AND vh.StatusId = 1
-		)v
-	END
-	ELSE IF @Mode = 2 -- get requests will run Lettalk
-	BEGIN
-		DECLARE @tmpResult TABLE (RequestID INT, VoidingHistoryId INT, statusID TINYINT, matchID INT, BroadcastSessionId VARCHAR(100) ,SiteDBGroupID SMALLINT, IsInsert BIT, cnt INT)
-		DECLARE @min_RequestId INT, @IsAutoVoid BIT, @BroadcastSessionId VARCHAR(100)
+			RequestId INT
+			,VoidingHistoryId INT
+			,VoidingHistoryStatusId TINYINT
+			,AfterVoidStatusId TINYINT
+			,VoidResults XML
+			,IsFinish BIT
+		)
 		
-		INSERT INTO @tmpResult (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, SiteDBGroupID, IsInsert)
+		DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT, Licensees VARCHAR(MAX))
+
+		INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
+								, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
+								, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, IsSentLetsTalk, SiteDBGroupID
+		)
+		SELECT TOP 1 
+			  vb.RequestID
+			, vb.VoidingHistoryId
+			, vb.statusID
+			, vb.matchID
+			, vh.BroadcastSessionId 
+			, vb.NegativeBalanceUsers
+			, vb.IsAutoVoid
+			, vb.IsRunExternalService
+			, vb.MessageId
+			, vb.ReasonId
+			, vb.IsSentBatchMessage
+			, vb.IsSentMessageToAdminSite
+			, vb.IsInsertedVoidedTransaction
+			, vb.IsUpdatedVoidingHistory
+			, vb.IsSentEmail
+			, vb.IsSentLetsTalk
+			, vh.SiteDBGroupID
+		FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
+		WHERE vb.statusID = 1
+		ORDER BY vb.createdDate ASC
+		
+		SELECT @BroadcastSessionId = BroadcastSessionId FROM @tmpResultAfterVoid
+
+		INSERT INTO @tmpVoidingHistory_Service(RequestId, VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId, VoidResults) 
+		SELECT	 vh.RequestId
+				,vh.VoidingHistoryId
+				,vh.StatusId AS VoidingHistoryStatusId
+				,vb.StatusId AS AfterVoidStatusId
+				,vb.VoidResults
+		FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+			INNER JOIN Ticketvoiding_VoidBetAutomation_Service vb WITH(NOLOCK) ON vh.RequestId = vb.RequestID AND vh.VoidingHistoryId = vb.VoidingHistoryId
+		WHERE vh.BroadcastSessionId = @BroadcastSessionId 
+			AND vh.StatusId <> 1
+
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1) t
+			SET IsFinish = 1
+				,@VoidingHistoryId = T.VoidingHistoryId
+				,@xmlVoidResults = T.VoidResults
+			FROM @tmpVoidingHistory_Service t
+			WHERE t.IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK
+
+			INSERT INTO @tmpVoidResults ( VoidingHistoryId, Message, Type, Licensees)
+			SELECT  @VoidingHistoryId,
+					T.C.value('@Message', 'VARCHAR(MAX)') AS Message
+					,T.C.value('@Type', 'INT') AS Type
+					,T.C.value('@Licensees', 'VARCHAR(MAX)') AS Licensees
+			FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
+			OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
+		END						
+
+
+		--Table #1
+		SELECT RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
+			, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
+			, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, IsSentLetsTalk, SiteDBGroupID
+		FROM @tmpResultAfterVoid
+
+		--Table #2
+		SELECT VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId
+		FROM @tmpVoidingHistory_Service
+
+		--Table #3
+		SELECT VoidingHistoryId, Message, Type, Licensees
+		FROM @tmpVoidResults
+
+	END
+	ELSE IF @Mode = 2 -- get requests will run Letstalk
+	BEGIN
+		DECLARE @tmpResultLetstalk TABLE (RequestID INT, VoidingHistoryId INT, statusID TINYINT, matchID INT, BroadcastSessionId VARCHAR(100) ,SiteDBGroupID SMALLINT, IsInsert BIT, cnt INT)
+		DECLARE @min_RequestId INT, @IsAutoVoid BIT
+		
+		INSERT INTO @tmpResultLetstalk (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, SiteDBGroupID, IsInsert)
 		SELECT DISTINCT 
 			  	vb.RequestID
 				, vh.VoidingHistoryId
@@ -95,22 +157,22 @@ BEGIN
 					
 		UPDATE t1
 		SET cnt = t2.cnt_BroadcastSessionId
-		FROM @tmpResult t1
+		FROM @tmpResultLetstalk t1
 		 CROSS APPLY (
 			SELECT COUNT (BroadcastSessionId) cnt_BroadcastSessionId
-			FROM @tmpResult t2
+			FROM @tmpResultLetstalk t2
 			WHERE t1.BroadcastSessionId = t2.BroadcastSessionId
 			GROUP BY BroadcastSessionId
 			)t2
-		SELECT @min_RequestId =  MIN(RequestID) FROM @tmpResult 
+		SELECT @min_RequestId =  MIN(RequestID) FROM @tmpResultLetstalk 
 
-		DELETE FROM @tmpResult WHERE RequestID > @min_RequestId
+		DELETE FROM @tmpResultLetstalk WHERE RequestID > @min_RequestId
 
 		SELECT @BroadcastSessionId = t1.BroadcastSessionId
-		FROM @tmpResult t1
+		FROM @tmpResultLetstalk t1
 		CROSS APPLY (
 					SELECT MIN(VoidingHistoryId) AS VoidingHistoryId
-					FROM @tmpResult t2
+					FROM @tmpResultLetstalk t2
 					WHERE t1.RequestID = t2.RequestID
 					)t2
 		WHERE t1.VoidingHistoryId = t2.VoidingHistoryId
@@ -118,9 +180,9 @@ BEGIN
 		SELECT @IsAutoVoid = CASE WHEN ActionId IN (1,4,6,7,8) THEN 1 ELSE 0 END
 		FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @min_RequestId
 
-		--Get 1 RequestId, 1 BroadcastSessionId
+		----Table #1 Get 1 RequestId, 1 BroadcastSessionId many VoidingHistoryId
 		SELECT  RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId, SiteDBGroupID, IsInsert, @IsAutoVoid AS IsAutoVoid
-		FROM @tmpResult t
+		FROM @tmpResultLetstalk t
 			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
 						  FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 						  WHERE t.RequestID = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
