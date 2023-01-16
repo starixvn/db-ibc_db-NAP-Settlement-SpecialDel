@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@SubIssueTypeId			TINYINT	= NULL
 	,@IsRemoveCustomerClass201	BIT = 0
 	,@IsRemoveCustomerClass4K	BIT = 0
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson				VARCHAR(MAX) = NULL
 )
 AS
 /*  

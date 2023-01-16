@@ -1,15 +1,14 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Insert]
 (
-	@RequestId				INT= 0
+	 @RequestIds			VARCHAR(MAX) = NULL
 	,@SiteDBGroupID			SMALLINT = NULL
 	,@BroadcastSessionId	VARCHAR(100) = NULL
 	,@VoidData				XML = NULL
 	,@UserId				INT = 0
 )
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: view voided ticket [Redmine:#90155]
 	DB: DBCTG/bodb02
 	
@@ -28,9 +27,15 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
+	DECLARE @RequestId_tmp AS TABLE (RequestId INT)
 
-	IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) 
-					WHERE v.RequestId = @RequestId AND v.SiteDBGroupID = @SiteDBGroupID AND v.BroadcastSessionId = @BroadcastSessionId
+	INSERT INTO @RequestId_tmp (RequestId)
+	SELECT value FROM STRING_SPLIT (@RequestIds, ',')
+
+	IF NOT EXISTS ( SELECT TOP(1) 1 
+					FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) 
+						INNER JOIN @RequestId_tmp r ON v.RequestId = r.RequestId
+					WHERE v.SiteDBGroupID = @SiteDBGroupID AND v.BroadcastSessionId = @BroadcastSessionId
 				)
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_VoidingHistory (
@@ -42,7 +47,8 @@ BEGIN
 						,SiteDBGroupID
 				)
 			OUTPUT inserted.VoidingHistoryId, inserted.RequestId INTO @VoidingHistory_tmp (VoidingHistoryId, RequestId)
-		SELECT @RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
+		SELECT RequestId, @UserId, 1, @VoidData, @BroadcastSessionId, @SiteDBGroupID
+		FROM @RequestId_tmp
 	END
 
 	SELECT VoidingHistoryId, RequestId

@@ -10,7 +10,7 @@ GO
 
 CREATE TABLE [dbo].[TicketVoiding_AutoVoidQueue](
 	[QueueId] [int] IDENTITY(1,1) NOT NULL,
-	[RequestId] [int] NOT NULL,
+	[RequestIds] [VARCHAR](MAX) NOT NULL,
 	[MatchId] [int] NOT NULL,
 	[Action] [varchar](100) NULL,
 	[StatusId] [tinyint] NULL,

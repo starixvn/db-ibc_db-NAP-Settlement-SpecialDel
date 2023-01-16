@@ -1,10 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Insert]
 (
-	@RequestId INT
-	,@StatusId TINYINT
-	,@Action	VARCHAR(50)
-	,@BroadcastSessionId VARCHAR(100) = NULL
+	 @RequestIds			VARCHAR(MAX)
+	,@StatusId				TINYINT
+	,@Action				VARCHAR(50)
+	,@BroadcastSessionId	VARCHAR(100) = NULL
 )
 AS
 /*	
@@ -22,8 +22,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestId, MatchId, [Action], StatusId, CreatedDate, BroadcastSessionId)
-	SELECT @RequestId, 0, @Action, @StatusId, GETDATE(), @BroadcastSessionId
+	INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestIds, MatchId, [Action], StatusId, CreatedDate, BroadcastSessionId)
+	SELECT @RequestIds, 0, @Action, @StatusId, GETDATE(), @BroadcastSessionId
 
 END		
 GO

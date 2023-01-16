@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_Request_AutoVoidQueue_Insert]
 (
-	@RequestId				INT
+	@RequestIds				VARCHAR(MAX)
    ,@IssueTypeId			TINYINT	= NULL
    ,@MatchId				INT
    ,@ActionID				TINYINT = NULL
@@ -27,23 +27,23 @@ BEGIN
 
 	IF @IssueTypeId = 13 
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestId, MatchId, [Action], StatusId, UserId, IP, BroadcastSessionID)
-		SELECT @RequestId, 0, 'VoidInstant', 0, 10278938, '125.227.140.97', @BroadcastSessionID
+		INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestIds, MatchId, [Action], StatusId, BroadcastSessionID)
+		SELECT @RequestIds, 0, 'VoidInstant', 0, @BroadcastSessionID
 	END
 	ELSE IF @IssueTypeId IN (11,15)
 	BEGIN
 		-- Insert queue for auto void
 		IF @ActionId IN (4,6,7,8)
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestId, MatchId, [Action], StatusId, UserId, IP, BroadcastSessionID)
-			SELECT @RequestId
+			INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestIds, MatchId, [Action], StatusId, BroadcastSessionID)
+			SELECT @RequestIds
 					, @MatchId
 					, CASE WHEN @ActionId = 4 THEN 'VoidInstant'
 						   WHEN @ActionId = 6 THEN 'VoidInstant5m'
 						   WHEN @ActionId = 7 THEN 'VoidInstant10m' 
 						   WHEN @ActionId = 8 THEN 'VoidInstantNopolicy'
 						ELSE '' END 
-			      , 0, 10278938, '125.227.140.97', @BroadcastSessionID
+			      , 0, @BroadcastSessionID
 		END
 	END
 

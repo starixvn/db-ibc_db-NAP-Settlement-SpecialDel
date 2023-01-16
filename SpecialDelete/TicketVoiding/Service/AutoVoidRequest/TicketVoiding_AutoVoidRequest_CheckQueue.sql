@@ -6,8 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_CheckQueue]
 )
 AS
 /*	
-	Created by: Max
-	Date 20221201
+	Created by: 20221201@Max
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 	DB: DBTXN/bodb02
 	
@@ -41,6 +40,11 @@ BEGIN
 	DELETE t
 	FROM #tmpInputTransId t
 		INNER JOIN dbo.TicketVoiding_AutoVoidQueue q WITH (NOLOCK) ON q.RequestId = t.RequestId 
+		CROSS APPLY (
+			SELECT q.Action, q.StatusId
+			FROM dbo.TicketVoiding_AutoVoidQueue q WITH (NOLOCK) 
+			WHERE t.RequestId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(q.RequestIds,','))
+			)q
 	WHERE q.Action = 'CAL'
 		AND q.StatusId = 0
 	
