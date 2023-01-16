@@ -20,6 +20,7 @@ AS
 		- 20220808@July: Create new SP - Refactor code issue type Danger Accept & Red card [Redmine: #175412]
 		- 20220808@July: HF- Request only sub parlay ticket get wrong score show for template message [Redmine: #179752]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230116@July: HF - Edit Request: Log Info has the difference between START TIME void and MIM TIME highlight [Redmine: #182910]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -711,7 +712,12 @@ BEGIN
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-			LEFT JOIN #logInfo li ON li.MatchId = rd.MatchId
+			OUTER APPLY (
+					SELECT TOP 1 li.HighLightMinTime
+					FROM #logInfo li 
+					WHERE li.MatchId = rd.MatchId
+					ORDER BY li.HighLightMinTime ASC
+				) li 
 			OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType
 						 FROM #TVSTicketBets b 
 					     WHERE rd.MatchId = b.matchid 
