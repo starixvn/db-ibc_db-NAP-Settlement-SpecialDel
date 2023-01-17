@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Outright_Update]
 	,@Action		VARCHAR(10)		= 'CAL'	
 	,@EventDate		DATETIME		= NULL
 	,@IsDeadheat	BIT				= 0 
-	,@UserID		INT				= 5838421
+	,@AdminID		INT				= 5838421
 
 	,@ErrCode		INT				= 0  OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= '' OUTPUT
@@ -103,7 +103,7 @@ BEGIN
 	BEGIN TRY
 		SELECT @Remark = CAST(@IsDeadheat AS VARCHAR(5))
 		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright
-			 @UserID = @UserID
+			 @UserID = @AdminID
 			,@MatchID = @Matchid
 			,@ActionID = @ActionID
 			,@LeagueID = @LeagueID
@@ -115,7 +115,7 @@ BEGIN
 	BEGIN CATCH
 		SELECT @Remark ='IsDeadheat=' + CAST(@IsDeadheat AS VARCHAR(5)) + ' ErrMsg='+ LEFT(ERROR_MESSAGE(), 400)
 		EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright
-			 @UserID = @UserID
+			 @UserID = @AdminID
 			,@MatchID = @Matchid
 			,@ActionID = @ActionID
 			,@LeagueID = @LeagueID

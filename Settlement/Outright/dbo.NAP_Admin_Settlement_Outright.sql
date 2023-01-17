@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Outright]
 	,@Action		VARCHAR(10)		='CAL'	
 	,@Deadheat		FLOAT			= 1 
 	,@IsDeadheat	BIT				= 0 
-	,@UserID		INT				= 5838421 
+	,@AdminID		INT				= 5838421 
 
 	,@ErrCode		INT				= 0  OUTPUT
 	,@ErrMsg		VARCHAR(300)	= '' OUTPUT
@@ -144,7 +144,7 @@ BEGIN
 		BEGIN TRY
 			SET @Remark = 'ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + '; ErrMsg=' + @ErrMsg;
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-				 @UserID = @UserID
+				 @UserID = @AdminID
 				,@MatchID = @MatchID
 				,@ActionID = @ActionID
 				,@LeagueID = @LeagueID
@@ -155,7 +155,7 @@ BEGIN
 		BEGIN CATCH
 			SET @Remark = 'ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + '; ErrMsg= ' + @ErrMsg + '; InsLogErrMsg=' + LEFT(ERROR_MESSAGE(), 100)
 			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-				@UserID = @UserID
+				@UserID = @AdminID
 				,@MatchID = @MatchID
 				,@ActionID = @ActionID
 				,@LeagueID = @LeagueID
