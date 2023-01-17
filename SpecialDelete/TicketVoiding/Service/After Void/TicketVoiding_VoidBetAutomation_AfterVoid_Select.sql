@@ -1,0 +1,128 @@
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_AfterVoid_Select]
+AS
+/*	Created by: 20230117@July
+	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+	DB: DBCTG/bodb02
+	
+	Revisions: 
+		- 20230117@July: Create new SP - get request will run after void [Redmine: #180625]
+	
+	Param's explanation:	
+*/
+BEGIN
+	SET NOCOUNT ON
+
+	DECLARE @BroadcastSessionId VARCHAR(100)
+	       ,@xmlVoidResults		XML = NULL
+		   ,@VoidingHistoryId	INT
+
+	DECLARE @tmpResultAfterVoid AS TABLE (
+		RequestID INT
+		,VoidingHistoryId INT
+		,statusID INT
+		,matchID INT
+		,BroadcastSessionId VARCHAR(100)
+		,NegativeBalanceUsers VARCHAR(100)
+		,IsAutoVoid BIT
+		,IsRunExternalService BIT
+		,MessageId INT
+		,ReasonId INT
+		,IsSentBatchMessage BIT
+		,IsSentMessageToAdminSite BIT
+		,IsInsertedVoidedTransaction BIT
+		,IsUpdatedVoidingHistory BIT
+		,IsSentEmail BIT
+		,IsSentLetsTalk BIT
+		,SiteDBGroupID SMALLINT
+	)
+	DECLARE @tmpVoidingHistory_Service AS TABLE
+	(
+		RequestId INT
+		,VoidingHistoryId INT
+		,VoidingHistoryStatusId TINYINT
+		,AfterVoidStatusId TINYINT
+		,VoidResults XML
+		,IsFinish BIT
+	)
+		
+	DECLARE @tmpVoidResults AS TABLE ( 
+	VoidingHistoryId INT, Message VARCHAR(MAX)
+	, Type INT, Licensees VARCHAR(MAX))
+
+	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
+							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
+							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, IsSentLetsTalk, SiteDBGroupID
+	)
+	SELECT TOP 1 
+			vb.RequestID
+		, vb.VoidingHistoryId
+		, vb.statusID
+		, vb.matchID
+		, vh.BroadcastSessionId 
+		, vb.NegativeBalanceUsers
+		, vb.IsAutoVoid
+		, vb.IsRunExternalService
+		, vb.MessageId
+		, vb.ReasonId
+		, vb.IsSentBatchMessage
+		, vb.IsSentMessageToAdminSite
+		, vb.IsInsertedVoidedTransaction
+		, vb.IsUpdatedVoidingHistory
+		, vb.IsSentEmail
+		, vb.IsSentLetsTalk
+		, vh.SiteDBGroupID
+	FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
+		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
+	WHERE vb.statusID = 1
+	ORDER BY vb.createdDate ASC
+		
+	SELECT @BroadcastSessionId = BroadcastSessionId FROM @tmpResultAfterVoid
+
+	INSERT INTO @tmpVoidingHistory_Service(RequestId, VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId, VoidResults) 
+	SELECT	 vh.RequestId
+			,vh.VoidingHistoryId
+			,vh.StatusId AS VoidingHistoryStatusId
+			,vb.StatusId AS AfterVoidStatusId
+			,vb.VoidResults
+	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+		INNER JOIN Ticketvoiding_VoidBetAutomation_Service vb WITH(NOLOCK) ON vh.RequestId = vb.RequestID AND vh.VoidingHistoryId = vb.VoidingHistoryId
+	WHERE vh.BroadcastSessionId = @BroadcastSessionId 
+		AND vh.StatusId <> 1
+
+	WHILE (1=1)
+	BEGIN
+		UPDATE TOP(1) t
+		SET IsFinish = 1
+			,@VoidingHistoryId = T.VoidingHistoryId
+			,@xmlVoidResults = T.VoidResults
+		FROM @tmpVoidingHistory_Service t
+		WHERE t.IsFinish IS NULL
+
+		IF @@ROWCOUNT = 0 BREAK
+
+		INSERT INTO @tmpVoidResults ( VoidingHistoryId, Message, Type, Licensees)
+		SELECT  @VoidingHistoryId,
+				T.C.value('@Message', 'VARCHAR(MAX)') AS Message
+				,T.C.value('@Type', 'INT') AS Type
+				,T.C.value('@Licensees', 'VARCHAR(MAX)') AS Licensees
+		FROM	@xmlVoidResults.nodes('/VoidResults/VoidResult') as [T](C)
+		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
+	END						
+
+
+	--Table #1
+	SELECT RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
+		, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
+		, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, IsSentLetsTalk, SiteDBGroupID
+	FROM @tmpResultAfterVoid
+
+	--Table #2
+	SELECT VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId
+	FROM @tmpVoidingHistory_Service
+
+	--Table #3
+	SELECT VoidingHistoryId, Message, Type, Licensees
+	FROM @tmpVoidResults
+
+END
