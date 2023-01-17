@@ -77,8 +77,7 @@ BEGIN
 	FROM @tmpResultLetstalk t
 		CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
 						FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-						WHERE t.RequestID = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
-
+						WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
 						GROUP BY BroadcastSessionId
 				)a
 	WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
