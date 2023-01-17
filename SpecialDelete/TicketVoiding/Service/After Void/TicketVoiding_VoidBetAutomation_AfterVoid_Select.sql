@@ -47,8 +47,11 @@ BEGIN
 	)
 		
 	DECLARE @tmpVoidResults AS TABLE ( 
-	VoidingHistoryId INT, Message VARCHAR(MAX)
-	, Type INT, Licensees VARCHAR(MAX))
+		  VoidingHistoryId INT
+		, Message VARCHAR(MAX)
+		, Type INT
+		, Licensees VARCHAR(MAX)
+	)
 
 	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
 							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
@@ -88,7 +91,6 @@ BEGIN
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		INNER JOIN Ticketvoiding_VoidBetAutomation_Service vb WITH(NOLOCK) ON vh.RequestId = vb.RequestID AND vh.VoidingHistoryId = vb.VoidingHistoryId
 	WHERE vh.BroadcastSessionId = @BroadcastSessionId 
-		AND vh.StatusId <> 1
 
 	WHILE (1=1)
 	BEGIN
@@ -117,11 +119,11 @@ BEGIN
 		, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, IsSentLetsTalk, SiteDBGroupID
 	FROM @tmpResultAfterVoid
 
-	--Table #2
+	--Table #2: Get statusid lastest request & current status request
 	SELECT VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId
 	FROM @tmpVoidingHistory_Service
 
-	--Table #3
+	--Table #3: Get signal Licensees new
 	SELECT VoidingHistoryId, Message, Type, Licensees
 	FROM @tmpVoidResults
 

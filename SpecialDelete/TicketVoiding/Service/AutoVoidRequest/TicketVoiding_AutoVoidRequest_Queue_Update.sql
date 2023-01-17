@@ -25,6 +25,7 @@ BEGIN
 	UPDATE q SET 
 		q.StatusId = ISNULL(@StatusId, q.StatusId)
 		,q.CreatedDate = CASE WHEN @IsUpdateStartTime = 1 THEN GETDATE() ELSE q.CreatedDate END
+		,q.ModifiedDate = GETDATE()
 		,q.ErrMsg = @ErrMsg		
 	FROM dbo.TicketVoiding_AutoVoidQueue q WITH (ROWLOCK, UPDLOCK)
 	WHERE q.QueueId = @QueueId	
