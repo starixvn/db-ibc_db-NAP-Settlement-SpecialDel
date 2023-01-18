@@ -8,38 +8,115 @@ AS
 	
 	Revisions:
 		- 20220913@Louisa: Get log in waiting/running/fail from SiteDB_SettlementService_LastLog [RedmineId:#177711]
-
+		- 20221122@Louisa: Internal tool to update SiteDB_SettlementService_LastLog [RedmineId:#180746]
+	
 	Param's Explanation:
 
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @CurrentTime DATETIME = GETDATE()
+	DECLARE @TimeChecking	INT			 = 3
+			,@ServerName	VARCHAR(100) = @@SERVERNAME
 
-	SELECT @@SERVERNAME AS ServerName
-		, ll.LogId
-		, ll.StatusId
-		, ll.Starttime
-		, ll.Endtime
-		, ll.StartTimeValidation
-		, l.SystemName
-		, l.FunctionName
-		, l.TableName
-		, l.Action
-		, l.MatchId
+	DECLARE @tmpLastLogPending TABLE 
+	(	LogID			BIGINT 
+		, StartTime		DATETIME2
+		, SystemName	VARCHAR(50)
+		, FunctionName	VARCHAR(50)
+		, TableName		VARCHAR(128)
+		, Action		VARCHAR(1)
+		, MatchId		INT
+		, TransInfo		XML
+		, TransInfoJson NVARCHAR(MAX)
+		, LogDate		DATETIME2
+		, SettlementAction  VARCHAR(20)
+		, TicketType	VARCHAR(1)
+	)
+
+	INSERT INTO @tmpLastLogPending 
+	(
+		LogID			 
+		, StartTime		 
+		, SystemName	 
+		, FunctionName	 
+		, TableName		 
+		, Action		 
+		, MatchId		 
+		, TransInfo		 
+		, TransInfoJson  
+		, LogDate		 
+		, SettlementAction   
+		, TicketType	 
+	)
+	SELECT ll.LogId
+		, ll.Starttime	 
+		, l.SystemName	 
+		, l.FunctionName	 
+		, l.TableName		 
+		, l.Action		 
+		, l.MatchId		 
 		, l.TransInfo
-		, l.LogDate
-		, l.SettlementAction
-		, l.TicketType
+		, CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX)) TransInfoJson
+		, l.LogDate		 
+		, l.SettlementAction  
+		, l.TicketType	
 	FROM dbo.SiteDB_SettlementService_LastLog ll WITH(NOLOCK)
 		INNER JOIN dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
 			ON ll.LogId = l.LogId
-	WHERE ll.StatusId IN ( 0,1,3)
-		AND 1 = CASE WHEN ll.StatusId = 0 AND DATEDIFF( MINUTE, ll.StartTimeValidation, @CurrentTime) >= 5 THEN 1
-					 WHEN ll.StatusId = 1 AND DATEDIFF( MINUTE, ll.StartTimeValidation, @CurrentTime) >=2 THEN 1
-					 WHEN ll.StatusId = 3  THEN 1
-					 ELSE 0
-				END
+	WHERE ll.StatusId = 1
+		AND DATEDIFF( MINUTE, ll.StartTime, GETDATE()) >= @TimeChecking
+	
+	IF @@ROWCOUNT = 0
+	BEGIN
+		SELECT NULL AS ServerName
+			, NULL AS LogId
+			, NULL AS Starttime
+			, NULL AS SystemName
+			, NULL AS FunctionName
+			, NULL AS TableName
+			, NULL AS Action
+			, NULL AS MatchId
+			, NULL AS TransInfo
+			, NULL AS TransInfoJson
+			, NULL AS LogDate
+			, NULL AS SettlementAction
+			, NULL AS TicketType
+		WHERE 1 = 2
+	END
+	ELSE
+	BEGIN
+		SELECT @ServerName AS ServerName
+			,LogID	 
+			, StartTime		 
+			, SystemName	 
+			, FunctionName	 
+			, TableName		 
+			, Action		 
+			, MatchId		 
+			, STUFF (    
+						(	SELECT  ','+ CAST( T.C.value('./@t', 'VARCHAR(20)') AS VARCHAR(MAX) ) 
+							FROM transinfo.nodes('/root/r') AS [T](C)							   
+							FOR XML PATH('') 
+						)
+						,1,1, ''
+					) AS TransInfo	
+					
+			, STUFF (
+						( SELECT  ',' + t   
+						  FROM OPENJSON (TransInfoJson ) WITH( t  VARCHAR(20) ) 
+						  FOR XML PATH('') 
+						)  
+						, 1, 1, '' 
+					)  AS TransInfoJson  
+
+			, LogDate		 
+			, SettlementAction  
+			, TicketType	 
+		FROM @tmpLastLogPending l
+
+	END
+
 END
 GO
+ 
