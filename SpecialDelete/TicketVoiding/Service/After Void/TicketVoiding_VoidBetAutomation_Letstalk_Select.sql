@@ -15,6 +15,7 @@ BEGIN
 
 	DECLARE @BroadcastSessionId VARCHAR(100)
 		  , @min_RequestId		INT
+		  , @cnt_RequestId		INT
 
 	DECLARE @tmpResultLetstalk TABLE (
 			 RequestID			INT
@@ -38,7 +39,7 @@ BEGIN
 		INNER JOIN dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK) ON vh.RequestID = vb.RequestId AND vh.VoidingHistoryId = vb.VoidingHistoryId  
 		LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
 	WHERE  vh.BroadcastSessionId IS NOT NULL AND vh.StatusId = 2 AND vb.statusID = 2
-	AND lt.BroadcastSessionId IS NULL
+		AND lt.BroadcastSessionId IS NULL
 					
 	UPDATE t1
 	SET cnt = t2.cnt_BroadcastSessionId
@@ -62,13 +63,33 @@ BEGIN
 				)t2
 	WHERE t1.VoidingHistoryId = t2.VoidingHistoryId
 
-	----Table #1 Get 1 RequestId, 1 BroadcastSessionId many VoidingHistoryId
-	SELECT  RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid
-	FROM @tmpResultLetstalk t
-		CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
-						FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-						WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
-						GROUP BY BroadcastSessionId
-				)a
-	WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
+	SELECT @cnt_RequestId = COUNT(RequestId)
+	FROM  TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
+	WHERE BroadcastSessionId = @BroadcastSessionId
+	
+	IF @cnt_RequestId = 1 --1 BroadcastSessionId, 1 RequestId, many VoidingHistoryId
+	BEGIN
+		SELECT  RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid
+		FROM @tmpResultLetstalk t
+			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
+							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+							WHERE t.RequestID = vh.RequestID AND t.BroadcastSessionId = vh.BroadcastSessionId
+							GROUP BY BroadcastSessionId
+					)a
+		WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
+	END
+	ELSE --Case auto void winning: 1 BroadcastSessionId, many RequestIds, many VoidingHistoryIds => Get 1 min_RequestID 
+	BEGIN
+		SELECT  RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid
+		FROM @tmpResultLetstalk t
+			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
+							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+								INNER JOIN dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK) ON vh.RequestID = vb.RequestId AND vh.VoidingHistoryId = vb.VoidingHistoryId
+							WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
+								AND vb.statusID = 2 AND vh.StatusId = 2
+							GROUP BY BroadcastSessionId
+					)a
+		WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
+			
+	END
 END
