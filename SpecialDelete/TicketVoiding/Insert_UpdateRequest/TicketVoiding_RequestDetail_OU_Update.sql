@@ -167,14 +167,8 @@ BEGIN
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
 	WHERE rd.RequestId IS NULL
 
-	IF @IsEditRequest = 0 
-	BEGIN
-		SET @LogActionId = 90001
-	END 
 	IF @IsEditRequest = 1
 	BEGIN		
-		SET @LogActionId = 90003
-
 		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single
 		WHERE RequestId = @RequestId	
 			

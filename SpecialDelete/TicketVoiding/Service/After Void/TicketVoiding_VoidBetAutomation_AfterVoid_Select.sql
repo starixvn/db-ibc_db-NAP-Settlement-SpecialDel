@@ -16,6 +16,7 @@ BEGIN
 	DECLARE @BroadcastSessionId VARCHAR(100)
 	       ,@xmlVoidResults		XML = NULL
 		   ,@VoidingHistoryId	INT
+		   ,@RequestId			INT 
 
 	DECLARE @tmpResultAfterVoid AS TABLE (
 		RequestID INT
@@ -80,7 +81,8 @@ BEGIN
 	WHERE vb.statusID = 1
 	ORDER BY vb.createdDate ASC
 		
-	SELECT @BroadcastSessionId = BroadcastSessionId FROM @tmpResultAfterVoid
+	SELECT @BroadcastSessionId = BroadcastSessionId, @RequestId = RequestId
+	FROM @tmpResultAfterVoid
 
 	INSERT INTO @tmpVoidingHistory_Service(RequestId, VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId, VoidResults) 
 	SELECT	 vh.RequestId
@@ -90,7 +92,7 @@ BEGIN
 			,vb.VoidResults
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		INNER JOIN Ticketvoiding_VoidBetAutomation_Service vb WITH(NOLOCK) ON vh.RequestId = vb.RequestID AND vh.VoidingHistoryId = vb.VoidingHistoryId
-	WHERE vh.BroadcastSessionId = @BroadcastSessionId 
+	WHERE vh.BroadcastSessionId = @BroadcastSessionId AND vh.RequestId = @RequestId
 
 	WHILE (1=1)
 	BEGIN
