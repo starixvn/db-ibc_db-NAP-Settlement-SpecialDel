@@ -50,8 +50,6 @@ BEGIN
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
-		,LiveBetAcceptTime SMALLINT
-		,SecAcceptTime TINYINT
 		,Subcustid INT        
 		,Sublivehomescore SMALLINT
 		,Subliveawayscore SMALLINT
@@ -63,8 +61,6 @@ BEGIN
 		,Subtransdate DATETIME
 		,Subchecktime DATETIME
 		,Subliveindicator BIT
-		,SubLiveBetAcceptTime SMALLINT
-		,SubSecAcceptTime TINYINT
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
@@ -124,8 +120,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,LiveBetAcceptTime 
-			,SecAcceptTime 
 			,Subcustid         
 			,Sublivehomescore 
 			,Subliveawayscore 
@@ -137,8 +131,6 @@ BEGIN
 			,Subtransdate 
 			,Subchecktime 
 			,Subliveindicator 
-			,SubLiveBetAcceptTime 
-			,SubSecAcceptTime 
 			,recommend 
 			,mrecommend 
 			,srecommend 
@@ -187,8 +179,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,NULL AS LiveBetAcceptTime 
-		,NULL AS SecAcceptTime 
 		,b.custid Subcustid         
 		,b.livehomescore AS Sublivehomescore 
 		,b.liveawayscore AS Subliveawayscore 
@@ -200,8 +190,6 @@ BEGIN
 		,b.transdate AS Subtransdate 
 		,b.checktime AS Subchecktime 
 		,b.liveindicator AS Subliveindicator 
-		,NULL AS SubLiveBetAcceptTime 
-		,NULL AS SubSecAcceptTime 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
@@ -263,8 +251,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,LiveBetAcceptTime 
-			,SecAcceptTime 
 			,Subcustid         
 			,Sublivehomescore 
 			,Subliveawayscore 
@@ -276,8 +262,6 @@ BEGIN
 			,Subtransdate 
 			,Subchecktime 
 			,Subliveindicator 
-			,SubLiveBetAcceptTime 
-			,SubSecAcceptTime 
 			,recommend 
 			,mrecommend 
 			,srecommend 
@@ -326,8 +310,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,NULL AS LiveBetAcceptTime 
-		,NULL AS SecAcceptTime 
 		,b.custid Subcustid         
 		,b.livehomescore AS Sublivehomescore 
 		,b.liveawayscore AS Subliveawayscore 
@@ -339,8 +321,6 @@ BEGIN
 		,b.transdate AS Subtransdate 
 		,b.checktime AS Subchecktime 
 		,b.liveindicator AS Subliveindicator 
-		,NULL AS SubLiveBetAcceptTime 
-		,NULL AS SubSecAcceptTime 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
@@ -412,8 +392,6 @@ BEGIN
 		,statusID AS 'sid'
 		,WalletType AS 'wt'
 		,RefCode AS 'refc'
-		,LiveBetAcceptTime AS 'lbat'
-		,SecAcceptTime AS 'sat'
 		,Subcustid    AS     's_c' 
 		,Sublivehomescore AS 's_lh'
 		,Subliveawayscore AS 's_la'
@@ -425,8 +403,6 @@ BEGIN
 		,Subtransdate AS 's_tdate'
 		,Subchecktime AS 's_checkt'
 		,Subliveindicator AS 's_li'
-		,SubLiveBetAcceptTime AS 's_lbat'
-		,SubSecAcceptTime AS 's_sat'
 		,recommend AS 're'
 		,mrecommend AS 'mre'
 		,srecommend AS 'sre'
@@ -455,7 +431,7 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,SubMatchIdList AS 's_mid'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	

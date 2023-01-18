@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_HDP_Select]
 	,@IsShowLogOnly		  BIT = 0
 	,@IssueTypeId		  INT = 4
 	,@WrongHDPInfo		  VARCHAR(MAX) = NULL
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -303,7 +303,7 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-	FROM string_split(@TransInfoJson, ',') f
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li

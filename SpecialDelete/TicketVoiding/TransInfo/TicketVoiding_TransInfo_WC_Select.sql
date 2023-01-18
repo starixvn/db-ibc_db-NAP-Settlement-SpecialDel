@@ -78,7 +78,6 @@ BEGIN
 		,srecommend INT
 		,statuswinlost TINYINT
 		,IsMixParlay BIT
-		,IsMoved14 BIT
 		,odds MONEY
 		,Subodds MONEY
 		,oddsspread MONEY
@@ -152,7 +151,6 @@ BEGIN
 			,srecommend 
 			,statuswinlost 
 			,IsMixParlay 
-			,IsMoved14 
 			,odds 
 			,Subodds 
 			,oddsspread 
@@ -215,7 +213,6 @@ BEGIN
 		,b.srecommend 
 		,b.statuswinlost 
 		,0 AS IsMixParlay 
-		,0 AS IsMoved14 
 		,b.odds 
 		,b.odds AS Subodds 
 		,b.oddsspread
@@ -297,7 +294,6 @@ BEGIN
 				,srecommend 
 				,statuswinlost 
 				,IsMixParlay 
-				,IsMoved14 
 				,odds 
 				,Subodds 
 				,oddsspread 
@@ -360,7 +356,6 @@ BEGIN
 			,b.srecommend 
 			,b.statuswinlost 
 			,1 AS IsMixParlay 
-			,0 AS IsMoved14 
 			,b.odds 
 			,Sub.odds AS Subodds 
 			,b.oddsspread
@@ -455,7 +450,7 @@ BEGIN
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	

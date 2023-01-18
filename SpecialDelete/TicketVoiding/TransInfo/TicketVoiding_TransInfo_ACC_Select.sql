@@ -420,7 +420,7 @@ BEGIN
 		,oddsid AS 'oid'
 		,winlostdate AS 'wld'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	

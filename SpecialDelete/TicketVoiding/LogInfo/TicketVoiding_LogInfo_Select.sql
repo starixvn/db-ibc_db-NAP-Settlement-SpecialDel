@@ -15,7 +15,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@Wrong1stHDPInfo	  VARCHAR(MAX) = NULL
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL	
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
 /*	

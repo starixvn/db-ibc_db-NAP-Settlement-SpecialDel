@@ -15,7 +15,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 	,@IsLinkGroup1X2	  BIT = 0
 	,@IsLinkGroupAIO	  BIT = 0
 	,@LiveIndicator		  BIT = 0
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -211,7 +211,7 @@ BEGIN
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
 		,wt ,refc
-	FROM string_split(@TransInfoJson, ',') f
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
@@ -337,7 +337,7 @@ BEGIN
 					 ELSE 0 END
 	
 	---get sub ticket of a mix parlay	
-	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo  WHERE IsMixParlay = 1)
+	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
 	BEGIN		
 		INSERT INTO #TVSTicketBets(
 					transid		

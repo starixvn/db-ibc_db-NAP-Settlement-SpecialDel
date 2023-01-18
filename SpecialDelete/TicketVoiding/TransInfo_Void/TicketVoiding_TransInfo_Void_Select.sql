@@ -57,8 +57,6 @@ BEGIN
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
-		,LiveBetAcceptTime SMALLINT
-		,SecAcceptTime TINYINT
 		,Subcustid INT        
 		,Sublivehomescore SMALLINT
 		,Subliveawayscore SMALLINT
@@ -70,14 +68,11 @@ BEGIN
 		,Subtransdate DATETIME
 		,Subchecktime DATETIME
 		,Subliveindicator BIT
-		,SubLiveBetAcceptTime SMALLINT
-		,SubSecAcceptTime TINYINT
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
 		,statuswinlost TINYINT
 		,IsMixParlay BIT
-		,IsMoved14 BIT
 		,odds MONEY
 		,Subodds MONEY
 		,oddsspread MONEY
@@ -137,8 +132,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,LiveBetAcceptTime 
-			,SecAcceptTime 
 			,Subcustid         
 			,Sublivehomescore 
 			,Subliveawayscore 
@@ -150,14 +143,11 @@ BEGIN
 			,Subtransdate 
 			,Subchecktime 
 			,Subliveindicator 
-			,SubLiveBetAcceptTime 
-			,SubSecAcceptTime 
 			,recommend 
 			,mrecommend 
 			,srecommend 
 			,statuswinlost 
 			,IsMixParlay 
-			,IsMoved14 
 			,odds 
 			,Subodds 
 			,oddsspread 
@@ -202,8 +192,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,NULL AS LiveBetAcceptTime 
-		,NULL AS SecAcceptTime 
 		,b.custid Subcustid         
 		,b.livehomescore AS Sublivehomescore 
 		,b.liveawayscore AS Subliveawayscore 
@@ -215,14 +203,11 @@ BEGIN
 		,b.transdate AS Subtransdate 
 		,b.checktime AS Subchecktime 
 		,b.liveindicator AS Subliveindicator 
-		,NULL AS SubLiveBetAcceptTime 
-		,NULL AS SubSecAcceptTime 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
 		,b.statuswinlost 
 		,0 AS IsMixParlay 
-		,0 AS IsMoved14 
 		,b.odds 
 		,b.odds AS Subodds 
 		,b.oddsspread
@@ -283,8 +268,6 @@ BEGIN
 				,statusID 
 				,WalletType 
 				,RefCode 
-				,LiveBetAcceptTime 
-				,SecAcceptTime 
 				,Subcustid         
 				,Sublivehomescore 
 				,Subliveawayscore 
@@ -296,14 +279,11 @@ BEGIN
 				,Subtransdate 
 				,Subchecktime 
 				,Subliveindicator 
-				,SubLiveBetAcceptTime 
-				,SubSecAcceptTime 
 				,recommend 
 				,mrecommend 
 				,srecommend 
 				,statuswinlost 
 				,IsMixParlay 
-				,IsMoved14 
 				,odds 
 				,Subodds 
 				,oddsspread 
@@ -348,8 +328,6 @@ BEGIN
 			,b.statusID 
 			,b.WalletType 
 			,b.RefCode 
-			,NULL AS LiveBetAcceptTime 
-			,NULL AS SecAcceptTime 
 			,b.custid Subcustid         
 			,sub.livehomescore AS Sublivehomescore 
 			,sub.liveawayscore AS Subliveawayscore 
@@ -361,14 +339,11 @@ BEGIN
 			,sub.transdate AS Subtransdate 
 			,sub.checktime AS Subchecktime 
 			,sub.liveindicator AS Subliveindicator 
-			,sub.LiveBetAcceptTime AS SubLiveBetAcceptTime 
-			,sub.SecAcceptTime AS SubSecAcceptTime 
 			,b.recommend 
 			,b.mrecommend 
 			,b.srecommend 
 			,b.statuswinlost 
 			,1 AS IsMixParlay 
-			,0 AS IsMoved14 
 			,b.odds 
 			,Sub.odds AS Subodds 
 			,b.oddsspread
@@ -422,8 +397,6 @@ BEGIN
 		,statusID AS 'sid'
 		,WalletType AS 'wt'
 		,RefCode AS 'refc'
-		,LiveBetAcceptTime AS 'lbat'
-		,SecAcceptTime AS 'sat'
 		,Subcustid    AS     's_c' 
 		,Sublivehomescore AS 's_lh'
 		,Subliveawayscore AS 's_la'
@@ -435,8 +408,6 @@ BEGIN
 		,Subtransdate AS 's_tdate'
 		,Subchecktime AS 's_checkt'
 		,Subliveindicator AS 's_li'
-		,SubLiveBetAcceptTime AS 's_lbat'
-		,SubSecAcceptTime AS 's_sat'
 		,recommend AS 're'
 		,mrecommend AS 'mre'
 		,srecommend AS 'sre'
@@ -465,7 +436,7 @@ BEGIN
 		,oddsid AS 'oid'
 		,winlostdate AS 'wld'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
