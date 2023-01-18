@@ -4,7 +4,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Letstalk_Update]
 	@RequestId				INT
    ,@BroadcastSessionID		VARCHAR(100)
    ,@StatusId				TINYINT
-   ,@Mode					TINYINT
 )
 AS
 /*	
@@ -16,20 +15,15 @@ AS
 		- 20230103@July: Create new SP  [Redmine: #180625]
 
 	Param's explanation:
-		@Mode: 1 - Insert, 2 - Update
 */
 BEGIN
 	SET NOCOUNT ON
-	IF @Mode = 1
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_Letstalk (RequestId, BroadcastSessionID, StatusId)
-		SELECT @RequestId, @BroadcastSessionID, @StatusId
-	END
-	ELSE IF @Mode = 2
-	BEGIN
-		UPDATE dbo.TicketVoiding_Letstalk 
-		SET StatusId = @StatusId, ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND BroadcastSessionID = @BroadcastSessionID
-	END
+	
+	UPDATE dbo.TicketVoiding_Letstalk WITH (ROWLOCK,UPDLOCK)
+	SET StatusId = @StatusId
+	  , ModifiedDate = GETDATE()
+	WHERE RequestId = @RequestId
+		AND BroadcastSessionID = @BroadcastSessionID
+
 END
 GO
