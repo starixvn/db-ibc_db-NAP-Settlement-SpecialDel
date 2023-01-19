@@ -1,7 +1,7 @@
 /*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20221207@July
-	Task: Drop SP un-used - Special Delete  [Redmine:#180625]  
+	Task: Drop SP un-used - Special Delete & TVS  [Redmine:#180625]  
 	DB: DBCTG-bodb02,DBSIG-bodb02
 		   
 */
@@ -79,3 +79,37 @@ IF OBJECT_ID('NAP_SpecialDelete_CheckingMarkedTransaction', 'P') IS NOT NULL
 GO
 
 /****************************************** TVS ************************************/
+
+IF OBJECT_ID('TicketVoiding_Request_CheckMatchCal', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_Request_CheckMatchCal;
+GO
+IF OBJECT_ID('TicketVoiding_BalanceMember_Select', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_BalanceMember_Select;
+GO
+IF OBJECT_ID('TicketVoiding_AutoVoid_Queue_MP_Job', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoVoid_Queue_MP_Job;
+GO
+IF OBJECT_ID('TicketVoiding_AutoVoid_Update_MP', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoVoid_Update_MP;
+GO
+IF OBJECT_ID('TicketVoiding_AutoMarkProblemAccount_Job', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoMarkProblemAccount_Job;
+GO
+IF OBJECT_ID('TicketVoiding_AutoMarkService_AutoSetting_Sel', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoMarkService_AutoSetting_Sel;
+GO
+IF OBJECT_ID('TicketVoiding_AutoMarkService_AutoSetting_Upd', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoMarkService_AutoSetting_Upd;
+GO
+IF OBJECT_ID('TicketVoiding_AutoVoid_Update', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoVoid_Update;
+GO
+IF OBJECT_ID('TicketVoiding_AutoVoid_Queue_Job', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoVoid_Queue_Job;
+GO
+IF OBJECT_ID('TicketVoiding_AutoVoidFormulaBets_Single', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoVoidFormulaBets_Single;
+GO
+IF OBJECT_ID('TicketVoiding_AutoVoidFormulaBets_Single_Update', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_AutoVoidFormulaBets_Single_Update;
+GO
