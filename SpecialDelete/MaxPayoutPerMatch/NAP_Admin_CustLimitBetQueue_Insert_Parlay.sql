@@ -14,8 +14,9 @@ AS
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220908@Helen: Performance Tuning - [Redmine: #177591]
+		- 20230119@July: Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site - [Redmine: #182803]
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
-	
+
 	Param's explanation:	
 		
 */
@@ -68,10 +69,11 @@ BEGIN
 		CROSS APPLY (SELECT TOP 1 
 								CASE 
 									WHEN dp.custid IS NOT NULL THEN 3 --deposit 
-									WHEN c.site = '789y' THEN 2 --789y
+									WHEN si.SiteLabel = '789y' THEN 2 --789y
 									ELSE 1 
 								END	AS sitetype
 					FROM CustDB.dbo.Customer c WITH (NOLOCK) 
+						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
 					WHERE c.custid = tmp.custid
 					) AS dp

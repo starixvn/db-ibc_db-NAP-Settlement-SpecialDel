@@ -15,6 +15,7 @@ AS
 		- 20220809@Tina: include checking data for deposit - phase 3 [Redmine: #167898]
 		- 20220906@Tina: Scale out DB - Check Ticket Data Consistency [Redmine: #175881]
 		- 20221003@Victoria: Add list transid (top 100) to message [Redmine: #178536]
+		- 20230119@July: Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site - [Redmine: #182803]
 		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
 		- 20230317@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
 		- 20230321@Max: Enhance performance & Change to use Sitelabel for 789y [Redmine: #184559]
