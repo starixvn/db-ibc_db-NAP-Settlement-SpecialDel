@@ -82,12 +82,13 @@ BEGIN
 	BEGIN
 		SELECT  RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid
 		FROM @tmpResultLetstalk t
-			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
+			CROSS APPLY ( SELECT COUNT(vh.BroadcastSessionId) as cnt
 							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 								INNER JOIN dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK) ON vh.RequestID = vb.RequestId AND vh.VoidingHistoryId = vb.VoidingHistoryId
+								LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
 							WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
-								AND vb.statusID = 2 AND vh.StatusId = 2
-							GROUP BY BroadcastSessionId
+								AND vb.statusID = 2 AND vh.StatusId = 2 AND lt.BroadcastSessionId IS NULL
+							GROUP BY vh.BroadcastSessionId
 					)a
 		WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
 			
