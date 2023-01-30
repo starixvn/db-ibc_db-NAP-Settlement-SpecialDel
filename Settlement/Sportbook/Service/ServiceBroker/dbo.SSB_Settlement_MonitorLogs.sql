@@ -7,11 +7,12 @@ as
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 2022011@Louisa: hardcode job name for DBTrans and SiteDB [Redmine:#182771]
+		- 20230113@Kathy: extend errorMessage [Redmine:#182763]
 */
 begin
 	set nocount on
-	declare @__errorMessage varchar(512), @__errorMessageTemp varchar(512), @__fromDate datetime2, @__errorStartTime datetime2
-	declare @__errorMessages table(messageId varchar(128), startTime datetime2, endTime datetime2, errorMessage varchar(255))
+	declare @__errorMessage varchar(1024), @__errorMessageTemp varchar(2000), @__fromDate datetime2, @__errorStartTime datetime2
+	declare @__errorMessages table(messageId varchar(128), startTime datetime2, endTime datetime2, errorMessage varchar(1024))
 	declare @__serverName varchar(100)
 			,@__JobName  nvarchar(100)
 

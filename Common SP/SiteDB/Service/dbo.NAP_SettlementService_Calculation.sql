@@ -24,6 +24,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20230111@Kathy: Skip validate ticket count [Redmine:#182763]
 
 	Param's Explanation:  
 		   
@@ -42,12 +43,22 @@ BEGIN
 			,@WaringStartTime		DATETIME2
 			,@Decompress_TransInfoJson	NVARCHAR(MAX)
 			,@MessageBody			NVARCHAR(MAX)
+			,@Message				VARCHAR(1024) 
+			,@cnt_missingticket		INT
+			,@IsSkip				BIT
+			,@isFailedValidation	BIT 
+			,@isWarningValidation	BIT
 
 	DECLARE @tmpTransId TABLE (TransId BIGINT)
+	CREATE TABLE #tmpMissingTransId (Id INT IDENTITY(1,1), TransId BIGINT)
 
 	SELECT	@cnt_sitedb = 0
 			,@cnt_central = 0
 			,@IsPassed = 1
+			,@cnt_missingticket = 0
+			,@IsSkip = 0
+			,@isFailedValidation = 0
+			,@isWarningValidation = 0
 
 	BEGIN TRY
 		/* Sync for some tables when void bettrans14: bettrans14, Transfer, TicketVoiding_RoutineTasks */
@@ -159,13 +170,26 @@ BEGIN
 								SET @cnt_sitedb = @@ROWCOUNT
 							END							
 						END 
-
+						
 						SELECT @cnt_central = COUNT(1)
 						FROM	@tmpTransId t
 						WHERE	EXISTS (SELECT TOP 1 1 
 										FROM dbo.bettrans b WITH(NOLOCK) 
 										WHERE b.transid = t.TransId
 								)
+
+						IF @isFailedValidation = 1 OR @isWarningValidation = 1
+						BEGIN
+							INSERT INTO #tmpMissingTransId (TransId)
+							SELECT	t.TransId
+							FROM	@tmpTransId t
+							WHERE	NOT EXISTS (SELECT TOP 1 1 
+											FROM dbo.bettrans b WITH(NOLOCK) 
+											WHERE b.transid = t.TransId
+									)
+							SET @cnt_missingticket = @@ROWCOUNT
+						END
+
 					END
 					ELSE IF @TableName = 'bettransm'
 					BEGIN
@@ -184,6 +208,18 @@ BEGIN
 										FROM dbo.bettransm b WITH(NOLOCK) 
 										WHERE b.transid = t.TransId
 								)
+
+						IF @isFailedValidation = 1 OR @isWarningValidation = 1
+						BEGIN
+							INSERT INTO #tmpMissingTransId (TransId)
+							SELECT	t.TransId
+							FROM	@tmpTransId t
+							WHERE	NOT EXISTS (SELECT TOP 1 1 
+											FROM dbo.bettransm b WITH(NOLOCK) 
+											WHERE b.transid = t.TransId
+									)
+							SET @cnt_missingticket = @@ROWCOUNT
+						END
 					END
 
 					IF @cnt_sitedb = @cnt_central
@@ -194,17 +230,24 @@ BEGIN
 					END
 					ELSE IF DATEDIFF(SECOND,@StartTimeValidation,SYSDATETIME()) > @Duration
 					BEGIN
-						SELECT	@errcode = 100
-								,@errmsg = 'Failed to validate ticket between CentralDB and SiteDB'
+						IF @isFailedValidation = 0
+						BEGIN
+							SET @isFailedValidation = 1
 
-						BREAK
-					END
-					ELSE
-					BEGIN
-						IF DATEDIFF(SECOND,@StartTimeValidation,SYSDATETIME()) > @WarningDuration
-							IF DATEDIFF(SECOND,@WaringStartTime,SYSDATETIME()) > @LogDuration 
+							CONTINUE
+						END
+
+						IF @isFailedValidation = 1
+						BEGIN
+							WHILE (@cnt_missingticket > 0) -- send msg with list missing transids
 							BEGIN
-								SET @WaringStartTime = SYSDATETIME()
+								SET @Message = '(' + @TableName + ')' + 'Failed to validate ticket between CentralDB and SiteDB: '
+
+								SET @Message = @Message + STUFF((SELECT ',' + CAST(transid AS VARCHAR(30)) 
+																FROM	#tmpMissingTransId
+																WHERE	id <= @cnt_missingticket AND id > @cnt_missingticket - 20
+																FOR XML PATH ('')
+																),1,1,'')
 
 								EXEC dbo.SSB_Settlement_WriteLogs 
 									@MessageId			= 1
@@ -213,10 +256,63 @@ BEGIN
 									,@StartTime			= @StartTimeValidation
 									,@EndTime			= @WaringStartTime
 									,@SessionId			= @SessionId
-									,@ErrorMessage		= 'Warning: There are some tickets at SiteDB not exists on CentralDB.'
+									,@ErrorMessage		= @Message
 									,@ConversationHandle= NULL
 									,@QueueNo			= NULL
-									,@SiteDBGroupId		= @SiteDBGroupId								
+									,@SiteDBGroupId		= @SiteDBGroupId	
+
+								SET @cnt_missingticket = @cnt_missingticket - 20
+							END
+
+							SET @IsSkip = 1
+
+							BREAK
+						END
+					END
+					ELSE
+					BEGIN
+						IF DATEDIFF(SECOND,@StartTimeValidation,SYSDATETIME()) > @WarningDuration
+							IF DATEDIFF(SECOND,@WaringStartTime,SYSDATETIME()) > @LogDuration 
+							BEGIN
+								IF @isWarningValidation = 0
+								BEGIN
+									SET @isWarningValidation = 1
+
+									CONTINUE
+								END
+
+								IF @isWarningValidation = 1
+								BEGIN
+									SET @WaringStartTime = SYSDATETIME()
+									SET @isWarningValidation = 0
+
+									WHILE (@cnt_missingticket > 0)
+									BEGIN									
+										SET @Message = '(' + @TableName + ')' + 'Warning: There are some tickets at SiteDB not exists on CentralDB: '
+										
+										SET @Message = @Message + STUFF((SELECT ',' + CAST(transid AS VARCHAR(30)) 
+																FROM	#tmpMissingTransId
+																WHERE	id <= @cnt_missingticket AND id > @cnt_missingticket - 20
+																FOR XML PATH ('')
+																),1,1,'')
+
+										EXEC dbo.SSB_Settlement_WriteLogs 
+											@MessageId			= 1
+											,@MessageType		= @MessageType
+											,@MessageBody		= @MessageBody
+											,@StartTime			= @StartTimeValidation
+											,@EndTime			= @WaringStartTime
+											,@SessionId			= @SessionId
+											,@ErrorMessage		= @Message
+											,@ConversationHandle= NULL
+											,@QueueNo			= NULL
+											,@SiteDBGroupId		= @SiteDBGroupId
+
+										SET @cnt_missingticket = @cnt_missingticket - 20
+									END
+
+									 TRUNCATE TABLE #tmpMissingTransId
+								END
 							END
 
 						WAITFOR DELAY @DelayTime -- wait for comparing ticket between central and sitedb
@@ -226,7 +322,7 @@ BEGIN
 				END
 			END
 
-			IF @IsPassed = 1
+			IF @IsPassed = 1 OR @IsSkip = 1
 				EXEC dbo.Bet_ExecRep_NAP_Admin_01 
 					@SiteDBGroupId = @SiteDBGroupId
 					,@SessionId = @SessionId
