@@ -50,7 +50,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(2000) sv
-			FROM dbo.TicketVoiding_Void_Service sv
+			FROM dbo.TicketVoiding_Letstalk sv
 			WHERE sv.StatusId = 2
 				AND sv.CreatedDate <= @Archive_Date
 			
