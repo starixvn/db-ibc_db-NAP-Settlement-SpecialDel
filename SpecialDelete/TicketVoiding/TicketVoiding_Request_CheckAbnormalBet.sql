@@ -440,7 +440,7 @@ BEGIN
 	SET @ListBetteam = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(v.betteam AS VARCHAR(100))
 										FROM #validTransId AS v
 										WHERE v.bettype <> 29
-										FOR XML PATH('')), 1, 1, '')
+										FOR XML PATH(''), TYPE).value('.', 'VARCHAR(MAX)'), 1, 2, '')
 										, '')
 	IF @ActionId <> 2
 	BEGIN
