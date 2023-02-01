@@ -81,6 +81,7 @@ BEGIN
 		SET	 oddsstatus = 'Running'
 			,status = NULL
 			,changetime = GETDATE()
+			,isDeadheat = 0
 		WHERE Orid = @MatchID 
 	END
 	ELSE 
