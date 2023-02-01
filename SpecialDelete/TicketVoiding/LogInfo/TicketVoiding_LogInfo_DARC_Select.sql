@@ -66,6 +66,7 @@ BEGIN
 			custid                INT,
 			transdate             DATETIME,
 			bettype               SMALLINT,
+			Subbettype			  SMALLINT,	
 			livehomescore         SMALLINT,
 			liveawayscore         SMALLINT,
 			betdaqid              BIGINT,
@@ -457,6 +458,7 @@ BEGIN
 			,custid				
 			,transdate		
 			,bettype 					
+			,Subbettype
 			,livehomescore 	
 			,liveawayscore 			
 			,betdaqid	
@@ -474,6 +476,7 @@ BEGIN
 			,b.custid
 			,b.transdate
 			,b.bettype
+			,b.bettype AS Subbettype
 			,b.livehomescore
 			,b.liveawayscore
 			,b.betdaqid
@@ -517,6 +520,7 @@ BEGIN
 				,custid						
 				,transdate		
 				,bettype					
+				,Subbettype
 				,livehomescore	
 				,liveawayscore			
 				,IsMixParlay
@@ -534,6 +538,7 @@ BEGIN
 				,b.Subcustid				
 				,b.Subtransdate
 				,b.bettype
+				,b.Subbettype
 				,b.Sublivehomescore
 				,b.Subliveawayscore
 				,b.IsMixParlay
@@ -574,7 +579,7 @@ BEGIN
 										WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 									END)
 		FROM #TVSTicketBets b
-		WHERE b.SubIssueTypeId = 21 AND b.bettype IN (1,7,5,15)
+		WHERE b.SubIssueTypeId = 21 AND b.Subbettype IN (1,7,5,15)
 			
 		IF @MinTimeHDP IS NULL
 		BEGIN
