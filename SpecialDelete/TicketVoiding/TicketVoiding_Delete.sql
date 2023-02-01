@@ -24,7 +24,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(2000) aq
-			FROM dbo.TicketVoiding_AutoVoidRequest_Queue aq
+			FROM dbo.TicketVoiding_AutoVoidRequest_Queue aq WITH (ROWLOCK)
 			WHERE aq.StatusId = 2
 				AND aq.Starttime <= @Archive_Date
 			
@@ -37,7 +37,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(2000) q
-			FROM dbo.TicketVoiding_Queue q
+			FROM dbo.TicketVoiding_Queue q WITH (ROWLOCK)
 			WHERE q.StatusId = 2
 				AND q.Starttime <= @Archive_Date
 			
@@ -50,7 +50,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(2000) sv
-			FROM dbo.TicketVoiding_Letstalk sv
+			FROM dbo.TicketVoiding_Letstalk sv WITH (ROWLOCK)
 			WHERE sv.StatusId = 2
 				AND sv.CreatedDate <= @Archive_Date
 			
