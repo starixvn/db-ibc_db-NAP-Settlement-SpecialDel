@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Outright]
 	,@Action		VARCHAR(10)		='CAL'	
 	,@Deadheat		FLOAT			= 1 
 	,@IsDeadheat	BIT				= 0 
+	,@EventDate		DATETIME		= NULL
 	,@AdminID		INT				= 5838421 
 
 	,@ErrCode		INT				= 0  OUTPUT
@@ -36,7 +37,6 @@ BEGIN
 	DECLARE  @Remark 			VARCHAR(500)
 			,@ActionID 			INT
 			,@LeagueID			INT
-			,@EventDate			DATETIME
 			,@IsCentral			BIT = 0
 			,@AvaiableProcess	BIT
 			,@BatchSize			INT = 2000
@@ -70,9 +70,10 @@ BEGIN
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+	
+	SET @EventDate =  CONVERT(DATE, ISNULL(@EventDate,GETDATE()))
 
 	SELECT	@LeagueID	= LeagueID
-		   ,@EventDate	= Eventdate
 	FROM	Outright WITH (NOLOCK)
 	WHERE	ORID = @MatchID
 	

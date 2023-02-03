@@ -72,6 +72,7 @@ BEGIN
 			,eventdate = @EventDate
 			,status= 'Refund'
 			,changetime = GETDATE()
+			,isDeadheat = @isDeadheat
 		WHERE orid = @MatchID
 	END
 	ELSE IF @Action = 'UNDO'
