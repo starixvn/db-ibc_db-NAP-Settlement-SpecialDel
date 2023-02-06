@@ -49,6 +49,7 @@ AS
 			- 20221129@Louisa: Change Filter OverStatus and Tuning SP [Redmine:#181002]
 			- 20221226@Louisa: Fix bug [Redmine:#182009]
 			- 20230104@Kathy: duplicate matchid in #tmpAllParentChildMatch
+			- 20230206@Kathy: duplicate transid in #tmpMarkedTransaction [Redmine:#183427]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -179,7 +180,7 @@ BEGIN
 		,OfferLive						BIT
 	)
 
-	CREATE TABLE #tmpMarkedTransaction (transId BIGINT PRIMARY KEY, matchId INT)
+	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
 	
 	CREATE TABLE #tmpAllParentChildMatch (MatchId INT PRIMARY KEY, ParentId INT, IsMergedParlay	BIT DEFAULT(0), eventstatus NVARCHAR(50))
 	CREATE INDEX CIX_tmp_ParentId ON #tmpAllParentChildMatch(ParentId)
