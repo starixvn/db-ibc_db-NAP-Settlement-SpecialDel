@@ -523,8 +523,8 @@ BEGIN
 			END
 
 			DELETE FROM @tmpMatchId
-			SET @TransInfo = ''
-			SET @TransInfo3rd = ''
+			SET @TransInfo = NULL
+			SET @TransInfo3rd = NULL
 			
             -- Process for cashout tickets make change Balance before
             SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t

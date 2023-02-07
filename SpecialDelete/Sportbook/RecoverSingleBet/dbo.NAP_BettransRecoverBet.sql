@@ -549,8 +549,8 @@ BEGIN
 
 		DELETE FROM @tmpTransInfo
 		DELETE FROM @tmpMatchidInfo
-		SET @TransInfo = ''
-		SET @TransInfo3rd = ''
+		SET @TransInfo = NULL
+		SET @TransInfo3rd = NULL
 	END
 
 	--Update CashOutSelling for new CO Model
@@ -692,8 +692,8 @@ BEGIN
 
 			DELETE FROM @tmpMatchidInfo
 			DELETE FROM @tmpTransInfo
-			SET @TransInfo = ''
-			SET @TransInfo3rd = ''
+			SET @TransInfo = NULL
+			SET @TransInfo3rd = NULL
 		END
 
 		--Update CO Selling
@@ -802,8 +802,8 @@ BEGIN
 
 		DELETE FROM @tmpTransInfo
 		DELETE FROM @tmpMatchidInfo
-		SET @TransInfo = ''
-		SET @TransInfo3rd = ''
+		SET @TransInfo = NULL
+		SET @TransInfo3rd = NULL
 	END
 
 	-- Re-Cal Bet Builder
@@ -967,8 +967,8 @@ BEGIN
 
 		DELETE FROM @tmpTransInfo
 		DELETE FROM @tmpMatchidInfo
-		SET @TransInfo = ''
-		SET @TransInfo3rd = ''
+		SET @TransInfo = NULL
+		SET @TransInfo3rd = NULL
 	END
 	
 	------ release data of TempVariableNumBer table
