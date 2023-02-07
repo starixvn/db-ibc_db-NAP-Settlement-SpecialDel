@@ -131,7 +131,7 @@ BEGIN
 			@MatchId			  INT,
 			@ResettleTransIds	  VARCHAR(MAX) = '',
 			@Action				  VARCHAR(20),
-			@TransInfo			  XML,
+			@TransInfo			  VARBINARY(MAX),
 			@SiteDBGroupID        SMALLINT = 0,
 			@IsMatch3rd			  BIT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -433,19 +433,19 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-					, STATUS AS '@s'
-					, winlost AS '@w'
-					, ruben AS '@r'
-					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
-					, statusID AS '@sid'
-					, creator AS '@cr'
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, STATUS AS 's'
+					, winlost AS 'w'
+					, ruben AS 'r'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					, statusID AS 'sid'
+					, creator AS 'cr'
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 			SELECT 'TVS', 'RecoverByBetID', 'bettrans', 'U', @matchid, @TransInfo, 's', CASE WHEN @IsMatch3rd = 0 THEN 1 ELSE 3 END
 		END
 
@@ -489,15 +489,15 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-					, transdate AS '@td'
-					, comstatus AS '@cst'
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, transdate AS 'td'
+					, comstatus AS 'cst'
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 			SELECT 'TVS', 'RecoverByBetID', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', CASE WHEN @IsMatch3rd = 0 THEN 1 ELSE 3 END
 		END
 

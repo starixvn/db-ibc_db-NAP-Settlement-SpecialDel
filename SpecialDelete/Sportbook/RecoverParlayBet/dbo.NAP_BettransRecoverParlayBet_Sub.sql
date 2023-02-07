@@ -24,6 +24,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:			
 			- @BetType:
@@ -40,7 +41,7 @@ BEGIN
 	       ,@ErrMsg					NVARCHAR(200) = ''
 		   ,@SettledMainTranIds		VARCHAR(MAX) = '' 
 		   ,@NegativeBalanceUsers	VARCHAR(MAX) = '' 
-		   ,@TransInfo				XML = NULL
+		   ,@TransInfo				VARBINARY(MAX) = NULL
 		   ,@SiteDBGroupID			SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -454,16 +455,16 @@ BEGIN
 
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-				  , transId AS '@t'
-				  , transdate AS '@td'
-					, comstatus AS '@cst'
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+				  , transId AS 't'
+				  , transdate AS 'td'
+					, comstatus AS 'cst'
 			FROM	@tmpTransInfo
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettrans', 'D', @matchid, @TransInfo 
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettrans', 'D', @matchid, @TransInfo, 'p' 
 			
 			DELETE FROM @tmpTransInfo
 		END
@@ -480,14 +481,14 @@ BEGIN
 			
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-				  , transId AS '@t'
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+				  , transId AS 't'
 			FROM	@tmpTransInfo
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo 
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p' 
 			
 			DELETE FROM @tmpTransInfo
 		END
