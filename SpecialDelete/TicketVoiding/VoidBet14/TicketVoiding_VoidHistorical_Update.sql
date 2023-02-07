@@ -40,8 +40,8 @@ BEGIN
 			,@IsAbnormalBet		TINYINT
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT 
-			,@transInfo			XML
-			,@transInfo3rd			XML
+			,@transInfo			VARBINARY(MAX)
+			,@transInfo3rd			VARBINARY(MAX)
 			,@SitedbgroupId				INT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
