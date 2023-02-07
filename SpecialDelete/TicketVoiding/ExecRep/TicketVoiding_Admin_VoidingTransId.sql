@@ -63,15 +63,15 @@ BEGIN
             ,@IsEnableServiceBroker BIT -- server is using service broker or not
             ,@FcUpdateTime   DATETIME2
             ,@IsSiteDB  BIT 
-            ,@transInfo XML
-			,@transInfo3rd XML
+            ,@transInfo VARBINARY(MAX)
+			,@transInfo3rd VARBINARY(MAX)
             ,@CreatedDate DATETIME 
 
     IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
         SET @IsSiteDB = 1
 
     DECLARE @tmpTrans TABLE (TransID BIGINT, BetId BIGINT, betdaqid BIGINT) 
-    DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT) 
+    DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT, IsParlay BIT) 
     DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, betdaqid BIGINT, Bonusid INT, WalletType TINYINT, status VARCHAR(20), matchid INT)
     DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
 
@@ -115,18 +115,15 @@ BEGIN
         END
         ELSE
         BEGIN
-            INSERT INTO @tmpTrans_SB(TransId, MatchId, Bettype, CustId, MarkType)
+            INSERT INTO @tmpTrans_SB(TransId, MatchId, Bettype, CustId, MarkType, IsParlay)
             SELECT  T.C.value('./@id', 'bigint')
                     ,T.C.value('./@match', 'int')
                     ,T.C.value('./@bettype', 'smallint')
                     ,T.C.value('./@cust', 'int')
                     ,T.C.value('./@type', 'tinyint')
+					,T.C.value('./@p', 'bit')
             FROM    @xml.nodes('/root/r') AS T(C)
             OPTION (OPTIMIZE FOR (@xml = NULL ))
-
-            INSERT INTO @tmpMatchId (matchId)
-            SELECT DISTINCT MatchId
-            FROM @tmpTrans_SB
 
             IF @ActionType = 1
             BEGIN
@@ -149,8 +146,13 @@ BEGIN
                     t.MarkType
                 FROM @tmpTrans_SB t;
 
-                IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTrans_SB)
+                IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTrans_SB WHERE IsParlay = 0)
                 BEGIN
+					INSERT INTO @tmpMatchId (matchId)
+					SELECT DISTINCT MatchId
+					FROM @tmpTrans_SB
+					WHERE IsParlay = 0
+
                     WHILE (1=1)
                     BEGIN
                         UPDATE TOP(1)m
@@ -159,19 +161,52 @@ BEGIN
                         WHERE IsFinish IS NULL
 
                         IF @@ROWCOUNT = 0 BREAK;
-                        SET @transInfo = (
-                        SELECT  transId AS '@t'
-                                , matchid AS '@mid'
-                                , custid AS '@cust'
-                                , bettype AS '@btype'
-                                , @UserId AS '@us'
-                                , @CreatedDate AS '@crdate'
-                                , MarkType AS '@mt'
-                        FROM    @tmpTrans_SB WHERE matchid = @MatchId 
-                        FOR XML PATH('r'),ROOT('root'), TYPE)
+                        SET @transInfo = COMPRESS((
+                        SELECT  transId AS 't'
+                                , matchid AS 'mid'
+                                , custid AS 'cust'
+                                , bettype AS 'btype'
+                                , @UserId AS 'us'
+                                , @CreatedDate AS 'crdate'
+                                , MarkType AS 'mt'
+                        FROM    @tmpTrans_SB WHERE matchid = @MatchId AND IsParlay = 0
+                        FOR JSON PATH))
 
-                        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-                        SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', @matchid, @transInfo 
+                        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+                        SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', @matchid, @transInfo, 's' 
+                    END
+                END
+				
+				DELETE @tmpMatchId
+				SET @transInfo = NULL
+				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTrans_SB WHERE IsParlay = 1)
+                BEGIN
+					INSERT INTO @tmpMatchId (matchId)
+					SELECT DISTINCT MatchId
+					FROM @tmpTrans_SB
+					WHERE IsParlay = 1
+
+                    WHILE (1=1)
+                    BEGIN
+                        UPDATE TOP(1)m
+                        SET IsFinish = 1, @matchid = MatchId 
+                        FROM @tmpMatchId m
+                        WHERE IsFinish IS NULL
+
+                        IF @@ROWCOUNT = 0 BREAK;
+						SET @transInfo = COMPRESS((
+                        SELECT  transId AS 't'
+                                , matchid AS 'mid'
+                                , custid AS 'cust'
+                                , bettype AS 'btype'
+                                , @UserId AS 'us'
+                                , @CreatedDate AS 'crdate'
+                                , MarkType AS 'mt'
+                        FROM    @tmpTrans_SB WHERE matchid = @MatchId AND IsParlay = 1
+                        FOR JSON PATH))
+
+                        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+                        SELECT 'TVS', 'Mark', 'MarkedTransaction', 'I', @matchid, @transInfo, 'p'
                     END
                 END
         
@@ -182,8 +217,15 @@ BEGIN
                 FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
                     INNER JOIN @tmpTrans_SB t ON t.TransId = m.TransId AND t.MatchId = m.MatchId;
 
-                IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTrans_SB)
+                DELETE @tmpMatchId
+				SET @transInfo = NULL
+				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTrans_SB WHERE IsParlay = 0)
                 BEGIN
+					INSERT INTO @tmpMatchId (matchId)
+					SELECT DISTINCT MatchId
+					FROM @tmpTrans_SB
+					WHERE IsParlay = 0
+
                     WHILE (1=1)
                     BEGIN
                         UPDATE TOP(1)m
@@ -192,14 +234,42 @@ BEGIN
                         WHERE IsFinish IS NULL
 
                         IF @@ROWCOUNT = 0 BREAK;
-                        SET @transInfo = (
+                        SET @transInfo = COMPRESS((
                         SELECT  transId AS '@t'
                                 , matchid AS '@mid'
-                        FROM    @tmpTrans_SB WHERE matchid = @MatchId 
-                        FOR XML PATH('r'),ROOT('root'), TYPE)
+                        FROM    @tmpTrans_SB WHERE matchid = @MatchId AND IsParlay = 0
+                        FOR JSON PATH))
 
-                        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-                        SELECT 'TVS', 'UnMark', 'MarkedTransaction', 'D', @matchid, @transInfo 
+                        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+                        SELECT 'TVS', 'UnMark', 'MarkedTransaction', 'D', @matchid, @transInfo, 's' 
+                    END
+                END
+
+				DELETE @tmpMatchId
+				SET @transInfo = NULL
+				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTrans_SB WHERE IsParlay = 1)
+                BEGIN
+					INSERT INTO @tmpMatchId (matchId)
+					SELECT DISTINCT MatchId
+					FROM @tmpTrans_SB
+					WHERE IsParlay = 1
+
+                    WHILE (1=1)
+                    BEGIN
+                        UPDATE TOP(1)m
+                        SET IsFinish = 1, @matchid = MatchId 
+                        FROM @tmpMatchId m
+                        WHERE IsFinish IS NULL
+
+                        IF @@ROWCOUNT = 0 BREAK;
+                        SET @transInfo = COMPRESS((
+                        SELECT  transId AS '@t'
+                                , matchid AS '@mid'
+                        FROM    @tmpTrans_SB WHERE matchid = @MatchId AND IsParlay = 1
+                        FOR JSON PATH))
+
+                        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+                        SELECT 'TVS', 'UnMark', 'MarkedTransaction', 'D', @matchid, @transInfo, 'p' 
                     END
                 END
             END
@@ -253,61 +323,61 @@ BEGIN
                     ON  t.transid = b.transid
             WHERE b.statusID NOT IN (102)
 
-            SET @transInfo = (
-            SELECT  t.transId AS '@t'
-                    , b.winlost AS '@w'
-                    , b.ruben AS '@r'
-                    , b.creator AS '@cr'
-                    , b.awinlost AS '@aw'
-                    , b.mwinlost AS '@mw'
-                    , b.swinlost AS '@sw'
-                    , b.playercomm AS '@pc'
-                    , b.comm AS '@c'
-                    , b.acomm AS '@ac'
-                    , b.scomm AS '@sc'
-                    , b.statusID AS '@sid'
-                    , b.status AS '@s'
-                    , b.betid AS '@bid'
-                    , b.ExtraInfo AS '@ex'
-                    , b.FcUpdateTime AS '@rut'
+            SET @transInfo = COMPRESS((
+            SELECT  t.transId AS 't'
+                    , b.winlost AS 'w'
+                    , b.ruben AS 'r'
+                    , b.creator AS 'cr'
+                    , b.awinlost AS 'aw'
+                    , b.mwinlost AS 'mw'
+                    , b.swinlost AS 'sw'
+                    , b.playercomm AS 'pc'
+                    , b.comm AS 'c'
+                    , b.acomm AS 'ac'
+                    , b.scomm AS 'sc'
+                    , b.statusID AS 'sid'
+                    , b.status AS 's'
+                    , b.betid AS 'bid'
+                    , b.ExtraInfo AS 'ex'
+                    , b.FcUpdateTime AS 'rut'
             FROM    @tmpTrans t 
                 INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 			WHERE b.bettype NOT IN (10, 38)
-            FOR XML PATH('r'),ROOT('root'), TYPE)
+            FOR JSON PATH))
 
-			SET @transInfo3rd = (
-            SELECT  t.transId AS '@t'
-                    , b.winlost AS '@w'
-                    , b.ruben AS '@r'
-                    , b.creator AS '@cr'
-                    , b.awinlost AS '@aw'
-                    , b.mwinlost AS '@mw'
-                    , b.swinlost AS '@sw'
-                    , b.playercomm AS '@pc'
-                    , b.comm AS '@c'
-                    , b.acomm AS '@ac'
-                    , b.scomm AS '@sc'
-                    , b.statusID AS '@sid'
-                    , b.status AS '@s'
-                    , b.betid AS '@bid'
-                    , b.ExtraInfo AS '@ex'
-                    , b.FcUpdateTime AS '@rut'
+			SET @transInfo3rd = COMPRESS((
+            SELECT  t.transId AS 't'
+                    , b.winlost AS 'w'
+                    , b.ruben AS 'r'
+                    , b.creator AS 'cr'
+                    , b.awinlost AS 'aw'
+                    , b.mwinlost AS 'mw'
+                    , b.swinlost AS 'sw'
+                    , b.playercomm AS 'pc'
+                    , b.comm AS 'c'
+                    , b.acomm AS 'ac'
+                    , b.scomm AS 'sc'
+                    , b.statusID AS 'sid'
+                    , b.status AS 's'
+                    , b.betid AS 'bid'
+                    , b.ExtraInfo AS 'ex'
+                    , b.FcUpdateTime AS 'rut'
             FROM    @tmpTrans t 
                 INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 			WHERE b.bettype IN (10, 38)
-            FOR XML PATH('r'),ROOT('root'), TYPE)
+            FOR JSON PATH))
 
             IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
             BEGIN
-                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, 's'
             END
 
 			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
             BEGIN
-                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
                 SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
             END
 
@@ -383,22 +453,22 @@ BEGIN
 
 				IF @@ROWCOUNT = 0 BREAK;
 
-				SET @transInfo = (
-				SELECT  t.transId AS '@t'
-						, b.winlost AS '@w'
-						, b.ruben AS '@r'
-						, b.creator AS '@cr'
-						, b.awinlost AS '@aw'
-						, b.mwinlost AS '@mw'
-						, b.swinlost AS '@sw'
-						, b.playercomm AS '@pc'
-						, b.comm AS '@c'
-						, b.acomm AS '@ac'
-						, b.scomm AS '@sc'
-						, b.statusID AS '@sid'
-						, b.status AS '@s'
-						, b.betid AS '@bid'
-						, b.FcUpdateTime AS '@rut'
+				SET @transInfo = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.FcUpdateTime AS 'rut'
 				FROM    @tmpTrans t 
 					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
@@ -409,24 +479,24 @@ BEGIN
 									OR @Sporttype IN (175, 161, 199)
 									)
 								THEN 0 ELSE 1 END
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
-				SET @transInfo3rd = (
-				SELECT  t.transId AS '@t'
-						, b.winlost AS '@w'
-						, b.ruben AS '@r'
-						, b.creator AS '@cr'
-						, b.awinlost AS '@aw'
-						, b.mwinlost AS '@mw'
-						, b.swinlost AS '@sw'
-						, b.playercomm AS '@pc'
-						, b.comm AS '@c'
-						, b.acomm AS '@ac'
-						, b.scomm AS '@sc'
-						, b.statusID AS '@sid'
-						, b.status AS '@s'
-						, b.betid AS '@bid'
-						, b.FcUpdateTime AS '@rut'
+				SET @transInfo3rd = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.FcUpdateTime AS 'rut'
 				FROM    @tmpTrans t 
 					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
@@ -437,17 +507,17 @@ BEGIN
 									OR @Sporttype IN (175, 161, 199)
 									)
 								THEN 1 ELSE 0 END
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
 				IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
-					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, 's'
 				END
 
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
-					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
 				END
 			END

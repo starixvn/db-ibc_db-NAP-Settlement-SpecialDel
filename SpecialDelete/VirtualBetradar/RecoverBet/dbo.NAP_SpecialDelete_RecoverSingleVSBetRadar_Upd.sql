@@ -57,7 +57,7 @@ BEGIN
 		  , @ErrMsg						NVARCHAR(200)	= ''
 		  , @ErrCode					INT				= 0	
 		  , @SiteDBGroupID		SMALLINT
-		  , @transInfo XML 
+		  , @transInfo				VARBINARY(MAX) 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
@@ -750,15 +750,15 @@ BEGIN
 
 				IF @@ROWCOUNT = 0 BREAK;
 
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-						, transdate AS '@td'
-						, comstatus AS '@cst'
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+						, transId AS 't'
+						, transdate AS 'td'
+						, comstatus AS 'cst'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', 1
 			END
 

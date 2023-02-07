@@ -83,8 +83,8 @@ BEGIN
 			,@isExistFM2		BIT = 0
 			,@Movebetdate		DATETIME  
 			,@SiteDBGroupID     SMALLINT = 0
-			,@TransInfo			XML
-			,@TransInfo3rd		XML
+			,@TransInfo			VARBINARY(MAX)
+			,@TransInfo3rd		VARBINARY(MAX)
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
@@ -498,51 +498,51 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-					, STATUS AS '@s'
-					, winlost AS '@w'
-					, ruben AS '@r'
-					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
-					, statusID AS '@sid'
-					, creator AS '@cr'
-					, actual_stake AS '@astake'
-					, odds AS '@o'
-					, transdesc AS '@tdesc'
-					, ExtraInfo AS '@ex'
-					, FcUpdateTime AS '@rut'
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, STATUS AS 's'
+					, winlost AS 'w'
+					, ruben AS 'r'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					, statusID AS 'sid'
+					, creator AS 'cr'
+					, actual_stake AS 'astake'
+					, odds AS 'o'
+					, transdesc AS 'tdesc'
+					, ExtraInfo AS 'ex'
+					, FcUpdateTime AS 'rut'
 			FROM	@tmpTransInfo 
 			WHERE matchid = @MatchId AND bettype NOT IN (10, 38)
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
 			--Betbuilder, Outright
-			SET @TransInfo3rd = (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-					, STATUS AS '@s'
-					, winlost AS '@w'
-					, ruben AS '@r'
-					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
-					, statusID AS '@sid'
-					, creator AS '@cr'
-					, actual_stake AS '@astake'
-					, odds AS '@o'
-					, transdesc AS '@tdesc'
-					, ExtraInfo AS '@ex'
-					, FcUpdateTime AS '@rut'
+			SET @TransInfo3rd = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, STATUS AS 's'
+					, winlost AS 'w'
+					, ruben AS 'r'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					, statusID AS 'sid'
+					, creator AS 'cr'
+					, actual_stake AS 'astake'
+					, odds AS 'o'
+					, transdesc AS 'tdesc'
+					, ExtraInfo AS 'ex'
+					, FcUpdateTime AS 'rut'
 			FROM	@tmpTransInfo 
 			WHERE matchid = @MatchId AND bettype IN (10, 38)
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
 			IF @TransInfo IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo, 's'
 			END
 			IF @TransInfo3rd IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo3rd, 's', 1
 			END
 		END
@@ -665,29 +665,29 @@ BEGIN
 				WHERE IsFinish IS NULL
 
 				IF @@ROWCOUNT = 0 BREAK;
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-						, STATUS AS '@s'
-						, statusID AS '@sid'
-						, stake AS '@stake'
-						, winlost AS '@w'
-						, aWinLost AS '@aw' 
-						, mWinLost AS '@mw' 
-						, sWinLost AS '@sw' 
-						, PlayerComm AS '@pc' 
-						, Comm AS '@c'  
-						, aComm AS '@ac' 
-						, sComm AS '@sc' 
-						, ruben AS '@r'
-						, creator AS '@cr'
-						, ExtraInfo AS '@ex'
-						, FcUpdateTime AS '@rut'
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+						, transId AS 't'
+						, STATUS AS 's'
+						, statusID AS 'sid'
+						, stake AS 'stake'
+						, winlost AS 'w'
+						, aWinLost AS 'aw' 
+						, mWinLost AS 'mw' 
+						, sWinLost AS 'sw' 
+						, PlayerComm AS 'pc' 
+						, Comm AS 'c'  
+						, aComm AS 'ac' 
+						, sComm AS 'sc' 
+						, ruben AS 'r'
+						, creator AS 'cr'
+						, ExtraInfo AS 'ex'
+						, FcUpdateTime AS 'rut'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo, 's'
 			END
 
 			DELETE FROM @tmpMatchidInfo
@@ -780,24 +780,24 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-					, STATUS AS '@s'
-					, winlost AS '@w'
-					, ruben AS '@r'
-					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
-					, statusID AS '@sid'
-					, creator AS '@cr'
-					, odds AS '@o'
-					, oddsspread AS '@os'
-					, ExtraInfo AS '@ex'
-					, FcUpdateTime AS '@rut'
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, STATUS AS 's'
+					, winlost AS 'w'
+					, ruben AS 'r'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					, statusID AS 'sid'
+					, creator AS 'cr'
+					, odds AS 'o'
+					, oddsspread AS 'os'
+					, ExtraInfo AS 'ex'
+					, FcUpdateTime AS 'rut'
 			FROM	@tmpTransInfo WHERE matchid = @MatchId 
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+			SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo, 's'
 		END
 
 		DELETE FROM @tmpTransInfo
@@ -935,32 +935,32 @@ BEGIN
 			WHERE IsFinish IS NULL
 
 			IF @@ROWCOUNT = 0 BREAK;
-			SET @TransInfo = (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-					, transdate AS '@td'
-					, comstatus AS '@cst'
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, transdate AS 'td'
+					, comstatus AS 'cst'
 			FROM	@tmpTransInfo 
 			WHERE matchid = @MatchId AND bettype NOT IN (10, 38)
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
-			SET @TransInfo3rd= (
-			SELECT	matchid AS '@mid'
-					, transId AS '@t'
-					, transdate AS '@td'
-					, comstatus AS '@cst'
+			SET @TransInfo3rd= COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, transdate AS 'td'
+					, comstatus AS 'cst'
 			FROM	@tmpTransInfo 
 			WHERE matchid = @MatchId AND bettype IN (10, 38)
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
 			IF @TransInfo IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo, 's'
 			END
 			IF @TransInfo3rd IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', 1
 			END
 		END

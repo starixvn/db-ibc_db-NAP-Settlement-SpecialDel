@@ -32,6 +32,7 @@ AS
 		- 20211210@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -72,7 +73,7 @@ BEGIN
 	CREATE TABLE #TransIds (TransId BIGINT PRIMARY KEY); -- single + parlay tickets
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 
-	CREATE TABLE #MarkedTransactionDeleted (TransId BIGINT, MatchId INT)
+	CREATE TABLE #MarkedTransactionDeleted (TransId BIGINT, MatchId INT,IsParlay  BIT DEFAULT(0))
 
 	INSERT INTO #TransIds(TransId)
 	SELECT DISTINCT value
@@ -287,7 +288,8 @@ BEGIN
 			SET t.IsFinish = 1
 		OUTPUT DELETED.TransId
 			,DELETED.MatchId
-		INTO #MarkedTransactionDeleted (TransId, MatchId)
+			,DELETED.IsParlay
+		INTO #MarkedTransactionDeleted (TransId, MatchId, IsParlay)
 		FROM #Tickets t
 		WHERE t.IsFinish IS NULL 
 
@@ -296,6 +298,7 @@ BEGIN
 		SELECT @TransIds_SB = CAST((
 									SELECT m.TransId AS '@id'
 										,m.MatchId AS '@match'
+										,m.IsParlay AS '@p'
 									FROM #MarkedTransactionDeleted m
 									FOR XML PATH('r')
 										,ROOT('root')

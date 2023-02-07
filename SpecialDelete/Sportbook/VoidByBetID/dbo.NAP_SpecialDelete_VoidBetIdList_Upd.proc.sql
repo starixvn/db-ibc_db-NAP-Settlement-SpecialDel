@@ -102,6 +102,7 @@ AS
 	  - 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 	  - 20220812@Max: MPO - [TVS] wrong data insert into CustLimitBetQueue when transid list include both single and parlay ticket [Redmine: #176578]
 	  - 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
+	  - 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	 Param's Explanation:   
 */
@@ -158,7 +159,7 @@ BEGIN
 			,@isExistMatch3rd			BIT = 0
 			,@strTransCashout			VARCHAR(MAX) = ''
 			,@xmlCashoutTicket			XML
-			,@TransInfo					XML
+			,@TransInfo					VARBINARY(MAX)
 			,@SiteDBGroupID				SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -952,16 +953,16 @@ BEGIN
 					WHERE IsFinish IS NULL
 
 					IF @@ROWCOUNT = 0 BREAK;
-					SET @transInfo = (
-					SELECT	transId AS '@t'
-							, matchid AS '@mid'
-							, STATUS AS '@s'
-							, winlost AS '@w'
+					SET @transInfo = COMPRESS((
+					SELECT	transId AS 't'
+							, matchid AS 'mid'
+							, STATUS AS 's'
+							, winlost AS 'w'
 					FROM	@tmpTransInfo WHERE matchid = @MatchId 
-					FOR XML PATH('r'),ROOT('root'), TYPE)
+					FOR JSON PATH))
 
-					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-					SELECT 'TVS', 'Void', 'zzzbettrans', 'U', @matchid, @transInfo 
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+					SELECT 'TVS', 'Void', 'zzzbettrans', 'U', @matchid, @transInfo, 's'
 				END
 			END
 		END

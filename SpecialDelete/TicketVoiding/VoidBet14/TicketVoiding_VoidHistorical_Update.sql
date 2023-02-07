@@ -360,55 +360,55 @@ BEGIN
 
 		IF @IsSiteDB = 1
 		BEGIN
-			SET @transInfo = (
-			SELECT	b.transId AS '@t'
-					, b.winlost AS '@w'
-					, b.ruben AS '@r'
-					, b.creator AS '@cr'
-					, b.awinlost AS '@aw'
-					, b.mwinlost AS '@mw'
-					, b.swinlost AS '@sw'
-					, b.playercomm AS '@pc'
-					, b.comm AS '@c'
-					, b.acomm AS '@ac'
-					, b.scomm AS '@sc'
-					, b.statusID AS '@sid'
-					, b.status AS '@s'
-					, b.betid AS '@bid'
-					, b.ExtraInfo AS '@ex'
+			SET @transInfo = COMPRESS((
+			SELECT	b.transId AS 't'
+					, b.winlost AS 'w'
+					, b.ruben AS 'r'
+					, b.creator AS 'cr'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+					, b.statusID AS 'sid'
+					, b.status AS 's'
+					, b.betid AS 'bid'
+					, b.ExtraInfo AS 'ex'
 			FROM	@tmpTransInfo b
 			WHERE b.bettype NOT IN (10)
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
-			SET @transInfo3rd = (
-			SELECT	b.transId AS '@t'
-					, b.winlost AS '@w'
-					, b.ruben AS '@r'
-					, b.creator AS '@cr'
-					, b.awinlost AS '@aw'
-					, b.mwinlost AS '@mw'
-					, b.swinlost AS '@sw'
-					, b.playercomm AS '@pc'
-					, b.comm AS '@c'
-					, b.acomm AS '@ac'
-					, b.scomm AS '@sc'
-					, b.statusID AS '@sid'
-					, b.status AS '@s'
-					, b.betid AS '@bid'
-					, b.ExtraInfo AS '@ex'
+			SET @transInfo3rd = COMPRESS((
+			SELECT	b.transId AS 't'
+					, b.winlost AS 'w'
+					, b.ruben AS 'r'
+					, b.creator AS 'cr'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+					, b.statusID AS 'sid'
+					, b.status AS 's'
+					, b.betid AS 'bid'
+					, b.ExtraInfo AS 'ex'
 			FROM	@tmpTransInfo b
 			WHERE b.bettype IN (10)
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 
 			IF @transInfo IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId = 29 THEN 'p' ELSE 's' END
 			END
 			IF @transInfo3rd IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TicketType, EventTable)
-				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, 's', 1
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, CASE WHEN @MatchId = 29 THEN 'p' ELSE 's' END, 1
 			END
 		END
 

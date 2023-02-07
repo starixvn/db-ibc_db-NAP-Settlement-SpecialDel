@@ -51,6 +51,7 @@ AS
 		- 20220615@Max: [TVS] Some minor enhancements [Redmine: #173229]
 		- 20220812@Max: MPO - [TVS] wrong data insert into CustLimitBetQueue when transid list include both single and parlay ticket [Redmine: #176578]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -100,7 +101,7 @@ BEGIN
 			,@StartTime_Retry			DATETIME
 			,@SitedbgroupId				INT = 0
 			,@IsSiteDB					BIT
-			,@TransInfo					XML
+			,@TransInfo					VARBINARY(MAX)
 			
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -657,16 +658,16 @@ BEGIN
 			IF @IsSiteDB = 1
 			BEGIN
 
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							, matchid AS '@mid'
-							, STATUS AS '@s'
-							, winlost AS '@w'
+				SET @transInfo = COMPRESS((
+					SELECT	transId AS 't'
+							, matchid AS 'mid'
+							, STATUS AS 's'
+							, winlost AS 'w'
 					FROM	@tmpTransInfo WHERE matchid = @MatchId 
-					FOR XML PATH('r'),ROOT('root'), TYPE)
+					FOR JSON PATH))
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'Void', 'zzzbettrans', 'U', @matchid, @transInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'Void', 'zzzbettrans', 'U', @matchid, @transInfo, 's' 
 			END
 		END
 	END

@@ -34,6 +34,7 @@ AS
 		- 20211210@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -291,7 +292,7 @@ BEGIN
     
 		-- Insert Transaction
 		DECLARE @TransIds_SB VARCHAR(MAX)
-		DECLARE @MarkedTransactionDeleted TABLE (TransId BIGINT, MatchId INT, BetType SMALLINT, CustId INT);
+		DECLARE @MarkedTransactionDeleted TABLE (TransId BIGINT, MatchId INT, BetType SMALLINT, CustId INT,IsParlay  BIT DEFAULT(0));
 		WHILE (0=0)
 		BEGIN
 			DELETE @MarkedTransactionDeleted
@@ -301,7 +302,8 @@ BEGIN
 				,DELETED.MatchId
 				,DELETED.BetType
 				,DELETED.CustId
-			INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId)
+				,DELETED.IsParlay
+			INTO @MarkedTransactionDeleted (TransId, MatchId, BetType, CustId, IsParlay)
 			FROM #Tickets t
 			WHERE t.IsFinish IS NULL
 
@@ -313,6 +315,7 @@ BEGIN
 											,t.BetType AS '@bettype'
 											,t.CustId AS '@cust'
 											,@MarkType AS '@type'
+											,t.IsParlay AS '@p'
 										FROM @MarkedTransactionDeleted t
 										FOR XML PATH('r')
 											,ROOT('root')

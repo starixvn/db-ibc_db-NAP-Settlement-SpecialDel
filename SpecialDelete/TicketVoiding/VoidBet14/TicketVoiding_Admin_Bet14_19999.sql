@@ -14,6 +14,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's Explanation:  
 	
@@ -81,7 +82,7 @@ BEGIN
 	FROM @xml.nodes('//root/r') AS RECORDS(r)
 	OPTION (OPTIMIZE FOR (@xml = NULL))
 
-	DECLARE @transInfo	XML 
+	DECLARE @transInfo	VARBINARY(MAX) 
 	DECLARE @tmpTransInfo AS TABLE (custid INT, winlost MONEY, playercomm MONEY, comm MONEY, acomm MONEY, scomm MONEY
 							, stake MONEY, actual_stake MONEY, awinlost MONEY, mwinlost MONEY, swinlost MONEY
 							, statusID TINYINT, bettype SMALLINT, creator INT, transdate DATETIME, currency TINYINT
@@ -112,21 +113,21 @@ BEGIN
 
 	IF @IsSiteDB = 1
 	BEGIN
-		SET @transInfo = (
-		SELECT	b.custid AS '@cust'
-				, b.stake AS '@stake'
-				, b.actual_stake AS '@astake'
-				, b.winlost AS '@w'
-				, b.awinlost AS '@aw'
-				, b.mwinlost AS '@mw'
-				, b.swinlost AS '@sw'
-				, b.playercomm AS '@pc'
-				, b.comm AS '@c'
-				, b.acomm AS '@ac'
-				, b.scomm AS '@sc'
-				, b.winlostdate AS '@wld'
+		SET @transInfo = COMPRESS((
+		SELECT	b.custid AS 'cust'
+				, b.stake AS 'stake'
+				, b.actual_stake AS 'astake'
+				, b.winlost AS 'w'
+				, b.awinlost AS 'aw'
+				, b.mwinlost AS 'mw'
+				, b.swinlost AS 'sw'
+				, b.playercomm AS 'pc'
+				, b.comm AS 'c'
+				, b.acomm AS 'ac'
+				, b.scomm AS 'sc'
+				, b.winlostdate AS 'wld'
 		FROM	@tmpTransInfo b
-		FOR XML PATH('r'),ROOT('root'), TYPE)
+		FOR JSON PATH))
 
 		IF @transInfo IS NOT NULL
 		BEGIN
@@ -173,33 +174,33 @@ BEGIN
 
 	IF @IsSiteDB = 1
 	BEGIN
-		SET @transInfo = (
-		SELECT	b.statusID AS '@sid'
-				, b.bettype AS '@btype'
-				, b.creator AS '@cr'
-				, b.custid AS '@cust'
-				, b.currency AS '@cur'
-				, b.recommend AS '@rc'
-				, b.mrecommend AS '@mrc'
-				, b.srecommend AS '@src'
-				, b.winlostdate AS '@wld'
-				, b.stake AS '@stake'
-				, b.winlost AS '@w'
-				, b.awinlost AS '@aw'
-				, b.mwinlost AS '@mw'
-				, b.swinlost AS '@sw'
-				, b.actual_stake AS '@astake'
-				, b.playercomm AS '@pc'
-				, b.comm AS '@c'
-				, b.acomm AS '@ac'
-				, b.scomm AS '@sc'
-				, b.actualrate AS '@ar'
-				, b.Username AS '@uname'
-				, b.CurrencyName AS '@curname'
-				, b.checktime AS '@ct'
-				, b.refno AS '@ref'
+		SET @transInfo = COMPRESS((
+		SELECT	b.statusID AS 'sid'
+				, b.bettype AS 'btype'
+				, b.creator AS 'cr'
+				, b.custid AS 'cust'
+				, b.currency AS 'cur'
+				, b.recommend AS 'rc'
+				, b.mrecommend AS 'mrc'
+				, b.srecommend AS 'src'
+				, b.winlostdate AS 'wld'
+				, b.stake AS 'stake'
+				, b.winlost AS 'w'
+				, b.awinlost AS 'aw'
+				, b.mwinlost AS 'mw'
+				, b.swinlost AS 'sw'
+				, b.actual_stake AS 'astake'
+				, b.playercomm AS 'pc'
+				, b.comm AS 'c'
+				, b.acomm AS 'ac'
+				, b.scomm AS 'sc'
+				, b.actualrate AS 'ar'
+				, b.Username AS 'uname'
+				, b.CurrencyName AS 'curname'
+				, b.checktime AS 'ct'
+				, b.refno AS 'ref'
 		FROM	@tmpTransInfo b
-		FOR XML PATH('r'),ROOT('root'), TYPE)
+		FOR JSON PATH))
 		
 		IF @transInfo IS NOT NULL
 		BEGIN

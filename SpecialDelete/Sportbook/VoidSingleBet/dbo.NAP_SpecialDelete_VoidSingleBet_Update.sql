@@ -122,6 +122,7 @@ AS
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221005@Max: Special Delete - Void parlay ticket cause replication latency on DB052,DB053,DB061 [Redmine: #178736]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -207,7 +208,7 @@ BEGIN
 			,@ErrMsg					NVARCHAR(200)	= ''
 			,@ErrCode				INT				= 0	  
 			,@SiteDBGroupID		SMALLINT
-			,@transInfo XML 
+			,@transInfo			VARBINARY(MAX) 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -1218,32 +1219,32 @@ BEGIN
 				AND main.matchid = @matchid
 		
 
-		SET @transInfo = (
-			SELECT	t.transId AS '@t'
-					, b.winlost AS '@w'
-					, b.ruben AS '@r'
-					, b.creator AS '@cr'
-					, b.awinlost AS '@aw'
-					, b.mwinlost AS '@mw'
-					, b.swinlost AS '@sw'
-					, b.playercomm AS '@pc'
-					, b.comm AS '@c'
-					, b.acomm AS '@ac'
-					, b.scomm AS '@sc'
-					, b.statusID AS '@sid'
-					, b.status AS '@s'
-					, b.betid AS '@bid'
-					, b.ExtraInfo AS '@ex'
-					, b.FcUpdateTime AS '@rut'
+		SET @transInfo = COMPRESS((
+			SELECT	t.transId AS 't'
+					, b.winlost AS 'w'
+					, b.ruben AS 'r'
+					, b.creator AS 'cr'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+					, b.statusID AS 'sid'
+					, b.status AS 's'
+					, b.betid AS 'bid'
+					, b.ExtraInfo AS 'ex'
+					, b.FcUpdateTime AS 'rut'
 			FROM	#BetDelete t 
 				INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 				INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			FOR JSON PATH))
 		
 		IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 		BEGIN
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'VoidSingleBet', 'bettrans', 'U', @matchid, @transInfo
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+			SELECT 'TVS', 'VoidSingleBet', 'bettrans', 'U', @matchid, @transInfo, 's'
 		END
 
 		-- Capture balance before updating Bettrans - New code for CO new Model
@@ -1292,18 +1293,18 @@ BEGIN
 				AND t.betdaqid = -2
 			
 			SET @transInfo = NULL
-			SET @transInfo = (
-					SELECT	transId AS '@t'
-							, matchid AS '@mid'
-							, STATUS AS '@s'
-							, winlost AS '@w'
+			SET @transInfo = COMPRESS((
+					SELECT	transId AS 't'
+							, matchid AS 'mid'
+							, STATUS AS 's'
+							, winlost AS 'w'
 					FROM	@tmpTransInfo WHERE matchid = @MatchId 
-					FOR XML PATH('r'),ROOT('root'), TYPE)
+					FOR JSON PATH))
 
 			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'VoidSingleBet', 'zzzbettrans', 'U', @matchid, @transInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'VoidSingleBet', 'zzzbettrans', 'U', @matchid, @transInfo, 's' 
 			END
 		END
 		
