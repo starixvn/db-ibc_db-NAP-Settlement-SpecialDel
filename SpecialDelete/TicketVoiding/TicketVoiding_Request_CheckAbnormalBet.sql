@@ -101,7 +101,7 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
 
 	INSERT INTO @bettype_tmp (bettype)
@@ -522,27 +522,17 @@ BEGIN
 	
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
-		IF @TransIdsOfCustomerClass201 <> '' AND @IsRemoveCustomerClass201 = 1
-		BEGIN
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT v.transid 
-			FROM #validTransId v
-				LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 201
-			WHERE c.custid IS NULL AND v.StatusId IN (0,1)
-		END
-		ELSE IF @TransIdsOfCustomerClass4K <> '' AND @IsRemoveCustomerClass4K = 1
-		BEGIN
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT v.transid 
-			FROM #validTransId v
-				LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 4000
-			WHERE c.custid IS NULL AND v.StatusId IN (0,1)
-		END
-		ELSE
-		BEGIN
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT transid FROM #validTransId WHERE StatusId IN (0,1)
-		END
+		INSERT INTO @tmpMarkTransId (TransId, CustID)
+		SELECT transid, custId
+		FROM #validTransId WHERE StatusId IN (0,1)
+
+		DELETE v
+		FROM @tmpMarkTransId v
+			LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
+			LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+		WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NULL THEN 1
+					   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NULL THEN 1
+					ELSE 0 END
 
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkTransId
@@ -562,23 +552,15 @@ BEGIN
 			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
 					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 					AND rdt.RequestId = @RequestId
-
-			IF @TransIdsOfCustomerClass201 <> '' AND @IsRemoveCustomerClass201 = 1
-			BEGIN
-				INSERT INTO @tmpUnmarkTransId (TransId)
-				SELECT v.transid 
-				FROM #validTransId v
-					LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 201
-				WHERE c.custid IS NOT NULL
-			END
-			ELSE IF @TransIdsOfCustomerClass4K <> '' AND @IsRemoveCustomerClass4K = 1
-			BEGIN
-				INSERT INTO @tmpMarkTransId (TransId)
-				SELECT v.transid 
-				FROM #validTransId v
-					LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 4000
-				WHERE c.custid IS NOT NULL
-			END 
+	
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT v.transid 
+			FROM #validTransId v
+				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
+				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
+						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
+					      ELSE 0 END
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			INSERT INTO @tmpMarkTransId (TransId)
@@ -606,27 +588,17 @@ BEGIN
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
-			IF @TransIdsOfCustomerClass201  <> '' AND @IsRemoveCustomerClass201 = 1
-			BEGIN
-				INSERT INTO @tmpMarkTransId (TransId)
-				SELECT v.transid 
-				FROM #validTransId v
-					LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 201
-				WHERE c.custid IS NULL AND v.StatusId IN (0,1)
-			END
-			ELSE IF @TransIdsOfCustomerClass4K  <> '' AND @IsRemoveCustomerClass4K = 1
-			BEGIN
-				INSERT INTO @tmpMarkTransId (TransId)
-				SELECT v.transid 
-				FROM #validTransId v
-					LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 4000
-				WHERE c.custid IS NULL AND v.StatusId IN (0,1)
-			END
-			ELSE
-			BEGIN
-				INSERT INTO @tmpMarkTransId (TransId)
-				SELECT transid FROM #validTransId WHERE StatusId IN (0,1)
-			END
+			INSERT INTO @tmpMarkTransId (TransId, CustID)
+			SELECT transid, custId
+			FROM #validTransId WHERE StatusId IN (0,1)
+
+			DELETE v
+			FROM @tmpMarkTransId v
+				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
+				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NULL THEN 1
+						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NULL THEN 1
+						ELSE 0 END
 
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 										FROM @tmpMarkTransId
