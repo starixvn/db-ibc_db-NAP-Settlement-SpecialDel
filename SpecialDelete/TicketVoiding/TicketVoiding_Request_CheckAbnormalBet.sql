@@ -530,8 +530,8 @@ BEGIN
 		FROM @tmpMarkTransId v
 			LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
 			LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
-		WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NULL THEN 1
-					   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NULL THEN 1
+		WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
+					   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
 					ELSE 0 END
 
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
@@ -596,8 +596,8 @@ BEGIN
 			FROM @tmpMarkTransId v
 				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
 				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
-			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NULL THEN 1
-						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NULL THEN 1
+			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
+						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
 						ELSE 0 END
 
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
