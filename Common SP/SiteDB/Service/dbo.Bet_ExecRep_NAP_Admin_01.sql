@@ -508,19 +508,37 @@ BEGIN
 				END
 				ELSE IF @TableName = 'BetParlayDetail'
 				BEGIN
-					INSERT INTO @tmpTransId (TransID, matchid
-						,winlostdate, statuswinlost, StatusID
-					)
-					SELECT	T.C.value('./@t', 'bigint') AS transid
-						,T.C.value('./@mid', 'INT') AS matchid
-							,CASE 
-								WHEN T.C.value('./@wld', 'SMALLDATETIME') = '' THEN NULL 
-								ELSE T.C.value('./@wld', 'SMALLDATETIME') 
-							END AS winlostdate
-							,T.C.value('./@statuswl', 'VARCHAR(1)')				
-							,T.C.value('./@sid', 'TINYINT') AS StatusID									
-					FROM	@TransInfo.nodes('/root/r') AS T(C)
-					OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+					IF @TransInfoJson IS NOT NULL
+					BEGIN
+						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+						INSERT INTO @tmpTransId (TransID, matchid, winlostdate, statuswinlost, StatusID)
+						SELECT *
+							FROM OPENJSON(@Decompress_TransInfoJson)
+								WITH (
+								t   BIGINT
+								,mid INT
+								,wld  SMALLDATETIME	
+								,statuswl  VARCHAR(1)								
+								,sid  TINYINT
+							)
+					END
+					ELSE -- @TransInfo IS NOT NULL (xml format)
+					BEGIN
+						INSERT INTO @tmpTransId (TransID, matchid
+							,winlostdate, statuswinlost, StatusID
+						)
+						SELECT	T.C.value('./@t', 'bigint') AS transid
+							,T.C.value('./@mid', 'INT') AS matchid
+								,CASE 
+									WHEN T.C.value('./@wld', 'SMALLDATETIME') = '' THEN NULL 
+									ELSE T.C.value('./@wld', 'SMALLDATETIME') 
+								END AS winlostdate
+								,T.C.value('./@statuswl', 'VARCHAR(1)')				
+								,T.C.value('./@sid', 'TINYINT') AS StatusID									
+						FROM	@TransInfo.nodes('/root/r') AS T(C)
+						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+					END
 
 					UPDATE pd 
 					SET matchid = CASE WHEN t.matchid IS NULL THEN pd.matchid ELSE t.matchid END
@@ -757,15 +775,29 @@ BEGIN
 					SET @matchdate = NULL
 					SET @strTransIds = NULL
 
+					IF @TransInfoJson IS NOT NULL
+					BEGIN
+						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
-					SELECT  @matchdate = T.C.value('@wld', 'SMALLDATETIME') 
-							,@strTransIds = T.C.value('@strTransId', 'VARCHAR(MAX)') 
-					FROM    @TransInfo.nodes('/root/r') AS T(C)
+						SELECT	@matchdate = wld
+								,@strTransIds = strTransId
+						FROM OPENJSON(@Decompress_TransInfoJson)
+						WITH (				
+							wld			SMALLDATETIME	
+							,strTransId VARCHAR(MAX)
+						)
+					END
+					ELSE -- @TransInfo IS NOT NULL (xml format)
+					BEGIN
+						SELECT  @matchdate = T.C.value('@wld', 'SMALLDATETIME') 
+								,@strTransIds = T.C.value('@strTransId', 'VARCHAR(MAX)') 
+						FROM    @TransInfo.nodes('/root/r') AS T(C)
 
-					EXEC dbo.NAP_Admin_Calculate_MP_PreCal_29 
-						@matchid = @matchid
-						,@matchdate = @matchdate
-						,@strXML = @strTransIds
+						EXEC dbo.NAP_Admin_Calculate_MP_PreCal_29 
+							@matchid = @matchid
+							,@matchdate = @matchdate
+							,@strXML = @strTransIds
+					END 
 				END
 				ELSE IF @TableName = 'TicketVoiding_VoidedTransaction' AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL
 				BEGIN

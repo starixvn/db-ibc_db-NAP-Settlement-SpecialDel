@@ -106,9 +106,12 @@ BEGIN
 		
 	END
 
-	
 	IF @ErrorMessage <> '' OR @3rd_ErrorMessage <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage + CHAR(13) + @3rd_ErrorMessage
+
 		raiserror(@ErrorMessage, 16, 1)
+	END
 END
 
 GO
