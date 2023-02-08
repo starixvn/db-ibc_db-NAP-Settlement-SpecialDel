@@ -403,8 +403,6 @@ BEGIN
         END
         ELSE
         BEGIN
-            SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
-            SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
             SET @FcUpdateTime = SYSDATETIME()
 
             UPDATE  b
@@ -432,8 +430,9 @@ BEGIN
                         deleted.betdaqid ,
                         deleted.BonusID,
                         deleted.WalletType,
-                        deleted.status
-                INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm, betdaqid, Bonusid, WalletType, status)
+                        deleted.status,
+						deleted.matchid
+                INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm, betdaqid, Bonusid, WalletType, status, matchid)
             FROM    @tmpTrans t
                 INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
                     ON  t.transid = b.transid
