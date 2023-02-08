@@ -771,13 +771,30 @@ BEGIN
 				BEGIN
 					IF @Action = 'U'
 					BEGIN
-						INSERT INTO @tmpTransId (TransID ,matchid)
-						SELECT	T.C.value('./@t', 'bigint') AS transid	
-							,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@TransInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
-						SET @batchNo = @@ROWCOUNT
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+								)
+
+							SET @batchNo = @@ROWCOUNT
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT	T.C.value('./@t', 'bigint') AS transid	
+								,T.C.value('./@mid', 'INT') AS matchid
+							FROM	@TransInfo.nodes('/root/r') AS T(C)	
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
+
+							SET @batchNo = @@ROWCOUNT
+						END
 
 						UPDATE TOP (@batchNo)  v
 							SET matchid = CASE WHEN t.matchid IS NULL THEN v.matchid ELSE t.matchid END
