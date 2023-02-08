@@ -156,7 +156,7 @@ BEGIN
     BEGIN        
         SET @doing = CASE @doing WHEN @priorAction THEN @action ELSE COALESCE(@priorAction, @action) END
 		
-		SET @SettlementAction = CASE WHEN @doing LIKE 'REFUND%' THEN 'REFUND' WHEN @doing IN ('CAL', 'UNDO') THEN @doing ELSE '' END
+		SET @SettlementAction = CASE WHEN @doing LIKE 'REFUND%' THEN 'REFUND' WHEN @doing IN ('CAL', 'UNDO') THEN @doing ELSE NULL END
 
 		TRUNCATE TABLE #tmpOutputBettransm
 		TRUNCATE TABLE #tmpOutputBetParlayDetail

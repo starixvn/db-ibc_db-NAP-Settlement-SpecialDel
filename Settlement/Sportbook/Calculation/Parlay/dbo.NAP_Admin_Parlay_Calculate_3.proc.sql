@@ -35,6 +35,7 @@ BEGIN
 			,@IsSiteDB	BIT = 0
 			,@FunctionName VARCHAR(50)
 			,@SettlementAction VARCHAR(20)
+			,@cntBetParlayDetailUpd INT = 0
 
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
 	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		
@@ -125,6 +126,8 @@ BEGIN
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
 		WHERE r.statusid NOT IN (102)
+		
+		SET @cntBetParlayDetailUpd = @@ROWCOUNT
 			
 	END
 
@@ -195,6 +198,8 @@ BEGIN
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
 		WHERE r.statusId NOT IN (102)	
+		
+		SET @cntBetParlayDetailUpd = @@ROWCOUNT
 	END
 	
 	IF @action LIKE 'UNDO%'
@@ -233,6 +238,8 @@ BEGIN
 	    FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
 	    WHERE r.statusid NOT IN (102) 
+		
+		SET @cntBetParlayDetailUpd = @@ROWCOUNT
 	END
 	
 	IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM #parlayOutput)
@@ -267,7 +274,7 @@ BEGIN
 			FOR JSON AUTO
 		)
 
-		IF @transinfoJson IS NOT NULL
+		IF @transinfoJson IS NOT NULL AND @cntBetParlayDetailUpd > 0
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = @FunctionName

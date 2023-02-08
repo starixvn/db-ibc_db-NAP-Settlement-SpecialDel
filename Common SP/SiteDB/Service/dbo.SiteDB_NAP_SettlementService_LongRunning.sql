@@ -100,7 +100,7 @@ BEGIN
 		BEGIN
 			execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
 				, @JobId = NULL, @JobName = N'vndba:Check slowly running or failed processes'
-				, @Message = @ErrorMessage
+				, @Message = @3rd_ErrorMessage
 				, @CaseId = 1;
 		END
 		

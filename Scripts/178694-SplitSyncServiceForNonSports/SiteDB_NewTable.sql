@@ -36,7 +36,7 @@ GO
 CREATE NONCLUSTERED INDEX [IX_SiteDB_SettlementService_CalculationLog_3rd_LogDate] ON [dbo].[SiteDB_SettlementService_CalculationLog_3rd]
 (
 	[LogDate] ASC
-) ON [INDEX]
+) ON [DATA]
 GO
 
 

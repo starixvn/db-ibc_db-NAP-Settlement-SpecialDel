@@ -51,6 +51,7 @@ BEGIN
 			,@AllowRefund 		BIT
 			,@AllowUndo 		BIT
 			,@ServerName		SYSNAME
+			,@TicketType 		VARCHAR(1)
 			
 	SET @ServerName = @@SERVERNAME
 	
@@ -574,6 +575,8 @@ BEGIN
 				FOR JSON AUTO
 			)
 
+			SET @TicketType = CASE WHEN @MatchId = 2799 THEN 'p' ELSE 's' END
+			
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'RecoverVSBetRadar'
@@ -581,6 +584,7 @@ BEGIN
 				,@MatchId = @MatchId
 				,@TransInfoJson = @TransInfoJson
 				,@EventTable = 1
+				,@TicketType = @TicketType
 			
 		END
 	END
