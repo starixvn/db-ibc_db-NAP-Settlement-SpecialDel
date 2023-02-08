@@ -56,7 +56,7 @@ BEGIN
 		ELSE IF @StatusId = 1 AND DATEDIFF(MINUTE,@StartTime, GETDATE()) > 1
 			SET @ErrorMessage = 'Hey guys, the item on process sync data for SiteDB (' + @@SERVERNAME + ') has been running for too long (table SiteDB_SettlementService_LastLog). Please check!!!'
 		
-		/*
+		
 		IF @ErrorMessage <> ''
 		BEGIN
 			execute	DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage @ServerName = @@ServerName
@@ -64,7 +64,7 @@ BEGIN
 				, @Message = @ErrorMessage
 				, @CaseId = 1;
 		END
-		*/
+		
 	END
 
 	-- check 3rd
@@ -90,7 +90,7 @@ BEGIN
 	
 		END
 		
-		/*
+		
 		IF @3rd_StatusId = 3 
 			SET @3rd_ErrorMessage = 'Hey guys, process sync data for SiteDB (' + @@SERVERNAME + ') got error (table SiteDB_SettlementService_LastLog_3rd). Please check!!!'		
 		ELSE IF @3rd_StatusId = 1 AND DATEDIFF(MINUTE,@3rd_StartTime, GETDATE()) > 1
@@ -103,7 +103,7 @@ BEGIN
 				, @Message = @ErrorMessage
 				, @CaseId = 1;
 		END
-		*/
+		
 	END
 
 	
