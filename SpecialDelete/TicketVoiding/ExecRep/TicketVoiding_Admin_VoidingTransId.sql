@@ -235,8 +235,8 @@ BEGIN
 
                         IF @@ROWCOUNT = 0 BREAK;
                         SET @transInfo = COMPRESS((
-                        SELECT  transId AS '@t'
-                                , matchid AS '@mid'
+                        SELECT  transId AS 't'
+                                , matchid AS 'mid'
                         FROM    @tmpTrans_SB WHERE matchid = @MatchId AND IsParlay = 0
                         FOR JSON PATH))
 
@@ -263,8 +263,8 @@ BEGIN
 
                         IF @@ROWCOUNT = 0 BREAK;
                         SET @transInfo = COMPRESS((
-                        SELECT  transId AS '@t'
-                                , matchid AS '@mid'
+                        SELECT  transId AS 't'
+                                , matchid AS 'mid'
                         FROM    @tmpTrans_SB WHERE matchid = @MatchId AND IsParlay = 1
                         FOR JSON PATH))
 
