@@ -792,12 +792,12 @@ BEGIN
 						SELECT  @matchdate = T.C.value('@wld', 'SMALLDATETIME') 
 								,@strTransIds = T.C.value('@strTransId', 'VARCHAR(MAX)') 
 						FROM    @TransInfo.nodes('/root/r') AS T(C)
-
-						EXEC dbo.NAP_Admin_Calculate_MP_PreCal_29 
-							@matchid = @matchid
-							,@matchdate = @matchdate
-							,@strXML = @strTransIds
 					END 
+					
+					EXEC dbo.NAP_Admin_Calculate_MP_PreCal_29 
+						@matchid = @matchid
+						,@matchdate = @matchdate
+						,@strXML = @strTransIds
 				END
 				ELSE IF @TableName = 'TicketVoiding_VoidedTransaction' AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL
 				BEGIN
