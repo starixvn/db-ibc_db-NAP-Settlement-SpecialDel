@@ -910,8 +910,8 @@ BEGIN
 	
 	-- delete normal ticket
 	DELETE main
-		OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
-		INTO @tmpTransInfo (matchid, transid, transdate, comstatus)
+		OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus, deleted.bettype
+		INTO @tmpTransInfo (matchid, transid, transdate, comstatus, bettype)
 	FROM zzzbettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t 
 			ON	main.transid = t.transid
