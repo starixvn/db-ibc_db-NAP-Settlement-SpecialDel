@@ -543,16 +543,37 @@ BEGIN
 				BEGIN
 					IF @Action = 'I'
 					BEGIN
-						INSERT INTO @tmpTransId (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
-						SELECT	T.C.value('./@t', 'BIGINT') AS transid
-								,T.C.value('./@mid', 'INT') AS matchid
-								,T.C.value('./@cust', 'INT') AS custid
-								,T.C.value('./@btype', 'SMALLINT') AS bettype			
-								,T.C.value('./@us', 'INT') AS userid	
-								,T.C.value('./@crdate', 'DATETIME') AS CreatedDate
-								,T.C.value('./@mt', 'TINYINT') AS MarkType		
-						FROM	@TransInfo.nodes('/root/r') AS T(C)
-						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+							INSERT INTO @tmpTransId (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+									,cust  INT	
+									,btype  SMALLINT
+									,us INT
+									,crdate  DATETIME
+									,mt  TINYINT
+								)
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
+							SELECT	T.C.value('./@t', 'BIGINT') AS transid
+									,T.C.value('./@mid', 'INT') AS matchid
+									,T.C.value('./@cust', 'INT') AS custid
+									,T.C.value('./@btype', 'SMALLINT') AS bettype			
+									,T.C.value('./@us', 'INT') AS userid	
+									,T.C.value('./@crdate', 'DATETIME') AS CreatedDate
+									,T.C.value('./@mt', 'TINYINT') AS MarkType		
+							FROM	@TransInfo.nodes('/root/r') AS T(C)
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+
+						END
 
 						INSERT INTO dbo.MarkedTransaction (TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType)
 						SELECT 	TransID ,matchid, custid, bettype, userid, CreatedDate, MarkType
@@ -565,11 +586,27 @@ BEGIN
 					END
 					ELSE IF @Action = 'D'
 					BEGIN
-						INSERT INTO @tmpTransId (TransID ,matchid)
-						SELECT	T.C.value('./@t', 'bigint') AS transid
-								,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@TransInfo.nodes('/root/r') AS T(C)
-						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+								)
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT	T.C.value('./@t', 'bigint') AS transid
+									,T.C.value('./@mid', 'INT') AS matchid
+							FROM	@TransInfo.nodes('/root/r') AS T(C)
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+
+						END
 						
 						DELETE m 
 						FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
@@ -580,15 +617,35 @@ BEGIN
 				BEGIN
 					IF @Action = 'U'
 					BEGIN
-						INSERT INTO @tmpTransId (TransID ,matchid, Status, WinLost)
-						SELECT	T.C.value('./@t', 'bigint') AS transid	
-							,T.C.value('./@mid', 'INT') AS matchid	
-							,T.C.value('./@s', 'NVARCHAR(10)') AS Status	
-							,T.C.value('./@w', 'MONEY') AS WinLost	
-						FROM	@TransInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
-						SET @batchNo = @@ROWCOUNT
+							INSERT INTO @tmpTransId (TransID ,matchid, Status, WinLost)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+									,s	NVARCHAR(10)
+									,w	MONEY
+								)
+		
+							SET @batchNo = @@ROWCOUNT
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid, Status, WinLost)
+							SELECT	T.C.value('./@t', 'bigint') AS transid	
+								,T.C.value('./@mid', 'INT') AS matchid	
+								,T.C.value('./@s', 'NVARCHAR(10)') AS Status	
+								,T.C.value('./@w', 'MONEY') AS WinLost	
+							FROM	@TransInfo.nodes('/root/r') AS T(C)	
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
+
+							SET @batchNo = @@ROWCOUNT
+
+						END
 
 						UPDATE TOP (@batchNo)  b
 							SET [status] = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
@@ -599,13 +656,30 @@ BEGIN
 					END
 					ELSE IF @Action = 'D'
 					BEGIN
-						INSERT INTO @tmpTransId (TransID ,matchid, transdate, comstatus)
-						SELECT	T.C.value('./@t', 'bigint') AS transid
-								,T.C.value('./@mid', 'INT') AS matchid
-								,T.C.value('./@td', 'datetime') AS transdate
-								,T.C.value('./@cst', 'nvarchar(40)') AS comstatus
-						FROM	@TransInfo.nodes('/root/r') AS T(C)
-						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+							INSERT INTO @tmpTransId (TransID ,matchid, transdate, comstatus)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+									,td	datetime
+									,cst	nvarchar(40)
+								)
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid, transdate, comstatus)
+							SELECT	T.C.value('./@t', 'bigint') AS transid
+									,T.C.value('./@mid', 'INT') AS matchid
+									,T.C.value('./@td', 'datetime') AS transdate
+									,T.C.value('./@cst', 'nvarchar(40)') AS comstatus
+							FROM	@TransInfo.nodes('/root/r') AS T(C)
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+						END
 						
 						DELETE m 
 						FROM dbo.zzzbettrans m WITH (ROWLOCK, UPDLOCK)
@@ -618,13 +692,31 @@ BEGIN
 				BEGIN
 					IF @Action = 'U'
 					BEGIN
-						INSERT INTO @tmpTransId (TransID ,matchid)
-						SELECT	T.C.value('./@t', 'bigint') AS transid	
-							,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@TransInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+								)
+		
+							SET @batchNo = @@ROWCOUNT
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT	T.C.value('./@t', 'bigint') AS transid	
+								,T.C.value('./@mid', 'INT') AS matchid
+							FROM	@TransInfo.nodes('/root/r') AS T(C)	
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
 						
-						SET @batchNo = @@ROWCOUNT
+							SET @batchNo = @@ROWCOUNT
+
+						END
 
 						UPDATE TOP (@batchNo)  b
 							SET matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
@@ -634,12 +726,27 @@ BEGIN
 					END
 					ELSE IF @Action = 'D' --TVS subparlay
 					BEGIN
-						INSERT INTO @tmpTransId (TransID ,matchid)
-						SELECT	T.C.value('./@t', 'BIGINT') AS transid	
-							   ,T.C.value('./@mid', 'INT') AS matchid
-						FROM	@TransInfo.nodes('/root/r') AS T(C)	
-						OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
-						
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+								)
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT	T.C.value('./@t', 'BIGINT') AS transid	
+								   ,T.C.value('./@mid', 'INT') AS matchid
+							FROM	@TransInfo.nodes('/root/r') AS T(C)	
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))	
+						END
+			
 						DELETE bm 
 						FROM dbo.zzzbettransm bm WITH (ROWLOCK, UPDLOCK)
 							INNER JOIN @tmpTransId t ON t.TransId = bm.TransId AND t.MatchId = bm.MatchId
