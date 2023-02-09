@@ -6,7 +6,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_CheckAbnormalBet]
 	,@ActionId					TINYINT	= 0
 	,@FilterBy					TINYINT	= NULL
 	,@SubIssueTypeId			TINYINT	= NULL
-	,@IsRemoveCustomerClass1	BIT = 0
+	,@IsRemoveCustomerClass201	BIT = 0
+	,@IsRemoveCustomerClass4K	BIT = 0
 	,@TransInfoJson0			VARBINARY(MAX) = NULL
 	,@TransInfoJson1			VARBINARY(MAX) = NULL
 	,@TransInfoJson2			VARBINARY(MAX) = NULL
@@ -52,6 +53,8 @@ AS
 		- 20221007@July: TVS - Abnormalbet - No need to send Letstalk message if the request has UUS ticket [Redmine: #178321]
 		- 20221021@July: TVS - WRONG check validation for transid 14 [Redmine: #179479]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230110@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
+		- 20230116@July: [TVS] Exclude Customer Class = 4000 & Change CC=1 to CC=201 [Redmine: #182804]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -75,13 +78,16 @@ BEGIN
 			,@IsHasWarningRemovedTickets BIT=0
 			,@IsHasUUSTickets			 BIT=0
 			,@OldActionId				 TINYINT
-			,@TransIdsOfCustomerClass1	 VARCHAR(MAX) = ''
+			,@TransIdsOfCustomerClass201 VARCHAR(MAX) = ''
+			,@TransIdsOfCustomerClass4K  VARCHAR(MAX) = ''
 			,@ABWhiteListTransIds		 VARCHAR(MAX) = ''
 			,@MatchId					 INT = 0
 			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
-	
+			,@ListBettype 				 VARCHAR(MAX) =''
+			,@ListBetteam 				 VARCHAR(MAX) =''
+
 	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson2 NVARCHAR(MAX) = NULL
@@ -95,7 +101,7 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @CustId_tmp AS TABLE (CustID INT, recommend INT, mrecommend INT, srecommend INT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
-	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50))
 
 	INSERT INTO @bettype_tmp (bettype)
@@ -112,7 +118,6 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> ''
 
-	CREATE TABLE #transidremove_tmp (transid BIGINT, StatusId INT, statuswinlost TINYINT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
 		transid			BIGINT PRIMARY KEY
@@ -424,6 +429,18 @@ BEGIN
 										, '')
 	SET @IsHasUUSTickets = ISNULL((SELECT TOP 1 1 FROM #validTransId WHERE CurrencyName = 'UUS'),0)
 
+	SET @ListBettype = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(b.typenamee AS VARCHAR(100))
+										FROM #validTransId AS v
+										INNER JOIN dbo.bettype b WITH(NOLOCK) ON v.bettype = b.typeid
+										WHERE v.bettype <> 29
+										FOR XML PATH('')), 1, 1, '')
+										, '')
+
+	SET @ListBetteam = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(v.betteam AS VARCHAR(100))
+										FROM #validTransId AS v
+										WHERE v.bettype <> 29
+										FOR XML PATH(''), TYPE).value('.', 'VARCHAR(MAX)'), 1, 2, '')
+										, '')
 	IF @ActionId <> 2
 	BEGIN
 		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -456,11 +473,18 @@ BEGIN
 											FOR XML PATH('')), 1, 1, '')
 											, '')
 
-		-- Check validation for the ticket that has customer class = 1
-		SELECT @TransIdsOfCustomerClass1 = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+		-- Check validation for the ticket that has Customer Class = 201 & Customer Class = 4000
+		SELECT @TransIdsOfCustomerClass201 = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 												FROM #validTransId AS v	
 													INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
-												WHERE c.CustomerClass = 1
+												WHERE c.CustomerClass = 201
+												FOR XML PATH('')), 1, 1, '')
+											, '')
+
+		SELECT @TransIdsOfCustomerClass4K = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
+												FROM #validTransId AS v	
+													INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
+												WHERE c.CustomerClass = 4000
 												FOR XML PATH('')), 1, 1, '')
 											, '')
 
@@ -495,112 +519,6 @@ BEGIN
 		END
 	END
 	
-	IF @RequestId = 0 AND @ActionId <> 2
-	BEGIN
-		IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
-		BEGIN
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT v.transid 
-			FROM #validTransId v
-				LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
-			WHERE c.custid IS NULL AND v.StatusId IN (0,1)
-		END
-		ELSE
-		BEGIN
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT transid FROM #validTransId WHERE StatusId IN (0,1)
-		END
-
-		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpMarkTransId
-											FOR XML PATH('')), 1,1,'')
-											,'')
-	END
-	ELSE IF @RequestId <> 0
-	BEGIN
-		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
-
-		IF @ActionId <> 2 AND @OldActionId <> 2
-		BEGIN
-			--Remove transid from request => unmark ticket & re-cal ticket
-			INSERT INTO @tmpUnmarkTransId (TransId)
-			SELECT transid 
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
-					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
-					AND rdt.RequestId = @RequestId
-
-			IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
-			BEGIN
-				INSERT INTO @tmpUnmarkTransId (TransId)
-				SELECT v.transid 
-				FROM #validTransId v
-					LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
-				WHERE c.custid IS NOT NULL
-			END
-			
-			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
-			INSERT INTO @tmpMarkTransId (TransId)
-			SELECT transid 
-			FROM #validTransId v
-			WHERE v.StatusId IN (0,1) AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
-				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpUnmarkTransId um WHERE um.TransId = v.transid)
-
-			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-												FROM @tmpUnmarkTransId
-												FOR XML PATH('')), 1,1,'')
-												,'')
-
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-												FROM @tmpMarkTransId
-												FOR XML PATH('')), 1,1,'')
-												,'')
-
-			IF @UnmarkTransIds <> ''
-			BEGIN
-				SET @IsHasWarningRemovedTickets = 1
-				
-				SELECT @RemoveTransids = @UnmarkTransIds
-			END
-		END
-		ELSE IF @ActionId <> 2 AND @OldActionId = 2
-		BEGIN
-			IF @TransIdsOfCustomerClass1  <> '' AND @IsRemoveCustomerClass1 = 1
-			BEGIN
-				INSERT INTO @tmpMarkTransId (TransId)
-				SELECT v.transid 
-				FROM #validTransId v
-					LEFT JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid AND c.CustomerClass = 1
-				WHERE c.custid IS NULL AND v.StatusId IN (0,1)
-			END
-			ELSE
-			BEGIN
-				INSERT INTO @tmpMarkTransId (TransId)
-				SELECT transid FROM #validTransId WHERE StatusId IN (0,1)
-			END
-
-			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-										FROM @tmpMarkTransId
-										FOR XML PATH('')), 1,1,'')
-										,'')
-		END
-		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
-		BEGIN
-			SELECT @UnmarkTransids = ISNULL(STUFF((SELECT ',' + CAST(rdt.TransId AS VARCHAR(50)) 
-											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE rdt.RequestId = @RequestId
-											FOR XML PATH('')), 1,1,'')
-											,'')
-			
-			IF @UnmarkTransIds <> ''
-			BEGIN
-				SET @IsHasWarningRemovedTickets = 1
-				
-				SELECT @RemoveTransids = @UnmarkTransIds
-			END
-		END
-	END
-
 	IF @FilterBy IS NULL AND @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
 	BEGIN
 		-- get non-live and different score transids
@@ -633,11 +551,99 @@ BEGIN
 		-- get cn88 tickets
 		SELECT @CN88TransIds = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
 									FROM #validTransId AS v				
-										INNER JOIN #tmpTransInfo b ON b.transid = v.transid AND b.IsMixParlay = 0
-										LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
+										LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON v.srecommend = cs.CustId
 									WHERE cs.CustId IS NOT NULL
 									FOR XML PATH('')), 1, 1, '')
 									, '')
+	END
+
+	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
+
+	IF @RequestId = 0 AND @ActionId <> 2
+	BEGIN
+		INSERT INTO @tmpMarkTransId (TransId, CustID)
+		SELECT transid, custId
+		FROM #validTransId WHERE StatusId IN (0,1)
+
+		DELETE v
+		FROM @tmpMarkTransId v
+			LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
+			LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+		WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
+					   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
+					ELSE 0 END
+		
+	END
+	ELSE IF @RequestId <> 0
+	BEGIN
+		SELECT @OldActionId = ISNULL(ActionId,0) FROM dbo.TicketVoiding_Request WITH(NOLOCK) WHERE RequestId = @RequestId
+
+		IF @ActionId <> 2 AND @OldActionId <> 2
+		BEGIN
+			--Remove transid from request => unmark ticket & re-cal ticket
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT transid 
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
+					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
+					AND rdt.RequestId = @RequestId
+	
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT v.transid 
+			FROM #validTransId v
+				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
+				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
+						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
+					      ELSE 0 END
+			
+			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
+			INSERT INTO @tmpMarkTransId (TransId)
+			SELECT transid 
+			FROM #validTransId v
+			WHERE v.StatusId IN (0,1) AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
+				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpUnmarkTransId um WHERE um.TransId = v.transid)
+		
+		END
+		ELSE IF @ActionId <> 2 AND @OldActionId = 2
+		BEGIN
+			INSERT INTO @tmpMarkTransId (TransId, CustID)
+			SELECT transid, custId
+			FROM #validTransId WHERE StatusId IN (0,1)
+
+			DELETE v
+			FROM @tmpMarkTransId v
+				LEFT JOIN CustDB.dbo.Custinfo AS c1 WITH (NOLOCK) ON v.custId = c1.custid AND c1.CustomerClass = 201
+				LEFT JOIN CustDB.dbo.Custinfo AS c2 WITH (NOLOCK) ON v.custId = c2.custid AND c2.CustomerClass = 4000
+			WHERE 1 = CASE WHEN @IsRemoveCustomerClass201 = 1 AND c1.custid IS NOT NULL THEN 1
+						   WHEN @IsRemoveCustomerClass4K = 1 AND c2.custid IS NOT NULL THEN 1
+						ELSE 0 END
+
+		END
+		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId --Take note
+		BEGIN
+			INSERT INTO @tmpUnmarkTransId (TransId)
+			SELECT rdt.TransId
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
+			WHERE rdt.RequestId = @RequestId
+			
+		END
+	END
+
+	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmpMarkTransId
+											FOR XML PATH('')), 1,1,'')
+											,'')
+
+	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM @tmpUnmarkTransId
+												FOR XML PATH('')), 1,1,'')
+												,'')
+	IF @UnmarkTransIds <> ''
+	BEGIN
+		SET @IsHasWarningRemovedTickets = 1
+				
+		SELECT @RemoveTransids = @UnmarkTransIds
 	END
 
 	/*****************Return table **************************/
@@ -656,10 +662,13 @@ BEGIN
 			,@CN88TransIds AS CN88TransIds
 			,@NonLiveTransIds AS NonLiveTransIds
 			,@DifferentLiveScoreTransIds AS DifferentLiveScoreTransIds
-			,@TransIdsOfCustomerClass1 AS TransIdsOfCustomerClass1
+			,@TransIdsOfCustomerClass201 AS TransIdsOfCustomerClass201
+			,@TransIdsOfCustomerClass4K AS TransIdsOfCustomerClass4K
 			,@ABWhiteListTransIds AS ABWhiteListTransIds
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 			,@IsHasUUSTickets AS IsHasUUSTickets
+			,@ListBettype AS ListBettype
+			,@ListBetteam AS ListBetteam
 
 	--3. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
@@ -691,7 +700,6 @@ BEGIN
 	DROP TABLE #UnsupportedTransids
 	DROP TABLE #LiveTransIds
 	DROP TABLE #ABWhiteListTransIds
-	DROP TABLE #transidremove_tmp
 	DROP TABLE #ABWhiteListCustIds
 	DROP TABLE #ABWhiteListCustIds_AllowVoid
 	DROP TABLE #tmpTransInfo
