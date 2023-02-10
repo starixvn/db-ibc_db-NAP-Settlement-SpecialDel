@@ -35,11 +35,32 @@ BEGIN
 			,@MaxTransID			BIGINT
 			,@StepNumber			INT = 0
 			,@IsSiteDB				BIT = 0
-
+			,@SettlementTime		DATETIME
+			,@TransXML				XML
+			,@NewStatusID			TINYINT
+			,@NewWinLost			MONEY
+			
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)
-	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY)
+	DECLARE @tmpTransInfo TABLE (TransId			BIGINT
+								,CustId				INT
+								,Balance			MONEY
+								,winlostdate		DATETIME
+								,statuswinlost		TINYINT
+								,SettlementTime		DATETIME
+								,WinLost			MONEY
+								,aWinLost			MONEY
+								,mWinLost			MONEY
+								,sWinLost			MONEY
+								,PlayerComm			MONEY
+								,Comm				MONEY
+								,aComm				MONEY
+								,sComm				MONEY
+								,statusID			TINYINT								
+								,status				NVARCHAR(20)
+								,ruben				TINYINT)	
 	
-	
+	SET @SettlementTime = GETDATE(); 
+
 	SET @ActionID = CASE WHEN @Action = 'CAL' AND @Status IN ('WON','LOSE') THEN 136
 						 WHEN @Action = 'CAL' AND @Status IN ('REFUND') THEN 138
 						 WHEN @Action = 'UNDO'	THEN 145
@@ -62,10 +83,12 @@ BEGIN
 		BEGIN
 			SET @StepNumber = 1;
 			UPDATE b
-			SET  b.ruben = 0
+			SET  @NewWinLost = 0
+				,@NewStatusID = 0
+				,b.ruben = 0
 				,b.STATUS = 'running'
-				,b.statusID = 0
-				,b.winlost = 0
+				,b.statusID = @NewStatusID
+				,b.winlost = @NewWinLost
 				,b.awinlost = 0
 				,b.mwinlost = 0
 				,b.swinlost = 0
@@ -73,8 +96,24 @@ BEGIN
 				,b.comm = 0
 				,b.acomm = 0
 				,b.scomm = 0
-			OUTPUT  deleted.custid,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-			INTO @tmpBalanceChanged (CustId, Balance)
+			OUTPUT  inserted.TransId
+				,	inserted.custid
+				,	(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
+				,	inserted.winlostdate
+				,	inserted.statuswinlost
+				,	inserted.SettlementTime 
+				,	inserted.WinLost
+				,	inserted.aWinLost
+				,	inserted.mWinLost
+				,	inserted.sWinLost
+				,	inserted.PlayerComm
+				,	inserted.Comm
+				,	inserted.aComm
+				,	inserted.sComm
+				,	inserted.statusID
+				,	inserted.status
+				,	inserted.ruben
+			INTO @tmpTransInfo (TransId, CustId, Balance, winlostdate, statuswinlost, SettlementTime, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID, status, ruben)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid 
 		END 
@@ -85,6 +124,8 @@ BEGIN
 			SET	@commWinRate = CASE b.comstatus WHEN '0' THEN 1 -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 												WHEN '1' THEN 0 
 												ELSE 1 END
+				,@NewWinLost = (((b.odds - 1) / @deadheat)+1) * b.stake 
+				,@NewStatusID = 112
 				,b.[status] = 'WON'
 				,b.ruben = 1 
 				,b.winlostdate = @winlostdate --convert(char(10),getdate(),111)
@@ -92,14 +133,31 @@ BEGIN
 				,b.Swinlost = -(b.odds - 1) * b.spositiontaking * b.stake / @deadheat
 				,b.mwinlost = -(b.odds - 1) * b.mpositiontaking * b.stake / @deadheat
 				,b.awinlost = -(b.odds - 1) * b.apositiontaking * b.stake / @deadheat
-				,b.winlost = (((b.odds - 1) / @deadheat)+1) * b.stake 
+				,b.winlost = @NewWinLost
 				,b.Scomm = @commWinRate * (1  - b.spositiontaking - b.mpositiontaking - b.apositiontaking) * b.sdiscount * b.stake
 				,b.acomm = @commWinRate * (1  - b.mpositiontaking - b.apositiontaking) * b.adiscount * b.stake
 				,b.comm  = @commWinRate * (1  - b.apositiontaking) * b.discount * b.stake
 				,b.playercomm = @commWinRate * b.playerdiscount * b.stake
-				,b.statusID = 112
-			OUTPUT  deleted.custid,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-			INTO @tmpBalanceChanged (CustId, Balance)
+				,b.statusID = @NewStatusID
+				,b.SettlementTime =  CASE WHEN b.winlost <> @NewWinLost OR b.statusID <> @NewStatusID THEN @SettlementTime ELSE b.SettlementTime END
+			OUTPUT  inserted.TransId
+				,	inserted.custid
+				,	(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
+				,	inserted.winlostdate
+				,	inserted.statuswinlost
+				,	inserted.SettlementTime
+				,	inserted.WinLost
+				,	inserted.aWinLost
+				,	inserted.mWinLost
+				,	inserted.sWinLost
+				,	inserted.PlayerComm
+				,	inserted.Comm
+				,	inserted.aComm
+				,	inserted.sComm
+				,	inserted.statusID
+				,	inserted.status
+				,	inserted.ruben
+			INTO @tmpTransInfo (TransId, CustId, Balance, winlostdate, statuswinlost, SettlementTime, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID, status, ruben)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid
 			
@@ -111,6 +169,8 @@ BEGIN
 			SET	@commLostRate = CASE comstatus  WHEN '0' THEN 1
 												WHEN '1' THEN 2 
 												ELSE 1 END--'s','m'
+				,@NewWinLost = 0
+				,@NewStatusID = 113
 				,b.[status] = 'LOSE'
 				,b.ruben = 1 
 				,b.winlostdate = @winlostdate
@@ -118,14 +178,31 @@ BEGIN
 				,b.Swinlost = b.spositiontaking * b.stake
 				,b.mwinlost = b.mpositiontaking * b.stake
 				,b.awinlost = b.apositiontaking * b.stake
-				,b.winlost =0
+				,b.winlost = @NewWinLost
 				,b.Scomm = @commLostRate * (1 - b.spositiontaking - b.mpositiontaking - b.apositiontaking) * b.sdiscount * b.stake
 				,b.acomm = @commLostRate * (1 - b.mpositiontaking - b.apositiontaking) * b.adiscount * b.stake
 				,b.comm  = @commLostRate * (1 - b.apositiontaking) * b.discount * b.stake
 				,b.playercomm = @commLostRate * b.playerdiscount * b.stake
-				,b.statusID = 113
-			OUTPUT  deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-			INTO @tmpBalanceChanged (CustId, Balance)
+				,b.statusID = @NewStatusID
+				,b.SettlementTime =  CASE WHEN b.winlost <> @NewWinLost OR b.statusID <> @NewStatusID THEN @SettlementTime ELSE b.SettlementTime END
+			OUTPUT  inserted.TransId
+				,	inserted.custid
+				,  (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
+				,	inserted.winlostdate
+				,	inserted.statuswinlost
+				,	CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+				,	inserted.WinLost
+				,	inserted.aWinLost
+				,	inserted.mWinLost
+				,	inserted.sWinLost
+				,	inserted.PlayerComm
+				,	inserted.Comm
+				,	inserted.aComm
+				,	inserted.sComm
+				,	inserted.statusID
+				,	inserted.status
+				,	inserted.ruben
+			INTO @tmpTransInfo (TransId, CustId, Balance, winlostdate, statuswinlost, SettlementTime, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID, status, ruben)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid
 		END
@@ -133,21 +210,40 @@ BEGIN
 		BEGIN
 			SET @StepNumber = 4;
 			UPDATE b
-			SET	 b.[status] = 'Refund'
+			SET	 @NewWinLost = b.actual_stake
+				,@NewStatusID = 103 
+				,b.[status] = 'Refund'
 				,b.ruben = 1 
 				,b.winlostdate = @winlostdate
 				,b.statuswinlost = 4
 				,b.swinlost = 0
 				,b.mwinlost = 0
 				,b.awinlost = 0
-				,b.winlost = b.actual_stake
+				,b.winlost = @NewWinLost
 				,b.scomm = 0
 				,b.acomm = 0
 				,b.comm  = 0
 				,b.playercomm = 0
-				,b.statusID = 103
-			OUTPUT  deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-			INTO @tmpBalanceChanged (CustId, Balance)
+				,b.statusID = @NewStatusID
+				,b.SettlementTime =  CASE WHEN b.winlost <> @NewWinLost OR b.statusID <> @NewStatusID THEN @SettlementTime ELSE b.SettlementTime END
+			OUTPUT  inserted.TransId
+				,	inserted.custid
+				,	(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
+				,	inserted.winlostdate
+				,	inserted.statuswinlost
+				,	inserted.SettlementTime
+				,	inserted.WinLost
+				,	inserted.aWinLost
+				,	inserted.mWinLost
+				,	inserted.sWinLost
+				,	inserted.PlayerComm
+				,	inserted.Comm
+				,	inserted.aComm
+				,	inserted.sComm
+				,	inserted.statusID
+				,	inserted.status
+				,	inserted.ruben
+			INTO @tmpTransInfo (TransId, CustId, Balance, winlostdate, statuswinlost, SettlementTime, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID, status, ruben)
 			FROM @tmpTransId AS t
 				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) ON t.transid = b.transid
 		END
@@ -157,14 +253,14 @@ BEGIN
 			SET @StepNumber = 5;
 			INSERT INTO dbo.BalCreditSportsPending (custid, balance)
 			SELECT	custid, SUM(Balance) Balance
-			FROM	@tmpBalanceChanged AS t
+			FROM	@tmpTransInfo AS t
 			GROUP BY custid
 			HAVING SUM(Balance) > 0
 
 			SET @StepNumber = 6;
 			INSERT INTO dbo.BalDebitSportsPending(custid, balance)
 			SELECT	custid, ABS(SUM(Balance)) Balance
-			FROM	@tmpBalanceChanged AS t
+			FROM	@tmpTransInfo AS t
 			GROUP BY custid
 			HAVING SUM(Balance) < 0
 			SET @CheckNegativeBalance = @@ROWCOUNT
@@ -181,7 +277,7 @@ BEGIN
 						,SUM(bal.Balance)
 						,0
 						,NULL
-				FROM	@tmpBalanceChanged AS bal
+				FROM	@tmpTransInfo AS bal
 				GROUP BY bal.CustId
 				HAVING SUM(Balance) < 0
 			 END
@@ -199,11 +295,37 @@ BEGIN
 					,SUM(bn.balance) AS BalanceAmt
 					,'ExecRep_NAP_Admin_10' AS ExecutedSP
 					,@ErrMsg AS ErrMsg
-			FROM @tmpBalanceChanged AS bn
+			FROM @tmpTransInfo AS bn
 			GROUP BY bn.CustId
 			HAVING SUM(bn.balance) <> 0		
 		END
 	END CATCH
+
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	BEGIN
+		SET @TransXML = (
+			SELECT	 transid AS '@t'
+					,@MatchID AS '@mid'
+					,SettlementTime AS '@st'
+					,winlost AS '@w' 
+					,awinlost AS '@aw' 
+					,mwinlost AS '@mw' 
+					,swinlost AS '@sw' 
+					,playercomm AS '@pc' 
+					,comm AS '@c' 
+					,acomm  AS '@ac' 
+					,scomm  AS '@sc' 
+					,statusID AS '@sid' 
+					,status   AS '@s' 
+					,winlostdate AS '@wld' 
+					,statuswinlost AS '@statuswl' 
+					,ruben  AS '@r' 
+			FROM	@tmpTransInfo
+			FOR XML PATH('r'),ROOT('root'), TYPE
+		)
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
+		VALUES ('Settlement', 'CalculateNonSport', 'bettrans',@MatchID, @TransXML, @Action, 's')	
+	END
 END
 
 GO

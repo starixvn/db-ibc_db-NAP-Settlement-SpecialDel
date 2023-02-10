@@ -63,8 +63,8 @@ BEGIN
 	IF(@ErrCode <> 0 OR @AvaiableProcess = 0)
 		RETURN
 
-	SET @ActionID = CASE WHEN @Action = 'CAL' AND @Status IN ('WON','LOSE') THEN 136
-						 WHEN @Action = 'CAL' AND @Status IN ('REFUND') THEN 138
+	SET @ActionID = CASE WHEN @Action = 'CAL' AND @Status IN ('WON','LOSE') THEN 137
+						 WHEN @Action = 'CAL' AND @Status IN ('REFUND') THEN 139
 						 WHEN @Action = 'UNDO'	THEN 145
 					 END
 
@@ -77,12 +77,6 @@ BEGIN
 	FROM	Outright WITH (NOLOCK)
 	WHERE	ORID = @MatchID
 	
-	-- add log to outright_log to notify for Apollo
-	EXEC dbo.[Acc_Set_ConfirmedActionOutright] 
-		 @matchid = @MatchID
-		,@actionid = 30
-		,@status = @Status
-		,@deadheat = @IsDeadheat
 	-------------------------------------------------------------
 	---						START Settlement				  ---
 	-------------------------------------------------------------
@@ -104,7 +98,7 @@ BEGIN
 
 		IF @@ROWCOUNT = 0 BREAK
 
-		SELECT @strTranIDs = STRING_AGG(CONVERT(NVARCHAR(MAX), transid), ',')
+		SELECT @strTranIDs = STRING_AGG(transid, ',')
 		FROM @TransIDs;
 
 		EXEC dbo.NAP_Admin_Calculate_Main 
@@ -126,18 +120,17 @@ BEGIN
 	-------------------------------------------------------------
 	---						END Settlement				      ---
 	-------------------------------------------------------------
-	
+	------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		 @IsExistOutright	= 1
+		,@IsReleased		= 1
+
 	--add log to outright_log to notify for Apollo
 	EXEC dbo.[Acc_Set_ConfirmedActionOutright] 
 		 @matchid = @matchid
 		,@actionid = 31
 		,@status = @status
 		,@deadheat = @deadheat
-
-	------ releasing Settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-		 @IsExistOutright	= 1
-		,@IsReleased		= 1
 
 	-- WRITE LOG	
 	IF @IsCentral = 1

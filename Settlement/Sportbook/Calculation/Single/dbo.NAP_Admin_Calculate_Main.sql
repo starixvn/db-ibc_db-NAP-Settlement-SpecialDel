@@ -76,10 +76,10 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@oddstype						SMALLINT	= NULL
 	,@ismarked						BIT			= NULL
 	,@modds							MONEY		= NULL
-	,@ErrMessage					VARCHAR(300) = '' OUTPUT
 	,@EventDate						DATETIME	 = NULL
 	,@Deadheat						FLOAT		 = 1 
 	,@Status						VARCHAR(10)	 = NULL 
+	,@ErrMessage					VARCHAR(300) = '' OUTPUT
 	,@ErrCode						INT			 = 0  OUTPUT
 AS
 /*
