@@ -372,13 +372,13 @@ BEGIN
             IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
             BEGIN
                 INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, 's'
+                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid = 29 THEN 'p' ELSE 's' END
             END
 
 			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
             BEGIN
                 INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
+                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid = 29 THEN 'p' ELSE 's' END, 1
             END
 
 
