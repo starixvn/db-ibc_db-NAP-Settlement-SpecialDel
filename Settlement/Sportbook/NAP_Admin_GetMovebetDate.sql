@@ -14,6 +14,7 @@ AS
         - 20210323@Patrick: Initial [Redmine: #149927]
         - 20210816@Sophia: add DBBAL [Redmine: #154300]
 		- 20220719@Louisa: Get MovebetDate for Outright [Redmine:#175251]
+        - 20230213@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 */
 BEGIN
     SET NOCOUNT ON
@@ -21,18 +22,4 @@ BEGIN
     FROM dbo.SystemSettings
     WHERE VName = 'MovebetDate'
 
-    IF @MovebetDate IS NULL
-    BEGIN
-		IF @EventTable  = 'match'
-		BEGIN
-			SELECT @MovebetDate = MAX(eventdate) 
-			FROM dbo.match14 WITH(NOLOCK)
-		END
-
-		ELSE IF @EventTable = 'outright'
-		BEGIN
-			SELECT @MovebetDate = MAX(eventdate) 
-			FROM dbo.outright14 WITH(NOLOCK)
-		END
-    END
 END

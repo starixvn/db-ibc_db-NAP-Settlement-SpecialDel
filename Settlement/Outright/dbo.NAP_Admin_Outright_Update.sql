@@ -36,7 +36,7 @@ BEGIN
 	
 	SET @ActionID = CASE WHEN @Action = 'CAL' AND @Status IN ('WON','LOSE') THEN 136
 						 WHEN @Action = 'CAL' AND @Status IN ('REFUND') THEN 138
-						 WHEN @Action = 'UNDO'	THEN 145
+						 WHEN @Action = 'UNDO'	THEN 140 
 					 END
 
 	SET @EventDate =  CONVERT(DATE, ISNULL(@EventDate,GETDATE()))

@@ -34,7 +34,7 @@ BEGIN
 	SET NOCOUNT ON 
 	
 
-	DECLARE  @Remark 			VARCHAR(500)
+	DECLARE  @Remark 			VARCHAR(500) = ''
 			,@ActionID 			INT
 			,@LeagueID			INT
 			,@IsCentral			BIT = 0
@@ -137,6 +137,11 @@ BEGIN
 	BEGIN
 		BEGIN TRY
 			SET @Remark = CAST(@deadheat AS VARCHAR(5))
+
+			IF @ErrCode > 0
+			BEGIN
+				SET @Remark = @Remark + ',ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + ' ErrMsg=' + @ErrMsg;
+			END
 
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
 				 @UserID = @AdminID
