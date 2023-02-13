@@ -13,12 +13,12 @@ DECLARE @ReturnCode INT
 SELECT @ReturnCode = 0
 
 EXEC @ReturnCode = msdb.dbo.sp_update_jobstep @job_name = 'bodb02: NAP Task delete settled match in queue',
-		@step_id=2, 
+		@step_id=3, 
 		@on_success_action=3
 IF (@@ERROR <> 0 OR @ReturnCode <> 0) GOTO QuitWithRollback
 
 EXEC @ReturnCode = msdb.dbo.sp_add_jobstep @job_name = 'bodb02: NAP Task delete settled match in queue', @step_name=N'[TicketVoiding_Delete]', 
-		@step_id=3, 
+		@step_id=4, 
 		@cmdexec_success_code=0, 
 		@on_success_action=1, 
 		@on_success_step_id=0, 
