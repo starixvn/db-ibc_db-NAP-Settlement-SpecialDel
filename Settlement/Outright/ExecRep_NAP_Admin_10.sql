@@ -89,6 +89,7 @@ BEGIN
 				,b.STATUS = 'running'
 				,b.statusID = @NewStatusID
 				,b.winlost = @NewWinLost
+				,b.statuswinlost = NULL
 				,b.awinlost = 0
 				,b.mwinlost = 0
 				,b.swinlost = 0
@@ -318,7 +319,7 @@ BEGIN
 					,statusID AS '@sid' 
 					,status   AS '@s' 
 					,winlostdate AS '@wld' 
-					,statuswinlost AS '@statuswl' 
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(3)) END AS '@statuswl' 
 					,ruben  AS '@r' 
 			FROM	@tmpTransInfo
 			FOR XML PATH('r'),ROOT('root'), TYPE

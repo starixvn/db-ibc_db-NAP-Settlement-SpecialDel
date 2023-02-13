@@ -136,7 +136,8 @@ BEGIN
 	IF @IsCentral = 1
 	BEGIN
 		BEGIN TRY
-			SET @Remark = 'ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + '; ErrMsg=' + @ErrMsg;
+			SET @Remark = CAST(@deadheat AS VARCHAR(5))
+
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
 				 @UserID = @AdminID
 				,@MatchID = @MatchID
