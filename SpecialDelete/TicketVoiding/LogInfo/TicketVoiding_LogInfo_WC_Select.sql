@@ -449,8 +449,6 @@ BEGIN
 			WHERE MatchId = @MatchId
 		END 
 	END			
-
-	
 		
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -566,55 +564,29 @@ BEGIN
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
-		IF @FilterBy = 2
-		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
-			FROM #TVSTicketBets t
-				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
-							UNION ALL
-							SELECT rp.TransId, rp.MainTransId, rp.RequestId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-							WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
-					)tmp
-				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-		END
-		ELSE
-		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, ScoreId, MatchId)
-			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.ScoreId, @MatchId
-			FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
-				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							WHERE rs.RequestId = r.RequestId AND rs.MatchId = @MatchId
-							UNION ALL
-							SELECT rp.TransId, rp.MainTransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-							WHERE rp.RequestId = r.RequestId AND rp.MatchId = @MatchId
-					)tmp
-				INNER JOIN #TVSTicketBets t ON t.SubTransid = tmp.transid
-			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-		END
+		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, ScoreId)
+		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid, t.ScoreId
+		FROM #TVSTicketBets t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
+						UNION ALL
+						SELECT rp.TransId, rp.MainTransId, rp.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
+				)tmp
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
+		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+		IF @@ROWCOUNT <> 0
 		BEGIN
-			IF @FilterBy = 2
-			BEGIN
-				UPDATE v SET v.IsExistedInOtherRequest = 1
-				FROM @Validation v
-				WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
-			END
-			ELSE
-			BEGIN
-				UPDATE v SET v.IsExistedInOtherRequest = 1
-				FROM @Validation v
-				WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.ScoreId = v.ScoreId)
-			END
+			UPDATE v SET v.IsExistedInOtherRequest = 1
+			FROM @Validation v
+				INNER JOIN #TransidInRequest t ON t.MatchId = v.MatchId
+			WHERE 1 = CASE WHEN @FilterBy = 2 THEN 1
+						   WHEN @FilterBy <> 2 AND t.ScoreId = v.ScoreId THEN 1
+						   ELSE 0 END
 		END
 	END
 
@@ -680,7 +652,7 @@ BEGIN
 			FROM @Validation
 
 			-- 2. TransId in request table
-			SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 
 			-- 3.Loginfo table
@@ -853,7 +825,7 @@ BEGIN
 			-- 2. TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 			BEGIN
-				SELECT RequestId, NULL AS LiveScores, r.ScoreId, 
+				SELECT RequestId, r.ScoreId, 
 					STUFF((
 					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 					FROM #TransidInRequest
@@ -865,7 +837,7 @@ BEGIN
 			END
 			ELSE
 			BEGIN 
-				SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+				SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 				FROM #TransidInRequest
 			END
 			
@@ -1032,7 +1004,6 @@ BEGIN
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT RequestId
-				,NULL AS LiveScores
 				,r.ScoreId
 				,STUFF((
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
@@ -1045,7 +1016,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 		END
 
