@@ -88,7 +88,6 @@ BEGIN
 				refno	 BIGINT,
 				IsParlay  BIT DEFAULT(0),
 				SubTransId BIGINT,
-				SportType        TINYINT,
 				IsFinish	BIT
 				);
 	
@@ -146,22 +145,6 @@ BEGIN
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
 		WHERE bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
 	END
-
-	UPDATE d
-	SET  sporttype 	= m.sporttype
-	FROM #Tickets d
-		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid
-
-	-- delete Tickets is not Soccer, Basketball, Esport, Badminton and Tennis
-	DELETE t FROM #Tickets t WHERE NOT EXISTS (
-		SELECT TOP 1 1
-		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-		WHERE pt.ProductID = 1 -- Sportsbook
-			AND pt.bettype NOT IN (10) -- outright
-			AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
-			AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
-			AND t.SportType = pt.SportType
-	)
 
 	--check no data
 	IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)

@@ -122,7 +122,7 @@ BEGIN
 	AND b.statusID IN (0,1)
 	AND 1 = CASE WHEN @IssueTypeId IS NULL AND b.bettype <> 29 THEN 1 --Function special delete
 			        WHEN @IssueTypeId = 13 AND b.bettype NOT IN (9,29,10) THEN 1 --IssueType: Abnormal account 
-					WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 THEN 1 --Other IssueType 
+					WHEN @IssueTypeId IS NOT NULL AND @IssueTypeId <> 13 AND b.bettype NOT IN (38) THEN 1 --Other IssueType 
 					ELSE 0 END
 
 	-- get only parlay tickets from @input transid
