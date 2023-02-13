@@ -114,6 +114,7 @@ BEGIN
 	FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
+		AND b.bettype NOT IN (38)
 
 	-- get only parlay tickets from @input transid
 	INSERT INTO #ParlayTransIds (TransId)

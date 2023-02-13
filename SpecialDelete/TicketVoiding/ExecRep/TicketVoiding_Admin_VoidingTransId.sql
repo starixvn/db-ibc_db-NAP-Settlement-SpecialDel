@@ -438,15 +438,14 @@ BEGIN
                     ON  t.transid = b.transid
             WHERE b.statusID NOT IN (102)   
 
-            INSERT INTO @tmpMatchId (MatchId, Sporttype)
-			SELECT DISTINCT b.MatchId, m.sporttype
+            INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT b.MatchId
 			FROM @tmpTrans_beforeUpd b
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 
 			WHILE (1=1)
 			BEGIN
 				UPDATE TOP(1)m
-				SET IsFinish = 1, @matchid = MatchId, @Sporttype = m.Sporttype
+				SET IsFinish = 1, @matchid = MatchId
 				FROM @tmpMatchId m
 				WHERE IsFinish IS NULL
 
@@ -473,9 +472,10 @@ BEGIN
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 				WHERE tp.matchid = @matchid
 					AND 1 = CASE WHEN (b.bettype IN (10, 38)
-									OR @Sporttype BETWEEN 180 AND 186 
-									OR @Sporttype BETWEEN 190 AND 197
-									OR @Sporttype IN (175, 161, 199)
+									OR b.bettype BETWEEN 1201 AND 1299 
+									OR b.bettype BETWEEN 2700 AND 2799 
+									OR b.bettype BETWEEN 81 AND 120 
+									OR b.bettype BETWEEN 7901 AND 7999
 									)
 								THEN 0 ELSE 1 END
 				FOR JSON PATH))
@@ -501,9 +501,10 @@ BEGIN
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 				WHERE tp.matchid = @matchid
 					AND 1 = CASE WHEN (b.bettype IN (10, 38)
-									OR @Sporttype BETWEEN 180 AND 186 
-									OR @Sporttype BETWEEN 190 AND 197
-									OR @Sporttype IN (175, 161, 199)
+									OR b.bettype BETWEEN 1201 AND 1299 
+									OR b.bettype BETWEEN 2700 AND 2799 
+									OR b.bettype BETWEEN 81 AND 120 
+									OR b.bettype BETWEEN 7901 AND 7999
 									)
 								THEN 1 ELSE 0 END
 				FOR JSON PATH))
