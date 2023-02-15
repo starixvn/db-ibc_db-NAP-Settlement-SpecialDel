@@ -21,7 +21,7 @@ SELECT DISTINCT value
 FROM string_split (@CustIds, ',')
 
 --Sum stake on active range
-INSERT INTO @tmp_Bettrans (Custid, sum_stake, oddsid,) --oddsid = 1: soccer, 99: mix sport
+INSERT INTO @tmp_Bettrans (Custid, sum_stake, oddsid) --oddsid = 1: soccer, 99: mix sport
 SELECT b.custid, ISNULL(SUM(b.stake),0) AS sum_stake, b.oddsid 
 FROM bettrans b WITH (NOLOCK)	
 	INNER JOIN @tmpCustId t ON t.CustId = b.CustID
