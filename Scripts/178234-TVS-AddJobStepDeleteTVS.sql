@@ -1,9 +1,9 @@
-/*<info serverAlias="DBTXN-msdb" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBSIG-msdb" executers="bodbAdminNet" isFunction="0"></info>*/
 /*	
 	Created: 20221003@Max
     Task: [TVS] Enhance archive process of TVS data regarding the Scale Out DB project - [Redmine: #178234]
 
-	DB: DBSIG/msdb - DBCTG/msdb - Add one more step on the job bodb02: NAP Task delete settled match in queue, calling SP
+	DB: DBSIG/msdb Add one more step on the job bodb02: NAP Task delete settled match in queue, calling SP
 */
 USE [msdb]
 GO
