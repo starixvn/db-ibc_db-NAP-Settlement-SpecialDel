@@ -55,7 +55,7 @@ BEGIN
 	PRINT @StartRow
 	PRINT @StopRow
 
-	UPDATE TOP (5000) l SET l.AccumTurnover = 0, l.AccumPayout = 0				
+	UPDATE l SET l.AccumTurnover = 0, l.AccumPayout = 0				
 	FROM CustLimitBet_MBC l WITH (ROWLOCK, UPDLOCK)		
 		INNER JOIN @tmp_Bettrans b ON b.Custid = l.CustID AND b.oddsid = 99
 	WHERE EventTypeID = 4
@@ -86,7 +86,7 @@ BEGIN
 	PRINT @StartRow
 	PRINT @StopRow
 
-	UPDATE TOP (5000) l SET l.AccumTurnover = b.sum_stake, l.AccumPayout = PO_History.sum_payout	
+	UPDATE l SET l.AccumTurnover = b.sum_stake, l.AccumPayout = PO_History.sum_payout	
 	FROM CustLimitBet_MBC l WITH (ROWLOCK, UPDLOCK)		
 		INNER JOIN @tmp_Bettrans b ON b.Custid = l.CustID AND b.oddsid = 99
 		CROSS APPLY (
@@ -127,7 +127,7 @@ BEGIN
 	PRINT @StartRow
 	PRINT @StopRow
 
-	UPDATE TOP (5000) l SET l.AccumTurnover = 0, l.AccumPayout = 0				
+	UPDATE l SET l.AccumTurnover = 0, l.AccumPayout = 0				
 	FROM CustLimitBet_789 l WITH (ROWLOCK, UPDLOCK)		
 		INNER JOIN @tmp_Bettrans b ON b.Custid = l.CustID AND b.oddsid = 99
 	WHERE EventTypeID = 4
@@ -159,7 +159,7 @@ BEGIN
 	PRINT @StartRow
 	PRINT @StopRow
 
-	UPDATE TOP (5000) l SET l.AccumTurnover = b.sum_stake, l.AccumPayout = PO_History.sum_payout	
+	UPDATE l SET l.AccumTurnover = b.sum_stake, l.AccumPayout = PO_History.sum_payout	
 	FROM CustLimitBet_789 l WITH (ROWLOCK, UPDLOCK)		
 		INNER JOIN @tmp_Bettrans b ON b.Custid = l.CustID AND b.oddsid = 99
 		CROSS APPLY (
