@@ -507,6 +507,7 @@ BEGIN
 									OR b.bettype BETWEEN 1201 AND 1299 
 									OR b.bettype BETWEEN 2700 AND 2799 
 									OR b.bettype BETWEEN 81 AND 120 
+									OR b.bettype BETWEEN 8101 AND 8105
 									OR b.bettype BETWEEN 7901 AND 7999
 									OR b.bettype BETWEEN 17000 AND 17005
 									)
@@ -544,6 +545,7 @@ BEGIN
 									OR b.bettype BETWEEN 1201 AND 1299 --Virtual Sports
 									OR b.bettype BETWEEN 2700 AND 2799 --Virtual Sports 2 (Betradar)
 									OR b.bettype BETWEEN 81 AND 120 --Number Game
+									OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
 									)
 								THEN 1 ELSE 0 END
 				FOR JSON PATH))			
