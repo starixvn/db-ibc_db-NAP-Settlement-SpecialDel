@@ -58,7 +58,8 @@ FROM CustLimitBet_MBC l WITH (ROWLOCK, UPDLOCK)
 		) AS PO_History
 WHERE EventTypeID = 3 
 	AND matchid = 29 
-	AND b.sum_stake <> 0	
+	AND b.sum_stake <> 0
+	AND b.sum_stake <> l.AccumTurnover
 
 --Mix sport; turnover = 0
 UPDATE l SET l.AccumTurnover = 0, l.AccumPayout = 0				
@@ -83,6 +84,7 @@ FROM CustLimitBet_MBC l WITH (ROWLOCK, UPDLOCK)
 WHERE EventTypeID = 4
 	AND matchid = 29 
 	AND b.sum_stake <> 0
+	AND b.sum_stake <> l.AccumTurnover
 									
 --789y
 --Soccer; turnover = 0
@@ -107,7 +109,8 @@ FROM CustLimitBet_789 l WITH (ROWLOCK, UPDLOCK)
 		) AS PO_History
 WHERE EventTypeID = 3 
 	AND matchid = 29 
-	AND b.sum_stake <> 0	
+	AND b.sum_stake <> 0
+	AND b.sum_stake <> l.AccumTurnover
 
 --Mix sport; turnover = 0
 UPDATE l SET l.AccumTurnover = 0, l.AccumPayout = 0				
@@ -132,6 +135,7 @@ FROM CustLimitBet_789 l WITH (ROWLOCK, UPDLOCK)
 WHERE EventTypeID = 4
 	AND matchid = 29 
 	AND b.sum_stake <> 0
+	AND b.sum_stake <> l.AccumTurnover
 							
 --LIC
 --Soccer; turnover = 0
@@ -156,7 +160,8 @@ FROM CustLimitBet_LIC l WITH (ROWLOCK, UPDLOCK)
 		) AS PO_History
 WHERE EventTypeID = 3 
 	AND matchid = 29 
-	AND b.sum_stake <> 0	
+	AND b.sum_stake <> 0
+	AND b.sum_stake <> l.AccumTurnover
 
 --Mix sport; turnover = 0
 UPDATE l SET l.AccumTurnover = 0, l.AccumPayout = 0				
@@ -180,4 +185,5 @@ FROM CustLimitBet_LIC l WITH (ROWLOCK, UPDLOCK)
 		) AS PO_History
 WHERE EventTypeID = 4
 	AND matchid = 29 
-	AND b.sum_stake <> 0						
+	AND b.sum_stake <> 0
+	AND b.sum_stake <> l.AccumTurnover
