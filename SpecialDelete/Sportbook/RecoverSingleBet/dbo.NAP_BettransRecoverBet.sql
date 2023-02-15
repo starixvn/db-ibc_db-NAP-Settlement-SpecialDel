@@ -944,24 +944,43 @@ BEGIN
 			WHERE matchid = @MatchId AND bettype NOT IN (10, 38)
 			FOR JSON PATH))
 
+			IF @TransInfo IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo, 's'
+			END
+
+			--For match table; EventTable = 1
 			SET @TransInfo3rd= COMPRESS((
 			SELECT	matchid AS 'mid'
 					, transId AS 't'
 					, transdate AS 'td'
 					, comstatus AS 'cst'
 			FROM	@tmpTransInfo 
-			WHERE matchid = @MatchId AND bettype IN (10, 38)
+			WHERE matchid = @MatchId AND bettype IN (38)
 			FOR JSON PATH))
-
-			IF @TransInfo IS NOT NULL
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo, 's'
-			END
+			
 			IF @TransInfo3rd IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', 1
+				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo3rd, 's', 1
+			END
+
+			SET @TransInfo3rd = NULL
+			--For ouright table; EventTable = 2
+			SET @TransInfo3rd= COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, transdate AS 'td'
+					, comstatus AS 'cst'
+			FROM	@tmpTransInfo 
+			WHERE matchid = @MatchId AND bettype IN (10)
+			FOR JSON PATH))
+			
+			IF @TransInfo3rd IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'RecoverSingleBet', 'zzzbettrans', 'D', @matchid, @TransInfo3rd, 's', 2
 			END
 		END
 

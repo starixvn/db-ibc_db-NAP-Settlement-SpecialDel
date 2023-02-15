@@ -314,7 +314,8 @@ BEGIN
 		EXEC dbo.Bet_ExecRep_05 
 			  @IgnoreList 	= @IgnoreList
 			, @updatetype 	= 6
-			, @_sXML 		= @_sXML															
+			, @_sXML 		= @_sXML
+			, @matchId		= 2799
 			
 		--> get match list
 		INSERT INTO #MatchInfo(matchid, matchdate)

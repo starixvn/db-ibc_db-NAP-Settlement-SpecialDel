@@ -346,6 +346,13 @@ BEGIN
 			WHERE b.bettype NOT IN (10, 38)
             FOR JSON PATH))
 
+			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
+            BEGIN
+                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END
+            END
+
+			--For match table; EventTable = 1
 			SET @transInfo3rd = COMPRESS((
             SELECT  t.transId AS 't'
                     , b.winlost AS 'w'
@@ -366,19 +373,44 @@ BEGIN
             FROM    @tmpTrans t 
                 INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			WHERE b.bettype IN (10, 38)
+			WHERE b.bettype IN (38)
             FOR JSON PATH))
-
-            IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
-            BEGIN
-                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid = 29 THEN 'p' ELSE 's' END
-            END
 
 			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
             BEGIN
                 INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid = 29 THEN 'p' ELSE 's' END, 1
+                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 1
+            END
+
+			--For outright table; EventTable = 2
+			SEt @transInfo3rd = NULL
+			SET @transInfo3rd = COMPRESS((
+            SELECT  t.transId AS 't'
+                    , b.winlost AS 'w'
+                    , b.ruben AS 'r'
+                    , b.creator AS 'cr'
+                    , b.awinlost AS 'aw'
+                    , b.mwinlost AS 'mw'
+                    , b.swinlost AS 'sw'
+                    , b.playercomm AS 'pc'
+                    , b.comm AS 'c'
+                    , b.acomm AS 'ac'
+                    , b.scomm AS 'sc'
+                    , b.statusID AS 'sid'
+                    , b.status AS 's'
+                    , b.betid AS 'bid'
+                    , b.ExtraInfo AS 'ex'
+                    , b.FcUpdateTime AS 'rut'
+            FROM    @tmpTrans t 
+                INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+                INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+			WHERE b.bettype IN (10)
+            FOR JSON PATH))
+
+			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
+            BEGIN
+                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 2
             END
 
 
@@ -476,10 +508,18 @@ BEGIN
 									OR b.bettype BETWEEN 2700 AND 2799 
 									OR b.bettype BETWEEN 81 AND 120 
 									OR b.bettype BETWEEN 7901 AND 7999
+									OR b.bettype BETWEEN 17000 AND 17005
 									)
 								THEN 0 ELSE 1 END
 				FOR JSON PATH))
 
+				IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END
+				END
+
+				--For match table; EventTable = 1
 				SET @transInfo3rd = COMPRESS((
 				SELECT  t.transId AS 't'
 						, b.winlost AS 'w'
@@ -500,25 +540,111 @@ BEGIN
 					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 				WHERE tp.matchid = @matchid
-					AND 1 = CASE WHEN (b.bettype IN (10, 38)
-									OR b.bettype BETWEEN 1201 AND 1299 
-									OR b.bettype BETWEEN 2700 AND 2799 
-									OR b.bettype BETWEEN 81 AND 120 
-									OR b.bettype BETWEEN 7901 AND 7999
+					AND 1 = CASE WHEN (b.bettype IN (38) --betbuilder
+									OR b.bettype BETWEEN 1201 AND 1299 --Virtual Sports
+									OR b.bettype BETWEEN 2700 AND 2799 --Virtual Sports 2 (Betradar)
+									OR b.bettype BETWEEN 81 AND 120 --Number Game
 									)
 								THEN 1 ELSE 0 END
-				FOR JSON PATH))
-
-				IF @IsSiteDB = 1 AND @transInfo IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
-				BEGIN
-					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, 's'
-				END
+				FOR JSON PATH))			
 
 				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 1
+				END
+
+				SET @transInfo3rd = NULL
+				--For outright table; EventTable = 2
+				SET @transInfo3rd = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.FcUpdateTime AS 'rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE tp.matchid = @matchid
+					AND b.bettype IN (10) --outright
+				FOR JSON PATH))			
+
+				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 2
+				END
+
+				SET @transInfo3rd = NULL
+				--For match3rd table; EventTable = 3
+				SET @transInfo3rd = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.FcUpdateTime AS 'rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE tp.matchid = @matchid
+					AND b.bettype BETWEEN 7901 AND 7999 --Bitcoin
+				FOR JSON PATH))			
+
+				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 3
+				END
+
+				SET @transInfo3rd = NULL
+				--For others; EventTable = 0
+				SET @transInfo3rd = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.FcUpdateTime AS 'rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE tp.matchid = @matchid
+					AND b.bettype BETWEEN 17000 AND 17005 --Saba promotion
+				FOR JSON PATH))			
+
+				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL AND @IssueTypeId <> -1 --Case void UUS ticket by move bet process
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 0
 				END
 			END
 

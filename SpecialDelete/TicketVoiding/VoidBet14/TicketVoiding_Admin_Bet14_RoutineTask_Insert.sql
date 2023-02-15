@@ -104,7 +104,7 @@ BEGIN
 		FROM	@tmpTransInfo b
 		FOR JSON PATH))
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson)
 		SELECT 'TVS', 'Void_14', 'TicketVoiding_RoutineTasks', 'I', 0, @transInfo
 	END
 	

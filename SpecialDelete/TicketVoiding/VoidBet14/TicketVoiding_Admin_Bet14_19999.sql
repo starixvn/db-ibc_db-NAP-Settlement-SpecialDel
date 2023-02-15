@@ -131,7 +131,7 @@ BEGIN
 
 		IF @transInfo IS NOT NULL
 		BEGIN
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson)
 			SELECT 'TVS', 'Void_14', 'Transfer', 'U', 0, @transInfo
 		END
 
@@ -204,7 +204,7 @@ BEGIN
 		
 		IF @transInfo IS NOT NULL
 		BEGIN
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson)
 			SELECT 'TVS', 'Void_14', 'Transfer', 'I', 0, @transInfo
 		END
 	END

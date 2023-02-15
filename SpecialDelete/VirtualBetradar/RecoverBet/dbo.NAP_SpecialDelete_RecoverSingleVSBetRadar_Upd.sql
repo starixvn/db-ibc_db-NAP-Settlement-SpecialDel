@@ -528,21 +528,39 @@ BEGIN
 		GROUP BY CustID
 		
 		IF @IsExistVSBetradar = 1
-		BEGIN				
-			--> Update Bettrans	to running
-			SET @_xml = (
-				SELECT transid '@q' -- transid			 
-					 , creator '@cr' -- creator
-				FROM #RecoverBet	
-				WHERE TicketType = 1		 					 
-				FOR XML PATH('r'), ROOT('root'), TYPE
-			) 
-			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+		BEGIN	
+			DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT b.MatchId
+			FROM #RecoverBet b
+			
+			WHILE (1=1)
+			BEGIN
+				SET @_sXML = NULL
+
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId
+				FROM @tmpMatchId m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				--> Update Bettrans	to running
+				SET @_xml = (
+					SELECT transid '@q' -- transid			 
+						 , creator '@cr' -- creator
+					FROM #RecoverBet	
+					WHERE TicketType = 1	AND matchid = @matchId	 					 
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
 		
-			EXEC dbo.Bet_ExecRep_05 
-				  @IgnoreList 	= @IgnoreList
-				, @updatetype 	= 6
-				, @_sXML 		= @_sXML						
+				EXEC dbo.Bet_ExecRep_05 
+					  @IgnoreList 	= @IgnoreList
+					, @updatetype 	= 6
+					, @_sXML 		= @_sXML
+					, @matchId = @matchId
+			END									
 													
 			--> Re-cal	
 			SET @_xml = (

@@ -226,7 +226,7 @@ BEGIN
 				b.transdate,
 				m.eventdate,
 				m.EndTime,
-				0 AS IsMatch3rd
+				1 AS IsMatch3rd
 		FROM #TempBettrans b
 			INNER JOIN dbo.Match3rd m WITH(NOLOCK) ON m.Match3rdId = b.matchid
 		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype)
@@ -252,7 +252,7 @@ BEGIN
 				b.transdate,
 				m.eventdate,
 				NULL AS EndTime,
-				1 AS IsMatch3rd
+				0 AS IsMatch3rd
 		FROM #TempBettrans b
 			INNER JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		WHERE EXISTS (SELECT 1 FROM #SupportedSports s WHERE s.SportType = m.sporttype);
@@ -470,8 +470,8 @@ BEGIN
 
 	--Delete recovers tickets
 	DELETE z 
-		OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
-	    INTO @tmpTransInfo (matchid, transid , transdate, comstatus)
+		OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus, r.IsMatch3rd
+	    INTO @tmpTransInfo (matchid, transid , transdate, comstatus, IsMatch3rd)
 	FROM zzzbettrans z WITH(UPDLOCK, ROWLOCK)
 		INNER JOIN #RecoverBet r ON z.custid = r.custid AND z.matchid = r.matchid AND z.bettype = r.bettype AND z.transid = r.transid
 	WHERE z.SiteDBGroupID = @SiteDBGroupID 
