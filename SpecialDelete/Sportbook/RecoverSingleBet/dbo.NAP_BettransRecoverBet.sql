@@ -516,7 +516,13 @@ BEGIN
 			WHERE matchid = @MatchId AND bettype NOT IN (10, 38)
 			FOR JSON PATH))
 
-			--Betbuilder, Outright
+			IF @TransInfo IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo, 's'
+			END
+
+			--Betbuilder
 			SET @TransInfo3rd = COMPRESS((
 			SELECT	matchid AS 'mid'
 					, transId AS 't'
@@ -532,18 +538,39 @@ BEGIN
 					, ExtraInfo AS 'ex'
 					, FcUpdateTime AS 'rut'
 			FROM	@tmpTransInfo 
-			WHERE matchid = @MatchId AND bettype IN (10, 38)
+			WHERE matchid = @MatchId AND bettype IN (38)
 			FOR JSON PATH))
-
-			IF @TransInfo IS NOT NULL
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo, 's'
-			END
+		
 			IF @TransInfo3rd IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo3rd, 's', 1
+			END
+
+			SET @TransInfo3rd = NULL
+			--Outright
+			SET @TransInfo3rd = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, STATUS AS 's'
+					, winlost AS 'w'
+					, ruben AS 'r'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					, statusID AS 'sid'
+					, creator AS 'cr'
+					, actual_stake AS 'astake'
+					, odds AS 'o'
+					, transdesc AS 'tdesc'
+					, ExtraInfo AS 'ex'
+					, FcUpdateTime AS 'rut'
+			FROM	@tmpTransInfo 
+			WHERE matchid = @MatchId AND bettype IN (10)
+			FOR JSON PATH))
+		
+			IF @TransInfo3rd IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans', 'U', @matchid, @TransInfo3rd, 's', 2
 			END
 		END
 
