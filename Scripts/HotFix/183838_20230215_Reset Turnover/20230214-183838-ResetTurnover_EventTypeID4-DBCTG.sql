@@ -31,17 +31,17 @@ WHERE matchid IN (9,29)
 	AND b.oddsid = 99 -- mix sports parlay
 GROUP BY b.custid, b.oddsid
 
-SET @MaxRow = (SELECT MAX(ID) FROM @tmp_Bettrans)
-SET @Threshold = 1000
-
-IF @Threshold >= @MaxRow
-	SET @Threshold = @MaxRow
-
 --Insert data for custid who doesn't have ticket on active range (stake = 0)
 INSERT INTO @tmp_Bettrans (Custid, sum_stake, oddsid) 
 SELECT t.CustId, 0 sum_stake, 99 oddsid -- Mix Sports Parlay
 FROM @tmpCustId t 
 WHERE NOT EXISTS (SELECT 1 FROM @tmp_Bettrans b WHERE t.CustId = b.Custid)
+
+SET @MaxRow = (SELECT MAX(ID) FROM @tmp_Bettrans)
+SET @Threshold = 1000
+
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
 
 --MBC
 --Mix sport; turnover = 0
