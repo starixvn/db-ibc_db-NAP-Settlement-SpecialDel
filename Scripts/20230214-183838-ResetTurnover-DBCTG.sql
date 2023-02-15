@@ -12,9 +12,10 @@ DECLARE @tmpCustId AS TABLE (CustId INT)
 DECLARE @tmp_Bettrans AS TABLE(Custid INT, sum_stake MONEY, oddsid INT)
 
 INSERT INTO @tmpCustId (CustId)
-SELECT value 
+SELECT DISTINCT value 
 FROM string_split (@CustIds, ',')
 
+--Sum stake on active range
 INSERT INTO @tmp_Bettrans (Custid, sum_stake, oddsid) --oddsid = 1: soccer, 99: mix sport
 SELECT b.custid, ISNULL(SUM(b.stake),0) AS sum_stake, b.oddsid 
 FROM bettrans b WITH (NOLOCK)	
@@ -23,6 +24,16 @@ WHERE matchid IN (9,29)
 	AND bettype IN (9,29) 
 	AND ruben = 0
 GROUP BY b.custid, b.oddsid
+
+--Insert data for custid who doesn't have ticket on active range (stake = 0)
+INSERT INTO @tmp_Bettrans (Custid, sum_stake, oddsid) 
+SELECT t.CustId, 0 sum_stake, 1 oddsid --Soccer Parlay
+FROM @tmpCustId t 
+WHERE NOT EXISTS (SELECT 1 FROM @tmp_Bettrans b WHERE t.CustId = b.Custid)
+UNION ALL
+SELECT t.CustId, 0 sum_stake, 99 oddsid -- Mix Sports Parlay
+FROM @tmpCustId t 
+WHERE NOT EXISTS (SELECT 1 FROM @tmp_Bettrans b WHERE t.CustId = b.Custid)
 
 --MBC
 --Soccer; turnover = 0
