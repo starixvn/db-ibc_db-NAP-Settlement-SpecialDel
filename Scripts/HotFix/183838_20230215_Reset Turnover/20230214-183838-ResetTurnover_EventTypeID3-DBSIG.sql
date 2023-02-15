@@ -47,6 +47,7 @@ IF @Threshold >= @MaxRow
 --Soccer; turnover = 0
 -- SET for first batch
 SELECT @StartRow = 1, @StopRow = @Threshold
+SET @MaxRow = (SELECT MAX(ID) FROM @tmp_Bettrans WHERE sum_stake = 0)
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
@@ -79,6 +80,7 @@ END
 --Soccer; turnover <> 0
 -- SET for first batch
 SELECT @StartRow = 1, @StopRow = @Threshold
+SET @MaxRow = (SELECT MAX(ID) FROM @tmp_Bettrans WHERE sum_stake <> 0)
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
@@ -86,7 +88,7 @@ BEGIN
 	PRINT @StartRow
 	PRINT @StopRow
 
-	UPDATE l SET l.AccumTurnover = b.sum_stake, l.AccumPayout = PO_History.sum_payout	
+	UPDATE l SET l.AccumTurnover = b.sum_stake, l.AccumPayout = ISNULL(PO_History.sum_payout,0)
 	FROM CustLimitBet_LIC l WITH (ROWLOCK, UPDLOCK)		
 		INNER JOIN @tmp_Bettrans b ON b.Custid = l.CustID AND b.oddsid = 1
 		CROSS APPLY (

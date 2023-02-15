@@ -47,6 +47,7 @@ IF @Threshold >= @MaxRow
 --Mix sport; turnover = 0
 -- SET for first batch
 SELECT @StartRow = 1, @StopRow = @Threshold
+SET @MaxRow = (SELECT MAX(ID) FROM @tmp_Bettrans WHERE sum_stake = 0)
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
@@ -79,6 +80,7 @@ END
 --Mix sport; turnover <> 0
 -- SET for first batch
 SELECT @StartRow = 1, @StopRow = @Threshold
+SET @MaxRow = (SELECT MAX(ID) FROM @tmp_Bettrans WHERE sum_stake <> 0)
 
 WHILE (@MaxRow IS NOT NULL)
 BEGIN
