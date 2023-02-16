@@ -58,7 +58,7 @@ BEGIN
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_789 cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -67,7 +67,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_MBC cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -76,7 +76,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_LIC cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -89,7 +89,7 @@ BEGIN
 	FROM
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
 			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
 			AND NOT EXISTS(SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
@@ -109,7 +109,7 @@ BEGIN
 	FROM
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
 			INNER JOIN #RunningMatch m ON b.matchid = m.matchid
 		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
 			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
@@ -153,7 +153,7 @@ BEGIN
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
 		WHERE B.bettype = 10
 			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
 			AND b.transdate BETWEEN @StartTime AND @EndTime
@@ -172,7 +172,7 @@ BEGIN
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
 		WHERE B.bettype = 10
 			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
