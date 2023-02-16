@@ -217,7 +217,7 @@ BEGIN
 					AND q.CreatedDate BETWEEN @StartTime AND @EndTime
 				GROUP BY q.ActionID, q.CustID, q.Matchid, q.Transids, q.EventTypeID
 				HAVING count(1) > 1
-				ORDER BY q.Matchid)
+				)
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'Duplicate data in Queue table. ' + CHAR(13) + CHAR(10)
 	END
