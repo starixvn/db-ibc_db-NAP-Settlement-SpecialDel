@@ -47,6 +47,7 @@ BEGIN
 			custid                INT,
 			transdate             DATETIME,
 			bettype               SMALLINT,
+			Subbettype            SMALLINT,
 			livehomescore         SMALLINT,
 			liveawayscore         SMALLINT,
 			IsMixParlay           BIT DEFAULT(0),
@@ -223,6 +224,7 @@ BEGIN
 			,matchid
 			,StatusId
 			,SubStatusId
+			,Subbettype
 			,SiteDBGroupID
 		)
 	SELECT   b.transid
@@ -237,6 +239,7 @@ BEGIN
 			,@MatchId
 			,b.statusID
 			,b.SubstatusID
+			,b.Subbettype
 			,b.SiteDBGroupID
 	FROM #tmpTransInfo b
 	WHERE	b.matchid = @MatchId AND b.IsMixParlay = 0
@@ -264,6 +267,7 @@ BEGIN
 				,matchid
 				,StatusId
 				,SubStatusId
+				,Subbettype
 				,SiteDBGroupID
 			)
 		SELECT   b.transid
@@ -279,6 +283,7 @@ BEGIN
 				,@MatchId
 				,b.statusID
 				,b.SubstatusID
+				,b.Subbettype
 				,SiteDBGroupID
 		FROM #tmpTransInfo b	
 		WHERE	b.matchid = @matchid AND b.IsMixParlay = 1 
@@ -364,6 +369,7 @@ BEGIN
 		SELECT tp.SubTransid
 		FROM #TVSTicketBets tp
 		WHERE tp.SubStatusId IN (0,1)
+			AND tp.Subbettype NOT IN (38) --Exclude Betbuilder
 	END
 	ELSE IF @IsShowLogOnly = 0 AND @RequestId <> 0 
 	BEGIN
@@ -391,6 +397,7 @@ BEGIN
 			SELECT tp.SubTransid
 			FROM #TVSTicketBets tp
 			WHERE tp.SubStatusId IN (0,1)
+				AND tp.Subbettype NOT IN (38) --Exclude Betbuilder
 		END
 		ELSE IF @ActionId <> 2 AND @OldActionId = 2
 		BEGIN
@@ -399,6 +406,7 @@ BEGIN
 			SELECT tp.SubTransid
 			FROM #TVSTicketBets tp
 			WHERE tp.SubStatusId IN (0,1)
+				AND tp.Subbettype NOT IN (38) --Exclude Betbuilder
 		END
 		ELSE IF @ActionId = 2 AND @ActionId <> @OldActionId -- Take note
 		BEGIN

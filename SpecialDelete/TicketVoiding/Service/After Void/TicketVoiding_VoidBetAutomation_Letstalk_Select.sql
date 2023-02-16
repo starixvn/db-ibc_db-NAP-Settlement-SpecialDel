@@ -63,13 +63,18 @@ BEGIN
 				)t2
 	WHERE t1.VoidingHistoryId = t2.VoidingHistoryId
 
-	SELECT @cnt_RequestId = COUNT(RequestId)
+	SELECT @cnt_RequestId = COUNT(DISTINCT RequestId)
 	FROM  TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
 	WHERE BroadcastSessionId = @BroadcastSessionId
 	
 	IF @cnt_RequestId = 1 --1 BroadcastSessionId, 1 RequestId, many VoidingHistoryId
 	BEGIN
-		SELECT  RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid
+		SELECT  RequestID
+			  , VoidingHistoryId
+			  , MatchID
+			  , BroadcastSessionId
+			  , SiteDBGroupID
+			  , IsAutoVoid
 		FROM @tmpResultLetstalk t
 			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
 							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
@@ -80,7 +85,12 @@ BEGIN
 	END
 	ELSE --Case auto void winning: 1 BroadcastSessionId, many RequestIds, many VoidingHistoryIds => Get 1 min_RequestID 
 	BEGIN
-		SELECT  RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid
+		SELECT  RequestID
+			  , VoidingHistoryId
+			  , MatchID
+			  , BroadcastSessionId
+			  , SiteDBGroupID
+			  , IsAutoVoid
 		FROM @tmpResultLetstalk t
 			CROSS APPLY ( SELECT COUNT(vh.BroadcastSessionId) as cnt
 							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)

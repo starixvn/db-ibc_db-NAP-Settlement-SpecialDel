@@ -16,8 +16,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select]
 )
 AS
 /*	
-	Created by: Max
-	Date 20220727
+	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
@@ -30,16 +29,11 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	DECLARE @IsCentral BIT
-	EXEC dbo.NAP_Set_ServerInfo
-		@IsCentral = @IsCentral OUTPUT
-
 	/*---DangerAccept---*/
 	IF @IssueTypeId = 1
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_DA_Select
 			@DangerAcceptedInfo = @DangerAcceptedInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -48,7 +42,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_WC_Select
 			@WrongScoreInfo = @WrongScoreInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -57,7 +50,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_HDP_Select
 			@WrongHDPInfo = @WrongHDPInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -66,7 +58,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_1sHDP_Select
 			@Wrong1stHDPInfo = @Wrong1stHDPInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -75,7 +66,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_OU_Select
 			@WrongOUInfo = @WrongOUInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -84,7 +74,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_1sOU_Select
 			@Wrong1stOUInfo = @Wrong1stOUInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 	 
@@ -93,7 +82,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_KO_Select
 			@KickOffInfo = @KickOffInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -102,7 +90,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_RC_Select
 			@RedCardInfo = @RedCardInfo
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -111,7 +98,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_AB_Select
 			@AbnormalBetTransIds = @AbnormalBetTransIds
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -120,7 +106,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_ACC_Select
 			@AbnormalAccounts = @AbnormalAccounts
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 
@@ -129,7 +114,6 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_ARC_Select
 			@ArchivedTransIds = @ArchivedTransIds
-			,@IsCentral = @IsCentral
 	END
 	/*-----------------*/
 

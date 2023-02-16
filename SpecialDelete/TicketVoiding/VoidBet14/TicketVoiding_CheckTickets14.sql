@@ -6,8 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 )
 AS
 /*  
-	Created by: July
-	Date: 20211123
+	Created by: 20211123@July
 	Task: TVS - Void Archived Tickets
 	DB: DBCTG/bodb02   
 
@@ -51,7 +50,6 @@ BEGIN
 		,bettype		SMALLINT
 		,matchid		INT
 		,betfrom		NVARCHAR(3)
-		,refno			BIGINT
 		,winlostdate	DATETIME
 		,betdaqid		BIGINT
 	)
@@ -59,7 +57,6 @@ BEGIN
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
-      ,refno BIGINT
       ,custid	INT	
 	  ,bettype SMALLINT
       ,betid BIGINT
@@ -74,7 +71,6 @@ BEGIN
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
-		  ,refno
 		  ,custid
 		  ,bettype
 		  ,betid
@@ -85,13 +81,13 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
+	SELECT mid, t, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
-				SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
+				SELECT mid, t, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
-					WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
+					WITH( mid INT, t BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
 						, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT)
 		) tbl
 	WHERE f.value <> ''
@@ -119,7 +115,6 @@ BEGIN
 		,bettype
 		,matchid
 		,betfrom
-		,refno
 		,winlostdate
 		,betdaqid
 		)
@@ -128,7 +123,6 @@ BEGIN
 		,bettype
 		,matchid
 		,betfrom
-		,refno
 		,winlostdate
 		,betdaqid
 	FROM #tmpTransInfo b14

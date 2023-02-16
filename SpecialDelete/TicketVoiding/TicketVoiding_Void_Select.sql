@@ -239,7 +239,7 @@ BEGIN
 		, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
 		, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
 		, acstake, wld, m, isP, sitedb
-	FROM string_split(@TransInfoJson, ',') f
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid, t, s_t, ref, c, hdp1, hdp2, lh, la, li, o, oid, os

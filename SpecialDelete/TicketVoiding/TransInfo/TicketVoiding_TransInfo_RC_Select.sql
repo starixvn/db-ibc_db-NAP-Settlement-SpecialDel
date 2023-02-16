@@ -2,12 +2,10 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_RC_Select] 
 (
 	@RedCardInfo  VARCHAR(MAX) = NULL
-	,@IsCentral BIT = 0
 )
 AS
 /*	
-	Created by: Max
-	Date 20220727
+	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
@@ -23,9 +21,9 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	DECLARE @RedCardXML XML
-		,@TransInfoJson VARBINARY(MAX)
-		,@SiteDBGroupID TINYINT
+	DECLARE @RedCardXML		XML
+		   ,@TransInfoJson	VARBINARY(MAX)
+		   ,@SiteDBGroupID	SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -245,7 +243,7 @@ BEGIN
 					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
 					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 			END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay
 	IF EXISTS (
@@ -391,7 +389,7 @@ BEGIN
 						WHEN d.FilterBy = 2 AND sub.checktime IS NOT NULL THEN sub.checktime
 						WHEN d.FilterBy = 2 AND sub.checktime IS NULL THEN sub.transdate
 				END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
-			AND sub.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE sub.SiteDBGroupID END
+			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 			
 	--RETURN DATA

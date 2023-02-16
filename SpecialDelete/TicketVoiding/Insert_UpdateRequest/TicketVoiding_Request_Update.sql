@@ -88,8 +88,6 @@ BEGIN
 			,@OldSource			NVARCHAR(200)
 			,@OldRemark			NVARCHAR(MAX)
 			,@OldIsTest			BIT
-			,@FailedTransIds	VARCHAR(MAX)  = NULL
-			,@NegativeBalanceUsers  VARCHAR(MAX)  = ''
 			,@IsEditRequest     INT = 1
 
 	CREATE TABLE #OperatorInfo(

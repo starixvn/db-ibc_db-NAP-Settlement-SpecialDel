@@ -114,19 +114,37 @@ BEGIN
 		OPTION (OPTIMIZE FOR (@xmlVoidResults = NULL ))
 	END						
 
-
 	--Table #1
-	SELECT RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
-		, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
-		, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, IsSentLetsTalk, SiteDBGroupID
+	SELECT RequestID
+		, VoidingHistoryId
+		, statusID
+		, matchID
+		, BroadcastSessionId
+		, NegativeBalanceUsers
+		, IsAutoVoid
+		, IsRunExternalService
+		, MessageId
+		, ReasonId
+		, IsSentBatchMessage
+		, IsSentMessageToAdminSite
+		, IsInsertedVoidedTransaction
+		, IsUpdatedVoidingHistory
+		, IsSentEmail
+		, IsSentLetsTalk
+		, SiteDBGroupID
 	FROM @tmpResultAfterVoid
 
 	--Table #2: Get statusid lastest request & current status request
-	SELECT VoidingHistoryId, VoidingHistoryStatusId, AfterVoidStatusId
+	SELECT VoidingHistoryId
+		, VoidingHistoryStatusId
+		, AfterVoidStatusId
 	FROM @tmpVoidingHistory_Service
 
 	--Table #3: Get signal Licensees new
-	SELECT VoidingHistoryId, Message, Type, Licensees
+	SELECT VoidingHistoryId
+		, Message
+		, Type
+		, Licensees
 	FROM @tmpVoidResults
 
 END
