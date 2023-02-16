@@ -12,6 +12,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
+		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 	
 	Param's explanation:	
 		
@@ -39,6 +40,7 @@ BEGIN
 	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 1
+		AND q.StatusId = 0
 	
 	IF @@ROWCOUNT > 0 
 		SET @IsExistsMBC = 1
@@ -49,6 +51,7 @@ BEGIN
 	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 2
+		AND q.StatusId = 0
 
 	IF @@ROWCOUNT > 0 
 		SET @IsExists789 = 1
@@ -59,6 +62,7 @@ BEGIN
 	FROM dbo.CustLimitBet_QueueRetry q WITH(NOLOCK)
 	WHERE q.MainQueueId = @QueueId
 		AND q.sitetype = 3
+		AND q.StatusId = 0
 
 	IF @@ROWCOUNT > 0 
 		SET @IsExistsLIC = 1
