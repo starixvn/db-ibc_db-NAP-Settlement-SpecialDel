@@ -5,8 +5,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Select]
 )
 AS
 /*
-    Created by: Alan
-	Date: 20190325
+    Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
 	DB: DBTXN/BODB02
 
@@ -19,6 +18,7 @@ AS
 		- 20200831@Zane: TVS - Enhance for Danger Accept. [Redmine: #140339]
 		- 20220627@Max: [TVS] Tuning perforamance of Unmark All function [Redmine: #174560]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230216@July: Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Explanation's Param:
 */
@@ -44,7 +44,7 @@ BEGIN
 		,CASE WHEN b.matchid = 29 THEN b.refno ELSE NULL end as refno
 		,b.statusID
 	FROM dbo.MarkedTransaction mt WITH (NOLOCK)
-		INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON mt.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
+		INNER JOIN dbo.bettrans AS b WITH (NOLOCK, INDEX = PK_bettrans) ON mt.TransId = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 	WHERE ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
 		AND 1 = CASE WHEN mt.MatchId = 29 THEN 0 --not support main parlay
 					 WHEN b.matchid <> 29 AND b.statusID NOT IN (0,1) THEN 0 
