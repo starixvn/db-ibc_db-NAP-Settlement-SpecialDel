@@ -374,7 +374,6 @@ BEGIN
 					, b.scomm AS 'sc'
 					, b.statusID AS 'sid'
 					, b.status AS 's'
-					, b.betid AS 'bid'
 					, b.ExtraInfo AS 'ex'
 			FROM	@tmpTransInfo b
 			WHERE b.bettype NOT IN (10)
@@ -394,7 +393,6 @@ BEGIN
 					, b.scomm AS 'sc'
 					, b.statusID AS 'sid'
 					, b.status AS 's'
-					, b.betid AS 'bid'
 					, b.ExtraInfo AS 'ex'
 			FROM	@tmpTransInfo b
 			WHERE b.bettype IN (10)

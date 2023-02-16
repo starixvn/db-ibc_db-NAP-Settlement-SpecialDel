@@ -1233,8 +1233,6 @@ BEGIN
 					, b.scomm AS 'sc'
 					, b.statusID AS 'sid'
 					, b.status AS 's'
-					, b.betid AS 'bid'
-					, b.ExtraInfo AS 'ex'
 					, b.FcUpdateTime AS 'rut'
 			FROM	#BetDelete t 
 				INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
