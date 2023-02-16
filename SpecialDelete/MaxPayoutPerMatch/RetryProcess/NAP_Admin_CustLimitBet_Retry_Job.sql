@@ -11,6 +11,7 @@ AS
 		- 20220823@Max: Remove Temp Code - [Redmine: #169407]
 		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 		- 20221206@Max: MPO Remove invalid email address (LOCAL + SIT) [Redmine: #00000]
+		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 	
 	Param's explanation:		
 		
@@ -74,6 +75,7 @@ BEGIN
 			FROM dbo.CustLimitBet_QueueRetry q
 			WHERE q.MainQueueId = @QueueId
 				AND q.Trycount = 0
+				AND q.StatusId = 0
 		END
 			
 	END
