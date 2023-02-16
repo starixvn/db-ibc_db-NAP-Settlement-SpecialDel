@@ -21,7 +21,6 @@ AS
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 		- 20221003@Victoria: Max Payout - Only retrieve ticket for each site base on site setting configuration [Redmine: #178536]
-		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 	
 	Param's explanation:	
 		
@@ -71,7 +70,7 @@ BEGIN
 		SET @xml = CONVERT(XML, @Transids)
 
 		INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)        
-		SELECT DISTINCT @MatchId AS MatchId
+		SELECT @MatchId AS MatchId
 			, t.c.value('@custid','int') AS custid
 			,t.c.value('@sitetype','tinyint') AS sitetype
 			,t.c.value('@transid','BIGINT') AS transid
@@ -92,7 +91,7 @@ BEGIN
 		IF @MatchId <> 29 --Match, Bettype 38
 		BEGIN
 			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype)
-			SELECT DISTINCT @MatchId
+			SELECT @MatchId
 				, b.custid
 				,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
 						WHEN  c.site = '789y' THEN 2 --789y
@@ -113,7 +112,7 @@ BEGIN
 		ELSE IF @MatchId = 29  --Parlay
 		BEGIN
 			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)
-			SELECT DISTINCT @MatchId
+			SELECT @MatchId
 				, b.custid
 				,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
 						WHEN  c.site = '789y' THEN 2 --789y
