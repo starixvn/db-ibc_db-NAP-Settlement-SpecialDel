@@ -18,7 +18,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @QueueId	INT
+	DECLARE @QueueId	BIGINT
 		,@ErrCode		INT
 		,@ErrMsg		VARCHAR(300)
 		,@RetryTime INT = 5
@@ -31,7 +31,7 @@ BEGIN
 		,@List_QueueRetry_Failed VARCHAR(MAX) = ''
 
 
-	CREATE TABLE #CustLimitBet_QueueRetry (QueueId INT, CreatedDate DATETIME, IsFinished INT DEFAULT(0))
+	CREATE TABLE #CustLimitBet_QueueRetry (QueueId BIGINT, CreatedDate DATETIME, IsFinished INT DEFAULT(0))
 
 	CREATE INDEX IX_IsFinished ON #CustLimitBet_QueueRetry (IsFinished)
 

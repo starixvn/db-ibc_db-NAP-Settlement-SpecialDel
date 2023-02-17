@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Retry]
 (
-	@QueueId	INT
+	@QueueId	BIGINT
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
 )
