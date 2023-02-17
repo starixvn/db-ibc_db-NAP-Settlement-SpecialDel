@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep14_04]
 	,@Action	VARCHAR(1)	= 'U'
 	,@RunOnServer VARCHAR(100)= NULL
 	,@CalledByBrokerService	BIT = 0
+	,@MessageType VARCHAR(200) = ''
 AS
 /*
  	Creator: 20210323@Patrick
@@ -64,7 +65,7 @@ BEGIN
 		EXEC dbo.SSB_Send_Message 
 			@MessageContent = @sMessage
 			,@FunctionName = 'settlement'
-			,@MessageType = 'bet_SiteDB_msg_type_01'
+			,@MessageType = @MessageType
 	END
 	ELSE
 	BEGIN
