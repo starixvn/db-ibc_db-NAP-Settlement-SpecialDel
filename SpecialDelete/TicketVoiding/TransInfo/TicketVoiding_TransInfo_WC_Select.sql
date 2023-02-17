@@ -13,6 +13,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:	
 		- @WrongScoreInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -96,7 +97,8 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
-    )
+		,IsCancelCashOut BIT
+	)
 
 	SET @WrongScoreXML = CONVERT(XML, @WrongScoreInfo)
 	INSERT INTO #FilterInfo (MatchId, FilterFromTransTime, FilterToTransTime)
@@ -169,6 +171,7 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
+			,IsCancelCashOut
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -231,14 +234,23 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
+		,CASE WHEN (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+			   AND (b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+			   AND (c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+			THEN 1 ELSE 0 END AS IsCancelCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
+		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
 	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (805, 806, 9, 29)			
-		AND b.bettype NOT BETWEEN 901 AND 920
+		AND b.bettype NOT IN (9, 29)			
 		AND b.betfrom <> 'P'
-		AND ((b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
+		AND 1 = CASE WHEN (b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) THEN 1
+					 WHEN (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) THEN 1
+					 WHEN (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+					  AND (b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+					  AND (c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+					 THEN 1 ELSE 0 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay
@@ -447,6 +459,7 @@ BEGIN
 		,SubTransdesc  AS 's_tdes'
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
+		,ISNULL(IsCancelCashOut,0) AS 'isCCO'
 	FROM #TransInfo
 	FOR JSON PATH))
 
