@@ -48,7 +48,7 @@ BEGIN
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
-		SET @sMessage = 'EXEC dbo.Transfer_ExecRep_04 @TransInfoJson = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfoJson, 1) + ''''
+		SET @sMessage = 'EXEC dbo.Transfer_ExecRep_04 @TransInfoJson = ' + CONVERT(NVARCHAR(MAX), @TransInfoJson, 1)
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
 													ELSE '''' + @TableName + ''''
