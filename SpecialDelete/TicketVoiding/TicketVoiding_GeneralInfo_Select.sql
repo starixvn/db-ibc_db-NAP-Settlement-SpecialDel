@@ -40,6 +40,7 @@ BEGIN
 		,DecidedBy NVARCHAR(200)
 		,KickOffTime DATETIME
 		,ActionId TINYINT
+		,IssuetypeId TINYINT 
 	);
 	
 	CREATE TABLE #tmpVoidingHistory
@@ -58,7 +59,7 @@ BEGIN
 	DECLARE @tmpContentMessage TABLE ( RequestId INT, VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
 
-	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId)
+	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId, IssuetypeId)
 	SELECT DISTINCT 
 			 rd.RequestId
 			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.homeid END
@@ -68,6 +69,7 @@ BEGIN
 			,r.DecidedBy
 			,m.kickofftime
 			,r.ActionId
+			,r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
@@ -166,12 +168,13 @@ BEGIN
 	SELECT DISTINCT
 		v.Username AS VoidedBy
 		,CASE WHEN m.ActionId IN (1,4,6,7,8) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
-		,CASE WHEN m.ActionId IN (1,4,6,7,8) THEN msg.Content_en ELSE  cm.ContentEnglish END AS ContentEnglish
+		,CASE WHEN m.ActionId IN (1,4,6,7,8) THEN msg.Content_en ELSE cm.ContentEnglish END AS ContentEnglish
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
+	INNER JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
 	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
 	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
-	LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
+	WHERE 1 = CASE WHEN m.IssuetypeId <> 17 THEN 1 ELSE 0 END
 
 	SELECT DISTINCT Message
 		  ,Type
