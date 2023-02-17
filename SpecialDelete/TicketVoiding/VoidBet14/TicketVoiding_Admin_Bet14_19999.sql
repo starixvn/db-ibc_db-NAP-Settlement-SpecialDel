@@ -178,6 +178,7 @@ BEGIN
 		SELECT	b.statusID AS 'sid'
 				, b.bettype AS 'btype'
 				, b.creator AS 'cr'
+				, b.transdate AS 'td'
 				, b.custid AS 'cust'
 				, b.currency AS 'cur'
 				, b.recommend AS 'rc'
