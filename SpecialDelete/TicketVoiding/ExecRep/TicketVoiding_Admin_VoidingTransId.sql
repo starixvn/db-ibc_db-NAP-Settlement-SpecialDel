@@ -343,7 +343,15 @@ BEGIN
             FROM    @tmpTrans t 
                 INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			WHERE b.bettype NOT IN (10, 38)
+			WHERE 1 = CASE WHEN (b.bettype IN (10, 38)
+									OR b.bettype BETWEEN 1201 AND 1299 
+									OR b.bettype BETWEEN 2700 AND 2799 
+									OR b.bettype BETWEEN 81 AND 120 
+									OR b.bettype BETWEEN 8101 AND 8105
+									OR b.bettype BETWEEN 7901 AND 7999
+									OR b.bettype BETWEEN 17000 AND 17005
+									)
+						THEN 0 ELSE 1 END
             FOR JSON PATH))
 
 			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
@@ -373,7 +381,13 @@ BEGIN
             FROM    @tmpTrans t 
                 INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
                 INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			WHERE b.bettype IN (38)
+			WHERE 1 = CASE WHEN (b.bettype IN (38) --betbuilder
+									OR b.bettype BETWEEN 1201 AND 1299 --Virtual Sports
+									OR b.bettype BETWEEN 2700 AND 2799 --Virtual Sports 2 (Betradar)
+									OR b.bettype BETWEEN 81 AND 120 --Number Game
+									OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
+									)
+					THEN 1 ELSE 0 END
             FOR JSON PATH))
 
 			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
