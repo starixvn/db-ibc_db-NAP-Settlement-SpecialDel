@@ -16,6 +16,7 @@ AS
 		- 20210930@July: Change the source balance (balancetype = 4) of Bitcoin product [Redmine: #162474]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
 		@TransIds: Maxbet 1000 tickets
@@ -91,6 +92,7 @@ BEGIN
 				@matchid			 = @matchid
 				,@action			 = @Action
 				,@strTransIds		 = @strTransIds
+				,@Is3rd				 = 1
 
 		INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT	custid
