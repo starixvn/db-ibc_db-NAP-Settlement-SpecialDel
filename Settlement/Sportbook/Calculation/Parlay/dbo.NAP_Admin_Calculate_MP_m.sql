@@ -2307,7 +2307,19 @@ BEGIN
 			SELECT @StartRow = 1, @StopRow = @Threshold
 			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
-
+				IF @doing = 'UNDO'
+				BEGIN
+					SET @betparlaydetailinfoJson = (
+						SELECT	DISTINCT transId AS 't'												
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS 'statuswl'
+								,StatusId AS 'sid'
+						FROM	#tmpOutputBetParlayDetail
+						WHERE ID BETWEEN @StartRow AND @StopRow
+						FOR JSON AUTO
+					)
+				END
+				ELSE
+				BEGIN
 					SET @betparlaydetailinfoJson = (
 						SELECT	DISTINCT transId AS 't'						
 								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS 'wld'							
@@ -2317,6 +2329,7 @@ BEGIN
 						WHERE ID BETWEEN @StartRow AND @StopRow
 						FOR JSON AUTO
 					)
+				END
 
 				IF @betparlaydetailinfoJson IS NOT NULL
 					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 

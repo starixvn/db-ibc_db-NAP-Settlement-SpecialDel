@@ -30,6 +30,7 @@ AS
 		- 20221004@Kathy: Prevent duplicate data if re-run SP in case of deadlock [Redmine:#178542]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled

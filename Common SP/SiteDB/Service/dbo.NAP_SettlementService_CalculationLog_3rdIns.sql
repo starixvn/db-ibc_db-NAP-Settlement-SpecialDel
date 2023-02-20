@@ -35,7 +35,7 @@ BEGIN
 	
 			,@MessageTypePattern VARCHAR(200)
 
-	SELECT	@MaxLogId = LogId
+	SELECT	@MaxLogId = MAX(LogId)
 	FROM	@SiteDBCalculationLog_3rd
 
 	IF @MaxLogId > 0 -- run commands in sequence

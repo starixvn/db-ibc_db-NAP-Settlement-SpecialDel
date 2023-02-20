@@ -18,6 +18,7 @@ AS
 		- 20200218@Sol: : Incorporate Number Game - Color Ball [Redmine:#128203]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 */
 BEGIN
 	SET NOCOUNT ON
