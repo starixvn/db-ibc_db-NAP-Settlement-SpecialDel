@@ -93,6 +93,7 @@ BEGIN
 				,@action			 = @Action
 				,@strTransIds		 = @strTransIds
 				,@Is3rd				 = 1
+				,@EventTable		 = 3
 
 		INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
 		SELECT	custid
