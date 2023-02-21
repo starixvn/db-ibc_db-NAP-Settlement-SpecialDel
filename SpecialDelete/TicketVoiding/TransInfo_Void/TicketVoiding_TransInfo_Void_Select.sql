@@ -1,14 +1,14 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Void_Select] 
 (
-	@SingleTransIds  VARCHAR(MAX) = NULL
-	,@ParlayTransIds  VARCHAR(MAX) = NULL
-	,@MatchId		INT = NULL
+	@SingleTransIds		VARCHAR(MAX) = NULL
+	,@ParlayTransIds	VARCHAR(MAX) = NULL
+	,@CancelCOTransIds  VARCHAR(MAX) = NULL
+	,@MatchId			INT = NULL
 )
 AS
 /*	
-	Created by: Max
-	Date 20221124
+	Created by: 20221124@Max
 	Task: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 	DB: DBTXN/bodb02
 	
@@ -27,13 +27,6 @@ BEGIN
 		,@SiteDBGroupID TINYINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-
-	CREATE TABLE #FilterInfo (
-		 MatchId				INT
-		,FilterFromTransTime	DATETIME
-		,FilterToTransTime		DATETIME
-		,FilterBy				TINYINT
-	)
 
 	CREATE TABLE #TransInfo (
 		matchid INT
@@ -95,18 +88,24 @@ BEGIN
 		,SiteDBGroupID SMALLINT
 		,oddsid INT
 		,winlostdate SMALLDATETIME
-    )
+		,IsCancelCashOut 	BIT
+	)
 
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, IsMixParlay BIT)
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, TicketType TINYINT) --1: single(exclude cancel CO), 2 parlay, 3: cancel CO
 
-	INSERT INTO #transIdTemp (transid, IsMixParlay)
-	SELECT DISTINCT value, 0
+	INSERT INTO #transIdTemp (transid, TicketType)
+	SELECT DISTINCT value, 1
 	FROM STRING_SPLIT(@SingleTransIds, ',')
 	WHERE value <> ''
 
-	UNION ALL
-	SELECT DISTINCT value, 1
+	UNION ALL --parlay
+	SELECT DISTINCT value, 2
 	FROM STRING_SPLIT(@ParlayTransIds, ',')
+	WHERE value <> ''
+
+	UNION ALL --cancelCO
+	SELECT DISTINCT value, 3
+	FROM STRING_SPLIT(@CancelCOTransIds, ',')
 	WHERE value <> ''
 
 	--Search single tickets
@@ -170,6 +169,7 @@ BEGIN
 			,SiteDBGroupID
 			,oddsid
 			,winlostdate
+			,IsCancelCashOut
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -230,11 +230,12 @@ BEGIN
 		,b.SiteDBGroupID
 		,b.oddsid
 		,b.winlostdate
+	    ,CASE WHEN d.TicketType = 3 THEN 1 ELSE 0 END IsCancelCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #transIdTemp d ON d.transid = b.TransId
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.SiteDBGroupID = @SiteDBGroupID
-		AND d.IsMixParlay = 0
+		AND d.TicketType <> 2
 		AND (b.matchid = @MatchId OR @MatchId IS NULL)
 	
 	--Search sub-parlay
@@ -243,7 +244,7 @@ BEGIN
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
 						INNER JOIN #transIdTemp d oN d.transid = bm.TransId
 					WHERE bm.statusID NOT IN (101, 102, 103)
-						AND d.IsMixParlay = 1
+						AND d.TicketType = 2
 					)
 	BEGIN		
 		INSERT INTO #TransInfo(
@@ -371,7 +372,7 @@ BEGIN
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.SiteDBGroupID = @SiteDBGroupID
-			AND d.IsMixParlay = 1
+			AND d.TicketType = 2
 			AND (sub.matchid = @MatchId OR @MatchId IS NULL)
 	END
 			
@@ -435,6 +436,7 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,oddsid AS 'oid'
 		,winlostdate AS 'wld'
+		,ISNULL(IsCancelCashOut,0) AS 'isCCO'
 	FROM #TransInfo
 	FOR JSON PATH))
 
