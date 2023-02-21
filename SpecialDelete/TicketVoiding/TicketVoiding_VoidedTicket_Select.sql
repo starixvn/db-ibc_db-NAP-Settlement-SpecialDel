@@ -5,8 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_VoidedTicket_Select]
 	,@MatchId   INT = 0
 )
 AS;
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: get voided ticket [Redmine:#90155]
 	DB: DBTXN/bodb02
 	
@@ -23,6 +22,7 @@ AS;
 		- 20211210@July: Remove code CashOut [Redmine: #165097]
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:	
 		
@@ -88,7 +88,8 @@ BEGIN
 			  LiveIndicator   BIT,
 			  ActualStake	  MONEY,
 			  oddsid		  INT,
-			  winlostdate	  DATETIME
+			  winlostdate	  DATETIME,
+			  IsCancelCashOut BIT
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -99,11 +100,11 @@ BEGIN
 	WHERE value <> ''
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate, IsCancelCashOut)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
-			,z.VoidedTime
+			,z.transdate AS VoidedTime
 			,z.custid
 			,z.winlost
 			,z.refno
@@ -111,24 +112,11 @@ BEGIN
 			,z.odds
 			,z.oddsid
 			,z.winlostdate
+			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
 	FROM	@tmpVoidingHistory vh 
-		CROSS APPLY (
-			SELECT	z.transid
-					,z.matchid
-					,z.status
-					,z.transdate AS VoidedTime
-					,z.custid
-					,z.winlost
-					,z.refno
-					,z.bettype
-					,z.odds
-					,z.oddsid
-					,z.winlostdate
-			FROM dbo.zzzbettrans z WITH(NOLOCK)
-			WHERE z.VoidingHistoryId = vh.VoidingHistoryId
-				AND (z.MatchId = @MatchId OR @MatchId = 0)
-				AND z.SiteDBGroupID = @SiteDBGroupID
-		) z
+		INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON z.VoidingHistoryId = vh.VoidingHistoryId
+	WHERE (z.MatchId = @MatchId OR @MatchId = 0)
+		AND z.SiteDBGroupID = @SiteDBGroupID
 		
 	-- parlay ticket
 	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay, oddsid, winlostdate)
@@ -136,26 +124,15 @@ BEGIN
 			,zm.matchid
 			,zm.refno
 			,zm.status
-			,zm.VoidedTime
+			,zm.transdate AS VoidedTime
 			,zm.custid
 			,1 AS IsMixParlay
 			,zm.oddsid
 			,zm.winlostdate
 	FROM	@tmpVoidingHistory vh
-		CROSS APPLY (
-			SELECT	zm.transid
-					,zm.matchid
-					,zm.refno 
-					,zm.status
-					,zm.transdate AS VoidedTime
-					,zm.custid
-					,zm.oddsid
-					,zm.winlostdate
-			FROM dbo.zzzbettransm zm WITH(NOLOCK)
-			WHERE zm.VoidingHistoryId = vh.VoidingHistoryId 
-				AND (zm.MatchId = @MatchId OR @MatchId = 0)
-				AND zm.SiteDBGroupID = @SiteDBGroupID
-		) zm
+		INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) ON zm.VoidingHistoryId = vh.VoidingHistoryId 
+	WHERE (zm.MatchId = @MatchId OR @MatchId = 0)
+		AND zm.SiteDBGroupID = @SiteDBGroupID
 	
 	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)
 	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
@@ -432,7 +409,10 @@ BEGIN
 			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,CASE WHEN c.site = 'CN88' THEN 'CN88' ELSE 'Credit' END AS GroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' 
+					 ELSE CASE WHEN s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
+							   ELSE 'Credit (CO)' END
+					END AS GroupName
 			   ,s.WalletType	
 			   ,s.RefCode
 			   ,s.IsCashOut
@@ -446,7 +426,8 @@ BEGIN
 			   ,s.subtransdesc
 			   ,s.ActualStake
 			   ,s.matchid
-				,s.winlostdate
+			   ,s.winlostdate
+			   ,s.IsCancelCashOut
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -508,6 +489,7 @@ BEGIN
 			   ,s.ActualStake
 			   ,s.matchid
 			   ,s.winlostdate
+			   ,s.IsCancelCashOut
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -548,7 +530,10 @@ BEGIN
 			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,'Deposit' AS GroupName
+			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' 
+					 ELSE CASE WHEN s.IsCancelCashOut = 1 THEN 'Deposit (Cancel CO)' 
+							   ELSE 'Deposit (CO)' END
+					END AS GroupName
 			   ,s.WalletType	
 			   ,s.RefCode
 			   ,s.IsCashOut
@@ -563,6 +548,7 @@ BEGIN
 			   ,s.ActualStake
 			   ,s.matchid
 			   ,s.winlostdate
+			   ,s.IsCancelCashOut
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -623,6 +609,7 @@ BEGIN
 		   ,s.ActualStake
 		   ,s.matchid
 		   ,s.winlostdate
+		   ,s.IsCancelCashOut
 		FROM	#tmpTicket s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -678,6 +665,7 @@ BEGIN
 		   ,s.ActualStake
 		   ,s.matchid
 		   ,s.winlostdate
+		   ,ISNULL(s.IsCancelCashOut,0) AS IsCancelCashOut
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
@@ -688,6 +676,10 @@ BEGIN
 				WHEN s.GroupName = '8RM/BARM' THEN 3
 				WHEN s.GroupName = 'Deposit' THEN 4
 				WHEN s.GroupName = 'Betfair' THEN 5
+				WHEN s.GroupName = 'Credit (CO)' THEN 6
+				WHEN s.GroupName = 'Deposit (CO)' THEN 7
+				WHEN s.GroupName = 'Credit (Cancel CO)' THEN 8
+				WHEN s.GroupName = 'Deposit (Cancel CO)' THEN 9
 			 END
 		   , ISNULL(s.MainTransId, s.transid)
 		   , CASE 

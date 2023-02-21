@@ -5,8 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select]
 	,@IsITSupportCreatedRequest BIT = 0
 	,@SiteDBGroupID	SMALLINT = 0
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: get voided ticket to send email [Redmine:#90155]
 	DB: DBTXN/bodb02
 	
@@ -29,6 +28,7 @@ AS
 		- 20220523@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:	
 		
@@ -102,12 +102,13 @@ BEGIN
 		,IsDeposit      BIT DEFAULT(0)
 		,SiteDBGroupID	SMALLINT
 		,winlostdate	SMALLDATETIME
+		,IsCancelCashOut BIT
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate, IsCancelCashOut)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -120,12 +121,9 @@ BEGIN
 			,z.oddsid
 			,z.SiteDBGroupID
 			,z.winlostdate
+			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 	WHERE	z.VoidingHistoryId = @VoidingHistoryId
-		AND 1 = CASE
-				WHEN z.bettype NOT BETWEEN 901 AND 920 THEN 1
-				ELSE 0
-			END
 		AND z.SiteDBGroupID = @SiteDBGroupID
 
 	-- parlay ticket
@@ -292,20 +290,6 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	-- Update maintransid for bonus ticket
-	IF EXISTS (SELECT * FROM #tmpTicket WHERE WalletType = 1)
-	BEGIN
-		UPDATE sub 
-			SET maintransid = main.transid
-		FROM	#tmpTicket sub  
-			INNER JOIN #tmpTicket main 
-				ON 	main.refcode = sub.refcode
-					AND main.transid <> sub.transid
-					AND main.custid = sub.custid
-					AND main.bettype = sub.bettype
-		WHERE	main.wallettype = 1
-	END	
-
 	-- update Isdeposit
 	UPDATE al SET IsDeposit = 1
 	FROM #tmpTicket al
@@ -412,6 +396,7 @@ BEGIN
 			THEN 1 ELSE 0 END IsCredit
 			,t.SiteDBGroupID
 			,t.winlostdate
+			,ISNULL(t.IsCancelCashOut,0) AS IsCancelCashOut
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
@@ -430,23 +415,6 @@ BEGIN
 				ELSE t.transid
 			 END
 
-	--Metric API Calling  
-	SELECT t.refno  
-		,t.Bettype  
-		,t.custid  
-		,b.statusID  
-		,b.winlost  
-		,t.odds  
-		,t.OddsType  
-		,t.stake   
-		,t.transdesc  
-		,tl.SiteId
-	FROM #tmpTicket t  
-		INNER JOIN dbo.bettrans b WITH(NOLOCK) ON t.transid = b.transid  
-		INNER JOIN dbo.translog tl WITH(NOLOCK) ON	tl.translogid = t.refno  
-	WHERE	t.Bettype IN (805,806)  
-	ORDER BY t.refno  
-	
 	DROP TABLE #tmpTicket;
 
 END
