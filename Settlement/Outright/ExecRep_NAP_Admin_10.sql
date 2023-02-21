@@ -102,7 +102,7 @@ BEGIN
 				,	(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 				,	inserted.winlostdate
 				,	inserted.statuswinlost
-				,	inserted.SettlementTime 
+				,	CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 				,	inserted.WinLost
 				,	inserted.aWinLost
 				,	inserted.mWinLost
@@ -146,7 +146,7 @@ BEGIN
 				,	(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 				,	inserted.winlostdate
 				,	inserted.statuswinlost
-				,	inserted.SettlementTime
+				,	CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 				,	inserted.WinLost
 				,	inserted.aWinLost
 				,	inserted.mWinLost
@@ -232,7 +232,7 @@ BEGIN
 				,	(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 				,	inserted.winlostdate
 				,	inserted.statuswinlost
-				,	inserted.SettlementTime
+				,	CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 				,	inserted.WinLost
 				,	inserted.aWinLost
 				,	inserted.mWinLost
