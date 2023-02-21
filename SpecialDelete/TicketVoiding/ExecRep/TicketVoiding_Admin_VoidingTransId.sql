@@ -58,7 +58,6 @@ BEGIN
     DECLARE @xml XML
             ,@actual_stake MONEY
             ,@Sporttype SMALLINT = 1
-            ,@transid BIGINT
             ,@matchid INT
             ,@IsEnableServiceBroker BIT -- server is using service broker or not
             ,@FcUpdateTime   DATETIME2
@@ -70,7 +69,7 @@ BEGIN
     IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
         SET @IsSiteDB = 1
 
-    DECLARE @tmpTrans TABLE (TransID BIGINT, BetId BIGINT, betdaqid BIGINT) 
+    DECLARE @tmpTrans TABLE (TransID BIGINT, BetId BIGINT, betdaqid BIGINT, sporttype SMALLINT) 
     DECLARE @tmpTrans_SB TABLE (TransId BIGINT, MatchId INT, Bettype SMALLINT, CustId INT, MarkType TINYINT, IsParlay BIT) 
     DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, betdaqid BIGINT, Bonusid INT, WalletType TINYINT, status VARCHAR(20), matchid INT)
     DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
@@ -277,21 +276,19 @@ BEGIN
     END
     ELSE
     BEGIN
-        INSERT INTO @tmpTrans(TransID, BetId, betdaqid)
+        INSERT INTO @tmpTrans(TransID, BetId, betdaqid, sporttype)
         SELECT  T.C.value('./@transid', 'bigint')
                 ,T.C.value('./@betid', 'bigint')
                 ,T.C.value('./@betdaqid', 'bigint')
+				,T.C.value('./@sport', 'smallint')
         FROM    @xml.nodes('/root/r') AS T(C)
         OPTION (OPTIMIZE FOR (@xml = NULL ))
     
         IF @IssueTypeId IN (11,13,15)
         BEGIN
-            SET @transid = (SELECT TOP 1 transid FROM @tmpTrans)
-            SET @matchid = (SELECT TOP 1 matchid FROM bettrans WITH (NOLOCK) WHERE transid = @transid)
-            SET @Sporttype = (SELECT TOP 1 sporttype FROM dbo.match m WITH (NOLOCK) WHERE m.matchid = @matchid)
-            SET @FcUpdateTime = SYSDATETIME()
+           SET @FcUpdateTime = SYSDATETIME()
 
-            UPDATE  b
+		   UPDATE  b
             SET @actual_stake = b.actual_stake
                 ,winlost = @actual_stake
                 ,ruben = 1
@@ -306,7 +303,7 @@ BEGIN
                 ,statusID = 102
                 ,status = 'VOID'
                 ,betid = t.BetId
-                ,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalMixParlay = 0 THEN 1 ELSE 2 END,'VOID',b.ExtraInfo,@Sporttype,b.bettype)
+                ,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalMixParlay = 0 THEN 1 ELSE 2 END,'VOID',b.ExtraInfo,t.sporttype,b.bettype)
                 ,FcUpdateTime  = @FcUpdateTime
                     OUTPUT deleted.Transid,
                         deleted.custid,  
@@ -316,117 +313,135 @@ BEGIN
                         deleted.betdaqid ,
                         deleted.BonusID,
                         deleted.WalletType,
-                        deleted.status
-                INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake, playercomm, betdaqid, Bonusid, WalletType, status)
+                        deleted.status,
+						deleted.matchid
+                INTO @tmpTrans_beforeUpd (transid,custid, winlost, actual_stake, playercomm, betdaqid, Bonusid, WalletType, status, matchid)
             FROM    @tmpTrans t
                 INNER JOIN dbo.bettrans b  WITH(ROWLOCK, UPDLOCK)
                     ON  t.transid = b.transid
             WHERE b.statusID NOT IN (102)
 
-            SET @transInfo = COMPRESS((
-            SELECT  t.transId AS 't'
-                    , b.winlost AS 'w'
-                    , b.ruben AS 'r'
-                    , b.creator AS 'cr'
-                    , b.awinlost AS 'aw'
-                    , b.mwinlost AS 'mw'
-                    , b.swinlost AS 'sw'
-                    , b.playercomm AS 'pc'
-                    , b.comm AS 'c'
-                    , b.acomm AS 'ac'
-                    , b.scomm AS 'sc'
-                    , b.statusID AS 'sid'
-                    , b.status AS 's'
-                    , b.betid AS 'bid'
-                    , b.ExtraInfo AS 'ex'
-                    , b.FcUpdateTime AS 'rut'
-            FROM    @tmpTrans t 
-                INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
-                INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			WHERE 1 = CASE WHEN (b.bettype IN (10, 38)
-									OR b.bettype BETWEEN 1201 AND 1299 
-									OR b.bettype BETWEEN 2700 AND 2799 
-									OR b.bettype BETWEEN 81 AND 120 
-									OR b.bettype BETWEEN 8101 AND 8105
-									OR b.bettype BETWEEN 7901 AND 7999
-									OR b.bettype BETWEEN 17000 AND 17005
-									)
-						THEN 0 ELSE 1 END
-            FOR JSON PATH))
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT b.MatchId
+			FROM @tmpTrans_beforeUpd b
 
-			IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
-            BEGIN
-                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END
-            END
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId
+				FROM @tmpMatchId m
+				WHERE IsFinish IS NULL
 
-			--For match table; EventTable = 1
-			SET @transInfo3rd = COMPRESS((
-            SELECT  t.transId AS 't'
-                    , b.winlost AS 'w'
-                    , b.ruben AS 'r'
-                    , b.creator AS 'cr'
-                    , b.awinlost AS 'aw'
-                    , b.mwinlost AS 'mw'
-                    , b.swinlost AS 'sw'
-                    , b.playercomm AS 'pc'
-                    , b.comm AS 'c'
-                    , b.acomm AS 'ac'
-                    , b.scomm AS 'sc'
-                    , b.statusID AS 'sid'
-                    , b.status AS 's'
-                    , b.betid AS 'bid'
-                    , b.ExtraInfo AS 'ex'
-                    , b.FcUpdateTime AS 'rut'
-            FROM    @tmpTrans t 
-                INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
-                INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			WHERE 1 = CASE WHEN (b.bettype IN (38) --betbuilder
-									OR b.bettype BETWEEN 1201 AND 1299 --Virtual Sports
-									OR b.bettype BETWEEN 2700 AND 2799 --Virtual Sports 2 (Betradar)
-									OR b.bettype BETWEEN 81 AND 120 --Number Game
-									OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
-									)
-					THEN 1 ELSE 0 END
-            FOR JSON PATH))
+				IF @@ROWCOUNT = 0 BREAK;
+           
+				SET @transInfo = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.ExtraInfo AS 'ex'
+						, b.FcUpdateTime AS 'rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE 1 = CASE WHEN (b.bettype IN (10, 38)
+										OR b.bettype BETWEEN 1201 AND 1299 
+										OR b.bettype BETWEEN 2700 AND 2799 
+										OR b.bettype BETWEEN 81 AND 120 
+										OR b.bettype BETWEEN 8101 AND 8105
+										OR b.bettype BETWEEN 7901 AND 7999
+										OR b.bettype BETWEEN 17000 AND 17005
+										)
+							THEN 0 ELSE 1 END
+				FOR JSON PATH))
 
-			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
-            BEGIN
-                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 1
-            END
+				IF @IsSiteDB = 1 AND @transInfo IS NOT NULL
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END
+				END
 
-			--For outright table; EventTable = 2
-			SEt @transInfo3rd = NULL
-			SET @transInfo3rd = COMPRESS((
-            SELECT  t.transId AS 't'
-                    , b.winlost AS 'w'
-                    , b.ruben AS 'r'
-                    , b.creator AS 'cr'
-                    , b.awinlost AS 'aw'
-                    , b.mwinlost AS 'mw'
-                    , b.swinlost AS 'sw'
-                    , b.playercomm AS 'pc'
-                    , b.comm AS 'c'
-                    , b.acomm AS 'ac'
-                    , b.scomm AS 'sc'
-                    , b.statusID AS 'sid'
-                    , b.status AS 's'
-                    , b.betid AS 'bid'
-                    , b.ExtraInfo AS 'ex'
-                    , b.FcUpdateTime AS 'rut'
-            FROM    @tmpTrans t 
-                INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
-                INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-			WHERE b.bettype IN (10)
-            FOR JSON PATH))
+				--For match table; EventTable = 1
+				SET @transInfo3rd = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.ExtraInfo AS 'ex'
+						, b.FcUpdateTime AS 'rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE 1 = CASE WHEN (b.bettype IN (38) --betbuilder
+										OR b.bettype BETWEEN 1201 AND 1299 --Virtual Sports
+										OR b.bettype BETWEEN 2700 AND 2799 --Virtual Sports 2 (Betradar)
+										OR b.bettype BETWEEN 81 AND 120 --Number Game
+										OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
+										)
+						THEN 1 ELSE 0 END
+				FOR JSON PATH))
 
-			IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
-            BEGIN
-                INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-                SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 2
-            END
+				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 1
+				END
 
+				--For outright table; EventTable = 2
+				SEt @transInfo3rd = NULL
+				SET @transInfo3rd = COMPRESS((
+				SELECT  t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.betid AS 'bid'
+						, b.ExtraInfo AS 'ex'
+						, b.FcUpdateTime AS 'rut'
+				FROM    @tmpTrans t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE b.bettype IN (10)
+				FOR JSON PATH))
+
+				IF @IsSiteDB = 1 AND @transInfo3rd IS NOT NULL
+				BEGIN
+					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+					SELECT 'TVS', 'Void', 'bettrans', 'U', @matchid, @transInfo3rd, CASE WHEN @matchid IN (29, 2799) THEN 'p' ELSE 's' END, 2
+				END
+			END
+
+			DELETE FROM @tmpMatchId
+			SET @TransInfo = NULL
+			SET @TransInfo3rd = NULL
 
             -- Process for cashout tickets make change Balance before
             SET @strTransCashout = ISNULL(CAST((SELECT b.transid AS t

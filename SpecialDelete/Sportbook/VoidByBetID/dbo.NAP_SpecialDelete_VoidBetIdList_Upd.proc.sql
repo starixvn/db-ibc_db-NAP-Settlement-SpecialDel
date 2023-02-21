@@ -845,7 +845,7 @@ BEGIN
 		   , ISNULL(WalletType, 2) -- normal tickets are treated as cash tickets
 
 	/**********************************************   *************************************************************/
-	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, BetId BIGINT, Actual_stake MONEY, betdaqid BIGINT)
+	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, BetId BIGINT, Actual_stake MONEY, betdaqid BIGINT, Sporttype SMALLINT)
 	DECLARE @TransIds_tmp VARCHAR(MAX) = ''
 		, @IssueTypeId INT = 0
 
@@ -868,7 +868,8 @@ BEGIN
 			   ,DELETED.BetID
 			   ,DELETED.actual_stake
 			   ,tmp.betdaqid
-		INTO @tmpTransIDBatch (TransId, BetId, Actual_stake, betdaqid)
+			   ,DELETED.sporttype
+		INTO @tmpTransIDBatch (TransId, BetId, Actual_stake, betdaqid, Sporttype)
 		FROM #SpecialDeleteBets t
 			INNER JOIN #tblMatch tm ON t.matchid = tm.matchid
 			INNER JOIN @tmpTrans_beforeUpd tmp ON tmp.transid = t.transid
@@ -878,6 +879,7 @@ BEGIN
 		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@transid'
 											   ,m.BetId AS '@betid'
 											   ,m.betdaqid AS '@betdaqid'
+											   ,m.Sporttype AS '@sport'
 									FROM @tmpTransIDBatch m
 									FOR XML PATH('r')
 										,ROOT('root')
