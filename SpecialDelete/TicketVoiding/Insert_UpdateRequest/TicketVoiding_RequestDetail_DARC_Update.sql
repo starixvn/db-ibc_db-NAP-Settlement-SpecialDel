@@ -20,6 +20,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20221125@July: TVS - VAR message [Redmine: #178088]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -68,6 +69,7 @@ BEGIN
 			,betid BIGINT
 			,IsMixParlay BIT
 			,SiteDBGroupID SMALLINT
+			,IsCancelCashOut BIT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
@@ -78,10 +80,11 @@ BEGIN
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
+		  ,IsCancelCashOut
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb
+	SELECT mid ,t ,s_t ,c ,btype ,bid ,isP ,sitedb ,isCCO
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isCCO BIT
 	) tbl
 
 	SET @DARCInfoXML = CONVERT(XML, @DARCInfo)
@@ -214,7 +217,8 @@ BEGIN
 				 , DELETED.betid
 				 , DELETED.CustId
 				 , DELETED.SiteDBGroupID
-			INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
+				 , DELETED.IsCancelCashOut
+			INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
 			FROM #tmpTransInfo d
 				INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
 			WHERE d.IsMixParlay = 0
