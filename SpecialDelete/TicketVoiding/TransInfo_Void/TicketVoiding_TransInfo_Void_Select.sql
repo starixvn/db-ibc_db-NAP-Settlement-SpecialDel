@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Void_Select]
 (
 	@SingleTransIds		VARCHAR(MAX) = NULL
 	,@ParlayTransIds	VARCHAR(MAX) = NULL
-	,@CancelCOTransIds  VARCHAR(MAX) = NULL
+	,@CancelCashoutTransIds  VARCHAR(MAX) = NULL
 	,@MatchId			INT = NULL
 )
 AS
@@ -15,6 +15,7 @@ AS
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -24,7 +25,7 @@ BEGIN
 	SET NOCOUNT ON	
 
 	DECLARE @TransInfoJson VARBINARY(MAX)
-		,@SiteDBGroupID TINYINT
+		   ,@SiteDBGroupID SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -105,7 +106,7 @@ BEGIN
 
 	UNION ALL --cancelCO
 	SELECT DISTINCT value, 3
-	FROM STRING_SPLIT(@CancelCOTransIds, ',')
+	FROM STRING_SPLIT(@CancelCashoutTransIds, ',')
 	WHERE value <> ''
 
 	--Search single tickets

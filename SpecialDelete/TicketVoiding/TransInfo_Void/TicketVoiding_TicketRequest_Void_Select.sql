@@ -23,7 +23,7 @@ BEGIN
 	--Single ticket (exclude cancel CO)
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-	WHERE s.RequestId = @RequestId AND IsCancelCO IS NULL
+	WHERE s.RequestId = @RequestId AND ISNULL(IsCancelCO,0) = 0
 
 	--Parlay ticket 
 	SELECT s.TransId, s.MatchId, s.SiteDBGroupID

@@ -234,9 +234,10 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
-		,CASE WHEN (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-			   AND (b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-			   AND (c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+		,CASE WHEN b.betdaqid = -2 
+			  AND (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+			  AND (b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+			  AND (c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
 			THEN 1 ELSE 0 END AS IsCancelCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
@@ -247,7 +248,8 @@ BEGIN
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN (b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) THEN 1
 					 WHEN (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) THEN 1
-					 WHEN (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
+					 WHEN b.betdaqid = -2 
+					  AND (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
 					  AND (b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
 					  AND (c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
 					 THEN 1 ELSE 0 END
