@@ -1,3 +1,8 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
-Common SP\Validation\NAP_Admin_Settlement_Validation_Event.sql
-Settlement\Sportbook\dbo.NAP_Admin_MatchInfoUpd.sql
+Settlement\Sportbook\Service\ServiceBroker\DBTXN\dbo.SSB_Settlement_UpdateData.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Queue.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_3_Profile.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1_Push.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Refund_1_Push.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Refund_1.sql

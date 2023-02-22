@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02, DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Profile]
 	@matchid		INT = 0
 	,@transIds		VARCHAR(MAX) = ''
@@ -27,8 +27,10 @@ AS
 		- 20221010@Kathy: Do not upd odds, oddsspread of bettype 468 if refund [Redmine:#178941]
 		- 20221019@Kathy: Add ActionId [Redmine:#179274]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20232202@Kathy: Support Demo Site for New Agency same as CN88 [Redmine:#184197]
 
 	Param's Explanation:  
 		   
@@ -146,7 +148,7 @@ BEGIN
 									WHEN '0' THEN 1
 									WHEN '1' THEN 2
 									ELSE 1 END
-				,@commHalfWLRate = 0.5
+				,@commHalfWLRate = CASE WHEN cs.CustId IS NOT NULL AND ISNULL(f.CommBettypeGroupId,0) = 1 THEN 1 ELSE 0.5 END
 				,@odds = (CASE	
 								WHEN b.bettype IN (468, 469) THEN t.ScoreBoxOdds
 								WHEN b.odds < 0 THEN 1 
@@ -191,7 +193,7 @@ BEGIN
 												END
 						WHEN @modds IS NULL THEN b.actual_Stake
 						END 	
-				,@stake = b.stake
+				,@stake = CASE WHEN cs.CustId IS NOT NULL AND ISNULL(f.CommBettypeGroupId,0) = 1 THEN ABS(@winlost - b.actual_stake) ELSE b.stake END
 				-- check winlost or status change to update SettlementTime
 				,@statusId = CASE
 								WHEN @modds > 0 THEN 112 --WON
@@ -400,7 +402,11 @@ BEGIN
 			)
 			FROM @tmpTransId t
 				INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
-					ON  t.transid = b.transid 
+					ON  t.transid = b.transid
+				LEFT JOIN dbo.CS_CustSuper cs WITH(NOLOCK)
+					ON cs.CustId = b.srecommend
+				LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
+					ON f.bettype = b.BetType
 			WHERE	 ISNULL(b.betdaqid,0) <> -2 
 			OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 		
@@ -603,7 +609,7 @@ BEGIN
 									WHEN '0' THEN 1
 									WHEN '1' THEN 2
 									ELSE 1 END
-				,@commHalfWLRate = 0.5
+				,@commHalfWLRate = CASE WHEN cs.CustId IS NOT NULL AND ISNULL(f.CommBettypeGroupId,0) = 1 THEN 1 ELSE 0.5 END
 				,@odds = (CASE	
 								WHEN b.bettype IN (468, 469) THEN t.ScoreBoxOdds
 								WHEN b.odds < 0 THEN 1 
@@ -648,7 +654,7 @@ BEGIN
 												END
 						WHEN @modds IS NULl THEN b.actual_stake
 						END 	
-				,@stake = b.stake
+				,@stake = CASE WHEN cs.CustId IS NOT NULL AND ISNULL(f.CommBettypeGroupId,0) = 1 THEN ABS(@winlost - b.actual_stake) ELSE b.stake END
 				-- check winlost or status change to update SettlementTime
 				,@statusId = CASE
 								WHEN @modds > 0 THEN 112 --WON
@@ -833,6 +839,10 @@ BEGIN
 		FROM @tmpTransId t
 			INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) 
 				ON  t.transid = b.transid 
+			LEFT JOIN dbo.CS_CustSuper cs WITH(NOLOCK)
+					ON cs.CustId = b.srecommend
+				LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
+					ON f.bettype = b.BetType
 		WHERE	 ISNULL(b.betdaqid,0) <> -2 
 		OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 
