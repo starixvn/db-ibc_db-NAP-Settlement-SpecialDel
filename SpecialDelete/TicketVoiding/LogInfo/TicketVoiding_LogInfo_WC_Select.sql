@@ -641,7 +641,7 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 					SELECT t.c.value('@ScoreId','INT') AS ScoreId
 					FROM t.xDATA.nodes('/r') t(c)
 				) tmp (ScoreId)
-			INNER JOIN #TVSTicketBets b ON s.MatchId = b.matchid AND s.TransId = b.transid AND b.IsMixParlay = 0
+			LEFT JOIN #TVSTicketBets b ON s.MatchId = b.matchid AND s.TransId = b.transid AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = s.MatchId
 		WHERE s.RequestId = @RequestId
 			AND b.StatusId IN (111, 112, 113)
