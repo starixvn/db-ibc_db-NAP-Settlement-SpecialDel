@@ -165,7 +165,7 @@ BEGIN
 	  ,SecAcceptTime TINYINT
 	  ,SubLiveBetAcceptTime SMALLINT
 	  ,SubSecAcceptTime TINYINT
-	  ,IsCancelCashOut BIT
+	  ,CheckTimeCashOut DATETIME
 	)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
@@ -252,7 +252,7 @@ BEGIN
 	       ,SecAcceptTime 
 	       ,SubLiveBetAcceptTime 
 	       ,SubSecAcceptTime 
-		   ,IsCancelCashOut
+		   ,CheckTimeCashOut
 	)
 	SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate , checkt ,bid
@@ -260,7 +260,7 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate , s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,lbat ,sat ,s_lbat ,s_sat ,isCCO
+		,lbat ,sat ,s_lbat ,s_sat ,checktCO
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -270,7 +270,7 @@ BEGIN
 					  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
 					  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 					  ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
-					  ,lbat ,sat ,s_lbat ,s_sat ,isCCO
+					  ,lbat ,sat ,s_lbat ,s_sat ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
 					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
@@ -278,7 +278,7 @@ BEGIN
 					 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
-					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT ,isCCO BIT
+					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT ,checktCO DATETIME
 				)
 		) tbl
 	WHERE f.value <> ''
@@ -467,18 +467,27 @@ BEGIN
 					END AS accepttype
 			,d.SubIssueTypeId
 			,d.FilterBy
-			,b.IsCancelCashOut
+			,CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 0
+				  ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+							ELSE 0 END
+				  END AS IsCancelCashOut
 	FROM #tmpTransInfo b
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		CROSS APPLY (
+			SELECT CASE WHEN d.FilterBy = 1 THEN b.transdate 
+					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
+					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+			END AS VoidTime
+		)act
 	WHERE 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					ELSE 0 END
 		AND b.betfrom <> 'P' AND b.IsMixParlay = 0 
-		AND CASE WHEN d.FilterBy = 1 THEN b.transdate 
-				 WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
-				 WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
-			END BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime
+		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+							   ELSE 0 END
+					 END
 		AND NOT EXISTS (SELECT TOP 1 1 
 						FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
 						WHERE f.bettype = b.bettype 
@@ -531,7 +540,7 @@ BEGIN
 					END AS accepttype
 				,d.SubIssueTypeId
 				,d.FilterBy
-				,b.IsCancelCashOut
+				,0 AS IsCancelCashOut
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON b.matchid = d.MatchId AND b.IsMixParlay = 1 
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund

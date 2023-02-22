@@ -97,7 +97,7 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
-		,IsCancelCashOut BIT
+		,CheckTimeCashOut  DATETIME
 	)
 
 	SET @WrongScoreXML = CONVERT(XML, @WrongScoreInfo)
@@ -171,7 +171,7 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
-			,IsCancelCashOut
+			,CheckTimeCashOut
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -234,25 +234,16 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
-		,CASE WHEN b.betdaqid = -2 
-			  AND (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-			  AND (b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-			  AND (c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-			THEN 1 ELSE 0 END AS IsCancelCashOut
+		,c.CheckTime AS CheckTimeCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
 	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (9, 29)			
+		AND b.bettype NOT IN (805, 806, 9, 29)			
+		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND 1 = CASE WHEN (b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) THEN 1
-					 WHEN (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) THEN 1
-					 WHEN b.betdaqid = -2 
-					  AND (b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-					  AND (b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-					  AND (c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime)
-					 THEN 1 ELSE 0 END
+		AND ((b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay
@@ -461,7 +452,7 @@ BEGIN
 		,SubTransdesc  AS 's_tdes'
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
-		,ISNULL(IsCancelCashOut,0) AS 'isCCO'
+		,CheckTimeCashOut AS 'checktCO' 
 	FROM #TransInfo
 	FOR JSON PATH))
 

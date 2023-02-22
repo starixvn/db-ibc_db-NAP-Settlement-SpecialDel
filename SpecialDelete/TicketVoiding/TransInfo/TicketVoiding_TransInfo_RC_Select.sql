@@ -97,7 +97,7 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
-		,IsCancelCashOut 	BIT
+		,CheckTimeCashOut  DATETIME
 	)
 
 	SET @RedCardXML = CONVERT(XML, @RedCardInfo)
@@ -172,7 +172,7 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
-			,IsCancelCashOut
+			,CheckTimeCashOut
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -235,27 +235,19 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
-		,CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 0
-			  ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-						ELSE 0 END
-			  END AS IsCancelCashOut
+		,c.CheckTime AS CheckTimeCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
-		CROSS APPLY (
-			SELECT CASE WHEN d.FilterBy = 1 THEN b.transdate 
+	WHERE b.statusID NOT IN (101, 102, 103)
+		AND b.bettype NOT IN (805, 806, 9, 29)			
+		AND b.bettype NOT BETWEEN 901 AND 920
+		AND b.betfrom <> 'P'
+		AND CASE WHEN d.FilterBy = 1 THEN b.transdate 
 					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
 					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
-			END AS VoidTime
-		)act
-	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (9, 29)			
-		AND b.betfrom <> 'P'
-		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-					 ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-							   ELSE 0 END
-					 END
+			END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay
@@ -467,7 +459,7 @@ BEGIN
 		,SubTransdesc  AS 's_tdes'
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
-		,ISNULL(IsCancelCashOut,0) AS 'isCCO'
+		,CheckTimeCashOut AS 'checktCO' 
 	FROM #TransInfo
 	FOR JSON PATH))
 

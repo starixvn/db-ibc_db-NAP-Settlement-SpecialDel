@@ -1,10 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Void_Select] 
 (
-	@SingleTransIds		VARCHAR(MAX) = NULL
-	,@ParlayTransIds	VARCHAR(MAX) = NULL
-	,@CancelCashoutTransIds  VARCHAR(MAX) = NULL
-	,@MatchId			INT = NULL
+	@SingleTransIds			VARCHAR(MAX) = NULL
+	,@ParlayTransIds		VARCHAR(MAX) = NULL
+	,@CancelCashoutTransIds VARCHAR(MAX) = NULL
+	,@MatchId				INT = NULL
 )
 AS
 /*	
