@@ -21,6 +21,7 @@ AS
 		- 20220808@July: HF- Request only sub parlay ticket get wrong score show for template message [Redmine: #179752]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230116@July: HF - Edit Request: Log Info has the difference between START TIME void and MIM TIME highlight [Redmine: #182910]
+		- 20230112@July: Wrong Score - No need to exclude Home/Away bet types [Redmine: #182805]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -32,10 +33,6 @@ BEGIN
 
 	DECLARE  @SingleCount			  INT = 0
 			,@MainParlayCount		  INT = 0
-			,@MatchProcessXML		  XML = NULL
-			,@MatchParlayProcessXML	  XML = NULL
-			,@TotalRefnoParlay		  INT = 0
-			,@ThreadHold			  INT = 0
 			,@FilterBy				  TINYINT = 0
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) = ''
@@ -52,7 +49,6 @@ BEGIN
 		    ,@SATime				  TINYINT = 0
 			,@ScoreId				  INT = NULL
 			,@MatchId				  INT = 0
-			,@SubIssueTypeId		  INT 
 
 	DECLARE @Decompress_TransInfoJson0 NVARCHAR(MAX) = NULL
 		   ,@Decompress_TransInfoJson1 NVARCHAR(MAX) = NULL
@@ -179,7 +175,6 @@ BEGIN
 	)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
-	DECLARE @tblHighlightTransId TABLE (MatchId INT, Transid BIGINT, AcceptType TINYINT, VoidTime DATETIME)
 	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
@@ -207,7 +202,6 @@ BEGIN
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL ))
 
 	SELECT TOP (1) @FilterBy = FilterBy 
-				 , @SubIssueTypeId = SubIssueTypeId
 				 , @MatchId = MatchId 
 	FROM #FilterInfo
 	
@@ -441,9 +435,6 @@ BEGIN
 			)act
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			WHERE act.FromDate BETWEEN @VoidFromTime AND @FilterToTransTime
-				AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
-								WHERE f.bettype = b.bettype AND f.SubIssueTypeId = @SubIssueTypeId AND f.IssueTypeId = @IssueTypeId)
 				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							 ELSE 0 END
@@ -458,8 +449,6 @@ BEGIN
 			WHERE MatchId = @MatchId
 		END 
 	END			
-
-	
 		
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -512,11 +501,6 @@ BEGIN
 						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
 					   ELSE 0 END 
-			AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
-								WHERE f.bettype = b.bettype 
-									AND f.SubIssueTypeId = @SubIssueTypeId
-									AND f.IssueTypeId = @IssueTypeId)
 				
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo bm  WHERE bm.IsMixParlay = 1)
@@ -575,65 +559,34 @@ BEGIN
 						     WHEN @FilterBy = 2 AND ISNULL(b.Subchecktime, b.Subtransdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						     WHEN @FilterBy = 4 AND ((b.Subchecktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.Subtransdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime)) THEN 1
 							ELSE 0 END 
-				AND NOT EXISTS (SELECT TOP 1 1 
-								FROM dbo.f_TVS_CheckingSubIssueTypeIdExcludeBettypes() f 
-								WHERE f.bettype = b.Subbettype
-									AND f.SubIssueTypeId = @SubIssueTypeId
-									AND f.IssueTypeId = @IssueTypeId)
 	END
 
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
-		IF @FilterBy = 2
-		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
-			FROM #TVSTicketBets t
-				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
-							UNION ALL
-							SELECT rp.TransId, rp.MainTransId, rp.RequestId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-							WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
-					)tmp
-				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-		END
-		ELSE
-		BEGIN
-			INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, ScoreId, MatchId)
-			SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.ScoreId, @MatchId
-			FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
-				CROSS APPLY (
-							SELECT rs.TransId, rs.TransId AS MainTransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							WHERE rs.RequestId = r.RequestId AND rs.MatchId = @MatchId
-							UNION ALL
-							SELECT rp.TransId, rp.MainTransId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-							WHERE rp.RequestId = r.RequestId AND rp.MatchId = @MatchId
-					)tmp
-				INNER JOIN #TVSTicketBets t ON t.SubTransid = tmp.transid
-			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
-		END
+		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, ScoreId)
+		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid, t.ScoreId
+		FROM #TVSTicketBets t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
+						UNION ALL
+						SELECT rp.TransId, rp.MainTransId, rp.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
+				)tmp
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
+		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 
-		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
+		IF @@ROWCOUNT <> 0
 		BEGIN
-			IF @FilterBy = 2
-			BEGIN
-				UPDATE v SET v.IsExistedInOtherRequest = 1
-				FROM @Validation v
-				WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
-			END
-			ELSE
-			BEGIN
-				UPDATE v SET v.IsExistedInOtherRequest = 1
-				FROM @Validation v
-				WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.ScoreId = v.ScoreId)
-			END
+			UPDATE v SET v.IsExistedInOtherRequest = 1
+			FROM @Validation v
+				INNER JOIN #TransidInRequest t ON t.MatchId = v.MatchId
+			WHERE 1 = CASE WHEN @FilterBy = 2 THEN 1
+						   WHEN @FilterBy <> 2 AND t.ScoreId = v.ScoreId THEN 1
+						   ELSE 0 END
 		END
 	END
 
@@ -699,7 +652,7 @@ BEGIN
 			FROM @Validation
 
 			-- 2. TransId in request table
-			SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 
 			-- 3.Loginfo table
@@ -872,7 +825,7 @@ BEGIN
 			-- 2. TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 			BEGIN
-				SELECT RequestId, NULL AS LiveScores, r.ScoreId, 
+				SELECT RequestId, r.ScoreId, 
 					STUFF((
 					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 					FROM #TransidInRequest
@@ -884,7 +837,7 @@ BEGIN
 			END
 			ELSE
 			BEGIN 
-				SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+				SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 				FROM #TransidInRequest
 			END
 			
@@ -1051,7 +1004,6 @@ BEGIN
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 		BEGIN
 			SELECT RequestId
-				,NULL AS LiveScores
 				,r.ScoreId
 				,STUFF((
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
@@ -1064,7 +1016,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			SELECT RequestId, NULL AS LiveScores, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			SELECT RequestId, ScoreId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 		END
 
