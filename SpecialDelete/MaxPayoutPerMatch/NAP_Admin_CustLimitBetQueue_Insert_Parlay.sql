@@ -14,6 +14,7 @@ AS
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161037]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220908@Helen: Performance Tuning - [Redmine: #177591]
+		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 	
 	Param's explanation:	
 		
@@ -51,7 +52,7 @@ BEGIN
 	SET @xml = CONVERT(XML, @TransidList)
 
 	INSERT INTO #tmpParlayTransid (custid, ruben, transid)
-	SELECT t.c.value('@custid','int') AS custid
+	SELECT DISTINCT t.c.value('@custid','int') AS custid
 			,t.c.value('@ruben','tinyint') AS ruben
 			,t.c.value('@transid','BIGINT') AS transid
 	FROM @xml.nodes('root/r') t(c)

@@ -11,13 +11,14 @@ AS
 		- 20220823@Max: Remove Temp Code - [Redmine: #169407]
 		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 		- 20221206@Max: MPO Remove invalid email address (LOCAL + SIT) [Redmine: #00000]
+		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 	
 	Param's explanation:		
 		
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @QueueId	INT
+	DECLARE @QueueId	BIGINT
 		,@ErrCode		INT
 		,@ErrMsg		VARCHAR(300)
 		,@RetryTime INT = 5
@@ -30,7 +31,7 @@ BEGIN
 		,@List_QueueRetry_Failed VARCHAR(MAX) = ''
 
 
-	CREATE TABLE #CustLimitBet_QueueRetry (QueueId INT, CreatedDate DATETIME, IsFinished INT DEFAULT(0))
+	CREATE TABLE #CustLimitBet_QueueRetry (QueueId BIGINT, CreatedDate DATETIME, IsFinished INT DEFAULT(0))
 
 	CREATE INDEX IX_IsFinished ON #CustLimitBet_QueueRetry (IsFinished)
 
@@ -74,6 +75,7 @@ BEGIN
 			FROM dbo.CustLimitBet_QueueRetry q
 			WHERE q.MainQueueId = @QueueId
 				AND q.Trycount = 0
+				AND q.StatusId = 0
 		END
 			
 	END

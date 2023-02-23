@@ -14,6 +14,7 @@ AS
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
+		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 	
 	Param's explanation:	
 		
@@ -59,7 +60,7 @@ BEGIN
 	SET @xml = CONVERT(XML, @TransidList)
 
 	INSERT INTO #CustLimitBet_tmp(CustId, sitetype, transid, bettype)        
-	SELECT t.c.value('@custid','int') AS custid
+	SELECT DISTINCT t.c.value('@custid','int') AS custid
 		,t.c.value('@sitetype','tinyint') AS sitetype
 		,t.c.value('@transid','BIGINT') AS transid
 		,t.c.value('@bettype','smallint') AS bettype
