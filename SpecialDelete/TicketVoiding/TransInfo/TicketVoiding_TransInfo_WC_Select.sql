@@ -247,7 +247,7 @@ BEGIN
 					 WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1	
 					 WHEN b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
 					  AND b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
-					  AND b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND  c.CheckTime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					  AND b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 					 ELSE 0 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
