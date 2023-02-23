@@ -15,6 +15,7 @@ AS
 		- 20220809@Tina: include checking data for deposit - phase 3 [Redmine: #167898]
 		- 20220906@Tina: Scale out DB - Check Ticket Data Consistency [Redmine: #175881]
 		- 20221003@Victoria: Add list transid (top 100) to message [Redmine: #178536]
+		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
 
 	Param's explanation:		
 		
@@ -57,7 +58,7 @@ BEGIN
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_789 cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -66,7 +67,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_MBC cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -75,7 +76,7 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_LIC cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -88,7 +89,7 @@ BEGIN
 	FROM
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
 			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
 			AND NOT EXISTS(SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
@@ -108,7 +109,7 @@ BEGIN
 	FROM
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
 			INNER JOIN #RunningMatch m ON b.matchid = m.matchid
 		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
 			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
@@ -152,7 +153,7 @@ BEGIN
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
 		WHERE B.bettype = 10
 			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
 			AND b.transdate BETWEEN @StartTime AND @EndTime
@@ -171,7 +172,7 @@ BEGIN
 		(SELECT TOP (100) b.transId
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-			INNER JOIN CustDB.dbo.vw_Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
 		WHERE B.bettype = 10
 			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
 			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
@@ -210,19 +211,16 @@ BEGIN
 
 	--SELECT TOP 1 COUNT(1), q.ActionID, q.CustID, q.Matchid, q.EventTypeID, min(q.CreatedDate) MinDate , max (CreatedDate) MaxDate, q.Transids
 
-
-	/*---20220607@Tina: For this case, waiting for TW fix this issue.
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBetQueue Q with (nolock)
 				WHERE q.ActionID = 2
 					AND q.CreatedDate BETWEEN @StartTime AND @EndTime
 				GROUP BY q.ActionID, q.CustID, q.Matchid, q.Transids, q.EventTypeID
 				HAVING count(1) > 1
-				ORDER BY q.Matchid)
+				)
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'Duplicate data in Queue table. ' + CHAR(13) + CHAR(10)
 	END
-	*/
 
 	----------------------------------------------------------------------------------------------------------------------------------------------------
 
