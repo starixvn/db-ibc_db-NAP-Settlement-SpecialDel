@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_CheckingMoveBetDay]
 (
 	 @MatchIds				VARCHAR(MAX)
 	,@EventTable			VARCHAR(100)	= 'match'
-	,@EventDate				DATETIME		= NULL
+	,@EventDate				SMALLDATETIME	= NULL
 	,@MovingMatchIds		VARCHAR(MAX)	= '' OUTPUT
 	,@ErrCode				INT				= 0	 OUTPUT
 	,@ErrMsg				VARCHAR(200)	= '' OUTPUT
