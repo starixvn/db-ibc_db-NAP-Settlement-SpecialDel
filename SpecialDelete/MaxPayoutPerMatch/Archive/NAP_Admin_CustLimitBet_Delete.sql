@@ -13,6 +13,7 @@ AS
 		- 20211112@Max: MPO Phase 2 - Clean up data for Parlay [Redmine: #159626]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
+		- 20230223@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 	
 	Param's explanation:	
 		
@@ -20,7 +21,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Matchid INT, @eventtypeID TINYINT, @QueueId BIGINT
+	DECLARE @Matchid INT, @eventtypeID TINYINT, @QueueId BIGINT, @movebetdate	DATETIME
 
 	CREATE TABLE #match_tmp (ID INT IDENTITY(1,1),MatchId INT, EventTypeID TINYINT)
 	CREATE TABLE #match_archive (MatchId INT,  EventTypeID TINYINT)
@@ -38,7 +39,7 @@ BEGIN
 	
 	DECLARE @tmp_batch AS TABLE (QueueID BIGINT PRIMARY KEY)
 
-	DECLARE @Archive_Date DATETIME
+	DECLARE @Archive_Date DATETIME, @Archive_Date_Parlay DATETIME
 	SELECT @Archive_Date = DATEADD(DAY, -6, GETDATE())
 
 	DECLARE @start INT = 1, @end INT
@@ -200,6 +201,10 @@ BEGIN
 	END
 
 	--Phase 2 - Clean up data for parlay - Only table CustLimitBetHistory_XXX
+	--Get Movebetdate
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @movebetdate OUTPUT
+	SET @Archive_Date_Parlay = DATEADD(DAY, -6, @movebetdate) 
+
 	---MBC
 	INSERT INTO #tmp_TransId_pre_mbc (Transid,custid)
 	SELECT transid, custid
@@ -210,8 +215,8 @@ BEGIN
 	INSERT INTO #tmp_TransId_Parlay_mbc (CustId, TransId)
 	SELECT t.custid, t.transid
 	FROM #tmp_TransId_pre_mbc t
-		LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.Transid = b.transid
-	WHERE b.transid IS NULL
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
+	WHERE b.winlostdate <= @Archive_Date_Parlay
 
 	--789
 	INSERT INTO #tmp_TransId_pre_789 (Transid,custid)
@@ -223,8 +228,8 @@ BEGIN
 	INSERT INTO #tmp_TransId_Parlay_789 (CustId, TransId)
 	SELECT t.custid, t.transid
 	FROM #tmp_TransId_pre_789 t
-		LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.Transid = b.transid
-	WHERE b.transid IS NULL
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
+	WHERE b.winlostdate <= @Archive_Date_Parlay
 
 	--LIC
 	INSERT INTO #tmp_TransId_pre_LIC (Transid,custid)
@@ -236,8 +241,8 @@ BEGIN
 	INSERT INTO #tmp_TransId_Parlay_LIC (CustId, TransId)
 	SELECT t.custid, t.transid
 	FROM #tmp_TransId_pre_LIC t
-		LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON t.Transid = b.transid
-	WHERE b.transid IS NULL
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
+	WHERE b.winlostdate <= @Archive_Date_Parlay
 
 	--Delete Data
 	---------mbc-----------
