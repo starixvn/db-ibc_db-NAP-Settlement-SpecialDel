@@ -46,6 +46,7 @@ BEGIN
 			,@IsShowPHOnly			  BIT
 			,@PoolHouseCheckedBetTypes VARCHAR(MAX) = ''
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
+
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
 			SubTransid            BIGINT,

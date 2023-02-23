@@ -231,7 +231,7 @@ BEGIN
 		,b.SiteDBGroupID
 		,b.oddsid
 		,b.winlostdate
-	    ,CASE WHEN d.TicketType = 3 THEN 1 ELSE 0 END IsCancelCashOut
+	    ,CASE WHEN d.TicketType = 3 AND b.betdaqid = -2 THEN 1 ELSE 0 END IsCancelCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #transIdTemp d ON d.transid = b.TransId
 	WHERE b.statusID NOT IN (101, 102, 103)

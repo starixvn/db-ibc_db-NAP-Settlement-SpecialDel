@@ -33,6 +33,7 @@ BEGIN
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
 			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
+
 	SET @KickOffInfoXML = CONVERT(XML, @KickOffInfo)
 	SELECT @MatchId = t.c.value('@MatchId','INT') 
 		  ,@KickOffTime = t.c.value('@KickOffTime','DATETIME')

@@ -1,10 +1,10 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select]
-	@VoidingHistoryId		INT = NULL
-	,@IsITSupport BIT = 0
+ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
+	 @VoidingHistoryId			INT = NULL
+	,@IsITSupport				BIT = 0
 	,@IsITSupportCreatedRequest BIT = 0
-	,@SiteDBGroupID	SMALLINT = 0
-AS
+	,@SiteDBGroupID				SMALLINT = 0
+)AS
 /*	Created by: 20181212@Kathy
 	Task: get voided ticket to send email [Redmine:#90155]
 	DB: DBTXN/bodb02
