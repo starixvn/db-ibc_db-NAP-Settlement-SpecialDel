@@ -21,7 +21,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @Matchid INT, @eventtypeID TINYINT, @QueueId BIGINT, @movebetdate	DATETIME
+	DECLARE @Matchid INT, @eventtypeID TINYINT, @QueueId BIGINT, @movebetdate DATETIME, @SiteDBGroupID	SMALLINT = 0
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	CREATE TABLE #match_tmp (ID INT IDENTITY(1,1),MatchId INT, EventTypeID TINYINT)
 	CREATE TABLE #match_archive (MatchId INT,  EventTypeID TINYINT)
@@ -203,75 +204,87 @@ BEGIN
 	--Phase 2 - Clean up data for parlay - Only table CustLimitBetHistory_XXX
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @movebetdate OUTPUT
-	SET @Archive_Date_Parlay = DATEADD(DAY, -6, @movebetdate) 
+	SET @Archive_Date_Parlay = DATEADD(DAY, -4, @movebetdate) 
 
-	---MBC
-	INSERT INTO #tmp_TransId_pre_mbc (Transid,custid)
-	SELECT transid, custid
-	FROM dbo.CustLimitBetHistory_MBC m1 WITH (NOLOCK)
-	WHERE m1.Matchid = 29
-	GROUP BY matchid,transid,custid
+	IF @SiteDBGroupID = 0
+	BEGIN
+		---MBC
+		INSERT INTO #tmp_TransId_pre_mbc (Transid,custid)
+		SELECT transid, custid
+		FROM dbo.CustLimitBetHistory_MBC m1 WITH (NOLOCK)
+		WHERE m1.Matchid = 29
+		GROUP BY matchid,transid,custid
 
-	INSERT INTO #tmp_TransId_Parlay_mbc (CustId, TransId)
-	SELECT t.custid, t.transid
-	FROM #tmp_TransId_pre_mbc t
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
-	WHERE b.winlostdate <= @Archive_Date_Parlay
+		INSERT INTO #tmp_TransId_Parlay_mbc (CustId, TransId)
+		SELECT t.custid, t.transid
+		FROM #tmp_TransId_pre_mbc t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
+		WHERE b.winlostdate <= @Archive_Date_Parlay
 
-	--789
-	INSERT INTO #tmp_TransId_pre_789 (Transid,custid)
-	SELECT transid,custid
-	FROM dbo.CustLimitBetHistory_789  m2 WITH (NOLOCK)
-	WHERE m2.Matchid = 29
-	GROUP BY matchid,transid,custid
+		--789
+		INSERT INTO #tmp_TransId_pre_789 (Transid,custid)
+		SELECT transid,custid
+		FROM dbo.CustLimitBetHistory_789  m2 WITH (NOLOCK)
+		WHERE m2.Matchid = 29
+		GROUP BY matchid,transid,custid
 
-	INSERT INTO #tmp_TransId_Parlay_789 (CustId, TransId)
+		INSERT INTO #tmp_TransId_Parlay_789 (CustId, TransId)
 	SELECT t.custid, t.transid
 	FROM #tmp_TransId_pre_789 t
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
 	WHERE b.winlostdate <= @Archive_Date_Parlay
+	END
+	ELSE
+	BEGIN
+		--LIC
+		INSERT INTO #tmp_TransId_pre_LIC (Transid,custid)
+		SELECT transid,custid
+		FROM dbo.CustLimitBetHistory_LIC  m2 WITH (NOLOCK)
+		WHERE m2.Matchid = 29
+		GROUP BY matchid,transid,custid
 
-	--LIC
-	INSERT INTO #tmp_TransId_pre_LIC (Transid,custid)
-	SELECT transid,custid
-	FROM dbo.CustLimitBetHistory_LIC  m2 WITH (NOLOCK)
-	WHERE m2.Matchid = 29
-	GROUP BY matchid,transid,custid
-
-	INSERT INTO #tmp_TransId_Parlay_LIC (CustId, TransId)
+		INSERT INTO #tmp_TransId_Parlay_LIC (CustId, TransId)
 	SELECT t.custid, t.transid
 	FROM #tmp_TransId_pre_LIC t
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
 	WHERE b.winlostdate <= @Archive_Date_Parlay
+	END
 
+	
 	--Delete Data
-	---------mbc-----------
-	WHILE (1 = 1)
+	IF EXISTS (SELECT TOP 1 1 FROM #tmp_TransId_Parlay_mbc)
 	BEGIN
+		---------mbc-----------
+		WHILE (1 = 1)
+		BEGIN
   
-		DELETE TOP (1000) r 
-		OUTPUT DELETED.custid,DELETED.TransId
-		INTO #tmp_TransId_Parlay_batch (custid, TransId)    
-		FROM #tmp_TransId_Parlay_mbc r 
+			DELETE TOP (1000) r 
+			OUTPUT DELETED.custid,DELETED.TransId
+			INTO #tmp_TransId_Parlay_batch (custid, TransId)    
+			FROM #tmp_TransId_Parlay_mbc r 
   
-		IF @@ROWCOUNT = 0
-		BREAK
+			IF @@ROWCOUNT = 0
+			BREAK
   
-		DELETE t
-		FROM dbo.CustLimitBetHistory_MBC t 
-			INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
-		WHERE t.matchid = 29 
+			DELETE t
+			FROM dbo.CustLimitBetHistory_MBC t 
+				INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
+			WHERE t.matchid = 29 
 
+			TRUNCATE TABLE #tmp_TransId_Parlay_batch
+
+			WAITFOR DELAY '00:00:00.020'
+    
+		END
+	END
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #tmp_TransId_Parlay_789)
+	BEGIN
+		----------789-----------
 		TRUNCATE TABLE #tmp_TransId_Parlay_batch
 
-		WAITFOR DELAY '00:00:00.020'
-    
-	END
-	----------789-----------
-	TRUNCATE TABLE #tmp_TransId_Parlay_batch
-
-	WHILE (1 = 1)
-	BEGIN
+		WHILE (1 = 1)
+		BEGIN
   
 		DELETE TOP (1000) r 
 		OUTPUT DELETED.custid,DELETED.TransId
@@ -291,30 +304,34 @@ BEGIN
 		WAITFOR DELAY '00:00:00.020'
     
 	END
-
-	----------LIC-----------
-	TRUNCATE TABLE #tmp_TransId_Parlay_batch
-
-	WHILE (1 = 1)
+	END
+	
+	IF EXISTS (SELECT TOP 1 1 FROM #tmp_TransId_Parlay_LIC)
 	BEGIN
-  
-		DELETE TOP (1000) r 
-		OUTPUT DELETED.custid,DELETED.TransId
-		INTO #tmp_TransId_Parlay_batch (custid, TransId)    
-		FROM #tmp_TransId_Parlay_LIC r 
-  
-		IF @@ROWCOUNT = 0
-		BREAK
-  
-		DELETE t
-		FROM dbo.CustLimitBetHistory_LIC t 
-			INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
-		WHERE t.matchid = 29 
-
+		----------LIC-----------
 		TRUNCATE TABLE #tmp_TransId_Parlay_batch
 
-		WAITFOR DELAY '00:00:00.020'
+		WHILE (1 = 1)
+		BEGIN
+  
+			DELETE TOP (1000) r 
+			OUTPUT DELETED.custid,DELETED.TransId
+			INTO #tmp_TransId_Parlay_batch (custid, TransId)    
+			FROM #tmp_TransId_Parlay_LIC r 
+  
+			IF @@ROWCOUNT = 0
+			BREAK
+  
+			DELETE t
+			FROM dbo.CustLimitBetHistory_LIC t 
+				INNER JOIN #tmp_TransId_Parlay_batch b ON t.CustID = b.CustId and t.Transid = b.TransId
+			WHERE t.matchid = 29 
 
+			TRUNCATE TABLE #tmp_TransId_Parlay_batch
+
+			WAITFOR DELAY '00:00:00.020'
+
+		END
 	END
 
 	--CustLimitBet_QueueRetry
