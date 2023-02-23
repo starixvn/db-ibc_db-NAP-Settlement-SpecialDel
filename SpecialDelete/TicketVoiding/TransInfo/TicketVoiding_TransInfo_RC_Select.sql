@@ -240,14 +240,20 @@ BEGIN
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
 		LEFT JOIN dbo.CashOutSelling c WITH(NOLOCK) ON b.TransId = c.TransID
+		CROSS APPLY (
+			SELECT CASE WHEN d.FilterBy = 1 THEN b.transdate 
+					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
+					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
+			END AS VoidTime
+		)act
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND CASE WHEN d.FilterBy = 1 THEN b.transdate 
-					WHEN d.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
-					WHEN d.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
-			END BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
+		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+							   ELSE 0 END
+					 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay

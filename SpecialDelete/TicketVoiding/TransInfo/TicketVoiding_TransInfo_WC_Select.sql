@@ -243,7 +243,12 @@ BEGIN
 		AND b.bettype NOT IN (805, 806, 9, 29)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND ((b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
+		AND 1 = CASE WHEN b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1	
+					 WHEN b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
+					  AND b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
+					  AND b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND  c.CheckTime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 ELSE 0 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay
