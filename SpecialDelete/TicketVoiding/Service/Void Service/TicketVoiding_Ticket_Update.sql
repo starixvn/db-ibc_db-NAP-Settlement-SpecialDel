@@ -12,8 +12,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
-	,@QueueIds			VARCHAR(MAX) = ''	OUTPUT
-	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX)	= NULL	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20181212
@@ -80,7 +79,20 @@ BEGIN
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
-	
+	ELSE IF @VoidingTypeId = 3 --Cancel CashOut
+	BEGIN
+		EXEC dbo.TicketVoiding_CancelCashOutType_Update
+			@RequestId = @RequestId
+			,@MatchId = @MatchId			
+			,@VoidingHistoryId = @VoidingHistoryId
+			,@TransIds = @TransIds
+			,@UserId = @UserId
+			,@IP = @IP
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
+			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+	END
 END
 GO
 

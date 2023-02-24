@@ -1,18 +1,19 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TicketProcess_Update]
 (
-	@SingleTicketsJSON	VARCHAR(MAX) = NULL
-	,@ParlayTicketsJSON	VARCHAR(MAX) = NULL
+	@SingleTicketsJSON		VARCHAR(MAX) = NULL
+   ,@ParlayTicketsJSON		VARCHAR(MAX) = NULL
+   ,@CancelCOTicketsJSON	NVARCHAR(MAX) = NULL
 )
 AS
 /*	
-	Created by: Max
-	Date 20221201
+	Created by: 20221201@Max
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20221201@Max: Create new SP [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:
 */
@@ -21,6 +22,7 @@ BEGIN
 
 	CREATE TABLE #tmpInputTransId_Single (TransId BIGINT, RequestId INT, MatchId INT)
 	CREATE TABLE #tmpInputTransId_Parlay (TransId BIGINT, RequestId INT, MatchId INT)
+	CREATE TABLE #tmpInputTransId_CancelCashOut (TransId BIGINT, RequestId INT, MatchId INT)
 
 	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT, RequestId INT, MatchId INT)
 
@@ -37,6 +39,14 @@ BEGIN
 		INSERT INTO #tmpInputTransId_Parlay (TransId, RequestId, MatchId)
 		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
 		FROM OPENJSON(@ParlayTicketsJSON)
+			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
+	END
+
+	IF @CancelCOTicketsJSON IS NOT NULL
+	BEGIN
+		INSERT INTO #tmpInputTransId_CancelCashOut (TransId, RequestId, MatchId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
+		FROM OPENJSON(@CancelCOTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
 	END
 
@@ -80,9 +90,27 @@ BEGIN
 
 	END
 	
+	--Cancel cash-out update
+	WHILE(1=1)
+	BEGIN
+		DELETE @tmpTransIdBatch
+
+		DELETE TOP(2000) s OUTPUT deleted.TransId, deleted.RequestId INTO @tmpTransIdBatch(TransId, RequestId)
+		FROM #tmpInputTransId_CancelCashOut s
+
+		IF @@ROWCOUNT = 0
+			BREAK
+
+		UPDATE s SET s.IsProcessed = 1
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
+			INNER JOIN @tmpTransIdBatch t ON t.RequestId = s.RequestId AND t.TransId = s.TransId
+
+	END
+	
 
 	DROP TABLE #tmpInputTransId_Single
 	DROP TABLE #tmpInputTransId_Parlay
+	DROP TABLE #tmpInputTransId_CancelCashOut
 END		
 GO
 
