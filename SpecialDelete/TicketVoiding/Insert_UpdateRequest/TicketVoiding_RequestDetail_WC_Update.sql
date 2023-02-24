@@ -230,8 +230,9 @@ BEGIN
 		FROM #tmpTransInfo b 
 			INNER JOIN #tblGetLogInfo d ON d.MatchID = b.matchid
 		WHERE 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
-						 WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
-						 WHEN d.FilterBy = 4 AND ((b.checktime BETWEEN d.VoidFromTime AND d.VoidToTime) OR (b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime)) THEN 1
+					   WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
+					   WHEN d.FilterBy = 4 AND ((b.checktime BETWEEN d.VoidFromTime AND d.VoidToTime) OR (b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime)) THEN 1
+					   WHEN b.IsCancelCashOut = 1 THEN 1 
 					ELSE 0 END 
 
 	SELECT @SingleCount = SUM(SingleCount)
