@@ -1,9 +1,9 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_TicketProcess_Update]
 (
-	@SingleTicketsJSON		VARCHAR(MAX) = NULL
-   ,@ParlayTicketsJSON		VARCHAR(MAX) = NULL
-   ,@CancelCOTicketsJSON	NVARCHAR(MAX) = NULL
+	@SingleTicketsJSON			NVARCHAR(MAX) = NULL
+   ,@ParlayTicketsJSON			NVARCHAR(MAX) = NULL
+   ,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -42,11 +42,11 @@ BEGIN
 			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
 	END
 
-	IF @CancelCOTicketsJSON IS NOT NULL
+	IF @CancelCashOutTicketsJSON IS NOT NULL
 	BEGIN
 		INSERT INTO #tmpInputTransId_CancelCashOut (TransId, RequestId, MatchId)
 		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
-		FROM OPENJSON(@CancelCOTicketsJSON)
+		FROM OPENJSON(@CancelCashOutTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
 	END
 

@@ -680,7 +680,7 @@ BEGIN
 				SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
-					INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0 
+					LEFT JOIN #TVSTicketBets b ON b.transid = s.TransId AND b.IsMixParlay = 0 AND b.IsCancelCashOut <> 1
 				WHERE s.RequestId = @RequestId
 					AND f.GroupName <> '2H'
 		END

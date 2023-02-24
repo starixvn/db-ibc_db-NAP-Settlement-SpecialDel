@@ -716,7 +716,7 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 					SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 						INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
-						INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0
+						LEFT JOIN #TVSTicketBets b ON b.transid = s.TransId AND b.IsMixParlay = 0 AND b.IsCancelCashOut <> 1
 					WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
 			END
 
@@ -765,8 +765,7 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 						SELECT  TOP 1 b.accepttype AS HighlightAcceptType
 						FROM #TVSTicketBets b
 						WHERE b.matchId = rd.MatchId
-						AND li.HighLightMinTime = (CASE WHEN b.checktime IS NOT NULL THEN b.checktime
-													WHEN b.checktime IS NULL THEN b.transdate END)
+						AND li.HighLightMinTime = (CASE WHEN b.checktime IS NOT NULL THEN b.checktime ELSE b.transdate END)
 				)h
 				CROSS APPLY(
 					SELECT DISTINCT '|' + l.ScoreNormalTicket FROM @tblScoreMessage l WHERE l.MatchId = rd.MatchId FOR XML PATH('')

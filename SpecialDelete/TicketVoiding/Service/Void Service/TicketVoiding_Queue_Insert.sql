@@ -5,7 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 	,@RequestId				INT
 	,@SingleTicketsJSON		NVARCHAR(MAX) = NULL
 	,@ParlayTicketsJSON		NVARCHAR(MAX) = NULL
-	,@CancelCOTicketsJSON	NVARCHAR(MAX) = NULL
+	,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50)
 )
@@ -57,11 +57,11 @@ BEGIN
 			WITH (MatchId INT, TransId BIGINT, IssueTypeId INT) tbl
 	END
 
-	IF @CancelCOTicketsJSON IS NOT NULL
+	IF @CancelCashOutTicketsJSON IS NOT NULL
 	BEGIN
 		INSERT INTO #tmpInputTransId (TransId, MatchId, IssueTypeId, TicketType)
 		SELECT tbl.TransId, tbl.MatchId, tbl.IssueTypeId, 3
-		FROM OPENJSON(@CancelCOTicketsJSON)
+		FROM OPENJSON(@CancelCashOutTicketsJSON)
 			WITH (MatchId INT, TransId BIGINT, IssueTypeId INT) tbl
 	END
 

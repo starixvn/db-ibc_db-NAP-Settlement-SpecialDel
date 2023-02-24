@@ -1,9 +1,9 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Validation]
 (
-	@SingleTicketsJSON		NVARCHAR(MAX) = NULL
-	,@ParlayTicketsJSON		NVARCHAR(MAX) = NULL
-	,@CancelCOTicketsJSON	NVARCHAR(MAX) = NULL
+	 @SingleTicketsJSON			NVARCHAR(MAX) = NULL
+	,@ParlayTicketsJSON			NVARCHAR(MAX) = NULL
+	,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -48,11 +48,11 @@ BEGIN
 			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, Matchid INT) tbl
 	END
 	
-	IF @CancelCOTicketsJSON IS NOT NULL
+	IF @CancelCashOutTicketsJSON IS NOT NULL
 	BEGIN
 		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, Matchid, TicketType)
 		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.Matchid, 3
-		FROM OPENJSON(@CancelCOTicketsJSON)
+		FROM OPENJSON(@CancelCashOutTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, Matchid INT) tbl
 	END
 
