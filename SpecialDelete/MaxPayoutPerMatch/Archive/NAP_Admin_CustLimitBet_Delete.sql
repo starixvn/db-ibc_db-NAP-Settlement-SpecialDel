@@ -204,7 +204,7 @@ BEGIN
 	--Phase 2 - Clean up data for parlay - Only table CustLimitBetHistory_XXX
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @movebetdate OUTPUT
-	SET @Archive_Date_Parlay = DATEADD(DAY, -4, @movebetdate) 
+	SET @Archive_Date_Parlay = DATEADD(DAY, -3, @movebetdate) 
 
 	IF @SiteDBGroupID = 0
 	BEGIN
@@ -229,10 +229,10 @@ BEGIN
 		GROUP BY matchid,transid,custid
 
 		INSERT INTO #tmp_TransId_Parlay_789 (CustId, TransId)
-	SELECT t.custid, t.transid
-	FROM #tmp_TransId_pre_789 t
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
-	WHERE b.winlostdate <= @Archive_Date_Parlay
+		SELECT t.custid, t.transid
+		FROM #tmp_TransId_pre_789 t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
+		WHERE b.winlostdate <= @Archive_Date_Parlay
 	END
 	ELSE
 	BEGIN
@@ -244,10 +244,10 @@ BEGIN
 		GROUP BY matchid,transid,custid
 
 		INSERT INTO #tmp_TransId_Parlay_LIC (CustId, TransId)
-	SELECT t.custid, t.transid
-	FROM #tmp_TransId_pre_LIC t
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
-	WHERE b.winlostdate <= @Archive_Date_Parlay
+		SELECT t.custid, t.transid
+		FROM #tmp_TransId_pre_LIC t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
+		WHERE b.winlostdate <= @Archive_Date_Parlay
 	END
 
 	
