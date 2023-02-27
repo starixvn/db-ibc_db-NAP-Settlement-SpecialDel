@@ -1646,9 +1646,10 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' 
-					 ELSE CASE WHEN s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
-							   ELSE 'Credit (CO)' END
+			   ,CASE WHEN c.site = 'CN88' THEN 'CN88'
+					 ELSE CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' 
+					           WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
+							   WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)' END
 					END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId

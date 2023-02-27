@@ -50,6 +50,7 @@ BEGIN
 		    ,@SATime				  TINYINT = 0
 			,@ScoreId				  INT = NULL
 			,@MatchId				  INT = 0
+	
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
 			SubTransid            BIGINT,

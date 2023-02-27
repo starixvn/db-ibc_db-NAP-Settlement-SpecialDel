@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_TotalVoidedTicket_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_TotalVoidedTicket_Select]
 ( 
 	@RequestInfo XML =''
 )
@@ -74,12 +74,13 @@ BEGIN
 						) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
 					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 					ON vh.VoidingHistoryId = z.VoidingHistoryId 
 			WHERE z.SiteDBGroupID = @SiteDBGroupID AND (vh.MatchId = z.matchid OR vh.MatchId = 0)
-			GROUP BY vh.VoidingHistoryId
-	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END
+	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
 			
 	--parlay
 	UPDATE vh
@@ -88,12 +89,13 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,COUNT(1) AS TotalVoidedParlay
+					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END AS matchid
 			FROM	@tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 					ON	zm.VoidingHistoryId = vh.VoidingHistoryId 
 			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND (vh.MatchId = zm.matchid OR vh.MatchId = 0)
-			GROUP BY vh.VoidingHistoryId
-	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END
+	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
 
 	UPDATE t 
 		SET TotalVoidedSingle = ISNULL(vh.TotalVoidedSingle,0)
