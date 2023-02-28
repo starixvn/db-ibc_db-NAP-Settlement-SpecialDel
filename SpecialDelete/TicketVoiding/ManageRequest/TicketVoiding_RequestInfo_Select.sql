@@ -35,8 +35,8 @@ BEGIN
 	)
 	INSERT INTO #tmpResult(RequestId, IssueTypeId, VoidingHistoryId, LastVoidedBy)
 	SELECT r.RequestId
-			,vh.VoidingHistoryId
 			,r.IssueTypeId
+			,vh.VoidingHistoryId
 			,vh.UserId
 	FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON r.RequestId = vh.RequestId	
@@ -59,10 +59,10 @@ BEGIN
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
 					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
-			FROM dbo.zzzbettrans z WITH(NOLOCK)
-			WHERE	vh.VoidingHistoryId = z.VoidingHistoryId
-			AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
-				         WHEN @MatchId NOT IN (0,29) AND z.matchid = @MatchId THEN 1
+			FROM #tmpResult vh
+			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON vh.VoidingHistoryId = z.VoidingHistoryId
+			WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
+				           WHEN @MatchId NOT IN (0,29) AND z.matchid = @MatchId THEN 1
 						 ELSE 0 END
 			GROUP BY CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END
 	) t 
