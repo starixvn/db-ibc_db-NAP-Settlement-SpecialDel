@@ -14,6 +14,7 @@ AS
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 		- 20230223@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
+		- 20230228@Max: Include LIC into SiteDBGroupID = 0 because 12Bet [Redmine: #183935]
 	
 	Param's explanation:	
 		
@@ -231,6 +232,19 @@ BEGIN
 		INSERT INTO #tmp_TransId_Parlay_789 (CustId, TransId)
 		SELECT t.custid, t.transid
 		FROM #tmp_TransId_pre_789 t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
+		WHERE b.winlostdate <= @Archive_Date_Parlay
+
+		--LIC: 12BET
+		INSERT INTO #tmp_TransId_pre_LIC (Transid,custid)
+		SELECT transid,custid
+		FROM dbo.CustLimitBetHistory_LIC  m2 WITH (NOLOCK)
+		WHERE m2.Matchid = 29
+		GROUP BY matchid,transid,custid
+
+		INSERT INTO #tmp_TransId_Parlay_LIC (CustId, TransId)
+		SELECT t.custid, t.transid
+		FROM #tmp_TransId_pre_LIC t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON t.Transid = b.transid
 		WHERE b.winlostdate <= @Archive_Date_Parlay
 	END
