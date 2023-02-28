@@ -109,6 +109,7 @@ Revisions:
 	- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 	- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+	- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -1617,12 +1618,13 @@ BEGIN
 		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 						,CASE 
 							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
-							WHEN c.site = '789y' THEN 2 --789y
+							WHEN s.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END AS '@sitetype'
 						,b.TransId AS '@transid'
 						,b.Bettype AS '@bettype'
 					FROM #BetDelete b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
 					FOR XML PATH('r'), ROOT('root')
 				)

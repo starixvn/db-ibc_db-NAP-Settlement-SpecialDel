@@ -282,8 +282,8 @@ BEGIN
 							SELECT cte.[site]
 							FROM CTE_CreditSit cte
 							WHERE CASE
-								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) THEN 1
-								WHEN t.GroupName = @789y_Name AND cte.[site] IN (@789y_Name, @y987_Name) THEN 1
+								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) AND cte.SiteLabel <> @789y_Name THEN 1
+								WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
 								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 ELSE 0  
 								END = 1
 						 ) AS cte
@@ -341,7 +341,7 @@ BEGIN
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
-		--INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
+		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON b.matchid = m.matchid
 		CROSS APPLY (SELECT CASE
 						WHEN EXISTS (SELECT d.custid 

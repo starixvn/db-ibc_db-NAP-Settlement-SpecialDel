@@ -22,6 +22,7 @@ AS
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 
 	Explanation's Param:			    
 */
@@ -223,7 +224,7 @@ BEGIN
 
 		;WITH CTE_CreditSit AS
 		(
-			SELECT [site]
+			SELECT [site], SiteLabel
 			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
 			WHERE isLicensee = 0 AND isActive = 1
 		)
@@ -234,8 +235,8 @@ BEGIN
 							SELECT cte.[site]
 							FROM CTE_CreditSit cte
 							WHERE CASE
-								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) THEN 1
-								WHEN t.GroupName = @789y_Name AND cte.[site] IN (@789y_Name, @y987_Name) THEN 1
+								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) AND cte.SiteLabel <> @789y_Name THEN 1
+								WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
 								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 ELSE 0  
 								END = 1
 						 ) AS cte

@@ -103,6 +103,7 @@ AS
 	  - 20220812@Max: MPO - [TVS] wrong data insert into CustLimitBetQueue when transid list include both single and parlay ticket [Redmine: #176578]
 	  - 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 	  - 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+	  - 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 
 	 Param's Explanation:   
 */
@@ -1206,12 +1207,13 @@ BEGIN
 		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 					,CASE 
 						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
-						WHEN c.site = '789y' THEN 2 --789y
+						WHEN s.SiteLabel = '789y' THEN 2 --789y
 						ELSE 1 END AS '@sitetype'
 					,b.TransId AS '@transid'
 					,b.bettype AS '@bettype'
 				FROM #SpecialDeleteBets b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
 				WHERE b.matchid = @MatchId_MaxPO AND b.sporttype = @sporttype AND b.Bettype NOT IN (29,2799)
 				FOR XML PATH('r'), ROOT('root')

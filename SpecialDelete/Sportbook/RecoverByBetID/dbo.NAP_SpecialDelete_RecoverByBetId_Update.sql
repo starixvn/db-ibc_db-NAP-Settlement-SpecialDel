@@ -19,6 +19,7 @@ AS
 		- 20220825@July: Change of TVS regarding to Scale out DBTrans - Support NumberGame [Redmine: #175412]
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 
 	Param's Explanation:	
 */
@@ -146,7 +147,9 @@ BEGIN
 
 	BEGIN TRY
 		--Pare trans ID string
-		INSERT INTO #TransIds (transid)		SELECT DISTINCT value 		FROM STRING_SPLIT(@TransIds, ',')
+		INSERT INTO #TransIds (transid)
+		SELECT DISTINCT value 
+		FROM STRING_SPLIT(@TransIds, ',')
 		WHERE value <> ''
 
 		INSERT INTO #TempBettrans(
@@ -580,12 +583,13 @@ BEGIN
 			SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 						,CASE 
 							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
-							WHEN c.site = '789y' THEN 2 --789y
+							WHEN s.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END AS '@sitetype'
 						,b.TransId AS '@transid'
 						,b.bettype AS '@bettype'
 					FROM #RecoverBet b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
 					WHERE b.matchid = @MatchId_MaxPO AND b.sporttype IN (161, 164)
 					FOR XML PATH('r'), ROOT('root')
