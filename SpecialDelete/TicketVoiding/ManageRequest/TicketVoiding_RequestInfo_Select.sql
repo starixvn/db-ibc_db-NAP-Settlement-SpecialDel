@@ -94,9 +94,9 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.LastVoidedBy = v.CustId
 		CROSS APPLY (
-		    SELECT SUM(ISNULL(tmp.TotalVoidedSingle,0)) AS TotalVoidedSingle 
-				  ,SUM(ISNULL(tmp.TotalVoidedParlay,0)) AS TotalVoidedParlay
-				  ,SUM(ISNULL(tmp.TotalCancelCashOut,0)) AS TotalCancelCashOut
+		    SELECT ISNULL(tmp.TotalVoidedSingle,0) AS TotalVoidedSingle 
+				  ,ISNULL(tmp.TotalVoidedParlay,0) AS TotalVoidedParlay
+				  ,ISNULL(tmp.TotalCancelCashOut,0) AS TotalCancelCashOut
 			FROM #tmpResult tmp
 			WHERE t.RequestId = tmp.RequestId
 		)tmp

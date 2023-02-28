@@ -357,7 +357,7 @@ BEGIN
 			SET FilterVoidFromTime = @FilterFromTransTime, FilterVoidToTime = @FilterToTransTime
 			WHERE MatchId = @MatchId
 		END 
-		ELSE IF @IsShowLogOnly = 0
+		ELSE --IF @IsShowLogOnly = 0
 		BEGIN
 			SELECT @MinAccept = @AATime
 

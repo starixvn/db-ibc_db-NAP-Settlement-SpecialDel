@@ -368,7 +368,7 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 			SET FilterVoidFromTime = @FilterFromTransTime, FilterVoidToTime = @FilterToTransTime
 			WHERE MatchId = @MatchId AND ScoreId = @ScoreId
 		END 
-		ELSE IF @IsShowLogOnly = 0
+		ELSE --IF @IsShowLogOnly = 0
 		BEGIN
 			SELECT @MinAccept = @AATime
 
