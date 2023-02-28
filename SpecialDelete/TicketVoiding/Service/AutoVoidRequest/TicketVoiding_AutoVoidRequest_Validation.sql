@@ -115,9 +115,7 @@ BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId)
 		SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
 		FROM #tmpTransIds t
-		WHERE 1 = CASE WHEN t.TicketType = 1 THEN 1
-					   WHEN t.TicketType = 3 AND ISNULL(t.betdaqid,-1) <> -2 THEN 1 -- for case Cancel CO change statusid -> running before void
-					   ELSE 0 END
+		WHERE t.TicketType = 1
 
 		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId)
 		SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
@@ -127,7 +125,7 @@ BEGIN
 		INSERT INTO #CancelCashOutTickets (TransId, RequestId, Matchid, IssueTypeId)
 		SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId
 		FROM #tmpTransIds t
-		WHERE t.TicketType = 3 AND t.betdaqid = -2
+		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 
 	END
 
