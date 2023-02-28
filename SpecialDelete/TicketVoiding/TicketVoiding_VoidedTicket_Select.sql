@@ -410,9 +410,9 @@ BEGIN
 			   ,s.betdaqid
 			   ,s.ExtraInfo
 			   ,CASE WHEN c.site = 'CN88' THEN 'CN88'
-					 ELSE CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' 
-					           WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
-							   WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)' END
+					 ELSE CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)'
+							   WHEN ISNULL(s.betdaqid,0) <> -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' --betdaqid = -1
+							   ELSE 'Credit' END
 					END AS GroupName
 			   ,s.WalletType	
 			   ,s.RefCode
@@ -531,10 +531,9 @@ BEGIN
 			   ,CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket
 			   ,s.betdaqid
 			   ,s.ExtraInfo
-			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' 
-					 ELSE CASE WHEN s.IsCancelCashOut = 1 THEN 'Deposit (Cancel CO)' 
-							   ELSE 'Deposit (CO)' END
-					END AS GroupName
+			   ,CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Deposit (CO)' 
+					 WHEN ISNULL(s.betdaqid,0) <> -2 AND s.IsCancelCashOut = 1 THEN 'Deposit (Cancel CO)' 
+					 ELSE 'Deposit' END AS GroupName
 			   ,s.WalletType	
 			   ,s.RefCode
 			   ,s.IsCashOut

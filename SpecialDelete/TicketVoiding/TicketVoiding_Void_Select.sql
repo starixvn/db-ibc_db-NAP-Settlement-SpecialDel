@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
 	,@BetTypes			XML = NULL
 	,@LiveHomeScore		SMALLINT = NULL
 	,@LiveAwayScore		SMALLINT = NULL
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson		VARCHAR(MAX) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -557,9 +557,9 @@ BEGIN
 				CROSS APPLY (
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-							WHERE transid = b.transid
-								AND matchid = b.matchid
-								AND RequestId = @RequestId AND IsProcessed IS NULL
+							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
+								AND 1 = CASE WHEN IsCancelCO = 1 AND b.betdaqid = - 1 THEN 0 --case cancel CO voided -> running - NO show betlist
+											  ELSE 1 END
 					) ts
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			WHERE	b.matchId = @MatchId
@@ -678,14 +678,14 @@ BEGIN
 						,bm.actual_stake AS ActualStake
 						,bm.matchid
 						,bm.SiteDBGroupID
-						,bm.IsCancelCashOut
+						,0 AS IsCancelCashOut
 				  FROM #tmpTransInfo bm
 						INNER JOIN #tblBettype tp
 							ON	bm.Subbettype = tp.Id
 						CROSS APPLY (
 									SELECT TOP (1) transid
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
-									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId AND IsProcessed IS NULL
+									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId 
 							) ts
 				WHERE	bm.matchid = @MatchId
 						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -872,7 +872,9 @@ BEGIN
 			   CROSS APPLY (
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId AND IsProcessed IS NULL
+							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId 
+							AND 1 = CASE WHEN IsCancelCO = 1 AND b.betdaqid = - 1 THEN 0 --case cancel CO voided -> running - NO show betlist
+										 ELSE 1 END
 					) ts
 			WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -971,12 +973,12 @@ BEGIN
 						,bm.actual_stake AS ActualStake
 						,bm.matchid
 						,bm.SiteDBGroupID
-						,bm.IsCancelCashOut
+						,0 AS IsCancelCashOut
 				FROM	#tmpTransInfo bm 
 						CROSS APPLY (
 									SELECT TOP (1) transid
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
-									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId AND IsProcessed IS NULL
+									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId
 							) ts
 				WHERE	bm.matchid = @MatchId
 						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -1647,9 +1649,9 @@ BEGIN
 			   ,s.IsCashOut
 			   ,s.GroupId
 			   ,CASE WHEN c.site = 'CN88' THEN 'CN88'
-					 ELSE CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' 
+					 ELSE CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)'
 					           WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
-							   WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)' END
+							   ELSE 'Credit' END
 					END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
@@ -1801,10 +1803,9 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' 
-					 ELSE CASE WHEN s.IsCancelCashOut = 1 THEN 'Deposit (Cancel CO)' 
-							   ELSE 'Deposit (CO)' END
-					END AS OriginGroupName
+			   ,CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Deposit (CO)' 
+					 WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Deposit (Cancel CO)' 
+					 ELSE 'Deposit' END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
