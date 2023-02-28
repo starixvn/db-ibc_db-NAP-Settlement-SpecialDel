@@ -92,7 +92,7 @@ BEGIN
 		,IsCancelCashOut 	BIT
 	)
 
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, TicketType TINYINT) --1: single(exclude cancel CO), 2 parlay, 3: cancel CO
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, TicketType TINYINT) --1: single(exclude cancel CO), 2: parlay, 3: cancel CO
 
 	INSERT INTO #transIdTemp (transid, TicketType)
 	SELECT DISTINCT value, 1

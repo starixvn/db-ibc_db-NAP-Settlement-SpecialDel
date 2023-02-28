@@ -287,10 +287,10 @@ BEGIN
 							,@UserId AS '@UserId'
 							,@IP AS '@IP'
 							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.' 
-								+ ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
-								+ ' VoidingHistoryId: ' + CAST(@VoidingHistoryId AS VARCHAR(20))
-								+ ' Cancel Cash-Out ticket with TransId: ' + @TransIds
+								+ ', VoidingHistoryId: ' + CAST(@VoidingHistoryId AS VARCHAR(20))
+								+ ', Cancel Cash-Out ticket with TransId: ' + @TransIds
 								AS '@LogData'
+							,@MatchId AS '@MatchId'
 					FOR XML PATH ('r'), ROOT ('root'), TYPE
 	) AS VARCHAR(MAX))
 

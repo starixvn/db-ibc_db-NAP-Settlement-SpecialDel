@@ -638,12 +638,14 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 	BEGIN
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, InstantlySettleCount, SettleCount, ScoreId, CancelCashOutCount)
 		SELECT @RequestId
-			  ,b.matchid
+			  ,s.matchid
 			  ,COUNT(CASE WHEN b.IsCancelCashOut = 0 AND ISNULL(b.betdaqid, -1) = -2 THEN s.TransId ELSE NULL END) AS CashOutCount
-			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS InstantlySettleCount
-			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS SettleCount
+			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS InstantlySettleCount
+			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
 			  ,tmp.ScoreId
-			  ,COUNT(CASE WHEN b.IsCancelCashOut = 1 THEN s.transid ELSE NULL END) AS CancelCashOutCount
+			  ,COUNT(CASE WHEN s.IsCancelCO = 1 AND s.IsProcessed IS NULL AND b.IsCancelCashOut = 1 THEN s.transid --Edit req
+						  WHEN s.IsCancelCO = 1 AND s.IsProcessed = 1 THEN s.transid --Voided
+						  ELSE NULL END) AS CancelCashOutCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			CROSS APPLY (
 						SELECT CONVERT(XML, r.TransIds)
@@ -657,8 +659,8 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 				) tmp (ScoreId)
 			LEFT JOIN #TVSTicketBets b ON s.MatchId = b.matchid AND s.TransId = b.transid AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = s.MatchId
-		WHERE s.RequestId = @RequestId AND b.StatusId IN (111, 112, 113)
-		GROUP BY b.matchid, tmp.ScoreId
+		WHERE s.RequestId = @RequestId 
+		GROUP BY s.matchid, tmp.ScoreId
 
 		IF @FilterBy <> 2
 		BEGIN
