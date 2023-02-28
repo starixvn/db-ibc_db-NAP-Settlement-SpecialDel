@@ -20,6 +20,7 @@ AS
 		- 20210707@Max: [TVS] Tuning SP mark/unmark tickets [Redmine: #157930]
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 
 	Explanation's Param:
 */
@@ -270,7 +271,7 @@ BEGIN
 
 		;WITH CTE_CreditSit AS
 		(
-			SELECT [site]
+			SELECT [site], SiteLabel
 			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
 			WHERE isLicensee = 0 AND isActive = 1
 		)
@@ -340,7 +341,7 @@ BEGIN
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
-		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
+		--INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON b.matchid = m.matchid
 		CROSS APPLY (SELECT CASE
 						WHEN EXISTS (SELECT d.custid 
