@@ -8,6 +8,7 @@ AS
 	
 	Revisions:
 		- 20221020@Louisa: Get info  [RedmineId:#178694]
+		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 
 	Param's Explanation:
 
@@ -17,25 +18,32 @@ BEGIN
 
 	DECLARE @LastLogId		BIGINT
 			,@StatusId		TINYINT
-			,@WaitingCount	INT
+
+	DECLARE @tmpLastLog TABLE (LastLogId BIGINT ,LastStatusId TINYINT ,WaitingCount INT, QueueType TINYINT)
 
 	SELECT TOP 1 @LastLogId = ll.LogId
 				,@StatusId = ll.StatusId
 	FROM dbo.SiteDB_SettlementService_LastLog ll WITH(NOLOCK)
 	ORDER BY ll.LogId DESC
 
-	IF ISNULL(@LastLogId,0) > 0
-	BEGIN
-		SELECT @WaitingCount = COUNT(l.LogID)
-		FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
-		WHERE l.LogId > @LastLogID
-	END
-
-	SELECT @@SERVERNAME AS ServerName
-		   ,@LastLogID  AS LastLogId
-		   ,@StatusId	AS LastStatusId
-		   ,@WaitingCount AS WaitingCount
+	INSERT INTO @tmpLastLog (LastLogId ,LastStatusId ,WaitingCount, QueueType )
+	SELECT @LastLogId, @StatusId, COUNT(l.LogID), 1
+	FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
 	WHERE ISNULL(@LastLogId,0) > 0
+
+	----------------------------------------
+	SELECT TOP 1 @LastLogId = ll.LogId
+				,@StatusId = ll.StatusId
+	FROM dbo.SiteDB_SettlementService_LastLog_3rd ll WITH(NOLOCK)
+	ORDER BY ll.LogId DESC
+
+	INSERT INTO @tmpLastLog (LastLogId ,LastStatusId ,WaitingCount, QueueType )
+	SELECT @LastLogId	, @StatusId	, COUNT(l.LogID) , 3
+	FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
+	WHERE ISNULL(@LastLogId,0) > 0
+
+	SELECT @@SERVERNAME AS ServerName, LastLogId, LastStatusId, WaitingCount, QueueType
+	FROM @tmpLastLog
 
 END
 GO
