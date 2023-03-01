@@ -35,7 +35,6 @@ BEGIN
 			, tvs.IsInsertedVoidedTransaction
 			, tvs.IsUpdatedVoidingHistory
 			, tvs.IsSentEmail
-			, tvs.IsSentLetsTalk
 	FROM dbo.Ticketvoiding_VoidBetAutomation_Service tvs WITH(NOLOCK) 
 	WHERE tvs.RequestID = @RequestId AND tvs.VoidingHistoryId = @VoidingHistoryID
 END

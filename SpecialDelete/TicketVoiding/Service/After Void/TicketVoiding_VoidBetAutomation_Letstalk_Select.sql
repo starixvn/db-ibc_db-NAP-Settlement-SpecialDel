@@ -99,7 +99,10 @@ BEGIN
 								INNER JOIN dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK) ON vh.RequestID = vb.RequestId AND vh.VoidingHistoryId = vb.VoidingHistoryId
 								LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
 							WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
-								AND vb.statusID = 2 AND vh.StatusId = 2 AND lt.BroadcastSessionId IS NULL
+								AND vb.statusID = 2 AND vh.StatusId = 2
+								AND 1 = CASE WHEN lt.BroadcastSessionId IS NULL THEN 1
+											 WHEN lt.BroadcastSessionId IS NOT NULL AND lt.StatusId = 1 THEN 1
+											 ELSE 0 END
 							GROUP BY vh.BroadcastSessionId
 					)a
 		WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId

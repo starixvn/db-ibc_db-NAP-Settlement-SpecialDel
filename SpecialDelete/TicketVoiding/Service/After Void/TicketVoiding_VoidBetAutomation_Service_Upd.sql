@@ -13,7 +13,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 	@IsUpdatedVoidingHistory		BIT = NULL,
 	@IsSentEmail					BIT = NULL,
 	@IsRunExternalService			BIT = NULL,
-	@IsSentLetsTalk					BIT = NULL,
 	@VoidResults					XML = NULL
 )
 AS
@@ -64,7 +63,6 @@ BEGIN
 			,IsUpdatedVoidingHistory = ISNULL(@IsUpdatedVoidingHistory, IsUpdatedVoidingHistory)
 			,IsSentEmail = ISNULL(@IsSentEmail, IsSentEmail)
 			,IsRunExternalService = ISNULL(@IsRunExternalService, IsRunExternalService)
-			,IsSentLetsTalk = ISNULL(@IsSentLetsTalk, IsSentLetsTalk)
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
@@ -80,7 +78,6 @@ BEGIN
 			,IsUpdatedVoidingHistory = @IsUpdatedVoidingHistory
 			,IsSentEmail = @IsSentEmail
 			,IsRunExternalService = @IsRunExternalService
-			,IsSentLetsTalk = @IsSentLetsTalk
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END

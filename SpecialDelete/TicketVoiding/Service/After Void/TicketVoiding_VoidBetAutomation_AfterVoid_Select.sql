@@ -34,7 +34,6 @@ BEGIN
 		,IsInsertedVoidedTransaction BIT
 		,IsUpdatedVoidingHistory BIT
 		,IsSentEmail BIT
-		,IsSentLetsTalk BIT
 		,SiteDBGroupID SMALLINT
 	)
 	DECLARE @tmpVoidingHistory_Service AS TABLE
@@ -56,7 +55,7 @@ BEGIN
 
 	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
 							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
-							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, IsSentLetsTalk, SiteDBGroupID
+							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, SiteDBGroupID
 	)
 	SELECT TOP 1 
 			vb.RequestID
@@ -74,7 +73,6 @@ BEGIN
 		, vb.IsInsertedVoidedTransaction
 		, vb.IsUpdatedVoidingHistory
 		, vb.IsSentEmail
-		, vb.IsSentLetsTalk
 		, vh.SiteDBGroupID
 	FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
@@ -130,7 +128,6 @@ BEGIN
 		, IsInsertedVoidedTransaction
 		, IsUpdatedVoidingHistory
 		, IsSentEmail
-		, IsSentLetsTalk
 		, SiteDBGroupID
 	FROM @tmpResultAfterVoid
 
