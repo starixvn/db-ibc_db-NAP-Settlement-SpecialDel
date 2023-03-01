@@ -643,9 +643,7 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS InstantlySettleCount
 			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
 			  ,tmp.ScoreId
-			  ,COUNT(CASE WHEN s.IsCancelCO = 1 AND s.IsProcessed IS NULL AND b.IsCancelCashOut = 1 THEN s.transid --Edit req
-						  WHEN s.IsCancelCO = 1 AND s.IsProcessed = 1 THEN s.transid --Voided
-						  ELSE NULL END) AS CancelCashOutCount
+			  ,COUNT(CASE WHEN s.IsCancelCO = 1 THEN s.transid ELSE NULL END) AS CancelCashOutCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			CROSS APPLY (
 						SELECT CONVERT(XML, r.TransIds)
