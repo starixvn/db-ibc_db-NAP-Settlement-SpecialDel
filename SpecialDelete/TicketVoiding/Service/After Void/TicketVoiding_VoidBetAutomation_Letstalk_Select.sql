@@ -16,8 +16,9 @@ BEGIN
 	DECLARE @BroadcastSessionId VARCHAR(100)
 		  , @min_RequestId		INT
 		  , @cnt_RequestId		INT
-
-	DECLARE @tmpResultLetstalk TABLE (
+		  , @cnt_Row			INT
+	
+	DECLARE @tmpInfoGetLetstalk TABLE (
 			 RequestID			INT
 			,VoidingHistoryId	INT
 			,MatchID			INT
@@ -26,8 +27,17 @@ BEGIN
 			,IsAutoVoid			BIT
 			,cnt				INT
 	)
-		
-	INSERT INTO @tmpResultLetstalk (RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid)
+	
+	DECLARE @tmpResultLetstalk TABLE (
+			RequestID			INT
+			,VoidingHistoryId	INT
+			,MatchID			INT
+			,BroadcastSessionId VARCHAR(100)
+			,SiteDBGroupID		SMALLINT
+			,IsAutoVoid			BIT
+	)
+
+	INSERT INTO @tmpInfoGetLetstalk (RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid)
 	SELECT DISTINCT 
 			vb.RequestID
 			, vh.VoidingHistoryId
@@ -45,67 +55,87 @@ BEGIN
 					
 	UPDATE t1
 	SET cnt = t2.cnt_BroadcastSessionId
-	FROM @tmpResultLetstalk t1
+	FROM @tmpInfoGetLetstalk t1
 		CROSS APPLY (
 		SELECT COUNT (BroadcastSessionId) cnt_BroadcastSessionId
-		FROM @tmpResultLetstalk t2
+		FROM @tmpInfoGetLetstalk t2
 		WHERE t1.BroadcastSessionId = t2.BroadcastSessionId
 		GROUP BY BroadcastSessionId
 		)t2
-	SELECT @min_RequestId =  MIN(RequestID) FROM @tmpResultLetstalk 
-
-	DELETE FROM @tmpResultLetstalk WHERE RequestID > @min_RequestId
-
-	SELECT @BroadcastSessionId = t1.BroadcastSessionId
-	FROM @tmpResultLetstalk t1
-	CROSS APPLY (
-				SELECT MIN(VoidingHistoryId) AS VoidingHistoryId
-				FROM @tmpResultLetstalk t2
-				WHERE t1.RequestID = t2.RequestID
-				)t2
-	WHERE t1.VoidingHistoryId = t2.VoidingHistoryId
-
-	SELECT @cnt_RequestId = COUNT(DISTINCT RequestId)
-	FROM  TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
-	WHERE BroadcastSessionId = @BroadcastSessionId
 	
-	IF @cnt_RequestId = 1 --1 BroadcastSessionId, 1 RequestId, many VoidingHistoryId
+	WHILE (1=1)
 	BEGIN
-		SELECT  RequestID
-			  , VoidingHistoryId
-			  , MatchID
-			  , BroadcastSessionId
-			  , SiteDBGroupID
-			  , IsAutoVoid
-		FROM @tmpResultLetstalk t
-			CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
-							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-							WHERE t.RequestID = vh.RequestID AND t.BroadcastSessionId = vh.BroadcastSessionId
-							GROUP BY BroadcastSessionId
-					)a
-		WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
-	END
-	ELSE --Case auto void winning: 1 BroadcastSessionId, many RequestIds, many VoidingHistoryIds => Get 1 min_RequestID 
-	BEGIN
-		SELECT  RequestID
-			  , VoidingHistoryId
-			  , MatchID
-			  , BroadcastSessionId
-			  , SiteDBGroupID
-			  , IsAutoVoid
-		FROM @tmpResultLetstalk t
-			CROSS APPLY ( SELECT COUNT(vh.BroadcastSessionId) as cnt
-							FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-								INNER JOIN dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK) ON vh.RequestID = vb.RequestId AND vh.VoidingHistoryId = vb.VoidingHistoryId
-								LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
-							WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
-								AND vb.statusID = 2 AND vh.StatusId = 2
-								AND 1 = CASE WHEN lt.BroadcastSessionId IS NULL THEN 1
-											 WHEN lt.BroadcastSessionId IS NOT NULL AND lt.StatusId = 1 THEN 1
-											 ELSE 0 END
-							GROUP BY vh.BroadcastSessionId
-					)a
-		WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
+		SELECT @min_RequestId =  MIN(RequestID) FROM @tmpInfoGetLetstalk 
+
+		SELECT @BroadcastSessionId = t1.BroadcastSessionId
+		FROM @tmpInfoGetLetstalk t1
+		CROSS APPLY (
+					SELECT MIN(VoidingHistoryId) AS VoidingHistoryId
+					FROM @tmpInfoGetLetstalk t2
+					WHERE t1.RequestID = t2.RequestID AND t2.RequestID = @min_RequestId
+					)t2
+		WHERE t1.VoidingHistoryId = t2.VoidingHistoryId
+
+		SELECT @cnt_RequestId = COUNT(DISTINCT RequestId)
+		FROM  TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
+		WHERE BroadcastSessionId = @BroadcastSessionId
+	
+		IF @cnt_RequestId = 1 --1 BroadcastSessionId, 1 RequestId, many VoidingHistoryId
+		BEGIN
+			INSERT INTO @tmpResultLetstalk (RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid)
+			SELECT  RequestID
+				  , VoidingHistoryId
+				  , MatchID
+				  , BroadcastSessionId
+				  , SiteDBGroupID
+				  , IsAutoVoid
+			FROM @tmpInfoGetLetstalk t
+				CROSS APPLY ( SELECT COUNT(BroadcastSessionId) as cnt
+								FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+								WHERE t.RequestID = vh.RequestID AND t.BroadcastSessionId = vh.BroadcastSessionId
+								GROUP BY BroadcastSessionId
+						)a
+			WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
 			
+			SET @cnt_Row = @@ROWCOUNT
+		
+		END
+		ELSE --Case auto void winning: 1 BroadcastSessionId, many RequestIds, many VoidingHistoryIds => Get 1 min_RequestID 
+		BEGIN
+			INSERT INTO @tmpResultLetstalk (RequestID, VoidingHistoryId, MatchID, BroadcastSessionId, SiteDBGroupID, IsAutoVoid)
+			SELECT  RequestID
+				  , VoidingHistoryId
+				  , MatchID
+				  , BroadcastSessionId
+				  , SiteDBGroupID
+				  , IsAutoVoid
+			FROM @tmpInfoGetLetstalk t
+				CROSS APPLY ( SELECT COUNT(vh.BroadcastSessionId) as cnt
+							  FROM @tmpInfoGetLetstalk vh
+							  WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
+							  GROUP BY vh.BroadcastSessionId
+						)a
+			WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
+			
+			SET @cnt_Row = @@ROWCOUNT
+		END
+	
+		IF @cnt_Row = 0 
+		BEGIN
+			DELETE FROM @tmpInfoGetLetstalk WHERE RequestID = @min_RequestId
+			IF @@ROWCOUNT = 0 RETURN;
+		END
+		ELSE
+		BEGIN
+			SELECT  RequestID
+				  , VoidingHistoryId
+				  , MatchID
+				  , BroadcastSessionId
+				  , SiteDBGroupID
+				  , IsAutoVoid
+			FROM @tmpResultLetstalk
+
+			RETURN;
+		END
 	END
 END
