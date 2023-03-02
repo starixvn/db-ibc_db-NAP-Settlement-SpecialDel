@@ -46,6 +46,7 @@ BEGIN
 
 	SELECT @@SERVERNAME AS ServerName, LastLogId, LastStatusId, WaitingCount, QueueType
 	FROM @tmpLastLog
+	WHERE LastLogId IS NOT NULL
 
 END
 GO
