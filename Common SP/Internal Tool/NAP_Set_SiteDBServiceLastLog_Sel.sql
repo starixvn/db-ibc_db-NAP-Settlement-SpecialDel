@@ -26,10 +26,14 @@ BEGIN
 	FROM dbo.SiteDB_SettlementService_LastLog ll WITH(NOLOCK)
 	ORDER BY ll.LogId DESC
 
-	INSERT INTO @tmpLastLog (LastLogId ,LastStatusId ,WaitingCount, QueueType )
-	SELECT @LastLogId, @StatusId, COUNT(l.LogID), 1
-	FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
-	WHERE l.LogId > ISNULL(@LastLogId,0)
+	IF @LastLogId IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpLastLog (LastLogId ,LastStatusId ,WaitingCount, QueueType )
+		SELECT @LastLogId, @StatusId, COUNT(l.LogID), 1
+		FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
+		WHERE l.LogId > ISNULL(@LastLogId,0)
+	END
+
 
 	SET @LastLogId = NULL
 	SET @StatusId = NULL
@@ -39,14 +43,16 @@ BEGIN
 	FROM dbo.SiteDB_SettlementService_LastLog_3rd ll WITH(NOLOCK)
 	ORDER BY ll.LogId DESC
 
-	INSERT INTO @tmpLastLog (LastLogId ,LastStatusId ,WaitingCount, QueueType )
-	SELECT @LastLogId	, @StatusId	, COUNT(l.LogID) , 3
-	FROM dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK)
-	WHERE l.LogId > ISNULL(@LastLogId,0)
+	IF @LastLogId IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpLastLog (LastLogId ,LastStatusId ,WaitingCount, QueueType )
+		SELECT @LastLogId	, @StatusId	, COUNT(l.LogID) , 3
+		FROM dbo.SiteDB_SettlementService_CalculationLog_3rd l WITH(NOLOCK)
+		WHERE l.LogId > ISNULL(@LastLogId,0)
+	END
 
 	SELECT @@SERVERNAME AS ServerName, LastLogId, LastStatusId, WaitingCount, QueueType
 	FROM @tmpLastLog
-	WHERE LastLogId IS NOT NULL
 
 END
 GO
