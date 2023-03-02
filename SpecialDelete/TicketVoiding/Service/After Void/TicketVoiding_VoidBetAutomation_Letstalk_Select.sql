@@ -66,6 +66,8 @@ BEGIN
 	WHILE (1=1)
 	BEGIN
 		SELECT @min_RequestId =  MIN(RequestID) FROM @tmpInfoGetLetstalk 
+		IF @min_RequestId IS NULL
+			RETURN;
 
 		SELECT @BroadcastSessionId = t1.BroadcastSessionId
 		FROM @tmpInfoGetLetstalk t1
@@ -95,7 +97,7 @@ BEGIN
 								WHERE t.RequestID = vh.RequestID AND t.BroadcastSessionId = vh.BroadcastSessionId
 								GROUP BY BroadcastSessionId
 						)a
-			WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
+			WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId AND t.RequestID = @min_RequestId
 			
 			SET @cnt_Row = @@ROWCOUNT
 		
@@ -115,7 +117,7 @@ BEGIN
 							  WHERE t.BroadcastSessionId = vh.BroadcastSessionId AND vh.RequestId >= @min_RequestId
 							  GROUP BY vh.BroadcastSessionId
 						)a
-			WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId
+			WHERE t.cnt = a.cnt AND t.BroadcastSessionId = @BroadcastSessionId AND t.RequestID = @min_RequestId
 			
 			SET @cnt_Row = @@ROWCOUNT
 		END
@@ -123,7 +125,6 @@ BEGIN
 		IF @cnt_Row = 0 
 		BEGIN
 			DELETE FROM @tmpInfoGetLetstalk WHERE RequestID = @min_RequestId
-			IF @@ROWCOUNT = 0 RETURN;
 		END
 		ELSE
 		BEGIN
