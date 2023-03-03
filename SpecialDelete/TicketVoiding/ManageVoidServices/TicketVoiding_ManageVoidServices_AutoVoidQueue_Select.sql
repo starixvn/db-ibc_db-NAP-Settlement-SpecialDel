@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20220927@July: Create new SP [Redmine:#178172]
+		- 20230303@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:
 */
@@ -24,16 +25,15 @@ BEGIN
 	BEGIN
 		SELECT @SiteDBGroupID AS SiteDBGroupID
 			  ,QueueId
-			  ,RequestId
+			  ,RequestIds
 			  ,MatchId
 			  ,Action
 			  ,StatusId
-			  ,BroadcastSessionId
-			  ,sporttype
+			  ,CreatedDate
+			  ,ModifiedDate
 			  ,ErrMsg
-			  ,Starttime
-			  ,Exectime
-		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH(NOLOCK)
+			  ,BroadcastSessionId
+		FROM dbo.TicketVoiding_AutoVoidQueue WITH(NOLOCK)
 		WHERE BroadcastSessionId = @BroadcastSessionId
 	END
 	ELSE IF @StatusId IS NOT NULL
@@ -41,16 +41,15 @@ BEGIN
 		SELECT TOP 100
 			  @SiteDBGroupID AS SiteDBGroupID
 			  ,QueueId
-			  ,RequestId
+			  ,RequestIds
 			  ,MatchId
 			  ,Action
 			  ,StatusId
-			  ,BroadcastSessionId
-			  ,sporttype
+			  ,CreatedDate
+			  ,ModifiedDate
 			  ,ErrMsg
-			  ,Starttime
-			  ,Exectime
-		FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH(NOLOCK)
+			  ,BroadcastSessionId
+		FROM dbo.TicketVoiding_AutoVoidQueue WITH(NOLOCK)
 		WHERE StatusId = @StatusId
 		ORDER BY QueueId DESC
 	END

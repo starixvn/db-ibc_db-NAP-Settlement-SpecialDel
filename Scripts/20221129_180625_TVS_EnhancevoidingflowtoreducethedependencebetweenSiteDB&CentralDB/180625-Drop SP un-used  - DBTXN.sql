@@ -113,3 +113,15 @@ GO
 IF OBJECT_ID('TicketVoiding_AutoVoidFormulaBets_Single_Update', 'P') IS NOT NULL
 	DROP PROCEDURE TicketVoiding_AutoVoidFormulaBets_Single_Update;
 GO
+IF OBJECT_ID('TicketVoiding_ManageVoidServices_VoidService_Select', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_ManageVoidServices_VoidService_Select;
+GO
+IF OBJECT_ID('TicketVoiding_Void_Service_Select', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_Void_Service_Select;
+GO
+IF OBJECT_ID('TicketVoiding_Void_Service_Update', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_Void_Service_Update;
+GO
+IF OBJECT_ID('TicketVoiding_Request_CheckingProcess', 'P') IS NOT NULL
+	DROP PROCEDURE TicketVoiding_Request_CheckingProcess;
+GO
