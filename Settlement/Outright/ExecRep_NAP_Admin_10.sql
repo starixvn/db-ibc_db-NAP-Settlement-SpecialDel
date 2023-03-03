@@ -36,7 +36,7 @@ BEGIN
 			,@StepNumber			INT = 0
 			,@IsSiteDB				BIT = 0
 			,@SettlementTime		DATETIME
-			,@TransXML				XML
+			,@transInfoJson			NVARCHAR(MAX)
 			,@NewStatusID			TINYINT
 			,@NewWinLost			MONEY
 			
@@ -69,7 +69,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT	
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLog_3rdIns','P') IS NOT NULL 
 		SET @IsSiteDB = 1
 
 	INSERT INTO @tmpTransId(transid)
@@ -304,28 +304,37 @@ BEGIN
 
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
-		SET @TransXML = (
-			SELECT	 transid AS '@t'
-					,@MatchID AS '@mid'
-					,SettlementTime AS '@st'
-					,winlost AS '@w' 
-					,awinlost AS '@aw' 
-					,mwinlost AS '@mw' 
-					,swinlost AS '@sw' 
-					,playercomm AS '@pc' 
-					,comm AS '@c' 
-					,acomm  AS '@ac' 
-					,scomm  AS '@sc' 
-					,statusID AS '@sid' 
-					,status   AS '@s' 
-					,winlostdate AS '@wld' 
-					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(3)) END AS '@statuswl' 
-					,ruben  AS '@r' 
-			FROM	@tmpTransInfo
-			FOR XML PATH('r'),ROOT('root'), TYPE
-		)
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		VALUES ('Settlement', 'CalculateNonSport', 'bettrans',@MatchID, @TransXML, @Action, 's')	
+		SET @transInfoJson = (
+				SELECT	transId AS 't'
+					,@MatchID AS 'mid'
+					,SettlementTime AS 'st'
+					,winlost AS 'w' 
+					,awinlost AS 'aw' 
+					,mwinlost AS 'mw' 
+					,swinlost AS 'sw' 
+					,playercomm AS 'pc' 
+					,comm AS 'c' 
+					,acomm  AS 'ac' 
+					,scomm  AS 'sc' 
+					,statusID AS 'sid' 
+					,status   AS 's' 
+					,winlostdate AS 'wld' 
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(3)) END AS 'statuswl' 
+					,ruben  AS 'r'  
+					
+				FROM	@tmpTransInfo
+				FOR JSON AUTO
+			)
+		
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'CalculateOutright'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @TransInfoJson
+				,@SettlementAction = @Action
+				,@TicketType = 's'
+				,@EventTable = 2
 	END
 END
 
