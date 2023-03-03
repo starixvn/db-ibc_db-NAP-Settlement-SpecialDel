@@ -27,8 +27,7 @@ BEGIN
 		,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		,@before_movebetday				DATETIME
 	    ,@MovebetDate					DATETIME
-		,@TransInfoJson	VARBINARY(MAX) = NULL
-		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
+		,@TransInfoJson_Output			VARBINARY(MAX) = NULL
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
