@@ -5,6 +5,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_OtherSports]
     ,@strTransIds                   VARCHAR(MAX)    = NULL
     ,@CalledByBrokerService         BIT         = 0
     ,@RunOnServer                   VARCHAR(100) = NULL
+	,@EventTable					TINYINT = 1 -- match
+	,@Is3rd							BIT =  0
 AS
 /*
     Created: 20181016@Vicky
@@ -21,6 +23,7 @@ AS
         - 20210416@Kathy: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 
     Param's Explanation:
 
@@ -61,6 +64,8 @@ BEGIN
             + '@action = ' + '''' + @action + '''' +  ','
             + '@strTransIds = ' + '''' + @strTransIds + '''' +  ','
             + CASE WHEN @RunOnServer IS NULL THEN '' ELSE '@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END + ','
+			+ '@EventTable = ' + CAST(@EventTable AS VARCHAR(3)) +  ','
+			+ '@Is3rd = ' + CAST(@Is3rd AS VARCHAR(3)) +  ','
             + '@CalledByBrokerService = 1 '
             
         EXEC [sb].[SBInputMessage] @fromService = N'Service_Settlement_OtherSports'
@@ -77,20 +82,26 @@ BEGIN
         IF @action LIKE 'CAL%'
         BEGIN
             EXEC dbo.NAP_Admin_Calculate_TransID
-                  @transIds         = @strTransIds
-				  ,@MatchId			= @matchid
+                @transIds		= @strTransIds
+				,@MatchId		= @matchid
+				,@EventTable	= @EventTable
+				,@Is3rd			= @Is3rd
         END
         ELSE IF @action LIKE 'REFUND%'
         BEGIN
             EXEC dbo.NAP_Admin_Calculate_Refund_TransID
-                   @transIds        = @strTransIds
-				   ,@MatchId		= @matchid
+                @transIds		= @strTransIds
+				,@MatchId		= @matchid				   
+				,@EventTable	= @EventTable
+				,@Is3rd			= @Is3rd
         END       
         ELSE IF @action LIKE 'UNDO%'
         BEGIN
             EXEC dbo.NAP_Admin_Calculate_Undo_TransID
-                   @transIds        = @strTransIds
-				   ,@MatchId		= @matchid
+                @transIds		= @strTransIds
+				,@MatchId		= @matchid				   
+				,@EventTable	= @EventTable
+				,@Is3rd			= @Is3rd
         END                
     END                
 END

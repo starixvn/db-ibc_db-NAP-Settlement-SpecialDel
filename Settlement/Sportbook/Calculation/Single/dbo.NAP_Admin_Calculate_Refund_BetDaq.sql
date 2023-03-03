@@ -17,6 +17,7 @@ AS
 		- 20190409@Sol: Settlement Time [Redmine:#99638]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -44,7 +45,7 @@ BEGIN
 	DECLARE @settlementTime DATETIME
 			,@FcUpdateTime	DATETIME2
 			,@rowcnt		SMALLINT
-			,@transInfo		XML
+			,@transInfoJson NVARCHAR(MAX)
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 			,SettlementTime DATETIME
@@ -114,29 +115,34 @@ BEGIN
 
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,SettlementTime AS '@st' 
-							,WinLost AS '@w' 
-							,aWinLost AS '@aw' 
-							,mWinLost AS '@mw' 
-							,sWinLost AS '@sw' 
-							,PlayerComm AS '@pc' 
-							,Comm AS '@c' 
-							,aComm AS '@ac' 
-							,sComm AS '@sc' 
-							,Status AS '@s' 
-							,StatusID AS '@sid' 
-							,ruben AS '@r'
-							,bef_winlost AS '@bef_w' 
-							,bef_statusid AS '@bef_sid' 
-							,FcUpdateTime AS '@rut'
+				SET @transInfoJson = (
+					SELECT	transId AS 't'
+							,SettlementTime AS 'st' 
+							,WinLost AS 'w' 
+							,aWinLost AS 'aw' 
+							,mWinLost AS 'mw' 
+							,sWinLost AS 'sw' 
+							,PlayerComm AS 'pc' 
+							,Comm AS 'c' 
+							,aComm AS 'ac' 
+							,sComm AS 'sc' 
+							,Status AS 's' 
+							,StatusID AS 'sid' 
+							,ruben AS 'r'
+							,bef_winlost AS 'bef_w' 
+							,bef_statusid AS 'bef_sid' 
+							,FcUpdateTime AS 'rut'
 					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-				VALUES ('Settlement', 'RefundBetDaq', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+						@SystemName = 'Settlement' 
+						,@FunctionName = 'RefundBetDaq'
+						,@TableName = 'bettrans'
+						,@MatchId = @MatchId
+						,@TransInfoJson = @TransInfoJson
+						,@SettlementAction = 'REFUND'
+						,@TicketType = 's'	
 				
 			END
 

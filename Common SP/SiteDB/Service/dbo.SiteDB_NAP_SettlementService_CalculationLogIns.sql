@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogIns]
 	,@Action VARCHAR(1) = 'U'
 	,@MatchId INT = 0
 	,@TransInfo XML = NULL
-	,@TransInfoJson VARBINARY(MAX) = NULL
+	,@TransInfoJson NVARCHAR(MAX) = NULL
 	,@SettlementAction VARCHAR(20) = NULL
 	,@TicketType VARCHAR(1) = NULL
 	,@SessionId BIGINT = 0
@@ -26,7 +26,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo, TransInfoJson, SettlementAction, TicketType, SessionId, IsParallel)
-	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, @transInfo, @TransInfoJson, @SettlementAction, 's', @SessionId, @IsParallel)	
+	VALUES (@SystemName, @FunctionName, @TableName, @Action, @matchid, @transInfo, COMPRESS(@TransInfoJson), @SettlementAction, @TicketType, @SessionId, @IsParallel)	
 
 END
 GO

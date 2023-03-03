@@ -14,6 +14,7 @@ AS
 		- 20140514@Kathy: insert settled command into LAS queue [Redmine:#14286]
 		- 20181203@Helen: Remove execution on LAS + Apply Service Broker for Other Sports - [Redmine:101611]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -66,6 +67,7 @@ BEGIN
 				@matchid			 = @matchid
 			   ,@action				 = 'REFUND'
 			   ,@strTransIds		 = @strTransIds
+			   ,@Is3rd				 = 1
 	END
 	
 	DROP TABLE #TempData_NG_Refund

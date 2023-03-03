@@ -2,7 +2,8 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
 	@transIds			VARCHAR(MAX)
 	,@MatchId			INT = 0
-
+	,@EventTable		TINYINT = 1 -- match
+	,@Is3rd				BIT =  0
 AS
 /*
 	Created by: 20180801@Vicky
@@ -16,7 +17,8 @@ AS
 		- 20200428@Kathy: PHAIO 5 - Add new penalty bettype[Redmine:#132805]
 		- 20211104@Kathy: Upd RepUpdateTime [Redmine:#164184]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-		
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+
 	Param's Explanation:
 			@transIds = '<root>
 						<r t="104730774034"/>
@@ -45,7 +47,7 @@ BEGIN
 			RETURN
 	END
 
-	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL
 		SET @IsSiteDB = 1
 
 	-----------------------CHECK SERVER-----------------------------------------
@@ -62,7 +64,7 @@ BEGIN
 	)
 	DECLARE @handle			INT
 			,@IsUpd_Void	BIT = 0
-			,@transinfo		XML	
+			,@transinfoJson NVARCHAR(MAX)
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
@@ -126,32 +128,53 @@ BEGIN
 		
 	IF @IsSiteDB = 1 AND EXISTS( SELECT TOP 1 1 FROM @tmpTransInfo )
 	BEGIN
-		SET @transInfo = (
-			SELECT	transId AS '@t'	
-					,odds AS '@o' 
-					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl' 					
-					,WinLost AS '@w' 
-					,aWinLost AS '@aw' 
-					,mWinLost AS '@mw' 
-					,sWinLost AS '@sw' 
-					,PlayerComm AS '@pc' 
-					,Comm AS '@c' 
-					,aComm AS '@ac' 
-					,sComm AS '@sc' 
-					,Status AS '@s' 
-					,StatusID AS '@sid' 
-					,ruben AS '@r' 
-					,FcUpdateTime AS '@rut' 
+		SET @transinfoJson = (
+				SELECT	transId AS 't'	
+						,odds AS 'o' 
+						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl' 					
+						,WinLost AS 'w' 
+						,aWinLost AS 'aw' 
+						,mWinLost AS 'mw' 
+						,sWinLost AS 'sw' 
+						,PlayerComm AS 'pc' 
+						,Comm AS 'c' 
+						,aComm AS 'ac' 
+						,sComm AS 'sc' 
+						,Status AS 's' 
+						,StatusID AS 'sid' 
+						,ruben AS 'r' 
+						,FcUpdateTime AS 'rut' 
 
-					,bef_winlost AS '@bef_w' 
-					,bef_statusid AS '@bef_sid' 
+						,bef_winlost AS 'bef_w' 
+						,bef_statusid AS 'bef_sid' 
 					
-			FROM	@tmpTransInfo
-			FOR XML PATH('r'),ROOT('root'), TYPE
-		)
+				FROM	@tmpTransInfo
+				FOR JSON AUTO
+			)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		VALUES ('Settlement', 'UndoOtherSport', 'bettrans', @MatchId, @transInfo, 'UNDO', 's')		
+		IF @Is3rd = 1
+		BEGIN
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'UndoOtherSport'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@transinfoJson = @transinfoJson
+				,@SettlementAction = 'UNDO'
+				,@TicketType = 's'
+				,@EventTable = @EventTable
+		END
+		ELSE
+		BEGIN
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'UndoOtherSport'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@transinfoJson = @transinfoJson
+				,@SettlementAction = 'UNDO'
+				,@TicketType = 's'
+		END
 	END
 END
 GO

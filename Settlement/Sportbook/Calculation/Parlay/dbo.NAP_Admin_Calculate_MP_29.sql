@@ -19,6 +19,7 @@ AS
 		- 20211022@Kathy: Support Settlement Exclusion for Parlay Sub Tickets [Redmine:#163172]
 		- 20220531@Kathy: performance tunning [Redmine:#173456]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
 	Param's Explanation:
 */
@@ -30,7 +31,7 @@ BEGIN
 			,@statusId			TINYINT
 			,@winlost			MONEY
 			,@settlementTime	DATETIME
-			,@transInfo			XML
+			,@transInfoJson		NVARCHAR(MAX)
 			,@IsSiteDB			BIT = 0
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -169,32 +170,39 @@ BEGIN
 
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	
 	BEGIN
-		SET @transInfo = (
-			SELECT	transId AS '@t'			
-					,SettlementTime AS '@st' 
-					,Status AS '@s' 
-					,StatusID AS '@sid'
-					,WinLostDate AS '@wld'
-					,betdaqid AS '@bdaq'
-					,ruben AS '@r'
-					,WinLost AS '@w' 
-					,aWinLost AS '@aw' 
-					,mWinLost AS '@mw' 
-					,sWinLost AS '@sw' 
-					,PlayerComm AS '@pc' 
-					,Comm AS '@c' 
-					,aComm AS '@ac' 
-					,sComm AS '@sc' 
-					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl' 
-					,bef_winlost AS '@bef_w' 
-					,bef_statusid AS '@bef_sid' 
+		SET @transInfoJson = (
+			SELECT	transId AS 't'			
+					,SettlementTime AS 'st' 
+					,Status AS 's' 
+					,StatusID AS 'sid'
+					,WinLostDate AS 'wld'
+					,betdaqid AS 'bdaq'
+					,ruben AS 'r'
+					,WinLost AS 'w' 
+					,aWinLost AS 'aw' 
+					,mWinLost AS 'mw' 
+					,sWinLost AS 'sw' 
+					,PlayerComm AS 'pc' 
+					,Comm AS 'c' 
+					,aComm AS 'ac' 
+					,sComm AS 'sc' 
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl' 
+					,bef_winlost AS 'bef_w' 
+					,bef_statusid AS 'bef_sid' 
 			FROM	@tmpTransInfo
-			FOR XML PATH('r'),ROOT('root'), TYPE
+			FOR JSON AUTO
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		VALUES ('Settlement', 'CalculateMainParlay', 'bettrans', 29, @transInfo, 'CAL', 'p')		
-			
+		IF @transinfoJson IS NOT NULL
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'CalculateMainParlay'
+				,@TableName = 'bettrans'
+				,@MatchId = 29
+				,@TransInfoJson = @transinfoJson
+				,@SettlementAction = 'CAL'
+				,@TicketType = 'p'
+		
 	END
 END
 

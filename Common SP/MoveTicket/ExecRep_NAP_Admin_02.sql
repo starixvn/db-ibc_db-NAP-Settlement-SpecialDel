@@ -15,6 +15,7 @@ AS
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
 	Param's Explanation:
 		@matchid: child matchid
@@ -27,7 +28,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @xml XML
-			,@transInfo	XML
+			,@TransInfoJson	NVARCHAR(MAX)
 			,@IsSiteDB	BIT = 0
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -73,17 +74,22 @@ BEGIN
 
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,matchid AS '@mid'
-							,winlostdate AS '@wld'
+				SET @transInfoJson = (
+					SELECT	transId AS 't'
+							,matchid AS 'mid'
+							,winlostdate AS 'wld'
 					
 					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'MoveTicket', 'bettrans', @MatchId, @transInfo)	
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'MoveTicket'
+					,@TableName = 'bettrans'
+					,@MatchId = @MatchId
+					,@TransInfoJson = @TransInfoJson
+					,@TicketType = 's'
 				
 			END
 
@@ -108,18 +114,22 @@ BEGIN
 
 					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 					BEGIN
-						SET @transInfo = (
-							SELECT	transId AS '@t'
-									,matchid AS '@mid'
-									,winlostdate AS '@wld'
+						SET @transInfoJson = (
+							SELECT	transId AS 't'
+									,matchid AS 'mid'
+									,winlostdate AS 'wld'
 					
 							FROM	@tmpTransInfo
-							FOR XML PATH('r'),ROOT('root'), TYPE
+							FOR JSON AUTO
 						)
-
-						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveTicket', 'zzzbettrans', @MatchId, @transInfo)	
-					
+						
+						EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+							@SystemName = 'Settlement' 
+							,@FunctionName = 'MoveTicket'
+							,@TableName = 'zzzbettrans'
+							,@MatchId = @MatchId
+							,@TransInfoJson = @TransInfoJson
+							,@TicketType = 's'					
 					END
 				END
 			END
@@ -151,18 +161,22 @@ BEGIN
 			
 			IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'
-							,matchid AS '@mid'
-							,winlostdate AS '@wld'
+				SET @transInfoJson = (
+					SELECT	transId AS 't'
+							,matchid AS 'mid'
+							,winlostdate AS 'wld'
 					
 					FROM	@tmpTransInfo
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-				VALUES ('Settlement', 'MoveTicket', 'bettransm', @MatchId, @transInfo)	
-						
+				
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = 'MoveTicket'
+					,@TableName = 'bettransm'
+					,@MatchId = @MatchId
+					,@TransInfoJson = @TransInfoJson
+					,@TicketType = 'p'		
 			END
 
 			-- BetParlayDetail
@@ -184,17 +198,21 @@ BEGIN
 
 				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 				BEGIN
-					SET @transInfo = (
-						SELECT	transId AS '@t'
-								,matchid AS '@mid'
+					SET @transInfoJson = (
+						SELECT	transId AS 't'
+								,matchid AS 'mid'
 								
 						FROM	@tmpTransInfo
-						FOR XML PATH('r'),ROOT('root'), TYPE
+						FOR JSON AUTO
 					)
-
-					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-					VALUES ('Settlement', 'MoveTicket', 'BetParlayDetail', @MatchId, @transInfo)	
-						
+					
+					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+						@SystemName = 'Settlement' 
+						,@FunctionName = 'MoveTicket'
+						,@TableName = 'BetParlayDetail'
+						,@MatchId = @MatchId
+						,@TransInfoJson = @TransInfoJson
+						,@TicketType = 'p'	
 				END
 			END
 
@@ -219,17 +237,20 @@ BEGIN
 
 					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 					BEGIN
-						SET @transInfo = (
-							SELECT	transId AS '@t'
-									,matchid AS '@mid'
+						SET @transInfoJson = (
+							SELECT	transId AS 't'
+									,matchid AS 'mid'
 								
 							FROM	@tmpTransInfo
-							FOR XML PATH('r'),ROOT('root'), TYPE
+							FOR JSON AUTO
 						)
-
-						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveTicket', 'zzzbettrans', @MatchId, @transInfo)	
-						
+						EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+							@SystemName = 'Settlement' 
+							,@FunctionName = 'MoveTicket'
+							,@TableName = 'zzzbettrans'
+							,@MatchId = @MatchId
+							,@TransInfoJson = @TransInfoJson
+							,@TicketType = 's'							
 					END
 				END
 
@@ -252,32 +273,41 @@ BEGIN
 
 					IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 					BEGIN
-						SET @transInfo = (
-							SELECT	transId AS '@t'
-									,matchid AS '@mid'
+						SET @transInfoJson = (
+							SELECT	transId AS 't'
+									,matchid AS 'mid'
 								
 							FROM	@tmpTransInfo
-							FOR XML PATH('r'),ROOT('root'), TYPE
+							FOR JSON AUTO
 						)
-
-						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveTicket', 'zzzbettransm', @MatchId, @transInfo)	
-							
+						
+						EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+							@SystemName = 'Settlement' 
+							,@FunctionName = 'MoveTicket'
+							,@TableName = 'zzzbettransm'
+							,@MatchId = @MatchId
+							,@TransInfoJson = @TransInfoJson
+							,@TicketType = 'p'	
 					END
 				END
 
 				--sitedb not exists table TicketVoiding_VoidedTransaction'
 				IF @IsSiteDB = 1
 					BEGIN
-						SET @transInfo = (
-							SELECT	MainTransId AS '@t'
-									,@MatchId AS '@mid'							
+						SET @transInfoJson = (
+							SELECT	MainTransId AS 't'
+									,@MatchId AS 'mid'							
 							FROM	@tmpTrans
 							WHERE	StatusId = 102
-							FOR XML PATH('r'),ROOT('root'), TYPE
+							FOR JSON AUTO
 						)
-						INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-						VALUES ('Settlement', 'MoveTicket', 'TicketVoiding_VoidedTransaction', @MatchId, @transInfo)		
+						
+						EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+							@SystemName = 'Settlement' 
+							,@FunctionName = 'MoveTicket'
+							,@TableName = 'TicketVoiding_VoidedTransaction'
+							,@MatchId = @MatchId
+							,@TransInfoJson = @TransInfoJson	
 								
 					END
 
@@ -327,17 +357,22 @@ BEGIN
 
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
 		BEGIN		
-			SET @transInfo = (
-				SELECT	transId AS '@t'
-						,matchid AS '@mid'
-						,oddsid AS '@oid'
+			SET @transInfoJson = (
+				SELECT	transId AS 't'
+						,matchid AS 'mid'
+						,oddsid AS 'oid'
 									
 				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
+				FOR JSON AUTO
 			)
-
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-			VALUES ('Settlement', 'MoveOdds', 'bettrans', @MatchId, @transInfo)							
+			
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'MoveOdds'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @TransInfoJson
+				,@TicketType = 's'						
 		END
 	END
 	

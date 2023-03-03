@@ -21,6 +21,7 @@ AS
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -271,12 +272,11 @@ BEGIN
 				,@TransIDs				  = @strDataByBatch
 				,@IsCentral				  = @IsCentral
 		
-		    EXEC dbo.NAP_Admin_Calculate_Main
-				@matchid	  		 = @matchid
-				,@action				 = @ActionProcessing
-				,@IsSettingByProfile  = 1
-				,@strTransIds		 = @strDataByBatch
-			
+			EXEC dbo.NAP_Admin_Calculate_OtherSports
+				@matchid			 = @matchid
+			   ,@action				 = @ActionProcessing
+			   ,@strTransIds		 = @strDataByBatch
+			   ,@Is3rd				 = 1
 			-------------------------------------------------------------
 			---		 CAPTURE value BALANCE after settlement		---
 			---------------------------VVVV------------------------------

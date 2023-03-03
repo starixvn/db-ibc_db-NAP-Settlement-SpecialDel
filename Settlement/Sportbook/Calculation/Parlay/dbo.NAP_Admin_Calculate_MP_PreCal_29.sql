@@ -30,6 +30,7 @@ AS
 		- 20221004@Kathy: Prevent duplicate data if re-run SP in case of deadlock [Redmine:#178542]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -454,18 +455,23 @@ BEGIN
 
 	IF @IsSiteDB = 1
 	BEGIN
-		DECLARE @TransInfo XML
+		DECLARE @TransInfoJson NVARCHAR(MAX)
 
-		SET @TransInfo = (
-			SELECT	 @matchdate as '@wld'
-					,@strXML as '@strTransId'
-			FOR XML PATH ('r'), ROOT ('root'), TYPE
+		SET @TransInfoJson = (
+			SELECT	 @matchdate as 'wld'
+					,@strXML as 'strTransId'
+			FOR JSON PATH
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		SELECT 'Settlement', 'PreCal29', 'BetParlayResult', @MatchId, @TransInfo, 'CAL', 'p'
-		WHERE @TransInfo IS NOT NULL
-			
+		IF @transinfoJson IS NOT NULL
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'PreCal29'
+				,@TableName = 'BetParlayResult'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @transinfoJson
+				,@SettlementAction = 'CAL'
+				,@TicketType = 'p'
 	END
 
 END -- end SP

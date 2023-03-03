@@ -21,6 +21,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
     Param's Explanation:
         
@@ -30,14 +31,27 @@ BEGIN
 	
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0
-			,@transinfo XML
+			,@transinfoJson NVARCHAR(MAX)
 			,@IsSiteDB	BIT = 0
+			,@FunctionName VARCHAR(50)
+			,@SettlementAction VARCHAR(20)
+			,@cntBetParlayDetailUpd INT = 0
 
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
 	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
-	
+	SET @FunctionName = CASE  
+							WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
+							WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
+							WHEN  @action LIKE 'UNDO%' THEN  'UndoSubParlay'
+						END
+	SET @SettlementAction = CASE 
+								WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'REFUND'
+								WHEN @Action LIKE 'CAL%' THEN 'CAL'
+								WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
+							END
+
 	INSERT INTO #parlayTicket (transid, refno, statusId, modds, IsMarked)
 	SELECT T.C.value('./@t', 'BIGINT') 			AS transid
 			,T.C.value('./@r', 'BIGINT') 		AS refno
@@ -112,6 +126,8 @@ BEGIN
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
 		WHERE r.statusid NOT IN (102)
+		
+		SET @cntBetParlayDetailUpd = @@ROWCOUNT
 			
 	END
 
@@ -182,6 +198,8 @@ BEGIN
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
 		WHERE r.statusId NOT IN (102)	
+		
+		SET @cntBetParlayDetailUpd = @@ROWCOUNT
 	END
 	
 	IF @action LIKE 'UNDO%'
@@ -220,66 +238,51 @@ BEGIN
 	    FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
 	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
 	    WHERE r.statusid NOT IN (102) 
+		
+		SET @cntBetParlayDetailUpd = @@ROWCOUNT
 	END
 	
 	IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM #parlayOutput)
 	BEGIN
-		SET @transInfo = (
-			SELECT	transId AS '@t'							
-					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
-					,Status AS '@s' 
-					,StatusID AS '@sid' 
-					,winlostdate AS '@wld'
-					,ruben AS '@r' -- ruben	
+		SET @transinfoJson = (
+			SELECT	transId AS 't'							
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					,Status AS 's' 
+					,StatusID AS 'sid' 
+					,winlostdate AS 'wld'
+					,ruben AS 'r' -- ruben	
 			FROM	#parlayOutput
-			FOR XML PATH('r'),ROOT('root'), TYPE
+			FOR JSON AUTO
 		)
 
-		-- bettransm
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		SELECT  'Settlement'
-				, CASE  WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
-						WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
-						WHEN  @action LIKE 'UNDO%' THEN  'UndoSubParlay'
-						END
-				, 'bettransm'
-				, @MatchId
-				, @transInfo
-				, CASE 
-					WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'REFUND'
-					WHEN @Action LIKE 'CAL%' THEN 'CAL'
-					WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
-				END
-				, 'p'
-		WHERE @transInfo IS NOT NULL
+		IF @transinfoJson IS NOT NULL
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = @FunctionName
+				,@TableName = 'bettransm'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @transinfoJson
+				,@SettlementAction = @SettlementAction
+				,@TicketType = 'p'
 			
-		SET @transInfo = (
-			SELECT	transId AS '@t'							
-					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
-					,statusId AS '@sid' 
-					,winlostdate AS '@wld'
+		SET @transinfoJson = (
+			SELECT	transId AS 't'							
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					,statusId AS 'sid' 
+					,winlostdate AS 'wld'
 			FROM	#parlayOutput
-			FOR XML PATH('r'),ROOT('root'), TYPE
+			FOR JSON AUTO
 		)
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		SELECT 'Settlement'
-				, CASE  
-					WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
-					WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
-					WHEN  @action LIKE 'UNDO%' THEN  'UndoSubParlay'
-				END
-				, 'BetParlayDetail'
-				, @MatchId
-				, @transInfo
-				, CASE 
-					WHEN @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'REFUND'
-					WHEN @Action LIKE 'CAL%' THEN 'CAL'
-					WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
-				END
-				, 'p'
-		WHERE @transInfo IS NOT NULL
-
+		IF @transinfoJson IS NOT NULL AND @cntBetParlayDetailUpd > 0
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = @FunctionName
+				,@TableName = 'BetParlayDetail'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @transinfoJson
+				,@SettlementAction = @SettlementAction
+				,@TicketType = 'p'
 	END
 
 	DROP TABLE #parlayTicket;

@@ -58,6 +58,7 @@ AS
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221228@Kathy: Action UNDO match causes the sub ticket bettransm.winlostdate NULL on centralDB [Redmine:#182078]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
     Param's Explanation:
        
@@ -69,16 +70,12 @@ BEGIN
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
 			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
-			,@transinfo XML
-			,@betparlaydetailinfo XML
+			,@transinfoJson	NVARCHAR(MAX)
+			,@betparlaydetailinfoJson NVARCHAR(MAX)
 			,@IsSiteDB BIT = 0
 			,@FunctionName VARCHAR(100)
+			,@SettlementAction VARCHAR(20)
 
-	--DECLARE @tmpOutputBettransm TABLE (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, refno BIGINT
-	--	,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
-	--	,statuswinlost TINYINT, winlostdate SMALLDATETIME)
-	--DECLARE @tmpOutputBetParlayDetail TABLE (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, statuswinlost TINYINT, StatusId TINYINT, winlostdate SMALLDATETIME)  
-	
 	CREATE TABLE #tmpOutputBettransm (ID INT IDENTITY(1,1) PRIMARY KEY,transid BIGINT, refno BIGINT
 		,status VARCHAR(10), StatusId TINYINT, ruben TINYINT
 		,statuswinlost TINYINT, winlostdate SMALLDATETIME)
@@ -159,6 +156,8 @@ BEGIN
     BEGIN        
         SET @doing = CASE @doing WHEN @priorAction THEN @action ELSE COALESCE(@priorAction, @action) END
 		
+		SET @SettlementAction = CASE WHEN @doing LIKE 'REFUND%' THEN 'REFUND' WHEN @doing IN ('CAL', 'UNDO') THEN @doing ELSE NULL END
+
 		TRUNCATE TABLE #tmpOutputBettransm
 		TRUNCATE TABLE #tmpOutputBetParlayDetail
 		DELETE FROM @tmpTransIdsVoidRecover
@@ -242,19 +241,6 @@ BEGIN
 						SET @StopRow = @MaxRow
 			END
 
-			/*
-            UPDATE pd
-            SET winlostdate = @matchdate
-                ,statuswinlost = 0
-                ,statusID = 103
-			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
-			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
-                INNER JOIN @tmpOutputBettransm r
-                    ON    pd.transid = r.transid
-                        AND pd.RefNo = r.refno
-             WHERE pd.statusid NOT IN (102)
-			 */
         END --@doing = 'REFUND'
     
         -- ===================================================
@@ -321,19 +307,6 @@ BEGIN
 					IF @StopRow >= @MaxRow
 						SET @StopRow = @MaxRow
 			END
-		   /*
-		   UPDATE pd
-            SET winlostdate = @matchdate
-                ,statuswinlost = 0
-                ,statusID = 103
-			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
-			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
-                INNER JOIN @tmpOutputBettransm r
-                    ON    pd.transid = r.transid
-                        AND pd.RefNo = r.refno
-            WHERE pd.statusid NOT IN (102)
-			*/
         END --@doing = 'REFUND-FT'
 
         IF @doing = 'REFUND-HT'
@@ -401,19 +374,6 @@ BEGIN
 					IF @StopRow >= @MaxRow
 						SET @StopRow = @MaxRow
 			END
-			/*
-            UPDATE pd
-				SET winlostdate = @matchdate
-					,statuswinlost = 0
-					,statusID = 103
-			OUTPUT inserted.transid, inserted.winlostdate, inserted.statuswinlost, inserted.statusid
-			INTO @tmpOutputBetParlayDetail(transid, winlostdate, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
-                INNER JOIN @tmpOutputBettransm r
-                    ON    pd.transid = r.transid
-                        AND pd.RefNo = r.refno
-            WHERE pd.statusid NOT IN (102) 
-			*/
         END -- @doing = 'REFUND-HT'
     
         -- ===================================================
@@ -545,18 +505,6 @@ BEGIN
 					IF @StopRow >= @MaxRow
 						SET @StopRow = @MaxRow
 			END
-			/*
-            UPDATE pd
-            SET statuswinlost = NULL 
-                ,statusID = 0
-			OUTPUT inserted.transid, inserted.statuswinlost , inserted.statusid
-			INTO @tmpOutputBetParlayDetail(transid, statuswinlost, StatusId)
-            FROM dbo.BetParlayDetail pd WITH(TABLOCK)
-                INNER JOIN @tmpOutputBettransm r
-                    ON    pd.transid = r.transid
-                        AND pd.RefNo = r.refno 
-            WHERE pd.statusid NOT IN (102) 
-			*/
         END --@doing = 'UNDO'
         -- ===================================================
         
@@ -2250,45 +2198,46 @@ BEGIN
 
 				IF @IsSiteDB = 1
 				BEGIN
-					SET @transInfo = (
-							SELECT	transId AS '@t'		
-									,refno AS '@ref'
-									,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-									,Status AS '@s' 
-									,StatusID AS '@sid' 
-									,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
-									,ruben AS '@r' -- ruben	
+					SET @transinfoJson = (
+							SELECT	transId AS 't'		
+									,refno AS 'ref'
+									,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
+									,Status AS 's' 
+									,StatusID AS 'sid' 
+									,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
+									,ruben AS 'r' -- ruben	
 							FROM	#tmpOutputBettransm
-							FOR XML PATH('r'),ROOT('root'), TYPE
+							FOR JSON AUTO
 						)
 
-					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-					SELECT	'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
-							,CASE 
-								WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
-								WHEN @doing IN ('CAL', 'UNDO') THEN @doing
-								ELSE ''
-							END
-							,'p'
-					WHERE @transInfo IS NOT NULL
-				
-					SET @betparlaydetailinfo = (
-						SELECT	DISTINCT transId AS '@t'						
-								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
-								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
-								,StatusId AS '@sid'
+					IF @transinfoJson IS NOT NULL
+						EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+							@SystemName = 'Settlement' 
+							,@FunctionName = @FunctionName
+							,@TableName = 'bettransm'
+							,@MatchId = @MatchId
+							,@TransInfoJson = @TransInfoJson
+							,@SettlementAction = @SettlementAction
+							,@TicketType = 'p'
+
+					SET @betparlaydetailinfoJson = (
+						SELECT	DISTINCT transId AS 't'						
+								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS 'wld'							
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS 'statuswl'
+								,StatusId AS 'sid'
 						FROM	#tmpOutputBetParlayDetail
-						FOR XML PATH('r'),ROOT('root'), TYPE
+						FOR JSON AUTO
 					)
 
-					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-					SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
-							,CASE 
-								WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
-								WHEN @doing IN ('CAL', 'UNDO') THEN @doing
-							END
-							,'p'
-					WHERE	@betparlaydetailinfo IS NOT NULL
+					IF @betparlaydetailinfoJson IS NOT NULL
+						EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+							@SystemName = 'Settlement' 
+							,@FunctionName = @FunctionName
+							,@TableName = 'BetParlayDetail'
+							,@MatchId = @MatchId
+							,@TransInfoJson = @betparlaydetailinfoJson
+							,@SettlementAction = @SettlementAction
+							,@TicketType = 'p'
 				END
 			END                
         END --@doing = 'CAL'
@@ -2297,55 +2246,55 @@ BEGIN
 		BEGIN
 			IF @doing IN ('VOID', 'RECOVER')
 			BEGIN
-				SET @transInfo = (
-					SELECT	transId AS '@t'	
-							,winlost AS '@w'
-							,Status AS '@s' 
-							,creator AS '@cr'
-							,statusId AS '@sid' 
-							,CASE WHEN @doing = 'RECOVER' AND winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
-							,CASE WHEN @doing = 'RECOVER' AND statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-							,ruben AS '@r' -- ruben
+				SET @transinfoJson = (
+					SELECT	transId AS 't'	
+							,winlost AS 'w'
+							,Status AS 's' 
+							,creator AS 'cr'
+							,statusId AS 'sid' 
+							,CASE WHEN @doing = 'RECOVER' AND winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
+							,CASE WHEN @doing = 'RECOVER' AND statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
+							,ruben AS 'r' -- ruben
 					FROM	@tmpOutputBettransmVoidRecover
-					FOR XML PATH('r'),ROOT('root'), TYPE
+					FOR JSON AUTO
 				)
 			END
 			ELSE
 			BEGIN
 				IF @doing = 'UNDO'
-					SET @transInfo = (
-						SELECT	transId AS '@t'		
-								,refno AS '@ref'
-								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-								,Status AS '@s' 
-								,StatusID AS '@sid' 
-								,ruben AS '@r' -- ruben	
-						FROM	#tmpOutputBettransm
-						FOR XML PATH('r'),ROOT('root'), TYPE
+					SET @transInfoJson = (
+						SELECT	transId AS 't'		
+							,refno AS 'ref'
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
+							,Status AS 's' 
+							,StatusID AS 'sid' 						
+							,ruben AS 'r' -- ruben	
+					        FROM	#tmpOutputBettransm
+						FOR JSON AUTO
 					)
 				ELSE
-					SET @transInfo = (
-						SELECT	transId AS '@t'		
-								,refno AS '@ref'
-								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS '@statuswl'
-								,Status AS '@s' 
-								,StatusID AS '@sid' 
-								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS '@wld'
-								,ruben AS '@r' -- ruben	
-						FROM	#tmpOutputBettransm
-						FOR XML PATH('r'),ROOT('root'), TYPE
+					SET @transInfoJson = (
+						SELECT	transId AS 't'		
+							,refno AS 'ref'
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END AS 'statuswl'
+							,Status AS 's' 
+							,StatusID AS 'sid' 
+							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END AS 'wld'
+							,ruben AS 'r' -- ruben	
+					FROM	#tmpOutputBettransm
+					FOR JSON AUTO
 					)
 			END
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			SELECT	'Settlement', @FunctionName, 'bettransm', @MatchId, @transInfo
-					,CASE 
-						WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
-						WHEN @doing IN ('CAL', 'UNDO') THEN @doing
-						ELSE ''
-					END
-					,'p'
-			WHERE @transInfo IS NOT NULL
+			IF @transinfoJson IS NOT NULL
+				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+					@SystemName = 'Settlement' 
+					,@FunctionName = @FunctionName
+					,@TableName = 'bettransm'
+					,@MatchId = @MatchId
+					,@TransInfoJson = @transinfoJson
+					,@SettlementAction = @SettlementAction
+					,@TicketType = 'p'
 			
 			-- process by batch to insert for sync server
 			SET @MaxRow = (SELECT MAX(ID) FROM #tmpOutputBetParlayDetail)
@@ -2358,25 +2307,39 @@ BEGIN
 			SELECT @StartRow = 1, @StopRow = @Threshold
 			WHILE (@MaxRow IS NOT NULL)
 			BEGIN
+				IF @doing = 'UNDO'
+				BEGIN
+					SET @betparlaydetailinfoJson = (
+						SELECT	DISTINCT transId AS 't'												
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS 'statuswl'
+								,StatusId AS 'sid'
+						FROM	#tmpOutputBetParlayDetail
+						WHERE ID BETWEEN @StartRow AND @StopRow
+						FOR JSON AUTO
+					)
+				END
+				ELSE
+				BEGIN
+					SET @betparlaydetailinfoJson = (
+						SELECT	DISTINCT transId AS 't'						
+								,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS 'wld'							
+								,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS 'statuswl'
+								,StatusId AS 'sid'
+						FROM	#tmpOutputBetParlayDetail
+						WHERE ID BETWEEN @StartRow AND @StopRow
+						FOR JSON AUTO
+					)
+				END
 
-					SET @betparlaydetailinfo = (
-					SELECT	DISTINCT transId AS '@t'						
-							,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
-							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
-							,StatusId AS '@sid'
-					FROM	#tmpOutputBetParlayDetail
-					WHERE ID BETWEEN @StartRow AND @StopRow
-					FOR XML PATH('r'),ROOT('root'), TYPE
-				)
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-				SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
-						,CASE 
-							WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
-							WHEN @doing IN ('CAL', 'UNDO') THEN @doing
-						END
-						,'p'
-				WHERE	@betparlaydetailinfo IS NOT NULL
+				IF @betparlaydetailinfoJson IS NOT NULL
+					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+						@SystemName = 'Settlement' 
+						,@FunctionName = @FunctionName
+						,@TableName = 'BetParlayDetail'
+						,@MatchId = @MatchId
+						,@TransInfoJson = @betparlaydetailinfoJson
+						,@SettlementAction = @SettlementAction
+						,@TicketType = 'p'
 
 				IF @StopRow = @MaxRow BREAK
 
@@ -2386,25 +2349,6 @@ BEGIN
 				IF @StopRow >= @MaxRow
 					SET @StopRow = @MaxRow
 			END
-			/*
-			SET @betparlaydetailinfo = (
-				SELECT	DISTINCT transId AS '@t'						
-						,CASE WHEN winlostdate IS NULL THEN '' ELSE winlostdate END  AS '@wld'							
-						,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1) ) END  AS '@statuswl'
-						,StatusId AS '@sid'
-				FROM	@tmpOutputBetParlayDetail
-				FOR XML PATH('r'),ROOT('root'), TYPE
-			)
-
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			SELECT	'Settlement', @FunctionName, 'BetParlayDetail', @MatchId, @betparlaydetailinfo
-					,CASE 
-						WHEN @doing LIKE 'REFUND%' THEN 'REFUND'
-						WHEN @doing IN ('CAL', 'UNDO') THEN @doing
-					END
-					,'p'
-			WHERE	@betparlaydetailinfo IS NOT NULL
-			*/
 		END
     END -- while
 END -- end SP

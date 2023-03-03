@@ -13,6 +13,7 @@ AS
 		- 20211130@Kathy: New cashout model [Redmine:#164838]			
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20221011@Kathy: Using Json [Redmine:#178694]
 
 	Param's Explanation:  
 		   
@@ -62,7 +63,7 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@commWinRate		SMALLMONEY
 			,@commLostRate		SMALLMONEY
-			,@transinfo		XML	
+			,@transinfoJson		NVARCHAR(MAX)	
 
 	DECLARE @tempTrans TABLE (TransID BIGINT, statuswinlost TINYINT, winlost MONEY)
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -192,34 +193,38 @@ BEGIN
 		INNER JOIN @tempTrans t
 			ON b.transid = t.TransId
 
-	IF @IsSiteDB = 1
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
-		SET @transInfo = (
-			SELECT	transId AS '@t'	
-					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl' 					
-					,WinLost AS '@w' 
-					,aWinLost AS '@aw' 
-					,mWinLost AS '@mw' 
-					,sWinLost AS '@sw' 
-					,PlayerComm AS '@pc' 
-					,Comm AS '@c' 
-					,aComm AS '@ac' 
-					,sComm AS '@sc' 
-					,Status AS '@s' 
-					,StatusID AS '@sid' 
-					,FcUpdateTime AS '@rut' 
-					,SettlementTime AS '@st'
-					,bef_winlost AS '@bef_w' 
-					,bef_statusid AS '@bef_sid' 
+		SET @transinfoJson = (
+			SELECT	transId AS 't'	
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl' 					
+					,WinLost AS 'w' 
+					,aWinLost AS 'aw' 
+					,mWinLost AS 'mw' 
+					,sWinLost AS 'sw' 
+					,PlayerComm AS 'pc' 
+					,Comm AS 'c' 
+					,aComm AS 'ac' 
+					,sComm AS 'sc' 
+					,Status AS 's' 
+					,StatusID AS 'sid' 
+					,FcUpdateTime AS 'rut' 
+					,SettlementTime AS 'st'
+					,bef_winlost AS 'bef_w' 
+					,bef_statusid AS 'bef_sid' 
 					
 			FROM	@tmpTransInfo
-			FOR XML PATH('r'),ROOT('root'), TYPE
+			FOR JSON AUTO
 		)
 	
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-		SELECT 'Settlement', 'CalculateCashout', 'bettrans', @MatchId, @transInfo, @Mode, 's'
-		WHERE @transInfo IS NOT NULL
-		
+		EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			@SystemName = 'Settlement' 
+			,@FunctionName = 'CalculateCashout'
+			,@TableName = 'bettrans'
+			,@MatchId = @MatchId
+			,@TransInfoJson = @TransInfoJson
+			,@SettlementAction = @Mode
+			,@TicketType = 's'
 	END
 END
 GO

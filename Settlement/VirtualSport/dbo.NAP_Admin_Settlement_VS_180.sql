@@ -116,6 +116,7 @@ BEGIN
 			@Creator	= @AdminId
 			,@MatchId	= @matchid
 			,@Mode		= @Action
+			,@IsCentral = @IsCentral	
 	END
 	ELSE IF @Action = 'REFUND'
 	BEGIN

@@ -13,6 +13,8 @@ ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	,@TicketType		VARCHAR(1)		= NULL
 	,@TotalQueue		INT				= 0
 	,@SettlementProcessingId BIGINT		= 0
+	,@Is3rd				BIT				= 0
+	,@SiteDB			SMALLINT		= 1
 	,@ErrCode			INT				= 0	 OUTPUT
 	,@ErrMsg			VARCHAR(300)	= '' OUTPUT
 AS
@@ -23,8 +25,10 @@ AS
 	Revisions:
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221025@Louisa: Use Json log format for soccer [Redmine:#179449]
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20230111@Kathy: Skip validate ticket count [Redmine:#182763]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:  
 		   
@@ -65,23 +69,25 @@ BEGIN
 		IF @TableName IN ('Transfer', 'TicketVoiding_RoutineTasks') AND @Action = 'I'
 		BEGIN
 			EXEC dbo.NAP_SyncService_NotExecRep
-					@TransInfo = @TransInfo
+					@TransInfoJson = @TransInfoJson
 					,@TableName = @TableName
 					,@Action = @Action
 		END
 		ELSE IF @TableName = 'bettrans14'
 		BEGIN
 			EXEC dbo.Bet_ExecRep14_04
-					@TransInfo = @TransInfo
+					@TransInfoJson = @TransInfoJson
 					,@TableName = @TableName
 					,@Action = @Action
+					,@MessageType = @MessageType
 		END
 		ELSE IF @TableName = 'Transfer' AND @Action =  'U'
 		BEGIN
 			EXEC dbo.Transfer_ExecRep_04
-					@TransInfo = @TransInfo
+					@TransInfoJson = @TransInfoJson
 					,@TableName = @TableName
 					,@Action = @Action
+					,@MessageType = @MessageType
 		END
 		/*---------------------------------------------------------------------------------------------*/
 		ELSE IF @TableName = 'SiteDB_SettlementLock'
@@ -195,12 +201,24 @@ BEGIN
 					BEGIN
 						IF @cnt_sitedb = 0
 						BEGIN
-							INSERT INTO @tmpTransId (TransID)
-							SELECT	T.C.value('./@t', 'bigint') AS transid
-							FROM	@TransInfo.nodes('/root/r') AS T(C)
-
-							SET @cnt_sitedb = @@ROWCOUNT
-						END
+							IF @TransInfoJson IS NOT NULL
+							BEGIN
+								INSERT INTO @tmpTransId (TransID)
+								SELECT	t
+								FROM	OPENJSON(@Decompress_TransInfoJson) WITH (t BIGINT)
+								
+								SET @cnt_sitedb = @@ROWCOUNT
+							END
+							ELSE
+							BEGIN
+								INSERT INTO @tmpTransId (TransID)
+								SELECT	T.C.value('./@t', 'bigint') AS transid	
+								FROM	@TransInfo.nodes('/root/r') AS T(C)
+								OPTION (OPTIMIZE FOR (@TransInfo = NULL ))
+									
+								SET @cnt_sitedb = @@ROWCOUNT
+							END							
+						END 
 
 						SELECT @cnt_central = COUNT(1)
 						FROM	@tmpTransId t
@@ -336,6 +354,8 @@ BEGIN
 					,@TicketType = @TicketType
 					,@TotalQueue = @TotalQueue
 					,@SettlementProcessingId = @SettlementProcessingId
+					,@Is3rd = @Is3rd
+					,@SiteDB = @SiteDB
 		END
 	END TRY
 	BEGIN CATCH

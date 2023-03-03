@@ -12,12 +12,13 @@ AS
 	
 	Param's Explanation:
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]    
- 
+		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @transInfo	XML
+	DECLARE @TransInfoJson	NVARCHAR(MAX)
 			,@rowcnt INT = 0
 
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
@@ -67,30 +68,40 @@ BEGIN
 		
 		SELECT @rowcnt = @@ROWCOUNT
 
-		IF @IsCentral = 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		IF @IsCentral = 0 
+			AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo) 
+			AND OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL 
 		BEGIN
-			SET @transInfo = (
-				SELECT	transId AS '@t'	
-						,statuswinlost AS '@statuswl' 
-						,WinLost AS '@w' 
-						,aWinLost AS '@aw' 
-						,mWinLost AS '@mw' 
-						,sWinLost AS '@sw' 
-						,PlayerComm AS '@pc' 
-						,Comm AS '@c' 
-						,aComm AS '@ac' 
-						,sComm AS '@sc' 
-						,Status AS '@s' 
-						,StatusID AS '@sid' 
-						,ruben AS '@r' 
-						,bef_winlost AS '@bef_w' 
-						,bef_statusid AS '@bef_sid' 				
+			SET @TransInfoJson = (
+				SELECT	transId AS 't'	
+						,statuswinlost AS 'statuswl' 
+						,WinLost AS 'w' 
+						,aWinLost AS 'aw' 
+						,mWinLost AS 'mw' 
+						,sWinLost AS 'sw' 
+						,PlayerComm AS 'pc' 
+						,Comm AS 'c' 
+						,aComm AS 'ac' 
+						,sComm AS 'sc' 
+						,Status AS 's' 
+						,StatusID AS 'sid' 
+						,ruben AS 'r' 
+						,bef_winlost AS 'bef_w' 
+						,bef_statusid AS 'bef_sid' 				
 				FROM	@tmpTransInfo
-				FOR XML PATH('r'),ROOT('root'), TYPE
+				FOR JSON AUTO
 			)
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo, SettlementAction, TicketType)
-			VALUES ('Settlement', 'RefundVS', 'bettrans', @MatchId, @transInfo, 'REFUND', 's')	
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'RefundVS'
+				,@TableName = 'bettrans'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @TransInfoJson
+				,@SettlementAction = 'REFUND'
+				,@TicketType = 's'
+				,@EventTable = 1
+			
 		END
 
 		IF @rowcnt < 10000
