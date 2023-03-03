@@ -18,6 +18,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
 */
@@ -25,12 +26,13 @@ BEGIN
 	SET NOCOUNT ON;
 
 	DECLARE @InvalidTransIds				VARCHAR(MAX) = ''
-		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
-		   ,@before_movebetday				DATETIME
-	       ,@MovebetDate					DATETIME
-		   ,@Decompress_TransInfoJson0 NVARCHAR(MAX)
-			,@Decompress_TransInfoJson1 NVARCHAR(MAX)
-			,@Decompress_TransInfoJson2 NVARCHAR(MAX)
+		,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
+		,@before_movebetday				DATETIME
+	    ,@MovebetDate					DATETIME
+		,@Decompress_TransInfoJson0 NVARCHAR(MAX)
+		,@Decompress_TransInfoJson1 NVARCHAR(MAX)
+		,@Decompress_TransInfoJson2 NVARCHAR(MAX)
+		,@TransInfoJson	VARBINARY(MAX) = NULL
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -177,18 +179,20 @@ BEGIN
 		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 
 	-- 2. Transinfo table
-	SELECT DISTINCT 
-			t.matchid
-		    ,t.transid 
-			,b.refno
-			,b.custid 
-			,t.statusID
-			,b.bettype
-			,b.betid
-			,b.IsMixParlay 
-			,b.SiteDBGroupID 
+	SET @TransInfoJson = COMPRESS((SELECT DISTINCT t.matchid AS 'mid'
+		,t.transid AS 't'
+		,b.refno AS 'ref'
+		,b.custid AS  'c' 
+		,t.statusID AS 'sid'
+		,b.bettype AS 'btype'
+		,b.betid AS 'bid'
+		,b.IsMixParlay AS 'isP'
+		,b.SiteDBGroupID AS 'sitedb'
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	FOR JSON PATH))
+
+	SELECT @TransInfoJson AS TransInfoJson
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

@@ -19,6 +19,7 @@ AS
 		- 20220808@Max: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220922@Helen: fix issue [Redmine: #175412]
 		- 20220926@Max: Enhance code logic [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's explanation:	
 		
@@ -32,7 +33,7 @@ BEGIN
             ,@xml                   XML
             ,@IsEnableServiceBroker BIT -- server is using service broker or not
             ,@sMessage              NVARCHAR(MAX)
-            ,@transInfo             XML
+            ,@transInfo             VARBINARY(MAX)
             ,@IsSiteDB              BIT
             ,@matchId               INT
 
@@ -344,28 +345,27 @@ BEGIN
 
     IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
     BEGIN
-        SET @transInfo = (
-            SELECT  transId AS '@t' 
-                    ,statuswinlost AS '@statuswl'                   
-                    ,SettlementTime AS '@st'
-                    ,WinLost AS '@w' 
-                    ,aWinLost AS '@aw' 
-                    ,mWinLost AS '@mw' 
-                    ,sWinLost AS '@sw' 
-                    ,PlayerComm AS '@pc' 
-                    ,Comm AS '@c' 
-                    ,aComm AS '@ac' 
-                    ,sComm AS '@sc' 
-                    ,Status AS '@s' 
-                    ,StatusID AS '@sid' 
-                    ,ruben AS '@r' 
-                    ,FcUpdateTime AS '@rut'
+        SET @transInfo = COMPRESS((
+            SELECT  transId AS 't' 
+                    ,statuswinlost AS 'statuswl'                   
+                    ,SettlementTime AS 'st'
+                    ,WinLost AS 'w' 
+                    ,aWinLost AS 'aw' 
+                    ,mWinLost AS 'mw' 
+                    ,sWinLost AS 'sw' 
+                    ,PlayerComm AS 'pc' 
+                    ,Comm AS 'c' 
+                    ,aComm AS 'ac' 
+                    ,sComm AS 'sc' 
+                    ,Status AS 's' 
+                    ,StatusID AS 'sid' 
+                    ,ruben AS 'r' 
+                    ,FcUpdateTime AS 'rut'
             FROM    @tmpTransInfo
-            FOR XML PATH('r'),ROOT('root'), TYPE
-        )
+            FOR JSON PATH))
 
-        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfo)
-        VALUES ('TVS', 'Re-cal', 'bettrans', @matchId, @transInfo)  
+        INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, MatchId, TransInfoJson, TicketType)
+        VALUES ('TVS', 'Re-cal', 'bettrans', @matchId, @transInfo, 's')  
         
     END
 END

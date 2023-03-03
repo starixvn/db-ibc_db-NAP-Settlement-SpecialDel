@@ -1,10 +1,11 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep14_04] 
-	@TransInfo	XML
+	@TransInfoJson VARBINARY(MAX)
 	,@TableName VARCHAR(128)
 	,@Action	VARCHAR(1)	= 'U'
 	,@RunOnServer VARCHAR(100)= NULL
 	,@CalledByBrokerService	BIT = 0
+	,@MessageType VARCHAR(200) = ''
 AS
 /*
  	Creator: 20210323@Patrick
@@ -13,6 +14,7 @@ AS
 	Revisions:
 		- 20210323@Patrick: Initial [Redmine: #149927] 
 		- 20220920@Max: Scale Out BetTrans [Redmine:#175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
  */
 
 BEGIN
@@ -22,6 +24,7 @@ BEGIN
 			,@sMessage		NVARCHAR(MAX)
 			,@IsEnableServiceBroker BIT
 			,@ServerName	SYSNAME
+			,@Decompress_TransInfoJson NVARCHAR(MAX)
 
 	DECLARE @tmpTransId TABLE (
 		transId BIGINT
@@ -44,7 +47,7 @@ BEGIN
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
-		SET @sMessage = 'EXEC dbo.Bet_ExecRep14_04 @TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + ''''
+		SET @sMessage = 'EXEC dbo.Bet_ExecRep14_04 @TransInfoJson = ' + CONVERT(NVARCHAR(MAX), @TransInfoJson, 1)
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
 													ELSE '''' + @TableName + ''''
@@ -62,7 +65,7 @@ BEGIN
 		EXEC dbo.SSB_Send_Message 
 			@MessageContent = @sMessage
 			,@FunctionName = 'settlement'
-			,@MessageType = 'bet_SiteDB_msg_type_01'
+			,@MessageType = @MessageType
 	END
 	ELSE
 	BEGIN
@@ -71,26 +74,30 @@ BEGIN
 		BEGIN
 			IF @Action = 'U'
 			BEGIN
+				SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
 				INSERT INTO @tmpTransId (TransID, WinLost, ruben, creator, aWinLost, mWinLost, sWinLost
 										, PlayerComm, Comm, aComm, sComm, StatusID, Status, betid, ExtraInfo
 									)
-				SELECT	T.C.value('./@t', 'bigint') AS transid
-					,T.C.value('./@w', 'MONEY') AS WinLost
-					,T.C.value('./@r', 'TINYINT')	AS ruben
-					,T.C.value('./@cr', 'INT') AS creator
-					,T.C.value('./@aw', 'MONEY') AS aWinLost
-					,T.C.value('./@mw', 'MONEY') AS mWinLost
-					,T.C.value('./@sw', 'MONEY') AS sWinLost
-					,T.C.value('./@pc', 'MONEY') AS PlayerComm
-					,T.C.value('./@c', 'MONEY') AS Comm 
-					,T.C.value('./@ac', 'MONEY') AS aComm
-					,T.C.value('./@sc', 'MONEY') AS sComm
-					,T.C.value('./@sid', 'TINYINT')		AS StatusID
-					,T.C.value('./@s', 'NVARCHAR(10)')	AS [Status]
-					,T.C.value('./@bid', 'VARCHAR(50)') AS betid
-					,T.C.value('./@ex', 'VARCHAR(1000)') AS ExtraInfo
-				FROM	@transInfo.nodes('/root/r') AS T(C)	
-				OPTION (OPTIMIZE FOR (@transInfo = NULL ))		
+				SELECT *
+				FROM OPENJSON(@Decompress_TransInfoJson)
+				WITH (
+						 t bigint 
+						,w MONEY 
+						,r TINYINT 
+						,cr INT 
+						,aw MONEY
+						,mw MONEY 
+						,sw MONEY 
+						,pc MONEY 
+						,c MONEY 
+						,ac MONEY 
+						,sc MONEY 
+						,sid TINYINT 
+						,s NVARCHAR(10) 
+						,bid VARCHAR(50) 
+						,ex VARCHAR(1000) 
+					)		
 
 				SET @batchNo = @@ROWCOUNT
 

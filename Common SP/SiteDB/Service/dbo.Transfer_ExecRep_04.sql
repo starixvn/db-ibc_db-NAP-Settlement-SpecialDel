@@ -1,10 +1,11 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Transfer_ExecRep_04] 	
-	@TransInfo	XML
+	@TransInfoJson VARBINARY(MAX)
 	,@TableName VARCHAR(128)
 	,@Action	VARCHAR(1)	= 'U'
 	,@RunOnServer VARCHAR(100)= NULL
 	,@CalledByBrokerService	BIT = 0
+	,@MessageType VARCHAR(200) = ''
 AS
 /*
 	Created by: 20211227@Kathy
@@ -13,6 +14,7 @@ AS
 
 	Revisions:
 		- 20220920@Max: Scale Out BetTrans [Redmine:#175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's Explanation:  
 		   
@@ -24,6 +26,7 @@ BEGIN
 			,@sMessage		NVARCHAR(MAX)
 			,@IsEnableServiceBroker BIT
 			,@ServerName	SYSNAME
+			,@Decompress_TransInfoJson NVARCHAR(MAX)
 
 	DECLARE @tmpTransId TABLE (
 		winlostdate DATETIME
@@ -45,7 +48,7 @@ BEGIN
 
 	IF @IsEnableServiceBroker = 1 AND @CalledByBrokerService = 0
     BEGIN
-		SET @sMessage = 'EXEC dbo.Transfer_ExecRep_04 @TransInfo = ' +  '''' + CONVERT(NVARCHAR(MAX), @TransInfo) + ''''
+		SET @sMessage = 'EXEC dbo.Transfer_ExecRep_04 @TransInfoJson = ' + CONVERT(NVARCHAR(MAX), @TransInfoJson, 1)
 							+ ',@TableName = ' + CASE
 													WHEN @TableName IS NULL THEN 'NULL'
 													ELSE '''' + @TableName + ''''
@@ -63,7 +66,7 @@ BEGIN
 		EXEC dbo.SSB_Send_Message 
 			@MessageContent = @sMessage
 			,@FunctionName = 'settlement'
-			,@MessageType = 'bet_SiteDB_msg_type_01'
+			,@MessageType = @MessageType
 	END
 	ELSE
 	BEGIN
@@ -72,21 +75,25 @@ BEGIN
 		BEGIN
 			IF @Action = 'U'
 			BEGIN
+				SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
 				INSERT INTO @tmpTransId (custid, stake, actual_stake, WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, winlostdate)
-				SELECT T.C.value('./@cust', 'INT') AS custid
-					,T.C.value('./@stake', 'MONEY') AS stake 
-					,T.C.value('./@astake', 'MONEY') AS actual_stake 
-					,T.C.value('./@w', 'MONEY') AS WinLost
-					,T.C.value('./@aw', 'MONEY') AS aWinLost
-					,T.C.value('./@mw', 'MONEY') AS mWinLost
-					,T.C.value('./@sw', 'MONEY') AS sWinLost
-					,T.C.value('./@pc', 'MONEY') AS PlayerComm
-					,T.C.value('./@c', 'MONEY') AS Comm 
-					,T.C.value('./@ac', 'MONEY') AS aComm
-					,T.C.value('./@sc', 'MONEY') AS sComm
-					,T.C.value('./@wld', 'SMALLDATETIME') AS winlostdate
-				FROM	@transInfo.nodes('/root/r') AS T(C)	
-				OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+				SELECT *
+				FROM OPENJSON(@Decompress_TransInfoJson)
+				WITH (
+						 cust INT  
+						,stake MONEY 
+						,astake MONEY 
+						,w MONEY 
+						,aw MONEY 
+						,mw MONEY 
+						,sw MONEY 
+						,pc MONEY 
+						,c MONEY 
+						,ac MONEY 
+						,sc MONEY 
+						,wld SMALLDATETIME 
+					)
 
 				SET @batchNo = @@ROWCOUNT
 

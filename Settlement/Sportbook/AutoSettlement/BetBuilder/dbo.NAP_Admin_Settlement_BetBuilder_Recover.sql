@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20200713@Kathy: Add more param for function f_Set_Calculate_modds [Redmine:#135846]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's Explanation:
 				  
@@ -83,11 +84,11 @@ BEGIN
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
 	IF ISNULL(@transIDs,'') <> ''
-		 EXEC dbo.NAP_Admin_Calculate_Main
-			@matchid = 0
-			,@action = 'UNDO'
-			,@IsSettingByProfile = 1
-			,@strTransIds = @TransIDs	
+		EXEC dbo.NAP_Admin_Calculate_OtherSports
+			@matchid			 = 0
+			,@action			 = 'UNDO'
+			,@strTransIds		 = @TransIDs
+			,@Is3rd				 = 1
 		
 	----------REFUND------------------------------------------------------------
 	SET @transIDs 			= (SELECT transID		AS '@t'
@@ -95,12 +96,12 @@ BEGIN
 							   WHERE Result = 'REFUND'
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
-	IF ISNULL(@transIDs,'') <> ''
-		 EXEC dbo.NAP_Admin_Calculate_Main
-			@matchid = 0
-			,@action = 'REFUND'
-			,@IsSettingByProfile = 1
-			,@strTransIds = @TransIDs		
+	IF ISNULL(@transIDs,'') <> ''		
+		EXEC dbo.NAP_Admin_Calculate_OtherSports
+			@matchid			 = 0
+			,@action			 = 'REFUND'
+			,@strTransIds		 = @TransIDs
+			,@Is3rd				 = 1
 		
 	---------------CAL----------------------------------------------------------
 	SET @transIDs 			= (SELECT transID		AS '@t'
@@ -111,10 +112,10 @@ BEGIN
 							   FOR XML PATH('r'), ROOT( 'root' ))
 	
 	IF ISNULL(@transIDs,'') <> ''
-		 EXEC dbo.NAP_Admin_Calculate_Main
-			@matchid = 0
-			,@action = 'CAL'
-			,@IsSettingByProfile = 1
-			,@strTransIds = @TransIDs
+		EXEC dbo.NAP_Admin_Calculate_OtherSports
+			@matchid			 = 0
+			,@action			 = 'CAL'
+			,@strTransIds		 = @TransIDs
+			,@Is3rd				 = 1
 END
 GO

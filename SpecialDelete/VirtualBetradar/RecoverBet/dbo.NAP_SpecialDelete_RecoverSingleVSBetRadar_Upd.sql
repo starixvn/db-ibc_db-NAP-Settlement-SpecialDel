@@ -17,6 +17,7 @@ AS
 		- 20210804@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -56,7 +57,7 @@ BEGIN
 		  , @ErrMsg						NVARCHAR(200)	= ''
 		  , @ErrCode					INT				= 0	
 		  , @SiteDBGroupID		SMALLINT
-		  , @transInfo XML 
+		  , @transInfo				VARBINARY(MAX) 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
@@ -526,22 +527,41 @@ BEGIN
 		FROM #beforeUpd						 					 	  
 		GROUP BY CustID
 		
+		DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
 		IF @IsExistVSBetradar = 1
-		BEGIN				
-			--> Update Bettrans	to running
-			SET @_xml = (
-				SELECT transid '@q' -- transid			 
-					 , creator '@cr' -- creator
-				FROM #RecoverBet	
-				WHERE TicketType = 1		 					 
-				FOR XML PATH('r'), ROOT('root'), TYPE
-			) 
-			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+		BEGIN	
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT b.MatchId
+			FROM #RecoverBet b
+			WHERE b.TicketType = 1
+
+			WHILE (1=1)
+			BEGIN
+				SET @_sXML = NULL
+
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId
+				FROM @tmpMatchId m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				--> Update Bettrans	to running
+				SET @_xml = (
+					SELECT transid '@q' -- transid			 
+						 , creator '@cr' -- creator
+					FROM #RecoverBet	
+					WHERE TicketType = 1	AND matchid = @matchId	 					 
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
 		
-			EXEC dbo.Bet_ExecRep_05 
-				  @IgnoreList 	= @IgnoreList
-				, @updatetype 	= 6
-				, @_sXML 		= @_sXML						
+				EXEC dbo.Bet_ExecRep_05 
+					  @IgnoreList 	= @IgnoreList
+					, @updatetype 	= 6
+					, @_sXML 		= @_sXML
+					, @matchId = @matchId
+			END									
 													
 			--> Re-cal	
 			SET @_xml = (
@@ -583,21 +603,40 @@ BEGIN
 		
 		IF @IsExistInspiredVS = 1
 		BEGIN
-			--> Update Bettrans	to running
-			SET @_xml = (
-				SELECT transid '@q' -- transid			 
-					 , creator '@cr' -- creator
-				FROM #RecoverBet
-				WHERE TicketType IN (2, 3)			 					 
-				FOR XML PATH('r'), ROOT('root'), TYPE
-			) 
-			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+			DELETE @tmpMatchId
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT b.MatchId
+			FROM #RecoverBet b
+			WHERE b.TicketType IN (2, 3)
+
+			WHILE (1=1)
+			BEGIN
+				SET @_sXML = NULL
+
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId
+				FROM @tmpMatchId m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				--> Update Bettrans	to running
+				SET @_xml = (
+					SELECT transid '@q' -- transid			 
+						 , creator '@cr' -- creator
+					FROM #RecoverBet
+					WHERE TicketType IN (2, 3)	 AND matchid = @matchId		 					 
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
 		
-			EXEC dbo.Bet_ExecRep_05 
-				  @IgnoreList 	= @IgnoreList
-				, @updatetype 	= 6
-				, @_sXML 		= @_sXML
-		
+				EXEC dbo.Bet_ExecRep_05 
+					  @IgnoreList 	= @IgnoreList
+					, @updatetype 	= 6
+					, @_sXML 		= @_sXML
+					, @matchId		= @matchId
+			END			
+
 			--> Build #ReCalMatchID_InspiredVS
 			INSERT INTO #ReCalMatchID_InspiredVS(matchid, TicketType)
 			SELECT matchid, TicketType
@@ -749,16 +788,16 @@ BEGIN
 
 				IF @@ROWCOUNT = 0 BREAK;
 
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-						, transdate AS '@td'
-						, comstatus AS '@cst'
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+						, transId AS 't'
+						, transdate AS 'td'
+						, comstatus AS 'cst'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo, 's', 1
 			END
 
 			DELETE FROM @tmpTransInfo

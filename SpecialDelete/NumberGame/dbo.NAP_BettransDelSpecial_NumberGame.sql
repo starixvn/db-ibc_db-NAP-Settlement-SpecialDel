@@ -41,6 +41,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's Explanation: 
 		- @Opition: 
@@ -58,7 +59,7 @@ BEGIN
 		, @ErrMsg					NVARCHAR(200)	= ''
 		, @ErrCode				INT				= 0	
 		, @SiteDBGroupID		SMALLINT
-		, @transInfo			XML
+		, @transInfo			VARBINARY(MAX)
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -531,25 +532,25 @@ BEGIN
 
 				IF @@ROWCOUNT = 0 BREAK;
 
-				SET @transInfo = (
-				SELECT	b.transId AS '@t'
-						, b.winlost AS '@w'
-						, b.ruben AS '@r'
-						, b.creator AS '@cr'
-						, b.awinlost AS '@aw'
-						, b.mwinlost AS '@mw'
-						, b.swinlost AS '@sw'
-						, b.playercomm AS '@pc'
-						, b.comm AS '@c'
-						, b.acomm AS '@ac'
-						, b.scomm AS '@sc'
-						, b.statusID AS '@sid'
-						, b.status AS '@s'
+				SET @transInfo = COMPRESS((
+					SELECT	b.transId AS 't'
+							, b.winlost AS 'w'
+							, b.ruben AS 'r'
+							, b.creator AS 'cr'
+							, b.awinlost AS 'aw'
+							, b.mwinlost AS 'mw'
+							, b.swinlost AS 'sw'
+							, b.playercomm AS 'pc'
+							, b.comm AS 'c'
+							, b.acomm AS 'ac'
+							, b.scomm AS 'sc'
+							, b.statusID AS 'sid'
+							, b.status AS 's'
 				FROM	@tmpTransInfo b WHERE matchid = @MatchId
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 		
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'VoidNumberGame', 'bettrans', 'U', @MatchId, @transInfo
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd(SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'VoidNumberGame', 'bettrans', 'U', @MatchId, @transInfo, 's', 1
 			END
 		END
 

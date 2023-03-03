@@ -17,6 +17,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -45,8 +46,8 @@ BEGIN
 		  , @NegativeBalanceUsers		VARCHAR(MAX)	= '' 
 		  , @ErrMsg						NVARCHAR(200)	= ''
 		  , @ErrCode					INT				= 0	
-		  , @SiteDBGroupID		SMALLINT
-		  , @transInfo XML 
+		  , @SiteDBGroupID				SMALLINT
+		  , @transInfo					VARBINARY(MAX) 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
@@ -313,7 +314,8 @@ BEGIN
 		EXEC dbo.Bet_ExecRep_05 
 			  @IgnoreList 	= @IgnoreList
 			, @updatetype 	= 6
-			, @_sXML 		= @_sXML															
+			, @_sXML 		= @_sXML
+			, @matchId		= 2799
 			
 		--> get match list
 		INSERT INTO #MatchInfo(matchid, matchdate)
@@ -395,16 +397,16 @@ BEGIN
 
 				IF @@ROWCOUNT = 0 BREAK;
 
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-						, transdate AS '@td'
-						, comstatus AS '@cst'
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+						, transId AS 't'
+						, transdate AS 'td'
+						, comstatus AS 'cst'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo, 'p', 1
 			END
 
 			DELETE FROM @tmpTransInfo

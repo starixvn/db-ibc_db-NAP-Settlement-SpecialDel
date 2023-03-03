@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SyncService_NotExecRep] 	
-	@TransInfo	XML
+	@TransInfoJson VARBINARY(MAX)
 	,@TableName VARCHAR(128)
 	,@Action	VARCHAR(1)	= 'I'
 AS
@@ -10,6 +10,7 @@ AS
 
 	Revisions:
 		- 20220920@Max: Scale Out BetTrans [Redmine:#175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's Explanation:  
 		   
@@ -18,6 +19,7 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @RequestID INT
+		,@Decompress_TransInfoJson NVARCHAR(MAX)
 
 	DECLARE @tmpTransId TABLE (
 		refno BIGINT
@@ -38,39 +40,43 @@ BEGIN
 	BEGIN
 		IF @Action = 'I'
 		BEGIN
+			SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
 			INSERT INTO @tmpTransId (statusID, bettype, creator, transdate,
 							custid, currency, recommend, mrecommend, srecommend,
 							winlostdate, stake, winlost, awinlost, mwinlost, swinlost,
 							actual_stake, playercomm, comm, acomm, scomm, 
 							actualrate, Username, CurrencyName, checktime, refno
 						)
-			SELECT T.C.value('./@sid', 'TINYINT') AS StatusID
-				,T.C.value('./@btype', 'SMALLINT') AS bettype
-				,T.C.value('./@cr', 'INT') AS creator
-				,T.C.value('./@td', 'DATETIME') AS transdate
-				,T.C.value('./@cust', 'INT') AS custid
-				,T.C.value('./@cur','TINYINT')  AS currency
-				,T.C.value('./@rc' , 'INT') AS recommend
-				,T.C.value('./@mrc', 'INT')  AS mrecommend
-				,T.C.value('./@src', 'INT')  AS srecommend
-				,T.C.value('./@wld', 'SMALLDATETIME') AS Winlostdate
-				,T.C.value('./@stake', 'MONEY') AS stake
-				,T.C.value('./@w', 'MONEY') AS WinLost
-				,T.C.value('./@aw', 'MONEY') AS aWinLost
-				,T.C.value('./@mw', 'MONEY') AS mWinLost
-				,T.C.value('./@sw', 'MONEY') AS sWinLost
-				,T.C.value('./@astake', 'MONEY') AS actual_stake
-				,T.C.value('./@pc', 'MONEY') AS PlayerComm
-				,T.C.value('./@c', 'MONEY') AS Comm 
-				,T.C.value('./@ac', 'MONEY') AS aComm
-				,T.C.value('./@sc', 'MONEY') AS sComm
-				,T.C.value('./@ar', 'FLOAT')   AS actualrate
-				,T.C.value('./@uname', 'NVARCHAR(100)') AS Username
-				,T.C.value('./@curname', 'NVARCHAR(100)') AS CurrencyName
-				,T.C.value('./@ct','DATETIME') AS checktime
-				,T.C.value('./@ref', 'BIGINT') AS refno
-			FROM	@transInfo.nodes('/root/r') AS T(C)	
-			OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+			SELECT * 
+			FROM OPENJSON(@Decompress_TransInfoJson)
+			WITH (
+					sid TINYINT
+					,btype SMALLINT 
+					,cr INT 
+					,td DATETIME 
+					,cust INT 
+					,cur TINYINT 
+					,rc INT 
+					,mrc INT 
+					,src INT 
+					,wld SMALLDATETIME 
+					,stake MONEY 
+					,w MONEY 
+					,aw MONEY 
+					,mw MONEY 
+					,sw MONEY 
+					,astake MONEY 
+					,pc MONEY 
+					,c MONEY 
+					,ac MONEY 
+					,sc MONEY 
+					,ar FLOAT 
+					,uname NVARCHAR(100) 
+					,curname NVARCHAR(100) 
+					,ct DATETIME 
+					,ref BIGINT 
+				)
 
 			INSERT INTO dbo.Transfer (statusID, bettype, creator, transdate,
 							custid, currency, recommend, mrecommend, srecommend,
@@ -90,16 +96,20 @@ BEGIN
 	BEGIN
 		IF @Action = 'I'
 		BEGIN
+			SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
 			INSERT INTO @tmpTransId (RequestId, StepNo, [Action], StatusID, CreatedDate, AffectedList, ExecuteType)
-			SELECT T.C.value('./@req', 'INT') AS RequestId
-				,T.C.value('./@stn', 'TINYINT') AS StepNo 
-				,T.C.value('./@act', 'VARCHAR(100)') AS [Action] 
-				,T.C.value('./@sid', 'TINYINT') AS StatusID
-				,T.C.value('./@crdate', 'DATETIME') AS createddate
-				,T.C.value('./@affs', 'VARCHAR(MAX)') AS AffectedList
-				,T.C.value('./@exect', 'TINYINT') AS ExecuteType 
-			FROM	@transInfo.nodes('/root/r') AS T(C)	
-			OPTION (OPTIMIZE FOR (@transInfo = NULL ))
+			SELECT *
+			FROM OPENJSON(@Decompress_TransInfoJson)
+			WITH (
+					req INT 
+					,stn TINYINT 
+					,act VARCHAR(100) 
+					,sid TINYINT 
+					,crdate DATETIME 
+					,affs VARCHAR(MAX) 
+					,exect TINYINT 
+				)
 
 			SET @RequestID = ISNULL((SELECT MAX(RequestID) 
 							FROM dbo.TicketVoiding_RoutineTasks WITH (NOLOCK)) + 1, 1)

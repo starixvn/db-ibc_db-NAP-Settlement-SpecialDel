@@ -28,6 +28,7 @@ AS
 		- 20220712@Kathy: Do not using SELECT INTO [Redmine:#175349]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -47,7 +48,7 @@ BEGIN
 			,@IsITAdmin			BIT = 0
 			,@AvaiableProcess	BIT
 			,@Movebetdate		DATETIME
-			,@TransInfo			XML = NULL
+			,@TransInfo			VARBINARY(MAX) = NULL
 			,@ErrCode			INT = 0
 	        ,@ErrMsg			NVARCHAR(200) = ''
 		    ,@SettledMainTranIds VARCHAR(MAX) = '' 
@@ -281,30 +282,30 @@ BEGIN
 				WHERE IsFinish IS NULL
 
 				IF @@ROWCOUNT = 0 BREAK;
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-					    , STATUS AS '@s'
-						, statusID AS '@sid'
-						, ruben AS '@r'
-					    , modds AS '@m'
-					    , winlost AS '@w'
-						, awinlost AS '@aw'
-						, mwinlost AS '@mw'
-						, swinlost AS '@sw'
-						, playercomm AS '@pc'
-						, comm AS '@c'
-						, acomm AS '@ac'
-						, scomm AS '@sc'
-					    , CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS '@statuswl'
-					    , creator AS '@cr'
-					    , ExtraInfo AS '@ex'
-					    , FcUpdateTime AS '@rut'
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+						, transId AS 't'
+					    , STATUS AS 's'
+						, statusID AS 'sid'
+						, ruben AS 'r'
+					    , modds AS 'm'
+					    , winlost AS 'w'
+						, awinlost AS 'aw'
+						, mwinlost AS 'mw'
+						, swinlost AS 'sw'
+						, playercomm AS 'pc'
+						, comm AS 'c'
+						, acomm AS 'ac'
+						, scomm AS 'sc'
+					    , CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					    , creator AS 'cr'
+					    , ExtraInfo AS 'ex'
+					    , FcUpdateTime AS 'rut'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverMainParlay', 'bettrans', 'U', @MatchId, @TransInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverMainParlay', 'bettrans', 'U', @MatchId, @TransInfo, 'p'
 			END
 
 			DELETE FROM @tmpTransInfo
@@ -427,16 +428,16 @@ BEGIN
 				WHERE IsFinish IS NULL
 
 				IF @@ROWCOUNT = 0 BREAK;
-				SET @TransInfo = (
-				SELECT	matchid AS '@mid'
-						, transId AS '@t'
-						, transdate AS '@td'
-						, comstatus AS '@cst'
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+						, transId AS 't'
+						, transdate AS 'td'
+						, comstatus AS 'cst'
 				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR XML PATH('r'),ROOT('root'), TYPE)
+				FOR JSON PATH))
 
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'RecoverMainParlay', 'zzzbettrans', 'D', @MatchId, @TransInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverMainParlay', 'zzzbettrans', 'D', @MatchId, @TransInfo, 'p'
 			END
 
 			DELETE FROM @tmpTransInfo

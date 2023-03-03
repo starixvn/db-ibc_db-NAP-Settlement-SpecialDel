@@ -63,17 +63,19 @@ AS
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @ErrorMsg	NVARCHAR(200) = ''
-		,@ErrorCode			INT  = 0 
+	DECLARE @ErrorMsg			NVARCHAR(200) = ''
+		,@ErrorCode				INT  = 0 
 		,@NegativeBalanceUsers	VARCHAR(MAX)	= ''
-		,@SiteDBGroupID		SMALLINT
-		,@transInfo XML 
+		,@SiteDBGroupID			SMALLINT
+		,@transInfo				VARBINARY(MAX)
+		,@transInfo3rd			VARBINARY(MAX)
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -976,32 +978,87 @@ BEGIN
 					ON	main.transid = tmpmain.transid					
 						AND main.matchid = @matchid	
 
-			SET @transInfo = (
-				SELECT	t.transId AS '@t'
-						, b.winlost AS '@w'
-						, b.ruben AS '@r'
-						, b.creator AS '@cr'
-						, b.awinlost AS '@aw'
-						, b.mwinlost AS '@mw'
-						, b.swinlost AS '@sw'
-						, b.playercomm AS '@pc'
-						, b.comm AS '@c'
-						, b.acomm AS '@ac'
-						, b.scomm AS '@sc'
-						, b.statusID AS '@sid'
-						, b.status AS '@s'
-						, b.betid AS '@bid'
-						, b.ExtraInfo AS '@ex'
-						, b.FcUpdateTime AS '@rut'
+			SET @transInfo = COMPRESS((
+				SELECT	t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.FcUpdateTime AS 'rut'
 				FROM	#SpecialDeleteBets_Single t 
 					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-				FOR XML PATH('r'),ROOT('root'), TYPE)
-		
+				WHERE t.BetType NOT IN (10, 38)
+				FOR JSON PATH))
+
 			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo, 's'
+			END
+			
+			--For match table; EventTable = 1
+			SET @transInfo3rd = COMPRESS((
+				SELECT	t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.FcUpdateTime AS 'rut'
+				FROM	#SpecialDeleteBets_Single t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE t.BetType IN (38)
+				FOR JSON PATH))
+					
+			IF @SiteDBGroupID <> 0 AND @transInfo3rd IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 1
+			END
+
+			--For ouitright table; EventTable = 2
+			SET @transInfo3rd = COMPRESS((
+				SELECT	t.transId AS 't'
+						, b.winlost AS 'w'
+						, b.ruben AS 'r'
+						, b.creator AS 'cr'
+						, b.awinlost AS 'aw'
+						, b.mwinlost AS 'mw'
+						, b.swinlost AS 'sw'
+						, b.playercomm AS 'pc'
+						, b.comm AS 'c'
+						, b.acomm AS 'ac'
+						, b.scomm AS 'sc'
+						, b.statusID AS 'sid'
+						, b.status AS 's'
+						, b.FcUpdateTime AS 'rut'
+				FROM	#SpecialDeleteBets_Single t 
+					INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
+				WHERE t.BetType IN (10)
+				FOR JSON PATH))
+					
+			IF @SiteDBGroupID <> 0 AND @transInfo3rd IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 2
 			END
 		END	
 		
@@ -1084,18 +1141,18 @@ BEGIN
 				AND t.betdaqid = -2
 
 			SET @transInfo = NULL
-			SET @transInfo = (
-					SELECT	transId AS '@t'
-							, matchid AS '@mid'
-							, STATUS AS '@s'
-							, winlost AS '@w'
+			SET @transInfo = COMPRESS((
+					SELECT	transId AS 't'
+							, matchid AS 'mid'
+							, STATUS AS 's'
+							, winlost AS 'w'
 					FROM	@tmpTransInfo WHERE matchid = @MatchId 
-					FOR XML PATH('r'),ROOT('root'), TYPE)
+					FOR JSON PATH))
 
 			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-				SELECT 'TVS', 'VoidCurrency', 'zzzbettrans', 'U', @matchid, @transInfo 
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'VoidCurrency', 'zzzbettrans', 'U', @matchid, @transInfo, 's' 
 			END
 		END
 

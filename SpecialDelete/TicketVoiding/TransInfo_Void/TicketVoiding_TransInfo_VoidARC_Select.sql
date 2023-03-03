@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_VoidARC_Select] 
 (
 	@SingleTransIds  VARCHAR(MAX) = NULL
+	,@ParlayTransIds  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -12,6 +13,7 @@ AS
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'

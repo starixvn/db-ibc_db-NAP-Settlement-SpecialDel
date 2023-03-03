@@ -23,6 +23,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -54,6 +55,7 @@ BEGIN
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  	  		  			  
 	
@@ -401,24 +403,7 @@ BEGIN
 		FROM	dbo.bettransm AS b WITH (nolock)  
 			INNER JOIN #tmpBetDelete AS r 
 				ON	r.SubTransId = b.transid
-					
-		--> Update bettransm                             
-		SET @_xml = (
-			SELECT 
-				 SubTransId '@t' -- transid
-				,SubMatchdate '@d' -- winlostdate
-				,0 '@w' -- statuswinlost
-				,102 '@s' -- statusID
-				,@UserID '@cr' -- creator						
-			FROM #tmpBetDelete			 
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) 
-		SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
-			
-		EXEC dbo.Bet_ExecRep_05 
-			  @IgnoreList 	= @IgnoreList
-			, @updatetype 	= 5
-			, @_sXML 		= @_sXML	
+						
 				
 		--> Call Re-Calc For Main Tickets				
 		SET @i = 1
@@ -428,7 +413,26 @@ BEGIN
 				 , @matchdate = matchdate
 				 , @strRefnos = RefNos
 			FROM #tmpMatchInfos
-			WHERE RowNum = @i						
+			WHERE RowNum = @i	
+			
+			--> Update bettransm                             
+			SET @_xml = (
+				SELECT 
+					 SubTransId '@t' -- transid
+					,SubMatchdate '@d' -- winlostdate
+					,0 '@w' -- statuswinlost
+					,102 '@s' -- statusID
+					,@UserID '@cr' -- creator						
+				FROM #tmpBetDelete b WHERE b.SubMatchid = @matchid		 
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) 
+			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+			
+			EXEC dbo.Bet_ExecRep_05 
+				  @IgnoreList 	= @IgnoreList
+				, @updatetype 	= 5
+				, @_sXML 		= @_sXML
+				, @MatchId      = @MatchId
 				
 			EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
 				  @MatchId			= @MatchId

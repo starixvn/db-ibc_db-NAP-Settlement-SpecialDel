@@ -20,6 +20,7 @@ AS
 		- 20210709@Max: [TVS] Tuning SP mark/unmark tickets [Redmine: #157930]
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Explanation's Param:
 		@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
@@ -68,6 +69,7 @@ BEGIN
 	CREATE TABLE #MarkedTransactionDeleted (
 		TransId BIGINT
 		,MatchId INT
+		,IsParlay BIT
 		);
 
 	CREATE TABLE #Tickets
@@ -288,7 +290,8 @@ BEGIN
 				SET t.IsFinish = 1
 			OUTPUT DELETED.TransId
 				,DELETED.MatchId
-			INTO #MarkedTransactionDeleted (TransId, MatchId)
+				,DELETED.IsParlay
+			INTO #MarkedTransactionDeleted (TransId, MatchId, IsParlay)
 			FROM #Tickets t
 			WHERE t.IsFinish IS NULL
 				AND (t.MatchId = @MatchId OR t.MatchId = @MatchId_RefNo)
@@ -298,6 +301,7 @@ BEGIN
 			SELECT @TransIds_SB = CAST((
 										SELECT m.TransId AS '@id'
 											,m.MatchId AS '@match'
+											,m.IsParlay AS '@p'
 										FROM #MarkedTransactionDeleted m
 										FOR XML PATH('r')
 											,ROOT('root')

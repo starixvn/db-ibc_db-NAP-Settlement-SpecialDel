@@ -34,6 +34,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
 */
@@ -48,10 +49,8 @@ BEGIN
 			,@FromWinlostDate		  DATETIME
 			,@IsSB					  BIT = 0
 			,@IsParlay				  BIT = 0
-			,@IsBB					  BIT = 0
 			,@IsOutright			  BIT = 0
 			,@IsSaba				  BIT = 0
-			,@IsNonSport			  BIT = 0
 			,@movebetdate			  SMALLDATETIME
 			,@maxdate 				  DATETIME = '9999-01-01'
 			,@CountSMA				  INT
@@ -171,10 +170,8 @@ BEGIN
 
 	SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
-			, @IsBB = CASE WHEN CHARINDEX('3',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsOutright = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsSaba = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
-			, @IsNonSport = CASE WHEN CHARINDEX('6',@ProductIds) > 0 THEN 1 ELSE 0 END
 
 	INSERT INTO #InputUsernameList (Username, custid, roleid,recommend)
 	SELECT l.Username
@@ -244,8 +241,6 @@ BEGIN
 							AND pt.SubProduct NOT IN ('Bet Builder') THEN 1 -- Sportsbook
 						WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
 						WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
-						WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) AND pt.SportType NOT IN (168) THEN 1
 					ELSE 0 END
 			END
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
@@ -280,7 +275,7 @@ BEGIN
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
-						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+						WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
 							AND ml.LeagueGroupID IS NULL 
 							AND mc.sporttype IS NULL --exclude cricket
 							THEN 1
@@ -318,7 +313,7 @@ BEGIN
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
-						WHEN (@IsSB = 1 OR @IsBB = 1 OR @IsOutright = 1 OR @IsParlay = 1 OR @IsNonSport = 1)
+						WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
 							AND ml.LeagueGroupID IS NULL 
 							AND mc.sporttype IS NULL --exclude cricket
 							THEN 1
@@ -378,6 +373,7 @@ BEGIN
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid)
 												AND rdt.RequestId = @RequestId
+												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1,1,'')
 											,'')
 			
@@ -402,6 +398,7 @@ BEGIN
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CONVERT(VARCHAR(50), rdt.transid)
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
 											WHERE rdt.RequestId = @RequestId
+												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1, 1, '')
 										,'')
 		END

@@ -24,6 +24,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's explanation:	
 		
@@ -39,7 +40,8 @@ BEGIN
 			,@IsAbnormalBet		TINYINT
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT 
-			,@transInfo			XML 
+			,@transInfo			VARBINARY(MAX)
+			,@transInfo3rd			VARBINARY(MAX)
 			,@SitedbgroupId				INT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -77,7 +79,7 @@ BEGIN
 
 	DECLARE @tmpTransInfo AS TABLE (transid BIGINT, winlost MONEY, playercomm MONEY, comm MONEY, acomm MONEY, scomm MONEY
 							, status VARCHAR(20), statusID TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
-							, ruben TINYINT, creator INT, awinlost MONEY, mwinlost MONEY, swinlost MONEY
+							, ruben TINYINT, creator INT, awinlost MONEY, mwinlost MONEY, swinlost MONEY, bettype SMALLINT
 						)
 
 	CREATE TABLE #tmpTransId (
@@ -351,34 +353,61 @@ BEGIN
 																	ELSE 0 END,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
 
 			OUTPUT inserted.transid, inserted.winlost, inserted.ruben, inserted.creator, inserted.mwinlost, inserted.swinlost, inserted.awinlost
-				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID, inserted.status, inserted.ExtraInfo
-			INTO @tmpTransInfo (transid, winlost, ruben, creator, mwinlost, swinlost, awinlost, playercomm, comm, acomm, scomm, statusID, status, ExtraInfo)
+				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID, inserted.status, inserted.ExtraInfo, inserted.bettype
+			INTO @tmpTransInfo (transid, winlost, ruben, creator, mwinlost, swinlost, awinlost, playercomm, comm, acomm, scomm, statusID, status, ExtraInfo, bettype)
 		FROM dbo.bettrans14 AS main WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch AS tmpmain ON main.transid = tmpmain.transid
 
 		IF @IsSiteDB = 1
 		BEGIN
-			SET @transInfo = (
-			SELECT	b.transId AS '@t'
-					, b.winlost AS '@w'
-					, b.ruben AS '@r'
-					, b.creator AS '@cr'
-					, b.awinlost AS '@aw'
-					, b.mwinlost AS '@mw'
-					, b.swinlost AS '@sw'
-					, b.playercomm AS '@pc'
-					, b.comm AS '@c'
-					, b.acomm AS '@ac'
-					, b.scomm AS '@sc'
-					, b.statusID AS '@sid'
-					, b.status AS '@s'
-					, b.betid AS '@bid'
-					, b.ExtraInfo AS '@ex'
+			SET @transInfo = COMPRESS((
+			SELECT	b.transId AS 't'
+					, b.winlost AS 'w'
+					, b.ruben AS 'r'
+					, b.creator AS 'cr'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+					, b.statusID AS 'sid'
+					, b.status AS 's'
+					, b.ExtraInfo AS 'ex'
 			FROM	@tmpTransInfo b
-			FOR XML PATH('r'),ROOT('root'), TYPE)
+			WHERE b.bettype NOT IN (10)
+			FOR JSON PATH))
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-			SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo
+			SET @transInfo3rd = COMPRESS((
+			SELECT	b.transId AS 't'
+					, b.winlost AS 'w'
+					, b.ruben AS 'r'
+					, b.creator AS 'cr'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+					, b.statusID AS 'sid'
+					, b.status AS 's'
+					, b.ExtraInfo AS 'ex'
+			FROM	@tmpTransInfo b
+			WHERE b.bettype IN (10)
+			FOR JSON PATH))
+
+			IF @transInfo IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END
+			END
+			IF @transInfo3rd IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END, 2
+			END
 		END
 
 	END

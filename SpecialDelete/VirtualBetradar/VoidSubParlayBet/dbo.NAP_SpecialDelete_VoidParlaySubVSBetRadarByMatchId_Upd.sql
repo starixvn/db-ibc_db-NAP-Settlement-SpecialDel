@@ -24,6 +24,7 @@ AS
 		- 20210617@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:				
 		- @TransIds : Main transids.				
@@ -337,7 +338,8 @@ BEGIN
 		EXEC dbo.Bet_ExecRep_05 
 				@IgnoreList 	= @IgnoreList
 			, @updatetype 	= 5
-			, @_sXML 		= @_sXML	
+			, @_sXML 		= @_sXML
+			, @MatchId      = @MatchId
 				
 		--> Call Re-Calc For Main Tickets
 		SELECT @strRefnos = CAST((

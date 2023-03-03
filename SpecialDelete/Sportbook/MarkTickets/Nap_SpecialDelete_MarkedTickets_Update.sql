@@ -32,6 +32,7 @@ AS
 		- 20211210@July: Remove code CashOut [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -72,7 +73,7 @@ BEGIN
 	CREATE TABLE #TransIds (TransId BIGINT PRIMARY KEY); -- single + parlay tickets
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 
-	CREATE TABLE #MarkedTransactionDeleted (TransId BIGINT, MatchId INT)
+	CREATE TABLE #MarkedTransactionDeleted (TransId BIGINT, MatchId INT,IsParlay  BIT DEFAULT(0))
 
 	INSERT INTO #TransIds(TransId)
 	SELECT DISTINCT value
@@ -113,6 +114,7 @@ BEGIN
 	FROM #transIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = t.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
+		AND b.bettype NOT IN (38)
 
 	-- get only parlay tickets from @input transid
 	INSERT INTO #ParlayTransIds (TransId)
@@ -144,6 +146,7 @@ BEGIN
 			INNER JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.refno = bm.refno AND b.matchid = 29
 		WHERE bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
 	END
+
 	--check no data
 	IF NOT EXISTS( SELECT TOP (1) 1 FROM #Tickets)
 	BEGIN
@@ -287,7 +290,8 @@ BEGIN
 			SET t.IsFinish = 1
 		OUTPUT DELETED.TransId
 			,DELETED.MatchId
-		INTO #MarkedTransactionDeleted (TransId, MatchId)
+			,DELETED.IsParlay
+		INTO #MarkedTransactionDeleted (TransId, MatchId, IsParlay)
 		FROM #Tickets t
 		WHERE t.IsFinish IS NULL 
 
@@ -296,6 +300,7 @@ BEGIN
 		SELECT @TransIds_SB = CAST((
 									SELECT m.TransId AS '@id'
 										,m.MatchId AS '@match'
+										,m.IsParlay AS '@p'
 									FROM #MarkedTransactionDeleted m
 									FOR XML PATH('r')
 										,ROOT('root')

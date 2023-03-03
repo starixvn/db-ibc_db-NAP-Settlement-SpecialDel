@@ -35,6 +35,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Explanation's Param:
 
@@ -52,7 +53,7 @@ BEGIN
 		  , @ErrCode			INT				= 0		
 		  , @ErrMsg				VARCHAR(300)	= ''	
 		  , @InvalidTransIds	VARCHAR(MAX)	= ''	
-		  , @transInfo			XML
+		  , @transInfo			VARBINARY(MAX) 
 		  , @MatchId			INT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -344,30 +345,30 @@ BEGIN
 		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID		
 
 	SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
-	SET @transInfo = (
-	SELECT	b.transId AS '@t'
-			, b.winlost AS '@w'
-			, b.awinlost AS '@aw'
-			, b.mwinlost AS '@mw'
-			, b.swinlost AS '@sw'
-			, b.playercomm AS '@pc'
-			, b.comm AS '@c'
-			, b.acomm AS '@ac'
-			, b.scomm AS '@sc'
-			, b.status AS '@s'
-			, b.statusID AS '@sid'			
-			, b.ruben AS '@r'
-			, b.creator AS '@cr'
-			, b.betdaqid AS '@bdaq'
-			, b.virtualrate AS '@v'
-			, b.FcUpdateTime AS '@rut'
+	SET @transInfo = COMPRESS((
+	SELECT	b.transId AS 't'
+			, b.winlost AS 'w'
+			, b.awinlost AS 'aw'
+			, b.mwinlost AS 'mw'
+			, b.swinlost AS 'sw'
+			, b.playercomm AS 'pc'
+			, b.comm AS 'c'
+			, b.acomm AS 'ac'
+			, b.scomm AS 'sc'
+			, b.status AS 's'
+			, b.statusID AS 'sid'			
+			, b.ruben AS 'r'
+			, b.creator AS 'cr'
+			, b.betdaqid AS 'bdaq'
+			, b.virtualrate AS 'v'
+			, b.FcUpdateTime AS 'rut'
 	FROM	@tmpTransInfo b
-	FOR XML PATH('r'),ROOT('root'), TYPE)
+	FOR JSON PATH))
 
 	IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 	BEGIN
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
-		SELECT 'TVS', 'Cancel_CO', 'bettrans', 'U', @matchid, @transInfo
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+		SELECT 'TVS', 'Cancel_CO', 'bettrans', 'U', @matchid, @transInfo, 's'
 	END
 
 	/*2. Re-Cal for CO Transaction already has statuswinlost*/

@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's Explanation:  
 	
@@ -49,7 +50,7 @@ BEGIN
 	
 	SET @xml= CAST(@AffectedList AS XML)
 
-	DECLARE @transInfo	XML 
+	DECLARE @transInfo	VARBINARY(MAX) 
 	DECLARE @tmpTransInfo AS TABLE (RequestID INT, StepNo TINYINT, [Action] VARCHAR(MAX), StatusId TINYINT
 							, CreatedDate DATETIME, AffectedList VARCHAR(MAX), ExecuteType TINYINT
 						)
@@ -92,18 +93,18 @@ BEGIN
 
 	IF @IsSiteDB = 1
 	BEGIN
-		SET @transInfo = (
-		SELECT	b.RequestID AS '@req'
-				, b.StepNo AS '@stn'
-				, b.Action AS '@act'
-				, b.StatusId AS '@sid'
-				, b.CreatedDate AS '@crdate'
-				, b.AffectedList AS '@affs'
-				, b.ExecuteType AS '@exect'
+		SET @transInfo = COMPRESS((
+		SELECT	b.RequestID AS 'req'
+				, b.StepNo AS 'stn'
+				, b.Action AS 'act'
+				, b.StatusId AS 'sid'
+				, b.CreatedDate AS 'crdate'
+				, b.AffectedList AS 'affs'
+				, b.ExecuteType AS 'exect'
 		FROM	@tmpTransInfo b
-		FOR XML PATH('r'),ROOT('root'), TYPE)
+		FOR JSON PATH))
 
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfo)
+		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson)
 		SELECT 'TVS', 'Void_14', 'TicketVoiding_RoutineTasks', 'I', 0, @transInfo
 	END
 	
