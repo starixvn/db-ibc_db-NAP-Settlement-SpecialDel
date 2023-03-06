@@ -1,6 +1,8 @@
-Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s_Push.sql
-Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s.sql
 Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1_Push.sql
 Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1.sql
-
-
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP_Push.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_MP.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP_Push.proc.sql
+Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Refund_MP.proc.sql
+Settlement\Sportbook\Calculation\Parlay\dbo.NAP_Admin_Calculate_MP_broker.sql

@@ -59,6 +59,7 @@ AS
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221228@Kathy: Action UNDO match causes the sub ticket bettransm.winlostdate NULL on centralDB [Redmine:#182078]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20230306@Louisa: Exclude LiveScores HDP for Field Hockey [Redmine:#184450]
 
     Param's Explanation:
        
@@ -69,7 +70,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
-			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
+			,@CutOffDate		DATETIME = '2023-03-30 00:00:00.000'
 			,@transinfoJson	NVARCHAR(MAX)
 			,@betparlaydetailinfoJson NVARCHAR(MAX)
 			,@IsSiteDB BIT = 0
@@ -710,14 +711,14 @@ BEGIN
                         WHEN 1 THEN -- Handicap
                             CASE betteam
 								WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE 
-																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																					WHEN @Sporttype = 28 AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
 																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END																
 								WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE 
-																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																					WHEN @Sporttype = 28 AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
 																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END
@@ -725,14 +726,14 @@ BEGIN
                         WHEN 7 THEN -- 1st Handicap
                             CASE betteam
 								WHEN N'h' THEN (hdp2 - hdp1) + (@hth - @hta) - CASE 
-																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																					WHEN @Sporttype = 28 AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
 																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END	
 								WHEN N'a' THEN (hdp1 - hdp2) - (@hth - @hta) + CASE 
-																					WHEN @Sporttype IN (4,26) AND bm.transdate >= @CutOffDate THEN 0
-																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																					WHEN @Sporttype = 28 AND bm.transdate >= @CutOffDate THEN 0
+																					WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
 																						OR @Sporttype = 99 THEN 0 
 																					ELSE (livehomescore - liveawayscore) 
 																				END

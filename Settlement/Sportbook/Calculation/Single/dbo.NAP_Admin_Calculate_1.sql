@@ -52,6 +52,7 @@ AS
 		- 20210922@Louisa: Exclude LiveScores HDP for Ice Hockey and Rugby [Redmine:#159903]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20230306@Louisa: Exclude LiveScores HDP for Field Hockey [Redmine:#184450]
 		
 */
 BEGIN
@@ -60,7 +61,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@CutOffDate		DATETIME = '2021-10-07 00:00:00.000'
+			,@CutOffDate		DATETIME = '2023-03-30 00:00:00.000'
 			,@transInfoJson		NVARCHAR(MAX)
 			,@IsSiteDB			BIT = 0
 
@@ -169,15 +170,15 @@ BEGIN
 							ELSE @fta END        
 			,@modds = CASE betteam
 				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE 
-																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																	WHEN @Sporttype = 28 AND b.transdate >= @CutOffDate THEN 0
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
 																		OR @Sporttype = 99
 																		OR @bettype = 20 THEN 0
 																	ELSE (livehomescore - liveawayscore) 
 																END
 				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE 
-																	WHEN @Sporttype IN (4,26) AND b.transdate >= @CutOffDate THEN 0
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (4,26,28,43,49,51))
+																	WHEN @Sporttype = 28 AND b.transdate >= @CutOffDate THEN 0
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
 																		OR @Sporttype = 99
 																		OR @bettype = 20 THEN 0 
 																	ELSE (livehomescore - liveawayscore) 
