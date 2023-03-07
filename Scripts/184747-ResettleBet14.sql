@@ -194,21 +194,23 @@ BEGIN
 	END
 
 	SET @AffectedList = CAST((
-		SELECT	CustId AS '@c'
-				,WinlostDate AS '@w'
-				,SUM(stake) AS '@st'
-				,SUM(actual_stake) AS '@ast'
-				,SUM(Winlost) AS '@w_dif'
-				,SUM(aWinlost) AS '@aw_dif'
-				,SUM(mWinlost) AS '@mw_dif'
-				,SUM(sWinlost) AS '@sw_dif'
-				,SUM(playerComm) AS '@pc_dif'
-				,SUM(Comm) AS '@c_dif'
-				,SUM(aComm) AS '@ac_dif'
-				,SUM(sComm) AS '@sc_dif'
-		FROM	@BalanceInfoAfterUpd 
-		GROUP BY CustId
-				,WinlostDate
+		SELECT	bla.CustId AS '@c'
+				,bla.WinlostDate AS '@w'
+				,SUM(bla.stake) AS '@st'
+				,SUM(bla.actual_stake) AS '@ast'
+				,SUM(bla.Winlost - blb.Winlost) AS '@w_dif'
+				,SUM(bla.aWinlost - blb.aWinlost) AS '@aw_dif'
+				,SUM(bla.mWinlost - blb.mWinlost) AS '@mw_dif'
+				,SUM(bla.sWinlost - blb.sWinlost) AS '@sw_dif'
+				,SUM(bla.playerComm - blb.playerComm) AS '@pc_dif'
+				,SUM(bla.Comm - blb.Comm) AS '@c_dif'
+				,SUM(bla.aComm - blb.aComm) AS '@ac_dif'
+				,SUM(bla.sComm - blb.sComm) AS '@sc_dif'
+		FROM	@BalanceInfoAfterUpd bla
+			INNER JOIN @BalanceInfoBeforeUpd blb
+				ON bla.CustId = blb.CustId AND bla.MatchId = blb.MatchId
+		GROUP BY bla.CustId
+				,bla.WinlostDate
 		FOR XML PATH('r'), ROOT('root'), TYPE
 	) AS VARCHAR(MAX))
 	
