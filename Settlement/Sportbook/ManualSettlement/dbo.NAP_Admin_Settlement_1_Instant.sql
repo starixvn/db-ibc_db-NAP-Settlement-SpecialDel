@@ -14,7 +14,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Instant]
 	,@IsReSettledTickets BIT			= 1
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@KeyId				INT				= 0
-	,@RefResultStatus	TINYINT			= 0
 	,@BroadcastSessionId VARCHAR(50)	= NULL
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
@@ -27,6 +26,7 @@ AS
     Revisions:
 		- 20220419@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 
     Param's Explanation:
 	

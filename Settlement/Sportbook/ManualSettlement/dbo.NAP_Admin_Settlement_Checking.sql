@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking] 
-	@MatchId 				INT = NULL
+	  @MatchId 				INT = NULL
 	, @MatchIds 			VARCHAR(4000) = NULL OUTPUT
 	, @Action 				VARCHAR(10) = 'CAL'
 	, @Mode 				VARCHAR(20) = 'CAL'
@@ -44,6 +44,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		
 	Param's Explanation:
 		
@@ -64,10 +65,8 @@ BEGIN
 		,@xml						XML
 		,@currentdate				DATETIME
 		,@Sporttype					SMALLINT
-		,@isSettingByProfile		BIT
 		,@handle					INT
 		,@IsSettleDetermined		BIT
-		,@IsMergedParlay			BIT
 		,@IsCentral					BIT
     
 	
@@ -79,59 +78,20 @@ BEGIN
 
 	SELECT @currentdate = CURRENT_TIMESTAMP
 			,@isExistWaitingTicket = 0
-			,@isSettingByProfile = 0
 			,@IsSettleDetermined = 0
-			,@IsMergedParlay = 0
 
     SELECT	@Sporttype = sporttype
     FROM	dbo.[match] WITH (NOLOCK)
     WHERE	matchid = @matchid
-    
-	SELECT	@isSettingByProfile = ss.IsSettleByProfile
-			,@IsMergedParlay = ss.IsMergedParlay
-	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-	WHERE ss.Sporttype = @Sporttype
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-		--calculate parlay sports not yet settle by profile
-	IF @Action = 'CAL' AND @Mode = 'MP'
-	BEGIN		
-		DECLARE @wtMatch TABLE (matchid INT)
-		
-		INSERT INTO @wtMatch(matchid)
-		SELECT b.matchid
-		FROM bettransm b WITH(NOLOCK)
-			INNER JOIN dbo.f_Set_GetGroupBettypes() f
-				ON b.bettype = f.BetType
-		WHERE b.matchid IN (SELECT CONVERT(INT,[value]) FROM STRING_SPLIT(@MatchIds, ','))
-			AND 
-				(
-					b.statusID = 1 -- waiting status
-					OR (b.statusID = 0 AND b.SecAcceptFlag = 1 AND ISNULL(b.checktime,@currentdate) > @currentdate)
-				)
-			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-		GROUP BY b.matchid
-		
-		SET @MatchIds = ''
-		
-		IF EXISTS(SELECT TOP 1 1 FROM @wtMatch)
-		BEGIN
-			SELECT @MatchIds = COALESCE(@MatchIds + ',' + CONVERT(VARCHAR(20),matchid), CONVERT(VARCHAR(20),matchid)) -- retrieve matchids have 'waiting' tickets
-			FROM @wtMatch
-			
-			SET @isExistWaitingTicket = 1		
-			
-		END
-		
-	END
-
 	--cal/undo/refund FT/HT/Game/Set
 	--cal early sports settle by profile except early soccer
-	ELSE IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND','CAL_EAR', 'UNDO_EAR', 'REFUND_EAR') AND @Mode <> 'FM'
+	IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND','CAL_EAR', 'UNDO_EAR', 'REFUND_EAR','REFUND-FT') AND @Mode <> 'FM'
 	BEGIN	
-		IF @isSettingByProfile = 1
+		IF @xmlData IS NOT NULL
 		BEGIN			
 			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
 		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
@@ -166,10 +126,10 @@ BEGIN
 					   					)
 							AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					)
-				SELECT @isExistWaitingTicket = 1
-			ELSE IF @IsMergedParlay = 1
 			BEGIN
-				IF EXISTS (SELECT TOP 1 1
+				SELECT @isExistWaitingTicket = 1
+			END 				
+			ELSE IF EXISTS (SELECT TOP 1 1
 					   FROM dbo.bettransm bm WITH(NOLOCK)
 					   WHERE bm.matchid = @matchid
 					   		AND (bm.statusID = 1 -- waiting status
@@ -180,6 +140,7 @@ BEGIN
 					   					)
 							AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					)
+			BEGIN
 				SELECT @isExistWaitingTicket = 1
 			END
 		END
@@ -204,7 +165,18 @@ BEGIN
 							)					
 						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			)
+			BEGIN
 				SELECT @isExistWaitingTicket = 1
+			END
+			ELSE IF EXISTS (SELECT TOP 1 1
+							FROM dbo.bettransm bm WITH(NOLOCK)
+							WHERE bm.matchid = @matchid
+					   			AND (bm.statusID = 1 OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,@currentdate) > @currentdate ))
+								AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END)
+			BEGIN
+				SELECT @isExistWaitingTicket = 1
+			END
+
 		END		
 	END
 	
@@ -488,7 +460,7 @@ BEGIN
 		
 	IF @Action IN ( 'CAL', 'REFUND', 'UNDO' ) AND @Mode = 'EAR'
 	BEGIN
-		IF @isSettingByProfile = 1 OR @Sporttype = 1
+		IF @xmlData IS NOT NULL OR @Sporttype = 1
 		BEGIN
 			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
 		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
@@ -556,4 +528,5 @@ BEGIN
 	END	
 END
 GO
+
 

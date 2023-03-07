@@ -23,7 +23,8 @@ AS
 		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
 		- 20180515@Benjamin: Added @IsInstCalculated: Score has already Inst calc before [Redmine:#86964]
 		- 20191225@Max: Instant Settlement for Corner Bettype - Status Instant Calculation [Redmine:#124951]
-		- 20230214@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230214@Aries: Apply Settlement by Profile for Remaining Sports - Prepare data for table tennis [Redmine: #182677]
+		- 20230407@Aries: Apply Settlement by Profile for Remaining Sports - Remove code [Redmine: #182677]
 
 		
 	Param's Explanation:
@@ -48,20 +49,15 @@ BEGIN
 		 , @AutoPayoutResultId 	INT
 		 , @InstKeyValue		VARCHAR(50)
 		 , @IsAuto BIT = 0
-		 , @SportType SMALLINT
 	
 	SET @InstKeyValue 			= CAST(ISNULL(@InstantKey,0) AS VARCHAR(50))
 	
-	SELECT @SportType = SportType
-	FROM dbo.match WITH(NOLOCK)
-	WHERE matchid = @MatchId;
-
 	IF @SourceId = 5 OR @ChildMatchType = 204
 		SET @IsAuto = 1
 
 	--#86964
 	IF @IsInstCalculated = 1 AND @IsAuto = 1 
-	BEGIN
+	   BEGIN
 	   	UPDATE rs
 		SET IsConfirmed = 1
 		FROM dbo.ProviderResultDetail rs WITH(ROWLOCK,UPDLOCK)
@@ -70,78 +66,76 @@ BEGIN
 		    OR (rs.AwayValue  = @InstKeyValue))
 		  AND rs.SourceID     = 100
 		  AND rs.IsConfirmed  = 0
-	END
-	ELSE
-	BEGIN
-		SELECT TOP 1 @AutoPayoutResultId = AutoPayoutResultId
-			, @StatusIdCheck = StatusId 
-		FROM dbo.AutoPayoutResult WITH(NOLOCK) 
-		WHERE MatchId = @MatchId 
-			AND CalculationType = @TypeId
-			AND SourceId = @SourceID
-			AND 1 = CASE 
-					WHEN @TypeId IN (1, 2) THEN 1
-					WHEN @TypeId IN (101, 102) THEN 
-						CASE WHEN HomeValue = @HomeValue AND AwayValue = @AwayValue THEN 1 
-						ELSE 0 END
-					ELSE 0 
-				   END
+	   END
 
-		IF ( @TypeId IN (1, 2) AND @AutoPayoutResultId > 0 ) --Auto Payout
-		BEGIN
-			SELECT @ErrCode = 1001021, @ErrMsg = 'Failed to insert result detail (duplicate data).'
-			RETURN
-		END
+	ELSE
+	   BEGIN
+	--#86964
+
+	SELECT TOP 1 @AutoPayoutResultId = AutoPayoutResultId
+		, @StatusIdCheck = StatusId 
+	FROM dbo.AutoPayoutResult WITH(NOLOCK) 
+	WHERE MatchId = @MatchId 
+		AND CalculationType = @TypeId
+		AND SourceId = @SourceID
+		AND 1 = CASE 
+				WHEN @TypeId IN (1, 2) THEN 1
+				WHEN @TypeId IN (101, 102) THEN 
+				    CASE WHEN HomeValue = @HomeValue AND AwayValue = @AwayValue THEN 1 
+				    ELSE 0 END
+				ELSE 0 
+			   END
+
+	IF ( @TypeId IN (1, 2) AND @AutoPayoutResultId > 0 ) --Auto Payout
+	BEGIN
+		SELECT @ErrCode = 1001021, @ErrMsg = 'Failed to insert result detail (duplicate data).'
+		RETURN
+	END
 	
-		--Instant Calculation
+	--Instant Calculation
 	IF (@TypeId IN (101, 102) AND @AutoPayoutResultId > 0 
 		AND (
 			@StatusIdCheck IN (0,1) -- waiting|running
 		)
 	)
-		BEGIN
-			SELECT @ErrCode = 1001022, @ErrMsg = 'Sorry. This score has already existed or being in progress!'
-			RETURN
-		END
-	
-		--Instant Calculation update score
-		IF (@TypeId IN (101, 102)
-			AND (
-				@StatusIdCheck = 3 --FAILED to re-confirm
-				OR 
-				@StatusIdCheck = 2 --abnormal N-case to re-calculate
-			)	
-		)	
-		BEGIN
-			UPDATE dbo.AutoPayoutResult WITH(ROWLOCK,UPDLOCK)
-			SET StatusId = @StatusId
-			  , ModifiedDate = GETDATE()
-			WHERE AutoPayoutResultId = @AutoPayoutResultId
-		END
-		ELSE
-		BEGIN
-			INSERT INTO dbo.AutoPayoutResult (MatchId, SourceId, CalculationType, HomeValue, AwayValue, StatusId, TryCount, CreatedDate, ModifiedDate)
-			VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE())
-
-			IF @SportType = 18
-			BEGIN
-				INSERT INTO dbo.AutoPayoutResultOS (MatchId,ResourceId,HomeValue,AwayValue,StatusId,CreatedBy,ModifiedBy,CreatedDate,ModifiedDate)
-				VALUES(@MatchId, '00', @HomeValue, @AwayValue, @StatusId, 0, 0,GETDATE(), GETDATE())
-			END 
-		END
-	
-		IF (@TypeId IN (101, 102) ) AND @StatusId IN (1,2) --Update IsConfirmed when: Manual/Auto Settle process
-		BEGIN
-			UPDATE rs
-			SET IsConfirmed = 1
-			FROM dbo.ProviderResultDetail rs WITH(ROWLOCK,UPDLOCK)
-			WHERE rs.ProviderResultDetailId = @InstantKey
-				OR (
-					MatchId 		= @MatchId 
-					AND AwayValue 	= @InstKeyValue
-				)
-		END
+	BEGIN
+		SELECT @ErrCode = 1001022, @ErrMsg = 'Sorry. This score has already existed or being in progress!'
+		RETURN
 	END
+	
+	--Instant Calculation update score
+	IF (@TypeId IN (101, 102)
+		AND (
+			@StatusIdCheck = 3 --FAILED to re-confirm
+			OR 
+			@StatusIdCheck = 2 --abnormal N-case to re-calculate
+		)	
+	)	
+	BEGIN
+		UPDATE dbo.AutoPayoutResult WITH(ROWLOCK,UPDLOCK)
+		SET StatusId = @StatusId
+		  , ModifiedDate = GETDATE()
+		WHERE AutoPayoutResultId = @AutoPayoutResultId
+	END
+	ELSE
+	BEGIN
+		INSERT INTO dbo.AutoPayoutResult (MatchId, SourceId, CalculationType, HomeValue, AwayValue, StatusId, TryCount, CreatedDate, ModifiedDate)
+		VALUES(@MatchId, @SourceId, @TypeId, @HomeValue, @AwayValue, @StatusId, 0, GETDATE(), GETDATE())
+	END
+	
+	IF (@TypeId IN (101, 102) ) AND @StatusId IN (1,2) --Update IsConfirmed when: Manual/Auto Settle process
+	BEGIN
+		UPDATE rs
+		SET IsConfirmed = 1
+		FROM dbo.ProviderResultDetail rs WITH(ROWLOCK,UPDLOCK)
+		WHERE rs.ProviderResultDetailId = @InstantKey
+			OR (
+				MatchId 		= @MatchId 
+				AND AwayValue 	= @InstKeyValue
+			)
+	END
+	
+	END --#86964
 
 	IF @@ERROR <> 0
 	BEGIN

@@ -17,7 +17,8 @@ AS
 		- 20180208@Benjamin: Implement to determine AutoIntant and ManualInstant [Redmine:#86964]
 		- 20190425@Sol: Auto Payout Phase 3 [Redmine:#116073]
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
-		- 20230214@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230214@Aries: Apply Settlement by Profile for Remaining Sports - Prepare data for table tennis [Redmine: #182677]
+		- 20230407@Aries: Apply Settlement by Profile for Remaining Sports - Remove code [Redmine: #182677]
 		
 	Param's Explanation:
 		- @StatusId: 0: New
@@ -32,11 +33,6 @@ BEGIN
 	DECLARE @AutoSetting 		TINYINT	
 		 , @AutoSettingLeague	TINYINT
 		 , @AutoPayoutResultId	INT
-		 , @SportType			SMALLINT
-
-	SELECT @SportType = SportType
-	FROM dbo.match WITH(NOLOCK)
-	WHERE matchid = @MatchId;
 	
 	IF @IsUndoMatch = 1
 	BEGIN
@@ -87,15 +83,7 @@ BEGIN
 				AND CalculationType = @TypeId
 				AND StatusId <> @StatusId
 				AND SourceId = ISNULL(@SourceId, SourceId) -- #106901
-			
-			IF @SportType = 18
-			BEGIN
-				UPDATE dbo.AutoPayoutResultOS WITH(ROWLOCK, UPDLOCK)
-				SET StatusId = @StatusId 
-				  , ModifiedDate = GETDATE()
-				WHERE MatchId = @MatchId 
-					AND StatusId <> @StatusId
-			END
+				
 		END
 		
 		IF (@IsIncludedUpdateMatch = 1)

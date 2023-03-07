@@ -16,7 +16,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1]
 	,@IsReSettledTickets BIT			= 1
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@KeyId				INT				= 0
-	,@RefResultStatus	TINYINT			= 0
 	,@BroadcastSessionId VARCHAR(50)	= NULL
     ,@ErrCode			INT            	= 0		OUTPUT
     ,@ErrMsg            NVARCHAR(200)	= ''    OUTPUT
@@ -87,6 +86,7 @@ AS
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -95,10 +95,6 @@ AS
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>
-
-		+ @RefResultStatus ( detect by Web )
-				 1: no reference result exist (result not yet confirmed or not exists Provider score)
-				 2: values inconsistency
 */
 BEGIN
     SET NOCOUNT ON
@@ -121,7 +117,6 @@ BEGIN
         ,@HTDone                        BIT
         ,@FTDone                        BIT
         ,@strAutoBettypes				VARCHAR(MAX)
-        ,@strHTBettypes					VARCHAR(MAX)
         ,@strBettypes					VARCHAR(MAX)	
 		,@IsRefundHT					BIT	
 
@@ -166,14 +161,6 @@ BEGIN
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
     WHERE    m.matchid = @matchid
-	
-    IF @@ROWCOUNT = 0
-    BEGIN
-        SELECT @ErrCode = 1001001
-            ,@ErrMsg    = 'Match does not exist!'
-
-        RETURN
-    END
 
 	 SELECT  @starttime = CURRENT_TIMESTAMP		
             ,@ActionID = CASE @Action
@@ -206,16 +193,7 @@ BEGIN
 	    RETURN
 	END
 
-    -- check result of horse racing fixodds
-    IF @action = 'CAL' AND @sporttype = 154 AND (@fth = 0 OR @fth IS NULL OR @fta = 0 OR @fta IS NULL)
-    BEGIN
-        SELECT @ErrCode = 1001002
-            ,@ErrMsg    = 'Score is not valid.'
-
-        RETURN
-    END
-
-	IF @sporttype = 1 AND @action LIKE 'CAL%'
+	IF @action LIKE 'CAL%'
 	BEGIN
 		EXEC DBPRO.bodb02.dbo.NAP_Set_SettlementStatusChecking
 			@MatchId	= @matchid
@@ -330,14 +308,9 @@ BEGIN
 		RETURN
 	END
 
-	SELECT  @strAutoBettypes = COALESCE(@strAutoBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
+	SELECT  @strAutoBettypes = COALESCE(@strAutoBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR)) --bettype extra time, goal, penalty shoot out
 	FROM    dbo.f_Set_GetGroupBettypes() f 
 	WHERE   f.IsAuto = 1   
-
-	SELECT	@strHTBettypes = COALESCE(@strHTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
-	FROM    dbo.f_Set_GetGroupBettypes() f 
-	WHERE  	f.GroupId IN (1,3) -- include HT-FGLG groupId = 3
-			AND f.IsAuto = 0
 	
 	SET @strBettypes = CAST((SELECT  BetType '@t'
 								,GroupId '@g'
@@ -346,50 +319,22 @@ BEGIN
 						WHERE	IsAuto = 0
 						FOR XML PATH ('r'), ROOT('root'), TYPE
 							) AS VARCHAR(MAX))
-	
-	IF @Action = 'CAL-HT'
-	BEGIN
-		SELECT    @TicketCount = COUNT(1)
-		FROM    dbo.bettrans b WITH(NOLOCK)
-		WHERE    b.matchid = @matchid
-				AND 1 = CASE 
-							WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 1
-							ELSE 0
-						END
-	END
-	ELSE IF @Action = 'CAL-FT'
-	BEGIN
-		SELECT    @TicketCount = COUNT(1)
-		FROM    dbo.bettrans b WITH(NOLOCK)
-		WHERE    b.matchid = @matchid
-				AND 1 = CASE 
-							WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 0
-							WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') > 0 THEN 0
-							ELSE 1
-						END
-				AND b.bettype NOT BETWEEN 901 AND 910
-				AND b.bettype NOT BETWEEN 801 AND 899
-				AND b.bettype NOT BETWEEN 911 AND 920
-				AND b.bettype <> 38 --BetBuilder
-	END
-	ELSE 
-	BEGIN
-		SELECT    @TicketCount = COUNT(1)
-		FROM    dbo.bettrans b WITH(NOLOCK)
-			INNER JOIN dbo.f_Set_GetGroupBettypes() f
-					ON b.bettype = f.BetType
-		WHERE  	b.matchid = @matchid					
-				AND b.bettype <= 19000
-				AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
-				AND b.bettype NOT BETWEEN 1501 AND 1599 -- Keno
-				AND 1 = CASE 
-							WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') > 0 THEN 0
-							ELSE 1
-						END
-				AND b.bettype NOT BETWEEN 901 AND 910
-				AND b.bettype NOT BETWEEN 801 AND 899
-				AND b.bettype NOT BETWEEN 911 AND 920
-	END	
+ 
+	SELECT    @TicketCount = COUNT(1)
+	FROM    dbo.bettrans b WITH(NOLOCK)
+		INNER JOIN dbo.f_Set_GetGroupBettypes() f
+				ON b.bettype = f.BetType
+	WHERE  	b.matchid = @matchid					
+			AND b.bettype <= 19000
+			AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
+			AND b.bettype NOT BETWEEN 1501 AND 1599 -- Keno
+			AND 1 = CASE 
+						WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strAutoBettypes + ',') > 0 THEN 0
+						ELSE 1
+					END
+			AND b.bettype NOT BETWEEN 901 AND 910
+			AND b.bettype NOT BETWEEN 801 AND 899
+			AND b.bettype NOT BETWEEN 911 AND 920
 
 	-------------------------------------------------------------
 	---        CAPTURE value BALANCE before settlement        ---
@@ -411,145 +356,122 @@ BEGIN
 		, @IsRefundHT		= @IsRefundHT
 
     SELECT @TotalAccount = @@ROWCOUNT
-          
-    BEGIN TRY
-            -- 20090412 : Joe : case for unsettle the game.
-        IF @action = 'UNDO'
-        BEGIN
-            EXEC dbo.NAP_Admin_Calculate_Main 
-                @matchid        = @matchid              
-                ,@action        = 'CAL'        -- Default Action for UNDO Settlement 
-                ,@mode            = 'UNDO'
-                ,@strBettypes = @strBettypes
+         
+    BEGIN TRY 
 
-			INSERT INTO @tmpCashoutTransId(TransId, statuswinlost)
-			SELECT	b.transid, NULL
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	matchid = @matchid
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-					AND b.statusID NOT IN (101)
-					AND ISNULL(b.betdaqid,0) = - 2
-					AND b.statuswinlost IS NOT NULL
+        EXEC dbo.NAP_Admin_Calculate_Main 
+            @matchid        = @matchid              
+            ,@action        = 'CAL'        -- Default Action for UNDO Settlement 
+            ,@mode            = 'UNDO'
+            ,@strBettypes = @strBettypes
 
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+		INSERT INTO @tmpCashoutTransId(TransId, statuswinlost)
+		SELECT	b.transid, NULL
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	matchid = @matchid
+				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+				AND b.statusID NOT IN (101)
+				AND ISNULL(b.betdaqid,0) = - 2
+				AND b.statuswinlost IS NOT NULL
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
+		BEGIN
+			UPDATE t 
+				SET winlost = c.Winlost
+			FROM	@tmpCashoutTransId t
+				INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
+					ON t.TransId = c.TransID
+
+			WHILE (1=1)
 			BEGIN
-				UPDATE t 
-					SET winlost = c.Winlost
-				FROM	@tmpCashoutTransId t
-					INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
-						ON t.TransId = c.TransID
+				DELETE @tmpTransIDBatch
+				SET @strTransIds = ''
 
-				WHILE (1=1)
-				BEGIN
-					DELETE @tmpTransIDBatch
-					SET @strTransIds = ''
+				DELETE 	TOP (2000)
+				FROM	@tmpCashoutTransId
+					OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
 
-					DELETE 	TOP (2000)
-					FROM	@tmpCashoutTransId
-						OUTPUT deleted.TransId, deleted.statuswinlost, deleted.winlost INTO @tmpTransIDBatch(TransID, statuswinlost, winlost)
+				IF @@ROWCOUNT = 0
+					BREAK
 
-					IF @@ROWCOUNT = 0
-						BREAK
+				SET @strTransIds 		= (SELECT transid	AS '@t'
+													,winlost	AS '@w'	
+													,statuswinlost AS '@s'
+											FROM @tmpTransIDBatch
+											FOR XML PATH('r'), ROOT( 'root' ))
 
-					SET @strTransIds 		= (SELECT transid	AS '@t'
-													   ,winlost	AS '@w'	
-													   ,statuswinlost AS '@s'
-											   FROM @tmpTransIDBatch
-											   FOR XML PATH('r'), ROOT( 'root' ))
-
-					EXEC dbo.NAP_Admin_Calculate_Main
-						@matchid	  		 = @matchid
-					   ,@action				 = 'Cashout'
-					   ,@mode				 = 'UNDO'
-					   ,@strTransIds		 = @strTransIds
+				EXEC dbo.NAP_Admin_Calculate_Main
+					@matchid	  		 = @matchid
+					,@action			 = 'Cashout'
+					,@mode				 = 'UNDO'
+					,@strTransIds		 = @strTransIds
 					
-				END
 			END
+		END
             
-			IF @sporttype <> 1
+		;WITH cteResource 
+		AS (
+			SELECT	sp.ResourceID, sp.RefResourceId, sp.BetType
+			FROM	dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+			WHERE	SportType = @sportType
+					AND sp.SettleType = 'MNL'
+			GROUP BY sp.ResourceID, sp.RefResourceId, sp.BetType
+		)
+		INSERT INTO @tmpParlayAffectedBettypes(ResourceId, RefResourceId, bettype, totalticket)
+		SELECT	c.ResourceID, c.RefResourceId, bm.bettype, COUNT(1)		
+		FROM	dbo.bettransm bm WITH(NOLOCK)
+			INNER JOIN cteResource c
+				ON bm.bettype = c.BetType
+		WHERE	bm.matchid = @MatchID
+				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+				AND bm.statusID NOT IN (101,0)
+		GROUP BY c.ResourceID, c.RefResourceId, bm.bettype
+
+		IF @@ROWCOUNT > 0
+		BEGIN		
+			SELECT	@TotalSubParlay = SUM(totalticket)
+			FROM	@tmpParlayAffectedBettypes
+
+			SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
+												,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
+												,bettype AS '@Bettype'			
+										FROM	@tmpParlayAffectedBettypes
+										FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
+		
+			EXEC dbo.NAP_Set_GlobalSettingSel 
+				@LockName = 'ParlayRefno'
+				,@ThreadHold = @ThreadHoldRefno OUTPUT
+
+			IF @TotalSubParlay <= @ThreadHoldRefno
+				SET @LockedByRefno = 1
+			
+			SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
+									+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
+									+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''
+									+ ', @Action = ''' + @Action + ''''	
+									+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral) 	
+									+ ', @ErrCode = @ErrCode OUTPUT' 
+									+ ', @ErrMsg = @ErrMsg OUTPUT'
+
+			IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT[1-9]'
 			BEGIN
-				EXEC dbo.NAP_Admin_Settlement_MP
-					@matchid        = @matchid
-					,@creator        = @creator
-					,@action        = 'UNDO'              
-					,@IP            = @IP
-			END 
+					EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
+						@creator			= @creator
+						,@MatchID			= @MatchId
+						,@Action		  	= @Action
+						,@SelectedResources = @SelectedResourceParlay
+						,@LockedByRefno		= 1 -- always lock refno for testing
+						,@IsCentral			= @IsCentral
+						,@ErrCode			= @ErrCode OUTPUT
+						,@ErrMsg 			= @ErrMsg OUTPUT
+				END
 			ELSE
 			BEGIN
-				;WITH cteResource 
-				AS (
-					SELECT	sp.ResourceID, sp.RefResourceId, sp.BetType
-					FROM	dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-					WHERE	SportType = @sportType
-							AND sp.SettleType = 'MNL'
-					GROUP BY sp.ResourceID, sp.RefResourceId, sp.BetType
-				)
-				INSERT INTO @tmpParlayAffectedBettypes(ResourceId, RefResourceId, bettype, totalticket)
-				SELECT	c.ResourceID, c.RefResourceId, bm.bettype, COUNT(1)		
-				FROM	dbo.bettransm bm WITH(NOLOCK)
-					INNER JOIN cteResource c
-						ON bm.bettype = c.BetType
-				WHERE	bm.matchid = @MatchID
-						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-						AND bm.statusID NOT IN (101,0)
-				GROUP BY c.ResourceID, c.RefResourceId, bm.bettype
-
-				IF @@ROWCOUNT > 0
-				BEGIN		
-					SELECT	@TotalSubParlay = SUM(totalticket)
-					FROM	@tmpParlayAffectedBettypes
-
-					SELECT @SelectedResourceParlay = CAST((SELECT ResourceID AS '@Id'
-														,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
-														,bettype AS '@Bettype'			
-												FROM	@tmpParlayAffectedBettypes
-												FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
-			
-					EXEC dbo.NAP_Set_GlobalSettingSel 
-						@LockName = 'ParlayRefno'
-						,@ThreadHold = @ThreadHoldRefno OUTPUT
-
-					IF @TotalSubParlay <= @ThreadHoldRefno
-						SET @LockedByRefno = 1
-				
-					SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
-											+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
-											+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''
-											+ ', @Action = ''' + @Action + ''''	
-											+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral) 	
-											+ ', @ErrCode = @ErrCode OUTPUT' 
-											+ ', @ErrMsg = @ErrMsg OUTPUT'
-
-					IF @SPName LIKE '%_xtest' OR @SPName LIKE '%_xpre' OR @SPName LIKE '%_UAT[1-9]'
-					BEGIN
-						EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
-							@creator			= @creator
-							,@MatchID			= @MatchId
-							,@Action		  	= @Action
-							,@SelectedResources = @SelectedResourceParlay
-							,@LockedByRefno		= 1 -- always lock refno for testing
-							,@IsCentral			= @IsCentral
-							,@ErrCode			= @ErrCode OUTPUT
-							,@ErrMsg 			= @ErrMsg OUTPUT
-					END
-					ELSE
-					BEGIN
-						INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-						SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
-					END
+					INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+					SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 				END
-			END
-        END
-        ELSE
-        BEGIN           
-			EXEC dbo.NAP_Admin_Settlement_3
-				@matchid            = @matchid
-				,@mode                = @action    
-				,@IsReSettledTickets = @IsReSettledTickets
-				,@creator = @creator
-				,@IsCentral = @IsCentral
-		END 
-    END TRY
+		END
+	END TRY
     BEGIN CATCH
         -- Capture Balance incase of failure
         INSERT INTO @BalanceWalletAfter (
@@ -636,16 +558,7 @@ BEGIN
                                 END
 						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @starttime, @stop) AS NVARCHAR(50)) + ' ms;' 
                         + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) + ';'
-						+ CASE WHEN @action LIKE 'CAL%' THEN ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + ';' ELSE '' END
                         + ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-						+ CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
-								WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
-								ELSE ' RefChild:(' + @ChildMatchIds +')' 
-								END
-						+ CASE @RefResultStatus WHEN 1 THEN ' confirmed/provider:no'
-												WHEN 2 THEN ' value consistency:no'
-												ELSE ''
-												END
 
 	IF @IsCentral = 1
 	BEGIN

@@ -20,6 +20,7 @@ AS
 		- 20211122@Max: Support Settlement Exclusion for Parlay Sub Tickets [Redmine: #163172]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -105,35 +106,14 @@ BEGIN
 	END
 
 	BEGIN TRY
-		IF ISNULL(@sqlCommand,'') <> ''
-		BEGIN
-			IF @LockedByRefno = 1  
-				SET @sqlCommand = @sqlCommand + ', @LockedByRefno = 1 '
+
+		IF @LockedByRefno = 1  
+			SET @sqlCommand = @sqlCommand + ', @LockedByRefno = 1 '
 								
-			EXEC sys.sp_executesql @sqlCommand
-				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
-				, @ErrMsg	= @ErrMsg	OUTPUT
-				, @ErrCode	= @ErrCode	OUTPUT
-		END
-		ELSE IF(@action IN ('REFUND', 'REFUND-HT','REFUND-FT','ABANDONED-1H','ABANDONED-2H'))
-		BEGIN
-			EXEC [dbo].[NAP_Admin_Settlement_Refund_MP] 
-			@matchid 	= @matchid
-			,@creator 	= @creator
-			,@action 	= @action
-			,@IP 		= @IP
-			,@ErrCode 	= @ErrCode OUTPUT
-			,@ErrMsg 	= @ErrMsg OUTPUT
-		END
-		ELSE
-		BEGIN
-			EXEC [NAP_Admin_Settlement_MP] @matchid = @matchid
-			,@creator = @creator
-			,@action = @action
-			,@IP = @IP
-			,@ErrCode = @ErrCode OUTPUT
-			,@ErrMsg = @ErrMsg OUTPUT
-		END
+		EXEC sys.sp_executesql @sqlCommand
+			, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
+			, @ErrMsg	= @ErrMsg	OUTPUT
+			, @ErrCode	= @ErrCode	OUTPUT
 	END TRY
 
 	BEGIN CATCH
@@ -191,13 +171,7 @@ BEGIN
 		
 		--Update for Auto Void Job
 		IF @Action NOT LIKE 'UNDO%' AND @Action <> 'SDT-FT'
-		BEGIN
-			--UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
-			--	SET StatusId = 0, Starttime = GETDATE()
-			--WHERE MatchId = @matchid
-			--	AND Action = 'MixParlay'
-			--	AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
-		
+		BEGIN		
 			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
 			SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId
 		END
