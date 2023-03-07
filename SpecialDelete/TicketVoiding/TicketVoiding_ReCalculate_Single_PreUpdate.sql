@@ -507,6 +507,8 @@ BEGIN
 		EXEC dbo.NAP_CustNegativeBalance_Sel
 			@CustIds = @CustIds
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+		SELECT @NegativeBalanceUsers AS NegativeBalanceUsers
 	END
 	-- Write Log
 	SET @EndTime = GETDATE()

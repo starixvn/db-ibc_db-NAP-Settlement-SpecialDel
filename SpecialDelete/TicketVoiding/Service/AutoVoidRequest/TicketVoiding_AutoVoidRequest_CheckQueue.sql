@@ -19,6 +19,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT)
+	DECLARE @invalidTransId AS TABLE (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0))
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
@@ -57,6 +58,24 @@ BEGIN
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statuswinlost IS NOT NULL 
 			AND b.statusID IN (0,1)
+	END
+
+	--Invalid Transid
+	IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId t
+					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+				WHERE b.statusID IN (101, 102, 103))
+	BEGIN
+		SELECT t.RequestId, t.TransId
+		FROM #tmpInputTransId t 
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE b.statusID IN (101, 102, 103) 
+			AND t.IsMixParlay = 0
+
+		SELECT t.RequestId, t.TransId
+		FROM #tmpInputTransId t 
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE b.statusID IN (101, 102, 103) 
+			AND t.IsMixParlay = 1
 	END
 	
 
