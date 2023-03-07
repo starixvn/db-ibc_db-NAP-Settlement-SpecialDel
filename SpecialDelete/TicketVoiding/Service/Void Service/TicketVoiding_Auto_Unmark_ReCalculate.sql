@@ -246,8 +246,8 @@ BEGIN
 
 			IF DATEDIFF(SECOND, @StartTime_Retry, GETDATE()) > @limitsecond
 			BEGIN
-				SELECT 100 AS ErrCode,
-					'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.' AS ErrMsg
+				SELECT 100 AS ErrorCode,
+					'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.' AS ErrorCode
 
 				RETURN;
 			END
@@ -344,8 +344,8 @@ BEGIN
 		END TRY
 	
 		BEGIN CATCH		
-			SELECT ERROR_NUMBER() AS ErrCode
-					,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrMsg
+			SELECT ERROR_NUMBER() AS ErrorCode
+					,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrorCode
 
 			RETURN			
 		END CATCH
