@@ -50,6 +50,7 @@ AS
 			- 20221226@Louisa: Fix bug [Redmine:#182009]
 			- 20230104@Kathy: duplicate matchid in #tmpAllParentChildMatch
 			- 20230206@Kathy: duplicate transid in #tmpMarkedTransaction [Redmine:#183427]
+			- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -67,7 +68,7 @@ AS
 					multiple select: '1,2'
 		@MatchType  : 0: all, 1: normal/real, 2:Virtual
 		@IsIncludeTest: 1: include test matches, 0: exclude test matches
-		@AutoSetting : '': not select; 1-Auto Payout bit[1] ; 0: Turn off Autopayout
+		@AutoSetting : '': not select or select All; 1-Auto Payout (bit[1]); 16: Direct (bit[5]); 0: Turn off Autopayout  | Ex: @AutoSetting = '16,0'
 					multiple select: @AutoSetting = '1,0'
 		@Page:		0 - Multisports Page
 					1 - Move Ticket Page
@@ -483,10 +484,6 @@ BEGIN
 															WHEN @Page = 1 AND  ISNULL(l.LeagueGroupID,0) = 42 THEN 0
 															ELSE 1 END
 									ELSE 1 END		
-				AND 1 = CASE WHEN @AutoSetting = '' THEN 1
-							 WHEN @minValue = 0 AND ISNULL(m.AutoSetting, ISNULL(l.AutoSetting,0)) & (@AutoValue ^ 1) = 0  THEN 1
-							 WHEN ISNULL(m.AutoSetting, ISNULL(l.AutoSetting,0))  & @AutoValue > 0 THEN 1
-				   			ELSE 0 END
 				AND EXISTS (	SELECT TOP 1 1 FROM @tmpHoldStatus h
 								WHERE  CASE WHEN h.HoldStatus = 0 THEN 1
 										WHEN h.HoldStatus = 87 THEN  
@@ -495,6 +492,19 @@ BEGIN
 										ELSE h.HoldStatus & m.SettlementStatus
 									END > 0 
 							)
+
+		DELETE m
+		FROM	#tmpMatchIds m
+		WHERE	1 =  CASE 
+						WHEN @AutoValue = 0 THEN CASE when  m.AutoSetting & 17 > 0 THEN 1 
+				   										 ELSE 0 END
+				   		WHEN @minValue = 0 
+				   			AND m.AutoSetting & (@AutoValue ^17) > 0  
+				   			AND m.AutoSetting & @AutoValue = 0
+				   			THEN 1
+				   		WHEN @minValue > 0 AND m.AutoSetting & @AutoValue = 0 THEN 1
+				   		ELSE 0
+				   	END
 
 		UPDATE m
 		SET AutoPayoutStatus = ISNULL(m.AutoPayoutStatus, os.StatusId)
@@ -508,6 +518,25 @@ BEGIN
 		WHERE sporttype in ( 6, 9, 50 )
 
 	END	
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype = 50 AND ISNULL(childmatchtype,0) <> 200 )
+	BEGIN
+		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
+		SELECT	DISTINCT m.matchid, m.ParentId, t.IsMergedParlay, t.eventstatus
+		FROM	#tmpMatchIds t
+			CROSS APPLY (
+				SELECT	m.matchid, m.ParentId
+				FROM	dbo.match m WITH(NOLOCK)
+				WHERE	m.sporttype = 50
+						AND m.ChildMatchType = 200
+						AND m.ParentID = t.matchid
+			)m
+	END
+
+	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
+	SELECT DISTINCT m.matchid, m.matchid, m.IsMergedParlay, m.eventstatus 
+	FROM #tmpMatchIds m
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpAllParentChildMatch p WHERE p.MatchId = m.matchid)
 	
 	--- Filter by Over Status
 	IF @OverStatus <> '0'
@@ -703,7 +732,7 @@ BEGIN
 			FROM @tmpMatchOverStatus m
 				CROSS APPLY (	SELECT TOP 1 1 valid
 								FROM bettrans b with (nolock)
-								WHERE m.matchid = b.matchid
+								WHERE b.matchid IN (SELECT t.MatchId FROM #tmpAllParentChildMatch t WHERE t.ParentId = m.MatchId)
 									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 									AND b.statusId = 0
 								) AS tmp
@@ -716,7 +745,7 @@ BEGIN
 			FROM @tmpMatchOverStatus m
 				CROSS APPLY (	SELECT TOP 1 1 valid
 								FROM bettransm b with (nolock)
-								WHERE m.matchid = b.matchid
+								WHERE b.matchid IN (SELECT t.MatchId FROM #tmpAllParentChildMatch t WHERE t.ParentId = m.MatchId)
 									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 									AND b.statusId = 0
 								) AS tmp
@@ -755,26 +784,6 @@ BEGIN
 		FULL OUTER JOIN parlayqueue p
 			ON	s.matchid = p.matchid
 	
-	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatchIds WHERE Sporttype = 50 AND ISNULL(childmatchtype,0) <> 200 )
-	BEGIN
-		INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
-		SELECT	DISTINCT m.matchid, m.ParentId, t.IsMergedParlay, t.eventstatus
-		FROM	#tmpMatchIds t
-			CROSS APPLY (
-				SELECT	m.matchid, m.ParentId
-				FROM	dbo.match m WITH(NOLOCK)
-				WHERE	m.sporttype = 50
-						AND m.ChildMatchType = 200
-						AND m.ParentID = t.matchid
-			)m
-	END
-
-	INSERT INTO #tmpAllParentChildMatch (MatchId, ParentId, IsMergedParlay, eventstatus)
-	SELECT DISTINCT m.matchid, m.matchid, m.IsMergedParlay, m.eventstatus 
-	FROM #tmpMatchIds m
-	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpAllParentChildMatch p WHERE p.MatchId = m.matchid)
-	
-
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
 	FROM	dbo.f_Set_GetEarlyBettypes()
@@ -914,7 +923,7 @@ BEGIN
 	DECLARE @tmpMatchCompleted TABLE (MatchId INT PRIMARY KEY, IsExistRunningTicket BIT DEFAULT (0), IsExistRunningTicketParlay BIT DEFAULT(0))
 
 	INSERT INTO @tmpMatchCompleted (MatchId)
-	SELECT	m.matchid
+	SELECT	DISTINCT m.matchid
 	FROM	#tmpMatchIds m
 	WHERE	m.eventstatus = 'completed'
 
@@ -1072,7 +1081,7 @@ BEGIN
 			,m.AutoPayoutStatus
 			,m.BestOfMap
 			,m.OfferLive
-			,ISNULL(s.WaitingTime, 30) AS AutoWaitingTime
+			,ISNULL(s.WaitingTime, CASE WHEN m.sporttype IN (6,9) THEN 60 ELSE 30 END) AS AutoWaitingTime
 	FROM	#tmpMatchIds m
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
@@ -1082,8 +1091,7 @@ BEGIN
 			SELECT TOP 1 ss.WaitingTime
 			FROM	DBPRO.bodb02.dbo.SettlementSetting ss WITH (NOLOCK)
 			WHERE	ss.LeagueId = m.leagueid
-					AND AutoType = 1
-					AND m.sporttype = 50
+					AND AutoType IN (1,5)					
 		)s
 	
 	drop table #ConfirmedResources

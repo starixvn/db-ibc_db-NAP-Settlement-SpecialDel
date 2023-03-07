@@ -64,6 +64,7 @@ AS
 		- 20221006@Louisa: Always insert BroacastSessionId into TicketVoiding_AutoVoidRequest_Queue [Redmine:#178830]
 		- 20221010@louisa: not insert [TicketVoiding_AutoVoidRequest_Queue] if BroacastSessionId null [Redmine:#178830]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -669,7 +670,7 @@ BEGIN
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		IF @IsCentral = 1
 		BEGIN
-			IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action = 'CAL' )
+			IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action LIKE 'CAL%' )
 			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 				  @MatchId 			 = @matchid
@@ -716,7 +717,7 @@ BEGIN
 
 	SELECT @stop = CURRENT_TIMESTAMP
 	
-	SELECT @logdata = CASE WHEN @sportType IN ( 6, 9, 50 ) AND @IsAuto = 1 AND @Action ='CAL' THEN 'NAP: Auto Payout Calculate '
+	SELECT @logdata = CASE WHEN @sportType IN ( 6, 9, 50 ) AND @IsAuto = 1 AND @Action LIKE 'CAL%' THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
 							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
@@ -808,11 +809,16 @@ BEGIN
 				,@RowCount		 = @IsExistAR OUTPUT
 		END
 
-		SELECT @ResultRemarkLog =  CASE WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
-									WHEN @IsAuto = 1 AND @Action ='CAL' THEN CASE WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
-																WHEN @sportType IN ( 6, 9 ) THEN 'NAP: Auto Payout: SBO'				
-																ELSE '' END
-									ELSE ''
+		SELECT @ResultRemarkLog =  CASE 
+										WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
+										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
+											THEN CASE 
+													WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
+													WHEN @sportType IN ( 6, 9 ) AND @Action = 'CAL' THEN 'NAP: Auto Payout: SBO'
+													WHEN @sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR' THEN 'NAP: Auto Payout: Direct'
+													ELSE '' 
+												END
+										ELSE ''
 									END
 			 
 								+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 

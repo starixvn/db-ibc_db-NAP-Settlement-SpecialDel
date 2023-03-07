@@ -23,7 +23,8 @@ AS
 		- 20200225@Sol: Direct Settlement Action for Soccer - [Redmine:#103568]
 		- 20200817@July: Add sporttype = 2 (BetBuilder BasketBall) - [Redmine:#138475]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
-		
+		- 20230103@Kathy: Support ON bit 1 & 5 for other sport [Redmine:#181458]
+
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
 					   1: update on league & running match without matches in Queue
@@ -44,6 +45,7 @@ BEGIN
 		, @Remark 						VARCHAR(1024)
 		, @actionLogId					INT
 		, @AutoSetting					TINYINT
+		, @Sporttype					SMALLINT
 		
 	DECLARE @tmpUpdatedMatches TABLE (matchid INT)
 		
@@ -57,10 +59,11 @@ BEGIN
 									WHEN @AutoType = 5 THEN 159
 									ELSE -1 
 								END
-
+			
 	SELECT @AutoSettingForLeague = ISNULL(AutoSetting, 0)
-	FROM dbo.League l WITH(NOLOCK) 
-	WHERE leagueid = @LeagueId
+			,@Sporttype = sporttype
+	FROM	dbo.League l WITH(NOLOCK) 
+	WHERE	leagueid = @LeagueId
 		
 	-- update setting for matches do not have any setting
 	UPDATE	m
@@ -75,13 +78,14 @@ BEGIN
 									END
 	
 	-- turn off bit 1 or 5
-	SELECT @AutoSettingForLeague =
-							CASE WHEN @AutoType IN (1, 5) THEN 
-																CASE WHEN @IsEnabled = 1 THEN @AutoSettingForLeague & (238 + POWER(2,@AutoType - 1)) 
-																	ELSE @AutoSettingForLeague & 238
-																END
-								ELSE @AutoSettingForLeague 
-							END
+	IF @Sporttype = 1
+		SELECT @AutoSettingForLeague =
+								CASE WHEN @AutoType IN (1, 5) THEN 
+																	CASE WHEN @IsEnabled = 1 THEN @AutoSettingForLeague & (238 + POWER(2,@AutoType - 1)) 
+																		ELSE @AutoSettingForLeague & 238
+																	END
+									ELSE @AutoSettingForLeague 
+								END
 
 	--update setting on league
 	UPDATE	dbo.League WITH(ROWLOCK, UPDLOCK)
@@ -105,7 +109,7 @@ BEGIN
 									WHEN @IsEnabled = 1 THEN @AutoSetting | POWER(2,@AutoType - 1) 
 									ELSE CASE WHEN @AutoSetting & (POWER(2,@AutoType - 1)) = 0 THEN @AutoSetting ELSE @AutoSetting ^ (POWER(2,@AutoType - 1)) END
 								END
-				,@AutoSetting = CASE WHEN @AutoType IN (1, 5) THEN 
+				,@AutoSetting = CASE WHEN @Sporttype = 1 AND @AutoType IN (1, 5) THEN 
 																CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
 																	ELSE @AutoSetting & 238
 																END
