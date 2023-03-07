@@ -64,15 +64,9 @@ IF OBJECT_ID('NAP_VoidMetricGaming_Sel', 'P') IS NOT NULL
 GO
 IF OBJECT_ID('NAP_VoidMetricGaming_Del', 'P') IS NOT NULL
 	DROP PROCEDURE NAP_VoidMetricGaming_Del;
-GO
-IF OBJECT_ID('NAP_PlayerSelect', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_PlayerSelect;
-GO
+
 IF OBJECT_ID('NAP_InvalidGoalScorerTicketVoid', 'P') IS NOT NULL
 	DROP PROCEDURE NAP_InvalidGoalScorerTicketVoid;
-GO
-IF OBJECT_ID('NAP_EventSelect', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_EventSelect;
 GO
 IF OBJECT_ID('NAP_SpecialDelete_CheckingMarkedTransaction', 'P') IS NOT NULL
 	DROP PROCEDURE NAP_SpecialDelete_CheckingMarkedTransaction;
