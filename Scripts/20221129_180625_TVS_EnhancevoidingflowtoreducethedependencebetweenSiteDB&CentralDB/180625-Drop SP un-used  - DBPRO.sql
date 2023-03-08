@@ -8,9 +8,6 @@
 USE bodb02
 GO
 
-IF OBJECT_ID('NAP_PlayerSelect', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_PlayerSelect;
-GO
 IF OBJECT_ID('NAP_EventSelect', 'P') IS NOT NULL
 	DROP PROCEDURE NAP_EventSelect;
 GO
