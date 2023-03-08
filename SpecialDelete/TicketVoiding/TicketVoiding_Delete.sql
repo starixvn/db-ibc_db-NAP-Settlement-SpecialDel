@@ -7,6 +7,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20221003@Max: Create SP - [Redmine: #178234]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230316@Max: Change time archive data TicketVoiding_AutoVoidQueue [Redmine: #00000]
 	
 	Param's explanation:	
@@ -25,9 +26,9 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			DELETE TOP(2000) aq
-			FROM dbo.TicketVoiding_AutoVoidRequest_Queue aq WITH (ROWLOCK)
+			FROM dbo.TicketVoiding_AutoVoidQueue aq WITH (ROWLOCK)
 			WHERE aq.StatusId = 2
-				AND aq.Starttime <= DATEADD(MONTH, -1, GETDATE())
+				AND aq.CreatedDate <= @Archive_Date
 			
 			IF @@ROWCOUNT = 0 BREAK
 		END	

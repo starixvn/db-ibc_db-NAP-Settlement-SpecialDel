@@ -22,8 +22,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @SB_Error					BIT
-			,@spName					VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	DECLARE @spName					VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@ThreadHold				INT = 0-- over threadhold, the parlay process will be locked in systemsetting 
 			,@totalMainParlay			INT = 0
 			,@MainParlay_MaxPO			VARCHAR(MAX) = NULL
@@ -49,13 +48,6 @@ BEGIN
 			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
 			,@limitsecond				INT	= 30
 			,@StartTime_Retry			DATETIME
-	
-	DECLARE @StartTime			DATETIME
-			,@EndTime			DATETIME
-			,@LogActionId		INT
-			,@LogData			VARCHAR(MAX)
-			,@xmlTransId		VARCHAR(MAX)
-			,@refnos_29				 VARCHAR(MAX) = '' 
 			,@SiteDBGroupID SMALLINT = 0 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
@@ -86,9 +78,6 @@ BEGIN
 	SELECT	value AS TransId
 	FROM STRING_SPLIT(@TransIds, ',')
 
-	SET @StartTime = GETDATE()
-	SET @LogActionId = 90503
-	SET @SB_Error = 0
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 
 	INSERT INTO #tmpTransId(TransId, custid, bettype, balanceType, betid, Refno, MatchId, OddsId, ruben)
@@ -247,7 +236,7 @@ BEGIN
 			IF DATEDIFF(SECOND, @StartTime_Retry, GETDATE()) > @limitsecond
 			BEGIN
 				SELECT 100 AS ErrorCode,
-					'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.' AS ErrorCode
+					'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.' AS ErrorMsg
 
 				RETURN;
 			END
@@ -345,7 +334,7 @@ BEGIN
 	
 		BEGIN CATCH		
 			SELECT ERROR_NUMBER() AS ErrorCode
-					,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrorCode
+					,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrorMsg
 
 			RETURN			
 		END CATCH

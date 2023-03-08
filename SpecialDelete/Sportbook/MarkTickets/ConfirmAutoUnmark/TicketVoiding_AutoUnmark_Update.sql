@@ -32,6 +32,7 @@ AS
 		- 20210420@July: Integrate new bettype Time Machine HDP  [Redmine:#153433]
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230103@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:	
 		
@@ -120,11 +121,7 @@ BEGIN
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		RETURN
 	END
-	
-	SET @IsCalQueue = ( SELECT TOP (1) 1
-							FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
-							WHERE matchid = @MatchId AND RequestId = 0
-						)
+
 	WHILE (1 = 1)
 	BEGIN
 		BEGIN TRY
@@ -164,16 +161,13 @@ BEGIN
 				,@LogActionId = 90501
 
 			--Step 4: resettle ticket
-			IF @ResettleTransids <> '' AND @IsCalQueue = 1 
+			IF @ResettleTransids <> '' AND @UnmarkTransids <> ''
 			BEGIN
 				EXEC [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 							@Matchid = @Matchid	,
 							@TransIds = @ResettleTransids,
 							@UserId  = @UserId,
-							@IP = @IP,
-							@ErrMsg = @ErrMsg OUTPUT,
-							@ErrCode = @ErrCode OUTPUT,
-							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+							@IP = @IP
 			END	
 			IF @ErrCode <> 0 OR ISNULL(@NegativeBalanceUsers,'') <> ''
 			BEGIN
