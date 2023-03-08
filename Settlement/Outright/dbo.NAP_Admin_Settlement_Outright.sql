@@ -4,10 +4,12 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Outright]
 	,@Status		NVARCHAR(10)	= NULL 
 	,@Action		VARCHAR(10)		='CAL'	
 	,@Deadheat		FLOAT			= 1 
-	,@isDeadheat	BIT				= 0 
-	,@AdminID		INT				= 0 
+	,@IsDeadheat	BIT				= 0 
+	,@EventDate		DATETIME		= NULL
+	,@AdminID		INT				= 5838421 
+
 	,@ErrCode		INT				= 0  OUTPUT
-	,@ErrMsg		NVARCHAR(200)	= '' OUTPUT
+	,@ErrMsg		VARCHAR(300)	= '' OUTPUT
 AS
 /*
 	Created by: Jamie
@@ -21,185 +23,140 @@ AS
 		- 20180702@Helen: Using Bet Publication for outright settlement [Redmine:#97670]
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 
 	Param's Explanation:
-		+ @Action	= CAL | UNDO | REFUND
-		+ @Status	= {WON | LOSE} | UNDO | REFUND 
+		+ @Action	= CAL | UNDO 
+		+ @Status	= WON | LOSE | REFUND 
 		+ @Deadheat = fraction of deadheat to divide (1,2,3  etc)	
 */
 BEGIN
 	SET NOCOUNT ON 
 	
 
-	DECLARE  @Remark 	VARCHAR(500)
-			,@ActionID 	INT
-			,@LogData 	NVARCHAR(300)
-			,@LeagueID	INT
-			,@EventDate	DATETIME
-			,@IsCentral		BIT = 0
-			,@avaiableProcess	BIT
+	DECLARE  @Remark 			VARCHAR(500) = ''
+			,@ActionID 			INT
+			,@LeagueID			INT
+			,@IsCentral			BIT = 0
+			,@AvaiableProcess	BIT
+			,@BatchSize			INT = 2000
+			,@StrTranIDs		VARCHAR(MAX)
+
+	DECLARE @TransIDs TABLE(transid BIGINT PRIMARY KEY)
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tblTransID(transid BIGINT PRIMARY KEY)
+	
 
 	-- check and not allow attempt to settlement same game while it's still not finish
 	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT	@matchid AS matchid
-			,2 AS KeyId
+	SELECT	@MatchID AS matchid
+		   ,2 AS KeyId
 		
 	--check settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
-		@IsExistOutright	= 1
-		, @avaiableProcess 	= @avaiableProcess OUTPUT
-		, @ErrCode			= @ErrCode OUTPUT
-		, @ErrMsg			= @ErrMsg OUTPUT
+		 @IsExistOutright	= 1
+		,@AvaiableProcess 	= @AvaiableProcess OUTPUT
+		,@ErrCode			= @ErrCode OUTPUT
+		,@ErrMsg			= @ErrMsg OUTPUT
 
-	IF(@ErrCode <> 0 OR @avaiableProcess = 0)
+	IF(@ErrCode <> 0 OR @AvaiableProcess = 0)
 		RETURN
 
-	SELECT	@ActionID = CASE @Action WHEN 'UNDO' THEN 145 
-									 ELSE 0 END 
+	SET @ActionID = CASE WHEN @Action = 'CAL' AND @Status IN ('WON','LOSE') THEN 137
+						 WHEN @Action = 'CAL' AND @Status IN ('REFUND') THEN 139
+						 WHEN @Action = 'UNDO'	THEN 145
+					 END
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+	
+	SET @EventDate =  CONVERT(DATE, ISNULL(@EventDate,GETDATE()))
 
 	SELECT	@LeagueID	= LeagueID
-			,@EventDate	= Eventdate
 	FROM	Outright WITH (NOLOCK)
 	WHERE	ORID = @MatchID
 	
-	-- add log to outright_log to notify for Apollo
-	EXEC dbo.[Acc_Set_ConfirmedActionOutright] 
-		 @matchid = @matchid
-		,@actionid = 30
-		,@status = @status
-		,@deadheat = @isDeadheat
 	-------------------------------------------------------------
-	---        CAPTURE value BALANCE before settlement        ---
-	---------------------------VVVV------------------------------
- 
-	CREATE TABLE #BalanceBefore (custid int PRIMARY KEY, balance money)
- 
-	INSERT INTO #BalanceBefore
-	SELECT custid, sum(winlost-actual_stake+playercomm)
-	FROM dbo.bettrans with (rowlock)
-	WHERE matchid = @matchid
+	---						START Settlement				  ---
+	-------------------------------------------------------------
+	INSERT INTO #tblTransID(transid)
+	SELECT transid		
+	FROM dbo.bettrans WITH(NOLOCK)	
+	WHERE matchid = @Matchid 
 		AND bettype = 10
+		AND statusID NOT IN (101, 102)
 		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
-	GROUP BY custid
-	
-	EXEC dbo.NAP_Admin_PreCalculate_10 
-		@MatchID = @MatchID
-	,@Status = @Status
-	,@Action = @Action
-	,@Deadheat = @Deadheat
-	,@Winlostdate = @EventDate
- 
-  	---------------------------------------------------
+
+	WHILE (1 = 1)
+	BEGIN
+		DELETE @TransIDs
+
+		DELETE TOP (@BatchSize) #tblTransID
+		OUTPUT deleted.transid
+		INTO @TransIDs(transid)	
+
+		IF @@ROWCOUNT = 0 BREAK
+
+		SELECT @strTranIDs = STRING_AGG(transid, ',')
+		FROM @TransIDs;
+
+		EXEC dbo.NAP_Admin_Calculate_Main 
+			 @StrTransIds = @StrTranIDs
+			,@Matchid = @MatchID
+			,@Status = @Status
+			,@Action = @Action
+			,@Deadheat = @Deadheat
+			,@EventDate  = @EventDate
+			,@IsSettingByProfile = 1
+			,@Mode = 'Outright'
+
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMessage = @ErrMsg OUTPUT
+
+		IF @ErrCode > 0  BREAK
+	END
+
+	-------------------------------------------------------------
+	---						END Settlement				      ---
+	-------------------------------------------------------------
+	------ releasing Settlement process
+	EXEC dbo.NAP_Admin_CheckingProcess
+		 @IsExistOutright	= 1
+		,@IsReleased		= 1
+
 	--add log to outright_log to notify for Apollo
 	EXEC dbo.[Acc_Set_ConfirmedActionOutright] 
 		 @matchid = @matchid
 		,@actionid = 31
 		,@status = @status
 		,@deadheat = @deadheat
-	----------------------------------------------------
-
-	-------------------------------------------------------------
-	---         CAPTURE value BALANCE after unsettlement        ---
-	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceAfter (custid int PRIMARY KEY , balance money)
- 
-	INSERT INTO #BalanceAfter
-	SELECT custid,sum( winlost-actual_stake+playercomm)
-	FROM dbo.bettrans with (rowlock)
-	WHERE matchid = @matchid and bettype = 10
-		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
-	Group by custid
-         
-	-------------------------------------------------------------
-	---                   compare BALANCE                     ---
-	---------------------------VVVV------------------------------
-	CREATE TABLE #Balance (custid int not null , balance money, Increased bit not null , PRIMARY KEY CLUSTERED(custid, Increased))
-	
-	DECLARE @tblDebitPending TVP_BalanceList
-	DECLARE @tblCreditPending TVP_BalanceList
-	
-	INSERT INTO #Balance
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM #BalanceBefore b
-			INNER JOIN #BalanceAfter a ON b.custid = a.custid
-	WHERE b.balance <> a.balance
- 
-	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
- 
-	INSERT INTO @tblDebitPending (custID, balance)
-	SELECT	custid, ABS(balance)
-	FROM	#Balance
-	WHERE	Increased = 0
-	
-	IF @@rowcount <> 0
-		EXEC dbo.Dot_BalancePendingDebitIns 
-			@BalancePending = @tblDebitPending
-			,@Type			= 1 -- Sports
-
-	INSERT INTO @tblCreditPending (custID, balance)
-	SELECT	custid, balance
-	FROM	#Balance
-	WHERE	Increased = 1
-	
-	IF @@rowcount <> 0
-		EXEC dbo.Dot_BalancePendingCreditIns 
-			@BalancePending = @tblCreditPending
-			,@Type			= 1 -- Sports
-	----
-	-- Add Negative Balance into BalanceNegative table 
-	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative]
-			   ([ExecDate]
-			   ,[MatchID]
-			   ,[ActionID]
-			   ,[GroupID]
-			   ,[CustID]
-			   ,[Balance]
-			   ,[StatusID]
-			   ,[Remark])
-	SELECT   GETDATE()
-			,@MatchID
-			,@ActionID --Undo settle
-			,3  --outright settlement
-			,CustID
-			,Balance
-			,0
-			,NULL
-	FROM    #Balance WITH (NOLOCK)
-	WHERE   Increased = 0
-                 
-	---------------------------------------------------
-	DROP TABLE #Balance
-	DROP TABLE #BalanceBefore
-	DROP TABLE #BalanceAfter 
-	----------------------------------------------------
-	------ releasing Settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-		@IsExistOutright	= 1
-		, @IsReleased		= 1
 
 	-- WRITE LOG	
 	IF @IsCentral = 1
 	BEGIN
 		BEGIN TRY
+			SET @Remark = CAST(@deadheat AS VARCHAR(5))
+
+			IF @ErrCode > 0
+			BEGIN
+				SET @Remark = @Remark + ',ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + ' ,ErrMsg=' + @ErrMsg;
+			END
+
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
-				@UserID = @AdminID
-				,@MatchID = @matchid
+				 @UserID = @AdminID
+				,@MatchID = @MatchID
 				,@ActionID = @ActionID
 				,@LeagueID = @LeagueID
 				,@EventDate = @EventDate
 				,@Result = @Status
+				,@Remark = @Remark
 		END TRY
 		BEGIN CATCH
-			SELECT @Remark = 'ErrMsg=' + left(error_message(), 400)
+			SET @Remark = 'ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + ' ,ErrMsg= ' + @ErrMsg + ' ,InsLogErrMsg=' + LEFT(ERROR_MESSAGE(), 100)
 			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
 				@UserID = @AdminID
-				,@MatchID = @matchid
+				,@MatchID = @MatchID
 				,@ActionID = @ActionID
 				,@LeagueID = @LeagueID
 				,@EventDate = @EventDate

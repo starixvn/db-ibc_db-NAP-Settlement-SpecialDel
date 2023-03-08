@@ -18,6 +18,7 @@ AS
 		- 20190405@Patrick: Support archive date range [Redmine: #111476]
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20230213@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -259,7 +260,10 @@ BEGIN
 				, la.ActionNameEN
 				, la.ActionNameCS
 				, l.Result
-				, CASE WHEN l.ActionID = 137 AND cast(l.Remark as INT) > 1 THEN 'DeadHeat(' + l.Remark + ')' ELSE '' END AS Remark
+				, CASE WHEN  l.ActionID = 137 AND CHARINDEX(',', l.Remark) = 0 AND CAST(l.Remark as INT) > 1 THEN 'DeadHeat(' + l.Remark + ')' 
+					   WHEN  l.ActionID = 137 AND CHARINDEX(',', l.Remark) > 0 AND CAST(SUBSTRING(l.Remark, 0, CHARINDEX(',', l.Remark)) AS INT) > 1 THEN 'DeadHeat(' + SUBSTRING(l.Remark, 0, CHARINDEX(',', l.Remark)) + ')' 
+					   ELSE '' 
+				  END AS Remark
 		FROM	bodb_CustomerLog.dbo.UserLog_SettleOutright l WITH(NOLOCK)
 				LEFT JOIN bodb_CustomerLog.dbo.LogAction la WITH (NOLOCK) ON l.ActionID = la.ActionID
 		WHERE	l.MatchID = @MatchID and l.ActionID IN (137,145,139)

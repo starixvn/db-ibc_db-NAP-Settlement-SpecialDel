@@ -1,11 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_CheckingMoveBetDay]
 (
-	@MatchIds VARCHAR(MAX)
-	,@EventTable	VARCHAR(100) = 'match'
-	,@MovingMatchIds VARCHAR(MAX) = '' OUTPUT
-	,@ErrCode INT = 0 OUTPUT
-	,@ErrMsg VARCHAR(200) = '' OUTPUT
+	 @MatchIds				VARCHAR(MAX)
+	,@EventTable			VARCHAR(100)	= 'match'
+	,@EventDate				SMALLDATETIME	= NULL
+	,@MovingMatchIds		VARCHAR(MAX)	= '' OUTPUT
+	,@ErrCode				INT				= 0	 OUTPUT
+	,@ErrMsg				VARCHAR(200)	= '' OUTPUT
 )
 AS
 /*	
@@ -19,6 +20,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]		 
 		- 20220719@Louisa: Check MovebetDate for Outright [Redmine:#175251]
+		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 
 	Param's Explanation:		
 		
@@ -46,7 +48,7 @@ BEGIN
 	ELSE IF @EventTable = 'outright'
 	BEGIN
 		UPDATE t
-			SET EventDate = o.eventdate
+			SET EventDate = CASE WHEN @EventDate IS NOT NULL THEN @EventDate ELSE  o.eventdate END
 		FROM	@tmpMatchId t
 			INNER JOIN dbo.outright o WITH(NOLOCK)
 				ON t.MatchId = o.orid
