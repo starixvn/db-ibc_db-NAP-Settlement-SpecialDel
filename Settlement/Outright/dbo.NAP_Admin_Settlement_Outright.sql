@@ -140,7 +140,7 @@ BEGIN
 
 			IF @ErrCode > 0
 			BEGIN
-				SET @Remark = @Remark + ',ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + ' ErrMsg=' + @ErrMsg;
+				SET @Remark = @Remark + ',ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + ' ,ErrMsg=' + @ErrMsg;
 			END
 
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
@@ -153,7 +153,7 @@ BEGIN
 				,@Remark = @Remark
 		END TRY
 		BEGIN CATCH
-			SET @Remark = 'ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + '; ErrMsg= ' + @ErrMsg + '; InsLogErrMsg=' + LEFT(ERROR_MESSAGE(), 100)
+			SET @Remark = 'ErrCode= ' + CAST(@ErrCode AS VARCHAR(5)) + ' ,ErrMsg= ' + @ErrMsg + ' ,InsLogErrMsg=' + LEFT(ERROR_MESSAGE(), 100)
 			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_SettleOutright 
 				@UserID = @AdminID
 				,@MatchID = @MatchID

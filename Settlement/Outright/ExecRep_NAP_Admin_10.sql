@@ -269,7 +269,7 @@ BEGIN
 			IF @CheckNegativeBalance <> 0
 			BEGIN
 				SET @StepNumber = 7;
-				INSERT INTO [bodb02].[dbo].[BalanceNegative] ([ExecDate],[MatchID],[ActionID],[GroupID],[CustID],[Balance],[StatusID],[Remark])
+				INSERT INTO dbo.BalanceNegative ([ExecDate],[MatchID],[ActionID],[GroupID],[CustID],[Balance],[StatusID],[Remark])
 				SELECT	 GETDATE()
 						,@MatchID
 						,@ActionId 
