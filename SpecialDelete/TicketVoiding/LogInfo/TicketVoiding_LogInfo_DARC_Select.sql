@@ -566,7 +566,7 @@ BEGIN
 										WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 
 									END)
 		FROM #TVSTicketBets b
-		WHERE b.SubIssueTypeId = 21 AND b.Subbettype IN (1,7,5,15)
+		WHERE b.SubIssueTypeId = 21 AND b.Subbettype IN (1,7,5,15) AND b.IsCancelCashOut = 0
 			
 		IF @MinTimeHDP IS NULL
 		BEGIN
@@ -575,7 +575,7 @@ BEGIN
 		ELSE 
 		BEGIN
 			DELETE b FROM #TVSTicketBets b 
-			WHERE b.SubIssueTypeId = 21
+			WHERE b.SubIssueTypeId = 21 AND b.IsCancelCashOut = 0
 			AND (CASE WHEN b.FilterBy = 1 THEN b.transdate 
 						WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime 
 						WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate 

@@ -50,7 +50,7 @@ BEGIN
 			,MatchId = t.matchid
 	FROM #tmpResult vh
 		CROSS APPLY (
-                              SELECT CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
+            SELECT CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 					,SUM( CASE 
 							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3) THEN 1
 							WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1

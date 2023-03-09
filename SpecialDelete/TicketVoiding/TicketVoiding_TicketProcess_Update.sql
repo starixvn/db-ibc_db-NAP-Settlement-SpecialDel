@@ -9,7 +9,7 @@ AS
 /*	
 	Created by: 20221201@Max
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20221201@Max: Create new SP [Redmine: #180625]
@@ -29,9 +29,9 @@ BEGIN
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
 		INSERT INTO #tmpInputTransId_Single (TransId, RequestId, MatchId)
-		SELECT tbl.TransId, tbl.RequestId, tbl.MatchID
+		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
 		FROM OPENJSON(@SingleTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, MatchID INT) tbl
+			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
 	END
 
 	IF @ParlayTicketsJSON IS NOT NULL
@@ -104,7 +104,7 @@ BEGIN
 		UPDATE s SET s.IsProcessed = 1
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIdBatch t ON t.RequestId = s.RequestId AND t.TransId = s.TransId
-
+		WHERE s.IsCancelCO = 1
 	END
 	
 
