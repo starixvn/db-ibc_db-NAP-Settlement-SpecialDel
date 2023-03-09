@@ -62,7 +62,10 @@ BEGIN
 	--Invalid Transid
 	IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId t
 					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-				WHERE b.statusID IN (101, 102, 103))
+				WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+							WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+						ELSE 0 END
+			)
 	BEGIN
 		SELECT t.RequestId, t.TransId
 		FROM #tmpInputTransId t 

@@ -33,27 +33,19 @@ BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
 		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-			LEFT JOIN dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) ON v.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId <> 29
-			AND 1 = CASE WHEN rds.IsProcessed IS NULL THEN 1
-						 WHEN rds.IsProcessed = 1 AND v.RequestId IS NOT NULL --Case Abnormal bet, AB(real member) change action 5m,10m
-							AND rds.TransId IN (SELECT CAST(value AS BIGINT) FROM STRING_SPLIT(v.TransIds,',')) THEN 0
-					ELSE 0 END
+			AND rds.IsProcessed IS NULL
 
 		--Main parlay
 		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
 		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-			LEFT JOIN dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) ON v.RequestId = rds.RequestId
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
-			AND 1 = CASE WHEN rds.IsProcessed IS NULL THEN 1
-						 WHEN rds.IsProcessed = 1 AND v.RequestId IS NOT NULL --Case Abnormal bet, AB(real member) change action 5m,10m
-							AND rds.TransId IN (SELECT CAST(value AS BIGINT) FROM STRING_SPLIT(v.TransIds,',')) THEN 0
-					ELSE 0 END
+			AND rds.IsProcessed IS NULL
 	END
 	ELSE --Get all ticket all requests
 	BEGIN
