@@ -46,7 +46,7 @@ BEGIN
 			,@ErrMsg					NVARCHAR(300) = ''
 			,@ErrCode					INT           = 0
 			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
-			,@limitsecond				INT	= 30
+			,@limitsecond				INT	= 300
 			,@StartTime_Retry			DATETIME
 			,@SiteDBGroupID SMALLINT = 0 
 
