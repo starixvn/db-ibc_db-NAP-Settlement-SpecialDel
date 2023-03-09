@@ -166,7 +166,7 @@ BEGIN
 					LEFT JOIN dbo.match14 m14 WITH(NOLOCK) ON e.MatchID = m14.matchid 
 				WHERE e.IsFlag = 1	AND e.IsOutright = 0	
 		END  
-		ELSE IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1)
+		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1)
 		BEGIN
 				INSERT INTO dbo.TicketVoiding_RequestDetail 
 				(

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_ACC_Update]
 (
 	@RequestId				INT
@@ -15,7 +15,7 @@ AS
 /*	
 	Created by: 20220808@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype Abnormal account [Redmine: #175412]
@@ -215,7 +215,7 @@ BEGIN
 					LEFT JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
 				WHERE e.IsFlag = 1	AND e.IsOutright = 0	
 		END  
-		ELSE IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1)
+		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1)
 		BEGIN
 				INSERT INTO dbo.TicketVoiding_RequestDetail 
 				(

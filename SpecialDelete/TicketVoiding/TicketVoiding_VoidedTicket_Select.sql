@@ -32,7 +32,7 @@ BEGIN
 	DECLARE  @SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT)
+	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT, IsOutright BIT)
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
 	CREATE TABLE #tmpTicket
@@ -157,13 +157,17 @@ BEGIN
 				AND zm.SiteDBGroupID = @SiteDBGroupID
 		) zm
 	
-	INSERT INTO #TmpMatch (Matchid, SettlementStatus)
-	SELECT DISTINCT t.MatchId, m.SettlementStatus
+	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)
+	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
 	FROM #tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 
 	--@IsMovebet = 0
-	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE (SettlementStatus IS NULL AND matchid IN (9,29,2799)) OR SettlementStatus IS NOT NULL )
+	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch 
+				 WHERE (SettlementStatus IS NOT NULL 
+						OR (SettlementStatus IS NULL AND matchid IN (9,29,2799))
+						OR (SettlementStatus IS NULL AND IsOutright = 1))
+			)
 	BEGIN
 		UPDATE t 
 			SET Betcheck = b.betcheck
