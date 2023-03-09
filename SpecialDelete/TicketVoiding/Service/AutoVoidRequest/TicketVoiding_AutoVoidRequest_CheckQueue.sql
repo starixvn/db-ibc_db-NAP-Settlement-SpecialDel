@@ -48,41 +48,28 @@ BEGIN
 		AND q.StatusId = 0
 	
 	--Get statusWL of tiket
-	IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId t
-					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-				WHERE b.statuswinlost IS NOT NULL AND b.statusID IN (0,1))
-	BEGIN
-		SELECT DISTINCT t.RequestId, b.matchid
-		FROM #tmpInputTransId t 
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-		WHERE b.statuswinlost IS NOT NULL 
-			AND b.statusID IN (0,1)
-	END
+	SELECT DISTINCT t.RequestId, b.matchid
+	FROM #tmpInputTransId t 
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+	WHERE b.statuswinlost IS NOT NULL 
+		AND b.statusID IN (0,1)
 
 	--Invalid Transid
-	IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId t
-					INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-				WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
-							WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
-						ELSE 0 END
-			)
-	BEGIN
-		SELECT t.RequestId, t.TransId
-		FROM #tmpInputTransId t 
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-		WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
-					WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
-				ELSE 0 END
-			AND t.IsMixParlay = 0
+	SELECT t.RequestId, t.TransId
+	FROM #tmpInputTransId t 
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+				WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+			ELSE 0 END
+		AND t.IsMixParlay = 0
 
-		SELECT t.RequestId, t.TransId
-		FROM #tmpInputTransId t 
-			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-		WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
-					WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
-				ELSE 0 END
-			AND t.IsMixParlay = 1
-	END
+	SELECT t.RequestId, t.TransId
+	FROM #tmpInputTransId t 
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+				WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+			ELSE 0 END
+		AND t.IsMixParlay = 1
 	
 
 	DROP TABLE #tmpInputTransId
