@@ -89,7 +89,7 @@ BEGIN
 			,vb.StatusId AS AfterVoidStatusId
 			,vb.VoidResults
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
-		INNER JOIN Ticketvoiding_VoidBetAutomation_Service vb WITH(NOLOCK) ON vh.RequestId = vb.RequestID AND vh.VoidingHistoryId = vb.VoidingHistoryId
+		LEFT JOIN Ticketvoiding_VoidBetAutomation_Service vb WITH(NOLOCK) ON vh.RequestId = vb.RequestID AND vh.VoidingHistoryId = vb.VoidingHistoryId
 	WHERE vh.BroadcastSessionId = @BroadcastSessionId AND vh.RequestId = @RequestId
 
 	WHILE (1=1)
@@ -99,7 +99,7 @@ BEGIN
 			,@VoidingHistoryId = T.VoidingHistoryId
 			,@xmlVoidResults = T.VoidResults
 		FROM @tmpVoidingHistory_Service t
-		WHERE t.IsFinish IS NULL
+		WHERE t.IsFinish IS NULL AND t.VoidResults IS NOT NULL
 
 		IF @@ROWCOUNT = 0 BREAK
 

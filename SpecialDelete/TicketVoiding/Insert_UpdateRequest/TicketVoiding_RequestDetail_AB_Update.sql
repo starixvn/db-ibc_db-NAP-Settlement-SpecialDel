@@ -8,7 +8,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_AB_Update]
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@ActionId				TINYINT
-	,@OldActionId			TINYINT = NULL
 	,@FilterBy				TINYINT = NULL
 	,@SubIssueTypeId		TINYINT = NULL
 	,@TransInfoJson			VARCHAR(MAX) = NULL
