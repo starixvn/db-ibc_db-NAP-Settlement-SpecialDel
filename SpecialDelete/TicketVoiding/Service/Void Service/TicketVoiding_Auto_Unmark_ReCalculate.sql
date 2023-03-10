@@ -25,7 +25,6 @@ BEGIN
 	DECLARE @spName					VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@ThreadHold				INT = 0-- over threadhold, the parlay process will be locked in systemsetting 
 			,@totalMainParlay			INT = 0
-			,@MainParlay_MaxPO			VARCHAR(MAX) = NULL
 			,@avaiableProcess			BIT
 			,@isExistMG					BIT = 0
 			,@isExistFM					BIT = 0
@@ -53,10 +52,6 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
-
-	DECLARE @BeforeUpd TVP_BalanceWalletChange
-	DECLARE @AfterUpd  TVP_BalanceWalletChange
-
 	
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
@@ -329,9 +324,16 @@ BEGIN
 					@TransIds		 = @TransIds,
 					@UserId          = @UserId,
 					@IP              = @IP,
-					@IsLockMatch	 = 0
-		END TRY
-	
+					@IsLockMatch	 = 0,
+					@ErrMsg = @ErrMsg OUTPUT,
+					@ErrCode = @ErrCode OUTPUT,
+					@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+			IF @ErrCode <> 0 OR ISNULL(@NegativeBalanceUsers,'') <> ''
+			BEGIN
+				SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg, @NegativeBalanceUsers AS NegativeBalanceUsers
+			END
+		END TRY	
 		BEGIN CATCH		
 			SELECT ERROR_NUMBER() AS ErrorCode
 					,SUBSTRING(ERROR_MESSAGE(), 1, 300) AS ErrorMsg

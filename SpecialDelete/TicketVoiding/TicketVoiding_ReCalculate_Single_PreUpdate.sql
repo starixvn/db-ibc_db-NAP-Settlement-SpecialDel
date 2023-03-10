@@ -5,7 +5,10 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 	@TransIds		 VARCHAR(MAX),
 	@UserId          INT           = 0,
     @IP              VARCHAR(15)   = NULL,
-	@IsLockMatch	 BIT				= 1
+	@IsLockMatch	 BIT				= 1,
+	@ErrMsg					NVARCHAR(200) = '' OUTPUT,
+	@ErrCode					INT           = 0 OUTPUT,
+	@NegativeBalanceUsers		VARCHAR(MAX) = NULL OUTPUT
 )
 AS
 /*	Created by: Max
@@ -49,9 +52,6 @@ BEGIN
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
 			,@isExistLucky3				BIT = 0
-			,@ErrMsg					NVARCHAR(200) = ''
-			,@ErrCode					INT           = 0
-			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
 	
 	DECLARE @StartTime			DATETIME
 			,@EndTime			DATETIME
@@ -507,8 +507,6 @@ BEGIN
 		EXEC dbo.NAP_CustNegativeBalance_Sel
 			@CustIds = @CustIds
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-
-		SELECT @NegativeBalanceUsers AS NegativeBalanceUsers
 	END
 	-- Write Log
 	SET @EndTime = GETDATE()
