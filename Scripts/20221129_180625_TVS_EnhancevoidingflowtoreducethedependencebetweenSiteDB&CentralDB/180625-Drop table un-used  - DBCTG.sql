@@ -9,3 +9,5 @@ USE bodb02
 GO
 
 DROP TABLE TicketVoiding_Void_Service
+GO
+DROP TABLE TicketVoiding_RequestDetail_MixParlay
