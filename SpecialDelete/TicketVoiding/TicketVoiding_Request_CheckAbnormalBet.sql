@@ -54,6 +54,7 @@ AS
 		- 20230110@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
 		- 20230116@July: [TVS] Exclude Customer Class = 4000 & Change CC=1 to CC=201 [Redmine: #182804]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230322@Max: [TVS] Exclude Field Hockey when checking live tickets [Redmine: #185235]
 
 	Param's Explanation:
@@ -240,8 +241,9 @@ BEGIN
 		END
 
 		INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
-		SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode
-		FROM dbo.match WITH(NOLOCK) 
+		SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE m.matchid END
+			, homeid, awayid, leagueid, sporttype, matchcode
+		FROM dbo.match m WITH(NOLOCK) 
 		WHERE matchid = @MatchId
 	END
 	ELSE IF @FilterBy =1
@@ -301,7 +303,7 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE 1 = CASE WHEN ISNULL(t.sporttype,0) <> 50 AND bt.bettype IS NULL 
+	WHERE 1 = CASE WHEN bt.bettype IS NULL 
 						AND (t.bettype <> 29 OR (t.bettype = 29  AND t.betteam <> '1')) --Unsupported System parlay Transids
 				   THEN 1
 				   WHEN  t.sporttype = 50 THEN 1
@@ -318,7 +320,7 @@ BEGIN
 					FROM STRING_SPLIT (t.SubMatchIdList,',')
 			)s
 			INNER JOIN dbo.match m WITH(NOLOCK) ON s.submatchId = m.matchid
-		WHERE t.bettype = 29 AND t.betteam = '1' AND m.sporttype = 50 
+		WHERE t.bettype = 29 AND t.betteam = '1'
 		AND t.transid NOT IN (SELECT transid FROM #UnsupportedTransids)
 	END	
 
