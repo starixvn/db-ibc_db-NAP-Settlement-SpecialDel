@@ -47,8 +47,11 @@ BEGIN
 			, vb.IsAutoVoid
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
 		INNER JOIN dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK) ON vh.RequestID = vb.RequestId AND vh.VoidingHistoryId = vb.VoidingHistoryId  
+		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON vh.RequestId = r.RequestId 
 		LEFT JOIN dbo.TicketVoiding_Letstalk lt WITH(NOLOCK) ON vh.RequestID = lt.RequestID AND lt.BroadcastSessionId = vh.BroadcastSessionId
-	WHERE  vh.BroadcastSessionId IS NOT NULL AND vh.StatusId = 2 AND vb.statusID = 2
+	WHERE  vh.BroadcastSessionId IS NOT NULL 
+		AND vh.StatusId = 2 AND vb.statusID = 2
+		AND r.IssueTypeId NOT IN (17) --Not send letstalk for issuetype archive
 		AND 1 = CASE WHEN lt.BroadcastSessionId IS NULL THEN 1
 					 WHEN lt.BroadcastSessionId IS NOT NULL AND lt.StatusId = 1 THEN 1
 					 ELSE 0 END
