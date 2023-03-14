@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02,DBLOG-bodb_CustomerLog_Archive" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_MajorRound] (@Sporttype SMALLINT)
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -19,6 +19,7 @@ AS
 		- 20210611@Louisa: Beach Volleyball [Redmine:#156541]
 		- 20210906@Louisa: Settle by profile for Volleyball [Redmine:#160478]
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
+		- 20230109@Kathy: Keyscore Performance Report - Add Game/Set Results of SOP Sports [Redmine:#182007]
    
     Parameters Explanation:        
     

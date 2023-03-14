@@ -14,6 +14,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220607@Kathy: correct condition to get cricket match [Redmine:#158811]
 		- 20221128@Kathy: Move table single/parlay queue_bk, SettlementPerformanceLog to bodb_CustomerLog_Archive [Redmine:#180941]
+		- 20230109@Kathy: Keyscore Performance Report - Add Game/Set Results of SOP Sports [Redmine:#182007]
 */
 BEGIN
 	DECLARE @maxdate DATETIME
@@ -38,6 +39,8 @@ BEGIN
 		,kickofftime	DATETIME
 		,globalshowtime DATETIME
 		,matchid		INT
+		,ResourceId		VARCHAR(20)
+		,ActionId		SMALLINT
 		,starttime		DATETIME
 		,exectime		DATETIME
 		,duration		INT
@@ -64,6 +67,8 @@ BEGIN
 		[Sporttype] [smallint] NULL,
 		[LeagueId] [int] NULL,
 		[MatchId] [int] NULL,
+		[ResourceId] [varchar](20) NULL,
+		[ActionId] [smallint] NULL,
 		[HomeId] [int] NULL,
 		[AwayId] [int] NULL,
 		[Kickofftime] [datetime] NULL,
@@ -98,11 +103,26 @@ BEGIN
 	WHERE	action = 'CAL'
 			AND Starttime > @maxdate
 
-	INSERT INTO #tmpRESULT ( leagueid, homeid, awayid, kickofftime, globalshowtime, matchid
+	INSERT INTO #tmpRESULT ( leagueid, homeid, awayid, kickofftime, globalshowtime
+			, matchid, ResourceID, ActionId
 			,starttime, exectime, duration, action, eventdate, sqlcommand, isauto, adminid, sporttype
 		)
 	SELECT	 m.leagueid, m.homeid, m.awayid, m.kickofftime, m.globalshowtime
-			,d.matchid ,d.starttime, d.exectime, d.duration, d.action, d.eventdate, d.sqlcommand, d.isauto, d.adminid, m.sporttype
+			,d.matchid 
+			,CASE 
+				WHEN d.action = 'CAL-HT' AND f.ResourceID IS NULL THEN '01'
+				WHEN f.ResourceID IS NULL THEN '00'
+				ELSE f.ResourceID
+			END AS ResourceID
+			,CASE 
+				WHEN d.action = 'CAL-HT' THEN 1
+				WHEN d.action = 'CAL-FT' THEN 2
+				WHEN d.action = 'CAL' AND f.ResourceID IS NULL THEN 2
+				ELSE f.ActionId
+			END
+			,d.starttime, d.exectime, d.duration
+			,CASE WHEN f.ResourceID IS NOT NULL AND f.ResourceID NOT IN ('00','01') THEN 'CAL-INTERVAL' ELSE d.action END
+			, d.eventdate, d.sqlcommand, d.isauto, d.adminid, m.sporttype
 	FROM	#tmpDATA d
 		CROSS APPLY (
 			SELECT	matchid, sporttype, leagueid, homeid, awayid, kickofftime, globalshowtime
@@ -132,14 +152,31 @@ BEGIN
 			FROM STRING_SPLIT(sqlcommand,',') fss 
 			WHERE fss.[value] LIKE '%@fta %'
 		) a
+		OUTER APPLY (
+			SELECT	f.ResourceID
+					,CASE 
+						WHEN m.sporttype = 50 
+							THEN CASE 
+									WHEN f.ResourceID = 'H1' THEN 101 
+									WHEN f.ResourceID = 'A1' THEN 102
+									WHEN f.ResourceID = 'H2' THEN 103
+									WHEN f.ResourceID = 'A2' THEN 104
+									END
+						WHEN f.RoundID = '01' THEN 1 -- ht
+						WHEN f.RoundID = '00' THEN 2 -- ft
+						ELSE 100 + f.RoundID%8 -- 101-->130
+					END AS ActionId
+			FROM	dbo.f_Set_MajorRound(m.SportType) f
+			WHERE	d.sqlCommand LIKE '%NAP_Admin_Settlement_Profile%'
+		) f
 	WHERE l.isTest = 0
 		AND 1 = CASE 
 					WHEN m.sporttype = 1 THEN 1
 					WHEN action IN ('CAL-FT', 'CAL')
-						AND d.AdminId <> 0
+						--AND d.AdminId <> 0
 						AND (
 						( d.sqlCommand LIKE '%NAP_Admin_Settlement_1%' AND CHARINDEX('NULL',h.[value]) = 0 AND CHARINDEX('NULL',a.[value]) = 0)
-						OR (d.sqlCommand LIKE '%NAP_Admin_Settlement_Profile%' AND d.sqlCommand LIKE '%Resource Id="00"%')
+						OR (d.sqlCommand LIKE '%NAP_Admin_Settlement_Profile%' AND d.sqlCommand LIKE '%Resource Id="' + f.ResourceID + '"%')
 						OR (m.sporttype = 50 AND d.sqlCommand ='')
 						) THEN 1
 					ELSE 0
@@ -207,7 +244,7 @@ BEGIN
 			AND p.isconfirmed = 1
 			AND p.createddate > @maxdate
 
-	SELECT	DISTINCT r.leagueid, r.matchid, r.homeid, r.awayid, r.kickofftime, r.globalshowtime
+	SELECT	DISTINCT r.leagueid, r.matchid, r.ResourceId, r.ActionId, r.homeid, r.awayid, r.kickofftime, r.globalshowtime
 			,r.action, r.isauto, r.adminid, i.confirmdate,  r.starttime, r.exectime, r.duration, r.homescore, r.awayscore, r.sporttype, r.ishold
 
 	INTO #Final_Result			
@@ -227,18 +264,18 @@ BEGIN
 
 		DELETE TOP (5000) 
 		FROM #Final_Result 
-		OUTPUT   deleted.leagueid, deleted.matchid, deleted.homeid, deleted.awayid, deleted.kickofftime, deleted.globalshowtime
+		OUTPUT   deleted.leagueid, deleted.matchid, deleted.ResourceId, deleted.ActionId, deleted.homeid, deleted.awayid, deleted.kickofftime, deleted.globalshowtime
 				,deleted.action, deleted.isauto, deleted.adminid, deleted.confirmdate,  deleted.starttime, deleted.exectime, deleted.duration, deleted.homescore, deleted.awayscore, deleted.sporttype, deleted.ishold
-		INTO #Result_tmp ( leagueid, matchid, homeid, awayid, kickofftime, globalshowtime
+		INTO #Result_tmp ( leagueid, matchid, resourceId, ActionId, homeid, awayid, kickofftime, globalshowtime
 							,action, isauto, adminid, ConfirmScoreDate,  starttime, exectime, duration, homescore, awayscore, sporttype, ishold)				
 	
 		IF @@ROWCOUNT = 0 BREAK
 	
-		INSERT INTO dbo.SettlementPerformanceLog (LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime
+		INSERT INTO dbo.SettlementPerformanceLog (LeagueId, MatchId, ResourceId, actionId, HomeId, AwayId, Kickofftime, GlobalShowtime
 												,Action, IsAuto, AdminId, ConfirmScoreDate, Starttime, Exectime, Duration
 												, HomeScore, AwayScore, CreatedDate, sporttype, ishold )
 	
-		SELECT leagueid, matchid, homeid, awayid, kickofftime, globalshowtime
+		SELECT leagueid, matchid, resourceId, ActionId, homeid, awayid, kickofftime, globalshowtime
 				,action, isauto, adminid, ConfirmScoreDate,  starttime, exectime, duration, homescore, awayscore, @current, sporttype, ishold
 		FROM #Result_tmp
 	
