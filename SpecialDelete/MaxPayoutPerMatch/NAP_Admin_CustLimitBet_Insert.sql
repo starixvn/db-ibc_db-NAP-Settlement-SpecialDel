@@ -21,6 +21,7 @@ AS
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 		- 20221003@Victoria: Max Payout - Only retrieve ticket for each site base on site setting configuration [Redmine: #178536]
+		- 20230301@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
 	
 	Param's explanation:	
 		
@@ -61,6 +62,7 @@ BEGIN
 	)
 	
 	DECLARE @HistoryMissingTransId AS TABLE (transid BIGINT, sitetype TINYINT)
+	DECLARE @tmpRejectTransId AS TABLE (transid BIGINT)
 	
 
 	 
@@ -79,55 +81,92 @@ BEGIN
 	END
 	ELSE IF @ActionId = 2 --REJECT
 	BEGIN
-		SET @xml = CONVERT(XML, @Transids)
+		BEGIN TRY
+			SET @xml = CONVERT(XML, @Transids)
 
-		SELECT @MinTransId = t.c.value('@mintransid','bigint')
-			,@MaxTransId = t.c.value('@maxtransid','bigint')
-			,@RejectTime = t.c.value('@rejecttime','datetime')
-			,@Creator = t.c.value('@creator','int')
-		FROM @xml.nodes('root/rejectTicket') t(c)
-		OPTION (OPTIMIZE FOR (@xml = NULL))
+			IF @MatchId <> 29 --Match, Bettype 38
+			BEGIN
+				SELECT @MinTransId = t.c.value('@mintransid','bigint')
+					,@MaxTransId = t.c.value('@maxtransid','bigint')
+					,@RejectTime = t.c.value('@rejecttime','datetime')
+				FROM @xml.nodes('root/rejectTicket') t(c)
+				OPTION (OPTIMIZE FOR (@xml = NULL))
 
-		IF @MatchId <> 29 --Match, Bettype 38
-		BEGIN
-			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype)
-			SELECT @MatchId
-				, b.custid
-				,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
-						WHEN  c.site = '789y' THEN 2 --789y
-					ELSE 1 END
-				,b.transid
-				,m.sporttype
-				,b.bettype
-			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
-				LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
-			WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
-				AND b.SiteDBGroupID = @SiteDBGroupID
-				AND b.matchid = @MatchId
-				AND b.checktime = @RejectTime
-				AND b.statusID = 101
-		END
-		ELSE IF @MatchId = 29  --Parlay
-		BEGIN
-			INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)
-			SELECT @MatchId
-				, b.custid
-				,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
-						WHEN  c.site = '789y' THEN 2 --789y
-					ELSE 1 END
-				,b.transid
-			FROM dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-				LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
-			WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
-				AND b.SiteDBGroupID = @SiteDBGroupID
-				AND b.matchid = 29
-				AND b.checktime = @RejectTime
-				AND b.statusID = 101
-				AND b.creator = @Creator
-		END
+				INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid, sporttype, bettype)
+				SELECT @MatchId
+					, b.custid
+					,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
+							WHEN  c.site = '789y' THEN 2 --789y
+						ELSE 1 END
+					,b.transid
+					,m.sporttype
+					,b.bettype
+				FROM dbo.bettrans b WITH (NOLOCK)
+					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
+					LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
+				WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
+					AND b.SiteDBGroupID = @SiteDBGroupID
+					AND b.matchid = @MatchId
+					AND b.checktime = @RejectTime
+					AND b.statusID = 101
+			END
+			ELSE IF @MatchId = 29  --Parlay
+			BEGIN
+				IF @Transids LIKE '%rejectTicket%' --temp code for release, will remove after
+				BEGIN
+					SELECT @MinTransId = t.c.value('@mintransid','bigint')
+						,@MaxTransId = t.c.value('@maxtransid','bigint')
+						,@RejectTime = t.c.value('@rejecttime','datetime')
+						,@Creator = t.c.value('@creator','int')
+					FROM @xml.nodes('root/rejectTicket') t(c)
+					OPTION (OPTIMIZE FOR (@xml = NULL))
+
+					INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)
+					SELECT @MatchId
+						, b.custid
+						,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
+								WHEN  c.site = '789y' THEN 2 --789y
+							ELSE 1 END
+						,b.transid
+					FROM dbo.bettrans b WITH (NOLOCK)
+						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
+					WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
+						AND b.SiteDBGroupID = @SiteDBGroupID
+						AND b.matchid = 29
+						AND b.checktime = @RejectTime
+						AND b.statusID = 101
+						AND b.creator = @Creator
+				END
+				ELSE
+					INSERT INTO @tmpRejectTransId (transid)
+					SELECT t.c.value('@t','bigint')
+					FROM @xml.nodes('root/r') t(c)
+					OPTION (OPTIMIZE FOR (@xml = NULL))
+
+					INSERT INTO #CustLimitBet_tmp(MatchId, CustId, sitetype, transid)
+					SELECT @MatchId
+						, b.custid
+						,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
+								WHEN  c.site = '789y' THEN 2 --789y
+							ELSE 1 END
+						,b.transid
+					FROM @tmpRejectTransId t
+						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.TransId				
+						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
+					WHERE b.SiteDBGroupID = @SiteDBGroupID
+						AND b.matchid = 29
+						AND b.statusID = 101
+				END
+			
+		END TRY
+		BEGIN CATCH
+			SELECT	 @ErrCode = ERROR_NUMBER()
+						,@ErrMsg = SUBSTRING(ERROR_MESSAGE(), 1, 300)
+			RETURN
+		END CATCH
 
 		--Remove unsupport sporttype/bettype
 		IF @MatchId <> 29
