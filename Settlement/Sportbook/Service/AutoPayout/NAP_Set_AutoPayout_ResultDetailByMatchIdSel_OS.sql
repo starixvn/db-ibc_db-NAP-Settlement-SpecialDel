@@ -1,6 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_ResultDetailByMatchIdSel_OS
-	@MatchId INT
+	 @MatchId INT
 	,@SportType SMALLINT
 AS
 /*
@@ -15,6 +15,7 @@ AS
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 		- 20221124@Louisa: Do not get data if FT score of Table Tennis is null [Redmine:#180306]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 
 	Param's Explanation:
  
@@ -22,9 +23,15 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE  @ResultTable			TINYINT = 0
+
 	DECLARE @tmpResultDetail TABLE (MatchId INT, TypeId TINYINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusId TINYINT, SettlementStatusId TINYINT )
 
-	IF @SportType = 18 --Table Tennis
+	SELECT @ResultTable			=	r.ResultTable 
+	FROM dbo.SettlementResultTableSetting r (NOLOCK)
+	WHERE r.Sporttype = @Sporttype
+
+	IF @ResultTable = 0 
 	BEGIN
 		INSERT INTO @tmpResultDetail (MatchId, TypeId, ResourceId, HomeValue, AwayValue)
 		SELECT m.MatchId, 2 AS TypeId, '00' , CAST(m.finalhomescore AS VARCHAR(50) ), CAST(m.finalawayscore AS VARCHAR(50) )
@@ -36,8 +43,19 @@ BEGIN
 			AND m.finalhomescore IS NOT NULL
 			AND m.finalawayscore IS NOT NULL
 	END
-
-	ELSE IF @SportType IN ( 6,9)
+	ELSE IF @ResultTable = 1
+	BEGIN
+		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId )
+		SELECT	r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusID
+		FROM	dbo.ResultDetail r WITH(NOLOCK)
+			CROSS APPLY ( 
+				SELECT	f.ResourceID 
+				FROM	dbo.f_Set_MajorRound(@sporttype) f	
+    			WHERE	r.ResourceID = f.ResourceID
+		) f		
+		WHERE	r.matchid = @MatchId		
+	END
+	ELSE IF @ResultTable = 2
 	BEGIN
 		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId )
 		SELECT	r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusID
