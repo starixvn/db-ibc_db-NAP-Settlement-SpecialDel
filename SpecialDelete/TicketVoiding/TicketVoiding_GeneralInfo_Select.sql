@@ -67,7 +67,7 @@ BEGIN
 			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.leagueid END
 			,r.UserId
 			,r.DecidedBy
-			,m.kickofftime
+			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.kickofftime END 
 			,r.ActionId
 			,r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
@@ -83,6 +83,10 @@ BEGIN
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
 	
+	SET @VoidingHistoryIds = STUFF((SELECT  ',' + CAST (VoidingHistoryId AS VARCHAR(50))
+									FROM #tmpVoidingHistory
+									FOR XML PATH ('')),1,1,'')
+
 	SELECT @cnt_matchid = COUNT(matchid)
 	FROM  Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) 
 	WHERE RequestId = @RequestId
@@ -111,7 +115,7 @@ BEGIN
 		
 		DELETE FROM #tmpVoidingHistory WHERE MatchId IS NULL
 	END
-
+	
 	SET @NegativeBalanceUsers = STUFF((SELECT DISTINCT ',' + a.NegativeBalanceUser
 									FROM #tmpVoidingHistory t
 										CROSS APPLY (
@@ -132,8 +136,6 @@ BEGIN
 		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
-
-		SET @VoidingHistoryIds += CASE WHEN @VoidingHistoryIds = '' THEN '' ELSE ',' END + CAST (@VoidingHistoryId AS VARCHAR(100))
 
 		INSERT INTO @tmpContentMessage (RequestId,VoidingHistoryId, ContentChineseSimplified,ContentEnglish)
 		SELECT  @RequestId
