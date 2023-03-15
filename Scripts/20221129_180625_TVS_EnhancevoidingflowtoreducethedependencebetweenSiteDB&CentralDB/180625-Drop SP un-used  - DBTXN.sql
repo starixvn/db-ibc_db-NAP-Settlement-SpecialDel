@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20221207@July
 	Task: Drop SP un-used - Special Delete & TVS  [Redmine:#180625]  
@@ -8,114 +8,78 @@
 USE bodb02
 GO
 
-/****************************************** SPECIAL DELETE ************************************/
---Live Casino
-IF OBJECT_ID('NAP_BettransSelSpecialDel_LiveCS', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_BettransSelSpecialDel_LiveCS;
-GO
-IF OBJECT_ID('NAP_BettransDelSpecial_LiveCS', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_BettransDelSpecial_LiveCS;
-GO
-IF OBJECT_ID('NAP_BettransSelRecoverBet_LiveCS', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_BettransSelRecoverBet_LiveCS;
-GO
-IF OBJECT_ID('NAP_BettransRecoverBet_LiveCS', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_BettransRecoverBet_LiveCS;
-GO
+DECLARE @SPName VARCHAR(MAX)
+DECLARE @tmpSPName TABLE ( SPName VARCHAR(MAX), IsDrop BIT)
+
+INSERT INTO @tmpSPName (SPName)
+SELECT 'DROP PROCEDURE ' +name
+ FROM dbo.sysobjects
+ WHERE (type = 'P')
+ AND (
+ --Live Casino
+	name LIKE'NAP_BettransSelSpecialDel_LiveCS%'
+OR  name LIKE'NAP_BettransDelSpecial_LiveCS%'
+OR  name LIKE'NAP_BettransSelRecoverBet_LiveCS%'
+OR  name LIKE'NAP_BettransRecoverBet_LiveCS%'
 --BetTrade
-IF OBJECT_ID('NAP_CheckNegativeBalanceBetTradeTransaction', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_CheckNegativeBalanceBetTradeTransaction;
-GO
-IF OBJECT_ID('NAP_VoidBetTradeTransaction_Sel', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_VoidBetTradeTransaction_Sel;
-GO
-IF OBJECT_ID('NAP_VoidBetTradeTransaction_Del', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_VoidBetTradeTransaction_Del;
-GO
-IF OBJECT_ID('NAP_RecoverBetTradeTransaction_Del', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_RecoverBetTradeTransaction_Del;
-GO
-IF OBJECT_ID('NAP_RecoverBetTradeTransaction_Sel', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_RecoverBetTradeTransaction_Sel;
-GO
+OR  name LIKE'NAP_CheckNegativeBalanceBetTradeTransaction%'
+OR  name LIKE'NAP_VoidBetTradeTransaction_Sel%'
+OR  name LIKE'NAP_VoidBetTradeTransaction_Del%'
+OR  name LIKE'NAP_RecoverBetTradeTransaction_Del%'
+OR  name LIKE'NAP_RecoverBetTradeTransaction_Sel%'
 --Outright
-IF OBJECT_ID('NAP_BettransDelSpecial_LeagueSelOutright', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_BettransDelSpecial_LeagueSelOutright;
-GO
-IF OBJECT_ID('NAP_BettransDelSpecial_OutrightSel', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_BettransDelSpecial_OutrightSel;
-GO
-IF OBJECT_ID('NAP_SpecialDelete_VoidOutright_Select', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_SpecialDelete_VoidOutright_Select;
-GO
-IF OBJECT_ID('NAP_SpecialDelete_VoidOutright_Update', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_SpecialDelete_VoidOutright_Update;
-GO
+OR  name LIKE'NAP_BettransDelSpecial_LeagueSelOutright%'
+OR  name LIKE'NAP_BettransDelSpecial_OutrightSel%'
+OR  name LIKE'NAP_SpecialDelete_VoidOutright_Select%'
+OR  name LIKE'NAP_SpecialDelete_VoidOutright_Update%'
 --NumberGame (Recover)
-IF OBJECT_ID('dbo.NAP_BettransSelRecoverBet_NumberGame', 'P') IS NOT NULL
-	DROP PROCEDURE dbo.NAP_BettransSelRecoverBet_NumberGame;
-GO
-IF OBJECT_ID('dbo.NAP_BettransRecoverBet_NumberGame', 'P') IS NOT NULL
-	DROP PROCEDURE dbo.NAP_BettransRecoverBet_NumberGame;
-GO
+OR  name LIKE'NAP_BettransSelRecoverBet_NumberGame%'
+OR  name LIKE'NAP_BettransRecoverBet_NumberGame%'
 --MetricGaming
-IF OBJECT_ID('NAP_VoidMetricGaming_Sel', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_VoidMetricGaming_Sel;
-GO
-IF OBJECT_ID('NAP_VoidMetricGaming_Del', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_VoidMetricGaming_Del;
+OR  name LIKE'NAP_VoidMetricGaming_Sel%'
+OR  name LIKE'NAP_VoidMetricGaming_Del%'
+OR  name LIKE'NAP_InvalidGoalScorerTicketVoid%'
+OR  name LIKE'NAP_SpecialDelete_CheckingMarkedTransaction%'
+--TVS
+OR  name LIKE'TicketVoiding_Request_CheckMatchCal%'
+OR  name LIKE'TicketVoiding_BalanceMember_Select%'
+OR  name LIKE'TicketVoiding_AutoVoid_Queue_MP_Job%'
+OR  name LIKE'TicketVoiding_AutoVoid_Update_MP%'
+OR  name LIKE'TicketVoiding_AutoMarkProblemAccount_Job%'
+OR  name LIKE'TicketVoiding_AutoMarkService_AutoSetting_Sel%'
+OR  name LIKE'TicketVoiding_AutoMarkService_AutoSetting_Upd%'
+OR  name LIKE'TicketVoiding_AutoVoid_Update%'
+OR  name LIKE'TicketVoiding_AutoVoid_Queue_Job%'
+OR  name LIKE'TicketVoiding_AutoVoidFormulaBets_Single%'
+OR  name LIKE'TicketVoiding_AutoVoidFormulaBets_Single_Update%'
+OR  name LIKE'TicketVoiding_ManageVoidServices_VoidService_Select%'
+OR  name LIKE'TicketVoiding_Void_Service_Select%'
+OR  name LIKE'TicketVoiding_Void_Service_Update%'
+OR  name LIKE'TicketVoiding_Request_CheckingProcess%'
 
-IF OBJECT_ID('NAP_InvalidGoalScorerTicketVoid', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_InvalidGoalScorerTicketVoid;
-GO
-IF OBJECT_ID('NAP_SpecialDelete_CheckingMarkedTransaction', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_SpecialDelete_CheckingMarkedTransaction;
-GO
+--Change config DBTXN -> DBPRO - Remove DBTXN
+OR  name LIKE'TicketVoiding_RelatedEvent_Select%'
+OR  name LIKE'TicketVoiding_SubIssueType_AutoSelect%'
 
-/****************************************** TVS ************************************/
+--Remove version --ORG removed
+OR  name LIKE'NAP_Admin_CheckingCashOutProcess%'
+OR  name LIKE'TicketVoiding_RequestDetail_Insert%'
+OR  name LIKE'TicketVoiding_RequestDetail_Update%'
+OR  name LIKE'TicketVoiding_RequestDetailTicket_Single_Insert%'
+OR  name LIKE'TicketVoiding_RequestDetailTicket_SubParlay_Insert%'
+OR  name LIKE'TicketVoiding_VoidTime_Select%'
+OR  name LIKE'NAP_SpecialDelete_CheckNegativeBalanceCashOutTransaction%'
+OR  name LIKE'Nap_SpecialDelete_MarkedTickets_ManualUpdate%'
+)
+SELECT * FROM @tmpSPName
+WHILE (1=1)
+BEGIN
+	UPDATE TOP (1) @tmpSPName
+	SET @SPName = SPName, IsDrop = 1
+	WHERE IsDrop IS NULL
 
-IF OBJECT_ID('TicketVoiding_Request_CheckMatchCal', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_Request_CheckMatchCal;
-GO
-IF OBJECT_ID('TicketVoiding_BalanceMember_Select', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_BalanceMember_Select;
-GO
-IF OBJECT_ID('TicketVoiding_AutoVoid_Queue_MP_Job', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoVoid_Queue_MP_Job;
-GO
-IF OBJECT_ID('TicketVoiding_AutoVoid_Update_MP', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoVoid_Update_MP;
-GO
-IF OBJECT_ID('TicketVoiding_AutoMarkProblemAccount_Job', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoMarkProblemAccount_Job;
-GO
-IF OBJECT_ID('TicketVoiding_AutoMarkService_AutoSetting_Sel', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoMarkService_AutoSetting_Sel;
-GO
-IF OBJECT_ID('TicketVoiding_AutoMarkService_AutoSetting_Upd', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoMarkService_AutoSetting_Upd;
-GO
-IF OBJECT_ID('TicketVoiding_AutoVoid_Update', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoVoid_Update;
-GO
-IF OBJECT_ID('TicketVoiding_AutoVoid_Queue_Job', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoVoid_Queue_Job;
-GO
-IF OBJECT_ID('TicketVoiding_AutoVoidFormulaBets_Single', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoVoidFormulaBets_Single;
-GO
-IF OBJECT_ID('TicketVoiding_AutoVoidFormulaBets_Single_Update', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_AutoVoidFormulaBets_Single_Update;
-GO
-IF OBJECT_ID('TicketVoiding_ManageVoidServices_VoidService_Select', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_ManageVoidServices_VoidService_Select;
-GO
-IF OBJECT_ID('TicketVoiding_Void_Service_Select', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_Void_Service_Select;
-GO
-IF OBJECT_ID('TicketVoiding_Void_Service_Update', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_Void_Service_Update;
-GO
-IF OBJECT_ID('TicketVoiding_Request_CheckingProcess', 'P') IS NOT NULL
-	DROP PROCEDURE TicketVoiding_Request_CheckingProcess;
-GO
+	IF @@ROWCOUNT = 0 BREAK;
+	
+	EXEC (@SPName)
+
+END

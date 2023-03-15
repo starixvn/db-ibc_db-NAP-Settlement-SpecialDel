@@ -8,6 +8,26 @@
 USE bodb02
 GO
 
-IF OBJECT_ID('NAP_EventSelect', 'P') IS NOT NULL
-	DROP PROCEDURE NAP_EventSelect;
-GO
+DECLARE @SPName VARCHAR(MAX)
+DECLARE @tmpSPName TABLE ( SPName VARCHAR(MAX), IsDrop BIT)
+
+INSERT INTO @tmpSPName (SPName)
+SELECT 'DROP PROCEDURE ' +name
+ FROM dbo.sysobjects
+ WHERE (type = 'P')
+ AND (
+ name LIKE'NAP_EventSelect%'
+
+)
+SELECT * FROM @tmpSPName
+WHILE (1=1)
+BEGIN
+	UPDATE TOP (1) @tmpSPName
+	SET @SPName = SPName, IsDrop = 1
+	WHERE IsDrop IS NULL
+
+	IF @@ROWCOUNT = 0 BREAK;
+	
+	EXEC (@SPName)
+
+END
