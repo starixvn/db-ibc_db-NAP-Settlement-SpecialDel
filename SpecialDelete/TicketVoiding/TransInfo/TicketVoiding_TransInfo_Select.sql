@@ -22,6 +22,7 @@ AS
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		

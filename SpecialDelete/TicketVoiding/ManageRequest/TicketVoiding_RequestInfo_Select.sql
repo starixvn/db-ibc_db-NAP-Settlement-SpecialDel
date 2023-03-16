@@ -46,13 +46,13 @@ BEGIN
 		    ,MatchId = t.MatchId
 	FROM #tmpResult vh
 		CROSS APPLY (
-			SELECT	COUNT(1) AS TotalVoidedSingle, z.matchid
+			SELECT	COUNT(1) AS TotalVoidedSingle, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 			FROM dbo.zzzbettrans z WITH(NOLOCK)
 			WHERE	vh.VoidingHistoryId = z.VoidingHistoryId
 			AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
 				         WHEN @MatchId NOT IN (0,29) AND z.matchid = @MatchId THEN 1
 						 ELSE 0 END
-			GROUP BY z.matchid
+			GROUP BY CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END
 	) t 
 		
 	--parlay
