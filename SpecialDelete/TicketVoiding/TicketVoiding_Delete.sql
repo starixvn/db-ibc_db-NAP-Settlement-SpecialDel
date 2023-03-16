@@ -7,6 +7,7 @@ AS
     DB: DBTXN/bodb02
     Revisions:
 		- 20221003@Max: Create SP - [Redmine: #178234]
+		- 20230316@Max: Change time archive data TicketVoiding_AutoVoidQueue [Redmine: #00000]
 	
 	Param's explanation:	
 		
@@ -26,7 +27,7 @@ BEGIN
 			DELETE TOP(2000) aq
 			FROM dbo.TicketVoiding_AutoVoidRequest_Queue aq WITH (ROWLOCK)
 			WHERE aq.StatusId = 2
-				AND aq.Starttime <= @Archive_Date
+				AND aq.Starttime <= DATEADD(MONTH, -1, GETDATE())
 			
 			IF @@ROWCOUNT = 0 BREAK
 		END	
