@@ -31,6 +31,7 @@ AS
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20230316@Kathy: Using index hint [Redmine:#185088]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -165,7 +166,7 @@ BEGIN
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus
 				,ISNULL(oddsspread, 0), actual_stake
-		FROM	dbo.bettrans WITH(NOLOCK)
+		FROM	dbo.bettrans WITH(NOLOCK, INDEX = PK_bettrans)
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID NOT IN (101, 102) --('VOID','REJECT')	
 		
