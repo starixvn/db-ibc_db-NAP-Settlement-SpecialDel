@@ -249,11 +249,10 @@ BEGIN
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for old format. Top 100 transId(s): ' + @transIds
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for Single. Top 100 transId(s): ' + @transIds
 	END
 
 	SET @transIds = ''
-	SET @ErrorMessage = ''
 	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 	FROM
 		(SELECT TOP (100) T.transId
@@ -273,7 +272,7 @@ BEGIN
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for NEW format for Parlay. Top 100 transId(s): ' + @transIds
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for Parlay. Top 100 transId(s): ' + @transIds
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
