@@ -167,7 +167,10 @@ BEGIN
 							@Matchid = @Matchid	,
 							@TransIds = @ResettleTransids,
 							@UserId  = @UserId,
-							@IP = @IP
+							@IP = @IP,
+							@ErrMsg = @ErrMsg OUTPUT,
+							@ErrCode = @ErrCode OUTPUT,
+							@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 			END	
 			IF @ErrCode <> 0 OR ISNULL(@NegativeBalanceUsers,'') <> ''
 			BEGIN
