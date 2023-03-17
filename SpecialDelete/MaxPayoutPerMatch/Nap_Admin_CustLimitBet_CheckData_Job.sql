@@ -16,6 +16,7 @@ AS
 		- 20220906@Tina: Scale out DB - Check Ticket Data Consistency [Redmine: #175881]
 		- 20221003@Victoria: Add list transid (top 100) to message [Redmine: #178536]
 		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
+		- 20230317@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
 
 	Param's explanation:		
 		
@@ -241,11 +242,30 @@ BEGIN
 		FROM #TempReject T
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustLimitBetQueue Q with (nolock)
-							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%')) AS tmp
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'
+								AND q.Transids LIKE '%rejectTicket%'
+						)) AS tmp
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Top 100 transId(s): ' + @transIds
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for old format. Top 100 transId(s): ' + @transIds
+	END
+
+	SET @transIds = ''
+	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) T.transId
+		FROM #TempReject T
+		WHERE NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustLimitBetQueue Q with (nolock)
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%'
+								AND Q.Transids NOT LIKE '%rejectTicket%'
+							)
+		) AS tmp
+
+	IF ISNULL(@transIds,'') <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for NEW format for Parlay. Top 100 transId(s): ' + @transIds
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
