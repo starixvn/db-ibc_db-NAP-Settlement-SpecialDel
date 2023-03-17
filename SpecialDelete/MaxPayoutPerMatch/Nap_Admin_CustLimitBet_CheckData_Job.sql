@@ -242,9 +242,10 @@ BEGIN
 		FROM #TempReject T
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustLimitBetQueue Q with (nolock)
-							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'
-								AND q.Transids LIKE '%rejectTicket%'
-						)) AS tmp
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'								
+						)
+			AND t.matchid <> 29
+						) AS tmp
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
@@ -258,9 +259,15 @@ BEGIN
 		FROM #TempReject T
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustLimitBetQueue Q with (nolock)
-							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%'
-								AND Q.Transids NOT LIKE '%rejectTicket%'
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 
+							AND (
+								-- parlay new format
+								(Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%' AND Q.Transids NOT LIKE '%rejectTicket%') 
+								-- parlay old format ->  ignore
+								OR (Q.Transids  LIKE '%rejectTicket%')
+								)							
 							)
+				AND t.Matchid = 29
 		) AS tmp
 
 	IF ISNULL(@transIds,'') <> ''
