@@ -253,6 +253,7 @@ BEGIN
 	END
 
 	SET @transIds = ''
+	SET @ErrorMessage = ''
 	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 	FROM
 		(SELECT TOP (100) T.transId
