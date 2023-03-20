@@ -673,7 +673,7 @@ BEGIN
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		IF @IsCentral = 1
 		BEGIN
-			IF (@IsAuto = 1 AND @sporttype IN (6, 9, 50 )	AND @Action LIKE 'CAL%' )
+			IF (@IsAuto = 1 AND @sporttype IN (5, 6, 9, 50 )	AND @Action LIKE 'CAL%' )
 			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 				  @MatchId 			 = @matchid
@@ -788,7 +788,7 @@ BEGIN
   			) AS tbl1
 		ORDER BY OrdNo
 
-		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN ( 5, 6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL')
+		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN (6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL')
 		BEGIN
 			EXEC dbo.NAP_Set_GetRefundResult
 				@MatchId		= @MatchID
