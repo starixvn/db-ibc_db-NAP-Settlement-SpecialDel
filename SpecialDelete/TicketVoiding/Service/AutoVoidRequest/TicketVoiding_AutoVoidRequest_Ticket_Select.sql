@@ -13,6 +13,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230321@Max: Hotfix scan request auto void winning [Redmine: #185526]
 
 	Param's explanation:
@@ -21,7 +22,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT)
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT, bettype SMALLINT)
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT)
 	
 	IF @RequestIds IS NOT NULL
@@ -31,8 +32,8 @@ BEGIN
 		SELECT value FROM STRING_SPLIT (@RequestIds, ',')
 
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
@@ -51,8 +52,8 @@ BEGIN
 	ELSE --Get all ticket all requests
 	BEGIN
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rds.MatchId
@@ -71,8 +72,9 @@ BEGIN
 			AND rds.IsProcessed IS NULL
 	END
 
-	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId FROM #SingleTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId FROM #SingleTickets s WHERE s.bettype <> 501
 	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId FROM #ParlayTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId FROM #SingleTickets s WHERE s.bettype = 501
 
 	DROP TABLE #SingleTickets
 	DROP TABLE #ParlayTickets

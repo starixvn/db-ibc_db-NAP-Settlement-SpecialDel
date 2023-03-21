@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_CheckQueue]
 (
 	@SingleTicketsJSON	NVARCHAR(MAX) = NULL
 	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
+	,@CricketTicketsJSON	NVARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -12,13 +13,14 @@ AS
 	
 	Revisions: 
 		- 20221201@Max: Create new SP [Redmine: #180625]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT)
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT, IsCricket BIT DEFAULT(0))
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
@@ -33,6 +35,14 @@ BEGIN
 		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId)
 		SELECT tbl.TransId, tbl.RequestId, 1, tbl.IssueTypeId
 		FROM OPENJSON(@ParlayTicketsJSON)
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT) tbl
+	END
+
+	IF @CricketTicketsJSON IS NOT NULL
+	BEGIN
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, IsCricket)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 1
+		FROM OPENJSON(@CricketTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT) tbl
 	END
 
@@ -62,6 +72,7 @@ BEGIN
 				WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
 			ELSE 0 END
 		AND t.IsMixParlay = 0
+		AND t.IsCricket = 0
 
 	SELECT t.RequestId, t.TransId
 	FROM #tmpInputTransId t 
@@ -70,6 +81,14 @@ BEGIN
 				WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
 			ELSE 0 END
 		AND t.IsMixParlay = 1
+
+	SELECT t.RequestId, t.TransId
+	FROM #tmpInputTransId t 
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+	WHERE 1 = CASE WHEN b.statusID IN (101, 102, 103) THEN 1
+				WHEN t.IssueTypeId IN (11,15) AND b.statusID NOT IN (0,1) THEN 1
+			ELSE 0 END
+		AND t.IsCricket = 1
 	
 
 	DROP TABLE #tmpInputTransId

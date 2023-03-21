@@ -27,6 +27,7 @@ AS
 		- 20211202@Max: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 	
 	Param's explanation:	
 		
@@ -48,7 +49,7 @@ BEGIN
 			,@ErrMsg				= @ErrMsg	OUTPUT
 			,@NegativeBalanceUsers  = @NegativeBalanceUsers	OUTPUT
 	END
-	ELSE IF (@VoidingTypeId = 1 OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13)))-- Single
+	ELSE IF (@VoidingTypeId IN (1,4) OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13)))-- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
 			@RequestId = @RequestId
