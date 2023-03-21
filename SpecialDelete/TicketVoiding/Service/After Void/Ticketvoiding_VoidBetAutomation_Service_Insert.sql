@@ -2,7 +2,10 @@
 ALTER PROCEDURE [dbo].[Ticketvoiding_VoidBetAutomation_Service_Insert]
 (
 	@IsAutoVoid BIT = 0
-	,@AfterVoidDataXml  XML = NULL
+	,@RequestId  INT = NULL
+	,@VoidingHistoryId INT = NULL
+	,@MatchId INT = NULL
+	,@NegativeBalanceUsers NVARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -13,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:
 */
@@ -20,27 +24,16 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @sessionID	INT = 0
-	
-	CREATE TABLE #AfterVoidData (RequestId INT, VoidingHistoryId INT, MatchId INT, NegativeBalanceUsers VARCHAR(1000))
-	INSERT INTO #AfterVoidData (RequestId, VoidingHistoryId, MatchId, NegativeBalanceUsers)
-	SELECT t.c.value('@RequestId','INT') AS TransId
-		,t.c.value('@VoidingHistoryId','INT') AS VoidingHistoryId
-		,t.c.value('@MatchId','INT') AS MatchId
-		,t.c.value('@NegativeBalanceUsers','VARCHAR(1000)') AS NegativeBalanceUsers
-	FROM @AfterVoidDataXml.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@AfterVoidDataXml = NULL)) 
-
 
 	SET @sessionID = ISNULL((SELECT MAX(sessionID) FROM dbo.Ticketvoiding_VoidBetAutomation_Service WITH (NOLOCK)),0) + 1
 	
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK)
-							INNER JOIN #AfterVoidData t ON t.RequestId = s.RequestID AND t.VoidingHistoryId = s.VoidingHistoryId)
+							WHERE s.RequestId = @RequestId AND s.VoidingHistoryId = @VoidingHistoryId)
 	BEGIN
 		INSERT INTO dbo.Ticketvoiding_VoidBetAutomation_Service (RequestID,VoidingHistoryId,statusID,matchID,SessionID, IsAutoVoid, NegativeBalanceUsers)
-		SELECT v.RequestId, v.VoidingHistoryId, 1, v.MatchId , @sessionID, @IsAutoVoid, v.NegativeBalanceUsers
-		FROM #AfterVoidData v
-			LEFT JOIN dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK) ON s.RequestID = v.RequestId AND s.VoidingHistoryId = v.VoidingHistoryId
-		WHERE s.RequestID IS NULL
+		SELECT @RequestId, @VoidingHistoryId, 1, @MatchId, @sessionID, @IsAutoVoid, @NegativeBalanceUsers
+		WHERE NOT EXISTS(SELECT TOP(1) 1 FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK)
+					WHERE s.RequestId = @RequestId AND s.VoidingHistoryId = @VoidingHistoryId)
 	END
 	
 	SELECT s.SessionID, s.matchID, s.RequestID, s.VoidingHistoryId, s.statusID, s.NegativeBalanceUsers

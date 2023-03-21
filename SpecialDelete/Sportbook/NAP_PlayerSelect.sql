@@ -1,3 +1,4 @@
+/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_PlayerSelect] 
 	@MatchID		INT			= 0,
 	@Bettype		VARCHAR(20)	= ''
@@ -8,7 +9,9 @@ AS
 	DB: DBPRO/bodb02  
 	
 	Revisions:   
-	    - @20151110@Kathy: Move SP to DBPRO
+	    - 20151110@Kathy: Move SP to DBPRO
+		- 20230303@July: Change function STRING_SPLIT [Redmine: #180625]
+
 	Param's Explanation:  
 		- @Bettype: Comma seperated list of bet types, delimeter character is '^'
 
@@ -21,8 +24,8 @@ BEGIN
 	)
 	
 	INSERT @BetTypeTbl(BetType)
-	SELECT val as BetType
-	FROM dbo.strSplit(@Bettype,'^')
+	SELECT value as BetType
+	FROM STRING_SPLIT(@Bettype,'^')
 	
 	SELECT DISTINCT OddsInfo,BetChoice
 	FROM [dbo].[odds_flex] x WITH (NOLOCK)

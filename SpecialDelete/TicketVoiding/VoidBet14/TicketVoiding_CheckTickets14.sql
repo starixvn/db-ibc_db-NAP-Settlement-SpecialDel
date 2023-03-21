@@ -2,14 +2,11 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckTickets14]
 (
 	 @TransIds			VARCHAR(MAX) = NULL
-	,@TransInfoJson0 VARBINARY(MAX) = NULL
-	,@TransInfoJson1 VARBINARY(MAX) = NULL
-	,@TransInfoJson2 VARBINARY(MAX) = NULL
+	,@TransInfoJson		VARCHAR(MAX) = NULL
 )
 AS
 /*  
-	Created by: July
-	Date: 20211123
+	Created by: 20211123@July
 	Task: TVS - Void Archived Tickets
 	DB: DBCTG/bodb02   
 
@@ -18,6 +15,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 
 	Param's Explanation:
@@ -29,10 +27,7 @@ BEGIN
 		,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		,@before_movebetday				DATETIME
 	    ,@MovebetDate					DATETIME
-		,@Decompress_TransInfoJson0 NVARCHAR(MAX)
-		,@Decompress_TransInfoJson1 NVARCHAR(MAX)
-		,@Decompress_TransInfoJson2 NVARCHAR(MAX)
-		,@TransInfoJson	VARBINARY(MAX) = NULL
+		,@TransInfoJson_Output			VARBINARY(MAX) = NULL
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -54,7 +49,6 @@ BEGIN
 		,bettype		SMALLINT
 		,matchid		INT
 		,betfrom		NVARCHAR(3)
-		,refno			BIGINT
 		,winlostdate	DATETIME
 		,betdaqid		BIGINT
 	)
@@ -62,7 +56,6 @@ BEGIN
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT PRIMARY KEY
-      ,refno BIGINT
       ,custid	INT	
 	  ,bettype SMALLINT
       ,betid BIGINT
@@ -74,14 +67,9 @@ BEGIN
 	  ,SiteDBGroupID SMALLINT
 	)
 
-	SET @Decompress_TransInfoJson0 = CAST(DECOMPRESS(@TransInfoJson0) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson1 = CAST(DECOMPRESS(@TransInfoJson1) AS NVARCHAR(MAX))
-	SET @Decompress_TransInfoJson2 = CAST(DECOMPRESS(@TransInfoJson2) AS NVARCHAR(MAX))
-
 	INSERT INTO #tmpTransInfo( 
 		   matchid
 		  ,transid 
-		  ,refno
 		  ,custid
 		  ,bettype
 		  ,betid
@@ -92,20 +80,16 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson0) 
-		WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
-			, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT) tbl
-	UNION ALL
-	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson1) 
-		WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
-			, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT) tbl
-	UNION ALL
-	SELECT mid, t, ref, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
-	FROM OPENJSON(@Decompress_TransInfoJson2) 
-		WITH( mid INT, t BIGINT, ref BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
-			, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT) tbl
+	SELECT mid, t, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
+		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
+		CROSS APPLY (
+				SELECT mid, t, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
+				FROM OPENJSON(t.Decompress_TransInfoJson) 
+					WITH( mid INT, t BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
+						, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT)
+		) tbl
+	WHERE f.value <> ''
 
 	IF (@TransIds IS NULL OR LEN(@TransIds) = 0) RETURN;
 
@@ -130,7 +114,6 @@ BEGIN
 		,bettype
 		,matchid
 		,betfrom
-		,refno
 		,winlostdate
 		,betdaqid
 		)
@@ -139,7 +122,6 @@ BEGIN
 		,bettype
 		,matchid
 		,betfrom
-		,refno
 		,winlostdate
 		,betdaqid
 	FROM #tmpTransInfo b14
@@ -179,11 +161,9 @@ BEGIN
 		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 
 	-- 2. Transinfo table
-	SET @TransInfoJson = COMPRESS((SELECT DISTINCT t.matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
-		,b.refno AS 'ref'
 		,b.custid AS  'c' 
-		,t.statusID AS 'sid'
 		,b.bettype AS 'btype'
 		,b.betid AS 'bid'
 		,b.IsMixParlay AS 'isP'
@@ -191,8 +171,9 @@ BEGIN
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
+	
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
-	SELECT @TransInfoJson AS TransInfoJson
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId

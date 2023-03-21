@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_OU_Update]
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
 	,@WrongOUInfo		    VARCHAR(MAX) = NULL
-	,@TransInfoJson			VARBINARY(MAX) = NULL
+	,@TransInfoJson			VARCHAR(MAX) = NULL
 	,@IsEditRequest			INT = 0
 )
 AS
@@ -18,6 +18,7 @@ AS
 	Revisions: 
 		- 20220808@July: Create new SP - Split code issuetype wrong OU & wrong 1st OU [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:
 		+ @IssueTypeId : 6 - Wrong OU, 7 - Wrong 1st OU
@@ -38,7 +39,7 @@ BEGIN
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
-	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #tblGetLogInfo (
 			 RequestID				INT
@@ -166,14 +167,8 @@ BEGIN
 		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
 	WHERE rd.RequestId IS NULL
 
-	IF @IsEditRequest = 0 
-	BEGIN
-		SET @LogActionId = 90001
-	END 
 	IF @IsEditRequest = 1
 	BEGIN		
-		SET @LogActionId = 90003
-
 		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single
 		WHERE RequestId = @RequestId	
 			

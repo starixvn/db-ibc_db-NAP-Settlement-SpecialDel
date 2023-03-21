@@ -1,19 +1,19 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_BettypesForRequest_Select]
 (
 	@RequestInfo	XML	= NULL
 )
 AS
-/*	Created by: Charles
-	Date 20200602
+/*	Created by: 20200602@Charles
 	Task: Get bettypes for request [Redmine:#135041]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20200602@Charles: Create new SP [Redmine:#135041]
 		- 20200812@Zane: Archive process for Ticket Voiding tables [Redmine:#111093]
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
+		- 20230224@July: Change config DBTXN -> DBCTG [Redmine: #180625]
 
 	Param's explanation:
 	- @RequestInfo : 

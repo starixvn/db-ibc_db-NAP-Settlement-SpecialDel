@@ -22,6 +22,7 @@ AS;
 		- 20211117@July: TVS - Abnormal Bet - Void Mix Parlay Ticket [Redmine: #161337]
 		- 20211210@July: Remove code CashOut [Redmine: #165097]
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:	
 		
@@ -31,7 +32,7 @@ BEGIN
 	DECLARE  @SiteDBGroupID SMALLINT = 0 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT)
+	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT, IsOutright BIT)
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
 
 	CREATE TABLE #tmpTicket
@@ -86,7 +87,6 @@ BEGIN
               IsMarked        BIT,
 			  LiveIndicator   BIT,
 			  ActualStake	  MONEY,
-			  VoidingHistoryId INT,
 			  oddsid		  INT,
 			  winlostdate	  DATETIME
              );
@@ -99,7 +99,7 @@ BEGIN
 	WHERE value <> ''
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, VoidingHistoryId, oddsid, winlostdate)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -109,7 +109,6 @@ BEGIN
 			,z.refno
 			,z.bettype
 			,z.odds
-			,vh.VoidingHistoryId
 			,z.oddsid
 			,z.winlostdate
 	FROM	@tmpVoidingHistory vh 
@@ -132,7 +131,7 @@ BEGIN
 		) z
 		
 	-- parlay ticket
-	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay, VoidingHistoryId, oddsid, winlostdate)
+	INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay, oddsid, winlostdate)
 	SELECT	zm.transid		
 			,zm.matchid
 			,zm.refno
@@ -140,7 +139,6 @@ BEGIN
 			,zm.VoidedTime
 			,zm.custid
 			,1 AS IsMixParlay
-			,vh.VoidingHistoryId
 			,zm.oddsid
 			,zm.winlostdate
 	FROM	@tmpVoidingHistory vh
@@ -159,13 +157,17 @@ BEGIN
 				AND zm.SiteDBGroupID = @SiteDBGroupID
 		) zm
 	
-	INSERT INTO #TmpMatch (Matchid, SettlementStatus)
-	SELECT DISTINCT t.MatchId, m.SettlementStatus
+	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)
+	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
 	FROM #tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 
 	--@IsMovebet = 0
-	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch WHERE (SettlementStatus IS NULL AND matchid IN (9,29,2799)) OR SettlementStatus IS NOT NULL )
+	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch 
+				 WHERE (SettlementStatus IS NOT NULL 
+						OR (SettlementStatus IS NULL AND matchid IN (9,29,2799))
+						OR (SettlementStatus IS NULL AND IsOutright = 1))
+			)
 	BEGIN
 		UPDATE t 
 			SET Betcheck = b.betcheck
@@ -444,7 +446,6 @@ BEGIN
 			   ,s.subtransdesc
 			   ,s.ActualStake
 			   ,s.matchid
-			   ,s.VoidingHistoryId
 				,s.winlostdate
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
@@ -506,7 +507,6 @@ BEGIN
 			   ,s.subtransdesc
 			   ,s.ActualStake
 			   ,s.matchid
-			   ,s.VoidingHistoryId
 			   ,s.winlostdate
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
@@ -562,7 +562,6 @@ BEGIN
 			   ,s.subtransdesc
 			   ,s.ActualStake
 			   ,s.matchid
-			   ,s.VoidingHistoryId
 			   ,s.winlostdate
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
@@ -623,7 +622,6 @@ BEGIN
 		   ,s.subtransdesc
 		   ,s.ActualStake
 		   ,s.matchid
-		   ,s.VoidingHistoryId
 		   ,s.winlostdate
 		FROM	#tmpTicket s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
@@ -679,7 +677,6 @@ BEGIN
 		   ,s.subtransdesc AS subTransdesc
 		   ,s.ActualStake
 		   ,s.matchid
-		   ,s.VoidingHistoryId
 		   ,s.winlostdate
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid

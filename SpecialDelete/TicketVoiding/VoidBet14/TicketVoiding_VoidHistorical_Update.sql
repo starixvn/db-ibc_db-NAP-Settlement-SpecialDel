@@ -14,8 +14,7 @@ ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 )
 AS
 /*		
-	Created by: Max
-	Date 20211202
+	Created by: 20211202@Max
 	Task: TVS - Void Archived Tickets [Redmine: #140180]
 	DB: DBTXN/bodb02
 
@@ -25,6 +24,7 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230309@July: Update number ErrCode [Redmine: #180625]
 
 	Param's explanation:	
 		
@@ -41,8 +41,8 @@ BEGIN
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT 
 			,@transInfo			VARBINARY(MAX)
-			,@transInfo3rd			VARBINARY(MAX)
-			,@SitedbgroupId				INT = 0
+			,@transInfo3rd		VARBINARY(MAX)
+			,@SiteDBGroupID		SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -108,18 +108,9 @@ BEGIN
 	SET @LogActionId = 90100
 	SET @SB_Error = 0
 
-	BEGIN TRY
-		INSERT INTO @tblInputTransId (transid)
-		SELECT DISTINCT value 
-		FROM STRING_SPLIT(@TransIds,',')		
-		
-	END TRY
-	BEGIN CATCH
-		SELECT	@ErrCode = 101
-				,@ErrMsg = 'Invalid TransIds.'										
-		
-		RETURN
-	END CATCH						
+	INSERT INTO @tblInputTransId (transid)
+	SELECT DISTINCT value 
+	FROM STRING_SPLIT(@TransIds,',')		
 		
 	INSERT INTO #tmpTransId(TransId, custid, bettype, extrainfo, refcode, matchid, oddsid, winlostdate, Refno, srecommend, ruben, betdaqid)
 	SELECT	b.transid, b.custid, b.bettype
@@ -201,7 +192,7 @@ BEGIN
 	--check no data
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)
 	BEGIN
-		SELECT	@ErrCode = 99
+		SELECT	@ErrCode = 100
  			,@ErrMsg = 'No ticket found.' 								
 		
 		RETURN

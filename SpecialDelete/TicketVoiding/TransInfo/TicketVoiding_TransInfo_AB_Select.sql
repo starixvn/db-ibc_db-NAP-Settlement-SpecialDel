@@ -2,18 +2,17 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_AB_Select] 
 (
 	@AbnormalBetTransIds  VARCHAR(MAX) = NULL
-	,@IsCentral BIT = 0
 )
 AS
 /*	
-	Created by: Max
-	Date 20220727
+	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		- @AbnormalBetTransIds: '12343091763609600,12343108943478784'
@@ -22,8 +21,8 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	DECLARE @TransInfoJson VARBINARY(MAX)
-		,@SiteDBGroupID TINYINT
+	DECLARE @TransInfoJson	VARBINARY(MAX)
+		   ,@SiteDBGroupID	SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -49,8 +48,6 @@ BEGIN
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
-		,LiveBetAcceptTime SMALLINT
-		,SecAcceptTime TINYINT
 		,Subcustid INT        
 		,Sublivehomescore SMALLINT
 		,Subliveawayscore SMALLINT
@@ -62,8 +59,6 @@ BEGIN
 		,Subtransdate DATETIME
 		,Subchecktime DATETIME
 		,Subliveindicator BIT
-		,SubLiveBetAcceptTime SMALLINT
-		,SubSecAcceptTime TINYINT
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
@@ -91,6 +86,7 @@ BEGIN
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
 		,SubMatchIdList	VARCHAR(2000)
+		,winlostdate SMALLDATETIME
     )
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
@@ -123,8 +119,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,LiveBetAcceptTime 
-			,SecAcceptTime 
 			,Subcustid         
 			,Sublivehomescore 
 			,Subliveawayscore 
@@ -136,8 +130,6 @@ BEGIN
 			,Subtransdate 
 			,Subchecktime 
 			,Subliveindicator 
-			,SubLiveBetAcceptTime 
-			,SubSecAcceptTime 
 			,recommend 
 			,mrecommend 
 			,srecommend 
@@ -164,6 +156,7 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
+			,winlostdate
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -186,8 +179,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,NULL AS LiveBetAcceptTime 
-		,NULL AS SecAcceptTime 
 		,b.custid Subcustid         
 		,b.livehomescore AS Sublivehomescore 
 		,b.liveawayscore AS Subliveawayscore 
@@ -199,8 +190,6 @@ BEGIN
 		,b.transdate AS Subtransdate 
 		,b.checktime AS Subchecktime 
 		,b.liveindicator AS Subliveindicator 
-		,NULL AS SubLiveBetAcceptTime 
-		,NULL AS SubSecAcceptTime 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
@@ -227,13 +216,14 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
+		,b.winlostdate
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	IF EXISTS (SELECT TOP(1) 1 
 				FROM #transIdTemp t
@@ -262,8 +252,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,LiveBetAcceptTime 
-			,SecAcceptTime 
 			,Subcustid         
 			,Sublivehomescore 
 			,Subliveawayscore 
@@ -275,8 +263,6 @@ BEGIN
 			,Subtransdate 
 			,Subchecktime 
 			,Subliveindicator 
-			,SubLiveBetAcceptTime 
-			,SubSecAcceptTime 
 			,recommend 
 			,mrecommend 
 			,srecommend 
@@ -303,6 +289,7 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
+			,winlostdate
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -325,8 +312,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,NULL AS LiveBetAcceptTime 
-		,NULL AS SecAcceptTime 
 		,b.custid Subcustid         
 		,b.livehomescore AS Sublivehomescore 
 		,b.liveawayscore AS Subliveawayscore 
@@ -338,8 +323,6 @@ BEGIN
 		,b.transdate AS Subtransdate 
 		,b.checktime AS Subchecktime 
 		,b.liveindicator AS Subliveindicator 
-		,NULL AS SubLiveBetAcceptTime 
-		,NULL AS SubSecAcceptTime 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
@@ -366,13 +349,14 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
+		,b.winlostdate
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 						
 	IF EXISTS (SELECT TOP(1) 1 FROM #TransInfo WHERE bettype = 29)
@@ -411,8 +395,6 @@ BEGIN
 		,statusID AS 'sid'
 		,WalletType AS 'wt'
 		,RefCode AS 'refc'
-		,LiveBetAcceptTime AS 'lbat'
-		,SecAcceptTime AS 'sat'
 		,Subcustid    AS     's_c' 
 		,Sublivehomescore AS 's_lh'
 		,Subliveawayscore AS 's_la'
@@ -424,8 +406,6 @@ BEGIN
 		,Subtransdate AS 's_tdate'
 		,Subchecktime AS 's_checkt'
 		,Subliveindicator AS 's_li'
-		,SubLiveBetAcceptTime AS 's_lbat'
-		,SubSecAcceptTime AS 's_sat'
 		,recommend AS 're'
 		,mrecommend AS 'mre'
 		,srecommend AS 'sre'
@@ -453,10 +433,11 @@ BEGIN
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
 		,SubMatchIdList AS 's_mid'
+		,winlostdate AS 'wld'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 END

@@ -2,18 +2,17 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ARC_Select] 
 (
 	@ArchivedTransIds  VARCHAR(MAX) = NULL
-	,@IsCentral BIT = 0
 )
 AS
 /*	
-	Created by: Max
-	Date 20220727
+	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		- @ArchivedTransIds: '12343091763609600,12343108943478784'
@@ -22,8 +21,8 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	DECLARE @TransInfoJson VARBINARY(MAX)
-		,@SiteDBGroupID TINYINT
+	DECLARE @TransInfoJson	VARBINARY(MAX)
+		   ,@SiteDBGroupID	SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -49,8 +48,6 @@ BEGIN
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
-		,LiveBetAcceptTime SMALLINT
-		,SecAcceptTime TINYINT
 		,Subcustid INT        
 		,Sublivehomescore SMALLINT
 		,Subliveawayscore SMALLINT
@@ -62,14 +59,11 @@ BEGIN
 		,Subtransdate DATETIME
 		,Subchecktime DATETIME
 		,Subliveindicator BIT
-		,SubLiveBetAcceptTime SMALLINT
-		,SubSecAcceptTime TINYINT
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
 		,statuswinlost TINYINT
 		,IsMixParlay BIT
-		,IsMoved14 BIT
 		,odds MONEY
 		,Subodds MONEY
 		,oddsspread MONEY
@@ -123,8 +117,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,LiveBetAcceptTime 
-			,SecAcceptTime 
 			,Subcustid         
 			,Sublivehomescore 
 			,Subliveawayscore 
@@ -136,14 +128,11 @@ BEGIN
 			,Subtransdate 
 			,Subchecktime 
 			,Subliveindicator 
-			,SubLiveBetAcceptTime 
-			,SubSecAcceptTime 
 			,recommend 
 			,mrecommend 
 			,srecommend 
 			,statuswinlost 
 			,IsMixParlay 
-			,IsMoved14 
 			,odds 
 			,Subodds 
 			,oddsspread 
@@ -187,8 +176,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,NULL AS LiveBetAcceptTime 
-		,NULL AS SecAcceptTime 
 		,b.custid Subcustid         
 		,b.livehomescore AS Sublivehomescore 
 		,b.liveawayscore AS Subliveawayscore 
@@ -200,14 +187,11 @@ BEGIN
 		,b.transdate AS Subtransdate 
 		,b.checktime AS Subchecktime 
 		,b.liveindicator AS Subliveindicator 
-		,NULL AS SubLiveBetAcceptTime 
-		,NULL AS SubSecAcceptTime 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
 		,b.statuswinlost 
 		,0 AS IsMixParlay 
-		,1 AS IsMoved14 
 		,b.odds 
 		,b.odds AS Subodds 
 		,b.oddsspread
@@ -235,7 +219,7 @@ BEGIN
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND b.SiteDBGroupID = @SiteDBGroupID
 						
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
@@ -259,8 +243,6 @@ BEGIN
 		,statusID AS 'sid'
 		,WalletType AS 'wt'
 		,RefCode AS 'refc'
-		,LiveBetAcceptTime AS 'lbat'
-		,SecAcceptTime AS 'sat'
 		,Subcustid    AS     's_c' 
 		,Sublivehomescore AS 's_lh'
 		,Subliveawayscore AS 's_la'
@@ -272,14 +254,11 @@ BEGIN
 		,Subtransdate AS 's_tdate'
 		,Subchecktime AS 's_checkt'
 		,Subliveindicator AS 's_li'
-		,SubLiveBetAcceptTime AS 's_lbat'
-		,SubSecAcceptTime AS 's_sat'
 		,recommend AS 're'
 		,mrecommend AS 'mre'
 		,srecommend AS 'sre'
 		,statuswinlost AS 'statuswl'
 		,IsMixParlay AS 'isP'
-		,IsMoved14 AS 'isM'
 		,odds AS 'o'
 		,Subodds AS 's_o'
 		,oddsspread AS 'os'
@@ -302,9 +281,9 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,winlostdate AS 'wld'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 END

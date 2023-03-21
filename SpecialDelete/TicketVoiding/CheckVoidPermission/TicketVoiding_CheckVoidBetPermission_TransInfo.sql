@@ -12,6 +12,7 @@ AS
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		- @TransIds: '12343091763609600,12343108943478784'
@@ -148,9 +149,9 @@ BEGIN
 		,IsMoved14 AS 'isM'
 		,SiteDBGroupID AS 'sitedb'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 END

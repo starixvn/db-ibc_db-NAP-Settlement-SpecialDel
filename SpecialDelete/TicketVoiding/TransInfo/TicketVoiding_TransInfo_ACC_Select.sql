@@ -2,12 +2,10 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_ACC_Select] 
 (
 	@AbnormalAccounts  VARCHAR(MAX) = NULL
-	,@IsCentral BIT = 0
 )
 AS
 /*	
-	Created by: Max
-	Date 20220727
+	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
@@ -15,6 +13,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		
 	Param's explanation:	
@@ -25,8 +24,8 @@ BEGIN
 	SET NOCOUNT ON	
 
 	DECLARE @AbnormalAccountInfoXML  XML = NULL
-		,@TransInfoJson VARBINARY(MAX)
-		,@SiteDBGroupID TINYINT
+		   ,@TransInfoJson			 VARBINARY(MAX)
+		   ,@SiteDBGroupID			 SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -342,7 +341,7 @@ BEGIN
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 		AND 1 = CASE 
 					WHEN @IsSB = 1 
@@ -419,9 +418,9 @@ BEGIN
 		,oddsid AS 'oid'
 		,winlostdate AS 'wld'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 	DROP TABLE #InputUsernameList

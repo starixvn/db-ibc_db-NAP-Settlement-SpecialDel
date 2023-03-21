@@ -1,83 +1,77 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Ticket_Select]
 (
-	@SiteDBGroupID	SMALLINT
-	,@MatchId		INT = 0
-	,@Action		VARCHAR(50) = 'CAL'
-	,@RequestId		INT = 0
-
+	@SiteDBGroupID		SMALLINT	  = NULL
+	,@RequestIds		VARCHAR(MAX)  = NULL
 )
 AS
 /*	
-	Created by: Max
-	Date 20220727
+	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:
+		+ Both @RequestIds, @SiteDBGroupID IS NULL: Service scan signal settle 5p/time
 */
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT)
-
-	IF @RequestId > 0 AND EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Request r WITH (NOLOCK) WHERE r.RequestId = @RequestId AND r.ActionId NOT IN (2,3,5))
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT)
+	
+	IF @RequestIds IS NOT NULL
 	BEGIN
+		DECLARE @tmpRequestId TABLE (RequestId INT)
+		INSERT INTO @tmpRequestId (RequestId)
+		SELECT value FROM STRING_SPLIT (@RequestIds, ',')
+
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-		WHERE rds.RequestId = @RequestId
+		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId <> 29
+			AND rds.IsProcessed IS NULL
 
 		--Main parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-		WHERE rds.RequestId = @RequestId
+		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
+			AND rds.IsProcessed IS NULL
 	END
-	ELSE
+	ELSE --Get all ticket all requests
 	BEGIN
-		IF @Action <> 'CAL-PAR'
-		BEGIN
-			--Single
-			INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId)
-			SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
-			WHERE rds.MatchId = @MatchId
-				AND rds.SiteDBGroupID = @SiteDBGroupID
-				AND rds.MatchId <> 29
-				AND r.ActionId NOT IN (2,3,5)
-		END
-		ELSE
-		BEGIN
-			--Main parlay
-			INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId)
-			SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId
-			FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
-				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
-				CROSS APPLY (
-						SELECT m.MainTransId
-						FROM dbo.TicketVoiding_RequestDetail_MixParlay m WITH (NOLOCK)
-						WHERE m.MatchId = @MatchId
-							AND m.MainTransId = rds.TransId
-					)rm
-			WHERE rds.SiteDBGroupID = @SiteDBGroupID
-				AND rds.MatchId = 29
-				AND r.ActionId NOT IN (2,3,5)
-		END
+		--Single
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rds.MatchId
+		WHERE rds.MatchId <> 29
+			AND r.ActionId = 1
+			AND rds.IsProcessed IS NULL
+			AND r.CreatedDate >= m.GlobalShowTime
+
+		--Main parlay
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
+		WHERE rds.MatchId = 29
+			AND r.ActionId = 1
+			AND rds.IsProcessed IS NULL
 	END
 
-	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #SingleTickets
-	SELECT TransId, RequestId, IssueTypeId, MatchId FROM #ParlayTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId FROM #SingleTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId FROM #ParlayTickets
 
 	DROP TABLE #SingleTickets
 	DROP TABLE #ParlayTickets

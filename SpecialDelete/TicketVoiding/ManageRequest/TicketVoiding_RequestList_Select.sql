@@ -52,6 +52,7 @@ AS
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
+		- 20230309@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 
 	Param's explanation:	
 		@Status: 
@@ -608,10 +609,10 @@ BEGIN
 				)f_s
 				---Case Completed, Running
 		OUTER APPLY ( 
-					SELECT TOP 1 RequestId, statusID
+					SELECT TOP 1 RequestId, MIN(statusID) AS statusID
 					FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) 
 					WHERE vh.RequestId = t.RequestID
-					ORDER BY VoidingHistoryId DESC 
+					GROUP BY RequestId 
 				)l_vh
 		OUTER APPLY ( 
 					SELECT TOP 1 RequestId, statusID

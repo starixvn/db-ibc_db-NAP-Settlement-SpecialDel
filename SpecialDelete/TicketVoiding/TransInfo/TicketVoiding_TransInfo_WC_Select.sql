@@ -2,18 +2,17 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_WC_Select] 
 (
 	@WrongScoreInfo  VARCHAR(MAX) = NULL
-	,@IsCentral BIT = 0
 )
 AS
 /*	
-	Created by: Max
-	Date 20220727
+	Created by: 20220727@Max
 	Task: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
 
 	Param's explanation:	
 		- @WrongScoreInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -22,9 +21,9 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	DECLARE @WrongScoreXML XML
-		,@TransInfoJson VARBINARY(MAX)
-		,@SiteDBGroupID TINYINT
+	DECLARE @WrongScoreXML	XML
+		   ,@TransInfoJson	VARBINARY(MAX)
+		   ,@SiteDBGroupID	SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -77,7 +76,6 @@ BEGIN
 		,srecommend INT
 		,statuswinlost TINYINT
 		,IsMixParlay BIT
-		,IsMoved14 BIT
 		,odds MONEY
 		,Subodds MONEY
 		,oddsspread MONEY
@@ -151,7 +149,6 @@ BEGIN
 			,srecommend 
 			,statuswinlost 
 			,IsMixParlay 
-			,IsMoved14 
 			,odds 
 			,Subodds 
 			,oddsspread 
@@ -214,7 +211,6 @@ BEGIN
 		,b.srecommend 
 		,b.statuswinlost 
 		,0 AS IsMixParlay 
-		,0 AS IsMoved14 
 		,b.odds 
 		,b.odds AS Subodds 
 		,b.oddsspread
@@ -243,7 +239,7 @@ BEGIN
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND ((b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+		AND b.SiteDBGroupID = @SiteDBGroupID
 	
 	--Search sub-parlay
 	IF EXISTS (
@@ -296,7 +292,6 @@ BEGIN
 				,srecommend 
 				,statuswinlost 
 				,IsMixParlay 
-				,IsMoved14 
 				,odds 
 				,Subodds 
 				,oddsspread 
@@ -359,7 +354,6 @@ BEGIN
 			,b.srecommend 
 			,b.statuswinlost 
 			,1 AS IsMixParlay 
-			,0 AS IsMoved14 
 			,b.odds 
 			,Sub.odds AS Subodds 
 			,b.oddsspread
@@ -388,7 +382,7 @@ BEGIN
 			AND b.matchid = 29
 			AND b.bettype = 29
 			AND ((sub.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime) OR (sub.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime))
-			AND sub.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE sub.SiteDBGroupID END
+			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END 
 			
 	--RETURN DATA
@@ -454,9 +448,9 @@ BEGIN
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
 	FROM #TransInfo
-	FOR JSON AUTO))
+	FOR JSON PATH))
 
-	SELECT @TransInfoJson AS TransInfoJson, @SiteDBGroupID AS SiteDBGroupID
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
 	DROP TABLE #TransInfo
 	DROP TABLE #FilterInfo
