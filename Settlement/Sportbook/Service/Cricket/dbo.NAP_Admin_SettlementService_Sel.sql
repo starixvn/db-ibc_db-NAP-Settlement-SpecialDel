@@ -25,13 +25,13 @@ BEGIN
 	ORDER BY Id
 	
 	SELECT	@session AS [Session]
-			,l.MatchId
+			,m.MatchId
 			,m.leagueid
 			,l.[Action]
 			,l.TransId
 	FROM	dbo.SettlementServicesLogDetail l WITH (NOLOCK)
 		LEFT JOIN dbo.Match m WITH(NOLOCK) on l.MatchId = m.matchid
-	WHERE	[Session] = @session
+	WHERE	l.Session = @session
 	
 END
 GO
