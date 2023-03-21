@@ -17,7 +17,7 @@ AS
 		- 20221003@Victoria: Add list transid (top 100) to message [Redmine: #178536]
 		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
 		- 20230317@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
-		- 20230321@Max: Enhance performance [Redmine: #184559]
+		- 20230321@Max: Enhance performance & Change to use Sitelable for 789y [Redmine: #184559]
 
 	Param's explanation:		
 		
@@ -62,7 +62,8 @@ BEGIN
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_789 cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] = '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel = '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -71,7 +72,8 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_MBC cb WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid AND ci.[Site] <> '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel <> '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
