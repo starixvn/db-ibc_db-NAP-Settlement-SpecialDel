@@ -17,7 +17,7 @@ AS
 		- 20221003@Victoria: Add list transid (top 100) to message [Redmine: #178536]
 		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
 		- 20230317@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
-		- 20230321@Max: Enhance performance & Change to use Sitelable for 789y [Redmine: #184559]
+		- 20230321@Max: Enhance performance & Change to use Sitelabel for 789y [Redmine: #184559]
 
 	Param's explanation:		
 		
