@@ -96,7 +96,8 @@ BEGIN
 		CROSS APPLY (
 				SELECT TOP 100 b.transid, b.custid 
 				FROM dbo.bettrans b WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel = '789y'
 					LEFT JOIN dbo.CustLimitBetHistory_789 h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 				WHERE b.matchid = m.matchid 
 					AND h.Transid IS NULL
@@ -108,6 +109,9 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
+		--retry one more time for sure
+		WAITFOR DELAY '00:00:02.000'
+
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
 			SELECT DISTINCT b.transId, b.custid, b.matchid
@@ -129,7 +133,8 @@ BEGIN
 		CROSS APPLY (
 				SELECT TOP 100 b.transid, b.custid 
 				FROM dbo.bettrans b WITH (NOLOCK)
-					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel <> '789y'
 					LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 				WHERE b.matchid = m.matchid 
 					AND h.Transid IS NULL
@@ -142,6 +147,9 @@ BEGIN
 
 	IF @@ROWCOUNT > 0
 	BEGIN
+		--retry one more time for sure
+		WAITFOR DELAY '00:00:02.000'
+
 		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
@@ -176,6 +184,9 @@ BEGIN
 
 	IF @@ROWCOUNT > 0
 	BEGIN
+		--retry one more time for sure
+		WAITFOR DELAY '00:00:02.000'
+
 		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
@@ -196,7 +207,8 @@ BEGIN
 	SELECT TOP (100) b.matchid, b.transId, b.custid
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
+		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel = '789y'
 		LEFT JOIN dbo.CustLimitBetHistory_789 h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 	WHERE b.bettype = 10
 		AND h.Transid IS NULL
@@ -205,6 +217,9 @@ BEGIN
 
 	IF @@ROWCOUNT > 0
 	BEGIN
+		--retry one more time for sure
+		WAITFOR DELAY '00:00:02.000'
+
 		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
@@ -225,7 +240,8 @@ BEGIN
 	SELECT TOP (100) b.matchid, b.transId, b.custid
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
+		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel <> '789y'
 		LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 	WHERE b.bettype = 10
 		AND h.Transid IS NULL
@@ -235,6 +251,9 @@ BEGIN
 
 	IF @@ROWCOUNT > 0
 	BEGIN
+		--retry one more time for sure
+		WAITFOR DELAY '00:00:02.000'
+
 		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
@@ -249,7 +268,8 @@ BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
 	END
 
-	--LICTRUNCATE TABLE #Result_tmp
+	--LIC
+	TRUNCATE TABLE #Result_tmp
 	INSERT INTO #Result_tmp (matchid, Transid, custid)
 	SELECT TOP (100) b.matchid, b.transId, b.custid
 	FROM dbo.bettrans b WITH (NOLOCK)
@@ -263,6 +283,9 @@ BEGIN
 
 	IF @@ROWCOUNT > 0
 	BEGIN
+		--retry one more time for sure
+		WAITFOR DELAY '00:00:02.000'
+
 		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
