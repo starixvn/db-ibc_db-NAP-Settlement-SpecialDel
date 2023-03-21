@@ -9,6 +9,7 @@ AS
 
     Revisions:    
 		- 20220719@Louisa: get LeagueId [Redmine:#175251]
+		- 20230314@Kathy: always return @Session regardless of having match info [Redmine:#184132]
         
     Param's Explanation:
 	 
@@ -29,7 +30,7 @@ BEGIN
 			,l.[Action]
 			,l.TransId
 	FROM	dbo.SettlementServicesLogDetail l WITH (NOLOCK)
-		INNER JOIN dbo.Match m WITH(NOLOCK) on l.MatchId = m.matchid
+		LEFT JOIN dbo.Match m WITH(NOLOCK) on l.MatchId = m.matchid
 	WHERE	[Session] = @session
 	
 END
