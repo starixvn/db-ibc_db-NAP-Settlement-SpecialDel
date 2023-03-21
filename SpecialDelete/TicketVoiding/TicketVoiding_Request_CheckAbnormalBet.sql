@@ -306,7 +306,6 @@ BEGIN
 	WHERE 1 = CASE WHEN bt.bettype IS NULL 
 						AND (t.bettype <> 29 OR (t.bettype = 29  AND t.betteam <> '1')) --Unsupported System parlay Transids
 				   THEN 1
-				   WHEN  t.sporttype = 50 THEN 1
 				   ELSE 0 END
 
 	IF @FilterBy = 1
