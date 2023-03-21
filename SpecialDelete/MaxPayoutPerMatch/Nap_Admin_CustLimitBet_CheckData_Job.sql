@@ -17,6 +17,7 @@ AS
 		- 20221003@Victoria: Add list transid (top 100) to message [Redmine: #178536]
 		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
 		- 20230317@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
+		- 20230321@Max: Enhance performance [Redmine: #184559]
 
 	Param's explanation:		
 		
@@ -39,6 +40,8 @@ BEGIN
 
 	CREATE TABLE #RunningMatch (matchid INT PRIMARY KEY, sporttype SMALLINT)
 	CREATE TABLE #NonSBRunningMatch (matchid INT PRIMARY KEY)
+
+	CREATE TABLE #Result_tmp (Transid BIGINT, matchid INT, custid INT)
 
 	SET @SiteDBGroupID = (SELECT dbo.f_Get_SiteDBGroupID())
 
@@ -86,18 +89,32 @@ BEGIN
 	
 	-----------------------------------------------------History table is missing data--------------------------------------------------------------------
 	--789y
-	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
-	FROM
-		(SELECT TOP (100) b.transId
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
-			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
-		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
-			AND NOT EXISTS(SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
-			AND b.transdate BETWEEN @StartTime AND @EndTime
-			--AND ci.currency NOT IN (20,72)
-			AND b.statusID NOT IN (101, 0)
-			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
+	TRUNCATE TABLE #Result_tmp
+	INSERT INTO #Result_tmp (matchid, Transid, custid)
+	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
+	FROM #RunningMatch m
+		CROSS APPLY (
+				SELECT TOP 100 b.transid, b.custid 
+				FROM dbo.bettrans b WITH (NOLOCK)
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+					LEFT JOIN dbo.CustLimitBetHistory_789 h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
+				WHERE b.matchid = m.matchid 
+					AND h.Transid IS NULL
+					AND b.statusID NOT IN (101, 0)
+					AND b.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
+					AND b.transdate BETWEEN @StartTime AND @EndTime
+					AND b.SiteDBGroupID = @SiteDBGroupID
+		) AS tmp
+	
+	IF @@ROWCOUNT > 0
+	BEGIN
+		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+		) AS tmp	
+	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
@@ -105,20 +122,34 @@ BEGIN
 	END
 	
 	--MBC
-	SET @transIds = ''
-	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
-	FROM
-		(SELECT TOP (100) b.transId
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
-			INNER JOIN #RunningMatch m ON b.matchid = m.matchid
-		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
-			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
-			AND b.transdate BETWEEN @StartTime AND @EndTime
-			--AND ci.currency NOT IN (20,72)
-			AND b.statusID NOT IN (101, 0)
-			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
-			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
+	TRUNCATE TABLE #Result_tmp
+	INSERT INTO #Result_tmp (matchid, Transid, custid)
+	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
+	FROM #RunningMatch m
+		CROSS APPLY (
+				SELECT TOP 100 b.transid, b.custid 
+				FROM dbo.bettrans b WITH (NOLOCK)
+					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+					LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
+				WHERE b.matchid = m.matchid 
+					AND h.Transid IS NULL
+					AND b.statusID NOT IN (101, 0)
+					AND b.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
+					AND b.transdate BETWEEN @StartTime AND @EndTime
+					AND b.SiteDBGroupID = @SiteDBGroupID
+					AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
+		) AS tmp
+
+	IF @@ROWCOUNT > 0
+	BEGIN
+		SET @transIds = ''
+		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+		) AS tmp	
+	END
 	
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
@@ -126,21 +157,33 @@ BEGIN
 	END
 
 	--LIC
-	SET @transIds = ''
-	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
-	FROM
-		(SELECT TOP (100) b.transId
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #RunningMatch m ON b.matchid = m.matchid
-		WHERE B.bettype NOT IN (10,2799,38,801,802,803,804,805,806)
-			AND NOT EXISTS (SELECT TOP 1 1 
-							FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
-							WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
-							)
-			AND b.transdate BETWEEN @StartTime AND @EndTime
-			AND b.statusID NOT IN (101, 0)
-			AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend )
-			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
+	TRUNCATE TABLE #Result_tmp
+	INSERT INTO #Result_tmp (matchid, Transid, custid)
+	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
+	FROM #RunningMatch m
+		CROSS APPLY (
+				SELECT TOP 100 b.transid, b.custid 
+				FROM dbo.bettrans b WITH (NOLOCK)
+					LEFT JOIN dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
+				WHERE b.matchid = m.matchid 
+					AND h.Transid IS NULL
+					AND b.statusID NOT IN (101, 0)
+					AND b.bettype NOT IN (10,2799,38,801,802,803,804,805,806) 
+					AND b.transdate BETWEEN @StartTime AND @EndTime
+					AND b.SiteDBGroupID = @SiteDBGroupID
+					AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend )
+		) AS tmp
+
+	IF @@ROWCOUNT > 0
+	BEGIN
+		SET @transIds = ''
+		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+		) AS tmp	
+	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
@@ -148,18 +191,28 @@ BEGIN
 	END
 
 	--789y
-	SET @transIds = ''
-	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
-	FROM
-		(SELECT TOP (100) b.transId
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
-		WHERE B.bettype = 10
-			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 bh WITH (NOLOCK) WHERE bh.transid = b.transid AND bh.Matchid = b.matchid AND bh.CustID = b.custid)
-			AND b.transdate BETWEEN @StartTime AND @EndTime
-			--AND ci.currency NOT IN (20,72)
-			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
+	TRUNCATE TABLE #Result_tmp
+	INSERT INTO #Result_tmp (matchid, Transid, custid)
+	SELECT TOP (100) b.matchid, b.transId, b.custid
+	FROM dbo.bettrans b WITH (NOLOCK)
+		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
+		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] = '789y'
+		LEFT JOIN dbo.CustLimitBetHistory_789 h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
+	WHERE b.bettype = 10
+		AND h.Transid IS NULL
+		AND b.transdate BETWEEN @StartTime AND @EndTime
+		AND b.SiteDBGroupID = @SiteDBGroupID
+
+	IF @@ROWCOUNT > 0
+	BEGIN
+		SET @transIds = ''
+		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+		) AS tmp	
+	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
@@ -167,41 +220,57 @@ BEGIN
 	END
 	
 	--MBC
-	SET @transIds = ''
-	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
-	FROM
-		(SELECT TOP (100) b.transId
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-			INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
-		WHERE B.bettype = 10
-			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC bh WITH (NOLOCK) WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid)
-			AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
-			AND b.transdate BETWEEN @StartTime AND @EndTime
-			--AND ci.currency NOT IN (20,72)
-			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
+	TRUNCATE TABLE #Result_tmp
+	INSERT INTO #Result_tmp (matchid, Transid, custid)
+	SELECT TOP (100) b.matchid, b.transId, b.custid
+	FROM dbo.bettrans b WITH (NOLOCK)
+		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
+		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid AND ci.[Site] <> '789y'
+		LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
+	WHERE b.bettype = 10
+		AND h.Transid IS NULL
+		AND b.transdate BETWEEN @StartTime AND @EndTime
+		AND b.SiteDBGroupID = @SiteDBGroupID
+		AND NOT EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
+
+	IF @@ROWCOUNT > 0
+	BEGIN
+		SET @transIds = ''
+		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+		) AS tmp	
+	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
 	END
 
-	--LIC
-	SET @transIds = ''
-	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
-	FROM
-		(SELECT TOP (100) b.transId
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
-		WHERE B.bettype = 10
-			AND NOT EXISTS (SELECT TOP 1 1 
-							FROM dbo.CustLimitBetHistory_LIC bh WITH (NOLOCK) 
-							WHERE bh.Matchid = b.matchid AND bh.transid = b.transid AND bh.CustID = b.custid
-							)
-			AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
-			AND b.transdate BETWEEN @StartTime AND @EndTime
-			--AND ci.currency NOT IN (20,72)
-			AND b.SiteDBGroupID = @SiteDBGroupID) AS tmp
+	--LICTRUNCATE TABLE #Result_tmp
+	INSERT INTO #Result_tmp (matchid, Transid, custid)
+	SELECT TOP (100) b.matchid, b.transId, b.custid
+	FROM dbo.bettrans b WITH (NOLOCK)
+		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
+		LEFT JOIN dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
+	WHERE b.bettype = 10
+		AND h.Transid IS NULL
+		AND b.transdate BETWEEN @StartTime AND @EndTime
+		AND b.SiteDBGroupID = @SiteDBGroupID
+		AND EXISTS (SELECT 1 FROM CustDb.dbo.Dep_CustSuper ds WITH (NOLOCK) WHERE ds.custid = b.srecommend)
+
+	IF @@ROWCOUNT > 0
+	BEGIN
+		SET @transIds = ''
+		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+		) AS tmp	
+	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
@@ -280,4 +349,5 @@ BEGIN
 	DROP TABLE #TempReject
 	DROP TABLE #RunningMatch
 	DROP TABLE #NonSBRunningMatch
+	DROP TABLE #Result_tmp
 END
