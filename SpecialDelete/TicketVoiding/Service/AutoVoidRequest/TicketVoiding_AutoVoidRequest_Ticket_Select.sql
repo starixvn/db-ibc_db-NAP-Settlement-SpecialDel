@@ -13,6 +13,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230321@Max: Hotfix scan request auto void winning [Redmine: #185526]
 
 	Param's explanation:
 		+ Both @RequestIds, @SiteDBGroupID IS NULL: Service scan signal settle 5p/time
@@ -58,7 +59,8 @@ BEGIN
 		WHERE rds.MatchId <> 29
 			AND r.ActionId = 1
 			AND rds.IsProcessed IS NULL
-			AND r.CreatedDate >= m.GlobalShowTime
+			--AND r.CreatedDate >= m.
+			AND GETDATE() >= m.GlobalShowTime
 
 		--Main parlay
 		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
