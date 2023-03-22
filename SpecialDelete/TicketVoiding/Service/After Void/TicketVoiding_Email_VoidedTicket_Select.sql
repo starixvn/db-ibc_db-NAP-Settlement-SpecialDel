@@ -313,7 +313,7 @@ BEGIN
 			,t.showtime 
 			,t.isneutral
 			,t.matchid
-			,CASE WHEN t.Bettype BETWEEN 801 AND 806 THEN t.Refno ELSE t.TransId END AS TransId
+			,t.TransId
 			,t.Refno
 			,t.TransDate
 			,t.actual_stake

@@ -265,7 +265,7 @@ BEGIN
 	    ,SubSecAcceptTime 
 		,CheckTimeCashOut
 	)
-SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
+    SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
 		,tdes ,sid ,s_c ,s_hdp1 ,s_hdp2 ,s_lh ,s_la ,s_li ,s_o ,s_os
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
@@ -368,7 +368,7 @@ SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 			SET FilterVoidFromTime = @FilterFromTransTime, FilterVoidToTime = @FilterToTransTime
 			WHERE MatchId = @MatchId AND ScoreId = @ScoreId
 		END 
-		ELSE --IF @IsShowLogOnly = 0
+		ELSE IF @IsShowLogOnly = 0
 		BEGIN
 			SELECT @MinAccept = @AATime
 
