@@ -63,7 +63,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_789 cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
-					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel = '789y'
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') = '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -73,7 +73,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1
 				FROM dbo.CustLimitBet_MBC cb WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = cb.custid
-					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel <> '789y'
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') <> '789y'
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
@@ -99,7 +99,7 @@ BEGIN
 				SELECT TOP 100 b.transid, b.custid 
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
-					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel = '789y'
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') = '789y'
 					LEFT JOIN dbo.CustLimitBetHistory_789 h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 				WHERE b.matchid = m.matchid 
 					AND h.Transid IS NULL
@@ -136,7 +136,7 @@ BEGIN
 				SELECT TOP 100 b.transid, b.custid 
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
-					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel <> '789y'
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') <> '789y'
 					LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 				WHERE b.matchid = m.matchid 
 					AND h.Transid IS NULL
@@ -210,7 +210,7 @@ BEGIN
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
 		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
-		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel = '789y'
+		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') = '789y'
 		LEFT JOIN dbo.CustLimitBetHistory_789 h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 	WHERE b.bettype = 10
 		AND h.Transid IS NULL
@@ -243,7 +243,7 @@ BEGIN
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
 		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
-		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND s.SiteLabel <> '789y'
+		INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') <> '789y'
 		LEFT JOIN dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 	WHERE b.bettype = 10
 		AND h.Transid IS NULL
