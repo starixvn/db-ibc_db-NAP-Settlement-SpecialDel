@@ -61,7 +61,6 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
-			,@CutOffDate		DATETIME = '2023-03-30 00:00:00.000'
 			,@transInfoJson		NVARCHAR(MAX)
 			,@IsSiteDB			BIT = 0
 
@@ -170,15 +169,13 @@ BEGIN
 							ELSE @fta END        
 			,@modds = CASE betteam
 				WHEN N'h' THEN (hdp2 - hdp1) + (@fth - @fta) - CASE 
-																	WHEN @Sporttype = 28 AND b.transdate >= @CutOffDate THEN 0
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (43,49,51))
 																		OR @Sporttype = 99
 																		OR @bettype = 20 THEN 0
 																	ELSE (livehomescore - liveawayscore) 
 																END
 				WHEN N'a' THEN (hdp1 - hdp2) - (@fth - @fta) + CASE 
-																	WHEN @Sporttype = 28 AND b.transdate >= @CutOffDate THEN 0
-																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (28,43,49,51))
+																	WHEN (@Sporttype BETWEEN 2 AND 56 AND @Sporttype NOT IN (43,49,51))
 																		OR @Sporttype = 99
 																		OR @bettype = 20 THEN 0 
 																	ELSE (livehomescore - liveawayscore) 
