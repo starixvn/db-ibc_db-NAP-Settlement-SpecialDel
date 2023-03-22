@@ -59,7 +59,7 @@ BEGIN
 		WHERE rds.MatchId <> 29
 			AND r.ActionId = 1
 			AND rds.IsProcessed IS NULL
-			--AND r.CreatedDate >= m.
+			--AND r.CreatedDate >= m.GlobalShowTime
 			AND GETDATE() >= m.GlobalShowTime
 
 		--Main parlay
