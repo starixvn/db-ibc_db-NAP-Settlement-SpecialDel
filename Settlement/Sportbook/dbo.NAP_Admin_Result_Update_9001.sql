@@ -38,6 +38,7 @@ AS
 		- 20220309@Louisa: Auto settle Volleyball [Redmine:#168346]
 		- 20220512@Louisa: Auto settle Badminton [Redmine:#171676]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		
     Param's Explanation: 
     
@@ -111,7 +112,7 @@ BEGIN
     IF @action = 'CAL'
     BEGIN
        SET @SettlementStatusID 	=  4
-       SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 AND @Sporttype IN ( 6, 9, 50 ) THEN 2 
+       SET @ResultStatusID 		=  CASE WHEN @IsAuto = 1 AND @Sporttype IN ( 5, 6, 9, 50 ) THEN 2 
 										ELSE 5
 										END
     END 

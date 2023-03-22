@@ -65,6 +65,7 @@ AS
 		- 20221010@louisa: not insert [TicketVoiding_AutoVoidRequest_Queue] if BroacastSessionId null [Redmine:#178830]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
+		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -78,7 +79,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	DECLARE @SkipBalanceUpdate  BIT
+	DECLARE  @SkipBalanceUpdate  BIT
 			,@start				DATETIME
 			,@stop				DATETIME
 			,@fth				INT
@@ -125,6 +126,7 @@ BEGIN
 			,@ResourceRefund	VARCHAR(100) = ''
 			,@IsCentral			BIT = 0	
 			,@IsExistAR			BIT = 0
+			,@ChildMatchType	TINYINT
 			
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -191,6 +193,7 @@ BEGIN
 		  ,@sportType	= m.sportType
 		  ,@ParentMatchId = CASE WHEN m.ChildMatchType = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN m.ParentID ELSE NULL END
 		  ,@LeagueGroupID = ISNULL(l.LeagueGroupID, 0)
+		  ,@ChildMatchType = m.ChildMatchType
   	FROM	DBPRO.BODB02.dbo.match m WITH (NOLOCK)
 		INNER JOIN DBPRO.BODB02.dbo.League l WITH(NOLOCK)  ON m.leagueid = l.leagueid
   	WHERE   m.matchid = @matchid
@@ -670,7 +673,7 @@ BEGIN
 		------END UPDATE BETTRANS---------------------------------------------------------------------------
 		IF @IsCentral = 1
 		BEGIN
-			IF (@IsAuto = 1 AND @sporttype IN ( 6, 9, 50 )	AND @Action LIKE 'CAL%' )
+			IF (@IsAuto = 1 AND @sporttype IN (5, 6, 9, 50 )	AND @Action LIKE 'CAL%' )
 			BEGIN
 				EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 				  @MatchId 			 = @matchid
@@ -717,7 +720,7 @@ BEGIN
 
 	SELECT @stop = CURRENT_TIMESTAMP
 	
-	SELECT @logdata = CASE WHEN @sportType IN ( 6, 9, 50 ) AND @IsAuto = 1 AND @Action LIKE 'CAL%' THEN 'NAP: Auto Payout Calculate '
+	SELECT @logdata = CASE WHEN @sportType IN ( 5, 6, 9, 50 ) AND @IsAuto = 1 AND @Action LIKE 'CAL%' THEN 'NAP: Auto Payout Calculate '
 							ELSE 'NAP: Calculate '
 							END
 							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
@@ -785,7 +788,7 @@ BEGIN
   			) AS tbl1
 		ORDER BY OrdNo
 
-		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN ( 6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL')
+		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN (6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL')
 		BEGIN
 			EXEC dbo.NAP_Set_GetRefundResult
 				@MatchId		= @MatchID
@@ -814,8 +817,8 @@ BEGIN
 										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
 											THEN CASE 
 													WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
-													WHEN @sportType IN ( 6, 9 ) AND @Action = 'CAL' THEN 'NAP: Auto Payout: SBO'
-													WHEN @sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR' THEN 'NAP: Auto Payout: Direct'
+													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) THEN 'NAP: Auto Payout: SBO'
+													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) THEN 'NAP: Auto Payout: Direct'
 													ELSE '' 
 												END
 										ELSE ''

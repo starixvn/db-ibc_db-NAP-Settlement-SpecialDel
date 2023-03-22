@@ -51,6 +51,7 @@ AS
 			- 20230104@Kathy: duplicate matchid in #tmpAllParentChildMatch
 			- 20230206@Kathy: duplicate transid in #tmpMarkedTransaction [Redmine:#183427]
 			- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
+			- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 
 		@LeagueIDs  : '0' :none
 		@MatchStatus: 0:none,  1:close, 2:running 3:internal, 4:posponed, 5:Completed, 6:refund
@@ -353,14 +354,14 @@ BEGIN
 
 		UPDATE m
 		SET AutoPayoutStatus = ISNULL(m.AutoPayoutStatus, os.StatusId)
-		from #tmpMatchIds m
+		FROM #tmpMatchIds m
 			CROSS APPLY (
 						SELECT TOP 1 r.matchid, r.StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 						WHERE r.matchid = m.matchid
 						ORDER BY r.StatusId DESC
-					)os
-		WHERE sporttype in ( 6, 9, 50 )
+					) os
+		WHERE m.sporttype in ( 5, 6, 9, 50 )
 
 	END
 	ELSE
@@ -508,14 +509,14 @@ BEGIN
 
 		UPDATE m
 		SET AutoPayoutStatus = ISNULL(m.AutoPayoutStatus, os.StatusId)
-		from #tmpMatchIds m
+		FROM #tmpMatchIds m
 			CROSS APPLY (
 						SELECT TOP 1 r.matchid, r.StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 						WHERE r.matchid = m.matchid
 						ORDER BY r.StatusId DESC
-					)os
-		WHERE sporttype in ( 6, 9, 50 )
+					) os
+		WHERE m.sporttype in ( 5, 6, 9, 50 )
 
 	END	
 
