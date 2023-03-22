@@ -54,6 +54,7 @@ AS
 		- 20230110@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
 		- 20230116@July: [TVS] Exclude Customer Class = 4000 & Change CC=1 to CC=201 [Redmine: #182804]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230322@Max: [TVS] Exclude Field Hockey when checking live tickets [Redmine: #185235]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -504,7 +505,7 @@ BEGIN
 		SELECT t.transid
 			, CASE WHEN m.GlobalShowTime < GETDATE() AND t.liveindicator = 0 THEN 1 ELSE 0 END
 			, CASE
-				WHEN m.sporttype IN (1,28,49,51) AND t.liveindicator = 1
+				WHEN m.sporttype IN (1,49,51) AND t.liveindicator = 1
 					AND (m.livehomescore <> t.livehomescore OR m.liveawayscore <> t.liveawayscore)
 				THEN 1 ELSE 0
 			END
