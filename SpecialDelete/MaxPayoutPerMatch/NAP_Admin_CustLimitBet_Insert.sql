@@ -104,7 +104,7 @@ BEGIN
 					,b.bettype
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-				INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
+					INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 				WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
@@ -133,7 +133,7 @@ BEGIN
 						,b.transid
 					FROM dbo.bettrans b WITH (NOLOCK)
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
-				INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
+						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 					WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
 						AND b.SiteDBGroupID = @SiteDBGroupID
@@ -152,12 +152,13 @@ BEGIN
 					SELECT @MatchId
 						, b.custid
 						,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
-								WHEN  c.site = '789y' THEN 2 --789y
+								WHEN  si.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END
 						,b.transid
 					FROM @tmpRejectTransId t
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.TransId				
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 					WHERE b.SiteDBGroupID = @SiteDBGroupID
 						AND b.matchid = 29
