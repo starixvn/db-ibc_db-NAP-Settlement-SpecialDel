@@ -27,6 +27,9 @@ BEGIN
 		,Step2_WaitforSettle_Duration	INT
 		,Step3_Settle_Duration			INT
 		,IsHold							INT
+		,leaguegroupId					INT
+		,leaguegroupName				VARCHAR(100)
+		
 	)
 
 	;WITH cteSettlementPerformanceLog
@@ -51,7 +54,7 @@ BEGIN
 	)
 	INSERT INTO #tmpData(Year, Month, Date, Weekday, sporttype, sportname, GroupName, LeagueName, matchid, hometeam, awayteam
 		, GlobalShowTime, keyscoreUser, SettleAction, SettlementStatus, ConfirmStatus
-		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold)
+		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold, leaguegroupId, leaguegroupName)
 	SELECT
 		YEAR(m.eventdate) [Year]
 		,MONTH(m.eventdate) [Month]
@@ -72,10 +75,12 @@ BEGIN
 		,CASE WHEN s.IsAuto	= 1 THEN 'Auto settle' ELSE 'Manual settle' END AS SettlementStatus
 		,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus
 		-- Duration
-		,ISNULL(CAST(DATEDIFF(MILLISECOND,CASE WHEN Action like 'Inst%' then s.ConfirmScoreDate else u.logdate end, s.Starttime) AS Float)/1000, 0) AS 'Step1_WaitforKeyscore_Duration'
-		,CAST(DATEDIFF(MILLISECOND,s.Starttime, s.Exectime) AS Float)/1000 AS 'Step2_WaitforSettle_Duration'
-		,CAST(s.Duration AS Float)/1000 AS 'Step3_Settle_Duration'
+		,ISNULL(CAST(DATEDIFF(MILLISECOND,CASE WHEN Action like 'Inst%' then s.ConfirmScoreDate else u.logdate end, s.Starttime) AS Float), 0) AS 'Step1_WaitforKeyscore_Duration'
+		,CAST(DATEDIFF(MILLISECOND,s.Starttime, s.Exectime) AS Float) AS 'Step2_WaitforSettle_Duration'
+		,CAST(s.Duration AS Float) AS 'Step3_Settle_Duration'
 		,s.IsHold
+		,lg.GroupID
+		,lg.GroupName
 		
 	FROM  cteSettlementPerformanceLog s
 		CROSS APPLY (
@@ -123,15 +128,26 @@ BEGIN
 				AND s.Action in('CAL-HT', 'CAL-FT')--, 'CAL')
 				and s.Sporttype = 1
 				and l.isTest = 0
-				and lg.GroupID NOT IN (113,42, 74, 108)
+				and lg.GroupID NOT IN (113,42, 74, 108,73)
 				and m.parentid is null
 				and lg.GroupName not like 'Special%'
 				and u.matchid is not null
-
-		SELECT *
+				and ISNULL(s.IsHold,0) = 0
+		
+		SELECT [YEAR], [MONTH], LeagueGroupName 
+			,avg(Step1_WaitforKeyscore_Duration) as 'WaitforKeyscore'
+		, AVG(Step2_WaitforSettle_Duration) 'WaitingTimeInQueue'
+		, AVG(Step3_Settle_Duration) 'DurationSettlement'
+			, AVG(Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration) 'Total'
 		FROM #tmpData
 		WHERE sporttype = 1
-		ORDER BY [Year] DESC 
+		group by leaguegroupId, leaguegroupName, [Month],[year]
+		order by [Year], [Month], LeagueGroupName
+
+		select *, (Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration)/1000 Total
+		from #tmpData
+		where sporttype = 1
+		ORDER BY  [Year] DESC 
 		,[Month] DESC
 		,[Date] DESC
 		,[Weekday] DESC
@@ -148,5 +164,5 @@ BEGIN
 		,[SettlementStatus] DESC
 		,[ConfirmStatus] DESC
 
-		drop table #tmpData
+		--drop table #tmpData
 END
