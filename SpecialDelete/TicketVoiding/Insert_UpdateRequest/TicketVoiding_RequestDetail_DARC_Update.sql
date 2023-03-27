@@ -21,6 +21,7 @@ AS
 		- 20221125@July: TVS - VAR message [Redmine: #178088]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -56,7 +57,7 @@ BEGIN
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
-			,TypeAccept				VARCHAR(300)
+			,TypeAccept				VARCHAR(2000)
 			,SubIssueTypeId			SMALLINT
 			)
 
@@ -115,6 +116,8 @@ BEGIN
 			,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') + '" SA="' + t.c.value('@SATime','VARCHAR(10)') + 
 				+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
 				+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
+				+ '" MinTime="' + CONVERT(VARCHAR(50),t.c.value('@MinTime','DATETIME'), 121) 
+				+ '" MinType="' + t.c.value('@MinType','VARCHAR(10)') 
 				+ '" />' AS TypeAccept
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 	FROM @DARCInfoXML.nodes('root/r') t(c)

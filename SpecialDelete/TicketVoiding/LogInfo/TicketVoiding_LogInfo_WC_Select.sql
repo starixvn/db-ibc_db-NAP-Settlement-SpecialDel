@@ -22,6 +22,7 @@ AS
 		- 20230112@July: Wrong Score - No need to exclude Home/Away bet types [Redmine: #182805]
 		- 20230120@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -686,14 +687,18 @@ BEGIN
 				,rd.MainParlayCount
 				,a.ScoreId AS ScoreId
 				,tmp.CancelCashOutCount
+				,a.HighLightMinTime
+				,a.HighlightAcceptType
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
 						SELECT CONVERT(XML, rd.TransIds)
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
+							,t.c.value('@MinTime','DATETIME') AS  HighLightMinTime
+							,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
 						FROM t1.xDATA.nodes('/r') t(c)
-					) a (ScoreId)
+					) a
 				LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId AND tmp.ScoreId = a.ScoreId
 			WHERE rd.RequestId = @RequestId 
 
