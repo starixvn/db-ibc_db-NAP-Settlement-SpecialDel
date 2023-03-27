@@ -205,7 +205,7 @@ BEGIN
 	BEGIN
 		;WITH CTE_CreditSit AS
 		(
-			SELECT [site], SiteLabel
+			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
 			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
 			WHERE isLicensee = 0 AND isActive = 1
 		)
