@@ -18,6 +18,7 @@ AS
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220221@July: Add column LeagueGroupID detect China View Licensee [Redmine: #168651]
 		- 20230112@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
+		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -81,8 +82,12 @@ BEGIN
 					,m.sporttype
 					,l.LeagueGroupID
 					,m.GlobalShowTime
+					,mr.NumberOfCorner
 			FROM	dbo.match AS m WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
+				OUTER APPLY (
+					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
+				)mr
 			WHERE	m.matchid = @matchID
 			UNION ALL
 			SELECT	m14.matchid
@@ -97,8 +102,12 @@ BEGIN
 					,m14.sporttype
 					,l.LeagueGroupID
 					,m14.globalshowtime
+					,mr.NumberOfCorner
 			FROM	dbo.match14 AS m14 WITH (NOLOCK) 
 				INNER JOIN dbo.league AS l WITH(NOLOCK) ON m14.leagueid = l.leagueid
+				OUTER APPLY (
+					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m14.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
+				)mr
 			WHERE	m14.matchid = @matchID		
 		END
 		ELSE IF @Type = 1
