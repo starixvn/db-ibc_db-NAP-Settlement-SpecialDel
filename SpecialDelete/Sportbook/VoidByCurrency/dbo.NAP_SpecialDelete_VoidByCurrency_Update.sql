@@ -64,6 +64,7 @@ AS
 		- 20220615@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 
 	Param's Explanation:
 */
@@ -299,10 +300,9 @@ BEGIN
 	BEGIN
 		;WITH CTE_CreditSit AS
 		(
-			SELECT [site]
+			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
 			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
-			WHERE isLicensee = 0		  
-			  AND isActive = 1
+			WHERE isLicensee = 0 AND isActive = 1
 		)
 		INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
 		SELECT cte.[site] AS LicenseeName, t.GroupName
@@ -311,11 +311,10 @@ BEGIN
 							SELECT cte.[site]
 							FROM CTE_CreditSit cte
 							WHERE CASE
-								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) THEN 1
-								WHEN t.GroupName = @789y_Name AND cte.[site] IN (@789y_Name, @y987_Name) THEN 1
-								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1
-								ELSE 0
-							END = 1
+								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) AND cte.SiteLabel <> @789y_Name THEN 1
+								WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
+								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 ELSE 0  
+								END = 1
 						 ) AS cte
 	END						 
 	
@@ -1344,12 +1343,13 @@ BEGIN
 		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 						,CASE 
 							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
-							WHEN c.site = '789y' THEN 2 --789y
+							WHEN s.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END AS '@sitetype'
 						,b.TransId AS '@transid'
 						,b.BetType AS '@bettype'
 					FROM #SpecialDeleteBets_Single b
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
 					FOR XML PATH('r'), ROOT('root')
 				)

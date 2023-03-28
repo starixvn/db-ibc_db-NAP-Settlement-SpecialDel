@@ -52,6 +52,7 @@ AS
 		- 20220812@Max: MPO - [TVS] wrong data insert into CustLimitBetQueue when transid list include both single and parlay ticket [Redmine: #176578]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -943,12 +944,13 @@ BEGIN
 		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 					,CASE 
 						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
-						WHEN c.site = '789y' THEN 2 --789y
+						WHEN s.SiteLabel = '789y' THEN 2 --789y
 						ELSE 1 END AS '@sitetype'
 					,b.TransId AS '@transid'
 					,b.bettype AS '@bettype'
 				FROM #tmpTransId b
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
 				WHERE b.matchid = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799)
 				FOR XML PATH('r'), ROOT('root')

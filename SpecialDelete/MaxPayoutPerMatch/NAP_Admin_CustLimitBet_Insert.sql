@@ -21,8 +21,9 @@ AS
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 		- 20221003@Victoria: Max Payout - Only retrieve ticket for each site base on site setting configuration [Redmine: #178536]
+		- 20230119@July: Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site - [Redmine: #182803]
 		- 20230301@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
-	
+
 	Param's explanation:	
 		
 */
@@ -96,13 +97,14 @@ BEGIN
 				SELECT @MatchId
 					, b.custid
 					,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
-							WHEN  c.site = '789y' THEN 2 --789y
+						WHEN  si.SiteLabel = '789y' THEN 2 --789y
 						ELSE 1 END
 					,b.transid
 					,m.sporttype
 					,b.bettype
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+					INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 					LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 				WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
@@ -126,11 +128,12 @@ BEGIN
 					SELECT @MatchId
 						, b.custid
 						,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
-								WHEN  c.site = '789y' THEN 2 --789y
+						WHEN  si.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END
 						,b.transid
 					FROM dbo.bettrans b WITH (NOLOCK)
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 					WHERE b.transid BETWEEN @MinTransId AND @MaxTransId
 						AND b.SiteDBGroupID = @SiteDBGroupID
@@ -149,12 +152,13 @@ BEGIN
 					SELECT @MatchId
 						, b.custid
 						,CASE WHEN s.custid IS NOT NULL THEN 3 --deposit
-								WHEN  c.site = '789y' THEN 2 --789y
+								WHEN  si.SiteLabel = '789y' THEN 2 --789y
 							ELSE 1 END
 						,b.transid
 					FROM @tmpRejectTransId t
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON t.transid = b.TransId				
 						INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
+						INNER JOIN CustDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
 						LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH (NOLOCK) ON s.custid = b.srecommend
 					WHERE b.SiteDBGroupID = @SiteDBGroupID
 						AND b.matchid = 29
