@@ -13,6 +13,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's explanation:	
 		- @AbnormalBetTransIds: '12343091763609600,12343108943478784'
@@ -158,7 +159,7 @@ BEGIN
 			,SiteDBGroupID
 			,winlostdate
 		)
-	SELECT b.matchid
+	SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -219,6 +220,7 @@ BEGIN
 		,b.winlostdate
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
+		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920

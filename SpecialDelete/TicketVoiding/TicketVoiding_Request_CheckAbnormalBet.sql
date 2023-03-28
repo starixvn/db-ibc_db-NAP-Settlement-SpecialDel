@@ -241,8 +241,7 @@ BEGIN
 		END
 
 		INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
-		SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE m.matchid END
-			, homeid, awayid, leagueid, sporttype, matchcode
+		SELECT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
 		FROM dbo.match m WITH(NOLOCK) 
 		WHERE matchid = @MatchId
 	END
