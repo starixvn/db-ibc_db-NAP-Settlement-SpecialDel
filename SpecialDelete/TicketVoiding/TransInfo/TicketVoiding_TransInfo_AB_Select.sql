@@ -159,7 +159,7 @@ BEGIN
 			,SiteDBGroupID
 			,winlostdate
 		)
-	SELECT b.matchid END
+	SELECT b.matchid
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
