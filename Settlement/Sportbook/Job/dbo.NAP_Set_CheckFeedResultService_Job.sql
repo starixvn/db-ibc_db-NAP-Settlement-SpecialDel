@@ -17,12 +17,13 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220512@Louisa: Add recipient [Redmine:#172713]
 		- 20221004@Victoria: Remove Test League out of provider result monitor job [Redmine: #178705]
+		- 20230328@Louisa: Remove singz.hsieh@onelab.tw [Redmine#185922]
 */
 BEGIN
 
 	DECLARE	  @BodyTemplate VARCHAR(MAX),	@Email_body VARCHAR(MAX)
 			, @SubjectTemplate VARCHAR(MAX), @Email_subject NVARCHAR(200)
-			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixvn.com;IT@starixvn.com;singz.hsieh@onelab.tw;kid.shih@onelab.tw;sean.lee@onelab.tw;leo.teng@onelab.tw'
+			, @Email_recipients VARCHAR(250) = 'michael.nguyen@starixvn.com;IT@starixvn.com;kid.shih@onelab.tw;sean.lee@onelab.tw;leo.teng@onelab.tw'
 			--LOCAL: N'dba_local@starixvn.com'
 			, @LastTime VARCHAR(200)
 			, @Check DATETIME
