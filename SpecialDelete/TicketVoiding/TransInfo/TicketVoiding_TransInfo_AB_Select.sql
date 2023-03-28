@@ -159,7 +159,7 @@ BEGIN
 			,SiteDBGroupID
 			,winlostdate
 		)
-	SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END
+	SELECT b.matchid END
 		,b.TransId
 		,b.transid AS SubTransID
 		,b.custid
@@ -220,19 +220,21 @@ BEGIN
 		,b.winlostdate
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-		CROSS APPLY (
-				SELECT m.matchid, m.sporttype, m.ChildMatchType, m.ParentID
-				FROM dbo.match m WITH (NOLOCK) 
-				WHERE m.matchid = b.matchid
-				UNION ALL
-				SELECT 29, NULL, NULL, NULL 
-				WHERE b.matchid = 29
-		)m
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND b.SiteDBGroupID = @SiteDBGroupID
+
+	--Update Main MatchID for child match cricket (Sporttype = 50)
+	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #TransInfo d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
 
 	IF EXISTS (SELECT TOP(1) 1 
 				FROM #transIdTemp t

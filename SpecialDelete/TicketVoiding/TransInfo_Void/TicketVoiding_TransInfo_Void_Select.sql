@@ -238,6 +238,16 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND d.TicketType <> 2
 		AND (b.matchid = @MatchId OR @MatchId IS NULL)
+
+	--Update Main MatchID for child match cricket (Sporttype = 50)
+	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #TransInfo d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
 	
 	--Search sub-parlay
 	IF EXISTS (
