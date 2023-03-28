@@ -307,21 +307,6 @@ BEGIN
 				   THEN 1
 				   ELSE 0 END
 
-	IF @FilterBy = 1
-	BEGIN
-		-- Unsupported mixparlay tickets have submatch cricket
-		INSERT #UnsupportedTransids (transid)
-		SELECT DISTINCT t.transid
-		FROM #validTransId t
-			CROSS APPLY (
-					SELECT value AS submatchId
-					FROM STRING_SPLIT (t.SubMatchIdList,',')
-			)s
-			INNER JOIN dbo.match m WITH(NOLOCK) ON s.submatchId = m.matchid
-		WHERE t.bettype = 29 AND t.betteam = '1'
-		AND t.transid NOT IN (SELECT transid FROM #UnsupportedTransids)
-	END	
-
 	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #UnsupportedTransids t
 									FOR XML PATH('')
