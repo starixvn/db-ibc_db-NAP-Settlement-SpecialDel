@@ -6,11 +6,10 @@ AS
 /* 
 	 Creator: Kathy  
 	 Date: 20230308@Kathy  
-	 Task: backup data of 2 table single_calculate_queue & parlay_calculate_queue [Redmine:#]  
-	  
-	   
+	 Task: backup data of 2 table single_calculate_queue & parlay_calculate_queue [Redmine:#184726]  
+	    
 	 Revisions:  
-		- 20230308@Kathy: create SP [Redmine:#]  
+		- 20230308@Kathy: create SP [Redmine:#184726]    
 		
 	 Param's Explanation:  
     
