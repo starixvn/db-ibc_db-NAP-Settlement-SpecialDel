@@ -3,8 +3,8 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Event
 (
 	 @matchid				INT = 0
 	,@DestinationMatchId	INT = 0 --for Move Ticket
-	,@Action				VARCHAR(10)
-	,@Mode					VARCHAR(10)
+	,@Action				VARCHAR(20)
+	,@Mode					VARCHAR(20) = NULL
 	,@IsAuto				BIT = 0
 	,@IsAutoRefund			BIT = 0
 	,@SPName				VARCHAR(255)
@@ -27,6 +27,7 @@ AS
 		- 20221201@Louisa: PinGoal ESports [Redmine:#180808]
 		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -113,7 +114,7 @@ BEGIN
 	SELECT @IsResultSettingChecking =  CASE WHEN  @SportType = 2 AND @LeagueGroupID = 122						THEN 0
 											WHEN  @SportType = 43 AND @LeagueGroupID = 151						THEN 0
 											WHEN  @Sporttype = 50 AND @ChildMatchType = 200  					THEN 0
-											WHEN  @Sporttype IN(6,9) AND @Action = 'REFUND' AND @IsAuto = 1		THEN 0	
+											WHEN  Setting & 4 > 0 AND @Action = 'REFUND' AND @IsAuto = 1		THEN 0	
 											ELSE  1
 										END
 	FROM dbo.SettlementResultTableSetting s WITH(NOLOCK)

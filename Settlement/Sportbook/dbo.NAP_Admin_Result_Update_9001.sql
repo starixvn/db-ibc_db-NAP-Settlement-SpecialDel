@@ -39,6 +39,7 @@ AS
 		- 20220512@Louisa: Auto settle Badminton [Redmine:#171676]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
+		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		
     Param's Explanation: 
     
@@ -51,7 +52,9 @@ AS
 BEGIN
     SET NOCOUNT ON 
 
-	DECLARE @IsApplyRefundSOP BIT
+	DECLARE @IsApplyRefundSOP	BIT
+		   ,@AutoSetting		TINYINT
+		   ,@HasAutoPayout		BIT = 0
 
 	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 2, 5, 6, 9, 43, 45,50) THEN 1
 									 ELSE 0
@@ -79,6 +82,7 @@ BEGIN
     -------------END DECLARE    
     
 	SELECT @ResultTable =  r.ResultTable
+		  ,@AutoSetting	=  ISNULL(r.Setting,0)
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
 	WHERE r.Sporttype = @SportType
 		/*@ResultTable:
@@ -86,7 +90,7 @@ BEGIN
 				2: ResultDetailOS
 				3: ResultDetailES
 		*/
-
+	SET @HasAutoPayout = IIF(@AutoSetting & 2 > 0,1,0)
     --parse XML   
     EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedRID
     INSERT INTO @tblSelectedRID(ResourceID, HomeValue, AwayValue, OtherInfo)
@@ -112,7 +116,7 @@ BEGIN
     IF @action = 'CAL'
     BEGIN
        SET @SettlementStatusID 	=  4
-       SET @ResultStatusID 		=  CASE WHEN @IsAuto = 1 AND @Sporttype IN ( 5, 6, 9, 50 ) THEN 2 
+       SET @ResultStatusID 		=  CASE WHEN @IsAuto = 1 AND @HasAutoPayout = 1 THEN 2 
 										ELSE 5
 										END
     END 

@@ -55,6 +55,7 @@ AS
 			- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 			- 20230215@Aries: Apply Settlement by Profile for Remaining Sports - Fix issue [Redmine: #182677]
 			- 20230406@Louisa: Include marked ticket flow [Redmine:#186140]
+			- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -102,7 +103,7 @@ BEGIN
 			,@IsCentral			BIT
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
-	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT)
+	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, HasAutoPayout BIT)
 	DECLARE @tmpMatchStatus TABLE ( MatchStatus TINYINT )
 	DECLARE @tmpOverStatus  TABLE ( OverStatus TINYINT)
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
@@ -175,6 +176,7 @@ BEGIN
 		,BestOfMap						TINYINT
 		,OfferLive						BIT
 		,ResultTable					TINYINT
+		,HasAutoPayout					BIT
 	)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -217,8 +219,8 @@ BEGIN
 		SET @OverStatus = '0'
 	END
 
-	INSERT INTO @tmpSporttypes( Sporttype, ResultTable )
-	SELECT	DISTINCT f.[value], s.ResultTable
+	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, HasAutoPayout )
+	SELECT	DISTINCT f.[value], s.ResultTable, IIF((ISNULL(Setting,0) & 2) > 0, 1,0)
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype
@@ -279,6 +281,7 @@ BEGIN
 			,BestOfMap
 			,OfferLive
 			,ResultTable
+			,HasAutoPayout
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -315,6 +318,7 @@ BEGIN
 				,mr.BestOfMap
 				,mr.OfferLive
 				,s.ResultTable
+				,s.HasAutoPayout
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -341,7 +345,7 @@ BEGIN
 						WHERE r.matchid = m.matchid
 						ORDER BY r.StatusId DESC
 					) os
-		WHERE m.sporttype in ( 5, 6, 9,18, 50 )
+		WHERE m.HasAutoPayout = 1
 
 	END
 	ELSE
@@ -377,6 +381,7 @@ BEGIN
 			,BestOfMap
 			,OfferLive
 			,ResultTable
+			,HasAutoPayout
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -415,6 +420,7 @@ BEGIN
 				,mr.BestOfMap
 				,mr.OfferLive
 				,s.ResultTable
+				,s.HasAutoPayout
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
@@ -485,7 +491,7 @@ BEGIN
 						WHERE r.matchid = m.matchid
 						ORDER BY r.StatusId DESC
 					) os
-		WHERE m.sporttype in ( 5, 6, 9,18, 50 )
+		WHERE m.HasAutoPayout = 1
 
 	END	
 
