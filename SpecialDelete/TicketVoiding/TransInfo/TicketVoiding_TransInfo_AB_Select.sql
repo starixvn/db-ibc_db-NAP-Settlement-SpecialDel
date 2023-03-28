@@ -226,6 +226,7 @@ BEGIN
 				WHERE m.matchid = b.matchid
 				UNION ALL
 				SELECT 29, NULL, NULL, NULL 
+				WHERE b.matchid = 29
 		)m
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
