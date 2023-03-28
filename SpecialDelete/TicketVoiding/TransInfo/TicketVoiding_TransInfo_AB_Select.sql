@@ -220,7 +220,13 @@ BEGIN
 		,b.winlostdate
 	FROM #transIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = b.matchid
+		CROSS APPLY (
+				SELECT m.matchid, m.sporttype, m.ChildMatchType, m.ParentID
+				FROM dbo.match m WITH (NOLOCK) 
+				WHERE m.matchid = b.matchid
+				UNION ALL
+				SELECT 29, NULL, NULL, NULL 
+		)m
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.bettype NOT IN (805, 806)			
 		AND b.bettype NOT BETWEEN 901 AND 920
