@@ -10,6 +10,7 @@ AS
 
 	Revision:
 		- 20210316@Kathy: created SP [Redmine:#138281]
+		- 20230322@Louisa: support get result Game/Set/Interval [Redmine:#182007]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -40,7 +41,7 @@ BEGIN
 	;WITH cteSettlementPerformanceLog
 	AS (
 		SELECT ROW_NUMBER() OVER(PARTITION BY matchid, action, homescore, awayscore ORDER BY starttime ) AS rn
-			,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, IsAuto
+			,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action ,ActionId, IsAuto
 			,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
 		FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
 	)
@@ -58,7 +59,7 @@ BEGIN
 		FROM	bodb_Account.dbo.UserLog_P_SuspenderConfirm u with(nolock)
 	)
 	INSERT INTO #tmpData(Year, Month, Date, Weekday, sporttype, sportname, GroupName, LeagueName, matchid, hometeam, awayteam
-		, GlobalShowTime, keyscoreUser, SettleAction, SettlementStatus, ConfirmStatus
+		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus, ConfirmStatus
 		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold)
 	SELECT
 		YEAR(m.eventdate) [Year]
@@ -85,14 +86,6 @@ BEGIN
 		,CAST(s.Duration AS Float)/1000 AS 'Step3_Settle_Duration'
 		,s.IsHold 
 	FROM  cteSettlementPerformanceLog s
-		CROSS APPLY (
-			SELECT CASE 
-					WHEN action = 'CAL-HT' then 1
-					WHEN action = 'CAL-FT' then 2
-					WHEN action IN ('CAL-FT', 'CAL') THEN 2
-					ELSE 0
-				END	AS ActionId
-		)at
 		INNER JOIN bodb02.dbo.League l with(nolock)
 			on s.LeagueId = l.leagueid
 		INNER JOIN bodb02.dbo.LeagueGroup lg (NOLOCK)
@@ -117,7 +110,7 @@ BEGIN
 			(SELECT *
 			FROM	cteSuspenderConfirm u
 			WHERE	s.MatchId = u.matchid
-					AND u.ActionID = at.ActionId
+					AND u.ActionID = s.ActionId
 					AND 1 = CASE 
 								WHEN l.SportType = 1 AND u.rn = 1 THEN 1
 								WHEN l.sporttype <> 1 AND u.rnDESC = 1 THEN 1
@@ -127,7 +120,13 @@ BEGIN
 			)u
 		WHERE	s.rn = 1
 				AND m.eventdate >= @FromDate  and m.eventdate <= @ToDate
-				AND s.Action in('CAL-HT', 'CAL-FT', 'CAL')
+				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
+						 WHEN sp.sporttype = 43 AND lg.GroupID = 151 THEN 0 --pingoal
+						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
+						 WHEN sp.sporttype = 1 AND lg.GroupID IN ( 74, 108, 113 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
+					ELSE 1
+					END				 
+				AND s.Action <> 'CAL-PARLAY'
 		
 
 		SELECT *

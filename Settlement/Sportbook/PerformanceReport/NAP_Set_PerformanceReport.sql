@@ -15,6 +15,7 @@ AS
 		- 20220607@Kathy: correct condition to get cricket match [Redmine:#158811]
 		- 20221128@Kathy: Move table single/parlay queue_bk, SettlementPerformanceLog to bodb_CustomerLog_Archive [Redmine:#180941]
 		- 20230109@Kathy: Keyscore Performance Report - Add Game/Set Results of SOP Sports [Redmine:#182007]
+		- 20230322@Louisa: support get result Game/Set/Interval... [Redmine:#182007]
 */
 BEGIN
 	DECLARE @maxdate DATETIME
@@ -110,18 +111,21 @@ BEGIN
 	SELECT	 m.leagueid, m.homeid, m.awayid, m.kickofftime, m.globalshowtime
 			,d.matchid 
 			,CASE 
-				WHEN d.action = 'CAL-HT' AND f.ResourceID IS NULL THEN '01'
+				WHEN d.action IN ( 'CAL-HT', 'INST-HT') AND f.ResourceID IS NULL THEN '01'
 				WHEN f.ResourceID IS NULL THEN '00'
 				ELSE f.ResourceID
 			END AS ResourceID
 			,CASE 
-				WHEN d.action = 'CAL-HT' THEN 1
-				WHEN d.action = 'CAL-FT' THEN 2
+				WHEN d.action IN ('CAL-HT', 'INST-HT') THEN 1
+				WHEN d.action IN ('CAL-FT', 'INST-FT') THEN 2
 				WHEN d.action = 'CAL' AND f.ResourceID IS NULL THEN 2
 				ELSE f.ActionId
-			END
+			END AS ActionId
 			,d.starttime, d.exectime, d.duration
-			,CASE WHEN f.ResourceID IS NOT NULL AND f.ResourceID NOT IN ('00','01') THEN 'CAL-INTERVAL' ELSE d.action END
+			,CASE 
+				WHEN f.ResourceID IS NOT NULL AND f.ResourceID NOT IN ('00','01') THEN 'CAL-INTERVAL' 
+				ELSE d.action 
+				END AS action
 			, d.eventdate, d.sqlcommand, d.isauto, d.adminid, m.sporttype
 	FROM	#tmpDATA d
 		CROSS APPLY (
@@ -164,7 +168,7 @@ BEGIN
 									END
 						WHEN f.RoundID = '01' THEN 1 -- ht
 						WHEN f.RoundID = '00' THEN 2 -- ft
-						ELSE 100 + f.RoundID%8 -- 101-->130
+						ELSE 100 + f.RoundID%800 -- 101-->130
 					END AS ActionId
 			FROM	dbo.f_Set_MajorRound(m.SportType) f
 			WHERE	d.sqlCommand LIKE '%NAP_Admin_Settlement_Profile%'
@@ -190,13 +194,13 @@ BEGIN
 			SELECT	us.MatchID
 			FROM	bodb_CustomerLog.dbo.UserLog_Settle us WITH (NOLOCK)
 			WHERE	r.matchid = us.MatchID 
-					AND us.ActionID IN (81002,81003,81005,81019)
+					AND us.ActionID IN (81002,81003,81004,81005,81019)
 			GROUP BY us.MatchID
 			UNION ALL 
 			SELECT	us.MatchID
 			FROM	dbo.UserLog_Settle us WITH (NOLOCK)
 			WHERE	r.matchid = us.MatchID 
-					AND us.ActionID IN (81002,81003,81005,81019)
+					AND us.ActionID IN (81002,81003,81004,81005,81019)
 			GROUP BY us.MatchID
 		)l
 
