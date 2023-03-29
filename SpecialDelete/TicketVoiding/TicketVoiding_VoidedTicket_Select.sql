@@ -23,6 +23,7 @@ AS;
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's explanation:	
 		
@@ -34,6 +35,10 @@ BEGIN
 
 	CREATE TABLE #TmpMatch (Matchid INT, SettlementStatus TINYINT, IsOutright BIT)
 	DECLARE @tmpVoidingHistory TABLE (VoidingHistoryId INT)
+	DECLARE @tmpChildMatchCricket TABLE (
+		MatchId			INT
+		,ChildMatchId			INT
+	)
 
 	CREATE TABLE #tmpTicket
              (TransId         BIGINT,
@@ -138,6 +143,51 @@ BEGIN
 	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
 	FROM #tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+
+	--Child match cricket
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype = 50)
+	BEGIN
+		INSERT INTO @tmpChildMatchCricket (MatchId, ChildMatchId)
+		SELECT @MatchId, m.matchid
+		FROM dbo.match m WITH (NOLOCK)
+		WHERE m.ParentID = @MatchId
+			AND m.sporttype = 50 
+			AND m.ChildMatchType = 200
+	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
+	BEGIN
+		INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate)
+		SELECT	z.transid			
+				,z.matchid
+				,z.status
+				,z.VoidedTime
+				,z.custid
+				,z.winlost
+				,z.refno
+				,z.bettype
+				,z.odds
+				,z.oddsid
+				,z.winlostdate
+		FROM	@tmpChildMatchCricket cm 
+			CROSS APPLY (
+				SELECT	z.transid
+						,z.matchid
+						,z.status
+						,z.transdate AS VoidedTime
+						,z.custid
+						,z.winlost
+						,z.refno
+						,z.bettype
+						,z.odds
+						,z.oddsid
+						,z.winlostdate
+				FROM dbo.zzzbettrans z WITH(NOLOCK)
+					INNER JOIN @tmpVoidingHistory vh ON vh.VoidingHistoryId = z.VoidingHistoryId
+				WHERE (z.MatchId = cm.ChildMatchId OR @MatchId = 0)
+					AND z.SiteDBGroupID = @SiteDBGroupID
+			) z
+	END
 
 	--@IsMovebet = 0
 	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch 

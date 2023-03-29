@@ -11,6 +11,7 @@ AS;
 	Revisions: 
 		- 20220822@July: Create new SP - get total voided ticket [Redmine:#175412]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		
 	Param's explanation:	
 		@RequestInfo: <root><r req ="" vh="0" i="1" mid = ""/></root>
@@ -30,6 +31,11 @@ BEGIN
 		,TotalVoidedSingle	INT
 		,TotalVoidedParlay	INT
 		,TotalCancelCashOut INT
+	)
+
+	DECLARE @tmpChildMatchCricket TABLE (
+		MatchId			INT
+		,ChildMatchId			INT
 	)
 
 	INSERT INTO @tmpMatchVoidingHistory( 
@@ -59,6 +65,18 @@ BEGIN
 	FROM @tmpMatchVoidingHistory
 
 	-- single
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
+						INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
+	BEGIN
+		INSERT INTO @tmpChildMatchCricket (MatchId, ChildMatchId)
+		SELECT t.MatchId, m.matchid
+		FROM #tmpResult t 
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
+		WHERE m.sporttype = 50 
+			AND m.ChildMatchType = 200
+	END
+
+	-- single + cash out ticket	and exclude child match cricket
 	UPDATE vh 
 		SET TotalVoidedSingle = t.TotalVoidedSingle
 			,TotalVoidedParlay = t.TotalVoidedParlay
@@ -82,7 +100,7 @@ BEGIN
 			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END
 	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
 			
-	--parlay
+	--parlay and exclude child match cricket
 	UPDATE vh
 		SET TotalVoidedParlay = t.TotalVoidedParlay
 	FROM	@tmpMatchVoidingHistory vh
@@ -96,6 +114,44 @@ BEGIN
 			WHERE zm.SiteDBGroupID = @SiteDBGroupID AND (vh.MatchId = zm.matchid OR vh.MatchId = 0)
 			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END
 	) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
+
+	--Child match cricket
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
+	BEGIN
+		UPDATE vh 
+			SET TotalVoidedSingle += t.TotalVoidedSingle
+		FROM @tmpMatchVoidingHistory vh
+			INNER JOIN (
+				SELECT	vh.VoidingHistoryId
+						,SUM( CASE 
+								WHEN vh.IssueTypeId NOT IN (11,13,17) THEN 1
+								WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
+							ELSE 0 END
+							) AS TotalVoidedSingle
+						,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
+				FROM @tmpMatchVoidingHistory vh
+					INNER JOIN @tmpChildMatchCricket cm ON cm.MatchId = vh.MatchId
+					INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
+						ON vh.VoidingHistoryId = z.VoidingHistoryId 					
+				WHERE z.SiteDBGroupID = @SiteDBGroupID AND (cm.ChildMatchId = z.matchid OR vh.MatchId = 0)
+				GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END
+		) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
+
+		UPDATE vh
+			SET TotalVoidedParlay += t.TotalVoidedParlay
+		FROM	@tmpMatchVoidingHistory vh
+			INNER JOIN (
+				SELECT	vh.VoidingHistoryId
+						,COUNT(1) AS TotalVoidedParlay
+						,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
+				FROM	@tmpMatchVoidingHistory vh
+					INNER JOIN @tmpChildMatchCricket cm ON cm.MatchId = vh.MatchId
+					INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
+						ON	zm.VoidingHistoryId = vh.VoidingHistoryId 
+				WHERE zm.SiteDBGroupID = @SiteDBGroupID AND (cm.MatchId = zm.matchid OR vh.MatchId = 0)
+				GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END
+		) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
+	END
 
 	UPDATE t 
 		SET TotalVoidedSingle = ISNULL(vh.TotalVoidedSingle,0)
