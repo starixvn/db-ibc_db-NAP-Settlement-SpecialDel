@@ -138,11 +138,6 @@ BEGIN
 		INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) ON zm.VoidingHistoryId = vh.VoidingHistoryId 
 	WHERE (zm.MatchId = @MatchId OR @MatchId = 0)
 		AND zm.SiteDBGroupID = @SiteDBGroupID
-	
-	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)
-	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
-	FROM #tmpTicket t
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 
 	--Child match cricket
 	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype = 50)
@@ -188,6 +183,11 @@ BEGIN
 					AND z.SiteDBGroupID = @SiteDBGroupID
 			) z
 	END
+
+	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)
+	SELECT DISTINCT t.MatchId, m.SettlementStatus, CASE WHEN t.Bettype = 10 THEN 1 ELSE 0 END
+	FROM #tmpTicket t
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
 
 	--@IsMovebet = 0
 	IF  EXISTS ( SELECT TOP 1 1 FROM #TmpMatch 
