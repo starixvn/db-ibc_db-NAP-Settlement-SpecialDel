@@ -124,6 +124,7 @@ AS
 		- 20221005@Max: Special Delete - Void parlay ticket cause replication latency on DB052,DB053,DB061 [Redmine: #178736]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -341,8 +342,7 @@ BEGIN
 
 	CREATE TABLE #CTE_CustInfo(custid INT, username VARCHAR(30), username2 VARCHAR(50), site VARCHAR(10), currency TINYINT)
 	
-	DECLARE @LogData NVARCHAR(500)
-			,@CountTransId	INT
+	DECLARE @CountTransId	INT
 
 	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, status VARCHAR(20), Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -387,12 +387,6 @@ BEGIN
 						AND custid = @UserID
 						AND roleid>=5)
 	BEGIN
-		SELECT @LogData ='fail to void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' reason: ' + @Reason
-			
-		EXEC WriteLog_UserLog 
-			@UserID = @UserID, 
-			@Doing	= @LogData
-			
 		SELECT 113 AS ErrorCode
 			, 'Sorry. You can not process void bet due to either wrong password or insufficient permission!' AS ErrorMsg
 			, @NegativeBalanceUsers AS NegativeBalanceUsers
@@ -1565,15 +1559,6 @@ BEGIN
 				@MatchId= 29
 				,@TransidList = @MainParlay_MaxPO
 		END
-		-------------------------------------------------------
-		BEGIN
-			SELECT @LogData ='void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) 
-						+ ' from ' + CONVERT(VARCHAR(25), @FromTransdate) + ' to ' + CONVERT(VARCHAR(25), @ToTransdate) 
-						+ ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC
-		END				
-		EXEC WriteLog_UserLog 
-			@UserID = @UserID
-			,@Doing = @LogData
 		
 		-- CHECK IT GROUP or NOT ?   
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
@@ -1679,6 +1664,7 @@ BEGIN
 			END AS IsInstantSettlementTicket
 			,@sporttype AS SportTypeId
 			,al.SiteDBGroupId
+			,@MatchId AS MatchId
 		FROM	#BetDelete al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	

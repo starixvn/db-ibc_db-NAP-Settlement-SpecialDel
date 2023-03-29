@@ -5,8 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverMainParlayVSBetRadar_Upd]
     @IP							VARCHAR(15)
 AS
 /*  
-	Created by: Kent  
-	Date: 20170607
+	Created by: 20170607@Kent   
 	Task: 
 	DB: DBTXN/bodb02	    
 
@@ -18,6 +17,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -28,7 +28,6 @@ BEGIN
 	DECLARE @IsExistParlayVSBetradar	BIT = 0		  
 		  , @avaiableProcess			BIT	= 0
 		  , @isITAdmin					BIT	= 0
-		  , @LogData					NVARCHAR(500)
 		  , @before_yesterday			DATETIME
 		  , @CustIds					VARCHAR(MAX) = ''			  		  	    
 		  , @Movebetdate				DATETIME
@@ -419,13 +418,6 @@ BEGIN
 				@IsExistParlayVSBetradar	= 1				
 			, @IsReleased				= 1	
 			
-		--> Write log
-		SELECT @LogData = 'Recover bet have transid: ' + ISNULL(@TransIds, '') + ' IP: ' + ISNULL(@Ip, '')
-		
-		EXEC WriteLog_UserLog 
-				@UserId = @UserId,
-				@Doing = @LogData
-			
 		--> Build list of customer name with negative balance
 		SET @NegativeBalanceUsers = ''
 
@@ -489,7 +481,7 @@ BEGIN
 				r.LeagueId,
 				r.matchcode,
 				r.modds,
-
+				r.matchid,
 				r.SubStatus,
 				r.SubTransId,
 				r.SubBetCheck,
@@ -499,7 +491,6 @@ BEGIN
 				r.SubHdp2,
 				r.SubOdds,
 				r.SubTransdesc,
-
 				r.CustId AS UserId,
 				r.recommend AS AgentId,
 				ag.UserName AS AgentName,

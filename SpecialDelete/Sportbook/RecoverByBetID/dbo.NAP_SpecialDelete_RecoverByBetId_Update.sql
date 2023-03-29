@@ -20,6 +20,7 @@ AS
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:	
 */
@@ -126,7 +127,6 @@ BEGIN
 			@ErrCode			  INT = 0,
 			@ErrMsg				  NVARCHAR(MAX) = '',
 			@ReCalcMatches		  VARCHAR(MAX) = '',
-			@LogData			  NVARCHAR(MAX),
 			@MovebetDate		  DATETIME,
 			@SPName				  VARCHAR(500) = OBJECT_NAME(@@PROCID),
 			@MatchId			  INT,
@@ -601,11 +601,6 @@ BEGIN
 				,@TransidList = @TransIds_MaxPO
 		END
 	END
-	-------------------------------------------------------
-
-	SELECT @LogData = 'Recovered bets having transid: ' + @ValidTransIDs + ' IP: ' + @Ip;
-	
-	EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData;
 
 	------------------------------------------------------------------------------
 	--1. Table return error code/ msg

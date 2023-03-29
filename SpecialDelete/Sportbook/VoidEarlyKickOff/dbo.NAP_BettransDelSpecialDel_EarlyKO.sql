@@ -110,6 +110,7 @@ Revisions:
 	- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 	- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+	- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -159,8 +160,7 @@ BEGIN
 	BEGIN CATCH
 	END CATCH
 
-	DECLARE @eventdate		DATETIME 
-			,@LogData		NVARCHAR(500)     
+	DECLARE @eventdate		DATETIME      
 			,@Remark		VARCHAR(500) 
 			,@CountTransId	INT
 			,@FCUpdateTime		DATETIME2
@@ -187,10 +187,6 @@ BEGIN
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalSubParlay		INT = 0
 
-	DECLARE @ResultDetail3rd AS TABLE ([ResultID] [int] ,[GameID] [int] ,[Custom1] [nvarchar](50) )
-	DECLARE @queryResultDetail NVARCHAR(MAX) = ''
-	DECLARE @execSql NVARCHAR(MAX) = ''
-	
 	CREATE TABLE #tblBetType
 	(
 		Id				SMALLINT,		 				
@@ -327,12 +323,6 @@ BEGIN
 		AND roleid >= 5  
 	)  
 	BEGIN  
-		SELECT @LogData = 'fail to void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CAST(@KickOffDate AS VARCHAR(30)) + ' reason: ' + @reason  
-
-		EXEC WriteLog_UserLog   
-		@UserID = @UserID  
-		,@Doing = @LogData  
-
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'  
 		,@ErrCode = 113				 
 
@@ -1641,13 +1631,6 @@ BEGIN
 				@MatchId= 29
 				,@TransidList = @MainParlay_MaxPO
 		END
-		-------------------------------------------------------
-		
-		SELECT @LogData = 'Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' because of early kick off at ' + CONVERT(VARCHAR(23), @KickOffDate, 121)
-			 + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)), SPACE(1)) + ' reason: ' + @reason  + ' - ' + @ReasonSC
-
-		EXEC WriteLog_UserLog @UserID = @UserID  
-		,@Doing = @LogData		  
 
 		-- Output new message structure  
 		DECLARE @isITAdmin BIT   
@@ -1748,6 +1731,7 @@ BEGIN
 			,@isITAdmin AS IsITSupport
 			,al.Winlost
 			,@sporttype AS SportTypeId
+			,@MatchId AS MatchId
 		FROM (  
 			SELECT al.odds  
 			,al.odds AS choiceOdds 

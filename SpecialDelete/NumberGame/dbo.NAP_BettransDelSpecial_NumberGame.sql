@@ -15,8 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransDelSpecial_NumberGame]
 	,@ReasonSC		NVARCHAR(500)	= ''
 AS
 /*
-	Created by: Kathy
-	Date: 20131015
+	Created by: 20131015@Kathy
 	Task : SP deletebet (Number Game)
 	DB: DBTXN/bodb02
 	Original:account\deletebet.asp
@@ -43,7 +42,8 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]		
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
-		
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+
 	Param's Explanation: 
 		- @Opition: 
 			0: By MatchID
@@ -52,10 +52,8 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	-- check password
-	DECLARE @LogData 		NVARCHAR(4000)
-		, @Remark 			VARCHAR(500)
-		, @avaiableProcess 	BIT = 0
+	
+	DECLARE @avaiableProcess 	BIT = 0
 		, @spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 		, @ErrMsg					NVARCHAR(200)	= ''
 		, @ErrCode				INT				= 0	
@@ -78,17 +76,7 @@ BEGIN
 			WHERE userpwd = @UserPwd AND custid = @UserID AND roleid >= 5
 			)
 	BEGIN
-		SELECT @LogData = CASE 
-				WHEN @Option = 0 THEN 'fail to void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(30), @FromTransDate, 121) + ' to ' + CONVERT(VARCHAR(30), @ToTransDate, 121) + ' reason: ' + @reason
-				ELSE 'fail to void bet for BetId(s): ' + CASE 
-						WHEN @TransIds IS NULL THEN ''
-						ELSE @TransIds + ','
-						END + ' reason: ' + @reason
-				END
-
-		EXEC WriteLog_UserLog @UserID = @UserID
-			,@Doing = @LogData
-
+		
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'
 			,@ErrCode = 113
 
@@ -104,15 +92,12 @@ BEGIN
 	CREATE TABLE #TmpBallSequence (Seq	TINYINT)
 	
 	DECLARE @tblMatch TABLE (matchid INT PRIMARY KEY, seq INT)
-	DECLARE @check_MatchId INT
-		,@temp VARCHAR(4000)
 
 	BEGIN TRY
 		INSERT INTO #tblTransId (transid) 
 		SELECT DISTINCT CONVERT(BIGINT, value) 
 		FROM STRING_SPLIT(ISNULL(@TransIds, ''), ',') s
 	END TRY
-
 	BEGIN CATCH
 		SELECT @ErrCode = 114
 			,@ErrMsg = 'Invalid TransIds ' + ERROR_MESSAGE()
@@ -690,20 +675,7 @@ BEGIN
 					,@TransidList = @TransIds_MaxPO
 			END
 		END
-		-------------------------------------------------------
-		
-		SELECT @LogData = CASE 
-				WHEN @Option = 0 THEN 'void bet for matchid ' + CONVERT(VARCHAR(20), @MatchId) + ' from ' + CONVERT(VARCHAR(30), @FromTransDate, 121) 
-										+ ' to ' + CONVERT(VARCHAR(30), @ToTransDate, 121) + ' reason: ' + @Reason + ' - ' + @ReasonSC
-				ELSE 'void bet for BetId(s): ' + CASE 
-						WHEN @TransIds IS NULL THEN ''
-						ELSE @TransIds + ','
-						END + ' reason: ' + @Reason + ' - ' + @ReasonSC
-				END
 
-		EXEC WriteLog_UserLog @UserID = @UserID
-			,@Doing = @LogData
-		
 		-- Output new message structure
 		DECLARE @isITAdmin BIT 
 		

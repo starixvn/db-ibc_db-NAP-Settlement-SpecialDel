@@ -36,6 +36,7 @@ AS
 		- 20220518@July: [TVS] Update ChangeDate of CashoutSelling [Redmine: #172543]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Explanation's Param:
 
@@ -43,8 +44,7 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
-	DECLARE @LogData			NVARCHAR(500)
-		  , @avaiableProcess 	BIT = 0
+	DECLARE @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
 		  , @FCUpdateTime		DATETIME2
@@ -136,12 +136,6 @@ BEGIN
 						AND custid = @UserID
 						AND roleid>=5)
 	BEGIN
-		SELECT @LogData ='Fail to void Cash-Out transaction bet for betlist: ' + cast(@TransIds AS VARCHAR(8000)) + ' - Username: ' + @username + ' - reason: ' + @reason + + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) 
-		
-		EXEC WriteLog_UserLog 
-			@UserID = @UserID, 
-			@Doing	= @LogData
-			
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'
 			 , @ErrCode  = 113
 
@@ -414,19 +408,6 @@ BEGIN
 				WHERE t.TransId = s.TransID
 			)c
 	
-	--> write log								 
-	DECLARE @strMatch VARCHAR(100) = ''
-	
-	SELECT  @strMatch = @strMatch + CAST(matchid AS VARCHAR(15)) + ','
-	FROM	#tblMatchProcess
-	
-	SELECT @LogData ='Void CashOut transaction for matchid : ' + @strMatch + ' - Username: ' + @username
-					+ ' - reason: ' + @reason + ' - ' + @ReasonSC + ' IP=' + COALESCE(CAST(@IP AS VARCHAR(15)),SPACE(1)) 
-		
-	EXEC WriteLog_UserLog 
-		@UserID = @UserID, 
-		@Doing	= @LogData
-		
 	------ releasing SD process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
@@ -488,7 +469,7 @@ BEGIN
 			d.TransDate,
 			d.ExtraInfo,
 			d.BetdaqId,
-			-----------------------------	
+			d.matchid,
 			d.custid,
 			d.recommend,
 			ag.UserName AS AgUserName,
@@ -496,7 +477,6 @@ BEGIN
 			ma.UserName AS MagUserName,
 			d.srecommend,  
 			su.Username AS SagUserName, 
-			-----------------------------
 			ag.Site,
 			CASE 
 				WHEN d.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 

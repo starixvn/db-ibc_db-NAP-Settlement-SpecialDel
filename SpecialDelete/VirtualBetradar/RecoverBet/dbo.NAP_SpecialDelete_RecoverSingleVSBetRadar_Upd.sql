@@ -5,8 +5,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSingleVSBetRadar_Upd]
     @IP							VARCHAR(15)
 AS
 /*  
-	Created by: Kent  
-	Date: 20170607
+	Created by: 20170607@Kent  
 	Task: 
 	DB: DBTXN/bodb02	    
 
@@ -19,6 +18,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -37,7 +37,6 @@ BEGIN
 		  , @IsExistVSBetradar			  BIT = 0
 		  , @IsExistInspiredVS			  BIT = 0
 		  , @isITAdmin					  BIT	= 0
-		  , @LogData					  NVARCHAR(500)
 		  , @before_yesterday			  DATETIME
 		  , @cnt_Ticket					  INT = 0
 		  , @CustIds					  VARCHAR(MAX) = ''			  		 
@@ -851,14 +850,6 @@ BEGIN
 				,@sporttype = @sporttype
 				,@TransidList = @TransIds_MaxPO
 		END
-		-------------------------------------------------------
-		
-		--> Write log		
-		SELECT @LogData = 'Recover bet have transid: ' + ISNULL(@TransIds, '') + ' IP: ' + ISNULL(@Ip, '')
-	
-		EXEC WriteLog_UserLog 
-			 @UserId = @UserId,
-			 @Doing = @LogData							
 		
 		--> Build list of customer name with negative balance	: fix here				
 		SET @NegativeBalanceUsers = ''				
@@ -926,7 +917,7 @@ BEGIN
 				r.LeagueId,
 				r.matchcode,
 				r.modds,
-
+				r.matchid,
 				r.SubStatus,
 				r.SubTransId,
 				r.SubBetCheck,
@@ -936,7 +927,6 @@ BEGIN
 				r.SubHdp2,
 				r.SubOdds,
 				r.SubTransdesc,
-
 				r.CustId AS UserId,
 				r.recommend AS AgentId,
 				ag.UserName AS AgentName,
@@ -993,6 +983,14 @@ BEGIN
 				,@CompletedMatchIds AS CompletedMatchIds
 	END CATCH		
 	
+	DROP TABLE #tblTransIds
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #ReCalMatchID_InspiredVS
+	DROP TABLE #ReFundMatchID_InspiredVS
+	DROP TABLE #RecoverBet
+	DROP TABLE #beforeUpd
+	DROP TABLE #afterUpd
+
 	SET NOCOUNT OFF	
 END
 GO
