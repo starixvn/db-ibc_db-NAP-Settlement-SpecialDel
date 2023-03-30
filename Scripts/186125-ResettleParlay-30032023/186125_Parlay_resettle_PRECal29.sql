@@ -250,7 +250,7 @@ BEGIN
 END
 GO
 -----------STEP 2: UPDATE BETPARLAYRESULT VIA SP EXCREP ------------------
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 --should define primary key for the temporary tables
 CREATE TABLE #Result (transid BIGINT PRIMARY KEY, id INT IDENTITY (1,1))
 CREATE TABLE #Result_batch (transid BIGINT PRIMARY KEY)
