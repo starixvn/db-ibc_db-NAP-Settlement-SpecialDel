@@ -1,5 +1,5 @@
 -----------STEP 1: ALTER SP EXCREP ------------------
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_08]
 (
 	@transidlist VARCHAR(MAX) = ''
@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_08]
 /*	
 	Creator: Helen
 	Date: 20230330
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 
 	Revisions:
 		- 20230330@Helen: Resettle ticket for parlay  [Redmine:#186125]

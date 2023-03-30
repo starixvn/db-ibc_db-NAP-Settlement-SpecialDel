@@ -1,5 +1,5 @@
 -----------STEP 1: ALTER SP EXCREP ------------------
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_07]
 (
 	@transidlist VARCHAR(MAX) = ''
@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_07]
 /*	
 	Creator: Helen
 	Date: 20230330
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 
 	Revisions:
 		- 20230330@Helen: Resettle ticket for parlay  [Redmine:#186125]
@@ -123,14 +123,14 @@ BEGIN
 END
 GO
 -----------STEP 2: UPDATE bettrans VIA SP EXCREP ------------------
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*	
 	Creator: Helen
-	Date: 20220826
-	DB: DBTXN/bodb02
+	Date: 20230330
+	DB: DBCTG/bodb02
 
 	Revisions:
-		- 20220826@Helen: Resettle ticket for parlay  [Redmine:#177089]
+		- 20230330@Helen: Resettle ticket for parlay  [Redmine:#186125]
 
 */
 CREATE TABLE #tmpParlayBalanceBefore (transid BIGINT PRIMARY KEY, custid INT, balance money)
