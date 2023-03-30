@@ -16,6 +16,7 @@ AS
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -238,7 +239,6 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND d.TicketType <> 2
 		
-
 	--Update Main MatchID for child match cricket (Sporttype = 50)
 	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
