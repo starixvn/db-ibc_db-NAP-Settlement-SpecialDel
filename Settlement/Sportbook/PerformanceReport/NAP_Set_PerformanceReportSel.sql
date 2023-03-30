@@ -31,7 +31,7 @@ BEGIN
 		,keyscoreUser					NVARCHAR(50)
 		,SettleAction					VARCHAR(20)
 		,SettlementStatus				VARCHAR(20)
-		,ConfirmStatus					VARCHAR(20)
+		--,ConfirmStatus					VARCHAR(20)
 		,Step1_WaitforKeyscore_Duration INT
 		,Step2_WaitforSettle_Duration	INT
 		,Step3_Settle_Duration			INT
@@ -59,7 +59,7 @@ BEGIN
 		FROM	bodb_Account.dbo.UserLog_P_SuspenderConfirm u with(nolock)
 	)
 	INSERT INTO #tmpData(Year, Month, Date, Weekday, sporttype, sportname, GroupName, LeagueName, matchid, hometeam, awayteam
-		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus, ConfirmStatus
+		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus 
 		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold)
 	SELECT
 		YEAR(m.eventdate) [Year]
@@ -79,7 +79,7 @@ BEGIN
 		,s.Action AS SettleAction
 		--
 		,CASE WHEN s.IsAuto	= 1 THEN 'Auto settle' ELSE 'Manual settle' END AS SettlementStatus
-		,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus
+		/*,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus */
 		-- Duration
 		,ISNULL(CAST(DATEDIFF(MILLISECOND,CASE WHEN Action like 'Inst%' then s.ConfirmScoreDate else u.logdate end, s.Starttime) AS Float)/1000, 0) AS 'Step1_WaitforKeyscore_Duration'
 		,CAST(DATEDIFF(MILLISECOND,s.Starttime, s.Exectime) AS Float)/1000 AS 'Step2_WaitforSettle_Duration'
@@ -106,7 +106,7 @@ BEGIN
 			on a.teamid = m.awayid
 		LEFT JOIN bodb02.dbo.custinfo ci with(nolock)
 			on ci.custid = s.AdminId
-		OUTER APPLY
+		CROSS APPLY
 			(SELECT *
 			FROM	cteSuspenderConfirm u
 			WHERE	s.MatchId = u.matchid
@@ -130,6 +130,7 @@ BEGIN
 		
 
 		SELECT *
+			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
 		FROM #tmpData
 		WHERE sporttype = 1
 		ORDER BY [Year] DESC 
@@ -146,10 +147,10 @@ BEGIN
 		,[GlobalShowTime] DESC
 		,[keyscoreUser] DESC
 		,[SettleAction] DESC
-		,[SettlementStatus] DESC
-		,[ConfirmStatus] DESC
+		,[SettlementStatus] DESC 
 
 		SELECT *
+			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
 		FROM #tmpData
 		WHERE sporttype <> 1
 		ORDER BY [Year] DESC 
@@ -166,6 +167,5 @@ BEGIN
 		,[GlobalShowTime] DESC
 		,[keyscoreUser] DESC
 		,[SettleAction] DESC
-		,[SettlementStatus] DESC
-		,[ConfirmStatus] DESC
+		,[SettlementStatus] DESC 
 END
