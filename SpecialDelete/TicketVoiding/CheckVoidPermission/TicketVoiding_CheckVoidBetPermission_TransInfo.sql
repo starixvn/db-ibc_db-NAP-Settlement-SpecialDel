@@ -1,18 +1,19 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission_TransInfo] 
 (
-	@TransIds  VARCHAR(MAX) = NULL
+	@TransIds				VARCHAR(MAX) = NULL
+   ,@CancelCashOutTransIds	VARCHAR(MAX) = NULL
 )
 AS
 /*	
-	Created by: Max
-	Date 20221124
+	Created by: 20221124@Max
 	Task: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:	
 		- @TransIds: '12343091763609600,12343108943478784'
@@ -26,12 +27,22 @@ BEGIN
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY)
+	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY, IsCancelCashOut BIT DEFAULT(0))
 
-	INSERT INTO @TransIdTemp (transid)
-	SELECT DISTINCT value
-	FROM STRING_SPLIT(@TransIds, ',')
-	WHERE value <> ''
+	IF @TransIds IS NOT NULL
+	BEGIN
+		INSERT INTO @TransIdTemp (transid)
+		SELECT DISTINCT value
+		FROM STRING_SPLIT(@TransIds, ',')
+		WHERE value <> ''
+	END
+	IF @CancelCashOutTransIds IS NOT NULL
+	BEGIN
+		INSERT INTO @TransIdTemp (transid, IsCancelCashOut)
+		SELECT DISTINCT value, 1
+		FROM STRING_SPLIT(@CancelCashOutTransIds, ',')
+		WHERE value <> ''
+	END
 
 	CREATE TABLE #TransInfo (
 		matchid			INT
@@ -44,7 +55,9 @@ BEGIN
 	    ,IsMixParlay	BIT DEFAULT(0)
 	    ,IsMoved14		BIT DEFAULT(0)
 	    ,SiteDBGroupID	SMALLINT
-    )
+		,IsCancelCashOut BIT
+		,statuswinlost	TINYINT
+	)
 
 	--Search tickets single
 	INSERT INTO #TransInfo(
@@ -58,6 +71,8 @@ BEGIN
 		,IsMixParlay
 		,IsMoved14
 		,SiteDBGroupID
+		,IsCancelCashOut
+		,statuswinlost
 	)
 	SELECT b.matchid
 		,b.TransId
@@ -69,6 +84,8 @@ BEGIN
 		,CASE WHEN b.bettype IN (9,29,2799) THEN 1 ELSE 0 END IsMixParlay
 		,0 AS IsMoved14
 		,b.SiteDBGroupID
+		,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut
+		,b.statuswinlost
 	FROM @TransIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
@@ -89,6 +106,8 @@ BEGIN
 			,IsMixParlay 
 			,IsMoved14
 			,SiteDBGroupID
+			,IsCancelCashOut
+			,statuswinlost
 		)
 		SELECT bm.matchid
 			  ,bm.TransId
@@ -100,6 +119,8 @@ BEGIN
 			  ,1 AS IsMixParlay
 			  ,0 AS IsMoved14
 			  ,bm.SiteDBGroupID
+			  ,0 AS IsCancelCashOut
+			  ,bm.statuswinlost
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.transid
 		WHERE bm.SiteDBGroupID = @SiteDBGroupID
@@ -121,6 +142,8 @@ BEGIN
 			,IsMixParlay 
 			,IsMoved14 
 			,SiteDBGroupID
+			,IsCancelCashOut
+			,statuswinlost
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -132,6 +155,8 @@ BEGIN
 			,CASE WHEN b.bettype IN (9,29,2799) THEN 1 ELSE 0 END IsMixParlay
 			,1 AS IsMoved14 
 			,b.SiteDBGroupID
+			,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut
+			,b.statuswinlost
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
@@ -148,6 +173,8 @@ BEGIN
 		,IsMixParlay AS 'isP'
 		,IsMoved14 AS 'isM'
 		,SiteDBGroupID AS 'sitedb'
+		,IsCancelCashOut AS 'isCCO'
+		,statuswinlost AS 'statuswl'
 	FROM #TransInfo
 	FOR JSON PATH))
 

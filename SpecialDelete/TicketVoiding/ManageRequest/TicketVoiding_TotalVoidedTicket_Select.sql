@@ -1,16 +1,16 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_TotalVoidedTicket_Select]
+ALTER PROCEDURE [dbo].[TicketVoiding_TotalVoidedTicket_Select]
 ( 
 	@RequestInfo XML =''
 )
 AS;
-/*	Created by: July
-	Date 20220822
+/*	Created by: 20220822@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine:#175412]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20220822@July: Create new SP - get total voided ticket [Redmine:#175412]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		
 	Param's explanation:	
 		@RequestInfo: <root><r req ="" vh="0" i="1" mid = ""/></root>
@@ -29,6 +29,7 @@ BEGIN
 		,IssueTypeId		TINYINT
 		,TotalVoidedSingle	INT
 		,TotalVoidedParlay	INT
+		,TotalCancelCashOut INT
 	)
 
 	INSERT INTO @tmpMatchVoidingHistory( 
@@ -50,25 +51,29 @@ BEGIN
 		,IssueTypeId		TINYINT
 		,TotalVoidedSingle	INT
 		,TotalVoidedParlay	INT
+		,TotalCancelCashOut INT
 	)
 
 	INSERT INTO #tmpResult (RequestId, MatchId, IssueTypeId)
 	SELECT DISTINCT RequestId, MatchId, IssueTypeId
 	FROM @tmpMatchVoidingHistory
 
-	-- single + cash out ticket	
+	-- single
 	UPDATE vh 
 		SET TotalVoidedSingle = t.TotalVoidedSingle
-			,TotalVoidedParlay = CASE WHEN vh.IssueTypeId IN (11,13,17) THEN t.TotalVoidedParlay ELSE 0 END
+			,TotalVoidedParlay = t.TotalVoidedParlay
+			,TotalCancelCashOut = t.TotalCancelCashOut
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (11,13,17) THEN 1
+							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
 						) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
@@ -95,10 +100,12 @@ BEGIN
 	UPDATE t 
 		SET TotalVoidedSingle = ISNULL(vh.TotalVoidedSingle,0)
 			,TotalVoidedParlay = ISNULL(vh.TotalVoidedParlay,0)
+			,TotalCancelCashOut = ISNULL(vh.TotalCancelCashOut,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
 			SELECT	SUM(vh.TotalVoidedSingle) AS TotalVoidedSingle
 					,SUM(vh.TotalVoidedParlay) AS TotalVoidedParlay
+					,SUM(vh.TotalCancelCashOut) AS TotalCancelCashOut
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
 		) vh
@@ -107,6 +114,7 @@ BEGIN
 		   ,CASE WHEN IssueTypeId IN (13,17) THEN NULL ELSE matchid END AS matchid
 		   ,TotalVoidedSingle	
 		   ,TotalVoidedParlay	
+		   ,TotalCancelCashOut
 	FROM #tmpResult
 
 	DROP TABLE #tmpResult

@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission] 
-	 @TransInfoJson					VARCHAR(MAX) = NULL
+	 @TransInfoJson						VARCHAR(MAX) = NULL
 	,@IsCashOutAsUnSettledTicket		BIT = 0
 	,@MatchId							INT = NULL
 	,@IsHostVoidSettledTickets			BIT = 0
@@ -11,14 +11,14 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckVoidBetPermission]
 	,@ErrMsg							NVARCHAR(200) = '' OUTPUT
 AS
 /*  
-	Created by: Max
-	Date 20221124
+	Created by: 20221124@Max
 	Task: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -35,6 +35,7 @@ BEGIN
 			,@IsExistsSettledTickets BIT = 0
 			,@IsExistsInstantlySettledTickets BIT = 0
 			,@IsExistsSettledCashOutTickets BIT = 0
+			,@IsExistsSettledCancelCashOutTickets BIT = 0
 
 	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY)
 
@@ -51,6 +52,8 @@ BEGIN
 		,IsMixParlay BIT
 		,IsMoved14 BIT
 		,SiteDBGroupID SMALLINT
+		,IsCancelCashOut BIT
+		,statuswinlost TINYINT
 	)
 
 	INSERT INTO #tmpTransInfo( 
@@ -64,14 +67,16 @@ BEGIN
 		,IsMixParlay 
 		,IsMoved14 
 		,SiteDBGroupID
+		,IsCancelCashOut
+		,statuswinlost
 		)
-	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb
-	FROM string_split(@TransInfoJson, ',') f
+	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
-				SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb
+				SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT)
+				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT, isCCO BIT, statuswl TINYINT)
 		) tbl
 	WHERE f.value <> ''
 
@@ -231,13 +236,21 @@ BEGIN
 	-- check settled ticket cash out (single + ticket 14)
 	SET @IsExistsSettledCashOutTickets = (SELECT  TOP 1 1
 										  FROM #tmpTransInfo b
-										  WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2 AND b.IsMixParlay = 0
+										  WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2 AND b.IsMixParlay = 0 AND b.IsCancelCashOut = 0
 										  )
 	
+	-- check settled ticket CANCEL cash out (single + ticket 14) -- match settled
+	SET @IsExistsSettledCancelCashOutTickets = (SELECT  TOP 1 1
+										  FROM #tmpTransInfo b
+										  WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2 AND b.IsMixParlay = 0 AND b.IsCancelCashOut = 1
+												AND b.statuswinlost IS NOT NULL
+										  )
+
 
 	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
 											OR @IsExistsSettledParlayTickets = 1
-											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0) THEN 1
+											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0)
+											OR @IsExistsSettledCancelCashOutTickets = 1 THEN 1
 										ELSE 0 END
 
 	IF (

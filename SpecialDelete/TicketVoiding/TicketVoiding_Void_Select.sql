@@ -7,7 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Void_Select]
 	,@BetTypes			XML = NULL
 	,@LiveHomeScore		SMALLINT = NULL
 	,@LiveAwayScore		SMALLINT = NULL
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson		VARCHAR(MAX) = NULL
 )
 AS
 /*	Created by: Kathy
@@ -44,6 +44,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:	
 		
@@ -127,7 +128,9 @@ BEGIN
 		winlostdate			  DATETIME,
 		statusID			  TINYINT,
 		eventstatus			  NVARCHAR(50),
-		SiteDBGroupID		  SMALLINT
+		SiteDBGroupID		  SMALLINT,
+		IsCancelCashOut		  BIT, --Apply for issuetype: DA,RC,WC
+		statuswinlost		  TINYINT
     )
 
 	CREATE TABLE #tblBetType
@@ -223,6 +226,8 @@ BEGIN
 			  ,modds SMALLMONEY
 			  ,IsMixParlay BIT
 			  ,SiteDBGroupID SMALLINT
+			  ,IsCancelCashOut BIT
+			  ,statuswinlost TINYINT
 			)
 
 	INSERT INTO #tmpTransInfo( 
@@ -231,14 +236,14 @@ BEGIN
 	       ,Subcustid,Subhdp1,Subhdp2,Sublivehomescore,Subliveawayscore,Subliveindicator 
 	       ,Subodds,Suboddsspread,Subbetfrom,Subbettype,Subbetteam ,Subbetcheck,SubStatus,Subtransdate,SubTransdesc,SubstatusID 
 	       ,srecommend,mrecommend,recommend,creator,WalletType,RefCode,stake,oddstype,CurrencyName,betdaqid ,ExtraInfo ,BonusID ,winlost	
-	       ,actual_stake ,winlostdate,modds ,IsMixParlay ,SiteDBGroupID 
+	       ,actual_stake ,winlostdate,modds ,IsMixParlay ,SiteDBGroupID ,IsCancelCashOut ,statuswinlost
 		)
 	SELECT mid, t, s_t, ref, c, hdp1, hdp2, lh, la, li, o, oid, os
 		, bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid
 		, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
 		, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
 		, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
-		, acstake, wld, m, isP, sitedb
+		, acstake, wld, m, isP, sitedb ,isCCO ,statuswl
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -247,14 +252,14 @@ BEGIN
 						, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
 						, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
 						, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
-						, acstake, wld, m, isP, sitedb
+						, acstake, wld, m, isP, sitedb ,isCCO ,statuswl
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
 					, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
 					, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
 					, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
 					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
-					, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
+					, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT ,isCCO BIT ,statuswl TINYINT
 				)
 		) tbl
 	WHERE f.value <> ''
@@ -313,6 +318,7 @@ BEGIN
 				,IsMixParlay
 				,winlostdate
 				,SiteDBGroupID
+				,statuswinlost
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -359,6 +365,7 @@ BEGIN
 				,CASE WHEN @IssueTypeId = 11 AND @FilterBy = 1 THEN 1 ELSE 0 END AS IsMixParlay
 				,b.winlostdate
 				,b.SiteDBGroupID
+				,b.statuswinlost
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -492,6 +499,8 @@ BEGIN
 					,ActualStake
 					,matchid
 					,SiteDBGroupID
+					,IsCancelCashOut
+					,statuswinlost
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -547,14 +556,16 @@ BEGIN
 					,b.actual_stake AS ActualStake
 					,b.matchid
 					,b.SiteDBGroupID
+					,b.IsCancelCashOut
+					,b.statuswinlost
 			FROM #tmpTransInfo b	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-							WHERE transid = b.transid
-								AND matchid = b.matchid
-								AND RequestId = @RequestId
+							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
+								AND 1 = CASE WHEN IsCancelCO = 1 AND b.betdaqid = - 1 THEN 0 --case cancel CO voided -> running - NO show betlist
+											  ELSE 1 END
 					) ts
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			WHERE	b.matchId = @MatchId
@@ -620,6 +631,8 @@ BEGIN
 						,ActualStake
 						,matchid
 						,SiteDBGroupID
+						,IsCancelCashOut
+						,statuswinlost
 					)
 				SELECT 
 						bm.transid AS GroupID
@@ -672,13 +685,15 @@ BEGIN
 						,bm.actual_stake AS ActualStake
 						,bm.matchid
 						,bm.SiteDBGroupID
+						,0 AS IsCancelCashOut
+						,bm.statuswinlost
 				  FROM #tmpTransInfo bm
 						INNER JOIN #tblBettype tp
 							ON	bm.Subbettype = tp.Id
 						CROSS APPLY (
 									SELECT TOP (1) transid
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
-									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId
+									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId 
 							) ts
 				WHERE	bm.matchid = @MatchId
 						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -814,6 +829,8 @@ BEGIN
 					,ActualStake
 					,matchid
 					,SiteDBGroupID
+					,IsCancelCashOut
+					,statuswinlost
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -858,12 +875,16 @@ BEGIN
 					,b.actual_stake AS ActualStake
 					,b.matchid
 					,b.SiteDBGroupID
+					,b.IsCancelCashOut
+					,b.statuswinlost
 			FROM	#tmpTransInfo b
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   CROSS APPLY (
 							SELECT TOP (1) transid
 							FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
+							WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId 
+							AND 1 = CASE WHEN IsCancelCO = 1 AND b.betdaqid = - 1 THEN 0 --case cancel CO voided -> running - NO show betlist
+										 ELSE 1 END
 					) ts
 			WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
@@ -918,6 +939,8 @@ BEGIN
 						,ActualStake
 						,matchid
 						,SiteDBGroupID
+						,IsCancelCashOut
+						,statuswinlost
 					)
 				SELECT 
 						bm.transid AS GroupID
@@ -961,6 +984,8 @@ BEGIN
 						,bm.actual_stake AS ActualStake
 						,bm.matchid
 						,bm.SiteDBGroupID
+						,0 AS IsCancelCashOut
+						,bm.statuswinlost
 				FROM	#tmpTransInfo bm 
 						CROSS APPLY (
 									SELECT TOP (1) transid
@@ -1026,6 +1051,7 @@ BEGIN
 			,mainstatusid
 			,creator
 			,SiteDBGroupID
+			,statuswinlost
 		)
 		SELECT	
 			b.transid AS GroupId
@@ -1071,6 +1097,7 @@ BEGIN
 			,b.statusID AS mainstatusid
 			,b.creator
 			,b.SiteDBGroupID
+			,b.statuswinlost
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -1126,6 +1153,7 @@ BEGIN
 			    ,ActualStake
 				,matchid
 				,SiteDBGroupID
+				,statuswinlost
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1170,6 +1198,7 @@ BEGIN
 			    ,b.actual_stake AS ActualStake
 				,b.matchid
 				,b.SiteDBGroupID
+				,b.statuswinlost
 		FROM #tmpTransInfo b 
 			CROSS APPLY (
 					SELECT TOP 1 TransId
@@ -1224,6 +1253,7 @@ BEGIN
 					,ActualStake
 					,matchid
 					,SiteDBGroupID
+					,statuswinlost
 				)
 			SELECT 
 					bm.transid AS GroupID
@@ -1267,6 +1297,7 @@ BEGIN
 					,bm.actual_stake AS ActualStake
 					,bm.matchid
 					,bm.SiteDBGroupID
+					,bm.statuswinlost
 			FROM	#tmpTransInfo bm
 					CROSS APPLY (
 							SELECT TOP 1 rs.TransId
@@ -1323,6 +1354,7 @@ BEGIN
 				,matchid
 				,modds
 				,SiteDBGroupID
+				,statuswinlost
 			)
 		SELECT 
 				b.transid AS GroupID
@@ -1368,6 +1400,7 @@ BEGIN
 				,b.matchid
 				,b.modds
 				,b.SiteDBGroupID
+				,b.statuswinlost
 		FROM #tmpTransInfo b
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId	
 		WHERE b.IsMixParlay = 0
@@ -1414,6 +1447,7 @@ BEGIN
 					,ActualStake
 					,matchid
 					,SiteDBGroupID
+					,statuswinlost
 				)
 			SELECT 
 					t.transid AS GroupID
@@ -1457,6 +1491,7 @@ BEGIN
 					,t.actual_stake AS ActualStake
 					,t.matchid
 					,t.SiteDBGroupID
+					,t.statuswinlost
 			FROM	#tmpTransInfo t		
 			WHERE IsMixParlay = 1
 	END	
@@ -1635,7 +1670,11 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Credit' ELSE 'Credit (CO)' END AS OriginGroupName
+			   ,CASE WHEN c.site = 'CN88' THEN 'CN88'
+					 ELSE CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Credit (CO)'
+					           WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Credit (Cancel CO)' 
+							   ELSE 'Credit' END
+					END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -1658,6 +1697,8 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 			   ,s.SiteDBGroupID
+			   ,s.IsCancelCashOut
+			   ,s.statuswinlost
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1739,10 +1780,9 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 			   ,s.SiteDBGroupID
+			   ,s.IsCancelCashOut
+			   ,s.statuswinlost
 		FROM	#TVSTicketBets s 
-			--LEFT JOIN dbo.bettrans b WITH(NOLOCK)
-			--	ON	s.betid = b.transid
-			--		AND b.matchid = s.matchid 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit
@@ -1787,7 +1827,9 @@ BEGIN
 			   ,s.ExtraInfo
 			   ,s.IsCashOut
 			   ,s.GroupId
-			   ,CASE WHEN ISNULL(s.betdaqid,0) <> -2 THEN 'Deposit' ELSE 'Deposit (CO)' END AS OriginGroupName
+			   ,CASE WHEN s.betdaqid = -2 AND s.IsCancelCashOut <> 1 THEN 'Deposit (CO)' 
+					 WHEN s.betdaqid = -2 AND s.IsCancelCashOut = 1 THEN 'Deposit (Cancel CO)' 
+					 ELSE 'Deposit' END AS OriginGroupName
 			   ,s.WalletType		   
 			   ,s.MainTransId
 			   ,s.BonusID
@@ -1810,6 +1852,8 @@ BEGIN
 			   ,s.eventstatus
 			   ,s.SettlementStatus
 			   ,s.SiteDBGroupID
+			   ,s.IsCancelCashOut
+			   ,s.statuswinlost
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1889,6 +1933,8 @@ BEGIN
 		   ,s.eventstatus
 		   ,s.SettlementStatus
 		   ,s.SiteDBGroupID
+		   ,s.IsCancelCashOut 
+		   ,s.statuswinlost
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2003,6 +2049,8 @@ BEGIN
 		   ,ISNULL(si.IsChinaView,0) AS IsChinaView
 		   ,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 		   ,s.SiteDBGroupID
+		   ,ISNULL(s.IsCancelCashOut,0) AS IsCancelCashOut
+		   ,s.statuswinlost
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
@@ -2017,6 +2065,8 @@ BEGIN
 				WHEN s.OriginGroupName = 'Betfair' THEN 5
 				WHEN s.OriginGroupName = 'Credit (CO)' THEN 6
 				WHEN s.OriginGroupName = 'Deposit (CO)' THEN 7
+				WHEN s.OriginGroupName = 'Credit (Cancel CO)' THEN 8
+				WHEN s.OriginGroupName = 'Deposit (Cancel CO)' THEN 9
 			 END
 			, CASE WHEN s.SubGroupName NOT LIKE '%(Instant Settlement)' THEN 1
 				ELSE 2

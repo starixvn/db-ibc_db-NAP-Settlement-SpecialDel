@@ -12,11 +12,9 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
-	,@QueueIds			VARCHAR(MAX) = ''	OUTPUT
-	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX)	= NULL	OUTPUT
 AS
-/*	Created by: Kathy
-	Date 20181212
+/*	Created by: 20181212@Kathy
 	Task: view voided ticket [Redmine:#90155]
 	DB: DBTXN/bodb02
 	
@@ -28,6 +26,7 @@ AS
 		- 20211115@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
 		- 20211202@Max: TVS - Void Archived Tickets [Redmine: #140180]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 	
 	Param's explanation:	
 		
@@ -80,7 +79,20 @@ BEGIN
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
-	
+	ELSE IF @VoidingTypeId = 3 --Cancel CashOut
+	BEGIN
+		EXEC dbo.TicketVoiding_CancelCashOutType_Update
+			@RequestId = @RequestId
+			,@MatchId = @MatchId			
+			,@VoidingHistoryId = @VoidingHistoryId
+			,@TransIds = @TransIds
+			,@UserId = @UserId
+			,@IP = @IP
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
+			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+	END
 END
 GO
 

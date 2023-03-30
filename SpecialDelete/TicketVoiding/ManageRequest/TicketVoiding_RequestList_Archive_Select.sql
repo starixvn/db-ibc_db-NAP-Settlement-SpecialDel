@@ -35,6 +35,7 @@ AS
 		- 20220404@Max: [TVS] New issue type Wrong OU & 1H OU [Redmine: #170220]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:	
 		@Status: 
@@ -56,12 +57,13 @@ BEGIN
 		RequestId			INT
 		,VoidingHistoryId	INT
 		,VoidedBy			INT
-		,TotalSingle		INT
-		,TotalParlay		INT
+		,TotalVoidedSingle	INT
+		,TotalVoidedParlay	INT
+		,TotalCancelCashOut INT
 		,MatchId			INT
 		,IssueTypeId		INT
 	)
-
+	 
 	CREATE TABLE #tmpResult (
 		RequestId		INT
 		,SubIssueTypeId SMALLINT
@@ -81,8 +83,9 @@ BEGIN
 		,TransIds		VARCHAR(MAX)
 		,IssueTypeId	TINYINT
 		,LastVoidedBy	INT
-		,TotalSingle	INT
-		,TotalParlay	INT
+		,TotalVoidedSingle	INT
+		,TotalVoidedParlay	INT
+		,TotalCancelCashOut INT
 		,VoidFromTime	DATETIME
 		,VoidToTime		DATETIME
 		,FromWinlostDate DATETIME
@@ -371,29 +374,32 @@ BEGIN
 		
 	-- single ticket	
 	UPDATE vh 
-		SET TotalSingle = t.TotalVoidedSingle
+		SET TotalVoidedSingle = t.TotalVoidedSingle
 			,MatchId = t.matchid
-			,TotalParlay = CASE WHEN vh.IssueTypeId IN (11,13,17) THEN t.TotalVoidedParlay ELSE 0 END
+			,TotalVoidedParlay = t.TotalVoidedParlay
+			,TotalCancelCashOut = t.TotalCancelCashOut
 	FROM @tmpMatchVoidingHistory vh
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (11,13,17) THEN 1
+							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
 			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END 
 	) t 
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
-		
+	
 	--parlay
 	UPDATE vh
-		SET TotalParlay = TotalVoidedParlay
+		SET TotalVoidedParlay = t.TotalVoidedParlay
 			,MatchId = t.matchid
 	FROM	@tmpMatchVoidingHistory vh
 		INNER JOIN (
@@ -408,12 +414,14 @@ BEGIN
 		ON	vh.VoidingHistoryId = t.VoidingHistoryId
 
 	UPDATE t 
-		SET TotalSingle = ISNULL(vh.TotalSingle,0)
-			,TotalParlay = ISNULL(vh.TotalParlay,0)
+		SET TotalVoidedSingle = ISNULL(vh.TotalVoidedSingle,0)
+			,TotalVoidedParlay = ISNULL(vh.TotalVoidedParlay,0)
+			,TotalCancelCashOut = ISNULL(vh.TotalCancelCashOut,0)
 	FROM	#tmpResult t
 		CROSS APPLY (
-			SELECT	SUM(vh.TotalSingle) AS TotalSingle
-					,SUM(vh.TotalParlay) AS TotalParlay
+			SELECT	SUM(vh.TotalVoidedSingle) AS TotalVoidedSingle
+					,SUM(vh.TotalVoidedParlay) AS TotalVoidedParlay
+					,SUM(vh.TotalCancelCashOut) AS TotalCancelCashOut
 			FROM	@tmpMatchVoidingHistory vh
 			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
 		) vh
@@ -435,8 +443,9 @@ BEGIN
 			,t.DecidedBy
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
-			,t.TotalSingle AS TotalVoidedSingle
-			,t.TotalParlay AS TotalVoidedParlay
+			,t.TotalVoidedSingle
+			,t.TotalVoidedParlay
+			,t.TotalCancelCashOut
 			,CASE WHEN t.IssueTypeId IN (11,15,17) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
 			,CASE WHEN t.IssueTypeId IN (17) THEN LEN(ISNULL(p.TransIds,'')) - LEN(REPLACE(ISNULL(p.TransIds,''), ',', ''))  ELSE 0 END AS TotalParlay
 			,CASE WHEN t.IssueTypeId IN (11,15) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds

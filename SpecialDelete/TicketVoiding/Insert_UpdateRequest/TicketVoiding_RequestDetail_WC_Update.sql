@@ -20,6 +20,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20221125@July: TVS - VAR message [Redmine: #178088]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 
 	Param's explanation:
 */
@@ -59,7 +60,7 @@ BEGIN
 			,TypeAccept				VARCHAR(300)
 			,SubIssueTypeId			SMALLINT
 			)
-	CREATE TABLE #TVSTicketBets (MatchId INT, TransId BIGINT, SubTransId BIGINT, VoidFromTime DATETIME, VoidToTime DATETIME, bettype SMALLINT, betid BIGINT, CustId INT, IsMixParlay BIT, SiteDBGroupID SMALLINT)
+	CREATE TABLE #TVSTicketBets (MatchId INT, TransId BIGINT, SubTransId BIGINT, VoidFromTime DATETIME, VoidToTime DATETIME, bettype SMALLINT, betid BIGINT, CustId INT, IsMixParlay BIT, SiteDBGroupID SMALLINT, IsCancelCashOut BIT)
 	CREATE TABLE #tmpTransInfo(
 			 matchid		INT
 			,transid		BIGINT
@@ -71,6 +72,7 @@ BEGIN
 			,checktime      DATETIME
 			,IsMixParlay	BIT
 			,SiteDBGroupID  SMALLINT
+			,IsCancelCashOut BIT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
@@ -83,10 +85,11 @@ BEGIN
 		  ,checktime  
 		  ,IsMixParlay
 		  ,SiteDBGroupID
+		  ,IsCancelCashOut
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,bid ,tdate, CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,isP ,sitedb
+	SELECT mid ,t ,s_t ,c ,btype ,bid ,tdate, CASE WHEN checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE checkt END AS checkt ,isP ,sitedb ,isCCO
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT, tdate DATETIME , checkt DATETIME ,isP BIT ,sitedb SMALLINT
+	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT, tdate DATETIME , checkt DATETIME ,isP BIT ,sitedb SMALLINT, isCCO BIT
 	) tbl
 
 	SET @WrongScoreInfoXML = CONVERT(xml, @WrongScoreInfo)
@@ -212,7 +215,7 @@ BEGIN
 		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay
 		WHERE RequestId = @RequestId
 	END
-	INSERT INTO #TVSTicketBets (MatchId, TransId, SubTransId, VoidFromTime, VoidToTime, bettype, betid, CustId, IsMixParlay, SiteDBGroupID)
+	INSERT INTO #TVSTicketBets (MatchId, TransId, SubTransId, VoidFromTime, VoidToTime, bettype, betid, CustId, IsMixParlay, SiteDBGroupID, IsCancelCashOut)
 	SELECT b.matchid
 			, b.transid
 			, b.Subtransid
@@ -222,12 +225,14 @@ BEGIN
 			, b.betid
 			, b.custid
 			, b.IsMixParlay
-			,b.SiteDBGroupID
+			, b.SiteDBGroupID
+			, b.IsCancelCashOut
 		FROM #tmpTransInfo b 
 			INNER JOIN #tblGetLogInfo d ON d.MatchID = b.matchid
 		WHERE 1 = CASE WHEN d.FilterBy = 1 AND b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
-						 WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
-						 WHEN d.FilterBy = 4 AND ((b.checktime BETWEEN d.VoidFromTime AND d.VoidToTime) OR (b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime)) THEN 1
+					   WHEN d.FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.VoidFromTime AND d.VoidToTime THEN 1
+					   WHEN d.FilterBy = 4 AND ((b.checktime BETWEEN d.VoidFromTime AND d.VoidToTime) OR (b.transdate BETWEEN d.VoidFromTime AND d.VoidToTime)) THEN 1
+					   WHEN b.IsCancelCashOut = 1 THEN 1 
 					ELSE 0 END 
 
 	SELECT @SingleCount = SUM(SingleCount)
@@ -236,7 +241,7 @@ BEGIN
 	
 	IF @SingleCount > 0
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
+		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
 		SELECT @RequestId
 			, @IssueTypeId
 			, rd.SubIssueTypeId
@@ -247,6 +252,7 @@ BEGIN
 			, t.betid
 			, t.CustId
 			, t.SiteDBGroupID
+			, t.IsCancelCashOut
 		FROM #TVSTicketBets t
 			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
 		WHERE rd.RequestId = @RequestId  AND t.IsMixParlay = 0
