@@ -50,17 +50,6 @@ BEGIN
 	FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON r.RequestId = vh.RequestId	
 	WHERE	r.RequestId = @RequestId
-
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
-						INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
-	BEGIN
-		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
-		SELECT t.RequestId, t.MatchId, m.matchid
-		FROM #tmpResult t 
-			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
-		WHERE m.sporttype = 50 
-			AND m.ChildMatchType = 200
-	END
 	
 	-- single
 	UPDATE vh 
@@ -101,6 +90,17 @@ BEGIN
 						 ELSE 0 END
 			GROUP BY zm.matchid
 	) t
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
+						INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
+	BEGIN
+		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
+		SELECT t.RequestId, t.MatchId, m.matchid
+		FROM #tmpResult t 
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
+		WHERE m.sporttype = 50 
+			AND m.ChildMatchType = 200
+	END
 
 	--Child match cricket
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
