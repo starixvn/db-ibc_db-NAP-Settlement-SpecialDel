@@ -28,8 +28,8 @@ BEGIN
 		,VoidingHistoryId	INT
 		,MatchId			INT
 		,IssueTypeId		TINYINT
-		,TotalVoidedSingle	INT
-		,TotalVoidedParlay	INT
+		,TotalVoidedSingle	INT DEFAULT (0)
+		,TotalVoidedParlay	INT DEFAULT (0)
 		,TotalCancelCashOut INT
 	)
 
@@ -55,8 +55,8 @@ BEGIN
 		 RequestId			INT
 		,MatchId			INT
 		,IssueTypeId		TINYINT
-		,TotalVoidedSingle	INT
-		,TotalVoidedParlay	INT
+		,TotalVoidedSingle	INT DEFAULT (0)
+		,TotalVoidedParlay	INT DEFAULT (0)
 		,TotalCancelCashOut INT
 	)
 
