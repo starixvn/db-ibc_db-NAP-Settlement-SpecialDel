@@ -34,7 +34,8 @@ BEGIN
 	)
 
 	DECLARE @tmpChildMatchCricket TABLE (
-		MatchId			INT
+		RequestId	INT
+		,MatchId			INT
 		,ChildMatchId			INT
 	)
 
@@ -68,8 +69,8 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
 						INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
 	BEGIN
-		INSERT INTO @tmpChildMatchCricket (MatchId, ChildMatchId)
-		SELECT t.MatchId, m.matchid
+		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
+		SELECT t.RequestId, t.MatchId, m.matchid
 		FROM #tmpResult t 
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
 		WHERE m.sporttype = 50 
@@ -130,7 +131,7 @@ BEGIN
 							) AS TotalVoidedSingle
 						,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
 				FROM @tmpMatchVoidingHistory vh
-					INNER JOIN @tmpChildMatchCricket cm ON cm.MatchId = vh.MatchId
+					INNER JOIN @tmpChildMatchCricket cm ON cm.MatchId = vh.MatchId AND cm.RequestId = vh.RequestId
 					INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
 						ON vh.VoidingHistoryId = z.VoidingHistoryId 					
 				WHERE z.SiteDBGroupID = @SiteDBGroupID AND (cm.ChildMatchId = z.matchid OR vh.MatchId = 0)
@@ -145,7 +146,7 @@ BEGIN
 						,COUNT(1) AS TotalVoidedParlay
 						,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
 				FROM	@tmpMatchVoidingHistory vh
-					INNER JOIN @tmpChildMatchCricket cm ON cm.MatchId = vh.MatchId
+					INNER JOIN @tmpChildMatchCricket cm ON cm.MatchId = vh.MatchId AND cm.RequestId = vh.RequestId
 					INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 						ON	zm.VoidingHistoryId = vh.VoidingHistoryId 
 				WHERE zm.SiteDBGroupID = @SiteDBGroupID AND (cm.MatchId = zm.matchid OR vh.MatchId = 0)
