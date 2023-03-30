@@ -93,7 +93,7 @@ BEGIN
 						INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
 	BEGIN
 		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
-		SELECT t.RequestId, t.MatchId, m.matchid
+		SELECT DISTINCT t.RequestId, t.MatchId, m.matchid
 		FROM #tmpResult t 
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
 		WHERE m.sporttype = 50 

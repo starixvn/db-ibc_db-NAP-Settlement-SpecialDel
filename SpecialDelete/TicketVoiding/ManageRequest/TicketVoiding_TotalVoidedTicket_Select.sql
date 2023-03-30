@@ -65,7 +65,6 @@ BEGIN
 	SELECT DISTINCT RequestId, MatchId, IssueTypeId
 	FROM @tmpMatchVoidingHistory
 
-	-- single
 	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
 						INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
 	BEGIN
