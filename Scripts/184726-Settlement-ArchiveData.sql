@@ -1,4 +1,4 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog_archive,DBLOG_STANDBY-bodb_CustomerLog_archive" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBLOG-bodb_CustomerLog_archive" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 /* 
 	 Creator: Kathy  
 	 Date: 20230308@Kathy  
