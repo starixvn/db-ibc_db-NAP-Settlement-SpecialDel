@@ -38,8 +38,7 @@ BEGIN
 		  , @end			INT
 		  , @IssueTypeId	INT = NULL
 	
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, MatchId INT, IssueTypeId INT, TicketType TINYINT) --1: single(exclude cancel CO), 2 parlay, 3: cancel CO
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, MatchId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId INT, IsCricket BIT DEFAULT(0))
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, MatchId INT, IssueTypeId INT, TicketType TINYINT, IsMixParlay BIT DEFAULT(0), IsCricket BIT DEFAULT(0)) --1: single(exclude cancel CO), 2 parlay, 3: cancel CO
 
 	DECLARE @tmpMatchId AS TABLE (ID INT IDENTITY(1,1), MatchId INT)
 	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT)
@@ -61,11 +60,15 @@ BEGIN
 	END
 
 	IF @CancelCashOutTicketsJSON IS NOT NULL
-	IF @CricketTicketsJSON IS NOT NULL
 	BEGIN
 		INSERT INTO #tmpInputTransId (TransId, MatchId, IssueTypeId, TicketType)
 		SELECT tbl.TransId, tbl.MatchId, tbl.IssueTypeId, 3
 		FROM OPENJSON(@CancelCashOutTicketsJSON)
+			WITH (MatchId INT, TransId BIGINT, IssueTypeId INT) tbl
+	END
+
+	IF @CricketTicketsJSON IS NOT NULL
+	BEGIN		
 		INSERT INTO #tmpInputTransId (TransId, MatchId, IssueTypeId, IsCricket)
 		SELECT tbl.TransId, tbl.MatchId, tbl.IssueTypeId, 1
 		FROM OPENJSON(@CricketTicketsJSON)
@@ -85,8 +88,7 @@ BEGIN
 		FROM @tmpMatchId
 		WHERE ID = @start
 
-		IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId WHERE TicketType = 1)
-		IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId WHERE IsMixParlay = 0 AND IsCricket = 0)
+		IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId WHERE TicketType = 1 AND IsCricket = 0)
 		BEGIN
 			WHILE (1=1)
 			BEGIN

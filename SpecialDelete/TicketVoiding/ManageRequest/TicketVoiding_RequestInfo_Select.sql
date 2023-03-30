@@ -29,10 +29,8 @@ BEGIN
 		,MatchId		INT
 		,IssueTypeId	TINYINT
 		,LastVoidedBy	INT
-		,TotalVoidedSingle	INT
-		,TotalVoidedParlay	INT
-		,TotalSingle	INT DEFAULT (0)
-		,TotalParlay	INT DEFAULT (0)
+		,TotalVoidedSingle	INT DEFAULT (0)
+		,TotalVoidedParlay	INT DEFAULT (0)
 		,TotalCancelCashOut INT
 		,VoidingHistoryId	INT
 	)
@@ -105,35 +103,45 @@ BEGIN
 	--Child match cricket
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
 	BEGIN
+		-- single
 		UPDATE vh 
-			SET TotalSingle += ISNULL(t.TotalVoidedSingle,0)
-				,MatchId = t.MatchId
+			SET TotalVoidedSingle += t.TotalVoidedSingle
+				,TotalCancelCashOut += t.TotalCancelCashOut
+				,MatchId = t.matchid
 		FROM #tmpResult vh
 			CROSS APPLY (
-				SELECT	COUNT(1) AS TotalVoidedSingle, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
-				FROM dbo.zzzbettrans z WITH(NOLOCK)
+				SELECT CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
+						,SUM( CASE 
+								WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3) THEN 1
+								WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+								WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
+							ELSE 0 END
+						) AS TotalVoidedSingle
+						,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+				FROM #tmpResult vh
+					INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON vh.VoidingHistoryId = z.VoidingHistoryId
 					INNER JOIN @tmpChildMatchCricket cm ON cm.ChildMatchId = z.matchid
-				WHERE vh.VoidingHistoryId = z.VoidingHistoryId 
-				AND cm.RequestId = vh.RequestId
-				AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
-							 WHEN @MatchId NOT IN (0,29) AND cm.matchid = @MatchId THEN 1
+				WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
+							   WHEN @MatchId NOT IN (0,29) AND cm.matchid = @MatchId THEN 1
 							 ELSE 0 END
+					AND cm.RequestId = vh.RequestId
 				GROUP BY CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END
 		) t 
-
+		
+		--parlay
 		UPDATE vh
-			SET TotalParlay += ISNULL(TotalVoidedParlay,0)
+			SET TotalVoidedParlay = t.TotalVoidedParlay
 			,MatchId = t.MatchId
 		FROM	#tmpResult vh
 			CROSS APPLY (
 				SELECT COUNT(1) AS TotalVoidedParlay, cm.matchid
-				FROM dbo.zzzbettransm zm WITH(NOLOCK)	
+				FROM dbo.zzzbettransm zm WITH(NOLOCK)
 					INNER JOIN @tmpChildMatchCricket cm ON cm.ChildMatchId = zm.matchid
 				WHERE zm.VoidingHistoryId = vh.VoidingHistoryId
-				AND cm.RequestId = vh.RequestId
 				AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
 							 WHEN @MatchId NOT IN (0,29) AND cm.matchid = @MatchId THEN 1
 							 ELSE 0 END
+				AND cm.RequestId = vh.RequestId
 				GROUP BY cm.matchid
 		) t
 	END
