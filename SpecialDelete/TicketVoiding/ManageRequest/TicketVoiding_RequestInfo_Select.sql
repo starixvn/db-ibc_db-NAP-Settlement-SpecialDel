@@ -16,6 +16,7 @@ AS
 		- 20220413@July: TVS - New issue type Wrong OU and Wrong 1H OU [Redmine: #170220]
 		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's explanation:
 		
@@ -30,9 +31,17 @@ BEGIN
 		,LastVoidedBy	INT
 		,TotalVoidedSingle	INT
 		,TotalVoidedParlay	INT
+		,TotalSingle	INT DEFAULT (0)
+		,TotalParlay	INT DEFAULT (0)
 		,TotalCancelCashOut INT
 		,VoidingHistoryId	INT
 	)
+	DECLARE @tmpChildMatchCricket TABLE (
+		RequestId	INT
+		,MatchId			INT
+		,ChildMatchId			INT
+	)
+
 	INSERT INTO #tmpResult(RequestId, IssueTypeId, VoidingHistoryId, LastVoidedBy)
 	SELECT r.RequestId
 			,r.IssueTypeId
@@ -41,6 +50,17 @@ BEGIN
 	FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON r.RequestId = vh.RequestId	
 	WHERE	r.RequestId = @RequestId
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
+						INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
+	BEGIN
+		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
+		SELECT t.RequestId, t.MatchId, m.matchid
+		FROM #tmpResult t 
+			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
+		WHERE m.sporttype = 50 
+			AND m.ChildMatchType = 200
+	END
 	
 	-- single
 	UPDATE vh 
@@ -81,6 +101,42 @@ BEGIN
 						 ELSE 0 END
 			GROUP BY zm.matchid
 	) t
+
+	--Child match cricket
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
+	BEGIN
+		UPDATE vh 
+			SET TotalSingle += ISNULL(t.TotalVoidedSingle,0)
+				,MatchId = t.MatchId
+		FROM #tmpResult vh
+			CROSS APPLY (
+				SELECT	COUNT(1) AS TotalVoidedSingle, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
+				FROM dbo.zzzbettrans z WITH(NOLOCK)
+					INNER JOIN @tmpChildMatchCricket cm ON cm.ChildMatchId = z.matchid
+				WHERE vh.VoidingHistoryId = z.VoidingHistoryId 
+				AND cm.RequestId = vh.RequestId
+				AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
+							 WHEN @MatchId NOT IN (0,29) AND cm.matchid = @MatchId THEN 1
+							 ELSE 0 END
+				GROUP BY CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END
+		) t 
+
+		UPDATE vh
+			SET TotalParlay += ISNULL(TotalVoidedParlay,0)
+			,MatchId = t.MatchId
+		FROM	#tmpResult vh
+			CROSS APPLY (
+				SELECT COUNT(1) AS TotalVoidedParlay, cm.matchid
+				FROM dbo.zzzbettransm zm WITH(NOLOCK)	
+					INNER JOIN @tmpChildMatchCricket cm ON cm.ChildMatchId = zm.matchid
+				WHERE zm.VoidingHistoryId = vh.VoidingHistoryId
+				AND cm.RequestId = vh.RequestId
+				AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
+							 WHEN @MatchId NOT IN (0,29) AND cm.matchid = @MatchId THEN 1
+							 ELSE 0 END
+				GROUP BY cm.matchid
+		) t
+	END
 	
 	--Return Data
 	SELECT TOP(1)
