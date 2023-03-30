@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlayBet_Update]  
-	  @MatchID				INT 
+	  @MatchId				INT 
 	, @Type					SMALLINT		= 0   
 	, @LiveHomeScore		SMALLINT		= NULL
 	, @LiveAwayScore		SMALLINT		= NULL    
@@ -51,6 +51,7 @@ AS
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -71,8 +72,40 @@ AS
 */  
 BEGIN   
 	SET NOCOUNT ON  
-   
-	DECLARE @avaiableProcess	BIT = 1
+	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidParlayBet_Update '
+					+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @Type IS NULL THEN '' ELSE ',@Type = ' + CONVERT(NVARCHAR(50), @Type) END
+					+ CASE WHEN @LiveHomeScore IS NULL THEN '' ELSE ',@LiveHomeScore = ' + CONVERT(NVARCHAR(50), @LiveHomeScore) END
+					+ CASE WHEN @LiveAwayScore IS NULL THEN '' ELSE ',@LiveAwayScore = ' + CONVERT(NVARCHAR(50), @LiveAwayScore) END
+					+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ''' + CONVERT(NVARCHAR(50), @FromTransdate, 21) + '''' END
+					+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ''' + CONVERT(NVARCHAR(50), @ToTransdate, 21) + '''' END
+					+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) + '''' END
+					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+					+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+					+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
+					+ CASE WHEN @UserPassword IS NULL THEN ''ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) + '''' END
+					+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+					+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
+					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+					+ CASE WHEN @Language IS NULL THEN '' ELSE ',@Language = ' + CONVERT(NVARCHAR(50), @Language) END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH   
+	
+	DECLARE  @avaiableProcess	BIT = 1
 			,@CustIds			VARCHAR(MAX) = ''
 			,@CountSubTransId	INT = 0
 			,@ValueDefault		SMALLMONEY = 9999.00
@@ -90,7 +123,6 @@ BEGIN
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalSubParlay		INT = 0 
-		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
 		   	
 	SELECT @NegativeBalanceUsers = ''
 	      ,@Session = CONVERT(NVARCHAR(50),NEWID())
@@ -885,6 +917,17 @@ BEGIN
 				AND b.bettype = 29  
 		ORDER BY b.transid   
 	END   
+
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #tblTransId  
 	DROP TABLE #BetDelete    

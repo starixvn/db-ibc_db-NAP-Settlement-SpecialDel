@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransDelSpecial_NumberGame]
 	,@UserPwd		NVARCHAR(50)
 	,@UserID		INT
 	,@IP			VARCHAR(15) = ''
-	,@reason		NVARCHAR(500) = ''
+	,@Reason		NVARCHAR(500) = ''
 	,@ReasonSC		NVARCHAR(500)	= ''
 AS
 /*
@@ -43,6 +43,7 @@ AS
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 
 	Param's Explanation: 
 		- @Opition: 
@@ -53,8 +54,38 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @avaiableProcess 	BIT = 0
-		, @spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecial_NumberGame '
+				+ CASE WHEN @Option IS NULL THEN '' ELSE '@Option = ' + CONVERT(NVARCHAR(50), @Option) END
+				+ CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+				+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ''' + CONVERT(NVARCHAR(50), @FromTransdate, 21) + '''' END
+				+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ''' + CONVERT(NVARCHAR(50), @ToTransdate, 21) + '''' END
+				+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) + '''' END
+				+ CASE WHEN @BallSequence IS NULL THEN '' ELSE ',@BallSequence = ''' + CONVERT(NVARCHAR(200), @BallSequence) + ''''  END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
+				+ CASE WHEN @UserPwd IS NULL THEN '' ELSE ',@UserPwd = ''' + CONVERT(NVARCHAR(50), @UserPwd) + '''' END
+				+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+				
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
+	DECLARE @Remark 			VARCHAR(500)
+		, @avaiableProcess 	BIT = 0
 		, @ErrMsg					NVARCHAR(200)	= ''
 		, @ErrCode				INT				= 0	
 		, @SiteDBGroupID		SMALLINT
@@ -70,11 +101,7 @@ BEGIN
 			)
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 
-	IF NOT EXISTS (
-			SELECT 1
-			FROM CustDB.dbo.customer WITH (NOLOCK)
-			WHERE userpwd = @UserPwd AND custid = @UserID AND roleid >= 5
-			)
+	IF NOT EXISTS (			SELECT 1			FROM CustDB.dbo.customer WITH (NOLOCK)			WHERE userpwd = @UserPwd AND custid = @UserID AND roleid >= 5			)
 	BEGIN
 		
 		SELECT @ErrMsg = 'Sorry. You can not process void bet due to either wrong password or insufficient permission!'
@@ -86,7 +113,6 @@ BEGIN
 		RETURN
 	END
 
-	--end check password
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
 	CREATE TABLE #TmpBallSequence (Seq	TINYINT)
@@ -113,9 +139,7 @@ BEGIN
 
 	INSERT INTO @tblMatch
 	SELECT  b.matchid
-		,ROW_NUMBER() OVER (
-			ORDER BY b.matchid
-			) AS seq
+		   ,ROW_NUMBER() OVER (ORDER BY b.matchid) AS seq
 	FROM bettrans b WITH (NOLOCK)
 		INNER JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
 	WHERE (
@@ -192,7 +216,6 @@ BEGIN
 		RETURN
 	END	
 
-	----################ End of check concurrent running #####################----
 	CREATE TABLE #BetDelete (
 		transid BIGINT
 		,custid INT
@@ -486,7 +509,7 @@ BEGIN
 		UPDATE bettrans WITH (ROWLOCK, UPDLOCK)
 		SET winlost = actual_stake
 			,ruben = 1
-			,STATUS = 'Void'
+			,STATUS = 'VOID'
 			,creator = @UserID
 			,awinlost = 0
 			,mwinlost = 0
@@ -499,10 +522,7 @@ BEGIN
 			OUTPUT inserted.TransId, inserted.matchid, inserted.winlost, inserted.ruben, inserted.status, inserted.creator, inserted.awinlost, inserted.mwinlost, inserted.swinlost
 				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID
 			INTO @tmpTransInfo (transId, matchId, WinLost, ruben, status, creator, aWinLost, mWinLost, sWinLost, PlayerComm, Comm, aComm, sComm, statusID)
-		WHERE transid IN (
-				SELECT transid
-				FROM #BetDelete
-				)
+		WHERE transid IN ( SELECT transid FROM #BetDelete)
 		
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
@@ -675,8 +695,6 @@ BEGIN
 					,@TransidList = @TransIds_MaxPO
 			END
 		END
-
-		-- Output new message structure
 		DECLARE @isITAdmin BIT 
 		
 		-- CHECK IT GROUP or NOT ?   
@@ -738,7 +756,6 @@ BEGIN
 			,b.recommend
 			,b.mrecommend
 			,b.srecommend
-			-----------------------------
 			,ci.username
 			,ci.username2
 			,cr.username AS creator
@@ -747,7 +764,6 @@ BEGIN
 			,ag.UserName AS AgUserName
 			,ma.UserName AS MagUserName
 			,su.Username AS SagUserName
-			---------------------------------------
 			,CASE 
 				WHEN b.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
 				ELSE su.site 
@@ -786,6 +802,17 @@ BEGIN
 		@isExistMatch		= 1
 		,@IsExistNG			= 1
 		,@IsReleased		= 1
+
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblTransId

@@ -30,6 +30,7 @@ AS
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -39,6 +40,27 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransRecoverParlayBet_Main '
+				+ CASE WHEN @BetType IS NULL THEN '' ELSE '@BetType = ''' + CONVERT(NVARCHAR(20), @BetType) + '''' END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	DECLARE @RowNumber			INT	= 1
 			,@tmp_TransIds		VARCHAR(MAX)
 			,@refnos_29			VARCHAR(MAX)
@@ -61,7 +83,6 @@ BEGIN
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalMainParlay	INT = 0 
-		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #tmpMatch (RowNumber INT, matchId INT, transId BIGINT, refno BIGINT)
@@ -497,6 +518,7 @@ BEGIN
 				,Odds     
 				,hdp1     
 				,hdp2     
+				,b.matchid
 				,NULL AS homeid      
 				,NULL AS awayid      
 				,NULL AS sporttype     
@@ -558,6 +580,17 @@ BEGIN
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg 					
 		RETURN;
 	END CATCH	
+
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN     
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END      
+	END TRY
+	BEGIN CATCH
+	END CATCH
 
 	DROP TABLE #tblRecoverBet
 	DROP TABLE #tblMatchParlayProcess

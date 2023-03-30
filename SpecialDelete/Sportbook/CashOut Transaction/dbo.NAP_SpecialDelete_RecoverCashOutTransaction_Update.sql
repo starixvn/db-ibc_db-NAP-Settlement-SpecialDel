@@ -7,8 +7,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverCashOutTransaction_Update]
 )
 AS
 /*
-    Created by: Kent
-	Date: 20170403
+    Created by: 20170403@Kent
 	Original: 
 	Task: Recover CashOut transaction
 	DB: DBTXN/BODB02
@@ -32,12 +31,33 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 
 	Param's Explanation:
 	
 */
 BEGIN	
 	SET NOCOUNT ON		
+		
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_RecoverCashOutTransaction_Update '
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
 	
 	DECLARE @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
@@ -53,7 +73,6 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))	  		  
-		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -89,7 +108,7 @@ BEGIN
 		awinlost			MONEY,		
 		CurrencyName		NVARCHAR(50),		
 		actual_stake		MONEY,				
-		MOdds			SMALLMONEY,			
+		MOdds				SMALLMONEY,			
 		WinLost				MONEY,
 		zzzCreator			INT,		
 		HomeId				INT,
@@ -285,7 +304,6 @@ BEGIN
 		, SUM(temp.balance) AS balance
 		, 1 AS balanceType
 	FROM (
-		-- main cash-out ticket
 		SELECT	b.custid
 			, (b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM dbo.bettrans b WITH(NOLOCK)
@@ -315,20 +333,15 @@ BEGIN
 	UPDATE	b WITH(ROWLOCK, UPDLOCK)
 	SET status = t.status
 	  , statusID = t.statusid
-	 -- , statuswinlost = t.StatusWinlost
 	  , stake = TRef.stake
-	  --, actual_stake = TRef.actual_stake
-	  
 	  , winlost = t.winlost
 	  , awinlost = TCal.awinlost
 	  , mWinLost = TCal.mWinLost
 	  , swinlost = TCal.swinlost
-	  
 	  , playercomm = TCal.playercomm
 	  , comm = TCal.comm
 	  , acomm = TCal.acomm
 	  , scomm = TCal.scomm
-
 	  , ruben = 1
 	  , creator = t.creator
 	  , modds = t.MOdds
@@ -408,7 +421,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			UPDATE TOP(1)m
-			SET IsFinish = 1, @matchid = MatchId 
+			SET IsFinish = 1, @MatchId = MatchId 
 			FROM @tmpMatchidInfo m
 			WHERE IsFinish IS NULL
 
@@ -436,7 +449,7 @@ BEGIN
 				FOR JSON PATH))
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-			SELECT 'TVS', 'Recover_CO', 'bettrans', 'U', @matchid, @transInfo, 's'
+			SELECT 'TVS', 'Recover_CO', 'bettrans', 'U', @MatchId, @transInfo, 's'
 		END
 
 		DELETE FROM @tmpTransInfo
@@ -478,7 +491,7 @@ BEGIN
 		WHILE (1=1)
 		BEGIN
 			UPDATE TOP(1)m
-			SET IsFinish = 1, @matchid = MatchId 
+			SET IsFinish = 1, @MatchId = MatchId 
 			FROM @tmpMatchidInfo m
 			WHERE IsFinish IS NULL
 
@@ -493,7 +506,7 @@ BEGIN
 			FOR JSON PATH))
 
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-			SELECT 'TVS', 'Recover_CO', 'zzzbettrans', 'D', @matchid, @TransInfo, 's'
+			SELECT 'TVS', 'Recover_CO', 'zzzbettrans', 'D', @MatchId, @TransInfo, 's'
 		END
 
 		DELETE FROM @tmpTransInfo
@@ -523,7 +536,6 @@ BEGIN
 		  @isExistMatch		= 1
 		, @IsReleased		= 1	
 		
-	--> output data
 	-- CHECK IT GROUP or NOT ?  
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0) 
 
@@ -570,11 +582,20 @@ BEGIN
 	FROM #SpecialDeleteBets d
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 			     ON d.recommend = c.custid
-	WHERE d.BetType NOT IN (912,913)			     		 
 	ORDER BY c.site ASC
-		   , CASE WHEN d.BetType = 911 THEN d.TransId ELSE d.RefNo END
 		   , d.TransId			
 	
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #tblTransIds

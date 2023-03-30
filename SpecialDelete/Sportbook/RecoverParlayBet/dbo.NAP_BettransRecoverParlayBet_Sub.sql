@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_BettransRecoverParlayBet_Sub]
 	@IP					VARCHAR(50),
 	@BetType			VARCHAR(20)		= 'All',
 	@MainTransIds		VARCHAR(MAX)	= '',
-	@matchid			INT	
+	@MatchId			INT	
 AS
 /*
 	Created: Kent
@@ -26,6 +26,7 @@ AS
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 
 	Param's Explanation:			
 			- @BetType:
@@ -36,6 +37,28 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransRecoverParlayBet_Sub '
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE '@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+				+ CASE WHEN @BetType IS NULL THEN '' ELSE ',@BetType = ''' + CONVERT(NVARCHAR(20), @BetType) + '''' END
+				+ CASE WHEN @MainTransIds IS NULL THEN '' ELSE ',@MainTransIds = ''' + CONVERT(NVARCHAR(MAX), @MainTransIds) + '''' END
+				+ CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ''' + CONVERT(NVARCHAR(50), @MatchId) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	DECLARE @RecoverPatchSize		INT = 100
 		   ,@Movebetdate			DATETIME 
 		   ,@ErrCode				INT = 0
@@ -58,7 +81,6 @@ BEGIN
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
 		   ,@totalSubParlay		INT = 0 
-		   ,@SPName				VARCHAR(500) = OBJECT_NAME(@@PROCID)	
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
@@ -135,7 +157,7 @@ BEGIN
 	SELECT  @MatchDate = eventdate
 		  , @Eventstatus = eventstatus
 	FROM	dbo.match WITH(NOLOCK)
-	WHERE	matchid = @matchid	
+	WHERE	matchid = @MatchId	
 
 	IF @MatchDate <= @Movebetdate
 	BEGIN
@@ -569,28 +591,18 @@ BEGIN
 				 ,t.betcheck
 				 ,t.ExtraInfo
 				 ,t.ActualStake    			   
-				 ,CASE
-					WHEN T2.a IS NOT NULL 
-						 OR (T3.a IS NOT NULL 
-							 AND @IsITAdmin = 0  -- Check UserID not in IT group
-							)
-								THEN CAST(1 AS BIT)
+				 ,CASE WHEN T2.a IS NOT NULL OR (T3.a IS NOT NULL AND @IsITAdmin = 0) THEN CAST(1 AS BIT) -- Check UserID not in IT group
 					ELSE CAST(0 AS BIT)
 				  END AS IsCsd
-				 ,CASE
-					WHEN T3.a IS NOT NULL 
-						 AND @IsITAdmin = 1 
-								THEN CAST(1 AS BIT)
+				 ,CASE WHEN T3.a IS NOT NULL AND @IsITAdmin = 1 THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)
 				  END AS IsItQa
-				 ,CASE
-					WHEN T2.a IS NOT NULL 
-						 AND @IsITAdmin = 1 
-								THEN CAST(1 AS BIT)
+				 ,CASE WHEN T2.a IS NOT NULL AND @IsITAdmin = 1 THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)							
 				  END AS IsItSupport
 				 ,t.betfrom AS BetFrom
 				 ,CURRENT_TIMESTAMP AS [DateTime]
+				 ,t.matchid
 		FROM @tblRecoverBet t
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				   ON t.custid = f.CustID
@@ -650,8 +662,17 @@ BEGIN
 		RETURN				
 	END CATCH		  		  	  
 	
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN     
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END      
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblMainTicket
 	DROP TABLE #tblMatchParlayProcess
-		
-	RETURN;							
 END
