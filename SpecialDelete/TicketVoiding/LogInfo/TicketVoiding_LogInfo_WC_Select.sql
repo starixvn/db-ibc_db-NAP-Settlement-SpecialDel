@@ -695,7 +695,7 @@ BEGIN
 					)AS t1(xDATA)
 				CROSS APPLY (
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
-							,t.c.value('@MinTime','DATETIME') AS  HighLightMinTime
+							,NULLIF(t.c.value('@MinTime','DATETIME'),'') AS  HighLightMinTime
 							,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
 						FROM t1.xDATA.nodes('/r') t(c)
 					) a

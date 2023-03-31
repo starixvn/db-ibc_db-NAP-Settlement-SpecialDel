@@ -727,7 +727,7 @@ BEGIN
 					SELECT CONVERT(XML, rd.TransIds)
 				)AS t1(xDATA)
 			CROSS APPLY (
-					SELECT t.c.value('@MinTime','DATETIME') AS  HighLightMinTime
+					SELECT NULLIF(t.c.value('@MinTime','DATETIME'),'')AS  HighLightMinTime
 						,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
 					FROM t1.xDATA.nodes('/r') t(c)
 				) a
