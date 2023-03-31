@@ -201,7 +201,7 @@ where currency not in (20,72) and matchid=29
 	and b.transdate >= '2023-03-30 04:00' and b.transdate <= '2023-03-30 04:20'
 order by b.transdate
 -- (23 rows affected)
-
+/*
 -- Parlay BetTransM
 select
     bm.transid, bm.transdate, bm.bettype, bm.matchid,
@@ -305,6 +305,8 @@ or (	isnull(comm.playerdiscount,0) <> bt.playerdiscount
 		or isnull(comm.sdiscount,0) <>  bt.sdiscount)	)			
 and bt.transdate between '20230330 04:00' and '20230330 04:20'						
 )A where tpositiontaking <>0			
+*/
+
 
 /*
 select b.* into Mondb.dbo.Temp0331_credit_single_1  from bettrans b with(Nolock)   	join #credit_single_1	T on b.transid = T.Transid
