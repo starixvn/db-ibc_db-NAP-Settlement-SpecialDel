@@ -1,3 +1,15 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*	
+	Creator: TW Team
+	Date: 20230330
+	DB: DBTXN/bodb02
+
+	Revisions:
+		- 20230330@Tina: TW team scripts to detect for the issue- Wrong PT, Comm Setting, SMA winloss for tickets  [Redmine:#186125]
+
+*/
+
+
 SELECT bt.transid,bt.transdate,bt.matchid,m.sporttype,
 case when dcm.isGroupedPT = 1 then gdpt.agentpt / 100 else dpt.agentpt / 100 end as apositiontaking,
 case when dcm.isGroupedPT = 1 then gdpt.masterpt / 100  else dpt.masterpt / 100 end as mpositiontaking,

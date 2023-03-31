@@ -1,3 +1,14 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*	
+	Creator: TW Team
+	Date: 20230330
+	DB: DBTXN/bodb02
+
+	Revisions:
+		- 20230330@Tina: TW team scripts to detect for the issue- Wrong PT, Comm Setting, SMA winloss for tickets  [Redmine:#186125]
+
+*/
+
 SELECT bt.transid,bt.transdate,bt.matchid,m.sporttype,
 case when dcm.isGroupedComm = 1 then gdcom.playerdiscount else dcom.playerdiscount end as playerdiscount,
 case when dcm.isGroupedComm = 1 then gdcom.agentdiscount else dcom.agentdiscount end as discount,

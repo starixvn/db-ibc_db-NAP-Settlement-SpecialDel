@@ -1,3 +1,13 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*	
+	Creator: TW Team
+	Date: 20230330
+	DB: DBTXN/bodb02
+
+	Revisions:
+		- 20230330@Tina: TW team scripts to detect for the issue- Wrong PT, Comm Setting, SMA winloss for tickets  [Redmine:#186125]
+
+*/	
 --drop table #TEMP																				
 --- Credit sport																				
 --Single-SportBetTypeReference_Setting																				
