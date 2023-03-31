@@ -6,10 +6,10 @@
 
 */
 --- Credit sportsbook
-CREATE TABLE #credit_sportsbook (transid BIGINT)
+CREATE TABLE #result (transid BIGINT)
 --Single-SportBetTypeReference_Setting
 
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select B.transid
 from bettrans b with (nolock)
 	inner join match m with (nolock) on m.matchid=b.matchid and m.sporttype<99
@@ -29,7 +29,7 @@ where currency not in (20,72)
 	and b.transdate >= '2023-03-30 04:00' and b.transdate <= '2023-03-30 04:20'
 
 --Single-SportBetTypeReference
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select  B.transid
 from bettrans b with (nolock)
 	inner join match m with (nolock) on m.matchid=b.matchid and m.sporttype<99
@@ -63,7 +63,7 @@ where currency not in (20,72)
 
 
 --Single-WithOutReference live pt
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select  B.transid
 from bettrans b with (nolock)
 	inner join match m with (nolock) on m.matchid=b.matchid and m.sporttype<99
@@ -98,7 +98,7 @@ where currency not in (20,72)
             180, 181, 182, 183, 184, 185, 186, 190, 191, 192, 193, 194, 195, 196, 197)
 
 -- credit without reference deadball
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select  B.transid
 from bettrans b with (nolock)
 	inner join match m with (nolock) on m.matchid=b.matchid and m.sporttype<99
@@ -131,7 +131,7 @@ where currency not in (20,72)
             180, 181, 182, 183, 184, 185, 186, 190, 191, 192, 193, 194, 195, 196, 197)
 
 -- parlay
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select B.transid
 from bettrans b with (nolock)
 	inner join dbo.custsetting cs with (nolock) on cs.custid=b.custid and cs.bettype=9 and cs.sporttype= b.oddsid
@@ -148,7 +148,7 @@ where currency not in (20,72) and matchid=29
 	and b.transdate >= '2023-03-30 04:00' and b.transdate <= '2023-03-30 04:20'
 
 --- Credit number game
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select bt.transid
 from bettrans bt with (nolock)
 	inner join dbo.site S with(nolock) on bt.BetSiteID = S.siteid 
@@ -168,7 +168,7 @@ and bt.transdate >= '2023-03-30 04:00' and bt.transdate <= '2023-03-30 04:20'
 and S.isLicensee =0 and bt.liveindicator=1
 
 --- credit virtual sport
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select transid
 from bettrans bt with (nolock)						
 inner join dbo.site S with(nolock) on bt.BetSiteID = S.siteid 
@@ -197,7 +197,7 @@ and bt.transdate between '20230330 04:00' and '20230330 04:20'
 and s.IsLicensee = 0					
 			
 -- betradar parlay
-INSERT INTO #credit_sportsbook (transid)
+INSERT INTO #result (transid)
 select transid
 from bettrans bt with (nolock)						
 join dbo.Site s with (nolock) on s.siteid = bt.betsiteid				
@@ -223,11 +223,20 @@ and bt.transdate between '20230330 04:00' and '20230330 04:20'
 and bt.bettype = 2799				
 and s.islicensee = 0	
 
-SELECT DISTINCT c.transid,tmp_old.*, tmp_new.*
-FROM #credit_sportsbook c
-	cross apply (select TOP 1 custid, username, matchid, bettype, sitedbgroupid,srecommend, mrecommend, recommend
+-- get headline info
+-- DB06.bodb02
+select c.username headline,hl.custid headlineID,hl.groupID, ca.custid custid
+into #tmp
+from vw_custaccount ca with (Nolock)
+left join vw_custAccount hl with (nolock) on ca.groupID = hl.groupID
+join vw_Customer c with (nolock) on hl.custid = c.custid
+where hl.IsGroupHeadLine = 1
+
+SELECT DISTINCT tmp_old.*, tmp_new.*
+FROM #result c
+	cross apply (select TOP 1 isnull(hl.headline,'-') as headline, s.username super, m.username master, a.username agent,b.username,b.custid, b.transid, matchid, bettype, sitedbgroupid
 					--status
-					,status AS status_old
+					, b.currencyname,status AS status_old
 					--winlost ammout
 					,WinLost AS WinLost_old,aWinLost AS aWinLost_old,mWinLost AS mWinLost_old,sWinLost AS sWinLost_old 
 					-- commission amount
@@ -237,6 +246,10 @@ FROM #credit_sportsbook c
 					--comm setting value
 					,playerdiscount AS playerdiscount_old,discount AS discount_old,adiscount AS adiscount_old,sdiscount AS sdiscount_old
 				from bettrans b with (nolock)
+				 inner join vw_customer s with (nolock) on s.custID = b.srecommend
+				 inner join vw_customer m with (nolock) on m.custId = b.mrecommend
+				 inner join vw_customer a with (nolock) on a.custId = b.recommend
+				 left join #tmp hl with (nolock) on b.custid = hl.custid or b.recommend = hl.custid or b.mrecommend = hl.custid or b.srecommend = hl.custid
 				where b.transid = c.transid) AS tmp_old
 	cross apply (select TOP 1
 					--status
@@ -254,5 +267,5 @@ FROM #credit_sportsbook c
 
 
 /*
-drop table #credit_sportsbook
+drop table #result
 */

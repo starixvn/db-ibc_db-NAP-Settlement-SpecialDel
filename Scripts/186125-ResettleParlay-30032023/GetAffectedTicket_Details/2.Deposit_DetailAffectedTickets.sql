@@ -341,11 +341,11 @@ and bt.bettype = 2799
 AND NOT EXISTS (SELECT 1 FROM #result r WHERE r.transid = bt.transid)
 
 --------------
-SELECT DISTINCT c.transid,tmp_old.*, tmp_new.*
+SELECT DISTINCT tmp_old.*, tmp_new.*
 FROM #result c
-	cross apply (select TOP 1 a.site , s.username super , m.username master, a.username agent,b.custid, b.username, matchid, bettype, sitedbgroupid
+	cross apply (select TOP 1 a.site , s.username super , m.username master, a.username agent, b.username,b.custid,b.transid, matchid, bettype, sitedbgroupid
 					--status
-					,status AS status_old
+					, b.currencyname,status AS status_old
 					--winlost ammout
 					,WinLost AS WinLost_old,aWinLost AS aWinLost_old,mWinLost AS mWinLost_old,sWinLost AS sWinLost_old 
 					-- commission amount
