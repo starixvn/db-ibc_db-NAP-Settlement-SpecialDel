@@ -263,6 +263,7 @@ WHERE transid IN (101059639881236539,101059644176203787,101059652770332676,10105
 ,101062723667755023
 )
 AND statusid NOT IN (101) and sitedbgroupid in (1,2)
+AND oddsid = 1
 
 ------ info for deployer
 DECLARE @StartRow INT = 1

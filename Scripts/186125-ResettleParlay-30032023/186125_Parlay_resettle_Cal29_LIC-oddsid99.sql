@@ -1,0 +1,263 @@
+-----------STEP 1: ALTER SP EXCREP ------------------
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_07]
+(
+	@transidlist VARCHAR(MAX) = ''
+)
+
+/*	
+	Creator: Helen
+	Date: 20230330
+	DB: DBCTG/bodb02
+
+	Revisions:
+		- 20230330@Helen: Resettle ticket for parlay  [Redmine:#186125]
+
+*/	
+AS
+BEGIN
+	SET NOCOUNT ON
+
+	IF OBJECT_ID (N'BetParlayResult', N'U') IS NULL 
+		RETURN
+	
+	IF @@SERVERNAME IN ('DB054','DB054C2\DB054','DB042', 'SITDB042', 'DB055', 'SITDB055','DB04','DB043','DB044', 'DB04ADMIN1','DB04ADMIN2')
+        RETURN
+
+	DECLARE @statusId			TINYINT
+			,@winlost			MONEY
+			,@settlementTime	DATETIME
+
+
+	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY,transid BIGINT, IsMarked BIT DEFAULT(0))
+	DECLARE @tmpSource TABLE (TransId BIGINT PRIMARY KEY, WinlostDate SMALLDATETIME
+	, totalStake MONEY, Winlost MONEY, aWinlost MONEY, mWinlost MONEY, sWinlost MONEY
+	, playerComm MONEY, comm MONEY, aComm MONEY, sComm MONEY
+	, ruben TINYINT, IsMarked BIT)
+
+	DECLARE @transIDs AS TABLE (transid BIGINT)
+
+	INSERT INTO @transIDs (transid)
+	SELECT CAST(value AS BIGINT) transid
+	FROM STRING_SPLIT(@transidlist, ',')
+
+	INSERT INTO #Refno (refno,transid)
+	SELECT b.refno, b.TransId
+	FROM bettrans b WITH (NOLOCK)
+		INNER JOIN @transIDs t ON b.TransId = t.transid
+
+	INSERT INTO @tmpSource (TransId, WinlostDate, totalStake
+		,Winlost, aWinlost, mWinlost, sWinlost
+		,playerComm, comm, aComm, sComm
+		,ruben, IsMarked
+	)
+	SELECT b.transid, MAX(pr.winlostdate), SUM(pr.stake)
+		,SUM(pr.winlost), SUM(pr.awinlost), SUM(pr.mwinlost),  SUM(pr.swinlost) 
+		,SUM(pr.playercomm), SUM(pr.comm), SUM(pr.acomm), SUM(pr.scomm) 			
+		,CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
+		,b.IsMarked
+	FROM #Refno b 
+		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK)
+			ON pr.refno = b.refno
+
+	GROUP BY b.refno, b.transid, b.IsMarked
+
+	UPDATE b WITH(ROWLOCK, UPDLOCK)
+	SET @statusId = CASE
+					WHEN s.ruben = 0 THEN 0
+					WHEN ISNULL(b.oddsspread,0) = 1 THEN	CASE ---GoF
+															WHEN s.winlost = b.actual_Stake THEN 111
+															WHEN s.winlost > b.actual_Stake THEN 112
+															WHEN s.winlost < b.actual_stake THEN 113 
+															END
+					ELSE	CASE				
+							WHEN s.winlost = s.totalStake THEN 111 -- winlost = stake, member DRAW
+							WHEN s.winlost > s.totalStake THEN 112 -- winlost > stake, member WIN
+							WHEN s.winlost < s.totalStake THEN 113 -- winlost < stake, member LOSE
+							ELSE b.statusID -- uncontrollale situation, hope it's not happen in real life
+							END
+					END
+		,@winlost = s.winlost * s.ruben
+		,SettlementTime = @settlementTime
+						--CASE 
+						--	WHEN s.IsMarked = 1 THEN b.SettlementTime
+						--	WHEN @statusId <> 0 AND (b.winlost <> @winlost OR statusID <> @statusId) THEN @settlementTime 
+						--	ELSE SettlementTime 
+						--END
+		,statusID = CASE WHEN s.IsMarked = 1 THEN b.statusID ELSE @statusId END
+		,[status] = CASE 
+						WHEN s.IsMarked = 1 THEN b.status 
+						WHEN @statusId = 0 THEN 'running' 
+						WHEN @statusId = 111 THEN 'DRAW' -- winlost = stake, member DRAW
+						WHEN @statusId = 112 THEN 'WON' -- winlost > stake, member WIN
+						WHEN @statusId = 113 THEN 'LOSE' -- winlost < stake, member LOSE
+						ELSE b.[status] -- uncontrollale situation, hope it's not happen in real life
+					END
+		--,winlostdate = CASE 
+		--					WHEN s.IsMarked = 1 THEN b.winlostdate
+		--					WHEN @statusId <> b.statusID THEN s.winlostdate 
+		--					ELSE b.winlostdate 
+		--				END
+		--,modds = s.modds
+		---,actual_stake = s.totalStake
+		,betdaqid = CASE WHEN s.IsMarked = 1 THEN b.betdaqid ELSE s.totalStake END						
+		,ruben = CASE WHEN s.IsMarked = 1 THEN b.ruben ELSE s.ruben END
+		,winlost =  CASE WHEN s.IsMarked = 1 THEN b.winlost ELSE @winlost END
+		,awinlost = CASE WHEN s.IsMarked = 1 THEN b.awinlost ELSE s.awinlost * s.ruben END
+		,mwinlost = CASE WHEN s.IsMarked = 1 THEN b.mwinlost ELSE s.mwinlost * s.ruben END
+		,swinlost = CASE WHEN s.IsMarked = 1 THEN b.swinlost ELSE s.swinlost * s.ruben END
+		,playercomm = CASE WHEN s.IsMarked = 1 THEN b.playercomm ELSE s.playercomm * s.ruben END
+		,comm = CASE WHEN s.IsMarked = 1 THEN b.comm ELSE s.comm * s.ruben END
+		,acomm = CASE WHEN s.IsMarked = 1 THEN b.acomm ELSE s.acomm * s.ruben END
+		,scomm = CASE WHEN s.IsMarked = 1 THEN b.scomm ELSE s.scomm * s.ruben END
+		,statuswinlost = CASE 
+							WHEN @statusId = 112 THEN 2							
+							WHEN @statusId = 111 THEN 0 							
+							WHEN @statusId = 113 THEN 4								
+							WHEN @statusId = 0 THEN NULL
+						END 
+	FROM @tmpSource s
+		INNER JOIN dbo.bettrans b
+			ON b.transid = s.transid
+
+END
+GO
+-----------STEP 2: UPDATE bettrans VIA SP EXCREP ------------------
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*	
+	Creator: Helen
+	Date: 20230330
+	DB: DBCTG/bodb02
+
+	Revisions:
+		- 20230330@Helen: Resettle ticket for parlay  [Redmine:#186125]
+
+*/
+CREATE TABLE #tmpParlayBalanceBefore (transid BIGINT PRIMARY KEY, custid INT, balance money)
+CREATE TABLE #tmpParlayBalanceAfter (transid BIGINT PRIMARY KEY, custid INT, balance money)
+CREATE TABLE #tmpParlayBalance (custid int, balance money)
+DECLARE @tmpParlayDebitPending		TVP_BalanceList
+		,@tmpParlayCreditPending	TVP_BalanceList
+
+CREATE TABLE #Result (transid BIGINT PRIMARY KEY, id INT IDENTITY (1,1))
+CREATE TABLE #Result_batch (transid BIGINT PRIMARY KEY)
+CREATE TABLE #Result_balance_tmp (transid BIGINT PRIMARY KEY, id INT IDENTITY (1,1))
+
+INSERT INTO #Result (transid)
+SELECT DISTINCT TransId
+FROM bettrans WITH (NOLOCK) 
+WHERE transid IN 
+(101059639881236539,101059644176203787,101059652770332676,101059665651040282,101059764439482374,101059803089993733,101059807384961069,101059850334634019,101059919058305029,101059919058305042,101059957708816423,101059974892879886,101059983482814468,101059987773587509,101059992072749094,101060009248423959,101060035018227712,101060035022422051,101060039317389337,101060095143575565,101060112331833416,101060138097442829,101060215411048487,101060219706015748,101060223996788782,101060232586723330,101060236885884933,101060241180852253,101060258360721430,101060297011232807,101060322781036567,101060327080198167,101060339960905766,101060339960905789,101060370029871132,101060408684576778,101060464519151625,101060511763791912,101060533238628359,101060589073203213,101060593363976219,101060601953910799,101060636313649162,101060666378420227,101060674972549141,101060717918027798,101060717922222083,101060735097896988,101060756572733463,101060756572733486,101060765166862350,101060803817373710,101060851066208270,101060863946915885,101060872541044738,101060894011686929,101060919781490718,101060979915227147,101060988500967464,101061031450640396,101061048630509592,101061065810378766,101061082994442256,101061091580182541,101061095879344161,101061113059213335,101061121640759310,101061151713918982,101061164590432285,101061168893788198,101061220425007120,101061237609070603,101061267678036001,101061289144483862,101061302033580049,101061314918481968,101061349278220307,101061353573187593,101061366453895188,101061370753056776,101061392227893258,101061396522860567,101061400813633553,101061443763306523,101061448058273798,101061555436650536,101061555440844813,101061602685485056,101061619856965658,101061705760505884,101061783069917208,101061791664046101,101061795959013418,101061813134688260,101061813134688302,101061847494426630,101061864674295821,101061873260036143,101061881858359337,101061894739066894,101061907619774501,101061907628163110,101061916213903383,101061920504676356,101061929102999570,101061941983707145,101062105196658734,101062113786593304,101062143847170050,101062161027039240,101062212570841136,101062229746515968,101062251221352466,101062350009794591,101062388664500239,101062418720882715,101062427315011612,101062465973911553,101062483145392148,101062504624422923,101062521804292126,101062594818736128,101062676427309058,101062723667755023,101062779498135554,101062788096458761,101059627000528933,101059652770332676,101059919058305029,101059957708816423,101059974892879886,101059983482814468,101059992072749094,101060112331833416,101060138097442829,101060219706015748,101060236885884933,101060339956711445,101060391504707604,101060511763791912,101060589073203219,101060593363976219,101060601953910799,101060756572733463,101060765166862350,101060851066208270,101060919781490718,101060979915227147,101060988500967464,101061065810378766,101061082994442256,101061091580182541,101061095879344161,101061121640759310,101061151713918982,101061168893788198,101061186065268761,101061211835072517,101061237609070603,101061267678036001,101061314918481968,101061370753056776,101061400813633553,101061448058273798,101061697174765576,101061705760505884,101061791664046101,101061873260036143,101061881858359337,101061907619774501,101061929102999570,101061941983707145,101062105196658734,101062143847170050,101062161027039240,101062229746515968,101062251221352466,101062350009794591
+,101062723667755023
+)
+AND statusid NOT IN (0,1,101,102) and sitedbgroupid in (1,2)
+AND oddsid = 99
+
+---KEEP transid for balance processing
+INSERT INTO #Result_balance_tmp (transid)
+SELECT transid
+FROM #Result
+
+INSERT INTO #tmpParlayBalanceBefore (transid, custid, balance)
+SELECT	b.transid, b.custid, (b.winlost - b.actual_stake + b.playercomm) AS balance
+FROM	dbo.bettrans b WITH(ROWLOCK)
+WHERE	b.transid IN (SELECT transid FROM #Result_balance_tmp)
+
+------ info for deployer
+DECLARE @StartRow INT = 1
+		, @StopRow INT 
+		, @MaxRow INT = 1 -- Keep the total row of your data
+		, @Threshold INT = 2000 -- the number of each batch
+		, @transidlist VARCHAR(MAX)
+
+DECLARE @debug_message VARCHAR(500)
+SET @MaxRow = (SELECT MAX(ID) FROM #Result)
+
+IF @Threshold >= @MaxRow
+	SET @Threshold = @MaxRow
+
+-- SET for first batch
+SET @StopRow = @Threshold
+
+WHILE (1 = 1)
+BEGIN
+	
+		PRINT @StartRow
+		PRINT @StopRow
+		
+		DELETE R
+		OUTPUT DELETED.transid
+		INTO #Result_batch (transid)		
+		FROM #Result R
+		WHERE ID BETWEEN @StartRow AND @StopRow
+
+		SET @transidlist =STUFF((SELECT ',' + CONVERT(VARCHAR(50),transid)
+					  FROM #Result_batch
+					  FOR XML PATH ('')),1,1,'')
+		
+		SET @debug_message = CONVERT(VARCHAR(50), GETDATE(), 121)			
+		RAISERROR (@debug_message, 0, 1) WITH NOWAIT
+
+		EXEC ExecRep_NAP_Admin_07 @transidlist = @transidlist
+		
+		IF @StopRow > @MaxRow 
+			BREAK
+
+		WAITFOR DELAY '00:00:00.050' --optional
+		TRUNCATE TABLE #Result_batch
+
+		SET @StartRow = @StopRow + 1
+		SET @StopRow = @StopRow + @Threshold
+
+END
+
+IF @@SERVERNAME <> 'DBTRANS'
+BEGIN
+	---- CAPTURE value BALANCE after udpate bettrans [Redmine:#108768]: to avoid parlay settlement & movebet delete bet ticket run the same time
+	INSERT INTO #tmpParlayBalanceAfter (transid, custid, balance)
+	SELECT	b.transid, b.custid, (b.winlost - b.actual_stake + b.playercomm) AS balance
+	FROM	dbo.bettrans b WITH(ROWLOCK)
+	WHERE	b.transid IN (SELECT transid FROM #Result_balance_tmp) 
+
+	INSERT INTO #tmpParlayBalance (custid, balance)
+	SELECT b.custid, SUM(a.balance - b.balance)
+	FROM #tmpParlayBalanceBefore b
+		INNER JOIN #tmpParlayBalanceAfter a ON b.transid = a.transid
+	GROUP BY b.custid
+
+	INSERT INTO @tmpParlayDebitPending (custID, balance)
+	SELECT t.custid, ABS(t.balance)
+	FROM (
+		SELECT	custID, SUM(balance) AS balance
+		FROM	#tmpParlayBalance
+		GROUP BY custID
+	) t
+	WHERE t.balance < 0
+
+	IF @@ROWCOUNT <> 0
+		EXEC dbo.Dot_BalancePendingDebitIns
+			@BalancePending = @tmpParlayDebitPending
+			,@Type			= 1 -- Sports
+
+	INSERT INTO @tmpParlayCreditPending (custID, balance)
+	SELECT t.custid, ABS(t.balance)
+	FROM (
+		SELECT	custID, SUM(balance) AS balance
+		FROM	#tmpParlayBalance
+		GROUP BY custID
+	) t
+	WHERE t.balance > 0
+
+	IF @@ROWCOUNT <> 0
+		EXEC dbo.Dot_BalancePendingCreditIns
+			@BalancePending = @tmpParlayCreditPending
+			,@Type			= 1 -- Sports
+
+END
+
+DROP TABLE #Result
+DROP TABLE #Result_balance_tmp
+DROP TABLE #Result_batch
+DROP TABLE #tmpParlayBalance
+DROP TABLE #tmpParlayBalanceAfter
+DROP TABLE #tmpParlayBalanceBefore

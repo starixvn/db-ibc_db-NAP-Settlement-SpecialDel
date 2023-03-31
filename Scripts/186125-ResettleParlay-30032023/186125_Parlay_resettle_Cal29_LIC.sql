@@ -151,6 +151,7 @@ WHERE transid IN
 ,101062723667755023
 )
 AND statusid NOT IN (0,1,101,102) and sitedbgroupid in (1,2)
+AND oddsid = 1
 
 ---KEEP transid for balance processing
 INSERT INTO #Result_balance_tmp (transid)
