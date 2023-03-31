@@ -29,6 +29,7 @@ AS
 		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
+		- 20230331@July: TVS changes for new process of BU [Redmine: #184000]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -76,7 +77,7 @@ BEGIN
 	)
 	
 	DECLARE @tmpAffectedCustId TABLE (CustId INT)
-	DECLARE @movebetdate SMALLDATETIME
+	DECLARE @movebetdate SMALLDATETIME, @balanceupdate SMALLDATETIME
 
 	INSERT INTO @tmpTransId(transid)
 	SELECT value FROM STRING_SPLIT(@TransIds, ',')
@@ -137,6 +138,9 @@ BEGIN
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+	
+	--Get BalanceUpDate
+	EXEC dbo.NAP_Admin_GetBalanceUpDate @BalanceUpDate = @balanceupdate OUTPUT
 
 	-- calculate sum of members' balance on bettrans tables
 	INSERT INTO @tmpCurrentBalance(custid, username, balance)
@@ -160,7 +164,10 @@ BEGIN
 		FROM	dbo.Transfer tl WITH(NOLOCK)
 		WHERE	tl.custid IN (SELECT custid FROM @tmpAffectedCustId)
 				AND tl.Bettype >= 19999
-				AND 1 = CASE WHEN tl.bettype = 19999 AND tl.winlostdate > @movebetdate THEN 0 ELSE 1 END
+				AND 1 = CASE WHEN tl.bettype = 19999 AND tl.winlostdate > @movebetdate THEN 0 --> new sum
+							 WHEN tl.bettype = 20000 AND tl.winlostdate > @balanceupdate then 0 --> new bal
+                             WHEN tl.winlostdate < @balanceupdate then 0 --> old data
+						ELSE 1 END
 				
 		UNION ALL 
 		SELECT	tl.custid, tl.Username, (0 - tl.actual_stake + 0 ) AS balance

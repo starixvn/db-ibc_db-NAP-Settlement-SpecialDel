@@ -19,6 +19,8 @@ AS
 		- 20210702@Max: Expand Transfer Time Frame - Change The Rule Checking Move Bet Flag [Redmine: #154572]
 		- 20211229@Max: Split Transfer - Adjust Negative Balance Service & Adjustment Transfer of Bonus [Redmine: #165098]
 		- 20220706@Max: Bettrans Running DB for WC2022 [Redmine: #172094]
+		- 20230201@July: TVS changes for new process of BU [Redmine: #184000]
+		
 */
 BEGIN
 	SET NOCOUNT ON
@@ -30,6 +32,7 @@ BEGIN
 
 	DECLARE @BatchCount INT
 		, @movebetdate SMALLDATETIME
+		, @balanceupdate SMALLDATETIME
 
 	DECLARE @tmpMatch TABLE (MatchId INT PRIMARY KEY, MinExecId BIGINT, MaxExecId BIGINT)
 	DECLARE @tmpAffectedCustId	TABLE (CustId INT, Recommend INT, Site VARCHAR(50))
@@ -71,7 +74,10 @@ BEGIN
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
-	
+		
+	--Get BalanceUpDate
+	EXEC dbo.NAP_Admin_GetBalanceUpDate @BalanceUpDate = @balanceupdate OUTPUT
+
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpAffectedCustId)
 	BEGIN
 		UPDATE	t
@@ -99,7 +105,10 @@ BEGIN
 		FROM	@tmpAffectedCustId c
 			INNER JOIN dbo.Transfer b WITH(NOLOCK)
 				ON b.custid = c.CustId	AND b.bettype >= 19999
-		WHERE 1 = CASE WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 ELSE 1 END
+		WHERE 1 = CASE WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --> new sum
+					   WHEN b.bettype = 20000 AND b.winlostdate > @balanceupdate then 0 --> new bal
+                       WHEN b.winlostdate < @balanceupdate then 0 --> old data
+					ELSE 1 END
 		GROUP BY b.CustId, c.Site
 		
 		-- translog
@@ -151,11 +160,6 @@ BEGIN
 		FROM	#tmpMemberBalance c
 		GROUP BY c.custid, c.Site
 		HAVING SUM(c.Balance) < 0 -- negative balance
-
-		-- Bettrade
-		DELETE	t
-		FROM	#tmpMemberBalanceNegative t
-		WHERE	EXISTS (SELECT TOP 1 1 FROM DBCUST.CustDB.dbo.BetTradeCust btc WITH(NOLOCK) WHERE btc.CustId = t.CustId)
 
 		-- Others dummy
 		DELETE	t
