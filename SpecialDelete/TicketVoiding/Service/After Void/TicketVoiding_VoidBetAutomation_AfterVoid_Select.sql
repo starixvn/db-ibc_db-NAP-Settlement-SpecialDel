@@ -7,7 +7,8 @@ AS
 	
 	Revisions: 
 		- 20230117@July: Create new SP - get request will run after void [Redmine: #180625]
-	
+		- 20230401@Helen: Fix issue [Redmine: #186241]
+
 	Param's explanation:	
 */
 BEGIN
@@ -24,7 +25,7 @@ BEGIN
 		,statusID INT
 		,matchID INT
 		,BroadcastSessionId VARCHAR(100)
-		,NegativeBalanceUsers VARCHAR(100)
+		,NegativeBalanceUsers VARCHAR(MAX)
 		,IsAutoVoid BIT
 		,IsRunExternalService BIT
 		,MessageId INT
