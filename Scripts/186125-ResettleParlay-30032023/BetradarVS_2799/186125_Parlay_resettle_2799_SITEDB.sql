@@ -16,7 +16,8 @@ DECLARE
 
 	Revisions:
 		- 20230401@Helen: Resettle ticket for parlay  [Redmine:#186125]
-
+	
+	Notes: get code from NAP_Admin_Calculate_VS_BetRadar_Parlay_Main
 */	
 BEGIN
 	SET NOCOUNT ON
@@ -87,15 +88,7 @@ BEGIN
 		, @GroupID				= 7 --VS Betradar
 	
 	--CONVERT refno
-	SET @xmlRefno = CONVERT(XML, @strRefnos)
-	
-	INSERT INTO @tempRefno (refno)
-	SELECT T.C.value('./@rn', 'BIGINT') AS refno
-	FROM @xmlRefno.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@xmlRefno = NULL ))
-	
-	IF (@@ROWCOUNT = 0) RETURN
-	
+		
 	--SELECT main ticket info
 	INSERT INTO #tempRefno2799 (refno, recommend, matchid, custid, bettype
 		,transid, actual_stake, stake, odds
