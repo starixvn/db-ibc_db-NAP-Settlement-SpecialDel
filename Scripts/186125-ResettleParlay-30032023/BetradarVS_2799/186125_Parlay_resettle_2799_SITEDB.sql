@@ -10,8 +10,14 @@ DECLARE
 	,@ErrMsg		NVARCHAR(200)	= ''	
 
 /*	
-	
-*/
+	Creator: Helen
+	Date: 20230401
+	DB: DBCTG/bodb02
+
+	Revisions:
+		- 20230401@Helen: Resettle ticket for parlay  [Redmine:#186125]
+
+*/	
 BEGIN
 	SET NOCOUNT ON
 	
