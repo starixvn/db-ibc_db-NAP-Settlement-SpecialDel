@@ -17,10 +17,11 @@ AS
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220512@Louisa: Auto settle for Badminton [Redmine:#171676]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
-		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
+		- 20221205@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
+		- 20230403@Louisa: Exclude some Cricket results from direct payout [Redmine:#186311]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -120,8 +121,6 @@ BEGIN
 													OR r.ResourceID LIKE '94841___'
 													OR r.ResourceID LIKE '94101___'
 													OR r.ResourceID LIKE '94281___'
-													OR r.ResourceID LIKE '94341___'
-													OR r.ResourceID LIKE '96361___'
 													OR r.ResourceID LIKE '96241___'
 													OR r.ResourceID LIKE '96301___'
 													OR r.ResourceID LIKE '94911_____'
@@ -130,8 +129,6 @@ BEGIN
 													OR r.ResourceID LIKE '94851___'
 													OR r.ResourceID LIKE '94111___'
 													OR r.ResourceID LIKE '94291___'
-													OR r.ResourceID LIKE '94351___'
-													OR r.ResourceID LIKE '96371___'
 													OR r.ResourceID LIKE '96251___'
 													OR r.ResourceID LIKE '96311___'
 													OR r.ResourceID LIKE '94902_____'
@@ -140,8 +137,6 @@ BEGIN
 													OR r.ResourceID LIKE '94842___'
 													OR r.ResourceID LIKE '94102___'
 													OR r.ResourceID LIKE '94282___'
-													OR r.ResourceID LIKE '94342___'
-													OR r.ResourceID LIKE '96362___'
 													OR r.ResourceID LIKE '96242___'
 													OR r.ResourceID LIKE '96302___'
 													OR r.ResourceID LIKE '94912_____'
@@ -150,8 +145,6 @@ BEGIN
 													OR r.ResourceID LIKE '94852___'
 													OR r.ResourceID LIKE '94112___'
 													OR r.ResourceID LIKE '94292___'
-													OR r.ResourceID LIKE '94352___'
-													OR r.ResourceID LIKE '96372___'
 													OR r.ResourceID LIKE '96252___'
 													OR r.ResourceID LIKE '96312___'
 
