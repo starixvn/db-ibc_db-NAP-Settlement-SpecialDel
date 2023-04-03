@@ -11,7 +11,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_07]
 	DB: DBCTG/bodb02
 
 	Revisions:
-		- 20230403@Helen: Resettle ticket for parlay  [Redmine:#186125]
+		- 20230403@Helen: Resettle ticket for cashout tickets  [Redmine:#186125]
 
 	Notes: basing code from SP ExecRep_NAP_Admin_03 to process for cashout tickets
 
@@ -167,7 +167,7 @@ GO
 	DB: DBCTG/bodb02
 
 	Revisions:
-		- 20230403@Helen: Resettle ticket for parlay  [Redmine:#186125]
+		- 20230403@Helen: Resettle ticket for cashout tickets  [Redmine:#186125]
 
 */
 CREATE TABLE #tmpParlayBalanceBefore (transid BIGINT PRIMARY KEY, custid INT, balance money)
