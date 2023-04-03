@@ -28,14 +28,15 @@ AS
 		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
 		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
 				REFUND, REFUND-HT, REFUND-FT, REFUND-EAR
 				, BetFair, BetDaq ( for refund betdaq,/betfair )
 				, MoveTicket ( move betdaq,betfair, ESport )
-
-		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, MP
+				,'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
+		@Mode: ALL, HT, FT, EAR, MP
 				,BetFair, BetDaq ( for Move Betdaq/betfair )
 		
 		@SelectedResources: Appy for Instant soccer, Othersports settle by Profile, FastMarket, TimeMachine, BB
@@ -62,10 +63,14 @@ BEGIN
 			,@finalawayscore	INT
 			,@hthomescore		INT
 			,@htawayscore		INT
+			,@livehomescore		INT
+			,@liveawayscore		INT
 			,@IsSettleByProfile	BIT = 0
 			,@IsEarly			BIT = 0
 			,@AutoSetting		TINYINT
 			,@ParentId			INT
+			,@SettlementStatus	TINYINT
+			,@isCalculatedHT	BIT
 
 	DECLARE  @Inst_HomeScore		INT
 			,@Inst_AwayScore		INT
@@ -101,11 +106,17 @@ BEGIN
 			,@htawayscore		= m.htawayscore
 			,@IsSettleAbandonedMatchIBC = CASE WHEN @SDTRecord & 4 > 0 THEN 1 ELSE 0 END
 			,@AutoSetting		= ISNULL( m.AutoSetting, l.AutoSetting )
+			,@SettlementStatus	=  ISNULL(m.SettlementStatus, 0)
+			,@isCalculatedHT	= ISNULL(mr.IsHTCal, 0)
+			,@livehomescore		= m.livehomescore
+			,@liveawayscore		= m.liveawayscore
 	FROM dbo.match m WITH(NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 			ON m.leagueid = l.leagueid
 		LEFT JOIN dbo.LeagueGroup lg WITH(NOLOCK)
 			ON l.LeagueGroupID = lg.GroupID
+		INNER JOIN dbo.match_remark mr WITH(NOLOCK)
+			ON m.matchid = mr.matchid
 	WHERE m.matchid = @matchid
 
 	--alway check hold status
@@ -285,15 +296,29 @@ BEGIN
 	------------PARTIAL CHECKING ( Special rule checking ) --------------------
 
 	--Start: validation for Instant settle ( Auto Inst, Manual Inst )
-	IF @Mode LIKE '%INST%'
+	IF @Action LIKE '%INST%'
 	BEGIN
-		IF @Action = 'UNDO'
+		IF @Action LIKE 'CAL%'
 		BEGIN
-			EXEC dbo.NAP_Settlement_InstantCalculation_UndoChecking
-				@MatchId		= @MatchId
-				, @InstantCheck	= @InstantKey
-				, @ErrCode 		= @ErrCode OUTPUT
-				, @ErrMsg		= @ErrMsg OUTPUT
+			IF @AutoSetting & 2 <> 2 OR @SettlementStatus & 87 	> 0 --  disabled instant calculation setting, does not allow doing Inst.C for Pending, Undecided, MTDHold, UnderSettlement, Hold Key
+				SELECT @ErrCode = 1001001
+					, @ErrMsg   = 'This match has been disabled instant calculation setting!'
+			ELSE IF CHARINDEX('hedge', @matchcode) > 0 -- does not allow doing Inst.C for hedge match
+				SELECT	@ErrCode = 1001004
+						,@ErrMsg   = 'The selected match is a hedge match. Therefore, it cannot be instantly calculated.'
+			ELSE IF(@Mode = 'INST-FT' AND @isCalculatedHT = 0)
+				SELECT	@ErrCode = 1001003
+						,@ErrMsg   = 'Cannot execute FT instant calculation due to HT process (auto/manual) has not done yet.'				
+			ELSE IF EXISTS (SELECT TOP 1 1
+							FROM dbo.ProviderResultDetail ps WITH (NOLOCK) 
+							WHERE	ps.ProviderResultDetailId = @InstantKey
+									AND (ps.HomeValue > @LiveHomeScore OR CAST(ps.AwayValue AS INT) > @LiveAwayScore)
+							)	
+				SELECT	@ErrCode = 1001005
+                      ,	 @ErrMsg   = 'Instant Settlement cannot be executed because the Home/Away score which is used for Instant Settlement is greater than the current Home/Away score.'
+
+			IF @ErrCode > 0
+				RETURN
 		END
 
 		IF ISNULL(@ErrCode,0)>0
@@ -302,7 +327,7 @@ BEGIN
 	END
 	--/ END validation for Instant settle
 		
-	IF @IsAuto = 1 AND @Mode NOT LIKE '%INST%'
+	IF @IsAuto = 1 AND @Action NOT LIKE '%INST%'
 	BEGIN
 		--Auto payout soccer
 		--NAP_Admin_Settlement_1_AutoPayout_Push.

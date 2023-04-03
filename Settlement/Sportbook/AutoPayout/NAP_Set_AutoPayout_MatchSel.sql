@@ -66,6 +66,7 @@ AS
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 	- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 	- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+	- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
  Param explanation:  
 	@MatchCode: match code
@@ -222,6 +223,9 @@ BEGIN
 		, SettlementStatus			TINYINT
 		, InstantKey				INT
 		, InstantScoreDiff			TINYINT DEFAULT(0)
+		, InstantHomeScoreBefore	INT
+		, InstantAwayScoreBefore	INT
+		, InstantGoalRecordBefore	VARCHAR(50)
 	)
 	CREATE TABLE #tempmatch(MatchId INT, IsCalculatingSingle  INT, IsCalculatingMP INT)
 	CREATE TABLE #tempBettrans (matchid INT, bettype SMALLINT, runningBet INT, betCount INT, IsParlay BIT DEFAULT(0), IsExistHTFGNG BIT, IsExistHTLG BIT, IsExistFTFGNG BIT, IsExistFTLG BIT)
@@ -681,6 +685,33 @@ BEGIN
 		INNER JOIN InstMatchInProgress u 
 		ON d.matchID = u.matchID
 	
+
+	UPDATE d 
+		SET InstantHomeScoreBefore = aps.HomeScore
+			,InstantAwayScoreBefore = aps.AwayScore
+			,InstantGoalRecordBefore = aps.GoalRecord
+	FROM	#InstMatchInfo d
+		CROSS APPLY (
+			SELECT	TOP 1 CAST(aps.HomeValue AS TINYINT) AS HomeScore
+					,CAST(aps.AwayValue AS TINYINT) AS AwayScore
+					,ISNULL(gc.GoalRecord, '') AS GoalRecord
+			FROM	DBPRO.bodb02.dbo.AutoPayoutResult aps WITH (NOLOCK)
+					OUTER APPLY (
+						SELECT TOP 1 HomeValue AS GoalRecord
+						FROM DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK)
+						WHERE matchid 			= aps.matchid
+							AND TypeId 			= 103 -- FGNG
+							AND IsConfirmed		= 1 -- completed
+						ORDER BY ProviderResultDetailId DESC
+					) AS gc
+			WHERE	d.matchid = aps.matchid
+					AND d.InstantCalculationType = aps.CalculationType
+					AND aps.StatusId = 2 -- completed
+			ORDER BY ModifiedDate DESC
+		) aps
+		
+
+		
 	-- match is calculated or not
 	IF @SportType IN (0,1)
 	BEGIN
@@ -875,6 +906,9 @@ BEGIN
 		, m.LivePeriod
 		, ISNULL(im.InstantHomeScore, '') AS InstantHomeScore
 		, ISNULL(im.InstantAwayScore,'') AS InstantAwayScore
+		, ISNULL(im.InstantHomeScoreBefore,'') AS InstantHomeScoreBefore
+		, ISNULL(im.InstantAwayScoreBefore,'') AS InstantAwayScoreBefore
+		, ISNULL(im.InstantGoalRecordBefore,'') AS InstantGoalRecordBefore
 		, ISNULL(im.InstantStatusId, 0) AS InstantStatusId
 		, ISNULL(im.InstantCalculationType, 0) AS InstantCalculationType
 		, ISNULL(im.InstantKey, 0) AS InstantKey

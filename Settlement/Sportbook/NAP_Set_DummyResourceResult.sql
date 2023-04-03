@@ -91,7 +91,7 @@ BEGIN
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 
-	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT)
+	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT, isWeb BIT)
 
 	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
@@ -118,8 +118,8 @@ BEGIN
 						,T.C.value('@SettlementStatusId', 'TINYINT') AS SettlementStatusId
 				FROM    @xmlWebResourceResult.nodes('/Results/Resource') AS T(C)
 			)
-			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId, isWeb)
+			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID, 1
 			FROM	cteResourceResult
 		END
 		ELSE
@@ -133,8 +133,8 @@ BEGIN
 						,4 AS SettlementStatusId
 				FROM    @xmlWebResourceResult.nodes('/Results/Resource') AS T(C)
 			)
-			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+			INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId, isWeb)
+			SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID, 1
 			FROM	cteResourceSelected
 		END
 	END
@@ -1423,15 +1423,43 @@ BEGIN
 				FROM	@tmpResultDetail
 				WHERE	ResourceId = '00'
 			END
-
+			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('486', '487'))
 			BEGIN
-				IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '486')
-					SET @ResourceId = '486'
-				ELSE
-					SET @ResourceId = '487'
+	
+				IF EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail WHERE ResourceId LIKE '48[6-7]%' AND isWeb = 1)
+				BEGIN
+					;WITH cteRaceTo
+					AS(
+						SELECT	LEFT(t.ResourceId,3) AS DummyResourceId
+								,CAST(REPLACE(t.ResourceId,LEFT(t.ResourceId,3),'') AS INT) AS RaceTo
+								,t.HomeValue AS TeamResult
+								,t.ssId
+						FROM	@tmpResultDetail t
+						WHERE	t.ResourceId LIKE '48[6-7]%'	
+								 AND isWeb = 1
+					)
+					,cteResult
+					AS (
+						SELECT	DummyResourceId
+								,STRING_AGG(CAST(CAST(RaceTo AS VARCHAR(10)) + TeamResult AS VARCHAR(MAX)), ';') AS TeamRaceTo
+								,MAX(RaceTo) + 1 AS NeitherRaceTo
+								,MAX(ssId) AS ssId
+						FROM	cteRaceTo
+						GROUP BY DummyResourceId
+					)
+					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, AwayValue, ssId)
+					SELECT	c.DummyResourceId, c.TeamRaceTo, CAST(c.NeitherRaceTo AS VARCHAR(2000)), c.ssId
+					FROM	cteResult c
+				END
+				ELSE -- @WebResourceResult dont have ResourceId
+				BEGIN
+					IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '486')
+						SET @ResourceId = '486'
+					ELSE
+						SET @ResourceId = '487'
 
-				WHILE (@ResourceId <> '00')
+					WHILE (@ResourceId <> '00')
 				BEGIN
 					SELECT	@Position = 1
 							,@HomeRaceTo = 0
@@ -1479,39 +1507,61 @@ BEGIN
 
 					SET @ResourceId = '487'
 				END
+				END
 			END
 		
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '488')
 			BEGIN
 				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-				SELECT	'488'
-						,LEFT(REPLACE(@FTGoalRecord,';',''),1) 
-						,ssId
+				SELECT	ResourceId, HomeValue, ssId
 				FROM	@tmpResultDetail
-				WHERE	ResourceId = '00'
+				WHERE	ResourceId = '488'
+						AND isWeb = 1
+				
+				IF @@ROWCOUNT = 0
+					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+					SELECT	'488'
+							,LEFT(REPLACE(@FTGoalRecord,';',''),1) 
+							,ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '00'
 			END
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '489')
 			BEGIN
 				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-				SELECT	'489'
-						,LEFT(REPLACE(@HTGoalRecord,';',''),1) 
-						,ssId
+				SELECT	ResourceId, HomeValue, ssId
 				FROM	@tmpResultDetail
-				WHERE	ResourceId = '01'
+				WHERE	ResourceId = '489'
+						AND isWeb = 1
+
+				IF @@ROWCOUNT = 0
+					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+					SELECT	'489'
+							,LEFT(REPLACE(@HTGoalRecord,';',''),1) 
+							,ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '01'
 			END
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '490')
 			BEGIN
 				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-				SELECT	'490'
-						,CASE 
-							WHEN CHARINDEX(';', @FTGoalRecord) > 0 THEN SUBSTRING(@FTGoalRecord, CHARINDEX(';', @FTGoalRecord)+1,1) 
-							ELSE LEFT(@FTGoalRecord,1) 
-						END 
-						,ssId
+				SELECT	ResourceId, HomeValue, ssId
 				FROM	@tmpResultDetail
-				WHERE	ResourceId = '00'
+				WHERE	ResourceId = '490'
+						AND isWeb = 1
+
+				IF @@ROWCOUNT = 0
+					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+					SELECT	'490'
+							,CASE 
+								WHEN CHARINDEX(';', @FTGoalRecord) > 0 THEN SUBSTRING(@FTGoalRecord, CHARINDEX(';', @FTGoalRecord)+1,1) 
+								ELSE LEFT(@FTGoalRecord,1) 
+							END 
+							,ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '00'
 			END
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '22')

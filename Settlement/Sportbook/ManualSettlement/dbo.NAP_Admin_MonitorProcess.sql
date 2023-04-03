@@ -192,6 +192,9 @@ BEGIN
 		BEGIN
 			SELECT @Remark ='NAP: ' 
 							+ CASE 
+								WHEN @Action LIKE '%INST%' THEN
+									CASE WHEN @SourceId = 5 THEN 'Source: Soccerway' ELSE '' END
+									+ CASE WHEN @TicketCount IS NOT NULL THEN ' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';' ELSE '' END
 								WHEN @Action LIKE 'CAL%' THEN 
 									CASE 
 										WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '

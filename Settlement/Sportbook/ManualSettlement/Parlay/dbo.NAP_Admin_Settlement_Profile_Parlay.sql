@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
+	,@DeterminedType		TINYINT		= 2
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
@@ -33,6 +34,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -63,11 +65,8 @@ BEGIN
 			,@strMainTransIdRefnos	VARCHAR(MAX) = ''			
 			,@totalMainParlay		INT
 			,@IsABANDONEDHT			BIT = 0
-			--,@DummySDTResourceIds		VARCHAR(MAX) = ''
-			--,@DummySDTResourceResults	VARCHAR(MAX) = ''
 			,@IsSDT				BIT = 0
 			,@subAction			VARCHAR(20) = ''
-			,@DeterminedType	TINYINT = 0
 			,@ResourceRefund	VARCHAR(100) = ''
 						
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
@@ -79,7 +78,6 @@ BEGIN
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
 		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
 	)
-	--DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
 	DECLARE @tmpResourceAutoRefund TABLE ( ResourceID VARCHAR(20) )
@@ -210,10 +208,8 @@ BEGIN
 			SET @totalSubParlay = @@ROWCOUNT
 
 			
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType = 2)
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
 			BEGIN
-				SET @DeterminedType = 2
-
 				INSERT INTO #tmpsubTransID (TransID, modds, refno)
 				SELECT	bm.transid, m.modds, bm.refno
 				FROM	dbo.bettransm bm WITH(NOLOCK)
@@ -222,9 +218,9 @@ BEGIN
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype
 								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
-								AND t.DeterminedType = 2
+								AND t.DeterminedType & @DeterminedType > 0
 					)sr
-					OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
+					OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @fth, @fta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 						ON	b.matchid = 29
 							AND b.bettype = 29

@@ -21,6 +21,7 @@ AS
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		- 20230404@Louisa: Get data for JackTime [Redmine:#184764]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -80,7 +81,7 @@ BEGIN
 			,l.LeagueGroupID
 			,l.OverTimeSession
 			,m.ParentID
-			,m.GoalRecord
+			,m.goalrecord
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid

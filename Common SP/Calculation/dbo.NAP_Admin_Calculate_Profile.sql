@@ -30,6 +30,7 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:  
 		   
@@ -46,18 +47,19 @@ BEGIN
 	SET NOCOUNT ON
 
 	-----------------------CHECK SERVER-----------------------------------------
-	DECLARE @AllowCalculation	BIT
+	DECLARE @AllowCalculation BIT
 			,@AllowRefund BIT
+			,@AllowUndo BIT
 			,@Action VARCHAR(20)
 			,@AllowUndo BIT
 			
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
 	SET @Action = CASE 
-					WHEN @ActionID BETWEEN 100 AND 102 OR @ActionId IN (157,158) THEN 'CAL' 
-					WHEN @ActionID BETWEEN 109 AND 111 THEN 'REFUND'
-					WHEN @ActionID IN (81040) THEN 'UNDO'
-				END
-				
+					WHEN @ActionID BETWEEN 100 AND 102 OR @ActionId IN (157, 158, 178, 179, 195, 196) THEN 'CAL' 
+					WHEN @ActionID BETWEEN 109 AND 111 THEN 'REFUND'	
+					WHEN @ActionID IN (81040, 182) THEN 'UNDO'
+				END																 
+																				 
 	IF @ServerName <> @@SERVERNAME
 		RETURN
 
@@ -495,7 +497,6 @@ BEGIN
 				WHERE	 ISNULL(b.betdaqid,0) <> -2 
 				OPTION (OPTIMIZE FOR (@batchNo = 1), FORCE ORDER)
 			END
-		
 			SET @StepDone = @StepDone + ' bettrans'
 
 			SELECT TOP 1 @matchid = MatchId
@@ -525,9 +526,9 @@ BEGIN
 							,bef_winlost AS 'bef_w' 
 							,bef_statusid AS 'bef_sid' 
 					
-					FROM	@tmpBalanceChanged
-					FOR JSON AUTO
-				)
+						FROM	@tmpBalanceChanged
+						FOR JSON AUTO
+					)
 
 				SET @FunctionName = CASE WHEN @Action = 'REFUND' THEN 'RefundSoccer' 
 										 WHEN @Action = 'UNDO'   THEN 'Undo' 

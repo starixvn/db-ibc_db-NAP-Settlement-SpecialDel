@@ -25,6 +25,7 @@ AS
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's explanation: 
 */
@@ -49,6 +50,9 @@ BEGIN
 		,InstantStatusId				TINYINT DEFAULT(0)
 		,InstantKey					INT
 		,InstantScoreDiff				TINYINT DEFAULT(0)
+		,InstantHomeScoreBefore		INT
+		,InstantAwayScoreBefore		INT
+		,InstantGoalRecordBefore	VARCHAR(50)
 	)
 	
 	SET @xml = CONVERT(XML, REPLACE('<root><r m="' + @MatchIds + '"/></root>', ',','"/><r m="'))
@@ -327,6 +331,30 @@ BEGIN
 		INNER JOIN InstMatchInProgress im
 		ON q.MatchId = im.matchid
 	
+	UPDATE q 
+		SET InstantHomeScoreBefore = aps.HomeScore
+			,InstantAwayScoreBefore = aps.AwayScore
+			,InstantGoalRecordBefore = aps.GoalRecord
+	FROM	@tblMatchInQueue q
+		CROSS APPLY (
+			SELECT	TOP 1 CAST(aps.HomeValue AS TINYINT) AS HomeScore
+					,CAST(aps.AwayValue AS TINYINT) AS AwayScore
+					,ISNULL(gc.GoalRecord, '') AS GoalRecord
+			FROM	dbo.AutoPayoutResult aps WITH (NOLOCK)
+				OUTER APPLY (
+					SELECT TOP 1 HomeValue AS GoalRecord
+					FROM dbo.ProviderResultDetail ps WITH (NOLOCK)
+					WHERE matchid 			= q.matchid
+						AND TypeId 			= 103 -- FGNG
+						AND IsConfirmed		= 1 -- completed
+					ORDER BY ProviderResultDetailId DESC
+				) AS gc
+			WHERE	q.matchid = aps.matchid
+					AND q.CalculationType = aps.CalculationType
+					AND aps.StatusId = 2 -- completed
+			ORDER BY ModifiedDate DESC
+		) aps
+		
 	-- return output result
 	SELECT	m.matchid
 			,m.leagueid
@@ -379,6 +407,10 @@ BEGIN
 			,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 			,ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
 			,ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
+			,ISNULL(q.InstantHomeScoreBefore,'') AS InstantHomeScoreBefore
+			,ISNULL(q.InstantAwayScoreBefore,'') AS InstantAwayScoreBefore
+			,ISNULL(q.InstantGoalRecordBefore,'') AS InstantGoalRecordBefore
+			
 	FROM	@tblMatchInQueue q
 		INNER JOIN match m WITH(NOLOCK)
 			ON	q.MatchId = m.matchid
