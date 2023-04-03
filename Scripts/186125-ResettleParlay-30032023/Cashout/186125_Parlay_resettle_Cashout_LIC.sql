@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_07]
 /*	
 	Creator: Helen
 	Date: 20230403
-	DB: DBCTG/bodb02
+	DB: DBTXN/bodb02
 
 	Revisions:
 		- 20230403@Helen: Resettle ticket for parlay  [Redmine:#186125]
@@ -164,7 +164,7 @@ GO
 /*	
 	Creator: Helen
 	Date: 20230403
-	DB: DBCTG/bodb02
+	DB: DBTXN/bodb02
 
 	Revisions:
 		- 20230403@Helen: Resettle ticket for parlay  [Redmine:#186125]
@@ -183,7 +183,8 @@ CREATE TABLE #Result_balance_tmp (transid BIGINT PRIMARY KEY, id INT IDENTITY (1
 INSERT INTO #Result (transid)
 SELECT DISTINCT TransId
 FROM bettrans WITH (NOLOCK) 
-WHERE transid IN (101059725780582401, 101059927644045333, 101060743687831573, 101061413706924088, 101060992791740456)
+WHERE transid IN (101059725780582401, 101059927644045333, 101060743687831573, 101061413706924088, 101060992791740456) 
+	AND SiteDBGroupID IN (1,2)
 
 ---KEEP transid for balance processing
 INSERT INTO #Result_balance_tmp (transid)
