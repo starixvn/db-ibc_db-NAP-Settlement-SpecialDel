@@ -754,25 +754,22 @@ BEGIN
 				,tmp.InstantlySettleCount
 				,tmp.SettleCount
 				,rd.MainParlayCount
-				,li.HighLightMinTime
-				,h.HighlightAcceptType
+				,a.HighLightMinTime
+				,a.HighlightAcceptType
 				,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 				,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 				,tmp.CancelCashOutCount
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-			   OUTER APPLY (
-					SELECT TOP 1 li.HighLightMinTime
-					FROM #logInfo li 
-					WHERE li.MatchId = rd.MatchId
-					ORDER BY li.HighLightMinTime ASC
-					) li 
+				CROSS APPLY (
+						SELECT CONVERT(XML, rd.TransIds)
+					)AS t1(xDATA)
+				CROSS APPLY (
+						SELECT t.c.value('@ScoreId','INT') AS ScoreId
+							,NULLIF(t.c.value('@MinTime','DATETIME'),'') AS  HighLightMinTime
+							,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
+						FROM t1.xDATA.nodes('/r') t(c)
+					) a
 			   LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
-			   OUTER APPLY (
-						SELECT  TOP 1 b.accepttype AS HighlightAcceptType
-						FROM #TVSTicketBets b
-						WHERE b.matchId = rd.MatchId
-						AND li.HighLightMinTime = (CASE WHEN b.checktime IS NOT NULL THEN b.checktime ELSE b.transdate END)
-				)h
 				CROSS APPLY(
 					SELECT DISTINCT '|' + l.ScoreNormalTicket FROM @tblScoreMessage l WHERE l.MatchId = rd.MatchId FOR XML PATH('')
 				)s2(ScoreTicket2H)
