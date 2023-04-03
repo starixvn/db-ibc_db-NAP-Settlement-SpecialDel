@@ -13,6 +13,8 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_07]
 	Revisions:
 		- 20230403@Helen: Resettle ticket for parlay  [Redmine:#186125]
 
+	Notes: basing code from SP ExecRep_NAP_Admin_03 to process for cashout tickets
+
 */	
 AS
 BEGIN
