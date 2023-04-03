@@ -22,6 +22,7 @@ AS
 		- 20221026@Kathy: Remove log on table SiteDB_SettlementService_CalculationLog_History [178694]
 		- 20221128@Kathy: Move table single/parlay queue_bk to bodb_CustomerLog_Archive [Redmine:#180941]
 		- 20230220@Kathy: Reduce Duration Save Data in Table SSB_SettlementLogs to 3 Days [Redmine:#184094]
+		- 20230308@Louisa: backup data of 2 table single_calculate_queue & parlay_calculate_queue by service [Redmine:#184726]    
 
 
 	 Param's Explanation:  
@@ -30,82 +31,6 @@ AS
 */  
 BEGIN  
 	SET NOCOUNT ON  
-
-	DECLARE @SingleKeyIds VARCHAR(MAX)
-			,@ParlayKeyIds VARCHAR(MAX)
-
-	DECLARE @tmpKeyId TABLE (KeyId INT)
-	DECLARE @tmpSingleKeyId TABLE (KeyId INT)
-	DECLARE @tmpParlayKeyId TABLE (KeyId INT)
-
-	SELECT	@SingleKeyIds = ''
-			,@ParlayKeyIds = ''
-
-	 -- Single commands   
-	INSERT INTO @tmpSingleKeyId (KeyId)
-	SELECT	KeyId
-	FROM	dbo.Single_Calculate_Queue s WITH(NOLOCK)  
-	WHERE	Starttime < @Date 
-			AND IsCalculating NOT IN (0, 1)  
-
-	IF @@ROWCOUNT > 0
-		SELECT @SingleKeyIds = @SingleKeyIds + CAST(KeyId AS VARCHAR(20)) + ','
-		FROM	@tmpSingleKeyId
-
-	-- Parlay commands
-	INSERT INTO @tmpParlayKeyId(KeyId)
-	SELECT	KeyId
-	FROM	dbo.Parlay_Calculate_Queue p WITH (NOLOCK)  
-	WHERE	Starttime < @Date 
-			AND IsCalculating NOT IN (0, 1)  
-
-	IF @@ROWCOUNT > 0
-		SELECT @ParlayKeyIds = @ParlayKeyIds + CAST(KeyId AS VARCHAR(20)) + ','
-		FROM	@tmpParlayKeyId
-
-	 -- backup data on DBLOG
-	 EXEC DBLOG.bodb_CustomerLog_Archive.dbo.NAP_Set_QueueSBBackup
-		  @SingleKeyIds = @SingleKeyIds
-		  ,@ParlayKeyIds = @ParlayKeyIds
-
-	-- delete data on DBTXN
-	-- single commands
-	WHILE (1 = 1)
-	BEGIN
-		DELETE FROM @tmpKeyId
-
-		DELETE  TOP (2000)
-		FROM	@tmpSingleKeyId 
-		OUTPUT DELETED.KeyId
-		INTO @tmpKeyId(KeyId)
-			
-		DELETE	s
-		FROM	dbo.Single_calculate_queue s WITH(ROWLOCK, UPDLOCK) 
-			INNER JOIN @tmpKeyId t
-				ON	s.KeyId = t.KeyId
-
-		IF @@ROWCOUNT < 2000
-			BREAK
-	END
-
-	-- parlay commands
-	WHILE (1 = 1)
-	BEGIN
-		DELETE FROM @tmpKeyId
-
-		DELETE  TOP (2000)
-		FROM	@tmpParlayKeyId 
-		OUTPUT DELETED.KeyId
-		INTO @tmpKeyId(KeyId)
-			
-		DELETE	p
-		FROM	dbo.Parlay_Calculate_Queue p WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpKeyId t
-				ON	p.KeyId = t.KeyId
-
-		IF @@ROWCOUNT < 2000
-			BREAK
-	END
 
 	DELETE 
 	FROM	dbo.Single_Calculate_Queue_VS WITH(UPDLOCK,ROWLOCK)  
