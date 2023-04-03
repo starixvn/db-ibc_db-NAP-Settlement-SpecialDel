@@ -46,15 +46,15 @@ BEGIN
 		 , 11 AS IssueTypeId
 	FROM dbo.Ticketvoiding_VoidedTransaction_bk tv WITH (NOLOCK)  
 		OUTER APPLY (
+					SELECT TOP(1) vh.RequestId
+					FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH (NOLOCK) 
+					WHERE vh.MessageId = tv.MessageId
+			)r
+		CROSS APPLY (
 					SELECT	 m.sporttype
 					FROM	dbo.match_bk m WITH(NOLOCK)
 					WHERE	m.matchid = tv.MatchId
 			)m
-		OUTER APPLY (
-						SELECT TOP(1) vh.RequestId
-						FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH (NOLOCK) 
-						WHERE vh.MessageId = tv.MessageId
-					)r
 	WHERE tv.IssueTypeId = 11 AND tv.CreatedDate > @Datetime AND r.RequestId IS NULL 
 	GROUP BY tv.SubIssueTypeId, tv.CustID, m.sporttype
 

@@ -808,7 +808,7 @@ BEGIN
         IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN       
             INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
-            VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, CASE WHEN @Option = 0 THEN @MatchId ELSE 0 END, GETDATE(),@SubmittedDate)
         END        
 	END TRY
 	BEGIN CATCH
