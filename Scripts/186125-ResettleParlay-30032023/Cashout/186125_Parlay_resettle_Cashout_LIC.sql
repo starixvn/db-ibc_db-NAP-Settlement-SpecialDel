@@ -25,7 +25,7 @@ BEGIN
 			,@AllowCalculation	BIT
 			,@AllowUndo			BIT
 			,@AllowRefund		BIT
-			,@IsSiteDB			BIT = 0
+			--,@IsSiteDB			BIT = 0
 			,@Mode		VARCHAR(20) = 'CAL'
 	
 	SET @ServerName = @@SERVERNAME
@@ -55,7 +55,7 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@commWinRate		SMALLMONEY
 			,@commLostRate		SMALLMONEY
-			,@transinfoJson		NVARCHAR(MAX)	
+			--,@transinfoJson		NVARCHAR(MAX)	
 
 	DECLARE @tempTrans TABLE (TransID BIGINT, statuswinlost TINYINT, winlost MONEY)
 
