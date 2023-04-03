@@ -21,6 +21,8 @@ AS
 		- 20211028@Kathy: Remove log on table SSB_SettlementLogs [Redmine:#159486]
 		- 20221026@Kathy: Remove log on table SiteDB_SettlementService_CalculationLog_History [178694]
 		- 20221128@Kathy: Move table single/parlay queue_bk to bodb_CustomerLog_Archive [Redmine:#180941]
+		- 20230220@Kathy: Reduce Duration Save Data in Table SSB_SettlementLogs to 3 Days [Redmine:#184094]
+
 
 	 Param's Explanation:  
     
@@ -192,11 +194,11 @@ BEGIN
 			BREAK
 	END
 
-	DECLARE @8DaysBefore DATETIME = DATEADD (DD, -8, GETDATE())	
+	DECLARE @3DaysBefore DATETIME = DATEADD (DD, -3, GETDATE())	
 	WHILE(1=1)
 	BEGIN
 		DELETE TOP(2000) FROM dbo.SSB_SettlementLogs WITH(ROWLOCK)
-		WHERE StartTime <= @8DaysBefore
+		WHERE StartTime <= @3DaysBefore
 
 		IF @@ROWCOUNT = 0
 			BREAK
@@ -207,7 +209,7 @@ BEGIN
 		WHILE(1=1)
 		BEGIN
 			DELETE TOP(2000) FROM dbo.SiteDB_SettlementService_CalculationLog_History WITH(ROWLOCK)
-			WHERE LogDate <= @8DaysBefore
+			WHERE LogDate <= @3DaysBefore
 
 			IF @@ROWCOUNT = 0
 				BREAK
