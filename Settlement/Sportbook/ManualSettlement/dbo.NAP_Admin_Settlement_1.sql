@@ -87,6 +87,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -168,6 +169,7 @@ BEGIN
 							WHEN 'CAL-FT' THEN 101
 							WHEN 'CAL-HT' THEN 102
 							WHEN 'UNDO'	THEN 103
+							WHEN 'UNDO-FT'	THEN 81040
                         END
 						
 			,@HomeValue = CAST(@fth AS VARCHAR(20))

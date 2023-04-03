@@ -6,7 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile]
 	,@fth INT = 0
 	,@fta INT = 0
 	,@goalrecord NVARCHAR(50) = ''
-    ,@action VARCHAR(6) = 'CAL'
+    ,@action VARCHAR(20) = 'CAL'
 	,@ActionID	INT = 0
 	,@creator INT = 0
 	,@IsReSettledTickets BIT = 1
@@ -35,6 +35,7 @@ AS
 	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 	   - 20221019@Louisa: insert BroadcastSessionId into queue auto void for all Action [Redmine:#179361]
 	   - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+	   - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -83,6 +84,7 @@ BEGIN
 			,@Params			VARCHAR(MAX)
 			,@IsCentral	BIT
 			,@WebResourceResult VARCHAR(MAX)
+			,@CashoutMode		VARCHAR(20) = 'CAL'
 			
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -97,7 +99,7 @@ BEGIN
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)
 	DECLARE @tmpParlayAffectedBettypes TABLE (bettype SMALLINT, totalticket INT)	
 
-	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, balanceType TINYINT, WalletType TINYINT, BonusID INT, balance MONEY
+	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY DEFAULT(0), statuswinlost TINYINT, custid INT, WalletType TINYINT, BonusID INT, balance MONEY
 		, bettype SMALLINT, betteam VARCHAR(50), hdp1 SMALLMONEY, hdp2 SMALLMONEY,livehomescore SMALLINT, liveawayscore SMALLINT, isFinished BIT DEFAULT(0)
 		, currentStatuswinlost TINYINT
 	)
@@ -188,20 +190,22 @@ BEGIN
 		SELECT  ResourceId, HomeValue, AwayValue
 		FROM	cteGoalResource
 		WHERE   ResourceID IS NOT NULL
-				AND SettlementStatusId = 4
+				AND (SettlementStatusId = 4
+					OR (SettlementStatusId = 0 AND @action = 'UNDO-FT')
+				)
 	)
 	INSERT INTO @tmpResources (ResourceID, HomeValue, AwayValue)
 	SELECT	ResourceID, HomeValue, AwayValue
 	FROM	cteResource
 
 	SET	@WebResourceResult = CAST((SELECT	ResourceID AS '@Id'
-											,HomeValue AS '@HomeValue'
-											,AwayValue AS '@AwayValue'
-											,4 AS '@SettlementStatusId'
-											,5 AS '@ResultStatusId'
-									FROM	@tmpResources
-									FOR XML PATH('Resource'), ROOT ('Results'), TYPE
-							) AS VARCHAR(MAX))
+										,HomeValue AS '@HomeValue'
+										,AwayValue AS '@AwayValue'
+										,4 AS '@SettlementStatusId'
+										,5 AS '@ResultStatusId'
+								FROM	@tmpResources
+								FOR XML PATH('Resource'), ROOT ('Results'), TYPE
+						) AS VARCHAR(MAX))
 
 	INSERT INTO @tmpAllBettypes(Bettype)
 	SELECT bettype
@@ -223,7 +227,8 @@ BEGIN
 				AND s.SettleType = 'MNL'
 		) t
 
-	IF @IsReSettledTickets = 0
+
+	IF @IsReSettledTickets = 0 AND @Action NOT LIKE 'UNDO%'
 	BEGIN
 		INSERT INTO #tmpCustBettypes (CustId, Bettype, TotalTicket)
 		SELECT	b.custid
@@ -322,12 +327,12 @@ BEGIN
 			ON ab.Bettype = sp.BetType
 	WHERE	sp.SportType = @SportType
 			AND 1 = CASE	
-						WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND sp.Is3x30 = 1 AND sp.GroupType = 'FT' THEN 0 
+						WHEN @action IN ('CAL', 'CAL-FT', 'UNDO-FT') AND @isRefundHT = 1 AND sp.Is3x30 = 1 AND sp.GroupType = 'FT' THEN 0 
 						ELSE 1
 					END
 			AND sp.SettleType = 'MNL'
 			AND sp.pfID > 0
-
+	
 	INSERT INTO dbo.SettlementBettypeResult (MatchId, Bettype, pfId, HomeValue, AwayValue, OddsType, SessionId)
 	SELECT	@MatchId AS MatchId
 			,BetType
@@ -338,7 +343,7 @@ BEGIN
 			,@SessionId
 	FROM	#tmpSelectedRID
 		
-	IF @ChildMatchType = 204
+	IF @ChildMatchType = 204 AND @action NOT LIKE 'UNDO%'
 	BEGIN
 		DECLARE @CornerResultString VARCHAR(50)
 				,@Position				TINYINT
@@ -501,7 +506,7 @@ BEGIN
 											FROM	dbo.f_Set_GetCashOutBettypes() f 
 											FOR XML PATH('')),1,1,'')
 	END
-	ELSE IF @action = 'CAL-FT'
+	ELSE IF @action = 'CAL-FT' OR  @action = 'UNDO-FT'
 	BEGIN
 		SELECT @strCashoutBettype = STUFF((SELECT ',' + CAST(f.bettype AS VARCHAR(50)) 
 											FROM	dbo.f_Set_GetCashOutBettypes() f 
@@ -665,6 +670,9 @@ BEGIN
 				AND b.statusID NOT IN (101)
 				AND ISNULL(b.betdaqid,0) = - 2
 				AND CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strCashoutBettype + ',') > 0
+				AND 1 = CASE WHEN b.statuswinlost IS NOT NULL AND @action LIKE 'UNDO%' THEN 1
+							 WHEN @action NOT LIKE 'UNDO%' THEN 1
+							 ELSE 0 END
 
 		IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
 		BEGIN
@@ -674,32 +682,39 @@ BEGIN
 				INNER JOIN dbo.CashOutSelling c WITH(NOLOCK)
 					ON t.TransId = c.TransID
 
-			UPDATE t 
-				SET statuswinlost = CASE 
-										WHEN m.modds > 0.25 THEN 2
-										WHEN m.modds = 0.25 THEN 1
-										WHEN m.modds = 0 THEN 0
-										WHEN m.modds = -0.25 THEN 3
-										ELSE 4
-									END
-			FROM	@tmpCashoutTransId t
-				INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
-	  				ON	sr.BetType = t.bettype
-						AND sr.matchid = @matchid
-				CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, t.betteam, t.hdp1, t.hdp2, sr.HomeValue, sr.AwayValue, t.livehomescore, t.liveawayscore, NULL, NULL) m
-			WHERE	sr.SessionId = @SessionId
+			IF @action LIKE 'UNDO%'
+			BEGIN
+				SET @CashoutMode = 'UNDO'
+			END
+			ELSE
+			BEGIN
+				UPDATE t 
+					SET statuswinlost = CASE 
+											WHEN m.modds > 0.25 THEN 2
+											WHEN m.modds = 0.25 THEN 1
+											WHEN m.modds = 0 THEN 0
+											WHEN m.modds = -0.25 THEN 3
+											ELSE 4
+										END
+				FROM	@tmpCashoutTransId t
+					INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  					ON	sr.BetType = t.bettype
+							AND sr.matchid = @matchid
+					CROSS APPLY dbo.f_Set_Calculate_modds_major(sr.pfID, t.betteam, t.hdp1, t.hdp2, sr.HomeValue, sr.AwayValue, t.livehomescore, t.liveawayscore, NULL, NULL) m
+				WHERE	sr.SessionId = @SessionId
 
-			DELETE 
-			FROM	@tmpCashoutTransId
-			WHERE	currentStatuswinlost IS NOT NULL
-					AND currentStatuswinlost = statuswinlost
+				DELETE 
+				FROM	@tmpCashoutTransId
+				WHERE	currentStatuswinlost IS NOT NULL
+						AND currentStatuswinlost = statuswinlost
+			END
 			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpCashoutTransId)
 			BEGIN 
 				INSERT INTO @BalanceWalletBefore (matchid, custid, balanceType, WalletType, BonusID, balance)
-				SELECT	@matchid, custid, balanceType, WalletType, BonusID, SUM(balance)
+				SELECT	@matchid, custid, 1 , WalletType, BonusID, SUM(balance)
 				FROM	@tmpCashoutTransId
-				GROUP BY	custid, balanceType, WalletType, BonusID
+				GROUP BY	custid, WalletType, BonusID
 
 				WHILE (1=1)
 				BEGIN
@@ -720,20 +735,20 @@ BEGIN
 												,statuswinlost AS '@s'
 										FROM @tmpTransIDBatch
 										FOR XML PATH('r'), ROOT( 'root' ))
-
+					
 					EXEC dbo.NAP_Admin_Calculate_Main
 						@matchid	  = @matchid
 						,@action	  = 'Cashout'
-						,@mode		  = 'CAL'
+						,@mode		  = @CashoutMode
 						,@strTransIds = @strTransIds
 				END
 
 				INSERT INTO @BalanceWalletAfter (matchid, custid, balanceType, WalletType, BonusID, balance)
-				SELECT	@matchid, t.custid, t.balanceType, t.WalletType, t.BonusID, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
+				SELECT	@matchid, t.custid, 1, t.WalletType, t.BonusID, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
 				FROM	@tmpCashoutTransId t
 					INNER JOIN dbo.bettrans b WITH(NOLOCK)
 						ON t.TransId = b.transid
-				GROUP BY	t.custid, t.balanceType, t.WalletType, t.BonusID			
+				GROUP BY	t.custid, t.WalletType, t.BonusID			
 		
 				-- Compare and update pending balance with error case
 				EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -817,7 +832,7 @@ BEGIN
 					ON	sp.BetType = ab.Bettype
 			WHERE	sp.SportType = @SportType
 					AND 1 = CASE	
-								WHEN @action IN ('CAL', 'CAL-FT') AND @isRefundHT = 1 AND sp.Is3x30 = 1 AND sp.GroupType = 'FT' THEN 0 
+								WHEN @action IN ('CAL', 'CAL-FT', 'UNDO-FT') AND @isRefundHT = 1 AND sp.Is3x30 = 1 AND sp.GroupType = 'FT' THEN 0 
 								ELSE 1
 							END
 					AND sp.SettleType = 'MNL'

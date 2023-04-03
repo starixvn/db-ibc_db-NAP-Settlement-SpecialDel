@@ -26,6 +26,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		
 	Param's Explanation:  
 		@Params: <Params><Params/>
@@ -207,7 +208,65 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			IF @IsReSettledTickets = 0
+			IF @Action = 'UNDO-FT' 
+			BEGIN
+				INSERT INTO #tmpBettrans (transid, custid, recommend, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
+				SELECT	 b.transid
+						,b.custid
+						,b.recommend
+						,b.bettype
+						,b.betteam 
+						,b.hdp1 
+						,b.hdp2 
+						,b.livehomescore
+						,b.liveawayscore
+						,b.transdesc 
+						,CASE WHEN b.bettype IN (468, 469) THEN b.betcheck ELSE CAST(b.betid AS VARCHAR(50)) END AS betcheck
+				FROM	dbo.bettrans b WITH (NOLOCK)		
+					OUTER APPLY (
+						SELECT	TOP (1) mt.TransId
+						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						WHERE	mt.TransId = b.transid
+								AND mt.CustId = b.custId
+					) mt
+				WHERE	b.matchid = @MatchId
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+	  				AND b.statusID NOT IN (101)
+					AND 1 = CASE WHEN b.statusID IN (0, 1) AND mt.TransId IS NOT NULL THEN 1 
+								 WHEN b.statusID NOT IN (0, 1) THEN 1
+							ELSE 0 END
+					AND ISNULL(b.betdaqid,0) <> -2
+					AND b.custid BETWEEN @MinCustId AND @MaxCusId
+				OPTION (MAXDOP 1)
+
+				INSERT INTO #tmpAffectedTransId (transid, custid, recommend, bettype, betteam, hdp1, hdp2
+					,livehomescore, liveawayscore, transdesc, betcheck
+					,pfID, HomeValue, AwayValue, oddstype
+					)
+				SELECT	 b.transid
+						,b.custid
+						,b.recommend
+						,b.bettype
+						,b.betteam 
+						,b.hdp1 
+						,b.hdp2 
+						,b.livehomescore
+						,b.liveawayscore
+						,b.transdesc		
+						,b.betcheck
+
+						,sr.pfID
+						,sr.HomeValue 
+						,sr.AwayValue 
+						,sr.oddstype			
+				FROM	#tmpBettrans b	
+	  				INNER JOIN SettlementBettypeResult sr WITH(NOLOCK)
+	  					ON	sr.BetType = b.bettype
+							AND sr.matchid = @matchid
+				WHERE	sr.SessionId = @SessionId
+				OPTION (MAXDOP 1)
+			END
+			ELSE IF @IsReSettledTickets = 0
 			BEGIN
 				INSERT INTO #tmpBettrans (transid, custid, bettype, betteam, hdp1, hdp2, livehomescore, liveawayscore, transdesc, betcheck)
 				SELECT	 b.transid
@@ -383,6 +442,12 @@ BEGIN
 							END
 				ORDER BY filterBy, b.custid, b.bettype 
 				OPTION (MAXDOP 1)
+			END
+			ELSE IF @Action LIKE 'UNDO%'
+			BEGIN
+				INSERT INTO #tmpFinalResult (transid)
+				SELECT	b.transid
+				FROM	#tmpAffectedTransId b
 			END
 		END
 

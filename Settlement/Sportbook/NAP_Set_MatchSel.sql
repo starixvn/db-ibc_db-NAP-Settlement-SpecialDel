@@ -684,7 +684,8 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
-	WHERE m.IsRunningSingle = 1
+	WHERE m.IsRunningSingle = 1 
+		OR m.IsRunningParlay = 1 
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId

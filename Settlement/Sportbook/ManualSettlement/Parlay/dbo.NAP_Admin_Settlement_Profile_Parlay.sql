@@ -104,7 +104,7 @@ BEGIN
 			,@ActionID = CASE 
 							WHEN @Action LIKE 'CAL%' THEN 81028 -- new action Id
 							WHEN @Action LIKE 'REFUND%' THEN 81029 
-							WHEN @Action LIKE 'UNDO%' THEN 81030
+							WHEN @Action LIKE 'UNDO%' THEN IIF(@Action = 'UNDO-FT', 81041,81030)
 						END
 			,@SPName = OBJECT_NAME(@@PROCID)
 			,@session = CONVERT(NVARCHAR(50),NEWID())

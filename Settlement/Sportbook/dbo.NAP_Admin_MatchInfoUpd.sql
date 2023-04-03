@@ -31,6 +31,7 @@ AS
 		- 20220927@Kathy: Check HTDone [Redmine:#178120]
 		- 20221011@Kathy: fix issue basketball - do not upd match_remark.IsHTCal
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
@@ -74,6 +75,10 @@ BEGIN
 			,@xmlResults XML
 			,@xmlEventCounter XML
 			,@parlaycommand VARCHAR(1)
+			,@remarkCommand VARCHAR(100)
+			,@cornerCommand VARCHAR(100)
+			,@undoResultDetailCommand	VARCHAR(100)
+			,@IsResultHTCal	BIT
 
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 	
@@ -97,6 +102,7 @@ BEGIN
 	BEGIN
 		SELECT	@HTDone = CASE WHEN r.ResultStatusID = 5 THEN 1 ELSE 0 END
 				,@IsRefundHT = CASE WHEN r.SettlementStatusID = 2 THEN 1 ELSE 0 END
+				,@IsResultHTCal = CASE WHEN r.SettlementStatusID = 4 THEN 1 ELSE 0 END
 		FROM	dbo.ResultDetail r WITH(NOLOCK)
 		WHERE	r.MatchID = @MatchId
 				AND r.ResourceID = '01'
@@ -370,15 +376,34 @@ BEGIN
 			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
 			OR @ResultTable = 0
 		BEGIN
+			SELECT @undoCommand =	CASE WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_1-UNDO'
+										 WHEN @Action = 'UNDO-FT' THEN 'NAP_Admin_Settlement_1-UNDO-FT'									
+									END
+			SELECT @remarkCommand = CASE WHEN @Action = 'UNDO' THEN 'U'
+										 WHEN @Action = 'UNDO-FT' THEN 'UF'									
+									END
+			
+			SELECT @cornerCommand = CASE WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_1-Corner-UNDO'
+										 WHEN @Action = 'UNDO-FT' THEN 'NAP_Admin_Settlement_1-Corner-UNDO-FT'									
+									END
+
+			SELECT @undoResultDetailCommand =	CASE WHEN @Action = 'UNDO' THEN 'NAP_Admin_Settlement_1-UNDO'
+													 WHEN @Action = 'UNDO-FT' THEN 'UndoByResouceId'									
+												END
+									
+
 			EXEC dbo.NAP_Admin_Match_Update 
-				@Command        = 'NAP_Admin_Settlement_1-UNDO'
+				@Command        = @undoCommand
 				,@MatchID       = @matchid
-				,@betstatus     = @betstatus               
+				,@betstatus     = @betstatus 
+				,@GoalRecord	 = @GoalRecord
 				,@creator       = @AdminId
 
 			EXEC dbo.NAP_UpdateMatch_Remark 
 				@matchid        = @matchid
-				,@command        = 'U'                
+				,@command        = @remarkCommand
+				,@IsRefundHT	 = @IsRefundHT	
+				,@IsResultHTCal  = @IsResultHTCal
         
 			IF @SportType <> 1 -- update parlay
 			BEGIN
@@ -392,15 +417,16 @@ BEGIN
 				IF @ChildMatchType = 204 -- Corner
 				BEGIN
 					EXEC dbo.NAP_Admin_Result_Update_1s 
-						@Command            = 'NAP_Admin_Settlement_1-Corner-UNDO',
+						@Command            = @cornerCommand,
 						@MatchID            = @MatchID,
 						@creator            = @AdminId 
 				END
 				ELSE
 				BEGIN
 					EXEC dbo.NAP_Admin_Result_Update_1s 
-						@Command            = 'NAP_Admin_Settlement_1-UNDO',
+						@Command            = @undoResultDetailCommand,
 						@MatchID            = @MatchID,
+						@ResourceResult		= @ResourceResult,
 						@creator            = @AdminId 
 				END
 
