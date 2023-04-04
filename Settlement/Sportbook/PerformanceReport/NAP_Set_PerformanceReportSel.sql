@@ -10,6 +10,7 @@ AS
 
 	Revision:
 		- 20210316@Kathy: created SP [Redmine:#138281]
+		- 20230322@Louisa: support get result Game/Set/Interval [Redmine:#182007]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -30,7 +31,7 @@ BEGIN
 		,keyscoreUser					NVARCHAR(50)
 		,SettleAction					VARCHAR(20)
 		,SettlementStatus				VARCHAR(20)
-		,ConfirmStatus					VARCHAR(20)
+		--,ConfirmStatus					VARCHAR(20)
 		,Step1_WaitforKeyscore_Duration INT
 		,Step2_WaitforSettle_Duration	INT
 		,Step3_Settle_Duration			INT
@@ -40,7 +41,7 @@ BEGIN
 	;WITH cteSettlementPerformanceLog
 	AS (
 		SELECT ROW_NUMBER() OVER(PARTITION BY matchid, action, homescore, awayscore ORDER BY starttime ) AS rn
-			,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, IsAuto
+			,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action ,ActionId, IsAuto
 			,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
 		FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
 	)
@@ -58,7 +59,7 @@ BEGIN
 		FROM	bodb_Account.dbo.UserLog_P_SuspenderConfirm u with(nolock)
 	)
 	INSERT INTO #tmpData(Year, Month, Date, Weekday, sporttype, sportname, GroupName, LeagueName, matchid, hometeam, awayteam
-		, GlobalShowTime, keyscoreUser, SettleAction, SettlementStatus, ConfirmStatus
+		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus 
 		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold)
 	SELECT
 		YEAR(m.eventdate) [Year]
@@ -78,21 +79,13 @@ BEGIN
 		,s.Action AS SettleAction
 		--
 		,CASE WHEN s.IsAuto	= 1 THEN 'Auto settle' ELSE 'Manual settle' END AS SettlementStatus
-		,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus
+		/*,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus */
 		-- Duration
 		,ISNULL(CAST(DATEDIFF(MILLISECOND,CASE WHEN Action like 'Inst%' then s.ConfirmScoreDate else u.logdate end, s.Starttime) AS Float)/1000, 0) AS 'Step1_WaitforKeyscore_Duration'
 		,CAST(DATEDIFF(MILLISECOND,s.Starttime, s.Exectime) AS Float)/1000 AS 'Step2_WaitforSettle_Duration'
 		,CAST(s.Duration AS Float)/1000 AS 'Step3_Settle_Duration'
 		,s.IsHold 
 	FROM  cteSettlementPerformanceLog s
-		CROSS APPLY (
-			SELECT CASE 
-					WHEN action = 'CAL-HT' then 1
-					WHEN action = 'CAL-FT' then 2
-					WHEN action IN ('CAL-FT', 'CAL') THEN 2
-					ELSE 0
-				END	AS ActionId
-		)at
 		INNER JOIN bodb02.dbo.League l with(nolock)
 			on s.LeagueId = l.leagueid
 		INNER JOIN bodb02.dbo.LeagueGroup lg (NOLOCK)
@@ -113,11 +106,11 @@ BEGIN
 			on a.teamid = m.awayid
 		LEFT JOIN bodb02.dbo.custinfo ci with(nolock)
 			on ci.custid = s.AdminId
-		OUTER APPLY
+		CROSS APPLY
 			(SELECT *
 			FROM	cteSuspenderConfirm u
 			WHERE	s.MatchId = u.matchid
-					AND u.ActionID = at.ActionId
+					AND u.ActionID = s.ActionId
 					AND 1 = CASE 
 								WHEN l.SportType = 1 AND u.rn = 1 THEN 1
 								WHEN l.sporttype <> 1 AND u.rnDESC = 1 THEN 1
@@ -127,10 +120,17 @@ BEGIN
 			)u
 		WHERE	s.rn = 1
 				AND m.eventdate >= @FromDate  and m.eventdate <= @ToDate
-				AND s.Action in('CAL-HT', 'CAL-FT', 'CAL')
+				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
+						 WHEN sp.sporttype = 43 AND lg.GroupID = 151 THEN 0 --pingoal
+						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
+						 WHEN sp.sporttype = 1 AND lg.GroupID IN ( 74, 108, 113 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
+					ELSE 1
+					END				 
+				AND s.Action <> 'CAL-PARLAY'
 		
 
 		SELECT *
+			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
 		FROM #tmpData
 		WHERE sporttype = 1
 		ORDER BY [Year] DESC 
@@ -147,10 +147,10 @@ BEGIN
 		,[GlobalShowTime] DESC
 		,[keyscoreUser] DESC
 		,[SettleAction] DESC
-		,[SettlementStatus] DESC
-		,[ConfirmStatus] DESC
+		,[SettlementStatus] DESC 
 
 		SELECT *
+			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
 		FROM #tmpData
 		WHERE sporttype <> 1
 		ORDER BY [Year] DESC 
@@ -167,6 +167,5 @@ BEGIN
 		,[GlobalShowTime] DESC
 		,[keyscoreUser] DESC
 		,[SettleAction] DESC
-		,[SettlementStatus] DESC
-		,[ConfirmStatus] DESC
+		,[SettlementStatus] DESC 
 END

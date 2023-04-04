@@ -20,6 +20,7 @@ GO
 	 2021-08-18: Release Auto settle Virtual Cricket
 	 2021-10-07: Move Volleyball to ResultDetailOS
 	 2022-02-17: release Pingoal basketball
+	 2022-12-19: release Pingoal ESports
 
 	 *** Scope: SportBook
 	 *** Exclude: hedge match, child match of Cricket Test Match, test match
@@ -87,6 +88,7 @@ GO
 			AND m.matchcode not like '%hedge%'  
 			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
+						WHEN m.sporttype = 43 AND lg.GroupID = 151 AND m.eventdate >= '2022-12-19' THEN 0 --exclude PinGoal
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
 			AND m.sporttype <= 99
@@ -114,6 +116,7 @@ GO
 			AND m.matchcode not like '%hedge%' 
 			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
+						WHEN m.sporttype = 43 AND lg.GroupID = 151 AND m.eventdate >= '2022-12-19' THEN 0 --exclude PinGoal
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
 			AND m.sporttype <= 99
@@ -141,6 +144,7 @@ GO
 			AND m.matchcode not like '%hedge%' 
 			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
 						 WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
+						 WHEN m.sporttype = 43 AND lg.GroupID = 151 AND m.eventdate >= '2022-12-19' THEN 0 --exclude PinGoal
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
 			AND m.sporttype <= 99
