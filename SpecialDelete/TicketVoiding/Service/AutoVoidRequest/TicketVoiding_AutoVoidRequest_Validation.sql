@@ -25,24 +25,27 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @IssueTypeId TINYINT
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT, IsCricket BIT DEFAULT(0), MatchId INT, TicketType TINYINT) --1: single(exclude cancel CO), 2 parlay, 3: cancel CO
+	CREATE TABLE #tmpInputTransId (
+		TransId BIGINT
+		, RequestId INT
+		, IssueTypeId TINYINT
+		, MatchId INT
+		, TicketType TINYINT) --1: single(exclude cancel CO), 2 parlay, 3: cancel CO, 4: Cricket (bettype: 501)
+	
 	CREATE TABLE #tmpTransIds (
 		TransId BIGINT PRIMARY KEY
 		, RequestId INT
 		, StatusID TINYINT
 		, statuswinlost TINYINT
 		, betdaqid BIGINT
-		, refno BIGINT
-		, IsMixParlay BIT DEFAULT(0)
 		, Matchid INT
 		, IssueTypeId TINYINT
 		, TicketType TINYINT
-		, IsCricket BIT DEFAULT(0)
 	)
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, IsCricket BIT DEFAULT(0))
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
 	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
-	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, IsCricket BIT DEFAULT(0))
+	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
 	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 
@@ -56,8 +59,8 @@ BEGIN
 
 	IF @ParlayTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId, MatchId, TicketType)
-		SELECT tbl.TransId, tbl.RequestId, 1, tbl.IssueTypeId, tbl.MatchId, 2
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.MatchId, 2
 		FROM OPENJSON(@ParlayTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT) tbl
 	END
@@ -72,8 +75,8 @@ BEGIN
 
 	IF @CricketTicketsJSON IS NOT NULL
 	BEGIN		
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, IsCricket)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 1
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, TicketType)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 4
 		FROM OPENJSON(@CricketTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT) tbl
 	END
@@ -81,43 +84,42 @@ BEGIN
 	SET @IssueTypeId = (SELECT TOP 1 IssueTypeId FROM #tmpInputTransId)
 	IF @IssueTypeId IN (11,15) --For: action auto void winning
 	BEGIN
-		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, IsMixParlay, MatchId, IssueTypeId, IsCricket)
+		INSERT INTO #tmpTransIds (TransId, RequestId, StatusID, statuswinlost, MatchId, IssueTypeId, TicketType)
 		SELECT t.TransId
 			,t.RequestId
 			,b.statusID
 			,b.statuswinlost
-			,t.IsMixParlay
-			,b.MatchId
+			,t.MatchId
 			,t.IssueTypeId
-			,t.IsCricket
+			,t.TicketType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statusID IN (0,1)
 	
 		IF EXISTS (SELECT TOP(1) 1 FROM #tmpTransIds WHERE statuswinlost IS NOT NULL)
 		BEGIN
-			INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, IsCricket)
-			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId, t.IsCricket
+			INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType)
+			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId, t.TicketType
 			FROM #tmpTransIds t
-			WHERE t.IsMixParlay = 0
+			WHERE t.TicketType IN (1,4)
 				AND t.statuswinlost IN (1,2)
 
-			INSERT INTO #SingleTickets_ReSettle (TransId, RequestId, Matchid, IssueTypeId, IsCricket)
-			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId, t.IsCricket
+			INSERT INTO #SingleTickets_ReSettle (TransId, RequestId, Matchid, IssueTypeId, TicketType)
+			SELECT t.TransId, t.RequestId, t.Matchid, t.IssueTypeId, t.TicketType
 			FROM #tmpTransIds t
-			WHERE t.IsMixParlay = 0
+			WHERE t.TicketType IN (1,4)
 				AND t.statuswinlost IN (0,3,4)
 
 			INSERT INTO #ParlayTickets (TransId, RequestId, MatchId, IssueTypeId)
 			SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
 			FROM #tmpTransIds t
-			WHERE t.IsMixParlay = 1
+			WHERE t.TicketType = 2
 				AND t.statuswinlost IN (1,2)
 
 			INSERT INTO #ParlayTickets_ReSettle (TransId, RequestId, MatchId, IssueTypeId)
 			SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
 			FROM #tmpTransIds t
-			WHERE t.IsMixParlay = 1
+			WHERE t.TicketType = 2
 				AND t.statuswinlost IN (0,3,4)
 		END
 	END
@@ -151,14 +153,14 @@ BEGIN
 		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 	END
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE IsCricket = 0
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE IsCricket = 0
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 1
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 1
 
 	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets
 	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets_ReSettle
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE IsCricket = 1
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE IsCricket = 1
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 4
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 4
 
 	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #CancelCashOutTickets
 
