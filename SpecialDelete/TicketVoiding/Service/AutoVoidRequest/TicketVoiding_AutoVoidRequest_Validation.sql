@@ -75,10 +75,10 @@ BEGIN
 
 	IF @CricketTicketsJSON IS NOT NULL
 	BEGIN		
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, TicketType)
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, MatchId, TicketType)
 		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 4
 		FROM OPENJSON(@CricketTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, MatchId INT) tbl
 	END
 
 	SET @IssueTypeId = (SELECT TOP 1 IssueTypeId FROM #tmpInputTransId)
