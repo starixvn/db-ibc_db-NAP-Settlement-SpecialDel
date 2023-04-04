@@ -19,6 +19,7 @@ AS
 		- 20220126@Kathy: Settlement - Incorporate Saba Basketball PinGoal [Redmine:#167926]
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
+		- 20230404@Louisa: Get data for JackTime [Redmine:#184764]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -41,6 +42,7 @@ BEGIN
 		,EventStatusReason	TINYINT
 		,LeagueGroupId	SMALLINT
 		,GameType	TINYINT ---for E-sports
+		,ParentID INT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -59,6 +61,7 @@ BEGIN
 			,EventStatusReason
 			,LeagueGroupId
 			,GameType
+			,ParentID
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -73,6 +76,7 @@ BEGIN
 			,m.EventStatusReason
 			,l.LeagueGroupID
 			,l.OverTimeSession
+			,m.ParentID
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -99,6 +103,7 @@ BEGIN
 		,EventStatusReason
 		,LeagueGroupId
 		,GameType
+		,ParentID
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -117,6 +122,7 @@ BEGIN
 		,m.EventStatusReason
 		,l.LeagueGroupID
 		,l.OverTimeSession
+		,m.ParentID
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -141,6 +147,7 @@ BEGIN
 		,EventStatusReason
 		,LeagueGroupId
 		,GameType
+		,ParentID
 	FROM @tmpMatchInfo
 
 END
