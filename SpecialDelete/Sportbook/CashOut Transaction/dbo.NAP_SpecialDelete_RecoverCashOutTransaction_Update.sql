@@ -31,6 +31,7 @@ AS
 		- 20220531@July: [TVS] Send data to Jacktime for Cashout Basketball [Redmine: #173389]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:
 	
@@ -38,8 +39,7 @@ AS
 BEGIN	
 	SET NOCOUNT ON		
 	
-	DECLARE @LogData			NVARCHAR(500)			
-		  , @avaiableProcess 	BIT = 0
+	DECLARE @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
 		  , @FCUpdateTime		DATETIME2
@@ -518,12 +518,6 @@ BEGIN
 				WHERE t.TransId = s.TransID
 			)c
 	
-	--> write log								 
-	SELECT @LogData = 'Recover CashOut transactions have transid: ' + @TransIds + ' IP: ' + @Ip
-	EXEC WriteLog_UserLog 
-		 @UserId = @UserId,
-		 @Doing = @LogData 
-	
 	------ releasing SD process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		  @isExistMatch		= 1
@@ -571,7 +565,8 @@ BEGIN
 			d.MatchCode,
 			d.actual_stake AS ActualStake,
 			d.custid,
-			d.SiteDBGroupID
+			d.SiteDBGroupID,
+			d.matchid
 	FROM #SpecialDeleteBets d
 		 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 			     ON d.recommend = c.custid

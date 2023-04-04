@@ -29,6 +29,7 @@ AS
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -38,8 +39,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @LogData			VARCHAR(MAX)
-			,@RowNumber			INT	= 1
+	DECLARE @RowNumber			INT	= 1
 			,@tmp_TransIds		VARCHAR(MAX)
 			,@refnos_29			VARCHAR(MAX)
 			,@CustIds			VARCHAR(MAX) = ''
@@ -458,9 +458,6 @@ BEGIN
 					@IsExistParlay = 1			
 				  , @IsReleased	= 1	
 		END
-
-		SELECT @LogData = 'Recover Parlay bets having transid: IP=' + @Ip + ' ' + @TransIds				
-		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData 
 
 		--transid is auto settled
 		SELECT @SettledMainTranIds = ''

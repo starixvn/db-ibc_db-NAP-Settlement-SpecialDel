@@ -104,6 +104,7 @@ AS
 	  - 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 	  - 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 	  - 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+	  - 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	 Param's Explanation:   
 */
@@ -140,8 +141,7 @@ BEGIN
 	BEGIN CATCH
 	END CATCH 
 
-	DECLARE	@LogData					NVARCHAR(500) = ''
-			,@isITAdmin					BIT = 0
+	DECLARE	 @isITAdmin					BIT = 0
 			,@isExistMatch				BIT = 0
 			,@isExistFM					BIT = 0
 			,@isExistParlay				BIT = 0
@@ -262,11 +262,6 @@ BEGIN
 		      ,@ErrMsg AS ErrorMsg
 		      ,@SiteDBGroupID AS SiteDBGroupID
 
-		SELECT @LogData = 'Try to delete transaction for custid: ' + cast(@UserID AS VARCHAR(10)) + ' betlist: ' 
-							+ cast(@TransIds AS VARCHAR(8000)) + ' - Username: ' + @username + ' - reason: ' + @reason  
-		  
-		EXEC [dbo].[WriteLog_UserLog] @UserID = @UserID ,@Doing = @LogData				
-		
 		RETURN
 	END
 
@@ -1243,24 +1238,6 @@ BEGIN
 			@MatchId= 29
 			,@TransidList = @MainParlay_MaxPO
 	END
-	-------------------------------------------------------
-	 
-	 IF @FilterUserName IS NOT NULL
-	BEGIN
-		SELECT @LogData = 'Delete transaction by Username: '+ @FilterUserName
-						+ ' Products: '+ @Products
-						+ ' Ticket statusid: '+ @StatusIds
-						+ ' Winlostdate From: '+ CAST(@FromDate AS VARCHAR(20)) + CASE WHEN @ToDate IS NULL THEN '' ELSE ' To: '+ CAST(@ToDate AS VARCHAR(20)) END
-	END
-	ELSE 
-	BEGIN
-		SELECT @LogData = 'Delete transaction transid: ' + CAST(@TransIds AS VARCHAR(8000))
-	END 
-	SELECT @LogData = @LogData
-					+ ' by_login: ' + @username 
-					+ ' IP: ' + CAST(@IP AS VARCHAR(15)) 
-					+ ' reason: ' + @reason  + ' - -' + @ReasonSC
-	EXEC dbo.WriteLog_UserLog @UserID = @UserID, @Doing = @LogData 
 
 	--get list VIP Account
 	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)

@@ -70,14 +70,14 @@ AS
 		- 20220929@July: Fix recover Rep to central with Statuswinlost=0 [Redmine: #178374]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON;		
 	
-	DECLARE @LogData			NVARCHAR(500)
-			,@isExistMatch		BIT = 1
+	DECLARE @isExistMatch		BIT = 1
 			,@isExistFM			BIT = 0
 			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT
@@ -1210,10 +1210,6 @@ BEGIN
 				ELSE t.transid
 			 END		
 	
-	SELECT @LogData = 'Recover bet have transid: ' + @TransIds + ' IP: ' + @Ip
-	
-	EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData 				
-		
 	DROP TABLE #t_match_completed
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblTransInfo

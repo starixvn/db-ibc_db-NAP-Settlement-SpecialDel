@@ -65,22 +65,13 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @ErrorMsg			NVARCHAR(200) = ''
-		,@ErrorCode				INT  = 0 
-		,@NegativeBalanceUsers	VARCHAR(MAX)	= ''
-		,@SiteDBGroupID			SMALLINT
-		,@transInfo				VARBINARY(MAX)
-		,@transInfo3rd			VARBINARY(MAX)
-
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
-	
 	-- Write useraction log 
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
 			, @SubmittedDate DATETIME = GETDATE()
@@ -109,12 +100,17 @@ BEGIN
 	BEGIN CATCH
 	END CATCH 
 
-	SELECT @ErrorCode = 0
-		 , @ErrorMsg = ''  
+	DECLARE @ErrorMsg			NVARCHAR(200) = ''
+		,@ErrorCode				INT  = 0 
+		,@NegativeBalanceUsers	VARCHAR(MAX)	= ''
+		,@SiteDBGroupID			SMALLINT
+		,@transInfo				VARBINARY(MAX)
+		,@transInfo3rd			VARBINARY(MAX)
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
 	
-	-- Constant
 	DECLARE @NegativeBalanceCustIds		VARCHAR(MAX) = ''
-	SET @NegativeBalanceUsers = ''
 	DECLARE @SettlementStatus TINYINT = NULL
 		   ,@GlobalShowTime   SMALLDATETIME
 		   ,@Movebetdate	  DATETIME
@@ -178,9 +174,7 @@ BEGIN
 		  , @cn88_Name		VARCHAR(50) = 'CN88'	  
 		  , @VoidPatchSize		INT = 100
 	
-	DECLARE @LogData			NVARCHAR(500) = ''
-		  , @GeneralErrMsg		NVARCHAR(200) = 'Unable to void these tickets'
-		  , @CurrencyCodes		VARCHAR(MAX)
+	DECLARE @CurrencyCodes		VARCHAR(MAX)
 		  , @CountSingle		INT = 0
 		  , @CountParlay		INT = 0
 		  
@@ -337,18 +331,11 @@ BEGIN
 							+ currency
 	FROM #t_exchanges
 
-
-	-------> Build @LogData	
-	SET @LogData = 'Void currency transaction for matchid ' + CONVERT(VARCHAR(20), @matchid) 
-		+ ' for ' + @LicenseeNames + ' ' + @CurrencyCodes + ' IP=' + @IP + ' reason: ' + @Reason + ' - ' + @ReasonSC
-		
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @UserPassword AND custid = @userId AND roleid >=5)
     BEGIN
         SELECT @ErrorMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
                 ,@ErrorCode = 113  
                 
-        EXEC [dbo].[WriteLog_UserLog] @UserID = @UserID ,@Doing = @LogData   
-		
 		SELECT @ErrorCode AS ErrorCode
 			,@ErrorMsg AS ErrorMsg
 			,@NegativeBalanceUsers AS NegativeBalanceUsers
@@ -1366,12 +1353,6 @@ BEGIN
 				@MatchId= 29
 				,@TransidList = @MainParlay_MaxPO
 		END
-		-------------------------------------------------------
-		
-		-------> write log		
-		EXEC WriteLog_UserLog 
-			 @UserId = @UserId,
-			 @Doing = @LogData			
 			 
 		-------> Data for sending mail
 		DECLARE @IsITAdmin BIT = 0
@@ -1460,6 +1441,7 @@ BEGIN
 				CASE WHEN dc.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 				,@sporttype AS SportTypeId
 				,s.SiteDBGroupId
+				,@MatchID AS MatchId
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL
@@ -1518,7 +1500,7 @@ BEGIN
 		END	
 	
 		SELECT @ErrorCode = 100,
-				@ErrorMsg = @GeneralErrMsg
+				@ErrorMsg = 'Unable to void these tickets'
 
 		SELECT @ErrorCode AS ErrorCode
 			,@ErrorMsg AS ErrorMsg

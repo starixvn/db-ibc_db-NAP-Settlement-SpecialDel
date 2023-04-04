@@ -25,6 +25,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:			
 			- @BetType:
@@ -49,7 +50,6 @@ BEGIN
 		   ,@Eventstatus		NVARCHAR(100) = ''
 		   ,@transids_29		VARCHAR(MAX) = ''
 		   ,@refnos_29			VARCHAR(MAX) = ''
-		   ,@LogData			NVARCHAR(500)
 		   ,@SubTransIds		VARCHAR(MAX) = ''
 		   ,@CustIds			VARCHAR(MAX) = ''
 		   ,@AvaiableProcess	BIT
@@ -526,10 +526,6 @@ BEGIN
 				@IsExistParlay = 1			
 				,@IsReleased	= 1		
 		END	
-
-		--> write log		
-		SELECT @LogData = 'Recover Parlay bets having transid: IP=' + @Ip + ' ' + @transids_29
-		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData 
 			
 		--1. Table return error code/ msg
 		SELECT @ErrCode AS ErrorCode

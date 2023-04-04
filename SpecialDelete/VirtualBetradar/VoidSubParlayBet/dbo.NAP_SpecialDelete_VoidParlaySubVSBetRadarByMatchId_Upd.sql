@@ -10,8 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Upd]
 	@ReasonSC				NVARCHAR(500)	= ''
 AS
 /*  
-	Created by: Kent  
-	Date: 20170831
+	Created by: 20170831@Kent  
 	Task: 
 	DB: DBTXN/bodb02	    
 
@@ -25,6 +24,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:				
 		- @TransIds : Main transids.				
@@ -33,7 +33,6 @@ BEGIN
 	SET NOCOUNT ON	
 	
 	DECLARE @avaiableProcess			BIT = 1
-		  , @LogData					NVARCHAR(500) 
 		  , @isITAdmin					BIT = 0		  
 		  , @CustIds					VARCHAR(MAX) = ''
 		  , @Movebetdate				DATETIME
@@ -98,7 +97,6 @@ BEGIN
 		SubHdp2			SMALLMONEY,
 		SubOdds			MONEY,	
 		SubTransdesc	NVARCHAR(2000),	
-				
 		BetFrom			NVARCHAR(3)
 	)	
 	
@@ -115,12 +113,7 @@ BEGIN
 		--> Check Password
 		IF NOT EXISTS (SELECT 1  FROM custDB.dbo.customer WITH (NOLOCK) WHERE userpwd = @Password  AND custid = @UserId AND roleid>=5)  
 		BEGIN  
-			SELECT @LogData ='fail to void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' for Mix Parlay Special Delete reason: ' + @Reason  
-		    
-			EXEC WriteLog_UserLog   
-				 @UserId = @UserId  
-				,@Doing = @LogData  
-		  
+		
 			SELECT @ErrCode = 113
 				 , @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'
 
@@ -203,7 +196,6 @@ BEGIN
 				,showtime
 				,LeagueId
 				,modds
-		           
 				,SubStatus
 				,SubTransId
 				,SubBetCheck
@@ -213,7 +205,6 @@ BEGIN
 				,SubHdp2
 				,SubOdds
 				,SubTransdesc				
-				   
 				,BetFrom)			   
 		SELECT  b.Stake
 				,m.AwayId
@@ -262,7 +253,7 @@ BEGIN
 		FROM bettrans b WITH (NOLOCK) 
 				INNER JOIN dbo.bettransm bm WITH (NOLOCK)
 						ON b.refno = bm.refno 
-				INNER JOIN DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
+				INNER JOIN dbo.Match m WITH(NOLOCK)
 						ON bm.matchid = m.matchid			 
 		WHERE b.matchid = 2799
 			AND b.bettype = 2799
@@ -377,12 +368,6 @@ BEGIN
 				@IsExistParlayVSBetradar = 1			
 				, @IsReleased	= 1 
 		
-		--> Write log
-		SELECT	@LogData ='Void bet for matchid ' + ISNULL(CONVERT(VARCHAR(20), @matchid), '') + ' for Mix Parlay Special Delete'   
-				+ ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC 
-			   
-		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData
-			
 		--> Build list of customer name with negative balance
 		SET @NegativeBalanceUsers = ''
 
@@ -434,7 +419,7 @@ BEGIN
 				r.showtime,
 				r.LeagueId,
 				r.modds AS MasterOdds,
-				-----------------------------
+				@MatchId AS MatchId,
 				r.SubStatus,
 				r.SubTransId,
 				r.SubBetCheck,
@@ -445,7 +430,6 @@ BEGIN
 				r.SubOdds,
 				r.SubTransdesc,
 				1 AS IsMixParlay,
-				-----------------------------
 				r.CustId,
 				r.recommend,
 				ag.UserName AS AgUserName,

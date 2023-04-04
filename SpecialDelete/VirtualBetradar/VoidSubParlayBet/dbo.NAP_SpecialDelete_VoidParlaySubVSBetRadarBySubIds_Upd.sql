@@ -9,8 +9,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd]
 	@ReasonSC				NVARCHAR(500)	= ''
 AS
 /*  
-	Created by: Kent  
-	Date: 20170831
+	Created by: 20170831@Kent  
 	Task: 
 	DB: DBTXN/bodb02	    
 
@@ -24,6 +23,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
@@ -32,7 +32,6 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @avaiableProcess			BIT 
-		  , @LogData					NVARCHAR(500) 
 		  , @isITAdmin					BIT	  
 		  , @CustIds					VARCHAR(MAX)
 		  , @Movebetdate				DATETIME
@@ -51,7 +50,6 @@ BEGIN
 		  , @ErrMsg					NVARCHAR(200)	= ''
 		  , @ErrCode				INT				= 0	
 		  , @SiteDBGroupID		SMALLINT
-		  , @transInfo XML 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -153,12 +151,6 @@ BEGIN
 		--> Check Password
 		IF NOT EXISTS (SELECT 1  FROM custDB.dbo.customer WITH (NOLOCK) WHERE userpwd = @Password  AND custid = @UserId AND roleid>=5)  
 		BEGIN  
-			SELECT @LogData ='fail to void bet for sub betid(s) ' + ISNULL(@SubTransIds, '') + ' for Mix Parlay Special Delete reason: ' + ISNULL(@Reason, '')
-		    
-			EXEC WriteLog_UserLog   
-				 @UserId = @UserId  
-				,@Doing = @LogData  
-		  
 			SELECT @ErrCode = 113
 				 , @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'
 
@@ -465,12 +457,6 @@ BEGIN
 				@IsExistParlayVSBetradar = 1			
 				, @IsReleased	= 1 
 		
-		--> Write log
-		SELECT	@LogData ='Void bet for sub betid(s) ' + ISNULL(@SubTransIds, '') + ' for Mix Parlay Special Delete'   
-				+ ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC 
-			   
-		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData
-			
 		--> Get list of customer name with negative balance
 		SET @NegativeBalanceUsers = ''
 
@@ -522,7 +508,7 @@ BEGIN
 				r.showtime,
 				r.LeagueId,
 				r.modds AS MasterOdds,
-
+				r.SubMatchid AS matchid,
 				r.SubStatus,
 				r.SubTransId,
 				r.SubBetCheck,
@@ -533,7 +519,6 @@ BEGIN
 				r.SubOdds,
 				r.SubTransdesc,	
 				1 AS IsMixParlay,			
-				-----------------------------
 				r.CustId,
 				r.recommend,
 				ag.UserName AS AgUserName,
@@ -541,7 +526,6 @@ BEGIN
 				ma.UserName AS MagUserName,
 				r.srecommend,
 				su.Username AS SagUserName,
-				-----------------------------
 				ag.Currency,
 				ag.Site,
 				su.Site AS EmailGroup,	

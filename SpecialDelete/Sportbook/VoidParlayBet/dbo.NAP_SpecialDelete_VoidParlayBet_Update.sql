@@ -50,6 +50,7 @@ AS
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652]
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 
 	 Param's Explanation:   
 		@BetTypes : 
@@ -71,13 +72,12 @@ AS
 BEGIN   
 	SET NOCOUNT ON  
    
-	DECLARE @LogData			NVARCHAR(500)  
-			,@avaiableProcess	BIT = 1
+	DECLARE @avaiableProcess	BIT = 1
 			,@CustIds			VARCHAR(MAX) = ''
 			,@CountSubTransId	INT = 0
 			,@ValueDefault		SMALLMONEY = 9999.00
 			,@Movebetdate		DATETIME
-			,@Eventdate			DATETIME
+			,@matchdate			DATETIME
 			,@NegativeBalanceUsers	VARCHAR(MAX)	= '' 
 			,@ErrMsg				NVARCHAR(200)	= '' 
 			,@ErrCode				INT				= 0  
@@ -142,16 +142,8 @@ BEGIN
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)								 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
-	SELECT @ErrCode = 0  
-   
 	IF NOT EXISTS (SELECT 1  FROM custDB.dbo.customer WITH (NOLOCK) WHERE userpwd = @UserPassword  AND custid = @UserId AND roleid>=5)  
 	BEGIN  
-		SELECT @LogData ='fail to void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' for Mix Parlay Special Delete reason: ' + @Reason  
-	    
-		EXEC WriteLog_UserLog   
-			@UserId = @UserId  
-			,@Doing = @LogData  
-	  
 		SELECT @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!', @ErrCode = 113	   
 		
 		SELECT @ErrCode AS ErrorCode
@@ -162,10 +154,10 @@ BEGIN
 	END  
 	
 	/*Modify the way to get move bet date*/
-	SELECT @Eventdate = eventdate FROM dbo.match WITH(NOLOCK) WHERE matchid = @MatchId
+	SELECT @matchdate = eventdate FROM dbo.match WITH(NOLOCK) WHERE matchid = @MatchId
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
-	IF @Eventdate <= @Movebetdate
+	IF @matchdate <= @Movebetdate
 	BEGIN
 		SELECT @ErrCode = 99
 		     , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
@@ -176,7 +168,6 @@ BEGIN
 
 		RETURN	
 	END	
- -----------   
  
 	-- Parse xml @BetTypes
 	;WITH CTE_ParsedBettypes_1 AS
@@ -583,18 +574,10 @@ BEGIN
 				ON	r.transid=b.transid   
 
 		-- void process  
-		DECLARE @matchdate		DATETIME
-				,@match_tmp		VARCHAR(20)
-				,@rowcount		INT
-				,@step			INT
+		DECLARE @rowcount		INT
+				,@step			INT = 0
 				,@transid_tmp	VARCHAR(2000)  
 
-		SELECT	@matchdate = eventdate,  
-				@match_tmp = CONVERT(VARCHAR(20),matchid),  
-				@step = 0  
-		FROM	match WITH(NOLOCK)   
-		WHERE	matchid = @matchid  	 
-		 
 		--- void selection  
 		DECLARE @transtbl TABLE (id INT IDENTITY, transid BIGINT)  
 		
@@ -788,29 +771,23 @@ BEGIN
 				,@IsReleased     = 1	
 		END
 
-		SELECT	@LogData ='Void bet for matchid ' + CONVERT(VARCHAR(20), @matchid) + ' for Mix Parlay Special Delete'   
-		  + ' IP=' + COALESCE(CAST(@Ip AS VARCHAR(15)),SPACE(1)) + ' reason: ' + @Reason + ' - ' + @ReasonSC
-		   
-		EXEC WriteLog_UserLog @UserId = @UserId, @Doing = @LogData  
-		 
-		--after delete, return all deleted tickets with additional information for mailing  
 		SELECT @ErrCode AS ErrorCode
 					, @ErrMsg AS ErrorMsg
 					, @NegativeBalanceUsers AS NegativeBalanceUsers
 
 		-- Return Match Info
 		BEGIN  
-			SELECT MATCH.homeid,  
-					MATCH.awayid,  
-					MATCH.matchcode,  
-					MATCH.eventdate,  
-					MATCH.leagueid,  
-					MATCH.sporttype,
-					ISNULL(MATCH.isNeutral, CONVERT(BIT,0)) AS IsNeutral,
+			SELECT m.homeid,  
+					m.awayid,  
+					m.matchcode,  
+					m.eventdate,  
+					m.leagueid,  
+					m.sporttype,
+					ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral,
 					l.LeagueGroupID
-			FROM	MATCH WITH (NOLOCK)  
-					INNER JOIN dbo.league AS l WITH(NOLOCK) ON MATCH.leagueid = l.leagueid
-			WHERE	MATCH.matchid = @matchID  
+			FROM	dbo.match AS m WITH (NOLOCK)  
+					INNER JOIN dbo.league AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
+			WHERE	m.matchid = @matchID  
 		END
 		
 		-- Output new message structure  
@@ -873,7 +850,7 @@ BEGIN
 				,b.ExtraInfo
 				,b.actual_stake AS ActualStake
 				,r.OddsId AS SubOddsId
-				-----------------------------  
+				,@MatchID AS MatchId
 				,b.recommend
 				,b.mrecommend
 				,b.srecommend
@@ -882,7 +859,6 @@ BEGIN
 				,ag.UserName AS AgUserName
 				,ma.UserName AS MagUserName
 				,su.Username AS SagUserName
-				---------------------------------------  
 				,CASE   
 				WHEN b.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair'   
 				ELSE su.site   
