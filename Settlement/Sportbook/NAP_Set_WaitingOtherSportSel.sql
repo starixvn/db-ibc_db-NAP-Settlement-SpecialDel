@@ -23,6 +23,7 @@ AS
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230104@Kathy: get sitedbgroupid 
+		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 
 	Param's explanation:  
 		
@@ -168,7 +169,7 @@ BEGIN
 	MERGE @tmpQueueStatus  TARGET
 	USING (
 		SELECT ap.MatchId, ap.StatusId
-		FROM	 @tmpAutoPayOutResultOS ap
+		FROM (SELECT tmp.MatchId, MAX(tmp.StatusId) AS StatusId  FROM @tmpAutoPayOutResultOS AS tmp GROUP BY MatchId) AS ap
 		INNER JOIN #MatchIdList tmp
 			ON ap.matchid = tmp.MatchId
 		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid
