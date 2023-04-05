@@ -22,6 +22,7 @@ AS
 		- 20230120@July: Add 1X2 bet type to detect Red Card - Replacement of sent-off player [Redmine: #182394]
 		- 20230202@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -716,26 +717,20 @@ BEGIN
 			,t.InstantlySettleCount
 			,t.SettleCount
 			,rd.MainParlayCount
-			,li.HighLightMinTime
-			,h.HighlightAcceptType
+			,a.HighLightMinTime
+			,a.HighlightAcceptType
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,t.CancelCashOutCount
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
-			OUTER APPLY (
-					SELECT TOP 1 li.HighLightMinTime
-					FROM #logInfo li 
-					WHERE li.MatchId = rd.MatchId
-					ORDER BY li.HighLightMinTime ASC
-				) li 
-			OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType
-						 FROM #TVSTicketBets b 
-					     WHERE rd.MatchId = b.matchid 
-						 AND li.HighLightMinTime = (CASE WHEN b.FilterBy = 1 THEN b.transdate
-													 WHEN b.FilterBy = 2 AND b.checktime IS NOT NULL THEN b.checktime
-													 WHEN b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate END
-												)
-			) AS h
+			CROSS APPLY (
+					SELECT CONVERT(XML, rd.TransIds)
+				)AS t1(xDATA)
+			CROSS APPLY (
+					SELECT NULLIF(t.c.value('@MinTime','DATETIME'),'')AS  HighLightMinTime
+						,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
+					FROM t1.xDATA.nodes('/r') t(c)
+				) a
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
 			CROSS APPLY(
 				SELECT DISTINCT '|' + l.ScoreNormalTicket FROM @tblScoreMessage l WHERE l.MatchId = rd.MatchId FOR XML PATH('')

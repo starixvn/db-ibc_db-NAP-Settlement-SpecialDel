@@ -21,6 +21,7 @@ AS
 		- 20221125@July: TVS - VAR message [Redmine: #178088]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 
 	Param's explanation:
 */
@@ -57,7 +58,7 @@ BEGIN
 			,LiveHomeScore			INT
 			,LiveAwayScore			INT
 			,LiveScores				NVARCHAR(300)
-			,TypeAccept				VARCHAR(300)
+			,TypeAccept				VARCHAR(2000)
 			,SubIssueTypeId			SMALLINT
 			)
 	CREATE TABLE #TVSTicketBets (MatchId INT, TransId BIGINT, SubTransId BIGINT, VoidFromTime DATETIME, VoidToTime DATETIME, bettype SMALLINT, betid BIGINT, CustId INT, IsMixParlay BIT, SiteDBGroupID SMALLINT, IsCancelCashOut BIT)
@@ -125,6 +126,8 @@ BEGIN
 			,'<r AA="' + t.c.value('@AATime','VARCHAR(10)') + '" PA="'+ t.c.value('@PATime','VARCHAR(10)') + '" SA="' + t.c.value('@SATime','VARCHAR(10)') + 
 			+ '" ScoreId="' + t.c.value('@ScoreId','VARCHAR(20)') 
 			+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
+			+ '" MinTime="' + ISNULL(CONVERT(VARCHAR(50),NULLIF(t.c.value('@MinTime','DATETIME'),''), 121),'')
+			+ '" MinType="' + t.c.value('@MinType','VARCHAR(10)') 
 			+ '" />' AS TypeAccept
 	FROM @WrongScoreInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongScoreInfoXML = NULL))
