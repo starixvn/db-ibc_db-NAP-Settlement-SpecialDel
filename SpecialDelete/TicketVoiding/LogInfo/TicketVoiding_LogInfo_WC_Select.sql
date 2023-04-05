@@ -24,6 +24,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -71,7 +72,9 @@ BEGIN
 			checktime			  DATETIME,
 			accepttype			  TINYINT,
 			ScoreId				  INT,
-			IsCancelCashOut		  BIT
+			IsCancelCashOut		  BIT,
+			betid				  BIGINT,
+			SiteDBGroupID		  SMALLINT
 	)
 
 	CREATE TABLE #logInfo (
@@ -437,6 +440,8 @@ BEGIN
 			,livehomescore 	
 			,liveawayscore 			
 			,betdaqid	
+			,betid
+			,SiteDBGroupID
 			,LiveIndicator
 			,matchid
 			,StatusId
@@ -445,8 +450,9 @@ BEGIN
 			,checktime
 			,accepttype
 			,IsCancelCashOut
+			
 		)
-	SELECT   b.transid
+	SELECT DISTINCT  b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -455,6 +461,8 @@ BEGIN
 			,b.livehomescore
 			,b.liveawayscore
 			,b.betdaqid
+			,b.betid
+			,b.SiteDBGroupID
 			,b.liveindicator
 			,@MatchId
 			,b.statusID
@@ -465,16 +473,16 @@ BEGIN
 				  ELSE CASE WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
 							ELSE 3 END --Pending Accept
 				  END AS accepttype
-			,CASE  
-				WHEN @FilterBy = 1 AND b.betdaqid = -2
+			,CASE  --Must ticket Void -> have cancelCO
+				WHEN @FilterBy = 1 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 					AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-				WHEN @FilterBy = 2 AND b.betdaqid = -2
+					AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+				WHEN @FilterBy = 2 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 					AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-				WHEN @FilterBy = 4 AND b.betdaqid = -2
+					AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+				WHEN @FilterBy = 4 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 					AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
-					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+					AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 				ELSE 0 END AS IsCancelCashOut
 	FROM #tmpTransInfo b
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -487,22 +495,38 @@ BEGIN
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 			AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 1 AND b.betdaqid = -2
+						 WHEN @FilterBy = 1 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 							AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
+							AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 
 						THEN 1
 						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 2 AND b.betdaqid = -2
+						 WHEN @FilterBy = 2 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 							AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
+							AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 
 						THEN 1
 						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
-						 WHEN @FilterBy = 4 AND b.betdaqid = -2
+						 WHEN @FilterBy = 4 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 								AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
-								AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
+								AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 
 						THEN 1
 					   ELSE 0 END 
-				
+	
+	-- Fix case: wrong score 2 Score: Original score 1, Canel CO: Score 2
+	DECLARE @tmpRemoveDuplCancelCO TABLE (TransId BIGINT)
+	INSERT INTO @tmpRemoveDuplCancelCO (TransId)
+	SELECT TransId
+	FROM #TVSTicketBets 
+	GROUP BY transid
+	HAVING COUNT(TransId) >=2
+
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpRemoveDuplCancelCO)
+	BEGIN
+		DELETE t
+		FROM #TVSTicketBets t
+		WHERE t.IsCancelCashOut = 1 
+		 AND t.transid IN ( SELECT transid FROM @tmpRemoveDuplCancelCO)
+	END
+
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
 	BEGIN		
@@ -513,6 +537,8 @@ BEGIN
 				,custid						
 				,transdate		
 				,bettype					
+				,betid
+				,SiteDBGroupID
 				,livehomescore	
 				,liveawayscore		
 				,IsMixParlay
@@ -530,7 +556,9 @@ BEGIN
 				,b.refno
 				,b.Subcustid				
 				,b.Subtransdate
-				,b.bettype
+				,b.Subbettype
+				,b.betid
+				,b.SiteDBGroupID
 				,b.Sublivehomescore
 				,b.Subliveawayscore
 				,b.IsMixParlay
@@ -1083,19 +1111,18 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	-- 5. Transinfo table
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
-		,t.transid AS 't'
-		,t.Subtransid  AS 's_t'
-		,b.custid AS  'c'           
-		,b.bettype AS 'btype'
-		,b.betid AS 'bid'
-		,t.transdate AS 'tdate'
-		,t.checktime AS 'checkt'
-		,b.IsMixParlay AS 'isP'
-		,b.SiteDBGroupID AS 'sitedb'
-		,t.IsCancelCashOut AS 'isCCO'
-	FROM #TVSTicketBets t
-		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+	SET @TransInfoJson_Output = COMPRESS((SELECT matchid AS 'mid'
+		,transid AS 't'
+		,Subtransid  AS 's_t'
+		,custid AS  'c'           
+		,bettype AS 'btype'
+		,betid AS 'bid'
+		,transdate AS 'tdate'
+		,checktime AS 'checkt'
+		,IsMixParlay AS 'isP'
+		,SiteDBGroupID AS 'sitedb'
+		,IsCancelCashOut AS 'isCCO'
+	FROM #TVSTicketBets
 	FOR JSON PATH))
 	
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson

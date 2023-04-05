@@ -46,6 +46,7 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		
 	Param's explanation:	
 		
@@ -535,7 +536,7 @@ BEGIN
 					,b.Transdesc
 					,b.betdaqid
 					,b.ExtraInfo
-					,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
+					,CASE WHEN b.betdaqid = -2 AND ISNULL(b.IsCancelCashOut,0) = 0 THEN 1 ELSE 0 END AS IsCashOut
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
@@ -865,7 +866,7 @@ BEGIN
 					,b.Transdesc
 					,b.betdaqid
 					,b.ExtraInfo
-					,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
+					,CASE WHEN b.betdaqid = -2 AND ISNULL(b.IsCancelCashOut,0) = 0 THEN 1 ELSE 0 END AS IsCashOut
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID

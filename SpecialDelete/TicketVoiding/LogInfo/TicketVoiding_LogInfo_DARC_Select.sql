@@ -24,6 +24,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
@@ -471,7 +472,7 @@ BEGIN
 			,d.SubIssueTypeId
 			,d.FilterBy
 			,CASE WHEN act.VoidTime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 0
-				  ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+				  ELSE CASE WHEN b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1 --Must ticket Void -> have cancelCO
 							ELSE 0 END
 				  END AS IsCancelCashOut
 	FROM #tmpTransInfo b
@@ -488,7 +489,7 @@ BEGIN
 					ELSE 0 END
 		AND b.betfrom <> 'P' AND b.IsMixParlay = 0 
 		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-					 ELSE CASE WHEN b.betdaqid = -2 AND b.CheckTimeCashOut IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+					 ELSE CASE WHEN b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 							   ELSE 0 END
 					 END
 		AND NOT EXISTS (SELECT TOP 1 1 
