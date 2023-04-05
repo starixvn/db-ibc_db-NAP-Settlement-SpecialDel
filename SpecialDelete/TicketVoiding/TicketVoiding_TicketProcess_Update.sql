@@ -56,7 +56,7 @@ BEGIN
 	BEGIN
 		INSERT INTO #tmpInputTransId_Single (TransId, RequestId, MatchId)
 		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
-		FROM OPENJSON(@SingleTicketsJSON)
+		FROM OPENJSON(@CricketTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
 	END
 
