@@ -1,7 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_WaitingSel] 
 	@MatchCode 		NVARCHAR(50) = ''
-	, @SportType 	SMALLINT = 0
 	, @LeagueIds 	VARCHAR(MAX) = '0' -- 0 for ALL Leagues
 AS
 /*
@@ -51,6 +50,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221021@Louisa: Enhancement [Redmine:#180306]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230406@Louisa: Remove un-use code due do this SP only support soccer [Redmine:#186140]
 
 	Param's explanation:  
 		
@@ -67,7 +67,6 @@ BEGIN
 
 	SELECT @MatchCode = ISNULL(@MatchCode, '')
 			,@LeagueIds = ISNULL(@LeagueIDs, '0')
-			,@SportType = ISNULL(@SportType, 0)
 
 	IF ISNUMERIC(@MatchCode) = 1
 		SET @matchid = CAST(@MatchCode AS INT)
@@ -131,7 +130,7 @@ BEGIN
 		WHERE (Starttime > DATEADD(MINUTE, -10, GETDATE()) 
 				OR s.IsCalculating IN (0,1)
 			) 
-			AND s.sporttype = @sporttype
+			AND s.sporttype = 1
 		GROUP BY matchid, SportType
 	), ParlayTicket AS (
 		SELECT p.matchid, m.sporttype
@@ -143,7 +142,7 @@ BEGIN
 		WHERE (p.Starttime > DATEADD(MINUTE, -10, GETDATE()) 
 				OR p.IsCalculating IN (0,1) 
 			) 
-			AND p.sporttype = @sporttype
+			AND p.sporttype = 1
 		GROUP BY p.matchid, m.sporttype
 	)
 	
@@ -205,9 +204,8 @@ BEGIN
 	) q
 		INNER JOIN dbo.Match m WITH(NOLOCK) ON	q.MatchId = m.matchid	
 		INNER JOIN @tmpLeagueID tmp ON tmp.LeagueId = 0 OR tmp.LeagueId = m.LeagueID
-	WHERE m.sporttype = @sporttype
+	WHERE m.sporttype = 1
 		AND (@matchcode = '' OR (m.matchid = @matchid OR m.matchcode = @matchcode))
-		AND 1 = CASE WHEN ISNULL(m.ChildMatchType,0) = 200 AND m.ParentID IS NOT NULL AND m.sporttype = 50 THEN 0 ELSE 1 END -- dont get the child match of cricket
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
@@ -228,28 +226,24 @@ BEGIN
 			,@MaxBettype = MAX(bettype)
 		FROM #tblBettype
 		
-		IF @Sporttype IN (0, 1, 2, 5)
-		BEGIN
-			INSERT INTO #tblResultDetail(matchid, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID)
-			SELECT	r.MatchId, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusID
-			FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK)
-				INNER JOIN @TempMatch t
-					ON r.matchid = t.MatchId
-			
-			IF @Sporttype IN (0,1)	
-				UPDATE	m
-					SET IsExistFastMarketResult = 1
-				FROM	@TempMatch m
-					INNER JOIN (
-						SELECT	r.matchid
-						FROM #tblResultDetail r
-							INNER JOIN #tblBettype bt
-								ON r.ResourceId LIKE CAST(BetType AS VARCHAR(20)) + '__'
-						WHERE bt.GroupId = 9
-						GROUP BY r.matchid
-					) rs
-						ON m.MatchId = rs.matchId
-		END
+		INSERT INTO #tblResultDetail(matchid, ResourceId, HomeValue, AwayValue, ResultStatusID, SettlementStatusID)
+		SELECT	r.MatchId, r.ResourceId, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusID
+		FROM	DBPRO.bodb02.dbo.ResultDetail r WITH (NOLOCK)
+			INNER JOIN @TempMatch t
+				ON r.matchid = t.MatchId
+				
+		UPDATE	m
+			SET IsExistFastMarketResult = 1
+		FROM	@TempMatch m
+			INNER JOIN (
+				SELECT	r.matchid
+				FROM #tblResultDetail r
+					INNER JOIN #tblBettype bt
+						ON r.ResourceId LIKE CAST(BetType AS VARCHAR(20)) + '__'
+				WHERE bt.GroupId = 9
+				GROUP BY r.matchid
+			) rs
+				ON m.MatchId = rs.matchId
 		
 		INSERT INTO #tblBetStatus (matchid, bettype, isRunning,IsWaiting, groupId, IsParlay, IsFGLG, IsEarly)
 		SELECT  m.matchId, b.bettype, b.isRunning, b.isWaiting, b.GroupId, 0, b.IsFGLG, b.IsEarly
@@ -340,7 +334,6 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
-	WHERE m.SportType <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId
@@ -512,7 +505,7 @@ BEGIN
 	SET @EndTime = GETDATE()
 	IF DATEDIFF(MILLISECOND, @StartTime, @EndTime) > 5000
 	BEGIN
-		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel @MatchCode =''' + ISNULL(@MatchCode,'') + ''', @SportType = ' + CONVERT(VARCHAR(10),@SportType) + ', @LeagueIds =' + @LeagueIds
+		SET @SqlCommand = 'EXEC NAP_Set_WaitingSel @MatchCode =''' + ISNULL(@MatchCode,'') + ', @LeagueIds =' + @LeagueIds
 		INSERT INTO dbo.SettlementRunSPLog(LogDate, SqlCommand, StartTime, EndTime)
 		SELECT GETDATE(), @SqlCommand, @StartTime, @EndTime
 	END
