@@ -21,6 +21,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale out DBTRANS [Redmine:#175251]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's Explanation:
 */
@@ -60,7 +61,7 @@ BEGIN
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, ResourceId VARCHAR(20) )
-	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT, ResourceId VARCHAR(20) )
+	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT, ResourceId VARCHAR(20), bettype SMALLINT )
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -105,8 +106,8 @@ BEGIN
 		
 	SET @totalSingle = @@ROWCOUNT
 
-	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno, ResourceId)
-	SELECT	bm.transid, bm.statusID, bm.refno, t.ResourceId
+	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno, ResourceId, bettype)
+	SELECT	bm.transid, bm.statusID, bm.refno, t.ResourceId, bm.bettype
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -170,7 +171,8 @@ BEGIN
 	--move parlay
 	IF @totalParlay > 0
 	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransIdsParlay WHERE statusId = 102)
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransIdsParlay WHERE statusId = 102) 
+		BEGIN
 			UPDATE  t
 				SET MainTransId = b.transid
 			FROM	#tmpTransIdsParlay t
@@ -178,6 +180,21 @@ BEGIN
 					ON	t.refno = b.refno
 			WHERE	b.matchid = 29
 					AND t.statusId = 102
+		END
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransIdsParlay t
+					INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.MatchId = @MatchId AND m.bettype = t.bettype)
+		BEGIN
+			UPDATE  t
+				SET MainTransId = b.transid
+			FROM	#tmpTransIdsParlay t
+				INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.MatchId = @MatchId AND m.bettype = t.bettype
+				INNER JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	t.refno = b.refno
+			WHERE	b.matchid = 29
+				AND t.MainTransId IS NULL
+		END
+
 				
 		EXEC dbo.NAP_Set_GlobalSettingSel 
 			@LockName = 'ParlayRefno'

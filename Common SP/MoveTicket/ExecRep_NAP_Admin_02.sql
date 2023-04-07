@@ -16,6 +16,7 @@ AS
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's Explanation:
 		@matchid: child matchid
@@ -131,6 +132,43 @@ BEGIN
 							,@TransInfoJson = @TransInfoJson
 							,@TicketType = 's'					
 					END
+				END
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t 
+						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransID)
+			BEGIN
+				DELETE @tmpTransInfo
+				UPDATE m WITH (ROWLOCK, UPDLOCK)
+					SET m.MatchId = @MatchId
+					OUTPUT	inserted.transid
+							,inserted.matchid
+						INTO @tmpTransInfo (
+							transId
+							,matchid
+						)
+				FROM @tmpTrans t 
+					INNER JOIN dbo.MarkedTransaction m 
+					ON	t.TransID = m.transid
+
+				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+				BEGIN
+					SET @transInfoJson = (
+						SELECT	transId AS 't'
+								,matchid AS 'mid'
+								,winlostdate AS 'wld'
+					
+						FROM	@tmpTransInfo
+						FOR JSON AUTO
+					)
+						
+					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+						@SystemName = 'TVS' 
+						,@FunctionName = 'MoveTicket'
+						,@TableName = 'MarkedTransaction'
+						,@MatchId = @MatchId
+						,@TransInfoJson = @TransInfoJson
+						,@TicketType = 's'					
 				END
 			END
 		END
@@ -328,6 +366,43 @@ BEGIN
 							ON	t.MainTransId = vt.transId			
 				END
 
+			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t 
+						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.MainTransId)
+			BEGIN
+				DELETE @tmpTransInfo
+				UPDATE m WITH (ROWLOCK, UPDLOCK)
+					SET m.MatchId = @MatchId
+					OUTPUT	inserted.transid
+							,inserted.matchid
+						INTO @tmpTransInfo (
+							transId
+							,matchid
+						)
+				FROM @tmpTrans t 
+					INNER JOIN dbo.MarkedTransaction m 
+					ON	t.MainTransId = m.transid
+
+				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+				BEGIN
+					SET @transInfoJson = (
+						SELECT	transId AS 't'
+								,matchid AS 'mid'
+								,winlostdate AS 'wld'
+					
+						FROM	@tmpTransInfo
+						FOR JSON AUTO
+					)
+						
+					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+						@SystemName = 'TVS' 
+						,@FunctionName = 'MoveTicket'
+						,@TableName = 'MarkedTransaction'
+						,@MatchId = @MatchId
+						,@TransInfoJson = @TransInfoJson
+						,@TicketType = 's'					
+				END
 			END
 		END
 	END
