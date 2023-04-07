@@ -1,32 +1,31 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
+﻿/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_HDP_Select]
 (	
-	@MatchId              INT = 0
-	,@RequestId			  INT = 0
-	,@IssueTypeId		  INT = 4
-	,@ActionId			  INT = 5
-	,@IsShowPHOnly		  BIT = 0
-	,@SubIssueTypeId	  INT = NULL
-	,@FilterFromTransTime DATETIME = NULL
-	,@FilterToTransTime	  DATETIME = NULL
-	,@HomeFavorite		  VARCHAR(50) = NULL
-	,@AwayFavorite		  VARCHAR(50) = NULL
-	,@HdpValue			  VARCHAR(50) = NULL
-	,@IsLinkGroup1X2	  BIT = 0
-	,@IsLinkGroupAIO	  BIT = 0
-	,@LiveIndicator		  BIT = 0
-	,@TransInfoJson		  VARCHAR(MAX) = NULL
+	@MatchId              INT
+	,@RequestId			  INT
+	,@IssueTypeId		  INT
+	,@ActionId			  INT
+	,@IsShowPHOnly		  BIT
+	,@SubIssueTypeId	  INT
+	,@FilterFromTransTime DATETIME
+	,@FilterToTransTime	  DATETIME
+	,@IsLinkGroup1X2	  BIT
+	,@IsLinkGroupAIO	  BIT
+	,@LiveIndicator		  BIT
+	,@TransInfoJson		  VARCHAR(MAX)
+	,@HomeFavorite		  VARCHAR(50)
+	,@AwayFavorite		  VARCHAR(50)
+	,@HdpValue			  VARCHAR(50)
 )
 AS
 /*	
-	Created by: 20220523@July
+	Created by: 20230403@July
 	Task: Affected Pool House Ticket popup  [Redmine: #172486]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
-		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
-		- 20230103@Max: Change JSON input [Redmine: #180625]
-		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230403@July: Create new SP - Refactor code issue type HDP & 1H HDP   [Redmine: #172486]
+
 		
 	Param's explanation:
 
@@ -314,20 +313,20 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 THEN '1X2' 
-				  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 THEN '1H 1X2'
-			      ELSE 'AIO' END AS GroupName
+			,CASE WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
+				  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
+			      WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+				  ELSE 'Others' 
+			 END AS GroupName
 			,b.statusID
 			,b.modds
 			,b.ExtraInfo
 			,b.winlostdate
 	FROM #tmpTransInfo b WITH (NOLOCK)
-		CROSS APPLY(
-					SELECT f.GroupMatch
+		OUTER APPLY(
+					SELECT f.GroupMatch, f.BetType
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
-						AND 1 = CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 THEN 1
-									 WHEN @IsLinkGroupAIO = 1 AND f.GroupMatch <> 0 THEN 1 ELSE 0 END
 					)f
 	WHERE b.matchid = @MatchId AND b.betfrom <> 'P'  
 		AND b.liveindicator = @LiveIndicator
@@ -415,10 +414,14 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN (@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7) THEN 'HDP'
-						  WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 THEN '1X2' 
-						  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 THEN '1H 1X2'
-						  ELSE 'AIO'	 
+					,CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND @HomeFavorite IS NOT NULL THEN 'HDP'
+						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp2 = xHDPAway.AwayFavorite AND @AwayFavorite IS NOT NULL THEN 'HDP'
+						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (22,24) AND b.Subhdp2 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 'HDP' --Away Virtual Head Reversed
+						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (23,25) AND b.Subhdp1 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 'HDP' --Home Virtual Head Reversed 'HDP'
+						  WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
+						  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
+						  WHEN f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1 THEN 'AIO'
+						  ELSE 'Others'	 
 					 END AS GroupName
 					,b.SubstatusID
 					,b.ExtraInfo
@@ -439,7 +442,11 @@ BEGIN
 					FROM STRING_SPLIT(@HdpValue, '&')
 					WHERE value <> ''				
 				)xHDPvalue
-				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+				OUTER APPLY(
+					SELECT f.GroupMatch, f.BetType
+					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
+					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+					)f
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
@@ -447,13 +454,6 @@ BEGIN
 				AND b.Subliveindicator = @LiveIndicator
 				AND b.IsMixParlay = 1
 				AND b.Subtransdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
-				AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND @HomeFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp2 = xHDPAway.AwayFavorite AND @AwayFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (22,24) AND b.Subhdp2 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (23,25) AND b.Subhdp1 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
-							 WHEN f.BetType IS NOT NULL AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN 1 --1X2
-							 WHEN f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1 THEN 1 --AIO
-							 ELSE 0 END
 	END  
 
 	IF @ActionId NOT IN (2)
@@ -487,7 +487,7 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
 					WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
 					) ts
-		WHERE b.transid = b.SubTransid AND ts.TransId IS NULL
+		WHERE b.transid = b.SubTransid AND ts.TransId IS NULL AND b.GroupName <> 'Others'
 
 		DELETE sub
 		FROM #TVSTicketBets sub
@@ -496,7 +496,7 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 					WHERE transid = sub.SubTransid AND matchid = sub.matchid AND RequestId = @RequestId
 				) ts
-		WHERE sub.IsMixParlay = 1 AND ts.transid IS NULL
+		WHERE sub.IsMixParlay = 1 AND ts.transid IS NULL AND sub.GroupName <> 'Others'
 
 	END
 
@@ -505,7 +505,8 @@ BEGIN
 		, b.typenamee AS Name
 		, CASE WHEN @IssueTypeId IN (4) AND s.GroupName IN ('1X2', 'HDP') THEN '1X2' 
 			   WHEN @IssueTypeId IN (5) AND s.GroupName IN ('1H 1X2', 'HDP') THEN '1H 1X2' 
-		  ELSE 'AIO' END GroupName
+			   ELSE s.GroupName 
+		  END AS GroupName
 	FROM #TVSTicketBets s
 		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.SubBetType = b.typeid 
 
@@ -553,7 +554,7 @@ BEGIN
 		   ,s.statusID
 		   ,s.ExtraInfo
 		   ,s.winlostdate
-		   ,CASE WHEN s.IsMixParlay = 1 THEN 'Parlay' ELSE s.GroupName END AS GroupName
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 'Parlay' ELSE s.GroupName END AS GroupName
 		   ,s.matchid
 		   ,m.homeid
 		   ,m.awayid
@@ -568,7 +569,8 @@ BEGIN
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
 	ORDER BY CASE WHEN s.GroupName IN ('1X2', '1H 1X2') AND s.transid = s.SubTransid THEN 1
 				  WHEN s.GroupName = 'AIO' AND s.transid = s.SubTransid THEN 2
-				  WHEN s.IsMixParlay = 1 THEN 3 END
+				  WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 3 
+				  ELSE 4 END
 			, ISNULL(s.MainTransId, s.transid)
 
 	DROP TABLE #TVSTicketBets
