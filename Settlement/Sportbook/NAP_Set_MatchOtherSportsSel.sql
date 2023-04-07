@@ -54,6 +54,7 @@ AS
 			- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 			- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 			- 20230215@Aries: Apply Settlement by Profile for Remaining Sports - Fix issue [Redmine: #182677]
+			- 20230406@Louisa: Include marked ticket flow [Redmine:#186140]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
