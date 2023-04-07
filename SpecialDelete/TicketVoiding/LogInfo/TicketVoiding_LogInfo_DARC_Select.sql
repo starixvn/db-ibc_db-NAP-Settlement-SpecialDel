@@ -73,7 +73,8 @@ BEGIN
 			accepttype			  TINYINT,
 			SubIssueTypeId		  SMALLINT,
 			FilterBy			  TINYINT,
-			IsCancelCashOut		  BIT
+			IsCancelCashOut		  BIT,
+			CheckTimeCashOut	  DATETIME
 	)
 
 	CREATE TABLE #logInfo (
@@ -447,6 +448,7 @@ BEGIN
 			,SubIssueTypeId
 			,FilterBy
 			,IsCancelCashOut
+			,CheckTimeCashOut
 		)
 	SELECT   b.transid
 			,b.SubTransID
@@ -472,9 +474,10 @@ BEGIN
 			,d.SubIssueTypeId
 			,d.FilterBy
 			,CASE WHEN act.VoidTime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 0
-				  ELSE CASE WHEN b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1 --Must ticket Void -> have cancelCO
+				  ELSE CASE WHEN b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1 --Must ticket Void -> have cancelCO
 							ELSE 0 END
 				  END AS IsCancelCashOut
+			,b.CheckTimeCashOut
 	FROM #tmpTransInfo b
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -489,7 +492,7 @@ BEGIN
 					ELSE 0 END
 		AND b.betfrom <> 'P' AND b.IsMixParlay = 0 
 		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-					 ELSE CASE WHEN b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 ELSE CASE WHEN b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL AND b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
 							   ELSE 0 END
 					 END
 		AND NOT EXISTS (SELECT TOP 1 1 
@@ -520,6 +523,7 @@ BEGIN
 				,SubIssueTypeId
 				,FilterBy
 				,IsCancelCashOut
+				,CheckTimeCashOut
 			)
 		SELECT   b.transid AS TransId
 				,b.SubTransID
@@ -545,6 +549,7 @@ BEGIN
 				,d.SubIssueTypeId
 				,d.FilterBy
 				,0 AS IsCancelCashOut
+				,NULL AS CheckTimeCashOut
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON b.matchid = d.MatchId AND b.IsMixParlay = 1 
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
@@ -644,9 +649,11 @@ BEGIN
 	BEGIN
 		UPDATE li
 		SET CancelCashOutCount = b.CancelCashOutCount
+		   ,VoidToTime = CASE WHEN b.CheckTimeCashOut >  li.VoidToTime THEN b.CheckTimeCashOut ELSE li.VoidToTime END
 		FROM #logInfo li
 			CROSS APPLY(
 				SELECT COUNT(b.transid) AS CancelCashOutCount
+					  ,MAX(CheckTimeCashOut) AS CheckTimeCashOut
 				FROM #TVSTicketBets b
 				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1
 				GROUP BY b.matchid

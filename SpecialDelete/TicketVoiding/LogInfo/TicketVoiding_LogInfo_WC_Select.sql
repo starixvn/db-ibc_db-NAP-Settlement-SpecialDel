@@ -73,6 +73,7 @@ BEGIN
 			accepttype			  TINYINT,
 			ScoreId				  INT,
 			IsCancelCashOut		  BIT,
+			CheckTimeCashOut	  DATETIME,
 			betid				  BIGINT,
 			SiteDBGroupID		  SMALLINT
 	)
@@ -450,6 +451,7 @@ BEGIN
 			,checktime
 			,accepttype
 			,IsCancelCashOut
+			,CheckTimeCashOut
 			
 		)
 	SELECT DISTINCT  b.transid
@@ -476,14 +478,15 @@ BEGIN
 			,CASE  --Must ticket Void -> have cancelCO
 				WHEN @FilterBy = 1 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 					AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-					AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
 				WHEN @FilterBy = 2 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 					AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-					AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
 				WHEN @FilterBy = 4 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 					AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
-					AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
 				ELSE 0 END AS IsCancelCashOut
+		   ,b.CheckTimeCashOut
 	FROM #tmpTransInfo b
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
@@ -497,17 +500,17 @@ BEGIN
 			AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						 WHEN @FilterBy = 1 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 							AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 
+							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime 
 						THEN 1
 						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
 						 WHEN @FilterBy = 2 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 							AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 
+							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime 
 						THEN 1
 						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
 						 WHEN @FilterBy = 4 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
 								AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
-								AND	b.CheckTimeCashOut BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 
+								AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime 
 						THEN 1
 					   ELSE 0 END 
 	
@@ -655,9 +658,10 @@ BEGIN
 	BEGIN
 		UPDATE li
 		SET CancelCashOutCount = b.CancelCashOutCount
+		    ,VoidToTime = CASE WHEN b.CheckTimeCashOut >  li.VoidToTime THEN b.CheckTimeCashOut ELSE li.VoidToTime END
 		FROM #logInfo li
 			CROSS APPLY(
-				SELECT COUNT(b.transid) AS CancelCashOutCount
+				SELECT COUNT(b.transid) AS CancelCashOutCount ,MAX(CheckTimeCashOut) AS CheckTimeCashOut
 				FROM #TVSTicketBets b
 				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1
 				GROUP BY b.matchid, b.ScoreId
