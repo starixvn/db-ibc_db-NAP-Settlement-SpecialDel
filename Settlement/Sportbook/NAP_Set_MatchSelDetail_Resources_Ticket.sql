@@ -12,7 +12,7 @@ AS
     Revisions: 
 		- 20220719@Louisa: Initial- Get ResourceId and Count ticket Status [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
-
+		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -54,10 +54,12 @@ BEGIN
 				AND m.sporttype = 50
 		
 		; WITH cte_bettrans AS (
-			SELECT  m.ParentId, m.MatchId, bt.StatusID , bt.Bettype,  bt.BetID
+			SELECT  m.ParentId, m.MatchId, bt.StatusID , bt.Bettype,  bt.BetID, (CASE WHEN bt.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS IsMark
 			FROM #tmpAllParentChildMatch m
 				INNER JOIN dbo.Bettrans bt WITH(NOLOCK)	
 					ON bt.MatchID = m.MatchID 
+				LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+					ON	bt.transid = mt.TransId
 			WHERE bt.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupId END
 				AND bt.statusID NOT IN (101, 102)
 		)
@@ -65,10 +67,10 @@ BEGIN
 		SELECT sp.ResourceID,
 				COUNT(1) AS BetCount,
 				SUM(CASE WHEN bt.StatusID = 1 THEN 1 ELSE 0 END) As InWaiting,
-				SUM(CASE WHEN bt.StatusID = 0 THEN 1 ELSE 0 END) As InRunning,
+				SUM(CASE WHEN bt.StatusID = 0 AND bt.IsMark = 0 THEN 1 ELSE 0 END) As InRunning,
 				SUM(CASE WHEN bt.statusID BETWEEN 111 AND 113 THEN 1 ELSE 0 END) AS betSettledCount,
 				SUM(CASE WHEN bt.statusID = 103 THEN 1 ELSE 0 END) AS betRefundedCount,
-				0 AS betMarkedCount,
+				SUM(bt.IsMark) AS BetMarkedCount,
 				MAX(sp.OrdNo) ,
 				0 AS IsSpecialBettype
 		FROM cte_bettrans bt

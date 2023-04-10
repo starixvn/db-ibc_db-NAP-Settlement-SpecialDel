@@ -107,7 +107,7 @@ BEGIN
 	DECLARE @tmpOverStatus  TABLE ( OverStatus TINYINT)
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
 	DECLARE @tmpQueueStatus TABLE (MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
-	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsDisplay BIT DEFAULT(0) )
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsDisplay BIT DEFAULT(0),PRIMARY KEY (MatchId) )
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), OverStatus INT DEFAULT(0) )
 	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0) )
@@ -817,13 +817,12 @@ BEGIN
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
-	FROM	#tmpMatchIds m
+	FROM	#tmpAllParentChildMatch m
 		CROSS APPLY (
 			SELECT	mt.TransId
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
-	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId
@@ -863,12 +862,15 @@ BEGIN
 				GROUP BY mt.matchid
 			) m
 				ON m.matchId = mk.MatchId
-
+		
 		UPDATE m 
-			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+			SET IsExistMarkedTicket = 1
 		FROM	#tmpMatchIds m
-			INNER JOIN @tmpMatchMarked t
-				ON m.matchid = t.MatchId
+        WHERE EXISTS (SELECT TOP 1 1 
+                      FROM #tmpAllParentChildMatch AS p 
+                        INNER JOIN @tmpMatchMarked AS mm ON p.matchid = mm.matchid
+                      WHERE m.matchid = p.ParentId
+						AND mm.IsExistMarkedTicket = 1)
 	END
 	
 	DECLARE @tmpMatchCompleted TABLE (MatchId INT PRIMARY KEY, IsExistRunningTicket BIT DEFAULT (0))

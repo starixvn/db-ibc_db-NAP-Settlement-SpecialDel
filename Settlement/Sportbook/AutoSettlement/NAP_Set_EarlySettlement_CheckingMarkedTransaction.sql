@@ -23,6 +23,7 @@ AS
 		- 20220629@Louisa: Use RefResourceId for Badminton-bettype 704 instead of hard code [Redmineid:#173862]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
+		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 
     Param's Explanation:
 		@ResourceIDs: '135,168,16001,16002'
@@ -35,6 +36,7 @@ BEGIN
 
 	DECLARE @tmpBettype TABLE (bettype SMALLINT, ResourceId VARCHAR(20), BetId BIGINT)
 	DECLARE @tmpResourceIds TABLE (ResourceId VARCHAR(20))
+	DECLARE @tmpMatch TABLE (MatchId INT, PRIMARY KEY (MatchId))
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -42,6 +44,19 @@ BEGIN
 	SELECT	@SportType = sporttype
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @MatchID
+
+	INSERT INTO @tmpMatch(MatchId)
+	VALUES (@MatchID)
+
+	IF @SportType = 50
+	BEGIN
+		INSERT INTO @tmpMatch(MatchId)
+		SELECT	m.matchid
+		FROM dbo.match m WITH(NOLOCK)
+		WHERE m.sporttype = @SportType
+			AND m.ChildMatchType = 200
+			AND m.ParentID = @MatchID
+	END
 
 	INSERT INTO @tmpResourceIds(ResourceID)
 	SELECT	CAST([value] AS VARCHAR(20)) AS ResourceID
@@ -67,7 +82,7 @@ BEGIN
 		FROM	dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
 				ON	b.transid = mt.TransId
-		WHERE	b.matchid = @MatchID
+		WHERE	mt.matchid IN (SELECT tmp.MatchID FROM @tmpMatch AS tmp)
 				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 				AND b.statusID NOT IN (101, 102)
 				AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = b.bettype AND (t.BetId = 0 OR t.BetId = b.betid))
@@ -94,7 +109,7 @@ BEGIN
 			   						AND bm.statusID = 0
 			   						AND EXISTS (SELECT TOP 1 1 FROM @tmpBettype t WHERE t.bettype = bm.bettype AND (t.BetId = 0 OR t.BetId = bm.betcheck))
 			   			)bm
-				   WHERE	mt.MatchId = @MatchID)
+				   WHERE	mt.MatchId IN (SELECT tmp.MatchID FROM @tmpMatch AS tmp))
 	BEGIN
 		SET @isExistMarkedTicket = 1		
 	END
