@@ -40,11 +40,12 @@ BEGIN
 		,ChildMatchId			INT
 	)
 
-	INSERT INTO #tmpResult(RequestId, IssueTypeId, VoidingHistoryId, LastVoidedBy)
+	INSERT INTO #tmpResult(RequestId, IssueTypeId, VoidingHistoryId, LastVoidedBy, MatchId)
 	SELECT r.RequestId
 			,r.IssueTypeId
 			,vh.VoidingHistoryId
 			,vh.UserId
+			,@MatchId
 	FROM dbo.TicketVoiding_Request r WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH (NOLOCK) ON r.RequestId = vh.RequestId	
 	WHERE	r.RequestId = @RequestId

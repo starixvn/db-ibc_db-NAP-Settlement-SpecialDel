@@ -137,8 +137,8 @@ BEGIN
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType IN (1,3) AND b.statusID NOT IN (101,102,103)
 		
-		INSERT INTO #SingleTickets (TransId, RequestId, MatchId, IssueTypeId)
-		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId
+		INSERT INTO #SingleTickets (TransId, RequestId, MatchId, IssueTypeId, TicketType)
+		SELECT t.TransId, t.RequestId, t.MatchId, t.IssueTypeId, TicketType
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 1
 
