@@ -11,7 +11,7 @@ AS
 	Revisions: 
 		- 20220606@July: Create new SP [Redmine:#172634]
 		- 20220614@July: Remove '=' support CTS [Redmine:#172634]
-		- 20220330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
+		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
 
 	Param's explanation:
 		
@@ -33,7 +33,7 @@ BEGIN
 		 , r.LastModifiedBy AS CreatedBy
 		 , r.LastModifiedDate AS CreatedDate
 		 , CASE WHEN r.IssueTypeId = 11 AND s.MatchId = 29 THEN 1 ELSE NULL END AS IsParlay
-		 , CASE WHEN r.IssueTypeId = 11 THEN r.Sporttype ELSE NULL END AS Sporttype
+		 , CASE WHEN r.IssueTypeId = 11 AND s.MatchId <> 29 THEN r.Sporttype ELSE NULL END AS Sporttype
 		 , r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)  
 		INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = s.RequestId

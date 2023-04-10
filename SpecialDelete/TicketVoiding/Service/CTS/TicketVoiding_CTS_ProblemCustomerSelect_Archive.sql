@@ -27,7 +27,7 @@ BEGIN
 		 , r.LastModifiedBy AS CreatedBy
 		 , r.LastModifiedDate AS CreatedDate
 		 , CASE WHEN r.IssueTypeId = 11 AND s.MatchId = 29 THEN 1 ELSE NULL END AS IsParlay
-		 , CASE WHEN r.IssueTypeId = 11 THEN r.Sporttype ELSE NULL END AS Sporttype
+		 , CASE WHEN r.IssueTypeId = 11 AND s.MatchId <> 29 THEN r.Sporttype ELSE NULL END AS Sporttype
 		 , r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)  
 		INNER JOIN dbo.TicketVoiding_Request_bk r WITH (NOLOCK) ON r.RequestId = s.RequestId
