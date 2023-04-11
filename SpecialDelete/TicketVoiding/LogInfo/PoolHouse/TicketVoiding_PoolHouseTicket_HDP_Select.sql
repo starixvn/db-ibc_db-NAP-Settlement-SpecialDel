@@ -5,7 +5,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_HDP_Select]
 	,@RequestId			  INT
 	,@IssueTypeId		  INT
 	,@ActionId			  INT
-	,@IsShowPHOnly		  BIT
 	,@SubIssueTypeId	  INT
 	,@FilterFromTransTime DATETIME
 	,@FilterToTransTime	  DATETIME
@@ -475,28 +474,6 @@ BEGIN
 
 		DELETE FROM #TVSTicketBets 
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
-
-	END
-
-	IF @IsShowPHOnly = 1 AND @RequestId <> 0
-	BEGIN
-		DELETE b
-		FROM #TVSTicketBets b
-		OUTER APPLY (
-					SELECT TOP (1) transid
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
-					) ts
-		WHERE b.transid = b.SubTransid AND ts.TransId IS NULL AND b.GroupName <> 'Others'
-
-		DELETE sub
-		FROM #TVSTicketBets sub
-		OUTER APPLY (
-					SELECT TOP (1) transid
-					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
-					WHERE transid = sub.SubTransid AND matchid = sub.matchid AND RequestId = @RequestId
-				) ts
-		WHERE sub.IsMixParlay = 1 AND ts.transid IS NULL AND sub.GroupName <> 'Others'
 
 	END
 

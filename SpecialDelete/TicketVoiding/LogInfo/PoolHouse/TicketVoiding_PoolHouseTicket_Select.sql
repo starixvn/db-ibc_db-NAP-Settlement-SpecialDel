@@ -5,7 +5,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 	,@RequestId			  INT = 0
 	,@IssueTypeId		  INT = 0
 	,@ActionId			  INT = 5
-	,@IsShowPHOnly		  BIT = 0
 	,@SubIssueTypeId	  INT = NULL
 	,@FilterFromTransTime DATETIME = NULL
 	,@FilterToTransTime	  DATETIME = NULL
@@ -43,7 +42,6 @@ BEGIN
 			,@RequestId			   = @RequestId
 			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
-			,@IsShowPHOnly		   = @IsShowPHOnly
 			,@SubIssueTypeId	   = @SubIssueTypeId
 			,@FilterFromTransTime  = @FilterFromTransTime
 			,@FilterToTransTime	   = @FilterToTransTime
@@ -62,7 +60,6 @@ BEGIN
 			,@RequestId			   = @RequestId
 			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
-			,@IsShowPHOnly		   = @IsShowPHOnly
 			,@SubIssueTypeId	   = @SubIssueTypeId
 			,@FilterFromTransTime  = @FilterFromTransTime
 			,@FilterToTransTime	   = @FilterToTransTime
