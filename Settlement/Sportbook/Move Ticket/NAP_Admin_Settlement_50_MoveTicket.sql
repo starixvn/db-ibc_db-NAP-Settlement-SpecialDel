@@ -35,13 +35,11 @@ BEGIN
 			,@Session			NVARCHAR(50)
 			,@IsExistParlay		BIT = 0
 			,@IsLockingByRefno	BIT = 0
-
 			,@totalSingle INT 
 			,@totalParlay INT 
 			,@startRowId INT 
 			,@batchNo INT 
 			,@strTransIds VARCHAR(MAX) 
-
 			,@StartTime DATETIME
 			,@EndTime DATETIME
 			,@ActionID INT 
@@ -60,8 +58,23 @@ BEGIN
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
-	CREATE TABLE #tmpTransIdsSingle (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, ResourceId VARCHAR(20) )
-	CREATE TABLE #tmpTransIdsParlay (RowId INT IDENTITY(1,1) PRIMARY KEY, TransId BIGINT, statusId TINYINT, MainTransId BIGINT, refno BIGINT, ResourceId VARCHAR(20), bettype SMALLINT )
+	CREATE TABLE #tmpTransIdsSingle (
+		 RowId			INT IDENTITY(1,1) PRIMARY KEY
+		,TransId		BIGINT
+		,statusId		TINYINT
+		,ResourceId		VARCHAR(20)
+		,IsMarked		BIT DEFAULT(0) 
+	)
+	CREATE TABLE #tmpTransIdsParlay (
+		 RowId			INT IDENTITY(1,1) PRIMARY KEY
+		,TransId		BIGINT
+		,statusId		TINYINT
+		,MainTransId	BIGINT
+		,refno			BIGINT
+		,ResourceId		VARCHAR(20)
+		,IsMarked		BIT DEFAULT(0)
+		,MainMatchId	INT
+	)
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -92,22 +105,23 @@ BEGIN
 						OR s.RefResourceId = t.ResourceId)
 		)s
 
-	INSERT INTO #tmpTransIdsSingle(TransId, statusId, ResourceId)
-	SELECT	b.transid, b.statusID, t.ResourceId
+	INSERT INTO #tmpTransIdsSingle(TransId, statusId, ResourceId, IsMarked)
+	SELECT	b.transid, b.statusID, t.ResourceId, CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
 			FROM	@tmpBettypeResourceId t
 			WHERE	t.Bettype = b.bettype
 					AND (t.BetId = 0 OR t.BetId = b.betid)
-		)t				
+		)t	
+		LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.TransId = m.TransId
 	WHERE	b.matchid = @MatchId
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 	SET @totalSingle = @@ROWCOUNT
 
-	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno, ResourceId, bettype)
-	SELECT	bm.transid, bm.statusID, bm.refno, t.ResourceId, bm.bettype
+	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno, ResourceId)
+	SELECT	bm.transid, bm.statusID, bm.refno, t.ResourceId
 	FROM	dbo.bettransm bm WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -146,6 +160,7 @@ BEGIN
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
 						,CASE WHEN statusId = 102 THEN statusId ELSE NULL END AS '@s'
+						,IsMarked AS '@im'
 				FROM	#tmpTransIdsSingle 
 				WHERE	RowId > @startRowId AND RowId <= @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
@@ -171,31 +186,20 @@ BEGIN
 	--move parlay
 	IF @totalParlay > 0
 	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransIdsParlay WHERE statusId = 102) 
-		BEGIN
-			UPDATE  t
-				SET MainTransId = b.transid
-			FROM	#tmpTransIdsParlay t
-				INNER JOIN dbo.bettrans b WITH(NOLOCK)
-					ON	t.refno = b.refno
-			WHERE	b.matchid = 29
-					AND t.statusId = 102
-		END
+		UPDATE  t
+			SET MainTransId = b.transid
+			   ,IsMarked = CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END
+			   ,MainMatchId = CASE WHEN m.TransId IS NOT NULL THEN @MatchId ELSE NULL END
+		FROM	#tmpTransIdsParlay t
+			INNER JOIN dbo.bettrans b WITH(NOLOCK)
+				ON	t.refno = b.refno
+			LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) 
+				ON b.TransId = m.TransId AND m.MatchId = @matchid
+		WHERE	b.matchid = 29
+			AND	1 = CASE WHEN t.statusId = 102 THEN 1
+					     WHEN m.TransId IS NOT NULL THEN 1
+						 ELSE 0 END
 
-		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransIdsParlay t
-					INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.MatchId = @MatchId AND m.bettype = t.bettype)
-		BEGIN
-			UPDATE  t
-				SET MainTransId = b.transid
-			FROM	#tmpTransIdsParlay t
-				INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.MatchId = @MatchId AND m.bettype = t.bettype
-				INNER JOIN dbo.bettrans b WITH(NOLOCK)
-					ON	t.refno = b.refno
-			WHERE	b.matchid = 29
-				AND t.MainTransId IS NULL
-		END
-
-				
 		EXEC dbo.NAP_Set_GlobalSettingSel 
 			@LockName = 'ParlayRefno'
 			,@ThreadHold = @ThreadHold OUTPUT
@@ -235,6 +239,8 @@ BEGIN
 				SELECT	TOP (@batchNo) transid AS '@t'
 						,CASE WHEN statusid = 102 THEN statusId ELSE NULL END AS '@s'
 						,CASE WHEN statusid = 102 THEN MainTransId ELSE NULL END AS '@mt'
+						,IsMarked AS 'im'
+						,MainMatchId AS 'm_mid'
 				FROM	#tmpTransIdsParlay 
 				WHERE	RowId > @startRowId AND RowId <= @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
@@ -311,6 +317,11 @@ BEGIN
 	,@Doing = @logdata
 	,@extend = @MatchId	
 	
+	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tmpTransIdsSingle
+	DROP TABLE #tmpTransIdsParlay
+
 	RETURN
 
 END

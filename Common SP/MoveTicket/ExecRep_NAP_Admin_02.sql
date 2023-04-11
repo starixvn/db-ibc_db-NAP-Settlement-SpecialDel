@@ -35,7 +35,14 @@ BEGIN
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
 
-	DECLARE @tmpTrans TABLE (TransID BIGINT PRIMARY KEY, StatusId TINYINT, MainTransId BIGINT, oddsid INT)
+	DECLARE @tmpTrans TABLE (
+		 TransID		BIGINT PRIMARY KEY
+		,StatusId		TINYINT
+		,MainTransId	BIGINT
+		,oddsid			INT
+		,IsMarked		BIT DEFAULT(0)
+		,MainMatchId	INT
+	)
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 		,winlostdate SMALLDATETIME
 		,matchid INT
@@ -46,10 +53,12 @@ BEGIN
 
 	IF @Mode IN ('Single', 'subParlay' ) -- move ticket for Cricket Test match
 	BEGIN
-		INSERT INTO @tmpTrans (TransID, StatusId, MainTransId)
+		INSERT INTO @tmpTrans (TransID, StatusId, IsMarked, MainTransId, MainMatchId)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@s', 'tinyint') AS statusId
+				,T.C.value('./@im', 'bigint') AS ismarked
 				,T.C.value('./@mt', 'bigint') AS maintransid
+				,T.C.value('./@m_mid', 'int') AS mainmatchid
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
 
@@ -133,10 +142,46 @@ BEGIN
 							,@TicketType = 's'					
 					END
 				END
+				
+				--sitedb not exists table 'TicketVoiding_VoidedTransaction'
+				IF @IsSiteDB = 1
+				BEGIN
+					SET @transInfoJson = (
+						SELECT	MainTransId AS 't'
+								,@MatchId AS 'mid'							
+						FROM	@tmpTrans
+						WHERE	StatusId = 102
+						FOR JSON AUTO
+					)
+						
+					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+						@SystemName = 'TVS' 
+						,@FunctionName = 'MoveTicket'
+						,@TableName = 'TicketVoiding_VoidedTransaction'
+						,@MatchId = @MatchId
+						,@TransInfoJson = @TransInfoJson	
+								
+				END
+
+				IF @IsSiteDB = 0 AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
+				BEGIN
+					DELETE @tmpTransInfo
+
+					UPDATE	vt WITH(ROWLOCK, UPDLOCK)
+						SET MatchId = @MatchId
+						OUTPUT	inserted.transid
+							,inserted.matchid
+						INTO @tmpTransInfo (
+							transId
+							,matchid
+						)
+					FROM	@tmpTrans t
+						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
+							ON	t.TransID = vt.transId	
+				END
 			END
 
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t 
-						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.TransID)
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t WHERE t.IsMarked = 1)
 			BEGIN
 				DELETE @tmpTransInfo
 				UPDATE m WITH (ROWLOCK, UPDLOCK)
@@ -156,8 +201,6 @@ BEGIN
 					SET @transInfoJson = (
 						SELECT	transId AS 't'
 								,matchid AS 'mid'
-								,winlostdate AS 'wld'
-					
 						FROM	@tmpTransInfo
 						FOR JSON AUTO
 					)
@@ -329,25 +372,25 @@ BEGIN
 					END
 				END
 
-				--sitedb not exists table TicketVoiding_VoidedTransaction'
+				--sitedb not exists table 'TicketVoiding_VoidedTransaction'
 				IF @IsSiteDB = 1
-					BEGIN
-						SET @transInfoJson = (
-							SELECT	MainTransId AS 't'
-									,@MatchId AS 'mid'							
-							FROM	@tmpTrans
-							WHERE	StatusId = 102
-							FOR JSON AUTO
-						)
+				BEGIN
+					SET @transInfoJson = (
+						SELECT	MainTransId AS 't'
+								,@MatchId AS 'mid'							
+						FROM	@tmpTrans
+						WHERE	StatusId = 102
+						FOR JSON AUTO
+					)
 						
-						EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
-							@SystemName = 'Settlement' 
-							,@FunctionName = 'MoveTicket'
-							,@TableName = 'TicketVoiding_VoidedTransaction'
-							,@MatchId = @MatchId
-							,@TransInfoJson = @TransInfoJson	
+					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+						@SystemName = 'TVS' 
+						,@FunctionName = 'MoveTicket'
+						,@TableName = 'TicketVoiding_VoidedTransaction'
+						,@MatchId = @MatchId
+						,@TransInfoJson = @TransInfoJson	
 								
-					END
+				END
 
 				IF @IsSiteDB = 0 AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
 				BEGIN
@@ -363,13 +406,12 @@ BEGIN
 						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
-							ON	t.MainTransId = vt.transId			
+							ON	t.MainTransId = vt.transId AND t.MainMatchId = vt.MatchId		
 				END
 
 			END
 
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t 
-						INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON m.TransId = t.MainTransId)
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE IsMarked = 1)
 			BEGIN
 				DELETE @tmpTransInfo
 				UPDATE m WITH (ROWLOCK, UPDLOCK)
@@ -382,15 +424,13 @@ BEGIN
 						)
 				FROM @tmpTrans t 
 					INNER JOIN dbo.MarkedTransaction m 
-					ON	t.MainTransId = m.transid
+					ON	t.MainTransId = m.transid AND t.MainMatchId = m.MatchId
 
 				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 				BEGIN
 					SET @transInfoJson = (
 						SELECT	transId AS 't'
 								,matchid AS 'mid'
-								,winlostdate AS 'wld'
-					
 						FROM	@tmpTransInfo
 						FOR JSON AUTO
 					)
@@ -401,7 +441,7 @@ BEGIN
 						,@TableName = 'MarkedTransaction'
 						,@MatchId = @MatchId
 						,@TransInfoJson = @TransInfoJson
-						,@TicketType = 's'					
+						,@TicketType = 'p'					
 				END
 			END
 		END

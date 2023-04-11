@@ -11,7 +11,6 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01]
 	,@SettlementAction VARCHAR(20) = NULL
 	,@TicketType VARCHAR(1) = NULL
 	,@TotalQueue INT = 0
-
 	,@RunOnServer VARCHAR(100)= NULL
 	,@SettlementProcessingId BIGINT = NULL	
 	,@Is3rd 	BIT =  0
@@ -37,6 +36,8 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20221117@Kathy: No settlement on DB05 [Redmine:#180225]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230411@July: Check matchid before update TicketVoiding_VoidedTransaction [Redmine:#168081]
+
 	Param's Explanation:  
 		   
 */
@@ -832,7 +833,7 @@ BEGIN
 							SET matchid = CASE WHEN t.matchid IS NULL THEN v.matchid ELSE t.matchid END
 						FROM	@tmptransid t
 							INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
-								ON	v.transid = t.transid
+								ON	v.transid = t.transid AND v.MatchId = t.matchid
 					END
 				END
 			END TRY
