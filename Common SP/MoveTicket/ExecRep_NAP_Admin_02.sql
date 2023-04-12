@@ -59,7 +59,7 @@ BEGIN
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@s', 'tinyint') AS statusId
 				,T.C.value('./@mt', 'bigint') AS maintransid
-				,T.C.value('./@im', 'bigint') AS ismarked
+				,T.C.value('./@im', 'bigint') AS IsMarked
 				,T.C.value('./@m_mid', 'int') AS MainMatchId
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
@@ -145,7 +145,7 @@ BEGIN
 					END
 				END
 				
-				--sitedb not exists table 'TicketVoiding_VoidedTransaction' => sync service
+				--sitedb not exists table 'TicketVoiding_VoidedTransaction'
 				IF @IsSiteDB = 1
 				BEGIN
 					SET @transInfoJson = (
@@ -158,7 +158,7 @@ BEGIN
 					)
 						
 					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
-						@SystemName = 'TVS' 
+						@SystemName = 'Settlement' 
 						,@FunctionName = 'MoveTicket'
 						,@TableName = 'TicketVoiding_VoidedTransaction'
 						,@MatchId = @MatchId
@@ -213,7 +213,7 @@ BEGIN
 					)
 						
 					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
-						@SystemName = 'TVS' 
+						@SystemName = 'Settlement' 
 						,@FunctionName = 'MoveTicket'
 						,@TableName = 'MarkedTransaction'
 						,@MatchId = @MatchId
@@ -379,7 +379,7 @@ BEGIN
 					END
 				END
 
-				--sitedb not exists table 'TicketVoiding_VoidedTransaction' => sync service
+				--sitedb not exists table 'TicketVoiding_VoidedTransaction'
 				IF @IsSiteDB = 1
 				BEGIN
 					SET @transInfoJson = (
@@ -392,7 +392,7 @@ BEGIN
 					)
 						
 					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
-						@SystemName = 'TVS' 
+						@SystemName = 'Settlement' 
 						,@FunctionName = 'MoveTicket'
 						,@TableName = 'TicketVoiding_VoidedTransaction'
 						,@MatchId = @MatchId
@@ -448,7 +448,7 @@ BEGIN
 					)
 						
 					EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
-						@SystemName = 'TVS' 
+						@SystemName = 'Settlement' 
 						,@FunctionName = 'MoveTicket'
 						,@TableName = 'MarkedTransaction'
 						,@MatchId = @MatchId

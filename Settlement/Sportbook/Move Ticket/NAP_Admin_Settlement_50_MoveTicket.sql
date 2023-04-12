@@ -107,7 +107,9 @@ BEGIN
 		)s
 
 	INSERT INTO #tmpTransIdsSingle(TransId, statusId, ResourceId, IsMarked, MainMatchId)
-	SELECT	b.transid, b.statusID, t.ResourceId, CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked, @MatchId
+	SELECT	b.transid, b.statusID, t.ResourceId
+	, CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE NULL END AS IsMarked
+	, CASE WHEN (m.TransId IS NOT NULL) OR (b.statusID = 102) THEN @MatchId ELSE NULL END --marked or voided
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId

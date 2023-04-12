@@ -633,31 +633,18 @@ BEGIN
 					END
 					ELSE IF @Action = 'U' --Move ticket
 					BEGIN
-						IF @TransInfoJson IS NOT NULL
-						BEGIN
-							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
-							INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
-							SELECT *
-								FROM OPENJSON(@Decompress_TransInfoJson)
-									WITH (
-									t   BIGINT
-									,mid INT
-									,m_mid INT
-								)
+						INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
+						SELECT *
+							FROM OPENJSON(@Decompress_TransInfoJson)
+								WITH (
+								t   BIGINT
+								,mid INT
+								,m_mid INT
+							)
 
-							SET @batchNo = @@ROWCOUNT
-						END
-						ELSE -- @TransInfo IS NOT NULL (xml format)
-						BEGIN
-							INSERT INTO @tmpTransId (TransID ,matchid)
-							SELECT	T.C.value('./@t', 'bigint') AS transid	
-								,T.C.value('./@mid', 'INT') AS matchid
-							FROM	@TransInfo.nodes('/root/r') AS T(C)	
-							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
-
-							SET @batchNo = @@ROWCOUNT
-						END
+						SET @batchNo = @@ROWCOUNT
 
 						UPDATE TOP (@batchNo)  v
 							SET matchid = t.matchid
@@ -852,6 +839,12 @@ BEGIN
 								)
 
 							SET @batchNo = @@ROWCOUNT
+
+							UPDATE TOP (@batchNo)  v
+							SET matchid = t.matchid
+							FROM	@tmptransid t
+								INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
+									ON	v.transid = t.transid AND v.MatchId = t.MainMatchId 
 						END
 						ELSE -- @TransInfo IS NOT NULL (xml format)
 						BEGIN
@@ -862,13 +855,15 @@ BEGIN
 							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
 
 							SET @batchNo = @@ROWCOUNT
+
+							UPDATE TOP (@batchNo)  v
+							SET matchid = t.matchid
+							FROM	@tmptransid t
+								INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
+									ON	v.transid = t.transid 
+
 						END
 
-						UPDATE TOP (@batchNo)  v
-							SET matchid = t.matchid
-						FROM	@tmptransid t
-							INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
-								ON	v.transid = t.transid AND v.MatchId = t.MainMatchId 
 					END
 				END
 			END TRY
