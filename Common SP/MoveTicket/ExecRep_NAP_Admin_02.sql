@@ -53,11 +53,11 @@ BEGIN
 
 	IF @Mode IN ('Single', 'subParlay' ) -- move ticket for Cricket Test match
 	BEGIN
-		INSERT INTO @tmpTrans (TransID, StatusId, IsMarked, MainTransId, MainMatchId)
+		INSERT INTO @tmpTrans (TransID, StatusId, MainTransId, IsMarked, MainMatchId)
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@s', 'tinyint') AS statusId
-				,T.C.value('./@im', 'bigint') AS ismarked
 				,T.C.value('./@mt', 'bigint') AS maintransid
+				,T.C.value('./@im', 'bigint') AS ismarked
 				,T.C.value('./@m_mid', 'int') AS mainmatchid
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
@@ -143,12 +143,13 @@ BEGIN
 					END
 				END
 				
-				--sitedb not exists table 'TicketVoiding_VoidedTransaction'
+				--sitedb not exists table 'TicketVoiding_VoidedTransaction' => sync service
 				IF @IsSiteDB = 1
 				BEGIN
 					SET @transInfoJson = (
 						SELECT	MainTransId AS 't'
-								,@MatchId AS 'mid'							
+								,@MatchId AS 'mid'	
+								,MainMatchId AS 'm_mid'
 						FROM	@tmpTrans
 						WHERE	StatusId = 102
 						FOR JSON AUTO
@@ -184,6 +185,7 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans t WHERE t.IsMarked = 1)
 			BEGIN
 				DELETE @tmpTransInfo
+				
 				UPDATE m WITH (ROWLOCK, UPDLOCK)
 					SET m.MatchId = @MatchId
 					OUTPUT	inserted.transid
@@ -372,12 +374,13 @@ BEGIN
 					END
 				END
 
-				--sitedb not exists table 'TicketVoiding_VoidedTransaction'
+				--sitedb not exists table 'TicketVoiding_VoidedTransaction' => sync service
 				IF @IsSiteDB = 1
 				BEGIN
 					SET @transInfoJson = (
 						SELECT	MainTransId AS 't'
 								,@MatchId AS 'mid'							
+								,MainMatchId AS 'm_mid'
 						FROM	@tmpTrans
 						WHERE	StatusId = 102
 						FOR JSON AUTO
@@ -414,6 +417,7 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpTrans WHERE IsMarked = 1)
 			BEGIN
 				DELETE @tmpTransInfo
+				
 				UPDATE m WITH (ROWLOCK, UPDLOCK)
 					SET m.MatchId = @MatchId
 					OUTPUT	inserted.transid

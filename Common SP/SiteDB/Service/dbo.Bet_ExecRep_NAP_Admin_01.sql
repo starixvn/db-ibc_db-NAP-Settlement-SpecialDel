@@ -76,7 +76,7 @@ BEGIN
 		,comstatus NVARCHAR(40),checktime	DATETIME	
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
 		,currency	TINYINT	
-		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT	
+		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate FLOAT, MainMatchId INT
 	)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -808,12 +808,13 @@ BEGIN
 						BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
-							INSERT INTO @tmpTransId (TransID ,matchid)
+							INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
 							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
 									,mid INT
+									,m_mid INT
 								)
 
 							SET @batchNo = @@ROWCOUNT
@@ -830,10 +831,10 @@ BEGIN
 						END
 
 						UPDATE TOP (@batchNo)  v
-							SET matchid = CASE WHEN t.matchid IS NULL THEN v.matchid ELSE t.matchid END
+							SET matchid = t.matchid
 						FROM	@tmptransid t
 							INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
-								ON	v.transid = t.transid AND v.MatchId = t.matchid
+								ON	v.transid = t.transid AND v.MatchId = t.MainMatchId 
 					END
 				END
 			END TRY

@@ -64,6 +64,7 @@ BEGIN
 		,statusId		TINYINT
 		,ResourceId		VARCHAR(20)
 		,IsMarked		BIT DEFAULT(0) 
+		,MainMatchId	INT
 	)
 	CREATE TABLE #tmpTransIdsParlay (
 		 RowId			INT IDENTITY(1,1) PRIMARY KEY
@@ -105,8 +106,8 @@ BEGIN
 						OR s.RefResourceId = t.ResourceId)
 		)s
 
-	INSERT INTO #tmpTransIdsSingle(TransId, statusId, ResourceId, IsMarked)
-	SELECT	b.transid, b.statusID, t.ResourceId, CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+	INSERT INTO #tmpTransIdsSingle(TransId, statusId, ResourceId, IsMarked, MainMatchId)
+	SELECT	b.transid, b.statusID, t.ResourceId, CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked, @MatchId
 	FROM	dbo.bettrans b WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
@@ -161,6 +162,7 @@ BEGIN
 				SELECT	TOP (@batchNo) transid AS '@t'
 						,CASE WHEN statusId = 102 THEN statusId ELSE NULL END AS '@s'
 						,IsMarked AS '@im'
+						,MainMatchId AS '@m_mid'
 				FROM	#tmpTransIdsSingle 
 				WHERE	RowId > @startRowId AND RowId <= @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
@@ -239,8 +241,8 @@ BEGIN
 				SELECT	TOP (@batchNo) transid AS '@t'
 						,CASE WHEN statusid = 102 THEN statusId ELSE NULL END AS '@s'
 						,CASE WHEN statusid = 102 THEN MainTransId ELSE NULL END AS '@mt'
-						,IsMarked AS 'im'
-						,MainMatchId AS 'm_mid'
+						,IsMarked AS '@im'
+						,MainMatchId AS '@m_mid'
 				FROM	#tmpTransIdsParlay 
 				WHERE	RowId > @startRowId AND RowId <= @startRowId + @batchNo
 				FOR XML PATH('r'), ROOT('root'))
