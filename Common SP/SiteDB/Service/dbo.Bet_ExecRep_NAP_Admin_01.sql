@@ -36,7 +36,7 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20221117@Kathy: No settlement on DB05 [Redmine:#180225]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
-		- 20230411@July: Check matchid before update TicketVoiding_VoidedTransaction [Redmine:#168081]
+		- 20230411@July: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine:#168081]
 
 	Param's Explanation:  
 		   

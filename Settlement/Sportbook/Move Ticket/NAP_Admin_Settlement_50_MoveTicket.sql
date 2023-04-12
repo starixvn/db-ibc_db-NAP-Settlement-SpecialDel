@@ -191,12 +191,12 @@ BEGIN
 		UPDATE  t
 			SET MainTransId = b.transid
 			   ,IsMarked = CASE WHEN m.TransId IS NOT NULL THEN 1 ELSE 0 END
-			   ,MainMatchId = CASE WHEN m.TransId IS NOT NULL THEN @MatchId ELSE NULL END
+			   ,MainMatchId = @MatchId
 		FROM	#tmpTransIdsParlay t
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON	t.refno = b.refno
 			LEFT JOIN dbo.MarkedTransaction m WITH (NOLOCK) 
-				ON b.TransId = m.TransId AND m.MatchId = @matchid
+				ON b.TransId = m.TransId AND m.MatchId = @MatchId
 		WHERE	b.matchid = 29
 			AND	1 = CASE WHEN t.statusId = 102 THEN 1
 					     WHEN m.TransId IS NOT NULL THEN 1

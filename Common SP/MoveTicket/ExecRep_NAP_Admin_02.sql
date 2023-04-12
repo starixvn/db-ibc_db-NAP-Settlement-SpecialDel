@@ -180,7 +180,7 @@ BEGIN
 						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
-							ON	t.TransID = vt.transId	
+							ON	t.TransID = vt.transId AND t.MainMatchId = vt.MatchId	
 				END
 			END
 
@@ -200,7 +200,7 @@ BEGIN
 						)
 				FROM @tmpTrans t 
 					INNER JOIN dbo.MarkedTransaction m 
-					ON	t.TransID = m.transid
+					ON	t.TransID = m.transid AND t.MainMatchId = m.MatchId
 
 				IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 				BEGIN
