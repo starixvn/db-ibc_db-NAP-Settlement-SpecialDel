@@ -53,6 +53,7 @@ AS
 			- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 			- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 			- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+			- 20230215@Aries: Apply Settlement by Profile for Remaining Sports - Fix issue [Redmine: #182677]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -535,7 +536,7 @@ BEGIN
 			FROM #tmpMatchIds m 
 			WHERE  m.ResultTable > 0
 
-			SELECT @strResourceId = @strResourceId + '''''' +  ResourceID + '''''' + ','
+			SELECT @strResourceId = @strResourceId + '''' +  ResourceID + '''' + ','
 			FROM (	SELECT DISTINCT f.ResourceID
 					FROM @tmpSporttypes s
 						CROSS APPLY dbo.f_Set_MajorRound (s.sporttype) f
@@ -547,21 +548,20 @@ BEGIN
 				SELECT @strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1) 
 					  ,@strResourceId = LEFT(@strResourceId, LEN(@strResourceId) - 1)  
 			
-				SET	@remoteQuery = 	N'SELECT *
-									FROM OPENQUERY(DBPRO, ''SELECT r.MatchId, r.ResourceId 
+				SET	@remoteQuery = 	N'SELECT r.MatchId, r.ResourceId 
 										FROM 
 											( SELECT  r.MatchId, r.ResourceId 
-											FROM  bodb02.dbo.ResultDetail r WITH(NOLOCK)
+											FROM DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
 											WHERE r.SettlementStatusID = 0
 												AND r.ResultStatusID = 3				
 											UNION ALL
 											SELECT r.MatchId, r.ResourceId 
-											FROM  bodb02.dbo.ResultDetailES r WITH(NOLOCK)
+											FROM DBPRO.bodb02.dbo.ResultDetailES r WITH(NOLOCK)
 											WHERE r.SettlementStatusID = 0
 												AND r.ResultStatusID = 3			
 											UNION ALL
 											SELECT r.MatchId, r.ResourceId 
-											FROM  bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
+											FROM DBPRO.bodb02.dbo.ResultDetailOS r WITH(NOLOCK)
 											WHERE r.SettlementStatusID = 0
 												AND r.ResultStatusID = 3
 											) r 
@@ -570,7 +570,7 @@ BEGIN
 												WHEN @IsOverEarly = 1				  THEN 'AND r.ResourceId NOT IN ('+@strResourceId+')'
 												ELSE ' AND r.ResourceId IN ('+@strResourceId+') '
 											END
-											+''')'
+
 				INSERT INTO #ConfirmedResources ( MatchId, ResourceId )
 				EXECUTE	sys.sp_executesql @remoteQuery
 			END
