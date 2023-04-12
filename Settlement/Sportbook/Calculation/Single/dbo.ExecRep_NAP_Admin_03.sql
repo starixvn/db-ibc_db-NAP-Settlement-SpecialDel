@@ -3,6 +3,10 @@ ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_03]
 	@transIds	VARCHAR(MAX)
 	,@Mode		VARCHAR(20)
 	,@MatchId	INT = 0
+	,@ActionID				INT = NULL
+	,@IsCalculateBalance	BIT = 0
+	,@ErrMessage			VARCHAR(300) = '' OUTPUT
+	,@ErrCode				INT			 = 0  OUTPUT
 AS
 /*
 	Created: 20211130@Kathy.Nguyen	
@@ -14,6 +18,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20230214@Louisa: New way to update balance for cashout Basketball [Redmine:#182677]
 
 	Param's Explanation:  
 		   
@@ -32,6 +37,8 @@ BEGIN
 			,@AllowUndo			BIT
 			,@AllowRefund		BIT
 			,@IsSiteDB			BIT = 0
+			,@IsCentral			BIT = 0
+			,@BalanceChanged	TVP_BalanceWalletChange
 
 	SET @ServerName = @@SERVERNAME
 
@@ -57,6 +64,10 @@ BEGIN
 
 	END
 
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT	
+
 	DECLARE @handle 			INT
 			,@statusId			TINYINT
 			,@IsUpdated			BIT		
@@ -66,14 +77,15 @@ BEGIN
 			,@transinfoJson		NVARCHAR(MAX)	
 
 	DECLARE @tempTrans TABLE (TransID BIGINT, statuswinlost TINYINT, winlost MONEY)
-	DECLARE @tmpTransInfo TABLE (transId BIGINT
-		,statuswinlost TINYINT
-		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
-		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,Status NVARCHAR(10),StatusID TINYINT, FcUpdateTime DATETIME2
-		,SettlementTime DATETIME
-		,bef_winlost MONEY
-		,bef_statusid TINYINT
+	DECLARE @tmpTransInfo TABLE (CustId INT, Balance MONEY
+			,transId BIGINT
+			,statuswinlost TINYINT
+			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			,Status NVARCHAR(10),StatusID TINYINT,FcUpdateTime DATETIME2
+			,SettlementTime DATETIME
+			,bef_winlost MONEY
+			,bef_statusid TINYINT
 	)
 
 	---parse XML
@@ -174,21 +186,24 @@ BEGIN
 								ELSE CASE WHEN b.winlost <> t.Winlost OR b.statusID <> @StatusId THEN @settlementTime ELSE SettlementTime END
 								END	
 			,FcUpdateTime = CASE WHEN @statusId = 103 AND b.statusID <> 103 THEN SYSDATETIME() ELSE FcUpdateTime END
-		OUTPUT	inserted.transid
-			,inserted.statuswinlost
-			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
-			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-			,inserted.Status,inserted.StatusID
-			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
-			,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END	
-			,deleted.winlost
-			,deleted.statusid		
-		INTO @tmpTransInfo (
-			transId
-			,statuswinlost,WinLost,aWinLost
-			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID, SettlementTime, FcUpdateTime
-			,bef_winlost, bef_statusid
-		)
+		OUTPUT	deleted.custid
+					,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
+					,inserted.transid
+					, inserted.statuswinlost				
+					,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+					,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+					,inserted.Status,inserted.StatusID
+					,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+					,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END				
+					,deleted.winlost
+					,deleted.statusid		
+			INTO @tmpTransInfo (
+				CustId, Balance		
+				,transId
+				,statuswinlost,WinLost,aWinLost
+				,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,SettlementTime,FcUpdateTime				
+				,bef_winlost, bef_statusid
+			)
 	FROM	dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @tempTrans t
 			ON b.transid = t.TransId
@@ -226,5 +241,25 @@ BEGIN
 			,@SettlementAction = @Mode
 			,@TicketType = 's'
 	END
+
+	IF @IsCalculateBalance = 1 AND (@IsSiteDB = 1 OR @IsCentral = 1) ---except cashout soccer
+	BEGIN
+		INSERT INTO @BalanceChanged (matchid,custid, walletType, bonusId, balance)
+		SELECT	 @MatchId
+				,custid
+				,2 AS walletType
+				,0 AS bonusId
+				,SUM(balance)
+		FROM @tmpTransInfo
+		GROUP BY custid
+		HAVING SUM(balance) != 0;
+
+		EXEC NAP_Admin_Settlement_BalanceUpd 
+			@BalanceChanged = @BalanceChanged
+			,@ActionID		= @ActionID
+			,@ErrMessage	= @ErrMessage OUTPUT
+			,@ErrCode		= @ErrCode	  OUTPUT
+	END
+
 END
 GO

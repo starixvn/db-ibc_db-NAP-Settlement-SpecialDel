@@ -26,6 +26,7 @@ AS
 		- 20220719@Louisa: Validation event before settle  [Redmine:#175251]
 		- 20221201@Louisa: PinGoal ESports [Redmine:#180808]
 		- 202212-5@Louisa: Auto Payout Real Cricket [Redmine:#181137]
+		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -109,15 +110,19 @@ BEGIN
 	--alway check hold status
 	SELECT @IsHoldChecking = 1
 
-	--SOP Refund (confirm refund on ResourceID )
-	IF  (	@Sporttype IN (5, 6, 45, 9, 50) 
-			OR  ( @SportType = 2 AND ISNULL(@LeagueGroupID,0) <> 122 )
-			OR  ( @SportType = 43 AND ISNULL(@LeagueGroupID,0) <> 151 )
-		)
+	SELECT @IsResultSettingChecking =  CASE WHEN  @SportType = 2 AND @LeagueGroupID = 122						THEN 0
+											WHEN  @SportType = 43 AND @LeagueGroupID = 151						THEN 0
+											WHEN  @Sporttype = 50 AND @ChildMatchType = 200  					THEN 0
+											WHEN  @Sporttype IN(6,9) AND @Action = 'REFUND' AND @IsAuto = 1		THEN 0	
+											ELSE  1
+										END
+	FROM dbo.SettlementResultTableSetting s WITH(NOLOCK)
+	WHERE s.Sporttype = @SportType
+		AND ISNULL(s.Setting,0) & 1 = 1
+		AND ISNULL(@SelectedResources,'') <> ''
 		AND (@Action LIKE 'CAL%' OR @Action LIKE 'REFUND%')
-	BEGIN
-		SELECT @IsResultSettingChecking = 1
-	END
+		
+
 
 	--validate match.EventStatusReason, match.SettlementStatus, Odds
 	-- action cal/refund exclude auto fm, parlay, betbuider

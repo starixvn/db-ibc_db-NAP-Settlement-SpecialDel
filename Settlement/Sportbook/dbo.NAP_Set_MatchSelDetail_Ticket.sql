@@ -10,6 +10,7 @@ AS
     Revisions:            
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220927@Kathy: Check HTDone [Redmine:#178120]
+		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 
 */
 BEGIN
@@ -31,7 +32,6 @@ BEGIN
 		
 		
 		,@LeagueGroupID				SMALLINT
-		,@IsMergedParlay			BIT 
 		,@IsCentral					BIT
 	
 	DECLARE @tmpBettypes TABLE (bettype SMALLINT, GroupId TINYINT, IsUsedGoalRecordValue BIT, IsDetermined BIT, GroupName VARCHAR(50), IsFGLG BIT)
@@ -73,7 +73,6 @@ BEGIN
 			,@isExistResultandFirstTeamScore = 0 		
 			,@IsEnabledGoalRecordHT = 0
 			,@IsEnabledGoalRecordFT = 0
-			,@IsMergedParlay	 = 0
 
     SELECT	@sporttype 	= m.sporttype
 			,@LeagueGroupID = ISNULL(l.LeagueGroupID,0)
@@ -81,10 +80,6 @@ BEGIN
 		INNER JOIN  dbo.League l WITH(NOLOCK) 
 			ON	m.leagueid = l.leagueid
     WHERE  m.matchid = @matchid
-	
-	SELECT	@IsMergedParlay = IsMergedParlay
-	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
-	WHERE	ss.Sporttype = @sportType
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -111,49 +106,31 @@ BEGIN
 			AND b.statusID NOT IN (101, 102)
 	GROUP BY b.bettype	
 	
-	IF @IsMergedParlay = 0
-	BEGIN
-		INSERT INTO #Data (bettype, isParlay
-			,betParlayRunningCount, betParlayWaitingCount, betParlayCount
-			, IsLive				
-		)
-		SELECT	bm.bettype, 1 isParlay
-				,SUM(CASE WHEN statusID = 0 THEN 1 ELSE 0 END) betParlayRunningCount
-				,SUM(CASE WHEN statusID = 1 THEN 1 ELSE 0 END) betParlayWaitingCount
-				,COUNT(1) betParlayCount
-				,MAX(CASE WHEN liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
-		FROM	dbo.bettransm bm WITH(NOLOCK)
-		WHERE	matchid = @matchid
-				AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
-				AND statusID NOT IN (101, 102)
-		GROUP BY bm.bettype
-	END
-	ELSE
-	BEGIN
-		INSERT INTO #Data (bettype, isParlay
-			,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
-			, IsLive			
-		)
-		SELECT	bm.bettype, 1 isParlay			
-				,SUM(CASE WHEN bm.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) betRunningCount
-				,SUM(CASE WHEN bm.statusID = 1 THEN 1 ELSE 0 END) betWaitingCount
-				,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 OR bm.statusId = 103 THEN 1 ELSE 0 END) AS betSettledCount
-				,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
-				,COUNT(1) betCount
-				,MAX(CASE WHEN bm.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
-		FROM	dbo.bettransm bm WITH(NOLOCK)
-			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
-				ON	b.matchid = 29		
-					AND b.bettype = 29
-					AND b.refno = bm.refno
-			LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
-				ON	b.transid = mt.TransId
-					AND mt.matchid = bm.matchid
-		WHERE	bm.matchid = @matchid
-				AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
-				AND bm.statusID NOT IN (101, 102)
-		GROUP BY bm.bettype
-	END
+
+	INSERT INTO #Data (bettype, isParlay
+		,betRunningCount, betWaitingCount, betSettledCount, betMarkedCount, betCount
+		, IsLive			
+	)
+	SELECT	bm.bettype, 1 isParlay			
+			,SUM(CASE WHEN bm.StatusID = 0 AND mt.TransId IS NULL THEN 1 ELSE 0 END) betRunningCount
+			,SUM(CASE WHEN bm.statusID = 1 THEN 1 ELSE 0 END) betWaitingCount
+			,SUM(CASE WHEN bm.statusID BETWEEN 111 AND 113 OR bm.statusId = 103 THEN 1 ELSE 0 END) AS betSettledCount
+			,SUM(CASE WHEN bm.statusId BETWEEN 0 AND 1 AND mt.TransId IS NOT NULL THEN 1 ELSE 0 END) AS betMarkedCount
+			,COUNT(1) betCount
+			,MAX(CASE WHEN bm.liveindicator = 1 THEN 1 ELSE 0 END) AS IsLive
+	FROM	dbo.bettransm bm WITH(NOLOCK)
+		LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+			ON	b.matchid = 29		
+				AND b.bettype = 29
+				AND b.refno = bm.refno
+		LEFT JOIN dbo.MarkedTransaction mt WITH(NOLOCK)
+			ON	b.transid = mt.TransId
+				AND mt.matchid = bm.matchid
+	WHERE	bm.matchid = @matchid
+			AND bm.SiteDBGroupId = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupId END
+			AND bm.statusID NOT IN (101, 102)
+	GROUP BY bm.bettype
+	
 
 	SELECT	
 			 -- 14F, 14L; GroupID = 4: bettype 14; -- 127F, 127L; GroupID = 3: bettype 127

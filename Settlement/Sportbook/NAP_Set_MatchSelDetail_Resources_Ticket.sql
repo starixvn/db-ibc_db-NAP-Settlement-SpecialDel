@@ -11,12 +11,13 @@ AS
     
     Revisions: 
 		- 20220719@Louisa: Initial- Get ResourceId and Count ticket Status [Redmine:#175251]
+		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+
 */
 BEGIN
 	SET NOCOUNT ON
     
 	DECLARE  @BestOfMap			TINYINT = NULL
-			,@IsMergedParlay	BIT = 0
 			,@OpenQuery			NVARCHAR(MAX) 
 			,@IsCentral			BIT = 0
 
@@ -38,10 +39,6 @@ BEGIN
 	SELECT @BestOfMap = BestOfMap
 	FROM [dbo].[match_remark] WITH (NOLOCK) 
 	WHERE matchid = @matchid    
-
-	SELECT @IsMergedParlay = r.IsMergedParlay
-	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
-	WHERE	r.Sporttype = @SportType
     ---------------------------------------------------------------------------------------------
 
     --count ticket and group by Bettype and BetID
@@ -256,10 +253,10 @@ BEGIN
 	SELECT COALESCE(bt.ResourceID, p.ResourceID) AS ResourceID
 			,ISNULL(bt.BetCount, 0) + ISNULL(p.BetCount, 0) AS BetCount
 			,ISNULL(bt.InWaiting,0) + ISNULL(p.InWaiting,0) AS InWaiting
-			,ISNULL(bt.InRunning,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.InRunning,0) ELSE 0 END AS InRunning
-			,ISNULL(bt.betMarkedCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetMarkedCount,0) ELSE 0 END AS BetMarkedCount
-			,ISNULL(bt.BetSettledCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetSettledCount,0) ELSE 0 END AS BetSettledCount
-			,ISNULL(bt.BetRefundedCount,0) + CASE WHEN @IsMergedParlay = 1 THEN ISNULL(p.BetRefundedCount,0) ELSE 0 END AS BetRefundedCount
+			,ISNULL(bt.InRunning,0) + ISNULL(p.InRunning,0) AS InRunning
+			,ISNULL(bt.betMarkedCount,0) + ISNULL(p.BetMarkedCount,0) AS BetMarkedCount
+			,ISNULL(bt.BetSettledCount,0) + ISNULL(p.BetSettledCount,0)  AS BetSettledCount
+			,ISNULL(bt.BetRefundedCount,0) + ISNULL(p.BetRefundedCount,0) AS BetRefundedCount
 			,CASE WHEN ISNULL(bt.IsSpecialBettype,0) + ISNULL(p.IsSpecialBettype,0) > 0 THEN 1 ELSE 0 END AS IsSpecialBettype
 			,ISNULL(bt.OrdNo,p.OrdNo)
 	FROM @tmpTicketStatus bt
@@ -290,7 +287,6 @@ BEGIN
 				,SUM(betSettledCount) + SUM(BetRefundedCount) AS betSettledCount
 				,SUM(betMarkedCount) AS betMarkedCount
 		FROM	@tmpTicketStatusParlay
-		WHERE	@IsMergedParlay = 1
 	)t
 
 END

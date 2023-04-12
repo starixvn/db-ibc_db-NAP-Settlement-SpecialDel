@@ -16,6 +16,7 @@ AS
 		- 20221124@Louisa: Do not get data if FT score of Table Tennis is null [Redmine:#180306]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
+		- 20230214@Louisa: Apply settlement by Profile for remain OS sports  [Redmine:#182677]
 
 	Param's Explanation:
  
@@ -25,7 +26,7 @@ BEGIN
 
 	DECLARE  @ResultTable			TINYINT = 0
 
-	DECLARE @tmpResultDetail TABLE (MatchId INT, TypeId TINYINT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusId TINYINT, SettlementStatusId TINYINT )
+	DECLARE @tmpResultDetail TABLE (MatchId INT, ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ResultStatusId TINYINT, SettlementStatusId TINYINT )
 
 	SELECT @ResultTable			=	r.ResultTable 
 	FROM dbo.SettlementResultTableSetting r (NOLOCK)
@@ -33,8 +34,8 @@ BEGIN
 
 	IF @ResultTable = 0 
 	BEGIN
-		INSERT INTO @tmpResultDetail (MatchId, TypeId, ResourceId, HomeValue, AwayValue)
-		SELECT m.MatchId, 2 AS TypeId, '00' , CAST(m.finalhomescore AS VARCHAR(50) ), CAST(m.finalawayscore AS VARCHAR(50) )
+		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue)
+		SELECT m.MatchId, '00' , CAST(m.finalhomescore AS VARCHAR(50) ), CAST(m.finalawayscore AS VARCHAR(50) )
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN match_remark mr WITH(NOLOCK)
 				ON m.matchid = mr.matchid
@@ -68,7 +69,7 @@ BEGIN
 		WHERE	r.matchid = @MatchId		
 	END
 
-	SELECT MatchId, TypeId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId
+	SELECT MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId
 	FROM @tmpResultDetail
 
 END

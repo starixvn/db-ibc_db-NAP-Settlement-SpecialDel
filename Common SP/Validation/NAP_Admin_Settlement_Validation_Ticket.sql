@@ -31,6 +31,7 @@ AS
 	
 	Revisions:
 		- 20220719@Louisa: Validation before settle  [Redmine:#175251]
+		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
@@ -54,10 +55,8 @@ BEGIN
 			,@finalawayscore	INT
 			,@WaitingTime		VARCHAR(10)
 			,@IsWaiting			BIT = 0
-			,@IsSettleByProfile	BIT = 0
 			,@IsEarly			BIT = 0
 			,@IsCheckHoldEarly	BIT = 0
-			,@IsMergedParlay	BIT = 0
 			,@xmlResourceResult		XML
 			,@xmlData			 VARCHAR(MAX)
 			,@currentdate		 DATETIME
@@ -87,11 +86,6 @@ BEGIN
 			ON m.leagueid = l.leagueid
 	WHERE m.matchid = @matchid
 		AND ISNULL(@matchid,0) > 0
-	
-	SELECT @IsMergedParlay = s.IsMergedParlay
-			,@IsSettleByProfile = s.IsSettleByProfile
-	FROM SettlementResultTableSetting s WITH(NOLOCK) --table contains sportbook only
-	WHERE s.Sporttype = @SportType
 
 	SELECT @IsEarly =  CASE WHEN @Mode LIKE '%EAR' THEN 1 ELSE 0 END
 			,@IsAutoRefund	=  CASE WHEN @Action = 'REFUND' AND @IsAuto = 1 THEN 1
@@ -209,7 +203,7 @@ BEGIN
 			,@ErrCode		 = @ErrCode OUTPUT
 			,@ErrMsg		 = @ErrMsg OUTPUT
 
-		IF @ErrCode <> 0 AND @SPName <> 'NAP_Admin_Settlement_Refund_MP_Push'
+		IF @ErrCode <> 0 
 		BEGIN
 			SELECT @ErrCode = @ErrCode
 					,@ErrMsg = 'Cannot proceed due to this match is in during move-bet progress. Please contact admin for support.'
@@ -239,11 +233,7 @@ BEGIN
 		RETURN
 	END
 
-	IF ( @IsMergedParlay = 0 
-			OR @Mode = 'INST'
-			OR @Action IN ('BetFair', 'BetDaq')
-		)
-
+	IF @Mode = 'INST' OR @Action IN ('BetFair', 'BetDaq')
 	BEGIN
 		IF EXISTS (	SELECT TOP 1 1
 					FROM dbo.Parlay_Calculate_Queue WITH (NOLOCK)
@@ -258,14 +248,13 @@ BEGIN
 	END
 	--End: Check is match in Queue
 
-	IF @IsSettleByProfile = 1 AND @SelectedResources IS NOT NULL
+	IF @SelectedResources IS NOT NULL
 	BEGIN
 		SET @xmlData = @SelectedResources
 	END
 
 	-- check waiting ticket for calculate cal-ht/ft/call/early,  all undo
 	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode IN ( 'INST') )
-		AND @SPName <> 'NAP_Admin_Settlement_Refund_MP_Push'
 	BEGIN
 		IF (  @SportType = 1  
 				AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO') 

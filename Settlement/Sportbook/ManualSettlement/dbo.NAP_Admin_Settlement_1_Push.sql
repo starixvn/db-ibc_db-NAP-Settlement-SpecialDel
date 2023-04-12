@@ -14,7 +14,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1_Push]
     ,@IP                    VARCHAR(15)     = ''
 	,@IsReSettledTickets	BIT				= 1
     ,@ChildMatchIds			VARCHAR(500)	= NULL
-	,@RefResultStatus		TINYINT			= 0
 	,@BroadcastSessionId	VARCHAR(50)		= NULL
     ,@ErrCode               INT             = 0     OUTPUT
     ,@ErrMsg                NVARCHAR(200)   = ''    OUTPUT
@@ -54,6 +53,7 @@ AS
 		- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 
     Param's Explanation:
 		* @sqlCommand: just use this output for Cricket - Match Winner
@@ -62,10 +62,6 @@ AS
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
 					</Results>
-
-		* @RefResultStatus ( detect by Web )
-				 1: no reference result exist (result not yet confirmed or not exists Provider score)
-				 2: values inconsistency
         
 */
 BEGIN
@@ -103,7 +99,6 @@ BEGIN
                                     + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 									+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(1), @IsReSettledTickets) 
 									+    CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' ELSE + ', @ChildMatchIds = ''' +   @ChildMatchIds + '''' END
-									+	   CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END
 									+ CASE WHEN @BroadcastSessionId IS NOT NULL 
 												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 												ELSE '' END

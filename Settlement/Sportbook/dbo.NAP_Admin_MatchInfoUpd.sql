@@ -30,6 +30,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20220927@Kathy: Check HTDone [Redmine:#178120]
 		- 20221011@Kathy: fix issue basketball - do not upd match_remark.IsHTCal
+		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
@@ -64,7 +65,7 @@ BEGIN
 			,@refundCommand_1s VARCHAR(100)
 			,@instcommand	VARCHAR(100)
 			,@IsRefundHT	BIT
-			,@IsSettleByProfile	BIT
+			,@ResultTable	TINYINT
 			,@existsFinalRound	BIT
 			,@existsHTRound BIT
 			,@LeagueGroupID SMALLINT
@@ -88,7 +89,7 @@ BEGIN
 			ON m.leagueid = l.leagueid
 	WHERE	m.matchid = @MatchId
 
-	SELECT	@IsSettleByProfile = IsSettleByProfile
+	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting s WITH(NOLOCK)
 	WHERE	s.Sporttype = @SportType
 
@@ -100,12 +101,12 @@ BEGIN
 		WHERE	r.MatchID = @MatchId
 				AND r.ResourceID = '01'
 	END
-	ELSE IF @IsSettleByProfile = 0
+	ELSE IF @ResultTable = 0
 	BEGIN			
 		SELECT	@HTDone = @IsHTTicketSettled
 	END
 
-	IF  @IsSettleByProfile = 1 AND @SelectedResources IS NOT NULL
+	IF @SelectedResources IS NOT NULL
 	BEGIN
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue)
@@ -235,20 +236,6 @@ BEGIN
 		RETURN
 	END
 
-	IF @Mode = 'MP' AND @IsSettleByProfile = 0
-	BEGIN
-		SET @parlaycommand = CASE WHEN @action = 'CAL' THEN 'M' ELSE 'R' END
-
-		EXEC dbo.NAP_UpdateMatch_Remark @matchid = @matchid
-			,@command = @parlaycommand
-
-		EXEC dbo.NAP_Admin_Match_Update @Command = 'NAP_Admin_Settlement_Parlay'
-			,@Matchid = @matchid
-			,@creator = @AdminId
-
-		RETURN
-	END
-
 	IF @Mode LIKE 'INST%' AND  @ResourceResult IS NOT NULL	
 	BEGIN
 		SET @instcommand = CASE 
@@ -276,7 +263,7 @@ BEGIN
 	BEGIN
 		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL) -- soccer main
 			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal soccer pingoal manually
-			OR @IsSettleByProfile = 0
+			OR @ResultTable = 0
 		BEGIN
 			SELECT	@eventstatus = CASE 
 										WHEN @action = 'CAL' THEN N'completed'
@@ -381,7 +368,7 @@ BEGIN
 	BEGIN
 		IF (@SportType = 1 AND @LeagueGroupID <> 113 AND @SelectedResources IS NULL)
 			OR (@SportType = 1 AND @LeagueGroupID = 113 AND @SelectedResources IS NULL) -- cal pingoal manually
-			OR @IsSettleByProfile = 0
+			OR @ResultTable = 0
 		BEGIN
 			EXEC dbo.NAP_Admin_Match_Update 
 				@Command        = 'NAP_Admin_Settlement_1-UNDO'
@@ -537,7 +524,7 @@ BEGIN
 				@creator            = @AdminID
 
 		END
-		ELSE IF @IsSettleByProfile = 0
+		ELSE IF @ResultTable = 0
 		BEGIN
 			EXEC dbo.NAP_Admin_Match_Update 
 				@Command 	= @refundCommand 

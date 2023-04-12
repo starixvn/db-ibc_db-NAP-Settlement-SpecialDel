@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_ResultSettingChecking
 	@MatchId	INT
 	,@Action	VARCHAR(20)
@@ -24,6 +24,7 @@ AS
 		- 20220629@Louisa: Change rule confirm Refund: confirm [Redmineid:#173862]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -38,22 +39,14 @@ BEGIN
 	DECLARE @Sporttype		SMALLINT
 			,@handle		INT
 			,@ResultTable	TINYINT	= 0
-			,@ChildMatchType TINYINT
 
 
 	DECLARE @tmpResourceID	  TABLE ( ResourceID VARCHAR(20) )
 	DECLARE @tmpResultSetting TABLE ( ResultSetting VARCHAR(20) )
 
 	SELECT @Sporttype	= m.Sporttype
-		 , @ChildMatchType = ISNULL(m.ChildMatchType,0)
 	FROM dbo.match m WITH(NOLOCK) 
 	WHERE m.matchid = @MatchId
-	
-	IF @SelectedResources = '' 
-		OR @Sporttype NOT IN (5, 43, 6, 45, 9, 2, 50) --- sports not apply S.O.P Refund
-		OR ( @ChildMatchType = 200 AND @Sporttype = 50 ) --child match of CRICKET TEST MATCH
-		OR (@Action = 'REFUND' AND @IsAuto = 1 AND @Sporttype IN(6,9) ) --Auto Refund Badminton
-	RETURN
 
 	SELECT @ResultTable = r.ResultTable
 	FROM dbo.SettlementResultTableSetting r WITH(NOLOCK) 

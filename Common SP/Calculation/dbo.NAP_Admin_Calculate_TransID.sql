@@ -3,7 +3,12 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	@transIds		   VARCHAR(MAX)	
 	,@MatchId			INT = 0
 	,@EventTable		TINYINT = 1 -- match
-	,@Is3rd				BIT =  0
+	,@Is3rd				BIT =  0	
+	,@ActionID				INT = NULL
+	,@IsCalculateBalance	BIT =  0
+	,@ErrMessage			VARCHAR(300) = '' OUTPUT
+	,@ErrCode				INT			 = 0  OUTPUT
+	
 AS
 /*
 	Created by: 20180801@Vicky
@@ -22,7 +27,8 @@ AS
 		- 20220128@Kathy: Cricket AIO Phase 2 [Redmine:#166335]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
-		
+		- 20230214@Louisa: New way to update balance [Redmine:#182677]
+
 	Param's Explanation:  
 		   
 		@transIds = '<root>
@@ -41,6 +47,7 @@ BEGIN
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
 			,@IsSiteDB			BIT = 0
+			,@IsCentral			BIT = 0
 
 	SET @ServerName = @@SERVERNAME
 
@@ -54,23 +61,24 @@ BEGIN
 			RETURN
 
 	END
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT	
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL AND OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL
 		SET @IsSiteDB = 1
-		
+
 	-----------------------CHECK SERVER-----------------------------------------
-	
+
 	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT, finalodds SMALLMONEY, DeadHeat TINYINT)
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
-		,modds MONEY, odds SMALLMONEY, statuswinlost TINYINT,SettlementTime DATETIME
-		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
-		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
-
-		,bef_winlost MONEY
-		,bef_statusid TINYINT
-	)
-
+								,CustId INT, Balance MONEY
+								,modds MONEY, odds SMALLMONEY, statuswinlost TINYINT,SettlementTime DATETIME
+								,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+								,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+								,bef_winlost MONEY,bef_statusid TINYINT)
+	
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
 			,@commWinRate		SMALLMONEY
@@ -82,6 +90,7 @@ BEGIN
 			,@statusId			TINYINT
 			,@IsUpd_Void		BIT = 0
 			,@transInfoJson		NVARCHAR(MAX)
+			,@BalanceChanged	TVP_BalanceWalletChange
 			
 	DECLARE @settlementTime DATETIME
 
@@ -118,29 +127,28 @@ BEGIN
 				   ON tmp.srecommend = cs.CustId
 				LEFT JOIN dbo.f_Set_GetGroupBettypes() AS f
 					ON tmp.bettype = f.BetType
-
 	
 	SET @settlementTime = GETDATE();
 
 	UPDATE  b
 	SET @modds = sr.modds
-	   ,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
+		,@commWinRate = CASE comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 							WHEN '0' THEN 1
 							WHEN '1' THEN 0
 							ELSE 1 END
-	   ,@commLostRate = CASE comstatus
+		,@commLostRate = CASE comstatus
 							WHEN '0' THEN 1
 							WHEN '1' THEN 2
 							ELSE 1 END
-	   ,@commHalfWLRate = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN 1
+		,@commHalfWLRate = CASE WHEN sr.isCN88 = 1 AND sr.isMajorGroup = 1 THEN 1
 							ELSE 0.5
 						END
-	   ,@odds = (CASE WHEN b.odds < 0 THEN 1 
-	   				 WHEN sr.oddstype = 1 THEN CASE 
+		,@odds = (CASE WHEN b.odds < 0 THEN 1 
+	   					WHEN sr.oddstype = 1 THEN CASE 
 													WHEN b.bettype = 376 THEN sr.finalodds - 1
 													WHEN sr.modds > 0.25 AND b.bettype IN (9538,9539,9540) AND b.betteam LIKE '%l' THEN 1
 													ELSE b.odds - 1 END ----/*DECIMAL ONLY*/
-					 ELSE b.odds END)
+						ELSE b.odds END)
 		,odds = CASE 
 					WHEN b.bettype = 376 
 						THEN CASE 
@@ -228,7 +236,7 @@ BEGIN
 								WHEN @modds < -0.25 THEN @commLostRate * playerdiscount * @stake
 							END
 					END
-					
+				
 		,Comm = CASE 
 					WHEN @IsUpd_Void = 0 THEN Comm 
 					ELSE CASE
@@ -239,7 +247,7 @@ BEGIN
 							WHEN @modds < -0.25 THEN @commLostRate * discount * @stake * (1-apositiontaking)
 						END
 				END
-					
+				
 		,aComm = CASE 
 					WHEN @IsUpd_Void = 0 THEN aComm 
 					ELSE CASE
@@ -250,7 +258,7 @@ BEGIN
 							WHEN @modds < -0.25 THEN @commLostRate * adiscount * @stake * (1-(mpositiontaking+apositiontaking))
 						END
 				END
-					
+				
 		,sComm = CASE 
 					WHEN @IsUpd_Void = 0 THEN sComm 
 					ELSE CASE
@@ -261,7 +269,7 @@ BEGIN
 							WHEN @modds < -0.25 THEN @commLostRate * sdiscount * @stake * (1-(spositiontaking+mpositiontaking+apositiontaking))
 						END
 				END
-					
+				
 		,Status = CASE 
 					WHEN @IsUpd_Void = 0 THEN Status 
 					ELSE CASE
@@ -278,20 +286,22 @@ BEGIN
 					WHEN @IsUpd_Void = 0 THEN ruben 
 					ELSE 1
 				END
-		OUTPUT	inserted.transid
+	OUTPUT	 inserted.transid
+			,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 			,inserted.modds, inserted.odds, inserted.statuswinlost
 			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben
-	
-			,deleted.winlost
-			,deleted.statusid		
-		INTO @tmpTransInfo (
+			,deleted.winlost,deleted.statusid		
+	INTO @tmpTransInfo (
 			transId
-			,modds, odds, statuswinlost,SettlementTime,WinLost,aWinLost
-			,mWinLost,sWinLost,PlayerComm,Comm,aComm,sComm,Status,StatusID,ruben
-
+			,custid, Balance
+			,modds, odds, statuswinlost
+			,SettlementTime
+			,WinLost,aWinLost,mWinLost,sWinLost
+			,PlayerComm,Comm,aComm,sComm
+			,Status,StatusID,ruben
 			,bef_winlost, bef_statusid
 		)
 	FROM @tempTrans sr
@@ -319,10 +329,10 @@ BEGIN
 						,ruben AS 'r' 
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
-					
-				FROM	@tmpTransInfo
-				FOR JSON AUTO
-			)
+				
+			FROM	@tmpTransInfo
+			FOR JSON AUTO
+		)
 
 		IF @Is3rd = 1
 		BEGIN			
@@ -349,8 +359,25 @@ BEGIN
 
 		END
 	END
+		
+		-- balance
+	IF @IsCalculateBalance = 1  AND (@IsCentral = 1 OR @IsSiteDB = 1)
+	BEGIN
+		INSERT INTO @BalanceChanged (matchid,custid, walletType, bonusId, balance)
+		SELECT	 @MatchId
+				,custid
+				,2 AS walletType
+				,0 AS bonusId
+				,SUM(balance)
+		FROM @tmpTransInfo
+		GROUP BY custid
+		HAVING SUM(balance) != 0;
 
-	RETURN
-	
+		EXEC NAP_Admin_Settlement_BalanceUpd @BalanceChanged =	@BalanceChanged
+											,@ActionID		=   @ActionID
+											,@ErrMessage	=   @ErrMessage OUTPUT
+											,@ErrCode		=   @ErrCode OUTPUT
+	END
+
 END
 GO
