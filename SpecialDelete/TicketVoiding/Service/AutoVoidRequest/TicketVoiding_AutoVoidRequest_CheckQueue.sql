@@ -1,8 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_CheckQueue]
 (
-	@SingleTicketsJSON	NVARCHAR(MAX) = NULL
-	,@ParlayTicketsJSON	NVARCHAR(MAX) = NULL
+	 @SingleTicketsJSON		NVARCHAR(MAX) = NULL
+	,@ParlayTicketsJSON		NVARCHAR(MAX) = NULL
 	,@CricketTicketsJSON	NVARCHAR(MAX) = NULL
 )
 AS
@@ -58,7 +58,7 @@ BEGIN
 		AND q.StatusId = 0
 	
 	--Get statusWL of tiket
-	SELECT DISTINCT t.RequestId, b.matchid
+	SELECT DISTINCT t.RequestId
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE b.statuswinlost IS NOT NULL 

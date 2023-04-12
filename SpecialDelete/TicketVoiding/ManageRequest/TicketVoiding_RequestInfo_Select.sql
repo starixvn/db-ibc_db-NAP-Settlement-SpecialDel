@@ -82,9 +82,9 @@ BEGIN
 	FROM	#tmpResult vh
 		CROSS APPLY (
 			SELECT COUNT(1) AS TotalVoidedParlay, zm.matchid
-			FROM dbo.zzzbettransm zm WITH(NOLOCK)
-			WHERE zm.VoidingHistoryId = vh.VoidingHistoryId
-			AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
+			FROM #tmpResult vh
+			INNER JOIN  dbo.zzzbettransm zm WITH(NOLOCK) ON zm.VoidingHistoryId = vh.VoidingHistoryId
+			WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
 				         WHEN @MatchId NOT IN (0,29) AND zm.matchid = @MatchId THEN 1
 						 ELSE 0 END
 			GROUP BY zm.matchid
@@ -136,10 +136,10 @@ BEGIN
 		FROM	#tmpResult vh
 			CROSS APPLY (
 				SELECT COUNT(1) AS TotalVoidedParlay, cm.matchid
-				FROM dbo.zzzbettransm zm WITH(NOLOCK)
+				FROM #tmpResult vh
+					INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK) ON zm.VoidingHistoryId = vh.VoidingHistoryId
 					INNER JOIN @tmpChildMatchCricket cm ON cm.ChildMatchId = zm.matchid
-				WHERE zm.VoidingHistoryId = vh.VoidingHistoryId
-				AND 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
+				WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
 							 WHEN @MatchId NOT IN (0,29) AND cm.matchid = @MatchId THEN 1
 							 ELSE 0 END
 				AND cm.RequestId = vh.RequestId
