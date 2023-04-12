@@ -631,6 +631,40 @@ BEGIN
 						FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
 							INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
 					END
+					ELSE IF @Action = 'U' --Move ticket
+					BEGIN
+						IF @TransInfoJson IS NOT NULL
+						BEGIN
+							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+							INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
+							SELECT *
+								FROM OPENJSON(@Decompress_TransInfoJson)
+									WITH (
+									t   BIGINT
+									,mid INT
+									,m_mid INT
+								)
+
+							SET @batchNo = @@ROWCOUNT
+						END
+						ELSE -- @TransInfo IS NOT NULL (xml format)
+						BEGIN
+							INSERT INTO @tmpTransId (TransID ,matchid)
+							SELECT	T.C.value('./@t', 'bigint') AS transid	
+								,T.C.value('./@mid', 'INT') AS matchid
+							FROM	@TransInfo.nodes('/root/r') AS T(C)	
+							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
+
+							SET @batchNo = @@ROWCOUNT
+						END
+
+						UPDATE TOP (@batchNo)  v
+							SET matchid = t.matchid
+						FROM	@tmptransid t
+							INNER JOIN dbo.MarkedTransaction v WITH (ROWLOCK, UPDLOCK)
+								ON	v.transid = t.transid AND v.MatchId = t.MainMatchId 
+					END
 				END
 				ELSE IF @TableName = 'zzzbettrans' AND OBJECT_ID('zzzbettrans','U') IS NOT NULL
 				BEGIN

@@ -43,10 +43,12 @@ BEGIN
 		,IsMarked		BIT DEFAULT(0)
 		,MainMatchId	INT
 	)
-	DECLARE @tmpTransInfo TABLE (transId BIGINT
-		,winlostdate SMALLDATETIME
-		,matchid INT
-		,oddsid INT
+	DECLARE @tmpTransInfo TABLE (
+		 transId		BIGINT
+		,winlostdate	SMALLDATETIME
+		,matchid		INT
+		,oddsid			INT
+		,MainMatchId	INT
 	)
 
 	SET @xml = CAST(@strTransIds AS XML)
@@ -58,7 +60,7 @@ BEGIN
 				,T.C.value('./@s', 'tinyint') AS statusId
 				,T.C.value('./@mt', 'bigint') AS maintransid
 				,T.C.value('./@im', 'bigint') AS ismarked
-				,T.C.value('./@m_mid', 'int') AS mainmatchid
+				,T.C.value('./@m_mid', 'int') AS MainMatchId
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
 
@@ -190,9 +192,11 @@ BEGIN
 					SET m.MatchId = @MatchId
 					OUTPUT	inserted.transid
 							,inserted.matchid
+							,t.MainMatchId
 						INTO @tmpTransInfo (
 							transId
 							,matchid
+							,MainMatchId
 						)
 				FROM @tmpTrans t 
 					INNER JOIN dbo.MarkedTransaction m 
@@ -203,6 +207,7 @@ BEGIN
 					SET @transInfoJson = (
 						SELECT	transId AS 't'
 								,matchid AS 'mid'
+								,MainMatchId AS 'm_mid'
 						FROM	@tmpTransInfo
 						FOR JSON AUTO
 					)
@@ -422,9 +427,11 @@ BEGIN
 					SET m.MatchId = @MatchId
 					OUTPUT	inserted.transid
 							,inserted.matchid
+							,t.MainMatchId
 						INTO @tmpTransInfo (
 							transId
 							,matchid
+							,MainMatchId
 						)
 				FROM @tmpTrans t 
 					INNER JOIN dbo.MarkedTransaction m 
@@ -435,6 +442,7 @@ BEGIN
 					SET @transInfoJson = (
 						SELECT	transId AS 't'
 								,matchid AS 'mid'
+								,MainMatchId AS 'm_mid'
 						FROM	@tmpTransInfo
 						FOR JSON AUTO
 					)
