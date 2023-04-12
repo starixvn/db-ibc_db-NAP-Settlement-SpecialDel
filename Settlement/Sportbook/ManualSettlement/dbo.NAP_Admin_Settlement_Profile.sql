@@ -67,6 +67,7 @@ AS
 		- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230410@Louisa: write log for interval result [Redmine:#185964]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -131,6 +132,7 @@ BEGIN
 			,@IsExistAR			BIT = 0
 			,@ChildMatchType	TINYINT
 			,@IsCalculateBalance		BIT = 1 ---calculate balance inside SP calculate transid
+			,@ServerName		VARCHAR(100) = @@SERVERNAME()
 			,@IsAppliedSOP				BIT = 1
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
@@ -812,13 +814,13 @@ BEGIN
 												END
 	
 		IF @ParentMatchId IS NOT NULL ---Cricket
-	BEGIN
-			SELECT  @matchLog =  @ParentMatchId
-				,@fth	= finalhomescore
-				,@fta	= finalawayscore
-  		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  		WHERE   matchid = @ParentMatchId
-	END
+		BEGIN
+				SELECT  @matchLog =  @ParentMatchId
+					,@fth	= finalhomescore
+					,@fta	= finalawayscore
+  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  			WHERE   matchid = @ParentMatchId
+		END
 
 		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
 		BEGIN
@@ -839,6 +841,18 @@ BEGIN
 					,@betstatus			= @betstatus
 					,@Remark			= @Remark
 					,@ip				= @ip
+
+			EXEC NAP_Set_WriteLog_SettlementLogs
+					@ServerName		=@ServerName		
+					,@Sporttype		= @Sporttype		
+					,@MatchID		= @MatchID		
+					,@ActionID		= @ActionID		
+					,@LeagueGroupId	= @LeagueGroupId			
+					,@ResourceID	= @ResourceID	
+					,@HomeValue		= @HomeValue		
+					,@AwayValue		= @AwayValue		
+					,@UserID		= @UserID		
+					,@LogType		= @LogType	
 		END TRY
 		BEGIN CATCH
 			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)

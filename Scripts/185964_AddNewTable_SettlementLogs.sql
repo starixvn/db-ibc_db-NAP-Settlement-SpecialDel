@@ -2,11 +2,11 @@
 
 /*
 	Created: 20230410@Louisa
-	Task: write log for interval result [Redmine:#185964]
+	Task: write log detail to new table [Redmine:#185964]
 	DB: DBLOG/bodb_CustomerLog
 
 	Revisions: 
-		- 20230410@Louisa [Redmine:#185964]
+		- 20230410@Louisa: create table [Redmine:#185964]
 
 
 */
@@ -16,10 +16,11 @@ GO
 
 CREATE TABLE SettlementLogs
 (
-	Sporttype		SMALLINT	NOT NULL
+	ServerName		VARCHAR(100) NOT NULL
+	,Sporttype		SMALLINT	NOT NULL
 	,MatchID		INT			NOT NULL
-	,LeagueGroupId	INT
 	,ActionID		INT			NOT NULL
+	,LeagueGroupId	INT
 	,ResourceID		VARCHAR(50)
 	,HomeValue		VARCHAR(50)
 	,AwayValue		VARCHAR(50)
