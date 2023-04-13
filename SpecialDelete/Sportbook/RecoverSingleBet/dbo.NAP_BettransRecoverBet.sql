@@ -71,13 +71,34 @@ AS
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON;		
 	
-	DECLARE @isExistMatch		BIT = 1
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransRecoverBet '
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
+	DECLARE  @isExistMatch		BIT = 1
 			,@isExistFM			BIT = 0
 			,@IsExistBB			BIT = 0
 			,@avaiableProcess	BIT
@@ -88,7 +109,6 @@ BEGIN
 			,@TransInfo3rd		VARBINARY(MAX)
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	DECLARE @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 	DECLARE @ErrCode INT = 0
 			,@ErrMsg NVARCHAR(200)	= ''
 			,@AutoReSettledTransIds VARCHAR(MAX) = '' 
@@ -1190,7 +1210,6 @@ BEGIN
 			,t.betdaqid
 			,t.ExtraInfo
 			,t.custid
-			--,t.SiteId
 			,t.IsReal
 			,t.IsItSupport
 			,t.IsItQa
@@ -1208,8 +1227,19 @@ BEGIN
 		   , CASE WHEN t.BonusID IS NOT NULL
 				THEN CASE WHEN t.MainTransId IS NULL THEN 1 ELSE 2 END
 				ELSE t.transid
-			 END		
+			 END					
 	
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN     
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END      
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #t_match_completed
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblTransInfo

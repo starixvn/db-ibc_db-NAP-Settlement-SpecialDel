@@ -4,15 +4,14 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidCashOutTransaction_Update]
 	 @TransIds			VARCHAR(MAX)	= ''
 	,@UserName 			NVARCHAR(50)
     ,@UserPassword		NVARCHAR(50)
-    ,@UserID			INT
+    ,@UserId			INT
     ,@IP				VARCHAR(15)		= ''
     ,@Reason			NVARCHAR(500)	= ''
 	,@ReasonSC			NVARCHAR(500)	= ''
 )	
 AS
 /*
-    Created by: Kent
-	Date: 20170403
+    Created by: 20170403@Kent
 	Original: 
 	Task: Delete Cash-out transaction
 	DB: DBTXN/BODB02
@@ -37,6 +36,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 
 	Explanation's Param:
 
@@ -44,6 +44,30 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidCashOutTransaction_Update '
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE '@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ' + CONVERT(NVARCHAR(50), @UserName) END
+				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) + '''' END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, NULL, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	DECLARE @avaiableProcess 	BIT = 0
 		  , @isITAdmin			BIT = 0
 		  , @Movebetdate		DATETIME
@@ -59,7 +83,6 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
-		   ,@spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -407,13 +430,12 @@ BEGIN
 				FROM #SpecialDeleteBets t
 				WHERE t.TransId = s.TransID
 			)c
-	
+
 	------ releasing SD process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
 		, @IsReleased		= 1
 		
-	--> output data
 	-- CHECK IT GROUP or NOT ?   
 	SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 
@@ -503,7 +525,18 @@ BEGIN
 	ORDER BY ag.site ASC
 		   , CASE WHEN d.BetType = 911 THEN d.TransId ELSE d.RefNo END
 		   , d.TransId
-		   		
+	
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN       
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, NULL, GETDATE(),@SubmittedDate)
+        END        
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	DROP TABLE #tblTransIds
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #SpecialDeleteBets

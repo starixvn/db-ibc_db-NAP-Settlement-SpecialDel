@@ -1,20 +1,17 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd] 
 	@SearchBy				VARCHAR(100),
-	
-	@MatchId				INT = 0,	
+	@MatchId				INT = NULL,	
 	@TransIds				VARCHAR(MAX) = '',
-	
 	@UserName 				NVARCHAR(50),
     @Password				NVARCHAR(50),
-    @UserID					INT,
+    @UserId					INT,
     @IP						VARCHAR(15),
     @Reason					NVARCHAR(500)	= '',
 	@ReasonSC				NVARCHAR(500)	= ''
 AS
 /*  
-	Created by: Kent  
-	Date: 20170607
+	Created by: 20170607@Kent  
 	Task: 
 	DB: DBTXN/bodb02	    
 
@@ -23,6 +20,7 @@ AS
 		- 20170831@Kent: VS BetRadar Change on Void Parlay Sub Bets [Redmine:#82405]
 		- 20181207@Alan: Support Chinese Email [105976]	
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 
 	Param's Explanation:
 		- @SearchBy:		
@@ -36,6 +34,32 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 	
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidParlaySubVSBetRadar_Upd '
+				+ CASE WHEN @SearchBy IS NULL THEN '' ELSE '@SearchBy = ''' + CONVERT(NVARCHAR(100), @SearchBy) + '''' END
+				+ CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
+				+ CASE WHEN @Password IS NULL THEN ''ELSE ',@Password = ''' + CONVERT(NVARCHAR(50), @Password) + '''' END
+				+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
+				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
+				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
+
 	IF @SearchBy = 'MatchId'
 	BEGIN
 		EXEC [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Upd]
@@ -59,7 +83,18 @@ BEGIN
 			@Reason	= @Reason,
 			@ReasonSC = @ReasonSC
 	END
-						
+			
+	-- Write useraction log	
+	BEGIN TRY
+        IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN     
+            INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+            VALUES (@ID, @spName, NULL, @UserId, @MatchId, GETDATE(),@SubmittedDate)
+		END      
+	END TRY
+	BEGIN CATCH
+	END CATCH
+
 	SET NOCOUNT OFF
 END
 GO
