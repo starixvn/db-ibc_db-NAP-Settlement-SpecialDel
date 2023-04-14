@@ -242,7 +242,7 @@ BEGIN
 			SET @strTransIds = (
 				SELECT	TOP (@batchNo) transid AS '@t'
 						,CASE WHEN statusid = 102 THEN statusId ELSE NULL END AS '@s'
-						,CASE WHEN statusid = 102 THEN MainTransId ELSE NULL END AS '@mt'
+						,CASE WHEN (statusid = 102 OR IsMarked = 1) THEN MainTransId ELSE NULL END AS '@mt'
 						,IsMarked AS '@im'
 						,MainMatchId AS '@m_mid'
 				FROM	#tmpTransIdsParlay 
