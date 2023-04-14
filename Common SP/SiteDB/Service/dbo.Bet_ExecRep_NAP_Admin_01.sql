@@ -690,6 +690,7 @@ BEGIN
 						UPDATE TOP (@batchNo)  b
 							SET [status] = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
 								,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+								,matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
 						FROM	@tmptransid t
 							INNER JOIN dbo.zzzbettrans b WITH (ROWLOCK, UPDLOCK)
 								ON	b.transid = t.transid

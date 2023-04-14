@@ -149,7 +149,7 @@ BEGIN
 				IF @IsSiteDB = 1
 				BEGIN
 					SET @transInfoJson = (
-						SELECT	MainTransId AS 't'
+						SELECT	transId AS 't'
 								,@MatchId AS 'mid'	
 								,MainMatchId AS 'm_mid'
 						FROM	@tmpTrans
