@@ -90,7 +90,6 @@ BEGIN
 		,IsMainMatch			VARCHAR(10)
 		,IsLinkGroup1X2			BIT DEFAULT(0)
 		,IsLinkGroupAIO			BIT DEFAULT(0)
-		,IsShowPHOnly			BIT DEFAULT(0) -- Get ticket button Save Details PH (1)
 		,LiveIndicator			BIT DEFAULT(0)
 	)
 	CREATE TABLE #logInfoVoidPage (
