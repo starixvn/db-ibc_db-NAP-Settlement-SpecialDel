@@ -22,6 +22,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
+		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 
 	Param's explanation:
 */
@@ -38,8 +39,6 @@ BEGIN
 			,@MatchId				INT
 			,@FilterBy				TINYINT = NULL
 			,@actualscore			VARCHAR(50)
-			,@SingleCount			INT 
-		    ,@MainParlayCount		INT
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -238,44 +237,35 @@ BEGIN
 					   WHEN b.IsCancelCashOut = 1 THEN 1 
 					ELSE 0 END 
 
-	SELECT @SingleCount = SUM(SingleCount)
-		  ,@MainParlayCount = SUM(MainParlayCount)
-	FROM #tblGetLogInfo
 	
-	IF @SingleCount > 0
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
-		SELECT @RequestId
-			, @IssueTypeId
-			, rd.SubIssueTypeId
-			, t.TransId
-			, t.MatchId
-			, rd.Id AS RequestDetailId
-			, t.bettype
-			, t.betid
-			, t.CustId
-			, t.SiteDBGroupID
-			, t.IsCancelCashOut
-		FROM #TVSTicketBets t
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
-		WHERE rd.RequestId = @RequestId  AND t.IsMixParlay = 0
-	END
+	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
+	SELECT @RequestId
+		, @IssueTypeId
+		, rd.SubIssueTypeId
+		, t.TransId
+		, t.MatchId
+		, rd.Id AS RequestDetailId
+		, t.bettype
+		, t.betid
+		, t.CustId
+		, t.SiteDBGroupID
+		, t.IsCancelCashOut
+	FROM #TVSTicketBets t
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
+	WHERE rd.RequestId = @RequestId  AND t.IsMixParlay = 0
 
-	IF @MainParlayCount > 0
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
-		SELECT @RequestId
-			, @IssueTypeId
-			, rd.SubIssueTypeId
-			, t.Subtransid
-			, t.MatchId
-			, rd.Id AS RequestDetailId
-			, t.TransId
-			, t.SiteDBGroupID
-		FROM #TVSTicketBets t
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
-		WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 1
-	END
+	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
+	SELECT @RequestId
+		, @IssueTypeId
+		, rd.SubIssueTypeId
+		, t.Subtransid
+		, t.MatchId
+		, rd.Id AS RequestDetailId
+		, t.TransId
+		, t.SiteDBGroupID
+	FROM #TVSTicketBets t
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId AND rd.VoidFromTime = t.VoidFromTime AND rd.VoidToTime = t.VoidToTime
+	WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 1
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
