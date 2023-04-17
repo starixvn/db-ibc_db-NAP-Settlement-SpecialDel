@@ -24,8 +24,8 @@ AS
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
 		+ @IsCashOutAsUnSettledTicket : 0 - Consider Cash out as Settled ticket, need settled permission in order to void
 										1 - Consider Cash out as un-settled ticket, no need settled permission
-										
-		+ @IsCheckForTVS: 0 - Special Delete, 1 - TVS ( show different message)
+		
+		+ @IsCheckForTVS: 0 - Special Delete, 1 - TVS ( show different message)								
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -246,11 +246,12 @@ BEGIN
 												AND b.statuswinlost IS NOT NULL
 										  )
 
+	
 
 	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
 											OR @IsExistsSettledParlayTickets = 1
 											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0)
-											OR @IsExistsSettledCancelCashOutTickets = 1 THEN 1
+											THEN 1
 										ELSE 0 END
 
 	IF (
@@ -275,6 +276,14 @@ BEGIN
 		BEGIN
 			SELECT @ErrCode = 1 ,@ErrMsg = 'This request will not be voided because you do not have permission to void instantly settled or settled ticket.'
 		END
+		RETURN
+	END
+
+	IF @IsExistsSettledCancelCashOutTickets = 1 AND @IsHostVoidSettledTickets = 0
+	BEGIN
+		SELECT @ErrCode = 1 
+			  ,@ErrMsg	= 'Because the match is settled, you need Voiding Settled Tickets permission to void and cancel cash out tickets of this request.'
+		
 		RETURN
 	END
 
