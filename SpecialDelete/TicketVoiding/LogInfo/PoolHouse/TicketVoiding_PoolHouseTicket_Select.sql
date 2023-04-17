@@ -38,7 +38,7 @@ BEGIN
 	IF @IssueTypeId IN (4,5) 
 	BEGIN
 		EXEC TicketVoiding_PoolHouseTicket_HDP_Select
-			 @MatchId               = @MatchId
+			 @MatchId              = @MatchId
 			,@RequestId			   = @RequestId
 			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId
@@ -56,7 +56,7 @@ BEGIN
 	IF @IssueTypeId IN (6,7) 
 	BEGIN
 		EXEC TicketVoiding_PoolHouseTicket_OU_Select
-			 @MatchId               = @MatchId
+			 @MatchId              = @MatchId
 			,@RequestId			   = @RequestId
 			,@IssueTypeId		   = @IssueTypeId
 			,@ActionId			   = @ActionId

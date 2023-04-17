@@ -93,7 +93,7 @@ BEGIN
       ,liveindicator		BIT
 	  ,odds					SMALLMONEY
 	  ,oddsspread			MONEY
-      ,betfrom				NVARCHAR(3)
+      ,betfrom				NVARCHAR(4)
       ,bettype				SMALLINT
       ,betteam				NVARCHAR(10)
 	  ,betcheck				NVARCHAR(50)
@@ -111,7 +111,7 @@ BEGIN
 	  ,Subliveindicator		BIT
 	  ,Subodds				SMALLMONEY
 	  ,Suboddsspread		MONEY
-	  ,Subbetfrom			NVARCHAR(3)
+	  ,Subbetfrom			NVARCHAR(4)
 	  ,Subbettype			SMALLINT
 	  ,Subbetteam			NVARCHAR(10)
 	  ,Subbetcheck			NVARCHAR(50)
@@ -411,8 +411,7 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN (@IssueTypeId = 6 AND b.Subbettype = 3) OR (@IssueTypeId = 7 AND b.Subbettype = 8) 
-								AND b.Subhdp1 = xOUvalue.WrongMarket AND @WrongMarket IS NOT NULL THEN 'OU'
+					,CASE WHEN ((@IssueTypeId = 6 AND b.Subbettype = 3) OR (@IssueTypeId = 7 AND b.Subbettype = 8)) AND b.Subhdp1 = xOUvalue.WrongMarket AND @WrongMarket IS NOT NULL THEN 'OU'
 						  WHEN @IssueTypeId IN (6) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
 						  WHEN @IssueTypeId IN (7) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
 						  WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
