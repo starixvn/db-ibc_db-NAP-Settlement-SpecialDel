@@ -308,7 +308,7 @@ BEGIN
 						INNER JOIN  dbo.ResultDetailOS r WITH(NOLOCK) 
 							ON cte.MatchId = r.MatchID
 								AND cte.RelateResources = r.ResourceID
-					WHERE r.ResultStatusID > 4 AND r.SettlementStatusID <> 1
+					WHERE r.ResultStatusID IN (2,5) AND r.SettlementStatusID <> 1
 				)
 				DELETE m 
 				FROM #MatchInfo m
