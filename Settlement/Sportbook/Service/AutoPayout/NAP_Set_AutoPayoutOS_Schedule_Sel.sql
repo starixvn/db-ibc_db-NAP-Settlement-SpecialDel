@@ -22,6 +22,7 @@ AS
 		- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230403@Louisa: Exclude some Cricket results from direct payout [Redmine:#186311]
+		- 20230404@Louisa: Checking related resourceid for result early badminton,volleyball [Redmine:#185818]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -59,8 +60,9 @@ BEGIN
 	CREATE TABLE #MatchInfo (
 		MatchId			INT
 		,leagueid		INT
-		,SettlementStatus TINYINT
-		,ResourceId		VARCHAR(20)
+		,SettlementStatus	TINYINT
+		,ResourceId			VARCHAR(20)
+		,RelateResources	VARCHAR(20)
 		,HomeValue		VARCHAR(50)
 		,AwayValue		VARCHAR(50)
 		,StatusId		TINYINT
@@ -287,6 +289,37 @@ BEGIN
 				AND ISNULL(m.SettlementStatus,0) & 87 = 0
 				AND os.MinStatusId IS NULL -- ResourceId has never been run before
 				AND f.ResourceID IS NULL -- EARLY result
+
+			IF @Sporttype IN (6,9)
+			BEGIN
+				UPDATE m SET RelateResources = '01' + SUBSTRING(  CAST(BetID AS VARCHAR(10)), 2, 2)
+				FROM #MatchInfo m
+				CROSS APPLY (	SELECT TOP 1 sp.BetID
+								FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+								WHERE sp.SportType = @Sporttype 
+									AND sp.ResourceID = m.ResourceId
+									AND sp.SettleType = 'EAR'
+									AND sp.BetID > 0
+							)sp
+
+				;WITH cte_RelateResources ( MatchId, ResourceId) AS
+				(	SELECT  r.MatchId, cte.ResourceId
+					FROM #MatchInfo cte
+						INNER JOIN  dbo.ResultDetailOS r WITH(NOLOCK) 
+							ON cte.MatchId = r.MatchID
+								AND cte.RelateResources = r.ResourceID
+					WHERE r.ResultStatusID > 3 AND r.SettlementStatusID <> 1
+				)
+				DELETE m 
+				FROM #MatchInfo m
+					LEFT JOIN cte_RelateResources cte
+						ON cte.MatchId = m.MatchId
+							AND cte.ResourceId = m.ResourceId
+				WHERE cte.ResourceID IS NULL
+					AND m.RelateResources IS NOT NULL
+
+			END
+
 		END
 	END 
 
