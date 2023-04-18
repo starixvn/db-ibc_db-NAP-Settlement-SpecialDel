@@ -140,6 +140,14 @@ BEGIN
 	  ,WalletType			TINYINT
 	  ,RefCode				BIGINT
 	)
+	
+	DECLARE @tmpWrongMarket TABLE (WrongMarket SMALLMONEY)
+	IF @WrongMarket IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpWrongMarket (WrongMarket)
+		SELECT DISTINCT value AS WrongMarket
+		FROM STRING_SPLIT(@WrongMarket, '&')
+	END
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -310,8 +318,8 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN @IssueTypeId IN (6) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-				  WHEN @IssueTypeId IN (7) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
+			,CASE WHEN @IssueTypeId = 6 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
+				  WHEN @IssueTypeId = 7 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
 			      WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
 				  ELSE 'Others' 
 			 END AS GroupName
@@ -332,6 +340,9 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
+		AND 1 = CASE WHEN @IssueTypeId = 6 AND b.bettype = 3 AND b.hdp1 IN (SELECT WrongMarket FROM @tmpWrongMarket) THEN 0
+					 WHEN @IssueTypeId = 7 AND b.bettype = 8 AND b.hdp1 IN (SELECT WrongMarket FROM @tmpWrongMarket) THEN 0 
+					 ELSE 1 END
 	
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
@@ -411,7 +422,7 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN ((@IssueTypeId = 6 AND b.Subbettype = 3) OR (@IssueTypeId = 7 AND b.Subbettype = 8)) AND b.Subhdp1 = xOUvalue.WrongMarket AND @WrongMarket IS NOT NULL THEN 'OU'
+					,CASE WHEN ((@IssueTypeId = 6 AND b.Subbettype = 3) OR (@IssueTypeId = 7 AND b.Subbettype = 8)) AND b.Subhdp1 IN (SELECT WrongMarket FROM @tmpWrongMarket) THEN 'OU'
 						  WHEN @IssueTypeId IN (6) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
 						  WHEN @IssueTypeId IN (7) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
 						  WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
@@ -421,11 +432,6 @@ BEGIN
 					,b.ExtraInfo
 					,b.winlostdate
 		  FROM #tmpTransInfo b
-				OUTER APPLY (
-					SELECT DISTINCT value AS WrongMarket
-					FROM STRING_SPLIT(@WrongMarket, '&')
-					WHERE value <> ''				
-				)xOUvalue
 				OUTER APPLY(
 					SELECT f.GroupMatch, f.BetType
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 

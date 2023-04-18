@@ -21,6 +21,7 @@ AS
 		- 20221125@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230403@July: TVS - Change code poolhouse affect [Redmine: #172975]
 		
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:

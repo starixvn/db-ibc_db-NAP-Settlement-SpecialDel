@@ -142,6 +142,28 @@ BEGIN
 	  ,WalletType			TINYINT
 	  ,RefCode				BIGINT
 	)
+	DECLARE @tmpHomeFavorite TABLE (HomeFavorite SMALLMONEY)
+	DECLARE @tmpAwayFavorite TABLE (AwayFavorite SMALLMONEY)
+	DECLARE @tmpHdpValue TABLE (HdpValue SMALLMONEY)
+
+	IF @HomeFavorite IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpHomeFavorite (HomeFavorite)
+		SELECT DISTINCT value AS HomeFavorite
+		FROM STRING_SPLIT(@HomeFavorite, '&')
+	END
+	IF @AwayFavorite IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpAwayFavorite (AwayFavorite)
+		SELECT DISTINCT value AS AwayFavorite
+		FROM STRING_SPLIT(@AwayFavorite, '&')
+	END
+	IF @HdpValue IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpHdpValue (HdpValue)
+		SELECT DISTINCT value AS HdpValue
+		FROM STRING_SPLIT(@HdpValue, '&')
+	END
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -312,8 +334,8 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-				  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
+			,CASE WHEN @IssueTypeId = 4 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
+				  WHEN @IssueTypeId = 5 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
 			      WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
 				  ELSE 'Others' 
 			 END AS GroupName
@@ -334,6 +356,11 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
+		AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.hdp1 IN (SELECT HomeFavorite FROM @tmpHomeFavorite) THEN 0
+					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.hdp2 IN (SELECT AwayFavorite FROM @tmpAwayFavorite) THEN 0
+					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND @SubIssueTypeId IN (22,24) AND b.hdp2 IN (SELECT HdpValue FROM @tmpHdpValue) THEN 0 --Away Virtual Head Reversed
+					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND @SubIssueTypeId IN (23,25) AND b.hdp1 IN (SELECT HdpValue FROM @tmpHdpValue) THEN 0 --Home Virtual Head Reversed
+				ELSE 1 END
 	
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
@@ -413,10 +440,10 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND @HomeFavorite IS NOT NULL THEN 'HDP'
-						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp2 = xHDPAway.AwayFavorite AND @AwayFavorite IS NOT NULL THEN 'HDP'
-						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (22,24) AND b.Subhdp2 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 'HDP' --Away Virtual Head Reversed
-						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (23,25) AND b.Subhdp1 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 'HDP' --Home Virtual Head Reversed 'HDP'
+					,CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp1 IN (SELECT HomeFavorite FROM @tmpHomeFavorite) THEN 'HDP'
+						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp2 IN (SELECT AwayFavorite FROM @tmpAwayFavorite) THEN 'HDP'
+						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (22,24) AND b.Subhdp2 IN (SELECT HdpValue FROM @tmpHdpValue) THEN 'HDP' --Away Virtual Head Reversed
+						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (23,25) AND b.Subhdp1 IN (SELECT HdpValue FROM @tmpHdpValue) THEN 'HDP' --Home Virtual Head Reversed 'HDP'
 						  WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
 						  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
 						  WHEN f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1 THEN 'AIO'
@@ -426,21 +453,6 @@ BEGIN
 					,b.ExtraInfo
 					,b.winlostdate
 		  FROM #tmpTransInfo b
-				OUTER APPLY (
-					SELECT DISTINCT value AS HomeFavorite
-					FROM STRING_SPLIT(@HomeFavorite, '&')
-					WHERE value <> ''				
-				)xHDPHome
-				OUTER APPLY (
-					SELECT DISTINCT value AS AwayFavorite
-					FROM STRING_SPLIT(@AwayFavorite, '&')
-					WHERE value <> ''				
-				)xHDPAway
-				OUTER APPLY (
-					SELECT DISTINCT value AS HdpValue
-					FROM STRING_SPLIT(@HdpValue, '&')
-					WHERE value <> ''				
-				)xHDPvalue
 				OUTER APPLY(
 					SELECT f.GroupMatch, f.BetType
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
