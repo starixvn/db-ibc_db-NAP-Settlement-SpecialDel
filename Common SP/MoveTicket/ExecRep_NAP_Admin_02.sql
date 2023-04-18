@@ -59,7 +59,7 @@ BEGIN
 		SELECT	T.C.value('./@t', 'bigint') AS transid
 				,T.C.value('./@s', 'tinyint') AS statusId
 				,T.C.value('./@mt', 'bigint') AS maintransid
-				,T.C.value('./@im', 'bigint') AS IsMarked
+				,T.C.value('./@im', 'bit') AS IsMarked
 				,T.C.value('./@m_mid', 'int') AS MainMatchId
 		FROM	@xml.nodes('/root/r') AS T(C)
 		OPTION (OPTIMIZE FOR (@xml = NULL ))
