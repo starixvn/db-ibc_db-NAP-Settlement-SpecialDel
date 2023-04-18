@@ -8,7 +8,7 @@ AS
 	Created: 20140103@Kathy
 	Task: get status for a match
 	DB: DBTXN/BODB02
-	
+	   
 	Revision:
 		- 20140419@Lukas: reduce data return by excluding old matches
 		- 20140421@Kathy: Directly get IsExistFGLG value from bettrans (not use NAP_Set_MatchBetStatusSel)
