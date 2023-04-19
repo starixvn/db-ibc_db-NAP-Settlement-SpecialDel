@@ -24,6 +24,7 @@ AS
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+		- 20230419@Aries: Fix STRING_AGG  error [Redmine:#187152]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO 
@@ -98,7 +99,7 @@ BEGIN
 
 		IF @@ROWCOUNT = 0 BREAK
 
-		SELECT @strTranIDs = STRING_AGG(transid, ',')
+		SELECT @strTranIDs = STRING_AGG(CAST(transid AS VARCHAR(MAX)), ',')
 		FROM @TransIDs;
 
 		EXEC dbo.NAP_Admin_Calculate_Main 
