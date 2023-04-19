@@ -1,4 +1,5 @@
-alter PROCEDURE [dbo].[NAP_Admin_Settlement_s213] 
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_s213] 
 AS
 /*
 	Created by:[Johnson]
@@ -7,6 +8,7 @@ AS
 	DB: DBTXN/BODB02
 	
 	Revisions:
+		- 20230419@Kathy: Scale Out for Number Game 2 [Redmine:#186722]
 	
 	Parameter's Explanation:
 	
@@ -17,6 +19,7 @@ BEGIN
 	DECLARE @start DATETIME, @stop DATETIME
 	DECLARE @seqID INT = 0, @matchid INT
 	DECLARE @Remark VARCHAR(500), @ActionID INT	
+			,@IsCentral	BIT
 
 	--Check settlement queue to get available sequence ID
 	SELECT TOP 1 @seqID = seqID
@@ -33,6 +36,9 @@ BEGIN
 	SET startCalculate_time = GETDATE(),
 		status = 'Calculating'
 	WHERE seqID = @seqID
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 	
 	--Checking tickets result
 	UPDATE s
@@ -46,15 +52,19 @@ BEGIN
 			OR b.betdaqid <> s.GambleID 
 			OR b.statusid IN (101,102)--'REJECT','VOID'
 			)
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 	
 	CREATE TABLE #Bettrans_staging (transid BIGINT PRIMARY KEY, custID INT, Payout MONEY, isFinished BIT DEFAULT 0)
 		
 	INSERT INTO #Bettrans_staging (transid, custid, payout)
-	SELECT ObTransId, ObCustID, payout
-	FROM Bettrans_staging WITH(NOLOCK)
-	WHERE seqID = @SeqID
-		AND isSkipped = 0
-		
+	SELECT s.ObTransId, s.ObCustID, s.payout
+	FROM Bettrans_staging s WITH(NOLOCK)
+		INNER JOIN dbo.bettrans b WITH(NOLOCK) 
+			ON	b.transid =  s.obTransId
+	WHERE s.seqID = @SeqID
+		AND s.isSkipped = 0
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+
 	IF @@ROWCOUNT = 0 
 	BEGIN
 		EXEC dbo.NAP_Admin_SendNotificationEmail_s213 @action = 'Settlement', @seqID = @seqID

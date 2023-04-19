@@ -16,6 +16,7 @@ AS
 			- 20200826@Johnson: add more servers DB055, DB06C2\DB06 [redmine:#140315]
 			- 20210125@Johnson: Migrate DB054 to cluster, instance DB054C2\DB054 [redmine:#149341]
 			- 20210419@Johnson: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
+			- 20230419@Kathy: Scale Out for Number Game 2 [Redmine:#186722]
 		Parameter's Explanation:
 		
 	*/
@@ -69,7 +70,8 @@ BEGIN
 					,comm = 0
 					,acomm = 0
 					,scomm = 0
-					,ruben = 1				
+					,ruben = 1			
+					,RepUpdateTime = SYSDATETIME()
 			WHERE	matchid = @matchid
 				AND betdaqid = @GambleID
 				AND statusID NOT IN (103, 101, 102) 

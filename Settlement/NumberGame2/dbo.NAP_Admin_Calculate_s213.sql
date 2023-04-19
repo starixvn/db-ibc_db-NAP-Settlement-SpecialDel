@@ -16,6 +16,7 @@ AS
 		- 20200826@Johnson: add more servers DB055, DB06C2\DB06 [redmine:#140315]
 		- 20210125@Johnson: Migrate DB054 to cluster, instance DB054C2\DB054 [redmine:#149341]
 		- 20210419@Johnson: Do not run replicated commands on servers which setup service broker [Redmine:#145127]
+		- 20230419@Kathy: Scale Out for Number Game 2 [Redmine:#186722]
 	Parameter's Explanation:
 	
 */
@@ -86,7 +87,8 @@ BEGIN
 			PlayerComm = CASE WHEN @statusid IN (112,113) THEN playerdiscount * stake ELSE 0 END,
 			comm = CASE WHEN @statusid IN (112,113) THEN discount * stake * (1-apositiontaking) ELSE 0 END,
 			acomm = CASE WHEN @statusid IN (112,113) THEN adiscount * stake * (1-(mpositiontaking+apositiontaking)) ELSE 0 END,
-			scomm = CASE WHEN @statusid IN (112,113) THEN sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) ELSE 0 END			
+			scomm = CASE WHEN @statusid IN (112,113) THEN sdiscount * stake * (1-(spositiontaking+mpositiontaking+apositiontaking)) ELSE 0 END,
+			RepUpdateTime = SYSDATETIME()
 		FROM bettrans b WITH(ROWLOCK)
 			INNER JOIN #tmpTrans t ON b.transid = t.transid
 		
