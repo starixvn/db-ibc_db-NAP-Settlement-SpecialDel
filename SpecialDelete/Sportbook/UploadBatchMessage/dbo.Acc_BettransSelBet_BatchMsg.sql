@@ -26,7 +26,8 @@ AS
   - 20170309@Kent: Integrate Cash-out [Redmine:#72059]
   - 20190228@Alan: Implement Bet Builder - [106898]
   - 20220909@July: Change function STRING_SPLIT & remove code Metric Gaming [Redmine: #175412]
-
+  - 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+  
 Explanation's Param:  
 	- @ProductIds: [1-99]
 		+ 1002: Bet Builder
@@ -55,7 +56,7 @@ BEGIN
 		, recommend INT
 		, mrecommend INT
 		, srecommend INT
-		, betfrom NVARCHAR(3)
+		, betfrom NVARCHAR(4)
 	)
 	
 	-- set balanUpDate

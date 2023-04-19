@@ -111,7 +111,8 @@ Revisions:
 	- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 	- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 	- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
-
+	- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+	
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
 		'<BetTypes>
@@ -219,7 +220,7 @@ BEGIN
 		,recommend		INT  
 		,mrecommend		INT  
 		,srecommend		INT  
-		,betfrom		NVARCHAR(3)  
+		,betfrom		NVARCHAR(4)  
 		,STATUS			VARCHAR(20)  
 		,statusID		INT  
 		,creator		INT  
@@ -279,7 +280,7 @@ BEGIN
 		,choiceBetCheck NVARCHAR(50)  
 		,betcheck		NVARCHAR(50)  
 		,maintransid	BIGINT  
-		,betfrom		NVARCHAR(3)  
+		,betfrom		NVARCHAR(4)  
 		,STATUS			VARCHAR(20)  
 		,statusid		TINYINT  
 		,creator		INT  

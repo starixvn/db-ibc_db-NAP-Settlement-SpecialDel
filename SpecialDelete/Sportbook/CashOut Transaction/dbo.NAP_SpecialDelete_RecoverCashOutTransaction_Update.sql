@@ -32,7 +32,8 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:
 	
 */
@@ -103,7 +104,7 @@ BEGIN
 		BetdaqId			BIGINT,
 		custid				INT,
 		recommend			INT,		
-		BetFrom				NVARCHAR(3),
+		BetFrom				NVARCHAR(4),
 		matchid				INT,
 		awinlost			MONEY,		
 		CurrencyName		NVARCHAR(50),		

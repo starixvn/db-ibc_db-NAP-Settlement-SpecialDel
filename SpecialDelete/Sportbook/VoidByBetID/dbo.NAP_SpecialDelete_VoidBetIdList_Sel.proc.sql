@@ -65,7 +65,8 @@ AS;
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
 		+ @TransIds NOT NULL: Search by TransID
@@ -144,7 +145,7 @@ BEGIN
               liveawayscore         SMALLINT,
               leagueid              INT,
               sporttype             SMALLINT,
-              betfrom               NVARCHAR(3),
+              betfrom               NVARCHAR(4),
               matchid               INT,
               isNeutral             BIT,
               winlost               MONEY,

@@ -12,7 +12,8 @@ AS;
 	Revisions: 
 		- 20211126@July: Create new SP [Redmine:#140180]
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's explanation:	
 		
 */
@@ -34,7 +35,7 @@ BEGIN
               Betcheck        NVARCHAR(50),
               betdaqid        BIGINT,
               betid           BIGINT,
-              betfrom         NVARCHAR(3),
+              betfrom         NVARCHAR(4),
               Betteam         NVARCHAR(10),
               Bettype         SMALLINT,
               Currency        TINYINT,

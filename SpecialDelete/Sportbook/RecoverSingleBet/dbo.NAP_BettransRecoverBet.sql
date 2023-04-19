@@ -72,7 +72,8 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:
 */
 BEGIN
@@ -129,7 +130,7 @@ BEGIN
 		,betcheck		NVARCHAR(50)
 		,hdp1			SMALLMONEY
 		,hdp2			SMALLMONEY
-		,betfrom		NVARCHAR(3)
+		,betfrom		NVARCHAR(4)
 		,stake			MONEY
 		,matchid		INT
 		,IsLiveIndicator	BIT

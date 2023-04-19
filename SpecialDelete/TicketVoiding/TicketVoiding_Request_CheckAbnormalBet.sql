@@ -56,7 +56,8 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230322@Max: [TVS] Exclude Field Hockey when checking live tickets [Redmine: #185235]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
 		+ @TransIds: Search by TransID
@@ -124,7 +125,7 @@ BEGIN
 		,liveindicator	BIT
 		,matchid		INT
 		,sporttype		SMALLINT
-		,betfrom		NVARCHAR(3)
+		,betfrom		NVARCHAR(4)
 		,recommend		INT
 		,mrecommend		INT
 		,srecommend		INT
@@ -149,7 +150,7 @@ BEGIN
       ,livehomescore SMALLINT
       ,liveawayscore SMALLINT
       ,liveindicator BIT
-      ,betfrom NVARCHAR(3)
+      ,betfrom NVARCHAR(4)
       ,bettype SMALLINT
 	  ,betteam NVARCHAR(10)
       ,betid BIGINT

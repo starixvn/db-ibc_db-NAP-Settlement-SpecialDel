@@ -23,7 +23,8 @@ AS
 		- 20230120@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's explanation:
 		+ @WrongScoreInfo:
 				<root><r MatchId ="" LiveHomeScore="0" LiveAwayScore="1" FilterFromTransTime ="" FilterToTransTime="" FilterBy="" ScoreId='3966607' AATime="" PATime ="" SATime="" SubIssueTypeId ="" /></root>
@@ -119,7 +120,7 @@ BEGIN
       ,liveindicator BIT
 	  ,odds SMALLMONEY
 	  ,oddsspread MONEY
-      ,betfrom NVARCHAR(3)
+      ,betfrom NVARCHAR(4)
       ,bettype SMALLINT
       ,betteam NVARCHAR(10)
 	  ,betcheck NVARCHAR(50)
@@ -137,7 +138,7 @@ BEGIN
 	  ,Subliveindicator BIT
 	  ,Subodds SMALLMONEY
 	  ,Suboddsspread MONEY
-	  ,Subbetfrom NVARCHAR(3)
+	  ,Subbetfrom NVARCHAR(4)
 	  ,Subbettype SMALLINT
 	  ,Subbetteam  NVARCHAR(10)
 	  ,Subbetcheck NVARCHAR(50)

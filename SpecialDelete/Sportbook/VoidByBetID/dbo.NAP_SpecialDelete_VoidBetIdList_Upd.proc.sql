@@ -105,7 +105,8 @@ AS
 	  - 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 	  - 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 	  - 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
-
+	  - 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+	  
 	 Param's Explanation:   
 */
 BEGIN
@@ -191,7 +192,7 @@ BEGIN
 		,odds			SMALLMONEY
 		,oddsspread 	MONEY
 		,refno			BIGINT 
-		,betfrom		NVARCHAR(3)
+		,betfrom		NVARCHAR(4)
 		,statusid		TINYINT
 		,betdaqid		BIGINT		
 		,winlostdate	SMALLDATETIME

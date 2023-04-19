@@ -17,7 +17,8 @@ AS
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:
 */
 BEGIN
@@ -48,7 +49,7 @@ BEGIN
 		,StatusId		INT
 		,bettype		SMALLINT
 		,matchid		INT
-		,betfrom		NVARCHAR(3)
+		,betfrom		NVARCHAR(4)
 		,winlostdate	DATETIME
 		,betdaqid		BIGINT
 	)
@@ -61,7 +62,7 @@ BEGIN
       ,betid BIGINT
 	  ,betdaqid BIGINT
       ,statusID TINYINT
-      ,betfrom NVARCHAR(3)
+      ,betfrom NVARCHAR(4)
 	  ,winlostdate SMALLDATETIME
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
