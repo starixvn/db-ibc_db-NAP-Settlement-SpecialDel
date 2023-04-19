@@ -14,6 +14,7 @@ AS
 		- 20210401@Max: [TVS] Auto void before KO time [Redmine: #150522]
 		- 20210405@Max: Enhance [TVS] Auto void before KO time [Redmine: #150522]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
+		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 	
 	Param's explanation:	
 		
@@ -36,21 +37,21 @@ BEGIN
 	------Sending notification if stay in queue too long, over 30 minutes -----------
 	SET @MatchidList_Waiting_30minutes = ISNULL(STUFF((
 												SELECT TOP 10 ',' + CAST(q.matchid  AS VARCHAR(50))
-												FROM dbo.TicketVoiding_AutoVoidRequest_Queue q  WITH (NOLOCK)
+												FROM dbo.TicketVoiding_AutoVoidQueue q  WITH (NOLOCK)
 													INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = q.MatchId
 												WHERE q.StatusId = 0
 													AND 1 = CASE 
-																WHEN q.Action NOT IN ('VoidInstant5m', 'VoidInstant10m')  AND DATEDIFF(MINUTE, q.Starttime, GETDATE()) > 30 THEN 1
-																WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.Starttime > m.GlobalShowTime
-																	AND DATEDIFF(MINUTE, q.Starttime, GETDATE()) > 30 THEN 1
-																WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.Starttime <= m.GlobalShowTime
+																WHEN q.Action NOT IN ('VoidInstant5m', 'VoidInstant10m')  AND DATEDIFF(MINUTE, q.CreatedDate, GETDATE()) > 30 THEN 1
+																WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.CreatedDate > m.GlobalShowTime
+																	AND DATEDIFF(MINUTE, q.CreatedDate, GETDATE()) > 30 THEN 1
+																WHEN q.Action IN ('VoidInstant5m', 'VoidInstant10m') AND q.CreatedDate <= m.GlobalShowTime
 																	AND DATEDIFF(MINUTE, m.GlobalShowTime, GETDATE()) > 30 THEN 1 
 																ELSE 0 END
 												FOR XML PATH(''))
 												,1,1,''),'')
 	--Sending notification if auto void failed
 	SET @MatchIdList_Failed = ISNULL(STUFF((SELECT TOP 10 ',' + CAST(matchid  AS VARCHAR(50))
-												FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK)
+												FROM dbo.TicketVoiding_AutoVoidQueue WITH (NOLOCK)
 												WHERE StatusId = 3											
 												FOR XML PATH(''))
 												,1,1,''),'')
@@ -87,7 +88,7 @@ BEGIN
 			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
 			
 			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_30minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
+						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -112,7 +113,7 @@ BEGIN
 			SET @Recipients = 'it@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
 			
 			SET @Body = 'TVS: Auto Void Notification: Matchid still waiting in queue too long: ' + @MatchidList_Waiting_30minutes
-						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
+						+ ' ( Sample: SELECT TOP 10 matchid FROM dbo.TicketVoiding_AutoVoidQueue WITH (NOLOCK) WHERE StatusId = 0 AND DATEDIFF(MINUTE, Starttime, GETDATE()) > 30 )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -197,7 +198,7 @@ BEGIN
 				-----
 				' 
 				+'Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
-							+ ' ( Table: bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue)'
+							+ ' ( Table: bodb02.dbo.TicketVoiding_AutoVoidQueue)'
 				+ CAST(CURRENT_TIMESTAMP AS VARCHAR(20)) + ' GMT-4'
 			EXECUTE	DBNOTI.NotificationDB.dbo.Letstalk_SendMessage @To = 'NotiGroup3', @Msg = @msg, @Title=@title;
 			
@@ -211,7 +212,7 @@ BEGIN
 			SET @Recipients = 'dbaadmin@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
 			
 			SET @Body = 'Ticket Voiding System: Void Bets automation failed: ''Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
-							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
+							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidQueue WITH (NOLOCK) )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
@@ -236,7 +237,7 @@ BEGIN
 			SET @Recipients = 'it@starixvn.com;julien.le@starixvn.com;helen.do@starixvn.com;raymond.le@starixvn.com;jacob.phan@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;charles.nguyen@starixvn.com;jane.dinh@starixvn.com'
 			
 			SET @Body = 'Ticket Voiding System: Void Bets automation failed: ''Matchid: ' + CONVERT(VARCHAR(MAX),@MatchIdList_Failed)
-							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidRequest_Queue WITH (NOLOCK) )'
+							+ ' ( Sample: SELECT TOP 10 * FROM bodb02.dbo.TicketVoiding_AutoVoidQueue WITH (NOLOCK) )'
 				
 			EXEC msdb.dbo.sp_send_dbmail
 					@recipients= @Recipients
