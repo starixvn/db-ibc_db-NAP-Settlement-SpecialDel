@@ -24,6 +24,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230104@Kathy: get sitedbgroupid 
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 
 	Param's explanation:  
 		
@@ -41,7 +42,6 @@ BEGIN
 		,@remoteQuery		NVARCHAR(MAX)
 		,@strMatchIds		VARCHAR(MAX)
 		,@strEarlyBettypes	VARCHAR(MAX)
-		,@strResourceIds	VARCHAR(MAX)
 		,@CheckDate			VARCHAR(10)
 		,@SqlCommand		VARCHAR(MAX)
 		,@IsCentral			BIT
@@ -53,7 +53,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0))
+	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0),PRIMARY KEY (MatchId))
 	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpBettypeStatus TABLE(
 		MatchId				INT
@@ -285,13 +285,12 @@ BEGIN
 
 	INSERT INTO #tmpMarkedTransaction (transId, matchId)
 	SELECT	mt.TransId, m.matchid
-	FROM	@tmpMatchIds m
+	FROM	#tmpAllParentChildMatch m
 		CROSS APPLY (
 			SELECT	mt.TransId
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
-	WHERE m.sporttype <> 50
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId
@@ -332,10 +331,13 @@ BEGIN
 				ON m.matchid = mk.MatchId
 
 		UPDATE m 
-			SET IsExistMarkedTicket = t.IsExistMarkedTicket
+			SET IsExistMarkedTicket = 1
 		FROM	@tmpMatchIds m
-			INNER JOIN @tmpMatchMarked t
-				ON m.matchid = t.MatchId
+        WHERE EXISTS (SELECT TOP 1 1 
+                      FROM #tmpAllParentChildMatch AS p 
+                        INNER JOIN @tmpMatchMarked AS mm ON p.matchid = mm.matchid
+                      WHERE m.matchid = p.ParentId
+						AND mm.IsExistMarkedTicket = 1)
 
 	END
 
@@ -427,7 +429,6 @@ BEGIN
 		SELECT	@strMatchIds = ''
 				,@strEarlyBettypes = ''
 				,@remoteQuery = ''
-				,@strResourceIds = ''
 				
 		SELECT @strEarlyBettypes = @strEarlyBettypes + CAST(bettype AS VARCHAR(20)) + ','
 		FROM	dbo.f_Set_GetEarlyBettypes()
@@ -435,13 +436,9 @@ BEGIN
 		SELECT @strMatchIds = @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
 		FROM	@tmpMatchIds
 		WHERE	sporttype = 43
-
-		SELECT @strResourceIds = @strResourceIds + '''' + f.ResourceID + '''' + ','
-		FROM	dbo.f_Set_MajorRound (43) f
 		
 		SELECT	@strEarlyBettypes = LEFT(@strEarlyBettypes,LEN(@strEarlyBettypes) - 1)
 				,@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
-				,@strResourceIds = LEFT(@strResourceIds, LEN(@strResourceIds) - 1)
 				
 		SET @remoteQuery = 'SELECT	DISTINCT o.matchid 
 							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
