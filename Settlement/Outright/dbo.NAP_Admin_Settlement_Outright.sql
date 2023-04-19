@@ -25,6 +25,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230419@Aries: Fix STRING_AGG  error [Redmine:#187152]
+		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO 
@@ -137,6 +138,7 @@ BEGIN
 	IF @IsCentral = 1
 	BEGIN
 		BEGIN TRY
+			SET @deadheat = IIF(@deadheat = 1,0, @deadheat)
 			SET @Remark = CAST(@deadheat AS VARCHAR(5))
 
 			IF @ErrCode > 0

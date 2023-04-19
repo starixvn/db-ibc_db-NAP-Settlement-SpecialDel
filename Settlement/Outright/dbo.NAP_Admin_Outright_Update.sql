@@ -10,7 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Outright_Update]
 	,@ErrCode		INT				= 0  OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= '' OUTPUT
 AS
-/*
+/* 
 	Created by: Jamie
 	Date: 2014-08-11
 	Task: Settlement Outright 
@@ -20,6 +20,7 @@ AS
 	Revision: 
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO
@@ -36,6 +37,7 @@ BEGIN
 	
 	SET @ActionID = CASE WHEN @Action = 'CAL' AND @Status IN ('WON','LOSE') THEN 136
 						 WHEN @Action = 'CAL' AND @Status IN ('REFUND') THEN 138
+						 WHEN @Action = 'CAL' AND @Status IN ('HIDE') THEN 81039
 						 WHEN @Action = 'UNDO'	THEN 140 
 					 END
 
@@ -73,6 +75,16 @@ BEGIN
 			,status= 'Refund'
 			,changetime = GETDATE()
 			,isDeadheat = @isDeadheat
+		WHERE orid = @MatchID
+	END
+	ELSE IF @Action = 'CAL' AND @Status = 'HIDE'
+	BEGIN
+		UPDATE outright WITH (UPDLOCK,ROWLOCK)
+		SET  oddsstatus = 'Completed'
+			,eventdate = @EventDate
+			,status= 'HIDE'
+			,changetime = GETDATE()
+			,isDeadheat = 0
 		WHERE orid = @MatchID
 	END
 	ELSE IF @Action = 'UNDO'
