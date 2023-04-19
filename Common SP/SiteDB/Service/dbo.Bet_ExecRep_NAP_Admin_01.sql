@@ -11,7 +11,6 @@ ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01]
 	,@SettlementAction VARCHAR(20) = NULL
 	,@TicketType VARCHAR(1) = NULL
 	,@TotalQueue INT = 0
-
 	,@RunOnServer VARCHAR(100)= NULL
 	,@SettlementProcessingId BIGINT = NULL	
 	,@Is3rd 	BIT =  0
@@ -37,6 +36,8 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20221117@Kathy: No settlement on DB05 [Redmine:#180225]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230411@July: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine:#168081]
+
 	Param's Explanation:  
 		   
 */
@@ -75,7 +76,7 @@ BEGIN
 		,comstatus NVARCHAR(40),checktime	DATETIME	
 		,actualrate	FLOAT,recommend	INT	,mrecommend	INT	,srecommend	INT, stake MONEY,actual_stake MONEY	
 		,currency	TINYINT	
-		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate	FLOAT	
+		,Username	NVARCHAR(100),CurrencyName	NVARCHAR(100),virtualrate FLOAT, MainMatchId INT
 	)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -630,6 +631,27 @@ BEGIN
 						FROM dbo.MarkedTransaction m WITH (ROWLOCK, UPDLOCK)
 							INNER JOIN @tmpTransId t ON t.TransId = m.TransId AND t.MatchId = m.MatchId
 					END
+					ELSE IF @Action = 'U' --Move ticket
+					BEGIN
+						SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
+
+						INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
+						SELECT *
+							FROM OPENJSON(@Decompress_TransInfoJson)
+								WITH (
+								t   BIGINT
+								,mid INT
+								,m_mid INT
+							)
+
+						SET @batchNo = @@ROWCOUNT
+
+						UPDATE TOP (@batchNo)  v
+							SET matchid = t.matchid
+						FROM	@tmptransid t
+							INNER JOIN dbo.MarkedTransaction v WITH (ROWLOCK, UPDLOCK)
+								ON	v.transid = t.transid AND v.MatchId = t.MainMatchId 
+					END
 				END
 				ELSE IF @TableName = 'zzzbettrans' AND OBJECT_ID('zzzbettrans','U') IS NOT NULL
 				BEGIN
@@ -668,6 +690,7 @@ BEGIN
 						UPDATE TOP (@batchNo)  b
 							SET [status] = CASE WHEN t.Status IS NULL THEN b.status ELSE t.Status END
 								,WinLost = CASE WHEN t.WinLost IS NULL THEN b.winlost ELSE t.WinLost END
+								,matchid = CASE WHEN t.matchid IS NULL THEN b.matchid ELSE t.matchid END
 						FROM	@tmptransid t
 							INNER JOIN dbo.zzzbettrans b WITH (ROWLOCK, UPDLOCK)
 								ON	b.transid = t.transid
@@ -807,15 +830,22 @@ BEGIN
 						BEGIN
 							SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
-							INSERT INTO @tmpTransId (TransID ,matchid)
+							INSERT INTO @tmpTransId (TransID ,matchid, MainMatchId)
 							SELECT *
 								FROM OPENJSON(@Decompress_TransInfoJson)
 									WITH (
 									t   BIGINT
 									,mid INT
+									,m_mid INT
 								)
 
 							SET @batchNo = @@ROWCOUNT
+
+							UPDATE TOP (@batchNo)  v
+							SET matchid = t.matchid
+							FROM	@tmptransid t
+								INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
+									ON	v.transid = t.transid AND v.MatchId = t.MainMatchId 
 						END
 						ELSE -- @TransInfo IS NOT NULL (xml format)
 						BEGIN
@@ -826,13 +856,15 @@ BEGIN
 							OPTION (OPTIMIZE FOR (@TransInfo = NULL ))		
 
 							SET @batchNo = @@ROWCOUNT
+
+							UPDATE TOP (@batchNo)  v
+							SET matchid = t.matchid
+							FROM	@tmptransid t
+								INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
+									ON	v.transid = t.transid 
+
 						END
 
-						UPDATE TOP (@batchNo)  v
-							SET matchid = CASE WHEN t.matchid IS NULL THEN v.matchid ELSE t.matchid END
-						FROM	@tmptransid t
-							INNER JOIN dbo.TicketVoiding_VoidedTransaction v WITH (ROWLOCK, UPDLOCK)
-								ON	v.transid = t.transid
 					END
 				END
 			END TRY
