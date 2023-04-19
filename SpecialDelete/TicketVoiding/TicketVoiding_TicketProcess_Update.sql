@@ -2,8 +2,9 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TicketProcess_Update]
 (
 	@SingleTicketsJSON			NVARCHAR(MAX) = NULL
-   ,@ParlayTicketsJSON			NVARCHAR(MAX) = NULL
-   ,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
+	,@ParlayTicketsJSON			NVARCHAR(MAX) = NULL
+	,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
+	,@CricketTicketsJSON		NVARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -14,6 +15,7 @@ AS
 	Revisions: 
 		- 20221201@Max: Create new SP [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's explanation:
 */
@@ -26,7 +28,7 @@ BEGIN
 
 	DECLARE @tmpTransIdBatch AS TABLE (TransId BIGINT, RequestId INT, MatchId INT)
 
-	IF @SingleTicketsJSON IS NOT NULL
+	IF (@SingleTicketsJSON IS NOT NULL)
 	BEGIN
 		INSERT INTO #tmpInputTransId_Single (TransId, RequestId, MatchId)
 		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
@@ -47,6 +49,14 @@ BEGIN
 		INSERT INTO #tmpInputTransId_CancelCashOut (TransId, RequestId, MatchId)
 		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
 		FROM OPENJSON(@CancelCashOutTicketsJSON)
+			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
+	END
+
+	IF @CricketTicketsJSON IS NOT NULL
+	BEGIN
+		INSERT INTO #tmpInputTransId_Single (TransId, RequestId, MatchId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
+		FROM OPENJSON(@CricketTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
 	END
 

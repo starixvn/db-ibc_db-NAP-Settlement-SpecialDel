@@ -16,6 +16,7 @@ AS
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -232,12 +233,26 @@ BEGIN
 		,b.oddsid
 		,b.winlostdate
 	    ,CASE WHEN d.TicketType = 3 AND b.betdaqid = -2 THEN 1 ELSE 0 END IsCancelCashOut
-	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN #transIdTemp d ON d.transid = b.TransId
+	FROM #transIdTemp d 
+		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND d.TicketType <> 2
-		AND (b.matchid = @MatchId OR @MatchId IS NULL)
+		
+	--Update Main MatchID for child match cricket (Sporttype = 50)
+	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #TransInfo d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
+	
+	--Remove Unvalid data
+	DELETE t
+	FROM #TransInfo t
+	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
 	
 	--Search sub-parlay
 	IF EXISTS (
