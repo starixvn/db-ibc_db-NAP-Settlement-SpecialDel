@@ -45,7 +45,8 @@ AS
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's explanation:	
 		
 */
@@ -183,7 +184,7 @@ BEGIN
 			  ,odds SMALLMONEY
 			  ,oddsid INT
 			  ,oddsspread MONEY
-			  ,betfrom NVARCHAR(3)
+			  ,betfrom NVARCHAR(4)
 			  ,bettype SMALLINT
 			  ,betteam NVARCHAR(10)
 			  ,betcheck NVARCHAR(50)
@@ -200,7 +201,7 @@ BEGIN
 			  ,Subliveindicator BIT
 			  ,Subodds SMALLMONEY
 			  ,Suboddsspread MONEY
-			  ,Subbetfrom NVARCHAR(3)
+			  ,Subbetfrom NVARCHAR(4)
 			  ,Subbettype SMALLINT
 			  ,Subbetteam  NVARCHAR(10)
 			  ,Subbetcheck NVARCHAR(50)

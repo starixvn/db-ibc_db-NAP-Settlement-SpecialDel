@@ -19,7 +19,8 @@ AS
 		- 20211213@Max: [TVS] Integrate new Cash Out model [Redmine: #165097]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Explanation's Param:
 		@Option: 0 - by MatchId - removed
 				 1 - by BetId(s)
@@ -57,7 +58,7 @@ BEGIN
 		BetdaqId			BIGINT,
 		custid				INT,
 		recommend			INT,
-		betfrom				NVARCHAR(3),		
+		betfrom				NVARCHAR(4),		
 		WinLost				MONEY,
 		Status				NVARCHAR(10),		
 		HomeId				INT,

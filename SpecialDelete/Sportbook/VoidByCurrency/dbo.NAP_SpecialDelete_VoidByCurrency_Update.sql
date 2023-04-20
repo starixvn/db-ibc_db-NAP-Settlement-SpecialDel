@@ -66,7 +66,8 @@ AS
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:
 */
 BEGIN
@@ -230,7 +231,7 @@ BEGIN
 			UserName			VARCHAR(30),
 			NetWinLost			MONEY,
 			site				VARCHAR(10),
-			betfrom				NVARCHAR(3),
+			betfrom				NVARCHAR(4),
 			srecommend			INT,
 			mrecommend			INT,
 			recommend			INT,

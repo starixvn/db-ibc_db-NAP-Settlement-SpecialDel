@@ -52,7 +52,8 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	 Param's Explanation:   
 		@BetTypes : 
 		'<BetTypes>
@@ -148,7 +149,7 @@ BEGIN
 		  srecommend	INT,   
 		  mrecommend	INT,   
 		  recommend		INT,   
-		  betfrom		NVARCHAR(3),   
+		  betfrom		NVARCHAR(4),   
 		  bettype		SMALLINT,   
 		  hdp1			SMALLMONEY,   
 		  hdp2			SMALLMONEY,   

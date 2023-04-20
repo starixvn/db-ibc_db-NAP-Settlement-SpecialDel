@@ -14,7 +14,8 @@ AS
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's explanation:	
 		- @AbnormalBetTransIds: '12343091763609600,12343108943478784'
 		
@@ -45,7 +46,7 @@ BEGIN
 		,betid BIGINT
 		,bettype SMALLINT
 		,betdaqid BIGINT
-		,betfrom NVARCHAR(3)
+		,betfrom NVARCHAR(4)
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
@@ -54,7 +55,7 @@ BEGIN
 		,Subliveawayscore SMALLINT
 		,Subhdp1 SMALLMONEY
 		,Subhdp2 SMALLMONEY
-		,Subbetfrom NVARCHAR(3)
+		,Subbetfrom NVARCHAR(4)
 		,Subbettype SMALLINT
 		,SubstatusID TINYINT
 		,Subtransdate DATETIME

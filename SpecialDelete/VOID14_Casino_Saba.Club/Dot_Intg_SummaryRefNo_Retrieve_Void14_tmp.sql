@@ -9,7 +9,7 @@ CREATE PROCEDURE [dbo].[Dot_Intg_SummaryRefNo_Retrieve_Void14_tmp]
 	@recommend [int],
 	@mrecommend [int],
 	@srecommend [int],
-	@betFrom [varchar](1),
+	@betFrom [nvarchar](4),
 	@currency [tinyint],
 	@currencyName [varchar](50),
 	@ip [varchar](15),
@@ -29,7 +29,7 @@ DB: DBTXN/bodb02
 
 Revisions:
 	--20200107@Helen: Support to void ticket in bettransRnG14 for Roulette - clone from Dot_Intg_SummaryRefNo_Retrieve - [148359]
-	
+	- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 */
 	select @refNo = 0
 
@@ -92,7 +92,7 @@ Revisions:
 				 + ', mrecommend=' + convert(varchar(10), @mrecommend)
 				 + ', srecommend=' + convert(varchar(10), @srecommend)
 				 + ', winloseDate=' + convert(varchar(10), @winloseDate, 120)
-				 + ', betFrom=' + convert(varchar(1), @betFrom)			
+				 + ', betFrom=' + convert(nvarchar(4), @betFrom)			
 				 + ', sportTypeId=' + convert(varchar(5), @sportTypeId)
 				 + ', betTypeId=' + convert(varchar(5), @betTypeId)
 				 + ', currency=' + convert(varchar(4), @currency)

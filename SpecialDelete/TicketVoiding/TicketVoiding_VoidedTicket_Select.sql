@@ -24,7 +24,8 @@ AS;
 		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's explanation:	
 		
 */
@@ -50,7 +51,7 @@ BEGIN
               Betcheck        NVARCHAR(50),
               betdaqid        BIGINT,
               betid           BIGINT,
-              betfrom         NVARCHAR(3),
+              betfrom         NVARCHAR(4),
               Betteam         NVARCHAR(10),
               Bettype         SMALLINT,
               Currency        TINYINT,

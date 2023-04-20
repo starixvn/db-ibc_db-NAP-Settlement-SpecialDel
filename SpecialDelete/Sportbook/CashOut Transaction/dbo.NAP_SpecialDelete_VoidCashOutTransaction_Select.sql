@@ -24,7 +24,8 @@ AS
 		- 20220315@Max: Remove SABA of league name for China View sites [Redmine: #168651]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Explanation's Param:
 		@Option: 0 - by MatchId
 				 1 - by BetId(s) - removed
@@ -58,7 +59,7 @@ BEGIN
 		BetdaqId			BIGINT,
 		custid				INT,
 		recommend			INT,
-		betfrom				NVARCHAR(3),		
+		betfrom				NVARCHAR(4),		
 		HomeId				INT,
 		AwayId				INT,
 		LeagueId			INT,

@@ -29,7 +29,8 @@ AS
 		- 20200811@Charles: Implement Next R/B bet type for NG Color Ball - [128215]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:
 			- @Opition: 
 			0: By MatchID
@@ -55,7 +56,7 @@ BEGIN
 		,OddsType		INT
 		,transdate		DATETIME
 		,bettype		SMALLINT
-		,betfrom		NVARCHAR(3)
+		,betfrom		NVARCHAR(4)
 		,betteam		NVARCHAR(10)
 		,hdp1			SMALLMONEY
 		,hdp2			SMALLMONEY

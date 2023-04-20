@@ -19,7 +19,8 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
 */
@@ -54,7 +55,7 @@ BEGIN
 		,stake			MONEY
 		,odds			MONEY
 		,refno			BIGINT -- translog.traslogid | bettrans.transid
-		,betfrom		NVARCHAR(10)
+		,betfrom		NVARCHAR(4)
 		,statusid		TINYINT
 		,betdaqid		BIGINT		
 		,winlostdate	SMALLDATETIME

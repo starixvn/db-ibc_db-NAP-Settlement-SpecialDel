@@ -25,7 +25,7 @@ DB: DBTXN/bodb02
 
 Revisions:
 	--20200107@Helen: Support to void ticket in bettransRnG14 for Roulette - clone from Dot_Intg_Settlement_VendorRNG - [148359]
-	
+	- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 */
 BEGIN
 	set nocount on;
@@ -35,7 +35,7 @@ BEGIN
 		@db_WinLost money, @db_aWinLost money, @db_mWinLost money, @db_sWinLost money, @db_PlayerComm money, @db_Comm money, @db_aComm money, @db_sComm money,
 		@status nvarchar(10), @refno bigint, @WinLost money, @aWinLost money, @mWinLost money, @sWinLost money, @PlayerComm money, @Comm money, @aComm money, @sComm money,
 		@username nvarchar(50), @transdate datetime, @transdesc nvarchar(1000), @actualRate float, @virtualRate float, @recommend int, @mrecommend int, @srecommend int,
-		@betFrom nvarchar(1), @currency tinyint, @currencyName nvarchar(50), @ip nvarchar(15), @isSum bit, @db_JackpotInfo varchar(50),
+		@betFrom nvarchar(4), @currency tinyint, @currencyName nvarchar(50), @ip nvarchar(15), @isSum bit, @db_JackpotInfo varchar(50),
 		@refno2 bigint, @db_BetStake money, @db_ContributionStake3rd decimal(19, 8), @db_BetStake_contri money, @db_ContributionStake3rd_contri decimal(19, 8),@db_refno_contri bigint,
 		@db_WinLost_contri money, @db_aWinLost_contri money,@db_mWinLost_contri money,@db_sWinLost_contri money, @refno_refund_contri bigint, @db_gameID_contri smallint,@db_transdesc_contri nvarchar(1000),
 		@db_isSum_contri bit, @3rdCommShareRate smallmoney, @3rdInsuranceShareRate smallmoney

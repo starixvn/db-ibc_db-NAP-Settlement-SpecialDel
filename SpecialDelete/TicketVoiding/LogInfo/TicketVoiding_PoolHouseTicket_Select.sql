@@ -26,7 +26,8 @@ AS
 	Revisions: 
 		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's explanation:
 
 
@@ -96,7 +97,7 @@ BEGIN
       ,liveindicator		BIT
 	  ,odds					SMALLMONEY
 	  ,oddsspread			MONEY
-      ,betfrom				NVARCHAR(3)
+      ,betfrom				NVARCHAR(4)
       ,bettype				SMALLINT
       ,betteam				NVARCHAR(10)
 	  ,betcheck				NVARCHAR(50)
@@ -114,7 +115,7 @@ BEGIN
 	  ,Subliveindicator		BIT
 	  ,Subodds				SMALLMONEY
 	  ,Suboddsspread		MONEY
-	  ,Subbetfrom			NVARCHAR(3)
+	  ,Subbetfrom			NVARCHAR(4)
 	  ,Subbettype			SMALLINT
 	  ,Subbetteam			NVARCHAR(10)
 	  ,Subbetcheck			NVARCHAR(50)

@@ -24,7 +24,8 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:				
 		- @SubTransIds : TransIds of sub parlay tickets				
 */
@@ -104,7 +105,7 @@ BEGIN
 		SubTransdesc	NVARCHAR(2000),	
 		SubMatchid		INT,
 		SubMatchdate	DATETIME,		
-		BetFrom			NVARCHAR(3)
+		BetFrom			NVARCHAR(4)
 	)	
 	CREATE INDEX IX_SubMatchid_SubMatchdate_RefNo ON #tmpBetDelete(SubMatchid, SubMatchdate, RefNo) INCLUDE(TransId)
 	

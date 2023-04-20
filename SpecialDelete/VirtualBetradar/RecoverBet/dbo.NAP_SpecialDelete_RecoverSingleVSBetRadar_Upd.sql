@@ -19,7 +19,8 @@ AS
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's Explanation:		
 		- @TransIds : Main transids.
 */
@@ -113,7 +114,7 @@ BEGIN
 		SubOdds				SMALLMONEY,
 		SubCustId			INT,
 		SubTransdesc		NVARCHAR(2000),		
-		BetFrom				NVARCHAR(3),
+		BetFrom				NVARCHAR(4),
 		matchid				INT,
 		[Action]			VARCHAR(100),
 		TicketType			TINYINT -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181

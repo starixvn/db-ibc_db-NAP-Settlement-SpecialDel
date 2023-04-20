@@ -29,7 +29,8 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20220620@July: TVS - Support FT Instant Settlement on HT Calculation [Redmine: #174122]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
-
+		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		
 	Param's explanation:	
 		
 */
@@ -54,7 +55,7 @@ BEGIN
 		,Betcheck		NVARCHAR(50)
 		,betdaqid		BIGINT
 		,betid			BIGINT
-		,betfrom		NVARCHAR(3)
+		,betfrom		NVARCHAR(4)
 		,Betteam		NVARCHAR(10)
 		,Bettype		SMALLINT
 		,Currency		TINYINT
