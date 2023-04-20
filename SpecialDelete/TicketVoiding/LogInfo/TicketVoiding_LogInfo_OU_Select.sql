@@ -72,6 +72,7 @@ BEGIN
 		,LiveGameEarlySingleCount		INT
 		,LiveGameEarlyCashOutCount		INT
 		,LiveGameEarlySettleCount		INT
+		,LiveGameEarlyInstantlySettleCount	INT
 		,PoolHouseSingleCount			INT
 		,PoolHouseCashOutCount			INT
 		,PoolHouseSettleCount 			INT
@@ -98,6 +99,7 @@ BEGIN
 		,PoolHouseSingleCount			INT
 		,LiveGameEarlyCashOutCount		INT
 		,LiveGameEarlySettleCount		INT
+		,LiveGameEarlyInstantlySettleCount	INT
 		,PoolHouseCashOutCount			INT
 		,PoolHouseSettleCount			INT
 		,PoolHouseInstantlySettleCount	INT
@@ -304,9 +306,9 @@ BEGIN
 					  ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
-					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
 					 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
-					 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+					 ,s_bfr NVARCHAR(4) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
 				)
@@ -501,14 +503,15 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, LiveGameEarlySingleCount, LiveGameEarlyCashOutCount, LiveGameEarlySettleCount, PoolHouseSingleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount, PoolHouseMainParlayCount)
+	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, LiveGameEarlySingleCount, LiveGameEarlyCashOutCount, LiveGameEarlySettleCount, LiveGameEarlyInstantlySettleCount, PoolHouseSingleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount, PoolHouseMainParlayCount)
 	SELECT b.matchid AS MatchId
 		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,MIN(b.transdate) AS VoidFromTime
 		,MAX(b.transdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'LG/Early' THEN b.transid ELSE NULL END) AS LiveGameEarlySingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'LG/Early' AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS LiveGameEarlyCashOutCount
-		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'LG/Early' AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) <> -2 THEN b.transid ELSE NULL END) AS LiveGameEarlySettleCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'LG/Early' AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN b.transid ELSE NULL END) AS LiveGameEarlySettleCount
+		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'LG/Early' AND b.StatusId IN (111, 112, 113) AND i.bettype IS NOT NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN b.transid ELSE NULL END) AS LiveGameEarlyInstantlySettleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'PH' THEN b.transid ELSE NULL END) AS PoolHouseSingleCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'PH' AND b.StatusId IN (111, 112, 113) AND ISNULL(b.betdaqid,-1) = -2 THEN b.transid ELSE NULL END) AS PoolHouseCashOutCount
 		,COUNT(CASE WHEN b.transid = b.SubTransid AND b.GroupName = 'PH' AND b.StatusId IN (111, 112, 113) AND i.bettype IS NULL AND ISNULL(b.betdaqid,-1) <> -2 THEN b.transid ELSE NULL END) AS PoolHouseSettleCount
@@ -559,11 +562,12 @@ BEGIN
 		GROUP BY r.RequestId, r.MatchId
 
 		/*Get log info for Void Page*/
-		INSERT INTO #logInfoVoidPage (RequestId, MatchId, LiveGameEarlyCashOutCount, LiveGameEarlySettleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount)
+		INSERT INTO #logInfoVoidPage (RequestId, MatchId, LiveGameEarlyCashOutCount, LiveGameEarlySettleCount, LiveGameEarlyInstantlySettleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount)
 		SELECT @RequestId
 				,b.matchid
 				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS LiveGameEarlyCashOutCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND ISNULL(b.betdaqid, -1) <> -2 THEN s.TransId ELSE NULL END) AS LiveGameEarlySettleCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NULL THEN s.TransId ELSE NULL END) AS LiveGameEarlySettleCount
+				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS LiveGameEarlyInstantlySettleCount
 				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
 				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NULL THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
 				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
@@ -611,6 +615,7 @@ BEGIN
 			,SUBSTRING(rd.IssueDetail, CHARINDEX('LiveGameEarlySingleCount:',rd.IssueDetail) + LEN('LiveGameEarlySingleCount:'), CHARINDEX(';PoolHouseSingleCount:',rd.IssueDetail) - (CHARINDEX('LiveGameEarlySingleCount:',rd.IssueDetail) + LEN('LiveGameEarlySingleCount:'))) AS LiveGameEarlySingleCount
 			,t.LiveGameEarlyCashOutCount
 			,t.LiveGameEarlySettleCount
+			,t.LiveGameEarlyInstantlySettleCount
 			,SUBSTRING(rd.IssueDetail,CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail) + LEN('PoolHouseSingleCount:'), CHARINDEX(';PoolHouseMainParlayCount:',rd.IssueDetail) - ( CHARINDEX('PoolHouseSingleCount:',rd.IssueDetail)+ LEN('PoolHouseSingleCount:'))) AS PoolHouseSingleCount
 			,t.PoolHouseCashOutCount
 			,t.PoolHouseSettleCount 
@@ -793,6 +798,7 @@ BEGIN
 		,SUM(LiveGameEarlySingleCount) AS LiveGameEarlySingleCount
 		,SUM(LiveGameEarlyCashOutCount) AS LiveGameEarlyCashOutCount
 		,SUM(LiveGameEarlySettleCount) AS LiveGameEarlySettleCount
+		,SUM(LiveGameEarlyInstantlySettleCount) AS LiveGameEarlyInstantlySettleCount
 		,SUM(PoolHouseSingleCount) AS PoolHouseSingleCount
 		,SUM(PoolHouseCashOutCount) AS PoolHouseCashOutCount
 		,SUM(PoolHouseSettleCount) AS PoolHouseSettleCount
