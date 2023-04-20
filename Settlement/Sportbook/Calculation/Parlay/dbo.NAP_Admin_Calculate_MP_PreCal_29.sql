@@ -1,7 +1,9 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_PreCal_29] @matchid INT
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_PreCal_29] 
+	@matchid	INT
 	,@matchdate SMALLDATETIME
-	,@strXML VARCHAR(MAX) = NULL
+	,@strXML	VARCHAR(MAX) = NULL
+	,@IsReSettledTickets BIT = 0
 AS
 /*
 	Created: Viet
@@ -32,6 +34,7 @@ AS
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230316@Kathy: Using index hint [Redmine:#185088]
+		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -64,6 +67,8 @@ BEGIN
 			, @StopRow INT 
 			, @MaxRow INT = 1 -- Keep the total row of your data
 			, @Threshold INT = 3000 -- the number of each batch
+
+	SET @IsReSettledTickets = ISNULL(@IsReSettledTickets, 0)
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
@@ -438,21 +443,23 @@ BEGIN
 	FROM dbo.BetParlayResult pr
 		INNER JOIN #temp_bettrans b ON pr.refno = b.refno 
 		INNER JOIN p ON pr.refno = p.refno AND pr.serial = p.serial
-	WHERE
-		pr.statusID <>
-		CASE
-			WHEN p.loseCnt > 0    THEN 113 -- Lose
-			WHEN p.runningCnt > 0 THEN 0   -- running
-			WHEN p.NoRefund = 0   THEN 103 -- Refund
-			WHEN p.modds < 1      THEN 113 -- Lose
-			WHEN p.modds = 1      THEN 111 -- Draw
-			ELSE 112 -- Won
-		END
-		OR pr.winlost <>
-		CASE 
-			WHEN p.loseCnt > 0 OR p.runningCnt > 0 THEN 0 
-			ELSE pr.stake * p.modds
-		END
+	WHERE @IsReSettledTickets = 1
+		OR ( @IsReSettledTickets = 0 AND (	pr.statusID <>
+											CASE
+												WHEN p.loseCnt > 0    THEN 113 -- Lose
+												WHEN p.runningCnt > 0 THEN 0   -- running
+												WHEN p.NoRefund = 0   THEN 103 -- Refund
+												WHEN p.modds < 1      THEN 113 -- Lose
+												WHEN p.modds = 1      THEN 111 -- Draw
+												ELSE 112 -- Won
+											END
+											OR pr.winlost <>
+											CASE 
+												WHEN p.loseCnt > 0 OR p.runningCnt > 0 THEN 0 
+												ELSE pr.stake * p.modds
+											END
+										)
+			)
 
 	IF @IsSiteDB = 1
 	BEGIN
@@ -461,6 +468,7 @@ BEGIN
 		SET @TransInfoJson = (
 			SELECT	 @matchdate as 'wld'
 					,@strXML as 'strTransId'
+					,@IsReSettledTickets AS 'ReSettle'
 			FOR JSON PATH
 		)
 

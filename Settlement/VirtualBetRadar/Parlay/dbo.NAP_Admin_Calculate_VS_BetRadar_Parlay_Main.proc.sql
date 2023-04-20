@@ -20,7 +20,8 @@ AS
 		- 20190604@Helen: User-Defined Aggregate SQL Function for Parlay Calculation [Redmine:#114391]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
-		
+		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
+
 	Param's Explanation:
 	
 	Notes: Below is used to calculate odds before CLR Function used 
@@ -83,9 +84,30 @@ BEGIN
 		, [scomm] 			[MONEY]
 		, [StatusID] 		[TINYINT]
 		, [modds] 			[SMALLMONEY]
-		, [winlostdate] 	[SMALLDATETIME]
+		, [winlostdate] 	[SMALLDATETIME] 
 		, [isChanged]		[BIT]
 	)
+	
+	CREATE TABLE #tempRefno2799_Pre ( 
+		[recommend] 		[INT]
+		, [matchid] 		[INT]
+		, [custid] 			[INT]
+		, [bettype] 		[SMALLINT]
+		, [transid] 		[BIGINT]
+		, [actual_stake] 	[MONEY]  
+		, [WinLost] 		[MONEY]
+		, [aWinLost] 		[MONEY]
+		, [mWinLost] 		[MONEY]
+		, [sWinLost] 		[MONEY]
+		, [PlayerComm] 		[MONEY]
+		, [comm] 			[MONEY]
+		, [acomm] 			[MONEY]
+		, [scomm] 			[MONEY]
+		, [StatusID] 		[TINYINT]
+		, [modds] 			[SMALLMONEY]
+		, [winlostdate] 	[SMALLDATETIME]
+	)
+	
 	
 	SELECT @parlayBettype 		= 2799
 		, @ErrCode				= 0
@@ -113,6 +135,42 @@ BEGIN
 		,WinLost, aWinLost, mWinLost, sWinLost
 		,PlayerComm, comm, acomm, scomm
 		,StatusID, modds, winlostdate)
+	OUTPUT INSERTED.recommend 
+		, INSERTED.matchid
+		, INSERTED.custid	
+		, INSERTED.bettype		
+		, INSERTED.transid 		
+		, INSERTED.actual_stake	
+		, INSERTED.WinLost 	
+		, INSERTED.aWinLost 	
+		, INSERTED.mWinLost 	
+		, INSERTED.sWinLost 		
+		, INSERTED.PlayerComm 
+		, INSERTED.comm 
+		, INSERTED.acomm 
+		, INSERTED.scomm 			
+		, INSERTED.StatusID		
+		, INSERTED.modds 			
+		, INSERTED.winlostdate
+	INTO  #tempRefno2799_Pre 
+	(	recommend 
+		, matchid
+		, custid	
+		, bettype		
+		, transid 		
+		, actual_stake	
+		, WinLost 	
+		, aWinLost 	
+		, mWinLost 	
+		, sWinLost 		
+		, PlayerComm 
+		, comm 
+		, acomm 
+		, scomm 			
+		, StatusID		
+		, modds 			
+		, winlostdate	
+	)
 	SELECT refno
 		, recommend
 		, matchid
@@ -204,8 +262,7 @@ BEGIN
 	
 	--Pre-calculate parlay main ticket
 	UPDATE b
-	SET isChanged 		= 1
-		, statusID 		= r.statusID
+	SET statusID 		= r.statusID
 		, winlostdate 	= r.winlostdate
 		, modds			= r.modds
 		, @odds = CASE WHEN r.statusID = 0 THEN 0 ELSE r.modds END
@@ -258,11 +315,25 @@ BEGIN
 	FROM #tempRefno2799 b
 		INNER JOIN #tempResult2799 r 
 		ON b.refno = r.refno
-	WHERE (b.statusID <> r.statusId OR b.winlost <> r.rate * b.stake)
 		
 	SET @runcnt = @@ROWCOUNT
 	
 	IF(@runcnt = 0) RETURN
+
+	UPDATE b
+	SET isChanged =  1
+	FROM #tempRefno2799 b
+	INNER JOIN #tempRefno2799_Pre t
+		ON b.transid = t.transid	
+	WHERE b.statusID	<> t.statusId 
+		OR b.winlost	<> t.winlost
+		OR b.awinlost	<> t.awinlost
+		OR b.mwinlost	<> t.mwinlost
+		OR b.swinlost 	<> t.swinlost 
+		OR b.playercomm	<> t.playercomm
+		OR b.comm		<> t.comm
+		OR b.acomm 		<> t.acomm 
+		OR b.scomm 		<> t.scomm 
 	
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, @runcnt, CURRENT_TIMESTAMP, NULL, 'start updating bettrans 2799_cal')		
@@ -339,6 +410,7 @@ BEGIN
 	
 	DROP TABLE #tempRefno2799
 	DROP TABLE #tempResult2799
+	DROP TABLE #tempRefno2799_Pre
 	
 END
 GO

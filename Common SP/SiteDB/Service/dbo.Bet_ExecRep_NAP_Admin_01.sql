@@ -37,6 +37,7 @@ AS
 		- 20221117@Kathy: No settlement on DB05 [Redmine:#180225]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230411@July: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine:#168081]
+		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 
 	Param's Explanation:  
 		   
@@ -62,7 +63,8 @@ BEGIN
 			,@errmsg VARCHAR(1024)
 			,@SiteDB_TotalQueue INT
 			,@Decompress_TransInfoJson NVARCHAR(MAX)
-
+			,@IsReSettledTickets BIT
+			
 	DECLARE @tmpTransId TABLE (transId BIGINT, refno BIGINT
 		,matchid INT, winlostdate DATETIME, betdaqid VARCHAR(50)
 		,modds VARCHAR(11), odds SMALLMONEY, oddsid INT, oddsspread VARCHAR(20), statuswinlost VARCHAR(1),SettlementTime DATETIME
@@ -804,10 +806,12 @@ BEGIN
 
 						SELECT	@matchdate = wld
 								,@strTransIds = strTransId
+								,@IsReSettledTickets = ReSettle
 						FROM OPENJSON(@Decompress_TransInfoJson)
 						WITH (				
 							wld			SMALLDATETIME	
 							,strTransId VARCHAR(MAX)
+							,ReSettle		BIT
 						)
 					END
 					ELSE -- @TransInfo IS NOT NULL (xml format)
@@ -821,6 +825,7 @@ BEGIN
 						@matchid = @matchid
 						,@matchdate = @matchdate
 						,@strXML = @strTransIds
+						,@IsReSettledTickets = @IsReSettledTickets
 				END
 				ELSE IF @TableName = 'TicketVoiding_VoidedTransaction' AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL
 				BEGIN
