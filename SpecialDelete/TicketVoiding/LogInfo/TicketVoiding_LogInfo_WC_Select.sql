@@ -663,7 +663,7 @@ BEGIN
 			CROSS APPLY(
 				SELECT COUNT(b.transid) AS CancelCashOutCount ,MAX(CheckTimeCashOut) AS CheckTimeCashOut
 				FROM #TVSTicketBets b
-				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1
+				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1 AND li.ScoreId = b.ScoreId
 				GROUP BY b.matchid, b.ScoreId
 			)b
 	END
@@ -1115,18 +1115,19 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	-- 5. Transinfo table
-	SET @TransInfoJson_Output = COMPRESS((SELECT matchid AS 'mid'
+	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,transid AS 't'
 		,Subtransid  AS 's_t'
 		,custid AS  'c'           
 		,bettype AS 'btype'
 		,betid AS 'bid'
-		,transdate AS 'tdate'
-		,checktime AS 'checkt'
+		,li.VoidFromTime AS 'vft'
+		,li.VoidToTime AS 'vtt'
 		,IsMixParlay AS 'isP'
 		,SiteDBGroupID AS 'sitedb'
 		,IsCancelCashOut AS 'isCCO'
-	FROM #TVSTicketBets
+	FROM #TVSTicketBets t
+		INNER JOIN #logInfo li ON t.ScoreId = li.ScoreId
 	FOR JSON PATH))
 	
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
