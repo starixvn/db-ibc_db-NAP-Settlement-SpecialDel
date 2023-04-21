@@ -129,7 +129,7 @@ BEGIN
 	
 	--SELECT main ticket info
 	INSERT INTO #tempRefno2799 (refno, recommend, matchid, custid, bettype
-		,transid, actual_stake, stake, odds
+		,transid, actual_stake, stake, odds, comstatus
 		,apositiontaking, mpositiontaking, spositiontaking 
 		,playerdiscount,discount, adiscount, sdiscount
 		,WinLost, aWinLost, mWinLost, sWinLost
@@ -176,7 +176,7 @@ BEGIN
 		, matchid
 		, custid
 		, bettype
-		, transid, actual_stake, stake, odds
+		, transid, actual_stake, stake, odds, comstatus
 		, apositiontaking, mpositiontaking, spositiontaking
 		, playerdiscount,discount, adiscount, sdiscount
 		, WinLost, aWinLost, mWinLost, sWinLost
