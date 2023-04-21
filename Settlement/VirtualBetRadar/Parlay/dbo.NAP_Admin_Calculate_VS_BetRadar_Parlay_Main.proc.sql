@@ -20,7 +20,7 @@ AS
 		- 20190604@Helen: User-Defined Aggregate SQL Function for Parlay Calculation [Redmine:#114391]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
-		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
+		- 20230405@Louisa: Support resettle Parlay tickets and support double comm if it's possible [Redmine:#186276]
 
 	Param's Explanation:
 	
