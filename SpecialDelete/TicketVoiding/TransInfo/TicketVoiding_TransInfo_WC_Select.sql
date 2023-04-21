@@ -15,6 +15,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		
 	Param's explanation:	
 		- @WrongScoreInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime =""/></root>
@@ -245,9 +246,10 @@ BEGIN
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN b.checktime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-					 WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1	
 					 WHEN b.checktime NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
-					  AND b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
+					  AND b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 WHEN b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1	
+					 WHEN b.transdate NOT BETWEEN d.FilterFromTransTime AND d.FilterToTransTime 	
 					  AND b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
 					 ELSE 0 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
