@@ -69,8 +69,9 @@ AS
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
-		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230328@Aries: Sum total point tennis incorrect [Redmine: #188857]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -99,7 +100,6 @@ BEGIN
 			,@hta				INT
 			,@ActionID			INT
 			,@Remark			VARCHAR(500)
-			,@LogData			NVARCHAR(300)
 			,@avaiableProcess	BIT
 			,@xml				XML
 			,@strResourceIds	VARCHAR(MAX)
@@ -701,17 +701,6 @@ BEGIN
 
 	SELECT @stop = CURRENT_TIMESTAMP
 	
-	SELECT @logdata = IIF(@IsAuto = 1 AND @Action LIKE 'CAL%' AND @HasAutoPayout = 1, 'NAP: Auto Payout Calculate ', 'NAP: Calculate ')
-							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-							+ ' Result: ' + @SelectedResources + '<br/> '
-							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-							+ ' Betstatus(' + ISNULL(@betstatus,'') + ')' 
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @creator
-		,@Doing = @logdata
-		,@extend = @MatchId
-		
 	SET @matchLog = @MatchID
 
 	IF @IsCentral = 1
@@ -842,36 +831,20 @@ BEGIN
 			SELECT @hth	= NULL
 					,@hta = NULL
 		END
-				
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@userid				= @creator
-					,@matchid			= @matchLog
-					,@actionid			= @ActionID
-					,@finalhomescore	= @fth
-					,@finalawayscore	= @fta
-					,@hthomescore		= @hth
-					,@htawayscore		= @hta
-					,@GoalRecord		= NULL
-					,@betstatus			= @betstatus
-					,@Remark			= @Remark
-					,@ip				= @ip
-		END TRY
-		BEGIN CATCH
-			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@UserID				= @creator
-					,@MatchID			= @matchLog
-					,@actionid			= @actionid
-					,@finalhomescore	= @fth
-					,@finalawayscore	= @fta
-					,@hthomescore		= @hth
-					,@htawayscore		= @hta
-					,@GoalRecord		= NULL
-					,@betstatus			= @betstatus
-					,@Remark			= @Remark
-					,@IP				= @ip
-		END CATCH
+			
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				@userid				= @creator
+				,@matchid			= @matchLog
+				,@actionid			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= @hth
+				,@htawayscore		= @hta
+				,@GoalRecord		= NULL
+				,@betstatus			= @betstatus
+				,@Remark			= @Remark
+				,@ip				= @ip
+		
 	END		
 
 	IF @TotalSubParlay > 0

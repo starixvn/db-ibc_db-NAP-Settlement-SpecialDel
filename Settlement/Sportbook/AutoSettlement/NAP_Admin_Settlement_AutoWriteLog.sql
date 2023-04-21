@@ -26,6 +26,7 @@ AS
 		- 20210514@Kathy: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20210518@Louisa: Incorporate Saba Soccer PinGoal [Redmine:#155052]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		
 	Param's Explanation:
 		@Product: BetRadar
@@ -200,35 +201,19 @@ BEGIN
 							+ 'Action:' + @Action +  ' <br/> ' 
 							+ @Remark
 	END
-	BEGIN TRY
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
-			,@matchid = @matchid
-			,@actionid = @actionid
-			,@finalhomescore = @fth
-			,@finalawayscore = @fta
-			,@hthomescore = @hth
-			,@htawayscore = @hta
-			,@GoalRecord = @goalrecord
-			,@betstatus = NULL
-			,@remark = @Remark
-			,@ip = @IP
-	END TRY
-
-	BEGIN CATCH 
-		SELECT @remark = @remark + ' ErMsg=' +LEFT(ERROR_MESSAGE(),300)
-		
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			,@MatchID = @matchid
-			,@actionid = @actionid
-			,@finalhomescore = @fth
-			,@finalawayscore = @fta
-			,@hthomescore = @hth
-			,@htawayscore = @hta
-			,@GoalRecord = @goalrecord
-			,@betstatus = NULL
-			,@remark = @Remark
-			,@IP = @IP
-	END CATCH
+	
+	EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @userid = @AdminId
+		,@matchid = @matchid
+		,@actionid = @actionid
+		,@finalhomescore = @fth
+		,@finalawayscore = @fta
+		,@hthomescore = @hth
+		,@htawayscore = @hta
+		,@GoalRecord = @goalrecord
+		,@betstatus = NULL
+		,@remark = @Remark
+		,@ip = @IP
+	
 END
 
 GO

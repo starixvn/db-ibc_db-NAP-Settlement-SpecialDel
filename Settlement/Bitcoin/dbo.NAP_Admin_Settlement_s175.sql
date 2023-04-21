@@ -21,6 +21,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -291,39 +292,20 @@ BEGIN
 		RETURN
 	END
 	
-	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @doing
-		,@extend = @MatchId
-	
 	SET @EndTime = GETDATE()	
 	
 	IF @IsCentral = 1
 	BEGIN		
-		BEGIN TRY		
-			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
+		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
 							+ CASE WHEN @GameResult <> '' THEN 'GameResult: ' + @GameResult  + '<br/> ' ELSE '' END
 							+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+			
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminId
+			,@Matchid = @matchid
+			,@ActionID = @ActionID
+			,@Remark = @Remark
+			,@IP = @IP
 
-			BEGIN
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-					,@Matchid = @matchid
-					,@ActionID = @ActionID
-					,@Remark = @Remark
-					,@IP = @IP
-			END
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-				,@Matchid = @matchid
-				,@ActionID = @ActionID
-				,@Remark = @Remark
-				,@IP = @IP
-		END CATCH
 	END
 
 END

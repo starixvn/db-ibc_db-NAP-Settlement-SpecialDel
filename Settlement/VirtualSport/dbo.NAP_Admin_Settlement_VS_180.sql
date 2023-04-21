@@ -20,6 +20,7 @@ AS
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:
 		@Action - CAL
@@ -31,7 +32,6 @@ BEGIN
 	
 	DECLARE @Start			DATETIME
 			,@Stop			DATETIME
-			,@LogData		NVARCHAR(200)
 			,@Remark		VARCHAR(500)
 			,@TicketCount	INT
 			,@ActionId		INT
@@ -256,56 +256,26 @@ BEGIN
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
-
-	SELECT @LogData = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-					+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
-					+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @LogData
-		,@extend = @MatchId
 	
-
 	IF @IsCentral = 1
 	BEGIN
 		SELECT @Remark = 'Calculate (' + @Action + ')' 
 						+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
 						+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
 						+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-						+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-
-		BEGIN TRY		
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID				= @AdminId
-				,@Matchid			= @matchid
-				,@ActionID			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= NULL
-				,@htawayscore		= NULL
-				,@GoalRecord		= NULL
-				,@betstatus			= NULL
-				,@Remark			= @Remark
-				,@IP				= @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID				= @AdminId
-				,@Matchid			= @matchid
-				,@ActionID			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= NULL
-				,@htawayscore		= NULL
-				,@GoalRecord		= NULL
-				,@betstatus			= NULL
-				,@Remark			= @Remark
-				,@IP				= @IP
-		END CATCH
+						+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))		
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+			@UserID				= @AdminId
+			,@Matchid			= @matchid
+			,@ActionID			= @ActionID
+			,@finalhomescore	= @fth
+			,@finalawayscore	= @fta
+			,@hthomescore		= NULL
+			,@htawayscore		= NULL
+			,@GoalRecord		= NULL
+			,@betstatus			= NULL
+			,@Remark			= @Remark
+			,@IP				= @IP
 	END
 END
 

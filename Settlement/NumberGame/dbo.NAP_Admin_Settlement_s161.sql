@@ -28,6 +28,7 @@ AS
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221130@Kathy: Using index hint on bettrans [Redmine:#181058]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
@@ -43,7 +44,6 @@ BEGIN
 
 	DECLARE @start DATETIME
 			,@stop DATETIME
-			,@LogData		NVARCHAR(200)
 			,@Remark		VARCHAR(500)
 			,@ActionID		INT
 			,@IsCentral	BIT = 0
@@ -145,7 +145,6 @@ BEGIN
 
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Live @MatchId = @MatchId, @DrawSeq = @DrawSeq, @Number = @Number, @Color = @Color
 
-		SET @LogData = 'Calculate Number Game for matchid:' + CAST(@MatchId AS NVARCHAR(10)) + '- [LIVE] - Sequence number: (' + CAST(@DrawSeq AS NVARCHAR(2)) + ') '
 		SET @ActionID = 116
 		SET @Remark = 'Sequence number: (' + CAST(@DrawSeq AS NVARCHAR(2)) + ') <br />'
 
@@ -164,7 +163,6 @@ BEGIN
 
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Refund @MatchId = @MatchId, @Action = @Action
 		
-		SET @LogData = 'REFUND Number Game for matchid:' + CAST(@MatchId AS NVARCHAR(10))
 		SET @ActionID = 117
 
 	END
@@ -173,7 +171,6 @@ BEGIN
 
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Refund @MatchId = @MatchId, @Action = @Action
 
-		SET @LogData = 'REFUND FT Number Game for matchid:' + CAST(@MatchId AS NVARCHAR(10))
 		SET @ActionID = 119
 
 	END
@@ -193,8 +190,6 @@ BEGIN
 		-- settle PreGame
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 81, @BetTeam = @Result81, @FirstBallNo = @1st_Ball
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 83, @BetTeam = @Result83, @FirstBallNo = @1st_Ball
-
-		SELECT @LogData = 'Calculate HT Number Game for matchid:' + CAST(@MatchId AS NVARCHAR(10))
 
 		SELECT @ActionID = 118
 	END
@@ -239,8 +234,6 @@ BEGIN
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 85, @BetTeam = @Result85, @FirstBallNo = 0
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 86, @BetTeam = @Result86, @FirstBallNo = 0
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 88, @BetTeam = @Result88, @FirstBallNo = 0		
-
-		SELECT @LogData = 'Calculate Number Game for matchid:' + CAST(@matchid AS NVARCHAR(10))
 
 		SELECT @ActionID = 115
 
@@ -357,47 +350,22 @@ BEGIN
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
-	-- LOG
-	
-	SET @LogData = @LogData + '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)' + ' MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @LogData
-		,@extend = @MatchId
 	
 	IF @IsCentral = 1
 	BEGIN
 		SET @Remark = @Remark + 'Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
-		BEGIN TRY	
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminID
-				,@Matchid = @MatchId
-				,@ActionID = @ActionID
-				,@finalhomescore = NULL
-				,@finalawayscore = NULL
-				,@hthomescore = NULL
-				,@htawayscore = NULL
-				,@GoalRecord = NULL
-				,@betstatus = NULL
-				,@Remark = @Remark
-				,@IP = @IP
-		END TRY
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminID
+			,@Matchid = @MatchId
+			,@ActionID = @ActionID
+			,@finalhomescore = NULL
+			,@finalawayscore = NULL
+			,@hthomescore = NULL
+			,@htawayscore = NULL
+			,@GoalRecord = NULL
+			,@betstatus = NULL
+			,@Remark = @Remark
+			,@IP = @IP
 
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminID
-				,@Matchid = @MatchId
-				,@ActionID = @ActionID
-				,@finalhomescore = NULL
-				,@finalawayscore = NULL
-				,@hthomescore = NULL
-				,@htawayscore = NULL
-				,@GoalRecord = NULL
-				,@betstatus = NULL
-				,@Remark = @Remark
-				,@IP = @IP
-		END CATCH
 	END
 	----
 	IF @IsLoopTempTable = 0

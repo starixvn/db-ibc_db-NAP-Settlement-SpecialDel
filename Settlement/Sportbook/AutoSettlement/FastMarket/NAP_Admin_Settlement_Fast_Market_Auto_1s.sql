@@ -36,6 +36,7 @@ AS
 		- 20210428@Kathy: Allow to settle directly for bettype 228 [Redmine:#153155]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -77,8 +78,7 @@ BEGIN
 				,@hth 		INT
 				,@hta 		INT
 				,@ActionID	INT
-				,@Remark	VARCHAR(MAX)
-				,@LogData	NVARCHAR(300)						
+				,@Remark	VARCHAR(MAX)					
 				,@LogResult VARCHAR(MAX) = ''	
 				,@strFMBettypes	VARCHAR(MAX)
 				,@XmlData XML
@@ -534,14 +534,6 @@ BEGIN
 	---------------------------VVVV------------------------------
 
 	SELECT @stop = CURRENT_TIMESTAMP
-
-	SELECT @logdata = 'NAP: Fast Market (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-		+ '(' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @logdata
-		,@extend = @MatchId
 	
 	IF @IsCentral = 1
 	BEGIN
@@ -631,41 +623,21 @@ BEGIN
 				+  CASE WHEN @IsSettleDetermined = 1 THEN ' SDT: 1 <br/>' ELSE '' END
 				+ ' Duration: ' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + 'ms' 
 			
-		BEGIN TRY
-			SELECT @Remark = @Remark + '|'  -- signal for web
-							+ @LogResult + '|'
-							+ @LogEventCounter 
+		SELECT @Remark = @Remark + '|'  -- signal for web
+						+ @LogResult + '|'
+						+ @LogEventCounter 
 	
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
-				, @matchid			= @MatchID
-				, @actionid			= @ActionID
-				, @finalhomescore	= @fth
-				, @finalawayscore	= @fta
-				, @hthomescore		= @hth
-				, @htawayscore		= @hta
-				, @GoalRecord		= ''
-				, @betstatus		= ''
-				, @Remark			= @Remark
-				, @ip				= @ip
-		END TRY
-
-		BEGIN CATCH
-			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250) + '|' -- signal for web
-								+ @LogResult + '|'
-								+ @LogEventCounter 							
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-				, @MatchID			= @matchid
-				, @actionid			= @actionid
-				, @finalhomescore	= @fth
-				, @finalawayscore	= @fta
-				, @hthomescore		= @hth
-				, @htawayscore		= @hta
-				, @GoalRecord		= ''
-				, @betstatus		= ''
-				, @Remark			= @Remark
-				, @IP				= @ip
-		END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @userid = @AdminId
+			, @matchid			= @MatchID
+			, @actionid			= @ActionID
+			, @finalhomescore	= @fth
+			, @finalawayscore	= @fta
+			, @hthomescore		= @hth
+			, @htawayscore		= @hta
+			, @GoalRecord		= ''
+			, @betstatus		= ''
+			, @Remark			= @Remark
+			, @ip				= @ip
 	END
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess

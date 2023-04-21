@@ -19,6 +19,7 @@ AS
 			- 20141024@Jamie: Sportting Solution Tennis Settlement [Redmine:#23034]
 			- 20150418@Jamie: Betradar phase II [Readmine:#27212]
 			- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+			- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Note: For settlement SPs should hardcode the custid of betdaq customer to avoid replication problem
 
@@ -152,64 +153,31 @@ BEGIN
 	    
 	IF @IsSiteDB = 0
 	BEGIN
-		BEGIN TRY
-			BEGIN
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@UserID = @AdminId,
-					@Matchid = @MatchID,
-					@ActionID = 113,
-					@finalhomescore = @finalhomescore,
-					@finalawayscore = @finalawayscore,  
-					@hthomescore = @hthomescore,
-					@htawayscore = @htawayscore,
-					@GoalRecord = @goalrecord,
-					@betstatus = @betstatus,
-					@Remark = @Remark,
-					@IP = @IP
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+			@UserID = @AdminId,
+			@Matchid = @MatchID,
+			@ActionID = 113,
+			@finalhomescore = @finalhomescore,
+			@finalawayscore = @finalawayscore,  
+			@hthomescore = @hthomescore,
+			@htawayscore = @htawayscore,
+			@GoalRecord = @goalrecord,
+			@betstatus = @betstatus,
+			@Remark = @Remark,
+			@IP = @IP
 
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@UserID = @AdminId,
-					@Matchid = @NewMatchID,
-					@ActionID = 114,
-					@finalhomescore = @finalhomescore1,
-					@finalawayscore = @finalawayscore1,  
-					@hthomescore = @hthomescore1,
-					@htawayscore = @htawayscore1,
-					@GoalRecord = @goalrecord1,
-					@betstatus = @betstatus1,
-					@Remark = @Remark1,
-					@IP = @IP
-			END
-		END TRY  
-		BEGIN CATCH	
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 350)	
-			SELECT @Remark1 = @Remark1 + ' ErrMsg=' + left(error_message(), 350)	
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-				@UserID = @AdminId,
-				@Matchid = @MatchID,
-				@ActionID = 113,
-				@finalhomescore = @finalhomescore,
-				@finalawayscore = @finalawayscore,  
-				@hthomescore = @hthomescore,
-				@htawayscore = @htawayscore,
-				@GoalRecord = @goalrecord,
-				@betstatus = @betstatus,
-				@Remark = @Remark,
-				@IP = @IP
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-				@UserID = @AdminId,
-				@Matchid = @NewMatchID,
-				@ActionID = 114,
-				@finalhomescore = @finalhomescore1,
-				@finalawayscore = @finalawayscore1,  
-				@hthomescore = @hthomescore1,
-				@htawayscore = @htawayscore1,
-				@GoalRecord = @goalrecord1,
-				@betstatus = @betstatus1,
-				@Remark = @Remark1,
-				@IP = @IP
-		END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+			@UserID = @AdminId,
+			@Matchid = @NewMatchID,
+			@ActionID = 114,
+			@finalhomescore = @finalhomescore1,
+			@finalawayscore = @finalawayscore1,  
+			@hthomescore = @hthomescore1,
+			@htawayscore = @htawayscore1,
+			@GoalRecord = @goalrecord1,
+			@betstatus = @betstatus1,
+			@Remark = @Remark1,
+			@IP = @IP
 	END
 
 END

@@ -21,6 +21,7 @@ AS
 		-20200401@Sol: HotFix - Don't write error message on Userlog table when the match is being locked by other actions - [Redmine:#129165]
 		-20200720@Kathy: Extend datatype of @sqlCommand to VARCHAR(MAX) [Redmine:#135846]
 		-20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:
 		@IsService
@@ -150,36 +151,19 @@ BEGIN
 							ELSE @actionid END
     --End: #86964								
 
-	BEGIN TRY
-		IF @IsService  = 0
-		EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @userid = @AdminId
-			, @matchid = @matchid
-			, @actionid = @actionid
-			, @finalhomescore = @fth
-			, @finalawayscore = @fta
-			, @hthomescore = @hth
-			, @htawayscore = @hta
-			, @GoalRecord = @goalrecord
-			, @betstatus = @betstatus
-			, @remark = @Remark
-			, @ip = @IP
+	IF @IsService  = 0
+	EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @userid = @AdminId
+		, @matchid = @matchid
+		, @actionid = @actionid
+		, @finalhomescore = @fth
+		, @finalawayscore = @fta
+		, @hthomescore = @hth
+		, @htawayscore = @hta
+		, @GoalRecord = @goalrecord
+		, @betstatus = @betstatus
+		, @remark = @Remark
+		, @ip = @IP
 
-	END TRY
-	BEGIN CATCH 
-		SELECT @remark = @remark + ' ErMsg=' + LEFT(ERROR_MESSAGE(), 300)
-		
-		IF @IsService  = 0
-		EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-			, @MatchID = @matchid
-			, @actionid = @actionid
-			, @finalhomescore = @fth
-			, @finalawayscore = @fta
-			, @hthomescore = @hth
-			, @htawayscore = @hta
-			, @GoalRecord = @goalrecord
-			, @betstatus = @betstatus
-			, @remark = @Remark
-			, @IP = @IP
-	END CATCH
+
 END
 GO

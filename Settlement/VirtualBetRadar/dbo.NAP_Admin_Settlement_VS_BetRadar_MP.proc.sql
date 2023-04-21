@@ -16,6 +16,7 @@ AS
 		- 20160606@Bobby: Initialize
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		
 	Param's Explanation:
  
@@ -148,13 +149,6 @@ BEGIN
 	DECLARE @Remark VARCHAR(200)
 		
 	SET @stop = CURRENT_TIMESTAMP
-
-	SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-		
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @Remark
-		,@extend = @MatchId
 			
 	SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
 		
@@ -167,35 +161,17 @@ BEGIN
 		
 	IF @IsCentral = 1
 	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-				,@Matchid = @matchid
-				,@ActionID = @ActionID
-				,@finalhomescore = @fth
-				,@finalawayscore = @fta
-				,@hthomescore = @hth
-				,@htawayscore = @hta
-				,@GoalRecord = NULL
-				,@betstatus = NULL
-				,@Remark = @Remark
-				,@IP = @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-				,@Matchid = @matchid
-				,@ActionID = @ActionID
-				,@finalhomescore = @fth
-				,@finalawayscore = @fta
-				,@hthomescore = @hth
-				,@htawayscore = @hta
-				,@GoalRecord = ''
-				,@betstatus = ''
-				,@Remark = @Remark
-				,@IP = @IP
-		END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminId
+			,@Matchid = @matchid
+			,@ActionID = @ActionID
+			,@finalhomescore = @fth
+			,@finalawayscore = @fta
+			,@hthomescore = @hth
+			,@htawayscore = @hta
+			,@GoalRecord = NULL
+			,@betstatus = NULL
+			,@Remark = @Remark
+			,@IP = @IP
 	END
 	--END: WRITE LOG ----------------------------------
 	

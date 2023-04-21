@@ -42,6 +42,7 @@ AS
 		- 20221006@Louisa: Always insert BroacastSessionId into TicketVoiding_AutoVoidRequest_Queue [Redmine:#178830]
 		- 20221010@louisa: not insert [TicketVoiding_AutoVoidRequest_Queue] if BroacastSessionId null [Redmine:#178830]
 		- 20221010@Kathy: Wrong status for bettype 391,386 when refund SDT with any round [Redmine:#178935]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 
     Param's Explanation:
@@ -63,7 +64,6 @@ BEGIN
             ,@betstatus         VARCHAR(50) 
             ,@ActionID          INT
             ,@Remark			VARCHAR(500)
-            ,@LogData           NVARCHAR(300)
 			,@handle			INT			
                                 
 			,@avaiableProcess	BIT
@@ -609,51 +609,26 @@ BEGIN
 	IF RIGHT(@SelectedResources,1) = ','
 		SET @SelectedResources = LEFT(@SelectedResources, LEN(@SelectedResources) - 1)
 
-    SELECT @logdata = 'NAP: Auto-Settlement (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-                                                           + ' Result:' + @SelectedResources + ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @logdata
-		,@extend = @MatchId
-
 	IF @IsCentral = 1
 	BEGIN
 		SELECT @Remark = 'NAP: Result:' + @SelectedResources +  ' <br/> ' 
 							+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
 							+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
 							+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + 'ms' 
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@userid                = @AdminId
-				,@matchid            = @MatchID
-				,@actionid            = @ActionID
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord        = @goalrecord
-				,@betstatus            = @betstatus
-				,@Remark            = @Remark
-				,@ip                = @ip
-		END TRY
 
-		BEGIN CATCH
-			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID                = @AdminId
-				,@MatchID            = @matchid
-				,@actionid            = @actionid
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord        = @goalrecord
-				,@betstatus            = @betstatus
-				,@Remark            = @Remark
-				,@IP                = @ip
-		END CATCH	
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle 
+			@userid                = @AdminId
+			,@matchid            = @MatchID
+			,@actionid            = @ActionID
+			,@finalhomescore    = @fth
+			,@finalawayscore    = @fta
+			,@hthomescore        = @hth
+			,@htawayscore        = @hta
+			,@GoalRecord        = @goalrecord
+			,@betstatus            = @betstatus
+			,@Remark            = @Remark
+			,@ip                = @ip
+		
 	END
 
 	IF @TotalSubParlay > 0

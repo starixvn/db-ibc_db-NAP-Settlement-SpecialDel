@@ -35,6 +35,7 @@ AS
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 
 	Param's Explanation:
@@ -747,7 +748,6 @@ END
 	
 	-- Write log
 	DECLARE @ResultRemarkLog VARCHAR(MAX) = ''
-			,@logdata		VARCHAR(MAX) = ''
 			,@Remark		VARCHAR(MAX) = ''
 			,@matchLog		INT = @matchid
 
@@ -799,20 +799,6 @@ END
 		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	
 	SET @stop = CURRENT_TIMESTAMP
-
-	SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-							+ CASE 
-								WHEN @DeterminedType = 2 THEN ' SDT-FT:1' 
-								WHEN @DeterminedType = 1 THEN ' Instant HT' 
-								WHEN @DeterminedType = 4 THEN ' Instant FT' 
-								ELSE '' END
-							+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
-							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-						   
-	EXEC dbo.Logfile_V2 
-		@UserID = @creator
-		,@Doing = @logdata
-		,@extend = @MatchId
 	
 	IF @IsCentral = 1
 	BEGIN
@@ -829,31 +815,17 @@ END
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
 						
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				,@Matchid = @matchLog
-				,@ActionID = @ActionID	
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@Remark = @Remark
-				,@IP = @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				,@Matchid = @matchLog
-				,@ActionID = @ActionID	
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@Remark = @Remark
-				,@IP = @IP
-		END CATCH
+	
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @creator
+			,@Matchid = @matchLog
+			,@ActionID = @ActionID	
+			,@finalhomescore    = @fth
+			,@finalawayscore    = @fta
+			,@hthomescore        = @hth
+			,@htawayscore        = @hta
+			,@Remark = @Remark
+			,@IP = @IP
+		
 	END
 
 	--END: WRITE LOG ---------------------------------- 
