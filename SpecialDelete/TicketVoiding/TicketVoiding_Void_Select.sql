@@ -46,6 +46,7 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		
 	Param's explanation:	
 		
@@ -131,6 +132,7 @@ BEGIN
 		eventstatus			  NVARCHAR(50),
 		SiteDBGroupID		  SMALLINT,
 		IsCancelCashOut		  BIT, --Apply for issuetype: DA,RC,WC
+		CheckTimeCashOut	  DATETIME,
 		statuswinlost		  TINYINT
     )
 
@@ -229,6 +231,7 @@ BEGIN
 			  ,SiteDBGroupID SMALLINT
 			  ,IsCancelCashOut BIT
 			  ,statuswinlost TINYINT
+			  ,CheckTimeCashOut	DATETIME
 			)
 
 	INSERT INTO #tmpTransInfo( 
@@ -237,14 +240,14 @@ BEGIN
 	       ,Subcustid,Subhdp1,Subhdp2,Sublivehomescore,Subliveawayscore,Subliveindicator 
 	       ,Subodds,Suboddsspread,Subbetfrom,Subbettype,Subbetteam ,Subbetcheck,SubStatus,Subtransdate,SubTransdesc,SubstatusID 
 	       ,srecommend,mrecommend,recommend,creator,WalletType,RefCode,stake,oddstype,CurrencyName,betdaqid ,ExtraInfo ,BonusID ,winlost	
-	       ,actual_stake ,winlostdate,modds ,IsMixParlay ,SiteDBGroupID ,IsCancelCashOut ,statuswinlost
+	       ,actual_stake ,winlostdate,modds ,IsMixParlay ,SiteDBGroupID ,IsCancelCashOut ,statuswinlost ,CheckTimeCashOut
 		)
 	SELECT mid, t, s_t, ref, c, hdp1, hdp2, lh, la, li, o, oid, os
 		, bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid
 		, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
 		, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
 		, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
-		, acstake, wld, m, isP, sitedb ,isCCO ,statuswl
+		, acstake, wld, m, isP, sitedb ,isCCO ,statuswl ,checktCO
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -253,14 +256,14 @@ BEGIN
 						, s_c, s_hdp1, s_hdp2, s_lh, s_la, s_li
 						, s_o, s_os, s_bfr, s_btype, s_bteam, s_bcheck, s_s, s_tdate, s_tdes, s_sid
 						, sre, mre, re, cr, wt, refc, stake, ost, curr, bdaq, ex, bo, w
-						, acstake, wld, m, isP, sitedb ,isCCO ,statuswl
+						, acstake, wld, m, isP, sitedb ,isCCO ,statuswl ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
 					, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
 					, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
 					, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
 					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
-					, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT ,isCCO BIT ,statuswl TINYINT
+					, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT ,isCCO BIT ,statuswl TINYINT ,checktCO DATETIME
 				)
 		) tbl
 	WHERE f.value <> ''
@@ -502,6 +505,7 @@ BEGIN
 					,SiteDBGroupID
 					,IsCancelCashOut
 					,statuswinlost
+					,CheckTimeCashOut
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -535,7 +539,7 @@ BEGIN
 					,b.Transdesc
 					,b.betdaqid
 					,b.ExtraInfo
-					,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
+					,CASE WHEN b.betdaqid = -2 AND ISNULL(b.IsCancelCashOut,0) = 0 THEN 1 ELSE 0 END AS IsCashOut
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
@@ -559,6 +563,7 @@ BEGIN
 					,b.SiteDBGroupID
 					,b.IsCancelCashOut
 					,b.statuswinlost
+					,b.CheckTimeCashOut
 			FROM #tmpTransInfo b	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
@@ -832,6 +837,7 @@ BEGIN
 					,SiteDBGroupID
 					,IsCancelCashOut
 					,statuswinlost
+					,CheckTimeCashOut
 				)
 			SELECT 
 					b.transid AS GroupID
@@ -865,7 +871,7 @@ BEGIN
 					,b.Transdesc
 					,b.betdaqid
 					,b.ExtraInfo
-					,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
+					,CASE WHEN b.betdaqid = -2 AND ISNULL(b.IsCancelCashOut,0) = 0 THEN 1 ELSE 0 END AS IsCashOut
 					,b.WalletType
 					,b.RefCode
 					,b.BonusID
@@ -878,6 +884,7 @@ BEGIN
 					,b.SiteDBGroupID
 					,b.IsCancelCashOut
 					,b.statuswinlost
+					,b.CheckTimeCashOut
 			FROM	#tmpTransInfo b
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   CROSS APPLY (
@@ -1700,6 +1707,7 @@ BEGIN
 			   ,s.SiteDBGroupID
 			   ,s.IsCancelCashOut
 			   ,s.statuswinlost
+			   ,s.CheckTimeCashOut
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1783,6 +1791,7 @@ BEGIN
 			   ,s.SiteDBGroupID
 			   ,s.IsCancelCashOut
 			   ,s.statuswinlost
+			   ,s.CheckTimeCashOut
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -1855,6 +1864,7 @@ BEGIN
 			   ,s.SiteDBGroupID
 			   ,s.IsCancelCashOut
 			   ,s.statuswinlost
+			   ,s.CheckTimeCashOut
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1936,6 +1946,7 @@ BEGIN
 		   ,s.SiteDBGroupID
 		   ,s.IsCancelCashOut 
 		   ,s.statuswinlost
+		   ,s.CheckTimeCashOut
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2052,6 +2063,7 @@ BEGIN
 		   ,s.SiteDBGroupID
 		   ,ISNULL(s.IsCancelCashOut,0) AS IsCancelCashOut
 		   ,s.statuswinlost
+		   ,s.CheckTimeCashOut AS CheckTimeCancelCashOut
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

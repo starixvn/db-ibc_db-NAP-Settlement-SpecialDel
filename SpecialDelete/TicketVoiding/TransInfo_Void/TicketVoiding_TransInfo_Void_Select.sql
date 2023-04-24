@@ -17,6 +17,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -91,6 +92,7 @@ BEGIN
 		,oddsid INT
 		,winlostdate SMALLDATETIME
 		,IsCancelCashOut 	BIT
+		,CheckTimeCashOut DATETIME
 	)
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, TicketType TINYINT) --1: single(exclude cancel CO), 2: parlay, 3: cancel CO
@@ -109,6 +111,15 @@ BEGIN
 	SELECT DISTINCT value, 3
 	FROM STRING_SPLIT(@CancelCashoutTransIds, ',')
 	WHERE value <> ''
+
+	IF @CancelCashoutTransIds IS NOT NULL
+	BEGIN
+		--Fix case Cancel Cashout -> Cashout again. Expect: NO show betlist
+		DELETE t
+		FROM #transIdTemp t
+			INNER JOIN dbo.zzzbettrans z WITH (NOLOCK) ON t.transid = z.transid AND z.comstatus ='CO'
+		WHERE TicketType = 3
+	END
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -172,6 +183,7 @@ BEGIN
 			,oddsid
 			,winlostdate
 			,IsCancelCashOut
+			,CheckTimeCashOut
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -233,8 +245,10 @@ BEGIN
 		,b.oddsid
 		,b.winlostdate
 	    ,CASE WHEN d.TicketType = 3 AND b.betdaqid = -2 THEN 1 ELSE 0 END IsCancelCashOut
+		,CASE WHEN d.TicketType = 3 AND b.betdaqid = -2 THEN co.CheckTime ELSE NULL END CheckTimeCashOut
 	FROM #transIdTemp d 
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
+		INNER JOIN  dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
+		LEFT JOIN dbo.CashOutSelling co WITH(NOLOCK) ON b.TransId = co.TransID
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND d.TicketType <> 2
@@ -453,6 +467,7 @@ BEGIN
 		,oddsid AS 'oid'
 		,winlostdate AS 'wld'
 		,ISNULL(IsCancelCashOut,0) AS 'isCCO'
+		,CheckTimeCashOut AS 'checktCO'
 	FROM #TransInfo
 	FOR JSON PATH))
 

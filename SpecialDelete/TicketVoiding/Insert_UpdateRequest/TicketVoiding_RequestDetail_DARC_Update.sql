@@ -22,6 +22,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
+		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -37,8 +38,6 @@ BEGIN
 
 	DECLARE	 @DARCInfoXML		  XML = NULL
 			,@topBatch			  INT = 4500
-			,@SingleCount		  INT
-		    ,@MainParlayCount	  INT
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -201,35 +200,28 @@ BEGIN
 		WAITFOR DELAY '00:00:00.100'
 	END
 
-	SELECT @SingleCount = SUM(SingleCount)
-		  ,@MainParlayCount = SUM(MainParlayCount)
-	FROM #tblGetLogInfo
-
-	IF @SingleCount > 0
+	WHILE (1=1)
 	BEGIN
-		WHILE (1=1)
-		BEGIN
-			DELETE TOP(@topBatch) d
-			OUTPUT @RequestId
-				 , @IssueTypeId
-				 , rd.SubIssueTypeId
-				 , DELETED.TransId
-				 , DELETED.MatchId
-				 , rd.Id
-				 , DELETED.bettype
-				 , DELETED.betid
-				 , DELETED.CustId
-				 , DELETED.SiteDBGroupID
-				 , DELETED.IsCancelCashOut
-			INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
-			FROM #tmpTransInfo d
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
-			WHERE d.IsMixParlay = 0
+		DELETE TOP(@topBatch) d
+		OUTPUT @RequestId
+				, @IssueTypeId
+				, rd.SubIssueTypeId
+				, DELETED.TransId
+				, DELETED.MatchId
+				, rd.Id
+				, DELETED.bettype
+				, DELETED.betid
+				, DELETED.CustId
+				, DELETED.SiteDBGroupID
+				, DELETED.IsCancelCashOut
+		INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID, IsCancelCO)
+		FROM #tmpTransInfo d
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
+		WHERE d.IsMixParlay = 0
 
-			IF @@ROWCOUNT < @topBatch BREAK
+		IF @@ROWCOUNT < @topBatch BREAK
 			
-			WAITFOR DELAY '00:00:00.180'
-		END
+		WAITFOR DELAY '00:00:00.180'
 	END
 
 	WHILE (1=1) AND @IsEditRequest = 1
@@ -243,28 +235,25 @@ BEGIN
 		WAITFOR DELAY '00:00:00.100'
 	END
 
-	IF @MainParlayCount > 0
+	WHILE (1=1)
 	BEGIN
-		WHILE (1=1)
-		BEGIN
-			DELETE TOP(@topBatch) d
-			OUTPUT @RequestId
-				, @IssueTypeId
-				, rd.SubIssueTypeId
-				, DELETED.Subtransid
-				, DELETED.MatchId
-				, rd.Id
-				, DELETED.TransId
-				, DELETED.SiteDBGroupID
-			INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
-			FROM #tmpTransInfo d
-				INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
-			WHERE d.IsMixParlay = 1
+		DELETE TOP(@topBatch) d
+		OUTPUT @RequestId
+			, @IssueTypeId
+			, rd.SubIssueTypeId
+			, DELETED.Subtransid
+			, DELETED.MatchId
+			, rd.Id
+			, DELETED.TransId
+			, DELETED.SiteDBGroupID
+		INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
+		FROM #tmpTransInfo d
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
+		WHERE d.IsMixParlay = 1
 
-			IF @@ROWCOUNT < @topBatch BREAK
+		IF @@ROWCOUNT < @topBatch BREAK
 			
-			WAITFOR DELAY '00:00:00.180'
-		END
+		WAITFOR DELAY '00:00:00.180'
 	END
 
 	-- Get content of log data 
