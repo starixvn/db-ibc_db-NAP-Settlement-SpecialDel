@@ -16,7 +16,8 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20230425@July: [TVS] [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
+
 	Param's explanation:	
 		- @AbnormalAccounts: <roor><r @UserNames = 'abc,xyz' @ProductIds="1,2" @StatusIds="112,111" @FromDate="" @ToDate=""/></root>
 		
@@ -100,17 +101,17 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT, ProductID TINYINT)
 
 	DECLARE @UserNames			NVARCHAR(MAX) = NULL
-			,@ProductIds			VARCHAR(50) = NULL
+			,@ProductIds		VARCHAR(50) = NULL
 			,@StatusIds			VARCHAR(50) = NULL
 			,@FromDate			DATETIME = NULL
 			,@ToDate			DATETIME = NULL
 			,@FromWinlostDate   DATETIME
 			,@maxdate 			DATETIME = '9999-01-01'
 			,@movebetdate		DATETIME
-			,@IsSB				  BIT = 0
-			,@IsParlay			  BIT = 0
-			,@IsOutright		  BIT = 0
-			,@IsSaba			  BIT = 0
+			,@IsSB				BIT = 0
+			,@IsParlay			BIT = 0
+			,@IsOutright		BIT = 0
+			,@IsSaba			BIT = 0
 
 	SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccounts)
 	SELECT @UserNames = t.c.value('@Usernames','NVARCHAR(MAX)') 
@@ -332,15 +333,7 @@ BEGIN
 				WHERE m.matchid = b.matchid
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
-			OUTER APPLY (
-				SELECT TOP 1 m.sporttype 
-				FROM dbo.match m WITH (NOLOCK)
-				WHERE m.matchid = b.matchid
-					AND m.sporttype = 50
-			)mc
 	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (805, 806)			
-		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -350,14 +343,22 @@ BEGIN
 						AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 					WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
 						AND b.bettype NOT BETWEEN 801 AND 806-- MG
-						AND ml.LeagueGroupID IS NULL 
-						AND mc.sporttype IS NULL --exclude cricket
-						THEN 1
+						AND ml.LeagueGroupID IS NULL THEN 1
 					WHEN @IsSaba = 1 
 						AND ml.LeagueGroupID IS NOT NULL THEN 1								
 				ELSE 0 END	
 		AND statusID IN (SELECT statusID FROM @Status_tmp)
-						
+	
+	--Update Main MatchID for child match cricket (Sporttype = 50)
+	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #TransInfo d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
+
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
