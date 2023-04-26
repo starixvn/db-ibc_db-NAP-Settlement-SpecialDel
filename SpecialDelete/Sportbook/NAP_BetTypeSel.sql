@@ -42,6 +42,7 @@ AS
 		- 20210331@July: Check logic mark ticket for cricket [Redmine: #150522]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230420@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
     Param's Explanation:  
     @Mode:   
@@ -51,7 +52,6 @@ AS
          3: TicketListing  
          4: Mix Parlay   
          5: Virtual sports  
-		 7: Bull fighting
 		 8: Bet Builder
          9: Mark Ticket
 */
@@ -69,16 +69,18 @@ BEGIN
 			SELECT sporttype
 			FROM dbo.match WITH (NOLOCK)
 			WHERE matchid = @MatchID
+				AND 1 = CASE WHEN Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+							 ELSE 1 END 
 			UNION
 			SELECT sporttype
 			FROM dbo.match3rd WITH (NOLOCK)
 			WHERE match3rdId = @MatchID
 		)m
         
-        IF (@Mode = 9 AND @Sporttype = 50) OR ((@Sporttype NOT BETWEEN 1 AND 99) AND (@Sporttype <> 154) AND (@Sporttype <> 160) AND (@Sporttype <> 175))
+        IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype NOT IN (154,175) --Horse Racing Fixed Odds, Bitcoin
         BEGIN 
             SET @ErrCode = 100
-            SET @ErrMsg ='Invalid match' 
+            SET @ErrMsg ='Invalid MatchID.' 
             RETURN
         END 
     END
@@ -177,17 +179,6 @@ BEGIN
             ,0 AS liveindicator              
         FROM bettype WITH (NOLOCK)  
         WHERE @matchid = 0 AND typeid BETWEEN 2700 AND 2899
-
-		INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator            
-            )
-        SELECT typeid
-            ,7 AS type -- type = 7: Bull fighting
-            ,0 AS liveindicator            
-        FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND typeid = 1004
 
 		INSERT INTO #TmpBettype (
             typeid
