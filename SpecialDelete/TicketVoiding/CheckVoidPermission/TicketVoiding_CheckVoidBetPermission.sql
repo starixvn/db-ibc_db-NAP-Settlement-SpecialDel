@@ -19,6 +19,7 @@ AS
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230417@July: Update "Void" Permission of TVS [Redmine: #186659]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -251,7 +252,7 @@ BEGIN
 	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
 											OR @IsExistsSettledParlayTickets = 1
 											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0)
-											THEN 1
+											OR @IsExistsSettledCancelCashOutTickets = 1 THEN 1
 										ELSE 0 END
 
 	IF (
@@ -274,16 +275,8 @@ BEGIN
 		END
 		ELSE --TVS
 		BEGIN
-			SELECT @ErrCode = 1 ,@ErrMsg = 'This request will not be voided because you do not have permission to void instantly settled or settled ticket.'
+			SELECT @ErrCode = 1 ,@ErrMsg = 'You do not have enough permission to void/cancel cash out tickets of this request.'
 		END
-		RETURN
-	END
-
-	IF @IsExistsSettledCancelCashOutTickets = 1 AND @IsHostVoidSettledTickets = 0
-	BEGIN
-		SELECT @ErrCode = 1 
-			  ,@ErrMsg	= 'Because the match is settled, you need Voiding Settled Tickets permission to void and cancel cash out tickets of this request.'
-		
 		RETURN
 	END
 
