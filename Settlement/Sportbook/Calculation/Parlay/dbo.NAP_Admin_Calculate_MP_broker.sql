@@ -25,6 +25,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]
 	,@Sporttype		SMALLINT = NULL
     ,@CalledByBrokerService BIT = 0
 	,@RunOnServer	VARCHAR(100) = NULL
+	,@IsReSettledTickets BIT = 0
 AS
 /*
     Created: Kathy
@@ -60,6 +61,7 @@ AS
 		- 20210514@Kathy: settle parlay ticket [Redmine:#154737]
 		- 20220110@Kathy: Update winlostdate = eventdate if these values are different [Redmine:#167246]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 
     Param's Explanation:
         @action         @mode
@@ -119,6 +121,7 @@ BEGIN
                 + CASE WHEN @betstatus IS NULL THEN '' ELSE ',@betstatus = ''' + @betstatus + '''' END
 				+ CASE WHEN @sporttype IS NULL THEN '' ELSE ',@sporttype = ' + CONVERT(NVARCHAR(50), @sporttype) END
 				+ CASE WHEN @RunOnServer IS NULL THEN '' ELSE ',@RunOnServer = ' + '''' + CONVERT(NVARCHAR(100), @RunOnServer) + '''' END
+				+ ',@IsReSettledTickets = ' + CONVERT(NVARCHAR(1),ISNULL(@IsReSettledTickets,0))
                 + ',@CalledByBrokerService = 1'
 		
 		EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -169,6 +172,7 @@ BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_PreCal_29 @matchid = @matchid
             , @matchdate = @matchdate
             , @strXML = @strXML
+			, @IsReSettledTickets = @IsReSettledTickets
     END
 
     IF @mode = '29'

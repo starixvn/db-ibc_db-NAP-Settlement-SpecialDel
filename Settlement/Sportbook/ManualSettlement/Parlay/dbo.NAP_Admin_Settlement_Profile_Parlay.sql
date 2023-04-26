@@ -13,7 +13,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
-
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
@@ -32,6 +31,7 @@ AS
 		- 20220709@Louisa: Fix select INTO [Redmine:#100002]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -502,6 +502,7 @@ BEGIN
 				,@mode = 'PRECAL-29'
 				,@matchdate = @eventdate
 				,@strXML = @strMainTransIds
+				,@IsReSettledTickets = @IsReSettledTickets
 
 			INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 			VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'Start running CAL-29')
