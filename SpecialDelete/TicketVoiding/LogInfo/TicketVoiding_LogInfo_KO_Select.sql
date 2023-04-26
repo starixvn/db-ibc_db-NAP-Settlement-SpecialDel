@@ -18,7 +18,8 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+
 	Param's explanation:
 	+ @KickOffInfo: 
 			<root><r MatchId="0" KickOffTime=""/></root>
@@ -202,9 +203,9 @@ BEGIN
 					  ,wt ,refc
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
-					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
 					 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
-					 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+					 ,s_bfr NVARCHAR(4) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
 					 ,wt TINYINT ,refc BIGINT
@@ -237,13 +238,13 @@ BEGIN
 			,b.livehomescore
 			,b.liveawayscore
 			,b.liveindicator
-			,@MatchId
+			,b.matchid
 			,b.statusID
 			,b.SubstatusID
 			,b.Subbettype
 			,b.SiteDBGroupID
 	FROM #tmpTransInfo b
-	WHERE	b.matchid = @MatchId AND b.IsMixParlay = 0
+	WHERE	b.IsMixParlay = 0
 			AND b.transdate >= @KickOffTime
 			AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
@@ -281,13 +282,13 @@ BEGIN
 				,b.Subliveawayscore
 				,b.IsMixParlay
 				,b.Subliveindicator
-				,@MatchId
+				,b.matchid
 				,b.statusID
 				,b.SubstatusID
 				,b.Subbettype
 				,SiteDBGroupID
 		FROM #tmpTransInfo b	
-		WHERE	b.matchid = @matchid AND b.IsMixParlay = 1 
+		WHERE	b.IsMixParlay = 1 
 		        AND b.Subtransdate >= @KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
@@ -302,17 +303,18 @@ BEGIN
 	IF @ActionId NOT IN (2)
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-		SELECT tmp.transid, r.RequestId, tmp.MainTransId, @MatchId
-		FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
+		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
+		FROM #TVSTicketBets t
 			CROSS APPLY (
-						SELECT rs.TransId, rs.TransId AS MainTransId
+						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.RequestId = r.RequestId AND rs.MatchId = @MatchId
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
 						UNION ALL
-						SELECT rp.TransId, rp.MainTransId
+						SELECT rp.TransId, rp.MainTransId, rp.RequestId
 						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-						WHERE rp.RequestId = r.RequestId AND rp.MatchId = @MatchId
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 				)tmp
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
 
 		IF @@ROWCOUNT <> 0

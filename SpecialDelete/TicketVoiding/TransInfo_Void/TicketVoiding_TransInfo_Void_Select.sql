@@ -18,6 +18,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
+		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -403,9 +404,13 @@ BEGIN
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType = 2
-			AND (sub.matchid = @MatchId OR @MatchId IS NULL)
 	END
-			
+	
+	UPDATE d
+	SET d.matchid = m.ParentID
+	FROM #TransInfo d
+		INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'

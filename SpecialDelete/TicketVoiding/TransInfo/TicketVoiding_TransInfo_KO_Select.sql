@@ -14,6 +14,7 @@ AS
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		
 	Param's explanation:	
 		- @KickOffInfo: <root><r MatchId="" KickOffTime=""/></root>
@@ -96,6 +97,15 @@ BEGIN
 			,@KickOffTime = t.c.value('@KickOffTime','DATETIME')
 	FROM @KickOffXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@KickOffXML = NULL)) 
+
+	DECLARE @tmpMatchId TABLE (MatchId INT, ParentId INT, ChildMatchType INT, Sporttype INT)
+	INSERT INTO @tmpMatchId (MatchId, ParentId, ChildMatchType, Sporttype)
+	SELECT MatchId, ParentId, ChildMatchType, Sporttype
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+				    WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
+		
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -215,10 +225,8 @@ BEGIN
 		,b.modds 
 		,b.SiteDBGroupID
 	FROM dbo.bettrans b WITH (NOLOCK)
-	WHERE b.matchid = @MatchId
-		AND b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (805, 806, 9, 29)			
-		AND b.bettype NOT BETWEEN 901 AND 920
+		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
+	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.betfrom <> 'P'
 		AND b.transdate >= @KickOffTime
 		AND b.SiteDBGroupID = @SiteDBGroupID
@@ -227,8 +235,8 @@ BEGIN
 	IF EXISTS (
 					SELECT TOP(1) 1
 					FROM dbo.bettransm AS bm WITH (NOLOCK)
-					WHERE bm.matchid = @MatchId
-						AND bm.statusID NOT IN (101, 102, 103)
+						INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
+					WHERE bm.statusID NOT IN (101, 102, 103)
 						AND bm.betfrom <> 'P'
 					)
 	BEGIN		
@@ -350,14 +358,23 @@ BEGIN
 			,sub.SiteDBGroupID
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno	
-		WHERE sub.matchid = @MatchId
-			AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
+			INNER JOIN @tmpMatchId m ON sub.matchid = m.MatchId
+		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
 			AND sub.transdate >= @KickOffTime
 			AND b.transdate >= @KickOffTime
 			AND sub.SiteDBGroupID = @SiteDBGroupID
+	END
+
+	--Update Main MatchID for child match cricket (Sporttype = 50)
+	IF EXISTS(SELECT TOP 1 1 FROM @tmpMatchId WHERE Sporttype = 50)
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #TransInfo d
+			INNER JOIN @tmpMatchId m ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
 	END
 
 	--RETURN DATA
