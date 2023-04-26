@@ -4,8 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Select]
 	@TransInfo			  XML = NULL	
 )
 AS
-/*	Created by: Max
-	Date 20200212
+/*	Created by: 20200212@Max
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
 	DB: DBCTG/bodb02
 	
@@ -27,6 +26,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
 		- 20220831@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Param's explanation:	
 		@TransInfo: <root><r mid="0" t="1" btype ="" us="" crdate="" mt="" bid=""/></root>
@@ -86,7 +86,7 @@ BEGIN
 		,f.MarkType
 		,f.BetId
 
-	SELECT mt.MatchId
+	SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE mt.MatchId END AS MatchId
 		, m.kickofftime
 		, m.homeid
 		, m.awayid
@@ -101,6 +101,7 @@ BEGIN
 				ELSE 1 END AS IsConfirm
 		, mt.MarkType
 		, mt.betid
+		, CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN mt.MatchId ELSE NULL END AS ChildMatchId 
 	FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 		OUTER APPLY (

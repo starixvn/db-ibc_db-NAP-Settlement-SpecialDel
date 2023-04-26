@@ -7,13 +7,13 @@ CREATE PROCEDURE [dbo].[TicketVoiding_AutoUnmark_TransInfo_Select]
 	,@MarkedBy		INT				= 0
 )
 AS
-/*	Created by: July
-	Date 20220831
+/*	Created by: 20220831@July
 	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20220831@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Param's explanation:	
 	
@@ -51,7 +51,12 @@ BEGIN
 			INNER JOIN @Sporttypes s ON s.sporttype = m.sporttype
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 		WHERE ((@IsExcludeTest = 1 AND l.isTest = 0) OR @IsExcludeTest = 0)
-			AND ((@MatchId <> '' AND m.matchid = CAST(@MatchId AS INT)) OR @MatchId = '')
+			AND 1 = CASE WHEN @MatchId = '' THEN 1 
+						 ELSE 
+							CASE WHEN m.sporttype <> 50 AND m.matchid = CAST(@MatchId AS INT) THEN 1 
+								 WHEN m.sporttype = 50 AND (m.matchid = CAST(@MatchId AS INT) OR m.ParentID = CAST(@MatchId AS INT)) THEN 1
+								 ELSE 0 END
+						 END
 			AND ((mt.UserId = @MarkedBy) OR @MarkedBy = 0)
 			AND m.sporttype <= 99
 			AND 1 = CASE WHEN b.matchid <> 29 AND b.statusID IN (101,102) THEN 0 ELSE 1 END
