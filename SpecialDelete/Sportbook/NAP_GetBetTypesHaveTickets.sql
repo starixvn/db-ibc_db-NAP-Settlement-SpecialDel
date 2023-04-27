@@ -12,7 +12,7 @@ AS
         - 20191029@Charles: Badminton AIO - [120325]
         - 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-		- 20230420@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
     Param's Explanation:  
     @Mode:   

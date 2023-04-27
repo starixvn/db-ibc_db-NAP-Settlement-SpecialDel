@@ -3,8 +3,8 @@ ALTER PROCEDURE [dbo].[NAP_BetTypeSel]
     @Mode        SMALLINT = 0
     ,@MatchId    INT = 0 -- defaul value for NG, VS, LC, VS Betradar
     ,@BetTypes   VARCHAR(MAX) = NULL
-    ,@ErrMsg NVARCHAR(200) = '' OUTPUT
-    ,@ErrCode INT = 0 OUTPUT
+    ,@ErrMsg	 NVARCHAR(200) = '' OUTPUT
+    ,@ErrCode    INT = 0 OUTPUT
 AS
 /*  
     Created: 20130610@Elodie  
@@ -42,7 +42,7 @@ AS
 		- 20210331@July: Check logic mark ticket for cricket [Redmine: #150522]
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-		- 20230420@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
     Param's Explanation:  
     @Mode:   
