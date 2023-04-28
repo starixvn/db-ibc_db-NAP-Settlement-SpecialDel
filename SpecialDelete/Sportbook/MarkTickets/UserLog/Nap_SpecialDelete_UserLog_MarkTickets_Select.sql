@@ -7,8 +7,7 @@ ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_MarkTickets_Select
 	,@DoneBy VARCHAR(30) = NULL
 AS
 /*
-	Create By: Raymond.Le
-	Created Date: 20190606
+	Create By: 20190606@Raymond.Le
 	Task: Implement view User Log of Mark tickets function - [Redmine: 114596]
 	DB: DBLOG/bodb_CustomerLog
 	
@@ -20,6 +19,7 @@ AS
 		- 20200914@Zane: Return logdata [Redmine: #141235]
 		- 20210923@Zane: Change data type of filter time [Redmine: #160209]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Param's explanation:
 */
@@ -33,11 +33,20 @@ BEGIN
 	FROM STRING_SPLIT(@LogActionIds, ',')
 	WHERE value <> ''
 
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM bodb02.dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN sporttype <> 50 AND MatchId = @MatchId THEN 1
+					WHEN sporttype = 50 AND (MatchId = @MatchId OR ParentID = @MatchId) THEN 1 -- Get main/child matchid
+						ELSE 0 END
+
 	CREATE TABLE #LogResult (
 		SessionId 	INT,
 		CreatedDate DATETIME,
 		LogActionId INT,
 		MatchId 	INT,
+		ChildMatchId INT,
 		homeid		INT,
 		awayid		INT,
 		LogData		VARCHAR(MAX),
@@ -53,6 +62,7 @@ BEGIN
 			,CreatedDate
 			,LogActionId
 			,MatchId
+			,ChildMatchId
 			,homeid
 			,awayid
 			,LogData
@@ -63,7 +73,8 @@ BEGIN
 	SELECT l.SessionId
 			,l.CreatedDate
 			,l.LogActionId
-			,l.MatchId
+			,CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE l.MatchId END MatchId
+			,CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.MatchId ELSE NULL END ChildMatchId
 			,m.homeid
 			,m.awayid
 			,l.LogData
@@ -77,14 +88,16 @@ BEGIN
 			LEFT JOIN bodb02.dbo.ResultDetail AS rdHT WITH (NOLOCK) ON rdHT.MatchId = m.matchid AND rdHT.ResourceID = '01'
 			LEFT JOIN bodb02.dbo.ResultDetail AS rdFT WITH (NOLOCK) ON rdFT.MatchId = m.matchid AND rdFT.ResourceID = '00'
 		WHERE l.CreatedDate BETWEEN @LogDateFrom AND @LogDateTo
-			AND (@MatchId IS NULL OR l.MatchId = @MatchId)
+			AND (@MatchId IS NULL OR l.MatchId IN (SELECT MatchId FROM @tmpMatchId))
 			AND EXISTS (SELECT TOP 1 1 FROM #LogActionId AS lid WHERE lid.Id = l.LogActionId)
 			AND (@DoneBy IS NULL OR c.username like '%' + @DoneBy +'%')
 	ORDER BY l.CreatedDate DESC
 
 	-- Check and update information of match if it was moved to match14
 	UPDATE lr
-	SET lr.homeid = m.homeid,
+	SET lr.MatchId = CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE lr.MatchId END,
+	    lr.ChildMatchId = CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.MatchId ELSE NULL END,
+		lr.homeid = m.homeid,
 		lr.awayid = m.awayid,
 		lr.kickofftime = m.kickofftime,
 		lr.HTScore = ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-'),
@@ -100,6 +113,7 @@ BEGIN
 			CreatedDate,
 			LogActionId,
 			MatchId,
+			ChildMatchId,
 			homeid,
 			awayid,
 			LogData,
