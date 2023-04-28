@@ -19,6 +19,7 @@ AS
 		- 20220221@July: Add column LeagueGroupID detect China View Licensee [Redmine: #168651]
 		- 20230112@July: [TVS] Add more send Letstalk info when an abnormal request added [Redmine: #182392]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
+		- 20230427@July: Invalid matchid when input child match Cricket [Redmine: #187052]
 
 	Param's explanation:	
 		- @Type: 0 - Normal (get match from match table)
@@ -89,6 +90,8 @@ BEGIN
 					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
 				)mr
 			WHERE	m.matchid = @matchID
+				AND 1 = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+							 ELSE 1 END 
 			UNION ALL
 			SELECT	m14.matchid
 					,m14.homeid
@@ -108,7 +111,9 @@ BEGIN
 				OUTER APPLY (
 					SELECT RIGHT(mr.SubType, 2) AS NumberOfCorner					FROM match_remark mr WITH (NOLOCK)					WHERE mr.matchid = m14.matchid						AND mr.MainType = 1						AND mr.SubType LIKE '21__'
 				)mr
-			WHERE	m14.matchid = @matchID		
+			WHERE	m14.matchid = @matchID	
+				AND 1 = CASE WHEN m14.sporttype = 50 AND m14.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+							 ELSE 1 END 
 		END
 		ELSE IF @Type = 1
 		BEGIN

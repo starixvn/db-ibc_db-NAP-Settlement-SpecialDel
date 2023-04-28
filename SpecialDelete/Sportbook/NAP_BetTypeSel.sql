@@ -80,7 +80,7 @@ BEGIN
         IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype NOT IN (154,175) --Horse Racing Fixed Odds, Bitcoin
         BEGIN 
             SET @ErrCode = 100
-            SET @ErrMsg ='Invalid MatchID.' 
+            SET @ErrMsg ='Invalid MatchId.' 
             RETURN
         END 
     END

@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20210827@Max: Create SP - [Redmine: #159540]
 		- 20220221@July: Remove SABA of league name for China View sites [Redmine: #168651]
+		- 20230427@July: Invalid matchid when input child match Cricket [Redmine: #187052]
 
 	Param's explanation:	
 	
@@ -51,6 +52,8 @@ BEGIN
 	FROM	dbo.match AS m WITH (NOLOCK) 
 		INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
 	WHERE	m.matchid = @matchID
+		 AND 1 = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+							 ELSE 1 END 
 
 	IF NOT EXISTS (SELECT TOP(1) 1 FROM @tmpMatch_info)
 	BEGIN
