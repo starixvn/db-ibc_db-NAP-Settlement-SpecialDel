@@ -306,7 +306,7 @@ BEGIN
 			ELSE IF CHARINDEX('hedge', @matchcode) > 0 -- does not allow doing Inst.C for hedge match
 				SELECT	@ErrCode = 1001004
 						,@ErrMsg   = 'The selected match is a hedge match. Therefore, it cannot be instantly calculated.'
-			ELSE IF(@Mode = 'INST-FT' AND @isCalculatedHT = 0)
+			ELSE IF(@Action = 'CAL-INST-FT' AND @isCalculatedHT = 0)
 				SELECT	@ErrCode = 1001003
 						,@ErrMsg   = 'Cannot execute FT instant calculation due to HT process (auto/manual) has not done yet.'				
 			ELSE IF EXISTS (SELECT TOP 1 1

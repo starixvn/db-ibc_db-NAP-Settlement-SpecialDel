@@ -4,7 +4,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation_Push
     , @MatchId			INT
     , @HomeScore		VARCHAR(50)
     , @AwayScore		VARCHAR(50)
-    , @Action			VARCHAR(10)
+    , @Action			VARCHAR(20)
     , @ResourceResult	VARCHAR(MAX)	= NULL
     , @IP				VARCHAR(15)     = ''
     , @IsAutoInst		BIT				= 0

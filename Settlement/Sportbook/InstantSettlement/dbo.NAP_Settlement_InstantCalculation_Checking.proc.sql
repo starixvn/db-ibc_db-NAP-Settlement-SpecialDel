@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Settlement_InstantCalculation_Checking]
 	@MatchId			INT
-	,@Action			VARCHAR(10) 
+	,@Action			VARCHAR(20) 
 	,@HomeScore			VARCHAR(50)		= ''
 	,@AwayScore			VARCHAR(50)		= ''
 	,@ResourceResult	VARCHAR(MAX)	= NULL

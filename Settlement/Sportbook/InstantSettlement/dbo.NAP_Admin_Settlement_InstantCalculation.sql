@@ -2,7 +2,7 @@
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation
 	@AdminId 			INT
 	,@MatchId			INT
-	,@Action			VARCHAR(10)		
+	,@Action			VARCHAR(20)		
 	,@HomeScore			VARCHAR(50)
 	,@AwayScore			VARCHAR(50)
 	,@ResourceResult	VARCHAR(MAX)	= NULL

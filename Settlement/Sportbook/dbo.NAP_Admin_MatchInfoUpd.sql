@@ -246,8 +246,8 @@ BEGIN
 	IF @Action LIKE '%INST%' AND  @ResourceResult IS NOT NULL	
 	BEGIN
 		SET @instcommand = CASE 
-								WHEN @Action = 'CAL' THEN 'CalByResourceId'
-								WHEN @Action = 'UNDO' THEN 'UndoByResouceId'
+								WHEN @Action LIKE 'CAL%' THEN 'CalByResourceId'
+								WHEN @Action LIKE 'UNDO%' THEN 'UndoByResouceId'
 								ELSE ''
 							END
 

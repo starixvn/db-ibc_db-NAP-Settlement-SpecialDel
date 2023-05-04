@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking] 
 	  @MatchId 				INT = NULL
 	, @MatchIds 			VARCHAR(4000) = NULL OUTPUT
-	, @Action 				VARCHAR(10) = 'CAL'
+	, @Action 				VARCHAR(20) = 'CAL'
 	, @Mode 				VARCHAR(20) = 'CAL'
 	, @xmlData				VARCHAR(MAX) = NULL
 	, @IsAuto				BIT = 0

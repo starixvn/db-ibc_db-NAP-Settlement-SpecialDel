@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile_Instant]
 	@matchid INT
 	,@hth INT = 0
 	,@hta INT = 0
-    ,@action VARCHAR(6) = 'CAL-HT'
+    ,@action VARCHAR(20) = 'CAL-HT'
 	,@ActionID	INT = 0
 	,@creator INT = 0
 	,@SessionId	BIGINT = NULL
