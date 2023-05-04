@@ -210,8 +210,8 @@ BEGIN
 			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno)
-				SELECT	bm.transid, m.modds, bm.refno
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
+				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
@@ -295,6 +295,7 @@ BEGIN
 				FROM	@tmpSelectedRID t
 				WHERE	t.BetType = bm.bettype
 						AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+						AND t.DeterminedType = 0
 			)sr
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
 				ON	b.matchid = 29
@@ -315,6 +316,43 @@ BEGIN
 						END
 
 		SET @totalSubParlay = @@ROWCOUNT
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
+		BEGIN
+			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
+			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked 
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+				CROSS APPLY (
+					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
+					FROM	@tmpSelectedRID t
+					WHERE	t.BetType = bm.bettype
+							AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+							AND t.DeterminedType & @DeterminedType > 0
+				)sr
+				OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @fth, @fta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
+				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	b.matchid = 29
+						AND b.bettype = 29
+						AND b.refno = bm.refno
+				OUTER APPLY (
+						SELECT TOP (1) mt.TransId
+						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						WHERE	mt.TransId = b.transId
+								AND mt.MatchId = @MatchID
+				) mt
+			WHERE	bm.matchid = @MatchID
+					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+					AND bm.statusId IN (112, 113)
+					AND (m.modds IS NULL 
+						OR bm.statusId <> CASE
+											WHEN m.modds >= 0.5 THEN 112
+											WHEN m.modds <= -0.5 THEN 113
+											ELSE NULL
+										END 
+						)
+
+			SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
+		END
 	END 
 	ELSE IF @action LIKE 'REFUND%' 
 	BEGIN

@@ -128,26 +128,21 @@ BEGIN
 		END
 	END
 	
-	IF @ErrCode = 0
-	BEGIN
-		SELECT 	@FirstGoalValue = HomeValue
-		FROM	dbo.ResultDetail WITH (NOLOCK)
-		WHERE	matchid = @MatchId
-				AND	1 = CASE 
-							WHEN @IsHT = 1 AND ResourceId = '127F' THEN 1
-							WHEN @IsHT = 1 AND ResourceId = '14F' THEN 1
-							WHEN @IsHT = 0 AND ResourceId = '14F' THEN 1
-							ELSE 0
-						END
-	END
-			
 	SELECT @homeScore 	AS HomeScore
 		,@awayScore 	AS AwayScore
 		,@goalRecord 	AS GoalRecord
 		,@IsHT  		AS IsHT
 		,@InstantKey	AS InstantKey
-		,ISNULL(@FirstGoalValue,'') AS FirstGoalValue
 		,@betstatus		AS betstatus
-	RETURN
+
+	SELECT	ResourceId, HomeValue, AwayValue
+	FROM	dbo.ResultDetail WITH (NOLOCK)
+	WHERE	matchid = @MatchId
+			AND	1 = CASE 
+						WHEN @IsHT = 1 AND (ResourceId IN ('127F', '14F', '488', '489') OR ResourceId LIKE '486%' OR ResourceId LIKE '487%') THEN 1
+						WHEN @IsHT = 0 AND (ResourceId IN ('14F', '488', '490') OR  ResourceId LIKE '486%') THEN 1
+						ELSE 0
+					END
+
 END
 GO

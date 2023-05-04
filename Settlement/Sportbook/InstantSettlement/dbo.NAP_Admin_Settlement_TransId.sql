@@ -27,7 +27,7 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-
+	
 	DECLARE @IsCentral	BIT
 			,@MinRowId INT
 			,@MaxRowId INT
@@ -92,7 +92,7 @@ BEGIN
 		@IsCentral = @IsCentral OUTPUT
 
 	BEGIN TRY
-		IF @Action LIKE 'CALINST%'
+		IF @Action LIKE 'CAL-INST%'
 		BEGIN
 			INSERT INTO #tmpFinalResult (transid, filter, modds, IsMarked, oddstype)
 			SELECT	b.transid
@@ -132,14 +132,12 @@ BEGIN
 						 )	
 					AND m.modds IS NOT NULL
 		END
-		ELSE IF @Action LIKE 'UNDOINST%'
+		ELSE IF @Action LIKE 'UNDO-INST%'
 		BEGIN
-			INSERT INTO #tmpFinalResult (transid, filter, modds, IsMarked, oddstype)
+			INSERT INTO #tmpFinalResult (transid, filter, IsMarked)
 			SELECT	b.transid
 					,1 AS filterBy					
-					,m.modds	
-					,0 AS IsMarked
-					,s.oddstype			
+					,0 AS IsMarked	
 			FROM	dbo.bettrans b WITH(NOLOCK)
 				INNER JOIN dbo.SettlementBettypeResult s WITH(NOLOCK)
 					ON	b.bettype = s.BetType

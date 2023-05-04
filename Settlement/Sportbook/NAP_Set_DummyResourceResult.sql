@@ -27,7 +27,8 @@ AS
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220629@Louisa: Volleyball AIO ( 27 bettype ) [Redmineid:#173862]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
-*/
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+*/	
 
 BEGIN
 	SET NOCOUNT ON
@@ -1425,9 +1426,8 @@ BEGIN
 			END
 			
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('486', '487'))
-			BEGIN
-	
-				IF EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail WHERE ResourceId LIKE '48[6-7]%' AND isWeb = 1)
+			BEGIN	
+				IF @xmlWebResourceResult IS NOT NULL
 				BEGIN
 					;WITH cteRaceTo
 					AS(
@@ -1437,13 +1437,12 @@ BEGIN
 								,t.ssId
 						FROM	@tmpResultDetail t
 						WHERE	t.ResourceId LIKE '48[6-7]%'	
-								 AND isWeb = 1
 					)
 					,cteResult
 					AS (
 						SELECT	DummyResourceId
 								,STRING_AGG(CAST(CAST(RaceTo AS VARCHAR(10)) + TeamResult AS VARCHAR(MAX)), ';') AS TeamRaceTo
-								,MAX(RaceTo) + 1 AS NeitherRaceTo
+								,MAX(CASE WHEN ssId = 4 THEN RaceTo + 1 ELSE 0 END) AS NeitherRaceTo
 								,MAX(ssId) AS ssId
 						FROM	cteRaceTo
 						GROUP BY DummyResourceId
@@ -1512,13 +1511,13 @@ BEGIN
 		
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '488')
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-				SELECT	ResourceId, HomeValue, ssId
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = '488'
-						AND isWeb = 1
-				
-				IF @@ROWCOUNT = 0
+				IF @xmlWebResourceResult IS NOT NULL
+					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+					SELECT	ResourceId, HomeValue, ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '488'
+							AND IsWeb = 1
+				ELSE
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 					SELECT	'488'
 							,LEFT(REPLACE(@FTGoalRecord,';',''),1) 
@@ -1529,13 +1528,13 @@ BEGIN
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '489')
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-				SELECT	ResourceId, HomeValue, ssId
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = '489'
-						AND isWeb = 1
-
-				IF @@ROWCOUNT = 0
+				IF @xmlWebResourceResult IS NOT NULL
+					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+					SELECT	ResourceId, HomeValue, ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '489'
+							AND IsWeb = 1							
+				ELSE
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 					SELECT	'489'
 							,LEFT(REPLACE(@HTGoalRecord,';',''),1) 
@@ -1546,13 +1545,13 @@ BEGIN
 
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '490')
 			BEGIN
-				INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-				SELECT	ResourceId, HomeValue, ssId
-				FROM	@tmpResultDetail
-				WHERE	ResourceId = '490'
-						AND isWeb = 1
-
-				IF @@ROWCOUNT = 0
+				IF @xmlWebResourceResult IS NOT NULL
+					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+					SELECT	ResourceId, HomeValue, ssId
+					FROM	@tmpResultDetail
+					WHERE	ResourceId = '490'
+							AND IsWeb = 1
+				ELSE
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 					SELECT	'490'
 							,CASE 

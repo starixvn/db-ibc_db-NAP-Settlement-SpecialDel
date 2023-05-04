@@ -88,12 +88,13 @@ BEGIN
 								ELSE 0
 							END
 		,@ActionId = CASE 
+						WHEN @Action LIKE 'UNDO%' THEN 182
 						WHEN @CalculationType = 101 AND @IsAutoInst = 0 THEN 178
 						WHEN @CalculationType = 102 AND @IsAutoInst = 0 THEN 179
 						WHEN @CalculationType = 101 AND @IsAutoInst = 1 THEN 195
 						WHEN @CalculationType = 102 AND @IsAutoInst = 1 THEN 196									  
 					END
-						
+		,@StartTime = GETDATE()				
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
@@ -160,22 +161,46 @@ BEGIN
 		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
 		WHERE	s.SportType = @sporttype
 				AND ISNULL(s.DeterminedType,0) & @DeterminedType > 0
-	
-		;WITH cteAffectedBettypes
-		AS (
-			SELECT	b.Bettype
-			FROM	dbo.bettrans b WITH(NOLOCK)
-			WHERE	b.matchid = @matchid
-					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-					AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
-					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
-					 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
-					 )
-			GROUP BY b.custid, b.bettype
-		)
-		INSERT INTO @tmpAffectedBettypes(BetType)
-		SELECT	bettype
-		FROM	cteAffectedBettypes
+		
+		IF @Action LIKE 'CAL%'
+		BEGIN
+			;WITH cteAffectedBettypes
+			AS (
+				SELECT	b.Bettype
+				FROM	dbo.bettrans b WITH(NOLOCK)
+				WHERE	b.matchid = @matchid
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
+							AND b.recommend <> 1688156) --exclude betdaq/betfair
+						AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
+						AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
+						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
+						 )
+				GROUP BY b.custid, b.bettype
+			)
+			INSERT INTO @tmpAffectedBettypes(BetType)
+			SELECT	bettype
+			FROM	cteAffectedBettypes
+		END 
+		ELSE IF @Action LIKE 'UNDO%'
+		BEGIN
+			;WITH cteAffectedBettypes
+			AS (
+				SELECT	b.Bettype
+				FROM	dbo.bettrans b WITH(NOLOCK)
+				WHERE	b.matchid = @matchid
+						AND ISNULL(b.betdaqid,0) <> -2
+						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+						AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
+						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
+							AND b.recommend <> 1688156) --exclude betdaq/betfair
+						AND b.statusId IN (112, 113)
+				GROUP BY b.custid, b.bettype
+			)
+			INSERT INTO @tmpAffectedBettypes(BetType)
+			SELECT	bettype
+			FROM	cteAffectedBettypes
+		END
 			
 		-- Generate result
 		BEGIN		
@@ -278,7 +303,7 @@ BEGIN
 			,@ErrCode = @ErrCode OUTPUT
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@AffectedTicket = @TicketCount OUTPUT
-
+		
 		--UPDATE back to AutoPayoutResult
 		IF @IsCentral = 1 AND @Action LIKE 'CAL%'
 			EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd 
@@ -287,18 +312,33 @@ BEGIN
 				,@StatusId = 2
 				,@IsIncludedUpdateMatch = 1
 				,@SourceID = @SourceID
-	
-		INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket, DeterminedType)
-		SELECT 	bm.bettype, COUNT(1) AS totalticket, @DeterminedType AS DeterminedType
-		FROM	dbo.bettransm bm WITH(NOLOCK)
-		WHERE	bm.matchid = @MatchId		
-				AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-				--AND (bm.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND bm.recommend <> 1688156) --exclude betdaq/betfair
-				AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
-					 OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
-					 )	
-				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = bm.bettype)
-		GROUP BY bm.bettype
+		
+		IF @Action LIKE 'CAL%'
+		BEGIN
+			INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket, DeterminedType)
+			SELECT 	bm.bettype, COUNT(1) AS totalticket, @DeterminedType AS DeterminedType
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+			WHERE	bm.matchid = @MatchId		
+					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+					--AND (bm.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND bm.recommend <> 1688156) --exclude betdaq/betfair
+					AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
+						 OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
+						 )	
+					AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = bm.bettype)
+			GROUP BY bm.bettype
+		END
+		ELSE IF @Action LIKE 'UNDO%'
+		BEGIN
+			INSERT INTO @tmpParlayAffectedBettypes(bettype, totalticket, DeterminedType)
+			SELECT 	bm.bettype, COUNT(1) AS totalticket, @DeterminedType AS DeterminedType
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+			WHERE	bm.matchid = @MatchId		
+					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+					--AND (bm.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND bm.recommend <> 1688156) --exclude betdaq/betfair
+					AND bm.statusId IN (112, 113)
+					AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = bm.bettype)
+			GROUP BY bm.bettype
+		END
 
 		SELECT	@TotalSubParlay = SUM(totalticket)
 		FROM	@tmpParlayAffectedBettypes
@@ -373,7 +413,7 @@ BEGIN
 														,DeterminedType AS '@DeterminedType'
 												FROM	cteSelectedRID
 												FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
-			
+		
 			EXEC dbo.NAP_Set_GlobalSettingSel 
 				@LockName = 'ParlayRefno'
 				,@ThreadHold = @ThresholdRefno OUTPUT

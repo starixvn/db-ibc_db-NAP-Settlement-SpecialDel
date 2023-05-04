@@ -35,7 +35,7 @@ BEGIN
 			,@sporttype 	INT
 			,@leagueid 		INT
 			,@procName 		NVARCHAR(128)
-			,@sqlCommand 	NVARCHAR(1000)
+			,@sqlCommand 	NVARCHAR(MAX)
 			,@KeyId			INT
 	
 	SELECT	@sporttype 	= m.sporttype
