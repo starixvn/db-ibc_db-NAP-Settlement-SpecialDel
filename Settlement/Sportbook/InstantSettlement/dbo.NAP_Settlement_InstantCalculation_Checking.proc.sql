@@ -110,6 +110,10 @@ BEGIN
 					,@HomeScore HomeValue
 					,@AwayScore AwayValue
 			UNION ALL
+			SELECT	CAST('00' AS VARCHAR(20)) AS ResourceID
+					,@HomeScore HomeValue
+					,@AwayScore AwayValue
+			UNION ALL
 			SELECT  ResourceId, HomeValue, AwayValue
 			FROM	cteGoalResource
 			WHERE   ResourceID IS NOT NULL
@@ -183,7 +187,6 @@ BEGIN
 											AND b.recommend <> 1688156) --exclude betdaq/betfair
 									AND b.statusId IN (112, 113)
 									AND ISNULL(b.betdaqid,0) <> -2
-									AND m.modds IS NOT NULL
 									AND b.statusId <>  CASE 
 															WHEN m.modds >= 0.5 THEN 112
 															WHEN m.modds <= -0.5 THEN 113
@@ -208,7 +211,6 @@ BEGIN
 									--AND (bm.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
 									--		AND bm.recommend <> 1688156) --exclude betdaq/betfair
 									AND bm.statusId IN (112, 113)									
-									AND m.modds IS NOT NULL
 									AND bm.statusId <>  CASE 
 															WHEN m.modds >= 0.5 THEN 112
 															WHEN m.modds <= -0.5 THEN 113
