@@ -8,6 +8,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation_Push
     , @ResourceResult	VARCHAR(MAX)	= NULL
     , @IP				VARCHAR(15)     = ''
     , @IsAutoInst		BIT				= 0
+	, @GoalRecord		VARCHAR(50)     = NULL
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -58,6 +59,8 @@ BEGIN
 											    END 
 						  + ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 						  + ', @IsAutoInst = ''' + CONVERT(NVARCHAR(50), @IsAutoInst) + '''' 
+						  + ', @GoalRecord = ' + CASE WHEN @GoalRecord IS NULL THEN 'NULL'
+                                                                ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END
 						  + ', @ErrCode = @ErrCode OUTPUT' 
 						  + ', @ErrMsg = @ErrMsg OUTPUT'
 

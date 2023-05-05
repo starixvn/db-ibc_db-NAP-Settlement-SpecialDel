@@ -9,6 +9,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation
 	,@IP				VARCHAR(15)
 	,@IsAutoInst		BIT 			= 0
 	,@KeyId				INT				= 0
+	,@GoalRecord		VARCHAR(50)     = NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	
@@ -474,6 +475,7 @@ BEGIN
 					,@IP AS '@IP'
 					,@TicketCount AS '@TicketCount'
 					,@starttime AS '@Starttime'
+					,@GoalRecord AS '@goalrecord'
 					,@ErrMsg AS '@ErrMsg'
 			FOR XML PATH('r'), ROOT('root'), TYPE)
 
