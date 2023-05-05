@@ -45,7 +45,7 @@ BEGIN
 			,@IsCentral				BIT = 0
 			,@sporttype				SMALLINT
 			,@DeterminedType		TINYINT
-			,@DummyResourceIds		VARCHAR(MAX) 
+			,@DummyResourceIds		VARCHAR(MAX) = ''
 			,@DummyResourceResults	VARCHAR(MAX)
 			,@xmlResourceResult		XML
 			,@handle				INT
@@ -107,10 +107,6 @@ BEGIN
 						WHEN @DeterminedType = 1 THEN CAST('01' AS VARCHAR(20))
 						ELSE CAST('00' AS VARCHAR(20))
 					END AS ResourceID
-					,@HomeScore HomeValue
-					,@AwayScore AwayValue
-			UNION ALL
-			SELECT	CAST('00' AS VARCHAR(20)) AS ResourceID
 					,@HomeScore HomeValue
 					,@AwayScore AwayValue
 			UNION ALL
