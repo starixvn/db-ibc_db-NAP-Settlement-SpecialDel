@@ -443,6 +443,10 @@ BEGIN
 					,@MatchID			= @MatchId
 					,@Action		  	= @Action
 					,@SelectedResources = @SelectedResourceParlay
+					,@hth				= @hth
+					,@hta				= @hta
+					,@fth				= @fth
+					,@fta				= @fta
 					,@IsReSettledTickets = 0
 					,@LockedByRefno		= 1 -- always lock refno for testing
 					,@IsCentral			= @IsCentral
