@@ -42,7 +42,7 @@ BEGIN
 		,@CalculationType	TINYINT
 		,@handle			INT
 		,@SettlementProcessingId BIGINT
-		,@SPName			NVARCHAR(128)
+		,@SPName			SYSNAME	= OBJECT_NAME(@@procid)
 		,@LogData			XML
 		,@CommandMonitor	NVARCHAR(MAX)
 		,@SSBStatus			TINYINT
