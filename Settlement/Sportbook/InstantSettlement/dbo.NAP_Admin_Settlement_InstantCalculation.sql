@@ -364,6 +364,7 @@ BEGIN
 					,@sportType = @sportType
 					,@IsDetermined = 1
 					,@action = @action
+					,@WebResourceResult = @ResourceResult
 					,@DummyResourceIds = @DummyResourceIds
 					,@DummyResourceResults = @DummyResourceResults OUTPUT
 
