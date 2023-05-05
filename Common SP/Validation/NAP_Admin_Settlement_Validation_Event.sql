@@ -143,7 +143,7 @@ BEGIN
 					WHEN @Action LIKE 'CAL%'  OR @Action LIKE 'REFUND%'
 						THEN CASE 
 								WHEN @Mode = 'MP' THEN 0
-								WHEN @Mode LIKE 'INST%' AND @IsAuto = 1 THEN 0
+								WHEN @Action LIKE '%INST%' AND @IsAuto = 1 THEN 0
 								ELSE 1 
 							END
 					ELSE 0 
