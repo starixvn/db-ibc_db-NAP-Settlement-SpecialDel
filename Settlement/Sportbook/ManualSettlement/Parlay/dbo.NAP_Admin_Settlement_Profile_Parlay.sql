@@ -242,8 +242,8 @@ BEGIN
 						)
 						and 1 = case 
 								when sr.SDTpfId = 3 then case when (@hth + @hta) - 0.25 > bm.hdp1 then 1 else 0 end
-								when sr.SDTpfId = 388 then case when @hta - 0.25 > bm.hdp1 then 1 else 0 end
-								when sr.SDTpfId = 389 then case when @hth - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 388 then case when @fta - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 389 then case when @fth - 0.25 > bm.hdp1 then 1 else 0 end
 								else 1
 							end
 
