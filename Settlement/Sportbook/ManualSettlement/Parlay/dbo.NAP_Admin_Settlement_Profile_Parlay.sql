@@ -235,7 +235,6 @@ BEGIN
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 						--AND bm.statusID IN (0,102)
 						AND m.modds IS NOT NULL
-						AND mt.TransId IS NULL
 						AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
 							OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 							OR bm.statusID = 102
