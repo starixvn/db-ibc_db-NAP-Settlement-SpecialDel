@@ -9,40 +9,40 @@ USE bodb02
 GO
 
 DECLARE @tmpRequestId TABLE (RequestId INT PRIMARY KEY)
-CREATE TABLE #tmpRequestInfo_Ticket ( RequestId INT, TransId BIGINT, MatchId INT, IsMixParlay BIT)
-CREATE TABLE #tmpRequestInfo ( RequestId INT, LiveIndicator BIT)
+CREATE TABLE #tmpRequestInfo_Ticket ( RequestId INT, TransId BIGINT, MatchId INT, IsMixParlay BIT, RequestDetailId INT)
+CREATE TABLE #tmpRequestInfo ( RequestId INT, LiveIndicator BIT, RequestDetailId INT)
 
 INSERT INTO @tmpRequestId (RequestId)
 SELECT RequestId
 FROM dbo.TicketVoiding_Request WITH(NOLOCK)
-WHERE IssueTypeId IN (6,7)
+WHERE IssueTypeId IN (6,7) 
 
-INSERT INTO #tmpRequestInfo_Ticket (RequestId, TransId, MatchId, IsMixParlay)
-SELECT r.RequestId, t.TransId, t.matchId, t.IsMixParlay
+INSERT INTO #tmpRequestInfo_Ticket (RequestId, TransId, MatchId, IsMixParlay, RequestDetailId)
+SELECT r.RequestId, t.TransId, t.matchId, t.IsMixParlay, RequestDetailId
 FROM @tmpRequestId r
 	CROSS APPLY (
-				SELECT s.RequestId, s.TransId, s.MatchId, 0 AS IsMixParlay
+				SELECT s.RequestId, s.TransId, s.MatchId, 0 AS IsMixParlay, RequestDetailId
 				FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK)
 				WHERE r.RequestId = s.RequestId
 				UNION ALL
-				SELECT p.RequestId, p.TransId, p.MatchId, 1 AS IsMixParlay
+				SELECT p.RequestId, p.TransId, p.MatchId, 1 AS IsMixParlay, RequestDetailId
 				FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay p WITH(NOLOCK)
 				WHERE r.RequestId = p.RequestId
 		)t
 
 ---Range bettrans/bettransm		
-INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator )
-SELECT DISTINCT s.RequestId, b.liveindicator
+INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator, RequestDetailId )
+SELECT DISTINCT s.RequestId, b.liveindicator, s.RequestDetailId
 FROM #tmpRequestInfo_Ticket s
 	INNER JOIN dbo.bettrans b WITH(NOLOCK) on s.TransId = b.transid AND s.MatchId = b.matchid
 WHERE s.IsMixParlay = 0
 
-INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator)
-SELECT DISTINCT s.RequestId, b.liveindicator
+INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator, RequestDetailId)
+SELECT DISTINCT s.RequestId, b.liveindicator, s.RequestDetailId
 FROM #tmpRequestInfo_Ticket s
 	INNER JOIN dbo.bettransm b WITH(NOLOCK) on s.TransId = b.transid AND s.MatchId = b.matchid
 WHERE s.IsMixParlay = 1
-AND NOT EXISTS ( SELECT TOP 1 1 FROM #tmpRequestInfo tmp WHERE s.RequestId = tmp.RequestId AND b.liveindicator = tmp.LiveIndicator)
+AND NOT EXISTS ( SELECT TOP 1 1 FROM #tmpRequestInfo tmp WHERE s.RequestId = tmp.RequestId AND b.liveindicator = tmp.LiveIndicator AND s.RequestDetailId = tmp.RequestDetailId)
 
 ---Range bettrans14/bettransm14
 IF EXISTS ( SELECT TOP 1 1 FROM @tmpRequestId r 
@@ -50,19 +50,19 @@ IF EXISTS ( SELECT TOP 1 1 FROM @tmpRequestId r
 				WHERE tmp.RequestId IS NULL
 		 )
 BEGIN
-	INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator )
-	SELECT DISTINCT s.RequestId, b.liveindicator
+	INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator, RequestDetailId )
+	SELECT DISTINCT s.RequestId, b.liveindicator, s.RequestDetailId
 	FROM #tmpRequestInfo_Ticket s
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK) on s.TransId = b.transid AND s.MatchId = b.matchid
 	WHERE s.IsMixParlay = 0
-	AND NOT EXISTS ( SELECT TOP 1 1 FROM #tmpRequestInfo tmp WHERE s.RequestId = tmp.RequestId AND b.liveindicator = tmp.LiveIndicator)
+	AND NOT EXISTS ( SELECT TOP 1 1 FROM #tmpRequestInfo tmp WHERE s.RequestId = tmp.RequestId AND b.liveindicator = tmp.LiveIndicator AND s.RequestDetailId = tmp.RequestDetailId)
 
-	INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator)
-	SELECT DISTINCT s.RequestId, b.liveindicator
+	INSERT INTO #tmpRequestInfo (RequestId, LiveIndicator, RequestDetailId)
+	SELECT DISTINCT s.RequestId, b.liveindicator, s.RequestDetailId
 	FROM #tmpRequestInfo_Ticket s
 		INNER JOIN dbo.bettransm14 b WITH(NOLOCK) on s.TransId = b.transid AND s.MatchId = b.matchid
 	WHERE s.IsMixParlay = 1
-	AND NOT EXISTS ( SELECT TOP 1 1 FROM #tmpRequestInfo tmp WHERE s.RequestId = tmp.RequestId AND b.liveindicator = tmp.LiveIndicator)
+	AND NOT EXISTS ( SELECT TOP 1 1 FROM #tmpRequestInfo tmp WHERE s.RequestId = tmp.RequestId AND b.liveindicator = tmp.LiveIndicator AND s.RequestDetailId = tmp.RequestDetailId)
 END
 
 UPDATE rd WITH (ROWLOCK,UPDLOCK)
@@ -71,9 +71,10 @@ SET rd.IssueDetail = rd.IssueDetail + ';LiveGameEarlySingleCount:' +  CAST(rd.Si
 					   WHEN rd.TransIds LIKE '%IsMainMatch="false"%' THEN SUBSTRING(rd.TransIds,0, LEN(rd.TransIds) - 1) +'LiveIndicator ="' + CAST(tmp.LiveIndicator AS VARCHAR(20)) + '" />'
 					   ELSE rd.TransIds END
 FROM dbo.TicketVoiding_RequestDetail rd
-	INNER JOIN #tmpRequestInfo tmp ON rd.RequestId = tmp.RequestId
+	INNER JOIN #tmpRequestInfo tmp ON rd.RequestId = tmp.RequestId AND rd.Id = tmp.RequestDetailId
 WHERE rd.IssueDetail NOT LIKE '%LiveGameEarlySingleCount%' AND rd.TransIds NOT LIKE '%IsLinkGroup1X2%'
 AND rd.TransIds IS NOT NULL
 
 DROP TABLE #tmpRequestInfo_Ticket
 DROP TABLE #tmpRequestInfo
+
