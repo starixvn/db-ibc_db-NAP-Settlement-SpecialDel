@@ -137,12 +137,17 @@ BEGIN
 			INSERT INTO #tmpFinalResult (transid, filter, IsMarked)
 			SELECT	b.transid
 					,1 AS filterBy					
-					,0 AS IsMarked	
+					,ISNULL(mt.IsMarked, 0) AS IsMarked
 			FROM	dbo.bettrans b WITH(NOLOCK)
 				INNER JOIN dbo.SettlementBettypeResult s WITH(NOLOCK)
 					ON	b.bettype = s.BetType
 						AND b.matchid = s.MatchId
 						AND s.SessionId = @SessionId
+				OUTER APPLY (	
+					SELECT	TOP 1 1 AS IsMarked
+					FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					WHERE	mt.TransId = b.transid
+					)mt
 				CROSS APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam
 							,b.hdp1
 							, b.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc
@@ -153,7 +158,7 @@ BEGIN
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
 							AND b.recommend <> 1688156) --exclude betdaq/betfair
-					AND b.statusId IN (112, 113)
+					AND (b.statusId IN (112, 113) OR (b.statusId = 0 AND mt.IsMarked IS NOT NULL))
 					AND (m.modds IS NULL 
 						OR b.statusId <> CASE
 											WHEN m.modds >= 0.5 THEN 112

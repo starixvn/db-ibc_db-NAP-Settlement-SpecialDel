@@ -189,13 +189,18 @@ BEGIN
 			AS (
 				SELECT	b.Bettype
 				FROM	dbo.bettrans b WITH(NOLOCK)
+					OUTER APPLY (	
+					    SELECT	TOP 1 1 AS IsMarked
+					    FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+					    WHERE	mt.TransId = b.transid
+				    )mt
 				WHERE	b.matchid = @matchid
 						AND ISNULL(b.betdaqid,0) <> -2
 						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 						AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = b.bettype)
 						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
 							AND b.recommend <> 1688156) --exclude betdaq/betfair
-						AND b.statusId IN (112, 113)
+						AND (b.statusId IN (112, 113) OR (b.statusId = 0 AND mt.IsMarked IS NOT NULL))
 				GROUP BY b.custid, b.bettype
 			)
 			INSERT INTO @tmpAffectedBettypes(BetType)
