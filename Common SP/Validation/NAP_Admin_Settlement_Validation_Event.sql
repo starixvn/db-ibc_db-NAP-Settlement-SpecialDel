@@ -320,6 +320,14 @@ BEGIN
 			IF @ErrCode > 0
 				RETURN
 		END
+		ELSE IF @Action LIKE 'UNDO%'
+		BEGIN
+			EXEC dbo.NAP_Settlement_InstantCalculation_UndoChecking
+				@MatchId		= @MatchId
+				, @InstantCheck	= @InstantKey
+				, @ErrCode 		= @ErrCode OUTPUT
+				, @ErrMsg		= @ErrMsg OUTPUT
+		END
 
 		IF ISNULL(@ErrCode,0)>0
 		RETURN

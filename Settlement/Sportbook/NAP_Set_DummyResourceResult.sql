@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Set_DummyResourceResult]
 	,@Sporttype SMALLINT
 	,@IsDetermined BIT = 0
 	,@Action VARCHAR(20) = 'CAL'
+	,@IsChecking BIT = 0
 	,@WebResourceResult VARCHAR(MAX) = NULL
 	,@DummyResourceIds VARCHAR(MAX)
 	,@DummyResourceResults VARCHAR(MAX) = '' OUTPUT
@@ -1307,6 +1308,12 @@ BEGIN
 						,@ssId = MIN(ssId)
 				FROM	@tmpResultDetail
 				WHERE	ResourceId IN ('14F', '14L')
+						AND 1 = CASE 
+									WHEN @IsChecking = 1 AND isWeb = 1 THEN 1
+									WHEN @IsChecking = 0 THEN 1
+									ELSE 0 
+								END
+
 
 				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
 				SELECT	'14'
@@ -1331,6 +1338,11 @@ BEGIN
 						,@ssId = MIN(ssId)
 				FROM	@tmpResultDetail
 				WHERE	ResourceId IN ('127F', '127L')
+						AND 1 = CASE 
+									WHEN @IsChecking = 1 AND isWeb = 1 THEN 1
+									WHEN @IsChecking = 0 THEN 1
+									ELSE 0 
+								END
 
 				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
 				SELECT	'127'
@@ -1437,6 +1449,11 @@ BEGIN
 								,t.ssId
 						FROM	@tmpResultDetail t
 						WHERE	t.ResourceId LIKE '48[6-7]%'	
+								AND 1 = CASE 
+											WHEN @IsChecking = 1 AND isWeb = 1 THEN 1
+											WHEN @IsChecking = 0 THEN 1
+											ELSE 0 
+										END
 					)
 					,cteResult
 					AS (
@@ -1448,8 +1465,15 @@ BEGIN
 						GROUP BY DummyResourceId
 					)
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, AwayValue, ssId)
-					SELECT	c.DummyResourceId, c.TeamRaceTo, CAST(c.NeitherRaceTo AS VARCHAR(2000)), c.ssId
-					FROM	cteResult c
+					SELECT t.ResourceId, c.TeamRaceTo, c.NeitherRaceTo, c.ssId
+					FROM @tmpDummyResourceIds t
+						OUTER APPLY (
+							SELECT	c.DummyResourceId, c.TeamRaceTo, CAST(c.NeitherRaceTo AS VARCHAR(2000)) AS NeitherRaceTo, c.ssId
+							FROM	cteResult c
+							WHERE	c.DummyResourceId = t.ResourceId
+						) c
+					WHERE ResourceId IN ('486', '487')
+
 				END
 				ELSE -- @WebResourceResult dont have ResourceId
 				BEGIN
@@ -1512,11 +1536,29 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '488')
 			BEGIN
 				IF @xmlWebResourceResult IS NOT NULL
-					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-					SELECT	ResourceId, HomeValue, ssId
-					FROM	@tmpResultDetail
-					WHERE	ResourceId = '488'
-							AND IsWeb = 1
+				BEGIN
+					IF @IsChecking = 0
+					BEGIN
+						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId = '488'
+								AND r.isWeb = 1
+					END
+					ELSE
+					BEGIN
+						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						FROM	@tmpDummyResourceIds t
+							OUTER APPLY (
+								SELECT	r.ResourceId, r.HomeValue, r.ssId
+								FROM	@tmpResultDetail r
+								WHERE	r.ResourceId = t.ResourceId
+										AND r.isWeb = 1
+						)r
+						WHERE	r.ResourceId = '488'
+					END
+				END
 				ELSE
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 					SELECT	'488'
@@ -1529,11 +1571,29 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '489')
 			BEGIN
 				IF @xmlWebResourceResult IS NOT NULL
-					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-					SELECT	ResourceId, HomeValue, ssId
-					FROM	@tmpResultDetail
-					WHERE	ResourceId = '489'
-							AND IsWeb = 1							
+				BEGIN
+					IF @IsChecking = 0
+					BEGIN
+						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId = '489'
+								AND r.isWeb = 1
+					END
+					ELSE
+					BEGIN
+						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						FROM	@tmpDummyResourceIds t
+							OUTER APPLY (
+								SELECT	r.ResourceId, r.HomeValue, r.ssId
+								FROM	@tmpResultDetail r
+								WHERE	r.ResourceId = t.ResourceId
+										AND r.isWeb = 1
+						)r
+						WHERE	r.ResourceId = '489'
+					END
+				END
 				ELSE
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 					SELECT	'489'
@@ -1546,11 +1606,29 @@ BEGIN
 			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId = '490')
 			BEGIN
 				IF @xmlWebResourceResult IS NOT NULL
-					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-					SELECT	ResourceId, HomeValue, ssId
-					FROM	@tmpResultDetail
-					WHERE	ResourceId = '490'
-							AND IsWeb = 1
+				BEGIN
+					IF @IsChecking = 0
+					BEGIN
+						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						FROM	@tmpResultDetail r
+						WHERE	r.ResourceId = '490'
+								AND r.isWeb = 1
+					END
+					ELSE
+					BEGIN
+						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
+						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						FROM	@tmpDummyResourceIds t
+							OUTER APPLY (
+								SELECT	r.ResourceId, r.HomeValue, r.ssId
+								FROM	@tmpResultDetail r
+								WHERE	r.ResourceId = t.ResourceId
+										AND r.isWeb = 1
+						)r
+						WHERE	r.ResourceId = '490'
+					END
+			END
 				ELSE
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 					SELECT	'490'

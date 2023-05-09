@@ -515,6 +515,8 @@ BEGIN
 				,@IsReSettledTickets = 0
 				,@hth				= @hth
 				,@hta				= @hta
+				,@fth				= @hth
+				,@fta				= @hta
 				,@LockedByRefno		= 1 -- always lock refno for testing
 				,@IsCentral			= @IsCentral
 

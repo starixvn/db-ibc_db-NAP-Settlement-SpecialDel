@@ -130,6 +130,7 @@ BEGIN
 				,@sportType = @sportType
 				,@IsDetermined = 1
 				,@Action = @Action
+				,@IsChecking = 1
 				,@WebResourceResult = @ResourceResult
 				,@DummyResourceIds = @DummyResourceIds
 				,@DummyResourceResults = @DummyResourceResults OUTPUT

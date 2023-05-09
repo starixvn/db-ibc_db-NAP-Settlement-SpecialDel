@@ -784,7 +784,11 @@ END
 	SET @stop = CURRENT_TIMESTAMP
 
 	SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-							+ CASE WHEN @DeterminedType = 2 THEN ' SDT-FT:1' ELSE '' END
+							+ CASE 
+								WHEN @DeterminedType = 2 THEN ' SDT-FT:1' 
+								WHEN @DeterminedType = 1 THEN ' Instant HT' 
+								WHEN @DeterminedType = 4 THEN ' Instant FT' 
+								ELSE '' END
 							+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 						   
@@ -795,8 +799,15 @@ END
 	
 	IF @IsCentral = 1
 	BEGIN
+		SELECT @fth = CASE WHEN @DeterminedType = 1 THEN NULL ELSE @fth END
+				,@fta = CASE WHEN @DeterminedType = 1 THEN NULL ELSE @fta END
+
 		SELECT @Remark = CASE WHEN @sportType <> 1 THEN @ResultRemarkLog + '<br/> '  ELSE '' END
-							+ CASE WHEN @DeterminedType = 2 THEN 'SDT-FT:1' ELSE '' END
+							+ CASE 
+								WHEN @DeterminedType = 2 THEN ' SDT-FT:1' 
+								WHEN @DeterminedType = 1 THEN ' Instant HT' 
+								WHEN @DeterminedType = 4 THEN ' Instant FT' 
+								ELSE '' END
 							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
@@ -804,7 +815,11 @@ END
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 				,@Matchid = @matchLog
-				,@ActionID = @ActionID				
+				,@ActionID = @ActionID	
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
 				,@Remark = @Remark
 				,@IP = @IP
 		END TRY
@@ -814,7 +829,11 @@ END
 
 			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 				,@Matchid = @matchLog
-				,@ActionID = @ActionID				
+				,@ActionID = @ActionID	
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
 				,@Remark = @Remark
 				,@IP = @IP
 		END CATCH
