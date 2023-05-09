@@ -529,7 +529,9 @@ BEGIN
 					FOR JSON AUTO
 				)
 
-				SET @FunctionName = CASE WHEN @Action = 'REFUND' THEN 'RefundSoccer' ELSE 'CalculateSoccer' END
+				SET @FunctionName = CASE WHEN @Action = 'REFUND' THEN 'RefundSoccer' 
+										 WHEN @Action = 'UNDO'   THEN 'Undo' 
+										 ELSE 'CalculateSoccer' END
 				
 				EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 					@SystemName		= 'Settlement'
