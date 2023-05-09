@@ -20,6 +20,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20221125@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230403@July: Remove check count single/parlay [Redmine: #172975]
 
 	Param's explanation:
 		+ @IssueTypeId : 4 - Wrong HDP, 5 - Wrong 1st HDP
@@ -34,8 +35,6 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	 @WrongHDPInfoXML	 XML = NULL	
-			,@SingleCount		 INT
-		    ,@MainParlayCount	 INT
 			,@PHBettypes		 VARCHAR(MAX) =''
 			,@MainMatchId		 INT
 
@@ -216,43 +215,33 @@ BEGIN
 		WHERE RequestId = @RequestId	
 	END
 
-	SELECT @SingleCount = SUM(SingleCount)
-		  ,@MainParlayCount = SUM(MainParlayCount)
-	FROM #tblGetLogInfo
-	 
-	IF @SingleCount > 0
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
-		SELECT @RequestId
+	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
+	SELECT @RequestId
+		, @IssueTypeId
+		, rd.SubIssueTypeId
+		, t.TransId
+		, t.MatchId
+		, rd.Id AS RequestDetailId
+		, t.bettype
+		, t.betid
+		, t.CustId
+		, t.SiteDBGroupID
+	FROM #tmpTransInfo t
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
+	WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 0
+
+	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
+	SELECT @RequestId
 			, @IssueTypeId
 			, rd.SubIssueTypeId
-			, t.TransId
-			, t.MatchId
-			, rd.Id AS RequestDetailId
-			, t.bettype
-			, t.betid
-			, t.CustId
+			, t.SubTransid
+			, t.matchid
+			, rd.Id
+			, t.transid AS MainTransId
 			, t.SiteDBGroupID
-		FROM #tmpTransInfo t
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
-		WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 0
-	END
-
-	IF @MainParlayCount > 0
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
-		SELECT @RequestId
-			 , @IssueTypeId
-			 , rd.SubIssueTypeId
-			 , t.SubTransid
-			 , t.matchid
-			 , rd.Id
-			 , t.transid AS MainTransId
-			 , t.SiteDBGroupID
-		FROM #tmpTransInfo t
-			INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId
-		WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 1
-	END
+	FROM #tmpTransInfo t
+		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId
+	WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 1
 
 	SET @LogDataContent = ''
 	SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))

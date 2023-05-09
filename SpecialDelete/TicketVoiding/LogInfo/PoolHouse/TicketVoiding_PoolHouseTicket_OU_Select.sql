@@ -1,33 +1,29 @@
 /*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
+CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_OU_Select]
 (	
-	@MatchId              INT = 0
-	,@RequestId			  INT = 0
-	,@IssueTypeId		  INT = 4
-	,@ActionId			  INT = 5
-	,@IsShowPHOnly		  BIT = 0
-	,@SubIssueTypeId	  INT = NULL
-	,@FilterFromTransTime DATETIME = NULL
-	,@FilterToTransTime	  DATETIME = NULL
-	,@HomeFavorite		  VARCHAR(50) = NULL
-	,@AwayFavorite		  VARCHAR(50) = NULL
-	,@HdpValue			  VARCHAR(50) = NULL
+	@MatchId              INT
+	,@RequestId			  INT
+	,@IssueTypeId		  INT
+	,@ActionId			  INT
+	,@SubIssueTypeId	  INT
+	,@FilterFromTransTime DATETIME
+	,@FilterToTransTime	  DATETIME
 	,@IsLinkGroup1X2	  BIT = 0
 	,@IsLinkGroupAIO	  BIT = 0
 	,@LiveIndicator		  BIT = 0
-	,@TransInfoJson		  VARCHAR(MAX) = NULL
+	,@TransInfoJson		  VARCHAR(MAX)
+	,@WrongMarket         VARCHAR(50) = NULL
+
 )
 AS
 /*	
-	Created by: 20220523@July
-	Task: Affected Pool House Ticket popup  [Redmine: #172486]
+	Created by: 20230403@July
+	Task: Affected Pool House Ticket popup  [Redmine: #172975]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
-		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
-		- 20230103@Max: Change JSON input [Redmine: #180625]
-		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
+
 	Param's explanation:
 
 
@@ -144,6 +140,14 @@ BEGIN
 	  ,WalletType			TINYINT
 	  ,RefCode				BIGINT
 	)
+	
+	DECLARE @tmpWrongMarket TABLE (WrongMarket SMALLMONEY)
+	IF @WrongMarket IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpWrongMarket (WrongMarket)
+		SELECT DISTINCT value AS WrongMarket
+		FROM STRING_SPLIT(@WrongMarket, '&')
+	END
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -224,9 +228,9 @@ BEGIN
 					  ,wt ,refc
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
-					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
 					 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
-					 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+					 ,s_bfr NVARCHAR(4) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
 					 ,wt TINYINT ,refc BIGINT
@@ -314,20 +318,20 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 THEN '1X2' 
-				  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 THEN '1H 1X2'
-			      ELSE 'AIO' END AS GroupName
+			,CASE WHEN @IssueTypeId = 6 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
+				  WHEN @IssueTypeId = 7 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
+			      WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+				  ELSE 'Others' 
+			 END AS GroupName
 			,b.statusID
 			,b.modds
 			,b.ExtraInfo
 			,b.winlostdate
 	FROM #tmpTransInfo b WITH (NOLOCK)
-		CROSS APPLY(
-					SELECT f.GroupMatch
+		OUTER APPLY(
+					SELECT f.GroupMatch, f.BetType
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
-						AND 1 = CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 THEN 1
-									 WHEN @IsLinkGroupAIO = 1 AND f.GroupMatch <> 0 THEN 1 ELSE 0 END
 					)f
 	WHERE b.matchid = @MatchId AND b.betfrom <> 'P'  
 		AND b.liveindicator = @LiveIndicator
@@ -336,6 +340,9 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
+		AND 1 = CASE WHEN @IssueTypeId = 6 AND b.bettype = 3 AND b.hdp1 IN (SELECT WrongMarket FROM @tmpWrongMarket) THEN 0
+					 WHEN @IssueTypeId = 7 AND b.bettype = 8 AND b.hdp1 IN (SELECT WrongMarket FROM @tmpWrongMarket) THEN 0 
+					 ELSE 1 END
 	
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
@@ -415,31 +422,21 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN (@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7) THEN 'HDP'
-						  WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 THEN '1X2' 
-						  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 THEN '1H 1X2'
-						  ELSE 'AIO'	 
+					,CASE WHEN ((@IssueTypeId = 6 AND b.Subbettype = 3) OR (@IssueTypeId = 7 AND b.Subbettype = 8)) AND b.Subhdp1 IN (SELECT WrongMarket FROM @tmpWrongMarket) THEN 'OU'
+						  WHEN @IssueTypeId IN (6) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
+						  WHEN @IssueTypeId IN (7) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
+						  WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+						  ELSE 'Others'
 					 END AS GroupName
 					,b.SubstatusID
 					,b.ExtraInfo
 					,b.winlostdate
 		  FROM #tmpTransInfo b
-				OUTER APPLY (
-					SELECT DISTINCT value AS HomeFavorite
-					FROM STRING_SPLIT(@HomeFavorite, '&')
-					WHERE value <> ''				
-				)xHDPHome
-				OUTER APPLY (
-					SELECT DISTINCT value AS AwayFavorite
-					FROM STRING_SPLIT(@AwayFavorite, '&')
-					WHERE value <> ''				
-				)xHDPAway
-				OUTER APPLY (
-					SELECT DISTINCT value AS HdpValue
-					FROM STRING_SPLIT(@HdpValue, '&')
-					WHERE value <> ''				
-				)xHDPvalue
-				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+				OUTER APPLY(
+					SELECT f.GroupMatch, f.BetType
+					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
+					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+				)f
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
@@ -447,13 +444,6 @@ BEGIN
 				AND b.Subliveindicator = @LiveIndicator
 				AND b.IsMixParlay = 1
 				AND b.Subtransdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
-				AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND @HomeFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (8,9) AND b.Subhdp2 = xHDPAway.AwayFavorite AND @AwayFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (22,24) AND b.Subhdp2 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND @SubIssueTypeId IN (23,25) AND b.Subhdp1 = xHDPvalue.HdpValue AND @HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
-							 WHEN f.BetType IS NOT NULL AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN 1 --1X2
-							 WHEN f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1 THEN 1 --AIO
-							 ELSE 0 END
 	END  
 
 	IF @ActionId NOT IN (2)
@@ -478,34 +468,13 @@ BEGIN
 
 	END
 
-	IF @IsShowPHOnly = 1 AND @RequestId <> 0
-	BEGIN
-		DELETE b
-		FROM #TVSTicketBets b
-		OUTER APPLY (
-					SELECT TOP (1) transid
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE transid = b.transid AND matchid = b.matchid AND RequestId = @RequestId
-					) ts
-		WHERE b.transid = b.SubTransid AND ts.TransId IS NULL
-
-		DELETE sub
-		FROM #TVSTicketBets sub
-		OUTER APPLY (
-					SELECT TOP (1) transid
-					FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
-					WHERE transid = sub.SubTransid AND matchid = sub.matchid AND RequestId = @RequestId
-				) ts
-		WHERE sub.IsMixParlay = 1 AND ts.transid IS NULL
-
-	END
-
 	--Return all bettype tickets
 	SELECT DISTINCT s.SubBetType AS Id
 		, b.typenamee AS Name
-		, CASE WHEN @IssueTypeId IN (4) AND s.GroupName IN ('1X2', 'HDP') THEN '1X2' 
-			   WHEN @IssueTypeId IN (5) AND s.GroupName IN ('1H 1X2', 'HDP') THEN '1H 1X2' 
-		  ELSE 'AIO' END GroupName
+		, CASE WHEN @IssueTypeId IN (6) AND s.GroupName IN ('1X2', 'OU') THEN '1X2' 
+			   WHEN @IssueTypeId IN (7) AND s.GroupName IN ('1H 1X2', 'OU') THEN '1H 1X2' 
+			   ELSE s.GroupName 
+		  END AS GroupName
 	FROM #TVSTicketBets s
 		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.SubBetType = b.typeid 
 
@@ -553,7 +522,7 @@ BEGIN
 		   ,s.statusID
 		   ,s.ExtraInfo
 		   ,s.winlostdate
-		   ,CASE WHEN s.IsMixParlay = 1 THEN 'Parlay' ELSE s.GroupName END AS GroupName
+		   ,CASE WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 'Parlay' ELSE s.GroupName END AS GroupName
 		   ,s.matchid
 		   ,m.homeid
 		   ,m.awayid
@@ -568,7 +537,8 @@ BEGIN
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK) ON s.custid = ci.custid
 	ORDER BY CASE WHEN s.GroupName IN ('1X2', '1H 1X2') AND s.transid = s.SubTransid THEN 1
 				  WHEN s.GroupName = 'AIO' AND s.transid = s.SubTransid THEN 2
-				  WHEN s.IsMixParlay = 1 THEN 3 END
+				  WHEN s.IsMixParlay = 1 AND s.GroupName <> 'Others' THEN 3
+				  ELSE 4 END
 			, ISNULL(s.MainTransId, s.transid)
 
 	DROP TABLE #TVSTicketBets
