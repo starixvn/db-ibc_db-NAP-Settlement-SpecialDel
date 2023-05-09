@@ -1,11 +1,11 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Match_FirstTicketTime_Select] @MatchId INT = 0
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_Match_FirstTicketTime_Select] 
+	@MatchId INT = 0
 AS
 /*
-    Created by: Alan
-	Date: 20190327
+    Created by: 20190327@Alan
 	Task: Get First Ticket Time 
-	DB: DBTXN/BODB02
+	DB: DBTXN/bodb02
 
 	Explanation's Param:
 		
@@ -14,33 +14,42 @@ AS
 		- 20190510@Alan: - Get Kick Off Time [112480]
 		- 20190521@Raymond.Le: - Return 2001/1/1 when KOTime is null [113518]
 		- 20200415@Raymond: Mark/Unmark Parlay Tickets and remaing sports [131670]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		
 */
 BEGIN
 	SET NOCOUNT ON;
 
-	DECLARE @MinTransDate DATETIME
-		,@KickOffTime DATETIME;
+	DECLARE @MinTransDate	DATETIME
+		   ,@KickOffTime	DATETIME;
+	
+	DECLARE @tmpMatchId TABLE (MatchId INT, KickOffTime DATETIME)
+	INSERT INTO @tmpMatchId (MatchId, KickOffTime)
+	SELECT MatchId, ISNULL(kickofftime, '2001-01-01 00:00:00')
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+				    WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
-	WITH cte_transdate
-	AS (
-		SELECT b.transdate
-		FROM dbo.bettrans AS b WITH (NOLOCK)
-		WHERE b.matchid = @MatchId
+	CREATE TABLE #CTE_transdate (transdate DATETIME)
+	INSERT INTO #CTE_transdate (transdate)
+	SELECT b.transdate
+	FROM dbo.bettrans AS b WITH (NOLOCK)
+		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
+	UNION
+	SELECT bm.transdate
+	FROM dbo.bettransm AS bm WITH (NOLOCK)
+		INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
 		
-		UNION
-		SELECT bm.transdate
-		FROM dbo.bettransm AS bm WITH (NOLOCK)
-		WHERE bm.matchid = @MatchId
-		)
-	SELECT @MinTransDate = MIN(t.transdate)
-	FROM cte_transdate AS t
+	SELECT @MinTransDate = MIN(transdate)
+	FROM #CTE_transdate
 
-	SELECT @KickOffTime = ISNULL(kickofftime, '2001-01-01 00:00:00')
-	FROM dbo.[match] WITH (NOLOCK)
-	WHERE matchid = @MatchId;
+	SELECT @KickOffTime = MIN(KickOffTime)
+	FROM @tmpMatchId
 
 	SELECT @MinTransDate AS MinTransDate
-		,@KickOffTime AS KickOffTime;
+		  ,@KickOffTime AS KickOffTime;
 
+	DROP TABLE #CTE_transdate
 	SET NOCOUNT OFF;
 END

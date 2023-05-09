@@ -13,8 +13,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_MarkedTickets_MatchId_Select]
 )
 AS;
 /*
-    Created by: Alan
-	Date: 20190325
+    Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
 	DB: DBTXN/BODB02
 
@@ -39,6 +38,7 @@ AS;
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -86,6 +86,14 @@ BEGIN
 
 	) 
     RETURN;
+
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+				    WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
 	CREATE TABLE #tblBetType
              (Id        SMALLINT
@@ -338,6 +346,7 @@ BEGIN
 			,FilterHdp2
 			,FilterOddsSpread
 			,ActualStake
+			,matchid
 		)
 		SELECT 
 			b.transid,
@@ -385,15 +394,16 @@ BEGIN
 			b.hdp1 AS FilterHdp1,
 			CASE WHEN bt.Id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
 			CASE WHEN bt.Id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread, --229:SABA HDP Time Machine
-			b.actual_stake AS ActualStake
+			b.actual_stake AS ActualStake,
+			b.matchid
 		FROM dbo.bettrans b WITH (NOLOCK)
 			INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = b.bettype
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 			INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
-			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
+			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = b.matchid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
 			AND	b.statusID IN (0, 1) -- running, waiting
-			AND b.matchid = @MatchId  
+			AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
@@ -452,6 +462,7 @@ BEGIN
 			,FilterOddsSpread
 			,ExtraInfo
 			,ActualStake
+			,matchid
 		)
 		SELECT 
 			b.transid,
@@ -501,15 +512,16 @@ BEGIN
 			ISNULL(bm.betcheck, 0) AS FilterGoal,
 			CASE WHEN bt.Id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS FilterOddsSpread, --229:SABA HDP Time Machine
 			b.ExtraInfo,
-			b.actual_stake AS ActualStake
+			b.actual_stake AS ActualStake,
+			bm.matchid
 		FROM dbo.bettransm bm WITH (NOLOCK)
 			INNER JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
-			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
+			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = bm.matchid
 			INNER JOIN #t_exchanges te WITH (NOLOCK) ON b.currency = te.exchangeid
 		WHERE bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
 			AND bm.statusID IN (0, 1)
-			AND bm.matchid = @MatchId
+			AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END	
@@ -581,16 +593,6 @@ BEGIN
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread))
 	END
 
-	UPDATE sub
-	SET MainTransId = main.transid
-	FROM #Tickets main
-			INNER JOIN #Tickets sub
-					ON main.RefCode = sub.RefCode
-					AND main.transid <> sub.transid	
-					AND main.custid = sub.custid
-					AND main.bettype = sub.bettype
-	WHERE main.WalletType = 1
-
 	------------------------------------------------------------------------------
 	--1. Table invald/moved transid
 	SELECT '' AS InvalidTransIds
@@ -630,6 +632,7 @@ BEGIN
 		b.WalletType,
 		b.MainTransId,
 		b.RefCode,
+		b.matchid,
 		m.homeid,
 		m.awayid,
 		m.leagueid,
@@ -652,7 +655,7 @@ BEGIN
 	FROM #Tickets b
 		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
-		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = @MatchId
+		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = b.matchid
 		CROSS APPLY (SELECT CASE
 						WHEN EXISTS (SELECT d.custid 
 										FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) 

@@ -5,8 +5,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Select]
 )
 AS
 /*
-    Created by: Alan
-	Date: 20190325
+    Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
 	DB: DBTXN/BODB02
 
@@ -19,6 +18,7 @@ AS
 		- 20200831@Zane: TVS - Enhance for Danger Accept. [Redmine: #140339]
 		- 20220627@Max: [TVS] Tuning perforamance of Unmark All function [Redmine: #174560]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230427@July: [TVS] Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Explanation's Param:
 */
@@ -87,8 +87,9 @@ BEGIN
 	OPTION (MAXDOP 1)
 
      -- return final results   
-     SELECT t.MatchId,
-            t.UserId,
+     SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END AS MatchId,
+            CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END AS ChildMatchId,
+			t.UserId,
             c.Username,
             t.CreatedDate,
             t.Total,
