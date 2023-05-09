@@ -22,6 +22,7 @@ AS
 		- 20230404@Louisa: Get data for JackTime [Redmine:#184764]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -46,6 +47,7 @@ BEGIN
 		,GameType	TINYINT ---for E-sports
 		,ParentID INT
 		,GoalRecord VARCHAR(50)
+		,AutoSetting TINYINT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -66,6 +68,7 @@ BEGIN
 			,GameType
 			,ParentID
 			,GoalRecord
+			,AutoSetting
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -82,6 +85,7 @@ BEGIN
 			,l.OverTimeSession
 			,m.ParentID
 			,m.goalrecord
+			,ISNULL(m.AutoSetting, l.AutoSetting)	
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -110,6 +114,7 @@ BEGIN
 		,GameType
 		,ParentID
 		,GoalRecord
+		,AutoSetting
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -130,6 +135,7 @@ BEGIN
 		,l.OverTimeSession
 		,m.ParentID
 		,m.GoalRecord
+		,ISNULL(m.AutoSetting, l.AutoSetting)
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -156,6 +162,7 @@ BEGIN
 		,GameType
 		,ParentID
 		,GoalRecord
+		,AutoSetting
 	FROM @tmpMatchInfo
 
 END
