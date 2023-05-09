@@ -221,7 +221,7 @@ BEGIN
 			,t.c.value('@FilterOUType', 'VARCHAR(10)') AS FilterOUType
 			,t.c.value('@OUValue', 'SMALLMONEY') AS OUValue
 	FROM	@WrongOddsInfoXML.nodes('/root/r') AS T(C)
-	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL ))
+	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL ))
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
@@ -561,7 +561,7 @@ BEGIN
 		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
 									  FROM #TVSTicketBets 
 									  WHERE matchid = @MainMatchId
-									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 6 AND Subbettype <> 3)OR (@IssueTypeId = 7 AND Subbettype <> 8)) THEN 1
+									  AND 1 = CASE WHEN IsMixParlay = 0 AND Subbettype NOT IN (1,3,7,8) THEN 1
 												   WHEN IsMixParlay = 1 THEN 1
 												   ELSE 0 END
 									  FOR XML PATH ('')
