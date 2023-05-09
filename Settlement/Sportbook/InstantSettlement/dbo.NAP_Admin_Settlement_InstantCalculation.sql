@@ -24,7 +24,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
     Param's Explanation:
-        - @Action: ['CALINST-HT', 'CALINST-FT' 'UNDOINST-FT', 'UNDOINST-HT']
+        - @Action: ['CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT']
         - @ResourceResult
 					<Results>
 						<Resource Id="" HomeValue="" SettlementStatusId="" ResultStatusId=""/>
@@ -78,11 +78,11 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
-	SELECT @CalculationType 			= CASE 
-										WHEN @Action LIKE '%HT%' THEN 101
-										WHEN @Action LIKE '%FT%' THEN 102
-										ELSE 0
-									END
+	SELECT @CalculationType = CASE 
+								WHEN @Action LIKE '%HT%' THEN 101
+								WHEN @Action LIKE '%FT%' THEN 102
+								ELSE 0
+							END
 		,@DeterminedType = CASE 
 								WHEN @Action LIKE '%HT%' THEN 1
 								WHEN @Action LIKE '%FT%' THEN 4
@@ -95,7 +95,8 @@ BEGIN
 						WHEN @CalculationType = 101 AND @IsAutoInst = 1 THEN 195
 						WHEN @CalculationType = 102 AND @IsAutoInst = 1 THEN 196									  
 					END
-		,@StartTime = GETDATE()				
+		,@StartTime = GETDATE()		
+		
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
@@ -326,7 +327,6 @@ BEGIN
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 			WHERE	bm.matchid = @MatchId		
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-					--AND (bm.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND bm.recommend <> 1688156) --exclude betdaq/betfair
 					AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
 						 OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 						 )	
@@ -340,7 +340,6 @@ BEGIN
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 			WHERE	bm.matchid = @MatchId		
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-					--AND (bm.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) AND bm.recommend <> 1688156) --exclude betdaq/betfair
 					AND bm.statusId IN (112, 113)
 					AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes t WHERE t.Bettype = bm.bettype)
 			GROUP BY bm.bettype

@@ -205,8 +205,6 @@ BEGIN
 											, 0) m
 							WHERE	bm.matchid = @matchid
 									AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-									--AND (bm.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
-									--		AND bm.recommend <> 1688156) --exclude betdaq/betfair
 									AND bm.statusId IN (112, 113)									
 									AND bm.statusId <>  CASE 
 															WHEN m.modds >= 0.5 THEN 112
