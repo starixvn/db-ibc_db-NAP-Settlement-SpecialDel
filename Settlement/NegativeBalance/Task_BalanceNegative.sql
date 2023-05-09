@@ -18,17 +18,11 @@ AS
 		- 20180927@Sophia: Migrate bodb_Licensee from DB052 to DBCUST [redmine: #99855]
 		- 20210702@Max: Expand Transfer Time Frame - Change The Rule Checking Move Bet Flag [Redmine: #154572]
 		- 20211229@Max: Split Transfer - Adjust Negative Balance Service & Adjustment Transfer of Bonus [Redmine: #165098]
-		- 20220706@Max: Bettrans Running DB for WC2022 [Redmine: #172094]
 		- 20230201@July: TVS changes for new process of BU [Redmine: #184000]
 		
 */
 BEGIN
 	SET NOCOUNT ON
-
-	--put wait for (x) seconds to wait for in-house replication
-	DECLARE @Delay VARCHAR(100) = ''
-	SET @Delay = dbo.f_SetWaitforDelay ('NegativeBalance') 
-	WAITFOR DELAY @Delay
 
 	DECLARE @BatchCount INT
 		, @movebetdate SMALLDATETIME
