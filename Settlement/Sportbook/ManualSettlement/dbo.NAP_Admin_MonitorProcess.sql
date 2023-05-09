@@ -211,7 +211,7 @@ BEGIN
 								WHEN @Action LIKE 'REFUND%' THEN
 									CASE WHEN @IsAuto IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAuto AS CHAR(1)) ELSE '' END
 									+ ' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
-								WHEN @Action LIKE 'UNDO%' THEN IIF(@TicketCount IS NOT NULL,' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';','0') 
+								WHEN @Action LIKE 'UNDO%' THEN IIF(@TicketCount IS NOT NULL,' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';','TC: 0;') 
 								ELSE ''
 							END
 							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 
