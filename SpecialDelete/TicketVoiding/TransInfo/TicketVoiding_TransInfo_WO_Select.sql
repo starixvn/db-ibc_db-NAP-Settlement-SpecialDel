@@ -91,13 +91,13 @@ BEGIN
 		,SiteDBGroupID SMALLINT
     )	
 
-	SET @WrongOUXML = CONVERT(XML, @WrongOUInfo)
+	SET @WrongOddsXML = CONVERT(XML, @WrongOddsInfo)
 	INSERT INTO #FilterInfo (MatchId, FilterFromTransTime, FilterToTransTime)
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,t.c.value('@FilterFromTransTime','DATETIME') AS FilterFromTransTime
 			,t.c.value('@FilterToTransTime','DATETIME') AS FilterToTransTime
-	FROM @WrongOUXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@WrongOUXML = NULL)) 
+	FROM @WrongOddsXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@WrongOddsXML = NULL)) 
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
