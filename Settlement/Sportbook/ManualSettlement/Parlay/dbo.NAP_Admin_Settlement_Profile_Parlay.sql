@@ -341,7 +341,7 @@ BEGIN
 				) mt
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-					AND bm.statusId IN (112, 113)
+					AND (bm.statusId IN (112, 113) OR (bm.statusId = 0 AND mt.TransId IS NOT NULL))
 					AND (m.modds IS NULL 
 						OR bm.statusId <> CASE
 											WHEN m.modds >= 0.5 THEN 112
