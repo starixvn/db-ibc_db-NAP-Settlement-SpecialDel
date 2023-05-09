@@ -410,8 +410,7 @@ BEGIN
 					 +'Duration: ' + CAST(DATEDIFF(MILLISECOND, @Start, @Stop) AS NVARCHAR(50)) + ' ms;' 
 					 +'TC: ' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) 
 
-		IF @IsCentral = 1
-			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
 					 @userid			= @AdminId
 					,@matchid			= @MatchId
 					,@actionid			= @ActionID

@@ -1157,5 +1157,44 @@ BEGIN
 		INSERT INTO Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, BroadcastSessionId)
 		SELECT	@MatchId,@matchcode,0,@leagueid,@sportType,@creator,@IP,'SDT',@sqlCommand, @BroadcastSessionId
 	END
+
+	IF (@MatchAutoSetting & 2 > 0 AND @Action LIKE 'CAL%')
+	BEGIN
+		SET @sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Profile_Instant] @MatchID = ' + CONVERT(NVARCHAR(50), @MatchId) 
+									+ ', @AdminId = ' + CONVERT(NVARCHAR(50), @creator) 
+									+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
+									+ ', @SelectedResources = ''' + CONVERT(NVARCHAR(MAX), @SelectedResources) + ''''
+									+ ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 	 
+									+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 
+									+ ', @DeterminedType = ' + CONVERT(NVARCHAR(50), @DeterminedType) 
+									+ ', @ErrCode = @ErrCode OUTPUT' 
+									+ ', @ErrMsg = @ErrMsg OUTPUT'
+			
+		IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- UAT1 -->UAT9
+		BEGIN
+			BEGIN TRY
+				EXEC [dbo].[NAP_Admin_Settlement_Profile_Instant] 
+									 @MatchID = @MatchId
+									,@AdminId = @creator
+									,@Action = @Action
+									,@SelectedResources = @SelectedResources
+									,@IP = @IP
+									,@IsReSettledTickets = @IsReSettledTickets
+									,@DeterminedType = @DeterminedType
+									,@ErrCode = @ErrCode OUTPUT
+									,@ErrMsg = @ErrMsg OUTPUT
+			END TRY
+			BEGIN CATCH
+				SELECT	 @ErrMsg   = @ErrMsg + ISNULL(ERROR_MESSAGE(), '')
+						,@ErrCode = @@error
+
+				RETURN
+			END CATCH
+
+			RETURN
+		END
+		INSERT INTO Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand)
+		SELECT	@MatchId,@matchcode,0,@leagueid,@sportType,@creator,@IP,'SDT',@sqlCommand
+	END
 END
 GO
