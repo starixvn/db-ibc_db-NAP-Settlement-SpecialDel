@@ -207,7 +207,7 @@ BEGIN
 			,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') AS PoolHouseCheckedBetTypes
-			,t.c.value('@IsMainMatch','VARCHAR(10)') AS IsMainMatch
+			,'true' AS IsMainMatch
 			,t.c.value('@IsLinkGroup1X2','BIT') AS IsLinkGroup1X2
 			,t.c.value('@IsLinkGroupAIO','BIT') AS IsLinkGroupAIO
 			,t.c.value('@LiveIndicator','BIT') AS LiveIndicator
@@ -218,8 +218,8 @@ BEGIN
 			,t.c.value('@BetTeam', 'VARCHAR(10)') AS betteam
 			,t.c.value('@FilterFavoriteType', 'VARCHAR(10)') AS FilterFavoriteType
 			,t.c.value('@FavoriteValue', 'VARCHAR(20)') AS FavoriteValue
-			,t.c.value('@FilterOUType', 'VARCHAR(10)') AS FilterOUType
-			,t.c.value('@OUValue', 'VARCHAR(20)') AS OUValue
+			,t.c.value('@FilterOuType', 'VARCHAR(10)') AS FilterOUType
+			,t.c.value('@OuValue', 'VARCHAR(20)') AS OUValue
 	FROM	@WrongOddsInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL ))
 

@@ -110,17 +110,16 @@ BEGIN
 					+ ';PoolHouseSingleCount:' + CAST(t.c.value('@PoolHouseSingleCount','INT') AS VARCHAR(50))
 					+ ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,'<r FilterOddstype="' + t.c.value('@FilterOddsType','VARCHAR(20)')
+			,'<r FilterOddsType="' + t.c.value('@FilterOddsType','VARCHAR(20)')
 					+ '" FromOdds="' + CAST(t.c.value('@FromOdds', 'MONEY') AS VARCHAR(10))
 					+ '" ToOdds="' + CAST(t.c.value('@ToOdds', 'MONEY') AS VARCHAR(10)) 
 					+ '" OddsValue="' + CAST(t.c.value('@OddsValue', 'MONEY') AS VARCHAR(10))
 					+ '" BetTeam="' + t.c.value('@BetTeam', 'VARCHAR(10)')
 					+ '" FilterFavoriteType="' + t.c.value('@FilterFavoriteType', 'VARCHAR(10)')
 					+ '" FavoriteValue="' + REPLACE(t.c.value('@FavoriteValue','VARCHAR(50)') , '&', '&amp;') 
-					+ '" FilterOUType="' + t.c.value('@FilterOUType', 'VARCHAR(10)')
-					+ '" OUValue="' + REPLACE(t.c.value('@OUValue','VARCHAR(50)') , '&', '&amp;')
-					+ '" CorrectOdds="' + CAST(t.c.value('@OddsValue', 'MONEY') AS VARCHAR(10))
-					+ '" IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
+					+ '" FilterOuType="' + t.c.value('@FilterOuType', 'VARCHAR(10)')
+					+ '" OuValue="' + REPLACE(t.c.value('@OuValue','VARCHAR(50)') , '&', '&amp;')
+					+ '" CorrectOdds="' + CAST(t.c.value('@CorrectOdds', 'MONEY') AS VARCHAR(10))
 					+ CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
 						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 
 							+ '" />'
