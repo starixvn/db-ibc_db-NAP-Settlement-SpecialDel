@@ -1,7 +1,6 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_MatchInfo_Select] 
-	@matchID INT = 0,
-	@transid BIGINT = 0,
+	@matchID INT,
 	@IsMatch3rd BIT = 0,	
 	@Language VARCHAR(2) = 'E',
 	@Type INT = 0
@@ -32,10 +31,6 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE @bettype INT
 
-	IF @matchid=0
-		SELECT @matchid = matchid, @bettype = bettype 
-		FROM DBTXN.bodb02.dbo.bettrans WITH(NOLOCK) 
-		WHERE transid = @transid
 	IF @bettype = 10
 		SELECT
 			match.orid as matchid,
