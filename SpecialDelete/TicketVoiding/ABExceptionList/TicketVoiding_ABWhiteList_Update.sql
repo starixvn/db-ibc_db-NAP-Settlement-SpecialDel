@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Update]
 (
 	  @CustIds			NVARCHAR(MAX) = ''
@@ -9,7 +9,7 @@ AS
 /*
 	Created by: Max
 	Task : [TVS] Implement AB Whitelist
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 
 	Revisions:
 		- 20211005@Max: Create new SP - [Redmine:#161659]

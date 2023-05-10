@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ABWhiteList_CheckUserName]
 (
 	  @UserNames	NVARCHAR(MAX) = ''
@@ -7,7 +7,7 @@ AS
 /*
 	Created by: July
 	Task : [TVS] Implement AB Whitelist
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 
 	Revisions:
 		- 20211004@July: Create new SP - Check validation username [Redmine:#161659]
