@@ -1,9 +1,9 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_ABWhiteList_SubType_Select]
 AS
 /*	Created by: July
 	Task: Support AB Exclusion by sub issue type 
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions:
 		20220414@July: Get subtype load combobox [Redmine:#170771]

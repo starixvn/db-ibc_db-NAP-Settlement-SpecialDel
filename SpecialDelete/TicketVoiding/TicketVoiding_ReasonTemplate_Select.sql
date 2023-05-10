@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ReasonTemplate_Select]
 	@Sporttype		SMALLINT
 	,@SubIssueTypeId	SMALLINT
@@ -7,7 +7,7 @@ AS
 /*	Created by: Kathy
 	Date 20181212
 	Task: get reason template [Redmine:#106655]
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 	
 	Revisions: 
 		- 20181221@Kathy: Create new SP [Redmine:#106655]

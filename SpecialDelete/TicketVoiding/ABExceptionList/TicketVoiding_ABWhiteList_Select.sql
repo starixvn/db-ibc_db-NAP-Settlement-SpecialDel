@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_ABWhiteList_Select]
 (
 	 @UserName			VARCHAR(30) = NULL
@@ -12,7 +12,7 @@ AS
 /*
 	Created by: July
 	Task : [TVS] Implement AB Whitelist
-	DB: DBTXN/bodb02
+	DB: DBCTG/bodb02
 
 	Revisions:
 		- 20211001@July: Create new SP - Search [Redmine:#161659]
