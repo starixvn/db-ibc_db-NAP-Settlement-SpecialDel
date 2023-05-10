@@ -114,7 +114,7 @@ BEGIN
 					+ '" FromOdds="' + CAST(t.c.value('@FromOdds', 'MONEY') AS VARCHAR(10))
 					+ '" ToOdds="' + CAST(t.c.value('@ToOdds', 'MONEY') AS VARCHAR(10)) 
 					+ '" OddsValue="' + CAST(t.c.value('@OddsValue', 'MONEY') AS VARCHAR(10))
-					+ '" betteam="' + t.c.value('@betteam', 'VARCHAR(10)')
+					+ '" BetTeam="' + t.c.value('@BetTeam', 'VARCHAR(10)')
 					+ '" FilterFavoriteType="' + t.c.value('@FilterFavoriteType', 'VARCHAR(10)')
 					+ '" FavoriteValue="' + REPLACE(t.c.value('@FavoriteValue','VARCHAR(50)') , '&', '&amp;') 
 					+ '" FilterOUType="' + t.c.value('@FilterOUType', 'VARCHAR(10)')

@@ -215,7 +215,7 @@ BEGIN
 			,t.c.value('@FromOdds', 'MONEY') AS FromOdds
 			,t.c.value('@ToOdds', 'MONEY') AS ToOdds
 			,t.c.value('@OddsValue', 'MONEY') AS OddsValue
-			,t.c.value('@betteam', 'VARCHAR(10)') AS betteam
+			,t.c.value('@BetTeam', 'VARCHAR(10)') AS betteam
 			,t.c.value('@FilterFavoriteType', 'VARCHAR(10)') AS FilterFavoriteType
 			,t.c.value('@FavoriteValue', 'VARCHAR(20)') AS FavoriteValue
 			,t.c.value('@FilterOUType', 'VARCHAR(10)') AS FilterOUType
