@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select]
 	,@AbnormalBetTransIds VARCHAR(MAX) = NULL
 	,@AbnormalAccounts	  VARCHAR(MAX) = NULL
 	,@ArchivedTransIds	  VARCHAR(MAX) = NULL
+	,@WrongOddsInfo       VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -23,6 +24,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 
 	Param's explanation:	
 		
@@ -35,6 +37,14 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_DA_Select
 			@DangerAcceptedInfo = @DangerAcceptedInfo
+	END
+	/*-----------------*/
+
+	/*---WrongOdds---*/
+	IF @IssueTypeId = 2
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_WO_Select
+			@WrongOddsInfo = @WrongOddsInfo
 	END
 	/*-----------------*/
 
