@@ -94,9 +94,9 @@ BEGIN
 		,OddsValue				MONEY --"1.75" NULL IF FilterOddsType = 'Range' 
 		,betteam				VARCHAR(10)	-- "h" or "a"
 		,FilterFavoriteType		VARCHAR(10) -- "h" or "a"
-		,FavoriteValue			SMALLMONEY -- "1.25"
+		,FavoriteValue			VARCHAR(20) -- "1.25"
 		,FilterOUType			VARCHAR(10) -- "h" or "a"
-		,OUValue				SMALLMONEY -- "1.25"
+		,OUValue				VARCHAR(20) -- "1.25"
 		,CorrectOdds			MONEY --"1.75"
 	)
 	CREATE TABLE #logInfoVoidPage (
@@ -217,9 +217,9 @@ BEGIN
 			,t.c.value('@OddsValue', 'MONEY') AS OddsValue
 			,t.c.value('@betteam', 'VARCHAR(10)') AS betteam
 			,t.c.value('@FilterFavoriteType', 'VARCHAR(10)') AS FilterFavoriteType
-			,t.c.value('@FavoriteValue', 'SMALLMONEY') AS FavoriteValue
+			,t.c.value('@FavoriteValue', 'VARCHAR(20)') AS FavoriteValue
 			,t.c.value('@FilterOUType', 'VARCHAR(10)') AS FilterOUType
-			,t.c.value('@OUValue', 'SMALLMONEY') AS OUValue
+			,t.c.value('@OUValue', 'VARCHAR(20)') AS OUValue
 	FROM	@WrongOddsInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL ))
 
@@ -385,12 +385,12 @@ BEGIN
 	FROM #tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		OUTER APPLY (
-			SELECT DISTINCT value AS FavoriteValue
+			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
 			FROM STRING_SPLIT(d.FavoriteValue, '&')
 			WHERE value <> ''				
 		)xHDP
 		OUTER APPLY (
-			SELECT DISTINCT value AS OUValue
+			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS OUValue
 			FROM STRING_SPLIT(d.OUValue, '&')
 			WHERE value <> ''				
 		)xOU
@@ -458,12 +458,12 @@ BEGIN
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				OUTER APPLY (
-					SELECT DISTINCT value AS FavoriteValue
+					SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
 					FROM STRING_SPLIT(d.FavoriteValue, '&')
 					WHERE value <> ''				
 				)xHDP
 				OUTER APPLY (
-					SELECT DISTINCT value AS OUValue
+					SELECT DISTINCT CONVERT(SMALLMONEY, value) AS OUValue
 					FROM STRING_SPLIT(d.OUValue, '&')
 					WHERE value <> ''				
 				)xOU
