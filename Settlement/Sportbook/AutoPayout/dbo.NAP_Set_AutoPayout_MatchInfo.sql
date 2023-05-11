@@ -162,7 +162,9 @@ BEGIN
 							 )
 					  )--#86964
 
-			OR (aps.StatusId = 2 AND temp.IsConfirmed = 0) --abnormal case -> re-calculate
+			OR (aps.StatusId = 2 
+				--AND temp.IsConfirmed = 0
+				) --abnormal case -> re-calculate
 		)
 			
 	;WITH cteAutoResultDetail
