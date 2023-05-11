@@ -513,7 +513,7 @@ BEGIN
 							,aWinLost AS 'aw' 
 							,mWinLost AS 'mw' 
 							,sWinLost AS 'sw' 
-							,statuswinlost AS 'statuswl' 
+							,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl' 
 							,PlayerComm AS 'pc' 
 							,Comm AS 'c' 
 							,aComm AS 'ac' 
