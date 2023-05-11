@@ -111,15 +111,15 @@ BEGIN
 					+ ';PoolHouseMainParlayCount:' + CAST(t.c.value('@PoolHouseMainParlayCount','INT') AS VARCHAR(50)) AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,'<r FilterOddsType="' + t.c.value('@FilterOddsType','VARCHAR(20)')
-					+ '" FromOdds="' + CAST(t.c.value('@FromOdds', 'MONEY') AS VARCHAR(10))
-					+ '" ToOdds="' + CAST(t.c.value('@ToOdds', 'MONEY') AS VARCHAR(10)) 
-					+ '" OddsValue="' + CAST(t.c.value('@OddsValue', 'MONEY') AS VARCHAR(10))
+					+ '" FromOdds="' + t.c.value('@FromOdds','VARCHAR(20)')
+					+ '" ToOdds="' + t.c.value('@ToOdds','VARCHAR(20)')
+					+ '" OddsValue="' + t.c.value('@OddsValue','VARCHAR(20)')
 					+ '" BetTeam="' + t.c.value('@BetTeam', 'VARCHAR(10)')
 					+ '" FilterFavoriteType="' + t.c.value('@FilterFavoriteType', 'VARCHAR(10)')
 					+ '" FavoriteValue="' + REPLACE(t.c.value('@FavoriteValue','VARCHAR(50)') , '&', '&amp;') 
 					+ '" FilterOuType="' + t.c.value('@FilterOuType', 'VARCHAR(10)')
 					+ '" OuValue="' + REPLACE(t.c.value('@OuValue','VARCHAR(50)') , '&', '&amp;')
-					+ '" CorrectOdds="' + CAST(t.c.value('@CorrectOdds', 'MONEY') AS VARCHAR(10))
+					+ '" CorrectOdds="' + t.c.value('@CorrectOdds','VARCHAR(20)')
 					+ CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
 						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 
 							+ '" />'
@@ -130,25 +130,21 @@ BEGIN
 							+ '" PoolHouseCheckedBetTypes="' + t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') 
 							+ '" />'
 						END
-					AS WrongOU
+					AS WrongOdds
 	FROM @WrongOddsInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL))
 
-	SELECT @MainMatchId = MatchID FROM #tblGetLogInfo WHERE WrongOdds LIKE '%IsMainMatch="true"%' AND WrongOdds LIKE '%PoolHouseCheckedBetTypes="ALL"%'
-	IF @MainMatchId IS NOT NULL
-	BEGIN
-		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
-									  FROM #tmpTransInfo 
-									  WHERE matchid = @MainMatchId
-									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 6 AND Subbettype <> 3)OR (@IssueTypeId = 7 AND Subbettype <> 8)) THEN 1
-												   WHEN IsMixParlay = 1 THEN 1
-												   ELSE 0 END
-									  FOR XML PATH ('')
-								),1,1,'')
-		UPDATE #tblGetLogInfo
-		SET WrongOdds = SUBSTRING(WrongOdds,0, LEN(WrongOdds) - 6)  + @PHBettypes+ '" />'
-		WHERE MatchID = @MainMatchId
-	END
+	SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
+									FROM #tmpTransInfo 
+									WHERE matchid = @MainMatchId
+									AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 6 AND Subbettype <> 3)OR (@IssueTypeId = 7 AND Subbettype <> 8)) THEN 1
+												WHEN IsMixParlay = 1 THEN 1
+												ELSE 0 END
+									FOR XML PATH ('')
+							),1,1,'')
+	UPDATE #tblGetLogInfo
+	SET WrongOdds = SUBSTRING(WrongOdds,0, LEN(WrongOdds) - 6)  + @PHBettypes+ '" />'
+	WHERE MatchID = @MainMatchId
 
 	IF @IsEditRequest = 1
 	BEGIN
@@ -251,8 +247,7 @@ BEGIN
 							+ ', FilterFromTransTime: ' + CONVERT(VARCHAR(30), l.FilterFromTransTime, 21) +  ', FilterToTransTime: ' + CONVERT(VARCHAR(30), l.FilterToTransTime, 21)
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							+ CASE WHEN @IssueTypeId = 6 THEN ', WrongOU: ' + l.WrongOdds
-								   WHEN @IssueTypeId = 7 THEN ', Wrong 1st OU: ' + l.WrongOdds ELSE '' END
+							+ ', WrongOdds: ' + l.WrongOdds
 							FROM #tblGetLogInfo l
 	-- Write Log
 	SET @EndTime = GETDATE()
