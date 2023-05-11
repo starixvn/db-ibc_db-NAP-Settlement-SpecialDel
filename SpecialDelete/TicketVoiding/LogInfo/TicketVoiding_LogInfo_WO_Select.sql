@@ -91,7 +91,7 @@ BEGIN
 		,FilterOddsType			VARCHAR(20) --"Range" or "Value"
  		,FromOdds				MONEY --"1.75" NULL IF FilterOddsType = 'Value' 
 		,ToOdds					MONEY --"1.75" NULL IF FilterOddsType = 'Value' 
-		,OddsValue				MONEY --"1.75" NULL IF FilterOddsType = 'Range' 
+		,OddsValue				VARCHAR(20) --"1.75&1.5" NULL IF FilterOddsType = 'Range' 
 		,betteam				VARCHAR(10)	-- "h" or "a"
 		,FilterFavoriteType		VARCHAR(10) -- "h" or "a"
 		,FavoriteValue			VARCHAR(20) -- "1.25"
@@ -214,7 +214,7 @@ BEGIN
 			,t.c.value('@FilterOddsType', 'VARCHAR(20)') AS FilterOddsType
 			,t.c.value('@FromOdds', 'MONEY') AS FromOdds
 			,t.c.value('@ToOdds', 'MONEY') AS ToOdds
-			,t.c.value('@OddsValue', 'MONEY') AS OddsValue
+			,t.c.value('@OddsValue', 'VARCHAR(20)') AS OddsValue
 			,t.c.value('@BetTeam', 'VARCHAR(10)') AS betteam
 			,t.c.value('@FilterFavoriteType', 'VARCHAR(10)') AS FilterFavoriteType
 			,t.c.value('@FavoriteValue', 'VARCHAR(20)') AS FavoriteValue
@@ -503,7 +503,7 @@ BEGIN
 	END
 	ELSE IF @FilterOddsType = 'Value'
 	BEGIN
-		SET @Odds_str = (SELECT CAST(d.OddsValue AS VARCHAR(10))
+		SET @Odds_str = (SELECT REPLACE(d.OddsValue, '&', ',')
 						FROM #FilterInfo d)
 	END
 
