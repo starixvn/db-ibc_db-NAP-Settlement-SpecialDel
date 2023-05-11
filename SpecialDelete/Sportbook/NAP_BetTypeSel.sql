@@ -58,7 +58,7 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-    IF @mode in (0, 2, 4, 9) OR (@matchid <> 0 AND @mode = 3) 
+    IF @mode in (0, 2, 3, 4, 9)
     BEGIN    
         DECLARE @Sporttype INT    
         
@@ -128,8 +128,7 @@ BEGIN
         INNER JOIN #betTypesTemp bt ON b.typeid = bt.bettype
         INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = b.typeid
         LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-        WHERE EXISTS (SELECT TOP 1 1 FROM dbo.match m
-                WHERE m.matchid = @MatchId)
+        WHERE EXISTS (SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchId)
         GROUP BY tb.parentid, b.typeid, f.GroupName
 
         IF (EXISTS(SELECT TOP 1 1 FROM #betTypesTemp WHERE bettype = 38)) AND (@mode = 2)
