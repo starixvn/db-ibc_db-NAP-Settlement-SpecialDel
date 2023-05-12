@@ -51,8 +51,7 @@ BEGIN
 			,@AllowRefund BIT
 			,@AllowUndo BIT
 			,@Action VARCHAR(20)
-			,@AllowUndo BIT
-			
+		
 	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
 	SET @Action = CASE 
 					WHEN @ActionID BETWEEN 100 AND 102 OR @ActionId IN (157, 158, 178, 179, 195, 196) THEN 'CAL' 

@@ -233,6 +233,8 @@ BEGIN
 					) mt
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
+							AND b.recommend <> 1688156) --exclude betdaq/betfair
 						--AND bm.statusID IN (0,102)
 						AND m.modds IS NOT NULL
 						AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
@@ -240,7 +242,7 @@ BEGIN
 							OR bm.statusID = 102
 						)
 						and 1 = case 
-								when sr.SDTpfId = 3 then case when (@hth + @hta) - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 3 then case when (@fth + @fta) - 0.25 > bm.hdp1 then 1 else 0 end
 								when sr.SDTpfId = 388 then case when @fta - 0.25 > bm.hdp1 then 1 else 0 end
 								when sr.SDTpfId = 389 then case when @fth - 0.25 > bm.hdp1 then 1 else 0 end
 								else 1
@@ -340,16 +342,23 @@ BEGIN
 								AND mt.MatchId = @MatchID
 				) mt
 			WHERE	bm.matchid = @MatchID
+					AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
+							AND b.recommend <> 1688156) --exclude betdaq/betfair
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-					AND (bm.statusId IN (112, 113) OR (bm.statusId = 0 AND mt.TransId IS NOT NULL))
-					AND (m.modds IS NULL 
-						OR bm.statusId <> CASE
-											WHEN m.modds >= 0.5 THEN 112
-											WHEN m.modds <= -0.5 THEN 113
-											ELSE NULL
-										END 
-						)
-
+					AND 1 = CASE
+								WHEN bm.statusId IN (112, 113)
+									AND (bm.statusId <> CASE
+													WHEN m.modds >= 0.5 THEN 112
+													WHEN m.modds <= -0.5 THEN 113
+													ELSE 0
+												END 
+									) THEN 1
+								WHEN bm.statusId = 0 AND mt.TransId IS NOT NULL
+									AND ISNULL(bm.statuswinlost,0) <> 0
+									AND m.modds IS NULL THEN 1
+								ELSE 0
+							END
+				
 			SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
 		END
 	END 

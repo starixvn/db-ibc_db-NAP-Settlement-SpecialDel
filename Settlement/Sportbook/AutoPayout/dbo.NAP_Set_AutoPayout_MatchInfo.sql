@@ -310,7 +310,7 @@ BEGIN
 					  )--#86964
 
 			OR (aps.StatusId = 2 
-				--AND temp.IsConfirmed = 0
+				AND temp.IsConfirmed = 0
 				) --abnormal case -> re-calculate
 		)
 		
@@ -356,7 +356,7 @@ BEGIN
 					ORDER BY ProviderResultDetailId DESC
 				) AS gc
 			WHERE	q.matchid = aps.matchid
-					AND q.CalculationType = aps.CalculationType
+					AND (q.CalculationType = 0 OR q.CalculationType = aps.CalculationType)
 					AND aps.StatusId = 2 -- completed
 			ORDER BY ModifiedDate DESC
 		) aps

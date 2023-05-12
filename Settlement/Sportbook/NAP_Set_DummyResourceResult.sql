@@ -1472,7 +1472,7 @@ BEGIN
 							FROM	cteResult c
 							WHERE	c.DummyResourceId = t.ResourceId
 						) c
-					WHERE ResourceId IN ('486', '487')
+					WHERE t.ResourceId IN ('486', '487')
 
 				END
 				ELSE -- @WebResourceResult dont have ResourceId
@@ -1548,7 +1548,7 @@ BEGIN
 					ELSE
 					BEGIN
 						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						SELECT	t.ResourceId, r.HomeValue, r.ssId
 						FROM	@tmpDummyResourceIds t
 							OUTER APPLY (
 								SELECT	r.ResourceId, r.HomeValue, r.ssId
@@ -1556,7 +1556,7 @@ BEGIN
 								WHERE	r.ResourceId = t.ResourceId
 										AND r.isWeb = 1
 						)r
-						WHERE	r.ResourceId = '488'
+						WHERE	t.ResourceId = '488'
 					END
 				END
 				ELSE
@@ -1583,7 +1583,7 @@ BEGIN
 					ELSE
 					BEGIN
 						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						SELECT	t.ResourceId, r.HomeValue, r.ssId
 						FROM	@tmpDummyResourceIds t
 							OUTER APPLY (
 								SELECT	r.ResourceId, r.HomeValue, r.ssId
@@ -1591,7 +1591,7 @@ BEGIN
 								WHERE	r.ResourceId = t.ResourceId
 										AND r.isWeb = 1
 						)r
-						WHERE	r.ResourceId = '489'
+						WHERE	t.ResourceId = '489'
 					END
 				END
 				ELSE
@@ -1618,7 +1618,7 @@ BEGIN
 					ELSE
 					BEGIN
 						INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
-						SELECT	r.ResourceId, r.HomeValue, r.ssId
+						SELECT	t.ResourceId, r.HomeValue, r.ssId
 						FROM	@tmpDummyResourceIds t
 							OUTER APPLY (
 								SELECT	r.ResourceId, r.HomeValue, r.ssId
@@ -1626,9 +1626,10 @@ BEGIN
 								WHERE	r.ResourceId = t.ResourceId
 										AND r.isWeb = 1
 						)r
-						WHERE	r.ResourceId = '490'
+						WHERE	t.ResourceId = '490'
 					END
-			END
+					
+				END
 				ELSE
 					INSERT INTO @tmpDummyResourceResults(ResourceId, HomeValue, ssId)
 					SELECT	'490'

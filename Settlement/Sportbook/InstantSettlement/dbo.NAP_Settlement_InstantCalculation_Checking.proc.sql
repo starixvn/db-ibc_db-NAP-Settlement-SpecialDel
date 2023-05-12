@@ -110,6 +110,11 @@ BEGIN
 					,@HomeScore HomeValue
 					,@AwayScore AwayValue
 			UNION ALL
+			SELECT	CAST('00' AS VARCHAR(20)) AS ResourceID
+					,CAST( @HomeScore AS VARCHAR(50)) AS HomeValue
+					,CAST( @AwayScore AS VARCHAR(50)) AS AwayValue
+			WHERE	@DeterminedType = 1
+			UNION ALL
 			SELECT  ResourceId, HomeValue, AwayValue
 			FROM	cteGoalResource
 			WHERE   ResourceID IS NOT NULL
@@ -179,17 +184,31 @@ BEGIN
 											, b.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc
 											,CAST(b.betid AS VARCHAR(50)) -- betcheck/betid
 											, 0) m
+								OUTER APPLY (	
+									SELECT	TOP 1 1 AS IsMarked
+									FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+									WHERE	mt.TransId = b.transid
+								)mt
 							WHERE	b.matchid = @matchid
 									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 									AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
 											AND b.recommend <> 1688156) --exclude betdaq/betfair
-									AND b.statusId IN (112, 113)
 									AND ISNULL(b.betdaqid,0) <> -2
-									AND b.statusId <>  CASE 
-															WHEN m.modds >= 0.5 THEN 112
-															WHEN m.modds <= -0.5 THEN 113
-															ELSE 0
-														END 
+									AND 1 = CASE 
+												WHEN b.statusId IN (112, 113)
+													AND b.statusId <>  CASE 
+																			WHEN m.modds >= 0.5 THEN 112
+																			WHEN m.modds <= -0.5 THEN 113
+																			ELSE 0
+																		END THEN 1
+												WHEN b.statusid = 0 AND mt.IsMarked IS NOT NULL
+													AND ISNULL(b.statuswinlost,0) <> CASE 
+																			WHEN m.modds >= 0.5 THEN 2
+																			WHEN m.modds <= -0.5 THEN 4
+																			ELSE 0
+																		END THEN 1
+												ELSE 0
+											END
 	)
 	BEGIN
 		SELECT @ErrCode = 1001002
@@ -204,14 +223,33 @@ BEGIN
 											, bm.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc
 											,CAST(bm.betcheck AS VARCHAR(50)) -- betcheck/betid
 											, 0) m
+								LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+									ON	b.matchid = 29
+										AND b.bettype = 29
+										AND b.refno = bm.refno
+								OUTER APPLY (
+										SELECT TOP 1 1 AS IsMarked
+										FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+										WHERE	mt.TransId = b.transId
+												AND mt.MatchId = @MatchID
+								) mt
 							WHERE	bm.matchid = @matchid
 									AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-									AND bm.statusId IN (112, 113)									
-									AND bm.statusId <>  CASE 
-															WHEN m.modds >= 0.5 THEN 112
-															WHEN m.modds <= -0.5 THEN 113
-															ELSE 0
-														END 
+									AND 1 = CASE 
+												WHEN bm.statusId IN (112, 113)
+													AND bm.statusId <>  CASE 
+																			WHEN m.modds >= 0.5 THEN 112
+																			WHEN m.modds <= -0.5 THEN 113
+																			ELSE 0
+																		END THEN 1
+												WHEN bm.statusid = 0 AND mt.IsMarked IS NOT NULL
+													AND ISNULL(bm.statuswinlost,0) <> CASE 
+																			WHEN m.modds >= 0.5 THEN 2
+																			WHEN m.modds <= -0.5 THEN 4
+																			ELSE 0
+																		END THEN 1
+												ELSE 0
+											END
 	)
 	BEGIN
 		SELECT @ErrCode = 1001002
