@@ -1459,7 +1459,7 @@ BEGIN
 					AS (
 						SELECT	DummyResourceId
 								,STRING_AGG(CAST(CAST(RaceTo AS VARCHAR(10)) + TeamResult AS VARCHAR(MAX)), ';') AS TeamRaceTo
-								,MAX(CASE WHEN ssId = 4 THEN RaceTo + 1 ELSE 0 END) AS NeitherRaceTo
+								,MAX(CASE WHEN ssId = 4 AND TeamResult IN ('H', 'A') THEN RaceTo + 1 ELSE 0 END) AS NeitherRaceTo
 								,MAX(ssId) AS ssId
 						FROM	cteRaceTo
 						GROUP BY DummyResourceId
