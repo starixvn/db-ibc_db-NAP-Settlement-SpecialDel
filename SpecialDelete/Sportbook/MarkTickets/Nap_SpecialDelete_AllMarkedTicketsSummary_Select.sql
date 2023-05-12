@@ -27,12 +27,13 @@ BEGIN
      DECLARE @SiteDBGroupID		SMALLINT = 0
 	 SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	 CREATE TABLE #Tickets
-              (MatchId     INT,
-               UserId      INT,
-               CreatedDate DATETIME,
-               Total       INT
-              );
+	 CREATE TABLE #Tickets(
+			MatchId     INT,
+            UserId      INT,
+            CreatedDate DATETIME,
+            Total       INT,
+			ChildMatchId INT
+     );
 	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT)
 
 	 -- get all tickets 
@@ -86,9 +87,15 @@ BEGIN
              m.CreatedDate
 	OPTION (MAXDOP 1)
 
+	UPDATE t
+	SET  MatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+	    ,ChildMatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END
+	FROM #Tickets t
+		  INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.matchid
+
      -- return final results   
-     SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END AS MatchId,
-            CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END AS ChildMatchId,
+     SELECT t.MatchId,
+            t.ChildMatchId,
 			t.UserId,
             c.Username,
             t.CreatedDate,
@@ -107,13 +114,13 @@ BEGIN
 						SELECT TOP 1 m.hthomescore, m.htawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE IsHTCal = 1 
-							AND mr.matchid = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE m.MatchId END		
+							AND mr.matchid = m.matchid	
 					)rdHT
 	      OUTER APPLY (
 						SELECT TOP 1 m.finalhomescore, m.finalawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE mr.calculate = 1 
-							AND mr.matchid = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE m.MatchId END	
+							AND mr.matchid = m.matchid	
 					)rdFT
 		 INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON t.UserId = c.CustId
      ORDER BY m.kickofftime
