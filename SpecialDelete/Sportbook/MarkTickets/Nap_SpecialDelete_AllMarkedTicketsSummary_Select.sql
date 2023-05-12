@@ -107,13 +107,13 @@ BEGIN
 						SELECT TOP 1 m.hthomescore, m.htawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE IsHTCal = 1 
-							AND mr.matchid = m.matchid			
+							AND mr.matchid = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE m.MatchId END		
 					)rdHT
 	      OUTER APPLY (
 						SELECT TOP 1 m.finalhomescore, m.finalawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE mr.calculate = 1 
-							AND mr.matchid = m.matchid			
+							AND mr.matchid = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE m.MatchId END	
 					)rdFT
 		 INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON t.UserId = c.CustId
      ORDER BY m.kickofftime

@@ -1,10 +1,10 @@
 ﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_SpecialDelete_UserLog_MarkTickets_Select
-	@LogDateFrom DATETIME
-	,@LogDateTo DATETIME
-	,@MatchId INT = NULL
-	,@LogActionIds VARCHAR(MAX)
-	,@DoneBy VARCHAR(30) = NULL
+	@LogDateFrom	DATETIME
+	,@LogDateTo		DATETIME
+	,@MatchId		INT = 0
+	,@LogActionIds	VARCHAR(MAX)
+	,@DoneBy		VARCHAR(30) = NULL
 AS
 /*
 	Create By: 20190606@Raymond.Le
@@ -46,7 +46,6 @@ BEGIN
 		CreatedDate DATETIME,
 		LogActionId INT,
 		MatchId 	INT,
-		ChildMatchId INT,
 		homeid		INT,
 		awayid		INT,
 		LogData		VARCHAR(MAX),
@@ -62,7 +61,6 @@ BEGIN
 			,CreatedDate
 			,LogActionId
 			,MatchId
-			,ChildMatchId
 			,homeid
 			,awayid
 			,LogData
@@ -74,7 +72,6 @@ BEGIN
 			,l.CreatedDate
 			,l.LogActionId
 			,CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE l.MatchId END MatchId
-			,CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.MatchId ELSE NULL END ChildMatchId
 			,m.homeid
 			,m.awayid
 			,l.LogData
@@ -88,16 +85,14 @@ BEGIN
 			LEFT JOIN bodb02.dbo.ResultDetail AS rdHT WITH (NOLOCK) ON rdHT.MatchId = m.matchid AND rdHT.ResourceID = '01'
 			LEFT JOIN bodb02.dbo.ResultDetail AS rdFT WITH (NOLOCK) ON rdFT.MatchId = m.matchid AND rdFT.ResourceID = '00'
 		WHERE l.CreatedDate BETWEEN @LogDateFrom AND @LogDateTo
-			AND (@MatchId IS NULL OR l.MatchId IN (SELECT MatchId FROM @tmpMatchId))
+			AND (@MatchId = 0 OR l.MatchId IN (SELECT MatchId FROM @tmpMatchId))
 			AND EXISTS (SELECT TOP 1 1 FROM #LogActionId AS lid WHERE lid.Id = l.LogActionId)
 			AND (@DoneBy IS NULL OR c.username like '%' + @DoneBy +'%')
 	ORDER BY l.CreatedDate DESC
 
 	-- Check and update information of match if it was moved to match14
 	UPDATE lr
-	SET lr.MatchId = CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE lr.MatchId END,
-	    lr.ChildMatchId = CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.MatchId ELSE NULL END,
-		lr.homeid = m.homeid,
+	SET lr.homeid = m.homeid,
 		lr.awayid = m.awayid,
 		lr.kickofftime = m.kickofftime,
 		lr.HTScore = ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-'),
@@ -113,7 +108,6 @@ BEGIN
 			CreatedDate,
 			LogActionId,
 			MatchId,
-			ChildMatchId,
 			homeid,
 			awayid,
 			LogData,

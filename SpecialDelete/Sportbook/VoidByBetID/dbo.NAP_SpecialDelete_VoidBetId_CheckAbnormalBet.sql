@@ -46,9 +46,8 @@ BEGIN
 	-- check valid match id
 	IF NOT EXISTS (
 			SELECT TOP 1 1
-			FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
-			WHERE bm.ProductID = 1
-				AND bm.SportType = @SportType
+			FROM dbo.SportBettypeMatrix WITH (NOLOCK)
+			WHERE ProductID = 1 AND SportType = @SportType
 		)
 	OR ( @SportType = 50 AND @ChildMatchType = 200)
 	BEGIN

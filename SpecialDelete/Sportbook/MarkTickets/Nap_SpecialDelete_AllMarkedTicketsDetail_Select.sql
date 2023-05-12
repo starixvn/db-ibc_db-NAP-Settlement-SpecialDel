@@ -5,7 +5,8 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsDetail_Select]
 	@CreatedDate	DATETIME
 AS
 /*
-    Created by: 20190325@Alan
+    Created by: Alan
+	Date: 20190325
 	Task: Mark Ticket for Settlement Exclusion
 	DB: DBTXN/BODB02
 
@@ -20,7 +21,6 @@ AS
 		- 20211214@July: Remove code CashOut [Redmine: #165097]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
-		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Explanation's Param:
 */
@@ -28,14 +28,6 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE @SiteDBGroupID		SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-	
-	DECLARE @tmpMatchId TABLE (MatchId INT)
-	INSERT INTO @tmpMatchId (MatchId)
-	SELECT MatchId
-	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN SportType <> 50 AND matchid = @MatchId THEN 1
-				    WHEN SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
-					ELSE 0 END
 
 	CREATE TABLE #Tickets
              (GroupID         BIGINT,
@@ -153,7 +145,7 @@ BEGIN
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid
 		WHERE b.statusID IN (0, 1) -- running, waiting
-		AND b.MatchId IN (SELECT MatchId FROM @tmpMatchId)
+		AND b.MatchId = @MatchId 
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
 		AND b.SiteDBGroupID = @SiteDBGroupID
@@ -241,13 +233,24 @@ BEGIN
 			,bm.odds As SubOdds
 		FROM dbo.bettransm AS bm WITH (NOLOCK)
 			INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid = 29 AND b.bettype = 29 AND bm.refno = b.refno
-			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = bm.matchid
+			INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = b.transid AND m.MatchId = @MatchId
 		WHERE bm.statusID IN (0, 1) -- running, waiting
-		AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
+		AND bm.matchid = @MatchId
 		AND m.UserId = @UserId
 		AND m.CreatedDate = @CreatedDate
 		AND bm.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = bm.SiteDBGroupID
 	
+	UPDATE sub
+	SET MainTransId = main.transid
+	FROM #Tickets main
+			INNER JOIN #Tickets sub
+					ON main.RefCode = sub.RefCode	
+					AND main.transid <> sub.transid					
+					AND main.custid = sub.custid
+					AND main.matchid = sub.matchid
+					AND main.bettype = sub.bettype											
+	WHERE main.WalletType = 1		
+
 	-- Group Name By Licensee
 	BEGIN
 		DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'

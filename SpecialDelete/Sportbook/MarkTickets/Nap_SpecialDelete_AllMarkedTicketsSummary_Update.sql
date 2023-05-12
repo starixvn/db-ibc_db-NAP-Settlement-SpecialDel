@@ -21,6 +21,7 @@ AS
 		- 20210720@July: TVS - Apply new way to lock parlay tickets [Redmine: #157970]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Explanation's Param:
 		@Matches: <Matches><Match MatchId="1" UserId="1" CreatedDate="2019-03-04 04:11:33.240"/></Matches>
@@ -64,6 +65,7 @@ BEGIN
 		MatchId INT
 		,UserId INT
 		,CreatedDate DATETIME
+		, HomeId INT, AwayId INT, SportType TINYINT, IsNeutral BIT
 		);
 
 	CREATE TABLE #MarkedTransactionDeleted (
@@ -72,14 +74,14 @@ BEGIN
 		,IsParlay BIT
 		);
 
-	CREATE TABLE #Tickets
-					(TransId   BIGINT,
-					 MatchId   INT,
-					 BetType   SMALLINT,
-					 IsParlay  BIT DEFAULT(0),
-					 IsFinish  BIT,
-					 Refno	   BIGINT
-					);
+	CREATE TABLE #Tickets (
+		TransId   BIGINT,
+		MatchId   INT,
+		BetType   SMALLINT,
+		IsParlay  BIT DEFAULT(0),
+		IsFinish  BIT,
+		Refno	   BIGINT
+	);
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 	CREATE TABLE #tblMatchProcess_tmp(matchid INT, KeyID TINYINT, IsFinish BIT);
@@ -359,27 +361,35 @@ BEGIN
 		END
 	END
 
+	TRUNCATE TABLE #Match
+	INSERT INTO #Match (MatchId, HomeId, AwayId, SportType, IsNeutral)
+	SELECT DISTINCT CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+		, HomeId
+		, AwayId
+		, SportType
+		, IsNeutral
+	FROM #Tickets t
+		INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType = 50)
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #Tickets d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+	END
+
 	------------------------------------------------------------------------------
 	--1. Table return error code/ msg
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg
  
 	--2. Table get match info
-	SELECT b.MatchId
-		,m.HomeId
-		,m.AwayId
-		,m.SportType
-		,m.IsNeutral
-	FROM #Match b
-		INNER JOIN match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
+	SELECT MatchId, HomeId, AwayId, SportType, IsNeutral
+	FROM #Match
 
 	-- Write Log
 	DECLARE @xmlLog VARCHAR(MAX);
-	
-	;WITH CTE_Match AS (
-		SELECT DISTINCT MatchId
-		FROM #Match
-	)
 	SELECT @xmlLog = CAST((
 				SELECT 90502 AS '@LogActionId' -- 90502: Action Unmark All
 					,@UserId AS '@UserId'
@@ -391,7 +401,7 @@ BEGIN
 							WHERE d.MatchId = m.MatchId
 							FOR XML PATH('')
 							), 1, 1, '') AS '@LogData'
-				FROM CTE_Match AS m
+				FROM #Match AS m
 				FOR XML PATH('r')
 					,ROOT('root')
 					,TYPE
