@@ -1,6 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchInfo
 	@MatchIds	VARCHAR(MAX)
+	,@LeagueId INT = 0
 AS
 /*
 	Created: 20160825@Kathy
@@ -99,6 +100,7 @@ BEGIN
 				AND prd.SourceID = 100 --#86964
 				AND NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchInQueue q WHERE q.MatchId = prd.MatchId)
 				AND m.sporttype = 1 
+				AND (m.leagueid = @LeagueId OR @LeagueId = 0) 
 				AND m.eventstatus = 'running' 
 				AND 2 & ISNULL(m.AutoSetting,l.AutoSetting) = 2
 				AND m.SettlementStatus & 87 = 0 --bit 1,2,3,5,7

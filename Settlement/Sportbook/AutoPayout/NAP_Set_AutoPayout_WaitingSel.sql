@@ -164,6 +164,7 @@ BEGIN
 	INSERT INTO @tblMatchInfo
 	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayout_MatchInfo 
 	@MatchIds = @MatchIds
+	,@LeagueId = @LeagueId
 	
 	-- get more match of Auto Payout & Instant
 	INSERT INTO #tblMatchInQueue (MatchId, SingleStatus, ParlayStatus)
