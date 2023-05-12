@@ -77,7 +77,7 @@ BEGIN
     SELECT	@fth = CAST(@HomeScore AS INT)
 			,@fta = CAST(@AwayScore AS INT)
 			,@hth = CASE WHEN @DeterminedType = 1 THEN CAST(@HomeScore AS INT) ELSE m.hthomescore END
-			,@hta = CASE WHEN @DeterminedType = 4 THEN CAST(@AwayScore AS INT) ELSE m.htawayscore END
+			,@hta = CASE WHEN @DeterminedType = 1 THEN CAST(@AwayScore AS INT) ELSE m.htawayscore END
 			,@Sporttype = m.sporttype
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
