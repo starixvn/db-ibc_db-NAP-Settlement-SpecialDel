@@ -32,6 +32,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
