@@ -16,6 +16,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_Select]
 	,@AwayFavorite		  VARCHAR(50) = NULL
 	,@HdpValue			  VARCHAR(50) = NULL
 	,@WrongMarket         VARCHAR(50) = NULL
+	,@WrongOddsInfo		  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -27,6 +28,7 @@ AS
 		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 
 	Param's explanation:
 
@@ -68,6 +70,15 @@ BEGIN
 			,@LiveIndicator		   = @LiveIndicator
 			,@TransInfoJson		   = @TransInfoJson
 			,@WrongMarket		   = @WrongMarket
+	END
+	IF @IssueTypeId = 2
+	BEGIN
+		EXEC dbo.TicketVoiding_PoolHouseTicket_WO_Select
+			@RequestId			   = @RequestId
+			,@IssueTypeId		   = @IssueTypeId
+			,@ActionId			   = @ActionId
+			,@TransInfoJson		   = @TransInfoJson
+			,@WrongOddsInfo		   = @WrongOddsInfo
 	END
 	SET NOCOUNT OFF
 END

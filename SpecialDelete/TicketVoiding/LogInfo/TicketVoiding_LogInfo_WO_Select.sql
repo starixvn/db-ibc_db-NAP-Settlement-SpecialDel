@@ -403,10 +403,12 @@ BEGIN
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
 		AND 1 = CASE WHEN d.SubIssueTypeId IN (6,119) 
+							AND b.bettype IN (1,7)
 							AND b.betteam = d.betteam 
 							AND ((d.FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
 						THEN 1
 					 WHEN d.SubIssueTypeId IN (120,121)
+							AND b.bettype IN (3,8)
 							AND b.betteam = d.FilterOUType
 							AND b.hdp1 = d.OUValue
 						THEN 1
@@ -476,12 +478,14 @@ BEGIN
 				AND b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND d.IsMainMatch = 'true'
 				AND 1 = CASE WHEN d.SubIssueTypeId IN (6,119) 
+									AND b.Subbettype IN (1,7)
 									AND b.Subbetteam = d.betteam 
 									AND ((d.FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
 								THEN 1
 							 WHEN d.SubIssueTypeId IN (120,121)
+									AND b.Subbettype IN (3,8)
 									AND b.Subbetteam = d.FilterOUType
-									AND b.Subhdp1 = d.OUValue
+									AND b.Subhdp1 = xOU.OUValue
 								THEN 1
 							 WHEN f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 							 WHEN f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
@@ -679,12 +683,12 @@ BEGIN
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, LiveGameEarlyCashOutCount, LiveGameEarlySettleCount, LiveGameEarlyInstantlySettleCount, PoolHouseCashOutCount, PoolHouseSettleCount, PoolHouseInstantlySettleCount)
 		SELECT @RequestId
 				,b.matchid
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS LiveGameEarlyCashOutCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NULL THEN s.TransId ELSE NULL END) AS LiveGameEarlySettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype = 3) OR (@IssueTypeId = 7 AND b.bettype = 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS LiveGameEarlyInstantlySettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NULL THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
-				, COUNT(CASE WHEN ((@IssueTypeId = 6 AND b.bettype <> 3) OR (@IssueTypeId = 7 AND b.bettype <> 8)) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
+				, COUNT(CASE WHEN b.bettype IN (1,3,7,8) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS LiveGameEarlyCashOutCount
+				, COUNT(CASE WHEN b.bettype IN (1,3,7,8) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NULL THEN s.TransId ELSE NULL END) AS LiveGameEarlySettleCount
+				, COUNT(CASE WHEN b.bettype IN (1,3,7,8) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS LiveGameEarlyInstantlySettleCount
+				, COUNT(CASE WHEN b.bettype NOT IN (1,3,7,8) AND b.betdaqid = -2 THEN s.TransId ELSE NULL END) AS PoolHouseCashOutCount
+				, COUNT(CASE WHEN b.bettype NOT IN (1,3,7,8) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NULL THEN s.TransId ELSE NULL END) AS PoolHouseSettleCount
+				, COUNT(CASE WHEN b.bettype NOT IN (1,3,7,8) AND ISNULL(b.betdaqid, -1) <> -2 AND i.bettype IS NOT NULL THEN s.TransId ELSE NULL END) AS PoolHouseInstantlySettleCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 			INNER JOIN #tmpTransInfo b ON b.transid = s.transid AND b.matchid = s.MatchId AND b.IsMixParlay = 0
 			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = b.matchid
