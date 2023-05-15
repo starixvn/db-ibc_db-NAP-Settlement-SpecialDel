@@ -8,7 +8,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_CheckUserName]
 	,@StatusIds			VARCHAR(50)  = NULL
 	,@FromDate			DATETIME     = NULL
     ,@ToDate			DATETIME     = NULL
-	,@TransInfoJson			VARCHAR(MAX) = NULL
+	,@TransInfoJson		VARCHAR(MAX) = NULL
 )
 AS
 /*
@@ -34,6 +34,7 @@ AS
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230425@July: [TVS] [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 
 	Param's Explanation:
 */
@@ -247,21 +248,13 @@ BEGIN
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
 			INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
-			OUTER APPLY (
-				SELECT TOP 1 m.sporttype 
-				FROM dbo.match m WITH (NOLOCK)
-				WHERE m.matchid = b.matchid
-					AND m.sporttype = 50
-			)mc
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
 			AND 1 = CASE 
 						WHEN @IsSB = 1 
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 						WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
-							AND ml.LeagueGroupID IS NULL 
-							AND mc.sporttype IS NULL --exclude cricket
-							THEN 1
+							AND ml.LeagueGroupID IS NULL THEN 1
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
@@ -284,12 +277,6 @@ BEGIN
 				WHERE m.matchid = b.matchid
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
-			OUTER APPLY (
-				SELECT TOP 1 m.sporttype 
-				FROM dbo.match m WITH (NOLOCK)
-				WHERE m.matchid = b.matchid
-					AND m.sporttype = 50
-			)mc
 			INNER JOIN #InputValidCustid_1 c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		WHERE b.winlostdate BETWEEN @FromWinlostDate AND @ToDate 
@@ -297,9 +284,7 @@ BEGIN
 						WHEN @IsSB = 1 
 							AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
 						WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
-							AND ml.LeagueGroupID IS NULL 
-							AND mc.sporttype IS NULL --exclude cricket
-							THEN 1
+							AND ml.LeagueGroupID IS NULL THEN 1
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	

@@ -25,7 +25,8 @@ AS;
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20230425@July: [TVS] [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
+
 	Param's explanation:	
 		
 */
@@ -95,7 +96,16 @@ BEGIN
 			  ActualStake	  MONEY,
 			  oddsid		  INT,
 			  winlostdate	  DATETIME,
-			  IsCancelCashOut BIT
+			  IsCancelCashOut BIT,
+			  homeid          INT,
+			  awayid          INT,
+			  leagueid        INT,
+			  isNeutral       BIT,
+			  matchcode       NVARCHAR(50),
+			  showtime        NVARCHAR(50),
+			  SettlementStatus	TINYINT,
+			  eventstatus	  NVARCHAR(50),
+			  sporttype       SMALLINT,
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -403,6 +413,74 @@ BEGIN
 
 	END
 
+	-- UPDATE eventtype = 1
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE d
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+		FROM #tmpTicket d
+			INNER JOIN dbo.match m WITH (NOLOCK) 
+			ON	d.matchid = m.matchid
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
+	
+	-- UPDATE eventtype = 2 [Outright bettype]
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (10)))
+	BEGIN
+		UPDATE d
+		SET matchcode 	= odds.matchcode
+			,homeid		= odds.teamid
+			,awayid 	= 0
+			,leagueid 	= odds.leagueid
+			,sporttype 	= l.sporttype
+			,showtime	= ''
+			,eventstatus = ISNULL(odds.oddsstatus,'')
+			,SettlementStatus = 0
+		FROM #tmpTicket d
+			INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
+			ON	d.matchid = odds.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	odds.leagueid = l.leagueid
+		WHERE d.bettype IN (10)
+	END
+	-- UPDATE eventtype = 3 [VS range  bettypes]
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238)))
+	BEGIN
+		UPDATE d
+			SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
+				,homeid 	= o.RacerID
+				,awayid 	= 0
+				,leagueid 	= r.leagueid
+				,sporttype 	= r.sporttype
+				,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
+				,eventstatus = ISNULL(o.eventstatus,'')
+				,SettlementStatus = 0
+		FROM #tmpTicket d
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+			ON d.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+			ON r.EventID = o.EventID
+		WHERE d.bettype IN (1231,1232,1233,1237,1238)
+	END
+	
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
+	BEGIN
+		UPDATE d
+		SET sporttype = sb.SportType
+		FROM #tmpTicket d
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON d.bettype = sb.BetType
+		WHERE sb.ProductID = 37
+	END
+
 	-- UPDATE IsMixParlay
 	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (9, 29, 2799)))
 	BEGIN
@@ -480,6 +558,15 @@ BEGIN
 			   ,s.matchid
 			   ,s.winlostdate
 			   ,s.IsCancelCashOut
+               ,s.homeid          
+               ,s.awayid          
+               ,s.leagueid        
+               ,s.isNeutral       
+               ,s.matchcode       
+               ,s.showtime        
+               ,s.SettlementStatus
+               ,s.eventstatus	  
+               ,s.sporttype       
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -542,6 +629,15 @@ BEGIN
 			   ,s.matchid
 			   ,s.winlostdate
 			   ,s.IsCancelCashOut
+			   ,s.homeid          
+               ,s.awayid          
+               ,s.leagueid        
+               ,s.isNeutral       
+               ,s.matchcode       
+               ,s.showtime        
+               ,s.SettlementStatus
+               ,s.eventstatus	  
+               ,s.sporttype       
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -600,6 +696,15 @@ BEGIN
 			   ,s.matchid
 			   ,s.winlostdate
 			   ,s.IsCancelCashOut
+			   ,s.homeid          
+               ,s.awayid          
+               ,s.leagueid        
+               ,s.isNeutral       
+               ,s.matchcode       
+               ,s.showtime        
+               ,s.SettlementStatus
+               ,s.eventstatus	  
+               ,s.sporttype       
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -661,6 +766,15 @@ BEGIN
 		   ,s.matchid
 		   ,s.winlostdate
 		   ,s.IsCancelCashOut
+		   ,s.homeid          
+           ,s.awayid          
+           ,s.leagueid        
+           ,s.isNeutral       
+           ,s.matchcode       
+           ,s.showtime        
+           ,s.SettlementStatus
+           ,s.eventstatus	  
+           ,s.sporttype       
 		FROM	#tmpTicket s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -717,6 +831,15 @@ BEGIN
 		   ,s.matchid
 		   ,s.winlostdate
 		   ,ISNULL(s.IsCancelCashOut,0) AS IsCancelCashOut
+		   ,s.homeid          
+           ,s.awayid          
+           ,s.leagueid        
+           ,s.isNeutral       
+           ,s.matchcode       
+           ,s.showtime        
+           ,s.SettlementStatus
+           ,s.eventstatus	  
+           ,s.sporttype       
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
