@@ -11,6 +11,7 @@ AS
 	Revision:
 		- 20210316@Kathy: created SP [Redmine:#138281]
 		- 20230322@Louisa: support get result Game/Set/Interval [Redmine:#182007]
+		- 20230515@Kathy: fix bug: rollback code from cross apply to outer apply
 */
 BEGIN
 	SET NOCOUNT ON
@@ -106,7 +107,7 @@ BEGIN
 			on a.teamid = m.awayid
 		LEFT JOIN bodb02.dbo.custinfo ci with(nolock)
 			on ci.custid = s.AdminId
-		CROSS APPLY
+		OUTER APPLY
 			(SELECT *
 			FROM	cteSuspenderConfirm u
 			WHERE	s.MatchId = u.matchid
