@@ -4,7 +4,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_CheckAbnormalBet]
 	,@TransIds	VARCHAR(MAX) = ''
 AS
 /*  
-	Created by: 20190625@Raymond.Le  
+	Created by: Raymond.Le  
+	Date: 20190625
 	Task: Validate matchId, betId of Abnormal bet
 	DB: DBTXN/bodb02   
 	Original:      
@@ -15,7 +16,6 @@ AS
 		- 20210705@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
-		- 20230427@July: Support sport Cricket for Void by betid [Redmine: #187052]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -30,14 +30,11 @@ BEGIN
 		   ,@InvalidMatchId VARCHAR(200) = '' 
 		   ,@MovebetDate DATETIME
 		   ,@MatchDate DATETIME
-		   ,@SportType TINYINT
-		   ,@ChildMatchType TINYINT
-		   ,@ParentID INT
 		   ,@SiteDBGroupID SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 
-	SELECT @MatchDate = eventdate, @SportType = sporttype, @ChildMatchType = ChildMatchType, @ParentID = matchid
+	SELECT @MatchDate = eventdate
 	FROM dbo.match WITH(NOLOCK)
 	WHERE matchid = @MatchId
 
@@ -46,10 +43,16 @@ BEGIN
 	-- check valid match id
 	IF NOT EXISTS (
 			SELECT TOP 1 1
-			FROM dbo.SportBettypeMatrix WITH (NOLOCK)
-			WHERE ProductID = 1 AND SportType = @SportType
-		)
-	OR ( @SportType = 50 AND @ChildMatchType = 200)
+			FROM dbo.match AS m WITH (NOLOCK)
+			WHERE m.matchid = @MatchId
+				AND EXISTS (
+					SELECT TOP 1 1
+					FROM dbo.SportBettypeMatrix AS bm WITH (NOLOCK)
+						INNER JOIN dbo.Sports AS s WITH (NOLOCK) ON s.SportType = bm.sporttype
+					WHERE bm.ProductID = 1
+						AND s.SportType = m.sporttype
+					)
+			)
 	BEGIN
 		SELECT @InvalidMatchId = @MatchId
 
@@ -83,8 +86,8 @@ BEGIN
 		,isInMatch
 		)
 	SELECT b.transid
-		,CASE WHEN @SportType <> 50 AND b.matchid = @MatchId THEN 1
-			  WHEN @SportType = 50 AND @ParentID = @MatchId THEN 1
+		,CASE 
+			WHEN b.matchid = @MatchId THEN 1
 			ELSE 0
 			END
 	FROM dbo.bettrans AS b WITH (NOLOCK)

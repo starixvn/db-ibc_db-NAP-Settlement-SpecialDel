@@ -69,7 +69,7 @@ BEGIN
 			SELECT sporttype
 			FROM dbo.match WITH (NOLOCK)
 			WHERE matchid = @MatchID
-				AND 1 = CASE WHEN Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+				AND 1 = CASE WHEN @mode = 9 AND Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 							 ELSE 1 END 
 			UNION
 			SELECT sporttype
