@@ -2,7 +2,8 @@
 ALTER PROCEDURE [dbo].[Nap_Admin_CustLimitBet_CheckData_Job]
 	@StartTime DATETIME OUTPUT,
 	@EndTime DATETIME OUTPUT,
-	@ErrorMessage VARCHAR(MAX) OUTPUT
+	@ErrorMessage VARCHAR(MAX) OUTPUT,
+	@InformTWTeam BIT = 0 OUTPUT
 AS
 /*	
 	Created: 20211111@Tina
@@ -18,6 +19,7 @@ AS
 		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
 		- 20230317@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
 		- 20230321@Max: Enhance performance & Change to use Sitelabel for 789y [Redmine: #184559]
+		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 
 	Param's explanation:		
 		
@@ -68,6 +70,7 @@ BEGIN
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
 		SET @ErrorMessage = '1. CustLimitBet_789 table is inserted data for excluded sporttype. ' + @CRLF
+		SET @InformTWTeam = 1
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -78,6 +81,7 @@ BEGIN
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
 		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_MBC table is inserted data for excluded sporttype. ' + @CRLF
+		SET @InformTWTeam = 1
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -87,10 +91,12 @@ BEGIN
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
 		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_LIC table is inserted data for excluded sporttype. ' + @CRLF
+		SET @InformTWTeam = 1
 	END
 	
 	-----------------------------------------------------History table is missing data--------------------------------------------------------------------
 	--789y
+	SET @transIds = ''
 	TRUNCATE TABLE #Result_tmp
 	INSERT INTO #Result_tmp (matchid, Transid, custid)
 	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
@@ -125,9 +131,11 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @InformTWTeam = 1
 	END
 	
 	--MBC
+	SET @transIds = ''
 	TRUNCATE TABLE #Result_tmp
 	INSERT INTO #Result_tmp (matchid, Transid, custid)
 	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
@@ -164,9 +172,11 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @InformTWTeam = 1
 	END
 
 	--LIC
+	SET @transIds = ''
 	TRUNCATE TABLE #Result_tmp
 	INSERT INTO #Result_tmp (matchid, Transid, custid)
 	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
@@ -201,9 +211,11 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_LIC table is missing data. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @InformTWTeam = 1
 	END
 
 	--789y
+	SET @transIds = ''
 	TRUNCATE TABLE #Result_tmp
 	INSERT INTO #Result_tmp (matchid, Transid, custid)
 	SELECT TOP (100) b.matchid, b.transId, b.custid
@@ -234,9 +246,11 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @InformTWTeam = 1
 	END
 	
 	--MBC
+	SET @transIds = ''
 	TRUNCATE TABLE #Result_tmp
 	INSERT INTO #Result_tmp (matchid, Transid, custid)
 	SELECT TOP (100) b.matchid, b.transId, b.custid
@@ -268,9 +282,11 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @InformTWTeam = 1
 	END
 
 	--LIC
+	SET @transIds = ''
 	TRUNCATE TABLE #Result_tmp
 	INSERT INTO #Result_tmp (matchid, Transid, custid)
 	SELECT TOP (100) b.matchid, b.transId, b.custid
@@ -300,6 +316,7 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_LIC table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @InformTWTeam = 1
 	END
 
 	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
@@ -315,6 +332,7 @@ BEGIN
 				)
 	BEGIN
 		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'Duplicate data in Queue table. ' + CHAR(13) + CHAR(10)
+		SET @InformTWTeam = 1
 	END
 
 	----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -344,6 +362,7 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for Single. Top 100 transId(s): ' + @transIds
+		SET @InformTWTeam = 1
 	END
 
 	SET @transIds = ''
@@ -367,6 +386,7 @@ BEGIN
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
 		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for Parlay. Top 100 transId(s): ' + @transIds
+		SET @InformTWTeam = 1
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime

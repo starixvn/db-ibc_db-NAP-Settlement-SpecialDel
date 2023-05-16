@@ -12,6 +12,7 @@ AS
 		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 		- 20221206@Max: MPO Remove invalid email address (LOCAL + SIT) [Redmine: #00000]
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
+		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 	
 	Param's explanation:		
 		
@@ -89,11 +90,11 @@ BEGIN
 
 	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixvn.com;kiwi.tran@starixvn.com;helen.do@starixvn.com;max.tran@starixvn.com;kaka.huynh@starixvn.com;tommy.nguyen@starixvn.com;susan.le@starixvn.com'
+		SET @Recipients = 'dbaadmin@starixvn.com'
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;qa@starixvn.com;kaka.huynh@starixvn.com;jane.dinh@starixvn.com;neil.dao@starixvn.com;tommy.nguyen@starixvn.com'
+		SET @Recipients = 'dba_local@starixvn.com;qa@starixvn.com'
 	END
 
 	SELECT @List_QueueRetry_Success = ISNULL(STUFF((SELECT DISTINCT TOP 10 ',' + CAST(tmp.QueueID  AS VARCHAR(50))
@@ -112,20 +113,20 @@ BEGIN
 
 	-- Send email
 	SET @Subject = 'NAP: CustLimitBet Notification!'
-
-	IF @List_QueueRetry_Success <> ''
-	BEGIN		
-		SET @Body = 'NAP: CustLimitBet Notification: Retry successful for some queues have rejected transid not found on CustLimitBetHistory: ' + @List_QueueRetry_Success
+	--Tina@16052023: Not send an email if retry successfully for the rejected action [redmine: 188130]
+	--IF @List_QueueRetry_Success <> ''
+	--BEGIN		
+	--	SET @Body = 'NAP: CustLimitBet Notification: Retry successful for some queues have rejected transid not found on CustLimitBetHistory: ' + @List_QueueRetry_Success
 				
-		EXEC msdb.dbo.sp_send_dbmail
-				@recipients= @Recipients
-				,@body=@Body
-				,@sensitivity ='Personal'
-				,@importance ='High'
-				,@subject =@Subject
-				,@body_format = 'HTML'
-				,@profile_name =DEFAULT;
-	END
+	--	EXEC msdb.dbo.sp_send_dbmail
+	--			@recipients= @Recipients
+	--			,@body=@Body
+	--			,@sensitivity ='Personal'
+	--			,@importance ='High'
+	--			,@subject =@Subject
+	--			,@body_format = 'HTML'
+	--			,@profile_name =DEFAULT;
+	--END
 
 	IF @List_QueueRetry_Failed <> ''
 	BEGIN		

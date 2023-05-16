@@ -28,7 +28,8 @@ BEGIN
 
 	DECLARE @StartTime DATETIME = getdate(),
 			@EndTime DATETIME = getdate(),
-			@ErrorMessage VARCHAR(MAX) = 'error message'
+			@ErrorMessage VARCHAR(MAX) = 'error message',
+			@InformTWTeam BIT = 0
 			
 	DECLARE @Subject	NVARCHAR(500) = ''
 		,@Body			NVARCHAR(MAX) = ''
@@ -40,11 +41,17 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;qa@starixvn.com;kaka.huynh@starixvn.com;jane.dinh@starixvn.com;neil.dao@starixvn.com;tommy.nguyen@starixvn.com'
+		SET @Recipients = 'dba_local@starixvn.com;qa@starixvn.com'
 	END
 	
 
-	EXEC  [dbo].[Nap_Admin_CustLimitBet_CheckData_Job] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT, @ErrorMessage = @ErrorMessage OUTPUT
+	EXEC  [dbo].[Nap_Admin_CustLimitBet_CheckData_Job] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT
+													 ,@ErrorMessage = @ErrorMessage OUTPUT, @InformTWTeam = @InformTWTeam OUTPUT
+
+	IF @InformTWTeam = 1
+	BEGIN
+		SET @Recipients = @Recipients + ';martin.chen@onelab.tw;member_core@onelab.tw;steve.liao@onelab.tw'
+	END
 
 	IF @ErrorMessage <> ''
 	BEGIN
