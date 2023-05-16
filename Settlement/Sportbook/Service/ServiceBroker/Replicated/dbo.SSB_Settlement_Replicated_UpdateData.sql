@@ -10,10 +10,11 @@ as
 	DB: SBSETTLE-bodb02
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
+		- 20230516@Aries: Replicate to SubDB is not correctly [Redmine:#188298]
 */
 begin
 	declare @__startTime datetime2, @__sessionId bigint, @__strTransIds varchar(max)
-		, @__processingId bigint, @__modds money, @__IsMarked bit, @__oddsType smallint
+		, @__processingId bigint, @__modds money, @__IsMarked bit, @__oddsType smallint, @__actionId int
 		, @__errmsg varchar(1024) = '', @__messageTypeNew varchar(200), @__endtime datetime2
 		, @__delayTime varchar(50)
 
@@ -21,7 +22,7 @@ begin
 	while 1 = 1
 	begin
 		select @__strTransIds = '', @__processingId = 0, @__oddsType = 0
-			, @__IsMarked = 0, @__modds = 0, @__messageTypeNew = null, @__startTime = sysdatetime()
+			, @__IsMarked = 0, @__modds = 0, @__actionId = 0, @__messageTypeNew = null, @__startTime = sysdatetime()
 
 		update top(1) s
 		set StatusId = 1
@@ -29,6 +30,7 @@ begin
 			, @__modds = s.modds
 			, @__IsMarked = s.IsMarked
 			, @__oddsType = s.OddsType
+			, @__actionId = s.ActionId
 			, @__processingId = s.Id
 		from dbo.SettlementProcessing s with(readpast)
 		where s.sessionId = @__sessionId
@@ -44,6 +46,7 @@ begin
 				, @__modds = s.modds
 				, @__IsMarked = s.IsMarked
 				, @__oddsType = s.OddsType
+				, @__actionId = s.ActionId
 				, @__processingId = s.Id
 				, @__messageTypeNew = s.MessageType
 			from dbo.SettlementProcessing s with(readpast)
@@ -80,6 +83,7 @@ begin
 				, @Oddstype					= @__oddsType
 				, @IsMarked					= @__IsMarked
 				, @matchid					= 0 -- for replicated no need pass matchid value
+				, @ActionId					= @__actionId
 				, @ServerAlias				= ''
 				, @ServerName				= @@servername
 				, @SettlementProcessingId	= @__processingId
@@ -98,6 +102,7 @@ begin
 				+ case when @__modds is not null then ',@modds=' + cast(@__modds as varchar(20)) else '' end
 				+ case when @__IsMarked is not null then ',@IsMarked=' + cast(@__IsMarked as varchar(20)) else '' end
 				+ case when @__oddsType is not null then ',@OddsType=' + cast(@__oddsType as varchar(20)) else '' end
+				+ case when @__actionId is not null then ',@ActionId=' + cast(@__actionId as varchar(20)) else '' end
 				+ case when @__sessionId is not null then ',@SessionId=' + cast(@__sessionId as varchar(20)) else '' end
 			, @__messageTypeTemp = isnull(@__messageTypeNew, @MessageType)
 			, @__endtime = sysdatetime()

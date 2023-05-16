@@ -163,6 +163,7 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
+        - 20230516@Aries: Replicate to SubDB is not correctly [Redmine:#188298]
 
     Param's Explanation:
         @action             @mode
@@ -228,8 +229,8 @@ BEGIN
 				SET @MessageTypeNew = 'bet_settle_msg_type_' 
 										+ CASE WHEN @QueueNoNew < 10 THEN '0' ELSE '' END + CAST(@QueueNoNew AS VARCHAR)
 			
-				INSERT INTO dbo.SettlementProcessing (SessionId, TransIds, OddsType, modds, IsMarked, MessageType)
-				SELECT @SessionId, @strTransIds, @oddstype, @modds, @ismarked,  @MessageTypeNew
+				INSERT INTO dbo.SettlementProcessing (SessionId, TransIds, OddsType, modds, IsMarked, MessageType,ActionId)
+				SELECT @SessionId, @strTransIds, @oddstype, @modds, @ismarked,  @MessageTypeNew,@ActionId
 			END
 		END
 		ELSE
