@@ -24,6 +24,7 @@ AS
 		  - 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		  - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		  - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		  - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
 	Param's Explanation:  
 	
@@ -210,6 +211,7 @@ BEGIN
 								WHEN @Action LIKE 'REFUND%' THEN
 									CASE WHEN @IsAuto IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAuto AS CHAR(1)) ELSE '' END
 									+ ' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
+								WHEN @Action LIKE 'UNDO%' THEN IIF(@TicketCount IS NOT NULL,' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';','TC: 0;') 
 								ELSE ''
 							END
 							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 

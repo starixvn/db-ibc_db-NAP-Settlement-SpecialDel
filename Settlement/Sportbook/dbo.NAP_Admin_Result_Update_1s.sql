@@ -37,6 +37,7 @@ AS
 		- 20200522@Kathy: update settlementstatusid = 2 if refund HT [Redmine:#134192]
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+        - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
     Param's Explanation: 
         + @Results: 'H,1,X,NL,...'  NL: Blank result of Bettype 216 
@@ -320,7 +321,7 @@ BEGIN
         WHERE   MatchID = @MatchID
                 AND ResourceID IN ('00','01','08','09','14F','14L','127F','127L')
 
-    END 
+    END
     /* END - @Command = 'NAP_Admin_Settlement_1-UNDO' */
     ELSE IF @Command = 'NAP_Admin_Settlement_Refund-All'
     BEGIN
@@ -717,6 +718,18 @@ BEGIN
 					,LastModifyDate     = GETDATE() 
         FROM    dbo.ResultDetail r
         WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','01','08','09','488','489','490') OR r.ResourceID LIKE '486%' OR r.ResourceID LIKE '487%')
+    END
+    ELSE IF @Command = 'NAP_Admin_Settlement_1-Corner-UNDO-FT'
+    BEGIN
+        UPDATE ResultDetail WITH (UPDLOCK,ROWLOCK)
+			SET     HomeValue           = NULL  
+					,AwayValue          = NULL
+					,ResultStatusID     = 0     -- Initial 
+					,SettlementStatusID = 0     -- Initial
+					,LastModifyBy       = @Creator 
+					,LastModifyDate     = GETDATE() 
+        FROM    dbo.ResultDetail r
+        WHERE   r.MatchID = @MatchID AND (r.ResourceID IN ('00','08','488','490') OR r.ResourceID LIKE '486%')
     END
 END
 GO

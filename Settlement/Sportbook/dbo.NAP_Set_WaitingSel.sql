@@ -51,6 +51,7 @@ AS
 		- 20221021@Louisa: Enhancement [Redmine:#180306]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Louisa: Remove un-use code due do this SP only support soccer [Redmine:#186140]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
 	Param's explanation:  
 		
@@ -346,8 +347,7 @@ BEGIN
 		FROM	@tmpMatchMarked mk
 			INNER JOIN (
 				SELECT	mt.matchId
-						,CASE WHEN MIN(ISNULL(bm.IsParlay,0)) = 0 THEN 1 ELSE 0 END AS HasMarkedSingle
-						,CASE WHEN MAX(ISNULL(bm.IsParlay,0)) = 1 THEN 1 ELSE 0 END AS HasMarkedParlay
+						,CASE WHEN COUNT(1) > 0 THEN 1 ELSE 0 END AS HasMarkedSingle
 				FROM	#tmpMarkedTransaction mt
 					CROSS APPLY (
 						SELECT	TOP (1) b.transid

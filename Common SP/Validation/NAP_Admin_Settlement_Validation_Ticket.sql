@@ -32,6 +32,7 @@ AS
 	Revisions:
 		- 20220719@Louisa: Validation before settle  [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
@@ -257,7 +258,7 @@ BEGIN
 	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode IN ( 'INST') )
 	BEGIN
 		IF (  @SportType = 1  
-				AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO') 
+				AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'UNDO-FT') 
 				AND @SelectedResources IS NULL
 			)
 		BEGIN
@@ -274,7 +275,7 @@ BEGIN
 				WHERE	@action IN ('CAL', 'CAL-HT', 'UNDO')
 				UNION ALL
 				SELECT 	CAST('00' AS VARCHAR(20)) AS ResourceID
-				WHERE	@action IN ('CAL', 'CAL-FT', 'UNDO')
+				WHERE	@action IN ('CAL', 'CAL-FT', 'UNDO', 'UNDO-FT')
 				UNION ALL
 				SELECT  ResourceId
 				FROM	cteGoalResource

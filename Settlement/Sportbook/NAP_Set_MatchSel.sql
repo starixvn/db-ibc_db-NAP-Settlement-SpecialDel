@@ -75,6 +75,7 @@ AS
 		- 20221021@Louisa: Remove order [Redmine:#180306]
 		- 20221214@Louisa: Fix bug [Redmine:#181598]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
  Param explanation: 
 	@LeagueIDs  : '0' :all  
@@ -684,7 +685,8 @@ BEGIN
 			FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
 			WHERE	m.matchid = mt.MatchId
 		)mt
-	WHERE m.IsRunningSingle = 1
+	WHERE m.IsRunningSingle = 1 
+		OR m.IsRunningParlay = 1 
 
 	INSERT INTO @tmpMatchMarked(MatchId)
 	SELECT	DISTINCT matchId

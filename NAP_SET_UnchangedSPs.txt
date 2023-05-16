@@ -1,6 +1,4 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
-Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s_Push.sql
-Settlement\Sportbook\AutoSettlement\dbo.NAP_Admin_Settlement_Auto_1s.
 Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1_Push.sql
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1.sql
-Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Profile_Parlay.sql
+Settlement\Sportbook\Service\ServiceBroker\DBTXN\dbo.SSB_Settlement_UpdateData.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
+Settlement\NegativeBalance\Acc_BalanceNegativeSel_MatchLog.sql

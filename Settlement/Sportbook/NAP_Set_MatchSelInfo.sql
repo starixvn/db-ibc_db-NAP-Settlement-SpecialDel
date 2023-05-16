@@ -20,6 +20,7 @@ AS
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		- 20230404@Louisa: Get data for JackTime [Redmine:#184764]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -43,6 +44,7 @@ BEGIN
 		,LeagueGroupId	SMALLINT
 		,GameType	TINYINT ---for E-sports
 		,ParentID INT
+		,GoalRecord VARCHAR(50)
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -62,6 +64,7 @@ BEGIN
 			,LeagueGroupId
 			,GameType
 			,ParentID
+			,GoalRecord
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -77,6 +80,7 @@ BEGIN
 			,l.LeagueGroupID
 			,l.OverTimeSession
 			,m.ParentID
+			,m.GoalRecord
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -104,6 +108,7 @@ BEGIN
 		,LeagueGroupId
 		,GameType
 		,ParentID
+		,GoalRecord
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -123,6 +128,7 @@ BEGIN
 		,l.LeagueGroupID
 		,l.OverTimeSession
 		,m.ParentID
+		,m.GoalRecord
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -148,6 +154,7 @@ BEGIN
 		,LeagueGroupId
 		,GameType
 		,ParentID
+		,GoalRecord
 	FROM @tmpMatchInfo
 
 END

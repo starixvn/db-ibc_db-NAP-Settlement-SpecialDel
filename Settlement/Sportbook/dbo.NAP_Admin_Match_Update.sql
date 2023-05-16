@@ -70,6 +70,7 @@ AS
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20220719@Louisa: Update match.multiple = 1 before calcualte/refund for VSBetradar [Redmine:#175251]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251] 
+        - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
     Parameters Explanation:
 
@@ -103,6 +104,17 @@ BEGIN
 			,htawayscore	= NULL
 			,betstatus		= N''
 			,GoalRecord		= ''
+			,changetime		= GETDATE(), settleTime = GETDATE()
+		WHERE matchid = @MatchID-- and eventstatus = 'completed'
+    END
+    IF @Command = 'NAP_Admin_Settlement_1-UNDO-FT'
+    BEGIN
+        UPDATE dbo.match WITH(ROWLOCK,UPDLOCK)
+		SET  eventstatus	= 'running'
+			,finalhomescore = NULL 
+			,finalawayscore = NULL
+			,betstatus		= @BetStatus
+			,GoalRecord		= @GoalRecord
 			,changetime		= GETDATE(), settleTime = GETDATE()
 		WHERE matchid = @MatchID-- and eventstatus = 'completed'
     END

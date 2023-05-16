@@ -27,6 +27,7 @@ AS
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221103@Helen: SP Enhancement [Redmine:#180092]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -138,7 +139,7 @@ BEGIN
 		ORDER BY CASE WHEN SportType = @pre_Sporttype THEN 1 ELSE 0 END
 			,TryCount, starttime, keyid
 	
-		SET @IsRunBySSB = CASE WHEN @sporttype = 1 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT', 'REFUND', 'REFUND-HT', 'REFUND-FT', 'SDT-FT') THEN 1 ELSE 0 END
+		SET @IsRunBySSB = CASE WHEN @sporttype = 1 AND @Action IN ('CAL', 'CAL-HT', 'CAL-FT', 'REFUND', 'REFUND-HT', 'REFUND-FT', 'SDT-FT','UNDO-FT') THEN 1 ELSE 0 END
 
 		IF @IsRunBySSB = 1
 			SET @SSBStatus = 1

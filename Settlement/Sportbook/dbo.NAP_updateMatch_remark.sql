@@ -5,7 +5,9 @@ ALTER PROCEDURE [dbo].[NAP_updateMatch_remark]
 	@ivalue 			BIGINT = NULL,
 	@IsHTRound 			BIT = 0,
 	@IsFinalRound       BIT = 0,
-	@IsMovedMatch		BIT = 1
+	@IsMovedMatch		BIT = 1,
+	@IsRefundHT			BIT = NULL,
+	@IsResultHTCal		BIT = NULL
 WITH RECOMPILE
 /*  
 	Created: Kathy
@@ -30,6 +32,7 @@ WITH RECOMPILE
 		- 20211108@Louisa: In-house Replicator: Update Action [Redmine:#164393] 
 		- 20220719@Louisa: Update match_remark before calcualte/refund for VSBetradar [Redmine:#175251]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
 	Param's Explanation: 
 */
@@ -154,6 +157,18 @@ BEGIN
 		WHERE matchid = @matchid 
 	END
 	
+	-- [U]ndo FT settlement
+	IF @command = 'UF'
+	BEGIN
+		UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
+		SET Calculate				= 0
+			,IsHTCal				= IIF(@IsResultHTCal = 1,1,0)
+			,isUndecided			= 0
+			,calrefund				= IIF(@IsRefundHT = 1,1,0)
+			,RepUpdateTime = SYSDATETIME()
+		WHERE matchid = @matchid 
+	END
+
 	-- [U]ndo settlement of HT, Q1, Q2 Basketball
 	IF @command = 'U' AND @Sporttype = 2 AND @IsHTRound = 1
 	BEGIN

@@ -11,6 +11,7 @@ AS
   Revisions:
     - 20180104@Helen: List of ActionID for Negative Balance [Redmine:#80774]
     - 20190103@Vicky: Incorporate BetBuilder [Redmine:#106903]
+    - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
   Parameters Explanation:    
 */
@@ -50,6 +51,7 @@ RETURN (
 			,(190, 1, 1) -- UNDO Early Settlement
 			,(191, 1, 1) -- REFUND Early Settlement
 			,(182, 1, 1) -- UNDO Instant Settlement
+            ,(81040, 1, 1) -- UNDO FT
 			-- Parlay
 			,(104, 2, 1) -- Calculate Mix Parlay
 			,(105, 2, 1) -- Undo Mix Parlay Settlement

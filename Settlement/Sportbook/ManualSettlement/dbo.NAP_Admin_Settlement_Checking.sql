@@ -45,6 +45,7 @@ AS
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		
 	Param's Explanation:
 		
@@ -89,7 +90,7 @@ BEGIN
 
 	--cal/undo/refund FT/HT/Game/Set
 	--cal early sports settle by profile except early soccer
-	IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND','CAL_EAR', 'UNDO_EAR', 'REFUND_EAR','REFUND-FT') AND @Mode <> 'FM'
+	IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND','CAL_EAR', 'UNDO_EAR', 'REFUND_EAR','REFUND-FT', 'UNDO-FT') AND @Mode <> 'FM'
 	BEGIN	
 		IF @xmlData IS NOT NULL
 		BEGIN			

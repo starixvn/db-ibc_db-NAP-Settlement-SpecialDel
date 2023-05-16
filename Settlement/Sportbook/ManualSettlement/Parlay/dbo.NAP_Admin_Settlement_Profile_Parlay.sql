@@ -32,6 +32,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
+		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -104,7 +105,7 @@ BEGIN
 			,@ActionID = CASE 
 							WHEN @Action LIKE 'CAL%' THEN 81028 -- new action Id
 							WHEN @Action LIKE 'REFUND%' THEN 81029 
-							WHEN @Action LIKE 'UNDO%' THEN 81030
+							WHEN @Action LIKE 'UNDO%' THEN IIF(@Action = 'UNDO-FT', 81041,81030)
 						END
 			,@SPName = OBJECT_NAME(@@PROCID)
 			,@session = CONVERT(NVARCHAR(50),NEWID())
