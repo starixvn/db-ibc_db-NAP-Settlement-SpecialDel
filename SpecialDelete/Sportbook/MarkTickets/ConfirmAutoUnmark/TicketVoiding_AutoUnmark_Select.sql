@@ -34,7 +34,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid NVARCHAR(100))
+	CREATE TABLE #MarkedTransaction_tmp(MatchId INT, bettype SMALLINT, UserId INT, MarkedTrans INT, CreateDate DATETIME, MarkType INT, betid NVARCHAR(100), ChildMatchId INT)
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
 	  ,transid BIGINT 
@@ -86,7 +86,14 @@ BEGIN
 		,f.MarkType
 		,f.BetId
 
-	SELECT CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE mt.MatchId END AS MatchId
+	UPDATE t
+	SET  MatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+	    ,ChildMatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END
+	FROM #MarkedTransaction_tmp t
+		  INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.matchid
+
+	SELECT mt.MatchId
+		, mt.ChildMatchId
 		, m.kickofftime
 		, m.homeid
 		, m.awayid
@@ -101,7 +108,6 @@ BEGIN
 				ELSE 1 END AS IsConfirm
 		, mt.MarkType
 		, mt.betid
-		, CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN mt.MatchId ELSE NULL END AS ChildMatchId 
 	FROM #MarkedTransaction_tmp mt WITH (NOLOCK)
 		INNER JOIN dbo.match m WITH (NOLOCK) ON mt.MatchId = m.matchid
 		OUTER APPLY (
