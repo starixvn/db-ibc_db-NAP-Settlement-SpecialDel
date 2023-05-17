@@ -1,7 +1,7 @@
 /*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/    
 CREATE PROCEDURE dbo.TicketVoiding_Admin_Bet14_BalanceTrigger_Insert (
-   @BeforeTransInfoJson		VARCHAR(MAX) = NULL
-  ,@AfterTransInfoJson		VARCHAR(MAX) = NULL
+   @BeforeTransInfoJson		VARBINARY(MAX) = NULL
+  ,@AfterTransInfoJson		VARBINARY(MAX) = NULL
 )
 AS 
 /*
@@ -14,7 +14,12 @@ AS
 BEGIN
 	-- SET NOCOUNT ON added to prevent extra result sets from
 	SET NOCOUNT ON;
+	DECLARE @Decompress_BeforeTransInfoJson NVARCHAR(MAX) = NULL
+		   ,@Decompress_AfterTransInfoJson  NVARCHAR(MAX) = NULL
 	
+	SET @Decompress_BeforeTransInfoJson = CAST(DECOMPRESS(@BeforeTransInfoJson) AS NVARCHAR(MAX))
+	SET @Decompress_AfterTransInfoJson = CAST(DECOMPRESS(@AfterTransInfoJson) AS NVARCHAR(MAX))
+
 	CREATE TABLE #BeforeTransId14(
 	   matchid INT ,transid BIGINT ,betdaqid BIGINT ,sitedbgroupid SMALLINT
       ,bettype SMALLINT ,statusID TINYINT ,Status NVARCHAR(10)
@@ -42,30 +47,19 @@ BEGIN
 		  ,playercomm ,comm ,acomm ,scomm
 		)
 	SELECT mid ,t ,bdaq ,sitedb
-		 ,btype ,sid ,s
-		 ,wld ,st ,acstake ,m
-		 ,sre ,mre ,re ,cust
-		 ,w ,aw ,mw ,sw
-		 ,pc ,c ,ac ,sc
-	FROM STRING_SPLIT(@BeforeTransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
-		CROSS APPLY (
-				SELECT mid ,t ,bdaq ,sitedb
-					 ,btype ,sid ,s
-					 ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END wld ,st ,acstake ,m
-					 ,sre ,mre ,re ,cust
-					 ,w ,aw ,mw ,sw
-					 ,pc ,c ,ac ,sc
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT ,bdaq BIGINT ,sitedb SMALLINT
-					 ,btype SMALLINT ,sid TINYINT ,s NVARCHAR(10)
-					 ,wld SMALLDATETIME ,st DATETIME ,acstake MONEY, m SMALLMONEY
-					 ,sre INT, mre INT, re INT, cust INT
-					 ,w  MONEY ,aw  MONEY ,mw  MONEY ,sw  MONEY 
-					 ,pc  MONEY ,c  MONEY ,ac  MONEY ,sc  MONEY
-				)
-		) tbl
-	WHERE f.value <> ''
+			,btype ,sid ,s
+			,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END wld ,st ,acstake ,m
+			,sre ,mre ,re ,cust
+			,w ,aw ,mw ,sw
+			,pc ,c ,ac ,sc
+	FROM OPENJSON(@Decompress_BeforeTransInfoJson) 
+	WITH( mid INT, t BIGINT ,bdaq BIGINT ,sitedb SMALLINT
+			,btype SMALLINT ,sid TINYINT ,s NVARCHAR(10)
+			,wld SMALLDATETIME ,st DATETIME ,acstake MONEY, m SMALLMONEY
+			,sre INT, mre INT, re INT, cust INT
+			,w  MONEY ,aw  MONEY ,mw  MONEY ,sw  MONEY 
+			,pc  MONEY ,c  MONEY ,ac  MONEY ,sc  MONEY
+	)
 
 	INSERT INTO #AfterTransId14( 
 		   matchid ,transid ,betdaqid ,sitedbgroupid
@@ -76,30 +70,19 @@ BEGIN
 		  ,playercomm ,comm ,acomm ,scomm
 		)
 	SELECT mid ,t ,bdaq ,sitedb
-		 ,btype ,sid ,s
-		 ,wld ,st ,acstake ,m
-		 ,sre ,mre ,re ,cust
-		 ,w ,aw ,mw ,sw
-		 ,pc ,c ,ac ,sc
-	FROM STRING_SPLIT(@AfterTransInfoJson, ',') f
-		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
-		CROSS APPLY (
-				SELECT mid ,t ,bdaq ,sitedb
-					 ,btype ,sid ,s
-					 ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END wld ,st ,acstake ,m
-					 ,sre ,mre ,re ,cust
-					 ,w ,aw ,mw ,sw
-					 ,pc ,c ,ac ,sc
-				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT ,bdaq BIGINT ,sitedb SMALLINT
-					 ,btype SMALLINT ,sid TINYINT ,s NVARCHAR(10)
-					 ,wld SMALLDATETIME ,st DATETIME ,acstake MONEY, m SMALLMONEY
-					 ,sre INT, mre INT, re INT, cust INT
-					 ,w  MONEY ,aw  MONEY ,mw  MONEY ,sw  MONEY 
-					 ,pc  MONEY ,c  MONEY ,ac  MONEY ,sc  MONEY
-				)
-		) tbl
-	WHERE f.value <> ''
+			,btype ,sid ,s
+			,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END wld ,st ,acstake ,m
+			,sre ,mre ,re ,cust
+			,w ,aw ,mw ,sw
+			,pc ,c ,ac ,sc
+	FROM OPENJSON(@Decompress_AfterTransInfoJson) 
+	WITH( mid INT, t BIGINT ,bdaq BIGINT ,sitedb SMALLINT
+			,btype SMALLINT ,sid TINYINT ,s NVARCHAR(10)
+			,wld SMALLDATETIME ,st DATETIME ,acstake MONEY, m SMALLMONEY
+			,sre INT, mre INT, re INT, cust INT
+			,w  MONEY ,aw  MONEY ,mw  MONEY ,sw  MONEY 
+			,pc  MONEY ,c  MONEY ,ac  MONEY ,sc  MONEY
+	)
 
 	DECLARE @bettype SMALLINT, @IsLC_RnG BIT = 0
 	SET @bettype = (SELECT TOP 1 bettype FROM #AfterTransId14)
