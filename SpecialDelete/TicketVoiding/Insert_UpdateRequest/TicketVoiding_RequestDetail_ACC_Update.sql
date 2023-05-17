@@ -21,6 +21,7 @@ AS
 		- 20220808@July: Create new SP - Split code issuetype Abnormal account [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's explanation:
 */
@@ -51,8 +52,8 @@ BEGIN
 
 	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
-	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT)
-	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
+	CREATE TABLE #TempMatch (MatchId INT, IsOutright BIT, IsMatch14 BIT)
+	CREATE TABLE #TempEditMatchID ( MatchID INT, IsOutright BIT, IsMatch14 BIT DEFAULT(0), IsFlag BIT) -- 0 Remove, 1 -- Add username -> match
 
 	CREATE TABLE #tmpTransInfo(
 	   matchid INT
@@ -62,6 +63,7 @@ BEGIN
       ,betid BIGINT
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
+	  ,IsVoid14 BIT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
@@ -71,10 +73,11 @@ BEGIN
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
+		  ,IsVoid14
 		)
-	SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb
+	SELECT mid ,t ,c ,btype ,bid ,isP ,sitedb ,isV14
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT ,isV14 BIT
 	) tbl
 
 	SET @AbnormalAccountInfoXML = CONVERT(XML, @AbnormalAccountInfo)
@@ -86,14 +89,15 @@ BEGIN
 	FROM @AbnormalAccountInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@AbnormalAccountInfoXML = NULL))
 
-	INSERT INTO #TempMatch(MatchId, IsOutright)
+	INSERT INTO #TempMatch(MatchId, IsOutright, IsMatch14)
 	SELECT  DISTINCT matchid,
-			CASE WHEN bettype <> 10 THEN 0 ELSE 1 END 
+			CASE WHEN bettype <> 10 THEN 0 ELSE 1 END,
+			IsVoid14
 	FROM #tmpTransInfo
 
-	IF @IsEditRequest = 0 
+	IF @IsEditRequest = 0
 	BEGIN
-		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0)
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0 AND IsMatch14 = 0) --match
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail (
 					RequestId
@@ -123,9 +127,44 @@ BEGIN
 					, @SubIssueTypeId
 			FROM #TempMatch t
 				LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
-			WHERE t.IsOutright = 0
+			WHERE t.IsOutright = 0 AND t.IsMatch14 = 0
 
 		END
+		
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0 AND IsMatch14 = 1) --match14
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail (
+					RequestId
+					, MatchId
+					, LeagueId
+					, HomeId
+					, AwayId
+					, RequestType
+					, Usernames
+					, ProductIds
+					, TicketStatusIds
+					, FromWinlostDate
+					, ToWinlostDate
+					, SubIssueTypeId
+			)
+			SELECT @RequestId
+					, t.MatchId 
+					, ISNULL(m.leagueid, 0) 
+					, ISNULL(m.homeid, 0) 
+					, ISNULL(m.awayid, 0) 
+					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+					, @UserNames
+					, @ProductIds
+					, @StatusIds
+					, @FromDate
+					, @ToDate
+					, @SubIssueTypeId
+			FROM #TempMatch t
+				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON t.MatchId = m.matchid
+			WHERE t.IsOutright = 0 AND t.IsMatch14 = 1
+
+		END
+		
 		IF EXISTS (SELECT TOP 1 1 FROM #TempMatch WHERE IsOutright = 1) -- outright
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail (
@@ -170,13 +209,13 @@ BEGIN
 		FROM dbo.TicketVoiding_RequestDetail WITH(NOLOCK)
 		WHERE RequestId = @RequestId
 
-		INSERT INTO #TempEditMatchID (MatchID, IsOutright, IsFlag)
-		SELECT rd.MatchId,0, 0 -- remove match
+		INSERT INTO #TempEditMatchID (MatchID, IsOutright, IsMatch14, IsFlag)
+		SELECT rd.MatchId,0,0, 0 -- remove match
 		FROM  dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 		WHERE  NOT EXISTS ( SELECT TOP 1 1 FROM #TempMatch m WHERE rd.MatchId = m.MatchID)
 			 AND rd.RequestId = @RequestId
 		UNION ALL
-		SELECT m.MatchId,m.IsOutright, 1  -- add match
+		SELECT m.MatchId ,m.IsOutright , m.IsMatch14, 1  -- add match
 		FROM  #TempMatch m
 		OUTER APPLY  (
 					SELECT rd.MatchId
@@ -192,7 +231,8 @@ BEGIN
 					INNER JOIN #TempEditMatchID e ON  rd.MatchId = e.MatchID
 				WHERE rd.RequestId = @RequestId AND e.IsFlag = 0
 		END
-		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 0)
+		
+		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 0 AND IsMatch14 = 0) --match
 		BEGIN
 				INSERT INTO dbo.TicketVoiding_RequestDetail 
 				(
@@ -213,9 +253,34 @@ BEGIN
 					, @SubIssueTypeId
 				FROM #TempEditMatchID e 
 					LEFT JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
-				WHERE e.IsFlag = 1	AND e.IsOutright = 0	
+				WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsMatch14 = 0	
 		END  
-		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1)
+
+		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 0 AND IsMatch14 = 1) --match14
+		BEGIN
+				INSERT INTO dbo.TicketVoiding_RequestDetail 
+				(
+					RequestId
+					, MatchId
+					, LeagueId
+					, HomeId
+					, AwayId
+					, RequestType
+					, SubIssueTypeId
+				)
+				SELECT @RequestId
+					, e.MatchID
+					, ISNULL(m.leagueid, 0) 
+					, ISNULL(m.homeid, 0) 
+					, ISNULL(m.awayid, 0) 
+					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+					, @SubIssueTypeId
+				FROM #TempEditMatchID e 
+					LEFT JOIN dbo.match14 m WITH(NOLOCK) ON e.MatchID = m.matchid 
+				WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsMatch14 = 1	
+		END  
+
+		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1) --outright
 		BEGIN
 				INSERT INTO dbo.TicketVoiding_RequestDetail 
 				(
