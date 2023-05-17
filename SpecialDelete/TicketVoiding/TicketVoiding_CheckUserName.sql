@@ -59,14 +59,16 @@ BEGIN
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
-			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
+			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
+			,@FromWinlostDate_14	  DATETIME = NULL
+			,@ToWinlostDate_14		  DATETIME = NULL
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
 	CREATE TABLE #InputValidCustid_1 (custid INT PRIMARY KEY )
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, RefNo BIGINT)
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, RefNo BIGINT, IsVoid14 BIT DEFAULT (0))
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -88,6 +90,7 @@ BEGIN
       ,recommend INT
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
+	  ,IsVoid14 BIT
 	)
 
 	--1. Check valid
@@ -122,32 +125,39 @@ BEGIN
 		  ,winlostdate
 		  ,IsMixParlay
 		  ,SiteDBGroupID
+		  ,IsVoid14
 		)
 	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
-		,wld ,isP ,sitedb
-	FROM string_split(@TransInfoJson, ',') f
+		,wld ,isP ,sitedb, isV14
+	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
-					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb
+					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
-					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT
+					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT
 				)
 		) tbl
 	WHERE f.value <> ''
 
 	--Get Movebetdate
-	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
+	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 	
-	SELECT @FromWinlostDate	= ISNULL(@FromDate, @movebetdate)
-			, @FromWinlostDate 	= CASE WHEN @FromWinlostDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromWinlostDate END
+	SELECT @FromWinlostDate_14 = CASE WHEN @FromDate <= @movebetdate THEN @FromDate ELSE NULL END
+	     , @FromWinlostDate	= ISNULL(@FromDate, @movebetdate)
+		 , @FromWinlostDate = CASE WHEN @FromWinlostDate <= @movebetdate THEN DATEADD(d, 1, @movebetdate) ELSE @FromWinlostDate END
 			
 	IF @ToDate IS NULL
 	BEGIN
 		SET @ToDate = @maxdate
 	END
 	
+	IF @FromWinlostDate_14 IS NOT NULL 
+	BEGIN
+		SET @ToWinlostDate_14 = @movebetdate
+	END
+
 	INSERT INTO @Status_tmp (StatusId)
 	SELECT DISTINCT value 
 	FROM STRING_SPLIT(@StatusIds, ',')
@@ -233,12 +243,13 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
 	BEGIN
-		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo)
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
 		SELECT  b.transid
 				,b.statusID
 				,b.matchid
 				,b.bettype
 				,b.refno
+				,0 AS IsVoid14
 		FROM #tmpTransInfo b 
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -259,16 +270,50 @@ BEGIN
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
+			AND IsVoid14 = 0
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
+		BEGIN
+			INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
+			SELECT  b.transid
+					,b.statusID
+					,b.matchid
+					,b.bettype
+					,b.refno
+					,1 AS IsVoid14
+			FROM #tmpTransInfo b 
+				OUTER APPLY (
+					SELECT TOP 1 1 LeagueGroupID 
+					FROM dbo.match14 m WITH (NOLOCK)
+						INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+					WHERE m.matchid = b.matchid
+						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
+				)ml
+				INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+			WHERE b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
+				AND 1 = CASE 
+							WHEN @IsSB = 1 
+								AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+							WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
+								AND ml.LeagueGroupID IS NULL THEN 1
+							WHEN @IsSaba = 1 
+								AND ml.LeagueGroupID IS NOT NULL THEN 1								
+						ELSE 0 END	
+				AND statusID IN (SELECT statusID FROM @Status_tmp)
+				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
+		END
 	END
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_1)
 	BEGIN
-		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo)
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
 		SELECT b.transid
 				,b.statusID
 				,b.matchid
 				,b.bettype
 				,b.refno
+				,0 AS IsVoid14
 		FROM #tmpTransInfo b 
 			OUTER APPLY (
 				SELECT TOP 1 1 LeagueGroupID 
@@ -289,7 +334,39 @@ BEGIN
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
-
+			AND IsVoid14 = 0 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
+		
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
+		BEGIN
+			INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
+			SELECT  b.transid
+					,b.statusID
+					,b.matchid
+					,b.bettype
+					,b.refno
+					,1 AS IsVoid14
+			FROM #tmpTransInfo b 
+				OUTER APPLY (
+					SELECT TOP 1 1 LeagueGroupID 
+					FROM dbo.match14 m WITH (NOLOCK)
+						INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = m.leagueid
+					WHERE m.matchid = b.matchid
+						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
+				)ml
+				INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+			WHERE b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
+				AND 1 = CASE 
+							WHEN @IsSB = 1 
+								AND b.statusID NOT IN (0, 101, 102, 103) THEN 1 
+							WHEN (@IsSB = 1 OR @IsOutright = 1 OR @IsParlay = 1)
+								AND ml.LeagueGroupID IS NULL THEN 1
+							WHEN @IsSaba = 1 
+								AND ml.LeagueGroupID IS NOT NULL THEN 1								
+						ELSE 0 END	
+				AND statusID IN (SELECT statusID FROM @Status_tmp)
+				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
+		END
 	END
 	
 	----------End of data prepare-----------------
@@ -327,6 +404,7 @@ BEGIN
 		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #transIdTemp t
 									WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
+										AND t.IsVoid14 = 0
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 	END
@@ -339,7 +417,7 @@ BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid)
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid AND t.IsVoid14 = 0)
 												AND rdt.RequestId = @RequestId
 												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1,1,'')
@@ -349,6 +427,7 @@ BEGIN
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 											FROM #transIdTemp t
 											WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
+												AND t.IsVoid14 = 0
 											FOR XML PATH('')), 1, 1, '')
 									, '')
 
@@ -358,6 +437,7 @@ BEGIN
 			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 									FROM #transIdTemp t
 									WHERE t.StatusId IN (0,1) AND t.bettype NOT IN (9,29,10)
+										AND t.IsVoid14 = 0
 									FOR XML PATH('')), 1, 1, '')
 									, '')
 		END
