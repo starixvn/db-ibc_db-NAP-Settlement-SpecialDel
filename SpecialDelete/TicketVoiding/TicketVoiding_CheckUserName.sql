@@ -96,8 +96,11 @@ BEGIN
 	--1. Check valid
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
 								  FROM #TmpInValidUserName l
-									LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
-									WHERE ci.custid IS NULL	
+										LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
+										LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON l.username = d.username
+									WHERE 1 = CASE WHEN ci.custid IS NULL THEN 1 --not exist
+												   WHEN d.custid IS NOT NULL THEN 1 --stop supporting Deposit
+												   ELSE 0 END
 									FOR XML PATH ('')
 									),1,1,'')
 
@@ -353,7 +356,7 @@ BEGIN
 					WHERE m.matchid = b.matchid
 						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 				)ml
-				INNER JOIN #InputValidCustid_2 c ON c.CustId = b.recommend
+				INNER JOIN #InputValidCustid_1 c ON c.CustId = b.custid
 				INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 			WHERE b.winlostdate BETWEEN @FromWinlostDate_14 AND @ToWinlostDate_14 
 				AND 1 = CASE 
@@ -417,7 +420,7 @@ BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid AND t.IsVoid14 = 0)
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid AND tp.IsVoid14 = 0)
 												AND rdt.RequestId = @RequestId
 												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1,1,'')
