@@ -16,7 +16,6 @@ AS
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20220512@Kathy: Improve performance [Redmine:#172386]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
-		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 */
 
 BEGIN
@@ -31,10 +30,7 @@ BEGIN
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting		BIT = 0
 	
-	DECLARE  @returntable TABLE (MatchID INT, TypeID TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), CreatedDate DATETIME, InstantKey INT, LeagueId INT, ChildMatchType TINYINT
-		,InstantHomeScoreBefore		INT
-		,InstantAwayScoreBefore		INT
-		,InstantGoalRecordBefore	VARCHAR(50))
+	DECLARE  @returntable TABLE (MatchID INT, TypeID TINYINT, HomeValue VARCHAR(50), AwayValue VARCHAR(50), CreatedDate DATETIME, InstantKey INT, LeagueId INT, ChildMatchType TINYINT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @procName
@@ -44,7 +40,7 @@ BEGIN
 	IF ISNULL(@IsWaiting,0) = 1
 	BEGIN
 		--not return data if in deployment progress
-		SELECT MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType, InstantHomeScoreBefore, InstantAwayScoreBefore, InstantGoalRecordBefore
+		SELECT MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType
 		FROM @returntable
 
 		RETURN
@@ -55,9 +51,8 @@ BEGIN
 			,@todate = DATEADD(DAY,1,@currentdate)
 			,@checktime = DATEADD(HOUR, 3, GETDATE())
 
-	INSERT INTO @returntable (MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType, InstantHomeScoreBefore, InstantAwayScoreBefore, InstantGoalRecordBefore)
-    SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId, m.ChildMatchType
-		,aps.HomeScore, aps.AwayScore, aps.GoalRecord
+	INSERT INTO @returntable (MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType)
+    SELECT m.MatchID, d.TypeID, d.HomeValue, d.AwayValue, d.CreatedDate, d.ProviderResultDetailID AS InstantKey, l.LeagueId, m.ChildMatchType    
     FROM dbo.ProviderResultDetail d WITH (NOLOCK)
 	    INNER JOIN dbo.Match m WITH (NOLOCK)
 		  ON d.MatchID  = m.MatchID
@@ -76,24 +71,6 @@ BEGIN
 					AND TypeID   = d.TypeID 
 					AND SourceID = d.SourceID
 		)mx
-		OUTER APPLY (
-			SELECT	TOP 1 CAST(aps.HomeValue AS TINYINT) AS HomeScore
-					,CAST(aps.AwayValue AS TINYINT) AS AwayScore
-					,ISNULL(gc.GoalRecord, '') AS GoalRecord
-			FROM	dbo.AutoPayoutResult aps WITH (NOLOCK)
-				OUTER APPLY (
-					SELECT TOP 1 HomeValue AS GoalRecord
-					FROM dbo.ProviderResultDetail ps WITH (NOLOCK)
-					WHERE matchid 			= m.matchid
-						AND TypeId 			= 103 -- FGNG
-						AND IsConfirmed		= 1 -- completed
-					ORDER BY ProviderResultDetailId DESC
-				) AS gc
-			WHERE	m.matchid = aps.matchid
-					AND d.TypeId = aps.CalculationType
-					AND aps.StatusId = 2 -- completed
-			ORDER BY ModifiedDate DESC
-		) aps
     WHERE m.SportType	   = 1
 	 AND m.EventStatus	   = 'running' 
 	 AND m.eventdate BETWEEN @fromdate AND @todate
@@ -127,7 +104,7 @@ BEGIN
 				    AND a.CalculationType BETWEEN 100 AND 199 -- Cal instant
 				    AND a.ModifiedDate > d.CreatedDate)
 
-	SELECT MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType, InstantHomeScoreBefore, InstantAwayScoreBefore, InstantGoalRecordBefore
+	SELECT MatchID, TypeID, HomeValue, AwayValue, CreatedDate, InstantKey, LeagueId, ChildMatchType
 	FROM @returntable
 	ORDER BY CreatedDate
 

@@ -1,6 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Settlement_InstantCalculation_Checking]
 	@MatchId			INT
+	,@InstantKey		INT
 	,@Action			VARCHAR(20) 
 	,@HomeScore			VARCHAR(50)		= ''
 	,@AwayScore			VARCHAR(50)		= ''
@@ -54,6 +55,10 @@ BEGIN
 			,@IsExistHTFGNG			BIT
 			,@IsExistHTFG			BIT
 			,@IsExistFG				BIT
+			,@CalculationType		TINYINT
+			,@totalGoalInstantBefore INT
+			,@goalRecordInstantBefore VARCHAR(50)
+			,@GoalRecord				VARCHAR(50)
 
 	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), SDTResourceId VARCHAR(20), SDTpfId SMALLINT, OddsType TINYINT, RefResourceId VARCHAR(20), DeterminedType TINYINT)
 	DECLARE @tmpResources TABLE(
@@ -65,14 +70,57 @@ BEGIN
 	DECLARE @tmpSettlementBettypeResult TABLE(Bettype SMALLINT, pfId INT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
 	
-	SELECT @DeterminedType = CASE 
+	SELECT	@DeterminedType = CASE 
 								WHEN @Action LIKE '%HT%' THEN 1
 								WHEN @Action LIKE '%FT%' THEN 4
+								ELSE 0
+							END
+			,@CalculationType	= CASE 
+								WHEN @Action LIKE '%HT%' THEN 101
+								WHEN @Action LIKE '%FT%' THEN 102
 								ELSE 0
 							END
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+
+	SELECT
+		@HomeScore			= ps.HomeValue
+		, @AwayScore		= ps.AwayValue
+		, @GoalRecord		= ISNULL(fgng.GoalRecord, '')
+	FROM DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK) 
+		OUTER APPLY (	
+			SELECT HomeValue AS GoalRecord
+			FROM DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK) 
+			WHERE MatchId 			= @MatchId
+				AND TypeId			= 103 --FGNG
+				AND AwayValue 		= CAST(@InstantKey AS VARCHAR(50))
+				
+		) AS fgng
+	WHERE ProviderResultDetailId = @InstantKey
+
+	;WITH InstMatchResult AS (
+		SELECT	TOP 1 
+				CAST(HomeValue AS TINYINT) AS HomeScore
+				,CAST(AwayValue AS TINYINT) AS AwayScore
+				,ISNULL(gc.GoalRecord, '') AS GoalRecord
+		FROM	DBPRO.bodb02.dbo.AutoPayoutResult aps WITH (NOLOCK)
+			OUTER APPLY (
+				SELECT	TOP 1 HomeValue AS GoalRecord
+				FROM	DBPRO.bodb02.dbo.ProviderResultDetail ps WITH (NOLOCK)
+				WHERE	matchid 			= @MatchId
+						AND TypeId 			= 103 -- FGNG
+						AND IsConfirmed		= 1 -- completed
+				ORDER BY ps.ProviderResultDetailId DESC
+			) AS gc
+		WHERE	matchid = @MatchId
+				AND CalculationType = @CalculationType
+				AND StatusId		= 2 -- completed
+		ORDER BY ModifiedDate DESC
+	) 
+	SELECT @totalGoalInstantBefore 	= HomeScore + AwayScore
+		,@goalRecordInstantBefore	= GoalRecord
+	FROM InstMatchResult
 
     SELECT	@fth = CAST(@HomeScore AS INT)
 			,@fta = CAST(@AwayScore AS INT)
@@ -81,181 +129,187 @@ BEGIN
 			,@Sporttype = m.sporttype
     FROM	dbo.match m WITH (NOLOCK)
     WHERE	m.matchid = @MatchId
-		
-	INSERT INTO @tmpAllBettypes(Bettype, SDTResourceId, SDTpfId, OddsType, ResourceId, RefResourceId, DeterminedType)
-	SELECT	DISTINCT s.BetType, s.SDTResourceId, s.SDTpfId, s.OddsType, s.ResourceId, s.RefResourceId, s.DeterminedType
-	FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-	WHERE	s.SportType = @sporttype
-			AND ISNULL(s.DeterminedType,0) & @DeterminedType > 0
-		
-	-- Generate result
-	BEGIN		
-		SET @xmlResourceResult = CAST(@ResourceResult AS XML)
-
-		;WITH cteGoalResource
-		AS
-		(
-			SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
-					,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
-					,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
-			FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
-		)
-		,cteResource
-		AS
-		(
-			SELECT	CASE 
-						WHEN @DeterminedType = 1 THEN CAST('01' AS VARCHAR(20))
-						ELSE CAST('00' AS VARCHAR(20))
-					END AS ResourceID
-					,@HomeScore HomeValue
-					,@AwayScore AwayValue
-			UNION ALL
-			SELECT	CAST('00' AS VARCHAR(20)) AS ResourceID
-					,CAST( @HomeScore AS VARCHAR(50)) AS HomeValue
-					,CAST( @AwayScore AS VARCHAR(50)) AS AwayValue
-			WHERE	@DeterminedType = 1
-			UNION ALL
-			SELECT  ResourceId, HomeValue, AwayValue
-			FROM	cteGoalResource
-			WHERE   ResourceID IS NOT NULL
-		)
-		INSERT INTO @tmpResources (ResourceID, HomeValue, AwayValue)
-		SELECT	ResourceID, HomeValue, AwayValue
-		FROM	cteResource
-
-		SELECT	@DummyResourceIds = @DummyResourceIds + CAST(s.SDTResourceId AS VARCHAR(20)) + ','
-		FROM	@tmpAllBettypes s
-		WHERE	s.SDTResourceId IS NOT NULL
-				AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes b WHERE b.Bettype = s.BetType)
-				
-		IF @DummyResourceIds <> ''
-		BEGIN
-			EXEC dbo.NAP_Set_DummyResourceResult
-				@MatchID = @MatchID
-				,@sportType = @sportType
-				,@IsDetermined = 1
-				,@Action = @Action
-				,@IsChecking = 1
-				,@WebResourceResult = @ResourceResult
-				,@DummyResourceIds = @DummyResourceIds
-				,@DummyResourceResults = @DummyResourceResults OUTPUT
-
-			EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
-			INSERT INTO @tmpResources (SDTResourceId, HomeValue, AwayValue)
-			SELECT Id, Home, Away
-			FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
-													,Home VARCHAR(2000)
-													,Away VARCHAR(2000)
-												) AS tbl
-			EXEC sp_xml_removedocument @handle
-		END
 	
-		INSERT INTO @tmpSettlementBettypeResult(Bettype, pfId, HomeValue, AwayValue)
-		SELECT t.BetType, t.SDTpfId, t.HomeValue, t.AwayValue
-		FROM (
-			SELECT	s.SDTpfId
-					,s.BetType
-					,t.HomeValue
-					,t.AwayValue	
-			FROM    @tmpAllBettypes s 
-				INNER JOIN @tmpResources t
-					ON s.SDTResourceId = t.SDTResourceId
-			WHERE	s.SDTResourceId IS NOT NULL
-			UNION 
-			SELECT	s.SDTpfId
-					,s.BetType				
-					,t.HomeValue
-					,t.AwayValue
+	IF ISNULL(@totalGoalInstantBefore,0) > 0 -- check first instant calculation or not
+		AND ( (CAST(@HomeScore AS INT) + CAST(@AwayScore AS INT) < @totalGoalInstantBefore)
+			OR (@GoalRecord <> @goalRecordInstantBefore)
+		)
+	BEGIN
+		INSERT INTO @tmpAllBettypes(Bettype, SDTResourceId, SDTpfId, OddsType, ResourceId, RefResourceId, DeterminedType)
+		SELECT	DISTINCT s.BetType, s.SDTResourceId, s.SDTpfId, s.OddsType, s.ResourceId, s.RefResourceId, s.DeterminedType
+		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
+		WHERE	s.SportType = @sporttype
+				AND ISNULL(s.DeterminedType,0) & @DeterminedType > 0
+		
+		-- Generate result
+		BEGIN		
+			SET @xmlResourceResult = CAST(@ResourceResult AS XML)
+
+			;WITH cteGoalResource
+			AS
+			(
+				SELECT  T.C.value('@Id', 'VARCHAR(50)') AS ResourceId
+						,T.C.value('@HomeValue', 'VARCHAR(50)') AS HomeValue
+						,T.C.value('@AwayValue', 'VARCHAR(50)') AS AwayValue
+				FROM    @xmlResourceResult.nodes('/Results/Resource') AS T(C)
+			)
+			,cteResource
+			AS
+			(
+				SELECT	CASE 
+							WHEN @DeterminedType = 1 THEN CAST('01' AS VARCHAR(20))
+							ELSE CAST('00' AS VARCHAR(20))
+						END AS ResourceID
+						,@HomeScore HomeValue
+						,@AwayScore AwayValue
+				UNION ALL
+				SELECT	CAST('00' AS VARCHAR(20)) AS ResourceID
+						,CAST( @HomeScore AS VARCHAR(50)) AS HomeValue
+						,CAST( @AwayScore AS VARCHAR(50)) AS AwayValue
+				WHERE	@DeterminedType = 1
+				UNION ALL
+				SELECT  ResourceId, HomeValue, AwayValue
+				FROM	cteGoalResource
+				WHERE   ResourceID IS NOT NULL
+			)
+			INSERT INTO @tmpResources (ResourceID, HomeValue, AwayValue)
+			SELECT	ResourceID, HomeValue, AwayValue
+			FROM	cteResource
+
+			SELECT	@DummyResourceIds = @DummyResourceIds + CAST(s.SDTResourceId AS VARCHAR(20)) + ','
 			FROM	@tmpAllBettypes s
-				INNER JOIN @tmpResources t
-					ON ISNULL(s.RefResourceId,s.ResourceId) = t.ResourceID
-			WHERE	s.SDTResourceId IS NULL
-		) t
-		WHERE  EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes b WHERE b.Bettype = t.BetType)
-	END
+			WHERE	s.SDTResourceId IS NOT NULL
+					AND EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes b WHERE b.Bettype = s.BetType)
+				
+			IF @DummyResourceIds <> ''
+			BEGIN
+				EXEC dbo.NAP_Set_DummyResourceResult
+					@MatchID = @MatchID
+					,@sportType = @sportType
+					,@IsDetermined = 1
+					,@Action = @Action
+					,@IsChecking = 1
+					,@WebResourceResult = @ResourceResult
+					,@DummyResourceIds = @DummyResourceIds
+					,@DummyResourceResults = @DummyResourceResults OUTPUT
 
-	IF EXISTS (SELECT	TOP 1 1		
-							FROM	dbo.bettrans b WITH(NOLOCK)
-								INNER JOIN @tmpSettlementBettypeResult s
-									ON	b.bettype = s.BetType
-										AND b.matchid = @MatchId					
-								CROSS APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam
-											,b.hdp1
-											, b.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc
-											,CAST(b.betid AS VARCHAR(50)) -- betcheck/betid
-											, 0) m
-								OUTER APPLY (	
-									SELECT	TOP 1 1 AS IsMarked
-									FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-									WHERE	mt.TransId = b.transid
-								)mt
-							WHERE	b.matchid = @matchid
-									AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-									AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
-											AND b.recommend <> 1688156) --exclude betdaq/betfair
-									AND ISNULL(b.betdaqid,0) <> -2
-									AND 1 = CASE 
-												WHEN b.statusId IN (112, 113)
-													AND b.statusId <>  CASE 
-																			WHEN m.modds >= 0.5 THEN 112
-																			WHEN m.modds <= -0.5 THEN 113
-																			ELSE 0
-																		END THEN 1
-												WHEN b.statusid = 0 AND mt.IsMarked IS NOT NULL
-													AND ISNULL(b.statuswinlost,0) <> CASE 
-																			WHEN m.modds >= 0.5 THEN 2
-																			WHEN m.modds <= -0.5 THEN 4
-																			ELSE 0
-																		END THEN 1
-												ELSE 0
-											END
-	)
-	BEGIN
-		SELECT @ErrCode = 1001002
-	END
-	ELSE IF EXISTS (SELECT	TOP 1 1		
-							FROM	dbo.bettransm bm WITH(NOLOCK)
-								INNER JOIN @tmpSettlementBettypeResult s
-									ON	bm.bettype = s.BetType
-										AND bm.matchid = @MatchId					
-								CROSS APPLY dbo.f_Set_SDT_modds(s.pfID, bm.betteam
-											,bm.hdp1
-											, bm.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc
-											,CAST(bm.betcheck AS VARCHAR(50)) -- betcheck/betid
-											, 0) m
-								LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
-									ON	b.matchid = 29
-										AND b.bettype = 29
-										AND b.refno = bm.refno
-								OUTER APPLY (
-										SELECT TOP 1 1 AS IsMarked
+				EXEC sp_xml_preparedocument @handle OUTPUT, @DummyResourceResults
+				INSERT INTO @tmpResources (SDTResourceId, HomeValue, AwayValue)
+				SELECT Id, Home, Away
+				FROM OPENXML(@handle,'root/r',1) WITH( Id	VARCHAR(20)
+														,Home VARCHAR(2000)
+														,Away VARCHAR(2000)
+													) AS tbl
+				EXEC sp_xml_removedocument @handle
+			END
+	
+			INSERT INTO @tmpSettlementBettypeResult(Bettype, pfId, HomeValue, AwayValue)
+			SELECT t.BetType, t.SDTpfId, t.HomeValue, t.AwayValue
+			FROM (
+				SELECT	s.SDTpfId
+						,s.BetType
+						,t.HomeValue
+						,t.AwayValue	
+				FROM    @tmpAllBettypes s 
+					INNER JOIN @tmpResources t
+						ON s.SDTResourceId = t.SDTResourceId
+				WHERE	s.SDTResourceId IS NOT NULL
+				UNION 
+				SELECT	s.SDTpfId
+						,s.BetType				
+						,t.HomeValue
+						,t.AwayValue
+				FROM	@tmpAllBettypes s
+					INNER JOIN @tmpResources t
+						ON ISNULL(s.RefResourceId,s.ResourceId) = t.ResourceID
+				WHERE	s.SDTResourceId IS NULL
+			) t
+			WHERE  EXISTS (SELECT TOP 1 1 FROM @tmpAllBettypes b WHERE b.Bettype = t.BetType)
+		END
+
+		IF EXISTS (SELECT	TOP 1 1		
+								FROM	dbo.bettrans b WITH(NOLOCK)
+									INNER JOIN @tmpSettlementBettypeResult s
+										ON	b.bettype = s.BetType
+											AND b.matchid = @MatchId					
+									CROSS APPLY dbo.f_Set_SDT_modds(s.pfID, b.betteam
+												,b.hdp1
+												, b.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc
+												,CAST(b.betid AS VARCHAR(50)) -- betcheck/betid
+												, 0) m
+									OUTER APPLY (	
+										SELECT	TOP 1 1 AS IsMarked
 										FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
-										WHERE	mt.TransId = b.transId
-												AND mt.MatchId = @MatchID
-								) mt
-							WHERE	bm.matchid = @matchid
-									AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-									AND 1 = CASE 
-												WHEN bm.statusId IN (112, 113)
-													AND bm.statusId <>  CASE 
-																			WHEN m.modds >= 0.5 THEN 112
-																			WHEN m.modds <= -0.5 THEN 113
-																			ELSE 0
-																		END THEN 1
-												WHEN bm.statusid = 0 AND mt.IsMarked IS NOT NULL
-													AND ISNULL(bm.statuswinlost,0) <> CASE 
-																			WHEN m.modds >= 0.5 THEN 2
-																			WHEN m.modds <= -0.5 THEN 4
-																			ELSE 0
-																		END THEN 1
-												ELSE 0
-											END
-	)
-	BEGIN
-		SELECT @ErrCode = 1001002
-	END
+										WHERE	mt.TransId = b.transid
+									)mt
+								WHERE	b.matchid = @matchid
+										AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+										AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
+												AND b.recommend <> 1688156) --exclude betdaq/betfair
+										AND ISNULL(b.betdaqid,0) <> -2
+										AND 1 = CASE 
+													WHEN b.statusId IN (112, 113)
+														AND b.statusId <>  CASE 
+																				WHEN m.modds >= 0.5 THEN 112
+																				WHEN m.modds <= -0.5 THEN 113
+																				ELSE 0
+																			END THEN 1
+													WHEN b.statusid = 0 AND mt.IsMarked IS NOT NULL
+														AND ISNULL(b.statuswinlost,0) <> CASE 
+																				WHEN m.modds >= 0.5 THEN 2
+																				WHEN m.modds <= -0.5 THEN 4
+																				ELSE 0
+																			END THEN 1
+													ELSE 0
+												END
+		)
+		BEGIN
+			SELECT @ErrCode = 1001002
+		END
+		ELSE IF EXISTS (SELECT	TOP 1 1		
+								FROM	dbo.bettransm bm WITH(NOLOCK)
+									INNER JOIN @tmpSettlementBettypeResult s
+										ON	bm.bettype = s.BetType
+											AND bm.matchid = @MatchId					
+									CROSS APPLY dbo.f_Set_SDT_modds(s.pfID, bm.betteam
+												,bm.hdp1
+												, bm.hdp2, @hth, @hta, @fth, @fta, s.HomeValue, s.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc
+												,CAST(bm.betcheck AS VARCHAR(50)) -- betcheck/betid
+												, 0) m
+									LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+										ON	b.matchid = 29
+											AND b.bettype = 29
+											AND b.refno = bm.refno
+									OUTER APPLY (
+											SELECT TOP 1 1 AS IsMarked
+											FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+											WHERE	mt.TransId = b.transId
+													AND mt.MatchId = @MatchID
+									) mt
+								WHERE	bm.matchid = @matchid
+										AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+										AND 1 = CASE 
+													WHEN bm.statusId IN (112, 113)
+														AND bm.statusId <>  CASE 
+																				WHEN m.modds >= 0.5 THEN 112
+																				WHEN m.modds <= -0.5 THEN 113
+																				ELSE 0
+																			END THEN 1
+													WHEN bm.statusid = 0 AND mt.IsMarked IS NOT NULL
+														AND ISNULL(bm.statuswinlost,0) <> CASE 
+																				WHEN m.modds >= 0.5 THEN 2
+																				WHEN m.modds <= -0.5 THEN 4
+																				ELSE 0
+																			END THEN 1
+													ELSE 0
+												END
+		)
+		BEGIN
+			SELECT @ErrCode = 1001002
+		END
 
-	IF @ErrCode = 1001002
-		SET @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please arrange to uncalculate instant calculation with the wrong score first. Then, please try to execute instant calculation again.'
+		IF @ErrCode = 1001002
+			SET @ErrMsg   = 'Some ''WON''/''LOSE'' tickets settled by instant calculation need to be un-calculated with the score. Please arrange to uncalculate instant calculation with the wrong score first. Then, please try to execute instant calculation again.'
+	END
 END
 GO

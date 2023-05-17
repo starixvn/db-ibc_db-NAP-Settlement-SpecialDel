@@ -120,9 +120,6 @@ BEGIN
 		, autoSettingForLeague			TINYINT
 		, InstantWaitingTime			INT
 		, DirectWaitingTime				INT
-		, InstantHomeScoreBefore		INT
-		, InstantAwayScoreBefore		INT
-		, InstantGoalRecordBefore		VARCHAR(50)
 	)
 	
 	DECLARE @strBettypesParlay VARCHAR (MAX)
@@ -496,9 +493,6 @@ BEGIN
 			,i.autoSettingForLeague
 			,i.InstantWaitingTime
 			,i.DirectWaitingTime	
-			,i.InstantHomeScoreBefore
-			,i.InstantAwayScoreBefore
-			,i.InstantGoalRecordBefore
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
