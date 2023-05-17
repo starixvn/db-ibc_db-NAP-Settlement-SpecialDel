@@ -28,8 +28,7 @@ BEGIN
 
 	DECLARE @StartTime DATETIME = getdate(),
 			@EndTime DATETIME = getdate(),
-			@ErrorMessage VARCHAR(MAX) = 'error message',
-			@InformTWTeam BIT = 0
+			@ErrorMessage VARCHAR(MAX) = 'error message'
 			
 	DECLARE @Subject	NVARCHAR(500) = ''
 		,@Body			NVARCHAR(MAX) = ''
@@ -37,29 +36,26 @@ BEGIN
 	
 	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixvn.com'
+		SET @Recipients = 'dbaadmin@starixvn.com;martin.chen@onelab.tw;member_core@onelab.tw;steve.liao@onelab.tw'
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;qa@starixvn.com'
+		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com;tina.vo@starixsoft.com'
 	END
 	
 
 	EXEC  [dbo].[Nap_Admin_CustLimitBet_CheckData_Job] @StartTime = @StartTime OUTPUT, @EndTime = @EndTime OUTPUT
-													 ,@ErrorMessage = @ErrorMessage OUTPUT, @InformTWTeam = @InformTWTeam OUTPUT
-
-	IF @InformTWTeam = 1
-	BEGIN
-		SET @Recipients = @Recipients + ';martin.chen@onelab.tw;member_core@onelab.tw;steve.liao@onelab.tw'
-	END
+													 ,@ErrorMessage = @ErrorMessage OUTPUT
 
 	IF @ErrorMessage <> ''
 	BEGIN
 		-- Send notification via email
 		SET @Subject = 'NAP: CustLimitBet Failed !'	
 			
-		SET @Body = 'NAP: '+ @ErrorMessage + CHAR(13) + CHAR(10) 
-				  + 'Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120)
+		SET @Body = 'NAP:
+		SP: Nap_Admin_CustLimitBet_CheckData_Job
+					'+ @ErrorMessage + CHAR(13) + CHAR(10) + '
+					Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120)
 		
 		EXEC msdb.dbo.sp_send_dbmail
 				@recipients= @Recipients
