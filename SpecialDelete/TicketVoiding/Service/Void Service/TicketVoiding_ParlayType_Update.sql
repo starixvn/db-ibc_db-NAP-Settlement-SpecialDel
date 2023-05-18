@@ -28,6 +28,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 
 	Param's explanation:	
 		
@@ -44,43 +45,34 @@ BEGIN
 			,@Session			NVARCHAR(50)
 		    ,@ThreadHold		INT = 0 -- over threadhold, the parlay process will be locked in systemsetting 
 		    ,@SPName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
-			,@limitsecond				INT	= 180
-			,@StartTime_Retry			DATETIME
+			,@limitsecond		INT	= 180
+			,@StartTime_Retry	DATETIME
 			,@MainParlay_MaxPO	VARCHAR(MAX) = NULL
-			,@avaiableProcess BIT
-			,@MatchDate DATETIME
-			,@RowId INT
-			,@RowCount INT
-			,@strSubTransId VARCHAR(MAX)
-			,@strMainTransId VARCHAR(MAX)
-			,@strRefno VARCHAR(MAX)
-			,@CustIds VARCHAR(MAX)
+			,@avaiableProcess	BIT
+			,@MatchDate			DATETIME
+			,@RowCount			INT = 0
+			,@strSubTransId		VARCHAR(MAX) =''
+			,@strMainTransId	VARCHAR(MAX) =''
+			,@strRefno			VARCHAR(MAX) =''
+			,@CustIds			VARCHAR(MAX)
 
 	SET @Session = CONVERT(NVARCHAR(50),NEWID())
 
 	DECLARE @tblDebitPending TVP_BalanceList  
 	DECLARE @tblCreditPending TVP_BalanceList  
-
-	DECLARE @tmpInputTransId TABLE(TransId BIGINT, MainTransId BIGINT, MainStatusId TINYINT, SubStatusId TINYINT, Refno BIGINT, Eventdate DATETIME)
+	DECLARE @tmpMatchId TABLE (MatchId INT, isFinish INT)
+	DECLARE @tmpTransIDBatch TABLE (transid BIGINT)
+	DECLARE @tmpInputTransId TABLE(TransId BIGINT, MainTransId BIGINT, MainStatusId TINYINT, SubStatusId TINYINT, Refno BIGINT, Eventdate DATETIME, MatchId INT)
 
 	CREATE TABLE #BeforeUpd (custid INT, balance MONEY)  
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
-	CREATE TABLE #tmpSubTransId (RowId INT IDENTITY(1,1), TransId BIGINT, Refno BIGINT)
-	CREATE TABLE #tmpMainTransId (TransId BIGINT, Refno BIGINT, ruben TINYINT, CustId INT)
+	CREATE TABLE #tmpSubTransId (TransId BIGINT, Refno BIGINT, MatchId INT, isFinish INT)
+	CREATE TABLE #tmpMainTransId (TransId BIGINT, Refno BIGINT, ruben TINYINT, CustId INT, MatchId INT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
 	SET @StartTime = GETDATE()
 	SET @LogActionId = 90101
 	SET @SB_Error = 0
-
-	SELECT	@RowId = 0
-			,@strSubTransId = ''
-			,@strMainTransId = ''
-			,@strRefno = ''
-
-	SELECT	@MatchDate = eventdate
-	FROM	dbo.match WITH(NOLOCK)
-	WHERE	matchid = @MatchId
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
 
@@ -93,7 +85,8 @@ BEGIN
 			,MainStatusId = b.statusID
 			,SubStatusId = bm.statusID
 			,refno = b.refno
-			,Eventdate = @MatchDate
+			,Eventdate = bm.winlostdate
+			,MatchId = bm.matchid
 	FROM	@tmpInputTransId t 
 		INNER LOOP JOIN dbo.bettransm bm WITH(NOLOCK)
 			ON t.TransId = bm.transid
@@ -102,8 +95,8 @@ BEGIN
 				AND b.matchid = 29
 				AND b.bettype = 29
 
-	INSERT INTO #tmpSubTransId(TransId, Refno)
-	SELECT	TransId, Refno
+	INSERT INTO #tmpSubTransId(TransId, Refno, MatchId)
+	SELECT	TransId, Refno, MatchId
 	FROM	@tmpInputTransId
 	WHERE	MainTransId IS NOT NULL 	
 			AND SubStatusId NOT IN (101, 102)
@@ -124,7 +117,7 @@ BEGIN
 		RETURN
 	END
 
-	IF @MatchDate <= @Movebetdate
+	IF EXISTS(SELECT TOP 1 1 FROM @tmpInputTransId WHERE Eventdate <= @Movebetdate)
 	BEGIN
 		SELECT	@ErrCode = 99
 				,@ErrMsg = 'Match is under Movebet process, could not void ticket.'
@@ -137,7 +130,7 @@ BEGIN
 	   ,@ThreadHold = @ThreadHold OUTPUT
 
 	INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-	SELECT @MatchId, refno
+	SELECT MatchId, refno
 	FROM #tmpSubTransId
 
 	SET @StartTime_Retry = GETDATE()
@@ -204,45 +197,76 @@ BEGIN
 	FROM	#tmpSubTransId t
 		INNER JOIN dbo.bettransm AS b WITH (NOLOCK)  
 			ON	t.transid = b.transid   
-
-	WHILE(@RowId <= @RowCount)
+	
+	INSERT INTO @tmpMatchId(MatchId)
+	SELECT DISTINCT MatchId
+	FROM #tmpSubTransId
+	
+	WHILE (1=1)
 	BEGIN
-		SET @strSubTransId = ''
+		UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
+		FROM @tmpMatchId p
+		WHERE p.IsFinish IS NULL
 		
-		SELECT	@strSubTransId = @strSubTransId + CONVERT(VARCHAR(20), TransId) + ','
-		FROM	#tmpSubTransId
-		WHERE	RowId BETWEEN @RowId AND @RowId + 100
+		IF @@ROWCOUNT = 0 BREAK
+
+		SELECT	@matchdate = eventdate
+		FROM	dbo.match WITH(NOLOCK)
+		WHERE	matchid = @MatchId
+
+		WHILE (0=0)
+		BEGIN
+			DELETE @tmpTransIDBatch
+			SET @strSubTransId = ''
 		
-		EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
-			,@fth = 0  
-			,@fta = 0  
-			,@hth = 0  
-			,@hta = 0  
+			UPDATE TOP(100) t
+			SET isFinish = 1
+				OUTPUT deleted.transid
+				INTO @tmpTransIDBatch(transid)
+			FROM #tmpSubTransId t
+			WHERE isFinish IS NULL AND t.MatchId = @MatchId
+
+			IF @@ROWCOUNT = 0 BREAK
+
+			SELECT	@strSubTransId = @strSubTransId + CONVERT(VARCHAR(50), TransId) + ','
+			FROM	@tmpTransIDBatch
+
+			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
+				,@fth = 0  
+				,@fta = 0  
+				,@hth = 0  
+				,@hta = 0  
+				,@matchdate = @matchdate  
+				,@mode = 'VOID'  
+				,@VoidTransID = @strSubTransId  
+				,@UserId = @UserId
+		END
+	
+		INSERT INTO #tmpMainTransId(TransId, Refno, CustId, ruben, MatchId)
+		SELECT	DISTINCT b.transid, b.refno, b.custid, b.ruben, t.MatchId
+		FROM	#tmpSubTransId t
+			INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)
+				ON t.Refno = b.refno
+		WHERE	b.matchid = 29
+				AND b.statusID NOT IN (101, 102)
+				AND t.MatchId = @MatchId
+
+		SELECT	@strMainTransId = @strMainTransId + CONVERT(VARCHAR(20), TransId) + ','
+				,@strRefno = @strRefno + ',' + CONVERT(VARCHAR(20), Refno) + '|' + CONVERT(VARCHAR(20), TransId)
+		FROM #tmpMainTransId
+		WHERE MatchId = @MatchId
+
+		EXEC dbo.NAP_Admin_Calculate_MP_broker   
+			@matchid = @matchid  
 			,@matchdate = @matchdate  
-			,@mode = 'VOID'  
-			,@VoidTransID = @strSubTransId  
-			,@UserId = @UserId
-
-		SET @RowId = @RowId + 100
+			,@strXML = @strMainTransId  
+			,@mode  = 'PRECAL-29'  	
+			
+		EXEC dbo.NAP_Admin_Calculate_MP_broker   
+			@matchdate = @matchdate  
+			,@strXML = @strRefno  
+			,@mode  = '29'  
 	END
-
-	INSERT INTO #tmpMainTransId(TransId, Refno, CustId, ruben)
-	SELECT	DISTINCT b.transid, b.refno, b.custid, b.ruben
-	FROM	#tmpSubTransId t
-		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK)
-			ON t.Refno = b.refno
-	WHERE	b.matchid = 29
-			AND b.statusID NOT IN (101, 102)
-
-	SELECT	@strMainTransId = @strMainTransId + CONVERT(VARCHAR(20), TransId) + ','
-			,@strRefno = @strRefno + ',' + CONVERT(VARCHAR(20), Refno) + '|' + CONVERT(VARCHAR(20), TransId)
-	FROM	#tmpMainTransId
-
-	EXEC dbo.NAP_Admin_Calculate_MP_broker   
-		@matchid = @matchid  
-		,@matchdate = @matchdate  
-		,@strXML = @strMainTransId  
-		,@mode  = 'PRECAL-29'  		
 
 	INSERT INTO #BeforeUpd(custid, balance)
 	SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
@@ -260,11 +284,6 @@ BEGIN
 							FOR XML PATH('r'), ROOT('root')
 						)
 	
-	EXEC dbo.NAP_Admin_Calculate_MP_broker   
-		@matchdate = @matchdate  
-		,@strXML = @strRefno  
-		,@mode  = '29'  
-
 	IF @MainParlay_MaxPO IS NOT NULL
 	BEGIN
 		--Insert Max Payout Queue
