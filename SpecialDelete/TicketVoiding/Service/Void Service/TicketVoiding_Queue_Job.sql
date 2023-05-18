@@ -174,8 +174,8 @@ BEGIN
 	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId
 		, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers
 		, q.ErrMsg AS [Message], q.UserId, c.username
-		, @BeforeTransInfoJson AS BeforeTransInfoJson
-		, @AfterTransInfoJson AS AfterTransInfoJson
+		, CONVERT(VARCHAR(MAX), @BeforeTransInfoJson, 1) AS BeforeTransInfoJson
+		, CONVERT(VARCHAR(MAX), @AfterTransInfoJson, 1) AS AfterTransInfoJson
 	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 	WHERE q.QueueId = @QueueId
