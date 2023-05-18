@@ -7,10 +7,14 @@ ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 	,@TransIds			VARCHAR(MAX) 
 	,@UserId			INT = 0 
 	,@IP				VARCHAR(15) =''
+	,@IssueTypeId		TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(1000)	= ''	OUTPUT
 	,@FailedTransIds    VARCHAR(MAX) = '' OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
+	,@BeforeTransInfoJson		VARBINARY(MAX) = NULL OUTPUT
+	,@AfterTransInfoJson		VARBINARY(MAX) = NULL OUTPUT
 )
 AS
 /*		
@@ -25,6 +29,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230309@July: Update number ErrCode [Redmine: #180625]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's explanation:	
 		
@@ -79,7 +84,10 @@ BEGIN
 
 	DECLARE @tmpTransInfo AS TABLE (transid BIGINT, winlost MONEY, playercomm MONEY, comm MONEY, acomm MONEY, scomm MONEY
 							, status VARCHAR(20), statusID TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
-							, ruben TINYINT, creator INT, awinlost MONEY, mwinlost MONEY, swinlost MONEY, bettype SMALLINT
+							, ruben TINYINT, creator INT, awinlost MONEY, mwinlost MONEY, swinlost MONEY, bettype SMALLINT						
+							,matchid INT ,betdaqid BIGINT ,sitedbgroupid SMALLINT
+							,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
+							,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
 						)
 
 	CREATE TABLE #tmpTransId (
@@ -182,6 +190,35 @@ BEGIN
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		) 
+
+	/*Modify the way to get move bet date*/
+	DECLARE @BeingMovebetDate SMALLDATETIME 
+		   ,@currentdate SMALLDATETIME = GETDATE()
+
+	DECLARE @tblTransId_MoveBet TABLE (MatchId INT, TransId BIGINT)
+	
+	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
+	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
+
+	IF @IssueTypeId IN (13) AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate = @BeingMovebetDate)
+	BEGIN	
+		DELETE 
+		FROM #tmpTransId
+			OUTPUT	DELETED.matchid, DELETED.TransId
+			INTO  @tblTransId_MoveBet (Matchid, TransId)
+		WHERE eventdate = @BeingMovebetDate
+
+		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
+									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+								FROM @tblTransId_MoveBet t
+									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+													FROM @tblTransId_MoveBet s
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													FOR XML PATH('')
+												)ts	 (TransIds)
+								FOR XML PATH('r'), ROOT('root')
+								) AS VARCHAR(MAX))
+	END
 	
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
@@ -208,6 +245,9 @@ BEGIN
 						  FROM #tmpTransId 
 						  WHERE transid = temp.transid 
 						     OR refno = temp.transid)
+			AND 1 = CASE WHEN @IssueTypeId <> 13 THEN 1 
+						 WHEN @IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM @tblTransId_MoveBet m WHERE m.TransId = temp.TransId) THEN 1
+						 ELSE 0 END
 	)
 	SELECT @FailedTransIds = @FailedTransIds + CASE WHEN @FailedTransIds <> '' THEN ',' ELSE '' END +  CAST(transid AS VARCHAR(100))								  
 	FROM t_invalid
@@ -308,6 +348,52 @@ BEGIN
 			,b14.winlostdate
 			,t.sporttype
 
+	--capture before for balance trigger
+	INSERT INTO @tmpTransInfo( 
+		   matchid ,transid ,betdaqid ,sitedbgroupid
+		  ,bettype ,statusID ,Status 
+		  ,winlostdate ,SettlementTime ,actual_stake ,modds 
+		  ,srecommend ,mrecommend ,recommend ,custid	
+		  ,winlost ,awinLost ,mwinLost ,swinLost
+		  ,playercomm ,comm ,acomm ,scomm
+		)
+	SELECT t.matchid, t.TransId, t.betdaqid, @SiteDBGroupID
+		,t.bettype, b.statusID, b.status, t.winlostdate, b.SettlementTime, t.actual_stake, b.modds
+		,t.srecommend, b.mrecommend, b.recommdate, t.custid
+		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
+		,b.playercomm, b.comm, b.acomm, b.scomm
+	FROM #tmpTransId t
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
+
+	SET @BeforeTransInfoJson = COMPRESS((
+			SELECT	b.matchid AS 'mid'
+					, b.transId AS 't'
+					, b.betdaqid AS 'bdaq'
+					, b.sitedbgroupid AS 'sitedb'
+					, b.bettype AS 'btype'
+					, b.statusID AS 'sid'
+					, b.status AS 's'
+					, b.winlostdate AS 'wld'
+					, b.SettlementTime AS 'st'
+					, b.actual_stake AS 'acstake'
+					, b.modds AS 'm'
+					, b.srecommend AS 'sre'
+					, b.mrecommend AS 'mre'
+					, b.recommend AS 're'
+					, b.custid AS 'cust'
+					, b.winlost AS 'w'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+			FROM	@tmpTransInfo b
+			WHERE b.bettype NOT IN (10)
+			FOR JSON PATH))
+	
+	DELETE @tmpTransInfo
 	/**********************************************   *************************************************************/
 	SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
 	-- STEP 2 : Update bettrans14
@@ -440,6 +526,52 @@ BEGIN
 			,b.balanceType
 			,b.BonusID
 			,b.WalletType
+
+	DELETE @tmpTransInfo
+	--capture before for balance trigger
+	INSERT INTO @tmpTransInfo( 
+		   matchid ,transid ,betdaqid ,sitedbgroupid
+		  ,bettype ,statusID ,Status 
+		  ,winlostdate ,SettlementTime ,actual_stake ,modds 
+		  ,srecommend ,mrecommend ,recommend ,custid	
+		  ,winlost ,awinLost ,mwinLost ,swinLost
+		  ,playercomm ,comm ,acomm ,scomm
+		)
+	SELECT t.matchid, t.TransId, b.betdaqid, @SiteDBGroupID
+		,t.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
+		,t.srecommend, b.mrecommend, b.recommdate, t.custid
+		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
+		,b.playercomm, b.comm, b.acomm, b.scomm
+	FROM #tmpTransId t
+		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
+
+	SET @AfterTransInfoJson = COMPRESS((
+			SELECT	b.matchid AS 'mid'
+					, b.transId AS 't'
+					, b.betdaqid AS 'bdaq'
+					, b.sitedbgroupid AS 'sitedb'
+					, b.bettype AS 'btype'
+					, b.statusID AS 'sid'
+					, b.status AS 's'
+					, b.winlostdate AS 'wld'
+					, b.SettlementTime AS 'st'
+					, b.actual_stake AS 'acstake'
+					, b.modds AS 'm'
+					, b.srecommend AS 'sre'
+					, b.mrecommend AS 'mre'
+					, b.recommend AS 're'
+					, b.custid AS 'cust'
+					, b.winlost AS 'w'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+			FROM	@tmpTransInfo b
+			WHERE b.bettype NOT IN (10)
+			FOR JSON PATH))
 	
 	---INSERT data into pending balance table   
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]

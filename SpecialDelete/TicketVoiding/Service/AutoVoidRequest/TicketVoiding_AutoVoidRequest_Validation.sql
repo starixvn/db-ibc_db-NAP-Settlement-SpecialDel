@@ -17,6 +17,7 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's explanation:
 		
@@ -48,6 +49,8 @@ BEGIN
 	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
 	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
+	--Void14 (Abnormal Account only)
+	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT)
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
@@ -152,17 +155,46 @@ BEGIN
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 	END
+	IF @IssueTypeId = 13
+	BEGIN
+		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType)
+		SELECT t.TransId
+			,t.RequestId
+			,b.statusID
+			,b.statuswinlost
+			,t.MatchId
+			,t.IssueTypeId
+			,t.TicketType
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 1
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 1
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
+					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
+		BEGIN
+			INSERT INTO #SingleTickets_14 (TransId, RequestId, Matchid, IssueTypeId)
+			SELECT t.TransId
+				,t.RequestId
+				,b.statusID
+				,b.statuswinlost
+				,t.MatchId
+				,t.IssueTypeId
+			FROM #tmpInputTransId t
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
+		END
+	END
 
-	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets
-	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets_ReSettle
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 1 --SingleVoid
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 1  --SingleReSettle
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 4
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 4
+	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets --Parlayvoid
+	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets_ReSettle --ParlayReSettle
 
-	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #CancelCashOutTickets
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 4 --CricketVoid
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 4 --CricketReSettle
+
+	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #CancelCashOutTickets --CancelCO
+
+	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_14 --Single_14Void
 
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds
@@ -171,6 +203,7 @@ BEGIN
 	DROP TABLE #SingleTickets_ReSettle
 	DROP TABLE #ParlayTickets_ReSettle
 	DROP TABLE #CancelCashOutTickets
+	DROP TABLE #SingleTickets_14
 END		
 GO
 

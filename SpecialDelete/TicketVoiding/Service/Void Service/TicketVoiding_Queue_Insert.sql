@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Queue_Insert]
 	,@ParlayTicketsJSON		NVARCHAR(MAX) = NULL
 	,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
 	,@CricketTicketsJSON	NVARCHAR(MAX) = NULL
+	,@SingleTickets14Json	NVARCHAR(MAX) = NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50)
 )
@@ -24,6 +25,7 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's explanation:	
 		
@@ -72,6 +74,14 @@ BEGIN
 		INSERT INTO #tmpInputTransId (TransId, MatchId, IssueTypeId, IsCricket)
 		SELECT tbl.TransId, tbl.MatchId, tbl.IssueTypeId, 1
 		FROM OPENJSON(@CricketTicketsJSON)
+			WITH (MatchId INT, TransId BIGINT, IssueTypeId INT) tbl
+	END
+
+	IF @SingleTickets14Json IS NOT NULL
+	BEGIN
+		INSERT INTO #tmpInputTransId (TransId, MatchId, IssueTypeId, TicketType)
+		SELECT tbl.TransId, tbl.MatchId, tbl.IssueTypeId, 5
+		FROM OPENJSON(@SingleTickets14Json)
 			WITH (MatchId INT, TransId BIGINT, IssueTypeId INT) tbl
 	END
 
@@ -288,6 +298,57 @@ BEGIN
 				END
 			END
 		END
+
+		IF EXISTS (SELECT TOP(1) 1 FROM #tmpInputTransId WHERE TicketType = 5)
+		BEGIN
+			WHILE (1=1)
+			BEGIN
+				SELECT @TransIds = '', @TotalTicket = 0
+				DELETE @tmpTransIdBatch
+
+				DELETE TOP(2000) t OUTPUT DELETED.TransId INTO @tmpTransIdBatch (TransId)
+				FROM #tmpInputTransId t
+				WHERE t.MatchId = @MatchId
+					AND t.TicketType = 5
+
+				SET @TotalTicket = @@ROWCOUNT
+				IF @TotalTicket = 0
+					BREAK;
+
+				SET @TransIds = (STUFF((SELECT DISTINCT  ',' + CAST( m.TransId AS VARCHAR(20))
+									FROM @tmpTransIdBatch m
+									FOR XML PATH ('')
+								),1,1,''))
+				
+				IF NOT EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_Queue q WITH (NOLOCK) 
+								WHERE q.RequestId = @RequestId AND q.VoidingHistoryId = @VoidingHistoryId AND q.TransIds = @TransIds)
+				BEGIN
+					INSERT INTO dbo.TicketVoiding_Queue (
+						RequestId
+						,MatchId
+						,VoidingHistoryId
+						,TransIds
+						,StatusId
+						,UserId
+						,Ip
+						,VoidingTypeId
+						,TotalTicket
+						,IssueTypeId
+					)
+					SELECT	@RequestId
+							,@MatchId
+							,@VoidingHistoryId
+							,@TransIds
+							,99 -- waiting
+							,@UserId
+							,@IP
+							,5
+							,@TotalTicket
+							,@IssueTypeId
+				END
+			END
+		END
+		
 		SET @start = @start + 1
 	END
 
