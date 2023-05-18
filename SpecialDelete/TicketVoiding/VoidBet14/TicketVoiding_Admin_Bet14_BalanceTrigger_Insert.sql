@@ -21,7 +21,7 @@ BEGIN
 	SET @Decompress_AfterTransInfoJson = CAST(DECOMPRESS(@AfterTransInfoJson) AS NVARCHAR(MAX))
 
 	CREATE TABLE #BeforeTransId14(
-	   matchid INT ,transid BIGINT ,betdaqid BIGINT ,sitedbgroupid SMALLINT
+	   matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
       ,bettype SMALLINT ,statusID TINYINT ,Status NVARCHAR(10)
 	  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
 	  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
@@ -30,7 +30,7 @@ BEGIN
 	)
 
 	CREATE TABLE #AfterTransId14(
-	    matchid INT ,transid BIGINT ,betdaqid BIGINT ,sitedbgroupid SMALLINT
+	    matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
       ,bettype SMALLINT ,statusID TINYINT ,Status NVARCHAR(10)
 	  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
 	  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
@@ -46,7 +46,7 @@ BEGIN
 		  ,winlost ,awinLost ,mwinLost ,swinLost
 		  ,playercomm ,comm ,acomm ,scomm
 		)
-	SELECT mid ,t ,bdaq ,sitedb
+	SELECT DISTINCT mid ,t ,bdaq ,sitedb
 			,btype ,sid ,s
 			,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END wld ,st ,acstake ,m
 			,sre ,mre ,re ,cust
@@ -69,7 +69,7 @@ BEGIN
 		  ,winlost ,awinLost ,mwinLost ,swinLost
 		  ,playercomm ,comm ,acomm ,scomm
 		)
-	SELECT mid ,t ,bdaq ,sitedb
+	SELECT DISTINCT mid ,t ,bdaq ,sitedb
 			,btype ,sid ,s
 			,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END wld ,st ,acstake ,m
 			,sre ,mre ,re ,cust
