@@ -121,7 +121,7 @@ BEGIN
 			@Betid IS NULL
 			OR (
 				@Betid IS NOT NULL
-				AND bm.betcheck = CONVERT(NVARCHAR(100), @Betid)
+				AND (bm.betcheck = CONVERT(NVARCHAR(100), @Betid) OR bm.betcheck = '')
 				)
 			)
 	

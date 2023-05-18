@@ -57,7 +57,7 @@ BEGIN
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
-				SELECT mid, t, btype, us, crdate, mt, CASE WHEN bid = '' THEN NULL ELSE bid END bid
+				SELECT mid, t, btype, us, crdate, mt, CASE WHEN bid = '' THEN 0 ELSE bid END bid
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, btype SMALLINT, us INT, crdate DATETIME, mt INT, bid NVARCHAR(100))
 		) tbl
