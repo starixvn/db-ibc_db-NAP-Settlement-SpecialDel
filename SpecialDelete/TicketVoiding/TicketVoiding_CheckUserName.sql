@@ -62,13 +62,15 @@ BEGIN
 			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
 			,@FromWinlostDate_14	  DATETIME = NULL
 			,@ToWinlostDate_14		  DATETIME = NULL
+			,@IsBeingMovebetdate	  BIT = 0 --1: movebet date comming up or being
+			,@BeingMovebetDate		  SMALLDATETIME
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
 	CREATE TABLE #InputValidCustid_1 (custid INT PRIMARY KEY )
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
-	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, RefNo BIGINT, IsVoid14 BIT DEFAULT (0))
+	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY,StatusId INT, MatchId INT, bettype SMALLINT, winlostdate SMALLDATETIME, IsVoid14 BIT DEFAULT (0))
 
 	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -246,12 +248,12 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_2)
 	BEGIN
-		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, winlostdate, IsVoid14)
 		SELECT  b.transid
 				,b.statusID
 				,b.matchid
 				,b.bettype
-				,b.refno
+				,b.winlostdate
 				,0 AS IsVoid14
 		FROM #tmpTransInfo b 
 			OUTER APPLY (
@@ -277,12 +279,12 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
 		BEGIN
-			INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
+			INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, winlostdate, IsVoid14)
 			SELECT  b.transid
 					,b.statusID
 					,b.matchid
 					,b.bettype
-					,b.refno
+					,b.winlostdate
 					,1 AS IsVoid14
 			FROM #tmpTransInfo b 
 				OUTER APPLY (
@@ -310,12 +312,12 @@ BEGIN
 	
 	IF EXISTS (SELECT TOP 1 1 FROM #InputValidCustid_1)
 	BEGIN
-		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
+		INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, winlostdate, IsVoid14)
 		SELECT b.transid
 				,b.statusID
 				,b.matchid
 				,b.bettype
-				,b.refno
+				,b.winlostdate
 				,0 AS IsVoid14
 		FROM #tmpTransInfo b 
 			OUTER APPLY (
@@ -341,12 +343,12 @@ BEGIN
 		
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
 		BEGIN
-			INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, RefNo, IsVoid14)
+			INSERT INTO #transIdTemp (transid,statusID, MatchId, bettype, winlostdate, IsVoid14)
 			SELECT  b.transid
 					,b.statusID
 					,b.matchid
 					,b.bettype
-					,b.refno
+					,b.winlostdate
 					,1 AS IsVoid14
 			FROM #tmpTransInfo b 
 				OUTER APPLY (
@@ -372,6 +374,16 @@ BEGIN
 		END
 	END
 	
+	SELECT @BeingMovebetDate = CONVERT(SMALLDATETIME, VValue)
+	FROM dbo.SystemSettings
+	WHERE VName = 'BeingMovebetDate'
+	
+	IF @BeingMovebetDate IS NOT NULL 
+		AND EXISTS ( SELECT TOP 1 1 FROM #transIdTemp WHERE winlostdate = @BeingMovebetDate)
+	BEGIN
+		SET @IsBeingMovebetdate = 1 --Error msg: The system is running the Movebet process, please wait and try again
+	END
+
 	----------End of data prepare-----------------
 	--3. TransId in request table
 	IF @ActionId NOT IN (2)
@@ -474,6 +486,7 @@ BEGIN
 		  ,@MatchIDs AS MatchIDs
 		  ,@NumberOfTickets AS NumberOfTickets
 		  ,@IsInValidTotalTicket AS IsInValidTotalTicket
+		  ,@IsBeingMovebetdate AS IsBeingMovebetdate
 		  
 	--2. List ticket unmark (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds

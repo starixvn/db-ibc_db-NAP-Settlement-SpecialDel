@@ -46,7 +46,8 @@ BEGIN
 		,SiteDBGroupID SMALLINT
 		,IsVoid14 BIT DEFAULT(0)
     )
-
+	
+	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
 	CREATE TABLE #InputValidCustid_tmp (custid INT)
@@ -120,14 +121,19 @@ BEGIN
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)  -- NOT IN [Racing, Casino]
 			AND pt.bettype NOT BETWEEN 1501 AND 1599   -- NOT IN Keno
+	
+	INSERT INTO #TmpInValidUserName (Username)
+	SELECT DISTINCT value
+	FROM STRING_SPLIT(@UserNames, ',')
+	WHERE value <> ''
 
 	INSERT INTO #InputUsernameList (Username, custid, roleid)
-	SELECT CAST(l.value AS NVARCHAR(30))
+	SELECT l.Username
 			,ci.custid
 			,ci.roleid
-	FROM STRING_SPLIT(@UserNames, ',') l
-		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
-		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = d.username
+	FROM #TmpInValidUserName l
+		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
+		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON l.Username = d.username
 	WHERE d.custid IS NULL
 
 	-- get SMA roleid = 2
@@ -307,6 +313,7 @@ BEGIN
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
+	DROP TABLE #TmpInValidUserName
 	DROP TABLE #TransInfo
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_2
