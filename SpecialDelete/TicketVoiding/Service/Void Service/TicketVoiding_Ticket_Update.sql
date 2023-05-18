@@ -47,7 +47,7 @@ BEGIN
 			,@TransIds				= @TransIds
 			,@UserId				= @UserId
 			,@IP					= @IP
-			,@VoidingTypeId			= @VoidingTypeId
+			,@IssueTypeId			= @IssueTypeId
 			,@FailedTransIds		= @FailedTransIds OUTPUT
 			,@ErrCode				= @ErrCode	OUTPUT
 			,@ErrMsg				= @ErrMsg	OUTPUT
