@@ -30,6 +30,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		
 	Param's explanation:	
 		
@@ -179,7 +180,48 @@ BEGIN
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
 			
-	
+	--For void14 abnormal account only (only single + main parlay)
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket t
+					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
+	BEGIN
+		UPDATE t 
+			SET actual_stake = b.actual_stake
+				,Betcheck = b.betcheck
+				,betdaqid = b.betdaqid
+				,betid = b.betid
+				,betteam = b.betteam
+				,bettype = b.bettype
+				,ExtraInfo = b.ExtraInfo
+				,hdp1 = b.hdp1
+				,hdp2 = b.hdp2
+				,liveawayscore = b.liveawayscore
+				,livehomescore = b.livehomescore
+				,oddsspread = b.oddsspread
+				,oddstype = b.oddstype
+				,RefCode = b.RefCode
+				,stake = b.stake
+				,transdesc = b.transdesc
+				,Username = b.Username
+				,BonusId = b.BonusID
+				,WalletType = b.WalletType
+				,winlost = t.winlost - b.actual_stake
+				,currency = b.currency
+				,CurrencyName = b.CurrencyName
+				,betfrom = b.betfrom
+				,transdate = b.transdate
+				,refno = b.refno
+				,srecommend = b.srecommend
+				,mrecommend = b.mrecommend
+				,recommend = b.recommend
+				,LiveIndicator = b.liveindicator
+				,ActualStake = b.actual_stake
+				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
+				,IsMixParlay = CASE WHEN t.Bettype = 29 THEN 1 ELSE 0 END --case AB(void mix parlay)
+		FROM	#tmpTicket t
+			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
+				ON t.TransId = b.transid
+	END
+
 	UPDATE	t
 		SET transid = b.transid
 			,actual_stake = b.actual_stake
@@ -281,6 +323,69 @@ BEGIN
 			ON r.EventID = o.EventID
 		WHERE t.bettype IN (1231,1232,1233,1237,1238)
 	END
+
+	--For void14 abnormal account only (only single + main parlay)
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTicket t
+					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
+	BEGIN
+		-- UPDATE eventtype = 1
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
+		BEGIN
+			UPDATE t
+			SET matchcode 	= m.matchcode
+				,homeid 	= m.homeid
+				,awayid 	= m.awayid
+				,leagueid 	= m.leagueid
+				,sporttype 	= m.sporttype
+				,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+				,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+				,matchid    = m.matchid
+				,SettlementStatus = 0
+				,eventstatus = m.eventstatus
+			FROM #tmpTicket t
+				INNER JOIN dbo.match14 m WITH (NOLOCK) 
+				ON	t.matchid = m.matchid
+			WHERE t.bettype NOT IN (9, 29, 2799)
+		END
+
+		-- UPDATE eventtype = 2 [Outright bettype]
+			IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (10)))
+			BEGIN
+				UPDATE t
+				SET matchcode 	= odds.matchcode
+					,homeid		= odds.teamid
+					,awayid 	= 0
+					,leagueid 	= odds.leagueid
+					,sporttype 	= l.sporttype
+					,showtime	= ''
+					,eventstatus = odds.oddsstatus
+				FROM #tmpTicket t
+					INNER JOIN dbo.outright14 AS odds WITH (NOLOCK) 
+					ON	t.matchid = odds.orid
+					INNER JOIN dbo.league l WITH (NOLOCK) 
+					ON	odds.leagueid = l.leagueid
+				WHERE t.bettype IN (10)
+			END
+		-- UPDATE eventtype = 3 [VS range  bettypes]
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype IN (1231,1232,1233,1237,1238)))
+		BEGIN
+			UPDATE t
+				SET matchcode 	= CONVERT(NVARCHAR(50), o.RacerNum)
+					,homeid 	= o.RacerID
+					,awayid 	= 0
+					,leagueid 	= r.leagueid
+					,sporttype 	= r.sporttype
+					,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113)
+					,eventstatus = o.EventStatus
+			FROM #tmpTicket t
+				INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) 
+				ON t.oddsid = o.Orid
+				INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
+				ON r.EventID = o.EventID
+			WHERE t.bettype IN (1231,1232,1233,1237,1238)
+		END
+	END
+
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE t
