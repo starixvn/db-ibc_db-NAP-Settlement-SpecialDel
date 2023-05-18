@@ -52,10 +52,10 @@ BEGIN
 		-- Send notification via email
 		SET @Subject = 'NAP: CustLimitBet Failed !'	
 			
-		SET @Body = 'NAP:
-		SP: Nap_Admin_CustLimitBet_CheckData_Job
-					'+ @ErrorMessage + CHAR(13) + CHAR(10) + '
-					Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120)
+		SET @Body = 'SP: Nap_Admin_CustLimitBet_CheckData_Job' + CHAR(13) + CHAR(10)
+		+ 'Check from ' + CONVERT(varchar, @StartTime, 120) + ' to ' + CONVERT(varchar, @EndTime, 120) + CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
+		+ @ErrorMessage + CHAR(13) + CHAR(10)
+		
 		
 		EXEC msdb.dbo.sp_send_dbmail
 				@recipients= @Recipients
@@ -63,7 +63,7 @@ BEGIN
 				,@sensitivity ='Personal'
 				,@importance ='High'
 				,@subject =@Subject
-				,@body_format = 'HTML'
+				,@body_format = 'TEXT'
 				,@profile_name =DEFAULT;
 
 		-- send letstalk
