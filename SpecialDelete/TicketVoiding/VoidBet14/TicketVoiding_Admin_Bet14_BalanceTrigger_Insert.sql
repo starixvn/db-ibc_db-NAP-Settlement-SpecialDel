@@ -1,7 +1,7 @@
 /*<info serverAlias="DBBAH-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/    
 CREATE PROCEDURE dbo.TicketVoiding_Admin_Bet14_BalanceTrigger_Insert (
-   @BeforeTransInfoJson		VARBINARY(MAX) = NULL
-  ,@AfterTransInfoJson		VARBINARY(MAX) = NULL
+   @BeforeTransInfoJson		VARCHAR(MAX) = NULL
+  ,@AfterTransInfoJson		VARCHAR(MAX) = NULL
 )
 AS 
 /*
@@ -17,8 +17,8 @@ BEGIN
 	DECLARE @Decompress_BeforeTransInfoJson NVARCHAR(MAX) = NULL
 		   ,@Decompress_AfterTransInfoJson  NVARCHAR(MAX) = NULL
 	
-	SET @Decompress_BeforeTransInfoJson = CAST(DECOMPRESS(@BeforeTransInfoJson) AS NVARCHAR(MAX))
-	SET @Decompress_AfterTransInfoJson = CAST(DECOMPRESS(@AfterTransInfoJson) AS NVARCHAR(MAX))
+	SET @Decompress_BeforeTransInfoJson = DECOMPRESS(@BeforeTransInfoJson)
+	SET @Decompress_AfterTransInfoJson = DECOMPRESS(@AfterTransInfoJson)
 
 	CREATE TABLE #BeforeTransId14(
 	   matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
