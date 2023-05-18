@@ -359,7 +359,7 @@ BEGIN
 		)
 	SELECT t.matchid, t.TransId, t.betdaqid, @SiteDBGroupID
 		,t.bettype, b.statusID, b.status, t.winlostdate, b.SettlementTime, t.actual_stake, b.modds
-		,t.srecommend, b.mrecommend, b.recommdate, t.custid
+		,t.srecommend, b.mrecommend, b.recommend, t.custid
 		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
 		,b.playercomm, b.comm, b.acomm, b.scomm
 	FROM #tmpTransId t
@@ -527,7 +527,7 @@ BEGIN
 			,b.WalletType
 
 	DELETE @tmpTransInfo
-	--capture before for balance trigger
+	--capture after for balance trigger
 	INSERT INTO @tmpTransInfo( 
 		   matchid ,transid ,betdaqid ,sitedbgroupid
 		  ,bettype ,statusID ,Status 
@@ -538,7 +538,7 @@ BEGIN
 		)
 	SELECT t.matchid, t.TransId, b.betdaqid, @SiteDBGroupID
 		,t.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
-		,t.srecommend, b.mrecommend, b.recommdate, t.custid
+		,t.srecommend, b.mrecommend, b.recommend, t.custid
 		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
 		,b.playercomm, b.comm, b.acomm, b.scomm
 	FROM #tmpTransId t
