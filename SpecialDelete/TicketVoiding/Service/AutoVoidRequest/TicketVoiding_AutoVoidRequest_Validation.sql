@@ -160,8 +160,6 @@ BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType)
 		SELECT t.TransId
 			,t.RequestId
-			,b.statusID
-			,b.statuswinlost
 			,t.MatchId
 			,t.IssueTypeId
 			,t.TicketType
@@ -174,8 +172,6 @@ BEGIN
 			INSERT INTO #SingleTickets_14 (TransId, RequestId, Matchid, IssueTypeId)
 			SELECT t.TransId
 				,t.RequestId
-				,b.statusID
-				,b.statuswinlost
 				,t.MatchId
 				,t.IssueTypeId
 			FROM #tmpInputTransId t
