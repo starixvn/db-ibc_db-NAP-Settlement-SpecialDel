@@ -17,6 +17,7 @@ AS
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		
 	Param's explanation:	
 		
@@ -83,7 +84,7 @@ BEGIN
 		isNeutral             BIT,
 		matchcode             NVARCHAR(50),
 		showtime              NVARCHAR(50),
-		winlostdate			  DATETIME,
+		winlostdate			  SMALLDATETIME,
 		statusID			  TINYINT,
 		SiteDBGroupID		  SMALLINT
     )
@@ -223,6 +224,7 @@ BEGIN
 			,ActualStake
 			,matchid
 			,SiteDBGroupID
+			,winlostdate
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -266,6 +268,7 @@ BEGIN
 			,b.actual_stake AS ActualStake
 			,b.matchid
 			,b.SiteDBGroupID
+			,b.winlostdate
 	FROM	#tmpTransInfo b
 		CROSS APPLY (
 			SELECT TOP(1) s.TransId
