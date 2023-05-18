@@ -390,7 +390,6 @@ BEGIN
 					, b.acomm AS 'ac'
 					, b.scomm AS 'sc'
 			FROM	@tmpTransInfo b
-			WHERE b.bettype NOT IN (10)
 			FOR JSON PATH))
 	
 	DELETE @tmpTransInfo
@@ -570,7 +569,6 @@ BEGIN
 					, b.acomm AS 'ac'
 					, b.scomm AS 'sc'
 			FROM	@tmpTransInfo b
-			WHERE b.bettype NOT IN (10)
 			FOR JSON PATH))
 	
 	---INSERT data into pending balance table   
@@ -641,6 +639,26 @@ BEGIN
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	
+			SET @sqlCommand = '@BeforeTransInfoJson='
+					+ CASE WHEN @BeforeTransInfoJson IS NULL THEN '' ELSE  CONVERT(NVARCHAR(MAX), @BeforeTransInfoJson, 1) END
+					+ ', @AfterTransInfoJson='
+					+ CASE WHEN @AfterTransInfoJson IS NULL THEN '' ELSE  CONVERT(NVARCHAR(MAX), @AfterTransInfoJson, 1) END
+
+			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),GETDATE())
+		END	
+	END TRY
+	BEGIN CATCH
+	END CATCH 
 	
 	--WriteLog
 	SET @EndTime = GETDATE()
