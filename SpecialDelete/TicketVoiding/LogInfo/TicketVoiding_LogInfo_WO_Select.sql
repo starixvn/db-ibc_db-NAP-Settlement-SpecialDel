@@ -520,11 +520,11 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
 			WHERE tp.OddsType = b.OddsType 
 				AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
+							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
 									AND b.OddsType = 1 
 									AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
 						ELSE 0 END
 			)
 	END
@@ -542,9 +542,9 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
 			WHERE tp.OddsType = b.OddsType 
 				AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds = tp.Odds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
+							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
+							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
+							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
 						ELSE 0 END
 			)
 	END

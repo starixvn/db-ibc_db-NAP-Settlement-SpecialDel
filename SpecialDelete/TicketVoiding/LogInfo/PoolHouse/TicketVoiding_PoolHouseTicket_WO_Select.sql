@@ -520,57 +520,6 @@ BEGIN
 				AND b.Subtransdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
 	END  
 
-	DECLARE @Odds_str NVARCHAR(100)
-
-	DECLARE @tmp_Odds AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
-
-	IF @FilterOddsType = 'Range'
-	BEGIN
-		SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
-		
-		INSERT INTO @tmp_Odds (Odds, OddsType)
-		SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
-
-		;WITH cte AS
-		(
-			SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
-			FROM @tmp_Odds
-			GROUP BY OddsType
-		)
-		DELETE b
-		FROM #TVSTicketBets b
-			LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
-			WHERE tp.OddsType = b.OddsType 
-				AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL 
-									AND b.OddsType = 1 
-									AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
-						ELSE 0 END
-			)
-	END
-	ELSE IF @FilterOddsType = 'Value'
-	BEGIN
-		SET @Odds_str = (SELECT REPLACE(@OddsValue, '&', ','))
-
-		INSERT INTO @tmp_Odds (Odds, OddsType)
-		SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
-
-		DELETE b
-		FROM #TVSTicketBets b
-			LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
-			WHERE tp.OddsType = b.OddsType 
-				AND 1 = CASE WHEN b.IsMixParlay = 1 AND b.FilterOdds = tp.Odds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
-							WHEN b.IsMixParlay = 0 AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
-						ELSE 0 END
-			)
-	END
-
 	IF @ActionId NOT IN (2)
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId)
