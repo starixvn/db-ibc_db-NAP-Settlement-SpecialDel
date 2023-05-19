@@ -71,19 +71,29 @@ BEGIN
 	SELECT l.SessionId
 			,l.CreatedDate
 			,l.LogActionId
-			,CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE l.MatchId END MatchId
+			,l.MatchId
 			,m.homeid
 			,m.awayid
 			,l.LogData
 			,m.kickofftime
-			,ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-') AS 'HTScore'
-			,ISNULL(rdFT.HomeValue + '-' + rdFT.AwayValue, '-') AS 'FTSCore'
+			,ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-') AS 'HTScore'
+			,ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-') AS 'FTScore'
 			,c.username 
 		FROM dbo.TicketVoiding_Log AS l WITH (NOLOCK)
 			LEFT JOIN bodb02.dbo.match AS m WITH (NOLOCK) ON l.MatchId = m.matchid
 			LEFT JOIN bodb02.dbo.Customer AS c WITH (NOLOCK) ON l.UserId = c.custid
-			LEFT JOIN bodb02.dbo.ResultDetail AS rdHT WITH (NOLOCK) ON rdHT.MatchId = m.matchid AND rdHT.ResourceID = '01'
-			LEFT JOIN bodb02.dbo.ResultDetail AS rdFT WITH (NOLOCK) ON rdFT.MatchId = m.matchid AND rdFT.ResourceID = '00'
+			OUTER APPLY (
+					SELECT TOP 1 m.hthomescore, m.htawayscore
+					FROM bodb02.dbo.match_remark mr WITH (NOLOCK)
+					WHERE IsHTCal = 1 
+						AND mr.matchid = m.matchid			
+				)rdHT
+			OUTER APPLY (
+					SELECT TOP 1 m.finalhomescore, m.finalawayscore
+					FROM bodb02.dbo.match_remark mr WITH (NOLOCK)
+					WHERE mr.calculate = 1 
+						AND mr.matchid = m.matchid			
+				)rdFT
 		WHERE l.CreatedDate BETWEEN @LogDateFrom AND @LogDateTo
 			AND (@MatchId = 0 OR l.MatchId IN (SELECT MatchId FROM @tmpMatchId))
 			AND EXISTS (SELECT TOP 1 1 FROM #LogActionId AS lid WHERE lid.Id = l.LogActionId)
@@ -95,12 +105,22 @@ BEGIN
 	SET lr.homeid = m.homeid,
 		lr.awayid = m.awayid,
 		lr.kickofftime = m.kickofftime,
-		lr.HTScore = ISNULL(rdHT.HomeValue + '-' + rdHT.AwayValue, '-'),
-		lr.FTSCore = ISNULL(rdFT.HomeValue + '-' + rdFT.AwayValue, '-')
+		lr.HTScore = ISNULL(CAST(rdHT.hthomescore AS VARCHAR(10)) + '-' + CAST(rdHT.htawayscore AS VARCHAR(10)), '-'),
+		lr.FTSCore = ISNULL(CAST(rdFT.finalhomescore AS VARCHAR(10)) + '-' + CAST(rdFT.finalawayscore AS VARCHAR(10)), '-')
 	FROM #LogResult lr WITH(ROWLOCK, UPDLOCK)
 		LEFT JOIN bodb02.dbo.match14 AS m WITH (NOLOCK) ON lr.MatchId = m.matchid
-		LEFT JOIN bodb02.dbo.ResultDetail14 AS rdHT WITH (NOLOCK) ON rdHT.MatchId = m.matchid AND rdHT.ResourceID = '01'
-		LEFT JOIN bodb02.dbo.ResultDetail14 AS rdFT WITH (NOLOCK) ON rdFT.MatchId = m.matchid AND rdFT.ResourceID = '00'
+		OUTER APPLY (
+				SELECT TOP 1 m.hthomescore, m.htawayscore
+				FROM bodb02.dbo.match_remark mr WITH (NOLOCK)
+				WHERE IsHTCal = 1 
+					AND mr.matchid = m.matchid			
+				)rdHT
+		OUTER APPLY (
+				SELECT TOP 1 m.finalhomescore, m.finalawayscore
+				FROM bodb02.dbo.match_remark mr WITH (NOLOCK)
+				WHERE mr.calculate = 1 
+					AND mr.matchid = m.matchid			
+			)rdFT
 	WHERE lr.homeid is NULL
 
 	-- Return log result
