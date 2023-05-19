@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[TicketVoiding_AutoUnmark_Update]
 (
-	@MatchId		 INT,
+	@Matchid		 INT,
 	@TransIds		 VARCHAR(MAX) ='',
 	@Bettype		 SMALLINT,
 	@MarkedBy		 INT,
@@ -46,22 +46,15 @@ BEGIN
 		  , @ErrMsg				NVARCHAR(200) = ''
           , @ErrCode			INT   = 0
 	      , @NegativeBalanceUsers VARCHAR(MAX) = ''	
-	
-	DECLARE @SiteDBGroupID	SMALLINT = 0
+
+	DECLARE @IsCalQueue	BIT = 0
+		   ,@SiteDBGroupID	SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpMarkedTransIDBatch TABLE (transid BIGINT,statuswinlost TINYINT,IsMixParlay BIT)
 	DECLARE @tmpError TABLE (ErrorCode INT, ErrorMsg NVARCHAR(200), NegativeBalanceUsers VARCHAR(MAX))
-	DECLARE @tmpMatchId TABLE (MatchId INT, isFinish INT)
-	
-	INSERT INTO @tmpMatchId (MatchId)
-	SELECT MatchId
-	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN SportType <> 50 AND matchid = @MatchId THEN 1
-				    WHEN SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
-					ELSE 0 END
 
-	CREATE TABLE #tmpTransid_unmark (matchid INT, transid BIGINT,statuswinlost TINYINT, IsMixParlay BIT DEFAULT(0), isFinish INT)
+	CREATE TABLE #tmpTransid_unmark (transid BIGINT,statuswinlost TINYINT, IsMixParlay BIT DEFAULT(0), isFinish INT)
 	
 	--Step 2: Get tranid to unmark
 	CREATE TABLE #inputRequestTransId (TransId BIGINT)
@@ -82,16 +75,13 @@ BEGIN
 		transid
 		,statuswinlost
 		,IsMixParlay
-		,matchid
 		)
 	SELECT mt.TransId
 		,b.statuswinlost
 		,0
-		,mt.matchid
 	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = mt.MatchId AND b.SiteDBGroupID = @SiteDBGroupID
-		LEFT JOIN #ValidRequestTransId v ON mt.TransId = v.TransId
-	WHERE mt.MatchId IN (SELECT MatchId FROM @tmpMatchId)
+	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
@@ -108,11 +98,10 @@ BEGIN
 	SELECT bm.TransId
 		,NULL
 		,1
-		,mt.MatchId
 	FROM dbo.MarkedTransaction AS mt WITH (NOLOCK)
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.transid = mt.TransId AND b.matchid = 29 AND b.SiteDBGroupID = @SiteDBGroupID
 		INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON bm.refno = b.refno AND bm.matchid = mt.MatchId AND bm.SiteDBGroupID = b.SiteDBGroupID
-	WHERE mt.MatchId IN (SELECT MatchId FROM @tmpMatchId)
+	WHERE mt.MatchId = @Matchid
 		AND mt.bettype = @Bettype
 		AND mt.UserId = @MarkedBy
 		AND mt.MarkType <> 2
@@ -121,7 +110,7 @@ BEGIN
 			@Betid IS NULL
 			OR (
 				@Betid IS NOT NULL
-				AND (bm.betcheck = CONVERT(NVARCHAR(100), @Betid) OR bm.betcheck = '')
+				AND (bm.betcheck = CONVERT(NVARCHAR(100), @Betid) OR ISNULL(bm.betcheck,'') = '')
 				)
 			)
 	
@@ -133,19 +122,9 @@ BEGIN
 		SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 		RETURN
 	END
-	
-	DELETE FROM @tmpMatchId 
-	WHERE MatchId NOT IN (SELECT MatchId FROM #tmpTransid_unmark)
 
 	WHILE (1 = 1)
 	BEGIN
-		UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
-		FROM @tmpMatchId p
-		WHERE p.IsFinish IS NULL
-		
-		IF @@ROWCOUNT = 0 BREAK
-		
-		WHILE (0=0)
 		BEGIN TRY
 			
 			DELETE @tmpMarkedTransIDBatch
@@ -158,7 +137,7 @@ BEGIN
 			OUTPUT deleted.transid, deleted.statuswinlost, deleted.IsMixParlay
 			INTO @tmpMarkedTransIDBatch(transid, statuswinlost, IsMixParlay)
 			FROM #tmpTransid_unmark t 
-			WHERE isFinish IS NULL AND t.matchid = @MatchId
+			WHERE isFinish IS NULL
 		
 			IF @@ROWCOUNT = 0 BREAK
 			

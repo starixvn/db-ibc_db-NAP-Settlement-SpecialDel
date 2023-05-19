@@ -125,7 +125,7 @@ BEGIN
 		OUTER APPLY (
 				SELECT TOP 1 CASE WHEN  mt.CreateDate > t.CreatedDate THEN 1 ELSE 0 END AS IsCheck
 				FROM TicketVoiding_AutoUnmarkSetting t WITH (NOLOCK)
-				WHERE t.Matchid = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE mt.MatchId END
+				WHERE t.Matchid = mt.MatchId
 					AND t.Bettype = mt.bettype
 					AND t.MarkedBy = mt.UserId
 					AND CONVERT(NVARCHAR(100),ISNULL(t.betid, 0)) = ISNULL(mt.betid, 0)
