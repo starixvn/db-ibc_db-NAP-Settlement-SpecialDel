@@ -59,7 +59,6 @@ BEGIN
 		,@LockedByRefno		BIT
 		,@sqlCommand		VARCHAR(MAX)
 		,@DeterminedType	TINYINT
-		,@Threshold			INT
 		,@SourceId			TINYINT
 		,@fth				INT
 		,@fta				INT
@@ -95,7 +94,8 @@ BEGIN
 						WHEN @CalculationType = 101 AND @IsAutoInst = 1 THEN 195
 						WHEN @CalculationType = 102 AND @IsAutoInst = 1 THEN 196									  
 					END
-		,@StartTime = GETDATE()		
+		,@StartTime = GETDATE()	
+		,@LockedByRefno = 0
 		
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -419,7 +419,7 @@ BEGIN
 				@LockName = 'ParlayRefno'
 				,@ThreadHold = @ThresholdRefno OUTPUT
 
-			IF @TotalSubParlay <= @Threshold
+			IF @TotalSubParlay <= @ThresholdRefno
 				SET @LockedByRefno = 1
 			
 			SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 

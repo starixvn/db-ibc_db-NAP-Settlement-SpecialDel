@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02, DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 use bodb02
 go
 -- 29 rows affected
@@ -11,7 +11,7 @@ update s
 								else 0
 							end
 from SettlementSpecialBettypeProfile s with(rowlock, updlock)
-	inner join dbo.f_Set_Instant_GetBettypes() f
+	inner join DBTXN.bodb02.dbo.f_Set_Instant_GetBettypes() f
 		on s.bettype = f.bettype
 where s.sporttype = 1
 

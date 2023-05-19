@@ -25,6 +25,7 @@ AS
 		  - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		  - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		  - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		  - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:  
 	

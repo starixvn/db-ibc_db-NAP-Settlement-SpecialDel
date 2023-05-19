@@ -488,7 +488,7 @@ BEGIN
 			@LockName = 'ParlayRefno'
 			,@ThreadHold = @ThresholdRefno OUTPUT
 
-		IF @TotalSubParlay <= @Threshold
+		IF @TotalSubParlay <= @ThresholdRefno
 			SET @LockedByRefno = 1
 			
 		SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
