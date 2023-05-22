@@ -363,7 +363,7 @@ BEGIN
 		OUTER APPLY(
 					SELECT f.GroupMatch, f.BetType
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
-					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
+					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = @SubIssueTypeId
 					)f
 		OUTER APPLY (
 				SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
@@ -509,7 +509,7 @@ BEGIN
 				OUTER APPLY(
 					SELECT f.GroupMatch, f.BetType
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
-					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType AND f.SubIssueTypeId = @SubIssueTypeId
 				)f
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
