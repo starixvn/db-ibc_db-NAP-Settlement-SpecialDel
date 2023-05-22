@@ -164,7 +164,7 @@ RETURN (
 
 	/*6 - Wrong OU*/
 	-- 1X2 product is affected: FT 1X2 (5)
-	UNION ALL SELECT 6,0,5
+	UNION ALL SELECT 6,0,5,NULL
 
 	--Main match 
 	UNION ALL SELECT 6,1,177,NULL
