@@ -35,6 +35,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -93,7 +94,7 @@ BEGIN
 				IsFinish	BIT
 				);
 	
-	CREATE TABLE #Match(MatchId INT);
+	CREATE TABLE #Match(matchid INT, SportType TINYINT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
 	-- Get tickets insert into transaction
@@ -358,9 +359,19 @@ BEGIN
 		END
 	END
 
-	INSERT INTO #Match (MatchId)
-	SELECT DISTINCT MatchId
-	FROM #Tickets
+	INSERT INTO #Match (MatchId, SportType)
+	SELECT DISTINCT CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+		, SportType
+	FROM #Tickets t
+		INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType = 50)
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #Tickets d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+	END
 
 	-- Write Log
 	SET @xmlLog = CAST((
@@ -382,11 +393,7 @@ BEGIN
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @xmlLog, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log';
 
-	DELETE b
-	FROM #Match b
-		INNER JOIN dbo.MarkedTransaction m WITH (NOLOCK) ON b.MatchId = m.MatchId;
-
-------------------------------------------------------------------------------
+	------------------------------------------------------------------------------
 	--1. Table return error code/ msg
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg

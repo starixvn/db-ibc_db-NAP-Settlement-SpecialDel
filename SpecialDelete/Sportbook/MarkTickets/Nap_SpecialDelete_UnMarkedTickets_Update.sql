@@ -35,6 +35,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 */
 BEGIN
      SET NOCOUNT ON;
@@ -84,7 +85,7 @@ BEGIN
 	END
 	CREATE TABLE #ParlayTransIds (TransId BIGINT PRIMARY KEY);
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
-	CREATE TABLE #Match(matchid INT);
+	CREATE TABLE #Match(matchid INT, HomeId INT, AwayId INT, SportType TINYINT, IsNeutral BIT);
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT);
 
 	CREATE TABLE #Tickets
@@ -285,10 +286,6 @@ BEGIN
 				RETURN;
 			END;
 		END
-
-		INSERT INTO #Match (matchid)
-		SELECT DISTINCT MatchId
-		FROM #Tickets
     
 		-- Insert Transaction
 		DECLARE @TransIds_SB VARCHAR(MAX)
@@ -365,23 +362,34 @@ BEGIN
 		END
 	END
 	
+	INSERT INTO #Match (MatchId, HomeId, AwayId, SportType, IsNeutral)
+	SELECT DISTINCT CASE WHEN sporttype = 50 AND ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+		, HomeId
+		, AwayId
+		, SportType
+		, IsNeutral
+	FROM #Tickets t
+		INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.MatchId
+
+	IF EXISTS ( SELECT TOP 1 1 FROM #Match WHERE SportType = 50)
+	BEGIN
+		UPDATE d
+		SET d.matchid = m.ParentID
+		FROM #Tickets d
+			INNER JOIN dbo.match m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+	END
 	------------------------------------------------------------------------------
 	--1. Table return error code/ msg
 	SELECT @ErrCode AS ErrorCode
 		 , @ErrMsg AS ErrorMsg
 
 	--2. Table get match info
-	SELECT b.MatchId,
-		m.HomeId,
-		m.AwayId,
-		m.SportType,
-		m.IsNeutral
-	FROM #Match b
-		LEFT JOIN dbo.match m WITH (NOLOCK) ON b.MatchId = m.MatchId;
+	SELECT MatchId, HomeId, AwayId, SportType, IsNeutral
+	FROM #Match
 
 	-- Write Log
 	SET @xmlLog = CAST((
-			SELECT @LogActionId AS '@LogActionId' -- 90500: Action Mark, 90508: Mark by add request, 90509: Mark by auto void system
+			SELECT @LogActionId AS '@LogActionId' -- 90500: Action Mark, 90508: Mark by add request
 				,@UserId AS '@UserId'
 				,@IP AS '@IP'
 				,m.matchid AS '@MatchId'

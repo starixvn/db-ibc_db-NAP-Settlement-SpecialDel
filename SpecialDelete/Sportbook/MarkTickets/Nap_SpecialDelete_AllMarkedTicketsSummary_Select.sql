@@ -5,8 +5,7 @@ ALTER PROCEDURE [dbo].[Nap_SpecialDelete_AllMarkedTicketsSummary_Select]
 )
 AS
 /*
-    Created by: Alan
-	Date: 20190325
+    Created by: 20190325@Alan
 	Task: Mark Ticket for Settlement Exclusion
 	DB: DBTXN/BODB02
 
@@ -19,6 +18,7 @@ AS
 		- 20200831@Zane: TVS - Enhance for Danger Accept. [Redmine: #140339]
 		- 20220627@Max: [TVS] Tuning perforamance of Unmark All function [Redmine: #174560]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230427@July: [TVS] Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Explanation's Param:
 */
@@ -27,12 +27,13 @@ BEGIN
      DECLARE @SiteDBGroupID		SMALLINT = 0
 	 SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-	 CREATE TABLE #Tickets
-              (MatchId     INT,
-               UserId      INT,
-               CreatedDate DATETIME,
-               Total       INT
-              );
+	 CREATE TABLE #Tickets(
+			MatchId     INT,
+            UserId      INT,
+            CreatedDate DATETIME,
+            Total       INT,
+			ChildMatchId INT
+     );
 	CREATE TABLE #tmp_TransId (transid BIGINT, matchid INT, userid INT, createddate DATETIME, refno BIGINT,statusID TINYINT)
 
 	 -- get all tickets 
@@ -86,9 +87,16 @@ BEGIN
              m.CreatedDate
 	OPTION (MAXDOP 1)
 
+	UPDATE t
+	SET  MatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE t.MatchId END
+	    ,ChildMatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN t.MatchId ELSE NULL END
+	FROM #Tickets t
+		  INNER JOIN dbo.match m WITH (NOLOCK) ON t.MatchId = m.matchid
+
      -- return final results   
      SELECT t.MatchId,
-            t.UserId,
+            t.ChildMatchId,
+			t.UserId,
             c.Username,
             t.CreatedDate,
             t.Total,
@@ -106,13 +114,13 @@ BEGIN
 						SELECT TOP 1 m.hthomescore, m.htawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE IsHTCal = 1 
-							AND mr.matchid = m.matchid			
+							AND mr.matchid = m.matchid	
 					)rdHT
 	      OUTER APPLY (
 						SELECT TOP 1 m.finalhomescore, m.finalawayscore
 						FROM dbo.match_remark mr WITH (NOLOCK)
 						WHERE mr.calculate = 1 
-							AND mr.matchid = m.matchid			
+							AND mr.matchid = m.matchid	
 					)rdFT
 		 INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON t.UserId = c.CustId
      ORDER BY m.kickofftime

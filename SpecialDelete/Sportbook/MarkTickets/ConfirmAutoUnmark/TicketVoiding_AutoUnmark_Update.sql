@@ -33,6 +33,7 @@ AS
 		- 20220628@Max: Confirm Auto Unmark - Auto unmark select Error converting data type nvarchar to bigint [Redmine: #172277]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230103@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Param's explanation:	
 		
@@ -109,7 +110,7 @@ BEGIN
 			@Betid IS NULL
 			OR (
 				@Betid IS NOT NULL
-				AND bm.betcheck = CONVERT(NVARCHAR(100), @Betid)
+				AND (bm.betcheck = CONVERT(NVARCHAR(100), @Betid) OR ISNULL(bm.betcheck,'') = '')
 				)
 			)
 	

@@ -23,6 +23,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 
 	Explanation's Param:			    
 */
@@ -161,17 +162,6 @@ BEGIN
 		WHERE b.statusID IN (0, 1) -- running, waiting	
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	
-	UPDATE sub
-	SET MainTransId = main.transid
-	FROM #Tickets main
-			INNER JOIN #Tickets sub
-					ON main.RefCode = sub.RefCode	
-					AND main.transid <> sub.transid					
-					AND main.custid = sub.custid
-					AND main.matchid = sub.matchid
-					AND main.bettype = sub.bettype											
-	WHERE main.WalletType = 1
-
 	UPDATE d
 	SET  homeid 	= m.homeid
 		,awayid 	= m.awayid
@@ -202,7 +192,7 @@ BEGIN
 	--- Remove invalid sporttype	
 	DELETE 
 	FROM #Tickets
-	WHERE (sporttype IS NULL OR bettype = 500 /*charge comm*/ OR SportType = 50 /*Cricket*/)
+	WHERE (sporttype IS NULL OR bettype = 500 /*charge comm*/)
 
 	-- Group Name By Licensee
 	BEGIN
