@@ -33,6 +33,7 @@ AS
         - 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20230522@July: Check transid before insert table MarkedTransaction [Redmine: #187052]
 
     Param's explanation:
         Version 1: Only use for Void Ticket via TVS
@@ -143,7 +144,12 @@ BEGIN
                     @UserId,
                     @CreatedDate,
                     t.MarkType
-                FROM @tmpTrans_SB t;
+                FROM @tmpTrans_SB t
+				WHERE NOT EXISTS (SELECT TOP 1 1 
+								  FROM 	dbo.MarkedTransaction m WITH(NOLOCK) 
+								  WHERE m.TransId = t.transId 
+										AND m.MatchId = t.matchid
+								 )
 
                 IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTrans_SB WHERE IsParlay = 0)
                 BEGIN
