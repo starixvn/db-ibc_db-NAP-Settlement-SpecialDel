@@ -34,7 +34,8 @@ AS
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
-		- 20230425@July: [TVS] [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
+		- 20230425@July: [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
+		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's Explanation:
 */
@@ -66,7 +67,7 @@ BEGIN
 			,@BeingMovebetDate		  SMALLDATETIME
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
-	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT)
+	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT, srecommend INT)
 	CREATE TABLE #InputValidCustid_2 (custid INT PRIMARY KEY)
 	CREATE TABLE #InputValidCustid_1 (custid INT PRIMARY KEY )
 	CREATE TABLE #TransidInRequest (TransId BIGINT)
@@ -90,6 +91,7 @@ BEGIN
       ,statusID TINYINT
 	  ,winlostdate SMALLDATETIME
       ,recommend INT
+	  ,srecommend INT
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	  ,IsVoid14 BIT
@@ -98,11 +100,8 @@ BEGIN
 	--1. Check valid
 	SET @invalidUserName = STUFF((SELECT  ',' + l.username
 								  FROM #TmpInValidUserName l
-										LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
-										LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON l.username = d.username
-									WHERE 1 = CASE WHEN ci.custid IS NULL THEN 1 --not exist
-												   WHEN d.custid IS NOT NULL THEN 1 --stop supporting Deposit
-												   ELSE 0 END
+									LEFT JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.username = ci.username
+									WHERE ci.custid IS NULL	
 									FOR XML PATH ('')
 									),1,1,'')
 
@@ -127,20 +126,21 @@ BEGIN
 		  ,betid
 		  ,statusID
 		  ,recommend
+		  ,srecommend
 		  ,winlostdate
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		  ,IsVoid14
 		)
-	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
+	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
 		,wld ,isP ,sitedb, isV14
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
-				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re 
+				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
 					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT
+				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT ,sre INT
 					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT
 				)
 		) tbl
@@ -172,22 +172,29 @@ BEGIN
 			, @IsOutright = CASE WHEN CHARINDEX('4',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsSaba = CASE WHEN CHARINDEX('5',@ProductIds) > 0 THEN 1 ELSE 0 END
 
-	INSERT INTO #InputUsernameList (Username, custid, roleid,recommend)
+	INSERT INTO #InputUsernameList (Username, custid, roleid, recommend, srecommend)
 	SELECT l.Username
 		  ,ci.custid
 		  ,ci.roleid
 		  ,ci.recommend
+		  ,ci.srecommend
 	FROM #TmpInValidUserName l
 		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
 	
+	SET @invalidUserName = STUFF((SELECT  ',' + l.username
+								  FROM #InputUsernameList l
+										INNER JOIN CustDB.dbo.Dep_CustSuper dc WITH (NOLOCK) ON dc.custid = l.srecommend
+									FOR XML PATH ('')),1,1,'')
+
 	SELECT @CountSMA = SUM(CASE WHEN roleid IN (2,3,4) THEN 1 ELSE 0 END)
 	      ,@CountMember = SUM(CASE WHEN roleid = 1 THEN 1 ELSE 0 END)
 	FROM #InputUsernameList 
 	
-	IF @CountSMA > 50 OR @CountMember > 1000
+	IF @CountSMA > 50 OR @CountMember > 1000 OR @invalidUserName IS NOT NULL
 	BEGIN
-		SET @IsExceededTotalUsernames = 1
+		SET @IsExceededTotalUsernames = CASE WHEN @CountSMA > 50 OR @CountMember > 1000 THEN 1 ELSE 0 END
 		SELECT @IsExceededTotalUsernames AS IsExceededTotalUsernames
+		      ,@InvalidUserName AS InvalidUserName
 
 		SELECT NULL AS UnmarkTransIds
 		

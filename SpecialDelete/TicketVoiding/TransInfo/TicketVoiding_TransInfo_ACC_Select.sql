@@ -41,13 +41,13 @@ BEGIN
 		,betid BIGINT
 		,statusID TINYINT
 		,recommend INT
+		,srecommend INT
 		,winlostdate SMALLDATETIME
 		,IsMixParlay BIT
 		,SiteDBGroupID SMALLINT
 		,IsVoid14 BIT DEFAULT(0)
     )
 	
-	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
 	CREATE TABLE #InputValidCustid_tmp (custid INT)
@@ -122,19 +122,12 @@ BEGIN
 		AND pt.bettype NOT IN (31,32,33,71,72,73)  -- NOT IN [Racing, Casino]
 			AND pt.bettype NOT BETWEEN 1501 AND 1599   -- NOT IN Keno
 	
-	INSERT INTO #TmpInValidUserName (Username)
-	SELECT DISTINCT value
-	FROM STRING_SPLIT(@UserNames, ',')
-	WHERE value <> ''
-
 	INSERT INTO #InputUsernameList (Username, custid, roleid)
-	SELECT l.Username
+	SELECT CAST(l.value AS NVARCHAR(30))
 			,ci.custid
 			,ci.roleid
-	FROM #TmpInValidUserName l
-		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON l.Username = ci.username
-		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH (NOLOCK) ON l.Username = d.username
-	WHERE d.custid IS NULL
+	FROM STRING_SPLIT(@UserNames, ',') l
+		INNER JOIN CustDB.dbo.custInfo ci WITH (NOLOCK) ON CAST(l.value AS NVARCHAR(30)) = ci.username
 
 	-- get SMA roleid = 2
 	INSERT INTO #InputValidCustid_2 (custid)		
@@ -182,6 +175,7 @@ BEGIN
 			,betid 
 			,statusID 
 			,recommend 
+			,srecommend 
 			,winlostdate
 			,IsMixParlay 
 			,SiteDBGroupID
@@ -195,6 +189,7 @@ BEGIN
 		,b.betid
 		,b.statusID 
 		,b.recommend 
+		,b.srecommend 
 		,b.winlostdate
 		,CASE WHEN b.bettype IN (9,29, 2799) THEN 1 ELSE 0 END AS IsMixParlay 
 		,b.SiteDBGroupID
@@ -209,6 +204,7 @@ BEGIN
 				WHERE m.matchid = b.matchid
 					AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 			)ml
+		LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.betfrom <> 'P'
 		AND b.SiteDBGroupID = @SiteDBGroupID
@@ -224,6 +220,7 @@ BEGIN
 						AND ml.LeagueGroupID IS NOT NULL THEN 1								
 				ELSE 0 END	
 		AND statusID IN (SELECT statusID FROM @Status_tmp)
+		AND dc.custid IS NULL
 	
 	--Update Main MatchID for child match cricket (Sporttype = 50)
 	UPDATE d
@@ -244,6 +241,7 @@ BEGIN
 			,betid 
 			,statusID 
 			,recommend 
+			,srecommend
 			,winlostdate
 			,IsMixParlay 
 			,SiteDBGroupID
@@ -257,6 +255,7 @@ BEGIN
 			,b.betid
 			,b.statusID 
 			,b.recommend 
+			,b.srecommend
 			,b.winlostdate
 			,CASE WHEN b.bettype IN (9,29, 2799) THEN 1 ELSE 0 END AS IsMixParlay 
 			,b.SiteDBGroupID
@@ -271,6 +270,7 @@ BEGIN
 					WHERE m.matchid = b.matchid
 						AND ISNULL(l.LeagueGroupID,0) IN (42,74,108,113,122,151)
 				)ml
+			LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON dc.custid = b.srecommend
 		WHERE b.statusID NOT IN (101, 102, 103)
 			AND b.betfrom <> 'P'
 			AND b.SiteDBGroupID = @SiteDBGroupID
@@ -286,6 +286,7 @@ BEGIN
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
+			AND dc.custid IS NULL
 
 		--Update Main MatchID for child match cricket (Sporttype = 50)
 		UPDATE d
@@ -304,6 +305,7 @@ BEGIN
 		,betid AS 'bid'
 		,statusID AS 'sid'
 		,recommend AS 're'
+		,srecommend AS 'sre'
 		,winlostdate AS 'wld'
 		,IsMixParlay AS 'isP'
 		,SiteDBGroupID AS 'sitedb'
@@ -313,7 +315,6 @@ BEGIN
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
-	DROP TABLE #TmpInValidUserName
 	DROP TABLE #TransInfo
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_2
