@@ -26,6 +26,7 @@ AS;
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230425@July: [TVS] [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
+		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 
 	Param's explanation:	
 		
@@ -193,6 +194,35 @@ BEGIN
 				WHERE (z.MatchId = cm.ChildMatchId OR @MatchId = 0)
 					AND z.SiteDBGroupID = @SiteDBGroupID
 			) z
+		
+		-- parlay ticket
+		INSERT INTO #tmpTicket (subTransId, matchid, Refno, Status, VoidedTime, custid, IsMixParlay, oddsid, winlostdate)
+		SELECT	zm.transid		
+				,cm.matchid
+				,zm.refno
+				,zm.status
+				,zm.transdate AS VoidedTime
+				,zm.custid
+				,1 AS IsMixParlay
+				,zm.oddsid
+				,zm.winlostdate
+		FROM	@tmpChildMatchCricket cm 
+			CROSS APPLY (
+				SELECT	zm.transid
+						,zm.matchid
+						,zm.status
+						,zm.transdate
+						,zm.custid
+						,zm.winlost
+						,zm.refno
+						,zm.oddsid
+						,zm.winlostdate
+				FROM dbo.zzzbettransm zm WITH(NOLOCK)
+					INNER JOIN @tmpVoidingHistory vh ON vh.VoidingHistoryId = zm.VoidingHistoryId
+				WHERE (zm.MatchId = cm.ChildMatchId OR @MatchId = 0)
+					AND zm.SiteDBGroupID = @SiteDBGroupID
+			) zm
+
 	END
 
 	INSERT INTO #TmpMatch (Matchid, SettlementStatus, IsOutright)

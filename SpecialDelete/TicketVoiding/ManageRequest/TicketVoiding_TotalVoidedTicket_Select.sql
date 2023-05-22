@@ -12,6 +12,7 @@ AS;
 		- 20220822@July: Create new SP - get total voided ticket [Redmine:#175412]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		
 	Param's explanation:	
 		@RequestInfo: <root><r req ="" vh="0" i="1" mid = ""/></root>
@@ -148,7 +149,7 @@ BEGIN
 					INNER JOIN @tmpChildMatchCricket cm ON cm.MatchId = vh.MatchId AND cm.RequestId = vh.RequestId
 					INNER JOIN dbo.zzzbettransm zm WITH(NOLOCK)
 						ON	zm.VoidingHistoryId = vh.VoidingHistoryId 
-				WHERE zm.SiteDBGroupID = @SiteDBGroupID AND (cm.MatchId = zm.matchid OR vh.MatchId = 0)
+				WHERE zm.SiteDBGroupID = @SiteDBGroupID AND (cm.ChildMatchId = zm.matchid OR vh.MatchId = 0)
 				GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END
 		) t ON	vh.VoidingHistoryId = t.VoidingHistoryId AND vh.MatchId = t.matchid
 	END

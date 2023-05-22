@@ -17,6 +17,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220706@July: Add column Kickofftime get linklog Poolhouse ticket [Redmine: #172486]
+		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 
 	Param's explanation:		
 */
@@ -27,15 +28,17 @@ BEGIN
 	INSERT INTO #MatchInfo(matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ParentId, Kickofftime)
 	SELECT	m.matchid, m.homeid, m.awayid, m.leagueid, m.sporttype, m.eventdate, m.matchcode, m.parentid, m.kickofftime
 	FROM	dbo.match m WITH(NOLOCK)
-	WHERE	m.sporttype = @Sporttype
-			AND m.matchid = @MatchId
+	WHERE	m.sporttype = @Sporttype 
+			AND m.matchid = @MatchId 
+			AND 1 = CASE WHEN @Sporttype = 50 AND m.ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+					     ELSE 1 END
 		
 	SELECT matchid, homeid, awayid, leagueid, sporttype, eventdate, matchcode, ISNULL(parentid,matchid) AS parentid, Kickofftime
 	FROM #MatchInfo
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #MatchInfo) AND @IsUpdRequest = 0
 	BEGIN
-		SELECT @ErrorCode = 1, @ErrorMsg = 'Invalid MatchID.'
+		SELECT @ErrorCode = 1, @ErrorMsg = 'Invalid MatchId.'
 	END
 	ELSE IF EXISTS (SELECT TOP 1 1 FROM #MatchInfo WHERE eventdate <> @EventDate) AND @IsUpdRequest = 0
 	BEGIN
