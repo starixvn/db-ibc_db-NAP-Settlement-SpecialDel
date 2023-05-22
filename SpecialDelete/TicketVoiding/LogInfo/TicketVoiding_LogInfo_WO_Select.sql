@@ -539,7 +539,9 @@ BEGIN
 			LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
 			WHERE tp.OddsType = b.OddsType 
-				AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
+				AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.bettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
+									OR (b.IsMixParlay = 1 AND b.bettype NOT IN (1,3,7,8))
+									OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
 							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
 							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
 									AND b.OddsType = 1 
@@ -561,7 +563,9 @@ BEGIN
 			LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
 			WHERE tp.OddsType = b.OddsType 
-				AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.FilterOdds = tp.Odds) OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
+				AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.bettype IN (1,3,7,8) AND b.FilterOdds = tp.Odds)
+									OR (b.IsMixParlay = 1 AND b.bettype NOT IN (1,3,7,8))
+									OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
 							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
 							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
 							WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
