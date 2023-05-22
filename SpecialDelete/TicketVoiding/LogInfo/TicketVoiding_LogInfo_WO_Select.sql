@@ -402,13 +402,23 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN d.SubIssueTypeId IN (6,119) 
-							AND b.bettype IN (1,7)
+		AND 1 = CASE WHEN d.SubIssueTypeId IN (6) 
+							AND b.bettype IN (1)
 							AND b.betteam = d.betteam 
 							AND ((d.FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
 						THEN 1
-					 WHEN d.SubIssueTypeId IN (120,121)
-							AND b.bettype IN (3,8)
+					 WHEN d.SubIssueTypeId IN (119) 
+							AND b.bettype IN (7)
+							AND b.betteam = d.betteam 
+							AND ((d.FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
+						THEN 1
+					 WHEN d.SubIssueTypeId IN (120)
+							AND b.bettype IN (3)
+							AND b.betteam = d.FilterOUType
+							AND b.hdp1 = d.OUValue
+						THEN 1
+					 WHEN d.SubIssueTypeId IN (121)
+							AND b.bettype IN (8)
 							AND b.betteam = d.FilterOUType
 							AND b.hdp1 = d.OUValue
 						THEN 1
@@ -477,13 +487,23 @@ BEGIN
 				AND b.Subliveindicator = d.LiveIndicator
 				AND b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND d.IsMainMatch = 'true'
-				AND 1 = CASE WHEN d.SubIssueTypeId IN (6,119) 
-									AND b.Subbettype IN (1,7)
+				AND 1 = CASE WHEN d.SubIssueTypeId IN (6) 
+									AND b.Subbettype IN (1)
 									AND b.Subbetteam = d.betteam 
 									AND ((d.FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
 								THEN 1
-							 WHEN d.SubIssueTypeId IN (120,121)
-									AND b.Subbettype IN (3,8)
+							 WHEN d.SubIssueTypeId IN (119) 
+									AND b.Subbettype IN (7)
+									AND b.Subbetteam = d.betteam 
+									AND ((d.FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
+								THEN 1
+							 WHEN d.SubIssueTypeId IN (120)
+									AND b.Subbettype IN (3)
+									AND b.Subbetteam = d.FilterOUType
+									AND b.Subhdp1 = xOU.OUValue
+								THEN 1
+							 WHEN d.SubIssueTypeId IN (121)
+									AND b.Subbettype IN (8)
 									AND b.Subbetteam = d.FilterOUType
 									AND b.Subhdp1 = xOU.OUValue
 								THEN 1
