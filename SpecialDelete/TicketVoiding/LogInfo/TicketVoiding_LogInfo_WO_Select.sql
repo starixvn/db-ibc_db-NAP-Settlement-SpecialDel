@@ -394,7 +394,7 @@ BEGIN
 			FROM STRING_SPLIT(d.OUValue, '&')
 			WHERE value <> ''				
 		)xOU
-		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
+		LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
 	WHERE b.betfrom <> 'P'  
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 		AND b.liveindicator = d.LiveIndicator 
@@ -479,7 +479,7 @@ BEGIN
 					FROM STRING_SPLIT(d.OUValue, '&')
 					WHERE value <> ''				
 				)xOU
-				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType AND f.SubIssueTypeId = d.SubIssueTypeId
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
