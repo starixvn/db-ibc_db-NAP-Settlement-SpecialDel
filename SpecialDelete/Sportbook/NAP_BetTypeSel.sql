@@ -43,6 +43,7 @@ AS
 		- 20210820@July: Integrate Bitcoin [Redmine: #159948]
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
+		- 20230427@July: Support sport Cricket for all functions [Redmine: #188374]
 
     Param's Explanation:  
     @Mode:   
@@ -69,7 +70,7 @@ BEGIN
 			SELECT sporttype
 			FROM dbo.match WITH (NOLOCK)
 			WHERE matchid = @MatchID
-				AND 1 = CASE WHEN @mode = 9 AND Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+				AND 1 = CASE WHEN Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 							 ELSE 1 END 
 			UNION
 			SELECT sporttype
