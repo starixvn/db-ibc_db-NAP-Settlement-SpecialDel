@@ -399,12 +399,14 @@ BEGIN
 	BEGIN
 		IF @FavoriteValue IS NOT NULL
 		BEGIN
+			INSERT INTO @tmpFavoriteValue(FavoriteValue)
 			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
 			FROM STRING_SPLIT(@FavoriteValue, '&')
 			WHERE value <> ''
 		END
 		IF @OUValue IS NOT NULL
 		BEGIN
+			INSERT INTO @tmpOUValue(OUValue)
 			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS OUValue
 			FROM STRING_SPLIT(@OUValue, '&')
 			WHERE value <> ''		
@@ -488,12 +490,12 @@ BEGIN
 					,b.actual_stake AS ActualStake
 					,@MatchId
 					,CASE WHEN @SubIssueTypeId IN (6,119) AND b.Subbettype IN (1,7)
-							AND b.betteam = @betteam 
-							AND ((@FilterFavoriteType = 'h' AND b.hdp1 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)) 
-								OR (@FilterFavoriteType = 'a' AND b.hdp2 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)))
+							AND b.Subbetteam = @betteam 
+							AND ((@FilterFavoriteType = 'h' AND b.Subhdp1 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)) 
+								OR (@FilterFavoriteType = 'a' AND b.Subhdp2 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)))
 							THEN 'HDP'
 						  WHEN @SubIssueTypeId IN (120,121) AND b.Subbettype IN (3,8) 
-							AND b.betteam = @betteam 
+							AND b.Subbetteam = @betteam 
 							AND b.Subhdp1 IN (SELECT OUValue FROM @tmpOUValue) THEN 'OU'
 						  WHEN @SubIssueTypeId IN (6,120) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
 						  WHEN @SubIssueTypeId IN (119,121) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
