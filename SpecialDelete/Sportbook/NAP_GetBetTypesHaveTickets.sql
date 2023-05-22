@@ -38,7 +38,7 @@ BEGIN
 	BEGIN
         -- Scan bettrans and bettransm to get bettype list
 		-- bettrans
-        IF @Mode IN (0,3,9)
+        IF @Mode IN (0,3)
         BEGIN
             INSERT INTO #TmpBettype(bettype)
 			SELECT bettype
@@ -61,7 +61,7 @@ BEGIN
         END
 
         -- bettransm
-        IF @Mode IN (0, 2, 3, 9)
+        IF @Mode IN (0, 2, 3)
         BEGIN
             INSERT INTO #TmpBettype(bettype)
             SELECT bt.bettype
