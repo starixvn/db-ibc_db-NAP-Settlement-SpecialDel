@@ -53,6 +53,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
 		- 20230309@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230522@July: Manage Request - Add more columns to the export excel template [Redmine:#188153]
 
 	Param's explanation:	
 		@Status: 
@@ -68,6 +69,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE	@FilteredBy			TINYINT
+		   ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -653,11 +655,24 @@ BEGIN
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
+	--Support get total voided ticket
 	SELECT RequestId
 		  ,VoidingHistoryId
 		  ,IssueTypeId
 		  ,MatchId
 	FROM @tmpMatchVoidingHistory
+
+	--Support get calculate time 
+	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
+		  ,Sporttype AS 's'
+		  ,MatchId AS 'mid'
+	FROM #tmpResult
+	WHERE 1 = CASE WHEN IssueTypeId = 11 AND FilterBy IS NULL THEN 1 --Abnormal Bet (Single ticket)
+				   WHEN IssueTypeId = 15 THEN 1 --AB (Real Member)
+				   ELSE 0 END
+	FOR JSON PATH))
+
+	SELECT CONVERT(VARCHAR(MAX), @RequestInfoGetCalcTimes, 1) AS RequestInfoGetCalcTimes
 
 	DROP TABLE #tmpResult
 	

@@ -36,6 +36,7 @@ AS
 		- 20220808@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230522@July: Manage Request - Add more columns to the export excel template [Redmine:#188153]
 
 	Param's explanation:	
 		@Status: 
@@ -50,6 +51,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE	@FilteredBy			TINYINT
+	       ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL
 
 	DECLARE @tmpRequest TABLE (RequestId INT)
 	DECLARE @tmpIssueType TABLE (IssueTypeId INT)
@@ -537,6 +539,18 @@ BEGIN
 			END	
 	ORDER BY t.RequestId DESC, CASE WHEN t.IssueTypeId IN (1,4,5,6,7) THEN m.matchcode ELSE NULL END
 	
+	--Support get calculate time 
+	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
+		  ,Sporttype AS 's'
+		  ,MatchId AS 'mid'
+	FROM #tmpResult
+	WHERE 1 = CASE WHEN IssueTypeId = 11 AND FilterBy IS NULL THEN 1 --Abnormal Bet (Single ticket)
+				   WHEN IssueTypeId = 15 THEN 1 --AB (Real Member)
+				   ELSE 0 END
+	FOR JSON PATH))
+
+	SELECT CONVERT(VARCHAR(MAX), @RequestInfoGetCalcTimes, 1) AS RequestInfoGetCalcTimes
+
 	DROP TABLE #tmpResult
 	
 END
