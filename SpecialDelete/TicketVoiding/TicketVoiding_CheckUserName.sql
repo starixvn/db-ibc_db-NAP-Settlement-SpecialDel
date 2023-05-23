@@ -65,6 +65,7 @@ BEGIN
 			,@ToWinlostDate_14		  DATETIME = NULL
 			,@IsBeingMovebetdate	  BIT = 0 --1: movebet date comming up or being
 			,@BeingMovebetDate		  SMALLDATETIME
+			,@currentdate			  SMALLDATETIME = GETDATE()
 
 	CREATE TABLE #TmpInValidUserName ( Username NVARCHAR(30))
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30), custid INT, roleid TINYINT, recommend INT, srecommend INT)
@@ -160,7 +161,10 @@ BEGIN
 	
 	IF @FromWinlostDate_14 IS NOT NULL 
 	BEGIN
-		SET @ToWinlostDate_14 = @movebetdate
+		IF @ToDate < @movebetdate
+			SET @ToWinlostDate_14 = @ToDate
+		ELSE
+			SET @ToWinlostDate_14 = @movebetdate
 	END
 
 	INSERT INTO @Status_tmp (StatusId)
@@ -381,9 +385,8 @@ BEGIN
 		END
 	END
 	
-	SELECT @BeingMovebetDate = CONVERT(SMALLDATETIME, VValue)
-	FROM dbo.SystemSettings
-	WHERE VName = 'BeingMovebetDate'
+	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
+	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
 	
 	IF @BeingMovebetDate IS NOT NULL 
 		AND EXISTS ( SELECT TOP 1 1 FROM #transIdTemp WHERE winlostdate = @BeingMovebetDate)

@@ -93,7 +93,10 @@ BEGIN
 
 	IF @FromWinlostDate_14 IS NOT NULL 
 	BEGIN
-		SET @ToWinlostDate_14 = @movebetdate
+		IF @ToDate < @movebetdate
+			SET @ToWinlostDate_14 = @ToDate
+		ELSE
+			SET @ToWinlostDate_14 = @movebetdate
 	END
 
 	INSERT INTO @Status_tmp (StatusId)
