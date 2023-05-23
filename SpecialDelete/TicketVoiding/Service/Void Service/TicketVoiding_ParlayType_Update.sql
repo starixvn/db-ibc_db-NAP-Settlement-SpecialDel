@@ -29,6 +29,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+		- 20230523@Max: Hotfix - [TVS] Void Sub Parlay not return balance [Redmine: #188610]
 
 	Param's explanation:	
 		
@@ -252,7 +253,6 @@ BEGIN
 				AND t.MatchId = @MatchId
 
 		SELECT	@strMainTransId = @strMainTransId + CONVERT(VARCHAR(20), TransId) + ','
-				,@strRefno = @strRefno + ',' + CONVERT(VARCHAR(20), Refno) + '|' + CONVERT(VARCHAR(20), TransId)
 		FROM #tmpMainTransId
 		WHERE MatchId = @MatchId
 
@@ -261,11 +261,6 @@ BEGIN
 			,@matchdate = @matchdate  
 			,@strXML = @strMainTransId  
 			,@mode  = 'PRECAL-29'  	
-			
-		EXEC dbo.NAP_Admin_Calculate_MP_broker   
-			@matchdate = @matchdate  
-			,@strXML = @strRefno  
-			,@mode  = '29'  
 	END
 
 	INSERT INTO #BeforeUpd(custid, balance)
@@ -291,6 +286,16 @@ BEGIN
 			@MatchId= 29
 			,@TransidList = @MainParlay_MaxPO
 	END
+
+	/*Calculate main parlay ticket*/
+	SELECT	@strRefno = @strRefno + ',' + CONVERT(VARCHAR(20), Refno) + '|' + CONVERT(VARCHAR(20), TransId)
+	FROM #tmpMainTransId
+
+	EXEC dbo.NAP_Admin_Calculate_MP_broker   
+			@matchdate = @matchdate  
+			,@strXML = @strRefno  
+			,@mode  = '29' 
+	-----------------------------------------
 	
 	INSERT INTO #AfterUpd(custid, balance)
 	SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS balance
