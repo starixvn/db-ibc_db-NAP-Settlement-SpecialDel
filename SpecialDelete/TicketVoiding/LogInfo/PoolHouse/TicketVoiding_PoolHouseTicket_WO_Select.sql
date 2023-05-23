@@ -495,7 +495,7 @@ BEGIN
 								OR (@FilterFavoriteType = 'a' AND b.Subhdp2 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)))
 							THEN 'HDP'
 						  WHEN @SubIssueTypeId IN (120,121) AND b.Subbettype IN (3,8) 
-							AND b.Subbetteam = @betteam 
+							AND b.Subbetteam = @FilterOUType 
 							AND b.Subhdp1 IN (SELECT OUValue FROM @tmpOUValue) THEN 'OU'
 						  WHEN @SubIssueTypeId IN (6,120) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
 						  WHEN @SubIssueTypeId IN (119,121) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
