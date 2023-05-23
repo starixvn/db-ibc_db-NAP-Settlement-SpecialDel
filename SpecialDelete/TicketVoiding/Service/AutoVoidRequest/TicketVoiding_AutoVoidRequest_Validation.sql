@@ -165,6 +165,16 @@ BEGIN
 			,t.TicketType
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType <> 2
+
+		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId)
+		SELECT t.TransId
+			,t.RequestId
+			,t.MatchId
+			,t.IssueTypeId
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType = 2
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
 					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
