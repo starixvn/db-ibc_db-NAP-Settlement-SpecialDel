@@ -126,7 +126,7 @@ BEGIN
 					, @ToDate
 					, @SubIssueTypeId
 			FROM #TempMatch t
-				LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid
+				LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid --Have parlay
 			WHERE t.IsOutright = 0 AND t.IsVoid14 = 0
 
 		END
@@ -160,7 +160,7 @@ BEGIN
 					, @ToDate
 					, @SubIssueTypeId
 			FROM #TempMatch t
-				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON t.MatchId = m.matchid
+				INNER JOIN dbo.match14 m WITH(NOLOCK) ON t.MatchId = m.matchid
 			WHERE t.IsOutright = 0 AND t.IsVoid14 = 1
 		END
 		
