@@ -358,7 +358,7 @@ BEGIN
 		  ,playercomm ,comm ,acomm ,scomm
 		)
 	SELECT t.matchid, t.TransId, t.betdaqid, @SiteDBGroupID
-		,t.bettype, b.statusID, b.status, t.winlostdate, b.SettlementTime, t.actual_stake, b.modds
+		,t.bettype, b.statusID, b.status, t.winlostdate, b.SettlementTime, b.actual_stake, b.modds
 		,t.srecommend, b.mrecommend, b.recommend, t.custid
 		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
 		,b.playercomm, b.comm, b.acomm, b.scomm
