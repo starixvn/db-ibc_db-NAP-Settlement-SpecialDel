@@ -18,7 +18,7 @@ BEGIN
 		   ,@Decompress_AfterTransInfoJson  NVARCHAR(MAX) = NULL
 	
 	SET @Decompress_BeforeTransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @BeforeTransInfoJson, 1)) AS NVARCHAR(MAX))
-	SET @Decompress_AfterTransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @BeforeTransInfoJson, 1)) AS NVARCHAR(MAX))
+	SET @Decompress_AfterTransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @AfterTransInfoJson, 1)) AS NVARCHAR(MAX))
 
 	CREATE TABLE #BeforeTransId14(
 	   matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
