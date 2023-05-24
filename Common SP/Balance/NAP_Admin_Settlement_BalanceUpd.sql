@@ -13,6 +13,7 @@ AS
 
 	Revisions: 
         - 20230214@Aries: Created [Redmine: #182677]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		
 	Param's Explanation:
 
@@ -43,7 +44,7 @@ BEGIN
 	
 		SET @StepNumber = 3
 
-		IF @CheckNegativeBalance <> 0
+		IF @CheckNegativeBalance <> 0 AND OBJECT_ID('BalanceNegative','U') IS NOT NULL
 		BEGIN
 			INSERT INTO [dbo].[BalanceNegative] (
 				[ExecDate]

@@ -36,6 +36,7 @@ AS
 	   - 20221019@Louisa: insert BroadcastSessionId into queue auto void for all Action [Redmine:#179361]
 	   - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 	   - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+	   - 20230523@Kathy: remove un-used table [Redmine:#188452]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -882,16 +883,5 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
 			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
-	END
-	ELSE
-	BEGIN
-		--UPDATE dbo.TicketVoiding_AutoVoidRequest_Queue  WITH (ROWLOCK, UPDLOCK)
-		--	SET StatusId = 0, Starttime = GETDATE()
-		--WHERE MatchId = @matchid
-		--	AND Action = 'MixParlay'
-		--	AND StatusId IN (99,100) --99: Running Event, 100: Completed Event
-
-		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
-		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
 	END
 END

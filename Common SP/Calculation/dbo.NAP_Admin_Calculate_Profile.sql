@@ -31,6 +31,7 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230523@Kathy: scaleout - credit [Redmine:#188452]
 
 	Param's Explanation:  
 		   
@@ -105,7 +106,8 @@ BEGIN
 			,@posComma				INT
 	
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY, ScoreBoxOdds MONEY, ScoreBoxScore INT)
-	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY, WalletType INT, BonusId INT, BonusStatus INT DEFAULT(0), MatchId INT
+	DECLARE @tmpBalanceChanged TABLE (CustId INT, Balance MONEY
+			, MatchId INT
 			,transId BIGINT
 			,modds MONEY, odds SMALLMONEY, oddsspread MONEY, statuswinlost TINYINT,SettlementTime DATETIME
 			,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -197,7 +199,7 @@ BEGIN
 					,FcUpdateTime = CASE WHEN b.statusid = 0 THEN b.FcUpdateTime ELSE @FcUpdateTime END
 				OUTPUT	deleted.custid
 						,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-						,inserted.WalletType,inserted.BonusID,inserted.matchId
+						,inserted.matchId
 
 						,inserted.transid
 						,inserted.modds, inserted.odds, inserted.oddsspread, inserted.statuswinlost,inserted.WinLost,inserted.aWinLost
@@ -209,7 +211,7 @@ BEGIN
 				INTO @tmpBalanceChanged (
 						 CustId
 						,Balance
-						,WalletType, BonusId, MatchId
+						, MatchId
 					
 						,transId
 						,modds, odds, oddsspread, statuswinlost,WinLost,aWinLost
@@ -467,8 +469,6 @@ BEGIN
 					,FcUpdateTime = CASE WHEN @statusId = 103 THEN @FcUpdateTime ELSE b.FcUpdateTime END
 				OUTPUT	deleted.custid
 						,(inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
-						,inserted.WalletType
-						,inserted.BonusID
 						,inserted.matchId
 
 						,inserted.transid
@@ -482,7 +482,8 @@ BEGIN
 						,deleted.winlost
 						,deleted.statusid		
 				INTO @tmpBalanceChanged (
-					CustId, Balance, WalletType, BonusId, MatchId
+					CustId, Balance
+					, MatchId
 				
 					,transId
 					,modds, odds, oddsspread, statuswinlost,SettlementTime,WinLost,aWinLost
@@ -546,58 +547,9 @@ BEGIN
 					,@transInfoJson		= @transInfo
 			END
 
-			-- balance
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged WHERE WalletType = 1)
-			BEGIN				
-				UPDATE t 
-					SET BonusStatus = bw.StatusID
-				FROM	@tmpBalanceChanged t
-					INNER JOIN dbo.BonusWalletCredit bw WITH(NOLOCK)
-						ON	t.CustId = bw.CustID
-							AND t.BonusId = bw.BonusID
-				WHERE	t.WalletType = 1
-						AND t.BonusId > 0
-						
-				BEGIN TRY	
-					INSERT INTO dbo.BonusWalletPending	(
-						CustID
-						, BonusID
-						, Amount
-					)
-					SELECT 	bn.CustID
-							, bn.BonusID
-							, SUM(bn.balance) AS Amount
-					FROM 	@tmpBalanceChanged bn
-					WHERE 	bn.walletType			= 1
-							AND bn.bonusID			> 0
-					GROUP BY bn.CustId
-							,bn.BonusId
-					HAVING SUM(bn.balance) <> 0
-					
-					SET @StepDone = @StepDone + ', BonusWalletPending'
-				END TRY	
-				BEGIN CATCH
-				
-					INSERT INTO dbo.BalanceErr ( Custid, BalanceGroup, BalanceAmt, ExecutedSP, ErrMsg, BonusID)
-					SELECT	bn.Custid
-							, 1 AS BalanceGroup
-							, SUM(bn.balance) AS BalanceAmt
-							, 'NAP_Admin_Calculate_Profile' AS ExecutedSP
-							, LEFT(ERROR_MESSAGE(),500) AS ErrMsg
-							, bn.BonusID
-					FROM	@tmpBalanceChanged bn
-					WHERE	bn.walletType			= 1
-							AND bn.bonusID			> 0
-					GROUP BY bn.CustId
-							,bn.BonusId
-					HAVING SUM(bn.balance) <> 0					
-				END CATCH
-			END
-
 			INSERT INTO dbo.BalCreditSportsPending (custid, balance)
 			SELECT	custid, SUM(Balance) Balance
-			FROM	@tmpBalanceChanged t
-			WHERE	BonusStatus NOT IN (1,3)
+			FROM	@tmpBalanceChanged t		
 			GROUP BY custid
 			HAVING SUM(Balance) > 0
 			
@@ -606,16 +558,15 @@ BEGIN
 			INSERT INTO dbo.BalDebitSportsPending(custid, balance)
 			SELECT	custid, ABS(SUM(Balance)) Balance
 			FROM	@tmpBalanceChanged t
-			WHERE	BonusStatus NOT IN (1,3)
 			GROUP BY custid
 			HAVING SUM(Balance) < 0
 			SET @CheckNegativeBalance = @@ROWCOUNT
 			
 			SET @StepDone = @StepDone + ', BalDebitSportsPending'
 
-			IF @CheckNegativeBalance <> 0
+			IF @CheckNegativeBalance <> 0 AND OBJECT_ID('BalanceNegative','U') IS NOT NULL
 			BEGIN
-				INSERT INTO [bodb02].[dbo].[BalanceNegative] (
+				INSERT INTO [dbo].[BalanceNegative] (
 					[ExecDate]
 					,[MatchID]
 					,[ActionID]
@@ -634,41 +585,11 @@ BEGIN
 						,0
 						,NULL
 				FROM	@tmpBalanceChanged bal
-				WHERE	bal.BonusStatus NOT IN (1,3)
 				GROUP BY bal.CustId
 				HAVING SUM(Balance) < 0
 			END
 
 			SET @StepDone = @StepDone + ', BalanceNegative'
-
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpBalanceChanged WHERE BonusStatus IN (1,3))
-			BEGIN
-				INSERT INTO dbo.BonusAdjustmentTransfer(
-					LogDate
-					, ExecDate
-					, CustID
-					, MatchID
-					, BonusID
-					, StatusID
-					, Amount
-					, isTransferred
-				)
-				SELECT 
-						CURRENT_TIMESTAMP AS LogDate
-						, CURRENT_TIMESTAMP AS ExecDate
-						, bal.custid
-						, @MatchID
-						, bal.BonusId
-						, bal.BonusStatus
-						, SUM(bal.balance) AS Amount
-						, 0 AS isTransferred
-				FROM	@tmpBalanceChanged bal 
-				WHERE	BonusStatus in (1,3)
-				GROUP BY CustId, BonusId, BonusStatus
-				HAVING SUM(balance) <> 0
-			END
-
-			SET @StepDone = @StepDone + ', BonusAdjustmentTransfer'
 
 			DELETE 
 			FROM	dbo.SettlementProcessing 

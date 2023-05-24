@@ -32,6 +32,7 @@ AS
 		- 20221019@Louisa: insert BroadcastSessionId into queue auto void in case not exists ticket parlay [Redmine:#179361]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -918,9 +919,6 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
-			SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
-
 			IF @IsCentral = 1
 			BEGIN
 				IF @IsAuto = 1

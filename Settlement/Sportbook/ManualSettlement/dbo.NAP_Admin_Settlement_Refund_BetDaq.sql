@@ -22,6 +22,7 @@ AS
 		- 20150807@Kathy: Using new balance table (BalCreditSportsPending,BalDebitSportsPending) [Redmine:#40125]
 		- 20171023@Kathy: Include bettype 14, 127 [Redmine:#81308]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230523@Kathy: scaleout credit [Redmine:#188452]
 
 	Param's Explanation:
 	• @matchid: matchid need to refund
@@ -151,26 +152,28 @@ BEGIN
 	----
 	-- Add Negative Balance into BalanceNegative table 
 	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative]
-			   ([ExecDate]
-			   ,[MatchID]
-			   ,[ActionID]
-			   ,[GroupID]
-			   ,[CustID]
-			   ,[Balance]
-			   ,[StatusID]
-			   ,[Remark])
-	SELECT	 GETDATE()
-			,@MatchID
-			,@ActionID
-			,1			-- Sportsbook Single bet Settlement 
-			,CustID
-			,Balance
-			,0
-			,NULL 
-	FROM	#Balance WITH (NOLOCK)
-	WHERE	Increased = 0
-			        
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative]
+				   ([ExecDate]
+				   ,[MatchID]
+				   ,[ActionID]
+				   ,[GroupID]
+				   ,[CustID]
+				   ,[Balance]
+				   ,[StatusID]
+				   ,[Remark])
+		SELECT	 GETDATE()
+				,@MatchID
+				,@ActionID
+				,1			-- Sportsbook Single bet Settlement 
+				,CustID
+				,Balance
+				,0
+				,NULL 
+		FROM	#Balance WITH (NOLOCK)
+		WHERE	Increased = 0
+	END		        
 	---------------------------------------------------
 
 	DROP TABLE #Balance

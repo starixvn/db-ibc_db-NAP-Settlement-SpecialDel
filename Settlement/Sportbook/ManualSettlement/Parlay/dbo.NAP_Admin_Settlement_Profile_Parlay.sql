@@ -35,6 +35,7 @@ AS
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -667,25 +668,28 @@ BEGIN
 	----
 	-- Add Negative Balance into BalanceNegative table
 	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
-	SELECT GETDATE()
-		,@MatchID
-		,CASE 
-			WHEN @Action LIKE 'UNDO%' THEN 105
-			WHEN @Action = 'REFUND-HT' THEN 120
-			WHEN @Action = 'REFUND-FT' THEN 106
-			WHEN @Action LIKE 'REFUND%' THEN 107
-			ELSE 104 -- CAL
-		END
-		,2 -- Sportsbook Parlay Settlement
-		,t.CustID
-		,t.Balance
-		,0
-		,@matchid
-	FROM (	SELECT	custID, SUM(balance) AS balance
-			FROM	#tmpParlayBalance
-			GROUP BY custID) t
-	WHERE t.balance < 0
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
+		SELECT GETDATE()
+			,@MatchID
+			,CASE 
+				WHEN @Action LIKE 'UNDO%' THEN 105
+				WHEN @Action = 'REFUND-HT' THEN 120
+				WHEN @Action = 'REFUND-FT' THEN 106
+				WHEN @Action LIKE 'REFUND%' THEN 107
+				ELSE 104 -- CAL
+			END
+			,2 -- Sportsbook Parlay Settlement
+			,t.CustID
+			,t.Balance
+			,0
+			,@matchid
+		FROM (	SELECT	custID, SUM(balance) AS balance
+				FROM	#tmpParlayBalance
+				GROUP BY custID) t
+		WHERE t.balance < 0
+	END
 
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'END running CAL-29')
