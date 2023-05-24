@@ -214,7 +214,7 @@ BEGIN
 					, 0
 					, 0
 					, 0
-			FROM #TempMatch t
+			FROM #TempEditMatchID t
 			WHERE matchid IN (9,29,2799)
 		END
 
@@ -227,7 +227,7 @@ BEGIN
 				, ISNULL(m.homeid, 0) 
 				, ISNULL(m.awayid, 0) 
 			FROM #TempEditMatchID e 
-				LEFT JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
+				INNER JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
 			WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsVoid14 = 0	
 		END  
 
@@ -240,7 +240,7 @@ BEGIN
 				, ISNULL(m.homeid, 0) 
 				, ISNULL(m.awayid, 0) 
 			FROM #TempEditMatchID e 
-				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON e.MatchID = m.matchid 
+				INNER JOIN dbo.match14 m WITH(NOLOCK) ON e.MatchID = m.matchid 
 			WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsVoid14 = 1	
 		END  
 

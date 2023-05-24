@@ -442,7 +442,7 @@ BEGIN
 			--Edit from to time of Abnormal account issue -> unmark ticket change void time
 			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM dbo.TicketVoiding_RequestDetailTicket_Single rdt WITH(NOLOCK)
-											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid AND tp.IsVoid14 = 0)
+											WHERE NOT EXISTS( SELECT TOP 1 1 FROM #transIdTemp tp WHERE rdt.TransId = tp.transid)
 												AND rdt.RequestId = @RequestId
 												AND rdt.bettype NOT IN (9,29,10)
 											FOR XML PATH('')), 1,1,'')
