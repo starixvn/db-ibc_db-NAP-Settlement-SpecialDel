@@ -178,7 +178,7 @@ BEGIN
 						AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
 						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 						 )
-				GROUP BY b.custid, b.bettype
+				GROUP BY b.bettype
 			)
 			INSERT INTO @tmpAffectedBettypes(BetType)
 			SELECT	bettype
@@ -197,7 +197,7 @@ BEGIN
 						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
 							AND b.recommend <> 1688156) --exclude betdaq/betfair
 						AND (b.statusId IN (112, 113) OR (b.statusId = 0 AND ISNULL(b.statuswinlost,0) <> 0))
-				GROUP BY b.custid, b.bettype
+				GROUP BY b.bettype
 			)
 			INSERT INTO @tmpAffectedBettypes(BetType)
 			SELECT	bettype
