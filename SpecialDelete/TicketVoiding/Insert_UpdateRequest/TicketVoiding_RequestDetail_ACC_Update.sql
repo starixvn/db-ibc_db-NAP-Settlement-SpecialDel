@@ -100,12 +100,12 @@ BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE MatchId IN (9,29,2799)) --parlay
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
-			SELECT @RequestId
-					, t.MatchId 
+			SELECT DISTINCT @RequestId
+					, MatchId 
 					, 0
 					, 0
 					, 0
-			FROM #TempMatch t
+			FROM #TempMatch
 			WHERE matchid IN (9,29,2799)
 		END
 		
@@ -206,15 +206,15 @@ BEGIN
 				WHERE rd.RequestId = @RequestId AND e.IsFlag = 0
 		END
 		
-		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE MatchId IN (9,29,2799)) --parlay
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempEditMatchID WHERE MatchId IN (9,29,2799)) --parlay
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
-			SELECT @RequestId
-					, t.MatchId 
+			SELECT DISTINCT @RequestId
+					, MatchId 
 					, 0
 					, 0
 					, 0
-			FROM #TempEditMatchID t
+			FROM #TempEditMatchID
 			WHERE matchid IN (9,29,2799)
 		END
 
