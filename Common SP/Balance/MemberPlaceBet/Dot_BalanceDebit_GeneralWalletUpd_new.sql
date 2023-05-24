@@ -21,7 +21,8 @@ AS
 		- 20160217@Sylvia(DBTrans): fix NP balance bug, use sub query to sum NP first.
 		- 20170505@Bobby: 72789 - Implement bonus wallet into balance
 		- 20191010@Helen: add new input parameter @givenCredit [Redmine:121761]
-		
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
+
 	Params explanation
 		@type:
 			1 - Sports
@@ -165,22 +166,6 @@ BEGIN
 								EXEC [dbo].[Dot_BalanceDebit_GeneralWalletUpd] @custid = @custid, @balance = @balance, @type = @type, @isForced = @isForced, @total = @total OUTPUT, @errCode = @errCode OUTPUT
 				RETURN
 			END
-		END
-	END
-
-	IF @BalanceMode IN (0, 2) 
-	BEGIN
-		EXEC Dot_BalanceUpdDebit @custid = @custid, @balance = @balance
-	END
-
-	IF @BalanceMode = 2 -- if mode = 'both' and action on new balance unsuccessfully, then write log only, don't return errcode
-	BEGIN
-		IF @errCode <> 0
-		BEGIN
-			INSERT INTO BalanceErr ( Custid, BalanceGroup, BalanceAmt, ExecutedSP, ErrMsg )
-			VALUES ( @custid, @Type, @balance,'Dot_BalanceDebit_GeneralWalletUpd','Update data in new Debit Balance table unsuccessfully. ErrCode:' + CAST(@errCode AS VARCHAR(5)))
-
-			SELECT @errCode = 0
 		END
 	END
 END

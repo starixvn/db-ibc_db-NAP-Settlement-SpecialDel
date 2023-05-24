@@ -42,6 +42,7 @@ AS
 		- 20221006@Louisa: Always insert BroacastSessionId into TicketVoiding_AutoVoidRequest_Queue [Redmine:#178830]
 		- 20221010@louisa: not insert [TicketVoiding_AutoVoidRequest_Queue] if BroacastSessionId null [Redmine:#178830]
 		- 20221010@Kathy: Wrong status for bettype 391,386 when refund SDT with any round [Redmine:#178935]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -707,11 +708,6 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
 			SELECT @MatchID, 0, @AdminID, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
-	END
-	ELSE IF @Action NOT LIKE 'UNDO%' AND ISNULL(@BroadcastSessionId,'') <> ''
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
-		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
 	END
 END
 GO

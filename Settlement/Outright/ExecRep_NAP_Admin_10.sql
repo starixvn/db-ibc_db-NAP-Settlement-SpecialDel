@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE [dbo].[ExecRep_NAP_Admin_10]
+ALTER PROCEDURE [dbo].[ExecRep_NAP_Admin_10]
 	 @TransIDs		VARCHAR(MAX)	= ''
 	,@MatchID		INT
 	,@Status		VARCHAR(10)		= NULL 
@@ -18,6 +18,7 @@ AS
 	 Revision:  
 	  - 20230109@Aries:  Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 	  - 20230526@Kathy: wrong SMA winlost because of order in calculate formula [Redmine:#188795]
+	  - 20230523@Kathy: scaleout - credit [Redmine:#188452]
 	  
     
 	 Param's Explanation:  
@@ -267,7 +268,7 @@ BEGIN
 			HAVING SUM(Balance) < 0
 			SET @CheckNegativeBalance = @@ROWCOUNT
 
-			IF @CheckNegativeBalance <> 0
+			IF @CheckNegativeBalance <> 0 AND OBJECT_ID('BalanceNegative','U') IS NOT NULL
 			BEGIN
 				SET @StepNumber = 7;
 				INSERT INTO dbo.BalanceNegative ([ExecDate],[MatchID],[ActionID],[GroupID],[CustID],[Balance],[StatusID],[Remark])

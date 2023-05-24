@@ -69,6 +69,7 @@ AS
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230328@Aries: Sum total point tennis incorrect [Redmine: #188857]
 
 	Param's Explanation:
@@ -922,12 +923,6 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
 			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 		END
-	END
-
-	ELSE IF @Action NOT LIKE 'UNDO%' AND ISNULL(@BroadcastSessionId,'') <> ''
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
-		SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId + '_parlay'
 	END
 END
 GO
