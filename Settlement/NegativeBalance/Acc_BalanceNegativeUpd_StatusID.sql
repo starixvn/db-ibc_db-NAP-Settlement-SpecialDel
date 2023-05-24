@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02, DBSID-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Acc_BalanceNegativeUpd_StatusID]
   @LogIDs	VARCHAR(8000)
  ,@ErrCode	INT = 0 OUTPUT
@@ -14,6 +14,7 @@ AS
 	Revision: 
 		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
 		- 20220315@Kathy: Change to use STRING_SPLIT [Redmine:#166454]
+		- 20230523@Kathy: change metadata [Redmine:#188452]
 	Param's Explanation:
 		+ @LogIDs : '1,2,3,xxx' with xxx: LogID already notified 
 	
