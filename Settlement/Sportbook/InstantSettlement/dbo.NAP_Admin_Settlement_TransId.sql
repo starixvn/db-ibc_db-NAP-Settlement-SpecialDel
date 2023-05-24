@@ -130,6 +130,10 @@ BEGIN
 					AND ((b.statusId = 0 AND ISNULL(b.SecAcceptFlag,0)=0)
 						 OR (b.statusID = 0 AND b.SecAcceptFlag=1 AND ISNULL(b.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 						 )	
+					AND 1 = CASE 
+								WHEN mt.IsMarked = 1 AND b.statuswinlost = CASE WHEN m.modds > 0.25 THEN 2 WHEN m.modds < -0.25 THEN 4 END THEN 0
+								ELSE 1
+							END
 					AND m.modds IS NOT NULL
 		END
 		ELSE IF @Action LIKE 'UNDO-INST%'
