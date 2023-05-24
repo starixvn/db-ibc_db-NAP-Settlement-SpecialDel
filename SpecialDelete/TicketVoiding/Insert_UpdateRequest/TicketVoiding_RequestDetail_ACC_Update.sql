@@ -97,68 +97,40 @@ BEGIN
 
 	IF @IsEditRequest = 0
 	BEGIN
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE MatchId IN (9,29,2799)) --parlay
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+			SELECT @RequestId
+					, t.MatchId 
+					, 0
+					, 0
+					, 0
+			FROM #TempMatch t
+			WHERE matchid IN (9,29,2799)
+		END
+		
 		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0 AND IsVoid14 = 0) --match
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetail (
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, Usernames
-					, ProductIds
-					, TicketStatusIds
-					, FromWinlostDate
-					, ToWinlostDate
-					, SubIssueTypeId
-			)
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 			SELECT @RequestId
 					, t.MatchId 
 					, ISNULL(m.leagueid, 0) 
 					, ISNULL(m.homeid, 0) 
 					, ISNULL(m.awayid, 0) 
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @UserNames
-					, @ProductIds
-					, @StatusIds
-					, @FromDate
-					, @ToDate
-					, @SubIssueTypeId
 			FROM #TempMatch t
-				LEFT JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid --Have parlay
+				INNER JOIN dbo.match m WITH(NOLOCK) ON t.MatchId = m.matchid 
 			WHERE t.IsOutright = 0 AND t.IsVoid14 = 0
 
 		END
 		
 		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0 AND IsVoid14 = 1) --match14
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetail (
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, Usernames
-					, ProductIds
-					, TicketStatusIds
-					, FromWinlostDate
-					, ToWinlostDate
-					, SubIssueTypeId
-			)
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 			SELECT @RequestId
 					, t.MatchId 
 					, ISNULL(m.leagueid, 0) 
 					, ISNULL(m.homeid, 0) 
 					, ISNULL(m.awayid, 0) 
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @UserNames
-					, @ProductIds
-					, @StatusIds
-					, @FromDate
-					, @ToDate
-					, @SubIssueTypeId
 			FROM #TempMatch t
 				INNER JOIN dbo.match14 m WITH(NOLOCK) ON t.MatchId = m.matchid
 			WHERE t.IsOutright = 0 AND t.IsVoid14 = 1
@@ -166,32 +138,12 @@ BEGIN
 		
 		IF EXISTS (SELECT TOP 1 1 FROM #TempMatch WHERE IsOutright = 1 AND IsVoid14 = 0) -- outright
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetail (
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, Usernames
-					, ProductIds
-					, TicketStatusIds
-					, FromWinlostDate
-					, ToWinlostDate
-					, SubIssueTypeId
-			)
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 			SELECT @RequestId
 					, t.MatchId 
 					, ISNULL(m.leagueid, 0) 
 					, ISNULL(m.teamid, 0) 
 					, 0
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @UserNames
-					, @ProductIds
-					, @StatusIds
-					, @FromDate
-					, @ToDate
-					, @SubIssueTypeId
 			FROM #TempMatch t
 				INNER JOIN dbo.outright m WITH(NOLOCK) ON t.MatchId = m.orid
 			WHERE t.IsOutright = 1 AND t.IsVoid14 = 0
@@ -199,37 +151,26 @@ BEGIN
 
 		IF EXISTS (SELECT TOP 1 1 FROM #TempMatch WHERE IsOutright = 1 AND IsVoid14 = 1) -- outright14
 		BEGIN
-			INSERT INTO dbo.TicketVoiding_RequestDetail (
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, Usernames
-					, ProductIds
-					, TicketStatusIds
-					, FromWinlostDate
-					, ToWinlostDate
-					, SubIssueTypeId
-			)
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 			SELECT @RequestId
 					, t.MatchId 
 					, ISNULL(m.leagueid, 0) 
 					, ISNULL(m.teamid, 0) 
 					, 0
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @UserNames
-					, @ProductIds
-					, @StatusIds
-					, @FromDate
-					, @ToDate
-					, @SubIssueTypeId
 			FROM #TempMatch t
 				INNER JOIN dbo.outright14 m WITH(NOLOCK) ON t.MatchId = m.orid
 			WHERE t.IsOutright = 1 AND t.IsVoid14 = 1
 		END
-
+		
+		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
+			SET   UserNames =  @UserNames
+				, ProductIds = @ProductIds
+				, TicketStatusIds = @StatusIds
+				, FromWinlostDate = @FromDate
+				, ToWinlostDate = @ToDate
+				, RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				, SubIssueTypeId = @SubIssueTypeId
+		WHERE	RequestId = @RequestId
 	END
 	ELSE IF @IsEditRequest = 1
 	BEGIN
@@ -265,100 +206,68 @@ BEGIN
 				WHERE rd.RequestId = @RequestId AND e.IsFlag = 0
 		END
 		
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE MatchId IN (9,29,2799)) --parlay
+		BEGIN
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+			SELECT @RequestId
+					, t.MatchId 
+					, 0
+					, 0
+					, 0
+			FROM #TempMatch t
+			WHERE matchid IN (9,29,2799)
+		END
+
 		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 0 AND IsVoid14 = 0) --match
 		BEGIN
-				INSERT INTO dbo.TicketVoiding_RequestDetail 
-				(
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, SubIssueTypeId
-				)
-				SELECT @RequestId
-					, e.MatchID
-					, ISNULL(m.leagueid, 0) 
-					, ISNULL(m.homeid, 0) 
-					, ISNULL(m.awayid, 0) 
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @SubIssueTypeId
-				FROM #TempEditMatchID e 
-					LEFT JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
-				WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsVoid14 = 0	
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+			SELECT @RequestId
+				, e.MatchID
+				, ISNULL(m.leagueid, 0) 
+				, ISNULL(m.homeid, 0) 
+				, ISNULL(m.awayid, 0) 
+			FROM #TempEditMatchID e 
+				LEFT JOIN dbo.match m WITH(NOLOCK) ON e.MatchID = m.matchid 
+			WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsVoid14 = 0	
 		END  
 
 		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 0 AND IsVoid14 = 1) --match14
 		BEGIN
-				INSERT INTO dbo.TicketVoiding_RequestDetail 
-				(
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, SubIssueTypeId
-				)
-				SELECT @RequestId
-					, e.MatchID
-					, ISNULL(m.leagueid, 0) 
-					, ISNULL(m.homeid, 0) 
-					, ISNULL(m.awayid, 0) 
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @SubIssueTypeId
-				FROM #TempEditMatchID e 
-					LEFT JOIN dbo.match14 m WITH(NOLOCK) ON e.MatchID = m.matchid 
-				WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsVoid14 = 1	
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+			SELECT @RequestId
+				, e.MatchID
+				, ISNULL(m.leagueid, 0) 
+				, ISNULL(m.homeid, 0) 
+				, ISNULL(m.awayid, 0) 
+			FROM #TempEditMatchID e 
+				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON e.MatchID = m.matchid 
+			WHERE e.IsFlag = 1	AND e.IsOutright = 0 AND IsVoid14 = 1	
 		END  
 
 		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1 AND IsVoid14 = 0) --outright
 		BEGIN
-				INSERT INTO dbo.TicketVoiding_RequestDetail 
-				(
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, SubIssueTypeId
-				)
-				SELECT @RequestId
-					, e.MatchID
-					, m.leagueid
-					, m.teamid
-					, 0
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @SubIssueTypeId
-				FROM #TempEditMatchID e 
-					INNER JOIN dbo.outright m WITH(NOLOCK) ON e.MatchID = m.orid
-				WHERE e.IsFlag = 1	AND e.IsOutright = 1 AND e.IsVoid14 = 0	
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+			SELECT @RequestId
+				, e.MatchID
+				, m.leagueid
+				, m.teamid
+				, 0
+			FROM #TempEditMatchID e 
+				INNER JOIN dbo.outright m WITH(NOLOCK) ON e.MatchID = m.orid
+			WHERE e.IsFlag = 1	AND e.IsOutright = 1 AND e.IsVoid14 = 0	
 		END  
 		
 		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 1 AND IsVoid14 = 1) --outright14
 		BEGIN
-				INSERT INTO dbo.TicketVoiding_RequestDetail 
-				(
-					RequestId
-					, MatchId
-					, LeagueId
-					, HomeId
-					, AwayId
-					, RequestType
-					, SubIssueTypeId
-				)
-				SELECT @RequestId
-					, e.MatchID
-					, m.leagueid
-					, m.teamid
-					, 0
-					, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
-					, @SubIssueTypeId
-				FROM #TempEditMatchID e 
-					INNER JOIN dbo.outright14 m WITH(NOLOCK) ON e.MatchID = m.orid
-				WHERE e.IsFlag = 1	AND e.IsOutright = 1 AND e.IsVoid14 = 1	
+			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
+			SELECT @RequestId
+				, e.MatchID
+				, m.leagueid
+				, m.teamid
+				, 0
+			FROM #TempEditMatchID e 
+				INNER JOIN dbo.outright m WITH(NOLOCK) ON e.MatchID = m.orid
+			WHERE e.IsFlag = 1	AND e.IsOutright = 1 AND e.IsVoid14 = 0	
 		END  
 
 		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
