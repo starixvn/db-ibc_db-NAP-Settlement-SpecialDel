@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02, DBSID-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.Acc_BalanceNegativeSel_BySite
   @Site		VARCHAR(50) = 'Haifa'
  ,@isTest	BIT			= 0
@@ -16,7 +16,8 @@ AS
 		- 20150316@Elodie: Support Negative Balance function for all licensee [Red:#30840]
 		- 20160118@Vivi: only site='Haifa' join to bbin db
 		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
-		
+		- 20230523@Kathy: change metadata [Redmine:#188452]
+
 	Param's Explanation: 
 		@isTest: 0: Real Currency; 1: UUS Currency 
 	
