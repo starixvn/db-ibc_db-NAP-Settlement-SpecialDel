@@ -67,6 +67,7 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		
 	Param's Explanation:
 */
@@ -125,6 +126,7 @@ BEGIN
 		   ,@FCUpdateTime DATETIME2
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
+	DECLARE @tmpMatchId TABLE (MatchId INT, isFinish INT)
 
 	IF @IsOutright = 0
 	BEGIN
@@ -138,6 +140,13 @@ BEGIN
 			  ,@AwayId = m.awayid
 			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 		FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+		
+		INSERT INTO @tmpMatchId (MatchId)
+		SELECT MatchId
+		FROM dbo.match WITH(NOLOCK)
+		WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+						WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+						ELSE 0 END
 	END
 	ELSE
 	BEGIN
@@ -152,6 +161,8 @@ BEGIN
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = o.leagueid
 		WHERE o.orid = @MatchId
 			
+		INSERT INTO @tmpMatchId (MatchId)
+		SELECT @MatchId
 	END
 
 	/*Modify the way to get move bet date*/
@@ -175,8 +186,7 @@ BEGIN
 		  , @cn88_Name		VARCHAR(50) = 'CN88'	  
 		  , @VoidPatchSize		INT = 100
 	
-	DECLARE @CurrencyCodes		VARCHAR(MAX)
-		  , @CountSingle		INT = 0
+	DECLARE @CountSingle		INT = 0
 		  , @CountParlay		INT = 0
 		  
 	DECLARE @IsExistParlay		BIT = 0		  
@@ -293,7 +303,7 @@ BEGIN
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		;WITH CTE_CreditSit AS
+		;WITH CTE_CreditSite AS
 		(
 			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
 			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
@@ -304,7 +314,7 @@ BEGIN
 		FROM #t_UIRepresentativeLicenseeGroupNames AS t
 			 CROSS APPLY (
 							SELECT cte.[site]
-							FROM CTE_CreditSit cte
+							FROM CTE_CreditSite cte
 							WHERE CASE
 								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) AND cte.SiteLabel <> @789y_Name THEN 1
 								WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
@@ -325,13 +335,6 @@ BEGIN
 	SELECT ss.value AS transid
 	FROM STRING_SPLIT(@TransIds, ',') ss
 	
-	-------> Build string @CurrencyCodes
-	SET @CurrencyCodes = ''
-	SELECT @CurrencyCodes = @CurrencyCodes
-							+ CASE WHEN @CurrencyCodes <> '' THEN ',' ELSE '' END
-							+ currency
-	FROM #t_exchanges
-
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @UserPassword AND custid = @userId AND roleid >=5)
     BEGIN
         SELECT @ErrorMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
@@ -360,37 +363,33 @@ BEGIN
 
 	BEGIN -- Instant Settlement declaration
 		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-	
-		DECLARE @IsHTCal BIT = 0
-			  , @eventstatus NVARCHAR(50) = ''
-		  
-		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT)	
-		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes(bettype)
-	
+		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT)	
+
 		--> Get status of match
-		SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
-		FROM match_remark (NOLOCK)
-		WHERE matchid = @MatchID
-	
-		SELECT @eventstatus = ISNULL(eventstatus, '')
-		FROM match (NOLOCK)
-		WHERE matchid = @MatchID		
-	
+		;WITH cte_match AS
+		(
+			SELECT DISTINCT t.matchid
+			FROM @tmpMatchId t
+				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
+		)
+		,cte_isCalHT AS
+		(
+			SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
+			FROM cte_match m
+				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
+		)
 		--> Build bettype list supported for instant settlement based on settlement status of match
-		IF @eventstatus <> @eventstatus_completed
-		BEGIN
-			IF @IsHTCal = 0
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_TVS_GetInstantBettypes() T
-				WHERE T.InstantType IN (1, 3) -- 01, 11
-			ELSE
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_TVS_GetInstantBettypes() T
-				WHERE T.InstantType IN (2, 3) -- 10, 11			
-		END	 	
-	END						 	  
+		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
+		SELECT c.matchid,  f.bettype
+		FROM cte_isCalHT c
+			CROSS APPLY (
+					SELECT bettype
+					FROM dbo.f_TVS_GetInstantBettypes() 
+					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
+								   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
+							       ELSE 0 END
+			)f	 	
+	END	
 
 	BEGIN TRY	
 		-------> Get tickets to void
@@ -508,7 +507,7 @@ BEGIN
 				 INNER JOIN bettrans b WITH (NOLOCK)
 						 ON t.transid = b.transid
 				 INNER JOIN #t_exchanges te WITH (NOLOCK)
-						 ON b.currency = te.exchangeid -- filter for @CurrencyCodes			 
+						 ON b.currency = te.exchangeid 	 
 				 INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 						 ON b.recommend = c.custid
 				 INNER JOIN #t_LicenseeNames tl WITH (NOLOCK)
@@ -517,7 +516,7 @@ BEGIN
 				AND b.bettype NOT BETWEEN 801 AND 806-- MG
 				AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND b.betfrom <> 'P' -- exclude phone betting
-				AND b.matchid = @MatchID -- filer for @MatchID
+				AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 				AND b.bettype <> 500 -- exclude charge comm	
 				AND b.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
 				AND b.recommend NOT IN (11196380) -- Foobet (Email to IT support, Foobet list)
@@ -579,7 +578,8 @@ BEGIN
 						ExtraInfo,
 						ActualStake,
 						ruben,
-						SiteDBGroupId
+						SiteDBGroupId,
+						matchid
 					)
 			SELECT  main.Stake,
 					@AwayId,
@@ -628,12 +628,13 @@ BEGIN
 					main.ExtraInfo,
 					main.actual_stake AS ActualStake,
 					main.ruben,
-					main.SiteDBGroupID
+					main.SiteDBGroupID,
+					sub.matchid
 			FROM @tblTransIds t				 				 						 			 				 					 				 
 				 INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON t.transid = sub.transid
 				 INNER HASH JOIN bettrans main WITH (NOLOCK) ON sub.refno = main.refno
 				INNER JOIN #t_exchanges te WITH (NOLOCK)
-					     ON main.currency = te.exchangeid  -- filter for @CurrencyCodes
+					     ON main.currency = te.exchangeid 
 				INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK)
 						 ON main.recommend = c.custid
 				INNER JOIN #t_LicenseeNames tl1 WITH (NOLOCK)
@@ -642,7 +643,7 @@ BEGIN
 				AND main.statusID NOT IN (101, 102) -- reject, void				
 				AND main.betfrom <> 'P' -- exclude phone betting
 				AND @Sporttype BETWEEN 1 AND 99 -- sportbook only				
-				AND sub.matchid = @matchid -- filer for @MatchID
+				AND sub.matchid IN (SELECT MatchId FROM @tmpMatchId)
 				AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 				AND sub.betfrom <> 'P' -- exclude phone betting	
 				AND main.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
@@ -673,29 +674,28 @@ BEGIN
 		BEGIN
 			IF @CountSingle > 0
 			BEGIN
-
-				SELECT	@isExistMatch	= MAX (CASE WHEN b.Bettype NOT IN (38, 10) AND f.GroupID IS NULL THEN 1 ELSE 0 END)  
-					,@isExistFM = MAX(CASE WHEN f.GroupID = 1 THEN 1 ELSE 0 END)
-					,@isExistBB		= MAX (CASE WHEN b.Bettype = 38 THEN 1 ELSE 0 END)
-					,@isExistFM2 = MAX(CASE WHEN f.GroupID = 2 THEN 1 ELSE 0 END)
-					,@isExistOutright 	= MAX (CASE WHEN b.BetType = 10 THEN 1 ELSE 0 END)
-				FROM #SpecialDeleteBets_Single b
-					OUTER APPLY (
-								SELECT GroupId
-								FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-								WHERE Bettype = b.Bettype
-						)f
-							 	
 				INSERT INTO #tblMatchProcess (matchid, KeyID)
-				SELECT @matchid AS matchid, 1 AS KeyID WHERE @isExistMatch = 1 
-				UNION ALL
-				SELECT @matchid AS matchid ,6 AS KeyID WHERE @isExistFM = 1
-				UNION ALL
-				SELECT @matchid AS matchid, 5 AS KeyID WHERE @isExistBB = 1
-				UNION ALL
-				SELECT @matchid AS matchid, 7 AS KeyID WHERE @isExistFM2 = 1
-				UNION ALL
-				SELECT @MatchID AS matchid, 2 AS KeyID WHERE @isExistOutright = 1
+				SELECT DISTINCT matchid
+					,  CASE WHEN b.BetType NOT IN (38, 10) AND f.GroupID IS NULL THEN 1
+							WHEN f.GroupId = 1 THEN 6 -- FM
+							WHEN b.BetType = 38 THEN 5 -- Bet Builder
+							WHEN f.GroupId = 2 THEN 7 -- FM 228
+							WHEN b.BetType = 10 THEN 2 --Outright
+							ELSE 0
+						END AS KeyID 
+				FROM #SpecialDeleteBets_Single b
+				OUTER APPLY (
+					SELECT GroupId
+					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
+					WHERE Bettype = b.Bettype
+				)f
+
+				SELECT	@isExistMatch	  = CASE WHEN KeyID  = 1 THEN 1 ELSE 0 END
+						,@isExistFM		  = CASE WHEN KeyID  = 6 THEN 1 ELSE 0 END
+						,@isExistBB		  = CASE WHEN KeyID  = 5 THEN 1 ELSE 0 END
+						,@isExistFM2	  = CASE WHEN KeyID  = 7 THEN 1 ELSE 0 END
+						,@isExistOutright = CASE WHEN KeyID  = 2 THEN 1 ELSE 0 END
+				FROM #tblMatchProcess
 			END
 			
 			IF @CountParlay > 0
@@ -703,7 +703,7 @@ BEGIN
 				SET @IsExistParlay = 1
 
 				INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-				SELECT @matchid, RefNo
+				SELECT matchid, RefNo
 				FROM #SpecialDeleteBets_Parlay	
 			END
 			
@@ -798,68 +798,6 @@ BEGIN
 				END
 			END	
 
-			-- Apply for move match Cricket
-			IF EXISTS ( SELECT TOP 1 1 
-						FROM @tblTransIds t
-						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
-						WHERE matchid <> @MatchId
-					)
-			OR EXISTS ( SELECT TOP 1 1 
-						FROM @tblTransIds t
-							INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
-							INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
-						WHERE b.matchid = 29  
-							AND b.bettype = 29   
-							AND bm.matchid  <> @matchid  
-					)
-			BEGIN 
-				SELECT	@ErrorCode = 99
-						,@ErrorMsg = 'Some tickets not found.'
-				
-				IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
-				BEGIN
-					IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
-					BEGIN
-						------ releasing single process
-						EXEC dbo.NAP_Admin_CheckingProcess
-							@isExistMatch	= @isExistMatch	
-							,@isExistFM		= @isExistFM		
-							,@isExistBB		= @isExistBB		
-							,@isExistFM2	= @isExistFM2
-							,@isExistOutright  = @isExistOutright
-							,@IsReleased	= 1
-					END
-					
-					IF @CountParlay > 0 
-					BEGIN
-						------ releasing Refno parlay proccess
-						EXEC dbo.NAP_Admin_CheckingProcess
-							@IsLockingByRefno = 1
-							,@Session	= @Session
-							,@IsReleased = 1
-					END
-				END
-				ELSE IF @CountParlay > @ThreadHold
-				BEGIN
-					------ releasing SD process
-					EXEC dbo.NAP_Admin_CheckingProcess
-						 @IsReleased	= 1						
-						,@isExistMatch	= @isExistMatch	
-						,@isExistFM		= @isExistFM		
-						,@isExistBB		= @isExistBB		
-						,@isExistParlay	= @isExistParlay
-						,@isExistFM2	= @isExistFM2
-						,@isExistOutright  = @isExistOutright
-
-				END
-
-				SELECT @ErrorCode AS ErrorCode
-						,@ErrorMsg AS ErrorMsg
-						,@NegativeBalanceUsers AS NegativeBalanceUsers
-						,@SiteDBGroupID AS SiteDBGroupID
-
-				RETURN;
-			END
 		END
 		
 		INSERT INTO #t_CustID_501(custid)
@@ -928,6 +866,22 @@ BEGIN
 					ON	r.SubTransId=b.transid						
 		END
 		
+		DELETE FROM @tmpMatchId
+		INSERT INTO @tmpMatchId(MatchId)
+		SELECT DISTINCT MatchId
+		FROM #SpecialDeleteBets_Single
+		UNION  
+		SELECT DISTINCT MatchId
+		FROM #SpecialDeleteBets_Parlay
+
+	WHILE (1=1)
+	BEGIN
+		UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
+		FROM @tmpMatchId p
+		WHERE p.IsFinish IS NULL
+
+		IF @@ROWCOUNT = 0 BREAK
+
 		-------> update status for tickets to void		
 		--> update status for single
 		IF @CountSingle > 0
@@ -1162,14 +1116,6 @@ BEGIN
 				  , @refnos_29 = @refnos_29 + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid) + ','  
 			FROM	#SpecialDeleteBets_Parlay									
 			
-			--Prepare for Max Payout
-			SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
-										,t.ruben AS '@ruben'
-										,t.TransId AS '@transid'
-									FROM #SpecialDeleteBets_Parlay t
-									GROUP BY custid, ruben, TransId
-									FOR XML PATH('r'), ROOT('root')
-								)
 			-- update bettransm,BetParlayDetail			
 			WHILE @step < @CountParlay  
 			BEGIN  
@@ -1267,6 +1213,8 @@ BEGIN
 		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
 		GROUP BY b.CustID
 
+	END
+
 		SET @NegativeBalanceUsers = ''
 		SELECT @NegativeBalanceCustIds = @NegativeBalanceCustIds + 
 			CASE WHEN @NegativeBalanceCustIds <> '' THEN ',' ELSE '' END + CONVERT(VARCHAR(20), b.custid)
@@ -1283,7 +1231,7 @@ BEGIN
 		SET CashOutStatus = 6 --Void
 		   ,ChangeDate = GETDATE()
 		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN #SpecialDeleteBets_Single b ON c.TransID = b.transid AND c.MatchID = @MatchID
+			INNER JOIN #SpecialDeleteBets_Single b ON c.TransID = b.transid AND c.MatchID = b.matchid
 		WHERE b.betdaqid = -2 
 
 		IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
@@ -1346,6 +1294,15 @@ BEGIN
 			@MatchId = @MatchId_MaxPO
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
+
+		--Prepare for Max Payout
+		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
+									,t.ruben AS '@ruben'
+									,t.TransId AS '@transid'
+								FROM #SpecialDeleteBets_Parlay t
+								GROUP BY custid, ruben, TransId
+								FOR XML PATH('r'), ROOT('root')
+							)
 
 		If @MainParlay_MaxPO IS NOT NULL
 		BEGIN
@@ -1417,18 +1374,14 @@ BEGIN
 				ac.username AS AgUserName,
 				mc.username AS MagUserName,
 				sc.username AS SagUserName,
-				CASE 
-					WHEN @eventstatus <> @eventstatus_completed
-							THEN CASE
-									WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND ISNULL(s.betdaqid,0) <> -2
-											AND EXISTS (SELECT TOP 1 1
-														FROM #InstantSettlementBettypes
-														WHERE bettype = s.bettype)
-											THEN CAST(1 AS BIT)
-									ELSE CAST(0 AS BIT)
-								END
+				CASE
+					WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND ISNULL(s.betdaqid,0) <> -2
+						AND EXISTS (SELECT TOP 1 1
+									FROM #InstantSettlementBettypes
+									WHERE bettype = s.bettype)
+						THEN CAST(1 AS BIT)
 					ELSE CAST(0 AS BIT)
-				END AS IsInstantSettlementTicket,
+					END AS IsInstantSettlementTicket,
 				CASE
 					WHEN s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
 					ELSE s.site
@@ -1442,7 +1395,7 @@ BEGIN
 				CASE WHEN dc.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 				,@sporttype AS SportTypeId
 				,s.SiteDBGroupId
-				,@MatchID AS MatchId
+				,s.matchid
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL

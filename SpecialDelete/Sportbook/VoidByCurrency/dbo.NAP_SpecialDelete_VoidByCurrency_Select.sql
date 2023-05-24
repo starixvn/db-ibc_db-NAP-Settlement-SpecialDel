@@ -35,6 +35,7 @@ AS;
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -62,6 +63,7 @@ BEGIN
 		,@SiteDBGroupID		SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	DECLARE @tmpMatchId TABLE (MatchId INT)
 
 	IF @IsOutright = 0 
 	BEGIN
@@ -73,6 +75,13 @@ BEGIN
 				,@IsNeutral = ISNULL(IsNeutral,0)
 		FROM	dbo.match m WITH(NOLOCK)
 		WHERE	m.matchid = @MatchId
+	
+		INSERT INTO @tmpMatchId (MatchId)
+		SELECT MatchId
+		FROM dbo.match WITH(NOLOCK)
+		WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+						WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+						ELSE 0 END
 	END
 	ELSE
 	BEGIN
@@ -85,6 +94,9 @@ BEGIN
 		FROM	dbo.outright o WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = o.leagueid
 		WHERE	o.orid = @MatchId
+		
+		INSERT INTO @tmpMatchId (MatchId)
+		SELECT @MatchId
 	END
 
 	CREATE TABLE #SpecialDeleteBets(
@@ -298,7 +310,7 @@ BEGIN
 					 ON b.recommend = c.custid
 			 INNER JOIN @t_LicenseeNames tl
 					 ON tl.LicenseeName = c.site -- filter for @LicenseeIDs	
-		WHERE b.matchid = @MatchID -- filer for @MatchID
+		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND b.bettype = CASE 
 								WHEN @SearchSingle = 1 AND b.bettype <> 38 THEN b.bettype
 								WHEN @SearchBetBuilder = 1 THEN 38
@@ -407,7 +419,7 @@ BEGIN
 		WHERE main.matchid IN (9, 29) AND main.bettype IN (9, 29) -- parlay
 			AND main.statusID NOT IN (101, 102) -- reject, void			
 			AND main.betfrom <> 'P' -- exclude phone betting
-			AND sub.matchid = @matchid -- filer for @MatchID
+			AND sub.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.betfrom <> 'P' -- exclude phone betting		
 			AND main.username <> '12EU' --  12EU (Credit, email to IT support, 12EU list)
