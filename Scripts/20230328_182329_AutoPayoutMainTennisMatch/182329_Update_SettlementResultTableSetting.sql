@@ -1,8 +1,8 @@
-/*<info serverAlias="DBPRO-bodb02,DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBPRO-bodb02" executers="" isFunction="0"></info>*/
 /*
     Created: 20230328@Aries
 	Task: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
-	DB: DBPRO/bodb02, DBTXN/bodb02
+	DB: DBPRO/bodb02
 */
 
 
