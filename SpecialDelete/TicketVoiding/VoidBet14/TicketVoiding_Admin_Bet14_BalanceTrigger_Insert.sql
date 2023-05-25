@@ -206,7 +206,7 @@ BEGIN
 		,isnull(i.awinlost,0) as awinlost
 		,isnull(i.scomm,0) as scomm
 		,isnull(i.acomm,0) as acomm
-		,isnull(i.comm,0) as acomm
+		,isnull(i.comm,0) as comm
 		,i.modds
 	FROM #AfterTransId14 i 
 			INNER JOIN #BeforeTransId14 d ON i.transid = d.transid
