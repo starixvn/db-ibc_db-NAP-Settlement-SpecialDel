@@ -54,6 +54,7 @@ AS
 		- 20220828@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221006@July: Ticket Listing - Support Advance Mode for Tennis(5) & Volleyball(6) [Redmine: #176611]
 		- 20221110@Max: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
+		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -108,11 +109,22 @@ BEGIN
 
 	DECLARE @p_bettypes VARCHAR(1000)
 		   ,@ValueDefault SMALLMONEY = 9999.00
-		 
+		   ,@SportType SMALLINT = NULL
+
 	SET @p_bettypes = @BetTypes
 
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
+	DECLARE @tmpMatchId TABLE (MatchId INT, sporttype SMALLINT)
+	
+	INSERT INTO @tmpMatchId (MatchId, sporttype)
+	SELECT MatchId, sporttype
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+					WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
+
+	SELECT @SportType = sporttype FROM @tmpMatchId
 
 	INSERT INTO @tmpBettypes (bettype)
 	SELECT	CONVERT(smallint, value)
@@ -143,11 +155,8 @@ BEGIN
 				WHERE b.betcheck = ms.MarketId and matchid = b.matchid
 				)ms
 			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
-		WHERE b.matchid = @MatchId
+		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 	END
-
-	DECLARE @SportType SMALLINT = NULL
-	SELECT @SportType = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 
@@ -290,7 +299,7 @@ BEGIN
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-						AND b.matchid = @MatchId
+						AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				OPTION	(RECOMPILE)	
 			END
@@ -308,7 +317,7 @@ BEGIN
 								) AS BS_tmp
 				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-						AND b.matchid = @MatchId
+						AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 						AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WITH (NOLOCK) WHERE Seq = BS_tmp.BallSequence)
 				OPTION	(RECOMPILE)	
@@ -335,7 +344,7 @@ BEGIN
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 			WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
 				AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-				AND b.matchid = @MatchId 
+				AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 				AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
 				AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE b.liveawayscore END
@@ -448,7 +457,7 @@ BEGIN
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 29
 			AND b.matchid = 29
-			AND bm.matchid = @MatchId
+			AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -540,7 +549,7 @@ BEGIN
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 2799
 			AND b.matchid = 2799
-			AND bm.matchid = @MatchId
+			AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END

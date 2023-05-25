@@ -5,18 +5,27 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_SettlementHistory]
 )		
 AS
 /*	
-	Created by: Max
-	Date: 20221110
+	Created by: 20221110@Max
 	Task: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
 	DB: DBBAH/bodb02
 	
 	Revisions:	
 		- 20221110@Max: Create SP [Redmine: #180225]
+		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		
 	Param's Explanation:
 */
 BEGIN
 	SET NOCOUNT ON
+	
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+					WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblSettlementHistory (transid BIGINT, winlost MONEY, StatusId TINYINT, SettlementType TINYINT, CreatedDate DATETIME , BalanceChanged MONEY, Rownumber INT, RN_settle INT)
@@ -29,7 +38,7 @@ BEGIN
 				, ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CreatedDate DESC) Rownumber
 				, CASE WHEN SettlementType <> 0 THEN ROW_NUMBER() OVER (PARTITION BY transid ORDER BY CASE WHEN SettlementType <> 0 THEN 1 ELSE 0 END DESC, CreatedDate DESC) ELSE 0 END AS RN_settle
 		FROM bodb02.dbo.settlementhistory WITH(NOLOCK) 
-		WHERE Matchid = @MatchId
+		WHERE Matchid IN (SELECT MatchId FROM @tmpMatchId)
 
 		INSERT INTO #tmpAffectTickets(Transid)
 		SELECT bt.transid

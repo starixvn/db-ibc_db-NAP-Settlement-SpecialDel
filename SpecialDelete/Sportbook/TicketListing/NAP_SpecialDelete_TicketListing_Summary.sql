@@ -74,6 +74,7 @@ AS
 		- 20220828@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221006@July: Ticket Listing - Support Advance Mode for Tennis(5) & Volleyball(6) [Redmine: #176611]
 		- 20221110@Max: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
+		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -141,7 +142,15 @@ BEGIN
 	DECLARE @SportType SMALLINT = NULL
 		   ,@ValueDefault SMALLMONEY = 9999.00
 		
-	SELECT @SportType = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+	DECLARE @tmpMatchId TABLE (MatchId INT, sporttype SMALLINT)
+	INSERT INTO @tmpMatchId (MatchId, sporttype)
+	SELECT MatchId, sporttype
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+					WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
+
+	SELECT @SportType = sporttype FROM @tmpMatchId
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
 	IF @Type <> 0 SELECT @LiveType = 2
@@ -221,7 +230,7 @@ BEGIN
 				WHERE b.betcheck = ms.MarketId and matchid = b.matchid
 				)ms
 			INNER JOIN  #tmpSelectionType s ON ms.SelectionType=s.Selectiontype
-		WHERE b.matchid = @MatchId
+		WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 	END
 	
 	INSERT INTO @tmpBettypes (bettype)
@@ -351,7 +360,7 @@ BEGIN
 					,COUNT(b.transid) cnt
 				FROM dbo.bettrans b WITH (NOLOCK)		
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
-				WHERE b.matchid = @MatchId
+				WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 					AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
 					AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
 						WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
@@ -386,7 +395,7 @@ BEGIN
 								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore)
 								WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 								) AS BS_tmp		
-				WHERE b.matchid = @MatchId
+				WHERE b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 					AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')					
 					AND ISNULL(SecAcceptFlag, 0) = CASE @SecondAcceptFlag
 						WHEN 0 THEN ISNULL(SecAcceptFlag, 0)
@@ -427,7 +436,7 @@ BEGIN
 			,b.oddsid AS FilterOddsId
 			,b.transdesc AS FilterTransdesc
 		FROM bettrans b WITH (NOLOCK)
-		WHERE matchid = @MatchId
+		WHERE matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
 			AND EXISTS (SELECT TOP 1 1 FROM @tmpBettypes t WHERE t.bettype = b.bettype)
 			AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
@@ -606,7 +615,7 @@ BEGIN
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
-				AND bm.matchid = @MatchId
+				AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29
@@ -693,7 +702,7 @@ BEGIN
 			FROM bettransm bm WITH (NOLOCK)
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno 
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
-				AND bm.matchid = @MatchId
+				AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 				AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
@@ -790,7 +799,7 @@ BEGIN
 					LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 					LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 					WHERE ds.custid IS NULL AND cs.CustId IS NULL
-					AND bm.matchid = @MatchId 
+					AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 					AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
 					AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 					AND b.bettype = 29
@@ -879,7 +888,7 @@ BEGIN
 				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 			WHERE ds.custid IS NULL AND cs.CustId IS NULL
-				AND bm.matchid = @MatchId
+				AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 				AND b.statusID NOT IN (101, 102) ---('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799
@@ -930,7 +939,7 @@ BEGIN
 				LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
-		  WHERE matchid = @MatchId
+		  WHERE matchid IN (SELECT MatchId FROM @tmpMatchId)
 		  GROUP BY b.bettype
 			 ,b.liveindicator
 			 ,s.site, s.IsChinaView
@@ -984,7 +993,7 @@ BEGIN
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
-		  WHERE bm.matchid = @MatchId 
+		  WHERE bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			 AND b.bettype = 29
 			 AND b.matchid = 29
 			 AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
@@ -1078,7 +1087,7 @@ BEGIN
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
-		  WHERE bm.matchid = @MatchId
+		  WHERE bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			 AND b.bettype = 2799
 			 AND b.matchid = 2799
 			 AND b.statusID NOT IN (101, 102) -- ('Void', 'Reject')
