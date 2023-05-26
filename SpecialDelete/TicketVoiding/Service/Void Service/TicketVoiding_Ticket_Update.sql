@@ -13,8 +13,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
 	,@MoveBetMatchIds   VARCHAR(MAX)	= NULL	OUTPUT
-	,@BeforeTransInfoJson		VARBINARY(MAX) = NULL OUTPUT
-	,@AfterTransInfoJson		VARBINARY(MAX) = NULL OUTPUT
 AS
 /*	Created by: 20181212@Kathy
 	Task: view voided ticket [Redmine:#90155]
@@ -53,8 +51,6 @@ BEGIN
 			,@ErrMsg				= @ErrMsg	OUTPUT
 			,@NegativeBalanceUsers  = @NegativeBalanceUsers	OUTPUT
 			,@MoveBetMatchIds		= @MoveBetMatchIds OUTPUT
-			,@BeforeTransInfoJson	= @BeforeTransInfoJson OUTPUT
-			,@AfterTransInfoJson	= @AfterTransInfoJson OUTPUT
 	END
 	ELSE IF (@VoidingTypeId IN (1,4) OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13)))-- Single
 	BEGIN

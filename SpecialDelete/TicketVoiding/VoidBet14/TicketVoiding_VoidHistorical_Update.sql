@@ -13,8 +13,6 @@ ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 	,@FailedTransIds    VARCHAR(MAX) = '' OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
 	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
-	,@BeforeTransInfoJson		VARBINARY(MAX) = NULL OUTPUT
-	,@AfterTransInfoJson		VARBINARY(MAX) = NULL OUTPUT
 )
 AS
 /*		
@@ -45,11 +43,7 @@ BEGIN
 			,@IsAbnormalBet		TINYINT
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT 
-			,@transInfo			VARBINARY(MAX)
-			,@transInfo3rd		VARBINARY(MAX)
-			,@SiteDBGroupID		SMALLINT
-
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+			,@TransidList       VARCHAR(MAX) =''
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
@@ -80,15 +74,6 @@ BEGIN
 		,balance		MONEY
 	)	
 	DECLARE @tblInputTransId AS TABLE (transid BIGINT PRIMARY KEY)		
-	DECLARE @tmpTransIdBatch TABLE (TransId	BIGINT,sporttype SMALLINT)
-
-	DECLARE @tmpTransInfo AS TABLE (transid BIGINT, winlost MONEY, playercomm MONEY, comm MONEY, acomm MONEY, scomm MONEY
-							, status VARCHAR(20), statusID TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
-							, ruben TINYINT, creator INT, awinlost MONEY, mwinlost MONEY, swinlost MONEY, bettype SMALLINT						
-							,matchid INT ,betdaqid BIGINT ,sitedbgroupid SMALLINT
-							,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
-							,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
-						)
 
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
@@ -131,7 +116,6 @@ BEGIN
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 			ON b.transid = t.transid
 	WHERE b.statusID NOT IN (101, 102)
-		AND b.SiteDBGroupID = @SitedbgroupId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
@@ -355,51 +339,6 @@ BEGIN
 			,b14.winlostdate
 			,t.sporttype
 
-	--capture before for balance trigger
-	INSERT INTO @tmpTransInfo( 
-		   matchid ,transid ,betdaqid ,sitedbgroupid
-		  ,bettype ,statusID ,Status 
-		  ,winlostdate ,SettlementTime ,actual_stake ,modds 
-		  ,srecommend ,mrecommend ,recommend ,custid	
-		  ,winlost ,awinLost ,mwinLost ,swinLost
-		  ,playercomm ,comm ,acomm ,scomm
-		)
-	SELECT t.matchid, t.TransId, t.betdaqid, @SiteDBGroupID
-		,t.bettype, b.statusID, b.status, t.winlostdate, b.SettlementTime, b.actual_stake, b.modds
-		,t.srecommend, b.mrecommend, b.recommend, t.custid
-		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
-		,b.playercomm, b.comm, b.acomm, b.scomm
-	FROM #tmpTransId t
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
-
-	SET @BeforeTransInfoJson = COMPRESS((
-			SELECT	b.matchid AS 'mid'
-					, b.transId AS 't'
-					, b.betdaqid AS 'bdaq'
-					, b.sitedbgroupid AS 'sitedb'
-					, b.bettype AS 'btype'
-					, b.statusID AS 'sid'
-					, b.status AS 's'
-					, b.winlostdate AS 'wld'
-					, b.SettlementTime AS 'st'
-					, b.actual_stake AS 'acstake'
-					, b.modds AS 'm'
-					, b.srecommend AS 'sre'
-					, b.mrecommend AS 'mre'
-					, b.recommend AS 're'
-					, b.custid AS 'cust'
-					, b.winlost AS 'w'
-					, b.awinlost AS 'aw'
-					, b.mwinlost AS 'mw'
-					, b.swinlost AS 'sw'
-					, b.playercomm AS 'pc'
-					, b.comm AS 'c'
-					, b.acomm AS 'ac'
-					, b.scomm AS 'sc'
-			FROM	@tmpTransInfo b
-			FOR JSON PATH))
-	
-	DELETE @tmpTransInfo
 	/**********************************************   *************************************************************/
 	IF @IssueTypeId = 13
 	BEGIN
@@ -410,96 +349,19 @@ BEGIN
 		SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
 	END
 	-- STEP 2 : Update bettrans14
-	WHILE (1=1)
+	SELECT @TransidList = (SELECT DISTINCT TransId AS '@transid'
+									,sporttype  AS '@sporttype'
+									FROM	#tmpTransId
+									FOR XML PATH('r'), ROOT('root')
+							 )
+
+	IF @TransidList <> ''
 	BEGIN
-		DELETE @tmpTransIdBatch
-
-		UPDATE TOP(2000) t
-			SET t.isFinish = 1
-		OUTPUT deleted.TransId
-			,deleted.sporttype
-		INTO @tmpTransIdBatch(TransId, sporttype)
-		FROM #tmpTransId t
-		WHERE t.isFinish IS NULL
-
-		IF @@ROWCOUNT = 0 BREAK
-
-		UPDATE main
-			SET 
-				winlost = main.actual_stake
-				,ruben = 1
-				,creator = @UserID
-				,mwinlost = 0
-				,swinlost = 0
-				,awinlost = 0 -- awinlost main ticket
-				,playercomm = 0
-				,comm = 0
-				,acomm = 0
-				,scomm = 0
-				,statusID = 102
-				,status = 'VOID'
-				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalBet = 1 AND @MatchId <> 29 THEN 1
-																	WHEN @IsAbnormalBet = 1 AND @MatchId = 29 THEN 2
-																	ELSE 0 END,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
-
-			OUTPUT inserted.transid, inserted.winlost, inserted.ruben, inserted.creator, inserted.mwinlost, inserted.swinlost, inserted.awinlost
-				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID, inserted.status, inserted.ExtraInfo, inserted.bettype
-			INTO @tmpTransInfo (transid, winlost, ruben, creator, mwinlost, swinlost, awinlost, playercomm, comm, acomm, scomm, statusID, status, ExtraInfo, bettype)
-		FROM dbo.bettrans14 AS main WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransIdBatch AS tmpmain ON main.transid = tmpmain.transid
-
-		IF @IsSiteDB = 1
-		BEGIN
-			SET @transInfo = COMPRESS((
-			SELECT	b.transId AS 't'
-					, b.winlost AS 'w'
-					, b.ruben AS 'r'
-					, b.creator AS 'cr'
-					, b.awinlost AS 'aw'
-					, b.mwinlost AS 'mw'
-					, b.swinlost AS 'sw'
-					, b.playercomm AS 'pc'
-					, b.comm AS 'c'
-					, b.acomm AS 'ac'
-					, b.scomm AS 'sc'
-					, b.statusID AS 'sid'
-					, b.status AS 's'
-					, b.ExtraInfo AS 'ex'
-			FROM	@tmpTransInfo b
-			WHERE b.bettype NOT IN (10)
-			FOR JSON PATH))
-
-			SET @transInfo3rd = COMPRESS((
-			SELECT	b.transId AS 't'
-					, b.winlost AS 'w'
-					, b.ruben AS 'r'
-					, b.creator AS 'cr'
-					, b.awinlost AS 'aw'
-					, b.mwinlost AS 'mw'
-					, b.swinlost AS 'sw'
-					, b.playercomm AS 'pc'
-					, b.comm AS 'c'
-					, b.acomm AS 'ac'
-					, b.scomm AS 'sc'
-					, b.statusID AS 'sid'
-					, b.status AS 's'
-					, b.ExtraInfo AS 'ex'
-			FROM	@tmpTransInfo b
-			WHERE b.bettype IN (10)
-			FOR JSON PATH))
-
-			IF @transInfo IS NOT NULL
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END
-			END
-			IF @transInfo3rd IS NOT NULL
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END, 2
-			END
-		END
-
+		EXEC Bet_ExecRep_NAP_Admin_10
+			@TransidList			= @TransidList
+			,@IsAbnormalBet			= @IsAbnormalBet
+			,@UserID				= @UserID
+			,@MatchId				= @MatchId
 	END
 
 	--capture balance after
@@ -540,51 +402,6 @@ BEGIN
 			,b.BonusID
 			,b.WalletType
 
-	DELETE @tmpTransInfo
-	--capture after for balance trigger
-	INSERT INTO @tmpTransInfo( 
-		   matchid ,transid ,betdaqid ,sitedbgroupid
-		  ,bettype ,statusID ,Status 
-		  ,winlostdate ,SettlementTime ,actual_stake ,modds 
-		  ,srecommend ,mrecommend ,recommend ,custid	
-		  ,winlost ,awinLost ,mwinLost ,swinLost
-		  ,playercomm ,comm ,acomm ,scomm
-		)
-	SELECT t.matchid, t.TransId, b.betdaqid, @SiteDBGroupID
-		,t.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
-		,t.srecommend, b.mrecommend, b.recommend, t.custid
-		,b.winlost, b.awinlost, b.mwinlost, b.swinlost
-		,b.playercomm, b.comm, b.acomm, b.scomm
-	FROM #tmpTransId t
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
-
-	SET @AfterTransInfoJson = COMPRESS((
-			SELECT	b.matchid AS 'mid'
-					, b.transId AS 't'
-					, b.betdaqid AS 'bdaq'
-					, b.sitedbgroupid AS 'sitedb'
-					, b.bettype AS 'btype'
-					, b.statusID AS 'sid'
-					, b.status AS 's'
-					, b.winlostdate AS 'wld'
-					, b.SettlementTime AS 'st'
-					, b.actual_stake AS 'acstake'
-					, b.modds AS 'm'
-					, b.srecommend AS 'sre'
-					, b.mrecommend AS 'mre'
-					, b.recommend AS 're'
-					, b.custid AS 'cust'
-					, b.winlost AS 'w'
-					, b.awinlost AS 'aw'
-					, b.mwinlost AS 'mw'
-					, b.swinlost AS 'sw'
-					, b.playercomm AS 'pc'
-					, b.comm AS 'c'
-					, b.acomm AS 'ac'
-					, b.scomm AS 'sc'
-			FROM	@tmpTransInfo b
-			FOR JSON PATH))
-	
 	---INSERT data into pending balance table   
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 		  @BalanceWalletBefore	= @BeforeUpd
@@ -654,26 +471,6 @@ BEGIN
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
-	-- Write useraction log 
-	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
-			, @SubmittedDate DATETIME = GETDATE()
-			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
-	SET @ID =  NEWID()
-	BEGIN TRY
-		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
-		BEGIN	
-			SET @sqlCommand = '@BeforeTransInfoJson='
-					+ CASE WHEN @BeforeTransInfoJson IS NULL THEN '' ELSE  CONVERT(NVARCHAR(MAX), @BeforeTransInfoJson, 1) END
-					+ ', @AfterTransInfoJson='
-					+ CASE WHEN @AfterTransInfoJson IS NULL THEN '' ELSE  CONVERT(NVARCHAR(MAX), @AfterTransInfoJson, 1) END
-
-			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
-			VALUES (@ID, @spName, @sqlCommand, @UserID, NULL, GETDATE(),GETDATE())
-		END	
-	END TRY
-	BEGIN CATCH
-	END CATCH 
-	
 	--WriteLog
 	SET @EndTime = GETDATE()
 	BEGIN

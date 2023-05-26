@@ -53,8 +53,6 @@ BEGIN
 			,@ErrMsgMove VARCHAR(300)
 			,@MoveBetMatchIds VARCHAR(MAX) = NULL
 			,@MoveBetMatchIdsXML XML = NULL
-			,@BeforeTransInfoJson		VARBINARY(MAX) = NULL
-			,@AfterTransInfoJson		VARBINARY(MAX) = NULL
 
 
 	DECLARE @tmpMatchMoveBet_update TABLE (
@@ -110,8 +108,6 @@ BEGIN
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 				,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
-				,@BeforeTransInfoJson = @BeforeTransInfoJson OUTPUT
-				,@AfterTransInfoJson = @AfterTransInfoJson OUTPUT
 
 		END TRY
 		BEGIN CATCH
@@ -174,8 +170,6 @@ BEGIN
 	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId
 		, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers
 		, q.ErrMsg, q.UserId, c.username
-		, CONVERT(VARCHAR(MAX), @BeforeTransInfoJson, 1) AS BeforeTransInfoJson
-		, CONVERT(VARCHAR(MAX), @AfterTransInfoJson, 1) AS AfterTransInfoJson
 	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 	WHERE q.QueueId = @QueueId
