@@ -291,12 +291,6 @@ BEGIN
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
 			AND dc.custid IS NULL
 
-		--Update Main MatchID for child match cricket (Sporttype = 50)
-		UPDATE d
-		SET d.matchid = m.ParentID
-		FROM #TransInfo d
-			INNER JOIN dbo.match14 m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
-		WHERE d.bettype NOT IN (9, 29, 2799) AND d.IsVoid14 = 1
 	END
 	
 	--RETURN DATA
