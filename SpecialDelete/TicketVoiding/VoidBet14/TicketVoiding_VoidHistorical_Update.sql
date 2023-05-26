@@ -394,7 +394,14 @@ BEGIN
 	
 	DELETE @tmpTransInfo
 	/**********************************************   *************************************************************/
-	SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
+	IF @IssueTypeId = 13
+	BEGIN
+		SET @IsAbnormalBet = 1
+	END
+	ELSE
+	BEGIN
+		SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
+	END
 	-- STEP 2 : Update bettrans14
 	WHILE (1=1)
 	BEGIN
