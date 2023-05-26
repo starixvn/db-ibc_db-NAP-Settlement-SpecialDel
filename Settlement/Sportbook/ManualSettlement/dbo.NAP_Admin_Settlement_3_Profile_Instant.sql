@@ -517,6 +517,7 @@ BEGIN
 				,@hta				= @hta
 				,@fth				= @hth
 				,@fta				= @hta
+				,@DeterminedType 	= 2
 				,@LockedByRefno		= 1 -- always lock refno for testing
 				,@IsCentral			= @IsCentral
 

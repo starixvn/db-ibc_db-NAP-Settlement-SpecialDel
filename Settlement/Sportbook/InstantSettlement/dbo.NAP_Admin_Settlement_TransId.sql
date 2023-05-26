@@ -135,6 +135,7 @@ BEGIN
 								ELSE 1
 							END
 					AND m.modds IS NOT NULL
+					AND 1 = CASE WHEN m.modds >= 0.5 OR m.modds <= -0.5 THEN 1 ELSE 0 END
 		END
 		ELSE IF @Action LIKE 'UNDO-INST%'
 		BEGIN

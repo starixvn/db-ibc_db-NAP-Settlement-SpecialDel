@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	 @creator				INT
 	,@MatchID				INT
-	,@Action		  		VARCHAR(10)		= 'CAL'
+	,@Action		  		VARCHAR(20)		= 'CAL'
 	,@IP	 				VARCHAR(15)		= ''
 	,@SelectedResources		VARCHAR(MAX)
 	,@hth					INT			= 0
@@ -241,6 +241,10 @@ BEGIN
 							OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 							OR bm.statusID = 102
 						)
+						AND 1 = CASE 
+									WHEN @DeterminedType IN (1,4) AND m.modds > -0.5 AND m.modds < 0.5 THEN 0									
+									ELSE 1 
+								END
 						and 1 = case 
 								when sr.SDTpfId = 3 then case when (@fth + @fta) - 0.25 > bm.hdp1 then 1 else 0 end
 								when sr.SDTpfId = 388 then case when @fta - 0.25 > bm.hdp1 then 1 else 0 end
