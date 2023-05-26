@@ -22,6 +22,8 @@ AS
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221019@Kathy: allow settlement action by using NAP_Set_ServerAction [Redmine:#179274]
+		- 20230526@Kathy: wrong SMA winlost because of order in calculate formula [Redmine:#188795]
+
 	Param's Explanation:
 
 */
@@ -99,13 +101,13 @@ BEGIN
 				ruben = 1 ,
 				winlostdate = @winlostdate, --convert(char(10),getdate(),111),
 				statuswinlost = 2,
-				Swinlost = -(odds-1) * spositiontaking * stake / @deadheat,
-				mwinlost = -(odds-1) * mpositiontaking * stake / @deadheat,
-				awinlost = -(odds-1) * apositiontaking * stake / @deadheat,
-				winlost = (((odds-1)/@deadheat)+1) * stake ,
-				Scomm = @commWinRate * (1-spositiontaking-mpositiontaking-apositiontaking) * sdiscount * stake,
-				acomm = @commWinRate * (1-mpositiontaking-apositiontaking) * adiscount * stake,
-				comm  = @commWinRate * (1-apositiontaking) * discount * stake,
+				Swinlost = - stake * (odds-1) * spositiontaking/ @deadheat,
+				mwinlost = - stake * (odds-1) * mpositiontaking/ @deadheat,
+				awinlost = - stake * (odds-1) * apositiontaking/ @deadheat,
+				winlost = stake * (((odds-1)/@deadheat)+1) ,
+				Scomm = @commWinRate * sdiscount * stake * (1-spositiontaking-mpositiontaking-apositiontaking),
+				acomm = @commWinRate * adiscount * stake * (1-mpositiontaking-apositiontaking),
+				comm  = @commWinRate * discount * stake * (1-apositiontaking) ,
 				playercomm = @commWinRate * playerdiscount * stake,
 				statusID = 112
 		END 
@@ -125,9 +127,9 @@ BEGIN
 				mwinlost = mpositiontaking * stake,
 				awinlost = apositiontaking * stake,
 				winlost =0,
-				Scomm = @commLostRate * (1-spositiontaking-mpositiontaking-apositiontaking) * sdiscount * stake,
-				acomm = @commLostRate * (1-mpositiontaking-apositiontaking) * adiscount * stake,
-				comm  = @commLostRate * (1-apositiontaking) * discount * stake,
+				Scomm = @commLostRate * sdiscount * stake * (1-spositiontaking-mpositiontaking-apositiontaking),
+				acomm = @commLostRate * adiscount * stake * (1-mpositiontaking-apositiontaking),
+				comm  = @commLostRate * discount * stake * (1-apositiontaking),
 				playercomm = @commLostRate * playerdiscount * stake,
 				statusID = 113
 			
