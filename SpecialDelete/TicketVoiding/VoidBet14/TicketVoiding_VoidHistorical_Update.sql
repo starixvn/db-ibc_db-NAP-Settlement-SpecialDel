@@ -181,6 +181,13 @@ BEGIN
 			ON b.bettype = sb.BetType
 		WHERE sb.ProductID = 37
 	END
+
+	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799))
+	BEGIN
+		UPDATE #tmpTransId
+		SET eventdate = winlostdate
+		WHERE bettype IN (9,29,2799)	
+	END
 	
 	-- remove un-supported sports & bettype
 	DELETE bd
