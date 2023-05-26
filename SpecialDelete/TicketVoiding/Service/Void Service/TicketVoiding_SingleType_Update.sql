@@ -53,6 +53,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -175,7 +176,7 @@ BEGIN
 	SET @SB_Error = 0
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
-	SET @IsAbnormalMixParlay = CASE WHEN @IssueTypeId = 11 AND @MatchId = 29 THEN 1 ELSE 0 END
+	SET @IsAbnormalMixParlay = CASE WHEN @IssueTypeId IN (11, 13) AND @MatchId = 29 THEN 1 ELSE 0 END
 	SET @FailedTransIds = NULL
 
 	INSERT INTO @tmpInputTransId (TransId)
