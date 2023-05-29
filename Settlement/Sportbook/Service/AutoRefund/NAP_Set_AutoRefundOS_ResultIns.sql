@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20220511@Louisa: Initial 
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20230328@Aries: Auto refund tennis incorrect [Redmine: #188857]
 
 	Param's explaination:
 		@TypeIds: 1 - Refund Single
@@ -26,17 +27,42 @@ BEGIN
 	IF ISNULL(@ResourceIds, '') = ''
 	RETURN
 
+	DECLARE  @Sporttype			INT
+			,@ResultTable		TINYINT
 	DECLARE @tmpResourceId TABLE ( ResourceId VARCHAR(20)	)
 
-	;WITH cteResourceId 
-	AS (
-		SELECT CAST(f.value AS VARCHAR(20)) AS ResourceId
-		FROM STRING_SPLIT(@ResourceIds, ',') f
-	)
-	INSERT INTO @tmpResourceId ( ResourceId )
-	SELECT 	c.ResourceId
-	FROM 	cteResourceId c 
-	WHERE	NOT EXISTS (SELECT r.ResourceId FROM dbo.ResultDetailOS r WITH(NOLOCK) WHERE r.matchid = @MatchId AND r.ResultStatusID IN (2,5) AND c.ResourceID = r.ResourceId)
+	SELECT @Sporttype	= m.sportType
+  	FROM dbo.match m WITH (NOLOCK)
+	WHERE m.matchid = @MatchId
+
+	SELECT @ResultTable =  ResultTable
+	FROM SettlementResultTableSetting WITH (NOLOCK)
+	WHERE SportType = @Sporttype
+
+	IF @ResultTable = 1
+	BEGIN
+		;WITH cteResourceId 
+		AS (
+			SELECT CAST(f.value AS VARCHAR(20)) AS ResourceId
+			FROM STRING_SPLIT(@ResourceIds, ',') f
+		)
+		INSERT INTO @tmpResourceId ( ResourceId )
+		SELECT 	c.ResourceId
+		FROM 	cteResourceId c 
+		WHERE	NOT EXISTS (SELECT r.ResourceId FROM dbo.ResultDetail r WITH(NOLOCK) WHERE r.matchid = @MatchId AND r.ResultStatusID IN (2,5) AND c.ResourceID = r.ResourceId)
+	END
+	ELSE IF @ResultTable = 2
+	BEGIN
+		;WITH cteResourceId 
+		AS (
+			SELECT CAST(f.value AS VARCHAR(20)) AS ResourceId
+			FROM STRING_SPLIT(@ResourceIds, ',') f
+		)
+		INSERT INTO @tmpResourceId ( ResourceId )
+		SELECT 	c.ResourceId
+		FROM 	cteResourceId c 
+		WHERE	NOT EXISTS (SELECT r.ResourceId FROM dbo.ResultDetailOS r WITH(NOLOCK) WHERE r.matchid = @MatchId AND r.ResultStatusID IN (2,5) AND c.ResourceID = r.ResourceId)
+	END
 
 	MERGE dbo.AutoRefundResultOS WITH (UPDLOCK,ROWLOCK) TARGET
 	USING (	SELECT ResourceId FROM @tmpResourceId	) AS SOURCE 
