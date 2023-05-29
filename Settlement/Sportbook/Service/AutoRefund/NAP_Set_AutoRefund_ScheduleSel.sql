@@ -12,6 +12,7 @@ AS
 		- 20220512@Louisa: Auto Refund for Badminton [Redmine:#171676]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 */
 BEGIN
 	
@@ -54,7 +55,25 @@ BEGIN
 			AND ar.StatusId = 0
 			AND ar.TypeId = 1
 	END
-
+	ELSE IF @sporttype = 5
+	BEGIN
+		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId)
+		SELECT ar.MatchId
+			 , m.leagueid
+			 , ar.TypeId
+			 , ar.ResourceId
+			 ,ISNULL(r.ResultStatusID, 0) AS  ResultStatusID
+			 ,ISNULL(r.SettlementStatusID,0) AS SettlementStatusID
+		FROM dbo.AutoRefundResultOS ar WITH(NOLOCK)
+			INNER JOIN dbo.match m WITH(NOLOCK)
+				ON m.matchid = ar.matchid
+			OUTER APPLY (	SELECT r.ResultStatusID, r.SettlementStatusID FROM dbo.ResultDetail r (NOLOCK)
+							WHERE  ar.MatchId = r.MatchId AND ar.ResourceId = r.ResourceId
+						) r
+		WHERE m.sporttype = @sporttype
+			AND ar.StatusId = 0
+			AND ar.TypeId = 1
+	END
 	ELSE
 	BEGIN
 		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId)

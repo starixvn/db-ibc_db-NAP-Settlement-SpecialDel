@@ -15,6 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@ChildMatchIds		VARCHAR(500)	= NULL
 	,@RefResultStatus	TINYINT			= 0
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
+	,@AutoType				TINYINT		= 0
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -67,6 +68,7 @@ AS
 		- 20221223@Kathy: Support Direct Payout for Early Results. [Redmine:#181718]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -78,7 +80,11 @@ AS
 				 1: no reference result exist (result not yet confirmed or not exists Provider score)
 				 2: values inconsistency
 
-		* @IsDirectly: Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
+		* @AutoType:
+				0: None
+				1: Auto Payout
+				2: Direct Payout
+				3: Others
 */
 BEGIN
 	SET NOCOUNT ON
@@ -101,7 +107,6 @@ BEGIN
 			,@ticketCount		INT				= 0
 			,@handle			INT
 			,@TotalAccount		INT
-			,@TotalAccount_BalanceUpdate INT
 			,@batchNo			INT 			= 2000
 			,@batchCount		INT		
 			,@strTransIds		VARCHAR(MAX)	= ''
@@ -132,6 +137,9 @@ BEGIN
 			,@ChildMatchType	TINYINT
 			,@IsCalculateBalance		BIT = 1 ---calculate balance inside SP calculate transid
 			,@IsAppliedSOP				BIT = 1
+			,@AutoSetting		TINYINT
+			,@HasAutoPayout		BIT = 0
+			,@HasAutoRefund		BIT = 0
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
 
@@ -206,7 +214,14 @@ BEGIN
 
 	SELECT @IsEarly =  CASE WHEN @Action LIKE '%EAR'  OR (@sportType = 50 AND @IsAuto = 1) THEN 1 ELSE 0 END
 
-	SELECT @IsAppliedSOP = (SELECT IsAppliedSOP FROM SettlementResultTableSetting WITH(NOLOCK) WHERE Sporttype = @sportType)
+	SELECT	@IsAppliedSOP = IsAppliedSOP
+		   ,@AutoSetting  = ISNULL(Setting,0)
+	FROM	dbo.SettlementResultTableSetting ss WITH(NOLOCK)
+	WHERE ss.Sporttype = @sportType
+
+	SET @HasAutoPayout = IIF(@AutoSetting & 2 > 0,1,0)
+	SET @HasAutoRefund = IIF(@AutoSetting & 4 > 0,1,0)
+
 
   	-- check and not allow attempt to settlement same game while it's still not finish
 	-- This is used in NAP_Admin_CheckingProcess sp
@@ -659,15 +674,15 @@ BEGIN
 			END
 		
 		END	
-		
+
 		--Auto payout exept Pingoal
-		IF @IsCentral = 1 AND @IsAuto = 1 AND @Action LIKE 'CAL%'  AND @LeagueGroupID NOT IN (122, 151)
+		IF @IsCentral = 1 AND @IsAuto = 1 AND @HasAutoPayout = 1 AND @Action LIKE 'CAL%'
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
-				  @MatchId 			 = @matchid
-				, @SelectedResources = @SelectedResources
-				, @StatusId 		 = 2
-				, @UserId			 = @creator
+			  @MatchId 			 = @matchid
+			, @SelectedResources = @SelectedResources
+			, @StatusId 		 = 2
+			, @UserId			 = @creator
 		END
 	END TRY
 	BEGIN CATCH
@@ -684,12 +699,12 @@ BEGIN
 
 	SELECT @stop = CURRENT_TIMESTAMP
 	
-	SELECT @logdata = IIF(@IsAuto = 1 AND @Action LIKE 'CAL%' AND @LeagueGroupID NOT IN (122, 151), 'NAP: Auto Payout Calculate ', 'NAP: Calculate ')
-						+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-						+ ' Result: ' + @SelectedResources + '<br/> '
-						+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-						+ ' Betstatus(' + ISNULL(@betstatus,'') + ')' 
-	
+	SELECT @logdata = IIF(@IsAuto = 1 AND @Action LIKE 'CAL%' AND @HasAutoPayout = 1, 'NAP: Auto Payout Calculate ', 'NAP: Calculate ')
+							+ '(' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
+							+ ' Result: ' + @SelectedResources + '<br/> '
+							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
+							+ ' Betstatus(' + ISNULL(@betstatus,'') + ')' 
+
 	EXEC dbo.Logfile_V2 
 		@UserID = @creator
 		,@Doing = @logdata
@@ -753,7 +768,7 @@ BEGIN
   			) AS tbl1
 		ORDER BY OrdNo
 
-		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @sportType IN (6, 9 ) AND @IsAuto = 1 AND @Action = 'CAL')
+		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL')
 		BEGIN
 			EXEC dbo.NAP_Set_GetRefundResult
 				@MatchId		= @MatchID
@@ -782,8 +797,8 @@ BEGIN
 										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
 											THEN CASE 
 													WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
-													WHEN (@sportType IN ( 6, 9, 18 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) THEN 'NAP: Auto Payout: SBO'
-													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) THEN 'NAP: Auto Payout: Direct'
+													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) OR @AutoType = 1 THEN 'NAP: Auto Payout: SBO'
+													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) OR @AutoType = 2 THEN 'NAP: Auto Payout: Direct'
 													ELSE '' 
 												END
 										ELSE ''
@@ -794,7 +809,7 @@ BEGIN
 									END 
 								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
-										WHEN @sportType IN (6,9) AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CAST(@IsExistAR AS VARCHAR(1))
+										WHEN  @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CAST(@IsExistAR AS VARCHAR(1))
 										ELSE '' 
 										END
 						   

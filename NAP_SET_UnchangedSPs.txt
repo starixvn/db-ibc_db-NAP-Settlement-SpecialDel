@@ -1,4 +1,1 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_1_Push.sql
-Settlement\Sportbook\Service\ServiceBroker\DBTXN\dbo.SSB_Settlement_UpdateData.sql
-Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
-Settlement\NegativeBalance\Acc_BalanceNegativeSel_MatchLog.sql
+Settlement\Sportbook\dbo.NAP_Admin_MatchInfoUpd.sql

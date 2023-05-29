@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
+	,@AutoType			TINYINT			= 0
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -45,6 +46,7 @@ AS
 		- 20220512@Louisa: Auto settle and Auto refund Badminton [Redmine:#171676]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221201@Louisa: PinGoal Esports[Redmine:#180808]
+		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -54,6 +56,11 @@ AS
 		 @RefResultStatus ( detect by Web )
 				 1: no reference result exist (result not yet confirmed or not exists Provider score)
 				 2: values inconsistency
+		@AutoType:
+				0: None
+				1: Auto Payout
+				2: Direct Payout
+				3: Others
 */		
 BEGIN
 	SET NOCOUNT ON 
@@ -102,8 +109,10 @@ BEGIN
 															+ CASE WHEN @BroadcastSessionId IS NOT NULL 
 																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 																	ELSE '' END
+															+ ', @AutoType = ' + CONVERT(VARCHAR(5), @AutoType) 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
+															
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 	INSERT INTO @tmpSelectedRID(ResourceID, isFinal, GroupType)
