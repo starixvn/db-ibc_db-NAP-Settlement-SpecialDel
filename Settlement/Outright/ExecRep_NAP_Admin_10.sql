@@ -17,6 +17,7 @@ AS
    
 	 Revision:  
 	  - 20230109@Aries:  Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+	  - 20230526@Kathy: wrong SMA winlost because of order in calculate formula [Redmine:#188795]
 	  
     
 	 Param's Explanation:  
@@ -125,19 +126,19 @@ BEGIN
 			SET	@commWinRate = CASE b.comstatus WHEN '0' THEN 1 -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 												WHEN '1' THEN 0 
 												ELSE 1 END
-				,@NewWinLost = (((b.odds - 1) / @deadheat)+1) * b.stake 
+				,@NewWinLost = b.stake * (((b.odds - 1) / @deadheat)+1)
 				,@NewStatusID = 112
 				,b.[status] = 'WON'
 				,b.ruben = 1 
 				,b.winlostdate = @winlostdate --convert(char(10),getdate(),111)
 				,b.statuswinlost = 2
-				,b.Swinlost = -(b.odds - 1) * b.spositiontaking * b.stake / @deadheat
-				,b.mwinlost = -(b.odds - 1) * b.mpositiontaking * b.stake / @deadheat
-				,b.awinlost = -(b.odds - 1) * b.apositiontaking * b.stake / @deadheat
+				,b.Swinlost = - b.stake * (b.odds - 1) * b.spositiontaking/ @deadheat
+				,b.mwinlost = - b.stake * (b.odds - 1) * b.mpositiontaking/ @deadheat
+				,b.awinlost = - b.stake * (b.odds - 1) * b.apositiontaking/ @deadheat
 				,b.winlost = @NewWinLost
-				,b.Scomm = @commWinRate * (1  - b.spositiontaking - b.mpositiontaking - b.apositiontaking) * b.sdiscount * b.stake
-				,b.acomm = @commWinRate * (1  - b.mpositiontaking - b.apositiontaking) * b.adiscount * b.stake
-				,b.comm  = @commWinRate * (1  - b.apositiontaking) * b.discount * b.stake
+				,b.Scomm = @commWinRate * b.sdiscount * b.stake * (1  - b.spositiontaking - b.mpositiontaking - b.apositiontaking) 
+				,b.acomm = @commWinRate * b.adiscount * b.stake * (1  - b.mpositiontaking - b.apositiontaking) 
+				,b.comm  = @commWinRate * b.discount * b.stake * (1  - b.apositiontaking) 
 				,b.playercomm = @commWinRate * b.playerdiscount * b.stake
 				,b.statusID = @NewStatusID
 				,b.SettlementTime =  CASE WHEN b.winlost <> @NewWinLost OR b.statusID <> @NewStatusID THEN @SettlementTime ELSE b.SettlementTime END
@@ -180,9 +181,9 @@ BEGIN
 				,b.mwinlost = b.mpositiontaking * b.stake
 				,b.awinlost = b.apositiontaking * b.stake
 				,b.winlost = @NewWinLost
-				,b.Scomm = @commLostRate * (1 - b.spositiontaking - b.mpositiontaking - b.apositiontaking) * b.sdiscount * b.stake
-				,b.acomm = @commLostRate * (1 - b.mpositiontaking - b.apositiontaking) * b.adiscount * b.stake
-				,b.comm  = @commLostRate * (1 - b.apositiontaking) * b.discount * b.stake
+				,b.Scomm = @commLostRate * b.sdiscount * b.stake * (1 - b.spositiontaking - b.mpositiontaking - b.apositiontaking) 
+				,b.acomm = @commLostRate * b.adiscount * b.stake * (1 - b.mpositiontaking - b.apositiontaking) 
+				,b.comm  = @commLostRate * b.discount * b.stake * (1 - b.apositiontaking) 
 				,b.playercomm = @commLostRate * b.playerdiscount * b.stake
 				,b.statusID = @NewStatusID
 				,b.SettlementTime =  CASE WHEN b.winlost <> @NewWinLost OR b.statusID <> @NewStatusID THEN @SettlementTime ELSE b.SettlementTime END
