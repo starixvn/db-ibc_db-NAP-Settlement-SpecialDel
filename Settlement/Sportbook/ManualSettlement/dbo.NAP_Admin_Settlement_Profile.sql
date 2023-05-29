@@ -69,6 +69,7 @@ AS
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
+		- 20230328@Aries: Sum total point tennis incorrect [Redmine: #188857]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -333,7 +334,7 @@ BEGIN
 					WHERE	MatchID = @MatchID 
 							AND ResourceID IN ('01','02','03','04','05')
 							AND SettlementStatusID = 4
-							AND ResultStatusID = 5
+							AND ResultStatusID IN (2,5)
 				) t
 		END
 		
