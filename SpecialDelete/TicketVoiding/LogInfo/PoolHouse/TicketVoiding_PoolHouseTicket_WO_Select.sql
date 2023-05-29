@@ -382,13 +382,23 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN @SubIssueTypeId IN (6,119) 
-						AND b.bettype IN (1,7)
+		AND 1 = CASE WHEN @SubIssueTypeId IN (6) 
+						AND b.bettype IN (1)
 						AND b.betteam = @betteam
 						AND ((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
 					THEN 0
-					WHEN @SubIssueTypeId IN (120,121)
-						AND b.bettype IN (3,8)
+					WHEN @SubIssueTypeId IN (119) 
+						AND b.bettype IN (7)
+						AND b.betteam = @betteam
+						AND ((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
+					THEN 0
+					WHEN @SubIssueTypeId IN (120)
+						AND b.bettype IN (3)
+						AND b.betteam = @FilterOUType
+						AND b.hdp1 = @OUValue
+					THEN 0
+					WHEN @SubIssueTypeId IN (121)
+						AND b.bettype IN (8)
 						AND b.betteam = @FilterOUType
 						AND b.hdp1 = @OUValue
 					THEN 0
@@ -489,12 +499,20 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN @SubIssueTypeId IN (6,119) AND b.Subbettype IN (1,7)
+					,CASE WHEN @SubIssueTypeId IN (6) AND b.Subbettype IN (1)
 							AND b.Subbetteam = @betteam 
 							AND ((@FilterFavoriteType = 'h' AND b.Subhdp1 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)) 
 								OR (@FilterFavoriteType = 'a' AND b.Subhdp2 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)))
 							THEN 'HDP'
-						  WHEN @SubIssueTypeId IN (120,121) AND b.Subbettype IN (3,8) 
+						  WHEN @SubIssueTypeId IN (119) AND b.Subbettype IN (7)
+							AND b.Subbetteam = @betteam 
+							AND ((@FilterFavoriteType = 'h' AND b.Subhdp1 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)) 
+								OR (@FilterFavoriteType = 'a' AND b.Subhdp2 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)))
+							THEN 'HDP'
+						  WHEN @SubIssueTypeId IN (120) AND b.Subbettype IN (3) 
+							AND b.Subbetteam = @FilterOUType 
+							AND b.Subhdp1 IN (SELECT OUValue FROM @tmpOUValue) THEN 'OU'
+						  WHEN @SubIssueTypeId IN (121) AND b.Subbettype IN (8) 
 							AND b.Subbetteam = @FilterOUType 
 							AND b.Subhdp1 IN (SELECT OUValue FROM @tmpOUValue) THEN 'OU'
 						  WHEN @SubIssueTypeId IN (6,120) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 

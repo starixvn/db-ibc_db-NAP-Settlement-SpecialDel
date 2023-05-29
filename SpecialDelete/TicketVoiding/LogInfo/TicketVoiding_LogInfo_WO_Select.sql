@@ -561,8 +561,8 @@ BEGIN
 			)
 
 			--Range 1: from 1 to possitive odds
-			SET @FromOdds = 1.00
-			SET @ToOdds = CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
+			SET @FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
+			SET @ToOdds = 1.00
 
 			SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
 		
