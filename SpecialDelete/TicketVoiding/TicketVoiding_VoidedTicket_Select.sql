@@ -27,6 +27,7 @@ AS;
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230425@July: [TVS] [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
 
 	Param's explanation:	
 		
@@ -157,11 +158,16 @@ BEGIN
 		INSERT INTO @tmpChildMatchCricket (MatchId, ChildMatchId)
 		SELECT @MatchId, m.matchid
 		FROM dbo.match m WITH (NOLOCK)
-		WHERE m.ParentID = @MatchId
-			AND m.sporttype = 50 
-			AND m.ChildMatchType = 200
+		WHERE m.ParentID = @MatchId AND m.sporttype = 50 AND m.ChildMatchType = 200
 	END
-
+	-- Support case Cricket main in table match -> child in table match14
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match14 m WITH (NOLOCK) WHERE m.ParentID = @MatchId AND m.sporttype = 50)
+	BEGIN
+		INSERT INTO @tmpChildMatchCricket (MatchId, ChildMatchId)
+		SELECT @MatchId, m.matchid
+		FROM dbo.match14 m WITH (NOLOCK)
+		WHERE m.ParentID = @MatchId AND m.sporttype = 50 AND m.ChildMatchType = 200
+	END
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpChildMatchCricket)
 	BEGIN
 		INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Refno, Bettype, Odds, oddsid, winlostdate)
