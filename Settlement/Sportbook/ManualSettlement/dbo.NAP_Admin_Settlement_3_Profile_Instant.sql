@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile_Instant]
 	@matchid INT
 	,@hth INT = 0
 	,@hta INT = 0
-    ,@action VARCHAR(6) = 'CAL-HT'
+    ,@action VARCHAR(20) = 'CAL-HT'
 	,@ActionID	INT = 0
 	,@creator INT = 0
 	,@SessionId	BIGINT = NULL
@@ -21,6 +21,7 @@ AS
 	   - 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 	   - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+	   - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 */
 BEGIN
@@ -34,7 +35,7 @@ BEGIN
 			,@BatchNo		INT 
 			,@TotalTicket	INT
 			,@MessageType	VARCHAR(50)	
-			,@ThreadHold	INT
+			,@Threshold	INT
 			,@IsExistCashout BIT
 			
 			,@MessageBody VARCHAR(MAX)
@@ -46,7 +47,7 @@ BEGIN
 			,@strTransIds	VARCHAR(MAX)
 			,@TotalSubParlay INT
 			,@SelectedResourceParlay VARCHAR(MAX) 
-			,@ThreadHoldRefno	INT 
+			,@ThresholdRefno	INT 
 			,@LockedByRefno		BIT
 			,@sqlCommand		VARCHAR(MAX)
 			,@ParamsXML			XML
@@ -62,7 +63,7 @@ BEGIN
 		,HomeValue VARCHAR(2000)
 		,AwayValue VARCHAR(2000)
 	)
-	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), SDTResourceId VARCHAR(20), SDTpfId SMALLINT, OddsType TINYINT, RefResourceId VARCHAR(20))
+	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), SDTResourceId VARCHAR(20), SDTpfId SMALLINT, OddsType TINYINT, RefResourceId VARCHAR(20), DeterminedType TINYINT)
 	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, winlost MONEY, statuswinlost TINYINT)	
 	DECLARE @tmpBatchMinMaxCustId TABLE (BatchNo INT, MinCustId INT, MaxCustId INT)
@@ -81,7 +82,7 @@ BEGIN
 			,@DummyResourceIds = ''
 			,@DummyResourceResults = ''
 			,@MessageTypePattern = 'bet_settle_msg_type_prepare_'
-			,@ThreadHold = 0
+			,@Threshold = 0
 			,@QueueNo = 0
 			,@BatchNo = 0
 			,@TotalTicket = 0
@@ -90,7 +91,7 @@ BEGIN
 			,@SettlementProcessingId = 0
 			,@SPName = OBJECT_NAME(@@PROCID)
 			,@TotalSubParlay = 0
-			,@ThreadHoldRefno = 0
+			,@ThresholdRefno = 0
 			,@LockedByRefno = 0
 			,@sqlCommand = ''
 			,@IsCentral = 0
@@ -108,12 +109,12 @@ BEGIN
 
 	-- Get min/max custid
 	BEGIN
-		INSERT INTO @tmpAllBettypes(Bettype, SDTResourceId, SDTpfId, OddsType, ResourceId, RefResourceId)
-		SELECT	DISTINCT s.BetType, s.SDTResourceId, s.SDTpfId, s.OddsType, s.ResourceId, s.RefResourceId
+		INSERT INTO @tmpAllBettypes(Bettype, SDTResourceId, SDTpfId, OddsType, ResourceId, RefResourceId, DeterminedType)
+		SELECT	DISTINCT s.BetType, s.SDTResourceId, s.SDTpfId, s.OddsType, s.ResourceId, s.RefResourceId, s.DeterminedType
 		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
 		WHERE	s.SportType = @sporttype
 				AND s.SettleType = 'MNL'
-				AND s.DeterminedType = 2
+				AND s.DeterminedType & 2 > 0
 
 		INSERT INTO #tmpCustBettypes(CustId, Bettype, TotalTicket)
 		SELECT	b.custid
@@ -150,11 +151,11 @@ BEGIN
 			@LockName = 'SettlementSSB'
 			,@PrepareDataQueueSize =  @PrepareDataQueueSize OUTPUT
 			,@RunPrepareDataBySSB = @RunPrepareDataBySSB OUTPUT
-			,@MaxThreadHold = @ThreadHold OUTPUT
+			,@MaxThreadHold = @Threshold OUTPUT
 
 		UPDATE	#tmpCustIds
 			SET runningtotal = @TotalTicket  
-				,@TotalTicket = CASE WHEN @TotalTicket + TotalTicket >= @ThreadHold THEN TotalTicket ELSE @TotalTicket + TotalTicket END
+				,@TotalTicket = CASE WHEN @TotalTicket + TotalTicket >= @Threshold THEN TotalTicket ELSE @TotalTicket + TotalTicket END
 				,BatchNo = @batchNo
 				,@batchNo = CASE WHEN @TotalTicket = TotalTicket THEN @BatchNo + 1 ELSE @batchNo END
 		OPTION (MAXDOP 1)
@@ -455,6 +456,7 @@ BEGIN
 					,t.HomeValue
 					,t.AwayValue					
 					,s.RefResourceId
+					,s.DeterminedType
 			FROM	@tmpAllBettypes s
 				INNER JOIN @tmpResources t
 					ON s.SDTResourceId = t.SDTResourceId
@@ -467,6 +469,7 @@ BEGIN
 					,CAST(@hth AS VARCHAR(2000)) AS HomeValue
 					,CAST(@hta AS VARCHAR(2000)) AS AwayValue
 					,s.RefResourceId
+					,s.DeterminedType
 			FROM	@tmpAllBettypes s
 			WHERE	s.SDTResourceId IS NULL
 					AND  EXISTS (SELECT TOP 1 1 FROM @tmpParlayAffectedBettypes b WHERE b.Bettype = s.BetType)
@@ -477,15 +480,15 @@ BEGIN
 											,SDTpfId AS '@SDTpfId'
 											,HomeValue AS '@Home'
 											,AwayValue AS '@Away'
-											,2 AS '@DeterminedType'
+											,DeterminedType AS '@DeterminedType'
 									FROM	cteSelectedRID
 									FOR XML PATH ('Resource'), ROOT('Resources'), TYPE) AS VARCHAR(MAX))
 			
 		EXEC dbo.NAP_Set_GlobalSettingSel 
 			@LockName = 'ParlayRefno'
-			,@ThreadHold = @ThreadHoldRefno OUTPUT
+			,@ThreadHold = @ThresholdRefno OUTPUT
 
-		IF @TotalSubParlay <= @ThreadHold
+		IF @TotalSubParlay <= @ThresholdRefno
 			SET @LockedByRefno = 1
 			
 		SET	@sqlCommand =  'EXEC [dbo].[NAP_Admin_Settlement_Profile_Parlay] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
@@ -493,9 +496,12 @@ BEGIN
 								+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''	
 								+ ', @hth = ' + CONVERT(NVARCHAR(50), @hth) 
 								+ ', @hta = ' + CONVERT(NVARCHAR(50), @hta) 
+								+ ', @fth = ' + CONVERT(NVARCHAR(50), @hth) 
+								+ ', @fta = ' + CONVERT(NVARCHAR(50), @hta) 
 								+ ', @IsReSettledTickets = 0'			
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
+								+ ', @DeterminedType = 2'
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -509,6 +515,9 @@ BEGIN
 				,@IsReSettledTickets = 0
 				,@hth				= @hth
 				,@hta				= @hta
+				,@fth				= @hth
+				,@fta				= @hta
+				,@DeterminedType 	= 2
 				,@LockedByRefno		= 1 -- always lock refno for testing
 				,@IsCentral			= @IsCentral
 

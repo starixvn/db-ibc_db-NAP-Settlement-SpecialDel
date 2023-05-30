@@ -31,6 +31,7 @@ AS
 		- 20220926@Louisa: remove NAP_Set_SettlementStatusChecking (already checked before settle by web) [Redmine:#178120]
 		- 20221019@Louisa: insert BroadcastSessionId into queue auto void in case not exists ticket parlay [Redmine:#179361]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -484,7 +485,7 @@ BEGIN
 		SELECT @ResourceResult = ISNULL(@ResourceResult,'') + ISNULL(@ResourceResult_Corner_Result,'')
 
 		EXEC DBPRO.BODB02.dbo.NAP_Admin_Result_Update_1s
-			@Command        = 'NAP_Admin_Settlement_1_InstantCalculation-CAL', -- reuse inst command
+			@Command        = 'CalByResourceId',
 			@MatchID        = @MatchID,                  
 			@ResourceResult	= @ResourceResult_Corner_Result,                    
 			@creator        = @creator
@@ -500,7 +501,7 @@ BEGIN
 			EXEC dbo.NAP_Set_DummyResourceResult
 				@MatchID = @MatchID
 				,@sportType = @sportType
-				,@WebResourceResult = @ResourceResult_Main_Result
+				,@WebResourceResult = @ResourceResult
 				,@IsDetermined = 1
 				,@DummyResourceIds = @DummySDTResourceIds
 				,@DummyResourceResults = @DummySDTResourceResults OUTPUT
@@ -838,7 +839,7 @@ BEGIN
 				EXEC dbo.NAP_Set_DummyResourceResult
 					@MatchID = @MatchID
 					,@sportType = @sportType
-					,@WebResourceResult = @ResourceResult_Main_Result
+					,@WebResourceResult = @ResourceResult
 					,@IsDetermined = 1
 					,@DummyResourceIds = @DummySDTResourceIds
 					,@DummyResourceResults = @DummySDTResourceResults OUTPUT

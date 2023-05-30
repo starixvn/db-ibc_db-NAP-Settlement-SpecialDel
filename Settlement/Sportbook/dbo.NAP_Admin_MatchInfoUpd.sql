@@ -32,10 +32,11 @@ AS
 		- 20221011@Kathy: fix issue basketball - do not upd match_remark.IsHTCal
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:
-		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR
-		@Mode: INST-HT, INST-FT, FM, BB, MP
+		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
+		@Mode: FM, BB, MP
 
 		@SelectedMarket: <Resources>
 				            <rsc m="1"/>
@@ -242,11 +243,11 @@ BEGIN
 		RETURN
 	END
 
-	IF @Mode LIKE 'INST%' AND  @ResourceResult IS NOT NULL	
+	IF @Action LIKE '%INST%' AND  @ResourceResult IS NOT NULL	
 	BEGIN
 		SET @instcommand = CASE 
-								WHEN @Action = 'CAL' THEN 'CalByResourceId'
-								WHEN @Action = 'UNDO' THEN 'UndoByResouceId'
+								WHEN @Action LIKE 'CAL%' THEN 'CalByResourceId'
+								WHEN @Action LIKE 'UNDO%' THEN 'UndoByResouceId'
 								ELSE ''
 							END
 

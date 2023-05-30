@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	 @creator				INT
 	,@MatchID				INT
-	,@Action		  		VARCHAR(10)		= 'CAL'
+	,@Action		  		VARCHAR(20)		= 'CAL'
 	,@IP	 				VARCHAR(15)		= ''
 	,@SelectedResources		VARCHAR(MAX)
 	,@hth					INT			= 0
@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
+	,@DeterminedType		TINYINT		= 0
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
@@ -33,6 +34,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -63,11 +65,8 @@ BEGIN
 			,@strMainTransIdRefnos	VARCHAR(MAX) = ''			
 			,@totalMainParlay		INT
 			,@IsABANDONEDHT			BIT = 0
-			--,@DummySDTResourceIds		VARCHAR(MAX) = ''
-			--,@DummySDTResourceResults	VARCHAR(MAX) = ''
 			,@IsSDT				BIT = 0
 			,@subAction			VARCHAR(20) = ''
-			,@DeterminedType	TINYINT = 0
 			,@ResourceRefund	VARCHAR(100) = ''
 						
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
@@ -79,7 +78,6 @@ BEGIN
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
 		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
 	)
-	--DECLARE @tmpDummySDTResourceResults TABLE (SDTResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
 	DECLARE @tmpResourceAutoRefund TABLE ( ResourceID VARCHAR(20) )
@@ -210,21 +208,19 @@ BEGIN
 			SET @totalSubParlay = @@ROWCOUNT
 
 			
-			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType = 2)
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
 			BEGIN
-				SET @DeterminedType = 2
-
-				INSERT INTO #tmpsubTransID (TransID, modds, refno)
-				SELECT	bm.transid, m.modds, bm.refno
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
+				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
 						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype
 								AND (t.BetID = 0 OR t.BetID = bm.betcheck)
-								AND t.DeterminedType = 2
+								AND t.DeterminedType & @DeterminedType > 0
 					)sr
-					OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @hth, @hta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
+					OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @fth, @fta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 						ON	b.matchid = 29
 							AND b.bettype = 29
@@ -237,17 +233,22 @@ BEGIN
 					) mt
 				WHERE	bm.matchid = @MatchID
 						AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+						AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
+							AND b.recommend <> 1688156) --exclude betdaq/betfair
 						--AND bm.statusID IN (0,102)
 						AND m.modds IS NOT NULL
-						AND mt.TransId IS NULL
 						AND ((bm.statusId = 0 AND ISNULL(bm.SecAcceptFlag,0)=0)
 							OR (bm.statusID = 0 AND bm.SecAcceptFlag=1 AND ISNULL(bm.checktime,CURRENT_TIMESTAMP) <= CURRENT_TIMESTAMP)
 							OR bm.statusID = 102
 						)
+						AND 1 = CASE 
+									WHEN @DeterminedType IN (1,4) AND m.modds > -0.5 AND m.modds < 0.5 THEN 0									
+									ELSE 1 
+								END
 						and 1 = case 
-								when sr.SDTpfId = 3 then case when (@hth + @hta) - 0.25 > bm.hdp1 then 1 else 0 end
-								when sr.SDTpfId = 388 then case when @hta - 0.25 > bm.hdp1 then 1 else 0 end
-								when sr.SDTpfId = 389 then case when @hth - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 3 then case when (@fth + @fta) - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 388 then case when @fta - 0.25 > bm.hdp1 then 1 else 0 end
+								when sr.SDTpfId = 389 then case when @fth - 0.25 > bm.hdp1 then 1 else 0 end
 								else 1
 							end
 
@@ -299,6 +300,7 @@ BEGIN
 				FROM	@tmpSelectedRID t
 				WHERE	t.BetType = bm.bettype
 						AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+						AND t.DeterminedType = 0
 			)sr
 			LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK) 
 				ON	b.matchid = 29
@@ -319,6 +321,50 @@ BEGIN
 						END
 
 		SET @totalSubParlay = @@ROWCOUNT
+
+		IF EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE DeterminedType > 0)
+		BEGIN
+			INSERT INTO #tmpsubTransID (TransID, refno, IsMarked)
+			SELECT	bm.transid, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked 
+			FROM	dbo.bettransm bm WITH(NOLOCK)
+				CROSS APPLY (
+					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
+					FROM	@tmpSelectedRID t
+					WHERE	t.BetType = bm.bettype
+							AND (t.BetID = 0 OR t.BetID = bm.betcheck)
+							AND t.DeterminedType & @DeterminedType > 0
+				)sr
+				OUTER APPLY dbo.f_Set_SDT_modds(sr.SDTpfId, bm.betteam, bm.hdp1, bm.hdp2, @hth, @hta, @fth, @fta, sr.HomeValue, sr.AwayValue, bm.livehomescore, bm.liveawayscore, bm.transdesc, bm.betcheck, 0) m
+				LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
+					ON	b.matchid = 29
+						AND b.bettype = 29
+						AND b.refno = bm.refno
+				OUTER APPLY (
+						SELECT TOP (1) mt.TransId
+						FROM	dbo.MarkedTransaction mt WITH(NOLOCK)
+						WHERE	mt.TransId = b.transId
+								AND mt.MatchId = @MatchID
+				) mt
+			WHERE	bm.matchid = @MatchID
+					AND (b.custid NOT IN (50057, 879241, 103873, 78761, 851668, 878902, 2331, 1077687, 115770, 15523642) 
+							AND b.recommend <> 1688156) --exclude betdaq/betfair
+					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
+					AND 1 = CASE
+								WHEN bm.statusId IN (112, 113)
+									AND (bm.statusId <> CASE
+													WHEN m.modds >= 0.5 THEN 112
+													WHEN m.modds <= -0.5 THEN 113
+													ELSE 0
+												END 
+									) THEN 1
+								WHEN bm.statusId = 0 AND mt.TransId IS NOT NULL
+									AND ISNULL(bm.statuswinlost,0) <> 0
+									AND m.modds IS NULL THEN 1
+								ELSE 0
+							END
+				
+			SET @totalSubParlay = @totalSubParlay + @@ROWCOUNT
+		END
 	END 
 	ELSE IF @action LIKE 'REFUND%' 
 	BEGIN
@@ -751,7 +797,11 @@ END
 	SET @stop = CURRENT_TIMESTAMP
 
 	SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-							+ CASE WHEN @DeterminedType = 2 THEN ' SDT-FT:1' ELSE '' END
+							+ CASE 
+								WHEN @DeterminedType = 2 THEN ' SDT-FT:1' 
+								WHEN @DeterminedType = 1 THEN ' Instant HT' 
+								WHEN @DeterminedType = 4 THEN ' Instant FT' 
+								ELSE '' END
 							+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
 							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
 						   
@@ -762,8 +812,15 @@ END
 	
 	IF @IsCentral = 1
 	BEGIN
+		SELECT @fth = CASE WHEN @DeterminedType = 1 THEN NULL ELSE @fth END
+				,@fta = CASE WHEN @DeterminedType = 1 THEN NULL ELSE @fta END
+
 		SELECT @Remark = CASE WHEN @sportType <> 1 THEN @ResultRemarkLog + '<br/> '  ELSE '' END
-							+ CASE WHEN @DeterminedType = 2 THEN 'SDT-FT:1' ELSE '' END
+							+ CASE 
+								WHEN @DeterminedType = 2 THEN ' SDT-FT:1' 
+								WHEN @DeterminedType = 1 THEN ' Instant HT' 
+								WHEN @DeterminedType = 4 THEN ' Instant FT' 
+								ELSE '' END
 							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
@@ -771,7 +828,11 @@ END
 		BEGIN TRY
 			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 				,@Matchid = @matchLog
-				,@ActionID = @ActionID				
+				,@ActionID = @ActionID	
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
 				,@Remark = @Remark
 				,@IP = @IP
 		END TRY
@@ -781,7 +842,11 @@ END
 
 			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
 				,@Matchid = @matchLog
-				,@ActionID = @ActionID				
+				,@ActionID = @ActionID	
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
 				,@Remark = @Remark
 				,@IP = @IP
 		END CATCH

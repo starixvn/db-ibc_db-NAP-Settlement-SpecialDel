@@ -4,8 +4,8 @@ ALTER PROCEDURE NAP_Admin_Settlement_Validation_Ticket
 	 @matchid		INT = 0
 	,@matchids		VARCHAR(500) = ''
 	,@DestinationMatchId	INT = 0
-	,@Action		VARCHAR(10)
-	,@Mode			VARCHAR(10)
+	,@Action		VARCHAR(20)
+	,@Mode			VARCHAR(20) = NULL
 	,@IsAuto		BIT = 0
 	,@ResourceResult VARCHAR(MAX)	= NULL		--AutoPayout_Push
 	,@SPName		 VARCHAR(255)
@@ -33,6 +33,7 @@ AS
 		- 20220719@Louisa: Validation before settle  [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
@@ -40,8 +41,9 @@ AS
 		@Action: CAL, CAL-HT, CAL-FT
 				, REFUND, REFUND-HT, REFUND-FT, REFUND-EAR,CAL-FM
 				,BetFair, BetDaq ( for Move Betdaq/betfair )
+				,CAL-INST-HT, CAL-INST-FT, UNDO-INST-HT, UNDO-INST-HT
 
-		@Mode: ALL, HT, FT, EAR, INST-HT, INST-FT, INST-UNDO, FM, MP
+		@Mode: ALL, HT, FT, EAR, FM, MP
 
 */
 
@@ -196,7 +198,7 @@ BEGIN
 	END
 
 	--Check MoveBet date ( apply all sportbook)
-	IF @Mode NOT LIKE '%INST%'
+	IF @Action NOT LIKE '%INST%'
 	BEGIN
 		EXEC dbo.NAP_Admin_Settlement_CheckingMoveBetDay
 			@MatchIds		 = @MatchId 
@@ -234,7 +236,7 @@ BEGIN
 		RETURN
 	END
 
-	IF @Mode = 'INST' OR @Action IN ('BetFair', 'BetDaq')
+	IF @Action LIKE '%INST%' OR @Action IN ('BetFair', 'BetDaq')
 	BEGIN
 		IF EXISTS (	SELECT TOP 1 1
 					FROM dbo.Parlay_Calculate_Queue WITH (NOLOCK)
@@ -255,7 +257,7 @@ BEGIN
 	END
 
 	-- check waiting ticket for calculate cal-ht/ft/call/early,  all undo
-	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Mode IN ( 'INST') )
+	IF NOT EXISTS ( SELECT TOP 1 1 WHERE @Action IN ( 'CAL', 'REFUND' ) AND @Action LIKE '%INST%' )
 	BEGIN
 		IF (  @SportType = 1  
 				AND @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'UNDO-FT') 
@@ -299,24 +301,6 @@ BEGIN
 		IF ISNULL(@ErrCode,0) <> 0
 		RETURN
 	END
-
-	--Start: validation for Instant settle
-	IF @Action = 'CAL' AND @Mode LIKE '%INST%'
-	BEGIN
-		EXEC dbo.NAP_Settlement_InstantCalculation_Checking 
-			@MatchId 		= @MatchId
-			, @InstantKey	= @InstantKey
-			, @Action 		= @Action
-			, @Mode			= @Mode
-			, @ErrCode 		= @ErrCode OUTPUT
-			, @ErrMsg 		= @ErrMsg OUTPUT
-
-		IF ISNULL(@ErrCode,0)>0
-		RETURN
-
-	END
-	--/ END validation for Instant settle
-		
 
 	--Start: Validation for Refund Single
 	IF @Action = 'REFUND-FT' AND @Mode <> 'MP' AND EXISTS ( SELECT TOP 1 1

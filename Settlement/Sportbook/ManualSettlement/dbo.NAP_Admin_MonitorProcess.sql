@@ -25,6 +25,7 @@ AS
 		  - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		  - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		  - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		  - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's Explanation:  
 	
@@ -192,6 +193,9 @@ BEGIN
 		BEGIN
 			SELECT @Remark ='NAP: ' 
 							+ CASE 
+								WHEN @Action LIKE '%INST%' THEN
+									CASE WHEN @SourceId = 5 THEN 'Source: Soccerway' ELSE '' END
+									+ CASE WHEN @TicketCount IS NOT NULL THEN ' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';' ELSE '' END
 								WHEN @Action LIKE 'CAL%' THEN 
 									CASE 
 										WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '

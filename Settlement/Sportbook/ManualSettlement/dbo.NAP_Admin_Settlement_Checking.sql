@@ -2,7 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Checking] 
 	  @MatchId 				INT = NULL
 	, @MatchIds 			VARCHAR(4000) = NULL OUTPUT
-	, @Action 				VARCHAR(10) = 'CAL'
+	, @Action 				VARCHAR(20) = 'CAL'
 	, @Mode 				VARCHAR(20) = 'CAL'
 	, @xmlData				VARCHAR(MAX) = NULL
 	, @IsAuto				BIT = 0
@@ -46,6 +46,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		
 	Param's Explanation:
 		
@@ -55,7 +56,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	IF  ( @Action LIKE 'REFUND%' AND @Mode ='MP' ) --refund parlay
-		OR @Mode LIKE 'INST%'	---setle instant
+		OR @Action LIKE '%INST%'	---setle instant
 		OR @Mode = 'BB'			----Betbuider
 		OR @Action = 'MoveTicket'
 	BEGIN

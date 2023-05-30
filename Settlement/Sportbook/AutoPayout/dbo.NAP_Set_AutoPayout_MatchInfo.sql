@@ -1,6 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_MatchInfo
 	@MatchIds	VARCHAR(MAX)
+	,@LeagueId INT = 0
 AS
 /*
 	Created: 20160825@Kathy
@@ -25,6 +26,7 @@ AS
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20211118@Louisa: EventStatusReason for soccer only [Redmine:#164408]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's explanation: 
 */
@@ -95,6 +97,7 @@ BEGIN
 				AND prd.SourceID = 100 --#86964
 				AND NOT EXISTS (SELECT TOP 1 1 FROM @tblMatchInQueue q WHERE q.MatchId = prd.MatchId)
 				AND m.sporttype = 1 
+				AND (m.leagueid = @LeagueId OR @LeagueId = 0) 
 				AND m.eventstatus = 'running' 
 				AND 2 & ISNULL(m.AutoSetting,l.AutoSetting) = 2
 				AND m.SettlementStatus & 87 = 0 --bit 1,2,3,5,7
@@ -158,7 +161,9 @@ BEGIN
 							 )
 					  )--#86964
 
-			OR (aps.StatusId = 2 AND temp.IsConfirmed = 0) --abnormal case -> re-calculate
+			OR (aps.StatusId = 2 
+				AND temp.IsConfirmed = 0
+				) --abnormal case -> re-calculate
 		)
 			
 	;WITH cteAutoResultDetail
@@ -301,7 +306,9 @@ BEGIN
 							 )
 					  )--#86964
 
-			OR (aps.StatusId = 2 AND temp.IsConfirmed = 0) --abnormal case -> re-calculate
+			OR (aps.StatusId = 2 
+				AND temp.IsConfirmed = 0
+				) --abnormal case -> re-calculate
 		)
 		
 	--update instant match status info
@@ -378,7 +385,7 @@ BEGIN
 			,m.EventStatusReason
 			,ISNULL(l.AutoSetting, 0) AS AutoSettingForLeague
 			,ISNULL(ss.WaitingTime, 120) AS InstantWaitingTime
-			,ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime
+			,ISNULL(ssDirect.WaitingTime, 1) AS DirectWaitingTime			
 	FROM	@tblMatchInQueue q
 		INNER JOIN match m WITH(NOLOCK)
 			ON	q.MatchId = m.matchid

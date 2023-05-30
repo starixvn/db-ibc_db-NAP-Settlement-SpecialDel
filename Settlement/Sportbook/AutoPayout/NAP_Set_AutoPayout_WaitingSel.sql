@@ -39,6 +39,7 @@ AS
 		- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 
 	Param's explanation: 
 		
@@ -160,6 +161,7 @@ BEGIN
 	INSERT INTO @tblMatchInfo
 	EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayout_MatchInfo 
 	@MatchIds = @MatchIds
+	,@LeagueId = @LeagueId
 	
 	-- get more match of Auto Payout & Instant
 	INSERT INTO #tblMatchInQueue (MatchId, SingleStatus, ParlayStatus)
@@ -490,7 +492,7 @@ BEGIN
 			,i.EventStatusReason
 			,i.autoSettingForLeague
 			,i.InstantWaitingTime
-			,i.DirectWaitingTime			
+			,i.DirectWaitingTime	
 	FROM	@tblMatchInfo i
 		LEFT JOIN #tblMatchInQueue m
 			ON i.matchid = m.MatchId
