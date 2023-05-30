@@ -17,6 +17,7 @@ AS
 		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
 
 	Param's explanation:
 		
@@ -97,6 +98,18 @@ BEGIN
 		SELECT DISTINCT t.RequestId, t.MatchId, m.matchid
 		FROM #tmpResult t 
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.ParentID = t.MatchId
+		WHERE m.sporttype = 50 
+			AND m.ChildMatchType = 200
+	END
+
+	-- Support case Cricket main in table match -> child in table match14
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult t
+						INNER JOIN dbo.match14 m WITH (NOLOCK) ON m.ParentID = t.MatchId AND m.sporttype = 50)
+	BEGIN
+		INSERT INTO @tmpChildMatchCricket (RequestId, MatchId, ChildMatchId)
+		SELECT t.RequestId, t.MatchId, m.matchid
+		FROM #tmpResult t 
+			INNER JOIN dbo.match14 m WITH (NOLOCK) ON m.ParentID = t.MatchId
 		WHERE m.sporttype = 50 
 			AND m.ChildMatchType = 200
 	END
