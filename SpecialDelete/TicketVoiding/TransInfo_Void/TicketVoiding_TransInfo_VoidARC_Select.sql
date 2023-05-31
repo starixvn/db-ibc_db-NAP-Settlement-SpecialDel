@@ -2,7 +2,6 @@
 ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_VoidARC_Select] 
 (
 	@SingleTransIds  VARCHAR(MAX) = NULL
-	,@ParlayTransIds  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -16,6 +15,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -97,8 +97,11 @@ BEGIN
 	FROM STRING_SPLIT(@SingleTransIds, ',')
 	WHERE value <> ''
 
-	--Search single tickets
-	INSERT INTO #TransInfo(
+	IF EXISTS (SELECT TOP 1 1 FROM #transIdTemp t
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.transid)
+	BEGIN
+		--Search single tickets
+		INSERT INTO #TransInfo(
 			matchid 
 			,transid
 			,Subtransid 
@@ -158,71 +161,72 @@ BEGIN
 			,SiteDBGroupID
 			,winlostdate
 		)
-	SELECT b.matchid
-		,b.TransId
-		,b.transid AS SubTransID
-		,b.custid
-		,b.transdate
-		,b.checktime
-		,b.hdp1
-		,b.hdp2
-		,b.livehomescore
-		,b.liveawayscore
-		,b.liveindicator
-		,b.betteam
-		,b.creator
-		,b.refno
-		,b.betid
-		,b.bettype
-		,b.betdaqid 
-		,b.betfrom 
-		,b.statusID 
-		,b.WalletType 
-		,b.RefCode 
-		,b.custid Subcustid         
-		,b.livehomescore AS Sublivehomescore 
-		,b.liveawayscore AS Subliveawayscore 
-		,b.hdp1 AS Subhdp1 
-		,b.hdp2 AS Subhdp2 
-		,b.betfrom AS Subbetfrom 
-		,b.bettype AS Subbettype 
-		,b.statusID AS SubstatusID 
-		,b.transdate AS Subtransdate 
-		,b.checktime AS Subchecktime 
-		,b.liveindicator AS Subliveindicator 
-		,b.recommend 
-		,b.mrecommend 
-		,b.srecommend 
-		,b.statuswinlost 
-		,0 AS IsMixParlay 
-		,b.odds 
-		,b.odds AS Subodds 
-		,b.oddsspread
-		,b.oddstype 
-		,b.betcheck 
-		,b.betcheck AS Subbetcheck 
-		,b.stake 
-		,b.CurrencyName 
-		,b.Transdesc 
-		,b.ExtraInfo 
-		,b.BonusID 
-		,b.winlost        
-		,b.actual_stake 
-		,b.Status
-		,b.status AS SubStatus 
-		,b.betteam AS Subbetteam  
-		,b.oddsspread AS Suboddsspread 
-		,b.transdesc SubTransdesc  
-		,b.modds 
-		,b.SiteDBGroupID
-		,b.winlostdate
-	FROM #transIdTemp t
-		INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
-	WHERE b.statusID NOT IN (101, 102, 103)
-		AND b.bettype NOT IN (805, 806)			
-		AND b.bettype NOT BETWEEN 901 AND 920
-		AND b.betfrom <> 'P'
-		AND b.SiteDBGroupID = @SiteDBGroupID
+		SELECT b.matchid
+			,b.TransId
+			,b.transid AS SubTransID
+			,b.custid
+			,b.transdate
+			,b.checktime
+			,b.hdp1
+			,b.hdp2
+			,b.livehomescore
+			,b.liveawayscore
+			,b.liveindicator
+			,b.betteam
+			,b.creator
+			,b.refno
+			,b.betid
+			,b.bettype
+			,b.betdaqid 
+			,b.betfrom 
+			,b.statusID 
+			,b.WalletType 
+			,b.RefCode 
+			,b.custid Subcustid         
+			,b.livehomescore AS Sublivehomescore 
+			,b.liveawayscore AS Subliveawayscore 
+			,b.hdp1 AS Subhdp1 
+			,b.hdp2 AS Subhdp2 
+			,b.betfrom AS Subbetfrom 
+			,b.bettype AS Subbettype 
+			,b.statusID AS SubstatusID 
+			,b.transdate AS Subtransdate 
+			,b.checktime AS Subchecktime 
+			,b.liveindicator AS Subliveindicator 
+			,b.recommend 
+			,b.mrecommend 
+			,b.srecommend 
+			,b.statuswinlost 
+			,0 AS IsMixParlay 
+			,b.odds 
+			,b.odds AS Subodds 
+			,b.oddsspread
+			,b.oddstype 
+			,b.betcheck 
+			,b.betcheck AS Subbetcheck 
+			,b.stake 
+			,b.CurrencyName 
+			,b.Transdesc 
+			,b.ExtraInfo 
+			,b.BonusID 
+			,b.winlost        
+			,b.actual_stake 
+			,b.Status
+			,b.status AS SubStatus 
+			,b.betteam AS Subbetteam  
+			,b.oddsspread AS Suboddsspread 
+			,b.transdesc SubTransdesc  
+			,b.modds 
+			,b.SiteDBGroupID
+			,b.winlostdate
+		FROM #transIdTemp t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
+		WHERE b.statusID NOT IN (101, 102, 103)
+			AND b.bettype NOT IN (805, 806)			
+			AND b.bettype NOT BETWEEN 901 AND 920
+			AND b.betfrom <> 'P'
+			AND b.SiteDBGroupID = @SiteDBGroupID
+	END
 						
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'

@@ -25,6 +25,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's explanation:	
 		
@@ -52,6 +53,7 @@ BEGIN
 			,@ErrMsgMove VARCHAR(300)
 			,@MoveBetMatchIds VARCHAR(MAX) = NULL
 			,@MoveBetMatchIdsXML XML = NULL
+
 
 	DECLARE @tmpMatchMoveBet_update TABLE (
 		MatchId	INT
@@ -165,7 +167,9 @@ BEGIN
 		WHERE q.QueueId = @QueueId 
 	END
 	
-	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers, q.ErrMsg AS [Message], q.UserId, c.username
+	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId
+		, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers
+		, q.ErrMsg, q.UserId, c.username
 	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 	WHERE q.QueueId = @QueueId

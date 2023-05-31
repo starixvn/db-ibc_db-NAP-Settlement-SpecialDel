@@ -17,6 +17,7 @@ AS
 		- 20221124@Max: [TVS] Increase data size when sending data between web and DB [Redmine:	#180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		
 	Param's explanation:	
 		
@@ -83,7 +84,7 @@ BEGIN
 		isNeutral             BIT,
 		matchcode             NVARCHAR(50),
 		showtime              NVARCHAR(50),
-		winlostdate			  DATETIME,
+		winlostdate			  SMALLDATETIME,
 		statusID			  TINYINT,
 		SiteDBGroupID		  SMALLINT
     )
@@ -172,9 +173,9 @@ BEGIN
 						, acstake, wld, m, isP, sitedb
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 					WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
-						, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
+						, bfr NVARCHAR(4), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
 						, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
-						, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
+						, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(4), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
 						, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
 						, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT
 					)
@@ -223,6 +224,7 @@ BEGIN
 			,ActualStake
 			,matchid
 			,SiteDBGroupID
+			,winlostdate
 		)
 	SELECT 
 			b.transid AS GroupID
@@ -266,6 +268,7 @@ BEGIN
 			,b.actual_stake AS ActualStake
 			,b.matchid
 			,b.SiteDBGroupID
+			,b.winlostdate
 	FROM	#tmpTransInfo b
 		CROSS APPLY (
 			SELECT TOP(1) s.TransId

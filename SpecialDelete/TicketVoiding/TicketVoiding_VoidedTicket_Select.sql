@@ -28,6 +28,7 @@ AS;
 		- 20230425@July: [TVS] [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
+		- 20230530@July: Return column IsCredit send ticket Letstalk [Redmine: #188152]
 
 	Param's explanation:	
 		
@@ -98,7 +99,7 @@ BEGIN
 			  ActualStake	  MONEY,
 			  oddsid		  INT,
 			  winlostdate	  DATETIME,
-			  IsCancelCashOut BIT,
+			  IsCancelCashOut BIT DEFAULT(0),
 			  homeid          INT,
 			  awayid          INT,
 			  leagueid        INT,
@@ -108,6 +109,7 @@ BEGIN
 			  SettlementStatus	TINYINT,
 			  eventstatus	  NVARCHAR(50),
 			  sporttype       SMALLINT,
+			  IsCredit		  BIT DEFAULT(0)
              );
 
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -603,6 +605,7 @@ BEGIN
                ,s.SettlementStatus
                ,s.eventstatus	  
                ,s.sporttype       
+			   ,1 AS IsCredit
 		FROM	#tmpTicket s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = s.custid
@@ -673,7 +676,8 @@ BEGIN
                ,s.showtime        
                ,s.SettlementStatus
                ,s.eventstatus	  
-               ,s.sporttype       
+               ,s.sporttype    
+			   ,0 AS IsCredit
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
@@ -740,7 +744,8 @@ BEGIN
                ,s.showtime        
                ,s.SettlementStatus
                ,s.eventstatus	  
-               ,s.sporttype       
+               ,s.sporttype 
+			   ,0 AS IsCredit
 		FROM	#tmpTicket s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 		WHERE	f.CustID IS NULL -- Betdaq
@@ -810,7 +815,8 @@ BEGIN
            ,s.showtime        
            ,s.SettlementStatus
            ,s.eventstatus	  
-           ,s.sporttype       
+           ,s.sporttype   
+		   ,0 AS IsCredit
 		FROM	#tmpTicket s
 		WHERE	s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
 	)
@@ -876,6 +882,7 @@ BEGIN
            ,s.SettlementStatus
            ,s.eventstatus	  
            ,s.sporttype       
+		   ,s.IsCredit
 	FROM CTE_OriginResult s
 		INNER JOIN CustDB.dbo.custInfo cr WITH(NOLOCK) ON s.creator = cr.custid
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid

@@ -87,7 +87,7 @@ BEGIN
 		CROSS APPLY (
 				SELECT mid, t, c, btype, bid, bdaq, bfr, sid, wld, isP, sitedb
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
-					WITH( mid INT, t BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(3)
+					WITH( mid INT, t BIGINT, c INT, btype SMALLINT, bid BIGINT, bdaq BIGINT, bfr NVARCHAR(4)
 						, sid TINYINT, wld SMALLDATETIME, isP BIT, sitedb SMALLINT)
 		) tbl
 	WHERE f.value <> ''

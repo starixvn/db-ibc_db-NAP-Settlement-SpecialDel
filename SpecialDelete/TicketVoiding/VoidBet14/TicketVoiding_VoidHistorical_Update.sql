@@ -7,10 +7,12 @@ ALTER PROCEDURE dbo.TicketVoiding_VoidHistorical_Update
 	,@TransIds			VARCHAR(MAX) 
 	,@UserId			INT = 0 
 	,@IP				VARCHAR(15) =''
+	,@IssueTypeId		TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(1000)	= ''	OUTPUT
 	,@FailedTransIds    VARCHAR(MAX) = '' OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
 )
 AS
 /*		
@@ -25,6 +27,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230309@July: Update number ErrCode [Redmine: #180625]
+		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 
 	Param's explanation:	
 		
@@ -40,11 +43,7 @@ BEGIN
 			,@IsAbnormalBet		TINYINT
 			,@CustIds			VARCHAR(MAX)
 			,@IsSiteDB			BIT 
-			,@transInfo			VARBINARY(MAX)
-			,@transInfo3rd		VARBINARY(MAX)
-			,@SiteDBGroupID		SMALLINT
-
-	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+			,@TransidList       VARCHAR(MAX) =''
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 		SET @IsSiteDB = 1
@@ -75,12 +74,6 @@ BEGIN
 		,balance		MONEY
 	)	
 	DECLARE @tblInputTransId AS TABLE (transid BIGINT PRIMARY KEY)		
-	DECLARE @tmpTransIdBatch TABLE (TransId	BIGINT,sporttype SMALLINT)
-
-	DECLARE @tmpTransInfo AS TABLE (transid BIGINT, winlost MONEY, playercomm MONEY, comm MONEY, acomm MONEY, scomm MONEY
-							, status VARCHAR(20), statusID TINYINT, betid BIGINT, ExtraInfo VARCHAR(1000)
-							, ruben TINYINT, creator INT, awinlost MONEY, mwinlost MONEY, swinlost MONEY, bettype SMALLINT
-						)
 
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
@@ -123,7 +116,6 @@ BEGIN
 		INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 			ON b.transid = t.transid
 	WHERE b.statusID NOT IN (101, 102)
-		AND b.SiteDBGroupID = @SitedbgroupId
 
 	-- UPDATE eventtype = 1
 	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
@@ -173,6 +165,13 @@ BEGIN
 			ON b.bettype = sb.BetType
 		WHERE sb.ProductID = 37
 	END
+
+	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799))
+	BEGIN
+		UPDATE #tmpTransId
+		SET eventdate = winlostdate
+		WHERE bettype IN (9,29,2799)	
+	END
 	
 	-- remove un-supported sports & bettype
 	DELETE bd
@@ -182,6 +181,35 @@ BEGIN
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
 		) 
+
+	/*Modify the way to get move bet date*/
+	DECLARE @BeingMovebetDate SMALLDATETIME 
+		   ,@currentdate SMALLDATETIME = GETDATE()
+
+	DECLARE @tblTransId_MoveBet TABLE (MatchId INT, TransId BIGINT)
+	
+	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
+	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
+
+	IF @IssueTypeId IN (13) AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate = @BeingMovebetDate)
+	BEGIN	
+		DELETE 
+		FROM #tmpTransId
+			OUTPUT	DELETED.matchid, DELETED.TransId
+			INTO  @tblTransId_MoveBet (Matchid, TransId)
+		WHERE eventdate = @BeingMovebetDate
+
+		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
+									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+								FROM @tblTransId_MoveBet t
+									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+													FROM @tblTransId_MoveBet s
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													FOR XML PATH('')
+												)ts	 (TransIds)
+								FOR XML PATH('r'), ROOT('root')
+								) AS VARCHAR(MAX))
+	END
 	
 	-- gather match Ids
 	INSERT INTO #tblMatch (matchid)
@@ -208,6 +236,9 @@ BEGIN
 						  FROM #tmpTransId 
 						  WHERE transid = temp.transid 
 						     OR refno = temp.transid)
+			AND 1 = CASE WHEN @IssueTypeId <> 13 THEN 1 
+						 WHEN @IssueTypeId = 13 AND NOT EXISTS (SELECT TOP 1 1 FROM @tblTransId_MoveBet m WHERE m.TransId = temp.TransId) THEN 1
+						 ELSE 0 END
 	)
 	SELECT @FailedTransIds = @FailedTransIds + CASE WHEN @FailedTransIds <> '' THEN ',' ELSE '' END +  CAST(transid AS VARCHAR(100))								  
 	FROM t_invalid
@@ -309,98 +340,28 @@ BEGIN
 			,t.sporttype
 
 	/**********************************************   *************************************************************/
-	SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
-	-- STEP 2 : Update bettrans14
-	WHILE (1=1)
+	IF @IssueTypeId = 13
 	BEGIN
-		DELETE @tmpTransIdBatch
+		SET @IsAbnormalBet = 1
+	END
+	ELSE
+	BEGIN
+		SET @IsAbnormalBet = (SELECT TOP (1) CASE WHEN rd.FilterBy IS NULL THEN 0 ELSE 1 END FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) WHERE rd.RequestId = @RequestId)
+	END
+	-- STEP 2 : Update bettrans14
+	SELECT @TransidList = (SELECT DISTINCT TransId AS '@transid'
+									,sporttype  AS '@sporttype'
+									FROM	#tmpTransId
+									FOR XML PATH('r'), ROOT('root')
+							 )
 
-		UPDATE TOP(2000) t
-			SET t.isFinish = 1
-		OUTPUT deleted.TransId
-			,deleted.sporttype
-		INTO @tmpTransIdBatch(TransId, sporttype)
-		FROM #tmpTransId t
-		WHERE t.isFinish IS NULL
-
-		IF @@ROWCOUNT = 0 BREAK
-
-		UPDATE main
-			SET 
-				winlost = main.actual_stake
-				,ruben = 1
-				,creator = @UserID
-				,mwinlost = 0
-				,swinlost = 0
-				,awinlost = 0 -- awinlost main ticket
-				,playercomm = 0
-				,comm = 0
-				,acomm = 0
-				,scomm = 0
-				,statusID = 102
-				,status = 'VOID'
-				,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(CASE WHEN @IsAbnormalBet = 1 AND @MatchId <> 29 THEN 1
-																	WHEN @IsAbnormalBet = 1 AND @MatchId = 29 THEN 2
-																	ELSE 0 END,'void',main.ExtraInfo,tmpmain.sporttype,main.bettype) 
-
-			OUTPUT inserted.transid, inserted.winlost, inserted.ruben, inserted.creator, inserted.mwinlost, inserted.swinlost, inserted.awinlost
-				, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm, inserted.statusID, inserted.status, inserted.ExtraInfo, inserted.bettype
-			INTO @tmpTransInfo (transid, winlost, ruben, creator, mwinlost, swinlost, awinlost, playercomm, comm, acomm, scomm, statusID, status, ExtraInfo, bettype)
-		FROM dbo.bettrans14 AS main WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN @tmpTransIdBatch AS tmpmain ON main.transid = tmpmain.transid
-
-		IF @IsSiteDB = 1
-		BEGIN
-			SET @transInfo = COMPRESS((
-			SELECT	b.transId AS 't'
-					, b.winlost AS 'w'
-					, b.ruben AS 'r'
-					, b.creator AS 'cr'
-					, b.awinlost AS 'aw'
-					, b.mwinlost AS 'mw'
-					, b.swinlost AS 'sw'
-					, b.playercomm AS 'pc'
-					, b.comm AS 'c'
-					, b.acomm AS 'ac'
-					, b.scomm AS 'sc'
-					, b.statusID AS 'sid'
-					, b.status AS 's'
-					, b.ExtraInfo AS 'ex'
-			FROM	@tmpTransInfo b
-			WHERE b.bettype NOT IN (10)
-			FOR JSON PATH))
-
-			SET @transInfo3rd = COMPRESS((
-			SELECT	b.transId AS 't'
-					, b.winlost AS 'w'
-					, b.ruben AS 'r'
-					, b.creator AS 'cr'
-					, b.awinlost AS 'aw'
-					, b.mwinlost AS 'mw'
-					, b.swinlost AS 'sw'
-					, b.playercomm AS 'pc'
-					, b.comm AS 'c'
-					, b.acomm AS 'ac'
-					, b.scomm AS 'sc'
-					, b.statusID AS 'sid'
-					, b.status AS 's'
-					, b.ExtraInfo AS 'ex'
-			FROM	@tmpTransInfo b
-			WHERE b.bettype IN (10)
-			FOR JSON PATH))
-
-			IF @transInfo IS NOT NULL
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END
-			END
-			IF @transInfo3rd IS NOT NULL
-			BEGIN
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-				SELECT 'TVS', 'Void_14', 'bettrans14', 'U', @matchid, @transInfo3rd, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END, 2
-			END
-		END
-
+	IF @TransidList <> ''
+	BEGIN
+		EXEC Bet_ExecRep_NAP_Admin_10
+			@TransidList			= @TransidList
+			,@IsAbnormalBet			= @IsAbnormalBet
+			,@UserID				= @UserID
+			,@MatchId				= @MatchId
 	END
 
 	--capture balance after
@@ -440,7 +401,7 @@ BEGIN
 			,b.balanceType
 			,b.BonusID
 			,b.WalletType
-	
+
 	---INSERT data into pending balance table   
 	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
 		  @BalanceWalletBefore	= @BeforeUpd
@@ -509,7 +470,7 @@ BEGIN
 	EXEC dbo.NAP_CustNegativeBalance_Sel
 		@CustIds = @CustIds
 		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
-	
+
 	--WriteLog
 	SET @EndTime = GETDATE()
 	BEGIN
