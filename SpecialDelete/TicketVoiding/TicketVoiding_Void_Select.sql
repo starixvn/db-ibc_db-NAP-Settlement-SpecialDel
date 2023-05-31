@@ -132,7 +132,7 @@ BEGIN
 		statusID			  TINYINT,
 		eventstatus			  NVARCHAR(50),
 		SiteDBGroupID		  SMALLINT,
-		IsCancelCashOut		  BIT, --Apply for issuetype: DA,RC,WC
+		IsCancelCashOut		  BIT DEFAULT(0), --Apply for issuetype: DA,RC,WC
 		CheckTimeCashOut	  DATETIME,
 		statuswinlost		  TINYINT
     )
