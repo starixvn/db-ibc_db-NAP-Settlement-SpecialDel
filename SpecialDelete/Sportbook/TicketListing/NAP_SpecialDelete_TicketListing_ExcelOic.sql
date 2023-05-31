@@ -287,41 +287,25 @@ BEGIN
 	) cte
 
 	BEGIN
-		IF @Type = 1 -- Number Game
+		IF @Type = 1 -- FOR Happy 5, Number Game Only
 		BEGIN
-			-- Select Happy 5
-			IF @SportType = 164
-			BEGIN
-				INSERT INTO #SpecialDeleteBets (transid, CustId)
-				SELECT	b.transid,
-						b.custid
-				FROM	dbo.bettrans b WITH (NOLOCK)
-				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
-				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
-						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-						AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
-						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+			INSERT INTO #SpecialDeleteBets (transid, CustId)
+			SELECT	b.transid,
+					b.custid
+			FROM	dbo.bettrans b WITH (NOLOCK)
+				    INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
+				OUTER APPLY (SELECT BallSequence 
+							FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
+							WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
+							) AS BS_tmp
+			WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
+					AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+					AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
+					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
+					AND 1 = CASE WHEN  @SportType = 164 THEN 1 --Happy 5
+								 WHEN  @SportType <> 164 AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WHERE Seq = BS_tmp.BallSequence) THEN 1 --Number Game
+								 ELSE 0 END
 				OPTION	(RECOMPILE)	
-			END
-			-- Select Number Game
-			ELSE
-			BEGIN
-				INSERT INTO #SpecialDeleteBets (transid, CustId)
-				SELECT	b.transid,
-						b.custid
-				FROM	dbo.bettrans b WITH (NOLOCK)
-				     INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
-					OUTER APPLY (SELECT BallSequence 
-								FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
-								WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
-								) AS BS_tmp
-				WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
-						AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
-						AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
-						AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-						AND EXISTS (SELECT TOP 1 1 FROM #TmpBallSequence WITH (NOLOCK) WHERE Seq = BS_tmp.BallSequence)
-				OPTION	(RECOMPILE)	
-			END
 		END
 		ELSE IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
 		BEGIN
