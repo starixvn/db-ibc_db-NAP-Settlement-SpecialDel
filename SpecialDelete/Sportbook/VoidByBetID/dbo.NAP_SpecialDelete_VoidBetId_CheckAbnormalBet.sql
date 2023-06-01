@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_CheckAbnormalBet] 
-	 @MatchId	BIGINT
+	 @MatchId	INT
 	,@TransIds	VARCHAR(MAX) = ''
 AS
 /*  
@@ -32,12 +32,11 @@ BEGIN
 		   ,@MatchDate DATETIME
 		   ,@SportType TINYINT
 		   ,@ChildMatchType TINYINT
-		   ,@ParentID INT
 		   ,@SiteDBGroupID SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
 
-	SELECT @MatchDate = eventdate, @SportType = sporttype, @ChildMatchType = ChildMatchType, @ParentID = matchid
+	SELECT @MatchDate = eventdate, @SportType = sporttype, @ChildMatchType = ChildMatchType
 	FROM dbo.match WITH(NOLOCK)
 	WHERE matchid = @MatchId
 
@@ -84,11 +83,12 @@ BEGIN
 		)
 	SELECT b.transid
 		,CASE WHEN @SportType <> 50 AND b.matchid = @MatchId THEN 1
-			  WHEN @SportType = 50 AND @ParentID = @MatchId THEN 1
+			  WHEN @SportType = 50 AND (m.ParentID = @MatchId OR m.matchid = @MatchId) THEN 1
 			ELSE 0
 			END
 	FROM dbo.bettrans AS b WITH (NOLOCK)
 		INNER JOIN #transIdTemp TEMP ON b.transid = TEMP.transid
+		INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid
 	WHERE b.bettype < 19001
 		AND b.bettype NOT IN (9, 29, 2799) -- Parlay Tickets
 		AND b.bettype NOT IN (10) -- outright tickets
