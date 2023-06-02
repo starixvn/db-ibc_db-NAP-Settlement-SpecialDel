@@ -13,6 +13,7 @@ AS
 	Revisions:
 		- 20210506@Kathy: Get number of ticket of locked  [Redmine:#151475]
 		- 20220913@Louisa: Support delete locking at SiteDB after release Scale out DBTrans [RedmineId:#177711]
+		- 20230208@Louisa: remove block code check by [f_Set_SettingByProfile] [RedmineId:#179505]
 
 */
 BEGIN
@@ -61,12 +62,11 @@ BEGIN
 			AS(
 				SELECT	DISTINCT bettype, SettleType
 				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-					INNER JOIN dbo.f_Set_SettingByProfile(@SportType) f
-						ON s.SportType = f.Sporttype
 				WHERE	s.SettleType = CASE 
 											WHEN @Action LIKE '%EAR' THEN 'EAR'
 											ELSE 'MNL'
 										END
+						AND s.SportType = @SportType
 			)
 			, cteInstant
 			AS(

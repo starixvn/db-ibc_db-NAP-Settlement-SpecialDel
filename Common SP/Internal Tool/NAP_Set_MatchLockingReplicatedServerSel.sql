@@ -12,7 +12,7 @@ AS
 		- 20220913@Louisa: get more info [RedmineId:#177711]
 		- 20220927@Louisa: get more info [RedmineId:#177711]
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
-
+		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -35,24 +35,6 @@ BEGIN
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
-
-	IF ISNULL(@MatchId,0) = 0
-	BEGIN
-		INSERT INTO @tmpReturnTable  
-		(	MessageId 
-			,ErrorMessage 
-			,CreatedTime 
-		)
-		SELECT	MessageId
-				,s.ErrorMessage AS ErrorMessage
-				,s.Starttime AS CreatedTime
-		FROM dbo.SSB_SettlementLogs s WITH(NOLOCK)
-		WHERE	ISNULL(s.ErrorMessage,'') <> ''
-					AND s.Resolved = 0
-					AND s.StartTime >= @checktime
-					AND s.SessionId IS NULL
-					AND MessageType NOT LIKE 'Sitedb%'
-	END
 
 	INSERT INTO @tmpMatchLocked(MatchId, SessionId)
 	SELECT	MatchId, SessionId

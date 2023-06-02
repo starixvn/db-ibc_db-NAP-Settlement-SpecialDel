@@ -32,7 +32,7 @@ BEGIN
 				AND Resolved = 0
 				AND SessionId > 0
 				AND StartTime > @checktime 
-				AND MessageType LIKE 'Sitedb%'
+				AND SiteDBGroupId > 0
 	)
 	
 	INSERT INTO @tmpSSB_SettlementLogs ( SessionId, ErrorMessage, CreatedTime, SiteDBGroupId)
@@ -45,11 +45,11 @@ BEGIN
 				AND l.Resolved = 0
 				AND l.SessionId > 0
 				AND l.StartTime > @checktime 
-				AND l.MessageType LIKE 'Sitedb%'	
+				AND SiteDBGroupId > 0	
 	GROUP BY SessionId
 			,SiteDBGroupId
 
-	SELECT	@ServerName AS ServerName
+	SELECT	DISTINCT @ServerName AS ServerName
 			,t.SiteDBGroupId
 			,b.matchId
 			,t.SessionId
