@@ -13,6 +13,13 @@ USE bodb02
 GO
 
 BEGIN
+	
+	UPDATE ProviderGameTypeMapping WITH(ROWLOCK,UPDLOCK)
+	SET OrderNo = 3 
+	WHERE sporttype = 9
+		AND SourceId = 29
+
+
 	IF NOT EXISTS ( SELECT TOP 1 1 
 					FROM dbo.ProviderGameTypeMapping pgm WITH(NOLOCK)
 					WHERE pgm.sporttype = 9 AND SourceId = 25
