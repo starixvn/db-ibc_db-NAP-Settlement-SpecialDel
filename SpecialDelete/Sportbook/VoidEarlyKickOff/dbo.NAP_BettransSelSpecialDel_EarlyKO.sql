@@ -66,6 +66,7 @@ AS;
 	- 20220301@July: Integrate Cricket AIO Phase 2 [Redmine:#168080]
 	- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 	- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+	- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 
  Param's Explanation:
 	- @BetTeam430: bettype =4: Correct Score ; bettype =30: 1st Correct Score
@@ -139,12 +140,21 @@ BEGIN
 			,@SettlementStatus TINYINT = NULL
 			,@GlobalShowTime SMALLDATETIME
 
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
 	SELECT	@SportType = m.Sporttype 
 			,@LeagueId = m.leagueid
 			,@SettlementStatus = m.SettlementStatus
 			,@GlobalShowTime = m.GlobalShowTime
 	FROM	dbo.match m WITH(NOLOCK) 
 	WHERE	matchid = @matchid
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+					WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 	
 	CREATE TABLE #tblBetType
 	(
@@ -324,7 +334,7 @@ BEGIN
 			,b.oddsid
 	FROM	bettrans b WITH (NOLOCK)	
 		  LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId			
-	WHERE	b.matchid = @matchid
+	WHERE	b.matchid IN (SELECT matchid FROM @tmpMatchId)
 			AND b.transdate >= @KickOffDate
 			AND b.statusID NOT IN (101, 102) -- reject, void
 			AND b.liveindicator = 0
@@ -464,7 +474,7 @@ BEGIN
 		AND EXISTS (
 			SELECT 1
 			FROM dbo.bettransm AS bm WITH (NOLOCK)
-			WHERE bm.matchid = @matchid AND bm.SiteDBGroupID = @SiteDBGroupID
+			WHERE bm.matchid IN (SELECT Matchid FROM @tmpMatchId) AND bm.SiteDBGroupID = @SiteDBGroupID
 				AND bm.transdate >= @KickOffDate
 				AND bm.statusID NOT IN (101, 102)
 				AND bm.liveindicator = 0
@@ -604,8 +614,9 @@ BEGIN
 		FROM	dbo.bettransm sub WITH (NOLOCK)				
 				INNER JOIN #MainParlay AS main
 					ON	main.refno = sub.refno				
-						AND sub.matchid = @matchid
-		WHERE	sub.transdate >= @KickOffDate
+						
+		WHERE	sub.matchid IN (SELECT matchid FROM @tmpMatchId)
+				AND sub.transdate >= @KickOffDate
 				AND sub.statusID NOT IN (101, 102) -- reject, void
 				AND sub.liveindicator = 0
 				AND sub.betfrom <> 'P'
@@ -745,7 +756,7 @@ BEGIN
 			   ,s.ActualStake
 			   ,s.Winlost
 		FROM	#SpecialDeleteBets s 
-			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.matchid = @matchid AND b.SiteDBGroupID = @SiteDBGroupID
+			LEFT JOIN dbo.bettrans b WITH(NOLOCK) ON s.betid = b.transid AND b.matchid = s.matchid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
 		--3. For Deposit

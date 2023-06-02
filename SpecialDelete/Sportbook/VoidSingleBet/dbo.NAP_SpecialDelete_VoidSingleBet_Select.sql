@@ -92,6 +92,7 @@ AS
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -380,11 +381,19 @@ BEGIN
              );
 
 	DECLARE @SportType SMALLINT--, @MatchStatus NVARCHAR(50)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
 
 	SELECT	@SportType = Sporttype--, @MatchStatus = eventstatus
 	FROM	dbo.match WITH(NOLOCK) 
 	WHERE	matchid = @matchid
-	
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+					WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
+					
 	IF @SportType <> 44
 	BEGIN
 		SET @SportType = NULL
@@ -520,7 +529,7 @@ BEGIN
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
 		WHERE
-			b.matchid = @MatchId
+			b.matchid IN (SELECT matchid FROM @tmpMatchId)
 			AND CASE
 					WHEN @TimeType = 0 THEN b.transdate
 					WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
@@ -590,7 +599,7 @@ BEGIN
 				dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
 			WHERE
-				bm.matchid=@MatchId
+				bm.matchid IN (SELECT matchid FRom @tmpMatchId)
 				AND	CASE
 						WHEN @TimeType = 0 THEN bm.transdate
 						WHEN @TimeType = 1 AND bm.checktime IS NOT NULL THEN bm.checktime
@@ -966,7 +975,7 @@ BEGIN
 			   ,s.ActualStake
 			   ,s.SiteDBGroupId
 		FROM	#SpecialDeleteBets s
-			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = @matchid
+			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = s.matchid
 		WHERE	s.recommend IN (52466, 5707545)
 			AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL

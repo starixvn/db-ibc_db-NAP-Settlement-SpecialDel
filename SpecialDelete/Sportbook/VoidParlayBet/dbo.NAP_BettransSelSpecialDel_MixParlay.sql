@@ -60,6 +60,7 @@ AS
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -176,6 +177,20 @@ BEGIN
 	  ,OddsId			INT
 	 ) 
 
+	DECLARE @SportType SMALLINT--, @MatchStatus NVARCHAR(50)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	SELECT	@SportType = Sporttype--, @MatchStatus = eventstatus
+	FROM	dbo.match WITH(NOLOCK) 
+	WHERE	matchid = @matchid
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+					WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
+
     -- Parse xml @BetTypes
 	;WITH CTE_ParsedBettypes_1 AS
 	(	
@@ -277,7 +292,8 @@ BEGIN
 	  ,b.transdesc
 	  ,b.OddsId
 	 FROM dbo.bettransm AS b WITH(NOLOCK)		  
-	 WHERE	matchid=@MatchID AND b.SiteDBGroupID = @SiteDBGroupID
+	 WHERE	matchid IN (SELECT matchid FROM @tmpMatchId)
+			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND CASE WHEN @Type = 2 THEN @Type ELSE b.liveindicator END = @Type
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @Type = 1 THEN @LiveHomeScore ELSE livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @Type = 1 THEN @LiveAwayScore ELSE liveawayscore END

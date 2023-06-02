@@ -126,6 +126,7 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -626,58 +627,6 @@ BEGIN
 
 			RETURN		
 		END	
-	END
-
-	-- Apply for move match Cricket
-	--Single & Parlay
-	IF EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransIds t
-					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
-				WHERE matchid <> @MatchId
-			)
-		OR EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransIds t
-					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
-				WHERE bm.matchid  <> @matchid  
-			)
-	BEGIN
-		SELECT 99 AS ErrorCode
-			, 'Some tickets not found.' AS ErrorMsg
-			, @NegativeBalanceUsers AS NegativeBalanceUsers
-		
-		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
-		BEGIN
-			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
-			BEGIN
-				------ releasing single process
-				EXEC dbo.NAP_Admin_CheckingProcess
-					 @isExistMatch		= @isExistSingle
-					,@isExistFM			= @isExistFM
-					,@isExistFM2		= @isExistFM2
-					,@IsReleased		= 1
-			END
-
-			IF @totalSubParlay > 0
-			BEGIN
-				------ releasing Refno parlay proccess
-				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
-				   ,@Session	= @Session
-				   ,@IsReleased = 1
-			END
-		END
-		ELSE IF @totalSubParlay > @ThreadHold 
-		BEGIN
-			------ releasing SD process
-			EXEC dbo.NAP_Admin_CheckingProcess
-				@isExistParlay		= @isExistParlay  
-				,@isExistMatch		= @isExistSingle
-				,@isExistFM			= @isExistFM
-				,@isExistFM2		= @isExistFM2
-				,@IsReleased		= 1
-		END
-
-		RETURN;
 	END
 
 	------------------***** Insert all data into #BetDelete *****------------------

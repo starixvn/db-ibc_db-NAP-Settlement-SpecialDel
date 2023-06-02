@@ -53,6 +53,7 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		
 	 Param's Explanation:   
 		@BetTypes : 
@@ -335,37 +336,6 @@ BEGIN
 			, @NegativeBalanceUsers AS NegativeBalanceUsers
 
 		RETURN  
-	END
-    
-	-- Apply for move match Cricket
-	IF EXISTS ( SELECT TOP 1 1 
-				FROM #tblTransId t
-					INNER JOIN dbo.bettransm b WITH(NOLOCK) ON b.transid = t.transid
-				WHERE b.matchid <> @MatchId
-			)
-	BEGIN
-		SELECT	@ErrCode = 99
-				,@ErrMsg = 'Some tickets not found.'
-		
-		IF @totalSubParlay <= @ThreadHold
-		BEGIN
-		     EXEC dbo.NAP_Admin_CheckingProcess
-                  @IsLockingByRefno = 1
-                 ,@Session = @Session
-                 ,@IsReleased = 1
-		END
-		ELSE
-		BEGIN
-			EXEC dbo.NAP_Admin_CheckingProcess  
-				 @isExistParlay  = 1  
-				,@IsReleased     = 1	
-		END
-
-		SELECT @ErrCode AS ErrorCode
-			, @ErrMsg AS ErrorMsg
-			, @NegativeBalanceUsers AS NegativeBalanceUsers
-
-		RETURN;
 	END
 
  ------------------***** Insert all data into #BetDelete *****------------------  
