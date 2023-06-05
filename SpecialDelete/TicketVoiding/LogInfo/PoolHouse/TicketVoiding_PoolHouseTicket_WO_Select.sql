@@ -538,28 +538,165 @@ BEGIN
 				AND b.Subliveindicator = @LiveIndicator
 				AND b.IsMixParlay = 1
 				AND b.Subtransdate BETWEEN @FilterFromTransTime AND @FilterToTransTime
-	END  
+	END 
 
-	IF @ActionId NOT IN (2)
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1)
 	BEGIN
-		INSERT INTO #TransidInRequest (TransId)
-		SELECT DISTINCT tmp.transid
-		FROM #TVSTicketBets t
-			CROSS APPLY (
-						SELECT rs.TransId, rs.RequestId
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
-						UNION ALL
-						SELECT rp.MainTransId AS TransId, rp.RequestId
-						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
-				)tmp
-			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2) AND t.matchid = @MatchId
+		DECLARE @Odds_str NVARCHAR(100)
 
-		DELETE FROM #TVSTicketBets 
-		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
+		DECLARE @tmp_Odds AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
+		DECLARE @tmp_TransId AS TABLE (TransId BIGINT)
 
+		IF @FilterOddsType = 'Range'
+		BEGIN
+			IF (@FromOdds < 0 AND @ToOdds > 0) OR (@FromOdds > 0 AND @ToOdds < 0)
+			BEGIN
+				--Range 1: negative
+				SET @FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
+				SET @ToOdds = -1.00
+
+				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
+		
+				INSERT INTO @tmp_Odds (Odds, OddsType)
+				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+				;WITH cte AS
+				(
+					SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+					FROM @tmp_Odds
+					GROUP BY OddsType
+				)
+				INSERT INTO @tmp_TransId (TransId)
+				SELECT b.transid FROM #TVSTicketBets b
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
+					WHERE tp.OddsType = b.OddsType 
+						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
+											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+											OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
+											AND b.OddsType = 1 
+											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+								ELSE 0 END
+					)
+					AND b.IsMixParlay = 1
+
+				--Range 1: possitive
+				DELETE @tmp_Odds
+				SET @FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
+				SET @ToOdds = 1.00
+
+				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
+		
+				INSERT INTO @tmp_Odds (Odds, OddsType)
+				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+				;WITH cte AS
+				(
+					SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+					FROM @tmp_Odds
+					GROUP BY OddsType
+				)
+				INSERT INTO @tmp_TransId (TransId)
+				SELECT b.transid FROM #TVSTicketBets b
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
+					WHERE tp.OddsType = b.OddsType 
+						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
+											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+											OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
+											AND b.OddsType = 1 
+											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+								ELSE 0 END
+						)	
+					AND b.IsMixParlay = 1
+
+				--Remove invalid transid
+				UPDATE b SET b.GroupName = 'Others'
+				FROM #TVSTicketBets b
+					INNER JOIN @tmp_TransId t ON t.TransId = b.transid
+				WHERE b.IsMixParlay = 1
+			END
+			ELSE
+			BEGIN
+				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
+		
+				INSERT INTO @tmp_Odds (Odds, OddsType)
+				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+				;WITH cte AS
+				(
+					SELECT OddsType, MIN(Odds) AS FromOdds, MAX(Odds) AS ToOdds
+					FROM @tmp_Odds
+					GROUP BY OddsType
+				)
+				DELETE b
+				FROM #TVSTicketBets b
+					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
+					WHERE tp.OddsType = b.OddsType 
+						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
+											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+											OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
+											AND b.OddsType = 1 
+											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
+									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+								ELSE 0 END
+					)
+				AND b.IsMixParlay = 1
+			END
+		END
+		ELSE IF @FilterOddsType = 'Value'
+		BEGIN
+			SET @Odds_str = (SELECT REPLACE(@OddsValue, '&', ','))
+
+			INSERT INTO @tmp_Odds (Odds, OddsType)
+			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
+
+			UPDATE b SET b.GroupName = 'Others'
+			FROM #TVSTicketBets b
+				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
+				WHERE tp.OddsType = b.OddsType 
+					AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds = tp.Odds)
+										OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+										OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
+								WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
+								WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
+								WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
+							ELSE 0 END
+				)
+				AND b.IsMixParlay = 1
+		END
+
+		IF @ActionId NOT IN (2)
+		BEGIN
+			INSERT INTO #TransidInRequest (TransId)
+			SELECT DISTINCT tmp.transid
+			FROM #TVSTicketBets t
+				CROSS APPLY (
+							SELECT rs.TransId, rs.RequestId
+							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+							WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
+							UNION ALL
+							SELECT rp.MainTransId AS TransId, rp.RequestId
+							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+							WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
+					)tmp
+				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
+			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2) AND t.matchid = @MatchId
+
+			DELETE FROM #TVSTicketBets 
+			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
+
+		END
 	END
 
 	--Return all bettype tickets

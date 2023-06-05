@@ -338,8 +338,9 @@ BEGIN
 	WHERE f.value <> ''
 
 	--Init Validation
-	INSERT INTO @Validation (MatchId)
-	SELECT MatchId FROM #FilterInfo
+	INSERT INTO @Validation (MatchId, IsPoolHouseAffected)
+	SELECT MatchId, CASE WHEN d.IsLinkGroup1X2 = 0 AND d.IsLinkGroupAIO = 0 THEN 0 ELSE 1 END
+	FROM #FilterInfo d
 	
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -518,6 +519,7 @@ BEGIN
 		, @ToOdds			  MONEY = 0
 
 	DECLARE @tmp_Odds AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
+	DECLARE @tmp_TransId AS TABLE (TransId BIGINT)
 
 	SELECT @FilterOddsType = d.FilterOddsType
 	FROM #FilterInfo d
@@ -529,7 +531,7 @@ BEGIN
 
 		IF (@FromOdds < 0 AND @ToOdds > 0) OR (@FromOdds > 0 AND @ToOdds < 0)
 		BEGIN
-			--Range 1: from negative odds to -1
+			--Range 1: negative
 			SET @FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
 			SET @ToOdds = -1.00
 
@@ -544,8 +546,8 @@ BEGIN
 				FROM @tmp_Odds
 				GROUP BY OddsType
 			)
-			DELETE b
-			FROM #TVSTicketBets b
+			INSERT INTO @tmp_TransId (TransId)
+			SELECT b.transid FROM #TVSTicketBets b
 				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
 				WHERE tp.OddsType = b.OddsType 
@@ -560,7 +562,8 @@ BEGIN
 							ELSE 0 END
 			)
 
-			--Range 1: from 1 to possitive odds
+			--Range 1: possitive
+			DELETE @tmp_Odds
 			SET @FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
 			SET @ToOdds = 1.00
 
@@ -575,8 +578,8 @@ BEGIN
 				FROM @tmp_Odds
 				GROUP BY OddsType
 			)
-			DELETE b
-			FROM #TVSTicketBets b
+			INSERT INTO @tmp_TransId (TransId)
+			SELECT b.transid FROM #TVSTicketBets b
 				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
 				WHERE tp.OddsType = b.OddsType 
@@ -590,6 +593,11 @@ BEGIN
 								WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
 							ELSE 0 END
 			)
+
+			--Remove invalid transid
+			DELETE b
+			FROM #TVSTicketBets b
+				INNER JOIN @tmp_TransId t ON t.TransId = b.transid
 		END
 		ELSE
 		BEGIN
@@ -736,12 +744,10 @@ BEGIN
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ASC
 
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
-				 ,v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE l.IsPoolHouseAffected END
 	FROM @Validation v
 		OUTER APPLY( 
 			SELECT ISNULL(SUM(LiveGameEarlySingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0) AS SingleCount
 				  ,ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
-				  ,MAX(CASE WHEN PoolHouseSingleCount <> 0 OR PoolHouseMainParlayCount <> 0 THEN 1 ELSE 0 END) AS IsPoolHouseAffected
 			FROM #logInfo
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
@@ -755,7 +761,7 @@ BEGIN
 		FROM @Validation v
 		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON v.MatchId = rd.MatchId
 		WHERE rd.RequestId = @RequestId
-			AND rd.TransIds LIKE '%IsMainMatch="true"%' AND rd.TransIds NOT LIKE '%PoolHouseCheckedBetTypes="-1"%'
+			AND rd.TransIds NOT LIKE '%PoolHouseCheckedBetTypes="-1"%'
 
 		-- 1. Validate table
 		SELECT MatchId

@@ -22,6 +22,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230421@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		
 	Param's explanation:
 		+ @WrongOUInfo, @Wrong1stOUInfo:
@@ -316,8 +317,9 @@ BEGIN
 	WHERE f.value <> ''
 
 	--Init Validation
-	INSERT INTO @Validation (MatchId)
-	SELECT MatchId FROM #FilterInfo
+	INSERT INTO @Validation (MatchId, IsPoolHouseAffected)
+	SELECT MatchId, CASE WHEN d.IsLinkGroup1X2 = 0 AND d.IsLinkGroupAIO = 0 THEN 0 ELSE 1 END
+	FROM #FilterInfo d
 	
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -523,12 +525,10 @@ BEGIN
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ASC
 
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
-				 ,v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE l.IsPoolHouseAffected END
 	FROM @Validation v
 		OUTER APPLY( 
 			SELECT ISNULL(SUM(LiveGameEarlySingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0) AS SingleCount
 				  ,ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
-				  ,MAX(CASE WHEN PoolHouseSingleCount <> 0 OR PoolHouseMainParlayCount <> 0 THEN 1 ELSE 0 END) AS IsPoolHouseAffected
 			FROM #logInfo
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
