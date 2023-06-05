@@ -118,8 +118,6 @@ BEGIN
 		   ,@Movebetdate	  DATETIME
 		   ,@Eventdate		  DATETIME
 		   ,@sporttype SMALLINT = NULL
-		   ,@ParentID INT = NULL
-		   ,@ChildMatchType TINYINT = NULL
 		   ,@HomeId				INT
 		   ,@AwayId				INT
 		   ,@IsNeutral		BIT
@@ -128,7 +126,8 @@ BEGIN
 		   ,@strSubTransId	VARCHAR(MAX) 		
 		   ,@strMainTransId VARCHAR(MAX) = ''  
 		   ,@strRefno		VARCHAR(MAX) = ''	
-		   
+		   ,@MatchId_MaxPO	INT = NULL 
+
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	DECLARE @tmpMatchId TABLE (MatchId INT, isFinish INT)
 
@@ -138,8 +137,7 @@ BEGIN
 			  ,@GlobalShowTime = m.GlobalShowTime
 			  ,@Eventdate = m.eventdate
 			  ,@sporttype = m.sporttype
-		      ,@ParentID = ISNULL(m.ParentID, 0)
-		      ,@ChildMatchType = ISNULL(m.ChildMatchType, 0)
+		      ,@MatchId_MaxPO = @MatchId
 			  ,@HomeId = m.homeid
 			  ,@AwayId = m.awayid
 			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
@@ -1283,9 +1281,7 @@ BEGIN
 		END
 			
 		----------------Insert Max Payout Queue----------------
-		DECLARE @TransIds_MaxPO VARCHAR(MAX) = '', @MatchId_MaxPO INT = NULL 
-
-		SET @MatchId_MaxPO = CASE WHEN @sporttype = 50 AND @ParentID <> 0 AND @ChildMatchType = 200 THEN @ParentID ELSE @MatchId END
+		DECLARE @TransIds_MaxPO VARCHAR(MAX) = ''
 
 		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 						,CASE 
