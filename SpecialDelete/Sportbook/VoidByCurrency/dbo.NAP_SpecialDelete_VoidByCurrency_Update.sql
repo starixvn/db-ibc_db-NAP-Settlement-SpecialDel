@@ -124,7 +124,11 @@ BEGIN
 		   ,@AwayId				INT
 		   ,@IsNeutral		BIT
 		   ,@FCUpdateTime DATETIME2
-
+		   ,@matchdate		DATETIME				
+		   ,@strSubTransId	VARCHAR(MAX) 		
+		   ,@strMainTransId VARCHAR(MAX) = ''  
+		   ,@strRefno		VARCHAR(MAX) = ''	
+		   
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 	DECLARE @tmpMatchId TABLE (MatchId INT, isFinish INT)
 
@@ -205,6 +209,7 @@ BEGIN
 		  , @tblAfterBalance TVP_BalanceWalletChange
 	
 	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20))
+	DECLARE @tmpTransIDBatch TABLE (transid BIGINT)
 
 	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
@@ -267,7 +272,8 @@ BEGIN
 			SubOdds				SMALLMONEY,
 			SubStatus			NVARCHAR(10),
 			ruben				TINYINT,
-			SiteDBGroupId		SMALLINT
+			SiteDBGroupId		SMALLINT,
+			IsFinish			BIT
 	)	
 	
 	SELECT * INTO #SpecialDeleteBets_Single FROM #SpecialDeleteBets WHERE 1 = 0	
@@ -392,7 +398,6 @@ BEGIN
 	END	
 
 	BEGIN TRY	
-		-------> Get tickets to void
 		--> Get single tickets	
 		BEGIN
 			INSERT INTO #SpecialDeleteBets_Single(
@@ -917,7 +922,7 @@ BEGIN
 			FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 				INNER JOIN #SpecialDeleteBets_Single tmpmain
 					ON	main.transid = tmpmain.transid					
-						AND main.matchid = @matchid	
+						AND main.matchid = @MatchId	
 
 			SET @transInfo = COMPRESS((
 				SELECT	t.transId AS 't'
@@ -943,7 +948,7 @@ BEGIN
 			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 			BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo, 's'
+				SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @MatchId, @transInfo, 's'
 			END
 			
 			--For match table; EventTable = 1
@@ -1033,6 +1038,7 @@ BEGIN
 				FROM #SpecialDeleteBets_Parlay t	
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid				
+				WHERE t.matchid = @MatchID
 				UNION ALL
 				-- Cricket charge comm			  
 			    SELECT b.custid
@@ -1100,56 +1106,56 @@ BEGIN
 		--> update status for parlay
 		IF @CountParlay > 0
 		BEGIN
-			DECLARE @matchdate		DATETIME				
-					,@rowcount		INT
-					,@step			INT
-					,@transid_tmp	VARCHAR(2000) 		
-			DECLARE @transids_29 VARCHAR(MAX) = ''  
-				  , @refnos_29  VARCHAR(MAX) = ''				  						  			  		   		
-			
-			SELECT	@matchdate = eventdate,  				  
-					@step = 0  
+			SELECT	@matchdate = eventdate 				  
 			FROM	match WITH(NOLOCK)   
 			WHERE	matchid = @matchid
 			
-			SELECT	@transids_29 = @transids_29 + CONVERT(VARCHAR(20), transid) + ','
-				  , @refnos_29 = @refnos_29 + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid) + ','  
+			SELECT	@strMainTransId = @strMainTransId + CONVERT(VARCHAR(20), transid) + ','
+				  , @strRefno = @strRefno + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid) + ','  
 			FROM	#SpecialDeleteBets_Parlay									
+			WHERE	matchid = @matchid
 			
 			-- update bettransm,BetParlayDetail			
-			WHILE @step < @CountParlay  
+			WHILE (0=0)
 			BEGIN  
-				SET @transid_tmp = ''  
+				DELETE @tmpTransIDBatch
+				SET @strSubTransId = ''  
 
-				SELECT	@transid_tmp  = @transid_tmp + CONVERT(VARCHAR(20),SubTransId)  + ','   
-				FROM	#SpecialDeleteBets_Parlay  
-				WHERE	id > @step 
-						AND id <= @step + @VoidPatchSize  
-				 
-				SET @step = @step + @VoidPatchSize  
+				UPDATE TOP(100) t
+				SET isFinish = 1
+					OUTPUT deleted.transid
+					INTO @tmpTransIDBatch(transid)
+				FROM #SpecialDeleteBets_Parlay t
+				WHERE isFinish IS NULL AND t.MatchId = @MatchId
 
-				EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
-				,@fth = 0  
-				,@fta = 0  
-				,@hth = 0  
-				,@hta = 0  
-				,@matchdate = @matchdate  
-				,@mode = 'VOID'  
-				,@VoidTransID = @transid_tmp  
-				,@UserId = @UserId				 
+				IF @@ROWCOUNT = 0 BREAK
+
+				SELECT	@strSubTransId = @strSubTransId + CONVERT(VARCHAR(20), TransId) + ','
+				FROM	@tmpTransIDBatch
+
+				EXEC dbo.NAP_Admin_Calculate_MP_broker 
+				       @matchid = @matchId  
+				     , @fth = 0  
+				     , @fta = 0  
+				     , @hth = 0  
+				     , @hta = 0  
+				     , @matchdate = @matchdate  
+				     , @mode = 'VOID'  
+				     , @VoidTransID = @strSubTransId  
+				     , @UserId = @UserId				 
 			END
 			
 			-- call pre-cal-29: update BetParlayResult		  
 			EXEC dbo.NAP_Admin_Calculate_MP_broker   
 				@matchid = @matchid  
 				,@matchdate = @matchdate  
-				,@strXML = @transids_29  
+				,@strXML = @strMainTransId  
 				,@mode  = 'PRECAL-29'
 			
 			-- call cal_29: update bettrans
 			EXEC dbo.NAP_Admin_Calculate_MP_broker
 				@matchdate = @MatchDate
-				,@strXML	= @refnos_29  -- main transid + refno: refno|transid,refno|transid...
+				,@strXML	= @strRefno  -- main transid + refno: refno|transid,refno|transid...
 				,@mode		= '29' 
 		END	
 		
@@ -1175,6 +1181,7 @@ BEGIN
 				FROM #SpecialDeleteBets_Single t	
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid
+				WHERE t.matchid = @MatchID
 				UNION ALL
 				-- parlay				
 				SELECT b.custid
@@ -1184,6 +1191,7 @@ BEGIN
 				FROM #SpecialDeleteBets_Parlay t	
 					INNER JOIN bettrans b WITH (NOLOCK) 
 							ON t.transid = b.transid				
+				WHERE t.matchid = @MatchID
 				UNION ALL
 				-- Cricket charge comm			  
 			    SELECT b.custid
@@ -1210,7 +1218,10 @@ BEGIN
 		INSERT INTO #AfterUpd(custid, balance)
 		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
 		FROM dbo.bettrans b WITH (NOLOCK)
-		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
+		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single WHERE matchid = @MatchID  
+						  UNION ALL 
+						  SELECT transid FROM #SpecialDeleteBets_Parlay WHERE matchid = @MatchID
+						 )
 		GROUP BY b.CustID
 
 	END
