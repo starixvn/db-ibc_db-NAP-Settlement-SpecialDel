@@ -90,11 +90,11 @@ BEGIN
 
 	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixvn.com'
+		SET @Recipients = 'dbaadmin@starixsoft.com'
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;qa@starixvn.com'
+		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com'
 	END
 
 	SELECT @List_QueueRetry_Success = ISNULL(STUFF((SELECT DISTINCT TOP 10 ',' + CAST(tmp.QueueID  AS VARCHAR(50))
@@ -138,7 +138,7 @@ BEGIN
 				,@sensitivity ='Personal'
 				,@importance ='High'
 				,@subject =@Subject
-				,@body_format = 'HTML'
+				,@body_format = 'TEXT'
 				,@profile_name =DEFAULT;
 	END
 

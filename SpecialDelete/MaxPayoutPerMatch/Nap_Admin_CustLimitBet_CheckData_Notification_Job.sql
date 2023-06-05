@@ -14,6 +14,7 @@ AS
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 		- 20221206@Max: MPO Remove invalid email address (LOCAL + SIT) [Redmine: #00000]
+		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 
 	Param's explanation:		
 		
@@ -36,11 +37,11 @@ BEGIN
 	
 	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixvn.com;martin.chen@onelab.tw;member_core@onelab.tw;steve.liao@onelab.tw'
+		SET @Recipients = 'dbaadmin@starixsoft.com;martin.chen@onelab.tw;member_core@onelab.tw;steve.liao@onelab.tw'
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com;tina.vo@starixsoft.com'
+		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com'
 	END
 	
 
