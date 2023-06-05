@@ -106,7 +106,8 @@ AS
 	  - 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 	  - 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 	  - 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-	  
+	  - 20230522@July: Support sport Cricket for all functions  [Redmine: #188374]
+
 	 Param's Explanation:   
 */
 BEGIN
@@ -1340,7 +1341,7 @@ BEGIN
 		END AS EmailGroup
 		,@isITAdmin		AS IsITSupport
 		,CASE WHEN s.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
-		,b.matchid  -- send letstalk
+		,b.matchid 
 		,b.oddsid AS OddsId
 		,CASE 
 			WHEN ISNULL(m.eventstatus, '') <> 'completed' AND b.statusid IN (111, 112, 113) AND ISNULL(b.betdaqid,0) <> -2
@@ -1361,6 +1362,7 @@ BEGIN
 		END AS IsInstantSettlementTicket
 		,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 		,b.EndTime --Support bitcoin
+		,CASE WHEN b.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END AS ParentMatchId -- send letstalk
 	FROM	#SpecialDeleteBets b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
