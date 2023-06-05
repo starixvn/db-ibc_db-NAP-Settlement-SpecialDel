@@ -543,7 +543,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMixParlay = 1)
 	BEGIN
 		DECLARE @Odds_str NVARCHAR(100)
-
+			, @tmp_ToOdds MONEY = 0
 		DECLARE @tmp_Odds AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
 		DECLARE @tmp_TransId AS TABLE (TransId BIGINT)
 
@@ -553,9 +553,9 @@ BEGIN
 			BEGIN
 				--Range 1: negative
 				SET @FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
-				SET @ToOdds = -1.00
+				SET @tmp_ToOdds = -1.00
 
-				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
+				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
 		
 				INSERT INTO @tmp_Odds (Odds, OddsType)
 				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
@@ -569,7 +569,7 @@ BEGIN
 				INSERT INTO @tmp_TransId (TransId)
 				SELECT b.transid FROM #TVSTicketBets b
 					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
+				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
 											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
@@ -586,9 +586,9 @@ BEGIN
 				--Range 1: possitive
 				DELETE @tmp_Odds
 				SET @FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
-				SET @ToOdds = 1.00
+				SET @tmp_ToOdds = 1.00
 
-				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@ToOdds AS VARCHAR(10)))
+				SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
 		
 				INSERT INTO @tmp_Odds (Odds, OddsType)
 				SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
@@ -602,7 +602,7 @@ BEGIN
 				INSERT INTO @tmp_TransId (TransId)
 				SELECT b.transid FROM #TVSTicketBets b
 					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
-				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
+				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
 											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
@@ -619,8 +619,8 @@ BEGIN
 				--Remove invalid transid
 				UPDATE b SET b.GroupName = 'Others'
 				FROM #TVSTicketBets b
-					INNER JOIN @tmp_TransId t ON t.TransId = b.transid
-				WHERE b.IsMixParlay = 1
+					LEFT JOIN @tmp_TransId t ON t.TransId = b.transid
+				WHERE b.IsMixParlay = 1 AND t.TransId IS NULL
 			END
 			ELSE
 			BEGIN
