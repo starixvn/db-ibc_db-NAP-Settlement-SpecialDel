@@ -871,8 +871,11 @@ BEGIN
 
 		WHILE (1=1)
 		BEGIN
-			
+			--Clean data 
 			DELETE FROM @tmpTrans_beforeUpd
+			DELETE FROM @tblBeforeBalance
+			DELETE FROM @tblAfterBalance
+			DELETE FROM @tmpTransInfo
 
 			UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
 			FROM @tmpMatchId p
