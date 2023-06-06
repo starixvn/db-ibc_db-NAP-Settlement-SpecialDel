@@ -525,10 +525,12 @@ BEGIN
 	ORDER BY CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) ASC
 
 	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
+		,v.IsPoolHouseAffected = CASE WHEN v.IsPoolHouseAffected = 1 THEN v.IsPoolHouseAffected ELSE l.IsPoolHouseAffected END
 	FROM @Validation v
 		OUTER APPLY( 
 			SELECT ISNULL(SUM(LiveGameEarlySingleCount),0) + ISNULL(SUM(PoolHouseSingleCount),0) AS SingleCount
 				  ,ISNULL(SUM(PoolHouseMainParlayCount),0) AS MainParlayCount
+				  ,MAX(CASE WHEN PoolHouseMainParlayCount <> 0 THEN 1 ELSE 0 END) AS IsPoolHouseAffected
 			FROM #logInfo
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
