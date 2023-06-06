@@ -15,8 +15,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 )
 AS
 /*
-	Created: Kent
-	Date: 20161201
+	Created: 20161201@Kent
 	DB: DBTXN/bodb02
 
 	Revisions: 		
@@ -281,8 +280,6 @@ BEGIN
 	SELECT * INTO #SpecialDeleteBets_Parlay FROM #SpecialDeleteBets WHERE 1 = 0
 	CREATE INDEX IDX_SpecialDeleteBets_Parlay_custid_balance ON #SpecialDeleteBets_Parlay(custid, balance) INCLUDE(transid)
 	CREATE INDEX IDX_SpecialDeleteBets_Parlay_id ON #SpecialDeleteBets_Parlay(id) INCLUDE(TransId, SubTransId, refno)
-	
-	CREATE TABLE #t_CustID_501(custid INT PRIMARY KEY)				
 	
 	CREATE TABLE #t_LicenseeNames(LicenseeName VARCHAR(100), GroupName VARCHAR(100))
 	CREATE CLUSTERED INDEX t_IDX_LicenseeNames_LicenseeName ON #t_LicenseeNames(LicenseeName)	
@@ -803,11 +800,6 @@ BEGIN
 
 		END
 		
-		INSERT INTO #t_CustID_501(custid)
-		SELECT DISTINCT custid 
-		FROM #SpecialDeleteBets_Single 
-		WHERE BetType = 501		
-		
 		--> capture Before Balance Update
 		IF @CountSingle > 0
 		BEGIN
@@ -1041,17 +1033,6 @@ BEGIN
 						INNER JOIN bettrans b WITH (NOLOCK) 
 								ON t.transid = b.transid				
 					WHERE t.matchid = @MatchID
-					UNION ALL
-					-- Cricket charge comm			  
-					SELECT b.custid
-						 , 0 AS BonusID -- cricket tickets always bet from cash wallet
-						 , 2 AS WalletType -- cricket tickets always bet from cash wallet
-						 , b.winlost, b.actual_stake, b.playercomm, b.bettype
-					FROM #t_CustID_501 t
-						 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-								 ON t.custid = b.custid
-					WHERE b.bettype = 500
-					  AND b.matchid = @MatchID				
 				 ) AS T
 			GROUP BY T.custid			   
 				   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
@@ -1183,7 +1164,7 @@ BEGIN
 						  , b.winlost, b.actual_stake, b.playercomm, b.bettype
 					FROM #SpecialDeleteBets_Single t	
 						INNER JOIN bettrans b WITH (NOLOCK) 
-								ON t.transid = b.transid AND t.matchid = b.matchid
+								ON t.transid = b.transid
 					WHERE t.matchid = @MatchID
 					UNION ALL
 					-- parlay				
@@ -1193,19 +1174,8 @@ BEGIN
 						 , b.winlost, b.actual_stake, b.playercomm, b.bettype
 					FROM #SpecialDeleteBets_Parlay t	
 						INNER JOIN bettrans b WITH (NOLOCK) 
-								ON t.transid = b.transid AND t.matchid = b.matchid				
+								ON t.transid = b.transid		
 					WHERE t.matchid = @MatchID
-					UNION ALL
-					-- Cricket charge comm			  
-					SELECT b.custid
-						 , 0 AS BonusID -- cricket tickets always bet from cash wallet
-						 , 2 AS WalletType -- cricket tickets always bet from cash wallet
-						 , b.winlost, b.actual_stake, b.playercomm, b.bettype
-					FROM #t_CustID_501 t
-						 INNER JOIN dbo.bettrans b WITH (NOLOCK)
-								 ON t.custid = b.custid
-					WHERE b.bettype = 500
-					  AND b.matchid = @MatchID				
 				 ) AS T
 			GROUP BY T.custid			   
 				   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
@@ -1225,7 +1195,6 @@ BEGIN
 							  UNION ALL 
 							  SELECT transid FROM #SpecialDeleteBets_Parlay WHERE matchid = @MatchID
 							 )
-			AND b.matchid = @MatchID
 			GROUP BY b.CustID
 	END
 
@@ -1492,7 +1461,6 @@ BEGIN
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #SpecialDeleteBets_Single
 	DROP TABLE #SpecialDeleteBets_Parlay
-	DROP TABLE #t_CustID_501  
 	DROP TABLE #t_LicenseeNames 
 	DROP TABLE #t_UIRepresentativeLicenseeGroupNames
 	DROP TABLE #t_exchanges  
