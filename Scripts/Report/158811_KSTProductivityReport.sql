@@ -31,7 +31,7 @@ GO
 
 
 	DECLARE @fromDate DATETIME = '2022-05-01'
-			,@toDate  DATETIME = '2022-05-31'
+			,@toDate  DATETIME = '2022-05-31 23:59:59'
 			,@maxEventDate14 DATETIME
 			,@maxEventDateBK DATETIME
 
