@@ -6,6 +6,7 @@
 
 	Revision:
 		20211026@Louisa: Modify for Auto Settle Cricket + get configuration from SettlementResultTableSetting
+
 */
 
 USE bodb02
@@ -21,6 +22,7 @@ GO
 	 2021-10-07: Move Volleyball to ResultDetailOS
 	 2022-02-17: release Pingoal basketball
 	 2022-12-19: release Pingoal ESports
+	 2023-04-12: release Table Tennis - move auto from AutoPayoutResultDetail to AutoPayoutResultDetail
 
 	 *** Scope: SportBook
 	 *** Exclude: hedge match, child match of Cricket Test Match, test match
@@ -35,6 +37,7 @@ GO
 
 	SELECT @maxEventDate14 = MAX(EventDate) FROM dbo.match14 m WITH(NOLOCK)
 	SELECT @maxEventDateBK = MAX(EventDate) FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
+
 ----============|================|=======================================================
 	----------
 		-------------
@@ -318,26 +321,13 @@ GO
 	END
 
 	------------------------ Table Tennis -------------------------------
-	IF @toDate > @maxEventDate14
-	BEGIN
-		INSERT INTO #MatchIdAuto (matchid)	
-		SELECT DISTINCT r.MatchId FROM DBPRO.bodb02.dbo.AutoPayoutResult r WITH(NOLOCK)
-		WHERE r.StatusId = 2
-	END
 
-	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
-	BEGIN
-		INSERT INTO #MatchIdAuto (matchid)	
-		SELECT DISTINCT r.MatchId FROM DBPRO.bodb02.dbo.AutoPayoutResult14 r WITH(NOLOCK)
-		WHERE r.StatusId = 2
-	END
-
-	IF @fromDate < @maxEventDateBK
-	BEGIN
-		INSERT INTO #MatchIdAuto (matchid)	
-		SELECT DISTINCT r.MatchId FROM bodb_archive.dbo.AutoPayoutResult_bk r WITH(NOLOCK)
-		WHERE r.StatusId = 2
-	END
+	INSERT INTO #MatchIdAuto (matchid)	
+	SELECT DISTINCT r.MatchId 
+	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
+	WHERE p.starttime BETWEEN @fromDate AND @toDate
+		AND p.sporttype = 18
+		AND p.IsAuto = 1
 
 	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
 	SELECT
