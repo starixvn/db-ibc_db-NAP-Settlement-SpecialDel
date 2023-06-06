@@ -323,7 +323,7 @@ GO
 	------------------------ Table Tennis -------------------------------
 
 	INSERT INTO #MatchIdAuto (matchid)	
-	SELECT DISTINCT r.MatchId 
+	SELECT DISTINCT  MatchId 
 	FROM DBLOG.bodb_customerlog_Archive.dbo.SettlementPerformanceLog p with(nolock)
 	WHERE p.starttime BETWEEN @fromDate AND @toDate
 		AND p.sporttype = 18
