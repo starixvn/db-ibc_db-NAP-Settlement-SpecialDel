@@ -536,7 +536,7 @@ BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
 				SELECT 'TVS', 'RecoverSubParlay', 'zzzbettrans', 'D', @matchid, @TransInfo, 'p' 
 
-				SET @TransInfo = ''
+				SET @TransInfo =  NULL
 			END
 			
 			DELETE FROM @tmpTransInfo
@@ -577,7 +577,7 @@ BEGIN
 				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
 				SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p' 
 
-				SET @TransInfo = ''
+				SET @TransInfo = NULL
 			END
 
 			DELETE FROM @tmpTransInfo
