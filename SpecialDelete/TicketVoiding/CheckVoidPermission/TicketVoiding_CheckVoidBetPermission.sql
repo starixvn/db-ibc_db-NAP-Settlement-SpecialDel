@@ -20,6 +20,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230417@July: Update "Void" Permission of TVS [Redmine: #186659]
+		- 20230606@July: Void permission - Add bet types of SABA Time Machine to Instant Settle list [Redmine: #188454]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -39,6 +40,11 @@ BEGIN
 			,@IsExistsSettledCancelCashOutTickets BIT = 0
 
 	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY)
+	DECLARE @SupportInstantSettleBettype  TABLE (bettype SMALLINT);
+
+	INSERT INTO @SupportInstantSettleBettype (bettype)
+	VALUES (228) --SABA OU Time Machine
+		 , (229) --SABA HDP Time Machine
 
 	CREATE TABLE #InstantSettlementBettypes (bettype SMALLINT)
 	CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes (bettype)
@@ -126,10 +132,12 @@ BEGIN
 							FROM #InstantSettlementBettypes AS i
 							WHERE b.bettype = i.bettype
 							) THEN 1
-					WHEN b.StatusId IN (111, 112, 113) THEN 2
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 1
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
 					ELSE 0
 					END
 			FROM #tmpTransInfo b
+			LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
 			WHERE ISNULL(b.betdaqid,0) <> -2 AND b.IsMixParlay = 0 AND b.IsMoved14 = 0
 			)
 		SELECT @IsExistsInstantlySettledTickets = CASE 
@@ -172,14 +180,17 @@ BEGIN
 													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
 										THEN 1
+								WHEN ib.bettype IS NOT NULL THEN 1
 								ELSE 2
 							END
-					WHEN b.StatusId IN (111, 112, 113) THEN 2
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 1
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
 					ELSE 0
 				END
 			 FROM #tmpTransInfo b
 			    LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
+				LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
 			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 0
 
 			UNION ALL -- Apply for ticket void14 
@@ -197,14 +208,17 @@ BEGIN
 													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
 										THEN 1
+								WHEN ib.bettype IS NOT NULL THEN 1
 								ELSE 2
 							END
-					WHEN b.StatusId IN (111, 112, 113) THEN 2
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 1
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
 					ELSE 0
 				END
 			  FROM #tmpTransInfo b
 				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = b.matchid
 				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
+				LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
 			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 1
 			)
 		SELECT @IsExistsInstantlySettledTickets = CASE 
