@@ -112,7 +112,6 @@ Revisions:
 	- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 	- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 	- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-	- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 	
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -573,6 +572,71 @@ BEGIN
 	END
 
 	END -- end SD checking process		
+
+	-- Apply for move match Cricket
+	IF EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransIds t
+					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.transid = t.transid
+				WHERE matchid <> @MatchId
+			)
+		OR EXISTS ( SELECT TOP 1 1 
+				FROM #tblTransIds t
+					INNER JOIN dbo.bettransm bm WITH(NOLOCK) ON bm.transid = t.transid
+					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON bm.refno = b.refno  
+				WHERE b.matchid = 29  
+					AND b.bettype = 29   
+					AND bm.matchid  <> @matchid  
+			)
+	BEGIN
+		SELECT	@ErrCode = 99
+				,@ErrMsg = 'Some tickets not found.'
+
+		IF @totalSubParlay = 0 OR @totalSubParlay <= @ThreadHold
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM #tblMatchProcess)
+			BEGIN
+				------ releasing single process
+				EXEC dbo.NAP_Admin_CheckingProcess   
+					  @isExistFM	= @isExistFM  
+					, @isExistMatch	= @isExistMatch  
+					, @isExistBB	= @isExistBB
+					, @isExistFM2	= @isExistFM2
+					, @IsReleased  	= 1
+			END
+			
+			IF @totalSubParlay > 0 
+			BEGIN
+				------ releasing Refno parlay proccess
+				EXEC dbo.NAP_Admin_CheckingProcess
+					@IsLockingByRefno = 1
+				   ,@Session	= @Session
+				   ,@IsReleased = 1
+			END
+
+			SELECT @ErrCode AS ErrorCode
+					, @ErrMsg AS ErrorMsg
+					,@SiteDBGroupID AS SiteDBGroupID
+
+			RETURN
+		END
+		ELSE IF @totalSubParlay > @ThreadHold
+		BEGIN
+			------ releasing SD process
+			EXEC dbo.NAP_Admin_CheckingProcess  
+				@isExistParlay	= @isExistParlay  
+				, @isExistFM	= @isExistFM  
+				, @isExistMatch	= @isExistMatch  
+				, @isExistBB	= @isExistBB
+				, @isExistFM2	= @isExistFM2
+				, @IsReleased  	= 1
+
+			SELECT @ErrCode AS ErrorCode
+					, @ErrMsg AS ErrorMsg
+					,@SiteDBGroupID AS SiteDBGroupID
+			
+			RETURN
+		END
+	END
 
 	------------------***** Insert all data into #BetDelete,#BetmDelete *****------------------    
 	INSERT INTO #BetDelete (  
