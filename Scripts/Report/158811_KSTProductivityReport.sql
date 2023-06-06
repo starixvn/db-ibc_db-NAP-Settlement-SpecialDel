@@ -22,7 +22,7 @@ GO
 	 2021-10-07: Move Volleyball to ResultDetailOS
 	 2022-02-17: release Pingoal basketball
 	 2022-12-19: release Pingoal ESports
-	 2023-04-12: release Table Tennis - move auto from AutoPayoutResultDetail to AutoPayoutResultDetail
+	 2023-04-12: release Table Tennis - move auto from AutoPayoutResultDetail to AutoPayoutResultDetailOS
 
 	 *** Scope: SportBook
 	 *** Exclude: hedge match, child match of Cricket Test Match, test match
