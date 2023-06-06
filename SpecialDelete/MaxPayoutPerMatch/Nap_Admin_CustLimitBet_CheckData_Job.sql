@@ -431,7 +431,7 @@ BEGIN
 		FROM #TempReject T
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustLimitBetQueue Q with (nolock)
-							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'								
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 121)+'%'								
 						)
 			AND t.matchid <> 29
 			AND t.currency <> 20
@@ -443,7 +443,7 @@ BEGIN
 		FROM #TempReject T
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustLimitBetQueue Q with (nolock)
-							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'								
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 121)+'%'								
 						)
 			AND t.matchid <> 29
 			AND t.currency = 20
@@ -471,8 +471,6 @@ BEGIN
 							AND (
 								-- parlay new format
 								(Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%' AND Q.Transids NOT LIKE '%rejectTicket%') 
-								-- parlay old format ->  ignore
-								OR (Q.Transids  LIKE '%rejectTicket%')
 								)							
 							)
 				AND t.Matchid = 29
@@ -489,8 +487,6 @@ BEGIN
 							AND (
 								-- parlay new format
 								(Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%' AND Q.Transids NOT LIKE '%rejectTicket%') 
-								-- parlay old format ->  ignore
-								OR (Q.Transids  LIKE '%rejectTicket%')
 								)							
 							)
 				AND t.Matchid = 29
@@ -499,12 +495,12 @@ BEGIN
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage  + @CRLF + '6. Missing reject tickets in queue for Parlay. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + '6. Missing reject tickets in queue for Parlay for real currency. Top 100 transId(s): ' + @transIds + @CRLF
 	END
 
 	IF ISNULL(@UUStransIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage  + @CRLF + '6. Missing reject tickets in queue for Parlay. Top 100 transId(s): ' + @UUStransIds + @CRLF
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + '6. Missing reject tickets in queue for Parlay for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
