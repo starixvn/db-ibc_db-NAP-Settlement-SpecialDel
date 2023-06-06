@@ -42,7 +42,7 @@ BEGIN
 			,@IsSettle	BIT 
 			,@ErrCode	INT = 0
 			,@ErrMsg	NVARCHAR(200) = ''
-	
+		
 	IF @Action IN ('CAL', 'CAL-FT', 'REFUND-FT', 'REFUND') -- For Caculate & Refund
 		SET @IsSettle = 1
 	ELSE IF @action = 'UNDO'
@@ -151,7 +151,7 @@ BEGIN
 					SET IsCalculating = 3											
 				WHERE 	keyid = @keyId
 	END
-	
+
 	IF (@tryCount < 3 AND (@IsSettle = 0 OR (@IsSettle = 1 AND @ServiceStatus = 2)))
 	BEGIN
 		SET @StartTime = GETDATE()
