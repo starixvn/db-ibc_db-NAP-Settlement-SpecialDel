@@ -206,7 +206,7 @@ BEGIN
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange
 	
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20))
+	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20), matchid INT)
 	DECLARE @tmpTransIDBatch TABLE (transid BIGINT)
 
 	CREATE TABLE #NegativeBalance (transid BIGINT)
@@ -918,8 +918,9 @@ BEGIN
 							deleted.WalletType,
 							deleted.bettype,
 							deleted.betdaqid,
-							deleted.status
-					INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype, betdaqid, status)
+							deleted.status,
+							deleted.matchid
+					INTO @tmpTrans_beforeUpd (transid, custid, winlost, actual_stake, playercomm,Bonusid, WalletType, bettype, betdaqid, status, matchid)
 				FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 					INNER JOIN #SpecialDeleteBets_Single tmpmain
 						ON	main.transid = tmpmain.transid					
@@ -941,7 +942,7 @@ BEGIN
 							, b.status AS 's'
 							, b.FcUpdateTime AS 'rut'
 					FROM	#SpecialDeleteBets_Single t 
-						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID AND tp.matchid = t.matchid
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 					WHERE t.BetType NOT IN (10, 38)
 					FOR JSON PATH))
@@ -969,7 +970,7 @@ BEGIN
 							, b.status AS 's'
 							, b.FcUpdateTime AS 'rut'
 					FROM	#SpecialDeleteBets_Single t 
-						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID AND tp.matchid = t.matchid
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 					WHERE t.BetType IN (38)
 					FOR JSON PATH))
@@ -997,7 +998,7 @@ BEGIN
 							, b.status AS 's'
 							, b.FcUpdateTime AS 'rut'
 					FROM	#SpecialDeleteBets_Single t 
-						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
+						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID AND tp.matchid = t.matchid
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
 					WHERE t.BetType IN (10)
 					FOR JSON PATH))
@@ -1029,7 +1030,7 @@ BEGIN
 						  , b.WalletType
 						  , b.winlost, b.actual_stake, b.playercomm, b.bettype
 					FROM @tmpTrans_beforeUpd b	
-
+					WHERE b.matchid = @MatchID
 					UNION ALL
 					-- parlay				
 					SELECT b.custid
@@ -1060,11 +1061,12 @@ BEGIN
 			SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
 			FROM @tmpTrans_beforeUpd b
 			WHERE transid IN (SELECT transid FROM #NegativeBalance)			
+				AND b.matchid = @MatchID
 			GROUP BY b.CustID
 
 			--Correct data captured before because CO happen when voiding ticket
 			IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets_Single	b
-							INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+							INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid AND b.matchid = t.matchid
 						WHERE b.IsCashOut = 0 AND t.betdaqid = -2 )
 			BEGIN
 				UPDATE b
@@ -1074,7 +1076,7 @@ BEGIN
 					, b.betdaqid = -2
 					, b.IsCashOut = 1
 				FROM #SpecialDeleteBets_Single b 
-					INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+					INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid AND b.matchid = t.matchid
 				WHERE b.IsCashOut = 0 
 					AND t.betdaqid = -2
 
@@ -1084,7 +1086,7 @@ BEGIN
 					OUTPUT deleted.matchid, deleted.transid, t.status, t.winlost
 					INTO @tmpTransInfo (matchid, transid, STATUS, winlost)
 				FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
+					INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid AND z.matchid = t.matchid
 				WHERE z.status <> t.status
 					AND t.betdaqid = -2
 
@@ -1124,7 +1126,7 @@ BEGIN
 
 					UPDATE TOP(100) t
 					SET isFinish = 1
-						OUTPUT deleted.transid
+						OUTPUT deleted.SubTransId
 						INTO @tmpTransIDBatch(transid)
 					FROM #SpecialDeleteBets_Parlay t
 					WHERE isFinish IS NULL AND t.MatchId = @MatchId
@@ -1181,7 +1183,7 @@ BEGIN
 						  , b.winlost, b.actual_stake, b.playercomm, b.bettype
 					FROM #SpecialDeleteBets_Single t	
 						INNER JOIN bettrans b WITH (NOLOCK) 
-								ON t.transid = b.transid
+								ON t.transid = b.transid AND t.matchid = b.matchid
 					WHERE t.matchid = @MatchID
 					UNION ALL
 					-- parlay				
@@ -1191,7 +1193,7 @@ BEGIN
 						 , b.winlost, b.actual_stake, b.playercomm, b.bettype
 					FROM #SpecialDeleteBets_Parlay t	
 						INNER JOIN bettrans b WITH (NOLOCK) 
-								ON t.transid = b.transid				
+								ON t.transid = b.transid AND t.matchid = b.matchid				
 					WHERE t.matchid = @MatchID
 					UNION ALL
 					-- Cricket charge comm			  
@@ -1223,8 +1225,8 @@ BEGIN
 							  UNION ALL 
 							  SELECT transid FROM #SpecialDeleteBets_Parlay WHERE matchid = @MatchID
 							 )
+			AND b.matchid = @MatchID
 			GROUP BY b.CustID
-
 	END
 
 		SET @NegativeBalanceUsers = ''
