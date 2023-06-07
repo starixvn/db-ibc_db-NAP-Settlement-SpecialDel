@@ -1255,7 +1255,8 @@ BEGIN
 			  , ISNULL(tmp.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
 			  , SUM (tmp.winlost - tmp.actual_stake + tmp.playercomm) AS balance
 		FROM @tmpTrans_beforeUpd tmp
-		GROUP BY custid
+		GROUP BY matchid
+			   , custid
 			   , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END
 			   , ISNULL(tmp.WalletType, 2) -- normal tickets are treated as cash tickets
 		
