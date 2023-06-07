@@ -175,20 +175,16 @@ BEGIN
 	  ,betcheck			NVARCHAR(50)
 	  ,transdesc		NVARCHAR(1000)
 	  ,OddsId			INT
+	  ,matchid			INT
 	 ) 
 
-	DECLARE @SportType SMALLINT--, @MatchStatus NVARCHAR(50)
 	DECLARE @tmpMatchId TABLE (MatchId INT)
-
-	SELECT	@SportType = Sporttype--, @MatchStatus = eventstatus
-	FROM	dbo.match WITH(NOLOCK) 
-	WHERE	matchid = @matchid
 
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT MatchId
 	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
-					WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+	WHERE  1 = CASE WHEN SportType <> 50 AND matchid = @MatchId THEN 1
+					WHEN SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
 
     -- Parse xml @BetTypes
@@ -274,7 +270,7 @@ BEGIN
 		VALUES (@BetType) 
    
 	INSERT INTO #Ref (refno, transid, Bettype, hdp1, hdp2, odds, betteam, 
-				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, OddsId)  
+				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, OddsId, matchid)  
 	SELECT b.refno  
 	  ,b.transid  
 	  ,b.Bettype     
@@ -291,6 +287,7 @@ BEGIN
 	  ,b.betcheck
 	  ,b.transdesc
 	  ,b.OddsId
+	  ,b.matchid
 	 FROM dbo.bettransm AS b WITH(NOLOCK)		  
 	 WHERE	matchid IN (SELECT matchid FROM @tmpMatchId)
 			AND b.SiteDBGroupID = @SiteDBGroupID
@@ -502,7 +499,7 @@ BEGIN
 	FROM #Bettypes_Parlay t
 	INNER JOIN dbo.bettrans AS b with (NOLOCK) ON t.BetType = b.matchid AND b.SiteDBGroupID = @SiteDBGroupID
 	INNER JOIN #Ref AS r WITH(NOLOCK) ON b.refno=r.refno
-	INNER JOIN dbo.match AS m WITH(NOLOCK) ON m.matchid=@MatchID  
+	INNER JOIN dbo.match AS m WITH(NOLOCK) ON m.matchid=r.matchid  
 	INNER JOIN custDB.dbo.customer AS cr with (NOLOCK) ON cr.custid = b.creator	
 	
 	SELECT   T.transid		

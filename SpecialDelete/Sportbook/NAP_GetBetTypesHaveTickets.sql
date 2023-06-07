@@ -33,6 +33,7 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
     CREATE TABLE #TmpBettype (bettype SMALLINT)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
 
     --2: Early kick-off
 	IF @Mode = 2
@@ -59,10 +60,18 @@ BEGIN
     --4: Mix Parlay
 	IF @Mode = 4
 	BEGIN
+		INSERT INTO @tmpMatchId (MatchId)
+		SELECT MatchId
+		FROM dbo.match WITH(NOLOCK)
+		WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+						WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1 -- Get main/child matchid
+						ELSE 0 END
+
         INSERT INTO #TmpBettype(bettype)
         SELECT bettype
-        FROM dbo.bettransm WITH(NOLOCK)
-        WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
+        FROM dbo.bettransm bm WITH(NOLOCK)
+			INNER JOIN @tmpMatchId m ON bm.matchid = m.MatchId
+        WHERE bm.SiteDBGroupID = @SiteDBGroupID
             AND bettype NOT IN (10,29,38,500)
             AND bettype NOT BETWEEN 221 AND 227
             AND bettype < 19000
@@ -71,8 +80,7 @@ BEGIN
 
 	--0: Single bet, 3: Ticket listing, 9: Mark Ticket
 	IF @Mode IN (0,3,9)
-	BEGIN
-		DECLARE @tmpMatchId TABLE (MatchId INT)
+	BEGIN	
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId
 		FROM dbo.match WITH(NOLOCK)

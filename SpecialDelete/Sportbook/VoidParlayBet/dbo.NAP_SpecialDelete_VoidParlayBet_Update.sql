@@ -117,6 +117,9 @@ BEGIN
 			,@ErrMsg				NVARCHAR(200)	= '' 
 			,@ErrCode				INT				= 0  
 			,@SiteDBGroupID		SMALLINT
+			,@SubTransIds		VARCHAR(MAX) = ''
+			,@transids_29 VARCHAR(MAX) = ''  
+			,@refnos_29  VARCHAR(MAX) = '' 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -170,11 +173,14 @@ BEGIN
 		  mainstatusID	INT,
 		  main_ruben	TINYINT,
 		  main_custid	INT,
-		  OddsId		INT
+		  OddsId		INT,
+		  matchid		INT,
+		  IsFinish		BIT
 	)  
        
 	CREATE TABLE #tblTransId (transid BIGINT PRIMARY KEY)								 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
+	DECLARE @tmpMatchId TABLE (MatchId INT, matchdate DATETIME, IsFinish BIT)
 
 	IF NOT EXISTS (SELECT 1  FROM custDB.dbo.customer WITH (NOLOCK) WHERE userpwd = @UserPassword  AND custid = @UserId AND roleid>=5)  
 	BEGIN  
@@ -294,15 +300,22 @@ BEGIN
 			, @NegativeBalanceUsers AS NegativeBalanceUsers
 		
 		RETURN  
-	END CATCH    
+	END CATCH  
+	
+	INSERT INTO @tmpMatchId (MatchId, matchdate)
+	SELECT MatchId, m.eventdate
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
+					WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
    -- Apply new way to lock parlay tickets
 	INSERT INTO #tblMatchParlayProcess (MatchID, RefNo)
-	SELECT @MatchID, b.refno
+	SELECT b.matchid, b.refno
 	FROM #tblTransId t
 	  INNER JOIN dbo.bettransm b WITH(NOLOCK) ON t.transid = b.transid
-	WHERE	b.matchid = @MatchID
-		 AND b.statusID NOT IN (101, 102)   
+	  INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
+	WHERE b.statusID NOT IN (101, 102)   
    
 	SET @totalSubParlay = @@ROWCOUNT
    	EXEC dbo.NAP_Set_GlobalSettingSel 
@@ -340,7 +353,7 @@ BEGIN
 
  ------------------***** Insert all data into #BetDelete *****------------------  
 	INSERT INTO #BetDelete (  refno, transid, custid, srecommend, mrecommend, recommend, betfrom, bettype, hdp1  
-	  ,hdp2, odds, betteam, livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, creator, OddsId)  
+	  ,hdp2, odds, betteam, livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, creator, OddsId, matchid)  
 	SELECT	b.refno  
 			,b.transid  
 			,c.custid  
@@ -363,12 +376,13 @@ BEGIN
 			,b.transdesc  
 			,b.creator  			
 			,b.OddsId
+			,b.matchid
 	FROM (SELECT TOP (@CountSubTransId) * FROM #tblTransId) tmp		     
 		 INNER JOIN dbo.bettransm AS b WITH(NOLOCK)        
 			     ON	b.transid = tmp.transid
 		 INNER JOIN custDB.dbo.customer AS c WITH(NOLOCK)   
 			     ON	c.custid=b.custid		 
-	WHERE	b.matchid=@MatchID   
+	WHERE	b.matchid IN (SELECT matchid FROM @tmpMatchId)
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @Type = 1 THEN @LiveHomeScore ELSE b.livehomescore END  
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @Type = 1 THEN @LiveAwayScore ELSE b.liveawayscore END   
 			AND b.transdate BETWEEN CASE WHEN @FromTransdate IS NOT NULL THEN @FromTransdate ELSE b.transdate END   
@@ -576,59 +590,51 @@ BEGIN
 			INNER JOIN #BetDelete AS r 
 				ON	r.transid=b.transid   
 
-		-- void process  
-		DECLARE @rowcount		INT
-				,@step			INT = 0
-				,@transid_tmp	VARCHAR(2000)  
-
 		--- void selection  
-		DECLARE @transtbl TABLE (id INT IDENTITY, transid BIGINT)  
+		DECLARE @tmpTransIDBatch TABLE (transid BIGINT)
 		
-		INSERT INTO @transtbl (transid)  
-		SELECT	transid  
-		FROM	#BetDelete  
-		   
-		SELECT @rowcount = @@ROWCOUNT 
-		 
-		WHILE @step < @rowcount  
-		BEGIN  
-			SET @transid_tmp = ''  
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId, @matchdate = p.matchdate
+			FROM @tmpMatchId p
+			WHERE p.IsFinish IS NULL
+		
+			IF @@ROWCOUNT = 0 BREAK
 
-			SELECT	@transid_tmp  = @transid_tmp + CONVERT(VARCHAR(20),transid)  + ','   
-			FROM	@transtbl  
-			WHERE	id > @step 
-					AND id <= @step + 100  
-			 
-			SET @step = @step + 100  
+			WHILE (0=0)
+			BEGIN
+				DELETE @tmpTransIDBatch
+				SET @SubTransIds = ''
+		
+				UPDATE TOP(100) t
+				SET isFinish = 1
+					OUTPUT deleted.transid
+					INTO @tmpTransIDBatch(transid)
+				FROM #BetDelete t
+				WHERE isFinish IS NULL AND t.MatchId = @MatchId
 
-			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
-			,@fth = 0  
-			,@fta = 0  
-			,@hth = 0  
-			,@hta = 0  
-			,@matchdate = @matchdate  
-			,@mode = 'VOID'  
-			,@VoidTransID = @transid_tmp  
-			,@UserId = @UserId  
-			 
-		END  
+				IF @@ROWCOUNT = 0 BREAK
 
-		IF EXISTS ( SELECT TOP 1 1  
-					FROM #BetDelete r 
-						INNER HASH JOIN bettrans b WITH(NOLOCK)   
-							ON	b.refno = r.refno  
-					WHERE	b.matchid = 29 
-							AND b.bettype = 29  
-		)   
-		BEGIN  
+				SELECT	@SubTransIds = @SubTransIds + CONVERT(VARCHAR(50), TransId) + ','
+				FROM	@tmpTransIDBatch
 
-			BEGIN TRY  
-				DECLARE @transids_29 VARCHAR(MAX) = ''  
-				  ,@refnos_29  VARCHAR(MAX) = ''  
-				   
+				EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
+					,@fth = 0  
+					,@fta = 0  
+					,@hth = 0  
+					,@hta = 0  
+					,@matchdate = @matchdate  
+					,@mode = 'VOID'  
+					,@VoidTransID = @SubTransIds  
+					,@UserId = @UserId
+			END
+
+			BEGIN TRY  			   
 				SELECT	@transids_29 = @transids_29 + CONVERT(VARCHAR(20), maintransid) + ','  
 				FROM	#BetDelete  
 				WHERE	mainbettype = 29  
+					AND matchid = @MatchId
+					AND mainstatusID NOT IN (101, 102)
 				GROUP BY maintransid  
 				  
 				EXEC dbo.NAP_Admin_Calculate_MP_broker   
@@ -641,6 +647,17 @@ BEGIN
 				SELECT @ErrCode = 100  
 				 , @ErrMsg = ERROR_MESSAGE()  
 			END CATCH  
+	
+		END
+		 
+		IF EXISTS ( SELECT TOP 1 1  
+					FROM #BetDelete r 
+						INNER HASH JOIN bettrans b WITH(NOLOCK)   
+							ON	b.refno = r.refno  
+					WHERE	b.matchid = 29 
+							AND b.bettype = 29  
+		)   
+		BEGIN  
 
 		---********* Calculate balance at bettrans table********---  
 			CREATE TABLE #BeforeUpd (  
@@ -853,7 +870,7 @@ BEGIN
 				,b.ExtraInfo
 				,b.actual_stake AS ActualStake
 				,r.OddsId AS SubOddsId
-				,@MatchID AS MatchId
+				,r.matchid AS MatchId
 				,b.recommend
 				,b.mrecommend
 				,b.srecommend
