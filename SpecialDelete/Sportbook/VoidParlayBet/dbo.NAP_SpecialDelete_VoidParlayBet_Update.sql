@@ -647,6 +647,8 @@ BEGIN
 				SELECT @ErrCode = 100  
 				 , @ErrMsg = ERROR_MESSAGE()  
 			END CATCH  
+
+			SET @transids_29 = ''
 	
 		END
 		 
