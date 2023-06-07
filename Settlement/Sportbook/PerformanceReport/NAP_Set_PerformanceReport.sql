@@ -16,6 +16,7 @@ AS
 		- 20221128@Kathy: Move table single/parlay queue_bk, SettlementPerformanceLog to bodb_CustomerLog_Archive [Redmine:#180941]
 		- 20230109@Kathy: Keyscore Performance Report - Add Game/Set Results of SOP Sports [Redmine:#182007]
 		- 20230322@Louisa: support get result Game/Set/Interval... [Redmine:#182007]
+		- 20230605@Louisa: Get data group by SiteDBGroupId [Redmine:#185675]
 */
 BEGIN
 	DECLARE @maxdate DATETIME
@@ -30,6 +31,7 @@ BEGIN
 		,action		VARCHAR(20)
 		,eventdate	DATETIME
 		,sqlcommand VARCHAR(MAX)
+		,SiteDBGroupId SMALLINT
 	)
 
 	CREATE TABLE #tmpRESULT (
@@ -53,6 +55,7 @@ BEGIN
 		,isauto			BIT
 		,adminid		INT
 		,ishold			BIT DEFAULT (0)
+		,SiteDBGroupId	SMALLINT
 
 	)
 
@@ -83,8 +86,8 @@ BEGIN
 		[Starttime] [datetime] NULL,
 		[Exectime] [datetime] NULL,
 		[Duration] [int] NULL,
-		[IsHold] [bit] NULL
-
+		[IsHold] [bit] NULL,
+		[SiteDBGroupId] [SMALLINT] NULL
 	)
 
 	SELECT @maxdate = MAX(Starttime)
@@ -93,20 +96,20 @@ BEGIN
 	IF @maxdate IS NULL
 		SET @maxdate = '2018-01-01'
 
-	INSERT INTO #tmpDATA(matchid, starttime, exectime, duration, isauto, adminid, action, eventdate, sqlcommand)
-	SELECT	matchid, starttime, exectime, duration, CASE WHEN adminid = 0 THEN 1 ELSE 0 END AS isauto, adminid, action, eventdate, sqlcommand
+	INSERT INTO #tmpDATA(matchid, starttime, exectime, duration, isauto, adminid, action, eventdate, sqlcommand, SiteDBGroupId)
+	SELECT	matchid, starttime, exectime, duration, CASE WHEN adminid = 0 THEN 1 ELSE 0 END AS isauto, adminid, action, eventdate, sqlcommand, SiteDBGroupId
 	FROM	dbo.Single_Calculate_Queue_bk s WITH (NOLOCK)
 	WHERE	action IN ('CAL-HT', 'CAL-FT', 'CAL', 'INST-HT', 'INST-FT')
 			AND Starttime > @maxdate
 	UNION ALL
-	SELECT	matchid, starttime, exectime, duration, CASE WHEN Creator = 0 THEN 1 ELSE 0 END AS isauto, creator, 'CAL-PARLAY' AS action, eventdate, '' AS sqlcommand
+	SELECT	matchid, starttime, exectime, duration, CASE WHEN Creator = 0 THEN 1 ELSE 0 END AS isauto, creator, 'CAL-PARLAY' AS action, eventdate, '' AS sqlcommand, SiteDBGroupId
 	FROM	dbo.Parlay_Calculate_Queue_bk p WITH (NOLOCK)
 	WHERE	action = 'CAL'
 			AND Starttime > @maxdate
 
 	INSERT INTO #tmpRESULT ( leagueid, homeid, awayid, kickofftime, globalshowtime
 			, matchid, ResourceID, ActionId
-			,starttime, exectime, duration, action, eventdate, sqlcommand, isauto, adminid, sporttype
+			,starttime, exectime, duration, action, eventdate, sqlcommand, isauto, adminid, sporttype, SiteDBGroupId
 		)
 	SELECT	 m.leagueid, m.homeid, m.awayid, m.kickofftime, m.globalshowtime
 			,d.matchid 
@@ -123,10 +126,12 @@ BEGIN
 			END AS ActionId
 			,d.starttime, d.exectime, d.duration
 			,CASE 
+				WHEN f.ResourceID = 'OT' THEN f.ResourceID ---basketball
 				WHEN f.ResourceID IS NOT NULL AND f.ResourceID NOT IN ('00','01') THEN 'CAL-INTERVAL' 
 				ELSE d.action 
 				END AS action
 			, d.eventdate, d.sqlcommand, d.isauto, d.adminid, m.sporttype
+			, d.SiteDBGroupId
 	FROM	#tmpDATA d
 		CROSS APPLY (
 			SELECT	matchid, sporttype, leagueid, homeid, awayid, kickofftime, globalshowtime
@@ -250,7 +255,7 @@ BEGIN
 
 	SELECT	DISTINCT r.leagueid, r.matchid, r.ResourceId, r.ActionId, r.homeid, r.awayid, r.kickofftime, r.globalshowtime
 			,r.action, r.isauto, r.adminid, i.confirmdate,  r.starttime, r.exectime, r.duration, r.homescore, r.awayscore, r.sporttype, r.ishold
-
+			,r.SiteDBGroupId
 	INTO #Final_Result			
 	FROM	#tmpRESULT r
 		LEFT JOIN #tmpINST i
@@ -270,17 +275,19 @@ BEGIN
 		FROM #Final_Result 
 		OUTPUT   deleted.leagueid, deleted.matchid, deleted.ResourceId, deleted.ActionId, deleted.homeid, deleted.awayid, deleted.kickofftime, deleted.globalshowtime
 				,deleted.action, deleted.isauto, deleted.adminid, deleted.confirmdate,  deleted.starttime, deleted.exectime, deleted.duration, deleted.homescore, deleted.awayscore, deleted.sporttype, deleted.ishold
+				,deleted.SiteDBGroupId
 		INTO #Result_tmp ( leagueid, matchid, resourceId, ActionId, homeid, awayid, kickofftime, globalshowtime
-							,action, isauto, adminid, ConfirmScoreDate,  starttime, exectime, duration, homescore, awayscore, sporttype, ishold)				
+							,action, isauto, adminid, ConfirmScoreDate,  starttime, exectime, duration, homescore, awayscore, sporttype, ishold, SiteDBGroupId)				
 	
 		IF @@ROWCOUNT = 0 BREAK
 	
 		INSERT INTO dbo.SettlementPerformanceLog (LeagueId, MatchId, ResourceId, actionId, HomeId, AwayId, Kickofftime, GlobalShowtime
 												,Action, IsAuto, AdminId, ConfirmScoreDate, Starttime, Exectime, Duration
-												, HomeScore, AwayScore, CreatedDate, sporttype, ishold )
+												, HomeScore, AwayScore, CreatedDate, sporttype, ishold, SiteDBGroupId )
 	
 		SELECT leagueid, matchid, resourceId, ActionId, homeid, awayid, kickofftime, globalshowtime
 				,action, isauto, adminid, ConfirmScoreDate,  starttime, exectime, duration, homescore, awayscore, @current, sporttype, ishold
+				,SiteDBGroupId
 		FROM #Result_tmp
 	
 		TRUNCATE TABLE #Result_tmp
