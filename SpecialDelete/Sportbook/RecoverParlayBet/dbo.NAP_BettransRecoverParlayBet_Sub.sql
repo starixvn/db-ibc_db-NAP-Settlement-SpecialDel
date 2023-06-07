@@ -417,7 +417,7 @@ BEGIN
 		
 				UPDATE TOP(@RecoverPatchSize) t
 				SET isFinish = 1
-					OUTPUT deleted.transid
+					OUTPUT deleted.SubTransID
 					INTO @tmpTransIDBatch(transid)
 				FROM @tblRecoverBet t
 				WHERE isFinish IS NULL 
@@ -432,9 +432,7 @@ BEGIN
 					@matchid = @matchid
 					,@matchdate = @MatchDate
 					,@mode = 'RECOVER' -- update bettransM + BetParlayDetail
-					,@VoidTransID = @SubTransIds
-				
-				SET @RowNumber = @RowNumber + @RecoverPatchSize				
+					,@VoidTransID = @SubTransIds		
 			END				
 		
 			SELECT @transids_29 = @transids_29 + CONVERT(VARCHAR(50), transid) + ','
