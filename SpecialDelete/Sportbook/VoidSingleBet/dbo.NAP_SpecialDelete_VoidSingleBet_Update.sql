@@ -1343,7 +1343,8 @@ BEGIN
 						AND main.matchid = tmpmain.matchid
 			
 		) tmp
-		GROUP BY custid
+		GROUP BY matchid
+				, custid
 			   , CASE WHEN tmp.BonusID > 0 AND tmp.WalletType = 1 THEN tmp.BonusID ELSE 0 END
 			   , ISNULL(tmp.WalletType, 2) -- normal tickets are treated as cash tickets
 
