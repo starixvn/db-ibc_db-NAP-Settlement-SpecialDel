@@ -12,6 +12,7 @@ AS
 		- 20210316@Kathy: created SP [Redmine:#138281]
 		- 20230322@Louisa: support get result Game/Set/Interval [Redmine:#182007]
 		- 20230515@Kathy: fix bug: rollback code from cross apply to outer apply
+		- 20230607@Louisa: Get data SiteDBGroupId = 0 [Redmine:#185675]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -45,6 +46,7 @@ BEGIN
 			,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action ,ActionId, IsAuto
 			,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
 		FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
+		WHERE SiteDBGroupID = 0
 	)
 	, cteSuspenderConfirm
 	AS(
