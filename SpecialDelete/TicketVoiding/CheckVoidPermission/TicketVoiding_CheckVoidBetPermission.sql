@@ -36,6 +36,7 @@ BEGIN
 			,@IsExistsSettledParlayTickets BIT = 0
 			,@IsExistsSettledTickets BIT = 0
 			,@IsExistsInstantlySettledTickets BIT = 0
+			,@IsExistsInstantlySettledSABATickets BIT = 0
 			,@IsExistsSettledCashOutTickets BIT = 0
 			,@IsExistsSettledCancelCashOutTickets BIT = 0
 
@@ -132,7 +133,7 @@ BEGIN
 							FROM #InstantSettlementBettypes AS i
 							WHERE b.bettype = i.bettype
 							) THEN 1
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 1
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
 					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
 					ELSE 0
 					END
@@ -140,22 +141,12 @@ BEGIN
 			LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
 			WHERE ISNULL(b.betdaqid,0) <> -2 AND b.IsMixParlay = 0 AND b.IsMoved14 = 0
 			)
-		SELECT @IsExistsInstantlySettledTickets = CASE 
-				WHEN EXISTS (
-						SELECT TOP 1 1
-						FROM CTE_TransId
-						WHERE SettledType = 1
-						) THEN 1
-				ELSE 0
-				END
-			,@IsExistsSettledSingleTickets = CASE 
-				WHEN EXISTS (
-						SELECT TOP 1 1
-						FROM CTE_TransId
-						WHERE SettledType = 2
-						) THEN 1
-				ELSE 0
-				END
+		
+		SELECT @IsExistsInstantlySettledTickets = MAX(CASE WHEN SettledType = 1 THEN 1 ELSE 0 END)
+			 , @IsExistsSettledSingleTickets = MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END)
+			 , @IsExistsInstantlySettledSABATickets = MAX(CASE WHEN SettledType = 3 THEN 1 ELSE 0 END)
+		FROM CTE_TransId
+
 	END
 	
 	IF ISNULL(@MatchId,0) = 0
@@ -180,10 +171,10 @@ BEGIN
 													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
 										THEN 1
-								WHEN ib.bettype IS NOT NULL THEN 1
+								WHEN ib.bettype IS NOT NULL THEN 3
 								ELSE 2
 							END
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 1
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
 					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
 					ELSE 0
 				END
@@ -208,10 +199,10 @@ BEGIN
 													FROM dbo.f_TVS_GetInstantBettypes() ib
 													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
 										THEN 1
-								WHEN ib.bettype IS NOT NULL THEN 1
+								WHEN ib.bettype IS NOT NULL THEN 3
 								ELSE 2
 							END
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 1
+					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
 					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
 					ELSE 0
 				END
@@ -221,22 +212,12 @@ BEGIN
 				LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
 			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 1
 			)
-		SELECT @IsExistsInstantlySettledTickets = CASE 
-				WHEN EXISTS (
-						SELECT TOP 1 1
-						FROM CTE_TransId
-						WHERE SettledType = 1
-						) THEN 1
-				ELSE 0
-				END
-			,@IsExistsSettledSingleTickets = CASE 
-				WHEN EXISTS (
-						SELECT TOP 1 1
-						FROM CTE_TransId
-						WHERE SettledType = 2
-						) THEN 1
-				ELSE 0
-				END
+		
+		SELECT @IsExistsInstantlySettledTickets = MAX(CASE WHEN SettledType = 1 THEN 1 ELSE 0 END)
+			 , @IsExistsSettledSingleTickets = MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END)
+			 , @IsExistsInstantlySettledSABATickets = MAX(CASE WHEN SettledType = 3 THEN 1 ELSE 0 END)
+		FROM CTE_TransId
+	
 	END
 
 	-- check settled parlay (sub-parlay, main-parlay (bettrans+ bettrans14)
@@ -263,7 +244,7 @@ BEGIN
 
 	
 
-	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
+	SELECT @IsExistsSettledTickets = CASE WHEN (@IsExistsSettledSingleTickets = 1 AND @IsExistsInstantlySettledSABATickets = 0) --Case saba & normal settle tickets
 											OR @IsExistsSettledParlayTickets = 1
 											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0)
 											OR @IsExistsSettledCancelCashOutTickets = 1 THEN 1
@@ -274,7 +255,7 @@ BEGIN
 			AND @IsHostVoidSettledTickets = 0
 			)
 		OR (
-			@IsExistsInstantlySettledTickets = 1
+			(@IsExistsInstantlySettledTickets = 1 OR @IsExistsInstantlySettledSABATickets = 1)
 			AND @IsHostVoidInstantlySettledTickets = 0 AND @IsHostVoidSettledTickets = 0
 			)
 		OR (
