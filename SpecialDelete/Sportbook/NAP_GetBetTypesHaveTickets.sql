@@ -34,8 +34,43 @@ BEGIN
 
     CREATE TABLE #TmpBettype (bettype SMALLINT)
 
-    --0: Single bet, 2: Early kick-off, 3: Ticket listing, 9: Mark Ticket
-	IF @Mode IN (0, 2, 3, 9)
+    --2: Early kick-off
+	IF @Mode = 2
+	BEGIN
+        INSERT INTO #TmpBettype(bettype)
+		SELECT bettype
+		FROM dbo.bettrans WITH(NOLOCK)
+		WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
+			AND bettype NOT IN (10,29,500)
+			AND bettype < 19000
+		GROUP BY bettype
+
+        INSERT INTO #TmpBettype(bettype)
+        SELECT bt.bettype
+        FROM dbo.bettransm bt WITH(NOLOCK)
+        WHERE bt.matchid = @MatchId AND bt.SiteDBGroupID = @SiteDBGroupID
+		AND NOT EXISTS(SELECT TOP 1 1
+            FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
+            AND bt.bettype NOT IN (10,29,38,500)
+            AND bt.bettype < 19000
+        GROUP BY bt.bettype
+	END
+
+    --4: Mix Parlay
+	IF @Mode = 4
+	BEGIN
+        INSERT INTO #TmpBettype(bettype)
+        SELECT bettype
+        FROM dbo.bettransm WITH(NOLOCK)
+        WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
+            AND bettype NOT IN (10,29,38,500)
+            AND bettype NOT BETWEEN 221 AND 227
+            AND bettype < 19000
+        GROUP BY bettype
+	END
+
+	--0: Single bet, 3: Ticket listing, 9: Mark Ticket
+	IF @Mode IN (0,3,9)
 	BEGIN
 		DECLARE @tmpMatchId TABLE (MatchId INT)
 		INSERT INTO @tmpMatchId (MatchId)
@@ -50,9 +85,7 @@ BEGIN
 		FROM dbo.bettrans b WITH(NOLOCK)
 			INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
 		WHERE SiteDBGroupID = @SiteDBGroupID
-			AND 1 = CASE WHEN @Mode <> 2 AND bettype NOT IN (10,29,38,500) THEN 1
-						 WHEN @Mode = 2 AND bettype NOT IN (10,29,500) THEN 1
-						 ELSE 0 END
+			AND bettype NOT IN (10,29,38,500)
 			AND bettype < 19000
 		GROUP BY bettype
 		
@@ -65,19 +98,6 @@ BEGIN
             AND bm.bettype < 19000
 			AND NOT EXISTS(SELECT TOP 1 1 FROM #TmpBettype tb WHERE bm.bettype = tb.bettype)
         GROUP BY bm.bettype
-	END
-
-    --4: Mix Parlay
-	IF @Mode = 4
-	BEGIN
-        INSERT INTO #TmpBettype(bettype)
-        SELECT bettype
-        FROM dbo.bettransm WITH(NOLOCK)
-        WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
-            AND bettype NOT IN (10,29,38,500)
-            AND bettype NOT BETWEEN 221 AND 227
-            AND bettype < 19000
-        GROUP BY bettype
 	END
 
     SELECT bettype
