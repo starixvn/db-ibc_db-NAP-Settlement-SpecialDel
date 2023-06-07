@@ -15,6 +15,7 @@ AS
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20221003@Victoria: Add more email to @Recipients [Redemine: #178536]
 		- 20221206@Max: MPO Remove invalid email address (LOCAL + SIT) [Redmine: #00000]
+		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 
 	Param's explanation:		
 		
@@ -33,11 +34,11 @@ BEGIN
 	--For PROD EVN
 	IF @@SERVERNAME IN ('DBTRANS') OR @@SERVERNAME LIKE 'DBGRP%' 
 	BEGIN
-		SET @Recipients = 'dbaadmin@starixvn.com'
+		SET @Recipients = 'dbaadmin@starixsoft.com'
 	END
 	ELSE
 	BEGIN
-		SET @Recipients = 'dba_local@starixvn.com;qa@starixvn.com;kaka.huynh@starixvn.com;jane.dinh@starixvn.com;neil.dao@starixvn.com;tommy.nguyen@starixvn.com'
+		SET @Recipients = 'dba_local@starixsoft.com;qa@starixsoft.com'
 	END
 		
 	-- SEND NOTIFICATION VIA LESTALK ON PRODUCTION
@@ -94,7 +95,7 @@ Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE Sta
 					,@sensitivity ='Personal'
 					,@importance ='High'
 					,@subject =@Subject
-					,@body_format = 'HTML'
+					,@body_format = 'TEXT'
 					,@profile_name =DEFAULT;
 					
 		END
@@ -113,7 +114,7 @@ Sample: SELECT TOP 10 matchid FROM dbo.CustLimitBetQueue WITH (NOLOCK) WHERE Sta
 					,@sensitivity ='Personal'
 					,@importance ='High'
 					,@subject =@Subject
-					,@body_format = 'HTML'
+					,@body_format = 'TEXT'
 					,@profile_name =DEFAULT;
 		END			
 	END
@@ -151,7 +152,7 @@ Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK). '
 					,@sensitivity ='Personal'
 					,@importance ='High'
 					,@subject =@Subject
-					,@body_format = 'HTML'
+					,@body_format = 'TEXT'
 					,@profile_name =DEFAULT			
 
 		END
@@ -170,7 +171,7 @@ Sample: SELECT TOP 10 * FROM bodb02.dbo.CustLimitBetQueue WITH (NOLOCK).'
 					,@sensitivity ='Personal'
 					,@importance ='High'
 					,@subject =@Subject
-					,@body_format = 'HTML'
+					,@body_format = 'TEXT'
 					,@profile_name =DEFAULT;
 		END			
 	END

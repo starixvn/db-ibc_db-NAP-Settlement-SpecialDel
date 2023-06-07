@@ -18,6 +18,7 @@ AS
 		- 20230216@Tina: enable to check duplicate data in queue table for reject action [Redmine: #183838]
 		- 20230317@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
 		- 20230321@Max: Enhance performance & Change to use Sitelabel for 789y [Redmine: #184559]
+		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 
 	Param's explanation:		
 		
@@ -28,6 +29,7 @@ BEGIN
 
 	DECLARE @SiteDBGroupID SMALLINT,
 			@transIds VARCHAR(MAX),
+			@UUSTransIds VARCHAR(MAX),
 			@CRLF CHAR(2)
 
 	SET @ErrorMessage = ''
@@ -37,11 +39,12 @@ BEGIN
 	SET @CRLF = CHAR(13)+CHAR(10)
 
 	SET @transIds = ''
+	SET @UUSTransIds = ''
 
 	CREATE TABLE #RunningMatch (matchid INT PRIMARY KEY, sporttype SMALLINT)
 	CREATE TABLE #NonSBRunningMatch (matchid INT PRIMARY KEY)
 
-	CREATE TABLE #Result_tmp (Transid BIGINT, matchid INT, custid INT)
+	CREATE TABLE #Result_tmp (Transid BIGINT, matchid INT, custid INT, Currency TINYINT)
 
 	SET @SiteDBGroupID = (SELECT dbo.f_Get_SiteDBGroupID())
 
@@ -67,7 +70,7 @@ BEGIN
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
-		SET @ErrorMessage = '1. CustLimitBet_789 table is inserted data for excluded sporttype. ' + @CRLF
+		SET @ErrorMessage = '1. CustLimitBet_789 table is inserted data for excluded sporttype.' + @CRLF 
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -77,7 +80,7 @@ BEGIN
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
-		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_MBC table is inserted data for excluded sporttype. ' + @CRLF
+		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_MBC table is inserted data for excluded sporttype. ' + @CRLF 
 	END
 
 	IF EXISTS (SELECT TOP 1 1
@@ -86,17 +89,19 @@ BEGIN
 					INNER JOIN #NonSBRunningMatch m ON cb.matchid = m.matchid
 				WHERE cb.ModifiedDate BETWEEN @StartTime AND @EndTime)
 	BEGIN
-		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_LIC table is inserted data for excluded sporttype. ' + @CRLF
+		SET @ErrorMessage =  @ErrorMessage + '1. CustLimitBet_LIC table is inserted data for excluded sporttype. ' + @CRLF 
 	END
 	
 	-----------------------------------------------------History table is missing data--------------------------------------------------------------------
 	--789y
+	SET @transIds = ''
+	SET @UUSTransIds = ''
 	TRUNCATE TABLE #Result_tmp
-	INSERT INTO #Result_tmp (matchid, Transid, custid)
-	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
+	INSERT INTO #Result_tmp (matchid, Transid, custid, Currency)
+	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid, tmp.currency
 	FROM #RunningMatch m
 		CROSS APPLY (
-				SELECT TOP 100 b.transid, b.custid 
+				SELECT TOP 100 b.transid, b.custid, b.currency 
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
 					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') = '789y'
@@ -119,21 +124,37 @@ BEGIN
 			SELECT DISTINCT b.transId, b.custid, b.matchid
 			FROM #Result_tmp b 
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
-		) AS tmp	
+				AND b.Currency <> 20
+		) AS tmp
+		
+		SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency = 20
+		) AS tmp
 	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data for real currency. Top 100 transId(s): ' + @transIds + @CRLF
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_789 table is missing data for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF 
 	END
 	
 	--MBC
+	SET @transIds = ''
+	SET @UUSTransIds = ''
 	TRUNCATE TABLE #Result_tmp
-	INSERT INTO #Result_tmp (matchid, Transid, custid)
-	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
+	INSERT INTO #Result_tmp (matchid, Transid, custid, Currency)
+	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid, tmp.currency
 	FROM #RunningMatch m
 		CROSS APPLY (
-				SELECT TOP 100 b.transid, b.custid 
+				SELECT TOP 100 b.transid, b.custid, b.currency 
 				FROM dbo.bettrans b WITH (NOLOCK)
 					INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
 					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = ci.site AND ISNULL(s.SiteLabel,'') <> '789y'
@@ -152,27 +173,42 @@ BEGIN
 		--retry one more time for sure
 		WAITFOR DELAY '00:00:02.000'
 
-		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
 			SELECT DISTINCT b.transId, b.custid, b.matchid
 			FROM #Result_tmp b 
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
-		) AS tmp	
+				AND b.Currency <> 20
+		) AS tmp
+		
+		SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency = 20
+		) AS tmp
 	END
 	
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data for real currency. Top 100 transId(s): ' + @transIds + @CRLF 
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_MBC table is missing data for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF 
 	END
 
 	--LIC
+	SET @transIds = ''
+	SET @UUSTransIds = ''
 	TRUNCATE TABLE #Result_tmp
-	INSERT INTO #Result_tmp (matchid, Transid, custid)
-	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid
+	INSERT INTO #Result_tmp (matchid, Transid, custid, Currency)
+	SELECT TOP (100) m.matchid, tmp.transId, tmp.custid, tmp.currency
 	FROM #RunningMatch m
 		CROSS APPLY (
-				SELECT TOP 100 b.transid, b.custid 
+				SELECT TOP 100 b.transid, b.custid, b.currency 
 				FROM dbo.bettrans b WITH (NOLOCK)
 					LEFT JOIN dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
 				WHERE b.matchid = m.matchid 
@@ -189,24 +225,39 @@ BEGIN
 		--retry one more time for sure
 		WAITFOR DELAY '00:00:02.000'
 
-		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
 			SELECT DISTINCT b.transId, b.custid, b.matchid
 			FROM #Result_tmp b 
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency <> 20
+		) AS tmp	
+
+		SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency = 20
 		) AS tmp	
 	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_LIC table is missing data. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_LIC table is missing data for real currency. Top 100 transId(s): ' + @transIds + @CRLF 
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage + '2. CustLimitBetHistory_LIC table is missing data for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF 
 	END
 
 	--789y
+	SET @transIds = ''
+	SET @UUSTransIds = ''
 	TRUNCATE TABLE #Result_tmp
-	INSERT INTO #Result_tmp (matchid, Transid, custid)
-	SELECT TOP (100) b.matchid, b.transId, b.custid
+	INSERT INTO #Result_tmp (matchid, Transid, custid, Currency)
+	SELECT TOP (100) b.matchid, b.transId, b.custid, b.currency
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
 		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
@@ -222,24 +273,39 @@ BEGIN
 		--retry one more time for sure
 		WAITFOR DELAY '00:00:02.000'
 
-		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
 			SELECT DISTINCT b.transId, b.custid, b.matchid
 			FROM #Result_tmp b 
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency <> 20
+		) AS tmp	
+
+		SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_789 h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency = 20
 		) AS tmp	
 	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
+		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2 for real currency. Top 100 transId(s): ' + @transIds + @CRLF
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_789 table is missing data which EventTypeID = 2 for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF
 	END
 	
 	--MBC
+	SET @transIds = ''
+	SET @UUSTransIds = ''
 	TRUNCATE TABLE #Result_tmp
-	INSERT INTO #Result_tmp (matchid, Transid, custid)
-	SELECT TOP (100) b.matchid, b.transId, b.custid
+	INSERT INTO #Result_tmp (matchid, Transid, custid, Currency)
+	SELECT TOP (100) b.matchid, b.transId, b.custid, b.currency
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
 		INNER JOIN CustDB.dbo.Customer ci WITH (NOLOCK) ON ci.custid = b.custid
@@ -256,24 +322,39 @@ BEGIN
 		--retry one more time for sure
 		WAITFOR DELAY '00:00:02.000'
 
-		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
 			SELECT DISTINCT b.transId, b.custid, b.matchid
 			FROM #Result_tmp b 
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
-		) AS tmp	
+				AND b.Currency <> 20
+		) AS tmp
+		
+		SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_MBC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency = 20
+		) AS tmp
 	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2 for real currency. Top 100 transId(s): ' + @transIds + @CRLF 
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_MBC table is missing data which EventTypeID = 2 for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF 
 	END
 
 	--LIC
+	SET @transIds = ''
+	SET @UUSTransIds = ''
 	TRUNCATE TABLE #Result_tmp
-	INSERT INTO #Result_tmp (matchid, Transid, custid)
-	SELECT TOP (100) b.matchid, b.transId, b.custid
+	INSERT INTO #Result_tmp (matchid, Transid, custid, Currency)
+	SELECT TOP (100) b.matchid, b.transId, b.custid, b.currency
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN dbo.outright O WITH (NOLOCK) ON b.matchid = o.orid
 		LEFT JOIN dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) ON h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid
@@ -288,18 +369,31 @@ BEGIN
 		--retry one more time for sure
 		WAITFOR DELAY '00:00:02.000'
 
-		SET @transIds = ''
 		SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 		FROM(
 			SELECT DISTINCT b.transId, b.custid, b.matchid
 			FROM #Result_tmp b 
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
-		) AS tmp	
+				AND b.Currency <> 20
+		) AS tmp
+		
+		SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+		FROM(
+			SELECT DISTINCT b.transId, b.custid, b.matchid
+			FROM #Result_tmp b 
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM dbo.CustLimitBetHistory_LIC h WITH (NOLOCK) WHERE h.Matchid = b.matchid AND h.transid = b.transid AND h.CustID = b.custid)
+				AND b.Currency = 20
+		) AS tmp
 	END
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_LIC table is missing data which EventTypeID = 2. Top 100 transId(s): ' + @transIds + @CRLF
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_LIC table is missing data which EventTypeID = 2 for real currency. Top 100 transId(s): ' + @transIds + @CRLF 
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage + '3. CustLimitBetHistory_LIC table is missing data which EventTypeID = 2 for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF
 	END
 
 	-------------------------check duplicate data in queue table for reject action --------------------------------------------------------------------
@@ -314,15 +408,15 @@ BEGIN
 				HAVING count(1) > 1
 				)
 	BEGIN
-		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  'Duplicate data in Queue table. ' + CHAR(13) + CHAR(10)
+		SELECT TOP 1 @ErrorMessage = @ErrorMessage +  '4. Duplicate data in Queue table. ' + @CRLF
 	END
 
 	----------------------------------------------------------------------------------------------------------------------------------------------------
 
-	CREATE TABLE #TempReject (transid BIGINT, checktime DATETIME, matchid int, custid INT, sporttype int)
+	CREATE TABLE #TempReject (transid BIGINT, checktime DATETIME, matchid int, custid INT, sporttype int, currency tinyint)
 
-	INSERT INTO #TempReject (transid, checktime, matchid, custid, sporttype)
-	SELECT b.transid, b.checktime, b.matchid, b.custid, m.sporttype
+	INSERT INTO #TempReject (transid, checktime, matchid, custid, sporttype, currency)
+	SELECT b.transid, b.checktime, b.matchid, b.custid, m.sporttype, b.currency
 	FROM dbo.bettrans b WITH (NOLOCK)        
 			INNER JOIN #RunningMatch m ON b.matchid = m.matchid 
 	WHERE b.statusID = 101
@@ -330,23 +424,43 @@ BEGIN
 			AND b.SiteDBGroupID = @SiteDBGroupID
 
 	SET @transIds = ''
+	SET @UUSTransIds = ''
 	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 	FROM
 		(SELECT TOP (100) T.transId
 		FROM #TempReject T
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 							FROM dbo.CustLimitBetQueue Q with (nolock)
-							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 120)+'%'								
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 121)+'%'								
 						)
 			AND t.matchid <> 29
+			AND t.currency <> 20
+						) AS tmp
+
+	SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) T.transId
+		FROM #TempReject T
+		WHERE NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustLimitBetQueue Q with (nolock)
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 AND Q.Transids like '%'+CONVERT(varchar, checktime, 121)+'%'								
+						)
+			AND t.matchid <> 29
+			AND t.currency = 20
 						) AS tmp
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for Single. Top 100 transId(s): ' + @transIds
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + '5. Missing reject tickets in queue for Single for real currency. Top 100 transId(s): ' + @transIds + @CRLF
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + '5. Missing reject tickets in queue for Single for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF
 	END
 
 	SET @transIds = ''
+	SET @UUSTransIds = ''
 	SELECT @transIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
 	FROM
 		(SELECT TOP (100) T.transId
@@ -357,16 +471,36 @@ BEGIN
 							AND (
 								-- parlay new format
 								(Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%' AND Q.Transids NOT LIKE '%rejectTicket%') 
-								-- parlay old format ->  ignore
-								OR (Q.Transids  LIKE '%rejectTicket%')
 								)							
 							)
 				AND t.Matchid = 29
+				AND t.currency <> 20
+		) AS tmp
+
+	SELECT @UUStransIds = STRING_AGG(CONVERT(VARCHAR(MAX),tmp.transId), ',') 
+	FROM
+		(SELECT TOP (100) T.transId
+		FROM #TempReject T
+		WHERE NOT EXISTS (SELECT TOP 1 1 
+							FROM dbo.CustLimitBetQueue Q with (nolock)
+							WHERE q.Matchid = T.matchid AND Q.ActionID = 2 
+							AND (
+								-- parlay new format
+								(Q.Transids like '%'+CONVERT(VARCHAR(20), T.transid)+'%' AND Q.Transids NOT LIKE '%rejectTicket%') 
+								)							
+							)
+				AND t.Matchid = 29
+				AND t.currency = 20
 		) AS tmp
 
 	IF ISNULL(@transIds,'') <> ''
 	BEGIN
-		SET @ErrorMessage = @ErrorMessage  + @CRLF + 'SP: Nap_Admin_CustLimitBet_CheckData_Job. Missing reject tickets in queue for Parlay. Top 100 transId(s): ' + @transIds
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + '6. Missing reject tickets in queue for Parlay for real currency. Top 100 transId(s): ' + @transIds + @CRLF
+	END
+
+	IF ISNULL(@UUStransIds,'') <> ''
+	BEGIN
+		SET @ErrorMessage = @ErrorMessage  + @CRLF + '6. Missing reject tickets in queue for Parlay for UUS currency. Top 100 transId(s): ' + @UUStransIds + @CRLF
 	END
 
 	--SELECT CASE WHEN @ErrorMessage = '' THEN 'NO Error' ELSE @ErrorMessage END ErrorMessage, @StartTime StartTime, @EndTime EndTime
