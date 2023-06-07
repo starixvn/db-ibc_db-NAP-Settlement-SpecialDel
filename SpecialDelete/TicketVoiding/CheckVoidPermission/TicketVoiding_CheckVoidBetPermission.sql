@@ -36,19 +36,23 @@ BEGIN
 			,@IsExistsSettledParlayTickets BIT = 0
 			,@IsExistsSettledTickets BIT = 0
 			,@IsExistsInstantlySettledTickets BIT = 0
-			,@IsExistsInstantlySettledSABATickets BIT = 0
 			,@IsExistsSettledCashOutTickets BIT = 0
 			,@IsExistsSettledCancelCashOutTickets BIT = 0
+			,@IsExistsInstantlySettledSABATickets BIT = 0
 
-	DECLARE @TransIdTemp TABLE (transid BIGINT PRIMARY KEY)
-	DECLARE @SupportInstantSettleBettype  TABLE (bettype SMALLINT);
+	DECLARE @SupportInstantSettleSABABettype  TABLE (bettype SMALLINT);
 
-	INSERT INTO @SupportInstantSettleBettype (bettype)
+	INSERT INTO @SupportInstantSettleSABABettype (bettype)
 	VALUES (228) --SABA OU Time Machine
 		 , (229) --SABA HDP Time Machine
 
 	CREATE TABLE #InstantSettlementBettypes (bettype SMALLINT)
 	CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes (bettype)
+	CREATE TABLE #CTE_TransId (
+		TransId		BIGINT
+	  , SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement, 3: SABA Time Machine Settlement
+	)
+
 	CREATE TABLE #tmpTransInfo(
 	     matchid INT
 		,transid BIGINT
@@ -119,104 +123,97 @@ BEGIN
 				WHERE T.InstantType IN (2, 3) -- 10, 11			
 		END
 
-		-- check Instant, normal settled of single ticket
-		;WITH CTE_TransId (
-			transid
-			,SettledType -- 1: Instant Settlement, 2: Normal Settlement
-			)
-		AS (
-			SELECT b.transid
-				,CASE 
-					WHEN b.StatusId IN (111, 112, 113)
-						AND EXISTS (
-							SELECT TOP 1 1
-							FROM #InstantSettlementBettypes AS i
-							WHERE b.bettype = i.bettype
-							) THEN 1
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
-					ELSE 0
-					END
-			FROM #tmpTransInfo b
-			LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
-			WHERE ISNULL(b.betdaqid,0) <> -2 AND b.IsMixParlay = 0 AND b.IsMoved14 = 0
-			)
+		INSERT INTO #CTE_TransId (
+			TransId
+		   ,SettledType 
+		)
+		SELECT b.transid
+			,CASE WHEN b.StatusId IN (111, 112, 113)
+					AND EXISTS (
+						SELECT TOP 1 1
+						FROM #InstantSettlementBettypes AS i
+						WHERE b.bettype = i.bettype
+						) THEN 1
+				 WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
+				 WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
+				 ELSE 0
+				END
+		FROM #tmpTransInfo b
+		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
+		WHERE ISNULL(b.betdaqid,0) <> -2 AND b.IsMixParlay = 0 AND b.IsMoved14 = 0
 		
 		SELECT @IsExistsInstantlySettledTickets = MAX(CASE WHEN SettledType = 1 THEN 1 ELSE 0 END)
 			 , @IsExistsSettledSingleTickets = MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END)
 			 , @IsExistsInstantlySettledSABATickets = MAX(CASE WHEN SettledType = 3 THEN 1 ELSE 0 END)
-		FROM CTE_TransId
+		FROM #CTE_TransId
 
 	END
 	
 	IF ISNULL(@MatchId,0) = 0
 	BEGIN
-	-- check Instant, normal settled of single ticket
-		;WITH CTE_TransId (
-			transid
-			,SettledType -- 1: Instant Settlement, 2: Normal Settlement
-			)
-		AS (
-			SELECT b.transid
-				,CASE 
-					WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
-						THEN CASE
-								WHEN ISNULL(mr.IsHTCal, 0) = 0
-										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_TVS_GetInstantBettypes() ib
-													WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
-										THEN 1
-								WHEN ISNULL(mr.IsHTCal, 0) = 1
-										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_TVS_GetInstantBettypes() ib
-													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
-										THEN 1
-								WHEN ib.bettype IS NOT NULL THEN 3
-								ELSE 2
-							END
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
-					ELSE 0
-				END
-			 FROM #tmpTransInfo b
-			    LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
-				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
-				LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
-			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 0
+		INSERT INTO #CTE_TransId (
+			TransId
+		   ,SettledType 
+		)
+		SELECT b.transid
+			,CASE 
+				WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
+					THEN CASE
+							WHEN ISNULL(mr.IsHTCal, 0) = 0
+									AND EXISTS (SELECT TOP 1 1
+												FROM dbo.f_TVS_GetInstantBettypes() ib
+												WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
+									THEN 1
+							WHEN ISNULL(mr.IsHTCal, 0) = 1
+									AND EXISTS (SELECT TOP 1 1
+												FROM dbo.f_TVS_GetInstantBettypes() ib
+												WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
+									THEN 1
+							WHEN ib.bettype IS NOT NULL THEN 3
+							ELSE 2
+						END
+				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
+				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
+				ELSE 0
+			END
+		FROM #tmpTransInfo b
+		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
+		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
+		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
+		WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 0
 
-			UNION ALL -- Apply for ticket void14 
-			SELECT b.transid
-				,CASE 
-					WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
-						THEN CASE
-								WHEN ISNULL(mr.IsHTCal, 0) = 0
-										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_TVS_GetInstantBettypes() ib
-													WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
-										THEN 1
-								WHEN ISNULL(mr.IsHTCal, 0) = 1
-										AND EXISTS (SELECT TOP 1 1
-													FROM dbo.f_TVS_GetInstantBettypes() ib
-													WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
-										THEN 1
-								WHEN ib.bettype IS NOT NULL THEN 3
-								ELSE 2
-							END
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
-					WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
-					ELSE 0
-				END
-			  FROM #tmpTransInfo b
-				LEFT JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = b.matchid
-				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
-				LEFT JOIN @SupportInstantSettleBettype ib ON b.bettype = ib.bettype
-			WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 1
-			)
+		UNION ALL -- Apply for ticket void14 
+		SELECT b.transid
+			,CASE 
+				WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
+					THEN CASE
+							WHEN ISNULL(mr.IsHTCal, 0) = 0
+									AND EXISTS (SELECT TOP 1 1
+												FROM dbo.f_TVS_GetInstantBettypes() ib
+												WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
+									THEN 1
+							WHEN ISNULL(mr.IsHTCal, 0) = 1
+									AND EXISTS (SELECT TOP 1 1
+												FROM dbo.f_TVS_GetInstantBettypes() ib
+												WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
+									THEN 1
+							WHEN ib.bettype IS NOT NULL THEN 3
+							ELSE 2
+						END
+				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
+				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
+				ELSE 0
+			END
+		FROM #tmpTransInfo b
+		LEFT JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = b.matchid
+		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
+		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
+		WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 1
 		
 		SELECT @IsExistsInstantlySettledTickets = MAX(CASE WHEN SettledType = 1 THEN 1 ELSE 0 END)
 			 , @IsExistsSettledSingleTickets = MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END)
 			 , @IsExistsInstantlySettledSABATickets = MAX(CASE WHEN SettledType = 3 THEN 1 ELSE 0 END)
-		FROM CTE_TransId
+		FROM #CTE_TransId
 	
 	END
 
@@ -277,4 +274,5 @@ BEGIN
 
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tmpTransInfo
+	DROP TABLE #CTE_TransId
 END
