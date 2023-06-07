@@ -146,7 +146,7 @@ BEGIN
         SubStatus             NVARCHAR(10),
 		ActualStake			  MONEY,
 		IsMarked			  BIT DEFAULT(0),
-		IsCricket			  BIT DEFAULT(0),
+		IsDeposit			  BIT DEFAULT(0),
 		SiteDBGroupID		SMALLINT
 
    );
@@ -437,11 +437,10 @@ BEGIN
 			ON m.TransId = s.GroupID
 
 	UPDATE s
-		SET  IsCricket = 1
+		SET  IsDeposit = 1
 	FROM	#SpecialDeleteBets s
 		INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK)
 			ON s.srecommend = d.custid
-	WHERE	s.BetType = 501
 
 	SELECT 
 		s.Stake,
@@ -462,7 +461,7 @@ BEGIN
 		s.Odds,
 		s.oddsspread,
 		s.IsMixParlay,
-		s.IsCricket,
+		CASE WHEN s.bettype = 501 AND s.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket,
 		s.OddsType,
 		s.RefNo,
 		@SportType AS SportType, 
