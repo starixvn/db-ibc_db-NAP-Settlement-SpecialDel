@@ -15,7 +15,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_Update]
 )
 AS
 /*
-	Created: 20161201@Kent
+	Created: Kent
+	Date: 20161201
 	DB: DBTXN/bodb02
 
 	Revisions: 		
@@ -66,8 +67,8 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
-		
+		- 20230608@July: Support sport Cricket for all functions [Redmine: #188374]
+
 	Param's Explanation:
 */
 BEGIN
@@ -110,7 +111,8 @@ BEGIN
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
-	
+	DECLARE @tmpMatchId TABLE (MatchId INT, isFinish INT)
+
 	DECLARE @NegativeBalanceCustIds		VARCHAR(MAX) = ''
 	DECLARE @SettlementStatus TINYINT = NULL
 		   ,@GlobalShowTime   SMALLDATETIME
@@ -121,14 +123,10 @@ BEGIN
 		   ,@AwayId				INT
 		   ,@IsNeutral		BIT
 		   ,@FCUpdateTime DATETIME2
-		   ,@matchdate		DATETIME				
-		   ,@strSubTransId	VARCHAR(MAX) 		
-		   ,@strMainTransId VARCHAR(MAX) = ''  
-		   ,@strRefno		VARCHAR(MAX) = ''	
-		   ,@MatchId_MaxPO	INT = NULL 
 
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
-	DECLARE @tmpMatchId TABLE (MatchId INT, isFinish INT)
+		   ,@MatchId_MaxPO	INT = NULL 
+		   ,@TransIds_MaxPO VARCHAR(MAX) = ''
 
 	IF @IsOutright = 0
 	BEGIN
@@ -136,12 +134,12 @@ BEGIN
 			  ,@GlobalShowTime = m.GlobalShowTime
 			  ,@Eventdate = m.eventdate
 			  ,@sporttype = m.sporttype
-		      ,@MatchId_MaxPO = @MatchId
+			  ,@MatchId_MaxPO = @MatchId
 			  ,@HomeId = m.homeid
 			  ,@AwayId = m.awayid
 			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 		FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
-		
+	
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId
 		FROM dbo.match WITH(NOLOCK)
@@ -158,12 +156,13 @@ BEGIN
 			  ,@AwayId = 0
 			  ,@IsNeutral = 0
 			  ,@Sporttype = l.sporttype
+			  ,@MatchId_MaxPO = @MatchId
 		FROM dbo.outright o WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = o.leagueid
 		WHERE o.orid = @MatchId
-			
+		
 		INSERT INTO @tmpMatchId (MatchId)
-		SELECT @MatchId
+		SELECT @MatchId	
 	END
 
 	/*Modify the way to get move bet date*/
@@ -185,7 +184,6 @@ BEGIN
 		  , @789y_Name			VARCHAR(50) = '789y'	
 		  , @y987_Name			VARCHAR(50) = 'y987'	  
 		  , @cn88_Name		VARCHAR(50) = 'CN88'	  
-		  , @VoidPatchSize		INT = 100
 	
 	DECLARE @CountSingle		INT = 0
 		  , @CountParlay		INT = 0
@@ -205,8 +203,7 @@ BEGIN
 	DECLARE @tblBeforeBalance TVP_BalanceWalletChange	
 		  , @tblAfterBalance TVP_BalanceWalletChange
 	
-	DECLARE @tmpTrans_beforeUpd AS TABLE (transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20), matchid INT)
-	DECLARE @tmpTransIDBatch TABLE (transid BIGINT)
+	DECLARE @tmpTrans_beforeUpd AS TABLE (matchid INT, transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, Bonusid INT, WalletType TINYINT, bettype INT, betdaqid BIGINT, status VARCHAR(20))
 
 	CREATE TABLE #NegativeBalance (transid BIGINT)
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
@@ -290,6 +287,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)	
+	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
 
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
@@ -335,7 +333,7 @@ BEGIN
 	INSERT INTO @tblTransIds(transid)
 	SELECT ss.value AS transid
 	FROM STRING_SPLIT(@TransIds, ',') ss
-	
+
 	IF NOT EXISTS (SELECT 1 FROM CustDB.dbo.Customer WITH(NOLOCK) WHERE userpwd = @UserPassword AND custid = @userId AND roleid >=5)
     BEGIN
         SELECT @ErrorMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'  
@@ -362,37 +360,8 @@ BEGIN
 		RETURN
 	END
 
-	BEGIN -- Instant Settlement declaration
-		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-		CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT)	
-
-		--> Get status of match
-		;WITH cte_match AS
-		(
-			SELECT DISTINCT t.matchid
-			FROM @tmpMatchId t
-				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
-		)
-		,cte_isCalHT AS
-		(
-			SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-			FROM cte_match m
-				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-		)
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
-		SELECT c.matchid,  f.bettype
-		FROM cte_isCalHT c
-			CROSS APPLY (
-					SELECT bettype
-					FROM dbo.f_TVS_GetInstantBettypes() 
-					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
-								   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
-							       ELSE 0 END
-			)f	 	
-	END	
-
 	BEGIN TRY	
+		-------> Get tickets to void
 		--> Get single tickets	
 		BEGIN
 			INSERT INTO #SpecialDeleteBets_Single(
@@ -690,11 +659,11 @@ BEGIN
 					WHERE Bettype = b.Bettype
 				)f
 
-				SELECT	@isExistMatch	  = CASE WHEN KeyID  = 1 THEN 1 ELSE 0 END
-						,@isExistFM		  = CASE WHEN KeyID  = 6 THEN 1 ELSE 0 END
-						,@isExistBB		  = CASE WHEN KeyID  = 5 THEN 1 ELSE 0 END
-						,@isExistFM2	  = CASE WHEN KeyID  = 7 THEN 1 ELSE 0 END
-						,@isExistOutright = CASE WHEN KeyID  = 2 THEN 1 ELSE 0 END
+				SELECT	@isExistMatch	  = MAX(CASE WHEN KeyID  = 1 THEN 1 ELSE 0 END)
+						,@isExistFM		  = MAX(CASE WHEN KeyID  = 6 THEN 1 ELSE 0 END)
+						,@isExistBB		  = MAX(CASE WHEN KeyID  = 5 THEN 1 ELSE 0 END)
+						,@isExistFM2	  = MAX(CASE WHEN KeyID  = 7 THEN 1 ELSE 0 END)
+						,@isExistOutright = MAX(CASE WHEN KeyID  = 2 THEN 1 ELSE 0 END)
 				FROM #tblMatchProcess
 			END
 			
@@ -703,7 +672,7 @@ BEGIN
 				SET @IsExistParlay = 1
 
 				INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
-				SELECT matchid, RefNo
+				SELECT @matchid, RefNo
 				FROM #SpecialDeleteBets_Parlay	
 			END
 			
@@ -797,7 +766,7 @@ BEGIN
 					RETURN
 				END
 			END	
-
+			
 		END
 		
 		--> capture Before Balance Update
@@ -861,32 +830,22 @@ BEGIN
 					ON	r.SubTransId=b.transid						
 		END
 		
-		DELETE FROM @tmpMatchId
-		INSERT INTO @tmpMatchId(MatchId)
-		SELECT DISTINCT MatchId
-		FROM #SpecialDeleteBets_Single
-		UNION  
-		SELECT DISTINCT MatchId
-		FROM #SpecialDeleteBets_Parlay
-
-		WHILE (1=1)
+		-------> update status for tickets to void		
+		--> update status for single
+		IF @CountSingle > 0
 		BEGIN
-			--Clean data 
-			DELETE FROM @tmpTrans_beforeUpd
-			DELETE FROM @tblBeforeBalance
-			DELETE FROM @tblAfterBalance
-			DELETE FROM @tmpTransInfo
-
-			UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
-			FROM @tmpMatchId p
-			WHERE p.IsFinish IS NULL
-
-			IF @@ROWCOUNT = 0 BREAK
-
-			-------> update status for tickets to void		
-			--> update status for single
-			IF @CountSingle > 0
+			DELETE FROM @tmpMatchId
+			INSERT INTO @tmpMatchId(MatchId)
+			SELECT DISTINCT MatchId FROM #SpecialDeleteBets_Single
+			
+			WHILE (1=1)
 			BEGIN
+				UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
+				FROM @tmpMatchId p
+				WHERE p.IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK
+
 				-- update status for normal ticket
 				SET @FCUpdateTime = SYSDATETIME()
 				UPDATE	main
@@ -919,7 +878,7 @@ BEGIN
 				FROM	dbo.bettrans main WITH (ROWLOCK, UPDLOCK)
 					INNER JOIN #SpecialDeleteBets_Single tmpmain
 						ON	main.transid = tmpmain.transid					
-							AND main.matchid = @MatchId	
+							AND main.matchid = @matchid	
 
 				SET @transInfo = COMPRESS((
 					SELECT	t.transId AS 't'
@@ -937,15 +896,15 @@ BEGIN
 							, b.status AS 's'
 							, b.FcUpdateTime AS 'rut'
 					FROM	#SpecialDeleteBets_Single t 
-						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID AND tp.matchid = t.matchid
+						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-					WHERE t.BetType NOT IN (10, 38)
+					WHERE t.BetType NOT IN (10, 38) AND t.matchid = @MatchId
 					FOR JSON PATH))
 
 				IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-					SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @MatchId, @transInfo, 's'
+					SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo, 's'
 				END
 			
 				--For match table; EventTable = 1
@@ -965,9 +924,9 @@ BEGIN
 							, b.status AS 's'
 							, b.FcUpdateTime AS 'rut'
 					FROM	#SpecialDeleteBets_Single t 
-						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID AND tp.matchid = t.matchid
+						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-					WHERE t.BetType IN (38)
+					WHERE t.BetType IN (38) AND t.matchid = @MatchId
 					FOR JSON PATH))
 					
 				IF @SiteDBGroupID <> 0 AND @transInfo3rd IS NOT NULL
@@ -993,9 +952,9 @@ BEGIN
 							, b.status AS 's'
 							, b.FcUpdateTime AS 'rut'
 					FROM	#SpecialDeleteBets_Single t 
-						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID AND tp.matchid = t.matchid
+						INNER JOIN @tmpTrans_beforeUpd tp ON tp.transid = t.TransID
 						INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransID
-					WHERE t.BetType IN (10)
+					WHERE t.BetType IN (10) AND t.matchid = @MatchId
 					FOR JSON PATH))
 					
 				IF @SiteDBGroupID <> 0 AND @transInfo3rd IS NOT NULL
@@ -1003,85 +962,97 @@ BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
 					SELECT 'TVS', 'VoidCurrency', 'bettrans', 'U', @matchid, @transInfo3rd, 's', 2
 				END
-			END	
+			END
+		END	
 		
-			-------> Capture before balance		
-			INSERT INTO @tblBeforeBalance (matchid
-										 , custid  			 
-										 , balanceType
-										 , BonusID
-										 , WalletType 
-										 , balance)
-			SELECT @MatchId AS matchid
-				 , custid  
-				 , 1 AS balanceType
-				 , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END AS BonusID
-				 , ISNULL(T.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
-				 , SUM(T.winlost - T.actual_stake + T.playercomm) balance
-			FROM (
-					-- normal ticket
-					SELECT	b.custid
-						  , b.BonusID
-						  , b.WalletType
-						  , b.winlost, b.actual_stake, b.playercomm, b.bettype
-					FROM @tmpTrans_beforeUpd b	
-					WHERE b.matchid = @MatchID
-					UNION ALL
-					-- parlay				
-					SELECT b.custid
-						 , 0 AS BonusID -- parlay tickets always bet from cash wallet
-						 , 2 AS WalletType -- parlay tickets always bet from cash wallet
-						 , b.winlost, b.actual_stake, b.playercomm, b.bettype
-					FROM #SpecialDeleteBets_Parlay t	
-						INNER JOIN bettrans b WITH (NOLOCK) 
-								ON t.transid = b.transid				
-					WHERE t.matchid = @MatchID
-				 ) AS T
-			GROUP BY T.custid			   
-				   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
-				   , ISNULL(T.WalletType, 2) -- normal tickets are treated as cash tickets
+		-------> Capture before balance		
+		INSERT INTO @tblBeforeBalance (matchid
+									 , custid  			 
+									 , balanceType
+									 , BonusID
+									 , WalletType 
+									 , balance)
+		SELECT T.matchid
+			 , T.custid  
+			 , 1 AS balanceType
+			 , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END AS BonusID
+			 , ISNULL(T.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
+			 , SUM(T.winlost - T.actual_stake + T.playercomm) balance
+		FROM (
+				-- normal ticket
+				SELECT	b.custid
+					  , b.BonusID
+					  , b.WalletType
+					  , b.winlost, b.actual_stake, b.playercomm, b.bettype, b.matchid
+				FROM @tmpTrans_beforeUpd b	
 
-			INSERT INTO #BeforeUpd(custid, balance)
-			SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-			FROM @tmpTrans_beforeUpd b
-			WHERE transid IN (SELECT transid FROM #NegativeBalance)			
-				AND b.matchid = @MatchID
-			GROUP BY b.CustID
+				UNION ALL
+				-- parlay				
+				SELECT b.custid
+					 , 0 AS BonusID -- parlay tickets always bet from cash wallet
+					 , 2 AS WalletType -- parlay tickets always bet from cash wallet
+					 , b.winlost, b.actual_stake, b.playercomm, b.bettype, t.matchid
+				FROM #SpecialDeleteBets_Parlay t	
+					INNER JOIN bettrans b WITH (NOLOCK) 
+							ON t.transid = b.transid				
+			 ) AS T
+		GROUP BY T.matchid, T.custid			   
+			   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
+			   , ISNULL(T.WalletType, 2) -- normal tickets are treated as cash tickets
 
-			--Correct data captured before because CO happen when voiding ticket
-			IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets_Single	b
-							INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid AND b.matchid = t.matchid
-						WHERE b.IsCashOut = 0 AND t.betdaqid = -2 )
+		INSERT INTO #BeforeUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM @tmpTrans_beforeUpd b
+		WHERE transid IN (SELECT transid FROM #NegativeBalance)			
+		GROUP BY b.CustID
+
+		--Correct data captured before because CO happen when voiding ticket
+		IF EXISTS (SELECT TOP(1) 1 FROM #SpecialDeleteBets_Single	b
+						INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+					WHERE b.IsCashOut = 0 AND t.betdaqid = -2 )
+		BEGIN
+			UPDATE b
+			SET b.status = t.status
+				, b.NetWinLost = t.winlost - t.actual_stake
+				, b.ActualStake = t.actual_stake
+				, b.betdaqid = -2
+				, b.IsCashOut = 1
+			FROM #SpecialDeleteBets_Single b 
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid
+			WHERE b.IsCashOut = 0 
+				AND t.betdaqid = -2
+
+			UPDATE z
+			SET z.status = t.status
+				, z.winlost = t.winlost
+				OUTPUT deleted.matchid, deleted.transid, t.status, t.winlost
+				INTO @tmpTransInfo (matchid, transid, STATUS, winlost)
+			FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid
+			WHERE z.status <> t.status
+				AND t.betdaqid = -2
+			
+			DELETE FROM @tmpMatchId 
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT matchid FROM @tmpTransInfo
+			
+			WHILE (1=1)
 			BEGIN
-				UPDATE b
-				SET b.status = t.status
-					, b.NetWinLost = t.winlost - t.actual_stake
-					, b.ActualStake = t.actual_stake
-					, b.betdaqid = -2
-					, b.IsCashOut = 1
-				FROM #SpecialDeleteBets_Single b 
-					INNER JOIN @tmpTrans_beforeUpd t ON t.transid = b.transid AND b.matchid = t.matchid
-				WHERE b.IsCashOut = 0 
-					AND t.betdaqid = -2
-
-				UPDATE z
-				SET z.status = t.status
-					, z.winlost = t.winlost
-					OUTPUT deleted.matchid, deleted.transid, t.status, t.winlost
-					INTO @tmpTransInfo (matchid, transid, STATUS, winlost)
-				FROM zzzbettrans z WITH (ROWLOCK, UPDLOCK)
-					INNER JOIN @tmpTrans_beforeUpd t ON t.transid = z.transid AND z.matchid = t.matchid
-				WHERE z.status <> t.status
-					AND t.betdaqid = -2
-
 				SET @transInfo = NULL
+				
+				UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
+				FROM @tmpMatchId p
+				WHERE p.IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK
+				
 				SET @transInfo = COMPRESS((
-						SELECT	transId AS 't'
-								, matchid AS 'mid'
-								, STATUS AS 's'
-								, winlost AS 'w'
-						FROM	@tmpTransInfo WHERE matchid = @MatchId 
-						FOR JSON PATH))
+				SELECT	transId AS 't'
+						, matchid AS 'mid'
+						, STATUS AS 's'
+						, winlost AS 'w'
+				FROM	@tmpTransInfo WHERE matchid = @MatchId 
+				FOR JSON PATH))
 
 				IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
 				BEGIN
@@ -1089,25 +1060,47 @@ BEGIN
 					SELECT 'TVS', 'VoidCurrency', 'zzzbettrans', 'U', @matchid, @transInfo, 's' 
 				END
 			END
+		END
 
-			--> update status for parlay
-			IF @CountParlay > 0
+		--> update status for parlay
+		IF @CountParlay > 0
+		BEGIN
+			DECLARE @matchdate		DATETIME				
+				  , @transid_tmp	VARCHAR(2000) 		
+				  , @transids_29	VARCHAR(MAX) = ''  
+				  , @refnos_29		VARCHAR(MAX) = ''				  						  			  		   		
+			
+			DECLARE @tmpTransIDBatch TABLE (transid BIGINT)
+
+			DELETE FROM @tmpMatchId
+			INSERT INTO @tmpMatchId(MatchId)
+			SELECT DISTINCT MatchId FROM #SpecialDeleteBets_Parlay
+
+			WHILE (1=1)
 			BEGIN
+				SET @transids_29 =''
+				SET @refnos_29 =''
+
+				UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
+				FROM @tmpMatchId p
+				WHERE p.IsFinish IS NULL
+		
+				IF @@ROWCOUNT = 0 BREAK
+
 				SELECT	@matchdate = eventdate 				  
 				FROM	match WITH(NOLOCK)   
 				WHERE	matchid = @matchid
 			
-				SELECT	@strMainTransId = @strMainTransId + CONVERT(VARCHAR(20), transid) + ','
-					  , @strRefno = @strRefno + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid) + ','  
+				SELECT	@transids_29 = @transids_29 + CONVERT(VARCHAR(20), transid) + ','
+					  , @refnos_29 = @refnos_29 + CONVERT(VARCHAR(20), refno) + '|' + CONVERT(VARCHAR(20), transid) + ','  
 				FROM	#SpecialDeleteBets_Parlay									
 				WHERE	matchid = @matchid
-			
-				-- update bettransm,BetParlayDetail			
-				WHILE (0=0)
-				BEGIN  
-					DELETE @tmpTransIDBatch
-					SET @strSubTransId = ''  
 
+				WHILE (1=1)
+				BEGIN
+					DELETE @tmpTransIDBatch
+					SET @transid_tmp = ''
+		
 					UPDATE TOP(100) t
 					SET isFinish = 1
 						OUTPUT deleted.SubTransId
@@ -1117,89 +1110,83 @@ BEGIN
 
 					IF @@ROWCOUNT = 0 BREAK
 
-					SELECT	@strSubTransId = @strSubTransId + CONVERT(VARCHAR(20), TransId) + ','
+					SELECT	@transid_tmp = @transid_tmp + CONVERT(VARCHAR(50), TransId) + ','
 					FROM	@tmpTransIDBatch
 
-					EXEC dbo.NAP_Admin_Calculate_MP_broker 
-						   @matchid = @matchId  
-						 , @fth = 0  
-						 , @fta = 0  
-						 , @hth = 0  
-						 , @hta = 0  
-						 , @matchdate = @matchdate  
-						 , @mode = 'VOID'  
-						 , @VoidTransID = @strSubTransId  
-						 , @UserId = @UserId				 
+					EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchId  
+						,@fth = 0  
+						,@fta = 0  
+						,@hth = 0  
+						,@hta = 0  
+						,@matchdate = @matchdate  
+						,@mode = 'VOID'  
+						,@VoidTransID = @transid_tmp  
+						,@UserId = @UserId
 				END
-			
+				
 				-- call pre-cal-29: update BetParlayResult		  
 				EXEC dbo.NAP_Admin_Calculate_MP_broker   
 					@matchid = @matchid  
 					,@matchdate = @matchdate  
-					,@strXML = @strMainTransId  
+					,@strXML = @transids_29  
 					,@mode  = 'PRECAL-29'
 			
 				-- call cal_29: update bettrans
 				EXEC dbo.NAP_Admin_Calculate_MP_broker
 					@matchdate = @MatchDate
-					,@strXML	= @strRefno  -- main transid + refno: refno|transid,refno|transid...
+					,@strXML	= @refnos_29  -- main transid + refno: refno|transid,refno|transid...
 					,@mode		= '29' 
-			END	
+			END
+		END
 		
-			-------> Capture after balance		
-			INSERT INTO @tblAfterBalance (matchid
-										 , custid  			 
-										 , balanceType
-										 , BonusID
-										 , WalletType 
-										 , balance)
-			SELECT @MatchId AS matchid
-				 , custid  
-				 , 1 AS balanceType
-				 , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END AS BonusID
-				 , ISNULL(T.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
-				 , SUM(T.winlost - T.actual_stake + T.playercomm) balance
-			FROM (
-					-- normal ticket
-					SELECT	b.custid
-						  , b.BonusID
-						  , b.WalletType
-						  , b.winlost, b.actual_stake, b.playercomm, b.bettype
-					FROM #SpecialDeleteBets_Single t	
-						INNER JOIN bettrans b WITH (NOLOCK) 
-								ON t.transid = b.transid
-					WHERE t.matchid = @MatchID
-					UNION ALL
-					-- parlay				
-					SELECT b.custid
-						 , 0 AS BonusID -- parlay tickets always bet from cash wallet
-						 , 2 AS WalletType -- parlay tickets always bet from cash wallet
-						 , b.winlost, b.actual_stake, b.playercomm, b.bettype
-					FROM #SpecialDeleteBets_Parlay t	
-						INNER JOIN bettrans b WITH (NOLOCK) 
-								ON t.transid = b.transid		
-					WHERE t.matchid = @MatchID
-				 ) AS T
-			GROUP BY T.custid			   
-				   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
-				   , ISNULL(T.WalletType, 2) -- normal tickets are treated as cash tickets
+		-------> Capture after balance		
+		INSERT INTO @tblAfterBalance (matchid
+									 , custid  			 
+									 , balanceType
+									 , BonusID
+									 , WalletType 
+									 , balance)
+		SELECT T.matchid
+			 , T.custid  
+			 , 1 AS balanceType
+			 , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END AS BonusID
+			 , ISNULL(T.WalletType, 2) AS WalletType -- normal tickets are treated as cash tickets
+			 , SUM(T.winlost - T.actual_stake + T.playercomm) balance
+		FROM (
+				-- normal ticket
+				SELECT	b.custid
+					  , b.BonusID
+					  , b.WalletType
+					  , b.winlost, b.actual_stake, b.playercomm, b.bettype, b.matchid
+				FROM #SpecialDeleteBets_Single t	
+					INNER JOIN bettrans b WITH (NOLOCK) 
+							ON t.transid = b.transid
+				UNION ALL
+				-- parlay				
+				SELECT b.custid
+					 , 0 AS BonusID -- parlay tickets always bet from cash wallet
+					 , 2 AS WalletType -- parlay tickets always bet from cash wallet
+					 , b.winlost, b.actual_stake, b.playercomm, b.bettype, t.matchid
+				FROM #SpecialDeleteBets_Parlay t	
+					INNER JOIN bettrans b WITH (NOLOCK) 
+							ON t.transid = b.transid				
+			 ) AS T
+		GROUP BY T.matchid, T.custid			   
+			   , CASE WHEN T.BonusID > 0 AND T.WalletType = 1 THEN T.BonusID ELSE 0 END
+			   , ISNULL(T.WalletType, 2) -- normal tickets are treated as cash tickets
 		
-			-------> Update balance for members	
-			EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-					  @BalanceWalletBefore	= @tblBeforeBalance
-					, @BalanceWalletAfter	= @tblAfterBalance
-					, @ActionId				= 0
+		-------> Update balance for members	
+		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
+				  @BalanceWalletBefore	= @tblBeforeBalance
+				, @BalanceWalletAfter	= @tblAfterBalance
+				, @ActionId				= 0
 		
-			--> Capture balance after update	
-			INSERT INTO #AfterUpd(custid, balance)
-			SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
-			FROM dbo.bettrans b WITH (NOLOCK)
-			WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single WHERE matchid = @MatchID  
-							  UNION ALL 
-							  SELECT transid FROM #SpecialDeleteBets_Parlay WHERE matchid = @MatchID
-							 )
-			GROUP BY b.CustID
-	END
+		--> Capture balance after update	
+		INSERT INTO #AfterUpd(custid, balance)
+		SELECT	b.custid , SUM (b.winlost - b.actual_stake + b.playercomm) AS balance
+		FROM dbo.bettrans b WITH (NOLOCK)
+		WHERE transid IN (SELECT transid FROM #SpecialDeleteBets_Single UNION ALL SELECT transid FROM #SpecialDeleteBets_Parlay)
+		GROUP BY b.CustID
 
 		SET @NegativeBalanceUsers = ''
 		SELECT @NegativeBalanceCustIds = @NegativeBalanceCustIds + 
@@ -1217,7 +1204,7 @@ BEGIN
 		SET CashOutStatus = 6 --Void
 		   ,ChangeDate = GETDATE()
 		FROM dbo.CashOutSelling c WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN #SpecialDeleteBets_Single b ON c.TransID = b.transid AND c.MatchID = b.matchid
+			INNER JOIN #SpecialDeleteBets_Single b ON c.TransID = b.transid AND c.MatchID = @MatchID
 		WHERE b.betdaqid = -2 
 
 		IF @CountParlay = 0 OR @CountParlay  <= @ThreadHold
@@ -1258,8 +1245,6 @@ BEGIN
 		END
 			
 		----------------Insert Max Payout Queue----------------
-		DECLARE @TransIds_MaxPO VARCHAR(MAX) = ''
-
 		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 						,CASE 
 							WHEN dp.custid IS NOT NULL THEN 3 --deposit 
@@ -1278,7 +1263,7 @@ BEGIN
 			@MatchId = @MatchId_MaxPO
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
-
+		
 		--Prepare for Max Payout
 		SELECT @MainParlay_MaxPO = (SELECT t.custid AS '@custid'
 									,t.ruben AS '@ruben'
@@ -1295,7 +1280,43 @@ BEGIN
 				@MatchId= 29
 				,@TransidList = @MainParlay_MaxPO
 		END
-			 
+		----------------Done Insert Max Payout Queue----------------
+
+		DELETE FROM @tmpMatchId
+		INSERT INTO @tmpMatchId(MatchId)
+		SELECT DISTINCT MatchId FROM #SpecialDeleteBets_Single
+		UNION  
+		SELECT DISTINCT MatchId FROM #SpecialDeleteBets_Parlay
+
+		BEGIN -- Instant Settlement declaration
+			DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
+
+			--> Get status of match
+			;WITH cte_match AS
+			(
+				SELECT DISTINCT t.matchid
+				FROM @tmpMatchId t
+					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
+			)
+			,cte_isCalHT AS
+			(
+				SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
+				FROM cte_match m
+					LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
+			)
+			--> Build bettype list supported for instant settlement based on settlement status of match
+			INSERT INTO #InstantSettlementBettypes (matchid, bettype)
+			SELECT c.matchid,  f.bettype
+			FROM cte_isCalHT c
+				CROSS APPLY (
+						SELECT bettype
+						FROM dbo.f_TVS_GetInstantBettypes() 
+						WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
+									   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
+									   ELSE 0 END
+				)f	 	
+		END	
+
 		-------> Data for sending mail
 		DECLARE @IsITAdmin BIT = 0
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
@@ -1358,8 +1379,7 @@ BEGIN
 				ac.username AS AgUserName,
 				mc.username AS MagUserName,
 				sc.username AS SagUserName,
-				CASE
-					WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND ISNULL(s.betdaqid,0) <> -2
+				CASE WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND ISNULL(s.betdaqid,0) <> -2
 						AND EXISTS (SELECT TOP 1 1
 									FROM #InstantSettlementBettypes
 									WHERE bettype = s.bettype)
