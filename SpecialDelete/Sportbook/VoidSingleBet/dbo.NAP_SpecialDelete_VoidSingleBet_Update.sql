@@ -1449,7 +1449,7 @@ BEGIN
 				FROM #BetDeletem r 
 				 INNER HASH JOIN dbo.bettrans b WITH (NOLOCK)ON b.refno = r.refno  
 				WHERE b.matchid = 29 AND b.bettype = 29  
-				GROUP BY b.CustID  
+				GROUP BY b.CustID, r.matchid
 
 				--Prepare for Max Payout
 				SELECT @MainParlay_MaxPO = (SELECT t.main_custId AS '@custid'
@@ -1493,7 +1493,7 @@ BEGIN
 				FROM  #BetDeletem r 
 					INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = r.refno  
 				WHERE b.matchid = 29 AND b.bettype = 29  
-				GROUP BY b.CustID  
+				GROUP BY b.CustID, r.matchid  
 
 				---insert data into pending balance table   
 				EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
