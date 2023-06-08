@@ -25,6 +25,7 @@ AS
 		- 20220326@Max: Add bonus bettype for Cricket Phase 2 [Redmine: #170590]
 		- 20220329@July: Update "Non-Live" bet types for Cricket phase 2 [Redmine: #170590]
 		- 20220810@July: Integrate new bet types of Volleyball AIO [Redmine: #175281]
+		- 20230605@Max: [TVS] Integrate more of Cricket's bet types for Special Delete [Redmine: #188969]
 
     Parameters Explanation:    
     
@@ -801,6 +802,16 @@ RETURN (
 	UNION ALL SELECT 9711,'1H',0
 	UNION ALL SELECT 9728,'1H',0
 	UNION ALL SELECT 9729,'1H',0
+
+	--Integrate more of Cricket's bet types [188969]
+	UNION ALL SELECT 9576,'1H',0
+	UNION ALL SELECT 9577,'1H',0
+	UNION ALL SELECT 9578,'2H',0
+	UNION ALL SELECT 9579,'2H',0
+	UNION ALL SELECT 9582,'1H',0
+	UNION ALL SELECT 9583,'1H',0
+	UNION ALL SELECT 9584,'2H',0
+	UNION ALL SELECT 9585,'2H',0
 
 	-- Volleyball AIO [175281]
 	UNION ALL SELECT 3918,'Special',1
