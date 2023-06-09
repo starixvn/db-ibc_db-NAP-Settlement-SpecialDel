@@ -241,7 +241,7 @@ BEGIN
 
 	
 
-	SELECT @IsExistsSettledTickets = CASE WHEN (@IsExistsSettledSingleTickets = 1 AND @IsExistsInstantlySettledSABATickets = 0) --Case saba & normal settle tickets
+	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
 											OR @IsExistsSettledParlayTickets = 1
 											OR (@IsExistsSettledCashOutTickets = 1 AND @IsCashOutAsUnSettledTicket = 0)
 											OR @IsExistsSettledCancelCashOutTickets = 1 THEN 1
@@ -252,13 +252,17 @@ BEGIN
 			AND @IsHostVoidSettledTickets = 0
 			)
 		OR (
-			(@IsExistsInstantlySettledTickets = 1 OR @IsExistsInstantlySettledSABATickets = 1)
+			@IsExistsInstantlySettledTickets = 1
 			AND @IsHostVoidInstantlySettledTickets = 0 AND @IsHostVoidSettledTickets = 0
 			)
 		OR (
 			@IsHostVoidUnsettledTickets = 0
 			AND @IsHostVoidSettledTickets = 0
 			AND @IsHostVoidInstantlySettledTickets = 0
+			)
+		OR (
+			@IsExistsInstantlySettledSABATickets = 1 AND @IsExistsSettledTickets = 1
+			AND (@IsHostVoidInstantlySettledTickets = 1 OR @IsHostVoidUnsettledTickets = 1)
 			)
 	BEGIN
 		IF @IsCheckForTVS = 0 --Special delete
