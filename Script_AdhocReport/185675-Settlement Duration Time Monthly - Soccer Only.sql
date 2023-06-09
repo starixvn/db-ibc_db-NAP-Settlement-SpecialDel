@@ -34,10 +34,15 @@ BEGIN
 
 	;WITH cteSettlementPerformanceLog
 	AS (
-		SELECT ROW_NUMBER() OVER(PARTITION BY matchid, action, homescore, awayscore ORDER BY starttime ) AS rn
-			,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, IsAuto
-			,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
-		FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
+		SELECT *
+		FROM (
+			SELECT ROW_NUMBER() OVER(PARTITION BY matchid, action, actionid, homescore, awayscore ORDER BY starttime ) AS rn
+				,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
+				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
+			FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
+			WHERE ISNULL(SiteDBGroupID,0) = 0
+		)s
+		WHERE s.rn = 1
 	)
 	, cteSuspenderConfirm
 	AS(

@@ -13,6 +13,7 @@ AS
 		- 20230322@Louisa: support get result Game/Set/Interval [Redmine:#182007]
 		- 20230515@Kathy: fix bug: rollback code from cross apply to outer apply
 		- 20230607@Louisa: Get data SiteDBGroupId = 0 [Redmine:#185675]
+		- 20230609@Kathy: list detail SettleAction
 */
 BEGIN
 	SET NOCOUNT ON
@@ -33,7 +34,8 @@ BEGIN
 		,keyscoreUser					NVARCHAR(50)
 		,SettleAction					VARCHAR(20)
 		,SettlementStatus				VARCHAR(20)
-		--,ConfirmStatus					VARCHAR(20)
+		,ConfirmStatus					VARCHAR(20)
+		,ConfirmDate					DATETIME
 		,Step1_WaitforKeyscore_Duration INT
 		,Step2_WaitforSettle_Duration	INT
 		,Step3_Settle_Duration			INT
@@ -42,11 +44,15 @@ BEGIN
 
 	;WITH cteSettlementPerformanceLog
 	AS (
-		SELECT ROW_NUMBER() OVER(PARTITION BY matchid, action, homescore, awayscore ORDER BY starttime ) AS rn
-			,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action ,ActionId, IsAuto
-			,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
-		FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
-		WHERE SiteDBGroupID = 0
+		SELECT *
+		FROM (
+			SELECT ROW_NUMBER() OVER(PARTITION BY matchid, action, actionid, homescore, awayscore ORDER BY starttime ) AS rn
+				,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
+				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
+			FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
+			WHERE ISNULL(SiteDBGroupID,0) = 0
+		)s
+		WHERE s.rn = 1
 	)
 	, cteSuspenderConfirm
 	AS(
@@ -62,7 +68,7 @@ BEGIN
 		FROM	bodb_Account.dbo.UserLog_P_SuspenderConfirm u with(nolock)
 	)
 	INSERT INTO #tmpData(Year, Month, Date, Weekday, sporttype, sportname, GroupName, LeagueName, matchid, hometeam, awayteam
-		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus 
+		, GlobalShowTime, keyscoreUser, SettleAction,	SettlementStatus, ConfirmStatus, ConfirmDate
 		, Step1_WaitforKeyscore_Duration, Step2_WaitforSettle_Duration, Step3_Settle_Duration, IsHold)
 	SELECT
 		YEAR(m.eventdate) [Year]
@@ -79,10 +85,15 @@ BEGIN
 		,a.teamname  AS awayteam
 		,m.GlobalShowTime
 		,ISNULL(ci.username, '') AS keyscoreUser
-		,s.Action AS SettleAction
-		--
+		,CASE
+			WHEN itv.Interval IS NOT NULL THEN itv.Interval
+			WHEN s.Action LIKE '%Interval%' AND s.ActionId = 2 THEN 'OT'
+			WHEN s.Action = 'CAL' AND s.ActionId = 1 THEN 'CAL-HT'
+			ELSE s.Action
+		END AS SettleAction
 		,CASE WHEN s.IsAuto	= 1 THEN 'Auto settle' ELSE 'Manual settle' END AS SettlementStatus
-		/*,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus */
+		,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus 
+		,u.logdate AS ConfirmDate
 		-- Duration
 		,ISNULL(CAST(DATEDIFF(MILLISECOND,CASE WHEN Action like 'Inst%' then s.ConfirmScoreDate else u.logdate end, s.Starttime) AS Float)/1000, 0) AS 'Step1_WaitforKeyscore_Duration'
 		,CAST(DATEDIFF(MILLISECOND,s.Starttime, s.Exectime) AS Float)/1000 AS 'Step2_WaitforSettle_Duration'
@@ -95,6 +106,23 @@ BEGIN
 			on l.LeagueGroupID = lg.GroupID
 		INNER JOIN bodb02.[dbo].Sports sp (NOLOCK)
 			ON l.sporttype = sp.SportType
+		OUTER APPLY (
+			SELECT CASE
+					WHEN sp.SportType = 2 THEN 'Quarter '
+					WHEN sp.SportType = 5 THEN 'Set '
+					WHEN sp.SportType = 43 THEN 'Map '
+					WHEN sp.SportType = 50 THEN 'Inning '	
+					ELSE 'Interval ' 
+					END + CASE 
+							WHEN sp.SportType = 50 AND s.ActionId = 101 THEN '1 Home'
+							WHEN sp.SportType = 50 AND s.ActionId = 102 THEN '1 Away'
+							WHEN sp.SportType = 50 AND s.ActionId = 103 THEN '2 Home'
+							WHEN sp.SportType = 50 AND s.ActionId = 104 THEN '2 Away'
+							ELSE CAST(s.ActionId%100 AS VARCHAR)
+						END
+				AS Interval 
+			WHERE	s.ActionId > 100 
+		)itv
 		INNER JOIN
 			(SELECT matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime
 			FROM bodb_account.dbo.match m with(nolock)
@@ -132,43 +160,83 @@ BEGIN
 				AND s.Action <> 'CAL-PARLAY'
 		
 
-		SELECT *
-			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
-		FROM #tmpData
-		WHERE sporttype = 1
+		SELECT [Year]							
+			   ,[Month]						
+			   ,[Date]							
+			   ,[Weekday]						
+			   ,sporttype						
+			   ,sportname						
+			   ,GroupName						
+			   ,LeagueName						
+			   ,matchid						
+			   ,hometeam						
+			   ,awayteam						
+			   ,GlobalShowTime					
+			   ,keyscoreUser					
+			   ,SettleAction					
+			   ,SettlementStatus				
+			   ,ConfirmStatus								
+			   ,Step1_WaitforKeyscore_Duration 
+			   ,Step2_WaitforSettle_Duration	
+			   ,Step3_Settle_Duration			
+			   ,IsHold							
+				,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
+		FROM	#tmpData
+		WHERE	sporttype = 1
 		ORDER BY [Year] DESC 
-		,[Month] DESC
-		,[Date] DESC
-		,[Weekday] DESC
-		,[sporttype] DESC
-		,[SportName] DESC
-		,[GroupName] DESC
-		,[leaguename] DESC
-		,[matchid] DESC
-		,[hometeam] DESC
-		,[awayteam] DESC
-		,[GlobalShowTime] DESC
-		,[keyscoreUser] DESC
-		,[SettleAction] DESC
-		,[SettlementStatus] DESC 
+			,[Month] DESC
+			,[Date] DESC
+			,[Weekday] DESC
+			,[sporttype] DESC
+			,[SportName] DESC
+			,[GroupName] DESC
+			,[leaguename] DESC
+			,[matchid] DESC
+			,[ConfirmDate]
+			,[hometeam] DESC
+			,[awayteam] DESC
+			,[GlobalShowTime] DESC
+			,[keyscoreUser] DESC
+			,[SettleAction] DESC
+			,[SettlementStatus] DESC 
 
-		SELECT *
-			,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
-		FROM #tmpData
-		WHERE sporttype <> 1
+		SELECT	[Year]							
+				,[Month]						
+				,[Date]							
+				,[Weekday]						
+				,sporttype						
+				,sportname						
+				,GroupName						
+				,LeagueName						
+				,matchid						
+				,hometeam						
+				,awayteam						
+				,GlobalShowTime					
+				,keyscoreUser					
+				,SettleAction					
+				,SettlementStatus				
+				,ConfirmStatus								
+				,Step1_WaitforKeyscore_Duration 
+				,Step2_WaitforSettle_Duration	
+				,Step3_Settle_Duration			
+				,IsHold							
+				,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
+		FROM	#tmpData
+		WHERE	sporttype <> 1
 		ORDER BY [Year] DESC 
-		,[Month] DESC
-		,[Date] DESC
-		,[Weekday] DESC
-		,[sporttype] DESC
-		,[SportName] DESC
-		,[GroupName] DESC
-		,[leaguename] DESC
-		,[matchid] DESC
-		,[hometeam] DESC
-		,[awayteam] DESC
-		,[GlobalShowTime] DESC
-		,[keyscoreUser] DESC
-		,[SettleAction] DESC
-		,[SettlementStatus] DESC 
+			,[Month] DESC
+			,[Date] DESC
+			,[Weekday] DESC
+			,[sporttype] DESC
+			,[SportName] DESC
+			,[GroupName] DESC
+			,[leaguename] DESC
+			,[matchid] DESC
+			,[ConfirmDate]
+			,[hometeam] DESC
+			,[awayteam] DESC
+			,[GlobalShowTime] DESC
+			,[keyscoreUser] DESC
+			,[SettleAction] DESC
+			,[SettlementStatus] DESC 
 END
