@@ -34,6 +34,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230612@Louisa: HF - missing get Auto settled results [Redmine:#189594] 
 
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
@@ -125,7 +126,7 @@ BEGIN
 		SET @sqlRemoteQuery = ' SELECT	ResourceID 
 							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(NOLOCK)
 							WHERE	matchid = ' + CAST (@MatchId AS VARCHAR) + '
-									AND ResultStatusID = 5'
+									AND ResultStatusID IN ( 2, 5 )'
 
 		INSERT INTO @tmpResourceId50(ResourceId)
 		EXECUTE sys.sp_executesql @sqlRemoteQuery

@@ -8,6 +8,7 @@ AS
 
 	Revisions:
 		- 20220719@Louisa: Get child match, result [Redmine:#175251]
+		- 20230612@Louisa: HF - missing get Auto settled results [Redmine:#189594] 
 
 	Param's Explanation:
 		@matchid: main matchid Cricket
@@ -38,7 +39,7 @@ BEGIN
 			SELECT	ResourceID 
 			FROM dbo.ResultDetailOS WITH(NOLOCK)
 			WHERE	matchid = @MatchId
-					AND ResultStatusID = 5
+					AND ResultStatusID IN ( 2, 5 )
 		) r
 
 	SET @ResourceIds =  SUBSTRING(@ResourceIds, 2, LEN(@ResourceIds))
