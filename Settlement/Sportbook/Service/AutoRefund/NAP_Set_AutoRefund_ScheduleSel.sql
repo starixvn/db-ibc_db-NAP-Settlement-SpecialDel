@@ -25,7 +25,8 @@ BEGIN
 	DECLARE  @returntable TABLE (MatchId INT, leagueid INT, TypeId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT, SettlementStatusId TINYINT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
-		@SPName = @procName
+		@SPName			= @procName
+		,@Sporttype		= @sporttype
 		,@WaitingTime = @WaitingTime OUTPUT
 		,@IsWaiting = @IsWaiting OUTPUT
 

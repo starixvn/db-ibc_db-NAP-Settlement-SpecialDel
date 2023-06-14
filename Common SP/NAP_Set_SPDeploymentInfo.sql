@@ -3,6 +3,7 @@ ALTER PROCEDURE dbo.NAP_Set_SPDeploymentInfo
 	@SPName			SYSNAME
 	,@WaitingTime	VARCHAR(10) 	OUTPUT
 	,@IsWaiting		BIT		= 0		OUTPUT
+	,@Sporttype		SMALLINT = 0
 	,@ErrCode		INT		= 0		OUTPUT
 	,@ErrMsg		VARCHAR(300) = '' OUTPUT
 AS
@@ -18,6 +19,7 @@ AS
 		- 20220719@Louisa: Check SP under deployment [Redmine:#175251]
 		- 20220929@Louisa: Add VS Betrader, Betbuider, Auto settle, SP get log service sync sitedb [Redmine:#178765]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230623@Louisa: Reduce blocking when deployment [Redmine:#187007]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -29,76 +31,74 @@ BEGIN
 
 	---1.Auto FM Settlement
 	INSERT INTO @tmpSPInfo (SPName, WaitingTime, IsWaiting)
-	SELECT 'NAP_Admin_Settlement_Fast_Market_Auto_1s_Push', @WaitingTime, 0	
+	SELECT SP.SPName, @WaitingTime AS WaitingTime, IsWaiting
+	FROM (
+		SELECT 'NAP_Admin_Settlement_Fast_Market_Auto_1s_Push', @WaitingTime,0	
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_Profile_Push', @WaitingTime, 0	
 	
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_Profile_Push', @WaitingTime, 0	
+		-- Auto PinGoal
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_Profile', @WaitingTime, 0	
+
+		-- Bitcoin
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_s175', @WaitingTime, 0
+
+		-- NG
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_s161_Manual', @WaitingTime, 0	 --manual
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_s161', @WaitingTime, 0	 -- api
 	
-	-- Auto PinGoal
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_Profile', @WaitingTime, 0	
+		-- HP5
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_s164', @WaitingTime, 0	
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_s164_Manual', @WaitingTime, 0
 
-	-- Bitcoin
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s175', @WaitingTime, 0
-
-	-- NG
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s161_Manual', @WaitingTime, 0	 --manual
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s161', @WaitingTime, 0	 -- api
+		-- VS
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_VS_180', @WaitingTime, 0	
 	
-	-- HP5
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s164', @WaitingTime, 0	
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_s164_Manual', @WaitingTime, 0
-
-	-- VS
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_VS_180', @WaitingTime, 0	
+		-- outright
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_Outright', @WaitingTime, 0	
+		UNION ALL
+		SELECT 'Dot_Admin_SettleOutright_Trans', @WaitingTime, 0	
 	
-	-- outright
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_Outright', @WaitingTime, 0	
-	UNION ALL
-	SELECT 'Dot_Admin_SettleOutright_Trans', @WaitingTime, 0	
+		--VS Betradar
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_VS_BetRadar_Push', @WaitingTime, 0	
+
+		--Betbuilder
+		UNION ALL
+		SELECT 'NAP_Admin_Settlement_BetBuilder_Push', @WaitingTime, 0
 	
-	--VS Betradar
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_VS_BetRadar_Push', @WaitingTime, 0	
-
-	--Betbuilder
-	UNION ALL
-	SELECT 'NAP_Admin_Settlement_BetBuilder_Push', @WaitingTime, 0
-
-	--Auto Payout tennis
-	UNION ALL
-	SELECT 'NAP_Set_AutoPayout_ScheduleSel_OS', @WaitingTime, 0
-
-	--Auto Payout virtual cricket
-	UNION ALL
-	SELECT 'NAP_Set_AutoPayoutOS_Schedule_Sel', @WaitingTime, 0
-
-	--Auto Payout soccer
-	UNION ALL
-	SELECT 'NAP_Set_AutoPayout_ScheduleSel', @WaitingTime, 0
-
-	--Auto Inst 
-	UNION ALL
-	SELECT 'NAP_Set_AutoInstant_ScheduleSel', @WaitingTime, 0
-
-	--Auto refund 
-	UNION ALL
-	SELECT 'NAP_Set_AutoRefund_ScheduleSel', @WaitingTime, 0
+		--service sync ticket from sitedb to centraldb
+		UNION ALL
+		SELECT 'SiteDB_NAP_SettlementService_CalculationLogSel', @WaitingTime, 0
+		UNION ALL
+		SELECT 'SiteDB_NAP_SettlementService_CalculationLog_3rdSel', @WaitingTime, 0
 	
-	--service sync ticket from sitedb to centraldb
-	UNION ALL
-	SELECT 'SiteDB_NAP_SettlementService_CalculationLogSel', @WaitingTime, 0
-	UNION ALL
-	SELECT 'SiteDB_NAP_SettlementService_CalculationLog_3rdSel', @WaitingTime, 0
-	
-	
+		--Auto Payout Other sports
+		UNION ALL
+		SELECT 'NAP_Set_AutoPayoutOS_Schedule_Sel', @WaitingTime, 0
+
+		--Auto Payout soccer
+		UNION ALL
+		SELECT 'NAP_Set_AutoPayout_ScheduleSel', @WaitingTime, 0
+
+		--Auto Inst 
+		UNION ALL
+		SELECT 'NAP_Set_AutoInstant_ScheduleSel', @WaitingTime, 0
+
+		--Auto refund 
+		UNION ALL
+		SELECT 'NAP_Set_AutoRefund_ScheduleSel', @WaitingTime, 0
+	) SP
+
+
 	SELECT @WaitingTime = WaitingTime
 			,@IsWaiting = IsWaiting
 	FROM	@tmpSPInfo
