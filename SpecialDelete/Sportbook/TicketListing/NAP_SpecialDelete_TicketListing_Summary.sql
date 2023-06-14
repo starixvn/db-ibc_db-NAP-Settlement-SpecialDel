@@ -17,10 +17,10 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Summary]
 	,@SelectionType					VARCHAR(200)    = ''
 	,@IsReSettled					BIT				= 0
 	,@AffectTickets					XML				= NULL
-		
+	,@SelectionSubParlays			VARCHAR(200)    = ''
+
 AS
-/*	Created by: Elodie
-	Date: 20130606
+/*	Created by: 20130606@Elodie
 	Task: Show Tickets Listing for NAP system
 	DB: DBACC/bodb02
 	Original: Acc_Rpt_TicketListing
@@ -75,6 +75,7 @@ AS
 		- 20221006@July: Ticket Listing - Support Advance Mode for Tennis(5) & Volleyball(6) [Redmine: #176611]
 		- 20221110@Max: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
+		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -128,13 +129,10 @@ AS
 	 + 'SubParlay'
 
 	- @AffectTickets: <root><r tid="1010509175087955968" /><r tid="1010509175087955968" />...</root>
-      
-    Example:	declare @p12 int
-				set @p12=0
-				declare @p13 varchar(1000)
-				set @p13=''
-				exec NAP_Rpt_TicketsListing @MatchId=4626986,@LicenseeID=0,@BetTypes='1101,1102',@BetTypesLive='',@LiveType=2,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=3,@SecondAcceptFlag=0,@ErrCode=@p12 output,@ErrMsg=@p13 output
-				select @p12, @p13		
+    - @SelectionSubParlays: 
+	 + IF @SingleOrSubParlay: 'All' OR 'Single' => default : ''
+	 + IF @SingleOrSubParlay: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -165,6 +163,7 @@ BEGIN
 		)
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
+	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 
 	CREATE TABLE #tmpAffectTickets (Transid BIGINT PRIMARY KEY)
 
@@ -294,6 +293,7 @@ BEGIN
 		,FilterOddsId		INT
 		,FilterTransdesc	NVARCHAR(2000)
 		,srecommend			INT
+		,ParentHdp2			SMALLMONEY --selection parlay
 	) 
 
 	CREATE TABLE #CTE_ParlayVSTickets (
@@ -443,8 +443,7 @@ BEGIN
 				WHEN 2 THEN 1 END
 				AND (@Quarter = 'All' 
 					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 627 AND 631 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
-					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																										WHERE b.betid LIKE q.Id + '%')))
+					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE b.betid LIKE q.Id + '%')))
 
 		IF (@IsReSettled = 1 AND @SportType = 1)
 		BEGIN
@@ -555,6 +554,7 @@ BEGIN
 				,FilterOddsId
 				,FilterTransdesc
 				,srecommend
+				,ParentHdp2
 			)
 		SELECT   b.transid
 				,b.bettype
@@ -573,6 +573,7 @@ BEGIN
 				,bm.oddsid AS FilterOddsId
 				,bm.transdesc AS FilterTransdesc
 				,b.srecommend
+				,b.hdp2 AS ParentHdp2
 		FROM bettransm bm WITH (NOLOCK)
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
@@ -594,6 +595,20 @@ BEGIN
 				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))			
 			
+		IF @SelectionSubParlays <> ''
+		BEGIN
+			INSERT INTO @tmpSelectionSubParlay (Id)
+			SELECT value AS  Id
+			FROM STRING_SPLIT(@SelectionSubParlays, ',')
+		
+			DELETE t
+			FROM  #CTE_ParlayTickets t
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectionSubParlay sp 
+					WHERE 1 = CASE WHEN sp.Id = '10 UP' AND t.ParentHdp2 >= 10 THEN 1
+								   WHEN sp.Id <> '10 UP' AND t.ParentHdp2 = CAST (sp.Id AS SMALLMONEY) THEN 1
+								   ELSE 0 END)
+		END
+		
 		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
 		BEGIN
 			DELETE t

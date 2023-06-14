@@ -16,11 +16,11 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail]
 	@SingleOrSubParlay			VARCHAR(20)   = 'All',
 	@SelectionType				VARCHAR(200)  = '',
 	@IsReSettled				BIT			  = 0,
-	@AffectTickets				XML				= NULL
+	@AffectTickets				XML				= NULL,
+	@SelectionSubParlays		VARCHAR(200)    = ''
 
 AS;
-/*	Created by: Elodie
-	Date: 20130606
+/*	Created by: 20130606@Elodie
 	Task: Show Tickets Listing Detail and Export to excel for NAP system
 	DB: DBACC/bodb02
 	Original: Acc_Rpt_TicketsListingDetail
@@ -81,6 +81,7 @@ AS;
 		- 20221006@July: Ticket Listing - Support Advance Mode for Tennis(5) & Volleyball(6) [Redmine: #176611]
 		- 20221110@Max: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
+		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -132,9 +133,10 @@ AS;
 	 + 'SubParlay' 
 	 
 	- @AffectTickets: <root><r tid="1010509175087955968" /><r tid="1010509175087955968" />...</root>
-     
-   Example:    exec NAP_Rpt_TicketsListingDetail @MatchId=4626986,@LicenseeName='IBC',@BetTypes='1101,1102',@BetTypesLive='',@LiveType=0,@LiveHomeScore=default,@LiveAwayScore=default,@FromTransdate=default,@ToTransdate=default,@Type=2,@SecondAcceptFlag=0
-	
+    - @SelectionSubParlays: 
+	 + IF @SingleOrSubParlay: 'All' OR 'Single' => default : ''
+	 + IF @SingleOrSubParlay: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
+
 */
 BEGIN
 	SET NOCOUNT ON 
@@ -151,6 +153,7 @@ BEGIN
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 	DECLARE @tmpMatchId TABLE (MatchId INT)
+	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 	
 	INSERT INTO @tmpMatchId (MatchId)
 	SELECT matchid
@@ -552,7 +555,6 @@ BEGIN
 			WHERE ds.custid IS NOT NULL OR cs.CustId IS NOT NULL
 		END
 
-
 		IF (@IsReSettled = 1 AND @SportType = 1)
 		BEGIN
 			DELETE b
@@ -725,6 +727,7 @@ BEGIN
 				AND (@Quarter = 'All' 
 					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%'))) 
+			
 		END 	
 		
 		---Licensee
@@ -743,6 +746,20 @@ BEGIN
 				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 			WHERE ds.custid IS NOT NULL OR cs.CustId IS NOT NULL
 		END 
+
+		IF @SelectionSubParlays <> ''
+		BEGIN
+			INSERT INTO @tmpSelectionSubParlay (Id)
+			SELECT value AS  Id
+			FROM STRING_SPLIT(@SelectionSubParlays, ',')
+		
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectionSubParlay sp 
+					WHERE 1 = CASE WHEN sp.Id = '10 UP' AND b.Hdp2 >= 10 THEN 1
+								   WHEN sp.Id <> '10 UP' AND b.Hdp2 = CAST (sp.Id AS SMALLMONEY) THEN 1
+								   ELSE 0 END)
+		END
 
 		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
 		BEGIN
