@@ -530,8 +530,7 @@ BEGIN
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 					AND (@Quarter = 'All' 
 						OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 627 AND 631 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
-						OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																											WHERE b.betid LIKE q.Id + '%')))  
+						OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE b.betid LIKE q.Id + '%')))  
 			END	
 		END		
 		
@@ -715,7 +714,7 @@ BEGIN
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
-				AND bm.matchID = @MatchId
+				AND bm.matchID IN (SELECT MatchId FROM @tmpMatchId)
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -743,7 +742,6 @@ BEGIN
 				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 				LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
 			WHERE ds.custid IS NOT NULL OR cs.CustId IS NOT NULL
-				
 		END 
 
 		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
@@ -878,7 +876,7 @@ BEGIN
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
-				AND bm.matchID = @MatchId
+				AND bm.matchID IN (SELECT MatchId FROM @tmpMatchId)
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
