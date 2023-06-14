@@ -262,7 +262,8 @@ BEGIN
 			)
 		OR (
 			@IsExistsInstantlySettledSABATickets = 1 AND @IsExistsSettledTickets = 1
-			AND @IsHostVoidInstantlySettledTickets = 1
+			AND @IsHostVoidInstantlySettledTickets = 1 
+			AND @IsHostVoidSettledTickets = 0
 			)
 	BEGIN
 		IF @IsCheckForTVS = 0 --Special delete
