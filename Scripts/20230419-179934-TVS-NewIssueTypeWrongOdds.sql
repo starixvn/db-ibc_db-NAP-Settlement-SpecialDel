@@ -19,9 +19,9 @@ INSERT INTO [dbo].[TicketVoiding_SubIssueType] (
   ,[IssueTypeId]
   ,[SubIssueTypeName]
 ) 
-VALUES (119, 11, '1H Handicap'),
-	(120, 11, 'Over/Under'),
-	(121, 11, '1H Over/Under')
+VALUES (119, 2, '1H Handicap'),
+	(120, 2, 'Over/Under'),
+	(121, 2, '1H Over/Under')
 
 SET IDENTITY_INSERT [dbo].[TicketVoiding_SubIssueType] OFF
 
