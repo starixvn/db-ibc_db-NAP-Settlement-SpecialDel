@@ -113,7 +113,7 @@ BEGIN
 			,'<r FilterOddsType="' + t.c.value('@FilterOddsType','VARCHAR(20)')
 					+ '" FromOdds="' + t.c.value('@FromOdds','VARCHAR(20)')
 					+ '" ToOdds="' + t.c.value('@ToOdds','VARCHAR(20)')
-					+ '" OddsValue="' + t.c.value('@OddsValue','VARCHAR(20)')
+					+ '" OddsValue="' + REPLACE(t.c.value('@OddsValue','VARCHAR(20)'), '&', '&amp;')
 					+ '" BetTeam="' + t.c.value('@BetTeam', 'VARCHAR(10)')
 					+ '" FilterFavoriteType="' + t.c.value('@FilterFavoriteType', 'VARCHAR(10)')
 					+ '" FavoriteValue="' + REPLACE(t.c.value('@FavoriteValue','VARCHAR(50)') , '&', '&amp;') 
