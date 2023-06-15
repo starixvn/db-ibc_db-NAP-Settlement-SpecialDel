@@ -121,7 +121,7 @@ BEGIN
 	FROM @ReducedOverXML.nodes('root/r') t(c)
 		CROSS APPLY (
 			SELECT value AS bettype
-			FROM string_split (t.c.value('@BetTypes','VARCHAR(2000)'),',')
+			FROM string_split (t.c.value('@BetTypeIds','VARCHAR(2000)'),',')
 		)bt
 		CROSS APPLY (
 			SELECT value AS Transdesc
