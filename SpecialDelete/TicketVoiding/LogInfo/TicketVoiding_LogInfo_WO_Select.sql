@@ -416,12 +416,12 @@ BEGIN
 					 WHEN d.SubIssueTypeId IN (120)
 							AND b.bettype IN (3)
 							AND b.betteam = d.FilterOUType
-							AND b.hdp1 = d.OUValue
+							AND b.hdp1 = xOU.OUValue
 						THEN 1
 					 WHEN d.SubIssueTypeId IN (121)
 							AND b.bettype IN (8)
 							AND b.betteam = d.FilterOUType
-							AND b.hdp1 = d.OUValue
+							AND b.hdp1 = xOU.OUValue
 						THEN 1
 					 WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 					 WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 

@@ -395,12 +395,12 @@ BEGIN
 					WHEN @SubIssueTypeId IN (120)
 						AND b.bettype IN (3)
 						AND b.betteam = @FilterOUType
-						AND b.hdp1 = @OUValue
+						AND b.hdp1 = xOU.OUValue
 					THEN 0
 					WHEN @SubIssueTypeId IN (121)
 						AND b.bettype IN (8)
 						AND b.betteam = @FilterOUType
-						AND b.hdp1 = @OUValue
+						AND b.hdp1 = xOU.OUValue
 					THEN 0
 					ELSE 1 END
 	
