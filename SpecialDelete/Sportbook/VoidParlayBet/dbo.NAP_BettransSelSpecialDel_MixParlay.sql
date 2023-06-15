@@ -60,6 +60,7 @@ AS
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 
 	Param's Explanation:
 			@Type:	  0	Dead
@@ -174,7 +175,17 @@ BEGIN
 	  ,betcheck			NVARCHAR(50)
 	  ,transdesc		NVARCHAR(1000)
 	  ,OddsId			INT
+	  ,matchid			INT
 	 ) 
+
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN SportType <> 50 AND matchid = @MatchId THEN 1
+					WHEN SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
     -- Parse xml @BetTypes
 	;WITH CTE_ParsedBettypes_1 AS
@@ -259,7 +270,7 @@ BEGIN
 		VALUES (@BetType) 
    
 	INSERT INTO #Ref (refno, transid, Bettype, hdp1, hdp2, odds, betteam, 
-				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, OddsId)  
+				livehomescore, liveawayscore, liveindicator, org_betteam, statusID, status, betcheck, transdesc, OddsId, matchid)  
 	SELECT b.refno  
 	  ,b.transid  
 	  ,b.Bettype     
@@ -276,8 +287,10 @@ BEGIN
 	  ,b.betcheck
 	  ,b.transdesc
 	  ,b.OddsId
+	  ,b.matchid
 	 FROM dbo.bettransm AS b WITH(NOLOCK)		  
-	 WHERE	matchid=@MatchID AND b.SiteDBGroupID = @SiteDBGroupID
+	 WHERE	matchid IN (SELECT matchid FROM @tmpMatchId)
+			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND CASE WHEN @Type = 2 THEN @Type ELSE b.liveindicator END = @Type
 			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @Type = 1 THEN @LiveHomeScore ELSE livehomescore END
 			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @Type = 1 THEN @LiveAwayScore ELSE liveawayscore END
@@ -486,7 +499,7 @@ BEGIN
 	FROM #Bettypes_Parlay t
 	INNER JOIN dbo.bettrans AS b with (NOLOCK) ON t.BetType = b.matchid AND b.SiteDBGroupID = @SiteDBGroupID
 	INNER JOIN #Ref AS r WITH(NOLOCK) ON b.refno=r.refno
-	INNER JOIN dbo.match AS m WITH(NOLOCK) ON m.matchid=@MatchID  
+	INNER JOIN dbo.match AS m WITH(NOLOCK) ON m.matchid=r.matchid  
 	INNER JOIN custDB.dbo.customer AS cr with (NOLOCK) ON cr.custid = b.creator	
 	
 	SELECT   T.transid		

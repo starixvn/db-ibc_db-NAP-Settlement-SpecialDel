@@ -92,6 +92,7 @@ AS
 		- 20220705@Max: [TVS] Support multiple selection on Player filter of Cricket AIO [Redmine: #174652] 
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -178,6 +179,8 @@ BEGIN
 		OddsId			INT,
 		Transdesc		NVARCHAR(2000)
 	)
+
+	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
 		
 	-- Parse xml @BetTypes
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
@@ -247,43 +250,6 @@ BEGIN
 			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
 			ELSE 1 END = 1
 
-	DECLARE @SettlementStatus TINYINT = NULL
-	SELECT @SettlementStatus = m.SettlementStatus FROM dbo.match m WHERE m.matchid = @MatchId
-	
-	BEGIN -- Instant Settlement declaration
-		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-	
-		DECLARE @IsHTCal BIT = 0
-			  , @eventstatus NVARCHAR(50) = ''
-		  
-		CREATE TABLE #InstantSettlementBettypes(bettype	SMALLINT)	
-		CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes(bettype)
-	
-		--> Get status of match
-		SELECT @IsHTCal = ISNULL(IsHTCal, 0)		 
-		FROM match_remark (NOLOCK)
-		WHERE matchid = @MatchId
-	
-		SELECT @eventstatus = ISNULL(eventstatus, '')
-		FROM match (NOLOCK)
-		WHERE matchid = @MatchId		
-	
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		IF @eventstatus <> @eventstatus_completed
-		BEGIN
-			IF @IsHTCal = 0
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_TVS_GetInstantBettypes() T
-				WHERE T.InstantType IN (1, 3) -- 01, 11
-			ELSE
-				INSERT INTO #InstantSettlementBettypes(bettype)
-				SELECT T.bettype
-				FROM dbo.f_TVS_GetInstantBettypes() T
-				WHERE T.InstantType IN (2, 3) -- 10, 11			
-		END	 	
-	END		 
-	
 	CREATE TABLE #SpecialDeleteBets
              (GroupID            BIGINT,
               transid            BIGINT,
@@ -351,7 +317,9 @@ BEGIN
               IsMarked           BIT,
 			  ActualStake		 MONEY,
 			  OddsId			INT,
-			  SiteDBGroupId		SMALLINT
+			  SiteDBGroupId		SMALLINT,
+			  SettlementStatus	  TINYINT,
+			  eventstatus			  NVARCHAR(50)
              );
 
 	CREATE TABLE #SpecialDeleteBetsm
@@ -380,11 +348,19 @@ BEGIN
              );
 
 	DECLARE @SportType SMALLINT--, @MatchStatus NVARCHAR(50)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
 
 	SELECT	@SportType = Sporttype--, @MatchStatus = eventstatus
 	FROM	dbo.match WITH(NOLOCK) 
 	WHERE	matchid = @matchid
-	
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
+					WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
+					
 	IF @SportType <> 44
 	BEGIN
 		SET @SportType = NULL
@@ -520,7 +496,7 @@ BEGIN
 			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
 		WHERE
-			b.matchid = @MatchId
+			b.matchid IN (SELECT matchid FROM @tmpMatchId)
 			AND CASE
 					WHEN @TimeType = 0 THEN b.transdate
 					WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
@@ -590,7 +566,7 @@ BEGIN
 				dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
 			WHERE
-				bm.matchid=@MatchId
+				bm.matchid IN (SELECT matchid FRom @tmpMatchId)
 				AND	CASE
 						WHEN @TimeType = 0 THEN bm.transdate
 						WHEN @TimeType = 1 AND bm.checktime IS NOT NULL THEN bm.checktime
@@ -822,6 +798,48 @@ BEGIN
 				)
 		END
 	END	
+
+	-- UPDATE eventtype = 1
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE d
+		SET sporttype 	= m.sporttype
+			,eventstatus = ISNULL(m.eventstatus,'')
+			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
+		FROM #SpecialDeleteBets d
+			INNER JOIN dbo.match m WITH (NOLOCK) 
+			ON	d.matchid = m.matchid
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
+	
+	-- UPDATE eventtype = 2 [Outright bettype]
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (10)))
+	BEGIN
+		UPDATE d
+		SET sporttype 	= l.sporttype
+			,eventstatus = ISNULL(odds.oddsstatus,'')
+			,SettlementStatus = 0
+		FROM #SpecialDeleteBets d
+			INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
+			ON	d.matchid = odds.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	odds.leagueid = l.leagueid
+		WHERE d.bettype IN (10)
+	END
+	-- UPDATE eventtype = 3 [VS range  bettypes]
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (1231,1232,1233,1237,1238)))
+	BEGIN
+		UPDATE d
+			SET sporttype 	= r.sporttype
+				,eventstatus = ISNULL(o.eventstatus,'')
+				,SettlementStatus = 0
+		FROM #SpecialDeleteBets d
+			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
+			ON d.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
+			ON r.EventID = o.EventID
+		WHERE d.bettype IN (1231,1232,1233,1237,1238)
+	END
 	
 	-- update username/creatorname column, Isdeposit
 	UPDATE al
@@ -842,7 +860,36 @@ BEGIN
 					  FROM CustDB.dbo.custInfo cr WITH(NOLOCK)
 					  WHERE al.creator = cr.custid) AS cr	
 		OUTER APPLY (SELECT TOP 1 1 AS IsExisted
-					 FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend) AS T					 					 					  				  		
+					 FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend) AS T		
+					 
+	BEGIN -- Instant Settlement declaration
+		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
+		
+		--> Get status of match
+		;WITH cte_match AS
+		(
+			SELECT DISTINCT t.matchid
+			FROM #SpecialDeleteBets t
+				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
+		)
+		,cte_isCalHT AS
+		(
+			SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
+			FROM cte_match m
+				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
+		)
+		--> Build bettype list supported for instant settlement based on settlement status of match
+		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
+		SELECT c.matchid,  f.bettype
+		FROM cte_isCalHT c
+			CROSS APPLY (
+					SELECT bettype
+					FROM dbo.f_TVS_GetInstantBettypes() 
+					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
+								   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
+							ELSE 0 END
+			)f	 	
+	END	
 
 	;WITH CTE_OriginResult AS (
 		--1. For Normal bets
@@ -899,6 +946,8 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 			   ,s.SiteDBGroupId
+			   ,s.eventstatus
+			   ,s.SettlementStatus
 		FROM	#SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON s.custid = f.CustID
 			LEFT JOIN #SpecialDeleteBets sub ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -965,8 +1014,10 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 			   ,s.SiteDBGroupId
+			   ,s.eventstatus
+			   ,s.SettlementStatus
 		FROM	#SpecialDeleteBets s
-			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = @matchid
+			LEFT JOIN dbo.bettrans b WITH (NOLOCK) ON s.betid = b.transid AND b.matchid = s.matchid
 		WHERE	s.recommend IN (52466, 5707545)
 			AND ISNULL(s.betdaqid,0) <> -2 --NOT Cashout
 		UNION ALL
@@ -1024,6 +1075,8 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 			   ,s.SiteDBGroupId
+			   ,s.eventstatus
+			   ,s.SettlementStatus
 		FROM #SpecialDeleteBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1093,6 +1146,8 @@ BEGIN
 			   ,s.IsMarked
 			   ,s.ActualStake
 			   ,s.SiteDBGroupId
+			   ,s.eventstatus
+			   ,s.SettlementStatus
 		FROM #SpecialDeleteBets s
 			LEFT JOIN #SpecialDeleteBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -1117,7 +1172,7 @@ BEGIN
 		*/
 		SELECT  s.*
 			   ,CASE 
-					WHEN @eventstatus <> @eventstatus_completed -- cases 1, 2, 3 
+					WHEN s.eventstatus <> @eventstatus_completed -- cases 1, 2, 3 
 							THEN CASE
 									WHEN s.mainstatusid IN (111, 112, 113) AND ISNULL(s.betdaqid,0) <> -2
 										 AND EXISTS (SELECT TOP 1 1
@@ -1199,7 +1254,7 @@ BEGIN
 			,s.SubHdp2
 			,s.SubOdds
 			,c.site AS LicenseeName
-			,@SettlementStatus AS SettlementStatus
+			,s.SettlementStatus AS SettlementStatus
 			,s.IsMarked
 			,s.ActualStake
 			,ISNULL(si.IsChinaView,0) AS IsChinaView

@@ -17,6 +17,7 @@ AS
 		- 20210712@July: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220906@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 
 	Param's Explanation:			
 			- @BetType:
@@ -67,9 +68,18 @@ BEGIN
 	)		
 	DECLARE @tblTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransIdMoveBet TABLE (Transid BIGINT)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
 	DECLARE @MovebetDate		DATETIME
 		   ,@SiteDBGroupID		SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE  1 = CASE WHEN m.sporttype <> 50 AND matchid = @MatchId THEN 1
+					WHEN m.sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
 	INSERT INTO @tblTransIds(transid)
 	SELECT ss.value
@@ -111,7 +121,8 @@ BEGIN
 			,hdp2			 
 			,betcheck
 			,ExtraInfo
-			,ActualStake)
+			,ActualStake
+		)
 	SELECT  bm.transid AS SubTransID			 
 			,bm.betcheck AS SubBetCheck	
 			,bm.odds AS SubOdds
@@ -147,7 +158,7 @@ BEGIN
 			,b.hdp2 AS hdp2			 
 			,b.betcheck AS betcheck
 			,b.ExtraInfo
-			,b.actual_stake AS ActualStake		
+			,b.actual_stake AS ActualStake	
 	FROM @tblTransIds t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK)
 				ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		   
@@ -155,7 +166,7 @@ BEGIN
 				ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID				
 		INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	m.matchid = bm.matchid			   
-	WHERE	bm.matchid = @MatchId
+	WHERE	bm.matchid IN (SELECT matchid FROM @tmpMatchId)
 			AND b.bettype = 29	
 			AND bm.statusid = 102
 			AND (b.betfrom IS NULL OR b.betfrom <> 'p')
@@ -253,7 +264,7 @@ BEGIN
 	*/
 	;WITH InvalidTransID AS
 	(
-		SELECT t.transid		 
+		SELECT t.transid	 
 		FROM @tblTransIds t
 		WHERE NOT EXISTS (SELECT TOP 1 1 
 						  FROM @tblRecoverBet 
@@ -277,12 +288,13 @@ BEGIN
 				   AND b.bettype = 29 AND b.SiteDBGroupID = @SiteDBGroupID
 		 LEFT JOIN bettransm bm WITH (NOLOCK)
 				ON b.refno = bm.refno AND bm.SiteDBGroupID = b.SiteDBGroupID
-				   AND bm.matchid = @MatchId
+				   AND bm.matchid IN (SELECT matchid FROM @tmpMatchId)
 		 LEFT JOIN bettrans14 b14 WITH(NOLOCK)
 				ON t.transid = b14.transid AND b14.SiteDBGroupID = @SiteDBGroupID
 		 LEFT JOIN bettransm14 bm14 WITH(NOLOCK)
 				ON ISNULL(b.refno, b14.refno) = bm14.refno
-				   AND bm14.matchid = @MatchId AND bm14.SiteDBGroupID = b14.SiteDBGroupID
+				   AND bm14.matchid IN (SELECT matchid FROM @tmpMatchId)
+				   AND bm14.SiteDBGroupID = b14.SiteDBGroupID
 		 LEFT JOIN @tmpTransIdMoveBet m
 				ON t.transid = m.transid		
 END

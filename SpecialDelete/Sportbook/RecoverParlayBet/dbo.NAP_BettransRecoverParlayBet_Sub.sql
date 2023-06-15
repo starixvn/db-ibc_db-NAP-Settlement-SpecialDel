@@ -28,6 +28,7 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		
 	Param's Explanation:			
 			- @BetType:
@@ -78,6 +79,7 @@ BEGIN
 		   ,@CustIds			VARCHAR(MAX) = ''
 		   ,@AvaiableProcess	BIT
 		   ,@RowNumber			BIGINT
+		   ,@sporttype			SMALLINT = NULL
 	
 	DECLARE @Session			NVARCHAR(50)
 		   ,@ThreadHold			INT -- over threadhold, the parlay process will be locked in systemsetting
@@ -130,6 +132,7 @@ BEGIN
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
 		,ruben					TINYINT
+		,IsFinish				BIT
 	)	
 	
 	CREATE TABLE #tblMainTicket 
@@ -140,12 +143,14 @@ BEGIN
 	   ,custid		INT
 	   ,balance		MONEY	 
 	   ,ruben		TINYINT
+	   ,matchid		INT
 	)
 	CREATE CLUSTERED INDEX IDX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
 	
 	DECLARE @tblMainTransIds TABLE (transid BIGINT)
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40))
 	DECLARE @tblSettledBeforeRecoveredMainTicket TABLE (transid	BIGINT)
+	DECLARE @tmpMatchId TABLE (MatchId INT, matchdate DATETIME, IsFinish BIT)
 								
 	DECLARE @tblBeforeBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
 	DECLARE @tblAfterBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
@@ -157,8 +162,16 @@ BEGIN
 
 	SELECT  @MatchDate = eventdate
 		  , @Eventstatus = eventstatus
+		  , @sporttype =  sporttype
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @MatchId	
+
+	INSERT INTO @tmpMatchId (MatchId, matchdate)
+	SELECT MatchId, m.eventdate
+	FROM dbo.match m WITH(NOLOCK)
+	WHERE  1 = CASE WHEN @sporttype <> 50 AND matchid = @MatchId THEN 1
+					WHEN @sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+					ELSE 0 END
 
 	IF @MatchDate <= @Movebetdate
 	BEGIN
@@ -189,7 +202,7 @@ BEGIN
 		  		ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		  INNER JOIN bettransm bm WITH (NOLOCK)
 		  		ON bm.refno	= b.refno AND bm.SiteDBGroupID = b.SiteDBGroupID	   							
-	WHERE bm.matchid = @MatchId
+	WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
 		AND b.bettype = 29	
 		AND bm.statusid = 102
 
@@ -318,7 +331,7 @@ BEGIN
 					ON bm.refno	= b.refno AND bm.SiteDBGroupID = b.SiteDBGroupID	   							
 			INNER JOIN dbo.match m WITH(NOLOCK)
 					ON	bm.matchid = m.matchid
-		WHERE bm.matchid = @MatchId
+		WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
 		  AND b.bettype = 29	
 		  AND bm.statusid = 102
 		  AND (b.betfrom IS NULL OR b.betfrom <> 'p')
@@ -354,13 +367,14 @@ BEGIN
 		END										
 	
 		--> get list of MainTranIds	
-		INSERT INTO #tblMainTicket(transid, refno, StatusId, custid, balance, ruben)
+		INSERT INTO #tblMainTicket(transid, refno, StatusId, custid, balance, ruben, matchid)
 		SELECT t.transid
 			 , t.refno			 
 			 , t.StatusId			 
 			 , t.custid
 			 , t.balance
 			 , t.ruben
+			 , t.matchid
 		FROM @tblRecoverBet t		
 		
 		--> capture list of settled main transIDs before do recover
@@ -386,38 +400,55 @@ BEGIN
 							)
 		--> Do recover
 		-- for bettransM
-		SET @RowNumber = 0
-		WHILE (1 = 1)
+		DECLARE @tmpTransIDBatch TABLE (transid BIGINT)
+
+		WHILE (1=1)
 		BEGIN
-			SET @SubTransIds = ''
-			SELECT @SubTransIds = @SubTransIds + 
-								  CASE WHEN @SubTransIds <> '' THEN ',' ELSE '' END +
-								  CONVERT(VARCHAR(50), SubTransID)
-			FROM @tblRecoverBet
-			WHERE RowNumber BETWEEN (@RowNumber + 1) AND (@RowNumber + @RecoverPatchSize)						
-			
-			IF @SubTransIds = ''
-				BREAK
-			
-			EXEC dbo.NAP_Admin_Calculate_MP_broker
-				@matchid = @matchid
-				,@matchdate = @MatchDate
-				,@mode = 'RECOVER' -- update bettransM + BetParlayDetail
-				,@VoidTransID = @SubTransIds
-				
-			SET @RowNumber = @RowNumber + @RecoverPatchSize				
-		END				
+			UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId, @MatchDate = p.matchdate
+			FROM @tmpMatchId p
+			WHERE p.IsFinish IS NULL
 		
-		SELECT @transids_29 = @transids_29 + CONVERT(VARCHAR(50), transid) + ','
-			 , @refnos_29 = @refnos_29 + CONVERT(VARCHAR(50), refno) + '|' + CONVERT(VARCHAR(50), transid) + ','
-		FROM #tblMainTicket				
+			IF @@ROWCOUNT = 0 BREAK
+
+			WHILE (1 = 1)
+			BEGIN
+				DELETE @tmpTransIDBatch
+				SET @SubTransIds = ''
+		
+				UPDATE TOP(@RecoverPatchSize) t
+				SET isFinish = 1
+					OUTPUT deleted.SubTransID
+					INTO @tmpTransIDBatch(transid)
+				FROM @tblRecoverBet t
+				WHERE isFinish IS NULL 
+					AND t.MatchId = @MatchId
+
+				IF @@ROWCOUNT = 0 BREAK
+
+				SELECT	@SubTransIds = @SubTransIds + CONVERT(VARCHAR(50), TransId) + ','
+				FROM	@tmpTransIDBatch				
 			
-		-- call pre-cal: betparlaydetail/betparlayresult		
-		EXEC dbo.NAP_Admin_Calculate_MP_broker 
-			@matchid	= @MatchId
-			,@matchdate = @MatchDate
-			,@strXML	= @transids_29
-			,@mode		= 'PRECAL-29'
+				EXEC dbo.NAP_Admin_Calculate_MP_broker
+					@matchid = @matchid
+					,@matchdate = @MatchDate
+					,@mode = 'RECOVER' -- update bettransM + BetParlayDetail
+					,@VoidTransID = @SubTransIds		
+			END				
+		
+			SELECT @transids_29 = @transids_29 + CONVERT(VARCHAR(50), transid) + ','
+			FROM #tblMainTicket	
+			WHERE matchid = @MatchId
+			
+			-- call pre-cal: betparlaydetail/betparlayresult		
+			EXEC dbo.NAP_Admin_Calculate_MP_broker 
+				@matchid	= @MatchId
+				,@matchdate = @MatchDate
+				,@strXML	= @transids_29
+				,@mode		= 'PRECAL-29'
+		END
+
+		SELECT @refnos_29 = @refnos_29 + CONVERT(VARCHAR(50), refno) + '|' + CONVERT(VARCHAR(50), transid) + ','
+		FROM #tblMainTicket	
 				
 		-- call cal_29: re-settle for main ticket
 		EXEC dbo.NAP_Admin_Calculate_MP_broker
@@ -475,19 +506,36 @@ BEGIN
 					AND z.matchid = t.matchid
 					AND z.transid = t.SubTransID
 		WHERE z.SiteDBGroupID = @SiteDBGroupID
-
+		
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
-			SET @TransInfo = COMPRESS((
-			SELECT	matchid AS 'mid'
-				  , transId AS 't'
-				  , transdate AS 'td'
-					, comstatus AS 'cst'
-			FROM	@tmpTransInfo
-			FOR JSON PATH))
+			DELETE @tmpMatchId
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT matchid
+			FROM @tmpTransInfo
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettrans', 'D', @matchid, @TransInfo, 'p' 
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
+				FROM @tmpMatchId p
+				WHERE p.IsFinish IS NULL
+		
+				IF @@ROWCOUNT = 0 BREAK
+
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+					  , transId AS 't'
+					  , transdate AS 'td'
+						, comstatus AS 'cst'
+				FROM	@tmpTransInfo
+				WHERE matchid = @MatchId
+				FOR JSON PATH))
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSubParlay', 'zzzbettrans', 'D', @matchid, @TransInfo, 'p' 
+
+				SET @TransInfo =  NULL
+			END
 			
 			DELETE FROM @tmpTransInfo
 		END
@@ -504,17 +552,35 @@ BEGIN
 			
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
-			SET @TransInfo = COMPRESS((
-			SELECT	matchid AS 'mid'
-				  , transId AS 't'
-			FROM	@tmpTransInfo
-			FOR JSON PATH))
+			DELETE @tmpMatchId
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT matchid
+			FROM @tmpTransInfo
 
-			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-			SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p' 
-			
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP (1) p SET p.IsFinish = 1, @MatchId = p.MatchId
+				FROM @tmpMatchId p
+				WHERE p.IsFinish IS NULL
+		
+				IF @@ROWCOUNT = 0 BREAK
+
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+					  , transId AS 't'
+				FROM	@tmpTransInfo
+				WHERE matchid = @MatchId
+				FOR JSON PATH))
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSubParlay', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p' 
+
+				SET @TransInfo = NULL
+			END
+
 			DELETE FROM @tmpTransInfo
 		END
+
 		--> Build list of changed status main transids that corresponding match needs to re-settle
 		IF @Eventstatus = 'completed'
 		BEGIN				   
