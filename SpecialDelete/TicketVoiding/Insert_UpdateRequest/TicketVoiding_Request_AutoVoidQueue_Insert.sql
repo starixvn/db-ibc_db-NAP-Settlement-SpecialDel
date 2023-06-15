@@ -18,6 +18,7 @@ AS
 		- 20220922@Max: Fix Issue insert queue - [Redmine: #175412 ]
 		- 20220923@July: Fix case auto void wininng insert all server for slow settle site [Redmine: #175412]
 		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230612@July: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 
 	Param's explanation:
 		+ @IssueTypeId : 11 - Abnormal Bet, 15 - AB(real member), 13 - Abnormal account
@@ -25,7 +26,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF @IssueTypeId = 13 
+	IF @IssueTypeId IN (13,19)
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestIds, MatchId, [Action], StatusId, BroadcastSessionID)
 		SELECT @RequestIds, 0, 'VoidInstant', 0, @BroadcastSessionID
