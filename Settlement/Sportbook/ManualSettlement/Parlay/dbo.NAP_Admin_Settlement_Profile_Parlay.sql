@@ -38,6 +38,7 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -825,15 +826,7 @@ BEGIN
 	
 	IF @IsAuto = 1 AND @Action = 'REFUND'
 	BEGIN
-		IF  @sportType = 1
-		BEGIN
-			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-				@MatchId = @matchid 
-				, @TypeId  = 10
-				, @StatusId = 2
-		END
-		
-		ELSE
+		IF  @sportType != 1
 		BEGIN
 			SELECT @ResourceRefund = @ResourceRefund + ',' + r.ResourceID FROM @tmpSelectedRID r
 			

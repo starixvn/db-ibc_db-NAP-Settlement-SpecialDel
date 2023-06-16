@@ -13,6 +13,7 @@ AS
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
+		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 */
 BEGIN
 	
@@ -54,6 +55,7 @@ BEGIN
 			AND ar.SourceId = 105
 			AND ar.StatusId = 0
 			AND ar.TypeId = 1
+			AND m.leagueid NOT IN (16371,65550,89611) -- Exclude Fantasy Match
 	END
 	ELSE IF @sporttype = 5
 	BEGIN

@@ -28,6 +28,7 @@ AS
 		  - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		  - 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		  - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
+		  - 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 
 	Param's Explanation:  
 	
@@ -200,7 +201,7 @@ BEGIN
 								WHEN @Action LIKE 'CAL%' THEN 
 									CASE 
 										WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-										WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> '
+										WHEN @SourceId IN (100,101) THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> '
 										ELSE ''
 									END 
 									+ CASE WHEN @DeterminedFTStatus = 2 THEN ' SDT-FT:1' ELSE '' END

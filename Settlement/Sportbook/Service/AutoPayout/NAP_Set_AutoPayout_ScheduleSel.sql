@@ -22,6 +22,7 @@ AS
 		- 20220520@Louisa: Direct Settlement for HT & FT on Some Saba Virtual Soccer Leagues [Redmine:#172907]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
+		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 
 	Param's Explanation:
  
@@ -141,6 +142,7 @@ BEGIN
 																							WHEN l.leagueid IN (95730,95731,96666) AND f.TypeId = 1 THEN 1
 																							ELSE 0
 								  															END
+								 WHEN l.leagueid IN (16371,65550,89611)	  THEN 0 -- Exclude Fantasy Match
 								 ELSE 1
 								 END
 

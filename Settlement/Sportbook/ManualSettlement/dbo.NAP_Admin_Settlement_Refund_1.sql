@@ -33,6 +33,7 @@ AS
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
+		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 
     Param's Explanation:
 	* @SDTRecord: Used to store a bitmap of these settings: (from right to left)
@@ -917,20 +918,6 @@ BEGIN
 				SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
 			END
 		END
-		ELSE
-		BEGIN
-			IF @IsCentral = 1
-			BEGIN
-				IF @IsAuto = 1
-				BEGIN
-					EXEC DBPRO.bodb02.dbo.NAP_Set_AutoRefund_ResultUpd
-						@MatchId = @matchid 
-						, @TypeId  = 10
-						, @StatusId = 2
-				END
-			END
-		END
-		
 		
 
 		IF @matchcode not like '%Hedge%'
