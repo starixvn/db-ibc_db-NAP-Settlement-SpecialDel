@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
+		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 
 	Param's Explanation:
 

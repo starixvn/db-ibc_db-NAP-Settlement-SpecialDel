@@ -8,6 +8,7 @@ AS
 	
 	Revisions:
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
+		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 
 	Param's Explanation:
 */
@@ -46,7 +47,7 @@ BEGIN
 		FROM	dbo.SSB_SettlementLogs s WITH(NOLOCK)
 		WHERE	ISNULL(s.ErrorMessage,'') <> ''
 				AND s.Resolved = 0
-				AND MessageType LIKE 'Sitedb%'
+				AND SiteDBGroupId > 0
 		 		AND s.StartTime >= @checktime
  
 	SELECT	@ServerName AS ServerName
