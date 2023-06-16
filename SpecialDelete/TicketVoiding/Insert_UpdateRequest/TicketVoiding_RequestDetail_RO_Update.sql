@@ -83,8 +83,7 @@ BEGIN
 			,SingleCount			
 			,MainParlayCount		
 			,VoidFromTime			
-			,VoidToTime	
-			,LiveScores			
+			,VoidToTime			
 			,SubIssueTypeId
 			,ReducedOver
 		)
@@ -94,9 +93,15 @@ BEGIN
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			, '' ReducedOver
+			,'<r BettypeIds="' + t.c.value('@BettypeIds','VARCHAR(MAX)')
+				+ '" WicketOver="' + t.c.value('@WicketOver','VARCHAR(20)')
+				+ '" PlayerIds="' + t.c.value('@PlayerIds','VARCHAR(20)')
+				+ '" Runs="' + t.c.value('@Runs','VARCHAR(20)')
+				+ '" Live="' + CAST(t.c.value('@Live','BIT') AS VARCHAR(10)) 
+				+ '" NonLive="' + CAST(t.c.value('@NonLive','BIT') AS VARCHAR(10)) 	
+				+ '" />'
+				AS  ReducedOver
 	FROM @ReducedOverInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@ReducedOverInfoXML = NULL))
 	
@@ -112,7 +117,6 @@ BEGIN
 			, MainParlayCount = l.MainParlayCount
 			, VoidFromTime = l.VoidFromTime
 			, VoidToTime = l.VoidToTime
-			, IssueDetail = l.LiveScores
 			, SubIssueTypeId = l.SubIssueTypeId
 			, TransIds = l.ReducedOver
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
@@ -130,7 +134,6 @@ BEGIN
 		, MainParlayCount
 		, VoidFromTime
 		, VoidToTime
-		, IssueDetail
 		, SubIssueTypeId
 		, TransIds
 		, RequestType
@@ -145,7 +148,6 @@ BEGIN
 		, l.MainParlayCount
 		, l.VoidFromTime
 		, l.VoidToTime
-		, l.LiveScores
 		, l.SubIssueTypeId
 		, l.ReducedOver
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
