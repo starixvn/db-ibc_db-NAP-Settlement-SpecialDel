@@ -147,6 +147,10 @@ BEGIN
 	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
 					WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
+	UNION --Bitcoin
+	SELECT match3rdId, sporttype
+	FROM dbo.match3rd WITH (NOLOCK)
+	WHERE match3rdId = @MatchID
 
 	SELECT @SportType = sporttype FROM @tmpMatchId
 
