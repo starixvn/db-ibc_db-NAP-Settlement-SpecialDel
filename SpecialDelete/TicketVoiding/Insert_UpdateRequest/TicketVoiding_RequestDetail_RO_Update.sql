@@ -94,7 +94,7 @@ BEGIN
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,'<r BettypeIds="' + t.c.value('@BettypeIds','VARCHAR(MAX)')
+			,'<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
 				+ '" WicketOver="' + t.c.value('@WicketOver','VARCHAR(20)')
 				+ '" PlayerIds="' + t.c.value('@PlayerIds','VARCHAR(20)')
 				+ '" Runs="' + t.c.value('@Runs','VARCHAR(20)')
