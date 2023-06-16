@@ -1,8 +1,7 @@
 /*<info serverAlias="DBSIG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Set_SiteDB_SyncTransIdToCentralDB]
 (
-	@ServerName		VARCHAR(100)
-	,@TableName		VARCHAR(200)
+	@TableName		VARCHAR(200)
 	,@TransIds		VARCHAR(MAX) 
 	,@ErrCode		INT				= 0	 OUTPUT
 	,@ErrMsg		VARCHAR(300)	= '' OUTPUT
@@ -31,13 +30,6 @@ BEGIN
 	FROM STRING_SPLIT(@TransIds, ',') f 
 
 	---- 1. Validation
-	IF @ServerName <> @@SERVERNAME
-	BEGIN
-		SELECT @ErrCode = 100
-				,@ErrMsg = 'Wrong Server'
-		RETURN
-	END
-
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #Result)
 	BEGIN
 		SELECT @ErrCode = 101
