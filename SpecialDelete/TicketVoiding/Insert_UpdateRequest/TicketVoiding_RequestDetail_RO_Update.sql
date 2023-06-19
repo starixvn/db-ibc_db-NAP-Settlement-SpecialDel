@@ -109,7 +109,7 @@ BEGIN
 	BEGIN
 		DELETE rd
 		FROM dbo.TicketVoiding_RequestDetail rd
-			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.MatchId = t.MatchID
+			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.TransIds = t.ReducedOver
 		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
 		
 		UPDATE	r
@@ -120,7 +120,7 @@ BEGIN
 			, SubIssueTypeId = l.SubIssueTypeId
 			, TransIds = l.ReducedOver
 		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
+			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.ReducedOver = r.TransIds
 	END
 
 	INSERT INTO dbo.TicketVoiding_RequestDetail (
@@ -153,7 +153,7 @@ BEGIN
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
-		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
+		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.TransIds = l.ReducedOver
 	WHERE rd.RequestId IS NULL
 
 	IF @IsEditRequest = 1
@@ -177,8 +177,13 @@ BEGIN
 		, t.CustId
 		, t.SiteDBGroupID
 	FROM #tmpTransInfo t
-		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId  
-	WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 0
+		CROSS APPLY (
+			SELECT TOP 1 rd.Id, rd.SubIssueTypeId
+			FROM  dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+			WHERE rd.RequestId = @RequestId
+				AND t.matchid = rd.MatchId
+		)rd
+	WHERE t.IsMixParlay = 0
 
 	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
 	SELECT @RequestId
@@ -190,8 +195,13 @@ BEGIN
 			, t.transid AS MainTransId
 			, t.SiteDBGroupID
 	FROM #tmpTransInfo t
-		INNER JOIN dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) ON t.MatchId = rd.MatchId
-	WHERE rd.RequestId = @RequestId AND t.IsMixParlay = 1
+		CROSS APPLY (
+			SELECT TOP 1 rd.Id, rd.SubIssueTypeId
+			FROM  dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
+			WHERE rd.RequestId = @RequestId
+				AND t.matchid = rd.MatchId
+		)rd
+	WHERE t.IsMixParlay = 1
 
 	SET @LogDataContent = ''
 	SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20))
