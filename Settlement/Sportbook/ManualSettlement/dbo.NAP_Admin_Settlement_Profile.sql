@@ -1,4 +1,4 @@
-	/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -72,6 +72,7 @@ AS
 		- 20230328@Aries: Sum total point tennis incorrect [Redmine: #188857]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
+		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -142,6 +143,7 @@ BEGIN
 			,@AutoSetting		TINYINT
 			,@HasAutoPayout		BIT = 0
 			,@HasAutoRefund		BIT = 0
+			,@IsExistNetPosition BIT = 0
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
 
@@ -294,6 +296,20 @@ BEGIN
 			END
 		END
 
+		-- calculate NetPosition
+		IF @Sporttype = 50 
+			AND EXISTS (SELECT TOP 1 1 FROM @tmpResourcesWeb WHERE ResourceID = '00') 
+			AND @Action IN ('CAL', 'REFUND', 'UNDO')
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @MatchId AND bettype = 501)
+				SET @IsExistNetPosition = 1
+		END
+		
+		IF @IsExistNetPosition = 1 AND @Action IN ('CAL', 'REFUND')
+			EXEC [dbo].[NAP_Admin_Settlement_NetPosition]
+				@MatchId = @MatchId
+				,@Bettype = 501
+				,@Action = @Action
 
 		SELECT	@DummyResourceIds = @DummyResourceIds + s.ResourceID + ','
 		FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
@@ -616,6 +632,13 @@ BEGIN
 				RETURN
 			END
 		END
+
+		-- Calculate NP
+		IF @IsExistNetPosition = 1 AND @Action = 'UNDO'
+			EXEC [dbo].[NAP_Admin_Settlement_NetPosition]
+				@MatchId = @MatchId
+				,@Bettype = 501
+				,@Action = @Action
 
 		-- cashout for basketball
 		IF @sportType = 2 -- BASKETBALL

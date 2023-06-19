@@ -15,7 +15,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@BroadcastSessionId	VARCHAR(50)		= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
-	,@ServiceCommand	NVARCHAR(MAX)	= ''	OUTPUT
 	,@AutoType			TINYINT			= 0
 AS
 /*	Creator: 20180821@Vicky
@@ -47,6 +46,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221201@Louisa: PinGoal Esports[Redmine:#180808]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
+		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -71,10 +71,6 @@ BEGIN
 			,@LeagueGroupId			INT
 			,@sqlCommand			NVARCHAR(MAX)
 			,@procName				SYSNAME	= OBJECT_NAME(@@procid)
-			,@IsExistNetPosition	BIT = 0		
-			,@handle 				INT
-		
-	DECLARE @tmpSelectedRID 		TABLE (ResourceID VARCHAR(20), isFinal BIT, GroupType VARCHAR(2))
 								  
 	SELECT	 @matchcode		= m.matchcode
 			,@sporttype		= m.sporttype
@@ -84,6 +80,8 @@ BEGIN
 
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
+			,@IsExistNetPosition = 0
+			,@xmlSelectedResources = CAST(@SelectedResources AS XML)
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Profile] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResources) + ''''
@@ -112,22 +110,9 @@ BEGIN
 															+ ', @AutoType = ' + CONVERT(VARCHAR(5), @AutoType) 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
-															
+		
 
-	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-	INSERT INTO @tmpSelectedRID(ResourceID, isFinal, GroupType)
-	SELECT DISTINCT Id, sd.isFinal, sd.GroupType
-	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20) ) AS tbl
-		LEFT JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON tbl.Id = sd.ResourceID
-	EXEC sp_xml_removedocument @handle
-	
-	IF ( @sporttype = 50 AND EXISTS (SELECT TOP 1 1 FROM @tmpSelectedRID WHERE ResourceID = '00' )	)
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @matchid AND bettype = 501)
-		SET	@IsExistNetPosition = 1 
-  	END
-	
-	IF (@IsExistNetPosition = 0 AND (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_')) -- For testing on UAT -- UAT1 -->UAT9
+	IF (@procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT_') -- For testing on UAT -- UAT1 -->UAT9
 		OR ( @IsAuto = 1 AND @sporttype IN (1,2,43) ) -- product PinGoal will be executed directly instead of pushing in queue
 	BEGIN
 		BEGIN TRY
@@ -155,24 +140,18 @@ BEGIN
 			,IP
 			,Action
 			,sqlCommand
-			,execTime
 			,BroadcastSessionId
 			)
 		SELECT @MatchId
 			,@matchcode
-			,CASE WHEN @IsExistNetPosition = 1 THEN 1 ELSE 0 END
+			,0 AS IsCalculating
 			,@leagueid
 			,@sporttype
 			,@AdminId
 			,@IP
 			,@Action
-			,CASE WHEN @IsExistNetPosition = 1 THEN '' ELSE @sqlCommand END
-			,CASE WHEN @IsExistNetPosition = 1 THEN GETDATE() END
+			,@sqlCommand
 			,@BroadcastSessionId
-
-		IF @IsExistNetPosition = 1
-			SET @ServiceCommand = @sqlCommand
-
 	END
 
 END
