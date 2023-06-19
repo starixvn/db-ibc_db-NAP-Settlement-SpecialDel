@@ -27,6 +27,7 @@ AS
 		- 20211129@Kathy: New Cashout model [Redmine:#164838]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230619@Kathy: Wrong checking when existing marked ticket [Redmine:#189982]
 		
 	Param's Explanation:
 		- @Action: ['CAL-INST-HT', 'CAL-INST-FT']
@@ -254,7 +255,7 @@ BEGIN
 																				WHEN m.modds <= -0.5 THEN 113
 																				ELSE 0
 																			END THEN 1
-													WHEN b.statusid = 0 AND mt.IsMarked IS NOT NULL
+													WHEN b.statusid = 0 AND mt.IsMarked IS NOT NULL AND ISNULL(b.statuswinlost,0) <> 0
 														AND ISNULL(b.statuswinlost,0) <> CASE 
 																				WHEN m.modds >= 0.5 THEN 2
 																				WHEN m.modds <= -0.5 THEN 4
@@ -295,7 +296,7 @@ BEGIN
 																				WHEN m.modds <= -0.5 THEN 113
 																				ELSE 0
 																			END THEN 1
-													WHEN bm.statusid = 0 AND mt.IsMarked IS NOT NULL
+													WHEN bm.statusid = 0 AND mt.IsMarked IS NOT NULL AND ISNULL(bm.statuswinlost,0) <> 0
 														AND ISNULL(bm.statuswinlost,0) <> CASE 
 																				WHEN m.modds >= 0.5 THEN 2
 																				WHEN m.modds <= -0.5 THEN 4
