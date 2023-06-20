@@ -20,12 +20,12 @@ BEGIN
 			,@ServerName VARCHAR(100) 
 
 	DECLARE @tmpMatchLocked TABLE (MatchId INT, SessionId BIGINT)
-	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
+	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2)
 	DECLARE @tmpReturnTable TABLE 
 	(	MatchId INT
 		,SessionId BIGINT
 		,MessageId VARCHAR(128)
-		,ErrorMessage VARCHAR(200)
+		,ErrorMessage VARCHAR(max)
 		,CreatedTime DATETIME2
 		,HomeTeam NVARCHAR(200)
 		,AwayTeam  NVARCHAR(200)

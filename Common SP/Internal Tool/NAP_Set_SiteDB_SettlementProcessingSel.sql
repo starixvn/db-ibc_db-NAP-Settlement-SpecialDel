@@ -20,7 +20,7 @@ BEGIN
 	DECLARE @checktime DATETIME2
 			,@ServerName VARCHAR(100)
 
-	DECLARE @tmpSSB_SettlementLogs TABLE ( SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2, SiteDBGroupId SMALLINT )
+	DECLARE @tmpSSB_SettlementLogs TABLE ( SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2, SiteDBGroupId SMALLINT )
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME

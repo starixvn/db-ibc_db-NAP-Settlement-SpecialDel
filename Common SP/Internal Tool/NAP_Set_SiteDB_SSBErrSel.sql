@@ -17,11 +17,11 @@ BEGIN
 	DECLARE @checktime DATETIME2
 			,@ServerName VARCHAR(100) 
 
-	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
+	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2)
 	DECLARE @tmpReturnTable TABLE 
 	(	 SessionId BIGINT
 		,MessageId VARCHAR(128)
-		,ErrorMessage VARCHAR(200)
+		,ErrorMessage VARCHAR(max)
 		,CreatedTime DATETIME2
 		,HomeTeam NVARCHAR(200)
 		,AwayTeam  NVARCHAR(200)
