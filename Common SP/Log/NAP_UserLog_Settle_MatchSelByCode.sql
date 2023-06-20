@@ -17,6 +17,7 @@ AS
 		- 20130121@Dan: change linked server DB06 to DBARC
 		- 20190806@Sol: Enhance Log Settlement - Filter log by log type [Redmine:#118072]
 		- 20210316@Louisa: Cricket AIO [Redmine:#148870]
+		- 20230620@Kathy: view info in archive [Redmine:#186616]
 
 	Example: 
 		@ProductType = 'BBD' -- BetBuilder
@@ -52,28 +53,50 @@ BEGIN
 
 	IF @Todate >= @BalanceUpDay    
 	BEGIN
-		INSERT INTO @TMP_ALL_MatchInfo
-		SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
-		FROM match WITH (NOLOCK)
-		WHERE (matchId = @matchid or matchcode = @MatchCode )
-			and eventdate BETWEEN @FromDate and @ToDate
-			AND 1 = CASE 
-						WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
-						WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
-						WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
-						ELSE 0
-					END
-			AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
-						ELSE 1
-					END
+		IF @MatchId IS NOT NULL
+		BEGIN
+			INSERT INTO @TMP_ALL_MatchInfo
+			SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
+			FROM match WITH (NOLOCK)
+			WHERE matchId = @matchid
+				and eventdate BETWEEN @FromDate and @ToDate
+				AND 1 = CASE 
+							WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
+							WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
+							WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
+							ELSE 0
+						END
+				AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+							ELSE 1
+						END
+		END
+		ELSE 
+		BEGIN
+			INSERT INTO @TMP_ALL_MatchInfo
+			SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
+			FROM match WITH (NOLOCK)
+			WHERE matchcode = @MatchCode
+				and eventdate BETWEEN @FromDate and @ToDate
+				AND 1 = CASE 
+							WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
+							WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
+							WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
+							ELSE 0
+						END
+				AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+							ELSE 1
+						END
+		END
 
 		IF @BalanceUpDay < @FromDate     
 			SELECT @BalanceUpDay=@FromDate  
 
+		IF @MatchId IS NOT NULL
+		BEGIN
 		INSERT INTO @TMP_ALL_MatchInfo
 		SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
 		FROM match14 WITH (NOLOCK)
-		WHERE (matchId = @matchid or matchcode = @MatchCode )
+		WHERE matchId = @matchid
 			and eventdate BETWEEN @BalanceUpDay and @ToDate
 			AND 1 = CASE 
 						WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
@@ -84,27 +107,24 @@ BEGIN
 			AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
 						ELSE 1
 					END
-	END
-
-	IF @FromDate < @BalanceUpDay   
-	BEGIN
-		IF @ToDate >= DATEADD(dd, -1, @BalanceUpDay)  
-			SELECT @ToDate = DATEADD(dd, -1, @BalanceUpDay)  
-
-		INSERT INTO @TMP_ALL_MatchInfo
-		SELECT matchid , homeid , awayid , eventdate , leagueid, sporttype, showtime, matchcode
-		FROM DBARC.bodb_Archive.dbo.match_BK WITH (NOLOCK) 
-		WHERE (matchId = @matchid or matchcode = @MatchCode )
-			AND eventdate BETWEEN @FromDate and @ToDate
-			AND 1 = CASE 
-						WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
-						WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
-						WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
-						ELSE 0
-					END
-			AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
-						ELSE 1
-					END
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @TMP_ALL_MatchInfo
+			SELECT matchid , homeid , awayid ,  eventdate , leagueid, sporttype, showtime, matchcode
+			FROM match14 WITH (NOLOCK)
+			WHERE matchcode = @MatchCode
+				and eventdate BETWEEN @BalanceUpDay and @ToDate
+				AND 1 = CASE 
+							WHEN @ProductType = 'NBG' AND sporttype = 161 THEN 1 -- NumberGame
+							WHEN @ProductType = 'HPF' AND sporttype = 164 THEN 1 -- Happy5
+							WHEN @ProductType NOT IN ('NBG', 'HPF') AND sporttype NOT IN (161, 164) THEN 1 -- All SportBook
+							ELSE 0
+						END
+				AND 1 = CASE WHEN sporttype = 50 AND ISNULL(ChildMatchType,0) = 200 THEN 0
+							ELSE 1
+						END
+		END
 	END
 
 	SELECT t.matchid , t.homeid , t.awayid , t.eventdate , t.leagueid, sporttype, showtime, matchcode

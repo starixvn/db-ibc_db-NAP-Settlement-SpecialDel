@@ -19,6 +19,7 @@ AS
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20230213@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
+		- 20230621@Kathy: Remove checking event in 14/bk range after reviewing [Redmine:#186616]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -41,132 +42,45 @@ BEGIN
 
 	IF @GroupID IN (1,2,7)
 	BEGIN 
-
-		IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.[match] WITH (NOLOCK) WHERE matchid = @MatchID)
-		BEGIN 
-			INSERT INTO @tmpMatch(
-				 MatchID
+		INSERT INTO @tmpMatch(
+				MatchID
+			,LeagueID
+			,MatchCode
+			,EventDate
+			,HomeID
+			,AwayID
+			,SportType
+		)
+		SELECT	 TOP 1 MatchID
 				,LeagueID
 				,MatchCode
 				,EventDate
 				,HomeID
 				,AwayID
 				,SportType
-			)
-			SELECT	 TOP 1 MatchID
-					,LeagueID
-					,MatchCode
-					,EventDate
-					,HomeID
-					,AwayID
-					,SportType
-			FROM	bodb02.dbo.[match]  WITH (NOLOCK)
-			WHERE	matchid = @MatchID
-		END
-		ELSE IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.[match14] WITH (NOLOCK) WHERE matchid = @MatchID) 
-		BEGIN
-			INSERT INTO @tmpMatch(
-				 MatchID
-				,LeagueID
-				,MatchCode
-				,EventDate
-				,HomeID
-				,AwayID
-				,SportType
-			)
-			SELECT	 TOP 1 MatchID
-					,LeagueID
-					,MatchCode
-					,EventDate
-					,HomeID
-					,AwayID
-					,SportType
-			FROM	bodb02.dbo.[match14]  WITH (NOLOCK)
-			WHERE	matchid = @MatchID
-		END
-		ELSE 
-		BEGIN
-			INSERT INTO @tmpMatch(
-				 MatchID
-				,LeagueID
-				,MatchCode
-				,EventDate
-				,HomeID
-				,AwayID
-				,SportType
-			)
-			SELECT	 TOP 1 MatchID
-					,LeagueID
-					,MatchCode
-					,EventDate
-					,HomeID
-					,AwayID
-					,SportType
-			FROM	DBACC.bodb_archive.dbo.[match_bk]  WITH (NOLOCK)
-			WHERE	matchid = @MatchID
-		END
+		FROM	bodb02.dbo.[match]  WITH (NOLOCK)
+		WHERE	matchid = @MatchID
 	END 
 	ELSE IF @GroupID = 3 
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.[outright] WITH (NOLOCK) WHERE orid = @MatchID)
-		BEGIN 		
-			INSERT INTO @tmpMatch(
-				 MatchID
-				,LeagueID
-				,MatchCode
-				,EventDate
-				,HomeID
-				,AwayID
-			)
-			SELECT	 orid
-					,leagueid
-					,matchcode
-					,eventdate
-					,teamid
-					,0
-			FROM	bodb02.dbo.[outright] WITH (NOLOCK)	
-			WHERE	orid = @MatchID
-		END
-		ELSE IF EXISTS (SELECT TOP 1 1 FROM bodb02.dbo.[outright14] WITH (NOLOCK) WHERE orid = @MatchID) 
-		BEGIN
-			INSERT INTO @tmpMatch(
-				 MatchID
-				,LeagueID
-				,MatchCode
-				,EventDate
-				,HomeID
-				,AwayID
-			)
-			SELECT	 orid
-					,leagueid
-					,matchcode
-					,eventdate
-					,teamid
-					,0
-			FROM	bodb02.dbo.[outright14] WITH (NOLOCK)	
-			WHERE	orid = @MatchID		
-		END 
-		ELSE 
-		BEGIN
-			INSERT INTO @tmpMatch(
-				 MatchID
-				,LeagueID
-				,MatchCode
-				,EventDate
-				,HomeID
-				,AwayID
-			)
-			SELECT	 orid
-					,leagueid
-					,matchcode
-					,eventdate
-					,teamid
-					,0
-			FROM	DBACC.bodb_Archive.dbo.[outright_bk] WITH (NOLOCK)	
-			WHERE	orid = @MatchID			
-		END
-		
+	BEGIN	
+		INSERT INTO @tmpMatch(
+				MatchID
+			,LeagueID
+			,MatchCode
+			,EventDate
+			,HomeID
+			,AwayID
+		)
+		SELECT	 orid
+				,leagueid
+				,matchcode
+				,eventdate
+				,teamid
+				,0
+		FROM	bodb02.dbo.[outright] WITH (NOLOCK)	
+		WHERE	orid = @MatchID
 	END
+
 	SELECT	 MatchID
 			,LeagueID
 			,MatchCode
