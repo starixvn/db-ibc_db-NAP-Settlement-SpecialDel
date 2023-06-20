@@ -109,18 +109,7 @@ BEGIN
 	BEGIN
 		DELETE rd
 		FROM dbo.TicketVoiding_RequestDetail rd
-			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.TransIds = t.ReducedOver
-		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
-		
-		UPDATE	r
-		SET	  SingleCount = l.SingleCount
-			, MainParlayCount = l.MainParlayCount
-			, VoidFromTime = l.VoidFromTime
-			, VoidToTime = l.VoidToTime
-			, SubIssueTypeId = l.SubIssueTypeId
-			, TransIds = l.ReducedOver
-		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.ReducedOver = r.TransIds
+		WHERE rd.RequestId = @RequestId
 	END
 
 	INSERT INTO dbo.TicketVoiding_RequestDetail (
@@ -153,8 +142,6 @@ BEGIN
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
-		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.TransIds = l.ReducedOver
-	WHERE rd.RequestId IS NULL
 
 	IF @IsEditRequest = 1
 	BEGIN		
