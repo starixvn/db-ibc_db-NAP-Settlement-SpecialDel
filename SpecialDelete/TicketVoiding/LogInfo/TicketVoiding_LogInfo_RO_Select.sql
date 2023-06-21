@@ -496,6 +496,8 @@ BEGIN
 			,tmp.InstantlySettleCount
 			,tmp.SettleCount
 			,rd.MainParlayCount
+			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
+			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
 			CROSS APPLY(
