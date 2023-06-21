@@ -52,7 +52,7 @@ BEGIN
 			WHERE	ISNULL(s.ErrorMessage,'') <> ''
 					AND s.Resolved = 0
 					AND s.StartTime >= @checktime
-					AND MessageType NOT LIKE 'Sitedb%'
+					AND SiteDBGroupId = 0
 			GROUP BY s.SessionId, s.ErrorMessage
 		)
 		INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime)
@@ -72,7 +72,7 @@ BEGIN
 				AND Resolved = 0
 				AND StartTime > @checktime
 				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatchLocked t WHERE t.SessionId = s.SessionId)
-				AND MessageType NOT LIKE 'Sitedb%'
+				AND SiteDBGroupId = 0
 		GROUP BY s.SessionId, s.ErrorMessage
 	)
 	INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime)
