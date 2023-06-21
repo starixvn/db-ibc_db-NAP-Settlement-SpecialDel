@@ -34,7 +34,7 @@ BEGIN
 		WHERE	ISNULL(ErrorMessage,'') <> ''
 				AND Resolved = 0
 				AND StartTime > @checktime 
-				AND MessageType NOT LIKE 'Sitedb%'
+				AND SiteDBGroupId = 0
 		GROUP BY SessionId
 				, ErrorMessage
 	)
