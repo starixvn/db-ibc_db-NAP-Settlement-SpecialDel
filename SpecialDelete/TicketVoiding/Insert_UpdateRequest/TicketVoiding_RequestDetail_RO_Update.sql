@@ -83,7 +83,8 @@ BEGIN
 			,SingleCount			
 			,MainParlayCount		
 			,VoidFromTime			
-			,VoidToTime			
+			,VoidToTime	
+			,LiveScores		
 			,SubIssueTypeId
 			,ReducedOver
 		)
@@ -93,6 +94,7 @@ BEGIN
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
+			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,'<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
 				+ '" WicketOver="' + t.c.value('@WicketOver','VARCHAR(20)')
@@ -123,6 +125,7 @@ BEGIN
 		, MainParlayCount
 		, VoidFromTime
 		, VoidToTime
+		, IssueDetail
 		, SubIssueTypeId
 		, TransIds
 		, RequestType
@@ -137,6 +140,7 @@ BEGIN
 		, l.MainParlayCount
 		, l.VoidFromTime
 		, l.VoidToTime
+		, l.LiveScores
 		, l.SubIssueTypeId
 		, l.ReducedOver
 		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END

@@ -61,6 +61,7 @@ BEGIN
 
 	CREATE TABLE #logInfo (
 		 MatchId				INT
+		,LiveScores				NVARCHAR(300)
 		,VoidFromTime			DATETIME
 		,VoidToTime				DATETIME
 		,SingleCount			INT
@@ -141,6 +142,7 @@ BEGIN
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
+	DECLARE @tblScoreMessage AS TABLE (MatchId INT, ScoreNormalTicket VARCHAR(100), ScoreOfMatch VARCHAR(100))
 
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0)
@@ -418,8 +420,9 @@ BEGIN
 	END
 
 	--Data Section
-	INSERT INTO #logInfo (MatchId, VoidFromTime, VoidToTime, SingleCount, InstantlySettleCount, SettleCount, MainParlayCount)
+	INSERT INTO #logInfo (MatchId, LiveScores, VoidFromTime, VoidToTime, SingleCount, InstantlySettleCount, SettleCount, MainParlayCount)
 	SELECT @MatchId AS MatchId
+		,CAST(b.livehomescore AS VARCHAR(2)) + '-' + CAST(b.liveawayscore AS VARCHAR(2)) AS LiveScores
 		,MIN(b.transdate) AS VoidFromTime
 		,MAX(b.transdate) AS VoidToTime
 		,COUNT(CASE WHEN b.transid = b.SubTransid THEN b.transid ELSE NULL END) AS SingleCount
@@ -431,6 +434,7 @@ BEGIN
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
+		/*Get log info for Void Page*/
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, InstantlySettleCount, SettleCount)
 		SELECT @RequestId
 			  ,s.matchid
@@ -452,10 +456,39 @@ BEGIN
 		SELECT RequestId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 		FROM #TransidInRequest
 
+		--Check score for void message
+		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
+		BEGIN
+			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
+			SELECT s.MatchId, CAST(b.livehomescore AS VARCHAR(10)) + '-' + CAST(b.liveawayscore AS VARCHAR(10))
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = s.bettype
+				INNER JOIN #tmpTransInfo b ON b.transid = s.TransId AND b.IsMixParlay = 0
+			WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
+		END
+
+		IF EXISTS (SELECT TOP(1) 1 FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) WHERE s.RequestId = @RequestId)
+		BEGIN
+			INSERT INTO @tblScoreMessage (MatchId, ScoreNormalTicket)
+			SELECT s.MatchId, CAST(b.Sublivehomescore AS VARCHAR(10)) + '-' + CAST(b.Subliveawayscore AS VARCHAR(10))
+			FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK)
+				INNER JOIN #tmpTransInfo b ON b.Subtransid = s.TransId AND b.IsMixParlay = 1
+				INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.Subbettype			
+			WHERE s.RequestId = @RequestId AND f.GroupName <> '2H'
+		END
+
+		IF NOT EXISTS (SELECT TOP(1) 1 FROM @tblScoreMessage)
+		BEGIN
+			INSERT INTO @tblScoreMessage (MatchId, ScoreOfMatch) 
+			SELECT rd.MatchId, CAST(m.livehomescore AS VARCHAR(10)) + '-' + CAST(m.liveawayscore AS VARCHAR(10))
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rd.MatchId
+			WHERE rd.RequestId = @RequestId
+		END
+
 		-- 3.Loginfo table
-		SELECT rd.MatchId
-			,CAST(rd.livehomescore AS VARCHAR(2)) + '-' + CAST(rd.liveawayscore AS VARCHAR(2)) AS LiveScores
-			,rd.IssueDetail AS ActualScore
+		SELECT DISTINCT rd.MatchId
+			,SUBSTRING(rd.IssueDetail, CHARINDEX('Live:',rd.IssueDetail) + 5, CHARINDEX(';Act:',rd.IssueDetail) - 6) AS LiveScores
 			,rd.VoidFromTime
 			,rd.VoidToTime
 			,rd.SingleCount
@@ -464,6 +497,18 @@ BEGIN
 			,rd.MainParlayCount
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
+			CROSS APPLY(
+				SELECT DISTINCT '|' + l.ScoreNormalTicket
+				FROM @tblScoreMessage l
+				WHERE l.MatchId = rd.MatchId
+				FOR XML PATH('')
+			)s2(ScoreTicket2H)
+			CROSS APPLY(
+				SELECT DISTINCT '|' + l.ScoreOfMatch
+				FROM @tblScoreMessage l
+				WHERE l.MatchId = rd.MatchId
+				FOR XML PATH('')
+			)sm(ScoreOfMatch)
 		WHERE rd.RequestId = @RequestId 
 			
 		-- 4. Unmark table (No need -> return table)
@@ -623,6 +668,7 @@ BEGIN
 
 	-- 3. Loginfo table
 	SELECT MatchId
+		,STUFF(w.scores,1,1,'') AS LiveScores
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
 		,SUM(SingleCount) AS SingleCount
@@ -630,6 +676,12 @@ BEGIN
 		,SUM(SettleCount) AS SettleCount
 		,SUM(MainParlayCount) AS MainParlayCount
 	FROM #logInfo l
+		CROSS APPLY(
+					SELECT '|' + LiveScores
+					FROM #logInfo rd
+					where l.MatchId = rd.MatchId
+					FOR XML PATH('')
+					)w (scores) 
 	GROUP BY MatchId
 
 	-- 4. List ticket unmark   (if any)

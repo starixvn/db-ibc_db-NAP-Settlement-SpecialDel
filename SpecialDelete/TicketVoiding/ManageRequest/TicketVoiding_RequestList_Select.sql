@@ -376,7 +376,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,CASE WHEN m.eventdate IS NULL THEN CAST(GETDATE() AS DATE) ELSE m.eventdate END -- NULL: case AB,AC only ticket parlay in sitedb not repl central
-				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -427,7 +427,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,CASE WHEN m.eventdate IS NULL THEN CAST(GETDATE() AS DATE) ELSE m.eventdate END -- NULL: case AB,AC only ticket parlay in sitedb not repl central
-				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
@@ -479,7 +479,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,CASE WHEN m.eventdate IS NULL THEN CAST(GETDATE() AS DATE) ELSE m.eventdate END -- NULL: case AB,AC only ticket parlay in sitedb not repl central
-				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,rd.FilterBy
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime

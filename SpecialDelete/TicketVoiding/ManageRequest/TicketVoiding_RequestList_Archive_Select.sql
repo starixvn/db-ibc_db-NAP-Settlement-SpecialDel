@@ -211,7 +211,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -262,7 +262,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -314,7 +314,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId = 11 AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId = 3 THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
