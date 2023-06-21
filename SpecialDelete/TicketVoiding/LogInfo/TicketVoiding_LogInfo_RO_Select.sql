@@ -683,7 +683,7 @@ BEGIN
 					where l.MatchId = rd.MatchId
 					FOR XML PATH('')
 					)w (scores) 
-	GROUP BY MatchId
+	GROUP BY MatchId, w.scores
 
 	-- 4. List ticket unmark   (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
