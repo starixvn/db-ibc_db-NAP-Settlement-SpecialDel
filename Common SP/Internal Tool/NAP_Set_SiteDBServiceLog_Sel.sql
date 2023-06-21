@@ -17,18 +17,13 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
-	
-	DECLARE @checktime DATETIME2
-	
-	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 
 	SELECT DISTINCT l.FunctionName	 
 		, l.TableName
 		, l.SettlementAction  
 		, l.TicketType
 	FROM dbo.SiteDB_SettlementService_CalculationLog l WITH(NOLOCK)
-	WHERE LogDate >= @checktime
-		AND l.SessionId =  @SessionId
+	WHERE  l.SessionId =  @SessionId
 		AND l.tickettype is not null ---not get command lock match
 
 END
