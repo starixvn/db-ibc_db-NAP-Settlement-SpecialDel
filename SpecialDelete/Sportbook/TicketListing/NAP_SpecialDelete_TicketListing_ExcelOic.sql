@@ -55,6 +55,7 @@ AS
 		- 20221110@Max: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
+		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -181,7 +182,7 @@ BEGIN
 		FilterSet			VARCHAR(50),
 		FilterGame			VARCHAR(50),
 		FilterValue			SMALLMONEY,	
-		FilterGoal			BIGINT,
+		FilterGoal			NVARCHAR(50),
 		FilterBetOption		NVARCHAR(50),
 		FilterHdp1	        SMALLMONEY,
 		FilterHdp2	        SMALLMONEY,
@@ -319,7 +320,7 @@ BEGIN
 					,b.betid AS FilterSet
 					,RIGHT(b.betid, 2) AS FilterGame
 					,b.hdp1 + b.hdp2 AS FilterValue
-					,ISNULL(b.betid, 0) AS FilterGoal
+					,ISNULL(CONVERT(NVARCHAR(50),b.betid), 0) AS FilterGoal
 					,CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption
 					,b.hdp1 AS FilterHdp1
 					,b.hdp2 AS FilterHdp2
@@ -381,7 +382,7 @@ BEGIN
 				DELETE b
 				FROM  #SpecialDeleteBets b
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-					WHERE tp.Id = b.FilterBettype AND (tp.Goal = 100 OR b.FilterGoal = tp.Goal ))
+					WHERE tp.Id = b.FilterBettype AND (CONVERT(NVARCHAR(50),tp.Goal) = 100 OR b.FilterGoal = CONVERT(NVARCHAR(50),tp.Goal) ))
 
 				DELETE b
 				FROM  #SpecialDeleteBets b
@@ -504,7 +505,7 @@ BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.Goal = 100 OR b.FilterGoal = tp.Goal ))
+				WHERE tp.Id = b.FilterBettype AND (CONVERT(NVARCHAR(50),tp.Goal) = 100 OR b.FilterGoal = CONVERT(NVARCHAR(50),tp.Goal) ))
 
 			DELETE b
 			FROM  #SpecialDeleteBets b
