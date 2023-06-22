@@ -17,6 +17,7 @@ AS
 	
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 
 	Param's explanation:
 */
@@ -62,9 +63,9 @@ BEGIN
 					, 4 AS OddsType
 			FROM cte c
 
-			--MY -> US
+			--MY -> US: because values US odds storage, so must /100 after converted
 			UNION ALL
-			SELECT CONVERT(DECIMAL(18,2), -100 / c.OddsValue) AS OddsValue
+			SELECT CONVERT(DECIMAL(18,2), (-100 / c.OddsValue) / 100) AS OddsValue
 					, 5 AS OddsType
 			FROM cte c
 

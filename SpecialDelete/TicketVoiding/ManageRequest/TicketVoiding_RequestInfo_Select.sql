@@ -17,6 +17,7 @@ AS
 		- 20221201@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
 
 	Param's explanation:
@@ -61,13 +62,13 @@ BEGIN
 		CROSS APPLY (
             SELECT CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3) THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,2) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
 			FROM #tmpResult vh
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON vh.VoidingHistoryId = z.VoidingHistoryId
 			WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
@@ -126,12 +127,12 @@ BEGIN
 			CROSS APPLY (
 				SELECT CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
 						,SUM( CASE 
-								WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3) THEN 1
-								WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+								WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2) THEN 1
+								WHEN vh.IssueTypeId IN (1,10,3,2) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 								WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
 							ELSE 0 END
 						) AS TotalVoidedSingle
-						,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+						,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
 				FROM #tmpResult vh
 					INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON vh.VoidingHistoryId = z.VoidingHistoryId
 					INNER JOIN @tmpChildMatchCricket cm ON cm.ChildMatchId = z.matchid

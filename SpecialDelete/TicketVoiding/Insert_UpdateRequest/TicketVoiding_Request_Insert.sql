@@ -25,6 +25,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Insert]
 	,@Wrong1stHDPInfo		VARCHAR(MAX)  = NULL
 	,@WrongOUInfo		    VARCHAR(MAX)  = NULL
 	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
+	,@WrongOddsInfo			VARCHAR(MAX)  = NULL
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 	,@RequestId				INT			  = 0 OUTPUT
 AS
@@ -55,6 +56,7 @@ AS
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -87,6 +89,17 @@ BEGIN
 				,@UserId		 = @UserId		
 				,@IP			 = @IP			
 				,@DARCInfo		 = @DangerAcceptedInfo
+				,@TransInfoJson	 = @TransInfoJson		
+				,@IsEditRequest	 = @IsEditRequest
+	END
+	ELSE IF @IssueTypeId IN (2)
+	BEGIN
+		EXEC dbo.TicketVoiding_RequestDetail_WO_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@WrongOddsInfo	 = @WrongOddsInfo
 				,@TransInfoJson	 = @TransInfoJson		
 				,@IsEditRequest	 = @IsEditRequest
 	END
@@ -229,10 +242,10 @@ BEGIN
 								+ ', Sporttype: ' + CAST(@Sporttype AS VARCHAR(20))
 								+ ', IssueTypeId: ' + CAST(@IssueTypeId AS VARCHAR(20))
 								+ ', ActionId: ' + CAST(@ActionId AS VARCHAR(20))
-								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15,4,5,6,7) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
+								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,15,4,5,6,7) OR (@IssueTypeId = 11 AND @FilterBy IS NULL) THEN ', MistakenBy: ' + CASE WHEN @MistakenBy IS NOT NULL THEN @MistakenBy ELSE 'NULL' END
 															   ELSE '' END
 								+ ', DecidedBy: ' + CASE WHEN @DecidedBy IS NOT NULL THEN @DecidedBy ELSE 'NULL' END
-								+ CASE WHEN @IssueTypeId IN (1,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL)
+								+ CASE WHEN @IssueTypeId IN (1,2,3,8,9,10,15) OR (@IssueTypeId = 11 AND @FilterBy IS NULL)
 															   THEN ', Operators: '+ CAST(@Operators AS VARCHAR(MAX))
 																  + ', Provider: ' + CASE WHEN @Provider IS NOT NULL THEN @Provider ELSE 'NULL' END
 																  + ', Source: ' + CASE WHEN @Source IS NOT NULL THEN @Source ELSE 'NULL' END

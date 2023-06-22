@@ -47,6 +47,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		
 	Param's explanation:	
 		
@@ -131,7 +132,7 @@ BEGIN
 		statusID			  TINYINT,
 		eventstatus			  NVARCHAR(50),
 		SiteDBGroupID		  SMALLINT,
-		IsCancelCashOut		  BIT, --Apply for issuetype: DA,RC,WC
+		IsCancelCashOut		  BIT DEFAULT(0), --Apply for issuetype: DA,RC,WC
 		CheckTimeCashOut	  DATETIME,
 		statuswinlost		  TINYINT
     )
@@ -259,9 +260,9 @@ BEGIN
 						, acstake, wld, m, isP, sitedb ,isCCO ,statuswl ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, oid INT, os MONEY
-					, bfr NVARCHAR(3), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
+					, bfr NVARCHAR(4), btype SMALLINT, bteam NVARCHAR(10), bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME, bid BIGINT, tdes NVARCHAR(1000), sid TINYINT
 					, s_c INT, s_hdp1 SMALLMONEY, s_hdp2 SMALLMONEY, s_lh SMALLINT, s_la SMALLINT, s_li BIT
-					, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(3), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
+					, s_o SMALLMONEY, s_os MONEY, s_bfr NVARCHAR(4), s_btype SMALLINT, s_bteam NVARCHAR(10), s_bcheck NVARCHAR(50), s_s NVARCHAR(10), s_tdate DATETIME, s_tdes NVARCHAR(1000), s_sid  TINYINT
 					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), bo INT, w MONEY
 					, acstake MONEY, wld SMALLDATETIME, m SMALLMONEY, isP BIT, sitedb SMALLINT ,isCCO BIT ,statuswl TINYINT ,checktCO DATETIME
 				)
@@ -379,7 +380,7 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 	END
-	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU
+	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN

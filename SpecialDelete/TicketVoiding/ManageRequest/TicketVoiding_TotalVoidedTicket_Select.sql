@@ -12,6 +12,7 @@ AS;
 		- 20220822@July: Create new SP - get total voided ticket [Redmine:#175412]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
 		
@@ -99,13 +100,13 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3) THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,2) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
 						) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17) AND z.bettype IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)

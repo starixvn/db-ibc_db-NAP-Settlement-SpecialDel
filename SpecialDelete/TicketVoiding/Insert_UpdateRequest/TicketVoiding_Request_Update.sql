@@ -28,6 +28,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@Wrong1stHDPInfo		VARCHAR(MAX)  = NULL
 	,@WrongOUInfo		    VARCHAR(MAX)  = NULL
 	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
+	,@WrongOddsInfo			VARCHAR(MAX)  = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 )
@@ -64,6 +65,7 @@ AS
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -133,6 +135,17 @@ BEGIN
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
 					,@DARCInfo		 = @DangerAcceptedInfo
+					,@TransInfoJson	 = @TransInfoJson		
+					,@IsEditRequest	 = @IsEditRequest
+		END
+		ELSE IF @IssueTypeId IN (2)
+		BEGIN
+			EXEC dbo.TicketVoiding_RequestDetail_WO_Update
+					 @RequestId		 = @RequestId		
+					,@IssueTypeId	 = @IssueTypeId	
+					,@UserId		 = @UserId		
+					,@IP			 = @IP			
+					,@WrongOddsInfo	 = @WrongOddsInfo
 					,@TransInfoJson	 = @TransInfoJson		
 					,@IsEditRequest	 = @IsEditRequest
 		END
