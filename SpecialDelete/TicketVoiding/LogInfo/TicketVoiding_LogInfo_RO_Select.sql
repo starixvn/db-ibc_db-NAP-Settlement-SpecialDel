@@ -454,7 +454,7 @@ BEGIN
 		FROM @Validation
 
 		-- 2. TransId in request table
-		SELECT RequestId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+		SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 		FROM #TransidInRequest
 
 		--Check score for void message
@@ -545,12 +545,13 @@ BEGIN
 				WHERE (RequestId = r.RequestId) 
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
+				,MatchId
 			FROM #TransidInRequest r
-			GROUP BY r.RequestId
+			GROUP BY r.RequestId, r.MatchId
 		END
 		ELSE
 		BEGIN 
-			SELECT RequestId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+			SELECT RequestId, MatchId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 			FROM #TransidInRequest
 		END
 		
@@ -660,12 +661,13 @@ BEGIN
 			WHERE (RequestId = r.RequestId) 
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
+			,r.MatchId
 		FROM #TransidInRequest r
-		GROUP BY r.RequestId
+		GROUP BY r.RequestId, r.MatchId
 	END
 	ELSE
 	BEGIN
-		SELECT RequestId, CAST(TransId AS VARCHAR(MAX)) AS TransIds
+		SELECT RequestId, Matchid, CAST(TransId AS VARCHAR(MAX)) AS TransIds
 		FROM #TransidInRequest
 	END
 
