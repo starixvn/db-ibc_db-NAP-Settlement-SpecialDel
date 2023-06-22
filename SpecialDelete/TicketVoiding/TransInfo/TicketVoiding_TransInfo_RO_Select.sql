@@ -33,7 +33,7 @@ BEGIN
 	CREATE TABLE #FilterInfo(
 		MatchId				INT
 		,Bettype				SMALLINT
-		,FilterSet          VARCHAR(50)
+		,FilterSet          NVARCHAR(50)
         ,FilterRuns		    SMALLMONEY
 		,FilterTransdesc	NVARCHAR(2000)
 		,FilterLive			BIT
@@ -106,7 +106,12 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
-		,CheckTimeCashOut  DATETIME
+		,FilterSet  NVARCHAR(50)
+		,FilterLiveIndicator BIT
+		,FilterTransdesc NVARCHAR(1000)
+		,FilterHdp1 SMALLMONEY
+		,FilterHdp2 SMALLMONEY
+		,FilterBettype	SMALLINT
 	)
 
 	SET @ReducedOverXML = CONVERT(XML, @ReducedOverInfo)
@@ -114,7 +119,7 @@ BEGIN
 	SELECT t.c.value('@MatchId','INT')		
 		,bt.bettype
 		,pl.Transdesc
-		,t.c.value('@WicketOver','VARCHAR(50)')
+		,t.c.value('@WicketOver','NVARCHAR(50)')
 		,t.c.value('@Runs','SMALLMONEY')
 		,t.c.value('@Live','BIT')
 		,t.c.value('@NonLive','BIT')
@@ -204,6 +209,12 @@ BEGIN
 			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
+			,FilterSet
+			,FilterLiveIndicator
+			,FilterTransdesc
+			,FilterHdp1
+			,FilterHdp2
+			,FilterBettype
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -262,6 +273,12 @@ BEGIN
 		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
+		,CONVERT(NVARCHAR(50), b.betid) AS FilterSet
+		,b.liveindicator AS FilterLiveIndicator
+		,b.transdesc AS FilterTransdesc
+		,b.hdp1 AS FilterHdp1
+		,b.hdp2 AS FilterHdp2
+		,b.bettype AS FilterBettype
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 		INNER JOIN @bettype_tmp d ON b.bettype = d.bettype
@@ -270,7 +287,7 @@ BEGIN
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND b.SiteDBGroupID = @SiteDBGroupID
-	
+
 	--Search sub-parlay
 	IF EXISTS (
 					SELECT TOP(1) 1
@@ -342,6 +359,12 @@ BEGIN
 				,SubTransdesc  
 				,modds 
 				,SiteDBGroupID
+				,FilterSet
+				,FilterLiveIndicator
+				,FilterTransdesc
+				,FilterHdp1
+				,FilterHdp2
+				,FilterBettype
 			)
 		SELECT sub.matchid
 			,b.TransId
@@ -404,6 +427,12 @@ BEGIN
 			,sub.transdesc SubTransdesc  
 			,b.modds
 			,sub.SiteDBGroupID
+			,sub.betcheck AS FilterSet
+			,sub.liveindicator AS FilterLiveIndicator
+			,sub.transdesc AS FilterTransdesc
+			,sub.hdp1 AS FilterHdp1
+			,sub.hdp2 AS FilterHdp2
+			,sub.bettype AS FilterBettype
 		FROM @tmpMatchId d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -418,13 +447,13 @@ BEGIN
 	DELETE b
 		FROM  #TransInfo b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.bettype 
-			AND (tp.FilterSet = '' OR b.Subbetcheck = tp.FilterSet))
+			WHERE tp.Bettype = b.FilterBettype 
+			AND (tp.FilterSet = '' OR b.FilterSet = tp.FilterSet))
 
 	DELETE b
 		FROM  #TransInfo b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.bettype 
+			WHERE tp.Bettype = b.FilterBettype 
 			AND 1 = CASE WHEN tp.FilterLive = 1 AND b.liveindicator = 1 THEN 1
 						WHEN tp.FilterNonLive = 1 AND b.liveindicator = 0 THEN 1
 					ELSE 0 END
@@ -433,18 +462,18 @@ BEGIN
 	DELETE b
 		FROM  #TransInfo b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.bettype AND  (tp.FilterTransdesc = '' OR b.Transdesc = tp.FilterTransdesc))
+			WHERE tp.Bettype = b.FilterBettype AND  (tp.FilterTransdesc = '' OR b.FilterTransdesc = tp.FilterTransdesc))
 
 	DELETE b
 		FROM  #TransInfo b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.bettype 
+			WHERE tp.Bettype = b.FilterBettype 
 			AND 1 = CASE WHEN tp.FilterRuns = '' THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.hdp1 = FilterRuns THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND (b.hdp1 = tp.FilterRuns OR b.hdp2 = tp.FilterRuns) THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.FilterHdp1 = FilterRuns THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND (b.FilterHdp1 = tp.FilterRuns OR b.FilterHdp2 = tp.FilterRuns) THEN 1
 					ELSE 0 END
 		)
-			
+	
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
@@ -507,7 +536,6 @@ BEGIN
 		,SubTransdesc  AS 's_tdes'
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
-		,CheckTimeCashOut AS 'checktCO' 
 	FROM #TransInfo
 	FOR JSON PATH))
 
