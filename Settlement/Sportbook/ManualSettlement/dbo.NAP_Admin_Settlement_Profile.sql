@@ -301,11 +301,11 @@ BEGIN
 			AND EXISTS (SELECT TOP 1 1 FROM @tmpResourcesWeb WHERE ResourceID = '00') 
 			AND @Action IN ('CAL', 'REFUND', 'UNDO')
 		BEGIN
-			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @MatchId AND bettype = 501)
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.bettrans WITH(NOLOCK) WHERE matchid = @MatchId AND bettype = 501) AND OBJECT_ID('NAP_Admin_Settlement_NetPosition','p') IS NOT NULL
 				SET @IsExistNetPosition = 1
 		END
 		
-		IF @IsExistNetPosition = 1 AND @Action IN ('CAL', 'REFUND')
+		IF @IsExistNetPosition = 1 AND @Action IN ('CAL', 'REFUND') 
 			EXEC [dbo].[NAP_Admin_Settlement_NetPosition]
 				@MatchId = @MatchId
 				,@Bettype = 501

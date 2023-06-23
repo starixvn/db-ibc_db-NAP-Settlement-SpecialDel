@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@AutoType			TINYINT			= 0
+	,@ServiceCommand	VARCHAR(MAX)	= '' OUTPUT
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -80,8 +81,6 @@ BEGIN
 
 	SELECT	 @ErrCode		= 0
 			,@ErrMsg		= ''
-			,@IsExistNetPosition = 0
-			,@xmlSelectedResources = CAST(@SelectedResources AS XML)
 			,@sqlCommand	= 'EXEC [dbo].[NAP_Admin_Settlement_Profile] @Matchid = ' + CONVERT(NVARCHAR(50), @MatchId) 
 															+ ', @creator = ' + CONVERT(NVARCHAR(50), @AdminId) 
 															+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResources) + ''''
