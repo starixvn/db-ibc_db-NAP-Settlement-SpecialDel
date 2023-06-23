@@ -109,16 +109,18 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @p_bettypes VARCHAR(1000)
-		   ,@ValueDefault SMALLMONEY = 9999.00
-		   ,@SportType SMALLINT = NULL
-		   ,@TransInfoSendOICJson VARBINARY(MAX)
+	DECLARE @p_bettypes				VARCHAR(1000)
+		   ,@ValueDefault			SMALLMONEY = 9999.00
+		   ,@SportType				SMALLINT = NULL
+		   ,@TransInfoSendOICJson	VARBINARY(MAX)
+		   ,@n						INT
 
 	SET @p_bettypes = @BetTypes
+	SET @n = 2147483647
 
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
-	DECLARE @tmpMatchId TABLE (MatchId INT, sporttype SMALLINT)
+	DECLARE @tmpMatchId TABLE (MatchId INT PRIMARY KEY, sporttype SMALLINT)
 	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 	DECLARE @tmpLicenseeName TABLE (LicenseeName NVARCHAR(50))
 	
@@ -460,8 +462,9 @@ BEGIN
 				bm.oddsspread AS FilterOddsSpread,
 				bm.oddsid AS FilterOddsId,
 				bm.transdesc AS FilterTransdesc
-		FROM dbo.bettransm bm WITH (NOLOCK)	
-			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno	 
+		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
+			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
+			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
 			INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
 			INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
@@ -469,7 +472,6 @@ BEGIN
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 29
 			AND b.matchid = 29
-			AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -480,7 +482,8 @@ BEGIN
 			AND (@Quarter = 'All' 
 				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))
-		
+		OPTION(OPTIMIZE FOR (@n = 1))
+
 		IF @SelectionSubParlays <> ''
 		BEGIN
 			INSERT INTO @tmpSelectionSubParlay (Id)
@@ -569,15 +572,15 @@ BEGIN
 				b.custid,
 				s.LicenseeName,
 				b.recommend
-		FROM	dbo.bettransm bm WITH (NOLOCK)	
-			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
+		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
+			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
+			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
 			INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
 		WHERE b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 2799
 			AND b.matchid = 2799
-			AND bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 			AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -587,8 +590,8 @@ BEGIN
 			AND (b.betid = 0 OR b.betid IS NULL)
 			AND (@Quarter = 'All' 
 				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q 
-																									WHERE bm.betcheck LIKE q.Id + '%')))
+				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))
+		OPTION(OPTIMIZE FOR (@n = 1))
 	END
 
 	--RETURN DATA

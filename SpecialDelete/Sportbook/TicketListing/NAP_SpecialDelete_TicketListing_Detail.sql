@@ -83,6 +83,7 @@ AS;
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
 		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
+		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -142,18 +143,21 @@ AS;
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE @p_bettypes VARCHAR(1000)
-		   ,@ValueDefault SMALLMONEY = 9999.00
-		   ,@SportType SMALLINT = NULL
-		   ,@SettlementStatus TINYINT = NULL
+	DECLARE @p_bettypes			VARCHAR(1000)
+		   ,@ValueDefault		SMALLMONEY = 9999.00
+		   ,@SportType			SMALLINT = NULL
+		   ,@SettlementStatus	TINYINT = NULL
+		   ,@n					INT
+
 	SET @p_bettypes = @BetTypes
+	SET @n = 2147483647
 
 	---- If not sportbook then don't care @livetype , so set @LiveType to 2 (All)
 	IF @Type <> 0 SELECT @LiveType = 2
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
-	DECLARE @tmpMatchId TABLE (MatchId INT)
+	DECLARE @tmpMatchId TABLE (MatchId INT PRIMARY KEY)
 	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 	
 	INSERT INTO @tmpMatchId (MatchId)
@@ -710,14 +714,14 @@ BEGIN
 					bm.oddsspread AS FilterOddsSpread,
 					bm.oddsid AS FilterOddsId,
 					bm.transdesc AS FilterTransdesc
-			FROM	Bettrans b WITH (NOLOCK)	
-			INNER HASH JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno
-			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
-			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
+			FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
+				INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
+				INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 29 AND b.matchID = 29
-				AND bm.matchID IN (SELECT MatchId FROM @tmpMatchId)
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -728,7 +732,7 @@ BEGIN
 				AND (@Quarter = 'All' 
 					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%'))) 
-			
+			OPTION(OPTIMIZE FOR (@n = 1))
 		END 	
 		
 		---Licensee
@@ -888,13 +892,13 @@ BEGIN
 					m.leagueid  as SubLeagueId ,
 					m.sporttype as SubSportType,				
 					bm.transdesc SubTransDesc
-			FROM	Bettrans b WITH (NOLOCK)	
-			INNER HASH JOIN  bettransm bm WITH (NOLOCK) ON b.refno = bm.refno
-			INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
+			FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
+				INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
+				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+				INNER JOIN  match m WITH (NOLOCK) ON m.matchid = bm.matchID
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 				AND b.bettype = 2799 AND b.matchID = 2799
-				AND bm.matchID IN (SELECT MatchId FROM @tmpMatchId)
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
@@ -905,6 +909,7 @@ BEGIN
 				AND (@Quarter = 'All' 
 					OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 					OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))  
+			OPTION(OPTIMIZE FOR (@n = 1))
 		END 		
 		---Licensee
 		IF @LicenseeName <> 'Credit' AND @LicenseeName <> 'ALL' 
