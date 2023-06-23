@@ -56,6 +56,7 @@ AS
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
 		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
+		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -111,6 +112,7 @@ BEGIN
 	DECLARE @p_bettypes VARCHAR(1000)
 		   ,@ValueDefault SMALLMONEY = 9999.00
 		   ,@SportType SMALLINT = NULL
+		   ,@TransInfoSendOICJson VARBINARY(MAX)
 
 	SET @p_bettypes = @BetTypes
 
@@ -118,6 +120,7 @@ BEGIN
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 	DECLARE @tmpMatchId TABLE (MatchId INT, sporttype SMALLINT)
 	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
+	DECLARE @tmpLicenseeName TABLE (LicenseeName NVARCHAR(50))
 	
 	INSERT INTO @tmpMatchId (MatchId, sporttype)
 	SELECT MatchId, sporttype
@@ -137,6 +140,13 @@ BEGIN
 		INSERT INTO @tmpQuarter (Id)
 		SELECT value
 		FROM STRING_SPLIT(@Quarter, ',')
+	END
+
+	IF @LicenseeName <> 'All'
+	BEGIN
+		INSERT INTO @tmpLicenseeName (LicenseeName)
+		SELECT value
+		FROM STRING_SPLIT(@LicenseeName, ',')
 	END
 
 	CREATE TABLE  #tmpSelectionType (Selectiontype INT PRIMARY KEY)
@@ -177,6 +187,8 @@ BEGIN
 		transid				BIGINT,
 		CustId				INT,
 		ParentHdp2	        SMALLMONEY,
+		Recommend			INT,
+		LicenseeName		NVARCHAR(50),
 		FilterBettype		SMALLINT,
 		FilterBetTeam		NVARCHAR(10), 
 		FilterSet			VARCHAR(50),
@@ -292,17 +304,20 @@ BEGIN
 	BEGIN
 		IF @Type = 1 -- FOR Happy 5, Number Game Only
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (transid, CustId)
+			INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName)
 			SELECT	b.transid,
-					b.custid
+					b.custid,
+					b.recommend,
+					s.LicenseeName
 			FROM	dbo.bettrans b WITH (NOLOCK)
-				    INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
+				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
+				INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
+				INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
 				OUTER APPLY (SELECT BallSequence 
 							FROM dbo.f_NG_GetBallSequence (b.bettype, b.betteam , b.betid , b.liveindicator	, b.livehomescore, b.liveawayscore )
 							WHERE b.bettype IN (85, 86, 87, 88, 89, 90, 91)
 							) AS BS_tmp
-			WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
-					AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+			WHERE	b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
 					AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 					AND 1 = CASE WHEN  @SportType = 164 THEN 1 --Happy 5
@@ -312,9 +327,12 @@ BEGIN
 		END
 		ELSE IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'Single'
 		BEGIN
-			INSERT INTO #SpecialDeleteBets (transid, CustId, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
+			INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName
+											, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc)
 			SELECT	 b.transid
 					,b.custid
+					,b.recommend
+					,s.LicenseeName
 					,b.bettype AS FilterBetType
 					,b.betteam AS FilterBetTeam
 					,b.betid AS FilterSet
@@ -329,8 +347,9 @@ BEGIN
 					,b.transdesc AS FilterTransdesc
 			FROM	dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
-			WHERE	b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(nolock) where site = @LicenseeName)
-				AND b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
+				INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
+				INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
+			WHERE	b.statusID NOT IN (101,102, 121) ---('Void', 'Reject', 'Dummy')
 				AND b.matchid IN (SELECT MatchId FROM @tmpMatchId)
 				AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE b.livehomescore END
@@ -421,12 +440,14 @@ BEGIN
 	-- System parlay - Sportsbook 29
     IF @SingleOrSubParlay = 'All' OR @SingleOrSubParlay = 'SubParlay'
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (transid, CustId, ParentHdp2
+		INSERT INTO #SpecialDeleteBets (transid, CustId, ParentHdp2, Recommend, LicenseeName
 										, FilterBettype, FilterBetTeam, FilterSet, FilterGame, FilterValue, FilterGoal, FilterBetOption, FilterHdp1, FilterHdp2, FilterOddsSpread, FilterOddsId, FilterTransdesc
 										)
 		SELECT	b.transid,
 				b.custid,
 				b.hdp2 AS ParentHdp2,
+				b.recommend,
+				s.LicenseeName,
 				bm.bettype AS FilterBetType,
 				bm.betteam AS FilterBetTeam,
 				bm.betcheck AS FilterSet,
@@ -442,8 +463,9 @@ BEGIN
 		FROM dbo.bettransm bm WITH (NOLOCK)	
 			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno	 
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
-		WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
-			AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+			INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
+			INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
+		WHERE b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 29
 			AND b.matchid = 29
@@ -542,13 +564,16 @@ BEGIN
     -- System parlay Virtual Sports 2799
     IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype =2799)
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (transid, CustId)	
+		INSERT INTO #SpecialDeleteBets (transid, CustId, Recommend, LicenseeName)	
 		SELECT	b.transid,
-				b.custid
+				b.custid,
+				s.LicenseeName,
+				b.recommend
 		FROM	dbo.bettransm bm WITH (NOLOCK)	
 			INNER HASH JOIN dbo.bettrans b WITH (NOLOCK) ON b.refno = bm.refno 
-		WHERE b.srecommend IN ( SELECT custid FROM Dep_CustSuper with(NOLOCK) where site = @LicenseeName) 
-			AND b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
+			INNER JOIN dbo.Dep_CustSuper dc WITH (NOLOCK) ON b.srecommend = dc.custid
+			INNER JOIN @tmpLicenseeName s ON dc.site = s.LicenseeName
+		WHERE b.statusID NOT IN (101,102) --- ('Void', 'Reject' )
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 2799
 			AND b.matchid = 2799
@@ -566,11 +591,16 @@ BEGIN
 																									WHERE bm.betcheck LIKE q.Id + '%')))
 	END
 
-	SELECT	tmp.transid,
-			tmp.CustId
-	FROM #SpecialDeleteBets tmp
-	ORDER BY transid
-	
+	--RETURN DATA
+	SET @TransInfoSendOICJson = COMPRESS((SELECT TransId AS 't'
+		,CustId 'c'
+		,Recommend AS 're'
+		,LicenseeName AS 'ln'
+	FROM #SpecialDeleteBets
+	FOR JSON PATH))
+
+	SELECT CONVERT(VARCHAR(MAX), @TransInfoSendOICJson, 1) AS TransInfoSendOICJson
+
 	DROP TABLE #SpecialDeleteBets
 	DROP TABLE #TmpBallSequence	
 	DROP TABLE #tblBetType
