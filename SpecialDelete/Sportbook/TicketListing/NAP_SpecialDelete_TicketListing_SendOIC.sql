@@ -37,7 +37,7 @@ BEGIN
 	
 	INSERT INTO @tmpResultAmendment (TransID, CustID, Recommend, LicenseeName)
 	SELECT t, c, re, ln
-	FROM OPENJSON(@Decompress_TransInfoJson) 
+	FROM OPENJSON(@Decompress_TransInfoSendOICJson) 
 	WITH( t BIGINT, c INT, re INT, ln NVARCHAR(50)
 	) tbl
 
