@@ -84,14 +84,10 @@ AS
 		0: Sportsbook
 		1: Number Game
 		2: Virtual sports
-		3: Live casino
-		4: Metric Gaming Super Live (Not used)
 		5: Virtual sports betradar
-		6: Lucky 3 (Not used)
-		7: Bull fighting (Not used)
 		8: Bet Builder
 		9: Bitcoin
-
+		
 	- @LicenseeID:
 	  + =0: No Site filter
 	  + >0: Filter by specific Licensee's ID
@@ -438,9 +434,9 @@ BEGIN
 			,b.oddsid AS FilterOddsId
 			,b.transdesc AS FilterTransdesc
 		FROM bettrans b WITH (NOLOCK)
+			INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 		WHERE matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-			AND EXISTS (SELECT TOP 1 1 FROM @tmpBettypes t WHERE t.bettype = b.bettype)
 			AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE livehomescore END
 			AND liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE liveawayscore END
@@ -679,7 +675,7 @@ BEGIN
 	END
 	
 	-- System parlay - Virtual Sports 2799 -- NOTE: 2799 don't have filter Advance Mode 
-	IF CHARINDEX('2799', @BetTypes, 1) <> 0
+	IF EXISTS (SELECT 1 FROM @tmpBettypes WHERE bettype = 2799)
 	BEGIN
 		INSERT INTO #CTE_ParlayVSTickets(
 				TransId

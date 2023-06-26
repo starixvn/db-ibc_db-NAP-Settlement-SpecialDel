@@ -61,10 +61,7 @@ AS
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
-		1: Number Game
-		2: Virtual sports		
-		4: MG (Not used)
-		5: Virtual sports betradar
+
 	- @LicenseeName:
 		ALL, IBC, 12bet, ...	
 	- @BetTypes: String of bettype for Sportsbook, virtual sports and for Dead Ball - Number game, Live casino	
