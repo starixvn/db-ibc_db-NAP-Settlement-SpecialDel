@@ -10,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
+		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 
 	Param's Explanation:
 
@@ -17,15 +18,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @checktime DATETIME2
-
-	DECLARE @tmpSSB_SettlementLogs TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2, SiteDBGroupId SMALLINT )
-
-	SELECT	  p.Id
+	SELECT	 p.Id
 			,ISNULL(  (LEN(t.TransIds) - LEN(REPLACE(t.TransIds,',','')) + 1 ) ,0) AS TicketCount
-			,p.TicketType
-			,p.SettlementAction
-			,p.StatusId
 			,t.TransIds
 	FROM dbo.SiteDB_SettlementProcessing p WITH(NOLOCK)
 		CROSS APPLY (
@@ -44,5 +38,3 @@ BEGIN
 		AND p.StatusId  IN (1,3)
 END
 GO
-
---select *   FROM dbo.SiteDB_SettlementProcessing 

@@ -11,6 +11,7 @@ AS
 		- 20211111@Kathy: Get all ssb error message [Redmine:#164162]
 		- 20220913@Louisa: Get more info [RedmineId:#177711]
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
+		- 20230208@Louisa: get ErrorMessage by VARCHAR(max) [RedmineId:#179505]
 
 	Param's Explanation:
 
@@ -21,7 +22,7 @@ BEGIN
 	DECLARE @checktime DATETIME2
 			,@ServerName VARCHAR(100)
 
-	DECLARE @tmpErrorMessage TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2 )
+	DECLARE @tmpErrorMessage TABLE (MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2 )
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
@@ -33,7 +34,7 @@ BEGIN
 		WHERE	ISNULL(ErrorMessage,'') <> ''
 				AND Resolved = 0
 				AND StartTime > @checktime 
-				AND MessageType NOT LIKE 'Sitedb%'
+				AND SiteDBGroupId = 0
 		GROUP BY SessionId
 				, ErrorMessage
 	)

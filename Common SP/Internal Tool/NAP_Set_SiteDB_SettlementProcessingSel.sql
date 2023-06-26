@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
+		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 
 	Param's Explanation:
 
@@ -19,7 +20,7 @@ BEGIN
 	DECLARE @checktime DATETIME2
 			,@ServerName VARCHAR(100)
 
-	DECLARE @tmpSSB_SettlementLogs TABLE ( SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2, SiteDBGroupId SMALLINT )
+	DECLARE @tmpSSB_SettlementLogs TABLE ( SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2, SiteDBGroupId SMALLINT )
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
@@ -32,7 +33,7 @@ BEGIN
 				AND Resolved = 0
 				AND SessionId > 0
 				AND StartTime > @checktime 
-				AND MessageType LIKE 'Sitedb%'
+				AND SiteDBGroupId > 0
 	)
 	
 	INSERT INTO @tmpSSB_SettlementLogs ( SessionId, ErrorMessage, CreatedTime, SiteDBGroupId)
@@ -45,11 +46,11 @@ BEGIN
 				AND l.Resolved = 0
 				AND l.SessionId > 0
 				AND l.StartTime > @checktime 
-				AND l.MessageType LIKE 'Sitedb%'	
+				AND SiteDBGroupId > 0	
 	GROUP BY SessionId
 			,SiteDBGroupId
 
-	SELECT	@ServerName AS ServerName
+	SELECT	DISTINCT @ServerName AS ServerName
 			,t.SiteDBGroupId
 			,b.matchId
 			,t.SessionId

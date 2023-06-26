@@ -12,7 +12,7 @@ AS
 		- 20220913@Louisa: get more info [RedmineId:#177711]
 		- 20220927@Louisa: get more info [RedmineId:#177711]
 		- 20221122@Louisa: Tool support after release Scaleout [RedmineId:#180746]
-
+		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -20,12 +20,12 @@ BEGIN
 			,@ServerName VARCHAR(100) 
 
 	DECLARE @tmpMatchLocked TABLE (MatchId INT, SessionId BIGINT)
-	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(200), CreatedTime DATETIME2)
+	DECLARE @tmpErrorMessage TABLE (MessageId VARCHAR(128), MatchId INT, SessionId BIGINT, ErrorMessage VARCHAR(max), CreatedTime DATETIME2)
 	DECLARE @tmpReturnTable TABLE 
 	(	MatchId INT
 		,SessionId BIGINT
 		,MessageId VARCHAR(128)
-		,ErrorMessage VARCHAR(200)
+		,ErrorMessage VARCHAR(max)
 		,CreatedTime DATETIME2
 		,HomeTeam NVARCHAR(200)
 		,AwayTeam  NVARCHAR(200)
@@ -35,24 +35,6 @@ BEGIN
 
 	SET @checktime = DATEADD(HOUR,-6,SYSDATETIME())
 	SET @ServerName = @@SERVERNAME
-
-	IF ISNULL(@MatchId,0) = 0
-	BEGIN
-		INSERT INTO @tmpReturnTable  
-		(	MessageId 
-			,ErrorMessage 
-			,CreatedTime 
-		)
-		SELECT	MessageId
-				,s.ErrorMessage AS ErrorMessage
-				,s.Starttime AS CreatedTime
-		FROM dbo.SSB_SettlementLogs s WITH(NOLOCK)
-		WHERE	ISNULL(s.ErrorMessage,'') <> ''
-					AND s.Resolved = 0
-					AND s.StartTime >= @checktime
-					AND s.SessionId IS NULL
-					AND MessageType NOT LIKE 'Sitedb%'
-	END
 
 	INSERT INTO @tmpMatchLocked(MatchId, SessionId)
 	SELECT	MatchId, SessionId
@@ -70,7 +52,7 @@ BEGIN
 			WHERE	ISNULL(s.ErrorMessage,'') <> ''
 					AND s.Resolved = 0
 					AND s.StartTime >= @checktime
-					AND MessageType NOT LIKE 'Sitedb%'
+					AND SiteDBGroupId = 0
 			GROUP BY s.SessionId, s.ErrorMessage
 		)
 		INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime)
@@ -90,7 +72,7 @@ BEGIN
 				AND Resolved = 0
 				AND StartTime > @checktime
 				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpMatchLocked t WHERE t.SessionId = s.SessionId)
-				AND MessageType NOT LIKE 'Sitedb%'
+				AND SiteDBGroupId = 0
 		GROUP BY s.SessionId, s.ErrorMessage
 	)
 	INSERT INTO @tmpErrorMessage(SessionId, ErrorMessage, CreatedTime)
