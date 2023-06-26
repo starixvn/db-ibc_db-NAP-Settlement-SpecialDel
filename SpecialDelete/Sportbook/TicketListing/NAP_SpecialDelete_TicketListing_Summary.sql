@@ -76,6 +76,7 @@ AS
 		- 20221110@Max: Scale out DBTrans - Enhancement to prevent high latency on Balance Record [Redmine: #180225]
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
+		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -289,7 +290,7 @@ BEGIN
 		,FilterSet			VARCHAR(50)
 		,FilterGame			VARCHAR(50)
 		,FilterValue		SMALLMONEY	
-		,FilterGoal			BIGINT
+		,FilterGoal			NVARCHAR(50)
 		,FilterBetOption	NVARCHAR(50)
 		,FilterHdp1			SMALLMONEY
 		,FilterHdp2			SMALLMONEY
@@ -638,7 +639,7 @@ BEGIN
 			DELETE t
 			FROM  #CTE_ParlayTickets t
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail bd
-					WHERE bd.Id = t.FilterBettype AND (bd.Goal = 100 OR t.FilterGoal = bd.Goal ))
+					WHERE bd.Id = t.FilterBettype AND (CONVERT(NVARCHAR(50), bd.Goal) = 100 OR t.FilterGoal = CONVERT(NVARCHAR(50), bd.Goal) ))
 
 			DELETE t
 			FROM  #CTE_ParlayTickets t
