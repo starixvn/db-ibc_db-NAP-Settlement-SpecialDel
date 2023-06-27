@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_ExcelOic]
 	@MatchId					INT,
-	@LicenseeName				VARCHAR(1000)	= 'ALL',
+	@LicenseeName				VARCHAR(MAX)	= 'ALL',
 	@BetTypes					VARCHAR(1000)	= '',	
 	@LiveType					SMALLINT		= 2,	
 	@LiveHomeScore				SMALLINT		= NULL,
