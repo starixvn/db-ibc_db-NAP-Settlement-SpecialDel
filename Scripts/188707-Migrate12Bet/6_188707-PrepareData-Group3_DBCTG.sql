@@ -131,7 +131,7 @@ GO
 			ON tmp.refno = bpr.refno
 
 	----copy data bodb02.dbo.zzzbettrans
-	SELECT  z.transid, z.custid, z.transdate, z.oddsid, z.hdp1, z.hdp2, z.odds, z.stake}, z.status, z.winlost, z.livehomescore, z.liveawayscore, 
+	SELECT  z.transid, z.custid, z.transdate, z.oddsid, z.hdp1, z.hdp2, z.odds, z.stake, z.status, z.winlost, z.livehomescore, z.liveawayscore, 
 			z.liveindicator, z.betteam, z.creator, z.refno, z.comstatus, z.winlostdate, z.betfrom, z.betcheck, z.checktime, z.matchid, z.bettype, 
 			z.VoidingHistoryId, z.RepUpdateTime, @SiteDBGroupID SiteDBGroupID
 	INTO zzzbettrans_20230602
