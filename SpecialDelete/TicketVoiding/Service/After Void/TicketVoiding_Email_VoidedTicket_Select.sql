@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 	,@IsITSupport				BIT = 0
 	,@IsITSupportCreatedRequest BIT = 0
 	,@SiteDBGroupID				SMALLINT = 0
+	,@IsInsertRountineTask		BIT = 0
 )AS
 /*	Created by: 20181212@Kathy
 	Task: get voided ticket to send email [Redmine:#90155]
@@ -224,29 +225,33 @@ BEGIN
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid
 
-		-- Insert RoutineTask
-		DECLARE @AffectedList VARCHAR(MAX) 
-			,@IsSiteDB			BIT 
+		IF @IsInsertRountineTask = 1
+		BEGIN
+			-- Insert RoutineTask
+			DECLARE @AffectedList VARCHAR(MAX) 
+				,@IsSiteDB			BIT 
 
-		IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
-			SET @IsSiteDB = 1
+			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+				SET @IsSiteDB = 1
 
-		SET @AffectedList = CAST((
-			SELECT	DISTINCT CustId AS '@c'
-					,WinlostDate AS '@w'
-			FROM	#tmpTicket 
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) AS VARCHAR(MAX))
+			SET @AffectedList = CAST((
+				SELECT	DISTINCT CustId AS '@c'
+						,WinlostDate AS '@w'
+				FROM	#tmpTicket 
+				WHERE IsVoidArchived = 1
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) AS VARCHAR(MAX))
 	
-		BEGIN TRY
-			-- insert routine task
-			EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
-				@AffectedList = @AffectedList
-				,@IsSiteDB = @IsSiteDB
-		END TRY
-		BEGIN CATCH
-			SELECT	ERROR_PROCEDURE () + ERROR_MESSAGE()
-		END CATCH
+			BEGIN TRY
+				-- insert routine task
+				EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
+					@AffectedList = @AffectedList
+					,@IsSiteDB = @IsSiteDB
+			END TRY
+			BEGIN CATCH
+				SELECT	ERROR_PROCEDURE () + ERROR_MESSAGE()
+			END CATCH
+		END
 	END
 
 	UPDATE	t
