@@ -15,8 +15,8 @@ AS
 	Param's explanation:	
 		- @ReducedOverInfo: 
 		<root>
-			<r MatchId="" SubIssueTypeId="" BetTypes="1" WicketOver ="" PlayerIds="" Runs="" Live="" NonLive=""/>
-			<r MatchId="" SubIssueTypeId="" BetTypes="1,2" WicketOver ="" PlayerIds="" Runs="" Live="" NonLive=""/>
+			<r MatchId="" SubIssueTypeId="" BetTypes="1"  FilterWicketOver ="" WicketOver ="" PlayerIds="" Runs="" Live="" NonLive=""/>
+			<r MatchId="" SubIssueTypeId="" BetTypes="1,2" FilterWicketOver ="" WicketOver ="" PlayerIds="" Runs="" Live="" NonLive=""/>
 		</root>
 		
 */
@@ -119,7 +119,7 @@ BEGIN
 	SELECT t.c.value('@MatchId','INT')		
 		,bt.bettype
 		,pl.Transdesc
-		,t.c.value('@WicketOver','NVARCHAR(50)')
+		,t.c.value('@FilterWicketOver','NVARCHAR(50)')
 		,t.c.value('@Runs','SMALLMONEY')
 		,t.c.value('@Live','BIT')
 		,t.c.value('@NonLive','BIT')

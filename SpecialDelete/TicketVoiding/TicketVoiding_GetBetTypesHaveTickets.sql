@@ -22,13 +22,20 @@ BEGIN
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
     CREATE TABLE #TmpBettype (bettype SMALLINT)
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	INSERT INTO @tmpMatchId (MatchId)
+	SELECT MatchId
+	FROM dbo.match WITH(NOLOCK)
+	WHERE (matchid = @MatchId OR ParentID = @MatchId)
 
     -- Scan bettrans and bettransm to get bettype list
 	-- bettrans
     INSERT INTO #TmpBettype(bettype)
 	SELECT bettype
 	FROM dbo.bettrans WITH(NOLOCK)
-	WHERE matchid = @MatchId AND SiteDBGroupID = @SiteDBGroupID
+	WHERE matchid IN (SELECT Matchid FROM @tmpMatchId)
+		AND SiteDBGroupID = @SiteDBGroupID
 		AND bettype NOT IN (10,29,38,500)
 		AND bettype < 19000
 	GROUP BY bettype
@@ -37,7 +44,8 @@ BEGIN
     INSERT INTO #TmpBettype(bettype)
     SELECT bt.bettype
     FROM dbo.bettransm bt WITH(NOLOCK)
-    WHERE bt.matchid = @MatchId AND bt.SiteDBGroupID = @SiteDBGroupID
+    WHERE bt.matchid IN (SELECT Matchid FROM @tmpMatchId)
+	AND bt.SiteDBGroupID = @SiteDBGroupID
 	AND NOT EXISTS(SELECT TOP 1 1
         FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
         AND bt.bettype NOT IN (10,29,38,500)
