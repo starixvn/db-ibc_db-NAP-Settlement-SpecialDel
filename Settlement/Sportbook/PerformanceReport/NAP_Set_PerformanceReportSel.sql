@@ -14,6 +14,7 @@ AS
 		- 20230515@Kathy: fix bug: rollback code from cross apply to outer apply
 		- 20230607@Louisa: Get data SiteDBGroupId = 0 [Redmine:#185675]
 		- 20230609@Kathy: list detail SettleAction
+		- 20230628@Kathy: Add IsLive [Redmine:#190396]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -40,7 +41,10 @@ BEGIN
 		,Step2_WaitforSettle_Duration	INT
 		,Step3_Settle_Duration			INT
 		,IsHold							INT
+		,IsLive							BIT DEFAULT(0)
 	)
+
+	CREATE TABLE #MatchList(matchid INT)
 
 	;WITH cteSettlementPerformanceLog
 	AS (
@@ -159,6 +163,15 @@ BEGIN
 					END				 
 				AND s.Action <> 'CAL-PARLAY'
 		
+		INSERT INTO #MatchList(matchid)
+		SELECT	s.matchid		FROM	bodb_account.dbo.FactSiteWinloss s (NOLOCK)		WHERE	[RptDate] >= CAST(@FromDate AS DATE) 				AND [RptDate] <= CAST(@ToDate AS DATE)				AND [CurrencyID] NOT IN (20,27,28)				AND s.LiveStatus = 1 -- Live Ticket				AND s.matchid IN (SELECT tmp.MatchID
+									FROM #tmpData tmp )		GROUP BY s.matchid		HAVING SUM(s.betcount) > 0 		OPTION (RECOMPILE)
+
+		UPDATE	m 
+			SET IsLive = 1
+		FROM 	#MatchList s (NOLOCK)
+			INNER JOIN #tmpData m 
+				ON 	s.matchid = m.matchid
 
 		SELECT [Year]							
 			   ,[Month]						
@@ -179,8 +192,9 @@ BEGIN
 			   ,Step1_WaitforKeyscore_Duration 
 			   ,Step2_WaitforSettle_Duration	
 			   ,Step3_Settle_Duration			
-			   ,IsHold							
-				,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
+			   ,IsHold		
+			   ,IsLive
+			   ,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
 		FROM	#tmpData
 		WHERE	sporttype = 1
 		ORDER BY [Year] DESC 
@@ -219,7 +233,8 @@ BEGIN
 				,Step1_WaitforKeyscore_Duration 
 				,Step2_WaitforSettle_Duration	
 				,Step3_Settle_Duration			
-				,IsHold							
+				,IsHold	
+				,IsLive
 				,Step1_WaitforKeyscore_Duration + Step2_WaitforSettle_Duration + Step3_Settle_Duration AS Total
 		FROM	#tmpData
 		WHERE	sporttype <> 1
@@ -239,4 +254,8 @@ BEGIN
 			,[keyscoreUser] DESC
 			,[SettleAction] DESC
 			,[SettlementStatus] DESC 
+
+	DROP TABLE #tmpData
+	DROP TABLE #MatchList
+		
 END
