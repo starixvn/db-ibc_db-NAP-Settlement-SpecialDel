@@ -10,11 +10,11 @@
 	
 	Note: 
 		BalCreditCasino ---> not exists data in BalCreditCasinoPending with(nolock)
-                        ---> not exists data in bodb02.dbo.BalCreditCasinoPending_Staging  with(nolock)
+							and table BalanceUpdateSetting has PendingLiveCS_State <> 0
 		BalCreditOthers ---> not exists data in bodb02.dbo.BalCreditOthersPending  with(nolock)
-						---> not exists data in bodb02.dbo.BalCreditOthersPending_Staging  with(nolock)
+							and table BalanceUpdateSetting has PendingOS_State <> 0
 		BalCreditSports ---> not exists data in bodb02.dbo.BalCreditSportsPending  with(nolock)
-						---> not exists data in bodb02.dbo.BalCreditSportsPending_Staging  with(nolock)
+							and table BalanceUpdateSetting has PendingCS_State <> 0
 		BalDebitCasino  ---> not exists data in bodb02.dbo.BalDebitCasinoPending  with(nolock)
 		BalDebitOthers  ---> not exists data in bodb02.dbo.BalDebitOthersPending  with(nolock)
 		BalDebitSports  ---> not exists data in bodb02.dbo.BalDebitSportsPending  with(nolock)
@@ -27,14 +27,14 @@
 USE SiteDBtmp
 GO
 	
-	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditCasinoPending bl WITH(NOLOCK)
-	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditCasinoPending_Staging bl WITH(NOLOCK)
+	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditCasinoPending bl WITH(NOLOCK) --waiting return no data
+	SELECT TOP 1 1 FROM bodb02.dbo.BalanceUpdateSetting  WITH(NOLOCK) WHERE VName = 'PendingLiveCS_State' AND VValue <> '0' --waiting return no data
 
-	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditOthersPending bl WITH(NOLOCK)
-	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditOthersPending_Staging bl WITH(NOLOCK)
+	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditOthersPending bl WITH(NOLOCK) --waiting return no data
+	SELECT TOP 1 1 FROM bodb02.dbo.BalanceUpdateSetting  WITH(NOLOCK) WHERE VName = 'PendingOS_State' AND VValue <> '0' --waiting return no data
 	
-	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditSportsPending bl WITH(NOLOCK)
-	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditSportsPending_Staging bl WITH(NOLOCK)
+	SELECT TOP 1 1 FROM bodb02.dbo.BalCreditSportsPending bl WITH(NOLOCK)--waiting return no data
+	SELECT TOP 1 1 FROM bodb02.dbo.BalanceUpdateSetting  WITH(NOLOCK) WHERE VName = 'PendingCS_State' AND VValue <> '0'--waiting return no data
 	
 	SELECT TOP 1 1 FROM bodb02.dbo.BalDebitCasinoPending bl WITH(NOLOCK)
 	
