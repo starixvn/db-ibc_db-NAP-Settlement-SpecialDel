@@ -469,8 +469,8 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
 			WHERE tp.Bettype = b.FilterBettype 
 			AND 1 = CASE WHEN tp.FilterRuns = '' THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.FilterHdp1 = FilterRuns THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND (b.FilterHdp1 = tp.FilterRuns OR b.FilterHdp2 = tp.FilterRuns) THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.FilterHdp1 >= FilterRuns THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND (b.FilterHdp1 >= tp.FilterRuns OR b.FilterHdp2 >= tp.FilterRuns) THEN 1
 					ELSE 0 END
 		)
 	
