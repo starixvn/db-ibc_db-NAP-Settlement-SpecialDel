@@ -448,7 +448,7 @@ BEGIN
 		FROM  #TransInfo b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
 			WHERE tp.Bettype = b.FilterBettype 
-			AND (tp.FilterSet = '' OR b.FilterSet = tp.FilterSet))
+			AND (tp.FilterSet = '' OR b.FilterSet LIKE tp.FilterSet + '%'))
 
 	DELETE b
 		FROM  #TransInfo b
