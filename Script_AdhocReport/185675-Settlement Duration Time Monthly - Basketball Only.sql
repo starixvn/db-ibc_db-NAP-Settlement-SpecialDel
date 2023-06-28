@@ -41,6 +41,7 @@ BEGIN
 				,LeagueId, MatchId, HomeId, AwayId, Kickofftime, GlobalShowtime, Action, ActionId, IsAuto
 				,AdminId, HomeScore, AwayScore, ConfirmScoreDate, Starttime, Exectime, Duration, CreatedDate, Sporttype, IsHold
 			FROM	bodb_Account.dbo.SettlementPerformanceLog WITH(NOLOCK)
+			WHERE ISNULL(SiteDBGroupID,0) = 0
 		)s
 		WHERE s.rn = 1
 	)
@@ -75,13 +76,11 @@ BEGIN
 		,a.teamname  AS awayteam
 		,m.GlobalShowTime
 		,ISNULL(ci.username, '') AS keyscoreUser
-		,CASE 
-          WHEN s.Action LIKE '%INTERVAL%' AND s.ActionId = 2 THEN 'OT'
-          WHEN s.Action = 'CAL' AND s.ActionId = 1 THEN 'CAL-HT'
-          WHEN s.Action LIKE '%INTERVAL%' THEN 'Quarter ' + CAST(s.ActionId%100 AS VARCHAR)
-          ELSE s.Action
-          END
-        AS SettleAction
+		,CASE
+			WHEN itv.Interval IS NOT NULL THEN itv.Interval
+			WHEN s.Action = 'CAL' AND s.ActionId = 1 THEN 'CAL-HT'
+			ELSE s.Action
+		END AS SettleAction
 		
 		,CASE WHEN s.IsAuto	= 1 THEN 'Auto settle' ELSE 'Manual settle' END AS SettlementStatus
 		,CASE WHEN u.matchid is null then 'No confirm' ELSE 'Confirm' END ConfirmStatus
@@ -101,6 +100,23 @@ BEGIN
 			on l.LeagueGroupID = lg.GroupID
 		INNER JOIN bodb02.[dbo].Sports sp (NOLOCK)
 			ON l.sporttype = sp.SportType
+		OUTER APPLY (
+			SELECT CASE
+					WHEN sp.SportType = 2 THEN CASE WHEN s.ActionId = 2 THEN 'OT' ELSE 'Quarter ' END
+					WHEN sp.SportType = 5 THEN 'Set '
+					WHEN sp.SportType = 43 THEN 'Map '
+					WHEN sp.SportType = 50 THEN 'Inning '	
+					ELSE 'Interval ' 
+					END + CASE 
+							WHEN sp.SportType = 50 AND s.ActionId = 101 THEN '1 Home'
+							WHEN sp.SportType = 50 AND s.ActionId = 102 THEN '1 Away'
+							WHEN sp.SportType = 50 AND s.ActionId = 103 THEN '2 Home'
+							WHEN sp.SportType = 50 AND s.ActionId = 104 THEN '2 Away'
+							ELSE CAST(s.ActionId%100 AS VARCHAR)
+						END
+				AS Interval 
+			WHERE	s.ActionId > 100
+		)itv
 		INNER JOIN
 			(SELECT matchid, homeid, awayid, leagueid, eventdate, GlobalShowTime, ParentID
 			FROM bodb_account.dbo.match m with(nolock)

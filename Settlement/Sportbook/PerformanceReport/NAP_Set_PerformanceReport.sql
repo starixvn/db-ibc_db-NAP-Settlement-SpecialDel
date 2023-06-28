@@ -17,6 +17,7 @@ AS
 		- 20230109@Kathy: Keyscore Performance Report - Add Game/Set Results of SOP Sports [Redmine:#182007]
 		- 20230322@Louisa: support get result Game/Set/Interval... [Redmine:#182007]
 		- 20230605@Louisa: Get data group by SiteDBGroupId [Redmine:#185675]
+		- 20230906@Kathy: list detail SettleAction
 */
 BEGIN
 	DECLARE @maxdate DATETIME
@@ -127,7 +128,7 @@ BEGIN
 			,d.starttime, d.exectime, d.duration
 			,CASE 
 				WHEN f.ResourceID = 'OT' THEN f.ResourceID ---basketball
-				WHEN f.ResourceID IS NOT NULL AND f.ResourceID NOT IN ('00','01') THEN 'CAL-INTERVAL' 
+				WHEN f.ResourceID IS NOT NULL AND f.RoundID NOT IN ('00','01') THEN 'CAL-INTERVAL' 
 				ELSE d.action 
 				END AS action
 			, d.eventdate, d.sqlcommand, d.isauto, d.adminid, m.sporttype
@@ -163,6 +164,7 @@ BEGIN
 		) a
 		OUTER APPLY (
 			SELECT	f.ResourceID
+					,f.RoundID
 					,CASE 
 						WHEN m.sporttype = 50 
 							THEN CASE 
