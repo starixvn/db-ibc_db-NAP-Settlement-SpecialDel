@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 	,@IsITSupport				BIT = 0
 	,@IsITSupportCreatedRequest BIT = 0
 	,@SiteDBGroupID				SMALLINT = 0
-	,@IsInsertRountineTask		BIT = 0
+	,@IsInsertRoutineTask		BIT = 0
 )AS
 /*	Created by: 20181212@Kathy
 	Task: get voided ticket to send email [Redmine:#90155]
@@ -225,7 +225,7 @@ BEGIN
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid
 
-		IF @IsInsertRountineTask = 1
+		IF @IsInsertRoutineTask = 1
 		BEGIN
 			-- Insert RoutineTask
 			DECLARE @AffectedList VARCHAR(MAX) 
