@@ -77,20 +77,17 @@ AS
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
 		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
+		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
 
 	Param's Explanation:
 	- @Type: sports type
 		0: Sportsbook
 		1: Number Game
 		2: Virtual sports
-		3: Live casino
-		4: Metric Gaming Super Live (Not used)
 		5: Virtual sports betradar
-		6: Lucky 3 (Not used)
-		7: Bull fighting (Not used)
 		8: Bet Builder
 		9: Bitcoin
-
+		
 	- @LicenseeID:
 	  + =0: No Site filter
 	  + >0: Filter by specific Licensee's ID
@@ -138,10 +135,13 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @SportType SMALLINT = NULL
-		   ,@ValueDefault SMALLMONEY = 9999.00
-		
-	DECLARE @tmpMatchId TABLE (MatchId INT, sporttype SMALLINT)
+	DECLARE @SportType		SMALLINT = NULL
+		   ,@ValueDefault	SMALLMONEY = 9999.00
+		   ,@n				INT 
+	
+	SET @n = 2147483647
+
+	DECLARE @tmpMatchId TABLE (MatchId INT PRIMARY KEY, sporttype SMALLINT)
 	INSERT INTO @tmpMatchId (MatchId, sporttype)
 	SELECT MatchId, sporttype
 	FROM dbo.match WITH(NOLOCK)
@@ -434,9 +434,9 @@ BEGIN
 			,b.oddsid AS FilterOddsId
 			,b.transdesc AS FilterTransdesc
 		FROM bettrans b WITH (NOLOCK)
+			INNER JOIN @tmpBettypes t ON b.bettype = t.bettype
 		WHERE matchid IN (SELECT MatchId FROM @tmpMatchId)
 			AND statusID NOT IN (101, 102, 121) --('Void', 'Reject', 'Dummy')
-			AND EXISTS (SELECT TOP 1 1 FROM @tmpBettypes t WHERE t.bettype = b.bettype)
 			AND CASE WHEN @LiveType <> 2 THEN liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 			AND livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE livehomescore END
 			AND liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE liveawayscore END
@@ -579,11 +579,11 @@ BEGIN
 				,bm.transdesc AS FilterTransdesc
 				,b.srecommend
 				,b.hdp2 AS ParentHdp2
-		FROM bettransm bm WITH (NOLOCK)
+		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
+			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
 			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			INNER JOIN @tmpBettypes t ON bm.bettype = t.bettype
-		WHERE bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
-			AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
+		WHERE b.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 29
 			AND b.matchid = 29
@@ -599,7 +599,8 @@ BEGIN
 			AND (@Quarter = 'All' 
 				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))			
-			
+		OPTION(OPTIMIZE FOR (@n = 1))
+
 		IF @SelectionSubParlays <> ''
 		BEGIN
 			INSERT INTO @tmpSelectionSubParlay (Id)
@@ -674,7 +675,7 @@ BEGIN
 	END
 	
 	-- System parlay - Virtual Sports 2799 -- NOTE: 2799 don't have filter Advance Mode 
-	IF CHARINDEX('2799', @BetTypes, 1) <> 0
+	IF EXISTS (SELECT 1 FROM @tmpBettypes WHERE bettype = 2799)
 	BEGIN
 		INSERT INTO #CTE_ParlayVSTickets(
 				TransId
@@ -688,10 +689,10 @@ BEGIN
 			 , b.srecommend
 			 , bm.liveindicator AS mLiveIndicator
 			 , b.refno
-		FROM bettransm bm WITH (NOLOCK)
-			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno 
-		WHERE bm.matchid IN (SELECT MatchId FROM @tmpMatchId)
-			AND b.statusID NOT IN (101, 102) --('Void', 'Reject')
+		FROM (SELECT TOP (@n) matchid from @tmpMatchId) tmp
+			INNER JOIN bettransm bm WITH (NOLOCK) ON tmp.MatchId = bm.matchid
+			INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
+		WHERE b.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
 			AND b.bettype = 2799
 			AND b.matchid = 2799
@@ -707,6 +708,7 @@ BEGIN
 			AND (@Quarter = 'All' 
 				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
 				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))
+		OPTION(OPTIMIZE FOR (@n = 1))
 	END
 	
 	----## Direct Licensee
@@ -896,7 +898,6 @@ BEGIN
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
-		  WHERE matchid IN (SELECT MatchId FROM @tmpMatchId)
 		  GROUP BY b.bettype
 			 ,b.liveindicator
 			 ,s.site, s.IsChinaView
