@@ -454,8 +454,8 @@ BEGIN
 		FROM  #TransInfo b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
 			WHERE tp.Bettype = b.FilterBettype 
-			AND 1 = CASE WHEN tp.FilterLive = 1 AND b.liveindicator = 1 THEN 1
-						WHEN tp.FilterNonLive = 1 AND b.liveindicator = 0 THEN 1
+			AND 1 = CASE WHEN tp.FilterLive = 1 AND b.FilterLiveIndicator = 1 THEN 1
+						WHEN tp.FilterNonLive = 1 AND b.FilterLiveIndicator = 0 THEN 1
 					ELSE 0 END
 			) 
 
