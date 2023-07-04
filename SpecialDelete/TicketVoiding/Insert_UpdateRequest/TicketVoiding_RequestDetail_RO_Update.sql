@@ -94,7 +94,7 @@ BEGIN
 			,t.c.value('@MainParlayCount','INT') AS MainParlayCount
 			,t.c.value('@VoidFromTime','DATETIME') AS VoidFromTime
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
-			,'Live:' + t.c.value('@LiveScores','VARCHAR(50)') + ';Act:' AS LiveScores
+			,NULL AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,'<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
 				+ '" WicketOver="' + t.c.value('@WicketOver','VARCHAR(20)')
