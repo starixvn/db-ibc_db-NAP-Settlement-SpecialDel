@@ -282,8 +282,7 @@ BEGIN
 	
 	--Init Validation
 	INSERT INTO @Validation (MatchId)
-	SELECT DISTINCT MatchId
-	FROM #FilterInfo		
+	SELECT @MatchId	
 		
 	INSERT INTO #TVSTicketBets(
 			transid		
@@ -379,16 +378,16 @@ BEGIN
 	IF @ActionId NOT IN (2)
 	BEGIN
 		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
+		SELECT tmp.transid, r.RequestId, tmp.MainTransId, @MatchId
 		FROM #TVSTicketBets t
 			CROSS APPLY (
 						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
+						WHERE rs.TransId = t.transid AND rs.MatchId = @MatchId
 						UNION ALL
 						SELECT rp.TransId, rp.MainTransId, rp.RequestId
 						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = @MatchId
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
 		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
@@ -429,8 +428,8 @@ BEGIN
 			  ,COUNT(CASE WHEN i.bettype IS NOT NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS InstantlySettleCount
 			  ,COUNT(CASE WHEN i.bettype IS NULL AND ISNULL(b.betdaqid, -1) <> -2 AND b.StatusId IN (111, 112, 113) THEN s.TransId ELSE NULL END) AS SettleCount
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-			LEFT JOIN #TVSTicketBets b ON s.MatchId = b.matchid AND s.TransId = b.transid AND b.IsMixParlay = 0
-			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND i.matchid = s.MatchId
+			LEFT JOIN #TVSTicketBets b ON s.MatchId = @MatchId AND s.TransId = b.transid AND b.IsMixParlay = 0
+			LEFT JOIN #InstantSettlementBettypes i ON i.bettype = b.bettype AND s.MatchId = @MatchId
 		WHERE s.RequestId = @RequestId 
 		GROUP BY s.matchid
 
@@ -614,7 +613,7 @@ BEGIN
 	END
 
 	-- 3. Loginfo table
-	SELECT MatchId
+	SELECT @MatchId
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
 		,SUM(SingleCount) AS SingleCount
