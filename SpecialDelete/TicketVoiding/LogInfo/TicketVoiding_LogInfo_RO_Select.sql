@@ -638,6 +638,7 @@ BEGIN
 		,li.VoidToTime AS 'vtt'
 		,IsMixParlay AS 'isP'
 		,SiteDBGroupID AS 'sitedb'
+		,@MatchId AS 'm_mid'
 	FROM #TVSTicketBets t
 		INNER JOIN #logInfo li ON t.matchid = li.MatchId
 	FOR JSON PATH))

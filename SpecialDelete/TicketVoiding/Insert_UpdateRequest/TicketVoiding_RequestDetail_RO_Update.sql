@@ -71,9 +71,9 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		)
-	SELECT mid ,t ,s_t ,c ,btype ,s_btype ,bid ,isP ,sitedb
+	SELECT m_mid ,t ,s_t ,c ,btype ,s_btype ,bid ,isP ,sitedb
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,s_btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+	WITH( m_mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,s_btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
 
 	SET @ReducedOverInfoXML = CONVERT(XML, @ReducedOverInfo)
