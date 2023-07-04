@@ -613,7 +613,7 @@ BEGIN
 	END
 
 	-- 3. Loginfo table
-	SELECT @MatchId
+	SELECT @MatchId AS MatchId
 		,MIN(VoidFromTime) AS VoidFromTime
 		,MAX(VoidToTime) AS VoidToTime
 		,SUM(SingleCount) AS SingleCount
