@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 	,@IsITSupport				BIT = 0
 	,@IsITSupportCreatedRequest BIT = 0
 	,@SiteDBGroupID				SMALLINT = 0
+	,@IsInsertRoutineTask		BIT = 0
 )AS
 /*	Created by: 20181212@Kathy
 	Task: get voided ticket to send email [Redmine:#90155]
@@ -31,6 +32,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20230623@Max: [TVS] Enhance void 14 by Username Feature name [Redmine: #190028]
 		
 	Param's explanation:	
 		
@@ -105,6 +107,7 @@ BEGIN
 		,SiteDBGroupID	SMALLINT
 		,winlostdate	SMALLDATETIME
 		,IsCancelCashOut BIT
+		,IsVoidArchived BIT
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -217,9 +220,38 @@ BEGIN
 				,ActualStake = b.actual_stake
 				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
 				,IsMixParlay = CASE WHEN t.Bettype = 29 THEN 1 ELSE 0 END --case AB(void mix parlay)
+				,IsVoidArchived = 1
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid
+
+		IF @IsInsertRoutineTask = 1
+		BEGIN
+			-- Insert RoutineTask
+			DECLARE @AffectedList VARCHAR(MAX) 
+				,@IsSiteDB			BIT 
+
+			IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+				SET @IsSiteDB = 1
+
+			SET @AffectedList = CAST((
+				SELECT	DISTINCT CustId AS '@c'
+						,WinlostDate AS '@w'
+				FROM	#tmpTicket 
+				WHERE IsVoidArchived = 1
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) AS VARCHAR(MAX))
+	
+			BEGIN TRY
+				-- insert routine task
+				EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
+					@AffectedList = @AffectedList
+					,@IsSiteDB = @IsSiteDB
+			END TRY
+			BEGIN CATCH
+				SELECT	ERROR_PROCEDURE () + ERROR_MESSAGE()
+			END CATCH
+		END
 	END
 
 	UPDATE	t

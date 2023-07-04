@@ -28,6 +28,7 @@ AS
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230309@July: Update number ErrCode [Redmine: #180625]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20230623@Max: [TVS] Enhance void 14 by Username Feature name [Redmine: #190028]
 
 	Param's explanation:	
 		
@@ -439,11 +440,6 @@ BEGIN
 	BEGIN TRY
 		-- update summary ticket
 		EXEC dbo.TicketVoiding_Admin_Bet14_19999 
-			@AffectedList = @AffectedList
-			,@IsSiteDB = @IsSiteDB
-
-		-- insert routine task
-		EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
 			@AffectedList = @AffectedList
 			,@IsSiteDB = @IsSiteDB
 	END TRY
