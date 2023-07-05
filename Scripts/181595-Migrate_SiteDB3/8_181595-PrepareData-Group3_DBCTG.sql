@@ -95,6 +95,9 @@ GO
 		DROP TABLE Task_Cust_BalanceProblem_20230626
 	IF OBJECT_ID('Task_Cust_BalanceProblem1_Manually_20230626') IS NOT NULL
 		DROP TABLE Task_Cust_BalanceProblem1_Manually_20230626
+	IF OBJECT_ID('sum_winloss_20230626') IS NOT NULL
+		DROP TABLE sum_winloss_20230626
+
 
 */
 
@@ -436,6 +439,16 @@ GO
 	FROM bodb02.dbo.Task_Cust_BalanceProblem1_Manually tp WITH(NOLOCK)
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK)
 			ON tmp.custid = tp.custid
+
+	--Copy data bodb02.dbo.sum_winloss 
+	SELECT  keyid,winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
+			,winlost,awinlost,mwinlost,swinlost
+			,playercomm,comm,acomm,scomm,BetCount,grosscomm,sporttype,bettype,netTurnover
+			,TunroverNoDraw,ExtraWinloss,ExtraComm,leagueGroupID,ticketType
+	INTO sum_winloss_20230626
+	FROM bodb02.dbo.sum_winloss sw WITH(NOLOCK)
+		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK)
+			ON tmp.custid = sw.custid
 
 	DROP TABLE #tmp_refno
 	

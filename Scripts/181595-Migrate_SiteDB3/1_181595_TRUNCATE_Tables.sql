@@ -115,4 +115,6 @@ GO
 	TRUNCATE TABLE dbo.zzzbettrans
 	GO 
 	TRUNCATE TABLE dbo.zzzbettransm
+	GO
+	TRUNCATE TABLE dbo.sum_winloss
 

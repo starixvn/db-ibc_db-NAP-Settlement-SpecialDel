@@ -342,5 +342,21 @@ GO
 	SET IDENTITY_INSERT Task_Cust_BalanceProblem1_Manually OFF
 
 
+	-- dbo.sum_winloss
+	SET IDENTITY_INSERT sum_winloss ON
 
+	INSERT INTO sum_winloss ( keyid,winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
+			,winlost,awinlost,mwinlost,swinlost
+			,playercomm,comm,acomm,scomm,BetCount,grosscomm,sporttype,bettype,netTurnover
+			,TunroverNoDraw,ExtraWinloss,ExtraComm,leagueGroupID,ticketType )
+	SELECT  keyid,winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
+			,winlost,awinlost,mwinlost,swinlost
+			,playercomm,comm,acomm,scomm,BetCount,grosscomm,sporttype,bettype,netTurnover
+			,TunroverNoDraw,ExtraWinloss,ExtraComm,leagueGroupID,ticketType
+	FROM DBCTG.SiteDBtmp.dbo.sum_winloss_20230626 sw WITH(NOLOCK) 
+	
+	SET IDENTITY_INSERT sum_winloss OFF
+
+
+	
 
