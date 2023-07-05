@@ -1,8 +1,8 @@
-﻿/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02, DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20221207@July
 	Task: Drop SP un-used - Special Delete & TVS  [Redmine:#180625]  
-	DB: DBCTG-bodb02,DBSIG-bodb02
+	DB: DBCTG-bodb02, DBSIG-bodb02
 		   
 */
 USE bodb02
@@ -70,6 +70,13 @@ OR  name LIKE'TicketVoiding_RequestDetailTicket_SubParlay_Insert%'
 OR  name LIKE'TicketVoiding_VoidTime_Select%'
 OR  name LIKE'NAP_SpecialDelete_CheckNegativeBalanceCashOutTransaction%'
 OR  name LIKE'Nap_SpecialDelete_MarkedTickets_ManualUpdate%'
+
+
+OR  name LIKE'NAP_SpecialDelete_CheckVoidBetPermission%'
+OR  name LIKE'NAP_SpecialDelete_TransInfo_Select%'
+OR  name LIKE'TicketVoiding_MatchInfo_Select%'
+OR  name LIKE'TicketVoiding_Queue_Checking%'
+OR  name LIKE'TicketVoiding_CheckingProcess%'
 )
 SELECT * FROM @tmpSPName
 WHILE (1=1)

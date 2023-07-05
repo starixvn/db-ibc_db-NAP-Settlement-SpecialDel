@@ -17,7 +17,7 @@ SELECT 'DROP PROCEDURE ' +name
  WHERE (type = 'P')
  AND (
  name LIKE'NAP_EventSelect%'
-
+OR name LIKE'Acc_MatchSelByID%'
 )
 SELECT * FROM @tmpSPName
 WHILE (1=1)
