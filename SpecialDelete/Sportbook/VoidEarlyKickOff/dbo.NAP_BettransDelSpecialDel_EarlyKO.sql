@@ -112,6 +112,7 @@ Revisions:
 	- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 	- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 	- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+	- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 	
 Param's Explanation: Special bet delete option  
 		- @BetTypes : 
@@ -133,6 +134,27 @@ Param's Explanation: Special bet delete option
 */  
 BEGIN  
 	SET NOCOUNT ON 		 
+	
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
+			,@LogActionId		INT
+			,@LogData			NVARCHAR(MAX)
+			,@SB_Error			BIT
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90517
+	SET @SB_Error = 0
+
+	SET @LogData = CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) +'''' END
+					+ CASE WHEN @KickOffDate IS NULL THEN '' ELSE ',@KickOffDate = ''' + CONVERT(NVARCHAR(50), @KickOffDate, 21) +'''' END
+					+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) +'''' END
+					+ CASE WHEN @UserID IS NULL THEN '' ELSE '@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+					+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) +'''' END
+					+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) +'''' END
+					+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) +'''' END
+					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) +'''' END
+					+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) +'''' END
 
 	-- Write useraction log 
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
@@ -142,17 +164,7 @@ BEGIN
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN		
-			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO '
-				+ CASE WHEN @UserID IS NULL THEN '' ELSE '@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
-				+ CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
-				+ CASE WHEN @KickOffDate IS NULL THEN '' ELSE ',@KickOffDate = ''' + CONVERT(NVARCHAR(50), @KickOffDate, 21) +'''' END
-				+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) +'''' END
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) +'''' END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) +'''' END
-				+ CASE WHEN @UserPassword IS NULL THEN '' ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) +'''' END
-				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) +'''' END
-				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) +'''' END
-				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) +'''' END
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecialDel_EarlyKO ' + @LogData
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
@@ -1854,6 +1866,20 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 	END CATCH
+
+	-- Write Log
+	SET @EndTime = GETDATE()
+	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'							
+							,@IP AS '@IP'
+							,@MatchId AS '@MatchId'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+								+ @LogData
+							AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS NVARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
 	DROP TABLE #tblMatchProcess  
 	DROP TABLE #BetDelete  

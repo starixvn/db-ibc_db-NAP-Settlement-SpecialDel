@@ -54,6 +54,7 @@ AS
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
+		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 		
 	 Param's Explanation:   
 		@BetTypes : 
@@ -74,24 +75,24 @@ AS
 */  
 BEGIN   
 	SET NOCOUNT ON  
-	
-	-- Write useraction log 
-	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
-			, @SubmittedDate DATETIME = GETDATE()
-			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
-	SET @ID =  NEWID()
-	BEGIN TRY
-		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
-		BEGIN	
-			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidParlayBet_Update '
-					+ CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
+			,@LogActionId		INT
+			,@LogData			NVARCHAR(MAX)
+			,@SB_Error			BIT
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90515
+	SET @SB_Error = 0
+
+	SET @LogData = CASE WHEN @MatchId IS NULL THEN '' ELSE '@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 					+ CASE WHEN @Type IS NULL THEN '' ELSE ',@Type = ' + CONVERT(NVARCHAR(50), @Type) END
 					+ CASE WHEN @LiveHomeScore IS NULL THEN '' ELSE ',@LiveHomeScore = ' + CONVERT(NVARCHAR(50), @LiveHomeScore) END
 					+ CASE WHEN @LiveAwayScore IS NULL THEN '' ELSE ',@LiveAwayScore = ' + CONVERT(NVARCHAR(50), @LiveAwayScore) END
 					+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ''' + CONVERT(NVARCHAR(50), @FromTransdate, 21) + '''' END
 					+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ''' + CONVERT(NVARCHAR(50), @ToTransdate, 21) + '''' END
 					+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) + '''' END
-					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
 					+ CASE WHEN @UserId IS NULL THEN '' ELSE ',@UserId = ' + CONVERT(NVARCHAR(50), @UserId) END
 					+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
 					+ CASE WHEN @UserPassword IS NULL THEN ''ELSE ',@UserPassword = ''' + CONVERT(NVARCHAR(50), @UserPassword) + '''' END
@@ -100,6 +101,16 @@ BEGIN
 					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
 					+ CASE WHEN @Language IS NULL THEN '' ELSE ',@Language = ' + CONVERT(NVARCHAR(50), @Language) END
 
+	-- Write useraction log 
+	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+			, @SubmittedDate DATETIME = GETDATE()
+			, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+	SET @ID =  NEWID()
+	BEGIN TRY
+		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+		BEGIN	
+			SET @sqlCommand = 'EXEC dbo.NAP_SpecialDelete_VoidParlayBet_Update ' + @LogData
+			
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
 		END	
@@ -918,6 +929,20 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 	END CATCH
+
+	-- Write Log
+	SET @EndTime = GETDATE()
+	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'							
+							,@IP AS '@IP'
+							,@MatchId AS '@MatchId'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+								+ @LogData
+							AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS NVARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
 	DROP TABLE #tblTransId  
 	DROP TABLE #BetDelete    
