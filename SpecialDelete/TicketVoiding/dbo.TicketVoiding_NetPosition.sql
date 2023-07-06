@@ -1,11 +1,10 @@
-/*<info serverAlias="DBSIC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIC-bodb02, DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_TicketVoiding_NetPosition]
 	@strTransIds VARCHAR(MAX)
 	,@Action VARCHAR(20)
 AS
 /*	Creator: 20230616@Kathy
 	Task: Net postion
-	DB: DBTXN/BODB02
 	
 	Revisions:
 		- 20230616@Kathy: Migrate NetPosition API & Services to TVS [Redmine:#189706]
@@ -30,7 +29,7 @@ BEGIN
 				,SyncStatus = CASE WHEN isSettled = 1 THEN SyncStatus ELSE 0 END
 		FROM	dbo.NetPositionTrans n WITH(ROWLOCK, UPDLOCK)	
 			INNER JOIN @tmpTransIds t
-				ON .transid = t.transid
+				ON n.transid = t.transid
 	END
 	ELSE IF @Action = 'RECOVER'
 	BEGIN
@@ -44,13 +43,13 @@ BEGIN
 					,actual_stake
 					,CASE 
 									WHEN betteam='h' 
-										THEN actual_stake + stake * (CASE WHEN odds < 0 THEN 1 ELSE odds END)
+										THEN actual_stake + stake * (odds - 1)
 									ELSE 0 
 								END AS Payout1
 																							
 					,CASE 
 									WHEN betteam='a' 
-										THEN actual_stake + stake * (CASE WHEN odds<0 THEN 1 ELSE odds END)
+										THEN actual_stake + stake * (odds - 1)
 									ELSE 0 
 								END AS Payout2				   
 			FROM	@tmpTransIds t
