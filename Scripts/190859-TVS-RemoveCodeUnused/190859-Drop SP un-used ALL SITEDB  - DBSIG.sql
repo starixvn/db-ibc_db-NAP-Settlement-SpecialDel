@@ -35,7 +35,7 @@ OR  name LIKE 'TicketVoiding_LogInfo_KO_Select%'
 OR  name LIKE 'TicketVoiding_LogInfo_OU_Select%'
 OR  name LIKE 'TicketVoiding_LogInfo_Select%'
 OR  name LIKE 'TicketVoiding_LogInfo_WC_Select%'
-OR  name LIKE 'TicketVoiding_LogInfo_WO_Select%'
+OR  name LIKE 'TicketVoiding_LogInfo_WO_Select%' --X
 OR  name LIKE 'TicketVoiding_ManageVoidServices_VoidingHistory_Select%'
 
   /*  File sheet mismatch row 281-306   */
@@ -52,6 +52,7 @@ OR name LIKE 'TicketVoiding_RequestDetail_HDP_Update%'
 OR name LIKE 'TicketVoiding_RequestDetail_KO_Update%'
 OR name LIKE 'TicketVoiding_RequestDetail_OU_Update%'
 OR name LIKE 'TicketVoiding_RequestDetail_WC_Update%'
+OR name LIKE 'TicketVoiding_RequestDetail_WO_Update%' --X
 OR name LIKE 'TicketVoiding_RequestInfo_Copy%'
 OR name LIKE 'TicketVoiding_RequestList_Select'
 OR name LIKE 'TicketVoiding_TicketRequest_Void_Select'
@@ -69,14 +70,14 @@ OR name LIKE 'TicketVoiding_VoidingHistory_Update%'
 
 )
 SELECT * FROM @tmpSPName
---WHILE (1=1)
---BEGIN
---	UPDATE TOP (1) @tmpSPName
---	SET @SPName = SPName, IsDrop = 1
---	WHERE IsDrop IS NULL
+WHILE (1=1)
+BEGIN
+	UPDATE TOP (1) @tmpSPName
+	SET @SPName = SPName, IsDrop = 1
+	WHERE IsDrop IS NULL
 
---	IF @@ROWCOUNT = 0 BREAK;
+	IF @@ROWCOUNT = 0 BREAK;
 	
---	EXEC (@SPName)
+	EXEC (@SPName)
 
---END
+END
