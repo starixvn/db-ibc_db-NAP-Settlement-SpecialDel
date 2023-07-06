@@ -117,4 +117,12 @@ GO
 	TRUNCATE TABLE dbo.zzzbettransm
 	GO
 	TRUNCATE TABLE dbo.sum_winloss
+	GO
+	TRUNCATE TABLE BalanceCreditGame
+	GO
+	TRUNCATE TABLE BalanceDebitGame
+	GO
+	TRUNCATE TABLE Winlimit_CreditGame
+	GO
+	TRUNCATE TABLE Winlimit_DebitGame
 
