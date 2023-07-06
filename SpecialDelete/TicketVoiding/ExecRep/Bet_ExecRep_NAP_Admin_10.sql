@@ -13,6 +13,7 @@ AS
     
     Revisions: 
 		- 20230526@July: Create new SP [Redmine:#188152]
+		- 20230706@Kathy: Add new column winlostdate [Redmine:#190978]
 
     Param's explanation:
        
@@ -183,7 +184,7 @@ BEGIN
 		INSERT INTO dbo.BalanceTrigger (custid, transid, bettype, actual_stake, winlost, playercomm, ActionDate, 
 			ActionID, [Action],
 			BalanceChanged,
-			MatchId, StatusId, SettlementType, swinlost, mwinlost, awinlost, scomm, acomm, comm, modds)
+			MatchId, StatusId, SettlementType, swinlost, mwinlost, awinlost, scomm, acomm, comm, modds, winlostdate)
 		SELECT
 			-- if inserted.custid = 0, this should be VOID + Hidden
 			-- if deleted.custid = 0, this may be Bet Recover
@@ -295,6 +296,7 @@ BEGIN
 			,isnull(i.acomm,0) as acomm
 			,isnull(i.comm,0) as comm
 			,i.modds
+			,i.winlostdate
 		FROM #AfterTransId14 i 
 				INNER JOIN #BeforeTransId14 d ON i.transid = d.transid
 		WHERE d.custid <> d.recommend 
