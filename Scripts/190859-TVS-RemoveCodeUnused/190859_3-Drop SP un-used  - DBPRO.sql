@@ -1,7 +1,7 @@
 /*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20221207@July
-	Task: Drop SP un-used - Special Delete & TVS  [Redmine:#180625]  
+	Task: Drop SP un-used - Special Delete & TVS  [Redmine:#190859]  
 	DB: DBPRO-bodb02
 		   
 */

@@ -67,7 +67,13 @@ OR name LIKE 'TicketVoiding_VoidBetAutomation_Service_Upd%'
 OR name LIKE 'TicketVoiding_VoidingHistory_Insert%'
 OR name LIKE 'TicketVoiding_VoidingHistory_Update%'
 
-
+--------------------------Other
+OR name LIKE 'TicketVoiding_VoidingHistory_Select%'
+OR name LIKE 'TicketVoiding_ABWhiteList_CheckUserName%'
+OR name LIKE 'TicketVoiding_ABWhiteList_Insert%'
+OR name LIKE 'TicketVoiding_ABWhiteList_Select%'
+OR name LIKE 'TicketVoiding_ABWhiteList_SubType_Select%'
+OR name LIKE 'TicketVoiding_ABWhiteList_Update%'
 )
 SELECT * FROM @tmpSPName
 WHILE (1=1)

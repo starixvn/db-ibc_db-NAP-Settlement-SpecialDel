@@ -9,15 +9,56 @@
 USE bodb02
 GO
 
-ALTER TABLE TicketVoiding_Request DROP COLUMN SubIssueTypeId 
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'SubIssueTypeId' AND Object_ID = Object_ID(N'TicketVoiding_Request'))
+BEGIN
+    ALTER TABLE TicketVoiding_Request DROP COLUMN SubIssueTypeId 
+END
+
 GO
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN IsCheckedHomeTeam
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN IsCheckedAwayTeam
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN IsFilterByTransTime
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN FilterFromBetId
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN FilterToBetId
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MinSingleTransId
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MaxSingleTransId
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MinMainParlayTransId
-ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MaxMainParlayTransId
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'IsCheckedHomeTeam' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+    ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN IsCheckedHomeTeam
+END
 GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'IsCheckedAwayTeam' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN IsCheckedAwayTeam
+END
+GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'IsFilterByTransTime' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN IsFilterByTransTime
+END
+GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'FilterFromBetId' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN FilterFromBetId
+END
+GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'FilterToBetId' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN FilterToBetId
+END
+GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'MinSingleTransId' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MinSingleTransId
+END
+GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'MaxSingleTransId' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MaxSingleTransId
+END
+GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'MinMainParlayTransId' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MinMainParlayTransId
+END
+GO
+IF EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'MaxMainParlayTransId' AND Object_ID = Object_ID(N'TicketVoiding_RequestDetail'))
+BEGIN
+	ALTER TABLE TicketVoiding_RequestDetail DROP COLUMN MaxMainParlayTransId
+END
+GO
+
+
