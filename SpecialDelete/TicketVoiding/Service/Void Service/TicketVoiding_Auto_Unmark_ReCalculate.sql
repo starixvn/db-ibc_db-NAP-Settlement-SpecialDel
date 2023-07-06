@@ -8,13 +8,13 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Auto_Unmark_ReCalculate]
 )
 AS
 /*	
-	Created by: Max
-	Date 20230303
+	Created by: 20230303@Max
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20230303@Max: Create new SP [Redmine: #180625]	
+		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 
 	Param's explanation:	
 		
@@ -26,7 +26,6 @@ BEGIN
 			,@ThreadHold				INT = 0-- over threadhold, the parlay process will be locked in systemsetting 
 			,@totalMainParlay			INT = 0
 			,@avaiableProcess			BIT
-			,@isExistMG					BIT = 0
 			,@isExistFM					BIT = 0
 			,@isExistFM2				BIT = 0
 			,@IsExistBB					BIT = 0
@@ -41,7 +40,6 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
-			,@isExistLucky3				BIT = 0
 			,@ErrMsg					NVARCHAR(300) = ''
 			,@ErrCode					INT           = 0
 			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
@@ -174,7 +172,6 @@ BEGIN
 		ELSE
 		BEGIN
 			SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-					,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
 					,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 					,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 					,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
@@ -185,7 +182,6 @@ BEGIN
 					,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 					,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 					,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-					,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 			FROM	#tmpTransId v
 
@@ -284,7 +280,6 @@ BEGIN
 				-- checking single proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
 					, @isExistFM				= @isExistFM
 					, @isExistMatch				= @isExistMatch
 					, @isExistNG				= @isExistNG
@@ -362,7 +357,6 @@ BEGIN
 		BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistOutright 			= @isExistOutright
-				, @isExistMG				= @isExistMG
 				, @isExistFM				= @isExistFM
 				, @isExistMatch				= @isExistMatch
 				, @isExistNG				= @isExistNG
