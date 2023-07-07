@@ -1,5 +1,5 @@
-/*<info serverAlias="DBLOG-bodb_CustomerLog_Archive" executers="" viewers="" isFunction="0"></info>*/
-USE bodb_CustomerLog_Archive
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+USE bodb02
 GO
 
 DECLARE
@@ -38,7 +38,7 @@ BEGIN
 		OUTER APPLY (
 				SELECT  MIN(CASE WHEN Action IN ( 'CAL-HT') THEN s.Starttime ELSE NULL END) AS CalcHalfTime
 				       ,MIN(CASE WHEN Action NOT IN ( 'CAL-HT') THEN s.Starttime ELSE NULL END) AS CalcFullTime
-				FROM dbo.Single_Calculate_Queue_bk s WITH(NOLOCK) 
+				FROM dbo.Single_Calculate_Queue s WITH(NOLOCK) 
 				WHERE t.MatchId = s.MatchId 
 				AND 1 = CASE WHEN t.Sporttype = 1 AND s.Action IN ('CAL', 'CAL-HT', 'CAL-FT') THEN 1
 								WHEN t.Sporttype <> 1 AND s.Action IN ('CAL') AND sqlCommand like '%Resource Id="00"%' THEN 1
@@ -50,7 +50,7 @@ BEGIN
 		   ,CalcHalfTime
 		   ,CalcFullTime
 	FROM @tmpRequestInfo
-
+	WHERE CalcHalfTime IS NOT NULL AND CalcFullTime IS NOT NULL
 END
 GO
 

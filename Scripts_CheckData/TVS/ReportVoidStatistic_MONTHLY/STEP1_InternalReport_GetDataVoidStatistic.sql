@@ -38,8 +38,6 @@ transid bigint
 , FilterBy		TINYINT
 , CreatedBy		NVARCHAR(200)
 , PerformanceBy NVARCHAR(200)
-, First_TransId	BIGINT
-, Last_TransId	BIGINT
 )	
 
 /*Range archive*/																							
@@ -112,7 +110,6 @@ from DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
 				from STRING_SPLIT(mt.BetTransId,',')
 		) as t																								
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
-	AND ms.Content_en LIKE '%VOID%'																							
 	AND ms.IsTest = 0	
 	
 
@@ -186,7 +183,6 @@ FROM DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK)
 				from STRING_SPLIT(mt.BetTransId,',')
 		) as t																								
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
-	AND ms.Content_en LIKE '%VOID%'
 	AND ms.IsTest = 0																								
 																									
 
@@ -358,12 +354,11 @@ ms.FunctionGroup, bk.winlostdate, CASE WHEN ms.IssueTypeId IN (11,13) THEN ms.Su
 	, ms.RequestId, ms.IssueType, ms.SubIssueType
 	, ms.CreatedBy,ms.Request_CreatedDate AS CreatedDate, ms.FromTimeUI, ms.ToTimeUI
 	, ms.MistakenBy, ms.DecidedBy, ms.PerformanceBy
-	, CASE WHEN ms.FunctionGroup = 'TVS' THEN MIN(transdate) ELSE NULL END AS MIN_Transdate
-	, CASE WHEN ms.FunctionGroup = 'TVS' THEN MAX(transdate) ELSE NULL END AS MAX_Transdate
 FROM #temp_transid ms with (nolock)																									
 	INNER JOIN bettrans_bk bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102																					
+WHERE bk.winlostdate >= @from
 GROUP BY ms.FunctionGroup, bk.winlostdate, CASE WHEN ms.IssueTypeId IN (11,13) THEN ms.SubIssueType ELSE ms.Reason END, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup	
 , ms.RequestId, ms.IssueType, ms.SubIssueType,ms.Request_CreatedDate, ms.FromTimeUI, ms.ToTimeUI, ms.MessageContent	, ms.IssueTypeId, ms.SubIssueTypeId																								
 , ms.CreatedBy,ms.MistakenBy, ms.DecidedBy, ms.PerformanceBy		
@@ -378,12 +373,11 @@ SELECT
 	, ms.RequestId, ms.IssueType, ms.SubIssueType
 	, ms.CreatedBy,ms.Request_CreatedDate AS CreatedDate, ms.FromTimeUI, ms.ToTimeUI
 	, ms.MistakenBy, ms.DecidedBy, ms.PerformanceBy
-    , CASE WHEN ms.FunctionGroup = 'TVS' THEN MIN(transdate) ELSE NULL END AS MIN_Transdate
-	, CASE WHEN ms.FunctionGroup = 'TVS' THEN MAX(transdate) ELSE NULL END AS MAX_Transdate
 FROM #temp_transid ms with (nolock)																									
 	INNER JOIN bodb02.dbo.bettrans14 bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102
+WHERE bk.winlostdate >= @from
 GROUP BY ms.FunctionGroup, bk.winlostdate, CASE WHEN ms.IssueTypeId IN (11,13) THEN ms.SubIssueType ELSE ms.Reason END, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup	
 , ms.RequestId, ms.IssueType, ms.SubIssueType,ms.Request_CreatedDate, ms.FromTimeUI, ms.ToTimeUI, ms.MessageContent	, ms.IssueTypeId, ms.SubIssueTypeId																								
 , ms.CreatedBy,ms.MistakenBy, ms.DecidedBy, ms.PerformanceBy		
@@ -398,12 +392,11 @@ SELECT
 	, ms.RequestId, ms.IssueType, ms.SubIssueType
 	, ms.CreatedBy,ms.Request_CreatedDate AS CreatedDate, ms.FromTimeUI, ms.ToTimeUI
 	, ms.MistakenBy, ms.DecidedBy, ms.PerformanceBy
-    , CASE WHEN ms.FunctionGroup = 'TVS' THEN MIN(transdate) ELSE NULL END AS MIN_Transdate
-	, CASE WHEN ms.FunctionGroup = 'TVS' THEN MAX(transdate) ELSE NULL END AS MAX_Transdate
 FROM #temp_transid ms with (nolock)																									
 	INNER JOIN bodb02.dbo.bettrans bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102		
+WHERE bk.winlostdate >= @from
 GROUP BY ms.FunctionGroup, bk.winlostdate, CASE WHEN ms.IssueTypeId IN (11,13) THEN ms.SubIssueType ELSE ms.Reason END, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup	
 , ms.RequestId, ms.IssueType, ms.SubIssueType,ms.Request_CreatedDate, ms.FromTimeUI, ms.ToTimeUI, ms.MessageContent, ms.IssueTypeId, ms.SubIssueTypeId																					
 , ms.CreatedBy,ms.MistakenBy, ms.DecidedBy, ms.PerformanceBy		
