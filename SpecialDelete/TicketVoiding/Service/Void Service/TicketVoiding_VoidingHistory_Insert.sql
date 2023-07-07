@@ -44,7 +44,7 @@ BEGIN
 	BEGIN
 		SET @VoidData.modify('             
 					insert attribute DecidedBy {sql:variable("@DecidedBy") }             
-					into   (/VoiData)[1] '
+					into   (/VoidData)[1] '
 				); 
 	END
 
