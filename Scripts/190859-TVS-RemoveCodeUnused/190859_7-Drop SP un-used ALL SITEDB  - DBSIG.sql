@@ -8,10 +8,6 @@
 USE bodb02
 GO
 --Drop SP ALL SITEDB
-
-USE bodb02
-GO
-
 DECLARE @SPName VARCHAR(MAX)
 DECLARE @tmpSPName TABLE ( SPName VARCHAR(MAX), IsDrop BIT)
 
@@ -54,9 +50,9 @@ OR name LIKE 'TicketVoiding_RequestDetail_OU_Update%'
 OR name LIKE 'TicketVoiding_RequestDetail_WC_Update%'
 OR name LIKE 'TicketVoiding_RequestDetail_WO_Update%' --X
 OR name LIKE 'TicketVoiding_RequestInfo_Copy%'
-OR name LIKE 'TicketVoiding_RequestList_Select'
-OR name LIKE 'TicketVoiding_TicketRequest_Void_Select'
-OR name LIKE 'TicketVoiding_Void_Select'
+OR name LIKE 'TicketVoiding_RequestList_Select%'
+OR name LIKE 'TicketVoiding_TicketRequest_Void_Select%'
+OR name LIKE 'TicketVoiding_Void_Select%'
 
   /*  File sheet mismatch row 311-318  */
 OR name LIKE 'TicketVoiding_Void14_Select%'
@@ -74,6 +70,28 @@ OR name LIKE 'TicketVoiding_ABWhiteList_Insert%'
 OR name LIKE 'TicketVoiding_ABWhiteList_Select%'
 OR name LIKE 'TicketVoiding_ABWhiteList_SubType_Select%'
 OR name LIKE 'TicketVoiding_ABWhiteList_Update%'
+OR name LIKE 'TicketVoiding_VoidedTransaction_Insert%'
+OR name LIKE 'TicketVoiding_VoidedTransaction_Delete%'
+OR name LIKE 'TicketVoiding_CheckTickets14%'
+OR name LIKE 'TicketVoiding_Reason_Insert%'
+OR name LIKE 'TicketVoiding_Reason_Select%'
+OR name LIKE 'TicketVoiding_ReasonTemplate_Select%'
+OR name LIKE 'TicketVoiding_RequestInfo_Select%'
+OR name LIKE 'TicketVoiding_RequestListInfo_Select%'
+OR name LIKE 'TicketVoiding_CheckTickets14%'
+OR name LIKE 'TicketVoiding_Reason_Insert%'
+OR name LIKE 'TicketVoiding_Reason_Select%'
+OR name LIKE 'TicketVoiding_ReasonTemplate_Select%'
+OR name LIKE 'TicketVoiding_RequestInfo_Select%'
+OR name LIKE 'TicketVoiding_RequestListInfo_Select%'
+OR name LIKE 'TicketVoiding_MessageTemplate_IssueType_Select%'
+OR name LIKE 'TicketVoiding_MessageTemplate_Select%'
+OR name LIKE 'TicketVoiding_MessageTemplate_SubIssueType_Select%'
+OR name LIKE 'TicketVoiding_MessageTemplate_Settings_Select%'
+OR name LIKE 'TicketVoiding_Action_Select%'
+OR name LIKE 'TicketVoiding_LastModifiedDate_Select%'
+OR name LIKE 'TicketVoiding_BettypesForRequest_Select%'
+OR name LIKE 'TicketVoiding_RequestDetail_ACC_Update%'
 )
 SELECT * FROM @tmpSPName
 WHILE (1=1)

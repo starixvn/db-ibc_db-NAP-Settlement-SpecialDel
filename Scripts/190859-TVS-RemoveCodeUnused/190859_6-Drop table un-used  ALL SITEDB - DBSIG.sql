@@ -59,5 +59,6 @@ GO
 IF OBJECT_ID('TicketVoiding_OperatorInfo','U') IS NOT NULL 
 	DROP TABLE TicketVoiding_OperatorInfo
 GO
-
-
+IF OBJECT_ID('TicketVoiding_Letstalk','U') IS NOT NULL 
+	DROP TABLE TicketVoiding_Letstalk
+GO
