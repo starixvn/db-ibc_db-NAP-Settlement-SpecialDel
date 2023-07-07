@@ -77,5 +77,16 @@ VALUES (90512,
 		'Void Early KO Bet',
 		'Void Early KO Bet',
 		0
+		),
+	(90518, 
+		'NAP_BettransDelSpecial_NumberGame', 
+		'Void Number Game Bet',
+		'Void Number Game Bet',
+		'Void Number Game Bet',
+		'Void Number Game Bet',
+		'Void Number Game Bet',
+		'Void Number Game Bet',
+		'Void Number Game Bet',
+		0
 		)
 select * from dbo.LogAction where ActionID >= 90512 and ActionID<=91000

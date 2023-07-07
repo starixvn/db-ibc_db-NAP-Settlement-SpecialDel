@@ -45,7 +45,8 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
+
 	Param's Explanation: 
 		- @Opition: 
 			0: By MatchID
@@ -55,6 +56,30 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
+	DECLARE @StartTime			DATETIME
+			,@EndTime			DATETIME
+			,@LogActionId		INT
+			,@LogData			NVARCHAR(MAX)
+			,@SB_Error			BIT
+
+	SET @StartTime = GETDATE()
+	SET @LogActionId = 90518
+	SET @SB_Error = 0
+
+	SET @LogData = CASE WHEN @Option IS NULL THEN '' ELSE '@Option = ' + CONVERT(NVARCHAR(50), @Option) END
+					+ CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
+					+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
+					+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ''' + CONVERT(NVARCHAR(50), @FromTransdate, 21) + '''' END
+					+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ''' + CONVERT(NVARCHAR(50), @ToTransdate, 21) + '''' END
+					+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) + '''' END
+					+ CASE WHEN @BallSequence IS NULL THEN '' ELSE ',@BallSequence = ''' + CONVERT(NVARCHAR(200), @BallSequence) + ''''  END
+					+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
+					+ CASE WHEN @UserPwd IS NULL THEN '' ELSE ',@UserPwd = ''' + CONVERT(NVARCHAR(50), @UserPwd) + '''' END
+					+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
+					+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
+					+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
+					+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+
 	-- Write useraction log 
 	DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
 			, @SubmittedDate DATETIME = GETDATE()
@@ -63,20 +88,7 @@ BEGIN
 	BEGIN TRY
 		IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
 		BEGIN
-			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecial_NumberGame '
-				+ CASE WHEN @Option IS NULL THEN '' ELSE '@Option = ' + CONVERT(NVARCHAR(50), @Option) END
-				+ CASE WHEN @MatchId IS NULL THEN '' ELSE ',@MatchId = ' + CONVERT(NVARCHAR(50), @MatchId) END
-				+ CASE WHEN @FromTransdate IS NULL THEN '' ELSE ',@FromTransdate = ''' + CONVERT(NVARCHAR(50), @FromTransdate, 21) + '''' END
-				+ CASE WHEN @ToTransdate IS NULL THEN '' ELSE ',@ToTransdate = ''' + CONVERT(NVARCHAR(50), @ToTransdate, 21) + '''' END
-				+ CASE WHEN @BetTypes IS NULL THEN '' ELSE ',@BetTypes = ''' + CONVERT(NVARCHAR(MAX), @BetTypes) + '''' END
-				+ CASE WHEN @BallSequence IS NULL THEN '' ELSE ',@BallSequence = ''' + CONVERT(NVARCHAR(200), @BallSequence) + ''''  END
-				+ CASE WHEN @TransIds IS NULL THEN '' ELSE ',@TransIds = ''' + CONVERT(NVARCHAR(MAX), @TransIds) + '''' END
-				+ CASE WHEN @UserName IS NULL THEN '' ELSE ',@UserName = ''' + CONVERT(NVARCHAR(50), @UserName) + '''' END
-				+ CASE WHEN @UserPwd IS NULL THEN '' ELSE ',@UserPwd = ''' + CONVERT(NVARCHAR(50), @UserPwd) + '''' END
-				+ CASE WHEN @UserID IS NULL THEN '' ELSE ',@UserID = ' + CONVERT(NVARCHAR(50), @UserID) END
-				+ CASE WHEN @IP IS NULL THEN '' ELSE ',@IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' END
-				+ CASE WHEN @Reason IS NULL THEN '' ELSE ',@Reason = ''' + CONVERT(NVARCHAR(500), @Reason) + '''' END
-				+ CASE WHEN @ReasonSC IS NULL THEN '' ELSE ',@ReasonSC = ''' + CONVERT(NVARCHAR(500), @ReasonSC) + '''' END
+			SET @sqlCommand = 'EXEC dbo.NAP_BettransDelSpecial_NumberGame ' + @LogData
 				
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
 			VALUES (@ID, @spName, @sqlCommand, @UserId, @MatchId, GETDATE(),@SubmittedDate)
@@ -814,6 +826,20 @@ BEGIN
 	END TRY
 	BEGIN CATCH
 	END CATCH
+
+	SET @EndTime = GETDATE()
+	SET @LogData = CAST((SELECT	@LogActionId AS '@LogActionId'
+							,@UserId AS '@UserId'							
+							,@IP AS '@IP'
+							,CASE WHEN @Option = 0 THEN @MatchId ELSE 0 END AS '@MatchId'
+							,'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR(50)) + ' ms.'
+								+ @LogData
+							AS '@LogData'
+					FOR XML PATH ('r'), ROOT ('root'), TYPE
+	) AS NVARCHAR(MAX))
+
+	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+
 
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblTransId
