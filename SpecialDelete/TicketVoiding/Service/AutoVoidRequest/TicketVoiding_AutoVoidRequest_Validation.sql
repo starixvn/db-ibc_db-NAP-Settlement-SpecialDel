@@ -18,6 +18,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 
 	Param's explanation:
 		
@@ -44,8 +45,8 @@ BEGIN
 		, TicketType TINYINT
 	)
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 	CREATE TABLE #SingleTickets_ReSettle (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, TicketType TINYINT)
 	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
@@ -157,21 +158,27 @@ BEGIN
 	END
 	IF @IssueTypeId = 13
 	BEGIN
-		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType)
+		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId
 			,t.RequestId
 			,t.MatchId
 			,t.IssueTypeId
 			,t.TicketType
+			,b.transdate
+			,b.winlostdate
+			,b.statusID
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType <> 2
 
-		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId)
+		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
 		SELECT t.TransId
 			,t.RequestId
 			,t.MatchId
 			,t.IssueTypeId
+			,b.transdate
+			,b.winlostdate
+			,b.statusID
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType = 2
@@ -188,11 +195,38 @@ BEGIN
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 		END
 	END
+	IF @IssueTypeId = 19 --ReducedOver Cricket
+	BEGIN
+		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
+		SELECT t.TransId
+			,t.RequestId
+			,t.MatchId
+			,t.IssueTypeId
+			,t.TicketType
+			,b.transdate
+			,b.winlostdate
+			,b.statusID
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType <> 2
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 1 --SingleVoid
+		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
+		SELECT t.TransId
+			,t.RequestId
+			,t.MatchId
+			,t.IssueTypeId
+			,b.transdate
+			,b.winlostdate
+			,b.statusID
+		FROM #tmpInputTransId t
+			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.TicketType = 2
+	END
+
+	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets WHERE TicketType = 1 --SingleVoid
 	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 1  --SingleReSettle
 
-	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets --Parlayvoid
+	SELECT TransId, RequestId, MatchId, IssueTypeId, transdate, winlostdate, statusId FROM #ParlayTickets --Parlayvoid
 	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #ParlayTickets_ReSettle --ParlayReSettle
 
 	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets WHERE TicketType = 4 --CricketVoid

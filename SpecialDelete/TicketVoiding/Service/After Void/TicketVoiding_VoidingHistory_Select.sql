@@ -9,6 +9,7 @@ AS
 	Revisions: 
 		- 20201203@Charles: Optimize Voiding Workflow [Redmine: #145719]
 		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		
 	Param's explanation:	
 	
@@ -49,6 +50,8 @@ BEGIN
 		,VoidFromDate NVARCHAR(20)
 		,VoidToDate NVARCHAR(20)
 		,IsHasSettledTicket BIT
+		,TotalTicket INT --totalTicket
+		,IsRunManualAfterVoid BIT
 	)
 
 	INSERT INTO #tmpVoidingHistory (VoidingHistoryId, VoidData)
@@ -75,7 +78,7 @@ BEGIN
 								, Reason, ReasonSC, ContentChineseTraditional, ContentChineseSimplified, ContentNewChineseSimplified
 								, ContentEnglish, ContentSpanish, ContentItalian, ContentJapanese, ContentKorean
 								, ContentThai, CreatorId, CreatorName, DecidedBy, VoidFromTime
-								, VoidToTime, VoidFromDate, VoidToDate, IsHasSettledTicket
+								, VoidToTime, VoidFromDate, VoidToDate, IsHasSettledTicket, TotalTicket, IsRunManualAfterVoid
 						)
 		SELECT 
 			 @VoidingHistoryId AS VoidingHistoryId
@@ -102,6 +105,8 @@ BEGIN
 			,T.C.value('@VoidFromDate', 'NVARCHAR(20)') AS VoidFromDate
 			,T.C.value('@VoidToDate', 'NVARCHAR(20)') AS VoidToDate
 			,T.C.value('@IsHasSettledTicket', 'BIT') AS IsHasSettledTicket
+			,T.C.value('@totalTicket', 'INT') AS TotalTicket
+			,T.C.value('@IsRunManualAfterVoid', 'BIT') AS IsRunManualAfterVoid
 		FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
 		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
 	END
@@ -131,6 +136,8 @@ BEGIN
 		,VoidFromDate 
 		,VoidToDate 
 		,IsHasSettledTicket 
+		,TotalTicket
+		,IsRunManualAfterVoid
 	FROM #tmpVoidData
 
 	DROP TABLE #tmpVoidingHistory

@@ -19,6 +19,7 @@ AS
 		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		
 	Param's explanation:	
 		
@@ -26,11 +27,26 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE @DecidedBy NVARCHAR(400) = ''
+
 	DECLARE @VoidingHistory_tmp AS TABLE (VoidingHistoryId INT, RequestId INT)
-	DECLARE @RequestId_tmp AS TABLE (RequestId INT)
+	DECLARE @RequestId_tmp AS TABLE (RequestId INT)	
 
 	INSERT INTO @RequestId_tmp (RequestId)
 	SELECT value FROM STRING_SPLIT (@RequestIds, ',')
+
+	--Add attribute for void instant abnormal account, reduced over
+	SET @DecidedBy = (SELECT TOP(1) r.DecidedBy
+					FROM @RequestId_tmp t
+						INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = t.RequestId
+					WHERE r.IssueTypeId IN (13,19) AND r.ActionId = 4)
+	IF @DecidedBy <> ''
+	BEGIN
+		SET @VoidData.modify('             
+					insert attribute DecidedBy {sql:variable("@DecidedBy") }             
+					into   (/VoiData)[1] '
+				); 
+	END
 
 	IF NOT EXISTS ( SELECT TOP(1) 1 
 					FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK) 
