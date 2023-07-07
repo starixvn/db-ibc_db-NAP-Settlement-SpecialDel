@@ -125,4 +125,8 @@ GO
 	TRUNCATE TABLE Winlimit_CreditGame
 	GO
 	TRUNCATE TABLE Winlimit_DebitGame
+	GO
+	TRUNCATE TABLE BonusWalletCredit
+	GO
+	TRUNCATE TABLE BonusWalletDebit
 
