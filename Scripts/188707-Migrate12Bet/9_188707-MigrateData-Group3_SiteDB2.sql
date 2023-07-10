@@ -8,7 +8,7 @@
 	Revisions:
 		- 20230602@Louisa: Migrate 12Bet from DBTrans to SiteDB2 Redmineid:#188707 
 
-	Note: Run on SITEDB01	
+	Note: Run on SITEDB02	
 		Group 3: all but not (bettrans14, bettransm14, BetParlayDetail, BettransInfo14, Task_bettrans14_IP2Country,bettrans, transfer, bettransm, BettransInfo, Transfer_Coll, TransferInfo)
 */
 
