@@ -23,6 +23,8 @@ BEGIN
 	CREATE TABLE #tmpVoidingHistory(
 		VoidingHistoryId INT
 		,VoidData XML
+		,BroadcastSessionId VARCHAR(100)
+		,RequestId	INT
 		,IsFinish BIT
 	)
 	CREATE TABLE #tmpVoidData (	
@@ -54,14 +56,20 @@ BEGIN
 		,IsRunManualAfterVoid BIT
 	)
 
-	INSERT INTO #tmpVoidingHistory (VoidingHistoryId, VoidData)
-	SELECT s.VoidingHistoryId, vh.VoidData
-	FROM TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+	INSERT INTO #tmpVoidingHistory (VoidingHistoryId, VoidData, BroadcastSessionId, RequestId)
+	SELECT s.VoidingHistoryId, vh.VoidData, vh.BroadcastSessionId, vh.RequestId
+	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		CROSS APPLY (
 			SELECT value AS VoidingHistoryId 
 			FROM STRING_SPLIT(@VoidingHistoryIds,',') s
 			WHERE vh.VoidingHistoryId = s.value
 		)s
+
+	INSERT INTO #tmpVoidingHistory (VoidingHistoryId, VoidData, BroadcastSessionId, RequestId)
+	SELECT vh.VoidingHistoryId, vh.VoidData, vh.BroadcastSessionId, vh.RequestId
+	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
+		INNER JOIN #tmpVoidingHistory t ON t.RequestId = vh.RequestId AND t.BroadcastSessionId = vh.BroadcastSessionId
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tmpVoidingHistory t WHERE t.VoidingHistoryId = vh.VoidingHistoryId)
 
 	WHILE (1=1)
 	BEGIN
