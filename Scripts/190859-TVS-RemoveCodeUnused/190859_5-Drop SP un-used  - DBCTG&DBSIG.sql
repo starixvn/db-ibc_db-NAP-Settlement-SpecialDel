@@ -80,6 +80,8 @@ OR  name LIKE 'TicketVoiding_MatchInfo_Select%'
 OR  name LIKE 'TicketVoiding_Queue_Checking%'
 OR  name LIKE 'TicketVoiding_CheckingProcess%'
 OR  name LIKE 'NAP_BettransSpecialDelBetID_Del%'
+OR  name LIKE 'DBA_VoidTickets'
+OR  name LIKE 'DBA_VoidTickets14'
 )
 SELECT * FROM @tmpSPName
 WHILE (1=1)

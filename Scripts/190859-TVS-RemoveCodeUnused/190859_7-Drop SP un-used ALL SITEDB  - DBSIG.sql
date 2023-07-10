@@ -92,6 +92,13 @@ OR name LIKE 'TicketVoiding_Action_Select%'
 OR name LIKE 'TicketVoiding_LastModifiedDate_Select%'
 OR name LIKE 'TicketVoiding_BettypesForRequest_Select%'
 OR name LIKE 'TicketVoiding_RequestDetail_ACC_Update%'
+
+OR name LIKE 'TicketVoiding_VoidBetAutomation_AfterVoid_Select%'
+OR name LIKE 'TicketVoiding_VoidBetAutomation_Letstalk_Select%'
+OR name LIKE 'TicketVoiding_Letstalk_Insert%'
+OR name LIKE 'TicketVoiding_Letstalk_Update%'
+OR name LIKE 'TicketVoiding_TicketProcess_Update%'
+OR name LIKE 'Bet_ExecRep_NAP_Admin_01%'
 )
 SELECT * FROM @tmpSPName
 WHILE (1=1)
