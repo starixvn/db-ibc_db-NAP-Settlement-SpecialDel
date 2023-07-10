@@ -36,11 +36,12 @@ FROM @tmp_Request t
 	)b
 GROUP BY t.RequestId, s.MatchId
 
-SELECT RequestId, MatchId, TotalTicket, Min_Trans, Max_Trans, Min_TransDate, Max_TransDate
+SELECT RequestId, MatchId, TotalTicket
 	,CASE WHEN Live_cnt > 0 AND NonLive_cnt > 0 THEN 'Both'
 		WHEN Live_cnt > 0 AND NonLive_cnt = 0 THEN 'Liveball'
 		WHEN Live_cnt = 0 AND NonLive_cnt > 0 THEN 'Deadball'
 	END AS Liveindicator
+	, Min_Trans, Max_Trans, Min_TransDate, Max_TransDate
 FROM #Result
 
 DROP TABLE #Result

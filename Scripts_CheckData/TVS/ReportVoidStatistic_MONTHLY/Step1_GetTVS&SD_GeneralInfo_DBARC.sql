@@ -402,7 +402,12 @@ GROUP BY ms.FunctionGroup, bk.winlostdate, CASE WHEN ms.IssueTypeId IN (11,13) T
 , ms.CreatedBy,ms.MistakenBy, ms.DecidedBy, ms.PerformanceBy		
 ORDER BY winlostdate																									
 
-	--Support get calculate time 
+	--Support get request => STEP 2.1 & 2.2
+	SELECT STUFF((SELECT DISTINCT ',' + RequestId
+						FROM #temp_transid
+						FOR XML PATH ('')),1,1,'') AS RequestIds
+
+	--Support get calculate time => STEP 3.1 & 3.2
 	SET @RequestInfoGetCalcTimes = COMPRESS((SELECT RequestId AS 'req'
 		  ,Sporttype AS 's'
 		  ,MatchId AS 'mid'
