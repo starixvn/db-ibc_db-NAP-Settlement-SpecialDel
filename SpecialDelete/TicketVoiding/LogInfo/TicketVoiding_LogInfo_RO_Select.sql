@@ -621,7 +621,6 @@ BEGIN
 		,SUM(SettleCount) AS SettleCount
 		,SUM(MainParlayCount) AS MainParlayCount
 	FROM #logInfo l
-	GROUP BY MatchId
 
 	-- 4. List ticket unmark   (if any)
 	SELECT @UnmarkTransIds AS UnmarkTransIds
