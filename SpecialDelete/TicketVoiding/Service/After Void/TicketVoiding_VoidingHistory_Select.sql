@@ -53,7 +53,7 @@ BEGIN
 		,VoidToDate NVARCHAR(20)
 		,IsHasSettledTicket BIT
 		,TotalTicket INT --totalTicket
-		,IsRunManualAfterVoid BIT
+		,IsRunAutoAfterVoid BIT
 	)
 
 	INSERT INTO #tmpVoidingHistory (VoidingHistoryId, VoidData, BroadcastSessionId, RequestId)
@@ -86,7 +86,7 @@ BEGIN
 								, Reason, ReasonSC, ContentChineseTraditional, ContentChineseSimplified, ContentNewChineseSimplified
 								, ContentEnglish, ContentSpanish, ContentItalian, ContentJapanese, ContentKorean
 								, ContentThai, CreatorId, CreatorName, DecidedBy, VoidFromTime
-								, VoidToTime, VoidFromDate, VoidToDate, IsHasSettledTicket, TotalTicket, IsRunManualAfterVoid
+								, VoidToTime, VoidFromDate, VoidToDate, IsHasSettledTicket, TotalTicket, IsRunAutoAfterVoid
 						)
 		SELECT 
 			 @VoidingHistoryId AS VoidingHistoryId
@@ -114,7 +114,7 @@ BEGIN
 			,T.C.value('@VoidToDate', 'NVARCHAR(20)') AS VoidToDate
 			,T.C.value('@IsHasSettledTicket', 'BIT') AS IsHasSettledTicket
 			,T.C.value('@totalTicket', 'INT') AS TotalTicket
-			,T.C.value('@IsRunManualAfterVoid', 'BIT') AS IsRunManualAfterVoid
+			,T.C.value('@IsRunAutoAfterVoid', 'BIT') AS IsRunAutoAfterVoid
 		FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
 		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
 	END
@@ -145,7 +145,7 @@ BEGIN
 		,VoidToDate 
 		,IsHasSettledTicket 
 		,TotalTicket
-		,IsRunManualAfterVoid
+		,IsRunAutoAfterVoid
 	FROM #tmpVoidData
 
 	DROP TABLE #tmpVoidingHistory
