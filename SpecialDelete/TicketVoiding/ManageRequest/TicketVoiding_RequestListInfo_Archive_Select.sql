@@ -27,14 +27,14 @@ BEGIN
     IF EXISTS (SELECT TOP 1 1 
                FROM   dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
 					INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799 )
-            WHERE r.CreatedDate BETWEEN @FromDate AND @ToDate
+            WHERE CONVERT(DATE, r.CreatedDate) BETWEEN @FromDate AND @ToDate
 		) 
     BEGIN      
         INSERT INTO @tmpResult (requestid) 
 		SELECT r.requestid
 		FROM  dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
 			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799 )
-		WHERE r.CreatedDate BETWEEN @FromDate AND @ToDate 
+		WHERE CONVERT(DATE, r.CreatedDate) BETWEEN @FromDate AND @ToDate 
 		GROUP  BY r.requestid
     END 
 
