@@ -25,6 +25,7 @@ AS
 		- 20230104@Kathy: get sitedbgroupid 
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
+		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 
 	Param's explanation:  
 		
@@ -114,7 +115,7 @@ BEGIN
 	---- Match Auto
 	SET @remoteQuery = 'SELECT  r.matchid, MAX(r.StatusId) AS StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
-						WHERE r.CreatedDate >= ''' + @CheckDate  +'''
+						WHERE ISNULL(r.SourceID,0) = 0 AND r.CreatedDate >= ''' + @CheckDate  +'''
 						GROUP BY r.MatchId
 						'
 									

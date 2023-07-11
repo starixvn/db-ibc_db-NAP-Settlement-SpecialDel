@@ -56,6 +56,7 @@ AS
 			- 20230215@Aries: Apply Settlement by Profile for Remaining Sports - Fix issue [Redmine: #182677]
 			- 20230406@Louisa: Include marked ticket flow [Redmine:#186140]
 			- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
+			- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -343,6 +344,7 @@ BEGIN
 						SELECT TOP 1 r.matchid, r.StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 						WHERE r.matchid = m.matchid
+							AND ISNULL(r.SourceID,0) = 0
 						ORDER BY r.StatusId DESC
 					) os
 		WHERE m.HasAutoPayout = 1
@@ -489,6 +491,7 @@ BEGIN
 						SELECT TOP 1 r.matchid, r.StatusId
 						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
 						WHERE r.matchid = m.matchid
+							AND ISNULL(r.SourceID,0) = 0
 						ORDER BY r.StatusId DESC
 					) os
 		WHERE m.HasAutoPayout = 1
