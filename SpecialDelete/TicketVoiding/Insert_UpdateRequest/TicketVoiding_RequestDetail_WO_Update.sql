@@ -11,11 +11,15 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_WO_Update]
 )
 AS
 /*	
-	Created by: 20230419@Max
-	Task: [TVS] New issue type Wrong Odds [Redmine: #179934]
+	Created by: 20220808@July
+	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
+		- 20220808@July: Create new SP - Split code issuetype wrong OU & wrong 1st OU [Redmine: #175412]
+		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
+		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 
 	Param's explanation:

@@ -7,6 +7,13 @@
 */
 USE bodb02
 GO
+
+
+---------------------------Drop 1 function-------------------------
+IF OBJECT_ID(N'f_TVS_CheckingIssueTypePHBettypes', N'FN') IS NOT NULL
+	DROP FUNCTION f_TVS_CheckingIssueTypePHBettypes
+GO
+
 --Drop SP ALL SITEDB
 DECLARE @SPName VARCHAR(MAX)
 DECLARE @tmpSPName TABLE ( SPName VARCHAR(MAX), IsDrop BIT)
@@ -112,3 +119,6 @@ BEGIN
 	EXEC (@SPName)
 
 END
+
+
+

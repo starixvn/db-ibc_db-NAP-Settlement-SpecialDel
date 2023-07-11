@@ -51,13 +51,11 @@ BEGIN
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
 	
-	DECLARE @StartTime			DATETIME
-			,@EndTime			DATETIME
-			,@LogActionId		INT
+	DECLARE @LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@xmlTransId		VARCHAR(MAX)
-			,@refnos_29				 VARCHAR(MAX) = '' 
-			,@SiteDBGroupID SMALLINT = 0 
+			,@refnos_29			VARCHAR(MAX) = '' 
+			,@SiteDBGroupID		SMALLINT = 0 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -65,7 +63,6 @@ BEGIN
 
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
-
 	
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
@@ -87,7 +84,6 @@ BEGIN
 	SELECT	value AS TransId
 	FROM STRING_SPLIT(@TransIds, ',')
 
-	SET @StartTime = GETDATE()
 	SET @LogActionId = 90503
 	SET @SB_Error = 0
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
@@ -503,7 +499,6 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
 	-- Write Log
-	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	0 AS '@RequestId'
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'
@@ -517,4 +512,6 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
 	DROP TABLE #tmpTransId
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblMatchParlayProcess
 END

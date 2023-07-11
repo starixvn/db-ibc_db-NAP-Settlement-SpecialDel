@@ -45,7 +45,7 @@ BEGIN
 			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
 			,@limitsecond				INT	= 300
 			,@StartTime_Retry			DATETIME
-			,@SiteDBGroupID SMALLINT = 0 
+			,@SiteDBGroupID				SMALLINT = 0 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -56,7 +56,6 @@ BEGIN
 		,custid				INT
 		,bettype			SMALLINT
 		,Refno				BIGINT
-		,balanceType		TINYINT
 		,betid				BIGINT
 		,sporttype			SMALLINT
 		,MatchId			INT
@@ -73,9 +72,8 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 
-	INSERT INTO #tmpTransId(TransId, custid, bettype, balanceType, betid, Refno, MatchId, OddsId, ruben)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, betid, Refno, MatchId, OddsId, ruben)
 	SELECT	b.transid, b.custid, b.bettype
-			,1 AS balanceType
 			, b.betid, b.refno
 			, @MatchId
 			, b.oddsid
@@ -370,4 +368,6 @@ BEGIN
 	END
 
 	DROP TABLE #tmpTransId
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblMatchParlayProcess
 END

@@ -116,11 +116,9 @@ BEGIN
 		,bettype			SMALLINT
 		,KeyId				TINYINT DEFAULT(1)
 		,Refno				BIGINT
-		,TicketType			TINYINT 
 		,betid				BIGINT
 		,betdaqid			BIGINT
 		,extrainfo			VARCHAR(1000)
-		,awinlost			MONEY
 		,actual_stake		MONEY
 		,refcode			BIGINT
 		,sporttype			SMALLINT
@@ -131,9 +129,6 @@ BEGIN
 		,isFinish			BIT
 		,srecommend			INT
 		,ruben				TINYINT
-		,bonusId			INT
-		,WalletType			TINYINT	
-		,SiteDBGroupId		SMALLINT
 	)
 
 	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
@@ -144,9 +139,8 @@ BEGIN
 		TransId				BIGINT
 		,betid				BIGINT
 		,Refno				BIGINT
-		,TicketType			TINYINT 
 		,actual_stake		MONEY
-		,betdaqid BIGINT
+		,betdaqid			BIGINT
 	)
 
 	DECLARE @CashoutTickets_tmp AS TABLE (TransID BIGINT,custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, bonusId INT, WalletType TINYINT, status VARCHAR(20))
@@ -174,7 +168,7 @@ BEGIN
 	FROM dbo.match WITH(NOLOCK)
 	WHERE matchid = @MatchId
 		
-	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, TicketType, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
+	INSERT INTO #tmpTransId(TransId, custid, bettype, KeyId, betdaqid, extrainfo, refcode, betid, matchid, oddsid, winlostdate, Refno, srecommend, ruben)
 	SELECT	b.transid, b.custid, b.bettype
 			,CASE 
 				WHEN b.bettype = 38 THEN 5
@@ -182,7 +176,6 @@ BEGIN
 				WHEN f.GroupId = 2 THEN 7
 				ELSE 1 				
 			END AS KeyId
-			,1 AS TicketType
 			,b.betdaqid, b.ExtraInfo, b.RefCode, b.betid
 			,b.matchid, b.oddsid
 			,b.winlostdate, b.refno
@@ -483,12 +476,7 @@ BEGIN
 	--Insert tmp table for correct balance CO
 	INSERT INTO @tmpTrans_beforeUpd (transid,custid, Balance,Bonusid, WalletType, betdaqid)
 	SELECT main.transid,main.custid
-		, main.winlost - 
-					CASE 
-						WHEN t.TicketType = 5 THEN t.actual_stake -- get actual_stake from translog
-						ELSE main.actual_stake 
-					END  
-				+ playercomm as balance
+		, main.winlost - main.actual_stake + playercomm as balance
 		,BonusID = CASE WHEN main.BonusID > 0 AND main.WalletType = 1 THEN main.BonusID ELSE 0 END
 		,WalletType = ISNULL(main.WalletType, 2) -- Cash Wallet as default
 		,main.betdaqid
@@ -544,12 +532,11 @@ BEGIN
 		UPDATE TOP(2000) t
 			SET t.isFinish = 1
 		OUTPUT deleted.TransId
-			,deleted.TicketType
 			,deleted.Refno
 			,deleted.betid
 			,deleted.actual_stake
 			,b.betdaqid
-		INTO @tmpTransIdBatch(TransId, TicketType, Refno, betid, actual_stake, betdaqid)
+		INTO @tmpTransIdBatch(TransId, Refno, betid, actual_stake, betdaqid)
 		FROM #tmpTransId t
 			INNER JOIN @tmpTrans_beforeUpd b ON b.transid = t.TransId
 		WHERE t.isFinish IS NULL
