@@ -12,7 +12,7 @@ AS
 /*	
 	Created by: 20230419@Max
 	Task: [TVS] New issue type Wrong Odds [Redmine: #179934]
-	DB: DBCTG/bodb02
+	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20230419@Max: Create new SP [Redmine:#179934]
