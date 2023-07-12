@@ -113,7 +113,7 @@ BEGIN
 			,T.C.value('@VoidFromDate', 'NVARCHAR(20)') AS VoidFromDate
 			,T.C.value('@VoidToDate', 'NVARCHAR(20)') AS VoidToDate
 			,T.C.value('@IsHasSettledTicket', 'BIT') AS IsHasSettledTicket
-			,T.C.value('@totalTicket', 'INT') AS TotalTicket
+			,T.C.value('@TotalTicket', 'INT') AS TotalTicket
 			,T.C.value('@IsRunAutoAfterVoid', 'BIT') AS IsRunAutoAfterVoid
 		FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
 		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
