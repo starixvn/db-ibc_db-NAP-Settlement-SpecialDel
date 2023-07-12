@@ -13,6 +13,7 @@ AS
 		- 20221024@July: Create new SP [Redmine:#179332]
 		- 20221108@July: Change value KickOffTime to GlobalShowTime (GMT+8) [Redmine:#179332]
 		- 20221111@July: TVS - VAR message [Redmine: #178088]
+		- 20230712@July: TVS - Add provider to the quickly copy request info function [Redmine: #191058]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -33,6 +34,7 @@ BEGIN
 		,AwayId				INT
 		,FilterBy			INT
 		,RequestExtraInfo	VARCHAR(MAX)
+		,Provider			NVARCHAR(400)
 		,StartVoidTime		DATETIME
 		,IssueTypeName		VARCHAR(100)
 		,SubIssueTypeName	VARCHAR(100)
@@ -47,6 +49,7 @@ BEGIN
 		,AwayId
 		,FilterBy 
 		,RequestExtraInfo
+		,Provider
 		,StartVoidTime 
 		,IssueTypeName
 		,SubIssueTypeName 
@@ -59,6 +62,7 @@ BEGIN
 		,rd.AwayId
 		,rd.FilterBy
 		,rd.TransIds AS RequestExtraInfo
+		,r.Provider
 		,rd.VoidFromTime AS StartVoidTime
 		,i.IssueTypeName
 		,s.SubIssueTypeName
@@ -92,6 +96,7 @@ BEGIN
 		  ,@IsNeutral AS IsNeutral
 		  ,FilterBy 
 		  ,RequestExtraInfo
+		  ,Provider
 		  ,StartVoidTime 
 		  ,IssueTypeName
 		  ,SubIssueTypeName 
