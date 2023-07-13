@@ -18,6 +18,7 @@ AS
 		- 20210930@Louisa: Move running single tickets for E-Sports [Redmine:#159271]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]	
 		- 20220719@Louisa: Scale out DBTRANS [Redmine:#175251]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -256,35 +257,13 @@ BEGIN
 
 	IF @IsCentral = 1
 	BEGIN
-		BEGIN TRY	
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID             = @AdminId
-				,@Matchid           = @matchid
-				,@ActionID			= @ActionID
-				,@Remark            = @logData
-				,@IP                = @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @logData = @logData + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-
-			EXEC dbo.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID             = @AdminId
-				,@Matchid           = @matchid
-				,@ActionID          = @ActionID
-				,@Remark            = @logData
-				,@IP                = @IP
-
-		END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle 
+			@UserID             = @AdminId
+			,@Matchid           = @matchid
+			,@ActionID			= @ActionID
+			,@Remark            = @logData
+			,@IP                = @IP
 	END
-
-	SET @logdata = 'NAP: Move ticket from match: ' + CAST(@matchid AS VARCHAR(20) ) 
-				+' to match: ' + CAST(@DestinationMatchId AS VARCHAR(20) )
-						   
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @logdata
-		,@extend = @MatchId
 									   
 	
 	DROP TABLE #tmpTransIds

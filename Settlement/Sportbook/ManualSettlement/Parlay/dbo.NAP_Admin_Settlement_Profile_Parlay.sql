@@ -35,6 +35,8 @@ AS
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -667,25 +669,28 @@ BEGIN
 	----
 	-- Add Negative Balance into BalanceNegative table
 	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
-	SELECT GETDATE()
-		,@MatchID
-		,CASE 
-			WHEN @Action LIKE 'UNDO%' THEN 105
-			WHEN @Action = 'REFUND-HT' THEN 120
-			WHEN @Action = 'REFUND-FT' THEN 106
-			WHEN @Action LIKE 'REFUND%' THEN 107
-			ELSE 104 -- CAL
-		END
-		,2 -- Sportsbook Parlay Settlement
-		,t.CustID
-		,t.Balance
-		,0
-		,@matchid
-	FROM (	SELECT	custID, SUM(balance) AS balance
-			FROM	#tmpParlayBalance
-			GROUP BY custID) t
-	WHERE t.balance < 0
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL
+	BEGIN
+		INSERT INTO [dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
+		SELECT GETDATE()
+			,@MatchID
+			,CASE 
+				WHEN @Action LIKE 'UNDO%' THEN 105
+				WHEN @Action = 'REFUND-HT' THEN 120
+				WHEN @Action = 'REFUND-FT' THEN 106
+				WHEN @Action LIKE 'REFUND%' THEN 107
+				ELSE 104 -- CAL
+			END
+			,2 -- Sportsbook Parlay Settlement
+			,t.CustID
+			,t.Balance
+			,0
+			,@matchid
+		FROM (	SELECT	custID, SUM(balance) AS balance
+				FROM	#tmpParlayBalance
+				GROUP BY custID) t
+		WHERE t.balance < 0
+	END
 
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, NULL, CURRENT_TIMESTAMP, NULL, 'END running CAL-29')
@@ -743,7 +748,6 @@ END
 	
 	-- Write log
 	DECLARE @ResultRemarkLog VARCHAR(MAX) = ''
-			,@logdata		VARCHAR(MAX) = ''
 			,@Remark		VARCHAR(MAX) = ''
 			,@matchLog		INT = @matchid
 
@@ -795,20 +799,6 @@ END
 		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	
 	SET @stop = CURRENT_TIMESTAMP
-
-	SELECT @logdata = 'NAP: Calculate Parlay (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-							+ CASE 
-								WHEN @DeterminedType = 2 THEN ' SDT-FT:1' 
-								WHEN @DeterminedType = 1 THEN ' Instant HT' 
-								WHEN @DeterminedType = 4 THEN ' Instant FT' 
-								ELSE '' END
-							+ CASE WHEN @sportType <> 1 THEN ' Result: ' + @SelectedResources + '<br/> ' ELSE '' END
-							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-						   
-	EXEC dbo.Logfile_V2 
-		@UserID = @creator
-		,@Doing = @logdata
-		,@extend = @MatchId
 	
 	IF @IsCentral = 1
 	BEGIN
@@ -825,31 +815,17 @@ END
 							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
 							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
 						
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				,@Matchid = @matchLog
-				,@ActionID = @ActionID	
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@Remark = @Remark
-				,@IP = @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				,@Matchid = @matchLog
-				,@ActionID = @ActionID	
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@Remark = @Remark
-				,@IP = @IP
-		END CATCH
+	
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @creator
+			,@Matchid = @matchLog
+			,@ActionID = @ActionID	
+			,@finalhomescore    = @fth
+			,@finalawayscore    = @fta
+			,@hthomescore        = @hth
+			,@htawayscore        = @hta
+			,@Remark = @Remark
+			,@IP = @IP
+		
 	END
 
 	--END: WRITE LOG ---------------------------------- 

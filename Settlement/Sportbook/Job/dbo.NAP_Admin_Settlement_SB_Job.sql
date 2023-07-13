@@ -29,6 +29,7 @@ AS
 		- 20221103@Helen: SP Enhancement [Redmine:#180092]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -237,19 +238,6 @@ BEGIN
 					,duration = DATEDIFF(ms, execTime, GETDATE())
 					,SSBStatus = CASE WHEN @SSBStatus = 2 THEN 2 ELSE SSBStatus END
 			WHERE	keyid = @keyId			
-		
-			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId,MatchId,sporttype,StatusId,UserId,Ip,starttime,action,BroadcastSessionId)
-			SELECT	0,MatchId,SportType,0 StatusID,10278938 AS Userid,'125.227.140.97',GETDATE() AS starttime
-					, CASE WHEN q.Sporttype IN (9, 43) AND sqlCommand LIKE '%CAL_EAR%' THEN 'CAL_EAR' ELSE Action END
-					, @BroadcastSessionId
-			FROM Single_Calculate_Queue q WITH (NOLOCK)
-			WHERE keyid = @keyId 
-				AND q.SportType <= 99
-				AND q.[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY','CAL_EAR')
-				AND 1 = CASE WHEN q.SportType IN (9,43)   AND (q.sqlCommand LIKE '%UNDO_EAR%' OR q.sqlCommand LIKE '%REFUND_EAR%') THEN 0
-							 WHEN q.SportType IN (2,9,43,5) AND (q.sqlcommand like '%@Action = ''UNDO''%' OR q.sqlcommand like '%@Action = ''REFUND''%') THEN 0
-						 ELSE 1
-					END
 		END
 	END
 END

@@ -26,6 +26,7 @@ AS
 		- 20220217@Kathy: Do not cal/refund if there is no ticket [Redmine:#168702]
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		
 	Param's Explanation:
 		- @Hth: Total score which home team scored in Half Time(HT)
@@ -53,7 +54,6 @@ BEGIN
 	
 	DECLARE @Start				DATETIME
 			,@Stop				DATETIME
-			,@LogData			NVARCHAR(200)
 			,@Remark			VARCHAR(500)
 			,@TicketCount		INT
 			,@ActionId			INT
@@ -209,19 +209,8 @@ BEGIN
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
-
 	SELECT @stop = CURRENT_TIMESTAMP
 	
-	SELECT @LogData = 'NAP: VS BetRadar - Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-					+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
-					+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
-					+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
-	EXEC dbo.Logfile_V2 
-			@UserID = @AdminId
-			,@Doing = @LogData
-			,@extend = @MatchId
-
 	--RESET scores values
 	SELECT @fth = NULL
 		,@fta 	= NULL
@@ -237,37 +226,18 @@ BEGIN
 					+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 	IF @IsCentral = 1
 	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID				= @AdminId
-				,@Matchid			= @matchid
-				,@ActionID			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= @hth
-				,@htawayscore		= @hta
-				,@GoalRecord		= NULL
-				,@betstatus			= NULL
-				,@Remark			= @Remark
-				,@IP				= @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID				= @AdminId
-				,@Matchid			= @matchid
-				,@ActionID			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= @hth
-				,@htawayscore		= @hta
-				,@GoalRecord		= NULL
-				,@betstatus			= NULL
-				,@Remark			= @Remark
-				,@IP				= @IP
-		END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+			@UserID				= @AdminId
+			,@Matchid			= @matchid
+			,@ActionID			= @ActionID
+			,@finalhomescore	= @fth
+			,@finalawayscore	= @fta
+			,@hthomescore		= @hth
+			,@htawayscore		= @hta
+			,@GoalRecord		= NULL
+			,@betstatus			= NULL
+			,@Remark			= @Remark
+			,@IP				= @IP
 	END
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess

@@ -14,6 +14,7 @@ AS
 	
 	Revisions:
 		- 20160606@Bobby: Initialize
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		
 	Param's Explanation:
 		- @BalanceType: Balance Type [1: Sports, 3: Casino, 4: Others]
@@ -85,9 +86,9 @@ BEGIN
 		----
 		-- Add Negative Balance into BalanceNegative table 
 		----
-		IF(@ActionID > 0 AND @MatchID > 0 AND @GroupID > 0) 
+		IF(@ActionID > 0 AND @MatchID > 0 AND @GroupID > 0) AND OBJECT_ID('BalanceNegative','U') IS NOT NULL
 		BEGIN
-			INSERT INTO [bodb02].[dbo].[BalanceNegative] (
+			INSERT INTO [dbo].[BalanceNegative] (
 				[ExecDate]
 				,[MatchID]
 				,[ActionID]

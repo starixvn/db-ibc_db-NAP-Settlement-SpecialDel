@@ -88,6 +88,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -105,7 +106,6 @@ BEGIN
         ,@stop                          DATETIME
         ,@avaiableProcess				BIT
         ,@goalrecord_old                VARCHAR(50)
-        ,@LogData                       NVARCHAR(300)
         ,@eventstatus                   NVARCHAR(50)
         ,@sporttype                     SMALLINT       
         ,@Remark                        VARCHAR(500)
@@ -541,20 +541,6 @@ BEGIN
 
 	SELECT @stop = CURRENT_TIMESTAMP	
 	
-	SELECT @LogData = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-                                                    + ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) 
-                                                    + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
-                                                    + ' HT:' + CAST(ISNULL(@hth,0) AS NVARCHAR(10)) 
-                                                    + '-' + CAST(ISNULL(@hta,0) AS NVARCHAR(10)) 
-                                                    + ' GoalRecord:' + ISNULL(@goalrecord, '') 
-                                                    + '(Old:' + @goalrecord_old + ') Remark(' + @betstatus + ')' 
-													+' (' + CAST(DATEDIFF(millisecond, @starttime, @stop) AS NVARCHAR(50)) + ' ms)'
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @creator
-		,@Doing = @LogData
-		,@extend = @MatchId
-	
 	SELECT @Remark ='NAP: ' + CASE    WHEN ISNULL(@goalrecord_old,'')='' THEN ''
                                 ELSE 'Old GoalRecord:' + @goalrecord_old + '<br/> '
                                 END
@@ -564,37 +550,18 @@ BEGIN
 
 	IF @IsCentral = 1
 	BEGIN
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID                = @creator
-				,@Matchid            = @matchid
-				,@ActionID            = @ActionID
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord        = @goalrecord
-				,@betstatus            = @betstatus
-				,@Remark            = @Remark
-				,@IP                = @IP
-		END TRY
-
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
-
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-				@UserID                = @creator
-				,@Matchid            = @matchid
-				,@ActionID            = @ActionID
-				,@finalhomescore    = @fth
-				,@finalawayscore    = @fta
-				,@hthomescore        = @hth
-				,@htawayscore        = @hta
-				,@GoalRecord        = @goalrecord
-				,@betstatus            = @betstatus
-				,@Remark            = @Remark
-				,@IP                = @IP
-		END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+			@UserID                = @creator
+			,@Matchid            = @matchid
+			,@ActionID            = @ActionID
+			,@finalhomescore    = @fth
+			,@finalawayscore    = @fta
+			,@hthomescore        = @hth
+			,@htawayscore        = @hta
+			,@GoalRecord        = @goalrecord
+			,@betstatus            = @betstatus
+			,@Remark            = @Remark
+			,@IP                = @IP
 	END
 	
 	DROP TABLE #tblMatchProcess

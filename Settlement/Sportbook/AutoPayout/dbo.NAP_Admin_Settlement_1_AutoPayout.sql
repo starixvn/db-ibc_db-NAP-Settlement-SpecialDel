@@ -49,6 +49,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:
 		 
@@ -58,7 +59,6 @@ BEGIN
 	
 	DECLARE @start						DATETIME
 		, @stop							DATETIME
-		, @LogData						NVARCHAR(300)
 		, @eventstatus					NVARCHAR(50)
 		, @TicketCount					INT	
 		, @Remark						VARCHAR(500)
@@ -388,18 +388,6 @@ BEGIN
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
 	SELECT @stop = CURRENT_TIMESTAMP
-
-	SELECT @LogData = 'NAP: Auto Payout Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10)) 
-		+ ' score:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
-		+ ' HT:' + CAST(@hth AS NVARCHAR(10)) + '-' + CAST(@hta AS NVARCHAR(10)) 
-		+ ' GoalRecord:' + ISNULL(@goalrecord, '')
-		+ ' Remark(' + @betstatus + ')' 
-		+ ' (' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @creator
-		,@Doing = @LogData
-		,@extend = @MatchId
 		
 	IF @IsCentral = 1
 	BEGIN
@@ -418,36 +406,19 @@ BEGIN
 										WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
 										ELSE ' RefChild:(' + @ChildMatchIds +')' 
 										END
-	
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				, @Matchid			= @matchid
-				, @ActionID			= @ActionID
-				, @finalhomescore	= @fth
-				, @finalawayscore	= @fta
-				, @hthomescore		= @hth
-				, @htawayscore		= @hta
-				, @GoalRecord		= @goalrecord
-				, @betstatus		= @betstatus
-				, @Remark			= @Remark
-				, @IP				= @IP
-		END TRY
- 
-		BEGIN CATCH
-			SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
- 
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @creator
-				, @Matchid			= @matchid
-				, @ActionID			= @ActionID
-				, @finalhomescore	= @fth
-				, @finalawayscore	= @fta
-				, @hthomescore		= @hth
-				, @htawayscore		= @hta
-				, @GoalRecord		= @goalrecord
-				, @betstatus		= @betstatus
-				, @Remark			= @Remark
-				, @IP				= @IP
-		END CATCH
+
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @creator
+			, @Matchid			= @matchid
+			, @ActionID			= @ActionID
+			, @finalhomescore	= @fth
+			, @finalawayscore	= @fta
+			, @hthomescore		= @hth
+			, @htawayscore		= @hta
+			, @GoalRecord		= @goalrecord
+			, @betstatus		= @betstatus
+			, @Remark			= @Remark
+			, @IP				= @IP
+
 	END
 
 	------ releasing Settlement process

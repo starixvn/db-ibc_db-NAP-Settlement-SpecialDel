@@ -21,6 +21,7 @@ AS
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -168,13 +169,6 @@ BEGIN
 				duration = DATEDIFF(ms,execTime,GETDATE())
 		WHERE	matchid = @matchid 
 				AND IsCalculating = 1
-		
-		--Update for Auto Void Job
-		IF @Action NOT LIKE 'UNDO%' AND @Action <> 'SDT-FT'
-		BEGIN		
-			INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId, MatchId, sporttype, StatusId, UserId, Ip, starttime, action, BroadcastSessionId)
-			SELECT 0, @MatchId, @sporttype, 0,10278938,'125.227.140.97', GETDATE(), 'CAL-PAR', @BroadcastSessionId
-		END
 	END
 
 	---

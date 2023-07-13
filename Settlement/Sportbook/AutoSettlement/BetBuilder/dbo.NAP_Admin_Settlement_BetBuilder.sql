@@ -22,6 +22,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -63,7 +64,6 @@ BEGIN
 			,@avaiableProcess	BIT
 			,@ResultRemarkLog	VARCHAR(MAX)	= ''
 			,@Remark			VARCHAR(MAX)
-			,@LogData			NVARCHAR(MAX)
 			,@ErrMsgMarketID	VARCHAR(MAX)
 			,@SelectedResources	VARCHAR(MAX)
 			,@ActionProcessing	VARCHAR(MAX)
@@ -382,18 +382,6 @@ BEGIN
 	END
 		
 	SELECT @TotalAccount_BalanceUpdate = (SELECT COUNT(DISTINCT custID) FROM #tblCustIDBalanceUpdated)
-	
-	SELECT @logdata = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-							+ CASE WHEN @SelectedResources IS NULL THEN '' ELSE '; ' + @SelectedResources + '<br/> ' END
-							+ '; IsAuto:' + CAST(@IsAuto AS VARCHAR(10))
-							+ '; Bettype:' + CAST(@Bettype AS VARCHAR(10))
-							+ '<br/> '
-							+ '(' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms)'
-
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @logdata
-		,@extend = @MatchId
 				
 	IF @IsCentral = 1
 	BEGIN
@@ -402,34 +390,18 @@ BEGIN
 							+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
 							+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
 				
-		BEGIN TRY
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@userid				= @AdminId
-					,@matchid			= @MatchID
-					,@actionid			= @ActionID
-					,@finalhomescore	= @fth
-					,@finalawayscore	= @fta
-					,@hthomescore		= @hth
-					,@htawayscore		= @hta
-					,@GoalRecord		= NULL
-					,@Remark			= @Remark
-					,@ip				= @ip
-		END TRY
-		BEGIN CATCH		
-			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@UserID				= @AdminId
-					,@MatchID			= @MatchID
-					,@actionid			= @ActionID
-					,@finalhomescore	= @fth
-					,@finalawayscore	= @fta
-					,@hthomescore		= @hth
-					,@htawayscore		= @hta
-					,@GoalRecord		= NULL
-					,@betstatus			= NULL
-					,@Remark			= @Remark
-					,@IP				= @ip
-		END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				@userid				= @AdminId
+				,@matchid			= @MatchID
+				,@actionid			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= @hth
+				,@htawayscore		= @hta
+				,@GoalRecord		= NULL
+				,@Remark			= @Remark
+				,@ip				= @ip
+
 	END
 END
 GO

@@ -22,6 +22,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale out DBTRANS [Redmine:#175251]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:
 */
@@ -43,7 +44,6 @@ BEGIN
 			,@StartTime DATETIME
 			,@EndTime DATETIME
 			,@ActionID INT 
-			,@logdata VARCHAR(300) 
 			,@Remark VARCHAR(MAX)
 			,@IsCentral	BIT = 0
 			
@@ -291,35 +291,13 @@ BEGIN
 
 	IF @IsCentral = 1
 	BEGIN
-		BEGIN TRY
-			
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@userid				= @AdminId
-					,@matchid			= @MatchID
-					,@actionid			= @ActionID
-					,@Remark			= @Remark
-					,@ip				= @ip
-		END TRY
-		BEGIN CATCH
-			SELECT @remark = @remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 250)
-			EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
-					@UserID				= @AdminId
-					,@MatchID			= @matchid
-					,@actionid			= @ActionID
-					,@Remark			= @Remark
-					,@IP				= @ip
-		END CATCH
-							   							   
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				@userid				= @AdminId
+				,@matchid			= @MatchID
+				,@actionid			= @ActionID
+				,@Remark			= @Remark
+				,@ip				= @ip		   							   
 	END
-
-	SELECT @logdata = 'Move ticket of matchid: ' + CAST(@matchid AS VARCHAR) 
-	+' into child match: ' + CAST(@childMatchId AS VARCHAR)
-	+ ',Settled Results: (' + @Resources + ')'
-
-	EXEC dbo.Logfile_V2 
-	@UserID = @AdminId
-	,@Doing = @logdata
-	,@extend = @MatchId	
 	
 	DROP TABLE #tblMatchParlayProcess
 	DROP TABLE #tblMatchProcess

@@ -31,6 +31,7 @@ Revisions:
 	- 20201211@Louisa: Show Calculate Outright Log, add param @AdminId [Redmine:#146738]
 	- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 	- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+	- 20230523@Kathy: scaleout - credit [Redmine:#188452]
 
 Param's Explanation:
 	- @deadheat = fraction of deadheat to divide (1,2,3  etc)
@@ -149,26 +150,27 @@ BEGIN
 	----
 	-- Add Negative Balance into BalanceNegative table 
 	----
-	INSERT INTO [bodb02].[dbo].[BalanceNegative] (
-		[ExecDate]
-		,[MatchID]
-		,[ActionID]
-		,[GroupID]
-		,[CustID]
-		,[Balance]
-		,[StatusID]
-		,[Remark]
-		)
-	SELECT GETDATE()
-		,@MatchID
-		,@ActionID
-		,3 ---- Outright Settlement 
-		,CustID
-		,Balance
-		,0
-		,NULL
-	FROM #Balance WITH (NOLOCK)
-	WHERE Increased = 0
+	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL
+		INSERT INTO [dbo].[BalanceNegative] (
+			[ExecDate]
+			,[MatchID]
+			,[ActionID]
+			,[GroupID]
+			,[CustID]
+			,[Balance]
+			,[StatusID]
+			,[Remark]
+			)
+		SELECT GETDATE()
+			,@MatchID
+			,@ActionID
+			,3 ---- Outright Settlement 
+			,CustID
+			,Balance
+			,0
+			,NULL
+		FROM #Balance WITH (NOLOCK)
+		WHERE Increased = 0
 
 	---------------------------------------------------
 
@@ -182,11 +184,6 @@ BEGIN
 	DROP TABLE #BalanceBefore
 	DROP TABLE #BalanceAfter
 	---------------------------------------------------
-	--add log to outright_log to notify for Apollo
-	EXEC bodb02.dbo.[Acc_Set_ConfirmedActionOutright] @matchid = @matchid
-		,@actionid = 31
-		,@status = @status
-		,@deadheat = @deadheat
 
 	-- WRITE LOG
 	IF @IsCentral = 1

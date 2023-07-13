@@ -22,6 +22,7 @@ AS
 		- 20220601@Kathy: Check SP under deployment [Redmine:#172557]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -343,56 +344,33 @@ BEGIN
 	END CATCH
 	
 	SET @EndTime = GETDATE()
-		
-	DECLARE @doing NVARCHAR(300) = 'Settlement for matchid: ' + CAST(@MatchId AS VARCHAR)
-	EXEC dbo.Logfile_V2 
-		@UserID = @AdminId
-		,@Doing = @doing
-		,@extend = @MatchId
 	
 	IF @IsCentral = 1
-	BEGIN
-		BEGIN TRY		
-			DECLARE @remarkNewValue VARCHAR(MAX) = ''
-			SET @Remark = ''
+	BEGIN		
+		DECLARE @remarkNewValue VARCHAR(MAX) = ''
+		SET @Remark = ''
 
-			SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
-			FROM @tmpResultDetail
-			WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
+		SELECT @remarkNewValue = @remarkNewValue + ', B' +ResourceID + '(' + Result1 + ')'
+		FROM @tmpResultDetail
+		WHERE ISNULL(isSourceFromDB,0) = 1 AND Result1 > 0
 		
-			SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
-							+ CASE WHEN ISNULL(@strOldResult,'') <> '' THEN 'Old Results: ' + SUBSTRING(@strOldResult, 2, LEN(@strOldResult))  + '<br/> ' ELSE '' END
-							+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
-							+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
+		SELECT @Remark =  'IsAuto: ' + CAST(@IsAuto AS VARCHAR(2)) + '<br/>' 
+						+ CASE WHEN ISNULL(@strOldResult,'') <> '' THEN 'Old Results: ' + SUBSTRING(@strOldResult, 2, LEN(@strOldResult))  + '<br/> ' ELSE '' END
+						+ CASE WHEN @remarkNewValue <> '' THEN 'Results: ' + SUBSTRING(@remarkNewValue, 2, LEN(@remarkNewValue))  + '<br/> ' ELSE '' END
+						+ 'Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
 		
-			EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-				,@Matchid = @matchid
-				,@ActionID = @ActionID
-				,@finalhomescore = NULL
-				,@finalawayscore = NULL
-				,@hthomescore = NULL
-				,@htawayscore = NULL
-				,@GoalRecord = NULL
-				,@betstatus = NULL
-				,@Remark = @Remark
-				,@IP = @IP
-			END TRY
-
-			BEGIN CATCH
-				SELECT @Remark = @Remark + ' ErrMsg=' + LEFT(ERROR_MESSAGE(), 200)
-
-				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle @UserID = @AdminId
-					,@Matchid = @matchid
-					,@ActionID = @ActionID
-					,@finalhomescore = NULL
-					,@finalawayscore = NULL
-					,@hthomescore = NULL
-					,@htawayscore = NULL
-					,@GoalRecord = NULL
-					,@betstatus = NULL
-					,@Remark = @Remark
-					,@IP = @IP
-			END CATCH
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminId
+			,@Matchid = @matchid
+			,@ActionID = @ActionID
+			,@finalhomescore = NULL
+			,@finalawayscore = NULL
+			,@hthomescore = NULL
+			,@htawayscore = NULL
+			,@GoalRecord = NULL
+			,@betstatus = NULL
+			,@Remark = @Remark
+			,@IP = @IP
+	
 	END
 END
 GO

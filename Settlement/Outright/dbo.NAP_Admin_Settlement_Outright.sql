@@ -26,6 +26,7 @@ AS
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230419@Aries: Fix STRING_AGG  error [Redmine:#187152]
 		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
+		- 20230627@Kathy: Remove unused table [Redmine:#188452]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO 
@@ -126,13 +127,6 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		 @IsExistOutright	= 1
 		,@IsReleased		= 1
-
-	--add log to outright_log to notify for Apollo
-	EXEC dbo.[Acc_Set_ConfirmedActionOutright] 
-		 @matchid = @matchid
-		,@actionid = 31
-		,@status = @status
-		,@deadheat = @deadheat
 
 	-- WRITE LOG	
 	IF @IsCentral = 1

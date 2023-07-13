@@ -26,6 +26,7 @@ AS
 		  - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		  - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		  - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		  - 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 
 	Param's Explanation:  
 	
@@ -182,12 +183,7 @@ BEGIN
 								END
 								+ CASE WHEN @oldgoalrecord IS NOT NULL THEN '(Old:' + @oldgoalrecord + ')' ELSE '' END 
 										+ CASE WHEN @betstatus IS NOT NULL THEN ' Remark(' + @betstatus + ')' ELSE '' END 
-								+' Duration(' + CAST(DATEDIFF(millisecond, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms)'
-												
-		EXEC dbo.Logfile_V2 
-			@UserID = @AdminId
-			,@Doing = @Remark
-			,@extend = @MatchId
+								+' Duration(' + CAST(DATEDIFF(millisecond, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms)'							
 
 		IF @IsCentral = 1
 		BEGIN
@@ -223,34 +219,18 @@ BEGIN
 			SELECT @betstatus = CASE WHEN @SDTRecord & 4 > 0 THEN 'Abandoned 1H' ELSE 'Refund' END
 			WHERE	@Action = 'REFUND'
 
-			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-					@UserID                = @AdminId
-					,@Matchid            = @matchid
-					,@ActionID            = @ActionID
-					,@finalhomescore    = @fth
-					,@finalawayscore    = @fta
-					,@hthomescore        = @hth
-					,@htawayscore        = @hta
-					,@GoalRecord        = @goalrecord
-					,@betstatus            = @betstatus
-					,@Remark            = @Remark
-					,@IP                = @IP
-			END TRY
-			BEGIN CATCH
-				EXEC bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
-					@UserID                = @AdminId
-					,@Matchid            = @matchid
-					,@ActionID            = @ActionID
-					,@finalhomescore    = @fth
-					,@finalawayscore    = @fta
-					,@hthomescore        = @hth
-					,@htawayscore        = @hta
-					,@GoalRecord        = @goalrecord
-					,@betstatus            = @betstatus
-					,@Remark            = @Remark
-					,@IP                = @IP
-			END CATCH
+			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				@UserID                = @AdminId
+				,@Matchid            = @matchid
+				,@ActionID            = @ActionID
+				,@finalhomescore    = @fth
+				,@finalawayscore    = @fta
+				,@hthomescore        = @hth
+				,@htawayscore        = @hta
+				,@GoalRecord        = @goalrecord
+				,@betstatus            = @betstatus
+				,@Remark            = @Remark
+				,@IP                = @IP
 		END
 
 		IF @DeterminedFTStatus = 1 -- determinable FT ticket

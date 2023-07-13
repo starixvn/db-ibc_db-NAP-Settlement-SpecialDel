@@ -20,6 +20,7 @@ AS
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -84,14 +85,6 @@ BEGIN
 	END
 
 	DROP TABLE #TempData_CAL_Deadball
-	-- LOG
-	DECLARE	@LogData VARCHAR(1000)
-	SET @LogData = 'NAP_Admin_PreCalculate_s161_Pregame MatchID:' + CONVERT(VARCHAR(20),@MatchId) + ' Bettype:' + CONVERT(VARCHAR(20),@BetType) +' Betteam:' +@BetTeam
-	
-	EXEC dbo.Logfile_V2 
-		@UserID = 161
-		,@Doing = @LogData
-		,@extend = @MatchId
 	
 END
 GO

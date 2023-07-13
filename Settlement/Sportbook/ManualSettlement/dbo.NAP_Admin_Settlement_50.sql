@@ -21,6 +21,7 @@ AS
 		- 20200623@Max: [TVS] Auto Void for remaining sports - [Redmine: #135574]
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20220922@Louisa: Scaleout DBTrans [Redmine:#175251]
+		- 20230523@Kathy: remove un-used table [Redmine:#188452]
         
     Param's Explanation:
 		@ServiceStatus: - 0: Waiting for calculating NetPosition
@@ -41,7 +42,7 @@ BEGIN
 			,@IsSettle	BIT 
 			,@ErrCode	INT = 0
 			,@ErrMsg	NVARCHAR(200) = ''
-	
+		
 	IF @Action IN ('CAL', 'CAL-FT', 'REFUND-FT', 'REFUND') -- For Caculate & Refund
 		SET @IsSettle = 1
 	ELSE IF @action = 'UNDO'
@@ -85,15 +86,6 @@ BEGIN
 						,duration = DATEDIFF(ms, @execTime, GETDATE())
 				WHERE 	keyid = @keyId
 
-				--Insert TVS AutoVoid Queue
-				INSERT INTO dbo.TicketVoiding_AutoVoidRequest_Queue (RequestId,MatchId,sporttype,StatusId,UserId,Ip,starttime,action, BroadcastSessionId)
-				SELECT	0,MatchId,SportType,0 StatusID,10278938 AS Userid,'125.227.140.97',GETDATE() AS starttime
-						, Action
-						,q.BroadcastSessionId
-				FROM Single_Calculate_Queue q WITH (NOLOCK)
-				WHERE keyid = @keyId 
-					AND q.[Action] IN ('CAL-HT','CAL-FT','CAL','CAL-EARLY','CAL_EAR')
-						
 				IF @ErrCode = 1000006			
 					INSERT INTO Settled_Message (
 						AdminId
@@ -159,7 +151,7 @@ BEGIN
 					SET IsCalculating = 3											
 				WHERE 	keyid = @keyId
 	END
-	
+
 	IF (@tryCount < 3 AND (@IsSettle = 0 OR (@IsSettle = 1 AND @ServiceStatus = 2)))
 	BEGIN
 		SET @StartTime = GETDATE()
