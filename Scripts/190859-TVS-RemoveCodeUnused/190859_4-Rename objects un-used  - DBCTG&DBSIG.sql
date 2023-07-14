@@ -1,18 +1,35 @@
-﻿/*<info serverAlias="DBCTG-bodb02, DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02, DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
-	Created by: 20221207@July
-	Task: Drop SP un-used - Special Delete & TVS  [Redmine:#180625]  
+	Created by: 20230303@July
+	Task: Rename Objects un-used  [Redmine:#190859]  
 	DB: DBCTG-bodb02, DBSIG-bodb02
-		   
+	
 */
 USE bodb02
 GO
 
-DECLARE @SPName VARCHAR(MAX)
-DECLARE @tmpSPName TABLE ( SPName VARCHAR(MAX), IsDrop BIT)
+/*TABLES***********************************************************************************************************/
 
-INSERT INTO @tmpSPName (SPName)
-SELECT 'DROP PROCEDURE ' +name
+IF OBJECT_ID('TicketVoiding_Void_Service','U') IS NOT NULL 
+	EXEC sp_rename 'dbo.TicketVoiding_Void_Service','DEL_TicketVoiding_Void_Service';
+GO
+IF OBJECT_ID('TicketVoiding_RequestDetail_MixParlay','U') IS NOT NULL 
+	EXEC sp_rename 'dbo.TicketVoiding_RequestDetail_MixParlay','DEL_TicketVoiding_RequestDetail_MixParlay';
+GO
+IF OBJECT_ID('TicketVoiding_AutoMarkService_AutoSetting','U') IS NOT NULL 
+	EXEC sp_rename 'dbo.TicketVoiding_AutoMarkService_AutoSetting','DEL_TicketVoiding_AutoMarkService_AutoSetting';
+GO
+IF OBJECT_ID('TicketVoiding_AutoVoidRequest_Queue','U') IS NOT NULL 
+	EXEC sp_rename 'dbo.TicketVoiding_AutoVoidRequest_Queue','DEL_TicketVoiding_AutoVoidRequest_Queue';
+GO
+
+/*SPS***********************************************************************************************************/
+
+DECLARE @command VARCHAR(MAX)
+DECLARE @tmpRenameObjectsName TABLE ( command VARCHAR(MAX), IsRename BIT)
+
+INSERT INTO @tmpRenameObjectsName (command)
+SELECT 'sp_rename ' + name + ', DEL_' + name
  FROM dbo.sysobjects
  WHERE (type = 'P')
  AND (
@@ -72,7 +89,6 @@ OR  name LIKE 'TicketVoiding_VoidTime_Select%'
 OR  name LIKE 'NAP_SpecialDelete_CheckNegativeBalanceCashOutTransaction%'
 OR  name LIKE 'Nap_SpecialDelete_MarkedTickets_ManualUpdate%'
 
-
 -----------------------RUN CONTINUTED
 OR  name LIKE 'NAP_SpecialDelete_CheckVoidBetPermission%'
 OR  name LIKE 'NAP_SpecialDelete_TransInfo_Select%'
@@ -84,15 +100,16 @@ OR  name LIKE 'NAP_BettransSpecialDelBetID_Del%'
 OR  name LIKE 'DBA_VoidTickets'
 OR  name LIKE 'DBA_VoidTickets14'
 )
-SELECT * FROM @tmpSPName
+
 WHILE (1=1)
 BEGIN
-	UPDATE TOP (1) @tmpSPName
-	SET @SPName = SPName, IsDrop = 1
-	WHERE IsDrop IS NULL
+	UPDATE TOP (1) @tmpRenameObjectsName
+	SET @command = command, IsRename = 1
+	WHERE IsRename IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK;
 	
-	EXEC (@SPName)
+	EXEC (@command)
 
 END
+SELECT * FROM @tmpRenameObjectsName

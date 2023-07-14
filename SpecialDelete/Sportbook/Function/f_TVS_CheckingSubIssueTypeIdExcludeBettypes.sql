@@ -14,7 +14,6 @@ AS
 		- 20220208@Max: [TVS] Wrong Score Enhancement 3 [Redmine: #164561]
 		- 20220318@July: TVS - Danger Accept Enhancement - Phase 11 [Redmine: #164562]
 		- 20230112@July: Wrong Score - No need to exclude Home/Away bet types [Redmine: #182805]
-		- 20230713@July: Change config [Redmine: #190859]
 
     Parameters Explanation:    
 		IssueTypeId = 1 Danger Accepted
