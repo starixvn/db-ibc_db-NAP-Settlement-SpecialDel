@@ -59,7 +59,7 @@ begin
 			, @ErrorMessage			= @__errmsg
 			, @ConversationHandle	= @__conversationHandle
 			, @QueueNo				= 0
-			, @SiteDBGroupId		= 2
+			, @SiteDBGroupId		= 3
 
 	end
 end
