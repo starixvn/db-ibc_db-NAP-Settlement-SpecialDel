@@ -31,7 +31,6 @@ BEGIN
 			,@IsExistBB					BIT = 0
 			,@isExistMatch				BIT = 0
 			,@session					NVARCHAR(50)
-			,@CustIds					VARCHAR(MAX)
 			,@isExistParlay				BIT = 0
 			,@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
@@ -51,7 +50,7 @@ BEGIN
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	
-	CREATE TABLE #tmpTransId (
+	CREATE TABLE #tmp_TransId (
 		TransId				BIGINT
 		,custid				INT
 		,bettype			SMALLINT
@@ -72,7 +71,7 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 
-	INSERT INTO #tmpTransId(TransId, custid, bettype, betid, Refno, MatchId, OddsId, ruben)
+	INSERT INTO #tmp_TransId(TransId, custid, bettype, betid, Refno, MatchId, OddsId, ruben)
 	SELECT	b.transid, b.custid, b.bettype
 			, b.betid, b.refno
 			, @MatchId
@@ -85,11 +84,11 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
-		FROM	#tmpTransId b
+		FROM	#tmp_TransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
 		WHERE bettype NOT IN (9, 29, 2799)
@@ -97,11 +96,11 @@ BEGIN
 	END
 
 	-- -- UPDATE eventtype = 2 [Outright ticket]
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (10)))
+	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype IN (10)))
 	BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
-		FROM	#tmpTransId b
+		FROM	#tmp_TransId b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
@@ -110,11 +109,11 @@ BEGIN
 	END
 
 	-- -- UPDATE eventtype = 3 [VS range bettypes]
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
 		SET sporttype 	= r.sporttype	
-		FROM	#tmpTransId b
+		FROM	#tmp_TransId b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
@@ -122,20 +121,11 @@ BEGIN
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
 
-
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE b
 		SET sporttype = sb.SportType
-		FROM #tmpTransId b
-			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON b.bettype = sb.BetType
-		WHERE sb.ProductID = 37
-	END
-	BEGIN
-		UPDATE b
-		SET sporttype = sb.SportType
-		FROM #tmpTransId b
+		FROM #tmp_TransId b
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON b.bettype = sb.BetType
 		WHERE sb.ProductID = 37
@@ -143,7 +133,7 @@ BEGIN
 
 	-- remove un-supported sports & bettype
 	DELETE bd
-	FROM #tmpTransId bd
+	FROM #tmp_TransId bd
 	WHERE bettype NOT IN (9, 29, 2799)
 		AND (
 			sporttype IS NULL
@@ -151,7 +141,7 @@ BEGIN
 		)
 
 
-	IF EXISTS (SELECT TOP 1 1  FROM #tmpTransId)
+	IF EXISTS (SELECT TOP 1 1  FROM #tmp_TransId)
 	BEGIN
 		IF @MatchId = 29
 		BEGIN
@@ -159,7 +149,7 @@ BEGIN
 
 			INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
 			SELECT @MatchId, v.Refno
-			FROM #tmpTransId v
+			FROM #tmp_TransId v
 	
 			EXEC dbo.NAP_Set_GlobalSettingSel 
 				 @LockName = 'ParlayRefno'
@@ -181,8 +171,7 @@ BEGIN
 					,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 					,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-			FROM	#tmpTransId v
-
+			FROM	#tmp_TransId v
 				OUTER APPLY (
 							SELECT GroupId
 							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -206,7 +195,7 @@ BEGIN
 					WHEN f.GroupId = 2 THEN 7 -- FM 228
 					ELSE 0
 				END AS KeyID
-			FROM #tmpTransId b
+			FROM #tmp_TransId b
 				OUTER APPLY (
 							SELECT GroupId
 							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -367,7 +356,7 @@ BEGIN
 
 	END
 
-	DROP TABLE #tmpTransId
+	DROP TABLE #tmp_TransId
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tblMatchParlayProcess
 END
