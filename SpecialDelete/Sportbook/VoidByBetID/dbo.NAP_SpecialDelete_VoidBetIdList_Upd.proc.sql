@@ -108,6 +108,7 @@ AS
 	  - 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 	  - 20230522@July: Support sport Cricket for all functions  [Redmine: #188374]
 	  - 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
+	  - 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 
 	 Param's Explanation:   
 */
@@ -166,6 +167,7 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
+			,@IsExistVS3 				BIT = 0
 			,@IsExistBB					BIT = 0
 			,@isExistFM2				BIT = 0
 			,@query						NVARCHAR(MAX) = ''
@@ -547,6 +549,7 @@ BEGIN
 			,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
 			,@IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
 			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
+			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
 			,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
@@ -753,7 +756,7 @@ BEGIN
 	WHERE main.SiteDBGroupID = @SiteDBGroupID
 
 	--Get data before update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistMatch3rd = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistMatch3rd = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -763,7 +766,6 @@ BEGIN
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END AS groupId
@@ -772,15 +774,15 @@ BEGIN
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE (tmp.Bettype BETWEEN 1101 AND 1199
 			OR b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120
-			OR b.bettype BETWEEN 1201 AND 1299
-			OR b.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 7901 AND 7999
+			OR b.bettype BETWEEN 1201 AND 1299 --VS
+			OR b.bettype BETWEEN 2700 AND 2899 --VS2 (Betradar)
+			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END
@@ -826,23 +828,6 @@ BEGIN
 		FROM @tmpTrans_beforeUpd main 
 			INNER JOIN #SpecialDeleteBets tmpmain
 				ON	main.transid = tmpmain.transid
-							
-		UNION ALL
-		
-		-- Cricket charge comm
-		SELECT b.custid
-			 , 0 AS BonusID -- cricket tickets always bet from cash wallet
-			 , 2 AS WalletType -- cricket tickets always bet from cash wallet
-			 , b.winlost, b.actual_stake, b.playercomm, b.bettype, b.matchid, 50 AS sporttype
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #tblMatch tm 
-				ON b.matchid = tm.matchid
-		WHERE b.bettype = 500 AND b.SiteDBGroupID = @SiteDBGroupID
-			AND EXISTS (
-				SELECT TOP 1 1 
-				FROM #SpecialDeleteBets d 
-				WHERE b.custid = d.custid
-			)
 	) tmp
 	GROUP BY matchid
 		   , CustID
@@ -990,7 +975,7 @@ BEGIN
 	WHERE b.betdaqid = -2 
 
 	--Get data after update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistMatch3rd = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistMatch3rd = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -1000,7 +985,6 @@ BEGIN
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END
@@ -1009,15 +993,15 @@ BEGIN
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE (tmp.Bettype BETWEEN 1101 AND 1199
 			OR tmp.bettype BETWEEN 81 AND 120 OR tmp.bettype BETWEEN 8101 AND 8120
-			OR tmp.Bettype BETWEEN 1201 AND 1299
-			OR tmp.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 7901 AND 7999
+			OR b.Bettype BETWEEN 1201 AND 1299 --VS
+			OR b.bettype BETWEEN 2700 AND 2899 --VS2 (Betradar)
+			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 			) AND b.SiteDBGroupID = @SiteDBGroupID
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 7901 AND 7999 THEN 7901
 				ELSE 1201
 			END
@@ -1053,23 +1037,6 @@ BEGIN
 				ON	main.transid = tmpmain.transid
 					AND main.transid = tmpmain.grouptransid
 					AND main.matchid = tmpmain.matchid
-					
-		UNION ALL
-		
-		-- Cricket charge comm
-		SELECT b.custid
-			 , 0 AS BonusID -- cricket tickets always bet from cash wallet
-			 , 2 AS WalletType -- cricket tickets always bet from cash wallet
-			 , b.winlost, b.actual_stake, b.playercomm, b.bettype, b.matchid, 50 AS sporttype
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #tblMatch tm 
-				ON b.matchid = tm.matchid
-		WHERE b.bettype = 500
-			AND EXISTS (
-				SELECT TOP 1 1 
-				FROM #SpecialDeleteBets d 
-				WHERE b.custid = d.custid
-			)
 	) tmp
 	GROUP BY matchid
 		   , CustID
@@ -1087,7 +1054,7 @@ BEGIN
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
 	
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistMatch3rd = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @isExistMatch3rd = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		
 		CREATE TABLE #balanceGameChange (
