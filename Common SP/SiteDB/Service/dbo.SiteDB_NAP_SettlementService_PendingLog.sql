@@ -7,6 +7,7 @@ AS
 	
 	Revisions:
 		- 20221101@Louisa: Get Pending Log [Redmine#]
+		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 
 	Param's Explanation:  
 		   

@@ -1,19 +1,21 @@
-/*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/  
+/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/  
 
 /*
 	Created by: 20230626@Louisa
     Task: Migrate data for SiteDB3 - add mismatch objects [Redmineid:#181595]
    
     Revisions:
-		- 20220130@Louisa: Create trigger [BettransRNG_After_Insert] [Redmineid:#181595]
+		- 20220130@Louisa: Create trigger [bettransLC_After_Insert] [Redmineid:#181595]
 
 */
+
+--- run on SiteDB3  only
 
 USE bodb02
 GO
 
-	CREATE OR ALTER TRIGGER [dbo].[BettransRNG_After_Insert]
-	ON [dbo].[bettransRnG]
+	CREATE OR ALTER TRIGGER [dbo].[bettransLC_After_Insert]
+	ON [dbo].[bettransLC]
 	FOR INSERT
 	AS
 	/*
@@ -26,7 +28,8 @@ GO
 			- 20221031@July: Change column BalanceChanged [176932]
 	*/
 	BEGIN
-		-- DB05BK1 : not get balance from DBTrans
+
+		-- DB05BK1 : not sync balance from DBTrans
 
 		--PRINT GETDATE()
 		INSERT INTO BalanceTrigger (
@@ -39,14 +42,14 @@ GO
 			i.custid, transid, gameID, ISNULL(actual_stake,0), ISNULL(winlost,0), ISNULL(playercomm,0),
 			CASE
 			--WHEN IsSum = 0 AND statusID = 0 THEN -ISNULL(actual_stake,0)
-			--WHEN IsSum = 0 AND statusID = 1 THEN ISNULL(winlost,0) - ISNULL(actual_stake,0) + ISNULL(playercomm,0)
+			--WHEN IsSum = 0 AND statusID = 1 THEN ISNULL(winlost,0) - ISNULL(actual_stake,0) +ISNULL(playercomm,0)
 			WHEN IsSum = 0  THEN ISNULL(winlost,0) - ISNULL(actual_stake,0) + ISNULL(playercomm,0)
 			ELSE 0 END,
 			current_timestamp,
-			012, -- BettransRNG insert
+			012, -- bettransLC insert
 			--'Insert ' + CASE WHEN bettype < 19001 then 'Bet' ELSE 'Transfer' END + ', status ' + [status]
 			-- my suggested pattern (Joe)
-			'RNG (IsSUM : ' + CAST(IsSUM AS varchar(50)) + ') inserted as ' + [status],
+			'LC (IsSUM : ' + CAST(IsSUM AS varchar(50)) + ') inserted as ' + [status],
 			NULL Balance
 			--v.Balance
 		FROM
@@ -61,3 +64,5 @@ GO
 		ORDER BY
 			i.transid
 	END
+
+	

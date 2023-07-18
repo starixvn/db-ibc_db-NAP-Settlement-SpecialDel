@@ -8,6 +8,7 @@ AS
 	 Revisions:  
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 
 	 Param's Explanation:  
     

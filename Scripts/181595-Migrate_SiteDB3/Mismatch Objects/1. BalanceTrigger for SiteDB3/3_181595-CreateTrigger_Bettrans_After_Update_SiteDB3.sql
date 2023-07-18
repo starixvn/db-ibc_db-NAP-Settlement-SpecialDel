@@ -1,4 +1,4 @@
-/*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/  
+/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/  
 
 /*
 	Created by: 20230626@Louisa
@@ -8,6 +8,8 @@
 		- 20220130@Louisa: Create trigger [Bettrans_After_Update] [Redmineid:#181595]
 
 */
+
+--- run on SiteDB3  only
 
 USE bodb02
 GO

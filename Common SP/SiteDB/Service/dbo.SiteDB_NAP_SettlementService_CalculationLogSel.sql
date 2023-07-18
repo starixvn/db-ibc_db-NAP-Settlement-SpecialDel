@@ -12,6 +12,7 @@ AS
 		- 20221010@Louisa: get log which is inserted 1 second before [Redmine:#178880]
 		- 20221025@Louisa: Use JSon log format for soccer [Redmine:#179449]
 		- 20221101@Louisa: allow run parallell [Redmine#]
+		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 
 	Param's Explanation:  
 		   

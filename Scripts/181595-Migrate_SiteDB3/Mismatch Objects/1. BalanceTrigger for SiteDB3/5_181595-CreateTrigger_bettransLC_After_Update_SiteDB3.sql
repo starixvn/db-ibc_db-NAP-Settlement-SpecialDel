@@ -1,3 +1,4 @@
+/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/  
 /*
 	Created by: 20230626@Louisa
     Task: Migrate data for SiteDB3 - add mismatch objects [Redmineid:#181595]
@@ -6,6 +7,8 @@
 		- 20220130@Louisa: Create trigger [bettransLC_After_Update] [Redmineid:#181595]
 
 */
+
+--- run on SiteDB3  only
 
 USE bodb02
 GO
