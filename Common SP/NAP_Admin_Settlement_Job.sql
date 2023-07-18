@@ -17,6 +17,7 @@ AS
 		- 20210921@Max: Add new job CustLimitBet Max Payout [Redmine: #158846]
 		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
+		- 20230718@Kathy: Add job bodb02 : Task_NetPosition_Calculation_Job [Redmine:#187311]
 
 */
 /*
@@ -42,6 +43,7 @@ AS
 
 	--11.Ticket Voiding:		'bodb02: Ticket Voiding'
 	--12.VS BetRadar			'bodb02 : NAP Settlement VS BetRadar'
+	--13. NetPosition			'bodb02 : Task_NetPosition_Calculation_Job'
 
 */
 BEGIN
@@ -130,6 +132,12 @@ BEGIN
 			EXEC [dbo].[NAP_Admin_Settlement_VS_Notify_Job]
 
 		END
+
+		ELSE IF (@Jobname = 'bodb02 : Task_NetPosition_Calculation_Job') AND OBJECT_ID('Task_Calculation_NetPosition_Job','p') IS NOT NULL
+		BEGIN
+			EXEC dbo.Task_Calculation_NetPosition_Job
+		END
+
 		IF DATEDIFF(SECOND, @startDate, GETDATE() ) >= 600 -- loop within 10 minutes
 			BREAK
 	

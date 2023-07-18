@@ -19,6 +19,7 @@ AS
 		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
 		- 20220822@Max: Deploy [TVS] Support Max Payout & Max Turnover for Deposit [Redmine: #176894]
 		- 20220809@Max: DBA - PROD - Enhance Parlay Calculation for Max Payout [Redmine: #177611]   
+		- 20230718@Kathy: Add job bodb02 : Task_NetPosition_Calculation_Job [Redmine:#187311]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -83,6 +84,10 @@ BEGIN
 	--14.Retry Max Payout
 	UNION ALL
 	SELECT 'bodb02 : Task Retry Max Payout'	, '00:01:00', 0
+
+	--15.Calculate NetPosition
+	UNION ALL
+	SELECT 'bodb02 : Task_NetPosition_Calculation_Job'	, '00:01:00', 0
 
 
 	SELECT @WaitingTime = WaitingTime
