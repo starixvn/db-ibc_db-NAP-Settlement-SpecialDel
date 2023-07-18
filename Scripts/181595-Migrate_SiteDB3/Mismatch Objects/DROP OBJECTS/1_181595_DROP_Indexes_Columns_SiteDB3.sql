@@ -6,7 +6,7 @@
     DB: DBSIG-bodb02
 
 	Revisions:
-		- 20230626@Louisa: DROP index, column  [Redmineid:#181595]					
+		- 20230626@Louisa: object related inhouse replicator  [Redmineid:#181595]					
 	
 */
 
@@ -40,7 +40,55 @@ GO
 	ALTER TABLE dbo.zzzbettransm DROP COLUMN source_keyid
 	GO
 
+	---- Add index
+		--bettrans.IX_RepUpdateTime
+	CREATE NONCLUSTERED INDEX [IX_RepUpdateTime] ON [dbo].[bettrans]
+	(
+		[RepUpdateTime] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	GO
 
+	----BettransInfo.RepUpdateTime
+	CREATE NONCLUSTERED INDEX [IX_RepUpdateTime] ON [dbo].[BettransInfo]
+	(
+		[RepUpdateTime] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	GO
+
+	----bettransLC.RepUpdateTime
+	CREATE NONCLUSTERED INDEX [IX_RepUpdateTime] ON [dbo].[bettransLC]
+	(
+		[RepUpdateTime] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	GO
+
+	----bettransm.RepUpdateTime
+	CREATE NONCLUSTERED INDEX [IX_RepUpdateTime] ON [dbo].[bettransm]
+	(
+		[RepUpdateTime] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	GO
+
+	----bettransRnG.IX_tstamp
+	CREATE NONCLUSTERED INDEX [IX_tstamp] ON [dbo].[bettransRnG]
+	(
+		[tstamp] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	GO
+	
+	----CashOutSelling.IX_tstamp
+	CREATE NONCLUSTERED INDEX [IX_tstamp] ON [dbo].[CashOutSelling]
+	(
+		[tstamp] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	GO
+	
+	----translog.IX_tstamp
+	CREATE NONCLUSTERED INDEX [IX_tstamp] ON [dbo].[translog]
+	(
+		[tstamp] ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+	GO
 
 
 
