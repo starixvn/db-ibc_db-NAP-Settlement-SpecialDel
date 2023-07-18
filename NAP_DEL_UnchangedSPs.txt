@@ -1,4 +1,2 @@
-SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Select.sql
-SpecialDelete\Sportbook\MarkTickets\Nap_SpecialDelete_MarkTickets_Update.sql
-
+SpecialDelete\TicketVoiding\LogInfo\TicketVoiding_LogInfo_Select.sql
 

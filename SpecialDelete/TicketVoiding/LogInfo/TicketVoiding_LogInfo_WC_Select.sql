@@ -25,6 +25,7 @@ AS
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
+		- 20230718@Max: WrongScore - Not show data on Void Page - Betlist. [Redmine: #191360]
 		
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -1038,6 +1039,25 @@ BEGIN
 		FROM #logInfo l
 		GROUP BY MatchId, LiveScores, ScoreId
 
+		-- 4. List ticket unmark   (if any)
+		SELECT @UnmarkTransIds AS UnmarkTransIds
+			  ,@MarkTransIds AS MarkTransIds
+
+		-- 5. Transinfo table
+		SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+			,transid AS 't'
+			,Subtransid  AS 's_t'
+			,custid AS  'c'           
+			,bettype AS 'btype'
+			,betid AS 'bid'
+			,li.VoidFromTime AS 'vft'
+			,li.VoidToTime AS 'vtt'
+			,IsMixParlay AS 'isP'
+			,SiteDBGroupID AS 'sitedb'
+			,IsCancelCashOut AS 'isCCO'
+		FROM #TVSTicketBets t
+			INNER JOIN #logInfo li ON t.ScoreId = li.ScoreId
+		FOR JSON PATH))
 	END
 	ELSE IF @FilterBy = 2
 	BEGIN
@@ -1108,27 +1128,33 @@ BEGIN
 						WHERE l.MatchId = b.matchid AND l.HighLightMinTime = CASE WHEN b.checktime IS NOT NULL THEN b.checktime 
 																			  WHEN b.checktime IS NULL THEN b.transdate END 
 				) AS h
-	END
-	
-	-- 4. List ticket unmark   (if any)
-	SELECT @UnmarkTransIds AS UnmarkTransIds
-		  ,@MarkTransIds AS MarkTransIds
 
-	-- 5. Transinfo table
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
-		,transid AS 't'
-		,Subtransid  AS 's_t'
-		,custid AS  'c'           
-		,bettype AS 'btype'
-		,betid AS 'bid'
-		,li.VoidFromTime AS 'vft'
-		,li.VoidToTime AS 'vtt'
-		,IsMixParlay AS 'isP'
-		,SiteDBGroupID AS 'sitedb'
-		,IsCancelCashOut AS 'isCCO'
-	FROM #TVSTicketBets t
-		INNER JOIN #logInfo li ON t.ScoreId = li.ScoreId
-	FOR JSON PATH))
+		-- 4. List ticket unmark   (if any)
+		SELECT @UnmarkTransIds AS UnmarkTransIds
+			  ,@MarkTransIds AS MarkTransIds
+
+		-- 5. Transinfo table
+		SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+			,transid AS 't'
+			,Subtransid  AS 's_t'
+			,custid AS  'c'           
+			,bettype AS 'btype'
+			,betid AS 'bid'
+			,li.VoidFromTime AS 'vft'
+			,li.VoidToTime AS 'vtt'
+			,IsMixParlay AS 'isP'
+			,SiteDBGroupID AS 'sitedb'
+			,IsCancelCashOut AS 'isCCO'
+		FROM #TVSTicketBets t
+			CROSS APPLY (
+				SELECT MIN(VoidFromTime) AS VoidFromTime
+					,MAX(VoidToTime) AS VoidToTime
+				FROM #logInfo li 
+				WHERE li.MatchId = t.matchid
+				GROUP BY li.matchid
+			)li
+		FOR JSON PATH))
+	END
 	
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
