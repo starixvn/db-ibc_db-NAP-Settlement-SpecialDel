@@ -7,8 +7,7 @@ CREATE PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetId_UUS]
 )
 AS 
 /* 
-	Created by: Max
-	Date 20210519
+	Created by: 20210519@Max
 	Task: Void UUS ticket return balance [Redmine:#149927]
 	DB: DBTXN/bodb02
 	
@@ -20,7 +19,8 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
 */
@@ -30,18 +30,15 @@ BEGIN
 	DECLARE	@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
 			,@isExistNG					BIT = 0
-			,@isExistCricket			BIT = 0
 			,@isExistVS					BIT = 0
-			
-	DECLARE @session NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))					
-	
+			,@IsExistVS3 				BIT = 0
+
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
 	
 	DECLARE @beforeUpd 	TVP_BalanceWalletChange
 		  , @afterUpd 	TVP_BalanceWalletChange
 		
-	--get balance game for livecs
 	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
 	CREATE TABLE #balanceGameAfter (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)	
@@ -54,7 +51,7 @@ BEGIN
 		,betid			BIGINT
 		,stake			MONEY
 		,odds			MONEY
-		,refno			BIGINT -- translog.traslogid | bettrans.transid
+		,refno			BIGINT 
 		,betfrom		NVARCHAR(4)
 		,statusid		TINYINT
 		,betdaqid		BIGINT		
@@ -87,18 +84,14 @@ BEGIN
 		,mrecommend		INT
 		,srecommend		INT
 		,sporttype		SMALLINT
-		,IsHideComm		BIT DEFAULT(0)
 		,oddsid			INT
 		,ExtraInfo		VARCHAR(1000)
 		,awinlost		MONEY
-		,SiteId			VARCHAR(7)
 		,CurrencyName	NVARCHAR(50)
-		,IsMetricGaming	BIT
 		,modds			SMALLMONEY
 		,WalletType		TINYINT
 		,RefCode		BIGINT
 		,BonusID		INT
-		,MainTransId	BIGINT
 		,IsFinish		BIT
 		,actual_stake   MONEY
 	)
@@ -150,14 +143,11 @@ BEGIN
 		,recommend
 		,mrecommend
 		,srecommend
-		,IsHideComm
 		,eventdate
 		,oddsid
 		,ExtraInfo
 		,awinlost
-		,SiteId
 		,CurrencyName
-		,IsMetricGaming
 		,modds
 		,WalletType
 		,RefCode
@@ -196,17 +186,11 @@ BEGIN
 		,b.recommend
 		,b.mrecommend
 		,b.srecommend
-		,CASE 
-			WHEN b.bettype = 501 AND b.playerdiscount < 0 THEN 1 			 
-			ELSE 0 
-		 END AS IsHideComm
 		,b.winlostdate
 		,b.oddsid
 		,b.ExtraInfo
 		,b.awinlost
-		,NULL AS SiteId
 		,b.CurrencyName
-		,0 AS IsMetricGaming
 		,b.modds
 		,b.WalletType
 		,b.RefCode
@@ -237,9 +221,7 @@ BEGIN
 		FROM	#BetDelete b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		
 		WHERE bettype NOT IN (9, 29, 2799)
-			
 	END
 	
 	-- -- UPDATE eventtype = 2 [Outright ticket]
@@ -259,11 +241,8 @@ BEGIN
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	o.leagueid = l.leagueid
-			
 		WHERE bettype IN (10)
 	END
-	
-	
 	-- -- UPDATE eventtype = 3 [VS range bettypes]
 	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
@@ -276,7 +255,6 @@ BEGIN
 			,IsNeutral  = 0
 			,showtime	= CONVERT(VARCHAR(20), r.EventTime, 113) 
 			,sporttype 	= r.sporttype
-		
 		FROM	#BetDelete b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
@@ -325,11 +303,11 @@ BEGIN
 		RETURN
 	END
 	
-	SELECT @IsExistParlayVSBetradar	= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
+	SELECT @IsExistParlayVSBetradar		= MAX (CASE WHEN Bettype IN (2799) THEN 1 ELSE 0 END)
 			,@IsExistVSBetradar			= MAX (CASE WHEN sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END)
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
-			,@isExistCricket 			= MAX (CASE WHEN Bettype = 501 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
+			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
 	FROM	#BetDelete b
 	
 	-- STEP 1 : BackUp bettrans
@@ -392,7 +370,7 @@ BEGIN
 		AND main.matchid = tmpmain.matchid		
 	
 	--Get data before update
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -402,7 +380,6 @@ BEGIN
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
 			END AS groupId
@@ -411,14 +388,14 @@ BEGIN
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE tmp.Bettype BETWEEN 1101 AND 1199
 			OR b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120
-			OR b.bettype BETWEEN 1201 AND 1299
-			OR b.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
+			OR b.Bettype BETWEEN 1201 AND 1299 --VS
+			OR b.bettype BETWEEN 2700 AND 2899 --VS2 (Betradar)
+			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120THEN 81
-				WHEN b.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
 			END
@@ -435,7 +412,7 @@ BEGIN
 	SELECT matchid
 		 , custid
 		 , CASE 
-				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+				WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
 				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 		   END AS balanceType
@@ -454,45 +431,11 @@ BEGIN
 				ON	main.transid = tmpmain.transid
 					AND main.transid = tmpmain.grouptransid
 					AND main.matchid = tmpmain.matchid
-		WHERE	
-			1 = CASE 
-				WHEN tmpmain.bettype BETWEEN 801 AND 806 AND tmpmain.statusID = 0 THEN 0 
-				ELSE 1 
-			END
-					
-		UNION ALL
-		
-		SELECT  tmpmain.custid
-			  , 0 AS BonusID -- running metric gaming tickets always bet from cash wallet
-			  , 2 AS WalletType -- running metric gaming tickets always bet from cash wallet
-			  , 0 AS winlost, tl.actual_stake, 0 AS playercomm, tmpmain.Bettype, tmpmain.matchid,tmpmain.sporttype
-		FROM	dbo.translog tl WITH(NOLOCK)
-			INNER JOIN #BetDelete tmpmain
-				ON	tl.translogid = tmpmain.refno					
-		WHERE	tl.statusID = 0
-				AND tmpmain.bettype BETWEEN 801 AND 806	
-		
-		UNION ALL
-		
-		-- Cricket charge comm
-		SELECT b.custid
-			 , 0 AS BonusID -- cricket tickets always bet from cash wallet
-			 , 2 AS WalletType -- cricket tickets always bet from cash wallet
-			 , b.winlost, b.actual_stake, b.playercomm, b.bettype, b.matchid, 50 AS sporttype
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #tblMatch tm 
-				ON b.matchid = tm.matchid
-		WHERE b.bettype = 500
-			AND EXISTS (
-				SELECT TOP 1 1 
-				FROM #BetDelete d 
-				WHERE b.custid = d.custid
-			)
 	) tmp
 	GROUP BY matchid
 		   , CustID
 		   , CASE 
-				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+				WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
 				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 		     END
@@ -501,7 +444,7 @@ BEGIN
 
 
 	/**********************************************   *************************************************************/
-	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, TranslogId BIGINT, BetId BIGINT, IsMG BIT, Actual_stake MONEY)
+	DECLARE @tmpTransIDBatch TABLE (TransId	BIGINT, BetId BIGINT)
 	DECLARE @TransIds_tmp VARCHAR(MAX) = ''
 
 	-- STEP 2 : Update bettrans/translog
@@ -513,21 +456,15 @@ BEGIN
 		UPDATE TOP(2000) t
 			SET IsFinish = 1
 		OUTPUT  DELETED.transid
-			   ,CASE WHEN DELETED.IsMetricGaming = 1 THEN  DELETED.refno ELSE NULL END
 			   ,DELETED.BetID
-			   ,DELETED.IsMetricGaming
-			   ,DELETED.actual_stake
-		INTO @tmpTransIDBatch (TransId, TranslogId, BetId, IsMG, Actual_stake)
+		INTO @tmpTransIDBatch (TransId, BetId)
 		FROM #BetDelete t
 			INNER JOIN #tblMatch tm ON t.matchid = tm.matchid
 		WHERE IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
 		SELECT @TransIds_tmp = CAST((SELECT     m.TransId AS '@transid'
-											   ,m.TranslogId AS '@translogid'
 											   ,m.BetId AS '@betid'
-											   ,m.IsMG AS '@isMG'
-											   ,CASE WHEN m.IsMG = 1 THEN ISNULL(m.Actual_stake,0) ELSE 0 END AS '@actual_stake'
 									FROM @tmpTransIDBatch m
 									FOR XML PATH('r')
 										,ROOT('root')
@@ -542,45 +479,8 @@ BEGIN
 
 	END	
 
-	--re-calculate Cricket - charge comm
-	IF(@isExistCricket = 1)
-	BEGIN
-		DECLARE @TempData TABLE(RowId INT IDENTITY(1,1), MatchId INT, CustIds VARCHAR(MAX))
-		
-		BEGIN TRY
-			INSERT INTO @TempData(MatchId, CustIds)
-			SELECT MatchId, STUFF((SELECT ',' + CAST(CustId AS VARCHAR(50))
-									FROM #BetDelete tt where tt.MatchId = t.MatchId
-									FOR XML PATH (''), ROOT('str'), TYPE ).value('/str[1]','VARCHAR(MAX)'), 1, 1, '')
-			FROM #BetDelete t
-			WHERE Bettype = 501
-			GROUP BY MatchId
-
-			IF EXISTS (SELECT TOP 1 1 FROM @TempData)
-			BEGIN
-				DECLARE @RowId INT, @MatchIdTmp INT, @CustIds VARCHAR(MAX)
-				SELECT @RowId = 1
-				WHILE EXISTS (SELECT TOP 1 1 FROM @TempData WHERE RowId = @RowId)
-				BEGIN
-					SELECT @MatchIdTmp = MatchId
-						, @CustIds = CustIds
-					FROM @TempData t WHERE RowId = @RowId
-					SET @RowId = @RowId + 1
-					
-					EXEC dbo.NAP_Admin_Calculate_500 @MatchId	= @MatchIdTmp
-						, @Action = 'VOID'
-						, @CustIds = @CustIds
-				END
-			END
-		END TRY 
-		BEGIN CATCH
-			SELECT	@ErrCode = 500
-				,@ErrMsg = 'Called NAP_Admin_Calculate_500 with error.'
-		END CATCH
-	END
-	
 	--Get data after update
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -590,7 +490,6 @@ BEGIN
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
 			END
@@ -599,14 +498,14 @@ BEGIN
 			ON b.transId = tmp.transId AND b.custid = tmp.custid
 		WHERE tmp.Bettype BETWEEN 1101 AND 1199
 			OR tmp.bettype BETWEEN 81 AND 120 OR tmp.bettype BETWEEN 8101 AND 8120
-			OR tmp.Bettype BETWEEN 1201 AND 1299
-			OR tmp.bettype BETWEEN 2700 AND 2899
 			OR b.bettype BETWEEN 1600 AND 1610
+			OR b.Bettype BETWEEN 1201 AND 1299 --VS
+			OR b.bettype BETWEEN 2700 AND 2899 --VS2 (Betradar)
+			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
 				WHEN tmp.Bettype BETWEEN 81 AND 120 OR tmp.Bettype BETWEEN 8101 AND 8120 THEN 81
-				WHEN tmp.bettype BETWEEN 2700 AND 2899 THEN 1201
 				WHEN b.bettype BETWEEN 1600 AND 1610 THEN 1600
 				ELSE 1201
 			END
@@ -623,7 +522,7 @@ BEGIN
 	SELECT matchid	
 		 , custid
 		 , CASE 
-				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+				WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
 				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 		   END AS balanceType
@@ -642,28 +541,11 @@ BEGIN
 				ON	main.transid = tmpmain.transid
 					AND main.transid = tmpmain.grouptransid
 					AND main.matchid = tmpmain.matchid
-		
-		UNION ALL
-		
-		-- Cricket charge comm
-		SELECT b.custid
-			 , 0 AS BonusID -- cricket tickets always bet from cash wallet
-			 , 2 AS WalletType -- cricket tickets always bet from cash wallet
-			 , b.winlost, b.actual_stake, b.playercomm, b.bettype, b.matchid, 50 AS sporttype
-		FROM dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #tblMatch tm 
-				ON b.matchid = tm.matchid
-		WHERE b.bettype = 500
-			AND EXISTS (
-				SELECT TOP 1 1 
-				FROM #BetDelete d 
-				WHERE b.custid = d.custid
-			)
 	) tmp
 	GROUP BY matchid
 		   , CustID
 		   , CASE 
-				WHEN ((tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) AND tmp.bettype NOT BETWEEN 801 AND 806) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
+				WHEN (tmp.sporttype BETWEEN 1 AND 99 OR tmp.sporttype = 154) OR tmp.bettype IN (9,29,10) THEN 1 -- Sports
 				WHEN tmp.sporttype = 162 THEN 3 -- Casino
 				ELSE 4  -- Others
 			 END
@@ -676,7 +558,7 @@ BEGIN
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
 	
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		
 		CREATE TABLE #balanceGameChange (
