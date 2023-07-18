@@ -14,6 +14,7 @@ AS
 		- 20210112@Zane: Create new SP [Redmine:#145719]
 		- 20210201@Zane: Modify archive process for abnormal Account [Redmine:#149776]
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
+		- 20230629@Max: [TVS] Enhance 'Manage Request' performance [Redmine: #190508]
 
 	Param's explanation:
 		
@@ -24,27 +25,17 @@ BEGIN
     DECLARE @tmpResult TABLE (requestid INT, isActivedRequest BIT) 
 
     IF EXISTS (SELECT TOP 1 1 
-               FROM   ticketvoiding_requestdetail_bk rd WITH(NOLOCK) 
-            WHERE  matchid IN ( 9, 29, 2799 )) 
+               FROM   dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
+					INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799 )
+            WHERE CONVERT(DATE, r.CreatedDate) BETWEEN @FromDate AND @ToDate
+		) 
     BEGIN      
-
-        INSERT INTO @tmpResult (requestid, isActivedRequest) 
-		SELECT rd.requestid
-			,CASE WHEN r.RequestId IS NULL THEN 1
-					ELSE NULL END AS isActivedRequest
-		FROM   ticketvoiding_requestdetail_bk rd WITH(NOLOCK)
-				LEFT JOIN dbo.ticketvoiding_request_bk r WITH(NOLOCK) 
-						ON rd.requestid = r.RequestId 
-				INNER JOIN dbo.ticketvoiding_requestdetailticket_single_bk s WITH(NOLOCK) 
-						ON rd.requestid = s.requestid 
-				CROSS APPLY(
-					SELECT 	TOP 1 b.transid, b.winlostdate
-					FROM	dbo.bettrans_bk b WITH(NOLOCK)
-					WHERE	b.transid = s.transid
-				)b
-		WHERE  rd.matchid IN ( 9, 29, 2799 ) 
-				AND b.winlostdate BETWEEN @FromDate AND @ToDate 
-		GROUP  BY rd.requestid, r.IssueTypeId, rd.Usernames, r.RequestId
+        INSERT INTO @tmpResult (requestid) 
+		SELECT r.requestid
+		FROM  dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
+			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799 )
+		WHERE CONVERT(DATE, r.CreatedDate) BETWEEN @FromDate AND @ToDate 
+		GROUP  BY r.requestid
     END 
 
     IF EXISTS (SELECT TOP 1 rd.requestid, o.eventdate 
