@@ -15,6 +15,7 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230321@Max: Hotfix scan request auto void winning [Redmine: #185526]
+		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 
 	Param's explanation:
 		+ Both @RequestIds, @SiteDBGroupID IS NULL: Service scan signal settle 5p/time
@@ -47,6 +48,12 @@ BEGIN
 		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
 			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.MatchId = 29
+			AND rds.IsProcessed IS NULL
+		UNION ALL
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
+		WHERE rds.RequestId IN (SELECT RequestId FROM @tmpRequestId)
+			AND rds.SiteDBGroupID = @SiteDBGroupID
 			AND rds.IsProcessed IS NULL
 	END
 	ELSE --Get all ticket all requests

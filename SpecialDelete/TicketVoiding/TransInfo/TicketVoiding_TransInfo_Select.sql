@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_Select]
 	,@AbnormalAccounts	  VARCHAR(MAX) = NULL
 	,@ArchivedTransIds	  VARCHAR(MAX) = NULL
 	,@WrongOddsInfo       VARCHAR(MAX) = NULL
+	,@ReducedOverInfo	  VARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -25,6 +26,7 @@ AS
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
+		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 
 	Param's explanation:	
 		
@@ -125,6 +127,14 @@ BEGIN
 	BEGIN
 		EXEC dbo.TicketVoiding_TransInfo_ARC_Select
 			@ArchivedTransIds = @ArchivedTransIds
+	END
+	/*-----------------*/
+
+	/*---Reduced Over---*/
+	IF @IssueTypeId = 19
+	BEGIN
+		EXEC dbo.TicketVoiding_TransInfo_RO_Select
+			@ReducedOverInfo = @ReducedOverInfo
 	END
 	/*-----------------*/
 

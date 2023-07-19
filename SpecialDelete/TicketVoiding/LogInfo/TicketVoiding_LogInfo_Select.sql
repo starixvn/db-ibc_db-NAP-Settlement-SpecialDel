@@ -16,6 +16,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_LogInfo_Select]
 	,@WrongOUInfo		  VARCHAR(MAX) = NULL
 	,@Wrong1stOUInfo	  VARCHAR(MAX) = NULL	
 	,@WrongOddsInfo		  VARCHAR(MAX) = NULL
+	,@ReducedOverInfo	  VARCHAR(MAX) = NULL
 	,@TransInfoJson		  VARCHAR(MAX) = NULL
 )
 AS
@@ -65,6 +66,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
+		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 
 	Param's explanation:
 		
@@ -96,6 +98,7 @@ BEGIN
 					+ CASE WHEN @WrongOUInfo IS NULL THEN '' ELSE ',@WrongOUInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOUInfo) + '''' END
 					+ CASE WHEN @Wrong1stOUInfo IS NULL THEN '' ELSE ',@Wrong1stOUInfo = ''' + CONVERT(NVARCHAR(MAX), @Wrong1stOUInfo) + '''' END
 					+ CASE WHEN @WrongOddsInfo IS NULL THEN '' ELSE ',@WrongOddsInfo = ''' + CONVERT(NVARCHAR(MAX), @WrongOddsInfo) + '''' END
+					+ CASE WHEN @WrongOddsInfo IS NULL THEN '' ELSE ',@ReducedOverInfo = ''' + CONVERT(NVARCHAR(MAX), @ReducedOverInfo) + '''' END
 					+ CASE WHEN @TransInfoJson IS NULL THEN '' ELSE ',@TransInfoJson = ''' + CONVERT(NVARCHAR(MAX), @TransInfoJson) + '''' END
 
 			INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
@@ -193,6 +196,16 @@ BEGIN
 			,@IsShowLogOnly		   = @IsShowLogOnly
 			,@IssueTypeId		   = @IssueTypeId
 			,@DARCInfo			   = @RedCardInfo
+			,@TransInfoJson		   = @TransInfoJson
+	END
+	ELSE IF @IssueTypeId = 19 --ReducedOver
+	BEGIN
+		EXEC dbo.TicketVoiding_LogInfo_RO_Select
+			 @RequestId			   = @RequestId
+			,@ActionId			   = @ActionId
+			,@IsShowLogOnly		   = @IsShowLogOnly
+			,@IssueTypeId		   = @IssueTypeId
+			,@ReducedOverInfo	   = @ReducedOverInfo
 			,@TransInfoJson		   = @TransInfoJson
 	END
 
