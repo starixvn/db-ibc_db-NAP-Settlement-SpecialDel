@@ -51,7 +51,7 @@ BEGIN
 	CREATE TABLE #ParlayTickets_ReSettle (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	CREATE TABLE #CancelCashOutTickets (TransId BIGINT, RequestId INT, MatchId INT, IssueTypeId TINYINT)
 	--Void14 (Abnormal Account only)
-	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT)
+	CREATE TABLE #SingleTickets_14 (TransId BIGINT, RequestId INT, Matchid INT, IssueTypeId TINYINT, transdate DATETIME, winlostdate DATETIME, statusId INT)
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
@@ -186,11 +186,14 @@ BEGIN
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpInputTransId t
 					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
 		BEGIN
-			INSERT INTO #SingleTickets_14 (TransId, RequestId, Matchid, IssueTypeId)
+			INSERT INTO #SingleTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
 			SELECT t.TransId
 				,t.RequestId
 				,t.MatchId
 				,t.IssueTypeId
+				,b.transdate
+				,b.winlostdate
+				,b.statusID
 			FROM #tmpInputTransId t
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 		END
@@ -234,7 +237,7 @@ BEGIN
 
 	SELECT TransId, RequestId, MatchId, IssueTypeId FROM #CancelCashOutTickets --CancelCO
 
-	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_14 --Single_14Void
+	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets_14 --Single_14Void
 
 	DROP TABLE #tmpInputTransId
 	DROP TABLE #tmpTransIds
