@@ -49,7 +49,8 @@ BEGIN
 						END
 	FROM	@tmpCalculateNP
 
-	SET @NPAdjust = @minPay
+	SELECT @minPay = ISNULL(@MinPay,0)
+			,@NPAdjust = ISNULL(@MinPay,0)
 
 	-- get latest data FROM NPCalculatiONLog
 	-- @NPAdjust = totalNP - AccumNP
@@ -98,6 +99,7 @@ BEGIN
 			UPDATE	dbo.BalNetPosition WITH (ROWLOCK, UPDLOCK) 
 				SET Credit = @AccumNPCredit
 					,Debit = @AccumNPDebit
+					,ModifiedDate = CURRENT_TIMESTAMP
 			WHERE	Custid = @Custid 
 					AND Matchid = @Matchid 
 					AND bettype = @bettype
