@@ -30,6 +30,7 @@ AS
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
+		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -65,20 +66,20 @@ BEGIN
 			,@SSBStatus = 0
 			,@IsRunBySSB = 0
 
-	;WITH cteCricketRunning
-	AS(
-		SELECT	keyid
-		FROM	dbo.Single_Calculate_Queue WITH (NOLOCK)
-		WHERE	IsCalculating = 1
-				AND SportType = 50
-				AND sqlCommand = ''
-				AND DATEDIFF(ms, execTime, GETDATE()) > 300000
-	)
-	UPDATE	q
-		SET IsCalculating = 3
-	FROM	 dbo.Single_Calculate_Queue q WITH (ROWLOCK, UPDLOCK)
-		INNER JOIN cteCricketRunning c
-			ON q.keyid = c.keyId
+	--;WITH cteCricketRunning
+	--AS(
+	--	SELECT	keyid
+	--	FROM	dbo.Single_Calculate_Queue WITH (NOLOCK)
+	--	WHERE	IsCalculating = 1
+	--			AND SportType = 50
+	--			AND sqlCommand = ''
+	--			AND DATEDIFF(ms, execTime, GETDATE()) > 300000
+	--)
+	--UPDATE	q
+	--	SET IsCalculating = 3
+	--FROM	 dbo.Single_Calculate_Queue q WITH (ROWLOCK, UPDLOCK)
+	--	INNER JOIN cteCricketRunning c
+	--		ON q.keyid = c.keyId
 
 	SELECT	@keyId = keyid
 			,@SSBStatus = ISNULL(SSBStatus,0)
