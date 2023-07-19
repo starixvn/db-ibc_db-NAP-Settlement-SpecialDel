@@ -44,6 +44,7 @@ AS
 		- 20220829@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20230427@July: Support sport Cricket for all functions [Redmine: #188374]
+		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 
     Param's Explanation:  
     @Mode:   
@@ -175,33 +176,19 @@ BEGIN
             ,liveindicator              
             )  
         SELECT typeid  
-            ,5 AS type -- type = 5: VS betradar
+            , CASE WHEN typeid BETWEEN 2700 AND 2899 THEN 5 -- type = 5: VS betradar
+				   WHEN typeid BETWEEN 5302 AND 5399 THEN 1 -- type = 7: Virtual Sports 3
+				   WHEN typeid = 38 THEN 1 -- type = 8: Bet Builder
+				   WHEN typeid = 7901 THEN 1 -- type = 9: Bitcoin
+				   ELSE 0 END AS type 
             ,0 AS liveindicator              
         FROM bettype WITH (NOLOCK)  
-        WHERE @matchid = 0 AND typeid BETWEEN 2700 AND 2899
-
-		INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator            
-            )
-        SELECT typeid
-            ,8 AS type -- type = 8: Bet Builder
-            ,0 AS liveindicator            
-        FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND typeid = 38
-
-		INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator            
-            )
-        SELECT typeid
-            ,9 AS type -- type = 9: Bitcoin
-            ,0 AS liveindicator            
-        FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND typeid = 7901
-
+        WHERE @matchid = 0 
+			AND 1 = CASE WHEN typeid BETWEEN 2700 AND 2899 THEN 1
+						 WHEN typeid BETWEEN 5302 AND 5399 THEN 1
+						 WHEN typeid = 38 THEN 1
+						 WHEN typeid = 7901 THEN 1
+						 ELSE 0 END
     END
     
     ----- number game  

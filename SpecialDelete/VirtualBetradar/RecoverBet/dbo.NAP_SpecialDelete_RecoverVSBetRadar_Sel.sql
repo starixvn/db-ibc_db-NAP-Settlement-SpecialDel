@@ -6,8 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverVSBetRadar_Sel]
 	@TransIds			VARCHAR(MAX)	= ''
 AS
 /*  
-	Created by: Kent  
-	Date: 20170607
+	Created by: 20170607@Kent  
 	Task: 
 	DB: DBTXN/bodb02   
 	Original:NAP_SpecialDelete_RecoverVSBetRadar_Sel     
@@ -18,7 +17,8 @@ AS
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-		
+		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+
 	Param's Explanation:			
 		- @TicketType:		
 		'Single': Single ticket
@@ -98,7 +98,7 @@ BEGIN
 	--> search by @TransIds
 	IF @TicketType = 'Single'	   	
 	BEGIN
-		--> VS Betradar, Inspired VS 180	
+		--> VS Betradar, Inspired VS 180, VS 3(Leap Gaming)	
 		INSERT INTO #RecoverBet(
 				Stake,
 				AwayId,
@@ -195,6 +195,7 @@ BEGIN
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
 				OR m.sporttype IN (180, 186) -- Inspired VS 
+				OR m.sporttype IN (178) -- VS 3 (Leap Gaming)
 			  )
 		  AND z.bettype NOT IN (2799)		  		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID

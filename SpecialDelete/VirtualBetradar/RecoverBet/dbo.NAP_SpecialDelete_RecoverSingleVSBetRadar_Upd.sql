@@ -20,7 +20,8 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+
 	Param's Explanation:		
 		- @TransIds : Main transids.
 */
@@ -34,10 +35,11 @@ BEGIN
 
 	DECLARE @isExistMatch				  BIT = 0	
 		  , @IsExistVS					  BIT = 0	  	  
-		  , @avaiableProcess			  BIT	= 0
+		  , @avaiableProcess			  BIT = 0
 		  , @IsExistVSBetradar			  BIT = 0
 		  , @IsExistInspiredVS			  BIT = 0
-		  , @isITAdmin					  BIT	= 0
+		  , @IsExistVS3					  BIT = 0
+		  , @isITAdmin					  BIT = 0
 		  , @before_yesterday			  DATETIME
 		  , @cnt_Ticket					  INT = 0
 		  , @CustIds					  VARCHAR(MAX) = ''			  		 
@@ -117,7 +119,7 @@ BEGIN
 		BetFrom				NVARCHAR(4),
 		matchid				INT,
 		[Action]			VARCHAR(100),
-		TicketType			TINYINT -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181
+		TicketType			TINYINT -- 1 : VS Betradar, 2 : Inspired VS 180, 3 : Inspired VS 181, 4 : VS 3 (Leap Gaming)	
 	)
 	
 	CREATE TABLE #ReCalMatchID_InspiredVS
@@ -184,7 +186,7 @@ BEGIN
 		END				 
 		
 		--> Search tickets			
-		-- VS Betradar, Inspired VS 180				
+		-- VS Betradar, Inspired VS 180, VS 3 (Leap Gaming)			
 		INSERT INTO #RecoverBet(
 				Stake,
 				AwayId,
@@ -283,6 +285,7 @@ BEGIN
 				CASE 
 					WHEN m.sporttype BETWEEN 190 AND 199 THEN 1 -- VS Betradar
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
+					WHEN m.sporttype IN (178) THEN 4 -- VS 3 (Leap Gaming)
 					ELSE NULL
 				END AS TicketType
 		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
@@ -298,7 +301,8 @@ BEGIN
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
 				OR m.sporttype IN (180, 186) -- Inspired VS 180
-			  )
+				OR m.sporttype IN (178) -- VS 3 (Leap Gaming)
+			 )
 		  AND z.bettype NOT IN (2799)
 		  AND z.SiteDBGroupID = @SiteDBGroupID
 		  
@@ -446,9 +450,10 @@ BEGIN
 		END
 		
 		--> Check Concurrency				
-		SELECT @isExistMatch	  = MAX(CASE WHEN TicketType IN (1, 2) THEN 1 ELSE 0 END)
+		SELECT @isExistMatch	  = MAX(CASE WHEN TicketType IN (1, 2, 4) THEN 1 ELSE 0 END)
 			 , @IsExistVS		  = MAX(CASE WHEN TicketType = 3 THEN 1 ELSE 0 END)			 
 			 , @IsExistVSBetradar = MAX(CASE WHEN TicketType = 1 THEN 1 ELSE 0 END)
+			 , @IsExistVS3		  = MAX(CASE WHEN TicketType = 4 THEN 1 ELSE 0 END)
 			 , @IsExistInspiredVS = MAX(CASE WHEN TicketType IN (2, 3) THEN 1 ELSE 0 END)
 		FROM #RecoverBet
 			
@@ -456,7 +461,7 @@ BEGIN
 		SELECT DISTINCT 
 				matchid
 			  , CASE 
-					WHEN TicketType IN (1, 2) THEN 1 -- VS Betradar, Inspired VS 180
+					WHEN TicketType IN (1, 2, 4) THEN 1 -- VS Betradar, Inspired VS 180, VS 3(Leap Gaming)	
 					ELSE 4 -- Inspired VS 181
 				END AS KeyId
 		FROM #RecoverBet
@@ -495,7 +500,7 @@ BEGIN
 							SELECT TOP 1 eventstatus, betstatus
 							FROM dbo.match m WITH(NOLOCK)
 							WHERE m.matchid = t.matchid
-							  AND t.TicketType IN (1, 2)
+							  AND t.TicketType IN (1, 2, 4)
 							UNION ALL
 							SELECT TOP 1 r.eventstatus, r.betstatus
 							FROM dbo.VSOutright o WITH (NOLOCK)											 
@@ -529,12 +534,12 @@ BEGIN
 		GROUP BY CustID
 		
 		DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
-		IF @IsExistVSBetradar = 1
+		IF @IsExistVSBetradar = 1 OR @IsExistVS3 = 1
 		BEGIN	
 			INSERT INTO @tmpMatchId (MatchId)
 			SELECT DISTINCT b.MatchId
 			FROM #RecoverBet b
-			WHERE b.TicketType = 1
+			WHERE b.TicketType IN (1, 4)
 
 			WHILE (1=1)
 			BEGIN
@@ -552,7 +557,7 @@ BEGIN
 					SELECT transid '@q' -- transid			 
 						 , creator '@cr' -- creator
 					FROM #RecoverBet	
-					WHERE TicketType = 1	AND matchid = @matchId	 					 
+					WHERE TicketType IN (1, 4) AND matchid = @matchId	 					 
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
@@ -569,7 +574,7 @@ BEGIN
 				SELECT matchid '@m' 
 					 , transid '@t'
 				FROM #RecoverBet
-				WHERE TicketType = 1
+				WHERE TicketType IN (1, 4)
 				  AND [Action] = @Action_Recal
 				FOR XML PATH('r'), ROOT('root'), TYPE
 			) 
@@ -587,7 +592,7 @@ BEGIN
 			SET @_xml = (
 				SELECT transid '@t'
 				FROM #RecoverBet
-				WHERE TicketType = 1
+				WHERE TicketType IN (1, 4)
 				  AND [Action] = @Action_Refund
 				FOR XML PATH('r'), ROOT('root'), TYPE
 			) 
