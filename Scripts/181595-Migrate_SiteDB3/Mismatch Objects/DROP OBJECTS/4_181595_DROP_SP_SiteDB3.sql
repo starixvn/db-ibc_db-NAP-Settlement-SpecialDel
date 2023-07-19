@@ -47,7 +47,7 @@ DROP PROCEDURE DEL_SSB_Settlement_SiteDB_Execute_Message_3rd
 GO
 DROP PROCEDURE DEL_SSB_Settlement_SiteDB_UpdateData 
 GO
-DROP PROCEDURE DEL_SSB_Settlement_SiteDB1_Process_Message 
+DROP PROCEDURE SSB_Settlement_SiteDB1_Process_Message 
 GO
 DROP PROCEDURE DEL_SSB_Settlement_SiteDB1_Process_Message_01 
 GO
