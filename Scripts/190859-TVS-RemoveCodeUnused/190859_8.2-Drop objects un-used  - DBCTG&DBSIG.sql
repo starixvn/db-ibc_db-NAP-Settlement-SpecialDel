@@ -1,8 +1,8 @@
-/*<info serverAlias="DBCTG-bodb02, DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20230303@July
 	Task: Drop Objects un-used  [Redmine:#190859]  
-	DB: DBCTG-bodb02, DBSIG-bodb02
+	DB: DBTXN-bodb02
 	
 */
 USE bodb02
@@ -105,7 +105,7 @@ SELECT * FROM @tmpDropObjectsName
 WHILE (1=1)
 BEGIN
 	UPDATE TOP (1) @tmpDropObjectsName
-	SET @command = @command, IsDrop = 1
+	SET @command = command, IsDrop = 1
 	WHERE IsDrop IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK;
@@ -113,4 +113,5 @@ BEGIN
 	EXEC (@command)
 
 END
+
 
