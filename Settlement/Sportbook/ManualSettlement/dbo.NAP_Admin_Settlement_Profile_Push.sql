@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@AutoType			TINYINT			= 0
-	,@ServiceCommand	VARCHAR(MAX)	= '' OUTPUT
+	
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -48,6 +48,7 @@ AS
 		- 20221201@Louisa: PinGoal Esports[Redmine:#180808]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
+		- 20230719@Kathy: Remove unused param [Redmine:#187311]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
