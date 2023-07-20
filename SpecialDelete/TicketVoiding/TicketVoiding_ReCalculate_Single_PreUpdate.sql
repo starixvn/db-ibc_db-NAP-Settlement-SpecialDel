@@ -11,8 +11,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_ReCalculate_Single_PreUpdate]
 	@NegativeBalanceUsers		VARCHAR(MAX) = NULL OUTPUT
 )
 AS
-/*	Created by: Max
-	Date 20200212
+/*	Created by: 20200212@Max
 	Task: Abnormal Void Bets Automation [Redmine: #128359]
 	DB: DBTXN/bodb02
 	
@@ -23,6 +22,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220808@Max: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230303@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 
 	Param's explanation:	
 		
@@ -36,7 +36,6 @@ BEGIN
 			,@totalMainParlay			INT = 0
 			,@MainParlay_MaxPO			VARCHAR(MAX) = NULL
 			,@avaiableProcess			BIT
-			,@isExistMG					BIT = 0
 			,@isExistFM					BIT = 0
 			,@isExistFM2				BIT = 0
 			,@IsExistBB					BIT = 0
@@ -51,15 +50,12 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
-			,@isExistLucky3				BIT = 0
 	
-	DECLARE @StartTime			DATETIME
-			,@EndTime			DATETIME
-			,@LogActionId		INT
+	DECLARE @LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@xmlTransId		VARCHAR(MAX)
-			,@refnos_29				 VARCHAR(MAX) = '' 
-			,@SiteDBGroupID SMALLINT = 0 
+			,@refnos_29			VARCHAR(MAX) = '' 
+			,@SiteDBGroupID		SMALLINT = 0 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -67,7 +63,6 @@ BEGIN
 
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
-
 	
 	CREATE TABLE #tmpTransId (
 		TransId				BIGINT
@@ -89,7 +84,6 @@ BEGIN
 	SELECT	value AS TransId
 	FROM STRING_SPLIT(@TransIds, ',')
 
-	SET @StartTime = GETDATE()
 	SET @LogActionId = 90503
 	SET @SB_Error = 0
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
@@ -195,7 +189,6 @@ BEGIN
 			ELSE
 			BEGIN
 				SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-						,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
 						,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 						,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 						,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
@@ -206,7 +199,6 @@ BEGIN
 						,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 						,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 						,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-						,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 						,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
 				FROM	#tmpTransId v
 
@@ -281,7 +273,6 @@ BEGIN
 				-- checking single proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
 					, @isExistFM				= @isExistFM
 					, @isExistMatch				= @isExistMatch
 					, @isExistNG				= @isExistNG
@@ -467,7 +458,6 @@ BEGIN
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
 					, @isExistFM				= @isExistFM
 					, @isExistMatch				= @isExistMatch
 					, @isExistNG				= @isExistNG
@@ -509,7 +499,6 @@ BEGIN
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
 	-- Write Log
-	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	0 AS '@RequestId'
 							,@LogActionId AS '@LogActionId'
 							,@UserId AS '@UserId'
@@ -523,4 +512,6 @@ BEGIN
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
 
 	DROP TABLE #tmpTransId
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblMatchParlayProcess
 END

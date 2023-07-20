@@ -8,13 +8,13 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Auto_Unmark_ReCalculate]
 )
 AS
 /*	
-	Created by: Max
-	Date 20230303
+	Created by: 20230303@Max
 	Task: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
 		- 20230303@Max: Create new SP [Redmine: #180625]	
+		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 
 	Param's explanation:	
 		
@@ -26,13 +26,11 @@ BEGIN
 			,@ThreadHold				INT = 0-- over threadhold, the parlay process will be locked in systemsetting 
 			,@totalMainParlay			INT = 0
 			,@avaiableProcess			BIT
-			,@isExistMG					BIT = 0
 			,@isExistFM					BIT = 0
 			,@isExistFM2				BIT = 0
 			,@IsExistBB					BIT = 0
 			,@isExistMatch				BIT = 0
 			,@session					NVARCHAR(50)
-			,@CustIds					VARCHAR(MAX)
 			,@isExistParlay				BIT = 0
 			,@IsExistParlayVSBetradar 	BIT = 0
 			,@IsExistVSBetradar 		BIT = 0
@@ -41,24 +39,22 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
-			,@isExistLucky3				BIT = 0
 			,@ErrMsg					NVARCHAR(300) = ''
 			,@ErrCode					INT           = 0
 			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
 			,@limitsecond				INT	= 300
 			,@StartTime_Retry			DATETIME
-			,@SiteDBGroupID SMALLINT = 0 
+			,@SiteDBGroupID				SMALLINT = 0 
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpInputTransId TABLE(TransId BIGINT)
 	
-	CREATE TABLE #tmpTransId (
+	CREATE TABLE #tmp_TransId (
 		TransId				BIGINT
 		,custid				INT
 		,bettype			SMALLINT
 		,Refno				BIGINT
-		,balanceType		TINYINT
 		,betid				BIGINT
 		,sporttype			SMALLINT
 		,MatchId			INT
@@ -75,9 +71,8 @@ BEGIN
 
 	SET @session = CAST(NEWID() AS NVARCHAR(50))
 
-	INSERT INTO #tmpTransId(TransId, custid, bettype, balanceType, betid, Refno, MatchId, OddsId, ruben)
+	INSERT INTO #tmp_TransId(TransId, custid, bettype, betid, Refno, MatchId, OddsId, ruben)
 	SELECT	b.transid, b.custid, b.bettype
-			,1 AS balanceType
 			, b.betid, b.refno
 			, @MatchId
 			, b.oddsid
@@ -89,11 +84,11 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype NOT IN (9, 29, 2799)))
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
-		FROM	#tmpTransId b
+		FROM	#tmp_TransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
 		WHERE bettype NOT IN (9, 29, 2799)
@@ -101,11 +96,11 @@ BEGIN
 	END
 
 	-- -- UPDATE eventtype = 2 [Outright ticket]
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (10)))
+	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype IN (10)))
 	BEGIN
 		UPDATE b
 		SET sporttype	= l.sporttype
-		FROM	#tmpTransId b
+		FROM	#tmp_TransId b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
@@ -114,11 +109,11 @@ BEGIN
 	END
 
 	-- -- UPDATE eventtype = 3 [VS range bettypes]
-	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (1231,1232,1233,1237,1238)))
+	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype IN (1231,1232,1233,1237,1238)))
 	BEGIN
 		UPDATE b
 		SET sporttype 	= r.sporttype	
-		FROM	#tmpTransId b
+		FROM	#tmp_TransId b
 			INNER JOIN dbo.VSOutright o WITH (NOLOCK) 
 			ON b.oddsid = o.Orid
 			INNER JOIN dbo.VSRaceInfo r WITH (NOLOCK) 
@@ -126,20 +121,11 @@ BEGIN
 		WHERE b.bettype IN (1231,1232,1233,1237,1238)
 	END
 
-
 	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
 	BEGIN
 		UPDATE b
 		SET sporttype = sb.SportType
-		FROM #tmpTransId b
-			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
-			ON b.bettype = sb.BetType
-		WHERE sb.ProductID = 37
-	END
-	BEGIN
-		UPDATE b
-		SET sporttype = sb.SportType
-		FROM #tmpTransId b
+		FROM #tmp_TransId b
 			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
 			ON b.bettype = sb.BetType
 		WHERE sb.ProductID = 37
@@ -147,7 +133,7 @@ BEGIN
 
 	-- remove un-supported sports & bettype
 	DELETE bd
-	FROM #tmpTransId bd
+	FROM #tmp_TransId bd
 	WHERE bettype NOT IN (9, 29, 2799)
 		AND (
 			sporttype IS NULL
@@ -155,7 +141,7 @@ BEGIN
 		)
 
 
-	IF EXISTS (SELECT TOP 1 1  FROM #tmpTransId)
+	IF EXISTS (SELECT TOP 1 1  FROM #tmp_TransId)
 	BEGIN
 		IF @MatchId = 29
 		BEGIN
@@ -163,7 +149,7 @@ BEGIN
 
 			INSERT INTO #tblMatchParlayProcess ( matchId, RefNo)
 			SELECT @MatchId, v.Refno
-			FROM #tmpTransId v
+			FROM #tmp_TransId v
 	
 			EXEC dbo.NAP_Set_GlobalSettingSel 
 				 @LockName = 'ParlayRefno'
@@ -174,7 +160,6 @@ BEGIN
 		ELSE
 		BEGIN
 			SELECT @isExistMatch 				= MAX(CASE WHEN Bettype NOT IN (9, 29, 10, 801, 803, 804, 805, 806) AND f.GroupId IS NULL THEN 1 ELSE 0 END)
-					,@isExistMG 				= MAX (CASE WHEN Bettype BETWEEN 801 AND 806 THEN 1 ELSE 0 END)
 					,@isExistFM 				= MAX (CASE WHEN f.GroupId = 1 THEN 1 ELSE 0 END)
 					,@isExistOutright 			= MAX (CASE WHEN Bettype = 10 THEN 1 ELSE 0 END)
 					,@isExistParlay 			= MAX (CASE WHEN Bettype IN (9, 29) THEN 1 ELSE 0 END)
@@ -185,10 +170,8 @@ BEGIN
 					,@isExistLC					= MAX (CASE WHEN Bettype BETWEEN 1101 AND 1199 THEN 1 ELSE 0 END)
 					,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 					,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
-					,@isExistLucky3				= MAX (CASE WHEN Bettype BETWEEN 1600 AND 1610 THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
-			FROM	#tmpTransId v
-
+			FROM	#tmp_TransId v
 				OUTER APPLY (
 							SELECT GroupId
 							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -212,7 +195,7 @@ BEGIN
 					WHEN f.GroupId = 2 THEN 7 -- FM 228
 					ELSE 0
 				END AS KeyID
-			FROM #tmpTransId b
+			FROM #tmp_TransId b
 				OUTER APPLY (
 							SELECT GroupId
 							FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -284,7 +267,6 @@ BEGIN
 				-- checking single proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistOutright 			= @isExistOutright
-					, @isExistMG				= @isExistMG
 					, @isExistFM				= @isExistFM
 					, @isExistMatch				= @isExistMatch
 					, @isExistNG				= @isExistNG
@@ -362,7 +344,6 @@ BEGIN
 		BEGIN
 			EXEC dbo.NAP_Admin_CheckingProcess
 				@isExistOutright 			= @isExistOutright
-				, @isExistMG				= @isExistMG
 				, @isExistFM				= @isExistFM
 				, @isExistMatch				= @isExistMatch
 				, @isExistNG				= @isExistNG
@@ -375,5 +356,7 @@ BEGIN
 
 	END
 
-	DROP TABLE #tmpTransId
+	DROP TABLE #tmp_TransId
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tblMatchParlayProcess
 END

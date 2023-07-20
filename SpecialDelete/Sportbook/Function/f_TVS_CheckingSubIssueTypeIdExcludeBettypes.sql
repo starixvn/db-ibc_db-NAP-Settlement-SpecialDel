@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_TVS_CheckingSubIssueTypeIdExcludeBettypes] ()
 RETURNS TABLE
 --WITH SCHEMABINDING
@@ -7,7 +7,7 @@ AS
 /*
     Created: 20211014@July
     Task: Checking SubIssueTypeId get exclude bettypes
-	 DB: DBTXN/bodb02
+	 DB: DBCTG/bodb02
     Revisions:
 		- 20211014@July: TVS - Danger Accept Enhancement - Phase 10 [Redmine: #155792]
 		- 20211207@Kathy: Remove 'with schemabinding' [Redmine:#164819 ]
