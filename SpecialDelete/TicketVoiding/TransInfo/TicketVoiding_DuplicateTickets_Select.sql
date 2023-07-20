@@ -32,9 +32,7 @@ BEGIN
 
 	IF @TransIds <> ''
 	BEGIN
-		
-
-	INSERT INTO #transIdTemp (transid)
+		INSERT INTO #transIdTemp (transid)
 		SELECT DISTINCT value
 		FROM STRING_SPLIT(@TransIds, ',')
 		WHERE value <> ''
