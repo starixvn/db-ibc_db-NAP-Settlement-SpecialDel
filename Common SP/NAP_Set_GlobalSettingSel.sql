@@ -22,6 +22,7 @@ AS
 		- 20211210@Kathy: Improve performance 
 		- 20220606@Kathy: Adjust number of execution service from 6 to 8 [Redmine:#173205]
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20230720@Kathy: Change threshold on SIT
 
     Parameters Explanation:        
     
@@ -76,8 +77,8 @@ BEGIN
 		IF @RunExecDataBySSB = 0
 			SELECT @ExecDataQueueSize = 1
 
-		SET @MaxThreadHold = 50000   
-		SET @MinThreadHold = 10000   
+		SET @MaxThreadHold = 10--0000   
+		SET @MinThreadHold = 5--10000   
 	END
 
 	IF @LockName = 'SiteDB_SettlementSSB'

@@ -27,6 +27,7 @@ AS
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230720@Kathy: Change threshold on SIT
 		
 	Param's Explanation:  
 		@Params: <Params><Params/>
@@ -130,7 +131,7 @@ BEGIN
 	
 	SELECT	@strTransIds = ''
 			,@QueueExecNo = 0
-			,@batchSize = 2000  
+			,@batchSize = 2--000  
 			,@messageBody = ''
 			,@IsMarked = 0
 			,@oddstype = 0
