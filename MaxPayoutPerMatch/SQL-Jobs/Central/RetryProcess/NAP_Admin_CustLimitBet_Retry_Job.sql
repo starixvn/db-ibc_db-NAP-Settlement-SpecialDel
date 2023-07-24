@@ -1,10 +1,10 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Retry_Job]
 AS
 /*	
 	Created: 20220419@Max
     Task: Max Payout - Retry for Reject Action [Redmine: #171674]
-    DB: DBTXN/bodb02
+    DB: DBCTG/bodb02
     Revisions:
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]

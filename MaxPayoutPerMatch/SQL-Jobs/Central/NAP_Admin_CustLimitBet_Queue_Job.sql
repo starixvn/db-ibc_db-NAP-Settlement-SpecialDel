@@ -1,10 +1,10 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Queue_Job]
 AS
 /*	
 	Created: 20210726@Max
     Task: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-    DB: DBTXN/bodb02
+    DB: DBCTG/bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210928@Max: HotFix Issue Max Payout - [Redmine: #158846]
