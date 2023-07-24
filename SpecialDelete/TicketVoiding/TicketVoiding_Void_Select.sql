@@ -49,6 +49,7 @@ AS
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
+		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		
 	Param's explanation:	
 		
@@ -270,9 +271,9 @@ BEGIN
 		) tbl
 	WHERE f.value <> ''
 
-	IF @IssueTypeId IN (11,15) --11: AbnormalBet, 15: AB(RealMember)
+	IF @IssueTypeId IN (11,15,20) --11: AbnormalBet, 15: AB(RealMember)
 	BEGIN
-		IF @IssueTypeId = 11
+		IF @IssueTypeId IN (11,20)
 		BEGIN
 			SELECT @FilterBy = FilterBy
 			FROM dbo.TicketVoiding_RequestDetail WITH (NOLOCK)
@@ -368,7 +369,7 @@ BEGIN
 				,b.statusID AS mainstatusid
 				,b.actual_stake AS ActualStake
 				,b.matchid
-				,CASE WHEN @IssueTypeId = 11 AND @FilterBy = 1 THEN 1 ELSE 0 END AS IsMixParlay
+				,CASE WHEN @IssueTypeId IN (11,20) AND @FilterBy = 1 THEN 1 ELSE 0 END AS IsMixParlay
 				,b.winlostdate
 				,b.SiteDBGroupID
 				,b.statuswinlost

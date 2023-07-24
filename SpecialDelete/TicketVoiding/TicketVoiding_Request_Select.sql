@@ -41,6 +41,7 @@ AS
 		- 20220525@July: TVS - Notify Letstalk when void Abnormal Bets [Redmine: #172212]
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
+		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 
 	Param's explanation:	
 	
@@ -126,7 +127,7 @@ BEGIN
 			) m
 			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,15,17)
+					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,15,17,20)
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId

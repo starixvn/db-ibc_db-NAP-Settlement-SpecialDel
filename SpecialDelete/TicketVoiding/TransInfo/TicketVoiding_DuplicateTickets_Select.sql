@@ -25,6 +25,26 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 
+	CREATE TABLE #tmpTransInfo (
+		custid INT
+		,odds SMALLMONEY
+		,stake MONEY
+		,balance MONEY
+		,statusID TINYINT
+		,bettype SMALLINT
+		,winlostdate SMALLDATETIME
+		,transid BIGINT
+		,refnoGroup BIGINT
+		,transdate DATETIME
+		,matchid INT
+		,ip VARCHAR(45)
+		,WalletType TINYINT
+		,betteam NVARCHAR(10)
+		,oddsid INT
+		,SiteDBGroupID SMALLINT
+		,IsMoved14 BIT DEFAULT(0)
+	)
+
 	SELECT @CurrentDate = CAST(GETDATE() AS DATE)
 
 	SELECT @FromDate = DATEADD(MI, -5, @CurrentDate)
@@ -37,54 +57,135 @@ BEGIN
 		FROM STRING_SPLIT(@TransIds, ',')
 		WHERE value <> ''
 
-		SET @TransInfoJson = COMPRESS((SELECT b.custid
-				,b.odds
-				,b.stake
-				,b.balance
-				,b.statusID
-				,b.bettype
-				,b.winlostdate
-				,b.username
-				,b.transid
-				,CONVERT(BIGINT,(CASE WHEN b.Bettype IN (901,902,903,904,911) THEN b.RefNo WHEN b.Bettype = 29 THEN b.hdp1 ELSE 0 END)) AS refnoGroup
-				,b.transdate
-				,b.matchid
-				,b.ip
-				,ISNULL(CAST(b.WalletType AS SMALLINT),-1) AS WalletType
-				,b.betteam
-				,b.oddsid
-				,b.SiteDBGroupID
-			FROM	dbo.DuplicatedTicket t WITH (NOLOCK)	
+		INSERT INTO #tmpTransInfo (custid 
+			,odds 
+			,stake 
+			,balance 
+			,statusID 
+			,bettype 
+			,winlostdate 
+			,transid 
+			,refnoGroup 
+			,transdate 
+			,matchid 
+			,ip 
+			,WalletType 
+			,betteam 
+			,oddsid 
+			,SiteDBGroupID
+		)
+		SELECT b.custid AS 'c'
+			,b.odds AS 'o'
+			,b.stake AS 'stake'
+			,b.balance AS 'balance'
+			,b.statusID AS 'sid'
+			,b.bettype AS 'btype' 
+			,b.winlostdate AS 'wld'
+			,b.transid AS 't'
+			,CONVERT(BIGINT,(CASE WHEN b.Bettype IN (901,902,903,904,911) THEN b.RefNo WHEN b.Bettype = 29 THEN b.hdp1 ELSE 0 END)) AS 'refgr'
+			,b.transdate AS 'tdate'
+			,b.matchid AS 'mid'
+			,b.ip AS 'ip'
+			,ISNULL(CAST(b.WalletType AS SMALLINT),-1) AS 'wt' 
+			,b.betteam AS 'bteam'
+			,b.oddsid AS 'oid'
+			,b.SiteDBGroupID AS 'sitedb'
+		FROM dbo.DuplicatedTicket t WITH (NOLOCK)	
+			INNER JOIN #transIdTemp tmp ON tmp.transid = t.TransId
+			INNER JOIN bodb02.dbo.Bettrans b WITH (NOLOCK)	
+					ON b.TransID = t.TransID
+		WHERE b.statusID NOT IN (101,103)
+			AND b.bettype NOT IN (500) -- exclude 500 - charged commission
+			AND b.betfrom <> 'p'
+
+		IF EXISTS (SELECT TOP 1 1 FROM #transIdTemp t
+						INNER JOIN  bodb02.dbo.bettrans14 b WITH (NOLOCK)	
+					ON b.TransID = t.TransID
+				)
+		BEGIN
+			INSERT INTO #tmpTransInfo (custid 
+				,odds 
+				,stake 
+				,balance 
+				,statusID 
+				,bettype 
+				,winlostdate 
+				,transid 
+				,refnoGroup 
+				,transdate 
+				,matchid 
+				,ip 
+				,WalletType 
+				,betteam 
+				,oddsid 
+				,SiteDBGroupID
+				,IsMoved14
+			)
+			SELECT b.custid AS 'c'
+				,b.odds AS 'o'
+				,b.stake AS 'stake'
+				,b.balance AS 'balance'
+				,b.statusID AS 'sid'
+				,b.bettype AS 'btype' 
+				,b.winlostdate AS 'wld'
+				,b.transid AS 't'
+				,CONVERT(BIGINT,(CASE WHEN b.Bettype IN (901,902,903,904,911) THEN b.RefNo WHEN b.Bettype = 29 THEN b.hdp1 ELSE 0 END)) AS 'refgr'
+				,b.transdate AS 'tdate'
+				,b.matchid AS 'mid'
+				,b.ip AS 'ip'
+				,ISNULL(CAST(b.WalletType AS SMALLINT),-1) AS 'wt' 
+				,b.betteam AS 'bteam'
+				,b.oddsid AS 'oid'
+				,b.SiteDBGroupID AS 'sitedb'
+				,1 AS IsMoved14
+			FROM dbo.DuplicatedTicket t WITH (NOLOCK)	
 				INNER JOIN #transIdTemp tmp ON tmp.transid = t.TransId
-				INNER JOIN bodb02.dbo.Bettrans b WITH (NOLOCK)	
+				INNER JOIN bodb02.dbo.Bettrans14 b WITH (NOLOCK)	
 						ON b.TransID = t.TransID
-			WHERE	t.Transdate >= @FromDate 
-				AND t.Transdate < @ToDate
-				AND b.statusID NOT IN (101,102,103)
+			WHERE b.statusID NOT IN (101,103)
 				AND b.bettype NOT IN (500) -- exclude 500 - charged commission
 				AND b.betfrom <> 'p'
-			ORDER BY b.custid, b.odds, b.stake, b.balance, b.bettype, b.winlostdate, b.Username,b.refno, b.transid, b.transdate, b.statusID
+		END
+
+		SET @TransInfoJson = COMPRESS((SELECT b.custid AS 'c'
+				,b.odds AS 'o'
+				,b.stake AS 'stake'
+				,b.balance AS 'balance'
+				,b.statusID AS 'sid'
+				,b.bettype AS 'btype' 
+				,b.winlostdate AS 'wld'
+				,b.transid AS 't'
+				,b.refnoGroup AS 'refgr'
+				,b.transdate AS 'tdate'
+				,b.matchid AS 'mid'
+				,b.ip AS 'ip'
+				,b.WalletType AS 'wt' 
+				,b.betteam AS 'bteam'
+				,b.oddsid AS 'oid'
+				,b.SiteDBGroupID AS 'sitedb'
+				,b.IsMoved14 AS 'isM'
+			FROM #tmpTransInfo b
+			ORDER BY b.custid, b.odds, b.stake, b.balance, b.bettype, b.winlostdate, b.transid, b.transdate, b.statusID
 		FOR JSON PATH))
 	END
 	ELSE
 	BEGIN
-		SET @TransInfoJson = COMPRESS((SELECT b.custid
-				,b.odds
-				,b.stake
-				,b.balance
-				,b.statusID
-				,b.bettype
-				,b.winlostdate
-				,b.username
-				,b.transid
-				,CONVERT(BIGINT,(CASE WHEN b.Bettype IN (901,902,903,904,911) THEN b.RefNo WHEN b.Bettype = 29 THEN b.hdp1 ELSE 0 END)) AS refnoGroup
-				,b.transdate
-				,b.matchid
-				,b.ip
-				,ISNULL(CAST(b.WalletType AS SMALLINT),-1) AS WalletType
-				,b.betteam
-				,b.oddsid
-				,b.SiteDBGroupID
+		SET @TransInfoJson = COMPRESS((SELECT b.custid AS 'c'
+				,b.odds AS 'o'
+				,b.stake AS 'stake'
+				,b.balance AS 'balance'
+				,b.statusID AS 'sid'
+				,b.bettype AS 'btype' 
+				,b.winlostdate AS 'wld'
+				,b.transid AS 't'
+				,CONVERT(BIGINT,(CASE WHEN b.Bettype IN (901,902,903,904,911) THEN b.RefNo WHEN b.Bettype = 29 THEN b.hdp1 ELSE 0 END)) AS 'refgr'
+				,b.transdate AS 'tdate'
+				,b.matchid AS 'mid'
+				,b.ip AS 'ip'
+				,ISNULL(CAST(b.WalletType AS SMALLINT),-1) AS 'wt' 
+				,b.betteam AS 'bteam'
+				,b.oddsid AS 'oid'
+				,b.SiteDBGroupID AS 'sitedb'
 			FROM	dbo.DuplicatedTicket t WITH (NOLOCK)	
 				INNER JOIN bodb02.dbo.Bettrans b WITH (NOLOCK)	
 						ON b.TransID = t.TransID
