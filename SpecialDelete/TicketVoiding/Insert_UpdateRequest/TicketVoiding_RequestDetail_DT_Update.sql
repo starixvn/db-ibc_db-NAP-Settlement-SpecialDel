@@ -75,7 +75,7 @@ BEGIN
 	
 	SELECT @MatchId = t.c.value('@MatchId','INT')
 			,@SubIssueTypeId = t.c.value('@SubIssueTypeId','SMALLINT') 
-			,@FilterBy = t.c.value('@FilterBy','TINYINT')
+			,@FilterBy = NULLIF(t.c.value('@FilterBy','TINYINT'),0)
 	FROM @DuplicateTicketsInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@DuplicateTicketsInfoXML = NULL))
 
@@ -105,7 +105,7 @@ BEGIN
 			, @AwayId
 			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
 			, @SubIssueTypeId
-			, CASE WHEN @IssueTypeId = 11 THEN @FilterBy ELSE NULL END
+			, @FilterBy
 
 		SET @RequestDetailId = SCOPE_IDENTITY()
 	END
