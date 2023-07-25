@@ -17,6 +17,7 @@ AS
 		- 20210921@Max: Add new job CustLimitBet Max Payout [Redmine: #158846]
 		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
+		- 20230712@Max: Scale out credit [Redmine: #181595]
 
 */
 /*
@@ -115,8 +116,20 @@ BEGIN
 		ELSE IF (@Jobname = 'bodb02 : Task Max Payout Per Match')
 			EXEC dbo.NAP_Admin_CustLimitBet_Queue_Job
 
+		ELSE IF (@Jobname = 'bodb02 : Task Max Payout Per Match Licensee')
+			EXEC dbo.NAP_Admin_CustLimitBet_Queue_Licensee_Job
+
+		ELSE IF (@Jobname = 'bodb02 : Task Max Payout Per Match Credit')
+			EXEC dbo.NAP_Admin_CustLimitBet_Queue_Credit_Job
+
 		ELSE IF (@Jobname = 'bodb02 : Task Retry Max Payout')
 			EXEC dbo.NAP_Admin_CustLimitBet_Retry_Job
+
+		ELSE IF (@Jobname = 'bodb02 : Task Retry Max Payout Licensee')
+			EXEC dbo.NAP_Admin_CustLimitBet_Retry_Licensee_Job
+
+		ELSE IF (@Jobname = 'bodb02 : Task Retry Max Payout Credit')
+			EXEC dbo.NAP_Admin_CustLimitBet_Retry_Credit_Job
 
 		ELSE IF (@Jobname = 'bodb02 : NAP Settlement VS BetRadar')
 		BEGIN
