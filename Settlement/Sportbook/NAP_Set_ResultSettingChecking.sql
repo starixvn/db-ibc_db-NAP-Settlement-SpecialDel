@@ -25,6 +25,7 @@ AS
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -102,7 +103,7 @@ BEGIN
 	IF @Action  LIKE 'Refund%'
 	BEGIN
 		IF ( SELECT COUNT(1) FROM @tmpResultSetting ) = 0
-			OR EXISTS (SELECT TOP 1 1 FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0 )
+			OR EXISTS (SELECT TOP 1 1 FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 0 AND r.ResultSetting & 4 = 0)
 		
 		SELECT @ErrCode = 1001055
 			 , @ErrMsg	= 'WARNING! Cannot continue due to selected results are not confirmed to refund. Please confirm refund and try again.'
@@ -110,6 +111,6 @@ BEGIN
 	ELSE IF @Action LIKE 'CAL%'
 		SELECT @ErrCode = 1001056
 			 , @ErrMsg  = 'WARNING! Cannot continue due to selected results are confirmed to refund. Please undo-confirm refund and try again.'
-		FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 2
+		FROM @tmpResultSetting r WHERE r.ResultSetting & 2 = 2 OR r.ResultSetting & 4 = 4
 END
 GO

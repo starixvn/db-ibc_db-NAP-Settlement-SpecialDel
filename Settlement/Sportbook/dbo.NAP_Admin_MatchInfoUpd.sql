@@ -21,6 +21,7 @@ ALTER PROCEDURE dbo.NAP_Admin_MatchInfoUpd
 	,@IsAuto			BIT				= 0
 	,@IsHTTicketSettled BIT				= 0
 	,@AdminId			INT
+	,@DeterminedType	TINYINT			= 0
 AS
 /*
     Created: 20220719@Kathy
@@ -33,6 +34,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -591,6 +593,7 @@ BEGIN
 							,@Sporttype			= @Sporttype
 							,@SelectedRID   	= @SelectedResources
 							,@IsAuto			= @IsAuto
+							,@DeterminedType	= @DeterminedType
 							
 			IF  @existsFinalRound = 1 OR @existsHTRound = 1
 			BEGIN

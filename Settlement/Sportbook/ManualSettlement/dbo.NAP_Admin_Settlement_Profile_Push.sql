@@ -16,7 +16,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@AutoType			TINYINT			= 0
-	
+	,@DeterminedType	TINYINT			= 0
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -49,6 +49,7 @@ AS
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
 		- 20230719@Kathy: Remove unused param [Redmine:#187311]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -63,6 +64,11 @@ AS
 				1: Auto Payout
 				2: Direct Payout
 				3: Others
+		@DeterminedType: Convert from bit to decimal, the main resources mapping with: 
+				Bit1: HT
+				Bit2: HTdone 
+				Bit3: FT
+				Bit4 -> BitN: Interval (Ex: Basketball Bit4-Q1,Bit5-Q2,....  OR  Tennis Bit4-1S,Bit5-1S,..)
 */		
 BEGIN
 	SET NOCOUNT ON 
@@ -104,6 +110,7 @@ BEGIN
 																	ELSE ''
 															END
 															+ CASE WHEN @RefResultStatus > 0 THEN ', @RefResultStatus  = ' + CONVERT(NVARCHAR(1), @RefResultStatus) ELSE '' END   
+															+ CASE WHEN @DeterminedType > 0 THEN  ', @DeterminedType  = '  + CONVERT(NVARCHAR(50), @DeterminedType) ELSE '' END   
 															+ CASE WHEN @BroadcastSessionId IS NOT NULL 
 																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 																	ELSE '' END

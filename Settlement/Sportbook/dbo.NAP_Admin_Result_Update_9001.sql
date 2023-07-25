@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Result_Update_9001]
  ,@Sporttype		SMALLINT
  ,@IsDirectly		BIT				   = 0 --- Apply for Basketball, Tennis, Badminton, E-Sports, Beach Volleyball
  ,@IsAuto			BIT				   = 0
+ ,@DeterminedType	TINYINT			   = 0
 
 AS 
 /*
@@ -40,6 +41,7 @@ AS
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		
     Param's Explanation: 
     
@@ -55,6 +57,7 @@ BEGIN
 	DECLARE @IsApplyRefundSOP	BIT
 		   ,@AutoSetting		TINYINT
 		   ,@HasAutoPayout		BIT = 0
+		   ,@SDTResourceID		VARCHAR(20)
 
 	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 2, 5, 6, 9, 43, 45,50) THEN 1
 									 ELSE 0
@@ -78,6 +81,24 @@ BEGIN
 			,@othomescore INT
 			,@otawayscore INT
 			,@ResultTable TINYINT = 0
+
+			,@q1homescore	INT
+			,@q1awayscore	INT
+			,@q2homescore	INT
+			,@q2awayscore	INT
+			,@q3homescore	INT
+			,@q3awayscore	INT
+			,@q4homescore	INT
+			,@q4awayscore	INT
+
+			,@hasQ1			TINYINT = 0
+			,@hasQ2			TINYINT = 0
+			,@hasQ3			TINYINT = 0
+			,@hasQ4			TINYINT = 0
+			,@hasHT			TINYINT = 0
+			,@hasOT			TINYINT = 0
+			,@has2H			TINYINT = 1
+			
 		
     -------------END DECLARE    
     
@@ -104,8 +125,8 @@ BEGIN
         ) tbl
         
     EXEC sp_xml_removedocument @handle
-    
-	IF @Sporttype = 2
+
+	IF @Sporttype = 2 AND @DeterminedType = 0
 	BEGIN
 		UPDATE @tblSelectedRID
 		SET	HomeValue = CASE WHEN HomeValue + AwayValue = 0 THEN NULL ELSE HomeValue END
@@ -125,7 +146,7 @@ BEGIN
 	   SET @ResultStatusID      = 4
        SET @SettlementStatusID  = 0  -- Initial
     END 
-    ELSE IF @action = 'REFUND'
+    ELSE IF @action = 'REFUND' AND @DeterminedType = 0
     BEGIN
 	   SET @SettlementStatusID 	= 1
        SET @ResultStatusID 		= CASE WHEN @IsAuto = 1 THEN 2 
@@ -138,6 +159,17 @@ BEGIN
        FROM @tblSelectedRID sr
        		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON sr.ResourceID = sd.ResourceID
     END 
+	ELSE IF @action = 'REFUND' AND @DeterminedType > 0
+    BEGIN
+		SET @SettlementStatusID  = 1
+		SET @ResultStatusID  = 5
+
+		SELECT @SDTResourceID = sr.ResourceID
+		FROM @tblSelectedRID AS sr
+       		INNER JOIN dbo.f_Set_MajorRound(@Sporttype) AS sd ON sr.ResourceID = sd.ResourceID
+		WHERE sr.HomeValue != '' 
+			AND sr.AwayValue != ''
+	END
     ELSE
     BEGIN
         ---set default value
@@ -228,7 +260,7 @@ BEGIN
 	            ,SettlementStatusID  = @SettlementStatusID
 	            ,LastModifyDate      = GETDATE()
 	            ,LastModifyBy        = @creator
-				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ISNULL(ResultSetting,0) & (~2) --- Turn off bit[2]
+				,ResultSetting		 = CASE WHEN @IsApplyRefundSOP = 1 AND ( @Action LIKE 'UNDO%' OR @Action LIKE 'REFUND%' ) THEN ISNULL(ResultSetting,0) & (~6) --- Turn off bit[2] bit[3]
 											ELSE ResultSetting END
 	
 	    WHEN NOT MATCHED BY TARGET AND @action <> 'UNDO' THEN
@@ -236,15 +268,25 @@ BEGIN
 	        VALUES(@matchid, SOURCE.ResourceId, SOURCE.HomeValue, SOURCE.AwayValue, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(),      @creator, @creator);
 		
 		IF @IsDirectly = 1
-		UPDATE r
-			SET  r.HomeValue = ''
-				,r.AwayValue = ''
-				,r.SettlementStatusID = 0
-				,r.ResultStatusID = 0
-		FROM dbo.ResultDetail r
-			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-		WHERE r.MatchID = @MatchID
-			AND sd.AllowDirectly = 0
+		BEGIN
+			UPDATE r
+				SET  r.HomeValue = ''
+					,r.AwayValue = ''
+					,r.SettlementStatusID = 0
+					,r.ResultStatusID = 0
+			FROM dbo.ResultDetail r
+				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
+			WHERE r.MatchID = @MatchID
+				AND sd.AllowDirectly = 0
+		END
+
+		IF @action = 'UNDO' AND @Sporttype = 2
+		BEGIN
+			DELETE 
+			FROM dbo.ProviderExternalResultDetail 
+			WHERE MatchId = @MatchId 
+				AND SourceId = 99
+		END
 
 		IF @Sporttype = 2 AND EXISTS (SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
 		BEGIN
@@ -252,16 +294,71 @@ BEGIN
 					,@htawayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' THEN rd.AwayValue ELSE 0 END), 0)
 					,@othomescore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'OT' THEN rd.HomeValue ELSE 0 END), 0)
 					,@otawayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'OT' THEN rd.AwayValue ELSE 0 END), 0)
+
+					,@q1homescore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q1' THEN rd.HomeValue ELSE 0 END), 0)
+					,@q1awayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q1' THEN rd.AwayValue ELSE 0 END), 0)
+					,@q2homescore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q2' THEN rd.HomeValue ELSE 0 END), 0)
+					,@q2awayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q2' THEN rd.AwayValue ELSE 0 END), 0)
+					,@q3homescore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q3' THEN rd.HomeValue ELSE 0 END), 0)
+					,@q3awayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q3' THEN rd.AwayValue ELSE 0 END), 0)
+					,@q4homescore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q4' THEN rd.HomeValue ELSE 0 END), 0)
+					,@q4awayscore = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q4' THEN rd.AwayValue ELSE 0 END), 0)
+
+					,@hasQ1       = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q1' AND ISNULL(rd.HomeValue,'') != '' THEN 1 ELSE 0 END), 0)
+					,@hasQ2       = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q2' AND ISNULL(rd.HomeValue,'') != '' THEN 1 ELSE 0 END), 0)
+					,@hasQ3       = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q3' AND ISNULL(rd.HomeValue,'') != '' THEN 1 ELSE 0 END), 0)
+					,@hasQ4       = ISNULL(SUM(CASE WHEN rd.ResourceId = 'Q4' AND ISNULL(rd.HomeValue,'') != '' THEN 1 ELSE 0 END), 0)
+					,@hasHT       = ISNULL(SUM(CASE WHEN rd.ResourceId = '01' AND ISNULL(rd.HomeValue,'') != '' THEN 1 ELSE 0 END), 0)
+					,@hasOT       = ISNULL(SUM(CASE WHEN rd.ResourceId = 'OT' AND ISNULL(rd.HomeValue,'') != '' THEN 1 ELSE 0 END), 0)
 			FROM	dbo.ResultDetail rd WITH(NOLOCK)
 			WHERE	rd.MatchId = @matchid
-					AND rd.ResourceId IN ('00', '01', 'OT')
+					AND rd.ResourceId IN ('Q1','Q2','Q3','Q4','00', '01', 'OT')
 
 			IF @action = 'REFUND'
 			BEGIN
 				DELETE
 				FROM	dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
 				WHERE	MatchId = @MatchID
-						AND ResourceId = 'OT'
+					AND ResourceId = 'OT'
+					AND ISNULL(HomeValue,'') = ''
+			END
+
+			IF @action = 'REFUND' AND @DeterminedType > 0
+			BEGIN
+				UPDATE dbo.ResultDetail
+				SET  HomeValue = @q1homescore + @q2homescore
+					,AwayValue = @q1awayscore + @q2awayscore
+				WHERE MatchId = @MatchID 
+					AND ResourceId = '01'
+					AND @SDTResourceID IN ('Q1','Q2')
+					AND ISNULL(HomeValue,'') = ''
+
+				UPDATE dbo.ResultDetail
+				SET  HomeValue = @q1homescore + @q2homescore + @q3homescore + @q4homescore + @othomescore
+					,AwayValue = @q1awayscore + @q2awayscore + @q3awayscore + @q4awayscore + @otawayscore
+				WHERE MatchId = @MatchID 
+					AND ResourceId = '00'
+					AND @SDTResourceID IN ('HT','Q3','Q4','OT')
+					AND ISNULL(HomeValue,'') = ''
+
+				UPDATE @tblSelectedRID
+				SET HomeValue = @q1homescore + @q2homescore + @q3homescore + @q4homescore + @othomescore
+				   ,AwayValue = @q1awayscore + @q2awayscore + @q3awayscore + @q4awayscore + @otawayscore
+				WHERE ResourceId = '00'
+					AND @SDTResourceID IN ('Q3','Q4','OT')
+					AND ISNULL(HomeValue,'') = ''
+
+				IF @hasQ1 = 0 AND @hasQ2 = 0 AND @hasHT = 0
+				BEGIN
+					SET @has2H = 0
+					UPDATE dbo.ResultDetail
+					SET	 SettlementStatusID = 0
+						,ResultStatusID = 4
+						,HomeValue = NULL
+						,AwayValue = NULL
+					WHERE MatchId = @matchid
+						AND ResourceID = '02' 
+				END
 			END
 
 			MERGE dbo.ResultDetail TARGET
@@ -269,10 +366,17 @@ BEGIN
 				SELECT  sr.ResourceId, sr.HomeValue, sr.AwayValue
 				FROM    @tblSelectedRID sr
 				WHERE	sr.ResourceID = '00'
+					AND @has2H = 1
 				) AS SOURCE ON  TARGET.ResourceId = '02' AND TARGET.MatchId = @matchid
 			WHEN MATCHED THEN
-				UPDATE SET HomeValue     = CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore - @othomescore ELSE 0 END
-					,AwayValue           = CASE WHEN @action = 'CAL' THEN SOURCE.AwayValue - @htawayscore - @otawayscore ELSE 0 END
+				UPDATE SET HomeValue     = CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore
+												WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore )
+												ELSE NULL 
+										   END
+					,AwayValue           = CASE WHEN @action = 'CAL'  THEN SOURCE.AwayValue - @htawayscore
+												WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
+												ELSE NULL 
+											END
 					,ResultStatusID      = @ResultStatusID
 					,SettlementStatusID  = @SettlementStatusID
 					,LastModifyDate      = GETDATE()
@@ -280,9 +384,30 @@ BEGIN
 	
 			WHEN NOT MATCHED BY TARGET THEN
 				INSERT (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusID,  SettlementStatusID, CreateDate, LastModifyDate, CreateBy, LastModifyBy)               
-				VALUES(@matchid, '02', CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore - @othomescore ELSE 0 END
-					, CASE WHEN @action = 'CAL' THEN SOURCE.AwayValue - @htawayscore - @otawayscore ELSE 0 END
+				VALUES(@matchid, '02'
+					, CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore
+						   WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore)
+						   ELSE 0 
+					  END
+					, CASE  WHEN @action = 'CAL'  THEN SOURCE.AwayValue - @htawayscore
+							WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
+							ELSE 0 
+					  END
 					, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(), @creator, @creator);
+
+			IF @action = 'REFUND' AND @DeterminedType > 0
+			BEGIN
+				UPDATE r
+				SET  r.SettlementStatusID = 7
+				FROM dbo.ResultDetail AS r
+				WHERE r.MatchId = @matchid
+					AND 1  = CASE WHEN r.ResourceId = @SDTResourceID THEN 1
+								  WHEN r.ResourceId IN ('00') THEN 1
+								  WHEN @SDTResourceID IN ('Q1','Q2') AND r.ResourceId IN ('01') THEN 1
+								  WHEN @SDTResourceID IN ('Q3','Q4','OT','00') AND r.ResourceId IN ('02') AND @has2H = 1 THEN 1
+								  ELSE 0
+							 END
+			END
 		END
     END 
     
