@@ -38,7 +38,7 @@ BEGIN
 		,transdate DATETIME
 		,matchid INT
 		,ip VARCHAR(45)
-		,WalletType TINYINT
+		,WalletType SMALLINT
 		,betteam NVARCHAR(10)
 		,oddsid INT
 		,SiteDBGroupID SMALLINT
