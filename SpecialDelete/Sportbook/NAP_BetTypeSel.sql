@@ -177,12 +177,12 @@ BEGIN
             )  
         SELECT typeid  
             , CASE WHEN typeid BETWEEN 2700 AND 2899 THEN 5 -- type = 5: VS betradar
-				   WHEN typeid BETWEEN 5302 AND 5399 THEN 1 -- type = 7: Virtual Sports 3
-				   WHEN typeid = 38 THEN 1 -- type = 8: Bet Builder
-				   WHEN typeid = 7901 THEN 1 -- type = 9: Bitcoin
+				   WHEN typeid BETWEEN 5302 AND 5399 THEN 7 -- type = 7: Virtual Sports 3
+				   WHEN typeid = 38 THEN 8 -- type = 8: Bet Builder
+				   WHEN typeid = 7901 THEN 9 -- type = 9: Bitcoin
 				   ELSE 0 END AS type 
             ,0 AS liveindicator              
-        FROM bettype WITH (NOLOCK)  
+        FROM dbo.bettype WITH (NOLOCK)  
         WHERE @matchid = 0 
 			AND 1 = CASE WHEN typeid BETWEEN 2700 AND 2899 THEN 1
 						 WHEN typeid BETWEEN 5302 AND 5399 THEN 1
