@@ -13,22 +13,24 @@
 USE [msdb]
 GO
 
+
+
 --Stop , disable job bodb02 : Task Max Payout Per Match
+EXEC msdb.dbo.sp_update_job 
+	@job_name = 'bodb02 : Task Max Payout Per Match'  
+	,@new_name = 'bodb02 : Task Max Payout Per Match - Delete'
+	,@enabled=0
+GO
 EXEC dbo.sp_stop_job N'bodb02 : Task Max Payout Per Match';
 GO
 
-EXEC msdb.dbo.sp_update_job 
-	@job_name = 'bodb02 : Task Max Payout Per Match'  
-	,@new_name = 'bodb02 : Task Max Payout Per Match - Disabled'
-	,@enabled=0
-GO
+
 
 --Stop , disable job bodb02 : Task Retry Max Payout
-EXEC dbo.sp_stop_job N'bodb02 : Task Retry Max Payout';
-GO
-
 EXEC msdb.dbo.sp_update_job 
 	@job_name = 'bodb02 : Task Retry Max Payout'  
-	,@new_name = 'bodb02 : Task Retry Max Payout - Disabled'
+	,@new_name = 'bodb02 : Task Retry Max Payout - Delete'
 	,@enabled=0
+GO
+EXEC dbo.sp_stop_job N'bodb02 : Task Retry Max Payout';
 GO
