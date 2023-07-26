@@ -21,7 +21,7 @@ EXEC msdb.dbo.sp_update_job
 	,@new_name = 'bodb02 : Task Max Payout Per Match - Delete'
 	,@enabled=0
 GO
-EXEC dbo.sp_stop_job N'bodb02 : Task Max Payout Per Match';
+EXEC dbo.sp_stop_job N'bodb02 : Task Max Payout Per Match - Delete';
 GO
 
 
@@ -32,5 +32,5 @@ EXEC msdb.dbo.sp_update_job
 	,@new_name = 'bodb02 : Task Retry Max Payout - Delete'
 	,@enabled=0
 GO
-EXEC dbo.sp_stop_job N'bodb02 : Task Retry Max Payout';
+EXEC dbo.sp_stop_job N'bodb02 : Task Retry Max Payout - Delete';
 GO
