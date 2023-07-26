@@ -1,5 +1,5 @@
 /*<info serverAlias="DBSIC-bodb02"></info>*/
---dbtrans
+--sitedb3
 USE bodb02
 go
 
@@ -33,5 +33,3 @@ GO
 sp_rename 'Lucky3RefCombinationSet','del_Lucky3RefCombinationSet'
 GO
 sp_rename 'SettlementPerformanceLog','del_SettlementPerformanceLog'
-GO
-sp_rename 'TicketVoiding_VoidedTransaction','del_TicketVoiding_VoidedTransaction'

@@ -1,17 +1,13 @@
 /*<info serverAlias="DBSIC-bodb02"></info>*/
---dbtrans
+--sitedb3
 USE bodb02
 go
 sp_rename 'Acc_BalanceNegativeSel_BySite','del_Acc_BalanceNegativeSel_BySite' 
 GO
 sp_rename 'Acc_BalanceNegativeUpd_StatusID','del_Acc_BalanceNegativeUpd_StatusID' 
 GO
-sp_rename 'Bet_ExecRep_NAP_Admin_01','del_Bet_ExecRep_NAP_Admin_01' 
-GO
 sp_rename 'DBA_SettleOutright_Undo_Trans','del_DBA_SettleOutright_Undo_Trans'
 GO
-sp_rename 'DBA_VoidTickets','del_DBA_VoidTickets'
-GO 
 sp_rename 'Dot_BalanceDelCredit','del_Dot_BalanceDelCredit' 
 GO
 sp_rename 'Dot_BalanceDelDebit','del_Dot_BalanceDelDebit' 
