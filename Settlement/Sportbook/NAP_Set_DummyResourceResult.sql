@@ -104,7 +104,7 @@ BEGIN
 	DECLARE @tmpDummyResourceIds AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT)
 	DECLARE @tmpDummyResourceResults AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), ssId TINYINT, isCalculated BIT)
 
-	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50), ssId TINYINT, isWeb BIT)
+	DECLARE @tmpResultDetail AS TABLE (ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),ResultStatusID TINYINT,ssId TINYINT, isWeb BIT)
 
 	SELECT	@ResultTable = ResultTable
 	FROM	dbo.SettlementResultTableSetting WITH(NOLOCK)
@@ -169,8 +169,8 @@ BEGIN
 
 	IF @ResultTable = 1
 	BEGIN
-		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue, ssId)
-		SELECT	ResourceId, HomeValue, AwayValue, SettlementStatusID
+		INSERT INTO @tmpResultDetail(ResourceId, HomeValue, AwayValue,ResultStatusID, ssId)
+		SELECT	ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID
 		FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(NOLOCK)
 		WHERE	MatchId = @MatchId
 				AND NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail t WHERE t.ResourceId = r.ResourceId)
@@ -194,6 +194,14 @@ BEGIN
 						,('Q1'), ('Q2'), ('Q3'), ('Q4')
 			)	t(ResourceId)
 		WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpResultDetail WHERE ResourceId = t.ResourceId)
+
+		UPDATE @tmpResultDetail
+		SET  HomeValue = '' 
+			,AwayValue = '' 
+		WHERE (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01', '00','OT'))
+			AND @IsDetermined = 1
+			AND ResultStatusID NOT IN (2,5)
+			AND ISNULL(isWeb,0) = 0
 
 		SELECT	@FTHome = ISNULL(SUM(CASE WHEN ResourceId = '00' THEN HomeValue ELSE 0 END), 0)
 				,@FTAway = ISNULL(SUM(CASE WHEN ResourceId = '00' THEN AwayValue ELSE 0 END), 0)
@@ -240,7 +248,8 @@ BEGIN
 			WHERE (ResourceId LIKE 'Q[1-4]'  OR ResourceId IN ('01', '00'))
 				AND ssId = 4
 
-			IF EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceId IN ('Q1','Q2') AND ISNULL(HomeValue,'') != '')
+			IF  EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceId IN ('Q1','Q2') AND ISNULL(HomeValue,'') != '') AND
+				NOT EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceId = '01' AND isWeb = 1 AND ISNULL(HomeValue,'') != '')	
 			BEGIN
 				UPDATE @tmpResultDetail
 				SET HomeValue = @Q1Home + @Q2Home, 
@@ -251,7 +260,8 @@ BEGIN
 				SET @HTAway = @Q1Away + @Q2Away
 			END
 
-			IF EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceId IN ('Q1','Q2','Q3','Q4','OT') AND ISNULL(HomeValue,'') != '') 
+			IF EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceId IN ('Q1','Q2','Q3','Q4','OT') AND ISNULL(HomeValue,'') != '')  AND
+			   NOT EXISTS (SELECT 1 FROM @tmpResultDetail WHERE ResourceId = '00' AND isWeb = 1 AND ISNULL(HomeValue,'') != '')	
 			BEGIN
 				UPDATE @tmpResultDetail
 				SET HomeValue = @Q1Home + @Q2Home + @Q3Home + @Q4Home + @OTHome, 
