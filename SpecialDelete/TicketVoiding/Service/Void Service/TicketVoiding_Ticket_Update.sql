@@ -29,6 +29,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835] 
 	
 	Param's explanation:	
 		
@@ -52,7 +53,7 @@ BEGIN
 			,@NegativeBalanceUsers  = @NegativeBalanceUsers	OUTPUT
 			,@MoveBetMatchIds		= @MoveBetMatchIds OUTPUT
 	END
-	ELSE IF (@VoidingTypeId IN (1,4) OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13)))-- Single
+	ELSE IF (@VoidingTypeId IN (1,4) OR (@VoidingTypeId = 2 AND @IssueTypeId IN (11,13,20)))-- Single
 	BEGIN
 		EXEC dbo.TicketVoiding_SingleType_Update
 			@RequestId = @RequestId

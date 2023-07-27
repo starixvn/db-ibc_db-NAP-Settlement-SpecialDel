@@ -36,12 +36,13 @@ BEGIN
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
 			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
 			,@SiteDBAffected VARCHAR(20)
+			,@Sporttype				INT
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT, CustID INT)
 	DECLARE @tmpMatchId AS TABLE (MatchId INT, homeid INT, awayid INT, leagueid INT, sporttype SMALLINT, matchcode NVARCHAR(50), IsFinish BIT)
-	DECLARE @tmp_Result AS TABLE (MatchId INT, TransInfoJson VARCHAR(MAX), MarkTransIds VARCHAR(MAX), UnmarkTransIds VARCHAR(MAX), SiteDBAffected VARCHAR(20))
+	DECLARE @tmp_Result AS TABLE (MatchId INT, Sporttype INT, TransInfoJson VARCHAR(MAX), MarkTransIds VARCHAR(MAX), UnmarkTransIds VARCHAR(MAX), SiteDBAffected VARCHAR(20))
 
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
@@ -377,7 +378,7 @@ BEGIN
 	WHILE (1=1)
 	BEGIN
 		UPDATE TOP(1) m
-			SET @MatchId = m.MatchId
+			SET @MatchId = m.MatchId, @Sporttype = m.sporttype
 			, m.IsFinish = 1
 		FROM @tmpMatchId  m 
 		WHERE m.IsFinish IS NULL
@@ -413,12 +414,12 @@ BEGIN
 											FOR XML PATH('')), 1,1,'')
 											,'')
 
-		INSERT INTO @tmp_Result (MatchId, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected)
-		SELECT @MatchId, CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1), @MarkTransIds, @UnmarkTransIds, @SiteDBAffected
+		INSERT INTO @tmp_Result (MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected)
+		SELECT @MatchId, @Sporttype,  CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1), @MarkTransIds, @UnmarkTransIds, @SiteDBAffected
 	END
 	
 	
-	SELECT MatchId, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected FROM @tmp_Result
+	SELECT MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected FROM @tmp_Result
 
 
 	DROP TABLE #inputTransid
