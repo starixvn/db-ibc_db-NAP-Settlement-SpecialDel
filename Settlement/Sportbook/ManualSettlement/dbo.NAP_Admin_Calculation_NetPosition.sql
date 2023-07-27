@@ -10,6 +10,7 @@ AS
 
 	Revisions:
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
+		- 20230727@Kathy: support in-house replicator [Redmine:#191540]
 */
 BEGIN
 	SET NOCOUNT ON

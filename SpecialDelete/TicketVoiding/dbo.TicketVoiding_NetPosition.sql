@@ -8,6 +8,7 @@ AS
 	
 	Revisions:
 		- 20230616@Kathy: Migrate NetPosition API & Services to TVS [Redmine:#189706]
+		- 20230727@Kathy: support in-house replicator [Redmine:#191540]
 */
 BEGIN
 
@@ -27,6 +28,7 @@ BEGIN
 				,Payout2=0
 				,ModifiedDate=CURRENT_TIMESTAMP
 				,SyncStatus = CASE WHEN isSettled = 1 THEN SyncStatus ELSE 0 END
+				,RepUpdateTime = SYSDATETIME()
 		FROM	dbo.NetPositionTrans n WITH(ROWLOCK, UPDLOCK)	
 			INNER JOIN @tmpTransIds t
 				ON n.transid = t.transid
@@ -64,8 +66,9 @@ BEGIN
 					,TARGET.Payout2 = SOURCE.Payout2
 					,TARGET.ModifiedDate = CURRENT_TIMESTAMP
 					,TARGET.SyncStatus= CASE WHEN IsSettled = 1 THEN SyncStatus ELSE 0 END
+					,TARGET.RepUpdateTime = SYSDATETIME()
 		WHEN NOT MATCHED BY TARGET AND SOURCE.betid = 0 THEN
-			INSERT (Custid,Transid,Matchid,bettype,actual_stake,Payout1,Payout2,SyncStatus,CreatedDate,ModifiedDate)
-				VALUES (SOURCE.CustId, SOURCE.TransId, SOURCE.MatchId, SOURCE.bettype, SOURCE.actual_stake, SOURCE.Payout1, SOURCE.Payout2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+			INSERT (Custid,Transid,Matchid,bettype,actual_stake,Payout1,Payout2,SyncStatus,CreatedDate,ModifiedDate, RepUpdateTime)
+				VALUES (SOURCE.CustId, SOURCE.TransId, SOURCE.MatchId, SOURCE.bettype, SOURCE.actual_stake, SOURCE.Payout1, SOURCE.Payout2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, SYSDATETIME());
 	END
 END
