@@ -10,7 +10,7 @@ AS
 
 	Revisions:
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
-		- 20230727@Kathy: support in-house replicator [Redmine:#191540]
+		- 20230727@Kathy: support in-house replicator [Redmine:#191383]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -24,12 +24,12 @@ BEGIN
 			,@Balcount				INT = 0
 			,@AccumNPCredit			MONEY = 0
 			,@AccumNPDebit			MONEY = 0
-
+			
 	DECLARE @tmpCalculateNP TABLE (Custid INT, Transid BIGINT, Matchid INT, bettype SMALLINT, actual_stake MONEY, Payout1 MONEY, Payout2 MONEY)
 	
 	-- get trans data
 	INSERT INTO @tmpCalculateNP(CustId, TransId, MatchId, bettype, actual_stake, Payout1, Payout2)
-	SELECT	NPT.Custid, NPT.Transid, NPT.Matchid, NPT.bettype, NPT.actual_stake, NPT.Payout1, NPT.Payout2 
+	SELECT	NPT.Custid, NPT.Transid, NPT.Matchid, NPT.bettype, NPT.actual_stake, NPT.Payout1, NPT.Payout2
 	FROM	dbo.NetPositionTrans NPT WITH (NOLOCK)
 		INNER JOIN bettrans BT WITH (NOLOCK) 
 			ON	BT.transid = NPT.transID
@@ -43,13 +43,14 @@ BEGIN
 	SELECT	@AStake=SUM(actual_stake)
 			,@Pay1=SUM(Payout1)
 			,@Pay2 = SUM(Payout2)
-			,@mINPay = CASE 
+			,@minPay = CASE 
 							WHEN @AStake < @Pay1 AND @AStake < @Pay2 THEN @AStake
 							WHEN @Pay1 < @AStake AND @Pay1< @Pay2 THEN @Pay1
 							ELSE @Pay2 
 						END
 	FROM	@tmpCalculateNP
 
+	SET @minPay = ISNULL(@minPay,0)
 	SET @NPAdjust = @minPay
 
 	-- get latest data FROM NPCalculatiONLog
@@ -71,9 +72,9 @@ BEGIN
 	-- IF need adjust NP
 	IF (@NPAdjust <> 0)
 	BEGIN
-		-- SELECT NetPositiONCalculatiONLog
-		INSERT INTO dbo.NetPositionCalculationLog (Custid,Matchid,Bettype,AccumNPDebit,AccumNPCredit,NPAdjust,IsLatest,CreatedDate,ModifiedDate)
-		VALUES (@Custid,@Matchid,@bettype,@AccumNPDebit,@AccumNPCredit,@NPAdjust,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)					
+		-- SELECT NetPositionCalculationLog
+		INSERT INTO dbo.NetPositionCalculationLog (Custid,Matchid,Bettype,AccumNPDebit,AccumNPCredit,NPAdjust,IsLatest,CreatedDate,ModifiedDate, RepUpdateTime)
+		VALUES (@Custid,@Matchid,@bettype,@AccumNPDebit,@AccumNPCredit,@NPAdjust,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP, SYSDATETIME())					
 
 		IF(@NPCalculationLogID > 0)
 		BEGIN
@@ -81,6 +82,7 @@ BEGIN
 			UPDATE	dbo.NetPositionCalculationLog WITH (ROWLOCK, UPDLOCK)
 				SET IsLatest = 0
 					,ModifiedDate = CURRENT_TIMESTAMP
+					,RepUpdateTime = SYSDATETIME()
 			WHERE	NPCalculationLogID = @NPCalculationLogID
 		END
 	END
@@ -99,19 +101,20 @@ BEGIN
 			UPDATE	dbo.BalNetPosition WITH (ROWLOCK, UPDLOCK) 
 				SET Credit = @AccumNPCredit
 					,Debit = @AccumNPDebit
+					,RepUpdateTime = SYSDATETIME()
 			WHERE	Custid = @Custid 
 					AND Matchid = @Matchid 
 					AND bettype = @bettype
 		END
 		ELSE
 		BEGIN
-			INSERT INTO dbo.BalNetPosition (Custid, Matchid, Bettype, Debit, Credit)
-			VALUES (@Custid, @Matchid, @Bettype, @AccumNPDebit, @AccumNPCredit)
+			INSERT INTO dbo.BalNetPosition (Custid, Matchid, Bettype, Debit, Credit, RepUpdateTime)
+			VALUES (@Custid, @Matchid, @Bettype, @AccumNPDebit, @AccumNPCredit, SYSDATETIME())
 		END
 	END
 	
 	UPDATE	dbo.NetPositionTrans WITH (ROWLOCK, UPDLOCK)
-		SET SyncStatus = 1, ModifiedDate = CURRENT_TIMESTAMP
+		SET SyncStatus = 1, ModifiedDate = CURRENT_TIMESTAMP,RepUpdateTime = SYSDATETIME()
 	WHERE	Transid IN (SELECT Transid FROM @tmpCalculateNP)
 
 END
