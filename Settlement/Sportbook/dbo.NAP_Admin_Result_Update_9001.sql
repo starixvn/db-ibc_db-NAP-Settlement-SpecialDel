@@ -43,6 +43,7 @@ AS
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
 		- 20230817@Aries: Basketball - Enhance Generating Result 2H [Redmine:#192864]
+		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
 		
     Param's Explanation: 
     
@@ -327,7 +328,7 @@ BEGIN
 				FROM	dbo.ResultDetail WITH(ROWLOCK, UPDLOCK)
 				WHERE	MatchId = @MatchID
 					AND ResourceId = 'OT'
-					AND ISNULL(HomeValue,'') = ''
+					AND (ISNULL(HomeValue,'') = '' OR @DeterminedType = 0)
 			END
 
 			IF @action = 'REFUND' AND @DeterminedType > 0
