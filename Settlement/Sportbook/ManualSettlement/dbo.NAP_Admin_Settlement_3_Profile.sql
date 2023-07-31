@@ -37,6 +37,7 @@ AS
 	   - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 	   - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 	   - 20230523@Kathy: remove un-used table [Redmine:#188452]
+	   - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -575,7 +576,8 @@ BEGIN
 	EXEC dbo.NAP_Admin_Calculate_Main @matchid = @matchid
 		,@mode = 'LockMatch'
 		,@IsSettingByProfile = 1
-		,@SessionId = @SessionId	
+		,@SessionId = @SessionId
+		,@ActionID = @ActionID
 	
 	IF @IsCentral = 0 AND OBJECT_ID('SiteDB_NAP_SettlementService_CalculationLogIns','P') IS NOT NULL 
 	BEGIN

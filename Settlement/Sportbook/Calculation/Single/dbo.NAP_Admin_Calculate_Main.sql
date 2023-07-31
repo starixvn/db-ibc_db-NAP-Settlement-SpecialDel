@@ -164,6 +164,7 @@ AS
 		- 20230109@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
         - 20230516@Aries: Replicate to SubDB is not correctly [Redmine:#188298]
+        - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 
     Param's Explanation:
         @action             @mode
@@ -191,6 +192,7 @@ BEGIN
     SET @isUndo = CASE
                     WHEN @mode LIKE '%UNDO%' THEN 1
                     WHEN @action LIKE '%UNDO%' THEN 1
+                    WHEN @ActionId = 81040 THEN 1
                     ELSE 0
                 END
 
