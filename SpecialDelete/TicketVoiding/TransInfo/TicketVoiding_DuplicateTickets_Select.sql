@@ -201,6 +201,7 @@ BEGIN
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 
 	DROP TABLE #transIdTemp
+	DROP TABLE #tmpTransInfo
 END		
 GO
 
