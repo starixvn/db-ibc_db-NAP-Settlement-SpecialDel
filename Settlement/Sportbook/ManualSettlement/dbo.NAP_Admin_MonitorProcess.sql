@@ -27,6 +27,7 @@ AS
 		  - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		  - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		  - 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		  - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 
 	Param's Explanation:  
 	
@@ -129,10 +130,14 @@ BEGIN
 			,@SessionId		= @SessionId
 	END
 
+	SELECT @ActionID = T.C.value('@ActionID','INT')
+	FROM	@LogData.nodes('/root/r') AS T(C)	
+
 	EXEC dbo.NAP_Admin_Calculate_Main @mode = 'ReleaseMatch'
 		,@IsSettingByProfile = 1
 		,@SessionId = @SessionId
 		,@MatchId = @MatchId
+		,@ActionID = @ActionID
 	
 	IF @HasError = 0
 	BEGIN
