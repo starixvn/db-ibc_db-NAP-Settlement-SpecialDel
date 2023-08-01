@@ -39,10 +39,11 @@ BEGIN
 			,@MatchId			INT
 			,@SubIssueTypeId  SMALLINT
 			,@FilterBy			TINYINT
+			,@DuplicateTicketsInfoXML XML = NULL	
+			,@Decompress_TransInfoJson NVARCHAR(MAX) = NULL
+			,@xmlTransIds XML = NULL
 
-	DECLARE	 @DuplicateTicketsInfoXML	 XML = NULL	
-
-	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
+	DECLARE @tmp_TransIds AS TABLE (Remained BIGINT, Voided VARCHAR(MAX))
 
 	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
@@ -90,6 +91,24 @@ BEGIN
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @MatchId
 
+	INSERT INTO @tmp_TransIds (Remained, Voided)
+	SELECT  r.transid,
+			STUFF(
+					(SELECT ', ' + CAST(transid AS VARCHAR(MAX)) 
+				FROM #tmpTransInfo t
+				WHERE t.IsOrg <> 1 AND t.DuplicateGroup = r.DuplicateGroup
+				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,''
+			) AS TransIds
+	FROM #tmpTransInfo r
+	WHERE r.IsOrg = 1
+	order by DuplicateGroup
+
+	SELECT @xmlTransIds = (SELECT t.Remained AS '@Remained'
+								, t.Voided AS '@Voided'
+							FROM @tmp_TransIds t
+							FOR XML PATH('r'), ROOT('root')
+						)
+
 	IF @IsEditRequest = 0 
 	BEGIN
 		INSERT INTO dbo.TicketVoiding_RequestDetail (
@@ -101,6 +120,7 @@ BEGIN
 			, RequestType
 			, SubIssueTypeId
 			, FilterBy
+			, TransIds
 		)
 		SELECT @RequestId
 			, @MatchId
@@ -110,6 +130,7 @@ BEGIN
 			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
 			, @SubIssueTypeId
 			, @FilterBy
+			, CONVERT(VARCHAR(MAX), @xmlTransIds)
 
 		SET @RequestDetailId = SCOPE_IDENTITY()
 	END
