@@ -17,7 +17,7 @@ GO
 
 IF NOT EXISTS (SELECT TOP 1 1 FROM sys.objects WHERE name = 'CheckSum_MigrateSiteDB3_Temp')
 BEGIN
-	CREATE TABLE CheckSum_MigrateSiteDB3_Temp ( TransId BIGINT, TableName VARCHAR(100) )
+	CREATE TABLE CheckSum_MigrateSiteDB3_Temp ( ID INT IDENTITY (1,1), TransId BIGINT, TableName VARCHAR(100) )
 END
 
 TRUNCATE TABLE CheckSum_MigrateSiteDB3_Temp
