@@ -430,7 +430,7 @@ BEGIN
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
 	--4. Transinfo table
-	IF EXISTS (SELECT TOP 1 1 FROM #validTransId)
+	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE (IsOrg <> 1 OR IsOrg = 0))
 	BEGIN
 		WHILE (1=1)
 		BEGIN
