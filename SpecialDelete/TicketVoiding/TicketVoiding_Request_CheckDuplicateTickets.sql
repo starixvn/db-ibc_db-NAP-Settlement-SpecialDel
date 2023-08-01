@@ -291,7 +291,7 @@ BEGIN
 	FROM dbo.TicketVoiding_Request req WITH (NOLOCK)
 		CROSS APPLY (
 					SELECT TransId
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 						INNER JOIN @tmpMatchId m ON s.MatchId = m.MatchId
 					WHERE RequestId = req.RequestId 
 				) AS tmp
