@@ -55,6 +55,8 @@ BEGIN
       ,betid			BIGINT
 	  ,IsMixParlay		BIT
 	  ,SiteDBGroupID	SMALLINT
+	  ,IsOrg			SMALLINT
+	  ,DuplicateGroup TINYINT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
@@ -65,10 +67,12 @@ BEGIN
 		  ,betid
 		  ,IsMixParlay
 		  ,SiteDBGroupID
+		  ,IsOrg
+		  ,DuplicateGroup
 		)
-	SELECT mid ,t ,c ,btype ,bteam ,bid ,isP ,sitedb
+	SELECT mid ,t ,c ,btype ,bteam ,bid ,isP ,sitedb, isO, dgr
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,isP BIT ,sitedb SMALLINT
+	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isO SMALLINT, dgr TINYINT
 	) tbl
 
 	SET @DuplicateTicketsInfoXML = CONVERT(XML, @DuplicateTicketsInfo)
@@ -141,6 +145,7 @@ BEGIN
 	WHERE matchid = @MatchId
 		AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
 						WHEN @FilterBy = 1 AND t.betteam = '1' THEN 1 ELSE 0 END
+		AND IsOrg <> 1
 
 	-- Get content of log data 
 	SET @LogDataContent = ''

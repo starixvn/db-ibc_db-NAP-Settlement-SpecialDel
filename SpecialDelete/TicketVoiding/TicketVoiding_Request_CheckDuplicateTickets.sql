@@ -292,6 +292,7 @@ BEGIN
 		CROSS APPLY (
 					SELECT TransId
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
+						INNER JOIN @tmpMatchId m ON s.MatchId = m.MatchId
 					WHERE RequestId = req.RequestId 
 				) AS tmp
 	WHERE  req.RequestId <> @RequestId AND req.ActionId <> 2
@@ -339,7 +340,7 @@ BEGIN
 	IF @ActionId <> 2
 	BEGIN
 		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
-										FROM #inputTransid t 
+										FROM #validTransId t 
 											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
 										FOR XML PATH('')), 1, 1, '')
 										, '')
@@ -349,6 +350,10 @@ BEGIN
 										WHERE v.StatusId NOT IN (0,1)
 										FOR XML PATH('')), 1, 1, '')
 										, '')
+
+		DELETE v
+		FROM #validTransId v 
+			INNER JOIN #TransidInRequest tr ON v.transid = tr.TransId
 	END
 
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
@@ -425,51 +430,54 @@ BEGIN
 			,@IsHasWarningRemovedTickets AS IsHasWarningRemovedTickets
 
 	--4. Transinfo table
-	WHILE (1=1)
+	IF EXISTS (SELECT TOP 1 1 FROM #validTransId)
 	BEGIN
-		UPDATE TOP(1) m
-			SET @MatchId = m.MatchId, @Sporttype = m.sporttype
-			, m.IsFinish = 1
-		FROM @tmpMatchId  m 
-		WHERE m.IsFinish IS NULL
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1) m
+				SET @MatchId = m.MatchId, @Sporttype = m.sporttype
+				, m.IsFinish = 1
+			FROM @tmpMatchId  m 
+			WHERE m.IsFinish IS NULL
 
-		IF @@ROWCOUNT = 0 
-			BREAK
+			IF @@ROWCOUNT = 0 
+				BREAK
 
-		SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
-			,t.transid AS 't'
-			,b.custid AS  'c'           
-			,b.bettype AS 'btype'
-			,b.betteam AS 'bteam'
-			,b.SiteDBGroupID AS 'sitedb'
-			,t.IsOrg 'isO'
-			,t.DuplicateGroup 'dgr'
-		FROM #validTransId t
-			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-		WHERE t.matchid = @MatchId
-		FOR JSON PATH))
+			SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+				,t.transid AS 't'
+				,b.custid AS  'c'           
+				,b.bettype AS 'btype'
+				,b.betteam AS 'bteam'
+				,b.SiteDBGroupID AS 'sitedb'
+				,t.IsOrg 'isO'
+				,t.DuplicateGroup 'dgr'
+			FROM #validTransId t
+				INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+			WHERE t.matchid = @MatchId
+			FOR JSON PATH))
 
-		SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-											FROM @tmpMarkTransId
-											WHERE Matchid = @MatchId
-											FOR XML PATH('')), 1,1,'')
-											,'')
+			SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+												FROM @tmpMarkTransId
+												WHERE Matchid = @MatchId
+												FOR XML PATH('')), 1,1,'')
+												,'')
 
-		SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-													FROM @tmpUnmarkTransId
-													WHERE Matchid = @MatchId
-													FOR XML PATH('')), 1,1,'')
-													,'')
+			SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+														FROM @tmpUnmarkTransId
+														WHERE Matchid = @MatchId
+														FOR XML PATH('')), 1,1,'')
+														,'')
 
-		SELECT @SiteDBAffected = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(b.SiteDBGroupID AS VARCHAR(50)) 
-											FROM  #validTransId t
-													INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-												WHERE t.matchid = @MatchId
-											FOR XML PATH('')), 1,1,'')
-											,'')
+			SELECT @SiteDBAffected = ISNULL(STUFF((SELECT DISTINCT ',' + CAST(b.SiteDBGroupID AS VARCHAR(50)) 
+												FROM  #validTransId t
+														INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+													WHERE t.matchid = @MatchId
+												FOR XML PATH('')), 1,1,'')
+												,'')
 
-		INSERT INTO @tmp_Result (MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected)
-		SELECT @MatchId, @Sporttype, CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1), @MarkTransIds, @UnmarkTransIds, @SiteDBAffected
+			INSERT INTO @tmp_Result (MatchId, Sporttype, TransInfoJson, MarkTransIds, UnmarkTransIds, SiteDBAffected)
+			SELECT @MatchId, @Sporttype, CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1), @MarkTransIds, @UnmarkTransIds, @SiteDBAffected
+		END
 	END
 	
 	
