@@ -23,6 +23,7 @@ AS
 	
 	Revisions: 
 		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
+		- 20230802@July: Fix bug - Tickets bettype HDP/OU with HDP/OU value difference filter NOT SHOW on Other group  [Redmine: #190441]
 
 	Param's explanation:
 
@@ -147,6 +148,7 @@ BEGIN
 		INSERT INTO @tmpWrongMarket (WrongMarket)
 		SELECT DISTINCT value AS WrongMarket
 		FROM STRING_SPLIT(@WrongMarket, '&')
+		WHERE value <> ''
 	END
 
 	INSERT INTO #tmpTransInfo( 

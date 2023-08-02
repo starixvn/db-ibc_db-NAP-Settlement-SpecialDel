@@ -24,6 +24,7 @@ AS
 	
 	Revisions: 
 		- 20230403@July: Create new SP - Refactor code issue type HDP & 1H HDP   [Redmine: #172486]
+		- 20230802@July: Fix bug - Tickets bettype HDP/OU with HDP/OU value difference filter NOT SHOW on Other group  [Redmine: #190441]
 
 		
 	Param's explanation:
@@ -151,18 +152,21 @@ BEGIN
 		INSERT INTO @tmpHomeFavorite (HomeFavorite)
 		SELECT DISTINCT value AS HomeFavorite
 		FROM STRING_SPLIT(@HomeFavorite, '&')
+		WHERE value <> ''
 	END
 	IF @AwayFavorite IS NOT NULL
 	BEGIN
 		INSERT INTO @tmpAwayFavorite (AwayFavorite)
 		SELECT DISTINCT value AS AwayFavorite
 		FROM STRING_SPLIT(@AwayFavorite, '&')
+		WHERE value <> ''
 	END
 	IF @HdpValue IS NOT NULL
 	BEGIN
 		INSERT INTO @tmpHdpValue (HdpValue)
 		SELECT DISTINCT value AS HdpValue
 		FROM STRING_SPLIT(@HdpValue, '&')
+		WHERE value <> ''
 	END
 
 	INSERT INTO #tmpTransInfo( 
