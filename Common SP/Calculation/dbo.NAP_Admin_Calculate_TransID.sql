@@ -6,6 +6,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	,@Is3rd				BIT =  0	
 	,@ActionID				INT = NULL
 	,@IsCalculateBalance	BIT =  0
+	,@CWLBettype			SMALLINT = 0
+	,@BalanceType			TINYINT  = 1 --sport
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 	
@@ -28,6 +30,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
+		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
 
 	Param's Explanation:  
 		   
@@ -77,7 +80,7 @@ BEGIN
 								,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 								,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
-								,bef_winlost MONEY,bef_statusid TINYINT)
+								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME)
 	
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
@@ -293,7 +296,9 @@ BEGIN
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben
-			,deleted.winlost,deleted.statusid		
+			,deleted.winlost,deleted.statusid	
+			,deleted.bettype
+			,deleted.winlostdate
 	INTO @tmpTransInfo (
 			transId
 			,custid, Balance
@@ -302,7 +307,9 @@ BEGIN
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
 			,Status,StatusID,ruben
-			,bef_winlost, bef_statusid
+			,bef_winlost, bef_statusid	
+			,bettype
+			,winlostdate
 		)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
@@ -360,9 +367,44 @@ BEGIN
 		END
 	END
 		
-		-- balance
 	IF @IsCalculateBalance = 1  AND (@IsCentral = 1 OR @IsSiteDB = 1)
 	BEGIN
+		IF(@CWLBettype > 0)
+		BEGIN
+			INSERT INTO dbo.BalancePendingCreditGame (
+				custid
+				,winlostdate
+				,bettype
+				,GameTypeID
+				,balance
+			)
+			SELECT t.custid
+				,t.winlostdate
+				,@CWLBettype
+				,t.bettype AS GameTypeID
+				,SUM(t.winlost - t.bef_winlost) AS Balance
+			FROM @tmpTransInfo t
+			GROUP BY t.CustId, t.winlostdate, t.bettype
+			HAVING SUM(Balance) > 0
+			
+			--CAPTURE decrease
+			INSERT INTO dbo.BalancePendingDebitGame (
+				custid
+				,winlostdate
+				,bettype
+				,GameTypeID
+				,balance
+			)
+			SELECT t.custid
+				,t.winlostdate
+				,@CWLBettype
+				,t.bettype AS GameTypeID
+				,SUM(t.winlost - t.bef_winlost) AS Balance
+			FROM @tmpTransInfo t
+			GROUP BY t.CustId, t.winlostdate, t.bettype
+			HAVING SUM(Balance) < 0
+		END
+		
 		INSERT INTO @BalanceChanged (matchid,custid, walletType, bonusId, balance)
 		SELECT	 @MatchId
 				,custid
@@ -372,11 +414,12 @@ BEGIN
 		FROM @tmpTransInfo
 		GROUP BY custid
 		HAVING SUM(balance) != 0;
-
+ 
 		EXEC NAP_Admin_Settlement_BalanceUpd @BalanceChanged =	@BalanceChanged
 											,@ActionID		=   @ActionID
+											,@BalanceType	=	@BalanceType
 											,@ErrMessage	=   @ErrMessage OUTPUT
-											,@ErrCode		=   @ErrCode OUTPUT
+											,@ErrCode		=   @ErrCode	OUTPUT
 	END
 
 END
