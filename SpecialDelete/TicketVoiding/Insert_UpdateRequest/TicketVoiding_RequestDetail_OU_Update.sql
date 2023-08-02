@@ -20,6 +20,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
+		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
 
 	Param's explanation:
 		+ @IssueTypeId : 6 - Wrong OU, 7 - Wrong 1st OU
@@ -34,8 +35,6 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	@WrongOUInfoXML		 XML = NULL	
-			,@PHBettypes		 VARCHAR(MAX) =''
-			,@MainMatchId		 INT
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -124,22 +123,6 @@ BEGIN
 					AS WrongOU
 	FROM @WrongOUInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongOUInfoXML = NULL))
-
-	SELECT @MainMatchId = MatchID FROM #tblGetLogInfo WHERE WrongOU LIKE '%IsMainMatch="true"%' AND WrongOU LIKE '%PoolHouseCheckedBetTypes="ALL"%'
-	IF @MainMatchId IS NOT NULL
-	BEGIN
-		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
-									  FROM #tmpTransInfo 
-									  WHERE matchid = @MainMatchId
-									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 6 AND Subbettype <> 3)OR (@IssueTypeId = 7 AND Subbettype <> 8)) THEN 1
-												   WHEN IsMixParlay = 1 THEN 1
-												   ELSE 0 END
-									  FOR XML PATH ('')
-								),1,1,'')
-		UPDATE #tblGetLogInfo
-		SET WrongOU = SUBSTRING(WrongOU,0, LEN(WrongOU) - 6)  + @PHBettypes+ '" />'
-		WHERE MatchID = @MainMatchId
-	END
 
 	IF @IsEditRequest = 1
 	BEGIN

@@ -11,16 +11,13 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_WO_Update]
 )
 AS
 /*	
-	Created by: 20220808@July
-	Task: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+	Created by: 20230419@Max
+	Task: [TVS] New issue type Wrong Odds [Redmine: #179934]
 	DB: DBCTG/bodb02
 	
 	Revisions: 
-		- 20220808@July: Create new SP - Split code issuetype wrong OU & wrong 1st OU [Redmine: #175412]
-		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
-		- 20230103@Max: Change JSON input [Redmine: #180625]
-		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
+		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
 
 	Param's explanation:
 		+ @IssueTypeId : 2
@@ -35,8 +32,6 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	@WrongOddsInfoXML	 XML = NULL	
-			,@PHBettypes		 VARCHAR(MAX) =''
-			,@MainMatchId		 INT
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -133,18 +128,6 @@ BEGIN
 					AS WrongOdds
 	FROM @WrongOddsInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL))
-
-	SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
-									FROM #tmpTransInfo 
-									WHERE matchid = @MainMatchId
-									AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 6 AND Subbettype <> 3)OR (@IssueTypeId = 7 AND Subbettype <> 8)) THEN 1
-												WHEN IsMixParlay = 1 THEN 1
-												ELSE 0 END
-									FOR XML PATH ('')
-							),1,1,'')
-	UPDATE #tblGetLogInfo
-	SET WrongOdds = SUBSTRING(WrongOdds,0, LEN(WrongOdds) - 6)  + @PHBettypes+ '" />'
-	WHERE MatchID = @MainMatchId
 
 	IF @IsEditRequest = 1
 	BEGIN
