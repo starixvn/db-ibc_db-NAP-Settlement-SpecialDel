@@ -534,12 +534,13 @@ BEGIN
 		GROUP BY CustID
 		
 		DECLARE @tmpMatchId TABLE (matchId INT, Sporttype SMALLINT, IsFinish BIT)
-		IF @IsExistVSBetradar = 1 OR @IsExistVS3 = 1
+		
+		IF @IsExistVSBetradar = 1
 		BEGIN	
 			INSERT INTO @tmpMatchId (MatchId)
 			SELECT DISTINCT b.MatchId
 			FROM #RecoverBet b
-			WHERE b.TicketType IN (1, 4)
+			WHERE b.TicketType = 1
 
 			WHILE (1=1)
 			BEGIN
@@ -557,7 +558,7 @@ BEGIN
 					SELECT transid '@q' -- transid			 
 						 , creator '@cr' -- creator
 					FROM #RecoverBet	
-					WHERE TicketType IN (1, 4) AND matchid = @matchId	 					 
+					WHERE TicketType = 1	AND matchid = @matchId	 					 
 					FOR XML PATH('r'), ROOT('root'), TYPE
 				) 
 				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
@@ -574,7 +575,7 @@ BEGIN
 				SELECT matchid '@m' 
 					 , transid '@t'
 				FROM #RecoverBet
-				WHERE TicketType IN (1, 4)
+				WHERE TicketType = 1
 				  AND [Action] = @Action_Recal
 				FOR XML PATH('r'), ROOT('root'), TYPE
 			) 
@@ -592,7 +593,7 @@ BEGIN
 			SET @_xml = (
 				SELECT transid '@t'
 				FROM #RecoverBet
-				WHERE TicketType IN (1, 4)
+				WHERE TicketType = 1
 				  AND [Action] = @Action_Refund
 				FOR XML PATH('r'), ROOT('root'), TYPE
 			) 
@@ -706,6 +707,86 @@ BEGIN
 			END						
 		END	
 		
+		IF @IsExistVS3 = 1
+		BEGIN	
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT DISTINCT b.MatchId
+			FROM #RecoverBet b
+			WHERE b.TicketType = 4
+
+			WHILE (1=1)
+			BEGIN
+				SET @_sXML = NULL
+
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId
+				FROM @tmpMatchId m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+
+				--> Update Bettrans	to running
+				SET @_xml = (
+					SELECT transid '@q' -- transid			 
+						 , creator '@cr' -- creator
+					FROM #RecoverBet	
+					WHERE TicketType = 4 AND matchid = @matchId	 					 
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+		
+				EXEC dbo.Bet_ExecRep_05 
+					  @IgnoreList 	= @IgnoreList
+					, @updatetype 	= 6
+					, @_sXML 		= @_sXML
+					, @matchId = @matchId
+			
+				--> Re-cal	
+				SET @_xml = (
+					SELECT transid AS '@t'
+						  ,modds AS '@m'
+						  ,0 AS '@ot'
+					FROM #RecoverBet
+					WHERE TicketType = 4 AND matchid = @matchid
+					  AND [Action] = @Action_Recal
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)											
+		
+				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+							@matchid			 = @matchid 
+						   ,@action				 = 'CAL'  
+						   ,@strTransIds		 = @TicketInfos_Recal
+						   ,@EventTable			 = 1
+						   ,@Is3rd				 = 1 
+						   ,@IsCalculateBalance  = 1
+						   ,@CWLBettype			 = 1210
+						   ,@BalanceType		 = 4					
+		
+				--> Refund		
+				SET @_xml = (
+					SELECT transid AS '@t'
+						  ,modds AS '@m'
+						  ,0 AS '@ot'
+					FROM #RecoverBet
+					WHERE TicketType = 4 AND matchid = @matchid 
+					  AND [Action] = @Action_Refund
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @TicketInfos_Refund = CONVERT(VARCHAR(MAX), @_xml)											
+		
+				EXEC [dbo].[NAP_Admin_Calculate_OtherSports] 
+							@matchid			 = @matchid 
+						   ,@action				 = 'REFUND'  
+						   ,@strTransIds		 = @TicketInfos_Refund
+						   ,@EventTable			 = 1
+						   ,@Is3rd				 = 1 
+						   ,@IsCalculateBalance  = 1
+						   ,@CWLBettype			 = 1210
+						   ,@BalanceType		 = 4			
+			END
+		END		
+
 		--> Capture balance after
 		INSERT INTO #afterUpd(custid										  
 							, winlostdate
