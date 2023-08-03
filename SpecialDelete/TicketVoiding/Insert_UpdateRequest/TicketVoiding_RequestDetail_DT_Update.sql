@@ -43,7 +43,7 @@ BEGIN
 			,@Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 			,@xmlTransIds XML = NULL
 
-	DECLARE @tmp_TransIds AS TABLE (Remained BIGINT, Voided VARCHAR(MAX))
+	DECLARE @tmp_TransIds AS TABLE (Remained VARCHAR(50), Voided VARCHAR(MAX))
 
 	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
@@ -92,7 +92,7 @@ BEGIN
 	WHERE	matchid = @MatchId
 
 	INSERT INTO @tmp_TransIds (Remained, Voided)
-	SELECT  CASE WHEN t.IsOrg = 1 THEN r.transid ELSE NULL END,
+	SELECT  CASE WHEN r.IsOrg = 1 THEN CONVERT(VARCHAR(50), r.transid) ELSE '' END,
 			STUFF(
 					(SELECT ', ' + CAST(transid AS VARCHAR(MAX)) 
 				FROM #tmpTransInfo t
@@ -100,7 +100,7 @@ BEGIN
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,''
 			) AS TransIds
 	FROM #tmpTransInfo r
-	WHERE (r.IsOrg = 1 OR t.IsOrg = 0)
+	WHERE (r.IsOrg = 1 OR r.IsOrg = 0)
 	order by DuplicateGroup
 
 	SELECT @xmlTransIds = (SELECT t.Remained AS '@Remained'

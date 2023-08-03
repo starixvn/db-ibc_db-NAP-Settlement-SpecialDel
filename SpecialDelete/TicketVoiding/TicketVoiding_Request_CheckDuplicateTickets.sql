@@ -49,7 +49,7 @@ BEGIN
 	INSERT INTO @bettype_tmp (bettype)
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-	WHERE pt.ProductID IN (1, 3, 5, 27, 77) -- SB, NG, VS, VS2, VS3
+	WHERE pt.ProductID IN (1, 3, 5, 27, 77, 164, 168) -- SB, NG, VS, VS2, VS3
 		AND pt.bettype NOT IN (10, 9, 29) -- outright, parlay
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
