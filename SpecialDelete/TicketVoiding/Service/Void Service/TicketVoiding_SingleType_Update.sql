@@ -54,6 +54,7 @@ AS
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230707@July: Remove unnecessary code [Redmine: #190859]
+		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -129,6 +130,7 @@ BEGIN
 		,isFinish			BIT
 		,srecommend			INT
 		,ruben				TINYINT
+		,MainMatchId		INT
 	)
 
 	CREATE TABLE #balanceGameBefore (custid INT, winlostdate SMALLDATETIME, balance MONEY, winlost MONEY, gametypeid SMALLINT, groupid SMALLINT)
@@ -206,6 +208,7 @@ BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
 			,eventdate = m.eventdate
+			,MainMatchId = CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END
 		FROM	#tmpTransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
@@ -818,7 +821,7 @@ BEGIN
 
 	IF @MatchId NOT IN (9,29) 
 	BEGIN
-		SET @sporttype = (SELECT DISTINCT m.sporttype FROM #tmpTransId m WITH (NOLOCK) WHERE m.matchid = @MatchID)
+		SET @sporttype = (SELECT DISTINCT m.sporttype FROM #tmpTransId m WITH (NOLOCK) WHERE m.MainMatchId = @MatchID)
 		SELECT @TransIds_MaxPO = (SELECT b.CustId AS '@custid'
 					,CASE 
 						WHEN dp.custid IS NOT NULL THEN 3 --deposit 
@@ -830,7 +833,7 @@ BEGIN
 					INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = b.custid
 					INNER JOIN CustDB.dbo.Site s WITH (NOLOCK) ON s.site = c.site
 					LEFT JOIN CustDB.dbo.Dep_CustSuper dp WITH (NOLOCK) ON b.srecommend = dp.custid
-				WHERE b.matchid = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799)
+				WHERE b.MainMatchId = @MatchId AND b.sporttype = @sporttype AND b.bettype NOT IN (9,29,2799)
 				FOR XML PATH('r'), ROOT('root')
 			)
 
