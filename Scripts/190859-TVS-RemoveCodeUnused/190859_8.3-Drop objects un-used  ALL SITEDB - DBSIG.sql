@@ -71,7 +71,7 @@ DECLARE @command VARCHAR(MAX)
 DECLARE @tmpDropObjectsName TABLE ( command VARCHAR(MAX), IsDrop BIT)
 
 INSERT INTO @tmpDropObjectsName (command)
-SELECT 'DROP PROCEDURE ' + name
+SELECT 'DROP FUNCTION ' + name
 FROM sys.objects
 WHERE type IN ('FN', 'IF', 'TF')
  AND (
@@ -82,7 +82,7 @@ SELECT * FROM @tmpDropObjectsName
 WHILE (1=1)
 BEGIN
 	UPDATE TOP (1) @tmpDropObjectsName
-	SET @command = @command, IsDrop = 1
+	SET @command = command, IsDrop = 1
 	WHERE IsDrop IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK;
@@ -189,7 +189,7 @@ SELECT * FROM @tmpDropObjectsName
 WHILE (1=1)
 BEGIN
 	UPDATE TOP (1) @tmpDropObjectsName
-	SET @command = @command, IsDrop = 1
+	SET @command = command, IsDrop = 1
 	WHERE IsDrop IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK;
@@ -197,3 +197,4 @@ BEGIN
 	EXEC (@command)
 
 END
+

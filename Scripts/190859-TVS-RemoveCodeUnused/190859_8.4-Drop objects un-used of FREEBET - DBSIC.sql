@@ -36,7 +36,7 @@ SELECT * FROM @tmpDropObjectsName
 WHILE (1=1)
 BEGIN
 	UPDATE TOP (1) @tmpDropObjectsName
-	SET @command = @command, IsDrop = 1
+	SET @command = command, IsDrop = 1
 	WHERE IsDrop IS NULL
 
 	IF @@ROWCOUNT = 0 BREAK;
@@ -44,4 +44,5 @@ BEGIN
 	EXEC (@command)
 
 END
+
 

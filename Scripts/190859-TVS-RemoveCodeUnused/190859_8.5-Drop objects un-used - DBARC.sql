@@ -15,3 +15,4 @@ GO
 IF OBJECT_ID('DEL_TicketVoiding_Queue_bk','U') IS NOT NULL 
 	DROP TABLE DEL_TicketVoiding_Queue_bk
 GO
+
