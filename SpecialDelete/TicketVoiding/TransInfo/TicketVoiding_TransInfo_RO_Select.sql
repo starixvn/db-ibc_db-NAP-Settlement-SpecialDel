@@ -11,6 +11,7 @@ AS
       
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]
+		- 20230801@Max: [TVS] Change rule for getting tickets of Fancy bet types [Redmine: #192121]
 
 	Param's explanation:	
 		- @ReducedOverInfo: 
@@ -112,6 +113,7 @@ BEGIN
 		,FilterHdp1 SMALLMONEY
 		,FilterHdp2 SMALLMONEY
 		,FilterBettype	SMALLINT
+		,FilterBetteam NVARCHAR(10)
 	)
 
 	SET @ReducedOverXML = CONVERT(XML, @ReducedOverInfo)
@@ -215,6 +217,7 @@ BEGIN
 			,FilterHdp1
 			,FilterHdp2
 			,FilterBettype
+			,FilterBetteam
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -279,6 +282,7 @@ BEGIN
 		,b.hdp1 AS FilterHdp1
 		,b.hdp2 AS FilterHdp2
 		,b.bettype AS FilterBettype
+		,b.betteam AS FilterBetteam
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 		INNER JOIN @bettype_tmp d ON b.bettype = d.bettype
@@ -365,6 +369,7 @@ BEGIN
 				,FilterHdp1
 				,FilterHdp2
 				,FilterBettype
+				,FilterBetteam
 			)
 		SELECT sub.matchid
 			,b.TransId
@@ -433,6 +438,7 @@ BEGIN
 			,sub.hdp1 AS FilterHdp1
 			,sub.hdp2 AS FilterHdp2
 			,sub.bettype AS FilterBettype
+			,sub.betteam AS FilterBetteam
 		FROM @tmpMatchId d
 			INNER LOOP JOIN dbo.bettransm sub WITH (NOLOCK) ON d.MatchId = sub.matchid
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno
@@ -470,7 +476,8 @@ BEGIN
 			WHERE tp.Bettype = b.FilterBettype 
 			AND 1 = CASE WHEN tp.FilterRuns = '' THEN 1
 						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.FilterHdp1 >= FilterRuns THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND (b.FilterHdp1 >= tp.FilterRuns OR b.FilterHdp2 >= tp.FilterRuns) THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 >= tp.FilterRuns THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 >= tp.FilterRuns THEN 1
 					ELSE 0 END
 		)
 	
