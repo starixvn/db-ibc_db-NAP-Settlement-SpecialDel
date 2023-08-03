@@ -92,15 +92,15 @@ BEGIN
 	WHERE	matchid = @MatchId
 
 	INSERT INTO @tmp_TransIds (Remained, Voided)
-	SELECT  r.transid,
+	SELECT  CASE WHEN t.IsOrg = 1 THEN r.transid ELSE NULL END,
 			STUFF(
 					(SELECT ', ' + CAST(transid AS VARCHAR(MAX)) 
 				FROM #tmpTransInfo t
-				WHERE t.IsOrg <> 1 AND t.DuplicateGroup = r.DuplicateGroup
+				WHERE (t.IsOrg <> 1 OR t.IsOrg = 0) AND t.DuplicateGroup = r.DuplicateGroup
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,''
 			) AS TransIds
 	FROM #tmpTransInfo r
-	WHERE r.IsOrg = 1
+	WHERE (r.IsOrg = 1 OR t.IsOrg = 0)
 	order by DuplicateGroup
 
 	SELECT @xmlTransIds = (SELECT t.Remained AS '@Remained'
