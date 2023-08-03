@@ -1,8 +1,8 @@
-/*<info serverAlias="DBCTG-bodb02, DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20230303@July
 	Task: Rename Objects un-used  [Redmine:#190859]  
-	DB: DBCTG-bodb02, DBSIG-bodb02
+	DB: DBTXN-bodb02
 	
 */
 USE bodb02
