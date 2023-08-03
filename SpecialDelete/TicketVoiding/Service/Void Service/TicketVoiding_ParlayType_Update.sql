@@ -30,6 +30,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20230523@Max: Hotfix - [TVS] Void Sub Parlay not return balance [Redmine: #188610]
+		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
 
 	Param's explanation:	
 		
@@ -269,23 +270,6 @@ BEGIN
 		INNER JOIN dbo.bettrans b WITH(ROWLOCK)
 			ON t.TransId = b.transid
 	GROUP BY b.custid
-	
-	--Prepare for Max Payout
-	SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
-								,t.ruben AS '@ruben'
-								,t.TransId AS '@transid'
-							FROM #tmpMainTransId t
-							GROUP BY CustId, ruben, TransId
-							FOR XML PATH('r'), ROOT('root')
-						)
-	
-	IF @MainParlay_MaxPO IS NOT NULL
-	BEGIN
-		--Insert Max Payout Queue
-		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
-			@MatchId= 29
-			,@TransidList = @MainParlay_MaxPO
-	END
 
 	/*Calculate main parlay ticket*/
 	SELECT	@strRefno = @strRefno + ',' + CONVERT(VARCHAR(20), Refno) + '|' + CONVERT(VARCHAR(20), TransId)
@@ -329,6 +313,24 @@ BEGIN
 		EXEC dbo.Dot_BalancePendingDebitIns   
 			@BalancePending = @tblDebitPending  
 			,@Type   = 1 -- Sports  
+
+	--Prepare for Max Payout
+	SELECT @MainParlay_MaxPO = (SELECT t.CustId AS '@custid'
+								,t.ruben AS '@ruben'
+								,t.TransId AS '@transid'
+							FROM #tmpMainTransId t
+							GROUP BY CustId, ruben, TransId
+							FOR XML PATH('r'), ROOT('root')
+						)
+	
+	IF @MainParlay_MaxPO IS NOT NULL
+	BEGIN
+		--Insert Max Payout Queue
+		EXEC dbo.NAP_Admin_CustLimitBetQueue_Insert_Parlay
+			@MatchId= 29
+			,@TransidList = @MainParlay_MaxPO
+	END
+	--------------------------------------
 
 	-- get negative balance user list
 	SET @CustIds = ''
