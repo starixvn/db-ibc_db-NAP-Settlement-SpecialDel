@@ -175,7 +175,7 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 INSERT INTO #temp_transid (transid,reason,matchid, FunctionGroup, MessageContent)	
 SELECT DISTINCT ms.TransId, ms.reason, d.matchid, 'SD' AS FunctionGroup, ms.MessageContent											
 FROM #message_tmp ms WITH (NOLOCK)																									
-	INNER JOIN bodb_archive.dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
+	INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
 WHERE d.VoidingHistoryId IS NULL
 
 /*Range active*/
@@ -245,12 +245,19 @@ CROSS APPLY (
 		ON m.leagueid = l.leagueid																							
 WHERE l.isTest = 0																
 	
-SELECT																									
-	ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+SELECT	DISTINCT CASE WHEN ms.MessageContent NOT LIKE   '%Due to abnormal bets%considered VOID%' THEN 'Yes' ELSE 'No' END IsMonthly																									
+	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
-	, ms.MessageContent
     , 'VOID' AS ActionName
+	, '' as Function_SDName
+	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
+    , '' IssueType, '' SubIssueType
+	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
+	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
+    , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
+	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore
+	,  ms.MessageContent
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bettrans_bk bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
@@ -258,12 +265,19 @@ FROM #temp_transid ms WITH (NOLOCK)
 GROUP BY ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate
 
-SELECT																									
-	ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+SELECT	DISTINCT CASE WHEN ms.MessageContent NOT LIKE   '%Due to abnormal bets%considered VOID%' THEN 'Yes' ELSE 'No' END IsMonthly																									
+	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
-	, ms.MessageContent
     , 'VOID' AS ActionName
+	, '' as Function_SDName
+	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
+    , '' IssueType, '' SubIssueType
+	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
+	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
+    , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
+	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore
+	,  ms.MessageContent
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans14 bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
@@ -272,12 +286,19 @@ GROUP BY ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, 
 ORDER BY winlostdate	
 
 
-SELECT																									
-	ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+SELECT	DISTINCT CASE WHEN ms.MessageContent NOT LIKE   '%Due to abnormal bets%considered VOID%' THEN 'Yes' ELSE 'No' END IsMonthly																									
+	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
-	, ms.MessageContent
     , 'VOID' AS ActionName
+	, '' as Function_SDName
+	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
+    , '' IssueType, '' SubIssueType
+	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
+	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
+    , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
+	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore
+	,  ms.MessageContent
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								

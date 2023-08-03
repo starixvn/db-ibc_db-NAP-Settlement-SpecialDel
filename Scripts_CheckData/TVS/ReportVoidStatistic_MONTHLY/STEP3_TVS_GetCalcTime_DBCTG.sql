@@ -9,25 +9,23 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @tmpRequestInfo TABLE (
-		 RequestId			INT
-		,Sporttype			SMALLINT
+		 Sporttype			SMALLINT
 		,MatchId			INT
 		,CalcHalfTime		DATETIME
 		,CalcFullTime		DATETIME
 	)
 	
 	INSERT INTO @tmpRequestInfo( 
-		 RequestId			
-		,Sporttype	
+		Sporttype	
 		,MatchId
 	)
-	SELECT req, s, mid
+	SELECT s, mid
 	FROM STRING_SPLIT(@RequestInfoGetCalcTimes, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_RequestInfoGetCalcTimes) t
 		CROSS APPLY (
-				SELECT req, s, mid
+				SELECT s, mid
 				FROM OPENJSON(t.Decompress_RequestInfoGetCalcTimes) 
-				WITH( req INT, s SMALLINT, mid INT )
+				WITH( s SMALLINT, mid INT )
 			)tbl
 	WHERE f.value <> ''
 
@@ -46,7 +44,7 @@ BEGIN
 								ELSE 0 END
 			)s
 	
-	SELECT  DISTINCT RequestId		
+	SELECT  DISTINCT MatchId		
 		   ,CalcHalfTime
 		   ,CalcFullTime
 	FROM @tmpRequestInfo

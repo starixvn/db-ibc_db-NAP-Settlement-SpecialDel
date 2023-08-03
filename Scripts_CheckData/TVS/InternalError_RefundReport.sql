@@ -24,12 +24,14 @@ SELECT
 		WHEN  Content_en LIKE '%Due to wrong league name displayed%considered REFUNDED%' 
 		THEN 'Wrong League Name'
 		WHEN Content_en LIKE '%Due to technical error%all bets taken are REFUNDED%' 
-			 OR Content_en LIKE '%due to technical issue caused by disruption%are considered REFUNDED%'
+			 OR Content_en LIKE '%due to technical issue%considered REFUNDED%'
 			 OR Content_en LIKE '%Due to technical error%considered REFUNDED%' THEN 'Technical Error'
 		WHEN Content_en LIKE '%Due to wrong market offered%considered REFUNDED%' 
 			OR Content_en LIKE '%Due to wrong market offered%all bets taken are REFUNDED%' 
 		THEN 'Wrong Market'
-		WHEN Content_en LIKE '%Due to wrong fixture displayed%considered REFUNDED%' THEN 'Others'
+		WHEN Content_en LIKE '%Due to%Player%did not participate%considered REFUNDED%'THEN 'Not Participate' 
+        WHEN Content_en LIKE '%The match between%abandoned%REFUNDED%'THEN 'Abandoned' 
+        WHEN Content_en LIKE '%Due to wrong fixture displayed%considered REFUNDED%' THEN 'Wrong Fixture'
 		ELSE 'Others' END as Reason
 	,ms.matchid
 	,ms.Content_en
@@ -47,8 +49,10 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 		OR Content_en LIKE '%Due to technical error%considered REFUNDED%'
 		OR Content_en LIKE '%Due to wrong market offered%considered REFUNDED%'
 		OR Content_en LIKE '%Due to wrong market offered%all bets taken are REFUNDED%' 
+        OR Content_en LIKE '%Due to%Player%did not participate%considered REFUNDED%'
+        OR Content_en LIKE '%The match between%abandoned%REFUNDED%'
 		)
-	--AND ms.MatchId > 0
+	AND ms.MatchId > 0
 	AND ms.IsTest = 0
 
 /*Range active*/
@@ -63,12 +67,14 @@ SELECT
 		WHEN  Content_en LIKE '%Due to wrong league name displayed%considered REFUNDED%' 
 		THEN 'Wrong League Name'
 		WHEN Content_en LIKE '%Due to technical error%all bets taken are REFUNDED%' 
-			 OR Content_en LIKE '%due to technical issue caused by disruption%are considered REFUNDED%'
+			 OR Content_en LIKE '%due to technical issue%considered REFUNDED%'
 			 OR Content_en LIKE '%Due to technical error%considered REFUNDED%' THEN 'Technical Error'
 		WHEN Content_en LIKE '%Due to wrong market offered%considered REFUNDED%' 
-			OR Content_en LIKE '%Due to wrong market offered%all bets taken are REFUNDED%' 
+			 OR Content_en LIKE '%Due to wrong market offered%all bets taken are REFUNDED%' 
 		THEN 'Wrong Market'
-		WHEN Content_en LIKE '%Due to wrong fixture displayed%considered REFUNDED%' THEN 'Others'
+		WHEN Content_en LIKE '%Due to%Player%did not participate%considered REFUNDED%'THEN 'Not Participate' 
+        WHEN Content_en LIKE '%The match between%abandoned%REFUNDED%'THEN 'Abandoned' 
+        WHEN Content_en LIKE '%Due to wrong fixture displayed%considered REFUNDED%' THEN 'Wrong Fixture'
 		ELSE 'Others' END as Reason
 	,ms.matchid
 	,ms.Content_en
@@ -82,12 +88,14 @@ WHERE ms.CreateTime >= @from AND ms.CreateTime < @to
 		OR Content_en LIKE '%Due to wrong fixture displayed%considered REFUNDED%'
 		OR Content_en LIKE '%wrong team name displayed%are considered REFUNDED%'
 		OR Content_en LIKE '%Due to technical error%all bets taken are REFUNDED%'
-		OR Content_en LIKE '%due to technical issue caused by disruption%are considered REFUNDED%'
+		OR Content_en LIKE '%due to technical issue%are considered REFUNDED%'
 		OR Content_en LIKE '%Due to technical error%considered REFUNDED%'
 		OR Content_en LIKE '%Due to wrong market offered%considered REFUNDED%'
 		OR Content_en LIKE '%Due to wrong market offered%all bets taken are REFUNDED%' 
+        OR Content_en LIKE '%Due to%Player%did not participate%considered REFUNDED%'
+        OR Content_en LIKE '%The match between%abandoned%REFUNDED%'
 		)
-	--AND ms.MatchId > 0
+	AND ms.MatchId > 0
 	AND ms.IsTest = 0
 
  --Step 2.2: With case matchID = 0 from table #message_tmp -> get matchID 
@@ -134,12 +142,8 @@ order by m.eventdate desc
 
 CREATE TABLE #match_pre (reason VARCHAR(50), matchid INT)
 insert into #match_pre (reason, matchid)
-values ('Technical Error',40209121)	,
-	('wrong market',40240770) ,
-	('Technical Error',40229409)	,
-	('Technical Error',40230690)	,
-	('Technical Error',40230691)	
-
+select DISTINCT reason, matchid
+from #message_tmp
 
 create table #match (matchid  INT,reason varchar(50), eventdate datetime,isfinished BIT)
 insert into #match (matchid, eventdate, reason)
@@ -251,7 +255,12 @@ begin
 
 end
 
-SELECT * FROM #result
+SELECT DISTINCT 'Yes' AS IsMonthly																									
+	, 'SD'FunctionGroup, ms.winlostdate, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup										
+    , ms.Bet_cnt																								
+	, ms.MemberTO_RM, ms.House_TO_RM	
+    , ms.ActionName
+FROM #result ms
 
 drop table #message_tmp
 drop table #match
