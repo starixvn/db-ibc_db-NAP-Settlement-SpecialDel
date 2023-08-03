@@ -8,11 +8,13 @@ AS
 	
 	Revisions:
 		- 20230616@Kathy: Migrate NetPosition API & Services to TVS [Redmine:#189706]
+		- 20230727@Kathy: support in-house replicator [Redmine:#191540]
 */
 BEGIN
 
     SET NOCOUNT ON;
-
+	
+	DECLARE @SyncStatus BIT
 	DECLARE @tmpTransIds TABLE (TransId BIGINT)
 
 	INSERT INTO @tmpTransIds (TransId)
@@ -26,7 +28,8 @@ BEGIN
 				,Payout1=0
 				,Payout2=0
 				,ModifiedDate=CURRENT_TIMESTAMP
-				,SyncStatus = CASE WHEN isSettled = 1 THEN SyncStatus ELSE 0 END
+				,@SyncStatus = SyncStatus = CASE WHEN isSettled = 1 THEN SyncStatus ELSE 0 END
+				,RepUpdateTime = CASE WHEN @SyncStatus = 1 THEN SYSDATETIME() ELSE RepUpdateTime END
 		FROM	dbo.NetPositionTrans n WITH(ROWLOCK, UPDLOCK)	
 			INNER JOIN @tmpTransIds t
 				ON n.transid = t.transid
@@ -64,6 +67,7 @@ BEGIN
 					,TARGET.Payout2 = SOURCE.Payout2
 					,TARGET.ModifiedDate = CURRENT_TIMESTAMP
 					,TARGET.SyncStatus= CASE WHEN IsSettled = 1 THEN SyncStatus ELSE 0 END
+					,TARGET.RepUpdateTime = CASE WHEN IsSettled = 0 THEN TARGET.RepUpdateTime ELSE SYSDATETIME() END
 		WHEN NOT MATCHED BY TARGET AND SOURCE.betid = 0 THEN
 			INSERT (Custid,Transid,Matchid,bettype,actual_stake,Payout1,Payout2,SyncStatus,CreatedDate,ModifiedDate)
 				VALUES (SOURCE.CustId, SOURCE.TransId, SOURCE.MatchId, SOURCE.bettype, SOURCE.actual_stake, SOURCE.Payout1, SOURCE.Payout2, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

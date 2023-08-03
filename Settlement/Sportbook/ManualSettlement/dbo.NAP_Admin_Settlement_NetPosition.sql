@@ -9,6 +9,7 @@ AS
 
 	Revisions:
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
+		- 20230727@Kathy: support in-house replicator [Redmine:#191383]
 */
 BEGIN
 
@@ -16,7 +17,7 @@ BEGIN
 	
 	DECLARE @CustId	INT
 			,@IsCentral BIT
-
+			
 	DECLARE @tmpCustIds TABLE (CustId INT)
 	DECLARE @tmpTransIds TABLE (TransId BIGINT PRIMARY KEY, CustId INT)
 
@@ -38,6 +39,7 @@ BEGIN
 			SET	SyncStatus=1
 				,IsSettled=1
 				,ModifiedDate=CURRENT_TIMESTAMP 
+				,RepUpdateTime = SYSDATETIME()
 		OUTPUT DELETED.CustID INTO @tmpCustIds(CustId)
 		FROM	dbo.NetPositionTrans np WITH (ROWLOCK, UPDLOCK)
 			INNER JOIN @tmpTransIds t
@@ -47,6 +49,7 @@ BEGIN
 			SET Debit=0
 				,Credit=0
 				,ModifiedDate=CURRENT_TIMESTAMP 
+				,RepUpdateTime = SYSDATETIME()
 		FROM	dbo.BalNetPosition bnp WITH (ROWLOCK, UPDLOCK) 
 		WHERE	Matchid=@Matchid 
 				AND Bettype=@bettype
@@ -57,6 +60,7 @@ BEGIN
 		UPDATE	np
 			SET	IsSettled=0
 				,ModifiedDate=CURRENT_TIMESTAMP
+				,RepUpdateTime = SYSDATETIME()
 		OUTPUT DELETED.CustID INTO @tmpCustIds(CustId)
 		FROM	dbo.NetPositionTrans np WITH (ROWLOCK, UPDLOCK) 
 			INNER JOIN @tmpTransIds t
@@ -66,7 +70,8 @@ BEGIN
 		BEGIN
 			WHILE(1=1)
 			BEGIN
-				SELECT TOP (1)	@CustId = CustId
+				SELECT TOP (1)	
+						@CustId = CustId						
 				FROM	@tmpCustIds
 		
 				IF @@ROWCOUNT = 0
@@ -77,7 +82,7 @@ BEGIN
 					,@CustId	= @CustId
 					,@Bettype	= @Bettype
 					,@Action	= @Action
-
+					
 				DELETE @tmpCustIds
 				WHERE	CustId = @CustId
 			END
