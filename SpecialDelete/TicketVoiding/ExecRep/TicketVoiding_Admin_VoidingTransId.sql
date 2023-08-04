@@ -34,14 +34,14 @@ AS
 		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230522@July: Check transid before insert table MarkedTransaction [Redmine: #187052]
+	    - 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 
     Param's explanation:
         Version 1: Only use for Void Ticket via TVS
             - @transIds = '<root>
-                            <r transid="104730774034" match="432934573" betid="1" isMG="1" betdaqid="100"/>
+                            <r transid="104730774034" match="432934573" betid="1" betdaqid="100"/>
                             <r transid="104729373985" />
                         </root>'
-                        isMG: metric gaming ticket
         
         Version 2: Include some function use ExecRep SP and ServiceBroker
             - @IsUseServiceBroker = 1:
@@ -364,6 +364,7 @@ BEGIN
 					AND 1 = CASE WHEN (b.bettype IN (10, 38)
 										OR b.bettype BETWEEN 1201 AND 1299 
 										OR b.bettype BETWEEN 2700 AND 2799 
+										OR b.bettype BETWEEN 5302 AND 5399 --Virtual Sports 3 (Leap Gaming)
 										OR b.bettype BETWEEN 81 AND 120 
 										OR b.bettype BETWEEN 8101 AND 8105
 										OR b.bettype BETWEEN 7901 AND 7999
@@ -403,6 +404,7 @@ BEGIN
 					AND 1 = CASE WHEN (b.bettype IN (38) --betbuilder
 										OR b.bettype BETWEEN 1201 AND 1299 --Virtual Sports
 										OR b.bettype BETWEEN 2700 AND 2799 --Virtual Sports 2 (Betradar)
+										OR b.bettype BETWEEN 5302 AND 5399 --Virtual Sports 3 (Leap Gaming)
 										OR b.bettype BETWEEN 81 AND 120 --Number Game
 										OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
 										)
@@ -544,6 +546,7 @@ BEGIN
 					AND 1 = CASE WHEN (b.bettype IN (10, 38)
 									OR b.bettype BETWEEN 1201 AND 1299 
 									OR b.bettype BETWEEN 2700 AND 2799 
+									OR b.bettype BETWEEN 5302 AND 5399 --Virtual Sports 3 (Leap Gaming)
 									OR b.bettype BETWEEN 81 AND 120 
 									OR b.bettype BETWEEN 8101 AND 8105
 									OR b.bettype BETWEEN 7901 AND 7999
@@ -582,6 +585,7 @@ BEGIN
 					AND 1 = CASE WHEN (b.bettype IN (38) --betbuilder
 									OR b.bettype BETWEEN 1201 AND 1299 --Virtual Sports
 									OR b.bettype BETWEEN 2700 AND 2799 --Virtual Sports 2 (Betradar)
+									OR b.bettype BETWEEN 5302 AND 5399 --Virtual Sports 3 (Leap Gaming)
 									OR b.bettype BETWEEN 81 AND 120 --Number Game
 									OR b.bettype BETWEEN 8101 AND 8105 --Happy 5
 									)
