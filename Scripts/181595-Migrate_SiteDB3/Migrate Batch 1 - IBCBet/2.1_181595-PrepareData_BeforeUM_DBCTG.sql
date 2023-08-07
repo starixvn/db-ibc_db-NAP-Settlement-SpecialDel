@@ -8,12 +8,11 @@
 	Revisions:
 		- 20230727@Louisa: Prepare data Batch 1 - before UM Settlement [Redmineid:#181595] 
 
-		bet ticket has winlost < 2023-08-1 and related table
-		30 tables: 	
+		bet ticket has winlost < 2023-08-13 and related table
+		27 tables: 	
 			 Bettrans, BettransInfo 
 			,BettransLC	,BettransRnG,bettransG,Translog
-			,Transfer,Transfer_Coll	,TransferInfo  
-			,bettransm,zzzbettrans,zzzbettransm
+			,Transfer,Transfer_Coll	,TransferInfo
 			,Bettrans14,BettransInfo14,bettransm14,BettransLC14,BettransRnG14,bettransG14,Translog14
 			,Task_bettrans14_IP2Country,Task_bettransRNG14_IP2Country,Task_bettransLC14_IP2Country
 			,balanceTable,balanceTable_tmp,BalanceTable_tmp_cal,Task_Cust_CheckBalance_Exception,Task_Cust_BalanceProblem1,ProcessingCustList,Task_Cust_BalanceProblem1_Manually,sum_winloss
@@ -51,22 +50,13 @@ GO
 	IF OBJECT_ID('TransferInfo_BeforeUM') IS NOT NULL 
 	DROP TABLE TransferInfo_BeforeUM
 
-	IF OBJECT_ID('bettransm_BeforeUM') IS NOT NULL 
-	DROP TABLE bettransm_BeforeUM
-
-	IF OBJECT_ID('zzzbettrans_BeforeUM') IS NOT NULL 
-	DROP TABLE zzzbettrans_BeforeUM
-
-	IF OBJECT_ID('zzzbettransm_BeforeUM') IS NOT NULL 
-	DROP TABLE zzzbettransm_BeforeUM
-
 	IF OBJECT_ID('Bettrans14_BeforeUM') IS NOT NULL 
 	DROP TABLE Bettrans14_BeforeUM
 
 	IF OBJECT_ID('Task_bettrans14_IP2Country_BeforeUM') IS NOT NULL 
 	DROP TABLE Task_bettrans14_IP2Country_BeforeUM
 	
-	IF OBJECT_ID('BettransInfo14_BeforeUM_BeforeUM') IS NOT NULL 
+	IF OBJECT_ID('BettransInfo14_BeforeUM') IS NOT NULL 
 	DROP TABLE BettransInfo14_BeforeUM
 
 	IF OBJECT_ID('Bettransm14_BeforeUM') IS NOT NULL 
@@ -117,7 +107,7 @@ GO
 */
 
 	DECLARE @SiteDBGroupID SMALLINT
-			,@winlostDate SMALLDATETIME = '2023-08-14'
+			,@winlostDate SMALLDATETIME = '2023-08-13'
 
 	SET @SiteDBGroupID = 3
 
@@ -138,6 +128,7 @@ GO
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
 			ON tmp.custid = b.custid
 	WHERE b.winlostdate < @winlostDate
+		AND b.matchid <> 29
 
 	--copy data bodb02.dbo.BettransInfo
 	SELECT binfo.transid, binfo.SecAcceptTime, binfo.LiveBetAcceptTime, binfo.OriginalOdds, binfo.RepUpdateTime, binfo.ThirdTransID
@@ -220,38 +211,6 @@ GO
 	FROM bodb02.dbo.TransferInfo b WITH (NOLOCK)
 		INNER JOIN dbo.Transfer_BeforeUM b1 WITH (NOLOCK) 
 			ON b1.TransID = b.TransID	
-
-	----copy data bodb02.dbo.bettransm
-	SELECT  bm.transid, bm.custid, bm.transdate, bm.oddsid, bm.hdp1, bm.hdp2, bm.odds, bm.stake, bm.status, bm.winlost, bm.livehomescore, bm.liveawayscore, 
-			bm.liveindicator, bm.betteam, bm.creator, bm.refno, bm.comstatus, bm.winlostdate, bm.betfrom, bm.betcheck, bm.checktime, bm.oddsspread, bm.apositiontaking, 
-			bm.mpositiontaking, bm.tpositiontaking, bm.awinlost, bm.mwinlost, bm.playerdiscount, bm.discount, bm.adiscount, bm.playercomm, bm.comm, bm.acomm, 
-			bm.actualrate, bm.matchid, bm.matchdate, bm.finalodds, bm.isfinish, bm.statuswinlost, bm.ruben, bm.bettype, bm.spositiontaking, bm.swinlost, bm.sdiscount, 
-			bm.scomm, bm.statusID, bm.recommdate, bm.transdesc, bm.SecAcceptFlag, bm.SecAcceptTime, bm.LiveBetAcceptTime, bm.ReasonIDm, bm.RepUpdateTime, @SiteDBGroupID SiteDBGroupID
-	INTO bettransm_BeforeUM
-	FROM bodb02.dbo.bettransm bm WITH (NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
-			ON tmp.custid = bm.custid
-	WHERE bm.winlostdate < @winlostDate
-
-	----copy data bodb02.dbo.zzzbettrans
-	SELECT  z.transid, z.custid, z.transdate, z.oddsid, z.hdp1, z.hdp2, z.odds, z.stake, z.status, z.winlost, z.livehomescore, z.liveawayscore, 
-			z.liveindicator, z.betteam, z.creator, z.refno, z.comstatus, z.winlostdate, z.betfrom, z.betcheck, z.checktime, z.matchid, z.bettype, 
-			z.VoidingHistoryId, z.RepUpdateTime, @SiteDBGroupID SiteDBGroupID
-	INTO zzzbettrans_BeforeUM
-	FROM bodb02.dbo.zzzbettrans z WITH (NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
-			ON tmp.custid = z.custid
-	WHERE z.winlostdate < @winlostDate
-	
-	----copy data bodb02.dbo.zzzbettransm
-	SELECT  z.transid, z.custid, z.transdate, z.oddsid, z.hdp1, z.hdp2, z.odds, z.stake, z.status, z.winlost, z.livehomescore, z.liveawayscore, 
-			z.liveindicator, z.betteam, z.creator, z.refno, z.comstatus, z.winlostdate, z.betfrom, z.betcheck, z.checktime, z.matchid, z.bettype, 
-			z.VoidingHistoryId, z.RepUpdateTime, @SiteDBGroupID SiteDBGroupID
-	INTO zzzbettransm_BeforeUM
-	FROM bodb02.dbo.zzzbettransm z WITH (NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
-			ON tmp.custid = z.custid
-	WHERE z.winlostdate < @winlostDate
 
 	--------------------------------------------------------------
 	--Copy all data range 14
@@ -390,7 +349,7 @@ GO
 			ON tmp.custid = tce.custid
 
 	----copy data bodb02.dbo.Task_Cust_BalanceProblem1
-	SELECT tcb.UserName, tcb.custid, tcb.DiffBalance, tcb.LogDate, tcb.IsFixed, tcb.Remark
+	SELECT tcb.keyid, tcb.UserName, tcb.custid, tcb.DiffBalance, tcb.LogDate, tcb.IsFixed, tcb.Remark
 	INTO Task_Cust_BalanceProblem1_BeforeUM
 	FROM bodb02.dbo.Task_Cust_BalanceProblem1 tcb WITH (NOLOCK)
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 

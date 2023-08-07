@@ -6,7 +6,7 @@
     DB: DBSIC-bodb02
 
 	Revisions:
-		- 20230727@Louisa: Update ticket on DBTRANS by link server, follow SITEDB3 [Redmineid:#181595] 
+		- 20230727@Louisa: Update RepUpdteTime on SITEDB3 to sync ticket to DBTRANS[Redmineid:#181595] 
 
 */
 
