@@ -18,7 +18,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Update]
     @Reason					NVARCHAR(500)	= '',
 	@ReasonSC				NVARCHAR(500)	= '',
 	@SecondAcceptFlag		TINYINT			= 0 ,
-	@TransIds				VARCHAR(MAX)	= ''
+	@TransIds				VARCHAR(MAX)	= '',
+	@SelectionSubParlays	VARCHAR(200)    = ''
 )
 AS
 	/*
@@ -128,6 +129,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
+		- 20230810@July: [SD] Void Single Bet - Support searching ticket without using time range & Add Selection control for Sub Parlay [Redmine: #191448]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -160,6 +162,9 @@ AS
 					 Transdesc = '100001'	-- Default : "All" ; Format : 100001,100002,... (PlayerId - [Team].[TeamID])
 			/>
 		 <BetTypes/>'
+		 - @SelectionSubParlays: 
+			+ IF @SingleOrSubParlay: 'All' OR 'Single' => default : ''
+			+ IF @SingleOrSubParlay: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
 	*/
 BEGIN
 	SET NOCOUNT ON;
@@ -366,6 +371,7 @@ BEGIN
 
 	DECLARE @tmpTrans_beforeUpd AS TABLE (matchid INT, transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, status VARCHAR(20), Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
+	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 	
 	DECLARE @Odds_str NVARCHAR(100)
 		, @OddsType_Input VARCHAR(29)
@@ -961,6 +967,20 @@ BEGIN
 				,bm.matchid
 			FROM #BetDeletem bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) ON b.matchid = 29 AND bm.refno = b.refno
+		
+			IF @SelectionSubParlays <> ''
+			BEGIN
+				INSERT INTO @tmpSelectionSubParlay (Id)
+				SELECT value AS  Id
+				FROM STRING_SPLIT(@SelectionSubParlays, ',')
+		
+				DELETE b
+				FROM  #BetDelete b
+				WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectionSubParlay sp 
+						WHERE 1 = CASE WHEN sp.Id = '10 UP' AND b.hdp2 >= 10 THEN 1
+									   WHEN sp.Id <> '10 UP' AND b.hdp2 = CAST (sp.Id AS SMALLMONEY) THEN 1
+									   ELSE 0 END)
+			END
 		END
 	END
 	

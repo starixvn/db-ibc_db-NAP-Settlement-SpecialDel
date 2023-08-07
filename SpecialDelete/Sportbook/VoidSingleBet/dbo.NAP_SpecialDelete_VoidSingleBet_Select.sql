@@ -12,7 +12,8 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select]
     @BetTypes         XML          = NULL,
 	@OddsFilter		  XML		   = NULL,
     @SettledType      VARCHAR(100) = 'All',
-    @SecondAcceptFlag TINYINT      = 0
+    @SecondAcceptFlag TINYINT      = 0,
+	@SelectionSubParlays VARCHAR(200) = ''
 )
 AS
 /*
@@ -93,6 +94,7 @@ AS
 		- 20220804@Max: TVS HotFix Filter Player Cricket [Redmine: #176290]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
+		- 20230810@July: [SD] Void Single Bet - Support searching ticket without using time range & Add Selection control for Sub Parlay [Redmine: #191448]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -138,7 +140,9 @@ AS
 		 + 1: CheckTime.
 
 		- @OddsFilter: <root><r o="0.75&1.25" ost="DEC"/></root>
-
+		 - @SelectionSubParlays: 
+			+ IF @SingleOrSubParlay: 'All' OR 'Single' => default : ''
+			+ IF @SingleOrSubParlay: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -347,10 +351,11 @@ BEGIN
 			  SiteDBGroupId		SMALLINT
              );
 
-	DECLARE @SportType SMALLINT--, @MatchStatus NVARCHAR(50)
+	DECLARE @SportType SMALLINT
 	DECLARE @tmpMatchId TABLE (MatchId INT)
+	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 
-	SELECT	@SportType = Sporttype--, @MatchStatus = eventstatus
+	SELECT	@SportType = Sporttype
 	FROM	dbo.match WITH(NOLOCK) 
 	WHERE	matchid = @matchid
 
@@ -694,6 +699,20 @@ BEGIN
 				,bm.SubOdds AS FilterOdds
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+		END
+		
+		IF @SelectionSubParlays <> ''
+		BEGIN
+			INSERT INTO @tmpSelectionSubParlay (Id)
+			SELECT value AS  Id
+			FROM STRING_SPLIT(@SelectionSubParlays, ',')
+		
+			DELETE b
+			FROM  #SpecialDeleteBets b
+			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmpSelectionSubParlay sp 
+					WHERE 1 = CASE WHEN sp.Id = '10 UP' AND b.hdp2 >= 10 THEN 1
+								   WHEN sp.Id <> '10 UP' AND b.hdp2 = CAST (sp.Id AS SMALLMONEY) THEN 1
+								   ELSE 0 END)
 		END
 	END
 
