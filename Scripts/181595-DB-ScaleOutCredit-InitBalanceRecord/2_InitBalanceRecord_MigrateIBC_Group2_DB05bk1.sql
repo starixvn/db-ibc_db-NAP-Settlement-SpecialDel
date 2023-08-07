@@ -64,7 +64,7 @@ DECLARE  @ExecuteSQL NVARCHAR(MAX) = ''
 		, @query NVARCHAR(MAX) = ''
 		, @ExecuteSQL_balance NVARCHAR(MAX) = ''
 		, @query_balance NVARCHAR(MAX) = ''
-		, @SiteDBAlias VARCHAR(200) ='DBSIC'
+		, @SiteDBAlias VARCHAR(200) =''
 		, @CustidList VARCHAR(MAX) = ''
 
 DECLARE @CustidBalanceList VARCHAR(MAX) = ''
