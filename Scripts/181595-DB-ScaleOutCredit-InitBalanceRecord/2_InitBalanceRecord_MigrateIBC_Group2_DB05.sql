@@ -1,0 +1,111 @@
+/*<info serverAlias="DBBAH-bodb02" executers="" isFunction="0"></info>*/
+/*
+    Created: 20230807@Max
+	Task: Check and re-init balance record - Batch 1: Migrate IBC [Redmine: #181595]
+	DB:DBBAH/bodb02
+
+	Notes: ONLY run in DB05/bodb02 to double check and fix 
+*/
+USE bodb02
+GO
+
+--------------DECLARE temporary tables ------------------
+CREATE TABLE #temp_MemberInput(
+	ID INT IDENTITY (1,1) PRIMARY KEY,
+	custid INT
+)
+
+CREATE TABLE #tempMember (custid INT PRIMARY KEY)
+CREATE TABLE #CustId_tmp (custid INT PRIMARY KEY)
+--------------GET members needs to process ------------------
+/* total around 111882 - get data on 2023-08-07
+Group 1: c.custid >= 644739 and c.custid <= 47972568
+Group 2: c.custid > 47972568 
+*/
+INSERT INTO #CustId_tmp (custid)
+SELECT DISTINCT c.custid
+FROM [bodb02].[dbo].vw_Customer c WITH(NOLOCK)
+	INNER JOIN [bodb02].[dbo].BalanceRecord b WITH(NOLOCK) ON b.custid = c.custid
+WHERE c.site IN ('IBCIndo','76666B')
+	AND c.custid > 47972568 
+ORDER BY c.custid
+
+INSERT INTO #temp_MemberInput (custid)
+SELECT m.CustId
+FROM #CustId_tmp m WITH (NOLOCK)
+	CROSS APPLY (
+		SELECT TOP 1 Balance 
+		FROM DBSIG03.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
+		WHERE b.custid = m.custid) as b1
+	CROSS APPLY (
+		SELECT TOP 1 newbalance as balance
+		FROM bodb02.dbo.balancerecord b WITH(NOLOCK) 
+		WHERE b.custid = m.custid
+		order by rowid desc) as b2
+WHERE b1.Balance <>  b2.balance
+
+SELECT count(1) AS [custid_Count] FROM #temp_MemberInput 
+
+-- Check data [dbo].[BalanceTrigger_ProcessData] on DB05/DB05BK1 until it's no data
+SELECT TOP 1 1
+FROM BalanceTrigger_ProcessData b WITH (NOLOCK)
+	INNER JOIN #temp_MemberInput m ON b.custid = m.custid
+
+------ info for deployer 
+DECLARE @debug_message VARCHAR(MAX) = ''
+
+--------------LOOP BY batch 500 of customers ------------------
+DECLARE @rid_loop INT, @rowCount int  =0, @batch int = 500, @loop_cnt int = 1
+DECLARE @StartRow INT = 1
+		, @StopRow INT 
+		, @retrycnt INT = 0 
+		, @isSuccess BIT = 0
+
+DECLARE @CustidBalanceList VARCHAR(MAX) = ''
+DECLARE @xml XML = NULL
+
+SET @rid_loop = ((SELECT MAX(ID) FROM #temp_MemberInput)/@batch) + 1
+SET @StopRow = @batch
+
+WHILE (@loop_cnt <= @rid_loop)
+BEGIN
+	
+	TRUNCATE TABLE #tempMember
+
+	SET @debug_message = CONCAT(CONVERT(VARCHAR(50), GETDATE(), 121), ', processing for round:',  @loop_cnt, '/', @rid_loop)
+	RAISERROR (@debug_message, 0, 1) WITH NOWAIT
+
+	INSERT INTO #tempMember(custid)
+	SELECT custid
+	FROM #temp_MemberInput 
+	WHERE ID BETWEEN @StartRow AND @StopRow
+
+	IF @@ROWCOUNT = 0
+		BREAK
+
+	INSERT INTO BalanceRecord (custid, transid, bettype, actual_stake, winlost, playercomm, balancechanged, newbalance, actionDate, actionID, [action])
+	SELECT	m.custid AS custid, 0, 0, 0, 0, 0, 0, bal.Balance AS balance,CURRENT_TIMESTAMP, 255, 'Balance : Re-Init'
+	FROM #tempMember m
+		CROSS APPLY (
+					SELECT TOP 1 Balance 
+					FROM DBSIG03.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
+					WHERE b.custid = m.custid) AS bal
+
+
+	WAITFOR DELAY '00:00:00.020' --optional
+
+	SET @StartRow = @StopRow + 1
+	SET @StopRow = @StopRow + @batch
+
+	SELECT  @loop_cnt += 1
+
+END
+
+--SELECT @rowCount
+
+DROP TABLE #temp_MemberInput
+DROP TABLE #tempMember
+DROP TABLE #CustId_tmp
+
+
+

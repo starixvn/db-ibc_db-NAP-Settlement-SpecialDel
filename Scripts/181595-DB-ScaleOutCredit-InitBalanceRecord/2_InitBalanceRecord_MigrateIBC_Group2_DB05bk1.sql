@@ -4,7 +4,7 @@
 	Task: Check and re-init balance record - Batch 1: Migrate IBC [Redmine: #181595]
 	DB:DBBAH/bodb02
 
-	Notes:
+	Notes: Run on db05bk1 only
 */
 USE bodb02
 GO
@@ -18,20 +18,24 @@ CREATE TABLE #temp_MemberInput(
 CREATE TABLE #tempMember (custid INT PRIMARY KEY)
 CREATE TABLE #CustId_tmp (custid INT PRIMARY KEY)
 --------------GET members needs to process ------------------
-/*First batch: 250k custid in total 499k - get data on 2023-08-07*/
+/* total around 111882 - get data on 2023-08-07
+Group 1: c.custid >= 644739 and c.custid <= 47972568 --> around 60k
+Group 2: c.custid > 47972568 --> around 60k
+*/
 INSERT INTO #CustId_tmp (custid)
-SELECT c.custid
-FROM [bodb02].[dbo].Customer c WITH(NOLOCK)
+SELECT DISTINCT c.custid
+FROM [bodb02].[dbo].vw_Customer c WITH(NOLOCK)
+	INNER JOIN [bodb02].[dbo].BalanceRecord b WITH(NOLOCK) ON b.custid = c.custid
 WHERE c.site IN ('IBCIndo','76666B')
-	AND c.custid >= 63821
-	AND c.custid <= 48180919
+	AND c.custid > 47972568 
+ORDER BY c.custid
 
 INSERT INTO #temp_MemberInput (custid)
 SELECT m.CustId
 FROM #CustId_tmp m WITH (NOLOCK)
 	CROSS APPLY (
 		SELECT TOP 1 Balance 
-		FROM DBSIG02.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
+		FROM DBSIG03.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
 		WHERE b.custid = m.custid) as b1
 	CROSS APPLY (
 		SELECT TOP 1 newbalance as balance
@@ -42,17 +46,16 @@ WHERE b1.Balance <>  b2.balance
 
 SELECT count(1) AS [custid_Count] FROM #temp_MemberInput 
 
--- delete data [dbo].[BalanceTrigger_ProcessData] for customers will process to insert balancerecord for credit
+-- Check data [dbo].[BalanceTrigger_ProcessData] on DB05/DB05BK1 until it's no data
 SELECT TOP 1 1
 FROM BalanceTrigger_ProcessData b WITH (NOLOCK)
 	INNER JOIN #temp_MemberInput m ON b.custid = m.custid
-
 
 ------ info for deployer 
 DECLARE @debug_message VARCHAR(MAX) = ''
 
 --------------LOOP BY batch 500 of customers ------------------
-DECLARE @rid_loop INT, @rowCount int  =0, @batch int = 25, @loop_cnt int = 1
+DECLARE @rid_loop INT, @rowCount int  =0, @batch int = 500, @loop_cnt int = 1
 DECLARE @StartRow INT = 1
 		, @StopRow INT 
 		, @retrycnt INT = 0 
@@ -69,10 +72,6 @@ DECLARE @xml XML = NULL
 
 SET @rid_loop = ((SELECT MAX(ID) FROM #temp_MemberInput)/@batch) + 1
 SET @StopRow = @batch
-
-SELECT  @query = N''		
-SELECT	@query = @query + N'EXEC SiteDB_BalanceRecord_DeleteBalanceTrigger_tmp @CustidList'
-SELECT	@ExecuteSQL = N'EXECUTE '+ @SiteDBAlias +'.bodb02.dbo.sp_executesql @query, N''@CustidList VARCHAR(MAX)'',@CustidList'
 
 -- SET param to insert balance in db05
 SELECT  @query_balance = N'', @SiteDBAlias = 'DB05'		
@@ -108,7 +107,7 @@ BEGIN
 								FROM #tempMember m
 									CROSS APPLY (
 												SELECT TOP 1 Balance 
-												FROM DBSIG02.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
+												FROM DBSIG03.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
 												WHERE b.custid = m.custid) AS bal
 								FOR XML PATH('r'), ROOT('root')
 								)
@@ -122,21 +121,6 @@ BEGIN
 	-- insert db05
 	EXECUTE	sys.sp_executesql @ExecuteSQL_balance, N'@query_balance NVARCHAR(MAX), @CustidBalanceList VARCHAR(MAX)', @query_balance, @CustidBalanceList
 
-	-- step 3: delete balance trigger if exists
-	WHILE (@isSuccess = 0)
-	BEGIN
-		BEGIN TRY
-
-			EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @CustidList VARCHAR(MAX)', @query, @CustidList
-			SET @isSuccess = 1
-
-		END TRY
-		BEGIN CATCH
-			SET @retrycnt = @retrycnt + 1
-			PRINT @retrycnt
-
-		END CATCH
-	END
 
 	WAITFOR DELAY '00:00:00.020' --optional
 
