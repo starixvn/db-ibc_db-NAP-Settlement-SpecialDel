@@ -43,3 +43,9 @@ GO
 	FROM bodb02.dbo.zzzbettransm z WITH (NOLOCK)
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
 			ON tmp.custid = z.custid
+
+	---keep this value for step check data consistency
+	SELECT MAX(keyid) as Max_keyid_zzzbettrans_BeforeUM FROM zzzbettrans_BeforeUM WITH(NOLOCK)
+
+	---keep this value for step check data consistency
+	SELECT MAX(keyid) as Max_keyid_zzzbettransm_BeforeUM FROM zzzbettrans_BeforeUM WITH(NOLOCK)
