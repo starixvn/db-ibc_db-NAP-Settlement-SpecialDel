@@ -30,20 +30,22 @@ WHERE s.SiteLabel  = 'IBC' AND c.roleid = 2
 
 BEGIN--------compare 1) bettransm  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
-		SELECT recommend
-				,CHECKSUM_AGG(CHECKSUM( t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[awinlost],[mwinlost],[playercomm],[comm],[acomm],[apositiontaking],[mpositiontaking],[tpositiontaking],[playerdiscount],[discount],[adiscount],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[oddsspread],[actualrate],[matchid],[recommend],[mrecommend],[ruben],[betid],[statuswinlost],[modds],[bettype],[betdaqid],[actual_stake],[currency],[ip],[transdesc],[sdiscount],[scomm],[spositiontaking],[swinlost],[srecommend],[Username],[CurrencyName],[virtualrate],[oddstype],[statusID],[currency2],[balance],[SecAcceptFlag],[transid2],[recommdate],[ExtraInfo],[WalletType],[BonusID],[RefCode],[epositiontaking],[ReasonID],[sort],[BetSiteID]
+		SELECT cc.recommend
+				,CHECKSUM_AGG(CHECKSUM( t.[custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], [liveindicator], [betteam], t.[creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], [mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], [playercomm], [comm], [acomm], [actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], [spositiontaking], [swinlost], [sdiscount], [scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], [LiveBetAcceptTime], [ReasonIDm]
 								)) AS TotalCheckSum
-		FROM dbo.bettransm t WITH(NOLOCK, INDEX=IX_Recommend)
-			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = t.recommend
-		GROUP BY recommend
+		FROM dbo.bettransm t WITH(NOLOCK)
+			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
+			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = cc.recommend
+		GROUP BY cc.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
 		SELECT *
-		FROM OPENQUERY ( DBCTG, ' SELECT recommend, CHECKSUM_AGG(CHECKSUM(  t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[awinlost],[mwinlost],[playercomm],[comm],[acomm],[apositiontaking],[mpositiontaking],[tpositiontaking],[playerdiscount],[discount],[adiscount],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[oddsspread],[actualrate],[matchid],[recommend],[mrecommend],[ruben],[betid],[statuswinlost],[modds],[bettype],[betdaqid],[actual_stake],[currency],[ip],[transdesc],[sdiscount],[scomm],[spositiontaking],[swinlost],[srecommend],[Username],[CurrencyName],[virtualrate],[oddstype],[statusID],[currency2],[balance],[SecAcceptFlag],[transid2],[recommdate],[ExtraInfo],[WalletType],[BonusID],[RefCode],[epositiontaking],[ReasonID],[sort],[BetSiteID]
+		FROM OPENQUERY ( DBCTG, ' SELECT cc.recommend, CHECKSUM_AGG(CHECKSUM(  t.[custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], [liveindicator], [betteam], t.[creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], [mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], [playercomm], [comm], [acomm], [actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], [spositiontaking], [swinlost], [sdiscount], [scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], [LiveBetAcceptTime], [ReasonIDm]
 																	)) AS TotalCheckSum
-									FROM bodb02.dbo.bettransm t WITH (NOLOCK, INDEX=IX_Recommend)
-										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = t.recommend 
-									GROUP BY recommend
+									FROM bodb02.dbo.bettransm t WITH (NOLOCK)
+										INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
+										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = cc.recommend 
+									GROUP BY cc.recommend
 								'
 						)
 	)

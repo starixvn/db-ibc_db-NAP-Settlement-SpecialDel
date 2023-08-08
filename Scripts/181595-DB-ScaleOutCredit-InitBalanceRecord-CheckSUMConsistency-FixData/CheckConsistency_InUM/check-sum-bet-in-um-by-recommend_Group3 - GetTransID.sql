@@ -29,17 +29,20 @@ CREATE TABLE #__CheckSum_MigrateSiteDB3_Temp (transid BIGINT, TableName VARCHAR(
 BEGIN--------compare 1) bettransm  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT t.TransId
-				,BINARY_CHECKSUM( t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[awinlost],[mwinlost],[playercomm],[comm],[acomm],[apositiontaking],[mpositiontaking],[tpositiontaking],[playerdiscount],[discount],[adiscount],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[oddsspread],[actualrate],[matchid],[recommend],[mrecommend],[ruben],[betid],[statuswinlost],[modds],[bettype],[betdaqid],[actual_stake],[currency],[ip],[transdesc],[sdiscount],[scomm],[spositiontaking],[swinlost],[srecommend],[Username],[CurrencyName],[virtualrate],[oddstype],[statusID],[currency2],[balance],[SecAcceptFlag],[transid2],[recommdate],[ExtraInfo],[WalletType],[BonusID],[RefCode],[epositiontaking],[ReasonID],[sort],[BetSiteID]
+				,BINARY_CHECKSUM( 
+				t.[custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], [liveindicator], [betteam], t.[creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], [mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], [playercomm], [comm], [acomm], [actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], [spositiontaking], [swinlost], [sdiscount], [scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], [LiveBetAcceptTime], [ReasonIDm]
 								) AS TotalCheckSum
-		FROM dbo.bettransm t WITH(NOLOCK, INDEX=IX_Recommend)
-		WHERE t.recommend IN (bettransm_recommendList)
+		FROM dbo.bettransm t WITH(NOLOCK)
+			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
+		WHERE cc.recommend IN (bettransm_recommendList)
 		
 	)
 	,cte_bettrans_DBTRANS AS (
 		SELECT *
-		FROM OPENQUERY ( DBCTG, ' SELECT t.transid, BINARY_CHECKSUM(  t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[awinlost],[mwinlost],[playercomm],[comm],[acomm],[apositiontaking],[mpositiontaking],[tpositiontaking],[playerdiscount],[discount],[adiscount],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[oddsspread],[actualrate],[matchid],[recommend],[mrecommend],[ruben],[betid],[statuswinlost],[modds],[bettype],[betdaqid],[actual_stake],[currency],[ip],[transdesc],[sdiscount],[scomm],[spositiontaking],[swinlost],[srecommend],[Username],[CurrencyName],[virtualrate],[oddstype],[statusID],[currency2],[balance],[SecAcceptFlag],[transid2],[recommdate],[ExtraInfo],[WalletType],[BonusID],[RefCode],[epositiontaking],[ReasonID],[sort],[BetSiteID]
+		FROM OPENQUERY ( DBCTG, ' SELECT t.transid, BINARY_CHECKSUM(  t.[custid], [transdate], [oddsid], [hdp1], [hdp2], [odds], [stake], [status], [winlost], [livehomescore], [liveawayscore], [liveindicator], [betteam], t.[creator], [refno], [comstatus], [winlostdate], [betfrom], [betcheck], [checktime], [oddsspread], [apositiontaking], [mpositiontaking], [tpositiontaking], [awinlost], [mwinlost], [playerdiscount], [discount], [adiscount], [playercomm], [comm], [acomm], [actualrate], [matchid], [matchdate], [finalodds], [isfinish], [statuswinlost], [ruben], [bettype], [spositiontaking], [swinlost], [sdiscount], [scomm], [statusID], [recommdate], [transdesc], [SecAcceptFlag], [SecAcceptTime], [LiveBetAcceptTime], [ReasonIDm]
 																	) AS TotalCheckSum
-									FROM bodb02.dbo.bettransm t WITH (NOLOCK, INDEX=IX_Recommend)
+									FROM bodb02.dbo.bettransm t WITH (NOLOCK)
+										INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
 									WHERE t.recommend IN (bettransm_recommendList)
 								'
 						)
