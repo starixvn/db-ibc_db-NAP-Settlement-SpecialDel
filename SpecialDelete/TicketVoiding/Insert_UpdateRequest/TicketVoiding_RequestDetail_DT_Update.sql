@@ -42,8 +42,9 @@ BEGIN
 			,@DuplicateTicketsInfoXML XML = NULL	
 			,@Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 			,@xmlTransIds XML = NULL
+			,@OrgTransIds	VARCHAR(MAX) = ''
 
-	DECLARE @tmp_TransIds AS TABLE (Remained VARCHAR(50), Voided VARCHAR(MAX))
+	DECLARE @tmp_TransIds AS TABLE (Remained VARCHAR(MAX), Voided VARCHAR(MAX))
 
 	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
@@ -81,6 +82,7 @@ BEGIN
 	SELECT @MatchId = t.c.value('@MatchId','INT')
 			,@SubIssueTypeId = t.c.value('@SubIssueTypeId','SMALLINT') 
 			,@FilterBy = NULLIF(t.c.value('@FilterBy','TINYINT'),0)
+			,@OrgTransIds = t.c.value('@OrgTransIds','VARCHAR(MAX)')
 	FROM @DuplicateTicketsInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@DuplicateTicketsInfoXML = NULL))
 
@@ -92,7 +94,7 @@ BEGIN
 	WHERE	matchid = @MatchId
 
 	INSERT INTO @tmp_TransIds (Remained, Voided)
-	SELECT  CASE WHEN r.IsOrg = 1 THEN CONVERT(VARCHAR(50), r.transid) ELSE '' END,
+	SELECT  CASE WHEN r.IsOrg = 1 THEN CONVERT(VARCHAR(50), r.transid) ELSE @OrgTransIds END,
 			STUFF(
 					(SELECT ', ' + CAST(transid AS VARCHAR(MAX)) 
 				FROM #tmpTransInfo t
@@ -103,8 +105,8 @@ BEGIN
 	WHERE (r.IsOrg = 1 OR r.IsOrg = 0)
 	order by DuplicateGroup
 
-	SELECT @xmlTransIds = (SELECT t.Remained AS '@Remained'
-								, t.Voided AS '@Voided'
+	SELECT @xmlTransIds = (SELECT t.Remained AS '@OrgTransIds'
+								, t.Voided AS '@VoidedTransIds'
 							FROM @tmp_TransIds t
 							FOR XML PATH('r'), ROOT('root')
 						)

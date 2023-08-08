@@ -50,6 +50,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE @IssueTypeId TINYINT
+		,@OrgTransIds VARCHAR(MAX) = NULL
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
@@ -89,6 +90,23 @@ BEGIN
 							WHERE RequestId = @RequestId
 						  )
 
+	IF @IssueTypeId = 20 --Generate OrgTransIds for Duplicate Tickets
+	BEGIN
+		SET @OrgTransIds = (
+				SELECT xTrans.OrgTransIds
+				FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+				CROSS APPLY (
+						SELECT CONVERT(XML, rd.TransIds)
+					)AS t(xDATA)
+				CROSS APPLY (
+						SELECT STUFF((SELECT ',' + t.c.value('@OrgTransIds','VARCHAR(MAX)') 
+						FROM t.xDATA.nodes('root/r') t(c)
+						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,'')
+					)xTrans (OrgTransIds)
+				WHERE rd.RequestId = @RequestId
+		)
+	END
+
 	IF @IssueTypeId <> 13 -- Except for AC 
 	BEGIN
 		SELECT	rd.MatchId
@@ -115,6 +133,7 @@ BEGIN
 				,rd.SubIssueTypeId
 				,m.IsNeutral
 				,m.matchcode
+				,@OrgTransIds AS OrgTransIds
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
