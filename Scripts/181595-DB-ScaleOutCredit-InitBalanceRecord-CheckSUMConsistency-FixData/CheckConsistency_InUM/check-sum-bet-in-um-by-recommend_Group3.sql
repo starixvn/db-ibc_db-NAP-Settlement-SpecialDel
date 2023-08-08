@@ -64,7 +64,6 @@ BEGIN--------compare 2) zzzbettrans  --------------------------------------
 		FROM dbo.zzzbettrans t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = cc.recommend
-		WHERE keyid > maxkeyid_zzzbettrans_beforeUM
 		GROUP BY cc.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -74,7 +73,6 @@ BEGIN--------compare 2) zzzbettrans  --------------------------------------
 									FROM bodb02.dbo.zzzbettrans t WITH (NOLOCK)
 										INNER JOIN custdb.dbo.vw_customer cc WITH(NOLOCK) ON t.custid = cc.custid
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = cc.recommend 
-									WHERE keyid > maxkeyid_zzzbettrans_beforeUM
 									GROUP BY cc.recommend
 								'
 						)
@@ -96,7 +94,6 @@ BEGIN--------compare 3) zzzbettransm  --------------------------------------
 		FROM dbo.zzzbettransm t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = cc.recommend
-		WHERE keyid > maxkeyid_zzzbettransm_beforeUM
 		GROUP BY cc.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -106,7 +103,6 @@ BEGIN--------compare 3) zzzbettransm  --------------------------------------
 									FROM bodb02.dbo.zzzbettransm t WITH (NOLOCK)
 										INNER JOIN custdb.dbo.vw_customer cc WITH(NOLOCK) ON t.custid = cc.custid
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = cc.recommend 
-									WHERE keyid > maxkeyid_zzzbettransm_beforeUM
 									GROUP BY cc.recommend
 								'
 						)
