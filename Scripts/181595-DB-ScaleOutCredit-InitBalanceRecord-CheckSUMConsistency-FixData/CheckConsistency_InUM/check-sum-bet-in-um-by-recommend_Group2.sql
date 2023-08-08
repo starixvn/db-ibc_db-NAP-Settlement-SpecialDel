@@ -205,7 +205,7 @@ END
 BEGIN--------compare 7) Transfer  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT recommend
-				,CHECKSUM_AGG(CHECKSUM( t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo],[RepUpdateTime]
+				,CHECKSUM_AGG(CHECKSUM( t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo]
 								)) AS TotalCheckSum
 		FROM dbo.Transfer t WITH(NOLOCK, INDEX=IX_recommend)
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = t.recommend
@@ -213,7 +213,7 @@ BEGIN--------compare 7) Transfer  --------------------------------------
 	)
 	,cte_bettrans_DBTRANS AS (
 		SELECT *
-		FROM OPENQUERY ( DBCTG, ' SELECT recommend, CHECKSUM_AGG(CHECKSUM(  t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo],[RepUpdateTime]
+		FROM OPENQUERY ( DBCTG, ' SELECT recommend, CHECKSUM_AGG(CHECKSUM(  t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo]
 																	)) AS TotalCheckSum
 									FROM bodb02.dbo.Transfer t WITH (NOLOCK, INDEX=IX_recommend)
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = t.recommend 

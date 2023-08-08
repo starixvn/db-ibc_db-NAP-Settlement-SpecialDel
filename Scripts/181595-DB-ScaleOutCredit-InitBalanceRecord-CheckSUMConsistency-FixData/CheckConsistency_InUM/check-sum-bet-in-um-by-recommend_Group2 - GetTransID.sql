@@ -203,14 +203,14 @@ END
 BEGIN--------compare 7) Transfer  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT t.TransId
-				,BINARY_CHECKSUM( t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo],[RepUpdateTime]
+				,BINARY_CHECKSUM( t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo]
 								) AS TotalCheckSum
 		FROM dbo.Transfer t WITH(NOLOCK, INDEX=IX_recommend)
 		WHERE t.recommend IN (Transfer_recommendList)
 	)
 	,cte_bettrans_DBTRANS AS (
 		SELECT *
-		FROM OPENQUERY ( DBCTG, ' SELECT t.TransId, BINARY_CHECKSUM(  t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo],[RepUpdateTime]
+		FROM OPENQUERY ( DBCTG, ' SELECT t.TransId, BINARY_CHECKSUM(  t.[CustId],[TransDate],[WinlostDate],[Bettype],[Stake],[Actual_Stake],[Winlost],[AWinlost],[MWinlost],[SWinlost],[PlayerComm],[Comm],[AComm],[SComm],[StatusId],[RefNo],[TransDesc],[Recommend],[MRecommend],[SRecommend],[Username],[Currency],[CurrencyName],[ActualRate],[Creator],[Balance],[IP],[CheckTime],[SerialNo]
 																	) AS TotalCheckSum
 									FROM bodb02.dbo.Transfer t WITH (NOLOCK, INDEX=IX_recommend)
 									WHERE t.recommend IN (Transfer_recommendList)	
