@@ -42,7 +42,7 @@ BEGIN--------compare 1) bettrans  --------------------------------------
 								)) AS TotalCheckSum
 		FROM dbo.bettrans t WITH(NOLOCK, INDEX=IX_Recommend)
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = t.recommend
-		WHERE t.winlostdate < '2023-08-06' AND t.matchid NOT IN (29, 2799)
+		WHERE t.winlostdate < '2023-08-13' AND t.matchid NOT IN (29, 2799)
 		GROUP BY recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -51,7 +51,7 @@ BEGIN--------compare 1) bettrans  --------------------------------------
 																	)) AS TotalCheckSum
 									FROM bodb02.dbo.bettrans t WITH (NOLOCK, INDEX=IX_Recommend)
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = t.recommend 
-									WHERE t.winlostdate < ''2023-08-06'' AND t.matchid NOT IN (29, 2799)
+									WHERE t.winlostdate < ''2023-08-13'' AND t.matchid NOT IN (29, 2799)
 									GROUP BY recommend
 								'
 						)
@@ -72,7 +72,7 @@ BEGIN--------compare 1) bettransInfo  --------------------------------------
 		FROM dbo.bettransInfo t WITH(NOLOCK)
 			INNER JOIN dbo.bettrans b WITH(NOLOCK, INDEX=IX_Recommend) ON t.transid = b.transid
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = b.recommend
-		WHERE b.winlostdate < '2023-08-06'
+		WHERE b.winlostdate < '2023-08-13'
 		GROUP BY b.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -82,7 +82,7 @@ BEGIN--------compare 1) bettransInfo  --------------------------------------
 									FROM bodb02.dbo.bettransInfo t WITH (NOLOCK)
 										INNER JOIN bodb02.dbo.bettrans b WITH(NOLOCK, INDEX=IX_Recommend) ON t.transid = b.transid
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = b.recommend 
-									WHERE b.winlostdate < ''2023-08-06''
+									WHERE b.winlostdate < ''2023-08-13''
 									GROUP BY b.recommend
 								'
 						)
@@ -102,7 +102,7 @@ BEGIN--------compare 1) bettransLC  --------------------------------------
 								)) AS TotalCheckSum
 		FROM dbo.bettransLC t WITH(NOLOCK, INDEX=IX_Recommend)
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = t.recommend
-		WHERE t.winlostdate < '2023-08-06'
+		WHERE t.winlostdate < '2023-08-13'
 		GROUP BY t.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -112,7 +112,7 @@ BEGIN--------compare 1) bettransLC  --------------------------------------
 															)) AS TotalCheckSum
 									FROM bodb02.dbo.bettransLC t WITH(NOLOCK, INDEX=IX_Recommend)
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = t.recommend
-									WHERE t.winlostdate < ''2023-08-06''	
+									WHERE t.winlostdate < ''2023-08-13''	
 									GROUP BY t.recommend
 								'
 						)
@@ -132,7 +132,7 @@ BEGIN--------compare 4) BettransRnG  --------------------------------------
 								)) AS TotalCheckSum
 		FROM dbo.BettransRnG t WITH(NOLOCK, INDEX=IX_recommend)
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = t.recommend
-		WHERE t.winlostdate < '2023-08-06'
+		WHERE t.winlostdate < '2023-08-13'
 		GROUP BY t.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -141,7 +141,7 @@ BEGIN--------compare 4) BettransRnG  --------------------------------------
 																	)) AS TotalCheckSum
 									FROM bodb02.dbo.BettransRnG t WITH (NOLOCK, INDEX=IX_recommend)
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = t.recommend 
-									WHERE t.winlostdate < ''2023-08-06''	
+									WHERE t.winlostdate < ''2023-08-13''	
 									GROUP BY t.recommend
 								'
 						)
@@ -162,7 +162,7 @@ BEGIN--------compare 5) bettransG  --------------------------------------
 		FROM dbo.bettransG t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.custInfo cc WITH(NOLOCK) ON t.custid = cc.custid
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = cc.recommend
-		WHERE t.winlostdate < '2023-08-06'
+		WHERE t.winlostdate < '2023-08-13'
 		GROUP BY cc.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -172,7 +172,7 @@ BEGIN--------compare 5) bettransG  --------------------------------------
 									FROM bodb02.dbo.bettransG t WITH (NOLOCK)
 										INNER JOIN custdb.dbo.custInfo cc WITH(NOLOCK) ON t.custid = cc.custid
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = cc.recommend 
-									WHERE t.winlostdate < ''2023-08-06''	
+									WHERE t.winlostdate < ''2023-08-13''	
 									GROUP BY cc.recommend
 								'
 						)
@@ -192,7 +192,7 @@ BEGIN--------compare 6) Translog  --------------------------------------
 								)) AS TotalCheckSum
 		FROM dbo.Translog t WITH(NOLOCK, INDEX=IX_recommend)
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = t.recommend
-		WHERE t.winlostdate < '2023-08-06'
+		WHERE t.winlostdate < '2023-08-13'
 		GROUP BY t.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -201,7 +201,7 @@ BEGIN--------compare 6) Translog  --------------------------------------
 																	)) AS TotalCheckSum
 									FROM bodb02.dbo.Translog t WITH (NOLOCK, INDEX=IX_recommend)
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = t.recommend 
-									WHERE t.winlostdate < ''2023-08-06''
+									WHERE t.winlostdate < ''2023-08-13''
 									GROUP BY t.recommend
 								'
 						)
@@ -221,7 +221,7 @@ BEGIN--------compare 7) Transfer  --------------------------------------
 								)) AS TotalCheckSum
 		FROM dbo.Transfer t WITH(NOLOCK, INDEX=IX_recommend)
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = t.recommend
-		WHERE t.winlostdate < '2023-08-06'
+		WHERE t.winlostdate < '2023-08-13'
 		GROUP BY t.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -230,7 +230,7 @@ BEGIN--------compare 7) Transfer  --------------------------------------
 																	)) AS TotalCheckSum
 									FROM bodb02.dbo.Transfer t WITH (NOLOCK, INDEX=IX_recommend)
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = t.recommend 
-									WHERE t.winlostdate < ''2023-08-06''	
+									WHERE t.winlostdate < ''2023-08-13''	
 									GROUP BY recommend
 								'
 						)
@@ -251,7 +251,7 @@ BEGIN--------8) Transfer_Coll  --------------------------------------
 		FROM dbo.Transfer_Coll t WITH(NOLOCK)
 			INNER JOIN dbo.Transfer tt WITH(NOLOCK, INDEX=IX_recommend) ON t.TransID = tt.TransId
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = tt.recommend
-		WHERE tt.winlostdate < '2023-08-06'
+		WHERE tt.winlostdate < '2023-08-13'
 		GROUP BY tt.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -261,7 +261,7 @@ BEGIN--------8) Transfer_Coll  --------------------------------------
 									FROM bodb02.dbo.Transfer_Coll t WITH (NOLOCK)
 										INNER JOIN bodb02.dbo.Transfer tt WITH(NOLOCK, INDEX=IX_recommend) ON t.TransID = tt.TransId
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = tt.recommend 
-									WHERE tt.winlostdate < ''2023-08-06''	
+									WHERE tt.winlostdate < ''2023-08-13''	
 									GROUP BY tt.recommend
 								'
 						)
@@ -282,7 +282,7 @@ BEGIN--------9) TransferInfo  --------------------------------------
 		FROM dbo.TransferInfo t WITH(NOLOCK)
 			INNER JOIN dbo.Transfer tt WITH(NOLOCK, INDEX=IX_recommend) ON t.TransID = tt.TransId
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = tt.recommend
-		WHERE tt.winlostdate < '2023-08-06'
+		WHERE tt.winlostdate < '2023-08-13'
 		GROUP BY tt.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -292,7 +292,7 @@ BEGIN--------9) TransferInfo  --------------------------------------
 									FROM bodb02.dbo.TransferInfo t WITH (NOLOCK)
 										INNER JOIN bodb02.dbo.Transfer tt WITH(NOLOCK, INDEX=IX_recommend) ON t.TransID = tt.TransId
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = tt.recommend 
-									WHERE tt.winlostdate < ''2023-08-06''	
+									WHERE tt.winlostdate < ''2023-08-13''	
 									GROUP BY tt.recommend
 								'
 						)

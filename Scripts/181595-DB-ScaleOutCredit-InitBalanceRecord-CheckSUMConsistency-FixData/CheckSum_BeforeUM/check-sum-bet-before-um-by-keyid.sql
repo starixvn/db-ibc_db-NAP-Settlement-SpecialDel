@@ -9,8 +9,14 @@
 	Revisions:
 		- 20230727@Louisa: compare data between SITEDB3 and DBTRANS [Redmineid:#181595] 
 
-		1) zzzbettrans
+		1) zzzbettrans 
 		2) zzzbettransm
+*/
+/*
+--------Find and replace text
+1) zzzbettrans -> Maxkeyid_zzzbettrans
+2) zzzbettransm -> Maxkeyid_zzzbettransm
+
 */
 DROP TABLE IF EXISTS #__CheckSum_MigrateSiteDB3_Temp
 CREATE TABLE #__CheckSum_MigrateSiteDB3_Temp (recommend INT, TableName VARCHAR(100))
@@ -32,7 +38,7 @@ BEGIN--------compare 1) zzzbettrans  --------------------------------------
 		FROM dbo.zzzbettrans t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.custInfo cc WITH(NOLOCK) ON t.custid = cc.custid
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = cc.recommend
-		WHERE keyid <= 1012490248
+		WHERE keyid <= Maxkeyid_zzzbettrans
 		GROUP BY cc.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -42,7 +48,7 @@ BEGIN--------compare 1) zzzbettrans  --------------------------------------
 									FROM bodb02.dbo.zzzbettrans t WITH (NOLOCK)
 										INNER JOIN custdb.dbo.custInfo cc WITH(NOLOCK) ON t.custid = cc.custid
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = cc.recommend 
-									WHERE keyid <= 1012490248
+									WHERE keyid <= Maxkeyid_zzzbettrans
 									GROUP BY cc.recommend
 								'
 						)
@@ -64,7 +70,7 @@ BEGIN--------compare 2) zzzbettransm  --------------------------------------
 		FROM dbo.zzzbettransm t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.custInfo cc WITH(NOLOCK) ON t.custid = cc.custid
 			INNER JOIN #__recommendList c WITH (NOLOCK) ON c.custid = cc.recommend
-		WHERE keyid <= 514528
+		WHERE keyid <= Maxkeyid_zzzbettransm
 		GROUP BY cc.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
@@ -74,7 +80,7 @@ BEGIN--------compare 2) zzzbettransm  --------------------------------------
 									FROM bodb02.dbo.zzzbettransm t WITH (NOLOCK)
 										INNER JOIN custdb.dbo.custInfo cc WITH(NOLOCK) ON t.custid = cc.custid
 										INNER JOIN SiteDBtmp.dbo.RecommendSiteDB3_20230626 c WITH (NOLOCK) ON c.custid = cc.recommend 
-									WHERE keyid <= 514528
+									WHERE keyid <= Maxkeyid_zzzbettransm
 									GROUP BY cc.recommend
 								'
 						)
