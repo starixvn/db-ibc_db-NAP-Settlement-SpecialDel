@@ -6,7 +6,7 @@
     DB: DBCTG-SiteDBtmp
 
 	Revisions:
-		- 20230727@Louisa: Prepare data Batch 1 - Group 3 [Redmineid:#181595] 
+		- 20230727@Louisa: Prepare data - UM - Group 3 [Redmineid:#181595] 
 
 */
 
@@ -20,7 +20,9 @@
 USE SiteDBtmp
 GO
 
-	DECLARE @SiteDBGroupID SMALLINT
+	DECLARE @SiteDBGroupID			SMALLINT
+			,@MaxKey_zzzbettrans	INT
+			,@MaxKey_zzzbettransm	INT
 	
 	SET @SiteDBGroupID = 3
 
@@ -37,6 +39,8 @@ GO
 
 
 	----copy data bodb02.dbo.zzzbettrans
+	SELECT @MaxKey_zzzbettrans = ( SELECT MAX(keyid) FROM dbo.zzzbettrans_beforeUM WITH(NOLOCK) )
+
 	SELECT  z.keyid, z.transid, z.custid, z.transdate, z.oddsid, z.hdp1, z.hdp2, z.odds, z.stake, z.status, z.winlost, z.livehomescore, z.liveawayscore, 
 			z.liveindicator, z.betteam, z.creator, z.refno, z.comstatus, z.winlostdate, z.betfrom, z.betcheck, z.checktime, z.matchid, z.bettype, 
 			z.VoidingHistoryId, z.RepUpdateTime, @SiteDBGroupID SiteDBGroupID
@@ -44,8 +48,11 @@ GO
 	FROM bodb02.dbo.zzzbettrans z WITH (NOLOCK)
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
 			ON tmp.custid = z.custid
+	WHERE z.keyid > @MaxKey_zzzbettrans
 
 	----copy data bodb02.dbo.zzzbettransm
+	SELECT @MaxKey_zzzbettransm = ( SELECT MAX(keyid) FROM dbo.zzzbettransm_beforeUM WITH(NOLOCK) )
+
 	SELECT  z.keyid, z.transid, z.custid, z.transdate, z.oddsid, z.hdp1, z.hdp2, z.odds, z.stake, z.status, z.winlost, z.livehomescore, z.liveawayscore, 
 			z.liveindicator, z.betteam, z.creator, z.refno, z.comstatus, z.winlostdate, z.betfrom, z.betcheck, z.checktime, z.matchid, z.bettype, 
 			z.VoidingHistoryId, z.RepUpdateTime, @SiteDBGroupID SiteDBGroupID
@@ -53,3 +60,4 @@ GO
 	FROM bodb02.dbo.zzzbettransm z WITH (NOLOCK)
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
 			ON tmp.custid = z.custid
+	WHERE z.keyid > @MaxKey_zzzbettransm

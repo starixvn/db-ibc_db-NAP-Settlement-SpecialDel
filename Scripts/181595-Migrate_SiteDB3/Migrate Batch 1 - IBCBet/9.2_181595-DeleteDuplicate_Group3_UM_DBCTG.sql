@@ -6,7 +6,7 @@
     DB: DBCTG-SiteDBtmp
 
 	Revisions:
-		- 20230727@Louisa: Delete duplicate data - table group 3 [Redmineid:#181595] 
+		- 20230727@Louisa: Delete duplicate data - UM - Group 3 [Redmineid:#181595] 
 		
 */
 

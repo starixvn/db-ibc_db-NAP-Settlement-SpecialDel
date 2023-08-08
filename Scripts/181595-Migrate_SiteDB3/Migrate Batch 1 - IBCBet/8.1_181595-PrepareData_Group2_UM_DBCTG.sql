@@ -6,10 +6,18 @@
     DB: DBCTG-SiteDBtmp
 
 	Revisions:
-		- 20230727@Louisa: Prepare data Batch 1 - Group 3 [Redmineid:#181595] 
+		- 20230727@Louisa: Prepare data - UM - Group 3 [Redmineid:#181595] 
 
 		bet ticket has winlost >= 2023-08-13 and other tables
-		
+
+		20 tables:
+			Bettrans,BettransInfo,BettransLC,BettransRnG,bettransG,Translog,Transfer
+			,Transfer_Coll,TransferInfo
+			,BetParlayDetail,BetParlayResult
+			,BalNetPosition,CashOutSelling
+			,MarkedTransaction,NetPositionCalculationLog,NetPositionTrans
+			,CustLimitBet_789,CustLimitBet_MBC
+			,CustLimitBetHistory_789,CustLimitBetHistory_MBC
 */
 
 /*

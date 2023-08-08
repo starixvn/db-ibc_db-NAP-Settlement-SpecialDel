@@ -6,7 +6,7 @@
     DB: DBSIC-bodb02
 
 	Revisions:
-		- 20230727@Louisa: Migrate data for SiteDB3 Batch 1 - Table group 3 [Redmineid:#181595]
+		- 20230727@Louisa: Migrate data for SiteDB3 - UM - Group 3 [Redmineid:#181595]
 		
 */
 
