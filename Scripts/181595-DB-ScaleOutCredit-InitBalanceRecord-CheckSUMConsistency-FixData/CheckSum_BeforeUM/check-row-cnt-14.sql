@@ -29,8 +29,8 @@ create table #__custidList(custid int primary key)
 
 insert into #__custidList(custid)
 select distinct custid
-from dbo.Customer c with (nolock)
-	inner join dbo.Site s with(nolock) on c.Site = s.Site
+from CustDB.dbo.Customer c with (nolock)
+	inner join CustDB.dbo.Site s with(nolock) on c.Site = s.Site
 where s.SiteLabel = 'IBC' 
 
 declare @__sqlCmd nvarchar(max)
