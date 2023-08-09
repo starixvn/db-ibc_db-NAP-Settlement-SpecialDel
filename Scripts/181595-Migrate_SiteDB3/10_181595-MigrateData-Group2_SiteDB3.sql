@@ -3,7 +3,7 @@
 /*
     Created by: 20230626@Louisa
     Task: Migrate data for SiteDB3 [Redmineid:#181595] 
-    DB: DBCTC-bodb02
+    DB: DBSIC-bodb02
 
 	Revisions:
 		- 20230626@Louisa: Migrate data for SiteDB3 - table group 2 [Redmineid:#181595] 
