@@ -18,17 +18,11 @@ CREATE TABLE #temp_MemberInput(
 CREATE TABLE #tempMember (custid INT PRIMARY KEY)
 CREATE TABLE #CustId_tmp (custid INT PRIMARY KEY)
 --------------GET members needs to process ------------------
-/* total around 111882 - get data on 2023-08-07
-Group 1: c.custid >= 644739 and c.custid <= 47972568 --> around 60k
-Group 2: c.custid > 47972568 --> around 60k
-*/
 INSERT INTO #CustId_tmp (custid)
 SELECT DISTINCT c.custid
 FROM [bodb02].[dbo].vw_Customer c WITH(NOLOCK)
 	INNER JOIN [bodb02].[dbo].BalanceRecord b WITH(NOLOCK) ON b.custid = c.custid
-WHERE c.site IN ('IBCIndo','76666B')
-	AND c.custid > 47972568 
-ORDER BY c.custid
+WHERE c.site ='76666B'
 
 INSERT INTO #temp_MemberInput (custid)
 SELECT m.CustId
