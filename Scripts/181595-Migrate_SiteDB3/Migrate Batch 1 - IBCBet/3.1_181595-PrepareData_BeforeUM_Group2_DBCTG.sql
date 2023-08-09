@@ -48,4 +48,4 @@ GO
 	SELECT MAX(keyid) as Max_keyid_zzzbettrans_BeforeUM FROM zzzbettrans_BeforeUM WITH(NOLOCK)
 
 	---keep this value for step check data consistency
-	SELECT MAX(keyid) as Max_keyid_zzzbettransm_BeforeUM FROM zzzbettrans_BeforeUM WITH(NOLOCK)
+	SELECT MAX(keyid) as Max_keyid_zzzbettransm_BeforeUM FROM zzzbettransm_BeforeUM WITH(NOLOCK)
