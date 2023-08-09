@@ -59,7 +59,7 @@ END
 BEGIN--------compare 2) zzzbettrans  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT t.keyid
-				,BINARY_CHECKSUM( t.[transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
+				,BINARY_CHECKSUM( t.[transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],t.[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
 								) AS TotalCheckSum
 		FROM dbo.zzzbettrans t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
@@ -88,7 +88,7 @@ END
 BEGIN--------compare 3) zzzbettransm  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT t.keyid
-				,BINARY_CHECKSUM( [transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
+				,BINARY_CHECKSUM( [transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],t.[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
 								) AS TotalCheckSum
 		FROM dbo.zzzbettransm t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
