@@ -99,7 +99,7 @@ set @__sqlCmd = '
 	inner join SiteDBtmp.dbo.CustSiteDB3_20230626 c on c.custid = b.custid
 
 	union all
-	select count(1) cnt, ''balanceTable_tmp'' tableName 
+	select count(1) cnt, ''BalanceTable_tmp_cal'' tableName 
 	from bodb02.dbo.BalanceTable_tmp_cal b with(nolock)
 	inner join SiteDBtmp.dbo.CustSiteDB3_20230626 c on c.custid = b.custid
 
