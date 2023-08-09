@@ -178,7 +178,7 @@ select count(1) cnt, 'bettrans14' tableName
 	inner join #__custidList c on c.custid = b.custid
 
 	union all
-	select count(1) cnt, 'balanceTable_tmp' tableName 
+	select count(1) cnt, 'BalanceTable_tmp_cal' tableName 
 	from bodb02.dbo.BalanceTable_tmp_cal b with(nolock)
 	inner join #__custidList c on c.custid = b.custid
 
