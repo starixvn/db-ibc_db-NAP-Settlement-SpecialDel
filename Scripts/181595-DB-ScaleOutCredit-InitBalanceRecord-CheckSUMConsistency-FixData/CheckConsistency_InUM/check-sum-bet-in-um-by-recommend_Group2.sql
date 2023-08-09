@@ -286,10 +286,18 @@ BEGIN--------9) TransferInfo  --------------------------------------
 			ON s.recommend = t.recommend
 	WHERE ISNULL(s.TotalCheckSum, 0) <> ISNULL(t.TotalCheckSum, 0)
 END
-
-------------------------------------------------
-	SELECT COUNT(1) as cnt, TableName
-	FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)
-	GROUP BY TableName
+------------------RESULT------------------------------
+------------------RESULT count ------------------------
+SELECT COUNT(1) as cnt, TableName
+FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)
+GROUP BY TableName
+------------------RESULT: agent list---------------------
+SELECT t.TableName, STUFF (temp.agentlist,1,1,'') AS agentlist
+FROM (SELECT DISTINCT TableName FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)) AS t
+	CROSS APPLY (SELECT ',' + CONVERT(VARCHAR(100),t1.recommend)
+				FROM #__CheckSum_MigrateSiteDB3_Temp t1 WITH(NOLOCK)
+				WHERE t1.TableName = t.TableName
+				FOR XML PATH ('')
+				) AS temp(agentlist)
 
 GO

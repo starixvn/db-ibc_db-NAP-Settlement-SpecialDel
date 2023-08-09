@@ -61,7 +61,7 @@ END
 BEGIN--------compare 2) zzzbettrans  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT cc.recommend
-				,CHECKSUM_AGG(CHECKSUM( t.[transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
+				,CHECKSUM_AGG(CHECKSUM( t.[transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],t.[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
 								)) AS TotalCheckSum
 		FROM dbo.zzzbettrans t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
@@ -91,7 +91,7 @@ END
 BEGIN--------compare 3) zzzbettransm  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT cc.recommend
-				,CHECKSUM_AGG(CHECKSUM( [transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
+				,CHECKSUM_AGG(CHECKSUM( [transid],t.[custid],[transdate],[oddsid],[hdp1],[hdp2],[odds],[stake],[status],[winlost],[livehomescore],[liveawayscore],[liveindicator],[betteam],t.[creator],[refno],[comstatus],[winlostdate],[betfrom],[betcheck],[checktime],[matchid],[bettype],[VoidingHistoryId]
 								)) AS TotalCheckSum
 		FROM dbo.zzzbettransm t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
@@ -117,4 +117,19 @@ BEGIN--------compare 3) zzzbettransm  --------------------------------------
 			ON s.recommend = t.recommend
 	WHERE ISNULL(s.TotalCheckSum, 0) <> ISNULL(t.TotalCheckSum, 0)
 END
+
+------------------RESULT------------------------------
+------------------RESULT count ------------------------
+SELECT COUNT(1) as cnt, TableName
+FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)
+GROUP BY TableName
+------------------RESULT: agent list---------------------
+SELECT t.TableName, STUFF (temp.agentlist,1,1,'') AS agentlist
+FROM (SELECT DISTINCT TableName FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)) AS t
+	CROSS APPLY (SELECT ',' + CONVERT(VARCHAR(100),t1.recommend)
+				FROM #__CheckSum_MigrateSiteDB3_Temp t1 WITH(NOLOCK)
+				WHERE t1.TableName = t.TableName
+				FOR XML PATH ('')
+				) AS temp(agentlist)
+
 GO
