@@ -126,7 +126,6 @@ BEGIN--------compare 4) BettransRnG  --------------------------------------
 								) AS TotalCheckSum
 		FROM dbo.BettransRnG t WITH(NOLOCK, INDEX=IX_recommend)
 		WHERE t.recommend IN (BettransRnG_recommendList)
-		GROUP BY t.recommend
 	)
 	,cte_bettrans_DBTRANS AS (
 		SELECT *
@@ -134,7 +133,6 @@ BEGIN--------compare 4) BettransRnG  --------------------------------------
 																	) AS TotalCheckSum
 									FROM bodb02.dbo.BettransRnG t WITH (NOLOCK, INDEX=IX_recommend)
 									WHERE t.recommend IN (BettransRnG_recommendList)
-									
 								'
 						)
 	)
@@ -149,7 +147,7 @@ END
 BEGIN--------compare 5) bettransG  --------------------------------------
 	;WITH cte_bettrans_SITEDB3 AS (
 		SELECT t.transid
-				,BINARY_CHECKSUM( t.[custid],[transdate],[oddsid],[odds],[stake],[status],[winlost],[betteam],[creator],[refno],[winlostdate],[betfrom],[checktime],[apositiontaking],[mpositiontaking],[tpositiontaking],[awinlost],[mwinlost],[playerdiscount],[discount],[adiscount],[playercomm],[comm],[acomm],[actualrate],[matchid],[matchdate],[statuswinlost],[ruben],[bettype],[spositiontaking],[swinlost],[sdiscount],[scomm],[statusID],[virtualrate],[SiteID],[transdesc],[BetID3rd],[epositiontaking],[actual_stake],[netstake]
+				,BINARY_CHECKSUM( t.[custid],[transdate],[oddsid],[odds],[stake],[status],[winlost],[betteam],t.[creator],[refno],[winlostdate],[betfrom],[checktime],[apositiontaking],[mpositiontaking],[tpositiontaking],[awinlost],[mwinlost],[playerdiscount],[discount],[adiscount],[playercomm],[comm],[acomm],[actualrate],[matchid],[matchdate],[statuswinlost],[ruben],[bettype],[spositiontaking],[swinlost],[sdiscount],[scomm],[statusID],[virtualrate],[SiteID],[transdesc],[BetID3rd],[epositiontaking],[actual_stake],[netstake]
 								) AS TotalCheckSum
 		FROM dbo.bettransG t WITH(NOLOCK)
 			INNER JOIN custdb.dbo.vw_customer cc WITH(NOLOCK) ON t.custid = cc.custid
@@ -158,7 +156,7 @@ BEGIN--------compare 5) bettransG  --------------------------------------
 	)
 	,cte_bettrans_DBTRANS AS (
 		SELECT *
-		FROM OPENQUERY ( DBCTG, ' SELECT transid, BINARY_CHECKSUM(  t.[custid],[transdate],[oddsid],[odds],[stake],[status],[winlost],[betteam],[creator],[refno],[winlostdate],[betfrom],[checktime],[apositiontaking],[mpositiontaking],[tpositiontaking],[awinlost],[mwinlost],[playerdiscount],[discount],[adiscount],[playercomm],[comm],[acomm],[actualrate],[matchid],[matchdate],[statuswinlost],[ruben],[bettype],[spositiontaking],[swinlost],[sdiscount],[scomm],[statusID],[virtualrate],[SiteID],[transdesc],[BetID3rd],[epositiontaking],[actual_stake],[netstake]
+		FROM OPENQUERY ( DBCTG, ' SELECT transid, BINARY_CHECKSUM(  t.[custid],[transdate],[oddsid],[odds],[stake],[status],[winlost],[betteam],t.[creator],[refno],[winlostdate],[betfrom],[checktime],[apositiontaking],[mpositiontaking],[tpositiontaking],[awinlost],[mwinlost],[playerdiscount],[discount],[adiscount],[playercomm],[comm],[acomm],[actualrate],[matchid],[matchdate],[statuswinlost],[ruben],[bettype],[spositiontaking],[swinlost],[sdiscount],[scomm],[statusID],[virtualrate],[SiteID],[transdesc],[BetID3rd],[epositiontaking],[actual_stake],[netstake]
 																	) AS TotalCheckSum
 									FROM bodb02.dbo.bettransG t WITH (NOLOCK)
 										INNER JOIN custdb.dbo.vw_customer cc WITH(NOLOCK) ON t.custid = cc.custid
