@@ -35,9 +35,9 @@ DROP TABLE IF exists #transid --Bettrans14,BettransInfo14,bettransm14,BettransLC
 DROP TABLE IF exists #custid --balanceTable_tmp
 DROP TABLE IF exists #keyid--sum_winloss
 
-CREATE TABLE #transid (TransId INT PRIMARY KEY)
+CREATE TABLE #transid (TransId BIGINT PRIMARY KEY)
 CREATE TABLE #custid (custid INT PRIMARY KEY)
-CREATE TABLE #keyid (keyid INT PRIMARY KEY)
+CREATE TABLE #keyid (keyid BIGINT PRIMARY KEY)
 
 IF @TableName IN ( 'Bettrans14'
 					,'BettransInfo14'
@@ -231,7 +231,7 @@ END
 
 IF @TableName IN ( 'sum_winloss')
 BEGIN
-	SET @__sqlCmd = N'SELECT b.custid
+	SET @__sqlCmd = N'SELECT b.keyid
 				FROM bodb02.dbo.' + @TableName + ' b WITH(NOLOCK)
 				INNER JOIN SiteDBtmp.dbo.CustSiteDB3_20230626 c  WITH(NOLOCK) ON c.custid = b.custid
 				LEFT JOIN SiteDBtmp.dbo.' + @TableName + '_beforeUM t WITH(NOLOCK)  ON b.keyid = t.keyid
