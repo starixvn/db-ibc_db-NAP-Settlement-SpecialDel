@@ -43,7 +43,7 @@ BEGIN--------compare 1) bettransm  --------------------------------------
 																	) AS TotalCheckSum
 									FROM bodb02.dbo.bettransm t WITH (NOLOCK)
 										INNER JOIN custdb.dbo.vw_Customer cc WITH(NOLOCK) ON t.custid = cc.custid
-									WHERE t.recommend IN (bettransm_recommendList)
+									WHERE cc.recommend IN (bettransm_recommendList)
 								'
 						)
 	)
