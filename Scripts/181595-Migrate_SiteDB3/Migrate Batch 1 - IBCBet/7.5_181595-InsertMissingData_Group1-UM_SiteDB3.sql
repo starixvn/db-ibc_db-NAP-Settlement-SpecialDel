@@ -49,56 +49,56 @@ RETURN
 	IF @TableName = 'BalDebitCasino'
 		INSERT INTO  dbo.BalDebitCasino(custid, Balance)
 		SELECT bal.custid, bal.Balance
-		FROM DBCTG.SiteDBtmp.dbo.BalDebitCasino_UM bal WITH (NOLOCK)
+		FROM DBCTG.bodb02.dbo.BalDebitCasino bal WITH (NOLOCK)
 			INNER JOIN #t1 t ON bal.custid = t.custid
 
 	-- BalDebitOthers
 	ELSE IF @TableName = 'BalDebitOthers'
 		INSERT INTO dbo.BalDebitOthers(custid, Balance)
 		SELECT bal.custid, bal.Balance
-		FROM DBCTG.SiteDBtmp.dbo.BalDebitOthers_UM bal WITH (NOLOCK)
+		FROM DBCTG.bodb02.dbo.BalDebitOthers bal WITH (NOLOCK)
 			INNER JOIN #t1 t ON bal.custid = t.custid
 
 	-- BalDebitSports
 	ELSE  IF @TableName = 'BalDebitSports'
 	INSERT INTO dbo.BalDebitSports(custid, Balance)
 	SELECT bal.custid, bal.Balance
-	FROM DBCTG.SiteDBtmp.dbo.BalDebitSports_UM bal WITH (NOLOCK)
+	FROM DBCTG.bodb02.dbo.BalDebitSports bal WITH (NOLOCK)
 		INNER JOIN #t1 t ON bal.custid = t.custid
 
 	-- BalDebitTransfer
 	ELSE  IF @TableName = 'BalDebitTransfer'
 	INSERT INTO dbo.BalDebitTransfer(custid, Balance)
 	SELECT bal.custid, bal.Balance
-	FROM DBCTG.SiteDBtmp.dbo.BalDebitTransfer_UM bal WITH (NOLOCK)
+	FROM DBCTG.bodb02.dbo.BalDebitTransfer bal WITH (NOLOCK)
 		INNER JOIN #t1 t ON bal.custid = t.custid
 
 	-- BalCreditCasino
 	ELSE  IF @TableName = 'BalCreditCasino'
 	INSERT INTO dbo.BalCreditCasino (custid, Balance)
 	SELECT bal.custid, bal.Balance
-	FROM DBCTG.SiteDBtmp.dbo.BalCreditCasino_UM bal WITH (NOLOCK)
+	FROM DBCTG.bodb02.dbo.BalCreditCasino bal WITH (NOLOCK)
 		INNER JOIN #t1 t ON bal.custid = t.custid
 
 	-- BalCreditOthers
 	ELSE  IF @TableName = 'BalCreditOthers'
 	INSERT INTO dbo.BalCreditOthers (custid, Balance)
 	SELECT bal.custid, bal.Balance
-	FROM DBCTG.SiteDBtmp.dbo.BalCreditOthers_UM bal WITH (NOLOCK)
+	FROM DBCTG.bodb02.dbo.BalCreditOthers bal WITH (NOLOCK)
 		INNER JOIN #t1 t ON bal.custid = t.custid
 
 	-- BalCreditSports
 	ELSE  IF @TableName = 'BalCreditSports'
 	INSERT INTO dbo.BalCreditSports (custid, Balance)
 	SELECT bal.custid, bal.Balance
-	FROM DBCTG.SiteDBtmp.dbo.BalCreditSports_UM bal WITH (NOLOCK)
+	FROM DBCTG.bodb02.dbo.BalCreditSports bal WITH (NOLOCK)
 		INNER JOIN #t1 t ON bal.custid = t.custid
 
 	-- BalCreditTransfer
 	ELSE  IF @TableName = 'BalCreditTransfer'
 	INSERT INTO  dbo.BalCreditTransfer(custid, Balance)
 	SELECT bal.custid, bal.Balance
-	FROM DBCTG.SiteDBtmp.dbo.BalCreditTransfer_UM bal WITH (NOLOCK)
+	FROM DBCTG.bodb02.dbo.BalCreditTransfer bal WITH (NOLOCK)
 		INNER JOIN #t1 t ON bal.custid = t.custid
 
 
