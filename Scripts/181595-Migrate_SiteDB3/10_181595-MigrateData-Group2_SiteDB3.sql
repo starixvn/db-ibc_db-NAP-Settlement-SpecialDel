@@ -1,9 +1,9 @@
-/*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBSIC-bodb02" executers="" viewers="" isFunction="0"></info>*/
 
 /*
     Created by: 20230626@Louisa
     Task: Migrate data for SiteDB3 [Redmineid:#181595] 
-    DB: DBCTG-SiteDBtmp
+    DB: DBCTC-bodb02
 
 	Revisions:
 		- 20230626@Louisa: Migrate data for SiteDB3 - table group 2 [Redmineid:#181595] 
