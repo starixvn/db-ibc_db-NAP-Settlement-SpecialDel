@@ -122,4 +122,13 @@ GROUP BY TableName
 SELECT transid, TableName
 FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)
 
+------------------RESULT: transid list---------------------
+SELECT t.TableName, STUFF (temp.transidlist,1,1,'') AS transidlist
+FROM (SELECT DISTINCT TableName FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)) AS t
+	CROSS APPLY (SELECT ',' + CONVERT(VARCHAR(100),t1.transid)
+				FROM #__CheckSum_MigrateSiteDB3_Temp t1 WITH(NOLOCK)
+				WHERE t1.TableName = t.TableName
+				FOR XML PATH ('')
+				) AS temp(transidlist)
+
 GO
