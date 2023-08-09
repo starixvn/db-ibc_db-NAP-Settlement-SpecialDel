@@ -200,19 +200,19 @@ GO
 	SET IDENTITY_INSERT Task_Cust_BalanceProblem1_Manually OFF
 
 	-- dbo.sum_winloss
-	SET IDENTITY_INSERT sum_winloss ON
+	--SET IDENTITY_INSERT sum_winloss ON
 
-	INSERT INTO sum_winloss ( keyid,winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
+	INSERT INTO sum_winloss ( winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
 			,winlost,awinlost,mwinlost,swinlost
 			,playercomm,comm,acomm,scomm,BetCount,grosscomm,sporttype,bettype,netTurnover
 			,TunroverNoDraw,ExtraWinloss,ExtraComm,leagueGroupID,ticketType )
-	SELECT  keyid,winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
+	SELECT  winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
 			,winlost,awinlost,mwinlost,swinlost
 			,playercomm,comm,acomm,scomm,BetCount,grosscomm,sporttype,bettype,netTurnover
 			,TunroverNoDraw,ExtraWinloss,ExtraComm,leagueGroupID,ticketType
 	FROM DBCTG.SiteDBtmp.dbo.sum_winloss_BeforeUM sw WITH(NOLOCK) 
 	
-	SET IDENTITY_INSERT sum_winloss OFF
+	--SET IDENTITY_INSERT sum_winloss OFF
 	
 
 

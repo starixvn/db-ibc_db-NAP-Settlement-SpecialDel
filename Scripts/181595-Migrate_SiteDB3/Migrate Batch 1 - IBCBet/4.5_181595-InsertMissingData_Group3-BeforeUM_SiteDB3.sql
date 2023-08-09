@@ -248,20 +248,20 @@ BEGIN
 	RETURN
 
 	-- dbo.sum_winloss
-	SET IDENTITY_INSERT sum_winloss ON
+	--SET IDENTITY_INSERT sum_winloss ON
 
-	INSERT INTO sum_winloss ( keyid,winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
+	INSERT INTO sum_winloss ( winlostdate,username,custid,roleid,recommend,mrecommend,srecommend,turnover
 			,winlost,awinlost,mwinlost,swinlost
 			,playercomm,comm,acomm,scomm,BetCount,grosscomm,sporttype,bettype,netTurnover
 			,TunroverNoDraw,ExtraWinloss,ExtraComm,leagueGroupID,ticketType )
-	SELECT  sw.keyid,sw.winlostdate,sw.username,sw.custid,sw.roleid,sw.recommend,sw.mrecommend,sw.srecommend,sw.turnover
+	SELECT  sw.winlostdate,sw.username,sw.custid,sw.roleid,sw.recommend,sw.mrecommend,sw.srecommend,sw.turnover
 			,sw.winlost,sw.awinlost,sw.mwinlost,sw.swinlost
 			,sw.playercomm,sw.comm,sw.acomm,sw.scomm,sw.BetCount,sw.grosscomm,sw.sporttype,sw.bettype,sw.netTurnover
 			,sw.TunroverNoDraw,sw.ExtraWinloss,sw.ExtraComm,sw.leagueGroupID,sw.ticketType
 	FROM DBCTG.bodb02.dbo.sum_winloss sw WITH(NOLOCK)
 		INNER JOIN #keyid k ON sw.keyid = k.keyid
 	
-	SET IDENTITY_INSERT sum_winloss OFF
+	--SET IDENTITY_INSERT sum_winloss OFF
 
 END
 
