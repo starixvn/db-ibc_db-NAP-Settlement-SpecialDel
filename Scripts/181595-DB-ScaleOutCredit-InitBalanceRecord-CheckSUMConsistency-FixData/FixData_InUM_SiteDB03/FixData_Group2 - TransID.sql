@@ -107,7 +107,7 @@ UPDATE b
 		[BetSiteID]	=	g.[BetSiteID]
 
 FROM bettrans b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.bettrans G WITH (NOLOCK) ON trans.transid  = site3.transid
+	INNER JOIN DBCTG.bodb02.dbo.bettrans g WITH (NOLOCK) ON b.transid  = g.transid
 WHERE b.transid IN (bettrans_TransIDList)
 END
 BEGIN--------2) bettransInfo  --------------------------------------
@@ -120,7 +120,7 @@ UPDATE b
 	[ThirdTransID]	=	g.[ThirdTransID]
 
 FROM bettransInfo b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.bettransInfo G WITH (NOLOCK) ON trans.transid  = site3.transid
+	INNER JOIN DBCTG.bodb02.dbo.bettransInfo G WITH (NOLOCK) ON b.transid  = g.transid
 WHERE b.transid IN (bettransInfo_TransIDList)
 
 END
@@ -177,7 +177,7 @@ UPDATE b
 		[epositiontaking]	=	g.[epositiontaking]
 
 FROM bettransLC b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.bettransLC G WITH (NOLOCK) ON trans.transid  = site3.transid
+	INNER JOIN DBCTG.bodb02.dbo.bettransLC G WITH (NOLOCK) ON b.transid  = g.transid
 WHERE b.transid IN (bettransLC_TransIDList)
 END
 
@@ -239,7 +239,7 @@ UPDATE b
 		[epositiontaking]	=	g.[epositiontaking]	
 
 FROM bettransRnG b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.bettransRnG G WITH (NOLOCK) ON trans.transid  = site3.transid
+	INNER JOIN DBCTG.bodb02.dbo.bettransRnG G WITH (NOLOCK) ON b.transid  = g.transid
 WHERE b.transid IN (bettransRnG_TransIDList)
 
 END
@@ -289,7 +289,7 @@ UPDATE b
 		[actual_stake]	=	g.[actual_stake],
 		[netstake]	=	g.[netstake]
 FROM bettransG b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.bettransG G WITH (NOLOCK) ON trans.transid  = site3.transid
+	INNER JOIN DBCTG.bodb02.dbo.bettransG G WITH (NOLOCK) ON b.transid  = g.transid
 WHERE b.transid IN (bettransG_TransIDList)
 
 END
@@ -340,7 +340,7 @@ UPDATE b
 		[epositiontaking]	=	g.[epositiontaking],
 		[LicenseeTransId]	=	g.[LicenseeTransId]
 FROM Translog b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.Translog g WITH (NOLOCK) ON trans.translogid  = site3.translogid
+	INNER JOIN DBCTG.bodb02.dbo.Translog g WITH (NOLOCK) ON b.translogid  = g.translogid
 WHERE b.translogid IN (Translog_translogidList)
 END
 BEGIN-------- 7) Transfer  --------------------------------------
