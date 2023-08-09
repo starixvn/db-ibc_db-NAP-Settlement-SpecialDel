@@ -110,7 +110,7 @@ BEGIN--------compare 3) bettransLC  --------------------------------------
 								'
 						)
 	)
-	INSERT INTO #__CheckSum_MigrateSiteDB3_Temp ( recommend, TableName )
+	INSERT INTO #__CheckSum_MigrateSiteDB3_Temp ( transid, TableName )
 	SELECT ISNULL(s.transid, t.transid), 'bettransLC' AS TableName
 	FROM cte_bettrans_SITEDB3 s
 		FULL OUTER JOIN cte_bettrans_DBTRANS t
