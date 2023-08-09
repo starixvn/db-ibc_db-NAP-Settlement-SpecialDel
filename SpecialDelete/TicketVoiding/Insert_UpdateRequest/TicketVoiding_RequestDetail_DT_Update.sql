@@ -113,48 +113,32 @@ BEGIN
 
 	IF @IsEditRequest = 0 
 	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetail (
-			RequestId
-			, MatchId
-			, LeagueId
-			, HomeId
-			, AwayId
-			, RequestType
-			, SubIssueTypeId
-			, FilterBy
-			, TransIds
-		)
-		SELECT @RequestId
-			, @MatchId
-			, @LeagueId
-			, @HomeId
-			, @AwayId
-			, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
-			, @SubIssueTypeId
-			, @FilterBy
-			, CONVERT(VARCHAR(MAX), @xmlTransIds)
-
-		SET @RequestDetailId = SCOPE_IDENTITY()
+		DELETE FROM dbo.TicketVoiding_RequestDetail
+		WHERE RequestId = @RequestId
 	END
-	ELSE
-	BEGIN
-		SET @OldTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR (20))
-								  FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
-								  WHERE RequestId = @RequestId
-								  FOR XML PATH ('')),1,1,'')
 
-		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
-			SET	LeagueId = ISNULL(@LeagueId, LeagueId)
-				,@OldMatchId = MatchId
-				,MatchId = ISNULL(@MatchId, MatchId)
-				,HomeId = ISNULL(@HomeId, HomeId)
-				,AwayId = ISNULL(@AwayId, AwayId)
-				,RequestType = CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
-				,@OldSubIssueTypeId = SubIssueTypeId
-				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
-				,@RequestDetailId =Id
-		WHERE	RequestId = @RequestId
-	END
+	INSERT INTO dbo.TicketVoiding_RequestDetail (
+		RequestId
+		, MatchId
+		, LeagueId
+		, HomeId
+		, AwayId
+		, RequestType
+		, SubIssueTypeId
+		, FilterBy
+		, TransIds
+	)
+	SELECT @RequestId
+		, @MatchId
+		, @LeagueId
+		, @HomeId
+		, @AwayId
+		, CASE WHEN @ActionId IN (4,6,7,8) THEN 1 ELSE 0 END
+		, @SubIssueTypeId
+		, @FilterBy
+		, CONVERT(VARCHAR(MAX), @xmlTransIds)
+
+	SET @RequestDetailId = SCOPE_IDENTITY()
 	
 	IF @IsEditRequest = 1
 	BEGIN
