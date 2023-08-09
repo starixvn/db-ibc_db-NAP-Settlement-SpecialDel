@@ -22,8 +22,120 @@
 
 */
 BEGIN--------1) Bettransm  --------------------------------------
-UPDATE b 
-	SET
+
+	SELECT * 
+	INTO #temp_Bettransm
+	FROM DBCTG.bodb02.dbo.Bettransm  WITH (NOLOCK)
+	WHERE transid IN (bettransm_TransidList)
+
+	UPDATE b 
+		SET
+			[custid]	=	g.[custid],
+			[transdate]	=	g.[transdate],
+			[oddsid]	=	g.[oddsid],
+			[hdp1]	=	g.[hdp1],
+			[hdp2]	=	g.[hdp2],
+			[odds]	=	g.[odds],
+			[stake]	=	g.[stake],
+			[status]	=	g.[status],
+			[winlost]	=	g.[winlost],
+			[livehomescore]	=	g.[livehomescore],
+			[liveawayscore]	=	g.[liveawayscore],
+			[liveindicator]	=	g.[liveindicator],
+			[betteam]	=	g.[betteam],
+			[creator]	=	g.[creator],
+			[refno]	=	g.[refno],
+			[comstatus]	=	g.[comstatus],
+			[winlostdate]	=	g.[winlostdate],
+			[betfrom]	=	g.[betfrom],
+			[betcheck]	=	g.[betcheck],
+			[checktime]	=	g.[checktime],
+			[oddsspread]	=	g.[oddsspread],
+			[apositiontaking]	=	g.[apositiontaking],
+			[mpositiontaking]	=	g.[mpositiontaking],
+			[tpositiontaking]	=	g.[tpositiontaking],
+			[awinlost]	=	g.[awinlost],
+			[mwinlost]	=	g.[mwinlost],
+			[playerdiscount]	=	g.[playerdiscount],
+			[discount]	=	g.[discount],
+			[adiscount]	=	g.[adiscount],
+			[playercomm]	=	g.[playercomm],
+			[comm]	=	g.[comm],
+			[acomm]	=	g.[acomm],
+			[actualrate]	=	g.[actualrate],
+			[matchid]	=	g.[matchid],
+			[matchdate]	=	g.[matchdate],
+			[finalodds]	=	g.[finalodds],
+			[isfinish]	=	g.[isfinish],
+			[statuswinlost]	=	g.[statuswinlost],
+			[ruben]	=	g.[ruben],
+			[bettype]	=	g.[bettype],
+			[spositiontaking]	=	g.[spositiontaking],
+			[swinlost]	=	g.[swinlost],
+			[sdiscount]	=	g.[sdiscount],
+			[scomm]	=	g.[scomm],
+			[statusID]	=	g.[statusID],
+			[recommdate]	=	g.[recommdate],
+			[transdesc]	=	g.[transdesc],
+			[SecAcceptFlag]	=	g.[SecAcceptFlag],
+			[SecAcceptTime]	=	g.[SecAcceptTime],
+			[LiveBetAcceptTime]	=	g.[LiveBetAcceptTime],
+			[ReasonIDm]	=	g.[ReasonIDm]
+
+	FROM Bettransm b WITH (ROWLOCK, UPDLOCK)
+		INNER JOIN #temp_Bettransm g WITH (NOLOCK) ON b.transid  = g.transid
+	WHERE b.transid IN (bettransm_TransidList)
+
+END
+BEGIN--------2) zzzbettrans  --------------------------------------
+
+	SELECT * 
+	INTO #temp_zzzbettrans
+	FROM DBCTG.bodb02.dbo.zzzbettrans  WITH (NOLOCK)
+	WHERE keyid IN (zzzbettrans_KeyIDList)
+
+	UPDATE b	
+		SET 
+		[transid]	=	g.[transid],	
+		[custid]	=	g.[custid],	
+		[transdate]	=	g.[transdate],	
+		[oddsid]	=	g.[oddsid],	
+		[hdp1]	=	g.[hdp1],	
+		[hdp2]	=	g.[hdp2],	
+		[odds]	=	g.[odds],	
+		[stake]	=	g.[stake],	
+		[status]	=	g.[status],	
+		[winlost]	=	g.[winlost],	
+		[livehomescore]	=	g.[livehomescore],	
+		[liveawayscore]	=	g.[liveawayscore],	
+		[liveindicator]	=	g.[liveindicator],	
+		[betteam]	=	g.[betteam],	
+		[creator]	=	g.[creator],	
+		[refno]	=	g.[refno],	
+		[comstatus]	=	g.[comstatus],	
+		[winlostdate]	=	g.[winlostdate],	
+		[betfrom]	=	g.[betfrom],	
+		[betcheck]	=	g.[betcheck],	
+		[checktime]	=	g.[checktime],	
+		[matchid]	=	g.[matchid],	
+		[bettype]	=	g.[bettype],	
+		[VoidingHistoryId]	=	g.[VoidingHistoryId]	
+
+	FROM zzzbettrans b WITH (ROWLOCK, UPDLOCK)
+		INNER JOIN #temp_zzzbettrans g WITH (NOLOCK) ON b.keyid  = g.keyid
+	WHERE b.keyid IN (zzzbettrans_KeyIDList)
+
+END
+BEGIN--------3) zzzbettransm  --------------------------------------
+	
+	SELECT * 
+	INTO #temp_zzzbettransm
+	FROM DBCTG.bodb02.dbo.zzzbettransm  WITH (NOLOCK)
+	WHERE keyid IN (zzzbettransm_KeyIDList)
+
+	UPDATE b 
+		SET
+		[transid]	=	g.[transid],
 		[custid]	=	g.[custid],
 		[transdate]	=	g.[transdate],
 		[oddsid]	=	g.[oddsid],
@@ -44,106 +156,11 @@ UPDATE b
 		[betfrom]	=	g.[betfrom],
 		[betcheck]	=	g.[betcheck],
 		[checktime]	=	g.[checktime],
-		[oddsspread]	=	g.[oddsspread],
-		[apositiontaking]	=	g.[apositiontaking],
-		[mpositiontaking]	=	g.[mpositiontaking],
-		[tpositiontaking]	=	g.[tpositiontaking],
-		[awinlost]	=	g.[awinlost],
-		[mwinlost]	=	g.[mwinlost],
-		[playerdiscount]	=	g.[playerdiscount],
-		[discount]	=	g.[discount],
-		[adiscount]	=	g.[adiscount],
-		[playercomm]	=	g.[playercomm],
-		[comm]	=	g.[comm],
-		[acomm]	=	g.[acomm],
-		[actualrate]	=	g.[actualrate],
 		[matchid]	=	g.[matchid],
-		[matchdate]	=	g.[matchdate],
-		[finalodds]	=	g.[finalodds],
-		[isfinish]	=	g.[isfinish],
-		[statuswinlost]	=	g.[statuswinlost],
-		[ruben]	=	g.[ruben],
 		[bettype]	=	g.[bettype],
-		[spositiontaking]	=	g.[spositiontaking],
-		[swinlost]	=	g.[swinlost],
-		[sdiscount]	=	g.[sdiscount],
-		[scomm]	=	g.[scomm],
-		[statusID]	=	g.[statusID],
-		[recommdate]	=	g.[recommdate],
-		[transdesc]	=	g.[transdesc],
-		[SecAcceptFlag]	=	g.[SecAcceptFlag],
-		[SecAcceptTime]	=	g.[SecAcceptTime],
-		[LiveBetAcceptTime]	=	g.[LiveBetAcceptTime],
-		[ReasonIDm]	=	g.[ReasonIDm]
+		[VoidingHistoryId]	=	g.[VoidingHistoryId]	
 
-FROM Bettransm b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.Bettransm g WITH (NOLOCK) ON b.transid  = g.transid
-WHERE b.transid IN (bettransm_TransidList)
-
-END
-BEGIN--------2) zzzbettrans  --------------------------------------
-
-UPDATE b	
-	SET 
-	[transid]	=	g.[transid],	
-	[custid]	=	g.[custid],	
-	[transdate]	=	g.[transdate],	
-	[oddsid]	=	g.[oddsid],	
-	[hdp1]	=	g.[hdp1],	
-	[hdp2]	=	g.[hdp2],	
-	[odds]	=	g.[odds],	
-	[stake]	=	g.[stake],	
-	[status]	=	g.[status],	
-	[winlost]	=	g.[winlost],	
-	[livehomescore]	=	g.[livehomescore],	
-	[liveawayscore]	=	g.[liveawayscore],	
-	[liveindicator]	=	g.[liveindicator],	
-	[betteam]	=	g.[betteam],	
-	[creator]	=	g.[creator],	
-	[refno]	=	g.[refno],	
-	[comstatus]	=	g.[comstatus],	
-	[winlostdate]	=	g.[winlostdate],	
-	[betfrom]	=	g.[betfrom],	
-	[betcheck]	=	g.[betcheck],	
-	[checktime]	=	g.[checktime],	
-	[matchid]	=	g.[matchid],	
-	[bettype]	=	g.[bettype],	
-	[VoidingHistoryId]	=	g.[VoidingHistoryId]	
-
-FROM zzzbettrans b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.zzzbettrans g WITH (NOLOCK) ON b.keyid  = g.keyid
-WHERE b.keyid IN (zzzbettrans_KeyIDList)
-
-END
-BEGIN--------3) zzzbettransm  --------------------------------------
-UPDATE b 
-	SET
-	[transid]	=	g.[transid],
-	[custid]	=	g.[custid],
-	[transdate]	=	g.[transdate],
-	[oddsid]	=	g.[oddsid],
-	[hdp1]	=	g.[hdp1],
-	[hdp2]	=	g.[hdp2],
-	[odds]	=	g.[odds],
-	[stake]	=	g.[stake],
-	[status]	=	g.[status],
-	[winlost]	=	g.[winlost],
-	[livehomescore]	=	g.[livehomescore],
-	[liveawayscore]	=	g.[liveawayscore],
-	[liveindicator]	=	g.[liveindicator],
-	[betteam]	=	g.[betteam],
-	[creator]	=	g.[creator],
-	[refno]	=	g.[refno],
-	[comstatus]	=	g.[comstatus],
-	[winlostdate]	=	g.[winlostdate],
-	[betfrom]	=	g.[betfrom],
-	[betcheck]	=	g.[betcheck],
-	[checktime]	=	g.[checktime],
-	[matchid]	=	g.[matchid],
-	[bettype]	=	g.[bettype],
-	[VoidingHistoryId]	=	g.[VoidingHistoryId]	
-
-FROM zzzbettransm b WITH (ROWLOCK, UPDLOCK)
-	INNER JOIN DBCTG.bodb02.dbo.zzzbettransm G WITH (NOLOCK) ON b.keyid  = g.keyid
-WHERE b.keyid IN (zzzbettransm_KeyIDList)
+	FROM zzzbettransm b WITH (ROWLOCK, UPDLOCK)
+		INNER JOIN #temp_zzzbettransm g WITH (NOLOCK) ON b.keyid  = g.keyid
+	WHERE b.keyid IN (zzzbettransm_KeyIDList)
 END
