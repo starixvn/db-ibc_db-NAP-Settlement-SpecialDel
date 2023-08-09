@@ -26,8 +26,8 @@ CREATE TABLE #__recommendList(custid INT PRIMARY KEY)
 
 INSERT INTO #__recommendList(custid)
 SELECT DISTINCT custid
-FROM dbo.Customer c WITH (NOLOCK)
-	INNER JOIN dbo.Site s WITH(NOLOCK) ON c.Site = s.Site
+FROM CustDB.dbo.Customer c WITH (NOLOCK)
+	INNER JOIN CustDB.dbo.Site s WITH(NOLOCK) ON c.Site = s.Site
 WHERE s.SiteLabel  = 'IBC' AND c.roleid = 2
 
 BEGIN--------compare 1) zzzbettrans  --------------------------------------
@@ -86,10 +86,24 @@ BEGIN--------compare 2) zzzbettransm  --------------------------------------
 						)
 	)
 	
+	
 	INSERT INTO #__CheckSum_MigrateSiteDB3_Temp ( recommend, TableName )
 	SELECT ISNULL(s.recommend, t.recommend), 'zzzbettransm' AS TableName
 	FROM cte_bettrans_SITEDB3 s
 		FULL OUTER JOIN cte_bettrans_DBTRANS t
 			ON s.recommend = t.recommend
 	WHERE ISNULL(s.TotalCheckSum, 0) <> ISNULL(t.TotalCheckSum, 0)
+
+	SELECT COUNT(1) as cnt, TableName
+	FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)
+	GROUP BY TableName
+
+	SELECT t.TableName, STUFF (temp.agentlist,1,1,'') AS agentlist
+	FROM (SELECT DISTINCT TableName FROM #__CheckSum_MigrateSiteDB3_Temp WITH(NOLOCK)) AS t
+		CROSS APPLY (SELECT ',' + CONVERT(VARCHAR(100),t1.recommend)
+					FROM #__CheckSum_MigrateSiteDB3_Temp t1 WITH(NOLOCK)
+					WHERE t1.TableName = t.TableName
+					FOR XML PATH ('')
+					) AS temp(agentlist)
+
 END
