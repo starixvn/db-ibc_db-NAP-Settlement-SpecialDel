@@ -76,7 +76,7 @@ GO
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK)
 			ON tmp.custid = b.custid
 	WHERE b.winlostdate >= @winlostDate
-		OR b.matchid = 29
+		OR b.matchid IN (29, 2799)
 
 	----copy data bodb02.dbo.BettransInfo
 	SELECT binfo.transid, binfo.SecAcceptTime, binfo.LiveBetAcceptTime, binfo.OriginalOdds, binfo.RepUpdateTime, binfo.ThirdTransID
