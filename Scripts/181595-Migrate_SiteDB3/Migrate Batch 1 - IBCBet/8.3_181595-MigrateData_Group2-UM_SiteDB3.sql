@@ -40,6 +40,11 @@ GO
 			b.epositiontaking, b.ReasonID, b.sort, b.BetSiteID, b.RepUpdateTime, b.RepDstUpdateTime, b.SiteDBGroupID, b.FcUpdateTime
 	FROM DBCTG.SiteDBtmp.dbo.bettrans_UM b WITH (NOLOCK)
 
+	--BettransInfo
+	INSERT INTO dbo.BettransInfo (transid, SecAcceptTime, LiveBetAcceptTime, OriginalOdds, RepUpdateTime, ThirdTransID)
+	SELECT binfo.transid, binfo.SecAcceptTime, binfo.LiveBetAcceptTime, binfo.OriginalOdds, binfo.RepUpdateTime, binfo.ThirdTransID
+	FROM DBCTG.SiteDBtmp.dbo.BettransInfo_UM binfo WITH (NOLOCK)
+
 	--bettransLC
 	INSERT INTO dbo.bettransLC 
 	(	transid, custid, transdate, odds, stake, status, apositiontaking, mpositiontaking, tpositiontaking, spositiontaking, 
