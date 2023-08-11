@@ -33,6 +33,7 @@ SELECT   MessageId
 				OR Content_en LIKE '%Due to%the first penalty kick had been taken%considered VOID%'
 				OR Content_en LIKE '%Due to a goal was scored from a penalty awarded%VAR review for the match between%considered VOID%'
 				OR Content_en LIKE '%Due to an official decision to award%team%after reviewing VAR for the match between%considered VOID%'
+				OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
 				THEN 'Danger Accepted'
 			WHEN Content_en LIKE '%Due to%wrong odds displayed%considered VOID%' 
 				THEN 'Wrong Odds'
@@ -72,9 +73,9 @@ SELECT   MessageId
 			WHEN Content_en LIKE '%Due to%Player%did not participate%considered VOID%' THEN 'Not Participate'
 			--Issuetype: Reduced Over (Cricket)
 			WHEN Content_en LIKE '%Due to%the number of scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
+			WHEN Content_en LIKE '%Due to technical error%considered VOID%' THEN 'Technical Error'
 			WHEN Content_en LIKE '%Due to % corner has been completed%considered VOID%'
 				OR Content_en LIKE '%Due to%wrong event start time displayed%considered VOID%'
-				OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
                 OR Content_en LIKE '%Due to%has been completed%considered VOID%'
 				OR Content_en LIKE '%Due to%number of rounds have changed%considered VOID%'
 			THEN 'Other Issues'
@@ -245,7 +246,7 @@ CROSS APPLY (
 		ON m.leagueid = l.leagueid																							
 WHERE l.isTest = 0																
 	
-SELECT	DISTINCT CASE WHEN ms.MessageContent NOT LIKE   '%Due to abnormal bets%considered VOID%' THEN 'Yes' ELSE 'No' END IsMonthly																									
+SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
 	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
@@ -265,7 +266,7 @@ FROM #temp_transid ms WITH (NOLOCK)
 GROUP BY ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate
 
-SELECT	DISTINCT CASE WHEN ms.MessageContent NOT LIKE   '%Due to abnormal bets%considered VOID%' THEN 'Yes' ELSE 'No' END IsMonthly																									
+SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																										
 	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
@@ -286,7 +287,7 @@ GROUP BY ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, 
 ORDER BY winlostdate	
 
 
-SELECT	DISTINCT CASE WHEN ms.MessageContent NOT LIKE   '%Due to abnormal bets%considered VOID%' THEN 'Yes' ELSE 'No' END IsMonthly																									
+SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
 	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
