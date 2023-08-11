@@ -21,6 +21,7 @@ AS
 		- 20221125@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230403@July: Remove check count single/parlay [Redmine: #172975]
+		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
 
 	Param's explanation:
 		+ @IssueTypeId : 4 - Wrong HDP, 5 - Wrong 1st HDP
@@ -35,8 +36,6 @@ BEGIN
 			,@LogDataContent	 NVARCHAR(MAX)
 
 	DECLARE	 @WrongHDPInfoXML	 XML = NULL	
-			,@PHBettypes		 VARCHAR(MAX) =''
-			,@MainMatchId		 INT
 
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
@@ -131,22 +130,6 @@ BEGIN
 			AS WrongHDP
 	FROM @WrongHDPInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@WrongHDPInfoXML = NULL))
-	
-	SELECT @MainMatchId = MatchID FROM #tblGetLogInfo WHERE WrongHDP LIKE '%IsMainMatch="true"%' AND WrongHDP LIKE '%PoolHouseCheckedBetTypes="ALL"%'
-	IF @MainMatchId IS NOT NULL
-	BEGIN
-		SET @PHBettypes = STUFF((SELECT DISTINCT ',' + CAST(Subbettype AS VARCHAR(10))
-									  FROM #tmpTransInfo 
-									  WHERE matchid = @MainMatchId
-									  AND 1 = CASE WHEN IsMixParlay = 0 AND ((@IssueTypeId = 4 AND Subbettype <> 1)OR (@IssueTypeId = 5 AND Subbettype <> 7)) THEN 1
-												   WHEN IsMixParlay = 1 THEN 1
-												   ELSE 0 END
-									  FOR XML PATH ('')
-								),1,1,'')
-		UPDATE #tblGetLogInfo
-		SET WrongHDP = SUBSTRING(WrongHDP,0, LEN(WrongHDP) - 6)  + @PHBettypes+ '" />'
-		WHERE MatchID = @MainMatchId
-	END
 
 	IF @IsEditRequest = 1
 	BEGIN
