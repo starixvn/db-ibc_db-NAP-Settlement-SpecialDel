@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidSingleBet_Select]
 	@OddsFilter		  XML		   = NULL,
     @SettledType      VARCHAR(100) = 'All',
     @SecondAcceptFlag TINYINT      = 0,
+	@IsCheckTime	  BIT		   = 1,
 	@SelectionSubParlays VARCHAR(200) = ''
 )
 AS
@@ -141,8 +142,8 @@ AS
 
 		- @OddsFilter: <root><r o="0.75&1.25" ost="DEC"/></root>
 		 - @SelectionSubParlays: 
-			+ IF @SingleOrSubParlay: 'All' OR 'Single' => default : ''
-			+ IF @SingleOrSubParlay: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
+			+ IF @Bet: 'All' OR 'Single' => default : ''
+			+ IF @Bet: 'SubParlay' => value : '2,3,4,5,6,7,8,9,10 UP'
 */
 BEGIN
 	SET NOCOUNT ON
@@ -352,20 +353,18 @@ BEGIN
              );
 
 	DECLARE @SportType SMALLINT
-	DECLARE @tmpMatchId TABLE (MatchId INT)
+	DECLARE @tmpMatchId TABLE (MatchId INT, Sporttype SMALLINT)
 	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 
-	SELECT	@SportType = Sporttype
-	FROM	dbo.match WITH(NOLOCK) 
-	WHERE	matchid = @matchid
-
-	INSERT INTO @tmpMatchId (MatchId)
-	SELECT MatchId
+	INSERT INTO @tmpMatchId (MatchId, Sporttype)
+	SELECT MatchId, Sporttype
 	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN @SportType <> 50 AND matchid = @MatchId THEN 1
-					WHEN @SportType = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+	WHERE  1 = CASE WHEN Sporttype <> 50 AND matchid = @MatchId THEN 1
+					WHEN Sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
 					ELSE 0 END
-					
+	
+	SELECT	@SportType = Sporttype FROM @tmpMatchId WHERE matchid = @matchid
+
 	IF @SportType <> 44
 	BEGIN
 		SET @SportType = NULL
@@ -383,142 +382,262 @@ BEGIN
 	INSERT INTO @tmp_Odds (Odds, OddsType)
 	SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, @OddsType_Input) f
 			
-	-- search tickets
 	-- Search Single Tickets
 	IF @Bet = 'All' OR @Bet = 'Single'
 	BEGIN
-		INSERT INTO #SpecialDeleteBets (
-			GroupID
-			,transid
-			,custid	
-			,odds
-			,oddsspread	
-			,OddsType
-			,transdate
-			,checktime
-			,bettype
-			,betteam
-			,betcheck
-			,hdp1
-			,hdp2
-			,IsLiveIndicator
-			,livehomescore 
-			,liveawayscore 
-			,creator
-			,Stake
-			,CurrencyName
-			,status
-			,srecommend
-			,mrecommend		
-			,recommend
-			,SecAcceptFlag
-			,betid
-			,betdaqid
-			,TransDesc
-			,refno
-			,mainstatusid
-			,ExtraInfo
-			,IsCashOut
-			,WalletType
-			,RefCode
-			,BonusID
-			,WinLost
-			,FilterBettype
-			,FilterBetTeam
-			,FilterSet
-			,FilterGame	
-			,FilterValue
-			,FilterGoal
-			,FilterBetOption
-			,FilterHdp1
-			,FilterHdp2
-			,FilterOddsSpread
-			,FilterOddsId
-			,FilterTransdesc
-			,IsMarked
-			,ActualStake
-			,OddsId
-			,SiteDBGroupId
-			,FilterOdds
-		)
-		SELECT
-			b.transid,
-			b.transid,
-			b.custid,
-			b.odds,   
-			b.oddsspread,
-			b.OddsType,  
-			b.transdate,
-			b.checktime,
-			b.bettype,
-			b.betteam,
-			b.betcheck,
-			b.hdp1,
-			b.hdp2,
-			b.liveindicator,
-			b.livehomescore,
-			b.liveawayscore,
-			b.creator,
-			b.stake,
-			b.CurrencyName, 
-			CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 
-										   AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting'
-				 ELSE b.status END AS status,
-			b.srecommend,
-			b.mrecommend,
-			b.recommend,
-			ISNULL(SecAcceptFlag,0) SecAcceptFlag,
-			b.betid,
-			b.betdaqid,
-			b.transdesc,
-			b.refno,			
-			b.statusID AS mainstatusid,
-			b.ExtraInfo,
-			CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END	AS IsCashOut,
-			b.WalletType,
-			b.RefCode,
-			b.BonusID,
-			b.WinLost - b.actual_stake AS WinLost,
-			b.bettype AS FilterBetType,
-			b.betteam AS FilterBetTeam,
-			b.betid AS FilterSet,
-			RIGHT(b.betid, 2) AS FilterGame,
-			b.hdp1 + b.hdp2 AS FilterValue,
-			ISNULL(b.betid, 0) AS FilterGoal,
-			CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
-			b.hdp1 AS FilterHdp1,
-			CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
-			CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread,-- 229:SABA HDP Time Machine
-			b.oddsid AS FilterOddsId,
-			b.transdesc AS FilterTransdesc,
-			CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
-			b.actual_stake AS ActualStake,
-			b.oddsid
-			,b.SiteDBGroupID
-			,b.odds AS FilterOdds
-		FROM 
-			dbo.bettrans b WITH (NOLOCK)
-			INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
-			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
-		WHERE
-			b.matchid IN (SELECT matchid FROM @tmpMatchId)
-			AND CASE
-					WHEN @TimeType = 0 THEN b.transdate
-					WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
-					WHEN @TimeType = 1 AND b.checktime IS NULL THEN b.transdate
-				END BETWEEN @FromTransdate AND @ToTransdate
-			AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
-			AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
-			AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
-			AND statusID NOT IN (101,102, 103) -- reject, void, refund		
-			AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
-			AND b.betfrom <> 'p'	
-			AND b.SiteDBGroupID = @SiteDBGroupID
+		IF @IsCheckTime = 1 --checkbox for the time range
+		BEGIN
+			INSERT INTO #SpecialDeleteBets (
+				GroupID
+				,transid
+				,custid	
+				,odds
+				,oddsspread	
+				,OddsType
+				,transdate
+				,checktime
+				,bettype
+				,betteam
+				,betcheck
+				,hdp1
+				,hdp2
+				,IsLiveIndicator
+				,livehomescore 
+				,liveawayscore 
+				,creator
+				,Stake
+				,CurrencyName
+				,status
+				,srecommend
+				,mrecommend		
+				,recommend
+				,SecAcceptFlag
+				,betid
+				,betdaqid
+				,TransDesc
+				,refno
+				,mainstatusid
+				,ExtraInfo
+				,IsCashOut
+				,WalletType
+				,RefCode
+				,BonusID
+				,WinLost
+				,FilterBettype
+				,FilterBetTeam
+				,FilterSet
+				,FilterGame	
+				,FilterValue
+				,FilterGoal
+				,FilterBetOption
+				,FilterHdp1
+				,FilterHdp2
+				,FilterOddsSpread
+				,FilterOddsId
+				,FilterTransdesc
+				,IsMarked
+				,ActualStake
+				,OddsId
+				,SiteDBGroupId
+				,FilterOdds
+			)
+			SELECT
+				b.transid,
+				b.transid,
+				b.custid,
+				b.odds,   
+				b.oddsspread,
+				b.OddsType,  
+				b.transdate,
+				b.checktime,
+				b.bettype,
+				b.betteam,
+				b.betcheck,
+				b.hdp1,
+				b.hdp2,
+				b.liveindicator,
+				b.livehomescore,
+				b.liveawayscore,
+				b.creator,
+				b.stake,
+				b.CurrencyName, 
+				CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting' ELSE b.status END AS status,
+				b.srecommend,
+				b.mrecommend,
+				b.recommend,
+				ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+				b.betid,
+				b.betdaqid,
+				b.transdesc,
+				b.refno,			
+				b.statusID AS mainstatusid,
+				b.ExtraInfo,
+				CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END	AS IsCashOut,
+				b.WalletType,
+				b.RefCode,
+				b.BonusID,
+				b.WinLost - b.actual_stake AS WinLost,
+				b.bettype AS FilterBetType,
+				b.betteam AS FilterBetTeam,
+				b.betid AS FilterSet,
+				RIGHT(b.betid, 2) AS FilterGame,
+				b.hdp1 + b.hdp2 AS FilterValue,
+				ISNULL(b.betid, 0) AS FilterGoal,
+				CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
+				b.hdp1 AS FilterHdp1,
+				CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
+				CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread,-- 229:SABA HDP Time Machine
+				b.oddsid AS FilterOddsId,
+				b.transdesc AS FilterTransdesc,
+				CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
+				b.actual_stake AS ActualStake,
+				b.oddsid
+				,b.SiteDBGroupID
+				,b.odds AS FilterOdds
+			FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
+				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
+			WHERE b.matchid IN (SELECT matchid FROM @tmpMatchId)
+				AND CASE
+						WHEN @TimeType = 0 THEN b.transdate
+						WHEN @TimeType = 1 AND b.checktime IS NOT NULL THEN b.checktime
+						WHEN @TimeType = 1 AND b.checktime IS NULL THEN b.transdate
+					END BETWEEN @FromTransdate AND @ToTransdate
+				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
+				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+				AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
+				AND statusID NOT IN (101,102, 103) -- reject, void, refund		
+				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
+				AND b.betfrom <> 'p'	
+				AND b.SiteDBGroupID = @SiteDBGroupID
+		END
+		ELSE --Disable time range
+		BEGIN
+			INSERT INTO #SpecialDeleteBets (
+				GroupID
+				,transid
+				,custid	
+				,odds
+				,oddsspread	
+				,OddsType
+				,transdate
+				,checktime
+				,bettype
+				,betteam
+				,betcheck
+				,hdp1
+				,hdp2
+				,IsLiveIndicator
+				,livehomescore 
+				,liveawayscore 
+				,creator
+				,Stake
+				,CurrencyName
+				,status
+				,srecommend
+				,mrecommend		
+				,recommend
+				,SecAcceptFlag
+				,betid
+				,betdaqid
+				,TransDesc
+				,refno
+				,mainstatusid
+				,ExtraInfo
+				,IsCashOut
+				,WalletType
+				,RefCode
+				,BonusID
+				,WinLost
+				,FilterBettype
+				,FilterBetTeam
+				,FilterSet
+				,FilterGame	
+				,FilterValue
+				,FilterGoal
+				,FilterBetOption
+				,FilterHdp1
+				,FilterHdp2
+				,FilterOddsSpread
+				,FilterOddsId
+				,FilterTransdesc
+				,IsMarked
+				,ActualStake
+				,OddsId
+				,SiteDBGroupId
+				,FilterOdds
+			)
+			SELECT
+				b.transid,
+				b.transid,
+				b.custid,
+				b.odds,   
+				b.oddsspread,
+				b.OddsType,  
+				b.transdate,
+				b.checktime,
+				b.bettype,
+				b.betteam,
+				b.betcheck,
+				b.hdp1,
+				b.hdp2,
+				b.liveindicator,
+				b.livehomescore,
+				b.liveawayscore,
+				b.creator,
+				b.stake,
+				b.CurrencyName, 
+				CASE WHEN b.status = 'running' AND ISNULL(b.SecAcceptFlag, 0) = 1 AND ISNULL(b.checktime, CURRENT_TIMESTAMP) > CURRENT_TIMESTAMP THEN 'waiting' ELSE b.status END AS status,
+				b.srecommend,
+				b.mrecommend,
+				b.recommend,
+				ISNULL(SecAcceptFlag,0) SecAcceptFlag,
+				b.betid,
+				b.betdaqid,
+				b.transdesc,
+				b.refno,			
+				b.statusID AS mainstatusid,
+				b.ExtraInfo,
+				CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END	AS IsCashOut,
+				b.WalletType,
+				b.RefCode,
+				b.BonusID,
+				b.WinLost - b.actual_stake AS WinLost,
+				b.bettype AS FilterBetType,
+				b.betteam AS FilterBetTeam,
+				b.betid AS FilterSet,
+				RIGHT(b.betid, 2) AS FilterGame,
+				b.hdp1 + b.hdp2 AS FilterValue,
+				ISNULL(b.betid, 0) AS FilterGoal,
+				CAST(CAST(b.hdp2 AS INT) AS VARCHAR(50)) + '-' + b.betteam AS FilterBetOption,
+				b.hdp1 AS FilterHdp1,
+				CASE WHEN bt.id = 646 THEN ABS(b.hdp2) ELSE b.hdp2 END AS FilterHdp2, --646: Match Handicap & Total
+				CASE WHEN bt.id = 229 THEN ABS(b.oddsspread) ELSE b.oddsspread END AS FilterOddsSpread,-- 229:SABA HDP Time Machine
+				b.oddsid AS FilterOddsId,
+				b.transdesc AS FilterTransdesc,
+				CASE WHEN m.TransId IS NULL THEN 0 ELSE 1 END AS IsMarked,
+				b.actual_stake AS ActualStake,
+				b.oddsid
+				,b.SiteDBGroupID
+				,b.odds AS FilterOdds
+			FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
+				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
+			WHERE b.matchid IN (SELECT matchid FROM @tmpMatchId)
+				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE b.liveIndicator END = @LiveIndicator
+				AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE b.livehomescore END
+				AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE b.liveawayscore END			
+				AND statusID NOT IN (101,102, 103) -- reject, void, refund		
+				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 THEN ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END	
+				AND b.betfrom <> 'p'	
+				AND b.SiteDBGroupID = @SiteDBGroupID
+		END
 	END
 
 	-- Search Parlay Tickets
 	IF @Bet = 'All' OR @Bet = 'Sub Parlay'	
 	BEGIN
+		IF @IsCheckTime = 1 --checkbox for the time range
 		BEGIN
 			INSERT INTO #SpecialDeleteBetsm (
 				CustId
@@ -545,38 +664,95 @@ BEGIN
 				,SiteDBGroupId
 			)
 			SELECT
-				bm.custid, 
-				bm.oddsspread,
-				bm.transdate,
-				bm.checktime,
-				bm.liveindicator,
-				bm.livehomescore,
-				bm.liveawayscore,
-				bm.creator,
-				bm.transdesc,
-				bm.refno,
-				bm.transid AS SubTransId,
-				bm.status AS SubStatus,
-				bm.betcheck AS SubBetCheck,
-				bm.betteam AS SubBetTeam,
-				bm.bettype AS SubBetType,
-				bm.hdp1 AS SubHdp1,
-				CASE WHEN bt.id = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS SubHdp2, --646: Match Handicap & Total
-				bm.odds As SubOdds,
-				CASE WHEN bt.id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread,-- 229:SABA HDP Time Machine
-				bm.oddsid,
-				bm.transdesc
+				 bm.custid 
+				,bm.oddsspread
+				,bm.transdate
+				,bm.checktime
+				,bm.liveindicator
+				,bm.livehomescore
+				,bm.liveawayscore
+				,bm.creator
+				,bm.transdesc
+				,bm.refno
+				,bm.transid AS SubTransId
+				,bm.status AS SubStatus
+				,bm.betcheck AS SubBetCheck
+				,bm.betteam AS SubBetTeam
+				,bm.bettype AS SubBetType
+				,bm.hdp1 AS SubHdp1
+				,CASE WHEN bt.id = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS SubHdp2 --646: Match Handicap & Total
+				,bm.odds As SubOdds
+				,CASE WHEN bt.id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread-- 229:SABA HDP Time Machine
+				,bm.oddsid
+				,bm.transdesc
 				,bm.SiteDBGroupID
-			FROM 
-				dbo.bettransm bm WITH (NOLOCK)
-				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = bm.bettype
-			WHERE
-				bm.matchid IN (SELECT matchid FRom @tmpMatchId)
+			FROM dbo.bettransm bm WITH (NOLOCK)
+				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
+			WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
 				AND	CASE
 						WHEN @TimeType = 0 THEN bm.transdate
 						WHEN @TimeType = 1 AND bm.checktime IS NOT NULL THEN bm.checktime
 						WHEN @TimeType = 1 AND bm.checktime IS NULL THEN bm.transdate
 					END BETWEEN @FromTransdate AND @ToTransdate
+				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
+				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
+				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END			
+				AND bm.statusID NOT IN (101,102, 103) -- reject, void, refund
+				AND bm.betfrom <> 'p'
+				AND bm.SiteDBGroupID = @SiteDBGroupID
+		END
+		ELSE --Disable time range
+		BEGIN
+			INSERT INTO #SpecialDeleteBetsm (
+				CustId
+				,OddsSpread			
+				,TransDate
+				,checktime
+				,LiveIndicator	
+				,LiveHomeScore 	
+				,LiveAwayScore 	
+				,Creator
+				,TransDesc	
+				,Refno
+				,SubTransId
+				,SubStatus
+				,SubBetCheck
+				,SubBetTeam
+				,SubBetType
+				,SubHdp1
+				,SubHdp2
+				,SubOdds
+				,SubOddsSpread
+				,SubOddsId
+				,SubTransDesc
+				,SiteDBGroupId
+			)
+			SELECT
+				 bm.custid 
+				,bm.oddsspread
+				,bm.transdate
+				,bm.checktime
+				,bm.liveindicator
+				,bm.livehomescore
+				,bm.liveawayscore
+				,bm.creator
+				,bm.transdesc
+				,bm.refno
+				,bm.transid AS SubTransId
+				,bm.status AS SubStatus
+				,bm.betcheck AS SubBetCheck
+				,bm.betteam AS SubBetTeam
+				,bm.bettype AS SubBetType
+				,bm.hdp1 AS SubHdp1
+				,CASE WHEN bt.id = 646 THEN ABS(bm.hdp2) ELSE bm.hdp2 END AS SubHdp2 --646: Match Handicap & Total
+				,bm.odds As SubOdds
+				,CASE WHEN bt.id = 229 THEN ABS(bm.oddsspread) ELSE bm.oddsspread END AS SubOddsSpread-- 229:SABA HDP Time Machine
+				,bm.oddsid
+				,bm.transdesc
+				,bm.SiteDBGroupID
+			FROM dbo.bettransm bm WITH (NOLOCK)
+				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
+			WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
 				AND CASE WHEN @LiveIndicator = 2 THEN @LiveIndicator ELSE bm.liveIndicator END = @LiveIndicator
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveIndicator = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END			
@@ -698,7 +874,8 @@ BEGIN
 				,bm.SiteDBGroupId
 				,bm.SubOdds AS FilterOdds
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
-				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) ON b.matchid	= 29 AND bm.refno = b.refno
+				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) 
+					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
 		END
 		
 		IF @SelectionSubParlays <> ''
