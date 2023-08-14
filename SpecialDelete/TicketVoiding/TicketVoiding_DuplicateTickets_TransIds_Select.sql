@@ -106,7 +106,7 @@ BEGIN
 		GROUP BY r.GroupId		
 	)
 	SELECT t.GroupId AS Id
-		,t.OrgTransIds
+		,REPLACE(t.OrgTransIds, ',', ', ') AS OrgTransIds
 		,t.VoidedTransIds
 		,t1.usernames
 		,t1.EmailGroup
