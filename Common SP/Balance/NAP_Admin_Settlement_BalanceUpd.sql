@@ -2,6 +2,7 @@
 CREATE PROCEDURE dbo.NAP_Admin_Settlement_BalanceUpd
 (	 @BalanceChanged		TVP_BalanceWalletChange READONLY 
 	,@ActionID              INT  
+	,@BalanceType			TINYINT	 = 1 --sport
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 )
@@ -14,7 +15,8 @@ AS
 	Revisions: 
         - 20230214@Aries: Created [Redmine: #182677]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
-		
+		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
+
 	Param's Explanation:
 
 */	
@@ -25,25 +27,48 @@ BEGIN
             ,@CheckNegativeBalance  INT = 0 
 
 	BEGIN TRY
+
 		SET @StepNumber = 1
-
-		INSERT INTO dbo.BalCreditSportsPending (custid, balance)
-		SELECT	custid, SUM(Balance) Balance
-		FROM	@BalanceChanged t
-		GROUP BY custid
-		HAVING SUM(Balance) > 0
-	
+		IF @BalanceType = 1
+		BEGIN
+			INSERT INTO dbo.BalCreditSportsPending (custid, balance)
+			SELECT	custid, SUM(Balance) Balance
+			FROM	@BalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) > 0
+		END
+		ELSE IF @BalanceType = 4
+		BEGIN
+			INSERT INTO dbo.BalCreditOthersPending(custid, Balance)
+			SELECT	custid, SUM(Balance) Balance
+			FROM	@BalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) > 0
+		END
+		
 		SET @StepNumber = 2
+		IF @BalanceType = 1
+		BEGIN
+			INSERT INTO dbo.BalDebitSportsPending(custid, balance)
+			SELECT	custid, ABS(SUM(Balance)) Balance
+			FROM	@BalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) < 0
+			
+			SET @CheckNegativeBalance = @@ROWCOUNT
+		END
+		ELSE IF @BalanceType = 4
+		BEGIN
+			INSERT INTO dbo.BalDebitOthersPending(custid, Balance)
+			SELECT	custid, ABS(SUM(Balance)) Balance
+			FROM	@BalanceChanged t
+			GROUP BY custid
+			HAVING SUM(Balance) < 0
 
-		INSERT INTO dbo.BalDebitSportsPending(custid, balance)
-		SELECT	custid, ABS(SUM(Balance)) Balance
-		FROM	@BalanceChanged t
-		GROUP BY custid
-		HAVING SUM(Balance) < 0
-		SET @CheckNegativeBalance = @@ROWCOUNT
-	
-		SET @StepNumber = 3
+			SET @CheckNegativeBalance = @@ROWCOUNT
+		END
 
+		SET @StepNumber = 3		
 		IF @CheckNegativeBalance <> 0 AND OBJECT_ID('BalanceNegative','U') IS NOT NULL
 		BEGIN
 			INSERT INTO [dbo].[BalanceNegative] (
@@ -59,7 +84,7 @@ BEGIN
 			SELECT	GETDATE()
 					,MatchID
 					,@ActionId
-					,1 AS GroupID 
+					,CASE WHEN @BalanceType = 4 THEN 7 ELSE 1 END AS GroupID 
 					,CustID
 					,SUM(Balance)
 					,0

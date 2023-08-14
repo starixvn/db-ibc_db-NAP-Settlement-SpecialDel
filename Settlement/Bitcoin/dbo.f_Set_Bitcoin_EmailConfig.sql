@@ -13,6 +13,7 @@ AS
 		- 20211005@Kathy: Change email on Prod [Redmine:#159714]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
+		- 20230704@Louisa: Update email from csd.one1@enpine.com to csd.one1@enpine.com [Redmine:#189854]
 		
 	Columns Explanation:    
     
@@ -92,7 +93,7 @@ RETURN (
 			--,'qa@starixvn.com'
 			, 'it@starixvn.com;'
 			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'DBTRANS'
 			, 'PROD'
 
@@ -103,7 +104,7 @@ RETURN (
 			--,'qa@starixvn.com'
 			, 'it@starixvn.com;'
 			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'DBGRP01N1'
 			, 'PROD'
 
@@ -114,7 +115,7 @@ RETURN (
 			--,'qa@starixvn.com'
 			, 'it@starixvn.com;'
 			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'csoneonone@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
 			, 'DBGRP01N2'
 			, 'PROD'
 

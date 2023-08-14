@@ -19,7 +19,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Match_Update]
 	@IsHTRound					BIT = 0,
 	@IsMovedMatch				BIT = 0,
 	@HTBetStatus				NVARCHAR(50) = NULL,
-	@FTBetStatus				NVARCHAR(50) = NULL
+	@FTBetStatus				NVARCHAR(50) = NULL,
+	@SelectedResources			VARCHAR(MAX) = NULL
+	
 )
 AS
 /*
@@ -71,9 +73,13 @@ AS
 		- 20220719@Louisa: Update match.multiple = 1 before calcualte/refund for VSBetradar [Redmine:#175251]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251] 
         - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20230704@Louisa:  Integrate Virtual Leap Gaming - VS3 [Redmine:#189854]
 
     Parameters Explanation:
-
+		 @SelectedResources = <Resources>
+                                    <Resource Id="00" Home="1" Away="3" /> 
+                                    <Resource Id="01" Home="1" Away="2" />
+                              </Resources> 
 
 */
 BEGIN
@@ -82,7 +88,10 @@ BEGIN
     DECLARE @Sporttype		INT
 			,@eventstatus	VARCHAR(20)
 			,@ParentMatchId	INT
-			,@NewMatchCode NVARCHAR(100)
+			,@NewMatchCode	NVARCHAR(100)
+			,@handle		INT
+
+	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
 
     SET @BetStatus = ISNULL(@BetStatus, N'')
 
@@ -93,6 +102,30 @@ BEGIN
 
 	IF @IsMovedMatch = 0 AND @ParentMatchId IS NOT NULL -- child match of cricket
 		RETURN
+
+	IF @SelectedResources IS NOT NULL AND @Sporttype > 99 --use for 3rd product
+	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue)
+		SELECT Id, Home, Away
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
+															,Home VARCHAR(50)
+															,Away VARCHAR(50)
+											) AS tbl
+		EXEC sp_xml_removedocument @handle
+
+		SELECT TOP(1) 
+			 @FTHome = HomeValue
+			,@FTAway = AwayValue
+  		FROM @tmpSelectedRID sr
+  		WHERE sr.ResourceID = '00'
+
+  		SELECT TOP(1)	
+			 @HTHome = HomeValue
+			,@HTAway = AwayValue
+  		FROM @tmpSelectedRID sr
+  		WHERE sr.ResourceID = '01' 
+	END
 
     IF @Command = 'NAP_Admin_Settlement_1-UNDO'
     BEGIN
