@@ -382,11 +382,6 @@ BEGIN
 			WHERE NOT EXISTS( SELECT TOP 1 1 FROM #validTransId it WHERE rdt.TransId=it.transid) -- exist vs input
 					AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = rdt.TransId)-- exist in # request
 					AND rdt.RequestId = @RequestId
-	
-			INSERT INTO @tmpUnmarkTransId (TransId, Matchid)
-			SELECT v.transid, matchid 
-			FROM #validTransId v
-			WHERE v.IsOrg <> 1
 			
 			--Add mark ticket when edit request (mark all again -> support case unmark by function SD)
 			INSERT INTO @tmpMarkTransId (TransId, MatchId)
