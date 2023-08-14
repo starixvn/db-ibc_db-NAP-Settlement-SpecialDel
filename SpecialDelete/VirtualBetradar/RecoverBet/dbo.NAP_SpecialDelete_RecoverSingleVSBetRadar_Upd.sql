@@ -300,8 +300,7 @@ BEGIN
 		  AND z.winlostdate >= @before_yesterday
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
-				OR m.sporttype IN (180, 186) -- Inspired VS 180
-				OR m.sporttype IN (178) -- VS 3 (Leap Gaming)
+				OR m.sporttype IN (180, 186, 178) -- Inspired VS 180, VS 3 (Leap Gaming)
 			 )
 		  AND z.bettype NOT IN (2799)
 		  AND z.SiteDBGroupID = @SiteDBGroupID
@@ -759,9 +758,9 @@ BEGIN
 						   ,@strTransIds		 = @TicketInfos_Recal
 						   ,@EventTable			 = 1
 						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 1
-						   ,@CWLBettype			 = 1210
-						   ,@BalanceType		 = 4					
+						   ,@IsCalculateBalance  = 0
+						   ,@CWLBettype			 = 0
+						   ,@BalanceType		 = 0				
 		
 				--> Refund		
 				SET @_xml = (
@@ -781,9 +780,9 @@ BEGIN
 						   ,@strTransIds		 = @TicketInfos_Refund
 						   ,@EventTable			 = 1
 						   ,@Is3rd				 = 1 
-						   ,@IsCalculateBalance  = 1
-						   ,@CWLBettype			 = 1210
-						   ,@BalanceType		 = 4			
+						   ,@IsCalculateBalance  = 0
+						   ,@CWLBettype			 = 0
+						   ,@BalanceType		 = 0		
 			END
 		END		
 
