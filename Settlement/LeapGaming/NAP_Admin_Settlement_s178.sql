@@ -154,7 +154,7 @@ BEGIN
 			   ,@EventTable			 = 1
 			   ,@Is3rd				 = 1 
 			   ,@IsCalculateBalance  = 1
-			   ,@CWLBettype			 = 1210
+			   ,@CWLBettype			 = 1201
 			   ,@BalanceType		 = 4
 
 		END	
