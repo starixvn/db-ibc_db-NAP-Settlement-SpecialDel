@@ -93,17 +93,30 @@ BEGIN
 	FROM	dbo.match WITH(NOLOCK)
 	WHERE	matchid = @MatchId
 
-	INSERT INTO @tmp_TransIds (Remained, Voided)
-	SELECT  CASE WHEN r.IsOrg = 1 THEN CONVERT(VARCHAR(50), r.transid) ELSE @OrgTransIds END,
-			STUFF(
-					(SELECT ', ' + CAST(transid AS VARCHAR(MAX)) 
-				FROM #tmpTransInfo t
-				WHERE (t.IsOrg <> 1 OR t.IsOrg = 0) AND t.DuplicateGroup = r.DuplicateGroup
-				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,''
-			) AS TransIds
-	FROM #tmpTransInfo r
-	WHERE (r.IsOrg = 1 OR r.IsOrg = 0)
-	order by DuplicateGroup
+	IF @ActionId = 4
+	BEGIN
+		INSERT INTO @tmp_TransIds (Remained, Voided)
+		SELECT  CASE WHEN r.IsOrg = 1 THEN CONVERT(VARCHAR(50), r.transid) ELSE @OrgTransIds END,
+				STUFF(
+						(SELECT ', ' + CAST(transid AS VARCHAR(MAX)) 
+					FROM #tmpTransInfo t
+					WHERE (t.IsOrg <> 1) AND t.DuplicateGroup = r.DuplicateGroup
+					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,''
+				) AS TransIds
+		FROM #tmpTransInfo r
+		WHERE (r.IsOrg = 1)
+		ORDER BY DuplicateGroup
+	END
+	ELSE
+	BEGIN
+		INSERT INTO @tmp_TransIds (Remained, Voided)
+		SELECT  @OrgTransIds,
+				STUFF(
+						(SELECT ', ' + CAST(transid AS VARCHAR(MAX)) 
+					FROM #tmpTransInfo t
+					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,''
+				) AS TransIds
+	END
 
 	SELECT @xmlTransIds = (SELECT t.Remained AS '@OrgTransIds'
 								, t.Voided AS '@VoidedTransIds'
