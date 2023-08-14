@@ -111,7 +111,7 @@ BEGIN
 							FOR XML PATH('r'), ROOT('root')
 						)
 
-	IF @IsEditRequest = 0 
+	IF @IsEditRequest = 1 
 	BEGIN
 		DELETE FROM dbo.TicketVoiding_RequestDetail
 		WHERE RequestId = @RequestId

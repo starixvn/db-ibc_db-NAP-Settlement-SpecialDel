@@ -101,7 +101,7 @@ BEGIN
 				CROSS APPLY (
 						SELECT STUFF((SELECT ',' + t.c.value('@OrgTransIds','VARCHAR(MAX)') 
 						FROM t.xDATA.nodes('root/r') t(c)
-						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,2,'')
+						FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,1,'')
 					)xTrans (OrgTransIds)
 				WHERE rd.RequestId = @RequestId
 		)

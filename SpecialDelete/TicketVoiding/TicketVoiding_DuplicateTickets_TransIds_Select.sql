@@ -86,21 +86,21 @@ BEGIN
 				FROM cte_TransInfo
 				WHERE (GroupId = r.GroupId)
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,''
+				,1,1,''
 			) AS usernames
 			,STUFF((
 				SELECT DISTINCT ', ' + CAST(EmailGroup AS VARCHAR(MAX)) 
 				FROM cte_TransInfo
 				WHERE (GroupId = r.GroupId)
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,''
+				,1,1,''
 			) AS EmailGroup
 			,STUFF((
 				SELECT DISTINCT ', ' + CAST(site AS VARCHAR(MAX)) 
 				FROM cte_TransInfo
 				WHERE (GroupId = r.GroupId)
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
-				,1,2,''
+				,1,1,''
 			) AS site
 		FROM cte_TransInfo r
 		GROUP BY r.GroupId		
