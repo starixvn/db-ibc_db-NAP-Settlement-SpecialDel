@@ -14,6 +14,7 @@ AS
 	Revisions: 
 		- 20221201@Max: Create new SP [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 
 	Param's explanation:
 */
@@ -54,7 +55,7 @@ BEGIN
 			FROM dbo.TicketVoiding_AutoVoidQueue q WITH (NOLOCK) 
 			WHERE t.RequestId IN (SELECT CAST(value AS INT) FROM STRING_SPLIT(q.RequestIds,','))
 			)q
-	WHERE q.Action = 'CAL'
+	WHERE q.Action IN ('CAL','VoidResultKeyed')
 		AND q.StatusId = 0
 	
 	--Get statusWL of tiket

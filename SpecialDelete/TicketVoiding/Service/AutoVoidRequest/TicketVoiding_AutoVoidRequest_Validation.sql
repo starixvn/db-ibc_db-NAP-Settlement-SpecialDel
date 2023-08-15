@@ -4,7 +4,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Validation]
 	 @SingleTicketsJSON			NVARCHAR(MAX) = NULL
 	,@ParlayTicketsJSON			NVARCHAR(MAX) = NULL
 	,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
-	,@CricketTicketsJSON	NVARCHAR(MAX) = NULL
+	,@CricketTicketsJSON		NVARCHAR(MAX) = NULL
 )
 AS
 /*	
@@ -20,6 +20,7 @@ AS
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 
 	Param's explanation:
 		
@@ -213,6 +214,7 @@ BEGIN
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType <> 2
+			AND b.statuswinlost IS NOT NULL
 
 		INSERT INTO #ParlayTickets (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
 		SELECT t.TransId
@@ -225,6 +227,7 @@ BEGIN
 		FROM #tmpInputTransId t
 			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType = 2
+			AND b.statuswinlost IS NOT NULL
 	END
 	
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets WHERE TicketType = 1 --SingleVoid
