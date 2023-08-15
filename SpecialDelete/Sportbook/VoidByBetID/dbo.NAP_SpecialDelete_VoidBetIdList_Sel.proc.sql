@@ -66,6 +66,7 @@ AS;
 		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -192,7 +193,7 @@ BEGIN
 					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
 					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
 					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-					WHEN @IsNonSport = 1 AND ProductID IN (3,5,27) THEN 1
+					WHEN @IsNonSport = 1 AND ProductID IN (3,5,27,77) THEN 1
 				ELSE 0 END
 			END
 		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
