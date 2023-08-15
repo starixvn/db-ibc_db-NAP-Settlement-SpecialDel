@@ -21,6 +21,8 @@
 
 */
 
+-- use for Group 1 BeforeUM and Group 2 UM
+
 ---Run on SITEDB3
 /* find text and replace by list of wrong recommends 
 1) Bettrans -> bettrans_recommendList
