@@ -7,9 +7,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_OtherSports]
     ,@RunOnServer                   VARCHAR(100) = NULL
 	,@EventTable					TINYINT = 1 -- match
 	,@Is3rd							BIT =  0
-	,@IsCalculateBalance			BIT =  0
-	,@BalanceType					TINYINT = 0
-	,@CWLBettype					SMALLINT = 0
 AS
 /*
     Created: 20181016@Vicky
@@ -27,7 +24,6 @@ AS
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
-		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
 
     Param's Explanation:
 
@@ -90,9 +86,6 @@ BEGIN
 				,@MatchId		= @matchid
 				,@EventTable	= @EventTable
 				,@Is3rd			= @Is3rd
-				,@IsCalculateBalance	=  @IsCalculateBalance
-				,@CWLBettype	= @CWLBettype
-				,@BalanceType	= @BalanceType
         END
         ELSE IF @action LIKE 'REFUND%'
         BEGIN
@@ -101,9 +94,6 @@ BEGIN
 				,@MatchId		= @matchid				   
 				,@EventTable	= @EventTable
 				,@Is3rd			= @Is3rd
-				,@IsCalculateBalance	=  @IsCalculateBalance
-				,@CWLBettype	= @CWLBettype
-				,@BalanceType	= @BalanceType
         END       
         ELSE IF @action LIKE 'UNDO%'
         BEGIN
