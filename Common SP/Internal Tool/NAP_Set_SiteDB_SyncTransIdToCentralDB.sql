@@ -14,9 +14,8 @@ AS
     DB: DBSIG/bodb02
 
 	Revisions:
-		- 20230208@Louisa: Sync ticket from SiteDB to Central [RedmineId:#179505]
-
-
+		- 20230208@Louisa: Sync ticket from SiteDB to Central [RedmineId:#179505]		
+		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 */
 BEGIN
 

@@ -11,6 +11,7 @@ AS
 		- 20220913@Louisa: Get log in waiting/running/fail from SiteDB_SettlementService_LastLog [RedmineId:#177711]
 		- 20221122@Louisa: Internal tool to update SiteDB_SettlementService_LastLog [RedmineId:#180746]
 		- 20230208@Louisa: support queue 3rd [RedmineId:#179505]
+		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 	
 	Param's Explanation:
 

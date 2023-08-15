@@ -18,6 +18,7 @@ AS
 	
 	Revisions:
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
+		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
 		
 	Param's Explanation:  
 		   
