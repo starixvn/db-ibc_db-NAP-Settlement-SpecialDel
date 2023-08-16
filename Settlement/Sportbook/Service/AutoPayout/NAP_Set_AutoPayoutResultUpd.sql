@@ -6,6 +6,9 @@ ALTER PROCEDURE dbo.NAP_Set_AutoPayoutResultUpd
 	, @IsIncludedUpdateMatch 	BIT = 0
 	, @IsUndoMatch				BIT = 0	
 	, @SourceId 				TINYINT = NULL
+	, @SportType 				SMALLINT = 1
+	, @SelectedResources		VARCHAR(MAX)	= NULL
+	, @IsConfirm				BIT = 0	
 AS
 /*
 	Creator: 20160310@Patrick
@@ -19,6 +22,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393] 
 		- 20230214@Aries: Apply Settlement by Profile for Remaining Sports - Prepare data for table tennis [Redmine: #182677]
 		- 20230407@Aries: Apply Settlement by Profile for Remaining Sports - Remove code [Redmine: #182677]
+		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		
 	Param's Explanation:
 		- @StatusId: 0: New
@@ -33,8 +37,11 @@ BEGIN
 	DECLARE @AutoSetting 		TINYINT	
 		 , @AutoSettingLeague	TINYINT
 		 , @AutoPayoutResultId	INT
+		 , @handle				INT
+
+	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20))
 	
-	IF @IsUndoMatch = 1
+	IF @IsUndoMatch = 1 AND @SportType = 1
 	BEGIN
 		DELETE
 		FROM	dbo.AutoPayoutResult WITH(ROWLOCK, UPDLOCK)
@@ -56,6 +63,43 @@ BEGIN
 		--#90796 End modify
 
 
+	END
+	ELSE IF @IsUndoMatch = 1 AND @SportType = 2
+	BEGIN
+		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
+		INSERT INTO @tmpResourcesWeb(ResourceID)
+		SELECT Id
+		FROM OPENXML(@handle,'Resources/Resource',1) WITH(Id VARCHAR(20)) AS tbl
+		WHERE Id LIKE 'Q[1-4]'  OR  Id IN ('01', '00')
+		EXEC sp_xml_removedocument @handle
+
+		IF NOT EXISTS (SELECT 1 FROM @tmpResourcesWeb)
+		BEGIN
+			RETURN
+		END
+
+		UPDATE dbo.match WITH(ROWLOCK, UPDLOCK)
+		SET AutoSetting =  (CASE WHEN AutoSetting & 2 > 0 THEN AutoSetting ^ 2 
+								 WHEN AutoSetting IS NULL THEN 0
+								 ELSE AutoSetting 
+							END)
+			,changetime = GETDATE()
+		WHERE matchid = @MatchId
+
+		IF @IsConfirm = 0
+		BEGIN
+			DELETE ap
+			FROM dbo.AutoPayoutResultOS  AS ap 
+			WHERE ap.matchid = @MatchId
+			  AND EXISTS (SELECT 1 FROM @tmpResourcesWeb AS rs WHERE ap.ResourceID = rs.ResourceID)
+			  AND ap.SourceID = 98
+
+			DELETE p
+			FROM dbo.ProviderExternalResultDetail  AS p
+			WHERE p.matchid = @MatchId
+			  AND EXISTS (SELECT 1 FROM @tmpResourcesWeb AS rs WHERE p.ResourceID = rs.ResourceID)
+			  AND p.SourceID = 98
+		END 
 	END
 	ELSE
 	BEGIN

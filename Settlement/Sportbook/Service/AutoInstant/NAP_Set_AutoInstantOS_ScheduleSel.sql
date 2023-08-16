@@ -63,8 +63,8 @@ BEGIN
 	 AND NOT EXISTS (SELECT 1
 				     FROM dbo.ResultDetail AS rd WITH(NOLOCK)
 					 WHERE rd.MatchId = m.MatchId
-						AND rd.ResultStatusID IN (2,3,4,5)	--Auto settled/Confirm/UNDO/Manually settled
-						AND rd.ResourceID = r.ResourceId)			
+						AND rd.ResourceID = r.ResourceId 
+						AND rd.ResultStatusID IN (2,3,5))		
      AND NOT EXISTS (SELECT 1
 	 				 FROM dbo.AutoPayoutResultOS AS a WITH(NOLOCK)
 	 				 WHERE a.MatchID = m.MatchID

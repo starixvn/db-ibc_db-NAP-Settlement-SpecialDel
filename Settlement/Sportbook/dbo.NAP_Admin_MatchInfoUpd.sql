@@ -35,6 +35,7 @@ AS
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -485,7 +486,18 @@ BEGIN
 				,@matchid 			= @MatchId
 				,@SelectedRID   	= @SelectedResources
 				,@Sporttype			= @Sporttype
-				,@creator 			= @AdminId			
+				,@creator 			= @AdminId	
+			
+			IF @SportType = 2
+			BEGIN
+				EXEC dbo.NAP_Set_AutoPayoutResultUpd 
+						@MatchId = @matchid
+						,@TypeId = NULL
+						,@StatusId = NULL 
+						,@IsUndoMatch = 1 
+						,@SportType = @SportType
+						,@SelectedResources = @SelectedResources
+			END 
 		END
 	END
 	ELSE IF @Action LIKE 'REFUND%'
@@ -604,6 +616,17 @@ BEGIN
 						,@IsHTRound         = @existsHTRound
 
 			END
+
+			IF @SportType = 2
+			BEGIN
+				EXEC dbo.NAP_Set_AutoPayoutResultUpd 
+						@MatchId = @matchid
+						,@TypeId = NULL
+						,@StatusId = NULL 
+						,@IsUndoMatch = 1 
+						,@SportType = @SportType
+						,@SelectedResources = @SelectedResources
+			END 
 		END
 	END
 END

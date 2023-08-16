@@ -6,6 +6,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_Profile_Instant_Push
 	,@SelectedResources			VARCHAR(MAX)
 	,@IP						VARCHAR(15)
 	,@DeterminedType			TINYINT			= 0
+	,@BroadcastSessionId		VARCHAR(50)		= NULL
     ,@ErrCode					INT             = 0     OUTPUT
     ,@ErrMsg					NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -44,6 +45,7 @@ BEGIN
 							+ ', @SelectedResources = '''	+ CONVERT(NVARCHAR(MAX), @SelectedResources) + ''''
 							+ ', @IP = '''					+ CONVERT(NVARCHAR(50), @IP) + '''' 	 
 							+ ', @DeterminedType = '		+ CONVERT(NVARCHAR(50), @DeterminedType) 
+							+ IIF(@BroadcastSessionId IS NOT NULL,', @BroadcastSessionId = ''' + @BroadcastSessionId + '''','')
 							+ ', @ErrCode = @ErrCode OUTPUT' 
 							+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -63,8 +65,8 @@ BEGIN
     END
     ELSE
     BEGIN
-        INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, execTime)
-        SELECT @MatchId, @matchcode, 0 AS IsCalculating, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand, NULL
+        INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, execTime,BroadcastSessionId)
+        SELECT @MatchId, @matchcode, 0 AS IsCalculating, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand, NULL,@BroadcastSessionId
     END
 END
 GO

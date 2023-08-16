@@ -216,6 +216,8 @@ BEGIN
 				,@Q3Away = ISNULL(SUM(CASE WHEN ResourceId = 'Q3' THEN AwayValue ELSE 0 END), 0)
 				,@Q4Home = ISNULL(SUM(CASE WHEN ResourceId = 'Q4' THEN HomeValue ELSE 0 END), 0)
 				,@Q4Away = ISNULL(SUM(CASE WHEN ResourceId = 'Q4' THEN AwayValue ELSE 0 END), 0)
+				,@OTHome = ISNULL(SUM(CASE WHEN ResourceId = 'OT' THEN HomeValue ELSE 0 END), 0)
+				,@OTAway = ISNULL(SUM(CASE WHEN ResourceId = 'OT' THEN AwayValue ELSE 0 END), 0)
 		FROM	@tmpResultDetail
 		WHERE	ResourceId LIKE 'Q[1-4]'
 				OR ResourceId IN ('01','00','OT')

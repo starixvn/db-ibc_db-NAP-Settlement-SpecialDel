@@ -39,11 +39,6 @@ WHERE SportType = 2
     AND (BetType IN (3,401,402,646)  OR (BetType IN (610,615,616) AND ResourceID = 'Q4'))
 
 
--- Bit 8 - OT
-UPDATE SettlementSpecialBettypeProfile
-SET SDTInstant = ISNULL(SDTInstant,0) |  128
-WHERE SportType = 2
-    AND BetType IN (3,401,402,646)
 
 
 

@@ -90,7 +90,7 @@ BEGIN
 		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
 		, IsCalculated BIT
 		, IsWeb BIT
-		, IsCalculated BIT, MinusValue SMALLMONEY  DEFAULT(0)
+		, MinusValue SMALLMONEY  DEFAULT(0)
 	)
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
@@ -346,7 +346,7 @@ BEGIN
 				WHERE bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (1,101)
-					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
+					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) AND m.modds IS NOT NULL  THEN 1
 								 WHEN @IsReSettledTickets = 1 AND m.modds IS NOT NULL THEN 1
 								 WHEN @IsReSettledTickets = 1 AND m.modds IS NULL AND  (bm.statusID IN (111,112,113) OR  ISNULL(bm.statuswinlost,'') != '') AND sr.IsCalculated = 0 THEN 1
 								 ELSE 0

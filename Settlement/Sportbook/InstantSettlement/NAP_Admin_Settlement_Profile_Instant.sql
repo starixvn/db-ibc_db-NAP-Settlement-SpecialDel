@@ -410,7 +410,7 @@ BEGIN
 
 	
 	BEGIN
-		IF @IsInstant = 1
+		IF @IsInstant = 1 AND @IsCentral = 1
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 				 @MatchId 			= @matchid
@@ -425,21 +425,22 @@ BEGIN
 		WHERE	HomeValue != ''
             AND AwayValue != ''
 
-		SET @RemarkSDT = @Remark + IIF(@IsInstant = 0,', ' + @RemarkSDT,'')
+		SET @RemarkSDT = @Remark + ', ' + @RemarkSDT
 		SET @Remark = 'Selected: ' + @RemarkSDT + '<br/>'
 					 +'Duration: ' + CAST(DATEDIFF(MILLISECOND, @Start, @Stop) AS NVARCHAR(50)) + ' ms;' 
 					 +'TC: ' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) 
-
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-					 @userid			= @AdminId
-					,@matchid			= @MatchId
-					,@actionid			= @ActionID
-					,@finalhomescore	= @fth
-					,@finalawayscore	= @fta
-					,@hthomescore		= @hth
-					,@htawayscore		= @hta
-					,@Remark			= @Remark
-					,@ip				= @IP
+		
+		IF @IsCentral = 1
+			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+						 @userid			= @AdminId
+						,@matchid			= @MatchId
+						,@actionid			= @ActionID
+						,@finalhomescore	= @fth
+						,@finalawayscore	= @fta
+						,@hthomescore		= @hth
+						,@htawayscore		= @hta
+						,@Remark			= @Remark
+						,@ip				= @IP
 		
 	END
 
