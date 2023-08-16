@@ -21,22 +21,22 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT, IsCricket BIT DEFAULT(0))
+	CREATE TABLE #tmpInputTransId (TransId BIGINT, RequestId INT, IsMixParlay BIT DEFAULT(0), IssueTypeId TINYINT, VoidActionId TINYINT, IsCricket BIT DEFAULT(0))
 
 	IF @SingleTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, VoidActionId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, tbl.VoidActionId
 		FROM OPENJSON(@SingleTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT) tbl
 	END
 
 	IF @ParlayTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId)
-		SELECT tbl.TransId, tbl.RequestId, 1, tbl.IssueTypeId
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IsMixParlay, IssueTypeId, VoidActionId)
+		SELECT tbl.TransId, tbl.RequestId, 1, tbl.IssueTypeId, tbl.VoidActionId
 		FROM OPENJSON(@ParlayTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT) tbl
 	END
 
 	IF @CricketTicketsJSON IS NOT NULL
@@ -59,7 +59,7 @@ BEGIN
 		AND q.StatusId = 0
 	
 	--Get statusWL of tiket
-	SELECT DISTINCT t.RequestId
+	SELECT DISTINCT t.RequestId, t.VoidActionId
 	FROM #tmpInputTransId t 
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 	WHERE b.statuswinlost IS NOT NULL 

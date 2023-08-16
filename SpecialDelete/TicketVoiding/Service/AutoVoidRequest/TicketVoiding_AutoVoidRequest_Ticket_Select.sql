@@ -16,6 +16,7 @@ AS
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230321@Max: Hotfix scan request auto void winning [Redmine: #185526]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
+		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 
 	Param's explanation:
 		+ Both @RequestIds, @SiteDBGroupID IS NULL: Service scan signal settle 5p/time
@@ -23,8 +24,8 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT, bettype SMALLINT, CustId INT)
-	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT)
+	CREATE TABLE #SingleTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT, bettype SMALLINT, CustId INT, VoidActionId TINYINT)
+	CREATE TABLE #ParlayTickets (TransId BIGINT, RequestId INT, IssueTypeId INT, MatchId INT, SiteDBGroupId SMALLINT, VoidActionId TINYINT)
 	
 	IF @RequestIds IS NOT NULL
 	BEGIN
@@ -59,28 +60,36 @@ BEGIN
 	ELSE --Get all ticket all requests
 	BEGIN
 		--Single
-		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId
+		INSERT INTO #SingleTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, bettype, CustId, VoidActionId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, rds.Bettype, rds.CustId, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = rds.MatchId
 		WHERE rds.MatchId <> 29
-			AND r.ActionId = 1
+			AND r.ActionId IN (1,9)
 			AND rds.IsProcessed IS NULL
 			AND GETDATE() >= m.GlobalShowTime
 
 		--Main parlay
-		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId)
-		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, VoidActionId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, r.ActionId
 		FROM dbo.TicketVoiding_RequestDetailTicket_Single rds WITH (NOLOCK)
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId
 		WHERE rds.MatchId = 29
 			AND r.ActionId = 1
 			AND rds.IsProcessed IS NULL
+
+		--Sub parlay for Reduced Over
+		INSERT INTO #ParlayTickets (TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, VoidActionId)
+		SELECT  rds.transid, rds.RequestId, rds.IssueTypeId, rds.MatchId, rds.SiteDBGroupID, r.ActionId
+		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rds WITH (NOLOCK)
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = rds.RequestId AND r.IssueTypeId = 19
+		WHERE r.ActionId = 9
+			AND rds.IsProcessed IS NULL
 	END
 
 	--Single ticket exclude cricket bettype 501 of credit (NP)
-	SELECT TransId, RequestId, IssueTypeId, MatchId, s.SiteDBGroupId 
+	SELECT TransId, RequestId, IssueTypeId, MatchId, s.SiteDBGroupId, s.VoidActionId
 	FROM #SingleTickets s
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = s.CustId
 		LEFT JOIN CustDB.dbo.Dep_CustSuper ds WITH (NOLOCK) ON ds.custid = c.srecommend
@@ -89,7 +98,7 @@ BEGIN
 			ELSE 0 END
 
 	--Parlay
-	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId FROM #ParlayTickets
+	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, VoidActionId FROM #ParlayTickets
 
 	--Cricket bettype 501 of credit (NP)
 	SELECT TransId, RequestId, IssueTypeId, MatchId, s.SiteDBGroupId 
