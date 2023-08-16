@@ -21,16 +21,25 @@ BEGIN
 
 	DECLARE @IsITSupport		BIT = 0
 		,@IsITSupportCreatedRequest BIT = 0
+		,@SiteDBGroupId		SMALLINT = 0
 
 	CREATE TABLE #tmp_TransIdsXML (GroupId INT IDENTITY(1,1), OrgTransIds VARCHAR(MAX), VoidedTransIds VARCHAR(MAX))
+	CREATE TABLE #tmp_TransId (TransId BIGINT)
 
 	--Check IT User
 	SELECT @IsITSupport = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (vh.UserId,2)),0)
 		, @IsITSupportCreatedRequest = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (r.UserId,2)),0) 
+		, @SiteDBGroupId = vh.SiteDBGroupID
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK)
 			ON r.RequestId =  vh.RequestId
 	WHERE	vh.VoidingHistoryId = @VoidingHistoryId
+
+	INSERT INTO #tmp_TransId (TransId)
+	SELECT Transid
+	FROM TicketVoiding_RequestDetailTicket_Single
+	WHERE RequestId = @RequestId
+		AND SiteDBGroupID = @SiteDBGroupId
 
 	--Get data XML from request
 	INSERT INTO #tmp_TransIdsXML (OrgTransIds, VoidedTransIds)
@@ -67,7 +76,9 @@ BEGIN
 				ELSE c.site
 			END AS EmailGroup
 			,b.currency
+			,f.TransId
 		FROM cte_Voided f
+			INNER JOIN #tmp_TransId t ON t.TransId = f.TransId
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = f.TransId
 			INNER JOIN CustDB.dbo.customer c WITH (NOLOCK) ON c.custid = b.custid
 	)
@@ -102,12 +113,19 @@ BEGIN
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,1,''
 			) AS site
+			,STUFF((
+				SELECT  ',' + CAST(TransId AS VARCHAR(MAX)) 
+				FROM cte_TransInfo
+				WHERE (GroupId = r.GroupId)
+				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
+				,1,1,''
+			) AS VoidedTransIds
 		FROM cte_TransInfo r
 		GROUP BY r.GroupId		
 	)
 	SELECT t.GroupId AS Id
 		,REPLACE(t.OrgTransIds, ',', ', ') AS OrgTransIds
-		,t.VoidedTransIds
+		,t1.VoidedTransIds
 		,t1.usernames
 		,t1.EmailGroup
 		,t1.site
