@@ -20,7 +20,7 @@ AS
 		- 20220531@Kathy: performance tunning [Redmine:#173456]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
-
+		- 20230816@Kathy: parlay boost [Redmine:#191873]
 	Param's Explanation:
 */
 BEGIN
@@ -33,6 +33,7 @@ BEGIN
 			,@settlementTime	DATETIME
 			,@transInfoJson		NVARCHAR(MAX)
 			,@IsSiteDB			BIT = 0
+			,@CurrentBonusAmount MONEY
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
@@ -40,7 +41,9 @@ BEGIN
 	DECLARE @tmpSource TABLE (TransId BIGINT PRIMARY KEY, WinlostDate SMALLDATETIME
 		, totalStake MONEY, Winlost MONEY, aWinlost MONEY, mWinlost MONEY, sWinlost MONEY
 		, playerComm MONEY, comm MONEY, aComm MONEY, sComm MONEY
-		, ruben TINYINT, IsMarked BIT)
+		, ruben TINYINT, IsMarked BIT
+		, BonusAmount MONEY DEFAULT(0), xmlExtraInfo XML
+	)
 	
 	DECLARE @tmpTransInfo TABLE (transId BIGINT			
 		,SettlementTime DATETIME,Status NVARCHAR(10),StatusID TINYINT
@@ -48,7 +51,7 @@ BEGIN
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,statuswinlost TINYINT
-
+		,ExtraInfo VARCHAR(1000)
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
 	)
@@ -78,18 +81,46 @@ BEGIN
 	INSERT INTO @tmpSource (TransId, WinlostDate, totalStake
 		,Winlost, aWinlost, mWinlost, sWinlost
 		,playerComm, comm, aComm, sComm
-		,ruben, IsMarked
-	)
+		,ruben, IsMarked, BonusAmount)
 	SELECT b.transid, MAX(pr.winlostdate), SUM(pr.stake)
 		,SUM(pr.winlost), SUM(pr.awinlost), SUM(pr.mwinlost),  SUM(pr.swinlost) 
 		,SUM(pr.playercomm), SUM(pr.comm), SUM(pr.acomm), SUM(pr.scomm) 			
 		,CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
 		,b.IsMarked
+		,ISNULL(MAX(pr.stake * (pr.mOdds - 1)/(1 + pr.ExtraValue) * pr.ExtraValue),0)
 	FROM #Refno b 
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK)
 			ON pr.refno = b.refno
 	WHERE pr.RefNo >= @minRefno
 	GROUP BY b.refno, b.transid, b.IsMarked
+
+	UPDATE	s
+		SET xmlExtraInfo = b2.xmlExtraInfo								
+	FROM	@tmpSource s
+		CROSS APPLY (SELECT b1.xmlExtraInfo
+							,ISNULL(b1.xmlExtraInfo.value('(/p1/@bba)[1]', 'MONEY'),0) AS currentBonusAmount
+					 FROM ( SELECT	CAST(ISNULL(b.ExtraInfo,'') AS XML) AS xmlExtraInfo
+							FROM	dbo.bettrans b WITH(NOLOCK)
+							WHERE	b.TransId = s.TransId
+									AND	b.oddsspread = 2
+						) b1
+			)b2
+	WHERE	b2.currentBonusAmount <> s.BonusAmount
+			AND s.IsMarked = 0
+
+	IF @@ROWCOUNT > 0 -- has boost
+	BEGIN
+		UPDATE s
+			SET xmlExtraInfo.modify('replace value of (/p1/@bba)[1] with sql:column("BonusAmount")')
+		FROM	@tmpSource s
+		WHERE	xmlExtraInfo.exist('/p1/@bba') = 1 
+
+		UPDATE s 
+			SET xmlExtraInfo.modify('insert(attribute bba {sql:column("BonusAmount")}) into (/p1)[1]')
+		FROM	@tmpSource s
+		WHERE	BonusAmount > 0
+				AND xmlExtraInfo.exist('/p1/@bba') = 0 		
+	END
 	
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 	SET @statusId = CASE
@@ -144,14 +175,15 @@ BEGIN
 							WHEN @statusId = 113 THEN 4								
 							WHEN @statusId = 0 THEN NULL
 						END 
+		,ExtraInfo = CASE WHEN s.xmlExtraInfo IS NOT NULL AND CAST(s.xmlExtraInfo AS VARCHAR(1000)) <> b.ExtraInfo THEN CAST(s.xmlExtraInfo AS VARCHAR(1000))  ELSE b.ExtraInfo END
 	OUTPUT inserted.transid
 		,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 
 		,inserted.Status,inserted.StatusID,inserted.winlostdate,inserted.betdaqid,inserted.ruben
 		,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 		,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-		, Inserted.Statuswinlost
-		
+		,Inserted.Statuswinlost
+		,inserted.ExtraInfo
 		,deleted.winlost
 		,deleted.statusid	
 	INTO @tmpTransInfo (transId
@@ -160,6 +192,7 @@ BEGIN
 		,WinLost,aWinLost,mWinLost,sWinLost
 		,PlayerComm,Comm,aComm,sComm
 		,statuswinlost
+		,ExtraInfo
 
 		,bef_winlost
 		,bef_statusid
@@ -187,6 +220,7 @@ BEGIN
 					,aComm AS 'ac' 
 					,sComm AS 'sc' 
 					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl' 
+					,ExtraInfo AS 'ex'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
 			FROM	@tmpTransInfo
