@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_BetFair]
 	@matchid int,
 	@creator int, 	
 	@IP varchar(15) = '',
+	@BroadcastSessionId VARCHAR(50)	= NULL,
 	@ErrCode int = 0 OUTPUT,
 	@ErrMsg nvarchar(200) = '' OUTPUT
 AS
@@ -25,6 +26,7 @@ Revisions:
 	- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 	- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 	- 20230523@Kathy: scaleout credit [Redmine:#188452]
+	- 20230817@Kathy: Write log [Redmine:#192311]
 
 Param's Explanation:
 • @matchid: matchid need to refund
@@ -47,6 +49,7 @@ BEGIN
 			,@start				DATETIME
 			,@stop				DATETIME
 			,@IsCentral			BIT = 0	
+			,@SiteDBGroupId	TINYINT
 
 	DECLARE @tblDebitPending TVP_BalanceList
 	DECLARE @tblCreditPending TVP_BalanceList
@@ -174,15 +177,7 @@ BEGIN
 	DROP TABLE #BalanceAfter
 
 	----------------------------------------------------
-
-	SELECT	@stop = CURRENT_TIMESTAMP
-
-	Declare @LogData nvarchar(200)
-	SELECT @LogData = 'NAP: Calculate (Refund Running BetFair) for matchid:' + CAST(@matchid as nvarchar(10))
-	EXEC dbo.WriteLog_UserLog @creator, @LogData
-
 	--Write Log Settle
-	IF @IsCentral = 1
 	BEGIN
 		DECLARE 
 			@finalhomescore INT, @finalawayscore INT,
@@ -197,7 +192,12 @@ BEGIN
 			@betstatus = betstatus
 		 FROM dbo.match WITH(NOLOCK) WHERE matchid = @matchid
 
-		SELECT @Remark ='NAP: Duration=' + CAST(DATEDIFF(millisecond, @start, @stop) as nvarchar(50)) + ' ms;'
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark ='<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'							
+						+ '</root>'
 
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
 			@UserID = @creator,
@@ -210,7 +210,8 @@ BEGIN
 			@GoalRecord =@GoalRecord,
 			@betstatus = @betstatus,
 			@Remark = @Remark,
-			@IP = @IP
+			@IP = @IP,
+			@BroadcastSessionId = @BroadcastSessionId
 	 END   
 	  
 	------ releasing Settlement process

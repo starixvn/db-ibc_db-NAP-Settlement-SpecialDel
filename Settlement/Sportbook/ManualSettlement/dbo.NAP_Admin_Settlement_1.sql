@@ -90,6 +90,7 @@ AS
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -140,6 +141,7 @@ BEGIN
 		,@AutoSetting					TINYINT
 
 		,@IsCentral						BIT
+		,@SiteDBGroupId					TINYINT
 		
 	DECLARE @tmpParlayAffectedBettypes TABLE (ResourceId VARCHAR(20), RefResourceId VARCHAR(20), bettype SMALLINT, totalticket INT)	
 
@@ -327,7 +329,8 @@ BEGIN
 	FROM    dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN dbo.f_Set_GetGroupBettypes() f
 				ON b.bettype = f.BetType
-	WHERE  	b.matchid = @matchid					
+	WHERE  	b.matchid = @matchid	
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND b.bettype <= 19000
 			AND b.bettype NOT IN (10, 31, 32, 33, 1231, 1232, 1233, 1237, 1238, 38) -- Outright, VSRacing, Betbuilder
 			AND b.bettype NOT BETWEEN 1501 AND 1599 -- Keno
@@ -357,6 +360,7 @@ BEGIN
         , @Action 			= @Action
         , @Mode 			= 2 --@Mode Manual Settlement       
 		, @IsRefundHT		= @IsRefundHT
+		, @IsCentral		= @IsCentral
 
     SELECT @TotalAccount = @@ROWCOUNT
          
@@ -492,7 +496,8 @@ BEGIN
             @MatchId 			= @matchId
             , @sportType 	    = @sporttype
             , @Action 			= @Action
-            , @Mode 			= 2 --@Mode Manual Settlement              
+            , @Mode 			= 2 --@Mode Manual Settlement 
+			, @IsCentral		= @IsCentral			
 				
 
 		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
@@ -521,6 +526,7 @@ BEGIN
         , @Action 			= @Action
         , @Mode 			= 2 --@Mode Manual Settlement           
 		, @IsRefundHT		= @IsRefundHT
+		, @IsCentral		= @IsCentral
 
 	SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT a.custid)
 	FROM @BalanceWalletAfter a
@@ -543,16 +549,20 @@ BEGIN
 		, @IsReleased		= 1
 
 
-	SELECT @stop = CURRENT_TIMESTAMP	
+	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 	
-	SELECT @Remark ='NAP: ' + CASE    WHEN ISNULL(@goalrecord_old,'')='' THEN ''
-                                ELSE 'Old GoalRecord:' + @goalrecord_old + '<br/> '
-                                END
-						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @starttime, @stop) AS NVARCHAR(50)) + ' ms;' 
-                        + ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) + ';'
-                        + ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-
-	IF @IsCentral = 1
+	SELECT @Remark = '<distinct>'
+							+ CASE WHEN ISNULL(@goalrecord_old,'') <> '' THEN '<r n="Old GoalRecord" v="' + @goalrecord_old + '"/>' ELSE '' END
+					+ '</distinct>'
+					+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @starttime, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
+							+ '<r t="s" n="TC" v="' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20))  + '"/>'	
+							+ '<r t="s" n="Total account updated balance" v="' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20))  + '"/>'	
+							+ '<r t="s" n="Total account" v="' + CAST(ISNULL(@TotalAccount, 0) AS VARCHAR(20))  + '"/>'	
+					+ '</root>'			
+	-- write log
 	BEGIN
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
 			@UserID                = @creator
@@ -566,6 +576,7 @@ BEGIN
 			,@betstatus            = @betstatus
 			,@Remark            = @Remark
 			,@IP                = @IP
+			,@BroadcastSessionId = @BroadcastSessionId
 	END
 	
 	DROP TABLE #tblMatchProcess

@@ -56,7 +56,6 @@ BEGIN
     SET NOCOUNT ON 
 
     DECLARE @start              DATETIME
-            ,@stop              DATETIME
             ,@fth               INT
             ,@fta               INT
             ,@hth               INT
@@ -84,6 +83,7 @@ BEGIN
 			,@procName			SYSNAME
 			,@ActionParlay		VARCHAR(20)
 			,@IsCentral			BIT
+			,@SiteDBGroupId		TINYINT
 
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
 			,@BalanceWalletAfter			TVP_BalanceWalletChange
@@ -583,8 +583,6 @@ BEGIN
     ---                      WRITE LOG                        ---
     ---------------------------VVVV------------------------------
 
-    SELECT @stop = CURRENT_TIMESTAMP
-
 	DECLARE @xmlResults XML
 	SET @xmlResults = CAST(@SelectedResources AS XML)
 	SET @SelectedResources = ''
@@ -610,12 +608,19 @@ BEGIN
 	IF RIGHT(@SelectedResources,1) = ','
 		SET @SelectedResources = LEFT(@SelectedResources, LEN(@SelectedResources) - 1)
 
-	IF @IsCentral = 1
+	-- Write log
 	BEGIN
-		SELECT @Remark = 'NAP: Result:' + @SelectedResources +  ' <br/> ' 
-							+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>' 
-							+ ' IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
-							+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + 'ms' 
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark = '<distinct>'
+							 + '<r n="Result" v="' + @SelectedResources + '"/>'
+							 + '<r n="Recalc" v="' + CAST(@IsReSettledTickets AS VARCHAR(1)) + '"/>'	
+							 + '<r n="IsAuto" v="' + CAST(@IsAuto AS VARCHAR(1)) + '"/>'								
+						+ '</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'					
+						+ '</root>'
 
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle 
 			@userid                = @AdminId
@@ -629,6 +634,7 @@ BEGIN
 			,@betstatus            = @betstatus
 			,@Remark            = @Remark
 			,@ip                = @ip
+			,@BroadcastSessionId = @BroadcastSessionId	
 		
 	END
 
@@ -676,7 +682,7 @@ BEGIN
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@LockedByRefno		= 1 -- always lock refno for testing
 				,@IsCentral			= @IsCentral
-				,@BroadcastSessionId = @BroadcastSessionId
+				,@BroadcastSessionId = @BroadcastSessionId	
 
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
@@ -684,7 +690,7 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @AdminID, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
+			SELECT @MatchID, 0, @AdminID, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
 		END
 	END
 END

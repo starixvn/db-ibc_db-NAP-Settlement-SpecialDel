@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -78,6 +78,7 @@ AS
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
+		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -100,7 +101,6 @@ BEGIN
 	SET NOCOUNT ON
 	DECLARE  @SkipBalanceUpdate  BIT
 			,@start				DATETIME
-			,@stop				DATETIME
 			,@fth				INT
 			,@fta				INT
 			,@hth				INT
@@ -156,6 +156,7 @@ BEGIN
 			,@DeterminedRefundType		TINYINT		= 0
 			,@RemarkSDT					VARCHAR(500) = ''
 			,@IsExistNetPosition BIT = 0
+			,@SiteDBGroupId		TINYINT = 0
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, modds SMALLMONEY, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
 
@@ -167,13 +168,12 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,CustID INT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, DeadHeat TINYINT)
 	DECLARE @tmpSelectedRID TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
 								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT, RoundID VARCHAR(10), OrdNo SMALLINT,
-								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20)
+								  isFinal BIT, RoundName VARCHAR(20), GroupType VARCHAR(2), OddsType SMALLINT, RefResourceId VARCHAR(20), IsWeb BIT
 								  ,PRIMARY KEY (BetType,BetID))
 	DECLARE @tmpBettypeSDT TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),PRIMARY KEY (BetType,BetID))
 
-	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000))
+	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), IsWeb BIT)
 	DECLARE @tmpGetLog TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), BetType SMALLINT, BetID BIGINT, OrdNo SMALLINT, RoundName VARCHAR(20) )
-	DECLARE @tmpValidResources TABLE (ResourceID VARCHAR(20))
 	
 	-- for cashout
 	DECLARE @strBettypes VARCHAR(MAX) = '', @mode VARCHAR(20) = ''
@@ -281,8 +281,8 @@ BEGIN
 
 	BEGIN TRY  	
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue)
-		SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
+		INSERT INTO @tmpResourcesWeb(ResourceID, HomeValue, AwayValue, IsWeb)
+		SELECT Id, ISNULL(Home,''), ISNULL(Away,''), 1
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,Home VARCHAR(50)
 															,Away VARCHAR(50)
@@ -407,7 +407,7 @@ BEGIN
 				) t
 		END
 		
-		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType, RefResourceId)
+		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType, RefResourceId, IsWeb)
 		SELECT DISTINCT tbl.ResourceID, 
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointHomeValue, '') ELSE IIF(@SportType != 10,ISNULL(HomeValue,''),ISNULL(AwayValue,'')) END,  --  @SportType = 10  Golf, using Stroke count, so swap the score to make it become normal stype
 				CASE WHEN sp.BetType = 153 THEN ISNULL(@TotalPointAwayValue, '') ELSE IIF(@SportType != 10,ISNULL(AwayValue,''),ISNULL(HomeValue,'')) END, 
@@ -415,7 +415,8 @@ BEGIN
 				sd.isFinal, 
 				sd.RoundName, 
 				sp.GroupType, sp.OddsType,
-				sp.RefResourceId
+				sp.RefResourceId,
+				ISNULL(tbl.IsWeb,0)
 		FROM @tmpResourcesWeb tbl
 			INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
 			OUTER APPLY (
@@ -875,7 +876,7 @@ BEGIN
 		END	
 
 		--Auto payout exept Pingoal
-		IF @IsCentral = 1 AND @IsAuto = 1 AND @HasAutoPayout = 1 AND @Action LIKE 'CAL%'
+		IF @IsAuto = 1 AND @HasAutoPayout = 1 AND @Action LIKE 'CAL%'
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 			  @MatchId 			 = @matchid
@@ -896,28 +897,15 @@ BEGIN
 		  @isExistMatch		= 1
 		  ,@IsReleased		= 1
 
-	SELECT @stop = CURRENT_TIMESTAMP
-	
 	SET @matchLog = @MatchID
 
-	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
-	BEGIN
-		SELECT @hth	= NULL
-				,@hta = NULL
-	END
-
-	--IF @IsCentral = 1
+	-- writelog
 	BEGIN 
-		INSERT INTO @tmpValidResources(ResourceID)
-		SELECT ResourceID  
-		FROM (VALUES('01', 4)) AS os (ResourceID,Sporttype)
-		WHERE os.Sporttype = @sportType 
-
-
 		INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, BetType, BetID, OrdNo, RoundName )
 		SELECT sr.ResourceID, sr.HomeValue, sr.AwayValue, sr.BetType, sr.BetID, sr.OrdNo, sr.RoundName
 		FROM @tmpSelectedRID AS sr
-		WHERE sr.ResourceID	NOT IN (SELECT vr.ResourceID FROM @tmpValidResources AS vr)
+		WHERE	sr.IsWeb = 1
+				AND 1 = CASE WHEN @SportType = 4 AND sr.ResourceId = '01' THEN 0 ELSE 1 END
 
 		IF @ParentMatchId IS NOT NULL 
 		BEGIN
@@ -941,18 +929,17 @@ BEGIN
 			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105')
 		END
 
-		SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
+		SELECT @ResultRemarkLog = STRING_AGG(CAST(ISNULL(RoundName,ResourceID) + 
 				CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					 WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 					 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
-					 ELSE '' END
+					 ELSE '' END AS VARCHAR(MAX)), ',') WITHIN GROUP (ORDER BY OrdNo)
 		FROM (
 				SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
 		  		FROM @tmpGetLog sr
 		  		GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   			) AS tbl1
-		ORDER BY OrdNo
-
+		
 		IF EXISTS ( SELECT TOP 1 1 FROM @tmpSelectedRID WHERE @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL')
 		BEGIN
 			EXEC dbo.NAP_Set_GetRefundResult
@@ -977,43 +964,51 @@ BEGIN
 				,@RowCount		 = @IsExistAR OUTPUT
 		END
 
-		SELECT @ResultRemarkLog =  CASE 
-										WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN 'child: ' + CAST(@matchid AS VARCHAR) -- Child match ( parent is Cricket TEST match)
+
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark = '<distinct>'
+							+ CASE 
+								WHEN ISNULL(@RemarkSDT,'') != '' THEN '<r n="Selected" v="' + @RemarkSDT + '"/>' 
+								ELSE CASE
+										WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@MatchID AS VARCHAR) + '"/>'
 										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
 											THEN CASE 
-													WHEN @sportType = 50 THEN 'NAP: Auto Payout: Weverdat'
-													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) OR @AutoType = 1 THEN 'NAP: Auto Payout: SBO'
-													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) OR @AutoType = 2 THEN 'NAP: Auto Payout: Direct'
+													WHEN @sportType = 50 THEN '<r n="Auto Payout" v="Weverdat"/>'
+													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) OR @AutoType = 1 THEN '<r n="Auto Payout" v="SBO"/>'
+													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) OR @AutoType = 2 THEN '<r n="Auto Payout" v="Direct"/>'
 													ELSE '' 
 												END
-										ELSE ''
-									END
-			 
-								+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
-									ELSE ' Selected:' 
-									END 
-								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-								+ CASE  WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
-										WHEN @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CAST(@IsExistAR AS VARCHAR(1))
-										WHEN @AutoType = 3 THEN ' isAuto: 1'
 										ELSE '' 
-										END
-						   
-		SELECT @Remark = CASE WHEN ISNULL(@RemarkSDT,'') != '' THEN 'Selected: ' +  @RemarkSDT + '<br/> ' 
-							  ELSE @ResultRemarkLog + '<br/> ' 
-						  END
-						+ CASE
-						WHEN @IsAppliedSOP =1 AND @IsAuto = 0 THEN 'Is Leader: ' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '; '
-							ELSE ''
-						END
-						+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
-						+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
-						+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-						+ CASE @RefResultStatus WHEN 1 THEN ' confirmed/provider:no'
-												WHEN 2 THEN ' value consistency:no'
-												ELSE ''
-												END
-	
+									END
+									+ CASE 
+										WHEN ISNULL(@ResultRemarkLog,'') <> ''
+											THEN CASE 
+													WHEN @Action LIKE 'CAL%' THEN '<r n="Result" v="' + @ResultRemarkLog + '"/>' 
+													ELSE '<r n="Selected" v="' + @ResultRemarkLog + '"/>' 
+													END
+										ELSE '' 
+									END
+									+ CASE 
+										WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL THEN '<r n="CalcChild" v="' + @ChildMatchIds + '"/>'
+										WHEN @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN '<r n="Auto Refund" v="' + CAST(@IsExistAR AS VARCHAR(1)) + '"/>'
+										ELSE '' 
+									END
+							END								
+							+ CASE WHEN @IsAppliedSOP = 1 AND @IsAuto = 0 THEN '<r n="Is Leader" v="' + CAST(ISNULL(@IsLeader,0) AS VARCHAR) + '"/>' ELSE '' END
+							+ CASE WHEN @Action LIKE 'CAL%' THEN '<r n="Recalc" v="' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + '"/>' ELSE '' END
+							+ CASE @RefResultStatus 
+								WHEN 1 THEN '<r n="confirmed/provider" v="no"/>'
+								WHEN 2 THEN '<r n="value consistency" v="no"/>'
+								ELSE ''
+								END
+						+ '</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
+							+ '<r t="s" n="TC" v="' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20))  + '"/>'							
+						+ '</root>'
+
 		IF @ParentMatchId IS NOT NULL ---Cricket
 		BEGIN
 			SELECT  @matchLog =  @ParentMatchId
@@ -1022,21 +1017,26 @@ BEGIN
   			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
   			WHERE   matchid = @ParentMatchId
 		END
+
+		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
+		BEGIN
+			SELECT @hth	= NULL
+					,@hta = NULL
+		END
 			
-		IF @IsCentral = 1
-			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-					@userid				= @creator
-					,@matchid			= @matchLog
-					,@actionid			= @ActionID
-					,@finalhomescore	= @fth
-					,@finalawayscore	= @fta
-					,@hthomescore		= @hth
-					,@htawayscore		= @hta
-					,@GoalRecord		= NULL
-					,@betstatus			= @betstatus
-					,@Remark			= @Remark
-					,@ip				= @ip
-		
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				@userid				= @creator
+				,@matchid			= @matchLog
+				,@actionid			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= @hth
+				,@htawayscore		= @hta
+				,@GoalRecord		= NULL
+				,@betstatus			= @betstatus
+				,@Remark			= @Remark
+				,@ip				= @ip
+				,@BroadcastSessionId = @BroadcastSessionId		
 	END		
 
 	IF @TotalSubParlay > 0
@@ -1052,6 +1052,7 @@ BEGIN
 																						    ,AwayValue			AS '@Away'
 																						    ,SDTpfId			AS '@SDTpfId'
 																						    ,@DeterminedType	AS '@DeterminedType'
+																							,IsWeb				AS '@IsWeb'
 																							,CASE WHEN RefResourceId IS NOT NULL THEN RefResourceId ELSE NULL END AS '@RefResourceId' 
 																					   FROM	@tmpSelectedRID AS s
 																					   FOR XML PATH ('Resource'), TYPE)
@@ -1081,7 +1082,7 @@ BEGIN
 								
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
-
+								
 		IF @procName LIKE '%_xtest' OR @procName LIKE '%_xpre' OR @procName LIKE '%_UAT[1-9]'
 		BEGIN
 			EXEC dbo.NAP_Admin_Settlement_Profile_Parlay
@@ -1111,7 +1112,7 @@ BEGIN
 		END
 	END
 
-	IF @MatchAutoSetting & 2 > 0 AND @Action LIKE 'CAL%' AND @DeterminedType > 0 AND @DeterminedType != 4
+	IF @MatchAutoSetting & 2 > 0 AND @Action LIKE 'CAL%' AND @DeterminedType > 0 AND @DeterminedType & 4 = 0
 	BEGIN
 		SET @sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Profile_Instant] @MatchID = ' + CONVERT(NVARCHAR(50), @MatchId) 
 									+ ', @AdminId = '				+ CONVERT(NVARCHAR(50), @creator) 
@@ -1144,7 +1145,7 @@ BEGIN
 									,@hta					= @hta
 									,@fth					= @fth
 									,@fta					= @fta
-									,@BroadcastSessionId 	= @BroadcastSessionId
+									,@BroadcastSessionId	= @BroadcastSessionId
 									
 									,@ErrCode				= @ErrCode OUTPUT
 									,@ErrMsg				= @ErrMsg OUTPUT

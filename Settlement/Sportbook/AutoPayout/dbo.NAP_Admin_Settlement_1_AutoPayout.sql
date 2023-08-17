@@ -50,6 +50,7 @@ AS
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 
 	Param's Explanation:
 		 
@@ -58,20 +59,9 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @start						DATETIME
-		, @stop							DATETIME
-		, @eventstatus					NVARCHAR(50)
-		, @TicketCount					INT	
-		, @Remark						VARCHAR(500)
 		, @ActionID						INT
-		, @TotalAccount					INT
-		, @TotalAccount_BalanceUpdate	INT
-		, @HTDone						BIT
-		, @FTDone						BIT
-		, @strHTBettypes				VARCHAR(MAX)
-		, @strFTBettypes				VARCHAR(MAX)
 		, @avaiableProcess				BIT
 		, @sporttype                    SMALLINT
-		, @matchcode					NVARCHAR(50)
 		, @SessionId					BIGINT
 		, @RunBySSBProcess				BIT
 		, @LogDataSoccer				XML
@@ -81,12 +71,8 @@ BEGIN
 		, @TypeId						TINYINT
 		, @AutoSetting					TINYINT
 		, @IsCentral					BIT
+		, @TicketCount					INT
 		
-	--START Balance tables	
-	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
-		, @BalanceWalletAfter			TVP_BalanceWalletChange
-	--END Balance tables
-
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 		
 	SELECT @start					= CURRENT_TIMESTAMP
@@ -133,9 +119,7 @@ BEGIN
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
 
-	SELECT @eventstatus = m.eventstatus
-		, @matchcode = m.matchcode
-		, @sporttype = m.sporttype
+	SELECT @sporttype = m.sporttype
 		, @goalrecord_old = m.GoalRecord
 		, @AutoSetting = ISNULL(m.AutoSetting,l.AutoSetting)
 	FROM DBPRO.BODB02.dbo.Match m WITH(NOLOCK)
@@ -172,9 +156,8 @@ BEGIN
 					,@ErrMsg = ERROR_MESSAGE()
 		END CATCH
 			
-		IF @IsCentral = 1
-			EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
-																		, @SourceId = @SourceId
+		EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
+																	, @SourceId = @SourceId
 
 		IF @Action = 'CAL-FT' AND ISNULL(@fta,0) <> ISNULL(@fth,0)
 		BEGIN
@@ -250,182 +233,4 @@ BEGIN
 
 		RETURN
 	END
-
-	SELECT @strHTBettypes = COALESCE(@strHTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
-	FROM dbo.f_Set_GetGroupBettypes() f 
-	WHERE f.GroupId IN (1, 3) -- inclued FGLG bettype -- #106901
- 
-	SELECT @strFTBettypes = COALESCE(@strFTBettypes + ',' + CAST(bettype AS NVARCHAR), CAST(bettype AS NVARCHAR))
-	FROM dbo.f_Set_GetGroupBettypes() f 
-	WHERE f.GroupId IN (2, 4) -- inclued FGLG bettype -- #106901
-	
-	IF @Action IN ('CAL-HT', 'CAL')
-	BEGIN
-		SELECT @TicketCount = COUNT(1)
-		FROM dbo.bettrans b WITH(NOLOCK)
-		WHERE b.matchid = @matchid
-			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strHTBettypes + ',') > 0 THEN 1
-						ELSE 0	END
-	END
-	IF @Action IN ('CAL-FT', 'CAL')
-	BEGIN
-		SELECT @TicketCount = @TicketCount + COUNT(1)
-		FROM dbo.bettrans b WITH(NOLOCK)
-		WHERE b.matchid = @matchid
-			AND 1 = CASE WHEN CHARINDEX(',' + CAST(b.bettype AS VARCHAR) + ',', ',' + @strFTBettypes + ',') > 0 THEN 1
-						ELSE 0	END
-	END
-	-------------------------------------------------------------
-	---        CAPTURE value BALANCE before settlement        ---
-	---------------------------VVVV------------------------------
-	
-	INSERT INTO @BalanceWalletBefore (
-		matchid
-		, custid
-		, balanceType
-		, WalletType
-		, BonusID
-		, balance
-	)
-	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-		@MatchId 		= @matchId
-		, @sportType 	= @sporttype
-		, @Action		= @Action
-		, @Mode 		= 2
-		, @IsCentral	= @IsCentral
-		
-	SELECT @TotalAccount = COUNT(DISTINCT custid)
-	FROM @BalanceWalletBefore
- 
-	BEGIN TRY
-		EXEC dbo.NAP_Admin_Settlement_3
-			@matchid            = @matchid
-			,@mode                = @action    
-			,@IsReSettledTickets = @IsReSettledTickets
-			,@creator = @creator
-
-		IF @IsCentral = 1
-		BEGIN
-			EXEC DBPRO.BODB02.dbo.NAP_Set_AutoPayoutResultUpd @MatchId = @matchid, @TypeId = @TypeId, @StatusId = 2, @IsIncludedUpdateMatch = 1 --Completed
-																		, @SourceId = @SourceId
-		END
-	END TRY
-	BEGIN CATCH
-		-- Capture Balance incase of failure
-		INSERT INTO @BalanceWalletAfter (
-			matchid
-			, custid
-			, balanceType
-			, WalletType
-			, BonusID
-			, balance
-		)
-		EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-			@MatchId 		= @matchId
-			, @sportType 	= @sporttype
-			, @Action		= @Action
-			, @Mode 		= 2
-			, @IsCentral	= @IsCentral
-		
-		-- Compare Balance
-		EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-			@BalanceWalletBefore	= @BalanceWalletBefore
-			, @BalanceWalletAfter	= @BalanceWalletAfter
-			, @ActionId				= @ActionID
- 
-		--SET total affected accounts
-		SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT b.custid)
-		FROM @BalanceWalletBefore b
-			INNER JOIN @BalanceWalletAfter a 
-			ON b.custid = a.custid
-		WHERE b.balance <> a.balance
-
-		SELECT @ErrCode = 1001017
-			, @ErrMsg = ERROR_MESSAGE()
-		
-	END CATCH
-	
-	IF @ErrCode <> 0
-		RETURN
-
-	-------------------------------------------------------------
-	---         CAPTURE value BALANCE after settlement        ---
-	---------------------------VVVV------------------------------
-
-	INSERT INTO @BalanceWalletAfter (
-		matchid
-		, custid
-		, balanceType
-		, WalletType
-		, BonusID
-		, balance
-	)
-	EXEC [dbo].[NAP_Admin_CaptureBalanceByWallet]
-		@MatchId 		= @matchId
-		, @sportType 	= @sporttype
-		, @Action		= @Action
-		, @Mode 		= 2
-		, @IsCentral	= @IsCentral
- 
-	-------------------------------------------------------------
-	---                   compare BALANCE                     ---
-	---------------------------VVVV------------------------------
- 
-	---INSERT data into pending balance table   
-	EXEC [dbo].[NAP_Admin_BalancePending_WalletUpd]
-		@BalanceWalletBefore	= @BalanceWalletBefore
-		, @BalanceWalletAfter	= @BalanceWalletAfter
-		, @ActionId				= @ActionID
-	
-	--SET total affected accounts
-	SELECT @TotalAccount_BalanceUpdate = COUNT(DISTINCT b.custid)
-	FROM @BalanceWalletBefore b
-		INNER JOIN @BalanceWalletAfter a 
-		ON b.custid = a.custid
-	WHERE b.balance <> a.balance
-	
-	-------------------------------------------------------------
-	---                      WRITE LOG                        ---
-	---------------------------VVVV------------------------------
-	SELECT @stop = CURRENT_TIMESTAMP
-		
-	IF @IsCentral = 1
-	BEGIN
-		SELECT @Remark ='NAP: ' 
-								+ CASE 
-										WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-										WHEN @SourceId = 101 THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> ' 
-										ELSE ''
-									END
-								+ CASE WHEN @sporttype = 1 THEN  'GoalRecord:' + ISNULL(@goalrecord,'') + '<br/> ' ELSE '' END
-								+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
-								+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-								+ ' Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) 
-															+ '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-								+ CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
-										WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
-										ELSE ' RefChild:(' + @ChildMatchIds +')' 
-										END
-
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @creator
-			, @Matchid			= @matchid
-			, @ActionID			= @ActionID
-			, @finalhomescore	= @fth
-			, @finalawayscore	= @fta
-			, @hthomescore		= @hth
-			, @htawayscore		= @hta
-			, @GoalRecord		= @goalrecord
-			, @betstatus		= @betstatus
-			, @Remark			= @Remark
-			, @IP				= @IP
-
-	END
-
-	------ releasing Settlement process
-	EXEC dbo.NAP_Admin_CheckingProcess
-	@isExistMatch		= 1
-	, @IsReleased		= 1
-	
-	DROP TABLE #tblMatchProcess
-	RETURN	
 END

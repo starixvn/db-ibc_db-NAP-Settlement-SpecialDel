@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder_Push]
 	,@IsAuto			BIT				= 1
 	,@VendorID			SMALLINT		= 34
 	,@IP				VARCHAR(15)		= ''
+	,@BroadcastSessionId VARCHAR(50)	= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 
@@ -20,6 +21,7 @@ AS
 	Revisions:
 		- 20190103@Vicky: Incorporate BetBuilder  [Redmine:#106903] 
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 		
 	Param's Explanation:
 		@Action : CAL, UNDO
@@ -64,6 +66,9 @@ BEGIN
 									+ ', @IsAuto = ' + CONVERT(NVARCHAR(50), @IsAuto)
 									+ ', @VendorID = ' + CONVERT(NVARCHAR(50), @VendorID)
 									+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
+									+  CASE WHEN @BroadcastSessionId IS NOT NULL 
+											THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+											ELSE '' END +
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'
 

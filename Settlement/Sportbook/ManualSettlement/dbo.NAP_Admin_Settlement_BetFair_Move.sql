@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetFair_Move]
 	@MatchID		INT,
 	@NewMatchID		INT,
 	@AdminId		INT,
+	@BroadcastSessionId VARCHAR(50)	= NULL,
 	@ErrCode		INT = 0 OUTPUT,
 	@ErrMsg			NVARCHAR(200)='' OUTPUT,  
 	@NewMatchcode	NVARCHAR(20) ='' OUTPUT,
@@ -22,6 +23,7 @@ AS
 		- 20150418@Jamie: Betradar phase II [Readmine:#27212]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 
 	Note: For settlement SPs should hardcode the custid of betfair customer to avoid replication problem
 
@@ -40,18 +42,22 @@ BEGIN
 			@matchcode		VARCHAR(20),
 			@sporttype		INT,
 			@transinfo		XML,
-			@IsSiteDB		BIT = 0
+			@IsSiteDB		BIT = 0,
+			@SiteDBGroupId	TINYINT,
+			@StartTime		DATETIME
+			
+	SELECT @StartTime = GETDATE()
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
 	SET @IsSiteDB = 1
 
 	DECLARE @finalhomescore INT, @finalawayscore INT,
 			@hthomescore INT, @htawayscore INT,
-			@betstatus nvarchar(50), @goalrecord varchar(50), @Remark nvarchar(100)
+			@betstatus nvarchar(50), @goalrecord varchar(50), @Remark nvarchar(MAX)
 
 	DECLARE @finalhomescore1 INT, @finalawayscore1 INT,
 			@hthomescore1 INT, @htawayscore1 INT,
-			@betstatus1 nvarchar(50), @goalrecord1 varchar(50), @Remark1 nvarchar(100)
+			@betstatus1 nvarchar(50), @goalrecord1 varchar(50), @Remark1 nvarchar(MAX)
 
 	DECLARE @tmpOdds TABLE (
 		bettype		INT,
@@ -153,18 +159,29 @@ BEGIN
 		RETURN
 	END
 
-	
-	DECLARE	@LogData VARCHAR(200)
-	SELECT	@LogData = 'NAP: BetFair Movement from OldMatch:' + CAST(@matchid AS VARCHAR(15))+ ', NewMatch:' + CAST(@newMatchid AS VARCHAR(15))
-	EXEC dbo.WriteLog_UserLog @userid = @AdminId, @Doing = @LogData  
-	
-	
-	--Write Log Settle
-	SELECT @Remark = 'NAP: To match ' + convert(varchar(10),@NewMatchid) +', MatchCode:' + @newMatchcode,  
-	       @Remark1 = 'NAP: From match ' + convert(varchar(10),@Matchid) + ', MatchCode:' + @matchcode 
-	
-	IF @IsSiteDB = 0
+	-- write log
 	BEGIN
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark ='<distinct>'
+							+ '<r n="To match" v="' + CONVERT(VARCHAR(10),@NewMatchid) + '"/>'
+							+ '<r n="MatchCode" v="' +@newMatchcode + '"/>'
+						+'</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @StartTime, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'							
+						+ '</root>'
+
+		SELECT @Remark1 ='<distinct>'
+							+ '<r n="From match" v="' + CONVERT(VARCHAR(10),@Matchid) + '"/>'
+							+ '<r n="MatchCode" v="' + @matchcode + '"/>'
+						+'</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @StartTime, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'							
+						+ '</root>'
+
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
 			@UserID = @AdminId,
 			@Matchid = @MatchID,
@@ -176,7 +193,8 @@ BEGIN
 			@GoalRecord = @goalrecord,
 			@betstatus = @betstatus,
 			@Remark = @Remark,
-			@IP = @IP
+			@IP = @IP,
+			@BroadcastSessionId = @BroadcastSessionId
 
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
 			@UserID = @AdminId,
@@ -189,7 +207,8 @@ BEGIN
 			@GoalRecord = @goalrecord1,
 			@betstatus = @betstatus1,
 			@Remark = @Remark1,
-			@IP = @IP
+			@IP = @IP,
+			@BroadcastSessionId = @BroadcastSessionId
 			
 	END
 END

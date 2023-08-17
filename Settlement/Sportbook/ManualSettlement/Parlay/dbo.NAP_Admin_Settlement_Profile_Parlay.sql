@@ -112,7 +112,6 @@ BEGIN
 	CREATE TABLE #tmpParlayBalanceAfter (transid BIGINT PRIMARY KEY, custid INT, balance money)
 	CREATE TABLE #tmpParlayBalance (custid int, balance money)	
 	CREATE TABLE #tmpMainTransId ( transid BIGINT, refno BIGINT, IsFinished BIT, ruben TINYINT, custid INT, betteam NVARCHAR(10), oddsspread MONEY, SiteID VARCHAR(7), srecommend INT)
-	DECLARE @tmpValidResources TABLE (ResourceID VARCHAR(20))
 	--END Balance tables
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
@@ -960,16 +959,6 @@ END
 		SET @matchLog = @ParentMatchId
 	END
 
-	INSERT INTO @tmpValidResources(ResourceID)
-	SELECT DISTINCT ResourceID 
-	FROM SettlementSpecialBettypeProfile AS p WITH(NOLOCK)
-	WHERE p.SportType = @sportType
-		AND EXISTS (SELECT 1 
-					FROM SportBettypeMatrix AS m WITH(NOLOCK) 
-					WHERE p.SportType = m.SportType 
-						AND p.BetType = m.BetType  
-						AND m.Enabled = 1)
-
 	SELECT @ResultRemarkLog = STRING_AGG(ISNULL(RoundName,ResourceID) + 
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
@@ -978,7 +967,8 @@ END
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
 		  	FROM @tmpSelectedRID sr
-			WHERE sr.ResourceID	 IN (SELECT vr.ResourceID FROM @tmpValidResources AS vr)
+			WHERE 1 = CASE WHEN @SportType = 4 AND sr.ResourceId = '01' THEN 0 ELSE 1 END
+				AND (sr.IsWeb = 1 OR sr.IsWeb IS NULL)
 		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   		) AS tbl1
 	
