@@ -14,6 +14,7 @@ AS
 		- 20221108@July: Change value KickOffTime to GlobalShowTime (GMT+8) [Redmine:#179332]
 		- 20221111@July: TVS - VAR message [Redmine: #178088]
 		- 20230712@July: TVS - Add provider to the quickly copy request info function [Redmine: #191058]
+		- 20230817@Max: [TVS] Support Suspenders quickly copy request info to send mail/lestalk [Redmine: #185493]
 
 	Param's explanation:
 		Affected issue type: Danger Accepted, Red Card, Wrong Score
@@ -25,6 +26,7 @@ BEGIN
 	
 	DECLARE @IsNeutral BIT
 		  , @GlobalShowTime SMALLDATETIME
+		  , @IsHasSettledTicket BIT = 0
 
 	DECLARE @tmpRequestInfo TABLE (
 		 RequestId			INT
@@ -38,7 +40,33 @@ BEGIN
 		,StartVoidTime		DATETIME
 		,IssueTypeName		VARCHAR(100)
 		,SubIssueTypeName	VARCHAR(100)
+		,OperatorInfo		XML
+		,Remark				VARCHAR(MAX)
+		,UserId				INT
 	)
+
+	SELECT @IsHasSettledTicket = MAX(ISNULL(vh_xml.IsHasSettledTicket,0))
+	FROM (
+		SELECT MAX(VoidingHistoryId) AS VoidingHistoryId
+		FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK)
+		WHERE v.RequestId = @RequestId
+			AND v.StatusId <> 3
+	)vh
+	CROSS APPLY (
+		SELECT v.BroadcastSessionId
+		FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK)
+		WHERE v.VoidingHistoryId = vh.VoidingHistoryId
+	)vb
+	CROSS APPLY (
+		SELECT v.VoidData
+		FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK)
+		WHERE v.BroadcastSessionId = vb.BroadcastSessionId
+	)vd
+	CROSS APPLY (
+		SELECT CASE WHEN ISNULL(t.c.value('@IsHasSettledTicket','VARCHAR(50)'),0) = 'True' THEN 1 ELSE 0 END AS IsHasSettledTicket			
+		FROM vd.VoidData.nodes('VoidData') t(c)	
+		WHERE vd.VoidData IS NOT NULL
+	)vh_xml
 
 	INSERT INTO @tmpRequestInfo
 	(
@@ -53,6 +81,9 @@ BEGIN
 		,StartVoidTime 
 		,IssueTypeName
 		,SubIssueTypeName 
+		,OperatorInfo
+		,Remark
+		,UserId
 	)
 	SELECT TOP(1) 
 		 rd.RequestId
@@ -66,6 +97,12 @@ BEGIN
 		,rd.VoidFromTime AS StartVoidTime
 		,i.IssueTypeName
 		,s.SubIssueTypeName
+		,(SELECT	o.OperatorId AS '@OperatorId', o.OperatorTypeId AS '@TypeId'
+				FROM	dbo.TicketVoiding_OperatorInfo o WITH(NOLOCK)
+				WHERE	o.RequestId = @RequestId
+				FOR XML PATH ('r'), ROOT('root')) AS OperatorInfo
+		,r.Remark
+		,r.UserId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON rd.RequestId = r.RequestId
 		INNER JOIN dbo.TicketVoiding_IssueType i WITH(NOLOCK) ON r.IssueTypeId = i.IssueTypeId
@@ -92,7 +129,7 @@ BEGIN
 		  ,LeagueId 
 		  ,HomeId 
 		  ,AwayId 
-		  ,@GlobalShowTime AS KickOffTime
+		  ,@GlobalShowTime AS GlobalShowTime
 		  ,@IsNeutral AS IsNeutral
 		  ,FilterBy 
 		  ,RequestExtraInfo
@@ -100,5 +137,10 @@ BEGIN
 		  ,StartVoidTime 
 		  ,IssueTypeName
 		  ,SubIssueTypeName 
-	FROM @tmpRequestInfo
+		  ,OperatorInfo
+		  ,t.Remark
+		  ,c.username AS RequestedBy
+		  ,@IsHasSettledTicket AS IsHasSettledTicket
+	FROM @tmpRequestInfo t
+		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.UserId
 END
