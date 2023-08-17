@@ -41,7 +41,8 @@ AS
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
-		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
+		- 20230817@Aries: Basketball - Enhance Generating Result 2H [Redmine:#192864]
 		
     Param's Explanation: 
     
@@ -313,6 +314,12 @@ BEGIN
 			FROM	dbo.ResultDetail rd WITH(NOLOCK)
 			WHERE	rd.MatchId = @matchid
 					AND rd.ResourceId IN ('Q1','Q2','Q3','Q4','00', '01', 'OT')
+					AND rd.ResultStatusID IN (2,5)
+
+			IF  @Action = 'CAL' AND @hasHT = 0
+			BEGIN
+				SET @has2H = 0
+			END
 
 			IF @action = 'REFUND'
 			BEGIN
@@ -387,11 +394,11 @@ BEGIN
 				VALUES(@matchid, '02'
 					, CASE WHEN @action = 'CAL' THEN SOURCE.HomeValue - @hthomescore
 						   WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.HomeValue = '',NULL,SOURCE.HomeValue - @hthomescore)
-						   ELSE 0 
+						   ELSE NULL 
 					  END
 					, CASE  WHEN @action = 'CAL'  THEN SOURCE.AwayValue - @htawayscore
 							WHEN @action = 'REFUND' AND @DeterminedType > 0 THEN IIF(SOURCE.AwayValue = '',NULL,SOURCE.AwayValue - @htawayscore)
-							ELSE 0 
+							ELSE NULL 
 					  END
 					, @ResultStatusID, @SettlementStatusID, GETDATE(), GETDATE(), @creator, @creator);
 
