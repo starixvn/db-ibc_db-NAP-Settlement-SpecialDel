@@ -34,10 +34,11 @@ BEGIN
 			,@MarkTransIds 			     VARCHAR(MAX) =''
 			,@UnmarkTransIds 			 VARCHAR(MAX) =''
 			,@RemoveTransids 			 VARCHAR(MAX) ='' -- Ticket remove will re-cal (if any)
-			,@TransInfoJson_Output	VARBINARY(MAX) = NULL
-			,@SiteDBAffected VARCHAR(20)
-			,@IsAutoAddRequest BIT
-			,@Sporttype		INT
+			,@TransInfoJson_Output		VARBINARY(MAX) = NULL
+			,@SiteDBAffected			VARCHAR(20)
+			,@IsAutoAddRequest			BIT
+			,@Sporttype					INT
+			,@SiteDBGroupId				SMALLINT = NULL
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT, Matchid INT)
@@ -67,10 +68,9 @@ BEGIN
 		,sporttype		SMALLINT
 		,betfrom		NVARCHAR(4)
 		,betteam		NVARCHAR(10)
-		,IsOrg			SMALLINT
-		,DuplicateGroup TINYINT
+		,IsOrg			SMALLINT DEFAULT(0)
+		,DuplicateGroup BIGINT DEFAULT(0)
 		,FilterBy		BIT
-		,Converteddate DATETIME
 		,IsAutoAddRequest BIT
 		,transdate		DATETIME
 		,odds SMALLMONEY
@@ -82,6 +82,7 @@ BEGIN
 		,WalletType SMALLINT
 		,oddsid INT
 		,SiteDBGroupID SMALLINT
+		,FilterGroup	SMALLINT DEFAULT (0)
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 
@@ -103,7 +104,6 @@ BEGIN
 		,oddsid INT
 		,SiteDBGroupID SMALLINT
 		,IsMoved14 BIT DEFAULT(0)
-		,Converteddate DATETIME
 	)
 	
 	INSERT INTO #tmpTransInfo (custid 
@@ -123,9 +123,8 @@ BEGIN
 		,oddsid 
 		,SiteDBGroupID
 		,IsMoved14
-		,Converteddate
 	)
-	SELECT c, o, stake, balance, sid, btype, wld, t, refgr, tdate, mid, ip, wt, bteam, oid, sitedb, ISNULL(isM,0),DATEADD(ms, -DATEPART(ms,tdate),tdate)
+	SELECT c, o, stake, balance, sid, btype, wld, t, refgr, tdate, mid, ip, wt, bteam, oid, sitedb, ISNULL(isM,0)
 	FROM string_split(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -157,13 +156,13 @@ BEGIN
 	BEGIN
 		IF @FilterBy IS NULL
 		BEGIN
-			SET @MatchId = (SELECT TOP 1 b.matchid
-								FROM #tmpTransInfo AS b WITH (NOLOCK)
-									INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
-								WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
-											   WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
-											   ELSE 0 END) 
-										AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
+			SELECT TOP 1 @MatchId = b.matchid, @SiteDBGroupId = b.SiteDBGroupID
+			FROM #tmpTransInfo AS b WITH (NOLOCK)
+				INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
+			WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
+							WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
+							ELSE 0 END) 
+					AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
 	
 			IF @MatchId IS NULL
 			BEGIN
@@ -183,9 +182,16 @@ BEGIN
 		END
 		ELSE IF @FilterBy =1
 		BEGIN
-			SET @MatchId = 29
 			INSERT INTO @tmpMatchId (MatchId)
-			SELECT @MatchId
+			SELECT 29
+
+			SELECT TOP 1 @SiteDBGroupId = b.SiteDBGroupID
+			FROM #tmpTransInfo AS b WITH (NOLOCK)
+				INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
+			WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
+							WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
+							ELSE 0 END) 
+				AND b.bettype = 29
 		END
 	END
 	ELSE
@@ -202,8 +208,7 @@ BEGIN
 	 
 	-- select valid TransId of Abnormal bet
 	INSERT INTO #validTransId (
-		IsOrg
-		,DuplicateGroup
+		FilterGroup
 		,transid
 		,isInMatch
 		,StatusId
@@ -212,7 +217,6 @@ BEGIN
 		,matchid
 		,betteam
 		,FilterBy
-		,Converteddate
 		,IsAutoAddRequest
 		,odds 
 		,stake 
@@ -226,13 +230,8 @@ BEGIN
 		,SiteDBGroupID
 		
 		)
-	SELECT CASE WHEN @IsAutoAddRequest = 1 THEN ROW_NUMBER() OVER (
-			  PARTITION BY b.custid,b.bettype,b.winlostdate,b.balance,b.stake,b.odds,b.refnoGroup,b.matchid,b.ip,b.WalletType,b.betteam,b.oddsid,b.Converteddate
-			  ORDER BY transdate, transid
-		   )
-		   ELSE 0 END
-		   ,CASE WHEN @IsAutoAddRequest = 1 THEN DENSE_RANK() OVER ( 
-				ORDER BY b.custid,b.bettype,b.winlostdate,b.balance,b.stake,b.odds,b.refnoGroup,b.matchid,b.ip,b.WalletType,b.betteam,b.oddsid,b.Converteddate
+	SELECT  CASE WHEN @IsAutoAddRequest = 1 THEN DENSE_RANK() OVER ( 
+				ORDER BY b.custid,b.bettype,b.winlostdate,b.balance,b.stake,b.odds,b.refnoGroup,b.matchid,b.ip,b.WalletType,b.betteam,b.oddsid
 			)
 			ELSE 0 END
 			,b.transid
@@ -243,7 +242,6 @@ BEGIN
 			,b.matchid
 			,b.betteam
 			,CASE WHEN b.bettype = 29 THEN 1 ELSE NULL END
-			,b.Converteddate
 			,CASE WHEN @TransIds IS NULL THEN 1 ELSE 0 END
 			,b.odds
 			,b.stake
@@ -260,6 +258,36 @@ BEGIN
 		AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
+		AND 1 = CASE WHEN @SiteDBGroupId IS NULL THEN 1
+					WHEN @SiteDBGroupId IS NOT NULL AND b.SiteDBGroupID = @SiteDBGroupId THEN 1
+				ELSE 0 END
+
+	IF @ActionId = 4
+	BEGIN
+		;WITH t AS (
+			  SELECT t.*, ROW_NUMBER() OVER (PARTITION BY t.FilterGroup ORDER BY t.FilterGroup, transdate) AS seqnum
+			  FROM #validTransId t
+		)
+		, cte AS (
+		  SELECT FilterGroup, seqnum, transdate, datediff(ms,transdate, transdate) AS running_amount
+			, transid AS refno
+			, transid
+		  FROM t
+		  WHERE seqnum = 1
+		  UNION ALL
+		  SELECT t.FilterGroup, t.seqnum, t.transdate
+			, CASE WHEN datediff(ms,cte.transdate, t.transdate) <= 1000 THEN  datediff(ms,cte.transdate, t.transdate) ELSE 0 END   
+			, CASE WHEN datediff(ms,cte.transdate, t.transdate) <= 1000 THEN cte.refno ELSE t.transid END 
+			, t.transid
+		  FROM cte 
+			INNER JOIN t ON t.seqnum = cte.seqnum + 1 and cte.FilterGroup = t.FilterGroup
+		 )
+		UPDATE v SET
+			v.IsOrg = CASE WHEN c.running_amount = 0 THEN 1 ELSE 2 END
+			,v.DuplicateGroup = c.refno
+		FROM #validTransId v
+			INNER JOIN cte c ON c.transid = v.transid
+	END
 
 	-- get unsuppored transid
 	INSERT #UnsupportedTransids (transid)

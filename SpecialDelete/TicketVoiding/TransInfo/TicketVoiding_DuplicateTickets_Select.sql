@@ -147,6 +147,15 @@ BEGIN
 				AND b.betfrom <> 'p'
 		END
 
+		--delete  child match cricket (Sporttype = 50)
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799)))
+		BEGIN
+			DELETE d
+			FROM #tmpTransInfo d
+				INNER JOIN bodb02.dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+			WHERE d.bettype NOT IN (9, 29, 2799)
+		END
+
 		SET @TransInfoJson = COMPRESS((SELECT b.custid AS 'c'
 				,b.odds AS 'o'
 				,b.stake AS 'stake'
