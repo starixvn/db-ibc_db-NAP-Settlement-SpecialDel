@@ -58,7 +58,7 @@ BEGIN
 	  ,IsMixParlay		BIT
 	  ,SiteDBGroupID	SMALLINT
 	  ,IsOrg			SMALLINT
-	  ,DuplicateGroup TINYINT
+	  ,DuplicateGroup BIGINT
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid
@@ -74,7 +74,7 @@ BEGIN
 		)
 	SELECT mid ,t ,c ,btype ,bteam ,bid ,isP ,sitedb, isO, dgr
 	FROM OPENJSON(@Decompress_TransInfoJson) 
-	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isO SMALLINT, dgr TINYINT
+	WITH( mid INT, t BIGINT ,c INT ,btype SMALLINT ,bteam NVARCHAR(10) ,bid BIGINT ,isP BIT ,sitedb SMALLINT, isO SMALLINT, dgr BIGINT
 	) tbl
 
 	SET @DuplicateTicketsInfoXML = CONVERT(XML, @DuplicateTicketsInfo)
