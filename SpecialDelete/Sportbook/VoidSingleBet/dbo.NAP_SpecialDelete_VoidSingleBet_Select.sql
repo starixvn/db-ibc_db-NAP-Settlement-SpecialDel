@@ -349,7 +349,8 @@ BEGIN
 			  SubOddsSpread	 MONEY,
 			  SubOddsId		INT,
 			  SubTransDesc  NVARCHAR(2000),
-			  SiteDBGroupId		SMALLINT
+			  SiteDBGroupId		SMALLINT,
+			  matchid		INT
              );
 
 	DECLARE @SportType SMALLINT
@@ -440,6 +441,7 @@ BEGIN
 				,OddsId
 				,SiteDBGroupId
 				,FilterOdds
+				,matchid
 			)
 			SELECT
 				b.transid,
@@ -494,6 +496,7 @@ BEGIN
 				b.oddsid
 				,b.SiteDBGroupID
 				,b.odds AS FilterOdds
+				,b.matchid
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
@@ -566,6 +569,7 @@ BEGIN
 				,OddsId
 				,SiteDBGroupId
 				,FilterOdds
+				,matchid
 			)
 			SELECT
 				b.transid,
@@ -620,6 +624,7 @@ BEGIN
 				b.oddsid
 				,b.SiteDBGroupID
 				,b.odds AS FilterOdds
+				,b.matchid
 			FROM dbo.bettrans b WITH (NOLOCK)
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId				
@@ -662,6 +667,7 @@ BEGIN
 				,SubOddsId
 				,SubTransDesc
 				,SiteDBGroupId
+				,matchid
 			)
 			SELECT
 				 bm.custid 
@@ -686,6 +692,7 @@ BEGIN
 				,bm.oddsid
 				,bm.transdesc
 				,bm.SiteDBGroupID
+				,bm.matchid
 			FROM dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
 			WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
@@ -726,6 +733,7 @@ BEGIN
 				,SubOddsId
 				,SubTransDesc
 				,SiteDBGroupId
+				,matchid
 			)
 			SELECT
 				 bm.custid 
@@ -750,6 +758,7 @@ BEGIN
 				,bm.oddsid
 				,bm.transdesc
 				,bm.SiteDBGroupID
+				,bm.matchid
 			FROM dbo.bettransm bm WITH (NOLOCK)
 				INNER JOIN #tblBetType bt WITH (NOLOCK) ON bt.id = bm.bettype
 			WHERE bm.matchid IN (SELECT matchid FROM @tmpMatchId)
@@ -817,6 +826,7 @@ BEGIN
 				,OddsId
 				,SiteDBGroupId
 				,FilterOdds
+				,matchid
 			)
 			SELECT
 				b.transid,
@@ -873,6 +883,7 @@ BEGIN
 				bm.SubOddsId
 				,bm.SiteDBGroupId
 				,bm.SubOdds AS FilterOdds
+				,bm.matchid
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b with (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
