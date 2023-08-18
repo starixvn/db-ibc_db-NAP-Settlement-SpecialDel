@@ -161,7 +161,7 @@ BEGIN
 	FROM #tmpTransInfo t
 	WHERE matchid = @MatchId
 		AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
-						WHEN @FilterBy = 1 AND t.betteam = '1' THEN 1 ELSE 0 END
+						WHEN @FilterBy = 1 AND t.bettype = 29 THEN 1 ELSE 0 END
 		AND IsOrg <> 1
 
 	-- Get content of log data 

@@ -204,6 +204,12 @@ BEGIN
 		SELECT DISTINCT m.matchid, homeid, awayid, leagueid, sporttype, matchcode
 		FROM #tmpTransInfo t
 			INNER JOIN dbo.match m WITH(NOLOCK) ON t.matchid = m.matchid
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype = 29)
+		BEGIN	
+			INSERT INTO @tmpMatchId (MatchId)
+			SELECT 29
+		END
 	END
 	 
 	-- select valid TransId of Abnormal bet
@@ -255,7 +261,8 @@ BEGIN
 			,b.SiteDBGroupID	
 	FROM #tmpTransInfo b
 	WHERE b.IsMoved14 = 0
-		AND 1 = CASE WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
+		AND 1 = CASE WHEN @IsAutoAddRequest = 1 THEN 1
+					WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
 				   ELSE 0 END
 		AND 1 = CASE WHEN @SiteDBGroupId IS NULL THEN 1
@@ -310,9 +317,7 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE 1 = CASE WHEN bt.bettype IS NULL 
-						AND (t.bettype <> 29 OR (t.bettype = 29  AND t.betteam <> '1')) --Unsupported System parlay Transids
-				   THEN 1
+	WHERE 1 = CASE WHEN bt.bettype IS NULL AND t.bettype <> 29 THEN 1
 				   ELSE 0 END
 
 	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -329,7 +334,7 @@ BEGIN
 				    WHEN @ActionId = 2 AND StatusId IN (101, 103) THEN 1
 					ELSE 0 END)
 		OR (bt.bettype IS NULL AND 1 = CASE WHEN t.FilterBy IS NULL THEN 1 
-										    WHEN t.FilterBy = 1 AND t.bettype = 29  AND t.betteam <> '1' THEN 1
+										    --WHEN t.FilterBy = 1 AND t.bettype = 29  AND t.betteam <> '1' THEN 1
 										    ELSE 0 END 
 										   )
 		OR t.betfrom ='p'
