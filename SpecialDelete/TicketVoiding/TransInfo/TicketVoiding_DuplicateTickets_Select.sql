@@ -146,56 +146,43 @@ BEGIN
 				AND b.bettype NOT IN (500) -- exclude 500 - charged commission
 				AND b.betfrom <> 'p'
 		END
-
-		--delete  child match cricket (Sporttype = 50)
-		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799)))
-		BEGIN
-			DELETE d
-			FROM #tmpTransInfo d
-				INNER JOIN bodb02.dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
-			WHERE d.bettype NOT IN (9, 29, 2799)
-		END
-
-		SET @TransInfoJson = COMPRESS((SELECT b.custid AS 'c'
-				,b.odds AS 'o'
-				,b.stake AS 'stake'
-				,b.balance AS 'balance'
-				,b.statusID AS 'sid'
-				,b.bettype AS 'btype' 
-				,b.winlostdate AS 'wld'
-				,b.transid AS 't'
-				,b.refnoGroup AS 'refgr'
-				,b.transdate AS 'tdate'
-				,b.matchid AS 'mid'
-				,b.ip AS 'ip'
-				,b.WalletType AS 'wt' 
-				,b.betteam AS 'bteam'
-				,b.oddsid AS 'oid'
-				,b.SiteDBGroupID AS 'sitedb'
-				,b.IsMoved14 AS 'isM'
-			FROM #tmpTransInfo b
-			ORDER BY b.custid, b.odds, b.stake, b.balance, b.bettype, b.winlostdate, b.transid, b.transdate, b.statusID
-		FOR JSON PATH))
 	END
 	ELSE
 	BEGIN
-		SET @TransInfoJson = COMPRESS((SELECT b.custid AS 'c'
-				,b.odds AS 'o'
-				,b.stake AS 'stake'
-				,b.balance AS 'balance'
-				,b.statusID AS 'sid'
-				,b.bettype AS 'btype' 
-				,b.winlostdate AS 'wld'
-				,b.transid AS 't'
-				,CONVERT(BIGINT,(CASE WHEN b.Bettype IN (901,902,903,904,911) THEN b.RefNo WHEN b.Bettype = 29 THEN b.hdp1 ELSE 0 END)) AS 'refgr'
-				,b.transdate AS 'tdate'
-				,b.matchid AS 'mid'
-				,b.ip AS 'ip'
-				,ISNULL(CAST(b.WalletType AS SMALLINT),-1) AS 'wt' 
-				,b.betteam AS 'bteam'
-				,b.oddsid AS 'oid'
-				,b.SiteDBGroupID AS 'sitedb'
-			FROM	dbo.DuplicatedTicket t WITH (NOLOCK)	
+		INSERT INTO #tmpTransInfo (custid 
+			,odds 
+			,stake 
+			,balance 
+			,statusID 
+			,bettype 
+			,winlostdate 
+			,transid 
+			,refnoGroup 
+			,transdate 
+			,matchid 
+			,ip 
+			,WalletType 
+			,betteam 
+			,oddsid 
+			,SiteDBGroupID
+		)
+		SELECT b.custid AS 'c'
+			,b.odds AS 'o'
+			,b.stake AS 'stake'
+			,b.balance AS 'balance'
+			,b.statusID AS 'sid'
+			,b.bettype AS 'btype' 
+			,b.winlostdate AS 'wld'
+			,b.transid AS 't'
+			,CONVERT(BIGINT,(CASE WHEN b.Bettype IN (901,902,903,904,911) THEN b.RefNo WHEN b.Bettype = 29 THEN b.hdp1 ELSE 0 END)) AS 'refgr'
+			,b.transdate AS 'tdate'
+			,b.matchid AS 'mid'
+			,b.ip AS 'ip'
+			,ISNULL(CAST(b.WalletType AS SMALLINT),-1) AS 'wt' 
+			,b.betteam AS 'bteam'
+			,b.oddsid AS 'oid'
+			,b.SiteDBGroupID AS 'sitedb'
+		FROM dbo.DuplicatedTicket t WITH (NOLOCK)	
 				INNER JOIN bodb02.dbo.Bettrans b WITH (NOLOCK)	
 						ON b.TransID = t.TransID
 			WHERE	t.Transdate >= @FromDate 
@@ -203,9 +190,37 @@ BEGIN
 				AND b.statusID NOT IN (101,102,103)
 				AND b.bettype NOT IN (500) -- exclude 500 - charged commission
 				AND b.betfrom <> 'p'
-			ORDER BY b.custid, b.odds, b.stake, b.balance, b.bettype, b.winlostdate, b.Username,b.refno, b.transid, b.transdate, b.statusID
-		FOR JSON PATH))
 	END
+
+	--delete  child match cricket (Sporttype = 50)
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		DELETE d
+		FROM #tmpTransInfo d
+			INNER JOIN bodb02.dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
+
+	SET @TransInfoJson = COMPRESS((SELECT b.custid AS 'c'
+			,b.odds AS 'o'
+			,b.stake AS 'stake'
+			,b.balance AS 'balance'
+			,b.statusID AS 'sid'
+			,b.bettype AS 'btype' 
+			,b.winlostdate AS 'wld'
+			,b.transid AS 't'
+			,b.refnoGroup AS 'refgr'
+			,b.transdate AS 'tdate'
+			,b.matchid AS 'mid'
+			,b.ip AS 'ip'
+			,b.WalletType AS 'wt' 
+			,b.betteam AS 'bteam'
+			,b.oddsid AS 'oid'
+			,b.SiteDBGroupID AS 'sitedb'
+			,b.IsMoved14 AS 'isM'
+		FROM #tmpTransInfo b
+		ORDER BY b.custid, b.odds, b.stake, b.balance, b.bettype, b.winlostdate, b.transid, b.transdate, b.statusID
+	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 
