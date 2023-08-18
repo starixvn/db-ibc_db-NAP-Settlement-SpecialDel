@@ -32,9 +32,6 @@ BEGIN
 			,@LeagueId			 INT = 0
 			,@HomeId			 INT = 0
 			,@AwayId			 INT = 0
-			,@OldSubIssueTypeId  SMALLINT
-			,@OldMatchId		 INT
-			,@OldTransIds 		 VARCHAR(MAX) = NULL
 			,@RequestDetailId	 INT
 			,@MatchId			INT
 			,@SubIssueTypeId  SMALLINT
@@ -169,21 +166,9 @@ BEGIN
 
 	-- Get content of log data 
 	SET @LogDataContent = ''
-	IF @IsEditRequest = 0
-	BEGIN
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
-	END
-	ELSE
-	BEGIN
-		IF @MatchId <> @OldMatchId
-		BEGIN
-			SET @LogDataContent += ' Old MatchId: ' + CAST(@OldMatchId AS VARCHAR(20)) + ' New MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', '
-		END
-		IF @SubIssueTypeId <> @OldSubIssueTypeId
-		BEGIN
-			SET @LogDataContent += ' Old SubIssueTypeId: ' + CAST(@OldSubIssueTypeId AS VARCHAR(20))  + ' New SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20))
-		END
-	END
+	SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) 
+							+ ', SubIssueTypeId: ' + CAST(@SubIssueTypeId AS VARCHAR(20)) 
+							+ ', TransIds: ' + CONVERT(VARCHAR(MAX), @xmlTransIds)
 	
 	-- Write Log
 	SET @EndTime = GETDATE()

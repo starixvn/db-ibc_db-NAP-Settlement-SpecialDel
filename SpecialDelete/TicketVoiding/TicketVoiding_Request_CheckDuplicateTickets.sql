@@ -287,6 +287,17 @@ BEGIN
 			,v.DuplicateGroup = c.refno
 		FROM #validTransId v
 			INNER JOIN cte c ON c.transid = v.transid
+
+		;WITH cte_cnt AS
+		(
+			SELECT COUNT(1) AS TransId_cnt, DuplicateGroup
+			FROM #validTransId v
+			GROUP BY v.DuplicateGroup
+		)
+		DELETE v
+		FROM #validTransId v
+			INNER JOIN cte_cnt c ON c.DuplicateGroup = v.DuplicateGroup
+		WHERE c.TransId_cnt < 2
 	END
 
 	-- get unsuppored transid
