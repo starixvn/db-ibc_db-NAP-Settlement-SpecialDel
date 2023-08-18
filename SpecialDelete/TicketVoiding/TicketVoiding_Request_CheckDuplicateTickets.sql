@@ -298,6 +298,11 @@ BEGIN
 		FROM #validTransId v
 			INNER JOIN cte_cnt c ON c.DuplicateGroup = v.DuplicateGroup
 		WHERE c.TransId_cnt < 2
+
+		DELETE t
+		FROM @tmpMatchId t
+			LEFT JOIN #validTransId v ON v.matchid = t.MatchId
+		WHERE v.matchid IS NULL
 	END
 
 	-- get unsuppored transid
