@@ -265,15 +265,15 @@ GO
 	FROM DBCTG.SiteDBtmp.dbo.MarkedTransaction_20230626 mt WITH (NOLOCK)
 
 	-- dbo.NetPositionCalculationLog
-	SET IDENTITY_INSERT NetPositionCalculationLog ON
+	--SET IDENTITY_INSERT NetPositionCalculationLog ON
 
-	INSERT INTO dbo.NetPositionCalculationLog (	NPCalculationLogID, CustID, MatchID, Bettype, AccumNPDebit, AccumNPCredit, NPAdjust, 
+	INSERT INTO dbo.NetPositionCalculationLog (	CustID, MatchID, Bettype, AccumNPDebit, AccumNPCredit, NPAdjust, 
 													IsLatest, CreatedDate, ModifiedDate)
-	SELECT	npcl.NPCalculationLogID, npcl.CustID, npcl.MatchID, npcl.Bettype, npcl.AccumNPDebit, npcl.AccumNPCredit, npcl.NPAdjust, 
+	SELECT	npcl.CustID, npcl.MatchID, npcl.Bettype, npcl.AccumNPDebit, npcl.AccumNPCredit, npcl.NPAdjust, 
 			npcl.IsLatest, npcl.CreatedDate, npcl.ModifiedDate
 	FROM DBCTG.SiteDBtmp.dbo.NetPositionCalculationLog_20230626 npcl WITH (NOLOCK)
 
-	SET IDENTITY_INSERT NetPositionCalculationLog OFF
+	--SET IDENTITY_INSERT NetPositionCalculationLog OFF
 
 	-- dbo.NetPositionTrans
 	INSERT INTO dbo.NetPositionTrans (	TransID, CustID, MatchID, Bettype, Actual_stake, Payout1, Payoutx, Payout2, SyncStatus, 
@@ -322,13 +322,13 @@ GO
 
 	-- dbo.Task_Cust_BalanceProblem1_Manually
 	-- indentity = keyID
-	SET IDENTITY_INSERT Task_Cust_BalanceProblem1_Manually ON
+	--SET IDENTITY_INSERT Task_Cust_BalanceProblem1_Manually ON
 
-	INSERT INTO Task_Cust_BalanceProblem1_Manually ( keyID, UserName, custid, DiffBalance, LogDate, IsFixed, Remark)
-	SELECT tp.keyID ,tp.UserName ,tp.custid ,tp.DiffBalance ,tp.LogDate ,tp.IsFixed ,tp.Remark 
+	INSERT INTO Task_Cust_BalanceProblem1_Manually ( UserName, custid, DiffBalance, LogDate, IsFixed, Remark)
+	SELECT tp.UserName ,tp.custid ,tp.DiffBalance ,tp.LogDate ,tp.IsFixed ,tp.Remark 
 	FROM DBCTG.SiteDBtmp.dbo.Task_Cust_BalanceProblem1_Manually_20230626 tp WITH(NOLOCK) 
 	
-	SET IDENTITY_INSERT Task_Cust_BalanceProblem1_Manually OFF
+	--SET IDENTITY_INSERT Task_Cust_BalanceProblem1_Manually OFF
 
 
 	-- dbo.sum_winloss
