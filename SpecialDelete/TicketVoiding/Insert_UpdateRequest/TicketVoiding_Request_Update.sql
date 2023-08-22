@@ -284,7 +284,7 @@ BEGIN
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
 		END
-		ELSE IF @IssueTypeId IN (20) AND @ActionId = 5
+		ELSE IF @IssueTypeId IN (20) AND @ActionId <> 4
 		BEGIN
 			EXEC dbo.TicketVoiding_RequestDetail_DT_Update
 				 @RequestId		 = @RequestId		
