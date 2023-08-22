@@ -8,7 +8,7 @@ AS
     DB: DBPRO/bodb02
 	
 	Revisions:
-		- 20210920@Aries:  Linked result for Fantasy match [Redmine:#161268]
+		- 20230807@Aries:  Created [Redmine:#189191]
 
 */
 BEGIN
@@ -52,7 +52,7 @@ BEGIN
 	) pv
 	
 
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN (56037,56053, 56069,99321,16926,97008)) --- Fantasy League
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN (56037,56053, 56069,99321,16926,97008,132325)) --- Fantasy League
 	BEGIN
 		INSERT INTO @tmpRelatedMatchIds ( MatchId )
 		SELECT f.value FROM STRING_SPLIT ( @fantasy, ',' ) f
@@ -90,7 +90,7 @@ BEGIN
 			, m.IsDeleted
 		FROM dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpRelatedMatchIds AS tmp ON m.matchid = tmp.MatchId
-			LEFT JOIN dbo.ResultDetail AS rd ON rd.matchid = tmp.MatchId			
+			LEFT JOIN dbo.ResultDetail AS rd WITH(NOLOCK) ON rd.matchid = tmp.MatchId			
 		WHERE 1 = CASE WHEN m.sporttype = 2 AND (rd.ResourceId IN ('Q1','Q2','Q3','Q4','OT','00','01') OR rd.ResourceId  IS NULL) THEN 1
 					   ELSE 0
 				  END
