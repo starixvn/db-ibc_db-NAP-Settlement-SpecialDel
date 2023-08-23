@@ -60,13 +60,23 @@ BEGIN
 	
 	--Get statusWL of tiket
 	SELECT DISTINCT t.RequestId, t.VoidActionId
-	FROM #tmpInputTransId t 
-		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
-	WHERE b.statuswinlost IS NOT NULL 
-		AND 1 = CASE WHEN t.IssueTypeId = 19 THEN 1
-					WHEN t.IssueTypeId <> 19 AND b.statusID IN (0,1) THEN 1
-					ELSE 0
-				END
+	FROM(
+		SELECT DISTINCT t.RequestId, t.VoidActionId
+		FROM #tmpInputTransId t 
+			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE b.statuswinlost IS NOT NULL 
+			AND 1 = CASE WHEN t.IssueTypeId = 19 THEN 1
+						WHEN t.IssueTypeId <> 19 AND b.statusID IN (0,1) THEN 1
+						ELSE 0
+					END
+		UNION ALL
+		SELECT DISTINCT t.RequestId, t.VoidActionId
+		FROM #tmpInputTransId t 
+			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
+		WHERE t.IsMixParlay = 1
+			AND t.IssueTypeId = 19
+			AND b.statuswinlost IS NOT NULL 
+	)t
 
 	--Invalid Transid
 	SELECT t.RequestId, t.TransId
