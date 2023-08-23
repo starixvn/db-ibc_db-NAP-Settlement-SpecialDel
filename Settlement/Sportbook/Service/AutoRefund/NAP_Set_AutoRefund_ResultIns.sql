@@ -13,9 +13,11 @@ AS
 		- 20201216@Louisa: Insert ET & PEN match [Redmine:#145597]
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393] 
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
+		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 
 	Param's explaination:
 		@TypeIds: 1 - Refund Single
+				  2 - Refund Fantasy
 				  10- Refund Parlay 
 */
 BEGIN
@@ -40,7 +42,11 @@ BEGIN
 							)
 			AND ISNULL(m.IsDeleted,0) = 0
 	END
-
+	ELSE IF @TypeId = 2
+	BEGIN
+		INSERT INTO dbo.AutoRefundResult (MatchId, SourceId, TypeId)
+		SELECT	@ParentId	, @SourceId	, 1
+	END
 	ELSE IF @TypeId = 10
 	BEGIN
 		INSERT INTO dbo.AutoRefundResult (MatchId, SourceId, TypeId)

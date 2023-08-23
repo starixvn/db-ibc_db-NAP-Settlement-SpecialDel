@@ -13,11 +13,13 @@ AS
 
 	Revisions:
 		- 20201216@Louisa: Update status ET & PEN match [Redmine:#145597]
+		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 
 	Param's explaination:
 		- @SourceId: 105:   Auto Refund Child Match
 		- @TypeId  : 0 - All Type
 					 1 - AutoRefund Single
+					 2 - Refund Fantasy
 					 10 - Auto Refund Parlay
 		- @StatusId: 0 - New
 					 1 - Service processed
@@ -45,17 +47,16 @@ BEGIN
 			AND TypeId = @TypeId
 			AND MatchId = @MatchId
 
-		IF @TypeId = 1 AND @StatusId = 2
-			BEGIN	
-				
-				DECLARE @ChildMatchIds VARCHAR(20) =  CAST (@MatchId AS VARCHAR)
-
-				EXEC NAP_Set_AutoRefund_ResultIns
-					 @TypeId   = 10		 
-					,@ChildMatchIds = @ChildMatchIds
-			END
 	END
-
+	ELSE IF @TypeId = 2
+	BEGIN
+		UPDATE dbo.AutoRefundResult WITH(ROWLOCK,UPDLOCK)
+		SET  StatusId	=  @StatusId		
+			,ModifiedDate	= GETDATE()
+		WHERE SourceId = 105
+			AND TypeId = 1
+			AND MatchId = @MatchId
+	END
 	ELSE IF (@TypeId = 0)
 	BEGIN
 		UPDATE dbo.AutoRefundResult  WITH(ROWLOCK,UPDLOCK) --- Update any data to fail in case Auto Service had broken 
