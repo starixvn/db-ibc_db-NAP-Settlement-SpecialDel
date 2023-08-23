@@ -133,12 +133,12 @@ BEGIN
 		  ,@IsNeutral AS IsNeutral
 		  ,FilterBy 
 		  ,RequestExtraInfo
-		  ,Provider
+		  ,ISNULL(Provider,'') AS Provider
 		  ,StartVoidTime 
 		  ,IssueTypeName
 		  ,SubIssueTypeName 
 		  ,OperatorInfo
-		  ,t.Remark
+		  ,ISNULL(t.Remark,'') AS Remark
 		  ,c.username AS RequestedBy
 		  ,@IsHasSettledTicket AS IsHasSettledTicket
 	FROM @tmpRequestInfo t
