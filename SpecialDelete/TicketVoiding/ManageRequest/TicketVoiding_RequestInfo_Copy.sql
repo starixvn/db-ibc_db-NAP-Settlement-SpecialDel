@@ -47,20 +47,16 @@ BEGIN
 
 	SELECT @IsHasSettledTicket = MAX(ISNULL(vh_xml.IsHasSettledTicket,0))
 	FROM (
-		SELECT MAX(VoidingHistoryId) AS VoidingHistoryId
-		FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK)
-		WHERE v.RequestId = @RequestId
-			AND v.StatusId <> 3
+		SELECT VoidingHistoryId
+		FROM dbo.Ticketvoiding_VoidBetAutomation_Service s WITH (NOLOCK)
+		WHERE s.RequestId = @RequestId
+			AND s.matchID = @MatchId
+			AND s.StatusId <> 3
 	)vh
-	CROSS APPLY (
-		SELECT v.BroadcastSessionId
-		FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK)
-		WHERE v.VoidingHistoryId = vh.VoidingHistoryId
-	)vb
 	CROSS APPLY (
 		SELECT v.VoidData
 		FROM dbo.TicketVoiding_VoidingHistory v WITH (NOLOCK)
-		WHERE v.BroadcastSessionId = vb.BroadcastSessionId
+		WHERE v.VoidingHistoryId = vh.VoidingHistoryId
 	)vd
 	CROSS APPLY (
 		SELECT CASE WHEN ISNULL(t.c.value('@IsHasSettledTicket','VARCHAR(50)'),0) = 'True' THEN 1 ELSE 0 END AS IsHasSettledTicket			
