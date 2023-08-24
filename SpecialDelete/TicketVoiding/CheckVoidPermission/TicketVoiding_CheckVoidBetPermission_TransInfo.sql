@@ -14,6 +14,7 @@ AS
 		- 20221124@Max: Create new SP [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
+		- 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 
 	Param's explanation:	
 		- @TransIds: '12343091763609600,12343108943478784'
@@ -57,6 +58,7 @@ BEGIN
 	    ,SiteDBGroupID	SMALLINT
 		,IsCancelCashOut BIT
 		,statuswinlost	TINYINT
+		,betid			BIGINT
 	)
 
 	--Search tickets single
@@ -73,6 +75,7 @@ BEGIN
 		,SiteDBGroupID
 		,IsCancelCashOut
 		,statuswinlost
+		,betid
 	)
 	SELECT b.matchid
 		,b.TransId
@@ -86,6 +89,7 @@ BEGIN
 		,b.SiteDBGroupID
 		,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut
 		,b.statuswinlost
+		,b.betid
 	FROM @TransIdTemp t
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
 	WHERE b.SiteDBGroupID = @SiteDBGroupID
@@ -108,6 +112,7 @@ BEGIN
 			,SiteDBGroupID
 			,IsCancelCashOut
 			,statuswinlost
+			,betid
 		)
 		SELECT bm.matchid
 			  ,bm.TransId
@@ -121,6 +126,7 @@ BEGIN
 			  ,bm.SiteDBGroupID
 			  ,0 AS IsCancelCashOut
 			  ,bm.statuswinlost
+			  ,NULL AS betid
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettransm bm WITH (NOLOCK) ON bm.TransId = t.transid
 		WHERE bm.SiteDBGroupID = @SiteDBGroupID
@@ -144,6 +150,7 @@ BEGIN
 			,SiteDBGroupID
 			,IsCancelCashOut
 			,statuswinlost
+			,betid
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -157,6 +164,7 @@ BEGIN
 			,b.SiteDBGroupID
 			,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut
 			,b.statuswinlost
+			,b.betid
 		FROM @TransIdTemp t
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.transid
 		WHERE b.SiteDBGroupID = @SiteDBGroupID
@@ -175,6 +183,7 @@ BEGIN
 		,SiteDBGroupID AS 'sitedb'
 		,IsCancelCashOut AS 'isCCO'
 		,statuswinlost AS 'statuswl'
+		,betid AS 'bid'
 	FROM #TransInfo
 	FOR JSON PATH))
 

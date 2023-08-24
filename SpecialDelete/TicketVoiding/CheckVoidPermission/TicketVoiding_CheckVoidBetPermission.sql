@@ -21,6 +21,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230417@July: Update "Void" Permission of TVS [Redmine: #186659]
 		- 20230606@July: Void permission - Add bet types of SABA Time Machine to Instant Settle list [Redmine: #188454]
+	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 
 	Param's Explanation:
 		+ @MatchId: 0 - For TVS with issuetype is abnormal account
@@ -46,9 +47,8 @@ BEGIN
 	VALUES (228) --SABA OU Time Machine
 		 , (229) --SABA HDP Time Machine
 
-	CREATE TABLE #InstantSettlementBettypes (bettype SMALLINT)
-	CREATE CLUSTERED INDEX IDX_InstantSettlementBettypes_bettype ON #InstantSettlementBettypes (bettype)
-	CREATE TABLE #CTE_TransId (
+	CREATE TABLE #InstantSettlementBettypes (matchid INT, bettype SMALLINT, betid BIGINT)
+	CREATE TABLE #tmpTransIdSettledType (
 		TransId		BIGINT
 	  , SettledType TINYINT -- 1: Instant Settlement, 2: Normal Settlement, 3: SABA Time Machine Settlement
 	)
@@ -66,6 +66,9 @@ BEGIN
 		,SiteDBGroupID SMALLINT
 		,IsCancelCashOut BIT
 		,statuswinlost TINYINT
+		,betid BIGINT
+		,eventstatus NVARCHAR(50)
+		,sporttype SMALLINT
 	)
 
 	INSERT INTO #tmpTransInfo( 
@@ -81,165 +84,142 @@ BEGIN
 		,SiteDBGroupID
 		,IsCancelCashOut
 		,statuswinlost
+		,betid
 		)
-	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl
+	SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl, bid
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
-				SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl
+				SELECT mid, t, s_t, btype, bdaq, sid, s_sid, isP, isM, sitedb, isCCO, statuswl, bid
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
-				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT, isCCO BIT, statuswl TINYINT)
+				WITH( mid INT, t BIGINT, s_t BIGINT, btype SMALLINT, bdaq BIGINT, sid TINYINT, s_sid  TINYINT, isP BIT, isM BIT, sitedb SMALLINT, isCCO BIT, statuswl TINYINT, bid BIGINT)
 		) tbl
 	WHERE f.value <> ''
 
 	-- Instant Settlement declaration
 	DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-	DECLARE @IsHTCal BIT = 0
-		,@eventstatus NVARCHAR(50) = ''
+	CREATE TABLE #CTE_match (matchid INT, sporttype SMALLINT, eventstatus NVARCHAR(50))
+	CREATE TABLE #CTE_isCal (matchid INT, IsHTCal BIT, ResourceId VARCHAR(20))
 
 	IF @MatchId IS NOT NULL
 	BEGIN
-		--> Get status of match
-		SELECT @IsHTCal = ISNULL(IsHTCal, 0)
-		FROM match_remark(NOLOCK)
-		WHERE matchid = @MatchId
-
-		SELECT @eventstatus = ISNULL(eventstatus, '')
-		FROM match(NOLOCK)
-		WHERE matchid = @MatchId
-
-		--> Build bettype list supported for instant settlement based on settlement status of match
-		IF @eventstatus <> @eventstatus_completed
-		BEGIN
-			IF @IsHTCal = 0
-				INSERT INTO #InstantSettlementBettypes (bettype)
-				SELECT T.bettype
-				FROM dbo.f_TVS_GetInstantBettypes() T
-				WHERE T.InstantType IN (1, 3) -- 01, 11
-			ELSE
-				INSERT INTO #InstantSettlementBettypes (bettype)
-				SELECT T.bettype
-				FROM dbo.f_TVS_GetInstantBettypes() T
-				WHERE T.InstantType IN (2, 3) -- 10, 11			
-		END
-
-		INSERT INTO #CTE_TransId (
-			TransId
-		   ,SettledType 
-		)
-		SELECT b.transid
-			,CASE WHEN b.StatusId IN (111, 112, 113)
-					AND EXISTS (
-						SELECT TOP 1 1
-						FROM #InstantSettlementBettypes AS i
-						WHERE b.bettype = i.bettype
-						) THEN 1
-				 WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
-				 WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
-				 ELSE 0
-				END
-		FROM #tmpTransInfo b
-		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
-		WHERE ISNULL(b.betdaqid,0) <> -2 AND b.IsMixParlay = 0 AND b.IsMoved14 = 0
-		
-		SELECT @IsExistsInstantlySettledTickets = MAX(CASE WHEN SettledType = 1 THEN 1 ELSE 0 END)
-			 , @IsExistsSettledSingleTickets = MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END)
-			 , @IsExistsInstantlySettledSABATickets = MAX(CASE WHEN SettledType = 3 THEN 1 ELSE 0 END)
-		FROM #CTE_TransId
+		INSERT INTO #CTE_match (matchid, sporttype, eventstatus)
+		SELECT m.matchid, m.sporttype, m.eventstatus
+		FROM dbo.match m WITH(NOLOCK) 
+		WHERE matchid = @MatchId AND m.eventstatus <> @eventstatus_completed
 
 	END
-	
 	IF ISNULL(@MatchId,0) = 0
 	BEGIN
-		INSERT INTO #CTE_TransId (
-			TransId
-		   ,SettledType 
-		)
-		SELECT b.transid
-			,CASE 
-				WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
-					THEN CASE
-							WHEN ISNULL(mr.IsHTCal, 0) = 0
-									AND EXISTS (SELECT TOP 1 1
-												FROM dbo.f_TVS_GetInstantBettypes() ib
-												WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
-									THEN 1
-							WHEN ISNULL(mr.IsHTCal, 0) = 1
-									AND EXISTS (SELECT TOP 1 1
-												FROM dbo.f_TVS_GetInstantBettypes() ib
-												WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
-									THEN 1
-							WHEN ib.bettype IS NOT NULL THEN 3
-							ELSE 2
-						END
-				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
-				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
-				ELSE 0
-			END
+		INSERT INTO #CTE_match (matchid, sporttype, eventstatus)
+		SELECT b.matchid, m.sporttype, m.eventstatus
 		FROM #tmpTransInfo b
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
-		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
-		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
-		WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 0
-
-		UNION ALL -- Apply for ticket void14 
-		SELECT b.transid
-			,CASE 
-				WHEN b.StatusId IN (111, 112, 113) AND ISNULL(m.eventstatus, '') <> 'completed'
-					THEN CASE
-							WHEN ISNULL(mr.IsHTCal, 0) = 0
-									AND EXISTS (SELECT TOP 1 1
-												FROM dbo.f_TVS_GetInstantBettypes() ib
-												WHERE ib.InstantType IN (1, 3) AND ib.bettype = b.bettype)
-									THEN 1
-							WHEN ISNULL(mr.IsHTCal, 0) = 1
-									AND EXISTS (SELECT TOP 1 1
-												FROM dbo.f_TVS_GetInstantBettypes() ib
-												WHERE ib.InstantType IN (2, 3) AND ib.bettype = b.bettype)
-									THEN 1
-							WHEN ib.bettype IS NOT NULL THEN 3
-							ELSE 2
-						END
-				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NOT NULL THEN 3
-				WHEN b.StatusId IN (111, 112, 113) AND ib.bettype IS NULL THEN 2
-				ELSE 0
-			END
-		FROM #tmpTransInfo b
-		LEFT JOIN dbo.match14 m WITH(NOLOCK) ON m.matchid = b.matchid
-		LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = b.matchid
-		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
-		WHERE b.matchid NOT IN (9, 29, 2799) AND ISNULL(b.betdaqid,0) <> -2 AND b.IsMoved14 = 1
-		
-		SELECT @IsExistsInstantlySettledTickets = MAX(CASE WHEN SettledType = 1 THEN 1 ELSE 0 END)
-			 , @IsExistsSettledSingleTickets = MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END)
-			 , @IsExistsInstantlySettledSABATickets = MAX(CASE WHEN SettledType = 3 THEN 1 ELSE 0 END)
-		FROM #CTE_TransId
+			CROSS APPLY( 
+					SELECT m.sporttype, m.eventstatus
+					FROM dbo.match m WITH(NOLOCK) 
+					WHERE b.matchid = m.matchid AND m.eventstatus <> @eventstatus_completed
+					UNION
+					SELECT m14.sporttype, m14.eventstatus
+					FROM dbo.match14 m14 WITH(NOLOCK) 
+					WHERE b.matchid = m14.matchid AND m14.eventstatus <> @eventstatus_completed
+			)m
+	END	
 	
+	IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 1) --Soccer	 
+	BEGIN
+		INSERT INTO #CTE_isCal (matchid, IsHTCal)
+		SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
+		FROM #CTE_match m
+			LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
+		WHERE m.sporttype = 1
+
+		INSERT INTO #InstantSettlementBettypes (matchid, bettype)
+		SELECT c.matchid,  f.bettype
+		FROM #CTE_isCal c
+			CROSS APPLY (
+					SELECT bettype
+					FROM dbo.f_TVS_GetInstantBettypes() 
+					WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
+								   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
+							ELSE 0 END
+			)f	
+	END
+	IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 2) --Basketball
+	BEGIN
+		INSERT INTO #CTE_isCal (matchid, ResourceId)
+		SELECT m.matchid, rd.ResourceId
+		FROM #CTE_match m
+			INNER JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) ON rd.matchid = m.matchid
+		WHERE m.sporttype = 2
+			AND ResultStatusID in (2,5)
+			AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
+
+		INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
+		SELECT DISTINCT c.matchid, f.bettype, f.betid
+		FROM #CTE_isCal c
+			CROSS APPLY (
+					SELECT bettype, betid
+					FROM dbo.f_TVS_GetInstantBettypes()
+					WHERE InstantType IS NULL
+					AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal)
+			)f	 	
 	END
 
+	UPDATE t
+	SET t.eventstatus = m.eventstatus
+	   ,t.sporttype = m.sporttype
+	FROM #tmpTransInfo t 
+		INNER JOIN #CTE_match m ON t.matchid = m.matchid
+
+	INSERT INTO #tmpTransIdSettledType (
+		TransId
+		,SettledType 
+	)
+	SELECT b.transid
+		,CASE 
+			WHEN ISNULL(b.eventstatus, '') <> 'completed'
+				THEN CASE
+						WHEN b.sporttype = 1 AND EXISTS (
+							SELECT TOP 1 1
+							FROM #InstantSettlementBettypes AS i
+							WHERE b.bettype = i.bettype
+							) THEN 1
+						WHEN b.sporttype = 2 AND EXISTS (
+							SELECT TOP 1 1
+							FROM #InstantSettlementBettypes AS i
+							WHERE b.bettype = i.bettype AND b.betid = i.betid
+							) THEN 1
+						WHEN ib.bettype IS NOT NULL THEN 3
+						ELSE 2
+					END
+			WHEN ib.bettype IS NOT NULL THEN 3
+			ELSE 2
+		END
+	FROM #tmpTransInfo b
+		LEFT JOIN @SupportInstantSettleSABABettype ib ON b.bettype = ib.bettype
+	WHERE b.matchid NOT IN (9, 29, 2799) 
+		AND ISNULL(b.betdaqid,0) <> -2
+		AND b.statusID IN (111, 112, 113) 
+
+	SELECT @IsExistsInstantlySettledTickets = MAX(CASE WHEN SettledType = 1 THEN 1 ELSE 0 END)
+		 , @IsExistsSettledSingleTickets = MAX(CASE WHEN SettledType = 2 THEN 1 ELSE 0 END)
+		 , @IsExistsInstantlySettledSABATickets = MAX(CASE WHEN SettledType = 3 THEN 1 ELSE 0 END)
+	FROM #tmpTransIdSettledType
+
 	-- check settled parlay (sub-parlay, main-parlay (bettrans+ bettrans14)
-	SELECT @IsExistsSettledParlayTickets = CASE WHEN EXISTS (
-												SELECT TOP 1 1
-												FROM #tmpTransInfo m
-												WHERE m.SubstatusID IN (111, 112, 113) AND m.IsMixParlay = 1 
-											) THEN 1
-											ELSE 0
-											END
+	SET @IsExistsSettledParlayTickets = (SELECT TOP 1 1
+										 FROM #tmpTransInfo m
+										 WHERE m.SubstatusID IN (111, 112, 113) AND m.IsMixParlay = 1 
+										)
 
-	-- check settled ticket cash out (single + ticket 14)
-	SET @IsExistsSettledCashOutTickets = (SELECT  TOP 1 1
-										  FROM #tmpTransInfo b
-										  WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2 AND b.IsMixParlay = 0 AND b.IsCancelCashOut = 0
-										  )
-	
-	-- check settled ticket CANCEL cash out (single + ticket 14) -- match settled
-	SET @IsExistsSettledCancelCashOutTickets = (SELECT  TOP 1 1
-										  FROM #tmpTransInfo b
-										  WHERE b.statusID IN (111, 112, 113) AND b.betdaqid = -2 AND b.IsMixParlay = 0 AND b.IsCancelCashOut = 1
-												AND b.statuswinlost IS NOT NULL
-										  )
+	-- check settled ticket cash out & CANCEL cash out (single + ticket 14)
+	SELECT  @IsExistsSettledCashOutTickets	     = MAX(CASE WHEN b.IsCancelCashOut = 0 THEN 1 ELSE 0 END)
+		   ,@IsExistsSettledCancelCashOutTickets = MAX(CASE WHEN b.IsCancelCashOut = 1 AND b.statuswinlost IS NOT NULL THEN 1 ELSE 0 END) 
+	FROM #tmpTransInfo b
+	WHERE b.statusID IN (111, 112, 113) 
+		AND b.betdaqid = -2 
+		AND b.IsMixParlay = 0
 
-	
 
 	SELECT @IsExistsSettledTickets = CASE WHEN @IsExistsSettledSingleTickets = 1 
 											OR @IsExistsSettledParlayTickets = 1
@@ -279,5 +259,7 @@ BEGIN
 
 	DROP TABLE #InstantSettlementBettypes
 	DROP TABLE #tmpTransInfo
-	DROP TABLE #CTE_TransId
+	DROP TABLE #tmpTransIdSettledType
+	DROP TABLE #CTE_match
+	DROP TABLE #CTE_isCal
 END
