@@ -42,7 +42,7 @@ BEGIN
 						INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = t.RequestId
 					WHERE r.IssueTypeId IN (13,19) AND r.ActionId = 4)
 
-	IF @DecidedBy <> '' AND CAST(@VoidData AS NVARCHAR(MAX)) NOT LIKE '%@DecidedBy%'
+	IF @DecidedBy <> '' AND CAST(@VoidData AS NVARCHAR(MAX)) NOT LIKE '%DecidedBy%'
 	BEGIN
 		SET @VoidData.modify('             
 					insert attribute DecidedBy {sql:variable("@DecidedBy") }             
