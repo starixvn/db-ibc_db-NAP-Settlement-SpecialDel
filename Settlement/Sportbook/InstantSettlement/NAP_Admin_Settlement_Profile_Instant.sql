@@ -11,6 +11,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Instant]
 	,@hta						INT				= NULL
 	,@fth						INT				= NULL
 	,@fta						INT				= NULL
+	,@BroadcastSessionId		VARCHAR(50)		= NULL
 	,@ErrCode					INT				= 0		OUTPUT
 	,@ErrMsg					NVARCHAR(200)	= ''	OUTPUT
 	
@@ -23,6 +24,7 @@ AS
 
     Revisions:
 		- 20230515@Aries: Created [Redmine:#175202]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
     Param's Explanation:
         - @Action: 'CAL'
@@ -69,6 +71,7 @@ BEGIN
 		    ,@SqlCommand					VARCHAR(MAX)
 
 			,@ResultTable					TINYINT
+			,@BroadcastSessionIdInstant		VARCHAR(50)		= @BroadcastSessionId + '_instant'
 		
 	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT,PRIMARY KEY (BetType,BetID))	
     DECLARE @tmpResources TABLE(SDTResourceId VARCHAR(20),HomeValue VARCHAR(2000),AwayValue VARCHAR(2000))
@@ -395,7 +398,7 @@ BEGIN
 
 	SET @RemarkSDT = @RemarkSDT + 'SDT_FT(' + CAST(@fthSDT AS VARCHAR(50)) + '-' + CAST(@ftaSDT AS VARCHAR(50)) + ')'
 
-	IF @IsCentral = 1
+	
 	BEGIN
 		SELECT @Remark = STRING_AGG (SDTResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
 		FROM @tmpResources
@@ -407,16 +410,17 @@ BEGIN
 					 +'Duration: ' + CAST(DATEDIFF(MILLISECOND, @Start, @Stop) AS NVARCHAR(50)) + ' ms;' 
 					 +'TC: ' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) 
 
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-				 @userid			= @AdminId
-				,@matchid			= @MatchId
-				,@actionid			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= @hth
-				,@htawayscore		= @hta
-				,@Remark			= @Remark
-				,@ip				= @IP
+		IF @IsCentral = 1
+			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+					 @userid			= @AdminId
+					,@matchid			= @MatchId
+					,@actionid			= @ActionID
+					,@finalhomescore	= @fth
+					,@finalawayscore	= @fta
+					,@hthomescore		= @hth
+					,@htawayscore		= @hta
+					,@Remark			= @Remark
+					,@ip				= @IP
 		
 	END
 
@@ -466,6 +470,7 @@ BEGIN
 								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 		
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @DeterminedType = ' + CONVERT(VARCHAR(50), @DeterminedType)
+								+ ', @BroadcastSessionId = ''' + @BroadcastSessionIdInstant + ''''
 								+ ', @Action = ''CAL'''
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
@@ -485,14 +490,15 @@ BEGIN
 				,@LockedByRefno			= 1 -- always lock refno for testing
 				,@IsCentral				= @IsCentral
 				,@DeterminedType        = @DeterminedType
+				,@BroadcastSessionId 	= @BroadcastSessionIdInstant
 
 				,@ErrCode				= @ErrCode OUTPUT
 				,@ErrMsg 				= @ErrMsg OUTPUT
 		END
 		ELSE
 		BEGIN
-			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-			SELECT @MatchID, 0, @AdminId, '', CURRENT_TIMESTAMP, 'SDT', @SqlCommand, @SportType, @LockedByRefno
+			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+			SELECT @MatchID, 0, @AdminId, '', CURRENT_TIMESTAMP, 'SDT', @SqlCommand, @SportType, @LockedByRefno, @BroadcastSessionIdInstant
 		END
 	END
 END

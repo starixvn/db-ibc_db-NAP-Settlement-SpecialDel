@@ -44,6 +44,7 @@ AS
 		- 20221010@Kathy: Wrong status for bettype 391,386 when refund SDT with any round [Redmine:#178935]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
     Param's Explanation:
 		 @SelectedResources: <Resources>
@@ -660,6 +661,7 @@ BEGIN
 								+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
 								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 
 								+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
+								+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -674,6 +676,7 @@ BEGIN
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@LockedByRefno		= 1 -- always lock refno for testing
 				,@IsCentral			= @IsCentral
+				,@BroadcastSessionId = @BroadcastSessionId
 
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
@@ -681,7 +684,7 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @AdminID, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
+			SELECT @MatchID, 0, @AdminID, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
 		END
 	END
 END

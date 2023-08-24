@@ -22,6 +22,7 @@ AS
 	   - 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 	   - 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 	   - 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+	   - 20230817@Kathy: Write log [Redmine:#192311]
 
 */
 BEGIN
@@ -501,6 +502,7 @@ BEGIN
 								+ ', @IsReSettledTickets = 0'			
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
+								+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 								+ ', @DeterminedType = 2'
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
@@ -520,6 +522,7 @@ BEGIN
 				,@DeterminedType 	= 2
 				,@LockedByRefno		= 1 -- always lock refno for testing
 				,@IsCentral			= @IsCentral
+				,@BroadcastSessionId = @BroadcastSessionId
 
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
@@ -527,7 +530,7 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, 'SDT-FT', @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
+			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, 'SDT-FT', @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
 		END
 	END
 END

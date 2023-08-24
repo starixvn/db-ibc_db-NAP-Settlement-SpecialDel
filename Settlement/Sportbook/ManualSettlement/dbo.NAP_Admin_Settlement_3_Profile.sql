@@ -38,6 +38,7 @@ AS
 	   - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 	   - 20230523@Kathy: remove un-used table [Redmine:#188452]
 	   - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
+	   - 20230817@Kathy: Write log [Redmine:#192311]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -863,6 +864,11 @@ BEGIN
 								+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 														
 								+ ', @IsReSettledTickets = ' + CONVERT(VARCHAR(1), @IsReSettledTickets) 	
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral) 	
+								+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+								+ ', @hth = ' + ISNULL(CONVERT(NVARCHAR(50), @hth),'NULL')
+								+ ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @hta),'NULL')
+								+ ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @fth),'NULL') 
+								+ ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @fta),'NULL')
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -876,14 +882,18 @@ BEGIN
 				,@IsReSettledTickets = @IsReSettledTickets
 				,@LockedByRefno		= 1 -- always lock refno for testing
 				,@IsCentral			= @IsCentral
-
+				,@BroadcastSessionId = @BroadcastSessionId
+				,@hth				= @hth
+				,@hta				= @hta
+				,@fth				= @fth
+				,@fta				= @fta
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
 		END
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
+			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
 		END
 	END
 END

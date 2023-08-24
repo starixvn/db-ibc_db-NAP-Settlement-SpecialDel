@@ -89,6 +89,7 @@ AS
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
@@ -451,7 +452,8 @@ BEGIN
 									+ ', @creator = ' + CONVERT(NVARCHAR(50), @creator) 												
 									+ ', @SelectedResources = ''' + CONVERT(VARCHAR(MAX), @SelectedResourceParlay) + ''''
 									+ ', @Action = ''' + @Action + ''''	
-									+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral) 	
+									+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral) 
+									+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''									
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -464,13 +466,15 @@ BEGIN
 						,@SelectedResources = @SelectedResourceParlay
 						,@LockedByRefno		= 1 -- always lock refno for testing
 						,@IsCentral			= @IsCentral
+						,@BroadcastSessionId = @BroadcastSessionId
+						
 						,@ErrCode			= @ErrCode OUTPUT
 						,@ErrMsg 			= @ErrMsg OUTPUT
 				END
 			ELSE
 			BEGIN
 					INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-					SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
+					SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
 				END
 		END
 	END TRY
