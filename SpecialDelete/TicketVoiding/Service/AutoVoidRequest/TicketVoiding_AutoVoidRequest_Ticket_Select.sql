@@ -101,7 +101,7 @@ BEGIN
 	SELECT TransId, RequestId, IssueTypeId, MatchId, SiteDBGroupId, VoidActionId FROM #ParlayTickets
 
 	--Cricket bettype 501 of credit (NP)
-	SELECT TransId, RequestId, IssueTypeId, MatchId, s.SiteDBGroupId 
+	SELECT TransId, RequestId, IssueTypeId, MatchId, s.SiteDBGroupId, VoidActionId
 	FROM #SingleTickets s 
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = s.CustId
 		LEFT JOIN CustDB.dbo.Dep_CustSuper ds WITH (NOLOCK) ON ds.custid = c.srecommend
