@@ -7,6 +7,7 @@ AS
 	
 	Revisions:
 		- 20230616@Aries: Created [Redmine:#189493]
+		- 20230825@Aries: Direct Fantasy is run when parent match is not completed [Redmine:#193173]
 
 	Param's Explanation:
  
@@ -22,7 +23,7 @@ BEGIN
 			,@ToDate			DATETIME
 
 	DECLARE @tmpMatch		TABLE(MatchId INT,LeagueId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, Action  VARCHAR(20),LastParentCalculateDate DATETIME,  AutoSetting TINYINT, SettlementStatus TINYINT)
-	DECLARE @tmpParentInfo	TABLE(MatchId INT,MatchParentId INT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT,LastModifyDate DATETIME,SettlementStatus TINYINT,   IsValid BIT)
+	DECLARE @tmpParentInfo	TABLE(MatchId INT,MatchParentId INT,ParentEventStatus NVARCHAR(100), ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT,LastModifyDate DATETIME,SettlementStatus TINYINT,   IsValid BIT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		 @SPName		=	@ProcName
@@ -73,9 +74,10 @@ BEGIN
 		AND rs.IsExistAP IS NULL
 		AND ar.IsExistAR IS NULL
 		
-	INSERT INTO @tmpParentInfo(MatchId,MatchParentId,ResourceId, HomeValue, AwayValue,SettlementStatusID,LastModifyDate,SettlementStatus, IsValid)
+	INSERT INTO @tmpParentInfo(MatchId,MatchParentId,ParentEventStatus,ResourceId, HomeValue, AwayValue,SettlementStatusID,LastModifyDate,SettlementStatus, IsValid)
 	SELECT fm.MatchId
 		  ,pr.ParentID
+		  ,m.eventstatus AS ParentEventStatus
 		  ,rd.ResourceId
 		  ,IIF(CHARINDEX(','+CAST(m.homeid AS VARCHAR(20))+',', ','+mp.fantasyh+',') > 0,CAST(rd.HomeValue AS INT),0)  + 
 		   IIF(CHARINDEX(','+CAST(m.awayid AS VARCHAR(20))+',', ','+mp.fantasyh+',') > 0,CAST(rd.AwayValue AS INT),0)  AS HomeValue
@@ -105,6 +107,7 @@ BEGIN
 		) AS pr 
 		LEFT JOIN  dbo.match AS m WITH(NOLOCK) ON m.MatchId = pr.ParentID
 		LEFT JOIN  dbo.ResultDetail AS rd WITH(NOLOCK) ON rd.MatchId = pr.ParentID AND rd.ResourceId IN ('00','01')
+
 	
 	DELETE m
 	FROM @tmpMatch AS m
@@ -121,10 +124,17 @@ BEGIN
 	WHERE EXISTS (SELECT MAX(pr.LastModifyDate) AS LastModifyDate
 				  FROM @tmpParentInfo AS pr
 				  WHERE pr.MatchId = m.MatchId 
+					AND pr.ParentEventStatus = 'completed'
 				  GROUP BY pr.MatchId,pr.MatchParentId
 				  HAVING COUNT(1) % 2 = 0 AND SUM(IIF(SettlementStatusID = 1,4,0)) / COUNT(1) =  4) 
 		
-
+	DELETE m
+	FROM @tmpMatch AS m
+	WHERE EXISTS (SELECT 1
+				  FROM @tmpParentInfo AS pr
+				  WHERE m.MatchId = pr.MatchId
+				  GROUP BY pr.MatchId,pr.MatchParentId
+				  HAVING COUNT(1) != 2)
 
 	UPDATE m
 	SET  m.Action = 'CAL'
@@ -143,7 +153,7 @@ BEGIN
 				FROM @tmpParentInfo AS pr
 				WHERE pr.MatchId = m.MatchId 
 				GROUP BY pr.MatchId
-				HAVING COUNT(1) % 2 = 0 AND SUM(IIF(pr.SettlementStatusID = 4 AND  ISNULL(pr.SettlementStatus,0) & 119 = 0,4,0)) / COUNT(1) =  4
+				HAVING COUNT(1) % 2 = 0 AND SUM(IIF(pr.SettlementStatusID = 4 AND pr.ParentEventStatus = 'completed' AND  ISNULL(pr.SettlementStatus,0) & 119 = 0,4,0)) / COUNT(1) =  4
 		) AS tbl 
 	WHERE m.SettlementStatus  & 32 = 0
 
