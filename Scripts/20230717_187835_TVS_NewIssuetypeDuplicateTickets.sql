@@ -39,7 +39,7 @@ VALUES(64,
 )
 
 --TicketVoiding_MessageTemplateSetting
-INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (SubIssueTypeId, TemplateId)
+INSERT INTO dbo.TicketVoiding_MessageTemplateSetting (TemplateId, SubIssueTypeId)
 VALUES (64, 122)
 , (65, 122) 
 
