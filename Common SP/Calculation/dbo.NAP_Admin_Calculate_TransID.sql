@@ -79,7 +79,7 @@ BEGIN
 								,modds MONEY, odds SMALLMONEY, statuswinlost TINYINT,SettlementTime DATETIME
 								,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 								,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, after_ruben TINYINT
+								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, before_ruben TINYINT
 								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
 								,actual_stake MONEY
 								)
@@ -309,7 +309,7 @@ BEGIN
 			,SettlementTime
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
-			,Status,StatusID,ruben, after_ruben
+			,Status,StatusID,ruben, before_ruben
 			,bef_winlost, bef_statusid	
 			,bettype
 			,winlostdate
@@ -381,11 +381,11 @@ BEGIN
 			INSERT INTO #Balance (custid, bef_winlost, after_winlost, winlostdate, gametypeid)
 			SELECT custid
 				,SUM(CASE
-						WHEN ruben = 1 THEN t.bef_winlost - actual_stake 
+						WHEN before_ruben = 1 THEN t.bef_winlost - actual_stake 
 						ELSE 0 
 					END) AS bef_winlost
 				,SUM(CASE
-						WHEN t.after_ruben = 1 THEN t.winlost - actual_stake 
+						WHEN t.ruben = 1 THEN t.winlost - actual_stake 
 						ELSE 0 
 					END) AS after_winlost
 				,winlostdate
