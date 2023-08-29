@@ -28,7 +28,7 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		UPDATE n SET n.Note = @Note
+		UPDATE n SET n.Note = @Note, n.ModifiedDate = GETDATE()
 		FROM dbo.TicketVoiding_SubIssueType_Note n WITH (ROWLOCK, UPDLOCK)
 		WHERE n.GroupId = @GroupId
 			AND n.UserId = @UserId
