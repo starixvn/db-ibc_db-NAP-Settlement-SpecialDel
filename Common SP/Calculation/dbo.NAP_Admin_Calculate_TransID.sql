@@ -422,7 +422,7 @@ BEGIN
 				,GameTypeID
 				,ABS(after_winlost - bef_winlost) AS Balance
 			FROM #Balance
-			WHERE (bef_winlost - after_winlost) < 0
+			WHERE (after_winlost - bef_winlost) < 0
 
 		END
 
