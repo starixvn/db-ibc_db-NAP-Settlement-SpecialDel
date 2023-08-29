@@ -12,6 +12,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Updated Action [Redmine:#164393]
 		- 20220509@Kathy: Change to use STRING_SPLIT [Redmine:#172461]
 		- 20221122@Louisa: Add Fantasy league 125351 [Redmine:#180306]
+		- 20230829@Aries: Enhance Detecting Fantasy Soccer Matches [Redmine:#193124]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -52,48 +53,42 @@ BEGIN
 		FOR f.[key] IN ([fantasy],[fantasyh],[fantasya] )
 	) pv
 	
+	INSERT INTO @tmpRelatedMatchIds ( MatchId )
+	SELECT f.value FROM STRING_SPLIT ( @fantasy, ',' ) f
 
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN ( 16371,65550, 89611,125351 )) --- Fantasy League
-	BEGIN
-		INSERT INTO @tmpRelatedMatchIds ( MatchId )
-		SELECT f.value FROM STRING_SPLIT ( @fantasy, ',' ) f
-
-		INSERT INTO @tmpRelatedMatchInfo
-		(
-			  matchid		 
-			, matchcode
-			, kickofftime	 
-			, eventstatus	 
-			, betstatus		 
-			, SettlementStatuS
-			, homeid		 
-			, awayid		 
-			, hthomescore	 
-			, htawayscore	 
-			, finalhomescore 
-			, finalawayscore
-			, IsDeleted
-		)
-		SELECT m.matchid
-			, m.matchcode
-			, m.kickofftime
-			, m.eventstatus
-			, m.betstatus
-			, m.SettlementStatus
-			, m.homeid
-			, m.awayid
-			, m.hthomescore
-			, m.htawayscore
-			, m.finalhomescore
-			, m.finalawayscore
-			, m.IsDeleted
-		FROM dbo.match m WITH(NOLOCK)
-			INNER JOIN @tmpRelatedMatchIds tmp
-				ON m.matchid = tmp.MatchId
-		WHERE m.sporttype = 1
-	END
-
-	---- Return data
+	INSERT INTO @tmpRelatedMatchInfo
+	(
+		  matchid		 
+		, matchcode
+		, kickofftime	 
+		, eventstatus	 
+		, betstatus		 
+		, SettlementStatuS
+		, homeid		 
+		, awayid		 
+		, hthomescore	 
+		, htawayscore	 
+		, finalhomescore 
+		, finalawayscore
+		, IsDeleted
+	)
+	SELECT m.matchid
+		, m.matchcode
+		, m.kickofftime
+		, m.eventstatus
+		, m.betstatus
+		, m.SettlementStatus
+		, m.homeid
+		, m.awayid
+		, m.hthomescore
+		, m.htawayscore
+		, m.finalhomescore
+		, m.finalawayscore
+		, m.IsDeleted
+	FROM dbo.match m WITH(NOLOCK)
+		INNER JOIN @tmpRelatedMatchIds tmp
+			ON m.matchid = tmp.MatchId
+	WHERE m.sporttype = 1
 
 	SELECT @fantasyh AS fantasyHomeTeam, @fantasya AS fantasyAwayTeam
 
