@@ -193,7 +193,7 @@ BEGIN
 		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 	
 		INSERT INTO #tblTransIds (transid)
-		SELECT	t.value
+		SELECT DISTINCT t.value
 		FROM STRING_SPLIT(@TransIds, ',') t
 		WHERE @TransIds <> ''
 
