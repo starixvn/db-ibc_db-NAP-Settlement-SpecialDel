@@ -70,9 +70,11 @@ BEGIN
 								,SettlementTime DATETIME
 								,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 								,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
+								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, after_ruben TINYINT
 								,FcUpdateTime DATETIME2
-								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME)
+								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
+								,actual_stake MONEY
+								)
 
 	DECLARE @handle INT
 			,@transinfoJson NVARCHAR(MAX)
@@ -124,11 +126,12 @@ BEGIN
 				,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 				,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-				,inserted.Status,inserted.StatusID,inserted.ruben
+				,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 				,deleted.winlost,deleted.statusid	
 				,deleted.bettype
 				,deleted.winlostdate
+				,deleted.actual_stake
 		INTO @tmpTransInfo (
 				 transId
 				,custid, Balance
@@ -136,11 +139,12 @@ BEGIN
 				,SettlementTime
 				,WinLost,aWinLost,mWinLost,sWinLost
 				,PlayerComm,Comm,aComm,sComm
-				,Status,StatusID,ruben
+				,Status,StatusID,ruben, after_ruben
 				,FcUpdateTime
 				,bef_winlost, bef_statusid
 				,bettype
 				,winlostdate
+				,actual_stake
 		)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
@@ -201,6 +205,23 @@ BEGIN
 		
 		IF(@CWLBettype > 0)
 		BEGIN
+			CREATE TABLE #Balance (custid INT, bef_winlost MONEY, after_winlost MONEY,winlostdate SMALLDATETIME, gametypeid SMALLINT)	
+
+			INSERT INTO #Balance (custid, bef_winlost, after_winlost, winlostdate, gametypeid)
+			SELECT custid
+				,SUM(CASE
+						WHEN ruben = 1 THEN t.bef_winlost - actual_stake 
+						ELSE 0 
+					END) AS bef_winlost
+				,SUM(CASE
+						WHEN t.after_ruben = 1 THEN t.winlost - actual_stake 
+						ELSE 0 
+					END) AS after_winlost
+				,winlostdate
+				,bettype AS gametypeid
+			FROM @tmpTransInfo t
+			GROUP BY custid, winlostdate, bettype
+
 			INSERT INTO dbo.BalancePendingCreditGame (
 				custid
 				,winlostdate
@@ -208,14 +229,13 @@ BEGIN
 				,GameTypeID
 				,balance
 			)
-			SELECT t.custid
-				,t.winlostdate
+			SELECT custid
+				,winlostdate
 				,@CWLBettype
-				,t.bettype AS GameTypeID
-				,SUM(t.winlost - t.bef_winlost) AS Balance
-			FROM @tmpTransInfo t
-			GROUP BY t.CustId, t.winlostdate, t.bettype
-			HAVING SUM(Balance) > 0
+				,GameTypeID
+				,(after_winlost - bef_winlost) AS Balance
+			FROM #Balance t
+			WHERE (after_winlost - bef_winlost) > 0
 			
 			--CAPTURE decrease
 			INSERT INTO dbo.BalancePendingDebitGame (
@@ -225,14 +245,13 @@ BEGIN
 				,GameTypeID
 				,balance
 			)
-			SELECT t.custid
-				,t.winlostdate
+			SELECT custid
+				,winlostdate
 				,@CWLBettype
-				,t.bettype AS GameTypeID
-				,SUM(t.winlost - t.bef_winlost) AS Balance
-			FROM @tmpTransInfo t
-			GROUP BY t.CustId, t.winlostdate, t.bettype
-			HAVING SUM(Balance) < 0
+				,GameTypeID
+				,ABS(after_winlost - bef_winlost) AS Balance
+			FROM #Balance
+			WHERE (bef_winlost - after_winlost) < 0
 		END
 		
 		INSERT INTO @BalanceChanged (matchid,custid, walletType, bonusId, balance)
