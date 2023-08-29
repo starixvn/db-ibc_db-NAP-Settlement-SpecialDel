@@ -30,6 +30,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
 */
 
 BEGIN
@@ -219,7 +220,7 @@ BEGIN
 				,@OTAway = ISNULL(SUM(CASE WHEN ResourceId = 'OT' THEN AwayValue ELSE 0 END), 0)
 		FROM	@tmpResultDetail
 		WHERE	ResourceId LIKE 'Q[1-4]'
-				OR ResourceId IN ('01', '00','OT')
+				OR ResourceId IN ('01','00','OT')
 
 		IF @IsDetermined = 1
 		BEGIN
@@ -755,6 +756,28 @@ BEGIN
 					)result
 				WHERE	r.resourceId = '00'
 			END
+
+			IF EXISTS (SELECT TOP 1 1 FROM @tmpDummyResourceIds WHERE ResourceId IN ('647','648','649','65001','65002','65003','65004'))
+			BEGIN
+				INSERT INTO @tmpDummyResourceResults (ResourceId, HomeValue, AwayValue, ssId)
+				SELECT rs.RefResourceId,RIGHT(rs.Home,1),RIGHT(rs.Away,1),4
+				FROM (SELECT CASE WHEN r.ResourceId = '00' THEN '647'
+								  WHEN r.ResourceId = '01' THEN '648'
+								  WHEN r.ResourceId = '02' THEN '649'
+								  WHEN r.ResourceId = 'Q1' THEN '65001'
+								  WHEN r.ResourceId = 'Q2' THEN '65002'
+								  WHEN r.ResourceId = 'Q3' THEN '65003'
+								  WHEN r.ResourceId = 'Q4' THEN '65004'
+								  ELSE NULL 
+							 END AS RefResourceId
+							,IIF(CAST(r.HomeValue AS INT) >= CAST(r.AwayValue AS INT),r.HomeValue,r.AwayValue) AS Home
+							,IIF(CAST(r.HomeValue AS INT) <= CAST(r.AwayValue AS INT),r.HomeValue,r.AwayValue) AS Away
+					  FROM @tmpResultDetail AS r
+					  WHERE	(r.ResourceId LIKE 'Q[1-4]' OR r.ResourceId IN ('01', '00','02'))
+				) AS rs	
+				WHERE  EXISTS (SELECT 1 FROM @tmpDummyResourceIds AS du WHERE du.ResourceId = rs.RefResourceId)
+			END
+
 		END
 	END
 	ELSE IF @Sporttype = 1
