@@ -368,7 +368,7 @@ BEGIN
 	/*Sycn ticket SiteDB to Central*/
 	IF @SiteDBGroupID <> 0
 	BEGIN
-		INSERT INTO @tmpMatchId (MatchId, IsFinish)
+		INSERT INTO @tmpMatchId (MatchId)
 		SELECT DISTINCT t.matchId
 		FROM @tmpTransInfo t
 
