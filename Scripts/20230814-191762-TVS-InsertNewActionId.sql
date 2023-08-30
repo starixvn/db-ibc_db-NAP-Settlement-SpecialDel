@@ -8,7 +8,7 @@
 USE bodb02
 GO
 
-SET IDENTITY_INSERT TicketVoiding_Action OFF
+SET IDENTITY_INSERT TicketVoiding_Action ON
 INSERT INTO TicketVoiding_Action (ActionId, ActionName)
 VALUES (9, 'Auto Void All (Result keyed)')
-SET IDENTITY_INSERT TicketVoiding_Action ON	
+SET IDENTITY_INSERT TicketVoiding_Action OFF	
