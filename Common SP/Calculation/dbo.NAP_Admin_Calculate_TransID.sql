@@ -6,6 +6,8 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_TransID]
 	,@Is3rd				BIT =  0	
 	,@ActionID				INT = NULL
 	,@IsCalculateBalance	BIT =  0
+	,@CWLBettype			SMALLINT = 0
+	,@BalanceType			TINYINT  = 1 --sport
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 	
@@ -28,6 +30,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
+		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
 
 	Param's Explanation:  
 		   
@@ -76,8 +79,10 @@ BEGIN
 								,modds MONEY, odds SMALLMONEY, statuswinlost TINYINT,SettlementTime DATETIME
 								,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 								,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
-								,bef_winlost MONEY,bef_statusid TINYINT)
+								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, before_ruben TINYINT
+								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
+								,actual_stake MONEY
+								)
 	
 	DECLARE @handle 			INT
 			,@modds 			SMALLMONEY
@@ -292,8 +297,11 @@ BEGIN
 			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-			,inserted.Status,inserted.StatusID,inserted.ruben
-			,deleted.winlost,deleted.statusid		
+			,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben
+			,deleted.winlost,deleted.statusid	
+			,deleted.bettype
+			,deleted.winlostdate
+			,deleted.actual_stake
 	INTO @tmpTransInfo (
 			transId
 			,custid, Balance
@@ -301,8 +309,11 @@ BEGIN
 			,SettlementTime
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
-			,Status,StatusID,ruben
-			,bef_winlost, bef_statusid
+			,Status,StatusID,ruben, before_ruben
+			,bef_winlost, bef_statusid	
+			,bettype
+			,winlostdate
+			,actual_stake
 		)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
@@ -360,9 +371,61 @@ BEGIN
 		END
 	END
 		
-		-- balance
 	IF @IsCalculateBalance = 1  AND (@IsCentral = 1 OR @IsSiteDB = 1)
 	BEGIN
+		
+		IF(@CWLBettype > 0)
+		BEGIN
+			CREATE TABLE #Balance (custid INT, bef_winlost MONEY, after_winlost MONEY,winlostdate SMALLDATETIME, gametypeid SMALLINT)	
+
+			INSERT INTO #Balance (custid, bef_winlost, after_winlost, winlostdate, gametypeid)
+			SELECT custid
+				,SUM(CASE
+						WHEN before_ruben = 1 THEN t.bef_winlost - actual_stake 
+						ELSE 0 
+					END) AS bef_winlost
+				,SUM(CASE
+						WHEN t.ruben = 1 THEN t.winlost - actual_stake 
+						ELSE 0 
+					END) AS after_winlost
+				,winlostdate
+				,bettype AS gametypeid
+			FROM @tmpTransInfo t
+			GROUP BY custid, winlostdate, bettype
+
+			INSERT INTO dbo.BalancePendingCreditGame (
+				custid
+				,winlostdate
+				,bettype
+				,GameTypeID
+				,balance
+			)
+			SELECT custid
+				,winlostdate
+				,@CWLBettype
+				,GameTypeID
+				,(after_winlost - bef_winlost) AS Balance
+			FROM #Balance t
+			WHERE (after_winlost - bef_winlost) > 0
+			
+			--CAPTURE decrease
+			INSERT INTO dbo.BalancePendingDebitGame (
+				custid
+				,winlostdate
+				,bettype
+				,GameTypeID
+				,balance
+			)
+			SELECT custid
+				,winlostdate
+				,@CWLBettype
+				,GameTypeID
+				,ABS(after_winlost - bef_winlost) AS Balance
+			FROM #Balance
+			WHERE (after_winlost - bef_winlost) < 0
+
+		END
+
 		INSERT INTO @BalanceChanged (matchid,custid, walletType, bonusId, balance)
 		SELECT	 @MatchId
 				,custid
@@ -372,11 +435,12 @@ BEGIN
 		FROM @tmpTransInfo
 		GROUP BY custid
 		HAVING SUM(balance) != 0;
-
+ 
 		EXEC NAP_Admin_Settlement_BalanceUpd @BalanceChanged =	@BalanceChanged
 											,@ActionID		=   @ActionID
+											,@BalanceType	=	@BalanceType
 											,@ErrMessage	=   @ErrMessage OUTPUT
-											,@ErrCode		=   @ErrCode OUTPUT
+											,@ErrCode		=   @ErrCode	OUTPUT
 	END
 
 END
