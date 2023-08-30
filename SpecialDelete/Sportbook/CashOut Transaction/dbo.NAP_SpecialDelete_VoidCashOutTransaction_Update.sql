@@ -38,6 +38,7 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230818@Max: [TVS] Cancel Cash Out Action - Search by BetID [Redmine: #186624]
 		
 	Explanation's Param:
 
@@ -149,6 +150,8 @@ BEGIN
 		,Status NVARCHAR(10),StatusID TINYINT, ruben TINYINT
 		,FcUpdateTime DATETIME2,creator INT, betdaqid BIGINT, virtualrate FLOAT
 	)
+
+	DECLARE @tmpMatchId AS TABLE (MatchId INT, IsFinish BIT)
 	
 	SELECT @ErrCode	= 0
 		 , @ErrMsg = ''
@@ -362,31 +365,50 @@ BEGIN
 		INNER JOIN #SpecialDeleteBets s ON	b.transid = s.transId
 		INNER JOIN dbo.CashOutSelling c WITH (NOLOCK) ON b.transid = c.TransID		
 
-	SET @MatchId = (SELECT TOP(1) t.matchId FROM @tmpTransInfo t)
-	SET @transInfo = COMPRESS((
-	SELECT	b.transId AS 't'
-			, b.winlost AS 'w'
-			, b.awinlost AS 'aw'
-			, b.mwinlost AS 'mw'
-			, b.swinlost AS 'sw'
-			, b.playercomm AS 'pc'
-			, b.comm AS 'c'
-			, b.acomm AS 'ac'
-			, b.scomm AS 'sc'
-			, b.status AS 's'
-			, b.statusID AS 'sid'			
-			, b.ruben AS 'r'
-			, b.creator AS 'cr'
-			, b.betdaqid AS 'bdaq'
-			, b.virtualrate AS 'v'
-			, b.FcUpdateTime AS 'rut'
-	FROM	@tmpTransInfo b
-	FOR JSON PATH))
-
-	IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+	/*Sycn ticket SiteDB to Central*/
+	IF @SiteDBGroupID <> 0
 	BEGIN
-		INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-		SELECT 'TVS', 'Cancel_CO', 'bettrans', 'U', @matchid, @transInfo, 's'
+		INSERT INTO @tmpMatchId (MatchId, IsFinish)
+		SELECT DISTINCT t.matchId
+		FROM @tmpTransInfo t
+
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1) m SET @MatchId = m.MatchId
+				, m.IsFinish = 1			
+			FROM @tmpMatchId m 
+			WHERE m.IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0
+				BREAK
+
+			SET @transInfo = COMPRESS((
+			SELECT	b.transId AS 't'
+					, b.winlost AS 'w'
+					, b.awinlost AS 'aw'
+					, b.mwinlost AS 'mw'
+					, b.swinlost AS 'sw'
+					, b.playercomm AS 'pc'
+					, b.comm AS 'c'
+					, b.acomm AS 'ac'
+					, b.scomm AS 'sc'
+					, b.status AS 's'
+					, b.statusID AS 'sid'			
+					, b.ruben AS 'r'
+					, b.creator AS 'cr'
+					, b.betdaqid AS 'bdaq'
+					, b.virtualrate AS 'v'
+					, b.FcUpdateTime AS 'rut'
+			FROM	@tmpTransInfo b
+			WHERE b.matchId = @MatchId
+			FOR JSON PATH))
+
+			IF @SiteDBGroupID <> 0 AND @transInfo IS NOT NULL
+			BEGIN
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'Cancel_CO', 'bettrans', 'U', @matchid, @transInfo, 's'
+			END
+		END
 	END
 
 	/*2. Re-Cal for CO Transaction already has statuswinlost*/
