@@ -12,6 +12,7 @@ AS
 		- 20180919@Alan: Get Mailing List From OIC [88509]
 		- 20181009@Alan: Exclude Status Soft Launch and Dont add CcList from EmailConfiguration [102917]
 		- 20220221@July: Remove SABA of league name for China View sites [168651]
+		- 20230830@July: Remove SABA of league name for Jolly View sites [193213]
 
 	Explanation's Param:
 		- @CategoryId:
@@ -20,7 +21,8 @@ AS
 */
 
 BEGIN 
-SET NOCOUNT ON 
+	SET NOCOUNT ON 
+	
 	SELECT
 		L.LicenseeId AS siteid
 	   ,L.RegisteredLicenseeName AS site
@@ -31,7 +33,8 @@ SET NOCOUNT ON
 				STUFF(CcList.ContactEmail, 1, 1, '') <> '' THEN CAST(1 AS BIT)
 			ELSE CAST(0 AS BIT)
 		END isavailabe
-	  ,S.IsChinaView
+	  ,s.IsChinaView
+	  ,s.SpecialPlatform --2: JollyView
 	FROM dbo.Licensee L WITH (NOLOCK)
 		INNER JOIN LicenseeCategoryAssigned LCA WITH (NOLOCK) ON L.LicenseeId = LCA.LicenseeId
 		OUTER APPLY (
@@ -72,13 +75,15 @@ SET NOCOUNT ON
 			FOR XML PATH ('')) AS CcList (ContactEmail)
 		OUTER APPLY	(
 					SELECT ISNULL(s.IsChinaView,0) AS IsChinaView
+						  ,ISNULL(s.SpecialPlatform,0) AS SpecialPlatform
 					FROM bodb02.dbo.site s WITH(NOLOCK) 
 					WHERE l.RegisteredLicenseeName = s.site 
-					)S
+					)s
 	WHERE L.LicenseeStatusId = 3
 	AND L.RegisteredLicenseeName IS NOT NULL
 	AND LCA.CategoryId = @CategoryId
 	ORDER BY site ASC	
-SET NOCOUNT OFF
+
+	SET NOCOUNT OFF
 END
 GO
