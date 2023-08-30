@@ -34,3 +34,7 @@ GO
 	GO
 	ENABLE TRIGGER [dbo].[Transfer_After_Update] ON [dbo].[Transfer]
 	GO
+	ENABLE TRIGGER [dbo].[bettransG_After_Insert] ON [dbo].[bettransG]
+	GO
+	ENABLE TRIGGER [dbo].[bettransG_After_Update] ON [dbo].[bettransG]
+	GO

@@ -35,3 +35,7 @@ GO
 	GO
 	DISABLE TRIGGER [dbo].[Transfer_After_Update] ON [dbo].[Transfer]
 	GO
+	DISABLE TRIGGER [dbo].[bettransG_After_Insert] ON [dbo].[bettransG]
+	GO
+	DISABLE TRIGGER [dbo].[bettransG_After_Update] ON [dbo].[bettransG]
+	GO
