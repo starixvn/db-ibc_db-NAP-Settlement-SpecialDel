@@ -18,27 +18,13 @@ CREATE TABLE #temp_MemberInput(
 )
 
 CREATE TABLE #tempMember (custid INT PRIMARY KEY)
-CREATE TABLE #CustId_tmp (custid INT PRIMARY KEY)
 
 --------------GET members needs to process ------------------
-INSERT INTO #CustId_tmp (custid)
-SELECT DISTINCT c.custid
-FROM bodb02.dbo.Customer c WITH(NOLOCK)
-WHERE c.custid IN (XXXXX) --Input list cust here
 
 INSERT INTO #temp_MemberInput (custid)
-SELECT m.CustId
-FROM #CustId_tmp m WITH (NOLOCK)
-	CROSS APPLY (
-		SELECT TOP 1 Balance 
-		FROM DBCTG.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
-		WHERE b.custid = m.custid) as b1
-	CROSS APPLY (
-		SELECT TOP 1 newbalance as balance
-		FROM bodb02.dbo.balancerecord b WITH(NOLOCK) 
-		WHERE b.custid = m.custid
-		order by rowid desc) as b2
-WHERE b1.Balance <>  b2.balance
+SELECT DISTINCT c.custid
+FROM bodb02.dbo.Customer c WITH(NOLOCK)
+WHERE c.custid IN ( XXXXX ) --Input list cust here
 
 SELECT count(1) AS [custid_Count_diff] FROM #temp_MemberInput 
 
@@ -103,7 +89,7 @@ BEGIN
 								FROM #tempMember m
 									CROSS APPLY (
 												SELECT TOP 1 Balance 
-												FROM DBCTG.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
+												FROM DBTXN.bodb02.dbo.v_BalanceTable b WITH(NOLOCK) -- v_BalanceTable: this is a view, get data from 8 balance tables
 												WHERE b.custid = m.custid) AS bal
 								FOR XML PATH('r'), ROOT('root')
 								)
@@ -130,7 +116,6 @@ END
 
 DROP TABLE #temp_MemberInput
 DROP TABLE #tempMember
-DROP TABLE #CustId_tmp
 
 
 

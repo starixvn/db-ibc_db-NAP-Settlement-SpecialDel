@@ -20,7 +20,7 @@ SELECT MAX(TransId) FROM bettransG WITH(NOLOCK)
 
 DECLARE @MaxTransID BIGINT  ---input @MaxTransID
 
-SELECT custid FROM bettransG  WITH(NOLOCK)
+SELECT DISTINCT custid FROM bettransG  WITH(NOLOCK)
 WHERE TransId > @MaxTransID  ---input @MaxTransID from STEP 1
 	AND transdate <= @CheckTime  ---Input @CheckTime from STEP 2
 
