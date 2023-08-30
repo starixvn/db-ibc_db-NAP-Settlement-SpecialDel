@@ -16,6 +16,7 @@ AS
 		- 20211202@Max: [TVS] Implement function allow to void bettrans14 [Redmine:#140180]
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221207@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 
 	Param's explanation:
 		
@@ -169,8 +170,8 @@ BEGIN
 
 	SELECT DISTINCT
 		v.Username AS VoidedBy
-		,CASE WHEN m.ActionId IN (1,4,6,7,8) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
-		,CASE WHEN m.ActionId IN (1,4,6,7,8) THEN msg.Content_en ELSE cm.ContentEnglish END AS ContentEnglish
+		,CASE WHEN m.ActionId IN (1,4,6,7,8,9) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
+		,CASE WHEN m.ActionId IN (1,4,6,7,8,9) THEN msg.Content_en ELSE cm.ContentEnglish END AS ContentEnglish
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	INNER JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
