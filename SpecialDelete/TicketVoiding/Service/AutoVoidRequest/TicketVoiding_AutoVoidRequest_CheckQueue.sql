@@ -41,10 +41,10 @@ BEGIN
 
 	IF @CricketTicketsJSON IS NOT NULL
 	BEGIN
-		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, IsCricket)
-		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 1
+		INSERT INTO #tmpInputTransId (TransId, RequestId, IssueTypeId, IsCricket, VoidActionId)
+		SELECT tbl.TransId, tbl.RequestId, tbl.IssueTypeId, 1, tbl.VoidActionId
 		FROM OPENJSON(@CricketTicketsJSON)
-			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT) tbl
+			WITH (RequestId INT, TransId BIGINT, IssueTypeId INT, VoidActionId TINYINT) tbl
 	END
 
 	--Remove request has already exists waiting in queue
