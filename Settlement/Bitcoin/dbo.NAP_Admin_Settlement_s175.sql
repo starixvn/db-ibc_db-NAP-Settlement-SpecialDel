@@ -22,6 +22,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230901@Helen: Bitcoin issue [Redmine: #193538]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -49,13 +50,13 @@ BEGIN
 	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT)
 	CREATE TABLE #BalanceBefore (custid INT, balance MONEY, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)
 	CREATE TABLE #BalanceAfter (custid INT, balance MONEY, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)	
-	CREATE TABLE #Balance (custid INT, balance MONEY, Increased BIT)
+	CREATE TABLE #Balance_Bitcoin_175(custid INT, balance MONEY, Increased BIT)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
-	
+		
 	DECLARE @tblDebitPending TVP_BalanceList
 	DECLARE @tblCreditPending TVP_BalanceList
 			
-	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
+	CREATE INDEX IX_Balance_Increased ON #Balance_Bitcoin_175(Increased)
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
@@ -191,7 +192,7 @@ BEGIN
 			AND bt.bettype = @bettype
 	GROUP BY custid, winlostdate, bettype
 		
-	INSERT INTO #Balance
+	INSERT INTO #Balance_Bitcoin_175
 	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
 	FROM	#BalanceBefore b
 		INNER JOIN #BalanceAfter a 
@@ -202,7 +203,7 @@ BEGIN
 	
 	INSERT INTO @tblDebitPending (custID, balance)
 	SELECT	custid, ABS(balance)
-	FROM	#Balance
+	FROM	#Balance_Bitcoin_175
 	WHERE	Increased = 0
 		
 	IF @@rowcount <> 0
@@ -212,7 +213,7 @@ BEGIN
 		
 	INSERT INTO @tblCreditPending (custID, balance)
 	SELECT	custid, balance
-	FROM	#Balance
+	FROM	#Balance_Bitcoin_175
 	WHERE	Increased = 1
 		
 	IF @@rowcount <> 0
@@ -259,7 +260,7 @@ BEGIN
 				AND a.gametypeid = b.gametypeid
 	WHERE (a.winlost - b.winlost) < 0
 		
-	DROP TABLE #Balance
+	DROP TABLE #Balance_Bitcoin_175
 	DROP TABLE #BalanceBefore
 	DROP TABLE #BalanceAfter
 	
