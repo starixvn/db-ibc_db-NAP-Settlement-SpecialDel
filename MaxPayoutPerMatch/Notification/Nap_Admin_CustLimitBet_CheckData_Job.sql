@@ -20,6 +20,7 @@ AS
 		- 20230321@Max: Enhance performance & Change to use Sitelabel for 789y [Redmine: #184559]
 		- 20230516@Tina: Database - Improve Max payout detection (SQL Jobs) [Redmine: #188130]
 		- 20230712@Max: Scale out credit [Redmine: #181595]
+		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 
 	Param's explanation:		
 		
@@ -53,7 +54,7 @@ BEGIN
 	SELECT m.matchid, m.sporttype
 	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND (m.sporttype <= 99 OR m.sporttype IN (164,180,186,190,191,192,193,194,195,196,197))
+		AND (m.sporttype <= 99 OR m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))
 	UNION ALL
 	SELECT 29 matchid, NULL sporttype
 
@@ -61,7 +62,7 @@ BEGIN
 	SELECT m.matchid
 	FROM dbo.[match] m WITH (NOLOCK)
 	WHERE m.eventstatus = 'running'
-		AND m.sporttype > 99 AND m.sporttype NOT IN (164,180,186,190,191,192,193,194,195,196,197)
+		AND m.sporttype > 99 AND m.sporttype NOT IN (164,178,179,180,186,190,191,192,193,194,195,196,197)
 
 	----------------------------------------------------------Inserted data for excluded sporttype ---------------------------------------------------------
 	IF OBJECT_ID('CustLimitBet_789', 'U') IS NOT NULL
