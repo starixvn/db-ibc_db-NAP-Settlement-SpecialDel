@@ -20,6 +20,7 @@ AS
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
+		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		
 	Param's explanation:	
 		
@@ -40,7 +41,8 @@ BEGIN
 					FROM @RequestId_tmp t
 						INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = t.RequestId
 					WHERE r.IssueTypeId IN (13,19) AND r.ActionId = 4)
-	IF @DecidedBy <> ''
+
+	IF @DecidedBy <> '' AND CAST(@VoidData AS NVARCHAR(MAX)) NOT LIKE '%DecidedBy%'
 	BEGIN
 		SET @VoidData.modify('             
 					insert attribute DecidedBy {sql:variable("@DecidedBy") }             

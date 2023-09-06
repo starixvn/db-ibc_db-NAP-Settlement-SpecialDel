@@ -19,6 +19,7 @@ AS
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
+		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 
 	Param's explanation:
 		
@@ -156,7 +157,7 @@ BEGIN
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 	END
-	IF @IssueTypeId = 13
+	IF @IssueTypeId IN (13,20)
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId
@@ -225,7 +226,7 @@ BEGIN
 			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.TicketType = 2
 	END
-
+	
 	SELECT TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId FROM #SingleTickets WHERE TicketType = 1 --SingleVoid
 	SELECT TransId, RequestId, Matchid, IssueTypeId FROM #SingleTickets_ReSettle WHERE TicketType = 1  --SingleReSettle
 

@@ -55,6 +55,7 @@ AS
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230707@July: Remove unnecessary code [Redmine: #190859]
 		- 20230712@Max: Scale out credit - Fix issue child match cricket [Redmine: #181595]
+		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 
 	Param's explanation:	
 		Note: Retry lock single: 5s*16 = 90s(1p30s), Retry lock parlay: 20s*16 = 320s(5p)
@@ -93,6 +94,7 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
+			,@IsExistVS3 				BIT = 0
 			,@avaiableProcessRefNo		BIT
 			,@ErrCodeRefNo				BIT = 0
 			,@ErrMsgRefNo				VARCHAR(300) = '' 
@@ -332,6 +334,7 @@ BEGIN
 				,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 				,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 				,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+				,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
 		FROM	#tmpTransId b
 			OUTER APPLY (
 						SELECT GroupId
@@ -447,7 +450,7 @@ BEGIN
 						 ELSE 0 END
 
 	--Get data before update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -467,6 +470,7 @@ BEGIN
 			OR b.bettype BETWEEN 81 AND 120 OR b.bettype BETWEEN 8101 AND 8120
 			OR b.bettype BETWEEN 1201 AND 1299
 			OR b.bettype BETWEEN 2700 AND 2899
+			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -646,7 +650,7 @@ BEGIN
 	END
 
 	--Get data after update
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -666,6 +670,7 @@ BEGIN
 			OR tmp.bettype BETWEEN 81 AND 120 OR tmp.bettype BETWEEN 8101 AND 8120
 			OR tmp.Bettype BETWEEN 1201 AND 1299
 			OR tmp.bettype BETWEEN 2700 AND 2899
+			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -726,7 +731,7 @@ BEGIN
 		INNER JOIN #tmpTransId b ON c.TransID = b.transid AND c.MatchID = b.matchid
 	WHERE b.betdaqid = -2 
 
-	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1)
+	IF(@isExistLC = 1 OR @isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
 	BEGIN	
 		CREATE TABLE #balanceGameChange (
 			custid 			INT

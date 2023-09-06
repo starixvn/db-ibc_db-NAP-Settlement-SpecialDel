@@ -30,6 +30,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
 	,@WrongOddsInfo			VARCHAR(MAX)  = NULL
 	,@ReducedOverInfo		VARCHAR(MAX)  = NULL
+	,@DuplicateTicketsInfo	VARCHAR(MAX)  = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
 )
@@ -68,6 +69,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230612@July: [TVS] Support void Cricket when reducing over [Redmine: #185833]
+		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -281,6 +283,18 @@ BEGIN
 					,@ReducedOverInfo = @ReducedOverInfo
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest
+		END
+		ELSE IF @IssueTypeId IN (20) AND @ActionId <> 4
+		BEGIN
+			EXEC dbo.TicketVoiding_RequestDetail_DT_Update
+				 @RequestId		 = @RequestId		
+				,@IssueTypeId	 = @IssueTypeId	
+				,@UserId		 = @UserId		
+				,@IP			 = @IP			
+				,@ActionId		 = @ActionId		
+				,@DuplicateTicketsInfo = @DuplicateTicketsInfo
+				,@TransInfoJson	 = @TransInfoJson			
+				,@IsEditRequest	 = @IsEditRequest
 		END
 		
 	END
