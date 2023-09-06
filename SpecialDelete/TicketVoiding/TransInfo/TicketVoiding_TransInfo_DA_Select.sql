@@ -15,6 +15,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
 		
 	Param's explanation:	
 		- @DangerAcceptedInfo: <root><r MatchId="" FilterFromTransTime="" FilterToTransTime ="" FilterBy=""/></root>
@@ -99,6 +100,7 @@ BEGIN
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
 		,CheckTimeCashOut  DATETIME
+		,AcceptModeCashOut  TINYINT
 	)
 
 	SET @DangerAcceptedXML = CONVERT(XML, @DangerAcceptedInfo)
@@ -174,6 +176,7 @@ BEGIN
 			,modds 
 			,SiteDBGroupID
 			,CheckTimeCashOut
+			,AcceptModeCashOut
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -237,6 +240,7 @@ BEGIN
 		,b.modds 
 		,b.SiteDBGroupID
 		,c.CheckTime AS CheckTimeCashOut
+		,c.AcceptMode AS AcceptModeCashOut
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		LEFT JOIN dbo.BettransInfo bi WITH(NOLOCK) ON b.transid = bi.transid
@@ -252,7 +256,7 @@ BEGIN
 		AND b.bettype NOT BETWEEN 901 AND 920
 		AND b.betfrom <> 'P'
 		AND 1 = CASE WHEN act.VoidTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
-					 ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime THEN 1
+					 ELSE CASE WHEN b.betdaqid = -2 AND c.CheckTime IS NOT NULL AND c.CheckTime BETWEEN d.FilterFromTransTime AND d.FilterToTransTime AND c.AcceptMode IS NOT NULL THEN 1
 							   ELSE 0 END
 					 END
 		AND b.SiteDBGroupID = @SiteDBGroupID
@@ -467,6 +471,7 @@ BEGIN
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
 		,CheckTimeCashOut AS 'checktCO' 
+		,AcceptModeCashOut  AS 'amCO' 
 	FROM #TransInfo
 	FOR JSON PATH))
 
