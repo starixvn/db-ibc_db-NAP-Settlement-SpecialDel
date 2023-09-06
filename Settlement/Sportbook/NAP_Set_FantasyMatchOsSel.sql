@@ -9,6 +9,7 @@ AS
 	
 	Revisions:
 		- 20230807@Aries:  Created [Redmine:#189191]
+		- 202308028@Aries:  Enhance Auto Fill Result for Fantasy Basketball Matches [Redmine:#193101]
 
 */
 BEGIN
@@ -51,53 +52,47 @@ BEGIN
 		FOR f.[key] IN ([fantasy],[fantasyh],[fantasya] )
 	) pv
 	
+	INSERT INTO @tmpRelatedMatchIds ( MatchId )
+	SELECT f.value FROM STRING_SPLIT ( @fantasy, ',' ) f
 
-	IF EXISTS (SELECT TOP 1 1 FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @matchid AND m.leagueid IN (56037,56053, 56069,99321,16926,97008,132325)) --- Fantasy League
-	BEGIN
-		INSERT INTO @tmpRelatedMatchIds ( MatchId )
-		SELECT f.value FROM STRING_SPLIT ( @fantasy, ',' ) f
-
-		INSERT INTO @tmpRelatedMatchInfo
-		(
-			  matchid		 
-			, matchcode
-			, kickofftime	 
-			, eventstatus	 
-			, betstatus		 
-			, SettlementStatus
-			, homeid		 
-			, awayid	
-			, ResourceId
-			, HomeValue	 
-			, AwayValue	 
-			, ResultStatusID		
-			, SettlementStatusID	
-			, IsDeleted
-		)
-		SELECT m.matchid
-			, m.matchcode
-			, m.kickofftime
-			, m.eventstatus
-			, m.betstatus
-			, m.SettlementStatus
-			, m.homeid
-			, m.awayid
-			, rd.ResourceId
-			, rd.HomeValue
-			, rd.AwayValue
-			, rd.ResultStatusID		
-			, rd.SettlementStatusID	
-			, m.IsDeleted
-		FROM dbo.match m WITH(NOLOCK)
-			INNER JOIN @tmpRelatedMatchIds AS tmp ON m.matchid = tmp.MatchId
-			LEFT JOIN dbo.ResultDetail AS rd WITH(NOLOCK) ON rd.matchid = tmp.MatchId			
-		WHERE 1 = CASE WHEN m.sporttype = 2 AND (rd.ResourceId IN ('Q1','Q2','Q3','Q4','OT','00','01') OR rd.ResourceId  IS NULL) THEN 1
-					   ELSE 0
-				  END
-	END
-
-	---- Return data
-
+	INSERT INTO @tmpRelatedMatchInfo
+	(
+		  matchid		 
+		, matchcode
+		, kickofftime	 
+		, eventstatus	 
+		, betstatus		 
+		, SettlementStatus
+		, homeid		 
+		, awayid	
+		, ResourceId
+		, HomeValue	 
+		, AwayValue	 
+		, ResultStatusID		
+		, SettlementStatusID	
+		, IsDeleted
+	)
+	SELECT m.matchid
+		, m.matchcode
+		, m.kickofftime
+		, m.eventstatus
+		, m.betstatus
+		, m.SettlementStatus
+		, m.homeid
+		, m.awayid
+		, rd.ResourceId
+		, rd.HomeValue
+		, rd.AwayValue
+		, rd.ResultStatusID		
+		, rd.SettlementStatusID	
+		, m.IsDeleted
+	FROM dbo.match m WITH(NOLOCK)
+		INNER JOIN @tmpRelatedMatchIds AS tmp ON m.matchid = tmp.MatchId
+		LEFT JOIN dbo.ResultDetail AS rd WITH(NOLOCK) ON rd.matchid = tmp.MatchId			
+	WHERE 1 = CASE WHEN m.sporttype = 2 AND (rd.ResourceId IN ('Q1','Q2','Q3','Q4','OT','00','01') OR rd.ResourceId  IS NULL) THEN 1
+				   ELSE 0
+			  END
+	
 	SELECT @fantasyh AS fantasyHomeTeam, @fantasya AS fantasyAwayTeam
 
 	SELECT	  matchid		 
