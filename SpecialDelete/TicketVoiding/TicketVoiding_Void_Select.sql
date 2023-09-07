@@ -1645,10 +1645,10 @@ BEGIN
 			INSERT INTO #CTE_isCal (matchid, ResourceId)
 			SELECT m.matchid, rd.ResourceId
 			FROM #CTE_match m
-				INNER JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) ON rd.matchid = m.matchid
+				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
+					ON rd.matchid = m.matchid
+					AND ResultStatusID IN (2,5) AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
 			WHERE m.sporttype = 2
-				AND ResultStatusID in (2,5)
-				AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
 
 			INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
 			SELECT DISTINCT c.matchid, f.bettype, f.betid
@@ -1657,7 +1657,9 @@ BEGIN
 						SELECT bettype, betid
 						FROM dbo.f_TVS_GetInstantBettypes()
 						WHERE InstantType IS NULL
-						AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal)
+						AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
+									 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+									 ELSE 0 END
 				)f	 	
 		END
 			
