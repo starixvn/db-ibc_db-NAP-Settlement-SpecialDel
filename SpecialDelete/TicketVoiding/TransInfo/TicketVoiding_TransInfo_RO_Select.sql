@@ -12,6 +12,7 @@ AS
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]
 		- 20230801@Max: [TVS] Change rule for getting tickets of Fancy bet types [Redmine: #192121]
+		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 
 	Param's explanation:	
 		- @ReducedOverInfo: 
@@ -475,9 +476,9 @@ BEGIN
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
 			WHERE tp.Bettype = b.FilterBettype 
 			AND 1 = CASE WHEN tp.FilterRuns = '' THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.FilterHdp1 >= FilterRuns THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 >= tp.FilterRuns THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 >= tp.FilterRuns THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > tp.FilterRuns THEN 1
+						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 > tp.FilterRuns THEN 1
 					ELSE 0 END
 		)
 	

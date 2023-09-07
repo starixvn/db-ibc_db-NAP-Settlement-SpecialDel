@@ -42,6 +42,7 @@ AS
 		- 20220808@July: TVS - Change of TVS regarding to Scale out DBTrans [Redmine: #173229]
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 
 	Param's explanation:	
 	
@@ -74,6 +75,7 @@ BEGIN
 				  WHEN r.ActionId = 6 THEN 'VoidInstant5m'
 				  WHEN r.ActionId = 7 THEN 'VoidInstant10m' 
 				  WHEN r.ActionId = 8 THEN 'VoidInstantNopolicy'
+				  WHEN r.ActionId = 9 THEN 'VoidResultKeyed'
 				ELSE '' END AS ActionName
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
