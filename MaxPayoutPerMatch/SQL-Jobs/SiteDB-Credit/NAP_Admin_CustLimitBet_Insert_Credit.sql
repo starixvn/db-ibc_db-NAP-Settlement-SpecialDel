@@ -16,6 +16,7 @@ AS
     DB: DBSIC/bodb02
     Revisions:
 		- 20230712@Max: Clone from DBTRANS - [Redmine: #181595]
+		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 	
 	Param's explanation:	
 		
@@ -155,7 +156,7 @@ BEGIN
 		BEGIN
 			DELETE t
 			FROM #CustLimitBet_tmp t
-			WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,180,186) AND t.sporttype NOT BETWEEN 190 AND 197)
+			WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,178,179,180,186) AND t.sporttype NOT BETWEEN 190 AND 197)
 				OR (t.bettype IN(29, 2799) OR (t.bettype BETWEEN 801 AND 806))
 		END
 	END

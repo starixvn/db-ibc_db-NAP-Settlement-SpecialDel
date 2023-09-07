@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Insert]
 (
 	@MatchId INT
@@ -13,7 +13,7 @@ AS
 /*	
 	Created: 20210726@Max
     Task: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
-    DB: DBCTG/bodb02
+    DB: DBCTG/bodb02,DBSID-bodb02
     Revisions:
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210921@Max: Apply Max Parlay Payout [Redmine: #161658]
@@ -23,6 +23,7 @@ AS
 		- 20221003@Victoria: Max Payout - Only retrieve ticket for each site base on site setting configuration [Redmine: #178536]
 		- 20230119@July: Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site - [Redmine: #182803]
 		- 20230301@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
+		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 
 	Param's explanation:	
 		
@@ -177,7 +178,7 @@ BEGIN
 		BEGIN
 			DELETE t
 			FROM #CustLimitBet_tmp t
-			WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,180,186) AND t.sporttype NOT BETWEEN 190 AND 197)
+			WHERE (t.sporttype > 99  AND t.sporttype NOT IN (164,178,179,180,186) AND t.sporttype NOT BETWEEN 190 AND 197)
 				OR (t.bettype IN(29, 2799) OR (t.bettype BETWEEN 801 AND 806))
 		END
 	END

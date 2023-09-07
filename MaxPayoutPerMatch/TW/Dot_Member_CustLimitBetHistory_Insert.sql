@@ -20,6 +20,7 @@ AS
 		- 20210726@Max: [TVS] Support Max Payout Per Match setting - [Redmine: #158846]
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220317@Max: Support Max Payout & Max Turnover for Deposit - [Redmine: #167898]
+		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 	
 	Param's explanation:	
 		
@@ -32,14 +33,14 @@ BEGIN
 		SET @EventTypeID = CASE WHEN @bettype = 10 THEN 2 ELSE 1 END
 	END
 
-	IF (@sporttype > 99 AND @sporttype NOT IN (164,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
+	IF (@sporttype > 99 AND @sporttype NOT IN (164,178,179,180,186) AND (@sporttype NOT BETWEEN 190 AND 197))
 		OR (@bettype IN(2799)) OR (@bettype BETWEEN 801 AND 806)
 	BEGIN
 		RETURN
 	END
 	ELSE IF (EXISTS (SELECT 1 FROM dbo.f_CustLimitBet_AccumPayout_Exclude() WHERE Bettype = @bettype)) 
 		OR (@sporttype IN (43,44) AND @sitetype <> 3) 
-		OR (@sporttype IN (164,180,186)) 
+		OR (@sporttype IN (164,178,179,180,186)) 
 		OR (@sporttype BETWEEN 190 AND 197)
 	BEGIN
 		SET @payout = 0

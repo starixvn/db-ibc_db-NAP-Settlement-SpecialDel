@@ -15,6 +15,7 @@ AS
 		- 20210922@Max: [TVS] Max payout phase 2 - [Redmine: #161658]
 		- 20220317@Max: [TVS] Support Max Payout & Max Turnover for Deposit - [Redmine: #169407]
 		- 20230216@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
+		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 	
 	Param's explanation:	
 		
@@ -70,7 +71,7 @@ BEGIN
 	--Remove unsupport sporttype/bettype
 	DELETE t
 	FROM #CustLimitBet_tmp t
-	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,180,186) AND @sporttype NOT BETWEEN 190 AND 197)
+	WHERE (@sporttype > 99  AND @sporttype NOT IN (164,178,179,180,186) AND @sporttype NOT BETWEEN 190 AND 197)
 		OR (t.bettype IN(29, 2799) OR (t.bettype BETWEEN 801 AND 806))
 	
 	IF EXISTS (SELECT TOP (1) 1 FROM #CustLimitBet_tmp WHERE bettype = 10)

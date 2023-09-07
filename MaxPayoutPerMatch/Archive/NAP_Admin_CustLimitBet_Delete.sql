@@ -16,6 +16,7 @@ AS
 		- 20230223@Max: Max Payout - AccumTurnover / AccumPayout is Negative because of some reasons [Redmine: #183935]
 		- 20230228@Max: Include LIC into SiteDBGroupID = 0 because 12Bet [Redmine: #183935]
 		- 20230712@Max: Scale out credit [Redmine: #181595]
+		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
 	
 	Param's explanation:	
 		
@@ -52,13 +53,13 @@ BEGIN
 	SELECT m.matchid, 1 EventTypeID
 	FROM dbo.match m WITH (NOLOCK)
 	WHERE m.eventdate <= @Archive_Date
-		AND (m.sporttype <= 99 OR (m.sporttype IN (164,180,186,190,191,192,193,194,195,196,197))) --get support Sports
+		AND (m.sporttype <= 99 OR (m.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))) --get support Sports
 
 	UNION ALL
 	SELECT m14.matchid, 1 EventTypeID
 	FROM dbo.match14 m14 WITH (NOLOCK)
 	WHERE m14.eventdate <= @Archive_Date
-		AND (m14.sporttype <= 99 OR (m14.sporttype IN (164,180,186,190,191,192,193,194,195,196,197))) --get support Sports
+		AND (m14.sporttype <= 99 OR (m14.sporttype IN (164,178,179,180,186,190,191,192,193,194,195,196,197))) --get support Sports
 
 	UNION ALL
 	SELECT o.orid MatchId, 2 EventTypeID
