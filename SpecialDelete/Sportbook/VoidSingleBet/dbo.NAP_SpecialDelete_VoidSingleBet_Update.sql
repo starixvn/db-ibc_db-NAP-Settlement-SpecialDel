@@ -267,7 +267,7 @@ BEGIN
 	CREATE TABLE #BeforeUpd (custid INT,balance MONEY)
 	CREATE TABLE #AfterUpd(custid INT, balance MONEY)  
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
-	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
+	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
 	CREATE TABLE #SpecialDeleteBets (
 		grouptransid		BIGINT,

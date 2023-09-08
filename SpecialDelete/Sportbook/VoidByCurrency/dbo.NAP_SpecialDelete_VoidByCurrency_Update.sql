@@ -300,7 +300,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)	
-	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
+	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
@@ -1423,12 +1423,12 @@ BEGIN
 								WHEN @sporttype = 1
 										AND EXISTS (SELECT TOP 1 1
 													FROM #InstantSettlementBettypes
-													WHERE bettype = al.bettype)
+													WHERE bettype = s.bettype)
 										THEN 1
 								WHEN @sporttype = 2 
 									AND EXISTS (SELECT TOP 1 1
 												FROM #InstantSettlementBettypes
-												WHERE bettype = al.bettype AND betid = al.betid)
+												WHERE bettype = s.bettype AND betid = s.betid)
 									THEN 1
 								ELSE 0
 							END
