@@ -21,7 +21,7 @@ AS
 		- 20221017@Kathy: Remove email yikhun.chiu@onelab.tw, add carrie.chen@onelabe.tw [Redmine:#179106]
 		- 20221104@Louisa: Update email address from carrie.chen@onelabe.tw to carrie.chen@onelab.tw [Redmine:#179106]
 		- 20230704@Louisa:  Update ServerName for local environment + Update domain starixsoft [Redmine:#189854]
-		- 20230907@Louisa: Add email eason.chou@onelab.tw and remove aaron.wang@onelab.tw [Redmine:#179106]
+		- 20230907@Louisa: Add email eason.chou@onelab.tw and remove aaron.wang@onelab.tw [Redmine:#193816]
 
 	Columns Explanation:    
     
