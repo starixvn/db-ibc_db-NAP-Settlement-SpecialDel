@@ -13,6 +13,7 @@ AS
         - 20230608@Max: Create SP - [Redmine: #185833]
 		- 20230801@Max: [TVS] Change rule for getting tickets of Fancy bet types [Redmine: #192121]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
+		- 20230912@Max: [TVS] - Update the rules to get void ticket for Reduced Over issue type [Redmine: #193824]
 
 	Param's explanation:	
 		- @ReducedOverInfo: 
@@ -451,36 +452,25 @@ BEGIN
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END
 	
+	--Remove invalid data
 	DELETE b
-		FROM  #TransInfo b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.FilterBettype 
-			AND (tp.FilterSet = '' OR b.FilterSet LIKE tp.FilterSet + '%'))
-
-	DELETE b
-		FROM  #TransInfo b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.FilterBettype 
-			AND 1 = CASE WHEN tp.FilterLive = 1 AND b.FilterLiveIndicator = 1 THEN 1
-						WHEN tp.FilterNonLive = 1 AND b.FilterLiveIndicator = 0 THEN 1
+	FROM #TransInfo b
+		OUTER APPLY (
+			SELECT TOP 1 Bettype
+			FROM #FilterInfo f
+			WHERE f.Bettype = b.bettype
+				AND 1 = CASE WHEN f.FilterLive = 1 AND b.FilterLiveIndicator = 1 THEN 1
+							WHEN f.FilterNonLive = 1 AND b.FilterLiveIndicator = 0 THEN 1
 					ELSE 0 END
-			) 
-
-	DELETE b
-		FROM  #TransInfo b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.FilterBettype AND  (tp.FilterTransdesc = '' OR b.FilterTransdesc = tp.FilterTransdesc))
-
-	DELETE b
-		FROM  #TransInfo b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #FilterInfo tp
-			WHERE tp.Bettype = b.FilterBettype 
-			AND 1 = CASE WHEN tp.FilterRuns = '' THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > tp.FilterRuns THEN 1
-						WHEN tp.FilterRuns <> '' AND tp.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 > tp.FilterRuns THEN 1
+				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
+				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
+				AND 1 = CASE WHEN f.FilterRuns = '' THEN 1
+							WHEN f.FilterRuns <> '' AND f.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
+							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > f.FilterRuns THEN 1
+							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'n' AND b.FilterHdp1 > f.FilterRuns THEN 1
 					ELSE 0 END
-		)
+		)t
+	WHERE t.Bettype IS NULL
 	
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
