@@ -1974,7 +1974,7 @@ BEGIN
 								WHEN @sporttype = 2 
 									AND EXISTS (SELECT TOP 1 1
 												FROM #InstantSettlementBettypes
-												WHERE bettype = al.bettype AND betid = al.betid)
+												WHERE bettype = al.bettype AND (betid = al.betid OR al.betid IS NULL))
 									THEN 1
 								ELSE 0
 							END

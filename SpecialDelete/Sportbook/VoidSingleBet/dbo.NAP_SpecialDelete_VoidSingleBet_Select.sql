@@ -1394,7 +1394,7 @@ BEGIN
 								  WHEN s.SportType = 2 AND 
 													EXISTS (SELECT TOP 1 1
 															FROM #InstantSettlementBettypes
-															WHERE bettype = s.bettype AND betid = s.betid) THEN s.OriginGroupName + ' (Instant Settlement)'
+															WHERE bettype = s.bettype AND (betid = s.betid OR s.betid IS NULL)) THEN s.OriginGroupName + ' (Instant Settlement)'
 								 ELSE s.OriginGroupName END
 					ELSE s.OriginGroupName -- case 4
 				END AS SubGroupName
