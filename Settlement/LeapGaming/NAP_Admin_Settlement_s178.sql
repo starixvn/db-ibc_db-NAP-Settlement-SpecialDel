@@ -16,6 +16,7 @@ AS
 	
 	Revisions:
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
+		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 	
 	Param's Explanation:
 		@Action - CAL
@@ -40,17 +41,31 @@ BEGIN
 			,@procName				SYSNAME
 			,@remark				VARCHAR(200)
 			,@IsCentral				BIT
-			,@handle				INT		
-
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY)	 
+			,@handle				INT
+			,@SiteDBGroupId			SMALLINT
+			,@TransInfoMaxPO		VARCHAR(MAX)
+			,@TotalTransMaxPO		INT = 0
+			,@batchPO				SMALLINT = 500
+	
+	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
+	DECLARE @tmpTransIDMaxPO TABLE (TransID BIGINT
+		,custid INT, actualPO MONEY, winlost MONEY
+		,transdate DATETIME, bettype SMALLINT
+	)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, winlost MONEY, actualPO MONEY, IsApplyMaxPO BIT) 
 	DECLARE @tmpSelectedResources TABLE (ResourceID VARCHAR(20), HomeValue VARCHAR(2000), AwayValue VARCHAR(2000),
-								  BetType SMALLINT, BetID BIGINT, pfID SMALLINT ,PRIMARY KEY (BetType,BetID))
+								  BetType SMALLINT,OddsType SMALLINT,  BetID BIGINT, pfID SMALLINT ,PRIMARY KEY (BetType,BetID))
 
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT)
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, isFinish BIT
+		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
+		,transdate DATETIME, bettype SMALLINT
+	)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT) 
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+
+	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 
 	SELECT @ActionID  = CASE @Action
 							WHEN 'CAL'      THEN 81043
@@ -79,8 +94,8 @@ BEGIN
 
 	EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
 
-	INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID )  
-	SELECT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID 
+	INSERT INTO @tmpSelectedResources(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID,OddsType )  
+	SELECT Id, ISNULL(Home,''), ISNULL(Away,''), sp.BetType, sp.BetID, sp.pfID , sp.OddsType
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 														,Home VARCHAR(50)
 														,Away VARCHAR(50)
@@ -94,22 +109,75 @@ BEGIN
 	BEGIN TRY
 		IF @Action = 'CAL'
 		BEGIN
-			INSERT INTO #tmpTransID (TransID, modds)
-				SELECT	transid, m.modds
-				FROM	dbo.bettrans b WITH (NOLOCK)
-				CROSS APPLY(
-								SELECT TOP 1 pfID, HomeValue, AwayValue
-								FROM @tmpSelectedResources t
-								WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
-							) sr
-						CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
-				WHERE	b.matchid = @MatchId
-						AND b.statusID <> 101
-						AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-						AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
-									 WHEN @IsReSettledTickets = 1 THEN 1
-									 ELSE 0
-								END
+			INSERT INTO #tmpTransID (TransID, modds, custid, currency, actualPO, transdate, bettype)
+			SELECT	transid
+				   ,m.modds
+				   ,b.custid					
+				   ,b.currency
+				   ,CASE
+				   		WHEN m.modds >  0.25 THEN b.actual_stake + b.stake * (CASE WHEN b.odds < 0 THEN 1  
+																				   WHEN sr.oddstype = 1 THEN b.odds - 1 
+																				   ELSE b.odds 
+																				END)
+				   		WHEN m.modds =  0.25 THEN b.actual_stake + b.stake * 0.5 * (CASE WHEN b.odds < 0 THEN 1  
+																						 WHEN sr.oddstype = 1 THEN b.odds - 1 
+																						 ELSE b.odds 
+																					END)
+				   		ELSE NULL
+				    END actualPO		
+				   ,b.transdate
+				   ,b.bettype
+			FROM	dbo.bettrans b WITH (NOLOCK)
+			CROSS APPLY(
+							SELECT TOP 1 pfID, HomeValue, AwayValue, OddsType
+							FROM @tmpSelectedResources t
+							WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
+						) sr
+					CROSS APPLY dbo.f_Set_Calculate_modds(sr.pfID, b.betteam, b.hdp1, b.hdp2, sr.HomeValue, sr.AwayValue, b.livehomescore, b.liveawayscore, b.transdesc, NULL) m
+			WHERE	b.matchid = @MatchId
+					AND b.statusID <> 101
+					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND statusID IN (0,102) THEN 1
+								 WHEN @IsReSettledTickets = 1 THEN 1
+								 ELSE 0
+							END
+
+			-- check if winlost reaches the maxpayout
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.f_NAP_Site_MaxPayoutSetting() WHERE SiteDBGroupId = @SiteDBGroupId)
+			BEGIN
+				;WITH cteCustIds
+				AS(
+					SELECT DISTINCT custid, currency
+					FROM	#tmpTransID t
+					WHERE	modds >= 0.25
+				)
+				INSERT INTO @tmpMaxWinLimit (CustId, MaxWinLimit)
+				SELECT	t.custid, fc.MaxWinLimit
+				FROM	CustDB.dbo.Customer c WITH(NOLOCK)
+					INNER JOIN cteCustIds t
+						ON t.custid = c.custid
+					INNER JOIN CustDB.dbo.Site s WITH(NOLOCK)
+						ON s.site = c.site
+					INNER JOIN dbo.f_NAP_Site_MaxPayoutSetting() fs
+						ON s.siteid = fs.siteid
+					INNER JOIN dbo.f_NAP_Currency_MaxPayoutSetting() fc
+						ON	t.currency = fc.ExchangeId
+							AND fc.SiteDBGroupId = @SiteDBGroupId
+
+				IF @@ROWCOUNT > 0
+				BEGIN
+					UPDATE t 
+						SET IsApplyMaxPO = 1
+							,winlost = m.MaxWinLimit
+					FROM	#tmpTransID t
+						INNER JOIN	@tmpMaxWinLimit m
+							ON t.CustId = m.CustId
+					WHERE	t.actualPO > m.MaxWinLimit
+
+					SET @TotalTransMaxPO = @@ROWCOUNT
+				END
+					
+			END
 		END
 
 		IF @action = 'REFUND'  
@@ -131,8 +199,8 @@ BEGIN
 			
 			UPDATE TOP(@batchCount) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds
-			INTO @tmpTransIDBatch(transid, modds)
+			OUTPUT deleted.transid, deleted.modds, deleted.winlost, deleted.actualPO, deleted.IsApplyMaxPO
+			INTO @tmpTransIDBatch(transid, modds, winlost, actualPO, IsApplyMaxPO)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -144,6 +212,9 @@ BEGIN
 			SET @strTransIds = (SELECT transid		AS '@t'
 										,modds		AS '@m'
 										,0			AS '@ot'
+										,CASE WHEN IsApplyMaxPO = 1 THEN winlost ELSE NULL END AS '@wl'
+										,CASE WHEN IsApplyMaxPO = 1 THEN actualPO ELSE NULL END AS '@apo'
+										,IsApplyMaxPO AS '@iMPO'
 								FROM @tmpTransIDBatch
 								FOR XML PATH('r'), ROOT( 'root' ))
 
@@ -176,6 +247,66 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch 	= 1
 		,@IsReleased	= 1
+
+	WHILE (@TotalTransMaxPO > 0)
+	BEGIN
+		IF @TotalTransMaxPO > @batchPO
+		BEGIN
+			DELETE @tmpTransIDMaxPO
+
+			DELETE TOP (@batchPO) t
+				OUTPUT deleted.custid, deleted.winlost, deleted.actualPO, deleted.transdate, deleted.bettype, deleted.transid 
+				INTO @tmpTransIDMaxPO(custid, winlost, actualPO, transdate, bettype, transid)
+			FROM	#tmpTransID t
+			WHERE	IsApplyMaxPO = 1
+
+			SET @TransInfoMaxPO = CAST((
+									SELECT	TOP (@batchPO) CustId AS a1
+											,77 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,@AdminId AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	@tmpTransIDMaxPO
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+		ELSE
+		BEGIN
+			SET @TransInfoMaxPO = CAST((
+									SELECT	CustId AS a1
+											,77 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,@AdminId AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	#tmpTransID
+									WHERE	IsApplyMaxPO = 1
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+
+		SET @TotalTransMaxPO = @TotalTransMaxPO - @batchPO
+
+		BEGIN TRY
+			EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
+				@XmlData = @TransInfoMaxPO
+		END TRY
+		BEGIN CATCH
+			SELECT	 @ErrCode = ERROR_NUMBER()
+					,@ErrMsg = ERROR_MESSAGE()				
+		END CATCH
+	END
 
 END
 GO
