@@ -21,6 +21,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20230405@Louisa: Support resettle Parlay tickets and support double comm if it's possible [Redmine:#186276]
+		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 
 	Param's Explanation:
 	
@@ -46,7 +47,12 @@ BEGIN
 		, @balanceUpd			VARCHAR(MAX)
 		, @BalanceType			TINYINT
 		, @balanceAcc 			VARCHAR(MAX)
-		, @GroupID			INT
+		, @GroupID				INT
+		, @TotalTransMaxPO		INT = 0
+		, @batchPO				SMALLINT = 500
+		, @TransInfoMaxPO		VARCHAR(MAX)
+		, @transMPO				VARCHAR(MAX)
+		, @SiteDBGroupId		SMALLINT
 	
 	DECLARE @odds 				MONEY
 		, @commWinRate 			MONEY 
@@ -55,6 +61,9 @@ BEGIN
 	
 	DECLARE @tempRefno 			TABLE (refno BIGINT)
 	DECLARE @BetTickets			TVP_Settlement_BetTicket
+	DECLARE @tmpTransMPO TABLE (TransID BIGINT,custid INT, actualPO MONEY, MaxWinLimit MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
+	DECLARE @tmpTransMPOBatch TABLE (TransID BIGINT,custid INT, actualPO MONEY, MaxWinLimit MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
+	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
 	
 	CREATE TABLE #tempRefno2799 ( 
 		[refno] 			[BIGINT]
@@ -86,6 +95,8 @@ BEGIN
 		, [modds] 			[SMALLMONEY]
 		, [winlostdate] 	[SMALLDATETIME] 
 		, [isChanged]		[BIT]
+		, [currency]		[TINYINT]
+		, [transdate]		[DATETIME]
 	)
 	
 	CREATE TABLE #tempRefno2799_Pre ( 
@@ -106,6 +117,8 @@ BEGIN
 		, [StatusID] 		[TINYINT]
 		, [modds] 			[SMALLMONEY]
 		, [winlostdate] 	[SMALLDATETIME]
+		, [currency]		[TINYINT]
+		, [transdate]		[DATETIME]
 	)
 	
 	
@@ -116,7 +129,9 @@ BEGIN
 		, @batchCount			= 2000
 		, @balanceAcc			= ''
 		, @GroupID				= 7 --VS Betradar
-	
+
+	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+
 	--CONVERT refno
 	SET @xmlRefno = CONVERT(XML, @strRefnos)
 	
@@ -134,7 +149,8 @@ BEGIN
 		,playerdiscount,discount, adiscount, sdiscount
 		,WinLost, aWinLost, mWinLost, sWinLost
 		,PlayerComm, comm, acomm, scomm
-		,StatusID, modds, winlostdate)
+		,StatusID, modds, winlostdate
+		,currency,transdate)
 	OUTPUT INSERTED.recommend 
 		, INSERTED.matchid
 		, INSERTED.custid	
@@ -152,6 +168,8 @@ BEGIN
 		, INSERTED.StatusID		
 		, INSERTED.modds 			
 		, INSERTED.winlostdate
+		, INSERTED.currency
+		, INSERTED.transdate
 	INTO  #tempRefno2799_Pre 
 	(	recommend 
 		, matchid
@@ -170,6 +188,8 @@ BEGIN
 		, StatusID		
 		, modds 			
 		, winlostdate	
+		, currency
+		, transdate
 	)
 	SELECT refno
 		, recommend
@@ -182,7 +202,7 @@ BEGIN
 		, WinLost, aWinLost, mWinLost, sWinLost
 		, PlayerComm, comm, acomm, scomm
 		, StatusID, modds, winlostdate
-		
+		, currency, transdate
 	FROM dbo.bettrans b WITH(NOLOCK)
 	WHERE b.matchid = @parlayBettype
 		AND b.bettype = @parlayBettype
@@ -337,6 +357,52 @@ BEGIN
 	
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 	VALUES (@matchid, @runcnt, CURRENT_TIMESTAMP, NULL, 'start updating bettrans 2799_cal')		
+
+	IF EXISTS (SELECT TOP 1 1 FROM dbo.f_NAP_Site_MaxPayoutSetting() WHERE SiteDBGroupId = @SiteDBGroupId)
+	BEGIN
+		;WITH cteCustIds
+		AS(
+			SELECT DISTINCT custid, currency
+			FROM	#tempRefno2799 t
+			WHERE	statusID IN (111,112)
+				AND isChanged = 1
+		)
+		INSERT INTO @tmpMaxWinLimit (CustId, MaxWinLimit)
+		SELECT	t.custid, fc.MaxWinLimit
+		FROM	CustDB.dbo.Customer c WITH(NOLOCK)
+			INNER JOIN cteCustIds t
+				ON t.custid = c.custid
+			INNER JOIN CustDB.dbo.Site s WITH(NOLOCK)
+				ON s.site = c.site
+			INNER JOIN dbo.f_NAP_Site_MaxPayoutSetting() fs
+				ON s.siteid = fs.siteid
+			INNER JOIN dbo.f_NAP_Currency_MaxPayoutSetting() fc
+				ON	t.currency = fc.ExchangeId
+					AND fc.SiteDBGroupId = @SiteDBGroupId	
+					
+		IF @@ROWCOUNT > 0
+		BEGIN					
+			UPDATE t 
+			SET t.winlost	= m.MaxWinLimit,
+				t.aWinLost = CASE WHEN t.modds >= 0.25 THEN (m.MaxWinLimit - t.actual_stake) * - apositiontaking
+								  ELSE 0
+							 END,
+				t.mWinLost = CASE WHEN t.modds >= 0.25 THEN (m.MaxWinLimit - t.actual_stake) * - mpositiontaking
+								  ELSE 0
+							 END,
+				t.sWinLost = CASE WHEN t.modds >= 0.25 THEN (m.MaxWinLimit - t.actual_stake) * - spositiontaking
+								  ELSE 0
+							 END
+			OUTPUT  deleted.transid, deleted.custid, deleted.winlost, inserted.winlost, deleted.transdate, deleted.bettype
+			INTO @tmpTransMPO(TransID,custid, actualPO, winlost, transdate, bettype)
+			FROM  #tempRefno2799 AS t
+				INNER JOIN @tmpMaxWinLimit AS m ON m.custid = t.custid AND t.winlost > m.MaxWinLimit
+			WHERE t.statusID IN (111,112)
+				AND isChanged = 1
+
+			SET @TotalTransMaxPO = @@ROWCOUNT
+		END
+	END
 	
 	SET @tstime = CURRENT_TIMESTAMP					
 	BEGIN TRY
@@ -366,6 +432,12 @@ BEGIN
 			WHERE isChanged = 1
 							
 			IF @@ROWCOUNT = 0 BREAK
+
+			SET @transMPO = (SELECT t.transid	AS '@t',
+									t.actualPO  AS '@apo'
+							 FROM @BetTickets AS b
+								INNER JOIN  @tmpTransMPO AS t ON b.transid = t.transid
+							 FOR XML PATH('r'), ROOT( 'root' ))
 			
 			EXEC dbo.NAP_Admin_Calculate_Bettrans
 				@BetTickets		= @BetTickets
@@ -373,6 +445,7 @@ BEGIN
 				,@matchid		= @matchid
 				,@CWLBettype	= @CWLBettype
 				,@TicketType	= 'p'
+				,@transMPO		= @transMPO
 				,@balanceUpd 	= @balanceUpd OUTPUT
 				,@ErrCode 		= @ErrCode OUTPUT
 				,@ErrMsg 		= @ErrMsg OUTPUT
@@ -396,6 +469,59 @@ BEGIN
 	SET @duration = datediff(s, @tstime, CURRENT_TIMESTAMP)				
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, strXML,  doing)
 	VALUES (@matchid, @runcnt, @tstime, CURRENT_TIMESTAMP, @strTransIds, 'end updating bettrans 2799_cal')
+
+	-- notify
+	WHILE (@TotalTransMaxPO > 0)
+	BEGIN
+		IF @TotalTransMaxPO > @batchPO
+		BEGIN
+			DELETE @tmpTransMPOBatch
+
+			DELETE TOP (@batchPO) t
+			OUTPUT deleted.custid, deleted.winlost, deleted.actualPO, deleted.transdate, deleted.bettype, deleted.transid 
+			INTO @tmpTransMPOBatch(custid, winlost, actualPO, transdate, bettype, transid)
+			FROM @tmpTransMPO t
+
+			SET @TransInfoMaxPO = CAST((
+									SELECT	TOP (@batchPO) CustId AS a1
+											,194 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,NULL AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	@tmpTransMPOBatch
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+		ELSE
+		BEGIN
+			SET @TransInfoMaxPO = CAST((
+									SELECT	CustId AS a1
+											,194 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,NULL AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	@tmpTransMPO
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+
+		SET @TotalTransMaxPO = @TotalTransMaxPO - @batchPO
+
+		EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
+			@XmlData = @TransInfoMaxPO
+	END
 	
 	-- Settlement balance process
 	IF(@IsBalance = 1)
