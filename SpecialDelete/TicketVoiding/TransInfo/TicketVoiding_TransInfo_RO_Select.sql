@@ -463,7 +463,7 @@ BEGIN
 							WHEN f.FilterNonLive = 1 AND b.FilterLiveIndicator = 0 THEN 1
 					ELSE 0 END
 				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
-				AND (f.FilterSet = '' OR b.FilterSet LIKE f.FilterSet + '%')
+				AND (f.FilterTransdesc = '' OR b.FilterTransdesc = f.FilterTransdesc)
 				AND 1 = CASE WHEN f.FilterRuns = '' THEN 1
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 0 AND b.FilterHdp1 > FilterRuns THEN 1
 							WHEN f.FilterRuns <> '' AND f.IsFancy = 1 AND b.FilterBetteam = 'y' AND b.FilterHdp2 > f.FilterRuns THEN 1
