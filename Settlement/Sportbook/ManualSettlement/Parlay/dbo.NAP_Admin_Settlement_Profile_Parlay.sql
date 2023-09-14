@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@LockedByRefno			BIT			= 0
 	,@IsCentral				BIT			= 0
 	,@DeterminedType		TINYINT		= 0
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
@@ -39,6 +40,7 @@ AS
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -75,6 +77,7 @@ BEGIN
 			,@RemarkSDT			VARCHAR(500) = ''
 			,@strUndoTransIds	VARCHAR(MAX) = ''
 			,@strTransIdsSDT	VARCHAR(MAX) = ''
+			,@SiteDBGroupId		TINYINT
 						
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
@@ -85,6 +88,7 @@ BEGIN
 		BetType SMALLINT, BetID BIGINT, pfID SMALLINT,SDTpfId SMALLINT
 		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
 		, IsCalculated BIT
+		, IsWeb BIT
 	)
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
@@ -141,6 +145,7 @@ BEGIN
 				,ISNULL(AwayRound,'') AS AwayRound
 				,ISNULL(DeterminedType,'') AS DeterminedType
 				,ISNULL(IsCalculated,'') AS IsCalculated
+				,ISNULL(IsWeb,'') AS IsWeb
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
 															,SDTResourceId VARCHAR(20)
@@ -154,9 +159,10 @@ BEGIN
 															,AwayRound TINYINT
 															,DeterminedType TINYINT
 															,IsCalculated BIT
+															,IsWeb BIT
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -173,6 +179,7 @@ BEGIN
 			,c.AwayRound
 			,c.DeterminedType
 			,c.IsCalculated
+			,c.IsWeb
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 			ON	 sp.ResourceID = c.Id
@@ -864,9 +871,9 @@ END
 		DELETE FROM @tmpSelectedRID
 		WHERE ResourceID NOT IN (
 			SELECT sp.ResourceID 
-			FROM dbo.bettrans bt WITH(NOLOCK)
+			FROM dbo.bettransm bt WITH(NOLOCK)
 				INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-					ON (sp.BetID = 0 OR sp.BetID =bt.betid)
+					ON (sp.BetID = 0 OR sp.BetID =cast(bt.betcheck AS INT))
 						AND sp.BetType = bt.bettype
 			WHERE bt.matchid = @MatchID
 				AND sp.SportType =50 )
@@ -884,47 +891,51 @@ END
 						AND p.BetType = m.BetType  
 						AND m.Enabled = 1)
 
-	SELECT @ResultRemarkLog = @ResultRemarkLog + ',' +  ISNULL(RoundName,ResourceID) + 
+	SELECT @ResultRemarkLog = STRING_AGG(ISNULL(RoundName,ResourceID) + 
 			CASE WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND AwayValue IS NOT NULL AND AwayValue <> '' THEN '(' + HomeValue + '-' + AwayValue + ')'
 					WHEN HomeValue IS NOT NULL AND HomeValue <> '' AND (AwayValue IS NULL OR AwayValue = '') THEN '(' + HomeValue + ')'
 					WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
-					ELSE '' END
+					ELSE '' END,',') WITHIN GROUP (ORDER BY OrdNo)
 	FROM (
 			SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
 		  	FROM @tmpSelectedRID sr
-			WHERE sr.ResourceID	IN (SELECT vr.ResourceID FROM @tmpValidResources AS vr)
+			WHERE sr.ResourceID	 IN (SELECT vr.ResourceID FROM @tmpValidResources AS vr)
 		  	GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   		) AS tbl1
-	ORDER BY OrdNo
-
-	IF @ParentMatchId IS NOT NULL -- Child match Cricket
-		SELECT @ResultRemarkLog =  'child: ' + CAST(@matchid AS VARCHAR)  
-									+ CASE WHEN @Action LIKE 'CAL%' THEN ' Result:' 
-										ELSE ' Selected:' 
-									END 
-									+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-	ELSE
-		SELECT @ResultRemarkLog =  CASE WHEN @Action LIKE 'CAL%' THEN 'Result:' ELSE 'Selected:' END + SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
 	
 	SET @stop = CURRENT_TIMESTAMP
 	
-	IF @IsCentral = 1
+	-- write log
 	BEGIN
-		SELECT @fth = CASE WHEN @DeterminedType = 1 THEN NULL ELSE @fth END
-				,@fta = CASE WHEN @DeterminedType = 1 THEN NULL ELSE @fta END
+		SELECT @fth = CASE WHEN @DeterminedType IN (1,2) THEN NULL ELSE @fth END
+				,@fta = CASE WHEN @DeterminedType IN (1,2) THEN NULL ELSE @fta END
 
-		SELECT @Remark = CASE WHEN @sportType <> 1 AND @DeterminedType = 0 THEN @ResultRemarkLog + '<br/> '  
-		                      WHEN @sportType <> 1 AND @DeterminedType > 0 THEN 'Selected: ' + @RemarkSDT + '<br/> '
-							  ELSE '' END
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark =
+			'<distinct>'
+							+ CASE WHEN @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@matchid AS VARCHAR) + '"/>' ELSE '' END
 							+ CASE 
-								WHEN @DeterminedType = 2 THEN ' SDT-FT:1' 
-								WHEN @DeterminedType = 1 THEN ' Instant HT' 
-								WHEN @DeterminedType = 4 THEN ' Instant FT' 
+								WHEN @sporttype <> 1 AND @DeterminedType = 0 
+									THEN CASE 
+											WHEN @Action LIKE 'CAL%' THEN '<r n="Result" v="' + ISNULL(@ResultRemarkLog,'') + '"/>' 
+											ELSE '<r n="Selected" v="' +  ISNULL(@ResultRemarkLog,'') + '"/>' 
+											END
+								WHEN @sportType <> 1 AND @DeterminedType > 0 THEN '<r n="Selected" v="' +  ISNULL(@RemarkSDT,'') + '"/>'
+								ELSE ''
+							END
+							+ CASE 
+								WHEN @DeterminedType = 2 THEN '<r n="SDT-FT" v="1"/>' 
+								WHEN @DeterminedType = 1 THEN '<r n="Instant HT" v="1"/>'
+								WHEN @DeterminedType = 4 THEN '<r n="Instant FT" v="1"/>'
 								ELSE '' END
-							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
-							+ CASE WHEN @Action LIKE 'CAL%' THEN '; Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) ELSE '' END
-							+ '; TC:' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20)) 
-						
+							+ CASE WHEN @Action LIKE 'CAL%' THEN '<r n="Recalc" v="' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + '"/>' ELSE '' END
+						+ '</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
+							+ '<r t="s" n="TC" v="' + CAST(ISNULL(@totalSubParlay, 0) AS VARCHAR(20))  + '"/>'							
+						+ '</root>'			
 	
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @creator
 			,@Matchid = @matchLog
@@ -935,6 +946,7 @@ END
 			,@htawayscore        = @hta
 			,@Remark = @Remark
 			,@IP = @IP
+			,@BroadcastSessionId = @BroadcastSessionId
 		
 	END
 

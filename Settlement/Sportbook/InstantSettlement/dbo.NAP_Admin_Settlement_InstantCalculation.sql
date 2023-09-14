@@ -10,6 +10,8 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation
 	,@IsAutoInst		BIT 			= 0
 	,@KeyId				INT				= 0
 	,@GoalRecord		VARCHAR(50)     = NULL
+	,@BroadcastSessionId VARCHAR(50)	= NULL
+
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	
@@ -22,6 +24,7 @@ AS
 
     Revisions:
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
     Param's Explanation:
         - @Action: ['CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT']
@@ -433,6 +436,7 @@ BEGIN
 									+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 									+ ', @Action = ''' + CONVERT(NVARCHAR(50), @Action) + '''' 
 									+ ', @DeterminedType = ' + CONVERT(VARCHAR(3), @DeterminedType)
+									+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -451,14 +455,15 @@ BEGIN
 					,@LockedByRefno		= 1 -- always lock refno for testing
 					,@IsCentral			= @IsCentral
 					,@DeterminedType	= @DeterminedType
+					,@BroadcastSessionId = @BroadcastSessionId
 
 					,@ErrCode			= @ErrCode OUTPUT
 					,@ErrMsg 			= @ErrMsg OUTPUT
 			END
 			ELSE
 			BEGIN
-				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno)
-				SELECT @MatchID, 0, @AdminId, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno
+				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+				SELECT @MatchID, 0, @AdminId, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
 			END
 		END
 	END TRY

@@ -29,6 +29,7 @@ AS
 		  - 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		  - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 		  - 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
+		  - 20230817@Kathy: Write log [Redmine:#192311]
 
 	Param's Explanation:  
 	
@@ -69,6 +70,7 @@ BEGIN
 			,@leagueId INT
 			,@KeyId INT
 			,@DeterminedFTStatus TINYINT = 0
+			,@BroadcastSessionIdInstant VARCHAR(50) = @BroadcastSessionId + '_instant'
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
@@ -248,7 +250,7 @@ BEGIN
 									+ ', @action = ''' + CONVERT(NVARCHAR(50), @Action) + ''''   
 									+ ', @IP = ''' + CONVERT(NVARCHAR(50), @IP) + '''' 
 									+ CASE WHEN @BroadcastSessionId IS NOT NULL 
-												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionIdInstant + ''''
 												ELSE '' END
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'

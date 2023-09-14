@@ -9,6 +9,8 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation_Push
     , @IP				VARCHAR(15)     = ''
     , @IsAutoInst		BIT				= 0
 	, @GoalRecord		VARCHAR(50)     = NULL
+	, @BroadcastSessionId VARCHAR(50)	= NULL
+
     , @ErrCode			INT             = 0     OUTPUT
     , @ErrMsg			NVARCHAR(200)   = ''    OUTPUT
 AS
@@ -20,6 +22,7 @@ AS
 
     Revisions:
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
     Param's Explanation:
 		- @Action: ['CALINST-HT', 'CALINST-FT' 'UNDOINST-FT', 'UNDOINST-HT']
@@ -61,6 +64,7 @@ BEGIN
 						  + ', @IsAutoInst = ''' + CONVERT(NVARCHAR(50), @IsAutoInst) + '''' 
 						  + ', @GoalRecord = ' + CASE WHEN @GoalRecord IS NULL THEN 'NULL'
                                                                 ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END
+						  + CASE WHEN @BroadcastSessionId IS NOT NULL THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + '''' ELSE '' END
 						  + ', @ErrCode = @ErrCode OUTPUT' 
 						  + ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -80,8 +84,8 @@ BEGIN
     END
     ELSE
     BEGIN
-        INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, execTime)
-        SELECT @MatchId, @matchcode, 0 AS IsCalculating, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand, NULL
+        INSERT INTO dbo.Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, execTime, BroadcastSessionId)
+        SELECT @MatchId, @matchcode, 0 AS IsCalculating, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand, NULL, @BroadcastSessionId
 
 		SET @KeyId = SCOPE_IDENTITY()
 

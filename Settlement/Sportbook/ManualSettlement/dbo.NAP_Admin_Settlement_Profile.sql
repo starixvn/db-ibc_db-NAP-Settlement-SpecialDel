@@ -75,6 +75,7 @@ AS
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -896,7 +897,13 @@ BEGIN
 	
 	SET @matchLog = @MatchID
 
-	IF @IsCentral = 1
+	IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
+	BEGIN
+		SELECT @hth	= NULL
+				,@hta = NULL
+	END
+
+	--IF @IsCentral = 1
 	BEGIN 
 		INSERT INTO @tmpValidResources(ResourceID)
 		SELECT ResourceID  
@@ -1004,32 +1011,27 @@ BEGIN
 												END
 	
 		IF @ParentMatchId IS NOT NULL ---Cricket
-	BEGIN
+		BEGIN
 			SELECT  @matchLog =  @ParentMatchId
 				,@fth	= finalhomescore
 				,@fta	= finalawayscore
-  		FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
-  		WHERE   matchid = @ParentMatchId
-	END
-
-		IF NOT EXISTS (SELECT TOP 1 1 FROM dbo.f_Set_MajorRound(@Sporttype) sd WHERE sd.RoundID = '01' AND sd.GroupType = 'HT')
-		BEGIN
-			SELECT @hth	= NULL
-					,@hta = NULL
+  			FROM	DBPRO.BODB02.dbo.match WITH (NOLOCK)
+  			WHERE   matchid = @ParentMatchId
 		END
 			
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-				@userid				= @creator
-				,@matchid			= @matchLog
-				,@actionid			= @ActionID
-				,@finalhomescore	= @fth
-				,@finalawayscore	= @fta
-				,@hthomescore		= @hth
-				,@htawayscore		= @hta
-				,@GoalRecord		= NULL
-				,@betstatus			= @betstatus
-				,@Remark			= @Remark
-				,@ip				= @ip
+		IF @IsCentral = 1
+			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+					@userid				= @creator
+					,@matchid			= @matchLog
+					,@actionid			= @ActionID
+					,@finalhomescore	= @fth
+					,@finalawayscore	= @fta
+					,@hthomescore		= @hth
+					,@htawayscore		= @hta
+					,@GoalRecord		= NULL
+					,@betstatus			= @betstatus
+					,@Remark			= @Remark
+					,@ip				= @ip
 		
 	END		
 
@@ -1071,6 +1073,8 @@ BEGIN
 								+ ', @DeterminedType = ' + CONVERT(VARCHAR(50), @DeterminedRefundType)
 								+ ', @IsAuto = ''' + CONVERT(CHAR(1), @IsAuto ) + ''''	
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
+								+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+								
 								+ ', @ErrCode = @ErrCode OUTPUT' 
 								+ ', @ErrMsg = @ErrMsg OUTPUT'
 
@@ -1091,13 +1095,15 @@ BEGIN
 				,@IsAuto			= @IsAuto
 				,@DeterminedType    = @DeterminedRefundType
 				,@IsCentral			= @IsCentral
+				,@BroadcastSessionId = @BroadcastSessionId
+				
 				,@ErrCode			= @ErrCode OUTPUT
 				,@ErrMsg 			= @ErrMsg OUTPUT
 		END
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId + '_parlay'
+			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
 		END
 	END
 
@@ -1114,6 +1120,8 @@ BEGIN
 									+ ', @hta = '					+ ISNULL(CONVERT(NVARCHAR(50), @hta),'NULL')
 									+ ', @fth = '					+ ISNULL(CONVERT(NVARCHAR(50), @fth),'NULL') 
 									+ ', @fta = '					+ ISNULL(CONVERT(NVARCHAR(50), @fta),'NULL')
+									+ ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+										
 									+ ', @ErrCode = @ErrCode OUTPUT' 
 									+ ', @ErrMsg = @ErrMsg OUTPUT'
 			
@@ -1132,6 +1140,8 @@ BEGIN
 									,@hta					= @hta
 									,@fth					= @fth
 									,@fta					= @fta
+									,@BroadcastSessionId 	= @BroadcastSessionId
+									
 									,@ErrCode				= @ErrCode OUTPUT
 									,@ErrMsg				= @ErrMsg OUTPUT
 			END TRY
@@ -1144,8 +1154,8 @@ BEGIN
 
 			RETURN
 		END
-		INSERT INTO Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand)
-		SELECT	@MatchId,@matchcode,0,@leagueid,@sportType,@creator,@IP,'SDT',@sqlCommand
+		INSERT INTO Single_Calculate_Queue (matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, BroadcastSessionId)
+		SELECT	@MatchId,@matchcode,0,@leagueid,@sportType,@creator,@IP,'SDT',@sqlCommand, @BroadcastSessionId
 	END
 END
 GO
