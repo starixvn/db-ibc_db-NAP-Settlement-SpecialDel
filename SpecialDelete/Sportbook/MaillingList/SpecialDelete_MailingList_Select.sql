@@ -75,7 +75,7 @@ BEGIN
 			FOR XML PATH ('')) AS CcList (ContactEmail)
 		OUTER APPLY	(
 					SELECT ISNULL(s.IsChinaView,0) AS IsChinaView
-						  ,ISNULL(s.SpecialPlatform,0) AS SpecialPlatform
+						  ,ISNULL(s.SpecialPlatfrom,0) AS SpecialPlatform
 					FROM bodb02.dbo.site s WITH(NOLOCK) 
 					WHERE l.RegisteredLicenseeName = s.site 
 					)s

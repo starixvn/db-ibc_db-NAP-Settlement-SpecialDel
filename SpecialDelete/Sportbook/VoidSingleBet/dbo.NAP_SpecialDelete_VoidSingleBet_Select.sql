@@ -1476,7 +1476,7 @@ BEGIN
 			,ISNULL(si.IsChinaView,0) AS IsChinaView
 			,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 			,s.SiteDBGroupId
-			,ISNULL(si.SpecialPlatform,0) AS SpecialPlatform --2: JollyView
+			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

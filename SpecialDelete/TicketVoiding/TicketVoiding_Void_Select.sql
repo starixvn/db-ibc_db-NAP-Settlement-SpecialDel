@@ -2098,7 +2098,7 @@ BEGIN
 		   ,ISNULL(s.IsCancelCashOut,0) AS IsCancelCashOut
 		   ,s.statuswinlost
 		   ,s.CheckTimeCashOut AS CheckTimeCancelCashOut
-		   ,ISNULL(si.SpecialPlatform,0) AS SpecialPlatform --2: JollyView
+		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
