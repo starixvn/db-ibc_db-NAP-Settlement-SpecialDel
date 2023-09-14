@@ -18,6 +18,7 @@ AS
 	
 	Revisions: 
 		- 20230612@July: Create new SP [Redmine: #185833]
+		- 20230912@Max: [TVS] - Update the rules to get void ticket for Reduced Over issue type [Redmine: #193824]
 
 	Param's explanation:
 		+ @IssueTypeId : 19 - Reduced Over
@@ -98,7 +99,7 @@ BEGIN
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,'<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
 				+ '" WicketOver="' + t.c.value('@WicketOver','VARCHAR(20)')
-				+ '" PlayerIds="' + t.c.value('@PlayerIds','VARCHAR(20)')
+				+ '" PlayerIds="' + t.c.value('@PlayerIds','VARCHAR(MAX)')
 				+ '" Runs="' + t.c.value('@Runs','VARCHAR(20)')
 				+ '" Live="' + CAST(t.c.value('@Live','BIT') AS VARCHAR(10)) 
 				+ '" NonLive="' + CAST(t.c.value('@NonLive','BIT') AS VARCHAR(10)) 	
