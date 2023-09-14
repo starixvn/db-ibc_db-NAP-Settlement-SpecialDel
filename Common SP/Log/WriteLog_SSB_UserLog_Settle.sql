@@ -11,7 +11,8 @@ ALTER PROCEDURE [dbo].[WriteLog_SSB_UserLog_Settle]
     @betstatus		NVARCHAR(50)	= NULL,
     @Remark			VARCHAR(MAX)	= '',	
 	@IP				VARCHAR(15)		= '',
-	@LogDate		DATETIME		= NULL
+	@LogDate		DATETIME		= NULL,
+	@BroadcastSessionId VARCHAR(50) = NULL
 AS
 /*	
 	Created: 20230421@Aries
@@ -20,6 +21,7 @@ AS
 
 	Revisions: 
         - 20230214@Aries: Created [Redmine: #187252]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 		
 	Param's Explanation:
 
@@ -41,6 +43,7 @@ AS
 						 	 ,@Remark				AS '@r'
 						 	 ,@IP					AS '@i'
 						 	 ,@LogDate				AS '@l'
+							 ,@BroadcastSessionId	AS '@bs'
 					  FOR XML PATH),
 					  '</UserLog_Settle>')
 
@@ -61,5 +64,6 @@ AS
 					,@Remark			= @Remark
 					,@IP				= @ip
 					,@LogDate			= @LogDate
+					,@BroadcastSessionId = @BroadcastSessionId
 	END
 GO
