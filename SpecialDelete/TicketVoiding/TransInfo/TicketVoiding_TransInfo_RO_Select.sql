@@ -458,7 +458,7 @@ BEGIN
 		OUTER APPLY (
 			SELECT TOP 1 Bettype
 			FROM #FilterInfo f
-			WHERE f.Bettype = b.bettype
+			WHERE f.Bettype = b.FilterBettype
 				AND 1 = CASE WHEN f.FilterLive = 1 AND b.FilterLiveIndicator = 1 THEN 1
 							WHEN f.FilterNonLive = 1 AND b.FilterLiveIndicator = 0 THEN 1
 					ELSE 0 END
