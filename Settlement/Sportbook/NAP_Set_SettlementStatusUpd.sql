@@ -19,7 +19,7 @@ AS
 		- 20200821@Kathy: Add log for refund flag"  [Redmine:#140092]
 		- 20201027@Louisa: Add new settlement status - Hold Key bit[7] - [Redmine:#143441]
 		- 20220531@Louisa: Turn off Auto Instant Setting if MTD Hold bit[5] is on [Redmine:#173360]
-	
+		- 20230915@Louisa: Remove code WriteLog_UserLog [Redmine:#193920]
 
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -41,7 +41,6 @@ BEGIN
 			--write log
 			,@Starttime			DATETIME
 			,@ActionId			INT
-			,@LogData			NVARCHAR(200) 
 			,@Remark			VARCHAR(500)
 	
 	SELECT	@Starttime = GETDATE()
@@ -77,10 +76,6 @@ BEGIN
 		FROM	dbo.match_remark mr WITH(ROWLOCK, UPDLOCK)
 		WHERE	mr.matchid = @MatchId
 	END
-			
-	SELECT @LogData = 'Update settlement status of MatchID = ' + CAST(@MatchId AS VARCHAR(20)) + ' with Type = ' + CAST(@Type AS VARCHAR(2))
-
-	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
 
 	IF @Type IN (1,2,3,5,6,7)
 	BEGIN

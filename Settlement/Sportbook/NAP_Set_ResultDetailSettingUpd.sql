@@ -25,7 +25,7 @@ AS
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
-
+		- 20230915@Louisa: Remove code WriteLog_UserLog [Redmine:#193920]
 		  	
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -43,7 +43,6 @@ BEGIN
 
 	DECLARE @SportType			TINYINT  = 0
 			,@ActionId			INT
-			,@LogData			NVARCHAR(200) 
 			,@Remark			VARCHAR(500)
 			,@ResultTable		TINYINT	= 0	
 			,@handle			INT
@@ -220,16 +219,6 @@ BEGIN
 						,@SelectedResources = @SelectedResources
 						,@IsConfirm = 1
 	END
-
-	SELECT @LogData = 'Update ' + CASE @Type 
-									WHEN 1 THEN 'hold ' 
-									WHEN 2 THEN 'confirm Refund '
-									WHEN 3 THEN 'confirm Refund SDT'
-									ELSE '' END
-						+ 'result setting of MatchID = ' + CAST(@MatchId AS VARCHAR(20)) + ' with ResourceIDs = ' + @ResourceIds
-
-	EXEC dbo.WriteLog_UserLog @UserID = @AdminId, @Doing = @LogData
-
 
 	SELECT @Remark = CASE @Type WHEN 1 THEN 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END + 'result hold: '
 											+ CAST(@MatchId AS VARCHAR) + '(' + @ResourceIds + ')'
