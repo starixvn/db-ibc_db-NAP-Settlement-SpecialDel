@@ -1,4 +1,4 @@
-/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[NAP_Admin_CustLimitBet_Insert]
 (
 	@MatchId INT
@@ -24,6 +24,7 @@ AS
 		- 20230119@July: Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site - [Redmine: #182803]
 		- 20230301@Max: Database - Revise the Reject Main Parlay Ticket (Max Payout Per Match) [Redmine: #184559]
 		- 20230905@Louisa: Support Max Payout for VS3 [Redmine:#193562]
+		- 20230918@Max: Remove meta data DBSID - [Redmine: #181595]
 
 	Param's explanation:	
 		
