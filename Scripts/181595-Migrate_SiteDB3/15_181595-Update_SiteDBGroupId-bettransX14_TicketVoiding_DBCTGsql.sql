@@ -13,7 +13,7 @@
 							, TicketVoiding_RequestDetailTicket_Single, TicketVoiding_RequestDetailTicket_SubParlay
 */
 
-USE bodb2
+USE bodb02
 GO
 
 	CREATE TABLE #tmp_bettransm_scaleout (rid INT IDENTITY (1,1) PRIMARY KEY,  transid BIGINT)
