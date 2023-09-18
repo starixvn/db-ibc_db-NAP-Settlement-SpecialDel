@@ -78,6 +78,7 @@ AS
 		- 20230613@July: Ticket Listing - Add new filter to search tickets by combo parlay [Redmine: #187405]
 		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
 		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
+		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -447,8 +448,17 @@ BEGIN
 				WHEN 1 THEN 0
 				WHEN 2 THEN 1 END
 				AND (@Quarter = 'All' 
-					OR (b.bettype NOT BETWEEN 609 AND 617 AND b.bettype NOT BETWEEN 627 AND 631 AND b.bettype NOT BETWEEN 707 AND 714 AND b.bettype NOT BETWEEN 381 AND 385) 
-					OR ((b.bettype BETWEEN 609 AND 617 OR b.bettype BETWEEN 627 AND 631 OR b.bettype BETWEEN 707 AND 714 OR b.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE b.betid LIKE q.Id + '%')))
+					OR ((b.bettype NOT BETWEEN 609 AND 617) 
+							AND (b.bettype NOT BETWEEN 627 AND 631) 
+							AND (b.bettype NOT BETWEEN 707 AND 714) 
+							AND (b.bettype NOT BETWEEN 381 AND 385) 
+							AND b.bettype NOT IN (650)) 
+					OR (((b.bettype BETWEEN 609 AND 617) 
+						OR (b.bettype BETWEEN 627 AND 631) 
+						OR (b.bettype BETWEEN 707 AND 714) 
+						OR (b.bettype BETWEEN 381 AND 385) 
+						OR b.bettype IN (650)) 
+						AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE b.betid LIKE q.Id + '%')))
 
 		IF (@IsReSettled = 1 AND @SportType = 1)
 		BEGIN
@@ -597,8 +607,17 @@ BEGIN
 																	WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL )
 			AND (@Quarter = 'All' 
-				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))			
+				OR ((bm.bettype NOT BETWEEN 609 AND 617) 
+							AND (bm.bettype NOT BETWEEN 627 AND 631) 
+							AND (bm.bettype NOT BETWEEN 707 AND 714) 
+							AND (bm.bettype NOT BETWEEN 381 AND 385) 
+							AND bm.bettype NOT IN (650))  
+				OR (((bm.bettype BETWEEN 609 AND 617) 
+						OR (bm.bettype BETWEEN 627 AND 631) 
+						OR (bm.bettype BETWEEN 707 AND 714) 
+						OR (bm.bettype BETWEEN 381 AND 385) 
+						OR bm.bettype IN (650)) 
+						AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))			
 		OPTION(OPTIMIZE FOR (@n = 1))
 
 		IF @SelectionSubParlays <> ''
@@ -706,8 +725,17 @@ BEGIN
 																	WHEN 2 THEN 1 END
 			AND (b.betid = 0 OR b.betid IS NULL )
 			AND (@Quarter = 'All' 
-				OR (bm.bettype NOT BETWEEN 609 AND 617 AND bm.bettype NOT BETWEEN 627 AND 631 AND bm.bettype NOT BETWEEN 707 AND 714 AND bm.bettype NOT BETWEEN 381 AND 385) 
-				OR ((bm.bettype BETWEEN 609 AND 617 OR bm.bettype BETWEEN 627 AND 631 OR bm.bettype BETWEEN 707 AND 714 OR bm.bettype BETWEEN 381 AND 385) AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))
+				OR ((bm.bettype NOT BETWEEN 609 AND 617) 
+							AND (bm.bettype NOT BETWEEN 627 AND 631) 
+							AND (bm.bettype NOT BETWEEN 707 AND 714) 
+							AND (bm.bettype NOT BETWEEN 381 AND 385) 
+							AND bm.bettype NOT IN (650))  
+				OR (((bm.bettype BETWEEN 609 AND 617) 
+						OR (bm.bettype BETWEEN 627 AND 631) 
+						OR (bm.bettype BETWEEN 707 AND 714) 
+						OR (bm.bettype BETWEEN 381 AND 385) 
+						OR bm.bettype IN (650)) 
+						AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))
 		OPTION(OPTIMIZE FOR (@n = 1))
 	END
 	
