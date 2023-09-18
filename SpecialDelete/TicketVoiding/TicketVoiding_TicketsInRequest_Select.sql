@@ -8,7 +8,7 @@ AS
 /*	Created by: Max
 	Date 20200521
 	Task: [CTS] Problem Account Monitor
-	DB: DBTXN/bodb02
+	DB: DBACC/bodb02
 	
 	Revisions: 
 		- 20200521@Max:[CTS] Problem Account Monitor [Redmine:#133798]
