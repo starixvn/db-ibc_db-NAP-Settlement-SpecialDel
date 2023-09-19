@@ -18,6 +18,7 @@ AS
 		- 20220406@Kathy: Add job bodb02 : NAP Settlement VS BetRadar [Redmine:#166457]
 		- 20220419@Max: Max Payout - Retry for Reject Action [Redmine: #171674]
 		- 20230712@Max: Scale out credit [Redmine: #181595]
+		- 20230907@July: Remove job un-used [Redmine: #193701]
 
 */
 /*
@@ -41,7 +42,6 @@ AS
 
 	--10.BalanceUpdDebitSports:	'bodb02 : Task_BalanceUpdDebitSports'
 
-	--11.Ticket Voiding:		'bodb02: Ticket Voiding'
 	--12.VS BetRadar			'bodb02 : NAP Settlement VS BetRadar'
 
 */
@@ -109,9 +109,6 @@ BEGIN
 
 		ELSE IF (@Jobname = 'bodb02 : Task_BalanceUpdDebitSports')
 			EXEC dbo.[Task_BalanceUpdDebitSports]
-
-		ELSE IF (@Jobname = 'bodb02: Ticket Voiding')
-			EXEC dbo.TicketVoiding_Queue_Job
 
 		ELSE IF (@Jobname = 'bodb02 : Task Max Payout Per Match')
 			EXEC dbo.NAP_Admin_CustLimitBet_Queue_Job
