@@ -26,6 +26,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230718@Max: WrongScore - Not show data on Void Page - Betlist. [Redmine: #191360]
+		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
 		
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -54,6 +55,9 @@ BEGIN
 		    ,@SATime				  TINYINT = 0
 			,@ScoreId				  INT = NULL
 			,@MatchId				  INT = 0
+		    ,@VoidFromTime_tmp		  DATETIME = NULL
+			,@CancelCOFromTime		  DATETIME = NULL
+		    ,@CancelCOToTime		  DATETIME = NULL
 	
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -174,6 +178,7 @@ BEGIN
 	  ,SubLiveBetAcceptTime SMALLINT
 	  ,SubSecAcceptTime TINYINT
 	  ,CheckTimeCashOut DATETIME
+	  ,AcceptModeCashOut  TINYINT
 	)
 
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -271,6 +276,7 @@ BEGIN
 	    ,SubLiveBetAcceptTime 
 	    ,SubSecAcceptTime 
 		,CheckTimeCashOut
+		,AcceptModeCashOut
 	)
     SELECT mid ,t ,s_t ,ref ,c ,hdp1 ,hdp2 ,lh ,la ,li
 		,o ,os ,bfr ,btype ,bteam ,bcheck ,s ,tdate ,checkt ,bid
@@ -278,7 +284,7 @@ BEGIN
 		,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,s_checkt ,s_tdes ,s_sid ,sre
 		,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 		,acstake ,wld ,m ,statuswl ,isP ,sitedb
-		,lbat ,sat ,s_lbat ,s_sat ,checktCO 
+		,lbat ,sat ,s_lbat ,s_sat ,checktCO ,amCO 
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
@@ -288,15 +294,15 @@ BEGIN
 					  ,s_bfr ,s_btype ,s_bteam ,s_bcheck ,s_s ,s_tdate ,CASE WHEN s_checkt = '1900-01-01 00:00:00.000' THEN NULL ELSE s_checkt END AS s_checkt ,s_tdes ,s_sid ,sre
 					  ,mre ,re ,cr ,stake ,ost ,curr ,bdaq ,ex ,bo ,w
 					  ,acstake ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,m ,statuswl ,isP ,sitedb
-					  ,lbat ,sat ,s_lbat ,s_sat ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO
+					  ,lbat ,sat ,s_lbat ,s_sat ,CASE WHEN checktCO = '1900-01-01 00:00:00.000' THEN NULL ELSE checktCO END AS checktCO ,amCO  
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, s_t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT ,li BIT 
-					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(3) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
+					 ,o SMALLMONEY ,os MONEY ,bfr NVARCHAR(4) ,btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50) ,s NVARCHAR(10) ,tdate DATETIME ,checkt DATETIME ,bid BIGINT
 					 ,tdes NVARCHAR(1000) ,sid TINYINT ,s_c INT ,s_hdp1 SMALLMONEY ,s_hdp2 SMALLMONEY ,s_lh SMALLINT ,s_la SMALLINT ,s_li BIT ,s_o SMALLMONEY ,s_os MONEY 
-					 ,s_bfr NVARCHAR(3) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
+					 ,s_bfr NVARCHAR(4) ,s_btype SMALLINT ,s_bteam NVARCHAR(10) ,s_bcheck NVARCHAR(50) ,s_s NVARCHAR(10) ,s_tdate DATETIME ,s_checkt DATETIME ,s_tdes NVARCHAR(1000) ,s_sid  TINYINT ,sre INT
 					 ,mre INT ,re INT ,cr INT ,stake MONEY ,ost TINYINT ,curr NVARCHAR(50) ,bdaq BIGINT ,ex VARCHAR(1000) ,bo INT ,w MONEY
 					 ,acstake MONEY ,wld SMALLDATETIME ,m SMALLMONEY ,statuswl TINYINT ,isP BIT ,sitedb SMALLINT
-					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT ,checktCO DATETIME 
+					 ,lbat SMALLINT ,sat TINYINT ,s_lbat SMALLINT ,s_sat TINYINT ,checktCO DATETIME ,amCO TINYINT
 				)
 		) tbl
 	WHERE f.value <> ''
@@ -355,7 +361,10 @@ BEGIN
 			, @PATime					= 0
 			, @SATime					= 0
 			, @ScoreId					= NULL
-		
+			, @CancelCOFromTime			= NULL
+			, @CancelCOToTime			= NULL
+			, @VoidFromTime_tmp			= NULL
+
 		UPDATE TOP(1) m SET
 			m.isFinish = 1
 			,@FilterFromTransTime = m.FilterFromTransTime
@@ -382,7 +391,7 @@ BEGIN
 			IF @MinAccept > @PATime SET @MinAccept = @PATime
 			IF @MinAccept > @SATime SET @MinAccept = @SATime
 
-			SELECT @VoidFromTime = DATEADD (SECOND,@MinAccept,@FilterFromTransTime)
+			SELECT @VoidFromTime_tmp = DATEADD (SECOND,@MinAccept,@FilterFromTransTime)
 
 			SELECT @VoidFromTime = MIN(CASE WHEN act.FromDate >= DATEADD (SECOND,CASE WHEN act.AcceptType = 1 THEN @AATime
 																					  WHEN act.AcceptType = 2 THEN @SATime
@@ -416,14 +425,44 @@ BEGIN
 						   END AS FromDate
 			)act
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
-			WHERE act.FromDate BETWEEN @VoidFromTime AND @FilterToTransTime
+			WHERE act.FromDate BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
 				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 							 ELSE 0 END
-		
+			
+			/*	Get tickets that need to be canceled cash out (with allowance setting). Check AA/PA/SA for cancel cash out tickets based on [cashoutselling.AcceptMode]
+				Auto Accept: AcceptMode = 1
+				Pending Accept: AcceptMode = 0
+				Second Accept: AcceptMode = 2
+				AcceptMode = Null means that ticket is not accepted (Rejected or other fail to sell situation) => Not get
+			*/
+			SELECT @CancelCOFromTime = MIN(CASE WHEN b.CheckTimeCashOut >= DATEADD (SECOND,CASE WHEN b.AcceptModeCashOut = 1 THEN @AATime
+																								WHEN b.AcceptModeCashOut = 2 THEN @SATime
+																								WHEN b.AcceptModeCashOut = 0 THEN @PATime
+																								END
+																						,@FilterFromTransTime)
+																THEN b.CheckTimeCashOut ELSE NULL END)
+				  ,@CancelCOToTime = MAX(b.CheckTimeCashOut)
+			FROM #tmpTransInfo b 
+			WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
+				AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
+				AND b.CheckTimeCashOut BETWEEN @VoidFromTime_tmp AND @FilterToTransTime
+				AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+							 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+							 ELSE 0 END
+
 			IF @VoidFromTime IS NULL
 			BEGIN
 				SELECT @VoidFromTime = NULL ,@VoidToTime = NULL
+			END
+			ELSE --Must ticket Void -> have cancel cash out.
+			BEGIN
+				IF @CancelCOFromTime IS NOT NULL 
+				BEGIN
+					IF @VoidFromTime > @CancelCOFromTime SET @VoidFromTime = @CancelCOFromTime --From Time: compare the time and get the smallest one
+
+					IF @VoidToTime < @CancelCOToTime SET @VoidToTime = @CancelCOToTime --To Time: compare the time and get the largest one
+				END
 			END
 
 			UPDATE #FilterInfo
@@ -476,14 +515,14 @@ BEGIN
 				  ELSE CASE WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
 							ELSE 3 END --Pending Accept
 				  END AS accepttype
-			,CASE  --Must ticket Void -> have cancelCO
-				WHEN @FilterBy = 1 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
+			,CASE 
+				WHEN @FilterBy = 1 AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 					AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
-				WHEN @FilterBy = 2 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
+				WHEN @FilterBy = 2 AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 					AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
-				WHEN @FilterBy = 4 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
+				WHEN @FilterBy = 4 AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
 					AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
 					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
 				ELSE 0 END AS IsCancelCashOut
@@ -499,19 +538,22 @@ BEGIN
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 			AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 1 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
+						 WHEN @FilterBy = 1 AND b.betdaqid = -2
 							AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime 
+							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
+							AND b.AcceptModeCashOut IS NOT NULL
 						THEN 1
 						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 2 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
+						 WHEN @FilterBy = 2 AND b.betdaqid = -2
 							AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime 
+							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
+							AND b.AcceptModeCashOut IS NOT NULL
 						THEN 1
 						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
-						 WHEN @FilterBy = 4 AND b.betdaqid = -2 AND d.FilterVoidFromTime IS NOT NULL
-								AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
-								AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime 
+						 WHEN @FilterBy = 4 AND b.betdaqid = -2
+							AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
+							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
+							AND b.AcceptModeCashOut IS NOT NULL
 						THEN 1
 					   ELSE 0 END 
 	
@@ -530,6 +572,12 @@ BEGIN
 		WHERE t.IsCancelCashOut = 1 
 		 AND t.transid IN ( SELECT transid FROM @tmpRemoveDuplCancelCO)
 	END
+
+	UPDATE t
+	SET accepttype = CASE WHEN b.AcceptModeCashOut = 0 THEN 3 ELSE b.AcceptModeCashOut END
+	FROM #TVSTicketBets t
+		INNER JOIN #tmpTransInfo b ON t.transid = b.transid AND t.matchid = b.matchid
+	WHERE b.IsMixParlay = 0 AND t.IsCancelCashOut = 1
 
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
@@ -659,10 +707,14 @@ BEGIN
 	BEGIN
 		UPDATE li
 		SET CancelCashOutCount = b.CancelCashOutCount
-		    ,VoidToTime = CASE WHEN b.CheckTimeCashOut >  li.VoidToTime THEN b.CheckTimeCashOut ELSE li.VoidToTime END
+		   ,VoidFromTime = CASE WHEN b.MIN_CheckTimeCashOut < li.VoidFromTime THEN b.MIN_CheckTimeCashOut ELSE li.VoidFromTime END
+		   ,VoidToTime = CASE WHEN b.MAX_CheckTimeCashOut >  li.VoidToTime THEN b.MAX_CheckTimeCashOut ELSE li.VoidToTime END
+		   ,HighLightMinTime = CASE WHEN b.MIN_CheckTimeCashOut < li.HighLightMinTime THEN b.MIN_CheckTimeCashOut ELSE li.HighLightMinTime END
 		FROM #logInfo li
 			CROSS APPLY(
-				SELECT COUNT(b.transid) AS CancelCashOutCount ,MAX(CheckTimeCashOut) AS CheckTimeCashOut
+				SELECT COUNT(b.transid) AS CancelCashOutCount
+					  ,MIN(CheckTimeCashOut) AS MIN_CheckTimeCashOut
+					  ,MAX(CheckTimeCashOut) AS MAX_CheckTimeCashOut
 				FROM #TVSTicketBets b
 				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1 AND li.ScoreId = b.ScoreId
 				GROUP BY b.matchid, b.ScoreId
@@ -1125,8 +1177,12 @@ BEGIN
 		FROM _cte l
 			OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType
 						FROM #TVSTicketBets b 
-						WHERE l.MatchId = b.matchid AND l.HighLightMinTime = CASE WHEN b.checktime IS NOT NULL THEN b.checktime 
-																			  WHEN b.checktime IS NULL THEN b.transdate END 
+						WHERE l.MatchId = b.matchid AND l.HighLightMinTime = CASE 
+																				  WHEN b.IsCancelCashOut = 0 AND b.checktime IS NOT NULL THEN b.checktime 
+																				  WHEN b.IsCancelCashOut = 0 AND b.checktime IS NULL THEN b.transdate 
+																				  WHEN b.IsCancelCashOut = 1 THEN b.CheckTimeCashOut
+																			  END 
+						ORDER BY b.IsCancelCashOut ASC
 				) AS h
 
 		-- 4. List ticket unmark   (if any)
