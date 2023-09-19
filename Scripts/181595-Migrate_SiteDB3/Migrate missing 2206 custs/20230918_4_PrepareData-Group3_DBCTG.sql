@@ -13,7 +13,7 @@
 USE SiteDBtmp
 GO
 
-----38 tables
+----33 tables
 
  /*	---- DROP tables to re-use script for test
 
@@ -316,14 +316,6 @@ GO
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
 			ON tmp.custid = bal.custid
 
-	--copy data bodb02.dbo.BalanceTable_tmp_cal
-	SELECT	bal.dow, bal.roleid, bal.custid, bal.recommend, bal.mrecommend, bal.srecommend, 
-			bal.amt1, bal.tcnt1, bal.amt2, bal.tcnt2, bal.amt3, bal.tcnt3, bal.amt4, bal.tcnt4
-	INTO BalanceTable_tmp_cal_20230626
-	FROM bodb02.dbo.BalanceTable_tmp_cal bal WITH (NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
-			ON tmp.custid = bal.custid
-
 
 	/*******************Other Tables**********************/
  
@@ -357,14 +349,6 @@ GO
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
 			ON tmp.custid = mt.custid
 
-	--copy data bodb02.dbo.NetPositionCalculationLog
-	SELECT	npcl.NPCalculationLogID, npcl.CustID, npcl.MatchID, npcl.Bettype, npcl.AccumNPDebit, npcl.AccumNPCredit, npcl.NPAdjust, 
-			npcl.IsLatest, npcl.CreatedDate, npcl.ModifiedDate
-	INTO NetPositionCalculationLog_20230626
-	FROM bodb02.dbo.NetPositionCalculationLog npcl WITH (NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
-			ON tmp.custid = npcl.custid
-
 	--copy data bodb02.dbo.NetPositionTrans
 	SELECT	npt.TransID, npt.CustID, npt.MatchID, npt.Bettype, npt.Actual_stake, npt.Payout1, npt.Payoutx, npt.Payout2, npt.SyncStatus, 
 			npt.isSettled, npt.CreatedDate, npt.ModifiedDate
@@ -379,13 +363,6 @@ GO
 	FROM bodb02.dbo.Task_Cust_CheckBalance_Exception tce WITH (NOLOCK)
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
 			ON tmp.custid = tce.custid
-
-	--copy data bodb02.dbo.Task_Cust_BalanceProblem1
-	SELECT tcb.UserName, tcb.custid, tcb.DiffBalance, tcb.LogDate, tcb.IsFixed, tcb.Remark
-	INTO Task_Cust_BalanceProblem1_20230626 
-	FROM bodb02.dbo.Task_Cust_BalanceProblem1 tcb WITH (NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK) 
-			ON tmp.custid = tcb.custid
 	
 	--copy data bodb02.dbo.CustLimitBet_789
 	SELECT cb.Matchid ,cb.CustID ,cb.AccumTurnover ,cb.AccumPayout ,cb.EventTypeID	,cb.LastQueueID	,cb.ModifiedDate
@@ -421,24 +398,6 @@ GO
 	FROM bodb02.dbo.ProcessingCustList pcl WITH(NOLOCK)
 		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK)
 			ON tmp.custid = pcl.custid
-	
-	--copy data bodb02.dbo.Task_Cust_BalanceProblem1_Manually
-	-- indentity = keyID
-	SELECT tp.keyID ,tp.UserName ,tp.custid ,tp.DiffBalance ,tp.LogDate ,tp.IsFixed ,tp.Remark
-	INTO Task_Cust_BalanceProblem1_Manually_20230626
-	FROM bodb02.dbo.Task_Cust_BalanceProblem1_Manually tp WITH(NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK)
-			ON tmp.custid = tp.custid
-
-	--Copy data bodb02.dbo.sum_winloss 
-	SELECT  sw.keyid, sw.winlostdate, sw.username, sw.custid, sw.roleid, sw.recommend, sw.mrecommend, sw.srecommend, sw.turnover
-			,sw.winlost, sw.awinlost, sw.mwinlost, sw.swinlost
-			,sw.playercomm, sw.comm, sw.acomm, sw.scomm, sw.BetCount, sw.grosscomm, sw.sporttype, sw.bettype, sw.netTurnover
-			,sw.TunroverNoDraw, sw.ExtraWinloss, sw.ExtraComm, sw.leagueGroupID, sw.ticketType
-	INTO sum_winloss_20230626
-	FROM bodb02.dbo.sum_winloss sw WITH(NOLOCK)
-		INNER JOIN CustSiteDB3_20230626 tmp WITH (NOLOCK)
-			ON tmp.custid = sw.custid
 
 	DROP TABLE #tmp_refno
 	
