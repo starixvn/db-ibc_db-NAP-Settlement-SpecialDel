@@ -12,7 +12,7 @@ AS
 /*	
 	Created: 20230608@Max  
     Task : [TVS] Support void Cricket when reducing over [Redmine: #185833]
-    DB: DBTXN/bodb02 
+    DB: DBCTG/bodb02 
       
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]

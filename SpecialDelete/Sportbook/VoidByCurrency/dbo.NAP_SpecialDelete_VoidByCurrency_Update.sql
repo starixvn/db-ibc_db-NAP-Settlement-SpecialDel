@@ -69,6 +69,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230608@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
+		- 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 
 	Param's Explanation:
 */
@@ -299,7 +300,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)	
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)	
-	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT)	
+	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
 	-------> Parse @LicenseeNames	
 	INSERT INTO #t_LicenseeNames(LicenseeName, GroupName)
@@ -1301,32 +1302,59 @@ BEGIN
 		SELECT DISTINCT MatchId FROM #SpecialDeleteBets_Parlay
 
 		BEGIN -- Instant Settlement declaration
+			
 			DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
+			CREATE TABLE #CTE_match (matchid INT)
+			CREATE TABLE #CTE_isCal (matchid INT, IsHTCal BIT, ResourceId VARCHAR(20))
 
-			--> Get status of match
-			;WITH cte_match AS
-			(
-				SELECT DISTINCT t.matchid
-				FROM @tmpMatchId t
-					INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
-			)
-			,cte_isCalHT AS
-			(
+			INSERT INTO #CTE_match (matchid)
+			SELECT DISTINCT t.matchid
+			FROM @tmpMatchId t
+				INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
+			
+			IF @sportType = 1 --Soccer				 
+			BEGIN 
+				INSERT INTO #CTE_isCal (matchid, IsHTCal)
 				SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-				FROM cte_match m
+				FROM #CTE_match m
 					LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-			)
-			--> Build bettype list supported for instant settlement based on settlement status of match
-			INSERT INTO #InstantSettlementBettypes (matchid, bettype)
-			SELECT c.matchid,  f.bettype
-			FROM cte_isCalHT c
-				CROSS APPLY (
-						SELECT bettype
-						FROM dbo.f_TVS_GetInstantBettypes() 
-						WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
-									   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
-									   ELSE 0 END
-				)f	 	
+
+				--> Build bettype list supported for instant settlement based on settlement status of match
+				INSERT INTO #InstantSettlementBettypes (matchid, bettype)
+				SELECT c.matchid,  f.bettype
+				FROM #CTE_isCal c
+					CROSS APPLY (
+							SELECT bettype
+							FROM dbo.f_TVS_GetInstantBettypes() 
+							WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
+										   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
+									ELSE 0 END
+					)f	 	
+			END
+			IF @sportType = 2 --Basketball
+			BEGIN
+				INSERT INTO #CTE_isCal (matchid, ResourceId)
+				SELECT m.matchid, rd.ResourceId
+				FROM #CTE_match m
+					LEFT JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
+						ON rd.matchid = m.matchid
+						AND ResultStatusID IN (2,5) AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
+
+				INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
+				SELECT DISTINCT c.matchid, f.bettype, f.betid
+				FROM #CTE_isCal c
+					CROSS APPLY (
+							SELECT bettype, betid
+							FROM dbo.f_TVS_GetInstantBettypes()
+							WHERE InstantType IS NULL
+							AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
+										 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
+								         ELSE 0 END
+					)f	 	
+			END
+			
+			DROP TABLE #CTE_match
+			DROP TABLE #CTE_isCal
 		END	
 
 		-------> Data for sending mail
@@ -1367,7 +1395,6 @@ BEGIN
 				s.BetType AS BetTypeId,
 				s.Hdp1 AS Handicap1,
 				s.Hdp2 AS Handicap2,
-				s.NetWinLost AS WinLost,
 				s.IsMixParlay,
 				s.SubTransDesc,
 				s.SubBetType,
@@ -1392,23 +1419,24 @@ BEGIN
 				mc.username AS MagUserName,
 				sc.username AS SagUserName,
 				CASE WHEN LOWER(s.Status) IN ('won', 'lose', 'draw') AND ISNULL(s.betdaqid,0) <> -2
-						AND EXISTS (SELECT TOP 1 1
-									FROM #InstantSettlementBettypes
-									WHERE bettype = s.bettype)
-						THEN CAST(1 AS BIT)
-					ELSE CAST(0 AS BIT)
-					END AS IsInstantSettlementTicket,
-				CASE
-					WHEN s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' 
-					ELSE s.site
-				END AS EmailGroup,
-				CASE
-					WHEN T2.a IS NOT NULL 
-						 AND @IsITAdmin = 1
-								THEN CAST(1 AS BIT)
-					ELSE CAST(0 AS BIT)							
-				END AS IsItSupport,
-				CASE WHEN dc.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
+						THEN CASE
+								WHEN @sporttype = 1
+										AND EXISTS (SELECT TOP 1 1
+													FROM #InstantSettlementBettypes
+													WHERE bettype = s.bettype)
+										THEN 1
+								WHEN @sporttype = 2 
+									AND EXISTS (SELECT TOP 1 1
+												FROM #InstantSettlementBettypes
+												WHERE bettype = s.bettype AND (betid = s.betid OR s.betid IS NULL))
+									THEN 1
+								ELSE 0
+							END
+					ELSE 0
+					END AS IsInstantSettlementTicket
+				,CASE WHEN s.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'Betfair' ELSE s.site END AS EmailGroup
+				,CASE WHEN T2.a IS NOT NULL AND @IsITAdmin = 1 THEN 1 ELSE 0	END AS IsItSupport
+				,CASE WHEN dc.custid IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsDeposit
 				,@sporttype AS SportTypeId
 				,s.SiteDBGroupId
 				,s.matchid
