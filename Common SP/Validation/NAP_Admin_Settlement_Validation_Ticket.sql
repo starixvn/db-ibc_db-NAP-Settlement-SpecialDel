@@ -35,6 +35,7 @@ AS
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230612@Louisa: HF - missing get Auto settled results [Redmine:#189594] 
+		- 20230920@Kathy: Remove check ticket at central before moving [Redmine:#194268]
 
 	Param's Explanation:
 		This SP is called after pass [NAP_Admin_Settlement_Validation_Event]
@@ -116,60 +117,6 @@ BEGIN
 		RETURN
 	END
 
-	--check ticket central and site at CentralDB
-	IF @Action = 'MoveTicket' AND @Mode = '50' AND @IsCentral = 1
-	BEGIN
-
-		DECLARE @tmpResourceId50 TABLE (ResourceId VARCHAR(20))
-		DECLARE @tmpBettypeResourceId50 TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
-
-		SET @sqlRemoteQuery = ' SELECT	ResourceID 
-							FROM DBPRO.bodb02.dbo.ResultDetailOS WITH(NOLOCK)
-							WHERE	matchid = ' + CAST (@MatchId AS VARCHAR) + '
-									AND ResultStatusID IN ( 2, 5 )'
-
-		INSERT INTO @tmpResourceId50(ResourceId)
-		EXECUTE sys.sp_executesql @sqlRemoteQuery
-
-		INSERT INTO @tmpBettypeResourceId50(Bettype, BetId, ResourceId)
-		SELECT	s.BetType, s.BetID, t.ResourceID
-		FROM	@tmpResourceId50 t
-			CROSS APPLY (
-				SELECT	s.BetType, s.BetID
-				FROM	dbo.SettlementSpecialBettypeProfile s WITH(NOLOCK)
-				WHERE	s.SportType = 50
-						AND (s.ResourceID = t.ResourceId
-							OR s.RefResourceId = t.ResourceId)
-			)s
-		
-		IF NOT EXISTS ( SELECT TOP 1 1	FROM dbo.bettrans b WITH(NOLOCK)
-							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
-											FROM	@tmpBettypeResourceId50 t
-											WHERE	t.Bettype = b.bettype
-													AND (t.BetId = 0 OR t.BetId = b.betid)
-													--AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-										)t				
-						WHERE	b.matchid = @MatchId
-					)
-			AND
-			NOT EXISTS ( SELECT	TOP 1 1	FROM	dbo.bettransm bm WITH(NOLOCK)
-							CROSS APPLY (	SELECT TOP 1 t.Bettype, t.BetId, t.ResourceId
-											FROM	@tmpBettypeResourceId50 t
-											WHERE	t.Bettype = bm.bettype
-													AND (t.BetId = 0 OR CAST(t.Betid AS NVARCHAR(50)) = bm.betcheck)
-													--AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
-										)t				
-						WHERE	bm.matchid = @MatchId
-					)
-		BEGIN
-			SELECT	@ErrCode = 1001049
-					,@ErrMsg = 'WARNING! Cannot continue due to current has no valid ticket to move.'		
-			RETURN
-		END
-		
-
-		RETURN
-	END
 	-----------------------------------------------------
 	-- Check SP settle is in deployment progress
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
