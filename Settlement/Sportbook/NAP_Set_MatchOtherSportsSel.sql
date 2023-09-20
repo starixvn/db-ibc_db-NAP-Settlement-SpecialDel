@@ -57,6 +57,7 @@ AS
 			- 20230406@Louisa: Include marked ticket flow [Redmine:#186140]
 			- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 			- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
+			- 20230920@Aries: Remove remote query [Redmine:#194117]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -94,7 +95,6 @@ BEGIN
 			,@maxBettype		SMALLINT
 			,@remoteQuery		NVARCHAR(MAX)
 			,@strMatchIds		VARCHAR(MAX)
-			,@strEarlyBettypes	VARCHAR(MAX)
 			,@strResourceId		VARCHAR(MAX)
 			,@IsOverEarly		BIT = 0
 			,@IsMainOver		BIT = 0
@@ -966,33 +966,6 @@ BEGIN
 			AND eventstatus = 'completed'
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM #tmpMatchIds WHERE sporttype = 43)
-	BEGIN
-		SELECT @strMatchIds = ''
-				,@strEarlyBettypes = ''
-				,@remoteQuery = ''
-
-		SELECT @strEarlyBettypes = @strEarlyBettypes + CAST(bettype AS VARCHAR(20)) + ','
-		FROM	dbo.f_Set_GetEarlyBettypes()
-
-		SELECT @strMatchIds = @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
-		FROM	#tmpMatchIds
-		WHERE	sporttype = 43
-
-		SELECT	@strEarlyBettypes = LEFT(@strEarlyBettypes,LEN(@strEarlyBettypes) - 1)
-				,@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
-		
-		SET @remoteQuery = 'SELECT	DISTINCT o.matchid 
-							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
-							WHERE	o.matchid IN (' + @strMatchIds + ')
-									AND bettype IN (' + @strEarlyBettypes + ')
-									AND o.sporttype = 43
-									AND ISNULL(o.IsDeleted,0) = 0'
-
-		INSERT INTO @tmpMatchEsport (MatchId)
-		EXECUTE sys.sp_executesql @remoteQuery
-	END
-
 	SELECT	m.matchid
 			,m.matchcode
 			,m.leagueid
@@ -1021,7 +994,6 @@ BEGIN
 			,m.IsPending
 			,m.IsHalfTimeCal
 			,m.IsExistEarlyBettypes
-			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
 			,m.IsWaitingEarlyBettypes			
 			,m.IsExistRunningTicketAfterCompleted AS IsExistRunningTicket
 			,m.IsRunningEarlyBettypes
@@ -1034,8 +1006,6 @@ BEGIN
 	FROM	#tmpMatchIds m
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
-		LEFT JOIN @tmpMatchEsport me
-			ON	m.matchid = me.MatchId
 		OUTER APPLY (
 			SELECT TOP 1 ss.WaitingTime
 			FROM	DBPRO.bodb02.dbo.SettlementSetting ss WITH (NOLOCK)
