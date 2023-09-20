@@ -1,1 +1,2 @@
 Common SP\Calculation\dbo.NAP_Admin_Calculate_OtherSports.sql
+Settlement\NumberGame\dbo.NAP_Admin_Settlement_s161_Manual.sql

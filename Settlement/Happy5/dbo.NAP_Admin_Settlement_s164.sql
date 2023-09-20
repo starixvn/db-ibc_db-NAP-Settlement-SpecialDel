@@ -430,7 +430,7 @@ BEGIN
 
 			SET @TransInfoMaxPO = CAST((
 									SELECT	TOP (@batchPO) CustId AS a1
-											,3 AS a2 -- productid
+											,164 AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt
@@ -448,7 +448,7 @@ BEGIN
 		BEGIN
 			SET @TransInfoMaxPO = CAST((
 									SELECT	CustId AS a1
-											,3 AS a2 -- productid
+											,164 AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt
