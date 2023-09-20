@@ -74,8 +74,9 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
-		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -629,7 +630,7 @@ BEGIN
 									FROM @tmpSelectedRID AS t
 									WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 								) AS sr
-					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, b.transdesc) AS m
+					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, b.transdesc,0) AS m
 				WHERE b.matchid = @MatchId
 					AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 					AND statusID NOT IN (101)

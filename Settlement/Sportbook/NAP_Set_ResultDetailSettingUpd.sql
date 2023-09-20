@@ -24,6 +24,7 @@ AS
 		- 20211025@Louisa: SOP Refund for Badminton, Basketball, Cricket [Redmine:#163574]
 		- 20220509@Kathy: Change to use STRING_SPLIT on DBPRO [Redmine:#172461]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 
 		  	
 	Parameters Explanation:    
@@ -202,6 +203,24 @@ BEGIN
 		VALUES (@matchid, SOURCE.ResourceId, NULL, NULL, 1, 0, GETDATE(), @AdminId, NULL, POWER(2, @Type - 1));
 	END
 	
+	IF @Type IN (2,3) AND @SportType = 2 AND @IsEnabled = 1
+	BEGIN 
+		IF @SelectedResources IS NULL OR @SelectedResources = ''
+		BEGIN
+			SET @SelectedResources =   (SELECT [value] AS '@Id'
+										FROM STRING_SPLIT(@ResourceIds,',') 
+										FOR XML PATH('Resource'),root('Resources'))
+		END
+		EXEC dbo.NAP_Set_AutoPayoutResultUpd 
+						@MatchId = @matchid
+						,@TypeId = NULL
+						,@StatusId = NULL 
+						,@IsUndoMatch = 1 
+						,@SportType = @SportType
+						,@SelectedResources = @SelectedResources
+						,@IsConfirm = 1
+	END
+
 	SELECT @LogData = 'Update ' + CASE @Type 
 									WHEN 1 THEN 'hold ' 
 									WHEN 2 THEN 'confirm Refund '

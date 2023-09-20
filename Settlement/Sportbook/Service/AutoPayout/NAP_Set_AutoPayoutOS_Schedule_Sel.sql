@@ -23,6 +23,7 @@ AS
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230403@Louisa: Exclude some Cricket results from direct payout [Redmine:#186311]
 		- 20230404@Louisa: Checking related resourceid for result early badminton,volleyball [Redmine:#185818]
+		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -160,6 +161,7 @@ BEGIN
 							FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 							WHERE os.MatchId = r.matchid
 								AND os.ResourceId = r.ResourceID 
+								AND ISNULL(os.SourceID,0) = 0
 							GROUP BY os.MatchId, os.ResourceId
 						) os
 		WHERE m.sporttype = @Sporttype
@@ -240,7 +242,8 @@ BEGIN
 				OUTER APPLY (	SELECT os.MatchId, os.ResourceId,  MIN(os.StatusId) AS MinStatusId
 								FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 								WHERE os.MatchId = r.matchid
-									AND os.ResourceId = r.ResourceID 
+									AND os.ResourceId = r.ResourceID
+									AND ISNULL(os.SourceID,0) = 0
 								GROUP BY os.MatchId, os.ResourceId
 							) os
 			WHERE m.sporttype = @Sporttype
@@ -281,6 +284,7 @@ BEGIN
 								FROM dbo.AutoPayoutResultOS os WITH(NOLOCK)
 								WHERE os.MatchId = r.matchid
 									AND os.ResourceId = r.ResourceID 
+									AND ISNULL(os.SourceID,0) = 0
 								GROUP BY os.MatchId, os.ResourceId
 							) os
 				OUTER APPLY ( SELECT ResourceID FROM f_Set_MajorRound (@sporttype)  f WHERE r.ResourceId = f.ResourceID) f
@@ -331,6 +335,7 @@ BEGIN
 			OUTER APPLY (	SELECT	TOP 1 os.MatchId
 							FROM	dbo.AutoPayoutResultOS os WITH(NOLOCK)
 							WHERE	os.MatchId = r.matchid		
+									AND ISNULL(os.SourceID,0) = 0
 									AND os.ResourceId IN (SELECT f.ResourceID FROM dbo.f_Set_MajorRound(@Sporttype) f)
 						) os				
 		WHERE Ranking = 1 --Latest

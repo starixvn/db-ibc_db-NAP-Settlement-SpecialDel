@@ -41,6 +41,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -89,6 +90,7 @@ BEGIN
 		, OddsType SMALLINT, RoundName VARCHAR(20), OrdNo SMALLINT, IsSDT BIT, SDTResourceId VARCHAR(20), DeterminedType TINYINT DEFAULT(0)
 		, IsCalculated BIT
 		, IsWeb BIT
+		, MinusValue SMALLMONEY  DEFAULT(0)
 	)
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
@@ -146,6 +148,7 @@ BEGIN
 				,ISNULL(DeterminedType,'') AS DeterminedType
 				,ISNULL(IsCalculated,'') AS IsCalculated
 				,ISNULL(IsWeb,'') AS IsWeb
+				,ISNULL(MinusValue,0)	AS MinusValue
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
 															,SDTResourceId VARCHAR(20)
@@ -160,9 +163,10 @@ BEGIN
 															,DeterminedType TINYINT
 															,IsCalculated BIT
 															,IsWeb BIT
+															,MinusValue SMALLMONEY
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb,MinusValue)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -180,6 +184,7 @@ BEGIN
 			,c.DeterminedType
 			,c.IsCalculated
 			,c.IsWeb
+			,c.MinusValue
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 			ON	 sp.ResourceID = c.Id
@@ -323,11 +328,11 @@ BEGIN
 				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
-						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, IsCalculated
+						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, IsCalculated, MinusValue
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 					)sr
-					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1,sr.HomeValue, sr.AwayValue, bm.transdesc) m
+					OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1,sr.HomeValue, sr.AwayValue, bm.transdesc,sr.MinusValue) m
 					LEFT HASH JOIN dbo.bettrans b WITH(NOLOCK)
 						ON	b.matchid = 29
 							AND b.bettype = 29
@@ -341,7 +346,7 @@ BEGIN
 				WHERE bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 					AND bm.statusID NOT IN (1,101)
-					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) THEN 1
+					AND 1 = CASE WHEN @IsReSettledTickets = 0 AND bm.statusID IN (0,102) AND m.modds IS NOT NULL  THEN 1
 								 WHEN @IsReSettledTickets = 1 AND m.modds IS NOT NULL THEN 1
 								 WHEN @IsReSettledTickets = 1 AND m.modds IS NULL AND  (bm.statusID IN (111,112,113) OR  ISNULL(bm.statuswinlost,'') != '') AND sr.IsCalculated = 0 THEN 1
 								 ELSE 0
@@ -452,11 +457,11 @@ BEGIN
 			SELECT	bm.transid, bm.refno, ISNULL(m.modds,0), m.modds
 			FROM	dbo.bettransm bm WITH(NOLOCK)
 				CROSS APPLY (
-					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue
+					SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, MinusValue
 					FROM	@tmpSelectedRID t
 					WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 				)sr
-				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1, sr.HomeValue, sr.AwayValue, bm.transdesc) m
+				OUTER APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, bm.betteam, bm.hdp1, sr.HomeValue, sr.AwayValue, bm.transdesc, sr.MinusValue) m
 			WHERE	bm.matchid = @MatchID
 					AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END					
 					AND bm.statusID NOT IN (101)

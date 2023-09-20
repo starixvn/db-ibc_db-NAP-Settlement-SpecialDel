@@ -25,9 +25,10 @@ AS
     Revisions:
 		- 20230515@Aries: Created [Redmine:#175202]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 
     Param's Explanation:
-        - @Action: 'CAL'
+        - @Action: 'CAL', 'CAL-INST'
         - @SelectedResources: <Resources><Resource Id="01" Home="35" Away="45"/></Resources>
     
 */
@@ -36,14 +37,15 @@ BEGIN
 	
 	DECLARE  @SportType						SMALLINT		
 		    ,@ActionId						INT		
+			,@IsInstant						BIT = 0
 
 			,@Start							DATETIME
 			,@Stop							DATETIME
 
-			,@fthSDT							INT
-			,@ftaSDT							INT
-			,@hthSDT							INT
-			,@htaSDT							INT
+			,@fthSDT						INT
+			,@ftaSDT						INT
+			,@hthSDT						INT
+			,@htaSDT						INT
 			,@HTDone						BIT 
 			,@FTDone						BIT 
 
@@ -73,7 +75,7 @@ BEGIN
 			,@ResultTable					TINYINT
 			,@BroadcastSessionIdInstant		VARCHAR(50)		= @BroadcastSessionId + '_instant'
 		
-	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT,PRIMARY KEY (BetType,BetID))	
+	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT, MinusValue SMALLMONEY   DEFAULT(0), PRIMARY KEY (BetType,BetID))	
     DECLARE @tmpResources TABLE(SDTResourceId VARCHAR(20),HomeValue VARCHAR(2000),AwayValue VARCHAR(2000))
 	DECLARE @tmpParlayAffectedBettypes TABLE (BetType SMALLINT, TotalTicket INT)	
 
@@ -85,7 +87,11 @@ BEGIN
 
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	
-    SELECT  @ActionID = 100					  
+
+    SELECT  @ActionID = CASE WHEN @Action = 'CAL' THEN 100
+							 WHEN @Action = 'CAL-INST' THEN 81042
+						END
+		   ,@IsInstant = IIF(@Action = 'CAL-INST',1,0)
 		   ,@Start = CURRENT_TIMESTAMP
 
 	EXEC dbo.NAP_Set_ServerInfo
@@ -145,7 +151,10 @@ BEGIN
 		SELECT DISTINCT s.BetType,s.BetID, s.SDTResourceId,s.RefResourceID, s.SDTpfId, ISNULL(s.OddsType,0)
 		FROM	dbo.SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 		WHERE	s.SportType = @SportType
-			AND ISNULL(s.DeterminedType,0) & @DeterminedType > 0 
+			AND 1 = CASE WHEN @IsInstant = 0 AND ISNULL(s.DeterminedType,0) & @DeterminedType > 0 THEN 1
+						 WHEN @IsInstant = 1 AND ISNULL(s.SDTInstant,0) & @DeterminedType > 0 THEN 1
+						 ELSE 0
+					END
 			
 		SELECT	@DummyResourceIds = STRING_AGG(CAST(tbl.SDTResourceId AS VARCHAR(MAX)), ',')
 		FROM (SELECT DISTINCT SDTResourceId FROM @tmpSelectedRID) AS tbl
@@ -163,6 +172,7 @@ BEGIN
 		SET  bt.HomeValue = tbl.Home
 			,bt.AwayValue = tbl.Away
 			,bt.isCalculated = tbl.isCal
+			,bt.MinusValue = IIF(@IsInstant = 1 AND @SportType = 2, 6, 0)
 		FROM @tmpSelectedRID AS bt
 			INNER JOIN OPENXML(@Handle,'root/r',1) WITH( Id VARCHAR(20),Home VARCHAR(2000),Away VARCHAR(2000),isCal BIT) AS tbl ON tbl.Id = bt.SDTResourceId
 		EXEC sp_xml_removedocument @Handle
@@ -204,11 +214,11 @@ BEGIN
 	    					WHERE	t.TransId = b.transId
 	    	) AS mt
 	    	CROSS APPLY(
-	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, t.isCalculated
+	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, t.isCalculated, t.MinusValue
 	    					FROM @tmpSelectedRID AS t
 	    					WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	    				) AS sr
-	    	CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, b.transdesc) AS m
+	    	CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, b.transdesc,sr.MinusValue) AS m
 	    WHERE b.matchid = @MatchId
 	    	AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 			AND b.statusID NOT IN (1,101)
@@ -400,6 +410,16 @@ BEGIN
 
 	
 	BEGIN
+		IF @IsInstant = 1 AND @IsCentral = 1
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
+				 @MatchId 			= @matchid
+				,@SelectedResources = @SelectedResources
+				,@StatusId 			= 2
+				,@UserId			= @AdminId
+				,@SourceID			= 98
+		END
+
 		SELECT @Remark = STRING_AGG (SDTResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
 		FROM @tmpResources
 		WHERE	HomeValue != ''
@@ -409,18 +429,18 @@ BEGIN
 		SET @Remark = 'Selected: ' + @RemarkSDT + '<br/>'
 					 +'Duration: ' + CAST(DATEDIFF(MILLISECOND, @Start, @Stop) AS NVARCHAR(50)) + ' ms;' 
 					 +'TC: ' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) 
-
+		
 		IF @IsCentral = 1
 			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-					 @userid			= @AdminId
-					,@matchid			= @MatchId
-					,@actionid			= @ActionID
-					,@finalhomescore	= @fth
-					,@finalawayscore	= @fta
-					,@hthomescore		= @hth
-					,@htawayscore		= @hta
-					,@Remark			= @Remark
-					,@ip				= @IP
+						 @userid			= @AdminId
+						,@matchid			= @MatchId
+						,@actionid			= @ActionID
+						,@finalhomescore	= @fth
+						,@finalawayscore	= @fta
+						,@hthomescore		= @hth
+						,@htawayscore		= @hta
+						,@Remark			= @Remark
+						,@ip				= @IP
 		
 	END
 
@@ -447,6 +467,7 @@ BEGIN
 																						    ,HomeValue			AS '@Home'
 																						    ,AwayValue			AS '@Away'
 																							,isCalculated		AS '@IsCalculated'
+																							,MinusValue			AS '@MinusValue'
 																						    ,@DeterminedType	AS '@DeterminedType'																							
 																					   FROM	@tmpSelectedRID AS s
 																					   WHERE EXISTS (SELECT 1 FROM @tmpParlayAffectedBettypes AS p WHERE p.BetType = s.BetType)

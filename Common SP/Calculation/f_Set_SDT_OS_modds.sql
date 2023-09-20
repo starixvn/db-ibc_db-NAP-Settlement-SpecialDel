@@ -4,8 +4,9 @@ ALTER FUNCTION [dbo].[f_Set_SDT_OS_modds] (
 		,@betteam 		NVARCHAR(10)
 		,@hdp1			SMALLMONEY
 		,@HomeValue		VARCHAR(2000)
-		,@AwayValue		VARCHAR(2000)
+		,@AwayValue		VARCHAR(2000)		
 		,@Transdesc		NVARCHAR(1000)
+		,@MinusValue	SMALLMONEY
 		)
 RETURNS TABLE
 AS  
@@ -14,6 +15,7 @@ AS
 	DB: DBTXN/bodb02
 	Revisions:	
 		- 20230510@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
+		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		
 */
 RETURN
@@ -98,9 +100,9 @@ RETURN
 			ELSE NULL
 		END AS modds
 	FROM(
-		SELECT (CASE WHEN @pfID IN (3,646) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @hdp1)				
-					 WHEN @pfID IN (401,638) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1
-					 WHEN @pfID IN (402) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1
+		SELECT (CASE WHEN @pfID IN (3,646) THEN (CAST(@HomeValue AS SMALLMONEY) + CAST(@AwayValue AS SMALLMONEY) - @MinusValue - @hdp1)				
+					 WHEN @pfID IN (401,638) THEN CAST(@HomeValue AS SMALLMONEY) - @hdp1 - @MinusValue
+					 WHEN @pfID IN (402) THEN CAST(@AwayValue AS SMALLMONEY) - @hdp1 - @MinusValue
 					 ELSE -1 END
 		) AS fm
 	) tbl
