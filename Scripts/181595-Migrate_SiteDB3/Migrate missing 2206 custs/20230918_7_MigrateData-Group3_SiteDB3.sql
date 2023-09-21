@@ -321,7 +321,7 @@ GO
 	INSERT INTO dbo.Task_bettransRNG14_IP2Country (transid, winlostdate, CountryShort, IPArchive)
 	SELECT	tbip.transid, tbip.winlostdate, tbip.CountryShort, tbip.IPArchive
 	FROM DBCTG.SiteDBtmp.dbo.Task_bettransRNG14_IP2Country_20230626 tbip WITH (NOLOCK)
-		LEFT JOIN dbo.Task_bettransLC14_IP2Country s WITH(NOLOCK) 
+		LEFT JOIN dbo.Task_bettransRNG14_IP2Country s WITH(NOLOCK) 
 			ON tbip.TransID = s.TransID
 	WHERE s.TransID IS NULL
  
