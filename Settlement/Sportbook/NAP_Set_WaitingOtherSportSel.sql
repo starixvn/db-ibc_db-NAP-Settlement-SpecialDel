@@ -26,7 +26,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
-		- 20230920@Aries: Remove remote query [Redmine:#194117]
+		- 20230920@Aries: Remove remote query [Redmine:#194359]
 
 	Param's explanation:  
 		
@@ -420,7 +420,6 @@ BEGIN
 			,tmp.IsWaitingEarlyBettypes
 			,tmp.IsExistRunningTicket
 			,tmp.IsExistMarkedTicket
-			,tmp.AutoPayoutStatus
 			,tmp.BestOfMap
 	FROM	@tmpMatchIds tmp
 

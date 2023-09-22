@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="" viewers="" isFunction="1"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
 ALTER FUNCTION [dbo].[f_Set_GetEarlyBettypes] ()
 RETURNS TABLE
 WITH SCHEMABINDING
@@ -22,7 +22,6 @@ AS
 		- 20210107@Louisa: E-Sports Phase 4 [Redmine:#166330]
 		- 20220128@Louisa: Cricket AIO Phase 2 [Redmine:#166335]
 		- 20220629@Louisa: Volleyball AIO [Redmineid:#173862]
-		- 20230920@Aries: Add metadata DBPRO-bodb02 [Redmine:#194117]
 
     Parameters Explanation:    
    

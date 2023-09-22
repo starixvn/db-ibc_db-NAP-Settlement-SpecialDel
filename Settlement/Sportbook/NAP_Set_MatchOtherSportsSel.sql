@@ -57,7 +57,7 @@ AS
 			- 20230406@Louisa: Include marked ticket flow [Redmine:#186140]
 			- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 			- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
-			- 20230920@Aries: Remove remote query [Redmine:#194117]
+			- 20230920@Aries: Remove remote query [Redmine:#194359]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -110,7 +110,6 @@ BEGIN
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
 	DECLARE @tmpQueueStatus TABLE (MatchId INT, IsCalculatingSingle TINYINT DEFAULT(0), IsCalculatingMP TINYINT DEFAULT(0))
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0), IsDisplay BIT DEFAULT(0),PRIMARY KEY (MatchId) )
-	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpMatchOverStatus	TABLE (MatchId INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), OverStatus INT DEFAULT(0) )
 	DECLARE @tmpMatchConfirmed TABLE (	matchid	INT, sporttype SMALLINT, Bettype INT DEFAULT(0),BetId INT DEFAULT(0), IsEarly INT DEFAULT(0) )
 	DECLARE @CheckingDisplay TABLE ( matchid INT)
