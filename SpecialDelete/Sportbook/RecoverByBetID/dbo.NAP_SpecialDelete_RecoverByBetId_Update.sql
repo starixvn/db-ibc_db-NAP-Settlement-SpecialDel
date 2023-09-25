@@ -23,6 +23,7 @@ AS
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
 		
 	Param's Explanation:	
 */
@@ -568,6 +569,7 @@ BEGIN
 					@MatchId      = @MatchId
 					,@TransIds	  = @ResettleTransIds
 					,@Action       = @Action
+					,@UserId		= @UserId
 					,@ErrCode      = @ErrCode OUTPUT
 					,@ErrMsg       = @ErrMsg OUTPUT
 		END
