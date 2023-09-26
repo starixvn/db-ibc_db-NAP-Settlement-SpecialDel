@@ -743,6 +743,7 @@ BEGIN
 			) AS tbl
 				INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 				ON	sp.ResourceID = tbl.Id
+			WHERE sp.SportType = 178
 
 			UPDATE r SET 
 				 r.actualPO = CASE
