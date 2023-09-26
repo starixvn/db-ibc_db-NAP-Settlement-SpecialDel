@@ -16,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20230717@Max: Create new SP [Redmine:#187835]
+		- 20230907@Max: [TVS] Support void duplicated tickets that have the same transdate [Redmine: #193671]
 
 	Param's explanation:
 */
@@ -401,6 +402,33 @@ BEGIN
 			INNER JOIN #TransidInRequest tr ON v.transid = tr.TransId
 	END
 
+	IF @ActionId = 4
+	BEGIN
+		;WITH cte_cnt AS
+		(
+			SELECT COUNT(1) AS TransId_cnt, DuplicateGroup
+			FROM #validTransId v
+			GROUP BY v.DuplicateGroup
+		)
+		DELETE v
+		FROM #validTransId v
+			INNER JOIN cte_cnt c ON c.DuplicateGroup = v.DuplicateGroup
+		WHERE c.TransId_cnt < 2
+		
+		DELETE t
+		FROM @tmpMatchId t
+			LEFT JOIN #validTransId v ON v.matchid = t.MatchId
+		WHERE v.matchid IS NULL
+
+		IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE IsOrg = 1 AND transid <> DuplicateGroup)
+		BEGIN
+			UPDATE v SET v.IsOrg = 2
+			FROM #validTransId v
+			WHERE v.IsOrg = 1 
+				AND v.transid <> v.DuplicateGroup
+		END
+	END
+
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
 
 	IF @RequestId = 0 AND @ActionId <> 2
@@ -471,24 +499,6 @@ BEGIN
 		SELECT @RemoveTransids = @UnmarkTransIds
 	END
 
-	IF @ActionId = 4
-	BEGIN
-		;WITH cte_cnt AS
-		(
-			SELECT COUNT(1) AS TransId_cnt, DuplicateGroup
-			FROM #validTransId v
-			GROUP BY v.DuplicateGroup
-		)
-		DELETE v
-		FROM #validTransId v
-			INNER JOIN cte_cnt c ON c.DuplicateGroup = v.DuplicateGroup
-		WHERE c.TransId_cnt < 2
-		
-		DELETE t
-		FROM @tmpMatchId t
-			LEFT JOIN #validTransId v ON v.matchid = t.MatchId
-		WHERE v.matchid IS NULL
-	END
 	/*****************Return table **************************/
 	--1. Info match table
 	SELECT matchid, homeid, awayid, leagueid, sporttype, matchcode
