@@ -31,16 +31,19 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
 		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
+		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
 
 	Param's Explanation:  
 		   
 		@transIds = '<root>
 						<r t="104730774034" m="1"/>
-						<r t="104729373985" m="0" ot="1"/>
+						<r t="104729373985" m="0" ot="1" wl="100" isMPO ="1"/>
 					</root>'
 					t:  transid
 					m:  modds
 					ot: oddstype: 1: DECIMAL ONLY
+					wl: winlost if reach max payout [Redmine:#193259]
+					iMPO: maxpayout  [Redmine:#193259]
 */
 BEGIN
 	
@@ -73,13 +76,17 @@ BEGIN
 
 	-----------------------CHECK SERVER-----------------------------------------
 
-	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, IsMarked BIT, finalodds SMALLMONEY, DeadHeat TINYINT)
+	DECLARE @tempTrans TABLE (TransID BIGINT, modds SMALLMONEY, oddstype TINYINT, srecommend INT, bettype SMALLINT, isCN88 BIT
+		, isMajorGroup BIT, IsMarked BIT, finalodds SMALLMONEY, DeadHeat TINYINT
+		, winlost MONEY, actualPO MONEY
+		, isMaxPayout BIT)
+
 	DECLARE @tmpTransInfo TABLE (transId BIGINT
 								,CustId INT, Balance MONEY
 								,modds MONEY, odds SMALLMONEY, statuswinlost TINYINT,SettlementTime DATETIME
 								,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 								,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
-								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, before_ruben TINYINT
+								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, before_ruben TINYINT, extrainfo VARCHAR(1000)
 								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
 								,actual_stake MONEY
 								)
@@ -101,8 +108,8 @@ BEGIN
 
 	---parse XML
 	EXEC sp_xml_preparedocument @handle OUTPUT, @transIds
-	INSERT INTO @tempTrans(TransID, modds, oddstype, srecommend, bettype, IsMarked, DeadHeat)
-	SELECT t, m, ot, sr, bt,im, dh
+	INSERT INTO @tempTrans(TransID, modds, oddstype, srecommend, bettype, IsMarked, DeadHeat, winlost, actualPO, isMaxPayout)
+	SELECT t, m, ot, sr, bt,im, dh, wl, apo, iMPO
 	FROM OPENXML(@handle,'root/r',1) WITH(t   BIGINT
 										 ,m   SMALLMONEY
 										 ,ot  TINYINT
@@ -110,6 +117,9 @@ BEGIN
 										 ,bt  SMALLINT
 										 ,im  BIT	
 										 ,dh  TINYINT
+										 ,wl  MONEY
+										 ,apo MONEY -- actual payout
+										 ,iMPO BIT
 									) tbl
 	EXEC sp_xml_removedocument @handle
 
@@ -173,6 +183,7 @@ BEGIN
 								WHEN @modds IS NULL THEN 6
 							END 			   	
 		,@winlost = CASE
+				WHEN sr.winlost IS NOT NULL AND sr.isMaxPayout = 1 THEN sr.winlost
 				WHEN @modds >  0.25 THEN CASE WHEN ISNULL(sr.DeadHeat,0) > 0 THEN (@odds/sr.DeadHeat + 1) * stake ELSE actual_stake + stake * @odds END
 				WHEN @modds =  0.25 THEN actual_stake + stake * @odds * 0.5
 				WHEN @modds =  0	THEN actual_stake
@@ -191,15 +202,20 @@ BEGIN
 					END
 		,SettlementTime = CASE 
 								WHEN @IsUpd_Void = 0 THEN SettlementTime 
-								ELSE CASE WHEN winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
+								ELSE CASE WHEN b.winlost <> @winlost OR statusID <> @statusId THEN @settlementTime ELSE SettlementTime END
 							END
 						
 		,WinLost = CASE 
-						WHEN @IsUpd_Void = 0 THEN WinLost 
+						WHEN @IsUpd_Void = 0 THEN b.WinLost 
 						ELSE @winlost
 					END
 		,aWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN aWinLost 
+						WHEN sr.winlost IS NOT NULL AND sr.isMaxPayout = 1 
+							THEN CASE
+									WHEN @modds >= 0.25 THEN (sr.winlost - b.actual_stake) * -apositiontaking				
+									ELSE 0
+								END
 						ELSE CASE
 								WHEN @modds >  0.25 THEN stake * @odds * -apositiontaking/ISNULL(sr.DeadHeat,1)
 								WHEN @modds =  0.25 THEN stake * @odds * -apositiontaking * 0.5
@@ -211,6 +227,11 @@ BEGIN
 							
 		,mWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN mWinLost 
+						WHEN sr.winlost IS NOT NULL AND sr.isMaxPayout = 1 
+							THEN CASE
+									WHEN @modds >= 0.25 THEN (sr.winlost - b.actual_stake) * -mpositiontaking				
+									ELSE 0
+								END
 						ELSE CASE
 								WHEN @modds >  0.25 THEN stake * @odds * -mpositiontaking/ISNULL(sr.DeadHeat,1)
 								WHEN @modds =  0.25 THEN stake * @odds * -mpositiontaking * 0.5
@@ -222,6 +243,11 @@ BEGIN
 					
 		,sWinLost = CASE 
 						WHEN @IsUpd_Void = 0 THEN sWinLost 
+						WHEN sr.winlost IS NOT NULL AND sr.isMaxPayout = 1 
+							THEN CASE
+									WHEN @modds >= 0.25 THEN (sr.winlost - b.actual_stake) * -spositiontaking				
+									ELSE 0
+								END
 						ELSE CASE
 								WHEN @modds >  0.25 THEN stake * @odds * -spositiontaking/ISNULL(sr.DeadHeat,1)
 								WHEN @modds =  0.25 THEN stake * @odds * -spositiontaking * 0.5
@@ -291,13 +317,14 @@ BEGIN
 					WHEN @IsUpd_Void = 0 THEN ruben 
 					ELSE 1
 				END
+		,ExtraInfo = CASE WHEN isMaxPayout = 1 THEN  ISNULL(b.ExtraInfo,'') + '<l255 apo="'+ CAST(sr.actualPO AS VARCHAR(100)) +'" />'  ELSE b.ExtraInfo END
 	OUTPUT	 inserted.transid
 			,deleted.custid, (inserted.winlost - deleted.winlost) + (inserted.playercomm - deleted.playercomm)
 			,inserted.modds, inserted.odds, inserted.statuswinlost
 			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
-			,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben
+			,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben, inserted.ExtraInfo
 			,deleted.winlost,deleted.statusid	
 			,deleted.bettype
 			,deleted.winlostdate
@@ -309,7 +336,7 @@ BEGIN
 			,SettlementTime
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
-			,Status,StatusID,ruben, before_ruben
+			,Status,StatusID,ruben, before_ruben, extrainfo
 			,bef_winlost, bef_statusid	
 			,bettype
 			,winlostdate
@@ -338,6 +365,7 @@ BEGIN
 						,Status AS 's' 
 						,StatusID AS 'sid' 
 						,ruben AS 'r' 
+						,extrainfo AS 'ex'
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
 				
@@ -376,9 +404,9 @@ BEGIN
 		
 		IF(@CWLBettype > 0)
 		BEGIN
-			CREATE TABLE #Balance (custid INT, bef_winlost MONEY, after_winlost MONEY,winlostdate SMALLDATETIME, gametypeid SMALLINT)	
+			DECLARE @BalanceCWL  TABLE (custid INT, bef_winlost MONEY, after_winlost MONEY,winlostdate SMALLDATETIME, gametypeid SMALLINT)	
 
-			INSERT INTO #Balance (custid, bef_winlost, after_winlost, winlostdate, gametypeid)
+			INSERT INTO @BalanceCWL (custid, bef_winlost, after_winlost, winlostdate, gametypeid)
 			SELECT custid
 				,SUM(CASE
 						WHEN before_ruben = 1 THEN t.bef_winlost - actual_stake 
@@ -405,7 +433,7 @@ BEGIN
 				,@CWLBettype
 				,GameTypeID
 				,(after_winlost - bef_winlost) AS Balance
-			FROM #Balance t
+			FROM @BalanceCWL t
 			WHERE (after_winlost - bef_winlost) > 0
 			
 			--CAPTURE decrease
@@ -421,7 +449,7 @@ BEGIN
 				,@CWLBettype
 				,GameTypeID
 				,ABS(after_winlost - bef_winlost) AS Balance
-			FROM #Balance
+			FROM @BalanceCWL
 			WHERE (after_winlost - bef_winlost) < 0
 
 		END

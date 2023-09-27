@@ -23,6 +23,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 
 	Param's Explanation:	
 		@Action: CAL, REFUND
@@ -41,10 +42,22 @@ BEGIN
 			,@MaxTransID			BIGINT
 			,@delegateBettype		SMALLINT
 			,@IsCentral				BIT
-			
-	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT)
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT)
+			,@SiteDBGroupId			SMALLINT
+			,@TransInfoMaxPO		VARCHAR(MAX)
+			,@TotalTransMaxPO		INT = 0
+			,@batchPO				SMALLINT = 500
 	
+	CREATE TABLE #tmpTransID (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, isFinish BIT
+		,custid INT, currency TINYINT, actualPO MONEY, winlost MONEY, IsApplyMaxPO BIT
+		,transdate DATETIME, bettype SMALLINT
+	)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT, modds SMALLMONEY, OddsType SMALLINT, winlost MONEY, actualPO MONEY, IsApplyMaxPO BIT)
+	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
+	DECLARE @tmpTransIDMaxPO TABLE (TransID BIGINT
+		,custid INT, actualPO MONEY, winlost MONEY
+		,transdate DATETIME, bettype SMALLINT
+	)
+
 	DECLARE @BalanceWalletBefore 	TVP_BalanceWalletChange
 	DECLARE @BalanceWalletAfter 	TVP_BalanceWalletChange
 	DECLARE @tmpBetTickets 			TVP_Settlement_BetTicket
@@ -64,6 +77,8 @@ BEGIN
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+
+	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 
 	--get info of match
 	SELECT @sportType	   = sportType
@@ -113,8 +128,25 @@ BEGIN
 		--get transid
 		IF @Action LIKE 'CAL%'
 		BEGIN
-			INSERT INTO #tmpTransID (TransID, modds, OddsType)
-			SELECT transid, m.modds, sr.OddsType
+			INSERT INTO #tmpTransID (TransID, modds, OddsType, custid, currency, actualPO, transdate, bettype)
+			SELECT b.transid
+				  ,m.modds
+				  ,sr.OddsType
+				  ,b.custid					
+				  ,b.currency
+				  ,CASE
+				  		WHEN m.modds >  0.25 THEN b.actual_stake + b.stake * (CASE WHEN b.odds < 0 THEN 1  
+																				   WHEN sr.oddstype = 1 THEN b.odds - 1 
+																				   ELSE b.odds 
+																				END)
+				  		WHEN m.modds =  0.25 THEN b.actual_stake + b.stake * 0.5 * (CASE WHEN b.odds < 0 THEN 1  
+																						 WHEN sr.oddstype = 1 THEN b.odds - 1 
+																						 ELSE b.odds 
+																					END)
+				  		ELSE NULL
+				   END actualPO	
+				  ,b.transdate
+				  ,b.bettype
 			FROM bettrans b WITH (NOLOCK)
 				CROSS APPLY(
 								SELECT TOP 1 pfID, Result1, Result2, OddsType
@@ -125,6 +157,43 @@ BEGIN
 			WHERE b.matchid = @MatchId
 				AND b.statusID NOT IN (101,102)
 				AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
+
+			-- check if winlost reaches the maxpayout
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.f_NAP_Site_MaxPayoutSetting() WHERE SiteDBGroupId = @SiteDBGroupId)
+			BEGIN
+				;WITH cteCustIds
+				AS(
+					SELECT DISTINCT custid, currency
+					FROM	#tmpTransID t
+					WHERE	modds >= 0.25
+				)
+				INSERT INTO @tmpMaxWinLimit (CustId, MaxWinLimit)
+				SELECT	t.custid, fc.MaxWinLimit
+				FROM	CustDB.dbo.Customer c WITH(NOLOCK)
+					INNER JOIN cteCustIds t
+						ON t.custid = c.custid
+					INNER JOIN CustDB.dbo.Site s WITH(NOLOCK)
+						ON s.site = c.site
+					INNER JOIN dbo.f_NAP_Site_MaxPayoutSetting() fs
+						ON s.siteid = fs.siteid
+					INNER JOIN dbo.f_NAP_Currency_MaxPayoutSetting() fc
+						ON	t.currency = fc.ExchangeId
+							AND fc.SiteDBGroupId = @SiteDBGroupId
+
+				IF @@ROWCOUNT > 0
+				BEGIN
+					UPDATE t 
+						SET IsApplyMaxPO = 1
+							,winlost = m.MaxWinLimit
+					FROM	#tmpTransID t
+						INNER JOIN	@tmpMaxWinLimit m
+							ON t.CustId = m.CustId
+					WHERE	t.actualPO > m.MaxWinLimit
+
+					SET @TotalTransMaxPO = @@ROWCOUNT
+				END
+					
+			END
 		END
 		ELSE IF @Action LIKE 'REFUND%'
 		BEGIN
@@ -167,18 +236,18 @@ BEGIN
 
 		--===
 		INSERT INTO #BalanceBefore(custid, balance, winlost, winlostdate, gametypeid)
-		SELECT custid
-			,SUM(winlost - actual_stake + playercomm)
+		SELECT bt.custid
+			,SUM(bt.winlost - bt.actual_stake + bt.playercomm)
 			,SUM(CASE
-					WHEN ruben = 1 THEN winlost - actual_stake 
+					WHEN ruben = 1 THEN bt.winlost - bt.actual_stake 
 					ELSE 0 
 				END) AS winlost
-			,winlostdate
-			,bettype
+			,bt.winlostdate
+			,bt.bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
 		WHERE matchid = @matchid AND transid <= @MaxTransID
 			AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
-		GROUP BY custid, winlostdate, bettype
+		GROUP BY bt.custid, bt.winlostdate, bt.bettype
 		
 		
 		------START UPDATE BETTRANS---------------------------------------------------------------------------
@@ -188,8 +257,8 @@ BEGIN
 			
 			UPDATE TOP(@batchCount) t
 			SET isFinish = 1
-			OUTPUT deleted.transid, deleted.modds, deleted.OddsType
-			INTO @tmpTransIDBatch(transid, modds, OddsType)
+			OUTPUT deleted.transid, deleted.modds, deleted.OddsType, deleted.winlost, deleted.actualPO, deleted.IsApplyMaxPO
+			INTO @tmpTransIDBatch(transid, modds, OddsType, winlost, actualPO, IsApplyMaxPO)
 			FROM #tmpTransID t 
 			WHERE isFinish IS NULL
 
@@ -204,6 +273,9 @@ BEGIN
 				SET @strTransIds 		= (SELECT transid		AS '@t'
 													,modds		AS '@m'
 													,OddsType	AS '@ot'
+													,CASE WHEN IsApplyMaxPO = 1 THEN winlost ELSE NULL END AS '@wl'
+													,CASE WHEN IsApplyMaxPO = 1 THEN actualPO ELSE NULL END AS '@apo'
+													,IsApplyMaxPO AS '@iMPO'
 										   FROM @tmpTransIDBatch
 										   FOR XML PATH('r'), ROOT( 'root' ))
 			END
@@ -231,18 +303,18 @@ BEGIN
 		CREATE TABLE #BalanceAfter (custid INT, balance MONEY, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)
 
 		INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
-		SELECT custid
-			,SUM(winlost - actual_stake + playercomm)
+		SELECT bt.custid
+			,SUM(bt.winlost - bt.actual_stake + bt.playercomm)
 			,SUM(CASE 
-					WHEN ruben = 1 THEN winlost - actual_stake 
+					WHEN bt.ruben = 1 THEN bt.winlost - bt.actual_stake 
 					ELSE 0
 				END) AS winlost
-			,winlostdate
-			,bettype
+			,bt.winlostdate
+			,bt.bettype
 		FROM dbo.bettrans bt WITH (ROWLOCK)
 		WHERE matchid = @matchid AND transid <= @MaxTransID
 			AND bt.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bt.SiteDBGroupID END
-		GROUP BY custid, winlostdate, bettype
+		GROUP BY bt.custid, bt.winlostdate, bt.bettype
 		
 		-------------------------------------------------------------
 		---                   compare BALANCE                     ---
@@ -342,6 +414,67 @@ BEGIN
 			@isExistMatch		= 1
 			,@IsReleased		= 1
 	END CATCH
+
+	-- notify
+	WHILE (@TotalTransMaxPO > 0)
+	BEGIN
+		IF @TotalTransMaxPO > @batchPO
+		BEGIN
+			DELETE @tmpTransIDMaxPO
+
+			DELETE TOP (@batchPO) t
+				OUTPUT deleted.custid, deleted.winlost, deleted.actualPO, deleted.transdate, deleted.bettype, deleted.transid 
+				INTO @tmpTransIDMaxPO(custid, winlost, actualPO, transdate, bettype, transid)
+			FROM	#tmpTransID t
+			WHERE	IsApplyMaxPO = 1
+
+			SET @TransInfoMaxPO = CAST((
+									SELECT	TOP (@batchPO) CustId AS a1
+											,164 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,@AdminId AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	@tmpTransIDMaxPO
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+		ELSE
+		BEGIN
+			SET @TransInfoMaxPO = CAST((
+									SELECT	CustId AS a1
+											,164 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,@AdminId AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	#tmpTransID
+									WHERE	IsApplyMaxPO = 1
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+
+		SET @TotalTransMaxPO = @TotalTransMaxPO - @batchPO
+
+		BEGIN TRY
+			EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
+				@XmlData = @TransInfoMaxPO
+		END TRY
+		BEGIN CATCH
+			SELECT	 @ErrCode = ERROR_NUMBER()
+					,@ErrMsg = ERROR_MESSAGE()				
+		END CATCH
+	END
 	
 	SET @EndTime = GETDATE()
 	

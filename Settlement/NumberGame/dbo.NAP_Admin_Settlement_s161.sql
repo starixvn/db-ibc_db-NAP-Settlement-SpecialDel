@@ -29,6 +29,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221130@Kathy: Using index hint on bettrans [Redmine:#181058]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
@@ -143,7 +144,7 @@ BEGIN
 		FROM DBPRO.BODB02.dbo.BingoBall WITH(NOLOCK)
 		WHERE matchid = @MatchId AND seq = @DrawSeq
 
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Live @MatchId = @MatchId, @DrawSeq = @DrawSeq, @Number = @Number, @Color = @Color
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Live @MatchId = @MatchId, @DrawSeq = @DrawSeq, @Number = @Number, @Color = @Color,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
 
 		SET @ActionID = 116
 		SET @Remark = 'Sequence number: (' + CAST(@DrawSeq AS NVARCHAR(2)) + ') <br />'
@@ -188,8 +189,8 @@ BEGIN
 		SET @Result83 = CASE @1st_Ball % 2 WHEN 1 THEN 'h' ELSE 'a' END
 
 		-- settle PreGame
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 81, @BetTeam = @Result81, @FirstBallNo = @1st_Ball
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 83, @BetTeam = @Result83, @FirstBallNo = @1st_Ball
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 81, @BetTeam = @Result81, @FirstBallNo = @1st_Ball,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 83, @BetTeam = @Result83, @FirstBallNo = @1st_Ball,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
 
 		SELECT @ActionID = 118
 	END
@@ -229,11 +230,11 @@ BEGIN
 		SET @Result88 = CASE WHEN @SecondBall > @ThirdBall THEN 'h' ELSE 'a' END
 
 		-- settle PreGame
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 82, @BetTeam = @Result82, @FirstBallNo = 0
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 84, @BetTeam = @Result84, @FirstBallNo = 0
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 85, @BetTeam = @Result85, @FirstBallNo = 0
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 86, @BetTeam = @Result86, @FirstBallNo = 0
-		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 88, @BetTeam = @Result88, @FirstBallNo = 0		
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 82, @BetTeam = @Result82, @FirstBallNo = 0,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 84, @BetTeam = @Result84, @FirstBallNo = 0,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 85, @BetTeam = @Result85, @FirstBallNo = 0,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 86, @BetTeam = @Result86, @FirstBallNo = 0,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
+		EXEC dbo.NAP_Admin_PreCalculate_s161_Pregame @MatchId = @MatchId, @BetType = 88, @BetTeam = @Result88, @FirstBallNo = 0,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
 
 		SELECT @ActionID = 115
 
