@@ -20,6 +20,8 @@ AS
 		- 20220822@Max: Deploy [TVS] Support Max Payout & Max Turnover for Deposit [Redmine: #176894]
 		- 20220809@Max: DBA - PROD - Enhance Parlay Calculation for Max Payout [Redmine: #177611]   
 		- 20230712@Max: Scale out credit [Redmine: #181595]
+		- 20230907@July: Remove job un-used [Redmine: #193701]
+
 */
 BEGIN
 	SET NOCOUNT ON
@@ -68,10 +70,6 @@ BEGIN
 	--10.BalanceUpdDebitSports
 	UNION ALL
 	SELECT 'bodb02 : Task_BalanceUpdDebitSports', '00:01:00', 0
-
-	--11.Ticket Voiding
-	UNION ALL
-	SELECT 'bodb02: Ticket Voiding'				, '00:01:00', 0
 
 	--12.VS BetRadar
 	UNION ALL
