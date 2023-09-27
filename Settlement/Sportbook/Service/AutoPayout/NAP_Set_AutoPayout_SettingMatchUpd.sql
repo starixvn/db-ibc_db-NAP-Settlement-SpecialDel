@@ -22,6 +22,7 @@ AS
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20221128@Louisa: Do not check match.eventstatus when turn on/off Instant setting [Redmine:#180939]
 		- 20230103@Kathy: Support ON bit 1 & 5 for other sport [Redmine:#181458]    
+		- 20230921@Aries: Allow to Change Auto Settle Setting for Completed Matches [Redmine:#194117]  
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -80,18 +81,21 @@ BEGIN
 								END
 
 	--check match <> running
-	IF EXISTS (
-		SELECT TOP 1 1 
-		FROM dbo.match m WITH(NOLOCK) 
-		WHERE matchid = @MatchId 
-			AND 1 = CASE 
-					WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
-					ELSE 0 
-				END
-	)
+	IF @Sporttype = 1
 	BEGIN
-		SELECT @ErrCode = 1001023, @ErrMsg = 'Sorry. Not allow to update auto Setting on this match.'
-		RETURN
+		IF EXISTS (
+			SELECT TOP 1 1 
+			FROM dbo.match m WITH(NOLOCK) 
+			WHERE matchid = @MatchId 
+				AND 1 = CASE 
+						WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
+						ELSE 0 
+					END
+		)
+		BEGIN
+			SELECT @ErrCode = 1001023, @ErrMsg = 'Sorry. Not allow to update auto Setting on this match.'
+			RETURN
+		END
 	END
 
 	UPDATE m
