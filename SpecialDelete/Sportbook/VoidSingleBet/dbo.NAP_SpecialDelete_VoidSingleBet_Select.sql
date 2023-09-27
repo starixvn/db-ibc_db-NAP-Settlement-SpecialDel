@@ -97,6 +97,7 @@ AS
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
 		- 20230810@July: [SD] Void Single Bet - Support searching ticket without using time range & Add Selection control for Sub Parlay [Redmine: #191448]
 	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
+		- 20230830@July: Remove SABA of league name for Jolly View sites [Redmine: #193213]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -1475,6 +1476,7 @@ BEGIN
 			,ISNULL(si.IsChinaView,0) AS IsChinaView
 			,CASE WHEN s.SubGroupName LIKE '%(Instant Settlement)' THEN 1 ELSE 0 END AS IsInstantSettlement
 			,s.SiteDBGroupId
+			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

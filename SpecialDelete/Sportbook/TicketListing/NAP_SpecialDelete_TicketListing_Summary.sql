@@ -79,6 +79,7 @@ AS
 		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
 		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
 		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
+		- 20230918@July: Remove SABA of league name for Jolly View sites [Redmine: #193213]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -165,7 +166,8 @@ BEGIN
 		,bettype		SMALLINT
 		,LiveIndicator	BIT
 		,LicenseeName	VARCHAR(50)
-		,IsChinaView	BIT
+		,IsChinaView	BIT DEFAULT(0)
+		,SpecialPlatfrom TINYINT --2: JollyView, 0: Normal site 
 		)
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
 	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
@@ -742,9 +744,9 @@ BEGIN
 	----## Direct Licensee
 	IF @LicenseeID > 0
 	BEGIN
-		DECLARE @LicenseeName VARCHAR(100) = '', @IsChinaView BIT
+		DECLARE @LicenseeName VARCHAR(100) = '', @IsChinaView BIT, @SpecialPlatfrom TINYINT
 
-		SELECT @LicenseeName = site, @IsChinaView = ISNULL(IsChinaView,0)
+		SELECT @LicenseeName = site, @IsChinaView = ISNULL(IsChinaView,0), @SpecialPlatfrom = ISNULL(SpecialPlatfrom,0)
 		FROM site WITH (NOLOCK)
 		WHERE isLicensee = 1
 			AND isActive = 1
@@ -760,6 +762,7 @@ BEGIN
 			 ,LiveIndicator
 			 ,LicenseeName
 			 ,IsChinaView
+			 ,SpecialPlatfrom
 			 )
 		    SELECT 1 AS OrderNo
 				,SUM(cnt) AS TotalTrans
@@ -767,7 +770,8 @@ BEGIN
 				,CASE WHEN @type = 1 THEN liveindicator ELSE 0 END --- because liveindicator only use for indicate live or dead ball of number game. So the sportsbook don't care.
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
-		    FROM #TmpBettrans WITH (NOLOCK)
+				,@SpecialPlatfrom AS SpecialPlatfrom
+			FROM #TmpBettrans WITH (NOLOCK)
 		    WHERE srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 		    GROUP BY bettype, LiveIndicator
 		END
@@ -782,6 +786,7 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				,IsChinaView
+				,SpecialPlatfrom
 				)
 			SELECT 1 AS OrderNo
 				,COUNT(t.ParentTransId) AS TotalTrans
@@ -789,6 +794,7 @@ BEGIN
 				,0
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
+				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #CTE_ParlayTickets AS t
 			WHERE t.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName )
 			GROUP BY t.ParentBettype
@@ -806,6 +812,7 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				,IsChinaView
+				,SpecialPlatfrom
 				)
 			SELECT 1 AS OrderNo
 				,COUNT(b.transid) AS TotalTrans
@@ -813,6 +820,7 @@ BEGIN
 				,0
 				,@LicenseeName AS LicenseeName
 				,@IsChinaView AS IsChinaView
+				,@SpecialPlatfrom AS SpecialPlatfrom
 			FROM #CTE_ParlayVSTickets b
 			WHERE b.srecommend IN ( SELECT custid FROM dbo.Dep_CustSuper WITH (NOLOCK) WHERE site = @LicenseeName)
 			GROUP BY b.bettype
@@ -833,6 +841,7 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				,IsChinaView
+				,SpecialPlatfrom
 				)
 			 SELECT 0 AS OrderNo
 				,SUM(cnt) AS TotalTrans
@@ -840,6 +849,7 @@ BEGIN
 				,CASE WHEN @type = 1 THEN b.liveindicator ELSE 0 END
 				,'Credit' AS LicenseeName
 				,0 
+				,0
 			FROM #TmpBettrans b 
 			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
 			LEFT JOIN dbo.CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.custid
@@ -858,12 +868,14 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				,IsChinaView
+				,SpecialPlatfrom
 				)
 			SELECT 0 AS OrderNo
 				,COUNT(DISTINCT t.ParentTransId) AS TotalTrans
 				,t.ParentBettype
 				,0
 				,'Credit' AS LicenseeName
+				,0
 				,0
 			FROM #CTE_ParlayTickets AS t
 			LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON t.srecommend = ds.custid
@@ -884,12 +896,14 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				,IsChinaView
+				,SpecialPlatfrom
 				)
 			SELECT 0 AS OrderNo
 				,COUNT(DISTINCT b.transid) AS TotalTrans
 				,b.bettype
 				,0
 				,'Credit' AS LicenseeName
+				,0
 				,0
 			FROM #CTE_ParlayVSTickets b
 				LEFT JOIN dbo.Dep_CustSuper ds WITH (NOLOCK) ON b.srecommend = ds.custid
@@ -913,22 +927,24 @@ BEGIN
 				,LiveIndicator
 				,LicenseeName
 				,IsChinaView
+				,SpecialPlatfrom
 				)
 		  SELECT CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 0
-					  WHEN s.site IS NOT NULL AND ISNULL(s.IsChinaView,0) = 1 THEN 2
+					  WHEN s.site IS NOT NULL AND (ISNULL(s.IsChinaView,0) = 1 OR s.SpecialPlatfrom = 2) THEN 2
 					  ELSE 1 END
 				,SUM(cnt) AS TotalTrans
 				,bettype
 				,CASE WHEN @type = 1 THEN b.liveindicator ELSE 0 END
-			 ,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
-			 ,ISNULL(s.IsChinaView,0) AS IsChinaView
+				,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
+				,ISNULL(s.IsChinaView,0)
+			    ,ISNULL(s.SpecialPlatfrom,0)
 		  FROM #TmpBettrans b WITH (NOLOCK)
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
 		  GROUP BY b.bettype
 			 ,b.liveindicator
-			 ,s.site, s.IsChinaView
+			 ,s.site, s.IsChinaView, s.SpecialPlatfrom
 			 ,cs.CustId
 	   END
 	   
@@ -942,20 +958,22 @@ BEGIN
 				 ,LiveIndicator
 				 ,LicenseeName
 				 ,IsChinaView
+				 ,SpecialPlatfrom
 				 )
 			SELECT  CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 0
-						WHEN s.site IS NOT NULL AND IsChinaView = 1 THEN 2
+						 WHEN s.site IS NOT NULL AND (ISNULL(s.IsChinaView,0) = 1 OR s.SpecialPlatfrom = 2) THEN 2
 						ELSE 1 END
-			,COUNT(DISTINCT t.ParentTransId) AS TotalTrans
-			,t.ParentBettype
-			,0
-			,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
-			,ISNULL(s.IsChinaView,0)
+				,COUNT(DISTINCT t.ParentTransId) AS TotalTrans
+				,t.ParentBettype
+				,0
+				,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
+				,ISNULL(s.IsChinaView,0)
+				,ISNULL(s.SpecialPlatfrom,0)
 			FROM #CTE_ParlayTickets AS t
 				LEFT JOIN Customer c WITH (NOLOCK) ON t.srecommend = c.custid
 				LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 				LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON t.srecommend = cs.CustId
-			GROUP BY s.Site, s.IsChinaView
+			GROUP BY s.Site, s.IsChinaView, s.SpecialPlatfrom
 				,t.mLiveIndicator
 				,t.ParentBettype
 				,cs.CustId
@@ -971,20 +989,22 @@ BEGIN
 			 ,LiveIndicator
 			 ,LicenseeName
 			 ,IsChinaView
+			 ,SpecialPlatfrom
 			 )
 		  SELECT CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 0
-					  WHEN s.site IS NOT NULL AND ISNULL(s.IsChinaView,0) = 1 THEN 2
+					  WHEN s.site IS NOT NULL AND (ISNULL(s.IsChinaView,0) = 1 OR s.SpecialPlatfrom = 2) THEN 2
 					  ELSE 1 END
 			 ,COUNT(DISTINCT b.transid) AS TotalTrans
 			 ,b.bettype
 			 ,0
 			 ,CASE WHEN s.site IS NULL AND cs.CustId IS NULL THEN 'Credit' ELSE s.site END AS LicenseeName
 			 ,ISNULL(s.IsChinaView,0)
+			 ,ISNULL(s.SpecialPlatfrom,0)
 		  FROM #CTE_ParlayVSTickets b
 			 LEFT JOIN Customer c WITH (NOLOCK) ON b.srecommend = c.custid
 			 LEFT JOIN site s WITH (NOLOCK) ON s.site = c.Site AND s.isLicensee = 1 AND s.isActive = 1 AND s.siteID NOT IN (29, 35)
 			 LEFT JOIN CS_CustSuper cs WITH (NOLOCK) ON b.srecommend = cs.CustId
-		  GROUP BY s.site, s.IsChinaView
+		  GROUP BY s.site, s.IsChinaView, s.SpecialPlatfrom
 			 ,b.mLiveIndicator
 			 ,b.bettype
 			 ,cs.CustId
@@ -1003,17 +1023,20 @@ BEGIN
 		,LiveIndicator
 		,LicenseeName
 		,IsChinaView
+		,SpecialPlatfrom AS SpecialPlatform
 	FROM @TmpTotal
 	GROUP BY OrderNo
 		,LicenseeName
 		,bettype
 		,LiveIndicator
 		,IsChinaView
+		,SpecialPlatfrom
 	ORDER BY OrderNo
 		,LicenseeName
 		,bettype
 		,LiveIndicator
 		,IsChinaView
+		,SpecialPlatfrom
 
 	DROP TABLE #TmpBettrans
 	DROP TABLE #TmpBallSequence

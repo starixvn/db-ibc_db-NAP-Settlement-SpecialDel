@@ -51,7 +51,8 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
-		
+		- 20230830@July: Remove SABA of league name for Jolly View sites [Redmine: #193213]
+
 	Param's explanation:	
 		
 */
@@ -2097,6 +2098,7 @@ BEGIN
 		   ,ISNULL(s.IsCancelCashOut,0) AS IsCancelCashOut
 		   ,s.statuswinlost
 		   ,s.CheckTimeCashOut AS CheckTimeCancelCashOut
+		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site
