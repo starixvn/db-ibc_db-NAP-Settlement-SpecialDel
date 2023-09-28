@@ -8,6 +8,7 @@ ALTER PROCEDURE dbo.NAP_Admin_Settlement_50_MoveTicket
 	,@IP			VARCHAR(15) = ''
 	,@ErrCode INT = 0 OUTPUT
 	,@ErrMsg VARCHAR(300) = '' OUTPUT
+	,@TicketCount INT = 0 OUTPUT
 AS
 /*	Creator: Kathy
 	Date: 20210218
@@ -23,6 +24,7 @@ AS
 		- 20220719@Louisa: Scale out DBTRANS [Redmine:#175251]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230920@Kathy: remove write log on SP [Redmine:#194268]
 
 	Param's Explanation:
 */
@@ -32,8 +34,8 @@ BEGIN
 	DECLARE @Action VARCHAR(20)
 			,@Mode VARCHAR(15)
 			,@avaiableProcess BIT
-			,@ThreadHold INT = 0 -- over threadhold, the parlay process will be locked in systemsetting
-			,@Session			NVARCHAR(50)
+			,@Threshold INT = 0 -- over @Threshold, the parlay process will be locked in systemsetting
+			
 			,@IsExistParlay		BIT = 0
 			,@IsLockingByRefno	BIT = 0
 			,@totalSingle INT 
@@ -41,17 +43,11 @@ BEGIN
 			,@startRowId INT 
 			,@batchNo INT 
 			,@strTransIds VARCHAR(MAX) 
-			,@StartTime DATETIME
-			,@EndTime DATETIME
-			,@ActionID INT 
-			,@Remark VARCHAR(MAX)
 			,@IsCentral	BIT = 0
 			
 	SELECT @Action = 'MoveTicket'
 		,@batchNo = 2000
-		,@ActionID = 81025		
-		,@StartTime = GETDATE()
-		
+
 	DECLARE @tmpResourceId TABLE (ResourceId VARCHAR(20))
 	DECLARE @tmpBettypeResourceId TABLE (Bettype SMALLINT, BetId BIGINT, ResourceId VARCHAR(20) )
 
@@ -122,7 +118,7 @@ BEGIN
 		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 	SET @totalSingle = @@ROWCOUNT
-
+	
 	INSERT INTO #tmpTransIdsParlay(TransId, statusId, refno, ResourceId)
 	SELECT	bm.transid, bm.statusID, bm.refno, t.ResourceId
 	FROM	dbo.bettransm bm WITH(NOLOCK)
@@ -136,6 +132,7 @@ BEGIN
 		AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 	
 	SET @totalParlay = @@ROWCOUNT
+	SET @TicketCount = @totalSingle + @totalParlay
 
 	IF @totalSingle = 0
 	BEGIN
@@ -206,9 +203,9 @@ BEGIN
 
 		EXEC dbo.NAP_Set_GlobalSettingSel 
 			@LockName = 'ParlayRefno'
-			,@ThreadHold = @ThreadHold OUTPUT
+			,@ThreadHold = @Threshold OUTPUT
 
-		IF @totalParlay > @ThreadHold
+		IF @totalParlay > @Threshold
 			SET @isexistParlay = 1
 		ELSE
 		BEGIN
@@ -268,37 +265,6 @@ BEGIN
 
 	END
 
-	--get actual settled result has ticket to write log
-	SET @Resources = ''
-
-	SELECT @Resources = COALESCE( @Resources + ',' + r.ResourceId, r.ResourceId)
-	FROM (
-			SELECT  ResourceId FROM	#tmpTransIdsSingle
-			UNION ALL
-			SELECT  ResourceId FROM	#tmpTransIdsParlay
-		) r
-		GROUP BY r.ResourceId
-
-
-	SELECT @Resources = STUFF(@Resources, 1, 1, '')
-
-	SET @EndTime = GETDATE()
-
-	SELECT @Remark =  CAST(@childMatchId AS VARCHAR) + '<br/> ' 
-						+ '(' + @Resources + ')' + '<br/>'
-						+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS NVARCHAR(50)) + ' ms' 
-						+ '; TC: ' + CAST(ISNULL(@totalSingle, 0) AS VARCHAR(20))  + '/' + CAST(ISNULL(@totalParlay, 0) AS VARCHAR(20)) 				
-
-	IF @IsCentral = 1
-	BEGIN
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-				@userid				= @AdminId
-				,@matchid			= @MatchID
-				,@actionid			= @ActionID
-				,@Remark			= @Remark
-				,@ip				= @ip		   							   
-	END
-	
 	DROP TABLE #tblMatchParlayProcess
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tmpTransIdsSingle
