@@ -4,8 +4,8 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL																									
-SET @from = '2023-07-11'																									
-SET @to = '2023-07-11'																									
+SET @from = '2023-09-01'																									
+SET @to = '2023-10-01'																									
 																									
 																								
 CREATE TABLE #temp_transid (
@@ -49,9 +49,8 @@ CREATE TABLE #temp_transid (
 , ListScore VARCHAR(MAX)
 )
 
-CREATE TABLE #temp_RequestIdMatchId (
+CREATE TABLE #temp_RequestId_GetList (
 	RequestId INT
-	, MatchId INT
     , IsFinish BIT
 )
 
@@ -73,7 +72,7 @@ CREATE TABLE #temp_Ticket (
     , Transid_void BIGINT
 
 )
-DECLARE @RequestId INT , @MatchId INT, @ListBettype VARCHAR(MAX) = '', @ListBetteam VARCHAR(MAX) ='', @ListScore VARCHAR(MAX) = ''
+DECLARE @RequestId INT, @ListBettype VARCHAR(MAX) = '', @ListBetteam VARCHAR(MAX) ='', @ListScore VARCHAR(MAX) = ''
 
 /**********************************************************RANGE ACTIVE*************************************************************/
 
@@ -89,7 +88,13 @@ SELECT r.RequestId, r.IssueTypeId, rd.SubIssueTypeId,r.CreatedDate, rd.FilterFro
 ,r.MistakenBy, r.DecidedBy, r.UserId, r.ActionId, rd.MatchId
   , i.IssueTypeName, s.SubIssueTypeName
 FROM DBTRANS.bodb02.dbo.TicketVoiding_Request r  WITH(NOLOCK) 
-	INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_RequestDetail rd  WITH(NOLOCK) ON r.RequestId = rd.RequestId
+	CROSS APPLY (
+          SELECT TOP (1) rd.SubIssueTypeId, CASE WHEN r.IssueTypeId in (1,10) AND rd.transidS LIKE '%IsMainMatch="true"%' THEN rd.MatchId ELSE NULL END AS MatchId
+		  , rd.FilterFromTransTime, rd.FilterToTransTime
+          FROM  DBTRANS.bodb02.dbo.TicketVoiding_RequestDetail rd  WITH(NOLOCK) 
+          WHERE r.RequestId = rd.RequestId
+           ORDER BY rd.Id ASC
+		  )rd
     LEFT JOIN DBTRANS.bodb02.dbo.TicketVoiding_IssueType i WITH(NOLOCK) ON r.IssueTypeId = i.IssueTypeId
 	LEFT JOIN DBTRANS.bodb02.dbo.TicketVoiding_SubIssueType s WITH(NOLOCK) ON rd.SubIssueTypeId = s.SubIssueTypeId
 WHERE r.IsTest = 0
@@ -128,7 +133,7 @@ SELECT t.RequestId, t.Matchid, s.TransId,  b.Transdate
 	, b.livehomescore 
 	, b.liveawayscore  
 FROM #temp_transid t
-	INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) ON t.RequestId = s.RequestId AND t.Matchid = s.MatchId
+	INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) ON t.RequestId = s.RequestId
 	CROSS APPLY (
 		SELECT liveindicator, transdate, statusID, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore
 		FROM bodb02.dbo.bettrans b WITH (NOLOCK) 
@@ -170,11 +175,10 @@ INNER JOIN (
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast ((b.stake * b.actualrate) as money) ELSE NULL END) AS MemberTO_RM
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast( ((1-tpositiontaking)* b.stake * actualrate) as money) ELSE NULL END) AS House_TO_RM	
 	FROM #temp_transid t
-		INNER JOIN #temp_Ticket b ON t.RequestId = b.RequestId AND t.Matchid = b.MatchId
+		INNER JOIN #temp_Ticket b ON t.RequestId = b.RequestId
 	GROUP BY t.RequestId, b.MatchId
-)kq ON t.RequestId = kq.RequestId AND t.matchid = kq.MatchId
+)kq ON t.RequestId = kq.RequestId 
 	
-
 
 /*parlay*/
 UPDATE t
@@ -189,7 +193,7 @@ INNER JOIN (
 		,COUNT(s.TransId) AS TotalTicket_Parlay
         ,COUNT(CASE WHEN b.statusid = 102 AND z.transid IS NOT NULL AND s.IsProcessed IS NOT NULL THEN s.TransId ELSE NULL END ) AS Bet_cnt_Parlay	
 	FROM #temp_transid t
-		INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) ON t.RequestId = s.RequestId AND t.Matchid = s.MatchId
+		INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) ON t.RequestId = s.RequestId
 		CROSS APPLY (
 			SELECT statusID, winlostdate, TransId
 			FROM bodb02.dbo.bettransm b WITH (NOLOCK) 
@@ -201,7 +205,7 @@ INNER JOIN (
 		)b
 		LEFT JOIN bodb02.dbo.zzzbettransm z WITH (NOLOCK) ON z.transid = b.TransId AND z.VoidingHistoryId IS NOT NULL
 	GROUP BY t.RequestId, s.MatchId, b.winlostdate
-)kq ON t.RequestId = kq.RequestId AND t.matchid = kq.MatchId
+)kq ON t.RequestId = kq.RequestId
 
 UPDATE	t 
 		SET LastVoidedBy = vh.LastVoidedBy
@@ -272,7 +276,13 @@ SELECT r.RequestId, r.IssueTypeId, rd.SubIssueTypeId,r.CreatedDate, rd.FilterFro
 ,r.MistakenBy, r.DecidedBy, r.UserId, r.ActionId, rd.MatchId
   , i.IssueTypeName , s.SubIssueTypeName
 FROM dbo.TicketVoiding_Request_bk r  WITH(NOLOCK) 
-	INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd  WITH(NOLOCK) ON r.RequestId = rd.RequestId
+		CROSS APPLY (
+          SELECT TOP (1) rd.SubIssueTypeId, CASE WHEN r.IssueTypeId in (1,10) AND rd.transidS LIKE '%IsMainMatch="true"%' THEN rd.MatchId ELSE NULL END AS MatchId
+		  , rd.FilterFromTransTime, rd.FilterToTransTime
+          FROM  dbo.TicketVoiding_RequestDetail_bk rd  WITH(NOLOCK) 
+          WHERE r.RequestId = rd.RequestId
+		  ORDER BY rd.Id ASC
+          )rd
     LEFT JOIN DBTRANS.bodb02.dbo.TicketVoiding_IssueType i WITH(NOLOCK) ON r.IssueTypeId = i.IssueTypeId
 	LEFT JOIN DBTRANS.bodb02.dbo.TicketVoiding_SubIssueType s WITH(NOLOCK) ON rd.SubIssueTypeId = s.SubIssueTypeId
 WHERE r.IsTest = 0
@@ -312,7 +322,7 @@ SELECT t.RequestId, t.Matchid, s.TransId,  b.Transdate
 	, b.livehomescore 
 	, b.liveawayscore  
 FROM #temp_transid t
-		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK) ON t.RequestId = s.RequestId AND t.Matchid = s.MatchId
+		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK) ON t.RequestId = s.RequestId 
 		CROSS APPLY (
 			SELECT liveindicator, transdate, statusID, stake, actualrate, tpositiontaking, winlostdate, TransId, bettype, betteam, livehomescore, liveawayscore
 			FROM dbo.bettrans_bk b WITH (NOLOCK) 
@@ -351,9 +361,9 @@ INNER JOIN (
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast ((b.stake * b.actualrate) as money) ELSE NULL END) AS MemberTO_RM
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast( ((1-tpositiontaking)* b.stake * actualrate) as money) ELSE NULL END) AS House_TO_RM	
 	FROM #temp_transid t
-		INNER JOIN #temp_Ticket b ON t.RequestId = b.RequestId AND t.Matchid = b.MatchId
+		INNER JOIN #temp_Ticket b ON t.RequestId = b.RequestId
 	GROUP BY t.RequestId, b.MatchId
-)kq ON t.RequestId = kq.RequestId AND t.matchid = kq.MatchId
+)kq ON t.RequestId = kq.RequestId
 
 
 /*parlay*/
@@ -369,7 +379,7 @@ INNER JOIN (
 		,COUNT(s.TransId) AS TotalTicket_Parlay
         ,COUNT(CASE WHEN b.statusid = 102 AND z.transid IS NOT NULL AND s.IsProcessed IS NOT NULL THEN s.TransId ELSE NULL END ) AS Bet_cnt_Parlay	
 	FROM #temp_transid t
-		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay_bk s WITH (NOLOCK) ON t.RequestId = s.RequestId AND t.Matchid = s.MatchId
+		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay_bk s WITH (NOLOCK) ON t.RequestId = s.RequestId
 		CROSS APPLY (
 			SELECT statusID, winlostdate, TransId
 			FROM dbo.bettransm b WITH (NOLOCK) 
@@ -377,7 +387,7 @@ INNER JOIN (
 		)b
 		LEFT JOIN dbo.zzzbettransm_bk z WITH (NOLOCK) ON z.transid = b.TransId AND z.VoidingHistoryId IS NOT NULL
 	GROUP BY t.RequestId, s.MatchId, b.winlostdate
-)kq ON t.RequestId = kq.RequestId AND t.matchid = kq.MatchId
+)kq ON t.RequestId = kq.RequestId
 
 
 UPDATE d
@@ -430,8 +440,8 @@ FROM	#temp_transid t
 	LEFT JOIN  DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms1 WITH (NOLOCK) ON t.MessageId = ms1.MessageId																						
 
 
-INSERT INTO #temp_RequestIdMatchId (RequestId, MatchId)
-SELECT DISTINCT RequestId, MatchId
+INSERT INTO #temp_RequestId_GetList (RequestId)
+SELECT DISTINCT RequestId
 FROM #temp_transid
 
 
@@ -440,12 +450,11 @@ BEGIN
 	SET @ListBettype = ''
 	SET @ListBetteam = ''
 	SET @ListScore = ''
-	SET @MatchId = 0
 	SET @RequestId = 0
 
 
-	UPDATE TOP (1) m SET m.IsFinish = 1, @MatchId = m.MatchId, @RequestId = m.RequestId
-	FROM #temp_RequestIdMatchId m 
+	UPDATE TOP (1) m SET m.IsFinish = 1, @RequestId = m.RequestId
+	FROM #temp_RequestId_GetList m 
 	WHERE m.IsFinish IS NULL
 	IF @@ROWCOUNT = 0 BREAK	
 
@@ -453,21 +462,19 @@ BEGIN
 	SET @ListBettype = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(b.typenamee AS VARCHAR(100))
 										FROM #temp_Ticket AS v
 										INNER JOIN DBTRANS.bodb02.dbo.bettype b WITH(NOLOCK) ON v.bettype = b.typeid
-										WHERE --v.bettype <> 29 AND
-										 v.RequestId = @RequestId AND v.MatchId = @MatchId
+										WHERE v.RequestId = @RequestId 
 										FOR XML PATH('')), 1, 1, '')
 										, '')
 
 	SET @ListBetteam = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(v.betteam AS VARCHAR(100))
 										FROM #temp_Ticket AS v
-										WHERE --v.bettype <> 29 AND
-										 v.RequestId = @RequestId AND v.MatchId = @MatchId
+										WHERE v.RequestId = @RequestId
 										FOR XML PATH(''), TYPE).value('.', 'VARCHAR(MAX)'), 1, 2, '')
 										, '')
 
 	SET @ListScore = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(v.livehomescore AS VARCHAR(10)) + '-' + CAST(v.liveawayscore AS VARCHAR(10))
 									FROM #temp_Ticket AS v
-									WHERE v.RequestId = @RequestId AND v.MatchId = @MatchId
+									WHERE v.RequestId = @RequestId
 									FOR XML PATH(''), TYPE).value('.', 'VARCHAR(MAX)'), 1, 2, '')
 									, '')
 
@@ -476,7 +483,7 @@ BEGIN
 	, v.ListBetteam = @ListBetteam
 	, v.ListScore = @ListScore
 	FROM #temp_transid v
-	WHERE  v.RequestId = @RequestId AND v.MatchId = @MatchId
+	WHERE  v.RequestId = @RequestId
 END
 
 
@@ -492,7 +499,9 @@ SELECT DISTINCT
 		CASE WHEN IssueTypeId IN (11,15,13)  THEN 'No' 
 			 WHEN IssueTypeId NOT IN (11,15,13) AND ISNULL(ms.Bet_cnt,0) > 0 THEN 'Yes' 
 			 ELSE 'No' END IsMonthly
-	,'TVS' AS FunctionGroup, ms.winlostdate, CASE WHEN IssueTypeId IN (11,13,18) THEN SubIssueType ELSE IssueType END AS Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup
+	,'TVS' AS 'TVS/SD?'
+	, CASE WHEN IssueTypeId IN (13) THEN NULL ELSE ms.winlostdate END as winlostdate
+	, CASE WHEN IssueTypeId IN (11,13,18) THEN SubIssueType ELSE IssueType END AS Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup
     , ms.Bet_cnt, ms.MemberTO_RM, ms.House_TO_RM	
     , a.ActionName
 	, 'Null' as Function_SDName
@@ -517,11 +526,11 @@ ORDER BY ms.CreatedDate ASC, ms.RequestId ASC
 		  Sporttype AS 's'
 		  ,MatchId AS 'mid'
 	FROM #temp_transid
-	WHERE MatchId <> 29
+	WHERE IssueTypeId IN (11,15) AND matchid <> 29
 	FOR JSON PATH))
 
 	SELECT CONVERT(VARCHAR(MAX), @RequestInfoGetCalcTimes, 1) AS RequestInfoGetCalcTimes
     
 DROP TABLE #temp_transid
 DROP TABLE #temp_Ticket
-DROP TABLE #temp_RequestIdMatchId
+DROP TABLE #temp_RequestId_GetList
