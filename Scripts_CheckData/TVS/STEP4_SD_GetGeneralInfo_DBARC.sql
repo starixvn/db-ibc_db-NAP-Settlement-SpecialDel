@@ -3,8 +3,8 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime																						
-SET @from = '2023-07-01'																									
-SET @to = '2023-07-24'																									
+SET @from = '2023-09-01'																									
+SET @to = '2023-10-01'																									
 																									
 CREATE TABLE #message_tmp (messageID INT, reason VARCHAR(50), transid BIGINT, MessageContent varchar(max))																								
 CREATE TABLE #temp_transid (
@@ -17,7 +17,6 @@ transid bigint
 , away varchar(200)
 , leaguename varchar(1000)
 , LeagueGroup varchar(200)
-, FunctionGroup varchar(100)
 , MessageContent varchar(max)
 )
 
@@ -95,7 +94,7 @@ from DBMSG.bodb_Message_Archive.dbo.[Msg_Archive] ms WITH (NOLOCK)
 		) as t																								
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
 	AND ms.IsTest = 0	
-	
+	AND Content_en LIKE '%VOID%'
 /*Range active*/																							
 INSERT INTO #message_tmp (messageID, reason, transid, MessageContent)																									
 SELECT   MessageId																									
@@ -147,14 +146,14 @@ SELECT   MessageId
 			WHEN Content_en LIKE '%Due to%Player%did not participate%considered VOID%' THEN 'Not Participate'
 			--Issuetype: Reduced Over (Cricket)
 			WHEN Content_en LIKE '%Due to%the number of scheduled overs being reduced%considered VOID%' THEN 'Reduced Over'
-
+			WHEN Content_en LIKE '%Due to technical error%considered VOID%' THEN 'Technical Error'
 			WHEN Content_en LIKE '%Due to % corner has been completed%considered VOID%'
 				OR Content_en LIKE '%Due to%wrong event start time displayed%considered VOID%'
 				OR Content_en LIKE '%Due to%1st Half has been completed%considered VOID%'
                 OR Content_en LIKE '%Due to%has been completed%considered VOID%'
 				OR Content_en LIKE '%Due to%number of rounds have changed%considered VOID%'
 			THEN 'Other Issues'
-			ELSE 'Other Issues'
+			ELSE 'Other Issues1'
 		END as Reason																						
 		, t.transid	
 		, ms.Content_en
@@ -170,18 +169,18 @@ FROM DBMSG.bodb_Message.dbo.[Msg] ms WITH (NOLOCK)
 		) as t																								
 WHERE ms.CreateTime >= @from AND ms.CreateTime < @to																									
 	AND ms.IsTest = 0																								
-																									
+	AND Content_en LIKE '%VOID%'																								
 
 /*Range archive*/
-INSERT INTO #temp_transid (transid,reason,matchid, FunctionGroup, MessageContent)	
-SELECT DISTINCT ms.TransId, ms.reason, d.matchid, 'SD' AS FunctionGroup, ms.MessageContent											
+INSERT INTO #temp_transid (transid,reason,matchid, MessageContent)	
+SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent											
 FROM #message_tmp ms WITH (NOLOCK)																									
 	INNER JOIN dbo.zzzbettrans_bk d WITH (NOLOCK) ON d.transid = ms.TransId	
 WHERE d.VoidingHistoryId IS NULL
 
 /*Range active*/
-INSERT INTO #temp_transid (transid,reason,matchid, FunctionGroup, MessageContent)	
-SELECT DISTINCT ms.TransId, ms.reason, d.matchid, 'SD' AS FunctionGroup, ms.MessageContent												
+INSERT INTO #temp_transid (transid,reason,matchid, MessageContent)	
+SELECT DISTINCT ms.TransId, ms.reason, d.matchid, ms.MessageContent												
 FROM #message_tmp ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.zzzbettrans d WITH (NOLOCK) ON d.transid = ms.TransId	
 WHERE d.VoidingHistoryId IS NULL
@@ -247,7 +246,7 @@ CROSS APPLY (
 WHERE l.isTest = 0																
 	
 SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
-	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+	, 'SD' AS 'TVS/SD?', bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
     , 'VOID' AS ActionName
@@ -257,17 +256,17 @@ SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%consider
 	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
 	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
-	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore
+	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bettrans_bk bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102																					
-GROUP BY ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
+GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate
 
 SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																										
-	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+	, 'SD' AS 'TVS/SD?', bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
     , 'VOID' AS ActionName
@@ -277,18 +276,18 @@ SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%consider
 	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
 	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
-	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore
+	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans14 bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102
-GROUP BY ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
+GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate	
 
 
 SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
-	, ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+	, 'SD' AS 'TVS/SD?', bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
     , 'VOID' AS ActionName
@@ -298,13 +297,13 @@ SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%consider
 	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
 	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
-	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore
+	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102		
-GROUP BY ms.FunctionGroup, bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
+GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate																									
 
 
