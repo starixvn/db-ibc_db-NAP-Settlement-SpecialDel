@@ -232,7 +232,8 @@ BEGIN
 			,@_sXML = @_sXML
 			,@Action = 'CAL'
 			,@matchid = @matchid
-
+	
+	END
 	-- notify
 	WHILE (@TotalTransMaxPO > 0)
 	BEGIN
@@ -263,8 +264,6 @@ BEGIN
 
 		EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
 			@XmlData = @TransInfoMaxPO
-	END
-
 	END
 END
 GO
