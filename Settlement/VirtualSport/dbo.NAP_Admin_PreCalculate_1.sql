@@ -27,7 +27,13 @@ BEGIN
 			,@SiteDBGroupId SMALLINT
 			,@modds money, @commWinRate smallmoney, @commLostRate smallmoney 
 			,@createdDate DATETIME
+			,@TotalTransMaxPO		INT = 0
+			,@batchPO				SMALLINT = 500
+			,@TransInfoMaxPO		VARCHAR(MAX)
+			,@transMPO				VARCHAR(MAX)
 	
+	DECLARE @tmpTransMPO TABLE (TransID BIGINT,custid INT, actualPO MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
+	DECLARE @tmpTransMPOBatch TABLE (TransID BIGINT,custid INT, actualPO MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
 
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'	
@@ -223,6 +229,59 @@ BEGIN
 			,@_sXML = @_sXML
 			,@Action = 'CAL'
 			,@matchid = @matchid
+
+	-- notify
+	WHILE (@TotalTransMaxPO > 0)
+	BEGIN
+		IF @TotalTransMaxPO > @batchPO
+		BEGIN
+			DELETE @tmpTransMPOBatch
+
+			DELETE TOP (@batchPO) t
+			OUTPUT deleted.custid, deleted.winlost, deleted.actualPO, deleted.transdate, deleted.bettype, deleted.transid 
+			INTO @tmpTransMPOBatch(custid, winlost, actualPO, transdate, bettype, transid)
+			FROM @tmpTransMPO t
+
+			SET @TransInfoMaxPO = CAST((
+									SELECT	TOP (@batchPO) CustId AS a1
+											,194 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,NULL AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	@tmpTransMPOBatch
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+		ELSE
+		BEGIN
+			SET @TransInfoMaxPO = CAST((
+									SELECT	CustId AS a1
+											,194 AS a2 -- productid
+											,0 AS a3 -- groupid
+											,winlost AS a4 -- maxwinlimit
+											,actualPO AS a6 -- winamt
+											,255 AS a7 -- levelid
+											,255 AS a8 -- actionid
+											,NULL AS a12 -- createdby
+											,transdate AS a13 -- winlostdate
+											,bettype AS a16
+											,transid AS a17
+									FROM	@tmpTransMPO
+									FOR XML PATH('r'), ROOT('root')
+							) AS VARCHAR(MAX))
+		END
+
+		SET @TotalTransMaxPO = @TotalTransMaxPO - @batchPO
+
+		EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
+			@XmlData = @TransInfoMaxPO
+	END
 
 	END
 END
