@@ -77,6 +77,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
+		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -92,7 +93,8 @@ AS
 				0: None
 				1: Auto Payout
 				2: Direct Payout
-				3: Others
+				3: Refund Tennis GW
+				4: Others
 */
 BEGIN
 	SET NOCOUNT ON
@@ -991,8 +993,9 @@ BEGIN
 									ELSE ' Selected:' 
 									END 
 								+ SUBSTRING(@ResultRemarkLog, 2, LEN(@ResultRemarkLog))
-								+ CASE WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
-										WHEN  @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CAST(@IsExistAR AS VARCHAR(1))
+								+ CASE  WHEN @sportType = 6 AND @ChildMatchIds IS NOT NULL  THEN ' CalcChild: ' + @ChildMatchIds
+										WHEN @HasAutoRefund = 1 AND @IsAuto = 1 AND @Action = 'CAL' THEN ' auto_refund:' + CAST(@IsExistAR AS VARCHAR(1))
+										WHEN @AutoType = 3 THEN ' isAuto: 1'
 										ELSE '' 
 										END
 						   

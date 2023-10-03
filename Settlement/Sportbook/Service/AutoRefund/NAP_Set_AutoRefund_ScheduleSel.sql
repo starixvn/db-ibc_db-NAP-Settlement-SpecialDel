@@ -14,6 +14,7 @@ AS
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
+		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 */
 BEGIN
 	
@@ -23,7 +24,7 @@ BEGIN
 			,@WaitingTime	VARCHAR(10)
 			,@IsWaiting BIT = 0
 	
-	DECLARE  @returntable TABLE (MatchId INT, leagueid INT, TypeId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT, SettlementStatusId TINYINT)
+	DECLARE  @returntable TABLE (MatchId INT,ParentID INT,  leagueid INT, TypeId TINYINT,SourceId TINYINT, ResourceId VARCHAR(20), ResultStatusID TINYINT, SettlementStatusId TINYINT)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
 		@SPName = @procName
@@ -59,10 +60,12 @@ BEGIN
 	END
 	ELSE IF @sporttype = 5
 	BEGIN
-		INSERT INTO @returntable (MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId)
+		INSERT INTO @returntable (MatchId,ParentID, leagueid, TypeId,SourceId, ResourceId, ResultStatusID, SettlementStatusId)
 		SELECT ar.MatchId
+			 , m.ParentID
 			 , m.leagueid
 			 , ar.TypeId
+			 , ar.SourceId
 			 , ar.ResourceId
 			 ,ISNULL(r.ResultStatusID, 0) AS  ResultStatusID
 			 ,ISNULL(r.SettlementStatusID,0) AS SettlementStatusID
@@ -96,7 +99,7 @@ BEGIN
 			AND ar.TypeId = 1
 	END
 
-	SELECT MatchId, leagueid, TypeId, ResourceId, ResultStatusID, SettlementStatusId
+	SELECT MatchId,ParentID, @sporttype AS Sporttype, leagueid, TypeId,SourceId, ResourceId, ResultStatusID, SettlementStatusId
 	FROM @returntable
 
 END

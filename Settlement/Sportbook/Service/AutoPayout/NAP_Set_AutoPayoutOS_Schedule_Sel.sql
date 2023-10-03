@@ -24,6 +24,7 @@ AS
 		- 20230403@Louisa: Exclude some Cricket results from direct payout [Redmine:#186311]
 		- 20230404@Louisa: Checking related resourceid for result early badminton,volleyball [Redmine:#185818]
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
+		- 20230724@Louisa: Enhance for Tennis - exclude Auto for match has confirm score is 0-0 [Redmine:#189433]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -237,6 +238,7 @@ BEGIN
 							AND r.ResultStatusID = 3
 							AND ISNULL(r.ResultSetting,0) & 3  = 0
 							AND 1 =  CASE WHEN ISNULL(r.HomeValue,'') = '' AND ISNULL(r.AwayValue,'') = '' THEN 0 ELSE 1 END
+							AND 1 =  CASE WHEN @Sporttype = 5 AND r.HomeValue = '0' AND  r.AwayValue = '0' THEN 0 ELSE 1 END
 							AND r.LastModifyDate <= DATEADD(SECOND, - ISNULL(ss.WaitingTime,@checkTime), GETDATE() )						
 				) r
 				OUTER APPLY (	SELECT os.MatchId, os.ResourceId,  MIN(os.StatusId) AS MinStatusId

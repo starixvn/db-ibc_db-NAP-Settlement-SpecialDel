@@ -16,6 +16,7 @@ AS
 	Revisions:
 		- 20220512@Louisa: Initial 
 		- 20230104@Kathy: Add @trycount [Redmine:#181458]
+		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		
 	Param's explaination:
 		@ResourceIds = '0103,0104,0105'
@@ -34,7 +35,7 @@ BEGIN
 		FROM dbo.AutoRefundResultOS r WITH(ROWLOCK,UPDLOCK)
 			INNER JOIN STRING_SPLIT(@ResourceIds, ',') f 
 				ON r.ResourceID  = f.value
-		WHERE SourceId = 105 --Auto Refund
+		WHERE SourceId IN (100,105) --Auto Refund
 			AND TypeId = @TypeId
 			AND MatchId = @MatchId
 
