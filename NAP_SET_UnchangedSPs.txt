@@ -1,2 +1,6 @@
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile.sql
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
+Settlement\VirtualSport\dbo.NAP_Admin_Settlement_VS_180.sql
+Common SP\Calculation\dbo.NAP_Admin_Calculate_OtherSports.sql
+Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar_Push.proc.sql
+Settlement\VirtualSport\dbo.NAP_Admin_Settlement_3_VS.sql
+Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar.proc.sql
+Settlement\VirtualBetRadar\dbo.NAP_Admin_Settlement_VS_BetRadar_MP.proc.sql
