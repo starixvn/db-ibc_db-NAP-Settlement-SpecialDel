@@ -36,6 +36,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230425@July: [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20231003@July: [TVS] Abnormal Account - Increase the number of input Usernames to void [Redmine: #194095]
 
 	Param's Explanation:
 */
@@ -54,6 +55,8 @@ BEGIN
 			,@IsSaba				  BIT = 0
 			,@movebetdate			  SMALLDATETIME
 			,@maxdate 				  DATETIME = '9999-01-01'
+			,@MaxSMA				  INT = 50
+			,@MaxMember				  INT = 5000
 			,@CountSMA				  INT
 			,@CountMember             INT
 			,@IsExceededTotalUsernames BIT = 0
@@ -194,9 +197,9 @@ BEGIN
 	      ,@CountMember = SUM(CASE WHEN roleid = 1 THEN 1 ELSE 0 END)
 	FROM #InputUsernameList 
 	
-	IF @CountSMA > 50 OR @CountMember > 1000 OR @invalidUserName IS NOT NULL
+	IF @CountSMA > @MaxSMA OR @CountMember > @MaxMember OR @invalidUserName IS NOT NULL
 	BEGIN
-		SET @IsExceededTotalUsernames = CASE WHEN @CountSMA > 50 OR @CountMember > 1000 THEN 1 ELSE 0 END
+		SET @IsExceededTotalUsernames = CASE WHEN @CountSMA > @MaxSMA OR @CountMember > @MaxMember THEN 1 ELSE 0 END
 		SELECT @IsExceededTotalUsernames AS IsExceededTotalUsernames
 		      ,@InvalidUserName AS InvalidUserName
 
