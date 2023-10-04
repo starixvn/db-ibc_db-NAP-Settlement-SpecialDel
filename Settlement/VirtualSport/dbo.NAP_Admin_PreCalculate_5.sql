@@ -45,7 +45,7 @@ BEGIN
 			WinLost MONEY, aWinLost MONEY, mWinLost MONEY, sWinLost MONEY, 
 			PlayerComm MONEY, comm MONEY, acomm MONEY, scomm MONEY,
 			StatusID TINYINT, bettype SMALLINT,
-			custid INT, currency TINYINT,actualPO MONEY, IsApplyMaxPO BIT)
+			custid INT, currency TINYINT, transdate DATETIME,actualPO MONEY, IsApplyMaxPO BIT)
 
 	INSERT INTO #TempData(transid, actual_stake, stake, odds, comstatus, modds,
 			betteam, hdp1, hdp2, livehomescore, liveawayscore,
@@ -54,7 +54,7 @@ BEGIN
 			WinLost, aWinLost, mWinLost, sWinLost, 
 			PlayerComm, comm, acomm, scomm,
 			StatusID, bettype,
-			custid, currency)
+			custid, currency, transdate)
 	SELECT	transid, actual_stake, stake, odds, comstatus, modds,
 			betteam, hdp1, hdp2, livehomescore, liveawayscore,
 			apositiontaking, mpositiontaking, spositiontaking, 
@@ -62,7 +62,7 @@ BEGIN
 			WinLost, aWinLost, mWinLost, sWinLost, 
 			PlayerComm, comm, acomm, scomm,
 			StatusID, bettype,
-			custid, currency
+			custid, currency, transdate
 	FROM dbo.bettrans with(rowlock)
 	WHERE matchid = @matchid 
 		AND bettype = @bettype 
@@ -180,6 +180,17 @@ BEGIN
 				SET IsApplyMaxPO = 1
 					,actualPO = WinLost
 					,winlost = m.MaxWinLimit
+					,aWinLost = CASE WHEN t.modds >= 0.25 THEN (m.MaxWinLimit - t.actual_stake) * - apositiontaking
+									   ELSE 0
+								  END
+					,mWinLost = CASE WHEN t.modds >= 0.25 THEN (m.MaxWinLimit - t.actual_stake) * - mpositiontaking
+									   ELSE 0
+								  END
+					,sWinLost = CASE WHEN t.modds >= 0.25 THEN (m.MaxWinLimit - t.actual_stake) * - spositiontaking
+									   ELSE 0
+								  END
+			OUTPUT  deleted.transid, deleted.custid, deleted.winlost, inserted.winlost, deleted.transdate, deleted.bettype
+			INTO @tmpTransMPO(TransID,custid, actualPO, winlost, transdate, bettype)
 			FROM	#TempData t
 				INNER JOIN	@tmpMaxWinLimit m
 					ON t.CustId = m.CustId
@@ -196,9 +207,6 @@ BEGIN
 	WHILE (1 = 1)
 	BEGIN
 		DELETE @subtable
-
-		--SELECT @LASCommand = '',
-		--		@Remark = ''
 		
 		DELETE TOP (20) #TempData
 		OUTPUT deleted.transid, deleted.winlost, deleted.awinlost, deleted.mwinlost, deleted.swinlost, 	

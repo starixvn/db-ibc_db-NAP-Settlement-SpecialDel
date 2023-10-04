@@ -140,7 +140,7 @@ BEGIN
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
-			,deleted.extrainfo
+			,inserted.extrainfo
 		INTO @tmpTransInfo ( transid,modds
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
