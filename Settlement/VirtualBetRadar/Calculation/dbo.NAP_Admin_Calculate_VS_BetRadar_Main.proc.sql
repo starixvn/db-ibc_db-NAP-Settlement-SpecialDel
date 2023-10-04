@@ -71,8 +71,8 @@ BEGIN
 
 	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 	
-	DECLARE @tmpTransMPO TABLE (TransID BIGINT,custid INT, actualPO MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
-	DECLARE @tmpTransMPOBatch TABLE (TransID BIGINT,custid INT, actualPO MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT)
+	DECLARE @tmpTransMPO TABLE (TransID BIGINT,custid INT, actualPO MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT, sporttype SMALLINT)
+	DECLARE @tmpTransMPOBatch TABLE (TransID BIGINT,custid INT, actualPO MONEY, winlost MONEY,transdate DATETIME, bettype SMALLINT, sporttype SMALLINT)
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
 	DECLARE @tempBettype 	TABLE (bettype SMALLINT, CalMode TINYINT)
 	DECLARE @BetTickets  	TVP_Settlement_BetTicket
@@ -122,6 +122,7 @@ BEGIN
 		, [currency]		[TINYINT]
 		, [transdate]		[DATETIME]
 		, [IsApplyMaxPO]	[BIT]
+		, [sporttype]		[SMALLINT]
 	)
 	
 	--SET Ignore DB-Servers
@@ -266,9 +267,9 @@ BEGIN
 		END			
 		ELSE IF @mode = 'RECOVER'
 		BEGIN			
-			INSERT INTO #TempData(recommend, matchid, custid, bettype,transid, actual_stake, stake, odds, comstatus,apositiontaking, mpositiontaking, spositiontaking, 
+			INSERT INTO #TempData(recommend, matchid,sporttype, custid, bettype,transid, actual_stake, stake, odds, comstatus,apositiontaking, mpositiontaking, spositiontaking, 
 				playerdiscount,discount, adiscount, sdiscount,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, comm, acomm, scomm,StatusID, modds,currency,transdate)
-			SELECT	b.recommend, b.matchid, b.custid, b.bettype,b.transid, actual_stake, stake, odds, comstatus, apositiontaking, mpositiontaking, spositiontaking, 
+			SELECT	b.recommend, b.matchid,mr.sporttype, b.custid, b.bettype,b.transid, actual_stake, stake, odds, comstatus, apositiontaking, mpositiontaking, spositiontaking, 
 					playerdiscount,discount, adiscount, sdiscount,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, comm, acomm, scomm,StatusID, ods.modds, b.currency,b.transdate					
 			FROM dbo.bettrans b WITH(NOLOCK)
 				INNER JOIN #tblMatchResult mr ON b.matchid = mr.matchid
@@ -293,9 +294,9 @@ BEGIN
 			
 			IF EXISTS (SELECT TOP 1 * FROM #tblMatchResult WITH (NOLOCK) WHERE sporttype = 193)
 			BEGIN
-				INSERT INTO #TempData(recommend, matchid, custid, bettype,transid, actual_stake, stake, odds, comstatus,apositiontaking, mpositiontaking, spositiontaking, 
+				INSERT INTO #TempData(recommend, matchid,sporttype, custid, bettype,transid, actual_stake, stake, odds, comstatus,apositiontaking, mpositiontaking, spositiontaking, 
 						playerdiscount,discount, adiscount, sdiscount,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, comm, acomm, scomm,StatusID, modds,currency,transdate)
-				SELECT	b.recommend, b.matchid, b.custid, b.bettype,b.transid, actual_stake, stake, odds, comstatus, apositiontaking, mpositiontaking, spositiontaking, 
+				SELECT	b.recommend, b.matchid,mr.sporttype, b.custid, b.bettype,b.transid, actual_stake, stake, odds, comstatus, apositiontaking, mpositiontaking, spositiontaking, 
 						playerdiscount,discount, adiscount, sdiscount,WinLost, aWinLost, mWinLost, sWinLost, PlayerComm, comm, acomm, scomm,StatusID, ods.modds, b.currency,b.transdate					
 				FROM dbo.bettrans b WITH(NOLOCK)
 					INNER JOIN #tblMatchResult mr ON b.matchid = mr.matchid
@@ -443,8 +444,9 @@ BEGIN
 					 t.sWinLost = CASE WHEN t.modds >= 0.25 THEN (m.MaxWinLimit - t.actual_stake) * - spositiontaking
 									   ELSE 0
 								  END
-					OUTPUT  deleted.transid, deleted.custid, deleted.winlost, inserted.winlost, deleted.transdate, deleted.bettype
-					INTO @tmpTransMPO(TransID,custid, actualPO, winlost, transdate, bettype)
+					 
+					OUTPUT  deleted.transid,deleted.sporttype, deleted.custid, deleted.winlost, inserted.winlost, deleted.transdate, deleted.bettype
+					INTO @tmpTransMPO(TransID, sporttype, custid, actualPO, winlost, transdate, bettype)
 					FROM  #TempData AS t
 						INNER JOIN @tmpMaxWinLimit AS m ON m.custid = t.custid AND t.winlost > m.MaxWinLimit
 
@@ -516,13 +518,13 @@ BEGIN
 			DELETE @tmpTransMPOBatch
 
 			DELETE TOP (@batchPO) t
-			OUTPUT deleted.custid, deleted.winlost, deleted.actualPO, deleted.transdate, deleted.bettype, deleted.transid 
-			INTO @tmpTransMPOBatch(custid, winlost, actualPO, transdate, bettype, transid)
+			OUTPUT deleted.custid, deleted.winlost, deleted.actualPO, deleted.transdate, deleted.bettype, deleted.transid , deleted.sporttype
+			INTO @tmpTransMPOBatch(custid, winlost, actualPO, transdate, bettype, transid,sporttype)
 			FROM @tmpTransMPO t
 
 			SET @TransInfoMaxPO = CAST((
 									SELECT	TOP (@batchPO) CustId AS a1
-											,194 AS a2 -- productid
+											,ISNULL(SportType,@SportType) AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt
@@ -540,7 +542,7 @@ BEGIN
 		BEGIN
 			SET @TransInfoMaxPO = CAST((
 									SELECT	CustId AS a1
-											,194 AS a2 -- productid
+											,ISNULL(SportType,@SportType) AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt

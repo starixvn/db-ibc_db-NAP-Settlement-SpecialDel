@@ -53,6 +53,7 @@ BEGIN
 		, @TransInfoMaxPO		VARCHAR(MAX)
 		, @transMPO				VARCHAR(MAX)
 		, @SiteDBGroupId		SMALLINT
+		, @sporttype			SMALLINT
 	
 	DECLARE @odds 				MONEY
 		, @commWinRate 			MONEY 
@@ -131,7 +132,7 @@ BEGIN
 		, @GroupID				= 7 --VS Betradar
 
 	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
-
+	SELECT @sporttype = m.sporttype FROM match m WITH(NOLOCK) WHERE m.matchid = @matchid
 	--CONVERT refno
 	SET @xmlRefno = CONVERT(XML, @strRefnos)
 	
@@ -484,7 +485,7 @@ BEGIN
 
 			SET @TransInfoMaxPO = CAST((
 									SELECT	TOP (@batchPO) CustId AS a1
-											,194 AS a2 -- productid
+											,@sporttype AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt
@@ -502,7 +503,7 @@ BEGIN
 		BEGIN
 			SET @TransInfoMaxPO = CAST((
 									SELECT	CustId AS a1
-											,194 AS a2 -- productid
+											,@sporttype AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt
