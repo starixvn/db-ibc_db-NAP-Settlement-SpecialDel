@@ -510,7 +510,7 @@ SELECT DISTINCT
 	, c.Username AS CreatedBy,ms.CreatedDate, ms.FromTimeUI, ms.ToTimeUI
 	, ms.MistakenBy, ms.DecidedBy, v.Username AS PerformanceBy
     , ms.Min_Trans , ms.Max_Trans , ms.Min_TransDate , ms.Max_TransDate , ms.Liveindicator
-	, ms.ListBettype, ms.ListBetteam, ms.ListScore
+	, ms.ListBettype, ms.ListBetteam, ms.ListScore, '' Calc_HTTime,'' Calc_FTTime
 	, ms.MessageContent
 FROM #temp_transid ms
 	INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_Action a WITH(NOLOCK) 
