@@ -165,7 +165,7 @@ BEGIN
 			,inserted.ruben 
 			,deleted.winlost
 			,deleted.statusid
-			,deleted.extrainfo
+			,inserted.extrainfo
 	INTO @tmpTransInfo (transId 
 			,modds, statuswinlost, winlostdate 
 			,WinLost,aWinLost,mWinLost,sWinLost 
