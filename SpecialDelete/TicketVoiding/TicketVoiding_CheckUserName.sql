@@ -56,7 +56,7 @@ BEGIN
 			,@movebetdate			  SMALLDATETIME
 			,@maxdate 				  DATETIME = '9999-01-01'
 			,@MaxSMA				  INT = 50
-			,@MaxMember				  INT = 5000
+			,@MaxMember				  INT = 2000
 			,@CountSMA				  INT
 			,@CountMember             INT
 			,@IsExceededTotalUsernames BIT = 0
