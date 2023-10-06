@@ -31,6 +31,7 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
+		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 
 	Param's Explanation:			
 		- @BetType: 'all': All
@@ -76,6 +77,9 @@ BEGIN
 		    ,@SettledMainTranIds VARCHAR(MAX) = '' 
 		    ,@NegativeBalanceUsers VARCHAR(MAX) = '' 
 		    ,@SiteDBGroupID		SMALLINT = 0
+			,@strSetting		VARCHAR(MAX)
+			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
+
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @MainParlay_MaxPO   VARCHAR(MAX) = NULL
@@ -97,6 +101,9 @@ BEGIN
 			, transdate DATETIME, comstatus NVARCHAR(40)
 			)
 	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
+	DECLARE @tmpBoostSite TABLE(SiteId INT, srecommend INT, IsDeposit BIT DEFAULT(0))
+	DECLARE @tmpBoostSetting TABLE (SiteId INT, OverOdds DECIMAL(9,4), Boost TINYINT)
+
 	DECLARE @matchid INT
 
 	CREATE TABLE #tblRecoverBet( 
@@ -109,6 +116,10 @@ BEGIN
 		,isdeposit		BIT
 		,winlostdate    SMALLDATETIME
 		,ruben			TINYINT
+		,SiteID			INT
+		,betteam		NVARCHAR(20)
+		,oddsspread		MONEY
+		,srecommend		INT
 	)
 	CREATE INDEX IX_RecoverBet ON #tblRecoverBet (refno)
 	
@@ -138,6 +149,10 @@ BEGIN
 					,isdeposit
 					,winlostdate
 					,ruben
+					,SiteID
+					,betteam
+					,oddsspread
+					,srecommend
 		)
 		SELECT	b.transid
 				,b.matchid
@@ -148,6 +163,10 @@ BEGIN
 				,case when EXISTS (select TOP 1 1 from custDB.dbo.Dep_CustSuper with(nolock) WHERE custid = b.srecommend) then 1 else 0 end AS isdeposit
 				,b.winlostdate
 				,b.ruben
+				,b.BetSiteID
+				,b.betteam
+				,b.oddsspread
+				,b.srecommend
 		FROM	@tblTransIds s 
 			INNER JOIN bettrans b WITH(NOLOCK) ON s.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
 		WHERE b.matchid = 29 AND b.bettype = 29
@@ -359,12 +378,75 @@ BEGIN
 			WHERE	matchid = @tmp_MatchId
 
 			SET @refnos_29 = STUFF(@refnos_29,1,1,'')
-		
+
+			DELETE @tmpBoostSite
+			INSERT INTO @tmpBoostSite(SiteId, srecommend )
+			SELECT DISTINCT SiteID, srecommend
+			FROM	@tblMatchIds t
+				INNER JOIN #tblRecoverBet r ON r.transid = t.transid
+			WHERE	t.matchid = @tmp_MatchId
+				AND r.betteam = '1' -- mix parlay
+				AND r.oddsspread = 2 -- offer parlay bonus
+				AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.bettransm bm WITH(NOLOCK) WHERE t.refno = bm.refno AND ISNULL(bm.statuswinlost,0) IN (4,0)) -- lose/running
+
+			UPDATE si 
+			SET IsDeposit = 1
+			FROM	@tmpBoostSite si
+				INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK)
+					ON si.srecommend = d.custid
+			
+			SET @sqlOpenqueryCommand = ''
+			SET @sqlOpenqueryCommand = 'SELECT SiteId, OverOdds, Boost FROM OPENQUERY(DBPRO,''SELECT SiteId, OverOdds, Boost FROM bodb02.dbo.ParlayOddsBoostSetting p WITH(NOLOCK) WHERE p.SiteId IN ('
+									+ (SELECT  STRING_AGG(CAST(s.SiteID AS VARCHAR(MAX)),',') 
+										FROM (
+											SELECT SiteId
+											FROM (
+												SELECT SiteId
+												FROM @tmpBoostSite t
+												UNION
+												SELECT -1
+												UNION 
+												SELECT -2
+											) t
+											GROUP BY t.SiteID
+										) s 
+									)
+							+ ')'')'
+
+			DELETE @tmpBoostSetting
+			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
+			EXEC (@sqlOpenqueryCommand)
+
+			SET @strSetting = ''
+			SELECT @strSetting = CAST((
+				SELECT	si.SiteId AS 's'
+						,(SELECT t.OverOdds AS 'o', t.Boost AS 'b' -- get its own settings
+							FROM (SELECT se.SiteId, se.OverOdds, se.Boost
+								FROM	@tmpBoostSetting se
+								WHERE	EXISTS (SELECT TOP 1 1 FROM	@tmpBoostSite si WHERE se.SiteId = si.SiteId)
+								UNION
+								SELECT	si.SiteId, se.OverOdds, se.Boost -- If the site ID does not have its own settings, the default value will be taken on default SiteId (-1 if it's credit, -2 if it's licensee)
+								FROM	@tmpBoostSite si
+									CROSS APPLY (
+										SELECT	se.OverOdds, se.Boost
+										FROM	@tmpBoostSetting se
+										WHERE	se.SiteId = CASE WHEN si.IsDeposit = 1 THEN -2 ELSE -1 END
+									) se
+								WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpBoostSetting se WHERE si.SiteId = se.SiteId)
+							) t
+						WHERE si.SiteId = t.SiteId
+						FOR JSON AUTO
+						) AS v
+				FROM	@tmpBoostSite si
+				FOR JSON AUTO
+			) AS VARCHAR(MAX))
+
 			EXEC dbo.NAP_Admin_Calculate_MP_broker 
 				@matchid = @tmp_MatchId
 				,@mode = 'PRECAL-29'
 				,@matchdate = @matchdate
 				,@strXML = @tmp_TransIds
+				,@strSetting = @strSetting
 			
 			EXEC dbo.NAP_Admin_Calculate_MP_broker
 					@matchdate = @MatchDate
