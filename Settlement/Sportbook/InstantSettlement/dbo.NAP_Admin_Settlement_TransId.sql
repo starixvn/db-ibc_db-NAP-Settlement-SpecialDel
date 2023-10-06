@@ -20,6 +20,7 @@ AS
 	
 	Revisions:
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20231006@Aries: Enhance instant Settlement [Redmine:#195162]
 		
 	Param's Explanation:  
 		@Params: <Params><Params/>
@@ -136,6 +137,9 @@ BEGIN
 							END
 					AND m.modds IS NOT NULL
 					AND 1 = CASE WHEN m.modds >= 0.5 OR m.modds <= -0.5 THEN 1 ELSE 0 END
+			ORDER BY filterBy, b.custId, b.bettype
+			OPTION (MAXDOP 1)
+		
 		END
 		ELSE IF @Action LIKE 'UNDO-INST%'
 		BEGIN
@@ -176,6 +180,8 @@ BEGIN
 									AND m.modds IS NULL THEN 1
 								ELSE 0
 							END
+			ORDER BY filterBy, b.custId, b.bettype
+			OPTION (MAXDOP 1)
 		END
 
 		UPDATE #tmpFinalResult	
@@ -188,6 +194,7 @@ BEGIN
 									ELSE @RunningTotal + 1 END
 				,@batchNo = CASE WHEN @runningtotal = 1 THEN @batchNo + 1 ELSE @batchNo END
 				,batchno = @batchNo
+		OPTION (MAXDOP 1)
 				
 		INSERT INTO @tmpBatchNo(BatchNo,modds, oddstype, IsMarked)
 		SELECT	BatchNo
