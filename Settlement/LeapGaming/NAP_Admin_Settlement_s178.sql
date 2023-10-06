@@ -15,8 +15,9 @@ AS
 	DB: DBTXN/bodb02 
 	
 	Revisions:
-		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
+		- 20230704@Louisa:  Virtual Leap Gaming - VS3 - sporttype 178 [Redmine:#189854]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20231002@Louisa: Integrate new sporttype 179, new bettype for sporttype 178 [Redmine:#194655]
 	
 	Param's Explanation:
 		@Action - CAL
@@ -46,6 +47,7 @@ BEGIN
 			,@TransInfoMaxPO		VARCHAR(MAX)
 			,@TotalTransMaxPO		INT = 0
 			,@batchPO				SMALLINT = 500
+			,@sporttype				TINYINT
 	
 	DECLARE @tmpMaxWinLimit	TABLE( CustId INT, MaxWinLimit MONEY)
 	DECLARE @tmpTransIDMaxPO TABLE (TransID BIGINT
@@ -64,6 +66,8 @@ BEGIN
 	
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+
+	SELECT @sporttype = m.sporttype FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
 
 	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 
@@ -102,7 +106,7 @@ BEGIN
 										) AS tbl
 		INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) 
 		ON	sp.ResourceID = tbl.Id
-	WHERE sp.SportType = 178 
+	WHERE sp.SportType = @sporttype
 
 	EXEC sp_xml_removedocument @handle
     
@@ -262,7 +266,7 @@ BEGIN
 
 			SET @TransInfoMaxPO = CAST((
 									SELECT	TOP (@batchPO) CustId AS a1
-											,178 AS a2 -- productid
+											,@sporttype AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt
@@ -280,7 +284,7 @@ BEGIN
 		BEGIN
 			SET @TransInfoMaxPO = CAST((
 									SELECT	CustId AS a1
-											,178 AS a2 -- productid
+											,@sporttype AS a2 -- productid
 											,0 AS a3 -- groupid
 											,winlost AS a4 -- maxwinlimit
 											,actualPO AS a6 -- winamt
