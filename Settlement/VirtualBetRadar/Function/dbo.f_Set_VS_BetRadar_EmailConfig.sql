@@ -22,6 +22,7 @@ AS
 		- 20221104@Louisa: Update email address from carrie.chen@onelabe.tw to carrie.chen@onelab.tw [Redmine:#179106]
 		- 20230704@Louisa:  Update ServerName for local environment + Update domain starixsoft [Redmine:#189854]
 		- 20230907@Louisa: Add email eason.chou@onelab.tw and remove aaron.wang@onelab.tw [Redmine:#193816]
+		- 20231002@Louisa: Add email csd.one1@enpine.com for Deposite, Remove: csoneonone@enpine.com [Redmine: #194655]
 
 	Columns Explanation:    
     
@@ -138,7 +139,7 @@ RETURN (
 		SELECT 'NOTIFY'
 			, 'lena.huynh@starixsoft.com;it@starixsoft.com;dbaadmin@starixsoft.com'
 			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --credit
-			, 'martin.jr@oneworks.com;csoneonone@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
+			, 'martin.jr@oneworks.com;csd.one1@enpine.com;elwin.tsw@enpine.com;IT@cardiff-service.com;rdadmin@onelab.tw;eric.fu@onelab.tw;ariel.lin@onelab.tw;eason.chou@onelab.tw;carrie.chen@onelab.tw;sobi.chen@onelab.tw' --deposit
 			, 'DBTRANS'
 			, 'PROD'
 
