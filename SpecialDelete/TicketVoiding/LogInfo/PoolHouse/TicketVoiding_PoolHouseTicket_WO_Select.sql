@@ -17,6 +17,7 @@ AS
 	Revisions: 
 		- 20230419@Max: Create new SP [Redmine:#179934]
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
+		- 20231005@July: [TVS] Update more bet types to the PH affected bet type list [Redmine: #194095]
 
 	Param's explanation:
 
@@ -312,8 +313,7 @@ BEGIN
 			,Filterbettype
 			,FilterOdds
 		)
-	SELECT DISTINCT
-			 b.transid
+	SELECT   b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -349,9 +349,7 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN @SubIssueTypeId IN (6,120) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-				  WHEN @SubIssueTypeId IN (119,121) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
-			      WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+			,CASE WHEN f.GroupName IS NOT NULL THEN f.GroupName 
 				  ELSE 'Others' 
 			 END AS GroupName
 			,b.statusID
@@ -362,9 +360,13 @@ BEGIN
 			,b.odds
 	FROM #tmpTransInfo b WITH (NOLOCK)
 		OUTER APPLY(
-					SELECT f.GroupMatch, f.BetType
+					SELECT DISTINCT 
+						   CASE WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (6,120) AND f.BetType = 5 THEN '1X2' 
+							    WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (119,121) AND f.BetType = 15 THEN '1H X2' 
+							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = @SubIssueTypeId
+						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 					)f
 		OUTER APPLY (
 				SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
@@ -475,8 +477,7 @@ BEGIN
 					,Filterbettype
 					,FilterOdds
 			)
-			SELECT DISTINCT
-					b.transid 
+			SELECT   b.transid 
 					,b.Subtransid
 					,b.refno
 					,b.Subcustid				
@@ -536,9 +537,7 @@ BEGIN
 						  WHEN @SubIssueTypeId IN (121) AND b.Subbettype IN (8) 
 							AND b.Subbetteam = @FilterOUType 
 							AND b.Subhdp1 IN (SELECT OUValue FROM @tmpOUValue) THEN 'OU'
-						  WHEN @SubIssueTypeId IN (6,120) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-						  WHEN @SubIssueTypeId IN (119,121) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
-						  WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+						  WHEN f.GroupName IS NOT NULL THEN f.GroupName 
 						  ELSE 'Others'
 					 END AS GroupName
 					,b.SubstatusID
@@ -548,9 +547,13 @@ BEGIN
 					,b.Subodds
 		  FROM #tmpTransInfo b
 				OUTER APPLY(
-					SELECT f.GroupMatch, f.BetType
+					SELECT DISTINCT 
+						   CASE WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (6,120) AND f.BetType = 5 THEN '1X2' 
+							    WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (119,121) AND f.BetType = 15 THEN '1H X2' 
+							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType AND f.SubIssueTypeId = @SubIssueTypeId
+						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 				)f
 				OUTER APPLY (
 					SELECT FavoriteValue
@@ -598,12 +601,7 @@ BEGIN
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
 											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
-											OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
-											AND b.OddsType = 1 
-											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+									 THEN 1
 								ELSE 0 END
 					)
 					AND b.IsMixParlay = 1
@@ -631,12 +629,7 @@ BEGIN
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
 											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
-											OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
-											AND b.OddsType = 1 
-											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+									 THEN 1
 								ELSE 0 END
 						)	
 					AND b.IsMixParlay = 1
@@ -667,12 +660,7 @@ BEGIN
 					WHERE tp.OddsType = b.OddsType 
 						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
 											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
-											OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL 
-											AND b.OddsType = 1 
-											AND b.FilterOdds BETWEEN (tp.FromOdds - 1) AND (tp.ToOdds - 1) THEN 1
-									WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds BETWEEN tp.FromOdds AND ToOdds THEN 1
+									 THEN 1
 								ELSE 0 END
 					)
 				AND b.IsMixParlay = 1
@@ -692,36 +680,34 @@ BEGIN
 				WHERE tp.OddsType = b.OddsType 
 					AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds = tp.Odds)
 										OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
-										OR (b.IsMixParlay = 0 AND b.GroupName = 'PH') THEN 1
-								WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NOT NULL AND b.FilterOdds = tp.Odds THEN 1
-								WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType = 1 AND b.FilterOdds = tp.Odds - 1 THEN 1
-								WHEN b.IsMixParlay = 0 AND b.GroupName <> 'PH' AND f.BetType IS NULL AND b.OddsType <> 1 AND b.FilterOdds = tp.Odds THEN 1
+								 THEN 1
 							ELSE 0 END
 				)
 				AND b.IsMixParlay = 1
 		END
 
-		IF @ActionId NOT IN (2)
-		BEGIN
-			INSERT INTO #TransidInRequest (TransId)
-			SELECT DISTINCT tmp.transid
-			FROM #TVSTicketBets t
-				CROSS APPLY (
-							SELECT rs.TransId, rs.RequestId
-							FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
-							WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
-							UNION ALL
-							SELECT rp.MainTransId AS TransId, rp.RequestId
-							FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
-							WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
-					)tmp
-				INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-			WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2) AND t.matchid = @MatchId
+	END
 
-			DELETE FROM #TVSTicketBets 
-			WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
+	IF @ActionId NOT IN (2)
+	BEGIN
+		INSERT INTO #TransidInRequest (TransId)
+		SELECT DISTINCT tmp.transid
+		FROM #TVSTicketBets t
+			CROSS APPLY (
+						SELECT rs.TransId, rs.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_Single rs WITH (NOLOCK)
+						WHERE rs.TransId = t.transid AND rs.MatchId = t.MatchId
+						UNION ALL
+						SELECT rp.MainTransId AS TransId, rp.RequestId
+						FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay rp WITH (NOLOCK)
+						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
+				)tmp
+			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
+		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2) AND t.matchid = @MatchId
 
-		END
+		DELETE FROM #TVSTicketBets 
+		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 
+
 	END
 
 	--Return all bettype tickets

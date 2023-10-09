@@ -24,6 +24,7 @@ AS
 	Revisions: 
 		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230802@July: Fix bug - Tickets bettype HDP/OU with HDP/OU value difference filter NOT SHOW on Other group  [Redmine: #190441]
+		- 20231005@July: [TVS] Update more bet types to the PH affected bet type list [Redmine: #194095]
 
 	Param's explanation:
 
@@ -283,8 +284,7 @@ BEGIN
 			,ExtraInfo
 			,winlostdate
 		)
-	SELECT DISTINCT
-			 b.transid
+	SELECT   b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -320,9 +320,7 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN @IssueTypeId = 6 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-				  WHEN @IssueTypeId = 7 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
-			      WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+			,CASE WHEN f.GroupName IS NOT NULL THEN f.GroupName 
 				  ELSE 'Others' 
 			 END AS GroupName
 			,b.statusID
@@ -331,9 +329,13 @@ BEGIN
 			,b.winlostdate
 	FROM #tmpTransInfo b WITH (NOLOCK)
 		OUTER APPLY(
-					SELECT f.GroupMatch, f.BetType
+					SELECT DISTINCT 
+						   CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 6 AND f.BetType = 5 THEN '1X2' 
+							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 7 AND f.BetType = 15 THEN '1H X2' 
+							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
+						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 					)f
 	WHERE b.matchid = @MatchId AND b.betfrom <> 'P'  
 		AND b.liveindicator = @LiveIndicator
@@ -389,8 +391,7 @@ BEGIN
 					,ExtraInfo
 					,winlostdate
 			)
-			SELECT DISTINCT
-					b.transid 
+			SELECT   b.transid 
 					,b.Subtransid
 					,b.refno
 					,b.Subcustid				
@@ -425,9 +426,7 @@ BEGIN
 					,b.actual_stake AS ActualStake
 					,@MatchId
 					,CASE WHEN ((@IssueTypeId = 6 AND b.Subbettype = 3) OR (@IssueTypeId = 7 AND b.Subbettype = 8)) AND b.Subhdp1 IN (SELECT WrongMarket FROM @tmpWrongMarket) THEN 'OU'
-						  WHEN @IssueTypeId IN (6) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-						  WHEN @IssueTypeId IN (7) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
-						  WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+						  WHEN f.GroupName IS NOT NULL THEN f.GroupName 
 						  ELSE 'Others'
 					 END AS GroupName
 					,b.SubstatusID
@@ -435,9 +434,13 @@ BEGIN
 					,b.winlostdate
 		  FROM #tmpTransInfo b
 				OUTER APPLY(
-					SELECT f.GroupMatch, f.BetType
+					SELECT DISTINCT 
+						   CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 6 AND f.BetType = 5 THEN '1X2' 
+							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 7 AND f.BetType = 15 THEN '1H X2' 
+							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 				)f
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
