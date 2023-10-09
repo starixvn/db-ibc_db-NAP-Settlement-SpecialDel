@@ -345,7 +345,8 @@ BEGIN
 		SiteDBGroupId		SMALLINT,
 		SettlementStatus	  TINYINT,
 		eventstatus			  NVARCHAR(50),
-		SiteID				INT
+		SiteID				INT,
+		mainoddsspread 			MONEY
 	)
 
 	CREATE TABLE #SpecialDeleteBetsm (
@@ -1105,6 +1106,7 @@ BEGIN
 				,statusID
 				,matchid
 				,SiteID
+				,mainoddsspread
 			)
 			SELECT
 				b.transid,
@@ -1165,6 +1167,7 @@ BEGIN
 				,b.statusID
 				,bm.matchid
 				,b.BetSiteID
+				,b.oddsspread
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -1654,7 +1657,7 @@ BEGIN
 					FROM	#SpecialDeleteBets t
 					WHERE	bettype = 29  AND matchid = @MatchId
 						AND t.betteam = '1' -- mix parlay
-						AND t.oddsspread = 2 -- offer parlay bonus
+						AND t.mainoddsspread = 2 -- offer parlay bonus
 						AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.bettransm bm WITH(NOLOCK) WHERE t.refno = bm.refno AND ISNULL(bm.statuswinlost,0) IN (4,0)) -- lose/running
 
 					UPDATE si 
