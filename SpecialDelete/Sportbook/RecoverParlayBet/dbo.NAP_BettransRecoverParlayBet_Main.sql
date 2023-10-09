@@ -593,7 +593,7 @@ BEGIN
 				,Status     
 				,WinLost - stake AS WinLost    
 				,betid      
-				,BetTeam    
+				,b.BetTeam    
 				,livehomescore    
 				,liveawayscore    
 				,Stake     
