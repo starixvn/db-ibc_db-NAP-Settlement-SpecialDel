@@ -268,17 +268,16 @@ BEGIN
 		INSERT INTO @tmpBoostSite(SiteId, srecommend )
 		SELECT DISTINCT SiteID, srecommend
 		FROM	#tmpMainTransId t
-			OUTER APPLY (
-							SELECT TOP 1 transid
-							FROM dbo.bettransm bm WITH(NOLOCK) 
-							WHERE t.refno = bm.refno
-								AND ISNULL(bm.statuswinlost,0) IN (4,0) -- lose/running
-								AND NOT EXISTS (SELECT TOP 1 1 FROM #tmpSubTransId m WHERE m.TransId = bm.TransId)
-						)bm
 		WHERE	matchid = @MatchId
 			AND t.betteam = '1' -- mix parlay
 			AND t.oddsspread = 2 -- offer parlay bonus
-			AND bm.TransId IS NULL
+			AND NOT EXISTS (SELECT 	TOP 1 1 
+									FROM 	dbo.bettransm bm WITH(NOLOCK) 
+									WHERE 	t.refno = bm.refno 
+											AND (ISNULL(bm.statuswinlost,0) = 4 
+												OR bm.statusId = 0
+											)
+							) -- lose/running
 
 		UPDATE si 
 		SET IsDeposit = 1
