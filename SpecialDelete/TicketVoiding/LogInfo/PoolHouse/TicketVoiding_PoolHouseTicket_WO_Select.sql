@@ -155,7 +155,11 @@ BEGIN
 	  ,WalletType			TINYINT
 	  ,RefCode				BIGINT
 	)
-	
+	CREATE TABLE #tmpBettype (
+		 Id            INT
+		,GroupName	   VARCHAR(50) 
+    )
+
 	SET @WrongOddsInfoXML = CONVERT(XML, @WrongOddsInfo)
 	SELECT @MatchId = t.c.value('@MatchId','INT')
 			,@FilterFromTransTime = CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END 
@@ -178,6 +182,12 @@ BEGIN
 
 	DECLARE @tmpFavoriteValue TABLE (FavoriteValue SMALLMONEY)
 	DECLARE @tmpOUValue TABLE (OUValue SMALLMONEY)
+	DECLARE @tmpConsolidatedBettypes TABLE (parentid INT, typeid INT PRIMARY KEY)
+
+	INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
+    SELECT f.GroupTypeId AS parentid
+		 , f.Bettype AS typeid
+    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -360,14 +370,14 @@ BEGIN
 			,b.odds
 	FROM #tmpTransInfo b WITH (NOLOCK)
 		OUTER APPLY(
-					SELECT DISTINCT 
-						   CASE WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (6,120) AND f.BetType = 5 THEN '1X2' 
-							    WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (119,121) AND f.BetType = 15 THEN '1H X2' 
-							    ELSE 'AIO' END AS GroupName
-					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
-					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = @SubIssueTypeId
-						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
-					)f
+				SELECT DISTINCT 
+						CASE WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (6,120) AND f.BetType = 5 THEN '1X2' 
+							WHEN f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 AND @SubIssueTypeId IN (119,121) AND f.BetType = 15 THEN '1H X2' 
+							ELSE 'AIO' END AS GroupName
+				FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
+				WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType AND f.SubIssueTypeId = @SubIssueTypeId
+					AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
+		)f
 		OUTER APPLY (
 				SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
 				FROM STRING_SPLIT(@FavoriteValue, '&')
@@ -599,8 +609,8 @@ BEGIN
 					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
-						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
-											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+						AND 1 = CASE WHEN (b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
+										OR b.Subbettype NOT IN (1,3,7,8)
 									 THEN 1
 								ELSE 0 END
 					)
@@ -627,8 +637,8 @@ BEGIN
 					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 				WHERE EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
-						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
-											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+						AND 1 = CASE WHEN (b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
+										OR b.Subbettype NOT IN (1,3,7,8)
 									 THEN 1
 								ELSE 0 END
 						)	
@@ -658,8 +668,8 @@ BEGIN
 					LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 				WHERE NOT EXISTS (SELECT TOP 1 1 FROM cte tp
 					WHERE tp.OddsType = b.OddsType 
-						AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
-											OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+						AND 1 = CASE WHEN (b.Subbettype IN (1,3,7,8) AND b.FilterOdds BETWEEN tp.FromOdds AND tp.ToOdds) 
+										OR b.Subbettype NOT IN (1,3,7,8)
 									 THEN 1
 								ELSE 0 END
 					)
@@ -678,8 +688,8 @@ BEGIN
 				LEFT JOIN f_Set_OddsTypeBettypes() f ON f.BetType = b.Filterbettype
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM @tmp_Odds tp
 				WHERE tp.OddsType = b.OddsType 
-					AND 1 = CASE WHEN (b.IsMixParlay = 1 AND b.Subbettype IN (1,3,7,8) AND b.FilterOdds = tp.Odds)
-										OR (b.IsMixParlay = 1 AND b.Subbettype NOT IN (1,3,7,8))
+					AND 1 = CASE WHEN (b.Subbettype IN (1,3,7,8) AND b.FilterOdds = tp.Odds)
+									OR b.Subbettype NOT IN (1,3,7,8)
 								 THEN 1
 							ELSE 0 END
 				)
@@ -711,14 +721,18 @@ BEGIN
 	END
 
 	--Return all bettype tickets
-	SELECT DISTINCT s.SubBetType AS Id
-		, b.typenamee AS Name
+	INSERT INTO #tmpBettype (Id, GroupName)
+	SELECT DISTINCT ISNULL(tmp.parentid, s.SubBetType) AS Id
 		, CASE WHEN @SubIssueTypeId IN (6,120) AND s.GroupName IN ('1X2', 'OU', 'HDP') THEN '1X2' 
 			   WHEN @SubIssueTypeId IN (119,121) AND s.GroupName IN ('1H 1X2', 'OU', 'HDP') THEN '1H 1X2' 
 			   ELSE s.GroupName 
 		  END AS GroupName
 	FROM #TVSTicketBets s
-		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.SubBetType = b.typeid 
+		LEFT JOIN @tmpConsolidatedBettypes tmp ON tmp.typeid = s.SubBetType
+
+	SELECT s.Id, b.typenamee AS Name, s.GroupName
+	FROM #tmpBettype s
+		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.Id = b.typeid
 
 	--Return all PH tickets
 	SELECT s.transid
@@ -786,6 +800,7 @@ BEGIN
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #TransidInRequest
+	DROP TABLE #tmpBettype
 
 	SET NOCOUNT OFF
 END

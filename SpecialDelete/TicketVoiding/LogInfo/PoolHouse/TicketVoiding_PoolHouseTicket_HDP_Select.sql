@@ -144,10 +144,16 @@ BEGIN
 	  ,WalletType			TINYINT
 	  ,RefCode				BIGINT
 	)
+	CREATE TABLE #tmpBettype (
+		 Id            INT
+		,GroupName	   VARCHAR(50) 
+    )
+	
 	DECLARE @tmpHomeFavorite TABLE (HomeFavorite SMALLMONEY)
 	DECLARE @tmpAwayFavorite TABLE (AwayFavorite SMALLMONEY)
 	DECLARE @tmpHdpValue TABLE (HdpValue SMALLMONEY)
-
+	DECLARE @tmpConsolidatedBettypes TABLE (parentid INT, typeid INT PRIMARY KEY)
+    
 	IF @HomeFavorite IS NOT NULL
 	BEGIN
 		INSERT INTO @tmpHomeFavorite (HomeFavorite)
@@ -169,6 +175,11 @@ BEGIN
 		FROM STRING_SPLIT(@HdpValue, '&')
 		WHERE value <> ''
 	END
+	
+    INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
+    SELECT f.GroupTypeId AS parentid
+		 , f.Bettype AS typeid
+    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -561,14 +572,18 @@ BEGIN
 	END
 
 	--Return all bettype tickets
-	SELECT DISTINCT s.SubBetType AS Id
-		, b.typenamee AS Name
+	INSERT INTO #tmpBettype (Id, GroupName)
+	SELECT DISTINCT ISNULL(tmp.parentid, s.SubBetType) AS Id
 		, CASE WHEN @IssueTypeId IN (4) AND s.GroupName IN ('1X2', 'HDP') THEN '1X2' 
 			   WHEN @IssueTypeId IN (5) AND s.GroupName IN ('1H 1X2', 'HDP') THEN '1H 1X2' 
 			   ELSE s.GroupName 
 		  END AS GroupName
 	FROM #TVSTicketBets s
-		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.SubBetType = b.typeid 
+		LEFT JOIN @tmpConsolidatedBettypes tmp ON tmp.typeid = s.SubBetType
+
+	SELECT s.Id, b.typenamee AS Name, s.GroupName
+	FROM #tmpBettype s
+		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.Id = b.typeid 
 
 	--Return all PH tickets
 	SELECT s.transid
@@ -636,6 +651,7 @@ BEGIN
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #TransidInRequest
+	DROP TABLE #tmpBettype
 
 	SET NOCOUNT OFF
 END
