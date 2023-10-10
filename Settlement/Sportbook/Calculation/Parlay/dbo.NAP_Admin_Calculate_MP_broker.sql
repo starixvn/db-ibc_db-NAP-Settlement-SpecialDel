@@ -64,6 +64,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
+		- 20230810@Louisa: remove un-use code [Redmine:#188116]
 
     Param's Explanation:
         @action         @mode
@@ -182,13 +183,6 @@ BEGIN
     IF @mode = '29'
     BEGIN
         EXEC dbo.NAP_Admin_Calculate_MP_29 @matchdate = @matchdate
-            , @strXML = @strXML
-    END
-
-    IF @mode = '9'
-    BEGIN
-        EXEC dbo.NAP_Admin_Calculate_MP_9 @statusID = @statusID
-            , @winlostdate = @winlostdate
             , @strXML = @strXML
     END
 

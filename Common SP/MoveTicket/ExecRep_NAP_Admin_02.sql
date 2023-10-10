@@ -17,6 +17,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20230810@Louisa: remove un-use code [Redmine:#188116]
 
 	Param's Explanation:
 		@matchid: child matchid
@@ -168,16 +169,11 @@ BEGIN
 
 				IF @IsSiteDB = 0 AND OBJECT_ID('TicketVoiding_VoidedTransaction','U') IS NOT NULL 
 				BEGIN
-					DELETE @tmpTransInfo
-
+					
 					UPDATE	vt WITH(ROWLOCK, UPDLOCK)
 						SET MatchId = @MatchId
 						OUTPUT	inserted.transid
 							,inserted.matchid
-						INTO @tmpTransInfo (
-							transId
-							,matchid
-						)
 					FROM	@tmpTrans t
 						INNER JOIN dbo.TicketVoiding_VoidedTransaction vt
 							ON	t.TransID = vt.transId AND t.MainMatchId = vt.MatchId	
