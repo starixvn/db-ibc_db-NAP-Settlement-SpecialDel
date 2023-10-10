@@ -11,6 +11,7 @@ AS
     
     Revisions: 
 		- 20220719@Louisa: Initial [Redmine:#175251]
+		- 20230920@Aries: Remove remote query [Redmine:#194359]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -18,7 +19,6 @@ BEGIN
 	DECLARE @ResultTable		TINYINT = 0
 			,@BestOfMap			TINYINT = NULL
 
-	DECLARE @tblOddsES TABLE (ResourceID VARCHAR(20), bettype SMALLINT)
 	DECLARE @tblResource TABLE (ResourceID VARCHAR(20), RefResourceId VARCHAR(20), SettleType CHAR(3), OrdNo SMALLINT)
 
 	DECLARE @tblResult TABLE 
@@ -41,39 +41,15 @@ BEGIN
 	FROM [dbo].[match_remark] WITH (NOLOCK) 
 	WHERE matchid = @matchid  
 
-	IF (@SportType = 43 AND @SettleType = 'EAR')
-	BEGIN
-		INSERT INTO @tblOddsES (ResourceId, Bettype)
-		SELECT o.ResourceId, o.Bettype 
-		FROM dbo.OddsES o WITH(NOLOCK)
-		WHERE o.Matchid = @matchid
-			AND ISNULL(o.IsDeleted,0) = 0
-
-		INSERT INTO @tblResource (ResourceID, RefResourceId, OrdNo)
-		SELECT  DISTINCT sp.ResourceID AS ResourceID
-				,sp.RefResourceId
-				,MAX(sp.OrdNo)
-		FROM (
-			SELECT 	o.ResourceID, o.bettype
-			FROM 	@tblOddsES o
-		)o
-		INNER JOIN SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.Bettype = o.Bettype and sp.BetID = '8' + o.Resourceid 
-		WHERE sp.sporttype = @SportType
-			AND sp.Settletype = @SettleType
-			AND SUBSTRING(sp.ResourceID, 5, 2) <= @BestOfMap
-		GROUP BY sp.ResourceID, sp.RefResourceId
-	END
-	ELSE
-	BEGIN
-		INSERT INTO @tblResource (ResourceID, RefResourceId, OrdNo)
-		SELECT  DISTINCT sp.ResourceId
-				, sp.RefResourceId
-				,MAX(sp.OrdNo)
-		FROM dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK)
-		WHERE sp.sporttype = @SportType
-			AND sp.Settletype = @SettleType
-		GROUP BY sp.ResourceId, sp.RefResourceId
-	END
+	INSERT INTO @tblResource (ResourceID, RefResourceId, OrdNo)
+	SELECT  DISTINCT sp.ResourceId
+			, sp.RefResourceId
+			,MAX(sp.OrdNo)
+	FROM dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK)
+	WHERE sp.sporttype = @SportType
+		AND sp.Settletype = @SettleType
+	GROUP BY sp.ResourceId, sp.RefResourceId
+	
 
 	---INSERT for Major round if not exists
 	INSERT INTO @tblResource (ResourceID, SettleType, OrdNo)
@@ -105,7 +81,7 @@ BEGIN
 					,tbl.OrdNo
 					,tbl.SettleType
 	  		FROM @tblResource tbl
-	  			LEFT JOIN dbo.ResultDetailES rs WITH (NOLOCK)  
+	  			INNER JOIN dbo.ResultDetailES rs WITH (NOLOCK)  
 					ON tbl.ResourceID = rs.ResourceID
 		  			AND rs.matchid = @matchid
 		) tbl

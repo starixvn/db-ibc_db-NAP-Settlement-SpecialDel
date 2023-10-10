@@ -26,6 +26,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Support Mark Tickets for Cricket [Redmine:#186140]
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
+		- 20230920@Aries: Remove remote query [Redmine:#194359]
 
 	Param's explanation:  
 		
@@ -40,9 +41,7 @@ BEGIN
 		,@MinBettype		SMALLINT
 		,@MaxBettype		SMALLINT
 		,@n					INT 
-		,@remoteQuery		NVARCHAR(MAX)
 		,@strMatchIds		VARCHAR(MAX)
-		,@strEarlyBettypes	VARCHAR(MAX)
 		,@CheckDate			VARCHAR(10)
 		,@SqlCommand		VARCHAR(MAX)
 		,@IsCentral			BIT
@@ -55,7 +54,6 @@ BEGIN
 		@IsCentral = @IsCentral OUTPUT
 
 	DECLARE @tmpMatchMarked TABLE (MatchId INT, IsExistMarkedTicket BIT DEFAULT(0),PRIMARY KEY (MatchId))
-	DECLARE @tmpMatchEsport TABLE (MatchId INT)
 	DECLARE @tmpBettypeStatus TABLE(
 		MatchId				INT
 		,bettype			SMALLINT
@@ -93,12 +91,9 @@ BEGIN
 		,IsWaitingEarlyBettypes			BIT DEFAULT(0)
 		,IsExistMarkedTicket			BIT DEFAULT(0)
 		,IsExistRunningTicket			BIT DEFAULT(0)
-
-		,AutoPayoutStatus				TINYINT
 		,BestOfMap						TINYINT
 	)
-	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT, AutoPayoutStatus TINYINT)
-	DECLARE @tmpAutoPayOutResultOS TABLE ( Matchid INT, StatusId TINYINT )
+	DECLARE @tmpQueueStatus TABLE(MatchId INT, IsCalculatingSingle TINYINT, IsCalculatingMP TINYINT)
 	
 	CREATE TABLE #MatchIdList ( MatchId INT)
 	CREATE INDEX CIX_matchid ON #MatchIdList (MatchId)
@@ -111,16 +106,6 @@ BEGIN
 		INSERT INTO #MatchIdList (MatchId)
 		SELECT f.[value] from STRING_SPLIT(@MatchIds, ',') f
 	END
-
-	---- Match Auto
-	SET @remoteQuery = 'SELECT  r.matchid, MAX(r.StatusId) AS StatusId
-						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
-						WHERE ISNULL(r.SourceID,0) = 0 AND r.CreatedDate >= ''' + @CheckDate  +'''
-						GROUP BY r.MatchId
-						'
-									
-	INSERT INTO @tmpAutoPayOutResultOS (MatchId, StatusId)
-	EXECUTE sys.sp_executesql @remoteQuery
 
 	;WITH singlequeue AS (
 		SELECT	matchid, MIN(IsCalculating) AS IsCalculating
@@ -149,19 +134,6 @@ BEGIN
 	INNER JOIN #MatchIdList tmp 
 		ON q.matchid = tmp.MatchId
 	
-	MERGE @tmpQueueStatus  TARGET
-	USING (
-		SELECT ap.MatchId, ap.StatusId
-		FROM (SELECT tmp.MatchId, MAX(tmp.StatusId) AS StatusId  FROM @tmpAutoPayOutResultOS AS tmp GROUP BY MatchId) AS ap
-		INNER JOIN #MatchIdList tmp
-			ON ap.matchid = tmp.MatchId
-		) AS SOURCE ON TARGET.MatchId = SOURCE.matchid
-	WHEN MATCHED THEN
-		UPDATE SET AutoPayoutStatus = SOURCE.statusid
-	WHEN NOT MATCHED BY TARGET THEN
-		INSERT (MatchId, AutoPayoutStatus)
-		VALUES (SOURCE.MatchId, SOURCE.statusid);
-	
 	SELECT	@minBettype = MIN(bettype)
 			,@maxBettype = MAX(bettype)
 	FROM	dbo.f_Set_GetEarlyBettypes()
@@ -186,7 +158,6 @@ BEGIN
 		,settlementstatus	
 		,suspenderhalftime
 		,suspenderfulltime
-		,AutoPayoutStatus
 		,BestOfMap
 	)
 	SELECT DISTINCT	m.matchid
@@ -215,7 +186,6 @@ BEGIN
 				WHEN 0 THEN ''
 				ELSE (SELECT username FROM CustDB.dbo.custInfo WITH(NOLOCK) WHERE custid = mr.ConfirmFT)
 			END
-			,q.AutoPayoutStatus
 			,mr.BestOfMap
 	FROM  dbo.match m WITH(NOLOCK)	
 		INNER JOIN @tmpQueueStatus q
@@ -425,33 +395,6 @@ BEGIN
 				ON m.matchid = t.MatchId
 	END
 	
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchIds WHERE sporttype = 43)
-	BEGIN
-		SELECT	@strMatchIds = ''
-				,@strEarlyBettypes = ''
-				,@remoteQuery = ''
-				
-		SELECT @strEarlyBettypes = @strEarlyBettypes + CAST(bettype AS VARCHAR(20)) + ','
-		FROM	dbo.f_Set_GetEarlyBettypes()
-
-		SELECT @strMatchIds = @strMatchIds + CAST(MatchId AS VARCHAR(20)) + ','
-		FROM	@tmpMatchIds
-		WHERE	sporttype = 43
-		
-		SELECT	@strEarlyBettypes = LEFT(@strEarlyBettypes,LEN(@strEarlyBettypes) - 1)
-				,@strMatchIds = LEFT(@strMatchIds, LEN(@strMatchIds) - 1)
-				
-		SET @remoteQuery = 'SELECT	DISTINCT o.matchid 
-							FROM	DBPRO.bodb02.dbo.oddsES o WITH(NOLOCK)
-							WHERE	o.matchid IN (' + @strMatchIds + ')
-									AND bettype IN (' + @strEarlyBettypes + ')
-									AND o.sporttype = 43'
-									
-		INSERT INTO @tmpMatchEsport (MatchId)
-		EXECUTE sys.sp_executesql @remoteQuery
-
-	END
-	
 	SELECT	tmp.MatchId
 			,tmp.Sporttype
 			,tmp.EventStatus
@@ -473,16 +416,12 @@ BEGIN
 			,tmp.suspenderhalftime
 			,tmp.suspenderfulltime
 			,tmp.IsExistEarlyBettypes
-			,CASE WHEN me.matchid IS NOT NULL THEN 1 ELSE 0 END AS IsOpenOdds 
 			,tmp.IsRunningEarlyBettypes
 			,tmp.IsWaitingEarlyBettypes
 			,tmp.IsExistRunningTicket
 			,tmp.IsExistMarkedTicket
-			,tmp.AutoPayoutStatus
 			,tmp.BestOfMap
 	FROM	@tmpMatchIds tmp
-		LEFT JOIN @tmpMatchEsport me
-			ON tmp.MatchId = me.MatchId
 
 	DROP TABLE #tmpMarkedTransaction
 
