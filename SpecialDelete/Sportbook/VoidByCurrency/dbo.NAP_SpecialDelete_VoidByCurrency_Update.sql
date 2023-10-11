@@ -1155,7 +1155,7 @@ BEGIN
 					AND NOT EXISTS (SELECT 	TOP 1 1 
 									FROM 	dbo.bettransm bm WITH(NOLOCK) 
 									WHERE 	t.refno = bm.refno 
-											AND (ISNULL(bm.statuswinlost,0) = 4 
+											AND ((ISNULL(bm.statuswinlost,0) = 4 AND bm.statusID = 113)
 												OR bm.statusId = 0
 											)
 							) -- lose/running
