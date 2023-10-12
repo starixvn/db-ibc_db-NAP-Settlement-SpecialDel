@@ -469,7 +469,13 @@ BEGIN
 			WHERE	bettype = 29  AND matchid = @MatchId
 				AND t.betteam = '1' -- mix parlay
 				AND t.oddsspread = 2 -- offer parlay bonus
-				AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.bettransm bm WITH(NOLOCK) WHERE t.refno = bm.refno AND ISNULL(bm.statuswinlost,0) IN (4,0)) -- lose/running
+				AND NOT EXISTS (SELECT 	TOP 1 1 
+									FROM 	dbo.bettransm bm WITH(NOLOCK) 
+									WHERE 	t.refno = bm.refno 
+											AND ((ISNULL(bm.statuswinlost,0) = 4 AND bm.statusID = 113)
+												OR bm.statusId = 0
+											)
+							) -- lose/running
 
 			UPDATE si 
 			SET IsDeposit = 1
