@@ -26,7 +26,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
-		
+		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId="" AATime="" PATime="" SATime=""/></root>
@@ -78,7 +78,8 @@ BEGIN
 			SubIssueTypeId		  SMALLINT,
 			FilterBy			  TINYINT,
 			IsCancelCashOut		  BIT,
-			CheckTimeCashOut	  DATETIME
+			CheckTimeCashOut	  DATETIME,
+			liveindicator		  BIT
 	)
 
 	CREATE TABLE #logInfo (
@@ -492,6 +493,7 @@ BEGIN
 			,FilterBy
 			,IsCancelCashOut
 			,CheckTimeCashOut
+			,liveindicator
 		)
 	SELECT   b.transid
 			,b.SubTransID
@@ -521,6 +523,7 @@ BEGIN
 							ELSE 0 END
 				  END AS IsCancelCashOut
 			,b.CheckTimeCashOut
+			,b.liveindicator
 	FROM #tmpTransInfo b
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -568,6 +571,7 @@ BEGIN
 				,FilterBy
 				,IsCancelCashOut
 				,CheckTimeCashOut
+				,liveindicator
 			)
 		SELECT   b.transid AS TransId
 				,b.SubTransID
@@ -594,6 +598,7 @@ BEGIN
 				,d.FilterBy
 				,0 AS IsCancelCashOut
 				,NULL AS CheckTimeCashOut
+				,b.liveindicator
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON b.matchid = d.MatchId AND b.IsMixParlay = 1 
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
@@ -702,6 +707,13 @@ BEGIN
 				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1
 				GROUP BY b.matchid
 			)b
+	END
+
+	--Not display Score in message template when voiding non-live tickets only [193108]
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE liveindicator = 1)
+	BEGIN
+		UPDATE l SET l.LiveScores = ''
+		FROM #logInfo l
 	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0

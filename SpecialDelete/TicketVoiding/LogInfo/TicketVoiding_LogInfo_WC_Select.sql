@@ -27,6 +27,7 @@ AS
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230718@Max: WrongScore - Not show data on Void Page - Betlist. [Redmine: #191360]
 		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
+		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
 		
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -719,6 +720,13 @@ BEGIN
 				WHERE li.MatchId = b.matchid AND b.IsCancelCashOut = 1 AND li.ScoreId = b.ScoreId
 				GROUP BY b.matchid, b.ScoreId
 			)b
+	END
+
+	--Not display Score in message template when voiding non-live tickets only [193108]
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE liveindicator = 1)
+	BEGIN
+		UPDATE l SET l.LiveScores = ''
+		FROM #logInfo l
 	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
