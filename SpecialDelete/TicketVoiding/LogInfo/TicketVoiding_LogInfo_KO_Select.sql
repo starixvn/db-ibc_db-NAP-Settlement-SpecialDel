@@ -19,6 +19,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:
 	+ @KickOffInfo: 
@@ -29,18 +30,22 @@ BEGIN
 
 	DECLARE  @IsExistedInOtherRequest BIT = 0
 			,@KickOffInfoXML		  XML = NULL	
-			,@MatchId			      INT
-			,@KickOffTime		      DATETIME = NULL
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
 			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
+	
+	CREATE TABLE #FilterInfo (
+		 MatchId				INT
+		,KickOffTime			DATETIME
+	)
 
 	SET @KickOffInfoXML = CONVERT(XML, @KickOffInfo)
-	SELECT @MatchId = t.c.value('@MatchId','INT') 
-		  ,@KickOffTime = t.c.value('@KickOffTime','DATETIME')
+	INSERT INTO #FilterInfo (MatchId, KickOffTime)
+	SELECT  t.c.value('@MatchId','INT')
+		   ,t.c.value('@KickOffTime','DATETIME')
 	FROM @KickOffInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@KickOffInfoXML = NULL))
+	OPTION (OPTIMIZE FOR (@KickOffXML = NULL)) 
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -244,8 +249,9 @@ BEGIN
 			,b.Subbettype
 			,b.SiteDBGroupID
 	FROM #tmpTransInfo b
+		INNER JOIN #FilterInfo f ON b.matchid = f.MatchId
 	WHERE	b.IsMixParlay = 0
-			AND b.transdate >= @KickOffTime
+			AND b.transdate >= f.KickOffTime
 			AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
@@ -288,14 +294,15 @@ BEGIN
 				,b.Subbettype
 				,SiteDBGroupID
 		FROM #tmpTransInfo b	
+			INNER JOIN #FilterInfo f ON b.matchid = f.MatchId
 		WHERE	b.IsMixParlay = 1 
-		        AND b.Subtransdate >= @KickOffTime
+		        AND b.Subtransdate >= f.KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
 				AND b.liveindicator = 0 AND b.Subliveindicator = 0
 				AND b.Subbetfrom <> 'P'
-				AND b.transdate >= @KickOffTime
+				AND b.transdate >= f.KickOffTime
 				AND b.statusID NOT IN (101, 102, 103)
 	END 
 
@@ -528,10 +535,10 @@ BEGIN
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
+	DROP TABLE #FilterInfo
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tmpTransInfo
-
 END
 GO
 

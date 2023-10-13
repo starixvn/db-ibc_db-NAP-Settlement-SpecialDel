@@ -15,6 +15,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		
 	Param's explanation:	
 		- @KickOffInfo: <root><r MatchId="" KickOffTime=""/></root>
@@ -23,9 +24,7 @@ AS
 BEGIN
 	SET NOCOUNT ON	
 
-	DECLARE @KickOffXML		XML
-		   ,@MatchId		INT
-		   ,@KickOffTime	DATETIME
+	DECLARE @KickOffInfoXML	XML
 		   ,@TransInfoJson	VARBINARY(MAX)
 		   ,@SiteDBGroupID	SMALLINT
 
@@ -90,22 +89,27 @@ BEGIN
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
     )
+	
+	CREATE TABLE #FilterInfo (
+		 MatchId				INT
+		,KickOffTime			DATETIME
+	)
 
-	SET @KickOffXML = CONVERT(XML, @KickOffInfo)
+	SET @KickOffInfoXML = CONVERT(XML, @KickOffInfo)
+	INSERT INTO #FilterInfo (MatchId, KickOffTime)
+	SELECT  t.c.value('@MatchId','INT')
+		   ,t.c.value('@KickOffTime','DATETIME')
+	FROM @KickOffInfoXML.nodes('root/r') t(c)
+	OPTION (OPTIMIZE FOR (@KickOffInfoXML = NULL)) 
 
-	SELECT @MatchId = t.c.value('@MatchId','INT')
-			,@KickOffTime = t.c.value('@KickOffTime','DATETIME')
-	FROM @KickOffXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@KickOffXML = NULL)) 
-
-	DECLARE @tmpMatchId TABLE (MatchId INT, ParentId INT, ChildMatchType INT, Sporttype INT)
-	INSERT INTO @tmpMatchId (MatchId, ParentId, ChildMatchType, Sporttype)
-	SELECT MatchId, ParentId, ChildMatchType, Sporttype
-	FROM dbo.match WITH(NOLOCK)
-	WHERE  1 = CASE WHEN sporttype <> 50 AND matchid = @MatchId THEN 1
-				    WHEN sporttype = 50 AND (matchid = @MatchId OR ParentID = @MatchId) THEN 1
+	DECLARE @tmpMatchId TABLE (MatchId INT, ParentId INT, ChildMatchType INT, Sporttype INT, KickOffTime DATETIME)
+	INSERT INTO @tmpMatchId (MatchId, ParentId, ChildMatchType, Sporttype, KickOffTime)
+	SELECT m.MatchId, m.ParentId, m.ChildMatchType, m.Sporttype, f.KickOffTime
+	FROM dbo.match m WITH(NOLOCK)
+		INNER JOIN #FilterInfo f ON m.matchid = f.MatchId
+	WHERE  1 = CASE WHEN m.sporttype <> 50 AND m.matchid = f.MatchId THEN 1
+				    WHEN m.sporttype = 50 AND (m.matchid = f.MatchId OR m.ParentID = f.MatchId) THEN 1
 					ELSE 0 END
-		
 
 	--Search single tickets
 	INSERT INTO #TransInfo(
@@ -228,7 +232,7 @@ BEGIN
 		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.betfrom <> 'P'
-		AND b.transdate >= @KickOffTime
+		AND b.transdate >= m.KickOffTime
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	--Search sub-parlay
@@ -363,8 +367,8 @@ BEGIN
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
-			AND sub.transdate >= @KickOffTime
-			AND b.transdate >= @KickOffTime
+			AND sub.transdate >= m.KickOffTime
+			AND b.transdate >= m.KickOffTime
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END
 
@@ -440,6 +444,7 @@ BEGIN
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson, 1) AS TransInfoJson
 	
+	DROP TABLE #FilterInfo
 	DROP TABLE #TransInfo
 END
 
