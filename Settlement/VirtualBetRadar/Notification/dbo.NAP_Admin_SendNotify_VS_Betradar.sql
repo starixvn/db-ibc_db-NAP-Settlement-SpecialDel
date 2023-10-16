@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_SendNotify_VS_Betradar] 
 	@MatchId			INT 
 	,@notifyAction		INT
@@ -13,6 +13,7 @@ AS
 	
 	Revisions:
 		- 20170712@Bobby: Initialize
+		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
 		
 	Param's Explanation:
 		- @notifyAction: [@ActionId:187-RE-SETTLE;@ActionId:188-REFUND]

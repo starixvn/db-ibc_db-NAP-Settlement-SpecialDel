@@ -19,6 +19,7 @@ AS
 	
 	Revisions:
 		- 20220719@Louisa: Validation before settle 3rd [Redmine:#175251]
+		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
 
 	Param's Explanation:
 		@Action: CAL, REFUND,			
@@ -167,26 +168,6 @@ BEGIN
 				,@ErrMsg	= 'The input score values are not valid!'	
 		RETURN
 	END
-
-	--start check match in queue
-	IF EXISTS (
-        SELECT	1
-        FROM	dbo.Single_Calculate_Queue_VS WITH (NOLOCK)
-        WHERE	matchid = @matchid
-				AND IsCalculating IN (0, 1)
-        )
-    OR EXISTS (
-        SELECT	1
-        FROM	dbo.Parlay_Calculate_Queue_VS WITH (NOLOCK)
-        WHERE	matchid = @matchid
-				AND IsCalculating IN (0, 1)
-        )
-	BEGIN
-		SELECT	@ErrCode = 1001004
-				,@ErrMsg    = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
-		RETURN
-	END
-	--/end check match in queue
 
 END
 GO

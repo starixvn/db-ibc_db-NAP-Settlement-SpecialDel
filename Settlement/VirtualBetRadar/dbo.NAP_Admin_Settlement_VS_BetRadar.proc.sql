@@ -27,6 +27,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
 		
 	Param's Explanation:
 		- @Hth: Total score which home team scored in Half Time(HT)
@@ -52,9 +53,7 @@ BEGIN
 		RETURN
 	END
 	
-	DECLARE @Start				DATETIME
-			,@Stop				DATETIME
-			,@Remark			VARCHAR(500)
+	DECLARE  @Remark			VARCHAR(500)
 			,@TicketCount		INT
 			,@ActionId			INT
 			,@avaiableProcess	BIT
@@ -78,8 +77,7 @@ BEGIN
 	
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 		
-	SELECT @Start 				= CURRENT_TIMESTAMP
-		, @ErrCode				= 0
+	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
 		, @procName				= OBJECT_NAME(@@PROCID)
 	
@@ -187,65 +185,10 @@ BEGIN
 				,@ErrMsg			= @ErrMsg OUTPUT
 	END
 	
-	IF(@ErrCode > 0) RETURN
-			
-	--CHECK for queueing parlay calculation
-	IF(@IsCalParlay = 1 AND @IsQueued = 1)
-	BEGIN
-		BEGIN TRY
-			INSERT INTO dbo.Parlay_Calculate_Queue_VS (matchid, isCalculating, creator, ip, starttime, action, actionId, SingleKeyId)
-			SELECT @matchid, 0, @AdminId, @IP, CURRENT_TIMESTAMP, @Action, @actionId, @KeyId
-			
-		END TRY
-		BEGIN CATCH
-			SELECT @ErrCode	= ERROR_NUMBER()
-				, @ErrMsg 	= 'NAP: VS Betradar - Error: Settlement single inserted parlay queue failed.' + ERROR_MESSAGE()
-			
-		END CATCH
-		
-	END
-	
-	
-	-------------------------------------------------------------
-	---                      WRITE LOG                        ---
-	---------------------------VVVV------------------------------
-	SELECT @stop = CURRENT_TIMESTAMP
-	
-	--RESET scores values
-	SELECT @fth = NULL
-		,@fta 	= NULL
-		,@hth 	= NULL
-		,@hta	= NULL
-	WHERE @Action = 'REFUND'
-	
-	SELECT @Remark = 'VS BetRadar - Calculate (' + @Action + ')' 
-					+ ' Scores: FT=[' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10))+'] ; HT=[' + CAST(ISNULL(@hth, 0) AS NVARCHAR(10)) + '-' + CAST(ISNULL(@hta, 0) AS NVARCHAR(10))+']'
-					+  CASE WHEN @sportType = 193 THEN ' Resource Results: ' + @ResourceResult ELSE '' END
-					+ ' Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms;' 
-					+ ' TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-					+ ' Bal:' + CAST(IsNull(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-	IF @IsCentral = 1
-	BEGIN
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-			@UserID				= @AdminId
-			,@Matchid			= @matchid
-			,@ActionID			= @ActionID
-			,@finalhomescore	= @fth
-			,@finalawayscore	= @fta
-			,@hthomescore		= @hth
-			,@htawayscore		= @hta
-			,@GoalRecord		= NULL
-			,@betstatus			= NULL
-			,@Remark			= @Remark
-			,@IP				= @IP
-	END
-	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
 		, @IsReleased		= 1
 	
 	DROP TABLE #tblMatchProcess
-	
-	RETURN
 END
 GO
