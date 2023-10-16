@@ -40,6 +40,7 @@ AS
 		- 20230522@July: Manage Request - Add more columns to the export excel template [Redmine:#188153]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:	
 		@Status: 
@@ -468,7 +469,7 @@ BEGIN
 			,t.TotalUserName --no.of accounts
 			,t.WrongScores
 			,mr.SettlementStatus
-			,CASE WHEN t.IssueTypeId IN (1,10,3) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
+			,CASE WHEN t.IssueTypeId IN (1,10,3,8,9) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 	FROM	#tmpResult t
 		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
