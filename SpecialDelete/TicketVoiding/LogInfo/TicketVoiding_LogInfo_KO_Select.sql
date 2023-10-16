@@ -45,7 +45,7 @@ BEGIN
 	SELECT  t.c.value('@MatchId','INT')
 		   ,t.c.value('@KickOffTime','DATETIME')
 	FROM @KickOffInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@KickOffXML = NULL)) 
+	OPTION (OPTIMIZE FOR (@KickOffInfoXML = NULL)) 
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
