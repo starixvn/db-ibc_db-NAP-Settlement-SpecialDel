@@ -342,7 +342,7 @@ BEGIN
 		OUTER APPLY(
 					SELECT DISTINCT 
 						   CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 6 AND f.BetType = 5 THEN '1X2' 
-							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 7 AND f.BetType = 15 THEN '1H X2' 
+							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 7 AND f.BetType = 15 THEN '1H 1X2' 
 							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
@@ -447,7 +447,7 @@ BEGIN
 				OUTER APPLY(
 					SELECT DISTINCT 
 						   CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 6 AND f.BetType = 5 THEN '1X2' 
-							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 7 AND f.BetType = 15 THEN '1H X2' 
+							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 7 AND f.BetType = 15 THEN '1H 1X2' 
 							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
