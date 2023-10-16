@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker] 
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_broker]    
     @matchid INT = NULL
     ,@mode VARCHAR(30) = NULL
     ,@priorAction VARCHAR(20) = NULL

@@ -34,7 +34,7 @@ AS
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230316@Kathy: Using index hint [Redmine:#185088]
-		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
+		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]   
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled

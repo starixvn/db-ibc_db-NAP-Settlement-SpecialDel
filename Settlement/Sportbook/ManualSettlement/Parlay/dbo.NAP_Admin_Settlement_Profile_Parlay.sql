@@ -18,7 +18,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@ErrCode				INT				= 0	OUTPUT
 	,@ErrMsg 				NVARCHAR(200)	= '' OUTPUT
 AS
-/*  Creator: 20210514@Kathy
+/*  Creator: 20210514@Kathy      
 	Task: Settlement Parlay for sport in profile
 	DB: DBTXN/BODB02
 

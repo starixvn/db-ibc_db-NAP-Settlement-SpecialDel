@@ -1,6 +1,6 @@
 /*<info serverAlias="DBCTG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Bet_ExecRep_NAP_Admin_01] 
-	@SiteDBGroupId SMALLINT
+	@SiteDBGroupId SMALLINT     
 	,@SessionId BIGINT = NULL
 	,@MessageType VARCHAR(200) = ''
 	,@TransInfo	XML = NULL

@@ -22,7 +22,7 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 
 	Param's Explanation:
-*/
+*/     
 BEGIN
 	SET NOCOUNT ON
 	
