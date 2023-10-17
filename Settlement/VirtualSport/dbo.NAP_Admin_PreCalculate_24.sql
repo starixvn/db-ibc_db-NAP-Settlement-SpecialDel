@@ -272,7 +272,12 @@ BEGIN
 
 		SET @TotalTransMaxPO = @TotalTransMaxPO - @batchPO
 
-		EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
-			@XmlData = @TransInfoMaxPO
+		BEGIN TRY
+			EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
+				@XmlData = @TransInfoMaxPO
+		END TRY
+		BEGIN CATCH
+			RETURN		
+		END CATCH
 	END
 END
