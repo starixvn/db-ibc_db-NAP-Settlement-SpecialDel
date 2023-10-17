@@ -510,6 +510,17 @@ BEGIN
 		
 	END CATCH
 
+	-- Settlement balance process
+	IF(@IsBalance = 1 AND LEN(@balanceAcc) > 0)
+	BEGIN
+		EXEC dbo.NAP_Admin_Settlement_BalanceProcess
+			@BalanceAcc				= @balanceAcc
+			, @BalanceType			= @BalanceType
+			, @actionId				= @actionId
+			, @MatchID				= @MatchID
+			, @GroupID				= @GroupID		
+	END
+
 	-- notify
 	WHILE (@TotalTransMaxPO > 0)
 	BEGIN
@@ -558,21 +569,16 @@ BEGIN
 		END
 
 		SET @TotalTransMaxPO = @TotalTransMaxPO - @batchPO
-
-		EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
-			@XmlData = @TransInfoMaxPO
+		BEGIN TRY
+			EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
+				@XmlData = @TransInfoMaxPO
+		END TRY
+		BEGIN CATCH
+			SELECT	 @ErrCode = ERROR_NUMBER()
+					,@ErrMsg = ERROR_MESSAGE()				
+		END CATCH
 	END
 	
-	-- Settlement balance process
-	IF(@IsBalance = 1 AND LEN(@balanceAcc) > 0)
-	BEGIN
-		EXEC dbo.NAP_Admin_Settlement_BalanceProcess
-			@BalanceAcc				= @balanceAcc
-			, @BalanceType			= @BalanceType
-			, @actionId				= @actionId
-			, @MatchID				= @MatchID
-			, @GroupID				= @GroupID		
-	END
 	
 	DROP TABLE #TempData
 	DROP TABLE #tblMatchResult

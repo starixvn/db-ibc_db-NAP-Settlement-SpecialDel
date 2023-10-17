@@ -471,6 +471,17 @@ BEGIN
 	INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, strXML,  doing)
 	VALUES (@matchid, @runcnt, @tstime, CURRENT_TIMESTAMP, @strTransIds, 'end updating bettrans 2799_cal')
 
+	-- Settlement balance process
+	IF(@IsBalance = 1)
+	BEGIN
+		EXEC dbo.NAP_Admin_Settlement_BalanceProcess
+			@BalanceAcc				= @balanceAcc
+			, @BalanceType			= @BalanceType
+			, @actionId				= @actionId
+			, @MatchID				= @MatchID
+			, @GroupID				= @GroupID		
+	END
+
 	-- notify
 	WHILE (@TotalTransMaxPO > 0)
 	BEGIN
@@ -519,20 +530,14 @@ BEGIN
 		END
 
 		SET @TotalTransMaxPO = @TotalTransMaxPO - @batchPO
-
-		EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
-			@XmlData = @TransInfoMaxPO
-	END
-	
-	-- Settlement balance process
-	IF(@IsBalance = 1)
-	BEGIN
-		EXEC dbo.NAP_Admin_Settlement_BalanceProcess
-			@BalanceAcc				= @balanceAcc
-			, @BalanceType			= @BalanceType
-			, @actionId				= @actionId
-			, @MatchID				= @MatchID
-			, @GroupID				= @GroupID		
+		BEGIN TRY
+			EXEC DBCUST.CustDB.dbo.Task_Winlimit_InsertHistoryData
+				@XmlData = @TransInfoMaxPO
+		END TRY
+		BEGIN CATCH
+			SELECT	 @ErrCode = ERROR_NUMBER()
+					,@ErrMsg = ERROR_MESSAGE()				
+		END CATCH
 	END
 	
 	DROP TABLE #tempRefno2799
