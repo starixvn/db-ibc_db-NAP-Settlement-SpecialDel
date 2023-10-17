@@ -182,12 +182,6 @@ BEGIN
 
 	DECLARE @tmpFavoriteValue TABLE (FavoriteValue SMALLMONEY)
 	DECLARE @tmpOUValue TABLE (OUValue SMALLMONEY)
-	DECLARE @tmpConsolidatedBettypes TABLE (parentid INT, typeid INT PRIMARY KEY)
-
-	INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
-    SELECT f.GroupTypeId AS parentid
-		 , f.Bettype AS typeid
-    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -728,7 +722,6 @@ BEGIN
 			   ELSE s.GroupName 
 		  END AS GroupName
 	FROM #TVSTicketBets s
-		--LEFT JOIN @tmpConsolidatedBettypes tmp ON tmp.typeid = s.SubBetType
 
 	SELECT s.Id, b.typenamee AS Name, s.GroupName
 	FROM #tmpBettype s

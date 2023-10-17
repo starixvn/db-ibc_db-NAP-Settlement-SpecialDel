@@ -152,7 +152,6 @@ BEGIN
 	DECLARE @tmpHomeFavorite TABLE (HomeFavorite SMALLMONEY)
 	DECLARE @tmpAwayFavorite TABLE (AwayFavorite SMALLMONEY)
 	DECLARE @tmpHdpValue TABLE (HdpValue SMALLMONEY)
-	DECLARE @tmpConsolidatedBettypes TABLE (parentid INT, typeid INT PRIMARY KEY)
     
 	IF @HomeFavorite IS NOT NULL
 	BEGIN
@@ -175,11 +174,6 @@ BEGIN
 		FROM STRING_SPLIT(@HdpValue, '&')
 		WHERE value <> ''
 	END
-	
-    INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
-    SELECT f.GroupTypeId AS parentid
-		 , f.Bettype AS typeid
-    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -579,7 +573,6 @@ BEGIN
 			   ELSE s.GroupName 
 		  END AS GroupName
 	FROM #TVSTicketBets s
-		--LEFT JOIN @tmpConsolidatedBettypes tmp ON tmp.typeid = s.SubBetType
 
 	SELECT s.Id, b.typenamee AS Name, s.GroupName
 	FROM #tmpBettype s

@@ -147,7 +147,6 @@ BEGIN
 		,GroupName	   VARCHAR(50) 
     )
 
-	DECLARE @tmpConsolidatedBettypes TABLE (parentid INT, typeid INT PRIMARY KEY)
 	DECLARE @tmpWrongMarket TABLE (WrongMarket SMALLMONEY)
 	
 	IF @WrongMarket IS NOT NULL
@@ -157,11 +156,6 @@ BEGIN
 		FROM STRING_SPLIT(@WrongMarket, '&')
 		WHERE value <> ''
 	END
-	
-    INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
-    SELECT f.GroupTypeId AS parentid
-		 , f.Bettype AS typeid
-    FROM [dbo].[f_SD_GroupDisplayBettype] () f
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -492,7 +486,6 @@ BEGIN
 			   ELSE s.GroupName 
 		  END AS GroupName
 	FROM #TVSTicketBets s
-		--LEFT JOIN @tmpConsolidatedBettypes tmp ON tmp.typeid = s.SubBetType 
 
 	SELECT s.Id, b.typenamee AS Name, s.GroupName
 	FROM #tmpBettype s
