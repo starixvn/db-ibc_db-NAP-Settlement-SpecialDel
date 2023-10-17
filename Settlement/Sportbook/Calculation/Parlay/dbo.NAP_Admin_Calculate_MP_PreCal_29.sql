@@ -37,6 +37,7 @@ AS
 		- 20230316@Kathy: Using index hint [Redmine:#185088]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
+		- 20231017@Kathy: Cast all modds values return from CASE WHEN expression to DECIMAL(38,20) to avoid CONVERT_IMPLICIT with wrong datatype  [Redmine:#191873]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -385,8 +386,8 @@ BEGIN
 		,@modds = pr.modds = CAST(CASE 
 			WHEN p.loseCnt > 0 THEN 0
 			WHEN @statusID = 0 THEN 0
-			WHEN ISNULL(@ExtraValue,0) > 0 THEN (p.modds - 1) * @ExtraValue + p.modds
-			ELSE p.modds
+			WHEN ISNULL(@ExtraValue,0) > 0 THEN CONVERT(DECIMAL(38,20),(p.modds - 1) * @ExtraValue + p.modds)
+			ELSE CONVERT(DECIMAL(38,20),p.modds)
 			END AS MONEY)
 		,@commWinRate = CASE b.comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 			WHEN '0' THEN 1
