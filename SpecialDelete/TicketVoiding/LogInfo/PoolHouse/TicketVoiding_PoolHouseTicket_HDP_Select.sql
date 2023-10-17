@@ -573,13 +573,13 @@ BEGIN
 
 	--Return all bettype tickets
 	INSERT INTO #tmpBettype (Id, GroupName)
-	SELECT DISTINCT ISNULL(tmp.parentid, s.SubBetType) AS Id
+	SELECT DISTINCT s.SubBetType AS Id
 		, CASE WHEN @IssueTypeId IN (4) AND s.GroupName IN ('1X2', 'HDP') THEN '1X2' 
 			   WHEN @IssueTypeId IN (5) AND s.GroupName IN ('1H 1X2', 'HDP') THEN '1H 1X2' 
 			   ELSE s.GroupName 
 		  END AS GroupName
 	FROM #TVSTicketBets s
-		LEFT JOIN @tmpConsolidatedBettypes tmp ON tmp.typeid = s.SubBetType
+		--LEFT JOIN @tmpConsolidatedBettypes tmp ON tmp.typeid = s.SubBetType
 
 	SELECT s.Id, b.typenamee AS Name, s.GroupName
 	FROM #tmpBettype s
