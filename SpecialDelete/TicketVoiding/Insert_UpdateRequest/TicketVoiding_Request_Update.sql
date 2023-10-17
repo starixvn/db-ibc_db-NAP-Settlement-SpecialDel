@@ -70,6 +70,7 @@ AS
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230612@July: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -215,7 +216,6 @@ BEGIN
 					,@IssueTypeId	 = @IssueTypeId	
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
-					,@SubIssueTypeId = @SubIssueTypeId
 					,@KickOffInfo	 = @KickOffInfo
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest	
