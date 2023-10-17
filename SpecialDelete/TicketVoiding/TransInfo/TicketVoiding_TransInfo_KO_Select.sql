@@ -229,10 +229,14 @@ BEGIN
 		,b.modds 
 		,b.SiteDBGroupID
 	FROM dbo.bettrans b WITH (NOLOCK)
-		INNER JOIN @tmpMatchId m ON b.matchid = m.MatchId
+		CROSS APPLY (
+			SELECT TOP 1 matchid 
+			FROM @tmpMatchId m 
+			WHERE m.MatchId = b.matchid
+				AND b.transdate >= m.KickOffTime
+		)m
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.betfrom <> 'P'
-		AND b.transdate >= m.KickOffTime
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	--Search sub-parlay
@@ -362,13 +366,17 @@ BEGIN
 			,sub.SiteDBGroupID
 		FROM dbo.bettransm sub WITH (NOLOCK)
 			INNER HASH JOIN bettrans AS b WITH (NOLOCK) ON b.refno = sub.refno	
-			INNER JOIN @tmpMatchId m ON sub.matchid = m.MatchId
+			CROSS APPLY (
+				SELECT TOP 1 matchid 
+				FROM @tmpMatchId m 
+				WHERE m.MatchId = sub.matchid
+					AND sub.transdate >= m.KickOffTime
+					AND b.transdate >= m.KickOffTime
+			)m
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.betfrom <> 'P'
 			AND b.matchid = 29
 			AND b.bettype = 29
-			AND sub.transdate >= m.KickOffTime
-			AND b.transdate >= m.KickOffTime
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 	END
 
