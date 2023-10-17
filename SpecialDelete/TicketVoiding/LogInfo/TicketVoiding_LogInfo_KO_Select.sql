@@ -28,8 +28,7 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE  @IsExistedInOtherRequest BIT = 0
-			,@KickOffInfoXML		  XML = NULL	
+	DECLARE  @KickOffInfoXML		  XML = NULL	
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
@@ -64,6 +63,12 @@ BEGIN
 			SubStatusId			  TINYINT,
 			SiteDBGroupID		  SMALLINT,
 	)
+
+	DECLARE @Validation AS TABLE (
+			 IsInValidTotalTickets   BIT DEFAULT(0) 
+			,IsExistedInOtherRequest BIT DEFAULT(0) 
+			,MatchId                 INT
+		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 
@@ -218,6 +223,11 @@ BEGIN
 		) tbl
 	WHERE f.value <> ''
 
+	--Init Validation
+	INSERT INTO @Validation (MatchId)
+	SELECT MatchId
+	FROM #FilterInfo
+
 	INSERT INTO #TVSTicketBets(
 			transid		
 			,SubTransid		
@@ -326,7 +336,9 @@ BEGIN
 
 		IF @@ROWCOUNT <> 0
 		BEGIN
-			SELECT @IsExistedInOtherRequest = 1
+			UPDATE v SET v.IsExistedInOtherRequest = 1
+			FROM @Validation v
+			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
 		END
 		
 		--Remove Transid exists in other request
@@ -338,7 +350,8 @@ BEGIN
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		-- 1. Validate table
-		SELECT  @IsExistedInOtherRequest AS IsExistedInOtherRequest
+		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest
+		FROM @Validation
 
 		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
@@ -444,7 +457,10 @@ BEGIN
 
 	/*****************Return table **************************/
 	-- 1. Validate table
-	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
+	SELECT MatchId
+		, IsInValidTotalTickets
+		, IsExistedInOtherRequest
+	FROM @Validation
 		  
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
