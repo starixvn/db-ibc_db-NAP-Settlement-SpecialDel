@@ -1,9 +1,10 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_PreCal_29] 
 	@matchid	INT
 	,@matchdate SMALLDATETIME
 	,@strXML	VARCHAR(MAX) = NULL
 	,@IsReSettledTickets BIT = 0
+	,@strSetting VARCHAR(MAX) = NULL
 AS
 /*
 	Created: Viet
@@ -35,12 +36,18 @@ AS
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230316@Kathy: Using index hint [Redmine:#185088]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
+		- 20230816@Kathy: parlay boost [Redmine:#191873]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
 		+ @matchdate eventdate of the match
-	
-	Notes: Below is used to calculate odds before CLR Function used 
+		+ @strSetting: 
+			[{"s":"40","v":[{"o":4,"b":0.0300},{...},{"o":250,"b":0.3000}]},{"s":"41","v":[{"o":4,"b":0.0300},{...},{"o":250,"b":0.3000}]}]
+				s: SiteId
+				v: o: OverOdds
+				   b: Boost
+		
+		Notes: Below is used to calculate odds before CLR Function used 
 			,CAST(EXP(SUM(CAST(LOG(pd.odds) AS DECIMAL(38, 20)))) as MONEY) as odds
 			,CAST(EXP(SUM(CAST(LOG(
 				case pd.statuswinlost
@@ -87,7 +94,10 @@ BEGIN
 	-- END CHECK
 
 	DECLARE @xml XML
+			,@ExtraValue MONEY
+			
 	DECLARE @transIDs AS TABLE(transid BIGINT primary key)
+	DECLARE @tmpSetting AS TABLE (SiteId INT, FromOdds DECIMAL(9,4), ToOdds DECIMAL(9,4), Boost TINYINT, isFirstOdds BIT DEFAULT(0), isLastOdds BIT DEFAULT(0))
 
 	SET @XML = N'<root><r>' + REPLACE(@strXML, ',', '</r><r>') + '</r></root>'
 	
@@ -95,6 +105,22 @@ BEGIN
 	SELECT r.value('.','BIGINT')
 	FROM @xml.nodes('//root/r') AS RECORDS(r)
 	OPTION (OPTIMIZE FOR (@xml = NULL))
+	
+	INSERT INTO @tmpSetting(SiteId, FromOdds, ToOdds, Boost, isFirstOdds, isLastOdds)
+	SELECT	s.SiteId
+			,OverOdds AS FromOdds
+			,LEAD(OverOdds) OVER(PARTITION BY SiteID ORDER BY SiteId, OverOdds) AS ToOdds
+			,s.Boost
+			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId, OverOdds) THEN 1 ELSE 0 END AS isFirstOdds
+			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId, OverOdds DESC) THEN 1 ELSE 0 END AS isLastOdds
+	FROM	(
+		SELECT	s AS SiteId, o AS OverOdds, b AS Boost
+		FROM	OPENJSON(@strSetting) WITH (
+			s INT '$.s'
+			,v NVARCHAR(MAX) '$.v' AS JSON
+		) 
+		CROSS APPLY OPENJSON(v) WITH (o DECIMAL(9,4) '$.o', b TINYINT '$.b')
+	) s
 
 	CREATE TABLE #temp_bettrans (
 		transid bigint NOT NULL
@@ -115,7 +141,9 @@ BEGIN
 		,eventdate SMALLDATETIME -- max(eventdate) - using for set winlostdate of running ticket
 		,selection_cnt tinyint NOT NULL ---- number of selections (bettransM count)
 		,oddsspread	money
+		,betteam NVARCHAR(10)
 		,actual_stake	money
+		,BetSiteID INT
 	)
 		
 	CREATE TABLE #tmpSource (refno BIGINT, transid BIGINT, winlostdate SMALLDATETIME, statuswinlost TINYINT, statusId TINYINT, matchid INT
@@ -157,7 +185,7 @@ BEGIN
 			,bitmapR
 			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 			,adiscount, sdiscount, comstatus
-			,oddsspread, actual_stake
+			,oddsspread, actual_stake, betteam, BetSiteID
 		)
 		SELECT	[transid], [refno], [stake]
 				,CASE 
@@ -170,7 +198,7 @@ BEGIN
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus
-				,ISNULL(oddsspread, 0), actual_stake
+				,ISNULL(oddsspread, 0), actual_stake, betteam, BetSiteID
 		FROM	dbo.bettrans WITH(NOLOCK, INDEX = PK_bettrans)
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID NOT IN (101, 102) --('VOID','REJECT')	
@@ -224,8 +252,7 @@ BEGIN
 		WHERE	b.insertedDetail = 0 
 
 		IF @@ROWCOUNT > 0
-		BEGIN
-			
+		BEGIN			
 			INSERT INTO #tmpSetStake (Refno, RN, SetStake)
 			SELECT	refno, RN, SetStake
 			FROM	#tmpSource
@@ -319,7 +346,7 @@ BEGIN
 			,SUM(CASE WHEN pd.statusID IN (0, 1) THEN 1 ELSE 0 END) as runningCnt
 			,MAX(pd.winlostdate) as matchdate_max
 			,CAST(dbo.PRODUCT(pd.odds) AS MONEY) AS odds
-			,CAST(dbo.PRODUCT(
+			,dbo.PRODUCT(
 				CASE WHEN pd.statusid = 102 THEN 1
 					WHEN pd.statusid = 0 THEN 1
 					ELSE
@@ -332,7 +359,7 @@ BEGIN
 							ELSE 1 -- VOID/REJECT
 						END
 				END
-				) AS MONEY) AS modds
+				) AS modds
 		FROM dbo.BetParlayDetail pd WITH (NOLOCK)
 			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
 		GROUP BY pd.refno, pd.serial, b.eventdate
@@ -346,6 +373,8 @@ BEGIN
 					WHEN p.modds = 1      THEN 111 -- Draw
 					ELSE 112 -- Won
 				END
+		,@ExtraValue = CASE WHEN b.oddsspread = 2 AND @statusID = 112 THEN CAST(se.Boost AS MONEY)/100 ELSE NULL END
+		,ExtraValue = @ExtraValue
 		,winlostdate = CASE
 				WHEN @statusId = 0 THEN p.eventdate
 				WHEN @statusID IN (103, 111, 112) THEN p.matchdate_max
@@ -353,11 +382,12 @@ BEGIN
 				ELSE @matchdate
 			END
 		,odds = p.odds
-		,@modds = pr.modds = CASE 
+		,@modds = pr.modds = CAST(CASE 
 			WHEN p.loseCnt > 0 THEN 0
 			WHEN @statusID = 0 THEN 0
+			WHEN ISNULL(@ExtraValue,0) > 0 THEN (p.modds - 1) * @ExtraValue + p.modds
 			ELSE p.modds
-			END
+			END AS MONEY)
 		,@commWinRate = CASE b.comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 			WHEN '0' THEN 1
 			WHEN '1' THEN 0
@@ -440,9 +470,23 @@ BEGIN
 			WHEN 113 THEN @commLostRate * PR.stake * sdiscount * (1 - apositiontaking - mpositiontaking - spositiontaking)
 			ELSE 0
 			END
+	
 	FROM dbo.BetParlayResult pr
 		INNER JOIN #temp_bettrans b ON pr.refno = b.refno 
 		INNER JOIN p ON pr.refno = p.refno AND pr.serial = p.serial
+		OUTER APPLY (
+			SELECT	TOP 1 s.Boost
+			FROM	@tmpSetting s
+			WHERE	s.SiteId = b.BetSiteID
+					AND b.betteam = '1' -- Mix parlay
+					AND b.oddsspread = 2 -- offer parlay boost
+					AND 1 =  CASE 
+								WHEN s.isFirstOdds = 1 AND p.mOdds BETWEEN s.FromOdds AND s.ToOdds THEN 1 --s.Boost
+								WHEN s.isLastOdds = 1 AND p.mOdds > s.FromOdds THEN 1
+								WHEN s.isFirstOdds = 0 AND s.isLastOdds = 0 AND p.mOdds > s.FromOdds AND p.mOdds <= s.ToOdds THEN 1
+								ELSE 0
+							END
+		)se
 	WHERE @IsReSettledTickets = 1
 		OR ( @IsReSettledTickets = 0 AND (	pr.statusID <>
 											CASE
@@ -469,6 +513,7 @@ BEGIN
 			SELECT	 @matchdate as 'wld'
 					,@strXML as 'strTransId'
 					,@IsReSettledTickets AS 'ReSettle'
+					,@strSetting AS 'strSetting'
 			FOR JSON PATH
 		)
 
