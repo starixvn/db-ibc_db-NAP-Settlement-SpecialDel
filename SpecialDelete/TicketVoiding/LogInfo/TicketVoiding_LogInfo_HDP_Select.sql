@@ -23,7 +23,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230403@July: TVS - Change code poolhouse affect [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
-		
+		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]		
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" LiveIndicator =""/></root>
@@ -381,13 +381,33 @@ BEGIN
 	WHERE b.betfrom <> 'P'  
 		AND b.transdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 		AND b.liveindicator = d.LiveIndicator AND b.IsMixParlay = 0
-		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+		AND 1 = CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND d.SubIssueTypeId IN (8,9) AND b.hdp1 = xHDPHome.HomeFavorite AND d.HomeFavorite IS NOT NULL THEN 1
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND d.SubIssueTypeId IN (8,9) AND b.hdp2 = xHDPAway.AwayFavorite AND d.AwayFavorite IS NOT NULL THEN 1
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND d.SubIssueTypeId IN (22,24) AND b.hdp2 = xHDPvalue.HdpValue AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) AND d.SubIssueTypeId IN (23,25) AND b.hdp1 = xHDPvalue.HdpValue AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+		AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
+							AND d.SubIssueTypeId IN (8,9) 
+							AND 1 = CASE WHEN xHDPHome.HomeFavorite <> 0 AND b.hdp1 = xHDPHome.HomeFavorite THEN 1
+										WHEN xHDPHome.HomeFavorite = 0 AND b.hdp1 = 0 AND b.hdp2 = 0 THEN 1 --case input hdp value filter = 0
+									ELSE 0 END
+							AND d.HomeFavorite IS NOT NULL THEN 1
+					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
+							AND d.SubIssueTypeId IN (8,9) 
+							AND 1 = CASE WHEN xHDPAway.AwayFavorite <> 0 AND b.hdp2 = xHDPAway.AwayFavorite THEN 1
+										WHEN xHDPAway.AwayFavorite = 0 AND b.hdp2 = 0 AND b.hdp1 = 0 THEN 1 --case input hdp value filter = 0
+									ELSE 0 END
+							AND d.AwayFavorite IS NOT NULL THEN 1
+					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
+							AND d.SubIssueTypeId IN (22,24) 
+							AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.hdp2 = xHDPvalue.HdpValue THEN 1
+										WHEN xHDPvalue.HdpValue = 0 AND b.hdp2 = 0 AND b.hdp1 = 0 THEN 1 --case input hdp value filter = 0
+									ELSE 0 END
+							AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
+							AND d.SubIssueTypeId IN (23,25) 
+							AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.hdp1 = xHDPvalue.HdpValue THEN 1
+										WHEN xHDPvalue.HdpValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0 THEN 1 --case input hdp value filter = 0
+									ELSE 0 END
+							AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 					 WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 					 WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1 
 				ELSE 0 END
@@ -445,17 +465,37 @@ BEGIN
 					WHERE value <> ''				
 				)xHDPvalue
 				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
-		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
+		WHERE 1 = CASE WHEN @ActionId <> 2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 						WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
 				AND b.Subbetfrom <> 'P'
 				AND b.Subliveindicator = d.LiveIndicator
 				AND b.Subtransdate BETWEEN d.FilterFromTransTime AND d.FilterToTransTime
 				AND d.IsMainMatch = 'true'
-				AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND d.SubIssueTypeId IN (8,9) AND b.Subhdp1 = xHDPHome.HomeFavorite AND d.HomeFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND d.SubIssueTypeId IN (8,9) AND b.Subhdp2 = xHDPAway.AwayFavorite AND d.AwayFavorite IS NOT NULL THEN 1
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND d.SubIssueTypeId IN (22,24) AND b.Subhdp2 = xHDPvalue.HdpValue AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
-							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) AND d.SubIssueTypeId IN (23,25) AND b.Subhdp1 = xHDPvalue.HdpValue AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
+				AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
+								AND d.SubIssueTypeId IN (8,9) 
+								AND 1 = CASE WHEN xHDPHome.HomeFavorite <> 0 AND b.Subhdp1 = xHDPHome.HomeFavorite THEN 1
+											WHEN xHDPHome.HomeFavorite = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0 THEN 1 --case input hdp value filter = 0
+										ELSE 0 END
+								AND d.HomeFavorite IS NOT NULL THEN 1
+							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
+								AND d.SubIssueTypeId IN (8,9) 
+								AND 1 = CASE WHEN xHDPAway.AwayFavorite <> 0 AND b.Subhdp2 = xHDPAway.AwayFavorite THEN 1
+											WHEN xHDPAway.AwayFavorite = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0 THEN 1 --case input hdp value filter = 0
+										ELSE 0 END
+								AND d.AwayFavorite IS NOT NULL THEN 1
+							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
+								AND d.SubIssueTypeId IN (22,24) 
+								AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.Subhdp2 = xHDPvalue.HdpValue THEN 1
+											WHEN xHDPvalue.HdpValue = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0 THEN 1 --case input hdp value filter = 0
+										ELSE 0 END
+								AND d.HdpValue IS NOT NULL THEN 1 --Away Virtual Head Reversed
+							 WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
+								AND d.SubIssueTypeId IN (23,25) 
+								AND 1 = CASE WHEN xHDPvalue.HdpValue <> 0 AND b.Subhdp1 = xHDPvalue.HdpValue THEN 1
+											WHEN xHDPvalue.HdpValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0 THEN 1 --case input hdp value filter = 0
+										ELSE 0 END
+								AND d.HdpValue IS NOT NULL THEN 1 --Home Virtual Head Reversed
 							 WHEN f.BetType IS NOT NULL AND f.GroupMatch = 0 AND d.IsLinkGroup1X2 = 1 THEN 1
 							 WHEN f.BetType IS NOT NULL AND f.GroupMatch <> 0 AND d.IsLinkGroupAIO = 1 THEN 1
 						ELSE 0 END

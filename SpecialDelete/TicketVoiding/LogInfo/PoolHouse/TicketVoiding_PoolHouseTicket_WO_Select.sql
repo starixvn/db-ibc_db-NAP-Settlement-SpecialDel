@@ -16,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20230419@Max: Create new SP [Redmine:#179934]
+		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
 
 	Param's explanation:
 
@@ -385,12 +386,20 @@ BEGIN
 		AND 1 = CASE WHEN @SubIssueTypeId IN (6) 
 						AND b.bettype IN (1)
 						AND b.betteam = @betteam
-						AND ((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
+						AND (
+							((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue)
+								AND xHDP.FavoriteValue <> 0)
+							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+							)
 					THEN 0
 					WHEN @SubIssueTypeId IN (119) 
 						AND b.bettype IN (7)
 						AND b.betteam = @betteam
-						AND ((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
+						AND (
+							((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue)
+								AND xHDP.FavoriteValue <> 0)
+							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+							)
 					THEN 0
 					WHEN @SubIssueTypeId IN (120)
 						AND b.bettype IN (3)
@@ -501,13 +510,21 @@ BEGIN
 					,@MatchId
 					,CASE WHEN @SubIssueTypeId IN (6) AND b.Subbettype IN (1)
 							AND b.Subbetteam = @betteam 
-							AND ((@FilterFavoriteType = 'h' AND b.Subhdp1 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)) 
-								OR (@FilterFavoriteType = 'a' AND b.Subhdp2 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)))
+							AND (
+								((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
+									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue)
+									AND xHDP.FavoriteValue <> 0)
+								OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
+								)
 							THEN 'HDP'
 						  WHEN @SubIssueTypeId IN (119) AND b.Subbettype IN (7)
 							AND b.Subbetteam = @betteam 
-							AND ((@FilterFavoriteType = 'h' AND b.Subhdp1 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)) 
-								OR (@FilterFavoriteType = 'a' AND b.Subhdp2 IN (SELECT FavoriteValue FROM @tmpFavoriteValue)))
+							AND (
+								((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
+									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue)
+									AND xHDP.FavoriteValue <> 0)
+								OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
+								)
 							THEN 'HDP'
 						  WHEN @SubIssueTypeId IN (120) AND b.Subbettype IN (3) 
 							AND b.Subbetteam = @FilterOUType 
@@ -531,6 +548,10 @@ BEGIN
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType AND f.SubIssueTypeId = @SubIssueTypeId
 				)f
+				OUTER APPLY (
+					SELECT FavoriteValue
+					FROM @tmpFavoriteValue				
+				)xHDP
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END
