@@ -3,7 +3,9 @@ ALTER PROCEDURE [dbo].[NAP_Admin_PreCalculate_6]
 	@matchid int,
 	@bettype smallint,
 	@totalgoal smallmoney,
-	@IsCentral	BIT = 0
+	@IsCentral	BIT = 0,
+	@ErrCode    INT = 0  OUTPUT,
+    @ErrMsg     NVARCHAR(200) = ''  OUTPUT
 AS
 /*
 	Created by: Kathy
@@ -280,6 +282,8 @@ BEGIN
 				@XmlData = @TransInfoMaxPO
 		END TRY
 		BEGIN CATCH
+			SELECT	 @ErrCode = ERROR_NUMBER()
+					,@ErrMsg = ERROR_MESSAGE()	
 			RETURN		
 		END CATCH
 	END

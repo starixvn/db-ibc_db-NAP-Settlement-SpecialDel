@@ -3,7 +3,9 @@ ALTER PROCEDURE [NAP_Admin_Settlement_3_VS]
 	@creator int,
 	@matchid int,
 	@mode varchar(6) = 'CAL',
-	@IsCentral	BIT = 0
+	@IsCentral	BIT = 0,
+	@ErrCode    INT = 0  OUTPUT,
+    @ErrMsg     NVARCHAR(200) = ''  OUTPUT
 AS
 /*
 	Created: Kathy
@@ -44,23 +46,41 @@ SET NOCOUNT ON
 	IF @Mode IN ('CAL-FT', 'CAL')
 	BEGIN	    
 	-- bettype 1201 : Virtual Handicap
-		EXEC dbo.NAP_Admin_PreCalculate_1 @matchid, 1201, @fth, @fta, @IsCentral
+		EXEC dbo.NAP_Admin_PreCalculate_1 @matchid, 1201, @fth, @fta, @IsCentral 
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT
 	-- bettype 1203 : Virtual Over/Under
 		EXEC dbo.NAP_Admin_PreCalculate_3 @matchid, 1203, @totalgoal, @IsCentral
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT
 	-- bettype 1204 : Virtual Correct Score
 		EXEC dbo.NAP_Admin_PreCalculate_4 @matchid, 1204, @correctscore, @scorediff, @IsCentral
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT
 	-- bettype 1205 : Virtual 1x2
 		EXEC dbo.NAP_Admin_PreCalculate_5 @matchid, 1205, @scorediff, @IsCentral
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT
 	---- bettype 1206 : Virtual Total Goal
-		EXEC dbo.NAP_Admin_PreCalculate_6 @matchid, 1206, @totalgoal, @IsCentral					
+		EXEC dbo.NAP_Admin_PreCalculate_6 @matchid, 1206, @totalgoal, @IsCentral
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT					
 	---- bettype 1224 : Virtual Double Chance 
 		EXEC dbo.NAP_Admin_PreCalculate_24 @matchid, 1224, @scorediff, @IsCentral
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT
 	-- bettype 1220 : Money Line	
-		EXEC dbo.NAP_Admin_PreCalculate_1 @matchid, 1220, @fth, @fta, @IsCentral			
+		EXEC dbo.NAP_Admin_PreCalculate_1 @matchid, 1220, @fth, @fta, @IsCentral
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT			
 	-- bettype 1235 : Virtual Score Bet	
 		EXEC dbo.NAP_Admin_PreCalculate_4 @matchid, 1235, @betstatus, @scorediff
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT
 	-- bettype 1236 : Virtual Total Points	
-		EXEC dbo.NAP_Admin_PreCalculate_6 @matchid, 1236, @totalgoal, @IsCentral	
+		EXEC dbo.NAP_Admin_PreCalculate_6 @matchid, 1236, @totalgoal, @IsCentral
+										,@ErrCode	= @ErrCode OUTPUT
+										,@ErrMsg	= @ErrMsg OUTPUT	
 		
 	END
 
