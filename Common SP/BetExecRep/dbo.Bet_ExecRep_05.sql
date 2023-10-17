@@ -29,7 +29,7 @@ AS
 		- 20221019@Kathy: allow settlement action by using NAP_Set_ServerAction [Redmine:#179274]
 		- 20221109@Louisa: log more inf into [SiteDB_SettlementService_CalculationLog] for virtual sport [Redmine:#178694]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
-		
+		- 20230908@Louisa: Apply Company Max Payout for Non-sports [Redmine:#193259]
 		
 	Param: 
 		+ @updatetype: 
@@ -89,6 +89,7 @@ BEGIN
 			,livehomescore INT,liveawayscore INT
 			,creator INT
 			,bef_winlost MONEY ,bef_statusid TINYINT
+			,actualPO MONEY, IsApplyMaxPO BIT, extrainfo VARCHAR(1000)
 			)
 
 	SELECT @_xml = CONVERT(XML, @_sXML)
@@ -108,6 +109,8 @@ BEGIN
 				,ISNULL(T.C.value('./@c', 'money'), 0) as scomm
 				,T.C.value('./@r', 'tinyint') as StatusID
 				,ISNULL(T.C.value('./@f', 'money'), 0) as modds
+				,ISNULL(T.C.value('./@apo', 'money'), 0) as actualPO
+				,ISNULL(T.C.value('./@iMPO', 'bit'), 0) as IsApplyMaxPO
 			FROM @_xml.nodes('/root/r') as [T](C) --T: table, C: column
 		)	
 		UPDATE dbo.bettrans WITH(ROWLOCK, UPDLOCK)
@@ -131,15 +134,18 @@ BEGIN
 			,ruben = CASE 
 				WHEN s.statusid IN (111,112,113,103) THEN 1
 				ELSE 0 END	
+			,ExtraInfo = CASE WHEN s.IsApplyMaxPO = 1 THEN ISNULL(bettrans.ExtraInfo,'') + '<l255 apo="'+ CAST(s.actualPO AS VARCHAR(100)) +'" />' ELSE  bettrans.ExtraInfo END
 		OUTPUT	inserted.transid
 			,inserted.modds
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,inserted.Status,inserted.StatusID,inserted.ruben,deleted.winlost ,deleted.statusid		
+			,inserted.extrainfo
 		INTO @tmpTransInfo ( transid,modds
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
 			,Status,StatusID,ruben,bef_winlost ,bef_statusid 
+			,extrainfo
 			)			
 		FROM sourceData s
 		WHERE bettrans.transid = s.transid
@@ -161,7 +167,8 @@ BEGIN
 						,StatusID AS 'sid' 
 						,ruben AS 'r'	
 						,bef_winlost AS 'bef_w' 
-						,bef_statusid AS 'bef_sid' 						
+						,bef_statusid AS 'bef_sid' 		
+						,extrainfo AS 'ex'
 				FROM	@tmpTransInfo
 				FOR JSON AUTO
 			)

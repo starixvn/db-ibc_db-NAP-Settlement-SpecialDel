@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bettrans]
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@TicketType		VARCHAR(1)		= 's'
+	,@transMPO			VARCHAR(MAX)	= NULL 	
 AS
 /*
 	Created: 20160606@Bobby
@@ -18,6 +19,7 @@ AS
 		- 20170821@Bobby: 81907-  correct recommend info to do settlement on replicas DB05XXX
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
+		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 
 	Param's Explanation:
 		
@@ -25,7 +27,10 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 	
-	DECLARE @strBetTicket		VARCHAR(MAX)
+	DECLARE @strBetTicket		VARCHAR(MAX),
+			@handle 			INT
+
+	DECLARE @tmpTransMPO TABLE (TransID BIGINT,actualPO MONEY)
 
 	--Tracing company winlimit control
 	CREATE TABLE #BalanceCWLBefore (custid INT, winlostdate SMALLDATETIME, gametypeid SMALLINT, balance MONEY, winlost MONEY)
@@ -68,25 +73,34 @@ BEGIN
 	---------------------------VVVV------------------------------
 	
 	BEGIN TRY
+		EXEC sp_xml_preparedocument @handle OUTPUT, @transMPO
+		INSERT INTO @tmpTransMPO(TransID, actualPO)
+		SELECT t, apo
+		FROM OPENXML(@handle,'root/r',1) WITH(t BIGINT, apo	MONEY) tbl
+		EXEC sp_xml_removedocument @handle
+
+		
 		SELECT @strBetTicket = CONVERT(VARCHAR(MAX)
-									,(SELECT 
-											recommend 		AS '@rec'
-											,matchid 		AS '@mi'
-											,custid  		AS '@ci'
-											,bettype 		AS '@bt'
-											,transid 		AS '@ti'
-											,winlost 		AS '@wl'
-											,awinlost 		AS '@awl'
-											,mwinlost 		AS '@mwl'				
-											,swinlost 		AS '@swl'
-											,playercomm 	AS '@pcomm'
-											,comm 			AS '@comm'
-											,acomm 			AS '@acomm'
-											,scomm 			AS '@scomm'	
-											,statusid 		AS '@st'	
-											,modds 			AS '@mo'
-											,winlostdate	AS '@wd'
-										FROM @BetTickets
+									,(SELECT b.recommend 						AS '@rec'
+											,b.matchid 							AS '@mi'
+											,b.custid  							AS '@ci'
+											,b.bettype 							AS '@bt'
+											,b.transid 							AS '@ti'
+											,b.winlost 							AS '@wl'
+											,b.awinlost 						AS '@awl'
+											,b.mwinlost 						AS '@mwl'				
+											,b.swinlost 						AS '@swl'
+											,b.playercomm 						AS '@pcomm'
+											,b.comm 							AS '@comm'
+											,b.acomm 							AS '@acomm'
+											,b.scomm 							AS '@scomm'	
+											,b.statusid 						AS '@st'	
+											,b.modds 							AS '@mo'
+											,b.winlostdate						AS '@wd'
+											,IIF(mpo.transid IS NOT NULL,1,0)	AS '@iMPO'		
+											,mpo.actualPO						AS '@apo'	
+										FROM @BetTickets AS b
+											LEFT JOIN @tmpTransMPO AS mpo ON b.transid = mpo.transid
 										FOR XML PATH('r'), ROOT('root'), TYPE
 									) 
 								)

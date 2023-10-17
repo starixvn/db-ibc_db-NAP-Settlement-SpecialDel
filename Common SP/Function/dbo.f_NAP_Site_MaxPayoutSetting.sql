@@ -31,7 +31,8 @@ RETURN (
 			(3,1045),
 			(3,1046),
 			(3,1047),
-			(3,1048)			
+			(3,1048),
+			(3,1216)
 	) AS Sites(SiteDBGroupId, SiteId)
 );
 GO

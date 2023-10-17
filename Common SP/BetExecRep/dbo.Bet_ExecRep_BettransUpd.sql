@@ -17,6 +17,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
+		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		
 	Param's Explanation:
 		- ExecRep SP: DBTrans_Bet
@@ -37,6 +38,7 @@ BEGIN
 			,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 			,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 			,bef_winlost MONEY ,bef_statusid TINYINT
+			,extrainfo VARCHAR(1000)
 		)
 	
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog_3rd','U') IS NOT NULL 
@@ -76,7 +78,8 @@ BEGIN
 		, [modds] 			[SMALLMONEY]
 		, [actual_stake] 	[MONEY]
 		, [winlostdate] 	[SMALLDATETIME]
-
+		, [isMaxPayout]		[BIT]
+		, [actualPO]		[MONEY]
 	)
 	
 	--PARSER xmlTicket
@@ -99,7 +102,9 @@ BEGIN
 		, scomm
 		, StatusID
 		, modds
-		, winlostdate
+		, winlostdate		
+		, isMaxPayout
+		, actualPO
 	)
 	SELECT
 		T.C.value('./@rec', 'INT') AS recommend
@@ -118,6 +123,8 @@ BEGIN
 		, T.C.value('./@st', 'TINYINT') AS StatusID
 		, T.C.value('./@mo', 'MONEY') AS modds
 		, T.C.value('./@wd', 'DATE') AS winlostdate
+		, T.C.value('./@iMPO', 'BIT') AS isMaxPayout
+		, T.C.value('./@apo', 'MONEY') AS actualPO  
 	FROM @xmlTicket.nodes('/root/r') AS [T](C) --T: table, C: column
 	OPTION (OPTIMIZE FOR (@xmlTicket = NULL))
 
@@ -148,6 +155,7 @@ BEGIN
 								WHEN s.statusid IN (103) THEN 0 --REFUND
 								ELSE b.statuswinlost 
 							END
+			,ExtraInfo = CASE WHEN s.isMaxPayout = 1 THEN ISNULL(b.ExtraInfo,'') + '<l255 apo="'+ CAST(s.actualPO AS VARCHAR(100)) +'" />' ELSE  b.ExtraInfo END
 	OUTPUT inserted.transid		
 			,inserted.modds ,inserted.statuswinlost	,inserted.winlostdate 
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
@@ -157,12 +165,14 @@ BEGIN
 			,inserted.ruben 
 			,deleted.winlost
 			,deleted.statusid
+			,inserted.extrainfo
 	INTO @tmpTransInfo (transId 
 			,modds, statuswinlost, winlostdate 
 			,WinLost,aWinLost,mWinLost,sWinLost 
 			,PlayerComm, Comm,aComm,sComm 
 			,Status ,StatusID ,ruben 
-			,bef_winlost  ,bef_statusid )
+			,bef_winlost  ,bef_statusid
+			,extrainfo)
 	FROM dbo.bettrans b WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN @sourceTicket s 
 		ON b.matchid 		= s.matchid
@@ -188,6 +198,7 @@ BEGIN
 					,Status AS 's' 
 					,StatusID AS 'sid' 
 					,ruben AS 'r' 
+					,extrainfo AS 'ex'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 				
 			FROM	@tmpTransInfo
