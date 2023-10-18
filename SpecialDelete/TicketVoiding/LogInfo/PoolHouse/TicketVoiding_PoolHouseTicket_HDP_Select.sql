@@ -151,21 +151,21 @@ BEGIN
 	IF @HomeFavorite IS NOT NULL
 	BEGIN
 		INSERT INTO @tmpHomeFavorite (HomeFavorite)
-		SELECT DISTINCT value AS HomeFavorite
+		SELECT DISTINCT CONVERT(SMALLMONEY, value) AS HomeFavorite
 		FROM STRING_SPLIT(@HomeFavorite, '&')
 		WHERE value <> ''
 	END
 	IF @AwayFavorite IS NOT NULL
 	BEGIN
 		INSERT INTO @tmpAwayFavorite (AwayFavorite)
-		SELECT DISTINCT value AS AwayFavorite
+		SELECT DISTINCT CONVERT(SMALLMONEY, value) AS AwayFavorite
 		FROM STRING_SPLIT(@AwayFavorite, '&')
 		WHERE value <> ''
 	END
 	IF @HdpValue IS NOT NULL
 	BEGIN
 		INSERT INTO @tmpHdpValue (HdpValue)
-		SELECT DISTINCT value AS HdpValue
+		SELECT DISTINCT CONVERT(SMALLMONEY, value) AS HdpValue
 		FROM STRING_SPLIT(@HdpValue, '&')
 		WHERE value <> ''
 	END

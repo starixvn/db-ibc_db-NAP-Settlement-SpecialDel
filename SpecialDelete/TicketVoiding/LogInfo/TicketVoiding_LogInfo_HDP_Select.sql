@@ -363,17 +363,17 @@ BEGIN
 	FROM	#tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		OUTER APPLY (
-			SELECT DISTINCT value AS HomeFavorite
+			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS HomeFavorite
 			FROM STRING_SPLIT(d.HomeFavorite, '&')
 			WHERE value <> ''				
 		)xHDPHome
 		OUTER APPLY (
-			SELECT DISTINCT value AS AwayFavorite
+			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS AwayFavorite
 			FROM STRING_SPLIT(d.AwayFavorite, '&')
 			WHERE value <> ''				
 		)xHDPAway
 		OUTER APPLY (
-			SELECT DISTINCT value AS HdpValue
+			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS HdpValue
 			FROM STRING_SPLIT(d.HdpValue, '&')
 			WHERE value <> ''				
 		)xHDPvalue
@@ -450,17 +450,17 @@ BEGIN
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				OUTER APPLY (
-					SELECT DISTINCT value AS HomeFavorite
+					SELECT DISTINCT CONVERT(SMALLMONEY, value) AS HomeFavorite
 					FROM STRING_SPLIT(d.HomeFavorite, '&')
 					WHERE value <> ''				
 				)xHDPHome
 				OUTER APPLY (
-					SELECT DISTINCT value AS AwayFavorite
+					SELECT DISTINCT CONVERT(SMALLMONEY, value) AS AwayFavorite
 					FROM STRING_SPLIT(d.AwayFavorite, '&')
 					WHERE value <> ''				
 				)xHDPAway
 				OUTER APPLY (
-					SELECT DISTINCT value AS HdpValue
+					SELECT DISTINCT CONVERT(SMALLMONEY, value) AS HdpValue
 					FROM STRING_SPLIT(d.HdpValue, '&')
 					WHERE value <> ''				
 				)xHDPvalue
