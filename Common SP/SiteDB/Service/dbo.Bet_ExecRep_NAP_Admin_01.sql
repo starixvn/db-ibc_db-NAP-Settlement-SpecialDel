@@ -38,7 +38,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230411@July: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine:#168081]
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
-		- 20230816@Kathy: parlay boost [Redmine:#191873]
+		- 20230816@Kathy: parlay boost [Redmine:#191873]   
 
 	Param's Explanation:  
 		   
