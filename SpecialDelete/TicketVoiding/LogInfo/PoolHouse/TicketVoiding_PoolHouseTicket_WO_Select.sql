@@ -387,19 +387,21 @@ BEGIN
 						AND b.bettype IN (1)
 						AND b.betteam = @betteam
 						AND (
-							((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue)
-								AND xHDP.FavoriteValue <> 0)
-							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+							(xHDP.FavoriteValue <> 0
+								AND((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
 							)
+							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+						)
 					THEN 0
 					WHEN @SubIssueTypeId IN (119) 
 						AND b.bettype IN (7)
 						AND b.betteam = @betteam
 						AND (
-							((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue)
-								AND xHDP.FavoriteValue <> 0)
-							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+							(xHDP.FavoriteValue <> 0
+								AND((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
 							)
+							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+						)
 					THEN 0
 					WHEN @SubIssueTypeId IN (120)
 						AND b.bettype IN (3)
@@ -511,18 +513,20 @@ BEGIN
 					,CASE WHEN @SubIssueTypeId IN (6) AND b.Subbettype IN (1)
 							AND b.Subbetteam = @betteam 
 							AND (
-								((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
-									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue)
-									AND xHDP.FavoriteValue <> 0)
+								(xHDP.FavoriteValue <> 0
+									AND((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
+									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
+								)
 								OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
 								)
 							THEN 'HDP'
 						  WHEN @SubIssueTypeId IN (119) AND b.Subbettype IN (7)
 							AND b.Subbetteam = @betteam 
 							AND (
-								((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
-									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue)
-									AND xHDP.FavoriteValue <> 0)
+								(xHDP.FavoriteValue <> 0
+									AND((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
+									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
+								)
 								OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
 								)
 							THEN 'HDP'

@@ -408,19 +408,21 @@ BEGIN
 							AND b.bettype IN (1)
 							AND b.betteam = d.betteam 
 							AND (
-								((d.FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue) 
-									AND xHDP.FavoriteValue <> 0)
-								OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+								(xHDP.FavoriteValue <> 0
+									AND((d.FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
 								)
+								OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+							)
 						THEN 1
 					 WHEN d.SubIssueTypeId IN (119) 
 							AND b.bettype IN (7)
 							AND b.betteam = d.betteam 
 							AND (
-								((d.FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue)
-									AND xHDP.FavoriteValue <> 0)
-								OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+								(xHDP.FavoriteValue <> 0
+									AND((d.FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
 								)
+								OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+							)
 						THEN 1
 					 WHEN d.SubIssueTypeId IN (120)
 							AND b.bettype IN (3)
@@ -501,19 +503,21 @@ BEGIN
 									AND b.Subbettype IN (1)
 									AND b.Subbetteam = d.betteam 
 									AND (
-										((d.FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue)
-											AND xHDP.FavoriteValue <> 0)
-										OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
+										(xHDP.FavoriteValue <> 0
+											AND((d.FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
 										)
+										OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
+									)
 								THEN 1
 							 WHEN d.SubIssueTypeId IN (119) 
 									AND b.Subbettype IN (7)
 									AND b.Subbetteam = d.betteam 
 									AND (
-										((d.FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue)
-											AND xHDP.FavoriteValue <> 0)
-										OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
+										(xHDP.FavoriteValue <> 0
+											AND((d.FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) OR (d.FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
 										)
+										OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
+									)
 								THEN 1
 							 WHEN d.SubIssueTypeId IN (120)
 									AND b.Subbettype IN (3)
