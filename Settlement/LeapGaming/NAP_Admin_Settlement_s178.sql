@@ -29,7 +29,7 @@ AS
         </Resources>
  
 */
-
+---hello
 BEGIN
 	SET NOCOUNT ON
 
