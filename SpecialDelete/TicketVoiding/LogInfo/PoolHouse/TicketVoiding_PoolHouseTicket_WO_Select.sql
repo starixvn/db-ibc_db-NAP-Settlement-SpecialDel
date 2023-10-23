@@ -36,12 +36,12 @@ BEGIN
 		,@FilterOddsType	  VARCHAR(20) --"Range" or "Value"
  		,@FromOdds			  MONEY --"1.75" NULL IF FilterOddsType = 'Value' 
 		,@ToOdds			  MONEY --"1.75" NULL IF FilterOddsType = 'Value' 
-		,@OddsValue			  VARCHAR(20) --"1.75&1.5" NULL IF FilterOddsType = 'Range' 
+		,@OddsValue			  VARCHAR(1000) --"1.75&1.5" NULL IF FilterOddsType = 'Range' 
 		,@betteam			  VARCHAR(10)	-- "h" or "a"
 		,@FilterFavoriteType  VARCHAR(10) -- "h" or "a"
-		,@FavoriteValue		  VARCHAR(20) -- "1.25"
+		,@FavoriteValue		  VARCHAR(1000) -- "1.25"
 		,@FilterOUType		  VARCHAR(10) -- "h" or "a"
-		,@OUValue			  VARCHAR(20) -- "1.25"
+		,@OUValue			  VARCHAR(1000) -- "1.25"
 		,@WrongOddsInfoXML	  XML = NULL
 
 	CREATE TABLE #TVSTicketBets (
@@ -171,12 +171,12 @@ BEGIN
 			,@FilterOddsType = t.c.value('@FilterOddsType', 'VARCHAR(20)') 
 			,@FromOdds = t.c.value('@FromOdds', 'MONEY') 
 			,@ToOdds = t.c.value('@ToOdds', 'MONEY') 
-			,@OddsValue = t.c.value('@OddsValue', 'VARCHAR(20)') 
+			,@OddsValue = t.c.value('@OddsValue', 'VARCHAR(1000)') 
 			,@betteam = t.c.value('@BetTeam', 'VARCHAR(10)') 
 			,@FilterFavoriteType = t.c.value('@FilterFavoriteType', 'VARCHAR(10)') 
-			,@FavoriteValue = t.c.value('@FavoriteValue', 'VARCHAR(20)') 
+			,@FavoriteValue = t.c.value('@FavoriteValue', 'VARCHAR(1000)') 
 			,@FilterOUType = t.c.value('@FilterOuType', 'VARCHAR(10)') 
-			,@OUValue = t.c.value('@OuValue', 'VARCHAR(20)') 
+			,@OUValue = t.c.value('@OuValue', 'VARCHAR(1000)') 
 	FROM	@WrongOddsInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL ))
 
