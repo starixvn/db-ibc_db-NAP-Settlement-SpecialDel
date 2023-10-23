@@ -1,16 +1,15 @@
-/*<info serverAlias="DBACC-bodb02,DBPRO-bodb02,DBBAH-bodb02,DBCTG-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
+/*<info serverAlias="DBACC-bodb02,DBPRO-bodb02,DBBAH-bodb02" executers="" viewers="" isFunction="1" isNested="1"></info>*/
 CREATE FUNCTION [dbo].[f_SD_GroupDisplayBettype] ()
 RETURNS TABLE
 RETURN
 /*
 	Created: 20191202@Raymond.Le
 	Task :	Get grouped display bettype for Sporting Solution (only for Special Delete)
-	DB:		DBPRO/bodb02, DBACC/bodb02, DBBAH/bodb02, DBCTG/bodb02
+	DB:		DBPRO/bodb02, DBACC/bodb02, DBBAH/bodb02
  	Revisions: 
 		- 20191202@Raymond.Le: Create new function [124675]
 		- 20191226@Charles: Incorporate PHAIO 5 [123395]
 		- 20200924@July: TVS - Resettled Affected Tickets - Add server DBBAH  [Redmine: #138552]
-		- 20231010@July: [TVS] Update more bet types to the PH affected bet type list - Add server DBCTG [Redmine: #194095]
 
 	Param's Explanation:    
 		You need to use option: option (maxrecursion 0) at the statement if the lengh of string exceed 100 levels      

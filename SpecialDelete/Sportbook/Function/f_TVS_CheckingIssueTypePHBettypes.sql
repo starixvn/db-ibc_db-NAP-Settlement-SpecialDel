@@ -10,7 +10,7 @@ AS
 		- 20220523@July: TVS - Wrong HDP affects to PH bet types [Redmine: #172486]
 		- 20230403@July: TVS - Wrong OU affects to OU bet types [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
-		- 20231005@July: [TVS] Update more bet types to the PH affected bet type list [Redmine: #194095]
+		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
 
     Parameters Explanation:    
 		IssueTypeId: 4 - Wrong HDP

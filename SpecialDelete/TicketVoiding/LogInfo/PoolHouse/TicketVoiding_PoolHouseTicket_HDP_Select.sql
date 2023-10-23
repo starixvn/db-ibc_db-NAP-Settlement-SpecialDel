@@ -26,7 +26,7 @@ AS
 		- 20230403@July: Create new SP - Refactor code issue type HDP & 1H HDP   [Redmine: #172486]
 		- 20230802@July: Fix bug - Tickets bettype HDP/OU with HDP/OU value difference filter NOT SHOW on Other group  [Redmine: #190441]
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
-		- 20231005@July: [TVS] Update more bet types to the PH affected bet type list [Redmine: #194095]
+		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
 		
 	Param's explanation:
 
