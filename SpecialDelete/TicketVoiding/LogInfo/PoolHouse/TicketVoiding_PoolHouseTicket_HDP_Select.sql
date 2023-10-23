@@ -12,9 +12,9 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_HDP_Select]
 	,@IsLinkGroupAIO	  BIT
 	,@LiveIndicator		  BIT
 	,@TransInfoJson		  VARCHAR(MAX)
-	,@HomeFavorite		  VARCHAR(50)
-	,@AwayFavorite		  VARCHAR(50)
-	,@HdpValue			  VARCHAR(50)
+	,@HomeFavorite		  VARCHAR(1000)
+	,@AwayFavorite		  VARCHAR(1000)
+	,@HdpValue			  VARCHAR(1000)
 )
 AS
 /*	

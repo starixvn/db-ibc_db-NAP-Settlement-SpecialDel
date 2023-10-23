@@ -12,7 +12,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_OU_Select]
 	,@IsLinkGroupAIO	  BIT = 0
 	,@LiveIndicator		  BIT = 0
 	,@TransInfoJson		  VARCHAR(MAX)
-	,@WrongMarket         VARCHAR(50) = NULL
+	,@WrongMarket         VARCHAR(1000) = NULL
 
 )
 AS

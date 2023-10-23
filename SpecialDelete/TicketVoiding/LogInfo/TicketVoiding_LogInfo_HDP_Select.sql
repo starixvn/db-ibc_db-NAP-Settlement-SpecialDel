@@ -24,7 +24,9 @@ AS
 		- 20230403@July: TVS - Change code poolhouse affect [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
-		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]		
+		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]	
+		- 20231023@Max: Extend datatype [Redmine: #192202]
+
 	Param's explanation:
 		+ @WrongHDPInfo, @Wrong1stHDPInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" HomeFavorite ="" AwayFavorite ="" HdpValue ="" SubIssueTypeId="" PoolHouseCheckedBetTypes ="1,2,3,4" IsMainMatch="true" IsLinkGroup1X2 ="" IsLinkGroupAIO = "" LiveIndicator =""/></root>
@@ -89,9 +91,9 @@ BEGIN
 		,FilterFromTransTime	DATETIME
 		,FilterToTransTime		DATETIME
 		,SubIssueTypeId			SMALLINT
-		,HomeFavorite			VARCHAR(50)
-		,AwayFavorite			VARCHAR(50)
-		,HdpValue				VARCHAR(50)
+		,HomeFavorite			VARCHAR(1000)
+		,AwayFavorite			VARCHAR(1000)
+		,HdpValue				VARCHAR(1000)
 		,PoolHouseCheckedBetTypes VARCHAR(MAX)
 		,IsMainMatch			VARCHAR(10)
 		,IsLinkGroup1X2			BIT DEFAULT(0)
@@ -196,9 +198,9 @@ BEGIN
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
 			,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-			,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(50)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(50)')  END AS HomeFavorite
-			,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(50)')  END AS AwayFavorite
-			,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(50)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(50)')  END AS HdpValue
+			,CASE WHEN ISNULL(t.c.value('@HomeFavorite','VARCHAR(1000)'),'') ='' THEN NULL ELSE t.c.value('@HomeFavorite','VARCHAR(1000)')  END AS HomeFavorite
+			,CASE WHEN ISNULL(t.c.value('@AwayFavorite','VARCHAR(1000)'),'') = '' THEN NULL ELSE t.c.value('@AwayFavorite','VARCHAR(1000)')  END AS AwayFavorite
+			,CASE WHEN ISNULL(t.c.value('@HdpValue','VARCHAR(1000)'),'') = '' THEN NULL ELSE t.c.value('@HdpValue','VARCHAR(1000)')  END AS HdpValue
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') AS PoolHouseCheckedBetTypes
 			,t.c.value('@IsMainMatch','VARCHAR(10)') AS IsMainMatch
