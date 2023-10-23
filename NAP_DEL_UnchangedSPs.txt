@@ -1,1 +1,2 @@
-SpecialDelete\VirtualBetradar\RecoverBet\dbo.NAP_SpecialDelete_RecoverVSBetRadar_Upd.sql
+SpecialDelete\TicketVoiding\LogInfo\TicketVoiding_LogInfo_Select.sql
+SpecialDelete\TicketVoiding\LogInfo\PoolHouse\TicketVoiding_PoolHouseTicket_Select.sql
