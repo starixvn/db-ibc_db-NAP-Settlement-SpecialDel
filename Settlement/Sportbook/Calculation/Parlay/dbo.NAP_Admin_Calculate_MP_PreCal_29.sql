@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_PreCal_29] 
 	@matchid	INT
 	,@matchdate SMALLDATETIME
@@ -370,8 +370,8 @@ BEGIN
 					WHEN p.loseCnt > 0    THEN 113 -- Lose
 					WHEN p.runningCnt > 0 THEN 0   -- running
 					WHEN p.NoRefund = 0   THEN 103 -- Refund
-					WHEN p.modds < 1      THEN 113 -- Lose
-					WHEN p.modds = 1      THEN 111 -- Draw
+					WHEN CAST(p.modds AS MONEY) < 1 THEN 113 -- Lose
+					WHEN CAST(p.modds AS MONEY) = 1      THEN 111 -- Draw
 					ELSE 112 -- Won
 				END
 		,@ExtraValue = CASE WHEN b.oddsspread = 2 AND @statusID = 112 THEN CAST(se.Boost AS MONEY)/100 ELSE NULL END
@@ -482,28 +482,36 @@ BEGIN
 					AND b.betteam = '1' -- Mix parlay
 					AND b.oddsspread = 2 -- offer parlay boost
 					AND 1 =  CASE 
-								WHEN s.isFirstOdds = 1 AND p.mOdds BETWEEN s.FromOdds AND s.ToOdds THEN 1 --s.Boost
-								WHEN s.isLastOdds = 1 AND p.mOdds > s.FromOdds THEN 1
-								WHEN s.isFirstOdds = 0 AND s.isLastOdds = 0 AND p.mOdds > s.FromOdds AND p.mOdds <= s.ToOdds THEN 1
+								WHEN s.isFirstOdds = 1 AND CAST(p.mOdds AS MONEY) BETWEEN s.FromOdds AND s.ToOdds THEN 1 --s.Boost
+								WHEN s.isLastOdds = 1 AND CAST(p.mOdds AS MONEY) > s.FromOdds THEN 1
+								WHEN s.isFirstOdds = 0 AND s.isLastOdds = 0 AND CAST(p.mOdds AS MONEY) > s.FromOdds AND CAST(p.mOdds AS MONEY) <= s.ToOdds THEN 1
 								ELSE 0
 							END
 		)se
 	WHERE @IsReSettledTickets = 1
-		OR ( @IsReSettledTickets = 0 AND (	pr.statusID <>
-											CASE
-												WHEN p.loseCnt > 0    THEN 113 -- Lose
-												WHEN p.runningCnt > 0 THEN 0   -- running
-												WHEN p.NoRefund = 0   THEN 103 -- Refund
-												WHEN p.modds < 1      THEN 113 -- Lose
-												WHEN p.modds = 1      THEN 111 -- Draw
-												ELSE 112 -- Won
-											END
-											OR pr.winlost <>
-											CASE 
-												WHEN p.loseCnt > 0 OR p.runningCnt > 0 THEN 0 
-												ELSE pr.stake * p.modds
-											END
+		OR ( @IsReSettledTickets = 0 
+				AND (	pr.statusID <>
+						CASE
+							WHEN p.loseCnt > 0    THEN 113 -- Lose
+							WHEN p.runningCnt > 0 THEN 0   -- running
+							WHEN p.NoRefund = 0   THEN 103 -- Refund
+							WHEN CAST(p.modds AS MONEY) < 1      THEN 113 -- Lose
+							WHEN CAST(p.modds AS MONEY) = 1      THEN 111 -- Draw
+							ELSE 112 -- Won
+						END
+					OR pr.winlost <>
+					CASE 
+						WHEN p.loseCnt > 0 OR p.runningCnt > 0 THEN 0 
+						ELSE pr.stake *  CAST(CASE 
+												WHEN p.loseCnt > 0 THEN 0
+												WHEN p.runningCnt > 0 THEN 0
+												WHEN CAST(p.modds AS MONEY) > 1 AND ISNULL(CAST(se.Boost AS MONEY)/100,0) > 0 
+													THEN CONVERT(DECIMAL(38,20),(p.modds - 1) * ISNULL(CAST(se.Boost AS MONEY)/100,0) + p.modds)
+												ELSE CONVERT(DECIMAL(38,20),p.modds)
+												END AS MONEY
 										)
+					END
+				)
 			)
 
 	IF @IsSiteDB = 1
