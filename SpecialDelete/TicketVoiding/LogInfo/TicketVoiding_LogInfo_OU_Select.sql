@@ -23,6 +23,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230421@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
+		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
 		
 	Param's explanation:
 		+ @WrongOUInfo, @Wrong1stOUInfo:
@@ -62,7 +63,8 @@ BEGIN
 			StatusId			  TINYINT,
 			SubStatusId			  TINYINT,
 			SubIssueTypeId		  SMALLINT,
-			GroupName			  VARCHAR(50)
+			GroupName			  VARCHAR(50),
+			LiveIndicator		  BIT
 	)
 
 	CREATE TABLE #logInfo (
@@ -337,6 +339,7 @@ BEGIN
 			,SubStatusId
 			,SubIssueTypeId
 			,GroupName
+			,LiveIndicator
 		)
 	SELECT  DISTINCT b.transid
 			,b.transid AS SubTransID
@@ -356,6 +359,7 @@ BEGIN
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch = 0 THEN 'PH' --1X2
 				  WHEN d.IsMainMatch = 'true' AND f.BetType IS NOT NULL AND f.GroupMatch <> 0 THEN 'PH' --AIO
 			END AS GroupName
+			,b.liveindicator
 	FROM #tmpTransInfo b 
 		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
 		CROSS APPLY (
@@ -395,6 +399,7 @@ BEGIN
 				,SubStatusId
 				,SubIssueTypeId
 				,GroupName
+				,LiveIndicator
 			)
 		SELECT  DISTINCT b.transid
 				,b.Subtransid 
@@ -411,6 +416,7 @@ BEGIN
 				,b.SubstatusID
 				,d.SubIssueTypeId
 				,'PH' AS GroupName
+				,b.liveindicator
 		FROM	#FilterInfo d
 				INNER JOIN #tmpTransInfo b ON d.MatchId = b.matchid AND b.IsMixParlay = 1
 				CROSS APPLY (
@@ -535,6 +541,13 @@ BEGIN
 			WHERE MatchId = v.MatchId
 			GROUP BY MatchId
 		)l 
+
+	--Not display Score in message template when voiding non-live tickets only [193108]
+	IF NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE liveindicator = 1)
+	BEGIN
+		UPDATE l SET l.LiveScores = ''
+		FROM #logInfo l
+	END
 
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
