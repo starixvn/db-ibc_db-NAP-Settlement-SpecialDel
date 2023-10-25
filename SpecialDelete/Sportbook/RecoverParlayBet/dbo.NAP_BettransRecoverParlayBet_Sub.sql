@@ -29,6 +29,7 @@ AS
 		- 20230330@July: Write log into table TVS_UserActionLog [Redmine: #185238]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230526@Max: [TVS] Check invalid when inputting cricket's child matchID for all functions of Special Delete [Redmine: #188374]
+		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		
 	Param's Explanation:			
 			- @BetType:
@@ -69,6 +70,9 @@ BEGIN
 		   ,@NegativeBalanceUsers	VARCHAR(MAX) = '' 
 		   ,@TransInfo				VARBINARY(MAX) = NULL
 		   ,@SiteDBGroupID			SMALLINT = 0
+		   ,@strSetting		VARCHAR(MAX)
+		   ,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
+
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @MatchDate			DATETIME
@@ -132,6 +136,8 @@ BEGIN
 		,ExtraInfo				VARCHAR(1000)
 		,ActualStake			MONEY
 		,ruben					TINYINT
+		,oddsspread 			MONEY
+		,SiteID					INT
 		,IsFinish				BIT
 	)	
 	
@@ -144,6 +150,11 @@ BEGIN
 	   ,balance		MONEY	 
 	   ,ruben		TINYINT
 	   ,matchid		INT
+	   ,BetTeam		NVARCHAR(20)	
+	   ,srecommend	INT
+	   ,oddsspread 	MONEY
+	   ,SiteID		INT
+	   ,bettype		SMALLINT
 	)
 	CREATE CLUSTERED INDEX IDX_tblMainTicket_custid_transid ON #tblMainTicket(custid, transid)
 	
@@ -151,6 +162,8 @@ BEGIN
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40))
 	DECLARE @tblSettledBeforeRecoveredMainTicket TABLE (transid	BIGINT)
 	DECLARE @tmpMatchId TABLE (MatchId INT, matchdate DATETIME, IsFinish BIT)
+	DECLARE @tmpBoostSite TABLE(SiteId INT, srecommend INT, IsDeposit BIT DEFAULT(0))
+	DECLARE @tmpBoostSetting TABLE (SiteId INT, OverOdds DECIMAL(9,4), Boost TINYINT)
 								
 	DECLARE @tblBeforeBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
 	DECLARE @tblAfterBalance TABLE (custid INT PRIMARY KEY, balance MONEY)
@@ -282,7 +295,10 @@ BEGIN
 				,betcheck
 				,ExtraInfo
 				,ActualStake
-				,ruben)
+				,ruben
+				,oddsspread
+				,SiteID
+				)
 		SELECT  bm.transid AS SubTransID			 
 				,bm.betcheck AS SubBetCheck	
 				,bm.odds AS SubOdds
@@ -324,6 +340,8 @@ BEGIN
 				,b.ExtraInfo
 				,b.actual_stake AS ActualStake
 				,b.ruben
+				,b.oddsspread
+				,b.BetSiteID
 		FROM @tblMainTransIds t
 			INNER JOIN dbo.bettrans b WITH (NOLOCK)
 					ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
@@ -367,7 +385,7 @@ BEGIN
 		END										
 	
 		--> get list of MainTranIds	
-		INSERT INTO #tblMainTicket(transid, refno, StatusId, custid, balance, ruben, matchid)
+		INSERT INTO #tblMainTicket(transid, refno, StatusId, custid, balance, ruben, matchid, srecommend, BetTeam, oddsspread, SiteID, bettype)
 		SELECT t.transid
 			 , t.refno			 
 			 , t.StatusId			 
@@ -375,6 +393,11 @@ BEGIN
 			 , t.balance
 			 , t.ruben
 			 , t.matchid
+			 , t.srecommend
+			 , t.BetTeam
+			 , t.oddsspread
+			 , t.SiteID
+			 , t.BetType
 		FROM @tblRecoverBet t		
 		
 		--> capture list of settled main transIDs before do recover
@@ -438,6 +461,73 @@ BEGIN
 			SELECT @transids_29 = @transids_29 + CONVERT(VARCHAR(50), transid) + ','
 			FROM #tblMainTicket	
 			WHERE matchid = @MatchId
+
+			DELETE @tmpBoostSite
+			INSERT INTO @tmpBoostSite(SiteId, srecommend )
+			SELECT DISTINCT SiteID, srecommend
+			FROM	#tblMainTicket t
+			WHERE	bettype = 29  AND matchid = @MatchId
+				AND t.betteam = '1' -- mix parlay
+				AND t.oddsspread = 2 -- offer parlay bonus
+				AND NOT EXISTS (SELECT 	TOP 1 1 
+									FROM 	dbo.bettransm bm WITH(NOLOCK) 
+									WHERE 	t.refno = bm.refno 
+											AND ((ISNULL(bm.statuswinlost,0) = 4 AND bm.statusID = 113)
+												OR bm.statusId = 0
+											)
+							) -- lose/running
+
+			UPDATE si 
+			SET IsDeposit = 1
+			FROM	@tmpBoostSite si
+				INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK)
+					ON si.srecommend = d.custid
+
+			SET @sqlOpenqueryCommand = ''
+			SET @sqlOpenqueryCommand = 'SELECT SiteId, OverOdds, Boost FROM OPENQUERY(DBPRO,''SELECT SiteId, OverOdds, Boost FROM bodb02.dbo.ParlayOddsBoostSetting p WITH(NOLOCK) WHERE p.SiteId IN ('
+									+ (SELECT  STRING_AGG(CAST(s.SiteID AS VARCHAR(MAX)),',') 
+										FROM (
+											SELECT SiteId
+											FROM (
+												SELECT SiteId
+												FROM @tmpBoostSite t
+												UNION
+												SELECT -1
+												UNION 
+												SELECT -2
+											) t
+											GROUP BY t.SiteID
+										) s 
+									)
+							+ ')'')'
+
+			DELETE @tmpBoostSetting
+			INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
+			EXEC (@sqlOpenqueryCommand)
+
+			SET @strSetting = ''
+			SELECT @strSetting = CAST((
+				SELECT	si.SiteId AS 's'
+						,(SELECT t.OverOdds AS 'o', t.Boost AS 'b' -- get its own settings
+							FROM (SELECT se.SiteId, se.OverOdds, se.Boost
+								FROM	@tmpBoostSetting se
+								WHERE	EXISTS (SELECT TOP 1 1 FROM	@tmpBoostSite si WHERE se.SiteId = si.SiteId)
+								UNION
+								SELECT	si.SiteId, se.OverOdds, se.Boost -- If the site ID does not have its own settings, the default value will be taken on default SiteId (-1 if it's credit, -2 if it's licensee)
+								FROM	@tmpBoostSite si
+									CROSS APPLY (
+										SELECT	se.OverOdds, se.Boost
+										FROM	@tmpBoostSetting se
+										WHERE	se.SiteId = CASE WHEN si.IsDeposit = 1 THEN -2 ELSE -1 END
+									) se
+								WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpBoostSetting se WHERE si.SiteId = se.SiteId)
+							) t
+						WHERE si.SiteId = t.SiteId
+						FOR JSON AUTO
+						) AS v
+				FROM	@tmpBoostSite si
+				FOR JSON AUTO
+			) AS VARCHAR(MAX))
 			
 			-- call pre-cal: betparlaydetail/betparlayresult		
 			EXEC dbo.NAP_Admin_Calculate_MP_broker 
@@ -445,6 +535,7 @@ BEGIN
 				,@matchdate = @MatchDate
 				,@strXML	= @transids_29
 				,@mode		= 'PRECAL-29'
+				,@strSetting = @strSetting
 		END
 
 		SELECT @refnos_29 = @refnos_29 + CONVERT(VARCHAR(50), refno) + '|' + CONVERT(VARCHAR(50), transid) + ','

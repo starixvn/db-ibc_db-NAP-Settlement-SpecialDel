@@ -132,6 +132,7 @@ AS
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 		- 20230810@July: [SD] Void Single Bet - Support searching ticket without using time range & Add Selection control for Sub Parlay [Redmine: #191448]
 	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
+		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -234,6 +235,9 @@ BEGIN
 			,@ErrCode				INT				= 0	  
 			,@SiteDBGroupID		SMALLINT
 			,@transInfo			VARBINARY(MAX) 
+			,@strSetting		VARCHAR(MAX)
+			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
+
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -340,7 +344,9 @@ BEGIN
 		OddsId				INT,
 		SiteDBGroupId		SMALLINT,
 		SettlementStatus	  TINYINT,
-		eventstatus			  NVARCHAR(50)
+		eventstatus			  NVARCHAR(50),
+		SiteID				INT,
+		mainoddsspread 			MONEY
 	)
 
 	CREATE TABLE #SpecialDeleteBetsm (
@@ -376,6 +382,9 @@ BEGIN
 	DECLARE @tmpTrans_beforeUpd AS TABLE (matchid INT, transid BIGINT, custid INT, winlost MONEY, actual_stake MONEY, playercomm MONEY, status VARCHAR(20), Bonusid INT, WalletType TINYINT, betdaqid BIGINT)
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
 	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
+	DECLARE @tmpBoostSite TABLE(SiteId INT, srecommend INT, IsDeposit BIT DEFAULT(0))
+	DECLARE @tmpBoostSetting TABLE (SiteId INT, OverOdds DECIMAL(9,4), Boost TINYINT)
+
 	
 	DECLARE @Odds_str NVARCHAR(100)
 		, @OddsType_Input VARCHAR(29)
@@ -1096,6 +1105,8 @@ BEGIN
 				,FilterOdds
 				,statusID
 				,matchid
+				,SiteID
+				,mainoddsspread
 			)
 			SELECT
 				b.transid,
@@ -1155,6 +1166,8 @@ BEGIN
 				,bm.SubOdds AS FilterOdds
 				,b.statusID
 				,bm.matchid
+				,b.BetSiteID
+				,b.oddsspread
 			FROM #SpecialDeleteBetsm bm WITH (NOLOCK)
 				INNER HASH JOIN dbo.bettrans AS b WITH (NOLOCK) 
 					ON b.matchid = 29 AND bm.refno = b.refno AND bm.SiteDBGroupId = b.SiteDBGroupID
@@ -1632,17 +1645,85 @@ BEGIN
 						,@UserId = @UserId
 				END
 
-				BEGIN TRY    
+				BEGIN TRY 
 					SELECT	@transids_29 = @transids_29 + CONVERT(VARCHAR(20), transid) + ','  
 					FROM	#SpecialDeleteBets  
 					WHERE	bettype = 29  AND matchid = @MatchId
 					GROUP BY transid
-					
+
+					DELETE @tmpBoostSite
+					INSERT INTO @tmpBoostSite(SiteId, srecommend )
+					SELECT DISTINCT SiteID, srecommend
+					FROM	#SpecialDeleteBets t
+					WHERE	bettype = 29  AND matchid = @MatchId
+						AND t.betteam = '1' -- mix parlay
+						AND t.mainoddsspread = 2 -- offer parlay bonus
+						AND NOT EXISTS (SELECT 	TOP 1 1 
+									FROM 	dbo.bettransm bm WITH(NOLOCK) 
+									WHERE 	t.refno = bm.refno 
+											AND ((ISNULL(bm.statuswinlost,0) = 4 AND bm.statusID = 113)
+												OR bm.statusId = 0
+											)
+							) -- lose/running
+
+					UPDATE si 
+					SET IsDeposit = 1
+					FROM	@tmpBoostSite si
+						INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK)
+							ON si.srecommend = d.custid
+
+					SET @sqlOpenqueryCommand = ''
+					SET @sqlOpenqueryCommand = 'SELECT SiteId, OverOdds, Boost FROM OPENQUERY(DBPRO,''SELECT SiteId, OverOdds, Boost FROM bodb02.dbo.ParlayOddsBoostSetting p WITH(NOLOCK) WHERE p.SiteId IN ('
+											+ (SELECT  STRING_AGG(CAST(s.SiteID AS VARCHAR(MAX)),',') 
+												FROM (
+													SELECT SiteId
+													FROM (
+														SELECT SiteId
+														FROM @tmpBoostSite t
+														UNION
+														SELECT -1
+														UNION 
+														SELECT -2
+													) t
+													GROUP BY t.SiteID
+												) s 
+											)
+									+ ')'')'
+
+					DELETE @tmpBoostSetting
+					INSERT INTO @tmpBoostSetting(SiteId, OverOdds, Boost)							
+					EXEC (@sqlOpenqueryCommand)
+
+					SET @strSetting = ''
+					SELECT @strSetting = CAST((
+						SELECT	si.SiteId AS 's'
+								,(SELECT t.OverOdds AS 'o', t.Boost AS 'b' -- get its own settings
+									FROM (SELECT se.SiteId, se.OverOdds, se.Boost
+										FROM	@tmpBoostSetting se
+										WHERE	EXISTS (SELECT TOP 1 1 FROM	@tmpBoostSite si WHERE se.SiteId = si.SiteId)
+										UNION
+										SELECT	si.SiteId, se.OverOdds, se.Boost -- If the site ID does not have its own settings, the default value will be taken on default SiteId (-1 if it's credit, -2 if it's licensee)
+										FROM	@tmpBoostSite si
+											CROSS APPLY (
+												SELECT	se.OverOdds, se.Boost
+												FROM	@tmpBoostSetting se
+												WHERE	se.SiteId = CASE WHEN si.IsDeposit = 1 THEN -2 ELSE -1 END
+											) se
+										WHERE	NOT EXISTS (SELECT TOP 1 1 FROM @tmpBoostSetting se WHERE si.SiteId = se.SiteId)
+									) t
+								WHERE si.SiteId = t.SiteId
+								FOR JSON AUTO
+								) AS v
+						FROM	@tmpBoostSite si
+						FOR JSON AUTO
+					) AS VARCHAR(MAX))
+
 					EXEC dbo.NAP_Admin_Calculate_MP_broker   
 						@matchid = @matchid  
 						,@matchdate = @matchdate  
 						,@strXML = @transids_29  
 						,@mode  = 'PRECAL-29'
+						,@strSetting = @strSetting
 				END TRY  
 				BEGIN CATCH   
 					SELECT 100 AS ErrorCode
