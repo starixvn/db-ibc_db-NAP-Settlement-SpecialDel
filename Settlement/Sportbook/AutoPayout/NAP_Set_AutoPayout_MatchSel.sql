@@ -66,6 +66,7 @@ AS
 	- 20220425@Louisa: Remove League.IsDeleted [Redmine:#171698]
 	- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 	- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+	- 20231025@Aries: Cannot insert duplicate key in object 'dbo.#matchList' [Redmine:#196002]
 
  Param explanation:  
 	@MatchCode: match code
@@ -166,7 +167,7 @@ BEGIN
 		, IsMultiCaled BIT
 		, IsRefund BIT
 		, IsCalRefund BIT
-		, matchid INT PRIMARY KEY
+		, matchid INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON)
 		, leagueid INT
 		, homeid INT
 		, awayid INT
