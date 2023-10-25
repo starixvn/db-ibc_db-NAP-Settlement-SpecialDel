@@ -385,6 +385,16 @@ BEGIN
 		RETURN;
 	END
 	
+	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
+	FROM @Validation v
+	OUTER APPLY( 
+			SELECT SUM(CASE WHEN IsMixParlay = 0 THEN transid ELSE NULL END) AS SingleCount
+				,SUM(CASE WHEN IsMixParlay = 1 THEN transid ELSE NULL END) AS MainParlayCount
+			FROM #TVSTicketBets
+			WHERE MatchId = v.MatchId
+			GROUP BY MatchId
+		)l
+
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		--Mark ticket when add request
