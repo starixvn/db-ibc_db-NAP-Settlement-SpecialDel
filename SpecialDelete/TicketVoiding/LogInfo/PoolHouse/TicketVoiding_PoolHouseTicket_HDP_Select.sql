@@ -12,9 +12,9 @@ CREATE PROCEDURE [dbo].[TicketVoiding_PoolHouseTicket_HDP_Select]
 	,@IsLinkGroupAIO	  BIT
 	,@LiveIndicator		  BIT
 	,@TransInfoJson		  VARCHAR(MAX)
-	,@HomeFavorite		  VARCHAR(50)
-	,@AwayFavorite		  VARCHAR(50)
-	,@HdpValue			  VARCHAR(50)
+	,@HomeFavorite		  VARCHAR(1000)
+	,@AwayFavorite		  VARCHAR(1000)
+	,@HdpValue			  VARCHAR(1000)
 )
 AS
 /*	
@@ -26,7 +26,7 @@ AS
 		- 20230403@July: Create new SP - Refactor code issue type HDP & 1H HDP   [Redmine: #172486]
 		- 20230802@July: Fix bug - Tickets bettype HDP/OU with HDP/OU value difference filter NOT SHOW on Other group  [Redmine: #190441]
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
-
+		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
 		
 	Param's explanation:
 
@@ -144,10 +144,15 @@ BEGIN
 	  ,WalletType			TINYINT
 	  ,RefCode				BIGINT
 	)
+	CREATE TABLE #tmpBettype (
+		 Id            INT
+		,GroupName	   VARCHAR(50) 
+    )
+	
 	DECLARE @tmpHomeFavorite TABLE (HomeFavorite SMALLMONEY)
 	DECLARE @tmpAwayFavorite TABLE (AwayFavorite SMALLMONEY)
 	DECLARE @tmpHdpValue TABLE (HdpValue SMALLMONEY)
-
+    
 	IF @HomeFavorite IS NOT NULL
 	BEGIN
 		INSERT INTO @tmpHomeFavorite (HomeFavorite)
@@ -302,8 +307,7 @@ BEGIN
 			,ExtraInfo
 			,winlostdate
 		)
-	SELECT DISTINCT
-			 b.transid
+	SELECT   b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -339,9 +343,7 @@ BEGIN
 			,b.liveindicator
 			,b.actual_stake AS ActualStake
 			,b.matchid
-			,CASE WHEN @IssueTypeId = 4 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-				  WHEN @IssueTypeId = 5 AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
-			      WHEN f.GroupMatch <> 0 AND f.BetType IS NOT NULL AND @IsLinkGroupAIO = 1 THEN 'AIO'
+			,CASE WHEN f.GroupName IS NOT NULL THEN f.GroupName 
 				  ELSE 'Others' 
 			 END AS GroupName
 			,b.statusID
@@ -350,9 +352,13 @@ BEGIN
 			,b.winlostdate
 	FROM #tmpTransInfo b WITH (NOLOCK)
 		OUTER APPLY(
-					SELECT f.GroupMatch, f.BetType
+					SELECT DISTINCT 
+						   CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 4 AND f.BetType = 5 THEN '1X2' 
+							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 5 AND f.BetType = 15 THEN '1H 1X2' 
+							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.bettype = f.BetType
+						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 					)f
 		OUTER APPLY (
 				SELECT t.HomeFavorite
@@ -442,8 +448,7 @@ BEGIN
 					,ExtraInfo
 					,winlostdate
 			)
-			SELECT DISTINCT
-					b.transid 
+			SELECT  b.transid 
 					,b.Subtransid
 					,b.refno
 					,b.Subcustid				
@@ -501,9 +506,7 @@ BEGIN
 									OR (xHDPvalue.HdpValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0) --case input hdp value filter = 0
 									)
 							THEN 'HDP' --Home Virtual Head Reversed 'HDP'
-						  WHEN @IssueTypeId IN (4) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1X2' 
-						  WHEN @IssueTypeId IN (5) AND f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1 THEN '1H 1X2'
-						  WHEN f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1 THEN 'AIO'
+						WHEN f.GroupName IS NOT NULL THEN f.GroupName
 						  ELSE 'Others'	 
 					 END AS GroupName
 					,b.SubstatusID
@@ -511,9 +514,13 @@ BEGIN
 					,b.winlostdate
 		  FROM #tmpTransInfo b
 				OUTER APPLY(
-					SELECT f.GroupMatch, f.BetType
+					SELECT DISTINCT 
+						   CASE WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 4 AND f.BetType = 5 THEN '1X2' 
+							    WHEN @IsLinkGroup1X2 = 1 AND f.GroupMatch = 0 AND @IssueTypeId = 5 AND f.BetType = 15 THEN '1H 1X2' 
+							    ELSE 'AIO' END AS GroupName
 					FROM dbo.f_TVS_CheckingIssueTypePHBettypes() f 
 					WHERE f.IssueTypeId = @IssueTypeId AND b.Subbettype = f.BetType
+						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 					)f
 				OUTER APPLY (
 						SELECT t.HomeFavorite
@@ -559,14 +566,17 @@ BEGIN
 	END
 
 	--Return all bettype tickets
+	INSERT INTO #tmpBettype (Id, GroupName)
 	SELECT DISTINCT s.SubBetType AS Id
-		, b.typenamee AS Name
 		, CASE WHEN @IssueTypeId IN (4) AND s.GroupName IN ('1X2', 'HDP') THEN '1X2' 
 			   WHEN @IssueTypeId IN (5) AND s.GroupName IN ('1H 1X2', 'HDP') THEN '1H 1X2' 
 			   ELSE s.GroupName 
 		  END AS GroupName
 	FROM #TVSTicketBets s
-		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.SubBetType = b.typeid 
+
+	SELECT s.Id, b.typenamee AS Name, s.GroupName
+	FROM #tmpBettype s
+		INNER JOIN dbo.bettype b WITH(NOLOCK) ON s.Id = b.typeid 
 
 	--Return all PH tickets
 	SELECT s.transid
@@ -634,6 +644,7 @@ BEGIN
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #TransidInRequest
+	DROP TABLE #tmpBettype
 
 	SET NOCOUNT OFF
 END

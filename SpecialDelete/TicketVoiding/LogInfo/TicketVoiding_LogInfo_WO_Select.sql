@@ -17,6 +17,7 @@ AS
 	Revisions: 
 		- 20230419@Max: Create new SP [Redmine:#179934]
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
+		- 20231023@Max: Extend datatype [Redmine: #192202]
 		
 	Param's explanation:
 		+ @WrongOddsInfo:
@@ -92,12 +93,12 @@ BEGIN
 		,FilterOddsType			VARCHAR(20) --"Range" or "Value"
  		,FromOdds				MONEY --"1.75" NULL IF FilterOddsType = 'Value' 
 		,ToOdds					MONEY --"1.75" NULL IF FilterOddsType = 'Value' 
-		,OddsValue				VARCHAR(20) --"1.75&1.5" NULL IF FilterOddsType = 'Range' 
+		,OddsValue				VARCHAR(1000) --"1.75&1.5" NULL IF FilterOddsType = 'Range' 
 		,betteam				VARCHAR(10)	-- "h" or "a"
 		,FilterFavoriteType		VARCHAR(10) -- "h" or "a"
-		,FavoriteValue			VARCHAR(20) -- "1.25"
+		,FavoriteValue			VARCHAR(1000) -- "1.25"
 		,FilterOUType			VARCHAR(10) -- "h" or "a"
-		,OUValue				VARCHAR(20) -- "1.25"
+		,OUValue				VARCHAR(1000) -- "1.25"
 		,CorrectOdds			MONEY --"1.75"
 	)
 	CREATE TABLE #logInfoVoidPage (
@@ -215,12 +216,12 @@ BEGIN
 			,t.c.value('@FilterOddsType', 'VARCHAR(20)') AS FilterOddsType
 			,t.c.value('@FromOdds', 'MONEY') AS FromOdds
 			,t.c.value('@ToOdds', 'MONEY') AS ToOdds
-			,t.c.value('@OddsValue', 'VARCHAR(20)') AS OddsValue
+			,t.c.value('@OddsValue', 'VARCHAR(1000)') AS OddsValue
 			,t.c.value('@BetTeam', 'VARCHAR(10)') AS betteam
 			,t.c.value('@FilterFavoriteType', 'VARCHAR(10)') AS FilterFavoriteType
-			,t.c.value('@FavoriteValue', 'VARCHAR(20)') AS FavoriteValue
+			,t.c.value('@FavoriteValue', 'VARCHAR(1000)') AS FavoriteValue
 			,t.c.value('@FilterOuType', 'VARCHAR(10)') AS FilterOUType
-			,t.c.value('@OuValue', 'VARCHAR(20)') AS OUValue
+			,t.c.value('@OuValue', 'VARCHAR(1000)') AS OUValue
 	FROM	@WrongOddsInfoXML.nodes('/root/r') AS T(C)
 	OPTION (OPTIMIZE FOR (@WrongOddsInfoXML = NULL ))
 

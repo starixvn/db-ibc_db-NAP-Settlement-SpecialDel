@@ -24,6 +24,7 @@ AS
 		- 20230421@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
+		- 20231023@Max: Extend datatype [Redmine: #192202]
 		
 	Param's explanation:
 		+ @WrongOUInfo, @Wrong1stOUInfo:
@@ -89,7 +90,7 @@ BEGIN
 		,FilterFromTransTime	DATETIME
 		,FilterToTransTime		DATETIME
 		,SubIssueTypeId			SMALLINT
-		,WrongMarket			VARCHAR(50)
+		,WrongMarket			VARCHAR(1000)
 		,PoolHouseCheckedBetTypes VARCHAR(MAX)
 		,IsMainMatch			VARCHAR(10)
 		,IsLinkGroup1X2			BIT DEFAULT(0)
@@ -194,7 +195,7 @@ BEGIN
 	SELECT t.c.value('@MatchId','INT') AS MatchID
 			,CASE WHEN t.c.value('@FilterFromTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterFromTransTime','DATETIME') END AS FilterFromTransTime
 			,CASE WHEN t.c.value('@FilterToTransTime','DATETIME') = '1900-01-01 00:00:00.000' THEN NULL ELSE t.c.value('@FilterToTransTime','DATETIME') END AS FilterToTransTime
-			,t.c.value('@WrongMarket','VARCHAR(50)') AS WrongMarket
+			,t.c.value('@WrongMarket','VARCHAR(1000)') AS WrongMarket
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 			,t.c.value('@PoolHouseCheckedBetTypes','VARCHAR(MAX)') AS PoolHouseCheckedBetTypes
 			,t.c.value('@IsMainMatch','VARCHAR(10)') AS IsMainMatch
