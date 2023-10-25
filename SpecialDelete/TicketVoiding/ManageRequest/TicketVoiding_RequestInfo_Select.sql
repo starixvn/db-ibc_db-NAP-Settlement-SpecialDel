@@ -21,6 +21,7 @@ AS
 		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 
 	Param's explanation:
 		
@@ -64,13 +65,13 @@ BEGIN
 		CROSS APPLY (
             SELECT CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20) THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3,2,19) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
-					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
 			FROM #tmpResult vh
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON vh.VoidingHistoryId = z.VoidingHistoryId
 			WHERE 1 = CASE WHEN @MatchId IN (0,29) THEN 1 
@@ -129,8 +130,8 @@ BEGIN
 			CROSS APPLY (
 				SELECT CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
 						,SUM( CASE 
-								WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20) THEN 1
-								WHEN vh.IssueTypeId IN (1,10,3,2,19) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+								WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
+								WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 								WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
 							ELSE 0 END
 						) AS TotalVoidedSingle

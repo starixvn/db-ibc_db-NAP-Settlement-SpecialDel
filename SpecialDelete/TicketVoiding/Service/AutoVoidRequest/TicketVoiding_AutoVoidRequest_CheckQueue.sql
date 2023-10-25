@@ -15,6 +15,7 @@ AS
 		- 20221201@Max: Create new SP [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 
 	Param's explanation:
 */
@@ -65,7 +66,7 @@ BEGIN
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE b.statuswinlost IS NOT NULL 
-			AND 1 = CASE WHEN t.IssueTypeId = 19 THEN 1
+			AND 1 = CASE WHEN t.IssueTypeId IN (19,21) THEN 1
 						WHEN t.IssueTypeId <> 19 AND b.statusID IN (0,1) THEN 1
 						ELSE 0
 					END
@@ -74,7 +75,7 @@ BEGIN
 		FROM #tmpInputTransId t 
 			INNER JOIN dbo.bettransm b WITH (NOLOCK) ON b.TransId = t.TransId
 		WHERE t.IsMixParlay = 1
-			AND t.IssueTypeId = 19
+			AND t.IssueTypeId IN (19,21) 
 			AND b.statuswinlost IS NOT NULL 
 	)t
 

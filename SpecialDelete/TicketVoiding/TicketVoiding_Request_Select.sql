@@ -43,6 +43,7 @@ AS
 		- 20221026@July: TVS - VAR message [Redmine: #178088]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 
 	Param's explanation:	
 	
@@ -52,6 +53,22 @@ BEGIN
 
 	DECLARE @IssueTypeId TINYINT
 		,@OrgTransIds VARCHAR(MAX) = NULL
+		,@PlayerIds VARCHAR(MAX) = NULL
+		,@query NVARCHAR(MAX) = ''
+		,@ExecuteSQL NVARCHAR(MAX) = ''
+		,@PlayerName NVARCHAR(MAX)
+		,@PlayerNamesChineseTraditional NVARCHAR(MAX)
+		,@PlayerNamesChineseSimplified NVARCHAR(MAX)
+		,@MessageId INT
+		,@ContentEnglish NVARCHAR(MAX)
+		,@ContentChineseTraditional NVARCHAR(MAX)
+		,@ContentChineseSimplified NVARCHAR(MAX)
+	
+	DECLARE @tmp_PlayerName AS TABLE (
+			PlayerName NVARCHAR(200),
+			PlayerNamesChineseTraditional NVARCHAR(200),
+			PlayerNamesChineseSimplified NVARCHAR(200)
+		)
 
 	SELECT	r.Sporttype
 			,r.IssueTypeId
@@ -109,6 +126,54 @@ BEGIN
 		)
 	END
 
+	IF @IssueTypeId = 21 --Generate PlayerNames for Not Participate
+	BEGIN
+		SET @PlayerIds = (
+		SELECT STUFF((SELECT ',' + t.PlayerIds
+		FROM (
+			SELECT xTrans.PlayerIds
+			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
+			CROSS APPLY (
+					SELECT CONVERT(XML, rd.TransIds)
+				)AS t(xDATA)
+			CROSS APPLY (
+					SELECT STUFF((SELECT ',' + t.c.value('@PlayerId','VARCHAR(MAX)') 
+					FROM t.xDATA.nodes('r') t(c)
+					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,1,'')
+				)xTrans (PlayerIds)
+			WHERE rd.RequestId = @RequestId
+		)t
+		FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)') ,1,1,'')
+		)
+
+		SET @query = 'SELECT t.teamname
+						,t.teamnamec_uni
+						,t.teamnamecn
+					FROM
+					(	
+						SELECT DISTINCT value 
+						FROM string_split (@PlayerIds, '','') 
+					)f
+					INNER JOIN dbo.team t WITH (NOLOCK) ON t.teamid = f.value
+				' 
+		SET @ExecuteSQL = 'DBPRO.bodb02.dbo.sp_executesql @query, N''@PlayerIds VARCHAR(MAX)'', @PlayerIds'
+
+		INSERT INTO @tmp_PlayerName (PlayerName, PlayerNamesChineseTraditional, PlayerNamesChineseSimplified)
+		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @PlayerIds VARCHAR(MAX)', @query, @PlayerIds
+
+		SET @PlayerName = LTRIM((SELECT STUFF((SELECT ' & ' + PlayerName
+						FROM @tmp_PlayerName
+						FOR XML PATH(''),TYPE).value('(./text())[1]','NVARCHAR(MAX)') ,1,2,'')))
+
+		SET @PlayerNamesChineseTraditional = LTRIM((SELECT STUFF((SELECT N' 和 ' + PlayerNamesChineseTraditional
+						FROM @tmp_PlayerName
+						FOR XML PATH(''),TYPE).value('(./text())[1]','NVARCHAR(MAX)') ,1,2,'')))
+
+		SET @PlayerNamesChineseSimplified = LTRIM((SELECT STUFF((SELECT N' 和 ' + PlayerNamesChineseSimplified
+						FROM @tmp_PlayerName
+						FOR XML PATH(''),TYPE).value('(./text())[1]','NVARCHAR(MAX)') ,1,2,'')))
+	END
+
 	IF @IssueTypeId <> 13 -- Except for AC 
 	BEGIN
 		SELECT	rd.MatchId
@@ -124,7 +189,7 @@ BEGIN
 				,m.finalhomescore
 				,m.finalawayscore
 				,m.GlobalShowTime
-				,rd.FilterFromTransTime
+			 	,rd.FilterFromTransTime
 				,rd.FilterToTransTime
 				,rd.FilterBy
 				,rd.TransIds AS RequestExtraInfo
@@ -168,10 +233,10 @@ BEGIN
 		WHERE	rd.RequestId = @RequestId
 	END
 
-	SELECT TOP 1 tv.MessageId
-			,msg.Content_en AS ContentEnglish
-			,msg.Content_ch AS ContentChineseTraditional
-			,msg.Content_cs AS ContentChineseSimplified
+	SELECT TOP 1 @MessageId = tv.MessageId
+			,@ContentEnglish = msg.Content_en
+			,@ContentChineseTraditional = msg.Content_ch
+			,@ContentChineseSimplified = msg.Content_cs
 	FROM TicketVoiding_VoidingHistory tv WITH (NOLOCK)
 		CROSS APPLY (
 				SELECT m.Content_en, m.Content_ch, m.Content_cs
@@ -180,5 +245,10 @@ BEGIN
 			) msg
 	WHERE tv.RequestId = @RequestId AND tv.StatusId = 2
 	ORDER BY tv.CreatedDate DESC
+
+	SELECT @MessageId AS MessageId, @ContentEnglish AS ContentEnglish, @ContentChineseTraditional AS ContentChineseTraditional, @ContentChineseSimplified AS ContentChineseSimplified
+			,@PlayerName AS PlayerNamesEnglish
+			,@PlayerNamesChineseTraditional AS PlayerNamesChineseTraditional
+			,@PlayerNamesChineseSimplified AS PlayerNamesChineseSimplified
 
 END
