@@ -8,10 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar]
 	,@Hta				SMALLINT		= NULL
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IP				VARCHAR(50)		= ''
-	,@IsCalParlay		BIT 			= 0
 	,@IsAuto			BIT				= 1
-	,@IsQueued			BIT 			= 0
-	,@KeyId				INT				= 0
 	,@ResourceResult	VARCHAR(MAX)	= ''
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
@@ -69,6 +66,7 @@ BEGIN
 			,@ResourceIDs		VARCHAR(100)
 			,@xml XML
 			,@IsCentral			BIT
+			,@IsCalParlay       BIT
 	
 	DECLARE @tempBetCount 		TABLE(bettype SMALLINT, custid INT, betcount INT, transid BIGINT)
 	DECLARE @tempRefno			TABLE(refno BIGINT)
@@ -188,7 +186,29 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
 		, @IsReleased		= 1
-	
 	DROP TABLE #tblMatchProcess
+
+
+	SELECT  @IsCalParlay = (SELECT TOP 1 1 
+							FROM    dbo.bettransm bm WITH(ROWLOCK)
+							WHERE   matchid = @matchid
+								AND EXISTS (SELECT  1 
+											FROM    dbo.f_Set_VS_BetRadar_GetBettypes() AS f
+											WHERE   f.bettype   = bm.bettype
+												AND f.sportType = @sportType
+								)
+								AND bm.statusID NOT IN (1, 101)
+								AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END)
+
+	IF @IsCalParlay = 1
+    BEGIN
+        EXEC [NAP_Admin_Settlement_VS_BetRadar_MP] 
+					 @AdminId = @AdminId
+					,@matchid = @matchid
+					,@action  = @action
+					,@IP      = @IP
+					,@ErrCode = @ErrCode    OUTPUT
+					,@ErrMsg  = @ErrMsg     OUTPUT
+    END
 END
 GO

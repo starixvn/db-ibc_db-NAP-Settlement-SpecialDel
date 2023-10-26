@@ -15,7 +15,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT m.eventstatus, m.kickofftime,l.leaguename
+	SELECT m.eventstatus, m.kickofftime,l.leaguename,l.LeagueGroupID
 	FROM dbo.match m WITH(NOLOCK)
 		LEFT JOIN dbo.league AS l  WITH(NOLOCK) ON  l.leagueId = m.leagueId 
 	WHERE m.matchid = @matchid

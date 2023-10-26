@@ -12,6 +12,9 @@ AS
 		- 20231016@Aries: Created [Redmine:#195333]
 		
 	Param explanation:  
+		- @MatchId: Get list ticket running, won, lose, draw
+		- @TransIDs: Get info ticket
+		- Execute SP with  only one parameter @MatchId or @TransIDs
   
 */
 BEGIN
@@ -23,6 +26,7 @@ BEGIN
 
 	CREATE TABLE #TicketInfo(transid BIGINT, custid INT, recommend INT, mrecommend INT, srecommend INT)
 	CREATE TABLE #tmpTransId(transid BIGINT)
+	CREATE TABLE #CustInfo(custid INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),username NVARCHAR(100))
 
 	SELECT @sportType 	= sportType 
 	FROM dbo.match m WITH(NOLOCK) 
@@ -89,13 +93,12 @@ BEGIN
 		INNER JOIN  dbo.bettrans AS b WITH(NOLOCK) ON t.transid = b.transid
 	WHERE b.StatusID = 103
 
-	;WITH CTE_TicketInfo AS 
-	(
-		SELECT DISTINCT ct.custid, ci.username
-		FROM #TicketInfo AS tt
-			CROSS APPLY (VALUES(tt.custid),(tt.recommend),(tt.mrecommend),(tt.srecommend)) AS ct (custid)
-			INNER JOIN CustDB.dbo.custinfo AS ci WITH(NOLOCK) ON ct.custid = ci.custid
-	)
+	INSERT INTO #CustInfo(custid,username)
+	SELECT DISTINCT ct.custid, ci.username
+	FROM #TicketInfo AS tt
+		CROSS APPLY (VALUES(tt.custid),(tt.recommend),(tt.mrecommend),(tt.srecommend)) AS ct (custid)
+		INNER JOIN CustDB.dbo.custinfo AS ci WITH(NOLOCK) ON ct.custid = ci.custid
+
 	SELECT t.transid
 		  ,t.custid AS MemberId
 		  ,u.UserName AS MemberUserName
@@ -106,10 +109,10 @@ BEGIN
 		  ,t.srecommend AS SuperId
 		  ,s.Username AS SuperUserName
 	FROM #TicketInfo AS t
-		INNER JOIN CTE_TicketInfo AS u ON t.custid = u.custid
-		INNER JOIN CTE_TicketInfo AS r ON t.recommend = r.custid
-		INNER JOIN CTE_TicketInfo AS m ON t.mrecommend = m.custid
-		INNER JOIN CTE_TicketInfo AS s ON t.srecommend = s.custid
+		INNER JOIN #CustInfo AS u ON t.custid = u.custid
+		INNER JOIN #CustInfo AS r ON t.recommend = r.custid
+		INNER JOIN #CustInfo AS m ON t.mrecommend = m.custid
+		INNER JOIN #CustInfo AS s ON t.srecommend = s.custid
 	
 END
 GO
