@@ -17,6 +17,7 @@ AS
 		- 20210817@Louisa: HF-Change datatype from INT to BIGINT [Redmine:#160262]
 		- 20211229@Max: Split Transfer - Adjust Negative Balance Service & Adjustment Transfer of Bonus [Redmine: #165098]
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
+		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 
     Parameters Explanation:   
 		@Mode:	- Adjustment
@@ -346,10 +347,10 @@ BEGIN
 			SET @email_body = REPLACE(@email_body, '{<tableRow>}', @tableRow)
 			
 			EXECUTE msdb.dbo.sp_send_dbmail @profile_name	= DEFAULT
-				, @recipients			 = 'dbaadmin@starixvn.com'
-				--LOCAL: dba_local@starixvn.com
-				--TEST version UAT (UAT1, UAT2...): 'qa@starixvn.com'
-				--PRODUCTION: 'dbaadmin@starixvn.com'
+				, @recipients			 = 'dbaadmin@starixsoft.com'
+				--LOCAL: dba_local@starixsoft.com
+				--TEST version UAT (UAT1, UAT2...): 'qa@starixsoft.com'
+				--PRODUCTION: 'dbaadmin@starixsoft.com'
 				, @copy_recipients		 = ''
 				, @blind_copy_recipients = ''
 				, @subject				 = @subject

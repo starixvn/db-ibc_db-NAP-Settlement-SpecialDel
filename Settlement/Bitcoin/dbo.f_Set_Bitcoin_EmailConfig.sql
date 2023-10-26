@@ -14,6 +14,7 @@ AS
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20230704@Louisa: Update email from csd.one1@enpine.com to csd.one1@enpine.com [Redmine:#189854]
+		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 		
 	Columns Explanation:    
     
@@ -32,90 +33,90 @@ RETURN (
 		-----------------------*/
 		SELECT 
 			CAST('NOTIFY' AS VARCHAR(10)) AS GroupName
-			, CAST('kathy.nguyen@starixvn.com' 	AS VARCHAR(500)) AS Recipients --general
-			, CAST('kathy.nguyen@starixvn.com' 	AS VARCHAR(500)) AS Credit_Recipients --credit model
-			, CAST('kathy.nguyen@starixvn.com' 	AS VARCHAR(500)) AS Deposit_Recipients --deposit model
+			, CAST('kathy.nguyen@starixsoft.com' 	AS VARCHAR(500)) AS Recipients --general
+			, CAST('kathy.nguyen@starixsoft.com' 	AS VARCHAR(500)) AS Credit_Recipients --credit model
+			, CAST('kathy.nguyen@starixsoft.com' 	AS VARCHAR(500)) AS Deposit_Recipients --deposit model
 			, 'DB230' 	AS ServerName
 			, 'DEV' 	AS Environment
 			
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
 			, 'DB206'
 			, 'LOCAL'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
 			, 'TESTDBTRANS'
 			, 'LOCAL'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com'
 			, 'testdb053\TESTSITEDB'
 			, 'LOCAL'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'SITDBTRANS'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'SITDBGRP01N1'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
-			, 'qa@starixvn.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
+			, 'qa@starixsoft.com'
 			, 'SITDBGRP01N2'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			--,'qa@starixvn.com'
-			--,'qa@starixvn.com'
-			--,'qa@starixvn.com'
-			, 'it@starixvn.com;'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			, 'it@starixsoft.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
 			, 'DBTRANS'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			--,'qa@starixvn.com'
-			--,'qa@starixvn.com'
-			--,'qa@starixvn.com'
-			, 'it@starixvn.com;'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			, 'it@starixsoft.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
 			, 'DBGRP01N1'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'NOTIFY'
-			--,'qa@starixvn.com'
-			--,'qa@starixvn.com'
-			--,'qa@starixvn.com'
-			, 'it@starixvn.com;'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			--,'qa@starixsoft.com'
+			, 'it@starixsoft.com;'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
 			, 'DBGRP01N2'
 			, 'PROD'
 
@@ -124,67 +125,67 @@ RETURN (
 		-----------------------*/
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'kathy.nguyen@starixvn.com;', '', ''
+			, 'kathy.nguyen@starixsoft.com;', '', ''
 			, 'DB230'
 			, 'DEV'
 			
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'DB206'
 			, 'LOCAL'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'TESTDBTRANS'
 			, 'LOCAL'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'kathy.nguyen@starixvn.com;qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'kathy.nguyen@starixsoft.com;qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'testdb053\TESTSITEDB'
 			, 'LOCAL'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'SITDBTRANS'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'SITDBGRP01N1'
 			, 'SIT'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			, 'qa@starixvn.com', 'qa@starixvn.com', 'qa@starixvn.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'SITDBGRP01N2'
 			, 'SIT'
 		
 		UNION ALL 
 		SELECT 'ERROR'
-			--,'qa@starixvn.com'
-			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'qa@starixvn.com', 'qa@starixvn.com'
+			--,'qa@starixsoft.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'DBTRANS'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			--,'qa@starixvn.com'
-			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'qa@starixvn.com', 'qa@starixvn.com'
+			--,'qa@starixsoft.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'DBGRP01N1'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'ERROR'
-			--,'qa@starixvn.com'
-			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixvn.com;peter.tong@starixvn.com;lena.huynh@starixvn.com'
-			, 'qa@starixvn.com', 'qa@starixvn.com'
+			--,'qa@starixsoft.com'
+			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'qa@starixsoft.com', 'qa@starixsoft.com'
 			, 'DBGRP01N2'
 			, 'PROD'
 			

@@ -17,6 +17,7 @@ AS
 		- 20201022@Patrick: Change email to starixvn [Redmine: #143607]
 		- 20210824@Kathy: Check refno of parlay long running [Redmine:#154737]
 		- 20220405@Louisa: Add New server alias ( new local test 2019) [Redmine:#171615]
+		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -31,7 +32,7 @@ BEGIN
 	declare @QueuedTVN TABLE (KeyID int, KeyValue money, KeyValue2 VARCHAR(20), CreatedDateTime datetime, eventtype varchar(100))
 	declare @tmpRefno TABLE (MatchId INT, Refno BIGINT, SPName VARCHAR(50), Session VARCHAR(50), CreatedDate datetime)
 
-	SET @SendTo = 'dbatw@onelab.tw;dbaadmin@starixvn.com;'
+	SET @SendTo = 'dbatw@onelab.tw;dbaadmin@starixsoft.com;'
 	SET @checktime = dateadd(mi,-5,getdate())
 	sET @fromchecktime = DATEADD(hour, -2, @checktime)
 

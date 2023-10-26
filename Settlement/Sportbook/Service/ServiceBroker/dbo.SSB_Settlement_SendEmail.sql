@@ -9,6 +9,7 @@ as
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
+		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 */
 begin
 	set nocount on
@@ -19,15 +20,15 @@ begin
 		exec dbo.NAP_Set_ServerInfo @Environment = @__enviroment OUTPUT
 		
 		if @__enviroment = 'PROD' OR @@SERVERNAME LIKE 'DBGRP%' 
-			set @Recipients = 'dbaadmin@starixvn.com'
+			set @Recipients = 'dbaadmin@starixsoft.com'
 		else if @__enviroment = 'SIT' OR @@SERVERNAME LIKE 'SITDBGRP%' 
-			set @Recipients = 'pontus@starixvn.com'
+			set @Recipients = 'pontus@starixsoft.com'
 		else if @__enviroment = 'DBBAL'
-			set @Recipients = 'pontus@starixvn.com'
+			set @Recipients = 'pontus@starixsoft.com'
 		else if @__enviroment = 'Local' OR @@SERVERNAME IN ('testdb053\TESTSITEDB')
-			set @Recipients = 'kathy.nguyen@starixvn.com'
+			set @Recipients = 'kathy.nguyen@starixsoft.com'
 		else
-			set @Recipients = 'pontus@starixvn.com'
+			set @Recipients = 'pontus@starixsoft.com'
 	end
 
 	exec msdb.dbo.sp_send_dbmail @recipients = @Recipients
