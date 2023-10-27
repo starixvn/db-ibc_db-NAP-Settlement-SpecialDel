@@ -20,6 +20,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -81,6 +82,10 @@ BEGIN
 	--Auto Payout virtual cricket
 	UNION ALL
 	SELECT 'NAP_Set_AutoPayoutOS_Schedule_Sel', @WaitingTime, 0
+
+	--Auto Payout OS
+	UNION ALL
+	SELECT 'NAP_Set_AutoPayoutOS_ScheduleSel', @WaitingTime, 0
 
 	--Leap Gaming (VS3)
 	UNION ALL

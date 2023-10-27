@@ -17,6 +17,7 @@ AS
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230315@Aries: Support Direct Payout for Child Tennis Matches [Redmine:#182330]
 		- 20230214@Louisa: Apply settlement by Profile for remain OS sports  [Redmine:#182677]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 
 	Param's Explanation:
  
@@ -61,6 +62,18 @@ BEGIN
 		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId )
 		SELECT	r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusID
 		FROM	dbo.ResultDetailOS r WITH(NOLOCK)
+			CROSS APPLY ( 
+				SELECT	f.ResourceID 
+				FROM	dbo.f_Set_MajorRound(@sporttype) f	
+    			WHERE	r.ResourceID = f.ResourceID
+		) f		
+		WHERE	r.matchid = @MatchId		
+	END
+	ELSE IF @ResultTable = 3
+	BEGIN
+		INSERT INTO @tmpResultDetail (MatchId, ResourceId, HomeValue, AwayValue, ResultStatusId, SettlementStatusId )
+		SELECT	r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue, r.ResultStatusID, r.SettlementStatusID
+		FROM	dbo.ResultDetailES r WITH(NOLOCK)
 			CROSS APPLY ( 
 				SELECT	f.ResourceID 
 				FROM	dbo.f_Set_MajorRound(@sporttype) f	
