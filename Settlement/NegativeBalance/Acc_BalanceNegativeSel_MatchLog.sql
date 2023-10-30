@@ -20,6 +20,7 @@ AS
 		- 20220711@Kathy: Do not use SELECT INTO [Redmine:#175276]
 		- 20230213@Aries: Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 		- 20230621@Kathy: Remove checking event in 14/bk range after reviewing [Redmine:#186616]
+		- 20231030@Aries: Enhance negative balance e-mail to remove redundant information [Redmine:#196172]
 		
 	Param's Explanation: 
 		+ @GroupID: 1: Match Single Bet; 2: Match Parlay Bet ; 3: Outright; 7: Vitural Sport
@@ -160,7 +161,7 @@ BEGIN
 						ELSE 1
 					END
 			AND 1 = CASE 
-						WHEN l.ActionID = 165 AND l.userID = 111 THEN 0
+						WHEN l.ActionID = 165 AND l.userID IN (111,17649007) THEN 0
 						WHEN @GroupID IN (1,2) AND l.ActionID IN (SELECT actionid FROM dbo.f_Set_NegativeBalance_ActionGroup()) THEN 1 
 						WHEN @GroupID = 7 THEN 1
 						ELSE 0 END
