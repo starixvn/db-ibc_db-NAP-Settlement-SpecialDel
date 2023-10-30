@@ -129,7 +129,7 @@ BEGIN
 		, m.leagueid
 		, m.homeid
 		, m.awayid
-		, m.kickofftime
+		, l.kickofftime
 		, l.TypeAccept
 		, l.SubIssueTypeId
 	FROM #tblGetLogInfo l
