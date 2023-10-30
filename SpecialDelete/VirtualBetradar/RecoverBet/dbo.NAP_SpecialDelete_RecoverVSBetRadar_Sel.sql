@@ -18,6 +18,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+		- 20231030@July: [TVS] Integrate a new sport type "Virtual Football League" [Redmine: #195313]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -195,7 +196,7 @@ BEGIN
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
 				OR m.sporttype IN (180, 186) -- Inspired VS 
-				OR m.sporttype IN (178) -- VS 3 (Leap Gaming)
+				OR m.sporttype IN (178, 179) -- VS 3 (Leap Gaming)
 			  )
 		  AND z.bettype NOT IN (2799)		  		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
