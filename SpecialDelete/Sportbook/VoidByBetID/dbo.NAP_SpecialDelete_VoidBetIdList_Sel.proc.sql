@@ -7,7 +7,9 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel]
     @ToDate            DATETIME     = NULL,
     @IncludeMainParlay BIT          = 0,
 	@Products		   VARCHAR(50)  = NULL,
-	@StatusIds		   VARCHAR(50)  = NULL
+	@StatusIds		   VARCHAR(50)  = NULL,
+	@IsAbnormalBet	   BIT = 0
+
 )
 AS;
 /*  
@@ -67,6 +69,7 @@ AS;
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+		- 20231031@July: [SD] Void By BetID - Void abnormal tickets of many matches at once [Redmine: #196028]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -462,11 +465,28 @@ BEGIN
 			INTO @tmpTransIdMoveBet (TransId)
 		WHERE eventdate <= @movebetdate
 	END
-		
-	------------------------------------------------------------------------------	--1. Table invald/moved transid	
+	
+	DECLARE @cnt INT, @MatchId INT
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	IF @IsAbnormalBet = 1
+	BEGIN
+		INSERT INTO  @tmpMatchId (MatchId)
+		SELECT DISTINCT 
+			   CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE s.matchid END AS MatchId
+		FROM #SpecialDeleteBets s
+			INNER JOIN dbo.match m WITH (NOLOCK) ON s.matchid = m.matchid 
+
+		SET @cnt = @@ROWCOUNT
+		IF @cnt = 1
+			SELECT @MatchId = MatchId FROM @tmpMatchId
+	END
+
+	------------------------------------------------------------------------------	--1. Table invalid/moved transid	
 	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT)	INSERT INTO #InvalidTransIds(transid, IsMoved)	SELECT t.transid		  , CASE WHEN b.transid IS NOT NULL THEN 1				 WHEN m.TransId IS NOT NULL THEN 1				 ELSE 0 END AS IsMoved	FROM #transIdTemp t		LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets r WHERE r.transid = t.transid)
 	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))									 FROM #InvalidTransIds									 WHERE IsMoved = 0									 FOR XML PATH('')), 1, 1, '');									
-	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))								   FROM #InvalidTransIds								   WHERE IsMoved = 1								   FOR XML PATH('')), 1, 1, '');		SELECT @InvalidTransIds AS InvalidTransIds	      ,@MovedTransIds AS MovedTransIds
+	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))								   FROM #InvalidTransIds								   WHERE IsMoved = 1								   FOR XML PATH('')), 1, 1, '');		SELECT @InvalidTransIds AS InvalidTransIds	      ,@MovedTransIds AS MovedTransIds		  ,@MatchId AS MatchId
+
 	-- UPDATE SiteName
 	;WITH CustSiteName AS (
 		SELECT DISTINCT ag.custid, ci.site, ci.srecommend, ci.mrecommend
