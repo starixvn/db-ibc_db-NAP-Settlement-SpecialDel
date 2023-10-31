@@ -5,6 +5,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 	,@EventDate		DATETIME = NULL
 	,@IsMainMatch	BIT = 1
 	,@IssueTypeId	TINYINT = NULL
+	,@Sporttype		SMALLINT = 1
 )
 AS
 /*	
@@ -73,6 +74,7 @@ BEGIN
 			AND 1 = CASE WHEN m.sporttype <> 50 THEN 1
 					WHEN m.sporttype = 50 AND m.ChildMatchType <> 200 THEN 1
 				ELSE 0 END
+			AND m.sporttype = @Sporttype
 		ORDER BY matchcode ASC
 	END
 	
