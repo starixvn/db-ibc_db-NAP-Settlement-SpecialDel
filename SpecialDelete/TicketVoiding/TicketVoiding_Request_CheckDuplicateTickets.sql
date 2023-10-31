@@ -277,7 +277,7 @@ BEGIN
 	WHERE b.IsMoved14 = 0
 		AND 1 = CASE WHEN @IsAutoAddRequest = 1 THEN 1
 					WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
-			       WHEN @FilterBy = 1 AND b.bettype = 29 THEN 1
+			       WHEN @FilterBy = 1 AND b.bettype IN (9,29,2799) THEN 1
 				   ELSE 0 END
 		AND 1 = CASE WHEN @SiteDBGroupId IS NULL THEN 1
 					WHEN @SiteDBGroupId IS NOT NULL AND b.SiteDBGroupID = @SiteDBGroupId THEN 1
