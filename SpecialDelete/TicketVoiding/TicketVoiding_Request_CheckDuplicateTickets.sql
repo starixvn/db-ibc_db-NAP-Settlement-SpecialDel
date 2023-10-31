@@ -261,7 +261,7 @@ BEGIN
 			,b.custid
 			,b.matchid
 			,b.betteam
-			,CASE WHEN b.bettype = 29 THEN 1 ELSE NULL END
+			,CASE WHEN b.bettype IN (9,29,2799) THEN 1 ELSE NULL END
 			,CASE WHEN @TransIds IS NULL THEN 1 ELSE 0 END
 			,b.odds
 			,b.stake
@@ -276,7 +276,7 @@ BEGIN
 	FROM #tmpTransInfo b
 	WHERE b.IsMoved14 = 0
 		AND 1 = CASE WHEN @IsAutoAddRequest = 1 THEN 1
-					WHEN @FilterBy IS NULL AND b.bettype <> 29 THEN 1
+					WHEN @FilterBy IS NULL AND b.bettype NOT IN (9,29,2799) THEN 1
 			       WHEN @FilterBy = 1 AND b.bettype IN (9,29,2799) THEN 1
 				   ELSE 0 END
 		AND 1 = CASE WHEN @SiteDBGroupId IS NULL THEN 1
@@ -315,7 +315,7 @@ BEGIN
 	SELECT t.transid
 	FROM #validTransId t
 		OUTER APPLY (SELECT bettype FROM @bettype_tmp WHERE bettype = t.bettype) bt
-	WHERE 1 = CASE WHEN bt.bettype IS NULL AND t.bettype <> 29 THEN 1
+	WHERE 1 = CASE WHEN bt.bettype IS NULL AND t.bettype NOT IN (9,29,2799) THEN 1
 				   ELSE 0 END
 
 	SELECT @UnsupportedTransids = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -386,7 +386,7 @@ BEGIN
 
 	SELECT @DifferentMatchTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 										FROM #validTransId AS v
-										WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29)
+										WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29,9,2799)
 										FOR XML PATH('')), 1, 1, '')
 										, '')
 	IF @ActionId <> 2
@@ -485,7 +485,7 @@ BEGIN
 	--Remove unsupport mark product
 	BEGIN
 		DELETE t FROM @tmpMarkTransId t 
-		WHERE 1 = CASE WHEN t.bettype <> 29 AND NOT EXISTS (
+		WHERE 1 = CASE WHEN t.bettype NOT IN (9,29,2799) AND NOT EXISTS (
 						SELECT TOP 1 1
 						FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 						WHERE pt.ProductID = 1 -- Sportsbook
