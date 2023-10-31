@@ -199,7 +199,7 @@ BEGIN
 			WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
 							WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
 							ELSE 0 END) 
-				AND b.bettype = 29
+				AND b.bettype IN (9,29,2799)
 		END
 	END
 	ELSE
