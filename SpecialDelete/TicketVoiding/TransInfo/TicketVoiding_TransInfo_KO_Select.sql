@@ -106,12 +106,17 @@ BEGIN
 
 	DECLARE @tmpMatchId TABLE (MatchId INT, ParentId INT, ChildMatchType INT, Sporttype INT, KickOffTime DATETIME, IsFinish BIT)
 	INSERT INTO @tmpMatchId (MatchId, ParentId, ChildMatchType, Sporttype, KickOffTime)
-	SELECT m.MatchId, m.ParentId, m.ChildMatchType, m.Sporttype, f.KickOffTime
-	FROM dbo.match m WITH(NOLOCK)
-		INNER JOIN #FilterInfo f ON m.matchid = f.MatchId
-	WHERE  1 = CASE WHEN m.sporttype <> 50 AND m.matchid = f.MatchId THEN 1
-				    WHEN m.sporttype = 50 AND (m.matchid = f.MatchId OR m.ParentID = f.MatchId) THEN 1
+	SELECT m.MatchId, m.ParentId, m.ChildMatchType, m.Sporttype, d.KickOffTime
+	FROM #FilterInfo d
+	CROSS APPLY (
+			SELECT m.matchid, m.ParentID, m.ChildMatchType, m.sporttype
+			FROM dbo.match m WITH(NOLOCK)
+			WHERE 1 = CASE WHEN m.sporttype <> 50 AND m.matchid = d.MatchId THEN 1
+						WHEN m.sporttype = 50 
+							AND ((m.matchid = d.MatchId) 
+								OR (m.ChildMatchType = 200 AND m.ParentID = d.MatchId)) THEN 1
 					ELSE 0 END
+		)m
 
 	WHILE (1=1)
 	BEGIN
