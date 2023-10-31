@@ -246,18 +246,23 @@ CROSS APPLY (
 WHERE l.isTest = 0																
 	
 SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
-	, 'SD' AS 'TVS/SD?', bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+	, 'SD' AS 'TVS/SD?', bk.winlostdate
+	, YEAR(bk.winlostdate) AS YEAR_winlostdate
+	, MONTH(bk.winlostdate) AS MONTH_winlostdate
+	, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
     , 'VOID' AS ActionName
 	, '' as Function_SDName
 	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
     , '' IssueType, '' SubIssueType
-	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
+	, '' AS CreatedBy, '' CreatedDate,'' AS Duration, '' FromTimeUI, '' ToTimeUI
 	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
+	,  'Manual Void' AS 'Auto Void?'
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
+	, CASE WHEN bk.statusID IN (111,112,113) THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bettrans_bk bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
@@ -265,19 +270,24 @@ FROM #temp_transid ms WITH (NOLOCK)
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate
 
-SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																										
-	, 'SD' AS 'TVS/SD?', bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
+	, 'SD' AS 'TVS/SD?', bk.winlostdate
+	, YEAR(bk.winlostdate) AS YEAR_winlostdate
+	, MONTH(bk.winlostdate) AS MONTH_winlostdate
+	, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
     , 'VOID' AS ActionName
 	, '' as Function_SDName
 	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
     , '' IssueType, '' SubIssueType
-	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
+	, '' AS CreatedBy, '' CreatedDate,'' AS Duration, '' FromTimeUI, '' ToTimeUI
 	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
+	,  'Manual Void' AS 'Auto Void?'
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
+	, CASE WHEN bk.statusID IN (111,112,113) THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans14 bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
@@ -287,18 +297,23 @@ ORDER BY winlostdate
 
 
 SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%considered VOID%' THEN 'No' ELSE 'Yes' END IsMonthly																									
-	, 'SD' AS 'TVS/SD?', bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
+	, 'SD' AS 'TVS/SD?', bk.winlostdate
+	, YEAR(bk.winlostdate) AS YEAR_winlostdate
+	, MONTH(bk.winlostdate) AS MONTH_winlostdate
+	, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup																		
     , COUNT(DISTINCT bk.transid) AS Bet_cnt																								
 	, cast (SUM(bk.stake * bk.actualrate) as money) AS MemberTO_RM, cast(SUM ((1-tpositiontaking)* stake * actualrate) as money) AS House_TO_RM	
     , 'VOID' AS ActionName
 	, '' as Function_SDName
 	, '' AS RequestId, '' TotalTicket, '' TotalTicket_Parlay, '' Bet_cnt_Parlay
     , '' IssueType, '' SubIssueType
-	, '' AS CreatedBy, '' CreatedDate, '' FromTimeUI, '' ToTimeUI
+	, '' AS CreatedBy, '' CreatedDate,'' AS Duration, '' FromTimeUI, '' ToTimeUI
 	, '' MistakenBy, '' DecidedBy,'' AS PerformanceBy
+	,  'Manual Void' AS 'Auto Void?'
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
+	, CASE WHEN bk.statusID IN (111,112,113) THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								

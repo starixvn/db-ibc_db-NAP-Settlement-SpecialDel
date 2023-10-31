@@ -4,8 +4,8 @@ USE bodb_archive
 GO
 
 DECLARE @from datetime, @to datetime ,@RequestInfoGetCalcTimes VARBINARY(MAX) = NULL																									
-SET @from = '2023-09-01'																									
-SET @to = '2023-10-01'																									
+SET @from = '2023-10-25'																									
+SET @to = '2023-11-01'																									
 																									
 																								
 CREATE TABLE #temp_transid (
@@ -47,6 +47,7 @@ CREATE TABLE #temp_transid (
 , ListBettype VARCHAR(MAX)
 , ListBetteam VARCHAR(MAX)
 , ListScore VARCHAR(MAX)
+, IsHasSettled BIT
 )
 
 CREATE TABLE #temp_RequestIdMatchId (
@@ -86,7 +87,8 @@ INSERT #temp_transid (RequestId, IssueTypeId ,SubIssueTypeId, CreatedDate , From
 ,SubIssueType
 )
 SELECT r.RequestId, r.IssueTypeId, rd.SubIssueTypeId,r.CreatedDate, rd.FilterFromTransTime, rd.FilterToTransTime
-,r.MistakenBy, r.DecidedBy, r.UserId, r.ActionId, rd.MatchId
+,r.MistakenBy, r.DecidedBy, r.UserId, r.ActionId
+, rd.MatchId
   , i.IssueTypeName, s.SubIssueTypeName
 FROM DBTRANS.bodb02.dbo.TicketVoiding_Request r  WITH(NOLOCK) 
 	INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_RequestDetail rd  WITH(NOLOCK) ON r.RequestId = rd.RequestId
@@ -154,6 +156,7 @@ SET t.TotalTicket = kq.TotalTicket
 ,t.MemberTO_RM = kq.MemberTO_RM
 ,t.House_TO_RM = kq.House_TO_RM
 ,t.winlostdate = kq.winlostdate
+,t.IsHasSettled = kq.IsHasSettled
 FROM #temp_transid t
 INNER JOIN (
 	 SELECT t.RequestId
@@ -169,6 +172,7 @@ INNER JOIN (
         ,COUNT(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/ THEN b.Transid_void ELSE NULL END) AS Bet_cnt	
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast ((b.stake * b.actualrate) as money) ELSE NULL END) AS MemberTO_RM
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast( ((1-tpositiontaking)* b.stake * actualrate) as money) ELSE NULL END) AS House_TO_RM	
+		,MAX(CASE WHEN b.statusid IN (111,112,113) THEN 1 ELSE 0 END) AS IsHasSettled
 	FROM #temp_transid t
 		INNER JOIN #temp_Ticket b ON t.RequestId = b.RequestId AND t.Matchid = b.MatchId
 	GROUP BY t.RequestId, b.MatchId
@@ -181,6 +185,7 @@ UPDATE t
 SET t.TotalTicket_Parlay = kq.TotalTicket_Parlay
 ,t.Bet_cnt_Parlay = kq.Bet_cnt_Parlay
 ,t.winlostdate = kq.winlostdate
+,t.IsHasSettled = kq.IsHasSettled
 FROM #temp_transid t
 INNER JOIN (
 	 SELECT t.RequestId
@@ -188,6 +193,7 @@ INNER JOIN (
 		,b.winlostdate
 		,COUNT(s.TransId) AS TotalTicket_Parlay
         ,COUNT(CASE WHEN b.statusid = 102 AND z.transid IS NOT NULL AND s.IsProcessed IS NOT NULL THEN s.TransId ELSE NULL END ) AS Bet_cnt_Parlay	
+		,MAX(CASE WHEN b.statusid IN (111,112,113) THEN 1 ELSE 0 END) AS IsHasSettled
 	FROM #temp_transid t
 		INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_RequestDetailTicket_SubParlay s WITH (NOLOCK) ON t.RequestId = s.RequestId AND t.Matchid = s.MatchId
 		CROSS APPLY (
@@ -306,7 +312,7 @@ SELECT t.RequestId, t.Matchid, s.TransId,  b.Transdate
 	, b.actualrate 
 	, b.tpositiontaking 
 	, b.winlostdate 
-	 , z.transid AS Transid_void
+	, z.transid AS Transid_void
     , b.bettype 
 	, b.betteam 
 	, b.livehomescore 
@@ -335,6 +341,7 @@ SET t.TotalTicket = kq.TotalTicket
 ,t.MemberTO_RM = kq.MemberTO_RM
 ,t.House_TO_RM = kq.House_TO_RM
 ,t.winlostdate = kq.winlostdate
+,t.IsHasSettled = kq.IsHasSettled
 FROM #temp_transid t
 INNER JOIN (
 	 SELECT t.RequestId
@@ -350,6 +357,7 @@ INNER JOIN (
         ,COUNT(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/ THEN b.Transid_void ELSE NULL END) AS Bet_cnt	
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast ((b.stake * b.actualrate) as money) ELSE NULL END) AS MemberTO_RM
 		,SUM(CASE WHEN b.statusid = 102 AND b.Transid_void IS NOT NULL /*AND s.IsProcessed IS NOT NULL*/  THEN cast( ((1-tpositiontaking)* b.stake * actualrate) as money) ELSE NULL END) AS House_TO_RM	
+		,MAX(CASE WHEN b.statusid IN (111,112,113) THEN 1 ELSE 0 END) AS IsHasSettled
 	FROM #temp_transid t
 		INNER JOIN #temp_Ticket b ON t.RequestId = b.RequestId AND t.Matchid = b.MatchId
 	GROUP BY t.RequestId, b.MatchId
@@ -361,6 +369,7 @@ UPDATE t
 SET t.TotalTicket_Parlay = kq.TotalTicket_Parlay
 ,t.Bet_cnt_Parlay = kq.Bet_cnt_Parlay
 ,t.winlostdate = kq.winlostdate
+,t.IsHasSettled = kq.IsHasSettled
 FROM #temp_transid t
 INNER JOIN (
 	 SELECT t.RequestId
@@ -368,6 +377,7 @@ INNER JOIN (
 		,b.winlostdate
 		,COUNT(s.TransId) AS TotalTicket_Parlay
         ,COUNT(CASE WHEN b.statusid = 102 AND z.transid IS NOT NULL AND s.IsProcessed IS NOT NULL THEN s.TransId ELSE NULL END ) AS Bet_cnt_Parlay	
+		,MAX(CASE WHEN b.statusid IN (111,112,113) THEN 1 ELSE 0 END) AS IsHasSettled
 	FROM #temp_transid t
 		INNER JOIN dbo.TicketVoiding_RequestDetailTicket_SubParlay_bk s WITH (NOLOCK) ON t.RequestId = s.RequestId AND t.Matchid = s.MatchId
 		CROSS APPLY (
@@ -417,7 +427,6 @@ UPDATE	t
 			WHERE vh.RequestId = t.requestId AND vh.StatusId IN (2,3)
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
-
 
 /*************************************************************************************************************************************
 **************************************************************************************************************************************/
@@ -492,17 +501,27 @@ SELECT DISTINCT
 		CASE WHEN IssueTypeId IN (11,15,13)  THEN 'No' 
 			 WHEN IssueTypeId NOT IN (11,15,13) AND ISNULL(ms.Bet_cnt,0) > 0 THEN 'Yes' 
 			 ELSE 'No' END IsMonthly
-	,'TVS' AS FunctionGroup, ms.winlostdate, CASE WHEN IssueTypeId IN (11,13,18) THEN SubIssueType ELSE IssueType END AS Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup
+	,'TVS' AS 'TVS/SD?', ms.winlostdate
+	, YEAR(ms.winlostdate) AS YEAR_winlostdate
+	, MONTH(ms.winlostdate) AS MONTH_winlostdate
+	, CASE WHEN IssueTypeId IN (11,13,18) THEN SubIssueType ELSE IssueType END AS Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup
     , ms.Bet_cnt, ms.MemberTO_RM, ms.House_TO_RM	
     , a.ActionName
 	, 'Null' as Function_SDName
 	, ms.RequestId, ms.TotalTicket, ms.TotalTicket_Parlay, ms.Bet_cnt_Parlay
     , ms.IssueType, ms.SubIssueType
-	, c.Username AS CreatedBy,ms.CreatedDate, ms.FromTimeUI, ms.ToTimeUI
+	, c.Username AS CreatedBy,ms.CreatedDate
+    , ISNULL(DATEDIFF(mi, ms.Max_TransDate, ms.CreatedDate),0)  AS Duration
+	, ms.FromTimeUI, ms.ToTimeUI
 	, ms.MistakenBy, ms.DecidedBy, v.Username AS PerformanceBy
+	, CASE WHEN (ms.Bet_cnt > 0 OR ms.Bet_cnt_Parlay >0) AND ms.Action_Req NOT IN ( 2,3,5) THEN 'Auto Void'
+		   WHEN (ms.Bet_cnt > 0 OR ms.Bet_cnt_Parlay >0) AND ms.Action_Req IN ( 2,3,5) THEN 'Manual Void'
+	       ELSE 'No Void'
+		END AS 'Auto Void?'
     , ms.Min_Trans , ms.Max_Trans , ms.Min_TransDate , ms.Max_TransDate , ms.Liveindicator
 	, ms.ListBettype, ms.ListBetteam, ms.ListScore, '' Calc_HTTime,'' Calc_FTTime
 	, ms.MessageContent
+	, CASE WHEN ms.IsHasSettled = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms
 	INNER JOIN DBTRANS.bodb02.dbo.TicketVoiding_Action a WITH(NOLOCK) 
 		ON ms.Action_Req = a.ActionId
@@ -525,3 +544,5 @@ ORDER BY ms.CreatedDate ASC, ms.RequestId ASC
 DROP TABLE #temp_transid
 DROP TABLE #temp_Ticket
 DROP TABLE #temp_RequestIdMatchId
+
+
