@@ -70,7 +70,9 @@ BEGIN
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
-			AND m.sporttype IN (1)
+			AND 1 = CASE WHEN m.sporttype <> 50 THEN 1
+					WHEN m.sporttype = 50 AND m.ChildMatchType <> 200 THEN 1
+				ELSE 0 END
 		ORDER BY matchcode ASC
 	END
 	
