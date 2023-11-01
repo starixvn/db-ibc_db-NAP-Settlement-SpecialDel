@@ -25,6 +25,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20231101@Kathy: fix log [Redmine:#192311]
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -76,6 +77,7 @@ BEGIN
 			,@hta				INT
 			,@IsCentral			BIT
 			,@SiteDBGroupId		TINYINT
+			,@strMarketId		VARCHAR(MAX) = ''
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -380,6 +382,9 @@ BEGIN
 				ON s.SelectionType = cteData.selectionType
 			
 		SELECT @SelectedResources = 'Selections:' + STUFF(@SelectedResources, 1, 1, '')
+
+		SELECT	@strMarketId = STRING_AGG(CAST(MarketId AS VARCHAR(MAX)), ',')
+		FROM	#tblMarket
 	END
 		
 	SELECT @TotalAccount_BalanceUpdate = (SELECT COUNT(DISTINCT custID) FROM #tblCustIDBalanceUpdated)
@@ -388,7 +393,8 @@ BEGIN
 	BEGIN
 		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 		SELECT @Remark = '<distinct>'
-							+ '<r n="SelectedResource" v="' + @SelectedResources + '"/>'
+							+ CASE WHEN ISNULL(@SelectedResources,'') <> '' THEN '<r n="SelectedResource" v="' + @SelectedResources + '"/>' ELSE '' END
+							+ CASE WHEN ISNULL(@strMarketId,'') <> '' THEN '<r n="SelectedMarket" v="' + @strMarketId + '"/>' ELSE '' END
 						+ '</distinct>'
 						+ '<root>'
 							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
