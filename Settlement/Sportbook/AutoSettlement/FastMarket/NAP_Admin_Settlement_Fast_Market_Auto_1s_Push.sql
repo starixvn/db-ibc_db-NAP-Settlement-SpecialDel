@@ -37,6 +37,7 @@ AS
 			- 20220228@Louisa: Allow insert command into Single_Calculate_Queue by group Action [Redmine:#168497]
 			- 20211215@Kathy: Soccer - Include calculate parlay into calculate single tickets process [Redmine:#166072]
 			- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+			- 20230817@Kathy: Write log [Redmine:#192311]
 			
 	Param's Explanation:
 		- @Result: 
@@ -259,6 +260,9 @@ BEGIN
 															+ ', @IP = ''' + CONVERT(VARCHAR(15), @IP) + ''''
 															+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 
 															+ ', @IsSettleDetermined = ' + CONVERT(NVARCHAR(50), @IsSettleDetermined) 
+															+  CASE WHEN @BroadcastSessionId IS NOT NULL 
+																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+																	ELSE '' END +
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 														

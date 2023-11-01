@@ -29,7 +29,7 @@ AS
 		  - 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		  - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 		  - 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
-		  - 20230817@Kathy: Write log [Redmine:#192311]
+		  - 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 
 	Param's Explanation:  
 	
@@ -58,8 +58,7 @@ BEGIN
 			,@SDTRecord TINYINT
 			,@IsAuto BIT
 			,@Starttime DATETIME
-			,@Endtime DATETIME
-
+			
 			,@FailedSettlementProcessingId INT
 			,@RunningSettlementProcessingId INT
 
@@ -71,6 +70,7 @@ BEGIN
 			,@KeyId INT
 			,@DeterminedFTStatus TINYINT = 0
 			,@BroadcastSessionIdInstant VARCHAR(50) = @BroadcastSessionId + '_instant'
+			,@SiteDBGroupId					TINYINT
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
@@ -176,54 +176,43 @@ BEGIN
 				,@ErrCode = T.C.value('@ErrCode','INT')
 		FROM	@LogData.nodes('/root/r') AS T(C)	
 
-		SET @Endtime = GETDATE()
-		SELECT @Remark = 'NAP: Calculate (' + @action + ') for matchid:' + CAST(@matchid AS NVARCHAR(10))
-								+ CASE WHEN @DeterminedFTStatus = 2 THEN ' SDT-FT:1' ELSE '' END
-								+ ' score FT:' + CAST(ISNULL(@fth, 0) AS NVARCHAR(10)) 
-								+ '-' + CAST(ISNULL(@fta, 0) AS NVARCHAR(10)) 
-								+ ' HT:' + CAST(ISNULL(@hth,0) AS NVARCHAR(10)) 
-								+ '-' + CAST(ISNULL(@hta,0) AS NVARCHAR(10)) 
-								+ CASE WHEN @goalrecord IS NOT NULL THEN ' GoalRecord:' + ISNULL(@goalrecord, '') ELSE '' END 
-								+ CASE 
-									WHEN @Action LIKE 'REFUND%' THEN 	
-									' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
-								ELSE ''
-								END
-								+ CASE WHEN @oldgoalrecord IS NOT NULL THEN '(Old:' + @oldgoalrecord + ')' ELSE '' END 
-										+ CASE WHEN @betstatus IS NOT NULL THEN ' Remark(' + @betstatus + ')' ELSE '' END 
-								+' Duration(' + CAST(DATEDIFF(millisecond, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms)'							
-
-		IF @IsCentral = 1
+		-- write log
 		BEGIN
-			SELECT @Remark ='NAP: ' 
-							+ CASE 
-								WHEN @Action LIKE '%INST%' THEN
-									CASE WHEN @SourceId = 5 THEN 'Source: Soccerway' ELSE '' END
-									+ CASE WHEN @TicketCount IS NOT NULL THEN ' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';' ELSE '' END
-								WHEN @Action LIKE 'CAL%' THEN 
-									CASE 
-										WHEN @SourceId = 1 THEN 'Auto Payout: SBO' + '<br/> '
-										WHEN @SourceId IN (100,101) THEN 'Auto Payout: Direct ' + ISNULL(@RefResult,'') + '<br/> '
-										ELSE ''
-									END 
-									+ CASE WHEN @DeterminedFTStatus = 2 THEN ' SDT-FT:1' ELSE '' END
-									+ CASE    WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
-												ELSE ' Old GoalRecord:' + @oldgoalrecord + '<br/> '
-												END
-									+ CASE WHEN @TicketCount IS NOT NULL THEN ' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';' ELSE '' END
-									+ CASE WHEN @IsReSettledTickets IS NOT NULL THEN ' Recalc: ' + CAST (ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + ';' ELSE '' END
-								   + CASE WHEN ISNULL(@ChildMatchIds,'') = '' THEN ''
-											WHEN @ChildMatchIds = '0' THEN ' RefChild:0' 
-											ELSE ' RefChild:(' + @ChildMatchIds +')' 
+			SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())	
+			SELECT @Remark = '<distinct>'
+									+ CASE 
+										WHEN @Action LIKE '%INST%' THEN
+											CASE WHEN @SourceId = 5 THEN '<r n="Source" v="Soccerway"/>' ELSE '' END
+										WHEN @Action LIKE 'CAL%' THEN 
+											CASE 
+												WHEN @SourceId = 1 THEN '<r n="Auto Payout" v="SBO"/>'
+												WHEN @SourceId = 101 THEN '<r n="Auto Payout" v="Direct ' + ISNULL(@RefResult,'') + '"/>' 
+												ELSE ''
+											END 
+											+ CASE WHEN @DeterminedFTStatus = 2 THEN '<r n="SDT-FT" v="1"/>' ELSE '' END
+											+ CASE    
+												WHEN ISNULL(@oldgoalrecord,'')='' THEN ''
+												ELSE '<r n="Old GoalRecord" v="' + @oldgoalrecord + '"/>' 
 											END
-								WHEN @Action LIKE 'REFUND%' THEN
-									CASE WHEN @IsAuto IS NOT NULL THEN 'IsAutoRefund: ' + CAST(@IsAuto AS CHAR(1)) ELSE '' END
-									+ ' SDTRecord: ' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3))
-								WHEN @Action LIKE 'UNDO%' THEN IIF(@TicketCount IS NOT NULL,' TC:' + CAST(@TicketCount AS VARCHAR(20)) + ';','TC: 0;') 
-								ELSE ''
-							END
-							+ ' Duration:' + CAST(DATEDIFF(MILLISECOND, @Starttime, @Endtime) AS NVARCHAR(50)) + ' ms;' 
-		
+											+ '<r n="Recalc" v="' + CAST(ISNULL(@IsReSettledTickets,0) AS VARCHAR(1)) + '"/>'
+											+ CASE 
+												WHEN ISNULL(@ChildMatchIds,'') = '' THEN '' 
+												WHEN @ChildMatchIds = '0' THEN '<r n="RefChild" v="0"/>'
+												ELSE '<r n="RefChild" v="(' + @ChildMatchIds + ')"/>'
+											END
+										WHEN @Action LIKE 'REFUND%' THEN
+											CASE WHEN @IsAuto IS NOT NULL THEN '<r n="IsAutoRefund" v="' + CAST(@IsAuto AS CHAR(1)) + '"/>' ELSE '' END
+											+ '<r n="SDTRecord" v="' + CAST(ISNULL(@SDTRecord,0) AS VARCHAR(3)) + '"/>' 										
+										ELSE ''
+										END
+							+ '</distinct>'
+							+ '<root>'
+									+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+									+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @starttime, 120)  + '"/>'			
+									+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
+									+ CASE WHEN @TicketCount IS NOT NULL THEN '<r t="s" n="TC" v="' + CAST(@TicketCount AS VARCHAR(20))  + '"/>' ELSE '' END
+							+ '</root>'			
+
 			SELECT @betstatus = CASE WHEN @SDTRecord & 4 > 0 THEN 'Abandoned 1H' ELSE 'Refund' END
 			WHERE	@Action = 'REFUND'
 
@@ -239,6 +228,7 @@ BEGIN
 				,@betstatus            = @betstatus
 				,@Remark            = @Remark
 				,@IP                = @IP
+				,@BroadcastSessionId = @BroadcastSessionId
 		END
 
 		IF @DeterminedFTStatus = 1 -- determinable FT ticket

@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Fast_Market_Auto_1s] @MatchId INT
 	,@Ip					VARCHAR(20)		= ''
 	,@IsReSettledTickets	BIT				= 1
 	,@IsSettleDetermined	BIT				= 0
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 
 	,@ErrCode				INT				= 0		OUTPUT
 	,@ErrMsg				VARCHAR(200)	= ''	OUTPUT
@@ -37,6 +38,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
 	Param's Explanation:
 		If @IsAuto = 0:
@@ -72,7 +74,6 @@ BEGIN
 	SET NOCOUNT ON
 	 
 	DECLARE		@Start 		DATETIME
-				,@Stop 		DATETIME
 				,@fth		INT
 				,@fta 		INT
 				,@hth 		INT
@@ -99,6 +100,7 @@ BEGIN
 				,@isExistFM2 BIT = 0
 				,@IsCentral			BIT
 				,@xmlOldAccumulatedScore XML
+				,@SiteDBGroupId		TINYINT = 0
 
 	DECLARE @tblAccumulatedScore TABLE (
 		bettype					SMALLINT
@@ -532,10 +534,6 @@ BEGIN
 	-------------------------------------------------------------
 	---                      WRITE LOG                        ---
 	---------------------------VVVV------------------------------
-
-	SELECT @stop = CURRENT_TIMESTAMP
-	
-	IF @IsCentral = 1
 	BEGIN
 		SET @LogResult = CONVERT(VARCHAR(MAX),(SELECT BetType '@Id'
 			,MIN(r.position) AS 'Item/@MinPosition'
@@ -581,7 +579,7 @@ BEGIN
 												) END AS 'Item/@Result'
 		FROM #tblResultDetail r
 		GROUP BY BetType
-		FOR XML PATH('BetType'), ROOT ('BetTypes'), TYPE))
+		FOR XML PATH('bettype'), ROOT ('bettypes'), TYPE))
 
 		INSERT INTO #tblEventCounter (ResourceId, Position, Result)
 		SELECT	t.ResourceId
@@ -615,18 +613,23 @@ BEGIN
 														FROM #tblEventCounter t
 														GROUP BY Position
 														ORDER BY Position
-														FOR XML PATH('Item'), Root('EventCounters'), TYPE)
+														FOR XML PATH('Item'), Root('eventcounter'), TYPE)
 													) ,'')
 		
-		SELECT @Remark = 'NAP: IsAuto:' + CAST(@IsAuto AS VARCHAR(1))
-				+ ' Recalc: ' + CAST (@IsReSettledTickets AS VARCHAR(1)) + '<br/>'
-				+  CASE WHEN @IsSettleDetermined = 1 THEN ' SDT: 1 <br/>' ELSE '' END
-				+ ' Duration: ' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + 'ms' 
-			
-		SELECT @Remark = @Remark + '|'  -- signal for web
-						+ @LogResult + '|'
-						+ @LogEventCounter 
-	
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark = '<distinct>'
+							+ '<r n="IsAuto" v="' + CAST(@IsAuto AS VARCHAR(1)) + '"/>'
+							+ '<r n="Recalc" v="' + CAST(@IsReSettledTickets AS VARCHAR(1)) + '"/>'
+							+  CASE WHEN @IsSettleDetermined = 1 THEN  '<r n="SDT" v="1"/>' ELSE '' END
+						+ '</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
+						+ '</root>'	
+						+ @LogResult
+						+ @LogEventCounter
+
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @userid = @AdminId
 			, @matchid			= @MatchID
 			, @actionid			= @ActionID
@@ -638,6 +641,7 @@ BEGIN
 			, @betstatus		= ''
 			, @Remark			= @Remark
 			, @ip				= @ip
+			, @BroadcastSessionId = @BroadcastSessionId
 	END
 	------ releasing Settlement process
 	EXEC dbo.NAP_Admin_CheckingProcess

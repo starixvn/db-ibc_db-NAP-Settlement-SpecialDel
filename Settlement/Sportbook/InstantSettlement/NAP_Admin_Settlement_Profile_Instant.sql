@@ -26,6 +26,7 @@ AS
 		- 20230515@Aries: Created [Redmine:#175202]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
+		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 
     Param's Explanation:
         - @Action: 'CAL', 'CAL-INST'
@@ -63,8 +64,9 @@ BEGIN
 		    ,@TicketCount					INT = 0
 	        ,@BatchNo						INT = 2000
             ,@BatchCount					INT	
-			,@Remark						VARCHAR(500) = ''
-			,@RemarkSDT						VARCHAR(500) = ''
+			,@Remark						VARCHAR(MAX) = ''
+			,@RemarkSDT						VARCHAR(MAX) = ''
+			,@Selected						VARCHAR(MAX) = ''
             
 		    ,@TotalSubParlay				INT
 		    ,@ThresholdRefno				INT 
@@ -74,6 +76,7 @@ BEGIN
 
 			,@ResultTable					TINYINT
 			,@BroadcastSessionIdInstant		VARCHAR(50)		= @BroadcastSessionId + '_instant'
+			,@SiteDBGroupId					TINYINT
 		
 	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT, MinusValue SMALLMONEY   DEFAULT(0), PRIMARY KEY (BetType,BetID))	
     DECLARE @tmpResources TABLE(SDTResourceId VARCHAR(20),HomeValue VARCHAR(2000),AwayValue VARCHAR(2000))
@@ -410,7 +413,7 @@ BEGIN
 
 	
 	BEGIN
-		IF @IsInstant = 1 AND @IsCentral = 1
+		IF @IsInstant = 1
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoPayoutResultOS_Update 
 				 @MatchId 			= @matchid
@@ -420,27 +423,34 @@ BEGIN
 				,@SourceID			= 98
 		END
 
-		SELECT @Remark = STRING_AGG (SDTResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
+		SELECT @Selected = STRING_AGG (SDTResourceId + '(' + HomeValue + '-' + AwayValue  + ')',', ')
 		FROM @tmpResources
 		WHERE	HomeValue != ''
             AND AwayValue != ''
 
-		SET @RemarkSDT = @Remark + ', ' + @RemarkSDT
-		SET @Remark = 'Selected: ' + @RemarkSDT + '<br/>'
-					 +'Duration: ' + CAST(DATEDIFF(MILLISECOND, @Start, @Stop) AS NVARCHAR(50)) + ' ms;' 
-					 +'TC: ' + CAST(ISNULL(@TicketCount, 0) AS VARCHAR(20)) 
-		
-		IF @IsCentral = 1
-			EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
-						 @userid			= @AdminId
-						,@matchid			= @MatchId
-						,@actionid			= @ActionID
-						,@finalhomescore	= @fth
-						,@finalawayscore	= @fta
-						,@hthomescore		= @hth
-						,@htawayscore		= @hta
-						,@Remark			= @Remark
-						,@ip				= @IP
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark = '<distinct>'
+							+ CASE WHEN ISNULL(@Selected,'') <> '' THEN '<r n="Selected" v="' + @Selected + '"/>' ELSE '' END
+							+ CASE WHEN ISNULL(@RemarkSDT,'') <> '' THEN  '<r n="SDT" v="' + @RemarkSDT + '"/>' ELSE '' END
+						+ '</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
+							+ '<r t="s" n="TC" v="' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20))  + '"/>'							
+						+ '</root>'
+
+		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
+				 @userid			= @AdminId
+				,@matchid			= @MatchId
+				,@actionid			= @ActionID
+				,@finalhomescore	= @fth
+				,@finalawayscore	= @fta
+				,@hthomescore		= @hth
+				,@htawayscore		= @hta
+				,@Remark			= @Remark
+				,@ip				= @IP
+				,@BroadcastSessionId = @BroadcastSessionIdInstant	
 		
 	END
 
@@ -461,7 +471,7 @@ BEGIN
 
 	IF @TotalSubParlay > 0
 	BEGIN	
-		SELECT @SelectedResourceParlay = CAST(( SELECT @RemarkSDT  AS '@RemarkSDT',  (SELECT SDTResourceID		AS '@Id'
+		SELECT @SelectedResourceParlay = CAST(( SELECT @Selected + '; SDT: ' + @RemarkSDT  AS '@RemarkSDT',  (SELECT SDTResourceID		AS '@Id'
 																				 		    ,bettype			AS '@Bettype'
 																						    ,SDTpfId			AS '@SDTpfId'
 																						    ,HomeValue			AS '@Home'

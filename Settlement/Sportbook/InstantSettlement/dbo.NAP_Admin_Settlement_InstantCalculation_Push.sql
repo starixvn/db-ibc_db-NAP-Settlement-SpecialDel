@@ -64,7 +64,9 @@ BEGIN
 						  + ', @IsAutoInst = ''' + CONVERT(NVARCHAR(50), @IsAutoInst) + '''' 
 						  + ', @GoalRecord = ' + CASE WHEN @GoalRecord IS NULL THEN 'NULL'
                                                                 ELSE '''' + CONVERT(NVARCHAR(50), @GoalRecord) + '''' END
-						  + CASE WHEN @BroadcastSessionId IS NOT NULL THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + '''' ELSE '' END
+						  +  CASE WHEN @BroadcastSessionId IS NOT NULL 
+									THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+									ELSE '' END +
 						  + ', @ErrCode = @ErrCode OUTPUT' 
 						  + ', @ErrMsg = @ErrMsg OUTPUT'
 

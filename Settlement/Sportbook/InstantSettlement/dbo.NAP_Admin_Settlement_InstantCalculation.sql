@@ -493,6 +493,9 @@ BEGIN
 					+ ', @HasError = ' + CAST(@ErrCode AS VARCHAR)
 					+ ', @LogData = ' + '''' + CAST(@LogData AS VARCHAR(MAX)) + ''''
 					+ ', @IsCentral = ' + CAST(@IsCentral AS VARCHAR)
+					+ CASE WHEN @BroadcastSessionId IS NOT NULL 
+												THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+												ELSE '' END
 					+ ', @ErrCode = @ErrCode OUTPUT' 
                     + ', @ErrMsg = @ErrMsg OUTPUT'
 					+ ', @SSBStatus = @SSBStatus OUTPUT'

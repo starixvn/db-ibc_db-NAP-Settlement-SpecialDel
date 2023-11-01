@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Refund_BetFair_Push]
 	@MatchId	int,
 	@AdminId	int, 	
 	@IP			varchar(15) = '',
+	@BroadcastSessionId VARCHAR(50)	= NULL,
 	@ErrCode	int = 0 OUTPUT,
 	@ErrMsg		nvarchar(200) = '' OUTPUT
 AS
@@ -18,6 +19,7 @@ AS
 		- 20150401@Kathy: Add checking ticket status before performing settlement [Redmine:#33493]
 		- 20151005@Kathy: add more UAT version for testing (UAT1,UAT2,UAT3,UAT4)
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
 	Param's Explanation:
 	• @matchid: matchid need to refund
@@ -50,6 +52,9 @@ BEGIN
 		    ,@sqlCommand = 'EXEC [dbo].[NAP_Admin_Settlement_Refund_BetFair] @matchid = ' + CONVERT(NVARCHAR(50),@MatchId) +
 								 ', @creator = ' + CONVERT(NVARCHAR(50),@AdminId) + 
 								 ', @IP = ''' + CONVERT(NVARCHAR(50),@IP) + '''' +
+								  CASE WHEN @BroadcastSessionId IS NOT NULL 
+									THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
+									ELSE '' END +
 								 ', @ErrCode = @ErrCode OUTPUT' +
 								 ', @ErrMsg = @ErrMsg OUTPUT' 
 
@@ -71,8 +76,8 @@ BEGIN
 	END 
 	ELSE
 	BEGIN
-		INSERT INTO Single_Calculate_Queue(matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand)
-		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand
+		INSERT INTO Single_Calculate_Queue(matchid, matchcode, IsCalculating, LeagueID, SportType, AdminId, IP, Action, sqlCommand, BroadcastSessionId)
+		SELECT @MatchId, @matchcode, 0, @leagueid, @sporttype, @AdminId, @IP, @Action, @sqlCommand, @BroadcastSessionId
 	END 
 END
 

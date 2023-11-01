@@ -8,6 +8,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_BetBuilder]
 	,@IsAuto			BIT				= 1
 	,@VendorID			SMALLINT		= 34
 	,@IP				VARCHAR(15)		= ''
+	,@BroadcastSessionId VARCHAR(50)	= NULL
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -23,6 +24,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20230817@Kathy: Write log [Redmine:#192311]
 
 	Param's Explanation:
 		@Action : CAL, UNDO, 
@@ -60,7 +62,6 @@ BEGIN
 			,@startRowIndex		INT
 			--------------log---------------------------------------------------
 			,@start				DATETIME
-			,@stop				DATETIME
 			,@avaiableProcess	BIT
 			,@ResultRemarkLog	VARCHAR(MAX)	= ''
 			,@Remark			VARCHAR(MAX)
@@ -74,6 +75,7 @@ BEGIN
 			,@hth				INT
 			,@hta				INT
 			,@IsCentral			BIT
+			,@SiteDBGroupId		TINYINT
 
   	--START Balance tables
 	DECLARE @BalanceWalletBefore		TVP_BalanceWalletChange
@@ -357,7 +359,6 @@ BEGIN
 	-------------------------------------------------------------
 	---					  WRITE LOG						---
 	---------------------------VVVV------------------------------
-	SELECT @stop = CURRENT_TIMESTAMP
 	--log marketID
 	DECLARE @LogDate DATETIME = GETDATE()
 			,@LogIDOutput	 BIGINT
@@ -383,13 +384,21 @@ BEGIN
 		
 	SELECT @TotalAccount_BalanceUpdate = (SELECT COUNT(DISTINCT custID) FROM #tblCustIDBalanceUpdated)
 				
-	IF @IsCentral = 1
+	-- write log
 	BEGIN
-		SELECT @Remark = CASE WHEN @SelectedResources IS NULL THEN '' ELSE @SelectedResources + '<br/> ' END 							
-							+ 'Duration:' + CAST(DATEDIFF(MILLISECOND, @start, @stop) AS NVARCHAR(50)) + ' ms' 
-							+ '; TC:' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20)) 
-							+ '; Bal:' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20)) + '/' + CAST(IsNull(@TotalAccount, 0) AS VARCHAR(20))
-				
+		SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
+		SELECT @Remark = '<distinct>'
+							+ '<r n="SelectedResource" v="' + @SelectedResources + '"/>'
+						+ '</distinct>'
+						+ '<root>'
+							+ '<r t="n" n="SiteDB" v="' + CAST(ISNULL(@SiteDBGroupId, 0) AS VARCHAR)  + '"/>'
+							+ '<r t="dmin" n="StartTime" v="' + CONVERT(VARCHAR, @start, 120)  + '"/>'			
+							+ '<r t="dmax" n="EndTime" v="' + CONVERT(VARCHAR, GETDATE(), 120) + '"/>'	
+							+ '<r t="s" n="TC" v="' + CAST(ISNULL(@ticketCount, 0) AS VARCHAR(20))  + '"/>'		
+							+ '<r t="s" n="TotalAccount_BalanceUpdate" v="' + CAST(ISNULL(@TotalAccount_BalanceUpdate, 0) AS VARCHAR(20))  + '"/>'	
+							+ '<r t="s" n="TotalAccount" v="' + CAST(ISNULL(@TotalAccount, 0) AS VARCHAR(20))  + '"/>'	
+						+ '</root>'	
+						
 		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle
 				@userid				= @AdminId
 				,@matchid			= @MatchID
@@ -401,6 +410,7 @@ BEGIN
 				,@GoalRecord		= NULL
 				,@Remark			= @Remark
 				,@ip				= @ip
+				,@BroadcastSessionId = @BroadcastSessionId	
 
 	END
 END
