@@ -3,13 +3,17 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Main]
 	@matchid 		INT				= 0
 	,@SportType		INT				= 0
 	,@mode 			VARCHAR(10)		= 'CAL'
+	,@Fth			SMALLINT		= NULL
+	,@Fta			SMALLINT		= NULL
+	,@Hth			SMALLINT		= NULL
+	,@Hta			SMALLINT		= NULL
 	,@CALBettypes 	VARCHAR(MAX)	= NULL
 	,@maxTransId	BIGINT			= 0
 	,@ActionID		TINYINT			= 0
 	,@TicketInfos 	VARCHAR(MAX)	= NULL
 	,@IsBalance		BIT 			= 1
 	,@CWLBettype	SMALLINT 		= 1201
-	,@ResourceIDs	VARCHAR(200)	= ''
+	,@ResourceResult VARCHAR(200)	= ''
 	,@ErrCode		INT				= 0		OUTPUT
 	,@ErrMsg		NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -29,6 +33,7 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20221109@Louisa: log more info [Redmine:#178694]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
 
 	Param's Explanation:
 		- ? @Mode:
@@ -52,18 +57,14 @@ BEGIN
 		, @balanceUpd			VARCHAR(MAX)
 		, @BalanceType			TINYINT
 		, @balanceAcc 			VARCHAR(MAX)
-		, @GroupID				INT
-		, @ResourceResult		VARCHAR(200) = ''
-		, @fth					INT
-		, @fta					INT
-		, @hth					INT
-		, @hta					INT
+		, @GroupID				INT		
 		, @IsCentral			BIT = 0
 		, @TotalTransMaxPO		INT = 0
 		, @batchPO				SMALLINT = 500
 		, @TransInfoMaxPO		VARCHAR(MAX)
 		, @transMPO				VARCHAR(MAX)
 		, @SiteDBGroupId		SMALLINT
+		, @xml					XML
 		
 
 	EXEC dbo.NAP_Set_ServerInfo
@@ -150,23 +151,6 @@ BEGIN
 				ON temp.bettype = f.bettype
 			WHERE f.SportType = @SportType
 			OPTION (OPTIMIZE FOR (@xmlBettype = NULL ))			
-		
-			SELECT 
-				 @fth = FinalHomeScore
-				,@fta = FinalAwayScore
-				,@hth = HTHomeScore
-				,@hta = HTAwayScore
-			FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
-			WHERE matchid = @matchid
-			
-			IF @SportType = 193
-			BEGIN
-				SELECT	 @ResourceResult = @ResourceResult + CASE WHEN ResourceID LIKE '2809__' THEN RIGHT(ResourceID,2) + Custom1 +',' ELSE '' END 
-				FROM	DBPRO.bodb02.dbo.ResultDetail3rd WITH (NOLOCK)
-				WHERE	MatchID = @MatchID 
-					AND SettlementStatusID = 4
-					AND ResourceID IN (SELECT [value] FROM STRING_SPLIT(@ResourceIDs,','))
-			END
 		END
 		ELSE IF @mode = 'RECOVER' AND @TicketInfos IS NOT NULL
 		BEGIN

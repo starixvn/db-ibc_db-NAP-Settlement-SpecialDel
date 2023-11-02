@@ -20,49 +20,55 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	DECLARE  @Sporttype			INT
-	DECLARE  @parlayBettype		SMALLINT
+	DECLARE  @parlayBettype		SMALLINT = 2799
 	DECLARE  @tmpBettype 		TABLE (bettype SMALLINT)
-	DECLARE  @tmpRefno 			TABLE (refno BIGINT)
+	DECLARE  @IsCentral			BIT = 0
 
 	CREATE TABLE #TicketInfo(transid BIGINT, custid INT, recommend INT, mrecommend INT, srecommend INT)
 	CREATE TABLE #tmpTransId(transid BIGINT)
 	CREATE TABLE #CustInfo(custid INT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),username NVARCHAR(100))
+	CREATE TABLE #tmpRefno(refno BIGINT PRIMARY KEY WITH (IGNORE_DUP_KEY = ON), statusID tinyint)
+
+	EXEC dbo.NAP_Set_ServerInfo
+		@IsCentral = @IsCentral OUTPUT
 
 	SELECT @sportType 	= sportType 
 	FROM dbo.match m WITH(NOLOCK) 
 	WHERE m.matchid = @MatchId
 
-	IF @Sporttype = 178 AND @MatchId > 0
+	IF @Sporttype IN (178,179) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
 		SELECT b.transid,b.statusID
 		FROM dbo.bettrans AS b WITH (NOLOCK)
 		WHERE b.matchid = @MatchId
 			AND b.StatusID IN (0,111,112,113)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		RETURN
 	END
-	ELSE IF @Sporttype = 180 AND @MatchId > 0
+	ELSE IF @Sporttype IN (180,186) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
 		SELECT b.transid,b.statusID
 		FROM dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK)
 		WHERE b.matchid = @matchid
 			AND b.bettype IN (1201, 1203, 1204, 1205, 1206, 1224, 1220, 1235, 1236)
 			AND b.StatusID IN (0,111,112,113)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		RETURN
 	END
-	ELSE IF @Sporttype IN (190,191,192,194,195,196,197,193) AND @MatchId > 0
+	ELSE IF @Sporttype IN (190,191,192,194,195,196,197,193) AND @MatchId > 0 AND ISNULL(@TransIDs,'') = ''
 	BEGIN
-		SET  @parlayBettype  = 2799
-
 		INSERT INTO @tmpBettype(bettype)
 		SELECT f.bettype
 		FROM dbo.f_Set_VS_BetRadar_GetBettypes () AS f
 		WHERE f.SportType = @SportType	
 
-		INSERT INTO @tmpRefno (refno)
-		SELECT bm.refno 
-		FROM dbo.bettransm bm WITH(ROWLOCK)
+		INSERT INTO #tmpRefno (refno,statusID)
+		SELECT bm.refno, bm.statusID
+		FROM dbo.bettransm AS bm WITH(ROWLOCK)
 		WHERE matchid = @matchid
 			AND EXISTS (SELECT 1 FROM @tmpBettype AS f WHERE f.bettype = bm.bettype)
+			AND bm.statusID IN (0,111,112,113)
+			AND bm.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE bm.SiteDBGroupID END
 		
 
 		SELECT b.transid,b.statusID
@@ -70,15 +76,16 @@ BEGIN
 		WHERE b.matchid = @MatchId
 			AND EXISTS (SELECT 1 FROM @tmpBettype AS f WHERE f.bettype = b.bettype)
 			AND b.StatusID IN (0,111,112,113)
+			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 		
 		UNION ALL
 
-		SELECT p.transid,p.statusID
+		SELECT p.transid,r.statusID
 		FROM dbo.bettrans AS p WITH(NOLOCK)
+			INNER JOIN #tmpRefno AS r ON r.refno = p.refno
 		WHERE p.matchid = @parlayBettype
 			AND p.bettype = @parlayBettype
-			AND EXISTS (SELECT 1 FROM @tmpRefno AS r WHERE r.refno = p.refno)
-			AND p.StatusID IN (0,111,112,113)
+			AND p.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE p.SiteDBGroupID END
 
 		RETURN
 	END
@@ -91,7 +98,16 @@ BEGIN
 	SELECT b.transid,b.custid,b.recommend,b.mrecommend,b.srecommend
 	FROM #tmpTransId AS t 
 		INNER JOIN  dbo.bettrans AS b WITH(NOLOCK) ON t.transid = b.transid
-	WHERE b.StatusID = 103
+		OUTER APPLY(SELECT TOP 1 bm.statusID
+					FROM dbo.bettransm AS bm 
+					WHERE bm.refno = b.refno
+						AND bm.statusID = 103
+						AND b.matchid = @parlayBettype
+						AND b.bettype = @parlayBettype
+						AND bm.matchid =  @MatchId
+					) AS p
+	WHERE (b.statusID = 103 OR p.statusID IS NOT NULL)
+		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
 
 	INSERT INTO #CustInfo(custid,username)
 	SELECT DISTINCT ct.custid, ci.username

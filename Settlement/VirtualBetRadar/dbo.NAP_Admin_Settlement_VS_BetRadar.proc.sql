@@ -1,6 +1,6 @@
 /*<info serverAlias="DBTXN-bodb02" executers="Dot_Member,bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar] 
-	@AdminId			INT
+	 @AdminId			INT
 	,@MatchId			INT
 	,@Fth				SMALLINT		= NULL
 	,@Fta				SMALLINT		= NULL
@@ -64,9 +64,11 @@ BEGIN
 			,@procName			NVARCHAR(128)
 			,@recipients		VARCHAR(250)
 			,@ResourceIDs		VARCHAR(100)
-			,@xml XML
+			,@xml				XML
 			,@IsCentral			BIT
-			,@IsCalParlay       BIT
+			,@IsCalParlay       BIT		
+			,@matchdate			SMALLDATETIME
+			,@ResourceResult193	VARCHAR(200) = ''
 	
 	DECLARE @tempBetCount 		TABLE(bettype SMALLINT, custid INT, betcount INT, transid BIGINT)
 	DECLARE @tempRefno			TABLE(refno BIGINT)
@@ -79,35 +81,31 @@ BEGIN
 		, @ErrMsg				= ''
 		, @procName				= OBJECT_NAME(@@PROCID)
 	
-	SELECT TOP 1 
-		@sportType 	= sportType
+	SELECT	TOP 1 
+			@sportType 	= sportType
+		   ,@matchdate  = CAST(eventdate AS DATE)
 	FROM dbo.match m WITH(NOLOCK) 
 	WHERE m.matchid = @MatchId
 		
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
-
-	IF @sportType = 193 AND @Action = 'CAL'
-	BEGIN
-		
-		SET @xml = CONVERT(XML,@ResourceResult)
 	
-		INSERT INTO @Resources_193 VALUES ('280920'),('280940'),('280960')
-		
-		INSERT INTO @tmpResult (ResourceId, HomeValue, AwayValue)
-		SELECT DISTINCT
-			T.C.value('@ResourceId', 'VARCHAR(20)') AS ResourceId
-			,T.C.value('@Custom1', 'VARCHAR(20)') AS HomeValue
-			,T.C.value('@Custom2', 'VARCHAR(20)') AS AwayValue
-		FROM @xml.nodes('/Results/Resource') AS T(C)
-		OPTION ( OPTIMIZE FOR ( @xml = NULL ) )	
-		
-		SET @ResourceIDs = STUFF((SELECT ',' + ResourceId
-							FROM @tmpResult
-							WHERE ResourceId IN (SELECT ResourceID FROM @Resources_193)
-							FOR XML PATH('')),1,1,'')
+	IF @SportType = 193 AND @Action = 'CAL'
+	BEGIN
+		SET @xml = CONVERT(XML,@ResourceResult)
+
+		;WITH CTE_Result AS (
+			SELECT DISTINCT
+				 T.C.value('@ResourceId', 'VARCHAR(20)')	AS ResourceId
+				,T.C.value('@Custom1', 'VARCHAR(20)')		AS Custom1
+			FROM @xml.nodes('/Results/Resource') AS T(C)
+		)
+		SELECT @ResourceResult193 = @ResourceResult193 + CASE WHEN ResourceID LIKE '2809__' THEN RIGHT(ResourceID,2) + Custom1 +',' ELSE '' END  
+		FROM CTE_Result AS r
+		WHERE r.ResourceId IN ('280920','280940','280960')
+		OPTION ( OPTIMIZE FOR ( @xml = NULL ))	
 	END
-			
+
 	SELECT @ActionID = CASE @Action
 							WHEN 'CAL'		THEN 187
 							WHEN 'REFUND'	THEN 188
@@ -159,15 +157,19 @@ BEGIN
 	BEGIN
 		IF ISNULL(@TicketCount,0) > 0
 			EXEC dbo.NAP_Admin_Calculate_VS_BetRadar_Main
-				@MatchId		= @matchid
-				,@SportType		= @sportType
-				,@Mode			= @Action
-				,@CALBettypes 	= @settleBettypes
-				,@maxTransId	= @maxTransId
-				,@ActionID		= @ActionID
-				,@ResourceIDs	= @ResourceIDs
-				,@ErrCode		= @ErrCode OUTPUT
-				,@ErrMsg		= @ErrMsg OUTPUT
+				@MatchId			= @matchid
+				,@SportType			= @sportType
+				,@Fth				= @Fth
+				,@Fta				= @Fta
+				,@Hth				= @Hth
+				,@Hta				= @Hta
+				,@Mode				= @Action
+				,@CALBettypes 		= @settleBettypes
+				,@maxTransId		= @maxTransId
+				,@ActionID			= @ActionID
+				,@ResourceResult	= @ResourceResult193
+				,@ErrCode			= @ErrCode OUTPUT
+				,@ErrMsg			= @ErrMsg OUTPUT
 	END
 
 	ELSE IF @Action = 'REFUND'
@@ -203,12 +205,19 @@ BEGIN
 	IF @IsCalParlay = 1
     BEGIN
         EXEC [NAP_Admin_Settlement_VS_BetRadar_MP] 
-					 @AdminId = @AdminId
-					,@matchid = @matchid
-					,@action  = @action
-					,@IP      = @IP
-					,@ErrCode = @ErrCode    OUTPUT
-					,@ErrMsg  = @ErrMsg     OUTPUT
+					 @AdminId			= @AdminId
+					,@matchid			= @matchid
+					,@SportType			= @sportType
+					,@matchdate			= @matchdate
+					,@Fth				= @Fth
+					,@Fta				= @Fta
+					,@Hth				= @Hth
+					,@Hta				= @Hta
+					,@ResourceResult	= @ResourceResult193
+					,@action			= @action
+					,@IP				= @IP
+					,@ErrCode			= @ErrCode    OUTPUT
+					,@ErrMsg			= @ErrMsg     OUTPUT
     END
 END
 GO

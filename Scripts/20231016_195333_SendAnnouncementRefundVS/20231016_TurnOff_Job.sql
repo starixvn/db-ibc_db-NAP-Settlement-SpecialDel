@@ -8,7 +8,5 @@
 USE [msdb]
 GO
 EXEC sp_update_job @job_name = N'bodb02 : NAP Settlement VS BetRadar', @enabled = 0
-
-
 GO
-EXEC sp_addrolemember 'DatabaseMailUserRole', 'bodbAdminNet'
+EXEC sp_stop_job  @job_name = N'bodb02 : NAP Settlement VS BetRadar' ;  

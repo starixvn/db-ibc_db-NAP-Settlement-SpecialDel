@@ -19,7 +19,7 @@ AS
 BEGIN
     SET NOCOUNT ON
 
-	SELECT	mk.calculate, mk.calrefund, mk.multiple, mk.refund, m.eventstatus, m.kickofftime,l.leaguename,l.LeagueGroupID
+	SELECT	mk.calculate, mk.calrefund, mk.multiple, mk.refund, m.eventstatus, m.kickofftime,l.leagueId,l.LeagueGroupID,m.homeid, m.awayid  
 	FROM	dbo.match  AS m WITH(NOLOCK)
         LEFT JOIN dbo.match_remark AS mk WITH(NOLOCK) ON  m.matchid = mk.matchid 
         LEFT JOIN dbo.league AS l  WITH(NOLOCK) ON  l.leagueId = m.leagueId 

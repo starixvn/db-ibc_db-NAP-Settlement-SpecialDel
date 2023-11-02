@@ -2,6 +2,13 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar_MP] 
 	@AdminId			INT
 	,@MatchId			INT
+	,@SportType			INT				= 0
+	,@matchdate			SMALLDATETIME
+	,@Fth				SMALLINT		= NULL
+	,@Fta				SMALLINT		= NULL
+	,@Hth				SMALLINT		= NULL
+	,@Hta				SMALLINT		= NULL
+	,@ResourceResult	VARCHAR(200)	= ''
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IP				VARCHAR(30)		= ''
 	,@ErrCode			INT				= 0		OUTPUT
@@ -25,13 +32,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @sportType			INT 
-		, @fth 					INT
-		, @fta 					INT
-		, @hth 					INT
-		, @hta 					INT
-		, @matchdate			SMALLDATETIME
-		, @strRefnos			VARCHAR(MAX)
+	DECLARE @strRefnos			VARCHAR(MAX)
 		, @TotalAccount			INT
 		, @ActionID				INT
 
@@ -50,16 +51,6 @@ BEGIN
 									WHEN 'CAL'		THEN 187
 									WHEN 'REFUND'	THEN 188
 								END
-
-	SELECT TOP(1)
-		@fth 					= FinalHomeScore
-		, @fta 					= FinalAwayScore
-		, @hth 					= HTHomeScore
-		, @hta 					= HTAwayScore
-		, @matchdate			= CAST(eventdate AS DATE)
-		, @sportType			= SportType
-	FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
-	WHERE matchid = @matchid
 	
 	--PARLAY checking	
 	INSERT INTO @tempRefno (refno)
@@ -108,6 +99,7 @@ BEGIN
 			,@Fta				= @fta
 			,@Hth				= @hth
 			,@Hta				= @hta
+			,@ResourceResult	= @ResourceResult
 			,@strRefnos 		= @strRefnos
 			,@matchdate			= @matchdate
 			,@ErrCode			= @ErrCode OUTPUT
