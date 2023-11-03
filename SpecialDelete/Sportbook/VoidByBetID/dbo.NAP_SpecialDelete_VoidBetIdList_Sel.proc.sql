@@ -488,8 +488,12 @@ BEGIN
 			INNER JOIN dbo.match m WITH (NOLOCK) ON s.matchid = m.matchid 
 
 		SET @cnt = @@ROWCOUNT
-		IF @cnt = 1
+		IF @cnt = 0 
+			SET @MatchId = NULL
+		ELSE IF @cnt = 1
 			SELECT @MatchId = MatchId FROM @tmpMatchId
+		ELSE IF @cnt NOT IN (0,1)
+			SET @MatchId = 0 --Multiple matches
 	END
 
 	------------------------------------------------------------------------------	--1. Table invalid/moved transid	
