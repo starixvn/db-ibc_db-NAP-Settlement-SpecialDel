@@ -976,7 +976,7 @@ BEGIN
 										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
 											THEN CASE
 													WHEN @AutoSourceInfo IS NOT NULL THEN '<r n="Auto Payout" v="' +@AutoSourceInfo +'"/>' 
-													WHEN @sportType = 50 THEN '<r n="Auto Payout" v="Weverdat"/>'
+													WHEN @sportType = 50 THEN '<r n="Direct Payout" v="Weverdat"/>'
 													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) OR @AutoType = 1 THEN '<r n="Auto Payout" v="SBO"/>'
 													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) OR @AutoType = 2 THEN '<r n="Auto Payout" v="Direct"/>'
 													ELSE '' 
