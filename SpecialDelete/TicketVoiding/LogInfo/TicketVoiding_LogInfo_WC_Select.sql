@@ -28,6 +28,7 @@ AS
 		- 20230718@Max: WrongScore - Not show data on Void Page - Betlist. [Redmine: #191360]
 		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
+		- 20231107@July: HF - Wrong Score - Add request missed Non-live tickets Cash out at time the wrong score [Redmine: #196545]
 		
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -471,7 +472,8 @@ BEGIN
 			WHERE MatchId = @MatchId
 		END 
 	END			
-		
+	
+	-- Get ticket void
 	INSERT INTO #TVSTicketBets(
 			transid		
 			,SubTransid		
@@ -492,8 +494,6 @@ BEGIN
 			,checktime
 			,accepttype
 			,IsCancelCashOut
-			,CheckTimeCashOut
-			
 		)
 	SELECT DISTINCT  b.transid
 			,b.transid AS SubTransID
@@ -516,18 +516,7 @@ BEGIN
 				  ELSE CASE WHEN b.checktime = DATEADD(SECOND,ISNULL(b.LiveBetAcceptTime,0) + ISNULL(b.SecAcceptTime,0), b.transdate) THEN 2 --Second Accept
 							ELSE 3 END --Pending Accept
 				  END AS accepttype
-			,CASE 
-				WHEN @FilterBy = 1 AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
-					AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
-				WHEN @FilterBy = 2 AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
-					AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
-				WHEN @FilterBy = 4 AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
-					AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
-					AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterToTransTime THEN 1
-				ELSE 0 END AS IsCancelCashOut
-		   ,b.CheckTimeCashOut
+			,0 AS IsCancelCashOut
 	FROM #tmpTransInfo b
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
 		INNER JOIN f_SD_GetGroupBettypes() f ON f.BetType = b.bettype
@@ -539,25 +528,77 @@ BEGIN
 			AND b.betfrom <> 'P'
 			AND 1 = CASE WHEN b.livehomescore = 0 AND b.liveawayscore = 0 AND b.liveindicator = 0 AND f.GroupName <> '2H' THEN 0 ELSE 1 END
 			AND 1 = CASE WHEN @FilterBy = 1 AND b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 1 AND b.betdaqid = -2
+						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
+						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
+					   ELSE 0 END 
+
+	-- Get ticket cancel cashout
+	INSERT INTO #TVSTicketBets(
+			transid		
+			,SubTransid		
+			,refno			
+			,custid				
+			,transdate		
+			,bettype 					
+			,livehomescore 	
+			,liveawayscore 			
+			,betdaqid	
+			,betid
+			,SiteDBGroupID
+			,LiveIndicator
+			,matchid
+			,StatusId
+			,SubStatusId
+			,ScoreId
+			,checktime
+			,accepttype
+			,IsCancelCashOut
+			,CheckTimeCashOut
+		)
+	SELECT DISTINCT b.transid
+			,b.transid AS SubTransID
+			,b.refno
+			,b.custid
+			,b.transdate
+			,b.bettype
+			,b.livehomescore
+			,b.liveawayscore
+			,b.betdaqid
+			,b.betid
+			,b.SiteDBGroupID
+			,b.liveindicator
+			,@MatchId
+			,b.statusID
+			,b.SubstatusID
+			,d.ScoreId
+			,b.checktime
+			,CASE WHEN b.AcceptModeCashOut = 0 THEN 3 ELSE b.AcceptModeCashOut END AS accepttype
+			,1 AS IsCancelCashOut
+		    ,b.CheckTimeCashOut
+	FROM #tmpTransInfo b
+		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
+		INNER JOIN #FilterInfo d ON d.MatchId = b.matchid
+	WHERE	b.matchid = @matchid AND b.IsMixParlay = 0 
+			AND 1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102, 103) THEN 1
+						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
+						ELSE 0 END
+			AND b.betfrom <> 'P'
+			AND b.betdaqid = -2 AND b.AcceptModeCashOut IS NOT NULL
+			AND 1 = CASE WHEN @FilterBy = 1
 							AND b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND b.AcceptModeCashOut IS NOT NULL
 						THEN 1
-						 WHEN @FilterBy = 2 AND ISNULL(b.checktime, b.transdate) BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime THEN 1
-						 WHEN @FilterBy = 2 AND b.betdaqid = -2
+						 WHEN @FilterBy = 2 
 							AND ISNULL(b.checktime, b.transdate) NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
 							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND b.AcceptModeCashOut IS NOT NULL
 						THEN 1
-						 WHEN @FilterBy = 4 AND ((b.checktime BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))THEN 1
-						 WHEN @FilterBy = 4 AND b.betdaqid = -2
+						 WHEN @FilterBy = 4
 							AND ((b.checktime NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime) OR (b.transdate NOT BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime))
 							AND	b.CheckTimeCashOut BETWEEN d.FilterVoidFromTime AND d.FilterVoidToTime 
-							AND b.AcceptModeCashOut IS NOT NULL
 						THEN 1
 					   ELSE 0 END 
-	
+		   AND NOT EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets t WHERE t.transid = b.transid)
+
 	-- Fix case: wrong score 2 Score: Original score 1, Canel CO: Score 2
 	DECLARE @tmpRemoveDuplCancelCO TABLE (TransId BIGINT)
 	INSERT INTO @tmpRemoveDuplCancelCO (TransId)
@@ -573,12 +614,6 @@ BEGIN
 		WHERE t.IsCancelCashOut = 1 
 		 AND t.transid IN ( SELECT transid FROM @tmpRemoveDuplCancelCO)
 	END
-
-	UPDATE t
-	SET accepttype = CASE WHEN b.AcceptModeCashOut = 0 THEN 3 ELSE b.AcceptModeCashOut END
-	FROM #TVSTicketBets t
-		INNER JOIN #tmpTransInfo b ON t.transid = b.transid AND t.matchid = b.matchid
-	WHERE b.IsMixParlay = 0 AND t.IsCancelCashOut = 1
 
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
