@@ -22,6 +22,7 @@ AS
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 
 	Param's explanation:
 */
@@ -168,7 +169,7 @@ BEGIN
 				, TicketStatusIds = @StatusIds
 				, FromWinlostDate = @FromDate
 				, ToWinlostDate = @ToDate
-				, RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				, RequestType = CASE WHEN @ActionId IN (4,10) THEN 1 ELSE 0 END
 				, SubIssueTypeId = @SubIssueTypeId
 		WHERE	RequestId = @RequestId
 	END
@@ -276,7 +277,7 @@ BEGIN
 				, TicketStatusIds = @StatusIds
 				, FromWinlostDate = @FromDate
 				, ToWinlostDate = @ToDate
-				, RequestType = CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+				, RequestType = CASE WHEN @ActionId IN (4,10) THEN 1 ELSE 0 END
 				, SubIssueTypeId = @SubIssueTypeId
 		WHERE	RequestId = @RequestId
 

@@ -44,6 +44,7 @@ AS
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 
 	Param's explanation:	
 	
@@ -93,6 +94,7 @@ BEGIN
 				  WHEN r.ActionId = 7 THEN 'VoidInstant10m' 
 				  WHEN r.ActionId = 8 THEN 'VoidInstantNopolicy'
 				  WHEN r.ActionId = 9 THEN 'VoidResultKeyed'
+				  WHEN r.ActionId = 10 THEN 'VoidInstantPolicy'
 				ELSE '' END AS ActionName
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId

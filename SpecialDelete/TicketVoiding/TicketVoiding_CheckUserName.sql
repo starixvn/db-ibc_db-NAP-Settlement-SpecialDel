@@ -37,6 +37,7 @@ AS
 		- 20230425@July: [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231003@July: [TVS] Abnormal Account - Increase the number of input Usernames to void [Redmine: #194095]
+		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 
 	Param's Explanation:
 */

@@ -18,6 +18,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230425@July: [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 
 	Param's explanation:	
 		- @AbnormalAccounts: <roor><r @UserNames = 'abc,xyz' @ProductIds="1,2" @StatusIds="112,111" @FromDate="" @ToDate=""/></root>
@@ -46,13 +47,14 @@ BEGIN
 		,IsMixParlay BIT
 		,SiteDBGroupID SMALLINT
 		,IsVoid14 BIT DEFAULT(0)
+		,winlost	MONEY
+		,actual_stake	MONEY
     )
 	
 	CREATE TABLE #InputUsernameList ( Username NVARCHAR(30),custid INT, roleid TINYINT)
 	CREATE TABLE #InputValidCustid_2 (custid INT)
 	CREATE TABLE #InputValidCustid_tmp (custid INT)
 
-	DECLARE @Status_tmp TABLE (StatusId TINYINT)
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT, ProductID TINYINT)
 
 	DECLARE @UserNames			NVARCHAR(MAX) = NULL
@@ -98,10 +100,6 @@ BEGIN
 		ELSE
 			SET @ToWinlostDate_14 = @movebetdate
 	END
-
-	INSERT INTO @Status_tmp (StatusId)
-	SELECT DISTINCT value 
-	FROM STRING_SPLIT(@StatusIds, ',')
 
 	SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -183,6 +181,8 @@ BEGIN
 			,IsMixParlay 
 			,SiteDBGroupID
 			,IsVoid14
+			,winlost
+			,actual_stake
 		)
 	SELECT b.matchid
 		,b.TransId
@@ -197,6 +197,8 @@ BEGIN
 		,CASE WHEN b.bettype IN (9,29, 2799) THEN 1 ELSE 0 END AS IsMixParlay 
 		,b.SiteDBGroupID
 		,0 AS IsVoid14
+		,b.winlost
+		,b.actual_stake
 	FROM dbo.bettrans b WITH (NOLOCK)
 		INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 		INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -222,7 +224,6 @@ BEGIN
 					WHEN @IsSaba = 1 
 						AND ml.LeagueGroupID IS NOT NULL THEN 1								
 				ELSE 0 END	
-		AND statusID IN (SELECT statusID FROM @Status_tmp)
 		AND dc.custid IS NULL
 	
 	--Update Main MatchID for child match cricket (Sporttype = 50)
@@ -249,6 +250,8 @@ BEGIN
 			,IsMixParlay 
 			,SiteDBGroupID
 			,IsVoid14
+			,winlost
+			,actual_stake
 			)
 		SELECT b.matchid
 			,b.TransId
@@ -263,6 +266,8 @@ BEGIN
 			,CASE WHEN b.bettype IN (9,29, 2799) THEN 1 ELSE 0 END AS IsMixParlay 
 			,b.SiteDBGroupID
 			,1 AS IsVoid14
+			,b.winlost
+			,b.actual_stake
 		FROM dbo.bettrans14 b WITH (NOLOCK)
 			INNER JOIN #InputValidCustid_tmp c ON c.CustId = b.custid
 			INNER JOIN @bettype_tmp bt ON bt.bettype = b.bettype
@@ -288,7 +293,6 @@ BEGIN
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
-			AND statusID IN (SELECT statusID FROM @Status_tmp)
 			AND dc.custid IS NULL
 
 	END
@@ -307,6 +311,8 @@ BEGIN
 		,IsMixParlay AS 'isP'
 		,SiteDBGroupID AS 'sitedb'
 		,IsVoid14 AS 'isV14'
+		,winlost AS 'wl'
+		,actual_stake AS 'act_s'
 	FROM #TransInfo
 	FOR JSON PATH))
 
