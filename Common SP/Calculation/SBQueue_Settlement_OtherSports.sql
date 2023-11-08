@@ -10,6 +10,7 @@ AS
 		- 20181224@Helen: Clean conversation when reach limit (sent 1000) - [Redmine:106881]
 		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
 		- 20210415@Louisa: Fixbug: Body email is empty because check wrong SB name [Redmine:#143442]
+		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 		
 */
 BEGIN
@@ -145,16 +146,16 @@ BEGIN
 						set @body = 'The Service Broker queue on ' + @@SERVERNAME + ' is DISABLE now, pls ask DBA for checking & enable back!!!'
 
 					EXEC msdb.dbo.sp_send_dbmail
-					@recipients=N'dbaadmin@starixvn.com',
-					--LOCAL: N'dba_local@starixvn.com'
-					--PRODUCTION: N'dbaadmin@starixvn.com'
+					@recipients=N'dbaadmin@starixsoft.com',
+					--LOCAL: N'dba_local@starixsoft.com'
+					--PRODUCTION: N'dbaadmin@starixsoft.com'
 					@body=@body,
 					@sensitivity ='Personal',
 					@importance ='High',
-					@copy_recipients =N'dbaadmin@starixvn.com',
+					@copy_recipients =N'dbaadmin@starixsoft.com',
 					@subject =@subject,
-					--LOCAL: N'dba_local@starixvn.com'
-					--PRODUCTION: N'dbaadmin@starixvn.com'
+					--LOCAL: N'dba_local@starixsoft.com'
+					--PRODUCTION: N'dbaadmin@starixsoft.com'
 					@profile_name =@profile_name;
 												
 				COMMIT TRANSACTION sendMail		

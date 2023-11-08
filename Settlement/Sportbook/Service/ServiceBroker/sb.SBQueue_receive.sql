@@ -8,15 +8,16 @@ AS
 		- 20140619@Viet: send email to DBA once transaction is doomed.
 		- 20180618@Kathy: remove transaction
 		- 20201012@Louisa: Update new email domain starixvn.com [Redmine:#143284]
+		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
 			
 	Note:  open comment send mail when deploy on Production
 
 	EXEC msdb.dbo.sp_send_dbmail
-		@recipients=N'dbaadmin@starixvn.com',
+		@recipients=N'dbaadmin@starixsoft.com',
 		@body=@body,
 		@sensitivity ='Personal',
 		@importance ='High',
-		@copy_recipients ='dbaadmin@starixvn.com',
+		@copy_recipients ='dbaadmin@starixsoft.com',
 		@subject =@subject,
 		@profile_name =@profile_name;							
 */
@@ -160,15 +161,15 @@ BEGIN
 						set @body = 'The Service Broker queue on ' + @@SERVERNAME + ' is DISABLE now, pls ask DBA for checking & enable back!!!'
 
 					EXEC msdb.dbo.sp_send_dbmail
-					@recipients=N'dbaadmin@starixvn.com',
-					--LOCAL: N'kathy.nguyen@starixvn.com'
-					--PRODUCTION: N'dbaadmin@starixvn.com'
+					@recipients=N'dbaadmin@starixsoft.com',
+					--LOCAL: N'kathy.nguyen@starixsoft.com'
+					--PRODUCTION: N'dbaadmin@starixsoft.com'
 					@body=@body,
 					@sensitivity ='Personal',
 					@importance ='High',
-					@copy_recipients ='dbaadmin@starixvn.com',
-					--LOCAL: 'kathy.nguyen@starixvn.com;sol.le@starixvn.com;helen.do@starixvn.com'
-					--PRODUCTION: 'dbaadmin@starixvn.com'
+					@copy_recipients ='dbaadmin@starixsoft.com',
+					--LOCAL: 'kathy.nguyen@starixsoft.com;sol.le@starixsoft.com;helen.do@starixsoft.com'
+					--PRODUCTION: 'dbaadmin@starixsoft.com'
 					@subject =@subject,
 					@profile_name =@profile_name;							
 				COMMIT TRANSACTION sendMail		
