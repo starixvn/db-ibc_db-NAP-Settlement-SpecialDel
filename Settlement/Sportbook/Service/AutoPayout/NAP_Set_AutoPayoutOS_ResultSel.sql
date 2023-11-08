@@ -21,8 +21,8 @@ BEGIN
 	DECLARE  @ResultTable				TINYINT = 0
 			,@ExternalResultTable		TINYINT = 0
 			
-	DECLARE @Resource TABLE (ResourceId	VARCHAR(20)	)
-	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	DECLARE @Resource TABLE (ResourceId	VARCHAR(20), PRIMARY KEY (ResourceId))
+	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT)
 
 	SELECT @ResultTable	= r.ResultTable 
 		  ,@ExternalResultTable = r.ExternalResultTable 
@@ -30,35 +30,32 @@ BEGIN
 	WHERE r.Sporttype = @Sporttype
 
 	INSERT INTO @Resource(ResourceId)
-	SELECT value
+	SELECT DISTINCT value
 	FROM STRING_SPLIT(@ResourceIds,',')
 
 	IF @ResultTable = 1
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID
 		FROM	dbo.ResultDetail AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
-			AND rd.ResultStatusID = 3			
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)		
 	END
 	ELSE IF @ResultTable = 2
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID
 		FROM	dbo.ResultDetailOS AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
-			AND rd.ResultStatusID = 3		
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)		
 	END
 	ELSE IF @ResultTable = 3
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID
 		FROM	dbo.ResultDetailES AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
-			AND rd.ResultStatusID = 3		
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
 	END
 
 	IF @ExternalResultTable = 1
@@ -113,6 +110,8 @@ BEGIN
 		  ,m.ResourceId
 		  ,m.HomeValue
 		  ,m.AwayValue
+		  ,m.ResultStatusID
+		  ,m.SettlementStatusID
 	FROM @Result AS m
 		LEFT JOIN ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = m.SourceId
 

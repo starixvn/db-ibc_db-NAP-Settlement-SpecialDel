@@ -108,7 +108,7 @@ BEGIN
 			,@hth				INT
 			,@hta				INT
 			,@ActionID			INT
-			,@Remark			VARCHAR(500)
+			,@Remark			VARCHAR(MAX)
 			,@avaiableProcess	BIT
 			,@xml				XML
 			,@strResourceIds	VARCHAR(MAX)

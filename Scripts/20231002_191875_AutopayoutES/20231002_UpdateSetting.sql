@@ -1,12 +1,20 @@
 ﻿/*<info serverAlias="DBTXN-bodb02,DBPRO-bodb02" executers="" isFunction="0"></info>*/
 /*
     Created: 20231002@Aries
-	Task: Auto Payout for e-Sports  [Redmine: #191875]
+	Task: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 	DB: DBTXN/bodb02, DBPRO/bodb02
 */
  
 USE bodb02
 GO
+
+/*
+	SELECT  COUNT(1) AS Total
+	FROM match AS m WITH (NOLOCK)
+		INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
+	WHERE ISNULL(ISNULL(m.AutoSetting, l.AutoSetting),0) & 17 = 17 
+		AND m.sporttype = 50
+*/
 
 IF NOT EXISTS (SELECT * FROM   sys.columns  WHERE  OBJECT_ID = OBJECT_ID(N'[dbo].[SettlementResultTableSetting]') AND name = 'AP_Group')
 BEGIN
@@ -93,7 +101,7 @@ SET  AP_Group = 1
 
 	,AP_Main_NumberProvider = 2
 	,AP_Main_WaitingTime = 1800
-	,AP_Main_CheckList = '2,3,99'
+	,AP_Main_CheckList = '2,3,98,99'
 
 	,AP_EAR_NumberProvider = 2
 	,AP_EAR_WaitingTime = 1800

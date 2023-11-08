@@ -47,6 +47,7 @@ AS
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		
 	Param's Explanation:
 		
@@ -78,6 +79,11 @@ BEGIN
 		,BetID		BIGINT
 	)
 
+	DECLARE	@tmpWebResource TABLE(
+		ResourceID	VARCHAR(20)
+
+	)
+
 	SELECT @currentdate = CURRENT_TIMESTAMP
 			,@isExistWaitingTicket = 0
 			,@IsSettleDetermined = 0
@@ -94,28 +100,27 @@ BEGIN
 	IF @Action IN ( 'CAL', 'CAL-HT', 'CAL-FT', 'UNDO', 'REFUND','CAL_EAR', 'UNDO_EAR', 'REFUND_EAR','REFUND-FT', 'UNDO-FT') AND @Mode <> 'FM'
 	BEGIN	
 		IF @xmlData IS NOT NULL
-		BEGIN			
+		BEGIN
 			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
-		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
-		    SELECT DISTINCT tbl.Id, sp.BetType, sp.BetID
+		    INSERT INTO @tmpWebResource(ResourceID)
+		    SELECT DISTINCT tbl.Id
 		    FROM OPENXML(@handle,'Resources/Resource',1) WITH (Id VARCHAR(20)) AS tbl
-		        INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.Id
-		    WHERE sp.SportType = @SportType 
 		    EXEC sp_xml_removedocument @handle
-		
-			EXEC sp_xml_preparedocument @handle OUTPUT, @xmlData
-		    INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
-		    SELECT DISTINCT tbl.Id, sp.BetType, sp.BetID
-		    FROM OPENXML(@handle,'Resources/Resource',1) WITH (Id VARCHAR(20)) AS tbl
-		        INNER LOOP JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.RefResourceId = tbl.Id
-				LEFT JOIN @tmpResourceIDs r
-					ON r.ResourceID = tbl.Id
-						AND r.bettype = sp.bettype
+
+			INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
+		    SELECT DISTINCT tbl.ResourceID, sp.BetType, sp.BetID
+		    FROM @tmpWebResource AS tbl
+		        INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.ResourceID = tbl.ResourceID
+		    WHERE sp.SportType = @SportType 
+
+			INSERT INTO @tmpResourceIDs(ResourceID, BetType, BetID)
+		    SELECT DISTINCT tbl.ResourceID, sp.BetType, sp.BetID
+		    FROM @tmpWebResource AS tbl
+		        INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH (NOLOCK) ON sp.RefResourceId = tbl.ResourceID
+				LEFT JOIN @tmpResourceIDs r ON r.ResourceID = tbl.ResourceID AND r.bettype = sp.bettype
 		    WHERE sp.SportType = @SportType 
 				AND sp.RefResourceId IS NOT NULL
-				AND r.ResourceID IS NULL		
-				
-		    EXEC sp_xml_removedocument @handle
+				AND r.ResourceID IS NULL			    
 			
 			IF EXISTS (SELECT TOP 1 1
 					   FROM dbo.bettrans b WITH(NOLOCK)

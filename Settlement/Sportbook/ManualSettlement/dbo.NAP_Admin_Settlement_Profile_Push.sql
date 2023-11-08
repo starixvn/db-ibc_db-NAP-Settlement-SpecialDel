@@ -119,7 +119,7 @@ BEGIN
 																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 																	ELSE '' END
 															+ ', @AutoType = ' + CONVERT(VARCHAR(5), @AutoType) 
-															+ ', @AutoSourceInfo = ''' + ISNULL(@AutoSourceInfo,'NULL') + ''''
+															+ IIF(@AutoSourceInfo IS NOT NULL,', @AutoSourceInfo =  ''' + @AutoSourceInfo + '''','') 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 		

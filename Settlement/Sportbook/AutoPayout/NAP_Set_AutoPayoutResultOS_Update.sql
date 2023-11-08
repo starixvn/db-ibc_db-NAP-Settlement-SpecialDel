@@ -16,6 +16,7 @@ AS
 	Revisions:
 		- 20210729@Louisa: Auto Settle Cricket [Redmine:#154586]
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 
 	Param's Explanation:
 		@SelectedResources= '<Resources>
@@ -38,7 +39,7 @@ BEGIN
 
 
 	DECLARE  @handle INT
-	DECLARE @tmpResourceIds TABLE ( ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
+	CREATE TABLE #tmpResourceIds ( ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),PRIMARY KEY(ResourceId) )
 
 	IF @StatusId = 99 -- Mark fail IF exec Settlement Command NAP_Admin_Settlement_Profile failed
 	BEGIN
@@ -52,7 +53,7 @@ BEGIN
 	ELSE
 	BEGIN
 		EXEC sp_xml_preparedocument @handle OUTPUT, @SelectedResources
-		INSERT INTO @tmpResourceIds (ResourceId, HomeValue, AwayValue)
+		INSERT INTO #tmpResourceIds (ResourceId, HomeValue, AwayValue)
 		SELECT Id, ISNULL(Home,''), ISNULL(Away,'')
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,Home VARCHAR(50)
@@ -63,7 +64,7 @@ BEGIN
 		MERGE dbo.AutoPayoutResultOS TARGET
 		USING (
 				SELECT r.ResourceId, r.HomeValue, r.AwayValue
-				FROM @tmpResourceIds r	
+				FROM #tmpResourceIds r	
 				) AS SOURCE ON TARGET.ResourceId  = SOURCE.ResourceId 
 								AND TARGET.Matchid  = @MatchId 
 								AND ISNULL(TARGET.SourceID,0) = @SourceID 
