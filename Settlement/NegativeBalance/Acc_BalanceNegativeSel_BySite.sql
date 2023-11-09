@@ -35,14 +35,14 @@ BEGIN
 	*/
 	INSERT INTO @BalanceNegative (LogID, LogDate, MatchID, GroupID, CustID, Username, TotalBalance, CurrencyName, [site], Username2 )
 	SELECT LogID
-			, CASE WHEN ParentID IS NOT NULL THEN MAX(LogDate)  OVER(PARTITION BY ParentID, GroupID, CustID ORDER BY LogDate DESC)
+			, CASE WHEN ParentID IS NOT NULL THEN MAX(LogDate)  OVER(PARTITION BY MatchID, GroupID, CustID ORDER BY LogDate DESC)
 					ELSE LogDate
 				END AS LogDate
 			, MatchID
 			, GroupID
 			, CustID
 			, Username
-			, CASE WHEN ParentID IS NOT NULL THEN MAX(TotalBalance) OVER(PARTITION BY ParentID, GroupID, CustID ORDER BY LogDate DESC) 
+			, CASE WHEN ParentID IS NOT NULL THEN MAX(TotalBalance) OVER(PARTITION BY MatchID, GroupID, CustID ORDER BY LogDate DESC) 
 					ELSE TotalBalance
 			 END AS TotalBalance
 			, CurrencyName
