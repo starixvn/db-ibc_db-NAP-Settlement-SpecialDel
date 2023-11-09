@@ -41,6 +41,7 @@ BEGIN
 						  WHEN @Action = 'REFUND_EAR'				THEN 191
 						  WHEN @Action = 'REFUND-HT'				THEN 110
 						  WHEN @Action = 'REFUND-FT'				THEN 111
+						  WHEN @Action = 'REFUND-BetFair'			THEN 135
 						  ELSE 0
 					   END
 
