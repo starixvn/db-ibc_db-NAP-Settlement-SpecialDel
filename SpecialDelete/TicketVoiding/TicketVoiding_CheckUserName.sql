@@ -100,6 +100,8 @@ BEGIN
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	  ,IsVoid14 BIT
+	  ,winlost	MONEY
+	  ,actual_stake MONEY
 	)
 
 	--1. Check valid
@@ -136,17 +138,19 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		  ,IsVoid14
+		  ,winlost
+		  ,actual_stake
 		)
 	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
-		,wld ,isP ,sitedb, isV14
+		,wld ,isP ,sitedb, isV14, wl, act_s
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
-					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14
+					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14, wl, act_s
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT ,sre INT
-					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT
+					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT, wl MONEY, act_s MONEY
 				)
 		) tbl
 	WHERE f.value <> ''
@@ -518,8 +522,23 @@ BEGIN
 	FROM #transIdTemp t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
-	
+
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+
+	--4. List TransId for case auto void with policy
+	SELECT b.transid
+		,b.custid        
+		,b.statusID
+		,ABS(b.winlost - b.actual_stake) AS winlost
+		,b.IsVoid14
+	FROM #tmpTransInfo b
+
+	--5. List members winlost amount for case auto void with policy
+	SELECT DISTINCT b.custid
+		,c.username
+		,c.credit AS GivenCredit
+	FROM #tmpTransInfo b
+		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = b.custid	
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1
