@@ -29,6 +29,7 @@ AS;
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20230529@July: Support case Cricket main in table match -> child in table match14 [Redmine: #188153]
 		- 20230530@July: Return column IsCredit send ticket Letstalk [Redmine: #188152]
+		- 20231113@Max: [TVS] Bet list on Delete Bet Check display WRONG HDP value for sub parlay ticket [Redmine: #196755]
 
 	Param's explanation:	
 		
@@ -84,8 +85,8 @@ BEGIN
               subOdds         SMALLMONEY,
               subbetteam      NVARCHAR(10),
               subbettype      SMALLINT,
-              subhdp1         SMALLINT,
-              subhdp2         SMALLINT,
+              subhdp1         SMALLMONEY,
+              subhdp2         SMALLMONEY,
               subtransdesc    NVARCHAR(1000),
               Refno           BIGINT,
               subTransId      BIGINT,
