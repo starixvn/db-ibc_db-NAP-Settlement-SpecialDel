@@ -160,7 +160,7 @@ BEGIN
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 	END
-	IF @IssueTypeId IN (13,20)
+	IF @IssueTypeId IN (13,20,8,9)
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId
@@ -202,7 +202,7 @@ BEGIN
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 		END
 	END
-	IF @IssueTypeId IN (19,21,8,9) --ReducedOver Cricket, Not Participate, EKO
+	IF @IssueTypeId IN (19,21) --ReducedOver Cricket, Not Participate
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId
