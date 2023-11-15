@@ -54,7 +54,7 @@ BEGIN
 	SELECT @RequestId AS RequestId
 			,t.c.value('@CustId','INT') 
 			,t.c.value('@GivenCredit','MONEY') 
-			,t.c.value('@AdjustVoidLimit','MONEY') 
+			,CASE WHEN t.c.value('@AdjustVoidLimit','MONEY') = '' THEN NULL ELSE t.c.value('@AdjustVoidLimit','MONEY') END
 			,t.c.value('@CurrentWinning','MONEY') 
 			,t.c.value('@CurrentLosing','MONEY') 
 			,t.c.value('@EstimateVoidAmount','MONEY')
