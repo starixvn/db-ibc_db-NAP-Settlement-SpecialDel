@@ -32,7 +32,6 @@ BEGIN
 	CREATE TABLE #TransInfo (
 		matchid INT
 		,transid BIGINT
-		,Subtransid BIGINT
 		,custid        INT        
 		,transdate DATETIME
 		,checktime DATETIME
@@ -51,17 +50,6 @@ BEGIN
 		,statusID TINYINT
 		,WalletType TINYINT
 		,RefCode BIGINT
-		,Subcustid INT        
-		,Sublivehomescore SMALLINT
-		,Subliveawayscore SMALLINT
-		,Subhdp1 SMALLMONEY
-		,Subhdp2 SMALLMONEY
-		,Subbetfrom NVARCHAR(4)
-		,Subbettype SMALLINT
-		,SubstatusID TINYINT
-		,Subtransdate DATETIME
-		,Subchecktime DATETIME
-		,Subliveindicator BIT
 		,recommend INT
 		,mrecommend INT
 		,srecommend INT
@@ -69,11 +57,9 @@ BEGIN
 		,IsMixParlay BIT
 		,IsMoved14 BIT
 		,odds MONEY
-		,Subodds MONEY
 		,oddsspread MONEY
 		,oddstype TINYINT
 		,betcheck NVARCHAR(50)
-		,Subbetcheck NVARCHAR(50)
 		,stake MONEY
 		,CurrencyName NVARCHAR(50)
 		,Transdesc NVARCHAR(1000)
@@ -82,10 +68,6 @@ BEGIN
 		,winlost        MONEY
 		,actual_stake MONEY
 		,Status NVARCHAR(10)
-		,SubStatus NVARCHAR(10)
-		,Subbetteam  NVARCHAR(10)
-		,Suboddsspread MONEY
-		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
 		,winlostdate SMALLDATETIME
@@ -102,7 +84,6 @@ BEGIN
 	INSERT INTO #TransInfo(
 			matchid 
 			,transid
-			,Subtransid 
 			,custid                
 			,transdate 
 			,checktime 
@@ -121,17 +102,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,Subcustid         
-			,Sublivehomescore 
-			,Subliveawayscore 
-			,Subhdp1 
-			,Subhdp2 
-			,Subbetfrom 
-			,Subbettype 
-			,SubstatusID 
-			,Subtransdate 
-			,Subchecktime 
-			,Subliveindicator 
 			,recommend 
 			,mrecommend 
 			,srecommend 
@@ -139,11 +109,9 @@ BEGIN
 			,IsMixParlay 
 			,IsMoved14 
 			,odds 
-			,Subodds 
 			,oddsspread 
 			,oddstype 
 			,betcheck 
-			,Subbetcheck 
 			,stake 
 			,CurrencyName 
 			,Transdesc 
@@ -152,17 +120,12 @@ BEGIN
 			,winlost        
 			,actual_stake 
 			,Status
-			,SubStatus 
-			,Subbetteam  
-			,Suboddsspread 
-			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
 			,winlostdate
 		)
 	SELECT b.matchid
 		,b.TransId
-		,b.transid AS SubTransID
 		,b.custid
 		,b.transdate
 		,b.checktime
@@ -181,17 +144,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,b.custid Subcustid         
-		,b.livehomescore AS Sublivehomescore 
-		,b.liveawayscore AS Subliveawayscore 
-		,b.hdp1 AS Subhdp1 
-		,b.hdp2 AS Subhdp2 
-		,b.betfrom AS Subbetfrom 
-		,b.bettype AS Subbettype 
-		,b.statusID AS SubstatusID 
-		,b.transdate AS Subtransdate 
-		,b.checktime AS Subchecktime 
-		,b.liveindicator AS Subliveindicator 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
@@ -199,11 +151,9 @@ BEGIN
 		,0 AS IsMixParlay 
 		,0 AS IsMoved14 
 		,b.odds 
-		,b.odds AS Subodds 
 		,b.oddsspread
 		,b.oddstype 
 		,b.betcheck 
-		,b.betcheck AS Subbetcheck 
 		,b.stake 
 		,b.CurrencyName 
 		,b.Transdesc 
@@ -212,10 +162,6 @@ BEGIN
 		,b.winlost        
 		,b.actual_stake 
 		,b.Status
-		,b.status AS SubStatus 
-		,b.betteam AS Subbetteam  
-		,b.oddsspread AS Suboddsspread 
-		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
 		,b.winlostdate
@@ -245,7 +191,6 @@ BEGIN
 		INSERT INTO #TransInfo(
 			matchid 
 			,transid
-			,Subtransid 
 			,custid                
 			,transdate 
 			,checktime 
@@ -264,17 +209,6 @@ BEGIN
 			,statusID 
 			,WalletType 
 			,RefCode 
-			,Subcustid         
-			,Sublivehomescore 
-			,Subliveawayscore 
-			,Subhdp1 
-			,Subhdp2 
-			,Subbetfrom 
-			,Subbettype 
-			,SubstatusID 
-			,Subtransdate 
-			,Subchecktime 
-			,Subliveindicator 
 			,recommend 
 			,mrecommend 
 			,srecommend 
@@ -282,11 +216,9 @@ BEGIN
 			,IsMixParlay 
 			,IsMoved14 
 			,odds 
-			,Subodds 
 			,oddsspread 
 			,oddstype 
 			,betcheck 
-			,Subbetcheck 
 			,stake 
 			,CurrencyName 
 			,Transdesc 
@@ -295,17 +227,12 @@ BEGIN
 			,winlost        
 			,actual_stake 
 			,Status
-			,SubStatus 
-			,Subbetteam  
-			,Suboddsspread 
-			,SubTransdesc  
 			,modds 
 			,SiteDBGroupID
 			,winlostdate
 		)
 	SELECT b.matchid
 		,b.TransId
-		,b.transid AS SubTransID
 		,b.custid
 		,b.transdate
 		,b.checktime
@@ -324,17 +251,6 @@ BEGIN
 		,b.statusID 
 		,b.WalletType 
 		,b.RefCode 
-		,b.custid Subcustid         
-		,b.livehomescore AS Sublivehomescore 
-		,b.liveawayscore AS Subliveawayscore 
-		,b.hdp1 AS Subhdp1 
-		,b.hdp2 AS Subhdp2 
-		,b.betfrom AS Subbetfrom 
-		,b.bettype AS Subbettype 
-		,b.statusID AS SubstatusID 
-		,b.transdate AS Subtransdate 
-		,b.checktime AS Subchecktime 
-		,b.liveindicator AS Subliveindicator 
 		,b.recommend 
 		,b.mrecommend 
 		,b.srecommend 
@@ -342,11 +258,9 @@ BEGIN
 		,0 AS IsMixParlay 
 		,1 AS IsMoved14 
 		,b.odds 
-		,b.odds AS Subodds 
 		,b.oddsspread
 		,b.oddstype 
 		,b.betcheck 
-		,b.betcheck AS Subbetcheck 
 		,b.stake 
 		,b.CurrencyName 
 		,b.Transdesc 
@@ -355,10 +269,6 @@ BEGIN
 		,b.winlost        
 		,b.actual_stake 
 		,b.Status
-		,b.status AS SubStatus 
-		,b.betteam AS Subbetteam  
-		,b.oddsspread AS Suboddsspread 
-		,b.transdesc SubTransdesc  
 		,b.modds 
 		,b.SiteDBGroupID
 		,b.winlostdate
@@ -374,7 +284,6 @@ BEGIN
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
-		,Subtransid AS 's_t'
 		,custid    AS  'c'           
 		,transdate AS 'tdate'
 		,checktime AS 'checkt'
@@ -393,17 +302,6 @@ BEGIN
 		,statusID AS 'sid'
 		,WalletType AS 'wt'
 		,RefCode AS 'refc'
-		,Subcustid    AS     's_c' 
-		,Sublivehomescore AS 's_lh'
-		,Subliveawayscore AS 's_la'
-		,Subhdp1 AS 's_hdp1'
-		,Subhdp2 AS 's_hdp2'
-		,Subbetfrom AS 's_bfr'
-		,Subbettype AS 's_btype'
-		,SubstatusID AS 's_sid'
-		,Subtransdate AS 's_tdate'
-		,Subchecktime AS 's_checkt'
-		,Subliveindicator AS 's_li'
 		,recommend AS 're'
 		,mrecommend AS 'mre'
 		,srecommend AS 'sre'
@@ -411,11 +309,9 @@ BEGIN
 		,IsMixParlay AS 'isP'
 		,IsMoved14 AS 'isM'
 		,odds AS 'o'
-		,Subodds AS 's_o'
 		,oddsspread AS 'os'
 		,oddstype AS 'ost'
 		,betcheck AS 'bcheck'
-		,Subbetcheck AS 's_bcheck'
 		,stake AS 'stake'
 		,CurrencyName AS 'curr'
 		,Transdesc AS 'tdes'
@@ -424,10 +320,6 @@ BEGIN
 		,winlost    AS 'w'    
 		,actual_stake AS 'acstake'
 		,Status AS 's' 
-		,SubStatus AS 's_s'
-		,Subbetteam  AS 's_bteam'
-		,Suboddsspread AS 's_os'
-		,SubTransdesc  AS 's_tdes'
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
 		,winlostdate AS 'wld'

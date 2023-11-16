@@ -106,10 +106,17 @@ BEGIN
 		AND pt.bettype NOT BETWEEN 221 AND 227 -- Fast Market
 		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
 
+	--get list VIP Account
+	SELECT  @query = N''		
+	SELECT	@query = @query + N'SELECT Custid 
+								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
+								'
+	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
+	INSERT INTO @VIPAccount_tmp(CustID)
+	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
+
 	CREATE TABLE #inputTransid (
 		 Transid		BIGINT PRIMARY KEY
-		,IsVipMember	BIT DEFAULT(0)
-		,CustomerClass	SMALLINT
 		,RemarkId		INT	  /*  1: Invalid
 								, 2: Moved or Duplicated
 								, 3: DifferentMatch
@@ -144,6 +151,8 @@ BEGIN
 		,srecommend		INT
 		,betteam		NVARCHAR(10)
 		,CurrencyName	NVARCHAR(50)
+		,IsVipMember	BIT DEFAULT(0)
+		,CustomerClass	SMALLINT
 		)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
@@ -204,7 +213,8 @@ BEGIN
 	  ,SettlementStatus	TINYINT
       ,sporttype        SMALLINT
 	  ,eventstatus		NVARCHAR(50)
-	  
+	  ,CustomerClass	SMALLINT
+	  ,IsVipMember		BIT DEFAULT(0)
 	)
 	INSERT INTO #tmpTransInfo( 
 		   matchid, transid, refno, custid, hdp1, hdp2, livehomescore, liveawayscore, liveindicator, odds, oddsspread 
@@ -253,9 +263,12 @@ BEGIN
 	-- update username column
 	UPDATE al
 		SET username = ci.username
+		   ,CustomerClass = CASE WHEN ci.CustomerClass IN (201, 4000) THEN ci.CustomerClass ELSE NULL END 
+		   ,IsVipMember = CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END
 	FROM	#tmpTransInfo al
 		INNER JOIN CustDB.dbo.custInfo ci WITH(NOLOCK)
 			ON al.custid = ci.custid
+		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
@@ -336,10 +349,12 @@ BEGIN
 					,s.IsMixParlay
 					,s.SiteDBGroupID
 					,1 AS RemarkId 
-					,NULL AS IsVipMember
-					,NULL AS CustomerClass
+					,s.IsVipMember
+					,s.CustomerClass
 				FROM #inputTransid t
 					LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
+			
+			RETURN;
 		END
 
 		INSERT INTO @tmpMatchId (MatchId, homeid, awayid, leagueid,sporttype, matchcode)
@@ -372,6 +387,8 @@ BEGIN
 		,srecommend
 		,betteam
 		,CurrencyName
+		,IsVipMember
+		,CustomerClass
 		)
 	SELECT b.transid
 		,CASE WHEN b.matchid = @MatchId THEN 1 ELSE 0 END
@@ -389,6 +406,8 @@ BEGIN
 		,b.srecommend
 		,b.betteam
 		,CurrencyName
+		,b.IsVipMember
+		,b.CustomerClass
 	FROM #tmpTransInfo b
 		INNER JOIN #inputTransid tmp ON b.transid = tmp.transid
 		LEFT JOIN @tmpMatchId m ON b.matchid = b.matchid
@@ -537,36 +556,22 @@ BEGIN
 		FROM #inputTransid t
 			INNER JOIN #TransidInRequest v ON t.Transid = v.transid
 
-		--get list VIP Account
-		SELECT  @query = N''		
-		SELECT	@query = @query + N'SELECT Custid 
-									FROM dbo.Dep_CustVIP WITH (NOLOCK)	
-									'
-		SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-		INSERT INTO @VIPAccount_tmp(CustID)
-		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-
 		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
 											FROM #validTransId AS v				
-											WHERE EXISTS (
-												SELECT TOP 1 1
-												FROM @VIPAccount_tmp as vip
-												WHERE vip.CustID = v.custId)
+											WHERE v.IsVipMember = 1
 											FOR XML PATH('')), 1, 1, '')
 											, '')
 
 		-- Check validation for the ticket that has Customer Class = 201 & Customer Class = 4000
 		SELECT @TransIdsOfCustomerClass201 = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 												FROM #validTransId AS v	
-													INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
-												WHERE c.CustomerClass = 201
+												WHERE v.CustomerClass = 201
 												FOR XML PATH('')), 1, 1, '')
 											, '')
 
 		SELECT @TransIdsOfCustomerClass4K = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 												FROM #validTransId AS v	
-													INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
-												WHERE c.CustomerClass = 4000
+												WHERE v.CustomerClass = 4000
 												FOR XML PATH('')), 1, 1, '')
 											, '')
 
@@ -598,17 +603,6 @@ BEGIN
 											FROM #ABWhiteListTransIds t
 											FOR XML PATH('')), 1, 1, ''), '')
 		END
-	
-		UPDATE t
-		SET t.CustomerClass = c.CustomerClass
-		   ,t.IsVipMember = CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END
-		   ,t.RemarkId = CASE WHEN ab.Transid IS NOT NULL THEN 9 ELSE t.RemarkId END
-		FROM #inputTransid t
-			INNER JOIN #validTransId v ON t.Transid = v.transid
-			INNER JOIN CustDB.dbo.Custinfo AS c WITH (NOLOCK) ON v.custId = c.custid
-			LEFT JOIN @VIPAccount_tmp vip ON v.custId = vip.CustID
-			LEFT JOIN #ABWhiteListTransIds ab ON t.Transid = ab.transid
-	
 	END
 	
 	IF @FilterBy IS NULL AND @ActionId IN (4,6,7) -- Auto Void All (Instant), Auto Void All (5m before KO), Auto Void All (10m before KO)
@@ -648,6 +642,11 @@ BEGIN
 			INNER JOIN #LiveTransIds v ON t.Transid = v.transid 
 	
 	END
+
+	UPDATE t
+		SET t.RemarkId = 9 --ABWhiteList TransIds
+	FROM #inputTransid t
+		INNER JOIN #ABWhiteListTransIds v ON t.Transid = v.transid  
 
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
 
@@ -814,8 +813,8 @@ BEGIN
 		,s.IsMixParlay
 		,s.SiteDBGroupID
 		,t.RemarkId 
-		,t.IsVipMember
-		,t.CustomerClass
+		,s.IsVipMember
+		,s.CustomerClass
 	FROM #inputTransid t
 		LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 
