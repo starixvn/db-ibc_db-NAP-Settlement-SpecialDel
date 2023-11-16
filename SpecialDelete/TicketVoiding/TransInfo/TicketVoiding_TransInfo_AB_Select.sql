@@ -15,7 +15,8 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20231115@July: [TVS] Abnormal Bet - Export the list of tickets that the user inputs to a request before Save it [Redmine: #194133]
+
 	Param's explanation:	
 		- @AbnormalBetTransIds: '12343091763609600,12343108943478784'
 		
@@ -87,7 +88,6 @@ BEGIN
 		,SubTransdesc  NVARCHAR(1000)
 		,modds SMALLMONEY
 		,SiteDBGroupID SMALLINT
-		,SubMatchIdList	VARCHAR(2000)
 		,winlostdate SMALLDATETIME
     )
 
@@ -371,20 +371,6 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 						
-	IF EXISTS (SELECT TOP(1) 1 FROM #TransInfo WHERE bettype = 29)
-	BEGIN
-		UPDATE t SET t.SubMatchIdList = bm.SubMatchIdList
-		FROM #TransInfo t
-		CROSS APPLY (
-			SELECT STUFF((SELECT TOP 10 ',' + CAST(bm.matchid  AS VARCHAR(50)) 
-			FROM dbo.bettransm bm WITH (NOLOCK)
-			WHERE bm.refno = t.refno
-				AND t.bettype = 29
-			FOR XML PATH(''))
-			,1,1,'') AS SubMatchIdList
-		)bm
-	END
-	
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'
 		,transid AS 't'
@@ -444,7 +430,6 @@ BEGIN
 		,SubTransdesc  AS 's_tdes'
 		,modds AS 'm'
 		,SiteDBGroupID AS 'sitedb'
-		,SubMatchIdList AS 's_mid'
 		,winlostdate AS 'wld'
 	FROM #TransInfo
 	FOR JSON PATH))
