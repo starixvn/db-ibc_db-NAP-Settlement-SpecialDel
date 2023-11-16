@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_AutoVoidRequest_Queue_Insert]
 	,@StatusId				TINYINT
 	,@Action				VARCHAR(50)
 	,@BroadcastSessionId	VARCHAR(100) = NULL
+	,@MatchId				INT = 0
 )
 AS
 /*	
@@ -16,6 +17,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:
 */
@@ -23,7 +25,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	INSERT INTO dbo.TicketVoiding_AutoVoidQueue(RequestIds, MatchId, [Action], StatusId, CreatedDate, BroadcastSessionId)
-	SELECT @RequestIds, 0, @Action, @StatusId, GETDATE(), @BroadcastSessionId
+	SELECT @RequestIds, @MatchId, @Action, @StatusId, GETDATE(), @BroadcastSessionId
 
 END		
 GO

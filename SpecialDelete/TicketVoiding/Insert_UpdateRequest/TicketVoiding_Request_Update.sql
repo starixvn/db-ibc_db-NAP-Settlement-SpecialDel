@@ -30,6 +30,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Request_Update]
 	,@Wrong1stOUInfo		VARCHAR(MAX)  = NULL
 	,@WrongOddsInfo			VARCHAR(MAX)  = NULL
 	,@ReducedOverInfo		VARCHAR(MAX)  = NULL
+	,@NotParticipateInfo	VARCHAR(MAX)  = NULL
 	,@DuplicateTicketsInfo	VARCHAR(MAX)  = NULL
 	,@IsVoided				BIT			  = 0
 	,@TransInfoJson			VARCHAR(MAX)  = NULL
@@ -70,6 +71,8 @@ AS
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230612@July: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader
@@ -215,7 +218,6 @@ BEGIN
 					,@IssueTypeId	 = @IssueTypeId	
 					,@UserId		 = @UserId		
 					,@IP			 = @IP			
-					,@SubIssueTypeId = @SubIssueTypeId
 					,@KickOffInfo	 = @KickOffInfo
 					,@TransInfoJson	 = @TransInfoJson			
 					,@IsEditRequest	 = @IsEditRequest	
@@ -295,6 +297,18 @@ BEGIN
 				,@DuplicateTicketsInfo = @DuplicateTicketsInfo
 				,@TransInfoJson	 = @TransInfoJson			
 				,@IsEditRequest	 = @IsEditRequest
+		END
+		ELSE IF @IssueTypeId IN (21) --Not Participate (Use same SP with Reduced Over)
+		BEGIN
+			EXEC dbo.TicketVoiding_RequestDetail_RO_Update
+					 @RequestId		 = @RequestId		
+					,@IssueTypeId	 = @IssueTypeId	
+					,@UserId		 = @UserId		
+					,@IP			 = @IP			
+					,@ActionId		 = @ActionId		
+					,@ReducedOverInfo = @NotParticipateInfo
+					,@TransInfoJson	 = @TransInfoJson			
+					,@IsEditRequest	 = @IsEditRequest
 		END
 		
 	END

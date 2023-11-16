@@ -5,7 +5,6 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RequestDetail_KO_Update]
 	,@IssueTypeId			TINYINT		= NULL
 	,@UserId				INT
 	,@IP					VARCHAR(50)	= NULL
-	,@SubIssueTypeId		TINYINT = NULL
 	,@KickOffInfo			VARCHAR(MAX) = NULL	
 	,@TransInfoJson			VARCHAR(MAX) = NULL	
 	,@IsEditRequest			INT = 0
@@ -20,6 +19,7 @@ AS
 		- 20220808@July: Create new SP - Split code issuetype Early KO & Wrong KO [Redmine: #175412]
 		- 20221124@July: [TVS] Increase data size when sending data between web and DB [Redmine: #180863]
 		- 20230103@Max: Change JSON input [Redmine: #180625]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:
 		+ @IssueTypeId : 8 - Early Kick Off, 9 - Wrong Kick Off Time
@@ -32,19 +32,45 @@ BEGIN
 			,@LogData			 NVARCHAR(MAX)
 			,@SB_Error			 BIT = 0
 			,@LogDataContent	 NVARCHAR(MAX)
-			,@MatchId			 INT = 0
-			,@KickOffTime		 DATETIME = NULL
 			,@KickOffInfoXML	 XML = NULL	
-			,@OldKickOffTime	 DATETIME = NULL
-			,@RequestDetailId	 INT
-
+			,@topBatch			  INT = 4500
+					
 	DECLARE @Decompress_TransInfoJson NVARCHAR(MAX) = NULL
 
 	SET @Decompress_TransInfoJson = CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), @TransInfoJson, 1)) AS NVARCHAR(MAX))
 
+	CREATE TABLE #tblGetLogInfo (
+			 RequestID				INT
+			,MatchID				INT
+			,FilterFromTransTime	DATETIME 
+			,FilterToTransTime		DATETIME 
+			,FilterBy				TINYINT 
+			,SingleCount			INT 
+			,MainParlayCount		INT 
+			,VoidFromTime			DATETIME 
+			,VoidToTime				DATETIME
+			,LiveHomeScore			INT
+			,LiveAwayScore			INT
+			,LiveScores				NVARCHAR(300)
+			,TypeAccept				VARCHAR(2000)
+			,SubIssueTypeId			SMALLINT
+			,KickOffTime		 DATETIME
+		)
+
 	SET @KickOffInfoXML = CONVERT(XML, @KickOffInfo)
-	SELECT @MatchId = t.c.value('@MatchId','INT') 
-		  ,@KickOffTime = t.c.value('@KickOffTime','DATETIME')
+	INSERT INTO #tblGetLogInfo( 
+			RequestID				
+			,MatchID	
+			,TypeAccept	
+			,SubIssueTypeId
+			,KickOffTime
+		)
+	SELECT @RequestId AS RequestId
+			,t.c.value('@MatchId','INT') AS MatchID
+			,'<r IsMainMatch="' + t.c.value('@IsMainMatch','VARCHAR(10)') 
+				+ '" />' AS TypeAccept
+			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
+			,t.c.value('@KickOffTime','DATETIME')
 	FROM @KickOffInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@KickOffInfoXML = NULL))
 
@@ -73,90 +99,116 @@ BEGIN
 	WITH( mid INT, t BIGINT ,s_t BIGINT ,c INT ,btype SMALLINT ,bid BIGINT ,isP BIT ,sitedb SMALLINT
 	) tbl
 
-	IF @IsEditRequest = 0 
-	BEGIN
-		INSERT INTO dbo.TicketVoiding_RequestDetail (
-			RequestId
-			, MatchId
-			, LeagueId
-			, HomeId
-			, AwayId
-			, KickOffTime
-			, RequestType
-			, SubIssueTypeId
-		)
-		SELECT @RequestId
-			, @MatchId
-			, leagueid
-			, homeid
-			, awayid
-			, @KickOffTime
-			, 0
-			, @SubIssueTypeId
-		FROM dbo.match WITH(NOLOCK)
-		WHERE matchid = @MatchId
-		SET @RequestDetailId = SCOPE_IDENTITY()
-	END
-	ELSE 
-	BEGIN
-		UPDATE	dbo.TicketVoiding_RequestDetail WITH(ROWLOCK, UPDLOCK)
-			SET	@OldKickOffTime = KickOffTime
-				,KickOffTime = ISNULL(@KickOffTime, KickOffTime)
-				,SubIssueTypeId = ISNULL(@SubIssueTypeId, SubIssueTypeId)
-				,@RequestDetailId = Id
-		WHERE	RequestId = @RequestId
-				AND MatchId = @MatchId
-	END
-	
 	IF @IsEditRequest = 1
 	BEGIN
-		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_Single
-		WHERE RequestId = @RequestId
-
-		DELETE FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay
-		WHERE RequestId = @RequestId
+		DELETE rd
+		FROM dbo.TicketVoiding_RequestDetail rd
+			LEFT JOIN #tblGetLogInfo t ON rd.RequestId = t.RequestID AND rd.MatchId = t.MatchID
+		WHERE rd.RequestId = @RequestId AND t.RequestID IS NULL
+		
+		UPDATE	r
+		SET	  KickOffTime = l.KickOffTime
+			, SubIssueTypeId = l.SubIssueTypeId
+			, TransIds = l.TypeAccept
+		FROM dbo.TicketVoiding_RequestDetail r WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tblGetLogInfo l ON l.RequestID = r.RequestId AND l.MatchID = r.MatchId
 	END
 
-	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
+	INSERT INTO dbo.TicketVoiding_RequestDetail (
+		RequestId
+		, MatchId
+		, LeagueId
+		, HomeId
+		, AwayId
+		, KickOffTime
+		, TransIds
+		, SubIssueTypeId
+		)
 	SELECT @RequestId
-		,@IssueTypeId
-		,@SubIssueTypeId
-		,s.transid
-		,s.matchid
-		,@RequestDetailId
-		,s.bettype
-		,s.betid
-		,s.custid
-		,s.SiteDBGroupID
-	FROM #tmpTransInfo s
-	WHERE s.IsMixParlay = 0
+		, l.MatchID
+		, m.leagueid
+		, m.homeid
+		, m.awayid
+		, l.kickofftime
+		, l.TypeAccept
+		, l.SubIssueTypeId
+	FROM #tblGetLogInfo l
+		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
+		LEFT JOIN dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK) ON rd.RequestId = l.RequestID AND rd.MatchId = l.MatchID
+	WHERE rd.RequestId IS NULL
+	
+	WHILE (1=1) AND @IsEditRequest = 1
+	BEGIN
+		DELETE TOP(@topBatch) s 
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single s
+		WHERE s.RequestId = @RequestId
 
-	INSERT INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay(RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
-	SELECT @RequestId
+		IF @@ROWCOUNT < @topBatch BREAK
+
+		WAITFOR DELAY '00:00:00.100'
+	END
+
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP(@topBatch) d
+		OUTPUT @RequestId
+				, @IssueTypeId
+				, rd.SubIssueTypeId
+				, DELETED.TransId
+				, DELETED.MatchId
+				, rd.Id
+				, DELETED.bettype
+				, DELETED.betid
+				, DELETED.CustId
+				, DELETED.SiteDBGroupID
+		INTO dbo.TicketVoiding_RequestDetailTicket_Single (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, bettype, betid, CustId, SiteDBGroupID)
+		FROM #tmpTransInfo d
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
+		WHERE d.IsMixParlay = 0
+
+		IF @@ROWCOUNT < @topBatch BREAK
+			
+		WAITFOR DELAY '00:00:00.180'
+	END
+
+	WHILE (1=1) AND @IsEditRequest = 1
+	BEGIN
+		DELETE TOP(@topBatch) s 
+		FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay s
+		WHERE s.RequestId = @RequestId
+
+		IF @@ROWCOUNT < @topBatch BREAK
+
+		WAITFOR DELAY '00:00:00.100'
+	END
+
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP(@topBatch) d
+		OUTPUT @RequestId
 			, @IssueTypeId
-			, @SubIssueTypeId
-			, s.SubTransid
-			, s.matchid
-			, @RequestDetailId
-			, s.transid AS MainTransId
-			, s.SiteDBGroupID
-	FROM #tmpTransInfo s
-	WHERE s.IsMixParlay = 1
+			, rd.SubIssueTypeId
+			, DELETED.Subtransid
+			, DELETED.MatchId
+			, rd.Id
+			, DELETED.TransId
+			, DELETED.SiteDBGroupID
+		INTO dbo.TicketVoiding_RequestDetailTicket_SubParlay (RequestId, IssueTypeId, SubIssueTypeId, TransId, MatchId, RequestDetailId, MainTransId, SiteDBGroupID)
+		FROM #tmpTransInfo d
+			INNER JOIN dbo.TicketVoiding_RequestDetail rd ON rd.RequestId = @RequestId AND rd.MatchId = d.matchid
+		WHERE d.IsMixParlay = 1
+
+		IF @@ROWCOUNT < @topBatch BREAK
+			
+		WAITFOR DELAY '00:00:00.180'
+	END
 	
 	-- Get content of log data 
 	SET @LogDataContent = ''
-	IF @IsEditRequest = 0
-	BEGIN
-		SET @LogDataContent += ' MatchId: ' + CAST(@MatchId AS VARCHAR(20)) + ', KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
-	END
-	ELSE
-	BEGIN
-		IF @OldKickOffTime <> @KickOffTime
-		BEGIN
-		SET @LogDataContent += ' Old KickOffTime: ' + CONVERT(VARCHAR(30), @OldKickOffTime, 21) + ' New KickOffTime: ' + CONVERT(VARCHAR(30), @KickOffTime, 21)
-		END
-	END
-	
+	SELECT @LogDataContent += ' MatchId: ' + CAST(l.MatchID AS VARCHAR(20)) 
+							+ ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
+							+ ', KickOffTime: ' + CONVERT(VARCHAR(30), L.KickOffTime, 21)
+							FROM #tblGetLogInfo l
 	-- Write Log
 	SET @EndTime = GETDATE()
 	SET @LogData = CAST((SELECT	@RequestId AS '@RequestId'

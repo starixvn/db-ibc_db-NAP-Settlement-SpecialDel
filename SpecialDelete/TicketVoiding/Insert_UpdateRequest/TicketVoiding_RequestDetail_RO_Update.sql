@@ -18,10 +18,12 @@ AS
 	
 	Revisions: 
 		- 20230612@July: Create new SP [Redmine: #185833]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20230912@Max: [TVS] - Update the rules to get void ticket for Reduced Over issue type [Redmine: #193824]
 
 	Param's explanation:
 		+ @IssueTypeId : 19 - Reduced Over
+		+ @IssueTypeId : 21 - Not Participate
 */
 BEGIN
 	SET NOCOUNT ON
@@ -97,13 +99,17 @@ BEGIN
 			,t.c.value('@VoidToTime','DATETIME') AS VoidToTime
 			,NULL AS LiveScores
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
-			,'<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
+			,CASE WHEN @IssueTypeId = 19 THEN '<r BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
 				+ '" WicketOver="' + t.c.value('@WicketOver','VARCHAR(20)')
 				+ '" PlayerIds="' + t.c.value('@PlayerIds','VARCHAR(MAX)')
 				+ '" Runs="' + t.c.value('@Runs','VARCHAR(20)')
 				+ '" Live="' + CAST(t.c.value('@Live','BIT') AS VARCHAR(10)) 
 				+ '" NonLive="' + CAST(t.c.value('@NonLive','BIT') AS VARCHAR(10)) 	
 				+ '" />'
+				WHEN @IssueTypeId = 21 THEN '<r PlayerId="' + t.c.value('@PlayerId','VARCHAR(MAX)')
+				+ '" GroupBetTypeIds="' + t.c.value('@GroupBetTypeIds','VARCHAR(MAX)')
+				+ '" />'
+				END
 				AS  ReducedOver
 	FROM @ReducedOverInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@ReducedOverInfoXML = NULL))
@@ -144,7 +150,7 @@ BEGIN
 		, l.LiveScores
 		, l.SubIssueTypeId
 		, l.ReducedOver
-		, CASE WHEN @ActionId = 4 THEN 1 ELSE 0 END
+		, CASE WHEN @ActionId = 9 THEN 1 ELSE 0 END
 	FROM #tblGetLogInfo l
 		INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = l.MatchID
 
@@ -200,7 +206,10 @@ BEGIN
 							+ ', SubIssueTypeId: ' + CAST(l.SubIssueTypeId AS VARCHAR(20))
 							+ ', VoidFromTime: ' + CONVERT(VARCHAR(30), l.VoidFromTime, 21)
 							+ ', VoidToTime: ' + CONVERT(VARCHAR(30), l.VoidToTime, 21)
-							+ ', ReducedOver: ' + l.ReducedOver
+							+ CASE WHEN @IssueTypeId = 19 THEN ', ReducedOver: '
+								WHEN  @IssueTypeId = 21 THEN ', NotParticipate: '
+								+ l.ReducedOver
+							END
 							FROM #tblGetLogInfo l
 
 	-- Write Log

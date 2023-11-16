@@ -52,6 +52,7 @@ AS
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20230830@July: Remove SABA of league name for Jolly View sites [Redmine: #193213]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 
 	Param's explanation:	
 		
@@ -384,7 +385,7 @@ BEGIN
 			LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 		WHERE  b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 	END
-	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver
+	ELSE IF @IssueTypeId IN (1, 10, 3, 4, 5, 6, 7, 2, 19, 21) -- Danger Accept, Red Card, WrongScore, WrongHDP, Wrong OU, WrongOdds, ReducedOver, Not Participate
 	BEGIN
 		IF @BetTypes IS NOT NULL
 		BEGIN

@@ -21,6 +21,8 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:
 		
@@ -158,7 +160,7 @@ BEGIN
 		FROM #tmpTransIds t
 		WHERE t.TicketType = 3 AND t.betdaqid = -2 --NO CARE cancel CO -> running
 	END
-	IF @IssueTypeId IN (13,20)
+	IF @IssueTypeId IN (13,20,8,9)
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId
@@ -200,7 +202,7 @@ BEGIN
 				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId
 		END
 	END
-	IF @IssueTypeId = 19 --ReducedOver Cricket
+	IF @IssueTypeId IN (19,21) --ReducedOver Cricket, Not Participate
 	BEGIN
 		INSERT INTO #SingleTickets (TransId, RequestId, Matchid, IssueTypeId, TicketType, transdate, winlostdate, statusId)
 		SELECT t.TransId

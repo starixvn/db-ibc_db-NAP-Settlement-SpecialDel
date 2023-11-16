@@ -19,6 +19,7 @@ AS
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -253,21 +254,6 @@ BEGIN
 	WHERE b.statusID NOT IN (101, 102, 103)
 		AND b.SiteDBGroupID = @SiteDBGroupID
 		AND d.TicketType <> 2
-		
-	--Update Main MatchID for child match cricket (Sporttype = 50)
-	IF(EXISTS(SELECT TOP 1 1 FROM #TransInfo WHERE bettype NOT IN (9, 29, 2799)))
-	BEGIN
-		UPDATE d
-		SET d.matchid = m.ParentID
-		FROM #TransInfo d
-			INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
-		WHERE d.bettype NOT IN (9, 29, 2799)
-	END
-	
-	--Remove Unvalid data
-	DELETE t
-	FROM #TransInfo t
-	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
 	
 	--Search sub-parlay
 	IF EXISTS (
@@ -406,10 +392,16 @@ BEGIN
 			AND d.TicketType = 2
 	END
 	
+	--Update Main MatchID for child match cricket (Sporttype = 50)
 	UPDATE d
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
 		INNER JOIN dbo.match m WITH(NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
+
+	--Remove Invalid data
+	DELETE t
+	FROM #TransInfo t
+	WHERE @MatchId IS NOT NULL AND t.matchid <> @MatchId
 
 	--RETURN DATA
 	SET @TransInfoJson = COMPRESS((SELECT matchid AS 'mid'

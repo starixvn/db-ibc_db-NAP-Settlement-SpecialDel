@@ -5,6 +5,7 @@ CREATE PROCEDURE [dbo].[TicketVoiding_RelatedEvent_Select]
 	,@EventDate		DATETIME = NULL
 	,@IsMainMatch	BIT = 1
 	,@IssueTypeId	TINYINT = NULL
+	,@Sporttype		SMALLINT = 1
 )
 AS
 /*	
@@ -15,6 +16,7 @@ AS
 	
 	Revisions: 
 		- 20220916@July: Change config DBTXN -> DBPRO [Redmine: #175412]
+		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:
 		- @IsMainMatch: 1: Get child match and linked match
@@ -52,7 +54,9 @@ BEGIN
 
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 1 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM dbo.match m WITH (NOLOCK)
-		WHERE m.ParentID = @MatchId
+		WHERE 1 = CASE WHEN m.sporttype <> 50 AND m.ParentID = @MatchId THEN 1
+					WHEN m.sporttype = 50 AND m.ParentID = @MatchId AND m.ChildMatchType <> 200 THEN 1
+				ELSE 0 END
 		UNION ALL
 		SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.matchcode, m.leagueid, 2 AS MatchType, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
 		FROM #LinkedMatch_tmp lm
@@ -67,7 +71,10 @@ BEGIN
 		FROM dbo.match m WITH (NOLOCK)
 		WHERE m.matchid = @MatchId
 			AND m.eventdate = @EventDate
-			AND m.sporttype IN (1)
+			AND 1 = CASE WHEN m.sporttype <> 50 THEN 1
+					WHEN m.sporttype = 50 AND m.ChildMatchType <> 200 THEN 1
+				ELSE 0 END
+			AND m.sporttype = @Sporttype
 		ORDER BY matchcode ASC
 	END
 	

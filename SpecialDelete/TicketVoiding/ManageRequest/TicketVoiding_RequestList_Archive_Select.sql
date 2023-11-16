@@ -40,6 +40,8 @@ AS
 		- 20230522@July: Manage Request - Add more columns to the export excel template [Redmine:#188153]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:	
 		@Status: 
@@ -212,7 +214,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19,21) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -263,7 +265,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19,21) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -315,7 +317,7 @@ BEGIN
 				,CASE WHEN r.IssueTypeId IN (13,17) OR (r.IssueTypeId IN (11,20) AND rd.FilterBy = 1) THEN NULL ELSE rd.AwayId END
 				,rd.KickOffTime
 				,m.eventdate
-				,CASE WHEN r.IssueTypeId IN (3,19) THEN NULL ELSE rd.TransIds END
+				,CASE WHEN r.IssueTypeId IN (3,19,21) THEN NULL ELSE rd.TransIds END
 				,r.IssueTypeId
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidFromTime ELSE NULL END AS VoidFromTime
 				,CASE WHEN r.IssueTypeId <> 3 THEN rd.VoidToTime ELSE NULL END AS VoidToTime
@@ -387,14 +389,14 @@ BEGIN
 		INNER JOIN (
 			SELECT	vh.VoidingHistoryId
 					,SUM( CASE 
-							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20) THEN 1
-							WHEN vh.IssueTypeId IN (1,10,3,2,19) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
 							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
 						ELSE 0 END
 					) AS TotalVoidedSingle
 					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalVoidedParlay
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
-					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOut
 			FROM @tmpMatchVoidingHistory vh
 				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
 					ON	vh.VoidingHistoryId = z.VoidingHistoryId
@@ -468,7 +470,7 @@ BEGIN
 			,t.TotalUserName --no.of accounts
 			,t.WrongScores
 			,mr.SettlementStatus
-			,CASE WHEN t.IssueTypeId IN (1,10,3) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
+			,CASE WHEN t.IssueTypeId IN (1,10,3,8,9) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 	FROM	#tmpResult t
 		LEFT JOIN bodb02.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId

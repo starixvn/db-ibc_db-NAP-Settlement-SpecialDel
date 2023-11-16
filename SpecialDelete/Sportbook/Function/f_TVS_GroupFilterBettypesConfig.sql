@@ -1,0 +1,48 @@
+/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="1"></info>*/
+ALTER FUNCTION [dbo].[f_TVS_GroupFilterBettypesConfig] ()
+RETURNS TABLE
+WITH SCHEMABINDING
+AS
+
+/*
+    Created: 20231019@Max
+    Task: [TVS] Not Participant issue type [Redmine: #192832]
+    DB: DBTXN/bodb02
+    Revisions:
+		- 20231019@Max: [TVS] Not Participant issue type [Redmine: #192832]
+
+    Parameters Explanation:    
+    
+*/
+
+RETURN (
+    --1 Inns
+	SELECT	CONVERT(SMALLINT, 9652) AS BetType
+			,CONVERT(SMALLINT, 1) AS GroupId
+	UNION ALL SELECT 9653	,1
+	UNION ALL SELECT 9658	,1
+	UNION ALL SELECT 9659	,1
+	UNION ALL SELECT 9670	,1
+	UNION ALL SELECT 9671	,1
+	UNION ALL SELECT 9674	,1
+	UNION ALL SELECT 9675	,1
+
+	--2 Inns
+	UNION ALL SELECT 9654	,2
+	UNION ALL SELECT 9655	,2
+	UNION ALL SELECT 9660	,2
+	UNION ALL SELECT 9661	,2
+
+	--FT
+	UNION ALL SELECT 9650	,3
+	UNION ALL SELECT 9651	,3
+	UNION ALL SELECT 9656	,3
+	UNION ALL SELECT 9657	,3
+	UNION ALL SELECT 9668	,3
+	UNION ALL SELECT 9669	,3
+	UNION ALL SELECT 9672	,3
+	UNION ALL SELECT 9673	,3
+	
+	)
+
+GO

@@ -19,6 +19,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
+		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 
 	Param's explanation:
 	+ @KickOffInfo: 
@@ -27,20 +28,23 @@ AS
 BEGIN
 	SET NOCOUNT ON 
 
-	DECLARE  @IsExistedInOtherRequest BIT = 0
-			,@KickOffInfoXML		  XML = NULL	
-			,@MatchId			      INT
-			,@KickOffTime		      DATETIME = NULL
+	DECLARE  @KickOffInfoXML		  XML = NULL	
 			,@MarkTransIds		      VARCHAR(MAX) =''
 			,@UnmarkTransIds		  VARCHAR(MAX) =''
 			,@OldActionId			  TINYINT
 			,@TransInfoJson_Output	  VARBINARY(MAX) = NULL
+	
+	CREATE TABLE #FilterInfo (
+		 MatchId				INT
+		,KickOffTime			DATETIME
+	)
 
 	SET @KickOffInfoXML = CONVERT(XML, @KickOffInfo)
-	SELECT @MatchId = t.c.value('@MatchId','INT') 
-		  ,@KickOffTime = t.c.value('@KickOffTime','DATETIME')
+	INSERT INTO #FilterInfo (MatchId, KickOffTime)
+	SELECT  t.c.value('@MatchId','INT')
+		   ,t.c.value('@KickOffTime','DATETIME')
 	FROM @KickOffInfoXML.nodes('root/r') t(c)
-	OPTION (OPTIMIZE FOR (@KickOffInfoXML = NULL))
+	OPTION (OPTIMIZE FOR (@KickOffInfoXML = NULL)) 
 
 	CREATE TABLE #TVSTicketBets (
 			transid               BIGINT,
@@ -59,6 +63,12 @@ BEGIN
 			SubStatusId			  TINYINT,
 			SiteDBGroupID		  SMALLINT,
 	)
+
+	DECLARE @Validation AS TABLE (
+			 IsInValidTotalTickets   BIT DEFAULT(0) 
+			,IsExistedInOtherRequest BIT DEFAULT(0) 
+			,MatchId                 INT
+		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
 
@@ -213,6 +223,11 @@ BEGIN
 		) tbl
 	WHERE f.value <> ''
 
+	--Init Validation
+	INSERT INTO @Validation (MatchId)
+	SELECT MatchId
+	FROM #FilterInfo
+
 	INSERT INTO #TVSTicketBets(
 			transid		
 			,SubTransid		
@@ -244,8 +259,9 @@ BEGIN
 			,b.Subbettype
 			,b.SiteDBGroupID
 	FROM #tmpTransInfo b
+		INNER JOIN #FilterInfo f ON b.matchid = f.MatchId
 	WHERE	b.IsMixParlay = 0
-			AND b.transdate >= @KickOffTime
+			AND b.transdate >= f.KickOffTime
 			AND 1= CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1
 						WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 						ELSE 0 END
@@ -288,14 +304,15 @@ BEGIN
 				,b.Subbettype
 				,SiteDBGroupID
 		FROM #tmpTransInfo b	
+			INNER JOIN #FilterInfo f ON b.matchid = f.MatchId
 		WHERE	b.IsMixParlay = 1 
-		        AND b.Subtransdate >= @KickOffTime
+		        AND b.Subtransdate >= f.KickOffTime
 				AND 1= CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1
 							WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 							ELSE 0 END
 				AND b.liveindicator = 0 AND b.Subliveindicator = 0
 				AND b.Subbetfrom <> 'P'
-				AND b.transdate >= @KickOffTime
+				AND b.transdate >= f.KickOffTime
 				AND b.statusID NOT IN (101, 102, 103)
 	END 
 
@@ -319,7 +336,9 @@ BEGIN
 
 		IF @@ROWCOUNT <> 0
 		BEGIN
-			SELECT @IsExistedInOtherRequest = 1
+			UPDATE v SET v.IsExistedInOtherRequest = 1
+			FROM @Validation v
+			WHERE EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest t WHERE t.MatchId = v.MatchId)
 		END
 		
 		--Remove Transid exists in other request
@@ -331,7 +350,8 @@ BEGIN
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		-- 1. Validate table
-		SELECT  @IsExistedInOtherRequest AS IsExistedInOtherRequest
+		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest
+		FROM @Validation
 
 		-- 2. TransId in request table
 		IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
@@ -365,6 +385,16 @@ BEGIN
 		RETURN;
 	END
 	
+	UPDATE v SET v.IsInValidTotalTickets = CASE WHEN ISNULL(l.SingleCount,0) = 0 AND ISNULL(l.MainParlayCount,0) = 0 THEN 1 ELSE 0 END
+	FROM @Validation v
+	OUTER APPLY( 
+			SELECT COUNT(CASE WHEN IsMixParlay = 0 THEN transid ELSE NULL END) AS SingleCount
+				,COUNT(CASE WHEN IsMixParlay = 1 THEN transid ELSE NULL END) AS MainParlayCount
+			FROM #TVSTicketBets
+			WHERE MatchId = v.MatchId
+			GROUP BY MatchId
+		)l
+
 	IF @RequestId = 0 AND @ActionId <> 2
 	BEGIN
 		--Mark ticket when add request
@@ -437,7 +467,10 @@ BEGIN
 
 	/*****************Return table **************************/
 	-- 1. Validate table
-	SELECT @IsExistedInOtherRequest AS IsExistedInOtherRequest
+	SELECT MatchId
+		, IsInValidTotalTickets
+		, IsExistedInOtherRequest
+	FROM @Validation
 		  
 	-- 2. TransId exists in other request table
 	IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
@@ -528,10 +561,10 @@ BEGIN
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
+	DROP TABLE #FilterInfo
 	DROP TABLE #TVSTicketBets
 	DROP TABLE #TransidInRequest
 	DROP TABLE #tmpTransInfo
-
 END
 GO
 
