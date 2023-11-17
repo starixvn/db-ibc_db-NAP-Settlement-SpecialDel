@@ -180,7 +180,13 @@ BEGIN
 		SELECT DISTINCT pt.bettype
 		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 		WHERE 1 = CASE WHEN @IsAbnormalBet = 0 THEN 1
-					   WHEN @IsAbnormalBet = 1 AND pt.ProductID = 1 THEN 1 --Only Sportsbook
+					   WHEN @IsAbnormalBet = 1 AND pt.ProductID = 1 
+							AND pt.bettype < 19001
+							AND pt.bettype NOT IN (9, 29, 2799) -- Parlay Tickets
+							AND pt.bettype NOT IN (10) -- outright tickets
+							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
+							AND pt.bettype NOT IN (38) -- Bet Builder
+					   THEN 1 --Only Sportsbook
 					   ELSE 0 END
 			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
 			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
