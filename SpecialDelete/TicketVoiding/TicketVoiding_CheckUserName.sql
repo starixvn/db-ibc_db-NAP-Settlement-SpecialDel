@@ -294,6 +294,7 @@ BEGIN
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
+			AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 ELSE 0 END
 			AND IsVoid14 = 0
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
@@ -325,6 +326,7 @@ BEGIN
 								AND ml.LeagueGroupID IS NOT NULL THEN 1								
 						ELSE 0 END	
 				AND statusID IN (SELECT statusID FROM @Status_tmp)
+				AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 ELSE 0 END
 				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		END
 	END
@@ -358,6 +360,7 @@ BEGIN
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
 			AND statusID IN (SELECT statusID FROM @Status_tmp)
+			AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 ELSE 0 END
 			AND IsVoid14 = 0 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
@@ -389,6 +392,7 @@ BEGIN
 								AND ml.LeagueGroupID IS NOT NULL THEN 1								
 						ELSE 0 END	
 				AND statusID IN (SELECT statusID FROM @Status_tmp)
+				AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 ELSE 0 END
 				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		END
 	END
@@ -511,17 +515,20 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	--3. List TransinfoJson
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
-		,t.transid AS 't'
-		,b.custid AS  'c'           
-		,b.bettype AS 'btype'
-		,b.betid AS 'bid'
-		,b.IsMixParlay AS 'isP'
-		,b.SiteDBGroupID AS 'sitedb'
-		,b.IsVoid14 AS 'isV14'
-	FROM #transIdTemp t
-		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR JSON PATH))
+	IF @ActionId <> 10
+	BEGIN
+		SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+			,t.transid AS 't'
+			,b.custid AS  'c'           
+			,b.bettype AS 'btype'
+			,b.betid AS 'bid'
+			,b.IsMixParlay AS 'isP'
+			,b.SiteDBGroupID AS 'sitedb'
+			,b.IsVoid14 AS 'isV14'
+		FROM #transIdTemp t
+			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+		FOR JSON PATH))
+	END
 
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
@@ -531,6 +538,11 @@ BEGIN
 		,b.statusID
 		,ABS(b.winlost - b.actual_stake) AS winlost
 		,b.IsVoid14
+		,b.matchid
+		,b.bettype
+		,b.betid
+		,b.IsMixParlay
+		,b.SiteDBGroupID
 	FROM #tmpTransInfo b
 
 	--5. List members winlost amount for case auto void with policy
