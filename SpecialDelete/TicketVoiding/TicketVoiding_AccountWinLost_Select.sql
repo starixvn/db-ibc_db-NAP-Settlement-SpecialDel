@@ -26,4 +26,5 @@ BEGIN
 	FROM dbo.TicketVoiding_AbnormalAccountVoidAmount acc WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = acc.custid
 	WHERE acc.RequestId = @RequestId
+	ORDER BY c.username
 END

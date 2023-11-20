@@ -293,9 +293,8 @@ BEGIN
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
-			AND statusID IN (SELECT statusID FROM @Status_tmp)
-			AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 
-						WHEN @ActionId <> 10 THEN 1
+			AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
+						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
 					ELSE 0 END
 			AND IsVoid14 = 0
 
@@ -327,9 +326,8 @@ BEGIN
 							WHEN @IsSaba = 1 
 								AND ml.LeagueGroupID IS NOT NULL THEN 1								
 						ELSE 0 END	
-				AND statusID IN (SELECT statusID FROM @Status_tmp)
-				AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 
-						WHEN @ActionId <> 10 THEN 1
+				AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
+						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
 					ELSE 0 END
 				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		END
@@ -363,9 +361,8 @@ BEGIN
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
-			AND statusID IN (SELECT statusID FROM @Status_tmp)
-			AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 
-						WHEN @ActionId <> 10 THEN 1
+			AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
+						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
 					ELSE 0 END
 			AND IsVoid14 = 0 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		
@@ -397,9 +394,8 @@ BEGIN
 							WHEN @IsSaba = 1 
 								AND ml.LeagueGroupID IS NOT NULL THEN 1								
 						ELSE 0 END	
-				AND statusID IN (SELECT statusID FROM @Status_tmp)
-				AND 1 = CASE WHEN @ActionId = 10 AND b.statusID = 113 THEN 1 
-						WHEN @ActionId <> 10 THEN 1
+				AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
+						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
 					ELSE 0 END
 				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		END
@@ -559,6 +555,7 @@ BEGIN
 		,c.credit AS GivenCredit
 	FROM #tmpTransInfo b
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = b.custid	
+	ORDER BY c.username
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1
