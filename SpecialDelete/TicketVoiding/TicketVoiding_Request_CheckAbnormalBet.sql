@@ -260,7 +260,6 @@ BEGIN
 		WHERE d.bettype NOT IN (9, 29, 2799)
 	END
 	
-	-- update username column
 	UPDATE al
 		SET username = ci.username
 		   ,CustomerClass = CASE WHEN ci.CustomerClass IN (201, 4000) THEN ci.CustomerClass ELSE NULL END 
@@ -492,12 +491,12 @@ BEGIN
 	WHERE NOT EXISTS (SELECT 1 FROM #validTransId WHERE transid = temp.transid )
 		AND u.transid IS NULL
 
-	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(100))
+	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 									FROM #CTE_invalid
 									WHERE isMoved = 0
 									FOR XML PATH('')), 1, 1, ''), '')
 
-	SELECT @MovedTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(100))
+	SELECT @MovedTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
 								FROM #CTE_invalid
 								WHERE isMoved = 1
 								FOR XML PATH('')), 1, 1, ''), '')
@@ -524,14 +523,12 @@ BEGIN
 										FROM #validTransId AS v
 										INNER JOIN dbo.bettype b WITH(NOLOCK) ON v.bettype = b.typeid
 										WHERE v.bettype <> 29
-										FOR XML PATH('')), 1, 1, '')
-										, '')
+										FOR XML PATH('')), 1, 1, ''), '')
 
 	SET @ListBetteam = ISNULL(STUFF((SELECT DISTINCT ', ' + CAST(v.betteam AS VARCHAR(100))
 										FROM #validTransId AS v
 										WHERE v.bettype <> 29
-										FOR XML PATH(''), TYPE).value('.', 'VARCHAR(MAX)'), 1, 2, '')
-										, '')
+										FOR XML PATH(''), TYPE).value('.', 'VARCHAR(MAX)'), 1, 2, ''), '')
 	
 	IF @ActionId <> 2
 	BEGIN
@@ -549,8 +546,8 @@ BEGIN
 		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 										FROM #inputTransid t 
 											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
-										FOR XML PATH('')), 1, 1, '')
-										, '')
+										FOR XML PATH('')), 1, 1, ''), '')
+
 		UPDATE t
 		SET t.RemarkId = 6 --Existing Request
 		FROM #inputTransid t
@@ -559,21 +556,18 @@ BEGIN
 		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
 											FROM #validTransId AS v				
 											WHERE v.IsVipMember = 1
-											FOR XML PATH('')), 1, 1, '')
-											, '')
+											FOR XML PATH('')), 1, 1, ''), '')
 
 		-- Check validation for the ticket that has Customer Class = 201 & Customer Class = 4000
 		SELECT @TransIdsOfCustomerClass201 = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 												FROM #validTransId AS v	
 												WHERE v.CustomerClass = 201
-												FOR XML PATH('')), 1, 1, '')
-											, '')
+												FOR XML PATH('')), 1, 1, ''), '')
 
 		SELECT @TransIdsOfCustomerClass4K = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 												FROM #validTransId AS v	
 												WHERE v.CustomerClass = 4000
-												FOR XML PATH('')), 1, 1, '')
-											, '')
+												FOR XML PATH('')), 1, 1, ''), '')
 
 		--Check AB White List Invalid Transid
 		INSERT INTO #ABWhiteListCustIds_AllowVoid (custid)
@@ -625,14 +619,12 @@ BEGIN
 		SELECT @NonLiveTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
 										FROM #LiveTransIds lt
 										WHERE lt.IsNonLive = 1
-										FOR XML PATH('')), 1, 1, '')
-									, '')
+										FOR XML PATH('')), 1, 1, ''), '')
 
 		SELECT @DifferentLiveScoreTransIds = ISNULL(STUFF((SELECT ',' + CAST(lt.transid AS VARCHAR(50))
 														FROM #LiveTransIds lt
 														WHERE lt.IsDifferentScore = 1
-														FOR XML PATH('')), 1, 1, '')
-											, '')
+														FOR XML PATH('')), 1, 1, ''), '')
 		
 		UPDATE t
 		SET t.RemarkId = CASE WHEN IsNonLive = 1 THEN 7 
@@ -692,7 +684,8 @@ BEGIN
 			INSERT INTO @tmpMarkTransId (TransId)
 			SELECT transid 
 			FROM #validTransId v
-			WHERE v.StatusId IN (0,1) AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
+			WHERE v.StatusId IN (0,1) 
+				AND NOT EXISTS ( SELECT TOP 1 1 FROM #TransidInRequest tr WHERE tr.TransId = v.TransId)-- exist in # request
 				AND NOT EXISTS ( SELECT TOP 1 1 FROM @tmpUnmarkTransId um WHERE um.TransId = v.transid)
 		
 		END
@@ -723,13 +716,12 @@ BEGIN
 
 	SELECT @MarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
 											FROM @tmpMarkTransId
-											FOR XML PATH('')), 1,1,'')
-											,'')
+											FOR XML PATH('')), 1,1,''),'')
 
 	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
-												FROM @tmpUnmarkTransId
-												FOR XML PATH('')), 1,1,'')
-												,'')
+											FROM @tmpUnmarkTransId
+											FOR XML PATH('')), 1,1,''),'')
+
 	IF @UnmarkTransIds <> ''
 	BEGIN
 		SET @IsHasWarningRemovedTickets = 1
