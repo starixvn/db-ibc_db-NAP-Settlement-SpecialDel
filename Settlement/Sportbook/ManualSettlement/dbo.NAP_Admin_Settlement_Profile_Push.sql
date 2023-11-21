@@ -50,7 +50,7 @@ AS
 		- 20230616@Kathy: Migrate NetPosition API & Services to NAP Settlement System [Redmine:#187311]
 		- 20230719@Kathy: Remove unused param [Redmine:#187311]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
-		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
+		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433] 
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
