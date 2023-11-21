@@ -10,6 +10,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay]
 	,@Hta				SMALLINT		= 0
 	,@strRefnos			VARCHAR(MAX)	= ''
 	,@matchdate			SMALLDATETIME	= NULL
+	,@ResourceResult	VARCHAR(200)	= ''
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 AS
@@ -26,6 +27,7 @@ AS
 		- 20200324@Helen: Betradar VS 4 -  [Redmine:#130984] 
 		- 20200409@Helen: Virtual Soccer Euro Cup  -  [Redmine:#132048]  
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
+		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
 		
 	Param's Explanation:
 		• @Mode:
@@ -42,7 +44,6 @@ BEGIN
 		  , @xmlTicket		XML
 	DECLARE @IgnoreList 	VARCHAR(200)
 	DECLARE @tempRefno 		TABLE (refno BIGINT)
-	DECLARE @ResourceResult	VARCHAR(200) = ''
 	
 	CREATE TABLE #tblTicketInfos (matchid int, transid BIGINT)
 	
@@ -67,17 +68,7 @@ BEGIN
 	
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
-		, @IgnoreList 			= 'DB04,DB042,DB043,DB044'
-	
-	IF @SportType = 193
-	BEGIN
-		SELECT	 @ResourceResult = @ResourceResult + RIGHT(ResourceID,2) + Custom1 + ',' 
-		FROM	DBPRO.bodb02.dbo.ResultDetail3rd WITH (NOLOCK)
-		WHERE	MatchID = @MatchID 
-			AND SettlementStatusID = 4
-			AND ResourceID LIKE '2809__'
-		OPTION (maxrecursion 0)
-	END		
+		, @IgnoreList 			= 'DB04,DB042,DB043,DB044'	
 	
 	IF @mode = 'CAL'
 	BEGIN

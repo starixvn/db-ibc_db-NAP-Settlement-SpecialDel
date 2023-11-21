@@ -2,6 +2,13 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_VS_BetRadar_MP] 
 	@AdminId			INT
 	,@MatchId			INT
+	,@SportType			INT				= 0
+	,@matchdate			SMALLDATETIME
+	,@Fth				SMALLINT		= NULL
+	,@Fta				SMALLINT		= NULL
+	,@Hth				SMALLINT		= NULL
+	,@Hta				SMALLINT		= NULL
+	,@ResourceResult	VARCHAR(200)	= ''
 	,@Action			VARCHAR(10)		= 'CAL'
 	,@IP				VARCHAR(30)		= ''
 	,@ErrCode			INT				= 0		OUTPUT
@@ -17,6 +24,7 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
 		
 	Param's Explanation:
  
@@ -24,18 +32,10 @@ AS
 BEGIN
 	SET NOCOUNT ON
 	
-	DECLARE @sportType			INT 
-		, @fth 					INT
-		, @fta 					INT
-		, @hth 					INT
-		, @hta 					INT
-		, @matchdate			SMALLDATETIME
-		, @strRefnos			VARCHAR(MAX)
+	DECLARE @strRefnos			VARCHAR(MAX)
 		, @TotalAccount			INT
 		, @ActionID				INT
 
-		, @start				DATETIME
-		, @stop					DATETIME
 		, @avaiableProcess		BIT
 		, @IsCentral			BIT  = 0
 	
@@ -51,17 +51,6 @@ BEGIN
 									WHEN 'CAL'		THEN 187
 									WHEN 'REFUND'	THEN 188
 								END
-		, @start				= CURRENT_TIMESTAMP
-
-	SELECT TOP(1)
-		@fth 					= FinalHomeScore
-		, @fta 					= FinalAwayScore
-		, @hth 					= HTHomeScore
-		, @hta 					= HTAwayScore
-		, @matchdate			= CAST(eventdate AS DATE)
-		, @sportType			= SportType
-	FROM DBPRO.BODB02.dbo.Match WITH (NOLOCK)
-	WHERE matchid = @matchid
 	
 	--PARLAY checking	
 	INSERT INTO @tempRefno (refno)
@@ -110,6 +99,7 @@ BEGIN
 			,@Fta				= @fta
 			,@Hth				= @hth
 			,@Hta				= @hta
+			,@ResourceResult	= @ResourceResult
 			,@strRefnos 		= @strRefnos
 			,@matchdate			= @matchdate
 			,@ErrCode			= @ErrCode OUTPUT
@@ -137,44 +127,8 @@ BEGIN
 			,@ErrMsg			= @ErrMsg OUTPUT
 	END	
 	
-	IF(@ErrCode > 0) 
-		RETURN	
-	
-	--RELEASE process
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@IsExistParlayVSBetradar	= 1
 		,@IsReleased				= 1
-		
-	--BEGIN: WRITE LOG ----------------------------------		
-	DECLARE @Remark VARCHAR(200)
-		
-	SET @stop = CURRENT_TIMESTAMP
-			
-	SELECT @Remark = 'NAP: VS BetRadar - Calculate Multiple (' + @action + '). Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms'
-		
-	--RESET scores values
-	SELECT @fth = NULL
-		,@fta 	= NULL
-		,@hth 	= NULL
-		,@hta	= NULL
-	WHERE @Action = 'REFUND'
-		
-	IF @IsCentral = 1
-	BEGIN
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminId
-			,@Matchid = @matchid
-			,@ActionID = @ActionID
-			,@finalhomescore = @fth
-			,@finalawayscore = @fta
-			,@hthomescore = @hth
-			,@htawayscore = @hta
-			,@GoalRecord = NULL
-			,@betstatus = NULL
-			,@Remark = @Remark
-			,@IP = @IP
-	END
-	--END: WRITE LOG ----------------------------------
-	
-	RETURN
 END
 GO

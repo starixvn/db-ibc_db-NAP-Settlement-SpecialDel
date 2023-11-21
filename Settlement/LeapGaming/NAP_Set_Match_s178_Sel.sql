@@ -9,16 +9,17 @@ AS
 	
 	Revisions:
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
+		- 20231016@Aries: Auto Send Announcement When Refund VS [Redmine:#195333]
  
 */
 
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT m.eventstatus, s.SportType, s.SportName ,kickofftime
+	SELECT m.eventstatus, s.SportType, s.SportName ,kickofftime,l.leagueId,l.LeagueGroupID,m.homeid, m.awayid  
 	FROM dbo.match m WITH(NOLOCK)
-		INNER JOIN dbo.sports s WITH(NOLOCK)
-			ON m.sporttype = s.sporttype			
+		INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.sporttype
+		LEFT JOIN dbo.league AS l  WITH(NOLOCK) ON  l.leagueId = m.leagueId 
 	WHERE matchid = @matchid
 		AND m.IsDeleted  = 0
 END
