@@ -22,6 +22,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20230921@Max: [TVS] Recover Virtual Sports Bet and Recover By Bet ID - Update more info when calling SP from Settlement site [Redmine: #194269]
+		- 20231030@July: [TVS] Integrate a new sport type "Virtual Football League" [Redmine: #195313]
 
 	Param's Explanation:		
 		- @TransIds : Main transids.
@@ -301,7 +302,7 @@ BEGIN
 				CASE 
 					WHEN m.sporttype BETWEEN 190 AND 199 THEN 1 -- VS Betradar
 					WHEN m.sporttype IN (180, 186) THEN 2 -- Inspired VS 180
-					WHEN m.sporttype IN (178) THEN 4 -- VS 3 (Leap Gaming)
+					WHEN m.sporttype IN (178, 179) THEN 4 -- VS 3 (Leap Gaming)
 					ELSE NULL
 				END AS TicketType
 				,b.currency
@@ -317,7 +318,7 @@ BEGIN
 		  AND z.winlostdate >= @before_yesterday
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
-				OR m.sporttype IN (180, 186, 178) -- Inspired VS 180, VS 3 (Leap Gaming)
+				OR m.sporttype IN (180, 186, 178, 179) -- Inspired VS 180, VS 3 (Leap Gaming)
 			 )
 		  AND z.bettype NOT IN (2799)
 		  AND z.SiteDBGroupID = @SiteDBGroupID
