@@ -33,6 +33,7 @@ WITH RECOMPILE
 		- 20220719@Louisa: Update match_remark before calcualte/refund for VSBetradar [Redmine:#175251]
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 
 	Param's Explanation: 
 */
@@ -68,6 +69,60 @@ BEGIN
 
 	--IF @command = 'Q' UPDATE match_remark with (rowlock, updlock) SET Calculate = 0, multiple = 0, calrefund = 0, calStatus = 'Q' WHERE matchid = @matchid
 	
+	IF @Sporttype = 58
+	BEGIN
+		---CAL HT
+		IF @command = 'H' 
+		BEGIN
+			UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
+			SET	IsHTCal			= 1 
+				,isPending		= 0
+				,isUndecided	= 0
+				,RepUpdateTime = SYSDATETIME()
+			WHERE matchid = @matchid
+		END
+
+		--- CAL-FT
+		IF @command = 'C'
+		BEGIN
+			UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
+			SET Calculate		= 1
+				,calrefund		= 0
+				,isPending		= 0
+				,isUndecided	= 0
+				,RepUpdateTime = SYSDATETIME()
+			WHERE matchid = @matchid -- whole match calculated
+		END
+
+		--UNDO HT , UNDO FT, UNDO HT+FT
+		IF @command = 'U'
+		BEGIN
+			UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
+			SET IsHTCal		 = CASE WHEN @IsHTRound = 1 THEN 0 ELSE IsHTCal END
+				,Calculate	 = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE Calculate END
+				,multiple	 = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE multiple END
+				,calrefund	 = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE calrefund END
+				,isUndecided = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE isUndecided END
+				,RepUpdateTime = SYSDATETIME()
+			WHERE matchid = @matchid 
+		END
+
+		--REFUND HT, REFUND FT, FERUND HT+FT
+		IF @command = 'F'
+		BEGIN
+			UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
+			SET calculate		= CASE WHEN @IsFinalRound = 1 THEN 0 ELSE calculate END
+				,IsHTCal		= CASE WHEN @IsHTRound = 1 THEN 0 ELSE IsHTCal END
+				,calrefund		= CASE WHEN @IsFinalRound = 1 THEN 1 ELSE calrefund END
+				,isPending		= 0
+				,isUndecided	= 0
+				,RepUpdateTime = SYSDATETIME()			
+			WHERE matchid = @matchid 
+		END
+
+		RETURN
+	END
+
 	-- Completed
 	IF @command = 'C' 
 	BEGIN
