@@ -26,6 +26,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20230915@Louisa: Remove code WriteLog_UserLog [Redmine:#193920]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		  	
 	Parameters Explanation:    
 		@Type: TINYINT
@@ -47,6 +48,7 @@ BEGIN
 			,@ResultTable		TINYINT	= 0	
 			,@handle			INT
 			,@RemarkSDT			VARCHAR(500) = ''
+			,@IsValidateSOPRefund BIT = 0
 								
 	DECLARE @tmpResultDetail TABLE ( ResourceId	VARCHAR(20)	)
 	DECLARE @tmpResourcesWeb TABLE(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
@@ -57,10 +59,8 @@ BEGIN
 						 END
 	SELECT @SportType = m.sporttype FROM dbo.Match m WITH(NOLOCK) WHERE m.matchid  = @MatchId
 
-	IF @ActionId IS NULL OR ( @Type = 2 AND @SportType NOT IN ( 5, 43, 6, 45, 9, 2, 50 ) )
-	RETURN
-
 	SELECT @ResultTable =  r.ResultTable 
+			,@IsValidateSOPRefund = ISNULL(r.Setting,0) & 1
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK) 
 	WHERE r.Sporttype = @SportType
 	/*@ResultTable:
@@ -69,12 +69,23 @@ BEGIN
 			3: ResultDetailES
 	*/
 
-	INSERT INTO @tmpResultDetail ( ResourceId)
-	SELECT DISTINCT
-	sp.ResourceID
-	FROM DBTXN.bodb02.dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
-		INNER JOIN STRING_SPLIT(@ResourceIds,',') fs ON sp.ResourceID = fs.value
-		AND sp.SportType  = @SportType
+	IF @ActionId IS NULL OR ( @Type = 2 AND @IsValidateSOPRefund = 0 )
+	RETURN
+
+	IF @SportType = 58 --get all ResourceID from web
+	BEGIN
+		INSERT INTO @tmpResultDetail ( ResourceId)
+		SELECT DISTINCT	fs.value FROM STRING_SPLIT(@ResourceIds,',') fs
+	END
+	ELSE
+	BEGIN ---get ResourceID has offer bettype
+		INSERT INTO @tmpResultDetail ( ResourceId)
+		SELECT DISTINCT
+		sp.ResourceID
+		FROM dbo.SettlementSpecialBettypeProfile sp  WITH (NOLOCK)
+			INNER JOIN STRING_SPLIT(@ResourceIds,',') fs ON sp.ResourceID = fs.value
+			AND sp.SportType  = @SportType
+	END
 
 	IF @Type = 3
 	BEGIN

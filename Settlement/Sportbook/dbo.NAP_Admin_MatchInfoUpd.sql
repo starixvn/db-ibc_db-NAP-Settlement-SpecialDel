@@ -36,6 +36,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 
 	Param's Explanation:
 		@Action: CAL, CAL-FT, CAL-HT, REFUND, REFUND-FT, REFUND-HT, UNDO, CAL_EAR, REFUND_EAR, UNDO_EAR, 'CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT'
@@ -141,7 +142,7 @@ BEGIN
   		FROM @tmpSelectedRID sr
   		WHERE sr.ResourceID = '01' 
 			AND 1 = CASE 
-						WHEN @sportType = 2 THEN 1
+						WHEN @sportType IN ( 2, 58) THEN 1
 						WHEN @sportType = 1 AND @LeagueGroupID = 113 THEN 1---PinGoal
 						ELSE 0
 					END

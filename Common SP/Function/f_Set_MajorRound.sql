@@ -20,6 +20,7 @@ AS
 		- 20220620@Louisa: Extend Best Of Map Esports from M9 up to M30 [Redmine:#174252]
 		- 20230109@Kathy: Keyscore Performance Report - Add Game/Set Results of SOP Sports [Redmine:#182007]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
    
     Parameters Explanation:        
     
@@ -116,7 +117,13 @@ RETURN
 	        UNION ALL SELECT 6, '804', '4S', '0104', 'SP', 0, 4,  0
 	        UNION ALL SELECT 6, '805', '5S', '0105', 'SP', 0, 5,  0
 	        UNION ALL SELECT 6, '00' , 'FT', '00',	 'FT', 1, 99, 1
-	)		  					
+
+			UNION ALL SELECT 58, '01', 'HT', '01'  , 'HT', 0, 1,  0
+			UNION ALL SELECT 58, '00', 'FT', '0001', 'FT', 1, 96, 1
+			UNION ALL SELECT 58, '00', 'FT', 'ET'  , 'FT', 1, 97, 1
+			UNION ALL SELECT 58, '00', 'FT', 'PEN' , 'FT', 1, 98, 1
+			UNION ALL SELECT 58, '00', 'FT', '00'  , 'FT', 1, 99, 1
+			)		  					
 	SELECT os1.Sporttype, os1.RoundID, os1.RoundName, os1.ResourceID, os1.GroupType, os1.isFinal, os1.OrdNo, os1.AllowDirectly
 	FROM os1 
 	WHERE Sporttype = @Sporttype 

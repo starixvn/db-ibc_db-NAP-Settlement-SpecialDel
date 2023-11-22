@@ -24,6 +24,7 @@ AS
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -50,6 +51,7 @@ BEGIN
 		,GoalRecord VARCHAR(50)
 		,AutoSetting TINYINT
 		,GameSession TINYINT
+		,LeagueType TINYINT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -120,6 +122,7 @@ BEGIN
 		,GoalRecord
 		,AutoSetting
 		,GameSession
+		,LeagueType
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -142,9 +145,12 @@ BEGIN
 		,m.GoalRecord
 		,ISNULL(m.AutoSetting, l.AutoSetting)
 		,l.GameSession
+		,ls.LeagueType
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
+		LEFT JOIN dbo.LeagueSetting ls WITH(NOLOCK)
+			ON l.leagueid = ls.Leagueid
      	INNER JOIN dbo.[match_remark] mr WITH (NOLOCK) ON mr.matchid = m.matchid
      WHERE m.matchid = @matchid
 
@@ -170,6 +176,7 @@ BEGIN
 		,GoalRecord
 		,AutoSetting
 		,GameSession
+		,LeagueType
 	FROM @tmpMatchInfo
 
 END
