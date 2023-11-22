@@ -76,6 +76,7 @@ AS
 		- 20221214@Louisa: Fix bug [Redmine:#181598]
 		- 20230215@Aries: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
+		- 20231121@Aries: Deleted matches are still showed on settlement site [Redmine: #197070]
 
  Param explanation: 
 	@LeagueIDs  : '0' :all  
@@ -330,6 +331,7 @@ BEGIN
 								WHERE @LeagueIDs = '0' OR tmp.LeagueId = l.leagueid 
 							 ) tmp
 			WHERE m.eventdate BETWEEN @FromDate AND @ToDate	
+				AND ISNULL(m.IsDeleted,0) = 0
 				AND m.sporttype = @sporttype
 				AND l.isTest = CASE WHEN @IsIncludeTest = 1 THEN l.isTest ELSE 0 END
 				AND l.LeagueGroupID <> 113 --if not query by matchcode, exclude Pingoal
