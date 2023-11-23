@@ -132,7 +132,8 @@ BEGIN
 	SELECT DISTINCT value
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> ''
-
+	
+	CREATE TABLE #invalidTransId (transid BIGINT, isMoved BIT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
 		transid			BIGINT PRIMARY KEY
@@ -298,8 +299,9 @@ BEGIN
 							WHERE (1= CASE WHEN @ActionId <> 2 AND b.statusID NOT IN (101, 102) THEN 1
 										   WHEN @ActionId = 2 AND b.statusID  <> 101 THEN 1
 										   ELSE 0 END) 
-									AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype))
-	
+									AND EXISTS (SELECT TOP 1 1 FROM @bettype_tmp bt WHERE bt.bettype = b.bettype)
+									AND b.matchcode IS NOT NULL 			
+									)
 		IF @MatchId IS NULL
 		BEGIN
 			--1. Info match table
@@ -473,8 +475,7 @@ BEGIN
 	WHERE  req.RequestId <> @RequestId AND req.ActionId <> 2
 
 	-- get invalid or moved transId
-	CREATE TABLE #CTE_invalid (transid BIGINT, isMoved BIT)
-	INSERT INTO #CTE_invalid (transid, isMoved)
+	INSERT INTO #invalidTransId (transid, isMoved)
 	SELECT temp.transid
 		  ,ISNULL(bm.IsMoved14, 0) AS isMoved
 	FROM #inputTransid AS temp
@@ -492,19 +493,19 @@ BEGIN
 		AND u.transid IS NULL
 
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
-									FROM #CTE_invalid
+									FROM #invalidTransId
 									WHERE isMoved = 0
 									FOR XML PATH('')), 1, 1, ''), '')
 
 	SELECT @MovedTransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
-								FROM #CTE_invalid
+								FROM #invalidTransId
 								WHERE isMoved = 1
 								FOR XML PATH('')), 1, 1, ''), '')
 
 	UPDATE t
 	SET t.RemarkId = CASE WHEN v.isMoved = 0 THEN 1 ELSE 2 END
 	FROM #inputTransid t
-		INNER JOIN #CTE_invalid v ON t.Transid = v.transid
+		INNER JOIN #invalidTransId v ON t.Transid = v.transid
 	
 	SELECT @DifferentMatchTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
 										FROM #validTransId AS v
@@ -819,5 +820,5 @@ BEGIN
 	DROP TABLE #ABWhiteListCustIds
 	DROP TABLE #ABWhiteListCustIds_AllowVoid
 	DROP TABLE #tmpTransInfo
-	DROP TABLE #CTE_invalid
+	DROP TABLE #invalidTransId
 END
