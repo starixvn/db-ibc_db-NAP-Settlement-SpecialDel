@@ -220,24 +220,24 @@ BEGIN
 	INSERT INTO #tmpTransInfo( 
 		   matchid, transid, refno, custid, hdp1, hdp2, livehomescore, liveawayscore, liveindicator, odds, oddsspread 
 		 , betfrom, bettype, betteam, betcheck, Status, transdate, betid, Transdesc, statusID
-		 , srecommend, mrecommend, recommend, creator, WalletType, RefCode, stake, oddstype
+		 , srecommend, mrecommend, recommend, creator, WalletType, RefCode, stake, oddstype, winlost
 		 , CurrencyName, betdaqid, ExtraInfo, actual_stake, winlostdate, modds, statuswinlost, IsMoved14, IsMixParlay, SiteDBGroupID
 		)
 	SELECT mid, t, ref, c, hdp1, hdp2, lh, la, li, o, os
 		 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
-		 , sre, mre, re, cr, wt, refc, stake, ost
+		 , sre, mre, re, cr, wt, refc, stake, ost, w
 		 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 			SELECT mid, t, ref, c, hdp1, hdp2, lh, la, li, o, os
 				 , bfr, btype, bteam, bcheck, s, tdate, bid, tdes, sid 
-				 , sre, mre, re, cr, wt, refc, stake, ost
+				 , sre, mre, re, cr, wt, refc, stake, ost, w
 				 , curr, bdaq, ex, acstake, wld, m, statuswl, isM, isP, sitedb
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, ref BIGINT, c INT, hdp1 SMALLMONEY, hdp2 SMALLMONEY, lh SMALLINT, la SMALLINT, li BIT, o SMALLMONEY, os MONEY
 					, bfr NVARCHAR(4), btype SMALLINT ,bteam NVARCHAR(10) ,bcheck NVARCHAR(50), s NVARCHAR(10), tdate DATETIME,bid BIGINT ,tdes NVARCHAR(1000), sid TINYINT 
-					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY ,ost TINYINT 
+					, sre INT, mre INT, re INT, cr INT, wt TINYINT, refc BIGINT, stake MONEY, ost TINYINT, w MONEY
 					, curr NVARCHAR(50), bdaq BIGINT, ex VARCHAR(1000), acstake MONEY, wld SMALLDATETIME, m SMALLMONEY ,statuswl TINYINT ,isM BIT ,isP BIT ,sitedb SMALLINT
 				)
 		) tbl
