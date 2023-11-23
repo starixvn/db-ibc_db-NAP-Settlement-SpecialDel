@@ -548,12 +548,14 @@ BEGIN
 		,b.IsMixParlay
 		,b.SiteDBGroupID
 	FROM #tmpTransInfo b
+		INNER JOIN #transIdTemp t ON t.transid = b.transid
 
 	--5. List members winlost amount for case auto void with policy
 	SELECT DISTINCT b.custid
 		,c.username
 		,c.credit AS GivenCredit
 	FROM #tmpTransInfo b
+		INNER JOIN #transIdTemp t ON t.transid = b.transid
 		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = b.custid	
 	ORDER BY c.username
 
