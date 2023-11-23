@@ -118,11 +118,11 @@ RETURN
 	        UNION ALL SELECT 6, '805', '5S', '0105', 'SP', 0, 5,  0
 	        UNION ALL SELECT 6, '00' , 'FT', '00',	 'FT', 1, 99, 1
 
-			UNION ALL SELECT 58, '01', 'HT', '01'  , 'HT', 0, 1,  0
-			UNION ALL SELECT 58, '00', 'FT', '0001', 'FT', 1, 96, 1
-			UNION ALL SELECT 58, '00', 'FT', 'ET'  , 'FT', 1, 97, 1
-			UNION ALL SELECT 58, '00', 'FT', 'PEN' , 'FT', 1, 98, 1
-			UNION ALL SELECT 58, '00', 'FT', '00'  , 'FT', 1, 99, 1
+			UNION ALL SELECT 58, '01', 'HT',  '01'  , 'HT', 0, 1,  0
+			UNION ALL SELECT 58, '00', 'FT',  '0001', 'FT', 1, 96, 1
+			UNION ALL SELECT 58, '00', 'ET',  'ET'  , 'FT', 1, 97, 1
+			UNION ALL SELECT 58, '00', 'PEN', 'PEN' , 'FT', 1, 98, 1
+			UNION ALL SELECT 58, '00', 'FT',  '00'  , 'FT', 1, 99, 1
 			)		  					
 	SELECT os1.Sporttype, os1.RoundID, os1.RoundName, os1.ResourceID, os1.GroupType, os1.isFinal, os1.OrdNo, os1.AllowDirectly
 	FROM os1 
