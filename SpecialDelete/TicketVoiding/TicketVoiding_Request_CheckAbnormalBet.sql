@@ -211,7 +211,6 @@ BEGIN
 	  ,isNeutral        BIT
 	  ,matchcode        NVARCHAR(50)
 	  ,showtime         NVARCHAR(50)
-	  ,SettlementStatus	TINYINT
       ,sporttype        SMALLINT
 	  ,eventstatus		NVARCHAR(50)
 	  ,CustomerClass	SMALLINT
@@ -243,7 +242,7 @@ BEGIN
 		) tbl
 	WHERE f.value <> ''
 
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799) AND IsMoved14 = 0))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -254,13 +253,29 @@ BEGIN
 			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
 			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
 			,eventstatus = ISNULL(m.eventstatus,'')
-			,SettlementStatus = ISNULL(m.SettlementStatus, 0)
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
 		WHERE d.bettype NOT IN (9, 29, 2799)
 	END
 	
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799) AND IsMoved14 = 1))
+	BEGIN
+		UPDATE d
+		SET matchcode 	= m.matchcode
+			,homeid 	= m.homeid
+			,awayid 	= m.awayid
+			,leagueid 	= m.leagueid
+			,sporttype 	= m.sporttype
+			,IsNeutral 	= ISNULL(m.IsNeutral, CONVERT(BIT, 0))
+			,showtime	= ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '')
+			,eventstatus = ISNULL(m.eventstatus,'')
+		FROM #tmpTransInfo d
+			INNER JOIN dbo.match14 m WITH (NOLOCK) 
+			ON	d.matchid = m.matchid
+		WHERE d.bettype NOT IN (9, 29, 2799)
+	END
+
 	UPDATE al
 		SET username = ci.username
 		   ,CustomerClass = CASE WHEN ci.CustomerClass IN (201, 4000) THEN ci.CustomerClass ELSE NULL END 
@@ -325,7 +340,6 @@ BEGIN
 					,s.leagueid  
 					,s.isNeutral 
 					,s.matchcode
-					,s.SettlementStatus 
 					,s.sporttype
 					,s.transdate
 					,s.custid		
@@ -781,7 +795,6 @@ BEGIN
 		,s.leagueid  
 		,s.isNeutral 
 		,s.matchcode
-		,s.SettlementStatus 
 		,s.sporttype
 		,s.transdate
 		,s.custid		
