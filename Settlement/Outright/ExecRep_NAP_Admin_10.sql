@@ -321,7 +321,15 @@ BEGIN
 
 	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
-		SET @transInfoJson = (
+		IF @Action = 'CAL' AND @Status = 'UpdWLD'
+			SET @transInfoJson = (
+				SELECT	transId AS 't'					
+						,winlostdate AS 'wld' 
+				FROM	@tmpTransInfo
+				FOR JSON AUTO
+			)
+		ELSE
+			SET @transInfoJson = (
 				SELECT	transId AS 't'
 					,@MatchID AS 'mid'
 					,SettlementTime AS 'st'

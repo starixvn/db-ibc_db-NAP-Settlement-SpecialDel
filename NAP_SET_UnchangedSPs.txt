@@ -1,9 +1,1 @@
-Common SP\Log\NAP_SettlementLog_SelReSettle.sql
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile.sql
-Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
-Settlement\Sportbook\ManualSettlement\Parlay\dbo.NAP_Admin_Settlement_Profile_Parlay.sql
-Settlement\Sportbook\NAP_Set_MatchOtherSportsSel.sql
-Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources.sql
-Settlement\Sportbook\NAP_Set_MatchSelDetail_Resources_Ticket.sql
-Settlement\Sportbook\NAP_Set_ResultDetailSel.sql
-Common SP\Validation\NAP_Admin_Settlement_Validation_Event.sql
+Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql

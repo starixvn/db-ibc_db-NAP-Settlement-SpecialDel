@@ -100,6 +100,7 @@ BEGIN
 	WHERE matchid = @Matchid 
 		AND bettype = 10
 		AND statusID IN (101, 102)
+		AND winlostdate <> @EventDate
 		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 	
 	WHILE (1 = 1)
