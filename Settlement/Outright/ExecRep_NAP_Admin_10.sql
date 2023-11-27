@@ -19,6 +19,7 @@ AS
 	  - 20230109@Aries:  Migrate Calculate Outright Function to NAP Settlement Site [Redmine:#163971]
 	  - 20230526@Kathy: wrong SMA winlost because of order in calculate formula [Redmine:#188795]
 	  - 20230523@Kathy: scaleout - credit [Redmine:#188452]
+	  - 20231123@Kathy: Enhance outright settlement to prevent discrepancy data on winlostdate between SiteDBs & CentralDB [Redmine:#197266]
 	  
     
 	 Param's Explanation:  
@@ -285,6 +286,20 @@ BEGIN
 				HAVING SUM(Balance) < 0
 			 END
 		END 
+		
+		IF @Action = 'CAL' AND @Status = 'UpdWLD'
+		BEGIN
+			SET @StepNumber = 8;
+
+			UPDATE b
+			SET	b.winlostdate = @winlostdate
+			OUTPUT  inserted.TransId
+				,	inserted.winlostdate
+			INTO @tmpTransInfo (TransId, winlostdate)
+			FROM @tmpTransId AS t
+				INNER JOIN dbo.bettrans AS b  WITH (ROWLOCK, UPDLOCK) 
+					ON 	t.transid = b.transid
+		END
 	END TRY
 	BEGIN CATCH
 		SET @ErrCode = @StepNumber

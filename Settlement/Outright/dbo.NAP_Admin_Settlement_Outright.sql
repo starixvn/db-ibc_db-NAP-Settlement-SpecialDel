@@ -27,10 +27,11 @@ AS
 		- 20230419@Aries: Fix STRING_AGG  error [Redmine:#187152]
 		- 20230317@Aries: Enhance Outright Settlement as User Feedback [Redmine:#185129]
 		- 20230627@Kathy: Remove unused table [Redmine:#188452]
+		- 20231123@Kathy: Enhance outright settlement to prevent discrepancy data on winlostdate between SiteDBs & CentralDB [Redmine:#197266]
 
 	Param's Explanation:
 		+ @Action	= CAL | UNDO 
-		+ @Status	= WON | LOSE | REFUND 
+		+ @Status	= WON | LOSE | REFUND | HIDE
 		+ @Deadheat = fraction of deadheat to divide (1,2,3  etc)	
 */
 BEGIN
@@ -49,6 +50,7 @@ BEGIN
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 	CREATE TABLE #tblTransID(transid BIGINT PRIMARY KEY)
+	CREATE TABLE #tblVoidRejectTransID(transid BIGINT PRIMARY KEY)
 	
 
 	-- check and not allow attempt to settlement same game while it's still not finish
@@ -68,6 +70,7 @@ BEGIN
 
 	SET @ActionID = CASE WHEN @Action = 'CAL' AND @Status IN ('WON','LOSE') THEN 137
 						 WHEN @Action = 'CAL' AND @Status IN ('REFUND') THEN 139
+						 WHEN @Action = 'CAL' AND @Status IN ('HIDE') THEN 81047
 						 WHEN @Action = 'UNDO'	THEN 145
 					 END
 
@@ -91,6 +94,14 @@ BEGIN
 		AND statusID NOT IN (101, 102)
 		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
 
+	INSERT INTO #tblVoidRejectTransID(transid)
+	SELECT transid		
+	FROM dbo.bettrans WITH(NOLOCK)	
+	WHERE matchid = @Matchid 
+		AND bettype = 10
+		AND statusID IN (101, 102)
+		AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
+	
 	WHILE (1 = 1)
 	BEGIN
 		DELETE @TransIDs
@@ -120,6 +131,35 @@ BEGIN
 		IF @ErrCode > 0  BREAK
 	END
 
+	-- update wld for void/reject ticket
+	WHILE (1 = 1 AND @Action = 'CAL' AND EXISTS (SELECT TOP 1 1 FROM #tblVoidRejectTransID ))
+	BEGIN
+		DELETE @TransIDs
+
+		DELETE TOP (@BatchSize) #tblVoidRejectTransID
+		OUTPUT deleted.transid
+		INTO @TransIDs(transid)	
+
+		IF @@ROWCOUNT = 0 BREAK
+
+		SELECT @strTranIDs = STRING_AGG(CAST(transid AS VARCHAR(MAX)), ',')
+		FROM @TransIDs;
+
+		EXEC dbo.NAP_Admin_Calculate_Main 
+			 @StrTransIds = @StrTranIDs
+			,@Matchid = @MatchID
+			,@Status = 'UpdWLD'
+			,@Action = @Action
+			,@Deadheat = @Deadheat
+			,@EventDate  = @EventDate
+			,@IsSettingByProfile = 1
+			,@Mode = 'Outright'
+
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMessage = @ErrMsg OUTPUT
+
+		IF @ErrCode > 0  BREAK
+	END
 	-------------------------------------------------------------
 	---						END Settlement				      ---
 	-------------------------------------------------------------
