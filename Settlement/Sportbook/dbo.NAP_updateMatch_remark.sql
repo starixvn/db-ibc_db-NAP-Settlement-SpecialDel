@@ -78,6 +78,7 @@ BEGIN
 			SET	IsHTCal			= 1 
 				,isPending		= 0
 				,isUndecided	= 0
+				,calrefund      = CASE WHEN Calculate = 0 THEN 0 ELSE  Calculate END
 				,RepUpdateTime = SYSDATETIME()
 			WHERE matchid = @matchid
 		END
@@ -99,9 +100,9 @@ BEGIN
 		BEGIN
 			UPDATE match_remark WITH(ROWLOCK, UPDLOCK)
 			SET IsHTCal		 = CASE WHEN @IsHTRound = 1 THEN 0 ELSE IsHTCal END
+			    ,calrefund	 = CASE WHEN @IsFinalRound = 1 OR  Calculate = 0 THEN 0 ELSE calrefund END
 				,Calculate	 = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE Calculate END
 				,multiple	 = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE multiple END
-				,calrefund	 = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE calrefund END
 				,isUndecided = CASE WHEN @IsFinalRound = 1 THEN 0 ELSE isUndecided END
 				,RepUpdateTime = SYSDATETIME()
 			WHERE matchid = @matchid 
@@ -113,7 +114,7 @@ BEGIN
 			UPDATE match_remark WITH(ROWLOCK, UPDLOCK) 
 			SET calculate		= CASE WHEN @IsFinalRound = 1 THEN 0 ELSE calculate END
 				,IsHTCal		= CASE WHEN @IsHTRound = 1 THEN 0 ELSE IsHTCal END
-				,calrefund		= CASE WHEN @IsFinalRound = 1 THEN 1 ELSE calrefund END
+				,calrefund		= 1
 				,isPending		= 0
 				,isUndecided	= 0
 				,RepUpdateTime = SYSDATETIME()			
