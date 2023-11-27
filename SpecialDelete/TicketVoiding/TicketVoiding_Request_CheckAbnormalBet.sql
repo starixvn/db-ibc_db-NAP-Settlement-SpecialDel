@@ -115,8 +115,8 @@ BEGIN
 	INSERT INTO @VIPAccount_tmp(CustID)
 	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-	CREATE TABLE #inputTransid (
-		 Transid		BIGINT PRIMARY KEY
+	CREATE TABLE #tmpInputTransid_RemarkId (
+		 Transid		BIGINT
 		,RemarkId		INT	  /*  1: Invalid
 								, 2: Moved or Duplicated
 								, 3: DifferentMatch
@@ -125,14 +125,20 @@ BEGIN
 								, 6: ExistingReq
 								, 7: NonLive
 								, 8: DifferentLiveScore
-								, 9: ABException TransIds
+								, 9: AB Exception TransIds
 							  */
 	)
-	INSERT INTO #inputTransid (transid)
-	SELECT DISTINCT value
+	CREATE TABLE #inputTransid (transid BIGINT PRIMARY KEY)
+
+	INSERT INTO #tmpInputTransid_RemarkId (transid)
+	SELECT value
 	FROM STRING_SPLIT(@TransIds, ',')
 	WHERE value <> ''
-	
+
+	INSERT INTO #inputTransid (transid)
+	SELECT DISTINCT transid
+	FROM #tmpInputTransid_RemarkId
+
 	CREATE TABLE #invalidTransId (transid BIGINT, isMoved BIT)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
 	CREATE TABLE #validTransId (
@@ -155,6 +161,7 @@ BEGIN
 		,IsVipMember	BIT DEFAULT(0)
 		,CustomerClass	SMALLINT
 		)
+	CREATE TABLE #DuplicatedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #UnsupportedTransids(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #ABWhiteListTransIds(transid BIGINT PRIMARY KEY)
 	CREATE TABLE #LiveTransIds (
@@ -285,6 +292,18 @@ BEGIN
 			ON al.custid = ci.custid
 		LEFT JOIN @VIPAccount_tmp vip ON al.custid = vip.CustID
 
+	INSERT INTO #DuplicatedTransids (transid)
+	SELECT i.transid
+	FROM #tmpInputTransid_RemarkId i
+		INNER JOIN #tmpTransInfo t ON i.Transid = t.transid
+	GROUP BY i.transid
+	HAVING COUNT(1) >= 2
+
+	UPDATE t
+	SET t.RemarkId = 2
+	FROM #tmpInputTransid_RemarkId t
+		INNER JOIN #DuplicatedTransids u ON t.Transid = u.transid
+
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
 		--1. Info match table
@@ -301,7 +320,7 @@ BEGIN
 		SELECT @TransInfoJson_Output AS TransInfoJson
 
 		--5. Export Ticket that the user inputs table
-		SELECT TransId, 1 AS RemarkId  FROM #inputTransid
+		SELECT TransId, 1 AS RemarkId  FROM #tmpInputTransid_RemarkId
 
 		RETURN;
 	END
@@ -363,10 +382,10 @@ BEGIN
 					,s.betcheck
 					,s.IsMixParlay
 					,s.SiteDBGroupID
-					,1 AS RemarkId 
+					,CASE WHEN t.RemarkId IS NOT NULL THEN t.RemarkId ELSE 1 END
 					,s.IsVipMember
 					,s.CustomerClass
-				FROM #inputTransid t
+				FROM #tmpInputTransid_RemarkId t
 					LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 			
 			RETURN;
@@ -447,7 +466,7 @@ BEGIN
 	
 	UPDATE t
 	SET t.RemarkId = 5
-	FROM #inputTransid t
+	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #UnsupportedTransids u ON t.Transid = u.transid
 
 	-- get ABWhiteList Cust
@@ -518,7 +537,7 @@ BEGIN
 
 	UPDATE t
 	SET t.RemarkId = CASE WHEN v.isMoved = 0 THEN 1 ELSE 2 END
-	FROM #inputTransid t
+	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #invalidTransId v ON t.Transid = v.transid
 	
 	SELECT @DifferentMatchTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.transid AS VARCHAR(50))
@@ -528,7 +547,7 @@ BEGIN
 
 	UPDATE t
 	SET t.RemarkId = 3
-	FROM #inputTransid t
+	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #validTransId v ON t.Transid = v.transid
 	WHERE v.isInMatch = 0 AND @MatchId NOT IN (0,29)
 
@@ -554,10 +573,10 @@ BEGIN
 		
 		UPDATE t
 		SET t.RemarkId = 4 --Settled
-		FROM #inputTransid t
+		FROM #tmpInputTransid_RemarkId t
 			INNER JOIN #validTransId v ON t.Transid = v.transid
 		WHERE v.StatusId NOT IN (0,1)
-		
+
 		SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 										FROM #inputTransid t 
 											INNER JOIN #TransidInRequest tr ON t.transid = tr.TransId
@@ -565,7 +584,7 @@ BEGIN
 
 		UPDATE t
 		SET t.RemarkId = 6 --Existing Request
-		FROM #inputTransid t
+		FROM #tmpInputTransid_RemarkId t
 			INNER JOIN #TransidInRequest v ON t.Transid = v.transid
 
 		SELECT @TransIdsOfVIPCustomer = ISNULL(STUFF((SELECT ', ' + CAST(v.transid AS VARCHAR(50))
@@ -645,14 +664,14 @@ BEGIN
 		SET t.RemarkId = CASE WHEN IsNonLive = 1 THEN 7 
 							  WHEN IsDifferentScore = 1 THEN 8 
 							  ELSE t.RemarkId END
-		FROM #inputTransid t
+		FROM #tmpInputTransid_RemarkId t
 			INNER JOIN #LiveTransIds v ON t.Transid = v.transid 
 	
 	END
 
 	UPDATE t
-		SET t.RemarkId = 9 --ABWhiteList TransIds
-	FROM #inputTransid t
+		SET t.RemarkId = 9 --AB Exception TransIds
+	FROM #tmpInputTransid_RemarkId t
 		INNER JOIN #ABWhiteListTransIds v ON t.Transid = v.transid  
 
 	/******************************* MARK/ UNMARK/ REMOVE TICKETS **************************************/
@@ -821,7 +840,7 @@ BEGIN
 		,t.RemarkId 
 		,s.IsVipMember
 		,s.CustomerClass
-	FROM #inputTransid t
+	FROM #tmpInputTransid_RemarkId t
 		LEFT JOIN #tmpTransInfo s ON t.transid = s.transid
 
 	DROP TABLE #inputTransid
@@ -834,4 +853,6 @@ BEGIN
 	DROP TABLE #ABWhiteListCustIds_AllowVoid
 	DROP TABLE #tmpTransInfo
 	DROP TABLE #invalidTransId
+	DROP TABLE #tmpInputTransid_RemarkId
+	DROP TABLE #DuplicatedTransids
 END
