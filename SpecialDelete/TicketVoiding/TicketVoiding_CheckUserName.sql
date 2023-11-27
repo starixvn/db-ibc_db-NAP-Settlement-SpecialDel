@@ -178,6 +178,9 @@ BEGIN
 	INSERT INTO @Status_tmp (StatusId)
 	SELECT DISTINCT value 
 	FROM STRING_SPLIT(@StatusIds, ',')
+	--In case action auto void with policy: include ticket won/lost for UI
+	UNION SELECT 112
+	UNION SELECT 113
 
 	SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -293,9 +296,7 @@ BEGIN
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
-			AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
-						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
-					ELSE 0 END
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
 			AND IsVoid14 = 0
 
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
@@ -326,9 +327,7 @@ BEGIN
 							WHEN @IsSaba = 1 
 								AND ml.LeagueGroupID IS NOT NULL THEN 1								
 						ELSE 0 END	
-				AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
-						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
-					ELSE 0 END
+				AND statusID IN (SELECT statusID FROM @Status_tmp) 
 				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		END
 	END
@@ -361,9 +360,7 @@ BEGIN
 						WHEN @IsSaba = 1 
 							AND ml.LeagueGroupID IS NOT NULL THEN 1								
 					ELSE 0 END	
-			AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
-						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
-					ELSE 0 END
+			AND statusID IN (SELECT statusID FROM @Status_tmp)
 			AND IsVoid14 = 0 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		
 		IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsVoid14 = 1)
@@ -394,9 +391,7 @@ BEGIN
 							WHEN @IsSaba = 1 
 								AND ml.LeagueGroupID IS NOT NULL THEN 1								
 						ELSE 0 END	
-				AND 1 = CASE WHEN @ActionId <> 10 AND statusID IN (SELECT statusID FROM @Status_tmp) THEN 1
-						WHEN @ActionId = 10 AND (statusID IN (SELECT statusID FROM @Status_tmp) OR statusID = 113) THEN 1
-					ELSE 0 END
+				AND statusID IN (SELECT statusID FROM @Status_tmp)
 				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		END
 	END
