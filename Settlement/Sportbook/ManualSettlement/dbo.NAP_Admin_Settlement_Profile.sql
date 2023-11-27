@@ -926,7 +926,7 @@ BEGIN
 		IF @sportType IN ( 45, 58 ) ---for Log Only
 		BEGIN
 			INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName, OrdNo )
-			SELECT r.ResourceID, r.HomeValue, r.AwayValue, CASE WHEN @Sporttype = 58 AND sd.RoundName = '00' THEN 'FinalScore' ELSE sd.RoundName END, OrdNo
+			SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName, OrdNo
 			FROM @tmpResourcesWeb r
 				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
 			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105', '0001', 'ET', 'PEN')
@@ -938,7 +938,7 @@ BEGIN
 					 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
 					 ELSE '' END AS VARCHAR(MAX)), ',') WITHIN GROUP (ORDER BY OrdNo)
 		FROM (
-				SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
+				SELECT DISTINCT ResourceID, HomeValue, AwayValue, CASE WHEN @Sporttype = 58 AND ResourceID = '00' THEN 'FinalScore' ELSE RoundName END AS RoundName, MAX(OrdNo) AS OrdNo
 		  		FROM @tmpGetLog sr
 		  		GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   			) AS tbl1
