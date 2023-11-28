@@ -382,7 +382,7 @@ BEGIN
 					,s.betcheck
 					,s.IsMixParlay
 					,s.SiteDBGroupID
-					,CASE WHEN t.RemarkId IS NOT NULL THEN t.RemarkId ELSE 1 END
+					,1 AS RemarkId
 					,s.IsVipMember
 					,s.CustomerClass
 				FROM #tmpInputTransid_RemarkId t
@@ -572,7 +572,7 @@ BEGIN
 										FOR XML PATH('')), 1, 1, ''), '')
 		
 		UPDATE t
-		SET t.RemarkId = 4 --Settled
+		SET t.RemarkId = CASE WHEN @ActionId IN (2,3,5) AND t.RemarkId IS NOT NULL THEN t.RemarkId ELSE 4 END --Settled
 		FROM #tmpInputTransid_RemarkId t
 			INNER JOIN #validTransId v ON t.Transid = v.transid
 		WHERE v.StatusId NOT IN (0,1)
