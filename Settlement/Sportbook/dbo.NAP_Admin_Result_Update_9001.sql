@@ -245,6 +245,17 @@ BEGIN
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
 		WHERE r.MatchID = @MatchID
 			AND sd.AllowDirectly = 0
+
+		IF @Sporttype = 58 AND @action = 'CAL' AND EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+		BEGIN
+			DELETE r
+			FROM	dbo.ResultDetailOS r WITH(ROWLOCK, UPDLOCK)
+				LEFT JOIN @tblSelectedRID sr 
+					ON r.ResourceID = sr.ResourceID
+			WHERE	r.MatchId = @MatchID
+					AND r.ResourceId IN ( 'ET', 'PEN' )
+					AND sr.ResourceID IS NULL
+		END
     END 
     ELSE IF @ResultTable = 1 
     BEGIN
