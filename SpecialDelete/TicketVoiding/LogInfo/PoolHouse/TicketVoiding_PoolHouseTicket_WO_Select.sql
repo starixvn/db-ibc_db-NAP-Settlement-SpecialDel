@@ -18,6 +18,7 @@ AS
 		- 20230419@Max: Create new SP [Redmine:#179934]
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
 		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
+		- 20231130@Max: HotFix - Affected Pool House Ticket Detail SHOW DUPLICATE [Redmine: #197662]
 
 	Param's explanation:
 
@@ -317,7 +318,7 @@ BEGIN
 			,Filterbettype
 			,FilterOdds
 		)
-	SELECT   b.transid
+	SELECT DISTINCT  b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -481,7 +482,7 @@ BEGIN
 					,Filterbettype
 					,FilterOdds
 			)
-			SELECT   b.transid 
+			SELECT DISTINCT  b.transid 
 					,b.Subtransid
 					,b.refno
 					,b.Subcustid				
