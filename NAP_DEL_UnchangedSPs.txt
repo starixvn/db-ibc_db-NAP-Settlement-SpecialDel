@@ -1,1 +1,1 @@
-SpecialDelete\TicketVoiding\LogInfo\TicketVoiding_LogInfo_Select.sql
+SpecialDelete\TicketVoiding\LogInfo\PoolHouse\TicketVoiding_PoolHouseTicket_Select.sql

@@ -25,6 +25,7 @@ AS
 		- 20230403@July: TVS - Wrong OU affects to PH bet types [Redmine: #172975]
 		- 20230802@July: Fix bug - Tickets bettype HDP/OU with HDP/OU value difference filter NOT SHOW on Other group  [Redmine: #190441]
 		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
+		- 20231130@Max: HotFix - Affected Pool House Ticket Detail SHOW DUPLICATE [Redmine: #197662]
 
 	Param's explanation:
 
@@ -289,7 +290,7 @@ BEGIN
 			,ExtraInfo
 			,winlostdate
 		)
-	SELECT   b.transid
+	SELECT DISTINCT  b.transid
 			,b.transid AS SubTransID
 			,b.refno
 			,b.custid
@@ -396,7 +397,7 @@ BEGIN
 					,ExtraInfo
 					,winlostdate
 			)
-			SELECT   b.transid 
+			SELECT DISTINCT  b.transid 
 					,b.Subtransid
 					,b.refno
 					,b.Subcustid				
