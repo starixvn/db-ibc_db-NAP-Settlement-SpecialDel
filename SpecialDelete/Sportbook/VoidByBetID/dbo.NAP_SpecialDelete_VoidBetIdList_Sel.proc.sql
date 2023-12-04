@@ -7,7 +7,9 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidBetIdList_Sel]
     @ToDate            DATETIME     = NULL,
     @IncludeMainParlay BIT          = 0,
 	@Products		   VARCHAR(50)  = NULL,
-	@StatusIds		   VARCHAR(50)  = NULL
+	@StatusIds		   VARCHAR(50)  = NULL,
+	@IsAbnormalBet	   BIT = 0
+
 )
 AS;
 /*  
@@ -67,6 +69,7 @@ AS;
 		- 20221212@July: [TVS] Changes of TVS to integrate E-Sports Pingoal [Redmine: #181087]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+		- 20231031@July: [SD] Void By BetID - Void abnormal tickets of many matches at once [Redmine: #196028]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -171,7 +174,25 @@ BEGIN
 			  EndTime				DATETIME, --support Bitcoin
              );
    
-	IF @CustID IS NOT NULL
+	IF @CustID IS NULL
+	BEGIN
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE 1 = CASE WHEN @IsAbnormalBet = 0 THEN 1
+					   WHEN @IsAbnormalBet = 1 AND pt.ProductID = 1 
+							AND pt.bettype < 19001
+							AND pt.bettype NOT IN (9, 29, 2799) -- Parlay Tickets
+							AND pt.bettype NOT IN (10) -- outright tickets
+							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
+							AND pt.bettype NOT IN (38) -- Bet Builder
+					   THEN 1 --Only Sportsbook
+					   ELSE 0 END
+			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
+			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+			AND pt.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
+	END
+	ELSE
 	BEGIN
 		SELECT @IsSB = CASE WHEN CHARINDEX('1',@Products) > 0 THEN 1 ELSE 0 END
 				, @IsParlay = CASE WHEN CHARINDEX('2',@Products) > 0 THEN 1 ELSE 0 END
@@ -179,26 +200,24 @@ BEGIN
 				, @IsOutright = CASE WHEN CHARINDEX('4',@Products) > 0 THEN 1 ELSE 0 END
 				, @IsSaba = CASE WHEN CHARINDEX('5',@Products) > 0 THEN 1 ELSE 0 END
 				, @IsNonSport = CASE WHEN CHARINDEX('6',@Products) > 0 THEN 1 ELSE 0 END
+	
+		INSERT INTO @bettype_tmp (bettype)
+		SELECT DISTINCT pt.bettype
+		FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
+		WHERE 1 = CASE
+						WHEN (@IsSB = 1 OR @IsSaba = 1) 
+							AND pt.ProductID = 1 
+							AND pt.BetType NOT IN (9,29,10)
+							AND pt.SubProduct NOT IN ('Bet Builder') THEN 1 -- Sportsbook
+						WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
+						WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
+						WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
+						WHEN @IsNonSport = 1 AND ProductID IN (3,5,27,77) THEN 1
+					ELSE 0 END
+			AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
+			AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
+			AND pt.bettype NOT BETWEEN 1501 AND 1599	-- NOT IN Keno
 	END
-
-	INSERT INTO @bettype_tmp (bettype)
-	SELECT DISTINCT pt.bettype
-	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
-	WHERE 1 = CASE WHEN @CustID IS NULL THEN 1
-			ELSE CASE
-					WHEN (@IsSB = 1 OR @IsSaba = 1) 
-						AND pt.ProductID = 1 
-						AND pt.BetType NOT IN (9,29,10)
-						AND pt.SubProduct NOT IN ('Bet Builder') THEN 1 -- Sportsbook
-					WHEN @IsOutright = 1 AND pt.bettype IN (10) THEN 1 --Outright
-					WHEN @IsParlay = 1 AND pt.bettype IN (9, 29) THEN 1 --parlay, mix-parlay
-					WHEN @IsBB = 1 AND pt.SubProduct IN ('Bet Builder') THEN 1 --Bet Builder
-					WHEN @IsNonSport = 1 AND ProductID IN (3,5,27,77) THEN 1
-				ELSE 0 END
-			END
-		AND pt.SubProduct NOT IN ('BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss', 'MG-SuperLive') -- Bet trade (BT-), MG
-		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
-		AND pt.bettype NOT BETWEEN 1501 AND 1599					-- NOT IN Keno
 
 	IF(LEN(@TransIds) > 0)
 	BEGIN
@@ -462,11 +481,32 @@ BEGIN
 			INTO @tmpTransIdMoveBet (TransId)
 		WHERE eventdate <= @movebetdate
 	END
-		
-	------------------------------------------------------------------------------	--1. Table invald/moved transid	
+	
+	DECLARE @cnt INT, @MatchId INT
+	DECLARE @tmpMatchId TABLE (MatchId INT)
+
+	IF @IsAbnormalBet = 1
+	BEGIN
+		INSERT INTO  @tmpMatchId (MatchId)
+		SELECT DISTINCT 
+			   CASE WHEN m.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE s.matchid END AS MatchId
+		FROM #SpecialDeleteBets s
+			INNER JOIN dbo.match m WITH (NOLOCK) ON s.matchid = m.matchid 
+
+		SET @cnt = @@ROWCOUNT
+		IF @cnt = 0 
+			SET @MatchId = NULL
+		ELSE IF @cnt = 1
+			SELECT @MatchId = MatchId FROM @tmpMatchId
+		ELSE IF @cnt NOT IN (0,1)
+			SET @MatchId = 0 --Multiple matches
+	END
+
+	------------------------------------------------------------------------------	--1. Table invalid/moved transid	
 	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT)	INSERT INTO #InvalidTransIds(transid, IsMoved)	SELECT t.transid		  , CASE WHEN b.transid IS NOT NULL THEN 1				 WHEN m.TransId IS NOT NULL THEN 1				 ELSE 0 END AS IsMoved	FROM #transIdTemp t		LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets r WHERE r.transid = t.transid)
 	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))									 FROM #InvalidTransIds									 WHERE IsMoved = 0									 FOR XML PATH('')), 1, 1, '');									
-	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))								   FROM #InvalidTransIds								   WHERE IsMoved = 1								   FOR XML PATH('')), 1, 1, '');		SELECT @InvalidTransIds AS InvalidTransIds	      ,@MovedTransIds AS MovedTransIds
+	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))								   FROM #InvalidTransIds								   WHERE IsMoved = 1								   FOR XML PATH('')), 1, 1, '');		SELECT @InvalidTransIds AS InvalidTransIds	      ,@MovedTransIds AS MovedTransIds		  ,@MatchId AS MatchId
+
 	-- UPDATE SiteName
 	;WITH CustSiteName AS (
 		SELECT DISTINCT ag.custid, ci.site, ci.srecommend, ci.mrecommend
