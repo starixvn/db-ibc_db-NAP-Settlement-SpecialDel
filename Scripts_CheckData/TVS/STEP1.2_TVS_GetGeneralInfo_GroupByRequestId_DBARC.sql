@@ -90,7 +90,9 @@ SELECT r.RequestId, r.IssueTypeId, rd.SubIssueTypeId,r.CreatedDate, rd.FilterFro
   , i.IssueTypeName, s.SubIssueTypeName
 FROM DBTRANS.bodb02.dbo.TicketVoiding_Request r  WITH(NOLOCK) 
 	CROSS APPLY (
-          SELECT TOP (1) rd.SubIssueTypeId, CASE WHEN r.IssueTypeId in (1,10) AND rd.transidS LIKE '%IsMainMatch="true"%' THEN rd.MatchId ELSE NULL END AS MatchId
+          SELECT TOP (1) rd.SubIssueTypeId, CASE WHEN rd.transids LIKE '%IsMainMatch="true"%' THEN rd.MatchId 
+												 WHEN r.IssueTypeId IN (13,17,20) THEN NULL 
+												 ELSE rd.MatchId END MatchId
 		  , rd.FilterFromTransTime, rd.FilterToTransTime
           FROM  DBTRANS.bodb02.dbo.TicketVoiding_RequestDetail rd  WITH(NOLOCK) 
           WHERE r.RequestId = rd.RequestId
@@ -282,7 +284,9 @@ SELECT r.RequestId, r.IssueTypeId, rd.SubIssueTypeId,r.CreatedDate, rd.FilterFro
   , i.IssueTypeName , s.SubIssueTypeName
 FROM dbo.TicketVoiding_Request_bk r  WITH(NOLOCK) 
 		CROSS APPLY (
-          SELECT TOP (1) rd.SubIssueTypeId, CASE WHEN r.IssueTypeId in (1,10) AND rd.transidS LIKE '%IsMainMatch="true"%' THEN rd.MatchId ELSE NULL END AS MatchId
+          SELECT TOP (1) rd.SubIssueTypeId, CASE WHEN rd.transids LIKE '%IsMainMatch="true"%' THEN rd.MatchId 
+												 WHEN r.IssueTypeId IN (13,17,20) THEN NULL 
+												 ELSE rd.MatchId END MatchId
 		  , rd.FilterFromTransTime, rd.FilterToTransTime
           FROM  dbo.TicketVoiding_RequestDetail_bk rd  WITH(NOLOCK) 
           WHERE r.RequestId = rd.RequestId

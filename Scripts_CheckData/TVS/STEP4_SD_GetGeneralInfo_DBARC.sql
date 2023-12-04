@@ -18,6 +18,7 @@ transid bigint
 , leaguename varchar(1000)
 , LeagueGroup varchar(200)
 , MessageContent varchar(max)
+
 )
 
 /*Range archive*/																							
@@ -262,11 +263,12 @@ SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%consider
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
-	, CASE WHEN bk.statusID IN (111,112,113) THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
+	, CASE WHEN MAX(CASE WHEN bk.statusID IN (111,112,113) THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bettrans_bk bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
-	AND bk.statusID = 102																					
+	AND bk.statusID = 102	
+	AND bk.winlostdate between  @from AND @to
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate
 
@@ -287,11 +289,12 @@ SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%consider
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
-	, CASE WHEN bk.statusID IN (111,112,113) THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
+	, CASE WHEN MAX(CASE WHEN bk.statusID IN (111,112,113) THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans14 bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102
+	AND bk.winlostdate between  @from AND @to
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate	
 
@@ -313,11 +316,12 @@ SELECT	DISTINCT CASE WHEN ms.MessageContent LIKE '%Due to abnormal bets%consider
     , '' Min_Trans , '' Max_Trans , '' Min_TransDate , '' Max_TransDate , '' Liveindicator
 	, '' AS ListBettypes, '' AS ListBetteams, '' ListScore,'' Calc_HTTime,'' Calc_FTTime
 	,  ms.MessageContent
-	, CASE WHEN bk.statusID IN (111,112,113) THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
+	, CASE WHEN MAX(CASE WHEN bk.statusID IN (111,112,113) THEN 1 ELSE 0 END) = 1 THEN 'Yes' ELSE 'No' END AS 'Has Void Settled?'
 FROM #temp_transid ms WITH (NOLOCK)																									
 	INNER JOIN bodb02.dbo.bettrans bk WITH(NOLOCK) ON bk.transid = ms.transid																								
 	AND bk.currency <> 20																								
 	AND bk.statusID = 102		
+	AND bk.winlostdate between  @from AND @to
 GROUP BY bk.winlostdate, ms.Reason, bk.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup, ms.MessageContent																							
 ORDER BY winlostdate																									
 
