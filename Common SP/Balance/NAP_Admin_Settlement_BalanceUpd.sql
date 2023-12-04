@@ -3,6 +3,7 @@ CREATE PROCEDURE dbo.NAP_Admin_Settlement_BalanceUpd
 (	 @BalanceChanged		TVP_BalanceWalletChange READONLY 
 	,@ActionID              INT  
 	,@BalanceType			TINYINT	 = 1 --sport
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@ErrMessage			VARCHAR(300) = '' OUTPUT
 	,@ErrCode				INT			 = 0  OUTPUT
 )
@@ -80,6 +81,7 @@ BEGIN
 				,[Balance]
 				,[StatusID]
 				,[Remark]
+				,[SessionId]
 			)
 			SELECT	GETDATE()
 					,MatchID
@@ -89,6 +91,7 @@ BEGIN
 					,SUM(Balance)
 					,0
 					,NULL
+					,@BroadcastSessionId
 			FROM	@BalanceChanged bal
 			GROUP BY bal.CustId, bal.MatchID
 			HAVING SUM(Balance) < 0

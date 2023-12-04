@@ -909,7 +909,7 @@ BEGIN
 	----
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL
 	BEGIN
-		INSERT INTO [dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark])
+		INSERT INTO [dbo].[BalanceNegative] ([ExecDate], [MatchID], [ActionID], [GroupID], [CustID], [Balance], [StatusID], [Remark], [SessionId])
 		SELECT GETDATE()
 			,@MatchID
 			,CASE 
@@ -924,6 +924,7 @@ BEGIN
 			,t.Balance
 			,0
 			,@matchid
+			,@BroadcastSessionId
 		FROM (	SELECT	custID, SUM(balance) AS balance
 				FROM	#tmpParlayBalance
 				GROUP BY custID) t
@@ -944,6 +945,14 @@ BEGIN
 
 	IF @ErrCode <> 0
 		RETURN
+
+	IF @sportType = 50 
+	BEGIN
+		UPDATE SettlementResultHistory 
+		SET StatusID = 1
+		WHERE Matchid = @MatchId
+			AND SessionId = @BroadcastSessionId
+	END
 	
 	
 	IF @IsAuto = 1 AND @Action = 'REFUND'

@@ -325,7 +325,7 @@ BEGIN
 			+ CASE WHEN @EventDate IS NULL THEN '' ELSE ',@EventDate = ' + '''' + CONVERT(VARCHAR(20),@EventDate) + '''' END
 			+ CASE WHEN @Deadheat IS NULL THEN '' ELSE ',@Deadheat = ' + CONVERT(VARCHAR(50),@Deadheat) END
 			+ CASE WHEN @Status IS NULL THEN '' ELSE ',@Status = ' + '''' + @Status + '''' END
-			
+			+ CASE WHEN @BroadcastSessionId IS NULL THEN '' ELSE ',@BroadcastSessionId = ' + '''' + @BroadcastSessionId + '''' END
             + ',@CalledByBrokerService = 1'
 
 			EXEC [sb].[SBInputMessage] @fromService = N'//Service/Calculation_send'
@@ -388,6 +388,7 @@ BEGIN
 						  ,@matchid				= @matchid
 						  ,@ActionId			= @ActionId
 						  ,@IsCalculateBalance	= @IsCalculateBalance
+                          ,@BroadcastSessionId  = @BroadcastSessionId
 						  ,@ErrCode				= @ErrCode OUTPUT
 						  ,@ErrMessage			= @ErrMessage OUTPUT
 
@@ -397,6 +398,7 @@ BEGIN
 						   ,@matchid				= @matchid
 						   ,@ActionId				= @ActionId
 						   ,@IsCalculateBalance		= @IsCalculateBalance
+                           ,@BroadcastSessionId     = @BroadcastSessionId
 						   ,@ErrCode				= @ErrCode OUTPUT
 						   ,@ErrMessage			= @ErrMessage OUTPUT
 	                  
@@ -406,6 +408,7 @@ BEGIN
 						   ,@matchid			= @matchid
 						   ,@ActionId			= @ActionId
 						   ,@IsCalculateBalance = @IsCalculateBalance
+                           ,@BroadcastSessionId = @BroadcastSessionId
 						   ,@ErrCode				= @ErrCode OUTPUT
 						   ,@ErrMessage			= @ErrMessage OUTPUT
 				

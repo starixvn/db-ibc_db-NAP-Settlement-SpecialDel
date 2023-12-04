@@ -746,6 +746,7 @@ BEGIN
 				   ,@IsSettingByProfile  = 1
 				   ,@strTransIds		 = @strTransIds
 				   ,@IsCalculateBalance	 = @IsCalculateBalance
+				   ,@BroadcastSessionId	 = @BroadcastSessionId
 				   ,@ErrCode			 = @ErrCode OUTPUT
 				   ,@ErrMessage			 = @ErrMsg OUTPUT
 			END
@@ -770,6 +771,7 @@ BEGIN
 					   ,@IsSettingByProfile  = 1
 					   ,@strTransIds		 = @strSDTTransIds
 					   ,@IsCalculateBalance	 = @IsCalculateBalance
+					   ,@BroadcastSessionId	 = @BroadcastSessionId
 					   ,@ErrCode			 = @ErrCode OUTPUT
 					   ,@ErrMessage			 = @ErrMsg OUTPUT
 				END
@@ -837,6 +839,7 @@ BEGIN
 						   ,@CashoutVersion		 = 2 
 						   ,@strTransIds		 = @strTransIds
 						   ,@IsCalculateBalance	 = @IsCalculateBalance
+						   ,@BroadcastSessionId	 = @BroadcastSessionId
 						   ,@ErrCode			 = @ErrCode OUTPUT
 						   ,@ErrMessage			 = @ErrMsg OUTPUT
 					END
@@ -861,6 +864,7 @@ BEGIN
 								   ,@CashoutVersion		 = 2 
 								   ,@strTransIds		 = @strSDTTransIds
 								   ,@IsCalculateBalance	 = @IsCalculateBalance
+								   ,@BroadcastSessionId	 = @BroadcastSessionId
 								   ,@ErrCode			 = @ErrCode OUTPUT
 								   ,@ErrMessage			 = @ErrMsg OUTPUT
 						END
@@ -1114,6 +1118,13 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
 			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
 		END
+	END
+	ELSE 
+	BEGIN
+		UPDATE SettlementResultHistory 
+		SET StatusID = 1
+		WHERE Matchid = @MatchId
+			AND SessionId = @BroadcastSessionId
 	END
 
 	IF @MatchAutoSetting & 2 > 0 AND @Action LIKE 'CAL%' AND @DeterminedType > 0 AND @DeterminedType & 4 = 0

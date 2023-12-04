@@ -6,6 +6,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
 	,@Is3rd				BIT =  0
 	,@ActionID					INT = NULL
 	,@IsCalculateBalance		BIT =  0
+	,@BroadcastSessionId		VARCHAR(50)	= NULL
 	,@ErrMessage				VARCHAR(300) = '' OUTPUT
 	,@ErrCode					INT			 = 0  OUTPUT
 AS
@@ -156,6 +157,7 @@ BEGIN
 
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
+						,@BroadcastSessionId AS 'ssid' 
 					
 				FROM	@tmpTransInfo
 				FOR JSON AUTO
@@ -200,6 +202,7 @@ BEGIN
 
 		EXEC NAP_Admin_Settlement_BalanceUpd @BalanceChanged =	@BalanceChanged
 											,@ActionID		 =  @ActionID
+											,@BroadcastSessionId  = @BroadcastSessionId
 											,@ErrMessage	 =  @ErrMessage OUTPUT
 											,@ErrCode		 =  @ErrCode OUTPUT
 	END

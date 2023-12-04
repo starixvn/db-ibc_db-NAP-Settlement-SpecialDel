@@ -176,6 +176,7 @@ BEGIN
 				, StatusID
 				, Site
 				, Remark
+				, SessionId
 			)
 			
 			SELECT	GETDATE()
@@ -189,6 +190,7 @@ BEGIN
 					, 0
 					, t.site
 					, bn.Remark 
+					, bn.SessionId 
 			FROM	dbo.BalanceNegative bn WITH (NOLOCK) 
 					INNER JOIN @tmpMatch m	
 						ON bn.MatchID = m.MatchId
