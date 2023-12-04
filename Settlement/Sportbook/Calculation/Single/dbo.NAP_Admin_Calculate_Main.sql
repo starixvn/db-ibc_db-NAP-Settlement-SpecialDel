@@ -82,6 +82,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Main]
 	,@ErrMessage					VARCHAR(300) = '' OUTPUT
 	,@ErrCode						INT			 = 0  OUTPUT
     ,@IsCalculateBalance			BIT			= 0
+    ,@BroadcastSessionId	        VARCHAR(50)	= NULL
 AS
 /*
     Created: Viet
