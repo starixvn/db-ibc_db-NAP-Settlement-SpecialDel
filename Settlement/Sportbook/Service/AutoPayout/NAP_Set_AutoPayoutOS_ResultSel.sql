@@ -11,6 +11,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20231002@Aries: Created [Redmine:#195768]
+		- 20231205@Aries: Get only provider [Redmine: #195768]
 
 	Param's Explanation:
 
@@ -65,7 +66,8 @@ BEGIN
 			FROM ProviderExternalResultDetail AS p WITH(NOLOCK)
 			WHERE  p.matchId = @MatchId
 				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
-				AND p.SourceID != 100
+				AND p.SourceID < 1001 
+				AND p.SourceID NOT IN (98,99,100)
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
 		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId)
@@ -80,7 +82,8 @@ BEGIN
 			FROM ProviderExternalResultDetailOS AS p WITH(NOLOCK)
 			WHERE  p.matchId = @MatchId
 				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
-				AND p.SourceID != 100
+				AND p.SourceID < 1001 
+				AND p.SourceID NOT IN (98,99,100)
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
 		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId)
@@ -95,7 +98,8 @@ BEGIN
 			FROM ProviderExternalResultDetailES AS p WITH(NOLOCK)
 			WHERE  p.matchId = @MatchId
 				AND p.ResourceId IN (SELECT r.ResourceID FROM @Resource AS r)
-				AND p.SourceID != 100
+				AND p.SourceID < 1001 
+				AND p.SourceID NOT IN (98,99,100)
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
 		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId)
