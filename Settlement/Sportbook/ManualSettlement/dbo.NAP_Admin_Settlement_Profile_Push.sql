@@ -17,6 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Push]
 	,@ErrMsg			NVARCHAR(200)	= ''	OUTPUT
 	,@AutoType			TINYINT			= 0
 	,@DeterminedType	TINYINT			= 0
+	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 AS
 /*	Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -51,6 +52,7 @@ AS
 		- 20230719@Kathy: Remove unused param [Redmine:#187311]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -117,6 +119,7 @@ BEGIN
 																	THEN ', @BroadcastSessionId = ''' + @BroadcastSessionId + ''''
 																	ELSE '' END
 															+ ', @AutoType = ' + CONVERT(VARCHAR(5), @AutoType) 
+															+ IIF(@AutoSourceInfo IS NOT NULL,', @AutoSourceInfo =  ''' + @AutoSourceInfo + '''','') 
 															+ ', @ErrCode = @ErrCode OUTPUT' 
 															+ ', @ErrMsg = @ErrMsg OUTPUT'
 		

@@ -17,6 +17,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
 	,@AutoType				TINYINT		= 0
 	,@DeterminedType		TINYINT		= 0
+	,@AutoSourceInfo	VARCHAR(MAX)	= NULL
 AS
 /*  Creator: 20180821@Vicky
 	Task: Settlement for sport in profile
@@ -79,6 +80,7 @@ AS
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -106,7 +108,7 @@ BEGIN
 			,@hth				INT
 			,@hta				INT
 			,@ActionID			INT
-			,@Remark			VARCHAR(500)
+			,@Remark			VARCHAR(MAX)
 			,@avaiableProcess	BIT
 			,@xml				XML
 			,@strResourceIds	VARCHAR(MAX)
@@ -972,8 +974,9 @@ BEGIN
 								ELSE CASE
 										WHEN @sportType = 50 AND @ParentMatchId IS NOT NULL THEN '<r n="Child" v="' + CAST(@MatchID AS VARCHAR) + '"/>'
 										WHEN @IsAuto = 1 AND @Action LIKE 'CAL%' 
-											THEN CASE 
-													WHEN @sportType = 50 THEN '<r n="Auto Payout" v="Weverdat"/>'
+											THEN CASE
+													WHEN @AutoSourceInfo IS NOT NULL THEN '<r n="Auto Payout" v="' +@AutoSourceInfo +'"/>' 
+													WHEN @sportType = 50 THEN '<r n="Direct Payout" v="Weverdat"/>'
 													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL') OR (@sportType = 5 AND @ChildMatchType IS NULL) OR @AutoType = 1 THEN '<r n="Auto Payout" v="SBO"/>'
 													WHEN (@sportType IN ( 6, 9 ) AND @Action = 'CAL_EAR')  OR (@sportType = 5 AND @ChildMatchType IS NOT NULL) OR @AutoType = 2 THEN '<r n="Auto Payout" v="Direct"/>'
 													ELSE '' 

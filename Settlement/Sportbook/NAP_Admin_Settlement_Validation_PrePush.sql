@@ -29,6 +29,7 @@ AS
 		- 20220512@Louisa: Change message content [Redmine:#171676]
 		- 20220629@Louisa: Volleyball AIO - use dbo.ddsOS instead of dbo.Odds [Redmineid:#173862]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider [Redmine:#195768]
      
     Param's Explanation:
 
@@ -93,6 +94,8 @@ BEGIN
 		DROP TABLE #Bettypes
 
 	CREATE TABLE #SelectedMatchResource ( Matchid INT, ResourceId VARCHAR(20) )
+	CREATE NONCLUSTERED INDEX IX_SelectedMatchResource ON #SelectedMatchResource (ResourceId)
+
 	CREATE TABLE #Bettypes ( Bettype SMALLINT, BetID BIGINT )
 
 
@@ -110,20 +113,17 @@ BEGIN
 	FROM TmpData
 	OPTION ( OPTIMIZE FOR ( @XmlData = NULL ) )	
 
-	SELECT @SelectedResource = STUFF((
-			SELECT DISTINCT ',' + ResourceId
-			FROM #SelectedMatchResource
-			FOR XML PATH('')
-		), 1,1,'')
-
-
 	----------------- Checking running Odds
 	INSERT INTO #Bettypes ( Bettype , BetID )
 	SELECT   BetType, BetID
 	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
-		INNER JOIN (SELECT f.value FROM STRING_SPLIT(@SelectedResource , ',') f ) tm
-			ON sp.ResourceID = tm.value OR sp.RefResourceID = tm.value
-	WHERE sp.sporttype = @sporttype								
+        INNER JOIN #SelectedMatchResource AS r ON  sp.RefResourceID = r.ResourceId 
+	WHERE sp.sporttype = @sporttype		
+    UNION 
+	SELECT   BetType, BetID
+	FROM dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
+        INNER  JOIN #SelectedMatchResource AS r ON  sp.ResourceId = r.ResourceId 
+	WHERE sp.sporttype = @sporttype		
 
 	IF @CheckType = 0
 	BEGIN

@@ -24,6 +24,7 @@ AS
 		- 20200817@July: Add sporttype = 2 (BetBuilder BasketBall) - [Redmine:#138475]
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20230103@Kathy: Support ON bit 1 & 5 for other sport [Redmine:#181458]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
@@ -78,7 +79,7 @@ BEGIN
 									END
 	
 	-- turn off bit 1 or 5
-	IF @Sporttype = 1
+	IF @Sporttype IN (1,50)
 		SELECT @AutoSettingForLeague =
 								CASE WHEN @AutoType IN (1, 5) THEN 
 																	CASE WHEN @IsEnabled = 1 THEN @AutoSettingForLeague & (238 + POWER(2,@AutoType - 1)) 

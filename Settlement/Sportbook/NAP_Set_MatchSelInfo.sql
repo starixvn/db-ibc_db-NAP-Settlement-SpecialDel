@@ -23,6 +23,7 @@ AS
 		- 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
+		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -48,6 +49,7 @@ BEGIN
 		,ParentID INT
 		,GoalRecord VARCHAR(50)
 		,AutoSetting TINYINT
+		,GameSession TINYINT
 		)
 	
 	IF ISNULL(@matchIds,'') <> ''
@@ -69,6 +71,7 @@ BEGIN
 			,ParentID
 			,GoalRecord
 			,AutoSetting
+			,GameSession
 		)
 		SELECT  m.matchId
 			,m.matchcode
@@ -86,6 +89,7 @@ BEGIN
 			,m.ParentID
 			,m.goalrecord
 			,ISNULL(m.AutoSetting, l.AutoSetting)	
+			,l.GameSession
 		 FROM dbo.[match] m WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -115,6 +119,7 @@ BEGIN
 		,ParentID
 		,GoalRecord
 		,AutoSetting
+		,GameSession
 	)   
 	SELECT m.matchId
         ,m.matchcode
@@ -136,6 +141,7 @@ BEGIN
 		,m.ParentID
 		,m.GoalRecord
 		,ISNULL(m.AutoSetting, l.AutoSetting)
+		,l.GameSession
      FROM dbo.[match] m WITH (NOLOCK)
 		INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -163,6 +169,7 @@ BEGIN
 		,ParentID
 		,GoalRecord
 		,AutoSetting
+		,GameSession
 	FROM @tmpMatchInfo
 
 END
