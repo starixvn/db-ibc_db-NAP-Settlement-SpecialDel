@@ -9,6 +9,7 @@ AS
 	DB: DBPRO/bodb02
 	Revisions:
 		- 20231002@Aries: Created  [Redmine: #195768]
+		- 20231205@Aries: Get only provider [Redmine: #195768]
 
 	Param's Explanation:
 		-@ResourceType: 0-ALL, 1-Main, 2-Early
@@ -120,7 +121,8 @@ BEGIN
 			CROSS APPLY (SELECT r.matchId,r.ResourceId, COUNT(DISTINCT r.SourceID) AS TotalProvider,  MIN(r.CreateDate) AS CreatedDate
 						 FROM ProviderExternalResultDetail AS r WITH(NOLOCK)
 						 WHERE  r.matchId = m.matchId
-							AND r.SourceID != 100
+							AND r.SourceID < 1001 
+							AND r.SourceID NOT IN (98,99,100)
 							AND r.CreateDate > @Result_FromDate
 						 GROUP BY r.matchId,r.ResourceId) AS p
 			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
@@ -148,7 +150,8 @@ BEGIN
 			CROSS APPLY (SELECT r.matchId,r.ResourceId, COUNT(DISTINCT r.SourceID) AS TotalProvider,  MIN(r.CreateDate) AS CreatedDate
 						 FROM ProviderExternalResultDetailOS AS r WITH(NOLOCK)
 						 WHERE  r.matchId = m.matchId
-							AND r.SourceID != 100
+							AND r.SourceID < 1001 
+							AND r.SourceID NOT IN (98,99,100)
 							AND r.CreateDate > @Result_FromDate
 						 GROUP BY r.matchId,r.ResourceId) AS p
 			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
@@ -176,7 +179,8 @@ BEGIN
 			CROSS APPLY (SELECT r.matchId,r.ResourceId, COUNT(DISTINCT r.SourceID) AS TotalProvider,  MIN(r.CreateDate) AS CreatedDate
 						 FROM ProviderExternalResultDetailES AS r WITH(NOLOCK)
 						 WHERE  r.matchId = m.matchId
-							AND r.SourceID != 100
+							AND r.SourceID < 1001 
+							AND r.SourceID NOT IN (98,99,100)
 							AND r.CreateDate > @Result_FromDate
 						 GROUP BY r.matchId,r.ResourceId) AS p
 			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
