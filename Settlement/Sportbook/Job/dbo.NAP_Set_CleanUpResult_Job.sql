@@ -15,6 +15,7 @@ AS
 		- 20211108@Louisa: In-house Replicator: Deleted Action [Redmine:#164393]
 		- 20210913@Louisa: Cleanup data ES if matchid not exists in table dbo.match[Redmine:##161455]
 		- 20220512@Louisa: Cleanup data for AutoRefundResultOS [Redmine:#171676]
+		- 20231120@louisa: Keep data in ProviderExternalResultDetailES/OS for report [Redmine:#197548]
 
 	Param's Explanation: 
 
@@ -23,18 +24,22 @@ BEGIN
 
 	DECLARE @batch INT = 1000
 	DECLARE @compareDate DATETIME
+			,@DeletedateOS_ES DATETIME
 	CREATE TABLE #tmpDataNotExits  ( ProviderExternalId INT)
 
 	SET @compareDate =  CONVERT(VARCHAR(10),DATEADD (DAY, -7, GETDATE()), 102)
+	SET @DeletedateOS_ES =  CONVERT(VARCHAR(10),DATEADD (DAY, -10, GETDATE()), 102)
 	
 	----- ESports
-	INSERT INTO #tmpDataNotExits(ProviderExternalId)
+	INSERT INTO #tmpDataoNtExits(ProviderExternalId)
 	SELECT es.ProviderExternalId
 	FROM dbo.ProviderExternalResultDetailES es WITH(NOLOCK)
-		LEFT JOIN dbo.match m WITH(NOLOCK)
+	WHERE es.CreateDate < @DeletedateOS_ES
+	/*	LEFT JOIN dbo.match m WITH(NOLOCK)
 			ON es.MatchId = m.matchid
 	WHERE m.matchid IS NULL
 		AND es.CreateDate < @compareDate
+	*/
 
 	WHILE (1=1)
 	BEGIN
@@ -55,10 +60,12 @@ BEGIN
 	INSERT INTO #tmpDataNotExits (ProviderExternalId)
 	SELECT ex.ProviderExternalId 
 	FROM dbo.ProviderExternalResultDetailOS ex WITH(NOLOCK)
-		LEFT JOIN dbo.Match m WITH(NOLOCK)
+	WHERE ex.CreateDate < @DeletedateOS_ES
+	/*	LEFT JOIN dbo.Match m WITH(NOLOCK)
 			ON ex.MatchId = m.MatchId
 	WHERE ( m.matchid IS NULL OR ISNULL(m.IsDeleted,0) = 1 )
 		AND ex.CreateDate < @compareDate
+	*/
 
 	WHILE (1=1)
 	BEGIN

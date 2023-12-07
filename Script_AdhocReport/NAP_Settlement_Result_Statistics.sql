@@ -32,7 +32,7 @@ BEGIN
 	DROP TABLE IF EXISTS  #tmp_ResultProvider
 	DROP TABLE IF EXISTS  #tbl_ResourceCricket
 
-	CREATE TABLE #tmp_matchInfo ( MatchId INT, eventdate DATETIME, leaguename  NVARCHAR(1000), GameSession TINYINT, HomeName NVARCHAR(200), AwayName  NVARCHAR(200))
+	CREATE TABLE #tmp_matchInfo ( MatchId INT, eventdate DATETIME, leaguename  NVARCHAR(1000), GameSession TINYINT, HomeName NVARCHAR(200), AwayName  NVARCHAR(200), Is14 BIT)
 	CREATE TABLE #tmp_ResultSettle ( MatchId INT, SourceID INT, ResourceID VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50), eventdate DATETIME, leaguename  NVARCHAR(1000), GameSession TINYINT, HomeName NVARCHAR(200), AwayName  NVARCHAR(200))
 	CREATE TABLE #tmp_ResultProvider ( SourceID INT, MatchId INT, ResourceID VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
 
@@ -84,8 +84,8 @@ BEGIN
 			,('Home [G0]Over [X] Ball [Y] Runs'				, '9490'	, 'GXXXYY'		,2	)
 			,('Away [G0]Over [X] Ball [Y] Runs'				, '9491'	, 'GXXXYY'		,2	)
 			,('Match Run Outs'								, '9615'	, 'G'			,1	)
-			,('Home [G0]Over [X] Delivery [Y] Runs'			, '9616'	, 'GXXXYY'		,22)	 
-			,('Away [G0]Over [X] Delivery [Y] Runs'			, '9617'	, 'GXXXYY'		,22)	 
+			,('Home [G0]Over [X] Delivery [Y] Runs'			, '9616'	, 'GXXXYY'		,2	)	 
+			,('Away [G0]Over [X] Delivery [Y] Runs'			, '9617'	, 'GXXXYY'		,2	)	 
 			,('Home [G0]Over [X] Has Boundary Four?'		, '9624'	, 'GXXX'		,2	)	 
 			,('Away [G0]Over [X] Has Boundary Four?'		, '9625'	, 'GXXX'		,2	)	 
 			,('Home [G0]Over [X] Has Boundary Six?'			, '9630'	, 'GXXX'		,2	)	 
@@ -120,10 +120,10 @@ BEGIN
 			+ REPLACE(REPLACE(REPLACE(REPLACE(Sufix, 'G', CASE WHEN G_Range = 1 THEN '[1]' WHEN G_Range = 2 THEN '[12]' ELSE '' END), 'X', '_') ,'Z', '_') ,'Y', '_') AS ResourceId
 	FROM #tbl_ResourceCricket
 
-	INSERT INTO #tmp_matchInfo ( MatchId, eventdate, leaguename, GameSession, HomeName, AwayName )
-	SELECT m.matchid, m.eventdate, l.leaguename, l.GameSession, home.teamname AS HomeName, away.teamname AS AwayName
+	INSERT INTO #tmp_matchInfo ( MatchId, eventdate, leaguename, GameSession, HomeName, AwayName, Is14)
+	SELECT m.matchid, m.eventdate, l.leaguename, l.GameSession, home.teamname AS HomeName, away.teamname AS AwayName, m.Is14
 	FROM  
-		(	SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.leagueid
+		(	SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.leagueid, 0 AS Is14
 			FROM match m WITH(NOLOCK)
 			WHERE  m.sporttype = @SportType
 				AND ISNULL(m.childmatchType,0) <> 200
@@ -132,7 +132,7 @@ BEGIN
 				AND m.eventstatus <> 'closed'
 				AND m.IsDeleted = 0
 			UNION ALL
-			SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.leagueid
+			SELECT m.matchid, m.eventdate, m.homeid, m.awayid, m.leagueid, 1 AS Is14
 			FROM match14 m WITH(NOLOCK)
 			WHERE  m.sporttype = @SportType
 				AND ISNULL(m.childmatchType,0) <> 200
@@ -152,6 +152,15 @@ BEGIN
 		INNER JOIN	#tmp_matchInfo m
 			ON r.matchid = m.matchid 
 	WHERE r.ResultStatusID IN (2, 5)
+		AND m.Is14 = 0
+
+	INSERT INTO #tmp_ResultSettle ( MatchId, SourceID, ResourceID, HomeValue, AwayValue, eventdate, leaguename, GameSession , HomeName, AwayName)
+	SELECT r.MatchId, 0 AS SourceID, r.ResourceID, r.HomeValue, r.AwayValue , m.eventdate, m.leaguename, m.GameSession , HomeName, AwayName
+	FROM ResultDetailOS14 r WITH(NOLOCK)
+		INNER JOIN	#tmp_matchInfo m
+			ON r.matchid = m.matchid 
+	WHERE r.ResultStatusID IN (2, 5)
+		AND m.Is14 = 1
 
 	;WITH cte_ResultProvider ( SourceId, MatchId, ResourceID, HomeValue, AwayValue, rk) AS
 	(
