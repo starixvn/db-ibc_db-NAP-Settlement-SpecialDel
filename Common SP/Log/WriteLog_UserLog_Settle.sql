@@ -1,7 +1,7 @@
 /*<info serverAlias="DBLOG-bodb_CustomerLog,DBTXN-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[WriteLog_UserLog_Settle]
     @UserID         INT, 
-    @MatchID        INT, 
+    @MatchID        INT				= NULL,	
     @ActionID       INT             = 0, 
     @finalhomescore INT             = NULL,
     @finalawayscore INT             = NULL,  
@@ -25,6 +25,7 @@ AS
         - 20160507@Patrick: Add more param @LogDate & change size of Remark to 3000
         - 20170314@Kathy: Add default value [Redmine:#73218]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 
 */
 BEGIN

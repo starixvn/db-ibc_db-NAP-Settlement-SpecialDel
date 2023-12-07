@@ -13,6 +13,7 @@ AS
 		- 20231002@Aries: Created [Redmine:#195768]
 		- 20231205@Aries: Get only provider [Redmine: #195768]
 		- 20231222@Louisa: Allow retry AutoPayout Cricket when score mismatch [Redmine: #198781]
+		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 
 
 	Param's Explanation:
@@ -119,9 +120,21 @@ BEGIN
 		  ,m.ResultStatusID
 		  ,m.SettlementStatusID
 		  ,m.CreateDate
+		  ,ss.HasAwayValue
 	FROM @Result AS m
+		CROSS APPLY (SELECT TOP 1 HasAwayValue
+				     FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
+					 WHERE s.ResourceID = m.ResourceID
+						AND s.SportType = @SportType
+		) AS ss
 		LEFT JOIN ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = m.SourceId
-
+		OUTER APPLY (SELECT TOP 1 1 AS IsMapped
+					 FROM dbo.ProviderGameTypeMapping AS m WITH(NOLOCK)
+					 WHERE m.sporttype = @SportType
+						AND m.SourceId = m.SourceID) AS pm
+	WHERE pm.IsMapped IS NOT NULL
+		OR m.SourceId IS NULL
+		
 END
 GO
 

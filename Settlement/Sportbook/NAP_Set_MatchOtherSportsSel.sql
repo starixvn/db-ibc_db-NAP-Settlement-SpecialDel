@@ -60,6 +60,7 @@ AS
 			- 20230920@Aries: Remove remote query [Redmine:#194359]
 			- 20231114@Kathy: Enhance performance [Redmine:#196821]
 			- 20231219@Louisa: RedCat88 [Redmine:#198365]
+			- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -106,7 +107,7 @@ BEGIN
 			,@IsCentral			BIT
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
-	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, HasAutoPayout BIT)
+	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, HasAutoPayout BIT,AP_RetryTime  INT)
 	DECLARE @tmpMatchStatus TABLE ( MatchStatus TINYINT )
 	DECLARE @tmpOverStatus  TABLE ( OverStatus TINYINT)
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
@@ -180,6 +181,7 @@ BEGIN
 		,OfferLive						BIT
 		,ResultTable					TINYINT
 		,HasAutoPayout					BIT
+		,AP_RetryTime					INT
 	)
 
 	CREATE TABLE #tmpMarkedTransaction (transId BIGINT, matchId INT)
@@ -222,8 +224,8 @@ BEGIN
 		SET @OverStatus = '0'
 	END
 
-	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, HasAutoPayout )
-	SELECT	DISTINCT f.[value], s.ResultTable, IIF((ISNULL(Setting,0) & 2) > 0, 1,0)
+	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, HasAutoPayout,AP_RetryTime )
+	SELECT	DISTINCT f.[value], s.ResultTable, IIF((ISNULL(Setting,0) & 2) > 0, 1,0),s.AP_Main_WaitingTime
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype
@@ -285,6 +287,7 @@ BEGIN
 			,OfferLive
 			,ResultTable
 			,HasAutoPayout
+			,AP_RetryTime
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -322,6 +325,7 @@ BEGIN
 				,mr.OfferLive
 				,s.ResultTable
 				,s.HasAutoPayout
+				,s.AP_RetryTime
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
 				ON m.leagueid = l.leagueid
@@ -386,6 +390,7 @@ BEGIN
 			,OfferLive
 			,ResultTable
 			,HasAutoPayout
+			,AP_RetryTime
 		)
 		SELECT	m.matchid
 				,m.matchcode
@@ -425,6 +430,7 @@ BEGIN
 				,mr.OfferLive
 				,s.ResultTable
 				,s.HasAutoPayout
+				,s.AP_RetryTime
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
 				ON m.sporttype = s.Sporttype
@@ -1001,7 +1007,8 @@ BEGIN
 			,m.AutoPayoutStatus
 			,m.BestOfMap
 			,m.OfferLive
-			,ISNULL(s.WaitingTime, CASE WHEN m.sporttype IN (6,9) THEN 60 ELSE 30 END) AS AutoWaitingTime
+			,ISNULL(s.WaitingTime, 300) AS AutoWaitingTime
+			,ISNULL(s2.RetryTime, AP_RetryTime) AS AutoRetryTime
 	FROM	#tmpMatchIds m
 		LEFT JOIN @tmpQueueStatus q
 			ON	m.matchid = q.MatchId
@@ -1011,6 +1018,12 @@ BEGIN
 			WHERE	ss.LeagueId = m.leagueid
 					AND AutoType IN (1,5)					
 		)s
+		OUTER APPLY (
+			SELECT TOP 1 s1.RetryTime
+			FROM	DBPRO.bodb02.dbo.SettlementSetting s1 WITH (NOLOCK)
+			WHERE	s1.LeagueId = m.leagueid
+					AND AutoType = 6			
+		)s2
 	
 	drop table #ConfirmedResources
 	drop table #temp_match_parlay
