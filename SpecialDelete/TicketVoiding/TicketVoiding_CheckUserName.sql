@@ -37,6 +37,7 @@ AS
 		- 20230425@July: [TVS] Support void Cricket tickets on TVS Abnormal Account [Redmine: #187051]
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231003@July: [TVS] Abnormal Account - Increase the number of input Usernames to void [Redmine: #194095]
+		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 
 	Param's Explanation:
 */
@@ -99,6 +100,8 @@ BEGIN
 	  ,IsMixParlay BIT
 	  ,SiteDBGroupID SMALLINT
 	  ,IsVoid14 BIT
+	  ,winlost	MONEY
+	  ,actual_stake MONEY
 	)
 
 	--1. Check valid
@@ -135,17 +138,19 @@ BEGIN
 		  ,IsMixParlay
 		  ,SiteDBGroupID
 		  ,IsVoid14
+		  ,winlost
+		  ,actual_stake
 		)
 	SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
-		,wld ,isP ,sitedb, isV14
+		,wld ,isP ,sitedb, isV14, wl, act_s
 	FROM STRING_SPLIT(@TransInfoJson, ',') f
 		CROSS APPLY (SELECT CAST(DECOMPRESS(CONVERT(VARBINARY(MAX), f.value, 1)) AS NVARCHAR(MAX)) AS Decompress_TransInfoJson) t
 		CROSS APPLY (
 				SELECT mid ,t ,ref ,c ,btype ,bid ,sid ,re ,sre
-					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14
+					  ,CASE WHEN wld = '1900-01-01 00:00:00.000' THEN NULL ELSE wld END AS wld ,isP ,sitedb ,isV14, wl, act_s
 				FROM OPENJSON(t.Decompress_TransInfoJson) 
 				WITH( mid INT, t BIGINT, ref BIGINT, c INT ,btype SMALLINT ,bid BIGINT ,sid TINYINT ,re INT ,sre INT
-					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT
+					 ,wld SMALLDATETIME ,isP BIT ,sitedb SMALLINT, isV14 BIT, wl MONEY, act_s MONEY
 				)
 		) tbl
 	WHERE f.value <> ''
@@ -173,6 +178,9 @@ BEGIN
 	INSERT INTO @Status_tmp (StatusId)
 	SELECT DISTINCT value 
 	FROM STRING_SPLIT(@StatusIds, ',')
+	--In case action auto void with policy: include ticket won/lost for UI
+	UNION SELECT 112
+	UNION SELECT 113
 
 	SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
@@ -319,7 +327,7 @@ BEGIN
 							WHEN @IsSaba = 1 
 								AND ml.LeagueGroupID IS NOT NULL THEN 1								
 						ELSE 0 END	
-				AND statusID IN (SELECT statusID FROM @Status_tmp)
+				AND statusID IN (SELECT statusID FROM @Status_tmp) 
 				AND IsVoid14 = 1 AND NOT EXISTS (SELECT TOP 1 1 FROM #transIdTemp t WHERE b.transid = t.transid)
 		END
 	END
@@ -506,19 +514,45 @@ BEGIN
 		  ,@MarkTransIds AS MarkTransIds
 
 	--3. List TransinfoJson
-	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
-		,t.transid AS 't'
-		,b.custid AS  'c'           
-		,b.bettype AS 'btype'
-		,b.betid AS 'bid'
-		,b.IsMixParlay AS 'isP'
-		,b.SiteDBGroupID AS 'sitedb'
-		,b.IsVoid14 AS 'isV14'
-	FROM #transIdTemp t
-		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
-	FOR JSON PATH))
-	
+	IF @ActionId <> 10
+	BEGIN
+		SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
+			,t.transid AS 't'
+			,b.custid AS  'c'           
+			,b.bettype AS 'btype'
+			,b.betid AS 'bid'
+			,b.IsMixParlay AS 'isP'
+			,b.SiteDBGroupID AS 'sitedb'
+			,b.IsVoid14 AS 'isV14'
+		FROM #transIdTemp t
+			INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
+		FOR JSON PATH))
+	END
+
 	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+
+	--4. List TransId for case auto void with policy
+	SELECT b.transid
+		,b.custid        
+		,b.statusID
+		,ABS(b.winlost - b.actual_stake) AS winlost
+		,b.IsVoid14
+		,b.matchid
+		,b.bettype
+		,b.betid
+		,b.IsMixParlay
+		,b.SiteDBGroupID
+	FROM #tmpTransInfo b
+		INNER JOIN #transIdTemp t ON t.transid = b.transid
+
+	--5. List members winlost amount for case auto void with policy
+	SELECT DISTINCT b.custid
+		,c.username
+		,c.credit AS GivenCredit
+	FROM #tmpTransInfo b
+		INNER JOIN #transIdTemp t ON t.transid = b.transid
+		INNER JOIN CustDB.dbo.custinfo c WITH (NOLOCK) ON c.custid = b.custid	
+	ORDER BY c.username
 
 	DROP TABLE #InputUsernameList
 	DROP TABLE #InputValidCustid_1

@@ -17,6 +17,7 @@ AS
 		- 20220820@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20221207@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
+		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 
 	Param's explanation:
 		
@@ -170,8 +171,8 @@ BEGIN
 
 	SELECT DISTINCT
 		v.Username AS VoidedBy
-		,CASE WHEN m.ActionId IN (1,4,6,7,8,9) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
-		,CASE WHEN m.ActionId IN (1,4,6,7,8,9) THEN msg.Content_en ELSE cm.ContentEnglish END AS ContentEnglish
+		,CASE WHEN m.ActionId IN (1,4,6,7,8,9,10) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
+		,CASE WHEN m.ActionId IN (1,4,6,7,8,9,10) THEN msg.Content_en ELSE cm.ContentEnglish END AS ContentEnglish
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	INNER JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId

@@ -21,6 +21,7 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
+		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		
 	Param's explanation:	
 		
@@ -40,7 +41,7 @@ BEGIN
 	SET @DecidedBy = (SELECT TOP(1) r.DecidedBy
 					FROM @RequestId_tmp t
 						INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = t.RequestId
-					WHERE r.IssueTypeId IN (13,19) AND r.ActionId = 4)
+					WHERE r.IssueTypeId IN (13,19) AND r.ActionId IN (4,10))
 
 	IF @DecidedBy <> '' AND CAST(@VoidData AS NVARCHAR(MAX)) NOT LIKE '%DecidedBy%'
 	BEGIN
