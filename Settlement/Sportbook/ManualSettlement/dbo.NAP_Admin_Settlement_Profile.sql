@@ -81,6 +81,7 @@ AS
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -922,13 +923,13 @@ BEGIN
 					AND sp.SportType =50 )
 		END
 
-		IF @sportType = 45 ---for Log Only
+		IF @sportType IN ( 45, 58 ) ---for Log Only
 		BEGIN
-			INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName )
-			SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName
+			INSERT INTO @tmpGetLog (ResourceID, HomeValue, AwayValue, RoundName, OrdNo )
+			SELECT r.ResourceID, r.HomeValue, r.AwayValue, sd.RoundName, OrdNo
 			FROM @tmpResourcesWeb r
 				INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
-			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105')
+			WHERE r.ResourceID IN ('0101','0102','0103','0104','0105', '0001', 'ET', 'PEN')
 		END
 
 		SELECT @ResultRemarkLog = STRING_AGG(CAST(ISNULL(RoundName,ResourceID) + 
@@ -937,7 +938,7 @@ BEGIN
 					 WHEN HomeValue IS NULL AND AwayValue IS NULL THEN ''
 					 ELSE '' END AS VARCHAR(MAX)), ',') WITHIN GROUP (ORDER BY OrdNo)
 		FROM (
-				SELECT DISTINCT ResourceID, HomeValue, AwayValue, RoundName, MAX(OrdNo) AS OrdNo
+				SELECT DISTINCT ResourceID, HomeValue, AwayValue, CASE WHEN @Sporttype = 58 AND ResourceID = '00' THEN 'FinalScore' ELSE RoundName END AS RoundName, MAX(OrdNo) AS OrdNo
 		  		FROM @tmpGetLog sr
 		  		GROUP BY ResourceID, HomeValue, AwayValue, RoundName
   			) AS tbl1

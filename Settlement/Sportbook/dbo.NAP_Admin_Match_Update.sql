@@ -74,6 +74,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251] 
         - 20230406@Aries: Un-calculate FT Only [Redmine: #146737]
 		- 20230704@Louisa:  Integrate Virtual Leap Gaming - VS3 [Redmine:#189854]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 
     Parameters Explanation:
 		 @SelectedResources = <Resources>
@@ -470,7 +471,7 @@ BEGIN
 	                   ,@FTHome     		= -1
 	                   ,@FTAway     		= -1
 				
-				IF @IsHTRound = 1 OR @Sporttype <> 2
+				IF @IsHTRound = 1 OR @Sporttype NOT IN (2,58)
 					SELECT	 @HTHome = -1
 							,@HTAway = -1
 			END
@@ -485,12 +486,12 @@ BEGIN
                 ,finalawayscore = CASE WHEN @FTAway < 0 THEN NULL ELSE COALESCE(@FTAway, finalawayscore) END
                 ,hthomescore    = CASE 
 									WHEN @HTHome < 0 THEN NULL
-									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTHome, hthomescore)
+									WHEN @IsHTRound = 1 OR @Sporttype NOT IN (2,58) THEN COALESCE(@HTHome, hthomescore)
 									ELSE hthomescore 
 								END
                 ,htawayscore    = CASE 
 									WHEN @HTAway < 0 THEN NULL
-									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTAway, htawayscore) 
+									WHEN @IsHTRound = 1 OR @Sporttype NOT IN (2,58) THEN COALESCE(@HTAway, htawayscore) 
 									ELSE htawayscore 
 								END
                 ,betstatus      = COALESCE(@betstatus, betstatus)
@@ -498,9 +499,9 @@ BEGIN
                 ,settletime     = GETDATE()
             WHERE matchid = @matchid
         END
-        ELSE IF @IsFinalRound = 0 AND @Sporttype IN (1,2,5,6)
+        ELSE IF @IsFinalRound = 0 AND @Sporttype IN (1,2,5,6,58)
         BEGIN
-			IF (@IsHTRound = 1 OR @Sporttype <> 2) AND @Action = 'UNDO'
+			IF (@IsHTRound = 1 OR @Sporttype NOT IN (2,58)) AND @Action = 'UNDO'
 				SELECT	@HTHome = -1
 						,@HTAway = -1
 
@@ -508,12 +509,12 @@ BEGIN
             SET betstatus = COALESCE(@betstatus, betstatus)
 				,hthomescore    = CASE 
 									WHEN @HTHome < 0 THEN NULL
-									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTHome, hthomescore)
+									WHEN @IsHTRound = 1 OR @Sporttype NOT IN (2,58) THEN COALESCE(@HTHome, hthomescore)
 									ELSE hthomescore 
 								END
                 ,htawayscore    = CASE 
 									WHEN @HTAway < 0 THEN NULL
-									WHEN @IsHTRound = 1 OR @Sporttype <> 2 THEN COALESCE(@HTAway, htawayscore) 
+									WHEN @IsHTRound = 1 OR @Sporttype NOT IN (2,58) THEN COALESCE(@HTAway, htawayscore) 
 									ELSE htawayscore 
 								END
 				,changetime = GETDATE()

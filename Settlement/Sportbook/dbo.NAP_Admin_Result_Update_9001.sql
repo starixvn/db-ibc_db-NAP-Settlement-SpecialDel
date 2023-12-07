@@ -44,6 +44,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#184124]
 		- 20230817@Aries: Basketball - Enhance Generating Result 2H [Redmine:#192864]
 		- 20230727@Aries: Basketball AIO  [Redmine:#191381]
+		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		
     Param's Explanation: 
     
@@ -60,10 +61,6 @@ BEGIN
 		   ,@AutoSetting		TINYINT
 		   ,@HasAutoPayout		BIT = 0
 		   ,@SDTResourceID		VARCHAR(20)
-
-	SELECT @IsApplyRefundSOP =  CASE WHEN @Sporttype IN ( 2, 5, 6, 9, 43, 45,50) THEN 1
-									 ELSE 0
-									 END
 
 	IF @Sporttype = 50
 	BEGIN
@@ -104,8 +101,9 @@ BEGIN
 		
     -------------END DECLARE    
     
-	SELECT @ResultTable =  r.ResultTable
-		  ,@AutoSetting	=  ISNULL(r.Setting,0)
+	SELECT @ResultTable		 = r.ResultTable
+		  ,@AutoSetting		 = ISNULL(r.Setting,0)
+		  ,@IsApplyRefundSOP = ISNULL(r.Setting,0) & 1
 	FROM   dbo.SettlementResultTableSetting r WITH(NOLOCK)
 	WHERE r.Sporttype = @SportType
 		/*@ResultTable:
@@ -247,6 +245,17 @@ BEGIN
 			INNER JOIN dbo.f_Set_MajorRound(@Sporttype) sd ON r.ResourceID = sd.ResourceID
 		WHERE r.MatchID = @MatchID
 			AND sd.AllowDirectly = 0
+
+		IF @Sporttype = 58 AND @action = 'CAL' AND EXISTS(SELECT TOP 1 1 FROM @tblSelectedRID WHERE ResourceID = '00')
+		BEGIN
+			DELETE r
+			FROM	dbo.ResultDetailOS r WITH(ROWLOCK, UPDLOCK)
+				LEFT JOIN @tblSelectedRID sr 
+					ON r.ResourceID = sr.ResourceID
+			WHERE	r.MatchId = @MatchID
+					AND r.ResourceId IN ( 'ET', 'PEN' )
+					AND sr.ResourceID IS NULL
+		END
     END 
     ELSE IF @ResultTable = 1 
     BEGIN
