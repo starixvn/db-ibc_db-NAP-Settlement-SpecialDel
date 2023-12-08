@@ -20,6 +20,7 @@ AS
 		- 20230612@July: Create new SP [Redmine: #185833]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20230912@Max: [TVS] - Update the rules to get void ticket for Reduced Over issue type [Redmine: #193824]
+		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
 
 	Param's explanation:
 		+ @IssueTypeId : 19 - Reduced Over
@@ -107,7 +108,7 @@ BEGIN
 				+ '" NonLive="' + CAST(t.c.value('@NonLive','BIT') AS VARCHAR(10)) 	
 				+ '" />'
 				WHEN @IssueTypeId = 21 THEN '<r PlayerId="' + t.c.value('@PlayerId','VARCHAR(MAX)')
-				+ '" GroupBetTypeIds="' + t.c.value('@GroupBetTypeIds','VARCHAR(MAX)')
+				+ '" BetTypeIds="' + t.c.value('@BetTypeIds','VARCHAR(MAX)')
 				+ '" />'
 				END
 				AS  ReducedOver

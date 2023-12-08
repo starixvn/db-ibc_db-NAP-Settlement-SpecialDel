@@ -11,12 +11,13 @@ AS
       
     Revisions:      
         - 20230908@Max: Create SP - [Redmine: #185833]
+		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
 
 	Param's explanation:	
 		- @ReducedOverInfo: 
 		<root>
-			<r MatchId="" SubIssueTypeId="" PlayerId="1001" GroupBetTypeIds="1"/>
-			<r MatchId="" SubIssueTypeId="" PlayerId="1002" GroupBetTypeIds="1,2,3"/>
+			<r MatchId="" SubIssueTypeId="" PlayerId="1001" BetTypeIds="1"/>
+			<r MatchId="" SubIssueTypeId="" PlayerId="1002" BetTypeIds="1,2,3"/>
 		</root>
 		
 */
@@ -117,13 +118,8 @@ BEGIN
 		,bt.bettype
 	FROM @NotParticipateXML.nodes('root/r') t(c)
 		CROSS APPLY (
-			SELECT value AS GroupBetTypeId
-			FROM string_split (t.c.value('@GroupBetTypeIds','VARCHAR(2000)'),',')
-		)grp
-		CROSS APPLY (
-			SELECT f.BetType AS bettype
-			FROM f_TVS_GroupFilterBettypesConfig() f 
-			WHERE f.GroupId = grp.GroupBetTypeId
+			SELECT value AS BetType
+			FROM string_split (t.c.value('BetTypeIds','VARCHAR(2000)'),',')
 		)bt
 	OPTION (OPTIMIZE FOR (@NotParticipateXML = NULL))
 
