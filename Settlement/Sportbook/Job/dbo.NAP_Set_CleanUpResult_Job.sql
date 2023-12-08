@@ -21,6 +21,8 @@ AS
 
 */
 BEGIN
+	
+	-- exec NAP_Set_CleanUpResult_Job
 
 	DECLARE @batch INT = 1000
 	DECLARE @compareDate DATETIME
@@ -31,7 +33,7 @@ BEGIN
 	SET @DeletedateOS_ES =  CONVERT(VARCHAR(10),DATEADD (DAY, -10, GETDATE()), 102)
 	
 	----- ESports
-	INSERT INTO #tmpDataoNtExits(ProviderExternalId)
+	INSERT INTO #tmpDataNotExits(ProviderExternalId)
 	SELECT es.ProviderExternalId
 	FROM dbo.ProviderExternalResultDetailES es WITH(NOLOCK)
 	WHERE es.CreateDate < @DeletedateOS_ES
