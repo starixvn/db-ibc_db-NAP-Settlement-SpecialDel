@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_NP_Select_UAT2] 
+ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_NP_Select] 
 (
 	@NotParticipateInfo  VARCHAR(MAX) = NULL
 )
