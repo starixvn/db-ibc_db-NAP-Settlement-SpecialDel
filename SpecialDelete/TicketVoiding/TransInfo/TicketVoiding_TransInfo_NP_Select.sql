@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_NP_Select] 
+ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_NP_Select_UAT2] 
 (
 	@NotParticipateInfo  VARCHAR(MAX) = NULL
 )
@@ -119,7 +119,7 @@ BEGIN
 	FROM @NotParticipateXML.nodes('root/r') t(c)
 		CROSS APPLY (
 			SELECT value AS BetType
-			FROM string_split (t.c.value('BetTypeIds','VARCHAR(2000)'),',')
+			FROM string_split (t.c.value('@BetTypeIds','VARCHAR(2000)'),',')
 		)bt
 	OPTION (OPTIMIZE FOR (@NotParticipateXML = NULL))
 
