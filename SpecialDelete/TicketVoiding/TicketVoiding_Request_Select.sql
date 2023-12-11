@@ -45,6 +45,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20231211@July: Remove code un-used [Redmine: #196627]
 		- 20231221@July: [TVS] Display player name in English for Chinese message in case there is no data on player name in Chinese [Redmine: #198687]
 
 	Param's explanation:	
@@ -61,10 +62,6 @@ BEGIN
 		,@PlayerName NVARCHAR(MAX)
 		,@PlayerNamesChineseTraditional NVARCHAR(MAX)
 		,@PlayerNamesChineseSimplified NVARCHAR(MAX)
-		,@MessageId INT
-		,@ContentEnglish NVARCHAR(MAX)
-		,@ContentChineseTraditional NVARCHAR(MAX)
-		,@ContentChineseSimplified NVARCHAR(MAX)
 	
 	DECLARE @tmp_PlayerName AS TABLE (
 			PlayerName NVARCHAR(200),
@@ -240,22 +237,8 @@ BEGIN
 		WHERE	rd.RequestId = @RequestId
 	END
 
-	SELECT TOP 1 @MessageId = tv.MessageId
-			,@ContentEnglish = msg.Content_en
-			,@ContentChineseTraditional = msg.Content_ch
-			,@ContentChineseSimplified = msg.Content_cs
-	FROM TicketVoiding_VoidingHistory tv WITH (NOLOCK)
-		CROSS APPLY (
-				SELECT m.Content_en, m.Content_ch, m.Content_cs
-				FROM DBMSG.bodb_Message.dbo.Msg m WITH (NOLOCK)
-				WHERE m.MessageId = tv.MessageId
-			) msg
-	WHERE tv.RequestId = @RequestId AND tv.StatusId = 2
-	ORDER BY tv.CreatedDate DESC
-
-	SELECT @MessageId AS MessageId, @ContentEnglish AS ContentEnglish, @ContentChineseTraditional AS ContentChineseTraditional, @ContentChineseSimplified AS ContentChineseSimplified
-			,@PlayerName AS PlayerNamesEnglish
-			,@PlayerNamesChineseTraditional AS PlayerNamesChineseTraditional
-			,@PlayerNamesChineseSimplified AS PlayerNamesChineseSimplified
+	SELECT @PlayerName AS PlayerNamesEnglish
+		  ,@PlayerNamesChineseTraditional AS PlayerNamesChineseTraditional
+		  ,@PlayerNamesChineseSimplified AS PlayerNamesChineseSimplified
 
 END
