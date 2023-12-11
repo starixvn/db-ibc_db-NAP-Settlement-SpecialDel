@@ -400,6 +400,7 @@ BEGIN
 						THEN CASE WHEN xHDPHome.HomeFavorite IS NOT NULL THEN 0
 								  WHEN xHDPAway.AwayFavorite IS NOT NULL THEN 0
 								  WHEN xHDPvalue.HdpValue IS NOT NULL THEN 0
+								  ELSE 1 
 								  END
 				    ELSE 1 END
 	
@@ -484,6 +485,7 @@ BEGIN
 							THEN CASE WHEN xHDPHome.HomeFavorite IS NOT NULL THEN 'HDP'
 									  WHEN xHDPAway.AwayFavorite IS NOT NULL THEN 'HDP'
 									  WHEN xHDPvalue.HdpValue IS NOT NULL THEN 'HDP'
+									  ELSE 'Others'	
 									  END
 						  WHEN f.GroupName IS NOT NULL THEN f.GroupName
 						  ELSE 'Others'	 
