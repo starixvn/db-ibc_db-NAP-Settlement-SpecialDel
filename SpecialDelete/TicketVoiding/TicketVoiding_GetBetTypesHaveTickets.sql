@@ -51,7 +51,7 @@ BEGIN
         FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
         AND bt.bettype NOT IN (10,29,38,500)
         AND bt.bettype < 19000
-    GROUP BY bt.bettype
+    GROUP BY bt.bettype, bt.transdesc
    
     SELECT t.bettype AS [Id]
 		 ,CASE WHEN bt.typeid = 9604 THEN 'Over/Under'
