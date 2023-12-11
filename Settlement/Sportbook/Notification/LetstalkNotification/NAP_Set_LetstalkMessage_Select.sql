@@ -9,6 +9,7 @@ AS
 
 	Revisions:
 		20210706@Louisa: Letstalk message [Redmine:#157540]
+		20232811@Aries: Alert KST when match completed but auto settle for FM still off [Redmine:#197532]
 
 	Param explanation:
 
@@ -32,6 +33,7 @@ BEGIN
 			,m.kickofftime
 			,lm.MessageContent
 			,ISNULL(l.isTest,0) AS IsTest
+			,lm.CreatedDate
 	FROM [dbo].[Settlement_LetstalkMessage] lm WITH(NOLOCK)
 		INNER JOIN dbo.match m WITH(NOLOCK) ON lm.MatchId = m.matchid
 		INNER JOIN dbo.League l WITH(NOLOCK) ON l.leagueid = m.leagueid
