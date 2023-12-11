@@ -38,6 +38,7 @@ AS
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231003@July: [TVS] Abnormal Account - Increase the number of input Usernames to void [Redmine: #194095]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20231208@Max: [TVS] Abnormal Account - Add confirmation popup before saving request for auto void actions [Redmine: #198164]
 
 	Param's Explanation:
 */
@@ -175,12 +176,15 @@ BEGIN
 			SET @ToWinlostDate_14 = @movebetdate
 	END
 
+	--In case action auto void with policy: include ticket won/lost for UI
+	IF @ActionId = 10 
+	BEGIN 
+		SET @StatusIds = @StatusIds + ',112,113'
+	END
+
 	INSERT INTO @Status_tmp (StatusId)
 	SELECT DISTINCT value 
 	FROM STRING_SPLIT(@StatusIds, ',')
-	--In case action auto void with policy: include ticket won/lost for UI
-	UNION SELECT 112
-	UNION SELECT 113
 
 	SELECT  @IsSB = CASE WHEN CHARINDEX('1',@ProductIds) > 0 THEN 1 ELSE 0 END
 			, @IsParlay = CASE WHEN CHARINDEX('2',@ProductIds) > 0 THEN 1 ELSE 0 END
