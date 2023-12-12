@@ -110,6 +110,7 @@ AS
 	  - 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 	  - 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 	  - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
+	  - 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 
 	 Param's Explanation:   
 */
@@ -259,6 +260,7 @@ BEGIN
 		,ChildMatchType TINYINT
 		,EndTime		DATETIME
 		,ruben			TINYINT
+		,LeagueGroupID  SMALLINT
 	)
 
 	CREATE TABLE #CTE_CustInfo(custid INT, username VARCHAR(30), username2 VARCHAR(50), site VARCHAR(10))
@@ -409,9 +411,12 @@ BEGIN
 			,sporttype 	= m.sporttype
 			,ParentID	= CASE WHEN m.sporttype = 50 THEN ISNULL(m.ParentID,0) ELSE 0 END
 			,ChildMatchType = CASE WHEN m.sporttype = 50 THEN ISNULL(m.ChildMatchType, 0) ELSE 0 END
+			,LeagueGroupID = l.LeagueGroupID
 		FROM	#SpecialDeleteBets b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
+			INNER JOIN dbo.League l WITH(NOLOCK)
+				ON m.leagueid = l.leagueid
 		WHERE bettype NOT IN (9, 29, 2799)
 	END
 	
@@ -427,6 +432,7 @@ BEGIN
 			,IsNeutral  = 0
 			,showtime 	= '' 
 			,sporttype	= l.sporttype
+			,LeagueGroupID = l.LeagueGroupID
 		FROM	#SpecialDeleteBets b
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	b.matchid = o.orid
@@ -1400,6 +1406,9 @@ BEGIN
 		,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 		,b.EndTime --Support bitcoin
 		,CASE WHEN b.sporttype = 50 AND m.ChildMatchType = 200 THEN m.ParentID ELSE b.matchid END AS ParentMatchId -- send letstalk
+		,b.LeagueGroupID
+		,ISNULL(si.IsChinaView,0) AS IsChinaView
+		,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 	FROM	#SpecialDeleteBets b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN #CTE_CustInfo ci WITH(NOLOCK) ON b.custid = ci.custid
@@ -1409,6 +1418,7 @@ BEGIN
 		LEFT JOIN #CTE_CustInfo su WITH(NOLOCK) ON b.srecommend = su.custid
 		LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) ON b.srecommend = s.custid
 		LEFT JOIN @VIPAccount_tmp vip ON b.custid = vip.CustID			
+		LEFT JOIN CustDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
 	ORDER BY ISNULL(b.MainTransId, b.transid)
 		   , CASE 
 				WHEN b.BonusID IS NOT NULL

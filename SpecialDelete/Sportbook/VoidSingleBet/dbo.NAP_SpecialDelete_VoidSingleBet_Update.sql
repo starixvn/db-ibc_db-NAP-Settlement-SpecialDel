@@ -133,8 +133,9 @@ AS
 		- 20230810@July: [SD] Void Single Bet - Support searching ticket without using time range & Add Selection control for Sub Parlay [Redmine: #191448]
 	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
+		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
-		
+
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
 		  + 0: All tickets
@@ -417,13 +418,16 @@ BEGIN
 	
 	SET @session = CAST (NEWID() AS NVARCHAR(50))
 
-	DECLARE @sporttype SMALLINT = NULL
+	DECLARE @sporttype SMALLINT = NULL, @LeagueGroupID SMALLINT = NULL
 	DECLARE @tmpMatchId TABLE (MatchId INT, matchdate DATETIME, IsFinish BIT)
 
 	SELECT @Eventdate = m.eventdate 
 		   ,@sporttype = m.sporttype
 		   ,@MatchId_MaxPO = @MatchId
-	FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+		   ,@LeagueGroupID = l.LeagueGroupID
+	FROM dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.league l WITH(NOLOCK) ON m.leagueid = l.leagueid
+	WHERE m.matchid = @MatchId
 
 	INSERT INTO @tmpMatchId (MatchId, matchdate)
 	SELECT MatchId, eventdate
@@ -2087,6 +2091,9 @@ BEGIN
 			,@sporttype AS SportTypeId
 			,al.SiteDBGroupId
 			,al.matchid AS MatchId
+			,@LeagueGroupID AS LeagueGroupID
+			,ISNULL(si.IsChinaView,0) AS IsChinaView
+			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 		FROM #SpecialDeleteBets al
 			INNER JOIN #CTE_CustInfo ci WITH(NOLOCK) ON al.custid = ci.custid
 			INNER JOIN #CTE_CustInfo cr WITH(NOLOCK) ON	al.creator = cr.custid	
@@ -2094,6 +2101,7 @@ BEGIN
 			INNER JOIN #CTE_CustInfo ma WITH(NOLOCK) ON al.mrecommend = ma.custid
 			INNER JOIN #CTE_CustInfo su WITH(NOLOCK) ON al.srecommend = su.custid
 			LEFT JOIN CustDB.dbo.Dep_CustSuper s WITH(NOLOCK) ON al.srecommend = s.custid
+			LEFT JOIN CustDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
 		ORDER BY ISNULL(al.MainTransId, al.transid)
 			   , CASE WHEN al.BonusID IS NOT NULL
 					THEN CASE WHEN al.MainTransId IS NULL THEN 1
