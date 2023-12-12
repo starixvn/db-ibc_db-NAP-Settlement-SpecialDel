@@ -45,7 +45,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
-		- 20231211@July: Remove code un-used [Redmine: #196627]
+		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20231221@July: [TVS] Display player name in English for Chinese message in case there is no data on player name in Chinese [Redmine: #198687]
 
 	Param's explanation:	

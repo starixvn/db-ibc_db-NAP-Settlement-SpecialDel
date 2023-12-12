@@ -41,7 +41,6 @@ BEGIN
 		,RequestedBy INT
 		,DecidedBy NVARCHAR(200)
 		,KickOffTime DATETIME
-		,ActionId TINYINT
 		,IssuetypeId TINYINT 
 	);
 	
@@ -59,7 +58,7 @@ BEGIN
 
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
 
-	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId, IssuetypeId)
+	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId)
 	SELECT DISTINCT 
 			 rd.RequestId
 			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.homeid END
@@ -68,7 +67,6 @@ BEGIN
 			,r.UserId
 			,r.DecidedBy
 			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.kickofftime END 
-			,r.ActionId
 			,r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
@@ -128,8 +126,8 @@ BEGIN
 	BEGIN
 		UPDATE TOP(1) t
 		SET IsFinish = 1
-			,@VoidingHistoryId = T.VoidingHistoryId
-			,@xmlVoidResults = T.VoidResults
+			,@VoidingHistoryId = t.VoidingHistoryId
+			,@xmlVoidResults = t.VoidResults
 		FROM #tmpVoidingHistory t
 		WHERE t.IsFinish IS NULL
 
