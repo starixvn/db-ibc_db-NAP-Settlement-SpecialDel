@@ -10,6 +10,7 @@ AS
 	
 	Revisions:
 		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20231208@Aries: Add site 7a5555 [Redmine:#195550]
 		
 */
 RETURN (
@@ -32,7 +33,8 @@ RETURN (
 			(3,1046),
 			(3,1047),
 			(3,1048),
-			(3,1216)
+			(3,1216),
+			(3,1233)
 	) AS Sites(SiteDBGroupId, SiteId)
 );
 GO
