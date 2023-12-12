@@ -125,7 +125,7 @@ BEGIN
 		WHERE pr.SourceId  IN ( 100, 16,23,30,22)
 	  )
   
-	INSERT INTO #tmp_ResultProvider ( SourceId, MatchId, ResourceID, HomeValue, AwayValue)
+	INSERT INTO #tmp_ResultProvider ( MatchId, SourceId, ResourceID, HomeValue, AwayValue)
 	SELECT  r.MatchId, SourceId, ResourceID, HomeValue, AwayValue
 	FROM cte_ResultProvider r
 	WHERE rk = 1
