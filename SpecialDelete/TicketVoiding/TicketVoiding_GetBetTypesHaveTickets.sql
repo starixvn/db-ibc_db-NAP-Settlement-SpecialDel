@@ -57,7 +57,7 @@ BEGIN
 		 ,CASE WHEN bt.typeid = 9604 THEN 'Over/Under'
 			  WHEN bt.typeid = 9605 THEN 'Odd/Even'
 		ELSE bt.typenamee END AS [Name]
-		,transdesc AS PlayerId
+		,transdesc
     FROM #TmpBettype t
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = t.bettype
 
