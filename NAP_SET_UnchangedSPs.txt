@@ -1,1 +1,2 @@
-Settlement\Sportbook\Calculation\Single\dbo.NAP_Admin_Calculate_Main.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile.sql
+Settlement\Sportbook\ManualSettlement\dbo.NAP_Admin_Settlement_Profile_Push.sql
