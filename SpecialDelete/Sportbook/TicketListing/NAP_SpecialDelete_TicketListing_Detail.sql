@@ -85,6 +85,7 @@ AS;
 		- 20230622@Max: Ticket listing - Select ticket listing has ERROR converting data type nvarchar to bigint [Redmine: #190166]
 		- 20230623@July: Ticket listing - Enhance performance when sending data to many Licensees at a time [Redmine: #190071]
 		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
+		- 20231213@July: Ticket Listing - Support more Advanced Mode controls for some sports [Redmine: #193777]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -359,7 +360,12 @@ BEGIN
 			 
 	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id
-			, cte.BetTeam
+			, CASE
+				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
+				WHEN cte.Id = 30 AND cte.BetTeam = '0:4up' THEN '0:4' -- replace row [bettype 30 - betteam '0:4up'] by [bettype 30 - betteam '0:4']
+				WHEN cte.Id = 179 AND cte.BetTeam = 'G4&Over' THEN 'G4' -- replace row [bettype 179 - betteam 'G4&Over'] by [bettype 179 - betteam 'G4'] 
+				ELSE cte.BetTeam
+			  END AS BetTeam
 			, cte.[Set]
 			, cte.Game
 			, cte.BetOption
@@ -384,8 +390,8 @@ BEGIN
 						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2		
 				, CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
 						ELSE cte.Goal END AS BIGINT) AS Goal
-				, CAST(CASE WHEN cte.OddsSpread = 'ALL' THEN @ValueDefault
-						ELSE cte.OddsSpread END AS MONEY) AS OddsSpread
+				, CAST(CASE WHEN os.value = 'ALL' THEN @ValueDefault
+						ELSE os.value END AS MONEY) AS OddsSpread
 				, CAST(CASE WHEN osid.value = 'ALL' THEN NULL
 						ELSE osid.value END AS INT) AS OddsId
 				, CAST(CASE WHEN td.value = 'ALL' THEN NULL
@@ -397,9 +403,13 @@ BEGIN
 				CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
 				CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
 				CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
+				CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
 				CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
 				CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
 	) cte
+	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
+			   WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
+			   ELSE 1 END = 1
 
 	INSERT INTO #TmpBallSequence(Seq)
 	SELECT  value
@@ -573,7 +583,24 @@ BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
 			WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-				WHERE tp.Id = b.FilterBettype AND (tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam ))
+				WHERE tp.Id = b.FilterBettype AND 
+					CASE
+						WHEN tp.Id <> 376 THEN CASE WHEN tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam THEN 1 ELSE 0 END
+						ELSE 
+							CASE tp.BetTeam
+								 WHEN 'All-All' THEN 1
+								 WHEN 'All-S' THEN CASE WHEN b.FilterBetTeam LIKE '%S%' THEN 1 ELSE 0 END
+								 WHEN 'All-M' THEN CASE WHEN b.FilterBetTeam LIKE '%M%' THEN 1 ELSE 0 END
+								 WHEN 'H-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) <> '-----' THEN 1 ELSE 0 END
+								 WHEN 'A-All' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) <> '-----' THEN 1 ELSE 0 END
+								 WHEN 'H-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%S%' THEN 1 ELSE 0 END
+								 WHEN 'H-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 1, 5) LIKE '%M%' THEN 1 ELSE 0 END
+								 WHEN 'A-S' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%S%' THEN 1 ELSE 0 END
+								 WHEN 'A-M' THEN CASE WHEN SUBSTRING(b.FilterBetTeam, 6, 5) LIKE '%M%' THEN 1 ELSE 0 END
+								 ELSE 0
+							END
+					END = 1
+			)
 
 			DELETE b
 			FROM  #SpecialDeleteBets b
