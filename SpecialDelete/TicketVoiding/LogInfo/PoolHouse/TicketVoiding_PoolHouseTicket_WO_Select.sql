@@ -507,15 +507,15 @@ BEGIN
 					,b.actual_stake AS ActualStake
 					,@MatchId
 					,CASE WHEN (
-								(@SubIssueTypeId IN (6) AND b.bettype IN (1)) 
-								OR (@SubIssueTypeId IN (119) AND b.bettype IN (7))
+								(@SubIssueTypeId IN (6) AND b.Subbettype IN (1)) 
+								OR (@SubIssueTypeId IN (119) AND b.Subbettype IN (7))
 							   ) 
 								AND b.Subbetteam = @betteam 
 								AND xHDP.FavoriteValue IS NOT NULL
 							THEN 'HDP'
 						  WHEN (
-								(@SubIssueTypeId IN (120) AND b.bettype IN (3)) 
-								OR (@SubIssueTypeId IN (121) AND b.bettype IN (8))
+								(@SubIssueTypeId IN (120) AND b.Subbettype IN (3)) 
+								OR (@SubIssueTypeId IN (121) AND b.Subbettype IN (8))
 							   )
 								AND b.Subbetteam = @FilterOUType 
 								AND xOU.OUValue IS NOT NULL 

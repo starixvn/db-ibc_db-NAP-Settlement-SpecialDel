@@ -481,7 +481,7 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
+					,CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
 							THEN CASE WHEN xHDPHome.HomeFavorite IS NOT NULL THEN 'HDP'
 									  WHEN xHDPAway.AwayFavorite IS NOT NULL THEN 'HDP'
 									  WHEN xHDPvalue.HdpValue IS NOT NULL THEN 'HDP'
