@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb_CustomerLog" executers="bodbAdminNet,Dot_Admin,Dot_CoreAPI,Dot_Casino" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBTXN-bodb_CustomerLog" executers="bodbAdminNet,Dot_Admin,Dot_CoreAPI,Dot_Casino,Dot_Intg" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[WriteLog_SSB_UserLog_Settle]
 	@UserID			INT, 
 	@MatchID		INT, 
