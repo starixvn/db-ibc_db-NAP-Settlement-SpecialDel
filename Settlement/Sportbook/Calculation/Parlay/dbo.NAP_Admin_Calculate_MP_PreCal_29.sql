@@ -38,6 +38,7 @@ AS
 		- 20230405@Louisa: Support resettle Parlay tickets [Redmine:#186276]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231017@Kathy: Cast all modds values return from CASE WHEN expression to DECIMAL(38,20) to avoid CONVERT_IMPLICIT with wrong datatype  [Redmine:#191873]
+		- 20231213@Kathy:  Update wrong winlostdate when Re-calculate change score for case LOSE [Redmine:#198190]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -361,6 +362,7 @@ BEGIN
 						END
 				END
 				) AS modds
+				,SUM(CASE WHEN pd.matchid = @matchid THEN 1 ELSE 0 END) AS relatedSerial
 		FROM dbo.BetParlayDetail pd WITH (NOLOCK)
 			INNER JOIN #temp_bettrans b ON pd.refno = b.refno
 		GROUP BY pd.refno, pd.serial, b.eventdate
@@ -488,7 +490,7 @@ BEGIN
 								ELSE 0
 							END
 		)se
-	WHERE @IsReSettledTickets = 1
+	WHERE (@IsReSettledTickets = 1 AND p.relatedSerial = 1)
 		OR ( @IsReSettledTickets = 0 
 				AND (	pr.statusID <>
 						CASE
