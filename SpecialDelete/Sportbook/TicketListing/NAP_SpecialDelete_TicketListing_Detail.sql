@@ -11,7 +11,6 @@ ALTER PROCEDURE [dbo].[NAP_SpecialDelete_TicketListing_Detail]
     @Type						SMALLINT      = 0,
     @SecondAcceptFlag			TINYINT       = 0,
     @BallSequence				VARCHAR(200)  = '',
-    @Quarter					VARCHAR(200)  = 'All',
 	@BetTeams					XML			  = NULL,
 	@SingleOrSubParlay			VARCHAR(20)   = 'All',
 	@SelectionType				VARCHAR(200)  = '',
@@ -154,7 +153,6 @@ BEGIN
 	IF @Type <> 0 SELECT @LiveType = 2
 	
 	DECLARE @tmpBettypes TABLE ( bettype SMALLINT PRIMARY KEY)
-	DECLARE @tmpQuarter TABLE (Id VARCHAR(10))
 	DECLARE @tmpMatchId TABLE (MatchId INT PRIMARY KEY)
 	DECLARE @tmpSelectionSubParlay TABLE (Id VARCHAR(10))
 	
@@ -282,13 +280,6 @@ BEGIN
 	SELECT	CONVERT(smallint, value)
 	FROM STRING_SPLIT(@p_bettypes, ',')
 
-	IF (@Quarter <> 'All')
-	BEGIN
-		INSERT INTO @tmpQuarter (Id)
-		SELECT value
-		FROM STRING_SPLIT(@Quarter, ',')
-	END
-	
 	CREATE TABLE #tblBetType
 	(
 		Id				SMALLINT PRIMARY KEY,
@@ -548,18 +539,6 @@ BEGIN
 					AND b.transdate	BETWEEN CASE WHEN @FromTransdate IS NOT NULL AND @LiveType = 1 THEN @FromTransdate ELSE b.transdate END 
 									AND	    CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE b.transdate END 
 					AND ISNULL(SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
-					AND (@Quarter = 'All' 
-						OR ((b.bettype NOT BETWEEN 609 AND 617) 
-							AND (b.bettype NOT BETWEEN 627 AND 631) 
-							AND (b.bettype NOT BETWEEN 707 AND 714) 
-							AND (b.bettype NOT BETWEEN 381 AND 385) 
-							AND b.bettype NOT IN (650)) 
-						OR (((b.bettype BETWEEN 609 AND 617) 
-							OR (b.bettype BETWEEN 627 AND 631) 
-							OR (b.bettype BETWEEN 707 AND 714) 
-							OR (b.bettype BETWEEN 381 AND 385) 
-							OR b.bettype IN (650))  
-							AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE b.betid LIKE q.Id + '%')))  
 				OPTION	(RECOMPILE)
 			END	
 		END		
@@ -578,7 +557,7 @@ BEGIN
 			WHERE NOT EXISTS ( SELECT TOP 1 1 FROM @tmpTransid t WHERE b.transid=t.Transid)
 		END
 		
-		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
+		IF @BetTeams IS NOT NULL
 		BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
@@ -741,18 +720,6 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' 
-					OR ((bm.bettype NOT BETWEEN 609 AND 617) 
-							AND (bm.bettype NOT BETWEEN 627 AND 631) 
-							AND (bm.bettype NOT BETWEEN 707 AND 714) 
-							AND (bm.bettype NOT BETWEEN 381 AND 385) 
-							AND bm.bettype NOT IN (650))  
-					OR (((bm.bettype BETWEEN 609 AND 617) 
-						OR (bm.bettype BETWEEN 627 AND 631) 
-						OR (bm.bettype BETWEEN 707 AND 714) 
-						OR (bm.bettype BETWEEN 381 AND 385) 
-						OR bm.bettype IN (650))  
-						AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%'))) 
 			OPTION(OPTIMIZE FOR (@n = 1))
 		END 	
 		
@@ -787,7 +754,7 @@ BEGIN
 								   ELSE 0 END)
 		END
 
-		IF @SportType IN (43,50,5,6) -- E-Sports, Cricket, Tennis, Volleyball
+		IF @BetTeams IS NOT NULL
 		BEGIN
 			DELETE b
 			FROM  #SpecialDeleteBets b
@@ -918,18 +885,6 @@ BEGIN
 									AND	 CASE WHEN @ToTransdate IS NOT NULL AND @LiveType = 1 THEN @ToTransdate ELSE bm.transdate END
 				AND ISNULL(b.SecAcceptFlag,0) = CASE @SecondAcceptFlag WHEN 0 then ISNULL(b.SecAcceptFlag,0) WHEN 1 THEN 0 WHEN 2 THEN 1 END
 				AND (b.betid = 0 OR b.betid IS NULL)
-				AND (@Quarter = 'All' 
-					OR ((bm.bettype NOT BETWEEN 609 AND 617) 
-							AND (bm.bettype NOT BETWEEN 627 AND 631) 
-							AND (bm.bettype NOT BETWEEN 707 AND 714) 
-							AND (bm.bettype NOT BETWEEN 381 AND 385) 
-							AND bm.bettype NOT IN (650)) 
-					OR (((bm.bettype BETWEEN 609 AND 617) 
-						OR (bm.bettype BETWEEN 627 AND 631) 
-						OR (bm.bettype BETWEEN 707 AND 714) 
-						OR (bm.bettype BETWEEN 381 AND 385) 
-						OR bm.bettype IN (650))
-						AND EXISTS (SELECT TOP 1 1 FROM @tmpQuarter AS q WHERE bm.betcheck LIKE q.Id + '%')))  
 			OPTION(OPTIMIZE FOR (@n = 1))
 		END 		
 		
