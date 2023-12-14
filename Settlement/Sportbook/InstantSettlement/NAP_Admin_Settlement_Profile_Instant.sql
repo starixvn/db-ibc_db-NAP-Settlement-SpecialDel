@@ -226,7 +226,7 @@ BEGIN
 	    					WHERE	t.TransId = b.transId
 	    	) AS mt
 	    	CROSS APPLY(
-	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, t.isCalculated, t.MinusValue, t.IsInstHTFT
+	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, t.isCalculated, t.MinusValue,  t.IsInstHTFT
 	    					FROM @tmpSelectedRID AS t
 	    					WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	    				) AS sr
@@ -242,7 +242,7 @@ BEGIN
 						 ELSE 0
 					END
 		
-		IF @Action = 'CAL' AND @IsReSettledTickets = 1 AND EXISTS (SELECT TOP 1 1 FROM #tmpTransSDT WHERE modds IS NULL AND IsInstHTFT = 1)
+		IF @Action = 'CAL' AND @IsReSettledTickets = 1 
 		BEGIN
 			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoInstantOS_LastResultSel 
 				  @MatchId	= @matchid 
@@ -250,8 +250,8 @@ BEGIN
 				 ,@HTAway	= @HTAway_Inst OUTPUT
 				 ,@FTHome	= @FTHome_Inst OUTPUT
 				 ,@FTAway	= @FTAway_Inst OUTPUT
-
-			IF @HTHome_Inst IS NOT NULL OR @HTAway_Inst IS NOT NULL OR @FTHome_Inst IS NOT NULL OR @FTAway_Inst IS NOT NULL
+			
+			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransSDT WHERE modds IS NULL AND IsInstHTFT = 1) AND (@HTHome_Inst IS NOT NULL OR @HTAway_Inst IS NOT NULL OR @FTHome_Inst IS NOT NULL OR @FTAway_Inst IS NOT NULL)
 			BEGIN
 				DELETE b
 				FROM #tmpTransSDT AS b
@@ -516,7 +516,8 @@ BEGIN
 																						    ,AwayValue			AS '@Away'
 																							,isCalculated		AS '@IsCalculated'
 																							,MinusValue			AS '@MinusValue'
-																						    ,@DeterminedType	AS '@DeterminedType'																							
+																						    ,@DeterminedType	AS '@DeterminedType'
+																							,IsInstHTFT			AS '@IsInstHTFT'																							
 																					   FROM	@tmpSelectedRID AS s
 																					   WHERE EXISTS (SELECT 1 FROM @tmpParlayAffectedBettypes AS p WHERE p.BetType = s.BetType)
 																					   FOR XML PATH ('Resource'), TYPE)
@@ -536,6 +537,10 @@ BEGIN
 								+ ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @hta),'NULL')
 								+ ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @fth),'NULL') 
 								+ ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @fta),'NULL')
+								+ ', @HTHome_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @HTHome_Inst),'NULL')
+								+ ', @HTAway_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @HTAway_Inst),'NULL')
+								+ ', @FTHome_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @FTHome_Inst),'NULL') 
+								+ ', @FTAway_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @FTAway_Inst),'NULL')
 								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 		
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @DeterminedType = ' + CONVERT(VARCHAR(50), @DeterminedType)
@@ -555,6 +560,10 @@ BEGIN
 				,@hta					= @hta
 				,@fth					= @fth
 				,@fta					= @fta
+				,@HTHome_Inst			= @HTHome_Inst
+				,@HTAway_Inst			= @HTAway_Inst
+				,@FTHome_Inst			= @FTHome_Inst
+				,@FTAway_Inst			= @FTAway_Inst
 				,@IsReSettledTickets	= @IsReSettledTickets
 				,@LockedByRefno			= 1 -- always lock refno for testing
 				,@IsCentral				= @IsCentral

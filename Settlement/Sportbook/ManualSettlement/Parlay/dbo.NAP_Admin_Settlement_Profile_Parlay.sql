@@ -9,6 +9,10 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Parlay]
 	,@hta					INT			= 0
 	,@fth					INT			= 0
 	,@fta					INT			= 0
+	,@FTHome_Inst			INT 		= 0
+	,@FTAway_Inst			INT			= 0
+	,@HTHome_Inst			INT			= 0
+	,@HTAway_Inst			INT			= 0
 	,@IsAuto				BIT			= 0
 	,@IsReSettledTickets	BIT			= 1
 	,@LockedByRefno			BIT			= 0
@@ -43,7 +47,8 @@ AS
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
-
+		- 20231213@Kathy: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
+		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
 									<Resource Id="M1" Home="1" Away="3" />
@@ -94,6 +99,7 @@ BEGIN
 		, IsCalculated BIT
 		, IsWeb BIT
 		, MinusValue SMALLMONEY  DEFAULT(0)
+		, IsInstHTFT BIT DEFAULT(0)
 	)
 
 	DECLARE @tmpRefnos TABLE (refno BIGINT)
@@ -116,7 +122,8 @@ BEGIN
 
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 
-	CREATE TABLE #tmpsubTransID (TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT DEFAULT(0))
+	CREATE TABLE #tmpsubTransID (TransID BIGINT, refno BIGINT, modds SMALLMONEY, moddsSDT SMALLMONEY, IsSDT BIT DEFAULT(0), isFinish BIT, IsMarked BIT DEFAULT(0)
+		, IsInstHTFT BIT DEFAULT(0), bettype SMALLINT, hdp1 SMALLMONEY, betteam VARCHAR(10))
 	----------------------------------------------------------------------------------------------------------------------
 
   	SELECT  @start = CURRENT_TIMESTAMP
@@ -155,6 +162,7 @@ BEGIN
 				,ISNULL(IsCalculated,'') AS IsCalculated
 				,ISNULL(IsWeb,'') AS IsWeb
 				,ISNULL(MinusValue,0)	AS MinusValue
+				,ISNULL(IsInstHTFT,0)	AS IsInstHTFT
 		FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)
 															,RefResourceId VARCHAR(20)
 															,SDTResourceId VARCHAR(20)
@@ -170,9 +178,10 @@ BEGIN
 															,IsCalculated BIT
 															,IsWeb BIT
 															,MinusValue SMALLMONEY
+															,IsInstHTFT BIT
 											) AS tbl
 	)
-	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb,MinusValue)
+	INSERT INTO @tmpSelectedRID (ResourceID, SDTResourceId, Bettype, BetId, pfId, SDTpfId, OddsType, HomeValue, AwayValue, OrdNo, RoundName, IsSDT, HomeRound, AwayRound, DeterminedType,IsCalculated,IsWeb,MinusValue, IsInstHTFT)
 	SELECT	 c.Id
 			,c.SDTResourceId
 			,sp.Bettype
@@ -191,6 +200,7 @@ BEGIN
 			,c.IsCalculated
 			,c.IsWeb
 			,c.MinusValue
+			,c.IsInstHTFT
 	FROM	cteSelectedRID c
 		INNER JOIN dbo.SettlementSpecialBettypeProfile sp WITH(NOLOCK)
 			ON	 sp.ResourceID = c.Id
@@ -330,11 +340,11 @@ BEGIN
 			END
 			ELSE IF @sportType != 1 AND  @DeterminedType > 0
 			BEGIN
-				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked)
-				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
+				INSERT INTO #tmpsubTransID (TransID, modds, refno, IsMarked, IsInstHTFT, bettype, hdp1, betteam)
+				SELECT	bm.transid, m.modds, bm.refno, CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked, sr.IsInstHTFT, bm.bettype, bm.hdp1, bm.betteam
 				FROM	dbo.bettransm bm WITH(NOLOCK)
 					CROSS APPLY (
-						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, IsCalculated, MinusValue
+						SELECT	TOP 1 SDTpfId, HomeValue, AwayValue, IsCalculated, MinusValue, IsInstHTFT
 						FROM	@tmpSelectedRID t
 						WHERE	t.BetType = bm.bettype AND (t.BetID = 0 OR t.BetID = bm.betcheck)
 					)sr
@@ -357,7 +367,29 @@ BEGIN
 								 WHEN @IsReSettledTickets = 1 AND m.modds IS NULL AND  (bm.statusID IN (111,112,113) OR  ISNULL(bm.statuswinlost,'') != '') AND sr.IsCalculated = 0 THEN 1
 								 ELSE 0
 							 END
+							 
 				SET @totalSubParlay = @@ROWCOUNT
+				
+				IF EXISTS (SELECT TOP 1 1 FROM #tmpsubTransID WHERE modds IS NULL AND IsInstHTFT = 1) AND (@HTHome_Inst IS NOT NULL OR @HTAway_Inst IS NOT NULL OR @FTHome_Inst IS NOT NULL OR @FTAway_Inst IS NOT NULL)
+				BEGIN
+					DELETE b
+					FROM #tmpsubTransID AS b
+						CROSS APPLY(
+									SELECT TOP 1 
+										   t.SDTpfId
+										  ,CAST((IIF(ResourceID = '00', ISNULL(@FTHome_Inst,0), ISNULL(@HTHome_Inst,0)) +  CAST(t.HomeValue  AS INT)) AS VARCHAR(2000)) AS HomeValue
+										  ,CAST((IIF(ResourceID = '00', ISNULL(@FTAway_Inst,0), ISNULL(@HTAway_Inst,0)) +  CAST(t.AwayValue  AS INT)) AS VARCHAR(2000)) AS AwayValue
+										  ,6 AS MinusValue
+									FROM @tmpSelectedRID AS t
+									WHERE b.BetType = t.BetType AND t.BetID = 0
+								) AS sr
+						CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue) AS m
+					WHERE b.modds IS NULL 
+						AND b.IsInstHTFT = 1
+						AND m.modds IS NOT NULL
+						
+					SET @totalSubParlay = @totalSubParlay - @@ROWCOUNT
+				END
 			END
 		END
 	END
