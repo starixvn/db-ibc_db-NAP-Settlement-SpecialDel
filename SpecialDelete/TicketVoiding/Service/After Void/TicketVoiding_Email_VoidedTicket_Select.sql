@@ -34,6 +34,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230623@Max: [TVS] Enhance void 14 by Username Feature name [Redmine: #190028]
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		
 	Param's explanation:	
 		
@@ -109,6 +110,7 @@ BEGIN
 		,winlostdate	SMALLDATETIME
 		,IsCancelCashOut BIT
 		,IsVoidArchived BIT
+		,LeagueGroupID  SMALLINT
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -316,9 +318,12 @@ BEGIN
 			,matchid    = m.matchid
 			,SettlementStatus = m.SettlementStatus
 			,eventstatus = m.eventstatus
+			,LeagueGroupID = l.LeagueGroupID
 		FROM #tmpTicket t
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	m.leagueid = l.leagueid
 		WHERE t.bettype NOT IN (9, 29, 2799)
 	END
 
@@ -333,6 +338,7 @@ BEGIN
 				,sporttype 	= l.sporttype
 				,showtime	= ''
 				,eventstatus = odds.oddsstatus
+				,LeagueGroupID = l.LeagueGroupID
 			FROM #tmpTicket t
 				INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
 				ON	t.matchid = odds.orid
@@ -594,6 +600,9 @@ BEGIN
 			,t.SiteDBGroupID
 			,t.winlostdate
 			,ISNULL(t.IsCancelCashOut,0) AS IsCancelCashOut
+			,t.LeagueGroupID
+			,ISNULL(si.IsChinaView,0) AS IsChinaView
+			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
@@ -602,6 +611,7 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend
 		LEFT JOIN @VIPAccount_tmp vip ON t.custid = vip.CustID 	
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
+		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
 	ORDER BY ISNULL(t.MainTransId, t.transid)
 		   , CASE 
 				WHEN t.BonusID IS NOT NULL

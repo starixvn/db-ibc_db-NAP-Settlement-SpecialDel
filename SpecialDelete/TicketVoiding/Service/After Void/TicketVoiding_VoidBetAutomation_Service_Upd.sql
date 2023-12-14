@@ -13,7 +13,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 	@IsUpdatedVoidingHistory		BIT = NULL,
 	@IsSentEmail					BIT = NULL,
 	@IsRunExternalService			BIT = NULL,
-	@VoidResults					XML = NULL
+	@VoidResults					XML = NULL,
+	@MessageIdSpecial				INT = NULL
 )
 AS
 /*	Created by: 20200212@Max
@@ -25,6 +26,7 @@ AS
 		- 20201203@Charles: Optimize Voiding Workflow [Redmine: #145719]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230103@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		
 	Param's explanation:
 	- @UpdateType:
@@ -48,6 +50,7 @@ BEGIN
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET MessageId = @MessageId
+			,MessageIdSpecial = @MessageIdSpecial
 			,ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
@@ -56,6 +59,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET ModifiedDate = GETDATE()
 			,MessageId = ISNULL(@MessageId, MessageId)
+			,@MessageIdSpecial = ISNULL(@MessageIdSpecial, @MessageId)
 			,ReasonId = ISNULL(@ReasonId, ReasonId)
 			,IsSentBatchMessage = ISNULL(@IsSentBatchMessage, IsSentBatchMessage)
 			,IsSentMessageToAdminSite = ISNULL(@IsSentMessageToAdminSite, IsSentMessageToAdminSite)
@@ -71,6 +75,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET ModifiedDate = GETDATE()
 			,MessageId = @MessageId
+			,MessageIdSpecial= @MessageIdSpecial
 			,ReasonId = @ReasonId
 			,IsSentBatchMessage = @IsSentBatchMessage
 			,IsSentMessageToAdminSite = @IsSentMessageToAdminSite

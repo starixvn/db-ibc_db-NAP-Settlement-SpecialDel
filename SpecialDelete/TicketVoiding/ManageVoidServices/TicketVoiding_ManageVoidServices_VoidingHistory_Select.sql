@@ -12,6 +12,7 @@ AS
 	Revisions: 
 		- 20220927@July: Create new SP [Redmine:#178172]
 		- 20230308@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 
 	Param's explanation:
 */
@@ -32,6 +33,7 @@ BEGIN
 		   ,MaxWinlostdate
 		   ,BroadcastSessionId 
 		   ,SiteDBGroupID
+		   ,MessageIdSpecial
 	FROM dbo.TicketVoiding_VoidingHistory WITH(NOLOCK)
 	WHERE RequestId = @RequestId
 

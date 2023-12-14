@@ -14,6 +14,7 @@ AS
 		- 20200215@Max: Create new SP [Redmine: #128359]
 		- 20201203@Charles: Optimize Voiding Workflow [Redmine: #145719]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 	
 	Param's explanation:	
 	
@@ -35,6 +36,7 @@ BEGIN
 			, tvs.IsInsertedVoidedTransaction
 			, tvs.IsUpdatedVoidingHistory
 			, tvs.IsSentEmail
+			, tvs.MessageIdSpecial
 	FROM dbo.Ticketvoiding_VoidBetAutomation_Service tvs WITH(NOLOCK) 
 	WHERE tvs.RequestID = @RequestId AND tvs.VoidingHistoryId = @VoidingHistoryID
 END
