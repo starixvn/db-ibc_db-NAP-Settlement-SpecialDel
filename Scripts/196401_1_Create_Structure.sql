@@ -1,7 +1,7 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
 /*
 	Created by: 20231205@Louisa
-	Task:  Result Amendment [Redmine:#196401]
+	Task:  Result Amendment Redmine:#196401
 	DB: DBTXN-bodb02
 
 	Create table
@@ -16,41 +16,49 @@
 USE bodb02
 GO
 
-CREATE TABLE [dbo].[SettlementResultHistory]
+CREATE TABLE dbo.SettlementResultHistory
 (
-	 [SessionID]      VARCHAR(50)    NOT NULL
-	,[MatchID]        INT            NOT NULL
-	,[ActualResult]   VARCHAR(MAX)
-	,[WrongResult]    VARCHAR(MAX)
-	,[Action]         BIGINT
-	,[ResultType]     TINYINT
-	,[Sporttype]      SMALLINT
-	,[CreatedDate]    DATETIME
-	,[ModifiedDate]   DATETIME
-	,[StatusID]       TINYINT
-	,[ExtraInfo]      VARCHAR(MAX)
+	 SessionID      VARCHAR(50)		NOT NULL
+	,MatchID        INT				NOT NULL
+	,SeqNo			SMALLINT		NOT NULL
+	,ActualResult   VARCHAR(MAX)
+	,WrongResult    VARCHAR(MAX)
+	,ActionType		TINYINT			NOT NULL
+	,ResultType     TINYINT			NOT NULL
+	,Sporttype      SMALLINT		NOT NULL
+	,CreatedDate    DATETIME		NOT NULL
+	,ModifiedDate   DATETIME		NOT NULL
+	,StatusID       TINYINT			NOT NULL
+	,ExtraInfo      VARCHAR(MAX)
 ) ON DATA
 GO
 
-CREATE CLUSTERED INDEX [CIX_SettlementResultHistory] ON [dbo].[SettlementResultHistory]
+ALTER TABLE dbo.SettlementResultHistory
+ADD CONSTRAINT PK_SettlementResultHistory 
+PRIMARY KEY CLUSTERED 
 (
-	MatchID,SessionID
-) ON [DATA]
+	MatchID,SessionID,SeqNo ASC
+) ON DATA
 GO
 
+CREATE INDEX IDX_SettlementResultHistory_CreatedDate ON dbo.SettlementResultHistory(CreatedDate)
+GO
 -------------------------------------------------------------------------
 
-CREATE TABLE [dbo].[SettlementResultHistory_TicketDetails]
+CREATE TABLE dbo.SettlementResultHistory_TicketDetails
 (
-	 [SessionID]	VARCHAR(50) NOT NULL
-	,[Transid]		BIGINT	    NOT NULL
+	 SessionID	VARCHAR(50) NOT NULL
+	,SeqNo		SMALLINT	NOT NULL
+	,Transid	BIGINT	    NOT NULL
 ) ON DATA
 GO
 
-CREATE CLUSTERED INDEX [SettlementResultHistory_TicketDetails] ON [dbo].[SettlementResultHistory_TicketDetails]
+ALTER TABLE dbo.SettlementResultHistory_TicketDetails
+ADD CONSTRAINT PK_SettlementResultHistory_TicketDetails
+PRIMARY KEY CLUSTERED 
 (
-	[SessionID],[Transid]
-) ON [DATA]
+	SessionID,Transid ASC
+) ON DATA
 GO
 
 -------------------------------------------------------------------------
