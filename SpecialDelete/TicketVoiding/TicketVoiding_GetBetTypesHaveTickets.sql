@@ -11,6 +11,7 @@ AS
       
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]
+		- 20231207@Max: [TVS] Not Participate - Support user select exact bet type [Redmine: #197018]
 
     Param's Explanation:  
 
@@ -21,7 +22,7 @@ BEGIN
 	DECLARE @SiteDBGroupID SMALLINT = 0
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
-    CREATE TABLE #TmpBettype (bettype SMALLINT)
+    CREATE TABLE #TmpBettype (bettype SMALLINT, transdesc NVARCHAR(2000))
 	DECLARE @tmpMatchId TABLE (MatchId INT)
 
 	INSERT INTO @tmpMatchId (MatchId)
@@ -31,18 +32,18 @@ BEGIN
 
     -- Scan bettrans and bettransm to get bettype list
 	-- bettrans
-    INSERT INTO #TmpBettype(bettype)
-	SELECT bettype
+    INSERT INTO #TmpBettype(bettype, transdesc)
+	SELECT bettype, transdesc
 	FROM dbo.bettrans WITH(NOLOCK)
 	WHERE matchid IN (SELECT Matchid FROM @tmpMatchId)
 		AND SiteDBGroupID = @SiteDBGroupID
 		AND bettype NOT IN (10,29,38,500)
 		AND bettype < 19000
-	GROUP BY bettype
+	GROUP BY bettype, transdesc
 
     -- bettransm
-    INSERT INTO #TmpBettype(bettype)
-    SELECT bt.bettype
+    INSERT INTO #TmpBettype(bettype, transdesc)
+    SELECT bt.bettype, bt.transdesc
     FROM dbo.bettransm bt WITH(NOLOCK)
     WHERE bt.matchid IN (SELECT Matchid FROM @tmpMatchId)
 	AND bt.SiteDBGroupID = @SiteDBGroupID
@@ -50,12 +51,13 @@ BEGIN
         FROM #TmpBettype tb WHERE bt.bettype = tb.bettype)
         AND bt.bettype NOT IN (10,29,38,500)
         AND bt.bettype < 19000
-    GROUP BY bt.bettype
+    GROUP BY bt.bettype, bt.transdesc
    
     SELECT t.bettype AS [Id]
 		 ,CASE WHEN bt.typeid = 9604 THEN 'Over/Under'
 			  WHEN bt.typeid = 9605 THEN 'Odd/Even'
 		ELSE bt.typenamee END AS [Name]
+		,transdesc
     FROM #TmpBettype t
 		INNER JOIN dbo.bettype bt WITH (NOLOCK) ON bt.typeid = t.bettype
 

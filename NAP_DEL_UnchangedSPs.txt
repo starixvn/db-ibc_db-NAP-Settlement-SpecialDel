@@ -1,1 +1,3 @@
 SpecialDelete\TicketVoiding\TransInfo\TicketVoiding_TransInfo_Select.sql
+SpecialDelete\TicketVoiding\Insert_UpdateRequest\TicketVoiding_Request_Insert.sql
+SpecialDelete\TicketVoiding\Insert_UpdateRequest\TicketVoiding_Request_Update.sql
