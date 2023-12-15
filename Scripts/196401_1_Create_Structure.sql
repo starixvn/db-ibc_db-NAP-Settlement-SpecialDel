@@ -41,7 +41,7 @@ PRIMARY KEY CLUSTERED
 ) ON DATA
 GO
 
-CREATE INDEX IDX_SettlementResultHistory_CreatedDate ON dbo.SettlementResultHistory(CreatedDate)
+CREATE INDEX IDX_SettlementResultHistory_StatusID ON dbo.SettlementResultHistory(StatusID)
 GO
 -------------------------------------------------------------------------
 

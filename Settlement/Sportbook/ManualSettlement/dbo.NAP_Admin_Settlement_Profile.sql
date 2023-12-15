@@ -82,6 +82,7 @@ AS
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -1118,13 +1119,6 @@ BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
 			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
 		END
-	END
-	ELSE 
-	BEGIN
-		UPDATE SettlementResultHistory 
-		SET StatusID = 1
-		WHERE Matchid = @MatchId
-			AND SessionId = @BroadcastSessionId
 	END
 
 	IF @MatchAutoSetting & 2 > 0 AND @Action LIKE 'CAL%' AND @DeterminedType > 0 AND @DeterminedType & 4 = 0

@@ -17,6 +17,7 @@ AS
         - 20230214@Aries: Created [Redmine: #182677]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
 		- 20230704@Louisa:  Virtual Leap Gaming - VS3 [Redmine:#189854]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 

@@ -4,6 +4,7 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Parlay_Calculate_3]
 	,@matchdate		SMALLDATETIME
     ,@Action		VARCHAR(10)
 	,@strTransIds 	VARCHAR(MAX) = NULL
+	,@BroadcastSessionId	VARCHAR(50)	= NULL
 AS
 /*    
 	Creator: 20161205@Bobby
@@ -22,6 +23,7 @@ AS
 		- 20221026@Helen: resolve deadlock [Redmine:#179541]
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
     Param's Explanation:
         
@@ -38,7 +40,7 @@ BEGIN
 			,@cntBetParlayDetailUpd INT = 0
 
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT)		
+	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT)		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	SET @FunctionName = CASE  
@@ -183,7 +185,8 @@ BEGIN
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben)
+				,deleted.statusid	
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -225,7 +228,8 @@ BEGIN
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben)
+				,deleted.statusid
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid        
@@ -251,6 +255,8 @@ BEGIN
 					,StatusID AS 'sid' 
 					,winlostdate AS 'wld'
 					,ruben AS 'r' -- ruben	
+					,bef_statusid AS 'bef_sid' 
+					,@BroadcastSessionId AS 'ssid' 
 			FROM	#parlayOutput
 			FOR JSON AUTO
 		)

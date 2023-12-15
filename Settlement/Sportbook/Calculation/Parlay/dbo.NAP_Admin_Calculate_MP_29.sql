@@ -2,6 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_29]
 	@matchdate	SMALLDATETIME
 	,@strXML	VARCHAR(MAX)
+	,@BroadcastSessionId VARCHAR(50)
 AS
 /*
 	Created: Kathy
@@ -21,6 +22,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 	Param's Explanation:
 */
 BEGIN
@@ -223,6 +225,7 @@ BEGIN
 					,ExtraInfo AS 'ex'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
+					,@BroadcastSessionId AS 'ssid' 
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)

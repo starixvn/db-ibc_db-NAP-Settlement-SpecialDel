@@ -50,6 +50,8 @@ AS
 		- 20231213@Kathy: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
 		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 		
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
+
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
 									<Resource Id="M1" Home="1" Away="3" />
@@ -645,6 +647,7 @@ BEGIN
 					,@mode				 = 'profile'
 					,@Action			 = @subAction
 					,@strTransIds		 = @strTransIds
+					,@BroadcastSessionId = @BroadcastSessionId
 			END
 
 			IF @Action LIKE 'CAL%' AND @sportType != 1 AND @DeterminedType > 0 AND  @IsReSettledTickets = 1
@@ -658,6 +661,7 @@ BEGIN
 					,@mode				 = 'profile'
 					,@Action			 = 'UNDO'
 					,@strTransIds		 = @StrUndoTransIds
+					,@BroadcastSessionId = @BroadcastSessionId
 				END
 			END
 			ELSE IF @Action LIKE 'REFUND%' AND @sportType != 1 AND @DeterminedType > 0 
@@ -677,6 +681,7 @@ BEGIN
 					,@mode				 = 'profile'
 					,@Action			 = 'CAL'
 					,@strTransIds		 = @strTransIdsSDT
+					,@BroadcastSessionId = @BroadcastSessionId
 				END
 			END
 
@@ -833,6 +838,7 @@ BEGIN
 				EXEC dbo.NAP_Admin_Calculate_MP_broker
 					@mode = '29'
 					,@matchdate = @eventdate
+					,@BroadcastSessionId = @BroadcastSessionId
 					,@strXML = @strMainTransIdRefnos
 
 				---- CAPTURE value BALANCE after udpate bettrans [Redmine:#108768]: to avoid parlay settlement & movebet delete bet ticket run the same time
@@ -945,14 +951,6 @@ BEGIN
 
 	IF @ErrCode <> 0
 		RETURN
-
-	IF @sportType = 50 
-	BEGIN
-		UPDATE SettlementResultHistory 
-		SET StatusID = 1
-		WHERE Matchid = @MatchId
-			AND SessionId = @BroadcastSessionId
-	END
 	
 	
 	IF @IsAuto = 1 AND @Action = 'REFUND'

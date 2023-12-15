@@ -20,6 +20,7 @@ AS
 		- 20211229@Max: Split Transfer - Adjust Negative Balance Service & Adjustment Transfer of Bonus [Redmine: #165098]
 		- 20230201@July: TVS changes for new process of BU [Redmine: #184000]
 		- 20231229@Louisa: Exclude Single Wallet Licensee [Redmine: #199060]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		
 */
 BEGIN

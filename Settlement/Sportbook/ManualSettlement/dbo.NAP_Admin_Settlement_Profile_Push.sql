@@ -53,6 +53,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230808@Aries: Enhance Auto Refund for Tennis Matches [Redmine:#189433]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 		  @SelectedResources: <Resources>
@@ -132,6 +133,14 @@ BEGIN
 				,N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
 				,@ErrMsg	= @ErrMsg OUTPUT
 				,@ErrCode	= @ErrCode OUTPUT
+
+				IF @sportType = 50 
+				BEGIN
+					UPDATE SettlementResultHistory 
+					SET StatusID = 1
+					WHERE Matchid = @MatchId
+						AND SessionId = @BroadcastSessionId
+				END
 		END TRY
 
 		BEGIN CATCH

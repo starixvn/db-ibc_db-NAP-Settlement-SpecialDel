@@ -33,6 +33,7 @@ AS
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
 		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
 		- 20230830@Kathy: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:  
 		   

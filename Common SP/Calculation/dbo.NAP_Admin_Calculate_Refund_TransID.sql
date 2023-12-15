@@ -28,6 +28,7 @@ AS
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
 		- 20230704@Louisa:  CWL for Virtual Leap Gaming [Redmine:#189854]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 			@transIds = '<root>

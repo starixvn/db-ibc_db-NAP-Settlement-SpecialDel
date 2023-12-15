@@ -166,6 +166,7 @@ AS
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
         - 20230516@Aries: Replicate to SubDB is not correctly [Redmine:#188298]
         - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
+        - 20231214@Aries: Result Amendment [Redmine: #196401]
 
     Param's Explanation:
         @action             @mode

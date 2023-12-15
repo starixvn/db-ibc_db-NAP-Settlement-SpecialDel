@@ -24,6 +24,7 @@ AS
 		- 20220719@Kathy: Scale Out BetTrans [Redmine:#175251]
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20230214@Louisa: New way to update balance [Redmine:#182677]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:
 			@transIds = '<root>
