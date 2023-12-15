@@ -18,6 +18,7 @@ AS
 	Revisions: 
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20230802@July: Remove code get list bettype Poolhouse [Redmine: #190441]
+		- 20231214@July: Extend datatype [Redmine: #196467]
 
 	Param's explanation:
 		+ @IssueTypeId : 2
@@ -108,12 +109,12 @@ BEGIN
 			,'<r FilterOddsType="' + t.c.value('@FilterOddsType','VARCHAR(20)')
 					+ '" FromOdds="' + t.c.value('@FromOdds','VARCHAR(20)')
 					+ '" ToOdds="' + t.c.value('@ToOdds','VARCHAR(20)')
-					+ '" OddsValue="' + REPLACE(t.c.value('@OddsValue','VARCHAR(50)'), '&', '&amp;')
+					+ '" OddsValue="' + REPLACE(t.c.value('@OddsValue','VARCHAR(MAX)'), '&', '&amp;')
 					+ '" BetTeam="' + t.c.value('@BetTeam', 'VARCHAR(10)')
 					+ '" FilterFavoriteType="' + t.c.value('@FilterFavoriteType', 'VARCHAR(10)')
-					+ '" FavoriteValue="' + REPLACE(t.c.value('@FavoriteValue','VARCHAR(50)') , '&', '&amp;') 
+					+ '" FavoriteValue="' + REPLACE(t.c.value('@FavoriteValue','VARCHAR(MAX)') , '&', '&amp;') 
 					+ '" FilterOuType="' + t.c.value('@FilterOuType', 'VARCHAR(10)')
-					+ '" OuValue="' + REPLACE(t.c.value('@OuValue','VARCHAR(50)') , '&', '&amp;')
+					+ '" OuValue="' + REPLACE(t.c.value('@OuValue','VARCHAR(MAX)') , '&', '&amp;')
 					+ '" CorrectOdds="' + t.c.value('@CorrectOdds','VARCHAR(20)')
 					+ CASE WHEN t.c.value('@IsMainMatch','VARCHAR(10)') = 'False' 
 						THEN '" LiveIndicator="' + CAST(t.c.value('@LiveIndicator','BIT') AS VARCHAR(10)) 

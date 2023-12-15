@@ -19,6 +19,7 @@ AS
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
 		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
 		- 20231130@Max: HotFix - Affected Pool House Ticket Detail SHOW DUPLICATE [Redmine: #197662]
+		- 20231207@July: [TVS] Fix issue Pool House input more 2 values still show ticket LG [Redmine: #196467]
 
 	Param's explanation:
 
@@ -183,6 +184,21 @@ BEGIN
 
 	DECLARE @tmpFavoriteValue TABLE (FavoriteValue SMALLMONEY)
 	DECLARE @tmpOUValue TABLE (OUValue SMALLMONEY)
+
+	IF @FavoriteValue IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpFavoriteValue(FavoriteValue)
+		SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
+		FROM STRING_SPLIT(@FavoriteValue, '&')
+		WHERE value <> ''
+	END
+	IF @OUValue IS NOT NULL
+	BEGIN
+		INSERT INTO @tmpOUValue(OUValue)
+		SELECT DISTINCT CONVERT(SMALLMONEY, value) AS OUValue
+		FROM STRING_SPLIT(@OUValue, '&')
+		WHERE value <> ''		
+	END
 
 	INSERT INTO #tmpTransInfo( 
 		matchid 
@@ -374,14 +390,19 @@ BEGIN
 					AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 		)f
 		OUTER APPLY (
-				SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
-				FROM STRING_SPLIT(@FavoriteValue, '&')
-				WHERE value <> ''				
+				SELECT t.FavoriteValue
+				FROM @tmpFavoriteValue t
+				WHERE (
+						(t.FavoriteValue <> 0
+							AND((@FilterFavoriteType = 'h' AND b.hdp1 = t.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = t.FavoriteValue))
+						)
+						OR (t.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
+					  )
 		)xHDP
 		OUTER APPLY (
-				SELECT DISTINCT CONVERT(SMALLMONEY, value) AS OUValue
-				FROM STRING_SPLIT(@OUValue, '&')
-				WHERE value <> ''				
+				SELECT t.OUValue
+				FROM @tmpOUValue t
+				WHERE b.hdp1 = t.OUValue
 		)xOU
 	WHERE b.matchid = @MatchId AND b.betfrom <> 'P'  
 		AND b.liveindicator = @LiveIndicator
@@ -390,56 +411,25 @@ BEGIN
 		AND 1 = CASE WHEN @ActionId <>2 AND b.statusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
-		AND 1 = CASE WHEN @SubIssueTypeId IN (6) 
-						AND b.bettype IN (1)
-						AND b.betteam = @betteam
-						AND (
-							(xHDP.FavoriteValue <> 0
-								AND((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
-							)
-							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
-						)
+		AND 1 = CASE WHEN (
+							(@SubIssueTypeId IN (6) AND b.bettype IN (1)) 
+							OR (@SubIssueTypeId IN (119) AND b.bettype IN (7))
+						  ) 
+						AND b.betteam = @betteam 
+						AND xHDP.FavoriteValue IS NOT NULL
 					THEN 0
-					WHEN @SubIssueTypeId IN (119) 
-						AND b.bettype IN (7)
-						AND b.betteam = @betteam
-						AND (
-							(xHDP.FavoriteValue <> 0
-								AND((@FilterFavoriteType = 'h' AND b.hdp1 = xHDP.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.hdp2 = xHDP.FavoriteValue))
-							)
-							OR (xHDP.FavoriteValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)
-						)
-					THEN 0
-					WHEN @SubIssueTypeId IN (120)
-						AND b.bettype IN (3)
+					WHEN (
+							(@SubIssueTypeId IN (120) AND b.bettype IN (3)) 
+							OR (@SubIssueTypeId IN (121) AND b.bettype IN (8))
+						 )
 						AND b.betteam = @FilterOUType
-						AND b.hdp1 = xOU.OUValue
-					THEN 0
-					WHEN @SubIssueTypeId IN (121)
-						AND b.bettype IN (8)
-						AND b.betteam = @FilterOUType
-						AND b.hdp1 = xOU.OUValue
+						AND xOU.OUValue IS NOT NULL
 					THEN 0
 					ELSE 1 END
 	
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
 	BEGIN
-		IF @FavoriteValue IS NOT NULL
-		BEGIN
-			INSERT INTO @tmpFavoriteValue(FavoriteValue)
-			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS FavoriteValue
-			FROM STRING_SPLIT(@FavoriteValue, '&')
-			WHERE value <> ''
-		END
-		IF @OUValue IS NOT NULL
-		BEGIN
-			INSERT INTO @tmpOUValue(OUValue)
-			SELECT DISTINCT CONVERT(SMALLMONEY, value) AS OUValue
-			FROM STRING_SPLIT(@OUValue, '&')
-			WHERE value <> ''		
-		END
-
 		INSERT INTO #TVSTicketBets(
 					transid		
 					,SubTransid		
@@ -516,32 +506,20 @@ BEGIN
 					,b.Subliveindicator
 					,b.actual_stake AS ActualStake
 					,@MatchId
-					,CASE WHEN @SubIssueTypeId IN (6) AND b.Subbettype IN (1)
-							AND b.Subbetteam = @betteam 
-							AND (
-								(xHDP.FavoriteValue <> 0
-									AND((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
-									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
-								)
-								OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
-								)
+					,CASE WHEN (
+								(@SubIssueTypeId IN (6) AND b.Subbettype IN (1)) 
+								OR (@SubIssueTypeId IN (119) AND b.Subbettype IN (7))
+							   ) 
+								AND b.Subbetteam = @betteam 
+								AND xHDP.FavoriteValue IS NOT NULL
 							THEN 'HDP'
-						  WHEN @SubIssueTypeId IN (119) AND b.Subbettype IN (7)
-							AND b.Subbetteam = @betteam 
-							AND (
-								(xHDP.FavoriteValue <> 0
-									AND((@FilterFavoriteType = 'h' AND b.Subhdp1 = xHDP.FavoriteValue) 
-									OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = xHDP.FavoriteValue))
-								)
-								OR (xHDP.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
-								)
-							THEN 'HDP'
-						  WHEN @SubIssueTypeId IN (120) AND b.Subbettype IN (3) 
-							AND b.Subbetteam = @FilterOUType 
-							AND b.Subhdp1 IN (SELECT OUValue FROM @tmpOUValue) THEN 'OU'
-						  WHEN @SubIssueTypeId IN (121) AND b.Subbettype IN (8) 
-							AND b.Subbetteam = @FilterOUType 
-							AND b.Subhdp1 IN (SELECT OUValue FROM @tmpOUValue) THEN 'OU'
+						  WHEN (
+								(@SubIssueTypeId IN (120) AND b.Subbettype IN (3)) 
+								OR (@SubIssueTypeId IN (121) AND b.Subbettype IN (8))
+							   )
+								AND b.Subbetteam = @FilterOUType 
+								AND xOU.OUValue IS NOT NULL 
+							THEN 'OU'
 						  WHEN f.GroupName IS NOT NULL THEN f.GroupName 
 						  ELSE 'Others'
 					 END AS GroupName
@@ -561,9 +539,20 @@ BEGIN
 						AND ((f.GroupMatch = 0 AND @IsLinkGroup1X2 = 1) OR (f.GroupMatch <> 0 AND @IsLinkGroupAIO = 1))
 				)f
 				OUTER APPLY (
-					SELECT FavoriteValue
-					FROM @tmpFavoriteValue				
+						SELECT t.FavoriteValue
+						FROM @tmpFavoriteValue t
+						WHERE (
+								(t.FavoriteValue <> 0
+									AND((@FilterFavoriteType = 'h' AND b.Subhdp1 = t.FavoriteValue) OR (@FilterFavoriteType = 'a' AND b.Subhdp2 = t.FavoriteValue))
+								)
+								OR (t.FavoriteValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)
+							  )
 				)xHDP
+				OUTER APPLY (
+						SELECT t.OUValue
+						FROM @tmpOUValue t
+						WHERE b.Subhdp1 = t.OUValue
+				)xOU
 		WHERE 1 = CASE WHEN @ActionId <>2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
 					   ELSE 0 END

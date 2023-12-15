@@ -18,6 +18,7 @@ AS
 	Revisions: 
 		- 20220727@Max: Create new SP [Redmine:#175412]
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
+		- 20231214@July: Fix Divide by zero [Redmine: #196467]
 
 	Param's explanation:
 */
@@ -35,6 +36,7 @@ BEGIN
 		(
 			SELECT CONVERT(SMALLMONEY, f.value) AS OddsValue
 			FROM STRING_SPLIT(@Odds_str, ',') f
+			WHERE f.value <> ''
 		)
 		,cte_convert AS
 		(

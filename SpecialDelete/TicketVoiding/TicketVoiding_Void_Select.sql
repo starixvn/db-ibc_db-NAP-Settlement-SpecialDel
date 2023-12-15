@@ -53,6 +53,7 @@ AS
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20230830@July: Remove SABA of league name for Jolly View sites [Redmine: #193213]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20231206@July: [TVS] Update message template when Pool House bet types are affected [Redmine: #196467]
 
 	Param's explanation:	
 		
@@ -139,7 +140,8 @@ BEGIN
 		SiteDBGroupID		  SMALLINT,
 		IsCancelCashOut		  BIT DEFAULT(0), --Apply for issuetype: DA,RC,WC
 		CheckTimeCashOut	  DATETIME,
-		statuswinlost		  TINYINT
+		statuswinlost		  TINYINT,
+		GroupPHaffected		  TINYINT --  0: both 1X2 and AIO are NOT affected, 1:  only 1X2 is affected , 2: only AIO is affected
     )
 
 	CREATE TABLE #tblBetType
@@ -512,8 +514,9 @@ BEGIN
 					,IsCancelCashOut
 					,statuswinlost
 					,CheckTimeCashOut
+					,GroupPHaffected
 				)
-			SELECT 
+			SELECT DISTINCT
 					b.transid AS GroupID
 					,b.transid
 					,b.transid AS SubTransID
@@ -570,6 +573,12 @@ BEGIN
 					,b.IsCancelCashOut
 					,b.statuswinlost
 					,b.CheckTimeCashOut
+					,CASE WHEN f.GroupMatch IS NULL THEN 0 
+						  WHEN f.GroupMatch IS NOT NULL THEN 
+															CASE WHEN f.GroupMatch = 0 AND f.BetType IN (5,15) THEN 1
+																 WHEN f.GroupMatch <> 0 THEN 2
+																 ELSE 2 END
+						  ELSE 0 END AS GroupPHaffected
 			FROM #tmpTransInfo b	
 				LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 				CROSS APPLY (
@@ -580,6 +589,7 @@ BEGIN
 											  ELSE 1 END
 					) ts
 				INNER JOIN #tblBetType bt with (NOLOCK) ON bt.id = b.bettype
+				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON b.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 			WHERE	b.matchId = @MatchId
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.bettype NOT IN (805, 806, 9, 29)			
@@ -645,8 +655,9 @@ BEGIN
 						,SiteDBGroupID
 						,IsCancelCashOut
 						,statuswinlost
+						,GroupPHaffected
 					)
-				SELECT 
+				SELECT DISTINCT
 						bm.transid AS GroupID
 						,bm.transid 
 						,bm.SubTransID
@@ -699,6 +710,12 @@ BEGIN
 						,bm.SiteDBGroupID
 						,0 AS IsCancelCashOut
 						,bm.statuswinlost
+						,CASE WHEN f.GroupMatch IS NULL THEN 0 
+							  WHEN f.GroupMatch IS NOT NULL THEN 
+																CASE WHEN f.GroupMatch = 0 AND f.BetType IN (5,15) THEN 1
+																	 WHEN f.GroupMatch <> 0 THEN 2
+																	 ELSE 2 END
+						      ELSE 0 END AS GroupPHaffected
 				  FROM #tmpTransInfo bm
 						INNER JOIN #tblBettype tp
 							ON	bm.Subbettype = tp.Id
@@ -707,6 +724,8 @@ BEGIN
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId 
 							) ts
+				
+						LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON bm.Subbettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 				WHERE	bm.matchid = @MatchId
 						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND bm.IsMixParlay = 1
@@ -844,8 +863,9 @@ BEGIN
 					,IsCancelCashOut
 					,statuswinlost
 					,CheckTimeCashOut
+					,GroupPHaffected
 				)
-			SELECT 
+			SELECT DISTINCT
 					b.transid AS GroupID
 					,b.transid
 					,b.transid AS SubTransID
@@ -891,6 +911,12 @@ BEGIN
 					,b.IsCancelCashOut
 					,b.statuswinlost
 					,b.CheckTimeCashOut
+					,CASE WHEN f.GroupMatch IS NULL THEN 0 
+						  WHEN f.GroupMatch IS NOT NULL THEN 
+															CASE WHEN f.GroupMatch = 0 AND f.BetType IN (5,15) THEN 1
+																 WHEN f.GroupMatch <> 0 THEN 2
+																 ELSE 2 END
+						  ELSE 0 END AS GroupPHaffected
 			FROM	#tmpTransInfo b
 			   LEFT JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON b.transid = m.TransId
 			   CROSS APPLY (
@@ -900,6 +926,7 @@ BEGIN
 							AND 1 = CASE WHEN IsCancelCO = 1 AND b.betdaqid = - 1 THEN 0 --case cancel CO voided -> running - NO show betlist
 										 ELSE 1 END
 					) ts
+				LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON b.bettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 			WHERE b.matchid = @MatchId AND b.IsMixParlay = 0
 					AND b.statusID NOT IN (101, 102, 103) -- reject, void, refund
 					AND b.bettype NOT IN (805, 806, 9, 29)			
@@ -908,6 +935,8 @@ BEGIN
 					AND b.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE b.livehomescore END
 					AND b.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE b.liveawayscore END
 					
+
+
 			---get sub ticket of a mix parlay	
 			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo AS bm  WHERE bm.IsMixParlay = 1 AND bm.matchid = @MatchId)
 			BEGIN		
@@ -955,8 +984,9 @@ BEGIN
 						,SiteDBGroupID
 						,IsCancelCashOut
 						,statuswinlost
+						,GroupPHaffected
 					)
-				SELECT 
+				SELECT DISTINCT
 						bm.transid AS GroupID
 						,bm.transid AS TransId
 						,bm.SubTransID
@@ -1000,18 +1030,27 @@ BEGIN
 						,bm.SiteDBGroupID
 						,0 AS IsCancelCashOut
 						,bm.statuswinlost
+						,CASE WHEN f.GroupMatch IS NULL THEN 0 
+							  WHEN f.GroupMatch IS NOT NULL THEN 
+																CASE WHEN f.GroupMatch = 0 AND f.BetType IN (5,15) THEN 1
+																	 WHEN f.GroupMatch <> 0 THEN 2
+																	 ELSE 2 END
+						      ELSE 0 END AS GroupPHaffected
 				FROM	#tmpTransInfo bm 
 						CROSS APPLY (
 									SELECT TOP (1) transid
 									FROM dbo.TicketVoiding_RequestDetailTicket_SubParlay WITH (NOLOCK)
 									WHERE transid = bm.Subtransid AND matchid = bm.matchid AND RequestId = @RequestId
 							) ts
+						LEFT JOIN dbo.f_TVS_CheckingIssueTypePHBettypes() f ON bm.Subbettype = f.BetType AND f.IssueTypeId = @IssueTypeId
 				WHERE	bm.matchid = @MatchId
 						AND bm.SubstatusID NOT IN (101, 102, 103) -- reject, void, refund
 						AND bm.Subbetfrom <> 'P' AND bm.IsMixParlay = 1
 						AND bm.Sublivehomescore = CASE WHEN @LiveHomeScore IS NOT NULL THEN @LiveHomeScore ELSE bm.Sublivehomescore END
 						AND bm.Subliveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL THEN @LiveAwayScore ELSE bm.Subliveawayscore END
 			END 
+		
+		
 		END
 	END
 	ELSE IF @IssueTypeId = 13 -- Abnormal account
@@ -1743,6 +1782,7 @@ BEGIN
 			   ,s.IsCancelCashOut
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
+			   ,s.GroupPHaffected
 		FROM	#TVSTicketBets s
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1827,6 +1867,7 @@ BEGIN
 			   ,s.IsCancelCashOut
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
+			   ,s.GroupPHaffected
 		FROM	#TVSTicketBets s 
 		WHERE	s.recommend IN (52466, 5707545)
 		UNION
@@ -1900,6 +1941,7 @@ BEGIN
 			   ,s.IsCancelCashOut
 			   ,s.statuswinlost
 			   ,s.CheckTimeCashOut
+			   ,s.GroupPHaffected
 		FROM	#TVSTicketBets s 
 			LEFT JOIN dbo.f_GetBetDaqCustomer(1) f
 				ON s.custid = f.CustID
@@ -1982,6 +2024,7 @@ BEGIN
 		   ,s.IsCancelCashOut 
 		   ,s.statuswinlost
 		   ,s.CheckTimeCashOut
+		   ,s.GroupPHaffected 
 		FROM	#TVSTicketBets s WITH (NOLOCK)
 			LEFT JOIN #TVSTicketBets sub
 				ON s.GroupID = sub.GroupID AND s.GroupID <> sub.transid
@@ -2100,6 +2143,7 @@ BEGIN
 		   ,s.statuswinlost
 		   ,s.CheckTimeCashOut AS CheckTimeCancelCashOut
 		   ,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+		   ,s.GroupPHaffected -- Affect isuetype : HDP,OU,ODDS
 	FROM CTE_SettledTypeFiltering s
 		INNER JOIN custDB.dbo.Customer c WITH (NOLOCK) ON s.recommend = c.custid
 		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON c.site = si.site

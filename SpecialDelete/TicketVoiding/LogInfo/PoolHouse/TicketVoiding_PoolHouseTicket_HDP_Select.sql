@@ -28,6 +28,7 @@ AS
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
 		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
 		- 20231130@Max: HotFix - Affected Pool House Ticket Detail SHOW DUPLICATE [Redmine: #197662]
+		- 20231207@July: [TVS] Fix issue Pool House input more 2 values still show ticket LG [Redmine: #196467]
 		
 	Param's explanation:
 
@@ -364,14 +365,29 @@ BEGIN
 		OUTER APPLY (
 				SELECT t.HomeFavorite
 				FROM @tmpHomeFavorite t
+				WHERE @SubIssueTypeId IN (8,9) 
+					AND ((b.hdp1 = t.HomeFavorite AND t.HomeFavorite <> 0)
+						OR (t.HomeFavorite = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)) --case input hdp value filter = 0
 		)xHDPHome
 		OUTER APPLY (
 				SELECT t.AwayFavorite
 				FROM @tmpAwayFavorite t
+				WHERE @SubIssueTypeId IN (8,9) 
+					AND ((b.hdp2 = t.AwayFavorite AND t.AwayFavorite <> 0)
+						OR (t.AwayFavorite = 0 AND b.hdp2 = 0 AND b.hdp1 = 0)) --case input hdp value filter = 0
 		)xHDPAway
 		OUTER APPLY (
 				SELECT t.HdpValue
 				FROM @tmpHdpValue t
+				WHERE 1 = CASE WHEN @SubIssueTypeId IN (22,24) 
+								AND ((b.hdp2 = t.HdpValue AND t.HdpValue <> 0)
+									OR (t.HdpValue = 0 AND b.hdp2 = 0 AND b.hdp1 = 0)) --case input hdp value filter = 0
+									THEN 1 
+							WHEN @SubIssueTypeId IN (23,25) 
+								AND ((b.hdp1 = t.HdpValue AND t.HdpValue <> 0)
+									OR (t.HdpValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0)) --case input hdp value filter = 0
+									THEN 1 
+							ELSE 0 END
 		)xHDPvalue
 	WHERE b.matchid = @MatchId AND b.betfrom <> 'P'  
 		AND b.liveindicator = @LiveIndicator
@@ -381,30 +397,12 @@ BEGIN
 					 WHEN @ActionId = 2 AND b.statusID NOT IN (101, 103) THEN 1
 					 ELSE 0 END
 		AND 1 = CASE WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-						AND @SubIssueTypeId IN (8,9) 
-						AND ((b.hdp1 = xHDPHome.HomeFavorite AND xHDPHome.HomeFavorite <> 0)
-							OR (xHDPHome.HomeFavorite = 0 AND b.hdp1 = 0 AND b.hdp2 = 0) --case input hdp value filter = 0
-							)
-						THEN 0
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-						AND @SubIssueTypeId IN (8,9) 
-						AND ((b.hdp2 = xHDPAway.AwayFavorite AND xHDPAway.AwayFavorite <> 0)
-							OR (xHDPAway.AwayFavorite = 0 AND b.hdp2 = 0 AND b.hdp1 = 0) --case input hdp value filter = 0
-							)
-						THEN 0
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-						AND @SubIssueTypeId IN (22,24) 
-						AND ((b.hdp2 = xHDPvalue.HdpValue AND xHDPvalue.HdpValue <> 0)
-							OR (xHDPvalue.HdpValue = 0 AND b.hdp2 = 0 AND b.hdp1 = 0) --case input hdp value filter = 0
-							)
-						THEN 0 --Away Virtual Head Reversed
-					 WHEN ((@IssueTypeId = 4 AND b.bettype = 1) OR (@IssueTypeId = 5 AND b.bettype = 7)) 
-						AND @SubIssueTypeId IN (23,25) 
-						AND ((b.hdp1 = xHDPvalue.HdpValue AND xHDPvalue.HdpValue <> 0)
-							OR (xHDPvalue.HdpValue = 0 AND b.hdp1 = 0 AND b.hdp2 = 0) --case input hdp value filter = 0
-							)
-						THEN 0 --Home Virtual Head Reversed
-				ELSE 1 END
+						THEN CASE WHEN xHDPHome.HomeFavorite IS NOT NULL THEN 0
+								  WHEN xHDPAway.AwayFavorite IS NOT NULL THEN 0
+								  WHEN xHDPvalue.HdpValue IS NOT NULL THEN 0
+								  ELSE 1 
+								  END
+				    ELSE 1 END
 	
 	---get sub ticket of a mix parlay	
 	IF EXISTS ( SELECT TOP 1 1 FROM #tmpTransInfo WHERE IsMixParlay = 1)
@@ -484,30 +482,12 @@ BEGIN
 					,b.actual_stake AS ActualStake
 					,@MatchId
 					,CASE WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND @SubIssueTypeId IN (8,9) 
-								AND ((b.Subhdp1 = xHDPHome.HomeFavorite AND xHDPHome.HomeFavorite <> 0)
-									OR (xHDPHome.HomeFavorite = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0) --case input hdp value filter = 0
-									)
-							THEN 'HDP'
-						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND @SubIssueTypeId IN (8,9) 
-								AND ((b.Subhdp2 = xHDPAway.AwayFavorite AND xHDPAway.AwayFavorite <> 0)
-									OR (xHDPAway.AwayFavorite = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0) --case input hdp value filter = 0
-									)
-							THEN 'HDP'
-						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND @SubIssueTypeId IN (22,24) 
-								AND ((b.Subhdp2 = xHDPvalue.HdpValue AND xHDPvalue.HdpValue <> 0)
-									OR (xHDPvalue.HdpValue = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0) --case input hdp value filter = 0
-									)
-							THEN 'HDP' --Away Virtual Head Reversed
-						  WHEN ((@IssueTypeId = 4 AND b.Subbettype = 1) OR (@IssueTypeId = 5 AND b.Subbettype = 7)) 
-								AND @SubIssueTypeId IN (23,25) 
-								AND ((b.Subhdp1 = xHDPvalue.HdpValue AND xHDPvalue.HdpValue <> 0)
-									OR (xHDPvalue.HdpValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0) --case input hdp value filter = 0
-									)
-							THEN 'HDP' --Home Virtual Head Reversed 'HDP'
-						WHEN f.GroupName IS NOT NULL THEN f.GroupName
+							THEN CASE WHEN xHDPHome.HomeFavorite IS NOT NULL THEN 'HDP'
+									  WHEN xHDPAway.AwayFavorite IS NOT NULL THEN 'HDP'
+									  WHEN xHDPvalue.HdpValue IS NOT NULL THEN 'HDP'
+									  ELSE 'Others'	
+									  END
+						  WHEN f.GroupName IS NOT NULL THEN f.GroupName
 						  ELSE 'Others'	 
 					 END AS GroupName
 					,b.SubstatusID
@@ -526,14 +506,29 @@ BEGIN
 				OUTER APPLY (
 						SELECT t.HomeFavorite
 						FROM @tmpHomeFavorite t
+						WHERE @SubIssueTypeId IN (8,9) 
+							AND ((b.Subhdp1 = t.HomeFavorite AND t.HomeFavorite <> 0)
+								OR (t.HomeFavorite = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)) --case input hdp value filter = 0
 				)xHDPHome
 				OUTER APPLY (
 						SELECT t.AwayFavorite
 						FROM @tmpAwayFavorite t
+						WHERE @SubIssueTypeId IN (8,9) 
+							AND ((b.Subhdp2 = t.AwayFavorite AND t.AwayFavorite <> 0)
+								OR (t.AwayFavorite = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0)) --case input hdp value filter = 0
 				)xHDPAway
 				OUTER APPLY (
 						SELECT t.HdpValue
 						FROM @tmpHdpValue t
+						WHERE 1 = CASE WHEN @SubIssueTypeId IN (22,24) 
+										AND ((b.Subhdp2 = t.HdpValue AND t.HdpValue <> 0)
+											OR (t.HdpValue = 0 AND b.Subhdp2 = 0 AND b.Subhdp1 = 0)) --case input hdp value filter = 0
+											THEN 1 
+									WHEN @SubIssueTypeId IN (23,25) 
+										AND ((b.Subhdp1 = t.HdpValue AND t.HdpValue <> 0)
+											OR (t.HdpValue = 0 AND b.Subhdp1 = 0 AND b.Subhdp2 = 0)) --case input hdp value filter = 0
+											THEN 1 
+									ELSE 0 END
 				)xHDPvalue
 		WHERE 1 = CASE WHEN @ActionId <> 2 AND b.SubstatusID NOT IN (101, 102, 103) THEN 1-- reject, void, refund
 					   WHEN @ActionId = 2 AND b.SubstatusID NOT IN (101, 103) THEN 1
