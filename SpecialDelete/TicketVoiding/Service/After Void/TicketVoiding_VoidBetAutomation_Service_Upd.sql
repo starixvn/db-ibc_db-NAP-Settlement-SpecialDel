@@ -49,8 +49,8 @@ BEGIN
 	ELSE IF @UpdateType = 3
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET MessageId = @MessageId
-			,MessageIdSpecial = @MessageIdSpecial
+		SET MessageId = ISNULL(@MessageId, MessageId)
+			,MessageIdSpecial = ISNULL(@MessageIdSpecial, MessageIdSpecial)
 			,ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
@@ -59,7 +59,7 @@ BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET ModifiedDate = GETDATE()
 			,MessageId = ISNULL(@MessageId, MessageId)
-			,@MessageIdSpecial = ISNULL(@MessageIdSpecial, @MessageId)
+			,MessageIdSpecial = ISNULL(@MessageIdSpecial, MessageIdSpecial)
 			,ReasonId = ISNULL(@ReasonId, ReasonId)
 			,IsSentBatchMessage = ISNULL(@IsSentBatchMessage, IsSentBatchMessage)
 			,IsSentMessageToAdminSite = ISNULL(@IsSentMessageToAdminSite, IsSentMessageToAdminSite)
@@ -74,8 +74,8 @@ BEGIN
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET ModifiedDate = GETDATE()
-			,MessageId = @MessageId
-			,MessageIdSpecial= @MessageIdSpecial
+			,MessageId = ISNULL(@MessageId, MessageId)
+			,MessageIdSpecial= ISNULL(@MessageIdSpecial, MessageIdSpecial)
 			,ReasonId = @ReasonId
 			,IsSentBatchMessage = @IsSentBatchMessage
 			,IsSentMessageToAdminSite = @IsSentMessageToAdminSite
@@ -89,7 +89,7 @@ BEGIN
 	ELSE IF @UpdateType = 7
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET VoidResults = @VoidResults
+		SET VoidResults = ISNULL(@VoidResults, VoidResults)
 			,ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
