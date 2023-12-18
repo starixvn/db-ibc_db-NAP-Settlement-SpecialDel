@@ -179,7 +179,7 @@ BEGIN
 	SET @NegativeBalanceCustIds = ''
 	SELECT @NegativeBalanceCustIds = @NegativeBalanceCustIds + 
 								   CASE WHEN @NegativeBalanceCustIds <> '' THEN ',' ELSE '' END + 
-								   c.custid			
+								   CAST(c.custid AS VARCHAR(MAX))			
 	FROM @tmp_username t
 		INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
 			ON	t.username = c.username
