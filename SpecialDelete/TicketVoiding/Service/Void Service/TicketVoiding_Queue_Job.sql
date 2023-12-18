@@ -182,7 +182,7 @@ BEGIN
 								   c.custid			
 	FROM @tmp_username t
 		INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
-			ON	t.username = c.custid
+			ON	t.username = c.username
 
 	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId
 		, q.RequestId, q.MatchId, q.VoidingTypeId, @NegativeBalanceCustIds AS NegativeBalanceUsers

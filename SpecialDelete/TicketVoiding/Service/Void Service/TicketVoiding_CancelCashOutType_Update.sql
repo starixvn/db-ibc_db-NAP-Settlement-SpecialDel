@@ -19,6 +19,7 @@ AS
 	
 	Revisions: 
 		- 20230221@July: Create new SP [Redmine: #176998]
+		- 20231215@Max: [TVS] Include negative balance member by cancel cash out action to email [Redmine: #196706]
 
 	Explanation's Param:
 
@@ -33,6 +34,7 @@ BEGIN
 			,@SB_Error			BIT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
 			,@session			NVARCHAR(50) = CAST (NEWID() AS NVARCHAR(50))
+			,@CustIds			VARCHAR(MAX)
 	
 	DECLARE @avaiableProcess 	BIT
 		  , @Movebetdate		DATETIME
@@ -279,6 +281,22 @@ BEGIN
 	EXEC dbo.NAP_Admin_CheckingProcess
 		@isExistMatch		= 1
 		, @IsReleased		= 1
+
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
+	FROM	(
+		SELECT DISTINCT b.custid
+		FROM @BeforeUpd b
+			INNER JOIN @AfterUpd a
+				ON b.custid = a.custid
+					AND b.balanceType = a.balanceType
+		WHERE	b.balance > a.balance
+	)t
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 
 	-- Write Log
 	SET @EndTime = GETDATE()
