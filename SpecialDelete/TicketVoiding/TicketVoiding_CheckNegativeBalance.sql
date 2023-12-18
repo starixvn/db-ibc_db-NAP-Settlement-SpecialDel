@@ -89,14 +89,16 @@ BEGIN
 		INNER JOIN @CustList d ON bal.CustId = d.CustId
 	GROUP BY bal.CustId
 	
-	SELECT bal.username			
-	FROM @balanceCust bal
-		INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
-			ON	bal.custid = c.custid
-		INNER JOIN custDB.dbo.Customer ag WITH(NOLOCK) 
-			ON	ag.custid = c.recommend AND ag.site <> 'CN88'
-		LEFT JOIN @BalNetPositionTmp tt ON bal.CustId = tt.CustId
-	WHERE (c.credit + bal.balance + ISNULL(tt.Balance, 0)) < 0	
+	SELECT STUFF((SELECT  ',' + bal.username
+				FROM @balanceCust bal
+					INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
+						ON	bal.custid = c.custid
+					INNER JOIN custDB.dbo.Customer ag WITH(NOLOCK) 
+						ON	ag.custid = c.recommend AND ag.site <> 'CN88'
+					LEFT JOIN @BalNetPositionTmp tt ON bal.CustId = tt.CustId
+				WHERE (c.credit + bal.balance + ISNULL(tt.Balance, 0)) < 0	
+				FOR XML PATH ('')
+	),1,1,'') AS NegativeBalanceUsers	
 END
 GO
 
