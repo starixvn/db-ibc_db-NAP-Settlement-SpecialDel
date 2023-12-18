@@ -31,7 +31,6 @@ AS
 	Param's explanation:
 	- @UpdateType:
 			   1: Update status by VoidingHistory
-			   3: Update MessageId by VoidingHistory
 			   5: Update after void step
 			   6: Update all after void steps
 			   7: Update Emails Result By VoidingHistory
@@ -39,18 +38,11 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON
+	
 	IF @UpdateType = 1
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET statusID = @StatusId
-			,ModifiedDate = GETDATE()
-		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
-	END
-	ELSE IF @UpdateType = 3
-	BEGIN
-		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
-		SET MessageId = ISNULL(@MessageId, MessageId)
-			,MessageIdSpecial = ISNULL(@MessageIdSpecial, MessageIdSpecial)
 			,ModifiedDate = GETDATE()
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
@@ -74,8 +66,8 @@ BEGIN
 	BEGIN
 		UPDATE Ticketvoiding_VoidBetAutomation_Service WITH(ROWLOCK, UPDLOCK)
 		SET ModifiedDate = GETDATE()
-			,MessageId = ISNULL(@MessageId, MessageId)
-			,MessageIdSpecial= ISNULL(@MessageIdSpecial, MessageIdSpecial)
+			,MessageId = @MessageId
+			,MessageIdSpecial= @MessageIdSpecial
 			,ReasonId = @ReasonId
 			,IsSentBatchMessage = @IsSentBatchMessage
 			,IsSentMessageToAdminSite = @IsSentMessageToAdminSite
