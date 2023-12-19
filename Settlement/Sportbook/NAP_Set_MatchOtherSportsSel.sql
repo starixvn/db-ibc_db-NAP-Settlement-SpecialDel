@@ -59,6 +59,7 @@ AS
 			- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 			- 20230920@Aries: Remove remote query [Redmine:#194359]
 			- 20231114@Kathy: Enhance performance [Redmine:#196821]
+			- 20231219@Louisa: RedCat88 [Redmine:#198365]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -437,7 +438,7 @@ BEGIN
 				ON	m.matchid = mr.matchid
 		WHERE	m.eventdate BETWEEN @FromDate AND @ToDate	
 				AND 1 = CASE WHEN  m.sporttype = 2 AND ISNULL(l.LeagueGroupID,0) = 122 THEN 0 -- Pingoal basketball
-							 WHEN  m.sporttype = 43 AND ISNULL(l.LeagueGroupID,0) = 151 THEN 0 -- Pingoal ESports
+							 WHEN  m.sporttype = 43 AND ISNULL(l.LeagueGroupID,0) IN (151,215) THEN 0 -- Pingoal ESports, RedCat
 							ELSE 1 
 							END
 				AND ISNULL(m.IsDeleted,0) = 0

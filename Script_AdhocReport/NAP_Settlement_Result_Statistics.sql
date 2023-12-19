@@ -13,6 +13,7 @@ AS
 
     Revisions:
         -20231120@louisa: Init [Redmine:#197548]
+		-20231219@Louisa: Exclude RedCat88 [Redmine:#198365]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -65,7 +66,7 @@ BEGIN
         INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
         INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
     WHERE l.isTest = 0
-		AND 1 = CASE WHEN l.sporttype = 43 AND l.LeagueGroupID = 151 THEN 0
+		AND 1 = CASE WHEN l.sporttype = 43 AND l.LeagueGroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 					 ELSE 1 
                  END
 

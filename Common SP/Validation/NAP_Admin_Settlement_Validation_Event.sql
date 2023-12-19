@@ -29,6 +29,7 @@ AS
 		- 20230214@Louisa: Apply Settlement by Profile for Remaining Sports [Redmine: #182677]
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
+		- 20231219@Louisa: RedCat88 [Redmine:#198365]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -123,7 +124,7 @@ BEGIN
 	SELECT @IsHoldChecking = 1
 
 	SELECT @IsResultSettingChecking =  CASE WHEN  @SportType = 2 AND @LeagueGroupID = 122						THEN 0
-											WHEN  @SportType = 43 AND @LeagueGroupID = 151						THEN 0
+											WHEN  @SportType = 43 AND @LeagueGroupID IN (151, 215)				THEN 0
 											WHEN  @Sporttype = 50 AND @ChildMatchType = 200  					THEN 0
 											WHEN  Setting & 4 > 0 AND @Action = 'REFUND' AND @IsAuto = 1		THEN 0	
 											ELSE  1
