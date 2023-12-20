@@ -14,8 +14,7 @@ AS
 
 BEGIN
 	SET NOCOUNT ON
-	DROP TABLE IF EXISTS #CustId_tmp
-
+	
 	IF Object_id('KL_drill_custlist') IS NULL
 	BEGIN
 		SELECT 'KL_drill_custlist DOES NOT EXISTS'
