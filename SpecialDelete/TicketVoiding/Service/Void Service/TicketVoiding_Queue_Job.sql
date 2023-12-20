@@ -26,7 +26,6 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
-		- 20231215@Max: [TVS] Include negative balance member by cancel cash out action to email [Redmine: #196706]
 
 	Param's explanation:	
 		
@@ -54,7 +53,6 @@ BEGIN
 			,@ErrMsgMove VARCHAR(300)
 			,@MoveBetMatchIds VARCHAR(MAX) = NULL
 			,@MoveBetMatchIdsXML XML = NULL
-			,@NegativeBalanceCustIds VARCHAR(MAX)
 
 
 	DECLARE @tmpMatchMoveBet_update TABLE (
@@ -168,24 +166,9 @@ BEGIN
 			LEFT JOIN @tmpMatchMoveBet_update m ON q.MatchId = m.MatchId
 		WHERE q.QueueId = @QueueId 
 	END
-
-	--Get CustId from list username for web service
-	DECLARE @tmp_username AS TABLE (username NVARCHAR(MAX))
-	INSERT INTO @tmp_username (username)
-	SELECT value 
-	FROM string_split(@NegativeBalanceUsers, ',')
-	WHERE value <> ''
-
-	SET @NegativeBalanceCustIds = ''
-	SELECT @NegativeBalanceCustIds = @NegativeBalanceCustIds + 
-								   CASE WHEN @NegativeBalanceCustIds <> '' THEN ',' ELSE '' END + 
-								   CAST(c.custid AS VARCHAR(MAX))			
-	FROM @tmp_username t
-		INNER JOIN DBCUST.custDB.dbo.custInfo c WITH(NOLOCK ) 
-			ON	t.username = c.username
-
+	
 	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId
-		, q.RequestId, q.MatchId, q.VoidingTypeId, @NegativeBalanceCustIds AS NegativeBalanceUsers
+		, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers
 		, q.ErrMsg, q.UserId, c.username
 	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
