@@ -41,6 +41,8 @@ PRIMARY KEY CLUSTERED
 ) ON DATA
 GO
 
+CREATE INDEX IDX_SettlementResultHistory_CreatedDate ON dbo.SettlementResultHistory(CreatedDate)
+GO
 CREATE INDEX IDX_SettlementResultHistory_StatusID ON dbo.SettlementResultHistory(StatusID)
 GO
 -------------------------------------------------------------------------
@@ -63,9 +65,21 @@ GO
 
 -------------------------------------------------------------------------
 
-ALTER TABLE BalanceNegative ADD SessionId VARCHAR(50);
+IF OBJECT_ID('BalanceNegative') IS NOT NULL
+BEGIN
+	ALTER TABLE BalanceNegative ADD SessionId VARCHAR(50);
+END
 GO
 
-ALTER TABLE BalanceNegativeHistory ADD SessionId VARCHAR(50);
+IF OBJECT_ID('BalanceNegativeHistory') IS NOT NULL
+BEGIN
+	ALTER TABLE BalanceNegativeHistory ADD SessionId VARCHAR(50);
+END
 GO
 
+-------------------------------------------------------------------------
+IF OBJECT_ID('SiteDB_SettlementService_CalculationLog') IS NOT NULL
+BEGIN
+	CREATE INDEX IDX_SiteDB_SettlementService_CalculationLog_MatchId ON dbo.SiteDB_SettlementService_CalculationLog(MatchId)
+END
+GO
