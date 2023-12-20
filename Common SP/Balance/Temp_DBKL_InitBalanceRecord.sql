@@ -6,6 +6,8 @@ AS
 	Task: Init balance record on KL [Redmine: #180592]
 	DB:DBBAH/bodb02
 
+	Revisions: 
+		20231220@Louisa: Init balance record on KL [Redmine: #180592]
 */
 
 ---Sample: EXEC Temp_DBKL_InitBalanceRecord
