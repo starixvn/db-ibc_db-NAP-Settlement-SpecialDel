@@ -256,6 +256,7 @@ BEGIN
 					,winlostdate AS 'wld'
 					,ruben AS 'r' -- ruben	
 					,bef_statusid AS 'bef_sid' 
+					,refno AS 'rf' 
 			FROM	#parlayOutput
 			FOR JSON AUTO
 		)

@@ -72,6 +72,7 @@ BEGIN
 								,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT
 								,FcUpdateTime DATETIME2
 								,bef_winlost MONEY,bef_statusid TINYINT
+								,bettype SMALLINT,betid BIGINT,refno BIGINT
 							)
 	DECLARE @handle			INT
 			,@IsUpd_Void	BIT = 0
@@ -125,7 +126,8 @@ BEGIN
 				,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 				,inserted.Status,inserted.StatusID,inserted.ruben
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
-				,deleted.winlost,deleted.statusid		
+				,deleted.winlost,deleted.statusid	
+				,deleted.bettype,deleted.betid,deleted.refno
 		INTO @tmpTransInfo (transId
 							,custid, Balance
 							,odds, statuswinlost
@@ -133,7 +135,8 @@ BEGIN
 							,PlayerComm,Comm,aComm,sComm
 							,Status,StatusID,ruben
 							,FcUpdateTime
-							,bef_winlost, bef_statusid)
+							,bef_winlost, bef_statusid
+							,bettype,betid,refno)
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
 		
@@ -158,6 +161,10 @@ BEGIN
 
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid'  
+
+						,bettype AS 'bt'
+						,betid AS 'bi' 
+						,refno AS 'rf' 
 					
 				FROM	@tmpTransInfo
 				FOR JSON AUTO

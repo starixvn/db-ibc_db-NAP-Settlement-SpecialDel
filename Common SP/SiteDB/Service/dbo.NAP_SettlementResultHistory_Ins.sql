@@ -15,8 +15,17 @@ AS
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 
 	Param's Explanation:  
-		- @WrongResult: '<root><r Id="96801004" Home="20" Away="" RefBettypeID ="9680" G="1" OtherInfo="16776" Action="CAL" LogDate="2023-11-24 03:25:22.243" /></root>'	 
-		- @ActualResult: '<root><r Id="96801004" Home="20" Away="" RefBettypeID ="9680" G="1" OtherInfo="16776"/></root>'
+		- @ResultType: 1 - Result Amendment, 2 - Others
+		- @WrongResult: '
+					[{
+						"SeqNo":1,
+						"WrongResult": "<root><r Id=\"96801004\" Home=\"20\" Away=\"\" RefBettypeID =\"9680\" G=\"1\" OtherInfo=\"16776\" Action=\"CAL\" LogDate=\"2023-11-24 03:25:22.243\" /></root>",
+						"ActualResult": "<root><r Id=\"96801004\" Home=\"20\" Away=\"\" RefBettypeID =\"9680\" G=\"1\" OtherInfo=\"16776\"/></root>",
+						"ActionType": 1,
+						"ExtraInfo": "<root><r Id=\"96801004\" ReCalc=\"2023-11-24 03:25:22.243\" Calc=\"2023-11-24 03:10:22.243\"/></root>"
+					}]
+					'	 
+
 */
 BEGIN	
 	SET NOCOUNT ON

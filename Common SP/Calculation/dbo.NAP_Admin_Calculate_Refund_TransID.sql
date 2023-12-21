@@ -76,6 +76,7 @@ BEGIN
 								,FcUpdateTime DATETIME2
 								,bef_winlost MONEY,bef_statusid TINYINT, bettype SMALLINT, winlostdate	SMALLDATETIME
 								,actual_stake MONEY
+								,betid BIGINT,refno BIGINT
 								)
 
 	DECLARE @handle INT
@@ -131,7 +132,7 @@ BEGIN
 				,inserted.Status,inserted.StatusID,inserted.ruben, deleted.ruben
 				,CASE WHEN inserted.FcUpdateTime <> deleted.FcUpdateTime THEN inserted.FcUpdateTime ELSE NULL END
 				,deleted.winlost,deleted.statusid	
-				,deleted.bettype
+				,deleted.bettype,deleted.betid,deleted.refno
 				,deleted.winlostdate
 				,deleted.actual_stake
 		INTO @tmpTransInfo (
@@ -144,7 +145,7 @@ BEGIN
 				,Status,StatusID,ruben, before_ruben
 				,FcUpdateTime
 				,bef_winlost, bef_statusid
-				,bettype
+				,bettype,betid,refno
 				,winlostdate
 				,actual_stake
 		)
@@ -172,6 +173,9 @@ BEGIN
 						,FcUpdateTime AS 'rut'
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
+						,bettype AS 'bt'
+						,betid AS 'bi' 
+						,refno AS 'rf'
 					
 				FROM	@tmpTransInfo
 				FOR JSON AUTO )

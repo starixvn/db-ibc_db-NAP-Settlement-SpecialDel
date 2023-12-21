@@ -16,8 +16,8 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
-	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1))
-	CREATE TABLE #tblTransParlay (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON))
+	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT)
+	CREATE TABLE #tblTransParlay (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),bettype SMALLINT,betid BIGINT,refno BIGINT)
 
 	DECLARE  @SessionId			VARCHAR(50)       
 			,@matchid			INT
@@ -28,7 +28,7 @@ BEGIN
 			,@CreatedDate		DATETIME
 			,@DateCheck			DATETIME 		= DATEADD(MINUTE,-30 ,GETDATE())
 			
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1))
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT)
 	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
 
 	/* #1: Get match is caculated */
@@ -112,20 +112,26 @@ BEGIN
 	END
 
 	/* #3: Get changed ticket from calculation log (sync serivce)*/
-	INSERT INTO #tblTrans(TransId,TicketType)
+	INSERT INTO #tblTrans(TransId,TicketType,bettype,betid,refno)
 	SELECT t.t AS TransId
 		  ,l.TicketType
+		  ,t.bt
+		  ,t.bi
+		  ,t.rf
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
 	WHERE l.matchid = @matchid
 		AND l.BroadcastSessionId  = @SessionId
 		AND t.[sid] != t.bef_sid
 		AND t.bef_sid != 0
 	
-	INSERT INTO #tblTransParlay(TransId)
+	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno)
 	SELECT t.t AS TransId
+		  ,t.bt
+		  ,t.bi
+		  ,t.rf
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
 	WHERE l.matchid = 29
 		AND l.BroadcastSessionId  = @SessionId
 		AND t.[sid] != t.bef_sid
@@ -152,8 +158,8 @@ BEGIN
 		DELETE @tmpTransIDBatch
 		
 		DELETE TOP(@batchNo) t
-		OUTPUT deleted.transid,deleted.TicketType
-		INTO @tmpTransIDBatch(TransID,TicketType)
+		OUTPUT deleted.transid,deleted.TicketType,deleted.bettype,deleted.betid,deleted.refno
+		INTO @tmpTransIDBatch(TransID,TicketType,bettype,betid,refno)
 		FROM #tblTrans t 
 
 		SELECT @batchCount 	= @@ROWCOUNT
@@ -164,12 +170,11 @@ BEGIN
 			   ,t.transId
 			   ,r.SeqNo
 		FROM @tmpTransIDBatch AS t
-			INNER JOIN bettrans AS b WITH(NOLOCK) ON b.transId = t.transId
-			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = b.bettype AND  (s.BetID = 0 OR b.BetID = s.BetID)AND s.SportType = @sportType
+			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = t.bettype AND  (s.BetID = 0 OR t.BetID = s.BetID)AND s.SportType = @sportType
 			INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 
 		WHERE t.TicketType = 's'
 			AND NOT EXISTS (SELECT TOP 1 1 
-						    FROM SettlementResultHistory_TicketDetails AS h 
+						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK)  
 						    WHERE h.transId = t.transId
 								AND h.SessionId = @SessionId)
 
@@ -178,22 +183,16 @@ BEGIN
 			   ,tp.transid
 			   ,tbl.SeqNo
 		FROM @tmpTransIDBatch AS t
-			INNER JOIN bettransm AS p WITH(NOLOCK) ON p.transId = t.transId
-			CROSS APPLY(SELECT TOP 1 bt.transid
-			            FROM bettrans AS bt WITH(NOLOCK) 					
-						WHERE bt.refno = p.refno
-							AND bt.matchid  = 29							
-			) AS b
 			CROSS APPLY(SELECT TOP 1 r.SeqNo
 			            FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK) 
 							INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 
-						WHERE s.bettype = p.bettype
+						WHERE s.bettype = t.bettype
 							AND s.SportType = @sportType
 			) AS tbl
-			INNER JOIN #tblTransParlay AS tp ON tp.transid = b.transid
+			INNER JOIN #tblTransParlay AS tp ON tp.refno = t.refno 
 		WHERE t.TicketType = 'p'
 			AND NOT EXISTS (SELECT TOP 1 1 
-						    FROM SettlementResultHistory_TicketDetails AS h 
+						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK) 
 						    WHERE h.transId = tp.transid
 								AND h.SessionId = @SessionId)
 	END

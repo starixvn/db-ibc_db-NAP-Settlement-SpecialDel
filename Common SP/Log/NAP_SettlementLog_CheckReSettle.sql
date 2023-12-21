@@ -23,8 +23,8 @@ BEGIN
 
 	INSERT INTO @tmpAction([Action],ActionID)
 	VALUES('CAL',100),('CAL',148),('CAL',101),('CAL',102),('CAL',189),
-	      ('REFUND',103),('REFUND',149),('REFUND',190),('REFUND',81040),
-		  ('UNDO',109),('UNDO',150),('UNDO',191),('UNDO',110),('UNDO',111)
+	      ('UNDO',103),('UNDO',149),('UNDO',190),('UNDO',81040),
+		  ('REFUND',109),('REFUND',150),('REFUND',191),('REFUND',110),('REFUND',111)
 
 
 

@@ -56,6 +56,7 @@ BEGIN
 		,ExtraInfo VARCHAR(1000)
 		,bef_winlost MONEY
 		,bef_statusid TINYINT
+		,bettype SMALLINT,refno BIGINT
 	)
 
 	CREATE TABLE #Refno (refno BIGINT  PRIMARY KEY, transid BIGINT, IsMarked BIT DEFAULT(0))
@@ -187,7 +188,8 @@ BEGIN
 		,Inserted.Statuswinlost
 		,inserted.ExtraInfo
 		,deleted.winlost
-		,deleted.statusid	
+		,deleted.statusid
+		,deleted.bettype,deleted.refno
 	INTO @tmpTransInfo (transId
 		,SettlementTime
 		,Status, StatusID, WinLostDate, betdaqid, ruben
@@ -198,6 +200,7 @@ BEGIN
 
 		,bef_winlost
 		,bef_statusid
+		,bettype,refno
 	)
 	FROM @tmpSource s
 		INNER JOIN dbo.bettrans b
@@ -225,6 +228,9 @@ BEGIN
 					,ExtraInfo AS 'ex'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
+
+					,bettype AS 'bt' 
+					,refno AS 'rf' 
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)
