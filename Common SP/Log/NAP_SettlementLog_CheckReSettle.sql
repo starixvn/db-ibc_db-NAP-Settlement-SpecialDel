@@ -57,7 +57,6 @@ BEGIN
 							 ELSE 0
 						END 
 			ORDER BY l.LogDate DESC) AS tbl	
-	WHERE tbl.[Action] != 'UNDO'
 		
 END
 GO

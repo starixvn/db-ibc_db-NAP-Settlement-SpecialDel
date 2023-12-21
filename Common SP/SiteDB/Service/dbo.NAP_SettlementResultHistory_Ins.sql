@@ -3,9 +3,8 @@ ALTER PROCEDURE [dbo].[NAP_SettlementResultHistory_Ins]
 	 @MatchId					INT		
 	,@Sporttype				    SMALLINT
 	,@SessionID				    VARCHAR(50)		= NULL
-	,@Action					VARCHAR(20)		= NULL
-	,@ActualResult				VARCHAR(MAX)	= NULL
-	,@WrongResult				VARCHAR(MAX)	= NULL
+	,@ResultType				TINYINT
+	,@ResourceInfo				VARCHAR(MAX)	= NULL
 AS
 /*	
 	Created by: 20231214@Aries
@@ -22,149 +21,13 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
-	DECLARE		@handle				INT
-			   ,@SeqNo				INT = 0
-			   ,@ActionType			TINYINT
-			   ,@ResultType			TINYINT = 1 -- Result Amendment
-			   ,@ExtraInfo			VARCHAR(MAX)
-			   ,@Now				DATETIME = GETDATE()
-
-	CREATE TABLE #ActualResult(ResourceID VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),G VARCHAR(10),X  VARCHAR(10),Y  VARCHAR(10),TeamIDs  VARCHAR(2000), OtherInfo VARCHAR(2000),PRIMARY KEY(ResourceID))
-	CREATE TABLE #WrongResult(ResourceID VARCHAR(20), [Action] VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50),G VARCHAR(10),X  VARCHAR(10),Y  VARCHAR(10),TeamIDs  VARCHAR(2000), OtherInfo VARCHAR(2000),LogDate DATETIME,PRIMARY KEY(ResourceID))
-
-	EXEC sp_xml_preparedocument @handle OUTPUT, @ActualResult
-	INSERT INTO #ActualResult(ResourceID, HomeValue, AwayValue,G,X,Y,TeamIDs,OtherInfo)
-	SELECT Id, ISNULL(Home,''), ISNULL(Away,''),G,X,Y,TeamIDs,OtherInfo
-	FROM OPENXML(@handle,'root/r',1) WITH(Id			VARCHAR(20)
-													 ,Home			VARCHAR(50)
-													 ,Away			VARCHAR(50)
-													 ,G				VARCHAR(10)
-													 ,X				VARCHAR(10)
-													 ,Y				VARCHAR(10)
-													 ,TeamIDs		VARCHAR(2000)
-													 ,OtherInfo		VARCHAR(2000)													 
-												) AS tbl
-	EXEC sp_xml_removedocument @handle
-
-
-	EXEC sp_xml_preparedocument @handle OUTPUT, @WrongResult
-	INSERT INTO #WrongResult(ResourceID,[Action], HomeValue, AwayValue,G,X,Y,TeamIDs,OtherInfo,LogDate)
-	SELECT Id,[Action], ISNULL(Home,''), ISNULL(Away,''),G,X,Y,TeamIDs,OtherInfo,LogDate
-	FROM OPENXML(@handle,'root/r',1) WITH(Id			VARCHAR(20)
-													 ,[Action]		VARCHAR(50)
-													 ,Home			VARCHAR(50)
-													 ,Away			VARCHAR(50)
-													 ,G				VARCHAR(10)
-													 ,X				VARCHAR(10)
-													 ,Y				VARCHAR(10)
-													 ,TeamIDs		VARCHAR(2000)
-													 ,OtherInfo		VARCHAR(2000)
-													 ,LogDate		DATETIME
-												) AS tbl
-	EXEC sp_xml_removedocument @handle
-
-	IF EXISTS (SELECT 1 FROM #WrongResult WHERE [Action] = 'CAL')
-	BEGIN
-		SET @SeqNo = @SeqNo + 1
-		SET @ActionType = CASE WHEN @Action LIKE 'CAL%'		THEN 1
-							   WHEN @Action LIKE 'REFUND%'	THEN 2
-							   ELSE 0
-						  END
-		
-		SET @WrongResult = CAST((SELECT(SELECT   w.ResourceID		AS '@Id'
-												,w.HomeValue		AS '@Home'
-												,w.AwayValue		AS '@Away'
-												,w.G				AS '@G'
-												,w.X				AS '@X'
-												,w.Y				AS '@Y'
-												,w.TeamIDs			AS '@TeamIDs'
-												,w.OtherInfo		AS '@OtherInfo'
-										FROM	#WrongResult AS w
-										WHERE w.[Action] = 'CAL'
-										FOR XML PATH ('r'), TYPE) 
-								  FOR XML PATH ('root')
-								)  AS VARCHAR(MAX))
-
-		SET @ActualResult = CAST((SELECT(SELECT  a.ResourceID		AS '@Id'
-												,a.HomeValue		AS '@Home'
-												,a.AwayValue		AS '@Away'
-												,a.G				AS '@G'
-												,a.X				AS '@X'
-												,a.Y				AS '@Y'
-												,a.TeamIDs			AS '@TeamIDs'
-												,a.OtherInfo		AS '@OtherInfo'
-										 FROM	#ActualResult AS a
-										 WHERE a.ResourceID IN (SELECT w.ResourceID FROM #WrongResult AS w WHERE w.[Action] = 'CAL')
-										 FOR XML PATH ('r'), TYPE)
-									FOR XML PATH ('root')
-								 ) AS VARCHAR(MAX))
-
-		SET @ExtraInfo =  CAST((SELECT(SELECT w.ResourceID	AS '@Id'
-											 ,w.LogDate		AS '@ReCalc'
-											 ,@Now			AS '@Calc'
-									   FROM	#WrongResult AS w
-									   WHERE w.[Action] = 'CAL'								 
-									   FOR XML PATH ('r'), TYPE)
-								FOR XML PATH ('root')
-								) AS VARCHAR(MAX))
-		
-		INSERT INTO SettlementResultHistory(MatchID,Sporttype,SessionID,SeqNo,ActualResult,WrongResult,ActionType,ResultType,CreatedDate,ModifiedDate,StatusID,ExtraInfo)
-		VALUES(@MatchId,@Sporttype,@SessionID,@SeqNo,@ActualResult,@WrongResult,@ActionType,@ResultType,GETDATE(),GETDATE(),0,@ExtraInfo)
-	END
-
-	IF EXISTS (SELECT 1 FROM #WrongResult WHERE [Action] = 'REFUND')
-	BEGIN
-		SET @SeqNo = @SeqNo + 1
-		SET @ActionType = CASE WHEN @Action LIKE 'CAL%'		THEN 3
-							   ELSE 0
-						  END
-		
-		SET @WrongResult = CAST((SELECT(SELECT   w.ResourceID		AS '@Id'
-												,w.HomeValue		AS '@Home'
-												,w.AwayValue		AS '@Away'
-												,w.G				AS '@G'
-												,w.X				AS '@X'
-												,w.Y				AS '@Y'
-												,w.TeamIDs			AS '@TeamIDs'
-												,w.OtherInfo		AS '@OtherInfo'
-										FROM	#WrongResult AS w
-										WHERE w.[Action] = 'REFUND'
-										FOR XML PATH ('r'), TYPE)
-								 FOR XML PATH ('root')
-								) AS VARCHAR(MAX))
-
-
-		SET @ActualResult = CAST((SELECT(SELECT  a.ResourceID		AS '@Id'
-												,a.HomeValue		AS '@Home'
-												,a.AwayValue		AS '@Away'
-												,a.G				AS '@G'
-												,a.X				AS '@X'
-												,a.Y				AS '@Y'
-												,a.TeamIDs			AS '@TeamIDs'
-												,a.OtherInfo		AS '@OtherInfo'
-										 FROM	#ActualResult AS a
-										 WHERE a.ResourceID IN (SELECT w.ResourceID FROM #WrongResult AS w WHERE w.[Action] = 'REFUND')
-										 FOR XML PATH ('r'), TYPE)
-								  FOR XML PATH ('root')
-								 ) AS VARCHAR(MAX))
-
-		SET @ExtraInfo =  CAST((SELECT(SELECT w.ResourceID	AS '@Id'
-											 ,w.LogDate		AS '@ReCalc'
-											 ,@Now			AS '@Calc'
-									   FROM	#WrongResult AS w
-									   WHERE w.[Action] = 'REFUND'								 
-									   FOR XML PATH ('r'), TYPE)
-								FOR XML PATH ('root')
-								) AS VARCHAR(MAX))
-		
-		INSERT INTO SettlementResultHistory(MatchID,Sporttype,SessionID,SeqNo,ActualResult,WrongResult,ActionType,ResultType,CreatedDate,ModifiedDate,StatusID,ExtraInfo)
-		VALUES(@MatchId,@Sporttype,@SessionID,@SeqNo,@ActualResult,@WrongResult,@ActionType,@ResultType,GETDATE(),GETDATE(),0,@ExtraInfo)
-
-	END
-
-
-	
-
-	
+	INSERT INTO SettlementResultHistory(MatchID,Sporttype,SessionID,SeqNo,ActualResult,WrongResult,ActionType,ResultType,CreatedDate,ModifiedDate,StatusID,ExtraInfo)
+	SELECT @MatchId,@Sporttype,@SessionID,rs.SeqNo,rs.ActualResult,rs.WrongResult,rs.ActionType,@ResultType,GETDATE(),GETDATE(),NULL,rs.ExtraInfo
+	FROM OPENJSON(@ResourceInfo) WITH   (SeqNo INT 								
+										,ActualResult NVARCHAR(MAX)
+										,WrongResult NVARCHAR(MAX) 
+										,ActionType INT
+										,ExtraInfo NVARCHAR(MAX) 
+								) AS rs;
 
 END

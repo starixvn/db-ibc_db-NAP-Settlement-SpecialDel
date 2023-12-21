@@ -137,9 +137,10 @@ BEGIN
 				IF @sportType = 50 
 				BEGIN
 					UPDATE SettlementResultHistory 
-					SET StatusID = 1
+					SET StatusID = 0
 					WHERE Matchid = @MatchId
 						AND SessionId = @BroadcastSessionId
+						AND StatusID IS NULL
 				END
 		END TRY
 
@@ -173,6 +174,15 @@ BEGIN
 			,@Action
 			,@sqlCommand
 			,@BroadcastSessionId
+
+		IF @sportType = 50 
+		BEGIN
+			UPDATE SettlementResultHistory 
+			SET StatusID = 1
+			WHERE Matchid = @MatchId
+				AND SessionId = @BroadcastSessionId
+				AND StatusID IS NULL
+		END
 	END
 
 END

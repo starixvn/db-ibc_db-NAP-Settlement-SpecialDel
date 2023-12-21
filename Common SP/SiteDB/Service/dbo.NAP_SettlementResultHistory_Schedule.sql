@@ -38,9 +38,12 @@ BEGIN
 				 @matchid =	h.matchid
 				,@SessionId = h.SessionID
 				,@sportType	= h.sportType
-				,@isPass = IIF((s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL),1,0)
+				,@isPass = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
+								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL THEN 1
+							    ELSE 0
+							END
 		FROM SettlementResultHistory AS h WITH(NOLOCK)
-			CROSS APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
+			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
 						 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
 						 WHERE q.matchid = h.matchid
 							AND q.BroadcastSessionId = h.SessionID
@@ -56,31 +59,12 @@ BEGIN
 						AND b.SessionID = h.SessionID
 						AND b.statusid = 0
 			) AS b
-		WHERE h.StatusID = 0 
-			AND (
-			    (s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL)
-				OR 
-				h.CreatedDate <= @DateCheck
-			)
-		
-		IF @SessionId IS NULL
-		BEGIN
-			SELECT	 TOP 1
-					 @matchid =	matchid
-					,@SessionId = SessionID
-					,@sportType	= sportType
-					,@CreatedDate = CreatedDate
-					,@isPass = IIF(b.StatusID IS NULL,1,0)
-			FROM SettlementResultHistory AS h WITH(NOLOCK)
-				OUTER APPLY (SELECT TOP 1 statusid
-							 FROM [dbo].[BalanceNegative] AS b WITH(NOLOCK)
-							 WHERE b.matchid = h.matchid
-								AND b.SessionID = h.SessionID
-								AND b.statusid = 0
-				) AS b
-			WHERE h.StatusID = 1
-				AND (b.StatusID IS NULL OR h.CreatedDate <= @DateCheck)
-		END
+		WHERE (h.StatusID IN (0,1) OR h.StatusID IS NULL)			
+			AND 1 = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
+						 WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL THEN 1
+						 WHEN h.CreatedDate <= @DateCheck THEN 1
+						 ELSE 0
+					 END
 	END
 	ELSE
 	BEGIN
@@ -88,36 +72,27 @@ BEGIN
 				 @matchid =	h.matchid
 				,@SessionId = h.SessionID
 				,@sportType	= h.sportType
-				,@isPass = IIF(s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1),1,0)
-			FROM SettlementResultHistory AS h WITH(NOLOCK)
-				CROSS APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating  -- match can have multiple row in queue (cal normal or cal sdt) therefore it need to checking all item queue by Min function
-							 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
-							 WHERE q.matchid = h.matchid
-								AND q.BroadcastSessionId = h.SessionID
-				) AS s
-				OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
-							 FROM Parlay_Calculate_Queue AS q WITH(NOLOCK) 
-							 WHERE q.matchid = h.matchid
-								AND q.BroadcastSessionId = h.SessionID
-				) AS p
-			WHERE h.StatusID = 0 
-				AND (
-				    (s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1))
-					OR 
-					h.CreatedDate <= @DateCheck
-				)
-		
-		IF @SessionId IS NULL
-		BEGIN
-			SELECT	 TOP 1
-					 @matchid =	matchid
-					,@SessionId = SessionID
-					,@sportType	= sportType
-					,@CreatedDate = CreatedDate
-					,@isPass = 1
-			FROM SettlementResultHistory AS h WITH(NOLOCK)
-			WHERE h.StatusID = 1
-		END
+				,@isPass = CASE WHEN h.StatusID = 0 THEN 1
+								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) THEN 1
+							    ELSE 0
+							END
+		FROM SettlementResultHistory AS h WITH(NOLOCK)
+			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
+						 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
+						 WHERE q.matchid = h.matchid
+							AND q.BroadcastSessionId = h.SessionID
+			) AS s
+			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
+						 FROM Parlay_Calculate_Queue AS q WITH(NOLOCK) 
+						 WHERE q.matchid = h.matchid
+							AND q.BroadcastSessionId = h.SessionID
+			) AS p
+		WHERE (h.StatusID IN (0,1) OR h.StatusID IS NULL)			
+			AND 1 = CASE WHEN h.StatusID = 0 THEN 1
+						 WHEN h.StatusID = 1 AND  s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) THEN 1
+						 WHEN h.CreatedDate <= @DateCheck THEN 1
+						 ELSE 0
+					END
 	END
 
 	/* #2: Check negative balance and queue processes hasn't completed and Update fail status*/
