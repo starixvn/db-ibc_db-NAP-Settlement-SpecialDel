@@ -370,7 +370,6 @@ BEGIN
 						,extrainfo AS 'ex'
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
-						,@BroadcastSessionId AS 'ssid' 
 				
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
@@ -398,6 +397,7 @@ BEGIN
 				,@TransInfoJson = @TransInfoJson
 				,@SettlementAction = 'CAL'
 				,@TicketType = 's'
+				,@BroadcastSessionId = @BroadcastSessionId
 
 		END
 	END

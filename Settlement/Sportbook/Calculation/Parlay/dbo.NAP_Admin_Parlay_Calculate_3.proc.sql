@@ -256,7 +256,6 @@ BEGIN
 					,winlostdate AS 'wld'
 					,ruben AS 'r' -- ruben	
 					,bef_statusid AS 'bef_sid' 
-					,@BroadcastSessionId AS 'ssid' 
 			FROM	#parlayOutput
 			FOR JSON AUTO
 		)
@@ -270,6 +269,7 @@ BEGIN
 				,@TransInfoJson = @transinfoJson
 				,@SettlementAction = @SettlementAction
 				,@TicketType = 'p'
+				,@BroadcastSessionId = @BroadcastSessionId
 			
 		SET @transinfoJson = (
 			SELECT	transId AS 't'							

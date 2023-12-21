@@ -225,7 +225,6 @@ BEGIN
 					,ExtraInfo AS 'ex'
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
-					,@BroadcastSessionId AS 'ssid' 
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)
@@ -239,6 +238,7 @@ BEGIN
 				,@TransInfoJson = @transinfoJson
 				,@SettlementAction = 'CAL'
 				,@TicketType = 'p'
+				,@BroadcastSessionId = @BroadcastSessionId
 		
 	END
 END

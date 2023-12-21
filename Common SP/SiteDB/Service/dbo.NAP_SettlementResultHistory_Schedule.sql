@@ -31,71 +31,60 @@ BEGIN
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1))
 	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
 
+	/* #1: Get match is caculated */
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL 
 	BEGIN
 		SELECT	 TOP 1
-				 @matchid =	matchid
-				,@SessionId = SessionID
-				,@sportType	= sportType
-				,@CreatedDate = CreatedDate
-				,@isPass = IIF(b.StatusID IS NULL,1,0)
-		FROM SettlementResultHistory AS h WITH(NOLOCK)
-			OUTER APPLY (SELECT TOP 1 statusid
-						 FROM [dbo].[BalanceNegative] AS b WITH(NOLOCK)
-						 WHERE b.matchid = h.matchid
-							AND b.SessionID = h.SessionID
-							AND b.statusid = 0
-			) AS b
-		WHERE h.StatusID = 1
-			AND (b.StatusID IS NULL OR h.CreatedDate <= @DateCheck)
-
-		IF @SessionId IS NULL
-		BEGIN
-			SELECT	 TOP 1
 				 @matchid =	h.matchid
 				,@SessionId = h.SessionID
 				,@sportType	= h.sportType
 				,@isPass = IIF((s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL),1,0)
+		FROM SettlementResultHistory AS h WITH(NOLOCK)
+			CROSS APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
+						 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
+						 WHERE q.matchid = h.matchid
+							AND q.BroadcastSessionId = h.SessionID
+			) AS s
+			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
+						 FROM Parlay_Calculate_Queue AS q WITH(NOLOCK) 
+						 WHERE q.matchid = h.matchid
+							AND q.BroadcastSessionId = h.SessionID
+			) AS p
+			OUTER APPLY (SELECT TOP 1 statusid
+					 FROM [dbo].[BalanceNegative] AS b WITH(NOLOCK)
+					 WHERE b.matchid = h.matchid
+						AND b.SessionID = h.SessionID
+						AND b.statusid = 0
+			) AS b
+		WHERE h.StatusID = 0 
+			AND (
+			    (s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL)
+				OR 
+				h.CreatedDate <= @DateCheck
+			)
+		
+		IF @SessionId IS NULL
+		BEGIN
+			SELECT	 TOP 1
+					 @matchid =	matchid
+					,@SessionId = SessionID
+					,@sportType	= sportType
+					,@CreatedDate = CreatedDate
+					,@isPass = IIF(b.StatusID IS NULL,1,0)
 			FROM SettlementResultHistory AS h WITH(NOLOCK)
-				CROSS APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
-							 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
-							 WHERE q.matchid = h.matchid
-								AND q.BroadcastSessionId = h.SessionID
-				) AS s
-				OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
-							 FROM Parlay_Calculate_Queue AS q WITH(NOLOCK) 
-							 WHERE q.matchid = h.matchid
-								AND q.BroadcastSessionId = h.SessionID
-								AND q.IsCalculating IN (0,1)
-				) AS p
 				OUTER APPLY (SELECT TOP 1 statusid
-						 FROM [dbo].[BalanceNegative] AS b WITH(NOLOCK)
-						 WHERE b.matchid = h.matchid
-							AND b.SessionID = h.SessionID
-							AND b.statusid = 0
+							 FROM [dbo].[BalanceNegative] AS b WITH(NOLOCK)
+							 WHERE b.matchid = h.matchid
+								AND b.SessionID = h.SessionID
+								AND b.statusid = 0
 				) AS b
-			WHERE h.StatusID = 0 
-				AND (
-				    (s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL)
-					OR 
-					h.CreatedDate <= @DateCheck
-				)
+			WHERE h.StatusID = 1
+				AND (b.StatusID IS NULL OR h.CreatedDate <= @DateCheck)
 		END
 	END
 	ELSE
 	BEGIN
 		SELECT	 TOP 1
-				 @matchid =	matchid
-				,@SessionId = SessionID
-				,@sportType	= sportType
-				,@CreatedDate = CreatedDate
-				,@isPass = 1
-		FROM SettlementResultHistory AS h WITH(NOLOCK)
-		WHERE h.StatusID = 1
-
-		IF @SessionId IS NULL
-		BEGIN
-			SELECT	 TOP 1
 				 @matchid =	h.matchid
 				,@SessionId = h.SessionID
 				,@sportType	= h.sportType
@@ -110,7 +99,6 @@ BEGIN
 							 FROM Parlay_Calculate_Queue AS q WITH(NOLOCK) 
 							 WHERE q.matchid = h.matchid
 								AND q.BroadcastSessionId = h.SessionID
-								AND q.IsCalculating IN (0,1)
 				) AS p
 			WHERE h.StatusID = 0 
 				AND (
@@ -118,9 +106,21 @@ BEGIN
 					OR 
 					h.CreatedDate <= @DateCheck
 				)
+		
+		IF @SessionId IS NULL
+		BEGIN
+			SELECT	 TOP 1
+					 @matchid =	matchid
+					,@SessionId = SessionID
+					,@sportType	= sportType
+					,@CreatedDate = CreatedDate
+					,@isPass = 1
+			FROM SettlementResultHistory AS h WITH(NOLOCK)
+			WHERE h.StatusID = 1
 		END
 	END
 
+	/* #2: Check negative balance and queue processes hasn't completed and Update fail status*/
 	IF @CreatedDate <= @DateCheck AND @isPass = 0
 	BEGIN
 		UPDATE SettlementResultHistory
@@ -136,22 +136,23 @@ BEGIN
 		RETURN
 	END
 
+	/* #3: Get changed ticket from calculation log (sync serivce)*/
 	INSERT INTO #tblTrans(TransId,TicketType)
 	SELECT t.t AS TransId
 		  ,l.TicketType
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT,ssid VARCHAR(50)) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT) AS t
 	WHERE l.matchid = @matchid
-		AND t.ssid = @SessionId
+		AND t.BroadcastSessionId  = @SessionId
 		AND t.[sid] != t.bef_sid
 		AND t.bef_sid != 0
 	
 	INSERT INTO #tblTransParlay(TransId)
 	SELECT t.t AS TransId
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT,ssid VARCHAR(50)) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT) AS t
 	WHERE l.matchid = 29
-		AND t.ssid = @SessionId
+		AND t.BroadcastSessionId  = @SessionId
 		AND t.[sid] != t.bef_sid
 		AND t.bef_sid != 0
 		AND t.[sid] != 0
@@ -170,6 +171,7 @@ BEGIN
 	FROM CTE_ResourceID
 		CROSS APPLY ActualResult.nodes('/root/r') x(r) 
 
+	/* #4: Insert ticket*/
 	WHILE 1=1
 	BEGIN
 		DELETE @tmpTransIDBatch
@@ -221,6 +223,7 @@ BEGIN
 								AND h.SessionId = @SessionId)
 	END
 
+	/* #5: Update success status*/
 	UPDATE SettlementResultHistory
 	SET StatusID = 2
 	WHERE matchid =	@matchid

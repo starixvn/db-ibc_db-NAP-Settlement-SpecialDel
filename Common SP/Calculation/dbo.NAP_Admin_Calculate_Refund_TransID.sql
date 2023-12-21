@@ -172,7 +172,6 @@ BEGIN
 						,FcUpdateTime AS 'rut'
 						,bef_winlost AS 'bef_w' 
 						,bef_statusid AS 'bef_sid' 
-						,@BroadcastSessionId AS 'ssid' 
 					
 				FROM	@tmpTransInfo
 				FOR JSON AUTO )
@@ -198,6 +197,7 @@ BEGIN
 				,@MatchId = @MatchId
 				,@transinfoJson = @transinfoJson
 				,@SettlementAction = 'REFUND'
+				,@BroadcastSessionId = @BroadcastSessionId
 				,@TicketType = 's'
 
 		END
