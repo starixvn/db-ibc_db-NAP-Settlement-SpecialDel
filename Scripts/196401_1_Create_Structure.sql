@@ -64,14 +64,22 @@ PRIMARY KEY CLUSTERED
 GO
 
 -------------------------------------------------------------------------
-
 IF OBJECT_ID('BalanceNegative') IS NOT NULL
+	AND NOT EXISTS(	SELECT TOP 1 1 FROM sys.columns c 
+					WHERE c.name = 'SessionId' 
+					AND c.object_id = OBJECT_ID('BalanceNegative')
+					)
 BEGIN
 	ALTER TABLE BalanceNegative ADD SessionId VARCHAR(50);
 END
 GO
+-------------------------------------------------------------------------
 
 IF OBJECT_ID('BalanceNegativeHistory') IS NOT NULL
+	AND NOT EXISTS(	SELECT TOP 1 1 FROM sys.columns c 
+					WHERE c.name = 'SessionId' 
+					AND c.object_id = OBJECT_ID('BalanceNegativeHistory')
+					)
 BEGIN
 	ALTER TABLE BalanceNegativeHistory ADD SessionId VARCHAR(50);
 END
@@ -79,7 +87,22 @@ GO
 
 -------------------------------------------------------------------------
 IF OBJECT_ID('SiteDB_SettlementService_CalculationLog') IS NOT NULL
+	AND NOT EXISTS(	SELECT TOP 1 1 FROM sys.columns c 
+					WHERE c.name = 'BroadcastSessionId' 
+					AND c.object_id = OBJECT_ID('SiteDB_SettlementService_CalculationLog')
+					)
 BEGIN
-	CREATE INDEX IDX_SiteDB_SettlementService_CalculationLog_MatchId ON dbo.SiteDB_SettlementService_CalculationLog(MatchId)
+	ALTER TABLE SiteDB_SettlementService_CalculationLog ADD BroadcastSessionId VARCHAR(50) 
+END
+GO
+-------------------------------------------------------------------------
+
+IF OBJECT_ID('SiteDB_SettlementService_CalculationLog') IS NOT NULL
+	AND NOT EXISTS (	SELECT TOP 1 1 FROM sys.indexes i 
+						WHERE i.name = 'IDX_SiteDB_SettlementService_CalculationLog_BroadcastSessionId'
+						AND i.object_id = OBJECT_ID('SiteDB_SettlementService_CalculationLog')
+					)
+BEGIN
+	CREATE INDEX IDX_SiteDB_SettlementService_CalculationLog_BroadcastSessionId ON dbo.SiteDB_SettlementService_CalculationLog(BroadcastSessionId)
 END
 GO
