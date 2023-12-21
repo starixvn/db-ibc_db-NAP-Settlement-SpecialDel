@@ -45,6 +45,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20231221@July: [TVS] Display player name in English for Chinese message in case there is no data on player name in Chinese [Redmine: #198687]
 
 	Param's explanation:	
 	
@@ -162,6 +163,10 @@ BEGIN
 
 		INSERT INTO @tmp_PlayerName (PlayerName, PlayerNamesChineseTraditional, PlayerNamesChineseSimplified)
 		EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX), @PlayerIds VARCHAR(MAX)', @query, @PlayerIds
+
+		UPDATE @tmp_PlayerName
+		SET PlayerNamesChineseTraditional = CASE WHEN ISNULL(PlayerNamesChineseTraditional,'') = '' THEN PlayerName ELSE PlayerNamesChineseTraditional END
+		   ,PlayerNamesChineseSimplified = CASE WHEN ISNULL(PlayerNamesChineseSimplified,'') = '' THEN PlayerName ELSE PlayerNamesChineseSimplified END
 
 		SET @PlayerName = LTRIM((SELECT STUFF((SELECT ' & ' + PlayerName
 						FROM @tmp_PlayerName
