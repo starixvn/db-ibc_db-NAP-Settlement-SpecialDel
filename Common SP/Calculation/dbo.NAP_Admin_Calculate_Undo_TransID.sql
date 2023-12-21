@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Undo_TransID]
 	@transIds			VARCHAR(MAX)
 	,@MatchId			INT = 0
@@ -177,7 +177,7 @@ BEGIN
 		END
 		ELSE
 		BEGIN
-			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 				@SystemName = 'Settlement' 
 				,@FunctionName = 'UndoOtherSport'
 				,@TableName = 'bettrans'

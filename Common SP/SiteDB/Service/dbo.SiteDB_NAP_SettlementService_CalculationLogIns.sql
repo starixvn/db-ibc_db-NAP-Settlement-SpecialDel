@@ -1,5 +1,5 @@
 /*<info serverAlias="DBSIG-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[SiteDB_NAP_SettlementService_CalculationLogIns] 	
+ALTER PROCEDURE dbo.SiteDB_NAP_SettlementService_CalculationLogIns
 	@SystemName			VARCHAR(50) = NULL
 	,@FunctionName		VARCHAR(50) = NULL
 	,@TableName		VARCHAR(128)
@@ -20,6 +20,7 @@ AS
 	Revisions:
 		- 20221026@Kathy: Enhance settlement performance of siteDB on Central/SubDB [178694]
 		- 20220130@Louisa: Copy code from SiteDB1 to SiteDB3 [Redmineid:#181595]
+		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		
 	Param's Explanation:  
 		   

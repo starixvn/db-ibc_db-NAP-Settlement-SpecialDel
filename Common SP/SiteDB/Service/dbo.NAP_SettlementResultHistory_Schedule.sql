@@ -90,7 +90,7 @@ BEGIN
 				,@sportType	= h.sportType
 				,@isPass = IIF(s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1),1,0)
 			FROM SettlementResultHistory AS h WITH(NOLOCK)
-				CROSS APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
+				CROSS APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating  -- match can have multiple row in queue (cal normal or cal sdt) therefore it need to checking all item queue by Min function
 							 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
 							 WHERE q.matchid = h.matchid
 								AND q.BroadcastSessionId = h.SessionID
@@ -143,7 +143,7 @@ BEGIN
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
 	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT) AS t
 	WHERE l.matchid = @matchid
-		AND t.BroadcastSessionId  = @SessionId
+		AND l.BroadcastSessionId  = @SessionId
 		AND t.[sid] != t.bef_sid
 		AND t.bef_sid != 0
 	
@@ -152,7 +152,7 @@ BEGIN
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
 	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT) AS t
 	WHERE l.matchid = 29
-		AND t.BroadcastSessionId  = @SessionId
+		AND l.BroadcastSessionId  = @SessionId
 		AND t.[sid] != t.bef_sid
 		AND t.bef_sid != 0
 		AND t.[sid] != 0
