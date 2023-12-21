@@ -28,7 +28,7 @@ CREATE TABLE dbo.SettlementResultHistory
 	,Sporttype      SMALLINT		NOT NULL
 	,CreatedDate    DATETIME		NOT NULL
 	,ModifiedDate   DATETIME		NOT NULL
-	,StatusID       TINYINT			NOT NULL
+	,StatusID       TINYINT			
 	,ExtraInfo      VARCHAR(MAX)
 ) ON DATA
 GO
