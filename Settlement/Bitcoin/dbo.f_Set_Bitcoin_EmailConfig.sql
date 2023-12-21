@@ -15,6 +15,7 @@ AS
 		- 20220919@Max: Scale out DBTrans phase 1 [Redemine: #158293]
 		- 20230704@Louisa: Update email from csd.one1@enpine.com to csd.one1@enpine.com [Redmine:#189854]
 		- 20231026@Louisa: Update email domain from starixvn to starixsoft [Redmine:#195197]
+		- 20231221@Kathy: remove email in KL [Redmine:#180592]
 		
 	Columns Explanation:    
     
@@ -93,8 +94,8 @@ RETURN (
 			--,'qa@starixsoft.com'
 			--,'qa@starixsoft.com'
 			, 'it@starixsoft.com;'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
 			, 'DBTRANS'
 			, 'PROD'
 
@@ -104,8 +105,8 @@ RETURN (
 			--,'qa@starixsoft.com'
 			--,'qa@starixsoft.com'
 			, 'it@starixsoft.com;'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
 			, 'DBGRP01N1'
 			, 'PROD'
 
@@ -115,8 +116,8 @@ RETURN (
 			--,'qa@starixsoft.com'
 			--,'qa@starixsoft.com'
 			, 'it@starixsoft.com;'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
-			, 'csd.one1@enpine.com;nsd3rdparty@enpine.com;thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
 			, 'DBGRP01N2'
 			, 'PROD'
 
@@ -168,24 +169,27 @@ RETURN (
 		UNION ALL 
 		SELECT 'ERROR'
 			--,'qa@starixsoft.com'
-			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
-			, 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
 			, 'DBTRANS'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'ERROR'
 			--,'qa@starixsoft.com'
-			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
-			, 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
 			, 'DBGRP01N1'
 			, 'PROD'
 
 		UNION ALL 
 		SELECT 'ERROR'
 			--,'qa@starixsoft.com'
-			, 'thomas.chou@onelab.tw;sobi.chen@onelab.tw;eric.fu@onelab.tw;charles.chung@onelab.tw;it@starixsoft.com;peter.tong@starixsoft.com;lena.huynh@starixsoft.com'
-			, 'qa@starixsoft.com', 'qa@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
+			, 'it@starixsoft.com'
 			, 'DBGRP01N2'
 			, 'PROD'
 			
