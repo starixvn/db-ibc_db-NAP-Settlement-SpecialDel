@@ -12,6 +12,8 @@ AS
 	Revisions:
 		- 20231002@Aries: Created [Redmine:#195768]
 		- 20231205@Aries: Get only provider [Redmine: #195768]
+		- 20231222@Louisa: Allow retry AutoPayout Cricket when score mismatch [Redmine: #198781]
+
 
 	Param's Explanation:
 
@@ -23,7 +25,7 @@ BEGIN
 			,@ExternalResultTable		TINYINT = 0
 			
 	DECLARE @Resource TABLE (ResourceId	VARCHAR(20), PRIMARY KEY (ResourceId))
-	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT)
+	DECLARE @Result TABLE (MatchId INT, SourceId SMALLINT,ResourceId VARCHAR(20), HomeValue VARCHAR(50), AwayValue VARCHAR(50),SettlementStatusID TINYINT, ResultStatusID TINYINT, CreateDate DATETIME)
 
 	SELECT @ResultTable	= r.ResultTable 
 		  ,@ExternalResultTable = r.ExternalResultTable 
@@ -36,24 +38,24 @@ BEGIN
 
 	IF @ResultTable = 1
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetail AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
 			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)		
 	END
 	ELSE IF @ResultTable = 2
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetailOS AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
 			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)		
 	END
 	ELSE IF @ResultTable = 3
 	BEGIN
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID)
-		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,ResultStatusID, SettlementStatusID, CreateDate)
+		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetailES AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
 			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
@@ -70,8 +72,8 @@ BEGIN
 				AND p.SourceID NOT IN (98,99,100)
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId)
-		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate)
+		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId, rd.CreateDate
 		FROM CTE_Provider AS cte	
 			INNER JOIN ProviderExternalResultDetail AS rd WITH(NOLOCK) ON rd.ProviderExternalId = cte.ProviderExternalId
 	END
@@ -86,8 +88,8 @@ BEGIN
 				AND p.SourceID NOT IN (98,99,100)
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId)
-		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId, CreateDate)
+		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId,rd.CreateDate
 		FROM CTE_Provider AS cte	
 			INNER JOIN ProviderExternalResultDetailOS AS rd WITH(NOLOCK) ON rd.ProviderExternalId = cte.ProviderExternalId
 	END
@@ -102,8 +104,8 @@ BEGIN
 				AND p.SourceID NOT IN (98,99,100)
 			GROUP BY p.matchId,p.SourceId,p.ResourceId
 		)
-		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId)
-		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId
+		INSERT INTO @Result (MatchId, ResourceId, HomeValue, AwayValue,SourceId,CreateDate)
+		SELECT rd.matchId,rd.ResourceId,rd.HomeValue,rd.AwayValue,rd.SourceId,rd.CreateDate
 		FROM CTE_Provider AS cte	
 			INNER JOIN ProviderExternalResultDetailES AS rd WITH(NOLOCK) ON rd.ProviderExternalId = cte.ProviderExternalId
 	END
@@ -116,6 +118,7 @@ BEGIN
 		  ,m.AwayValue
 		  ,m.ResultStatusID
 		  ,m.SettlementStatusID
+		  ,m.CreateDate
 	FROM @Result AS m
 		LEFT JOIN ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = m.SourceId
 
