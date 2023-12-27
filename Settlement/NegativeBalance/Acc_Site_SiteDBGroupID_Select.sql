@@ -10,10 +10,11 @@ AS
 	Param's Explanation:
 		- 20220830@Tina: create
 		- 20230228@Louisa: Exclude Licensee of Single WL [Redmine:#184093]
+		- 20231221@July: Automail - Change sender and recipient for emails sent to Jollysport licensees [Redmine:#198198]
 
 */
 BEGIN
-	SELECT S.[Site], S.SiteDBGroupID
+	SELECT S.[Site], S.SiteDBGroupID, CASE WHEN S.SpecialPlatfrom IN (2,3) THEN 1 ELSE 0 END IsSpecial
 	FROM dbo.[Site] S WITH (NOLOCK)
 		OUTER APPLY (
 						SELECT TOP(1) vp.SiteID
