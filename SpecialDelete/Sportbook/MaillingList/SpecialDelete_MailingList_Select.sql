@@ -13,6 +13,7 @@ AS
 		- 20181009@Alan: Exclude Status Soft Launch and Dont add CcList from EmailConfiguration [102917]
 		- 20220221@July: Remove SABA of league name for China View sites [168651]
 		- 20230830@July: Remove SABA of league name for Jolly View sites [193213]
+		- 20231227@July: [TVS] Change email sender of TVS when sending email to Jollysports Licensee [198522]
 
 	Explanation's Param:
 		- @CategoryId:
@@ -61,15 +62,15 @@ BEGIN
 				SELECT ult.Email
 				FROM dbo.UserLicensee ul WITH (NOLOCK)
 					INNER JOIN dbo.UserInfo ui WITH (NOLOCK) ON ul.UserId = ui.UserId
-					INNER JOIN dbo.UserLicenseeType ult WITH (NOLOCK) ON ui.UserId = ult.UserId AND L.LicenseeTypeId = ult.LicenseeTypeId
+					INNER JOIN dbo.UserLicenseeTypes ult WITH (NOLOCK) ON ui.UserId = ult.UserId AND L.TypeId = ult.TypeId
 				WHERE ui.PositionId = 6
 					AND L.LicenseeId = ul.LicenseeId
 
 				UNION
 				SELECT ult.Email
 				FROM dbo.UserInfo ui WITH (NOLOCK)
-					INNER JOIN dbo.UserLicenseeType ult WITH (NOLOCK) ON ui.UserId = ult.UserId
-				WHERE ui.PositionId = 3 AND L.LicenseeTypeId = ult.LicenseeTypeId
+					INNER JOIN dbo.UserLicenseeTypes ult WITH (NOLOCK) ON ui.UserId = ult.UserId
+				WHERE ui.PositionId = 3 AND L.TypeId = ult.TypeId
 			) AS T
 			ORDER BY T.ContactEmail
 			FOR XML PATH ('')) AS CcList (ContactEmail)
