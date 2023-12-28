@@ -6,6 +6,7 @@
 
 	Revision:
 		20211026@Louisa: Modify for Auto Settle Cricket + get configuration from SettlementResultTableSetting
+		20231219@Louisa: Exclude RedCat88 [Redmine:#198365]
 
 */
 
@@ -91,7 +92,7 @@ GO
 			AND m.matchcode not like '%hedge%'  
 			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
-						WHEN m.sporttype = 43 AND lg.GroupID = 151 AND m.eventdate >= '2022-12-19' THEN 0 --exclude PinGoal
+						WHEN m.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
 			AND m.sporttype <= 99
@@ -119,7 +120,7 @@ GO
 			AND m.matchcode not like '%hedge%' 
 			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
 						WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
-						WHEN m.sporttype = 43 AND lg.GroupID = 151 AND m.eventdate >= '2022-12-19' THEN 0 --exclude PinGoal
+						WHEN m.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
 			AND m.sporttype <= 99
@@ -147,7 +148,7 @@ GO
 			AND m.matchcode not like '%hedge%' 
 			AND 1 = CASE WHEN m.sporttype = 1 AND lg.GroupID = 113 THEN 0 --exclude PinGoal
 						 WHEN m.sporttype = 2 AND lg.GroupID = 122 AND m.eventdate >= '2022-02-17' THEN 0 --exclude PinGoal
-						 WHEN m.sporttype = 43 AND lg.GroupID = 151 AND m.eventdate >= '2022-12-19' THEN 0 --exclude PinGoal
+						 WHEN m.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --exclude PinGoal, RedCat
 						ELSE 1 END
 			AND m.eventStatus = 'completed'
 			AND m.sporttype <= 99

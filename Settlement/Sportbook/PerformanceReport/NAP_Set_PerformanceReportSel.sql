@@ -15,6 +15,7 @@ AS
 		- 20230607@Louisa: Get data SiteDBGroupId = 0 [Redmine:#185675]
 		- 20230609@Kathy: list detail SettleAction
 		- 20230628@Kathy: Add IsLive [Redmine:#190396]
+		- 20231219@Louisa: Exclude RedCat88 [Redmine:#198365]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -156,7 +157,7 @@ BEGIN
 		WHERE	s.rn = 1
 				AND m.eventdate >= @FromDate  and m.eventdate <= @ToDate
 				AND 1 = CASE WHEN lg.GroupID = 42 THEN 0 --Virtual
-						 WHEN sp.sporttype = 43 AND lg.GroupID = 151 THEN 0 --pingoal
+						 WHEN sp.sporttype = 43 AND lg.GroupID IN (151,215) THEN 0 --pingoal
 						 WHEN sp.sporttype = 2 AND lg.GroupID = 122 THEN 0 --pingoal
 						 WHEN sp.sporttype = 1 AND lg.GroupID IN ( 74, 108, 113 ) THEN 0  --Virtual Sport Bacarrat,Virtual Futsal, pingoal
 					ELSE 1
@@ -164,8 +165,17 @@ BEGIN
 				AND s.Action <> 'CAL-PARLAY'
 		
 		INSERT INTO #MatchList(matchid)
-		SELECT	s.matchid		FROM	bodb_account.dbo.FactSiteWinloss s (NOLOCK)		WHERE	[RptDate] >= CAST(@FromDate AS DATE) 				AND [RptDate] <= CAST(@ToDate AS DATE)				AND [CurrencyID] NOT IN (20,27,28)				AND s.LiveStatus = 1 -- Live Ticket				AND s.matchid IN (SELECT tmp.MatchID
-									FROM #tmpData tmp )		GROUP BY s.matchid		HAVING SUM(s.betcount) > 0 		OPTION (RECOMPILE)
+		SELECT	s.matchid
+		FROM	bodb_account.dbo.FactSiteWinloss s (NOLOCK)
+		WHERE	[RptDate] >= CAST(@FromDate AS DATE) 
+				AND [RptDate] <= CAST(@ToDate AS DATE)
+				AND [CurrencyID] NOT IN (20,27,28)
+				AND s.LiveStatus = 1 -- Live Ticket
+				AND s.matchid IN (SELECT tmp.MatchID
+									FROM #tmpData tmp )
+		GROUP BY s.matchid
+		HAVING SUM(s.betcount) > 0 
+		OPTION (RECOMPILE)
 
 		UPDATE	m 
 			SET IsLive = 1
