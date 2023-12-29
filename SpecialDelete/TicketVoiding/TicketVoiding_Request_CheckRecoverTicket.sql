@@ -112,12 +112,10 @@ BEGIN
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransInfo)
 	BEGIN
-		-- 1. Validate Table
+		-- Return validation/Transinfo table
 		SET @InvalidTransIds = @TransIds
-		SELECT  @InvalidTransIds AS InvalidTransIds
-		
-		-- 2. Transinfo table
-		SELECT @TransInfoJson_Output AS TransInfoJson
+		SELECT @InvalidTransIds AS InvalidTransIds
+		      ,@TransInfoJson_Output AS TransInfoJson
 
 		RETURN;
 	END
@@ -161,7 +159,7 @@ BEGIN
 	WHERE StatusId NOT IN (102) --VOID
 		OR bt.bettype IS NULL
 		OR t.betfrom = 'p'
-		OR (@FilterBy IS NULL AND bt.bettype = 29  AND t.betteam <> '1')
+		OR (@FilterBy IS NULL AND bt.bettype = 29 AND t.betteam <> '1')
 		
 	-- invalid transId
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
@@ -178,7 +176,7 @@ BEGIN
 					FROM #transIdTemp t
 					WHERE rs.TransId = t.transid
 			)t
-	WHERE r.RequestId <> @RequestId AND r.IssueTypeId NOT IN (22) -- Recover Ticket
+	WHERE r.RequestId <> @RequestId AND r.IssueTypeId IN (22) -- Recover Ticket
 
 	SELECT @ExistingReqTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 										FROM #transIdTemp t 
@@ -201,24 +199,24 @@ BEGIN
 	END	
 
 	/*****************Return table **************************/
-	-- 1. Validate Table
-	SELECT @InvalidTransIds AS InvalidTransIds
-		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
-		  ,@ExistingReqTransIds AS ExistingReqTransIds
-
-	-- 2. Transinfo table
+	-- 1. Return validation/Transinfo table
 	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
+		,t.Subtransid  AS 's_t'
 		,b.custid AS  'c' 
 		,b.bettype AS 'btype'
 		,b.betid AS 'bid'
 		,b.IsMixParlay AS 'isP'
+		,b.IsMove14 AS 'isM'
 		,b.SiteDBGroupID AS 'sitedb'
 	FROM #validTransId t
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+	SELECT @InvalidTransIds AS InvalidTransIds
+		 , @UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
+		 , @ExistingReqTransIds AS ExistingReqTransIds
+		 , CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 
 	DROP TABLE #transIdTemp

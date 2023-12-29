@@ -18,6 +18,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20231229@July: [TVS] Recover Ticket - Combine table result return [Redmine: #196020]
 		
 	Param's Explanation:
 */
@@ -25,10 +26,10 @@ BEGIN
 	SET NOCOUNT ON;
 
 	DECLARE @InvalidTransIds				VARCHAR(MAX) = ''
-		,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
-		,@before_movebetday				DATETIME
-	    ,@MovebetDate					DATETIME
-		,@TransInfoJson_Output			VARBINARY(MAX) = NULL
+		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
+		   ,@before_movebetday				DATETIME
+	       ,@MovebetDate					DATETIME
+		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -157,11 +158,8 @@ BEGIN
 													), 1, 1, ''), '')
 	END	
 
-	-- 1. return table result
-	SELECT @InvalidTransIds AS InvalidTransIds
-		  ,@UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
-
-	-- 2. Transinfo table
+	/*****************Return table **************************/
+	-- 1. Return validation/Transinfo table
 	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
 		,t.transid AS 't'
 		,b.custid AS  'c' 
@@ -173,7 +171,9 @@ BEGIN
 		INNER JOIN #tmpTransInfo b ON t.matchid = b.matchid AND t.transid = b.transid
 	FOR JSON PATH))
 	
-	SELECT CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
+	SELECT @InvalidTransIds AS InvalidTransIds
+		 , @UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
+		 , CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
 
 
 	DROP TABLE #transIdTemp
