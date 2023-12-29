@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[TicketVoiding_TransInfo_RT_Select] 
+CREATE PROCEDURE [dbo].[TicketVoiding_TransInfo_RT_Select] 
 (
 	@RecoverTicketInfo  VARCHAR(MAX) = NULL
 )
@@ -77,7 +77,7 @@ BEGIN
 	SET @RecoverTicketInfoXML = CONVERT(XML, @RecoverTicketInfo)
 	SELECT @TransIds = t.c.value('@TransIds','NVARCHAR(MAX)') 
 		  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
-		  ,@FilterBy = t.c.value('@FilterBy','TINYINT')
+		  ,@FilterBy = CASE WHEN t.c.value('@FilterBy','TINYINT') = 0 THEN NULL ELSE t.c.value('@FilterBy','TINYINT') END
 	FROM @RecoverTicketInfoXML.nodes('root/r') t(c)
 	OPTION (OPTIMIZE FOR (@RecoverTicketInfoXML = NULL))
 
@@ -169,7 +169,7 @@ BEGIN
 			,z.STATUS	
 			,b.modds
 			,b.SiteDBGroupID
-			,b.Username
+			,b.winlostdate
 	FROM dbo.zzzbettrans z WITH (NOLOCK)
 		INNER JOIN dbo.bettrans b WITH (NOLOCK) 
 				ON b.transid = z.transid
@@ -276,7 +276,7 @@ BEGIN
 				,z.STATUS	
 				,b.modds
 				,b.SiteDBGroupID
-				,b.Username
+				,b.winlostdate
 		FROM dbo.zzzbettrans z WITH (NOLOCK)
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) 
 					ON b.transid = z.transid
