@@ -39,6 +39,7 @@ AS
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231017@Kathy: Cast all modds values return from CASE WHEN expression to DECIMAL(38,20) to avoid CONVERT_IMPLICIT with wrong datatype  [Redmine:#191873]
 		- 20231213@Kathy:  Update wrong winlostdate when Re-calculate change score for case LOSE [Redmine:#198190]
+		- 20231229@Kathy: insert duplicate betparlayresult [Redmine:#198835]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -69,13 +70,7 @@ BEGIN
 	-- CHECK SERVER BEFORE CALCULATING
 	DECLARE @ServerName	SYSNAME 
 			,@AllowExec	BIT
-			,@IsSiteDB	BIT = 0
-	
-	------ insert by batch for betparlaydetail
-	DECLARE @StartRow INT = 1
-			, @StopRow INT 
-			, @MaxRow INT = 1 -- Keep the total row of your data
-			, @Threshold INT = 3000 -- the number of each batch
+			,@IsSiteDB	BIT = 0	
 
 	SET @IsReSettledTickets = ISNULL(@IsReSettledTickets, 0)
 
@@ -95,8 +90,12 @@ BEGIN
 	END
 	-- END CHECK
 
-	DECLARE @xml XML
-			,@ExtraValue MONEY
+	DECLARE @xml			XML
+			,@ExtraValue	MONEY
+			,@totalRow		INT = 0
+			,@thresHold		INT = 3000
+			,@batchNo		INT = 0
+			,@isInsertedBetParlayDetail BIT = 0
 			
 	DECLARE @transIDs AS TABLE(transid BIGINT primary key)
 	DECLARE @tmpSetting AS TABLE (SiteId INT, FromOdds DECIMAL(9,4), ToOdds DECIMAL(9,4), Boost TINYINT, isFirstOdds BIT DEFAULT(0), isLastOdds BIT DEFAULT(0))
@@ -139,7 +138,6 @@ BEGIN
 		,sdiscount decimal(9, 8)
 		,comstatus nvarchar(20)
 		,insertedDetail bit default(0) -- row has been inserted into betParlayDetail
-		,insertedResult bit default(0)-- row has been inserted into betParlayResult
 		,eventdate SMALLDATETIME -- max(eventdate) - using for set winlostdate of running ticket
 		,selection_cnt tinyint NOT NULL ---- number of selections (bettransM count)
 		,oddsspread	money
@@ -148,7 +146,7 @@ BEGIN
 		,BetSiteID INT
 	)
 		
-	CREATE TABLE #tmpSource (refno BIGINT, transid BIGINT, winlostdate SMALLDATETIME, statuswinlost TINYINT, statusId TINYINT, matchid INT
+	CREATE TABLE #tmpSource (refno BIGINT, transid BIGINT, winlostdate SMALLDATETIME, mainwinlostdate SMALLDATETIME, statuswinlost TINYINT, statusId TINYINT, matchid INT
 		, bettype SMALLINT, odds SMALLMONEY, betteam NVARCHAR(10)
 		,hdp1 SMALLMONEY, hdp2 SMALLMONEY, livehomescore SMALLINT, liveawayscore SMALLINT
 		,liveindicator BIT, betcheck NVARCHAR(50), selection_cnt TINYINT , bitmapR INT, SetStake MONEY, transdesc NVARCHAR(1000)
@@ -159,11 +157,11 @@ BEGIN
 	CREATE CLUSTERED INDEX CIX_tmpSetStake_refno ON #tmpSetStake (refno)
 
 	CREATE TABLE #BetParlayDetail_pre(
-		ID INT IDENTITY (1,1) PRIMARY KEY,
 		[RefNo] [bigint] NULL,
 		[Serial] [int] NULL,
 		[transid] [bigint] NULL,
 		[winlostdate] [smalldatetime] NULL,
+		[mainwinlostdate] [smalldatetime] NULL,
 		[statuswinlost] [tinyint] NULL,
 		[statusid] [tinyint] NULL,
 		[matchid] [int] NULL,
@@ -179,6 +177,9 @@ BEGIN
 		[betcheck] [nvarchar](50) NULL,
 		[transdesc] [nvarchar](2000) NULL
 	) 
+	CREATE TABLE #tmpBeingGeneratedRefno (refno BIGINT, mainwinlostdate SMALLDATETIME, cntRow INT, runningTotal INT, batchNo INT)
+	DECLARE @tmpbatchRefno TABLE (refno BIGINT, mainwinlostdate SMALLDATETIME)
+	DECLARE @tmpMissingRefnoBetParlayResult TABLE (refno BIGINT, mainwinlostdate SMALLDATETIME)
 
 	BEGIN
 		INSERT INTO #temp_bettrans (
@@ -229,12 +230,13 @@ BEGIN
 		FROM #temp_bettrans t
 		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayDetail r WITH (NOLOCK) WHERE t.refno = r.refno)			
 
-		INSERT INTO #tmpSource(refno, transid, winlostdate, statuswinlost, statusId, matchid
+		-- generate BetParlayDetail
+		INSERT INTO #tmpSource(refno, transid, winlostdate, mainwinlostdate, statuswinlost, statusId, matchid
 			,bettype, odds, betteam, hdp1, hdp2, livehomescore
 			,liveawayscore, liveindicator, betcheck, selection_cnt, bitmapR, SetStake, transdesc
 			,RN
 		)
-		SELECT bm.refno, bm.transid, bm.winlostdate, bm.statuswinlost, bm.statusid, bm.matchid
+		SELECT bm.refno, bm.transid, bm.winlostdate, b.winlostdate AS mainwinlostdate, bm.statuswinlost, bm.statusid, bm.matchid
 			,bm.bettype, bm.odds, bm.betteam, bm.hdp1, bm.hdp2, bm.livehomescore
 			,bm.liveawayscore, bm.liveindicator, bm.betcheck, b.selection_cnt, b.bitmapR, bm.stake as SetStake, bm.transdesc
 			,RN = ROW_NUMBER() OVER (PARTITION BY bm.refno ORDER BY m.mainmatch) --RN			
@@ -260,64 +262,113 @@ BEGIN
 			FROM	#tmpSource
 			WHERE	SetStake > 0
 
-			INSERT INTO #BetParlayDetail_pre (RefNo, Serial, transid, winlostdate, statuswinlost, statusid
+			INSERT INTO #BetParlayDetail_pre (RefNo, Serial, transid, winlostdate, mainwinlostdate, statuswinlost, statusid
 				,matchid, bettype, stake, odds, betteam, hdp1
 				,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc)
-			SELECT p.RefNo, rc.Serial, p.transid, p.winlostdate, p.statuswinlost, p.statusid
+			SELECT p.RefNo, rc.Serial, p.transid, p.winlostdate, p.mainwinlostdate, p.statuswinlost, p.statusid
 				,p.matchid, p.bettype, ps.SetStake, p.odds, p.betteam, p.hdp1
 				,p.hdp2, p.livehomescore, p.liveawayscore, p.liveindicator, p.betcheck, p.transdesc
 			FROM	#tmpSource p
 				INNER JOIN dbo.RefCombinationSet rcs WITH (NOLOCK) ON p.selection_cnt = rcs.N AND (p.bitmapR & rcs.bitmapR) > 0 -- Pick Set by BitmapR (get R)
 				INNER JOIN dbo.RefCombination rc WITH (NOLOCK) ON rcs.N = rc.N AND rcs.R = rc.R AND p.RN = rc.seq -- Pick subticket details (R & seq)
 				INNER JOIN #tmpSetStake ps ON ps.refno = p.refno AND ps.RN = rc.R
-		
-			SET @MaxRow = (SELECT MAX(ID) FROM #BetParlayDetail_pre)
+			
+			CREATE CLUSTERED INDEX CIX_BetParlayDetail_pre_refno ON #BetParlayDetail_pre (refno)
 
-			IF @Threshold >= @MaxRow
-				SET @Threshold = @MaxRow
+			INSERT INTO #tmpBeingGeneratedRefno(Refno, mainwinlostdate, cntRow)
+			SELECT	refno, mainwinlostdate, COUNT(1)
+			FROM	#BetParlayDetail_pre
+			GROUP BY refno,mainwinlostdate
+			ORDER BY refno
 
-			-- SET for first batch
-			SET @StopRow = @Threshold
-			WHILE (@MaxRow IS NOT NULL)
+			UPDATE #tmpBeingGeneratedRefno
+				SET runningTotal = @totalRow
+					,@totalRow = CASE WHEN @totalRow + cntRow >= @thresHold THEN cntRow ELSE @totalRow + cntRow END
+					,batchNo = @batchNo
+					,@batchNo = CASE WHEN @totalRow = cntRow THEN @batchNo + 1 ELSE @batchNo END
+			OPTION (MAXDOP 1)
+
+			SET @batchNo = 1
+
+			WHILE (1=1)
 			BEGIN
+				DELETE @tmpbatchRefno
+
+				INSERT INTO @tmpbatchRefno(refno, mainwinlostdate) 
+				SELECT refno, mainwinlostdate FROM #tmpBeingGeneratedRefno WHERE batchno = @batchNo
+
+				IF @@ROWCOUNT = 0
+					BREAK
+
+				BEGIN TRY
 					INSERT INTO dbo.BetParlayDetail WITH (ROWLOCK)
-					(
-						RefNo, Serial, transid, winlostdate, statuswinlost, statusid
-						,matchid, bettype, stake, odds, betteam, hdp1
-						,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+						(
+							RefNo, Serial, transid, winlostdate, statuswinlost, statusid
+							,matchid, bettype, stake, odds, betteam, hdp1
+							,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+						)
+					SELECT	p.RefNo, Serial, transid, p.winlostdate, statuswinlost, statusid
+							,matchid, bettype, stake, odds, betteam, hdp1
+							,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
+					FROM	@tmpbatchRefno t
+						INNER JOIN #BetParlayDetail_pre p
+							ON	p.RefNo = t.refno
+					
+					SET @isInsertedBetParlayDetail = 1
+
+					INSERT INTO dbo.BetParlayResult (
+						RefNo, Serial, transid, winlostdate, statusid, Stake
+						,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
+						,playercomm, comm, acomm, scomm
 					)
-					SELECT RefNo, Serial, transid, winlostdate, statuswinlost, statusid
-						,matchid, bettype, stake, odds, betteam, hdp1
-						,hdp2, livehomescore, liveawayscore, liveindicator, betcheck, transdesc
-					FROM #BetParlayDetail_pre
-					WHERE ID BETWEEN @StartRow AND @StopRow
+					SELECT	DISTINCT b.RefNo, r.Serial, 0, b.mainwinlostdate, 0, r.stake
+							,0, 0, 0, 0, 0, 0
+							,0, 0, 0, 0
+					FROM	@tmpbatchRefno b
+						INNER JOIN #BetParlayDetail_pre r
+							ON	b.refno = r.refno
+				END TRY
+				BEGIN CATCH
+					IF @isInsertedBetParlayDetail = 1
+					BEGIN
+						DELETE	p  WITH(ROWLOCK, UPDLOCK)
+						FROM	dbo.BetParlayDetail p
+							INNER JOIN @tmpbatchRefno t
+								ON t.refno = p.refno
+					END
 
-					IF @StopRow = @MaxRow BREAK
+					;THROW -- raise error and return
+				END CATCH
 
-					SET @StartRow = @StopRow + 1
-					SET @StopRow = @StopRow + @Threshold
-
-					IF @StopRow >= @MaxRow
-						SET @StopRow = @MaxRow
+				SET @batchNo = @batchNo + 1
 			END
 		END
 
-		UPDATE t
-			SET insertedResult = 1
-		FROM #temp_bettrans t
-		WHERE EXISTS (SELECT TOP 1 1 FROM dbo.BetParlayResult r WITH (NOLOCK) WHERE t.refno = r.refno)		
+		-- insert betparlayresult
+		BEGIN						
+			INSERT INTO @tmpMissingRefnoBetParlayResult(refno, mainwinlostdate)
+			SELECT t.refno, t.winlostdate
+			FROM #temp_bettrans t 
+				LEFT JOIN dbo.BetParlayResult r WITH(NOLOCK)
+					ON 	t.refno = r.refno
+			WHERE r.refno IS NULL
+			GROUP BY t.refno, t.winlostdate
 
-		INSERT INTO dbo.BetParlayResult (
-			RefNo, Serial, transid, winlostdate, statusid, Stake
-			,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
-			,playercomm, comm, acomm, scomm
-		)
-		SELECT DISTINCT b.RefNo, r.Serial, 0, b.winlostdate, 0, r.stake
-			,0, 0, 0, 0, 0, 0
-			,0, 0, 0, 0
-		FROM #temp_bettrans b
-			INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
-		WHERE b.insertedResult = 0 -- only insert the row not yet insert to that table
+			IF @@ROWCOUNT > 0
+			BEGIN
+				INSERT INTO dbo.BetParlayResult (
+					RefNo, Serial, transid, winlostdate, statusid, Stake
+					,Odds, mOdds, winlost, awinlost, mwinlost, swinlost
+					,playercomm, comm, acomm, scomm
+				)
+				SELECT DISTINCT b.RefNo, r.Serial, 0, b.mainwinlostdate, 0, r.stake
+					,0, 0, 0, 0, 0, 0
+					,0, 0, 0, 0
+				FROM @tmpMissingRefnoBetParlayResult b
+					INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) 
+						ON 	b.refno = r.refno
+			END				
+		END
 		
 	END
 	-----------------------
