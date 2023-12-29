@@ -30,6 +30,7 @@ AS
 		- 20230328@Aries: Support Auto Payout for Main Tennis Matches [Redmine: #182329]
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20231219@Louisa: RedCat88 [Redmine:#198365]
+		- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 
 	Param's Explanation:
 		@Action: CAL, CAL-HT, CAL-FT
@@ -317,6 +318,9 @@ BEGIN
 							)	
 				SELECT	@ErrCode = 1001005
                       ,	 @ErrMsg   = 'Instant Settlement cannot be executed because the Home/Away score which is used for Instant Settlement is greater than the current Home/Away score.'
+			ELSE IF(@Action = 'CAL-INST-HT' AND @isCalculatedHT = 1)
+				SELECT	@ErrCode = 1001003
+						,@ErrMsg   = 'Failed Auto Instant: HT has been settled.'	 
 
 			IF @ErrCode > 0
 				RETURN

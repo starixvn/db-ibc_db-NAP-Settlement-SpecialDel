@@ -61,6 +61,7 @@ AS
 			- 20231114@Kathy: Enhance performance [Redmine:#196821]
 			- 20231219@Louisa: RedCat88 [Redmine:#198365]
 			- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
+			- 20231229@Aries: Enhancement of Auto Settlement [Redmine:#199004]
 
 	Parameters Explanation:        
 		@LeagueIDs  : '0' :none
@@ -107,7 +108,7 @@ BEGIN
 			,@IsCentral			BIT
 
 	DECLARE @tmpLeagueIds   TABLE (LeagueId INT)
-	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, HasAutoPayout BIT,AP_RetryTime  INT)
+	DECLARE @tmpSporttypes  TABLE (Sporttype SMALLINT, ResultTable TINYINT, AP_RetryTime  INT)
 	DECLARE @tmpMatchStatus TABLE ( MatchStatus TINYINT )
 	DECLARE @tmpOverStatus  TABLE ( OverStatus TINYINT)
 	DECLARE @tmpHoldStatus  TABLE (HoldStatus TINYINT)
@@ -174,13 +175,11 @@ BEGIN
 		,IsExistRunningBettypeSingle	BIT DEFAULT (0) -- exclude early bettype
 		,IsExistRunningTicketAfterCompleted	BIT DEFAULT (0) -- after match completed
 
-		,AutoPayoutStatus				TINYINT
 		,IsExistsConfirmedEarly			BIT DEFAULT (0)
 		,IsPending						BIT DEFAULT (0)
 		,BestOfMap						TINYINT
 		,OfferLive						BIT
 		,ResultTable					TINYINT
-		,HasAutoPayout					BIT
 		,AP_RetryTime					INT
 	)
 
@@ -224,8 +223,8 @@ BEGIN
 		SET @OverStatus = '0'
 	END
 
-	INSERT INTO @tmpSporttypes( Sporttype, ResultTable, HasAutoPayout,AP_RetryTime )
-	SELECT	DISTINCT f.[value], s.ResultTable, IIF((ISNULL(Setting,0) & 2) > 0, 1,0),s.AP_Main_WaitingTime
+	INSERT INTO @tmpSporttypes( Sporttype, ResultTable,AP_RetryTime )
+	SELECT	DISTINCT f.[value], s.ResultTable, s.AP_Main_WaitingTime
 	FROM	STRING_SPLIT(@Sporttypes, ',') f
 		INNER JOIN dbo.SettlementResultTableSetting s WITH(NOLOCK) 
 			ON f.[value] = s.sporttype
@@ -286,7 +285,6 @@ BEGIN
 			,BestOfMap
 			,OfferLive
 			,ResultTable
-			,HasAutoPayout
 			,AP_RetryTime
 		)
 		SELECT	m.matchid
@@ -324,7 +322,6 @@ BEGIN
 				,mr.BestOfMap
 				,mr.OfferLive
 				,s.ResultTable
-				,s.HasAutoPayout
 				,s.AP_RetryTime
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN dbo.League l WITH(NOLOCK)
@@ -342,18 +339,6 @@ BEGIN
 						ELSE 1 
 						END
 				AND ISNULL(m.IsDeleted,0) = 0
-
-		UPDATE m
-		SET AutoPayoutStatus = ISNULL(m.AutoPayoutStatus, os.StatusId)
-		FROM #tmpMatchIds m
-			CROSS APPLY (
-						SELECT TOP 1 r.matchid, r.StatusId
-						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
-						WHERE r.matchid = m.matchid
-							AND ISNULL(r.SourceID,0) = 0
-						ORDER BY r.StatusId DESC
-					) os
-		WHERE m.HasAutoPayout = 1
 
 	END
 	ELSE
@@ -389,7 +374,6 @@ BEGIN
 			,BestOfMap
 			,OfferLive
 			,ResultTable
-			,HasAutoPayout
 			,AP_RetryTime
 		)
 		SELECT	m.matchid
@@ -429,7 +413,6 @@ BEGIN
 				,mr.BestOfMap
 				,mr.OfferLive
 				,s.ResultTable
-				,s.HasAutoPayout
 				,s.AP_RetryTime
 		FROM	dbo.match m WITH(NOLOCK)
 			INNER JOIN @tmpSporttypes s
@@ -491,18 +474,6 @@ BEGIN
 				   		WHEN @minValue > 0 AND m.AutoSetting & @AutoValue = 0 THEN 1
 				   		ELSE 0
 				   	END
-
-		UPDATE m
-		SET AutoPayoutStatus = ISNULL(m.AutoPayoutStatus, os.StatusId)
-		FROM #tmpMatchIds m
-			CROSS APPLY (
-						SELECT TOP 1 r.matchid, r.StatusId
-						FROM DBPRO.bodb02.dbo.AutoPayoutResultOS r WITH (NOLOCK)
-						WHERE r.matchid = m.matchid
-							AND ISNULL(r.SourceID,0) = 0
-						ORDER BY r.StatusId DESC
-					) os
-		WHERE m.HasAutoPayout = 1
 
 	END	
 
@@ -1004,7 +975,6 @@ BEGIN
 			,m.IsRunningEarlyBettypes
 			,m.IsExistMarkedTicket
 			,m.IsExistsConfirmedEarly
-			,m.AutoPayoutStatus
 			,m.BestOfMap
 			,m.OfferLive
 			,ISNULL(s.WaitingTime, 300) AS AutoWaitingTime
