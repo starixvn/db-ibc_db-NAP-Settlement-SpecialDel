@@ -55,7 +55,7 @@ BEGIN
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON c.custid = bn.CustID
 		INNER JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
-			ON c.recommend = cs.custid
+			ON c.srecommend = cs.custid
 		OUTER APPLY (
 							SELECT TOP(1) vp.SiteID
 							FROM DBCUST.SiteConfig.dbo.LicVendorProfile vp WITH(NOLOCK)
