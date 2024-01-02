@@ -74,7 +74,7 @@ AS
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
-		- 20231227@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:	
 		+ @Operator: Type: 1 - Trader

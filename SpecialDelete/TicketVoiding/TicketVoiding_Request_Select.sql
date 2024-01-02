@@ -47,6 +47,7 @@ AS
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		- 20231221@July: [TVS] Display player name in English for Chinese message in case there is no data on player name in Chinese [Redmine: #198687]
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:	
 	
@@ -93,6 +94,7 @@ BEGIN
 				  WHEN r.ActionId = 8 THEN 'VoidInstantNopolicy'
 				  WHEN r.ActionId = 9 THEN 'VoidResultKeyed'
 				  WHEN r.ActionId = 10 THEN 'VoidInstantPolicy'
+				  WHEN r.ActionId = 11 THEN 'RecoverInstant'
 				ELSE '' END AS ActionName
 	FROM	dbo.TicketVoiding_Request r WITH(NOLOCK)
 		LEFT JOIN CustDB.dbo.Customer cr WITH (NOLOCK) ON cr.custid = r.UserId
@@ -205,6 +207,7 @@ BEGIN
 				,m.IsNeutral
 				,m.matchcode
 				,@OrgTransIds AS OrgTransIds
+				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral
@@ -217,7 +220,7 @@ BEGIN
 			) m
 			OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,15,17,20)
+					WHERE s.RequestId = rd.RequestId AND @IssueTypeId IN (11,15,17,20,22)
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		WHERE	rd.RequestId = @RequestId

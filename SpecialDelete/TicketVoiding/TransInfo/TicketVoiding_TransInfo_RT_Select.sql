@@ -5,12 +5,12 @@ CREATE PROCEDURE [dbo].[TicketVoiding_TransInfo_RT_Select]
 )
 AS
 /*	
-	Created by: 20231227@July
+	Created by: 20240102@July
 	Task: [TVS] Recover Ticket issue type [Redmine: #196020]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20231227@July: Create new SP [Redmine:#196020]
+		- 20240102@July: Create new SP [Redmine:#196020]
 		
 	Param's explanation:	
 		
