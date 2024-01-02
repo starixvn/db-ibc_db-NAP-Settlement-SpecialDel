@@ -15,12 +15,13 @@ BEGIN
 
 	INSERT INTO LogAction
 	(
-			[ActionID]		
+		[ActionID]		
 		,[SPName]		
 		,[ActionNameEN]
 		,[ActionNameCH]
+		,[ActionNameCS]
 	)
-	VALUES ( 155, 'NAP_Set_ExternalResultDetailESIns', N'VS Calculate All'	  , N'全部计算' )
-			, ( 156, 'NAP_Set_ExternalResultDetailESIns', N'VS Refund All'		 , N'全部退款' )
+	VALUES ( 155, 'NAP_Admin_Settlement_VS_180', N'VS Calculate All'	 , N'全部计算' , N'全部计算')
+			, ( 156, 'NAP_Admin_Settlement_VS_180', N'VS Refund All'	 , N'全部退款' , N'全部退款')
 
 END
