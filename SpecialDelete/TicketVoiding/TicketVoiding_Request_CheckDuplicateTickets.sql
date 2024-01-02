@@ -18,6 +18,7 @@ AS
 		- 20230717@Max: Create new SP [Redmine:#187835]
 		- 20230907@Max: [TVS] Support void duplicated tickets that have the same transdate [Redmine: #193671]
 		- 20231031@Max: [TVS] - Hot fix - Duplicate ticket missing void parlay virtual sport [Redmine: #196241]
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 
 	Param's explanation:
 */
@@ -339,15 +340,15 @@ BEGIN
 	
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT DISTINCT tmp.transid
-	FROM dbo.TicketVoiding_Request req WITH (NOLOCK)
+	FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
 		CROSS APPLY (
 					SELECT TransId
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 						INNER JOIN @tmpMatchId m ON s.MatchId = m.MatchId
-					WHERE RequestId = req.RequestId 
+					WHERE RequestId = r.RequestId 
 				) AS tmp
-	WHERE  req.RequestId <> @RequestId AND req.ActionId <> 2
-
+	WHERE  r.RequestId <> @RequestId
+		AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 
 	-- invalid transId
 	;WITH t_invalid

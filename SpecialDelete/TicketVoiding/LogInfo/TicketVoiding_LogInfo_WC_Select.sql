@@ -29,6 +29,7 @@ AS
 		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
 		- 20231107@July: HF - Wrong Score - Add request missed Non-live tickets Cash out at time the wrong score [Redmine: #196545]
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 		
 	Param's explanation:
@@ -698,7 +699,8 @@ BEGIN
 						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+		WHERE r.RequestId <> @RequestId 
+			AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 
 		IF @@ROWCOUNT <> 0
 		BEGIN

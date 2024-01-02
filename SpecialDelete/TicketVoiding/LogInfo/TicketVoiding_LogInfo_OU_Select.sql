@@ -25,6 +25,7 @@ AS
 		- 20230419@Max: [TVS] New issue type Wrong Odds [Redmine: #179934]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
 		- 20231023@Max: Extend datatype [Redmine: #192202]
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		
 	Param's explanation:
 		+ @WrongOUInfo, @Wrong1stOUInfo:
@@ -456,7 +457,8 @@ BEGIN
 						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+		WHERE r.RequestId <> @RequestId 
+			AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 			
 		IF @@ROWCOUNT <> 0
 		BEGIN

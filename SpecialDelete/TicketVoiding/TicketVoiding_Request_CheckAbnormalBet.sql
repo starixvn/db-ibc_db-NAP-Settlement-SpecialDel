@@ -58,7 +58,8 @@ AS
 		- 20230322@Max: [TVS] Exclude Field Hockey when checking live tickets [Redmine: #185235]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20231115@July: [TVS] Abnormal Bet - Export the list of tickets that the user inputs to a request before Save it [Redmine: #194133]
-		
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
+
 	Param's Explanation:
 		+ @TransIds: Search by TransID
 */
@@ -499,13 +500,14 @@ BEGIN
 	
 	INSERT INTO #TransidInRequest (TransId)
 	SELECT DISTINCT tmp.transid
-	FROM dbo.TicketVoiding_Request req WITH (NOLOCK)
+	FROM dbo.TicketVoiding_Request r WITH (NOLOCK)
 		CROSS APPLY (
 					SELECT TransId
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH (NOLOCK)
-					WHERE RequestId = req.RequestId AND (MatchId = @MatchId OR MatchId = 29)
+					WHERE RequestId = r.RequestId AND (MatchId = @MatchId OR MatchId = 29)
 				) AS tmp
-	WHERE  req.RequestId <> @RequestId AND req.ActionId <> 2
+	WHERE  r.RequestId <> @RequestId 
+		AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 
 	-- get invalid or moved transId
 	INSERT INTO #invalidTransId (transid, isMoved)

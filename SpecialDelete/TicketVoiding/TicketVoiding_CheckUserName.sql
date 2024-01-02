@@ -39,6 +39,7 @@ AS
 		- 20231003@July: [TVS] Abnormal Account - Increase the number of input Usernames to void [Redmine: #194095]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20231208@Max: [TVS] Abnormal Account - Add confirmation popup before saving request for auto void actions [Redmine: #198164]
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 
 	Param's Explanation:
 */
@@ -423,7 +424,8 @@ BEGIN
 						WHERE t.MatchId = rs.MatchId 
 							AND rs.TransId = t.transid
 				)t
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+		WHERE r.RequestId <> @RequestId 
+		AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 		AND 1 = CASE WHEN r.IssueTypeId IN (11,15) AND t.StatusId NOT IN (111,112,113) THEN 1
 					 WHEN r.IssueTypeId NOT IN (11,15) THEN 1
 					 ELSE 0 END

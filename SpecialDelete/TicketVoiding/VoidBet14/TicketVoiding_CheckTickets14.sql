@@ -18,7 +18,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		- 20231229@July: [TVS] Recover Ticket - Combine table result return [Redmine: #196020]
+		- 20240102@July: [TVS] Recover Ticket - Combine table result return [Redmine: #196020]
 		
 	Param's Explanation:
 */

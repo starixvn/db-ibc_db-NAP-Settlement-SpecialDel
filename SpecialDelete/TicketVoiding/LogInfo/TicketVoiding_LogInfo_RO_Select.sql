@@ -16,6 +16,7 @@ AS
       
     Revisions:      
         - 20230608@Max: Create SP - [Redmine: #185833]
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 
 	Param's explanation:	
 		- @ReducedOverInfo: 
@@ -390,7 +391,8 @@ BEGIN
 						WHERE rp.TransId = t.SubTransid AND rp.MatchId = @MatchId
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+		WHERE r.RequestId <> @RequestId 
+			AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 
 		IF @@ROWCOUNT <> 0
 		BEGIN

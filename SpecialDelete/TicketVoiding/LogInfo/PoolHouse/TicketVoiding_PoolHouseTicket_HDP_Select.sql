@@ -29,7 +29,8 @@ AS
 		- 20231005@July: [TVS] Update affected Pool House's bet types when bet types FT/HT 1X2 affected by offering wrong market [Redmine: #192202]
 		- 20231130@Max: HotFix - Affected Pool House Ticket Detail SHOW DUPLICATE [Redmine: #197662]
 		- 20231207@July: [TVS] Fix issue Pool House input more 2 values still show ticket LG [Redmine: #196467]
-		
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
+
 	Param's explanation:
 
 
@@ -554,7 +555,8 @@ BEGIN
 						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2) AND t.matchid = @MatchId
+		WHERE r.RequestId <> @RequestId AND t.matchid = @MatchId
+			AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 
 		DELETE FROM #TVSTicketBets 
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 

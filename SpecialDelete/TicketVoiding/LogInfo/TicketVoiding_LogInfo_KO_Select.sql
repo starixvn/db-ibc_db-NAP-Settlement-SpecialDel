@@ -20,6 +20,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20231013@July: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 
 	Param's explanation:
 	+ @KickOffInfo: 
@@ -332,7 +333,8 @@ BEGIN
 						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+		WHERE r.RequestId <> @RequestId 
+			AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 
 		IF @@ROWCOUNT <> 0
 		BEGIN

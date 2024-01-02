@@ -19,6 +19,7 @@ AS
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
 		- 20231023@Max: Extend datatype [Redmine: #192202]
 		- 20240123@Max: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #200123]
+		- 20240124@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
 		
 	Param's explanation:
 		+ @WrongOddsInfo:
@@ -694,7 +695,8 @@ BEGIN
 						WHERE rp.TransId = t.SubTransid AND rp.MatchId = t.matchid
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
-		WHERE r.RequestId <> @RequestId AND r.ActionId NOT IN (2)
+		WHERE r.RequestId <> @RequestId 
+			AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
 			
 		IF @@ROWCOUNT <> 0
 		BEGIN
