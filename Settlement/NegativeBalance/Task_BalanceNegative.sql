@@ -30,7 +30,6 @@ BEGIN
 		, @balanceupdate SMALLDATETIME
 
 	DECLARE @tmpMatch TABLE (MatchId INT PRIMARY KEY, MinExecId BIGINT, MaxExecId BIGINT)
-	DECLARE @tmpAffectedCustId	TABLE (CustId INT, Recommend INT)
 	DECLARE @tmpCustIdSendMail	TABLE (CustId INT, Site VARCHAR(50))
 	
 	CREATE TABLE #tmpMemberBalance (CustId INT, Balance MONEY, Site VARCHAR(50))
