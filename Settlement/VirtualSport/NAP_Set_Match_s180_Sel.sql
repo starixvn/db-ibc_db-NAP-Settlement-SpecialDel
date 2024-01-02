@@ -9,14 +9,16 @@ AS
 	
 	Revisions:
 		- 20231016@Aries: Created [Redmine:#195333]
+		- 20231215@Louisa:  VS1 [Redmine:#195536]
  
 */
 
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT m.eventstatus, m.kickofftime,l.leagueId,l.LeagueGroupID,m.homeid, m.awayid  
+	SELECT @MatchID AS MatchID, m.eventstatus, s.SportType, m.kickofftime,l.leagueId,l.LeagueGroupID,m.homeid, m.awayid  
 	FROM dbo.match m WITH(NOLOCK)
+		INNER JOIN dbo.sports s WITH(NOLOCK) ON m.sporttype = s.sporttype
 		LEFT JOIN dbo.league AS l  WITH(NOLOCK) ON  l.leagueId = m.leagueId 
 	WHERE m.matchid = @matchid
 		AND m.IsDeleted  = 0

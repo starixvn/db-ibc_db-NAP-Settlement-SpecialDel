@@ -38,6 +38,7 @@ BEGIN
 			,@EventStatus	NVARCHAR(50)
 			,@IsCentral		BIT
 			,@avaiableProcess	BIT
+			,@GroupID		TINYINT = 7 --VS
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
@@ -243,6 +244,30 @@ BEGIN
 				AND a.winlostdate = b.winlostdate
 				AND a.gametypeid = b.gametypeid
 	WHERE (a.winlost - b.winlost) < 0
+
+	IF( OBJECT_ID('BalanceNegative','U') IS NOT NULL )
+	BEGIN
+			INSERT INTO [dbo].[BalanceNegative] (
+				[ExecDate]
+				,[MatchID]
+				,[ActionID]
+				,[GroupID]
+				,[CustID]
+				,[Balance]
+				,[StatusID]
+				,[Remark]
+				)
+			SELECT GETDATE()
+				,@MatchID
+				,@ActionID
+				,@GroupID -- Negative balance group
+				,b.CustID
+				,b.balance
+				,0
+				,NULL
+			FROM #Balance b
+			WHERE b.balance < 0
+	END
 	---------------------------------------------------
 	DROP TABLE #Balance
 
