@@ -16,7 +16,7 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
-	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT)
+	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 	CREATE TABLE #tblTransParlay (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),bettype SMALLINT,betid BIGINT,refno BIGINT)
 
 	DECLARE  @SessionId			VARCHAR(50)       
@@ -28,7 +28,7 @@ BEGIN
 			,@CreatedDate		DATETIME
 			,@DateCheck			DATETIME 		= DATEADD(MINUTE,-30 ,GETDATE())
 			
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT)
+	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
 
 	/* #1: Get match is caculated */
@@ -112,14 +112,18 @@ BEGIN
 	END
 
 	/* #3: Get changed ticket from calculation log (sync serivce)*/
-	INSERT INTO #tblTrans(TransId,TicketType,bettype,betid,refno)
+	INSERT INTO #tblTrans(TransId,TicketType,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
 	SELECT t.t AS TransId
 		  ,l.TicketType
-		  ,t.bt
-		  ,t.bi
-		  ,t.rf
+		  ,t.bt AS bettype
+		  ,t.bi AS betid
+		  ,t.rf AS refno
+		  ,t.w AS winlost
+		  ,t.bef_w AS bef_winlost
+		  ,t.[sid] AS statusid
+		  ,t.bef_sid AS bef_statusid
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
 	WHERE l.matchid = @matchid
 		AND l.BroadcastSessionId  = @SessionId
 		AND t.[sid] != t.bef_sid
@@ -158,17 +162,41 @@ BEGIN
 		DELETE @tmpTransIDBatch
 		
 		DELETE TOP(@batchNo) t
-		OUTPUT deleted.transid,deleted.TicketType,deleted.bettype,deleted.betid,deleted.refno
-		INTO @tmpTransIDBatch(TransID,TicketType,bettype,betid,refno)
+		OUTPUT deleted.transid,deleted.TicketType,deleted.bettype,deleted.betid,deleted.refno,deleted.winlost,deleted.bef_winlost,deleted.statusid,deleted.bef_statusid
+		INTO @tmpTransIDBatch(TransID,TicketType,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
 		FROM #tblTrans t 
 
 		SELECT @batchCount 	= @@ROWCOUNT
 		IF @batchCount = 0 BREAK
-
-		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo)
+		
+		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo,ExtraInfo_Before,ExtraInfo_After)
 		SELECT  @SessionId
 			   ,t.transId
 			   ,r.SeqNo
+			   ,CONCAT('<root><r status="',	 CASE WHEN bef_statusid = 1	  THEN 'WAITING' 
+											 	  WHEN bef_statusid = 0	  THEN 'RUNNING' 
+											 	  WHEN bef_statusid = 101 THEN 'REJECT' 
+											 	  WHEN bef_statusid = 102 THEN 'VOID' 
+											 	  WHEN bef_statusid = 102 THEN 'REFUND' 
+											 	  WHEN bef_statusid = 111 THEN 'DRAW' 
+											 	  WHEN bef_statusid = 112 THEN 'WON' 
+											 	  WHEN bef_statusid = 113 THEN 'LOSE' 
+											 	  ELSE 'None'
+											 END
+						,'"winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
+						,'" /></root>') AS ExtraInfo_Before
+			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
+											 	  WHEN statusid = 0	 THEN 'RUNNING' 
+											 	  WHEN statusid = 101 THEN 'REJECT' 
+											 	  WHEN statusid = 102 THEN 'VOID' 
+											 	  WHEN statusid = 102 THEN 'REFUND' 
+											 	  WHEN statusid = 111 THEN 'DRAW' 
+											 	  WHEN statusid = 112 THEN 'WON' 
+											 	  WHEN statusid = 113 THEN 'LOSE' 
+											 	  ELSE 'None'
+											 END
+						,'"winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
+						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = t.bettype AND  (s.BetID = 0 OR t.BetID = s.BetID)AND s.SportType = @sportType
 			INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 

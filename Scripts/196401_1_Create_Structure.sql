@@ -49,9 +49,11 @@ GO
 
 CREATE TABLE dbo.SettlementResultHistory_TicketDetails
 (
-	 SessionID	VARCHAR(50) NOT NULL
-	,SeqNo		SMALLINT	NOT NULL
-	,Transid	BIGINT	    NOT NULL
+	 SessionID			VARCHAR(50) NOT NULL
+	,SeqNo				SMALLINT	NOT NULL
+	,Transid			BIGINT	    NOT NULL
+	,ExtraInfo_Before	VARCHAR(MAX)
+	,ExtraInfo_After	VARCHAR(MAX)
 ) ON DATA
 GO
 
