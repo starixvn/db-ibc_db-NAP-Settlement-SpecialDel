@@ -18,6 +18,7 @@ AS
 		- 20180103@Helen: Change Action List on Negative Balance email & Get Mailing List from OIC [Redmine:82430]
 		- 20230523@Kathy: change metadata [Redmine:#188452]
 		- 20231108@Louisa: HF-missing info when send mail for child match Cricket [Redmine:#196508]
+		- 20231229@Louisa: Fix issue missing data outright [Redmine: #199060]
 
 	Param's Explanation: 
 		@isTest: 0: Real Currency; 1: UUS Currency 
@@ -50,7 +51,7 @@ BEGIN
 			, Username2
 	FROM ( SELECT h.LogID
 				, h.LogDate
-				, CASE WHEN m.sporttype = 50 AND ISNULL(m.childmatchType,0) = 200 THEN m.ParentID 
+				, CASE WHEN ISNULL(m.sporttype,0) = 50 AND ISNULL(m.childmatchType,0) = 200 THEN m.ParentID 
 					   ELSE h.MatchID
 				  END AS MatchID
 				, h.GroupID
@@ -62,7 +63,7 @@ BEGIN
 				, c.username2
 				,ParentID
 		FROM	BalanceNegativeHistory h WITH (NOLOCK)
-				INNER JOIN match m WITH(NOLOCK) ON h.MatchID = m.matchid
+				LEFT JOIN match m WITH(NOLOCK) ON h.MatchID = m.matchid
 				INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON h.CustID = c.custid
 				INNER JOIN CustDB.dbo.exchange e WITH (NOLOCK) ON c.currency = e.exchangeid
 		WHERE	h.StatusID = 0 
