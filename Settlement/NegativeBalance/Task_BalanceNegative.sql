@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02, DBSID-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[Task_BalanceNegative]
 AS
 /*
@@ -19,6 +19,7 @@ AS
 		- 20210702@Max: Expand Transfer Time Frame - Change The Rule Checking Move Bet Flag [Redmine: #154572]
 		- 20211229@Max: Split Transfer - Adjust Negative Balance Service & Adjustment Transfer of Bonus [Redmine: #165098]
 		- 20230201@July: TVS changes for new process of BU [Redmine: #184000]
+		- 20231229@Louisa: Exclude Single Wallet Licensee [Redmine: #199060]
 		
 */
 BEGIN
@@ -29,11 +30,10 @@ BEGIN
 		, @balanceupdate SMALLDATETIME
 
 	DECLARE @tmpMatch TABLE (MatchId INT PRIMARY KEY, MinExecId BIGINT, MaxExecId BIGINT)
-	DECLARE @tmpAffectedCustId	TABLE (CustId INT, Recommend INT, Site VARCHAR(50))
+	DECLARE @tmpCustIdSendMail	TABLE (CustId INT, Site VARCHAR(50))
 	
 	CREATE TABLE #tmpMemberBalance (CustId INT, Balance MONEY, Site VARCHAR(50))
-	CREATE TABLE #tmpMemberBalanceNegative (custid INT PRIMARY KEY, balance MONEY, Site VARCHAR(50))
-	CREATE TABLE #tmpAllRecommend (Recommend INT PRIMARY KEY)		
+	CREATE TABLE #tmpMemberBalanceNegative (custid INT PRIMARY KEY, balance MONEY, Site VARCHAR(50))	
 	CREATE TABLE #tmpAllCustomer (CustId INT PRIMARY KEY)
 
 	SET @BatchCount = 2000
@@ -47,24 +47,31 @@ BEGIN
 	IF @@ROWCOUNT = 0
 		RETURN
 
-	INSERT INTO #tmpAllRecommend (Recommend)
-	SELECT	lc.custid
-	FROM	DBCUST.bodb_licensee.dbo.LicenseeCust lc WITH(NOLOCK)
-	GROUP BY lc.custid
-
-	INSERT INTO @tmpAffectedCustId(CustId, Recommend)
-	SELECT	c.custid, c.recommend
+	INSERT INTO @tmpCustIdSendMail(CustId, Site)
+	SELECT	c.custid, c.site
 	FROM	@tmpMatch m
 		INNER JOIN dbo.BalanceNegative bn WITH(NOLOCK)
 			ON m.MatchId = bn.MatchID
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON c.custid = bn.CustID
-		INNER JOIN #tmpAllRecommend r
-			ON c.recommend = r.Recommend
+		INNER JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
+			ON c.srecommend = cs.custid
+		OUTER APPLY (
+							SELECT TOP(1) vp.SiteID
+							FROM DBCUST.SiteConfig.dbo.LicVendorProfile vp WITH(NOLOCK)
+								INNER JOIN DBCUST.SiteConfig.dbo.configMaster cm WITH(NOLOCK)
+									ON vp.SiteId = cm.SiteId
+								INNER JOIN DBCUST.SiteConfig.dbo.configdetail cd WITH(NOLOCK)
+									ON cm.ConfigId = cd.ConfigID
+							WHERE cd.KeyName = 'EnableSingleWallet'
+								AND cd.KeyValue = 'true'
+								AND vp.SiteName = cs.site
+						) vp 
 	WHERE	bn.ExecID BETWEEN m.MinExecId AND m.MaxExecId
 			AND bn.StatusID = 0
 			AND c.roleid = 1
-	GROUP by c.custid, c.recommend
+			AND vp.SiteID IS NULL
+	GROUP by c.custid, c.site
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @movebetdate OUTPUT
@@ -72,18 +79,13 @@ BEGIN
 	--Get BalanceUpDate
 	EXEC dbo.NAP_Admin_GetBalanceUpDate @BalanceUpDate = @balanceupdate OUTPUT
 
-	IF EXISTS (SELECT TOP 1 1 FROM @tmpAffectedCustId)
+	IF EXISTS (SELECT TOP 1 1 FROM @tmpCustIdSendMail)
 	BEGIN
-		UPDATE	t
-			SET Site = c.site
-		FROM	@tmpAffectedCustId t
-			INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK)
-				ON t.recommend = c.custid
 
 		-- turn to use bettrans in realtime
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS Balance, c.Site
-		FROM	@tmpAffectedCustId c
+		FROM	@tmpCustIdSendMail c
 			INNER JOIN dbo.bettrans b WITH(NOLOCK)
 				ON b.custid = c.CustId	AND b.bettype < 19999
 		WHERE	1 = CASE 
@@ -96,7 +98,7 @@ BEGIN
 		--Get sum ticket from new table Transfer
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT	b.custid, SUM(b.winlost - b.actual_stake + b.playercomm) AS Balance, c.Site
-		FROM	@tmpAffectedCustId c
+		FROM	@tmpCustIdSendMail c
 			INNER JOIN dbo.Transfer b WITH(NOLOCK)
 				ON b.custid = c.CustId	AND b.bettype >= 19999
 		WHERE 1 = CASE WHEN b.bettype = 19999 AND b.winlostdate > @movebetdate THEN 0 --> new sum
@@ -108,7 +110,7 @@ BEGIN
 		-- translog
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT tl.custid, SUM(0 - tl.actual_stake) AS Balance, c.Site
-		FROM	@tmpAffectedCustId c
+		FROM	@tmpCustIdSendMail c
 			INNER JOIN dbo.translog tl WITH(NOLOCK)
 				ON tl.custid = c.CustId
 		WHERE	tl.statusID BETWEEN 0 AND 1
@@ -117,7 +119,7 @@ BEGIN
 		-- bettransRnG
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT	br.custid, SUM(br.winlost - br.actual_stake + br.playercomm) AS Balance, c.Site
-		FROM	@tmpAffectedCustId c
+		FROM	@tmpCustIdSendMail c
 			INNER JOIN dbo.bettransRnG br WITH(NOLOCK)
 				ON	br.custid = c.CustId
 		WHERE	br.IsSum = 0
@@ -126,7 +128,7 @@ BEGIN
 		-- bettransLC
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT	lc.custid, SUM(lc.winlost - lc.actual_stake + lc.playercomm) AS Balance, c.Site
-		FROM	@tmpAffectedCustId c
+		FROM	@tmpCustIdSendMail c
 			INNER JOIN dbo.bettransLC lc WITH(NOLOCK)
 				ON	lc.custid = c.CustId
 		WHERE	lc.IsSum = 0
@@ -136,7 +138,7 @@ BEGIN
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT	aj.CustID, SUM(Amount) AS Balance, c.Site
 		FROM	dbo.BonusAdjustmentTransfer aj WITH(NOLOCK)
-			INNER JOIN @tmpAffectedCustId c 
+			INNER JOIN @tmpCustIdSendMail c 
 				ON aj.CustID = c.CustId
 		WHERE	aj.isTransferred = 0
 		GROUP BY aj.CustID, c.Site
@@ -145,7 +147,7 @@ BEGIN
 		INSERT INTO #tmpMemberBalance (CustId, Balance, Site)
 		SELECT	bn.CustID, SUM(bn.Credit - bn.Debit) AS Balance, c.Site
 		FROM	dbo.BalNetPosition bn WITH(NOLOCK)
-			INNER JOIN @tmpAffectedCustId c
+			INNER JOIN @tmpCustIdSendMail c
 				ON bn.CustID = c.CustId
 		GROUP BY	bn.CustID, c.Site
 		
@@ -197,7 +199,7 @@ BEGIN
 		END
 	END
 
-	-- Remove Credit Customer out BalanceNegative
+	-- Remove Credit Customer & SWL out BalanceNegative
 	INSERT INTO #tmpAllCustomer (CustId)
 	SELECT	DISTINCT CustID
 	FROM	dbo.BalanceNegative bn WITH (NOLOCK)
@@ -209,7 +211,7 @@ BEGIN
 	-- delete deposit member
 	DELETE t
 	FROM	#tmpAllCustomer t
-	WHERE	EXISTS (SELECT TOP 1 1 FROM @tmpAffectedCustId c WHERE t.CustId = c.CustId)
+	WHERE	EXISTS (SELECT TOP 1 1 FROM @tmpCustIdSendMail c WHERE t.CustId = c.CustId)
 	
 	WHILE( 1 = 1)
 	BEGIN
@@ -243,7 +245,6 @@ BEGIN
 	
 	DROP TABLE #tmpMemberBalance
 	DROP TABLE #tmpMemberBalanceNegative
-	DROP TABLE #tmpAllRecommend
 	DROP TABLE #tmpAllCustomer
 END
 GO
