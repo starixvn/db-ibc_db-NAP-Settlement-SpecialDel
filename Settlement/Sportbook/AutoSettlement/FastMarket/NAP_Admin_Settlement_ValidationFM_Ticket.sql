@@ -17,6 +17,7 @@ AS
 	
 	Revisions:
 		- 20220719@Louisa: Validation Fastmarket [Redmine:#175251]
+		- 20240104@Kathy: Remove validation on queue [Redmine:#192907]
 
 	Param's Explanation:
 
@@ -103,7 +104,7 @@ BEGIN
 					ON s.Action = f.Action
 					AND f.GroupAction = 'FM'
 				WHERE	s.matchid = @matchid 
-						AND s.IsCalculating IN (0, 1))
+						AND s.IsCalculating IN (0, 1)) AND @IsAuto = 0
 	BEGIN
 		SELECT	@ErrCode = 1001003
 				,@ErrMsg = 'This match is being calculated, please wait a few seconds until the on-going process is completed and try again.'
