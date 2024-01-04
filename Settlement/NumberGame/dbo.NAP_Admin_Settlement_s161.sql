@@ -30,6 +30,7 @@ AS
 		- 20221130@Kathy: Using index hint on bettrans [Redmine:#181058]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
+		- 20240101@Aries: Fix  write log issue [Redmine:#199346]
 		
 	Param's Explanation:
 		+ @IsLoop (used for Balance):
@@ -45,15 +46,18 @@ BEGIN
 
 	DECLARE @start DATETIME
 			,@stop DATETIME
-			,@Remark		VARCHAR(500)
+			,@Remark		VARCHAR(MAX) = ''
 			,@ActionID		INT
 			,@IsCentral	BIT = 0
 			,@avaiableProcess	BIT
+			,@SiteDBGroupId		TINYINT = 0
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
+
+	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 
 	IF @IsLive = 1					SET @ActionID = 116
 	ELSE IF @Action = 'CAL-HT'		SET @ActionID = 118
@@ -88,22 +92,6 @@ BEGIN
 	SELECT @start = CURRENT_TIMESTAMP
 
 	DECLARE @MaxTransID BIGINT
-	
-
-	--//MB is running?
-	IF EXISTS (
-		SELECT 1 FROM dbo.SystemSettings WITH(NOLOCK)
-		WHERE VName = 'isMovingBet' AND VValue = '1'
-	)
-	BEGIN
-		-- waiting for releasing lock on bettrans table
-		SELECT @MaxTransID = MAX(b.transid)
-		FROM dbo.bettrans b WITH(ROWLOCK,INDEX = CIX_matchid_bettype)
-		WHERE b.matchid = @MatchId
-			AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-		
-		WAITFOR DELAY '00:00:02:000'
-	END
 
 	SELECT @MaxTransID = MAX(b.transid)
 	FROM dbo.bettrans b WITH(NOLOCK,INDEX = CIX_matchid_bettype)
@@ -347,27 +335,6 @@ BEGIN
 	DROP TABLE #Balance
 	DROP TABLE #BalanceBefore
 	DROP TABLE #BalanceAfter
-
-	-------------------------------------------------------------
-	---                      WRITE LOG                        ---
-	---------------------------VVVV------------------------------
-	
-	IF @IsCentral = 1
-	BEGIN
-		SET @Remark = @Remark + 'Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), @MaxTransID)
-		EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminID
-			,@Matchid = @MatchId
-			,@ActionID = @ActionID
-			,@finalhomescore = NULL
-			,@finalawayscore = NULL
-			,@hthomescore = NULL
-			,@htawayscore = NULL
-			,@GoalRecord = NULL
-			,@betstatus = NULL
-			,@Remark = @Remark
-			,@IP = @IP
-
-	END
 	----
 	IF @IsLoopTempTable = 0
 	BEGIN
@@ -375,5 +342,23 @@ BEGIN
 			@IsExistMatch	= 1
 			,@IsReleased	= 1
 	END
+
+	-------------------------------------------------------------
+	---                      WRITE LOG                        ---
+	---------------------------VVVV------------------------------
+	SET @Remark = @Remark + 'SiteDB: ' + CAST(@SiteDBGroupId AS VARCHAR(5))
+						  + ' - Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) 
+						  + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), ISNULL(@MaxTransID,0))
+	EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminID
+		,@Matchid = @MatchId
+		,@ActionID = @ActionID
+		,@finalhomescore = NULL
+		,@finalawayscore = NULL
+		,@hthomescore = NULL
+		,@htawayscore = NULL
+		,@GoalRecord = NULL
+		,@betstatus = NULL
+		,@Remark = @Remark
+		,@IP = @IP
 END
 GO
