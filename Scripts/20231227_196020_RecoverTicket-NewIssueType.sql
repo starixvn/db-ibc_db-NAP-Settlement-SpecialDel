@@ -25,7 +25,6 @@ INSERT INTO dbo.TicketVoiding_Action(ActionId, ActionName)
 VALUES (11, 'Auto Recover')
 SET IDENTITY_INSERT [dbo].[TicketVoiding_Action] OFF
 
-ALTER TABLE [dbo].[Ticketvoiding_VoidBetAutomation_Service]
-ADD IsDeletedVoidedTransaction BIT NULL
-
-
+ALTER TABLE [dbo].[TicketVoiding_VoidBetAutomation_Service]
+ADD  IsDeletedMessage BIT NULL
+	,IsDeletedVoidedTransaction BIT NULL
