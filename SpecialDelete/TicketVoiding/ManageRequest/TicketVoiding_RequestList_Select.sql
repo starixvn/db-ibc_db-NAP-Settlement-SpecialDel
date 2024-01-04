@@ -569,8 +569,8 @@ BEGIN
 			,t.DecidedBy 
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
-			,CASE WHEN t.IssueTypeId IN (11,15,17,20,22) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
-			,CASE WHEN t.IssueTypeId IN (17,22) THEN p.TotalParlay ELSE 0 END AS TotalParlay
+			,CASE WHEN t.IssueTypeId IN (11,15,17,20) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId IN (17) THEN p.TotalParlay ELSE 0 END AS TotalParlay
 			,CASE WHEN t.IssueTypeId IN (11,15,20) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
@@ -588,7 +588,7 @@ BEGIN
 			,mr.SettlementStatus
 			,CASE WHEN t.IssueTypeId IN (1,10,3,2,8,9) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 			,CASE WHEN CHARINDEX('1',t.ProductIds) > 0 THEN 'Sportsbook' ELSE NULL END AS Products -- Apply issuetype Recover Ticket
-			,re.TotalResettled AS TotalResettled
+			,p.TotalResettleProcessed
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -600,18 +600,15 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId 
 					AND 1 = CASE WHEN t.IssueTypeId IN (11,15,20) THEN 1
-								 WHEN t.IssueTypeId IN (17,22) AND s.MatchId NOT IN (9,29,2799) THEN 1
+								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799) THEN 1
 								 ELSE 0 END
 					FOR XML PATH('')
 				)ts	 (TransIds)
-		OUTER APPLY (SELECT COUNT(1) AS TotalParlay
+		OUTER APPLY (SELECT COUNT(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799) THEN s.TransId ELSE 0 END) AS TotalParlay
+						   ,COUNT(CASE WHEN s.IssueTypeId IN (22) AND s.IsProcessed = 3 THEN s.TransId ELSE 0 END) AS TotalResettleProcessed
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17,22) AND s.MatchId IN (9,29,2799)
+					WHERE s.RequestId = t.RequestId 
 				)p	
-		OUTER APPLY (SELECT COUNT(1) AS TotalResettled
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId AND s.IsProcessed = 3 --Resettled
-				)re	
 				---Case Failed
 		OUTER APPLY ( 
 					SELECT DISTINCT RequestId, vh.StatusId
