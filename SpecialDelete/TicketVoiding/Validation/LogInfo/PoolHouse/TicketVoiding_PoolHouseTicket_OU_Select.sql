@@ -474,7 +474,7 @@ BEGIN
 				)tmp
 			INNER JOIN dbo.TicketVoiding_Request r WITH (NOLOCK) ON r.RequestId = tmp.RequestId
 		WHERE r.RequestId <> @RequestId AND t.matchid = @MatchId
-			AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
+			AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
 		DELETE FROM #TVSTicketBets 
 		WHERE transid IN ( SELECT transid FROM #TransidInRequest) 

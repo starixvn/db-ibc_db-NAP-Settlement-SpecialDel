@@ -507,7 +507,7 @@ BEGIN
 					WHERE RequestId = r.RequestId AND (MatchId = @MatchId OR MatchId = 29)
 				) AS tmp
 	WHERE  r.RequestId <> @RequestId 
-		AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
+		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
 	-- get invalid or moved transId
 	INSERT INTO #invalidTransId (transid, isMoved)

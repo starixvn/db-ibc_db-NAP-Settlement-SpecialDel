@@ -19,6 +19,7 @@ AS
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:
 		
@@ -31,6 +32,7 @@ BEGIN
 			,@cnt_matchid		INT = 0
 			,@NegativeBalanceUsers VARCHAR(MAX) = ''
 			,@VoidingHistoryIds VARCHAR(MAX) = ''
+			,@SingleTransIds	VARCHAR(MAX) = ''
 
 	CREATE TABLE #tmpMatch 
 	(
@@ -61,19 +63,27 @@ BEGIN
 	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId)
 	SELECT DISTINCT 
 			 rd.RequestId
-			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.homeid END
-			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.awayid END
-			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.leagueid END
+			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.homeid END
+			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.awayid END
+			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.leagueid END
 			,r.UserId
 			,r.DecidedBy
-			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.kickofftime END 
+			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.kickofftime END 
 			,r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId IN (0,29))
 	
-	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy) 
+	IF EXISTS ( SELECT TOP 1 1 FROM #tmpMatch WHERE IssuetypeId = 22) --Recover Ticket
+	BEGIN
+		SET @SingleTransIds = STUFF((SELECT  ',' + CAST (TransId AS VARCHAR(50))
+									FROM dbo.TicketVoiding_RequestDetailTicket_Single WITH(NOLOCK)
+									WHERE RequestId = @RequestId
+									FOR XML PATH ('')),1,1,'')
+	END
+
+    INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy) 
 	SELECT	 vh.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId AS VoidedBy
@@ -151,6 +161,7 @@ BEGIN
 		,v.Username AS RequestedBy
 		,@NegativeBalanceUsers AS NegativeBalanceUsers
 		,@VoidingHistoryIds AS VoidingHistoryIds
+		,@SingleTransIds AS SingleTransIds
 	FROM #tmpMatch t
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.RequestedBy = v.CustId

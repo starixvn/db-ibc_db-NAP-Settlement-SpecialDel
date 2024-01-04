@@ -348,7 +348,7 @@ BEGIN
 					WHERE RequestId = r.RequestId 
 				) AS tmp
 	WHERE  r.RequestId <> @RequestId
-		AND (r.ActionId NOT IN (2) OR r.IssueTypeId NOT IN (22))
+		AND (r.ActionId NOT IN (2) AND r.IssueTypeId NOT IN (22))
 
 	-- invalid transId
 	;WITH t_invalid

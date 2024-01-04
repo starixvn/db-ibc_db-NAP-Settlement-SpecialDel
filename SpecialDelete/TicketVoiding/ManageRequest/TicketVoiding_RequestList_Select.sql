@@ -604,10 +604,13 @@ BEGIN
 								 ELSE 0 END
 					FOR XML PATH('')
 				)ts	 (TransIds)
-		OUTER APPLY (SELECT COUNT(CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799) THEN s.TransId ELSE 0 END) AS TotalParlay
-						   ,COUNT(CASE WHEN s.IssueTypeId IN (22) AND s.IsProcessed = 3 THEN s.TransId ELSE 0 END) AS TotalResettleProcessed
+		OUTER APPLY (SELECT COUNT(CASE WHEN s.IssueTypeId IN (17) THEN s.TransId ELSE 0 END) AS TotalParlay
+						   ,COUNT(CASE WHEN s.IssueTypeId IN (22) THEN s.TransId ELSE 0 END) AS TotalResettleProcessed
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId 
+						AND 1 = CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799) THEN 1
+						             WHEN s.IssueTypeId IN (22) AND s.IsProcessed = 3 THEN 1
+									 ELSE 0 END
 				)p	
 				---Case Failed
 		OUTER APPLY ( 

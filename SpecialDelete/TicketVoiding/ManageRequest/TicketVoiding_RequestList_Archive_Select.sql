@@ -398,8 +398,8 @@ BEGIN
 						   ,COUNT(CASE WHEN s.IsProcessed IS NOT NULL AND s.MatchId NOT IN (9,29,2799) THEN s.TransId ELSE 0 END) AS TotalParlayProcessed
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId
-						AND t.IssueTypeId = 22 --Recover Ticket
 				)rt	
+		WHERE t.IssueTypeId = 22 
 	END
 	ELSE
 	BEGIN
@@ -475,8 +475,8 @@ BEGIN
 			,t.DecidedBy
 			,v.Username AS LastPerformedBy
 			,ch.Username AS CheckedBy
-			,CASE WHEN t.IssueTypeId IN (11,15,17,20,22) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
-			,CASE WHEN t.IssueTypeId IN (17,22) THEN p.TotalParlay ELSE 0 END AS TotalParlay
+			,CASE WHEN t.IssueTypeId IN (11,15,17,20) THEN LEN(ISNULL(ts.TransIds,'')) - LEN(REPLACE(ISNULL(ts.TransIds,''), ',', ''))  ELSE 0 END AS TotalSingle
+			,CASE WHEN t.IssueTypeId IN (17) THEN p.TotalParlay ELSE 0 END AS TotalParlay
 			,CASE WHEN t.IssueTypeId IN (11,15,20) THEN STUFF(ts.TransIds,1,1,'') ELSE NULL END AS TransIds
 			,t.IssueTypeId
 			,CASE WHEN f_s.statusID IS NULL AND f_vh.statusID IS NULL AND l_s.statusID IS NULL AND l_vh.statusID IS NULL THEN ''
