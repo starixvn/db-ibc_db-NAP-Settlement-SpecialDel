@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 CREATE PROCEDURE dbo.NAP_Admin_Settlement_BalanceUpd
 (	 @BalanceChanged		TVP_BalanceWalletChange READONLY 
 	,@ActionID              INT  

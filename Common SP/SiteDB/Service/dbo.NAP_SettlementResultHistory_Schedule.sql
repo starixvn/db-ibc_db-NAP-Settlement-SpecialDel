@@ -22,11 +22,13 @@ BEGIN
 	DECLARE  @SessionId			VARCHAR(50)       
 			,@matchid			INT
 			,@sportType 		INT
+			,@ActionType		TINYINT
+			,@StatusID			SMALLINT	
 			,@batchNo			INT 			= 2000
 			,@batchCount		INT 			= 0
 			,@isPass			BIT				= 0
 			,@CreatedDate		DATETIME
-			,@DateCheck			DATETIME 		= DATEADD(MINUTE,-30 ,GETDATE())
+			,@DateCheck			DATETIME 		= DATEADD(MINUTE,-10 ,GETDATE())
 			
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
@@ -38,6 +40,8 @@ BEGIN
 				 @matchid =	h.matchid
 				,@SessionId = h.SessionID
 				,@sportType	= h.sportType
+				,@ActionType = h.ActionType
+				,@StatusID =  h.StatusID
 				,@isPass = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
 								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL THEN 1
 							    ELSE 0
@@ -72,6 +76,8 @@ BEGIN
 				 @matchid =	h.matchid
 				,@SessionId = h.SessionID
 				,@sportType	= h.sportType
+				,@ActionType = h.ActionType
+				,@StatusID =  h.StatusID
 				,@isPass = CASE WHEN h.StatusID = 0 THEN 1
 								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) THEN 1
 							    ELSE 0
@@ -102,7 +108,9 @@ BEGIN
 		SET StatusID = 3
 		WHERE matchid =	@matchid
 			AND SessionId = @SessionID
-	
+		
+		SELECT @matchid AS matchId,@SessionId AS SessionId, @ActionType AS ActionType, @CreatedDate AS CreatedDate,  @StatusID AS Status
+
 		RETURN
 	END
 
@@ -126,7 +134,7 @@ BEGIN
 	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
 	WHERE l.matchid = @matchid
 		AND l.BroadcastSessionId  = @SessionId
-		AND t.[sid] != t.bef_sid
+		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w)
 		AND t.bef_sid != 0
 	
 	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno)
@@ -177,7 +185,7 @@ BEGIN
 											 	  WHEN bef_statusid = 0	  THEN 'RUNNING' 
 											 	  WHEN bef_statusid = 101 THEN 'REJECT' 
 											 	  WHEN bef_statusid = 102 THEN 'VOID' 
-											 	  WHEN bef_statusid = 102 THEN 'REFUND' 
+											 	  WHEN bef_statusid = 103 THEN 'REFUND' 
 											 	  WHEN bef_statusid = 111 THEN 'DRAW' 
 											 	  WHEN bef_statusid = 112 THEN 'WON' 
 											 	  WHEN bef_statusid = 113 THEN 'LOSE' 
@@ -189,7 +197,7 @@ BEGIN
 											 	  WHEN statusid = 0	 THEN 'RUNNING' 
 											 	  WHEN statusid = 101 THEN 'REJECT' 
 											 	  WHEN statusid = 102 THEN 'VOID' 
-											 	  WHEN statusid = 102 THEN 'REFUND' 
+											 	  WHEN statusid = 103 THEN 'REFUND' 
 											 	  WHEN statusid = 111 THEN 'DRAW' 
 											 	  WHEN statusid = 112 THEN 'WON' 
 											 	  WHEN statusid = 113 THEN 'LOSE' 
