@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_PreCal_29] 
 	@matchid	INT
 	,@matchdate SMALLDATETIME
@@ -39,6 +39,7 @@ AS
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231017@Kathy: Cast all modds values return from CASE WHEN expression to DECIMAL(38,20) to avoid CONVERT_IMPLICIT with wrong datatype  [Redmine:#191873]
 		- 20231213@Kathy:  Update wrong winlostdate when Re-calculate change score for case LOSE [Redmine:#198190]
+		- 20231229@Kathy: insert duplicate betparlayresult - force index [Redmine:#198835]
 
 	Param's Explanation:
 		+ @matchid: matchid of match to be settled
@@ -316,8 +317,9 @@ BEGIN
 			,0, 0, 0, 0, 0, 0
 			,0, 0, 0, 0
 		FROM #temp_bettrans b
-			INNER JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
+			INNER LOOP JOIN dbo.BetParlayDetail r WITH (NOLOCK) ON b.refno = r.refno
 		WHERE b.insertedResult = 0 -- only insert the row not yet insert to that table
+		OPTION (FORCE ORDER)
 		
 	END
 	-----------------------
