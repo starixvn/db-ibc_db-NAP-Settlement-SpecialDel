@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 	 @SingleTransIds			VARCHAR(MAX) = NULL
 	,@IsITSupport				BIT = 0
@@ -89,7 +89,6 @@ BEGIN
 		,IsMove14		BIT
 		,LeagueGroupID  SMALLINT
 	)
-	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
 	CREATE TABLE #transIdTemp (
 		transid		BIGINT PRIMARY KEY
@@ -485,64 +484,6 @@ BEGIN
 	INSERT INTO @VIPAccount_tmp(CustID)
 	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
 
-	BEGIN -- Instant Settlement declaration			
-		DECLARE @eventstatus_completed NVARCHAR(50) = 'completed'
-		CREATE TABLE #CTE_match (matchid INT, sporttype SMALLINT)
-		CREATE TABLE #CTE_isCal (matchid INT, IsHTCal BIT, ResourceId VARCHAR(20))
-
-		INSERT INTO #CTE_match (matchid, sporttype)
-		SELECT DISTINCT t.matchid, m.sporttype
-		FROM #TVSTicketBets t
-			INNER JOIN dbo.match m WITH (NOLOCK) ON m.matchid = t.matchid and m.eventstatus <> @eventstatus_completed
-			
-		IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 1) --Soccer	 
-		BEGIN 
-			INSERT INTO #CTE_isCal (matchid, IsHTCal)
-			SELECT m.matchid, ISNULL(mr.IsHTCal, 0) AS IsHTCal
-			FROM #CTE_match m
-				LEFT JOIN dbo.match_remark mr WITH (NOLOCK) ON mr.matchid = m.matchid
-			WHERE m.sporttype = 1
-
-			--> Build bettype list supported for instant settlement based on settlement status of match
-			INSERT INTO #InstantSettlementBettypes (matchid, bettype)
-			SELECT c.matchid,  f.bettype
-			FROM #CTE_isCal c
-				CROSS APPLY (
-						SELECT bettype
-						FROM dbo.f_TVS_GetInstantBettypes() 
-						WHERE 1 = CASE WHEN c.IsHTCal = 0 AND InstantType IN (1, 3) THEN 1
-									   WHEN c.IsHTCal > 0 AND InstantType IN (2, 3) THEN 1
-									ELSE 0 END
-				)f	 	
-		END
-		IF EXISTS (SELECT TOP 1 1 FROM #CTE_match WHERE sporttype = 2) --Basketball
-		BEGIN
-			INSERT INTO #CTE_isCal (matchid, ResourceId)
-			SELECT m.matchid, rd.ResourceId
-			FROM #CTE_match m
-				LEFT JOIN DBPRO.bodb02.dbo.ResultDetail rd WITH (NOLOCK) 
-					ON rd.matchid = m.matchid 
-					AND ResultStatusID IN (2,5) AND (ResourceId LIKE 'Q[1-4]' OR ResourceId IN ('01','OT')) 
-			WHERE m.sporttype = 2
-
-			INSERT INTO #InstantSettlementBettypes (matchid, bettype, betid)
-			SELECT DISTINCT c.matchid, f.bettype, f.betid
-			FROM #CTE_isCal c
-				CROSS APPLY (
-						SELECT bettype, betid
-						FROM dbo.f_TVS_GetInstantBettypes()
-						WHERE InstantType IS NULL
-						AND 1 = CASE WHEN c.ResourceId IS NULL THEN 1 --NOT executed on this match.
-									 WHEN c.ResourceId IS NOT NULL AND ResourceId NOT IN (SELECT ResourceId FROM #CTE_isCal) THEN 1
-									 ELSE 0 END
-				)f	 	
-		END
-			
-		DROP TABLE #CTE_match
-		DROP TABLE #CTE_isCal
-	END	
-
-
 	SELECT	t.homeid
 			,t.awayId
 			,t.leagueid
@@ -565,7 +506,7 @@ BEGIN
 			,t.Betteam
 			,t.Bettype AS BetTypeId
 			,t.Currency
-			,t.CurrencyName	
+			,t.CurrencyName
 			,t.Hdp1 AS Handicap1
 			,t.Hdp2 AS Handicap2 
 			,t.LiveAwayScore
@@ -608,21 +549,6 @@ BEGIN
 			,t.LiveIndicator AS IsLive
 			,t.ActualStake
 			,t.MainTransId
-			,CASE 
-				WHEN ISNULL(m.eventstatus, '') <> @eventstatus_completed AND t.status IN ('won', 'lose', 'draw') AND ISNULL(t.betdaqid,0) <> -2
-						THEN CASE WHEN m.sporttype = 1
-										AND EXISTS (SELECT TOP 1 1
-													FROM #InstantSettlementBettypes
-													WHERE bettype = t.bettype)
-										THEN 1
-								  WHEN m.sporttype = 2
-										AND EXISTS (SELECT TOP 1 1
-													FROM #InstantSettlementBettypes
-													WHERE bettype = t.bettype AND (betid = t.betid OR t.betid IS NULL))
-										THEN 1
-								ELSE 0 END
-				ELSE 0
-			END AS IsInstantSettlementTicket
 			,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
 			,CASE WHEN f.CustID IS NULL AND (t.username <> '12EU')  AND t.IsDeposit = 0
 				    AND t.mrecommend NOT IN (105181, 118473, 105183) -- MHC
@@ -656,7 +582,6 @@ BEGIN
 			 END
 
 	DROP TABLE #TVSTicketBets;
-	DROP TABLE #InstantSettlementBettypes
 
 END
 GO
