@@ -46,7 +46,7 @@ BEGIN
 	SELECT DISTINCT pt.bettype
 	FROM dbo.SportBettypeMatrix pt WITH (NOLOCK)
 	WHERE pt.ProductID IN (SELECT ProductId FROM @ProductId_tmp)
-		AND pt.SubProduct NOT IN ('Bet Builder', 'MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') -- Bet Builder, Metric Gaming, Bet trade (BT-)
+		AND pt.SubProduct NOT IN ('MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') --, Metric Gaming, Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
 
