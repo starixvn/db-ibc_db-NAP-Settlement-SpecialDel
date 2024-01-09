@@ -20,9 +20,6 @@ CREATE PROCEDURE [dbo].[TicketVoiding_Email_RecoveredTicket_Select](
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @query NVARCHAR(MAX) = ''
-		   ,@ExecuteSQL NVARCHAR(MAX) = ''
-
 	CREATE TABLE #TVSTicketBets (
 		TransId			BIGINT
 		,matchid		INT
@@ -33,7 +30,7 @@ BEGIN
 		,TransDate		DATETIME
 		,actual_stake	MONEY
 		,Stake			MONEY
-		,winlost		MONEY
+		,Winlost		MONEY
 		,Status			NVARCHAR(10)
 		,Betcheck		NVARCHAR(50)
 		,betdaqid		BIGINT
@@ -45,8 +42,8 @@ BEGIN
 		,CurrencyName	NVARCHAR(50)
 		,Hdp1			SMALLMONEY
 		,Hdp2			SMALLMONEY
-		,LiveHomeScore	SMALLINT
-		,LiveAwayScore	SMALLINT
+		,livehomescore	SMALLINT
+		,liveawayscore	SMALLINT
 		,Odds			SMALLMONEY
 		,Oddsspread		MONEY
 		,oddstype		TINYINT
@@ -67,11 +64,8 @@ BEGIN
 		,SubStatus		NVARCHAR(10)
 		,Refno			BIGINT
 		,subTransId		BIGINT	
-		,isITAdmin		BIT
 		,MainTransId 	BIGINT
-		,IsCashOut		BIT DEFAULT(0)
 		,LiveIndicator  BIT
-		,ActualStake	MONEY
 		,oddsid         INT
 		,homeid         INT
         ,awayid         INT
@@ -80,13 +74,13 @@ BEGIN
 		,matchcode      NVARCHAR(50)
 		,showtime       NVARCHAR(50)
 		,SettlementStatus TINYINT
+		,GlobalShowTime	SMALLDATETIME
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
-		,IsDeposit      BIT DEFAULT(0)
 		,SiteDBGroupID	SMALLINT
 		,winlostdate	SMALLDATETIME
-		,IsCancelCashOut BIT
 		,IsMove14		BIT
+		,IsCashOut		BIT DEFAULT(0)
 		,LeagueGroupID  SMALLINT
 	)
 
@@ -150,6 +144,7 @@ BEGIN
 			,winlostdate
 			,username
 			,MainTransId
+			,IsCashOut
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -187,7 +182,7 @@ BEGIN
 			,b.Transdesc 
 			,b.ExtraInfo 
 			,b.BonusID 
-			,b.winlost        
+			,b.winlost - b.actual_stake AS WinLost    
 			,b.actual_stake 
 			,b.Status
 			,b.status AS SubStatus 
@@ -198,10 +193,12 @@ BEGIN
 			,b.winlostdate
 			,b.Username
 			,b.transid AS MainTransId
+			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
 		WHERE b.statusID NOT IN (101, 102, 103)
 			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND d.TicketType = 1
 		
 		INSERT INTO #TVSTicketBets(
 			matchid 
@@ -252,6 +249,7 @@ BEGIN
 			,username
 			,IsMove14
 			,MainTransId
+			,IsCashOut
 		)
 		SELECT b.matchid
 			,b.TransId
@@ -289,7 +287,7 @@ BEGIN
 			,b.Transdesc 
 			,b.ExtraInfo 
 			,b.BonusID 
-			,b.winlost        
+			,b.winlost - b.actual_stake AS WinLost    
 			,b.actual_stake 
 			,b.Status
 			,b.status AS SubStatus 
@@ -301,10 +299,12 @@ BEGIN
 			,b.Username
 			,1 AS IsMove14
 			,b.transid AS MainTransId
+			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON d.transid = b.TransId
 		WHERE b.statusID NOT IN (101, 102, 103)
 			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND d.TicketType = 1
 	END
 
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMove14 = 1)
@@ -353,6 +353,7 @@ BEGIN
 			,SettlementStatus = m.SettlementStatus
 			,eventstatus = m.eventstatus
 			,LeagueGroupID = l.LeagueGroupID
+			,GlobalShowTime = m.GlobalShowTime
 		FROM #TVSTicketBets t
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
@@ -365,19 +366,19 @@ BEGIN
 	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (10)))
 	BEGIN
 		UPDATE t
-		SET matchcode 	= odds.matchcode
-			,homeid		= odds.teamid
+		SET matchcode 	= o.matchcode
+			,homeid		= o.teamid
 			,awayid 	= 0
-			,leagueid 	= odds.leagueid
+			,leagueid 	= o.leagueid
 			,sporttype 	= l.sporttype
 			,showtime	= ''
-			,eventstatus = odds.oddsstatus
+			,eventstatus = o.oddsstatus
 			,LeagueGroupID = l.LeagueGroupID
 		FROM #TVSTicketBets t
-			INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
-			ON	t.matchid = odds.orid
+			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
+			ON	t.matchid = o.orid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
-			ON	odds.leagueid = l.leagueid
+			ON	o.leagueid = l.leagueid
 		WHERE t.bettype IN (10)
 	END
 	-- UPDATE eventtype = 3 [VS range  bettypes]
@@ -425,18 +426,18 @@ BEGIN
 		IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (10)))
 		BEGIN
 			UPDATE t
-			SET matchcode 	= odds.matchcode
-				,homeid		= odds.teamid
+			SET matchcode 	= o.matchcode
+				,homeid		= o.teamid
 				,awayid 	= 0
-				,leagueid 	= odds.leagueid
+				,leagueid 	= o.leagueid
 				,sporttype 	= l.sporttype
 				,showtime	= ''
-				,eventstatus = odds.oddsstatus
+				,eventstatus = o.oddsstatus
 			FROM #TVSTicketBets t
-				INNER JOIN dbo.outright14 AS odds WITH (NOLOCK) 
-				ON	t.matchid = odds.orid
+				INNER JOIN dbo.outright14 AS o WITH (NOLOCK) 
+				ON	t.matchid = o.orid
 				INNER JOIN dbo.league l WITH (NOLOCK) 
-				ON	odds.leagueid = l.leagueid
+				ON	o.leagueid = l.leagueid
 			WHERE t.bettype IN (10)
 		END
 		-- UPDATE eventtype = 3 [VS range  bettypes]
@@ -469,117 +470,51 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	-- update Isdeposit
-	UPDATE al SET IsDeposit = 1
-	FROM #TVSTicketBets al
-	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = al.srecommend)
-
-	--get list VIP Account
-	DECLARE @VIPAccount_tmp AS TABLE (CustID INT)
-	SELECT  @query = N''		
-	SELECT	@query = @query + N'SELECT Custid 
-								FROM dbo.Dep_CustVIP WITH (NOLOCK)	
-								'
-	SELECT	@ExecuteSQL = N'EXECUTE DBCUST.CUSTDB.dbo.sp_executesql @query'
-	INSERT INTO @VIPAccount_tmp(CustID)
-	EXECUTE	sys.sp_executesql @ExecuteSQL, N'@query NVARCHAR(MAX)', @query
-
-	SELECT	t.homeid
-			,t.awayId
-			,t.leagueid
-			,t.sporttype
-			,t.matchcode
-			,t.showtime 
-			,t.isneutral
-			,t.matchid
-			,t.TransId
-			,t.Refno
-			,t.TransDate
-			,t.actual_stake
-			,t.Stake
-			,t.winlost
-			,t.Status
-			,t.Betcheck
-			,t.betdaqid
-			,t.betid
-			,t.betfrom
-			,t.Betteam
-			,t.Bettype AS BetTypeId
-			,t.Currency
-			,t.CurrencyName
-			,t.Hdp1 AS Handicap1
-			,t.Hdp2 AS Handicap2 
-			,t.LiveAwayScore
-			,t.LiveHomeScore
-			,t.Odds
-			,t.Oddsspread
-			,t.oddstype
-			,t.WalletType
-			,t.RefCode
-			,t.ExtraInfo
-			,t.TransDesc
-			,t.IsMixParlay
-			,t.subTransId
-			,t.subbetcheck
-			,t.subOdds
-			,t.subbetteam
-			,t.subbettype
-			,t.subhdp1
-			,t.subhdp2
-			,t.subtransdesc
-			,t.SubStatus
-			,t.custId
-			,t.recommend
-			,t.mrecommend
-			,t.srecommend
-			,c.username
-			,c.username2
-			,ag.username AS AgUserName
-			,ma.username AS MagUserName
-			,su.username AS SagUserName
-			,CASE 
-				WHEN ag.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 'BetFair'
-				ELSE su.site
-			END AS EmailGroup
-			,su.site
-			,t.IsCashOut
-			,@IsITSupport AS IsITSupport
-			,@IsITSupportCreatedRequest AS IsITSupportCreatedRequest
-			,t.SettlementStatus
-			,t.LiveIndicator AS IsLive
-			,t.ActualStake
-			,t.MainTransId
-			,CASE WHEN vip.CustID IS NOT NULL THEN 1 ELSE 0 END AS IsVipMember
-			,CASE WHEN f.CustID IS NULL AND (t.username <> '12EU')  AND t.IsDeposit = 0
-				    AND t.mrecommend NOT IN (105181, 118473, 105183) -- MHC
-				    AND t.recommend NOT IN (11196380, 13423967, 52466, 5707545) -- Foobet, 1E, 8RM, BARM
-				    AND t.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)  -- Betfair: BFOS, BF, ITibc102, BF3
-					AND c.site <> 'CN88'
-			THEN 1 ELSE 0 END IsCredit
-			,t.SiteDBGroupID
-			,t.winlostdate
-			,ISNULL(t.IsCancelCashOut,0) AS IsCancelCashOut
-			,t.LeagueGroupID
-			,ISNULL(si.IsChinaView,0) AS IsChinaView
-			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+	SELECT CASE WHEN t.custid IS NULL THEN 'Credit' ELSE 'Deposit' END AS GroupName
+		   ,t.transid    
+		   ,t.Username
+		   ,t.TransDate     
+		   ,t.Bettype    
+		   ,t.Refno     
+		   ,t.Status     
+		   ,t.Winlost   
+		   ,t.BetTeam    
+		   ,t.livehomescore    
+		   ,t.liveawayscore    
+		   ,t.Stake     
+		   ,t.Odds     
+		   ,t.hdp1     
+		   ,t.hdp2     
+		   ,t.betid  
+		   ,t.betcheck    
+		   ,t.transdesc   
+		   ,t.betfrom
+		   ,t.currencyName
+		   ,c.site
+		   ,CURRENT_TIMESTAMP AS [DateTime]
+		   ,t.ExtraInfo
+		   ,t.actual_stake AS ActualStake
+		   ,t.SiteDBGroupID
+		   ,t.IsCashOut
+		   ,CASE WHEN c.currency <> 20 AND @IsITSupport = 1 THEN 1 ELSE 0 END AS IsITSupport -- Recover real tickets by IT ==> Send mail with recipient list "IT Support"
+		   ,CASE WHEN c.currency <> 20 OR (c.currency = 20 AND @IsITSupport = 0 )THEN 1 ELSE 0 END AS IsCSD --Recover real tickets => send mail to CSD , Recover UUS tickets by CSD: send mail CSD
+		   ,CASE WHEN c.currency = 20 AND @IsITSupport = 1 THEN 1 ELSE 0 END AS IsITQA -- Recover UUS tickets by IT => Send mail with recipient list "IT QA"
+		   ,t.matchid
+		   ,t.homeid
+		   ,t.awayid      
+		   ,t.sporttype     
+		   ,t.leagueid
+		   ,t.SettlementStatus
+		   ,t.GlobalShowTime --Betbuilder
 	FROM	#TVSTicketBets t
-		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
-		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
-		LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK) ON ag.custid = t.recommend 
-		LEFT JOIN CustDB.dbo.Customer ma WITH(NOLOCK) ON ma.custid = t.mrecommend
-		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend
-		LEFT JOIN @VIPAccount_tmp vip ON t.custid = vip.CustID 	
-		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
-		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
-	ORDER BY ISNULL(t.MainTransId, t.transid)
-		   , CASE 
-				WHEN t.BonusID IS NOT NULL
-						THEN CASE 
-								WHEN t.MainTransId IS NULL THEN 1
-								ELSE 2 
-							 END
-				ELSE t.transid
-			 END
+		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.srecommend
+		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON t.srecommend = d.custid
+	ORDER BY c.site
+		   , ISNULL(t.MainTransId, t.transid)
+		   , CASE WHEN t.BonusID IS NOT NULL
+						THEN CASE WHEN t.MainTransId IS NULL THEN 1
+								  ELSE 2 END
+				  ELSE t.transid END
 
 	DROP TABLE #TVSTicketBets;
 
