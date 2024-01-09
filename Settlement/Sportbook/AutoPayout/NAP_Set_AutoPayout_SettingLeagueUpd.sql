@@ -25,6 +25,7 @@ AS
 		- 20210311@Max: Auto Payout for Table Tennis [Redmine: #143442]
 		- 20230103@Kathy: Support ON bit 1 & 5 for other sport [Redmine:#181458]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
+		- 20240108@Aries: Don't update the same setting for league & corresponding running match  [Redmine: #199495]
 
 	Param's Explanation:
 		- @IsApplyAll: 0: only update on league
@@ -110,7 +111,7 @@ BEGIN
 									WHEN @IsEnabled = 1 THEN @AutoSetting | POWER(2,@AutoType - 1) 
 									ELSE CASE WHEN @AutoSetting & (POWER(2,@AutoType - 1)) = 0 THEN @AutoSetting ELSE @AutoSetting ^ (POWER(2,@AutoType - 1)) END
 								END
-				,@AutoSetting = CASE WHEN @Sporttype = 1 AND @AutoType IN (1, 5) THEN 
+				,@AutoSetting = CASE WHEN @Sporttype IN (1,50) AND @AutoType IN (1, 5) THEN 
 																CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
 																	ELSE @AutoSetting & 238
 																END
