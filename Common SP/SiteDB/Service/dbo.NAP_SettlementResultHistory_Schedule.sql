@@ -17,7 +17,7 @@ BEGIN
 	SET NOCOUNT ON
 
 	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
-	CREATE TABLE #tblTransParlay (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),bettype SMALLINT,betid BIGINT,refno BIGINT)
+	CREATE TABLE #tblTransParlay (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 
 	DECLARE  @SessionId			VARCHAR(50)       
 			,@matchid			INT
@@ -28,7 +28,7 @@ BEGIN
 			,@batchCount		INT 			= 0
 			,@isPass			BIT				= 0
 			,@CreatedDate		DATETIME
-			,@DateCheck			DATETIME 		= DATEADD(MINUTE,-10 ,GETDATE())
+			,@DateCheck			DATETIME 		= DATEADD(MINUTE,-5 ,GETDATE())
 			
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
@@ -42,6 +42,7 @@ BEGIN
 				,@sportType	= h.sportType
 				,@ActionType = h.ActionType
 				,@StatusID =  h.StatusID
+				,@CreatedDate = h.CreatedDate
 				,@isPass = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
 								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL THEN 1
 							    ELSE 0
@@ -63,7 +64,7 @@ BEGIN
 						AND b.SessionID = h.SessionID
 						AND b.statusid = 0
 			) AS b
-		WHERE (h.StatusID IN (0,1) OR h.StatusID IS NULL)			
+		WHERE h.StatusID IN (0,1)	
 			AND 1 = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
 						 WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL THEN 1
 						 WHEN h.CreatedDate <= @DateCheck THEN 1
@@ -78,6 +79,7 @@ BEGIN
 				,@sportType	= h.sportType
 				,@ActionType = h.ActionType
 				,@StatusID =  h.StatusID
+				,@CreatedDate = h.CreatedDate
 				,@isPass = CASE WHEN h.StatusID = 0 THEN 1
 								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) THEN 1
 							    ELSE 0
@@ -93,7 +95,7 @@ BEGIN
 						 WHERE q.matchid = h.matchid
 							AND q.BroadcastSessionId = h.SessionID
 			) AS p
-		WHERE (h.StatusID IN (0,1) OR h.StatusID IS NULL)			
+		WHERE h.StatusID IN (0,1)
 			AND 1 = CASE WHEN h.StatusID = 0 THEN 1
 						 WHEN h.StatusID = 1 AND  s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) THEN 1
 						 WHEN h.CreatedDate <= @DateCheck THEN 1
@@ -105,7 +107,8 @@ BEGIN
 	IF @CreatedDate <= @DateCheck AND @isPass = 0
 	BEGIN
 		UPDATE SettlementResultHistory
-		SET StatusID = 3
+		SET  StatusID = 3
+			,ModifiedDate = GETDATE()
 		WHERE matchid =	@matchid
 			AND SessionId = @SessionID
 		
@@ -134,21 +137,24 @@ BEGIN
 	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
 	WHERE l.matchid = @matchid
 		AND l.BroadcastSessionId  = @SessionId
-		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w)
+		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w OR l.TicketType = 'p')
 		AND t.bef_sid != 0
 	
-	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno)
+	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
 	SELECT t.t AS TransId
-		  ,t.bt
-		  ,t.bi
-		  ,t.rf
+		  ,t.bt AS bettype
+		  ,t.bi AS betid
+		  ,t.rf AS refno
+		  ,t.w AS winlost
+		  ,t.bef_w AS bef_winlost
+		  ,t.[sid] AS statusid
+		  ,t.bef_sid AS bef_statusid
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
+	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
 	WHERE l.matchid = 29
 		AND l.BroadcastSessionId  = @SessionId
-		AND t.[sid] != t.bef_sid
+		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w)
 		AND t.bef_sid != 0
-		AND t.[sid] != 0
 		AND l.LogDate >= DATEADD(MINUTE,-30 ,@CreatedDate) 
 
 	;WITH CTE_ResourceID AS (
@@ -214,10 +220,34 @@ BEGIN
 						    WHERE h.transId = t.transId
 								AND h.SessionId = @SessionId)
 
-		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo)
+		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo,ExtraInfo_Before,ExtraInfo_After)
 		SELECT  @SessionId
 			   ,tp.transid
 			   ,tbl.SeqNo
+			   ,CONCAT('<root><r status="',	 CASE WHEN tp.bef_statusid = 1	 THEN 'WAITING' 
+											 	  WHEN tp.bef_statusid = 0	 THEN 'RUNNING' 
+											 	  WHEN tp.bef_statusid = 101 THEN 'REJECT' 
+											 	  WHEN tp.bef_statusid = 102 THEN 'VOID' 
+											 	  WHEN tp.bef_statusid = 103 THEN 'REFUND' 
+											 	  WHEN tp.bef_statusid = 111 THEN 'DRAW' 
+											 	  WHEN tp.bef_statusid = 112 THEN 'WON' 
+											 	  WHEN tp.bef_statusid = 113 THEN 'LOSE' 
+											 	  ELSE 'None'
+											 END
+						,'"winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.bef_winlost,2),'0')
+						,'" /></root>') AS ExtraInfo_Before
+			   ,CONCAT('<root><r status="',  CASE WHEN tp.statusid = 1	 THEN 'WAITING' 
+											 	  WHEN tp.statusid = 0	 THEN 'RUNNING' 
+											 	  WHEN tp.statusid = 101 THEN 'REJECT' 
+											 	  WHEN tp.statusid = 102 THEN 'VOID' 
+											 	  WHEN tp.statusid = 103 THEN 'REFUND' 
+											 	  WHEN tp.statusid = 111 THEN 'DRAW' 
+											 	  WHEN tp.statusid = 112 THEN 'WON' 
+											 	  WHEN tp.statusid = 113 THEN 'LOSE' 
+											 	  ELSE 'None'
+											 END
+						,'"winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.winlost,2),'0')
+						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			CROSS APPLY(SELECT TOP 1 r.SeqNo
 			            FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK) 
@@ -235,7 +265,8 @@ BEGIN
 
 	/* #5: Update success status*/
 	UPDATE SettlementResultHistory
-	SET StatusID = 2
+	SET  StatusID = 2
+		,ModifiedDate = GETDATE()
 	WHERE matchid =	@matchid
 		AND SessionId = @SessionID
 END

@@ -40,7 +40,7 @@ BEGIN
 			,@cntBetParlayDetailUpd INT = 0
 
 	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT)		
+	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT)		
 	
 	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
 	SET @FunctionName = CASE  
@@ -113,7 +113,9 @@ BEGIN
 				,inserted.winlostdate
 				,inserted.status
 				,inserted.ruben
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben)
+				,deleted.statusid	
+				,inserted.bettype
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -186,7 +188,8 @@ BEGIN
 				,inserted.status
 				,inserted.ruben
 				,deleted.statusid	
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid)
+				,INSERTED.bettype
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
@@ -229,7 +232,8 @@ BEGIN
 				,inserted.status
 				,inserted.ruben
 				,deleted.statusid
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid)
+				,INSERTED.bettype
+		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #parlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid        
@@ -257,6 +261,7 @@ BEGIN
 					,ruben AS 'r' -- ruben	
 					,bef_statusid AS 'bef_sid' 
 					,refno AS 'rf' 
+					,bettype AS 'bt' 
 			FROM	#parlayOutput
 			FOR JSON AUTO
 		)
