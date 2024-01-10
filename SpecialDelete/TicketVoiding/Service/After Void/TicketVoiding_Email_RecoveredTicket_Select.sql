@@ -81,7 +81,9 @@ BEGIN
 		,winlostdate	SMALLDATETIME
 		,IsMove14		BIT
 		,IsCashOut		BIT DEFAULT(0)
+		,IsSettled		BIT DEFAULT(0)
 		,LeagueGroupID  SMALLINT
+		,IsDeposit		BIT DEFAULT(0) 
 	)
 
 	CREATE TABLE #transIdTemp (
@@ -470,51 +472,79 @@ BEGIN
 		WHERE sb.ProductID = 37
 	END
 
-	SELECT CASE WHEN t.custid IS NULL THEN 'Credit' ELSE 'Deposit' END AS GroupName
-		   ,t.transid    
-		   ,t.Username
+	-- update Isdeposit
+	UPDATE t SET IsDeposit = 1
+	FROM #TVSTicketBets t
+	WHERE EXISTS (SELECT d.custid FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) WHERE d.custid = t.srecommend)
+
+	SELECT  t.TransId    
+		   ,t.MatchId
+		   ,t.UserName
+		   ,t.Odds     
+		   ,t.OddsType
 		   ,t.TransDate     
 		   ,t.Bettype    
-		   ,t.Refno     
-		   ,t.Status     
-		   ,t.Winlost   
 		   ,t.BetTeam    
-		   ,t.livehomescore    
-		   ,t.liveawayscore    
-		   ,t.Stake     
-		   ,t.Odds     
 		   ,t.hdp1     
-		   ,t.hdp2     
-		   ,t.betid  
-		   ,t.betcheck    
-		   ,t.transdesc   
-		   ,t.betfrom
-		   ,t.currencyName
-		   ,c.site
-		   ,CURRENT_TIMESTAMP AS [DateTime]
-		   ,t.ExtraInfo
-		   ,t.actual_stake AS ActualStake
-		   ,t.SiteDBGroupID
-		   ,t.IsCashOut
-		   ,CASE WHEN c.currency <> 20 AND @IsITSupport = 1 THEN 1 ELSE 0 END AS IsITSupport -- Recover real tickets by IT ==> Send mail with recipient list "IT Support"
-		   ,CASE WHEN c.currency <> 20 OR (c.currency = 20 AND @IsITSupport = 0 )THEN 1 ELSE 0 END AS IsCSD --Recover real tickets => send mail to CSD , Recover UUS tickets by CSD: send mail CSD
-		   ,CASE WHEN c.currency = 20 AND @IsITSupport = 1 THEN 1 ELSE 0 END AS IsITQA -- Recover UUS tickets by IT => Send mail with recipient list "IT QA"
-		   ,t.matchid
+		   ,t.hdp2    
+		   ,t.livehomescore    
+		   ,t.liveawayscore  
+		   ,t.Stake     
+		   ,SUBSTRING(gr.GroupName, 3, 30) AS GroupName
+		   ,t.Status     
 		   ,t.homeid
-		   ,t.awayid      
+		   ,t.awayid  
+		   ,t.LiveIndicator AS IsLiveIndicator
+		   ,t.Winlost   
+		   ,t.betid  
+		   ,t.Refno     
 		   ,t.sporttype     
 		   ,t.leagueid
+		   ,t.betcheck    
+		   ,t.transdesc  
+		   ,t.ExtraInfo
+		   ,t.betdaqid
+		   ,t.WalletType
+		   ,t.MainTransId
+		   ,t.RefCode
+		   ,t.Oddsspread
 		   ,t.SettlementStatus
-		   ,t.GlobalShowTime --Betbuilder
+		   ,t.actual_stake AS ActualStake
+		   ,t.custid
+		   ,t.SiteDBGroupID
+		   ,t.betfrom
+		   ,CASE WHEN c.currency <> 20 OR (c.currency = 20 AND @IsITSupport = 0 )THEN 1 ELSE 0 END AS IsCSD --Recover real tickets => send mail to CSD , Recover UUS tickets by CSD: send mail CSD
+		   ,CASE WHEN c.currency <> 20 AND @IsITSupport = 1 THEN 1 ELSE 0 END AS IsITSupport -- Recover real tickets by IT ==> Send mail with recipient list "IT Support"
+		   ,CASE WHEN c.currency = 20 AND @IsITSupport = 1 THEN 1 ELSE 0 END AS IsITQA -- Recover UUS tickets by IT => Send mail with recipient list "IT QA"
+		   ,t.IsCashOut 
+		   ,CASE WHEN t.IsCashOut = 0 AND t.eventstatus = 'completed' THEN 1 ELSE 0 END AS IsSettled
+		   ,t.CurrencyName
 	FROM	#TVSTicketBets t
 		INNER JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.srecommend
-		LEFT JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON t.srecommend = d.custid
-	ORDER BY c.site
-		   , ISNULL(t.MainTransId, t.transid)
-		   , CASE WHEN t.BonusID IS NOT NULL
-						THEN CASE WHEN t.MainTransId IS NULL THEN 1
-								  ELSE 2 END
-				  ELSE t.transid END
+		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
+		CROSS APPLY (SELECT CASE
+								WHEN f.CustID IS NULL
+									AND t.username <> '12EU'
+									AND t.IsDeposit = 0
+									AND t.mrecommend NOT IN (105181, 118473, 105183) -- MHC
+									AND t.recommend NOT IN (11196380, 13423967, 52466) -- Foobet, 1E, 8RM
+									AND t.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058)
+										THEN '0-Credit' --1. For Normal bets
+								WHEN t.recommend IN (52466, 5707545)
+										THEN '1-8RM/BARM' ----2: For 8RM/BARM
+								WHEN f.CustID IS NULL -- Betdaq
+									AND t.username <> '12EU' 
+									AND t.IsDeposit = 1	
+									AND t.mrecommend NOT IN (105181, 118473, 105183)
+									AND t.recommend NOT IN (11196380, 13423967, 52466) -- Foobet: 11196380, 1E: 13423967, 8RM: 52466
+									AND t.custid NOT IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
+										THEN '2-Deposit' ----3. For Deposit bets
+								WHEN t.custid IN (1077687,2331,115770,15523642,15042477,16041068,16041058) -- Betfair: BFOS, BF, ITibc102, BF3
+										THEN '3-BetFair' ----8: For Betfair
+								ELSE NULL
+							END AS GroupName) AS gr	
+	WHERE gr.GroupName IS NOT NULL
+	ORDER BY gr.GroupName, t.transid	
 
 	DROP TABLE #TVSTicketBets;
 
