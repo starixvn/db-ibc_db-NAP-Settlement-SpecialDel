@@ -393,11 +393,12 @@ BEGIN
 				,TotalResettleProcessed = ISNULL(rt.TotalResettleProcessed,0)
 		FROM	#tmpResult t
 			OUTER APPLY (SELECT 
-							COUNT(CASE WHEN s.IsProcessed = 3 THEN s.TransId ELSE 0 END) AS TotalResettleProcessed
-						   ,COUNT(CASE WHEN s.IsProcessed IS NOT NULL AND s.MatchId IN (9,29,2799) THEN s.TransId ELSE 0 END) AS TotalSingleProcessed
-						   ,COUNT(CASE WHEN s.IsProcessed IS NOT NULL AND s.MatchId NOT IN (9,29,2799) THEN s.TransId ELSE 0 END) AS TotalParlayProcessed
+							SUM(CASE WHEN s.IsProcessed = 3 THEN 1 ELSE 0 END) AS TotalResettleProcessed
+						   ,SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId
+					AND s.IsProcessed IS NOT NULL
 				)rt	
 		WHERE t.IssueTypeId = 22 
 	END
