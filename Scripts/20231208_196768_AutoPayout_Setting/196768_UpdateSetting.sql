@@ -20,7 +20,7 @@ SET  AP_Group = 1
 
 	,AP_Main_NumberProvider = 2
 	,AP_Main_WaitingTime = 1800
-	,AP_Main_CheckList = '1,2,3,4,99'
+	,AP_Main_CheckList = '1,2,3,97,99'
 
 	,AP_EAR_NumberProvider = 2
 	,AP_EAR_WaitingTime = 1800
