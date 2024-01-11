@@ -30,6 +30,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 		- 20230331@July: TVS changes for new process of BU [Redmine: #184000]
+		- 20240111@July: [TVS] Negative Balance - Don't Send Notification to Single Wallet Licensee [Redmine: #199097]
 
 	Param's Explanation: Special bet delete option
 		@transids: All ticket of customers who need to be check negative bet credit
@@ -44,20 +45,24 @@ AS
 */
 BEGIN
 	SET NOCOUNT ON 
+	
 	DECLARE @SiteDBGroupID	SMALLINT = 0
+		  , @movebetdate	SMALLDATETIME
+		  , @balanceupdate	SMALLDATETIME
+
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	DECLARE @tmpTransId TABLE (transid BIGINT PRIMARY KEY)
 	
 	DECLARE @tmpCurrentBalance TABLE (
 		custid		INT
-		,username	nvarchar(50)
-		,balance	money
+		,username	NVARCHAR(50)
+		,balance	MONEY
 	)
 	
 	DECLARE @tmpChangedBalance TABLE (
 		custid		INT
-		,balance	money
+		,balance	MONEY
 	)	
 	
 	CREATE TABLE #BetDelete (
@@ -69,18 +74,15 @@ BEGIN
 		,bettype		SMALLINT
 		,matchid		INT
 		,refno			BIGINT	
-		,betdaqid		BIGINT
-		,ExtraInfo		VARCHAR(1000)
 		,WalletType		TINYINT
-		,RefCode		BIGINT
 		,BonusID		INT
+		,srecommend		INT
 	)
 	
 	DECLARE @tmpAffectedCustId TABLE (CustId INT)
-	DECLARE @movebetdate SMALLDATETIME, @balanceupdate SMALLDATETIME
 
 	INSERT INTO @tmpTransId(transid)
-	SELECT value FROM STRING_SPLIT(@TransIds, ',')
+	SELECT value FROM STRING_SPLIT(@TransIds, ',') WHERE value <> ''
 
 	INSERT INTO #BetDelete(
 			transid
@@ -91,11 +93,9 @@ BEGIN
 			,bettype
 			,matchid
 			,refno
-			,betdaqid
-			,ExtraInfo
 			,WalletType
-			,RefCode
 			,BonusID
+			,srecommend
 	)
 	SELECT	b.transid -- normal ticket 
 			,b.custid
@@ -105,11 +105,9 @@ BEGIN
 			,b.bettype
 			,b.matchid
 			,b.refno
-			,b.betdaqid
-			,b.ExtraInfo
 			,b.WalletType
-			,b.RefCode
 			,b.BonusID
+			,b.srecommend
 	FROM	@tmpTransId t
 		INNER JOIN bettrans b WITH(NOLOCK)
 			ON	b.transid = t.transid AND b.SiteDBGroupID = @SiteDBGroupID
@@ -131,6 +129,24 @@ BEGIN
 	WHERE t.BonusID > 0 
 	  AND t.WalletType = 1 
 	  AND st.BonusFlag = 2				    				    		  		  			 				    		  
+
+	-- delete tickets belonging to Single wallet Licensee
+	DELETE t
+	FROM #BetDelete t
+		 INNER JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
+			ON t.srecommend = cs.custid
+		 OUTER APPLY (
+						SELECT TOP(1) vp.SiteID
+						FROM DBCUST.SiteConfig.dbo.LicVendorProfile vp WITH(NOLOCK)
+							INNER JOIN DBCUST.SiteConfig.dbo.ConfigMaster cm WITH(NOLOCK)
+								ON vp.SiteID = cm.SiteID
+							INNER JOIN DBCUST.SiteConfig.dbo.ConfigDetail cd WITH(NOLOCK)
+								ON cm.ConfigID = cd.ConfigID
+						WHERE cd.KeyName = 'EnableSingleWallet'
+							AND cd.KeyValue = 'true'
+							AND vp.SiteName = cs.site
+					) vp 
+	WHERE vp.SiteID IS NOT NULL
 
 	INSERT INTO @tmpAffectedCustId(CustId)
 	SELECT	DISTINCT custid
