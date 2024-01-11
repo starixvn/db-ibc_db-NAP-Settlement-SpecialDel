@@ -1,8 +1,8 @@
 ﻿/*<info serverAlias="DBLOG-bodb_CustomerLog" executers="" viewers="" isFunction="0"></info>*/
 
 /*
-    Created: 20230504@Aries
-	Task: Un-calculate FT Only [Redmine: #146737]
+    Created: 20231211@Aries
+	Task: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 	DB: DBLOG/bodb_CustomerLog
 
 */

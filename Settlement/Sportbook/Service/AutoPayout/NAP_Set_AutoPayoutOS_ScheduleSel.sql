@@ -163,9 +163,9 @@ BEGIN
 			  ,COUNT(DISTINCT IIF(CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0,r.SourceID,NULL)) AS TotalPrimaryProvider
 			  ,COUNT(DISTINCT IIF(CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0,r.SourceID,NULL)) AS TotalSecondaryProvider
 			  ,MIN(CASE WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0 THEN r.CreateDate
-						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 THEN r.CreateDate
+						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 AND IIF(f.ResourceType = 1, m.AP_Main_NumberProvider,  m.AP_EAR_NumberProvider) > 1 THEN r.CreateDate
 						WHEN IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider)  = 0
-							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) < IIF(f.ResourceType = 1,m.AP_Main_NumberProvider,m.AP_EAR_NumberProvider)) THEN r.CreateDate
+							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) > 1) THEN r.CreateDate
 						 ELSE NULL
 					 END) AS CreatedDate
 			  ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
@@ -207,10 +207,10 @@ BEGIN
 			  ,COUNT(DISTINCT IIF(CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0,r.SourceID,NULL)) AS TotalPrimaryProvider
 			  ,COUNT(DISTINCT IIF(CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0,r.SourceID,NULL)) AS TotalSecondaryProvider
 			  ,MIN(CASE WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0 THEN r.CreateDate
-						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 THEN r.CreateDate
+						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 AND IIF(f.ResourceType = 1, m.AP_Main_NumberProvider,  m.AP_EAR_NumberProvider) > 1  THEN r.CreateDate
 						WHEN IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider)  = 0
-							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) < IIF(f.ResourceType = 1,m.AP_Main_NumberProvider,m.AP_EAR_NumberProvider)) THEN r.CreateDate
-						 ELSE NULL
+							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) > 1) THEN r.CreateDate
+						ELSE NULL
 					 END) AS CreatedDate
 			  ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
 		FROM ProviderExternalResultDetailOS AS r WITH(NOLOCK)
@@ -251,9 +251,9 @@ BEGIN
 			  ,COUNT(DISTINCT IIF(CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0,r.SourceID,NULL)) AS TotalPrimaryProvider
 			  ,COUNT(DISTINCT IIF(CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0,r.SourceID,NULL)) AS TotalSecondaryProvider
 			  ,MIN(CASE WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_PrimaryProvider,m.AP_EAR_PrimaryProvider) +',') > 0 THEN r.CreateDate
-						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 THEN r.CreateDate
+						WHEN CHARINDEX(','+CAST(r.SourceID AS VARCHAR)+',',','+ IIF(f.ResourceType = 1,m.AP_Main_SecondaryProvider,m.AP_EAR_SecondaryProvider) +',') > 0 AND IIF(f.ResourceType = 1, m.AP_Main_NumberProvider,  m.AP_EAR_NumberProvider) > 1  THEN r.CreateDate
 						WHEN IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider)  = 0
-							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) < IIF(f.ResourceType = 1,m.AP_Main_NumberProvider,m.AP_EAR_NumberProvider)) THEN r.CreateDate
+							 OR (IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)  = 0 AND  IIF(f.ResourceType = 1,m.AP_Main_TotalPrimaryProvider,m.AP_EAR_TotalPrimaryProvider) > 1) THEN r.CreateDate
 						 ELSE NULL
 					 END) AS CreatedDate
 			  ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
@@ -295,7 +295,7 @@ BEGIN
 					  FROM dbo.ResultDetail AS r WITH(NOLOCK)
 					  WHERE r.matchid = mr.matchid
 						AND r.ResourceId = mr.ResourceId
-						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 6  != 0))
+						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 7  != 0))
 
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
 		SELECT m.matchId,r.ResourceId,ISNULL(r.LastModifyDate,r.CreateDate),f.ResourceType,1 AS IsTrader
@@ -330,7 +330,7 @@ BEGIN
 					  FROM dbo.ResultDetailOS AS r WITH(NOLOCK)
 					  WHERE r.matchid = mr.matchid
 						AND r.ResourceId = mr.ResourceId
-						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 6  != 0))
+						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 7  != 0))
 
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
 		SELECT m.matchId,r.ResourceId,ISNULL(r.LastModifyDate,r.CreateDate),f.ResourceType,1 AS IsTrader
@@ -365,7 +365,7 @@ BEGIN
 					  FROM dbo.ResultDetailES AS r WITH(NOLOCK)
 					  WHERE r.matchid = mr.matchid
 						AND r.ResourceId = mr.ResourceId
-						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 6  != 0))
+						AND (r.SettlementStatusID != 0 OR ISNULL(r.ResultSetting,0) & 7  != 0))
 
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
 		SELECT m.matchId,r.ResourceId,ISNULL(r.LastModifyDate,r.CreateDate),f.ResourceType,1 AS IsTrader

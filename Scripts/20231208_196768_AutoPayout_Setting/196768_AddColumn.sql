@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="" isFunction="0"></info>*/
 /*
-    Created: 20230711@Aries
-	Task: Apply Settle Determined for Basketball [Redmine: #184124]
+    Created: 20231211@Aries
+	Task: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 	DB: DBPRO/bodb02
 */
  
