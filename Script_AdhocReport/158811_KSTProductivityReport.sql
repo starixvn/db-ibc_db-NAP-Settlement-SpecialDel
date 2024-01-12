@@ -24,6 +24,7 @@ GO
 	 2022-02-17: release Pingoal basketball
 	 2022-12-19: release Pingoal ESports
 	 2023-04-12: release Table Tennis - move auto from AutoPayoutResultDetail to AutoPayoutResultDetailOS
+	 2024-01-12: Separate 2 column AutoCal and AutoRefund from column AutoSettle
 
 	 *** Scope: SportBook
 	 *** Exclude: hedge match, child match of Cricket Test Match, test match
@@ -31,8 +32,8 @@ GO
 */
 
 
-	DECLARE @fromDate DATETIME = '2023-04-01'
-			,@toDate  DATETIME = '2023-05-31 23:59:59'
+	DECLARE @fromDate DATETIME = '2023-12-01'
+			,@toDate  DATETIME = '2024-01-12 23:59:59'
 			,@maxEventDate14 DATETIME
 			,@maxEventDateBK DATETIME
 
@@ -60,15 +61,15 @@ GO
 		)
 
 	CREATE TABLE #MatchId (matchid INT, sporttype TINYINT, ResultTable TINYINT, eventdate VARCHAR(10),  betstatus NVARCHAR(100)	)
-	CREATE TABLE #TempResultDetail ( MatchId INT, ManualCalculated INT , ManualRefunded INT, AutoSettle INT )
+	CREATE TABLE #TempResultDetail ( MatchId INT, ManualCalculated INT , ManualRefunded INT, AutoCal INT, AutoRefund INT )
 	CREATE TABLE #ResultTableSetting ( sporttype SMALLINT, ResultTable TINYINT )
 	CREATE TABLE #MatchIdAuto (matchid INT )
 
 ------------------------------------------------------------------------------------------------------------------
 	INSERT INTO #ResultTableSetting ( sporttype, ResultTable)
 	SELECT r.sporttype, r.ResultTable
-	FROM DBPRO.bodb02.dbo.SettlementResultTableSetting r (nolock)
-	WHERE ResultTable > 0 --- 0: match  1:ResultDetail  2:ResultDetailOS  3:ResultDetailES
+	FROM DBPRO.bodb02.dbo.SettlementResultTableSetting r WITH(NOLOCK)
+	WHERE ResultTable > 0 ---- 0: match  1:ResultDetail  2:ResultDetailOS  3:ResultDetailES
 
 	-- match
 	IF @toDate > @maxEventDate14
@@ -163,11 +164,12 @@ GO
 	IF @toDate > @maxEventDate14
 	BEGIN
 		--ResultDetail
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN dbo.ResultDetail r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable  = 1
@@ -181,11 +183,12 @@ GO
 		GROUP BY r.MatchId
 	
 		--ResultDetailOS
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailOS r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 2
@@ -199,11 +202,12 @@ GO
 		GROUP BY r.MatchId
 
 		--ResultDetailES
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailES r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 3
@@ -217,11 +221,12 @@ GO
 	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
 	BEGIN
 		--ResultDetail14
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN dbo.ResultDetail14 r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable  = 1
@@ -235,11 +240,12 @@ GO
 		GROUP BY r.MatchId
 
 		--ResultDetailOS14
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailOS14 r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 2
@@ -253,11 +259,12 @@ GO
 		GROUP BY r.MatchId
 
 		--ResultDetailES14
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal , AutoRefund)
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN  dbo.ResultDetailES14 r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 3
@@ -271,11 +278,12 @@ GO
 	IF @fromDate < @maxEventDateBK
 	BEGIN
 		--ResultDetail_bk
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal , AutoRefund)
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN bodb_archive.dbo.ResultDetail_bk r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable  = 1
@@ -289,11 +297,12 @@ GO
 		GROUP BY r.MatchId
 
 		--ResultDetailOS_bk
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund)
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN  bodb_archive.dbo.ResultDetailOS_bk r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 2
@@ -307,11 +316,12 @@ GO
 		GROUP BY r.MatchId
 
 		--ResultDetailES_bk
-		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+		INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 		SELECT	r.MatchId
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND r.SettlementStatusID = 4 THEN 1 ELSE 0 END ) AS ManualCalculated
 				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) NOT IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END ) AS ManualRefund
-				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) THEN 1 ELSE 0 END ) AS AutoSettle
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID = 4 THEN 1 ELSE 0 END )   AS AutoCal
+				, SUM(CASE WHEN ISNULL(LastModifyBy, 1) IN ( 0,  111) AND  r.SettlementStatusID IN (1,2,3,5,6,7) THEN 1 ELSE 0 END )   AS AutoRefund
 		FROM #MatchId m 
 			INNER JOIN  bodb_archive.dbo.ResultDetailES_bk r WITH(NOLOCK) ON m.matchid = r.MatchID
 		WHERE m.ResultTable = 3
@@ -330,7 +340,7 @@ GO
 		AND p.sporttype = 18
 		AND p.IsAuto = 1
 
-	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 	SELECT
 			m.MatchId
 			, CASE WHEN  r.MatchId IS NOT NULL THEN 0 
@@ -344,6 +354,7 @@ GO
 			, CASE WHEN r.MatchId IS NOT NULL THEN 1 
 					ELSE 0
 					END AS IsAuto
+			, 0 AS AutoRefund
 			FROM #MatchId m
 		OUTER APPLY (	
 						SELECT r.MatchId FROM #MatchIdAuto r
@@ -353,11 +364,12 @@ GO
 		WHERE m.sporttype = 18
 	
 	------------------------ Other sports: Result is saved in dbo.match -------
-	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoSettle )
+	INSERT INTO #TempResultDetail ( MatchId  , ManualCalculated, ManualRefunded , AutoCal, AutoRefund )
 	SELECT	m.MatchId
 		, CASE WHEN  m.betstatus = 'Refund;' THEN 0 ELSE 1 END	AS ManualCal
 		, CASE WHEN  m.betstatus = 'Refund;' THEN 1 ELSE 0 END	AS ManualRefund
-		, 0 AS IsAuto
+		, 0 AS AutoCal
+		, 0 AS AutoRefund
 	FROM #MatchId m
 	WHERE m.sporttype <> 18
 		AND 1 = CASE WHEN m.ResultTable = 0 THEN 1
@@ -370,8 +382,9 @@ GO
 		, COUNT(DISTINCT r.matchid) AS Matches
 		 ,SUM(r.ManualCalculated ) AS ManualCalculated
 		 ,SUM(r.ManualRefunded ) AS ManualRefunded
-		 ,SUM(r.AutoSettle) AS AutoSettle
-		 ,SUM( ManualCalculated + ManualRefunded + AutoSettle) AS TotalSettledResourceId
+		 ,SUM(r.AutoCal) AS AutoCal
+		 ,SUM(r.AutoRefund) AS AutoRefund
+		 ,SUM( ManualCalculated + ManualRefunded + AutoCal + AutoRefund) AS TotalSettledResourceId
 	FROM #TempResultDetail  r
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
 	GROUP BY m.eventdate,   m.sportName ,  m.LeagueGroupName
@@ -381,7 +394,7 @@ GO
 	--Match vs Result	
 	SELECT  YEAR(m.eventdate) AS Y
 			,MONTH(m.eventdate) AS M	
-			,SUM( ManualCalculated + ManualRefunded + AutoSettle) AS TotalSettledResourceId 
+			,SUM( ManualCalculated + ManualRefunded + AutoCal + AutoRefund) AS TotalSettledResourceId 
 			,COUNT(DISTINCT r.matchid)	AS [Match] 
 	FROM #TempResultDetail  r
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
@@ -403,7 +416,8 @@ GO
 	SELECT  YEAR(m.eventdate) AS Y
 		,MONTH(m.eventdate) AS M	
 		,SUM( ManualCalculated + ManualRefunded) AS [ManualSettled]
-		,SUM( AutoSettle) AS AutoSettle
+		,SUM( AutoCal) AS AutoCal
+		,SUM( AutoRefund) AS AutoRefund
 	FROM #TempResultDetail  r
 		INNER JOIN #TempMatchInfo m ON r.MatchId = m.matchid
 	GROUP BY YEAR(m.eventdate), MONTH(m.eventdate)
