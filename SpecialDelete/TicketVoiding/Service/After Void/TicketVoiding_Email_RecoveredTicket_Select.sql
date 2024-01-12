@@ -38,7 +38,6 @@ BEGIN
 		,betfrom		NVARCHAR(4)
 		,Betteam		NVARCHAR(10)
 		,Bettype		SMALLINT
-		,Currency		TINYINT
 		,CurrencyName	NVARCHAR(50)
 		,Hdp1			SMALLMONEY
 		,Hdp2			SMALLMONEY
@@ -65,7 +64,7 @@ BEGIN
 		,Refno			BIGINT
 		,subTransId		BIGINT	
 		,MainTransId 	BIGINT
-		,LiveIndicator  BIT
+		,IsLiveIndicator  BIT
 		,oddsid         INT
 		,homeid         INT
         ,awayid         INT
@@ -74,7 +73,6 @@ BEGIN
 		,matchcode      NVARCHAR(50)
 		,showtime       NVARCHAR(50)
 		,SettlementStatus TINYINT
-		,GlobalShowTime	SMALLDATETIME
 		,sporttype		SMALLINT
 		,eventstatus	NVARCHAR(50)
 		,SiteDBGroupID	SMALLINT
@@ -82,7 +80,6 @@ BEGIN
 		,IsMove14		BIT
 		,IsCashOut		BIT DEFAULT(0)
 		,IsSettled		BIT DEFAULT(0)
-		,LeagueGroupID  SMALLINT
 		,IsDeposit		BIT DEFAULT(0) 
 	)
 
@@ -108,7 +105,7 @@ BEGIN
 			,hdp2 
 			,livehomescore 
 			,liveawayscore 
-			,liveindicator 
+			,IsLiveIndicator 
 			,betteam 
 			,refno 
 			,betid 
@@ -212,7 +209,7 @@ BEGIN
 			,hdp2 
 			,livehomescore 
 			,liveawayscore 
-			,liveindicator 
+			,IsLiveIndicator 
 			,betteam 
 			,refno 
 			,betid 
@@ -354,8 +351,6 @@ BEGIN
 			,matchid    = m.matchid
 			,SettlementStatus = m.SettlementStatus
 			,eventstatus = m.eventstatus
-			,LeagueGroupID = l.LeagueGroupID
-			,GlobalShowTime = m.GlobalShowTime
 		FROM #TVSTicketBets t
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
@@ -375,7 +370,6 @@ BEGIN
 			,sporttype 	= l.sporttype
 			,showtime	= ''
 			,eventstatus = o.oddsstatus
-			,LeagueGroupID = l.LeagueGroupID
 		FROM #TVSTicketBets t
 			INNER JOIN dbo.outright AS o WITH (NOLOCK) 
 			ON	t.matchid = o.orid
@@ -494,7 +488,7 @@ BEGIN
 		   ,t.Status     
 		   ,t.homeid
 		   ,t.awayid  
-		   ,t.LiveIndicator AS IsLiveIndicator
+		   ,t.IsLiveIndicator
 		   ,t.Winlost   
 		   ,t.betid  
 		   ,t.Refno     
