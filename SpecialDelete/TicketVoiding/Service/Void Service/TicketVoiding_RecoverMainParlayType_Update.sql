@@ -207,8 +207,7 @@ BEGIN
 		FROM	dbo.bettransm b WITH(NOLOCK) 
 			INNER JOIN #tblRecoverBet t ON t.refno = b.refno	
 			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid			
-		WHERE NOT EXISTS (SELECT 1 FROM @tblNoResettleTransIds WHERE transid = t.transid)
-			AND b.SiteDBGroupID = @SiteDBGroupID
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
 
 		-- Match list is auto settled
 		INSERT INTO @tblMatchIds (RowNumber, matchid, transid, refno)
