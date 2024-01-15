@@ -63,7 +63,6 @@ BEGIN
 	CREATE TABLE #tmpMatch (RowNumber INT, matchId INT, transId BIGINT, refno BIGINT)
 	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	DECLARE @tblTransIds TABLE (transid BIGINT PRIMARY KEY)
-	DECLARE @tblNoResettleTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @tmpTransInfo TABLE(
 			  matchid INT, transid BIGINT, status NVARCHAR(10) , statusID TINYINT, ruben TINYINT, modds SMALLMONEY
 			, winlost MONEY, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
@@ -200,16 +199,6 @@ BEGIN
 			SELECT @ErrCode AS ErrorCode, @ErrMsg AS ErrorMsg
 			RETURN		  		
 		END
-
-		INSERT INTO @tblNoResettleTransIds (transid)
-		SELECT t.transid
-		FROM dbo.bettransm b WITH(NOLOCK) 
-			INNER JOIN #tblRecoverBet t ON t.refno = b.refno
-			INNER JOIN dbo.match m WITH (NOLOCK) ON b.matchid = m.matchid		
-		WHERE b.SiteDBGroupID = @SiteDBGroupID
-		GROUP BY t.transid
-		HAVING COUNT(CASE WHEN m.eventstatus <> 'completed' THEN 1 ELSE NULL END) -- count running subs for each main ticket
-			   = COUNT(*) -- count all subs for each main ticket
 			  
 		-- Get match list
 		INSERT INTO #tmpMatch(RowNumber, matchId, transId, refno)
@@ -226,7 +215,10 @@ BEGIN
 		SELECT	DENSE_RANK() OVER (ORDER BY t.matchid) AS RowNumber,
 				t.matchid, t.transid, t.refno
 		FROM	#tmpMatch t
+			INNER JOIN dbo.bettrans b with (nolock) ON b.TransId = t.transId
 		WHERE RowNumber = 1
+			AND b.SiteDBGroupID = @SiteDBGroupID
+			AND b.statuswinlost IS NOT NULL
 
 		---- capture balance before recover
 		INSERT INTO @tblBeforeBalance (custid, balance)

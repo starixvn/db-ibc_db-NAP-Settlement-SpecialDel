@@ -1,21 +1,22 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.TicketVoiding_RecoverHistorical_Single_Update
+ALTER PROCEDURE dbo.TicketVoiding_RecoverHistorical_MainParlay_Update
 	@TransIds			VARCHAR(MAX)
 	,@UserId			INT
 	,@IP				VARCHAR(50)  
 	,@ErrCode			INT				= 0		OUTPUT
-	,@ErrMsg			VARCHAR(1000)	= ''	OUTPUT
+	,@ErrMsg			VARCHAR(300)	= ''	OUTPUT
 AS
 /*	Created by: Kathy
 	Date 20190823
-	Task: recover single ticket [Redmine:#115376]
+	Task: recover main parlay ticket [Redmine:#115376]
 	DB: DBTXN/bodb02
 	
 	Revisions: 
-		- 20190823@Kathy: recover single ticket [Redmine:#115376]
-		- 20201007@Max: Integrate new bet type Time Machine OU [Redmine: #143032]
+		- 20190823@Kathy: recover main parlay ticket [Redmine:#115376]
 		- 20210514@Max: [TVS] Modify the way to get move bet date [Redmine: #154974]
 		- 20220808@July: Change function to STRING_SPLIT [Redmine: #175412]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
+	
 	Param's explanation:	
 		
 */
@@ -27,21 +28,16 @@ BEGIN
 			,@LogActionId		INT
 			,@LogData			VARCHAR(MAX)
 			,@SB_Error			BIT
-
-			,@avaiableProcess	BIT
-			,@isExistFM			BIT
-			,@isExistFM2		BIT = 0
-			,@isExistMatch		BIT
 			,@AffectedList		VARCHAR(MAX)
-			
 			,@moveBetDay		SMALLDATETIME
-			,@FromDate			SMALLDATETIME    
-			,@ToDate			SMALLDATETIME
+			,@FromDate			DATETIME    
+			,@ToDate			DATETIME
+			,@avaiableProcess BIT
 	
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @moveBetDay OUTPUT
 	
-	SELECT @FromDate	= CONVERT(VARCHAR(10), DATEADD(d, -6, GETDATE()), 102)
+	SELECT @FromDate	= DATEADD(d, -6, GETDATE())
 		, @ToDate 		= @moveBetDay
 		
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
@@ -83,29 +79,20 @@ BEGIN
 	)
 
 	DECLARE @tmpInputTransId TABLE(
-		TransId BIGINT
-		,invalid TINYINT DEFAULT(0)
+		TransId		BIGINT
+		,invalid	TINYINT DEFAULT(0)
 	)
 
 	CREATE TABLE #tmpTransId (
-		TransId			BIGINT
-		,MatchId		INT
-		,CustId			INT
-		,Bettype		SMALLINT
-		,ExtraInfo		XML
-		,IsAbnormalBet	BIT DEFAULT(0)
-		,KeyId			TINYINT DEFAULT(1)
-		,Invalid		TINYINT DEFAULT(0)
+		TransId		BIGINT
+		,refno		BIGINT
+		,custid		INT
+		,invalid	TINYINT DEFAULT(0)
 	)
 
-	CREATE TABLE #tblMatchProcess (MatchId INT, KeyID TINYINT)
-
 	SET @StartTime = GETDATE()
-	SET @LogActionId = 90200
+	SET @LogActionId = 90201
 	SET @SB_Error = 0
-
-	SET @ErrCode = 0
-	SET @ErrMsg = ''
 
 	INSERT INTO @tmpInputTransId (TransId)
 	SELECT	DISTINCT value
@@ -119,19 +106,11 @@ BEGIN
 		RETURN
 	END
 
-	INSERT INTO #tmpTransId (TransId, MatchId, CustId, Bettype, KeyId, invalid)
-	SELECT	b14.transid
-			,b14.matchid
-			,b14.custid
-			,b14.bettype
-			,CASE 
-				WHEN f.GroupId = 1 THEN 6
-				WHEN f.GroupID = 2 THEN 7
-				ELSE 1
-			END AS KeyId
-			,CASE 
+	INSERT INTO #tmpTransId (TransId,custid, refno, invalid)
+	SELECT	b14.transid,b14.custid
+			,b14.refno
+			,CASE
 				WHEN cs.custid IS NOT NULL THEN 1 -- not pass validation rule
-				WHEN b14.statuswinlost IS NULL OR b14.statuswinlost NOT BETWEEN 0 AND 6 THEN 2 -- not have 'statuswinlost' value
 				WHEN b14.winlostdate < @FromDate OR b14.winlostdate > @ToDate THEN 4
 				ELSE 0
 			END AS invalid
@@ -140,28 +119,18 @@ BEGIN
 			ON	t.TransId = b14.transid
 		LEFT JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
 			ON	b14.srecommend = cs.custid
-		OUTER APPLY (
-					SELECT GroupId
-					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
-					WHERE Bettype = b14.Bettype
-			)f
 	WHERE	b14.statusID = 102
 			AND b14.betfrom <> 'p'
-			AND b14.bettype NOT IN (10, 38, 29)
-			AND b14.bettype NOT BETWEEN 801 AND 806
-			AND b14.bettype NOT BETWEEN 8101 AND 8120
-			AND b14.bettype NOT BETWEEN 81 AND 120
-			AND b14.bettype NOT BETWEEN 1201 AND 1299
-			AND b14.bettype NOT BETWEEN 2700 AND 2899
-			
-	
+			AND b14.matchid = 29
+			AND b14.bettype = 29
+
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)
 	BEGIN
 		SELECT	@ErrCode = 100
 				,@ErrMsg = 'No ticket found.'
 
 		RETURN
-	END	
+	END
 
 	UPDATE t 
 		SET invalid = i.invalid
@@ -172,10 +141,22 @@ BEGIN
 			SELECT CASE 
 						WHEN EXISTS (SELECT TOP 1 1 FROM dbo.bettrans b WITH(NOLOCK) WHERE b.transid = t.TransId AND b.statusID = 102) THEN 3  -- data has not been moved yet
 						WHEN r.transId IS NULL THEN 1 -- not pass validation rule
+						WHEN EXISTS (
+								SELECT TOP 1 1
+								FROM	dbo.bettransm bm WITH(NOLOCK)
+								WHERE	bm.refno = r.refno
+										AND (bm.statuswinlost IS NULL OR bm.statuswinlost NOT BETWEEN 0 AND 6)
+										AND bm.statusID <> 0
+								UNION ALL
+								SELECT TOP 1 1
+								FROM	dbo.bettransm14 bm14 WITH(NOLOCK)
+								WHERE	bm14.refno = r.refno
+										AND (bm14.statuswinlost IS NULL OR bm14.statuswinlost NOT BETWEEN 0 AND 6)
+							) THEN 2 -- not have 'statuswinlost' value
 						WHEN r.invalid > 0 THEN r.invalid
 					END AS invalid
 		) AS i
-
+	
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpInputTransId WHERE invalid > 0)
 	BEGIN
 		DECLARE @Msg VARCHAR(MAX) = ''
@@ -227,27 +208,8 @@ BEGIN
 		
 	END
 	
-	IF @IP IS NULL OR @UserId IS NULL
-	BEGIN
-		SET @ErrCode = 100
-		SET @ErrMsg = @ErrMsg + 'IP and UserID must be inputted.'
-		
-		RETURN
-	END
-	INSERT INTO #tblMatchProcess(matchid, KeyID)
-	SELECT	MatchId, KeyId
-	FROM	#tmpTransId
-	GROUP BY MatchId, KeyId
-	
-	SELECT	@isExistFM = CASE WHEN KeyID = 6 THEN 1 ELSE 0 END
-			,@isExistMatch = CASE WHEN KeyID = 1 THEN 1 ELSE 0 END
-			, @isExistFM2 = CASE WHEN KeyID = 7 THEN 1 ELSE 0 END
-	FROM	#tblMatchProcess
-
 	EXEC dbo.NAP_Admin_CheckingProcess
-		 @isExistFM = @isExistFM
-		, @isExistMatch	= @isExistMatch
-		, @isExistFM2 = @isExistFM2
+		@IsExistParlay = 1
 		, @avaiableProcess = @avaiableProcess OUTPUT
 		, @ErrCode = @ErrCode OUTPUT
 		, @ErrMsg = @ErrMsg OUTPUT
@@ -292,12 +254,12 @@ BEGIN
 			,b14.matchid
 
 	BEGIN TRY
-		EXEC dbo.NAP_Admin_Calculate_Bet14 
+		EXEC dbo.NAP_Admin_Calculate_MainParlay14
 			@TransIds = @TransIds
 	END TRY
 	BEGIN CATCH
-		SELECT	@ErrCode = 100
-				,@ErrMsg = ERROR_MESSAGE()
+		SELECT @ErrCode = 100
+				,@ErrMsg = ERROR_PROCEDURE () + ERROR_MESSAGE()
 	END CATCH
 
 	INSERT INTO @BalanceInfoAfterUpd (CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
@@ -341,32 +303,32 @@ BEGIN
 		, @ActionId				= 0
 
 	SET @AffectedList = CAST((
-		SELECT	CustId AS '@c'
-				,WinlostDate AS '@w'
-				,SUM(stake) AS '@st'
-				,SUM(actual_stake) AS '@ast'
-				,SUM(Winlost) AS '@w_dif'
-				,SUM(aWinlost) AS '@aw_dif'
-				,SUM(mWinlost) AS '@mw_dif'
-				,SUM(sWinlost) AS '@sw_dif'
-				,SUM(playerComm) AS '@pc_dif'
-				,SUM(Comm) AS '@c_dif'
-				,SUM(aComm) AS '@ac_dif'
-				,SUM(sComm) AS '@sc_dif'
-		FROM	@BalanceInfoAfterUpd 
-		GROUP BY CustId
-				,WinlostDate
-		FOR XML PATH('r'), ROOT('root'), TYPE
-	) AS VARCHAR(MAX))
+			SELECT	CustId AS '@c'
+					,WinlostDate AS '@w'
+					,SUM(stake) AS '@st'
+					,SUM(actual_stake) AS '@ast'
+					
+					,SUM(Winlost) AS '@w_dif'
+					,SUM(aWinlost ) AS '@aw_dif'
+					,SUM(mWinlost ) AS '@mw_dif'
+					,SUM(sWinlost ) AS '@sw_dif'
+					,SUM(playerComm ) AS '@pc_dif'
+					,SUM(Comm ) AS '@c_dif'
+					,SUM(aComm ) AS '@ac_dif'
+					,SUM(sComm ) AS '@sc_dif'
+			FROM	@BalanceInfoAfterUpd a
+					
+			GROUP BY CustId
+					,WinlostDate
+			FOR XML PATH('r'), ROOT('root'), TYPE
+		) AS VARCHAR(MAX))
 
 	IF @ErrCode <> 0
 	BEGIN
 		------ release data of TempVariableNumBer table
 		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch		= @isExistMatch
-			, @isExistFM 		= @isExistFM
-			, @isExistFM2		= @isExistFM2
-			, @IsReleased		= 1	
+			@IsExistParlay = 1
+			,@IsReleased = 1	
 	END
 	ELSE
 	BEGIN
@@ -375,27 +337,21 @@ BEGIN
 			INNER JOIN #tmpTransId t
 				ON z.transid = t.TransId
 		WHERE	z.custid = t.CustId
-				AND z.matchid = t.MatchId
-				AND z.bettype = t.Bettype
-
+				AND z.matchid = 29
+				AND z.bettype = 29
+	
 		-- release data of TempVariableNumBer table
 		EXEC dbo.NAP_Admin_CheckingProcess
-			@isExistMatch		= @isExistMatch
-			, @isExistFM 		= @isExistFM
-			, @isExistFM2		= @isExistFM2
-			, @IsReleased		= 1	
+			@IsExistParlay = 1
+			,@IsReleased = 1	
 
 		BEGIN TRY
 			-- update summary ticket
 			EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 				@AffectedList = @AffectedList
-
-			-- insert routine task
-			EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
-				@AffectedList = @AffectedList
 		END TRY
 		BEGIN CATCH
-			SELECT	@ErrCode = 100
+			SELECT 	@ErrCode = 100
 					,@ErrMsg = ERROR_PROCEDURE () + ERROR_MESSAGE()
 		END CATCH
 	END

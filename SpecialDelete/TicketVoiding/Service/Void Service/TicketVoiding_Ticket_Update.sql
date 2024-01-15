@@ -147,15 +147,30 @@ BEGIN
 	END
 	ELSE IF @VoidingTypeId IN (14) --Cricket14 ticket
 	BEGIN
-		RETURN;
+		EXEC dbo.TicketVoiding_RecoverHistorical_Single_Update
+			@TransIds = @TransIds
+			,@UserId  = @UserId
+			,@IP	 = @IP
+			,@ErrCode	= @ErrCode		OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (15) --Single14 ticket
 	BEGIN
-		SELECT 2
+		EXEC dbo.TicketVoiding_RecoverHistorical_Single_Update
+			@TransIds = @TransIds
+			,@UserId  = @UserId
+			,@IP	 = @IP
+			,@ErrCode	= @ErrCode		OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (16) --Parlay14 ticket
 	BEGIN
-		SELECT 2
+		EXEC dbo.TicketVoiding_RecoverHistorical_MainParlay_Update
+			@TransIds = @TransIds
+			,@UserId  = @UserId
+			,@IP	 = @IP
+			,@ErrCode	= @ErrCode		OUTPUT
+			,@ErrMsg	= @ErrMsg	OUTPUT
 	END
 
 END
