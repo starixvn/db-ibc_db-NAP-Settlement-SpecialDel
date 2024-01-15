@@ -385,6 +385,60 @@ BEGIN
 			ORDER BY vh.VoidingHistoryId DESC
 		) vh
 	
+	-- single ticket	
+	UPDATE vh 
+		SET TotalSingleProcessed = t.TotalSingleProcessed
+			,MatchId = t.matchid
+			,TotalParlayProcessed = t.TotalParlayProcessed
+			,TotalCancelCashOutProcessed = t.TotalCancelCashOutProcessed
+	FROM @tmpMatchVoidingHistory vh
+		INNER JOIN (
+			SELECT	vh.VoidingHistoryId
+					,SUM( CASE 
+							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
+							WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
+							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
+						ELSE 0 END
+					) AS TotalSingleProcessed
+					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
+					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed
+			FROM @tmpMatchVoidingHistory vh
+				INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
+					ON	vh.VoidingHistoryId = z.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END 
+	) t 
+		ON	vh.VoidingHistoryId = t.VoidingHistoryId
+	
+	--parlay
+	UPDATE vh
+		SET TotalParlayProcessed = t.TotalParlayProcessed
+			,MatchId = t.matchid
+	FROM	@tmpMatchVoidingHistory vh
+		INNER JOIN (
+			SELECT	vh.VoidingHistoryId
+					,COUNT(1) AS TotalParlayProcessed
+					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END AS matchid
+			FROM	@tmpMatchVoidingHistory vh
+				INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
+					ON	zm.VoidingHistoryId = vh.VoidingHistoryId
+			GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END 
+	) t
+		ON	vh.VoidingHistoryId = t.VoidingHistoryId
+
+	UPDATE t 
+		SET TotalSingleProcessed = ISNULL(vh.TotalSingleProcessed,0)
+			,TotalParlayProcessed = ISNULL(vh.TotalParlayProcessed,0)
+			,TotalCancelCashOutProcessed = ISNULL(vh.TotalCancelCashOutProcessed,0)
+	FROM	#tmpResult t
+		CROSS APPLY (
+			SELECT	SUM(vh.TotalSingleProcessed) AS TotalSingleProcessed
+					,SUM(vh.TotalParlayProcessed) AS TotalParlayProcessed
+					,SUM(vh.TotalCancelCashOutProcessed) AS TotalCancelCashOutProcessed
+			FROM	@tmpMatchVoidingHistory vh
+			WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
+		) vh
+
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchVoidingHistory WHERE IssueTypeId = 22) --Recover Ticket
 	BEGIN
 		UPDATE t 
@@ -396,67 +450,13 @@ BEGIN
 							SUM(CASE WHEN s.IsProcessed = 3 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 						   ,SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
 						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
-					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
+						LEFT JOIN dbo.zzzbettrans_bk z ON s.transid = z.transid
 					WHERE s.RequestId = t.RequestId
-					AND s.IsProcessed IS NOT NULL
+						AND s.IsProcessed IS NOT NULL
+						AND z.transid IS NULL
 				)rt	
 		WHERE t.IssueTypeId = 22 
-	END
-	ELSE
-	BEGIN
-		-- single ticket	
-		UPDATE vh 
-			SET TotalSingleProcessed = t.TotalSingleProcessed
-				,MatchId = t.matchid
-				,TotalParlayProcessed = t.TotalParlayProcessed
-				,TotalCancelCashOutProcessed = t.TotalCancelCashOutProcessed
-		FROM @tmpMatchVoidingHistory vh
-			INNER JOIN (
-				SELECT	vh.VoidingHistoryId
-						,SUM( CASE 
-								WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
-								WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
-								WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
-							ELSE 0 END
-						) AS TotalSingleProcessed
-						,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
-						,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
-						,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed
-				FROM @tmpMatchVoidingHistory vh
-					INNER JOIN dbo.zzzbettrans_bk z WITH(NOLOCK)
-						ON	vh.VoidingHistoryId = z.VoidingHistoryId
-				GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END 
-		) t 
-			ON	vh.VoidingHistoryId = t.VoidingHistoryId
-	
-		--parlay
-		UPDATE vh
-			SET TotalParlayProcessed = t.TotalParlayProcessed
-				,MatchId = t.matchid
-		FROM	@tmpMatchVoidingHistory vh
-			INNER JOIN (
-				SELECT	vh.VoidingHistoryId
-						,COUNT(1) AS TotalParlayProcessed
-						,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END AS matchid
-				FROM	@tmpMatchVoidingHistory vh
-					INNER JOIN dbo.zzzbettransm_bk zm WITH(NOLOCK)
-						ON	zm.VoidingHistoryId = vh.VoidingHistoryId
-				GROUP BY vh.VoidingHistoryId, CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE zm.matchid END 
-		) t
-			ON	vh.VoidingHistoryId = t.VoidingHistoryId
-
-		UPDATE t 
-			SET TotalSingleProcessed = ISNULL(vh.TotalSingleProcessed,0)
-				,TotalParlayProcessed = ISNULL(vh.TotalParlayProcessed,0)
-				,TotalCancelCashOutProcessed = ISNULL(vh.TotalCancelCashOutProcessed,0)
-		FROM	#tmpResult t
-			CROSS APPLY (
-				SELECT	SUM(vh.TotalSingleProcessed) AS TotalSingleProcessed
-						,SUM(vh.TotalParlayProcessed) AS TotalParlayProcessed
-						,SUM(vh.TotalCancelCashOutProcessed) AS TotalCancelCashOutProcessed
-				FROM	@tmpMatchVoidingHistory vh
-				WHERE	vh.RequestId = t.RequestId AND (vh.MatchId = t.MatchId OR vh.MatchId = 0)
-			) vh
 	END
 	/*****************Return table **************************/
 	-- 1. Return infor table

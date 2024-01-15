@@ -195,8 +195,10 @@ BEGIN
 							SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
 						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+							LEFT JOIN dbo.zzzbettrans z WITH(NOLOCK) ON s.TransId = z.transid
 						WHERE s.RequestId = t.RequestId
 							AND s.IsProcessed IS NOT NULL
+							AND z.transid IS NULL
 					)rt	
 			WHERE t.IssueTypeId = 22 --Recover Ticket
 		END
