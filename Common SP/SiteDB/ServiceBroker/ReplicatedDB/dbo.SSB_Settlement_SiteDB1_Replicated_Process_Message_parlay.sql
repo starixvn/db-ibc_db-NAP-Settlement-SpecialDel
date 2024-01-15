@@ -1,6 +1,6 @@
 USE [bodb02]
 GO
-/*<info serverAlias="SBSETTLE-bodb02, DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER PROC [dbo].[SSB_Settlement_SiteDB1_Replicated_Process_Message_parlay]
 as
 /*
@@ -11,6 +11,7 @@ as
 		- 20221011@Kathy: Split non-sport to another log table for sync service [Redmine:#178694]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 		- 20240410@Kathy: missing bettrans14 table [Redmine:#203737]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
 	Param's Explanation:  
 		   
@@ -20,7 +21,7 @@ begin
 	declare @__conversationHandle uniqueidentifier, @__messageBody nvarchar(max), @__messageBodyTemp nvarchar(max), @__params xml
 			,@__siteDBGroupId smallint, @__sessionId bigint, @__messageType varchar(200), @__transInfo nvarchar(max), @__transinfoJson varbinary(max)
 			,@__tableName varchar(200), @__matchId int, @__action varchar(1), @__settlementAction varchar(20), @__ticketType varchar(1)
-			,@__totalQueue int, @__runOnServer varchar(100), @__is3rd bit, @__AffectedTicket int
+			,@__totalQueue int,@__totalParlayQueue int, @__runOnServer varchar(100), @__is3rd bit, @__AffectedTicket int
 			
 			,@__messageId varchar(200), @__errmsg varchar(1024),@__startTime datetime2, @__endtime datetime2, @__TableType SMALLINT
 
@@ -50,6 +51,7 @@ begin
 				,@__settlementAction = T.C.value('@SettlementAction','varchar(20)')
 				,@__ticketType = T.C.value('@TicketType','varchar(1)')
 				,@__totalQueue = T.C.value('@TotalQueue','int')
+				,@__totalParlayQueue = T.C.value('@TotalParlayQueue','int')
 				,@__runOnServer = T.C.value('@RunOnServer','varchar(100)')
 				,@__is3rd = T.C.value('@Is3rd','bit')
 			from @__params.nodes('/root/r') as T(C)
@@ -79,10 +81,12 @@ begin
 					,@SettlementAction = @__settlementAction
 					,@TicketType = @__ticketType
 					,@TotalQueue = @__totalQueue
+					,@TotalParlayQueue = @__totalParlayQueue
 					,@RunOnServer = @__runOnServer			
 					,@Is3rd	= @__is3rd	
 					,@CalledByBrokerService	= 1
 					,@AffectedTicket = @__AffectedTicket output
+					,@ErrMsg = @__errmsg output
 			end
 		end try
 		begin catch
@@ -119,6 +123,7 @@ begin
 										+ case when @__settlementAction is not null then ',@SettlementAction=' + '''' + @__settlementAction + '''' else '' end
 										+ case when @__ticketType is not null then ',@TicketType=' + '''' + @__ticketType + '''' else '' end
 										+ case when @__totalQueue is not null then ',@TotalQueue=' + cast(@__totalQueue as varchar(20))  else '' end
+									+ case when @__totalParlayQueue is not null then ',@TotalParlayQueue=' + cast(@__totalParlayQueue as varchar(20))  else '' end
 										+ case when @__runOnServer is not null then ',@RunOnServer=' + '''' + @__runOnServer + '''' else '' end
 										+ case when @__is3rd is not null then ',@Is3rd=' + cast(@__is3rd as varchar(20))  else '' end
 										+ ',@CalledByBrokerService=1'

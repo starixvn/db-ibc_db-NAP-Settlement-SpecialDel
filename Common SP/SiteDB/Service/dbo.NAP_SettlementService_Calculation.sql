@@ -12,7 +12,10 @@ ALTER PROCEDURE [dbo].[NAP_SettlementService_Calculation]
 	,@SettlementAction	VARCHAR(20)		= NULL
 	,@TicketType		VARCHAR(1)		= NULL
 	,@TotalQueue		INT				= 0
+	,@TotalParlayQueue	INT				= 0
 	,@SettlementProcessingId BIGINT		= 0
+	,@ParlaySettlementProcessingId BIGINT = NULL
+	,@SiteDB_ParlaySettlementProcessingId BIGINT = NULL
 	,@Is3rd				BIT				= 0
 	,@SiteDB			SMALLINT		= 1
 	,@EventTable		TINYINT			= 0
@@ -32,6 +35,7 @@ AS
 		- 20230111@Kathy: Skip validate ticket count [Redmine:#182763]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]	
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
 	Param's Explanation:  
 		   
@@ -133,6 +137,46 @@ BEGIN
 				END
 			END
 		END
+		ELSE IF @TableName = 'SiteDB_ParlaySettlementLock'
+			AND OBJECT_ID('SiteDB_ParlaySettlementLock', 'U') IS NOT NULL			
+		BEGIN
+			IF @Action = 'I'
+			BEGIN
+				EXEC dbo.Bet_ExecRep_NAP_Admin_01 
+					@SiteDBGroupId = @SiteDBGroupId
+					,@SessionId = @SessionId
+					,@MessageType = @MessageType
+					,@TableName = @TableName
+					,@MatchId = @MatchId
+					,@Action = @Action		
+					,@TotalParlayQueue = @TotalParlayQueue
+			END
+			ELSE IF @Action = 'D'
+			BEGIN
+				WHILE 1=1
+				BEGIN
+					IF EXISTS (SELECT	TOP 1 1 
+								FROM	dbo.SiteDB_ParlaySettlementProcessing 
+								WHERE	SiteDBGroupId = @SiteDBGroupId
+										AND SessionId = @SessionId
+					)
+						WAITFOR DELAY '00:00:00.005' -- wait for release match
+					ELSE
+					BEGIN
+						EXEC dbo.Bet_ExecRep_NAP_Admin_01 
+							@SiteDBGroupId = @SiteDBGroupId
+							,@SessionId = @SessionId
+							,@MessageType = @MessageType
+							,@TableName = @TableName
+							,@MatchId = @MatchId
+							,@Action = @Action			
+							,@TotalParlayQueue = @TotalParlayQueue
+
+						BREAK
+					END
+				END
+			END
+		END
 		ELSE
 		BEGIN
 			IF @TableName IN ('bettrans', 'bettransm')
@@ -200,7 +244,7 @@ BEGIN
 						END
 
 					END
-					ELSE IF @TableName = 'bettransm'
+					ELSE IF @TableName IN ('bettransm', 'bettransm/BetParlayDetail')
 					BEGIN
 						IF @cnt_sitedb = 0
 						BEGIN
@@ -356,11 +400,16 @@ BEGIN
 					,@SettlementAction = @SettlementAction
 					,@TicketType = @TicketType
 					,@TotalQueue = @TotalQueue
+					,@TotalParlayQueue = @TotalParlayQueue
 					,@SettlementProcessingId = @SettlementProcessingId
+					,@ParlaySettlementProcessingId = @ParlaySettlementProcessingId
+					,@SiteDB_ParlaySettlementProcessingId = @SiteDB_ParlaySettlementProcessingId
 					,@Is3rd = @Is3rd
 					,@SiteDB = @SiteDB
 					,@EventTable = @EventTable
 					,@AffectedTicket = @AffectedTicket OUTPUT
+					,@ErrCode = @ErrCode OUTPUT
+					,@ErrMsg = @ErrMsg OUTPUT
 		END
 	END TRY
 	BEGIN CATCH

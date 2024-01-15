@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap,Dot_Casino" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile]
 	 @creator			INT
 	,@MatchID			INT
@@ -85,6 +85,7 @@ AS
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
 		- 20240305@Aries: Direct Payout for the Fantasy Match of Basketball [Redmine:#199768]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -163,6 +164,7 @@ BEGIN
 			,@RemarkSDT					VARCHAR(500) = ''
 			,@IsExistNetPosition BIT = 0
 			,@SiteDBGroupId		TINYINT = 0
+			,@ParlayKeyId		INT = 0
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, modds SMALLMONEY, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
 
@@ -928,6 +930,8 @@ BEGIN
 							AND sp.BetType = bt.bettype
 				WHERE bt.matchid = @MatchID
 					AND sp.SportType =50 )
+			
+			SET @BroadcastSessionId = CASE WHEN @sporttype = 50 AND @matchLog IS NOT NULL THEN @BroadcastSessionId + 'child' ELSE @BroadcastSessionId END -- for child match
 		END
 
 		IF @sportType IN ( 45, 58 ) ---for Log Only
@@ -1119,7 +1123,14 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
+			SELECT @MatchID, 99, @creator, @IP, CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
+			
+			SET @ParlayKeyId = SCOPE_IDENTITY()
+		
+			UPDATE Parlay_Calculate_Queue 
+				SET sqlCommand = @sqlCommand + ', @ParlayKeyId = ' + CAST(@ParlayKeyId AS VARCHAR)
+					,IsCalculating = 0
+			WHERE	keyid = @ParlayKeyId
 		END
 	END
 

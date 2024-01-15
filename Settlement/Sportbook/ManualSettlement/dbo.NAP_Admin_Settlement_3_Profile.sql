@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_3_Profile] 
 	@matchid INT
 	,@hth INT = 0
@@ -39,6 +39,7 @@ AS
 	   - 20230523@Kathy: remove un-used table [Redmine:#188452]
 	   - 20230731@Aries: Uncal Full Time does not update ticket status in DBOST [Redmine:#191963]
 	   - 20230817@Kathy: Write log [Redmine:#192311]
+	   - 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -88,6 +89,7 @@ BEGIN
 			,@IsCentral	BIT
 			,@WebResourceResult VARCHAR(MAX)
 			,@CashoutMode		VARCHAR(20) = 'CAL'
+			,@ParlayKeyId 		INT
 			
 	DECLARE @tmpResources TABLE(
 		ResourceID VARCHAR(20)
@@ -893,7 +895,14 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
+			SELECT @MatchID, 99, @creator, '', CURRENT_TIMESTAMP, @action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
+			
+			SET @ParlayKeyId = SCOPE_IDENTITY()
+		
+			UPDATE Parlay_Calculate_Queue 
+				SET sqlCommand = @sqlCommand + ', @ParlayKeyId = ' + CAST(@ParlayKeyId AS VARCHAR)
+					,IsCalculating = 0
+			WHERE	keyid = @ParlayKeyId
 		END
 	END
 END

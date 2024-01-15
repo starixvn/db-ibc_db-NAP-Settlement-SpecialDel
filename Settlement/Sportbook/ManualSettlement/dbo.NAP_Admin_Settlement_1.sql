@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet,Dot_Member" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap,Dot_Member" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_1] 
     @creator			INT
     ,@matchid			INT
@@ -91,7 +91,8 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
-
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		
     Param's Explanation:
         + @betstatus: Used for score table, FGLG status, refund status
                 
@@ -142,6 +143,7 @@ BEGIN
 
 		,@IsCentral						BIT
 		,@SiteDBGroupId					TINYINT
+		,@ParlayKeyId 					INT
 		
 	DECLARE @tmpParlayAffectedBettypes TABLE (ResourceId VARCHAR(20), RefResourceId VARCHAR(20), bettype SMALLINT, totalticket INT)	
 
@@ -477,9 +479,16 @@ BEGIN
 				END
 			ELSE
 			BEGIN
-					INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-					SELECT @MatchID, 0, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
-				END
+				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
+				SELECT @MatchID, 99, @creator, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId 
+				
+				SET @ParlayKeyId = SCOPE_IDENTITY()
+		
+				UPDATE Parlay_Calculate_Queue 
+					SET sqlCommand = @sqlCommand + ', @ParlayKeyId = ' + CAST(@ParlayKeyId AS VARCHAR)
+						,IsCalculating = 0
+				WHERE	keyid = @ParlayKeyId
+			END
 		END
 	END TRY
     BEGIN CATCH

@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0" isNested="1"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="" isFunction="0" isNested="1"></info>*/
 CREATE PROCEDURE dbo.Bet_ExecRep_NAP_Admin_02
 	@BetTicketJson		VARCHAR(MAX)
 	,@Action			VARCHAR(20)		= NULL
@@ -18,6 +18,8 @@ AS
     Revisions:
         - 20201006@Louisa: SP for Settlement Redmine:#140452
 		- 20240118@Louisa: Integrate VS4 - Cock Fighting [Redmine:#199700]
+		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20240410@Kathy: support parlay - write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
 
     Param's Explanation:
         - ExecRep SP: DBTrans_Bet
@@ -34,7 +36,11 @@ BEGIN
 			,@IsSiteDB			BIT = 0
 			,@BalanceChanged	TVP_BalanceWalletChange
 			,@BalanceType		TINYINT = 4 --other
-			,@matchidMainParlay	INT
+			
+			,@StartTime			DATETIME2
+			,@EndTime			DATETIME2
+			,@AffectedTicket	INT
+			,@MessageBody		VARCHAR(MAX)
 
 	DECLARE @tmpMainParlayInfo TABLE (
 		 matchid 		INT
@@ -117,6 +123,8 @@ BEGIN
 	 
 	
 	BEGIN TRY
+		SET @StartTime = SYSDATETIME()
+
 		UPDATE b 
 		SET winlost 		= s.winlost
 			,awinlost 		= s.awinlost
@@ -168,7 +176,9 @@ BEGIN
 			INNER JOIN @tmpMainParlayInfo s 
 			ON b.matchid 		= s.matchid
 				AND b.transid 	= s.transid
-	
+		
+		SET @EndTime = SYSDATETIME()
+
 		IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 		BEGIN
 			SET @transInfoJson = (
@@ -194,13 +204,11 @@ BEGIN
 				FOR JSON AUTO
 			)
 
-			SELECT @matchidMainParlay = (SELECT TOP 1 matchid FROM @tmpMainParlayInfo)
-
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLog_3rdIns 
 				@SystemName			= 'Settlement' 
 				,@FunctionName		= 'CalculateVS'
 				,@TableName			= 'bettrans'
-				,@MatchId			= @matchidMainParlay
+				,@MatchId			= @MatchId
 				,@transinfoJson		= @transinfoJson
 				,@SettlementAction  = @Action
 				,@TicketType		= 'p'
@@ -279,6 +287,35 @@ BEGIN
 			END
 		END
 		
+		SELECT @AffectedTicket = COUNT(1)
+		FROM	@tmpTransInfo
+	
+		IF OBJECT_ID('SSB_Settlement_WriteLogs','P') IS NOT NULL 
+		BEGIN 
+			SET @MessageBody = 'EXEC Bet_ExecRep_NAP_Admin_02 @BetTicketJson = ''' + @BetTicketJson + ''''
+									+ CASE WHEN @Action IS NOT NULL THEN ',@Action = ''' + @Action + '''' ELSE '' END
+									+ CASE WHEN @ActionId IS NOT NULL THEN ',@ActionID = ' + CAST(@ActionID AS VARCHAR)  ELSE '' END
+									+ ',@CWLBettype = ' + CAST(@CWLBettype AS VARCHAR)
+									+ ',@IsCalBalance = ' + CAST(@IsCalBalance AS VARCHAR)
+									+ ',@matchid = ' + CAST(@matchid AS VARCHAR)
+									+ ',@ActionID = ' + CAST(@ActionID AS VARCHAR)
+									+ CASE WHEN @transMPO IS NOT NULL THEN  ',@transMPO = ''' + @transMPO + '''' ELSE '' END
+								
+			exec dbo.SSB_Settlement_WriteLogs @MessageId = NULL
+				, @MessageType			= NULL
+				, @MessageBody			= @MessageBody
+				, @StartTime			= @StartTime
+				, @EndTime				= @EndTime
+				, @SessionId			= NULL
+				, @ErrorMessage			= NULL
+				, @ConversationHandle	= NULL
+				, @QueueNo				= 0
+				, @SiteDBGroupId		= 0
+				, @matchid				= @matchid
+				, @AffectedTicket 		= @AffectedTicket 
+				, @TableType			= 1
+				, @EventTable			= 1
+		END
 			
 	END TRY
 	BEGIN CATCH

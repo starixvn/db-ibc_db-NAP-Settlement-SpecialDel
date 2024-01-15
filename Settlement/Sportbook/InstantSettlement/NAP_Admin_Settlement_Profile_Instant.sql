@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_Profile_Instant]
 	 @MatchID					INT 
 	,@AdminId 					INT
@@ -28,6 +28,7 @@ AS
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20231213@Aries: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
     Param's Explanation:
         - @Action: 'CAL', 'CAL-INST'
@@ -78,6 +79,7 @@ BEGIN
 			,@ResultTable					TINYINT
 			,@BroadcastSessionIdInstant		VARCHAR(50)		= @BroadcastSessionId + '_instant'
 			,@SiteDBGroupId					TINYINT
+			,@ParlayKeyId 					INT
 
 			,@HTHome_Inst					INT
 			,@HTAway_Inst					INT
@@ -576,7 +578,14 @@ BEGIN
 		ELSE
 		BEGIN
 			INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-			SELECT @MatchID, 0, @AdminId, '', CURRENT_TIMESTAMP, 'SDT', @SqlCommand, @SportType, @LockedByRefno, @BroadcastSessionIdInstant
+			SELECT @MatchID, 99, @AdminId, '', CURRENT_TIMESTAMP, 'SDT', @SqlCommand, @SportType, @LockedByRefno, @BroadcastSessionIdInstant
+			
+			SET @ParlayKeyId = SCOPE_IDENTITY()
+		
+			UPDATE Parlay_Calculate_Queue 
+				SET sqlCommand = @sqlCommand + ', @ParlayKeyId = ' + CAST(@ParlayKeyId AS VARCHAR)
+					,IsCalculating = 0
+			WHERE	keyid = @ParlayKeyId
 		END
 	END
 END

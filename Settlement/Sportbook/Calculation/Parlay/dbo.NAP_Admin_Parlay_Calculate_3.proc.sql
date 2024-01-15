@@ -1,10 +1,15 @@
-﻿/*<info serverAlias="DBCTG-bodb02,DBSIG-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Parlay_Calculate_3]
 	@matchid 		INT
 	,@matchdate		SMALLDATETIME
     ,@Action		VARCHAR(10)
 	,@strTransIds 	VARCHAR(MAX) = NULL
 	,@BroadcastSessionId	VARCHAR(50)	= NULL
+	,@SessionId		BIGINT = NULL
+	,@IsParallel 	BIT = 0
+	,@ParlaySettlementProcessingId BIGINT = NULL
+	,@ServerName 	SYSNAME = ''
+	,@AffectedTicket INT = 0 OUTPUT
 AS
 /*    
 	Creator: 20161205@Bobby
@@ -24,6 +29,7 @@ AS
 		- 20221031@Helen: resolve deadlock - VERSION 2[Redmine:#179541]
 		- 20221011@Kathy: Using Json [Redmine:#178694]
 		- 20231214@Aries: Result Amendment [Redmine: #196401]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
     Param's Explanation:
         
@@ -34,15 +40,21 @@ BEGIN
 	DECLARE @xmlParlayTicket 	XML
 			,@IsUpd_Void BIT = 0
 			,@transinfoJson NVARCHAR(MAX)
+			,@transinfoJsonBetParlayDetail NVARCHAR(MAX)
 			,@IsSiteDB	BIT = 0
 			,@FunctionName VARCHAR(50)
 			,@SettlementAction VARCHAR(20)
 			,@cntBetParlayDetailUpd INT = 0
+			,@TableName VARCHAR(128) 
 
-	CREATE TABLE #parlayTicket (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
-	CREATE TABLE #parlayOutput (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT)		
+	DECLARE @tmpParlayTicket TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, modds SMALLMONEY, IsMarked BIT DEFAULT(0))		
+	DECLARE @tmpParlayOutput TABLE (transid BIGINT, refno BIGINT, statusId TINYINT, statuswinlost TINYINT, winlostdate SMALLDATETIME, status VARCHAR(10), ruben TINYINT,bef_statusid TINYINT,bettype SMALLINT)		
 	
-	SET @xmlParlayTicket = CONVERT(XML, @strTransIds)
+	SET @ServerName = CASE WHEN ISNULL(@ServerName,'') = '' THEN @@SERVERNAME ELSE @ServerName END
+	
+	IF @ServerName <> @@SERVERNAME
+        RETURN
+		
 	SET @FunctionName = CASE  
 							WHEN  @action = 'ABANDONED'  OR @Action LIKE 'REFUND%' THEN 'RefundSubParlay'
 							WHEN @Action LIKE 'CAL%' THEN 'CalculateSubParlay'
@@ -54,15 +66,20 @@ BEGIN
 								WHEN @Action LIKE 'UNDO%' THEN 'UNDO'
 							END
 
-	INSERT INTO #parlayTicket (transid, refno, statusId, modds, IsMarked)
-	SELECT T.C.value('./@t', 'BIGINT') 			AS transid
-			,T.C.value('./@r', 'BIGINT') 		AS refno
-			,T.C.value('./@s', 'TINYINT') 		AS statusId
-			,T.C.value('./@m', 'SMALLMONEY') 	AS modds
-			,T.C.value('./@im', 'BIT') 	AS IsMarked
-	FROM @xmlParlayTicket.nodes('/b') AS T(C)
-	OPTION (OPTIMIZE FOR (@xmlParlayTicket = NULL ))
-	
+	INSERT INTO @tmpParlayTicket (transid, refno, statusId, modds, IsMarked)
+	SELECT t AS transid
+			,r AS refno
+			,s AS statusId
+			,m AS modds
+			,im AS IsMarked
+	FROM OPENJSON(@strTransIds) WITH (
+		t BIGINT
+		,r BIGINT
+		,s TINYINT
+		,m SMALLMONEY
+		,im BIT
+	)
+
 	IF(@@ROWCOUNT = 0) RETURN
 
 	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -115,18 +132,18 @@ BEGIN
 				,inserted.ruben
 				,deleted.statusid	
 				,inserted.bettype
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype)
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost , winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #parlayTicket t
+			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
-
+			
 		--UPDATE BetParlayDetail
 		UPDATE pd 
 		SET winlostdate 	= @matchdate
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
 		FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #parlayOutput r
+			INNER JOIN @tmpParlayOutput r
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
 		WHERE r.statusid NOT IN (102)
@@ -189,9 +206,9 @@ BEGIN
 				,inserted.ruben
 				,deleted.statusid	
 				,INSERTED.bettype
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #parlayTicket t
+			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid
 	
 		--UPDATE BetParlayDetail
@@ -200,7 +217,7 @@ BEGIN
 			,statusid 		= r.statusId
 			,statuswinlost 	= r.statuswinlost
 		FROM dbo.BetParlayDetail pd  WITH (ROWLOCK, UPDLOCK)
-			INNER JOIN #parlayOutput r
+			INNER JOIN @tmpParlayOutput r
 			ON pd.transid 	= r.transid
 			AND pd.RefNo 	= r.refno
 		WHERE r.statusId NOT IN (102)	
@@ -233,9 +250,9 @@ BEGIN
 				,inserted.ruben
 				,deleted.statusid
 				,INSERTED.bettype
-		INTO #parlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
+		INTO @tmpParlayOutput(transid, refno, statusID, statuswinlost, winlostdate, status, ruben,bef_statusid,bettype)
 		FROM dbo.bettransm bm WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #parlayTicket t
+			INNER JOIN @tmpParlayTicket t
 			ON bm.refno = t.refno AND bm.transid = t.transid        
 	          
 	    
@@ -244,14 +261,18 @@ BEGIN
 	    SET statuswinlost   = NULL
 	        ,statusID       = 0
 	    FROM dbo.BetParlayDetail pd WITH(ROWLOCK, UPDLOCK)
-	        INNER JOIN #parlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
+	        INNER JOIN @tmpParlayOutput r ON pd.transid = r.transid AND pd.RefNo = r.refno
 	    WHERE r.statusid NOT IN (102) 
 		
 		SET @cntBetParlayDetailUpd = @@ROWCOUNT
 	END
 	
-	IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM #parlayOutput)
+	SELECT @AffectedTicket = COUNT(1)
+	FROM 	@tmpParlayOutput
+
+	IF @IsSiteDB = 1 AND EXISTS(SELECT TOP 1 1 FROM @tmpParlayOutput)
 	BEGIN
+		SET @TableName = 'bettransm' + CASE WHEN @cntBetParlayDetailUpd > 0 THEN '/BetParlayDetail' ELSE '' END
 		SET @transinfoJson = (
 			SELECT	transId AS 't'							
 					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
@@ -262,44 +283,26 @@ BEGIN
 					,bef_statusid AS 'bef_sid' 
 					,refno AS 'rf' 
 					,bettype AS 'bt' 
-			FROM	#parlayOutput
+                        FROM	@tmpParlayOutput
 			FOR JSON AUTO
 		)
 
-		IF @transinfoJson IS NOT NULL
+		IF @transinfoJson IS NOT NULL -- will auto update for table betparlaydetail
+		BEGIN
 			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
 				@SystemName = 'Settlement' 
 				,@FunctionName = @FunctionName
-				,@TableName = 'bettransm'
+				,@TableName = @TableName
 				,@MatchId = @MatchId
 				,@TransInfoJson = @transinfoJson
 				,@SettlementAction = @SettlementAction
 				,@TicketType = 'p'
 				,@BroadcastSessionId = @BroadcastSessionId
-			
-		SET @transinfoJson = (
-			SELECT	transId AS 't'							
-					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
-					,statusId AS 'sid' 
-					,winlostdate AS 'wld'
-			FROM	#parlayOutput
-			FOR JSON AUTO
-		)
-
-		IF @transinfoJson IS NOT NULL AND @cntBetParlayDetailUpd > 0
-			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
-				@SystemName = 'Settlement' 
-				,@FunctionName = @FunctionName
-				,@TableName = 'BetParlayDetail'
-				,@MatchId = @MatchId
-				,@TransInfoJson = @transinfoJson
-				,@SettlementAction = @SettlementAction
-				,@TicketType = 'p'
+				,@SessionId     = @SessionId
+				,@IsParallel    = @IsParallel
+				,@ParlaySettlementProcessingId = @ParlaySettlementProcessingId
+		END
 	END
-
-	DROP TABLE #parlayTicket;
-	DROP TABLE #parlayOutput
-	RETURN;
 END
 
 GO

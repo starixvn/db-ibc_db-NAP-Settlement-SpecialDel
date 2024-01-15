@@ -1,4 +1,4 @@
-/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="vnteam" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="" viewers="vnteam" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_MP_Job]
 AS
 /*
@@ -22,6 +22,8 @@ AS
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Louisa: Remove unuse code [Redmine:#182677]
 		- 20230523@Kathy: remove un-used table [Redmine:#188452]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
+		
 */
 BEGIN
 	SET NOCOUNT ON
@@ -30,8 +32,8 @@ BEGIN
 		,@creator INT
 		,@action VARCHAR(20)
 		,@IP VARCHAR(15)
-		,@ErrCode INT
-		,@ErrMsg NVARCHAR(200)
+		,@ErrCode INT = 0
+		,@ErrMsg NVARCHAR(200) = ''
 		,@keyId INT
 		,@ActionId INT
 		,@pre_Sporttype smallint 
@@ -40,94 +42,131 @@ BEGIN
 		,@LockedByRefno BIT = 0
 		,@LockedBySystemSetting BIT = 0
 		,@BroadcastSessionId VARCHAR(50)
-	
-	IF EXISTS (
-			SELECT TOP 1 1
-			FROM Parlay_Calculate_Queue WITH (NOLOCK)
-			WHERE IsCalculating = 1
-			)
-	BEGIN
-		--- check Starttime if needed		
-		RETURN
-	END 
-
-	-- get sporttype of previous calculated match
-	SELECT TOP 1 @pre_Sporttype = m.SportType 
-	FROM Parlay_Calculate_Queue p with(NOLOCK)
-	INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
-	WHERE p.IsCalculating IN (2,3)
-	ORDER BY p.execTime DESC
-
-	-- giving priority to calcualate the match which has sporttype <> previous calculated match
-	SELECT TOP 1 @keyId =  p.keyid
-		,@Sporttype = p.Sporttype
-		,@LockedByRefno = p.LockedByRefno
-		,@BroadcastSessionId = BroadcastSessionId
-	FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
-	INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
-	WHERE p.IsCalculating = 0
-	ORDER BY CASE WHEN m.SportType = @pre_Sporttype THEN 1 ELSE 0 END
-		,p.TryCount DESC
-		,p.starttime
-		,p.keyid
-
-	IF ISNULL(@keyId,0) <> 0 AND ISNULL(@LockedByRefno,0) = 0 -- lock by systemsetting
-	BEGIN
-		IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = 0)
-			AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
-		BEGIN
-			UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
-				SET VValue = 1
-			WHERE VName = 'isCalculatingParlay'
+		,@SSBStatus TINYINT = 0
+		,@SSBCommand NVARCHAR(MAX)
 		
-			SET @LockedBySystemSetting = 1
-		END
-		ELSE
-			RETURN
-	END
-	
-	UPDATE TOP (1) dbo.Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
-		SET IsCalculating = 1
-			,execTime = GETDATE()
-			,@matchID = matchid
-			,@action = [action]
-			,@creator = creator
-			,@IP = IP
-			,@sqlCommand = sqlCommand
-	WHERE keyid = @keyId
+	SELECT	@keyId = keyid
+			,@SSBStatus = ISNULL(SSBStatus,0)
+			,@SSBCommand = SSBCommand
+			,@Sporttype = Sporttype
+			,@LockedByRefno = LockedByRefno
+			,@BroadcastSessionId = BroadcastSessionId
+	FROM	dbo.Parlay_Calculate_Queue WITH (NOLOCK)
+	WHERE	IsCalculating = 1
 
-	IF @@ROWCOUNT = 0
-	BEGIN
-		IF @LockedBySystemSetting = 1
-			UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
-				SET VValue = 0
-			WHERE VName = 'isCalculatingParlay'
-
+	IF @@ROWCOUNT <> 0 AND @SSBStatus = 0
 		RETURN
-	END
-
-	BEGIN TRY
-
-		IF @LockedByRefno = 1  
-			SET @sqlCommand = @sqlCommand + ', @LockedByRefno = 1 '
-								
-		EXEC sys.sp_executesql @sqlCommand
-			, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
-			, @ErrMsg	= @ErrMsg	OUTPUT
-			, @ErrCode	= @ErrCode	OUTPUT
-	END TRY
-
-	BEGIN CATCH
-		SET @ErrMsg = ERROR_MESSAGE()
-	END CATCH
 	
+	IF @SSBStatus = 1
+	BEGIN
+		BEGIN TRY
+			EXEC sys.sp_executesql @SSBCommand
+				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT, @SSBStatus tinyint OUTPUT'
+				, @ErrMsg	= @ErrMsg	OUTPUT
+				, @ErrCode	= @ErrCode	OUTPUT
+				, @SSBStatus= @SSBStatus OUTPUT
+		END TRY
+		BEGIN CATCH
+			SET @ErrMsg = @ErrMsg + ERROR_MESSAGE()
+			SET @ErrCode = ERROR_NUMBER()
+			SET @SSBStatus = 3
+		END CATCH
+
+		IF @SSBStatus = 1
+			RETURN
+
+		SET @SSBStatus = CASE WHEN @ErrCode <> 0 THEN 3 ELSE 2 END
+	END
+	ELSE
+	BEGIN
+		-- get sporttype of previous calculated match
+		SELECT TOP 1 @pre_Sporttype = m.SportType 
+		FROM Parlay_Calculate_Queue p with(NOLOCK)
+		INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
+		WHERE p.IsCalculating IN (2,3)
+		ORDER BY p.execTime DESC
+
+		-- giving priority to calcualate the match which has sporttype <> previous calculated match
+		SELECT TOP 1 @keyId =  p.keyid
+			,@Sporttype = p.Sporttype
+			,@LockedByRefno = p.LockedByRefno
+			,@BroadcastSessionId = BroadcastSessionId
+		FROM dbo.Parlay_Calculate_Queue p WITH (NOLOCK)
+		INNER JOIN match m WITH(NOLOCK) ON m.matchid = p.matchid
+		WHERE p.IsCalculating = 0
+		ORDER BY CASE WHEN m.SportType = @pre_Sporttype THEN 1 ELSE 0 END
+			,p.TryCount DESC
+			,p.starttime
+			,p.keyid
+
+		IF ISNULL(@keyId,0) <> 0 AND ISNULL(@LockedByRefno,0) = 0 -- lock by systemsetting
+		BEGIN
+			IF EXISTS (SELECT TOP 1 1 FROM dbo.SystemSettings WHERE VName = 'isCalculatingParlay' AND VValue = 0)
+				AND NOT EXISTS (SELECT TOP 1 1 FROM dbo.ParlayLocking)
+			BEGIN
+				UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
+					SET VValue = 1
+				WHERE VName = 'isCalculatingParlay'
+		
+				SET @LockedBySystemSetting = 1
+			END
+			ELSE
+				RETURN
+		END
+	
+		UPDATE TOP (1) dbo.Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
+			SET IsCalculating = 1
+				,execTime = GETDATE()
+				,@matchID = matchid
+				,@action = [action]
+				,@creator = creator
+				,@IP = IP
+				,@sqlCommand = sqlCommand
+		WHERE keyid = @keyId
+
+		IF @@ROWCOUNT = 0
+		BEGIN
+			IF @LockedBySystemSetting = 1
+				UPDATE dbo.SystemSettings WITH (ROWLOCK, UPDLOCK)
+					SET VValue = 0
+				WHERE VName = 'isCalculatingParlay'
+
+			RETURN
+		END
+
+		BEGIN TRY
+
+			IF @LockedByRefno = 1  
+				SET @sqlCommand = @sqlCommand + ', @LockedByRefno = 1 '
+								
+			EXEC sys.sp_executesql @sqlCommand
+				, N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
+				, @ErrMsg	= @ErrMsg	OUTPUT
+				, @ErrCode	= @ErrCode	OUTPUT
+		END TRY
+
+		BEGIN CATCH
+			SET @ErrMsg = ERROR_MESSAGE()
+		END CATCH
+
+		SELECT	@SSBStatus = SSBStatus
+		FROM	dbo.Parlay_Calculate_Queue WITH(NOLOCK)
+		WHERE	keyid = @keyId
+
+		SET @SSBStatus = CASE WHEN ISNULL(@SSBStatus,0) <> 0 AND @ErrCode <> 0 THEN 3 ELSE @SSBStatus END 
+	END
+	
+	IF @SSBStatus = 1
+		RETURN
+
 	IF ISNULL(@ErrCode, 0) <> 0 OR ISNULL(@ErrMsg, '') <> '' --- calculate failed set calculating = 0 back
 	BEGIN
-		UPDATE Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
-		SET IsCalculating = 0
-			,TryCount = TryCount + 1
-			,LockedByRefno = CASE WHEN @ErrCode = 1000000 AND LockedByRefno IS NOT NULL THEN NULL ELSE LockedByRefno END
-		WHERE keyid = @keyId
+		IF @SSBStatus <> 3 
+			UPDATE Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
+			SET IsCalculating = 0
+				,TryCount = TryCount + 1
+				,LockedByRefno = CASE WHEN @ErrCode = 1000000 AND LockedByRefno IS NOT NULL THEN NULL ELSE LockedByRefno END
+			WHERE keyid = @keyId
 
 		IF NOT EXISTS (
 				SELECT 1
@@ -159,16 +198,17 @@ BEGIN
 		UPDATE Parlay_Calculate_Queue WITH (ROWLOCK, UPDLOCK)
 		SET IsCalculating = 3
 			,duration = DATEDIFF(ms, execTime, GETDATE())
+			,SSBStatus = CASE WHEN @SSBStatus = 3 THEN 3 ELSE SSBStatus END
 		WHERE keyid = @keyId
-		AND TryCount = 3
+			AND (TryCount = 3 OR @SSBStatus = 3)
 	END
 	ELSE
 	BEGIN
 		UPDATE	dbo.Parlay_Calculate_Queue WITH (UPDLOCK, ROWLOCK)
 			SET IsCalculating = 2,
 				duration = DATEDIFF(ms,execTime,GETDATE())
-		WHERE	matchid = @matchid 
-				AND IsCalculating = 1
+				,SSBStatus = CASE WHEN @SSBStatus = 2 THEN 2 ELSE SSBStatus END
+		WHERE	KeyId = @keyId
 	END
 
 	---

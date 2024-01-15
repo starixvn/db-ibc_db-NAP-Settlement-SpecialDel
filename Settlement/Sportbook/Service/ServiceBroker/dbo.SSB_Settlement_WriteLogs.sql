@@ -1,6 +1,6 @@
 USE [bodb02]
 GO
-/*<info serverAlias="DBTXN-bodb02,SBSETTLE-bodb02,DBBAL-bodb02" executers="" viewers="" isFunction="0"></info>*/
+/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02,SBSETTLE-bodb02" executers="" viewers="" isFunction="0"></info>*/
 ALTER procedure [dbo].[SSB_Settlement_WriteLogs] @MessageId varchar(128)
 	, @MessageType varchar(200) = null
 	, @MessageBody nvarchar(max) = null
@@ -18,12 +18,13 @@ ALTER procedure [dbo].[SSB_Settlement_WriteLogs] @MessageId varchar(128)
 as
 /*  Created: Patrick@20210801
 	Task: Write logs
-	DB: DBTXN-bodb02,SBSETTLE-bodb02,DBBAL-bodb02
+	DB: DBTXN-bodb02,SBSETTLE-bodb02
 	Revisions:  
 		- 20210801@Patrick: Implement settlement can run parallels [Redmine:#159486]
 		- 20220404@Kathy: Allow to Settle Determined FT Ticket When Calculate HT [Redmine:#170551]
 		- 20221025@Patrick: Add more column SiteDBGroupId [Redmine:#178694]
 		- 20240401@Kathy: write log matchid, affectedticket, eventtable, tabletype [Redmine:#203132]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 */
 begin
 	set nocount on

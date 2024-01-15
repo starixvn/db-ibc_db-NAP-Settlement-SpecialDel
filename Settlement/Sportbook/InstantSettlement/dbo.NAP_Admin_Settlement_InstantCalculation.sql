@@ -1,4 +1,4 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBCTG-bodb02,DBSID-bodb02,DBSIC-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Admin_Settlement_InstantCalculation
 	@AdminId 			INT
 	,@MatchId			INT
@@ -25,6 +25,7 @@ AS
     Revisions:
 		- 20230404@Kathy: Merge single and parlay [Redmine:#175202]
 		- 20230817@Kathy: Write log [Redmine:#192311]
+		- 20240215@Kathy: support multiple threads to settle parlay [Redmine:#199518]
 
     Param's Explanation:
         - @Action: ['CAL-INST-HT', 'CAL-INST-FT' 'UNDO-INST-FT', 'UNDO-INST-HT']
@@ -67,6 +68,7 @@ BEGIN
 		,@fta				INT
 		,@hth				INT
 		,@hta				INT
+		,@ParlayKeyId		INT
 		
 	DECLARE @tmpAllBettypes TABLE (Bettype SMALLINT PRIMARY KEY, ResourceId VARCHAR(20), SDTResourceId VARCHAR(20), SDTpfId SMALLINT, OddsType TINYINT, RefResourceId VARCHAR(20), DeterminedType TINYINT)
 	DECLARE @tmpAffectedBettypes TABLE (Bettype SMALLINT PRIMARY KEY)
@@ -463,7 +465,14 @@ BEGIN
 			ELSE
 			BEGIN
 				INSERT INTO dbo.Parlay_Calculate_Queue (matchid, isCalculating, creator, ip, starttime, action, SQLCommand, Sporttype, LockedByRefno, BroadcastSessionId)
-				SELECT @MatchID, 0, @AdminId, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
+				SELECT @MatchID, 99, @AdminId, '', CURRENT_TIMESTAMP, @Action, @sqlCommand, @sportType, @LockedByRefno, @BroadcastSessionId
+				
+				SET @ParlayKeyId = SCOPE_IDENTITY()
+		
+				UPDATE Parlay_Calculate_Queue 
+					SET sqlCommand = @sqlCommand + ', @ParlayKeyId = ' + CAST(@ParlayKeyId AS VARCHAR)
+						,IsCalculating = 0
+				WHERE	keyid = @ParlayKeyId
 			END
 		END
 	END TRY
