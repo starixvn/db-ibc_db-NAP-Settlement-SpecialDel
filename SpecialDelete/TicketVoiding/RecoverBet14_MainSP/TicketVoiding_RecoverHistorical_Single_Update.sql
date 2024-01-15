@@ -1,12 +1,22 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.TicketVoiding_RecoverHistorical_Single_Update
-	@TransIds			VARCHAR(MAX)
-	,@UserId			INT
-	,@IP				VARCHAR(50)  
+(
+	@RequestId			INT
+	,@MatchId			INT
+	,@VoidingHistoryId	INT
+	,@TransIds			VARCHAR(MAX) 
+	,@UserId			INT = 0 
+	,@IP				VARCHAR(15) =''
+	,@IssueTypeId		TINYINT = 0
 	,@ErrCode			INT				= 0		OUTPUT
 	,@ErrMsg			VARCHAR(1000)	= ''	OUTPUT
+	,@FailedTransIds    VARCHAR(MAX) = '' OUTPUT
+	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
+	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
+)
 AS
-/*	Created by: Kathy
+/*	
+	Created by: Kathy
 	Date 20190823
 	Task: recover single ticket [Redmine:#115376]
 	DB: DBTXN/bodb02
@@ -111,14 +121,6 @@ BEGIN
 	INSERT INTO @tmpInputTransId (TransId)
 	SELECT	DISTINCT value
 	FROM STRING_SPLIT(@TransIds, ',')
-
-	IF @@rowcount > 1000
-	BEGIN
-		SELECT	@ErrCode = 100
-				,@ErrMsg = 'List inputted transid over 1000 value'
-
-		RETURN
-	END
 
 	INSERT INTO #tmpTransId (TransId, MatchId, CustId, Bettype, KeyId, invalid)
 	SELECT	b14.transid

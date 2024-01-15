@@ -148,29 +148,44 @@ BEGIN
 	ELSE IF @VoidingTypeId IN (14) --Cricket14 ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverHistorical_Single_Update
-			@TransIds = @TransIds
-			,@UserId  = @UserId
-			,@IP	 = @IP
-			,@ErrCode	= @ErrCode		OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
+			@RequestId = @RequestId
+			,@MatchId = @MatchId			
+			,@VoidingHistoryId = @VoidingHistoryId
+			,@TransIds = @TransIds
+			,@UserId = @UserId
+			,@IP = @IP
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
+			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (15) --Single14 ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverHistorical_Single_Update
-			@TransIds = @TransIds
-			,@UserId  = @UserId
-			,@IP	 = @IP
-			,@ErrCode	= @ErrCode		OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
+			@RequestId = @RequestId
+			,@MatchId = @MatchId			
+			,@VoidingHistoryId = @VoidingHistoryId
+			,@TransIds = @TransIds
+			,@UserId = @UserId
+			,@IP = @IP
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
+			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (16) --Parlay14 ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverHistorical_MainParlay_Update
-			@TransIds = @TransIds
-			,@UserId  = @UserId
-			,@IP	 = @IP
-			,@ErrCode	= @ErrCode		OUTPUT
-			,@ErrMsg	= @ErrMsg	OUTPUT
+			@RequestId = @RequestId
+			,@MatchId = @MatchId			
+			,@VoidingHistoryId = @VoidingHistoryId
+			,@TransIds = @TransIds
+			,@UserId = @UserId
+			,@IP = @IP
+			,@ErrCode = @ErrCode OUTPUT
+			,@ErrMsg = @ErrMsg OUTPUT
+			,@FailedTransIds = @FailedTransIds OUTPUT
+			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
 
 END
