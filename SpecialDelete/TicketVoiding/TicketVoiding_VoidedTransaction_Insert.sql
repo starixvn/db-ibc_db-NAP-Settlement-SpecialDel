@@ -15,9 +15,10 @@ AS
 		- 20190802@Raymond.Le: Insert info for dectect problem account [Redmine: #116617]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 
 	Param's explanation:	
-		 @TicketsXML : <root><r TransId="1" CustId="1"  MatchId="1" /></root>
+		 @TicketsXML : <root><r TransId="1" CustId="1"  MatchId="1" winlostdate="" status="" bettypeid="" stake="" winlost="" VoidingHistoryId="" SiteDBGroupID=""/></root>
 */
 BEGIN
 	SET NOCOUNT ON
@@ -29,16 +30,37 @@ BEGIN
 		TransId BIGINT
 		,CustId INT
 		,MatchId INT
+		,winlostdate SMALLDATETIME
+		,status NVARCHAR(10)
+		,BetType SMALLINT
+		,stake MONEY
+		,winlost MONEY
+		,VoidingHistoryId INT
+		,SiteDBGroupID SMALLINT
 		)
 
 	INSERT INTO #tblTicketInfo (
 		TransId
 		,CustId
 		,MatchId
-		)
+		,winlostdate
+		,status
+		,bettype
+		,stake
+		,winlost
+		,VoidingHistoryId
+		,SiteDBGroupID
+	)
 	SELECT t.c.value('@TransId', 'BIGINT')
 		  ,t.c.value('@CustId', 'INT')
 		  ,t.c.value('@MatchId', 'INT')
+		  ,t.c.value('@winlostdate', 'SMALLDATETIME')
+		  ,t.c.value('@status', 'NVARCHAR(10)')
+		  ,t.c.value('@BetTypeId', 'SMALLINT')
+		  ,t.c.value('@stake', 'MONEY')
+		  ,t.c.value('@winlost', 'MONEY')
+		  ,t.c.value('@VoidingHistoryId', 'INT')
+		  ,t.c.value('@SiteDBGroupID', 'SMALLINT')
 	FROM @TicketsXml.nodes('root/r') t(c)
 
 	INSERT INTO dbo.TicketVoiding_VoidedTransaction (
@@ -49,6 +71,13 @@ BEGIN
 		,IssueTypeId
 		,SubIssueTypeId
 		,CustID
+		,winlostdate
+		,status
+		,bettype
+		,stake
+		,winlost
+		,VoidingHistoryId
+		,SiteDBGroupID
 		)
 	SELECT TransId
 		,@MessageId
@@ -57,6 +86,13 @@ BEGIN
 		,@IssueTypeId
 		,@SubIssueTypeId
 		,CustId
+		,winlostdate
+		,status
+		,bettype
+		,stake
+		,winlost
+		,VoidingHistoryId
+		,SiteDBGroupID
 	FROM #tblTicketInfo
 
 	DROP TABLE #tblTicketInfo

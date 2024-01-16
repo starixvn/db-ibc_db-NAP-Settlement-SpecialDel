@@ -603,6 +603,7 @@ BEGIN
 			,t.LeagueGroupID
 			,ISNULL(si.IsChinaView,0) AS IsChinaView
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+			,@VoidingHistoryId AS VoidingHistoryId
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
