@@ -16,257 +16,120 @@ AS
 BEGIN	
 	SET NOCOUNT ON
 
-	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
-	CREATE TABLE #tblTransParlay (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
+	DECLARE @tblMatch TABLE(MatchId INT, sportType SMALLINT)
+	DECLARE @tblParentMatch TABLE(MatchId INT, ParentId INT)
 
-	DECLARE  @SessionId			VARCHAR(50)       
-			,@matchid			INT
-			,@sportType 		INT
-			,@ActionType		TINYINT
-			,@StatusID			SMALLINT	
-			,@batchNo			INT 			= 2000
-			,@batchCount		INT 			= 0
-			,@isPass			BIT				= 0
-			,@CreatedDate		DATETIME
-			,@DateCheck			DATETIME 		= DATEADD(MINUTE,-5 ,GETDATE())
-			
-	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
-	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
+	DECLARE @DateCheck		DATETIME	= DATEADD(MINUTE,-5 ,GETDATE())
 
-	/* #1: Get match is caculated */
+	INSERT INTO @tblMatch(MatchId,sportType)
+	SELECT DISTINCT h.matchId,h.sportType
+	FROM SettlementResultHistory AS h WITH(NOLOCK)
+	WHERE h.StatusID IN (0,1)
+
+	IF EXISTS(SELECT TOP 1 1 FROM @tblMatch WHERE Sporttype = 50)
+	BEGIN
+		INSERT INTO @tblParentMatch (MatchId, ParentId)
+		SELECT m.matchid, m.ParentId
+		FROM @tblMatch AS t
+			CROSS APPLY (
+				SELECT	m.matchid, m.ParentId
+				FROM	dbo.match m WITH(NOLOCK)
+				WHERE	m.sporttype = 50
+						AND m.ChildMatchType = 200
+						AND m.ParentID = t.matchid
+			) AS m
+	END 
+
+	INSERT INTO @tblParentMatch (MatchId, ParentId)
+	SELECT m.matchid, m.matchid
+	FROM @tblMatch AS m
+	
+	IF NOT EXISTS(SELECT 1 FROM @tblParentMatch)
+	BEGIN
+		RETURN
+	END
+
 	IF OBJECT_ID('BalanceNegative','U') IS NOT NULL 
 	BEGIN
-		SELECT	 TOP 1
-				 @matchid =	h.matchid
-				,@SessionId = h.SessionID
-				,@sportType	= h.sportType
-				,@ActionType = h.ActionType
-				,@StatusID =  h.StatusID
-				,@CreatedDate = h.CreatedDate
-				,@isPass = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
-								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL THEN 1
-							    ELSE 0
-							END
+		SELECT	 h.matchid
+				,m.leagueid
+				,h.SessionID
+				,h.sportType
+				,h.ActionType
+				,h.ActualResult
+				,h.StatusID
+				,h.CreatedDate
+				,h.ExtraInfo
+				,CASE WHEN h.StatusID = 0 THEN 1
+					  WHEN h.StatusID = 1 AND s.MinCalculating IS NOT NULL AND s.MinCalculating > 1 AND (p.MinCalculating IS NULL OR p.MinCalculating > 1) THEN 1
+					  ELSE 0
+				 END AS IsCalculated
+                ,IIF(b.StatusID IS NULL,1,0) AS IsDoneBalNeg
+				,IIF(s.MaxCalculating = 3 OR p.MaxCalculating = 3,1,0) AS HasError
 		FROM SettlementResultHistory AS h WITH(NOLOCK)
-			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
-						 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
-						 WHERE q.matchid = h.matchid
-							AND q.BroadcastSessionId = h.SessionID
+			LEFT JOIN match AS m WITH(NOLOCK) ON m.matchid = h.matchid
+			OUTER APPLY (SELECT TOP 1 MIN(qs.IsCalculating) AS  MinCalculating, MAX(qs.IsCalculating) AS  MaxCalculating
+						 FROM @tblParentMatch AS m
+							INNER JOIN Single_Calculate_Queue AS qs WITH(NOLOCK)  ON  qs.matchid = m.matchid 
+						 WHERE m.ParentId = h.matchid
+							AND qs.BroadcastSessionId = h.SessionID
 			) AS s
-			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
-						 FROM Parlay_Calculate_Queue AS q WITH(NOLOCK) 
-						 WHERE q.matchid = h.matchid
-							AND q.BroadcastSessionId = h.SessionID
+			OUTER APPLY (SELECT TOP 1 MIN(qp.IsCalculating) AS  MinCalculating, MAX(qp.IsCalculating) AS  MaxCalculating
+						 FROM @tblParentMatch AS m 
+							INNER JOIN Parlay_Calculate_Queue AS qp WITH(NOLOCK) ON  qp.matchid = m.matchid 
+						 WHERE m.ParentId = h.matchid
+							AND qp.BroadcastSessionId = h.SessionID
 			) AS p
 			OUTER APPLY (SELECT TOP 1 statusid
-					 FROM [dbo].[BalanceNegative] AS b WITH(NOLOCK)
-					 WHERE b.matchid = h.matchid
+					 FROM  @tblParentMatch AS m 
+						INNER JOIN [dbo].[BalanceNegative] AS b WITH(NOLOCK)  ON  b.matchid = m.matchid 
+					 WHERE m.ParentId = h.matchid
 						AND b.SessionID = h.SessionID
 						AND b.statusid = 0
 			) AS b
 		WHERE h.StatusID IN (0,1)	
 			AND 1 = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
-						 WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) AND b.StatusID IS NULL THEN 1
+						 WHEN h.StatusID = 1 AND s.MinCalculating IS NOT NULL AND s.MinCalculating > 1 AND (p.MinCalculating IS NULL OR p.MinCalculating > 1) AND b.StatusID IS NULL  THEN 1
 						 WHEN h.CreatedDate <= @DateCheck THEN 1
 						 ELSE 0
 					 END
 	END
 	ELSE
 	BEGIN
-		SELECT	 TOP 1
-				 @matchid =	h.matchid
-				,@SessionId = h.SessionID
-				,@sportType	= h.sportType
-				,@ActionType = h.ActionType
-				,@StatusID =  h.StatusID
-				,@CreatedDate = h.CreatedDate
-				,@isPass = CASE WHEN h.StatusID = 0 THEN 1
-								WHEN h.StatusID = 1 AND s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) THEN 1
-							    ELSE 0
-							END
+		SELECT	 h.matchid
+				,m.leagueid
+				,h.SessionID
+				,h.sportType
+				,h.ActionType
+				,h.ActualResult
+				,h.StatusID
+				,h.CreatedDate
+				,h.ExtraInfo
+				,CASE WHEN h.StatusID = 0 THEN 1
+					  WHEN h.StatusID = 1 AND s.MinCalculating IS NOT NULL AND s.MinCalculating > 1 AND (p.MinCalculating IS NULL OR p.MinCalculating > 1) THEN 1
+					  ELSE 0
+				 END AS IsCalculated
+				,1 AS IsDoneBalNeg
+				,IIF(s.MaxCalculating = 3 OR p.MaxCalculating = 3,1,0) AS HasError
 		FROM SettlementResultHistory AS h WITH(NOLOCK)
-			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
-						 FROM Single_Calculate_Queue AS q WITH(NOLOCK) 
-						 WHERE q.matchid = h.matchid
-							AND q.BroadcastSessionId = h.SessionID
+			LEFT JOIN match AS m WITH(NOLOCK) ON m.matchid = h.matchid
+			OUTER APPLY (SELECT TOP 1 MIN(qs.IsCalculating) AS  MinCalculating, MAX(qs.IsCalculating) AS  MaxCalculating
+						 FROM @tblParentMatch AS m
+							INNER JOIN Single_Calculate_Queue AS qs WITH(NOLOCK)  ON  qs.matchid = m.matchid 
+						 WHERE m.ParentId = h.matchid
+							AND qs.BroadcastSessionId = h.SessionID
 			) AS s
-			OUTER APPLY (SELECT TOP 1 MIN(IsCalculating) AS  IsCalculating
-						 FROM Parlay_Calculate_Queue AS q WITH(NOLOCK) 
-						 WHERE q.matchid = h.matchid
-							AND q.BroadcastSessionId = h.SessionID
+			OUTER APPLY (SELECT TOP 1 MIN(qp.IsCalculating) AS  MinCalculating, MAX(qp.IsCalculating) AS  MaxCalculating
+						 FROM @tblParentMatch AS m 
+							INNER JOIN Parlay_Calculate_Queue AS qp WITH(NOLOCK) ON  qp.matchid = m.matchid 
+						 WHERE m.ParentId = h.matchid
+							AND qp.BroadcastSessionId = h.SessionID
 			) AS p
 		WHERE h.StatusID IN (0,1)
 			AND 1 = CASE WHEN h.StatusID = 0 THEN 1
-						 WHEN h.StatusID = 1 AND  s.IsCalculating IS NOT NULL AND s.IsCalculating > 1 AND (p.IsCalculating IS NULL OR p.IsCalculating > 1) THEN 1
+						 WHEN h.StatusID = 1 AND s.MinCalculating IS NOT NULL AND s.MinCalculating > 1 AND (p.MinCalculating IS NULL OR p.MinCalculating > 1) THEN 1
 						 WHEN h.CreatedDate <= @DateCheck THEN 1
 						 ELSE 0
 					END
 	END
-
-	/* #2: Check negative balance and queue processes hasn't completed and Update fail status*/
-	IF @CreatedDate <= @DateCheck AND @isPass = 0
-	BEGIN
-		UPDATE SettlementResultHistory
-		SET  StatusID = 3
-			,ModifiedDate = GETDATE()
-		WHERE matchid =	@matchid
-			AND SessionId = @SessionID
-		
-		SELECT @matchid AS matchId,@SessionId AS SessionId, @ActionType AS ActionType, @CreatedDate AS CreatedDate,  @StatusID AS Status
-
-		RETURN
-	END
-
-	IF @SessionId IS NULL 
-	BEGIN
-		RETURN
-	END
-
-	/* #3: Get changed ticket from calculation log (sync serivce)*/
-	INSERT INTO #tblTrans(TransId,TicketType,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
-	SELECT t.t AS TransId
-		  ,l.TicketType
-		  ,t.bt AS bettype
-		  ,t.bi AS betid
-		  ,t.rf AS refno
-		  ,t.w AS winlost
-		  ,t.bef_w AS bef_winlost
-		  ,t.[sid] AS statusid
-		  ,t.bef_sid AS bef_statusid
-	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
-	WHERE l.matchid = @matchid
-		AND l.BroadcastSessionId  = @SessionId
-		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w OR l.TicketType = 'p')
-		AND t.bef_sid != 0
-	
-	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
-	SELECT t.t AS TransId
-		  ,t.bt AS bettype
-		  ,t.bi AS betid
-		  ,t.rf AS refno
-		  ,t.w AS winlost
-		  ,t.bef_w AS bef_winlost
-		  ,t.[sid] AS statusid
-		  ,t.bef_sid AS bef_statusid
-	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
-	WHERE l.matchid = 29
-		AND l.BroadcastSessionId  = @SessionId
-		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w)
-		AND t.bef_sid != 0
-		AND l.LogDate >= DATEADD(MINUTE,-30 ,@CreatedDate) 
-
-	;WITH CTE_ResourceID AS (
-		SELECT  CAST(h.[ActualResult] AS XML)  AS ActualResult
-			   ,SeqNo
-		FROM SettlementResultHistory AS h WITH(NOLOCK) 
-		WHERE matchid =	@matchid
-			AND SessionId = @SessionID
-	)
-	INSERT INTO #Resource(ResourceID,SeqNo)
-	SELECT ResourceID  = x.r.value('(@Id)[1]','NVARCHAR(50)')
-	   ,   SeqNo
-	FROM CTE_ResourceID
-		CROSS APPLY ActualResult.nodes('/root/r') x(r) 
-
-	/* #4: Insert ticket*/
-	WHILE 1=1
-	BEGIN
-		DELETE @tmpTransIDBatch
-		
-		DELETE TOP(@batchNo) t
-		OUTPUT deleted.transid,deleted.TicketType,deleted.bettype,deleted.betid,deleted.refno,deleted.winlost,deleted.bef_winlost,deleted.statusid,deleted.bef_statusid
-		INTO @tmpTransIDBatch(TransID,TicketType,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
-		FROM #tblTrans t 
-
-		SELECT @batchCount 	= @@ROWCOUNT
-		IF @batchCount = 0 BREAK
-		
-		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo,ExtraInfo_Before,ExtraInfo_After)
-		SELECT  @SessionId
-			   ,t.transId
-			   ,r.SeqNo
-			   ,CONCAT('<root><r status="',	 CASE WHEN bef_statusid = 1	  THEN 'WAITING' 
-											 	  WHEN bef_statusid = 0	  THEN 'RUNNING' 
-											 	  WHEN bef_statusid = 101 THEN 'REJECT' 
-											 	  WHEN bef_statusid = 102 THEN 'VOID' 
-											 	  WHEN bef_statusid = 103 THEN 'REFUND' 
-											 	  WHEN bef_statusid = 111 THEN 'DRAW' 
-											 	  WHEN bef_statusid = 112 THEN 'WON' 
-											 	  WHEN bef_statusid = 113 THEN 'LOSE' 
-											 	  ELSE 'None'
-											 END
-						,'"winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
-						,'" /></root>') AS ExtraInfo_Before
-			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
-											 	  WHEN statusid = 0	 THEN 'RUNNING' 
-											 	  WHEN statusid = 101 THEN 'REJECT' 
-											 	  WHEN statusid = 102 THEN 'VOID' 
-											 	  WHEN statusid = 103 THEN 'REFUND' 
-											 	  WHEN statusid = 111 THEN 'DRAW' 
-											 	  WHEN statusid = 112 THEN 'WON' 
-											 	  WHEN statusid = 113 THEN 'LOSE' 
-											 	  ELSE 'None'
-											 END
-						,'"winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
-						,'" /></root>') AS ExtraInfo_After
-		FROM @tmpTransIDBatch AS t
-			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = t.bettype AND  (s.BetID = 0 OR t.BetID = s.BetID)AND s.SportType = @sportType
-			INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 
-		WHERE t.TicketType = 's'
-			AND NOT EXISTS (SELECT TOP 1 1 
-						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK)  
-						    WHERE h.transId = t.transId
-								AND h.SessionId = @SessionId)
-
-		INSERT INTO SettlementResultHistory_TicketDetails(SessionID,Transid,SeqNo,ExtraInfo_Before,ExtraInfo_After)
-		SELECT  @SessionId
-			   ,tp.transid
-			   ,tbl.SeqNo
-			   ,CONCAT('<root><r status="',	 CASE WHEN tp.bef_statusid = 1	 THEN 'WAITING' 
-											 	  WHEN tp.bef_statusid = 0	 THEN 'RUNNING' 
-											 	  WHEN tp.bef_statusid = 101 THEN 'REJECT' 
-											 	  WHEN tp.bef_statusid = 102 THEN 'VOID' 
-											 	  WHEN tp.bef_statusid = 103 THEN 'REFUND' 
-											 	  WHEN tp.bef_statusid = 111 THEN 'DRAW' 
-											 	  WHEN tp.bef_statusid = 112 THEN 'WON' 
-											 	  WHEN tp.bef_statusid = 113 THEN 'LOSE' 
-											 	  ELSE 'None'
-											 END
-						,'"winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.bef_winlost,2),'0')
-						,'" /></root>') AS ExtraInfo_Before
-			   ,CONCAT('<root><r status="',  CASE WHEN tp.statusid = 1	 THEN 'WAITING' 
-											 	  WHEN tp.statusid = 0	 THEN 'RUNNING' 
-											 	  WHEN tp.statusid = 101 THEN 'REJECT' 
-											 	  WHEN tp.statusid = 102 THEN 'VOID' 
-											 	  WHEN tp.statusid = 103 THEN 'REFUND' 
-											 	  WHEN tp.statusid = 111 THEN 'DRAW' 
-											 	  WHEN tp.statusid = 112 THEN 'WON' 
-											 	  WHEN tp.statusid = 113 THEN 'LOSE' 
-											 	  ELSE 'None'
-											 END
-						,'"winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.winlost,2),'0')
-						,'" /></root>') AS ExtraInfo_After
-		FROM @tmpTransIDBatch AS t
-			CROSS APPLY(SELECT TOP 1 r.SeqNo
-			            FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK) 
-							INNER JOIN #Resource AS r ON  s.ResourceID = r.ResourceID 
-						WHERE s.bettype = t.bettype
-							AND s.SportType = @sportType
-			) AS tbl
-			INNER JOIN #tblTransParlay AS tp ON tp.refno = t.refno 
-		WHERE t.TicketType = 'p'
-			AND NOT EXISTS (SELECT TOP 1 1 
-						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK) 
-						    WHERE h.transId = tp.transid
-								AND h.SessionId = @SessionId)
-	END
-
-	/* #5: Update success status*/
-	UPDATE SettlementResultHistory
-	SET  StatusID = 2
-		,ModifiedDate = GETDATE()
-	WHERE matchid =	@matchid
-		AND SessionId = @SessionID
 END

@@ -133,15 +133,6 @@ BEGIN
 				,N'@ErrMsg VARCHAR(400) OUTPUT, @ErrCode int OUTPUT'
 				,@ErrMsg	= @ErrMsg OUTPUT
 				,@ErrCode	= @ErrCode OUTPUT
-
-				IF @sportType = 50 
-				BEGIN
-					UPDATE SettlementResultHistory 
-					SET StatusID = 0
-					WHERE Matchid = @MatchId
-						AND SessionId = @BroadcastSessionId
-						AND StatusID IS NULL
-				END
 		END TRY
 
 		BEGIN CATCH
@@ -177,8 +168,8 @@ BEGIN
 
 		IF @sportType = 50 
 		BEGIN
-			UPDATE SettlementResultHistory 
-			SET StatusID = 1
+			UPDATE SettlementResultHistory  WITH(UPDLOCK, ROWLOCK)
+			SET StatusID = 100
 			WHERE Matchid = @MatchId
 				AND SessionId = @BroadcastSessionId
 				AND StatusID IS NULL

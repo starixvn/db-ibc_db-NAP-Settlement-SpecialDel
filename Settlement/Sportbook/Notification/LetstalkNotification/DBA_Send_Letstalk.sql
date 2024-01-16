@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE DBA_Send_Lestalk
+CREATE PROCEDURE DBA_Send_Letstalk
 (
 	@Message	NVARCHAR(4000)
 	,@ErrCode	INT				= 0		OUTPUT 		
