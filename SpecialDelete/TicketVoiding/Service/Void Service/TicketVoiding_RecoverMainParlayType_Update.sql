@@ -470,42 +470,6 @@ BEGIN
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
 			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT	
-		
-		DELETE	z
-			OUTPUT deleted.matchid, deleted.transid, deleted.transdate, deleted.comstatus
-			INTO @tmpTransInfo (matchid, transid, transdate, comstatus)
-		FROM dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tblRecoverBet t  ON	z.custid = t.custid AND z.matchid = t.matchid AND z.transid = t.transid
-		WHERE z.SiteDBGroupID = @SiteDBGroupID
-
-		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
-		BEGIN
-			INSERT INTO @tmpMatchidInfo (MatchId)
-			SELECT DISTINCT MatchId FROM @tmpTransInfo
-
-			WHILE (1=1)
-			BEGIN
-				UPDATE TOP(1)m
-				SET IsFinish = 1, @matchid = MatchId 
-				FROM @tmpMatchidInfo m
-				WHERE IsFinish IS NULL
-
-				IF @@ROWCOUNT = 0 BREAK;
-				SET @TransInfo = COMPRESS((
-				SELECT	matchid AS 'mid'
-						, transId AS 't'
-						, transdate AS 'td'
-						, comstatus AS 'cst'
-				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR JSON PATH))
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-				SELECT 'TVS', 'RecoverMainParlay', 'zzzbettrans', 'D', @MatchId, @TransInfo, 'p'
-			END
-
-			DELETE FROM @tmpTransInfo
-			DELETE FROM @tmpMatchidInfo
-		END
 
 		IF @totalMainParlay <= @ThreadHold
 		BEGIN

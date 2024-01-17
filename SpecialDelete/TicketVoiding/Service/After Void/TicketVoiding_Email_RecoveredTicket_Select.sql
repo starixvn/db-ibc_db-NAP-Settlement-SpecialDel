@@ -195,7 +195,7 @@ BEGIN
 			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
-		WHERE b.statusID NOT IN (101, 102, 103)
+		WHERE b.statusID NOT IN (101, 102)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType = 1
 		
@@ -301,7 +301,7 @@ BEGIN
 			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON d.transid = b.TransId
-		WHERE b.statusID NOT IN (101, 102, 103)
+		WHERE b.statusID NOT IN (101, 102)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType = 1
 	END

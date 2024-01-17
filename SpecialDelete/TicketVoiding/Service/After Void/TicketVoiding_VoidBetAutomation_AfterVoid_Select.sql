@@ -41,6 +41,7 @@ BEGIN
 		,MessageIdSpecial INT
 		,IsDeletedMessage BIT
 		,IsDeletedVoidedTransaction BIT
+		,IsDeletedzzzBettrans BIT
 	)
 	DECLARE @tmpVoidingHistory_Service AS TABLE
 	(
@@ -61,7 +62,7 @@ BEGIN
 
 	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
 							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
-							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, SiteDBGroupID, MessageIdSpecial, IsDeletedMessage, IsDeletedVoidedTransaction
+							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, SiteDBGroupID, MessageIdSpecial, IsDeletedMessage, IsDeletedVoidedTransaction, IsDeletedzzzBettrans
 	)
 	SELECT TOP 1 
 			vb.RequestID
@@ -83,6 +84,7 @@ BEGIN
 		, vb.MessageIdSpecial
 		, vb.IsDeletedMessage
 		, vb.IsDeletedVoidedTransaction
+		, vb.IsDeletedzzzBettrans
 	FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE vb.statusID = 1
@@ -141,6 +143,7 @@ BEGIN
 		, MessageIdSpecial
 		, IsDeletedMessage
 		, IsDeletedVoidedTransaction
+		, IsDeletedzzzBettrans
 	FROM @tmpResultAfterVoid
 
 	--Table #2: Get statusid lastest request & current status request

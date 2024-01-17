@@ -16,7 +16,8 @@ CREATE PROCEDURE [dbo].[TicketVoiding_VoidBetAutomation_Service_Upd]
 	@VoidResults					XML = NULL,
 	@MessageIdSpecial				INT = NULL,
 	@IsDeletedMessage				BIT = NULL,
-	@IsDeletedVoidedTransaction		BIT	= NULL
+	@IsDeletedVoidedTransaction		BIT	= NULL,
+	@IsDeletedzzzBettrans			BIT = NULL
 )
 AS
 /*	Created by: 20200212@Max
@@ -65,6 +66,7 @@ BEGIN
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
 			,IsDeletedMessage = ISNULL(@IsDeletedMessage, IsDeletedMessage)
 			,IsDeletedVoidedTransaction = ISNULL(@IsDeletedVoidedTransaction, IsDeletedVoidedTransaction)
+			,IsDeletedzzzBettrans = ISNULL(@IsDeletedzzzBettrans, IsDeletedzzzBettrans)
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 6
@@ -83,6 +85,7 @@ BEGIN
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
 			,IsDeletedMessage = ISNULL(@IsDeletedMessage, IsDeletedMessage)
 			,IsDeletedVoidedTransaction = ISNULL(@IsDeletedVoidedTransaction, IsDeletedVoidedTransaction)
+			,IsDeletedzzzBettrans = ISNULL(@IsDeletedzzzBettrans, IsDeletedzzzBettrans)
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 7
