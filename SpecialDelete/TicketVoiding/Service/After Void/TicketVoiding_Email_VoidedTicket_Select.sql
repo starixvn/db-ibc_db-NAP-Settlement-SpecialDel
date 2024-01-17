@@ -111,6 +111,7 @@ BEGIN
 		,IsCancelCashOut BIT
 		,IsVoidArchived BIT
 		,LeagueGroupID  SMALLINT
+		,zzzWinlost		MONEY
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -118,7 +119,7 @@ BEGIN
 	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate, IsCancelCashOut)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate, IsCancelCashOut, zzzWinlost)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -132,6 +133,7 @@ BEGIN
 			,z.SiteDBGroupID
 			,z.winlostdate
 			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
+			,z.winlost
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 	WHERE	z.VoidingHistoryId = @VoidingHistoryId
 		AND z.SiteDBGroupID = @SiteDBGroupID
@@ -601,9 +603,10 @@ BEGIN
 			,t.winlostdate
 			,ISNULL(t.IsCancelCashOut,0) AS IsCancelCashOut
 			,t.LeagueGroupID
-			,ISNULL(si.IsChinaView,0) AS IsChinaView
+			,ISNULL(si.IsChinaView,0) AS IsChinaViews
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,@VoidingHistoryId AS VoidingHistoryId
+			,t.zzzWinlost
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid

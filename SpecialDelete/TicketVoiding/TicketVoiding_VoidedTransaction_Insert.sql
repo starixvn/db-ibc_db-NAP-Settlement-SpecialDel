@@ -54,13 +54,13 @@ BEGIN
 	SELECT t.c.value('@TransId', 'BIGINT')
 		  ,t.c.value('@CustId', 'INT')
 		  ,t.c.value('@MatchId', 'INT')
-		  ,t.c.value('@winlostdate', 'SMALLDATETIME')
-		  ,t.c.value('@status', 'NVARCHAR(10)')
+		  ,t.c.value('@WinLostDate', 'SMALLDATETIME')
+		  ,t.c.value('@Status', 'NVARCHAR(10)')
 		  ,t.c.value('@BetTypeId', 'SMALLINT')
-		  ,t.c.value('@stake', 'MONEY')
-		  ,t.c.value('@winlost', 'MONEY')
+		  ,t.c.value('@Stake', 'MONEY')
+		  ,t.c.value('@WinLost', 'MONEY')
 		  ,t.c.value('@VoidingHistoryId', 'INT')
-		  ,t.c.value('@SiteDBGroupID', 'SMALLINT')
+		  ,t.c.value('@SiteDbGroupId', 'SMALLINT')
 	FROM @TicketsXml.nodes('root/r') t(c)
 
 	INSERT INTO dbo.TicketVoiding_VoidedTransaction (
