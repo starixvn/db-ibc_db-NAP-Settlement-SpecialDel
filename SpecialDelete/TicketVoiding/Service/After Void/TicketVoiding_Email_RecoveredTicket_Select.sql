@@ -181,10 +181,10 @@ BEGIN
 			,b.Transdesc 
 			,b.ExtraInfo 
 			,b.BonusID 
-			,b.winlost - b.actual_stake AS WinLost    
+			,z.winlost - b.actual_stake AS WinLost    
 			,b.actual_stake 
-			,b.Status
-			,b.status AS SubStatus 
+			,z.status
+			,z.status AS SubStatus 
 			,b.betteam AS Subbetteam  
 			,b.transdesc SubTransdesc  
 			,b.SiteDBGroupID
@@ -195,6 +195,12 @@ BEGIN
 			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
+			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
+				ON	b.transid = z.transid
+					AND z.custid = b.custid
+					AND z.matchid = b.matchid
+					AND z.bettype = b.bettype
+					AND z.SiteDBGroupID = b.SiteDBGroupID
 		WHERE b.statusID NOT IN (101, 102)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType = 1
@@ -286,10 +292,10 @@ BEGIN
 			,b.Transdesc 
 			,b.ExtraInfo 
 			,b.BonusID 
-			,b.winlost - b.actual_stake AS WinLost    
+			,z.winlost - b.actual_stake AS WinLost    
 			,b.actual_stake 
-			,b.Status
-			,b.status AS SubStatus 
+			,z.Status
+			,z.status AS SubStatus 
 			,b.betteam AS Subbetteam  
 			,b.transdesc SubTransdesc  
 			,b.SiteDBGroupID
@@ -301,6 +307,12 @@ BEGIN
 			,CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END AS IsCashOut
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON d.transid = b.TransId
+			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
+				ON	b.transid = z.transid
+					AND z.custid = b.custid
+					AND z.matchid = b.matchid
+					AND z.bettype = b.bettype
+					AND z.SiteDBGroupID = b.SiteDBGroupID
 		WHERE b.statusID NOT IN (101, 102)
 			AND b.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType = 1
@@ -540,6 +552,7 @@ BEGIN
 	WHERE gr.GroupName IS NOT NULL
 	ORDER BY gr.GroupName, t.transid	
 
+	DROP TABLE #transIdTemp
 	DROP TABLE #TVSTicketBets;
 
 END

@@ -28,3 +28,4 @@ SET IDENTITY_INSERT [dbo].[TicketVoiding_Action] OFF
 ALTER TABLE [dbo].[TicketVoiding_VoidBetAutomation_Service]
 ADD  IsDeletedMessage BIT NULL
 	,IsDeletedVoidedTransaction BIT NULL
+	,IsDeletedzzzBettrans BIT NULL
