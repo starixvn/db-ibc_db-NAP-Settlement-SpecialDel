@@ -588,7 +588,7 @@ BEGIN
 			,mr.SettlementStatus
 			,CASE WHEN t.IssueTypeId IN (1,10,3,2,8,9) THEN t.TransIds ELSE NULL END AS RequestExtraInfo
 			,CASE WHEN CHARINDEX('1',t.ProductIds) > 0 THEN 'Sportsbook' ELSE NULL END AS Products -- Apply issuetype Recover Ticket
-			,p.TotalResettleProcessed
+			,rs.TotalResettleProcessed
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 			ON t.UserId = c.CustId
@@ -604,14 +604,19 @@ BEGIN
 								 ELSE 0 END
 					FOR XML PATH('')
 				)ts	 (TransIds)
-		OUTER APPLY (SELECT COUNT(CASE WHEN s.IssueTypeId IN (17) THEN s.TransId ELSE 0 END) AS TotalParlay
-						   ,COUNT(CASE WHEN s.IssueTypeId IN (22) THEN s.TransId ELSE 0 END) AS TotalResettleProcessed
+		OUTER APPLY (SELECT COUNT(s.TransId) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId 
-						AND 1 = CASE WHEN s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799) THEN 1
-						             WHEN s.IssueTypeId IN (22) AND s.IsProcessed = 3 THEN 1
-									 ELSE 0 END
+						AND s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799)
 				)p	
+		OUTER APPLY  (
+					SELECT COUNT(s.TransId) AS TotalResettleProcessed
+					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+						INNER JOIN dbo.bettrans b with (nolock) ON b.TransId = s.TransId AND b.matchid = s.MatchId
+					WHERE s.RequestId = t.RequestId 
+						AND s.IssueTypeId IN (22) 
+						AND b.statuswinlost IS NOT NULL
+				)rs
 				---Case Failed
 		OUTER APPLY ( 
 					SELECT DISTINCT RequestId, vh.StatusId

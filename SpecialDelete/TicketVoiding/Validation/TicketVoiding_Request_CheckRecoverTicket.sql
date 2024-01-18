@@ -49,6 +49,7 @@ BEGIN
 		AND pt.SubProduct NOT IN ('MG-SuperLive', 'BT-Comm', 'BT-Bought', 'BT-Sold', 'BT-Winloss') --, Metric Gaming, Bet trade (BT-)
 		AND pt.bettype NOT IN (31,32,33,71,72,73)	-- NOT IN [Racing, Casino]
 		AND pt.bettype NOT BETWEEN 1501 AND 1599 -- NOT IN Keno
+		AND pt.BetType NOT IN  (10) --Outright
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #TransidInRequest (TransId BIGINT PRIMARY KEY)
