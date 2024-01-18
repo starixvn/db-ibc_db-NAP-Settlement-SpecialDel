@@ -541,23 +541,6 @@ BEGIN
 		SET @TransInfo3rd = NULL
 	END
 
-
-	/* Re-Cal for voided Transaction already has statuswinlost*/
-	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
-							FROM #tblTransInfo t
-								INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.TransId = t.transid
-							WHERE b.statuswinlost IS NOT NULL
-								AND t.bettype NOT IN (468, 469)
-								AND ISNULL(b.betdaqid, 0) <> -2
-								AND b.SiteDBGroupID = @SiteDBGroupID
-							FOR XML PATH('r'), ROOT('root')
-						)
-	IF @xmlTransId <> ''
-	BEGIN
-		EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
-			@TransIds = @xmlTransId
-	END
-
 	--Update CashOutSelling for new CO Model
 	IF EXISTS (SELECT TOP(1) 1 FROM #tblTransInfo WHERE IsCashOut = 1)
 	BEGIN
@@ -770,7 +753,9 @@ BEGIN
 	FROM bettrans main WITH(ROWLOCK, UPDLOCK)
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 		LEFT JOIN CTE_Betcheck_Final AS bc ON bc.transid = t.transid
-	WHERE t.bettype IN (468, 469) AND main.SiteDBGroupID = @SiteDBGroupID
+	WHERE t.bettype IN (468, 469) 
+		AND main.statuswinlost IS NULL
+		AND main.SiteDBGroupID = @SiteDBGroupID
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
@@ -809,6 +794,22 @@ BEGIN
 		DELETE FROM @tmpMatchidInfo
 		SET @TransInfo = NULL
 		SET @TransInfo3rd = NULL
+	END
+
+	/* Re-Cal for voided Transaction already has statuswinlost*/
+	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
+							FROM #tblTransInfo t
+								INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.TransId = t.transid
+							WHERE b.statuswinlost IS NOT NULL
+								AND t.bettype NOT IN (38)
+								AND ISNULL(b.betdaqid, 0) <> -2 
+								AND b.SiteDBGroupID = @SiteDBGroupID
+							FOR XML PATH('r'), ROOT('root')
+						)
+	IF @xmlTransId <> ''
+	BEGIN
+		EXEC dbo.TicketVoiding_ReCalculate_Single_Update 
+			@TransIds = @xmlTransId
 	END
 
 	-- Re-Cal Bet Builder

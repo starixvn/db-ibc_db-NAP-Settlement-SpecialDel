@@ -297,6 +297,7 @@ BEGIN
 	BEGIN TRY
 		EXEC dbo.NAP_Admin_Calculate_Bet14 
 			@TransIds = @TransIds
+			,@MatchId = @MatchId
 	END TRY
 	BEGIN CATCH
 		SELECT	@ErrCode = 100
@@ -373,14 +374,6 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		DELETE	z
-		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmpTransId t
-				ON z.transid = t.TransId
-		WHERE	z.custid = t.CustId
-				AND z.matchid = t.MatchId
-				AND z.bettype = t.Bettype
-
 		-- release data of TempVariableNumBer table
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@isExistMatch		= @isExistMatch

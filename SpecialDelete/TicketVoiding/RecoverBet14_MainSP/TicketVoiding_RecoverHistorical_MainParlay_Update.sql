@@ -334,13 +334,6 @@ BEGIN
 	END
 	ELSE
 	BEGIN
-		DELETE	z
-		FROM	dbo.zzzbettrans z WITH(ROWLOCK, UPDLOCK)
-			INNER JOIN #tmpTransId t
-				ON z.transid = t.TransId
-		WHERE	z.custid = t.CustId
-				AND z.matchid = 29
-				AND z.bettype = 29
 	
 		-- release data of TempVariableNumBer table
 		EXEC dbo.NAP_Admin_CheckingProcess

@@ -1,5 +1,8 @@
 /*<info serverAlias="DBTXN-bodb02" executers="" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bet14] (@transIds VARCHAR(MAX))
+ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_Bet14] (
+	@transIds VARCHAR(MAX)
+	,@MatchId	INT = 0
+)
 AS
 /*
 	Created by: 20190715@Helen
@@ -38,6 +41,13 @@ BEGIN
 	END
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @xml XML
+		,@IsSiteDB			BIT 
+		,@transInfo			VARBINARY(MAX)
+		,@transInfo3rd		VARBINARY(MAX)
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
+
 	DECLARE @tbl_transIDs AS TABLE(transid BIGINT)
 
 	SET @XML = N'<root><r>' + REPLACE(@transIds, ',', '</r><r>') + '</r></root>'
@@ -57,6 +67,15 @@ BEGIN
 			,@statusId			TINYINT
 			
 			
+	CREATE TABLE #AfterTransId14(
+	    matchid INT ,transid BIGINT PRIMARY KEY,betdaqid BIGINT ,sitedbgroupid SMALLINT
+      ,bettype SMALLINT ,statusID TINYINT ,Status NVARCHAR(10)
+	  ,winlostdate SMALLDATETIME ,SettlementTime DATETIME ,actual_stake MONEY ,modds SMALLMONEY
+	  ,srecommend INT ,mrecommend INT,recommend INT ,custid INT	
+	  ,winlost MONEY ,awinLost MONEY ,mwinLost MONEY ,swinLost MONEY
+	  ,playercomm MONEY ,comm MONEY ,acomm MONEY ,scomm MONEY, ruben TINYINT, creator INT, ExtraInfo VARCHAR(1000)
+	)
+	
 	DECLARE @settlementTime DATETIME
 	---parse XML
 	INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype)
@@ -248,7 +267,56 @@ BEGIN
 			,creator = b.custID
 	FROM @tempTrans sr
 		INNER JOIN dbo.bettrans14 b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
+	
+	
+	IF @IsSiteDB = 1
+	BEGIN
+		--capture after for balance trigger
+		INSERT INTO #AfterTransId14( 
+			   matchid ,transid ,betdaqid ,sitedbgroupid
+			  ,bettype ,statusID ,Status 
+			  ,winlostdate ,SettlementTime ,actual_stake ,modds 
+			  ,srecommend ,mrecommend ,recommend ,custid	
+			  ,winlost ,awinLost ,mwinLost ,swinLost
+			  ,playercomm ,comm ,acomm ,scomm, ruben, creator, ExtraInfo
+			)
+		SELECT b.matchid, t.TransId, b.betdaqid, b.SiteDBGroupID
+			,b.bettype, b.statusID, b.status, b.winlostdate, b.SettlementTime, b.actual_stake, b.modds
+			,b.srecommend, b.mrecommend, b.recommend, b.custid
+			,b.winlost, b.awinlost, b.mwinlost, b.swinlost
+			,b.playercomm, b.comm, b.acomm, b.scomm, b.ruben, b.creator, b.ExtraInfo
+		FROM @tempTrans t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
+	END
 
-	RETURN
+	IF @IsSiteDB = 1
+	BEGIN
+		SET @transInfo = COMPRESS((
+		SELECT	b.transId AS 't'
+				, b.winlost AS 'w'
+				, b.ruben AS 'r'
+				, b.creator AS 'cr'
+				, b.awinlost AS 'aw'
+				, b.mwinlost AS 'mw'
+				, b.swinlost AS 'sw'
+				, b.playercomm AS 'pc'
+				, b.comm AS 'c'
+				, b.acomm AS 'ac'
+				, b.scomm AS 'sc'
+				, b.statusID AS 'sid'
+				, b.status AS 's'
+				, b.ExtraInfo AS 'ex'
+		FROM	#AfterTransId14 b
+		WHERE b.bettype NOT IN (10)
+		FOR JSON PATH))
+
+		IF @transInfo IS NOT NULL
+		BEGIN
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+			SELECT 'TVS', 'Recover_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END
+		END
+	END	
+
+	DROP TABLE #AfterTransId14
 END
 GO
