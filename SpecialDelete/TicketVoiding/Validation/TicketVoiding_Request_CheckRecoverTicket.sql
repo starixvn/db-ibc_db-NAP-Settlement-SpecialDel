@@ -28,6 +28,7 @@ BEGIN
 		   ,@before_movebetday				DATETIME
 	       ,@MovebetDate					DATETIME
 		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
+		   ,@UnmarkTransIds					VARCHAR(MAX) =''
 
 	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
 
@@ -116,8 +117,9 @@ BEGIN
 		-- Return validation/Transinfo table
 		SET @InvalidTransIds = @TransIds
 		SELECT @InvalidTransIds AS InvalidTransIds
-		      ,@TransInfoJson_Output AS TransInfoJson
-
+			  ,@UnmarkTransIds AS UnmarkTransIds
+			  ,@TransInfoJson_Output AS TransInfoJson
+		
 		RETURN;
 	END
 
@@ -199,6 +201,11 @@ BEGIN
 													), 1, 1, ''), '')
 	END	
 
+	SELECT @UnmarkTransIds = ISNULL(STUFF((SELECT ',' + CAST(v.SubTransid AS VARCHAR(50)) 
+											FROM #validTransId v
+											WHERE v.IsMove14 = 0
+											FOR XML PATH('')), 1,1,''),'')
+
 	/*****************Return table **************************/
 	-- 1. Return validation/Transinfo table
 	SET @TransInfoJson_Output = COMPRESS((SELECT t.matchid AS 'mid'
@@ -217,8 +224,8 @@ BEGIN
 	SELECT @InvalidTransIds AS InvalidTransIds
 		 , @UnsupportedDateRangeTransIds AS UnsupportedDateRangeTransIds
 		 , @ExistingReqTransIds AS ExistingReqTransIds
+		 , @UnmarkTransIds AS UnmarkTransIds
 		 , CONVERT(VARCHAR(MAX), @TransInfoJson_Output, 1) AS TransInfoJson
-
 
 	DROP TABLE #transIdTemp
 	DROP TABLE #validTransId
