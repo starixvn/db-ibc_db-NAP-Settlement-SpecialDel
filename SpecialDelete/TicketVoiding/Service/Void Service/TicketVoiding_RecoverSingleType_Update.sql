@@ -443,7 +443,6 @@ BEGIN
 		INNER JOIN #tblTransInfo t ON main.transid = t.grouptransid AND main.transid = t.transid
 	WHERE t.bettype NOT IN (468, 469)
 		AND ISNULL(main.betdaqid, 0) <> -2
-		AND main.statuswinlost IS NULL
 		AND main.SiteDBGroupID = @SiteDBGroupID
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
