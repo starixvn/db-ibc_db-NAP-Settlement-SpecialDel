@@ -9,8 +9,8 @@
 USE [bodb_Archive]
 GO
 
---ALTER TABLE dbo.TicketVoiding_VoidingHistory_bk ADD [MessageIdSpecial] INT
---GO
+ALTER TABLE dbo.TicketVoiding_VoidingHistory_bk ADD [MessageIdSpecial] INT
+GO
 
 ALTER TABLE dbo.[TicketVoiding_VoidedTransaction_bk] ADD
 	[winlostdate] [smalldatetime] NULL,

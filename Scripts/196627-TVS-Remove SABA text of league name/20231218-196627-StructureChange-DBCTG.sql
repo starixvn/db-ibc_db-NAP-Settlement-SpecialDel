@@ -9,11 +9,11 @@
 USE [bodb02]
 GO
 
---ALTER TABLE dbo.TicketVoiding_VoidingHistory ADD [MessageIdSpecial] INT
---GO
+ALTER TABLE dbo.TicketVoiding_VoidingHistory ADD [MessageIdSpecial] INT
+GO
 
---ALTER TABLE dbo.Ticketvoiding_VoidBetAutomation_Service ADD [MessageIdSpecial] INT
---GO
+ALTER TABLE dbo.Ticketvoiding_VoidBetAutomation_Service ADD [MessageIdSpecial] INT
+GO
 
 ALTER TABLE dbo.[TicketVoiding_VoidedTransaction] ADD
 	[winlostdate] [smalldatetime] NULL,
