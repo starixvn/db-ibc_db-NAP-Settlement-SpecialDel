@@ -25,6 +25,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
+		- 20240122@Aries: Provider Result Log [Redmine:#199100]
 */
 BEGIN
 	SET NOCOUNT ON
@@ -32,6 +33,7 @@ BEGIN
 	DECLARE @tmpMatchInfo TABLE (
 		 matchId	INT
         ,matchcode	NVARCHAR(100)
+		,eventdate	DATETIME
         ,kickofftime DATETIME
         ,playtime	INT
         ,homeid		INT
@@ -59,6 +61,7 @@ BEGIN
 		INSERT INTO @tmpMatchInfo (
 			 matchId
 			,matchcode
+			,eventdate
 			,kickofftime
 			,homeid
 			,awayid
@@ -77,6 +80,7 @@ BEGIN
 		)
 		SELECT  m.matchId
 			,m.matchcode
+			,m.eventdate
 			,m.kickofftime
 			,m.homeid
 			,m.awayid
@@ -103,6 +107,7 @@ BEGIN
 	INSERT INTO @tmpMatchInfo (
 		 matchId	
 		,matchcode	
+		,eventdate
 		,kickofftime
 		,playtime	
 		,homeid		
@@ -126,6 +131,7 @@ BEGIN
 	)   
 	SELECT m.matchId
         ,m.matchcode
+		,m.eventdate
         ,m.kickofftime
         ,datediff(minute, kickofftime, CURRENT_TIMESTAMP) playtime
         ,m.homeid
@@ -157,6 +163,7 @@ BEGIN
 
 	 SELECT matchId	
 		,matchcode	
+		,eventdate
 		,kickofftime
 		,playtime	
 		,homeid		
