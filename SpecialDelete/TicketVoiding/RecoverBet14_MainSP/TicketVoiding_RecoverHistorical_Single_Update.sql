@@ -44,16 +44,15 @@ BEGIN
 			,@isExistFM2		BIT = 0
 			,@isExistMatch		BIT
 			,@AffectedList		VARCHAR(MAX)
-			
-			,@moveBetDay		SMALLDATETIME
-			,@FromDate			SMALLDATETIME    
-			,@ToDate			SMALLDATETIME
+			,@SiteDBGroupID     SMALLINT = 0
 	
-	--Get Movebetdate
-	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @moveBetDay OUTPUT
-	
-	SELECT @FromDate	= CONVERT(VARCHAR(10), DATEADD(d, -6, GETDATE()), 102)
-		, @ToDate 		= @moveBetDay
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
+	/*Modify the way to get move bet date*/
+	DECLARE @BeingMovebetDate SMALLDATETIME 
+		   ,@currentdate SMALLDATETIME = GETDATE()
+
+	DECLARE @tblTransId_MoveBet TABLE (MatchId INT, TransId BIGINT)
 		
 	DECLARE @BeforeUpd TVP_BalanceWalletChange
 	DECLARE @AfterUpd  TVP_BalanceWalletChange
@@ -107,8 +106,12 @@ BEGIN
 		,IsAbnormalBet	BIT DEFAULT(0)
 		,KeyId			TINYINT DEFAULT(1)
 		,Invalid		TINYINT DEFAULT(0)
+		,sporttype			SMALLINT
+		,eventdate			DATETIME
+		,oddsid				INT
+		,winlostdate		SMALLDATETIME
 	)
-
+	CREATE TABLE #tblMatch (matchid INT)
 	CREATE TABLE #tblMatchProcess (MatchId INT, KeyID TINYINT)
 
 	SET @StartTime = GETDATE()
@@ -122,7 +125,7 @@ BEGIN
 	SELECT	DISTINCT value
 	FROM STRING_SPLIT(@TransIds, ',')
 
-	INSERT INTO #tmpTransId (TransId, MatchId, CustId, Bettype, KeyId, invalid)
+	INSERT INTO #tmpTransId (TransId, MatchId, CustId, Bettype, KeyId, invalid, oddsid, winlostdate)
 	SELECT	b14.transid
 			,b14.matchid
 			,b14.custid
@@ -133,16 +136,14 @@ BEGIN
 				ELSE 1
 			END AS KeyId
 			,CASE 
-				WHEN cs.custid IS NOT NULL THEN 1 -- not pass validation rule
 				WHEN b14.statuswinlost IS NULL OR b14.statuswinlost NOT BETWEEN 0 AND 6 THEN 2 -- not have 'statuswinlost' value
-				WHEN b14.winlostdate < @FromDate OR b14.winlostdate > @ToDate THEN 4
 				ELSE 0
 			END AS invalid
+			,b14.oddsid
+			,b14.winlostdate
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK)
 			ON	t.TransId = b14.transid
-		LEFT JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
-			ON	b14.srecommend = cs.custid
 		OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -156,6 +157,7 @@ BEGIN
 			AND b14.bettype NOT BETWEEN 81 AND 120
 			AND b14.bettype NOT BETWEEN 1201 AND 1299
 			AND b14.bettype NOT BETWEEN 2700 AND 2899
+			AND b14.SiteDBGroupID = @SiteDBGroupID
 			
 	
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)
@@ -165,6 +167,62 @@ BEGIN
 
 		RETURN
 	END	
+
+	-- UPDATE eventtype = 1
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype NOT IN (9, 29, 2799)))
+	BEGIN
+		UPDATE	b
+		SET eventdate 	= m.eventdate
+			,sporttype 	= m.sporttype
+		FROM	#tmpTransId b
+			INNER JOIN dbo.match14 m WITH(NOLOCK)
+				ON	b.matchid = m.matchid
+		WHERE bettype NOT IN (9, 29, 2799)		
+	END
+	
+	-- -- UPDATE eventtype = 2 [Outright ticket]
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (10)))
+	BEGIN
+		UPDATE b
+		SET eventdate 	= o.eventdate
+			,sporttype	= l.sporttype
+		FROM	#tmpTransId b
+			INNER JOIN dbo.outright14 AS o WITH (NOLOCK) 
+			ON	b.matchid = o.orid
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	o.leagueid = l.leagueid			
+		WHERE bettype IN (10)
+	END
+		
+	-- -- UPDATE eventtype = 3 [VS range bettypes]
+	IF(EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (1231,1232,1233,1237,1238)))
+	BEGIN
+		UPDATE b
+		SET eventdate	= o.eventdate
+			,sporttype 	= r.sporttype	
+		FROM	#tmpTransId b
+			INNER JOIN dbo.VSOutright14 o WITH (NOLOCK) 
+			ON b.oddsid = o.Orid
+			INNER JOIN dbo.VSRaceInfo14 r WITH (NOLOCK) 
+			ON r.EventID = o.EventID
+		WHERE b.bettype IN (1231,1232,1233,1237,1238)
+	END
+	-- UPDATE Sportype for Saba Promotion (bettype = 17000, 17003)
+	BEGIN
+		UPDATE b
+		SET sporttype = sb.SportType
+		FROM #tmpTransId b
+			INNER JOIN dbo.SportBettypeMatrix sb WITH (NOLOCK)
+			ON b.bettype = sb.BetType
+		WHERE sb.ProductID = 37
+	END
+
+	IF EXISTS (SELECT 1 FROM #tmpTransId WHERE bettype IN (9,29,2799))
+	BEGIN
+		UPDATE #tmpTransId
+		SET eventdate = winlostdate
+		WHERE bettype IN (9,29,2799)	
+	END
 
 	UPDATE t 
 		SET invalid = i.invalid
@@ -178,7 +236,36 @@ BEGIN
 						WHEN r.invalid > 0 THEN r.invalid
 					END AS invalid
 		) AS i
+			
+	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
+	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
 
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE Eventdate = @BeingMovebetDate)
+	BEGIN	
+		DELETE 
+		FROM #tmpTransId
+			OUTPUT	DELETED.matchid, DELETED.TransId
+			INTO  @tblTransId_MoveBet (Matchid, TransId)
+		WHERE eventdate = @BeingMovebetDate
+
+		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
+									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+								FROM @tblTransId_MoveBet t
+									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+													FROM @tblTransId_MoveBet s
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													FOR XML PATH('')
+												)ts	 (TransIds)
+								FOR XML PATH('r'), ROOT('root')
+								) AS VARCHAR(MAX))
+	END
+	
+	-- gather match Ids
+	INSERT INTO #tblMatch (matchid)
+	SELECT	matchid
+	FROM	#tmpTransId
+	GROUP BY matchid
+	
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpInputTransId WHERE invalid > 0)
 	BEGIN
 		DECLARE @Msg VARCHAR(MAX) = ''
@@ -191,6 +278,7 @@ BEGIN
 		WHERE	invalid = 1
 
 		IF @@rowcount > 0
+			SELECT	@ErrCode = 100
 			SET @ErrMsg = 'Invalid transid: ' + STUFF(@Msg, 1, 1, '') + '. '
 
 		SET @Msg = ''		
@@ -199,6 +287,7 @@ BEGIN
 		WHERE	invalid = 2
 
 		IF @@rowcount > 0
+			SELECT	@ErrCode = 101
 			SET @ErrMsg = @ErrMsg + 'Existing data but do not have statuswinlost value: ' + STUFF(@Msg, 1, 1, '') + '. '
 
 		SET @Msg = ''
@@ -207,6 +296,7 @@ BEGIN
 		WHERE	invalid = 3
 
 		IF @@rowcount > 0
+			SELECT	@ErrCode = 102
 			SET @ErrMsg = @ErrMsg + 'Existing but data has not been moved yet: ' + STUFF(@Msg, 1, 1, '') + '. '
 		
 		SET @Msg = ''
@@ -215,19 +305,11 @@ BEGIN
 		WHERE	invalid = 4
 
 		IF @@rowcount > 0
-			SET @ErrMsg = @ErrMsg + 'BetID are not within supported date range: ' + STUFF(@Msg, 1, 1, '') + '. '
+			SET	@ErrCode = 99
+			SET @ErrMsg = @ErrMsg + 'Could not recover some tickets due to Movebet process. Please try Search again: ' + STUFF(@Msg, 1, 1, '') + '. '
 			
 		RETURN
 				
-	END
-
-	IF EXISTS (SELECT TOP 1 1 FROM SystemSettings WITH (NOLOCK) WHERE VName = 'IsMovingBet' AND VValue = 1)
-	BEGIN
-		SET @ErrCode = 100
-		SET @ErrMsg = @ErrMsg + 'This Movebet process is running, please wait until the on-going process is completed and try again.'
-		
-		RETURN
-		
 	END
 	
 	IF @IP IS NULL OR @UserId IS NULL
@@ -405,5 +487,9 @@ BEGIN
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+
+	DROP TABLE #tblMatch
+	DROP TABLE #tblMatchProcess
+	DROP TABLE #tmpTransId
 END
 GO

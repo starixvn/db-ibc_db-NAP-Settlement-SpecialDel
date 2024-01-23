@@ -444,6 +444,9 @@ BEGIN
 	WHERE t.bettype NOT IN (468, 469)
 		AND ISNULL(main.betdaqid, 0) <> -2
 		AND main.SiteDBGroupID = @SiteDBGroupID
+		AND 1 = CASE WHEN t.bettype NOT IN (38) AND main.statuswinlost IS NULL THEN 1
+					WHEN t.bettype IN (38) THEN 1
+				ELSE 0 END
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
