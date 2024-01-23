@@ -187,13 +187,13 @@ BEGIN
 										FOR XML PATH('')), 1, 1, ''), '')
 
 
-	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate <= @before_movebetday)
+	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @before_movebetday)
 	BEGIN
 		DELETE 
 		FROM #validTransId
 			OUTPUT	DELETED.TransId
 			INTO @UnsupportedTransids (TransId)
-		WHERE winlostdate <= @before_movebetday
+		WHERE winlostdate < @before_movebetday
 
 		SELECT @UnsupportedDateRangeTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 														FROM @UnsupportedTransids t
