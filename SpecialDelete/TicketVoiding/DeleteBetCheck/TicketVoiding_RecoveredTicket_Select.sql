@@ -236,7 +236,7 @@ BEGIN
 			,b.transid AS MainTransId
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans b WITH (NOLOCK) ON d.transid = b.TransId
-		WHERE b.statusID NOT IN (101, 102, 103)
+		WHERE b.statusID NOT IN (101, 102) --Reject, Void
 			AND b.SiteDBGroupID = @SiteDBGroupID
 		
 		INSERT INTO #TVSTicketBets(
@@ -367,7 +367,7 @@ BEGIN
 			,b.transid AS MainTransId
 		FROM #transIdTemp d 
 			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON d.transid = b.TransId
-		WHERE b.statusID NOT IN (101, 102, 103)
+		WHERE b.statusID NOT IN (101, 102) --Reject, void
 			AND b.SiteDBGroupID = @SiteDBGroupID
 	END
 
