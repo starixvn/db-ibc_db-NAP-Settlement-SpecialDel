@@ -18,6 +18,7 @@ AS
 		- 20230419@Max: Create new SP [Redmine:#179934]
 		- 20231017@Max: [TVS] Update rule get tickets when offering wrong handicap [Redmine: #195445]
 		- 20231023@Max: Extend datatype [Redmine: #192202]
+		- 20240123@Max: TVS - Wrong Odds - Wrongly converting odds to search ticket [Redmine: #200123]
 		
 	Param's explanation:
 		+ @WrongOddsInfo:
@@ -540,6 +541,7 @@ BEGIN
 		, @FromOdds			MONEY = 0
 		, @ToOdds			  MONEY = 0
 		, @tmp_ToOdds		MONEY = 0
+		, @tmp_FromOdds	MONEY = 0
 
 	DECLARE @tmp_Odds AS TABLE (Odds SMALLMONEY, OddsType TINYINT)
 	DECLARE @tmp_TransId AS TABLE (TransId BIGINT)
@@ -555,10 +557,10 @@ BEGIN
 		IF (@FromOdds < 0 AND @ToOdds > 0) OR (@FromOdds > 0 AND @ToOdds < 0)
 		BEGIN
 			--Range 1: negative
-			SET @FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
+			SET @tmp_FromOdds = CASE WHEN @FromOdds < 0 THEN @FromOdds ELSE @ToOdds END
 			SET @tmp_ToOdds = -1.00
 
-			SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
+			SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
 		
 			INSERT INTO @tmp_Odds (Odds, OddsType)
 			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
@@ -587,10 +589,10 @@ BEGIN
 
 			--Range 1: possitive
 			DELETE @tmp_Odds
-			SET @FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
+			SET @tmp_FromOdds =  CASE WHEN @ToOdds > 0 THEN @ToOdds ELSE @FromOdds END
 			SET @tmp_ToOdds = 1.00
 
-			SET @Odds_str = (SELECT CAST(@FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
+			SET @Odds_str = (SELECT CAST(@tmp_FromOdds AS VARCHAR(10)) + ',' + CAST(@tmp_ToOdds AS VARCHAR(10)))
 		
 			INSERT INTO @tmp_Odds (Odds, OddsType)
 			SELECT f.Odds, f.OddsType FROM f_TVS_OddsFilter_Calculate(@Odds_str, 'MY') f
