@@ -131,7 +131,7 @@ BEGIN
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (13) --Cricket ticket
+	ELSE IF @VoidingTypeId IN (14) --Cricket ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverSingleType_Update
 			@RequestId = @RequestId
@@ -145,7 +145,7 @@ BEGIN
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	END
-	ELSE IF @VoidingTypeId IN (14) --Cricket14 ticket
+	ELSE IF @VoidingTypeId IN (17) --Cricket14 ticket
 	BEGIN
 		EXEC dbo.TicketVoiding_RecoverHistorical_Single_Update
 			@RequestId = @RequestId
