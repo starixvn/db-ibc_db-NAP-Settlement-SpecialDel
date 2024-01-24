@@ -25,14 +25,13 @@ BEGIN
 	DECLARE @InvalidTransIds				VARCHAR(MAX) = ''
 		   ,@UnsupportedDateRangeTransIds	VARCHAR(MAX) = ''
 		   ,@ExistingReqTransIds			VARCHAR(MAX) = ''
-		   ,@before_movebetday				DATETIME
-	       ,@MovebetDate					DATETIME
 		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
 		   ,@UnmarkTransIds					VARCHAR(MAX) =''
+		   ,@CurrentDate					DATETIME
+		   ,@GetDateRange					DATETIME
 
-	EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @MovebetDate OUTPUT
-
-	SELECT @before_movebetday = DATEADD(DAY, -3, @Movebetdate)
+	SET @CurrentDate = CAST(GETDATE() AS DATE)
+	SET @GetDateRange = DATEADD(DAY, -7, @CurrentDate)
 	
 	DECLARE @UnsupportedTransids AS TABLE (transid BIGINT)	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)
@@ -187,13 +186,13 @@ BEGIN
 										FOR XML PATH('')), 1, 1, ''), '')
 
 
-	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @before_movebetday)
+	IF EXISTS (SELECT TOP 1 1 FROM #validTransId WHERE winlostdate < @GetDateRange)
 	BEGIN
 		DELETE 
 		FROM #validTransId
 			OUTPUT	DELETED.TransId
 			INTO @UnsupportedTransids (TransId)
-		WHERE winlostdate < @before_movebetday
+		WHERE winlostdate < @GetDateRange
 
 		SELECT @UnsupportedDateRangeTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
 														FROM @UnsupportedTransids t
