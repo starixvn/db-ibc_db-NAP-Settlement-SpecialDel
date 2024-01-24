@@ -27,6 +27,7 @@ AS
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20230515@Aries: Apply Settle Instant for Basketball [Redmine:#184124]
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
+		- 20231213@Aries: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
 
     Param's Explanation:
         - @Action: 'CAL', 'CAL-INST'
@@ -77,15 +78,20 @@ BEGIN
 			,@ResultTable					TINYINT
 			,@BroadcastSessionIdInstant		VARCHAR(50)		= @BroadcastSessionId + '_instant'
 			,@SiteDBGroupId					TINYINT
+
+			,@HTHome_Inst					INT
+			,@HTAway_Inst					INT
+			,@FTHome_Inst					INT
+			,@FTAway_Inst					INT
 		
-	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT, MinusValue SMALLMONEY   DEFAULT(0), PRIMARY KEY (BetType,BetID))	
+	DECLARE @tmpSelectedRID TABLE(BetType SMALLINT, BetID BIGINT,SDTResourceId VARCHAR(20),RefResourceID VARCHAR(20),ResourceID VARCHAR(20), SDTpfId SMALLINT, HomeValue VARCHAR(2000), AwayValue VARCHAR(2000), OddsType TINYINT, isCalculated BIT, MinusValue SMALLMONEY   DEFAULT(0),IsInstHTFT BIT, PRIMARY KEY (BetType,BetID))	
     DECLARE @tmpResources TABLE(SDTResourceId VARCHAR(20),HomeValue VARCHAR(2000),AwayValue VARCHAR(2000))
 	DECLARE @tmpParlayAffectedBettypes TABLE (BetType SMALLINT, TotalTicket INT)	
 
     DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,CustID INT, modds SMALLMONEY, OddsType SMALLINT, srecommend INT, bettype SMALLINT, IsMarked	BIT, winlost MONEY, statuswinlost TINYINT, IsUndo BIT)
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT,modds SMALLMONEY, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT, IsUndo BIT)
 
-	CREATE TABLE #tmpTransSDT (TransID BIGINT,CustID INT, modds SMALLMONEY DEFAULT 0, OddsType SMALLINT, srecommend INT,bettype SMALLINT, IsMarked BIT, IsUndo BIT , BetdaqId BIGINT, currentStatuswinlost TINYINT)
+	CREATE TABLE #tmpTransSDT (TransID BIGINT,CustID INT, modds SMALLMONEY DEFAULT 0, OddsType SMALLINT, srecommend INT,bettype SMALLINT, IsMarked BIT, IsUndo BIT , BetdaqId BIGINT, currentStatuswinlost TINYINT,betteam VARCHAR(20),hdp1 SMALLMONEY,IsInstHTFT BIT)
 	CREATE CLUSTERED INDEX IX_tmpTransSDT_modds ON #tmpTransSDT (modds);
 
     CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -150,8 +156,8 @@ BEGIN
     END
 	
 	BEGIN TRY
-		INSERT INTO @tmpSelectedRID(Bettype,BetID, SDTResourceId,RefResourceID, SDTpfId, OddsType)
-		SELECT DISTINCT s.BetType,s.BetID, s.SDTResourceId,s.RefResourceID, s.SDTpfId, ISNULL(s.OddsType,0)
+		INSERT INTO @tmpSelectedRID(Bettype,BetID, SDTResourceId,RefResourceID,ResourceID, SDTpfId, OddsType, IsInstHTFT)
+		SELECT DISTINCT s.BetType,s.BetID, s.SDTResourceId,s.RefResourceID,s.ResourceID, s.SDTpfId, ISNULL(s.OddsType,0), IIF(ResourceID IN ('00','01') AND s.SDTInstant IS NOT NULL,1,0)
 		FROM	dbo.SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
 		WHERE	s.SportType = @SportType
 			AND 1 = CASE WHEN @IsInstant = 0 AND ISNULL(s.DeterminedType,0) & @DeterminedType > 0 THEN 1
@@ -200,7 +206,7 @@ BEGIN
               FROM @tmpSelectedRID
               WHERE SDTResourceId IN ('01', '00')) AS tbl
 
-	    INSERT INTO #tmpTransSDT(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked,BetdaqId, currentStatuswinlost)
+	    INSERT INTO #tmpTransSDT(TransID, CustID, modds, OddsType, srecommend, bettype, IsMarked,BetdaqId, currentStatuswinlost,betteam,hdp1,IsInstHTFT)
 	    SELECT	b.transid
 	    	   ,b.CustID
 	    	   ,m.modds
@@ -210,6 +216,9 @@ BEGIN
 	    	   ,CASE WHEN mt.TransId IS NOT NULL THEN 1 ELSE 0 END AS IsMarked
 			   ,ISNULL(b.betdaqid,0)
 			   ,b.statuswinlost
+			   ,b.betteam
+			   ,b.hdp1
+			   ,sr.IsInstHTFT
 	    FROM bettrans AS b WITH (NOLOCK)
 	    	OUTER APPLY (
 	    					SELECT TOP (1) t.TransId
@@ -217,7 +226,7 @@ BEGIN
 	    					WHERE	t.TransId = b.transId
 	    	) AS mt
 	    	CROSS APPLY(
-	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, t.isCalculated, t.MinusValue
+	    					SELECT TOP 1 t.SDTpfId, t.HomeValue,t. AwayValue, t.OddsType, t.isCalculated, t.MinusValue,  t.IsInstHTFT
 	    					FROM @tmpSelectedRID AS t
 	    					WHERE b.BetType = t.BetType AND (t.BetID = 0 OR b.BetID = t.BetID) 
 	    				) AS sr
@@ -232,6 +241,35 @@ BEGIN
 						 WHEN @IsReSettledTickets = 1 AND m.modds IS NULL AND (b.statusID IN (111,112,113) OR  ISNULL(b.statuswinlost,'') != '') AND sr.isCalculated = 0 THEN 1
 						 ELSE 0
 					END
+		
+		IF @Action = 'CAL' AND @IsReSettledTickets = 1 
+		BEGIN
+			EXEC DBPRO.bodb02.dbo.NAP_Set_AutoInstantOS_LastResultSel 
+				  @MatchId	= @matchid 
+				 ,@HTHome	= @HTHome_Inst OUTPUT
+				 ,@HTAway	= @HTAway_Inst OUTPUT
+				 ,@FTHome	= @FTHome_Inst OUTPUT
+				 ,@FTAway	= @FTAway_Inst OUTPUT
+			
+			IF EXISTS (SELECT TOP 1 1 FROM #tmpTransSDT WHERE modds IS NULL AND IsInstHTFT = 1) AND (@HTHome_Inst IS NOT NULL OR @HTAway_Inst IS NOT NULL OR @FTHome_Inst IS NOT NULL OR @FTAway_Inst IS NOT NULL)
+			BEGIN
+				DELETE b
+				FROM #tmpTransSDT AS b
+					CROSS APPLY(
+	    						SELECT TOP 1 
+									   t.SDTpfId
+									  ,CAST((IIF(ResourceID = '00', ISNULL(@FTHome_Inst,0), ISNULL(@HTHome_Inst,0)) +  CAST(t.HomeValue  AS INT)) AS VARCHAR(2000)) AS HomeValue
+									  ,CAST((IIF(ResourceID = '00', ISNULL(@FTAway_Inst,0), ISNULL(@HTAway_Inst,0)) +  CAST(t.AwayValue  AS INT)) AS VARCHAR(2000)) AS AwayValue
+									  ,6 AS MinusValue
+	    						FROM @tmpSelectedRID AS t
+	    						WHERE b.BetType = t.BetType AND t.BetID = 0
+	    					) AS sr
+					CROSS APPLY dbo.f_Set_SDT_OS_modds(sr.SDTpfId, b.betteam, b.hdp1, sr.HomeValue, sr.AwayValue, NULL,sr.MinusValue) AS m
+				WHERE b.modds IS NULL 
+					AND b.IsInstHTFT = 1
+					AND m.modds IS NOT NULL
+			END
+		END
 
 		DELETE 
 		FROM #tmpTransSDT
@@ -478,7 +516,8 @@ BEGIN
 																						    ,AwayValue			AS '@Away'
 																							,isCalculated		AS '@IsCalculated'
 																							,MinusValue			AS '@MinusValue'
-																						    ,@DeterminedType	AS '@DeterminedType'																							
+																						    ,@DeterminedType	AS '@DeterminedType'
+																							,IsInstHTFT			AS '@IsInstHTFT'																							
 																					   FROM	@tmpSelectedRID AS s
 																					   WHERE EXISTS (SELECT 1 FROM @tmpParlayAffectedBettypes AS p WHERE p.BetType = s.BetType)
 																					   FOR XML PATH ('Resource'), TYPE)
@@ -498,6 +537,10 @@ BEGIN
 								+ ', @hta = ' + ISNULL(CONVERT(NVARCHAR(50), @hta),'NULL')
 								+ ', @fth = ' + ISNULL(CONVERT(NVARCHAR(50), @fth),'NULL') 
 								+ ', @fta = ' + ISNULL(CONVERT(NVARCHAR(50), @fta),'NULL')
+								+ ', @HTHome_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @HTHome_Inst),'NULL')
+								+ ', @HTAway_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @HTAway_Inst),'NULL')
+								+ ', @FTHome_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @FTHome_Inst),'NULL') 
+								+ ', @FTAway_Inst = ' + ISNULL(CONVERT(NVARCHAR(50), @FTAway_Inst),'NULL')
 								+ ', @IsReSettledTickets = ' + CONVERT(NVARCHAR(50), @IsReSettledTickets) 		
 								+ ', @IsCentral = ' + CONVERT(VARCHAR(1), @IsCentral)
 								+ ', @DeterminedType = ' + CONVERT(VARCHAR(50), @DeterminedType)
@@ -517,6 +560,10 @@ BEGIN
 				,@hta					= @hta
 				,@fth					= @fth
 				,@fta					= @fta
+				,@HTHome_Inst			= @HTHome_Inst
+				,@HTAway_Inst			= @HTAway_Inst
+				,@FTHome_Inst			= @FTHome_Inst
+				,@FTAway_Inst			= @FTAway_Inst
 				,@IsReSettledTickets	= @IsReSettledTickets
 				,@LockedByRefno			= 1 -- always lock refno for testing
 				,@IsCentral				= @IsCentral
