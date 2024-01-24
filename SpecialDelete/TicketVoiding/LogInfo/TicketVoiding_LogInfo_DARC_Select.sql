@@ -27,6 +27,7 @@ AS
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
+		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId="" AATime="" PATime="" SATime=""/></root>
@@ -96,7 +97,7 @@ BEGIN
 		,CancelCashOutCount		INT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, CreatedBy INT)
 	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT, CancelCashOutCount INT)
 
 	CREATE TABLE #FilterInfo (
@@ -640,8 +641,8 @@ BEGIN
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
-		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
+		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, CreatedBy)
+		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid, r.UserId
 		FROM #TVSTicketBets t
 			CROSS APPLY (
 						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
@@ -837,8 +838,10 @@ BEGIN
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 				,MatchId
+				,c.username AS CreatedBy
 			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.MatchId
+				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+			GROUP BY r.RequestId, r.MatchId, c.username
 		END
 		ELSE
 		BEGIN
@@ -954,8 +957,10 @@ BEGIN
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
 			,MatchId
+			,c.username AS CreatedBy
 		FROM #TransidInRequest r
-		GROUP BY r.RequestId, r.MatchId
+			INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+		GROUP BY r.RequestId, r.MatchId, c.username
 	END
 	ELSE
 	BEGIN

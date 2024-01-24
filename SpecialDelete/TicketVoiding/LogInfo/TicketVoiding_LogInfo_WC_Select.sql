@@ -29,6 +29,7 @@ AS
 		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
 		- 20231107@July: HF - Wrong Score - Add request missed Non-live tickets Cash out at time the wrong score [Redmine: #196545]
+		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 		
 	Param's explanation:
 		+ @WrongScoreInfo:
@@ -100,7 +101,7 @@ BEGIN
 		,CancelCashOutCount		INT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, ScoreId INT, CreatedBy INT)
 	CREATE TABLE #FilterInfo (
 		 MatchId				INT
 		,FilterFromTransTime	DATETIME
@@ -683,8 +684,8 @@ BEGIN
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
-		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, ScoreId)
-		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid, t.ScoreId
+		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, ScoreId, CreatedBy)
+		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid, t.ScoreId, r.UserId
 		FROM #TVSTicketBets t
 			CROSS APPLY (
 						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
@@ -935,8 +936,8 @@ BEGIN
 			-- 2. TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 			BEGIN
-				SELECT RequestId, MatchId,
-					STUFF((
+				SELECT RequestId, MatchId, c.username AS CreatedBy
+					,STUFF((
 					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 					FROM #TransidInRequest
 					WHERE (RequestId = r.RequestId AND MatchId = r.MatchId)
@@ -944,7 +945,8 @@ BEGIN
 					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 					,1,2,'') AS TransIds
 				FROM #TransidInRequest r
-				GROUP BY r.RequestId, r.MatchId
+					INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+				GROUP BY r.RequestId, r.MatchId, c.username
 			END
 			ELSE
 			BEGIN 
