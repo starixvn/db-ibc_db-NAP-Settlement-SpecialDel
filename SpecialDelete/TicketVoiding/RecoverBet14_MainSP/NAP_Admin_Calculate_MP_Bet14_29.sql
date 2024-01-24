@@ -10,6 +10,7 @@ AS
 	Revisions:
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		
 	Param's Explanation:  
 		

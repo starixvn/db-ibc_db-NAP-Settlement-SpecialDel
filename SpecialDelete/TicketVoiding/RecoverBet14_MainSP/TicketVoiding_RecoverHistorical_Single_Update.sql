@@ -248,6 +248,7 @@ BEGIN
 			INTO  @tblTransId_MoveBet (Matchid, TransId)
 		WHERE eventdate = @BeingMovebetDate
 
+		SET @ErrCode = 99 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
 									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
 								FROM @tblTransId_MoveBet t

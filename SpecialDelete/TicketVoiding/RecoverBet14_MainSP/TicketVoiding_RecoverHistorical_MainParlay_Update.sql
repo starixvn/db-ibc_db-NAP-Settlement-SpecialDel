@@ -43,7 +43,10 @@ BEGIN
 			,@FromDate			DATETIME    
 			,@ToDate			DATETIME
 			,@avaiableProcess BIT
+			,@SiteDBGroupID		SMALLINT = 0
 	
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @moveBetDay OUTPUT
 	
@@ -125,6 +128,7 @@ BEGIN
 			AND b14.betfrom <> 'p'
 			AND b14.matchid = 29
 			AND b14.bettype = 29
+			AND b14.SiteDBGroupID = @SiteDBGroupID
 
 	IF NOT EXISTS (SELECT TOP 1 1 FROM #tmpTransId)
 	BEGIN

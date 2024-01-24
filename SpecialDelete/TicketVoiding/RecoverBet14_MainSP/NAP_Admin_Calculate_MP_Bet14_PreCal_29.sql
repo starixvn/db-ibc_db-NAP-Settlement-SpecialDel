@@ -1,7 +1,10 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_Bet14_PreCal_29] 
+(
 	@matchdate SMALLDATETIME
 	,@strXML VARCHAR(MAX) = NULL
+	,@strSetting VARCHAR(MAX) = NULL
+)
 AS
 /*
 	Created by: 20190715@Helen
@@ -12,6 +15,7 @@ AS
 		- 20190715@Helen: Recover/Void tickets in Bet 14 - [Redmine:115377]
 		- 20201126@Louisa: God Of Fortune for Parlay [Redmine:#145774]	
 		- 20210121@Kathy: Cricket AIO [Redmine:#148870]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 				
 */
 BEGIN
@@ -49,7 +53,23 @@ BEGIN
 			,actual_stake	money
 		)
 	
-		 	
+	DECLARE @tmpSetting AS TABLE (SiteId INT, FromOdds DECIMAL(9,4), ToOdds DECIMAL(9,4), Boost TINYINT, isFirstOdds BIT DEFAULT(0), isLastOdds BIT DEFAULT(0))
+	INSERT INTO @tmpSetting(SiteId, FromOdds, ToOdds, Boost, isFirstOdds, isLastOdds)
+	SELECT	s.SiteId
+			,OverOdds AS FromOdds
+			,LEAD(OverOdds) OVER(PARTITION BY SiteID ORDER BY SiteId, OverOdds) AS ToOdds
+			,s.Boost
+			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId, OverOdds) THEN 1 ELSE 0 END AS isFirstOdds
+			,CASE WHEN 1 = ROW_NUMBER() OVER (PARTITION BY SiteID ORDER BY SiteId, OverOdds DESC) THEN 1 ELSE 0 END AS isLastOdds
+	FROM	(
+		SELECT	s AS SiteId, o AS OverOdds, b AS Boost
+		FROM	OPENJSON(@strSetting) WITH (
+			s INT '$.s'
+			,v NVARCHAR(MAX) '$.v' AS JSON
+		) 
+		CROSS APPLY OPENJSON(v) WITH (o DECIMAL(9,4) '$.o', b TINYINT '$.b')
+	) s
+
 	BEGIN
 		INSERT INTO #temp_bettrans (
 			transid, refno, stake
