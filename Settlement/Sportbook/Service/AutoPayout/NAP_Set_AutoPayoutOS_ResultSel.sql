@@ -13,6 +13,7 @@ AS
 		- 20231002@Aries: Created [Redmine:#195768]
 		- 20231205@Aries: Get only provider [Redmine: #195768]
 		- 20231222@Louisa: Allow retry AutoPayout Cricket when score mismatch [Redmine: #198781]
+		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 
 
 	Param's Explanation:
@@ -42,7 +43,8 @@ BEGIN
 		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetail AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)		
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
+			AND rd.ResultStatusID = 3			
 	END
 	ELSE IF @ResultTable = 2
 	BEGIN
@@ -50,7 +52,8 @@ BEGIN
 		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetailOS AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)		
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
+			AND rd.ResultStatusID = 3
 	END
 	ELSE IF @ResultTable = 3
 	BEGIN
@@ -58,7 +61,8 @@ BEGIN
 		SELECT	rd.MatchId, rd.ResourceID, rd.HomeValue, rd.AwayValue, rd.ResultStatusID, rd.SettlementStatusID, rd.LastModifyDate
 		FROM	dbo.ResultDetailES AS rd WITH(NOLOCK)		
 		WHERE rd.matchid = @MatchId	
-			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)	
+			AND rd.ResourceID IN (SELECT r.ResourceID FROM @Resource AS r)
+			AND rd.ResultStatusID = 3
 	END
 
 	IF @ExternalResultTable = 1
@@ -116,12 +120,22 @@ BEGIN
 		  ,m.ResourceId
 		  ,m.HomeValue
 		  ,m.AwayValue
-		  ,m.ResultStatusID
-		  ,m.SettlementStatusID
 		  ,m.CreateDate
+		  ,ss.HasAwayValue
 	FROM @Result AS m
+		CROSS APPLY (SELECT TOP 1 HasAwayValue
+				     FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
+					 WHERE s.ResourceID = m.ResourceID
+						AND s.SportType = @SportType
+		) AS ss
 		LEFT JOIN ProviderInfo AS p WITH(NOLOCK) ON p.SourceId = m.SourceId
-
+		OUTER APPLY (SELECT TOP 1 1 AS IsMapped
+					 FROM dbo.ProviderGameTypeMapping AS p WITH(NOLOCK)
+					 WHERE p.sporttype = @SportType
+						AND p.SourceId = m.SourceID) AS pm
+	WHERE pm.IsMapped IS NOT NULL
+		OR m.SourceId IS NULL
+		
 END
 GO
 

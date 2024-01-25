@@ -14,6 +14,7 @@ AS
 	Revisions:
 		- 20220512@Louisa: Initial [Redmine:#171676]
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
+		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
 
 	Param's explaination: 
 		- @TypeId:  1 - Auto refund single or sporttype apply merge single + parlay
@@ -33,7 +34,7 @@ BEGIN
 
 	DECLARE @handle INT
 		
-	DECLARE @tmpCalculateResources TABLE(ResourceId VARCHAR(20) )
+	DECLARE @tmpCalculateResources TABLE(ResourceId VARCHAR(20) PRIMARY KEY WITH (IGNORE_DUP_KEY = ON))
 	DECLARE @tmpResourceAutoRefund TABLE ( ResourceId VARCHAR(20) , bettype SMALLINT, betid BIGINT, IsExistsTicket BIT )
 
 	IF ISNULL(@CalculateResources, '') = '' 
@@ -46,6 +47,20 @@ BEGIN
 	FROM OPENXML(@handle,'Resources/Resource',1) WITH( Id	VARCHAR(20)	) AS tbl
 	
 	EXEC sp_xml_removedocument @handle
+
+	IF @Sporttype = 5 AND EXISTS (SELECT 1 FROM @tmpCalculateResources WHERE ResourceId = '00')
+	BEGIN
+		INSERT INTO @tmpCalculateResources(ResourceId)
+		SELECT ResourceId
+		FROM DBPRO.bodb02.dbo.ResultDetail WITH(NOLOCK)
+		WHERE matchId = @MatchId
+			AND ResourceId IN ('01','02','03','04','05')
+			AND  ResultStatusID IN (2,5)
+	END
+	ELSE IF @Sporttype = 5 AND NOT EXISTS (SELECT 1 FROM @tmpCalculateResources WHERE ResourceId = '00')
+	BEGIN
+		RETURN
+	END
 
 	INSERT INTO @tmpResourceAutoRefund ( ResourceId, bettype, betid, IsExistsTicket ) 
 	SELECT DISTINCT sp.ResourceID, sp.Bettype, sp.BetID, 0
