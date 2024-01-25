@@ -24,6 +24,7 @@ AS
 		- 20230103@Kathy: Support ON bit 1 & 5 for other sport [Redmine:#181458]    
 		- 20230921@Aries: Allow to Change Auto Settle Setting for Completed Matches [Redmine:#194117]  
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
+		- 20240125@Aries: Tennis - Don't turn off AUTO setting when change setting to DIRECT & vice versa on Match  [Redmine: #200259]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -72,7 +73,7 @@ BEGIN
 							END
 
 	-- turn off bit 1 or 5
-	IF @Sporttype IN (1,50)
+	IF @Sporttype IN (1,5,50)
 		SELECT @AutoSetting =
 								CASE WHEN @AutoType IN (1, 5) THEN 
 																	CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
