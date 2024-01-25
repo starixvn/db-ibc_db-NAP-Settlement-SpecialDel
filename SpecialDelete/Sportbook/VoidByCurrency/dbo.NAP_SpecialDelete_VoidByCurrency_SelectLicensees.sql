@@ -2,8 +2,7 @@
 ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidByCurrency_SelectLicensees]
 AS
 /*
-	Created: Alan
-	Date: 20180627
+	Created: 20180627@Alan
 	DB: DBOIC/bodb_OIC  
 
 	Revisions:
@@ -12,16 +11,16 @@ AS
 		- 20181010@Alan: Include Test Licensee with status is soft launch [102917]
 		- 20190320@Alan: Add CN88 into Others Group [109858]
 		- 20190412@Alan: Order by CN88 [108826]
+		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
+		
 */
 BEGIN
-SET NOCOUNT ON
+	SET NOCOUNT ON
 
-	DECLARE @MBCGroup_Id		INT			 = -1
-		  , @MBCGroup_Name		VARCHAR(100) = 'MBC Group'
-		  , @789y_Id			INT			 = 0
+	DECLARE @MBCGroup_Name		VARCHAR(100) = 'MBC Group'
 		  , @789y_Name			VARCHAR(100) = '789y'
-		  , @cn88_Id			INT			 = 0
 		  , @cn88_Name			VARCHAR(100) = 'CN88'
+		  , @777_Name			VARCHAR(100) = '777'
 		  , @Others_GroupName	VARCHAR(100) = 'Others'
 		  , @China_GroupName	VARCHAR(100) = 'China rules'
 		  , @Asia_GroupName		VARCHAR(100) = 'Asia rules'
@@ -34,9 +33,10 @@ SET NOCOUNT ON
 	)
 
 	INSERT INTO #LicenseeGroupInfo (Id, Name, GroupName)
-	VALUES (@MBCGroup_Id, @MBCGroup_Name, @Others_GroupName)
-	, (@789y_Id, @789y_Name, @Others_GroupName)
-	, (@cn88_Id, @cn88_Name, @Others_GroupName)
+	VALUES (-1, @MBCGroup_Name, @Others_GroupName)
+		 , (0, @789y_Name, @Others_GroupName)
+		 , (0, @cn88_Name, @Others_GroupName)
+		 , (0, @777_Name, @Others_GroupName)
 
 	INSERT INTO #LicenseeGroupInfo (Id, Name, GroupName)
 	SELECT
@@ -50,16 +50,19 @@ SET NOCOUNT ON
 	SELECT Id ,Name ,GroupName
 	FROM #LicenseeGroupInfo
 	ORDER BY CASE GroupName
-		WHEN @China_GroupName THEN 1
-		WHEN @Asia_GroupName THEN 2
-		ELSE 3	END ASC	,
-		CASE Name 
-		WHEN @789y_Name THEN 1
-		WHEN @MBCGroup_Name THEN 2
-		WHEN @cn88_Name THEN 3
-		ELSE 4 END ASC
+				  WHEN @China_GroupName THEN 1
+				  WHEN @Asia_GroupName THEN 2
+				  ELSE 3 END ASC,
+			 CASE Name 
+				  WHEN @789y_Name THEN 1
+				  WHEN @MBCGroup_Name THEN 2
+				  WHEN @cn88_Name THEN 3
+				  WHEN @777_Name THEN 4
+				  ELSE 5 END ASC
+
+	DROP TABLE #LicenseeGroupInfo
 
 	SET NOCOUNT OFF
-	DROP TABLE #LicenseeGroupInfo
+	
 END
 GO

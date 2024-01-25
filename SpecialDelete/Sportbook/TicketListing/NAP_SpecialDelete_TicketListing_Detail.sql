@@ -86,6 +86,7 @@ AS;
 		- 20230831@Max: [TVS] Integrate 4 new bet types of Basketball [Redmine: #192608]
 		- 20231213@July: Ticket Listing - Support more Advanced Mode controls for some sports [Redmine: #193777]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
+		- 20240123@July: Separate groups to view data of some special sites (special 777 site) [Redmine: #198089]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -923,7 +924,7 @@ BEGIN
 											ELSE 'match' 
 								END = m.matchtype 
 
-	SELECT  username,
+	SELECT  s.username,
 			bettype,		
 			BetdaqId,
 			ActualStake,		
@@ -973,8 +974,11 @@ BEGIN
 			SubSportType,          
 			SubTransDesc,
 			@SettlementStatus AS SettlementStatus,
-			IsMarked
-	FROM #SpecialDeleteBets
+			IsMarked,
+			CASE WHEN si.SiteLabel = '777' THEN 1 ELSE 0 END IsSite777
+	FROM #SpecialDeleteBets s
+		INNER JOIN dbo.Customer c WITH (NOLOCK) ON s.srecommend = c.custid
+		LEFT JOIN dbo.Site si WITH(NOLOCK) ON c.site = si.site
 	ORDER BY IsParlay
 		   , ISNULL(MainTransId, transid)
 		   , CASE WHEN BonusID IS NOT NULL

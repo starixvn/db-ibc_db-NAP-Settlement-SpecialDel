@@ -39,6 +39,7 @@ AS;
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230427@July: [TVS] Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
+		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 
 	Explanation's Param:
 		- @LiveIndicator:
@@ -225,18 +226,18 @@ BEGIN
 
 	DECLARE @MBCGroup_Name VARCHAR(50) = 'MBC Group'
 		  , @789y_Name	   VARCHAR(50) = '789y'
-		  , @y987_Name	   VARCHAR(50) = 'y987'
-		  , @cn88_Name		VARCHAR(50) = 'CN88'
+		  , @cn88_Name	   VARCHAR(50) = 'CN88'
+		  , @777_Name	   VARCHAR(50) = '777'
 
 	-- Replace all UI representative groups (MBCGroup and 789y) by their real credit licensees
 	DELETE FROM #t_LicenseeNames 
 	OUTPUT DELETED.GroupName 
 			INTO #t_UIRepresentativeLicenseeGroupNames(GroupName)
-	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @cn88_Name)
+	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @cn88_Name, @777_Name)
 
 	IF @@ROWCOUNT > 0
 	BEGIN
-		;WITH CTE_CreditSit AS
+		;WITH CTE_CreditSite AS
 		(
 			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
 			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
@@ -247,12 +248,14 @@ BEGIN
 		FROM #t_UIRepresentativeLicenseeGroupNames AS t
 			 CROSS APPLY (
 							SELECT cte.[site]
-							FROM CTE_CreditSit cte
-							WHERE CASE
-								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) AND cte.SiteLabel <> @789y_Name THEN 1
-								WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
-								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 ELSE 0  
-								END = 1
+							FROM CTE_CreditSite cte
+							WHERE 1 = CASE
+										  WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@cn88_Name) AND cte.SiteLabel NOT IN (@789y_Name, @777_Name) THEN 1
+										  WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
+										  WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 
+										  WHEN t.GroupName = @777_Name AND cte.SiteLabel = @777_Name THEN 1
+										  ELSE 0 
+									  END
 						 ) AS cte
 	END
 	
@@ -262,8 +265,7 @@ BEGIN
 	FROM STRING_SPLIT(@CurrencyIDs, ',') ss
 		 INNER JOIN CustDB.dbo.exchange e WITH(NOLOCK) ON CAST(ss.value AS INT) = e.exchangeid	
 
-	CREATE TABLE #Tickets
-             (GroupID               BIGINT,
+	CREATE TABLE #Tickets(
               transid               BIGINT,
               custid                INT,
               UserName              VARCHAR(50),
@@ -352,8 +354,7 @@ BEGIN
 	IF @Bet = 'All' OR @Bet = 'Single'
 	BEGIN
 		INSERT INTO #Tickets (
-			GroupID
-			,transid
+			transid
 			,custid	
 			,odds
 			,oddsspread	
@@ -401,7 +402,6 @@ BEGIN
 			,MatchId
 		)
 		SELECT 
-			b.transid,
 			b.transid,
 			b.custid,
 			b.odds,   
@@ -524,8 +524,7 @@ BEGIN
 			AND EXISTS (SELECT TOP 1 1 FROM #Durations d WHERE bm.transdate BETWEEN d.FromTransDate AND d.ToTransDate)
 
 		INSERT INTO #Tickets (
-			GroupID
-			,transid
+			 transid
 			,custid	
 			,odds
 			,oddsspread	
@@ -577,7 +576,6 @@ BEGIN
 			,MatchId
 		)
 		SELECT 
-			b.transid,
 			b.transid,
 			bm.custid,
 			b.odds,   
@@ -714,6 +712,11 @@ BEGIN
 	FROM #Tickets t
 		INNER JOIN dbo.MarkedTransaction m WITH(NOLOCK) ON m.TransId = t.transid AND t.MatchId = m.MatchId
 
+	UPDATE s
+	SET IsDeposit = 1
+	FROM #Tickets s
+		INNER JOIN CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) ON s.srecommend = d.custid
+
 	------------------------------------------------------------------------------
 	--1. Table invald/moved transid
 	SELECT '' AS InvalidTransIds
@@ -735,7 +738,7 @@ BEGIN
 		b.LiveHomeScore,
 		b.Odds,
 		b.oddsspread,
-		CASE WHEN b.bettype = 501 AND T1.IsDeposit = 0 THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsCricket,
+		CASE WHEN b.bettype = 501 AND b.IsDeposit = 0 THEN 1 ELSE 0 END AS IsCricket,
 		b.OddsType,
 		b.RefNo,
 		b.Status,
@@ -762,7 +765,7 @@ BEGIN
 		m.sporttype,
 		m.SettlementStatus,
 		c.site AS LicenseeName,
-		CASE WHEN tl.GroupName IN(@cn88_Name, @789y_Name, @MBCGroup_Name) THEN 0 ELSE 1 END AS IsDeposit,
+		b.IsDeposit,
 		b.IsMixParlay,
 		b.SubTransid,
 		b.SubStatus,
@@ -775,23 +778,17 @@ BEGIN
 		b.ActualStake,
 		@SiteDBGroupID AS SiteDBGroupID
 	FROM #Tickets b
-		INNER JOIN CUSTDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
+		INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON b.recommend = c.custid
 		INNER JOIN #t_LicenseeNames tl WITH (NOLOCK) ON tl.LicenseeName = c.site 
 		LEFT JOIN match m WITH (NOLOCK) ON m.matchid = b.MatchId
-		CROSS APPLY (SELECT CASE
-						WHEN EXISTS (SELECT d.custid 
-										FROM CustDB.dbo.Dep_CustSuper d WITH(NOLOCK) 
-										WHERE d.custid = b.srecommend)
-								THEN 1
-						ELSE 0
-					END AS IsDeposit) AS T1
 	ORDER BY CASE
 				WHEN b.recommend IN (52466, 5707545) THEN 1
 				WHEN b.custid IN(1077687,2331,115770,15523642,15042477,16041068,16041058) THEN 2
 				WHEN tl.GroupName = @cn88_Name THEN 3
 				WHEN tl.GroupName = @789y_Name THEN 4
 				WHEN tl.GroupName = @MBCGroup_Name THEN 5
-				ELSE 6
+				WHEN tl.GroupName = @777_Name THEN 6
+				ELSE 7
 		     END ASC
 		   , tl.GroupName ASC
 		   , ISNULL(b.MainTransId, b.transid) ASC
