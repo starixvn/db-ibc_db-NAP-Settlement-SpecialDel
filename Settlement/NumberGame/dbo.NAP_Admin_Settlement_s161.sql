@@ -6,7 +6,6 @@ ALTER PROCEDURE [dbo].[NAP_Admin_Settlement_s161]
 	,@Action VARCHAR(10)	= 'CAL'		-- CAL / CAL-HT / Refund / Refund-FT
 	,@IP VARCHAR(50)		= NULL
 	,@AdminID INT			= 148		-- calculated by system (default)
-	,@IsLoop BIT			= 0
 	,@IsLoopTempTable BIT	= 0
 	,@ErrCode INT			= 0 OUTPUT
 	,@ErrMsg NVARCHAR(200)	= '' OUTPUT
@@ -31,11 +30,9 @@ AS
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
 		- 20230905@Aries: Set Max Payout for Non-sports Products [Redmine:#193259]
 		- 20240101@Aries: Fix  write log issue [Redmine:#199346]
-		
-	Param's Explanation:
-		+ @IsLoop (used for Balance):
-			 1 : is recalled  
-			 0 : normal						   
+		- 20240201@Aries: Enhance diff balance for Number Game [Redmine:#200328]
+
+	Param's Explanation:				   
 		+ @IsLoopTempTable (used for check temp table TempVariableNumber):			
 			 1 : is recalled  
 			 0 : normal		   
@@ -44,20 +41,14 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	DECLARE @start DATETIME
-			,@stop DATETIME
-			,@Remark		VARCHAR(MAX) = ''
-			,@ActionID		INT
-			,@IsCentral	BIT = 0
-			,@avaiableProcess	BIT
-			,@SiteDBGroupId		TINYINT = 0
+	DECLARE  @ActionID				INT
+			,@IsCentral				BIT = 0
+			,@avaiableProcess		BIT
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
 	EXEC dbo.NAP_Set_ServerInfo
 		@IsCentral = @IsCentral OUTPUT
-
-	SELECT @SiteDBGroupId = (SELECT dbo.f_Get_SiteDBGroupID())
 
 	IF @IsLive = 1					SET @ActionID = 116
 	ELSE IF @Action = 'CAL-HT'		SET @ActionID = 118
@@ -88,41 +79,6 @@ BEGIN
 		END
 	END
 
-	---------
-	SELECT @start = CURRENT_TIMESTAMP
-
-	DECLARE @MaxTransID BIGINT
-
-	SELECT @MaxTransID = MAX(b.transid)
-	FROM dbo.bettrans b WITH(NOLOCK,INDEX = CIX_matchid_bettype)
-	WHERE b.matchid = @MatchId
-		AND b.SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE b.SiteDBGroupID END
-
-	-------------------------------------------------------------
-	---        CAPTURE value BALANCE before settlement        ---
-	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceBefore (custid INT, balance MONEY, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)
-
-	IF @IsLoop = 0
-	BEGIN
-		--===
-		INSERT INTO #BalanceBefore(custid, balance, winlost, winlostdate, gametypeid)
-		SELECT custid
-			,SUM(winlost - actual_stake + playercomm)
-			,SUM(CASE
-					WHEN ruben = 1 THEN winlost - actual_stake 
-					ELSE 0 
-				END) AS winlost
-			,winlostdate
-			,bettype
-		FROM dbo.bettrans WITH(ROWLOCK)
-		WHERE matchid = @MatchId AND transid <= @MaxTransID
-			AND bettype BETWEEN 81 AND 120
-			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
-		GROUP BY custid, winlostdate, bettype
-
-	END
-
 	IF @IsLive = 1
 	BEGIN
 		DECLARE @Number TINYINT,
@@ -135,7 +91,6 @@ BEGIN
 		EXEC dbo.NAP_Admin_PreCalculate_s161_Live @MatchId = @MatchId, @DrawSeq = @DrawSeq, @Number = @Number, @Color = @Color,@AdminID = @AdminID,@ErrCode = @ErrCode OUTPUT,@ErrMsg	= @ErrMsg OUTPUT
 
 		SET @ActionID = 116
-		SET @Remark = 'Sequence number: (' + CAST(@DrawSeq AS NVARCHAR(2)) + ') <br />'
 
 		IF @DrawSeq = 1 -- Cal-HT
 		BEGIN
@@ -143,7 +98,6 @@ BEGIN
 				,@Action = 'CAL-HT'
 				,@IP = @IP
 				,@AdminID = @AdminID
-				,@IsLoop = 1 -- Use for recall (loop balance)
 				,@IsLoopTempTable = 1 --- Use for recall (loop TempTable)
 		END
 	END
@@ -228,137 +182,11 @@ BEGIN
 
 	END
 
-	SELECT @stop = CURRENT_TIMESTAMP
-
-	-------------------------------------------------------------
-	---         CAPTURE value BALANCE after settlement        ---
-	---------------------------VVVV------------------------------
-	CREATE TABLE #BalanceAfter (custid INT, balance MONEY, winlost MONEY, winlostdate SMALLDATETIME, gametypeid SMALLINT)
-
-	IF @IsLoop = 0
-	BEGIN
-		INSERT INTO #BalanceAfter(custid, balance, winlost, winlostdate, gametypeid)
-		SELECT custid
-			,SUM(winlost - actual_stake + playercomm)
-			,SUM(CASE 
-					WHEN ruben = 1 THEN winlost - actual_stake 
-					ELSE 0
-				END) AS winlost
-			,winlostdate
-			,bettype
-		FROM dbo.bettrans WITH(ROWLOCK)
-		WHERE matchid = @matchid AND transid <= @MaxTransID
-			AND bettype BETWEEN 81 AND 120
-			AND SiteDBGroupID = CASE WHEN @IsCentral = 1 THEN 0 ELSE SiteDBGroupID END
-		GROUP BY custid, winlostdate, bettype
-
-	END
-
-	-------------------------------------------------------------
-	---                   compare BALANCE                     ---
-	---------------------------VVVV------------------------------
-	CREATE TABLE #Balance (custid INT, balance MONEY, Increased BIT)
-
-	DECLARE @tblDebitPending TVP_BalanceList
-	DECLARE @tblCreditPending TVP_BalanceList
-		
-	CREATE INDEX IX_Balance_Increased ON #Balance (Increased)
-
-	INSERT INTO #Balance
-	SELECT b.custid, a.balance - b.balance, CASE WHEN a.balance > b.balance THEN 1 ELSE 0 END
-	FROM	#BalanceBefore b
-		INNER JOIN #BalanceAfter a 
-			ON	b.custid = a.custid
-				AND a.winlostdate = b.winlostdate
-				AND a.gametypeid = b.gametypeid
-	WHERE	b.balance <> a.balance
-
-	INSERT INTO @tblDebitPending (custID, balance)
-	SELECT	custid, ABS(balance)
-	FROM	#Balance
-	WHERE	Increased = 0
-	
-	IF @@rowcount <> 0
-		EXEC dbo.Dot_BalancePendingDebitIns 
-			@BalancePending = @tblDebitPending
-			,@Type			= 4 -- Others
-	
-	INSERT INTO @tblCreditPending (custID, balance)
-	SELECT	custid, balance
-	FROM	#Balance
-	WHERE	Increased = 1
-	
-	IF @@rowcount <> 0
-		EXEC dbo.Dot_BalancePendingCreditIns 
-			@BalancePending = @tblCreditPending
-			,@Type			= 4 -- Others
-
-	---insert data into pending balance game table 
-	INSERT INTO BalancePendingCreditGame (
-		custid
-		,winlostdate
-		,balance
-		,bettype
-		,GameTypeID
-		)
-	SELECT a.custid
-		,a.winlostdate
-		,(a.winlost - b.winlost) AS Balance
-		,81
-		,a.gametypeid
-	FROM #BalanceBefore b
-		INNER JOIN #BalanceAfter a 
-			ON	a.custid = b.custid
-				AND a.winlostdate = b.winlostdate
-				AND a.gametypeid = b.gametypeid
-	WHERE (a.winlost - b.winlost) > 0
-
-	INSERT INTO BalancePendingDebitGame (
-		custid
-		,winlostdate
-		,balance
-		,bettype
-		,GameTypeID
-		)
-	SELECT a.custid
-		,a.winlostdate
-		,ABS(a.winlost - b.winlost) AS Balance
-		,81
-		,a.gametypeid
-	FROM #BalanceBefore b
-		INNER JOIN #BalanceAfter a 
-			ON	a.custid = b.custid
-				AND a.winlostdate = b.winlostdate
-				AND a.gametypeid = b.gametypeid
-	WHERE (a.winlost - b.winlost) < 0
-	
-	DROP TABLE #Balance
-	DROP TABLE #BalanceBefore
-	DROP TABLE #BalanceAfter
-	----
 	IF @IsLoopTempTable = 0
 	BEGIN
 		EXEC dbo.NAP_Admin_CheckingProcess
 			@IsExistMatch	= 1
 			,@IsReleased	= 1
 	END
-
-	-------------------------------------------------------------
-	---                      WRITE LOG                        ---
-	---------------------------VVVV------------------------------
-	SET @Remark = @Remark + 'SiteDB: ' + CAST(@SiteDBGroupId AS VARCHAR(5))
-						  + ' - Duration:' + CAST(DATEDIFF(millisecond, @start, @stop) AS NVARCHAR(50)) 
-						  + ' ms - MaxTransID: ' + CONVERT(VARCHAR(20), ISNULL(@MaxTransID,0))
-	EXEC bodb_CustomerLog.dbo.WriteLog_SSB_UserLog_Settle @UserID = @AdminID
-		,@Matchid = @MatchId
-		,@ActionID = @ActionID
-		,@finalhomescore = NULL
-		,@finalawayscore = NULL
-		,@hthomescore = NULL
-		,@htawayscore = NULL
-		,@GoalRecord = NULL
-		,@betstatus = NULL
-		,@Remark = @Remark
-		,@IP = @IP
 END
 GO
