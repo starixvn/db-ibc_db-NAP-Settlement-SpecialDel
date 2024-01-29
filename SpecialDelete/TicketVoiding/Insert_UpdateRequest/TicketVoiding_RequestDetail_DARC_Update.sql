@@ -118,7 +118,7 @@ BEGIN
 				+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
 				+ '" MinTime="' + ISNULL(CONVERT(VARCHAR(50),NULLIF(t.c.value('@MinTime','DATETIME'),''), 121),'')
 				+ '" MinType="' + t.c.value('@MinType','VARCHAR(10)') 
-				+ '" MinTransId="' + t.c.value('@MinTransId','BIGINT') 
+				+ '" MinTransId="' + t.c.value('@MinTransId','VARCHAR(50)') 
 				+ '" ActionType="' + t.c.value('@ActionType','VARCHAR(100)') 
 				+ '" />' AS TypeAccept
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
