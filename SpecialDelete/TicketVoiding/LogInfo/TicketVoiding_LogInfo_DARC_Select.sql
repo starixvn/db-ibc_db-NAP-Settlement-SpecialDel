@@ -184,7 +184,8 @@ BEGIN
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
-			,MatchId                 INT
+			,IsExistsSecondAccept	BIT DEFAULT(0) 	
+			,MatchId                 INT	
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
@@ -717,10 +718,32 @@ BEGIN
 		FROM #logInfo l
 	END
 
+	/* Display warning message in case void second accept tickets before the allowance time of this type */
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2)
+	BEGIN
+		SET @VoidFromTime = (SELECT MIN(l.VoidFromTime) FROM #logInfo l)
+		SET @VoidToTime = DATEADD (SECOND,@SATime,@FilterFromTransTime)
+
+
+		UPDATE v SET v.IsExistsSecondAccept = CASE WHEN l.IsExistsSecondAccept IS NOT NULL THEN 1 ELSE 0 END
+		FROM @Validation v
+		OUTER APPLY( 
+				SELECT TOP 1 1 AS IsExistsSecondAccept
+				FROM #logInfo l
+					INNER JOIN #TVSTicketBets t ON t.matchid = l.MatchId
+				WHERE t.accepttype = 2
+					AND 1 = CASE WHEN t.FilterBy = 1 AND t.transdate BETWEEN @VoidFromTime AND @VoidToTime THEN 1
+										WHEN t.FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN @VoidFromTime AND @VoidToTime THEN 1
+										WHEN t.FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN @VoidFromTime AND @VoidToTime THEN 1
+							ELSE 0 END
+			)l
+		
+	END
+
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		-- 1. Validate table
-		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest
+		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest, IsExistsSecondAccept
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -788,6 +811,8 @@ BEGIN
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,t.CancelCashOutCount
+			,a.MinTransId
+			,a.ActionType
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
 					SELECT CONVERT(XML, rd.TransIds)
@@ -795,6 +820,8 @@ BEGIN
 			CROSS APPLY (
 					SELECT NULLIF(t.c.value('@MinTime','DATETIME'),'')AS  HighLightMinTime
 						,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
+						,t.c.value('@MinTransId','BIGINT') AS  MinTransId
+						,t.c.value('@ActionType','VARCHAR(100)') AS  ActionType
 					FROM t1.xDATA.nodes('/r') t(c)
 				) a
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
@@ -943,6 +970,7 @@ BEGIN
 	SELECT MatchId
 		, IsInValidTotalTickets
 		, IsExistedInOtherRequest
+		, IsExistsSecondAccept
 	FROM @Validation
 
 	-- 2. TransId exists in other request table
@@ -1002,8 +1030,10 @@ BEGIN
 		,HighLightMinTime 
 		,h.HighlightAcceptType
 		,CancelCashOutCount
+		,h.MinTransId
+		,CASE WHEN h.IsCancelCashOut = 1 THEN '(Cancel Cash Out)' ELSE NULL END AS ActionType
 	FROM _cte l
-		OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType
+		OUTER APPLY (SELECT TOP 1 b.accepttype AS HighlightAcceptType, b.transid AS MinTransId, b.IsCancelCashOut
 						 FROM #TVSTicketBets b 
 					     WHERE l.MatchId = b.matchid 
 						 AND l.HighLightMinTime = (CASE 

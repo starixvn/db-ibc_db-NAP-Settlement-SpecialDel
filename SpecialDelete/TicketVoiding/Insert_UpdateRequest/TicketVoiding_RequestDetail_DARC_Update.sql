@@ -23,6 +23,7 @@ AS
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230324@Max: [TVS] Manage Request enhancement - Phase 13 [Redmine: #185237]
 		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
+		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 
 	Param's explanation:
 		+ @IssueTypeId: 1 - Danger Accepted, 10 - Red Card
@@ -117,6 +118,8 @@ BEGIN
 				+ '" IsCheckedVar="' + CAST (t.c.value('@IsCheckedVar','BIT') AS VARCHAR(10))
 				+ '" MinTime="' + ISNULL(CONVERT(VARCHAR(50),NULLIF(t.c.value('@MinTime','DATETIME'),''), 121),'')
 				+ '" MinType="' + t.c.value('@MinType','VARCHAR(10)') 
+				+ '" MinTransId="' + t.c.value('@MinTransId','BIGINT)') 
+				+ '" ActionType="' + t.c.value('@ActionType','VARCHAR(100)') 
 				+ '" />' AS TypeAccept
 			,t.c.value('@SubIssueTypeId','SMALLINT') AS SubIssueTypeId
 	FROM @DARCInfoXML.nodes('root/r') t(c)

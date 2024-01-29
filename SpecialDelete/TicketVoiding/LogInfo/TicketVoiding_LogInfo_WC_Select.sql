@@ -195,6 +195,7 @@ BEGIN
 			,LiveScores				 NVARCHAR(300)
 			,MatchId                 INT
 			,ScoreId                 INT
+			,IsExistsSecondAccept	BIT DEFAULT(0) 	
 		)
 	SET @WrongScoreInfoXML = CONVERT(XML, @WrongScoreInfo)
 		
@@ -765,6 +766,28 @@ BEGIN
 		FROM #logInfo l
 	END
 
+	/* Display warning message in case void second accept tickets before the allowance time of this type */
+	IF @FilterBy = 2 AND EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2)
+	BEGIN
+		SET @VoidFromTime = (SELECT MIN(l.VoidFromTime) FROM #logInfo l)
+		SET @VoidToTime = DATEADD (SECOND,@SATime,@FilterFromTransTime)
+
+
+		UPDATE v SET v.IsExistsSecondAccept = CASE WHEN l.IsExistsSecondAccept IS NOT NULL THEN 1 ELSE 0 END
+		FROM @Validation v
+		OUTER APPLY( 
+				SELECT TOP 1 1 AS IsExistsSecondAccept
+				FROM #logInfo l
+					INNER JOIN #TVSTicketBets t ON t.matchid = l.MatchId
+				WHERE t.accepttype = 2
+					AND 1 = CASE WHEN @FilterBy = 1 AND t.transdate BETWEEN @VoidFromTime AND @VoidToTime THEN 1
+										WHEN @FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN @VoidFromTime AND @VoidToTime THEN 1
+										WHEN @FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN @VoidFromTime AND @VoidToTime THEN 1
+							ELSE 0 END
+			)l
+		
+	END
+
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		INSERT INTO #logInfoVoidPage (RequestId, MatchId, CashOutCount, InstantlySettleCount, SettleCount, ScoreId, CancelCashOutCount)
@@ -819,6 +842,8 @@ BEGIN
 				,tmp.CancelCashOutCount
 				,a.HighLightMinTime
 				,a.HighlightAcceptType
+				,a.MinTransId
+				,a.ActionType
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
 						SELECT CONVERT(XML, rd.TransIds)
@@ -827,6 +852,8 @@ BEGIN
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
 							,NULLIF(t.c.value('@MinTime','DATETIME'),'') AS  HighLightMinTime
 							,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
+							,t.c.value('@MinTransId','BIGINT') AS  MinTransId
+							,t.c.value('@ActionType','VARCHAR(100)') AS  ActionType
 						FROM t1.xDATA.nodes('/r') t(c)
 					) a
 				LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId AND tmp.ScoreId = a.ScoreId
@@ -889,6 +916,8 @@ BEGIN
 				,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 				,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 				,tmp.CancelCashOutCount
+				,a.MinTransId
+				,a.ActionType
 			FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 				CROSS APPLY (
 						SELECT CONVERT(XML, rd.TransIds)
@@ -897,6 +926,8 @@ BEGIN
 						SELECT t.c.value('@ScoreId','INT') AS ScoreId
 							,NULLIF(t.c.value('@MinTime','DATETIME'),'') AS  HighLightMinTime
 							,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
+							,t.c.value('@MinTransId','BIGINT') AS  MinTransId
+							,t.c.value('@ActionType','VARCHAR(100)') AS  ActionType
 						FROM t1.xDATA.nodes('/r') t(c)
 					) a
 			   LEFT JOIN #logInfoVoidPage tmp ON rd.RequestId = tmp.RequestId AND rd.MatchId = tmp.MatchId
@@ -1162,6 +1193,7 @@ BEGIN
 		SELECT MatchId
 			,IsInValidTotalTickets
 			,IsExistedInOtherRequest
+			,IsExistsSecondAccept
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -1219,8 +1251,10 @@ BEGIN
 			,HighLightMinTime
 			,h.HighlightAcceptType
 			,CancelCashOutCount
+			,h.MinTransId
+			,CASE WHEN h.IsCancelCashOut = 1 THEN '(Cancel Cash Out)' ELSE NULL END AS ActionType
 		FROM _cte l
-			OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType
+			OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType, b.transid AS MinTransId, b.IsCancelCashOut
 						FROM #TVSTicketBets b 
 						WHERE l.MatchId = b.matchid AND l.HighLightMinTime = CASE 
 																				  WHEN b.IsCancelCashOut = 0 AND b.checktime IS NOT NULL THEN b.checktime 
