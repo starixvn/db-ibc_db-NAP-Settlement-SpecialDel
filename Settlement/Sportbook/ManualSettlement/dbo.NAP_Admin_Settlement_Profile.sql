@@ -82,6 +82,7 @@ AS
 		- 20230921@Kathy: change the way to write log for single ticket [Redmine:#193125]
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20231002@Louisa: Integrate sporttype 58-Bandy [Redmine: #196041]
+		- 20240129@Aries: Failed AutoPayout due to overwrite settle from trader [Redmine: #200283]
 
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -160,6 +161,7 @@ BEGIN
 			,@RemarkSDT					VARCHAR(500) = ''
 			,@IsExistNetPosition BIT = 0
 			,@SiteDBGroupId		TINYINT = 0
+			,@IsFail			BIT = 0
 
 	DECLARE @tmpCashoutTransId AS TABLE (TransId BIGINT, modds SMALLMONEY, winlost MONEY, statuswinlost TINYINT, currentstatuswinlost TINYINT)
 
@@ -397,17 +399,31 @@ BEGIN
 		-- Tennis
 		IF (@sportType = 5) AND Exists (SELECT 1 FROM @tmpResourcesWeb WHERE ResourceID = '00')
 		BEGIN
-			SELECT  @TotalPointHomeValue = CAST(SUM(CAST(HomeValue AS INT)) AS VARCHAR(50)), 
-					@TotalPointAwayValue = CAST(SUM(CAST(AwayValue AS INT)) AS VARCHAR(50))
+			SELECT  @TotalPointHomeValue = CAST(SUM(IIF(t.ResultStatusID  IN (2,5),CAST(t.HomeValue AS INT),0)) AS VARCHAR(50)), 
+					@TotalPointAwayValue = CAST(SUM(IIF(t.ResultStatusID  IN (2,5),CAST(t.AwayValue AS INT),0)) AS VARCHAR(50)),
+					@IsFail = MAX(IIF(t.ResultStatusID NOT IN (2,5),1,0))
 			FROM 
 				(
-					SELECT	ResourceID, HomeValue, AwayValue
+					SELECT	r.ResourceID, r.HomeValue, r.AwayValue,r.ResultStatusID
 					FROM	DBPRO.bodb02.dbo.ResultDetail r WITH(ROWLOCK)
-					WHERE	MatchID = @MatchID 
-							AND ResourceID IN ('01','02','03','04','05')
-							AND SettlementStatusID = 4
-							AND ResultStatusID IN (2,5)
+					WHERE	r.MatchID = @MatchID 
+							AND r.ResourceID IN ('01','02','03','04','05')
+							AND r.SettlementStatusID = 4
 				) t
+
+			IF @IsFail = 1
+			BEGIN
+				SELECT	@ErrCode = 200283
+					   ,@ErrMsg = 'Failed: FT/Total Points is inconsistent with interval scores.'
+				
+				EXEC dbo.NAP_Admin_CheckingProcess
+					 @isExistMatch		= 1
+					,@IsReleased		= 1
+
+				RETURN
+			END
+
+				
 		END
 		
 		INSERT INTO @tmpSelectedRID(ResourceID, HomeValue, AwayValue, BetType, BetID, pfID, RoundID, OrdNo, isFinal, RoundName, GroupType, OddsType, RefResourceId, IsWeb)

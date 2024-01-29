@@ -8,5 +8,5 @@ USE bodb02
 GO
 
 UPDATE SettlementResultTableSetting
-SET  AP_Group = NULL
+SET  AP_Group = 1
 WHERE Sporttype = 5
