@@ -21,6 +21,8 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20231215@Louisa:  Send mail negative balance for VS1 [Redmine:#195536]
+
 
 	Param's Explanation:
 		@Action - CAL
