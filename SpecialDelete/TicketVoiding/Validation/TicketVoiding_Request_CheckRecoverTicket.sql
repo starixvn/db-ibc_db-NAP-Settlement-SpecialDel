@@ -27,11 +27,9 @@ BEGIN
 		   ,@ExistingReqTransIds			VARCHAR(MAX) = ''
 		   ,@TransInfoJson_Output			VARBINARY(MAX) = NULL
 		   ,@UnmarkTransIds					VARCHAR(MAX) =''
-		   ,@CurrentDate					DATETIME
 		   ,@GetDateRange					DATETIME
 
-	SET @CurrentDate = CAST(GETDATE() AS DATE)
-	SET @GetDateRange = DATEADD(DAY, -7, @CurrentDate)
+	SET @GetDateRange = DATEADD(DAY, -7, CAST(GETDATE() AS DATE))
 	
 	DECLARE @UnsupportedTransids AS TABLE (transid BIGINT)	
 	DECLARE @bettype_tmp AS TABLE (bettype SMALLINT)

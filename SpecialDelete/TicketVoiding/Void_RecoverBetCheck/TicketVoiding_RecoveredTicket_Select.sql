@@ -799,7 +799,6 @@ BEGIN
 		   ,s.custid		
 		   ,s.username	
 		   ,s.transdate
-		   ,NULL AS VoidedTime
 		   ,s.creator
 		   ,s.Stake
 		   ,s.odds
@@ -867,14 +866,10 @@ BEGIN
 				WHEN s.GroupName = 'Deposit (Cancel CO)' THEN 9
 			 END
 		   , ISNULL(s.MainTransId, s.transid)
-		   , CASE 
-				WHEN s.BonusID IS NOT NULL
-						THEN CASE 
-								WHEN s.MainTransId IS NULL THEN 1
-								ELSE 2 
-							 END
-				ELSE s.transid
-			 END
+		   , CASE WHEN s.BonusID IS NOT NULL THEN 
+												CASE WHEN s.MainTransId IS NULL THEN 1
+													 ELSE 2 END
+				ELSE s.transid END
 	
 	DROP TABLE #transIdTemp
 	DROP TABLE #TVSTicketBets

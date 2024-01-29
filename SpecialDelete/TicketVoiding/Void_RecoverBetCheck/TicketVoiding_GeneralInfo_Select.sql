@@ -44,6 +44,7 @@ BEGIN
 		,DecidedBy NVARCHAR(200)
 		,KickOffTime DATETIME
 		,IssuetypeId TINYINT 
+		,RecoveredTime DATETIME
 	);
 	
 	CREATE TABLE #tmpVoidingHistory
@@ -60,7 +61,7 @@ BEGIN
 
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
 
-	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId)
+	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId, RecoveredTime)
 	SELECT DISTINCT 
 			 rd.RequestId
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.homeid END
@@ -70,6 +71,7 @@ BEGIN
 			,r.DecidedBy
 			,CASE WHEN r.IssuetypeId IN (13,17,22) THEN NULL ELSE m.kickofftime END 
 			,r.IssueTypeId
+			,CASE WHEN r.IssuetypeId IN (22) THEN r.CreatedDate ELSE NULL END AS RecoveredTime
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
@@ -162,6 +164,7 @@ BEGIN
 		,@NegativeBalanceUsers AS NegativeBalanceUsers
 		,@VoidingHistoryIds AS VoidingHistoryIds
 		,@SingleTransIds AS SingleTransIds
+		,t.RecoveredTime
 	FROM #tmpMatch t
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.RequestedBy = v.CustId
