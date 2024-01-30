@@ -98,6 +98,7 @@ AS
 		- 20230810@July: [SD] Void Single Bet - Support searching ticket without using time range & Add Selection control for Sub Parlay [Redmine: #191448]
 	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20230830@July: Remove SABA of league name for Jolly View sites [Redmine: #193213]
+		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		
 	Explanation's Param:
 	    - @SecondAcceptFlag: 
@@ -159,12 +160,12 @@ BEGIN
 	(
 		Id				SMALLINT PRIMARY KEY,
 		BetTeam			NVARCHAR(MAX), 
-		[Set]			VARCHAR(10),
-		Game			VARCHAR(3),
+		[Set]			VARCHAR(500),
+		Game			VARCHAR(500),
 		BetOption		NVARCHAR(250),
 		[Value]			VARCHAR(500),
 		ValueHdp1		VARCHAR(500),
-		ValueHdp2		VARCHAR(20),
+		ValueHdp2		VARCHAR(500),
 		Goal			VARCHAR(10),
 		OddsSpread		VARCHAR(500),
 		OddsId			VARCHAR(1000),
@@ -193,14 +194,14 @@ BEGIN
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT t.c.value('@Id','SMALLINT') AS Id
 			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
-			, t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
-			, t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
+			, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice + multi-choice
+			, t.c.value('@Game','VARCHAR(500)') AS Game				-- check columns : betid		 ; single-choice + multi-choice
 			, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
 			, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
 			, t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
-			, t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice
-			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
-			, t.c.value('@OddsSpread','VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
+			, t.c.value('@ValueHdp2','VARCHAR(500)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice + multi-choice
+			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice + multi-choice
+			, t.c.value('@OddsSpread','VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single-choice + multi-choice
 			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId		-- check columns : OddsId		 ; single-choice + multi-choice
 			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
 	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
@@ -227,8 +228,8 @@ BEGIN
 	FROM (
 		SELECT cte.Id
 			 , bt.value AS BetTeam 
-			 , cte.[Set]
-			 , cte.Game
+			 , se.value AS [Set]
+			 , ga.value AS Game
 			 , bop.value AS BetOption
 			 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault 
 						ELSE v.value END AS SMALLMONEY) AS [Value]
@@ -246,6 +247,8 @@ BEGIN
 						ELSE td.value END AS NVARCHAR(2000)) AS Transdesc
 		FROM #tblBetType cte
 			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+			 CROSS APPLY STRING_SPLIT(cte.[Set], ',') se
+			 CROSS APPLY STRING_SPLIT(cte.Game, ',') ga
 			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
 			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
 			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
@@ -939,8 +942,7 @@ BEGIN
 		DELETE b
 		FROM  #SpecialDeleteBets b
 		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
-			WHERE tp.Id = b.FilterBettype 
-			AND (	tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%' ))
+			WHERE tp.Id = b.FilterBettype AND (	tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%' ))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
