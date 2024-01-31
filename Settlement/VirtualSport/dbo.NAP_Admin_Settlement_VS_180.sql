@@ -21,6 +21,8 @@ AS
 		- 20220513@Louisa: Change write log from exec dbo.WriteLog_UserLog  to exec LogDB.dbo.Logfile_V2 [Redmine:#172708]
 		- 20220719@Louisa: Scale Out BetTrans [Redmine:#175251]
 		- 20230214@Aries: Use Service Broker to Write Log to DB Log [Redmine: #187252]
+		- 20231215@Louisa:  Send mail negative balance for VS1 [Redmine:#195536]
+
 
 	Param's Explanation:
 		@Action - CAL
@@ -38,6 +40,7 @@ BEGIN
 			,@EventStatus	NVARCHAR(50)
 			,@IsCentral		BIT
 			,@avaiableProcess	BIT
+			,@GroupID		TINYINT = 7 --VS
 
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
 
@@ -243,6 +246,30 @@ BEGIN
 				AND a.winlostdate = b.winlostdate
 				AND a.gametypeid = b.gametypeid
 	WHERE (a.winlost - b.winlost) < 0
+
+	IF( OBJECT_ID('BalanceNegative','U') IS NOT NULL )
+	BEGIN
+			INSERT INTO [dbo].[BalanceNegative] (
+				[ExecDate]
+				,[MatchID]
+				,[ActionID]
+				,[GroupID]
+				,[CustID]
+				,[Balance]
+				,[StatusID]
+				,[Remark]
+				)
+			SELECT GETDATE()
+				,@MatchID
+				,@ActionID
+				,@GroupID -- Negative balance group
+				,b.CustID
+				,b.balance
+				,0
+				,NULL
+			FROM #Balance b
+			WHERE b.balance < 0
+	END
 	---------------------------------------------------
 	DROP TABLE #Balance
 
