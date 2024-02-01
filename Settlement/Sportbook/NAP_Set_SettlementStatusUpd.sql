@@ -46,12 +46,12 @@ BEGIN
 			,@Starttime		DATETIME = GETDATE()
 			,@Remark		VARCHAR(500)
 			,@handle		INT
-			,@ActionID		SMALLINT
+			,@ActionID		INT
 
-	DECLARE @tmpHoldSetting TABLE (MatchID INT, ParentID INT, TurnOn TINYINT, TurnOff TINYINT)
+	DECLARE @tmpHoldSetting TABLE (MatchID INT, TurnOn TINYINT, TurnOff TINYINT, LV TINYINT)
 
 	IF @Type IN (4, 6, 7 )
-	BEGIN		
+	BEGIN	
 		UPDATE m 
 			SET @SettlementStatus = ISNULL(SettlementStatus, 0)
 				,SettlementStatus = CASE 
@@ -64,6 +64,10 @@ BEGIN
 
 		IF @Type IN ( 6,7)
 		BEGIN
+			SELECT @ActionID =  CASE @Type WHEN 6 THEN 81018
+											WHEN 7 THEN 81019
+								END
+
 			SELECT @Remark = 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END
 							 + CASE WHEN @Type = 6 THEN 'Refund '
 									WHEN @Type = 7 THEN 'Hold Key '
@@ -73,20 +77,20 @@ BEGIN
 							 + 'Duration: ' + CAST(DATEDIFF(MILLISECOND,@Starttime, GETDATE()) AS VARCHAR) + ' ms'
 	
 			BEGIN TRY
-				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				EXEC DBLOG.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 					@UserID             = @AdminId
 					,@Matchid           = @matchid
-					,@ActionID			= 81018
+					,@ActionID			= @ActionID
 					,@Remark            = @Remark
 					,@IP                = @IP
 			END TRY
 			BEGIN CATCH
 				SELECT @Remark = @Remark + ' ErrMsg=' + left(error_message(), 250)
 
-				EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle 
+				EXEC DBTXN.bodb_CustomerLog.dbo.WriteLog_UserLog_Settle
 					@UserID             = @AdminId
 					,@Matchid           = @matchid
-					,@ActionID          = 81018
+					,@ActionID          = @ActionID
 					,@Remark            = @Remark
 					,@IP                = @IP
 			END CATCH
@@ -99,44 +103,44 @@ BEGIN
 
 		; WITH cte_recursion AS 
 		(
-			SELECT  m.matchid, m.ParentID, m.leagueid
+			SELECT  m.matchid, m.ParentID, m.leagueid, 0 AS LV
 			FROM dbo.match m WITH(NOLOCK)
 			WHERE matchid = @MatchId
 		
 			UNION ALL 
-			SELECT  m.matchid, m.ParentID, m.leagueid
+			SELECT  m.matchid, m.ParentID, m.leagueid, LV+1
 			FROM dbo.match m WITH(NOLOCK)
 				INNER JOIN cte_recursion d
 				ON m.ParentID = d.matchid	 
 		)
 		---get all related matches
-		, cte_AllMatch ( MatchID, ParentID) AS 
+		, cte_AllMatch ( MatchID, LV) AS 
 		(
-			SELECT m.MatchID, m.ParentID
+			SELECT m.MatchID, LV
 			FROM cte_recursion m
 		)
-		,cte_WebResources (MatchID, ParentID, HoldType, IsEnable, IsApplyChildMatch) 
+		,cte_WebResources (MatchID, HoldType, IsEnable, IsApplyChildMatch, LV) 
 		AS 
 		(
 			SELECT   d.matchid
-					,d.ParentID
 					,setting.t as HoldType
 					,setting.s as IsEnable
 					,setting.child as IsApplyChildMatch
+					,d.LV
 			FROM cte_AllMatch d
 				CROSS APPLY (	SELECT t, s, isnull(child,0) as child
 								FROM OPENXML(@handle,'root/r',1) WITH(	t INT ,s BIT ,child	BIT	) AS tbl --- will parse value "true"/"false" to 1/0 with datatype is BIT
 							) setting
 		)
 
-		INSERT INTO @tmpHoldSetting (MatchID, ParentID, TurnOn, TurnOff)
+		INSERT INTO @tmpHoldSetting (MatchID, TurnOn, TurnOff, LV)
 		SELECT   w.matchid
-				,w.ParentID
-				,SUM(CASE WHEN (ISNULL(ParentID,0)=0 OR IsApplyChildMatch = 1) AND IsEnable = 1 THEN HoldType ELSE 0 END) as TurnOn
-				,SUM(CASE WHEN (ISNULL(ParentID,0)=0 OR IsApplyChildMatch = 1) AND IsEnable = 0 THEN HoldType ELSE 0 END) as TurnOff 
+				,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 1 THEN HoldType ELSE 0 END) as TurnOn
+				,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 0 THEN HoldType ELSE 0 END) as TurnOff 
+				,w.LV
 		FROM cte_WebResources w
-		WHERE ISNULL(w.ParentID,0) = 0 OR IsApplyChildMatch = 1
-		GROUP BY w.matchid, w.ParentID
+		WHERE w.LV = 0 OR IsApplyChildMatch = 1
+		GROUP BY w.matchid, LV
 
 		UPDATE m 
 			SET @SettlementStatus = ISNULL(SettlementStatus, 0)
@@ -164,7 +168,7 @@ BEGIN
 		INNER JOIN @tmpHoldSetting h
 				ON mr.matchid = h.MatchID
 
-		SELECT @ChildMatchList = ( SELECT STRING_AGG(MatchID,',') FROM @tmpHoldSetting WHERE ISNULL(ParentID,0) > 0 )
+		SELECT @ChildMatchList = ( SELECT STRING_AGG(MatchID,',') FROM @tmpHoldSetting WHERE LV > 0 )
 
 	END TRY
 	BEGIN CATCH
