@@ -27,7 +27,7 @@ AS
 
 	Parameters Explanation:    
 		@Type: TINYINT
-			+ 4: UnderSettlement
+			+ 4: IsSystemSettlement
 			+ 6: IsRefund
 			+ 7: Hold Key
 
