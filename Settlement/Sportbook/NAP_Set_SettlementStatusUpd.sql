@@ -27,14 +27,15 @@ AS
 
 	Parameters Explanation:    
 		@Type: TINYINT
+			+ 4: UnderSettlement
 			+ 6: IsRefund
+			+ 7: Hold Key
 
 	@HoldInfo = '<root>
 					<r t="1" s="true" />			--Turn on Pending bit[1]
-					<r t="2" s="true" child="true"/>	--Turn on Undecided, also apply to Child Match bit[2]
+					<r t="2" s="true" child="true"/> --Turn on Undecided, also apply to Child Match bit[2]
 					<r t="4" s="false" />			--Turn off UnderSettlement  bit[3]
 					<r t="16" s="false" />			--Turn off MTD Hold bit[5]
-					<r t="64" s="false" />			--Turn off Hold Key bit[7]
 				</root>'
 */
 BEGIN
@@ -45,10 +46,11 @@ BEGIN
 			,@Starttime		DATETIME = GETDATE()
 			,@Remark		VARCHAR(500)
 			,@handle		INT
+			,@ActionID		SMALLINT
 
 	DECLARE @tmpHoldSetting TABLE (MatchID INT, ParentID INT, TurnOn TINYINT, TurnOff TINYINT)
 
-	IF @Type IN (4, 6 )
+	IF @Type IN (4, 6, 7 )
 	BEGIN		
 		UPDATE m 
 			SET @SettlementStatus = ISNULL(SettlementStatus, 0)
@@ -60,10 +62,13 @@ BEGIN
 			INNER JOIN dbo.League l WITH(NOLOCK) ON m.leagueId = l.leagueid
 		WHERE	m.matchid = @MatchId
 
-		IF @Type = 6
+		IF @Type IN ( 6,7)
 		BEGIN
 			SELECT @Remark = 'Turn ' + CASE WHEN @IsEnabled = 1 THEN 'on ' ELSE 'off ' END
-							 + 'Refund on match: ' 
+							 + CASE WHEN @Type = 6 THEN 'Refund '
+									WHEN @Type = 7 THEN 'Hold Key '
+									END
+							 + 'on match: '
 							 + CAST(@MatchId AS VARCHAR) + '<br/> '
 							 + 'Duration: ' + CAST(DATEDIFF(MILLISECOND,@Starttime, GETDATE()) AS VARCHAR) + ' ms'
 	
