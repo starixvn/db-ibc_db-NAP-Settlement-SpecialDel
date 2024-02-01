@@ -48,6 +48,7 @@ AS
 		- 20230515@Aries: Apply Settle Determined for Basketball [Redmine:#175202]
 		- 20230816@Kathy: parlay boost [Redmine:#191873]
 		- 20231213@Kathy: Enhance Recalculation and Instant Settle for Basketball [Redmine:#198283]
+		- 20230131@Kathy: Support generate BetParlayDetail/BetParlayResult for voiding ticket [Redmine:#200440]
 		
 	Param's Explanation:
 		* @SelectedResources= '<Resources>
@@ -87,6 +88,7 @@ BEGIN
 			,@SiteDBGroupId		TINYINT
 			,@strSetting		VARCHAR(MAX)
 			,@sqlOpenqueryCommand NVARCHAR(MAX) = ''
+			,@MainTransIdVoided VARCHAR(MAX) = ''
 
 	DECLARE @MainParlay_MaxPO	VARCHAR(MAX) = NULL
 
@@ -699,19 +701,19 @@ BEGIN
 				,srecommend
 		FROM	dbo.bettrans b WITH(NOLOCK)
 		WHERE	b.matchid = 29
-				AND b.statusID NOT IN (101,102) --('VOID','REJECT')
+				AND b.statusID NOT IN (101, 102) --( 'REJECT', 'VOID')
 				AND refno IN (SELECT refno FROM @tmpRefnos)
-			
+		
 		SET @totalMainParlay = @@ROWCOUNT -- number of system parlay ticket
 
-		IF @totalMainParlay > 0 -- got system parlay tickets
-		BEGIN
-			SET @strMainTransIds = STUFF((
-				SELECT ',' + cast(transid as varchar(20))
-				FROM	#tmpMainTransId
-				FOR XML PATH('')
-			), 1,1,'')
+		SELECT	@MainTransIdVoided = ISNULL(STRING_AGG(CAST(TransId AS VARCHAR(MAX)),','),'')
+		FROM	dbo.bettrans b WITH(NOLOCK)
+		WHERE	b.matchid = 29
+				AND b.statusID = 102 -- VOID
+				AND refno IN (SELECT refno FROM @tmpRefnos)
 
+		IF @totalMainParlay > 0 OR @MainTransIdVoided <> ''  -- got system parlay tickets
+		BEGIN
 			INSERT INTO @tmpBoostSite(SiteId, srecommend )
 			SELECT DISTINCT SiteID, srecommend
 			FROM	#tmpMainTransId t
@@ -777,6 +779,9 @@ BEGIN
 
 			INSERT INTO dbo.ParlaySettlement_trace (matchid, runcnt, starttime, endtime, doing)
 			VALUES (@matchid, @totalMainParlay, CURRENT_TIMESTAMP, NULL, 'Start running PRECAL-29')
+
+			SELECT @strMainTransIds = @MainTransIdVoided + ',' +  ISNULL(STRING_AGG(CAST(TransId AS VARCHAR(MAX)),','),'')
+			FROM	#tmpMainTransId
 
 			-- handle betParlayDetail, betParlayResult
 			EXEC dbo.NAP_Admin_Calculate_MP_broker @matchid = @matchid
