@@ -14,6 +14,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Ticket_Update]
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = ''	OUTPUT
 	,@MoveBetMatchIds   VARCHAR(MAX)	= NULL	OUTPUT
+	,@ResettledTransIds   VARCHAR(MAX)	= NULL	OUTPUT
 )
 AS
 /*	Created by: 20181212@Kathy

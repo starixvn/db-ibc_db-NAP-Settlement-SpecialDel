@@ -26,6 +26,7 @@ AS
 		- 20221201@Max: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:	
 		
@@ -53,6 +54,7 @@ BEGIN
 			,@ErrMsgMove VARCHAR(300)
 			,@MoveBetMatchIds VARCHAR(MAX) = NULL
 			,@MoveBetMatchIdsXML XML = NULL
+			,@ResettledTransIds	VARCHAR(MAX) = NULL
 
 
 	DECLARE @tmpMatchMoveBet_update TABLE (
@@ -108,6 +110,7 @@ BEGIN
 				,@FailedTransIds = @FailedTransIds OUTPUT
 				,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 				,@MoveBetMatchIds = @MoveBetMatchIds OUTPUT
+				,@ResettledTransIds = @ResettledTransIds OUTPUT
 
 		END TRY
 		BEGIN CATCH
@@ -169,7 +172,7 @@ BEGIN
 	
 	SELECT q.QueueId, q.StatusId, q.VoidingHistoryId
 		, q.RequestId, q.MatchId, q.VoidingTypeId, q.NegativeBalanceUsers
-		, q.ErrMsg, q.UserId, c.username
+		, q.ErrMsg, q.UserId, c.username, @ResettledTransIds AS ResettledTransIds
 	FROM dbo.TicketVoiding_Queue q WITH (NOLOCK)
 		INNER JOIN CustDB.dbo.CustInfo c WITH (NOLOCK) ON c.custid = q.UserId
 	WHERE q.QueueId = @QueueId

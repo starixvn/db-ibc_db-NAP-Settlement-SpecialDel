@@ -63,6 +63,7 @@ BEGIN
 		,@PlayerName NVARCHAR(MAX)
 		,@PlayerNamesChineseTraditional NVARCHAR(MAX)
 		,@PlayerNamesChineseSimplified NVARCHAR(MAX)
+		,@IsHasResettledTicket BIT = 0
 	
 	DECLARE @tmp_PlayerName AS TABLE (
 			PlayerName NVARCHAR(200),
@@ -180,6 +181,14 @@ BEGIN
 						FOR XML PATH(''),TYPE).value('(./text())[1]','NVARCHAR(MAX)') ,1,2,'')))
 	END
 
+	IF @IssueTypeId = 22 --Check exists resettled ticket for Recover Issuetye
+	BEGIN
+		IF EXISTS (SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK) WHERE s.RequestId = @RequestId AND s.IsProcessed = 2)
+		BEGIN
+			SET @IsHasResettledTicket = 1
+		END
+	END
+
 	IF @IssueTypeId <> 13 -- Except for AC 
 	BEGIN
 		SELECT	rd.MatchId
@@ -208,6 +217,7 @@ BEGIN
 				,m.matchcode
 				,@OrgTransIds AS OrgTransIds
 				,rd.ProductIds -- Apply for issuetype Recover Ticket (22)
+				,@IsHasResettledTicket AS IsHasResettledTicket
 		FROM	dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 			OUTER APPLY (
 				SELECT	m.eventdate, m.ParentID, m.hthomescore, m.htawayscore, m.finalhomescore, m.finalawayscore, m.GlobalShowTime, m.matchcode, ISNULL(m.isNeutral, CONVERT(BIT,0)) AS IsNeutral

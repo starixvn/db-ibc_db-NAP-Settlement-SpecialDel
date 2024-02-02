@@ -5,6 +5,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_TicketProcess_Update]
 	,@ParlayTicketsJSON			NVARCHAR(MAX) = NULL
 	,@CancelCashOutTicketsJSON	NVARCHAR(MAX) = NULL
 	,@CricketTicketsJSON		NVARCHAR(MAX) = NULL
+	,@ResettledTransIds			VARCHAR(MAX)  = NULL
 )
 AS
 /*	
@@ -16,6 +17,7 @@ AS
 		- 20221201@Max: Create new SP [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230310@Max: [TVS] Support void Cricket tickets on TVS Abnormal Bet [Redmine: #168081]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:
 */
@@ -58,6 +60,31 @@ BEGIN
 		SELECT tbl.TransId, tbl.RequestId, tbl.MatchId
 		FROM OPENJSON(@CricketTicketsJSON)
 			WITH (RequestId INT, TransId BIGINT, MatchId INT) tbl
+	END
+
+	IF @ResettledTransIds IS NOT NULL
+	BEGIN
+		INSERT INTO #tmpInputTransId_Single (TransId)
+		SELECT value 
+		FROM string_split(@ResettledTransIds, ',')
+		WHERE value <> ''
+
+		WHILE(1=1)
+		BEGIN
+			DELETE @tmpTransIdBatch
+
+			DELETE TOP(2000) s OUTPUT deleted.TransId INTO @tmpTransIdBatch(TransId)
+			FROM #tmpInputTransId_Single s
+
+			IF @@ROWCOUNT = 0
+				BREAK
+
+			UPDATE s SET s.IsProcessed = 2 --Mark resettled ticket
+			FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (ROWLOCK, UPDLOCK)
+				INNER JOIN @tmpTransIdBatch t ON t.TransId = s.TransId
+
+		END
+		RETURN
 	END
 
 	--Single update
