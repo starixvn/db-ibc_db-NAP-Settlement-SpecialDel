@@ -133,6 +133,7 @@ AS
 		- 20230810@July: [SD] Void Single Bet - Support searching ticket without using time range & Add Selection control for Sub Parlay [Redmine: #191448]
 	    - 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
+		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		
 	Param's Explanation: Special bet delete option
 		- @SecondAcceptFlag: 
@@ -252,19 +253,35 @@ BEGIN
 
 	CREATE TABLE #tblBetType
 	(
-		Id				SMALLINT,		 				
+		Id				SMALLINT PRIMARY KEY,
+		BetTeam			NVARCHAR(MAX), 
+		[Set]			VARCHAR(500),
+		Game			VARCHAR(500),
+		BetOption		NVARCHAR(250),
+		[Value]			VARCHAR(500),
+		ValueHdp1		VARCHAR(500),
+		ValueHdp2		VARCHAR(500),
+		Goal			VARCHAR(10),
+		OddsSpread		VARCHAR(500),
+		OddsId			VARCHAR(1000),
+		Transdesc		NVARCHAR(2000)
+	)
+
+	CREATE TABLE #tblBetType_Detail
+	(
+		Id				SMALLINT,
 		BetTeam			NVARCHAR(10), 
 		[Set]			VARCHAR(10),
 		Game			VARCHAR(3),
 		BetOption		NVARCHAR(50),
-		[Value]			SMALLMONEY,	
+		[Value]			SMALLMONEY,
 		ValueHdp1		SMALLMONEY,
 		ValueHdp2		SMALLMONEY,
 		Goal			BIGINT,
 		OddsSpread		MONEY,
 		OddsId			INT,
 		Transdesc		NVARCHAR(2000)
-	)					
+	)	
 	
 	CREATE TABLE #tblTransIds (transid BIGINT PRIMARY KEY)
 	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
@@ -343,10 +360,10 @@ BEGIN
 		main_custId			INT,
 		OddsId				INT,
 		SiteDBGroupId		SMALLINT,
-		SettlementStatus	  TINYINT,
-		eventstatus			  NVARCHAR(50),
+		SettlementStatus	TINYINT,
+		eventstatus			NVARCHAR(50),
 		SiteID				INT,
-		mainoddsspread 			MONEY
+		mainoddsspread 		MONEY
 	)
 
 	CREATE TABLE #SpecialDeleteBetsm (
@@ -458,56 +475,31 @@ BEGIN
 		RETURN
 	END CATCH	
 
-	-- Parse xml @BetTypes	
-	;WITH CTE_ParsedBettypes_1 AS
-	(	
-		SELECT t.c.value('@Id','SMALLINT') AS Id
-			 , t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
-			 , t.c.value('@Set','VARCHAR(10)') AS [Set]				-- check columns : betid		 ; single-choice
-			 , t.c.value('@Game','VARCHAR(3)') AS Game				-- check columns : betid		 ; single-choice
-			 , t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
-			 , t.c.value('@Value','VARCHAR(500)') AS [Value]		-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
-			 , t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1	 	 	 ; single-choice + multi-choice
-			 , t.c.value('@ValueHdp2','VARCHAR(20)') AS ValueHdp2	-- check columns : hdp2	 	 	 ; single-choice
-			 , t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice
-			 , t.c.value('@OddsSpread', 'VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single value + multi-choice
-			 , t.c.value('@OddsId','VARCHAR(1000)') AS OddsId			-- check columns : OddsId		 ; single value + multi-choice
-			 , t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single value + multi-choice
-		FROM @BetTypes.nodes('BetTypes/BetType') t(c)
-	),
-	CTE_ParsedBettypes AS
-	(
-		SELECT cte.Id
-			 , bt.value AS BetTeam 
-			 , cte.[Set]
-			 , cte.Game
-			 , bop.value AS BetOption
-			 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault 
-						ELSE v.value END AS SMALLMONEY) AS [Value]
-			 , CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault 
-						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
-			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
-						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2				 
-			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
-						ELSE cte.Goal END AS BIGINT) AS Goal
-			 , CAST(CASE WHEN os.value = 'ALL' THEN @ValueDefault
-						ELSE os.value END AS MONEY) AS OddsSpread
-			, CAST(CASE WHEN osid.value = 'ALL' THEN NULL
-						ELSE osid.value END AS INT) AS OddsId
-			 , CAST(CASE WHEN td.value = 'ALL' THEN NULL
-						ELSE td.value END AS NVARCHAR(2000)) AS Transdesc
-		FROM CTE_ParsedBettypes_1 cte
-			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
-			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
-			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
-			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
-			 CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
-			 CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
-			 CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
-	)	 
+	-- Parse xml @BetTypes
 	INSERT INTO #tblBetType(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
+	SELECT t.c.value('@Id','SMALLINT') AS Id
+			, t.c.value('@BetTeam','NVARCHAR(MAX)') AS BetTeam		-- check columns : betteam		 ; multi-choice	 
+			, t.c.value('@Set','VARCHAR(500)') AS [Set]				-- check columns : betid		 ; single-choice + multi-choice
+			, t.c.value('@Game','VARCHAR(500)') AS Game				-- check columns : betid		 ; single-choice + multi-choice
+			, t.c.value('@BetOption','NVARCHAR(250)') AS BetOption	-- check columns : hdp2, betteam ; multi-choice	 
+			, t.c.value('@Value','VARCHAR(500)') AS [Value]			-- check columns : hdp1, hdp2	 ; single-choice + multi-choice
+			, t.c.value('@ValueHdp1','VARCHAR(500)') AS ValueHdp1	-- check columns : hdp1			 ; single-choice + multi-choice
+			, t.c.value('@ValueHdp2','VARCHAR(500)') AS ValueHdp2	-- check columns : hdp2			 ; single-choice + multi-choice
+			, t.c.value('@Goal','VARCHAR(10)') AS Goal				-- check columns : betID		 ; single-choice + multi-choice
+			, t.c.value('@OddsSpread','VARCHAR(500)') AS OddsSpread	-- Check columns : OddsSpread	 ; single-choice + multi-choice
+			, t.c.value('@OddsId','VARCHAR(1000)') AS OddsId		-- check columns : OddsId		 ; single-choice + multi-choice
+			, t.c.value('@Transdesc','NVARCHAR(2000)') AS Transdesc	-- check columns : Transdesc	 ; single-choice + multi-choice
+	FROM @BetTypes.nodes('BetTypes/BetType') t(c)
+	OPTION (OPTIMIZE FOR (@BetTypes = NULL))
+	
+	INSERT INTO #tblBetType_Detail(Id, BetTeam, [Set], Game, BetOption, [Value], ValueHdp1, ValueHdp2, Goal, OddsSpread, OddsId, Transdesc)
 	SELECT cte.Id
-		 , cte.BetTeam
+		 , CASE
+				WHEN cte.Id = 30 AND cte.BetTeam = '4:0up' THEN '4:0' -- replace row [bettype 30 - betteam '4:0up'] by [bettype 30 - betteam '4:0'] 
+				WHEN cte.Id = 30 AND cte.BetTeam = '0:4up' THEN '0:4' -- replace row [bettype 30 - betteam '0:4up'] by [bettype 30 - betteam '0:4']
+				WHEN cte.Id = 179 AND cte.BetTeam = 'G4&Over' THEN 'G4' -- replace row [bettype 179 - betteam 'G4&Over'] by [bettype 179 - betteam 'G4'] 
+				ELSE cte.BetTeam
+		   END AS BetTeam
 		 , cte.[Set]
 		 , cte.Game
 		 , cte.BetOption
@@ -518,9 +510,41 @@ BEGIN
 		 , cte.OddsSpread
 		 , cte.OddsId
 		 , cte.Transdesc
-	FROM CTE_ParsedBettypes cte		 		
-	OPTION (OPTIMIZE FOR (@BetTypes = NULL))	
-	
+	FROM (
+		SELECT cte.Id
+			 , bt.value AS BetTeam 
+			 , se.value AS [Set]
+			 , ga.value AS Game
+			 , bop.value AS BetOption
+			 , CAST(CASE WHEN v.value = 'ALL' THEN @ValueDefault 
+						ELSE v.value END AS SMALLMONEY) AS [Value]
+			 , CAST(CASE WHEN vhdp1.value = 'ALL' THEN @ValueDefault
+						ELSE vhdp1.value END AS SMALLMONEY) AS ValueHdp1
+			 , CAST(CASE WHEN cte.ValueHdp2 = 'ALL' THEN @ValueDefault 
+						ELSE cte.ValueHdp2 END AS SMALLMONEY) AS ValueHdp2					 
+			 , CAST(CASE WHEN cte.Goal = 'ALL' THEN 100 
+						ELSE cte.Goal END AS BIGINT) AS Goal
+			 , CAST(CASE WHEN os.value = 'ALL' THEN @ValueDefault
+						ELSE os.value END AS MONEY) AS OddsSpread
+			 , CAST(CASE WHEN osid.value = 'ALL' THEN NULL
+						ELSE osid.value END AS INT) AS OddsId
+			 , CAST(CASE WHEN td.value = 'ALL' THEN NULL
+						ELSE td.value END AS NVARCHAR(2000)) AS Transdesc
+		FROM #tblBetType cte
+			 CROSS APPLY STRING_SPLIT(cte.betteam, ',') bt
+			 CROSS APPLY STRING_SPLIT(cte.[Set], ',') se
+			 CROSS APPLY STRING_SPLIT(cte.Game, ',') ga
+			 CROSS APPLY STRING_SPLIT(cte.BetOption, ',') bop
+			 CROSS APPLY STRING_SPLIT(cte.[Value], ',') v
+			 CROSS APPLY STRING_SPLIT(cte.ValueHdp1, ',') vhdp1
+			 CROSS APPLY STRING_SPLIT(cte.OddsSpread, ',') os
+			 CROSS APPLY STRING_SPLIT(cte.OddsId, ',') osid
+			 CROSS APPLY STRING_SPLIT(cte.Transdesc, ',') td
+	) cte	
+	WHERE CASE WHEN cte.Id = 30 AND cte.BetTeam IN ('4:0', '0:4') THEN 0 -- exclude row [bettype = 30 - betteam in ('4:0', '0:4')]
+			WHEN cte.Id = 179 AND cte.BetTeam = 'G4' THEN 0 -- exclude row [bettype = 179 - betteam = 'G4']
+			ELSE 1 END = 1
+
 	-- check and not allow attempt to void tickets of this match while it's being calculated
 	---------------------------------------------------------------------------	
 	BEGIN 
@@ -530,7 +554,7 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)  
 			INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 			INNER JOIN #tblTransIds t ON t.transid = b.transid  
-			INNER JOIN #tblBettype tp ON tp.Id = b.bettype 
+			INNER JOIN #tblBetType_Detail tp ON tp.Id = b.bettype 
 			OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -573,7 +597,7 @@ BEGIN
 		FROM dbo.bettrans b WITH (NOLOCK)  
 			INNER JOIN @tmpMatchId m ON m.MatchId = b.matchid
 			INNER JOIN #tblTransIds t ON t.transid = b.transid  
-			INNER JOIN #tblBettype tp ON tp.Id = b.bettype 
+			INNER JOIN #tblBetType_Detail tp ON tp.Id = b.bettype 
 			OUTER APPLY (
 					SELECT GroupId
 					FROM dbo.f_TVS_CheckingProcessGroupBettypes()
@@ -1202,7 +1226,7 @@ BEGIN
 	BEGIN
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND 
 				CASE
 					WHEN tp.Id <> 376 THEN CASE WHEN tp.BetTeam = 'All' OR b.FilterBetTeam = tp.BetTeam THEN 1 ELSE 0 END
@@ -1224,53 +1248,52 @@ BEGIN
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
-			WHERE tp.Id = b.FilterBettype 
-				AND (	tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%' ))
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
+			WHERE tp.Id = b.FilterBettype AND (tp.[Set] = 'All' OR b.FilterSet LIKE tp.[Set] + '%' ))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.Game = 'All' OR (tp.Game LIKE '>%' AND b.FilterGame > RIGHT(tp.Game, 2)) OR (b.FilterGame = tp.Game)))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.[Value] = 9999 OR b.FilterValue = tp.[Value] ))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.Goal = 100 OR b.FilterGoal = tp.Goal ))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.BetOption = 'All' OR b.FilterBetOption = tp.BetOption ) OR b.bettype = 29)
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp1 = 9999 OR b.Filterhdp1 = tp.ValueHdp1 ))
 		
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.ValueHdp2 = 9999 OR b.Filterhdp2 = tp.ValueHdp2 ))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsSpread = 9999 OR b.FilterOddsSpread = tp.OddsSpread ))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND (tp.OddsId IS NULL OR b.FilterOddsId = tp.OddsId))
 
 		DELETE b
 		FROM  #SpecialDeleteBets b
-		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType tp
+		WHERE NOT EXISTS (SELECT TOP 1 1 FROM #tblBetType_Detail tp
 			WHERE tp.Id = b.FilterBettype AND  (tp.Transdesc IS NULL OR b.FilterTransdesc = tp.Transdesc))
 
 		IF @OddsFilter IS NOT NULL
@@ -2106,6 +2129,7 @@ BEGIN
 
 
 	DROP TABLE #tblBettype
+	DROP TABLE #tblBetType_Detail
 	DROP TABLE #tblTransIds
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #SpecialDeleteBets
