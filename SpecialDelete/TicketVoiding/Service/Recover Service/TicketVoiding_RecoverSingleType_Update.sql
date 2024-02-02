@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RecoverSingleType_Update]
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
 	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
+	,@ResettledTransIds   VARCHAR(MAX)	= NULL	OUTPUT
 )
 AS
 /*	
@@ -444,9 +445,7 @@ BEGIN
 	WHERE t.bettype NOT IN (468, 469)
 		AND ISNULL(main.betdaqid, 0) <> -2
 		AND main.SiteDBGroupID = @SiteDBGroupID
-		AND 1 = CASE WHEN t.bettype NOT IN (38) AND main.statuswinlost IS NULL THEN 1
-					WHEN t.bettype IN (38) THEN 1
-				ELSE 0 END
+		AND main.statuswinlost IS NULL
 
 	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
 	BEGIN
@@ -546,7 +545,6 @@ BEGIN
 	--Update CashOutSelling for new CO Model
 	IF EXISTS (SELECT TOP(1) 1 FROM #tblTransInfo WHERE IsCashOut = 1)
 	BEGIN
-
 		--> re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
 		;WITH CTE_main_cashoutticket AS
 		(
@@ -567,10 +565,10 @@ BEGIN
 		)
 
 		UPDATE	b
-		SET status = t.status
-		  , statusID = t.StatusId
+		SET status = TCal.status
+		  , statusID = TCal.StatusId
 		  , stake = TRef.stake
-		  , winlost = t.winlost
+		  , winlost = TCal.winlost
 		  , awinlost = TCal.awinlost
 		  , mWinLost = TCal.mWinLost
 		  , swinlost = TCal.swinlost
@@ -595,46 +593,48 @@ BEGIN
 								 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 0 ELSE 1 END AS CommWinRate
 								 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 2 ELSE 1 END AS CommLostRate
 						) AS TRef		
-			OUTER APPLY (SELECT t.winlost AS winlost
+			OUTER APPLY (SELECT CASE WHEN b.statuswinlost = 6 THEN 103 ELSE t.StatusId END AS StatusId
+							 , CASE WHEN b.statuswinlost = 6 THEN 'Refund' ELSE t.status END AS status
+							 , t.winlost AS winlost
 							 , CASE
 									
-									WHEN t.StatusId = 103 THEN 0
+									WHEN b.statuswinlost = 6 THEN 0
 									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.apositiontaking
 									WHEN t.StatusId = 111 THEN 0
 									ELSE ABS(t.winlost - b.actual_stake) * b.apositiontaking
 								END AS awinlost
 							, CASE
-									WHEN t.StatusId = 103 THEN 0
+									WHEN b.statuswinlost = 6 THEN 0
 									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.mpositiontaking
 									WHEN t.StatusId = 111 THEN 0
 									ELSE ABS(t.winlost - b.actual_stake) * b.mpositiontaking
 								END AS mWinLost
 							, CASE
-									WHEN t.StatusId = 103 THEN 0
+									WHEN b.statuswinlost = 6 THEN 0
 									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.spositiontaking
 									WHEN t.StatusId = 111 THEN 0
 									ELSE ABS(t.winlost - b.actual_stake) * b.spositiontaking
 								END AS swinlost
 							  , CASE
-									WHEN t.StatusId = 103 THEN 0
+									WHEN b.statuswinlost = 6 THEN 0
 									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.playerdiscount
 									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.playerdiscount
 									ELSE TRef.CommLostRate * b.stake * b.playerdiscount
 								END AS playercomm
 							, CASE
-									WHEN t.StatusId = 103 THEN 0
+									WHEN b.statuswinlost = 6 THEN 0
 									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
 									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
 									ELSE TRef.CommLostRate * b.stake * b.discount * (1-apositiontaking)
 								END AS comm
 							,CASE
-									WHEN t.StatusId = 103 THEN 0
+									WHEN b.statuswinlost = 6 THEN 0
 									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
 									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
 									ELSE TRef.CommLostRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
 								END AS acomm
 							,CASE
-									WHEN t.StatusId = 103 THEN 0
+									WHEN b.statuswinlost = 6 THEN 0
 									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
 									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
 									ELSE TRef.CommLostRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
@@ -799,11 +799,10 @@ BEGIN
 	END
 
 	/* Re-Cal for voided Transaction already has statuswinlost*/
-	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid'
+	SELECT @xmlTransId = (SELECT DISTINCT t.TransId AS '@transid', t.SportType AS '@sporttype', t.creator AS '@creator'
 							FROM #tblTransInfo t
 								INNER JOIN dbo.bettrans b WITH(NOLOCK) ON b.TransId = t.transid
 							WHERE b.statuswinlost IS NOT NULL
-								AND t.bettype NOT IN (38)
 								AND ISNULL(b.betdaqid, 0) <> -2 
 								AND b.SiteDBGroupID = @SiteDBGroupID
 							FOR XML PATH('r'), ROOT('root')
@@ -814,41 +813,13 @@ BEGIN
 			@TransIds = @xmlTransId
 	END
 
-	-- Re-Cal Bet Builder
-	IF(@IsExistBB = 1)
-	BEGIN
-		BEGIN TRY
-			CREATE TABLE #BetBuilderTransId(TransId BIGINT PRIMARY KEY);
-			INSERT INTO #BetBuilderTransId
-			SELECT b.TransId FROM #tblTransInfo b
-			WHERE b.bettype = 38;
-
-			DECLARE @xmlData xml;
-			SET @xmlData = (SELECT TransId AS [@Id] FROM #BetBuilderTransId 
-			FOR XML PATH('Resource'), ROOT('Resources'));
-
-			DECLARE @Resources VARCHAR(MAX) = CAST(@xmlData AS VARCHAR(MAX));
-
-			EXEC dbo.NAP_Admin_Settlement_BetBuilder_Recover
-				@AdminId = @UserId, @Resources = @Resources, @Ip = @Ip
-				,@ErrCode	= @ErrCode	OUTPUT
-				,@ErrMsg	= @ErrMsg	OUTPUT
-			
-			SET @AutoReSettledTransIds = ''			
-			SELECT @AutoReSettledTransIds = @AutoReSettledTransIds
-											+ CASE WHEN @AutoReSettledTransIds <> '' THEN ',' ELSE '' END
-											+ CAST(t.Transid AS VARCHAR(100))
-			FROM #BetBuilderTransId t
-				 INNER JOIN bettrans b (NOLOCK) ON t.TransId = b.transid
-			WHERE b.statusID IN (111, 112, 113, 103) AND b.SiteDBGroupID = @SiteDBGroupID
-
-			DROP TABLE #BetBuilderTransId;
-		END TRY 
-		BEGIN CATCH
-			SELECT @ErrCode = 38, @ErrMsg = 'Called NAP_Admin_Settlement_BetBuilder_Recover with error.'		
-
-		END CATCH
-	END
+	--Return ResettledTransIds
+	SET @ResettledTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( t.TransId AS VARCHAR(20))
+								FROM #tblTransInfo t
+									INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
+								WHERE b.statusID NOT IN (0,1,102)
+								FOR XML PATH ('')
+							),1,1,''))
 	
 	-- get data after update
 	INSERT INTO @tblAfterBalance(matchid, custid, balanceType, BonusID, WalletType, balance)

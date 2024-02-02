@@ -117,6 +117,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (12) --Parlay ticket
 	BEGIN
@@ -131,6 +132,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (14) --Cricket ticket
 	BEGIN
@@ -145,6 +147,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (17) --Cricket14 ticket
 	BEGIN
@@ -159,6 +162,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (15) --Single14 ticket
 	BEGIN
@@ -173,6 +177,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
 	ELSE IF @VoidingTypeId IN (16) --Parlay14 ticket
 	BEGIN
@@ -187,6 +192,7 @@ BEGIN
 			,@ErrMsg = @ErrMsg OUTPUT
 			,@FailedTransIds = @FailedTransIds OUTPUT
 			,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			,@ResettledTransIds	= @ResettledTransIds	OUTPUT
 	END
 
 END

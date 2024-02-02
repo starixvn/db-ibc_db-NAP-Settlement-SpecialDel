@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_RecoverMainParlayType_Update]
 	,@FailedTransIds	VARCHAR(MAX)	= NULL	OUTPUT
 	,@NegativeBalanceUsers VARCHAR(MAX) = NULL	OUTPUT
 	,@MoveBetMatchIds   VARCHAR(MAX) = NULL	OUTPUT
+	,@ResettledTransIds   VARCHAR(MAX)	= NULL	OUTPUT
 )
 AS
 /*	
@@ -217,7 +218,25 @@ BEGIN
 			INNER JOIN dbo.bettrans b with (nolock) ON b.TransId = t.transId
 		WHERE RowNumber = 1
 			AND b.SiteDBGroupID = @SiteDBGroupID
-			AND b.statuswinlost IS NOT NULL
+
+		--Just need re-cal for refno exists in BetParlayResults & all combine completed
+		DELETE t
+		FROM @tblMatchIds t
+			OUTER APPLY (
+					SELECT TOP 1 1 refno
+					FROM dbo.BetParlayResult b WITH (NOLOCK)
+					WHERE b.RefNo = t.refno
+				)rs
+		WHERE rs.refno IS NULL
+
+		DELETE t
+		FROM @tblMatchIds t
+			CROSS APPLY (
+					SELECT TOP 1 1 refno
+					FROM dbo.BetParlayResult b WITH (NOLOCK)
+					WHERE b.RefNo = t.refno
+						AND b.statusid = 0
+				)rs
 
 		---- capture balance before recover
 		INSERT INTO @tblBeforeBalance (custid, balance)
@@ -419,6 +438,14 @@ BEGIN
 			@MatchId= 29
 			,@TransidList = @MainParlay_MaxPO
 			,@Mode = 'RECOVER'
+		
+		--Return ResettledTransIds
+		SET @ResettledTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( t.TransId AS VARCHAR(20))
+									FROM #tblRecoverBet t
+										INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
+									WHERE b.statusID NOT IN (0,1,102)
+									FOR XML PATH ('')
+								),1,1,''))
 		
 		-- capture after recover
 		INSERT INTO @tblAfterBalance (custid, balance)

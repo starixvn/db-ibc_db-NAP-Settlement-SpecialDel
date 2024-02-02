@@ -66,6 +66,7 @@ BEGIN
 		,TotalSingleProcessed	INT DEFAULT (0)
 		,TotalParlayProcessed	INT DEFAULT (0)
 		,TotalCancelCashOutProcessed INT DEFAULT (0)
+		,TotalResettleProcessed	INT DEFAULT (0)
 	)
 	INSERT INTO #tmpResult (RequestId, MatchId, IssueTypeId)
 	SELECT DISTINCT RequestId, MatchId, IssueTypeId
@@ -190,10 +191,12 @@ BEGIN
 			UPDATE t 
 			SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
 			   ,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
+			   ,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 			FROM	#tmpResult t
 			CROSS APPLY (SELECT 
 							SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
 						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						   ,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 						FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 							LEFT JOIN dbo.zzzbettrans z WITH(NOLOCK) ON s.TransId = z.transid
 						WHERE s.RequestId = t.RequestId
@@ -209,6 +212,7 @@ BEGIN
 		   ,TotalSingleProcessed	
 		   ,TotalParlayProcessed	
 		   ,TotalCancelCashOutProcessed
+		   ,TotalResettleProcessed
 	FROM #tmpResult
 
 	DROP TABLE #tmpResult

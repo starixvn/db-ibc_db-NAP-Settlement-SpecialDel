@@ -20,6 +20,7 @@ AS
 		- 20220922@Helen: fix issue [Redmine: #175412]
 		- 20220926@Max: Enhance code logic [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		
 	Param's explanation:	
 		
@@ -55,6 +56,7 @@ BEGIN
         ,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
         ,Status NVARCHAR(10),StatusID TINYINT, ruben TINYINT
         ,SettlementTime DATETIME, FcUpdateTime DATETIME2
+		,creator INT, ExtraInfo VARCHAR(MAX)
     )
 
     IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
@@ -91,14 +93,16 @@ BEGIN
     END
 
     SET @xml = CONVERT(XML, @TransIds)
-    DECLARE @tbl_transIDs AS TABLE(transid BIGINT)
+    DECLARE @tbl_transIDs AS TABLE(transid BIGINT, sporttype SMALLINT, creator INT)
     
-    INSERT INTO @tbl_transIDs (transid)
+    INSERT INTO @tbl_transIDs (transid, sporttype, creator )
     SELECT  T.C.value('./@transid', 'bigint')
+		, T.C.value('./@sporttype', 'smallint')
+		, T.C.value('./@creator', 'int')
     FROM    @xml.nodes('/root/r') AS T(C)
     OPTION (OPTIMIZE FOR (@xml = NULL ))
     
-    DECLARE @tempTrans TABLE (TransID BIGINT, isDecimalOdd BIT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT)
+    DECLARE @tempTrans TABLE (TransID BIGINT, isDecimalOdd BIT, srecommend INT, bettype SMALLINT, isCN88 BIT, isMajorGroup BIT, sporttype SMALLINT, creator INT)
     DECLARE  @commWinRate       SMALLMONEY
             ,@commLostRate      SMALLMONEY
             ,@commHalfWLRate    SMALLMONEY
@@ -110,8 +114,8 @@ BEGIN
             
     DECLARE @settlementTime DATETIME
     ---parse XML
-    INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype)
-    SELECT t.TransID, CASE WHEN ot.oddstype = 1 THEN 1 ELSE 0 END AS isDecimalOdd, srecommend, b.bettype
+    INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype, sporttype, creator)
+    SELECT t.TransID, CASE WHEN ot.oddstype = 1 THEN 1 ELSE 0 END AS isDecimalOdd, srecommend, b.bettype, t.sporttype, t.creator
     FROM @tbl_transIDs t
         INNER LOOP JOIN dbo.bettrans b  WITH (NOLOCK) ON b.transid = t.transid
         LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
@@ -324,6 +328,8 @@ BEGIN
             ,StatusID = @statusId
             ,ruben= 1
             ,FcUpdateTime = CASE WHEN @statusId = 103 THEN SYSDATETIME() ELSE b.FcUpdateTime END
+			,creator = sr.creator
+			,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,sr.SportType, b.bettype)
         OUTPUT  inserted.transid
             ,inserted.statuswinlost
             ,@settlementTime
@@ -331,6 +337,8 @@ BEGIN
             ,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
             ,inserted.Status,inserted.StatusID, inserted.ruben
             ,inserted.FcUpdateTime
+			,inserted.creator
+			,inserted.ExtraInfo
         INTO @tmpTransInfo (
             transId
             ,statuswinlost
@@ -338,6 +346,7 @@ BEGIN
             ,WinLost,aWinLost,mWinLost,sWinLost
             ,PlayerComm,Comm,aComm,sComm
             ,Status,StatusID, ruben, FcUpdateTime
+			,creator, ExtraInfo
         )
     FROM @tempTrans sr
         INNER JOIN dbo.bettrans b  WITH (ROWLOCK, UPDLOCK) ON  sr.transid = b.transid
@@ -361,6 +370,8 @@ BEGIN
                     ,StatusID AS 'sid' 
                     ,ruben AS 'r' 
                     ,FcUpdateTime AS 'rut'
+					,creator AS 'cr'
+					,ExtraInfo AS 'ex'
             FROM    @tmpTransInfo
             FOR JSON PATH))
 
