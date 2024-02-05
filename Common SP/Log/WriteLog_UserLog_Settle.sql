@@ -77,7 +77,7 @@ BEGIN
 	BEGIN TRY
 		;WITH cte_MatchInfo (MatchID, Remark) AS 
 		(	SELECT js.m
-					,REPLACE( js.rm,'{parent}', CAST(m.ParentID AS VARCHAR(20) ) )
+					,REPLACE( js.rm,'{parent}', CAST(ISNULL(m.ParentID,'') AS VARCHAR(20) ) )
 			FROM OPENJSON(@RemarkJson) WITH (m  INT, rm  VARCHAR(MAX) ) js
 				INNER JOIN bodb02.dbo.match m WITH(NOLOCK)
 					ON js.m = m.matchid
