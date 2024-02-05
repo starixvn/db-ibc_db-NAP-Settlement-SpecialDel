@@ -186,25 +186,32 @@ BEGIN
 
 	IF EXISTS (SELECT TOP 1 1 FROM @tmpMatchVoidingHistory WHERE IssueTypeId = 22)
 	BEGIN
-		IF OBJECT_ID('dbo.TicketVoiding_RequestDetailTicket_Single','U') IS NOT NULL 
-        BEGIN
-			UPDATE t 
-			SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
-			   ,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
-			   ,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
-			FROM	#tmpResult t
-			CROSS APPLY (SELECT 
-							SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
-						   ,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
-						FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
-							LEFT JOIN dbo.zzzbettrans z WITH(NOLOCK) ON s.TransId = z.transid
-						WHERE s.RequestId = t.RequestId
-							AND s.IsProcessed IS NOT NULL
-							AND z.transid IS NULL
-					)rt	
-			WHERE t.IssueTypeId = 22 --Recover Ticket
-		END
+		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT)
+
+		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed)
+		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed
+		FROM DBCTG.bodb02.dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid
+		WHERE s.IsProcessed IS NOT NULL
+			AND s.SiteDBGroupID = @SiteDBGroupID
+
+		DELETE t
+		FROM @tmp_TransId t
+			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+
+		UPDATE t 
+		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
+			,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
+			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
+		FROM	#tmpResult t
+		CROSS APPLY (SELECT 
+						SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
+					FROM @tmp_TransId s
+					WHERE s.RequestId = t.RequestId
+				)rt	
+		WHERE t.IssueTypeId = 22 --Recover Ticket
 	END
 
 	SELECT  RequestId			
