@@ -328,8 +328,8 @@ BEGIN
             ,StatusID = @statusId
             ,ruben= 1
             ,FcUpdateTime = CASE WHEN @statusId = 103 THEN SYSDATETIME() ELSE b.FcUpdateTime END
-			,creator = sr.creator
-			,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,sr.SportType, b.bettype)
+			,creator = ISNULL(sr.creator, b.creator)
+			,ExtraInfo = CASE WHEN sr.SportType IS NOT NULL THEN dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,sr.SportType, b.bettype) ELSE b.ExtraInfo END
         OUTPUT  inserted.transid
             ,inserted.statuswinlost
             ,@settlementTime
