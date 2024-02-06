@@ -13,6 +13,7 @@ AS
 
     Revisions:
 		-20231208@louisa: Init [Redmine:#197548]
+		-20240206Louisa: Add data Trader, Pandascore [Redmine:#197548]
 */
 BEGIN
 	SET NOCOUNT ON;
@@ -221,8 +222,16 @@ BEGIN
 			) AS ResourceName
 		, Match
 		, cte.HomeValue, cte.AwayValue 
+
+		, [HomeValue(Trader)] 
+		, [AwayValue(Trader)]
+		
+		, [HomeValue(PandaScore)]
+		, [AwayValue(PandaScore)]
+
 		, [HomeValue(GameScorekeeper)]
-		, [AwayValue(GameScorekeeper)]		
+		, [AwayValue(GameScorekeeper)]	
+		
 		, [HomeValue(GRID)]
 		, [AwayValue(GRID)]
 
