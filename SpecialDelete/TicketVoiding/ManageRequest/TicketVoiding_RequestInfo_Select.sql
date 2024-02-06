@@ -22,6 +22,7 @@ AS
 		- 20230608@Max: [TVS] Support void Cricket when reducing over [Redmine: #185833]
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
+		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
 
 	Param's explanation:
 		
@@ -34,9 +35,10 @@ BEGIN
 		,MatchId		INT
 		,IssueTypeId	TINYINT
 		,LastVoidedBy	INT
-		,TotalVoidedSingle	INT DEFAULT (0)
-		,TotalVoidedParlay	INT DEFAULT (0)
-		,TotalCancelCashOut INT
+		,TotalSingleProcessed	INT DEFAULT (0)
+		,TotalParlayProcessed	INT DEFAULT (0)
+		,TotalCancelCashOutProcessed INT
+		,TotalResettleProcessed	INT DEFAULT (0)
 		,VoidingHistoryId	INT
 	)
 	DECLARE @tmpChildMatchCricket TABLE (
@@ -57,9 +59,9 @@ BEGIN
 	
 	-- single
 	UPDATE vh 
-		SET TotalVoidedSingle = t.TotalVoidedSingle
-			,TotalVoidedParlay = t.TotalVoidedParlay
-			,TotalCancelCashOut = t.TotalCancelCashOut
+		SET TotalSingleProcessed = t.TotalVoidedSingle
+			,TotalParlayProcessed = t.TotalVoidedParlay
+			,TotalCancelCashOutProcessed = t.TotalCancelCashOut
 			,MatchId = t.matchid
 	FROM #tmpResult vh
 		CROSS APPLY (
@@ -82,7 +84,7 @@ BEGIN
 		
 	--parlay
 	UPDATE vh
-		SET TotalVoidedParlay = t.TotalVoidedParlay
+		SET TotalParlayProcessed = t.TotalVoidedParlay
 		,MatchId = t.MatchId
 	FROM	#tmpResult vh
 		CROSS APPLY (
@@ -123,8 +125,8 @@ BEGIN
 	BEGIN
 		-- single
 		UPDATE vh 
-			SET TotalVoidedSingle += t.TotalVoidedSingle
-				,TotalCancelCashOut += t.TotalCancelCashOut
+			SET TotalSingleProcessed += t.TotalVoidedSingle
+				,TotalCancelCashOutProcessed += t.TotalCancelCashOut
 				,MatchId = t.matchid
 		FROM #tmpResult vh
 			CROSS APPLY (
@@ -148,7 +150,7 @@ BEGIN
 		
 		--parlay
 		UPDATE vh
-			SET TotalVoidedParlay = t.TotalVoidedParlay
+			SET TotalParlayProcessed = t.TotalVoidedParlay
 			,MatchId = t.MatchId
 		FROM	#tmpResult vh
 			CROSS APPLY (
@@ -163,22 +165,53 @@ BEGIN
 				GROUP BY cm.matchid
 		) t
 	END
+
+	IF EXISTS (SELECT TOP 1 1 FROM #tmpResult WHERE IssueTypeId = 22)
+	BEGIN
+		DECLARE @tmp_TransId AS TABLE (RequestId INT, TransId BIGINT, MatchId INT, IsProcessed TINYINT)
+
+		INSERT INTO @tmp_TransId(RequestId, TransId, MatchId, IsProcessed)
+		SELECT t.RequestId, s.TransId, s.MatchId, s.IsProcessed
+		FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
+			INNER JOIN #tmpResult t ON t.RequestId = s.Requestid
+		WHERE s.IsProcessed IS NOT NULL
+
+		DELETE t
+		FROM @tmp_TransId t
+			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+
+		UPDATE t 
+		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
+			,TotalParlayProcessed = ISNULL(rt.TotalParlayProcessed,0)
+			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
+		FROM	#tmpResult t
+		CROSS APPLY (SELECT 
+						SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
+					FROM @tmp_TransId s
+					WHERE s.RequestId = t.RequestId
+				)rt	
+		WHERE t.IssueTypeId = 22 --Recover Ticket
+	END
 	
 	--Return Data
 	SELECT TOP(1)
 			t.RequestId
 			,MatchId
 			,v.Username AS LastPerformedBy
-			,tmp.TotalVoidedSingle
-			,tmp.TotalVoidedParlay
-			,tmp.TotalCancelCashOut
+			,tmp.TotalSingleProcessed
+			,tmp.TotalParlayProcessed
+			,tmp.TotalCancelCashOutProcessed
+			,tmp.TotalResettleProcessed
 	FROM	#tmpResult t
 		LEFT JOIN CustDB.dbo.Customer v WITH(NOLOCK)
 			ON t.LastVoidedBy = v.CustId
 		CROSS APPLY (
-		    SELECT ISNULL(tmp.TotalVoidedSingle,0) AS TotalVoidedSingle 
-				  ,ISNULL(tmp.TotalVoidedParlay,0) AS TotalVoidedParlay
-				  ,ISNULL(tmp.TotalCancelCashOut,0) AS TotalCancelCashOut
+		    SELECT ISNULL(tmp.TotalSingleProcessed,0) AS TotalSingleProcessed 
+				  ,ISNULL(tmp.TotalParlayProcessed,0) AS TotalParlayProcessed
+				  ,ISNULL(tmp.TotalCancelCashOutProcessed,0) AS TotalCancelCashOutProcessed
+				  ,ISNULL(tmp.TotalResettleProcessed,0) AS TotalResettleProcessed
 			FROM #tmpResult tmp
 			WHERE t.RequestId = tmp.RequestId
 		)tmp

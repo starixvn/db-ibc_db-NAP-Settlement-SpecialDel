@@ -198,6 +198,7 @@ BEGIN
 		DELETE t
 		FROM @tmp_TransId t
 			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK) ON t.TransId = z.transid AND z.comstatus <> 'CO'
+		WHERE z.SiteDBGroupID = @SiteDBGroupID
 
 		UPDATE t 
 		SET TotalSingleProcessed = ISNULL(rt.TotalSingleProcessed,0)
