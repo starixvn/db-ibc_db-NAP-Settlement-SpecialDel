@@ -23,6 +23,7 @@ AS
 		- 20221128@Kathy: Move table single/parlay queue_bk to bodb_CustomerLog_Archive [Redmine:#180941]
 		- 20230220@Kathy: Reduce Duration Save Data in Table SSB_SettlementLogs to 3 Days [Redmine:#184094]
 		- 20230308@Louisa: backup data of 2 table single_calculate_queue & parlay_calculate_queue by service [Redmine:#184726]    
+		- 20240206@Aries: Enhance the archive process for Settlement [Redmine:#200890]    
 
 
 	 Param's Explanation:  
@@ -31,6 +32,8 @@ AS
 */  
 BEGIN  
 	SET NOCOUNT ON  
+	DECLARE @LogId BIGINT
+
 
 	DELETE 
 	FROM	dbo.Single_Calculate_Queue_VS WITH(UPDLOCK,ROWLOCK)  
@@ -139,6 +142,58 @@ BEGIN
 			IF @@ROWCOUNT = 0
 				BREAK
 		END
+	END
+
+	-- Remove old data from Single_Calculate_Queue_3rd
+	DECLARE @14DaysBefore DATETIME = DATEADD (DD, -14, GETDATE())	
+
+	WHILE (1=1)
+	BEGIN
+		DELETE TOP (1000)
+		FROM dbo.Single_Calculate_Queue_3rd WITH(ROWLOCK, UPDLOCK)
+		WHERE Starttime < @14DaysBefore
+		AND IsCalculating NOT IN (0, 1)  
+
+		IF @@ROWCOUNT < 1000
+			BREAK
+	END
+
+	-- Remove old data from BalancePendingProcessed
+	SET @LogId = 0
+
+	SELECT	TOP 1 @LogId = rn
+	FROM	dbo.BalancePendingProcessed WITH(NOLOCK)
+	WHERE	tstamp  < @14DaysBefore
+	ORDER BY rn DESC
+
+	WHILE (1=1)
+	BEGIN
+		DELETE	TOP (1000)
+		FROM	dbo.BalancePendingProcessed WITH(ROWLOCK,UPDLOCK)
+		WHERE	rn <= @LogId
+
+		IF @@ROWCOUNT < 1000
+			BREAK
+
+		WAITFOR DELAY '00:00:00.050' 
+	END
+
+	-- Remove old data from Settlement_SettledSession
+	SET @LogId = 0
+
+	SELECT	TOP 1 @LogId = SessionId 
+	FROM	dbo.Settlement_SettledSession WITH(NOLOCK)
+	WHERE	CreatedTime   < @14DaysBefore
+	ORDER BY SessionId DESC
+
+	WHILE (1=1)
+	BEGIN
+		DELETE	TOP (1000)
+		FROM	dbo.Settlement_SettledSession WITH(ROWLOCK,UPDLOCK)
+		WHERE	SessionId <= @LogId
+
+		IF @@ROWCOUNT < 1000
+			BREAK
 	END
 END  
 GO
