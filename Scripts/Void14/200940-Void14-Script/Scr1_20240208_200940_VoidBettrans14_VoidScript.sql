@@ -1,9 +1,9 @@
-﻿/*<info serverAlias="DBTXN-bodb02" executers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBSIG-bodb02" executers="" isFunction="0"></info>*/
 /*	
 	Created by: Helen
 	Date: 20240208
 	Task: Support to void tickets in bettrans14 - [Redmine: #200940]
-	DB: DBTXN/bodb02
+	DB: DBSIG/bodb02 - sitedb03
 	
 */ 
 USE bodb02
@@ -286,6 +286,8 @@ INSERT INTO zzzbettrans (
 	,checktime
 	,matchid
 	,bettype
+	,RepUpdateTime
+	,SiteDBGroupID
 	)
 SELECT main.transid
 	,main.custid
@@ -314,6 +316,8 @@ SELECT main.transid
 	,main.checktime
 	,main.matchid
 	,main.bettype
+	,SYSDATETIME()
+	,main.SiteDBGroupID
 FROM dbo.bettrans14 AS main WITH (NOLOCK)
 	INNER JOIN #tblMatch tm ON main.matchid = tm.matchid
 	INNER JOIN #BetDelete AS tmpmain WITH (NOLOCK) ON main.transid = tmpmain.transid AND main.matchid = tmpmain.matchid		
