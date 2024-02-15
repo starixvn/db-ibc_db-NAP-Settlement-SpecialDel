@@ -1208,8 +1208,10 @@ BEGIN
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 				,MatchId
+				,c.username AS CreatedBy
 			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.MatchId
+				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+			GROUP BY r.RequestId, r.MatchId, c.username
 		END
 		ELSE
 		BEGIN
