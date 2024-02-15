@@ -248,6 +248,7 @@ BEGIN
 			 @matchdate = @matchdate
 			,@strXML = @tmp_TransIds
 			,@strSetting = @strSetting
+			,@MatchId = @tmp_MatchId
 
 		EXEC dbo.NAP_Admin_Calculate_MP_Bet14_29
 				@strXML	= @refnos_29
