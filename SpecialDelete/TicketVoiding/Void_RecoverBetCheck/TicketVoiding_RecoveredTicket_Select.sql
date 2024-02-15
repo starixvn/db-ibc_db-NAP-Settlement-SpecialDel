@@ -221,7 +221,7 @@ BEGIN
 			,b.Transdesc 
 			,b.ExtraInfo 
 			,b.BonusID 
-			,b.winlost        
+			,(b.winlost - b.actual_stake)       
 			,b.actual_stake 
 			,b.Status
 			,b.status AS SubStatus 
@@ -351,7 +351,7 @@ BEGIN
 			,b.Transdesc 
 			,b.ExtraInfo 
 			,b.BonusID 
-			,b.winlost        
+			,(b.winlost - b.actual_stake)       
 			,b.actual_stake 
 			,b.Status
 			,b.status AS SubStatus 

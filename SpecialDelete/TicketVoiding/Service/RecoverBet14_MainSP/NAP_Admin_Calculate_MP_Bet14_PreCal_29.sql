@@ -1,7 +1,8 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_Admin_Calculate_MP_Bet14_PreCal_29] 
 (
-	@matchdate SMALLDATETIME
+	@matchid	INT
+	,@matchdate SMALLDATETIME
 	,@strXML VARCHAR(MAX) = NULL
 	,@strSetting VARCHAR(MAX) = NULL
 )
@@ -22,6 +23,15 @@ BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @xml XML
+		,@ExtraValue MONEY
+		,@IsSiteDB	BIT = 0
+		,@IsReSettledTickets BIT = 0
+	
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
+
+	SET @IsReSettledTickets = ISNULL(@IsReSettledTickets, 0)
+
 	DECLARE @transIDs AS TABLE(transid BIGINT)
 
 	SET @XML = N'<root><r>' + REPLACE(@strXML, ',', '</r><r>') + '</r></root>'
@@ -51,6 +61,9 @@ BEGIN
 			,selection_cnt TINYINT NOT NULL ---- number of selections (bettransM count)
 			,oddsspread	money
 			,actual_stake	money
+			,betteam NVARCHAR(10)
+			,BetSiteID INT
+			,CustId	INT
 		)
 	
 	DECLARE @tmpSetting AS TABLE (SiteId INT, FromOdds DECIMAL(9,4), ToOdds DECIMAL(9,4), Boost TINYINT, isFirstOdds BIT DEFAULT(0), isLastOdds BIT DEFAULT(0))
@@ -77,7 +90,7 @@ BEGIN
 			,bitmapR
 			,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 			,adiscount, sdiscount, comstatus, inserted_Result, inserted_Detail
-			,oddsspread	,actual_stake
+			,oddsspread	,actual_stake, betteam, CustId
 		)
 		SELECT	[transid], [refno], [stake]
 				,CASE 
@@ -90,7 +103,7 @@ BEGIN
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus, 0, 0
-				,ISNULL(oddsspread, 0), actual_stake
+				,ISNULL(oddsspread, 0), actual_stake, betteam, custid
 		FROM	dbo.bettrans WITH(NOLOCK)		
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID NOT IN (101, 102) --('VOID','REJECT')	
@@ -106,10 +119,16 @@ BEGIN
 					END AS bitmapR
 				,winlostdate, apositiontaking, mpositiontaking, spositiontaking, playerdiscount, discount
 				,adiscount, sdiscount, comstatus, 0, 0
-				,ISNULL(oddsspread, 0), actual_stake
+				,ISNULL(oddsspread, 0), actual_stake, betteam, custid
 		FROM	dbo.bettrans14 WITH(NOLOCK)		
 		WHERE	transid IN (SELECT transid FROM @transIDs)
 				AND statusID NOT IN (101, 102) --('VOID','REJECT')
+
+		--Update SiteId for parlay boost
+		UPDATE t SET t.BetSiteID = si.siteid
+		FROM #temp_bettrans t
+			INNER JOIN CustDB.dbo.Customer c WITH (NOLOCK) ON c.custid = t.custid
+			INNER JOIN CustDB.dbo.Site si WITH (NOLOCK) ON c.site = si.site
 					
 		-- Remove duplicate transid if page split occurs
 		;WITH cteDuplicateTransId
@@ -269,6 +288,8 @@ BEGIN
 					WHEN p.modds = 1      THEN 111 -- Draw
 					ELSE 112 -- Won
 				END
+		,@ExtraValue = CASE WHEN b.oddsspread = 2 AND @statusID = 112 THEN CAST(se.Boost AS MONEY)/100 ELSE NULL END
+		,ExtraValue = @ExtraValue
 		,winlostdate = CASE
 				WHEN @statusId = 0 THEN p.eventdate
 				WHEN @statusID IN (103, 111, 112) THEN p.matchdate_max
@@ -279,7 +300,8 @@ BEGIN
 		,@modds = pr.modds = CASE 
 			WHEN p.loseCnt > 0 THEN 0
 			WHEN @statusID = 0 THEN 0
-			ELSE p.modds
+			WHEN ISNULL(@ExtraValue,0) > 0 THEN CONVERT(DECIMAL(38,20),(p.modds - 1) * @ExtraValue + p.modds)
+			ELSE CONVERT(DECIMAL(38,20),p.modds)
 			END
 		,@commWinRate = CASE b.comstatus -- 0 : pay normal, both win/lost -- 1 : pay 'double' ONLY on lost
 			WHEN '0' THEN 1
@@ -366,6 +388,19 @@ BEGIN
 	FROM dbo.BetParlayResult pr
 		INNER JOIN #temp_bettrans b ON pr.refno = b.refno 
 		INNER JOIN p ON pr.refno = p.refno AND pr.serial = p.serial
+		OUTER APPLY (
+			SELECT	TOP 1 s.Boost
+			FROM	@tmpSetting s
+			WHERE	s.SiteId = b.BetSiteID
+					AND b.betteam = '1' -- Mix parlay
+					AND b.oddsspread = 2 -- offer parlay boost
+					AND 1 =  CASE 
+								WHEN s.isFirstOdds = 1 AND CAST(p.mOdds AS MONEY) BETWEEN s.FromOdds AND s.ToOdds THEN 1 --s.Boost
+								WHEN s.isLastOdds = 1 AND CAST(p.mOdds AS MONEY) > s.FromOdds THEN 1
+								WHEN s.isFirstOdds = 0 AND s.isLastOdds = 0 AND CAST(p.mOdds AS MONEY) > s.FromOdds AND CAST(p.mOdds AS MONEY) <= s.ToOdds THEN 1
+								ELSE 0
+							END
+		)se
 	WHERE
 		pr.statusID <>
 		CASE
@@ -379,8 +414,39 @@ BEGIN
 		OR pr.winlost <>
 		CASE 
 			WHEN p.loseCnt > 0 OR p.runningCnt > 0 THEN 0 
-			ELSE pr.stake * p.modds
+			ELSE pr.stake *  CAST(CASE 
+												WHEN p.loseCnt > 0 THEN 0
+												WHEN p.runningCnt > 0 THEN 0
+												WHEN CAST(p.modds AS MONEY) > 1 AND ISNULL(CAST(se.Boost AS MONEY)/100,0) > 0 
+													THEN CONVERT(DECIMAL(38,20),(p.modds - 1) * ISNULL(CAST(se.Boost AS MONEY)/100,0) + p.modds)
+												ELSE CONVERT(DECIMAL(38,20),p.modds)
+												END AS MONEY
+										)
 		END
+
+
+	IF @IsSiteDB = 1
+	BEGIN
+		DECLARE @TransInfoJson NVARCHAR(MAX)
+
+		SET @TransInfoJson = (
+			SELECT	 @matchdate as 'wld'
+					,@strXML as 'strTransId'
+					,@IsReSettledTickets AS 'ReSettle'
+					,@strSetting AS 'strSetting'
+			FOR JSON PATH
+		)
+
+		IF @transinfoJson IS NOT NULL
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'PreCal29'
+				,@TableName = 'BetParlayResult'
+				,@MatchId = @MatchId
+				,@TransInfoJson = @transinfoJson
+				,@SettlementAction = 'CAL'
+				,@TicketType = 'p'
+	END
 	
 	DROP TABLE #temp_bettrans
 	
