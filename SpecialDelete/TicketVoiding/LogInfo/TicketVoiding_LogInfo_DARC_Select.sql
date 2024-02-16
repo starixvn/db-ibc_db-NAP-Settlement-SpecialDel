@@ -721,20 +721,28 @@ BEGIN
 	/* Display warning message in case void second accept tickets before the allowance time of this type */
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2)
 	BEGIN
-		SET @VoidFromTime = (SELECT MIN(l.VoidFromTime) FROM #logInfo l)
-		SET @VoidToTime = DATEADD (SECOND,@SATime,@FilterFromTransTime)
-
+		DECLARE @tmp_SAChecking AS TABLE (MatchId INT, VoidFromTime DATETIME, SAFromTime DATETIME)
+		INSERT INTO @tmp_SAChecking (MatchId, VoidFromTime, SAFromTime)
+		SELECT l.MatchId, MIN(l.VoidFromTime), f.SAFromTime
+		FROM #logInfo l 
+			CROSS APPLY (
+				SELECT DATEADD(SECOND, f.SATime, f.FilterFromTransTime) AS SAFromTime
+				FROM #FilterInfo f 
+				WHERE f.MatchId = l.MatchId
+			)f
+		GROUP BY l.MatchId, f.SAFromTime
 
 		UPDATE v SET v.IsExistsSecondAccept = CASE WHEN l.IsExistsSecondAccept IS NOT NULL THEN 1 ELSE 0 END
 		FROM @Validation v
 		OUTER APPLY( 
 				SELECT TOP 1 1 AS IsExistsSecondAccept
 				FROM #logInfo l
+					INNER JOIN @tmp_SAChecking s ON s.MatchId = l.MatchId
 					INNER JOIN #TVSTicketBets t ON t.matchid = l.MatchId
 				WHERE t.accepttype = 2
-					AND 1 = CASE WHEN t.FilterBy = 1 AND t.transdate BETWEEN @VoidFromTime AND @VoidToTime THEN 1
-										WHEN t.FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN @VoidFromTime AND @VoidToTime THEN 1
-										WHEN t.FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN @VoidFromTime AND @VoidToTime THEN 1
+					AND 1 = CASE WHEN t.FilterBy = 1 AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+										WHEN t.FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+										WHEN t.FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
 							ELSE 0 END
 			)l
 		
