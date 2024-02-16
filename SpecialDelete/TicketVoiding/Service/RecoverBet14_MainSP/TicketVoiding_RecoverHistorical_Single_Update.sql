@@ -153,7 +153,7 @@ BEGIN
 			)f
 	WHERE	b14.statusID = 102
 			AND b14.betfrom <> 'p'
-			AND b14.bettype NOT IN (10, 38, 29)
+			AND b14.bettype NOT IN (10, 29)
 			AND b14.bettype NOT BETWEEN 801 AND 806
 			AND b14.bettype NOT BETWEEN 8101 AND 8120
 			AND b14.bettype NOT BETWEEN 81 AND 120
