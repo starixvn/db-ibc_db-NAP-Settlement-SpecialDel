@@ -1266,7 +1266,7 @@ BEGIN
 																				  WHEN b.IsCancelCashOut = 0 AND b.checktime IS NULL THEN b.transdate 
 																				  WHEN b.IsCancelCashOut = 1 THEN b.CheckTimeCashOut
 																			  END 
-						ORDER BY b.IsCancelCashOut ASC
+						ORDER BY b.IsCancelCashOut ASC, b.transid ASC
 				) AS h
 
 		-- 4. List ticket unmark   (if any)
