@@ -997,7 +997,7 @@ BEGIN
 			-- 2. TransId in request table
 			IF EXISTS (SELECT TOP (1) 1 FROM #TransidInRequest)
 			BEGIN
-				SELECT RequestId, r.ScoreId, 
+				SELECT RequestId, r.ScoreId, c.username AS CreatedBy,
 					STUFF((
 					SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 					FROM #TransidInRequest
@@ -1005,7 +1005,8 @@ BEGIN
 					FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 					,1,2,'') AS TransIds
 				FROM #TransidInRequest r
-				GROUP BY r.RequestId, r.ScoreId
+					INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+				GROUP BY r.RequestId, r.ScoreId, c.username
 			END
 			ELSE
 			BEGIN 
@@ -1137,6 +1138,7 @@ BEGIN
 		BEGIN
 			SELECT RequestId
 				,r.ScoreId
+				,c.username AS CreatedBy
 				,STUFF((
 				SELECT ', ' + CAST(MainTransId AS VARCHAR(MAX)) 
 				FROM #TransidInRequest
@@ -1144,7 +1146,8 @@ BEGIN
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.ScoreId
+				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+			GROUP BY r.RequestId, r.ScoreId, c.username
 		END
 		ELSE
 		BEGIN
