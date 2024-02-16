@@ -80,7 +80,7 @@ BEGIN
 	---parse XML
 	INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype)
 	SELECT t.TransID
-	, CASE	WHEN ot.oddstype = 1 THEN 1 
+	, CASE	WHEN (ot.oddstype = 1 OR b14.bettype = 38) THEN 1 
 			ELSE 0 
 		END AS isDecimalOdd
 	, srecommend, b14.bettype

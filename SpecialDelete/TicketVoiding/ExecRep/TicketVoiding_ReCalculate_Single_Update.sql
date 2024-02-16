@@ -115,7 +115,7 @@ BEGIN
     DECLARE @settlementTime DATETIME
     ---parse XML
     INSERT INTO @tempTrans(TransID, isDecimalOdd, srecommend, bettype, sporttype, creator)
-    SELECT t.TransID, CASE WHEN ot.oddstype = 1 THEN 1 ELSE 0 END AS isDecimalOdd, srecommend, b.bettype, t.sporttype, t.creator
+    SELECT t.TransID, CASE WHEN (ot.oddstype = 1 OR b.bettype = 38) THEN 1 ELSE 0 END AS isDecimalOdd, srecommend, b.bettype, t.sporttype, t.creator
     FROM @tbl_transIDs t
         INNER LOOP JOIN dbo.bettrans b  WITH (NOLOCK) ON b.transid = t.transid
         LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b.bettype
