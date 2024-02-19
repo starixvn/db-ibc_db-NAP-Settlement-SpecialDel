@@ -732,6 +732,10 @@ BEGIN
 			)f
 		GROUP BY l.MatchId, f.SAFromTime
 
+		DELETE s
+		FROM @tmp_SAChecking s
+		WHERE s.VoidFromTime > s.SAFromTime
+
 		UPDATE v SET v.IsExistsSecondAccept = CASE WHEN l.IsExistsSecondAccept IS NOT NULL THEN 1 ELSE 0 END
 		FROM @Validation v
 		OUTER APPLY( 
