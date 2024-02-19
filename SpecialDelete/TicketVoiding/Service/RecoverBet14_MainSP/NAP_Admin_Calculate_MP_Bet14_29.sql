@@ -26,8 +26,24 @@ BEGIN
 			,@winlost MONEY
 			,@winlostdate SMALLDATETIME
 			,@currentDate SMALLDATETIME
+			,@IsSiteDB			BIT = 0
+			,@transInfoJson		NVARCHAR(MAX)
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+	SET @IsSiteDB = 1
 			
 	SET @currentDate =  CONVERT(VARCHAR(10),GETDATE(),102)
+
+	DECLARE @tmpTransInfo TABLE (transId BIGINT			
+		,SettlementTime DATETIME,Status NVARCHAR(10),StatusID TINYINT
+		,WinLostDate SMALLDATETIME, betdaqid BIGINT,ruben TINYINT 
+		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+		,statuswinlost TINYINT
+		,ExtraInfo VARCHAR(1000)
+		,bef_winlost MONEY
+		,bef_statusid TINYINT
+	)
 	
 	SET @xml = CONVERT(XML, N'<root><r rn="' + REPLACE(REPLACE(@strXML, '|', '" t="'), ',', '"/><r rn="') + '"/></root>')
 	
@@ -63,47 +79,7 @@ BEGIN
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK) ON pr.refno = b.refno
 	WHERE pr.RefNo >= @minRefno
 	GROUP BY b.refno, b.transid
-	
-	UPDATE b WITH(ROWLOCK, UPDLOCK)
-	SET @statusId = CASE 
-						WHEN s.ruben = 0 THEN 0
-						WHEN ISNULL(b.oddsspread,0) = 1 THEN	CASE ---GoF
-																WHEN s.winlost = b.actual_stake THEN 111
-																WHEN s.winlost > b.actual_stake THEN 112
-																WHEN s.winlost < b.actual_stake THEN 113 
-															END 
-						ELSE CASE
-							WHEN s.winlost = s.totalStake THEN 111 -- winlost = stake, member DRAW
-							WHEN s.winlost > s.totalStake THEN 112 -- winlost > stake, member WIN
-							WHEN s.winlost < s.totalStake THEN 113 -- winlost < stake, member LOSE
-							ELSE b.statusID -- uncontrollale situation, hope it's not happen in real life
-							END
-					END
-		,@winlost = s.winlost * s.ruben
-		,SettlementTime = CASE WHEN @statusId <> 0 AND (b.winlost <> @winlost OR statusID <> @statusId) THEN @settlementTime ELSE SettlementTime END
-		,statusID = @statusId
-		,[status] = CASE 
-						WHEN @statusId = 0 THEN 'running' 
-						WHEN @statusId = 111 THEN 'DRAW' -- winlost = stake, member DRAW
-						WHEN @statusId = 112 THEN 'WON' -- winlost > stake, member WIN
-						WHEN @statusId = 113 THEN 'LOSE' -- winlost < stake, member LOSE
-						ELSE b.[status] -- uncontrollale situation, hope it's not happen in real life
-					END
-		,winlostdate = CASE WHEN @statusId = 113 AND b.winlostdate > @currentDate THEN @currentDate ELSE b.winlostdate END
-		--,actual_stake = s.totalStake
-		,betdaqid = s.totalStake							
-		,ruben = s.ruben
-		,winlost =  @winlost
-		,awinlost = s.awinlost * s.ruben
-		,mwinlost = s.mwinlost * s.ruben
-		,swinlost = s.swinlost * s.ruben
-		,playercomm = s.playercomm * s.ruben
-		,comm = s.comm * s.ruben
-		,acomm = s.acomm * s.ruben
-		,scomm = s.scomm * s.ruben
-	FROM dbo.bettrans b
-		INNER JOIN #temp_source s ON b.transid = s.transid
-	
+
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 		SET @statusId = CASE 
 						WHEN s.ruben = 0 THEN 0
@@ -140,8 +116,72 @@ BEGIN
 		,comm = s.comm * s.ruben
 		,acomm = s.acomm * s.ruben
 		,scomm = s.scomm * s.ruben
+		,statuswinlost = CASE 
+							WHEN @statusId = 112 THEN 2							
+							WHEN @statusId = 111 THEN 0 							
+							WHEN @statusId = 113 THEN 4								
+							WHEN @statusId = 0 THEN NULL
+						END 
+
+		OUTPUT inserted.transid
+			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
+
+			,inserted.Status,inserted.StatusID,inserted.winlostdate,inserted.betdaqid,inserted.ruben
+			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
+			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
+			,Inserted.Statuswinlost
+			,deleted.winlost
+			,deleted.statusid	
+		INTO @tmpTransInfo (transId
+			,SettlementTime
+			,Status, StatusID, WinLostDate, betdaqid, ruben
+			,WinLost,aWinLost,mWinLost,sWinLost
+			,PlayerComm,Comm,aComm,sComm
+			,statuswinlost
+			,bef_winlost
+			,bef_statusid
+		)
+
 	FROM dbo.bettrans14 b
 		INNER JOIN #temp_source s ON b.transid = s.transid
+
+	IF @IsSiteDB = 1 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)	
+	BEGIN
+		SET @transInfoJson = (
+			SELECT	transId AS 't'			
+					,SettlementTime AS 'st' 
+					,Status AS 's' 
+					,StatusID AS 'sid'
+					,WinLostDate AS 'wld'
+					,betdaqid AS 'bdaq'
+					,ruben AS 'r'
+					,WinLost AS 'w' 
+					,aWinLost AS 'aw' 
+					,mWinLost AS 'mw' 
+					,sWinLost AS 'sw' 
+					,PlayerComm AS 'pc' 
+					,Comm AS 'c' 
+					,aComm AS 'ac' 
+					,sComm AS 'sc' 
+					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl' 
+					,bef_winlost AS 'bef_w' 
+					,bef_statusid AS 'bef_sid' 
+			FROM	@tmpTransInfo
+			FOR JSON AUTO
+		)
+
+		IF @transinfoJson IS NOT NULL
+			EXEC dbo.SiteDB_NAP_SettlementService_CalculationLogIns 
+				@SystemName = 'Settlement' 
+				,@FunctionName = 'CalculateMainParlay'
+				,@TableName = 'bettrans14'
+				,@MatchId = 29
+				,@TransInfoJson = @transinfoJson
+				,@SettlementAction = 'CAL'
+				,@TicketType = 'p'
+		
+	END
+
 	
 	DROP TABLE #temp_source
 	DROP TABLE #Refno

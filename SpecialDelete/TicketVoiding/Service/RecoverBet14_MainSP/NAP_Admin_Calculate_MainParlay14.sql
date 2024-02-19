@@ -22,6 +22,11 @@ BEGIN
 	-----------------------CHECK SERVER-----------------------------------------
 	DECLARE @ServerName			SYSNAME 
 			,@AllowCalculation	BIT
+			,@SiteDBGroupID		SMALLINT = 0
+			,@TransInfo			VARBINARY(MAX) = NULL
+			,@MatchId			INT
+
+	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
 	SET @ServerName = @@SERVERNAME
 
@@ -50,7 +55,17 @@ BEGIN
 	DECLARE @tblNoResettleTransIds TABLE (transid BIGINT PRIMARY KEY)
 	DECLARE @tmpBoostSite TABLE(SiteId INT, srecommend INT, IsDeposit BIT DEFAULT(0))
 	DECLARE @tmpBoostSetting TABLE (SiteId INT, OverOdds DECIMAL(9,4), Boost TINYINT)
-	
+
+	DECLARE @tmpTransInfo TABLE(
+			  matchid INT, transid BIGINT, status NVARCHAR(10) , statusID TINYINT, ruben TINYINT, modds SMALLMONEY
+			, winlost MONEY, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			, statuswinlost TINYINT, creator INT, ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
+			, transdate DATETIME, comstatus NVARCHAR(40)
+			)
+
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
+
 	CREATE TABLE #tblRecoverBet( 
 		 transid		BIGINT
 		,matchid		INT
@@ -146,9 +161,61 @@ BEGIN
 			,scomm = 0		
 			,statuswinlost = NULL
 			,creator = b.custid
+			,ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(2,'recover',b.ExtraInfo,NULL, b.bettype)
+		OUTPUT deleted.matchid, deleted.TransId, inserted.status, inserted.statusID, inserted.ruben, inserted.modds
+			, inserted.winlost, inserted.awinlost, inserted.mwinlost, inserted.swinlost
+			, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm
+			, inserted.statuswinlost, inserted.creator, inserted.ExtraInfo
+		INTO @tmpTransInfo(matchid, transid, status, statusID, ruben, modds, winlost, aWinLost, mWinLost, sWinLost
+							,PlayerComm, Comm, aComm, sComm, statuswinlost, creator, ExtraInfo)
 	FROM dbo.bettrans14 b
 		INNER JOIN #tblRecoverBet t ON b.transid = t.transid
-			
+	WHERE b.SiteDBGroupID = @SiteDBGroupID
+
+	IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+	BEGIN
+		INSERT INTO @tmpMatchidInfo (MatchId)
+		SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+		WHILE (1=1)
+		BEGIN
+			UPDATE TOP(1)m
+			SET IsFinish = 1, @matchid = MatchId 
+			FROM @tmpMatchidInfo m
+			WHERE IsFinish IS NULL
+
+			IF @@ROWCOUNT = 0 BREAK;
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+					, STATUS AS 's'
+					, statusID AS 'sid'
+					, ruben AS 'r'
+					, modds AS 'm'
+					, winlost AS 'w'
+					, awinlost AS 'aw'
+					, mwinlost AS 'mw'
+					, swinlost AS 'sw'
+					, playercomm AS 'pc'
+					, comm AS 'c'
+					, acomm AS 'ac'
+					, scomm AS 'sc'
+					, CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl'
+					, creator AS 'cr'
+					, ExtraInfo AS 'ex'
+					, FcUpdateTime AS 'rut'
+			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FOR JSON PATH))
+
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+			SELECT 'TVS', 'RecoverMainParlay', 'bettrans14', 'U', @MatchId, @TransInfo, 'p'
+		END
+
+		DELETE FROM @tmpTransInfo
+		DELETE FROM @tmpMatchidInfo
+	END
+
+	
 	WHILE (1 = 1)
 	BEGIN
 		SELECT	TOP 1 @tmp_MatchId = matchid
