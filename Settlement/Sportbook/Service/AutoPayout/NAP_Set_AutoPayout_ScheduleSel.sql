@@ -23,6 +23,7 @@ AS
 		- 20220613@Louisa: Auto Payout for matches TOTAL CORNER & TOTAL GOAL [Redmine:#171261]
 		- 20220929@Louisa: check deployment flag [Redmine:#178765]
 		- 20230616@Aries: Support Direct Payout for Soccer Fantasy Matches [Redmine:#189493]
+		- 20240115@Aries: Apply Direct Payout Corner Winner [Redmine:#198823]
 
 	Param's Explanation:
  
@@ -47,7 +48,7 @@ BEGIN
 									MatchId INT, HtHomescore INT, FinalHomescore INT, HtAwayscore INT, FinalAwayscore INT, TypeId TINYINT, 
 									IsHalfTimeConfirmed INT, IsFullTimeConfirmed INT, BetStatus NVARCHAR(50), GoalRecord VARCHAR(50), 
 									IsHalfTimeCalculated BIT, leagueid INT, LeagueGroupID SMALLINT, ChildMatchType TINYINT, SettlementStatus TINYINT, 
-									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT
+									AutoSetting TINYINT, ChildLeagueType INT, MainType TINYINT, SubType SMALLINT
 								)
 
 	EXEC dbo.NAP_Set_SPDeploymentInfo 
@@ -60,7 +61,7 @@ BEGIN
 		--not return data if in deployment progress
 		SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
-			, AutoSetting, ChildLeagueType, MainType
+			, AutoSetting, ChildLeagueType, MainType, SubType
 		FROM @tmpMatchAuto
 
 		RETURN
@@ -70,11 +71,11 @@ BEGIN
 	INSERT INTO @tmpMatchAuto (
 								MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 								, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, leagueid, LeagueGroupID, ChildMatchType, SettlementStatus
-								, AutoSetting, ChildLeagueType, MainType
+								, AutoSetting, ChildLeagueType, MainType, SubType
 							)
 	SELECT MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, TypeId, IsHalfTimeConfirmed
 		, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
-		, AutoSetting, ChildLeagueType, MainType
+		, AutoSetting, ChildLeagueType, MainType, SubType
 	FROM (
 			SELECT m.matchid AS MatchId
 				, m.hthomescore
@@ -98,6 +99,7 @@ BEGIN
 				, ISNULL(m.AutoSetting, ISNULL(l.AutoSetting, 0)) AS AutoSetting
 				, ls.ChildLeagueType
 				, mr.MainType
+				, mr.SubType
 			FROM dbo.match m WITH(NOLOCK)
 				INNER JOIN dbo.match_remark mr WITH(NOLOCK)
 					ON	m.matchid = mr.matchid
@@ -142,6 +144,7 @@ BEGIN
 																							WHEN l.leagueid IN (95730,95731,96666) AND f.TypeId = 1 THEN 1
 																							ELSE 0
 								  															END
+								 WHEN (mr.SubType BETWEEN 2101 AND 2199 OR mr.SubType BETWEEN 2601 AND 2699) THEN IIF(f.TypeId = 2,1,0)  -- Child-match Next Corner
 								 WHEN l.leagueid IN (16371,65550,89611)	  THEN 0 -- Exclude Fantasy Match
 								 ELSE 1
 								 END
@@ -164,7 +167,7 @@ BEGIN
 	-- Return data 
 	SELECT t.MatchId, HtHomescore, FinalHomescore, HtAwayscore, FinalAwayscore, t.TypeId, IsHalfTimeConfirmed
 			, IsFullTimeConfirmed, BetStatus, GoalRecord, IsHalfTimeCalculated, t.leagueid, t.LeagueGroupID, t.ChildMatchType, t.SettlementStatus
-			, AutoSetting, ChildLeagueType, MainType
+			, AutoSetting, ChildLeagueType, MainType, SubType
 	FROM @tmpMatchAuto t
 		LEFT JOIN ProviderResultDetail p 
 			ON t.MatchId = p.MatchId AND t.TypeId = p.TypeId 
