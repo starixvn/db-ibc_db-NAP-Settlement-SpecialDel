@@ -256,7 +256,10 @@ begin
 end
 
 SELECT DISTINCT 'Yes' AS IsMonthly																									
-	, 'SD'FunctionGroup, ms.winlostdate, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup										
+	, 'SD'FunctionGroup, ms.winlostdate
+	, YEAR(ms.winlostdate) AS YEAR_winlostdate
+	, MONTH(ms.winlostdate) AS MONTH_winlostdate
+	, ms.Reason, ms.matchid, ms.sporttype, ms.SportName, ms.home, ms.away, ms.leaguename,ms.LeagueGroup										
     , ms.Bet_cnt																								
 	, ms.MemberTO_RM, ms.House_TO_RM	
     , ms.ActionName

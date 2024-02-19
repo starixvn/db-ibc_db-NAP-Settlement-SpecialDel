@@ -36,6 +36,7 @@ AS;
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230220@Max: [TVS] Change of TVS regarding to Scale out DBTrans for Credit - Split 789y Site [Redmine: #182803]
 		- 20230524@July: Support sport Cricket for all functions [Redmine: #188374]
+		- 20240123@July: Separate group to view data of 777 site [Redmine: #198089]
 
 	Param's Explanation:			
 			- @TicketType:
@@ -49,8 +50,8 @@ BEGIN
 	-- Constant
 	DECLARE @MBCGroup_Name	VARCHAR(50) = 'MBC Group'
 		,@789y_Name			VARCHAR(50) = '789y'
-		,@y987_Name			VARCHAR(50) = 'y987'
 		,@cn88_Name			VARCHAR(50) = 'CN88'
+		,@777_Name			VARCHAR(50) = '777'
 		,@SearchSingle		BIT
 		,@SearchParlay		BIT
 		,@SearchBetBuilder	BIT
@@ -147,7 +148,7 @@ BEGIN
 		ActualStake			  MONEY,
 		IsMarked			  BIT DEFAULT(0),
 		IsDeposit			  BIT DEFAULT(0),
-		SiteDBGroupID		SMALLINT
+		SiteDBGroupID		  SMALLINT
 
    );
 				
@@ -165,11 +166,11 @@ BEGIN
 	DELETE FROM @t_LicenseeNames 
 	OUTPUT DELETED.GroupName 
 			INTO @t_UIRepresentativeLicenseeGroupNames(GroupName)
-	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @cn88_Name)
+	WHERE LicenseeName IN (@MBCGroup_Name, @789y_Name, @cn88_Name, @777_Name)
 	
 	IF @@ROWCOUNT > 0
 	BEGIN
-		;WITH CTE_CreditSit AS
+		;WITH CTE_CreditSite AS
 		(
 			SELECT [site], ISNULL(SiteLabel,'') AS SiteLabel
 			FROM DBCUST.CUSTDB.dbo.Site WITH(NOLOCK) 
@@ -181,12 +182,14 @@ BEGIN
 		FROM @t_UIRepresentativeLicenseeGroupNames AS t
 			 CROSS APPLY (
 							SELECT cte.[site]
-							FROM CTE_CreditSit cte
-							WHERE CASE
-								WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@789y_Name, @y987_Name, @cn88_Name) AND cte.SiteLabel <> @789y_Name THEN 1
-								WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
-								WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 ELSE 0 
-								END = 1
+							FROM CTE_CreditSite cte
+							WHERE 1 = CASE
+										  WHEN t.GroupName = @MBCGroup_Name AND cte.[site] NOT IN (@cn88_Name) AND cte.SiteLabel NOT IN (@789y_Name, @777_Name) THEN 1
+										  WHEN t.GroupName = @789y_Name AND cte.SiteLabel = @789y_Name THEN 1
+										  WHEN t.GroupName = @cn88_Name AND cte.[site] IN (@cn88_Name) THEN 1 
+										  WHEN t.GroupName = @777_Name AND cte.SiteLabel = @777_Name THEN 1
+										  ELSE 0 
+									  END
 						 ) AS cte
 	END					 				  			   	  	  			  
 	
@@ -292,7 +295,6 @@ BEGIN
 				b.WalletType,
 				b.RefCode,
 				b.BonusID,	
-
 				b.TransId AS SubTransId,
 				NULL AS SubBetCheck,
 				NULL AS SubBetTeam,
@@ -496,7 +498,8 @@ BEGIN
 				WHEN s.GroupName = @cn88_Name THEN 1
 				WHEN s.GroupName = @789y_Name THEN 2
 				WHEN s.GroupName = @MBCGroup_Name THEN 3
-				ELSE 4
+				WHEN s.GroupName = @777_Name THEN 4
+				ELSE 5
 		     END ASC
 		   , s.GroupName ASC
 		   , s.IsMixParlay ASC
