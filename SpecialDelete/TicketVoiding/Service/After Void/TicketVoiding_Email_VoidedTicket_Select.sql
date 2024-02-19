@@ -112,6 +112,7 @@ BEGIN
 		,IsVoidArchived BIT
 		,LeagueGroupID  SMALLINT
 		,zzzWinlost		MONEY
+		,IsMainParlay	BIT DEFAULT (0)
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -185,7 +186,8 @@ BEGIN
 			,LiveIndicator = b.liveindicator
 			,ActualStake = b.actual_stake
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-			,IsMixParlay = CASE WHEN t.Bettype = 29 THEN 1 ELSE 0 END --case AB(void mix parlay)
+			,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END --case AB(void mix parlay)
+			,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -226,8 +228,9 @@ BEGIN
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
 				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-				,IsMixParlay = CASE WHEN t.Bettype = 29 THEN 1 ELSE 0 END --case AB(void mix parlay)
+				,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END --case AB(void mix parlay)
 				,IsVoidArchived = 1
+				,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid
@@ -307,7 +310,7 @@ BEGIN
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 	
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMainParlay = 0))
 	BEGIN
 		UPDATE t
 		SET matchcode 	= m.matchcode
@@ -326,7 +329,7 @@ BEGIN
 			ON	t.matchid = m.matchid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	m.leagueid = l.leagueid
-		WHERE t.bettype NOT IN (9, 29, 2799)
+		WHERE t.IsMainParlay = 0
 	END
 
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -603,7 +606,7 @@ BEGIN
 			,t.winlostdate
 			,ISNULL(t.IsCancelCashOut,0) AS IsCancelCashOut
 			,t.LeagueGroupID
-			,ISNULL(si.IsChinaView,0) AS IsChinaViews
+			,ISNULL(si.IsChinaView,0) AS IsChinaView
 			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 			,@VoidingHistoryId AS VoidingHistoryId
 			,t.zzzWinlost
