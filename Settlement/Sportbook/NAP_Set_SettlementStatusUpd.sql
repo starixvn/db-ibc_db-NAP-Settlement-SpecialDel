@@ -142,6 +142,8 @@ BEGIN
 		WHERE w.LV = 0 OR IsApplyChildMatch = 1
 		GROUP BY w.matchid, LV
 
+		EXEC sp_xml_removedocument @handle
+
 		UPDATE m 
 			SET @SettlementStatus = ISNULL(SettlementStatus, 0)
 				,@AutoSetting	  = ISNULL(m.AutoSetting, l.AutoSetting)
