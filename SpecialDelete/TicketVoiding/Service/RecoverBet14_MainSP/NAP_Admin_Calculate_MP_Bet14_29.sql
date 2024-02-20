@@ -60,9 +60,9 @@ BEGIN
 	SET @settlementTime = GETDATE();
 	
 	CREATE TABLE #temp_source (transid BIGINT,winlostdate SMALLDATETIME,totalStake MONEY, winlost MONEY,awinlost MONEY,mwinlost MONEY,swinlost MONEY
-								,playercomm MONEY,comm MONEY,acomm MONEY,scomm MONEY,ruben TINYINT)
+								,playercomm MONEY,comm MONEY,acomm MONEY,scomm MONEY,ruben TINYINT, BonusAmount MONEY DEFAULT(0), xmlExtraInfo XML)
 	
-	INSERT INTO #temp_source (transid,winlostdate, totalStake, winlost, awinlost,mwinlost,swinlost,playercomm, comm, acomm, scomm, ruben)
+	INSERT INTO #temp_source (transid,winlostdate, totalStake, winlost, awinlost,mwinlost,swinlost,playercomm, comm, acomm, scomm, ruben, BonusAmount)
 	SELECT transid = b.transid
 		,winlostdate = MAX(pr.winlostdate)
 		,totalStake = SUM(pr.stake)
@@ -75,10 +75,39 @@ BEGIN
 		,acomm = SUM(pr.acomm) 
 		,scomm = SUM(pr.scomm) 			
 		,ruben = CASE WHEN SUM(CASE pr.statusID WHEN 0 THEN pr.stake ELSE 0 END) > 0 THEN 0 ELSE 1 END -- in case got sub running, then ruben=0, otherwise set ruben=1
+		,ISNULL(MAX(pr.stake * (pr.mOdds - 1)/(1 + pr.ExtraValue) * pr.ExtraValue),0)
 	FROM #Refno b 
 		INNER JOIN dbo.BetParlayResult pr WITH(NOLOCK) ON pr.refno = b.refno
 	WHERE pr.RefNo >= @minRefno
 	GROUP BY b.refno, b.transid
+
+	UPDATE	s
+		SET xmlExtraInfo = b2.xmlExtraInfo								
+	FROM	#temp_source s
+		CROSS APPLY (SELECT b1.xmlExtraInfo
+							,ISNULL(b1.xmlExtraInfo.value('(/p1/@bba)[1]', 'MONEY'),0) AS currentBonusAmount
+					 FROM ( SELECT	CAST(ISNULL(b.ExtraInfo,'') AS XML) AS xmlExtraInfo
+							FROM	dbo.bettrans14 b WITH(NOLOCK)
+							WHERE	b.TransId = s.TransId
+									AND	b.oddsspread = 2
+						) b1
+			)b2
+	WHERE	b2.currentBonusAmount <> s.BonusAmount
+
+	IF @@ROWCOUNT > 0 -- has boost
+	BEGIN
+		UPDATE s
+			SET xmlExtraInfo.modify('replace value of (/p1/@bba)[1] with sql:column("BonusAmount")')
+		FROM	#temp_source s
+		WHERE	xmlExtraInfo.exist('/p1/@bba') = 1 
+
+		UPDATE s 
+			SET xmlExtraInfo.modify('insert(attribute bba {sql:column("BonusAmount")}) into (/p1)[1]')
+		FROM	#temp_source s
+		WHERE	BonusAmount > 0
+				AND xmlExtraInfo.exist('/p1/@bba') = 0 		
+	END
+
 
 	UPDATE b WITH(ROWLOCK, UPDLOCK)
 		SET @statusId = CASE 
@@ -122,6 +151,7 @@ BEGIN
 							WHEN @statusId = 113 THEN 4								
 							WHEN @statusId = 0 THEN NULL
 						END 
+		,ExtraInfo = CASE WHEN s.xmlExtraInfo IS NOT NULL AND CAST(s.xmlExtraInfo AS VARCHAR(1000)) <> b.ExtraInfo THEN CAST(s.xmlExtraInfo AS VARCHAR(1000))  ELSE b.ExtraInfo END
 
 		OUTPUT inserted.transid
 			,CASE WHEN inserted.SettlementTime <> ISNULL(deleted.SettlementTime,'') THEN inserted.SettlementTime ELSE NULL END
@@ -130,6 +160,7 @@ BEGIN
 			,inserted.WinLost,inserted.aWinLost,inserted.mWinLost,inserted.sWinLost
 			,inserted.PlayerComm,inserted.Comm,inserted.aComm,inserted.sComm
 			,Inserted.Statuswinlost
+			,inserted.ExtraInfo
 			,deleted.winlost
 			,deleted.statusid	
 		INTO @tmpTransInfo (transId
@@ -138,6 +169,7 @@ BEGIN
 			,WinLost,aWinLost,mWinLost,sWinLost
 			,PlayerComm,Comm,aComm,sComm
 			,statuswinlost
+			,ExtraInfo
 			,bef_winlost
 			,bef_statusid
 		)
@@ -166,6 +198,7 @@ BEGIN
 					,CASE WHEN statuswinlost IS NULL THEN '' ELSE CAST(statuswinlost AS VARCHAR(1)) END AS 'statuswl' 
 					,bef_winlost AS 'bef_w' 
 					,bef_statusid AS 'bef_sid' 
+					,ExtraInfo AS 'ex'
 			FROM	@tmpTransInfo
 			FOR JSON AUTO
 		)
