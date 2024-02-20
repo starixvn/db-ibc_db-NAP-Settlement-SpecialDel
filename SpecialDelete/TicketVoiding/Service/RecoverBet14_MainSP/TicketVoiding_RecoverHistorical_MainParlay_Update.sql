@@ -117,15 +117,12 @@ BEGIN
 	SELECT	b14.transid,b14.custid
 			,b14.refno
 			,CASE
-				WHEN cs.custid IS NOT NULL THEN 1 -- not pass validation rule
 				WHEN b14.winlostdate < @FromDate OR b14.winlostdate > @ToDate THEN 4
 				ELSE 0
 			END AS invalid
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK)
 			ON	t.TransId = b14.transid
-		LEFT JOIN CustDB.dbo.Dep_CustSuper cs WITH(NOLOCK)
-			ON	b14.srecommend = cs.custid
 	WHERE	b14.statusID = 102
 			AND b14.betfrom <> 'p'
 			AND b14.matchid = 29
@@ -370,5 +367,7 @@ BEGIN
 	) AS VARCHAR(MAX))
 
 	EXEC bodb_CustomerLog.sb.CustomerLog_SendMessage @xml = @LogData, @functionName = 'TicketVoiding', @MessageType = 'MessageType_TicketVoiding_Log', @SB_error = @SB_error OUTPUT
+
+	DROP TABLE #tmpTransId
 END
 GO
