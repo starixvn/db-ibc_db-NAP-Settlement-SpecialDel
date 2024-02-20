@@ -1,7 +1,7 @@
 ﻿/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[NAP_BetTypeSel] 
     @Mode        SMALLINT = 0
-    ,@MatchId    INT = 0 -- defaul value for NG, VS, LC, VS Betradar
+    ,@MatchId    INT = 0 -- defaul value for NG
     ,@BetTypes   VARCHAR(MAX) = NULL
     ,@ErrMsg	 NVARCHAR(200) = '' OUTPUT
     ,@ErrCode    INT = 0 OUTPUT
@@ -45,22 +45,18 @@ AS
 		- 20230427@July: Support sport Cricket for function Mark/Unmark Tickets [Redmine: #187052]
 		- 20230427@July: Support sport Cricket for all functions [Redmine: #188374]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+		- 20240220@July: Merge VS1, VS2, VS3 into Virtual Sports - Remove code unused [Redmine: #200317]
 
     Param's Explanation:  
     @Mode:   
          0: Single bet  
-         1: Number game  
-         2: Early Kick-Off  
          3: TicketListing  
-         4: Mix Parlay   
-         5: Virtual sports  
-		 8: Bet Builder
          9: Mark Ticket
 */
 BEGIN
     SET NOCOUNT ON
 
-    IF @mode in (0, 2, 4, 9) OR (@matchid <> 0 AND @mode = 3) 
+    IF @mode in (0, 9) OR (@matchid <> 0 AND @mode = 3) 
     BEGIN    
         DECLARE @Sporttype INT    
         
@@ -71,7 +67,7 @@ BEGIN
 			SELECT sporttype
 			FROM dbo.match WITH (NOLOCK)
 			WHERE matchid = @MatchID
-				AND 1 = CASE WHEN @mode <> 2 AND Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
+				AND 1 = CASE WHEN Sporttype = 50 AND ChildMatchType = 200 THEN 0 --Exclude child match Cricket
 							 ELSE 1 END 
 			UNION
 			SELECT sporttype
@@ -79,7 +75,7 @@ BEGIN
 			WHERE match3rdId = @MatchID
 		)m
         
-        IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype NOT IN (154,175) --Horse Racing Fixed Odds, Bitcoin
+        IF (@Sporttype NOT BETWEEN 1 AND 99) AND @Sporttype IN (175) --Bitcoin
         BEGIN 
             SET @ErrCode = 100
             SET @ErrMsg ='Invalid MatchId.' 
@@ -89,14 +85,14 @@ BEGIN
     
     CREATE TABLE #TmpBettype (
         typeid            INT
-        ,type            INT -- 0:Sport Book, 1:Number Game, 2:Virtual Sports, 3:Live Casino, 5: Virtual Sports Betradar
-        ,liveindicator  BIT
-        ,GroupName	VARCHAR(50) 
+        ,type             INT -- 0: Sport Book, 1:Number Game, 3: Bet Builder, 4: Bitcoin
+        ,liveindicator    BIT
+        ,GroupName	      VARCHAR(50) 
         )
         
     DECLARE @tmpConsolidatedBettypes TABLE (
         parentid        INT
-        ,typeid            INT PRIMARY KEY
+        ,typeid         INT PRIMARY KEY
     )
     
     INSERT INTO @tmpConsolidatedBettypes (parentid, typeid)
@@ -111,115 +107,56 @@ BEGIN
 	FROM STRING_SPLIT(@BetTypes, ',')
 	WHERE value <> ''
 		
-    -- @mode = 0: Single bet, 2: Early kick-off, 3: Ticket listing , --4: Mix Parlay, 9: Mark Ticket  
-    -- type = 0: Sport Book
-    IF @Mode IN (0, 2, 3, 4, 9)
-    BEGIN
-        -- Get bettype list
-        INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator
-            ,GroupName
-            )
-        SELECT ISNULL( tb.parentid, b.typeid)
-            , 0                    
-            , 0 
-            , f.GroupName 
-        FROM dbo.bettype b WITH(NOLOCK)
-        INNER JOIN #betTypesTemp bt ON b.typeid = bt.bettype
-        INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = b.typeid
-        LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
-        WHERE EXISTS (SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchId)
-        GROUP BY tb.parentid, b.typeid, f.GroupName
-
-        IF (EXISTS(SELECT TOP 1 1 FROM #betTypesTemp WHERE bettype = 38)) AND (@mode = 2)
-        BEGIN
-            INSERT INTO #TmpBettype (
-                typeid
-                ,type
-                ,liveindicator
-                ,GroupName
-                )
-            SELECT b.typeid        
-                , 0                
-                , 0                   
-                , 'Special' AS GroupName           
-            FROM dbo.bettype b WITH(NOLOCK)
-            WHERE b.typeid = 38
-        END
-
-        IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype)) AND (@mode IN (2,3))
-        BEGIN
-            INSERT INTO #TmpBettype (
-                typeid
-                ,type
-                ,liveindicator
-                ,GroupName
-                )
-            SELECT b.typeid        
-                , 0                
-                , 0                   
-                , 'Special' AS GroupName           
-            FROM dbo.bettype b WITH(NOLOCK)
-            WHERE b.typeid = 29
-        END
-        
-    END
+    -- Get bettype list
+    INSERT INTO #TmpBettype (
+        typeid
+        ,type
+        ,liveindicator
+        ,GroupName
+        )
+    SELECT ISNULL( tb.parentid, b.typeid)
+        , 0                    
+        , 0 
+        , f.GroupName 
+    FROM dbo.bettype b WITH(NOLOCK)
+    INNER JOIN #betTypesTemp bt ON b.typeid = bt.bettype
+    INNER JOIN dbo.f_SD_GetGroupBettypes() f ON f.BetType = b.typeid
+    LEFT JOIN @tmpConsolidatedBettypes tb ON tb.typeid = b.typeid
+    WHERE EXISTS (SELECT TOP 1 1 FROM dbo.match m WHERE m.matchid = @MatchId)
+    GROUP BY tb.parentid, b.typeid, f.GroupName
 
      -- 3: TicketListing  
     IF @Mode = 3
     BEGIN
+		IF (EXISTS(SELECT TOP 1 1 FROM #TmpBettype)) --type: 0 - Sportbook - Mix parlay 29
+		BEGIN
+			INSERT INTO #TmpBettype (
+				typeid
+				,type
+				,liveindicator
+				,GroupName
+				)
+			SELECT 29, 0, 0, 'Special' AS GroupName           
+		END
+		
 		INSERT INTO #TmpBettype (  
             typeid  
             ,type  
             ,liveindicator              
             )  
         SELECT typeid  
-            , CASE WHEN typeid BETWEEN 2700 AND 2899 THEN 5 -- type = 5: VS betradar
-				   WHEN typeid BETWEEN 5302 AND 5399 THEN 7 -- type = 7: Virtual Sports 3
-				   WHEN typeid = 38 THEN 8 -- type = 8: Bet Builder
-				   WHEN typeid = 7901 THEN 9 -- type = 9: Bitcoin
+            , CASE WHEN (typeid BETWEEN 85 AND 91 OR typeid BETWEEN 8101 AND 8105) THEN 1 --type = 1: Number Game
+				   WHEN typeid = 38 THEN 3 -- type = 3: Bet Builder
+				   WHEN typeid = 7901 THEN 4 -- type = 4: Bitcoin
 				   ELSE 0 END AS type 
-            ,0 AS liveindicator              
+            ,CASE WHEN (typeid BETWEEN 85 AND 91 OR typeid BETWEEN 8101 AND 8105) THEN 1 ELSE 0 END AS liveindicator              
         FROM dbo.bettype WITH (NOLOCK)  
         WHERE @matchid = 0 
-			AND 1 = CASE WHEN typeid BETWEEN 2700 AND 2899 THEN 1
-						 WHEN typeid BETWEEN 5302 AND 5399 THEN 1
+			AND 1 = CASE WHEN (typeid BETWEEN 85 AND 91 OR typeid BETWEEN 8101 AND 8105) THEN 1 
 						 WHEN typeid = 38 THEN 1
 						 WHEN typeid = 7901 THEN 1
 						 ELSE 0 END
     END
-    
-    ----- number game  
-    IF @Mode IN (1, 3)
-    BEGIN
-        INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator            
-            )        
-        SELECT typeid
-            ,1 AS type -- type = 1: NG
-            ,1 AS liveindicator            
-        FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND (typeid BETWEEN 85 AND 91 OR typeid BETWEEN 8101 AND 8105)
-    END
-
-    ----- virtual sports  
-    IF @Mode IN (5, 3)
-    BEGIN
-        INSERT INTO #TmpBettype (
-            typeid
-            ,type
-            ,liveindicator            
-            )
-        SELECT typeid
-            ,2 AS type -- type = 2: VS
-            ,0 AS liveindicator            
-        FROM bettype WITH (NOLOCK)
-        WHERE @matchid = 0 AND typeid BETWEEN 1201 AND 1299
-    END    
     
     SELECT tb.typeid
         ,CASE WHEN tb.typeid = 9604 THEN 'Over/Under'
@@ -229,7 +166,7 @@ BEGIN
         ,tb.liveindicator
         ,tb.GroupName
     FROM #TmpBettype tb
-    INNER JOIN bettype b WITH(NOLOCK) ON tb.typeid = b.typeid    
+		INNER JOIN bettype b WITH(NOLOCK) ON tb.typeid = b.typeid    
     GROUP BY tb.typeid, b.typenamee, type, liveindicator, tb.GroupName
     ORDER BY tb.GroupName,b.typenamee
 

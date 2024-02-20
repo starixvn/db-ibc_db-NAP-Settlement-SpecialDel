@@ -87,6 +87,7 @@ AS;
 		- 20231213@July: Ticket Listing - Support more Advanced Mode controls for some sports [Redmine: #193777]
 		- 20240129@July: Update the Advance Mode for bet types of Basketball [Redmine: #199605]
 		- 20240123@July: Separate groups to view data of some special sites (special 777 site) [Redmine: #198089]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:
 	- @Type: sports type
@@ -815,8 +816,8 @@ BEGIN
 		END	
 	END 
 
-	-- System parlay Virtual Sports 2799
-    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype = 2799)
+	-- System parlay Virtual Sports
+    IF EXISTS(SELECT 1 FROM @tmpBettypes WHERE bettype IN (2799, 10449))
 	BEGIN 
 		---ALL
 		--IF @LicenseeName= 'ALL'  
@@ -879,7 +880,7 @@ BEGIN
 				INNER HASH JOIN Bettrans b WITH (NOLOCK) ON bm.refno = b.refno
 			WHERE b.statusID NOT IN (101,102)--('Void', 'Reject')
 				AND bm.statusID NOT IN (101, 102) --('Void', 'Reject')
-				AND b.bettype = 2799 AND b.matchID = 2799
+				AND b.bettype IN (2799, 10449) AND b.matchID IN (2799, 10449)
 				AND CASE WHEN @LiveType <> 2 THEN bm.liveindicator ELSE 0 END = CASE WHEN @LiveType <> 2 THEN @LiveType ELSE 0 END
 				AND bm.livehomescore = CASE WHEN @LiveHomeScore IS NOT NULL AND @LiveType = 1 THEN @LiveHomeScore ELSE bm.livehomescore END
 				AND bm.liveawayscore = CASE WHEN @LiveAwayScore IS NOT NULL AND @LiveType = 1 THEN @LiveAwayScore ELSE bm.liveawayscore END
