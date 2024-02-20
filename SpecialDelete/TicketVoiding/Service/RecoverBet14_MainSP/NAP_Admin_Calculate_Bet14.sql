@@ -306,6 +306,7 @@ BEGIN
 				, b.statusID AS 'sid'
 				, b.status AS 's'
 				, b.ExtraInfo AS 'ex'
+				, b.SettlementTime AS 'st'
 		FROM	#AfterTransId14 b
 		WHERE b.bettype NOT IN (10)
 		FOR JSON PATH))

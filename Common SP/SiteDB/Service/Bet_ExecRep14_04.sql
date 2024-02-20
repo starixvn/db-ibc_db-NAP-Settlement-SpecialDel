@@ -33,6 +33,7 @@ BEGIN
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, creator INT
 		,betid VARCHAR(50), ExtraInfo VARCHAR(1000), statuswinlost VARCHAR(1)
+		,SettlementTime DATETIME
 	)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -78,7 +79,7 @@ BEGIN
 				SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 				INSERT INTO @tmpTransId (TransID, WinLost, ruben, creator, aWinLost, mWinLost, sWinLost
-										, PlayerComm, Comm, aComm, sComm, StatusID, Status, betid, ExtraInfo, statuswinlost
+										, PlayerComm, Comm, aComm, sComm, StatusID, Status, betid, ExtraInfo, statuswinlost, SettlementTime
 									)
 				SELECT *
 				FROM OPENJSON(@Decompress_TransInfoJson)
@@ -99,6 +100,7 @@ BEGIN
 						,bid VARCHAR(50) 
 						,ex VARCHAR(1000) 
 						,statuswl  VARCHAR(1)
+						,st  DATETIME
 					)		
 
 				SET @batchNo = @@ROWCOUNT
@@ -123,6 +125,7 @@ BEGIN
 											WHEN t.statuswinlost = '' THEN NULL
 											ELSE CAST(t.statuswinlost AS TINYINT)
 										END
+						,SettlementTime = CASE WHEN t.SettlementTime IS NULL THEN b.SettlementTime ELSE GETDATE() END	
 				FROM	@tmptransid t
 					INNER JOIN dbo.bettrans14 b WITH (ROWLOCK, UPDLOCK)
 						ON	b.transid = t.transid
