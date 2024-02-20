@@ -13,8 +13,8 @@ DECLARE @TransIds			VARCHAR(MAX) = '219518239527403528'
 	,@UserName			VARCHAR(30) = 'starixIT'
 	,@UserId			INT = 10278938 -- custid of Admin
 	,@IP				VARCHAR(15) ='125.227.140.97'
-	,@Reason			NVARCHAR(500) = N'Technical Error'
-	,@ReasonSC			NVARCHAR(500) = N'技术有误'
+	,@Reason			NVARCHAR(500) = N'Soccer - Technical Error'
+	,@ReasonSC			NVARCHAR(500) = N'足球 - 技术有误'
 	,@IsAbnormalBet		BIT = 0
 
 DECLARE	@LogData					NVARCHAR(500)

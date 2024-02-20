@@ -16,7 +16,7 @@ OPTION (maxrecursion 0)
 --Insert into TicketVoiding_VoidedTransaction for bettrans14
 DECLARE @ReasonId INT = 0 
 INSERT INTO dbo.TicketVoiding_Reason (ReasonEnglish, ReasonChineseSimplified)
-SELECT N'Technical Error',N'技术有误'
+SELECT N'Soccer - Technical Error',N'足球 - 技术有误'
 	
 SET @ReasonId = SCOPE_IDENTITY()
 
