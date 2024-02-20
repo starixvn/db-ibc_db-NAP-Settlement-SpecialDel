@@ -31,7 +31,7 @@ AS
 
 	Param's explaination:
 		@RemarkJson: 
-		[{"m":74561290,"rm":"Mtd. Hold(yes),Undecided(no), child(74561293,74561294)"},{"m":74561293,"rm":"Mtd. Hold(yes), parent(parent{})"},{"m":74561294,"rm":"Mtd. Hold(yes), parent(parent{})"}]
+		[{"m":74561290,"rm":"Mtd. Hold(yes),Undecided(no), child(74561293,74561294)"},{"m":74561293,"rm":"Mtd. Hold(yes), parent(74561290)"},{"m":74561294,"rm":"Mtd. Hold(yes), parent(74561293)"}]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -74,13 +74,10 @@ BEGIN
 	END
 	--write log for multiple match
 	IF ISNULL(@RemarkJson,'') <> ''
-	BEGIN TRY
+	BEGIN
 		;WITH cte_MatchInfo (MatchID, Remark) AS 
-		(	SELECT js.m
-					,REPLACE( js.rm,'{parent}', CAST(ISNULL(m.ParentID,'') AS VARCHAR(20) ) )
+		(	SELECT js.m	 ,js.rm
 			FROM OPENJSON(@RemarkJson) WITH (m  INT, rm  VARCHAR(MAX) ) js
-				INNER JOIN bodb02.dbo.match m WITH(NOLOCK)
-					ON js.m = m.matchid
 		)
 
 		INSERT INTO dbo.UserLog_Settle 
@@ -98,11 +95,7 @@ BEGIN
 			,@IP
 			,GETDATE()
 		FROM cte_MatchInfo
-
-	END TRY
-	BEGIN CATCH
-		RETURN
-	END CATCH
+	END 
 	ELSE -- insert
 	BEGIN
 		INSERT INTO dbo.UserLog_Settle (UserID,

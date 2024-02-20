@@ -48,7 +48,7 @@ BEGIN
 			,@handle		INT
 			,@ActionID		INT
 
-	DECLARE @tmpHoldSetting TABLE (MatchID INT, TurnOn TINYINT, TurnOff TINYINT, LV TINYINT)
+	DECLARE @tmpHoldSetting TABLE (MatchID INT, ParentID INT, TurnOn TINYINT, TurnOff TINYINT, LV TINYINT)
 
 	IF @Type IN (4, 6, 7 )
 	BEGIN	
@@ -103,26 +103,27 @@ BEGIN
 
 		; WITH cte_recursion AS 
 		(
-			SELECT  m.matchid, m.ParentID, m.leagueid, 0 AS LV
+			SELECT  m.matchid, m.ParentID, 0 AS LV
 			FROM dbo.match m WITH(NOLOCK)
 			WHERE matchid = @MatchId
 		
 			UNION ALL 
-			SELECT  m.matchid, m.ParentID, m.leagueid, LV+1
+			SELECT  m.matchid, m.ParentID, LV+1
 			FROM dbo.match m WITH(NOLOCK)
 				INNER JOIN cte_recursion d
 				ON m.ParentID = d.matchid	 
 		)
 		---get all related matches
-		, cte_AllMatch ( MatchID, LV) AS 
+		, cte_AllMatch ( MatchID, ParentID, LV) AS 
 		(
-			SELECT m.MatchID, LV
+			SELECT m.MatchID, ParentID, LV
 			FROM cte_recursion m
 		)
-		,cte_WebResources (MatchID, HoldType, IsEnable, IsApplyChildMatch, LV) 
+		,cte_WebResources (MatchID, ParentID, HoldType, IsEnable, IsApplyChildMatch, LV) 
 		AS 
 		(
 			SELECT   d.matchid
+					,d.ParentID
 					,setting.t as HoldType
 					,setting.s as IsEnable
 					,setting.child as IsApplyChildMatch
@@ -133,14 +134,15 @@ BEGIN
 							) setting
 		)
 
-		INSERT INTO @tmpHoldSetting (MatchID, TurnOn, TurnOff, LV)
+		INSERT INTO @tmpHoldSetting (MatchID, ParentID, TurnOn, TurnOff, LV)
 		SELECT   w.matchid
+				,w.ParentID
 				,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 1 THEN HoldType ELSE 0 END) as TurnOn
 				,SUM(CASE WHEN (w.LV =0 OR w.IsApplyChildMatch = 1) AND IsEnable = 0 THEN HoldType ELSE 0 END) as TurnOff 
 				,w.LV
 		FROM cte_WebResources w
 		WHERE w.LV = 0 OR IsApplyChildMatch = 1
-		GROUP BY w.matchid, LV
+		GROUP BY w.matchid, w.ParentID, LV
 
 		EXEC sp_xml_removedocument @handle
 
@@ -170,7 +172,7 @@ BEGIN
 		INNER JOIN @tmpHoldSetting h
 				ON mr.matchid = h.MatchID
 
-		SELECT @ChildMatchList = ( SELECT STRING_AGG(MatchID,',') FROM @tmpHoldSetting WHERE LV > 0 )
+		SELECT @ChildMatchList = ( SELECT MatchID AS 'm', ParentID AS 'p' FROM @tmpHoldSetting WHERE LV > 0 FOR JSON AUTO )
 
 	END TRY
 	BEGIN CATCH
