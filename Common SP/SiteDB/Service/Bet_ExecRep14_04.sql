@@ -15,6 +15,7 @@ AS
 		- 20210323@Patrick: Initial [Redmine: #149927] 
 		- 20220920@Max: Scale Out BetTrans [Redmine:#175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
  */
 
 BEGIN
@@ -31,7 +32,7 @@ BEGIN
 		,WinLost MONEY,aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
 		,PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
 		,Status NVARCHAR(10),StatusID TINYINT,ruben TINYINT, creator INT
-		,betid VARCHAR(50), ExtraInfo VARCHAR(1000)
+		,betid VARCHAR(50), ExtraInfo VARCHAR(1000), statuswinlost VARCHAR(1)
 	)
 
 	SET @RunOnServer = ISNULL(@RunOnServer,@@SERVERNAME)
@@ -77,7 +78,7 @@ BEGIN
 				SET @Decompress_TransInfoJson = CAST(DECOMPRESS(@TransInfoJson) AS NVARCHAR(MAX))
 
 				INSERT INTO @tmpTransId (TransID, WinLost, ruben, creator, aWinLost, mWinLost, sWinLost
-										, PlayerComm, Comm, aComm, sComm, StatusID, Status, betid, ExtraInfo
+										, PlayerComm, Comm, aComm, sComm, StatusID, Status, betid, ExtraInfo, statuswinlost
 									)
 				SELECT *
 				FROM OPENJSON(@Decompress_TransInfoJson)
@@ -97,6 +98,7 @@ BEGIN
 						,s NVARCHAR(10) 
 						,bid VARCHAR(50) 
 						,ex VARCHAR(1000) 
+						,statuswl  VARCHAR(1)
 					)		
 
 				SET @batchNo = @@ROWCOUNT
@@ -116,6 +118,11 @@ BEGIN
 						,creator = CASE WHEN t.creator IS NULL THEN b.creator ELSE t.creator END
 						,betid = CASE WHEN t.betid IS NULL THEN b.betid ELSE CAST(t.betid AS BIGINT) END
 						,ExtraInfo = CASE WHEN t.ExtraInfo IS NULL THEN b.ExtraInfo ELSE t.ExtraInfo END
+						,statuswinlost = CASE 
+											WHEN t.statuswinlost IS NULL THEN b.statuswinlost
+											WHEN t.statuswinlost = '' THEN NULL
+											ELSE CAST(t.statuswinlost AS TINYINT)
+										END
 				FROM	@tmptransid t
 					INNER JOIN dbo.bettrans14 b WITH (ROWLOCK, UPDLOCK)
 						ON	b.transid = t.transid
