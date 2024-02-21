@@ -85,7 +85,7 @@ BEGIN
 		END AS isDecimalOdd
 	, srecommend, b14.bettype
 	FROM @tbl_transIDs t
-		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid
+		INNER LOOP JOIN dbo.bettrans14 b14	WITH (NOLOCK) ON b14.transid = t.transid AND ISNULL(main.betdaqid, 0) <> -2
 		LEFT JOIN dbo.f_Set_OddsTypeBettypes() AS ot ON ot.bettype = b14.bettype
 		 
 	-- update if bettype belongs to the CN88 site or not

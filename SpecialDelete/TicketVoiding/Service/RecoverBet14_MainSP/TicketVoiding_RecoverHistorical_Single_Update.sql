@@ -46,9 +46,74 @@ BEGIN
 			,@isExistMatch		BIT
 			,@AffectedList		VARCHAR(MAX)
 			,@SiteDBGroupID     SMALLINT = 0
+			,@TransInfo			VARBINARY(MAX)
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	SET @ResettledTransIds = @TransIds
+
+	CREATE TABLE #tblTransInfo (
+		grouptransid	BIGINT
+		,transid		BIGINT PRIMARY KEY
+		,custid			INT
+		,username		VARCHAR(30)
+		,username2		VARCHAR(50)
+		,transdate		DATETIME
+		,odds			SMALLMONEY
+		,oddsspread 	MONEY
+		,oddstype		TINYINT
+		,bettype		SMALLINT
+		,winlost		MONEY
+		,betteam		NVARCHAR(10)
+		,betcheck		NVARCHAR(50)
+		,hdp1			SMALLMONEY
+		,hdp2			SMALLMONEY
+		,betfrom		NVARCHAR(4)
+		,stake			MONEY
+		,matchid		INT
+		,IsLiveIndicator	BIT
+		,livehomescore	SMALLINT
+		,liveawayscore	SMALLINT
+		,creator		INT
+		,creatorName	VARCHAR(30)
+		,currencyName	NVARCHAR(50)
+		,status			VARCHAR(20)
+		,leagueid		INT
+		,SportType		TINYINT
+		,homeid			INT
+		,awayid			INT
+		,betid			BIGINT
+		,transdesc		NVARCHAR(1000)
+		,refno			BIGINT	
+		,betdaqid		BIGINT
+		,recommend		INT
+		,mrecommend		INT
+		,srecommend		INT
+		,SecAcceptFlag	BIT
+		,site			VARCHAR(10)
+		,ExtraInfo		VARCHAR(1000)
+		,IsCashOut		BIT DEFAULT 0
+		,zzzBetcheck	NVARCHAR(50)
+		,WalletType		TINYINT
+		,RefCode		BIGINT
+		,BonusID		INT		
+		,MainTransId	BIGINT
+		,winlostdate	DATETIME
+		,ParentID		INT
+		,ChildMatchType TINYINT
+		,zzzwinlost		MONEY
+		,modds			SMALLMONEY
+		,ActualStake	MONEY
+	)
+	
+	DECLARE @tmpTransInfo TABLE(
+			  matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY, ruben TINYINT, statuswinlost TINYINT, stake MONEY
+			, statusID TINYINT, creator INT, actual_stake MONEY, odds SMALLMONEY, oddsspread MONEY, transdesc NVARCHAR(2000), ExtraInfo VARCHAR(1000), FcUpdateTime DATETIME2
+			, aWinLost MONEY,mWinLost MONEY,sWinLost MONEY
+			, PlayerComm MONEY, Comm MONEY,aComm MONEY,sComm MONEY
+			, transdate DATETIME, comstatus NVARCHAR(40)
+			, bettype SMALLINT
+			)
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 
 	/*Modify the way to get move bet date*/
 	DECLARE @BeingMovebetDate SMALLDATETIME 
@@ -389,6 +454,184 @@ BEGIN
 				,@ErrMsg = ERROR_MESSAGE()
 	END CATCH
 
+	--Update CashOutSelling for new CO Model
+	IF EXISTS (SELECT TOP(1) 1 FROM @tmpInputTransId t
+						INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
+				WHERE b.betdaqid = -2)
+	BEGIN
+
+		INSERT INTO #tblTransInfo (transid, modds, stake, zzzwinlost, status, creator, matchid)
+		SELECT t.TransId, b.modds, b.stake, z.winlost, z.status, z.creator, b.matchid
+		FROM @tmpInputTransId t
+			INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId
+			INNER JOIN dbo.zzzbettrans z WITH(NOLOCK)
+				ON	b.transid = z.transid
+					AND z.custid = b.custid
+					AND z.matchid = b.matchid
+					AND z.bettype = b.bettype
+					AND z.SiteDBGroupID = b.SiteDBGroupID
+		WHERE b.betdaqid = -2
+			AND ISNULL(z.comstatus,'') <> 'CO'
+
+		UPDATE t SET t.SportType = m.sporttype
+		FROM #tblTransInfo t
+			CROSS APPLY (
+				SELECT Sporttype
+				FROM dbo.match14 WITH (NOLOCK)
+				WHERE matchid = t.matchid
+				UNION
+				SELECT Sporttype
+				FROM dbo.match WITH (NOLOCK)
+				WHERE matchid = t.matchid
+			)m
+
+		--> re-calculate stake, re-settle for main cash-out + update cash-out bet ticket			
+		;WITH CTE_main_cashoutticket AS
+		(
+			SELECT transid
+				 , 1 AS TicketType	 
+				 , modds
+				 , Stake	
+				 , zzzwinlost AS winlost
+				 , status
+				 , CASE WHEN status = 'WON' THEN '112' 
+						WHEN status = 'LOSE' THEN '113' 
+						WHEN status = 'DRAW' THEN '111' 
+					END AS StatusId
+				 , creator
+				 , SportType
+			FROM #tblTransInfo
+		)
+
+		UPDATE	b
+		SET status = TCal.status
+		  , statusID = TCal.StatusId
+		  , stake = TRef.stake
+		  , winlost = TCal.winlost
+		  , awinlost = TCal.awinlost
+		  , mWinLost = TCal.mWinLost
+		  , swinlost = TCal.swinlost
+		  , playercomm = TCal.playercomm
+		  , comm = TCal.comm
+		  , acomm = TCal.acomm
+		  , scomm = TCal.scomm
+		  , ruben = b.ruben
+		  , creator = t.creator
+		  , ExtraInfo = dbo.f_SD_SetExtraInfoAbnormalBet(1,'recover',b.ExtraInfo,t.SportType, b.bettype)
+		OUTPUT deleted.matchid, deleted.transid, inserted.STATUS, inserted.statusID, inserted.stake
+			, inserted.winlost, inserted.awinlost, inserted.mWinLost, inserted.swinlost, inserted.playercomm, inserted.comm, inserted.acomm, inserted.scomm
+			, inserted.ruben, inserted.creator,inserted.ExtraInfo
+		INTO @tmpTransInfo (matchid, transid, status, statusID, stake, winlost, awinlost, mWinLost, sWinLost
+				, playercomm, Comm, aComm, sComm, ruben, creator, ExtraInfo)
+		FROM dbo.bettrans14 b WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN CTE_main_cashoutticket AS t
+					ON b.transid = t.transId	    			
+			OUTER APPLY (
+							SELECT b.stake
+								 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 0 ELSE 1 END AS CommWinRate
+								 , CASE b.comstatus WHEN '0' THEN 1	WHEN '1' THEN 2 ELSE 1 END AS CommLostRate
+						) AS TRef		
+			OUTER APPLY (SELECT CASE WHEN b.statuswinlost = 6 THEN 103 ELSE t.StatusId END AS StatusId
+							 , CASE WHEN b.statuswinlost = 6 THEN 'Refund' ELSE t.status END AS status
+							 , CASE WHEN b.statuswinlost = 6 THEN b.actual_stake ELSE t.winlost END AS winlost
+							 , CASE
+									
+									WHEN b.statuswinlost = 6 THEN 0
+									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.apositiontaking
+									WHEN t.StatusId = 111 THEN 0
+									ELSE ABS(t.winlost - b.actual_stake) * b.apositiontaking
+								END AS awinlost
+							, CASE
+									WHEN b.statuswinlost = 6 THEN 0
+									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.mpositiontaking
+									WHEN t.StatusId = 111 THEN 0
+									ELSE ABS(t.winlost - b.actual_stake) * b.mpositiontaking
+								END AS mWinLost
+							, CASE
+									WHEN b.statuswinlost = 6 THEN 0
+									WHEN t.StatusId = 112 THEN ABS(t.winlost - b.actual_stake) * -b.spositiontaking
+									WHEN t.StatusId = 111 THEN 0
+									ELSE ABS(t.winlost - b.actual_stake) * b.spositiontaking
+								END AS swinlost
+							  , CASE
+									WHEN b.statuswinlost = 6 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.playerdiscount
+									ELSE TRef.CommLostRate * b.stake * b.playerdiscount
+								END AS playercomm
+							, CASE
+									WHEN b.statuswinlost = 6 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.discount * (1-apositiontaking)
+									ELSE TRef.CommLostRate * b.stake * b.discount * (1-apositiontaking)
+								END AS comm
+							,CASE
+									WHEN b.statuswinlost = 6 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+									ELSE TRef.CommLostRate * b.stake * b.adiscount * (1-apositiontaking - mpositiontaking)
+								END AS acomm
+							,CASE
+									WHEN b.statuswinlost = 6 THEN 0
+									WHEN t.StatusId = 112 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+									WHEN t.StatusId = 111 THEN TRef.CommWinRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+									ELSE TRef.CommLostRate * b.stake * b.sdiscount * (1-apositiontaking - mpositiontaking - spositiontaking)
+								END AS scomm
+						) AS TCal	
+		WHERE b.SiteDBGroupID = @SiteDBGroupID
+
+		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
+		BEGIN
+			INSERT INTO @tmpMatchidInfo (MatchId)
+			SELECT DISTINCT MatchId FROM @tmpTransInfo
+
+			WHILE (1=1)
+			BEGIN
+				UPDATE TOP(1)m
+				SET IsFinish = 1, @matchid = MatchId 
+				FROM @tmpMatchidInfo m
+				WHERE IsFinish IS NULL
+
+				IF @@ROWCOUNT = 0 BREAK;
+				SET @TransInfo = COMPRESS((
+				SELECT	matchid AS 'mid'
+						, transId AS 't'
+						, STATUS AS 's'
+						, statusID AS 'sid'
+						, stake AS 'stake'
+						, winlost AS 'w'
+						, aWinLost AS 'aw' 
+						, mWinLost AS 'mw' 
+						, sWinLost AS 'sw' 
+						, PlayerComm AS 'pc' 
+						, Comm AS 'c'  
+						, aComm AS 'ac' 
+						, sComm AS 'sc' 
+						, ruben AS 'r'
+						, creator AS 'cr'
+						, ExtraInfo AS 'ex'
+				FROM	@tmpTransInfo WHERE matchid = @MatchId 
+				FOR JSON PATH))
+
+				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
+				SELECT 'TVS', 'RecoverSingleBet', 'bettrans14', 'U', @matchid, @TransInfo, 's'
+			END
+
+			DELETE FROM @tmpMatchidInfo
+			DELETE FROM @tmpTransInfo
+			SET @TransInfo = NULL
+		END
+
+		--Update CO Selling
+		UPDATE co
+		SET co.CashOutStatus = 4
+		   ,ChangeDate = GETDATE()
+		FROM dbo.CashOutSelling co WITH(ROWLOCK, UPDLOCK)
+			INNER JOIN #tblTransInfo t ON co.transid = t.grouptransid AND co.transid = t.transid
+		WHERE t.IsCashOut = 1
+			AND co.CashOutStatus = 6
+	END
+
 	INSERT INTO @BalanceInfoAfterUpd (CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
 	SELECT	b14.custid
 			,b14.matchid
@@ -494,5 +737,6 @@ BEGIN
 	DROP TABLE #tblMatch
 	DROP TABLE #tblMatchProcess
 	DROP TABLE #tmpTransId
+	DROP TABLE #tblTransInfo
 END
 GO
