@@ -1,5 +1,5 @@
 /*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE dbo.NAP_Set_AutoPayout_SettingMatchUpd 
+ALTER PROCEDURE dbo.NAP_Set_AutoPayout_SettingMatchUpd
 	@MatchId 			INT
 	, @AutoType			TINYINT
 	, @IsEnabled		BIT 
@@ -25,6 +25,7 @@ AS
 		- 20230921@Aries: Allow to Change Auto Settle Setting for Completed Matches [Redmine:#194117]  
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20240125@Aries: Tennis - Don't turn off AUTO setting when change setting to DIRECT & vice versa on Match  [Redmine: #200259]
+		- 20240110@Louisa: Allow update Auto Payout when match completed [Redmine:#198710]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -81,24 +82,6 @@ BEGIN
 																	END
 									ELSE @AutoSetting 
 								END
-
-	--check match <> running
-	IF @Sporttype = 1
-	BEGIN
-		IF EXISTS (
-			SELECT TOP 1 1 
-			FROM dbo.match m WITH(NOLOCK) 
-			WHERE matchid = @MatchId 
-				AND 1 = CASE 
-						WHEN @AutoType IN (1, 5) AND eventstatus = 'completed' THEN 1
-						ELSE 0 
-					END
-		)
-		BEGIN
-			SELECT @ErrCode = 1001023, @ErrMsg = 'Sorry. Not allow to update auto Setting on this match.'
-			RETURN
-		END
-	END
 
 	UPDATE m
 	SET AutoSetting = @AutoSetting

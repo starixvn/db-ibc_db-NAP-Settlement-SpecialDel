@@ -1,15 +1,16 @@
 /*<info serverAlias="DBLOG-bodb_CustomerLog,DBTXN-bodb_CustomerLog" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE [dbo].[WriteLog_UserLog_Settle]
     @UserID         INT, 
-    @MatchID        INT				= NULL,	
+    @MatchID        INT				= NULL,
     @ActionID       INT             = 0, 
     @finalhomescore INT             = NULL,
     @finalawayscore INT             = NULL,  
     @hthomescore    INT             = NULL,
     @htawayscore    INT             = NULL,
     @GoalRecord     VARCHAR(50)     = NULL,
-    @betstatus      NVARCHAR(50)    = NULL,
-    @Remark         VARCHAR(MAX)    = '',   
+    @betstatus      NVARCHAR(50)    = NULL,	
+    @Remark         VARCHAR(MAX)    = '',  
+	@RemarkJson		VARCHAR(MAX)	= '', 
     @IP             VARCHAR(15)     = '',
     @LogDate        DATETIME        = NULL,
 	@BroadcastSessionId VARCHAR(50) = NULL
@@ -26,7 +27,11 @@ AS
         - 20170314@Kathy: Add default value [Redmine:#73218]
 		- 20230817@Kathy: Write log [Redmine:#192311]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
+		- 20240110@Louisa: Write log for multiple matchid [Redmine:#198710]
 
+	Param's explaination:
+		@RemarkJson: 
+		[{"m":74561290,"rm":"Mtd. Hold(yes),Undecided(no), child(74561293,74561294)"},{"m":74561293,"rm":"Mtd. Hold(yes), parent(74561290)"},{"m":74561294,"rm":"Mtd. Hold(yes), parent(74561293)"}]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -67,6 +72,30 @@ BEGIN
 					AND ActionId = @ActionID
 		END
 	END
+	--write log for multiple match
+	IF ISNULL(@RemarkJson,'') <> ''
+	BEGIN
+		;WITH cte_MatchInfo (MatchID, Remark) AS 
+		(	SELECT js.m	 ,js.rm
+			FROM OPENJSON(@RemarkJson) WITH (m  INT, rm  VARCHAR(MAX) ) js
+		)
+
+		INSERT INTO dbo.UserLog_Settle 
+		(	UserID,
+			MatchID,
+			ActionID,
+			[Remark],
+			[IP],
+			LogDate
+		)
+		SELECT @UserID
+			,MatchId
+			,@ActionID
+			,Remark
+			,@IP
+			,GETDATE()
+		FROM cte_MatchInfo
+	END 
 	ELSE -- insert
 	BEGIN
 		INSERT INTO dbo.UserLog_Settle (UserID,

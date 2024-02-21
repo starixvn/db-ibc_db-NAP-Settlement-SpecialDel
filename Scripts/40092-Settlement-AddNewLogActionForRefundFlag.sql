@@ -4,6 +4,7 @@
 	Date: 20200821
 	Task : Add new logaction
 	DB: DBLOG/bodb_CustomerLog
+
 */
 USE bodb_CustomerLog
 GO
