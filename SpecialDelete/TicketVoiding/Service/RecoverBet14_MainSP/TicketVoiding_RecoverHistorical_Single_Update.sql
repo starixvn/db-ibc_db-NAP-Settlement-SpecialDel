@@ -628,8 +628,7 @@ BEGIN
 		   ,ChangeDate = GETDATE()
 		FROM dbo.CashOutSelling co WITH(ROWLOCK, UPDLOCK)
 			INNER JOIN #tblTransInfo t ON co.transid = t.grouptransid AND co.transid = t.transid
-		WHERE t.IsCashOut = 1
-			AND co.CashOutStatus = 6
+		WHERE co.CashOutStatus = 6
 	END
 
 	INSERT INTO @BalanceInfoAfterUpd (CustId, MatchId, WinlostDate, Winlost, aWinlost, mWinlost, sWinlost, playerComm, Comm, aComm, sComm, stake, actual_stake, balance)
