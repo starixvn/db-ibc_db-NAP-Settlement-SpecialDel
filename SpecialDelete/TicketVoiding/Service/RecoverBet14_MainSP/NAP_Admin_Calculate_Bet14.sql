@@ -126,7 +126,7 @@ BEGIN
 			,@winlost = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
 																WHEN statuswinlost IN (2,4) THEN actual_stake + stake * @odds
-																WHEN statuswinlost = 0 THEN actual_stake 
+																WHEN statuswinlost IN (0,6) THEN actual_stake 
 															  END	
 							ELSE
 							CASE
@@ -153,7 +153,7 @@ BEGIN
 			,aWinLost = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
 																WHEN statuswinlost IN (2,4) THEN stake * @odds * -apositiontaking
-																WHEN statuswinlost = 0 THEN 0 
+																WHEN statuswinlost IN (0,6) THEN 0 
 															  END	
 							ELSE 
 							CASE
@@ -168,7 +168,7 @@ BEGIN
 			,mWinLost = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
 																WHEN statuswinlost IN (2,4) THEN stake * @odds * -mpositiontaking
-																WHEN statuswinlost = 0 THEN 0 
+																WHEN statuswinlost IN (0,6) THEN 0 
 															  END	
 							ELSE
 							CASE
@@ -183,7 +183,7 @@ BEGIN
 			,sWinLost = CASE 
 							WHEN b.bettype IN (468,469) THEN CASE 
 																WHEN statuswinlost IN (2,4) THEN stake * @odds * -spositiontaking
-																WHEN statuswinlost = 0 THEN 0 
+																WHEN statuswinlost IN (0,6) THEN 0 
 															  END	
 							ELSE
 							CASE
@@ -199,7 +199,7 @@ BEGIN
 							WHEN b.bettype IN (468,469) THEN CASE 
 																WHEN statuswinlost = 2 THEN @commWinRate * playerdiscount * @stake
 																WHEN statuswinlost = 4 THEN @commLostRate * playerdiscount * @stake
-																WHEN statuswinlost = 0 THEN 0 
+																WHEN statuswinlost IN (0,6) THEN 0 
 															  END	
 							ELSE
 							CASE
@@ -214,7 +214,7 @@ BEGIN
 						WHEN b.bettype IN (468,469) THEN CASE 
 															WHEN statuswinlost = 2 THEN @commWinRate * discount * @stake * (1 - apositiontaking)
 															WHEN statuswinlost = 4 THEN @commLostRate * discount * @stake * (1 - apositiontaking)
-															WHEN statuswinlost = 0 THEN 0 
+															WHEN statuswinlost IN (0,6) THEN 0 
 														  END	
 						ELSE
 						CASE
@@ -229,7 +229,7 @@ BEGIN
 						WHEN b.bettype IN (468,469) THEN CASE 
 															WHEN statuswinlost = 2 THEN @commWinRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
 															WHEN statuswinlost = 4 THEN @commLostRate * adiscount * @stake * (1 - (mpositiontaking + apositiontaking))
-															WHEN statuswinlost = 0 THEN 0 
+															WHEN statuswinlost IN (0,6) THEN 0 
 														  END	
 						ELSE 
 						CASE
@@ -244,7 +244,7 @@ BEGIN
 						WHEN b.bettype IN (468,469) THEN CASE 
 															WHEN statuswinlost = 2 THEN @commWinRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
 															WHEN statuswinlost = 4 THEN @commLostRate * sdiscount * @stake * (1 - (spositiontaking + mpositiontaking + apositiontaking))
-															WHEN statuswinlost = 0 THEN 0 
+															WHEN statuswinlost IN (0,6) THEN 0 
 														  END	
 						ELSE 
 						CASE
