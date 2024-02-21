@@ -20,6 +20,7 @@ AS
 		- 20230405@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230426@July: [TVS] Support void Cricket tickets on TVS Early Kick Off/Wrong Kick Off Time [Redmine: #187051]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
+		- 20240219@Max: TVS - Voiding request but missing a parlay ticket [Redmine: #200987]
 
 	Param's explanation:	
 		- @SingleTransIds: '12343091763609600,12343108943478784'
@@ -390,6 +391,194 @@ BEGIN
 		WHERE sub.statusID NOT IN (101, 102, 103) -- reject, void, refund
 			AND sub.SiteDBGroupID = @SiteDBGroupID
 			AND d.TicketType = 2
+		
+		--Re-scan data for case miss by page split
+		IF EXISTS (
+					SELECT TOP(1) 1
+					FROM #transIdTemp d
+						INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.transid = bm.TransId
+					WHERE bm.statusID NOT IN (101, 102, 103)
+						AND d.TicketType = 2
+						AND NOT EXISTS (SELECT TOP 1 1 FROM #TransInfo t WHERE t.transid = d.transid)
+						AND bm.SiteDBGroupID = @SiteDBGroupID
+				)
+		BEGIN
+			DECLARE @tmp_MissingTransId AS TABLE (TransId BIGINT PRIMARY KEY)
+
+			INSERT INTO @tmp_MissingTransId (TransId)
+			SELECT d.transid
+			FROM #transIdTemp d
+				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.transid = bm.TransId
+			WHERE bm.statusID NOT IN (101, 102, 103)
+				AND d.TicketType = 2
+				AND NOT EXISTS (SELECT TOP 1 1 FROM #TransInfo t WHERE t.transid = d.transid)
+				AND bm.SiteDBGroupID = @SiteDBGroupID
+
+			INSERT INTO #TransInfo(
+					matchid 
+					,transid
+					,Subtransid 
+					,custid                
+					,transdate 
+					,checktime 
+					,hdp1 
+					,hdp2 
+					,livehomescore 
+					,liveawayscore 
+					,liveindicator 
+					,betteam 
+					,creator 
+					,refno 
+					,betid 
+					,bettype 
+					,betdaqid 
+					,betfrom 
+					,statusID 
+					,WalletType 
+					,RefCode 
+					,Subcustid         
+					,Sublivehomescore 
+					,Subliveawayscore 
+					,Subhdp1 
+					,Subhdp2 
+					,Subbetfrom 
+					,Subbettype 
+					,SubstatusID 
+					,Subtransdate 
+					,Subchecktime 
+					,Subliveindicator 
+					,recommend 
+					,mrecommend 
+					,srecommend 
+					,statuswinlost 
+					,IsMixParlay 
+					,odds 
+					,Subodds 
+					,oddsspread 
+					,oddstype 
+					,betcheck 
+					,Subbetcheck 
+					,stake 
+					,CurrencyName 
+					,Transdesc 
+					,ExtraInfo 
+					,BonusID 
+					,winlost        
+					,actual_stake 
+					,Status
+					,SubStatus 
+					,Subbetteam  
+					,Suboddsspread 
+					,SubTransdesc  
+					,modds 
+					,SiteDBGroupID
+					,oddsid
+					,winlostdate
+				)
+			SELECT sub.matchid
+				,b.TransId
+				,sub.transid AS SubTransID
+				,b.custid
+				,b.transdate
+				,b.checktime
+				,b.hdp1
+				,b.hdp2
+				,b.livehomescore
+				,b.liveawayscore
+				,b.liveindicator
+				,b.betteam
+				,b.creator
+				,b.refno
+				,b.betid
+				,b.bettype
+				,b.betdaqid 
+				,b.betfrom 
+				,b.statusID 
+				,b.WalletType 
+				,b.RefCode 
+				,b.custid Subcustid         
+				,sub.livehomescore AS Sublivehomescore 
+				,sub.liveawayscore AS Subliveawayscore 
+				,sub.hdp1 AS Subhdp1 
+				,sub.hdp2 AS Subhdp2 
+				,sub.betfrom AS Subbetfrom 
+				,sub.bettype AS Subbettype 
+				,sub.statusID AS SubstatusID 
+				,sub.transdate AS Subtransdate 
+				,sub.checktime AS Subchecktime 
+				,sub.liveindicator AS Subliveindicator 
+				,b.recommend 
+				,b.mrecommend 
+				,b.srecommend 
+				,b.statuswinlost 
+				,1 AS IsMixParlay 
+				,b.odds 
+				,Sub.odds AS Subodds 
+				,b.oddsspread
+				,b.oddstype 
+				,b.betcheck 
+				,sub.betcheck AS Subbetcheck 
+				,b.stake 
+				,b.CurrencyName 
+				,b.Transdesc 
+				,b.ExtraInfo 
+				,b.BonusID 
+				,b.winlost        
+				,b.actual_stake 
+				,b.Status
+				,sub.status AS SubStatus 
+				,sub.betteam AS Subbetteam  
+				,sub.oddsspread AS Suboddsspread 
+				,sub.transdesc SubTransdesc  
+				,b.modds
+				,sub.SiteDBGroupID
+				,sub.oddsid
+				,sub.winlostdate
+			FROM @tmp_MissingTransId d
+				INNER JOIN dbo.bettransm sub WITH (NOLOCK) ON d.transid = sub.TransId
+				CROSS APPLY (
+						SELECT TOP 1 b.TransId
+							,b.custid
+							,b.transdate
+							,b.checktime
+							,b.hdp1
+							,b.hdp2
+							,b.livehomescore
+							,b.liveawayscore
+							,b.liveindicator
+							,b.betteam
+							,b.creator
+							,b.refno
+							,b.betid
+							,b.bettype
+							,b.betdaqid 
+							,b.betfrom 
+							,b.statusID 
+							,b.WalletType 
+							,b.RefCode 
+							,b.recommend 
+							,b.mrecommend 
+							,b.srecommend 
+							,b.statuswinlost 
+							,b.odds 
+							,b.oddsspread
+							,b.oddstype 
+							,b.betcheck 
+							,b.stake 
+							,b.CurrencyName 
+							,b.Transdesc 
+							,b.ExtraInfo 
+							,b.BonusID 
+							,b.winlost        
+							,b.actual_stake 
+							,b.Status
+							,b.modds
+						FROM dbo.bettrans b WITH (NOLOCK)
+						WHERE b.matchid = 29
+							AND b.bettype = 29 
+							AND b.refno = sub.refno 
+					)b
+		END		
 	END
 	
 	--Update Main MatchID for child match cricket (Sporttype = 50)
