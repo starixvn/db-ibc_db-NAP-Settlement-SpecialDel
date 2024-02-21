@@ -38,6 +38,7 @@ BEGIN
 	WHERE l.BroadcastSessionId  = @SessionId
 		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w OR l.TicketType = 'p')
 		AND t.bef_sid != 0
+		AND t.[sid] != 0
 	
 	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
 	SELECT t.t AS TransId
@@ -54,6 +55,7 @@ BEGIN
 		AND l.BroadcastSessionId  = @SessionId
 		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w)
 		AND t.bef_sid != 0
+		AND t.[sid] != 0
 
 	;WITH CTE_ResourceID AS (
 		SELECT  CAST(h.[ActualResult] AS XML)  AS ActualResult
@@ -95,7 +97,7 @@ BEGIN
 											 	  WHEN bef_statusid = 113 THEN 'LOSE' 
 											 	  ELSE 'None'
 											 END
-						,'"winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
+						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),bef_winlost,2),'0')
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN statusid = 1	 THEN 'WAITING' 
 											 	  WHEN statusid = 0	 THEN 'RUNNING' 
@@ -107,7 +109,7 @@ BEGIN
 											 	  WHEN statusid = 113 THEN 'LOSE' 
 											 	  ELSE 'None'
 											 END
-						,'"winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
+						,'" winlost="',IIF(bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),winlost,2),'0')
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			INNER JOIN SettlementSpecialBettypeProfile AS s WITH(NOLOCK) ON s.bettype = t.bettype AND  (s.BetID = 0 OR t.BetID = s.BetID)AND s.SportType = @sportType
@@ -132,7 +134,7 @@ BEGIN
 											 	  WHEN tp.bef_statusid = 113 THEN 'LOSE' 
 											 	  ELSE 'None'
 											 END
-						,'"winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.bef_winlost,2),'0')
+						,'" winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.bef_winlost,2),'0')
 						,'" /></root>') AS ExtraInfo_Before
 			   ,CONCAT('<root><r status="',  CASE WHEN tp.statusid = 1	 THEN 'WAITING' 
 											 	  WHEN tp.statusid = 0	 THEN 'RUNNING' 
@@ -144,7 +146,7 @@ BEGIN
 											 	  WHEN tp.statusid = 113 THEN 'LOSE' 
 											 	  ELSE 'None'
 											 END
-						,'"winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.winlost,2),'0')
+						,'" winlost="',IIF(tp.bef_winlost IS NOT NULL, CONVERT(VARCHAR(50),tp.winlost,2),'0')
 						,'" /></root>') AS ExtraInfo_After
 		FROM @tmpTransIDBatch AS t
 			CROSS APPLY(SELECT TOP 1 r.SeqNo
