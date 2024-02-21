@@ -595,7 +595,7 @@ BEGIN
 						) AS TRef		
 			OUTER APPLY (SELECT CASE WHEN b.statuswinlost = 6 THEN 103 ELSE t.StatusId END AS StatusId
 							 , CASE WHEN b.statuswinlost = 6 THEN 'Refund' ELSE t.status END AS status
-							 , t.winlost AS winlost
+							 , CASE WHEN b.statuswinlost = 6 THEN b.actual_stake ELSE t.winlost END AS winlost
 							 , CASE
 									
 									WHEN b.statuswinlost = 6 THEN 0
