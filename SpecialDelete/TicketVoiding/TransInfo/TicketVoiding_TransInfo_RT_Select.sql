@@ -186,7 +186,7 @@ BEGIN
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
 		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
-	WHERE d.bettype NOT IN (9, 29, 2799)
+	WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 
 	IF EXISTS (SELECT TOP(1) 1 
 				FROM #transIdTemp t
@@ -293,7 +293,7 @@ BEGIN
 		SET d.matchid = m.ParentID
 		FROM #TransInfo d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) ON d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 
 	END
 						
