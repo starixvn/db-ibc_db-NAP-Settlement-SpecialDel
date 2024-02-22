@@ -35,10 +35,10 @@ BEGIN
 		  ,t.bef_sid AS bef_statusid
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
 	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
-	WHERE l.BroadcastSessionId  = @SessionId
-		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w OR l.TicketType = 'p')
+	WHERE l.matchid = @MatchId
+		AND l.BroadcastSessionId  = @SessionId
+		AND (t.bef_w != t.w OR l.TicketType = 'p')
 		AND t.bef_sid != 0
-		AND t.[sid] != 0
 	
 	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
 	SELECT t.t AS TransId
@@ -53,9 +53,8 @@ BEGIN
 	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
 	WHERE l.matchid = 29
 		AND l.BroadcastSessionId  = @SessionId
-		AND (t.[sid] != t.bef_sid OR t.bef_w != t.w)
+		AND t.bef_w != t.w
 		AND t.bef_sid != 0
-		AND t.[sid] != 0
 
 	;WITH CTE_ResourceID AS (
 		SELECT  CAST(h.[ActualResult] AS XML)  AS ActualResult
