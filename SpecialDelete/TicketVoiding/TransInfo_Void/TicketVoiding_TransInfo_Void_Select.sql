@@ -100,6 +100,8 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY, TicketType TINYINT) --1: single(exclude cancel CO), 2: parlay, 3: cancel CO
 
+	DECLARE @tmp_MissingTransId AS TABLE (TransId BIGINT PRIMARY KEY)
+
 	INSERT INTO #transIdTemp (transid, TicketType)
 	SELECT DISTINCT value, 1
 	FROM STRING_SPLIT(@SingleTransIds, ',')
@@ -393,27 +395,17 @@ BEGIN
 			AND d.TicketType = 2
 		
 		--Re-scan data for case miss by page split
-		IF EXISTS (
-					SELECT TOP(1) 1
-					FROM #transIdTemp d
-						INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.transid = bm.TransId
-					WHERE bm.statusID NOT IN (101, 102, 103)
-						AND d.TicketType = 2
-						AND NOT EXISTS (SELECT TOP 1 1 FROM #TransInfo t WHERE t.transid = d.transid)
-						AND bm.SiteDBGroupID = @SiteDBGroupID
-				)
+		INSERT INTO @tmp_MissingTransId (TransId)
+		SELECT d.transid
+		FROM #transIdTemp d
+			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.transid = bm.TransId
+		WHERE bm.statusID NOT IN (101, 102, 103)
+			AND d.TicketType = 2
+			AND NOT EXISTS (SELECT TOP 1 1 FROM #TransInfo t WHERE t.transid = d.transid)
+			AND bm.SiteDBGroupID = @SiteDBGroupID
+		
+		IF @@ROWCOUNT > 0
 		BEGIN
-			DECLARE @tmp_MissingTransId AS TABLE (TransId BIGINT PRIMARY KEY)
-
-			INSERT INTO @tmp_MissingTransId (TransId)
-			SELECT d.transid
-			FROM #transIdTemp d
-				INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.transid = bm.TransId
-			WHERE bm.statusID NOT IN (101, 102, 103)
-				AND d.TicketType = 2
-				AND NOT EXISTS (SELECT TOP 1 1 FROM #TransInfo t WHERE t.transid = d.transid)
-				AND bm.SiteDBGroupID = @SiteDBGroupID
-
 			INSERT INTO #TransInfo(
 					matchid 
 					,transid
@@ -575,10 +567,35 @@ BEGIN
 							,b.modds
 						FROM dbo.bettrans b WITH (NOLOCK)
 						WHERE b.matchid = 29
+							AND b.custid = sub.custid
 							AND b.bettype = 29 
 							AND b.refno = sub.refno 
 					)b
-		END		
+
+			--Write log
+			DECLARE @sqlCommand NVARCHAR(MAX), @ID UNIQUEIDENTIFIER
+					, @SubmittedDate DATETIME = GETDATE()
+					, @spName VARCHAR(500) = OBJECT_NAME(@@PROCID)
+					, @TransIds VARCHAR(MAX) = NULL
+
+			SELECT @TransIds = ISNULL(STUFF((SELECT ',' + CAST(transid AS VARCHAR(50)) 
+											FROM @tmp_MissingTransId
+											FOR XML PATH('')), 1,1,'')
+											,'')
+
+			SET @ID =  NEWID()
+			BEGIN TRY
+				IF OBJECT_ID (N'TVS_UserActionLog') IS NOT NULL 
+				BEGIN	
+					SET @sqlCommand = 'Missing TransIds: ' + @TransIds
+
+					INSERT INTO TVS_UserActionLog (ID, SPName, SqlCommand, UserID, Matchid, CreatedDate, SubmittedDate)
+					VALUES (@ID, @spName, @sqlCommand, 0, NULL, GETDATE(),@SubmittedDate)
+				END	
+			END TRY
+			BEGIN CATCH
+			END CATCH 
+		END
 	END
 	
 	--Update Main MatchID for child match cricket (Sporttype = 50)
