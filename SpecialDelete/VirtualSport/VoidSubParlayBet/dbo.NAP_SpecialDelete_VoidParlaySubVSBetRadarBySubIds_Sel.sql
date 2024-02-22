@@ -15,7 +15,8 @@ AS
 		- 20210712@July: TVS - Modify the way to get move bet date [Redmine: #154974]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
-		
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+
 	Param's Explanation:		
 		- @SubTransIds : TransIds of sub parlay tickets
 */
@@ -203,8 +204,8 @@ BEGIN
 		 INNER JOIN bettrans b WITH (NOLOCK) 
 				 ON b.refno = bm.refno 
 					AND b.custid = bm.custid
-	WHERE b.matchid = 2799
-	  AND b.bettype = 2799	  
+	WHERE b.matchid IN (2799, 10449)
+	  AND b.bettype IN (2799, 10449)
 	  AND b.statusID NOT IN (101, 102) -- reject, void	
 	  AND b.SiteDBGroupID = @SiteDBGroupID
 	OPTION(OPTIMIZE FOR (@SubTickets_Count = 1))			    	  								 	
@@ -289,7 +290,10 @@ BEGIN
 				WHEN T2.GroupName = 'Deposit' THEN 1				
 				ELSE 2				
 			 END ASC 
-			 
+	
+	DROP TABLE #tblSubTransIds
+	DROP TABLE #tmpBettransm
+	DROP TABLE #tmpResult
 	SET NOCOUNT OFF		
 END
 GO

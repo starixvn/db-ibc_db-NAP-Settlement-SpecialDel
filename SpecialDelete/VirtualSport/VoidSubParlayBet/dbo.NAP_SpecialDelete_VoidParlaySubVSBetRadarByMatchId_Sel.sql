@@ -14,6 +14,7 @@ AS
 		- 20180305@Helen: Betradar VS2 - [Redmine:90153]
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:		
 		
@@ -98,8 +99,8 @@ BEGIN
 											THEN 'Deposit'																			
 								ELSE ''							
 							 END AS GroupName) AS T2
-	WHERE b.matchid = 2799
-	  AND b.bettype = 2799
+	WHERE b.matchid IN (2799, 10449)
+	  AND b.bettype IN (2799, 10449)
 	  AND bm.matchid = @MatchId
 	  AND b.statusID NOT IN (101, 102) -- reject, void	
 	  AND bm.statusID NOT IN (101, 102) -- reject, void	

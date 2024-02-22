@@ -1,7 +1,6 @@
 ﻿/*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarByMatchId_Upd] 		
-	@MatchId				INT,	
-	@TransIds				VARCHAR(MAX),		
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_VoidParlaySubVSBetRadarBySubIds_Upd] 		
+	@SubTransIds			VARCHAR(MAX),
 	@UserName 				NVARCHAR(50),
     @Password				NVARCHAR(50),
     @UserID					INT,
@@ -26,16 +25,17 @@ AS
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
-		
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
+
 	Param's Explanation:				
-		- @TransIds : Main transids.				
+		- @SubTransIds : TransIds of sub parlay tickets				
 */
 BEGIN
-	SET NOCOUNT ON	
+	SET NOCOUNT ON
 	
-	DECLARE @avaiableProcess			BIT = 1
-		  , @isITAdmin					BIT = 0		  
-		  , @CustIds					VARCHAR(MAX) = ''
+	DECLARE @avaiableProcess			BIT 
+		  , @isITAdmin					BIT	  
+		  , @CustIds					VARCHAR(MAX)
 		  , @Movebetdate				DATETIME
 		  , @spName						VARCHAR(500) = OBJECT_NAME(@@PROCID)
 
@@ -43,17 +43,24 @@ BEGIN
 		  , @_sXML						VARCHAR(MAX)
 		  , @IgnoreList					VARCHAR(200)		  		  		  
 		  , @strRefnos					VARCHAR(MAX)		  		  
+		  , @matchid					INT
 		  , @matchdate					DATETIME
+		  , @countmatch					INT
+		  , @i							INT
+		  , @SubTickets_Count			INT
 		  , @NegativeBalanceUsers	VARCHAR(MAX)	= ''
 		  , @ErrMsg					NVARCHAR(200)	= ''
 		  , @ErrCode				INT				= 0	
 		  , @SiteDBGroupID		SMALLINT
+		  , @Sporttype					SMALLINT
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
+	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
 		  
 	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  	  		  			  
 	
-	CREATE TABLE #BetDelete
+	CREATE TABLE #tmpBetDelete
 	(
 		Stake			MONEY,
 		AwayId			INT,
@@ -88,7 +95,7 @@ BEGIN
 		IsNeutral		BIT,		
 		showtime		NVARCHAR(20),
 		LeagueId		INT,
-		modds			SMALLMONEY,
+		modds			SMALLMONEY,	
 		SubStatus		NVARCHAR(10),
 		SubTransId		BIGINT,
 		SubBetCheck		NVARCHAR(50),
@@ -98,23 +105,56 @@ BEGIN
 		SubHdp2			SMALLMONEY,
 		SubOdds			MONEY,	
 		SubTransdesc	NVARCHAR(2000),	
+		SubMatchid		INT,
+		SubMatchdate	DATETIME,		
 		BetFrom			NVARCHAR(4)
 	)	
+	CREATE INDEX IX_SubMatchid_SubMatchdate_RefNo ON #tmpBetDelete(SubMatchid, SubMatchdate, RefNo) INCLUDE(TransId)
 	
-	CREATE TABLE #tblTransIds (transid BIGINT)
+	CREATE TABLE #tblSubTransIds (SubTransId BIGINT PRIMARY KEY)	
+	
+	CREATE TABLE #tmpBettransm
+	(
+		Status NVARCHAR(10),
+		TransId BIGINT,
+		BetCheck NVARCHAR(50),
+		BetTeam NVARCHAR(10),
+		BetType SMALLINT,
+		Hdp1 SMALLMONEY,
+		Hdp2 SMALLMONEY,
+		Odds SMALLMONEY,
+		transdesc NVARCHAR(1000),
+		refno BIGINT,
+		custid INT,
+		matchid INT
+	)	
+	
+	CREATE TABLE #tmpMatchInfos
+	(
+		RowNum INT IDENTITY(1, 1), 
+		matchid INT, 
+		matchdate DATETIME,
+		RefNos VARCHAR(MAX),
+		sporttype SMALLINT
+	)
 	
 	DECLARE @beforeUpd TVP_BalanceChange
 		  , @afterUpd  TVP_BalanceChange	
 	
 	SELECT @NegativeBalanceUsers = ''
 		 , @ErrCode = 0
-		 , @ErrMsg = ''		 			 
+		 , @ErrMsg = ''
+		 , @countmatch = 0
+		 , @i = 0
+		 , @SubTickets_Count = 0
+		 , @avaiableProcess	= 1	
+		 , @isITAdmin = 0		  
+		 , @CustIds	= ''	 			 
 	
 	BEGIN TRY
 		--> Check Password
 		IF NOT EXISTS (SELECT 1  FROM custDB.dbo.customer WITH (NOLOCK) WHERE userpwd = @Password  AND custid = @UserId AND roleid>=5)  
 		BEGIN  
-		
 			SELECT @ErrCode = 113
 				 , @ErrMsg = 'Sorry. You cannot process void bets due to either wrong password or insufficient permission!'
 
@@ -125,10 +165,10 @@ BEGIN
 			RETURN
 		END	
 			
-		--> parse @TransIds
-		INSERT INTO #tblTransIds (transid)
-		SELECT	t.value
-		FROM STRING_SPLIT(@TransIds, ',') t					
+		--> parse @SubTransIds
+		INSERT INTO #tblSubTransIds(SubTransId)
+		SELECT  DISTINCT value
+		FROM	STRING_SPLIT(@SubTransIds, ',')	
 			
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -140,29 +180,43 @@ BEGIN
 
 			RETURN
 		END			
-
-		--> get match info
-		SELECT @matchdate = eventdate				 
-		FROM dbo.match (NOLOCK)
-		WHERE matchid = @MatchId
-
-		/*Modify the way to get move bet date*/
-		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
-
-		IF @matchdate <= @Movebetdate
-		BEGIN
-			SELECT @ErrCode = 99
-				 , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
-
-			SELECT @ErrCode AS ErrorCode
-				, @ErrMsg AS ErrorMsg
-				, @NegativeBalanceUsers AS NegativeBalanceUsers
-
-			RETURN	
-		END
-
+		
 		--> Search Tickets
-		INSERT INTO #BetDelete
+		-- get sub tickets
+		INSERT INTO #tmpBettransm(
+				Status
+			   ,TransId
+			   ,BetCheck
+			   ,BetTeam
+			   ,BetType
+			   ,Hdp1
+			   ,Hdp2
+			   ,Odds
+			   ,transdesc
+			   ,refno
+			   ,custid
+			   ,matchid)
+		SELECT bm.Status
+			  ,bm.TransId
+			  ,bm.BetCheck
+			  ,bm.BetTeam
+			  ,bm.BetType
+			  ,bm.Hdp1
+			  ,bm.Hdp2
+			  ,bm.Odds
+			  ,bm.transdesc
+			  ,bm.refno
+			  ,bm.custid
+			  ,bm.matchid				
+		FROM #tblSubTransIds t
+			 INNER JOIN dbo.bettransm bm WITH (NOLOCK)
+					 ON t.SubTransId = bm.transid
+		WHERE bm.statusID NOT IN (101, 102) -- reject, void 
+			AND bm.SiteDBGroupID = @SiteDBGroupID
+		
+		SET @SubTickets_Count = @@ROWCOUNT
+		
+		INSERT INTO #tmpBetDelete
 				(Stake
 				,AwayId
 				,BetCheck
@@ -196,7 +250,7 @@ BEGIN
 				,IsNeutral				   
 				,showtime
 				,LeagueId
-				,modds
+				,modds  
 				,SubStatus
 				,SubTransId
 				,SubBetCheck
@@ -205,7 +259,9 @@ BEGIN
 				,SubHdp1
 				,SubHdp2
 				,SubOdds
-				,SubTransdesc				
+				,SubTransdesc
+				,SubMatchid
+				,SubMatchdate  
 				,BetFrom)			   
 		SELECT  b.Stake
 				,m.AwayId
@@ -240,7 +296,7 @@ BEGIN
 				,ISNULL(m.IsNeutral, CONVERT(BIT, 0)) AS IsNeutral				   
 				,ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime
 				,m.leagueid
-				,b.modds
+				,b.modds  
 				,bm.Status AS SubStatus
 				,bm.TransId AS SubTransId
 				,bm.BetCheck AS SubBetCheck
@@ -250,19 +306,20 @@ BEGIN
 				,bm.Hdp2 AS SubHdp2
 				,bm.Odds AS SubOdds
 				,bm.transdesc AS SubTransdesc
+				,bm.matchid AS SubMatchid
+				,m.eventdate AS SubMatchdate				
 				,b.betfrom
-		FROM bettrans b WITH (NOLOCK) 
-				INNER JOIN dbo.bettransm bm WITH (NOLOCK)
-						ON b.refno = bm.refno 
-				INNER JOIN dbo.Match m WITH(NOLOCK)
-						ON bm.matchid = m.matchid			 
-		WHERE b.matchid = 2799
-			AND b.bettype = 2799
-			AND bm.matchid = @MatchId
-			AND b.statusID NOT IN (101, 102) -- reject, void	
-			AND bm.statusID NOT IN (101, 102) -- reject, void
-			AND b.transid IN (SELECT transid FROM #tblTransIds)
-			AND b.SiteDBGroupID = @SiteDBGroupID
+		FROM (SELECT TOP (@SubTickets_Count) * 
+			  FROM #tmpBettransm WITH (NOLOCK)) bm 
+			 INNER JOIN bettrans b WITH (NOLOCK) 
+			  		 ON b.refno = bm.refno 
+					    AND b.custid = bm.custid
+			 INNER JOIN match m WITH(NOLOCK)
+					 ON bm.matchid = m.matchid			 
+		WHERE b.matchid IN (2799, 10449)
+		  AND b.bettype IN (2799, 10449)	
+		  AND b.statusID NOT IN (101, 102) -- reject, void		
+		OPTION(OPTIMIZE FOR (@SubTickets_Count = 1))			
 			  
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -275,10 +332,25 @@ BEGIN
 			RETURN		  
 		END
 		
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+
+		IF EXISTS (SELECT TOP 1 1 FROM #tmpBetDelete WHERE SubMatchdate <= @Movebetdate)
+		BEGIN
+			SELECT @ErrCode = 99
+				 , @ErrMsg = 'Match is under Movebet process, could not void ticket.'
+
+			SELECT @ErrCode AS ErrorCode
+				, @ErrMsg AS ErrorMsg
+				, @NegativeBalanceUsers AS NegativeBalanceUsers
+
+			RETURN	
+		END
+
 		--> Check Concurrency
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
 				@IsExistParlayVSBetradar = 1			
-				, @spName = @spName
+				, @spName		= @spName
 				, @IsReleased	= 0
 				, @AvaiableProcess = @AvaiableProcess OUTPUT
 				, @ErrCode = @ErrCode OUTPUT
@@ -292,16 +364,31 @@ BEGIN
 
 			RETURN
 		END
+			
+		--> get Match Infos
+		INSERT INTO #tmpMatchInfos(matchid, matchdate, RefNos, sporttype)
+		SELECT bd.SubMatchid, bd.SubMatchdate
+			 , CAST((
+					SELECT DISTINCT refno AS '@rn'
+					FROM #tmpBetDelete
+					WHERE SubMatchid = bd.SubMatchid
+					  AND SubMatchdate = bd.SubMatchdate				
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) AS VARCHAR(MAX)) AS RefNos
+			, SportType
+		FROM #tmpBetDelete	bd
+		GROUP BY bd.SubMatchid, bd.SubMatchdate
+		
+		SET @countmatch = @@ROWCOUNT		
 
 		--> Capture balance before update	
 		INSERT INTO @beforeUpd(custid, balance, balanceType)
 		SELECT	b.custid
 				, SUM (b.winlost - b.actual_stake + b.playercomm) AS balance 
 				, 4 AS balanceType
-		FROM bettrans b WITH (ROWLOCK) 
-				INNER JOIN #BetDelete t 
-						ON	b.transid = t.TransId					 	  
-		GROUP BY b.CustID			
+		FROM bettrans b WITH (ROWLOCK)								 	  
+		WHERE transid IN (SELECT transid FROM #tmpBetDelete)
+		GROUP BY b.CustID					
 			
 		--> Insert zzzbettransm				
 		INSERT INTO zzzbettransm (transid, custid, transdate, oddsid, hdp1, hdp2, odds, stake, status,   
@@ -309,54 +396,74 @@ BEGIN
 					winlostdate, betfrom, betcheck, checktime, matchid, bettype, RepUpdateTime, SiteDBGroupID)  
 		SELECT	b.transid, b.custid, CURRENT_TIMESTAMP, b.oddsid, b.hdp1, b.hdp2, b.odds, b.stake, b.status,   
 				b.winlost, b.livehomescore, b.liveawayscore, b.liveindicator, b.betteam, b.creator , b.refno,   
-				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype , SYSDATETIME(), b.SiteDBGroupID
+				b.winlostdate, b.betfrom, b.betcheck, b.checktime, b.matchid, b.bettype, SYSDATETIME(), b.SiteDBGroupID
 		FROM	dbo.bettransm AS b WITH (nolock)  
-			INNER JOIN #BetDelete AS r 
+			INNER JOIN #tmpBetDelete AS r 
 				ON	r.SubTransId = b.transid
-					
-		--> Update bettransm                             
-		SET @_xml = (
-			SELECT 
-					SubTransId '@t' -- transid
-				,@matchdate '@d' -- winlostdate
-				,0 '@w' -- statuswinlost
-				,102 '@s' -- statusID
-				,@UserID '@cr' -- creator						
-			FROM #BetDelete			 
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) 
-		SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+						
+				
+		--> Call Re-Calc For Main Tickets				
+		SET @i = 1
+		WHILE @i <= @countmatch
+		BEGIN
+			SELECT @matchid = matchid
+				 , @matchdate = matchdate
+				 , @strRefnos = RefNos
+				 , @Sporttype = sporttype
+			FROM #tmpMatchInfos
+			WHERE RowNum = @i	
 			
-		EXEC dbo.Bet_ExecRep_05 
-				@IgnoreList 	= @IgnoreList
-			, @updatetype 	= 5
-			, @_sXML 		= @_sXML
-			, @MatchId      = @MatchId
+			--> Update bettransm                             
+			SET @_xml = (
+				SELECT 
+					 SubTransId '@t' -- transid
+					,SubMatchdate '@d' -- winlostdate
+					,0 '@w' -- statuswinlost
+					,102 '@s' -- statusID
+					,@UserID '@cr' -- creator						
+				FROM #tmpBetDelete b WHERE b.SubMatchid = @matchid		 
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			) 
+			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+			
+			EXEC dbo.Bet_ExecRep_05 
+				  @IgnoreList 	= @IgnoreList
+				, @updatetype 	= 5
+				, @_sXML 		= @_sXML
+				, @MatchId      = @MatchId
 				
-		--> Call Re-Calc For Main Tickets
-		SELECT @strRefnos = CAST((
-			SELECT refno AS '@rn'
-			FROM #BetDelete				
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) AS VARCHAR(MAX))
-				
-		EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
-			  @MatchId			= @MatchId
-			, @strRefnos 		= @strRefnos
-			, @matchdate		= @matchdate
-			, @IsBalance		= 0
-			, @CWLBettype		= 1201
-			, @ErrCode			= @ErrCode OUTPUT
-			, @ErrMsg			= @ErrMsg OUTPUT																							
+			IF @sporttype BETWEEN 190 AND 199 --VS2
+			BEGIN
+				EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
+					  @MatchId			= @MatchId
+					, @strRefnos 		= @strRefnos
+					, @matchdate		= @matchdate
+					, @IsBalance		= 0
+					, @CWLBettype		= 1201
+					, @ErrCode			= @ErrCode OUTPUT
+					, @ErrMsg			= @ErrMsg OUTPUT
+			END
+			IF @sporttype = 188 --VS4
+			BEGIN
+				EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update]
+					  @MatchId			= @MatchId
+					, @strRefnos 		= @strRefnos
+					, @matchdate		= @matchdate
+					, @IsBalance		= 0
+					, @CWLBettype		= 1201
+					, @ErrCode			= @ErrCode OUTPUT
+					, @ErrMsg			= @ErrMsg OUTPUT
+			END
+			SET @i = @i + 1				
+		END																										
 					
 		--> Capture balance after update	
 		INSERT INTO @afterUpd(custid, balance, balanceType)
 		SELECT	b.custid
 				, SUM (b.winlost - b.actual_stake + b.playercomm) AS balance 
 				, 4 AS balanceType
-		FROM bettrans b WITH (ROWLOCK) 
-				INNER JOIN #BetDelete t 
-						ON	b.transid = t.TransId					 	  
+		FROM bettrans b WITH (ROWLOCK)			 					 	  
+		WHERE transid IN (SELECT transid FROM #tmpBetDelete)				
 		GROUP BY b.CustID
 		
 		--> INSERT data into pending balance table   
@@ -369,15 +476,15 @@ BEGIN
 				@IsExistParlayVSBetradar = 1			
 				, @IsReleased	= 1 
 		
-		--> Build list of customer name with negative balance
+		--> Get list of customer name with negative balance
 		SET @NegativeBalanceUsers = ''
 
 		SELECT @CustIds = @CustIds +
 							CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
 							CONVERT(VARCHAR(20), b.custid)
 		FROM @beforeUpd b
-				INNER JOIN	@afterUpd a 	
-						ON a.custid = b.custid
+			 INNER JOIN	@afterUpd a 	
+					 ON a.custid = b.custid
 		WHERE b.balance > a.balance				
 			
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
@@ -387,17 +494,17 @@ BEGIN
 		--> Return data to web
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
 
-		--1. Return table validate
+		--1.Return table validate
 		SELECT @ErrCode AS ErrorCode
 				, @ErrMsg AS ErrorMsg
 				, @NegativeBalanceUsers AS NegativeBalanceUsers
-			
+		
 		SELECT  r.Stake,
 				r.AwayId,
 				r.BetCheck,
 				r.BetId,
 				r.BetTeam,
-				r.BetType AS BetTypeId,
+				r.BetType AS BetTypeId,				
 				r.CurrencyName,
 				r.Hdp1 AS Handicap1,
 				r.Hdp2 AS Handicap2,
@@ -415,12 +522,12 @@ BEGIN
 				r.TransId,
 				c.username,
 				c.username2,
-				r.WinLost,
+				r.WinLost,				
 				r.IsNeutral,
 				r.showtime,
 				r.LeagueId,
 				r.modds AS MasterOdds,
-				@MatchId AS MatchId,
+				r.SubMatchid AS matchid,
 				r.SubStatus,
 				r.SubTransId,
 				r.SubBetCheck,
@@ -429,8 +536,8 @@ BEGIN
 				r.SubHdp1,
 				r.SubHdp2,
 				r.SubOdds,
-				r.SubTransdesc,
-				1 AS IsMixParlay,
+				r.SubTransdesc,	
+				1 AS IsMixParlay,			
 				r.CustId,
 				r.recommend,
 				ag.UserName AS AgUserName,
@@ -440,10 +547,10 @@ BEGIN
 				su.Username AS SagUserName,
 				ag.Currency,
 				ag.Site,
-				su.Site AS EmailGroup,
+				su.Site AS EmailGroup,	
 				@isITAdmin AS IsItSupport,
 				r.BetFrom 
-		FROM #BetDelete r		
+		FROM #tmpBetDelete r
 				LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK)
 						ON r.custid = c.custid
 				LEFT JOIN CustDB.dbo.Customer ag WITH(NOLOCK)
@@ -459,14 +566,14 @@ BEGIN
 		IF @avaiableProcess = 1
 			--> Release Concurrency process	
 			EXEC [dbo].[NAP_Admin_CheckingProcess]
-					@IsExistParlayVSBetradar = 1			
-				  , @IsReleased	= 1
-				  
+					@IsExistParlayVSBetradar = 1
+				  , @IsReleased	= 1	
+
 		SELECT @ErrCode AS ErrorCode
 				, @ErrMsg AS ErrorMsg
 				, @NegativeBalanceUsers AS NegativeBalanceUsers
-	END CATCH	
+	END CATCH			
 						
-	SET NOCOUNT OFF		
+	SET NOCOUNT OFF
 END
 GO

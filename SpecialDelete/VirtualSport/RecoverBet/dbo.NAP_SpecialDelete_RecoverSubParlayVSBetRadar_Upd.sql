@@ -1,11 +1,12 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverMainParlayVSBetRadar_Upd] 
+ALTER PROCEDURE [dbo].[NAP_SpecialDelete_RecoverSubParlayVSBetRadar_Upd] 
+	@MatchId					INT,		
 	@TransIds					VARCHAR(MAX),
     @UserID						INT,
     @IP							VARCHAR(15)
 AS
 /*  
-	Created by: 20170607@Kent   
+	Created by: 20170607@Kent  
 	Task: 
 	DB: DBTXN/bodb02	    
 
@@ -19,41 +20,46 @@ AS
 		- 20221021@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
 		- 20230328@July: [TVS] Remove write log to DBTrans DBLog [Redmine: #185245]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's Explanation:		
 		- @TransIds : Main transids.
 */
 BEGIN
-	SET NOCOUNT ON		
+	SET NOCOUNT ON
 	
+	DECLARE @Action_Recal				VARCHAR(100)  = 'Re-Cal'
+		  , @Action_Refund				VARCHAR(100)  = 'Refund'		  
+		  , @Movebetdate				DATETIME
+		  , @spName						VARCHAR(500) = OBJECT_NAME(@@PROCID)
+
 	DECLARE @IsExistParlayVSBetradar	BIT = 0		  
 		  , @avaiableProcess			BIT	= 0
 		  , @isITAdmin					BIT	= 0
 		  , @before_yesterday			DATETIME
-		  , @CustIds					VARCHAR(MAX) = ''			  		  	    
-		  , @Movebetdate				DATETIME
-		  , @spName						VARCHAR(500) = OBJECT_NAME(@@PROCID)
-
+		  , @CustIds					VARCHAR(MAX) = ''
+	
 	DECLARE @IgnoreList					VARCHAR(200)  = ''
 		  , @_xml						XML		
 		  , @_sXML						VARCHAR(MAX)  = ''	
-		  , @strRefnos					VARCHAR(MAX) = ''
-		  , @i							INT
-		  , @cnt_match					INT		  
-		  , @matchId					INT
+		  , @strRefnos					VARCHAR(MAX) = ''		 	  
 		  , @matchdate					DATETIME
+		  , @eventstatus				NVARCHAR(100)
+		  , @betstatus					NVARCHAR(100)
+		  , @TicketInfos_Recal 			VARCHAR(MAX) = ''
 		  , @ReCalculatedMainTransIds   VARCHAR(MAX)	= ''
 		  , @NegativeBalanceUsers		VARCHAR(MAX)	= '' 
 		  , @ErrMsg						NVARCHAR(200)	= ''
 		  , @ErrCode					INT				= 0	
 		  , @SiteDBGroupID				SMALLINT
 		  , @transInfo					VARBINARY(MAX) 
+		  , @IsExistsVS2				BIT = 0
+		  , @IsExistsVS4				BIT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
-	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, transdate DATETIME, comstatus NVARCHAR(40) )
-	DECLARE @tmpMatchidInfo TABLE (MatchId INT, IsFinish BIT)
+	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT)
 		  
-	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  	 
+	SET @IgnoreList = 'DB04,DB042,DB043,DB044'		  
 	
 	CREATE TABLE #RecoverBet
 	(
@@ -84,15 +90,11 @@ BEGIN
 		recommend			INT,
 		mrecommend			INT,
 		srecommend			INT,
-		CustId				INT,
-		eventstatus			NVARCHAR(100),
-		eventdate			DATETIME,
-		betstatus			NVARCHAR(100),				
+		CustId				INT,						
 		showtime			NVARCHAR(20),
-		creator				INT,
 		LeagueId			INT,
 		matchcode			NVARCHAR(50),
-		modds				SMALLMONEY,
+		modds				SMALLMONEY,	
 		SubStatus			NVARCHAR(10),
 		SubTransId			BIGINT,
 		SubBetCheck			NVARCHAR(50),
@@ -102,32 +104,48 @@ BEGIN
 		SubHdp2				SMALLMONEY,
 		SubOdds				SMALLMONEY,
 		SubCustId			INT,
-		SubTransdesc		NVARCHAR(2000),	
+		SubTransdesc		NVARCHAR(2000),			
 		BetFrom				NVARCHAR(4),
-		matchid				INT				
-	)
-	
-	CREATE TABLE #MatchInfo
-	(
-		RowNum		INT IDENTITY(1, 1),
-		matchid		INT,
-		matchdate 	SMALLDATETIME
+		matchid				INT						
 	)
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)		
 	
-	DECLARE @beforeUpd		 TVP_BalanceChange
-		  , @afterUpd		 TVP_BalanceChange		  		
+	DECLARE @beforeUpd TVP_BalanceChange
+		  , @afterUpd  TVP_BalanceChange
 	
-	SELECT @before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)		 
+	SELECT @before_yesterday = CONVERT(varchar(10), DATEADD(day, -2, GETDATE()), 120)			 
 		 , @ReCalculatedMainTransIds = '' 
 		 , @NegativeBalanceUsers = ''
 		 , @ErrCode = 0
 		 , @ErrMsg = ''
 	
-	BEGIN TRY	 
+	BEGIN TRY
+		--> get match info
+		SELECT @matchdate = eventdate
+				, @eventstatus = eventstatus
+				, @betstatus = betstatus
+		FROM dbo.match (NOLOCK)
+		WHERE matchid = @MatchId
+			 
+		/*Modify the way to get move bet date*/
+		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
+		
+		IF @matchdate <= @Movebetdate
+		BEGIN
+			SELECT @ErrCode = 112
+				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+
+			SELECT @ErrCode AS ErrorCode
+				,@ErrMsg AS ErrorMsg
+				,@NegativeBalanceUsers AS NegativeBalanceUsers
+				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
+
+			RETURN	
+		END
+
 		--> parse @TransIds
 		INSERT INTO #tblTransIds (transid)
 		SELECT	t.value
@@ -135,7 +153,7 @@ BEGIN
 		
 		IF @@ROWCOUNT = 0
 		BEGIN
-			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'	
+			SELECT @ErrCode = 99, @ErrMsg = 'No ticket found.'
 
 			SELECT @ErrCode AS ErrorCode
 				,@ErrMsg AS ErrorMsg
@@ -143,9 +161,9 @@ BEGIN
 				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 
 			RETURN
-		END 
+		END	 
 		
-		--> Search tickets		
+		--> Search tickets
 		INSERT INTO #RecoverBet(
 				Stake,
 				AwayId,
@@ -174,9 +192,10 @@ BEGIN
 				recommend,
 				mrecommend,
 				srecommend,
-				CustId,	
-				creator,
-				modds,						
+				CustId,											
+				showtime,
+				LeagueId,
+				modds,	
 				SubStatus,
 				SubTransId,
 				SubBetCheck,
@@ -185,64 +204,66 @@ BEGIN
 				SubHdp1,
 				SubHdp2,
 				SubOdds,
-				SubTransdesc,
+				SubCustId,	
+				SubTransdesc,				
 				betfrom,
-				matchid,
-				eventdate
-			)
-		SELECT  z.Stake,
-				NULL AS AwayId,
-				z.BetCheck,
+				matchid)
+		SELECT  b.Stake,
+				m.AwayId,
+				b.BetCheck,
 				b.BetId,
-				z.BetTeam,
-				z.BetType,
+				b.BetTeam,
+				b.BetType,
 				b.CurrencyName AS CurrencyCode,
-				z.Hdp1,
-				z.Hdp2,
-				NULL AS HomeId,
-				z.liveindicator AS IsLiveIndicator,
-				z.LiveAwayScore,
-				z.LiveHomeScore,
-				z.Odds,
-				b.OddsType,
-				z.RefNo,
-				NULL AS SportType,
-				z.Status,
+				b.Hdp1,
+				b.Hdp2,
+				m.HomeId,
+				b.liveindicator AS IsLiveIndicator,
+				b.LiveAwayScore,
+				b.LiveHomeScore,
+				b.Odds,
+				NULL AS OddsType,
+				b.RefNo,
+				m.SportType,
+				b.Status,
 				b.TransDate,
 				b.TransDesc,
-				z.TransId,
+				b.TransId,
 				b.UserName,
-				z.winlost - b.actual_stake AS WinLost,
+				b.winlost - b.actual_stake AS WinLost,
 				CASE WHEN b.srecommend IN (SELECT custid from custDB.dbo.Dep_CustSuper with(NOLOCK)) then 1 ELSE 0 END as IsDeposit,
 				b.recommend,
 				b.mrecommend,
 				b.srecommend,
-				b.CustId,
-				z.creator,
-				b.modds,							
-				NULL AS SubStatus,
-				NULL AS SubTransId,
-				NULL AS SubBetCheck,
-				NULL AS SubBetTeam,
-				NULL AS SubBetType,
-				NULL AS SubHdp1,
-				NULL AS SubHdp2,
-				NULL AS SubOdds,
-				NULL AS SubTransdesc,
+				b.CustId,											
+				ISNULL(CONVERT(NVARCHAR(20), m.kickofftime, 113), '') AS showtime,
+				m.leagueid,
+				b.modds,	
+				bm.Status AS SubStatus,
+				bm.TransId AS SubTransId,
+				bm.BetCheck AS SubBetCheck,
+				bm.BetTeam AS SubBetTeam,
+				bm.BetType AS SubBetType,
+				bm.Hdp1 AS SubHdp1,
+				bm.Hdp2 AS SubHdp2,
+				bm.Odds AS SubOdds,
+				bm.custid AS SubCustId,
+				bm.transdesc AS SubTransdesc,				
 				b.betfrom,
-				b.matchid,
-				b.winlostdate AS eventdate -- parlay eventdate: get winlostdate
-		FROM dbo.zzzbettrans z WITH (NOLOCK)					 
-				INNER JOIN dbo.bettrans b WITH (NOLOCK)
-						ON	z.transid = b.transid
-						AND z.custid = b.custid
-						AND z.matchid = b.matchid					
-						AND z.bettype = b.bettype			 
-		WHERE b.transid IN (SELECT transid FROM #tblTransIds)		
-			AND z.winlostdate >= @before_yesterday
-			AND z.matchid = 2799
-			AND z.bettype = 2799	
-			AND z.SiteDBGroupID = @SiteDBGroupID
+				bm.matchid
+		FROM dbo.bettrans b WITH (NOLOCK)
+				INNER JOIN bettransm bm WITH (NOLOCK)
+						ON b.refno = bm.refno				
+				INNER JOIN dbo.Match m WITH(NOLOCK)
+						ON	m.matchid = bm.matchid
+		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
+			AND bm.matchid = @MatchId	
+			AND bm.winlostdate >= @before_yesterday
+			AND b.bettype IN (2799, 10449)
+			AND b.matchid IN (2799, 10449)
+			AND bm.statusid = 102
+			AND b.statusID NOT IN (101, 102) -- reject, void
+			AND b.SiteDBGroupID = @SiteDBGroupID
 				
 		IF @@ROWCOUNT = 0
 		BEGIN
@@ -256,22 +277,10 @@ BEGIN
 			RETURN
 		END
 		
-		/*Modify the way to get move bet date*/
-		EXEC dbo.NAP_Admin_CheckingMoveBetDate @Movebetdate = @Movebetdate OUTPUT
-		
-		IF EXISTS ( SELECT TOP 1 1 FROM #RecoverBet WHERE eventdate <= @Movebetdate )
-		BEGIN
-			SELECT @ErrCode = 112
-				 , @ErrMsg = 'Could not recover some tickets due to Movebet process. Please try Search again.'
+		SELECT @IsExistsVS2 = CASE WHEN b.SportType BETWEEN 190 AND 199 THEN 1 ELSE 0 END
+			  ,@IsExistsVS4 = CASE WHEN b.SportType = 188 THEN 1 ELSE 0 END
+		FROM #RecoverBet b
 
-			SELECT @ErrCode AS ErrorCode
-				,@ErrMsg AS ErrorMsg
-				,@NegativeBalanceUsers AS NegativeBalanceUsers
-				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
-
-			RETURN	
-		END
-			
 		--> Check Concurrency
 		SET @IsExistParlayVSBetradar = 1
 				
@@ -300,50 +309,90 @@ BEGIN
 		FROM bettrans b WITH (NOLOCK) 
 				INNER JOIN #RecoverBet t 
 						ON	b.transid = t.TransId					 	  
-		GROUP BY b.CustID						
+		GROUP BY b.CustID			
 			
-		--> Update Bettrans	to running
-		SET @_xml = (
-			SELECT t.transid '@q' -- transid			 
-					, t.creator '@cr' -- creator			 
-			FROM #RecoverBet t					 
-			FOR XML PATH('r'), ROOT('root'), TYPE
-		) 
-		SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
-			
-		EXEC dbo.Bet_ExecRep_05 
-			  @IgnoreList 	= @IgnoreList
-			, @updatetype 	= 6
-			, @_sXML 		= @_sXML
-			, @matchId		= 2799
-			
-		--> get match list
-		INSERT INTO #MatchInfo(matchid, matchdate)
-		SELECT bm.matchid
-				, m.eventdate AS matchdate		
-		FROM bettransm bm (NOLOCK)
-				INNER JOIN #RecoverBet t
-						ON bm.refno = t.refno
-				INNER JOIN match m (NOLOCK)
-						ON bm.matchid = m.matchid	
-		GROUP BY bm.matchid, m.eventdate
-			
-		SET @cnt_match = @@ROWCOUNT
-		
-		--> re-cal main tickets
-		SELECT @strRefnos = CAST((
-				SELECT refno AS '@rn'
-				FROM #RecoverBet				
-				FOR XML PATH('r'), ROOT('root'), TYPE
-		) AS VARCHAR(MAX))						 
-						 
-		SET @i = 1
-		WHILE @i <= @cnt_match
+		--> update bettransm to running + rec-cal sub tickets / refund sub tickets 
+		IF @eventstatus = 'completed'
+			AND @betstatus LIKE '%' + 'Refund' + '%'
 		BEGIN
-			SELECT @matchId = matchid, @matchdate = matchdate
-			FROM #MatchInfo
-			WHERE RowNum = @i
+			--> refund sub
+			SET @_xml = (
+				SELECT 
+						SubTransId '@t' -- transid
+					,@matchdate '@d' -- winlostdate
+					,0 '@w' -- statuswinlost
+					,103 '@s' -- statusID
+					,SubCustId '@cr' -- creator			
+				FROM #RecoverBet					 		
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			)		
+			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+				
+			EXEC dbo.Bet_ExecRep_05 
+					@IgnoreList 	= @IgnoreList
+				  , @updatetype 	= 5
+				  , @_sXML 			= @_sXML
+		END
+		ELSE
+		BEGIN
+			--> Update Bettransm to running
+			SET @_xml = (
+				SELECT 
+					 SubTransId '@t' -- transid
+					,NULL '@d' -- winlostdate
+					,NULL '@w' -- statuswinlost
+					,0 '@s' -- statusID
+					,SubCustId '@cr' -- creator			
+				FROM #RecoverBet					 		
+				FOR XML PATH('r'), ROOT('root'), TYPE
+			)		
+			SELECT @_sXML = CONVERT(VARCHAR(MAX), @_xml)
+				
+			EXEC dbo.Bet_ExecRep_05 
+					@IgnoreList 	= @IgnoreList
+					, @updatetype 	= 5
+					, @_sXML 		= @_sXML
+					, @MatchId      = @MatchId
+					
+			IF @eventstatus = 'completed'
+			BEGIN
+				--> re-cal sub
+				SET @_xml = (
+					SELECT Matchid '@m' 
+						 , SubTransId '@t'
+					FROM #RecoverBet						
+					FOR XML PATH('r'), ROOT('root'), TYPE
+				) 
+				SELECT @TicketInfos_Recal = CONVERT(VARCHAR(MAX), @_xml)
+				
+				IF @IsExistsVS2 = 1
+				BEGIN
+					EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay] 
+							@mode = 'RECOVER'
+							, @TicketInfos = @TicketInfos_Recal
+							, @ErrCode = @ErrCode OUTPUT
+							, @ErrMsg = @ErrMsg OUTPUT
+				END
+				IF @IsExistsVS4 = 4
+				BEGIN
+					EXEC [dbo].[TicketVoiding_ReCalculate_ParlayVS_Update] 
+							  @mode = 'RECOVER'
+							, @TicketInfos = @TicketInfos_Recal
+							, @ErrCode = @ErrCode OUTPUT
+							, @ErrMsg = @ErrMsg OUTPUT
+				END
+			END					
+		END							
 			
+		--> re-cal main
+		SELECT @strRefnos = CAST((
+			SELECT refno AS '@rn'
+			FROM #RecoverBet				
+			FOR XML PATH('r'), ROOT('root'), TYPE
+		) AS VARCHAR(MAX))	
+		
+		IF @IsExistsVS2 = 1
+		BEGIN				
 			EXEC [dbo].[NAP_Admin_Calculate_VS_BetRadar_Parlay_Main]
 				 @MatchId			= @matchId
 				,@strRefnos 		= @strRefnos
@@ -351,11 +400,19 @@ BEGIN
 				,@IsBalance			= 0
 				,@CWLBettype		= 1201
 				,@ErrCode			= @ErrCode OUTPUT
-				,@ErrMsg			= @ErrMsg OUTPUT
-			
-			SET @i = @i + 1
-		END																			
-			
+				,@ErrMsg			= @ErrMsg OUTPUT		
+		END
+		IF @IsExistsVS4 = 4
+		BEGIN
+			EXEC [dbo].[TicketVoiding_ReCalculate_MainParlayVS_Update]
+					 @MatchId			= @matchId
+					,@strRefnos 		= @strRefnos
+					,@matchdate			= @matchdate
+					,@IsBalance			= 0
+					,@CWLBettype		= 1201
+					,@ErrCode			= @ErrCode OUTPUT
+					,@ErrMsg			= @ErrMsg OUTPUT
+		END
 		--> Capture balance after update	
 		INSERT INTO @afterUpd(custid, balance, balanceType)
 		SELECT	b.custid
@@ -371,47 +428,27 @@ BEGIN
 			  @BeforeUpd = @beforeUpd
 			, @AfterUpd	 = @afterUpd
 
-		--> Delete zzzbettrans
+		--> Delete zzzbettransm
 		DELETE z
-			OUTPUT deleted.transid, deleted.matchid, deleted.transdate, deleted.comstatus
-			INTO @tmpTransInfo (transid, matchid, transdate, comstatus)
-		FROM zzzbettrans z WITH(ROWLOCK, UPDLOCK)
+			OUTPUT deleted.transid, deleted.matchid
+			INTO @tmpTransInfo (transid, matchid)
+		FROM zzzbettransm z WITH(ROWLOCK, UPDLOCK)
 				INNER JOIN #RecoverBet t 
-						ON	z.transid = t.transid
-						AND z.custid = t.custid
-						AND z.matchid = t.matchid
-						AND z.bettype = t.bettype
-
+						ON	z.transid = t.SubTransId
+						AND z.custid = t.SubCustId
+						AND z.matchid = @Matchid
+						AND z.bettype = t.SubBetType
 		
 		IF @SiteDBGroupID <> 0 AND EXISTS (SELECT TOP 1 1 FROM @tmpTransInfo)
-		BEGIN
-			INSERT INTO @tmpMatchidInfo (MatchId)
-			SELECT DISTINCT MatchId FROM @tmpTransInfo
+		BEGIN			
+			SET @TransInfo = COMPRESS((
+			SELECT	matchid AS 'mid'
+					, transId AS 't'
+			FROM	@tmpTransInfo WHERE matchid = @MatchId 
+			FOR JSON PATH))
 
-			WHILE (1=1)
-			BEGIN
-				UPDATE TOP(1)m
-				SET IsFinish = 1, @matchid = MatchId 
-				FROM @tmpMatchidInfo m
-				WHERE IsFinish IS NULL
-
-				IF @@ROWCOUNT = 0 BREAK;
-
-				SET @TransInfo = COMPRESS((
-				SELECT	matchid AS 'mid'
-						, transId AS 't'
-						, transdate AS 'td'
-						, comstatus AS 'cst'
-				FROM	@tmpTransInfo WHERE matchid = @MatchId 
-				FOR JSON PATH))
-
-				INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
-				SELECT 'TVS', 'RecoverVS', 'zzzbettrans', 'D', @matchid, @TransInfo, 'p', 1
-			END
-
-			DELETE FROM @tmpTransInfo
-			DELETE FROM @tmpMatchidInfo
-
+			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog_3rd (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType, EventTable)
+			SELECT 'TVS', 'RecoverVS', 'zzzbettransm', 'D', @matchid, @TransInfo, 'p', 1
 		END
 			
 		--> Release Concurrency process
@@ -432,22 +469,22 @@ BEGIN
 			
 		EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
 			@CustIds = @CustIds,
-			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
+			@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT		
 			
 		--> build data for @ReCalculatedMainTransIds
 		SET @ReCalculatedMainTransIds = ''
-			
+						
 		SELECT @ReCalculatedMainTransIds = @ReCalculatedMainTransIds
 											+ CASE WHEN @ReCalculatedMainTransIds <> '' THEN ',' ELSE '' END
-											+ CAST(t.Transid AS VARCHAR(100))
+											+ CAST(t.TransId AS VARCHAR(100))
 		FROM #RecoverBet t
 			 INNER JOIN bettrans b (NOLOCK)
 					 ON t.TransId = b.transid
-		WHERE b.statusID IN (111, 112, 113, 103)					 
+		WHERE b.statusID IN (111, 112, 113, 103)	
 			
 		--> Return data to web
 		SET @IsITAdmin  = ISNULL((SELECT IsValid FROM dbo.f_NAP_UserControl_UserSelect (@UserId,2)),0)
-		
+
 		--1. Return table validate
 		SELECT @ErrCode AS ErrorCode
 				,@ErrMsg AS ErrorMsg
@@ -547,11 +584,6 @@ BEGIN
 				,@ReCalculatedMainTransIds AS ReCalculatedMainTransIds
 	END CATCH		
 	
-	SET NOCOUNT OFF	
-	
-	DROP TABLE #MatchInfo
-	DROP TABLE #RecoverBet
-	DROP TABLE #tblMatchProcess
-	DROP TABLE #tblTransIds
+	SET NOCOUNT OFF		
 END
 GO

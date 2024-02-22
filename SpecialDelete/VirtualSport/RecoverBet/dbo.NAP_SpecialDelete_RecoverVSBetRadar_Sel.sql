@@ -9,7 +9,6 @@ AS
 	Created by: 20170607@Kent  
 	Task: 
 	DB: DBTXN/bodb02   
-	Original:NAP_SpecialDelete_RecoverVSBetRadar_Sel     
 
 	Revisions:  		
 		- 20170607@Kent: Integrate Betradar Virtual Sports [Redmine:#77177]			
@@ -19,6 +18,7 @@ AS
 		- 20220910@July: Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20231030@July: [TVS] Integrate a new sport type "Virtual Football League" [Redmine: #195313]
+		- 20240220@July: Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:			
 		- @TicketType:		
@@ -196,9 +196,9 @@ BEGIN
 		  AND (
 				m.sporttype BETWEEN 190 AND 199 -- VS Betradar
 				OR m.sporttype IN (180, 186) -- Inspired VS 
-				OR m.sporttype IN (178, 179) -- VS 3 (Leap Gaming)
+				OR m.sporttype IN (178, 179, 188) -- VS3(Leap Gaming), VS4(Edge Gaming) 
 			  )
-		  AND z.bettype NOT IN (2799)		  		
+		  AND z.bettype NOT IN (2799, 10449)		  		
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 
 		--> Inspired VS 181
@@ -433,8 +433,8 @@ BEGIN
 						AND z.bettype = b.bettype			 
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND z.winlostdate >= @before_yesterday
-		  AND z.matchid = 2799
-		  AND z.bettype = 2799		  
+		  AND z.matchid IN (2799, 10449)	
+		  AND z.bettype IN (2799, 10449)	  
 		  AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 
 		IF EXISTS (SELECT TOP 1 1 FROM #RecoverBet WHERE EventDate <= @MovebetDate)
@@ -574,9 +574,8 @@ BEGIN
 		WHERE b.transid IN (SELECT transid FROM #tblTransIds)
 		  AND bm.matchid = @MatchId	
 		  AND bm.winlostdate >= @before_yesterday
-		  AND m.sporttype BETWEEN 190 AND 199
-		  AND b.bettype = 2799
-		  AND b.matchid = 2799
+		  AND b.bettype IN (2799, 10449)	
+		  AND b.matchid IN (2799, 10449)	
 		  AND bm.statusid = 102
 		  AND b.statusID NOT IN (101, 102) -- reject, void		  		  		
 		  AND b.SiteDBGroupID = @SiteDBGroupID AND bm.SiteDBGroupID = b.SiteDBGroupID
