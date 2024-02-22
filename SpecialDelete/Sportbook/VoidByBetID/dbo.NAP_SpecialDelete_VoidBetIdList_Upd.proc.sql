@@ -261,6 +261,7 @@ BEGIN
 		,EndTime		DATETIME
 		,ruben			TINYINT
 		,LeagueGroupID  SMALLINT
+		,zzzWinlost		MONEY
 	)
 
 	CREATE TABLE #CTE_CustInfo(custid INT, username VARCHAR(30), username2 VARCHAR(50), site VARCHAR(10))
@@ -341,6 +342,7 @@ BEGIN
 		,BonusID
 		,actual_stake
 		,ruben
+		,zzzWinlost
 	)
 	SELECT	
 		b.transid AS groupTransId
@@ -389,6 +391,7 @@ BEGIN
 		,b.BonusID
 		,b.actual_stake
 		,b.ruben
+		,b.winlost
 	FROM dbo.bettrans b WITH(NOLOCK)
 		INNER JOIN #tblTransIds t ON b.transid = t.transid
 	WHERE b.bettype < 19001
@@ -1409,6 +1412,9 @@ BEGIN
 		,b.LeagueGroupID
 		,ISNULL(si.IsChinaView,0) AS IsChinaView
 		,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+		,b.winlostdate
+		,@SiteDBGroupID AS SiteDBGroupID
+		,b.zzzWinlost
 	FROM	#SpecialDeleteBets b
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = b.matchid
 		LEFT JOIN #CTE_CustInfo ci WITH(NOLOCK) ON b.custid = ci.custid
