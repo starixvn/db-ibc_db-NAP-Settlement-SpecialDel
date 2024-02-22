@@ -817,7 +817,9 @@ BEGIN
 	SET @ResettledTransIds = (STUFF((SELECT DISTINCT  ',' + CAST( t.TransId AS VARCHAR(20))
 								FROM #tblTransInfo t
 									INNER JOIN dbo.bettrans b WITH (NOLOCK) ON b.TransId = t.transid
-								WHERE b.statusID NOT IN (0,1,102)
+								WHERE 1 = CASE WHEN ISNULL(b.betdaqid, 0) <> -2 AND b.statusID NOT IN (0,1,102) THEN 1
+											WHEN b.betdaqid = -2 AND b.statusID = 103 THEN 1
+											ELSE 0 END												
 								FOR XML PATH ('')
 							),1,1,''))
 	
