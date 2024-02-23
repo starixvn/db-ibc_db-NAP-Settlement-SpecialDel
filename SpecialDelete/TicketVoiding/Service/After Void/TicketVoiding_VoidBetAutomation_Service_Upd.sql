@@ -83,9 +83,9 @@ BEGIN
 			,IsSentEmail = @IsSentEmail
 			,IsRunExternalService = @IsRunExternalService
 			,VoidResults = ISNULL(@VoidResults, VoidResults)
-			,IsDeletedMessage = ISNULL(@IsDeletedMessage, IsDeletedMessage)
-			,IsDeletedVoidedTransaction = ISNULL(@IsDeletedVoidedTransaction, IsDeletedVoidedTransaction)
-			,IsDeletedzzzBettrans = ISNULL(@IsDeletedzzzBettrans, IsDeletedzzzBettrans)
+			,IsDeletedMessage = @IsDeletedMessage
+			,IsDeletedVoidedTransaction = @IsDeletedVoidedTransaction
+			,IsDeletedzzzBettrans = @IsDeletedzzzBettrans
 		WHERE RequestId = @RequestId AND VoidingHistoryId = @VoidingHistoryId
 	END
 	ELSE IF @UpdateType = 7
