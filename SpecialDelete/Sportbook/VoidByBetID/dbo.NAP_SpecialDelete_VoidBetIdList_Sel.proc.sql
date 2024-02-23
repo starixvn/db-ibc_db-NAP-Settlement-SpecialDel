@@ -70,6 +70,7 @@ AS;
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20231031@July: [SD] Void By BetID - Void abnormal tickets of many matches at once [Redmine: #196028]
+		- 20240223@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -485,7 +486,7 @@ BEGIN
 	DECLARE @cnt INT, @MatchId INT
 	DECLARE @tmpMatchId TABLE (MatchId INT)
 
-	IF @IsAbnormalBet = 1
+	--Return matchid show infor 1 match (case check abnormal) || remove saba (for case uncheck abnormal) 
 	BEGIN
 		INSERT INTO  @tmpMatchId (MatchId)
 		SELECT DISTINCT 
