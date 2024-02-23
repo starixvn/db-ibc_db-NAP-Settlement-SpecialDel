@@ -30,7 +30,7 @@ BEGIN
 	INSERT INTO #tempTransId (transid, messageId)
 	SELECT	t.TransId, vt.messageId
 	FROM	@tmpInputTransId t
-		LEFT JOIN bodb02.dbo.TicketVoiding_VoidedTransaction vt WITH(NOLOCK)
+		LEFT JOIN DBCTG.bodb02.dbo.TicketVoiding_VoidedTransaction vt WITH(NOLOCK)
 			ON t.transid = vt.TransId
 
 	--Gather MsgTargetId need to update
