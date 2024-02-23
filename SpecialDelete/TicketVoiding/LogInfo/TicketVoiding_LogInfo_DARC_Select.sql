@@ -27,6 +27,7 @@ AS
 		- 20230424@July: [TVS] Enhance auto cancel cash out for TVS [Redmine: #186417]
 		- 20230810@July: [TVS] Cancel Cash Out - Update rules get first ticket to void [Redmine: #189644]
 		- 20231004@Max: [TVS] Not display Score in message template when voiding non-live tickets only [Redmine: #193108]
+		- 20240124@Max: [TVS] Display more info in the warning message for existing tickets in other requests [Redmine: #199907]
 	Param's explanation:
 		+ @DangerAcceptedInfo, @RedCardInfo:
 			<root><r MatchId="0" FilterFromTransTime="1" FilterToTransTime ="" FilterBy="" SubIssueTypeId="" AATime="" PATime="" SATime=""/></root>
@@ -96,7 +97,7 @@ BEGIN
 		,CancelCashOutCount		INT
 	)
 
-	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT)
+	CREATE TABLE #TransidInRequest (TransId BIGINT, RequestId INT, MainTransId BIGINT, MatchId INT, CreatedBy INT)
 	CREATE TABLE #logInfoVoidPage (RequestId INT, MatchId INT, CashOutCount INT, InstantlySettleCount INT, SettleCount INT, CancelCashOutCount INT)
 
 	CREATE TABLE #FilterInfo (
@@ -183,7 +184,8 @@ BEGIN
 	DECLARE @Validation AS TABLE (
 			 IsInValidTotalTickets   BIT DEFAULT(0) 
 			,IsExistedInOtherRequest BIT DEFAULT(0) 
-			,MatchId                 INT
+			,IsExistsSecondAccept	BIT DEFAULT(0) 	
+			,MatchId                 INT	
 		)
 	DECLARE @tmpUnmarkTransId AS TABLE (TransId BIGINT)
 	DECLARE @tmpMarkTransId AS TABLE (TransId BIGINT)
@@ -640,8 +642,8 @@ BEGIN
 	/*Get Transid in Request of range Transid*/
 	IF @ActionId NOT IN (2)
 	BEGIN
-		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId)
-		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid
+		INSERT INTO #TransidInRequest (TransId, RequestId, MainTransId, MatchId, CreatedBy)
+		SELECT tmp.transid, r.RequestId, tmp.MainTransId, t.matchid, r.UserId
 		FROM #TVSTicketBets t
 			CROSS APPLY (
 						SELECT rs.TransId, rs.TransId AS MainTransId, rs.RequestId
@@ -716,10 +718,45 @@ BEGIN
 		FROM #logInfo l
 	END
 
+	/* Display warning message in case void second accept tickets before the allowance time of this type */
+	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE accepttype = 2)
+	BEGIN
+		DECLARE @tmp_SAChecking AS TABLE (MatchId INT, VoidFromTime DATETIME, SAFromTime DATETIME)
+		INSERT INTO @tmp_SAChecking (MatchId, VoidFromTime, SAFromTime)
+		SELECT l.MatchId, MIN(l.VoidFromTime), f.SAFromTime
+		FROM #logInfo l 
+			CROSS APPLY (
+				SELECT DATEADD(SECOND, f.SATime, f.FilterFromTransTime) AS SAFromTime
+				FROM #FilterInfo f 
+				WHERE f.MatchId = l.MatchId
+			)f
+		GROUP BY l.MatchId, f.SAFromTime
+
+		DELETE s
+		FROM @tmp_SAChecking s
+		WHERE s.VoidFromTime > s.SAFromTime
+
+		UPDATE v SET v.IsExistsSecondAccept = CASE WHEN l.IsExistsSecondAccept IS NOT NULL THEN 1 ELSE 0 END
+		FROM @Validation v
+		OUTER APPLY( 
+				SELECT TOP 1 1 AS IsExistsSecondAccept
+				FROM #logInfo l
+					INNER JOIN @tmp_SAChecking s ON s.MatchId = l.MatchId
+					INNER JOIN #TVSTicketBets t ON t.matchid = l.MatchId
+				WHERE t.accepttype = 2
+					AND v.MatchId = l.MatchId
+					AND 1 = CASE WHEN t.FilterBy = 1 AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+										WHEN t.FilterBy = 2 AND t.checktime IS NOT NULL AND t.checktime BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+										WHEN t.FilterBy = 2 AND t.checktime IS NULL AND t.transdate BETWEEN s.VoidFromTime AND s.SAFromTime THEN 1
+							ELSE 0 END
+			)l
+		
+	END
+
 	IF @IsShowLogOnly = 1 AND @RequestId <> 0
 	BEGIN
 		-- 1. Validate table
-		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest
+		SELECT MatchId, IsInValidTotalTickets, IsExistedInOtherRequest, IsExistsSecondAccept
 		FROM @Validation
 
 		-- 2. TransId in request table
@@ -787,6 +824,8 @@ BEGIN
 			,STUFF(s2.ScoreTicket2H,1,1,'') AS ScoreNormalTicket
 			,STUFF(sm.ScoreOfMatch,1,1,'') AS ScoreOfMatch
 			,t.CancelCashOutCount
+			,a.MinTransId
+			,a.ActionType
 		FROM dbo.TicketVoiding_RequestDetail rd WITH (NOLOCK)
 			CROSS APPLY (
 					SELECT CONVERT(XML, rd.TransIds)
@@ -794,6 +833,8 @@ BEGIN
 			CROSS APPLY (
 					SELECT NULLIF(t.c.value('@MinTime','DATETIME'),'')AS  HighLightMinTime
 						,t.c.value('@MinType','TINYINT') AS  HighlightAcceptType
+						,t.c.value('@MinTransId','BIGINT') AS  MinTransId
+						,t.c.value('@ActionType','VARCHAR(100)') AS  ActionType
 					FROM t1.xDATA.nodes('/r') t(c)
 				) a
 			LEFT JOIN #logInfoVoidPage t ON t.RequestId = rd.RequestId AND t.MatchId = rd.MatchId
@@ -837,8 +878,10 @@ BEGIN
 				FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 				,1,2,'') AS TransIds
 				,MatchId
+				,c.username AS CreatedBy
 			FROM #TransidInRequest r
-			GROUP BY r.RequestId, r.MatchId
+				INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+			GROUP BY r.RequestId, r.MatchId, c.username
 		END
 		ELSE
 		BEGIN
@@ -940,6 +983,7 @@ BEGIN
 	SELECT MatchId
 		, IsInValidTotalTickets
 		, IsExistedInOtherRequest
+		, IsExistsSecondAccept
 	FROM @Validation
 
 	-- 2. TransId exists in other request table
@@ -954,8 +998,10 @@ BEGIN
 			FOR XML PATH(''),TYPE).value('(./text())[1]','VARCHAR(MAX)')
 			,1,2,'') AS TransIds
 			,MatchId
+			,c.username AS CreatedBy
 		FROM #TransidInRequest r
-		GROUP BY r.RequestId, r.MatchId
+			INNER JOIN CustDB.dbo.custInfo c WITH (NOLOCK) ON c.custid = r.CreatedBy
+		GROUP BY r.RequestId, r.MatchId, c.username
 	END
 	ELSE
 	BEGIN
@@ -997,8 +1043,10 @@ BEGIN
 		,HighLightMinTime 
 		,h.HighlightAcceptType
 		,CancelCashOutCount
+		,h.MinTransId
+		,CASE WHEN h.IsCancelCashOut = 1 THEN '(Cancel Cash Out)' ELSE NULL END AS ActionType
 	FROM _cte l
-		OUTER APPLY (SELECT TOP 1 b.accepttype HighlightAcceptType
+		OUTER APPLY (SELECT TOP 1 b.accepttype AS HighlightAcceptType, b.transid AS MinTransId, b.IsCancelCashOut
 						 FROM #TVSTicketBets b 
 					     WHERE l.MatchId = b.matchid 
 						 AND l.HighLightMinTime = (CASE 
@@ -1007,7 +1055,7 @@ BEGIN
 													    WHEN b.IsCancelCashOut = 0 AND b.FilterBy = 2 AND b.checktime IS NULL THEN b.transdate
 														WHEN b.IsCancelCashOut = 1 THEN b.CheckTimeCashOut
 														END)
-						ORDER BY b.IsCancelCashOut ASC
+						ORDER BY b.IsCancelCashOut ASC, b.transid ASC
 			) AS h
 
 	-- 4. List ticket unmark/mark (if any)
