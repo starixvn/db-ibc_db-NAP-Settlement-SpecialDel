@@ -401,7 +401,7 @@ BEGIN
 			INNER JOIN dbo.bettransm AS bm WITH (NOLOCK) ON d.transid = bm.TransId
 		WHERE bm.statusID NOT IN (101, 102, 103)
 			AND d.TicketType = 2
-			AND NOT EXISTS (SELECT TOP 1 1 FROM #TransInfo t WHERE t.transid = d.transid)
+			AND NOT EXISTS (SELECT TOP 1 1 FROM #TransInfo t WHERE t.Subtransid = d.transid)
 			AND bm.SiteDBGroupID = @SiteDBGroupID
 		
 		IF @@ROWCOUNT > 0
