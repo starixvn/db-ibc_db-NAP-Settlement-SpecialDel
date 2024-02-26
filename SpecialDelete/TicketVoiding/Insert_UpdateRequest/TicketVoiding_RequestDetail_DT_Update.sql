@@ -19,6 +19,7 @@ AS
 	Revisions: 
 		- 20230717@Max: Create new SP [Redmine:#187835]
 		- 20231031@Max: [TVS] - Hot fix - Duplicate ticket missing void parlay virtual sport [Redmine: #196241]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 */
@@ -162,7 +163,7 @@ BEGIN
 	FROM #tmpTransInfo t
 	WHERE matchid = @MatchId
 		AND 1 = CASE WHEN @FilterBy IS NULL THEN 1
-						WHEN @FilterBy = 1 AND t.bettype IN (9,29,2799) THEN 1 ELSE 0 END
+						WHEN @FilterBy = 1 AND t.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
 		AND IsOrg <> 1
 
 	-- Get content of log data 

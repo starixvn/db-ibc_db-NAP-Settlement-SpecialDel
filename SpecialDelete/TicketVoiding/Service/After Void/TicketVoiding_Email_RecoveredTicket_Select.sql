@@ -351,7 +351,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE t
 		SET matchcode 	= m.matchcode
@@ -369,7 +369,7 @@ BEGIN
 			ON	t.matchid = m.matchid
 			INNER JOIN dbo.league l WITH (NOLOCK) 
 			ON	m.leagueid = l.leagueid
-		WHERE t.bettype NOT IN (9, 29, 2799)
+		WHERE t.bettype NOT IN (9, 29, 2799, 10449)
 	END
 
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -412,7 +412,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMove14 = 1)
 	BEGIN
 		-- UPDATE eventtype = 1
-		IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
+		IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 		BEGIN
 			UPDATE t
 			SET matchcode 	= m.matchcode
@@ -428,7 +428,7 @@ BEGIN
 			FROM #TVSTicketBets t
 				INNER JOIN dbo.match14 m WITH (NOLOCK) 
 				ON	t.matchid = m.matchid
-			WHERE t.bettype NOT IN (9, 29, 2799)
+			WHERE t.bettype NOT IN (9, 29, 2799, 10449)
 		END
 
 		-- UPDATE eventtype = 2 [Outright bettype]

@@ -16,6 +16,7 @@ RETURNS VARCHAR(1000)
 	Revisions: 
 	- 20190219@Alan: Support New Ticket Status Abnormal Bet [106654]
 	- 20211124@Max: [TVS] Void abnormal bet of parlay [Redmine: #161337]
+	- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Params:
 	@IsMark: - 'recover': Recover Abnormal Bet Tickets
@@ -38,7 +39,7 @@ BEGIN
 	IF @IsAbnormalBet <> 2
 	BEGIN
 		IF(	@SportType NOT BETWEEN 1 AND 99 OR 
-			@BetType IN (10,29,38,2799,901,902,903,904,911,912,913,914,801,803,804,805,806))
+			@BetType IN (10,29,38,2799,10449,901,902,903,904,911,912,913,914,801,803,804,805,806))
 		BEGIN
 			SET @Result = @ExtraInfo
 		END

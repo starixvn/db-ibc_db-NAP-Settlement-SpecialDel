@@ -111,7 +111,8 @@ BEGIN
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
 	
-	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)		
+	CREATE TABLE #tblMatchProcess (matchid INT, KeyID TINYINT)
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	
 	DECLARE @beforeUpd TVP_BalanceChange
 		  , @afterUpd  TVP_BalanceChange
@@ -276,16 +277,24 @@ BEGIN
 
 			RETURN
 		END
+
+		--> Check Concurrency
 		
 		SELECT @IsExistsVS2 = CASE WHEN b.SportType BETWEEN 190 AND 199 THEN 1 ELSE 0 END
 			  ,@IsExistsVS4 = CASE WHEN b.SportType = 188 THEN 1 ELSE 0 END
 		FROM #RecoverBet b
 
-		--> Check Concurrency
-		SET @IsExistParlayVSBetradar = 1
+		IF @IsExistsVS4 = 1
+		BEGIN
+			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+			SELECT @MatchId, refno
+			FROM #RecoverBet
+			WHERE SportType = 188
+		END
 				
 		EXEC dbo.NAP_Admin_CheckingProcess
-			  @IsExistParlayVSBetradar	= @IsExistParlayVSBetradar				
+			  @IsExistParlayVSBetradar	= @IsExistsVS2		
+			, @IsLockingByRefnoVS		= @IsExistsVS4
 			, @spName					= @spName
 			, @avaiableProcess 			= @avaiableProcess OUTPUT
 			, @ErrCode					= @ErrCode OUTPUT
@@ -453,7 +462,8 @@ BEGIN
 			
 		--> Release Concurrency process
 		EXEC dbo.NAP_Admin_CheckingProcess
-				@IsExistParlayVSBetradar	= 1				
+				@IsExistParlayVSBetradar	= @IsExistsVS2
+			, @IsLockingByRefnoVS		= @IsExistsVS4
 			, @IsReleased				= 1	
 			
 		--> Build list of customer name with negative balance
@@ -575,7 +585,8 @@ BEGIN
 		IF @avaiableProcess = 1
 			--> Release Concurrency process
 			EXEC dbo.NAP_Admin_CheckingProcess
-				  @IsExistParlayVSBetradar	= 1				
+				  @IsExistParlayVSBetradar	= @IsExistsVS2
+				, @IsLockingByRefnoVS		= @IsExistsVS4
 				, @IsReleased				= 1	
 
 		SELECT @ErrCode AS ErrorCode

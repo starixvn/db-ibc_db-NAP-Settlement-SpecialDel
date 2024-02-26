@@ -16,6 +16,7 @@ AS
 		- 20220318@July: TVS changes of SQL Server Upgrade to 2019 Phase 4 (dbtrans) [Redmine: #167446]
 		- 20220818@July: Change of Void By Bet ID regarding to Scale out DBTrans [Redmine: #176811]
 		- 20230522@July: Support sport Cricket for all functions  [Redmine: #188374]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:
 		+ @MatchId: MatchId of current @TransIds
@@ -90,7 +91,7 @@ BEGIN
 		INNER JOIN #transIdTemp TEMP ON b.transid = TEMP.transid
 		INNER JOIN dbo.match m WITH(NOLOCK) ON b.matchid = m.matchid
 	WHERE b.bettype < 19001
-		AND b.bettype NOT IN (9, 29, 2799) -- Parlay Tickets
+		AND b.bettype NOT IN (9, 29, 2799, 10449) -- Parlay Tickets
 		AND b.bettype NOT IN (10) -- outright tickets
 		AND b.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
 		AND b.bettype NOT IN (31, 32, 33, 71, 72, 73) -- NOT IN [Racing, Casino]

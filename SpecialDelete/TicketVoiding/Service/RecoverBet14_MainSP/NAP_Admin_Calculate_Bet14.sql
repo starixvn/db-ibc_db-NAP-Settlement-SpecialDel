@@ -314,7 +314,7 @@ BEGIN
 		IF @transInfo IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
-			SELECT 'TVS', 'Recover_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799) THEN 'p' ELSE 's' END
+			SELECT 'TVS', 'Recover_14', 'bettrans14', 'U', @matchid, @transInfo, CASE WHEN @MatchId IN (29, 2799, 10449) THEN 'p' ELSE 's' END
 		END
 	END	
 

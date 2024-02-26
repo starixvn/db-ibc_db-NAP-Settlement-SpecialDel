@@ -11,7 +11,7 @@ AS;
 	
 	Revisions: 
 		- 20240102@July: Create new SP [Redmine:#196020]
-		
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 	Param's explanation:	
 		
 */	
@@ -372,7 +372,7 @@ BEGIN
 	END
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -387,7 +387,7 @@ BEGIN
 		FROM #TVSTicketBets d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 	
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -433,7 +433,7 @@ BEGIN
 	IF EXISTS (SELECT TOP 1 1 FROM #TVSTicketBets WHERE IsMove14 = 1)
 	BEGIN
 		-- UPDATE eventtype = 1
-		IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799)))
+		IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 		BEGIN
 			UPDATE t
 			SET matchcode 	= m.matchcode
@@ -449,7 +449,7 @@ BEGIN
 			FROM #TVSTicketBets t
 				INNER JOIN dbo.match14 m WITH (NOLOCK) 
 				ON	t.matchid = m.matchid
-			WHERE t.bettype NOT IN (9, 29, 2799) 
+			WHERE t.bettype NOT IN (9, 29, 2799, 10449) 
 				AND t.IsMove14 = 1
 		END
 		
@@ -505,12 +505,12 @@ BEGIN
 	END
 
 	-- UPDATE IsMixParlay
-	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #TVSTicketBets WHERE bettype IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE t
 			SET IsMixParlay = 1
 		FROM #TVSTicketBets t
-		WHERE t.bettype IN (9, 29, 2799)
+		WHERE t.bettype IN (9, 29, 2799, 10449)
 	END
 
 	-- UPDATE Isdeposit

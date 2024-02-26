@@ -15,6 +15,7 @@ AS
 		- 20210201@Zane: Modify archive process for abnormal Account [Redmine:#149776]
 		- 20211118@Kathy: Tuning performance [Redmine:#164819]
 		- 20230629@Max: [TVS] Enhance 'Manage Request' performance [Redmine: #190508]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 		
@@ -26,14 +27,14 @@ BEGIN
 
     IF EXISTS (SELECT TOP 1 1 
                FROM   dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
-					INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799 )
+					INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799, 10449 )
             WHERE CONVERT(DATE, r.CreatedDate) BETWEEN @FromDate AND @ToDate
 		) 
     BEGIN      
         INSERT INTO @tmpResult (requestid) 
 		SELECT r.requestid
 		FROM  dbo.TicketVoiding_Request_bk r WITH(NOLOCK) 
-			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799 )
+			INNER JOIN dbo.TicketVoiding_RequestDetail_bk rd WITH (NOLOCK) ON r.RequestId = rd.RequestId AND rd.MatchId IN ( 9, 29, 2799, 10449 )
 		WHERE CONVERT(DATE, r.CreatedDate) BETWEEN @FromDate AND @ToDate 
 		GROUP  BY r.requestid
     END 

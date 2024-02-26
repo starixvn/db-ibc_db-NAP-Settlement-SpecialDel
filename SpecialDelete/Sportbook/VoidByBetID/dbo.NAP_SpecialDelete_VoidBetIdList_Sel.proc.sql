@@ -71,6 +71,7 @@ AS;
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
 		- 20231031@July: [SD] Void By BetID - Void abnormal tickets of many matches at once [Redmine: #196028]
 		- 20240223@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
+		- 20240229@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's Explanation:
 		+ @CustID NOT NULL: Search by CustID
@@ -183,7 +184,7 @@ BEGIN
 		WHERE 1 = CASE WHEN @IsAbnormalBet = 0 THEN 1
 					   WHEN @IsAbnormalBet = 1 AND pt.ProductID = 1 
 							AND pt.bettype < 19001
-							AND pt.bettype NOT IN (9, 29, 2799) -- Parlay Tickets
+							AND pt.bettype NOT IN (9, 29, 2799, 10449) -- Parlay Tickets
 							AND pt.bettype NOT IN (10) -- outright tickets
 							AND pt.bettype NOT IN (1231, 1232, 1233, 1237, 1238) -- virtual sport
 							AND pt.bettype NOT IN (38) -- Bet Builder
@@ -377,11 +378,11 @@ BEGIN
 	IF(@IncludeMainParlay = 0 AND @Products IS NULL)
 	BEGIN
 			DELETE b FROM #SpecialDeleteBets b 
-			WHERE  b.bettype IN (9, 29, 2799, 38)
+			WHERE  b.bettype IN (9, 29, 2799, 10449, 38)
 	END
 	
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -395,7 +396,7 @@ BEGIN
 		FROM #SpecialDeleteBets d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 	-- UPDATE eventtype = 2 [Outright bettype]
 	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (10)))
@@ -458,16 +459,16 @@ BEGIN
 			ON d.matchid = m.Match3rdId
 	END
 
-	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (9,29,2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #SpecialDeleteBets WHERE bettype IN (9,29,2799,10449)))
 	BEGIN
 		UPDATE #SpecialDeleteBets
 		SET eventdate = winlostdate
-		WHERE bettype IN (9,29,2799)
+		WHERE bettype IN (9,29,2799,10449)
 	END
 	--- Remove invalid sporttype
 	DELETE 
 	FROM #SpecialDeleteBets
-	WHERE bettype NOT IN (9, 29, 2799)
+	WHERE bettype NOT IN (9, 29, 2799,10449)
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
@@ -503,10 +504,32 @@ BEGIN
 			SET @MatchId = 0 --Multiple matches
 	END
 
-	------------------------------------------------------------------------------	--1. Table invalid/moved transid	
-	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT)	INSERT INTO #InvalidTransIds(transid, IsMoved)	SELECT t.transid		  , CASE WHEN b.transid IS NOT NULL THEN 1				 WHEN m.TransId IS NOT NULL THEN 1				 ELSE 0 END AS IsMoved	FROM #transIdTemp t		LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID		LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets r WHERE r.transid = t.transid)
-	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))									 FROM #InvalidTransIds									 WHERE IsMoved = 0									 FOR XML PATH('')), 1, 1, '');									
-	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))								   FROM #InvalidTransIds								   WHERE IsMoved = 1								   FOR XML PATH('')), 1, 1, '');		SELECT @InvalidTransIds AS InvalidTransIds	      ,@MovedTransIds AS MovedTransIds		  ,@MatchId AS MatchId
+	------------------------------------------------------------------------------
+	--1. Table invalid/moved transid	
+	CREATE TABLE #InvalidTransIds (transid BIGINT, IsMoved BIT)
+	INSERT INTO #InvalidTransIds(transid, IsMoved)
+	SELECT t.transid
+		  , CASE WHEN b.transid IS NOT NULL THEN 1
+				 WHEN m.TransId IS NOT NULL THEN 1
+				 ELSE 0 END AS IsMoved
+	FROM #transIdTemp t
+		LEFT JOIN dbo.bettrans14 b WITH(NOLOCK) ON t.transid = b.transid AND b.SiteDBGroupID = @SiteDBGroupID
+		LEFT JOIN @tmpTransIdMoveBet m ON t.transid = m.TransId
+	WHERE NOT EXISTS (SELECT TOP 1 1 FROM #SpecialDeleteBets r WHERE r.transid = t.transid)
+
+	SELECT @InvalidTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+									 FROM #InvalidTransIds
+									 WHERE IsMoved = 0
+									 FOR XML PATH('')), 1, 1, '');									
+
+	SELECT @MovedTransIds = STUFF((SELECT ',' + CAST(transid AS VARCHAR(50))
+								   FROM #InvalidTransIds
+								   WHERE IsMoved = 1
+								   FOR XML PATH('')), 1, 1, '');	
+
+	SELECT @InvalidTransIds AS InvalidTransIds
+	      ,@MovedTransIds AS MovedTransIds
+		  ,@MatchId AS MatchId
 
 	-- UPDATE SiteName
 	;WITH CustSiteName AS (

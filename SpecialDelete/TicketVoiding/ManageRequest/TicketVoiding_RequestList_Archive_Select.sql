@@ -43,6 +43,7 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		@Status: 
@@ -138,7 +139,7 @@ BEGIN
 		IF EXISTS ( SELECT TOP 1 1 FROM dbo.TicketVoiding_RequestDetail_bk rd WITH(NOLOCK)
 										LEFT JOIN @tmpRequest r 
 											ON rd.RequestId = r.RequestId 
-								   WHERE matchid IN (9, 29, 2799)
+								   WHERE matchid IN (9, 29, 2799, 10449)
 								   AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 												WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 												WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
@@ -154,7 +155,7 @@ BEGIN
 					ON rd.MatchId = bk.matchid AND s.TransId = bk.transid
 				LEFT JOIN @tmpRequest r 
 					ON rd.RequestId = r.RequestId 
-			WHERE rd.matchid IN (9, 29, 2799)
+			WHERE rd.matchid IN (9, 29, 2799, 10449)
 			AND 1 = CASE WHEN @FilteredBy = 1 AND rd.RequestId = @RequestId THEN 1 
 						 WHEN @FilteredBy = 2 AND rd.MatchId = @MatchId THEN 1
 						 WHEN @FilteredBy = 3 AND r.RequestId IS NOT NULL THEN 1
@@ -397,10 +398,10 @@ BEGIN
 					,SUM( CASE 
 							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
 							WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
-							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
+							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
 						ELSE 0 END
 					) AS TotalSingleProcessed
-					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN(9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed
 			FROM @tmpMatchVoidingHistory vh
@@ -448,8 +449,8 @@ BEGIN
 		FROM	#tmpResult t
 			OUTER APPLY (SELECT 
 							SUM(CASE WHEN s.IsProcessed = 3 THEN 1 ELSE 0 END) AS TotalResettleProcessed
-						   ,SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						   ,SUM(CASE WHEN s.MatchId NOT IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						   ,SUM(CASE WHEN s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
 						LEFT JOIN dbo.zzzbettrans_bk z ON s.transid = z.transid
 					WHERE s.RequestId = t.RequestId
@@ -510,13 +511,13 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId
 					AND 1 = CASE WHEN t.IssueTypeId IN (11,15,20) THEN 1
-								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799) THEN 1
+								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN 1
 								 ELSE 0 END
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		OUTER APPLY (SELECT COUNT(1) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single_bk s WITH (NOLOCK)
-					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799)
+					WHERE s.RequestId = t.RequestId AND t.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449)
 				)p	
 		---Case Failed
 		OUTER APPLY ( 

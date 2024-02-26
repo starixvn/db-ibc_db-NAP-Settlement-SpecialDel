@@ -20,6 +20,7 @@ AS
 		- 20220926@Max: Hot fix - void by bet id not Rep to Central DB [Redmine: #178197]
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20230717@July: [SD] Integrate Virtual Sports 3 (Leap Gaming) [Redmine: #189556]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	 Param's Explanation:  
 	 Sample Execution: EXEC [dbo].[NAP_SpecialDelete_VoidBetId_UUS] @TransIds = '110595939664,110595939665,110595939666'
@@ -32,6 +33,7 @@ BEGIN
 			,@isExistNG					BIT = 0
 			,@isExistVS					BIT = 0
 			,@IsExistVS3 				BIT = 0
+			,@IsExistVS4 				BIT = 0
 
 	SELECT @ErrCode				= 0
 		, @ErrMsg				= ''
@@ -207,7 +209,7 @@ BEGIN
 		AND b.currency = 20
 	
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS (SELECT 1 FROM #BetDelete WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE	b
 		SET homeid 		= m.homeid
@@ -221,7 +223,7 @@ BEGIN
 		FROM	#BetDelete b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		WHERE bettype NOT IN (9, 29, 2799)
+		WHERE bettype NOT IN (9, 29, 2799, 10449)
 	END
 	
 	-- -- UPDATE eventtype = 2 [Outright ticket]
@@ -275,7 +277,7 @@ BEGIN
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #BetDelete bd
-	WHERE bettype NOT IN (9, 29, 2799)
+	WHERE bettype NOT IN (9, 29, 2799, 10449)
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
@@ -308,6 +310,7 @@ BEGIN
 			,@isExistNG 				= MAX (CASE WHEN Bettype BETWEEN 81 AND 120 OR Bettype BETWEEN 8101 AND 8120 THEN 1 ELSE 0 END)
 			,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 			,@IsExistVS3				= MAX (CASE WHEN bettype BETWEEN 5302 AND 5399 THEN 1 ELSE 0 END)
+			,@IsExistVS4				= MAX (CASE WHEN sporttype = 188 THEN 1 ELSE 0 END)
 	FROM	#BetDelete b
 	
 	-- STEP 1 : BackUp bettrans
@@ -370,7 +373,7 @@ BEGIN
 		AND main.matchid = tmpmain.matchid		
 	
 	--Get data before update
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
 	BEGIN
 		INSERT INTO #balanceGameBefore(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -392,6 +395,7 @@ BEGIN
 			OR b.Bettype BETWEEN 1201 AND 1299 --VS
 			OR b.bettype BETWEEN 2700 AND 2899 --VS2 (Betradar)
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
+			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE 
 				WHEN b.bettype BETWEEN 1101 AND 1199 THEN 1101
@@ -480,7 +484,7 @@ BEGIN
 	END	
 
 	--Get data after update
-	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1)
+	IF(@isExistNG = 1 OR @isExistVS = 1 OR @IsExistVSBetradar = 1 OR @IsExistParlayVSBetradar = 1 OR @IsExistVS3 = 1 OR @IsExistVS4 = 1)
 	BEGIN
 		INSERT INTO #balanceGameAfter(custid, winlostdate, balance, winlost, gametypeid, groupid)
 		SELECT b.custid, b.winlostdate
@@ -502,6 +506,7 @@ BEGIN
 			OR b.Bettype BETWEEN 1201 AND 1299 --VS
 			OR b.bettype BETWEEN 2700 AND 2899 --VS2 (Betradar)
 			OR b.bettype BETWEEN 5302 AND 5399 --VS3 (Leap Gaming)
+			OR b.bettype BETWEEN 10400 AND 10449 --VS4 (Edge Gaming)
 		GROUP BY b.custid, b.winlostdate, b.bettype
 			,CASE
 				WHEN tmp.Bettype BETWEEN 1101 AND 1199 THEN 1101

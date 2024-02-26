@@ -58,6 +58,7 @@ AS
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20231016@Max: [TVS] Add related event for voiding Early Kick Off issue type [Redmine: #188957]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		@Status: 
@@ -146,7 +147,7 @@ BEGIN
 		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
 		BEGIN
 			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-									   WHERE matchid IN (9, 29, 2799) AND RequestId = @RequestId
+									   WHERE matchid IN (9, 29, 2799, 10449) AND RequestId = @RequestId
 									   
 			)
 			BEGIN
@@ -154,14 +155,14 @@ BEGIN
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799) AND s.RequestId = @RequestId
+					WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
 					GROUP BY s.RequestId
 
 					INSERT INTO @MinEventDate_tmp (RequestID, Eventdate)
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799) AND s.RequestId = @RequestId
+					WHERE s.matchid IN (9, 29, 2799, 10449) AND s.RequestId = @RequestId
 					GROUP BY s.RequestId
 
 			END
@@ -218,7 +219,7 @@ BEGIN
 		IF (EXISTS (SELECT TOP 1 1 FROM @tmpIssueType WHERE IssueTypeId IN (11,13,17,20,22)))
 		BEGIN
 			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
-					   WHERE matchid IN (9, 29, 2799)
+					   WHERE matchid IN (9, 29, 2799, 10449)
 					   		AND rd.MatchId = @MatchId
 													
 			)
@@ -227,7 +228,7 @@ BEGIN
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 						INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799)
+					WHERE s.matchid IN (9, 29, 2799, 10449)
 						AND s.MatchId = @MatchId
 					GROUP BY s.RequestId
 					
@@ -235,7 +236,7 @@ BEGIN
 					SELECT  s.RequestId,MIN(b.winlostdate)
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 						INNER JOIN dbo.bettrans14 b WITH(NOLOCK) ON s.TransId = b.transid
-					WHERE s.matchid IN (9, 29, 2799)
+					WHERE s.matchid IN (9, 29, 2799, 10449)
 						AND s.MatchId = @MatchId
 					GROUP BY s.RequestId
 
@@ -295,7 +296,7 @@ BEGIN
 			IF EXISTS ( SELECT TOP 1 1 FROM TicketVoiding_RequestDetail rd WITH(NOLOCK)
 											INNER JOIN @tmpRequest r 
 												ON rd.RequestId = r.RequestId 
-									   WHERE matchid IN (9, 29, 2799)
+									   WHERE matchid IN (9, 29, 2799, 10449)
 									   
 			)
 			BEGIN
@@ -311,7 +312,7 @@ BEGIN
 									 FROM dbo.bettrans14 b WITH(NOLOCK) 
 									 WHERE s.TransId = b.transid
 									 ) AS bt
-					WHERE s.matchid IN (9, 29, 2799)
+					WHERE s.matchid IN (9, 29, 2799, 10449)
 					GROUP BY s.RequestId
 
 			END
@@ -599,14 +600,14 @@ BEGIN
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId 
 					AND 1 = CASE WHEN t.IssueTypeId IN (11,15,20) THEN 1
-								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799) THEN 1
+								 WHEN t.IssueTypeId IN (17) AND s.MatchId NOT IN (9,29,2799,10449) THEN 1
 								 ELSE 0 END
 					FOR XML PATH('')
 				)ts	 (TransIds)
 		OUTER APPLY (SELECT COUNT(s.TransId) AS TotalParlay
 					FROM dbo.TicketVoiding_RequestDetailTicket_Single s WITH (NOLOCK)
 					WHERE s.RequestId = t.RequestId 
-						AND s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799)
+						AND s.IssueTypeId IN (17) AND s.MatchId IN (9,29,2799,10449)
 				)p	
 				---Case Failed
 		OUTER APPLY ( 

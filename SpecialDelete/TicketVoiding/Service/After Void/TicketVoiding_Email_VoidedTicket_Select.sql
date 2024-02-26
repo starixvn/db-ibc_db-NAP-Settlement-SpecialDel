@@ -35,6 +35,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20230623@Max: [TVS] Enhance void 14 by Username Feature name [Redmine: #190028]
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 		
 	Param's explanation:	
 		
@@ -186,8 +187,8 @@ BEGIN
 			,LiveIndicator = b.liveindicator
 			,ActualStake = b.actual_stake
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-			,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END --case AB(void mix parlay)
-			,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END
+			,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799, 10449) THEN 1 ELSE 0 END --case AB(void mix parlay)
+			,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799, 10449) THEN 1 ELSE 0 END
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -228,9 +229,9 @@ BEGIN
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
 				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-				,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END --case AB(void mix parlay)
+				,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END --case AB(void mix parlay)
 				,IsVoidArchived = 1
-				,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END
+				,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid
@@ -375,7 +376,7 @@ BEGIN
 					INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.transid = t.TransId)
 	BEGIN
 		-- UPDATE eventtype = 1
-		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
+		IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799, 10449)))
 		BEGIN
 			UPDATE t
 			SET matchcode 	= m.matchcode
@@ -391,7 +392,7 @@ BEGIN
 			FROM #tmpTicket t
 				INNER JOIN dbo.match14 m WITH (NOLOCK) 
 				ON	t.matchid = m.matchid
-			WHERE t.bettype NOT IN (9, 29, 2799)
+			WHERE t.bettype NOT IN (9, 29, 2799, 10449)
 		END
 
 		-- UPDATE eventtype = 2 [Outright bettype]

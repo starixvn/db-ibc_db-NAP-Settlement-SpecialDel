@@ -15,6 +15,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230220@July: Cancel Cash-Out if action CO in danger time range [Redmine: #176998]
 		- 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		- @TransIds: '12343091763609600,12343108943478784'
@@ -84,7 +85,7 @@ BEGIN
 		,b.betdaqid 
 		,b.statusID 
 		,b.statusID AS SubstatusID 
-		,CASE WHEN b.bettype IN (9,29,2799) THEN 1 ELSE 0 END IsMixParlay
+		,CASE WHEN b.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END IsMixParlay
 		,0 AS IsMoved14
 		,b.SiteDBGroupID
 		,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut
@@ -159,7 +160,7 @@ BEGIN
 			,b.betdaqid 
 			,b.statusID 
 			,b.statusID AS SubstatusID 
-			,CASE WHEN b.bettype IN (9,29,2799) THEN 1 ELSE 0 END IsMixParlay
+			,CASE WHEN b.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END IsMixParlay
 			,1 AS IsMoved14 
 			,b.SiteDBGroupID
 			,CASE WHEN t.IsCancelCashOut = 1 THEN 1 ELSE 0 END IsCancelCashOut

@@ -84,7 +84,7 @@ BEGIN
 				BEGIN
 					INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson, TicketType)
 					SELECT 'TVS'
-						, CASE WHEN @MatchId NOT IN (9,29,2799) THEN 'RecoverSingleBet' ELSE 'RecoverMainParlayBet' END
+						, CASE WHEN @MatchId NOT IN (9,29,2799,10449) THEN 'RecoverSingleBet' ELSE 'RecoverMainParlayBet' END
 						, 'zzzbettrans', 'D', @matchid, @TransInfo, 's'
 				END
 

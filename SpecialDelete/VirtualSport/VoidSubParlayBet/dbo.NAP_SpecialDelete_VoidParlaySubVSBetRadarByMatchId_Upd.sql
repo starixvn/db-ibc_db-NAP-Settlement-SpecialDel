@@ -105,6 +105,7 @@ BEGIN
 	)	
 	
 	CREATE TABLE #tblTransIds (transid BIGINT)
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	
 	DECLARE @beforeUpd TVP_BalanceChange
 		  , @afterUpd  TVP_BalanceChange	
@@ -294,7 +295,18 @@ BEGIN
 		END
 		IF @IsExistsVS4 = 1 
 		BEGIN
-			SELECT '1'
+			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+			SELECT @MatchId, refno
+			FROM #BetDelete
+			WHERE SportType = 188
+
+			EXEC [dbo].[NAP_Admin_CheckingProcess]
+					 @IsLockingByRefnoVS	= @IsExistsVS4	
+					, @spName = @spName
+					, @IsReleased	= 0
+					, @AvaiableProcess = @AvaiableProcess OUTPUT
+					, @ErrCode = @ErrCode OUTPUT
+					, @ErrMsg	= @ErrMsg OUTPUT
 		END
 
 		IF @ErrCode <> 0 OR @avaiableProcess = 0
@@ -399,7 +411,9 @@ BEGIN
 		END
 		IF @IsExistsVS4 = 1 
 		BEGIN
-			SELECT '1'
+			EXEC [dbo].[NAP_Admin_CheckingProcess]
+					@IsLockingByRefnoVS = 1			
+					, @IsReleased	= 1 
 		END
 
 		--> Build list of customer name with negative balance
@@ -499,7 +513,9 @@ BEGIN
 			END
 			IF @IsExistsVS4  = 1
 			BEGIN
-				SELECT '1'
+				EXEC [dbo].[NAP_Admin_CheckingProcess]
+					@IsLockingByRefnoVS = 1			
+					, @IsReleased	= 1 
 			END
 		END
 				  
@@ -507,7 +523,10 @@ BEGIN
 				, @ErrMsg AS ErrorMsg
 				, @NegativeBalanceUsers AS NegativeBalanceUsers
 	END CATCH	
-						
+	
+	DROP TABLE #tblTransIds
+	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #BetDelete
 	SET NOCOUNT OFF		
 END
 GO

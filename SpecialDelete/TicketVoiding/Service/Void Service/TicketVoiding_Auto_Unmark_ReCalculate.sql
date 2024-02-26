@@ -15,6 +15,7 @@ AS
 	Revisions: 
 		- 20230303@Max: Create new SP [Redmine: #180625]	
 		- 20230707@July: Remove unnecessary code [Redmine: #190859]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		
@@ -39,6 +40,7 @@ BEGIN
 			,@isExistCricket			BIT = 0
 			,@isExistLC					BIT = 0
 			,@isExistVS					BIT = 0
+			,@IsExistParlayVS4 			BIT = 0
 			,@ErrMsg					NVARCHAR(300) = ''
 			,@ErrCode					INT           = 0
 			,@NegativeBalanceUsers		VARCHAR(MAX) = NULL
@@ -84,14 +86,14 @@ BEGIN
 		AND b.SiteDBGroupID = @SiteDBGroupID
 
 	-- UPDATE eventtype = 1
-	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS (SELECT 1 FROM #tmp_TransId WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		UPDATE	b
 		SET sporttype 	= m.sporttype
 		FROM	#tmp_TransId b
 			INNER JOIN dbo.match m WITH(NOLOCK)
 				ON	b.matchid = m.matchid
-		WHERE bettype NOT IN (9, 29, 2799)
+		WHERE bettype NOT IN (9, 29, 2799, 10449)
 			
 	END
 
@@ -134,7 +136,7 @@ BEGIN
 	-- remove un-supported sports & bettype
 	DELETE bd
 	FROM #tmp_TransId bd
-	WHERE bettype NOT IN (9, 29, 2799)
+	WHERE bettype NOT IN (9, 29, 2799, 10449)
 		AND (
 			sporttype IS NULL
 			OR bettype = 500 /*charge comm*/
@@ -171,6 +173,7 @@ BEGIN
 					,@isExistVS					= MAX (CASE WHEN Bettype BETWEEN 1201 AND 1299 THEN 1 ELSE 0 END)
 					,@isExistBB					= MAX (CASE WHEN Bettype IN (38) THEN 1 ELSE 0 END)
 					,@isExistFM2				= MAX (CASE WHEN f.GroupId = 2 THEN 1 ELSE 0 END)
+					,@IsExistParlayVS4			= MAX (CASE WHEN bettype = 10449 THEN 1 ELSE 0 END)
 			FROM	#tmp_TransId v
 				OUTER APPLY (
 							SELECT GroupId
@@ -182,7 +185,7 @@ BEGIN
 			INSERT INTO #tblMatchProcess(matchid, KeyID)
 			SELECT DISTINCT matchid
 				, CASE 
-					WHEN Bettype NOT IN (9, 29, 2799, 10, 38) 
+					WHEN Bettype NOT IN (9, 29, 2799, 10449, 10, 38) 
 							AND Bettype NOT BETWEEN 801 AND 899
 							AND f.GroupId IS NULL
 							AND Bettype NOT IN (1231,1232,1233)
@@ -220,14 +223,15 @@ BEGIN
 			END
 
 			--Lock Match
-			IF @isExistParlay = 1
+			IF @isExistParlay = 1 OR @IsExistParlayVS4 = 1
 			BEGIN
 				-- Apply new way to lock parlay tickets	
 				IF @totalMainParlay <= @ThreadHold
 				BEGIN
 					-- checking Refno parlay proccess
 					EXEC dbo.NAP_Admin_CheckingProcess
-						@IsLockingByRefno	= 1
+						@IsLockingByRefno		= @isExistParlay
+						,@IsLockingByRefnoVS	= @IsExistParlayVS4
 						,@spName			= @spName
 						,@Session			= @Session
 						,@avaiableProcess 	= @avaiableProcess OUTPUT
@@ -248,6 +252,7 @@ BEGIN
 				BEGIN
 					EXEC dbo.NAP_Admin_CheckingProcess
 						@isExistParlay 			= @isExistParlay
+						,@IsLockingByRefnoVS	= @IsExistParlayVS4
 						,@avaiableProcess 		= @avaiableProcess OUTPUT
 						,@ErrCode				= @ErrCode OUTPUT
 						,@ErrMsg				= @ErrMsg OUTPUT
@@ -322,14 +327,15 @@ BEGIN
 
 			RETURN			
 		END CATCH
-			
-		IF @isExistParlay = 1
+			 
+		IF @isExistParlay = 1 OR @IsExistParlayVS4 = 1
 		BEGIN
 			IF @totalMainParlay <= @ThreadHold
 			BEGIN
 				------ releasing Refno parlay proccess
 				EXEC dbo.NAP_Admin_CheckingProcess
-					@IsLockingByRefno = 1
+					@IsLockingByRefno = @isExistParlay
+					,@IsLockingByRefnoVS	= @IsExistParlayVS4
 					,@Session	= @Session
 					,@IsReleased = 1	
 			END
@@ -337,6 +343,7 @@ BEGIN
 			BEGIN
 				EXEC dbo.NAP_Admin_CheckingProcess
 					@isExistParlay 				= @isExistParlay
+					,@IsLockingByRefnoVS	= @IsExistParlayVS4
 					, @IsReleased				= 1
 			END
 		END

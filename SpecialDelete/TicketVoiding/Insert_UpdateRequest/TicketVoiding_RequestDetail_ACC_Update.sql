@@ -23,6 +23,7 @@ AS
 		- 20230103@Max: Change JSON input [Redmine: #180625]
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 */
@@ -98,7 +99,7 @@ BEGIN
 
 	IF @IsEditRequest = 0
 	BEGIN
-		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE MatchId IN (9,29,2799)) --parlay
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE MatchId IN (9,29,2799,10449)) --parlay
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 			SELECT DISTINCT @RequestId
@@ -107,7 +108,7 @@ BEGIN
 					, 0
 					, 0
 			FROM #TempMatch
-			WHERE matchid IN (9,29,2799)
+			WHERE matchid IN (9,29,2799,10449)
 		END
 		
 		IF EXISTS ( SELECT TOP 1 1 FROM  #TempMatch WHERE IsOutright = 0 AND IsVoid14 = 0) --match
@@ -207,7 +208,7 @@ BEGIN
 				WHERE rd.RequestId = @RequestId AND e.IsFlag = 0
 		END
 		
-		IF EXISTS ( SELECT TOP 1 1 FROM  #TempEditMatchID WHERE MatchId IN (9,29,2799)) --parlay
+		IF EXISTS ( SELECT TOP 1 1 FROM  #TempEditMatchID WHERE MatchId IN (9,29,2799,10449)) --parlay
 		BEGIN
 			INSERT INTO dbo.TicketVoiding_RequestDetail (RequestId, MatchId, LeagueId, HomeId, AwayId)
 			SELECT DISTINCT @RequestId
@@ -216,7 +217,7 @@ BEGIN
 					, 0
 					, 0
 			FROM #TempEditMatchID
-			WHERE matchid IN (9,29,2799)
+			WHERE matchid IN (9,29,2799,10449)
 		END
 
 		IF EXISTS (SELECT TOP 1 1 FROM #TempEditMatchID WHERE IsFlag = 1 AND IsOutright = 0 AND IsVoid14 = 0) --match

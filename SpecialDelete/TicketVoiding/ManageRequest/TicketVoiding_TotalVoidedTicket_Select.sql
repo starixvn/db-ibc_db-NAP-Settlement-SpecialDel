@@ -19,6 +19,7 @@ AS;
 		- 20230717@Max: [TVS] Duplicate Ticket - New Issue Type [Redmine: #187835]
 		- 20230908@Max: [TVS] Not Participant issue type [Redmine: #192832]
 		- 20240102@July: [TVS] Recover Ticket issue type [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		@RequestInfo: <root><r req ="" vh="0" i="1" mid = ""/></root>
@@ -105,10 +106,10 @@ BEGIN
 					,SUM( CASE 
 							WHEN vh.IssueTypeId NOT IN (11,13,17,1,10,3,2,19,20,21) THEN 1
 							WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND ISNULL(z.comstatus,'') <> 'CO' THEN 1
-							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
+							WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
 						ELSE 0 END
 						) AS TotalSingleProcessed
-					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+					,SUM(CASE WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 					,SUM(CASE WHEN vh.IssueTypeId IN (1,10,3,2,19,21) AND z.comstatus = 'CO' THEN 1 ELSE 0 END) AS TotalCancelCashOutProcessed
 					,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE z.matchid END AS matchid
 			FROM @tmpMatchVoidingHistory vh
@@ -143,7 +144,7 @@ BEGIN
 				SELECT	vh.VoidingHistoryId
 						,SUM( CASE 
 								WHEN vh.IssueTypeId NOT IN (11,13,17,20) THEN 1
-								WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799) THEN 1
+								WHEN vh.IssueTypeId IN (11,13,17,20) AND z.bettype NOT IN (9,29,2799,10449) THEN 1
 							ELSE 0 END
 							) AS TotalSingleProcessed
 						,CASE WHEN vh.IssueTypeId IN (13,17) THEN 0 ELSE cm.matchid END AS matchid
@@ -206,8 +207,8 @@ BEGIN
 			,TotalResettleProcessed= ISNULL(rt.TotalResettleProcessed,0) 
 		FROM	#tmpResult t
 		CROSS APPLY (SELECT 
-						SUM(CASE WHEN s.MatchId NOT IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalSingleProcessed
-						,SUM(CASE WHEN s.MatchId IN (9,29,2799) THEN 1 ELSE 0 END) AS TotalParlayProcessed
+						SUM(CASE WHEN s.MatchId NOT IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalSingleProcessed
+						,SUM(CASE WHEN s.MatchId IN (9,29,2799,10449) THEN 1 ELSE 0 END) AS TotalParlayProcessed
 						,SUM(CASE WHEN s.IsProcessed = 2 THEN 1 ELSE 0 END) AS TotalResettleProcessed
 					FROM @tmp_TransId s
 					WHERE s.RequestId = t.RequestId

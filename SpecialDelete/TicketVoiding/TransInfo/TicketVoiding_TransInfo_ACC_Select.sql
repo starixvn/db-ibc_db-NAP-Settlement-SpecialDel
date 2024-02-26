@@ -20,6 +20,7 @@ AS
 		- 20230517@July: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
 		- 20240305@Max: [TVS] Abnormal Account - Void full range of archived tickets [Redmine: #201130]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:	
 		- @AbnormalAccounts: <roor><r @UserNames = 'abc,xyz' @ProductIds="1,2" @StatusIds="112,111" @FromDate="" @ToDate=""/></root>
@@ -204,7 +205,7 @@ BEGIN
 		,b.recommend 
 		,b.srecommend 
 		,b.winlostdate
-		,CASE WHEN b.bettype IN (9,29, 2799) THEN 1 ELSE 0 END AS IsMixParlay 
+		,CASE WHEN b.bettype IN (9,29, 2799, 10449) THEN 1 ELSE 0 END AS IsMixParlay 
 		,b.SiteDBGroupID
 		,0 AS IsVoid14
 		,b.winlost
@@ -241,7 +242,7 @@ BEGIN
 	SET d.matchid = m.ParentID
 	FROM #TransInfo d
 		INNER JOIN dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
-	WHERE d.bettype NOT IN (9, 29, 2799) AND d.IsVoid14 = 0
+	WHERE d.bettype NOT IN (9, 29, 2799, 10449) AND d.IsVoid14 = 0
 
 	IF @FromWinlostDate_14 IS NOT NULL
 	BEGIN
@@ -273,7 +274,7 @@ BEGIN
 			,b.recommend 
 			,b.srecommend
 			,b.winlostdate
-			,CASE WHEN b.bettype IN (9,29, 2799) THEN 1 ELSE 0 END AS IsMixParlay 
+			,CASE WHEN b.bettype IN (9,29, 2799, 10449) THEN 1 ELSE 0 END AS IsMixParlay 
 			,b.SiteDBGroupID
 			,1 AS IsVoid14
 			,b.winlost

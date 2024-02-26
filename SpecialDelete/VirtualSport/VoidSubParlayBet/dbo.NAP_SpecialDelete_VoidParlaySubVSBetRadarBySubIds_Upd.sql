@@ -53,6 +53,8 @@ BEGIN
 		  , @ErrCode				INT				= 0	
 		  , @SiteDBGroupID		SMALLINT
 		  , @Sporttype					SMALLINT
+		  , @IsExistsVS2				BIT = 0
+		  , @IsExistsVS4				BIT = 0
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	DECLARE @tmpTransInfo TABLE(matchid INT, transid BIGINT, status NVARCHAR(10), winlost MONEY)
@@ -137,6 +139,7 @@ BEGIN
 		RefNos VARCHAR(MAX),
 		sporttype SMALLINT
 	)
+	CREATE TABLE #tblMatchParlayProcess (matchId INT, RefNo BIGINT)
 	
 	DECLARE @beforeUpd TVP_BalanceChange
 		  , @afterUpd  TVP_BalanceChange	
@@ -348,8 +351,21 @@ BEGIN
 		END
 
 		--> Check Concurrency
+		SELECT @IsExistsVS2 = CASE WHEN Sporttype BETWEEN 190 AND 199 THEN 1 ELSE 0 END
+			  ,@IsExistsVS4 = CASE WHEN Sporttype = 188 THEN 1 ELSE 0 END
+		FROM #tmpBetDelete
+
+		IF @IsExistsVS4 = 1
+		BEGIN
+			INSERT INTO #tblMatchParlayProcess (matchId, RefNo)
+			SELECT @MatchId, refno
+			FROM #tmpBetDelete
+			WHERE SportType = 188
+		END
+
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
-				@IsExistParlayVSBetradar = 1			
+				@IsExistParlayVSBetradar = @IsExistsVS2		
+				, @IsLockingByRefnoVS		= @IsExistsVS4
 				, @spName		= @spName
 				, @IsReleased	= 0
 				, @AvaiableProcess = @AvaiableProcess OUTPUT
@@ -473,7 +489,8 @@ BEGIN
 		
 		--> Release Concurrency process	
 		EXEC [dbo].[NAP_Admin_CheckingProcess]
-				@IsExistParlayVSBetradar = 1			
+				@IsExistParlayVSBetradar = @IsExistsVS2		
+				, @IsLockingByRefnoVS		= @IsExistsVS4		
 				, @IsReleased	= 1 
 		
 		--> Get list of customer name with negative balance
@@ -566,14 +583,20 @@ BEGIN
 		IF @avaiableProcess = 1
 			--> Release Concurrency process	
 			EXEC [dbo].[NAP_Admin_CheckingProcess]
-					@IsExistParlayVSBetradar = 1
+					@IsExistParlayVSBetradar = @IsExistsVS2		
+				, @IsLockingByRefnoVS		= @IsExistsVS4
 				  , @IsReleased	= 1	
 
 		SELECT @ErrCode AS ErrorCode
 				, @ErrMsg AS ErrorMsg
 				, @NegativeBalanceUsers AS NegativeBalanceUsers
 	END CATCH			
-						
+		
+	DROP TABLE #tblMatchParlayProcess
+	DROP TABLE #tblSubTransIds
+	DROP TABLE #tmpBetDelete
+	DROP TABLE #tmpBettransm
+	DROP TABLE #tmpMatchInfos
 	SET NOCOUNT OFF
 END
 GO

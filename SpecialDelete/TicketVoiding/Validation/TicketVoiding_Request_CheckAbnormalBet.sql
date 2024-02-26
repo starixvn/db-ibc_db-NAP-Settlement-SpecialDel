@@ -59,6 +59,7 @@ AS
 		- 20230420@July: [TVS] Update the data length of 'betfrom' column [Redmine: #187035]
 		- 20231115@July: [TVS] Abnormal Bet - Export the list of tickets that the user inputs to a request before Save it [Redmine: #194133]
 		- 20240102@July: [TVS] Recover Ticket - validation/loginfo of other Issuetype void (exclude issuetype recover) [Redmine: #196020]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's Explanation:
 		+ @TransIds: Search by TransID
@@ -250,7 +251,7 @@ BEGIN
 		) tbl
 	WHERE f.value <> ''
 
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799) AND IsMoved14 = 0))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799, 10449) AND IsMoved14 = 0))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -264,10 +265,10 @@ BEGIN
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 	
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799) AND IsMoved14 = 1))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799, 10449) AND IsMoved14 = 1))
 	BEGIN
 		UPDATE d
 		SET matchcode 	= m.matchcode
@@ -281,7 +282,7 @@ BEGIN
 		FROM #tmpTransInfo d
 			INNER JOIN dbo.match14 m WITH (NOLOCK) 
 			ON	d.matchid = m.matchid
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 
 	UPDATE al

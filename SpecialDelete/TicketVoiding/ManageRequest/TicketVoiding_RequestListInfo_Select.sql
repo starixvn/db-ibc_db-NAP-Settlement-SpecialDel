@@ -14,6 +14,7 @@ AS
         - 20210201@Zane: Modify archive process for abnormal Account [Redmine:#149776]
         - 20210324@Helen: SP Tuning - EC Prepration [Redmine: #151103]
 		- 20230224@July: Change config DBTXN -> DBCTG [Redmine: #180625]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 	
@@ -33,14 +34,14 @@ BEGIN
 
     IF EXISTS (SELECT TOP 1 1 
                FROM   dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK) 
-               WHERE  matchid IN ( 9, 29, 2799 )) 
+               WHERE  matchid IN ( 9, 29, 2799, 10449 )) 
       BEGIN 
 			--BETTRANS
             INSERT INTO @tmpResult (requestid) 
             SELECT s.requestid
             FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 					INNER JOIN dbo.bettrans b WITH(NOLOCK) ON s.transid = b.transid 
-            WHERE  s.matchid IN ( 9, 29, 2799 ) AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
+            WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) AND b.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
             GROUP  BY s.requestid
             
 			--BETTRANS14
@@ -48,7 +49,7 @@ BEGIN
             SELECT s.requestid 
             FROM   dbo.TicketVoiding_RequestDetailTicket_Single s WITH(NOLOCK) 
 					INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK) ON s.transid = b14.transid 
-            WHERE  s.matchid IN ( 9, 29, 2799 ) 
+            WHERE  s.matchid IN ( 9, 29, 2799, 10449 ) 
                     AND b14.winlostdate BETWEEN @FromDate_tmp AND @ToDate_tmp 
             GROUP  BY s.requestid
       END 

@@ -110,7 +110,7 @@ BEGIN
 				,b.winlostdate
 				,b.statusID
 			FROM #tmpInputTransId t
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (9,29,2799)
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype NOT IN (9,29,2799,10449)
 
 			INSERT INTO #ParlayTickets_14 (TransId, RequestId, Matchid, IssueTypeId, transdate, winlostdate, statusId)
 			SELECT t.TransId
@@ -121,7 +121,7 @@ BEGIN
 				,b.winlostdate
 				,b.statusID
 			FROM #tmpInputTransId t
-				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799)
+				INNER JOIN dbo.bettrans14 b WITH (NOLOCK) ON b.TransId = t.TransId AND b.bettype IN (9,29,2799,10449)
 		END
 	END
 	

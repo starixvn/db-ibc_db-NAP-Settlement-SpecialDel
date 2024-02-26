@@ -11,6 +11,7 @@ AS
 	
 	Revisions: 
 		- 20230717@Max: Create new SP [Redmine:#187835]
+		- 20240221@Max: [TVS] Integrate Virtual Sports 4 (Edge Gaming) [Redmine: #200087]
 
 	Param's explanation:
 		
@@ -193,12 +194,12 @@ BEGIN
 	END
 
 	--delete  child match cricket (Sporttype = 50)
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTransInfo WHERE bettype NOT IN (9, 29, 2799, 10449)))
 	BEGIN
 		DELETE d
 		FROM #tmpTransInfo d
 			INNER JOIN bodb02.dbo.match m WITH (NOLOCK) ON	d.matchid = m.matchid AND m.sporttype = 50 AND m.ChildMatchType = 200
-		WHERE d.bettype NOT IN (9, 29, 2799)
+		WHERE d.bettype NOT IN (9, 29, 2799, 10449)
 	END
 
 	SET @TransInfoJson = COMPRESS((SELECT b.custid AS 'c'

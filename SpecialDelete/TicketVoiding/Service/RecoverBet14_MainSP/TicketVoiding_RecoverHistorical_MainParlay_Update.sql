@@ -209,11 +209,11 @@ BEGIN
 		WHERE WinlostDate <= @BeingMovebetDate
 
 		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
-									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+									  , CASE WHEN t.MatchId IN (9,29,2799,10449) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
 								FROM @tblTransId_MoveBet t
 									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
 													FROM @tblTransId_MoveBet s
-													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799,10449)
 													FOR XML PATH('')
 												)ts	 (TransIds)
 								FOR XML PATH('r'), ROOT('root')
