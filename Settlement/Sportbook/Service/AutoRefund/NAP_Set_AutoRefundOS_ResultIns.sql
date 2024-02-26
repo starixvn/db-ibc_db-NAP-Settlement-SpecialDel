@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" isNested="1"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0" isNested="1"></info>*/
 ALTER PROCEDURE NAP_Set_AutoRefundOS_ResultIns
   @MatchId		 INT	
  ,@TypeId		 TINYINT		= 1
@@ -14,6 +14,7 @@ AS
 		- 20220511@Louisa: Initial 
 		- 20221213@Kathy: Upgrade Auto Payout for Badminton & Volleyball [Redmine:#181458]
 		- 20230328@Aries: Auto refund tennis incorrect [Redmine: #188857]
+		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 
 	Param's explaination:
 		@TypeIds: 1 - Refund Single
@@ -62,6 +63,18 @@ BEGIN
 		SELECT 	c.ResourceId
 		FROM 	cteResourceId c 
 		WHERE	NOT EXISTS (SELECT r.ResourceId FROM dbo.ResultDetailOS r WITH(NOLOCK) WHERE r.matchid = @MatchId AND r.ResultStatusID IN (2,5) AND c.ResourceID = r.ResourceId)
+	END
+	ELSE IF @ResultTable = 3
+	BEGIN
+		;WITH cteResourceId 
+		AS (
+			SELECT CAST(f.value AS VARCHAR(20)) AS ResourceId
+			FROM STRING_SPLIT(@ResourceIds, ',') f
+		)
+		INSERT INTO @tmpResourceId ( ResourceId )
+		SELECT 	c.ResourceId
+		FROM 	cteResourceId c 
+		WHERE	NOT EXISTS (SELECT r.ResourceId FROM dbo.ResultDetailES r WITH(NOLOCK) WHERE r.matchid = @MatchId AND r.ResultStatusID IN (2,5) AND c.ResourceID = r.ResourceId)
 	END
 
 	MERGE dbo.AutoRefundResultOS WITH (UPDLOCK,ROWLOCK) TARGET

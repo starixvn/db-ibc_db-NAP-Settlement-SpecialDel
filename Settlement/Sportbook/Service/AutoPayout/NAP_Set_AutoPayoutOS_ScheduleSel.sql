@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE NAP_Set_AutoPayoutOS_ScheduleSel
 	 @AutoPayoutGroup	SMALLINT
 	,@ResourceType		SMALLINT = 0
@@ -11,6 +11,7 @@ AS
 		- 20231002@Aries: Created  [Redmine: #195768]
 		- 20231205@Aries: Get only provider [Redmine: #195768]
 		- 20231211@Aries: Auto Payout for Tennis sport using Sofascore provider [Redmine:#196768]
+		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 
 	Param's Explanation:
 		-@ResourceType: 0-ALL, 1-Main, 2-Early
@@ -44,7 +45,8 @@ BEGIN
 
 						,AP_EAR_NumberProvider  TINYINT,AP_EAR_WaitingTime  INT, AP_EAR_HasTrader  BIT 
 						,AP_EAR_PrimaryProvider  VARCHAR(500),AP_EAR_TotalPrimaryProvider  TINYINT, AP_EAR_SecondaryProvider  VARCHAR(500), AP_EAR_TotalSecondaryProvider TINYINT
-						)
+						
+						,GameType TINYINT)
 
 	IF OBJECT_ID('tempdb..#MatchResource') IS NOT NULL DROP TABLE #MatchResource
 	CREATE TABLE #MatchResource (matchId INT,IsTrader SMALLINT DEFAULT 0,ResourceId VARCHAR(20), ResourceType SMALLINT,CreatedDate DATETIME,TotalProvider TINYINT DEFAULT 0,TotalPrimaryProvider TINYINT DEFAULT 0,TotalSecondaryProvider TINYINT DEFAULT 0,AP_TotalSecondaryProvider TINYINT)
@@ -99,7 +101,8 @@ BEGIN
 
 						  ,AP_EAR_NumberProvider,AP_EAR_WaitingTime,AP_EAR_HasTrader
 						  ,AP_EAR_PrimaryProvider,AP_EAR_TotalPrimaryProvider,AP_EAR_SecondaryProvider,AP_EAR_TotalSecondaryProvider
-						  )
+						  
+						  ,GameType)
 		SELECT m.matchId,m.eventstatus,m.leagueid,m.sporttype
 		      ,st.ResultTable,st.ExternalResultTable
 			  ,st.AP_Check_R_MactchCompleted, st.AP_Check_R_Hold,st.AP_Check_R_CnfRefund
@@ -109,6 +112,8 @@ BEGIN
 
 			  ,ISNULL(ss.EAR_NumberProvider,st.AP_EAR_NumberProvider),ISNULL(ss.RetryTime, st.AP_Main_WaitingTime) AS AP_EAR_WaitingTime,ISNULL(ss.EAR_HasTrader,1)
 			  ,ISNULL(ss.EAR_PrimaryProvider,''),ISNULL(ss.EAR_TotalPrimaryProvider,''),ISNULL(ss.EAR_SecondaryProvider,''),ISNULL(ss.EAR_TotalSecondaryProvider,'')
+
+			  ,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 		FROM dbo.match AS m WITH(NOLOCK)
 			INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			INNER JOIN @ResultTableSetting AS st ON st.sporttype = m.sporttype
@@ -132,7 +137,8 @@ BEGIN
 
 						  ,AP_EAR_NumberProvider,AP_EAR_WaitingTime,AP_EAR_HasTrader
 						  ,AP_EAR_PrimaryProvider,AP_EAR_TotalPrimaryProvider,AP_EAR_SecondaryProvider,AP_EAR_TotalSecondaryProvider
-						  )
+						  
+						  ,GameType)
 		SELECT m.matchId,m.eventstatus,m.leagueid,m.sporttype
 		      ,st.ResultTable,st.ExternalResultTable
 			  ,st.AP_Check_R_MactchCompleted, st.AP_Check_R_Hold,st.AP_Check_R_CnfRefund
@@ -142,6 +148,8 @@ BEGIN
 
 			  ,ISNULL(ss.EAR_NumberProvider,st.AP_EAR_NumberProvider),ISNULL(ss.RetryTime, st.AP_Main_WaitingTime) AS AP_EAR_WaitingTime,ISNULL(ss.EAR_HasTrader,1)
 			  ,ISNULL(ss.EAR_PrimaryProvider,''),ISNULL(ss.EAR_TotalPrimaryProvider,''),ISNULL(ss.EAR_SecondaryProvider,''),ISNULL(ss.EAR_TotalSecondaryProvider,'')
+
+			  ,CASE WHEN l.Sporttype= 43 THEN l.OverTimeSession ELSE 0 END AS GameType
 		FROM dbo.match AS m WITH(NOLOCK)
 			INNER JOIN dbo.League AS l WITH(NOLOCK) ON m.leagueid = l.leagueid
 			INNER JOIN @ResultTableSetting AS st ON st.sporttype = m.sporttype
@@ -259,6 +267,11 @@ BEGIN
 			  ,MAX(IIF(f.ResourceType = 1,m.AP_Main_TotalSecondaryProvider,m.AP_EAR_TotalSecondaryProvider)) AS AP_TotalSecondaryProvider
 		FROM ProviderExternalResultDetailES AS r WITH(NOLOCK)
 			INNER JOIN #Match AS m ON r.matchId = m.matchId
+			CROSS APPLY (SELECT TOP 1 1 AS IsExistsProfile
+						 FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
+						 WHERE s.ResourceID = r.ResourceID
+							AND s.SportType = m.sporttype
+			) AS ss
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2)  AS ResourceType FROM f_Set_MajorRound (m.sporttype) f WHERE r.ResourceId = f.ResourceID) AS f
 			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
@@ -269,13 +282,15 @@ BEGIN
 						 FROM dbo.ProviderGameTypeMapping AS p WITH(NOLOCK)
 						 WHERE p.sporttype = m.sporttype
 							AND p.SourceId = r.SourceID
-							AND p.isActive = 1) AS pm
+							AND p.isActive = 1
+							AND p.GameType = m.GameType) AS pm
 		WHERE m.ExternalResultTable = 3
             AND r.SourceID < 1001 
 			AND r.SourceID NOT IN (98,99,100)
 			AND pm.IsMapped IS NOT NULL
 			AND r.CreateDate > @Result_FromDate
 			AND ap.IsExistsAP IS NULL
+			AND ss.IsExistsProfile IS NOT NULL
 			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
 			             WHEN @ResourceType = f.ResourceType THEN 1
 						 ELSE 0
@@ -344,7 +359,7 @@ BEGIN
 						) AS ap
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2)  AS ResourceType FROM f_Set_MajorRound (m.sporttype)  f WHERE r.ResourceId = f.ResourceID) f
 		WHERE m.ResultTable = 2
-			AND ap.IsExistsAP IS NULL
+			AND ap.IsExistsAP IS NULL			
 			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
 			             WHEN @ResourceType = f.ResourceType THEN 1
 						 ELSE 0
@@ -370,7 +385,12 @@ BEGIN
 		INSERT INTO #MatchResource(matchId,ResourceId,CreatedDate,ResourceType,IsTrader)
 		SELECT m.matchId,r.ResourceId,ISNULL(r.LastModifyDate,r.CreateDate),f.ResourceType,1 AS IsTrader
 		FROM #Match AS m
-			INNER JOIN dbo.ResultDetailES AS r WITH(NOLOCK) ON r.MatchID = m.matchid AND r.ResultStatusID = 3			
+			INNER JOIN dbo.ResultDetailES AS r WITH(NOLOCK) ON r.MatchID = m.matchid AND r.ResultStatusID = 3	
+			CROSS APPLY (SELECT TOP 1 1 AS IsExistsProfile
+						 FROM SettlementSpecialBettypeProfile AS s WITH(NOLOCK)
+						 WHERE s.ResourceID = r.ResourceID
+							AND s.SportType = m.sporttype
+			) AS ss
 			OUTER APPLY (SELECT TOP 1 1 AS IsExistsAP
 						 FROM dbo.AutoPayoutResultOS AS os WITH(NOLOCK)
 						 WHERE os.MatchId = r.matchid
@@ -380,6 +400,7 @@ BEGIN
 			OUTER APPLY (SELECT IIF(COUNT(1) = 1,1,2)  AS ResourceType FROM f_Set_MajorRound (m.sporttype)  f WHERE r.ResourceId = f.ResourceID) f
 		WHERE m.ResultTable = 3
 			AND ap.IsExistsAP IS NULL
+			AND ss.IsExistsProfile IS NOT NULL
 			AND 1 = CASE WHEN @ResourceType = 0 THEN 1
 			             WHEN @ResourceType = f.ResourceType THEN 1
 						 ELSE 0

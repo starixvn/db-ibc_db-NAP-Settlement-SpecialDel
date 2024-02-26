@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
+﻿/*<info serverAlias="DBPRO-bodb02" executers="wsv_nap" viewers="" isFunction="0"></info>*/
 ALTER PROCEDURE dbo.NAP_Set_AutoPayout_SettingMatchUpd
 	@MatchId 			INT
 	, @AutoType			TINYINT
@@ -26,6 +26,7 @@ AS
 		- 20231002@Aries: Apply Auto Payout for Cricket by using TheSports Provider  [Redmine: #195768]
 		- 20240125@Aries: Tennis - Don't turn off AUTO setting when change setting to DIRECT & vice versa on Match  [Redmine: #200259]
 		- 20240110@Louisa: Allow update Auto Payout when match completed [Redmine:#198710]
+		- 20240229@Aries: Auto Payout for e-Sports Main ＆ Early Results  [Redmine: #191875]
 		
 	Param's Explanation:
 		- @AutoType: TINYINT 
@@ -44,6 +45,7 @@ BEGIN
 		, @LeagueId 			INT
 		, @actionLogId			INT
 		, @Sporttype			SMALLINT
+		, @HasAP2				BIT = 0
 	
 	SELECT	@StarTime 			= GETDATE()
 			,@actionLogId = CASE 
@@ -60,6 +62,10 @@ BEGIN
 			,@Sporttype = sporttype
 	FROM	dbo.match m WITH(NOLOCK)
 	WHERE	m.matchid = @MatchId
+
+	SELECT @HasAP2 = IIF(AP_Group IS NOT NULL,1,0)
+	FROM SettlementResultTableSetting WITH(NOLOCK) 
+	WHERE sporttype = @Sporttype
 	
 	IF @AutoSetting IS NULL
 	BEGIN
@@ -74,7 +80,7 @@ BEGIN
 							END
 
 	-- turn off bit 1 or 5
-	IF @Sporttype IN (1,5,50)
+	IF @Sporttype = 1 OR @HasAP2 = 1
 		SELECT @AutoSetting =
 								CASE WHEN @AutoType IN (1, 5) THEN 
 																	CASE WHEN @IsEnabled = 1 THEN @AutoSetting & (238 + POWER(2,@AutoType - 1)) 
