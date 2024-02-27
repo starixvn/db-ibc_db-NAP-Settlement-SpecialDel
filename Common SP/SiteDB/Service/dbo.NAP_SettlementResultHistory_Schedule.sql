@@ -90,6 +90,7 @@ BEGIN
 		WHERE h.StatusID IN (0,1)	
 			AND 1 = CASE WHEN h.StatusID = 0 AND b.StatusID IS NULL  THEN 1
 						 WHEN h.StatusID = 1 AND s.MinCalculating IS NOT NULL AND s.MinCalculating > 1 AND (p.MinCalculating IS NULL OR p.MinCalculating > 1) AND b.StatusID IS NULL  THEN 1
+						 WHEN s.MaxCalculating = 3 OR p.MaxCalculating = 3 THEN 1
 						 WHEN h.CreatedDate <= @DateCheck THEN 1
 						 ELSE 0
 					 END

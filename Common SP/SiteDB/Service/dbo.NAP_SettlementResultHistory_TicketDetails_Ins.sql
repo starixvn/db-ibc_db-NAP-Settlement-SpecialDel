@@ -17,7 +17,7 @@ BEGIN
 	SET NOCOUNT ON
 	CREATE TABLE #Resource(ResourceID VARCHAR(20), SeqNo INT,PRIMARY KEY(ResourceID))
 	CREATE TABLE #tblTrans (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
-	CREATE TABLE #tblTransParlay (transId BIGINT  PRIMARY KEY WITH (IGNORE_DUP_KEY = ON),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
+	CREATE NONCLUSTERED INDEX IDX_refno ON #tblTrans (refno)
 
 	DECLARE @tmpTransIDBatch TABLE (TransID BIGINT,TicketType VARCHAR(1),bettype SMALLINT,betid BIGINT,refno BIGINT,winlost MONEY,bef_winlost MONEY,statusid TINYINT,bef_statusid TINYINT)
 	DECLARE  @batchNo			INT 			= 2000
@@ -25,7 +25,7 @@ BEGIN
 
 	INSERT INTO #tblTrans(TransId,TicketType,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
 	SELECT t.t AS TransId
-		  ,l.TicketType
+		  ,IIF(l.matchid = 29,'m',l.TicketType)
 		  ,t.bt AS bettype
 		  ,t.bi AS betid
 		  ,t.rf AS refno
@@ -35,25 +35,8 @@ BEGIN
 		  ,t.bef_sid AS bef_statusid
 	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
 	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
-	WHERE l.matchid = @MatchId
-		AND l.BroadcastSessionId  = @SessionId
-		AND (t.bef_w != t.w OR l.TicketType = 'p')
-		AND t.bef_sid != 0
-	
-	INSERT INTO #tblTransParlay(TransId,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
-	SELECT t.t AS TransId
-		  ,t.bt AS bettype
-		  ,t.bi AS betid
-		  ,t.rf AS refno
-		  ,t.w AS winlost
-		  ,t.bef_w AS bef_winlost
-		  ,t.[sid] AS statusid
-		  ,t.bef_sid AS bef_statusid
-	FROM SiteDB_SettlementService_CalculationLog AS l WITH(NOLOCK)
-	    CROSS APPLY OPENJSON(CAST(DECOMPRESS(l.TransInfoJson) AS NVARCHAR(MAX))) WITH (t  BIGINT,w MONEY,bef_w MONEY,[sid] TINYINT,bef_sid TINYINT,bt SMALLINT,bi BIGINT,rf BIGINT) AS t
-	WHERE l.matchid = 29
-		AND l.BroadcastSessionId  = @SessionId
-		AND t.bef_w != t.w
+	WHERE l.BroadcastSessionId  = @SessionId
+		AND (t.bef_w != t.w OR (l.TicketType = 'p' AND l.matchid != 29))
 		AND t.bef_sid != 0
 
 	;WITH CTE_ResourceID AS (
@@ -77,7 +60,8 @@ BEGIN
 		DELETE TOP(@batchNo) t
 		OUTPUT deleted.transid,deleted.TicketType,deleted.bettype,deleted.betid,deleted.refno,deleted.winlost,deleted.bef_winlost,deleted.statusid,deleted.bef_statusid
 		INTO @tmpTransIDBatch(TransID,TicketType,bettype,betid,refno,winlost,bef_winlost,statusid,bef_statusid)
-		FROM #tblTrans t 
+		FROM #tblTrans AS t 
+		WHERE t.TicketType != 'm'
 
 		SELECT @batchCount 	= @@ROWCOUNT
 		IF @batchCount = 0 BREAK
@@ -154,7 +138,7 @@ BEGIN
 						WHERE s.bettype = t.bettype
 							AND s.SportType = @sportType
 			) AS tbl
-			INNER JOIN #tblTransParlay AS tp ON tp.refno = t.refno 
+			INNER JOIN #tblTrans AS tp ON tp.refno = t.refno AND tp.TicketType = 'm'
 		WHERE t.TicketType = 'p'
 			AND NOT EXISTS (SELECT TOP 1 1 
 						    FROM SettlementResultHistory_TicketDetails AS h WITH(NOLOCK) 
