@@ -287,6 +287,7 @@ BEGIN
 			AND b.betfrom <> 'p'
 			AND z.SiteDBGroupID = @SiteDBGroupID AND b.SiteDBGroupID = z.SiteDBGroupID
 			AND ISNULL(z.comstatus,'') <> 'CO'
+			AND b.statuswinlost IS NOT NULL --not support recover ticket do not have statuswinlost in range 14
 		
 		--Update Main MatchID for child match cricket (Sporttype = 50)
 		UPDATE d
