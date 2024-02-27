@@ -309,12 +309,17 @@ BEGIN
 		, @ActionId				= 0
 
 	--> Build list of customer name with negative balance
-	SET @NegativeBalanceUsers = ''
+	SET @CustIds = ''
 	SELECT @CustIds = @CustIds +
 						CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
 						CONVERT(VARCHAR(20), b.custid)
-	FROM @BalanceInfoBeforeUpd b
-			INNER JOIN	@BalanceInfoAfterUpd a ON a.custid = b.custid 
+	FROM @BeforeUpd b
+			INNER JOIN	@AfterUpd a 
+				ON a.custid = b.custid 
+				AND b.matchid = a.matchid
+				AND b.balanceType = a.balanceType
+				AND b.bonusId = a.bonusId
+				AND b.walletType = a.walletType	
 	WHERE b.balance > a.balance				
 		
 	EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
