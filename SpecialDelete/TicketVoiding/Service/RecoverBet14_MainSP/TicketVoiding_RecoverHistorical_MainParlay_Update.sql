@@ -45,6 +45,7 @@ BEGIN
 			,@ToDate			DATETIME
 			,@avaiableProcess BIT
 			,@SiteDBGroupID		SMALLINT = 0
+			,@CustIds			VARCHAR(MAX)
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	SET @ResettledTransIds = @TransIds
@@ -306,6 +307,19 @@ BEGIN
 		  @BalanceWalletBefore	= @BeforeUpd
 		, @BalanceWalletAfter	= @AfterUpd
 		, @ActionId				= 0
+
+	--> Build list of customer name with negative balance
+	SET @NegativeBalanceUsers = ''
+	SELECT @CustIds = @CustIds +
+						CASE WHEN @CustIds <> '' THEN ',' ELSE '' END + 
+						CONVERT(VARCHAR(20), b.custid)
+	FROM @BalanceInfoBeforeUpd b
+			INNER JOIN	@BalanceInfoAfterUpd a ON a.custid = b.custid 
+	WHERE b.balance > a.balance				
+		
+	EXEC [dbo].[NAP_CustNegativeBalance_Sel] 	
+		@CustIds = @CustIds,
+		@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT	
 
 	SET @AffectedList = CAST((
 			SELECT	CustId AS '@c'

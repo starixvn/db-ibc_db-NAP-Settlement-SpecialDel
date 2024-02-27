@@ -47,6 +47,7 @@ BEGIN
 			,@AffectedList		VARCHAR(MAX)
 			,@SiteDBGroupID     SMALLINT = 0
 			,@TransInfo			VARBINARY(MAX)
+			,@CustIds			VARCHAR(MAX)
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	
@@ -685,6 +686,25 @@ BEGIN
 											ELSE 0 END												
 								FOR XML PATH ('')
 							),1,1,''))
+	
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
+	FROM	(
+		SELECT DISTINCT b.custid
+		FROM @BeforeUpd b
+			INNER JOIN @AfterUpd a
+				ON b.custid = a.custid
+					AND b.matchid = a.matchid
+					AND b.balanceType = a.balanceType
+					AND b.bonusId = a.bonusId
+					AND b.walletType = a.walletType
+		WHERE	b.balance > a.balance
+	)t
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	
 	SET @AffectedList = CAST((
 		SELECT	CustId AS '@c'

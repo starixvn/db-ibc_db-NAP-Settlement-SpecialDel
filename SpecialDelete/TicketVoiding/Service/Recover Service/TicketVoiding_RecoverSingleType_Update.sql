@@ -46,6 +46,7 @@ BEGIN
 			,@xmlTransId			VARCHAR(MAX) = ''
 			,@SB_Error			BIT
 			,@spName			VARCHAR(500) = OBJECT_NAME(@@PROCID)
+			,@CustIds			VARCHAR(MAX)
 
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 
@@ -910,7 +911,26 @@ BEGIN
 			@MatchId = @MatchId_MaxPO
 			,@sporttype = @sporttype
 			,@TransidList = @TransIds_MaxPO
-	END					
+	END	
+	
+	-- get negative balance user list
+	SET @CustIds = ''
+	SELECT	@CustIds = @CustIds + CAST(t.custid AS VARCHAR(20)) + ','
+	FROM	(
+		SELECT DISTINCT b.custid
+		FROM @tblBeforeBalance b
+			INNER JOIN @tblAfterBalance a
+				ON b.custid = a.custid
+					AND b.matchid = a.matchid
+					AND b.balanceType = a.balanceType
+					AND b.bonusId = a.bonusId
+					AND b.walletType = a.walletType
+		WHERE	b.balance > a.balance
+	)t
+
+	EXEC dbo.NAP_CustNegativeBalance_Sel
+		@CustIds = @CustIds
+		,@NegativeBalanceUsers = @NegativeBalanceUsers OUTPUT
 	
 	-- Write Log
 	SET @EndTime = GETDATE()
