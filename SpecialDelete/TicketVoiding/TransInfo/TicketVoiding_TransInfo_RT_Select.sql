@@ -74,8 +74,6 @@ BEGIN
 
 	CREATE TABLE #transIdTemp (transid BIGINT PRIMARY KEY)
 
-	DECLARE @tmp_refno AS TABLE (refno BIGINT)
-
 	SET @RecoverTicketInfoXML = CONVERT(XML, @RecoverTicketInfo)
 	SELECT @TransIds = t.c.value('@TransIds','NVARCHAR(MAX)') 
 		  ,@ProductIds = t.c.value('@ProductIds','VARCHAR(50)')
@@ -291,30 +289,28 @@ BEGIN
 			AND ISNULL(z.comstatus,'') <> 'CO'
 			AND 1 = CASE WHEN b.bettype NOT IN (9,29,2799,10449) AND b.statuswinlost IS NULL THEN 0 ELSE 1 END --not support recover ticket single do not have statuswinlost in range 14
 
-		--Just need re-cal main parlay for refno exists in BetParlayResults & all combine completed
-		INSERT INTO @tmp_refno (refno)
-		SELECT DISTINCT refno
-		FROM #TransInfo 
-		WHERE IsMoved14 = 1
-			AND bettype IN (9,29,2799,10449)
-
+		--exclude main parlay with refno not exists in BetParlayResults & all combine not completed
 		DELETE t
-		FROM @tmp_refno t
+		FROM #TransInfo t
 			OUTER APPLY (
 					SELECT TOP 1 1 refno
 					FROM dbo.BetParlayResult b WITH (NOLOCK)
 					WHERE b.RefNo = t.refno
 				)rs
 		WHERE rs.refno IS NULL
+			AND t.IsMoved14 = 1
+			AND t.matchid IN (9,29,2799,10449)
 
 		DELETE t
-		FROM @tmp_refno t
+		FROM #TransInfo t
 			CROSS APPLY (
 					SELECT TOP 1 1 refno
 					FROM dbo.BetParlayResult b WITH (NOLOCK)
 					WHERE b.RefNo = t.refno
 						AND b.statusid = 0
 				)rs
+		WHERE t.IsMoved14 = 1
+			AND t.matchid IN (9,29,2799,10449)
 
 		--Update Main MatchID for child match cricket (Sporttype = 50)
 		UPDATE d
