@@ -1,5 +1,5 @@
 /*<info serverAlias="DBTXN-bodb02" executers="bodbAdminNet" viewers="" isFunction="0"></info>*/
-CREATE PROCEDURE DBA_Send_Letstalk
+ALTER PROCEDURE DBA_Send_Letstalk
 (
 	@Message	NVARCHAR(4000)
 	,@ErrCode	INT				= 0		OUTPUT 		
@@ -18,9 +18,10 @@ AS
 BEGIN
 	BEGIN TRY
 		EXEC DBNOTI.NotificationDB.dbo.DBA_Letstalk_NewJobMessage
-				@ServerName			= 'Pontus'
-			,	@JobName			= 'Custom Message'
+				@ServerName			= @@ServerName
+			,	@JobName			= 'vndba:Check slowly running or failed processes'
 			,	@Message			= @Message
+			,	@CaseId = 1
 	END TRY
 	BEGIN CATCH
 		SELECT @ErrCode = @@ERROR
