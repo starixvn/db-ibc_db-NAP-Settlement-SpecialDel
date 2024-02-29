@@ -10,6 +10,7 @@ AS
 		- 20220606@July: Create new SP [Redmine:#172634]
 		- 20220614@July: Remove '=' support CTS [Redmine:#172634]
 		- 20230330@July: [TVS] Send problem customer in Abnormal Account request to CTS [Redmine:#185238]
+		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 
 	Param's explanation:
 		
@@ -48,7 +49,9 @@ BEGIN
 		OUTER APPLY (
 					SELECT TOP(1) vh.RequestId
 					FROM dbo.TicketVoiding_VoidingHistory_bk vh WITH (NOLOCK) 
-					WHERE vh.MessageId = tv.MessageId
+					WHERE 1 = CASE WHEN vh.MessageId IS NOT NULL AND tv.MessageId = vh.MessageId THEN 1
+					               WHEN vh.MessageIdSpecial IS NOT NULL AND tv.MessageId = vh.MessageIdSpecial THEN 1
+								   ELSE 0 END
 			)r
 		CROSS APPLY (
 					SELECT	 m.sporttype

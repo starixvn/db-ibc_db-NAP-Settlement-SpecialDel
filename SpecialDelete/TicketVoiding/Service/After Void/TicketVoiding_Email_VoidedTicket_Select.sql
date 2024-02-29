@@ -34,6 +34,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Email_VoidedTicket_Select](
 		- 20230517@Max: [TVS] Abnormal Account - Void archived tickets [Redmine: #188152]
 		- 20230623@Max: [TVS] Enhance void 14 by Username Feature name [Redmine: #190028]
 		- 20230823@Max: [TVS] Instant Settlement of Basketball [Redmine: #185492]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 		
 	Param's explanation:	
 		
@@ -109,6 +110,9 @@ BEGIN
 		,winlostdate	SMALLDATETIME
 		,IsCancelCashOut BIT
 		,IsVoidArchived BIT
+		,LeagueGroupID  SMALLINT
+		,zzzWinlost		MONEY
+		,IsMainParlay	BIT DEFAULT (0)
 	)
 	
 	CREATE CLUSTERED INDEX CIX_tmpTicket_transId ON #tmpTicket (TransId)
@@ -116,7 +120,7 @@ BEGIN
 	CREATE TABLE #InstantSettlementBettypes(matchid INT, bettype SMALLINT, betid BIGINT)	
 
 	-- single ticket
-	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate, IsCancelCashOut)
+	INSERT INTO #tmpTicket (TransId, matchid, Status, VoidedTime, custid, winlost, Bettype, Refno, Odds, oddsid, SiteDBGroupID, winlostdate, IsCancelCashOut, zzzWinlost)
 	SELECT	z.transid			
 			,z.matchid
 			,z.status
@@ -130,6 +134,7 @@ BEGIN
 			,z.SiteDBGroupID
 			,z.winlostdate
 			,CASE WHEN z.comstatus = 'CO' THEN 1 ELSE 0 END AS IsCancelCashOut
+			,z.winlost
 	FROM	dbo.zzzbettrans z WITH(NOLOCK)
 	WHERE	z.VoidingHistoryId = @VoidingHistoryId
 		AND z.SiteDBGroupID = @SiteDBGroupID
@@ -181,7 +186,8 @@ BEGIN
 			,LiveIndicator = b.liveindicator
 			,ActualStake = b.actual_stake
 			,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-			,IsMixParlay = CASE WHEN t.Bettype = 29 THEN 1 ELSE 0 END --case AB(void mix parlay)
+			,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END --case AB(void mix parlay)
+			,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END
 	FROM	#tmpTicket t
 		INNER JOIN dbo.bettrans b WITH(NOLOCK)
 			ON t.TransId = b.transid
@@ -222,8 +228,9 @@ BEGIN
 				,LiveIndicator = b.liveindicator
 				,ActualStake = b.actual_stake
 				,IsCashOut = CASE WHEN b.betdaqid = -2 THEN 1 ELSE 0 END
-				,IsMixParlay = CASE WHEN t.Bettype = 29 THEN 1 ELSE 0 END --case AB(void mix parlay)
+				,IsMixParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END --case AB(void mix parlay)
 				,IsVoidArchived = 1
+				,IsMainParlay = CASE WHEN t.Bettype IN (9,29,2799) THEN 1 ELSE 0 END
 		FROM	#tmpTicket t
 			INNER JOIN dbo.bettrans14 b WITH(NOLOCK)
 				ON t.TransId = b.transid
@@ -303,7 +310,7 @@ BEGIN
 		INNER HASH JOIN dbo.bettrans b WITH(NOLOCK) ON bm.refno = b.refno AND b.matchid = 29
 	
 	-- UPDATE eventtype = 1
-	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE bettype NOT IN (9, 29, 2799)))
+	IF(EXISTS(SELECT TOP 1 1 FROM #tmpTicket WHERE IsMainParlay = 0))
 	BEGIN
 		UPDATE t
 		SET matchcode 	= m.matchcode
@@ -316,10 +323,13 @@ BEGIN
 			,matchid    = m.matchid
 			,SettlementStatus = m.SettlementStatus
 			,eventstatus = m.eventstatus
+			,LeagueGroupID = l.LeagueGroupID
 		FROM #tmpTicket t
 			INNER JOIN dbo.match m WITH (NOLOCK) 
 			ON	t.matchid = m.matchid
-		WHERE t.bettype NOT IN (9, 29, 2799)
+			INNER JOIN dbo.league l WITH (NOLOCK) 
+			ON	m.leagueid = l.leagueid
+		WHERE t.IsMainParlay = 0
 	END
 
 	-- UPDATE eventtype = 2 [Outright bettype]
@@ -333,6 +343,7 @@ BEGIN
 				,sporttype 	= l.sporttype
 				,showtime	= ''
 				,eventstatus = odds.oddsstatus
+				,LeagueGroupID = l.LeagueGroupID
 			FROM #tmpTicket t
 				INNER JOIN dbo.outright AS odds WITH (NOLOCK) 
 				ON	t.matchid = odds.orid
@@ -594,6 +605,11 @@ BEGIN
 			,t.SiteDBGroupID
 			,t.winlostdate
 			,ISNULL(t.IsCancelCashOut,0) AS IsCancelCashOut
+			,t.LeagueGroupID
+			,ISNULL(si.IsChinaView,0) AS IsChinaView
+			,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
+			,@VoidingHistoryId AS VoidingHistoryId
+			,t.zzzWinlost
 	FROM	#tmpTicket t
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON m.matchid = t.matchid
 		LEFT JOIN CustDB.dbo.Customer c WITH(NOLOCK) ON c.custid = t.custid
@@ -602,6 +618,7 @@ BEGIN
 		LEFT JOIN CustDB.dbo.Customer su WITH(NOLOCK) ON su.custid = t.srecommend
 		LEFT JOIN @VIPAccount_tmp vip ON t.custid = vip.CustID 	
 		LEFT JOIN dbo.f_GetBetDaqCustomer(1) f ON t.custid = f.CustID
+		LEFT JOIN custDB.dbo.Site si WITH(NOLOCK) ON su.site = si.site
 	ORDER BY ISNULL(t.MainTransId, t.transid)
 		   , CASE 
 				WHEN t.BonusID IS NOT NULL

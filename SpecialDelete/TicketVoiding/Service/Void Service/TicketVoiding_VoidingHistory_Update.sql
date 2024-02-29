@@ -7,6 +7,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_VoidingHistory_Update]
 	,@TransIds			VARCHAR(MAX) = NULL
 	,@MinWinLostDate	SMALLDATETIME = NULL
 	,@MaxWinLostDate	SMALLDATETIME = NULL
+	,@MessageIdSpecial	INT = NULL
 AS
 /*	
 	Created by: Kathy
@@ -18,6 +19,7 @@ AS
 		- 20181212@Kathy: Create new SP [Redmine:#90155]
 		- 20210208@Max: TVS - Letstalk, sent Email and miss data on tables after void when request has more than 3000 tickets [Redmine: #150199]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 	
 	Param's explanation:	
 		
@@ -33,6 +35,7 @@ BEGIN
 			,MinWinlostdate = ISNULL(@MinWinLostDate, MinWinlostdate)
 			,MaxWinlostdate = ISNULL(@MaxWinLostDate, MaxWinlostdate)
 			,ModifiedDate = GETDATE()
+			,MessageIdSpecial = ISNULL(@MessageIdSpecial, MessageIdSpecial)
 	WHERE	VoidingHistoryId = @VoidingHistoryId
 END
 GO

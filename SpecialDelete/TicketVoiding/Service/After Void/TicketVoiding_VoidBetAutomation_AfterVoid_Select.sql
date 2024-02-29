@@ -8,6 +8,7 @@ AS
 	Revisions: 
 		- 20230117@July: Create new SP - get request will run after void [Redmine: #180625]
 		- 20230401@Helen: Fix issue [Redmine: #186241]
+		- 20231213@Max: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 
 	Param's explanation:	
 */
@@ -36,6 +37,7 @@ BEGIN
 		,IsUpdatedVoidingHistory BIT
 		,IsSentEmail BIT
 		,SiteDBGroupID SMALLINT
+		,MessageIdSpecial INT
 	)
 	DECLARE @tmpVoidingHistory_Service AS TABLE
 	(
@@ -56,7 +58,7 @@ BEGIN
 
 	INSERT INTO @tmpResultAfterVoid (RequestID, VoidingHistoryId, statusID, matchID, BroadcastSessionId , NegativeBalanceUsers
 							, IsAutoVoid, IsRunExternalService, MessageId, ReasonId, IsSentBatchMessage, IsSentMessageToAdminSite
-							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, SiteDBGroupID
+							, IsInsertedVoidedTransaction, IsUpdatedVoidingHistory, IsSentEmail, SiteDBGroupID, MessageIdSpecial
 	)
 	SELECT TOP 1 
 			vb.RequestID
@@ -75,6 +77,7 @@ BEGIN
 		, vb.IsUpdatedVoidingHistory
 		, vb.IsSentEmail
 		, vh.SiteDBGroupID
+		, vb.MessageIdSpecial
 	FROM dbo.TicketVoiding_VoidBetAutomation_Service vb WITH (NOLOCK)
 		INNER JOIN dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK) ON vb.RequestID = vh.RequestId AND vb.VoidingHistoryId = vh.VoidingHistoryId
 	WHERE vb.statusID = 1
@@ -130,6 +133,7 @@ BEGIN
 		, IsUpdatedVoidingHistory
 		, IsSentEmail
 		, SiteDBGroupID
+		, MessageIdSpecial
 	FROM @tmpResultAfterVoid
 
 	--Table #2: Get statusid lastest request & current status request

@@ -71,6 +71,7 @@ AS
 		- 20230705@July: [SD] Enhance void log to detect more information [Redmine: #190590]
 		- 20230822@July: [TVS] Instant Settlement of Basketball [Redmine: #185492]
 		- 20231006@Max: [TVS] Integrate Parlay Boost Bonus [Redmine: #192778]
+		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 
 	Param's Explanation:
 */
@@ -145,6 +146,7 @@ BEGIN
 	DECLARE @MainParlay_MaxPO VARCHAR(MAX) = NULL
 		   ,@MatchId_MaxPO	INT = NULL 
 		   ,@TransIds_MaxPO VARCHAR(MAX) = ''
+		   ,@LeagueGroupID SMALLINT = NULL
 
 	IF @IsOutright = 0
 	BEGIN
@@ -156,7 +158,11 @@ BEGIN
 			  ,@HomeId = m.homeid
 			  ,@AwayId = m.awayid
 			  ,@IsNeutral = ISNULL(m.IsNeutral, CONVERT(BIT, 0))
-		FROM dbo.match m WITH(NOLOCK) WHERE m.matchid = @MatchId
+			  ,@LeagueGroupID = l.LeagueGroupID
+		FROM dbo.match m WITH(NOLOCK) 
+			INNER JOIN dbo.League l WITH(NOLOCK)
+					ON m.leagueid = l.leagueid
+		WHERE m.matchid = @MatchId
 	
 		INSERT INTO @tmpMatchId (MatchId)
 		SELECT MatchId
@@ -175,6 +181,7 @@ BEGIN
 			  ,@IsNeutral = 0
 			  ,@Sporttype = l.sporttype
 			  ,@MatchId_MaxPO = @MatchId
+			  ,@LeagueGroupID = l.LeagueGroupID
 		FROM dbo.outright o WITH (NOLOCK)
 			INNER JOIN dbo.League l WITH (NOLOCK) ON l.leagueid = o.leagueid
 		WHERE o.orid = @MatchId
@@ -1518,6 +1525,9 @@ BEGIN
 				,@sporttype AS SportTypeId
 				,s.SiteDBGroupId
 				,s.matchid
+				,@LeagueGroupID AS LeagueGroupID
+				,ISNULL(si.IsChinaView,0) AS IsChinaView
+				,ISNULL(si.SpecialPlatfrom,0) AS SpecialPlatform --2: JollyView
 		FROM (
 				SELECT CAST(0 AS BIT) AS IsMixParlay, * FROM #SpecialDeleteBets_Single				
 				UNION ALL
@@ -1527,7 +1537,8 @@ BEGIN
 			 LEFT JOIN CustDB.dbo.Customer sc WITH(NOLOCK) ON s.srecommend = sc.custid
 			 LEFT JOIN CustDB.dbo.Customer mc WITH(NOLOCK) ON s.mrecommend = mc.custid
 			 LEFT JOIN CustDB.dbo.Customer ac WITH(NOLOCK) ON s.recommend = ac.custid
-			 LEFT JOIN custdb.dbo.Dep_CustSuper dc with(nolock) ON s.srecommend = dc.custid  
+			 LEFT JOIN CustDB.dbo.Dep_CustSuper dc WITH(NOLOCK) ON s.srecommend = dc.custid  
+			 LEFT JOIN CustDB.dbo.Site si WITH(NOLOCK) ON sc.site = si.site
 			 OUTER APPLY (SELECT CASE
 									WHEN sc.currency <> 20 
 										 AND sc.roleid = 4 

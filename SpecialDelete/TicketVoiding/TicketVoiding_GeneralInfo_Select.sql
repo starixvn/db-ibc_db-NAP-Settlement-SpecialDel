@@ -18,6 +18,7 @@ AS
 		- 20221207@July: [TVS] Enhance voiding flow to reduce the dependence between SiteDB and CentralDB [Redmine: #180625]
 		- 20230814@Max: [TVS] Reduced Over - Update rule for action "auto void" [Redmine: #191762]
 		- 20231102@Max: [TVS] Abnormal Account - Void tickets based on the differences between the losing amount and the given credit of the member [Redmine: #194140]
+		- 20231211@July: [TVS] Remove SABA text of league name in case void many matches and apply new way to remove SABA text [Redmine: #196627]
 
 	Param's explanation:
 		
@@ -26,7 +27,6 @@ BEGIN
 	SET NOCOUNT ON
 
 	DECLARE  @VoidingHistoryId  INT
-			,@xmlVoidData		XML = NULL
 			,@xmlVoidResults	XML = NULL
 			,@cnt_matchid		INT = 0
 			,@NegativeBalanceUsers VARCHAR(MAX) = ''
@@ -41,7 +41,6 @@ BEGIN
 		,RequestedBy INT
 		,DecidedBy NVARCHAR(200)
 		,KickOffTime DATETIME
-		,ActionId TINYINT
 		,IssuetypeId TINYINT 
 	);
 	
@@ -49,7 +48,6 @@ BEGIN
 	(
 		RequestId INT
 		,VoidingHistoryId INT
-		,VoidData XML
 		,VoidedBy INT
 		,VoidResults XML
 		,MatchId INT
@@ -58,10 +56,9 @@ BEGIN
 		,IsFinish BIT
 	)
 
-	DECLARE @tmpContentMessage TABLE ( RequestId INT, VoidingHistoryId INT, ContentChineseSimplified NVARCHAR(4000), ContentEnglish NVARCHAR(4000))
 	DECLARE @tmpVoidResults TABLE ( VoidingHistoryId INT, Message VARCHAR(MAX), Type INT)
 
-	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, ActionId, IssuetypeId)
+	INSERT INTO #tmpMatch (RequestId, Homeid, Awayid, Leagueid, RequestedBy, DecidedBy, KickOffTime, IssuetypeId)
 	SELECT DISTINCT 
 			 rd.RequestId
 			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.homeid END
@@ -70,18 +67,16 @@ BEGIN
 			,r.UserId
 			,r.DecidedBy
 			,CASE WHEN r.IssuetypeId IN (13,17) THEN NULL ELSE m.kickofftime END 
-			,r.ActionId
 			,r.IssueTypeId
 	FROM dbo.TicketVoiding_RequestDetail rd WITH(NOLOCK)
 		INNER JOIN dbo.TicketVoiding_Request r WITH(NOLOCK) ON rd.RequestId = r.RequestId
 		LEFT JOIN dbo.match m WITH(NOLOCK) ON rd.MatchId = m.matchid
 	WHERE rd.RequestId = @RequestId AND (rd.MatchId = @MatchId OR @MatchId IN (0,29))
 	
-	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy, VoidData) 
+	INSERT INTO #tmpVoidingHistory(RequestId, VoidingHistoryId, VoidedBy) 
 	SELECT	 vh.RequestId
 			,vh.VoidingHistoryId
 			,vh.UserId AS VoidedBy
-			,vh.VoidData
 	FROM dbo.TicketVoiding_VoidingHistory vh WITH(NOLOCK)
 	WHERE vh.RequestId = @RequestId AND vh.StatusId IN (2,3) 
 	
@@ -99,7 +94,7 @@ BEGIN
 		SET vh.VoidResults = s.VoidResults
 		   ,vh.matchid = s.matchID
 		   ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
-		   ,vh.MessageId = s.MessageId
+		   ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID 
 		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
@@ -110,7 +105,7 @@ BEGIN
 		SET vh.VoidResults = s.VoidResults
 			,vh.matchid = s.matchid
 		    ,vh.NegativeBalanceUsers = s.NegativeBalanceUsers
-		    ,vh.MessageId = s.MessageId
+		    ,vh.MessageId = ISNULL(s.MessageId,s.MessageIdSpecial)
 		FROM #tmpVoidingHistory vh
 			INNER JOIN Ticketvoiding_VoidBetAutomation_Service s WITH(NOLOCK) ON vh.RequestId = s.RequestID AND vh.VoidingHistoryId = s.VoidingHistoryId
 		WHERE (s.MatchId = @MatchId OR @MatchId IN (0,29))
@@ -131,21 +126,12 @@ BEGIN
 	BEGIN
 		UPDATE TOP(1) t
 		SET IsFinish = 1
-			,@xmlVoidData = T.VoidData
-			,@VoidingHistoryId = T.VoidingHistoryId
-			,@xmlVoidResults = T.VoidResults
+			,@VoidingHistoryId = t.VoidingHistoryId
+			,@xmlVoidResults = t.VoidResults
 		FROM #tmpVoidingHistory t
 		WHERE t.IsFinish IS NULL
 
 		IF @@ROWCOUNT = 0 BREAK
-
-		INSERT INTO @tmpContentMessage (RequestId,VoidingHistoryId, ContentChineseSimplified,ContentEnglish)
-		SELECT  @RequestId
-				, @VoidingHistoryId
-				, T.C.value('@ContentChineseSimplified', 'NVARCHAR(4000)')
-				, T.C.value('@ContentEnglish', 'NVARCHAR(4000)')
-		FROM	@xmlVoidData.nodes('/VoidData') AS T(C)
-		OPTION (OPTIMIZE FOR (@xmlVoidData = NULL ))
 
 		INSERT INTO @tmpVoidResults ( VoidingHistoryId, Message, Type)
 		SELECT  @VoidingHistoryId,
@@ -171,13 +157,12 @@ BEGIN
 
 	SELECT DISTINCT
 		v.Username AS VoidedBy
-		,CASE WHEN m.ActionId IN (1,4,6,7,8,9,10) THEN msg.Content_cs ELSE cm.ContentChineseSimplified END AS ContentChineseSimplified
-		,CASE WHEN m.ActionId IN (1,4,6,7,8,9,10) THEN msg.Content_en ELSE cm.ContentEnglish END AS ContentEnglish
+		,msg.Content_cs AS ContentChineseSimplified
+		,msg.Content_en AS ContentEnglish
 	FROM #tmpVoidingHistory s
 	INNER JOIN #tmpMatch m ON s.RequestId = m.RequestId
 	INNER JOIN CustDB.dbo.Customer v WITH(NOLOCK) ON s.VoidedBy = v.CustId
 	LEFT JOIN DBMSG.bodb_Message.dbo.Msg msg WITH (NOLOCK) ON s.MessageId = msg.MessageId
-	LEFT JOIN @tmpContentMessage cm ON cm.RequestId = s.RequestId AND cm.VoidingHistoryId = s.VoidingHistoryId
 	WHERE 1 = CASE WHEN m.IssuetypeId <> 17 THEN 1 ELSE 0 END
 
 	SELECT DISTINCT Message
