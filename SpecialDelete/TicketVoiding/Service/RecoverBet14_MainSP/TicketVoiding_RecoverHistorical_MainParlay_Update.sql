@@ -46,9 +46,13 @@ BEGIN
 			,@avaiableProcess BIT
 			,@SiteDBGroupID		SMALLINT = 0
 			,@CustIds			VARCHAR(MAX)
+			,@IsSiteDB			BIT 
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	SET @ResettledTransIds = @TransIds
+
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 
 	--Get Movebetdate
 	EXEC dbo.NAP_Admin_GetMovebetDate @movebetdate = @moveBetDay OUTPUT
@@ -366,6 +370,8 @@ BEGIN
 			-- update summary ticket
 			EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 				@AffectedList = @AffectedList
+				,@IsSiteDB = @IsSiteDB
+				,@Action = 'Recover_14'
 		END TRY
 		BEGIN CATCH
 			SELECT 	@ErrCode = 100

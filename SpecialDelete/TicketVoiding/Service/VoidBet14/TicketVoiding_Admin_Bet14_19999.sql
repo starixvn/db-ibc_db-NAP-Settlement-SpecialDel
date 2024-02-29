@@ -3,6 +3,7 @@ ALTER PROCEDURE [dbo].[TicketVoiding_Admin_Bet14_19999]
 (
 	@AffectedList VARCHAR(MAX)
 	,@IsSiteDB			BIT  = 0
+	,@Action	VARCHAR(100) = NULL
 )
 AS
 /*
@@ -15,6 +16,7 @@ AS
 		- 20211229@Max: [TVS] Changes of TVS related to split Transfer out of bettrans [Redmine: #165093]
 		- 20220727@Max: [TVS] Change of TVS regarding to Scale out DBTrans [Redmine: #175412]
 		- 20230201@Max: [TVS] Separate Sync Log table for SB and Non-Sports [Redmine: #179183]
+		- 20231227@Max: [TVS] Recover Ticket issue type [Redmine: #196020]
 		
 	Param's Explanation:  
 	
@@ -132,7 +134,7 @@ BEGIN
 		IF @transInfo IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson)
-			SELECT 'TVS', 'Void_14', 'Transfer', 'U', 0, @transInfo
+			SELECT 'TVS', ISNULL(@Action, 'Void_14'), 'Transfer', 'U', 0, @transInfo
 		END
 
 		DELETE @tmpTransInfo
@@ -206,7 +208,7 @@ BEGIN
 		IF @transInfo IS NOT NULL
 		BEGIN
 			INSERT INTO dbo.SiteDB_SettlementService_CalculationLog (SystemName, FunctionName, TableName, Action, MatchId, TransInfoJson)
-			SELECT 'TVS', 'Void_14', 'Transfer', 'I', 0, @transInfo
+			SELECT 'TVS', ISNULL(@Action, 'Void_14'), 'Transfer', 'I', 0, @transInfo
 		END
 	END
 			

@@ -342,6 +342,7 @@ BEGIN
 				EXEC dbo.TicketVoiding_Admin_Bet14_RoutineTask_Insert 
 					@AffectedList = @AffectedList
 					,@IsSiteDB = @IsSiteDB
+					,@Action = 'Recover_14'
 			END TRY
 			BEGIN CATCH
 				SELECT	ERROR_PROCEDURE () + ERROR_MESSAGE()

@@ -48,6 +48,10 @@ BEGIN
 			,@SiteDBGroupID     SMALLINT = 0
 			,@TransInfo			VARBINARY(MAX)
 			,@CustIds			VARCHAR(MAX)
+			,@IsSiteDB			BIT
+			
+	IF OBJECT_ID('SiteDB_SettlementService_CalculationLog','U') IS NOT NULL 
+		SET @IsSiteDB = 1
 	
 	SELECT @SiteDBGroupID = dbo.f_Get_SiteDBGroupID()
 	
@@ -747,6 +751,8 @@ BEGIN
 			-- update summary ticket
 			EXEC dbo.TicketVoiding_Admin_Bet14_19999 
 				@AffectedList = @AffectedList
+				,@IsSiteDB = @IsSiteDB
+				,@Action = 'Recover_14'
 		END TRY
 		BEGIN CATCH
 			SELECT	@ErrCode = 100
