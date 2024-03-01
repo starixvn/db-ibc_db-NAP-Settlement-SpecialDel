@@ -159,7 +159,6 @@ BEGIN
 	WHERE StatusId NOT IN (102) --VOID
 		OR bt.bettype IS NULL
 		OR t.betfrom = 'p'
-		OR (@FilterBy IS NULL AND bt.bettype = 29 AND t.betteam <> '1')
 		
 	-- invalid transId
 	SELECT @InvalidTransIds = ISNULL(STUFF((SELECT ',' + CAST(t.transid AS VARCHAR(50))
