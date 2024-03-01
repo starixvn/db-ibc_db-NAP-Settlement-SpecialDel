@@ -1,8 +1,9 @@
-/*<info serverAlias="DBARC-bodb_archive" executers="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBACC-bodb02" executers="" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE NAP_Settlement_Result_Statistics_Esports
 (
-	@FromDate	DATETIME 
-	,@ToDate	DATETIME 
+	@IsActive	BIT		 = 0
+	,@Is14		BIT		 = 0
+	,@IsBK		BIT		 = 0 
 	,@SportType	SMALLINT 
 )
 AS
@@ -14,18 +15,21 @@ AS
     Revisions:
 		-20231208@louisa: Init [Redmine:#197548]
 		-20240206Louisa: Add data Trader, Pandascore [Redmine:#197548]
-		-20240222@Louisa: Move SP from DBPRO to DBARC [Redmine:#201196]
+		-20240222@Louisa: Move SP from DBPRO to DBACC [Redmine:#201196]
 */
 BEGIN
 	SET NOCOUNT ON;
 
 	--use #tmp_matchInfo from parent SPs
 
+	DROP TABLE IF EXISTS  #tmp_ResultSettle
 	DROP TABLE IF EXISTS  #tmp_ResultProvider
 	DROP TABLE IF EXISTS  #tbl_ResourceESports
 
-	CREATE TABLE #tmp_ResultProvider ( SourceID INT, MatchId INT, ResourceID VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
+	CREATE TABLE #tmp_ResultSettle ( MatchId INT, ResourceID VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50))
+	CREATE INDEX IDX_tmp_ResultSettle ON #tmp_ResultSettle(MatchID, ResourceID)
 	
+	CREATE TABLE #tmp_ResultProvider ( SourceID INT, MatchId INT, ResourceID VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )	
 	CREATE INDEX IDX_tmp_ResultProvider ON #tmp_ResultProvider(MatchID, ResourceID, SourceID)
 
 	CREATE TABLE #tbl_ResourceESports
@@ -120,8 +124,8 @@ BEGIN
 	;WITH cte_ResultProvider ( SourceId, MatchId, ResourceID, HomeValue, AwayValue, rk) AS
 	(
 		SELECT pr.SourceId, pr.matchid, pr.ResourceId, pr.HomeValue, pr.AwayValue
-				,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.ID DESC ) AS rk
-		FROM ProviderExternalResultDetailESBK pr with(nolock)
+				,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.ProviderExternalID DESC ) AS rk
+		FROM DBLOG.bodb_CustomerLog_archive.dbo.ProviderExternalResultDetailESBK pr with(nolock)
 			INNER JOIN	#tmp_matchInfo m  
 				ON pr.matchid = m.matchid 
 		WHERE pr.SourceId  IN ( 100, 16,23,30,22)
@@ -131,6 +135,36 @@ BEGIN
 	SELECT  r.MatchId, SourceId, ResourceID, HomeValue, AwayValue
 	FROM cte_ResultProvider r
 	WHERE rk = 1
+
+	IF @IsActive = 1
+	BEGIN
+		INSERT INTO #tmp_ResultSettle ( MatchId, ResourceID, HomeValue, AwayValue)
+		SELECT r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue
+		FROM dbo.ResultDetailES r WITH(NOLOCK)
+			INNER JOIN	#tmp_matchInfo m
+				ON r.matchid = m.matchid 
+		WHERE r.ResultStatusID IN (2, 5)
+	END
+
+	IF @Is14 = 1
+	BEGIN
+		INSERT INTO #tmp_ResultSettle ( MatchId, ResourceID, HomeValue, AwayValue)
+		SELECT r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue
+		FROM dbo.ResultDetailES14 r WITH(NOLOCK)
+			INNER JOIN	#tmp_matchInfo m
+				ON r.matchid = m.matchid 
+		WHERE r.ResultStatusID IN (2, 5)
+	END
+
+	IF @IsBK = 1
+	BEGIN
+		INSERT INTO #tmp_ResultSettle ( MatchId, ResourceID, HomeValue, AwayValue)
+		SELECT r.MatchId, r.ResourceID, r.HomeValue, r.AwayValue
+		FROM bodb_archive.dbo.ResultDetailES_BK r WITH(NOLOCK)
+			INNER JOIN	#tmp_matchInfo m
+				ON r.matchid = m.matchid 
+		WHERE r.ResultStatusID IN (2, 5)
+	END
 
 	--------------------------------------------------------------
 	;WITH cte_ResultProviderT ( MatchId, ResourceID, HomeValue, AwayValue) AS
@@ -189,7 +223,7 @@ BEGIN
 		, CASE WHEN a.ResourceID IS NULL THEN 'no data' ELSE a.HomeValue END AS [HomeValue(Abios)]
 		, CASE WHEN a.ResourceID IS NULL THEN 'no data' ELSE a.AwayValue END AS [AwayValue(Abios)]
 	FROM  #tmp_matchInfo m
-		INNER JOIN ResultDetailESBK r WITH(NOLOCK)
+		INNER JOIN #tmp_ResultSettle r
 			ON r.MatchID = m.MatchID
 		OUTER APPLY ( SELECT rs.ResourceId, rs.HomeValue, rs.AwayValue   
 						FROM cte_ResultProviderT rs

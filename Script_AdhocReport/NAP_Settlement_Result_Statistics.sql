@@ -1,4 +1,4 @@
-/*<info serverAlias="DBARC-bodb_archive" executers="bodbAdminNet" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBACC-bodb02" executers="bodbAdminNet" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE NAP_Settlement_Result_Statistics
 (
     @FromDate   DATETIME 
@@ -9,12 +9,12 @@ AS
 /*
     Created: 20231120@Louisa
     Task : Internal report for Cricket-result settle and Provider score [Redmine:#197548]
-    DB: DBARC/bodb_archive
+    DB: DBACC-bodb02
 
     Revisions:
         -20231120@Louisa: Init [Redmine:#197548]
 		-20231219@Louisa: Exclude RedCat88 [Redmine:#198365]
-		-20240222@Louisa: Move SP from DBPRO to DBARC [Redmine:#201196]
+		-20240222@Louisa: Move SP from DBPRO to DBACC [Redmine:#201196]
 */
 BEGIN
     SET NOCOUNT ON;
@@ -36,23 +36,35 @@ BEGIN
 
 	DECLARE  @maxEventDate14 DATETIME
 			,@maxEventDateBK DATETIME
+			,@IsActive		 BIT = 0
+			,@Is14			 BIT = 0
+			,@IsBK			 BIT = 0
 	
+	IF @toDate > @maxEventDate14
+	SET @IsActive = 1
+
+	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
+	SET @Is14 = 1
+
+	IF @fromDate < @maxEventDateBK
+	SET @IsBK = 1
+
     DROP TABLE IF EXISTS  #tmp_matchInfo
 
     CREATE TABLE #tmp_matchInfo ( MatchId INT, eventdate DATETIME, leaguename  NVARCHAR(1000), GameSession TINYINT, HomeName NVARCHAR(200), AwayName  NVARCHAR(200) )
     CREATE CLUSTERED INDEX IDX_tmp_matchInfo ON #tmp_matchInfo (MatchID)
 
-	SELECT @maxEventDate14 = MAX(EventDate) FROM bodb02.dbo.match14 m WITH(NOLOCK)
-	SELECT @maxEventDateBK = MAX(EventDate) FROM dbo.match_bk m WITH(NOLOCK)
+	SELECT @maxEventDate14 = MAX(EventDate) FROM dbo.match14 m WITH(NOLOCK)
+	SELECT @maxEventDateBK = MAX(EventDate) FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
 
-	IF @toDate > @maxEventDate14
+	IF @IsActive = 1
 	BEGIN
 		INSERT INTO #tmp_matchInfo ( MatchId, eventdate, leaguename, GameSession, HomeName, AwayName )
 		SELECT m.matchid, m.eventdate, l.leaguename, l.GameSession, home.teamname AS HomeName, away.teamname AS AwayName 
-		FROM bodb02.dbo.match m WITH(NOLOCK)
-			INNER JOIN bodb02.dbo.league l with(nolock) on m.leagueid = l.leagueid
-			INNER JOIN bodb02.dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
-			INNER JOIN bodb02.dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
+		FROM dbo.match m WITH(NOLOCK)
+			INNER JOIN dbo.league l with(nolock) on m.leagueid = l.leagueid
+			INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
+			INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
 		WHERE  m.sporttype = @SportType
 			AND ISNULL(m.childmatchType,0) <> 200
 			AND m.eventdate BETWEEN @FromDate AND  @ToDate
@@ -64,14 +76,14 @@ BEGIN
 	END
 
 	--match14
-	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
+	IF @Is14 = 1
 	BEGIN
 		INSERT INTO #tmp_matchInfo ( MatchId, eventdate, leaguename, GameSession, HomeName, AwayName )
 		SELECT m.matchid, m.eventdate, l.leaguename, l.GameSession, home.teamname AS HomeName, away.teamname AS AwayName 
-		FROM bodb02.dbo.match14 m WITH(NOLOCK)
-			INNER JOIN bodb02.dbo.league l with(nolock) on m.leagueid = l.leagueid
-			INNER JOIN bodb02.dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
-			INNER JOIN bodb02.dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
+		FROM dbo.match14 m WITH(NOLOCK)
+			INNER JOIN dbo.league l with(nolock) on m.leagueid = l.leagueid
+			INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
+			INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
 		WHERE  m.sporttype = @SportType
 			AND ISNULL(m.childmatchType,0) <> 200
 			AND m.eventdate BETWEEN @FromDate AND  @ToDate
@@ -81,14 +93,14 @@ BEGIN
 					 END
 	END
 
-	IF @fromDate < @maxEventDateBK
+	IF @IsBK = 1
 	BEGIN
 		INSERT INTO #tmp_matchInfo ( MatchId, eventdate, leaguename, GameSession, HomeName, AwayName )
 		SELECT m.matchid, m.eventdate, l.leaguename, l.GameSession, home.teamname AS HomeName, away.teamname AS AwayName 
-		FROM dbo.match_bk m WITH(NOLOCK)
-			INNER JOIN bodb02.dbo.league l with(nolock) on m.leagueid = l.leagueid
-			INNER JOIN bodb02.dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
-			INNER JOIN bodb02.dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
+		FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
+			INNER JOIN dbo.league l with(nolock) on m.leagueid = l.leagueid
+			INNER JOIN dbo.team home WITH(NOLOCK) ON m.homeid = home.teamid
+			INNER JOIN dbo.team away WITH(NOLOCK) ON m.awayid =  away.teamid
 		WHERE  m.sporttype = @SportType
 			AND ISNULL(m.childmatchType,0) <> 200
 			AND m.eventdate BETWEEN @FromDate AND  @ToDate
@@ -102,16 +114,18 @@ BEGIN
 	IF @SportType = 50
 	BEGIN
 		EXEC NAP_Settlement_Result_Statistics_Cricket
-			@FromDate	=  @FromDate
-			,@ToDate	=  @ToDate
-			,@SportType	=  @SportType
+			@IsActive	= @IsActive
+			,@Is14		= @Is14
+			,@IsBK		= @IsBK
+			,@SportType	= @SportType
 	END
 
 	IF  @SportType = 43
 	BEGIN
 		EXEC NAP_Settlement_Result_Statistics_Esports
-			@FromDate	=  @FromDate
-			,@ToDate	=  @ToDate
+			@IsActive	= @IsActive
+			,@Is14		= @Is14
+			,@IsBK		= @IsBK
 			,@SportType	=  @SportType
 	END
 
