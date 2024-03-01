@@ -376,10 +376,6 @@ BEGIN
 		SELECT	@Msg = @Msg + ',' + CAST(TransId AS VARCHAR)
 		FROM	@tmpInputTransId
 		WHERE	invalid = 4
-
-		IF @@rowcount > 0
-			SET	@ErrCode = 99
-			SET @ErrMsg = @ErrMsg + 'Could not recover some tickets due to Movebet process. Please try Search again: ' + STUFF(@Msg, 1, 1, '') + '. '
 			
 		RETURN
 				

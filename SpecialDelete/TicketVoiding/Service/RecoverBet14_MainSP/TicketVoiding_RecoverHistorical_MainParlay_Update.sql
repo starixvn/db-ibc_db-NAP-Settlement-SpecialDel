@@ -108,6 +108,7 @@ BEGIN
 		,refno		BIGINT
 		,custid		INT
 		,invalid	TINYINT DEFAULT(0)
+		,WinlostDate	DATETIME
 	)
 
 	SET @StartTime = GETDATE()
@@ -118,13 +119,11 @@ BEGIN
 	SELECT	DISTINCT value
 	FROM STRING_SPLIT(@TransIds, ',')
 
-	INSERT INTO #tmpTransId (TransId,custid, refno, invalid)
+	INSERT INTO #tmpTransId (TransId,custid, refno, invalid, WinlostDate)
 	SELECT	b14.transid,b14.custid
 			,b14.refno
-			,CASE
-				WHEN b14.winlostdate < @FromDate OR b14.winlostdate > @ToDate THEN 4
-				ELSE 0
-			END AS invalid
+			,0 AS invalid
+			,b14.winlostdate
 	FROM	@tmpInputTransId t
 		INNER JOIN dbo.bettrans14 b14 WITH(NOLOCK)
 			ON	t.TransId = b14.transid
@@ -197,25 +196,37 @@ BEGIN
 		IF @@rowcount > 0
 			SET @ErrMsg = @ErrMsg + 'Existing but data has not been moved yet: ' + STUFF(@Msg, 1, 1, '') + '. '
 		
-		SET @Msg = ''
-		SELECT	@Msg = @Msg + ',' + CAST(TransId AS VARCHAR)
-		FROM	@tmpInputTransId
-		WHERE	invalid = 4
-
-		IF @@rowcount > 0
-			SET @ErrMsg = @ErrMsg + 'BetID are not within supported date range: ' + STUFF(@Msg, 1, 1, '') + '. '
-			
 		RETURN
 				
 	END
 
-	IF EXISTS (SELECT TOP 1 1 FROM SystemSettings WITH (NOLOCK) WHERE VName = 'IsMovingBet' AND VValue = 1)
-	BEGIN
-		SET @ErrCode = 100
-		SET @ErrMsg = @ErrMsg + 'This Movebet process is running, please wait until the on-going process is completed and try again.'
-		
-		RETURN
-		
+	/*Modify the way to get move bet date*/
+	DECLARE @BeingMovebetDate SMALLDATETIME 
+		   ,@currentdate SMALLDATETIME = GETDATE()
+
+	DECLARE @tblTransId_MoveBet TABLE (MatchId INT, TransId BIGINT)
+	
+	-- get current beingmovebetdate if movebet in-progress, paste @currentdate to get @BeingMovebetDate only
+	EXEC [dbo].[NAP_Admin_VerifySettleDate] @Winlostdate = @currentdate, @BeingMovebetDate = @BeingMovebetDate OUTPUT
+
+	IF @IssueTypeId IN (13) AND EXISTS (SELECT TOP 1 1 FROM #tmpTransId WHERE WinlostDate = @BeingMovebetDate)
+	BEGIN	
+		DELETE 
+		FROM #tmpTransId
+			OUTPUT	@MatchId, DELETED.TransId
+			INTO  @tblTransId_MoveBet (Matchid, TransId)
+		WHERE WinlostDate = @BeingMovebetDate
+
+		SET @MoveBetMatchIds = CAST((SELECT DISTINCT t.MatchId "@MatchId"
+									  , CASE WHEN t.MatchId IN (9,29,2799) THEN  STUFF(ts.TransIds,1,1,'') ELSE NULL END "@TransIds"
+								FROM @tblTransId_MoveBet t
+									OUTER APPLY (SELECT ',' + CAST(TransId AS VARCHAR(MAX)) 
+													FROM @tblTransId_MoveBet s
+													WHERE s.MatchId = t.MatchId AND t.MatchId IN (9,29,2799)
+													FOR XML PATH('')
+												)ts	 (TransIds)
+								FOR XML PATH('r'), ROOT('root')
+								) AS VARCHAR(MAX))
 	END
 	
 	EXEC dbo.NAP_Admin_CheckingProcess
