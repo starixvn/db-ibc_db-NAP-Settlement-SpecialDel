@@ -25,6 +25,7 @@ AS
 		- 20230404@Louisa: Checking related resourceid for result early badminton,volleyball [Redmine:#185818]
 		- 20230801@Aries: Support Instant Settlement for Basketball [Redmine:#189662]
 		- 20230724@Louisa: Enhance for Tennis - exclude Auto for match has confirm score is 0-0 [Redmine:#189433]
+		- 20240301@Aries: Direct payout run before waiting time [Redmine:#201698]
 
 	Param's Explanation:
 		- @AutoSetting: 
@@ -39,7 +40,7 @@ BEGIN
 	
 	SET NOCOUNT ON
 
-	DECLARE @checkTime TINYINT = 30
+	DECLARE @checkTime INT = 300
 			,@n INT
 			,@ExternalResultTable TINYINT = 0
 			,@ResultTable TINYINT = 0
@@ -107,7 +108,7 @@ BEGIN
 							SELECT TOP 1 ss.WaitingTime
 							FROM	dbo.SettlementSetting ss WITH (NOLOCK)
 							WHERE	ss.LeagueId = m.leagueid
-									AND ss.AutoType = 1 -- Auto Payout
+									AND ss.AutoType = 5 -- direct Auto Payout
 						) ss
 			CROSS APPLY (
 				SELECT TOP (@n) r.MatchID, r.ResourceID, r.HomeValue, r.AwayValue
