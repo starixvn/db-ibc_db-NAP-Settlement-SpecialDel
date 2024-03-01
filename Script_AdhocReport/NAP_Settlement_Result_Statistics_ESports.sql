@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBARC-bodb_archive" executers="" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE NAP_Settlement_Result_Statistics_Esports
 (
 	@FromDate	DATETIME 
@@ -9,16 +9,17 @@ AS
 /*
     Created: 20231208@Louisa
     Task : Internal report for ESports-result settle and Provider score [Redmine:#197548]
-    DB: DBPRO/bodb02
+    DB: DBARC/bodb_archive
 
     Revisions:
 		-20231208@louisa: Init [Redmine:#197548]
 		-20240206Louisa: Add data Trader, Pandascore [Redmine:#197548]
+		-20240222@Louisa: Move SP from DBPRO to DBARC [Redmine:#201196]
 */
 BEGIN
 	SET NOCOUNT ON;
 
-	--use #tmp_matchInfo, #tmp_ResultSettle from parent SPs
+	--use #tmp_matchInfo from parent SPs
 
 	DROP TABLE IF EXISTS  #tmp_ResultProvider
 	DROP TABLE IF EXISTS  #tbl_ResourceESports
@@ -119,8 +120,8 @@ BEGIN
 	;WITH cte_ResultProvider ( SourceId, MatchId, ResourceID, HomeValue, AwayValue, rk) AS
 	(
 		SELECT pr.SourceId, pr.matchid, pr.ResourceId, pr.HomeValue, pr.AwayValue
-				,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.CreateDate DESC ) AS rk
-		FROM ProviderExternalResultDetailES pr with(nolock)
+				,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.ID DESC ) AS rk
+		FROM ProviderExternalResultDetailESBK pr with(nolock)
 			INNER JOIN	#tmp_matchInfo m  
 				ON pr.matchid = m.matchid 
 		WHERE pr.SourceId  IN ( 100, 16,23,30,22)
@@ -164,13 +165,13 @@ BEGIN
 	)
 	,cte_return AS 
 	(
-	SELECT r.eventdate,r.MatchId,  r.leaguename, r.GameSession,  r.ResourceID
+	SELECT m.eventdate,r.MatchId,  m.leaguename, m.GameSession,  r.ResourceID
 		, CAST( CASE WHEN r.ResourceID LIKE 'M%' THEN SUBSTRING(r.ResourceID,2, 2) 
 				ELSE SUBSTRING(r.ResourceID, 5, 2 ) 
 				END
 			AS TINYINT) AS X
 		, CAST( SUBSTRING(r.ResourceID, 7, 2 ) AS TINYINT )AS Y
-		,r.HomeName +' -vs- '+ r.AwayName as match
+		,m.HomeName +' -vs- '+ m.AwayName as match
 		, r.HomeValue, r.AwayValue 
 	
 		, CASE WHEN t.ResourceID IS NULL THEN 'no data' ELSE t.HomeValue END AS [HomeValue(Trader)] 
@@ -187,7 +188,9 @@ BEGIN
 
 		, CASE WHEN a.ResourceID IS NULL THEN 'no data' ELSE a.HomeValue END AS [HomeValue(Abios)]
 		, CASE WHEN a.ResourceID IS NULL THEN 'no data' ELSE a.AwayValue END AS [AwayValue(Abios)]
-	FROM #tmp_ResultSettle r
+	FROM  #tmp_matchInfo m
+		INNER JOIN ResultDetailESBK r WITH(NOLOCK)
+			ON r.MatchID = m.MatchID
 		OUTER APPLY ( SELECT rs.ResourceId, rs.HomeValue, rs.AwayValue   
 						FROM cte_ResultProviderT rs
 						WHERE r.MatchId = rs.MatchId and r.ResourceID = rs.ResourceID

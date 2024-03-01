@@ -1,4 +1,4 @@
-/*<info serverAlias="DBPRO-bodb02" executers="" viewers="" isFunction="0" isNested="0"></info>*/
+/*<info serverAlias="DBARC-bodb_archive" executers="" viewers="" isFunction="0" isNested="0"></info>*/
 ALTER PROCEDURE NAP_Settlement_Result_Statistics_Cricket
 (
 	@FromDate	DATETIME 
@@ -9,30 +9,24 @@ AS
 /*
     Created: 20231208@Louisa
     Task : Internal report for Cricket-result settle and Provider score [Redmine:#197548]
-    DB: DBPRO/bodb02
+    DB: DBARC/bodb_archive
 
     Revisions:
-		-20231208@louisa: Init [Redmine:#197548]
+		-20231208@Louisa: Init [Redmine:#197548]
+		-20240222@Louisa: Move SP from DBPRO to DBARC [Redmine:#201196]
 */
 BEGIN
 	SET NOCOUNT ON;
 
-	--use #tmp_matchInfo, #tmp_ResultSettle from parent SPs
-
-	DROP TABLE IF EXISTS  #tmp_ResultProvider
+	--use #tmp_matchInfo from parent SPs
+	
+    DROP TABLE IF EXISTS  #tmp_ResultProvider
 	DROP TABLE IF EXISTS  #tbl_ResourceCricket
 
-	CREATE TABLE #tmp_ResultProvider ( SourceID INT, MatchId INT, ResourceID VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )
-	
+	CREATE TABLE #tmp_ResultProvider ( SourceID INT, MatchId INT, ResourceID VARCHAR(50), HomeValue VARCHAR(50), AwayValue VARCHAR(50) )	
 	CREATE INDEX IDX_tmp_ResultProvider ON #tmp_ResultProvider(MatchID, ResourceID)
 
-	CREATE TABLE #tbl_ResourceCricket
-	(	ID INT IDENTITY(1,1)
-		, ResourceName VARCHAR(200)
-		, Prefix	VARCHAR(6)
-		, Sufix		VARCHAR(20)
-		, G_Range	VARCHAR(3) 	
-	)
+	CREATE TABLE #tbl_ResourceCricket(	ID INT IDENTITY(1,1), ResourceName VARCHAR(200), Prefix	VARCHAR(6), Sufix VARCHAR(20), G_Range	VARCHAR(3) 	)
 
 	DECLARE @tbl_ResourceFormat TABLE (	ResourceName  VARCHAR(200),Prefix VARCHAR(6),Sufix VARCHAR(20)	,G_Range VARCHAR(3)	, ResourceId VARCHAR(20))
 
@@ -109,12 +103,12 @@ BEGIN
 
 	;WITH cte_ResultProvider ( SourceId, MatchId, ResourceID, HomeValue, AwayValue, rk) AS
 	(
-	SELECT pr.SourceId, pr.matchid, pr.ResourceId, pr.HomeValue, pr.AwayValue
-			,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.CreateDate DESC ) AS rk
-	FROM ProviderExternalResultDetailOS pr with(nolock)
-		INNER JOIN	#tmp_matchInfo m  
-			ON pr.matchid = m.matchid 
-	WHERE pr.SourceId  IN ( 24, 32)
+		SELECT pr.SourceId, pr.matchid, pr.ResourceId, pr.HomeValue, pr.AwayValue
+				,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.ID DESC ) AS rk
+		FROM ProviderExternalResultDetailOS_BK pr with(nolock)
+			INNER JOIN	#tmp_matchInfo m  
+				ON pr.matchid = m.matchid 
+		WHERE pr.SourceId  IN ( 24, 32)
 	  )
   
 	INSERT INTO #tmp_ResultProvider ( MatchId, SourceId, ResourceID, HomeValue, AwayValue)
@@ -141,11 +135,11 @@ BEGIN
 
 	;WITH cte_return AS 
 	(
-	SELECT r.eventdate,r.MatchId,  r.leaguename, r.GameSession,  r.ResourceID
-		,CAST(SUBSTRING(r.ResourceID,5,1) AS TINYINT) AS G
-		,CAST(SUBSTRING(r.ResourceID,6,3) AS TINYINT) AS X ---X OR Z
-		,CAST(SUBSTRING(r.ResourceID,9,2) AS TINYINT) AS Y
-		,r.HomeName +' -vs- '+ r.AwayName as match
+	SELECT m.eventdate, r.MatchId,  m.leaguename, m.GameSession,  r.ResourceID
+		,CAST(SUBSTRING(r.ResourceID,5,1) AS SMALLINT) AS G
+		,CAST(SUBSTRING(r.ResourceID,6,3) AS SMALLINT) AS X ---X OR Z
+		,CAST(SUBSTRING(r.ResourceID,9,2) AS SMALLINT) AS Y
+		,m.HomeName +' -vs- '+ m.AwayName as match
 		,r.HomeValue, r.AwayValue 
 	
 		, CASE WHEN w.ResourceID IS NULL THEN 'no data' ELSE W.HomeValue END AS [HomeValue(Weverdat)] 
@@ -153,7 +147,9 @@ BEGIN
 	
 		, CASE WHEN ts.ResourceID IS NULL THEN 'no data' ELSE TS.HomeValue END AS [HomeValue(TheSports)]
 		, CASE WHEN ts.ResourceID IS NULL THEN 'no data' ELSE TS.AwayValue END AS [AwayValue(TheSports)]
-	FROM #tmp_ResultSettle r
+	FROM #tmp_matchInfo m
+		INNER JOIN ResultDetailOSBK r WITH(NOLOCK)
+			ON r.MatchID = m.MatchID
 		OUTER APPLY ( SELECT rs.ResourceId, rs.HomeValue, rs.AwayValue   FROM #tmp_ResultProviderW rs
 						WHERE r.MatchId = rs.MatchId and r.ResourceID = rs.ResourceID
 						) W
