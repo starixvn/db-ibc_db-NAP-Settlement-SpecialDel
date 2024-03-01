@@ -125,7 +125,7 @@ BEGIN
 	(
 		SELECT pr.SourceId, pr.matchid, pr.ResourceId, pr.HomeValue, pr.AwayValue
 				,ROW_NUMBER() OVER( PARTITION BY pr.SourceId, pr.matchid, pr.ResourceId ORDER BY pr.ProviderExternalID DESC ) AS rk
-		FROM DBLOG.bodb_CustomerLog_archive.dbo.ProviderExternalResultDetailESBK pr with(nolock)
+		FROM DBLOG.bodb_CustomerLog_archive.dbo.ProviderExternalResultDetailES_BK pr with(nolock)
 			INNER JOIN	#tmp_matchInfo m  
 				ON pr.matchid = m.matchid 
 		WHERE pr.SourceId  IN ( 100, 16,23,30,22)
