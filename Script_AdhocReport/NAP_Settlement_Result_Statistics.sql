@@ -39,15 +39,6 @@ BEGIN
 			,@IsActive		 BIT = 0
 			,@Is14			 BIT = 0
 			,@IsBK			 BIT = 0
-	
-	IF @toDate > @maxEventDate14
-	SET @IsActive = 1
-
-	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
-	SET @Is14 = 1
-
-	IF @fromDate < @maxEventDateBK
-	SET @IsBK = 1
 
     DROP TABLE IF EXISTS  #tmp_matchInfo
 
@@ -56,6 +47,15 @@ BEGIN
 
 	SELECT @maxEventDate14 = MAX(EventDate) FROM dbo.match14 m WITH(NOLOCK)
 	SELECT @maxEventDateBK = MAX(EventDate) FROM bodb_archive.dbo.match_bk m WITH(NOLOCK)
+
+	IF @toDate > @maxEventDate14
+	SET @IsActive = 1
+
+	IF @fromDate <= @maxEventDate14 AND @toDate > @maxEventDateBK
+	SET @Is14 = 1
+
+	IF @fromDate < @maxEventDateBK
+	SET @IsBK = 1
 
 	IF @IsActive = 1
 	BEGIN
